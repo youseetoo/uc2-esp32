@@ -6,3 +6,6 @@
 	path = libraries/PS4-esp32
 	url = https://github.com/youseetoo/PS4-esp32.git
 	branch = master
+[submodule "libraries/AccelStepper"]
+	path = libraries/AccelStepper
+	url = https://github.com/youseetoo/AccelStepper.git

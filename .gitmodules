@@ -13,3 +13,15 @@
 	path = libraries/JPEGDecoder
 	url = https://github.com/youseetoo/JPEGDecoder.git
 	branch = master
+[submodule "libraries/Adafruit-ST7735-Library"]
+	path = libraries/Adafruit-ST7735-Library
+	url = https://github.com/adafruit/Adafruit-ST7735-Library.git
+	branch = master
+[submodule "libraries/ArduinoJson"]
+	path = libraries/ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson.git
+	branch = 6.x
+[submodule "libraries/Adafruit_NeoPixel"]
+	path = libraries/Adafruit_NeoPixel
+	url = https://github.com/adafruit/Adafruit_NeoPixel.git
+	branch = master

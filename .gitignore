@@ -1,0 +1,6 @@
+/main/build/*
+/main/.vs/*
+/.vscode/*
+/build/*
+*.DS_Store
+/main/CppProperties.json

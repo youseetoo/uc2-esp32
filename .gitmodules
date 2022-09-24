@@ -1,0 +1,8 @@
+[submodule "libraries/esp32-ps3"]
+	path = libraries/esp32-ps3
+	url = https://github.com/youseetoo/esp32-ps3.git
+	branch = master
+[submodule "libraries/PS4-esp32"]
+	path = libraries/PS4-esp32
+	url = https://github.com/youseetoo/PS4-esp32.git
+	branch = master

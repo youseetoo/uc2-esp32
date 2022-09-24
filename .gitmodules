@@ -9,3 +9,7 @@
 [submodule "libraries/AccelStepper"]
 	path = libraries/AccelStepper
 	url = https://github.com/youseetoo/AccelStepper.git
+[submodule "libraries/JPEGDecoder"]
+	path = libraries/JPEGDecoder
+	url = https://github.com/youseetoo/JPEGDecoder.git
+	branch = master

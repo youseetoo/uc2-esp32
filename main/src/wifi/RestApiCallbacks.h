@@ -7,10 +7,11 @@
 #include "parameters_wifi.h"
 #include "../config/ConfigController.h"
 #include "../wifi/WifiController.h"
+#include "../bt/BtController.h"
 #include <esp_log.h>
 #ifdef IS_MOTOR
 #include "../motor/FocusMotor.h"
-#endif 
+#endif
 #ifdef IS_LASER
 #include "../laser/LaserController.h"
 #endif
@@ -33,15 +34,15 @@
 #include "../sensor/SensorController.h"
 #endif
 #ifdef IS_SLM
-    #include "../slm/SlmController.h"
+#include "../slm/SlmController.h"
 #endif
 #if defined IS_DAC || defined IS_DAC_FAKE
-    #include "../dac/DacController.h"
+#include "../dac/DacController.h"
 #endif
 namespace RestApi
 {
     /*
-        handle invalide requests with a error message 
+        handle invalide requests with a error message
     */
     void handleNotFound();
     void ota();
@@ -56,7 +57,7 @@ namespace RestApi
     */
     void serialize();
     void getIdentity();
-    /* 
+    /*
         returns an array that contains the endpoints
         endpoint:/features_get or /
         input[]
@@ -83,7 +84,7 @@ namespace RestApi
     */
     void getEndpoints();
     /*
-        start a wifiscan and return the results 
+        start a wifiscan and return the results
         endpoint:/wifi/scan
         input []
         output
@@ -123,6 +124,27 @@ namespace RestApi
     void Dac_set();
 #endif
 #ifdef IS_LED
+    /*
+    controls the leds
+    endpoint:/ledarr_act
+    input
+    {
+        "led": {
+            "LEDArrMode": 1,
+            "NLeds": 63,
+            "led_array": [
+                {
+                    "blue": 0,
+                    "green": 0,
+                    "id": 0,
+                    "red": 0
+                }
+            ]
+        }
+    }
+    output
+    []
+    */
     void Led_act();
     void Led_get();
     void Led_set();
@@ -153,6 +175,23 @@ namespace RestApi
     void Slm_get();
     void Slm_set();
 #endif
+    /*
+    returns an array that contains the visible bt devices
+        endpoint:/bt_scan
+        input[]
+        output
+        [
+            {
+                "name" :"HyperX",
+                "mac": "01:02:03:04:05:06"
+            }
+            ,
+            {
+                "name": "",
+                "mac": "01:02:03:04:05:06"
+            },
+        ]
+    */
+    void Bt_startScan();
 
-    
 }

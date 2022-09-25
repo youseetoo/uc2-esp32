@@ -13,7 +13,7 @@ void State::act()
 {
   // here you can do something
   if (DEBUG)
-    ESP_LOGI(TAG, "state_act_fct");
+    log_i( "state_act_fct");
 
   // assign default values to thhe variables
   if ((WifiController::getJDoc())->containsKey("restart"))
@@ -83,10 +83,10 @@ void State::get()
 void State::printInfo()
 {
   if (DEBUG)
-    ESP_LOGI(TAG, "You can use this software by sending JSON strings, A full documentation can be found here:");
+    log_i( "You can use this software by sending JSON strings, A full documentation can be found here:");
   if (DEBUG)
-    ESP_LOGI(TAG, "https://github.com/openUC2/UC2-REST/");
-  // ESP_LOGI(TAG,"A first try can be: \{\"task\": \"/state_get\"");
+    log_i( "https://github.com/openUC2/UC2-REST/");
+  // log_i("A first try can be: \{\"task\": \"/state_get\"");
 }
 
 char *State::bda2str(const uint8_t *bda, char *str, size_t size)
@@ -101,37 +101,37 @@ char *State::bda2str(const uint8_t *bda, char *str, size_t size)
 }
 void State::clearBlueetoothDevice()
 {
-  ESP_LOGI(TAG, "ESP32 bluetooth address: %s", bda2str(esp_bt_dev_get_address(), bda_str, 18));
+  log_i( "ESP32 bluetooth address: %s", bda2str(esp_bt_dev_get_address(), bda_str, 18));
   // Get the numbers of bonded/paired devices in the BT module
   int count = esp_bt_gap_get_bond_device_num();
   if (!count)
   {
-    ESP_LOGI(TAG, "No bonded device found.");
+    log_i( "No bonded device found.");
   }
   else
   {
-    ESP_LOGI(TAG, "Bonded device count: %d", count);
+    log_i( "Bonded device count: %d", count);
     if (PAIR_MAX_DEVICES < count)
     {
       count = PAIR_MAX_DEVICES;
-      ESP_LOGI(TAG, "Reset bonded device count: %d", count);
+      log_i( "Reset bonded device count: %d", count);
     }
     esp_err_t tError = esp_bt_gap_get_bond_device_list(&count, pairedDeviceBtAddr);
     if (ESP_OK == tError)
     {
       for (int i = 0; i < count; i++)
       {
-        ESP_LOGI(TAG, "Found bonded device # %d  ->  %s", i, bda2str(pairedDeviceBtAddr[i], bda_str, 18));
+        log_i( "Found bonded device # %d  ->  %s", i, bda2str(pairedDeviceBtAddr[i], bda_str, 18));
         if (REMOVE_BONDED_DEVICES)
         {
           esp_err_t tError = esp_bt_gap_remove_bond_device(pairedDeviceBtAddr[i]);
           if (ESP_OK == tError)
           {
-            ESP_LOGI(TAG, "Removed bonded device # %d", i);
+            log_i( "Removed bonded device # %d", i);
           }
           else
           {
-            ESP_LOGI(TAG, "Failed to remove bonded device # %d", i);
+            log_i( "Failed to remove bonded device # %d", i);
           }
         }
       }

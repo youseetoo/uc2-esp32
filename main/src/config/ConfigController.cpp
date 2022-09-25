@@ -6,7 +6,6 @@ namespace Config
     PINDEF * pins;
 
     const char* prefNamespace = "UC2";
-    const char * TAG = "Config";
 
 /*
   {
@@ -42,11 +41,11 @@ void setWifiConfig(String ssid,String pw, bool ap,bool prefopen)
   bool open = prefopen;
     if(!prefopen)
       open = preferences.begin(prefNamespace , false);
-    ESP_LOGI(TAG,"setWifiConfig ssid: %s, pw: %s, ap:%s prefopen:%s",ssid,pw,boolToChar(ap),boolToChar(open));
+    log_i("setWifiConfig ssid: %s, pw: %s, ap:%s prefopen:%s",ssid,pw,boolToChar(ap),boolToChar(open));
     preferences.putString(keyWifiSSID, ssid);
     preferences.putString(keyWifiPW, pw);
     preferences.putInt(keyWifiAP, ap);
-    ESP_LOGI(TAG,"setWifiConfig pref ssid: %s pw:%s",preferences.getString(keyWifiSSID),preferences.getString(keyWifiPW));
+    log_i("setWifiConfig pref ssid: %s pw:%s",preferences.getString(keyWifiSSID),preferences.getString(keyWifiPW));
     if(!prefopen)
       preferences.end();
   
@@ -68,7 +67,7 @@ void setup(PINDEF * pin) {
   // if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
   if (isFirstRun())
   {
-    ESP_LOGI(TAG,"First Run, resetting config");
+    log_i("First Run, resetting config");
   }
   // check if setup went through after new config - avoid endless boot-loop
   //checkSetupCompleted();
@@ -76,39 +75,39 @@ void setup(PINDEF * pin) {
 
 bool isFirstRun() {
   bool rdystate = preferences.begin(prefNamespace, false);
-  ESP_LOGI(TAG,"isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
+  log_i("isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
   // define preference name
   const char * dateKey = "date";
   const char *compiled_date = __DATE__ " " __TIME__;
   String stored_date = preferences.getString(dateKey, "");  // FIXME
 
-  ESP_LOGI(TAG,"Stored date: %s",stored_date.c_str());
-  ESP_LOGI(TAG,"Compiled date: %s", compiled_date);
+  log_i("Stored date: %s",stored_date.c_str());
+  log_i("Compiled date: %s", compiled_date);
 
-  ESP_LOGI(TAG,"First run? ");
+  log_i("First run? ");
   if (!stored_date.equals(compiled_date)) {
-    ESP_LOGI(TAG,"yes, resetSettings");
+    log_i("yes, resetSettings");
     resetPreferences();
     initempty();
     savePreferencesFromPins();
     applyPreferencesToPins();
     preferences.putString(dateKey, compiled_date); // FIXME?
   } else {
-    ESP_LOGI(TAG,"no, loadSettings");
+    log_i("no, loadSettings");
     applyPreferencesToPins();
   }
   preferences.end();
 
   rdystate = preferences.begin(prefNamespace, false);
-  ESP_LOGI(TAG,"datatest pref rdy %s", rdystate ? "true" : "false");
+  log_i("datatest pref rdy %s", rdystate ? "true" : "false");
   String datetest = preferences.getString(dateKey, "");
   preferences.end();
-  ESP_LOGI(TAG,"isFirstRun End datetest:%s",datetest);
+  log_i("isFirstRun End datetest:%s",datetest);
   return !stored_date.equals(compiled_date);
 }
 
 bool resetPreferences() {
-  ESP_LOGI(TAG,"resetPreferences");
+  log_i("resetPreferences");
   preferences.clear();
   return true;
 }
@@ -277,15 +276,15 @@ void applyPreferencesToPins()
   
   pins->identifier_setup = preferences.getString(keyIdentifier, pins->identifier_setup).c_str();
   if(WifiController::getSsid() != nullptr)
-    ESP_LOGI(TAG,"ssid bevor:%s", WifiController::getSsid());
+    log_i("ssid bevor:%s", WifiController::getSsid());
   else
-    ESP_LOGI(TAG,"ssid is nullptr");
+    log_i("ssid is nullptr");
   String ssid = preferences.getString(keyWifiSSID);
   
   String pw = preferences.getString(keyWifiPW);
   bool ap = preferences.getInt(keyWifiAP);
   WifiController::setWifiConfig(ssid,pw,ap);
-  ESP_LOGI(TAG,"ssid after:%s pref ssid:%s", WifiController::getSsid().c_str(), preferences.getString(keyWifiSSID, WifiController::getSsid()).c_str());
+  log_i("ssid after:%s pref ssid:%s", WifiController::getSsid().c_str(), preferences.getString(keyWifiSSID, WifiController::getSsid()).c_str());
 }
 
 bool getPreferences() {
@@ -343,7 +342,7 @@ void loop() {
     DeserializationError error = deserializeJson((*WifiController::getJDoc()), Serial);
 
     if (error) {
-      ESP_LOGI(TAG,"%s",error);
+      log_i("%s",error);
     }
     else {
       setPreferences();

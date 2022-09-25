@@ -70,3 +70,5 @@ static const PROGMEM String scanwifi_endpoint = "/wifi/scan";
 static const PROGMEM String connectwifi_endpoint = "/wifi/connect";
 static const PROGMEM String reset_nv_flash_endpoint = "/resetnv";
 
+static const PROGMEM String bt_scan_endpoint = "/bt_scan";
+

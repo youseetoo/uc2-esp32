@@ -43,3 +43,4 @@ static const char * keyGreen = "green";
 static const char * keyBlue = "blue";
 static const char * keyid = "id";
 static const char * key_led_array = "led_array";
+static const char * key_led_isOn = "led_ison";

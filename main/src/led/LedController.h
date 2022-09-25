@@ -8,11 +8,24 @@
 
 namespace LedController
 {
+
+    enum LedModes
+    {
+        array,
+        full,
+        single,
+        off,
+        left,
+        right,
+        top,
+        bottom,
+        multi
+    };
     void act();
     void set();
     void get();
     void set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t B);
-    void setup(PINDEF * pins,bool debug);
+    void setup(PINDEF *pins, bool debug);
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
     void set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);

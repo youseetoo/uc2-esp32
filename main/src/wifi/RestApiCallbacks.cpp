@@ -3,13 +3,12 @@
 namespace RestApi
 {
     char output[1000];
-    const char *TAG = "RestApi";
 
     void resetNvFLash()
     {
         int erase = nvs_flash_erase(); // erase the NVS partition and...
         int init = nvs_flash_init();   // initialize the NVS partition.
-        ESP_LOGI(TAG, "erased:%s init:%s", erase, init);
+        log_i( "erased:%s init:%s", erase, init);
         delay(500);
     }
 
@@ -41,7 +40,7 @@ namespace RestApi
         //int argcount = WifiController::getServer()->args();
         /*for (int i = 0; i < argcount; i++)
         {
-            ESP_LOGI(TAG, "%s", WifiController::getServer()->arg(i));
+            log_i( "%s", WifiController::getServer()->arg(i));
         }*/
         String body = WifiController::getServer()->arg("plain");
         if (body != "")
@@ -73,7 +72,7 @@ namespace RestApi
 
     void scanWifi()
     {
-        ESP_LOGI(TAG, "scanWifi");
+        log_i( "scanWifi");
         int networkcount = WiFi.scanNetworks();
         if (networkcount == -1)
         {
@@ -92,17 +91,17 @@ namespace RestApi
     void connectToWifi()
     {
         deserialize();
-        ESP_LOGI(TAG, "connectToWifi");
+        log_i( "connectToWifi");
         bool ap = (*WifiController::getJDoc())[keyWifiAP];
         String ssid = (*WifiController::getJDoc())[keyWifiSSID];
         String pw = (*WifiController::getJDoc())[keyWifiPW];
-        ESP_LOGI(TAG, "ssid json: %s wifi:%s", ssid, WifiController::getSsid());
-        ESP_LOGI(TAG, "pw json: %s wifi:%s", pw, WifiController::getPw());
-        ESP_LOGI(TAG, "ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+        log_i( "ssid json: %s wifi:%s", ssid, WifiController::getSsid());
+        log_i( "pw json: %s wifi:%s", pw, WifiController::getPw());
+        log_i( "ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
         WifiController::setWifiConfig(ssid, pw, ap);
-        ESP_LOGI(TAG, "ssid json: %s wifi:%s", ssid, WifiController::getSsid());
-        ESP_LOGI(TAG, "pw json: %s wifi:%s", pw, WifiController::getPw());
-        ESP_LOGI(TAG, "ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+        log_i( "ssid json: %s wifi:%s", ssid, WifiController::getSsid());
+        log_i( "pw json: %s wifi:%s", pw, WifiController::getPw());
+        log_i( "ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
         Config::setWifiConfig(ssid, pw, ap, false);
         WifiController::getJDoc()->clear();
         serialize();
@@ -115,7 +114,7 @@ namespace RestApi
         HTTPUpload &upload = WifiController::getServer()->upload();
         if (upload.status == UPLOAD_FILE_START)
         {
-            ESP_LOGI(TAG, "Update: %s\n", upload.filename.c_str());
+            log_i( "Update: %s\n", upload.filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN))
             { // start with max available size
                 Update.printError(Serial);
@@ -133,7 +132,7 @@ namespace RestApi
         {
             if (Update.end(true))
             { // true to set the size to the current progress
-                ESP_LOGI(TAG, "Update Success: %u\nRebooting...\n", upload.totalSize);
+                log_i( "Update Success: %u\nRebooting...\n", upload.totalSize);
             }
             else
             {
@@ -423,6 +422,13 @@ namespace RestApi
         (*WifiController::getJDoc()).add(ledarr_set_endpoint);
         (*WifiController::getJDoc()).add(ledarr_get_endpoint);
 #endif
+        serialize();
+    }
+
+    void Bt_startScan()
+    {
+        deserialize();
+        BtController::scanForDevices(WifiController::getJDoc());
         serialize();
     }
 }

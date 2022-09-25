@@ -40,6 +40,7 @@
 #ifdef IS_SERIAL
 #include "src/serial/SerialProcess.h"
 #endif
+#include "src/bt/BtController.h"
 
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -52,50 +53,52 @@ void setup()
   // Start Serial
   Serial.begin(BAUDRATE);
   delay(500);
-  ESP_LOGI(TAG,"Start setup");
+  log_i("Start setup");
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
 
   // for any timing related puposes..
   state.startMillis = millis();
   pins = new PINDEF();
-  ESP_LOGI(TAG,"getDefaultPins");
+  log_i("getDefaultPins");
   state.getDefaultPinDef(pins);
-  ESP_LOGI(TAG,"wifi.createJsonDoc()");
+  log_i("wifi.createJsonDoc()");
   WifiController::createJsonDoc();
 
-  ESP_LOGI(TAG,"state.setup");
+  log_i("state.setup");
   state.setup(pins);
   state.printInfo();
 
-  ESP_LOGI(TAG,"Config::setup");
+  log_i("Config::setup");
   Config::setup(pins);
 
   WifiController::getJDoc()->clear();
   // connect to wifi if necessary
-  ESP_LOGI(TAG,"wifi.setup");
+  log_i("wifi.setup");
   WifiController::setup();
 #ifdef IS_SLM
-  ESP_LOGI(TAG,"IS_SLM");
+  log_i("IS_SLM");
   slm.setup();
 #endif
 #ifdef IS_LED
-  ESP_LOGI(TAG,"IS_LED");
+  log_i("IS_LED");
   LedController::setup(pins,false);
 #endif
 
 #ifdef IS_MOTOR
-  ESP_LOGI(TAG,"IS_MOTOR");
+  log_i("IS_MOTOR");
 #ifdef DEBUG_MOTOR
   motor.DEBUG = true;
 #endif
   motor.setup(pins);
 #endif
 
+BtController::setup();
+
 #if defined IS_PS4 || defined IS_PS3
-  /*ESP_LOGI(TAG,"PsController Config::isFirstRun");
+  /*log_i("PsController Config::isFirstRun");
   if (Config::isFirstRun())
   {
-    ESP_LOGI(TAG,"clear bt devices and restart");
+    log_i("clear bt devices and restart");
     state.clearBlueetoothDevice();
     ESP.restart();
   }*/
@@ -111,16 +114,16 @@ void setup()
 
 #if defined IS_DAC || defined IS_DAC_FAKE
 #if defined IS_DAC
-  ESP_LOGI(TAG,"IS_DAC");
+  log_i("IS_DAC");
 #endif
 #if defined IS_DAC_FAKE
-  ESP_LOGI(TAG,"IS_DAC_FAKE");
+  log_i("IS_DAC_FAKE");
 #endif
   dac.setup(pins);
 #endif
 
 #ifdef IS_ANALOG
-  ESP_LOGI(TAG,"IS_ANALOG");
+  log_i("IS_ANALOG");
 #ifdef DEBUG_ANALOG
   analog->DEBUG = true;
 #endif
@@ -132,20 +135,20 @@ void setup()
 #endif
 
 #ifdef IS_READSENSOR
-  ESP_LOGI(TAG,"IS_SENSOR");
+  log_i("IS_SENSOR");
   sensor.setup(pins);
 #endif
 
 #ifdef IS_PID
-  ESP_LOGI(TAG,"IS_PID");
+  log_i("IS_PID");
   pid.setup(pins);
 #endif
 #ifdef IS_SCANNER
-  ESP_LOGI(TAG,"IS_SCANNER");
+  log_i("IS_SCANNER");
   scanner.setup(pins);
 #endif
 
-  ESP_LOGI(TAG,"End setup");
+  log_i("End setup");
 }
 
 void loop()

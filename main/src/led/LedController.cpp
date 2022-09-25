@@ -2,13 +2,12 @@
 
 namespace LedController
 {
-
-  const char *TAG = "led_controller";
   // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
   Adafruit_NeoPixel *matrix;
   PINDEF *pins;
   bool DEBUG = false;
   bool isBusy;
+  bool isOn = false;
 
   int NLED4x4 = 16;
   int NLED8x8 = 64;
@@ -41,62 +40,39 @@ namespace LedController
                                       1, 1, 0, 0,
                                       0, 0, 1, 1};
 
-  enum LedModes
-  {
-    array,
-    full,
-    single,
-    off,
-    left,
-    right,
-    top,
-    bottom,
-    multi
-  };
-
-  void setup(PINDEF *pi,bool debug)
+  void setup(PINDEF *pi, bool debug)
   {
     // LED Matrix
     pins = pi;
     DEBUG = debug;
-    // matrix.updateLength(pins->LED_ARRAY_NUM);
-    // matrix.setPin(pins->LED_ARRAY_PIN);
-    // matrix.updateType( NEO_GRB + NEO_KHZ800);
     matrix = new Adafruit_NeoPixel(pins->LED_ARRAY_NUM, pins->LED_ARRAY_PIN, NEO_GRB + NEO_KHZ800);
-    if (DEBUG)
-      Serial.println(F("Setting up LED array"));
-    if (DEBUG)
-    {
-      Serial.print(F("LED_ARRAY_PIN: "));
-      Serial.println(pins->LED_ARRAY_PIN);
-    }
-    ESP_LOGI(TAG, "setup matrix is null:%s", boolToChar(matrix == nullptr));
+    log_i( "setup matrix is null:%s", boolToChar(matrix == nullptr));
+    log_i( "LED_ARRAY_PIN: %i", pins->LED_ARRAY_PIN);
     matrix->begin();
     matrix->setBrightness(255);
-    set_all(0, 0, 0);
-    matrix->show(); //  Update strip to match
-    delay(50);
-    set_all(100, 100, 100);
+    if (!isOn)
+      set_all(0, 0, 0);
+    else
+      set_all(255, 255, 255);
     matrix->show(); //  Update strip to match
   }
 
   // Custom function accessible by the API
   void act()
   {
-
     // here you can do something
-    ESP_LOGI(TAG, "start parsing json matrix is null:%s", boolToChar(matrix == nullptr));
+    log_i( "start parsing json matrix is null:%s", boolToChar(matrix == nullptr));
 
     if (WifiController::getJDoc()->containsKey(keyLed))
     {
       LedModes LEDArrMode = static_cast<LedModes>((*WifiController::getJDoc())[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
       int NLeds = 0;
-      ESP_LOGI(TAG, "LEDArrMode : %i", LEDArrMode);
+      log_i( "LEDArrMode : %i", LEDArrMode);
       if ((*WifiController::getJDoc())[keyLed].containsKey(keyNLeds))
         NLeds = (*WifiController::getJDoc())[keyLed][keyNLeds];
-      ESP_LOGI(TAG, "NLeds : %i", NLeds);
+      log_i( "NLeds : %i", NLeds);
 
-      ESP_LOGI(TAG, "containsKey : led_array %s", boolToChar((*WifiController::getJDoc())[keyLed].containsKey(key_led_array)));
+      log_i( "containsKey : led_array %s", boolToChar((*WifiController::getJDoc())[keyLed].containsKey(key_led_array)));
       // individual pattern gets adressed
       // PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
       if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
@@ -125,13 +101,15 @@ namespace LedController
       else if (LEDArrMode == LedModes::full)
       {
         matrix->clear();
-        ESP_LOGI(TAG, "set all start");
+        log_i( "set all start");
         u_int8_t r = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed];
         u_int8_t g = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen];
         u_int8_t b = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue];
-        ESP_LOGI(TAG, "rgb %i %i %i", r, g, b);
+        isOn = r == 0 && g == 0 && b == 0 ? true : false;
+        
+        log_i( "rgb %i %i %i", r, g, b);
         set_all(r, g, b);
-        ESP_LOGI(TAG, "set all start end");
+        log_i( "set all start end");
       }
       // turn off all LEDs
       else if (LEDArrMode == LedModes::left)
@@ -176,20 +154,17 @@ namespace LedController
     }
     else
     {
-      ESP_LOGI(TAG, "failed to parse json. required keys are led_array,LEDArrMode");
+      log_i( "failed to parse json. required keys are led_array,LEDArrMode");
     }
 
     WifiController::getJDoc()->clear();
-    (*WifiController::getJDoc())[F("return")] = 1;
+    //(*WifiController::getJDoc())[F("return")] = 1;
     //(*WifiController::getJDoc())[keyLEDArrMode] = LEDArrMode;
     isBusy = false;
   }
 
   void set()
   {
-
-    Serial.println(F("Updating Hardware config of LED Array"));
-
     WifiController::getJDoc()->clear();
     (*WifiController::getJDoc())[F("return")] = 1;
   }
@@ -197,8 +172,6 @@ namespace LedController
   // Custom function accessible by the API
   void get()
   {
-    Serial.print(F("led_controller::get() jsondoc null "));
-    Serial.println(WifiController::getJDoc() == nullptr);
     WifiController::getJDoc()->clear();
     (*WifiController::getJDoc())[keyNLeds] = pins->LED_ARRAY_NUM;
     (*WifiController::getJDoc())[keyLEDArrMode].add(0);
@@ -209,6 +182,7 @@ namespace LedController
     (*WifiController::getJDoc())[keyLEDArrMode].add(5);
     (*WifiController::getJDoc())[keyLEDArrMode].add(6);
     (*WifiController::getJDoc())[keyLEDArrMode].add(7);
+    (*WifiController::getJDoc())[key_led_isOn] = isOn;
     //(*jsonDocument)[F("LED_ARRAY_PIN")] = pins->LED_ARRAY_PIN;
   }
 

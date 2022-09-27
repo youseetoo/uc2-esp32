@@ -1,27 +1,28 @@
-[submodule "libraries/esp32-ps3"]
-	path = libraries/esp32-ps3
-	url = https://github.com/youseetoo/esp32-ps3.git
-	branch = master
-[submodule "libraries/PS4-esp32"]
-	path = libraries/PS4-esp32
+[submodule "lib/PS4-esp32"]
+	path = lib/PS4-esp32
 	url = https://github.com/youseetoo/PS4-esp32.git
 	branch = master
-[submodule "libraries/AccelStepper"]
-	path = libraries/AccelStepper
+[submodule "lib/AccelStepper"]
+	path = lib/AccelStepper
 	url = https://github.com/youseetoo/AccelStepper.git
-[submodule "libraries/JPEGDecoder"]
-	path = libraries/JPEGDecoder
+	branch = master
+[submodule "lib/esp32-ps3"]
+	path = lib/esp32-ps3
+	url = https://github.com/youseetoo/esp32-ps3.git
+	branch = master
+[submodule "lib/JPEGDecoder"]
+	path = lib/JPEGDecoder
 	url = https://github.com/youseetoo/JPEGDecoder.git
 	branch = master
-[submodule "libraries/Adafruit-ST7735-Library"]
-	path = libraries/Adafruit-ST7735-Library
-	url = https://github.com/adafruit/Adafruit-ST7735-Library.git
-	branch = master
-[submodule "libraries/ArduinoJson"]
-	path = libraries/ArduinoJson
+[submodule "lib/ArduinoJson"]
+	path = lib/ArduinoJson
 	url = https://github.com/bblanchon/ArduinoJson.git
 	branch = 6.x
-[submodule "libraries/Adafruit_NeoPixel"]
-	path = libraries/Adafruit_NeoPixel
+[submodule "lib/Adafruit_NeoPixel"]
+	path = lib/Adafruit_NeoPixel
 	url = https://github.com/adafruit/Adafruit_NeoPixel.git
+	branch = master
+[submodule "lib/Adafruit-ST7735-Library"]
+	path = lib/Adafruit-ST7735-Library
+	url = https://github.com/adafruit/Adafruit-ST7735-Library.git
 	branch = master

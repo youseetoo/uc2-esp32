@@ -15,7 +15,6 @@
 #include "WiFi.h"
 #include "Update.h"
 #include "WebServer.h"
-#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 
 // setting up wifi parameters
 static boolean hostWifiAP = false; // set this variable if you want the ESP32 to be the host

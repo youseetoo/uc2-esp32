@@ -431,4 +431,13 @@ namespace RestApi
         BtController::scanForDevices(WifiController::getJDoc());
         serialize();
     }
+
+    void Bt_connect()
+    {
+        deserialize();
+        String mac = (*WifiController::getJDoc())["mac"];
+        BtController::setMacAndConnect(mac);
+        WifiController::getJDoc()->clear();
+        serialize();
+    }
 }

@@ -81,7 +81,7 @@ void setup()
 #endif
 #ifdef IS_LED
   log_i("IS_LED");
-  LedController::setup(pins,false);
+  LedController::setup(pins, false);
 #endif
 
 #ifdef IS_MOTOR
@@ -92,7 +92,7 @@ void setup()
   motor.setup(pins);
 #endif
 
-BtController::setup();
+  BtController::setup();
 
 #if defined IS_PS4 || defined IS_PS3
   /*log_i("PsController Config::isFirstRun");
@@ -175,11 +175,13 @@ void loop()
   /*
       continous control during loop
   */
+#ifdef IS_MOTOR
   if (!motor.isstop)
   {
     motor.isactive = true;
     motor.background();
   }
+#endif
 #ifdef IS_PID
   if (pid.PID_active && (state.currentMillis - state.startMillis >= pid.PID_updaterate))
   {

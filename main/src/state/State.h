@@ -12,6 +12,7 @@
 #if defined IS_PS3 || defined IS_PS4
 #include "../gamepads/ps_3_4_controller.h"
 #endif
+#include "../wifi/WifiController.h"
 
 static int8_t sgn(int val) {
   if (val < 0) return -1;

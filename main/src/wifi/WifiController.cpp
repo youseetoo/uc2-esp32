@@ -155,6 +155,7 @@ namespace WifiController
     server->on(reset_nv_flash_endpoint, HTTP_GET, RestApi::resetNvFLash);
 
     server->on(bt_scan_endpoint,HTTP_GET,RestApi::Bt_startScan);
+    server->on(bt_connect_endpoint,HTTP_POST,RestApi::Bt_connect);
 
     // POST
 #ifdef IS_MOTOR

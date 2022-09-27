@@ -193,5 +193,6 @@ namespace RestApi
         ]
     */
     void Bt_startScan();
+    void Bt_connect();
 
 }

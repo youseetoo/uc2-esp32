@@ -1,7 +1,7 @@
 
+#include "../../config.h"
 #ifdef IS_SCANNER
 #pragma once
-#include "../../config.h"
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
 //#include <FreeRTOS.h>

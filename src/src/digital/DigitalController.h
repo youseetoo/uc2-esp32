@@ -1,5 +1,6 @@
-#pragma once
 #include "../../config.h"
+#ifdef IS_DIGITAL
+#pragma once
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
 
@@ -25,3 +26,4 @@ public:
     void setup(PINDEF * pins);
 };
 static DigitalController digital;
+#endif

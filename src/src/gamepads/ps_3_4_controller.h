@@ -1,5 +1,8 @@
-#pragma once
 #include "../../config.h"
+#if defined IS_PS3 || defined IS_PS4
+#pragma once
+
+
 #ifdef IS_MOTOR
     #include "../motor/FocusMotor.h"
 #endif
@@ -89,3 +92,4 @@ class ps_3_4_controller
         static void ps_activate(void * parameter);
 };
 static ps_3_4_controller ps_c;
+#endif

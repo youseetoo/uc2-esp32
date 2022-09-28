@@ -22,15 +22,14 @@
     },
     "motor" :
     {
-        "speed" : 0,
-        "speed0" : 1,
-        "speed1" : 1,
-        "speed2" : 1,
-        "speed3" : 1,
-        "pos0" : 1,
-        "pos1" : 1,
-        "pos2" : 1,
-        "pos3" : 1,
+        "steppers":[
+            {
+                "stepperid" : 0, // A=0,X,Y,Z
+                "speed" : 0,
+                "position" :0
+            },
+            ...
+        ]
         "isabs" : 1,
         "isstop" : 1,
         "isaccel" : 1,

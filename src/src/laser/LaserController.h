@@ -1,5 +1,6 @@
-#pragma once
 #include "../../config.h"
+#ifdef IS_LASER
+#pragma once
 #include "../../pinstruct.h"
 #include "ArduinoJson.h"
 #include <String.h>
@@ -57,3 +58,5 @@ public:
 
 };
 static LaserController laser;
+
+#endif

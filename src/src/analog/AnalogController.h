@@ -1,3 +1,5 @@
+#include "../../config.h"
+#ifdef IS_ANALOG
 #pragma once
 #include "../../config.h"
 #include "../../pinstruct.h"
@@ -47,3 +49,4 @@ class AnalogController
     void setup(PINDEF * pins);    
 };
 static AnalogController analog;
+#endif

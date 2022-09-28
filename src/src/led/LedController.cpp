@@ -1,3 +1,5 @@
+#include "../../config.h"
+#ifdef IS_LED
 #include "LedController.h"
 
 namespace LedController
@@ -290,3 +292,5 @@ namespace LedController
     */
   }
 }
+
+#endif

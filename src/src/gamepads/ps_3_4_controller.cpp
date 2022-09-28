@@ -1,3 +1,5 @@
+#include "../../config.h"
+#if defined IS_PS3 || defined IS_PS4
 #include "ps_3_4_controller.h"
 
 ps_3_4_controller::ps_3_4_controller()
@@ -579,3 +581,4 @@ void ps_3_4_controller::ps_activate(void *parameter)
   ps_3_4_controller *psx = (ps_3_4_controller *)parameter;
   psx->activate();
 };
+#endif

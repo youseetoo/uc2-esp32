@@ -1,3 +1,6 @@
+#include "../../config.h"
+#ifdef IS_SERIAL
+
 #include "SerialProcess.h"
 
 SerialProcess::SerialProcess(/* args */)
@@ -253,3 +256,5 @@ void SerialProcess::tableProcessor(DynamicJsonDocument * jsonDocument)
   motor.isactive = false;
 #endif
 }
+
+#endif

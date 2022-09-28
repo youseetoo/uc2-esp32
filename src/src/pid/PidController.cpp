@@ -1,4 +1,5 @@
 #include "../../config.h"
+#ifdef IS_PID
 #include "PidController.h"
 
 
@@ -153,4 +154,6 @@ void PidController::setup(PINDEF * pins) {
   this->pins = pins;
   if (DEBUG) Serial.println("Setting up sensors...");
 }
+
+#endif
 

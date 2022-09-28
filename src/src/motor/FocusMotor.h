@@ -1,3 +1,5 @@
+#include "../../config.h"
+#ifdef IS_MOTOR
 #pragma once
 #include "../../config.h"
 #include "AccelStepper.h"
@@ -93,3 +95,5 @@ public:
 };
 
 static FocusMotor motor;
+
+#endif

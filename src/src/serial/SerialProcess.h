@@ -1,6 +1,6 @@
-#pragma once
-
 #include "../../config.h"
+#ifdef IS_SERIAL
+#pragma once
 #include "ArduinoJson.h"
 #ifdef IS_MOTOR
 #include "../motor/FocusMotor.h"
@@ -49,3 +49,5 @@ public:
 };
 
 static SerialProcess serial;
+
+#endif

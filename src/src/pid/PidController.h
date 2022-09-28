@@ -1,5 +1,6 @@
-#pragma once
 #include "../../config.h"
+#ifdef IS_PID
+#pragma once
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
 #ifdef IS_MOTOR
@@ -38,3 +39,4 @@ public:
 };
 
 static PidController pid;
+#endif

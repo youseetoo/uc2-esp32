@@ -1,5 +1,6 @@
-#pragma once
 #include "../../config.h"
+#ifdef IS_SLM
+#pragma once
 #include "JPEGDecoder.h"
 #include "Adafruit_ST7735.h" // Hardware-specific library for ST7735
 #include "SPI.h"
@@ -65,3 +66,5 @@ public:
  * control Adafruit_ST7735 tft display with json
  */
 static SlmController slm;
+
+#endif

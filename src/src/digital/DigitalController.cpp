@@ -1,3 +1,5 @@
+#include "../../config.h"
+#ifdef IS_DIGITAL
 #include "DigitalController.h"
 
   DigitalController::DigitalController(/* args */){};
@@ -143,3 +145,4 @@ void DigitalController::setup(PINDEF * pins) {
   digitalWrite(pins->digital_PIN_3, LOW);
 
 }
+#endif

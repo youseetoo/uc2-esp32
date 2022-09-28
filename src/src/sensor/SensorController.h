@@ -1,5 +1,6 @@
-#pragma once
 #include "../../config.h"
+#ifdef IS_READSENSOR
+#pragma once
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
 #ifdef IS_LASER
@@ -26,3 +27,5 @@ public:
 };
 
 static SensorController sensor;
+
+#endif

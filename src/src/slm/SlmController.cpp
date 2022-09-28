@@ -1,3 +1,5 @@
+#include "../../config.h"
+#ifdef IS_SLM
 #include "SlmController.h"
 
 SlmController::SlmController(/* args */){};
@@ -319,3 +321,5 @@ void SlmController::createArray(const char *filename) {
   Serial.println("};\r\n");
   jpgFile.close();
 }
+
+#endif

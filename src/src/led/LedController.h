@@ -1,5 +1,6 @@
-#pragma once
 #include "../../config.h"
+#ifdef IS_LED
+#pragma once
 #include "Adafruit_NeoPixel.h"
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
@@ -33,3 +34,4 @@ namespace LedController
     void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
 }
+#endif

@@ -1,3 +1,6 @@
+#include "../../config.h"
+#ifdef IS_READSENSOR
+
 #include "SensorController.h"
 
 SensorController::SensorController(/* args */){};
@@ -97,4 +100,6 @@ void SensorController::setup(PINDEF *pins){
   this->pins = pins;
   if(DEBUG) Serial.println("Setting up sensors...");
 }
+
+#endif
 

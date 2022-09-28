@@ -43,5 +43,5 @@ class DacController
 
    
 };
-static DacController dac;
+extern DacController dac;
 #endif

@@ -61,4 +61,4 @@ class State
     void getDefaultPinDef(PINDEF * pindef);
 };
 
-static State state;
+extern State state;

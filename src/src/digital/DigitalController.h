@@ -25,5 +25,5 @@ public:
     void get(DynamicJsonDocument * jsonDocument);
     void setup(PINDEF * pins);
 };
-static DigitalController digital;
+extern DigitalController digital;
 #endif

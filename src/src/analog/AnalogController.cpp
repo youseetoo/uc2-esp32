@@ -135,4 +135,5 @@ void AnalogController::get() {
   (*WifiController::getJDoc())["analogval"] = analogval;
   (*WifiController::getJDoc())["analogpin"] = analogpin;
 }
+AnalogController analog;
 #endif

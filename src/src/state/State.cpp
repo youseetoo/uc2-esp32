@@ -139,6 +139,8 @@ void State::clearBlueetoothDevice()
   }
 }
 
+State state;
+
 void State::getDefaultPinDef(PINDEF *pindef)
 {
 #ifdef empty_pins

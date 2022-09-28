@@ -256,5 +256,5 @@ void SerialProcess::tableProcessor(DynamicJsonDocument * jsonDocument)
   motor.isactive = false;
 #endif
 }
-
+SerialProcess serial;
 #endif

@@ -32,9 +32,6 @@ enum Stepper
 class FocusMotor
 {
 public:
-    FocusMotor();
-    ~FocusMotor();
-
     PINDEF *pins;
 
     bool DEBUG = false;
@@ -94,6 +91,6 @@ public:
     bool background();
 };
 
-static FocusMotor motor;
+extern FocusMotor motor;
 
 #endif

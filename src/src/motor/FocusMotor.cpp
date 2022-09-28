@@ -3,9 +3,6 @@
 #include "FocusMotor.h"
 #include <ArduinoJson.h>
 
-FocusMotor::FocusMotor(){};
-FocusMotor::~FocusMotor(){};
-
 void FocusMotor::act()
 {
 	if (DEBUG)
@@ -17,11 +14,11 @@ void FocusMotor::act()
 		{
 			for (int i = 0; i < (*WifiController::getJDoc())[key_motor][key_steppers].size(); i++)
 			{
-				Stepper s = static_cast<Stepper>((*WifiController::getJDoc())[key_motor][key_steppers]);
-				if ((*WifiController::getJDoc())[key_motor][key_steppers].containsKey(key_speed))
-					data[s]->speed = (*WifiController::getJDoc())[key_motor][key_steppers][key_speed];
-				if ((*WifiController::getJDoc())[key_motor][key_steppers].containsKey(key_position))
-					data[s]->targetPosition = (*WifiController::getJDoc())[key_motor][key_steppers][key_position];
+				Stepper s = static_cast<Stepper>((*WifiController::getJDoc())[key_motor][key_steppers][i][key_stepperid]);
+				if ((*WifiController::getJDoc())[key_motor][key_steppers][i].containsKey(key_speed))
+					data[s]->speed = (*WifiController::getJDoc())[key_motor][key_steppers][i][key_speed];
+				if ((*WifiController::getJDoc())[key_motor][key_steppers][i].containsKey(key_position))
+					data[s]->targetPosition = (*WifiController::getJDoc())[key_motor][key_steppers][i][key_position];
 			}
 		}
 		isabs = (*WifiController::getJDoc())[key_motor].containsKey(key_isabs) ? (*WifiController::getJDoc())[key_motor][key_isabs] : 0;
@@ -70,6 +67,8 @@ void FocusMotor::act()
 	setEnableMotor(true);
 	for (int i = 0; i < steppers.size(); i++)
 	{
+		log_i("is data %i null:%s set speed/max %i/%i",i,boolToChar(data[i]==nullptr), data[i]->speed, data[i]->maxspeed);
+		log_i("set speed/max %i/%i", data[i]->speed, data[i]->maxspeed);
 		steppers[i]->setSpeed(data[i]->speed);
 		steppers[i]->setMaxSpeed(data[i]->maxspeed);
 		if (!isforever)
@@ -77,12 +76,14 @@ void FocusMotor::act()
 			if (isabs)
 			{
 				// absolute position coordinates
-				steppers[i]->moveTo(data[i]->SIGN * data[i]->targetPosition);
+				steppers[i]->moveTo(data[i]->targetPosition);
+				steppers[i]->run();
 			}
 			else
 			{
 				// relative position coordinates
-				steppers[i]->move(data[i]->SIGN * data[i]->targetPosition);
+				steppers[i]->move(data[i]->targetPosition);
+				steppers[i]->run();
 			}
 		}
 		data[i]->currentPosition = steppers[i]->currentPosition();
@@ -100,7 +101,7 @@ void FocusMotor::act()
 void FocusMotor::setEnableMotor(bool enable)
 {
 	isBusy = enable;
-	digitalWrite(pins->ENABLE, !enable);
+	//digitalWrite(pins->ENABLE, !enable);
 	motor_enable = enable;
 }
 
@@ -234,14 +235,14 @@ void FocusMotor::set()
 	}
 
 	// if (DEBUG) Serial.print("isen "); Serial.println(isen);
-	if (isen != 0 and isen)
+	/*if (isen != 0 and isen)
 	{
 		digitalWrite(pins->ENABLE, 0);
 	}
 	else if (isen != 0 and not isen)
 	{
 		digitalWrite(pins->ENABLE, 1);
-	}
+	}*/
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())["return"] = 1;
 }
@@ -283,11 +284,15 @@ void FocusMotor::setup(PINDEF *pins)
 	steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_X, pins->DIR_X);
 	steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_Y, pins->DIR_Y);
 	steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_Z, pins->DIR_Z);
+	data[Stepper::A] = new MotorData();
+	data[Stepper::X] = new MotorData();
+	data[Stepper::Y] = new MotorData();
+	data[Stepper::Z] = new MotorData();
 	/*
 	   Motor related settings
 	*/
 	Serial.println("Setting Up Motors");
-	pinMode(pins->ENABLE, OUTPUT);
+	//pinMode(pins->ENABLE, OUTPUT);
 	setEnableMotor(true);
 	Serial.println("Setting Up Motor A,X,Y,Z");
 	for (int i = 0; i < steppers.size(); i++)
@@ -307,6 +312,7 @@ bool FocusMotor::background()
 
 	for (int i = 0; i < steppers.size(); i++)
 	{
+		//log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
 		data[i]->currentPosition = steppers[i]->currentPosition();
 		if (isforever)
 		{
@@ -333,7 +339,11 @@ bool FocusMotor::background()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		if (steppers[i]->distanceToGo() > 0)
+		{
 			motordrive = true;
+		}
+		else
+			steppers[i]->stop();
 	}
 
 	// all steppers reached their positions? yeah turn motor off..
@@ -344,5 +354,7 @@ bool FocusMotor::background()
 	isBusy = false;
 	return true;
 }
+
+FocusMotor motor;
 
 #endif

@@ -166,4 +166,6 @@ void DacController::drive_galvo(void * parameter){
     vTaskDelay(d->frequency/portTICK_PERIOD_MS); // pause 1ms
    }
 }
+
+DacController dac;
 #endif

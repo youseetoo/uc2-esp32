@@ -100,6 +100,6 @@ void SensorController::setup(PINDEF *pins){
   this->pins = pins;
   if(DEBUG) Serial.println("Setting up sensors...");
 }
-
+SensorController sensor;
 #endif
 

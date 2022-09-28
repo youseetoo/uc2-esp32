@@ -48,5 +48,5 @@ class AnalogController
 
     void setup(PINDEF * pins);    
 };
-static AnalogController analog;
+extern AnalogController analog;
 #endif

@@ -154,6 +154,6 @@ void PidController::setup(PINDEF * pins) {
   this->pins = pins;
   if (DEBUG) Serial.println("Setting up sensors...");
 }
-
+PidController pid;
 #endif
 

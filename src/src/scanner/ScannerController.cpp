@@ -277,6 +277,6 @@ void ScannerController::controlGalvoTask( void * parameter ) {
     }
     vTaskDelete(NULL);
 }
-
+ScannerController scanner;
 #endif
 

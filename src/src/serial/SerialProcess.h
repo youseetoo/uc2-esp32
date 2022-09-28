@@ -48,6 +48,6 @@ public:
     void loop(DynamicJsonDocument * jsonDocument);
 };
 
-static SerialProcess serial;
+extern SerialProcess serial;
 
 #endif

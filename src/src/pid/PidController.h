@@ -38,5 +38,5 @@ public:
     void set();
 };
 
-static PidController pid;
+extern PidController pid;
 #endif

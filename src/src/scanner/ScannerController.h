@@ -55,5 +55,5 @@ public:
     void background();
     static void controlGalvoTask(void * parameters);
 };
-static ScannerController scanner;
+extern ScannerController scanner;
 #endif

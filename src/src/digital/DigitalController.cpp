@@ -145,4 +145,6 @@ void DigitalController::setup(PINDEF * pins) {
   digitalWrite(pins->digital_PIN_3, LOW);
 
 }
+
+DigitalController digital;
 #endif

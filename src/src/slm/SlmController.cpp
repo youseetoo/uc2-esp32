@@ -321,5 +321,5 @@ void SlmController::createArray(const char *filename) {
   Serial.println("};\r\n");
   jpgFile.close();
 }
-
+SlmController slm;
 #endif

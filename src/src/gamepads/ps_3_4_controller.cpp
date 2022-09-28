@@ -581,4 +581,5 @@ void ps_3_4_controller::ps_activate(void *parameter)
   ps_3_4_controller *psx = (ps_3_4_controller *)parameter;
   psx->activate();
 };
+ps_3_4_controller ps_c;
 #endif

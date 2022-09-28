@@ -26,6 +26,6 @@ public:
     void get();
 };
 
-static SensorController sensor;
+extern SensorController sensor;
 
 #endif

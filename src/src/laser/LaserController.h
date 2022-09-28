@@ -57,6 +57,6 @@ public:
     void loop();
 
 };
-static LaserController laser;
+extern LaserController laser;
 
 #endif

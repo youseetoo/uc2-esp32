@@ -91,5 +91,5 @@ class ps_3_4_controller
         static void ps_onDisConnect(void * parameter);
         static void ps_activate(void * parameter);
 };
-static ps_3_4_controller ps_c;
+extern ps_3_4_controller ps_c;
 #endif

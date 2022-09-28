@@ -65,6 +65,6 @@ public:
 /**
  * control Adafruit_ST7735 tft display with json
  */
-static SlmController slm;
+extern SlmController slm;
 
 #endif

@@ -28,10 +28,10 @@ void PidController::act() {
   if (!PID_active) {
     // force shutdown the motor
     #ifdef IS_MOTOR
-    motor.mspeed1 = 0;
-    motor.stepper_X->setSpeed(motor.mspeed1);
-    motor.stepper_X->setMaxSpeed(motor.mspeed1);
-    motor.stepper_X->runSpeed();
+    motor.data[Stepper::X]->speed = 0;
+    motor.steppers[Stepper::X]->setSpeed(0);
+    motor.steppers[Stepper::X]->setMaxSpeed(0);
+    motor.steppers[Stepper::X]->runSpeed();
     #endif
   }
 
@@ -62,10 +62,10 @@ void PidController::background() {
   long motorValue = returnControlValue(PID_target, sensorValueAvg, PID_Kp, PID_Ki, PID_Kd);
   #ifdef IS_MOTOR
   motor.isforever = 1; // run motor at certain speed
-  motor.mspeed1 = motorValue;
+  motor.data[Stepper::X]->speed = motorValue;
   motor.setEnableMotor(true);
-  motor.stepper_X->setSpeed(motor.mspeed1);
-  motor.stepper_X->setMaxSpeed(motor.mspeed1);
+  motor.steppers[Stepper::X]->setSpeed(motorValue);
+  motor.steppers[Stepper::X]->setMaxSpeed(motorValue);
   #endif
 }
 

@@ -13,12 +13,33 @@
 struct MotorData
 {
     long speed = 0;
-    long position = 0;
     long maxspeed = 20000;
     long acceleration = 0;
     long currentPosition = 0;
     long targetPosition = 0;
     int SIGN = 1;
+};
+
+struct MotorPins
+{
+    //stepper A pin
+    int STEP_A = 0;
+    //stepper X pin
+    int STEP_X = 0;
+    //stepper Y pin
+    int STEP_Y = 0;
+    //stepper Z pin
+    int STEP_Z = 0;
+    //stepper A Direction
+    int DIR_A = 0;
+    //stepper X Direction
+    int DIR_X = 0;
+    //stepper Y Direction
+    int DIR_Y = 0;
+    //stepper Z Direction
+    int DIR_Z = 0;
+    //pin to enable power
+    int ENABLE = 0;
 };
 
 enum Stepper

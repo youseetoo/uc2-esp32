@@ -258,9 +258,6 @@ void ps_3_4_controller::onConnect()
   if (DEBUG)
     Serial.println("PS4 Controller Connected.");
   IS_PSCONTROLER_ACTIVE = true;
-#ifdef IS_MOTOR
-  motor.setEnableMotor(true);
-#endif
 
   if (is_charging())
     Serial.println("The controller is charging");
@@ -287,9 +284,6 @@ void ps_3_4_controller::onDisConnect()
 {
   if (DEBUG)
     Serial.println("PS Controller Connected.");
-#ifdef IS_MOTOR
-  motor.setEnableMotor(false);
-#endif
 }
 
 void ps_3_4_controller::activate()
@@ -302,9 +296,6 @@ void ps_3_4_controller::activate()
       Serial.print("Setting manual mode to: ");
     if (DEBUG)
       Serial.println(IS_PSCONTROLER_ACTIVE);
-#ifdef IS_MOTOR
-    motor.setEnableMotor(IS_PSCONTROLER_ACTIVE);
-#endif
     delay(1000); // Debounce?
   }
 #ifdef IS_LED
@@ -410,8 +401,8 @@ void ps_3_4_controller::control()
       stick_ly = analog_ly();
       stick_ly = stick_ly - sgn(stick_ly) * offset_val;
       motor.data[Stepper::Y]->speed = stick_ly * 5 * global_speed;
-      if (!motor.getEnableMotor())
-        motor.setEnableMotor(true);
+      if (!motor.steppers[Stepper::Y]->areOutputsEnabled())
+        motor.steppers[Stepper::Y]->enableOutputs();
     }
     else if (motor.data[Stepper::Y]->speed != 0)
     {
@@ -426,8 +417,8 @@ void ps_3_4_controller::control()
       stick_rx = analog_rx();
       stick_rx = stick_rx - sgn(stick_rx) * offset_val;
       motor.data[Stepper::Z]->speed = stick_rx * 5 * global_speed;
-      if (motor.getEnableMotor())
-        motor.setEnableMotor(true);
+      if (!motor.steppers[Stepper::Z]->areOutputsEnabled())
+        motor.steppers[Stepper::Z]->enableOutputs();
     }
     else if (motor.data[Stepper::Z]->speed != 0)
     {
@@ -442,8 +433,8 @@ void ps_3_4_controller::control()
       stick_ry = analog_ry();
       stick_ry = stick_ry - sgn(stick_ry) * offset_val;
       motor.data[Stepper::X]->speed = stick_ry * 5 * global_speed;
-      if (!motor.getEnableMotor())
-        motor.setEnableMotor(true);
+      if (!motor.steppers[Stepper::X]->areOutputsEnabled())
+        motor.steppers[Stepper::X]->enableOutputs();
     }
     else if (motor.data[Stepper::X]->speed != 0)
     {

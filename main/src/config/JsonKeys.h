@@ -8,7 +8,10 @@ static const PROGMEM  char * keyMotorZStepPin = "motZstp";
 static const PROGMEM  char * keyMotorZDirPin = "motZdir";
 static const PROGMEM char * keyMotorAStepPin = "motAstp";
 static const PROGMEM char * keyMotorADirPin = "motAdir";
-static const PROGMEM char * keyMotorEnable = "motEnable";
+static const PROGMEM char * keyMotorEnableX = "motEnableX";
+static const PROGMEM char * keyMotorEnableY = "motEnableY";
+static const PROGMEM char * keyMotorEnableZ = "motEnableZ";
+static const PROGMEM char * keyMotorEnableA = "motEnableA";
 
 static const PROGMEM char * keyLEDArray = "ledArrPin";
 static const PROGMEM char * keyLEDNumLEDArray = "ledArrNum";

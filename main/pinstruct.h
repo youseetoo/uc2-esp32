@@ -6,17 +6,6 @@ struct PINDEF{
     int analog_PIN_2;
     int analog_PIN_3;
 
-    // Stepper Motor pins
-    int STEP_A;
-    int STEP_X;
-    int STEP_Y;
-    int STEP_Z;
-    int DIR_A;
-    int DIR_X;
-    int DIR_Y;
-    int DIR_Z;
-    int ENABLE;
-
     // Laser PWM pins
     int LASER_PIN_1;// Spin Dir
     int LASER_PIN_2;//  Spin En

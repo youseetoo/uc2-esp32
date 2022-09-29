@@ -9,6 +9,7 @@
 #include "../gamepads/ps_3_4_controller.h"
 #endif
 #include "../wifi/WifiController.h"
+#include "../config/ConfigController.h"
 
 struct MotorData
 {
@@ -18,28 +19,14 @@ struct MotorData
     long currentPosition = 0;
     long targetPosition = 0;
     int SIGN = 1;
+    bool isforever = false;
 };
 
 struct MotorPins
 {
-    //stepper A pin
-    int STEP_A = 0;
-    //stepper X pin
-    int STEP_X = 0;
-    //stepper Y pin
-    int STEP_Y = 0;
-    //stepper Z pin
-    int STEP_Z = 0;
-    //stepper A Direction
-    int DIR_A = 0;
-    //stepper X Direction
-    int DIR_X = 0;
-    //stepper Y Direction
-    int DIR_Y = 0;
-    //stepper Z Direction
-    int DIR_Z = 0;
-    //pin to enable power
-    int ENABLE = 0;
+    int STEP;
+    int DIR;
+    int ENABLE;
 };
 
 enum Stepper
@@ -52,9 +39,8 @@ enum Stepper
 
 class FocusMotor
 {
-public:
-    PINDEF *pins;
 
+public:
     bool DEBUG = false;
 
 // for stepper.h
@@ -80,12 +66,6 @@ public:
     int isabs = true;
     int isen = false;
     bool isactive = false;
-
-    // direction
-    int SIGN_A = 1;
-    int SIGN_X = 1;
-    int SIGN_Y = 1;
-    int SIGN_Z = 1;
     static const int FULLSTEPS_PER_REV_A = 200;
     static const int FULLSTEPS_PER_REV_X = 200;
     static const int FULLSTEPS_PER_REV_Y = 200;
@@ -102,14 +82,16 @@ public:
 
     std::array<AccelStepper *, 4> steppers;
     std::array<MotorData *, 4> data;
+    std::array<MotorPins *, 4> pins;
 
     void act();
-    void setEnableMotor(bool enable);
-    bool getEnableMotor();
     void set();
     void get();
-    void setup(PINDEF *pins);
+    void setup();
     bool background();
+private:
+    void stopAllDrives();
+    void startAllDrives();
 };
 
 extern FocusMotor motor;

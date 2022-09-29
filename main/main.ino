@@ -89,7 +89,7 @@ void setup()
 #ifdef DEBUG_MOTOR
   motor.DEBUG = true;
 #endif
-  motor.setup(pins);
+  motor.setup();
 #endif
 
   BtController::setup();

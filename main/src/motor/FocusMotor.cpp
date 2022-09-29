@@ -41,17 +41,7 @@ void FocusMotor::act()
 
 	if (isstop)
 	{
-		// Immediately stop the motor
-		for (int i = 0; i < steppers.size(); i++)
-		{
-			steppers[i]->stop();
-			isforever = 0;
-			setEnableMotor(false);
-			data[i]->currentPosition = steppers[i]->currentPosition();
-		}
-		isforever = 0;
-		setEnableMotor(false);
-
+		stopAllDrives();
 		(*WifiController::getJDoc())["POSA"] = data[Stepper::A]->currentPosition;
 		(*WifiController::getJDoc())["POSX"] = data[Stepper::X]->currentPosition;
 		(*WifiController::getJDoc())["POSY"] = data[Stepper::Y]->currentPosition;
@@ -64,30 +54,7 @@ void FocusMotor::act()
 		ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
 #endif
 	// prepare motor to run
-	setEnableMotor(true);
-	for (int i = 0; i < steppers.size(); i++)
-	{
-		log_i("is data %i null:%s set speed/max %i/%i",i,boolToChar(data[i]==nullptr), data[i]->speed, data[i]->maxspeed);
-		log_i("set speed/max %i/%i", data[i]->speed, data[i]->maxspeed);
-		steppers[i]->setSpeed(data[i]->speed);
-		steppers[i]->setMaxSpeed(data[i]->maxspeed);
-		if (!isforever)
-		{
-			if (isabs)
-			{
-				// absolute position coordinates
-				steppers[i]->moveTo(data[i]->targetPosition);
-				steppers[i]->run();
-			}
-			else
-			{
-				// relative position coordinates
-				steppers[i]->move(data[i]->targetPosition);
-				steppers[i]->run();
-			}
-		}
-		data[i]->currentPosition = steppers[i]->currentPosition();
-	}
+	startAllDrives();
 
 	if (DEBUG)
 		Serial.println("Start rotation in background");
@@ -96,18 +63,6 @@ void FocusMotor::act()
 	(*WifiController::getJDoc())["POSX"] = data[Stepper::X]->currentPosition;
 	(*WifiController::getJDoc())["POSY"] = data[Stepper::Y]->currentPosition;
 	(*WifiController::getJDoc())["POSZ"] = data[Stepper::Z]->currentPosition;
-}
-
-void FocusMotor::setEnableMotor(bool enable)
-{
-	isBusy = enable;
-	//digitalWrite(pins->ENABLE, !enable);
-	motor_enable = enable;
-}
-
-bool FocusMotor::getEnableMotor()
-{
-	return motor_enable;
 }
 
 void FocusMotor::set()
@@ -212,26 +167,8 @@ void FocusMotor::set()
 	}
 	if (pindir != 0 and pinstep != 0)
 	{
-		if (axis == 0)
-		{
-			pins->STEP_A = pinstep;
-			pins->DIR_A = pindir;
-		}
-		else if (axis == 1)
-		{
-			pins->STEP_X = pinstep;
-			pins->DIR_X = pindir;
-		}
-		else if (axis == 2)
-		{
-			pins->STEP_Y = pinstep;
-			pins->DIR_Y = pindir;
-		}
-		else if (axis == 3)
-		{
-			pins->STEP_Z = pinstep;
-			pins->DIR_Z = pindir;
-		}
+		pins[axis]->DIR = pindir;
+		pins[axis]->STEP = pinstep;
 	}
 
 	// if (DEBUG) Serial.print("isen "); Serial.println(isen);
@@ -254,46 +191,38 @@ void FocusMotor::get()
 		Serial.println("motor_get_fct");
 	if (DEBUG)
 		Serial.println(axis);
-
-	int mmaxspeed = 0;
-	int pinstep = 0;
-	int pindir = 0;
-	int sign = 0;
-	int mspeed = 0;
-
-	mmaxspeed = steppers[axis]->maxSpeed();
-	mspeed = steppers[axis]->speed();
 	data[axis]->currentPosition = steppers[axis]->currentPosition();
-	pinstep = pins->STEP_X;
-	pindir = pins->DIR_X;
-	sign = SIGN_X;
 
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())["position"] = data[axis]->currentPosition;
 	(*WifiController::getJDoc())["speed"] = steppers[axis]->speed();
 	(*WifiController::getJDoc())["maxspeed"] = steppers[axis]->maxSpeed();
-	(*WifiController::getJDoc())["pinstep"] = pinstep;
-	(*WifiController::getJDoc())["pindir"] = pindir;
-	(*WifiController::getJDoc())["sign"] = sign;
+	(*WifiController::getJDoc())["pinstep"] = pins[axis]->STEP;
+	(*WifiController::getJDoc())["pindir"] = pins[axis]->DIR;
+	(*WifiController::getJDoc())["sign"] = data[axis]->SIGN;
 }
 
-void FocusMotor::setup(PINDEF *pins)
+void FocusMotor::setup()
 {
-	this->pins = pins;
-	steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_A, pins->DIR_A);
-	steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_X, pins->DIR_X);
-	steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_Y, pins->DIR_Y);
-	steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pins->STEP_Z, pins->DIR_Z);
-	data[Stepper::A] = new MotorData();
-	data[Stepper::X] = new MotorData();
-	data[Stepper::Y] = new MotorData();
-	data[Stepper::Z] = new MotorData();
+	// inti clean pin and motordata
+	for (int i = 0; i < 4; i++)
+	{
+		pins[i] = new MotorPins();
+		data[i] = new MotorData();
+	}
+	// get pins from config
+	Config::getMotorPins();
+	// create the stepper
+	for (int i = 0; i < 4; i++)
+	{
+		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
+		steppers[i]->setEnablePin(pins[i]->ENABLE);
+	}
+
 	/*
 	   Motor related settings
 	*/
 	Serial.println("Setting Up Motors");
-	//pinMode(pins->ENABLE, OUTPUT);
-	setEnableMotor(true);
 	Serial.println("Setting Up Motor A,X,Y,Z");
 	for (int i = 0; i < steppers.size(); i++)
 	{
@@ -303,16 +232,15 @@ void FocusMotor::setup(PINDEF *pins)
 		steppers[i]->runToNewPosition(-100);
 		steppers[i]->runToNewPosition(100);
 		steppers[i]->setCurrentPosition(0);
+		steppers[i]->disableOutputs();
 	}
-	setEnableMotor(false);
 }
 
 bool FocusMotor::background()
 {
-
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		//log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
+		// log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
 		data[i]->currentPosition = steppers[i]->currentPosition();
 		if (isforever)
 		{
@@ -332,27 +260,53 @@ bool FocusMotor::background()
 				steppers[i]->runSpeedToPosition();
 			}
 		}
+		// checks if a stepper is still running
+		if (steppers[i]->distanceToGo() == 0)
+		{
+			steppers[i]->disableOutputs();
+		}
 	}
+	return true;
+}
 
-	// checks if a stepper is still running
-	bool motordrive = false;
+void FocusMotor::stopAllDrives()
+{
+	// Immediately stop the motor
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		if (steppers[i]->distanceToGo() > 0)
-		{
-			motordrive = true;
-		}
-		else
-			steppers[i]->stop();
+		steppers[i]->stop();
+		data[i]->isforever = false;
+		data[i]->currentPosition = steppers[i]->currentPosition();
+		steppers[i]->disableOutputs();
 	}
+}
 
-	// all steppers reached their positions? yeah turn motor off..
-	if (!isen && !motordrive)
+void FocusMotor::startAllDrives()
+{
+	for (int i = 0; i < steppers.size(); i++)
 	{
-		setEnableMotor(false);
+		log_i("is data %i null:%s set speed/max %i/%i", i, boolToChar(data[i] == nullptr), data[i]->speed, data[i]->maxspeed);
+		log_i("set speed/max %i/%i", data[i]->speed, data[i]->maxspeed);
+		steppers[i]->enableOutputs();
+		steppers[i]->setSpeed(data[i]->speed);
+		steppers[i]->setMaxSpeed(data[i]->maxspeed);
+		if (!data[i]->isforever)
+		{
+			if (isabs)
+			{
+				// absolute position coordinates
+				steppers[i]->moveTo(data[i]->targetPosition);
+				steppers[i]->run();
+			}
+			else
+			{
+				// relative position coordinates
+				steppers[i]->move(data[i]->targetPosition);
+				steppers[i]->run();
+			}
+		}
+		data[i]->currentPosition = steppers[i]->currentPosition();
 	}
-	isBusy = false;
-	return true;
 }
 
 FocusMotor motor;

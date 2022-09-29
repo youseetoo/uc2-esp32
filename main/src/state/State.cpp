@@ -149,14 +149,6 @@ void State::getDefaultPinDef(PINDEF *pindef)
   pindef->analog_PIN_1 = 0;
   pindef->analog_PIN_2 = 0;
   pindef->analog_PIN_3 = 0;
-  // Definition cellSTORM
-  pindef->STEP_X = 0;
-  pindef->STEP_Y = 0;
-  pindef->STEP_Z = 0;
-  pindef->DIR_X = 0;
-  pindef->DIR_Y = 0;
-  pindef->DIR_Z = 0;
-  pindef->ENABLE = 0;
   // Laser PWM pins
   pindef->LASER_PIN_1 = 0;
   pindef->LASER_PIN_2 = 0;

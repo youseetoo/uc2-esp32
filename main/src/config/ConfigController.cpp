@@ -79,21 +79,21 @@ namespace Config
 	{
 
 		preferences.begin("UC2", false);
-		motor.pins[Stepper::X]->STEP = preferences.getInt(keyMotorXStepPin);
-		motor.pins[Stepper::X]->DIR = preferences.getInt(keyMotorXDirPin);
-		motor.pins[Stepper::X]->ENABLE = preferences.getInt(keyMotorEnableX);
+		motor.pins[Stepper::X].STEP = preferences.getInt(keyMotorXStepPin);
+		motor.pins[Stepper::X].DIR = preferences.getInt(keyMotorXDirPin);
+		motor.pins[Stepper::X].ENABLE = preferences.getInt(keyMotorEnableX);
 
-		motor.pins[Stepper::Y]->STEP = preferences.getInt(keyMotorYStepPin);
-		motor.pins[Stepper::Y]->DIR = preferences.getInt(keyMotorYDirPin);
-		motor.pins[Stepper::Y]->ENABLE = preferences.getInt(keyMotorEnableY);
+		motor.pins[Stepper::Y].STEP = preferences.getInt(keyMotorYStepPin);
+		motor.pins[Stepper::Y].DIR = preferences.getInt(keyMotorYDirPin);
+		motor.pins[Stepper::Y].ENABLE = preferences.getInt(keyMotorEnableY);
 
-		motor.pins[Stepper::Z]->STEP = preferences.getInt(keyMotorZStepPin);
-		motor.pins[Stepper::Z]->DIR = preferences.getInt(keyMotorZDirPin);
-		motor.pins[Stepper::Z]->ENABLE = preferences.getInt(keyMotorEnableZ);
+		motor.pins[Stepper::Z].STEP = preferences.getInt(keyMotorZStepPin);
+		motor.pins[Stepper::Z].DIR = preferences.getInt(keyMotorZDirPin);
+		motor.pins[Stepper::Z].ENABLE = preferences.getInt(keyMotorEnableZ);
 
-		motor.pins[Stepper::A]->STEP = preferences.getInt(keyMotorAStepPin);
-		motor.pins[Stepper::A]->DIR = preferences.getInt(keyMotorADirPin);
-		motor.pins[Stepper::A]->ENABLE = preferences.getInt(keyMotorEnableA);
+		motor.pins[Stepper::A].STEP = preferences.getInt(keyMotorAStepPin);
+		motor.pins[Stepper::A].DIR = preferences.getInt(keyMotorADirPin);
+		motor.pins[Stepper::A].ENABLE = preferences.getInt(keyMotorEnableA);
 		preferences.end();
 	}
 
@@ -148,20 +148,20 @@ namespace Config
     preferences.putInt(keyAnalog2Pin, pins->analog_PIN_2);
     preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
 
-    preferences.putInt(keyMotorAStepPin, motor.pins[Stepper::A]->STEP);
-    preferences.putInt(keyMotorXStepPin, motor.pins[Stepper::X]->STEP);
-    preferences.putInt(keyMotorYStepPin, motor.pins[Stepper::Y]->STEP);
-    preferences.putInt(keyMotorZStepPin, motor.pins[Stepper::Z]->STEP);
+    preferences.putInt(keyMotorAStepPin, motor.pins[Stepper::A].STEP);
+    preferences.putInt(keyMotorXStepPin, motor.pins[Stepper::X].STEP);
+    preferences.putInt(keyMotorYStepPin, motor.pins[Stepper::Y].STEP);
+    preferences.putInt(keyMotorZStepPin, motor.pins[Stepper::Z].STEP);
 
-    preferences.putInt(keyMotorADirPin, motor.pins[Stepper::A]->DIR);
-    preferences.putInt(keyMotorXDirPin, motor.pins[Stepper::X]->DIR);
-    preferences.putInt(keyMotorYDirPin, motor.pins[Stepper::Y]->DIR);
-    preferences.putInt(keyMotorZDirPin, motor.pins[Stepper::Z]->DIR);
+    preferences.putInt(keyMotorADirPin, motor.pins[Stepper::A].DIR);
+    preferences.putInt(keyMotorXDirPin, motor.pins[Stepper::X].DIR);
+    preferences.putInt(keyMotorYDirPin, motor.pins[Stepper::Y].DIR);
+    preferences.putInt(keyMotorZDirPin, motor.pins[Stepper::Z].DIR);
 
-    preferences.putInt(keyMotorEnableA, motor.pins[Stepper::A]->ENABLE);
-    preferences.putInt(keyMotorEnableX, motor.pins[Stepper::X]->ENABLE);
-    preferences.putInt(keyMotorEnableY, motor.pins[Stepper::Y]->ENABLE);
-    preferences.putInt(keyMotorEnableY, motor.pins[Stepper::Z]->ENABLE);
+    preferences.putInt(keyMotorEnableA, motor.pins[Stepper::A].ENABLE);
+    preferences.putInt(keyMotorEnableX, motor.pins[Stepper::X].ENABLE);
+    preferences.putInt(keyMotorEnableY, motor.pins[Stepper::Y].ENABLE);
+    preferences.putInt(keyMotorEnableY, motor.pins[Stepper::Z].ENABLE);
 
     preferences.putInt(keyLEDArray, pins->LED_ARRAY_PIN);
     preferences.putInt(keyLEDNumLEDArray, pins->LED_ARRAY_NUM);
@@ -320,21 +320,21 @@ namespace Config
     WifiController::getJDoc()->clear();
 
     // Assign to JSON WifiController::getJDoc()ument
-    setPinsToJson(keyMotorXStepPin, motor.pins[Stepper::X]->STEP);
-    setPinsToJson(keyMotorXDirPin, motor.pins[Stepper::X]->DIR);
-    setPinsToJson(keyMotorEnableX, motor.pins[Stepper::X]->ENABLE);
+    setPinsToJson(keyMotorXStepPin, motor.pins[Stepper::X].STEP);
+    setPinsToJson(keyMotorXDirPin, motor.pins[Stepper::X].DIR);
+    setPinsToJson(keyMotorEnableX, motor.pins[Stepper::X].ENABLE);
 
-    setPinsToJson(keyMotorYStepPin, motor.pins[Stepper::Y]->STEP);
-    setPinsToJson(keyMotorYDirPin, motor.pins[Stepper::Y]->DIR);
-    setPinsToJson(keyMotorEnableY, motor.pins[Stepper::Y]->ENABLE);
+    setPinsToJson(keyMotorYStepPin, motor.pins[Stepper::Y].STEP);
+    setPinsToJson(keyMotorYDirPin, motor.pins[Stepper::Y].DIR);
+    setPinsToJson(keyMotorEnableY, motor.pins[Stepper::Y].ENABLE);
 
-    setPinsToJson(keyMotorZStepPin, motor.pins[Stepper::Z]->STEP);
-    setPinsToJson(keyMotorZDirPin, motor.pins[Stepper::Z]->DIR);
-    setPinsToJson(keyMotorEnableZ, motor.pins[Stepper::Z]->ENABLE);
+    setPinsToJson(keyMotorZStepPin, motor.pins[Stepper::Z].STEP);
+    setPinsToJson(keyMotorZDirPin, motor.pins[Stepper::Z].DIR);
+    setPinsToJson(keyMotorEnableZ, motor.pins[Stepper::Z].ENABLE);
 
-    setPinsToJson(keyMotorAStepPin, motor.pins[Stepper::A]->STEP);
-    setPinsToJson(keyMotorADirPin, motor.pins[Stepper::A]->DIR);
-    setPinsToJson(keyMotorEnableA, motor.pins[Stepper::A]->ENABLE);
+    setPinsToJson(keyMotorAStepPin, motor.pins[Stepper::A].STEP);
+    setPinsToJson(keyMotorADirPin, motor.pins[Stepper::A].DIR);
+    setPinsToJson(keyMotorEnableA, motor.pins[Stepper::A].ENABLE);
 
     setPinsToJson(keyLEDArray, pins->LED_ARRAY_PIN);
     setPinsToJson(keyLEDNumLEDArray, pins->LED_ARRAY_NUM);

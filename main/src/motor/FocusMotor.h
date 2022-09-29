@@ -82,7 +82,7 @@ public:
 
     std::array<AccelStepper *, 4> steppers;
     std::array<MotorData *, 4> data;
-    std::array<MotorPins *, 4> pins;
+    std::array<MotorPins, 4> pins;
 
     void act();
     void set();

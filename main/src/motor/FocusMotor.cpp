@@ -103,6 +103,11 @@ void FocusMotor::set()
 	{
 		pindir = (*WifiController::getJDoc())["pindir"];
 	}
+	int pinenable = -1;
+	if (WifiController::getJDoc()->containsKey("pinenable"))
+	{
+		pinenable = (*WifiController::getJDoc())["pinenable"];
+	}
 
 	int isen = -1;
 	if (WifiController::getJDoc()->containsKey("isen"))
@@ -165,11 +170,19 @@ void FocusMotor::set()
 		data[axis]->maxspeed = maxspeed;
 		steppers[axis]->setMaxSpeed(maxspeed);
 	}
-	if (pindir != 0 and pinstep != 0)
+	if (pindir != -1 and pinstep != -1)
 	{
 		pins[axis].DIR = pindir;
 		pins[axis].STEP = pinstep;
+		log_i("axis:%i step:%i dir:%i", axis, pinstep, pindir);
 	}
+	if (pinenable != -1)
+	{
+		pins[axis].ENABLE = pinenable;
+		log_i("axis:%i enablepin:%i", axis, pinenable);
+	}
+
+	Config::savePreferencesFromPins(true);
 
 	// if (DEBUG) Serial.print("isen "); Serial.println(isen);
 	/*if (isen != 0 and isen)
@@ -212,8 +225,10 @@ void FocusMotor::setup()
 	// get pins from config
 	Config::getMotorPins();
 	// create the stepper
+	
 	for (int i = 0; i < 4; i++)
 	{
+		log_i("Pins: Step: %i Dir: %i Enable:%i", pins[i].STEP, pins[i].DIR, pins[i].ENABLE);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i].STEP, pins[i].DIR);
 		steppers[i]->setEnablePin(pins[i].ENABLE);
 	}

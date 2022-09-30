@@ -16,7 +16,7 @@ namespace Config
     bool setPreferences();
     bool getPreferences();
     void initempty();
-    void savePreferencesFromPins();
+    void savePreferencesFromPins(bool openPrefs);
     void applyPreferencesToPins();
     void loop();
     void act();

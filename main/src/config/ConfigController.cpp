@@ -78,7 +78,7 @@ namespace Config
 	void getMotorPins()
 	{
 
-		preferences.begin("UC2", false);
+		preferences.begin(prefNamespace, false);
 		motor.pins[Stepper::X].STEP = preferences.getInt(keyMotorXStepPin);
 		motor.pins[Stepper::X].DIR = preferences.getInt(keyMotorXDirPin);
 		motor.pins[Stepper::X].ENABLE = preferences.getInt(keyMotorEnableX);
@@ -115,7 +115,7 @@ namespace Config
       log_i("yes, resetSettings");
       resetPreferences();
       initempty();
-      savePreferencesFromPins();
+      savePreferencesFromPins(false);
       applyPreferencesToPins();
       preferences.putString(dateKey, compiled_date); // FIXME?
     }
@@ -141,8 +141,10 @@ namespace Config
     return true;
   }
 
-  void savePreferencesFromPins()
+  void savePreferencesFromPins(bool openPrefs)
   {
+    if(openPrefs)
+      preferences.begin(prefNamespace,false);
     preferences.putInt(keyAnalog1Pin, (*pins).analog_PIN_1);
     preferences.putInt(keyAnalog1Pin, pins->analog_PIN_1);
     preferences.putInt(keyAnalog2Pin, pins->analog_PIN_2);
@@ -162,6 +164,11 @@ namespace Config
     preferences.putInt(keyMotorEnableX, motor.pins[Stepper::X].ENABLE);
     preferences.putInt(keyMotorEnableY, motor.pins[Stepper::Y].ENABLE);
     preferences.putInt(keyMotorEnableY, motor.pins[Stepper::Z].ENABLE);
+
+    log_i("Stepper A step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorAStepPin), preferences.getInt(keyMotorADirPin), preferences.getInt(keyMotorEnableA));
+    log_i("Stepper X step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorXStepPin), preferences.getInt(keyMotorXDirPin), preferences.getInt(keyMotorEnableX));
+    log_i("Stepper Y step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorYStepPin), preferences.getInt(keyMotorYDirPin), preferences.getInt(keyMotorEnableY));
+    log_i("Stepper Z step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorZStepPin), preferences.getInt(keyMotorZDirPin), preferences.getInt(keyMotorEnableZ));
 
     preferences.putInt(keyLEDArray, pins->LED_ARRAY_PIN);
     preferences.putInt(keyLEDNumLEDArray, pins->LED_ARRAY_NUM);
@@ -184,6 +191,8 @@ namespace Config
     preferences.putString(keyWifiSSID, WifiController::getSsid());
     preferences.putString(keyWifiPW, WifiController::getPw());
     preferences.putInt(keyWifiAP, WifiController::getAp());
+    if(openPrefs)
+      preferences.end();
   }
 
   void initempty()

@@ -299,9 +299,17 @@ void FocusMotor::startAllDrives()
 {
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		log_i("is data %i null:%s set speed/max %i/%i", i, boolToChar(data[i] == nullptr), data[i]->speed, data[i]->maxspeed);
-		log_i("set speed/max %i/%i", data[i]->speed, data[i]->maxspeed);
-		steppers[i]->enableOutputs();
+		log_i("is stepper %i null:%s set speed/max %i/%i step:%i dir%i enablepin:%i outputenabled:%s", 
+					i, 
+					boolToChar(data[i] == nullptr), 
+					data[i]->speed, 
+					data[i]->maxspeed, 
+					pins[i].STEP, 
+					pins[i].DIR, 
+					pins[i].ENABLE, 
+					boolToChar(steppers[i]->areOutputsEnabled()));
+		if(!steppers[i]->areOutputsEnabled())
+			steppers[i]->enableOutputs();
 		steppers[i]->setSpeed(data[i]->speed);
 		steppers[i]->setMaxSpeed(data[i]->maxspeed);
 		if (!data[i]->isforever)

@@ -116,18 +116,6 @@
     },
     "config" : 
     {
-        "motXstp" : 1,
-        "motXdir" : 1,
-        "motYstp" : 1,
-        "motYdir" : 1,
-        "motZstp" : 1,
-        "motZdir" : 1,
-        "motAstp" : 1,
-        "motAdir" : 1,
-        "motEnable" : 1,
-
-        "ledArrPin" : 1,
-        "ledArrNum" : 64,
 
         "digitalPin1" : 1,
         "digitalPin2" : 1,
@@ -153,12 +141,13 @@
         "analogid" : 1,
         "analogval" : 1,
     }
-}
+},
 //set
 {
     "led":
     {
-
+        "ledArrPin" : 0,
+        "ledArrNum" : 0
     },
     "motor" :
     {

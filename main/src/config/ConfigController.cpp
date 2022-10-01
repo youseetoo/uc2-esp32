@@ -151,6 +151,24 @@ namespace Config
 			preferences.end();
 	}
 
+	void getLedPins()
+	{
+		preferences.begin(prefNamespace, false);
+		led.ledconfig.ledCount = preferences.getInt(keyLEDCount,0);
+		led.ledconfig.ledPin = preferences.getInt(keyLEDPin,0);
+		preferences.end();
+	}
+
+	void setLedPins(bool openPrefs)
+	{
+		if (openPrefs)
+			preferences.begin(prefNamespace, false);
+		preferences.putInt(keyLEDCount, led.ledconfig.ledCount);
+		preferences.putInt(keyLEDPin, led.ledconfig.ledPin);
+		if(openPrefs)
+			preferences.end();
+	}
+
 	bool isFirstRun()
 	{
 		bool rdystate = preferences.begin(prefNamespace, false);
@@ -205,10 +223,8 @@ namespace Config
 		preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
 
 		setMotorPinConfig(openPrefs);
-
-		preferences.putInt(keyLEDArray, pins->LED_ARRAY_PIN);
-		preferences.putInt(keyLEDNumLEDArray, pins->LED_ARRAY_NUM);
-
+		setLedPins(openPrefs);
+		
 		preferences.putInt(keyDigital1Pin, pins->digital_PIN_1);
 		preferences.putInt(keyDigital2Pin, pins->digital_PIN_2);
 		preferences.putInt(keyDigital3Pin, pins->digital_PIN_3);
@@ -258,8 +274,8 @@ namespace Config
 		preferences.putInt(keyMotorEnableYinverted, 0);
 		preferences.putInt(keyMotorEnableZinverted, 0);
 
-		preferences.putInt(keyLEDArray, 0);
-		preferences.putInt(keyLEDNumLEDArray, 0);
+		preferences.putInt(keyLEDPin, 0);
+		preferences.putInt(keyLEDCount, 0);
 
 		preferences.putInt(keyDigital1Pin, 0);
 		preferences.putInt(keyDigital2Pin, 0);
@@ -284,26 +300,6 @@ namespace Config
 	bool setPreferences()
 	{
 		preferences.begin(prefNamespace, false);
-
-		setJsonToPref(keyMotorXStepPin);
-		setJsonToPref(keyMotorXDirPin);
-
-		setJsonToPref(keyMotorYStepPin);
-		setJsonToPref(keyMotorYDirPin);
-
-		setJsonToPref(keyMotorZStepPin);
-		setJsonToPref(keyMotorZDirPin);
-
-		setJsonToPref(keyMotorAStepPin);
-		setJsonToPref(keyMotorADirPin);
-
-		setJsonToPref(keyMotorEnableA);
-		setJsonToPref(keyMotorEnableX);
-		setJsonToPref(keyMotorEnableY);
-		setJsonToPref(keyMotorEnableZ);
-
-		setJsonToPref(keyLEDArray);
-		setJsonToPref(keyLEDNumLEDArray);
 
 		setJsonToPref(keyDigital1Pin);
 		setJsonToPref(keyDigital2Pin);
@@ -330,8 +326,8 @@ namespace Config
 	{
 		// motor loads pins on setup
 
-		pins->LED_ARRAY_PIN = preferences.getInt(keyLEDArray, pins->LED_ARRAY_PIN);
-		pins->LED_ARRAY_NUM = preferences.getInt(keyLEDNumLEDArray, pins->LED_ARRAY_NUM);
+		led.ledconfig.ledPin = preferences.getInt(keyLEDPin, 0);
+		led.ledconfig.ledCount = preferences.getInt(keyLEDCount, 0);
 
 		pins->digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins->digital_PIN_1);
 		pins->digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins->digital_PIN_2);
@@ -386,8 +382,8 @@ namespace Config
 		setPinsToJson(keyMotorADirPin, motor.pins[Stepper::A].DIR);
 		setPinsToJson(keyMotorEnableA, motor.pins[Stepper::A].ENABLE);
 
-		setPinsToJson(keyLEDArray, pins->LED_ARRAY_PIN);
-		setPinsToJson(keyLEDNumLEDArray, pins->LED_ARRAY_NUM);
+		setPinsToJson(keyLEDCount, led.ledconfig.ledCount);
+		setPinsToJson(keyLEDPin, led.ledconfig.ledPin);
 
 		setPinsToJson(keyDigital1Pin, pins->digital_PIN_1);
 		setPinsToJson(keyDigital2Pin, pins->digital_PIN_2);

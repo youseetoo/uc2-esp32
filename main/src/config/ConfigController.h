@@ -26,4 +26,6 @@ namespace Config
     void setWifiConfig(String ssid, String pw, bool ap, bool prefopen);
     void setMotorPinConfig(bool prefsOpen);
     void getMotorPins();
+    void setLedPins(bool prefsOpen);
+    void getLedPins();
 }

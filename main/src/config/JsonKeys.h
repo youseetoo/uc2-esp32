@@ -25,8 +25,8 @@ static const PROGMEM char * keyMotorEnableZinverted = "motEnableZ_inverted";
 static const PROGMEM char * keyMotorEnableA = "motEnableA";
 static const PROGMEM char * keyMotorEnableAinverted = "motEnableA_inverted";
 
-static const PROGMEM char * keyLEDArray = "ledArrPin";
-static const PROGMEM char * keyLEDNumLEDArray = "ledArrNum";
+static const PROGMEM char * keyLEDPin = "ledArrPin";
+static const PROGMEM char * keyLEDCount = "ledArrNum";
 
 static const PROGMEM char * keyDigital1Pin = "digitalPin1";
 static const PROGMEM char * keyDigital2Pin = "digitalPin2";

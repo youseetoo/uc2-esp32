@@ -213,21 +213,21 @@ namespace RestApi
     void Led_act()
     {
         deserialize();
-        LedController::act();
+        led.act();
         serialize();
     }
 
     void Led_get()
     {
         deserialize();
-        LedController::get();
+        led.get();
         serialize();
     }
 
     void Led_set()
     {
         deserialize();
-        LedController::set();
+        led.set();
         serialize();
     }
 #endif

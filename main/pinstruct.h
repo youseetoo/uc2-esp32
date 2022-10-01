@@ -16,11 +16,6 @@ struct PINDEF{
     int digital_PIN_2;
     int digital_PIN_3;
     const char* identifier_setup;
-
-    // ledarray
-    int LED_ARRAY_PIN;
-    int LED_ARRAY_NUM;
-
     // GALVos are always connected to 25/26 
     int dac_fake_1; // RESET-ABORT just toggles between 1 and 0
     int dac_fake_2; // Coolant

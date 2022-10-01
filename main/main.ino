@@ -81,7 +81,7 @@ void setup()
 #endif
 #ifdef IS_LED
   log_i("IS_LED");
-  LedController::setup(pins, false);
+  led.setup();
 #endif
 
 #ifdef IS_MOTOR

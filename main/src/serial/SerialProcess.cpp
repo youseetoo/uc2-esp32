@@ -147,11 +147,11 @@ void SerialProcess::jsonProcessor(String task,DynamicJsonDocument * jsonDocument
 */
 #ifdef IS_LED
   if (task == ledarr_act_endpoint)
-    LedController::act();
+    led.act();
   if (task == ledarr_set_endpoint)
-    LedController::set();
+    led.set();
   if (task == ledarr_get_endpoint)
-    LedController::get();
+    led.get();
 #endif
   /*
     Change Configuration

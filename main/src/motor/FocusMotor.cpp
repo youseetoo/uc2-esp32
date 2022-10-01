@@ -86,7 +86,7 @@ void FocusMotor::set()
 			setup();
 		}
 	}
-	WifiController::getJDoc()->clear();
+	doc->clear();
 }
 
 void FocusMotor::get()

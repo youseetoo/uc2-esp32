@@ -153,9 +153,6 @@ void State::getDefaultPinDef(PINDEF *pindef)
   pindef->LASER_PIN_1 = 0;
   pindef->LASER_PIN_2 = 0;
   pindef->LASER_PIN_3 = 0;
-  // ledarray
-  pindef->LED_ARRAY_PIN = 0;
-  pindef->LED_ARRAY_NUM = 0;
 
   pindef->digital_PIN_1 = 0;
   pindef->digital_PIN_2 = 0;

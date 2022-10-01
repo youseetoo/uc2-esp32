@@ -67,134 +67,26 @@ void FocusMotor::act()
 
 void FocusMotor::set()
 {
-	// default value handling
-	int axis = -1;
-	if (WifiController::getJDoc()->containsKey("axis"))
+	DynamicJsonDocument * doc = WifiController::getJDoc();
+	if (doc->containsKey(key_motor))
 	{
-		axis = (*WifiController::getJDoc())["axis"];
+		if ((*doc)[key_motor].containsKey(key_steppers))
+		{
+			for (int i = 0; i < (*doc)[key_motor][key_steppers].size(); i++)
+			{
+				Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppers][i][key_stepperid]);
+				pins[i].DIR = (*doc)[key_motor][key_steppers][i][key_dir];
+				pins[i].STEP = (*doc)[key_motor][key_steppers][i][key_step];
+				pins[i].ENABLE = (*doc)[key_motor][key_steppers][i][key_enable];
+				pins[i].direction_inverted = (*doc)[key_motor][key_steppers][i][key_dir_inverted];
+				pins[i].step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
+				pins[i].enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
+			}
+			Config::setMotorPinConfig(false);
+			setup();
+		}
 	}
-
-	int currentposition = NULL;
-	if (WifiController::getJDoc()->containsKey("currentposition"))
-	{
-		currentposition = (*WifiController::getJDoc())["currentposition"];
-	}
-
-	int maxspeed = NULL;
-	if (WifiController::getJDoc()->containsKey("maxspeed"))
-	{
-		maxspeed = (*WifiController::getJDoc())["maxspeed"];
-	}
-
-	int accel = NULL;
-	if (WifiController::getJDoc()->containsKey("accel"))
-	{
-		accel = (*WifiController::getJDoc())["accel"];
-	}
-
-	int pinstep = -1;
-	if (WifiController::getJDoc()->containsKey("pinstep"))
-	{
-		pinstep = (*WifiController::getJDoc())["pinstep"];
-	}
-
-	int pindir = -1;
-	if (WifiController::getJDoc()->containsKey("pindir"))
-	{
-		pindir = (*WifiController::getJDoc())["pindir"];
-	}
-	int pinenable = -1;
-	if (WifiController::getJDoc()->containsKey("pinenable"))
-	{
-		pinenable = (*WifiController::getJDoc())["pinenable"];
-	}
-
-	int isen = -1;
-	if (WifiController::getJDoc()->containsKey("isen"))
-	{
-		isen = (*WifiController::getJDoc())["isen"];
-	}
-
-	int sign = NULL;
-	if (WifiController::getJDoc()->containsKey("sign"))
-	{
-		sign = (*WifiController::getJDoc())["sign"];
-	}
-
-	// DEBUG printing
-	if (DEBUG)
-	{
-		Serial.print("axis ");
-		Serial.println(axis);
-		Serial.print("currentposition ");
-		Serial.println(currentposition);
-		Serial.print("maxspeed ");
-		Serial.println(maxspeed);
-		Serial.print("pinstep ");
-		Serial.println(pinstep);
-		Serial.print("pindir ");
-		Serial.println(pindir);
-		Serial.print("isen ");
-		Serial.println(isen);
-		Serial.print("accel ");
-		Serial.println(accel);
-		Serial.print("isen: ");
-		Serial.println(isen);
-	}
-
-	if (accel >= 0)
-	{
-		if (DEBUG)
-			Serial.print("accel ");
-		Serial.println(accel);
-		steppers[axis]->setAcceleration(accel);
-	}
-
-	if (sign != NULL)
-	{
-		if (DEBUG)
-			Serial.print("sign ");
-		Serial.println(sign);
-		data[axis]->SIGN = sign;
-	}
-
-	if (currentposition != NULL)
-	{
-		if (DEBUG)
-			Serial.print("currentposition ");
-		Serial.println(currentposition);
-		data[axis]->currentPosition = currentposition;
-	}
-	if (maxspeed != 0)
-	{
-		data[axis]->maxspeed = maxspeed;
-		steppers[axis]->setMaxSpeed(maxspeed);
-	}
-	if (pindir != -1 and pinstep != -1)
-	{
-		pins[axis].DIR = pindir;
-		pins[axis].STEP = pinstep;
-		log_i("axis:%i step:%i dir:%i", axis, pinstep, pindir);
-	}
-	if (pinenable != -1)
-	{
-		pins[axis].ENABLE = pinenable;
-		log_i("axis:%i enablepin:%i", axis, pinenable);
-	}
-
-	Config::savePreferencesFromPins(true);
-
-	// if (DEBUG) Serial.print("isen "); Serial.println(isen);
-	/*if (isen != 0 and isen)
-	{
-		digitalWrite(pins->ENABLE, 0);
-	}
-	else if (isen != 0 and not isen)
-	{
-		digitalWrite(pins->ENABLE, 1);
-	}*/
 	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
 }
 
 void FocusMotor::get()
@@ -231,6 +123,7 @@ void FocusMotor::setup()
 		log_i("Pins: Step: %i Dir: %i Enable:%i", pins[i].STEP, pins[i].DIR, pins[i].ENABLE);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i].STEP, pins[i].DIR);
 		steppers[i]->setEnablePin(pins[i].ENABLE);
+		steppers[i]->setPinsInverted(pins[i].step_inverted,pins[i].direction_inverted,pins[i].enable_inverted);
 	}
 
 	/*

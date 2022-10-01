@@ -17,7 +17,7 @@
                 "green" : 1,
                 "blue" : 1
             },
-            ...
+            //...
         ]
     },
     "motor" :
@@ -28,8 +28,8 @@
                 "speed" : 0,
                 "position" :0
             },
-            ...
-        ]
+            //...
+        ],
         "isabs" : 1,
         "isstop" : 1,
         "isaccel" : 1,
@@ -70,7 +70,7 @@
         "scannerDelay" : 100,
         "scannernFrames" : 30,
         //pattern start
-        "i" : [0,1,2,3, .....]
+        "i" : [0,1,2,3, .....],
         //pattern end
         //classic start
         "scannerXFrameMax" : 30,
@@ -99,13 +99,13 @@
         "LASERid" : 1,
         "LASERval" : 1,
         "LASERdespeckle" : 1,
-        "LASERdespecklePeriod" : 1;
+        "LASERdespecklePeriod" : 1
     },
     "digital" :
     {
         "digitalid" : 1,
         "digitalval" : 1,
-    }
+    },
     "dac" :
     {
         "dac_channel" : 1, // enum value DAC_CHANNEL_1 DAC_CHANNEL_2
@@ -160,21 +160,25 @@
     {
 
     },
-    "motor":
+    "motor" :
     {
-        "axis" : -1,
-        "currentposition" : 1,
-        "maxspeed" : 1,
-        "accel" : 1,
-        "pinstep" : 1,
-        "pindir" : 1,
-        "isen" : 1,
-        "sign" : 1,
+        "steppers":[
+            {
+                "stepperid" : 0, // A=0,X,Y,Z
+                "dir" : 0, //direction pin
+                "step" :0, //step pin
+                "enable" :0, //power pin
+                "dir_inverted" :0,
+                "step_inverted" :0,
+                "enable_inverted" :0,
+            },
+            ...
+        ]
     },
     "state":
     { 
         "isdebug" : 1
-    }
+    },
     "slm" :
     {
 
@@ -216,7 +220,7 @@
         "motYdir" : 1,
         "motZstp" : 1,
         "motZdir" : 1,
-        "motAstp" : 1
+        "motAstp" : 1,
         "motAdir" : 1,
         "motEnable" : 1,
 

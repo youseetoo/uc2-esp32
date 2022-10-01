@@ -1,17 +1,29 @@
 #pragma once
 
 static const PROGMEM  char * keyMotorXStepPin  = "motXstp";
+static const PROGMEM  char * keyMotorXStepPinInverted  = "motXstp_inverted";
 static const PROGMEM  char * keyMotorXDirPin = "motXdir";
+static const PROGMEM  char * keyMotorXDirPinInverted = "motXdir_inverted";
 static const PROGMEM  char * keyMotorYStepPin = "motYstp";
+static const PROGMEM  char * keyMotorYStepPinInverted = "motYstp_inverted";
 static const PROGMEM  char * keyMotorYDirPin = "motYdir";
+static const PROGMEM  char * keyMotorYDirPinInverted = "motYdir_inverted";
 static const PROGMEM  char * keyMotorZStepPin = "motZstp";
+static const PROGMEM  char * keyMotorZStepPinInverted = "motZstp_inverted";
 static const PROGMEM  char * keyMotorZDirPin = "motZdir";
+static const PROGMEM  char * keyMotorZDirPinInverted = "motZdir_inverted";
 static const PROGMEM char * keyMotorAStepPin = "motAstp";
+static const PROGMEM char * keyMotorAStepPinInverted = "motAstp_inverted";
 static const PROGMEM char * keyMotorADirPin = "motAdir";
+static const PROGMEM char * keyMotorADirPinInverted = "motAdir_inverted";
 static const PROGMEM char * keyMotorEnableX = "motEnableX";
+static const PROGMEM char * keyMotorEnableXinverted = "motEnableX_inverted";
 static const PROGMEM char * keyMotorEnableY = "motEnableY";
+static const PROGMEM char * keyMotorEnableYinverted = "motEnableY_inverted";
 static const PROGMEM char * keyMotorEnableZ = "motEnableZ";
+static const PROGMEM char * keyMotorEnableZinverted = "motEnableZ_inverted";
 static const PROGMEM char * keyMotorEnableA = "motEnableA";
+static const PROGMEM char * keyMotorEnableAinverted = "motEnableA_inverted";
 
 static const PROGMEM char * keyLEDArray = "ledArrPin";
 static const PROGMEM char * keyLEDNumLEDArray = "ledArrNum";
@@ -58,3 +70,9 @@ static const PROGMEM char * key_isstop = "isstop";
 static const PROGMEM char * key_isaccel = "isaccel";
 static const PROGMEM char * key_isen = "isen";
 static const PROGMEM char * key_isforever = "isforever";
+static const PROGMEM char * key_dir = "dir";
+static const PROGMEM char * key_step = "step";
+static const PROGMEM char * key_enable = "enable";
+static const PROGMEM char * key_dir_inverted = "dir_inverted";
+static const PROGMEM char * key_step_inverted = "step_inverted";
+static const PROGMEM char * key_enable_inverted = "enable_inverted";

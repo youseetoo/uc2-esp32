@@ -27,11 +27,7 @@ void LedController::act()
 	if (WifiController::getJDoc()->containsKey(keyLed))
 	{
 		LedModes LEDArrMode = static_cast<LedModes>((*WifiController::getJDoc())[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
-		int NLeds = 0;
 		log_i("LEDArrMode : %i", LEDArrMode);
-		if ((*WifiController::getJDoc())[keyLed].containsKey(keyNLeds))
-			NLeds = (*WifiController::getJDoc())[keyLed][keyNLeds];
-		log_i("NLeds : %i", NLeds);
 
 		log_i("containsKey : led_array %s", boolToChar((*WifiController::getJDoc())[keyLed].containsKey(key_led_array)));
 		// individual pattern gets adressed
@@ -76,7 +72,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::left)
 		{
 			set_left(
-				NLeds,
+				ledconfig.ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -85,7 +81,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::right)
 		{
 			set_right(
-				NLeds,
+				ledconfig.ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -94,7 +90,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::top)
 		{
 			set_top(
-				NLeds,
+				ledconfig.ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -103,7 +99,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::bottom)
 		{
 			set_bottom(
-				NLeds,
+				ledconfig.ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -142,7 +138,8 @@ void LedController::set()
 void LedController::get()
 {
 	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())[keyNLeds] = ledconfig.ledCount;
+	(*WifiController::getJDoc())[keyLEDCount] = ledconfig.ledCount;
+	(*WifiController::getJDoc())[keyLEDPin] = ledconfig.ledPin;
 	(*WifiController::getJDoc())[keyLEDArrMode].add(0);
 	(*WifiController::getJDoc())[keyLEDArrMode].add(1);
 	(*WifiController::getJDoc())[keyLEDArrMode].add(2);
@@ -152,7 +149,6 @@ void LedController::get()
 	(*WifiController::getJDoc())[keyLEDArrMode].add(6);
 	(*WifiController::getJDoc())[keyLEDArrMode].add(7);
 	(*WifiController::getJDoc())[key_led_isOn] = isOn;
-	//(*jsonDocument)[F("LED_ARRAY_PIN")] = pins->LED_ARRAY_PIN;
 }
 
 /***************************************************************************************************/

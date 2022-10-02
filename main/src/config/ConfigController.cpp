@@ -161,11 +161,12 @@ namespace Config
 
 	void setLedPins(bool openPrefs)
 	{
-		if (openPrefs)
+		if (!openPrefs)
 			preferences.begin(prefNamespace, false);
 		preferences.putInt(keyLEDCount, led.ledconfig.ledCount);
 		preferences.putInt(keyLEDPin, led.ledconfig.ledPin);
-		if(openPrefs)
+		log_i("pin:%i count:%i", preferences.getInt(keyLEDPin), preferences.getInt(keyLEDCount));
+		if(!openPrefs)
 			preferences.end();
 	}
 
@@ -326,8 +327,8 @@ namespace Config
 	{
 		// motor loads pins on setup
 
-		led.ledconfig.ledPin = preferences.getInt(keyLEDPin, 0);
-		led.ledconfig.ledCount = preferences.getInt(keyLEDCount, 0);
+		//led.ledconfig.ledPin = preferences.getInt(keyLEDPin, 0);
+		//led.ledconfig.ledCount = preferences.getInt(keyLEDCount, 0);
 
 		pins->digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins->digital_PIN_1);
 		pins->digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins->digital_PIN_2);

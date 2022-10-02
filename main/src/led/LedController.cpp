@@ -124,11 +124,12 @@ void LedController::set()
 {
 	if (WifiController::getJDoc()->containsKey(keyLed))
 	{
-		if (WifiController::getJDoc()->containsKey(keyLEDPin))
-			ledconfig.ledPin = (*WifiController::getJDoc())[keyLEDPin];
-		if (WifiController::getJDoc()->containsKey(keyLEDCount))
-			ledconfig.ledCount = (*WifiController::getJDoc())[keyLEDCount];
-		Config::setLedPins(true);
+		if ((*WifiController::getJDoc())[keyLed].containsKey(keyLEDPin))
+			ledconfig.ledPin = (*WifiController::getJDoc())[keyLed][keyLEDPin];
+		if ((*WifiController::getJDoc())[keyLed].containsKey(keyLEDCount))
+			ledconfig.ledCount = (*WifiController::getJDoc())[keyLed][keyLEDCount];
+		log_i("led pin:%i count:%i",ledconfig.ledPin,ledconfig.ledCount);
+		Config::setLedPins(false);
 		setup();
 	}
 	WifiController::getJDoc()->clear();

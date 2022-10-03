@@ -175,7 +175,6 @@ namespace Config
 		bool rdystate = preferences.begin(prefNamespace, false);
 		log_i("isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
 		// define preference name
-		const char *dateKey = "date";
 		const char *compiled_date = __DATE__ " " __TIME__;
 		String stored_date = preferences.getString(dateKey, ""); // FIXME
 
@@ -188,7 +187,7 @@ namespace Config
 			log_i("yes, resetSettings");
 			resetPreferences();
 			initempty();
-			savePreferencesFromPins(false);
+			savePreferencesFromPins(true);
 			applyPreferencesToPins();
 			preferences.putString(dateKey, compiled_date); // FIXME?
 		}
@@ -203,7 +202,7 @@ namespace Config
 		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
 		String datetest = preferences.getString(dateKey, "");
 		preferences.end();
-		log_i("isFirstRun End datetest:%s", datetest);
+		log_i("isFirstRun End datetest:%s", datetest.c_str());
 		return !stored_date.equals(compiled_date);
 	}
 
@@ -216,7 +215,7 @@ namespace Config
 
 	void savePreferencesFromPins(bool openPrefs)
 	{
-		if (openPrefs)
+		if (!openPrefs)
 			preferences.begin(prefNamespace, false);
 		preferences.putInt(keyAnalog1Pin, (*pins).analog_PIN_1);
 		preferences.putInt(keyAnalog1Pin, pins->analog_PIN_1);
@@ -244,12 +243,13 @@ namespace Config
 		preferences.putString(keyWifiSSID, WifiController::getSsid());
 		preferences.putString(keyWifiPW, WifiController::getPw());
 		preferences.putInt(keyWifiAP, WifiController::getAp());
-		if (openPrefs)
+		if (!openPrefs)
 			preferences.end();
 	}
 
 	void initempty()
 	{
+		preferences.putString(dateKey, "");
 		preferences.putInt(keyAnalog1Pin, 0);
 		preferences.putInt(keyAnalog1Pin, 0);
 		preferences.putInt(keyAnalog2Pin, 0);

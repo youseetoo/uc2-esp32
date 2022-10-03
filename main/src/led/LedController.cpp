@@ -62,7 +62,7 @@ void LedController::act()
 			u_int8_t r = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed];
 			u_int8_t g = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen];
 			u_int8_t b = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue];
-			isOn = r == 0 && g == 0 && b == 0 ? true : false;
+			isOn = r == 0 && g == 0 && b == 0 ? false : true;
 
 			log_i("rgb %i %i %i", r, g, b);
 			set_all(r, g, b);

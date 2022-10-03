@@ -148,7 +148,7 @@ bool FocusMotor::background()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		// log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
-		data[i]->currentPosition = steppers[i]->currentPosition();
+		
 		if (isforever)
 		{
 			steppers[i]->setSpeed(data[i]->speed);
@@ -167,6 +167,9 @@ bool FocusMotor::background()
 				steppers[i]->runSpeedToPosition();
 			}
 		}
+		data[i]->currentPosition = steppers[i]->currentPosition();
+		if(pins[i].DIR>0 && steppers[i]->areOutputsEnabled())
+			log_i("current Pos:%i target pos:%i", data[i]->currentPosition,data[i]->targetPosition);
 		// checks if a stepper is still running
 		if (steppers[i]->distanceToGo() == 0)
 		{

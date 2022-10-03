@@ -1,4 +1,5 @@
 {"task":"/motor_act","motor":{"steppers":[{"stepperid" : 0, "speed":1000, "position":4000},{"stepperid": 1,"speed":1000,"position":4000}],"isabs":1,"isen":1}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid": 1,"speed":1000,"position":-40000}],"isabs":1,"isen":0}}
 ,
 {"task":"/motor_set","motor":{"steppers":[{"stepperid":1,"dir":21,"dir_inverted":0,"step":19,"step_inverted":0,"enable":18,"enable_inverted":1}]}}
 

@@ -75,3 +75,5 @@ static const PROGMEM char * key_enable = "enable";
 static const PROGMEM char * key_dir_inverted = "dir_inverted";
 static const PROGMEM char * key_step_inverted = "step_inverted";
 static const PROGMEM char * key_enable_inverted = "enable_inverted";
+
+static const PROGMEM char *dateKey = "date";

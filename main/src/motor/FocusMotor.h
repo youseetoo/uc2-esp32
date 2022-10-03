@@ -24,7 +24,7 @@ struct MotorData
 
 struct MotorPins
 {
-    int STEP =0;
+    int STEP = 0;
     int DIR = 0;
     int ENABLE = 0;
     bool step_inverted = false;
@@ -89,9 +89,65 @@ public:
 
     void act();
     void set();
+    /*
+        returns
+        {
+  "steppers": [
+    {
+      "stepperid": 0,
+      "dir": 0,
+      "step": 0,
+      "enable": 0,
+      "dir_inverted": false,
+      "step_inverted": false,
+      "enable_inverted": false,
+      "position": 0,
+      "speed": 0,
+      "speedmax": 20000
+    },
+    {
+      "stepperid": 1,
+      "dir": 21,
+      "step": 19,
+      "enable": 18,
+      "dir_inverted": false,
+      "step_inverted": false,
+      "enable_inverted": true,
+      "position": 0,
+      "speed": 0,
+      "speedmax": 20000
+    },
+    {
+      "stepperid": 2,
+      "dir": 0,
+      "step": 0,
+      "enable": 0,
+      "dir_inverted": false,
+      "step_inverted": false,
+      "enable_inverted": false,
+      "position": 0,
+      "speed": 0,
+      "speedmax": 20000
+    },
+    {
+      "stepperid": 3,
+      "dir": 0,
+      "step": 0,
+      "enable": 0,
+      "dir_inverted": false,
+      "step_inverted": false,
+      "enable_inverted": false,
+      "position": 0,
+      "speed": 0,
+      "speedmax": 20000
+    }
+  ]
+}
+    */
     void get();
     void setup();
     bool background();
+
 private:
     void stopAllDrives();
     void startAllDrives();

@@ -160,7 +160,7 @@ namespace WifiController
     // POST
 #ifdef IS_MOTOR
     server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
-    server->on(motor_get_endpoint, HTTP_POST, RestApi::FocusMotor_get);
+    server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
     server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
 #endif
 

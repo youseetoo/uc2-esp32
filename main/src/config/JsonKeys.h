@@ -63,6 +63,7 @@ static const PROGMEM char * key_motor = "motor";
 static const PROGMEM char * key_steppers = "steppers";
 static const PROGMEM char * key_stepperid = "stepperid";
 static const PROGMEM char * key_speed = "speed";
+static const PROGMEM char * key_speedmax = "speedmax";
 static const PROGMEM char * key_position = "position";
 static const PROGMEM char * key_isabs = "isabs";
 static const PROGMEM char * key_isstop = "isstop";

@@ -91,20 +91,21 @@ void FocusMotor::set()
 
 void FocusMotor::get()
 {
-	int axis = (*WifiController::getJDoc())["axis"];
-	if (DEBUG)
-		Serial.println("motor_get_fct");
-	if (DEBUG)
-		Serial.println(axis);
-	data[axis]->currentPosition = steppers[axis]->currentPosition();
-
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["position"] = data[axis]->currentPosition;
-	(*WifiController::getJDoc())["speed"] = steppers[axis]->speed();
-	(*WifiController::getJDoc())["maxspeed"] = steppers[axis]->maxSpeed();
-	(*WifiController::getJDoc())["pinstep"] = pins[axis].STEP;
-	(*WifiController::getJDoc())["pindir"] = pins[axis].DIR;
-	(*WifiController::getJDoc())["sign"] = data[axis]->SIGN;
+	DynamicJsonDocument * doc = WifiController::getJDoc();
+	doc->clear();
+	for (int i = 0; i < steppers.size(); i++)
+	{
+		(*doc)[key_steppers][i][key_stepperid] = i;
+		(*doc)[key_steppers][i][key_dir] = pins[i].DIR;
+		(*doc)[key_steppers][i][key_step] = pins[i].STEP;
+		(*doc)[key_steppers][i][key_enable] = pins[i].ENABLE;
+		(*doc)[key_steppers][i][key_dir_inverted] = pins[i].direction_inverted;
+		(*doc)[key_steppers][i][key_step_inverted] = pins[i].step_inverted;
+		(*doc)[key_steppers][i][key_enable_inverted] = pins[i].enable_inverted;
+		(*doc)[key_steppers][i][key_position] = data[i]->currentPosition;
+		(*doc)[key_steppers][i][key_speed] = data[i]->speed;
+		(*doc)[key_steppers][i][key_speedmax] = data[i]->maxspeed;
+	}
 }
 
 void FocusMotor::setup()

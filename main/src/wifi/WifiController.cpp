@@ -10,6 +10,7 @@ namespace WifiController
   String mPWD = "";
   bool mAP = true;
   WebServer *server = nullptr;
+  WebSocketsServer * webSocket = nullptr;
   DynamicJsonDocument *jsonDocument;
 
   DynamicJsonDocument *getJDoc()
@@ -37,9 +38,37 @@ namespace WifiController
 
   void handelMessages()
   {
+    if(webSocket != nullptr)
+      webSocket->loop();
     if (server != nullptr)
       server->handleClient();
   }
+
+  void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+
+    switch(type) {
+        case WStype_DISCONNECTED:
+            log_i("[%u] Disconnected!\n", num);
+            break;
+        case WStype_CONNECTED: {
+            IPAddress ip = webSocket->remoteIP(num);
+            log_i("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+
+            // send message to client
+            webSocket->sendTXT(num, "Connected");
+        }
+            break;
+        case WStype_TEXT:
+            log_i("[%u] get Text: %s\n", num, payload);
+            deserializeJson(*WifiController::getJDoc(), payload);
+            if(WifiController::getJDoc()->containsKey(keyLed))
+              led.act();
+            if(WifiController::getJDoc()->containsKey(key_motor))
+              motor.act();
+            
+            break;
+    }
+}
 
   void createJsonDoc()
   {
@@ -126,10 +155,13 @@ namespace WifiController
       }
     }
     server = new WebServer(80);
+    webSocket = new WebSocketsServer(81);
     if (jsonDocument == nullptr)
     {
       createJsonDoc();
     }
+    webSocket->begin();
+    webSocket->onEvent(webSocketEvent);
     setup_routing();
     server->begin();
     log_i("HTTP Running server  nullptr: %s jsondoc  nullptr: %s", boolToChar(server == nullptr), boolToChar(jsonDocument == nullptr));
@@ -213,4 +245,6 @@ namespace WifiController
     log_i("Setting up HTTP Routing END");
   }
 }
+
+
 #endif

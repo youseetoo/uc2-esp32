@@ -70,6 +70,13 @@ namespace WifiController
     }
 }
 
+void sendJsonWebSocketMsg()
+{
+  String s;
+  serializeJson((*WifiController::getJDoc()), s);
+  webSocket->broadcastTXT(s);
+}
+
   void createJsonDoc()
   {
     jsonDocument = new DynamicJsonDocument(16128);

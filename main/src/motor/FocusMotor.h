@@ -18,8 +18,10 @@ struct MotorData
     long acceleration = 0;
     long currentPosition = 0;
     long targetPosition = 0;
-    int SIGN = 1;
     bool isforever = false;
+    bool isaccelerated = false;
+    bool absolutePosition = false;
+
 };
 
 struct MotorPins
@@ -54,21 +56,11 @@ public:
 #define MS3 0
 #define RPM 120
 
-    bool isaccel = false;
-    bool isforever = false;
-    bool motor_enable = false;
-    bool isBusy = false;
-
     // global variables for the motor
-
-    boolean isstop = 0;
 
     int MOTOR_ACCEL = 5000;
     int MOTOR_DECEL = 5000;
 
-    int isabs = true;
-    int isen = false;
-    bool isactive = false;
     static const int FULLSTEPS_PER_REV_A = 200;
     static const int FULLSTEPS_PER_REV_X = 200;
     static const int FULLSTEPS_PER_REV_Y = 200;
@@ -150,6 +142,8 @@ public:
 
 private:
     void stopAllDrives();
+    void stopStepper(int i);
+    void startStepper(int i);
     void startAllDrives();
 };
 

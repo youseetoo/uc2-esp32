@@ -70,12 +70,34 @@ private:
     void set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
     void set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
     void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
-    
+
 public:
     LedConfig ledconfig;
 
     void setup();
+    /*
+    {
+    "led": {
+        "LEDArrMode": 1,
+        "led_array": [
+        {
+            "blue": 0,
+            "green": 0,
+            "id": 0,
+            "red": 0
+        }
+        ]
+    }
+    }
+    */
     void act();
+    /*{
+  "led": {
+    "ledArrNum": 64,
+    "ledArrPin": 27
+  }
+}
+    */
     void set();
     void get();
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);

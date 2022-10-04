@@ -211,9 +211,6 @@ void SerialProcess::jsonProcessor(String task,DynamicJsonDocument * jsonDocument
 
 void SerialProcess::tableProcessor(DynamicJsonDocument * jsonDocument)
 {
-#ifdef IS_MOTOR
-  motor.isactive = true;
-#endif
   // 1. Copy the table
   DynamicJsonDocument tmpJsonDoc = (*jsonDocument);
   jsonDocument->clear();
@@ -252,9 +249,6 @@ void SerialProcess::tableProcessor(DynamicJsonDocument * jsonDocument)
     }
   }
   tmpJsonDoc.clear();
-#ifdef IS_MOTOR
-  motor.isactive = false;
-#endif
 }
 SerialProcess serial;
 #endif

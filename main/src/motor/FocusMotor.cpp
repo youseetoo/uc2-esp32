@@ -7,67 +7,85 @@ void FocusMotor::act()
 {
 	if (DEBUG)
 		Serial.println("motor_act_fct");
-
-	if (WifiController::getJDoc()->containsKey(key_motor))
+	DynamicJsonDocument *j = WifiController::getJDoc();
+	if (j->containsKey(key_motor))
 	{
-		if ((*WifiController::getJDoc())[key_motor].containsKey(key_steppers))
+		if ((*j)[key_motor].containsKey(key_steppers))
 		{
-			for (int i = 0; i < (*WifiController::getJDoc())[key_motor][key_steppers].size(); i++)
+			for (int i = 0; i < (*j)[key_motor][key_steppers].size(); i++)
 			{
-				Stepper s = static_cast<Stepper>((*WifiController::getJDoc())[key_motor][key_steppers][i][key_stepperid]);
-				if ((*WifiController::getJDoc())[key_motor][key_steppers][i].containsKey(key_speed))
-					data[s]->speed = (*WifiController::getJDoc())[key_motor][key_steppers][i][key_speed];
-				if ((*WifiController::getJDoc())[key_motor][key_steppers][i].containsKey(key_position))
-					data[s]->targetPosition = (*WifiController::getJDoc())[key_motor][key_steppers][i][key_position];
+				Stepper s = static_cast<Stepper>((*j)[key_motor][key_steppers][i][key_stepperid]);
+
+				if ((*j)[key_motor][key_steppers][i].containsKey(key_speed))
+					data[s]->speed = (*j)[key_motor][key_steppers][i][key_speed];
+
+				if ((*j)[key_motor][key_steppers][i].containsKey(key_position))
+					data[s]->targetPosition = (*j)[key_motor][key_steppers][i][key_position];
+
+				if ((*j)[key_motor][key_steppers][i].containsKey(key_isforever))
+					data[s]->isforever = (*j)[key_motor][key_steppers][i][key_isforever];
+
+				if ((*j)[key_motor][key_steppers][i].containsKey(key_isabs))
+					data[s]->absolutePosition = (*j)[key_motor][key_steppers][i][key_isabs];
+
+				if ((*j)[key_motor][key_steppers][i].containsKey(key_isaccel))
+					data[s]->isaccelerated = (*j)[key_motor][key_steppers][i][key_isaccel];
+
+				if ((*j)[key_motor][key_steppers][i].containsKey(key_isstop))
+					stopStepper(s);
+				else
+				{
+#if defined IS_PS3 || defined IS_PS4
+					if (ps_c.IS_PSCONTROLER_ACTIVE)
+						ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
+#endif
+					startStepper(s);
+				}
 			}
 		}
-		isabs = (*WifiController::getJDoc())[key_motor].containsKey(key_isabs) ? (*WifiController::getJDoc())[key_motor][key_isabs] : 0;
-		isstop = (*WifiController::getJDoc())[key_motor].containsKey(key_isstop) ? (*WifiController::getJDoc())[key_motor][key_isstop] : 0;
-		isaccel = (*WifiController::getJDoc())[key_motor].containsKey(key_isaccel) ? (*WifiController::getJDoc())[key_motor][key_isaccel] : 0;
-		isen = (*WifiController::getJDoc())[key_motor].containsKey(key_isen) ? (*WifiController::getJDoc())[key_motor][key_isen] : 0;
-		isforever = (*WifiController::getJDoc())[key_motor].containsKey(key_isforever) ? (*WifiController::getJDoc())[key_motor][key_isforever] : 0;
 	}
-
 	WifiController::getJDoc()->clear();
+}
 
-	if (DEBUG)
+void FocusMotor::startStepper(int i)
+{
+	log_i("start stepper:%i isforver:%i", i, data[i]->isforever);
+	if (!steppers[i]->areOutputsEnabled())
+		steppers[i]->enableOutputs();
+	steppers[i]->setSpeed(data[i]->speed);
+	steppers[i]->setMaxSpeed(data[i]->maxspeed);
+	if (!data[i]->isforever)
 	{
-		for (int i = 0; i < data.size(); i++)
+		if (data[i]->absolutePosition)
 		{
-			log_i("data %i: speed:%i target position:%i", i, data[i]->speed, data[i]->targetPosition);
-			log_i("isabs:%s isen:%s isstop:%s isaccel:%s isforever:%s", boolToChar(isabs), boolToChar(isen), boolToChar(isstop), boolToChar(isaccel), boolToChar(isforever));
+			// absolute position coordinates
+			steppers[i]->moveTo(data[i]->targetPosition);
+			steppers[i]->run();
+		}
+		else
+		{
+			// relative position coordinates
+			steppers[i]->move(data[i]->targetPosition);
+			steppers[i]->run();
 		}
 	}
-
-	if (isstop)
+	else if (data[i]->isforever)
 	{
-		stopAllDrives();
-		(*WifiController::getJDoc())["POSA"] = data[Stepper::A]->currentPosition;
-		(*WifiController::getJDoc())["POSX"] = data[Stepper::X]->currentPosition;
-		(*WifiController::getJDoc())["POSY"] = data[Stepper::Y]->currentPosition;
-		(*WifiController::getJDoc())["POSZ"] = data[Stepper::Z]->currentPosition;
-		return;
+		if (data[i]->speed == 0)
+			stopStepper(i);
+		else
+		{
+			steppers[i]->setMaxSpeed(data[i]->maxspeed);
+			steppers[i]->setSpeed(data[i]->speed);
+			steppers[i]->runSpeed();
+		}
 	}
-
-#if defined IS_PS3 || defined IS_PS4
-	if (ps_c.IS_PSCONTROLER_ACTIVE)
-		ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
-#endif
-	// prepare motor to run
-	startAllDrives();
-
-	if (DEBUG)
-		Serial.println("Start rotation in background");
-
-	(*WifiController::getJDoc())["POSA"] = data[Stepper::A]->currentPosition;
-	(*WifiController::getJDoc())["POSX"] = data[Stepper::X]->currentPosition;
-	(*WifiController::getJDoc())["POSY"] = data[Stepper::Y]->currentPosition;
-	(*WifiController::getJDoc())["POSZ"] = data[Stepper::Z]->currentPosition;
+	data[i]->currentPosition = steppers[i]->currentPosition();
 }
 
 void FocusMotor::set()
 {
-	DynamicJsonDocument * doc = WifiController::getJDoc();
+	DynamicJsonDocument *doc = WifiController::getJDoc();
 	if (doc->containsKey(key_motor))
 	{
 		if ((*doc)[key_motor].containsKey(key_steppers))
@@ -91,7 +109,7 @@ void FocusMotor::set()
 
 void FocusMotor::get()
 {
-	DynamicJsonDocument * doc = WifiController::getJDoc();
+	DynamicJsonDocument *doc = WifiController::getJDoc();
 	doc->clear();
 	for (int i = 0; i < steppers.size(); i++)
 	{
@@ -118,13 +136,13 @@ void FocusMotor::setup()
 	// get pins from config
 	Config::getMotorPins();
 	// create the stepper
-	
+
 	for (int i = 0; i < 4; i++)
 	{
 		log_i("Pins: Step: %i Dir: %i Enable:%i", pins[i].STEP, pins[i].DIR, pins[i].ENABLE);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i].STEP, pins[i].DIR);
 		steppers[i]->setEnablePin(pins[i].ENABLE);
-		steppers[i]->setPinsInverted(pins[i].step_inverted,pins[i].direction_inverted,pins[i].enable_inverted);
+		steppers[i]->setPinsInverted(pins[i].step_inverted, pins[i].direction_inverted, pins[i].enable_inverted);
 	}
 
 	/*
@@ -149,8 +167,8 @@ bool FocusMotor::background()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		// log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
-		
-		if (isforever)
+
+		if (data[i]->isforever)
 		{
 			steppers[i]->setSpeed(data[i]->speed);
 			steppers[i]->setMaxSpeed(data[i]->maxspeed);
@@ -159,7 +177,7 @@ bool FocusMotor::background()
 		else
 		{
 			// run at constant speed
-			if (isaccel)
+			if (data[i]->isaccelerated)
 			{
 				steppers[i]->run();
 			}
@@ -167,15 +185,25 @@ bool FocusMotor::background()
 			{
 				steppers[i]->runSpeedToPosition();
 			}
+			// checks if a stepper is still running
+			if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
+			{
+				log_i("stop stepper:%i",i);
+				// if not turn it off
+				steppers[i]->disableOutputs();
+				// send current position to client
+				DynamicJsonDocument *jdoc = WifiController::getJDoc();
+				jdoc->clear();
+				(*jdoc)[key_steppers][i][key_stepperid] = i;
+				(*jdoc)[key_steppers][i][key_position] = data[i]->currentPosition;
+				WifiController::sendJsonWebSocketMsg();
+			}
 		}
 		data[i]->currentPosition = steppers[i]->currentPosition();
-		if(pins[i].DIR>0 && steppers[i]->areOutputsEnabled())
-			log_i("current Pos:%i target pos:%i", data[i]->currentPosition,data[i]->targetPosition);
-		// checks if a stepper is still running
-		if (steppers[i]->distanceToGo() == 0)
-		{
-			steppers[i]->disableOutputs();
-		}
+#ifdef DEBUG_MOTOR
+		if (pins[i].DIR > 0 && steppers[i]->areOutputsEnabled())
+			log_i("current Pos:%i target pos:%i", data[i]->currentPosition, data[i]->targetPosition);
+#endif
 	}
 	return true;
 }
@@ -185,33 +213,38 @@ void FocusMotor::stopAllDrives()
 	// Immediately stop the motor
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		steppers[i]->stop();
-		data[i]->isforever = false;
-		data[i]->currentPosition = steppers[i]->currentPosition();
-		steppers[i]->disableOutputs();
+		stopStepper(i);
 	}
+}
+
+void FocusMotor::stopStepper(int i)
+{
+	steppers[i]->stop();
+	data[i]->isforever = false;
+	data[i]->currentPosition = steppers[i]->currentPosition();
+	steppers[i]->disableOutputs();
 }
 
 void FocusMotor::startAllDrives()
 {
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		log_i("is stepper %i null:%s set speed/max %i/%i step:%i dir%i enablepin:%i outputenabled:%s", 
-					i, 
-					boolToChar(data[i] == nullptr), 
-					data[i]->speed, 
-					data[i]->maxspeed, 
-					pins[i].STEP, 
-					pins[i].DIR, 
-					pins[i].ENABLE, 
-					boolToChar(steppers[i]->areOutputsEnabled()));
-		if(!steppers[i]->areOutputsEnabled())
+		log_i("is stepper %i null:%s set speed/max %i/%i step:%i dir%i enablepin:%i outputenabled:%s",
+			  i,
+			  boolToChar(data[i] == nullptr),
+			  data[i]->speed,
+			  data[i]->maxspeed,
+			  pins[i].STEP,
+			  pins[i].DIR,
+			  pins[i].ENABLE,
+			  boolToChar(steppers[i]->areOutputsEnabled()));
+		if (!steppers[i]->areOutputsEnabled())
 			steppers[i]->enableOutputs();
 		steppers[i]->setSpeed(data[i]->speed);
 		steppers[i]->setMaxSpeed(data[i]->maxspeed);
 		if (!data[i]->isforever)
 		{
-			if (isabs)
+			if (data[i]->absolutePosition)
 			{
 				// absolute position coordinates
 				steppers[i]->moveTo(data[i]->targetPosition);

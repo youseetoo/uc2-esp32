@@ -77,7 +77,7 @@ class ps_3_4_controller
 
         bool DEBUG = false;
         bool IS_PS_CONTROLER_LEDARRAY = false;
-        virtual void start();
+        virtual void start(String mac);
         void stop();
 
         void onConnect();

@@ -104,7 +104,7 @@ void setup()
 #ifdef DEBUG_GAMEPAD
 	ps_c.DEBUG = true;
 #endif
-	ps_c.start();
+	//ps_c.start();
 #endif
 
 #ifdef IS_LASER

@@ -50,13 +50,59 @@ namespace BtController
             ob["name"] = foundDevices.getDevice(i).getName();
             ob["mac"] = foundDevices.getDevice(i).getAddress().toString();
         }
-        //pBLEScan->clearResults();
-        //pBLEScan->stop();
+        // pBLEScan->clearResults();
+        // pBLEScan->stop();
+    }
+
+#define PAIR_MAX_DEVICES 20
+    char bda_str[18];
+
+    char *bda2str(const uint8_t *bda, char *str, size_t size)
+    {
+        if (bda == NULL || str == NULL || size < 18)
+        {
+            return NULL;
+        }
+        sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
+                bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+        return str;
+    }
+
+    void getPairedDevices(DynamicJsonDocument *jdoc)
+    {
+        jdoc->clear();
+        int count = esp_bt_gap_get_bond_device_num();
+        if (!count)
+        {
+            log_i("No bonded device found.");
+            JsonObject ob = (*jdoc).createNestedObject();
+            ob["name"] = "No bonded device found";
+        }
+        else
+        {
+            log_i("Bonded device count: %d", count);
+            if (PAIR_MAX_DEVICES < count)
+            {
+                count = PAIR_MAX_DEVICES;
+                log_i("Reset bonded device count: %d", count);
+            }
+            esp_bd_addr_t pairedDeviceBtAddr[PAIR_MAX_DEVICES];
+            esp_err_t tError = esp_bt_gap_get_bond_device_list(&count, pairedDeviceBtAddr);
+            if (ESP_OK == tError)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    JsonObject ob = (*jdoc).createNestedObject();
+                    ob["name"] = "";
+                    ob["mac"] = bda2str(pairedDeviceBtAddr[i], bda_str, 18);
+                }
+            }
+        }
     }
 
     BLEScanResults scanAndGetResult(BLEScan *pBLEScan)
     {
-        BLEScanResults foundDevices = pBLEScan->start(5, false);
+        BLEScanResults foundDevices = pBLEScan->start(2, false);
         int counter = 0;
         while (foundDevices.getCount() == 0 && counter < 10)
         {
@@ -107,8 +153,8 @@ namespace BtController
 
             } // Found our server
         }
-        //pBLEScan->clearResults();
-        //pBLEScan->stop();
+        // pBLEScan->clearResults();
+        // pBLEScan->stop();
         if (doConnect)
         {
             log_i("connectToServer");
@@ -122,10 +168,10 @@ namespace BtController
     bool connectToServer()
     {
         log_i("Forming a connection to ");
-        //log_i("%s", myDevice->getAddress().toString().c_str());
-        
+        // log_i("%s", myDevice->getAddress().toString().c_str());
+
         BLEClient *pClient = BLEDevice::createClient();
-        //pClient->setMTU(23);
+        // pClient->setMTU(23);
         log_i(" - Created client");
 
         // pClient->setClientCallbacks(new MyClientCallback());

@@ -436,8 +436,26 @@ namespace RestApi
     {
         deserialize();
         String mac = (*WifiController::getJDoc())["mac"];
-        BtController::setMacAndConnect(mac);
+        int ps = (*WifiController::getJDoc())["psx"];
+       
+        if (ps == 0)
+        {
+            BtController::setMacAndConnect(mac);
+        }
+        else 
+        {
+            ps_c.start(mac);
+        }
+        
+        
         WifiController::getJDoc()->clear();
+        serialize();
+    }
+
+    void Bt_getPairedDevices()
+    {
+        deserialize();
+        BtController::getPairedDevices(WifiController::getJDoc());
         serialize();
     }
 }

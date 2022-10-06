@@ -195,6 +195,7 @@ void sendJsonWebSocketMsg()
 
     server->on(bt_scan_endpoint,HTTP_GET,RestApi::Bt_startScan);
     server->on(bt_connect_endpoint,HTTP_POST,RestApi::Bt_connect);
+    server->on(bt_paireddevices_endpoint,HTTP_GET,RestApi::Bt_getPairedDevices);
 
     // POST
 #ifdef IS_MOTOR

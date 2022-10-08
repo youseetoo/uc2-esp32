@@ -440,4 +440,13 @@ namespace RestApi
         WifiController::getJDoc()->clear();
         serialize();
     }
+
+    void Bt_remove()
+    {
+        deserialize();
+        String mac = (*WifiController::getJDoc())["mac"];
+        BtController::removePairedDevice(mac);
+        WifiController::getJDoc()->clear();
+        serialize();
+    }
 }

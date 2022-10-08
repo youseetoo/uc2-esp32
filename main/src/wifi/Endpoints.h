@@ -72,4 +72,5 @@ static const PROGMEM String reset_nv_flash_endpoint = "/resetnv";
 
 static const PROGMEM String bt_scan_endpoint = "/bt_scan";
 static const PROGMEM String bt_connect_endpoint = "/bt_connect";
+static const PROGMEM String bt_remove_endpoint = "/bt_remove";
 

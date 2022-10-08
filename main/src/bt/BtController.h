@@ -4,6 +4,8 @@
 #include <BLEUtils.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include"esp_gap_bt_api.h"
+#include "esp_err.h"
 #include <ArduinoJson.h>
 #include "../../config.h"
 
@@ -17,6 +19,7 @@ namespace BtController
         size_t length,
         bool isNotify);
     void setMacAndConnect(String m);
+    void removePairedDevice(String pairedmac);
     BLEScanResults scanAndGetResult(BLEScan *pBLEScan);
     bool connectToServer();
     void my_gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);

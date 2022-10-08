@@ -21,15 +21,17 @@ void LedController::setup()
 // Custom function accessible by the API
 void LedController::act()
 {
-	// here you can do something
+	#ifdef DEBUG_LED
 	log_i("start parsing json matrix is null:%s", boolToChar(matrix == nullptr));
+	#endif
 
 	if (WifiController::getJDoc()->containsKey(keyLed))
 	{
 		LedModes LEDArrMode = static_cast<LedModes>((*WifiController::getJDoc())[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
+		#ifdef DEBUG_LED
 		log_i("LEDArrMode : %i", LEDArrMode);
-
 		log_i("containsKey : led_array %s", boolToChar((*WifiController::getJDoc())[keyLed].containsKey(key_led_array)));
+		#endif
 		// individual pattern gets adressed
 		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
@@ -57,16 +59,11 @@ void LedController::act()
 		// PYTHON: send_LEDMatrix_full(self, intensity = (255,255,255),timeout=1)
 		else if (LEDArrMode == LedModes::full)
 		{
-			matrix->clear();
-			log_i("set all start");
 			u_int8_t r = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed];
 			u_int8_t g = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen];
 			u_int8_t b = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue];
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
-
-			log_i("rgb %i %i %i", r, g, b);
 			set_all(r, g, b);
-			log_i("set all start end");
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::left)
@@ -115,8 +112,6 @@ void LedController::act()
 	}
 
 	WifiController::getJDoc()->clear();
-	//(*WifiController::getJDoc())[F("return")] = 1;
-	//(*WifiController::getJDoc())[keyLEDArrMode] = LEDArrMode;
 	isBusy = false;
 }
 

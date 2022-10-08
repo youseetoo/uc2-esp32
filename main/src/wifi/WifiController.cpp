@@ -10,6 +10,7 @@ namespace WifiController
   String mPWD = "";
   bool mAP = true;
   WebServer *server = nullptr;
+  WebSocketsServer * webSocket = nullptr;
   DynamicJsonDocument *jsonDocument;
 
   DynamicJsonDocument *getJDoc()
@@ -37,9 +38,44 @@ namespace WifiController
 
   void handelMessages()
   {
+    if(webSocket != nullptr)
+      webSocket->loop();
     if (server != nullptr)
       server->handleClient();
   }
+
+  void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+
+    switch(type) {
+        case WStype_DISCONNECTED:
+            log_i("[%u] Disconnected!\n", num);
+            break;
+        case WStype_CONNECTED: {
+            IPAddress ip = webSocket->remoteIP(num);
+            log_i("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+
+            // send message to client
+            webSocket->sendTXT(num, "Connected");
+        }
+            break;
+        case WStype_TEXT:
+            log_i("[%u] get Text: %s\n", num, payload);
+            deserializeJson(*WifiController::getJDoc(), payload);
+            if(WifiController::getJDoc()->containsKey(keyLed))
+              led.act();
+            if(WifiController::getJDoc()->containsKey(key_motor))
+              motor.act();
+            
+            break;
+    }
+}
+
+void sendJsonWebSocketMsg()
+{
+  String s;
+  serializeJson((*WifiController::getJDoc()), s);
+  webSocket->broadcastTXT(s);
+}
 
   void createJsonDoc()
   {
@@ -126,10 +162,13 @@ namespace WifiController
       }
     }
     server = new WebServer(80);
+    webSocket = new WebSocketsServer(81);
     if (jsonDocument == nullptr)
     {
       createJsonDoc();
     }
+    webSocket->begin();
+    webSocket->onEvent(webSocketEvent);
     setup_routing();
     server->begin();
     log_i("HTTP Running server  nullptr: %s jsondoc  nullptr: %s", boolToChar(server == nullptr), boolToChar(jsonDocument == nullptr));
@@ -157,11 +196,12 @@ namespace WifiController
     server->on(bt_scan_endpoint,HTTP_GET,RestApi::Bt_startScan);
     server->on(bt_connect_endpoint,HTTP_POST,RestApi::Bt_connect);
     server->on(bt_remove_endpoint,HTTP_POST,RestApi::Bt_remove);
+    server->on(bt_paireddevices_endpoint,HTTP_GET,RestApi::Bt_getPairedDevices);
 
     // POST
 #ifdef IS_MOTOR
     server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
-    server->on(motor_get_endpoint, HTTP_POST, RestApi::FocusMotor_get);
+    server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
     server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
 #endif
 
@@ -214,4 +254,6 @@ namespace WifiController
     log_i("Setting up HTTP Routing END");
   }
 }
+
+
 #endif

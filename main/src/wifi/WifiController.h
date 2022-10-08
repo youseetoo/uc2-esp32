@@ -40,6 +40,7 @@
 #if defined IS_DAC || defined IS_DAC_FAKE
     #include "../dac/DacController.h"
 #endif
+#include <WebSocketsServer.h>
 
 namespace WifiController
 {
@@ -53,6 +54,8 @@ namespace WifiController
     void setup_routing();
     void handelMessages();
     void createJsonDoc();
+    void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
+    void sendJsonWebSocketMsg();
     
     //Wifi
     

@@ -194,6 +194,7 @@ namespace RestApi
     */
     void Bt_startScan();
     void Bt_connect();
+    void Bt_getPairedDevices();
     void Bt_remove();
 
 }

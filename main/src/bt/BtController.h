@@ -21,6 +21,8 @@ namespace BtController
     void setMacAndConnect(String m);
     void removePairedDevice(String pairedmac);
     BLEScanResults scanAndGetResult(BLEScan *pBLEScan);
+    void getPairedDevices(DynamicJsonDocument *jdoc);
+    char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
     void my_gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
 

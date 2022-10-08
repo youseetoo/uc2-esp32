@@ -11,6 +11,9 @@
 #include "soc/ledc_reg.h"
 #include "../wifi/WifiController.h"
 
+/*
+    class is used to control up to 3 leds with esp32 LED PWM Controller on analog pins
+*/
 class AnalogController
 {
     public:

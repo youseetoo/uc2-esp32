@@ -89,55 +89,6 @@ void State::printInfo()
   // log_i("A first try can be: \{\"task\": \"/state_get\"");
 }
 
-char *State::bda2str(const uint8_t *bda, char *str, size_t size)
-{
-  if (bda == NULL || str == NULL || size < 18)
-  {
-    return NULL;
-  }
-  sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
-          bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
-  return str;
-}
-void State::clearBlueetoothDevice()
-{
-  log_i( "ESP32 bluetooth address: %s", bda2str(esp_bt_dev_get_address(), bda_str, 18));
-  // Get the numbers of bonded/paired devices in the BT module
-  int count = esp_bt_gap_get_bond_device_num();
-  if (!count)
-  {
-    log_i( "No bonded device found.");
-  }
-  else
-  {
-    log_i( "Bonded device count: %d", count);
-    if (PAIR_MAX_DEVICES < count)
-    {
-      count = PAIR_MAX_DEVICES;
-      log_i( "Reset bonded device count: %d", count);
-    }
-    esp_err_t tError = esp_bt_gap_get_bond_device_list(&count, pairedDeviceBtAddr);
-    if (ESP_OK == tError)
-    {
-      for (int i = 0; i < count; i++)
-      {
-        log_i( "Found bonded device # %d  ->  %s", i, bda2str(pairedDeviceBtAddr[i], bda_str, 18));
-        if (REMOVE_BONDED_DEVICES)
-        {
-          esp_err_t tError = esp_bt_gap_remove_bond_device(pairedDeviceBtAddr[i]);
-          if (ESP_OK == tError)
-          {
-            log_i( "Removed bonded device # %d", i);
-          }
-          else
-          {
-            log_i( "Failed to remove bonded device # %d", i);
-          }
-        }
-      }
-    }
-  }
-}
 
 State state;
 

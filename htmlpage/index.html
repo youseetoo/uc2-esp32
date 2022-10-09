@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>UC2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <script src="script.js"></script>
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Wifi')">Wifi</button>
+        <button class="tablinks" onclick="openTab(event, 'BT')">BT</button>
+        <button class="tablinks" onclick="openTab(event, 'Motor')">Motor</button>
+        <button class="tablinks" onclick="openTab(event, 'LED')">LED</button>
+    </div>
+
+    <div id="Wifi" class="tabcontent">
+        <h3>Wifi</h3>
+        <button id="getssids">Get SSIDs</button>
+        <ul id="ssids">
+            <li>1</li>
+            <li>2</li>
+        </ul>
+        <form>
+            <label for="ssid">SSID:</label><br>
+            <input type="text" id="ssid" name="ssid"><br>
+            <label for="password">Password:</label><br>
+            <input type="text" id="password" name="password">
+        </form>
+        <button id="connect">Connect</button>
+    </div>
+
+    <div id="BT" class="tabcontent">
+        <h3>BT</h3>
+    </div>
+
+    <div id="Motor" class="tabcontent">
+        <h3>Motor</h3>
+    </div>
+    <div id="LED" class="tabcontent">
+        <h3>LED</h3>
+    </div>
+
+</body>
+
+</html>

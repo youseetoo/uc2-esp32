@@ -8,7 +8,15 @@
 </head>
 
 <body>
+    <script src="jquery-3.6.1.min.js"></script>
     <script src="script.js"></script>
+    
+    <form>
+        <label for="url">URL:</label><br>
+        <input type="text" id="url" name="url"><br>
+    </form>
+    <button id="connectbutton" onclick="tryToConnect()">Connect</button>
+
     <div class="tab">
         <button class="tablinks" onclick="openTab(event, 'Wifi')">Wifi</button>
         <button class="tablinks" onclick="openTab(event, 'BT')">BT</button>
@@ -18,18 +26,18 @@
 
     <div id="Wifi" class="tabcontent">
         <h3>Wifi</h3>
-        <button id="getssids">Get SSIDs</button>
+        <button id="getssids" onclick="getSsids()">Get SSIDs</button>
         <ul id="ssids">
-            <li>1</li>
-            <li>2</li>
         </ul>
         <form>
             <label for="ssid">SSID:</label><br>
             <input type="text" id="ssid" name="ssid"><br>
             <label for="password">Password:</label><br>
             <input type="text" id="password" name="password">
+            <input type="checkbox" id="ap" name="ap">
+            <label for="ap">Access Point</label>
         </form>
-        <button id="connect">Connect</button>
+        <button id="connect" onclick="connectToWifi()">Connect</button>
     </div>
 
     <div id="BT" class="tabcontent">

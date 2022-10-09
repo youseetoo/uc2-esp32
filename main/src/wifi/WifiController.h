@@ -8,6 +8,7 @@
 #include "../state/State.h"
 #include "RestApiCallbacks.h"
 #include "esp_log.h"
+#include "SPIFFS.h"
 
 #ifdef IS_MOTOR
 #include "../motor/FocusMotor.h"
@@ -66,5 +67,9 @@ namespace WifiController
     void setup();
     DynamicJsonDocument * getJDoc();
     WebServer * getServer();
+    void getIndexPage();
+    void getCSS();
+    void getjquery();
+    void getjs();
 }
 #endif

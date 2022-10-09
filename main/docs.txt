@@ -16,6 +16,7 @@
 
   {"task": "/state_set", "isdebug":0}
   {"task": "/state_get", "active":1}
+  {"task": "/wifi/connect", "AP": 1,"PW": "","ssid": "Uc2"}
 
 
   retrieve sensor value

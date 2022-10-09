@@ -54,7 +54,8 @@ namespace RestApi
     {
         serializeJsonPretty((*WifiController::getJDoc()), Serial);
         serializeJson((*WifiController::getJDoc()), output);
-        WifiController::getServer()->send(200, "application/json", output);
+        WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
+        WifiController::getServer()->send_P(200, "application/json", output);
     }
 
     void ota()
@@ -84,8 +85,7 @@ namespace RestApi
         {
             (*WifiController::getJDoc()).add(WiFi.SSID(i));
         }
-        serializeJson((*WifiController::getJDoc()), output);
-        WifiController::getServer()->send(200, "application/json", output);
+        serialize();
     }
 
     void connectToWifi()

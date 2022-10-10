@@ -62,8 +62,30 @@
     <div id="Motor" class="tabcontent">
         <h3>Motor</h3>
     </div>
+
     <div id="LED" class="tabcontent">
         <h3>LED</h3>
+        <form>
+            <label for="ledcount">LED Count:</label><br>
+            <input type="text" id="ledcount" name="ledcount"><br>
+            <label for="ledpin">PIN:</label><br>
+            <input type="text" id="ledpin" name="ledpin">
+        </form>
+        <button id="setledsettings" onclick="setLedSettings()">Set Led Settings</button>
+        <form>
+            <input type="checkbox" id="enableled" name="enableled" onclick='enableLeds(this)'>
+            <label for="ap">Enable Leds</label><br>
+
+            <label for="redRange">Red</label><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="redRange" oninput="updateLeds()" onchange="updateLeds()"><br>
+
+            <label for="greenRange">Green</label><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="greenRange" oninput="updateLeds()" onchange="updateLeds()"><br>
+
+            <label for="blueRange">Blue</label><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="blueRange" oninput="updateLeds()" onchange="updateLeds()"><br>
+        </form>
+
     </div>
 
 </body>

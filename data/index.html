@@ -42,6 +42,21 @@
 
     <div id="BT" class="tabcontent">
         <h3>BT</h3>
+        <button id="getbtdevices" onclick="getBtDevices()">Get BT Devices</button>
+        <button id="getpairedbtdevices" onclick="getPairedBtDevices()">Get Paired BT Devices</button>
+
+        <ul id="btdevices">
+        </ul>
+
+        <form>
+            <label for="mac">MAC:</label><br>
+            <input type="text" id="mac" name="mac"><br>
+            <input type="checkbox" id="psx" name="psx" checked>
+            <label for="psx">Use ps library</label>
+        </form>
+
+        <button id="connectbt" onclick="connectToBT()">Connect</button>
+        <button id="removebt" onclick="removePairedBtDevices()">Remove Paired BT Device</button>
     </div>
 
     <div id="Motor" class="tabcontent">

@@ -50,3 +50,53 @@ function connectToWifi()
         contentType: "text/plain"
      });
 }
+
+function getBtDevices()
+{
+    $.getJSON($("#url").val()+"/bt_scan",function(data)
+    {
+        $("#btdevices").empty();
+        for (var i = 0, len = data.length; i < len; i++) {
+            $("#btdevices").append('<li><button class="btitem" onclick="btItemClick(\''+data[i]['mac']+'\')">'+data[i]['name'] + " " +data[i]['mac']+'</button></li>');
+        }
+    });
+}
+function getPairedBtDevices()
+{
+    $.getJSON($("#url").val()+"/bt_paireddevices",function(data)
+    {
+        $("#btdevices").empty();
+        for (var i = 0, len = data.length; i < len; i++) {
+            $("#btdevices").append('<li><button class="btitem" onclick="btItemClick(\''+data[i]['mac']+'\')">'+data[i]['name'] + " " +data[i]['mac']+'</button></li>');
+        }
+    });
+}
+
+function btItemClick(name)
+{
+    var str = name;
+    $('#mac').val(str);
+}
+
+function connectToBT()
+{
+    var macbt =  $("#mac").val();
+    var psxl =  $("#psx").val();
+    var jstr = JSON.stringify({mac: macbt, psx:psxl ? 1 : 0});
+    $.ajax($("#url").val()+"/bt_connect", {
+        data: jstr,
+        method: "POST",
+        contentType: "text/plain"
+     });
+}
+
+function removePairedBtDevices()
+{
+    var macbt =  $("#mac").val();
+    var jstr = JSON.stringify({mac: macbt});
+    $.ajax($("#url").val()+"/bt_remove", {
+        data: jstr,
+        method: "POST",
+        contentType: "text/plain"
+     });
+}

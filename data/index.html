@@ -10,7 +10,7 @@
 <body>
     <script src="jquery-3.6.1.min.js"></script>
     <script src="script.js"></script>
-    
+
     <form>
         <label for="url">URL:</label><br>
         <input type="text" id="url" name="url"><br>
@@ -61,29 +61,121 @@
 
     <div id="Motor" class="tabcontent">
         <h3>Motor</h3>
+        <div class="container">
+            <form>
+                <label>Stepper X</label><br>
+                <label for="steppinx">Step Pin</label><br>
+                <input type="text" id="steppinx" name="steppinx"><br>
+                <input type="checkbox" id="steppinxinvert">
+                <label for="steppinxinvert">Inverted</label><br>
+
+                <label for="dirpinx">Dir Pin:</label><br>
+                <input type="text" id="dirpinx" name="dirpinx"><br>
+                <input type="checkbox" id="dirpinxinvert">
+                <label for="dirpinxinvert">Inverted</label><br>
+
+                <label for="powerpinx">Power Pin:</label><br>
+                <input type="text" id="powerpinx" name="powerpinx"><br>
+                <input type="checkbox" id="powerpinxinvert">
+                <label for="powerpinxinvert">Inverted</label><br>
+            </form>
+            <form>
+                <label>Stepper Y</label><br>
+                <label for="steppiny">Step Pin</label><br>
+                <input type="text" id="steppiny" name="steppiny"><br>
+                <input type="checkbox" id="steppinyinvert">
+                <label for="steppinyinvert">Inverted</label><br>
+
+                <label for="dirpiny">Dir Pin:</label><br>
+                <input type="text" id="dirpiny"><br>
+                <input type="checkbox" id="dirpinyinvert">
+                <label for="dirpinyinvert">Inverted</label><br>
+
+                <label for="powerpiny">Power Pin:</label><br>
+                <input type="text" id="powerpiny"><br>
+                <input type="checkbox" id="powerpinyinvert">
+                <label for="powerpinyinvert">Inverted</label><br>
+            </form>
+
+            <form>
+                <label>Stepper Z</label><br>
+                <label for="steppinz">Step Pin</label><br>
+                <input type="text" id="steppinz"><br>
+                <input type="checkbox" id="steppinzinvert">
+                <label for="steppinzinvert">Inverted</label><br>
+
+                <label for="dirpinz">Dir Pin:</label><br>
+                <input type="text" id="dirpinz"><br>
+                <input type="checkbox" id="dirpinzinvert">
+                <label for="dirpinzinvert">Inverted</label><br>
+
+                <label for="powerpinz">Power Pin:</label><br>
+                <input type="text" id="powerpinz"><br>
+                <input type="checkbox" id="powerpinzinvert">
+                <label for="powerpinzinvert">Inverted</label><br>
+            </form>
+            <form>
+                <label>Stepper A</label><br>
+                <label for="steppina">Step Pin</label><br>
+                <input type="text" id="steppina"><br>
+                <input type="checkbox" id="steppinainvert">
+                <label for="steppinainvert">Inverted</label><br>
+
+                <label for="dirpina">Dir Pin:</label><br>
+                <input type="text" id="dirpina"><br>
+                <input type="checkbox" id="dirpinainvert">
+                <label for="dirpinainvert">Inverted</label><br>
+
+                <label for="powerpina">Power Pin:</label><br>
+                <input type="text" id="powerpina"><br>
+                <input type="checkbox" id="powerpinainvert">
+                <label for="powerpinainvert">Inverted</label><br>
+            </form>
+        </div>
+        <button id="setmotorsettings" onclick="setMotorSettings()">Set Motor Settings</button>
+
+        <form>
+            <label for="xRange">X</label><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="xRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+        </form>
+        <form>
+            <label for="yRange">Y</label><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="yRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+        </form>
+        <form>
+            <label for="zRange">Z</label><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="zRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+        </form>
+        <form>
+            <label for="aRange">A</label><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="aRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+        </form>
     </div>
 
     <div id="LED" class="tabcontent">
         <h3>LED</h3>
         <form>
             <label for="ledcount">LED Count:</label><br>
-            <input type="text" id="ledcount" name="ledcount"><br>
+            <input type="text" id="ledcount"><br>
             <label for="ledpin">PIN:</label><br>
-            <input type="text" id="ledpin" name="ledpin">
+            <input type="text" id="ledpin">
         </form>
         <button id="setledsettings" onclick="setLedSettings()">Set Led Settings</button>
         <form>
-            <input type="checkbox" id="enableled" name="enableled" onclick='enableLeds(this)'>
-            <label for="ap">Enable Leds</label><br>
+            <input type="checkbox" id="enableled" onclick='enableLeds(this)'>
+            <label for="enableled">Enable Leds</label><br>
 
             <label for="redRange">Red</label><br>
-            <input type="range" min="0" max="255" value="128" class="slider" id="redRange" oninput="updateLeds()" onchange="updateLeds()"><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="redRange" oninput="updateLeds()"
+                onchange="updateLeds()"><br>
 
             <label for="greenRange">Green</label><br>
-            <input type="range" min="0" max="255" value="128" class="slider" id="greenRange" oninput="updateLeds()" onchange="updateLeds()"><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="greenRange" oninput="updateLeds()"
+                onchange="updateLeds()"><br>
 
             <label for="blueRange">Blue</label><br>
-            <input type="range" min="0" max="255" value="128" class="slider" id="blueRange" oninput="updateLeds()" onchange="updateLeds()"><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="blueRange" oninput="updateLeds()"
+                onchange="updateLeds()"><br>
         </form>
 
     </div>

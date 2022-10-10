@@ -1,5 +1,6 @@
 window.addEventListener('load', (event) => {
     getLedSetting();
+    getMotoretting();
     createWebsocket();
 });
 
@@ -136,4 +137,125 @@ function updateLeds() {
         var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, blue: bluec, red: redc, green: greenc }] } });
         websocket.send(jstr);
     }
+}
+
+
+function getMotoretting() {
+    $.getJSON(getUri() + "/motor_get", function (data) {
+        var steppers = data["steppers"];
+        for (var i = 0; i < steppers.length; i++) {
+            var id = steppers[i]["stepperid"];
+            var step = steppers[i]["step"];
+            var dir = steppers[i]["dir"];
+            var power = steppers[i]["enable"];
+            var stepin = steppers[i]["step_inverted"];
+            var dirin = steppers[i]["dir_inverted"];
+            var powerin = steppers[i]["enable_inverted"];
+
+            if (id == 0) {
+                $("#steppina").val(step);
+                $("#steppinainvert").checked = stepin;
+                $("#dirpina").val(dir);
+                $("#dirpinainvert").checked = dirin;
+                $("#powerpina").val(power);
+                $("#powerpinainvert").checked = powerin;
+            }
+            else if (id == 1) {
+                $("#steppinx").val(step);
+                $("#steppinxinvert").checked = stepin;
+                $("#dirpinx").val(dir);
+                $("#dirpinxinvert").checked = dirin;
+                $("#powerpinx").val(power);
+                $("#powerpinxinvert").checked = powerin;
+            }
+            else if (id == 2) {
+                $("#steppiny").val(step);
+                $("#steppinyinvert").checked = stepin;
+                $("#dirpiny").val(dir);
+                $("#dirpinyinvert").checked = dirin;
+                $("#powerpiny").val(power);
+                $("#powerpinyinvert").checked = powerin;
+            }
+            else if (id == 3) {
+                $("#steppinz").val(step);
+                $("#steppinzinvert").checked = stepin;
+                $("#dirpinz").val(dir);
+                $("#dirpinzinvert").checked = dirin;
+                $("#powerpinz").val(power);
+                $("#powerpinzinvert").checked = powerin;
+            }
+        }
+    });
+}
+
+function setMotorSettings() {
+    var sa = $("#steppina").val();
+    var da = $("#dirpina").val();
+    var ea = $("#powerpina").val();
+    var sai = $("#steppinainvert:checked").val()? 1 : 0;
+    var dai = $("#dirpinainvert:checked").val() ? 1 : 0;
+    var eai = $("#powerpinainvert:checked").val() ? 1 : 0;
+
+    var sx = $("#steppinx").val();
+    var dx = $("#dirpinx").val();
+    var ex = $("#powerpinx").val();
+    var sxi = $("#steppinxinvert:checked").val()? 1 : 0;
+    var dxi = $("#dirpinxinvert:checked").val() ? 1 : 0;
+    var exi = $("#powerpinxinvert:checked").val() ? 1 : 0;
+
+    var sy = $("#steppiny").val();
+    var dy = $("#dirpiny").val();
+    var ey = $("#powerpiny").val();
+    var syi = $("#steppinyinvert:checked").val() ? 1 : 0;
+    var dyi = $("#steppinyinvert:checked").val()? 1 : 0;
+    var eyi = $("#powerpinyinvert:checked").val() ? 1 : 0;
+
+    var sz = $("#steppinz").val();
+    var dz = $("#dirpinz").val();
+    var ez = $("#powerpinz").val();
+    var szi = $("#steppinzinvert:checked").val() ? 1 : 0;
+    var dzi = $("#dirpinzinvert:checked").val() ? 1 : 0;
+    var ezi = $("#powerpinzinvert:checked").val() ? 1 : 0;
+
+    var jstr = JSON.stringify(
+        {
+            motor:
+            {
+                steppers: [
+                    { stepperid: 0, step: sa, dir: da, enable: ea, step_inverted: sai, dir_inverted: dai, enable_inverted: eai },
+                    { stepperid: 1, step: sx, dir: dx, enable: ex, step_inverted: sxi, dir_inverted: dxi, enable_inverted: exi },
+                    { stepperid: 2, step: sy, dir: dy, enable: ey, step_inverted: syi, dir_inverted: dyi, enable_inverted: eyi },
+                    { stepperid: 3, step: sz, dir: dz, enable: ez, step_inverted: szi, dir_inverted: dzi, enable_inverted: ezi },
+                ]
+            }
+        });
+    post(jstr, "/motor_set");
+}
+
+var motorspeeds = [-4000, -2000, -1000, -500, -200, -100, -50, -20, -10, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 4000];
+
+function updateMotors() {
+    var xr = $("#xRange").val();
+    console.log($("#xRange").val());
+    var x = motorspeeds[xr];
+    var y = motorspeeds[$("#yRange").val()];
+    var z = motorspeeds[$("#zRange").val()];
+    var a = motorspeeds[$("#aRange").val()];
+    var af = (a != 0) ? 1 : 0;
+    var xf = (x != 0) ? 1 : 0;
+    var yf = (y != 0) ? 1 : 0;
+    var zf = (z != 0) ? 1 : 0;
+    var jstr = JSON.stringify(
+        {
+            motor:
+            {
+                steppers: [
+                    { stepperid: 0, speed: a, isforever: af },
+                    { stepperid: 1, speed: x, isforever: xf },
+                    { stepperid: 2, speed: y, isforever: yf },
+                    { stepperid: 3, speed: z, isforever: zf }
+                ]
+            }
+        });
+    websocket.send(jstr);
 }

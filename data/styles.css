@@ -33,4 +33,7 @@
   .tab button.active {
     background-color: #ccc;
   }
-  
+
+  .container {
+    display: flex;
+}

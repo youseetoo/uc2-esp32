@@ -26,10 +26,9 @@ int ps_3_4_controller::is_share()
 {
 #ifdef IS_PS4
 	return PS4.event.button_down.share;
-#elif IS_PS3
-	return Ps3.event.button_down.share;
-#else
-	return 0;
+#endif
+#ifdef IS_PS3
+	return 0; //Ps3.event.button_down.share; // lib dont contain share button
 #endif
 }
 
@@ -109,7 +108,7 @@ int ps_3_4_controller::is_charging()
 	return PS4.Charging();
 #endif
 #ifdef IS_PS3
-	return Ps3.Charging();
+	return 0; //Ps3.Charging(); // lib dont contain it
 #endif
 }
 
@@ -261,9 +260,10 @@ void ps_3_4_controller::onConnect()
 #ifdef IS_PS4
 	log_i("Battery Level : %d\n", PS4.Battery());
 #endif
-#ifdef IS_PS3
-	log_i("Battery Level : %d\n", Ps3.Battery());
-#endif
+//disabled Ps3 dont contain Battery func
+//#ifdef IS_PS3
+//	log_i("Battery Level : %d\n", Ps3.Battery());
+//#endif
 }
 
 void ps_3_4_controller::onAttach()

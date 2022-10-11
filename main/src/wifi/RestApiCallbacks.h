@@ -131,7 +131,6 @@ namespace RestApi
     {
         "led": {
             "LEDArrMode": 1,
-            "NLeds": 63,
             "led_array": [
                 {
                     "blue": 0,

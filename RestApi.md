@@ -1,31 +1,32 @@
 Rest Api Endpoint Description
 ==============================
 
-| Endpoint                    | Type |
-| --------------------------- | ---- |
-| [/ledarr_act](#ledarr_act) | Post |
-| [/ledarr_get](#ledarr_get) | Get  |
-| [/ledarr_set](#ledarr_set) | Post |
+| Endpoint                                  | Type | Socket|
+| ------------------------------------------| ---- | ----  |
+| [/ledarr_act](#ledarr_act)                | Post | true  |
+| [/ledarr_get](#ledarr_get)                | Get  | false |
+| [/ledarr_set](#ledarr_set)                | Post | false |
 |  |  |
-| [/motor_act](#motor_act)   | Post |
-| [/motor_get](#motor_get)   | Get  |
-| [/motor_set](#motor_set)   | Post |
+| [/motor_act](#motor_act)                  | Post | true  |
+| [/motor_get](#motor_get)                  | Get  | false |
+| [/motor_set](#motor_set)                  | Post | false |
 |   |  |
-| [/wifi/scan](#wifiscan)         | Get  |
-| [/wifi/connect](#wificonnect)   | Post |
+| [/wifi/scan](#wifiscan)                   | Get  | false |
+| [/wifi/connect](#wificonnect)             | Post | false |
 |   |  |
-| [/bt_scan](#bt_scan)         | Get  |
-| [/bt_connect](#bt_connect)         | Post  |
-| [/bt_remove](#bt_remove)         | Post  |
-| [/bt_paireddevices](#bt_paireddevices)         | Post  |
+| [/bt_scan](#bt_scan)                      | Get  | false |
+| [/bt_connect](#bt_connect)                | Post | false |
+| [/bt_remove](#bt_remove)                  | Post | false |
+| [/bt_paireddevices](#bt_paireddevices)    | Post | false |
 
 
 /ledarr_act
 ===========
-| Item                    | Description |
-| --------------------------- | ---- |
-| LEDArrMode | //enum "array", "full",  "single", "off", "left", "right", "top", "bottom" |
-| led_array | The rgb data foreach led, depending on the mode only one color item get set |
+| Item      | Type              | Description |
+| ----------|----------------- | ---- |
+| LEDArrMode | int | //enum "array", "full",  "single", "off", "left", "right", "top", "bottom" |
+| led_array | Object[] | The rgb data foreach led, depending on the mode only one color item get set |
+
 POST
 ```
 {
@@ -136,6 +137,22 @@ GET
       "speedmax": 20000
     }
   ]
+}
+```
+/motor_set
+==========
+POST
+```
+{
+    motor:
+    {
+        steppers: [
+            { stepperid: 0, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
+            { stepperid: 1, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
+            { stepperid: 2, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
+            { stepperid: 3, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
+        ]
+    }
 }
 ```
 

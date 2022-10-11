@@ -3,21 +3,21 @@ Rest Api Endpoint Description
 
 | Endpoint                    | Type |
 | --------------------------- | ---- |
-| [/ledarr_act](#/ledarr_act) | Post |
-| [/ledarr_get](#/ledarr_get) | Get  |
-| [/ledarr_set](#/ledarr_set) | Post |
+| [/ledarr_act](#ledarr_act) | Post |
+| [/ledarr_get](#ledarr_get) | Get  |
+| [/ledarr_set](#ledarr_set) | Post |
 |  |  |
-| [/motor_act](#/motor_act)   | Post |
-| [/motor_get](#/motor_get)   | Get  |
-| [/motor_set](#/motor_set)   | Post |
+| [/motor_act](#motor_act)   | Post |
+| [/motor_get](#motor_get)   | Get  |
+| [/motor_set](#motor_set)   | Post |
 |   |  |
-| [/wifi/scan](#/wifi/scan)         | Get  |
-| [/wifi/connect](#/wifi/connect)   | Post |
+| [/wifi/scan](#wifiscan)         | Get  |
+| [/wifi/connect](#wificonnect)   | Post |
 |   |  |
-| [/bt_scan](#/bt_scan)         | Get  |
-| [/bt_connect](#/bt_connect)         | Post  |
-| [/bt_remove](#/bt_remove)         | Post  |
-| [/bt_paireddevices](#/bt_paireddevices)         | Post  |
+| [/bt_scan](#bt_scan)         | Get  |
+| [/bt_connect](#bt_connect)         | Post  |
+| [/bt_remove](#bt_remove)         | Post  |
+| [/bt_paireddevices](#bt_paireddevices)         | Post  |
 
 
 /ledarr_act

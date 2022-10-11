@@ -62,9 +62,8 @@ void PidController::background() {
   sensorValueAvg = (float)sensorValueAvg / (float)N_sensor_avg;
   long motorValue = returnControlValue(PID_target, sensorValueAvg, PID_Kp, PID_Ki, PID_Kd);
   #ifdef IS_MOTOR
-  motor.isforever = 1; // run motor at certain speed
+  motor.data[Stepper::X]->isforever = 1; // run motor at certain speed
   motor.data[Stepper::X]->speed = motorValue;
-  motor.setEnableMotor(true);
   motor.steppers[Stepper::X]->setSpeed(motorValue);
   motor.steppers[Stepper::X]->setMaxSpeed(motorValue);
   #endif

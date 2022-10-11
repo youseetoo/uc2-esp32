@@ -164,7 +164,11 @@ namespace WifiController
 				// server = new WebServer(WiFi.localIP(),80);
 			}
 		}
+		if(server != nullptr)
+			server->close();
 		server = new WebServer(80);
+		if (webSocket != nullptr)
+			webSocket->close();
 		webSocket = new WebSocketsServer(81);
 		if (jsonDocument == nullptr)
 		{

@@ -130,7 +130,7 @@ function enableLeds(cb) {
 }
 
 function updateLeds() {
-    if ($("#enableled").checked) {
+    if ($("#enableled:checked").val()) {
         var redc = $("#redRange").val();
         var greenc = $("#greenRange").val();
         var bluec = $("#blueRange").val();

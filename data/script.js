@@ -8,7 +8,7 @@ var websocket;
 
 function createWebsocket() {
     if ($("#url").val() == "")
-        websocket = new WebSocket('ws://localhost:81/');
+        websocket = new WebSocket('ws://'+$(location).attr('hostname')+':81/');
     else
         websocket = new WebSocket('ws://' + $("#url").val() + ':81/');
 }
@@ -22,7 +22,11 @@ function post(jstr, uri) {
 }
 
 function getUri() {
-    var uri = "http://" + $("#url").val();
+    var uri;
+    if ($("#url").val() == "")
+        uri = "http://" + $(location).attr('hostname');
+    else
+        uri = "http://" + $("#url").val();
     return uri;
 }
 

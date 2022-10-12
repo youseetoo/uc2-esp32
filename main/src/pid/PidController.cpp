@@ -7,21 +7,21 @@ namespace RestApi
 	void Pid_act()
 	{
 		deserialize();
-		pid.act();
+		moduleController.get(AvailableModules::pid)->act();
 		serialize();
 	}
 
 	void Pid_get()
 	{
 		deserialize();
-		pid.get();
+		moduleController.get(AvailableModules::pid)->get();
 		serialize();
 	}
 
 	void Pid_set()
 	{
 		deserialize();
-		pid.set();
+		moduleController.get(AvailableModules::pid)->set();
 		serialize();
 	}
 }
@@ -72,28 +72,32 @@ void PidController::act()
 	(*WifiController::getJDoc())["target"] = PID_target;
 }
 
-void PidController::background()
+void PidController::loop()
 {
-	// hardcoded for now:
-	int N_sensor_avg = 50;
-	int sensorpin = pins->ADC_pin_0;
-
-	// get rid of noise?
-	float sensorValueAvg = 0;
-	for (int imeas = 0; imeas < N_sensor_avg; imeas++)
+	if (PID_active && (state.currentMillis - state.startMillis >= PID_updaterate))
 	{
-		sensorValueAvg += analogRead(sensorpin);
-	}
+		// hardcoded for now:
+		int N_sensor_avg = 50;
+		int sensorpin = pins.ADC_pin_0;
 
-	sensorValueAvg = (float)sensorValueAvg / (float)N_sensor_avg;
-	long motorValue = returnControlValue(PID_target, sensorValueAvg, PID_Kp, PID_Ki, PID_Kd);
-	if (moduleController.get(AvailableModules::motor) != nullptr)
-	{
-		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-		motor->data[Stepper::X]->isforever = 1; // run motor at certain speed
-		motor->data[Stepper::X]->speed = motorValue;
-		motor->steppers[Stepper::X]->setSpeed(motorValue);
-		motor->steppers[Stepper::X]->setMaxSpeed(motorValue);
+		// get rid of noise?
+		float sensorValueAvg = 0;
+		for (int imeas = 0; imeas < N_sensor_avg; imeas++)
+		{
+			sensorValueAvg += analogRead(sensorpin);
+		}
+
+		sensorValueAvg = (float)sensorValueAvg / (float)N_sensor_avg;
+		long motorValue = returnControlValue(PID_target, sensorValueAvg, PID_Kp, PID_Ki, PID_Kd);
+		if (moduleController.get(AvailableModules::motor) != nullptr)
+		{
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			motor->data[Stepper::X]->isforever = 1; // run motor at certain speed
+			motor->data[Stepper::X]->speed = motorValue;
+			motor->steppers[Stepper::X]->setSpeed(motorValue);
+			motor->steppers[Stepper::X]->setMaxSpeed(motorValue);
+		}
+		state.startMillis = millis();
 	}
 }
 
@@ -138,13 +142,13 @@ void PidController::set()
 	switch (PIDID)
 	{
 	case 0:
-		pins->ADC_pin_0 = PIDPIN;
+		pins.ADC_pin_0 = PIDPIN;
 		break;
 	case 1:
-		pins->ADC_pin_1 = PIDPIN;
+		pins.ADC_pin_1 = PIDPIN;
 		break;
 	case 2:
-		pins->ADC_pin_2 = PIDPIN;
+		pins.ADC_pin_2 = PIDPIN;
 		break;
 	}
 
@@ -163,13 +167,13 @@ void PidController::get()
 	switch (PIDID)
 	{
 	case 0:
-		PIDPIN = pins->ADC_pin_0;
+		PIDPIN = pins.ADC_pin_0;
 		break;
 	case 1:
-		PIDPIN = pins->ADC_pin_1;
+		PIDPIN = pins.ADC_pin_1;
 		break;
 	case 2:
-		PIDPIN = pins->ADC_pin_2;
+		PIDPIN = pins.ADC_pin_2;
 		break;
 	}
 
@@ -179,11 +183,9 @@ void PidController::get()
 	(*WifiController::getJDoc())["PIDID"] = PIDID;
 }
 
-void PidController::setup(PINDEF *pins)
+void PidController::setup()
 {
-	this->pins = pins;
 	if (DEBUG)
 		Serial.println("Setting up sensors...");
 }
-PidController pid;
 #endif

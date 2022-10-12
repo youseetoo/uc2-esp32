@@ -5,6 +5,7 @@
 #include "../../pinstruct.h"
 #include "../wifi/WifiController.h"
 #include "../../ModuleController.h"
+#include "../sensor/SensorPins.h"
 
 namespace RestApi
 {
@@ -13,7 +14,7 @@ namespace RestApi
     void Pid_set();
 };
 
-class PidController
+class PidController : public Module
 {
 private:
     /* data */
@@ -21,7 +22,6 @@ private:
 public:
     PidController(/* args */);
     ~PidController();
-    PINDEF * pins;
     bool DEBUG = false;
 
     float errorRunSum=0;
@@ -33,15 +33,14 @@ public:
     float PID_target = 500;
     float PID_updaterate = 200; // ms
     bool PID_active=false;
+    SensorPins pins;
 
     int N_sensor_avg = 50;
 
-    void setup(PINDEF * pins);
-    void background();
-    void act();
-    void get();
-    void set();
+    void setup() override;
+    void loop() override;
+    void act() override;
+    void get() override;
+    void set() override;
 };
-
-extern PidController pid;
 #endif

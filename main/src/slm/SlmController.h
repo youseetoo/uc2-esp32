@@ -6,12 +6,13 @@
 #include "SPI.h"
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
+#include "../../ModuleController.h"
 
 namespace RestApi
 {
-	 void Slm_act();
-    void Slm_get();
-    void Slm_set();
+	void Slm_act();
+	void Slm_get();
+	void Slm_set();
 };
 
 // Return the minimum of two values a and b
@@ -46,7 +47,7 @@ namespace RestApi
 /**
  * control Adafruit_ST7735 tft display with json
  */
-class SlmController
+class SlmController : public Module
 {
 private:
 	Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, /*TFT_MOSI, TFT_CLK,*/ TFT_RST);
@@ -59,20 +60,16 @@ public:
 	bool DEBUG = false;
 	bool isBusy;
 
-	void act();
-	void set();
-	void get();
-	void setup();
+	void act() override;
+	void set() override;
+	void get() override;
+	void setup() override;
+	void loop() override;
 
 	void createArray(const char *filename);
 	void jpegInfo();
 	void jpegRender(int xpos, int ypos);
 	void drawJpeg(String filename, int xpos, int ypos);
 };
-
-/**
- * control Adafruit_ST7735 tft display with json
- */
-extern SlmController slm;
 
 #endif

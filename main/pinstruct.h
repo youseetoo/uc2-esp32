@@ -19,10 +19,5 @@ struct PINDEF{
     // GALVos are always connected to 25/26 
     int dac_fake_1; // RESET-ABORT just toggles between 1 and 0
     int dac_fake_2; // Coolant
-
-    int ADC_pin_0;
-    int ADC_pin_1;
-    int ADC_pin_2;
-
     
 };

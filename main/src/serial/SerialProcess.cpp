@@ -82,23 +82,25 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 			moduleController.get(AvailableModules::motor)->get();
 		}
 	}
-/*
-  Operate SLM
-*/
-#ifdef IS_SLM
-	if (task == slm_act_endpoint)
+	/*
+	  Operate SLM
+	*/
+
+	if (moduleController.get(AvailableModules::slm) != nullptr)
 	{
-		slm.act();
+		if (task == slm_act_endpoint)
+		{
+			moduleController.get(AvailableModules::slm)->act();
+		}
+		if (task == slm_set_endpoint)
+		{
+			moduleController.get(AvailableModules::slm)->set();
+		}
+		if (task == slm_get_endpoint)
+		{
+			moduleController.get(AvailableModules::slm)->get();
+		}
 	}
-	if (task == slm_set_endpoint)
-	{
-		slm.set();
-	}
-	if (task == slm_get_endpoint)
-	{
-		slm.get();
-	}
-#endif
 /*
   Drive DAC
 */
@@ -165,29 +167,32 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 	if (task == config_get_endpoint)
 		Config::get();
 
-/*
-  Read the sensor
-*/
-#ifdef IS_READSENSOR
-	if (task == readsensor_act_endpoint)
-		sensor.act();
-	if (task == readsensor_set_endpoint)
-		sensor.set();
-	if (task == readsensor_get_endpoint)
-		sensor.get();
-#endif
+	/*
+	  Read the sensor
+	*/
+	if (moduleController.get(AvailableModules::sensor) != nullptr)
+	{
+		if (task == readsensor_act_endpoint)
+			moduleController.get(AvailableModules::sensor)->act();
+		if (task == readsensor_set_endpoint)
+			moduleController.get(AvailableModules::sensor)->set();
+		if (task == readsensor_get_endpoint)
+			moduleController.get(AvailableModules::sensor)->get();
+	}
 
-/*
-  Control PID controller
-*/
-#ifdef IS_PID
-	if (task == PID_act_endpoint)
-		pid.act();
-	if (task == PID_set_endpoint)
-		pid.set();
-	if (task == PID_get_endpoint)
-		pid.get();
-#endif
+	/*
+	  Control PID controller
+	*/
+	if (moduleController.get(AvailableModules::pid) != nullptr)
+	{
+		if (task == PID_act_endpoint)
+			moduleController.get(AvailableModules::pid)->act();
+		if (task == PID_set_endpoint)
+			moduleController.get(AvailableModules::pid)->set();
+		if (task == PID_get_endpoint)
+			moduleController.get(AvailableModules::pid)->get();
+	}
+
 	if (task == scanwifi_endpoint)
 	{
 		RestApi::scanWifi();

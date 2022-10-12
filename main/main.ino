@@ -11,20 +11,11 @@
 #ifdef IS_SCANNER
 #include "src/scanner/ScannerController.h"
 #endif
-#ifdef IS_PID
-#include "src/pid/PidController.h"
-#endif
 #ifdef IS_DIGITAL
 #include "src/digital/DigitalController.h"
 #endif
-#ifdef IS_READSENSOR
-#include "src/sensor/SensorController.h"
-#endif
 #if defined IS_DAC || defined IS_DAC_FAKE
 #include "src/dac/DacController.h"
-#endif
-#ifdef IS_SLM
-#include "src/slm/SlmController.h"
 #endif
 #if defined IS_PS4 || defined IS_PS3
 #include "src/gamepads/ps_3_4_controller.h"
@@ -72,10 +63,6 @@ void setup()
 	WifiController::setup();
 
 	moduleController.setup();
-#ifdef IS_SLM
-	log_i("IS_SLM");
-	slm.setup();
-#endif
 
 	BtController::setup();
 
@@ -119,15 +106,6 @@ void setup()
 	digital.setup(pins);
 #endif
 
-#ifdef IS_READSENSOR
-	log_i("IS_SENSOR");
-	sensor.setup(pins);
-#endif
-
-#ifdef IS_PID
-	log_i("IS_PID");
-	pid.setup(pins);
-#endif
 #ifdef IS_SCANNER
 	log_i("IS_SCANNER");
 	scanner.setup(pins);
@@ -154,12 +132,5 @@ void loop()
 #endif
 #ifdef IS_LASER
 	laser.loop();
-#endif
-#ifdef IS_PID
-	if (pid.PID_active && (state.currentMillis - state.startMillis >= pid.PID_updaterate))
-	{
-		pid.background();
-		state.startMillis = millis();
-	}
 #endif
 }

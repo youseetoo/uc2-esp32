@@ -6,6 +6,8 @@
 SensorController::SensorController(/* args */){};
 SensorController::~SensorController(){};
 
+void SensorController::loop() {}
+
 // Custom function accessible by the API
 void SensorController::act() {
 
@@ -20,13 +22,13 @@ void SensorController::act() {
   if (DEBUG) Serial.print("readsensorID "); Serial.println(readsensorID);
   switch (readsensorID) {
     case 0:
-      sensorpin = pins->ADC_pin_0;
+      sensorpin = pins.ADC_pin_0;
       break;
     case 1:
-      sensorpin = pins->ADC_pin_1;
+      sensorpin = pins.ADC_pin_1;
       break;
     case 2:
-      sensorpin = pins->ADC_pin_2;
+      sensorpin = pins.ADC_pin_2;
       break;
   }
 
@@ -54,13 +56,13 @@ void SensorController::get() {
 
   switch (readsensorID) {
     case 0:
-      pins->ADC_pin_0 = readsensorPIN;
+      pins.ADC_pin_0 = readsensorPIN;
       break;
     case 1:
-      pins->ADC_pin_1 = readsensorPIN;
+      pins.ADC_pin_1 = readsensorPIN;
       break;
     case 2:
-      pins->ADC_pin_2 = readsensorPIN;
+      pins.ADC_pin_2 = readsensorPIN;
       break;
   }
 
@@ -79,13 +81,13 @@ if (DEBUG) Serial.println("readsensor_get_fct");
   int readsensorPIN = 0;
   switch (readsensorID) {
     case 0:
-      readsensorPIN = pins->ADC_pin_0;
+      readsensorPIN = pins.ADC_pin_0;
       break;
     case 1:
-      readsensorPIN = pins->ADC_pin_1;
+      readsensorPIN = pins.ADC_pin_1;
       break;
     case 2:
-      readsensorPIN = pins->ADC_pin_2;
+      readsensorPIN = pins.ADC_pin_2;
       break;
   }
 
@@ -96,10 +98,8 @@ if (DEBUG) Serial.println("readsensor_get_fct");
 }
 
 
-void SensorController::setup(PINDEF *pins){
-  this->pins = pins;
+void SensorController::setup(){
   if(DEBUG) Serial.println("Setting up sensors...");
 }
-SensorController sensor;
 #endif
 

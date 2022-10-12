@@ -22,16 +22,7 @@
 #ifdef IS_DIGITAL
 #include "../digital/DigitalController.h"
 #endif
-#ifdef IS_PID
-#include "../pid/PidController.h"
-#endif
-#ifdef IS_READSENSOR
-#include "../sensor/SensorController.h"
-#endif
 #include "../config/ConfigController.h"
-#ifdef IS_SLM
-    #include "../slm/SlmController.h"
-#endif
 #if defined IS_DAC || defined IS_DAC_FAKE
     #include "../dac/DacController.h"
 #endif

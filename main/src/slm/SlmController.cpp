@@ -7,21 +7,21 @@ namespace RestApi
 	void Slm_act()
 	{
 		deserialize();
-		slm.act();
+		moduleController.get(AvailableModules::slm)->act();
 		serialize();
 	}
 
 	void Slm_get()
 	{
 		deserialize();
-		slm.get();
+		moduleController.get(AvailableModules::slm)->get();
 		serialize();
 	}
 
 	void Slm_set()
 	{
 		deserialize();
-		slm.set();
+		moduleController.get(AvailableModules::slm)->set();
 		serialize();
 	}
 }
@@ -29,6 +29,8 @@ namespace RestApi
 SlmController::SlmController(/* args */){};
 SlmController::~SlmController(){};
 
+
+void SlmController::loop(){}
 // Custom function accessible by the API
 void SlmController::act()
 {
@@ -390,5 +392,4 @@ void SlmController::createArray(const char *filename)
 	Serial.println("};\r\n");
 	jpgFile.close();
 }
-SlmController slm;
 #endif

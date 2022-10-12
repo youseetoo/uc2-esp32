@@ -8,6 +8,15 @@ void ModuleController::setup()
     #ifdef IS_MOTOR
         modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module*>(new FocusMotor())));
     #endif
+    #ifdef IS_SLM
+        modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module*>(new SlmController())));
+    #endif
+    #ifdef IS_READSENSOR
+        modules.insert(std::make_pair(AvailableModules::sensor, dynamic_cast<Module*>(new SensorController())));
+    #endif
+    #ifdef IS_PID
+        modules.insert(std::make_pair(AvailableModules::pid, dynamic_cast<Module*>(new PidController())));
+    #endif
     for (auto const& x : modules)
     {
         x.second->setup();

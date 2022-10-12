@@ -12,20 +12,11 @@
 #ifdef IS_SCANNER
 #include "../scanner/ScannerController.h"
 #endif
-#ifdef IS_PID
-#include "../pid/PidController.h"
-#endif
 #ifdef IS_DIGITAL
 #include "../digital/DigitalController.h"
 #endif
-#ifdef IS_READSENSOR
-#include "../sensor/SensorController.h"
-#endif
 #if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"
-#endif
-#ifdef IS_SLM
-#include "../slm/SlmController.h"
 #endif
 #include "../config/ConfigController.h"
 #include "../wifi/Endpoints.h"

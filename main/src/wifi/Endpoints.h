@@ -10,11 +10,9 @@ static const PROGMEM String laser_set_endpoint = "/laser_set";
 static const PROGMEM String laser_get_endpoint = "/laser_get";
 #endif
 
-#ifdef IS_MOTOR
 static const PROGMEM String motor_act_endpoint = "/motor_act";
 static const PROGMEM String motor_set_endpoint = "/motor_set";
 static const PROGMEM String motor_get_endpoint = "/motor_get";
-#endif
 
 #ifdef IS_DAC
 static const PROGMEM String dac_act_endpoint = "/dac_act";
@@ -34,29 +32,21 @@ static const PROGMEM String digital_set_endpoint = "/digital_set";
 static const PROGMEM String digital_get_endpoint = "/digital_get";
 #endif
 
-#ifdef IS_LED
 static const PROGMEM String ledarr_act_endpoint = "/ledarr_act";
 static const PROGMEM String ledarr_set_endpoint = "/ledarr_set";
 static const PROGMEM String ledarr_get_endpoint = "/ledarr_get";
-#endif
 
-#ifdef IS_SLM
 static const PROGMEM String slm_act_endpoint = "/slm_act";
 static const PROGMEM String slm_set_endpoint = "/slm_set";
 static const PROGMEM String slm_get_endpoint = "/slm_get";
-#endif
 
-#ifdef IS_READSENSOR
 static const PROGMEM String readsensor_act_endpoint = "/readsensor_act";
 static const PROGMEM String readsensor_set_endpoint = "/readsensor_set";
 static const PROGMEM String readsensor_get_endpoint = "/readsensor_get";
-#endif
 
-#ifdef IS_PID
 static const PROGMEM String PID_act_endpoint = "/PID_act";
 static const PROGMEM String PID_set_endpoint = "/PID_set";
 static const PROGMEM String PID_get_endpoint = "/PID_get";
-#endif
 
 static const PROGMEM String config_act_endpoint = "/config_act";
 static const PROGMEM String config_set_endpoint = "/config_set";

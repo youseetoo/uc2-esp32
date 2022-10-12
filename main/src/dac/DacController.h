@@ -7,20 +7,25 @@
 #include "../../pinstruct.h"
 #include "../wifi/WifiController.h"
 
-
+namespace RestApi
+{
+    void Dac_act();
+    void Dac_get();
+    void Dac_set();
+};
 
 class DacController
 {
-    private:
-    #ifdef IS_DAC
-    DAC_Module * dacm;
-    #endif
-    
-    public:
+private:
+#ifdef IS_DAC
+    DAC_Module *dacm;
+#endif
+
+public:
     DacController();
     ~DacController();
     bool DEBUG = false;
-    PINDEF * pins;
+    PINDEF *pins;
 
     // DAC-specific parameters
     dac_channel_t dac_channel = DAC_CHANNEL_1;
@@ -34,14 +39,12 @@ class DacController
 
     boolean dac_is_running = false;
 
-     void setup(PINDEF * pins);
+    void setup(PINDEF *pins);
 
     void act();
     void set();
     void get();
-    static void drive_galvo(void * parameter);
-
-   
+    static void drive_galvo(void *parameter);
 };
 extern DacController dac;
 #endif

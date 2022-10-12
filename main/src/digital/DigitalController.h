@@ -3,6 +3,14 @@
 #pragma once
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
+#include "../wifi/RestApiCallbacks.h"
+
+namespace RestApi
+{
+    void Digital_act();
+    void Digital_get();
+    void Digital_set();
+};
 
 class DigitalController
 {

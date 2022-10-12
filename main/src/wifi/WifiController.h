@@ -43,6 +43,34 @@
 #endif
 #include <WebSocketsServer.h>
 
+namespace RestApi
+{
+    /*
+        start a wifiscan and return the results
+        endpoint:/wifi/scan
+        input []
+        output
+        [
+            "ssid1",
+            "ssid2",
+            ....
+        ]
+    */
+    void scanWifi();
+    /*
+        connect to a wifi network or create ap
+        endpoint:/wifi/connect
+        input
+        [
+            "ssid": "networkid"
+            "PW" : "password"
+            "AP" : 0
+        ]
+        output[]
+    */
+    void connectToWifi();
+};
+
 namespace WifiController
 {
     

@@ -1,6 +1,48 @@
 #include "../../config.h"
 #ifdef IS_WIFI
 #include "WifiController.h"
+
+namespace RestApi
+{
+	void scanWifi()
+	{
+		log_i("scanWifi");
+		int networkcount = WiFi.scanNetworks();
+		if (networkcount == -1)
+		{
+			while (true)
+				;
+		}
+		WifiController::getJDoc()->clear();
+		for (int i = 0; i < networkcount; i++)
+		{
+			(*WifiController::getJDoc()).add(WiFi.SSID(i));
+		}
+		serialize();
+	}
+
+	void connectToWifi()
+	{
+		deserialize();
+		log_i("connectToWifi");
+		bool ap = (*WifiController::getJDoc())[keyWifiAP];
+		String ssid = (*WifiController::getJDoc())[keyWifiSSID];
+		String pw = (*WifiController::getJDoc())[keyWifiPW];
+		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
+		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
+		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		WifiController::setWifiConfig(ssid, pw, ap);
+		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
+		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
+		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		Config::setWifiConfig(ssid, pw, ap, false);
+		WifiController::getJDoc()->clear();
+		serialize();
+		WifiController::setup();
+		// ESP.restart();
+	}
+}
+
 namespace WifiController
 {
 
@@ -164,7 +206,7 @@ namespace WifiController
 				// server = new WebServer(WiFi.localIP(),80);
 			}
 		}
-		if(server != nullptr)
+		if (server != nullptr)
 			server->close();
 		server = new WebServer(80);
 		if (webSocket != nullptr)

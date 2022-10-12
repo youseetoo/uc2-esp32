@@ -11,6 +11,13 @@
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 
+namespace RestApi
+{
+    void FocusMotor_act();
+    void FocusMotor_get();
+    void FocusMotor_set();
+};
+
 struct MotorData
 {
     long speed = 0;

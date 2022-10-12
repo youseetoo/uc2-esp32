@@ -2,6 +2,30 @@
 #ifdef IS_LED
 #include "LedController.h"
 
+namespace RestApi
+{
+	void Led_act()
+    {
+        deserialize();
+        led.act();
+        serialize();
+    }
+
+    void Led_get()
+    {
+        deserialize();
+        led.get();
+        serialize();
+    }
+
+    void Led_set()
+    {
+        deserialize();
+        led.set();
+        serialize();
+    }
+}
+
 void LedController::setup()
 {
 	Config::getLedPins();

@@ -6,6 +6,13 @@
 #include <String.h>
 #include "../wifi/WifiController.h"
 
+namespace RestApi
+{
+    void Laser_act();
+    void Laser_get();
+    void Laser_set();
+};
+
 class LaserController
 {
 private:

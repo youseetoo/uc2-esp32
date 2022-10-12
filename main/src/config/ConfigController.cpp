@@ -1,5 +1,29 @@
 #include "ConfigController.h"
 
+namespace RestApi
+{
+	void Config_act()
+    {
+        deserialize();
+        Config::act();
+        serialize();
+    }
+
+    void Config_get()
+    {
+        deserialize();
+        Config::get();
+        serialize();
+    }
+
+    void Config_set()
+    {
+        deserialize();
+        Config::set();
+        serialize();
+    }
+}
+
 namespace Config
 {
 

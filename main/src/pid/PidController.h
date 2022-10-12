@@ -8,6 +8,13 @@
 #endif
 #include "../wifi/WifiController.h"
 
+namespace RestApi
+{
+    void Pid_act();
+    void Pid_get();
+    void Pid_set();
+};
+
 class PidController
 {
 private:

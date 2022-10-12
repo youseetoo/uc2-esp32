@@ -2,6 +2,30 @@
 #ifdef IS_LASER
 #include "LaserController.h"
 
+namespace RestApi
+{
+      void Laser_act()
+    {
+        deserialize();
+        laser.act();
+        serialize();
+    }
+
+    void Laser_get()
+    {
+        deserialize();
+        laser.get();
+        serialize();
+    }
+
+    void Laser_set()
+    {
+        deserialize();
+        laser.set();
+        serialize();
+    }
+}
+
 LaserController::LaserController(/* args */)
 {
 }

@@ -7,6 +7,34 @@
 #include "../config/JsonKeys.h"
 #include "../wifi/WifiController.h"
 
+//functions that get registered by the webserver to handel the requests/responses
+namespace RestApi
+{
+    /*
+        controls the leds
+        endpoint:/ledarr_act
+        input
+        {
+            "led": {
+                "LEDArrMode": 1,
+                "led_array": [
+                    {
+                        "blue": 0,
+                        "green": 0,
+                        "id": 0,
+                        "red": 0
+                    }
+                ]
+            }
+        }
+        output
+        []
+        */
+    void Led_act();
+    void Led_get();
+    void Led_set();
+};
+
 enum LedModes
 {
     array,

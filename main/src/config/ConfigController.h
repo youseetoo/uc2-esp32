@@ -6,6 +6,14 @@
 #include "../wifi/WifiController.h"
 #include "esp_log.h"
 #include "../motor/FocusMotor.h"
+
+namespace RestApi
+{
+    void Config_act();
+    void Config_get();
+    void Config_set();
+};
+
 namespace Config
 {
 

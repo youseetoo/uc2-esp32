@@ -1,5 +1,51 @@
 #include "BtController.h"
 
+namespace RestApi
+{
+    void Bt_startScan()
+    {
+        deserialize();
+        BtController::scanForDevices(WifiController::getJDoc());
+        serialize();
+    }
+
+    void Bt_connect()
+    {
+        deserialize();
+        String mac = (*WifiController::getJDoc())["mac"];
+        int ps = (*WifiController::getJDoc())["psx"];
+       
+        if (ps == 0)
+        {
+            BtController::setMacAndConnect(mac);
+        }
+        else 
+        {
+            ps_c.start(mac);
+        }
+        
+        
+        WifiController::getJDoc()->clear();
+        serialize();
+    }
+
+    void Bt_getPairedDevices()
+    {
+        deserialize();
+        BtController::getPairedDevices(WifiController::getJDoc());
+        serialize();
+    }
+
+    void Bt_remove()
+    {
+        deserialize();
+        String mac = (*WifiController::getJDoc())["mac"];
+        BtController::removePairedDevice(mac);
+        WifiController::getJDoc()->clear();
+        serialize();
+    }
+}
+
 namespace BtController
 {
 

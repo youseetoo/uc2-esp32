@@ -1,7 +1,30 @@
 #include "../../config.h"
 #ifdef IS_MOTOR
 #include "FocusMotor.h"
-#include <ArduinoJson.h>
+
+namespace RestApi
+{
+	void FocusMotor_act()
+	{
+		deserialize();
+		motor.act();
+		serialize();
+	}
+
+	void FocusMotor_get()
+	{
+		deserialize();
+		motor.get();
+		serialize();
+	}
+
+	void FocusMotor_set()
+	{
+		deserialize();
+		motor.set();
+		serialize();
+	}
+}
 
 void FocusMotor::act()
 {
@@ -188,7 +211,7 @@ bool FocusMotor::background()
 			// checks if a stepper is still running
 			if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
 			{
-				log_i("stop stepper:%i",i);
+				log_i("stop stepper:%i", i);
 				// if not turn it off
 				steppers[i]->disableOutputs();
 				// send current position to client

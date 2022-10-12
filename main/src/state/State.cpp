@@ -124,9 +124,6 @@ void State::getDefaultPinDef(PINDEF *pindef)
 	pindef->analog_PIN_2 = 0;
 	pindef->analog_PIN_3 = 0;
 	// Laser PWM pins
-	pindef->LASER_PIN_1 = 0;
-	pindef->LASER_PIN_2 = 0;
-	pindef->LASER_PIN_3 = 0;
 
 	pindef->digital_PIN_1 = 0;
 	pindef->digital_PIN_2 = 0;

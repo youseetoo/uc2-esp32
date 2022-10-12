@@ -320,72 +320,74 @@ void ps_3_4_controller::activate()
 		}
 	}
 	// LASER
-#ifdef IS_LASER
-	if (is_triangle())
+	if (moduleController.get(AvailableModules::laser) != nullptr)
 	{
-		if (DEBUG)
-			Serial.print("Turning on LAser 10000");
-		ledcWrite(laser.PWM_CHANNEL_LASER_1, 10000);
-		delay(100); // Debounce?
-	}
-	if (is_square())
-	{
-		if (DEBUG)
-			Serial.print("Turning off LAser ");
-		ledcWrite(laser.PWM_CHANNEL_LASER_1, 0);
-		delay(100); // Debounce?
-	}
+		LaserController * laser = (LaserController*)moduleController.get(AvailableModules::laser);
+		if (is_triangle())
+		{
+			if (DEBUG)
+				Serial.print("Turning on LAser 10000");
+			ledcWrite(laser->PWM_CHANNEL_LASER_1, 10000);
+			delay(100); // Debounce?
+		}
+		if (is_square())
+		{
+			if (DEBUG)
+				Serial.print("Turning off LAser ");
+			ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
+			delay(100); // Debounce?
+		}
 
-	// FOCUS
-	/*
-	  if (pS4Controller.event.button_down.up) {
-		if (not getEnableMotor())
-		  setEnableMotor(true);
-		POSITION_MOTOR_X = stepper_X.currentPosition();
-		stepper_X.move(POSITION_MOTOR_X+2);
-		delay(100); //Debounce?
-	  }
-	  if (pS4Controller.event.button_down.down) {
+		// FOCUS
+		/*
+		  if (pS4Controller.event.button_down.up) {
 			if (not getEnableMotor())
-		  setEnableMotor(true);
-		POSITION_MOTOR_X = stepper_X.currentPosition();
-		stepper_X.move(POSITION_MOTOR_X-2);
-		delay(100); //Debounce?
-	  }
-	*/
+			  setEnableMotor(true);
+			POSITION_MOTOR_X = stepper_X.currentPosition();
+			stepper_X.move(POSITION_MOTOR_X+2);
+			delay(100); //Debounce?
+		  }
+		  if (pS4Controller.event.button_down.down) {
+				if (not getEnableMotor())
+			  setEnableMotor(true);
+			POSITION_MOTOR_X = stepper_X.currentPosition();
+			stepper_X.move(POSITION_MOTOR_X-2);
+			delay(100); //Debounce?
+		  }
+		*/
 
-	// LASER 1
-	if (is_down_up())
-	{
-		if (DEBUG)
-			Serial.print("Turning on LAser 10000");
-		ledcWrite(laser.PWM_CHANNEL_LASER_2, 20000);
-		delay(100); // Debounce?
-	}
-	if (is_down_down())
-	{
-		if (DEBUG)
-			Serial.print("Turning off LAser ");
-		ledcWrite(laser.PWM_CHANNEL_LASER_2, 0);
-		delay(100); // Debounce?
-	}
+		// LASER 1
+		if (is_down_up())
+		{
+			if (DEBUG)
+				Serial.print("Turning on LAser 10000");
+			ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
+			delay(100); // Debounce?
+		}
+		if (is_down_down())
+		{
+			if (DEBUG)
+				Serial.print("Turning off LAser ");
+			ledcWrite(laser->PWM_CHANNEL_LASER_2, 0);
+			delay(100); // Debounce?
+		}
 
-	// LASER 2
-	if (is_down_right())
-	{
-		if (DEBUG)
-			Serial.print("Turning on LAser 10000");
-		ledcWrite(laser.PWM_CHANNEL_LASER_1, 20000);
-		delay(100); // Debounce?
+		// LASER 2
+		if (is_down_right())
+		{
+			if (DEBUG)
+				Serial.print("Turning on LAser 10000");
+			ledcWrite(laser->PWM_CHANNEL_LASER_1, 20000);
+			delay(100); // Debounce?
+		}
+		if (is_down_left())
+		{
+			if (DEBUG)
+				Serial.print("Turning off LAser ");
+			ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
+			delay(100); // Debounce?
+		}
 	}
-	if (is_down_left())
-	{
-		if (DEBUG)
-			Serial.print("Turning off LAser ");
-		ledcWrite(laser.PWM_CHANNEL_LASER_1, 0);
-		delay(100); // Debounce?
-	}
-#endif
 }
 
 void ps_3_4_controller::control()

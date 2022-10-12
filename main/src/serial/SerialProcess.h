@@ -2,9 +2,6 @@
 #ifdef IS_SERIAL
 #pragma once
 #include "ArduinoJson.h"
-#ifdef IS_LASER
-#include "../laser/LaserController.h"
-#endif
 #ifdef IS_ANALOG
 #include "../analog/AnalogController.h"
 #endif

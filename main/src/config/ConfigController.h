@@ -8,6 +8,7 @@
 #include "../motor/MotorPins.h"
 #include "../motor/FocusMotor.h"
 #include "../led/LedConfig.h"
+#include "../laser/LaserPins.h"
 
 namespace RestApi
 {
@@ -38,4 +39,6 @@ namespace Config
     void getMotorPins(std::array<MotorPins, 4> pins);
     void setLedPins(bool prefsOpen, LedConfig config);
     void getLedPins(LedConfig config);
+    void setLaserPins(bool openPrefs,LaserPins pins);
+    void getLaserPins(LaserPins pin);
 }

@@ -17,6 +17,9 @@ void ModuleController::setup()
     #ifdef IS_PID
         modules.insert(std::make_pair(AvailableModules::pid, dynamic_cast<Module*>(new PidController())));
     #endif
+    #ifdef IS_LASER
+        modules.insert(std::make_pair(AvailableModules::laser, dynamic_cast<Module*>(new LaserController())));
+    #endif
     for (auto const& x : modules)
     {
         x.second->setup();

@@ -5,6 +5,9 @@
 #include "ArduinoJson.h"
 #include <String.h>
 #include "../wifi/WifiController.h"
+#include "LaserPins.h"
+#include "../../Module.h"
+#include "../config/ConfigController.h"
 
 namespace RestApi
 {
@@ -13,7 +16,7 @@ namespace RestApi
     void Laser_set();
 };
 
-class LaserController
+class LaserController : public Module
 {
 private:
     /* data */
@@ -21,8 +24,8 @@ public:
     LaserController(/* args */);
     ~LaserController();
 
-    PINDEF * pins;
     bool isBusy;
+    LaserPins pins;
     
     int LASER_val_1 = 0;
     int LASER_val_2 = 0;
@@ -60,10 +63,9 @@ public:
     void act();
     void set();
     void get();
-    void setup(PINDEF * pins);
+    void setup();
     void loop();
 
 };
-extern LaserController laser;
 
 #endif

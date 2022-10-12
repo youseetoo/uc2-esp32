@@ -4,11 +4,9 @@ static const PROGMEM String state_act_endpoint = "/state_act";
 static const PROGMEM String state_set_endpoint = "/state_set";
 static const PROGMEM String state_get_endpoint = "/state_get";
 
-#ifdef IS_LASER
 static const PROGMEM String laser_act_endpoint = "/laser_act";
 static const PROGMEM String laser_set_endpoint = "/laser_set";
 static const PROGMEM String laser_get_endpoint = "/laser_get";
-#endif
 
 static const PROGMEM String motor_act_endpoint = "/motor_act";
 static const PROGMEM String motor_set_endpoint = "/motor_set";

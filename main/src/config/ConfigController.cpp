@@ -3,25 +3,25 @@
 namespace RestApi
 {
 	void Config_act()
-    {
-        deserialize();
-        Config::act();
-        serialize();
-    }
+	{
+		deserialize();
+		Config::act();
+		serialize();
+	}
 
-    void Config_get()
-    {
-        deserialize();
-        Config::get();
-        serialize();
-    }
+	void Config_get()
+	{
+		deserialize();
+		Config::get();
+		serialize();
+	}
 
-    void Config_set()
-    {
-        deserialize();
-        Config::set();
-        serialize();
-    }
+	void Config_set()
+	{
+		deserialize();
+		Config::set();
+		serialize();
+	}
 }
 
 namespace Config
@@ -132,7 +132,7 @@ namespace Config
 		preferences.end();
 	}
 
-	void setMotorPinConfig(bool prefsOpen,std::array<MotorPins, 4> pins)
+	void setMotorPinConfig(bool prefsOpen, std::array<MotorPins, 4> pins)
 	{
 		if (!prefsOpen)
 			preferences.begin(prefNamespace, false);
@@ -178,8 +178,8 @@ namespace Config
 	void getLedPins(LedConfig config)
 	{
 		preferences.begin(prefNamespace, false);
-		config.ledCount = preferences.getInt(keyLEDCount,0);
-		config.ledPin = preferences.getInt(keyLEDPin,0);
+		config.ledCount = preferences.getInt(keyLEDCount, 0);
+		config.ledPin = preferences.getInt(keyLEDPin, 0);
 		preferences.end();
 	}
 
@@ -190,8 +190,26 @@ namespace Config
 		preferences.putInt(keyLEDCount, config.ledCount);
 		preferences.putInt(keyLEDPin, config.ledPin);
 		log_i("pin:%i count:%i", preferences.getInt(keyLEDPin), preferences.getInt(keyLEDCount));
-		if(!openPrefs)
+		if (!openPrefs)
 			preferences.end();
+	}
+
+	void setLaserPins(bool openPrefs, LaserPins pins)
+	{
+		if (!openPrefs)
+			preferences.begin(prefNamespace, false);
+		preferences.putInt(keyLaser1Pin, pins.LASER_PIN_1);
+		preferences.putInt(keyLaser2Pin, pins.LASER_PIN_2);
+		preferences.putInt(keyLaser3Pin, pins.LASER_PIN_3);
+		if (!openPrefs)
+			preferences.end();
+	}
+	void getLaserPins(LaserPins pins)
+	{
+
+		pins.LASER_PIN_1 = preferences.getInt(keyLaser1Pin, pins.LASER_PIN_1);
+		pins.LASER_PIN_2 = preferences.getInt(keyLaser2Pin, pins.LASER_PIN_2);
+		pins.LASER_PIN_3 = preferences.getInt(keyLaser3Pin, pins.LASER_PIN_3);
 	}
 
 	bool isFirstRun()
@@ -245,7 +263,7 @@ namespace Config
 		preferences.putInt(keyAnalog1Pin, pins->analog_PIN_1);
 		preferences.putInt(keyAnalog2Pin, pins->analog_PIN_2);
 		preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
-		
+
 		preferences.putInt(keyDigital1Pin, pins->digital_PIN_1);
 		preferences.putInt(keyDigital2Pin, pins->digital_PIN_2);
 		preferences.putInt(keyDigital3Pin, pins->digital_PIN_3);
@@ -253,10 +271,6 @@ namespace Config
 		preferences.putInt(keyAnalog1Pin, pins->analog_PIN_1);
 		preferences.putInt(keyAnalog2Pin, pins->analog_PIN_2);
 		preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
-
-		preferences.putInt(keyLaser1Pin, pins->LASER_PIN_1);
-		preferences.putInt(keyLaser2Pin, pins->LASER_PIN_2);
-		preferences.putInt(keyLaser3Pin, pins->LASER_PIN_3);
 
 		preferences.putInt(keyDACfake1Pin, pins->dac_fake_1);
 		preferences.putInt(keyDACfake2Pin, pins->dac_fake_2);
@@ -348,8 +362,8 @@ namespace Config
 	{
 		// motor loads pins on setup
 
-		//led.ledconfig.ledPin = preferences.getInt(keyLEDPin, 0);
-		//led.ledconfig.ledCount = preferences.getInt(keyLEDCount, 0);
+		// led.ledconfig.ledPin = preferences.getInt(keyLEDPin, 0);
+		// led.ledconfig.ledCount = preferences.getInt(keyLEDCount, 0);
 
 		pins->digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins->digital_PIN_1);
 		pins->digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins->digital_PIN_2);
@@ -359,9 +373,7 @@ namespace Config
 		pins->analog_PIN_2 = preferences.getInt(keyAnalog2Pin, pins->analog_PIN_2);
 		pins->analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins->analog_PIN_3);
 
-		pins->LASER_PIN_1 = preferences.getInt(keyLaser1Pin, pins->LASER_PIN_1);
-		pins->LASER_PIN_2 = preferences.getInt(keyLaser2Pin, pins->LASER_PIN_2);
-		pins->LASER_PIN_3 = preferences.getInt(keyLaser3Pin, pins->LASER_PIN_3);
+		
 
 		pins->dac_fake_1 = preferences.getInt(keyDACfake1Pin, pins->dac_fake_1);
 		pins->dac_fake_2 = preferences.getInt(keyDACfake2Pin, pins->dac_fake_2);
@@ -404,8 +416,8 @@ namespace Config
 		setPinsToJson(keyMotorADirPin, motor.pins[Stepper::A].DIR);
 		setPinsToJson(keyMotorEnableA, motor.pins[Stepper::A].ENABLE);*/
 
-		//setPinsToJson(keyLEDCount, led.ledconfig.ledCount);
-		//setPinsToJson(keyLEDPin, led.ledconfig.ledPin);
+		// setPinsToJson(keyLEDCount, led.ledconfig.ledCount);
+		// setPinsToJson(keyLEDPin, led.ledconfig.ledPin);
 
 		setPinsToJson(keyDigital1Pin, pins->digital_PIN_1);
 		setPinsToJson(keyDigital2Pin, pins->digital_PIN_2);
@@ -414,9 +426,9 @@ namespace Config
 		setPinsToJson(keyAnalog2Pin, pins->analog_PIN_2);
 		setPinsToJson(keyAnalog3Pin, pins->analog_PIN_3);
 
-		setPinsToJson(keyLaser1Pin, pins->LASER_PIN_1);
-		setPinsToJson(keyLaser2Pin, pins->LASER_PIN_2);
-		setPinsToJson(keyLaser3Pin, pins->LASER_PIN_3);
+		//setPinsToJson(keyLaser1Pin, pins->LASER_PIN_1);
+		//setPinsToJson(keyLaser2Pin, pins->LASER_PIN_2);
+		//setPinsToJson(keyLaser3Pin, pins->LASER_PIN_3);
 
 		setPinsToJson(keyDACfake1Pin, pins->dac_fake_1);
 		setPinsToJson(keyDACfake2Pin, pins->dac_fake_2);

@@ -1,9 +1,6 @@
 #include "config.h"
 #include "ArduinoJson.h"
 #include "esp_log.h"
-#ifdef IS_LASER
-#include "src/laser/LaserController.h"
-#endif
 #ifdef IS_ANALOG
 #include "src/analog/AnalogController.h"
 #endif
@@ -80,10 +77,6 @@ void setup()
 	//ps_c.start();
 #endif
 
-#ifdef IS_LASER
-	laser.setup(pins);
-#endif
-
 #if defined IS_DAC || defined IS_DAC_FAKE
 #if defined IS_DAC
 	log_i("IS_DAC");
@@ -129,8 +122,5 @@ void loop()
 
 #if defined IS_PS4 || defined IS_PS3
 	ps_c.control(); // if controller is operating motors, overheating protection is enabled
-#endif
-#ifdef IS_LASER
-	laser.loop();
 #endif
 }

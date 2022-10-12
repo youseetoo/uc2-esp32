@@ -9,9 +9,6 @@
 #include "../wifi/WifiController.h"
 #include "../bt/BtController.h"
 #include <esp_log.h>
-#ifdef IS_LASER
-#include "../laser/LaserController.h"
-#endif
 #if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"
 #endif
@@ -20,15 +17,6 @@
 #endif
 #ifdef IS_DIGITAL
 #include "../digital/DigitalController.h"
-#endif
-#ifdef IS_PID
-#include "../pid/PidController.h"
-#endif
-#ifdef IS_READSENSOR
-#include "../sensor/SensorController.h"
-#endif
-#ifdef IS_SLM
-#include "../slm/SlmController.h"
 #endif
 #if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"

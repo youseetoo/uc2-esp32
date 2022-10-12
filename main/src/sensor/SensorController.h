@@ -2,9 +2,6 @@
 #ifdef IS_READSENSOR
 #pragma once
 #include "ArduinoJson.h"
-#ifdef IS_LASER
-#include "../laser/LaserController.h"
-#endif
 #include "../wifi/WifiController.h"
 #include "../../Module.h"
 #include "SensorPins.h"

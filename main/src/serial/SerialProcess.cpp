@@ -115,14 +115,15 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 /*
   Drive Laser
 */
-#ifdef IS_LASER
+if(moduleController.get(AvailableModules::laser) != nullptr)
+{
 	if (task == laser_act_endpoint)
-		laser.act();
+		moduleController.get(AvailableModules::laser)->act();
 	if (task == laser_set_endpoint)
-		laser.get();
+		moduleController.get(AvailableModules::laser)->get();
 	if (task == laser_get_endpoint)
-		laser.set();
-#endif
+		moduleController.get(AvailableModules::laser)->set();
+}
 /*
   Drive analog
 */

@@ -7,21 +7,22 @@ namespace RestApi
       void Laser_act()
     {
         deserialize();
-        laser.act();
+        
+        moduleController.get(AvailableModules::laser)->act();
         serialize();
     }
 
     void Laser_get()
     {
         deserialize();
-        laser.get();
+        moduleController.get(AvailableModules::laser)->get();
         serialize();
     }
 
     void Laser_set()
     {
         deserialize();
-        laser.set();
+        moduleController.get(AvailableModules::laser)->set();
         serialize();
     }
 }
@@ -101,7 +102,7 @@ void LaserController::act() {
     LASER_despeckle_period_1 = LASERdespecklePeriod;
     if (DEBUG) {
       Serial.print("LaserPIN ");
-      Serial.println(pins->LASER_PIN_1);
+      Serial.println(pins.LASER_PIN_1);
     }
     ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
   }
@@ -111,7 +112,7 @@ void LaserController::act() {
     LASER_despeckle_period_2 = LASERdespecklePeriod;
     if (DEBUG) {
       Serial.print("LaserPIN ");
-      Serial.println(pins->LASER_PIN_2);
+      Serial.println(pins.LASER_PIN_2);
     }
     ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
   }
@@ -121,7 +122,7 @@ void LaserController::act() {
     LASER_despeckle_period_3 = LASERdespecklePeriod;
     if (DEBUG) {
       Serial.print("LaserPIN ");
-      Serial.println(pins->LASER_PIN_3);
+      Serial.println(pins.LASER_PIN_3);
     }
     ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
   }
@@ -142,34 +143,35 @@ void LaserController::set() {
 
   if (LASERid != NULL and LASERpin != NULL) {
     if (LASERid == 1) {
-      pins->LASER_PIN_1 = LASERpin;
-      pinMode(pins->LASER_PIN_1, OUTPUT);
-      digitalWrite(pins->LASER_PIN_1, LOW);
+      pins.LASER_PIN_1 = LASERpin;
+      pinMode(pins.LASER_PIN_1, OUTPUT);
+      digitalWrite(pins.LASER_PIN_1, LOW);
       /* setup the PWM ports and reset them to 0*/
       ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-      ledcAttachPin(pins->LASER_PIN_1, PWM_CHANNEL_LASER_1);
+      ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
       ledcWrite(PWM_CHANNEL_LASER_1, 0);
     }
     else if (LASERid == 2) {
-      pins->LASER_PIN_2 = LASERpin;
-      pinMode(pins->LASER_PIN_2, OUTPUT);
-      digitalWrite(pins->LASER_PIN_2, LOW);
+      pins.LASER_PIN_2 = LASERpin;
+      pinMode(pins.LASER_PIN_2, OUTPUT);
+      digitalWrite(pins.LASER_PIN_2, LOW);
       /* setup the PWM ports and reset them to 0*/
       ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-      ledcAttachPin(pins->LASER_PIN_2, PWM_CHANNEL_LASER_2);
+      ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
       ledcWrite(PWM_CHANNEL_LASER_2, 0);
     }
     else if (LASERid == 3) {
-      pins->LASER_PIN_3 = LASERpin;
-      pinMode(pins->LASER_PIN_3, OUTPUT);
-      digitalWrite(pins->LASER_PIN_3, LOW);
+      pins.LASER_PIN_3 = LASERpin;
+      pinMode(pins.LASER_PIN_3, OUTPUT);
+      digitalWrite(pins.LASER_PIN_3, LOW);
       /* setup the PWM ports and reset them to 0*/
       ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-      ledcAttachPin(pins->LASER_PIN_3, PWM_CHANNEL_LASER_3);
+      ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
       ledcWrite(PWM_CHANNEL_LASER_3, 0);
     }
   }
 
+  Config::setLaserPins(false,pins);
   WifiController::getJDoc()->clear();
   (*WifiController::getJDoc())["return"] = 1;
 }
@@ -183,19 +185,19 @@ void LaserController::get() {
 
   if (LASERid == 1) {
     if (DEBUG) Serial.println("LASER 1");
-    LASERpin = pins->LASER_PIN_1;
+    LASERpin = pins.LASER_PIN_1;
     LASERval = LASER_val_1;
   }
   else if (LASERid == 2) {
     if (DEBUG) Serial.println("AXIS 2");
     if (DEBUG) Serial.println("LASER 2");
-    LASERpin = pins->LASER_PIN_2;
+    LASERpin = pins.LASER_PIN_2;
     LASERval = LASER_val_2;
   }
   else if (LASERid == 3) {
     if (DEBUG) Serial.println("AXIS 3");
     if (DEBUG) Serial.println("LASER 1");
-    LASERpin = pins->LASER_PIN_3;
+    LASERpin = pins.LASER_PIN_3;
     LASERval = LASER_val_3;
   }
 
@@ -205,32 +207,33 @@ void LaserController::get() {
   (*WifiController::getJDoc())["LASERpin"] = LASERpin;
 }
 
-void LaserController::setup(PINDEF * pins) {
+void LaserController::setup() {
   Serial.println("Setting Up LASERs");
-  this->pins = pins;
+
+  Config::getLaserPins(pins);
   // switch of the LASER directly
-  pinMode(pins->LASER_PIN_1, OUTPUT);
-  pinMode(pins->LASER_PIN_2, OUTPUT);
-  pinMode(pins->LASER_PIN_3, OUTPUT);
-  digitalWrite(pins->LASER_PIN_1, LOW);
-  digitalWrite(pins->LASER_PIN_2, LOW);
-  digitalWrite(pins->LASER_PIN_3, LOW);
+  pinMode(pins.LASER_PIN_1, OUTPUT);
+  pinMode(pins.LASER_PIN_2, OUTPUT);
+  pinMode(pins.LASER_PIN_3, OUTPUT);
+  digitalWrite(pins.LASER_PIN_1, LOW);
+  digitalWrite(pins.LASER_PIN_2, LOW);
+  digitalWrite(pins.LASER_PIN_3, LOW);
 
   /* setup the PWM ports and reset them to 0*/
   ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-  ledcAttachPin(pins->LASER_PIN_1, PWM_CHANNEL_LASER_1);
+  ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
   ledcWrite(PWM_CHANNEL_LASER_1, 10000);
   delay(500);
   ledcWrite(PWM_CHANNEL_LASER_1, 0);
 
   ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-  ledcAttachPin(pins->LASER_PIN_2, PWM_CHANNEL_LASER_2);
+  ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
   ledcWrite(PWM_CHANNEL_LASER_2, 10000);
   delay(500);
   ledcWrite(PWM_CHANNEL_LASER_2, 0);
 
   ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-  ledcAttachPin(pins->LASER_PIN_3, PWM_CHANNEL_LASER_3);
+  ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
   ledcWrite(PWM_CHANNEL_LASER_3, 10000);
   delay(500);
   ledcWrite(PWM_CHANNEL_LASER_3, 0);
@@ -244,7 +247,6 @@ void LaserController::loop()
   if (LASER_despeckle_2 > 0 && LASER_val_2 > 0)
     LASER_despeckle(LASER_despeckle_2, 2, LASER_despeckle_period_2);
   if (LASER_despeckle_3 > 0 && LASER_val_3 > 0)
-    LASER_despeckle(laser.LASER_despeckle_3, 3, LASER_despeckle_period_3);
+    LASER_despeckle(LASER_despeckle_3, 3, LASER_despeckle_period_3);
 }
-LaserController laser;
 #endif

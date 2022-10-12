@@ -9,6 +9,18 @@
 #ifdef IS_MOTOR
 #include "src/motor/FocusMotor.h"
 #endif
+#ifdef IS_LASER
+#include "src/laser/LaserController.h"
+#endif
+#ifdef IS_SLM
+#include "src/slm/SlmController.h"
+#endif
+#ifdef IS_PID
+#include "src/pid/PidController.h"
+#endif
+#ifdef IS_READSENSOR
+#include "src/sensor/SensorController.h"
+#endif
 
 enum class AvailableModules
 {

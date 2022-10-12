@@ -10,9 +10,6 @@
 #include "esp_log.h"
 #include "SPIFFS.h"
 
-#ifdef IS_LASER
-#include "../laser/LaserController.h"
-#endif
 #if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"
 #endif

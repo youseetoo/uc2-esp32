@@ -10,6 +10,8 @@
 #endif
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
+#include "../../ModuleController.h"
+#include "MotorPins.h"
 
 namespace RestApi
 {
@@ -31,15 +33,7 @@ struct MotorData
 
 };
 
-struct MotorPins
-{
-    int STEP = 0;
-    int DIR = 0;
-    int ENABLE = 0;
-    bool step_inverted = false;
-    bool direction_inverted = false;
-    bool enable_inverted = false;
-};
+
 
 enum Stepper
 {
@@ -49,10 +43,12 @@ enum Stepper
     Z
 };
 
-class FocusMotor
+class FocusMotor : public Module
 {
 
 public:
+    FocusMotor();
+    ~FocusMotor();
     bool DEBUG = false;
 
 // for stepper.h
@@ -86,8 +82,8 @@ public:
     std::array<MotorData *, 4> data;
     std::array<MotorPins, 4> pins;
 
-    void act();
-    void set();
+    void act() override;
+    void set() override;
     /*
         returns
         {
@@ -143,9 +139,9 @@ public:
   ]
 }
     */
-    void get();
-    void setup();
-    bool background();
+    void get() override;
+    void setup() override;
+    void loop() override;
 
 private:
     void stopAllDrives();
@@ -153,7 +149,5 @@ private:
     void startStepper(int i);
     void startAllDrives();
 };
-
-extern FocusMotor motor;
 
 #endif

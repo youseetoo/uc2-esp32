@@ -1,12 +1,6 @@
 #include "config.h"
 #include "ArduinoJson.h"
 #include "esp_log.h"
-#ifdef IS_MOTOR
-#include "src/motor/FocusMotor.h"
-#endif
-#ifdef IS_LED
-#include "src/led/LedController.h"
-#endif
 #ifdef IS_LASER
 #include "src/laser/LaserController.h"
 #endif
@@ -81,14 +75,6 @@ void setup()
 #ifdef IS_SLM
 	log_i("IS_SLM");
 	slm.setup();
-#endif
-
-#ifdef IS_MOTOR
-	log_i("IS_MOTOR");
-#ifdef DEBUG_MOTOR
-	motor.DEBUG = true;
-#endif
-	motor.setup();
 #endif
 
 	BtController::setup();
@@ -168,9 +154,6 @@ void loop()
 #endif
 #ifdef IS_LASER
 	laser.loop();
-#endif
-#ifdef IS_MOTOR
-	motor.background();
 #endif
 #ifdef IS_PID
 	if (pid.PID_active && (state.currentMillis - state.startMillis >= pid.PID_updaterate))

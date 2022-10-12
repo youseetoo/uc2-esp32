@@ -45,9 +45,6 @@ void LedController::setup()
 	matrix->show(); //  Update strip to match
 }
 
-void LedController::begin()
-{
-}
 void LedController::loop()
 {
 }

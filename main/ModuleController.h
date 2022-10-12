@@ -6,6 +6,9 @@
 #ifdef IS_LED
 #include "src/led/LedController.h"
 #endif
+#ifdef IS_MOTOR
+#include "src/motor/FocusMotor.h"
+#endif
 
 enum class AvailableModules
 {
@@ -24,12 +27,12 @@ enum class AvailableModules
 class ModuleController
 {
 private:
-    std::map<AvailableModules,Module*> modules;
+    std::map<AvailableModules, Module *> modules;
 
 public:
     void setup();
     void loop();
-    Module * get(AvailableModules mod);
+    Module *get(AvailableModules mod);
 };
 
 extern ModuleController moduleController;

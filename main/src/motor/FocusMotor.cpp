@@ -7,24 +7,27 @@ namespace RestApi
 	void FocusMotor_act()
 	{
 		deserialize();
-		motor.act();
+		moduleController.get(AvailableModules::motor)->act();
 		serialize();
 	}
 
 	void FocusMotor_get()
 	{
 		deserialize();
-		motor.get();
+		moduleController.get(AvailableModules::motor)->get();
 		serialize();
 	}
 
 	void FocusMotor_set()
 	{
 		deserialize();
-		motor.set();
+		moduleController.get(AvailableModules::motor)->set();
 		serialize();
 	}
 }
+
+FocusMotor::FocusMotor(){}
+FocusMotor::~FocusMotor(){}
 
 void FocusMotor::act()
 {
@@ -123,7 +126,7 @@ void FocusMotor::set()
 				pins[i].step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
 				pins[i].enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
 			}
-			Config::setMotorPinConfig(false);
+			Config::setMotorPinConfig(false,pins);
 			setup();
 		}
 	}
@@ -157,7 +160,7 @@ void FocusMotor::setup()
 		data[i] = new MotorData();
 	}
 	// get pins from config
-	Config::getMotorPins();
+	Config::getMotorPins(pins);
 	// create the stepper
 
 	for (int i = 0; i < 4; i++)
@@ -185,12 +188,13 @@ void FocusMotor::setup()
 	}
 }
 
-bool FocusMotor::background()
+void FocusMotor::loop()
 {
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		// log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
-
+		if(steppers[i] == nullptr || pins[i].DIR == 0)
+			return;
 		if (data[i]->isforever)
 		{
 			steppers[i]->setSpeed(data[i]->speed);
@@ -228,7 +232,6 @@ bool FocusMotor::background()
 			log_i("current Pos:%i target pos:%i", data[i]->currentPosition, data[i]->targetPosition);
 #endif
 	}
-	return true;
 }
 
 void FocusMotor::stopAllDrives()
@@ -283,7 +286,5 @@ void FocusMotor::startAllDrives()
 		data[i]->currentPosition = steppers[i]->currentPosition();
 	}
 }
-
-FocusMotor motor;
 
 #endif

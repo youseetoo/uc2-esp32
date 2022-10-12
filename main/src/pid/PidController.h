@@ -7,6 +7,7 @@
 #include "../motor/FocusMotor.h"
 #endif
 #include "../wifi/WifiController.h"
+#include "../../ModuleController.h"
 
 namespace RestApi
 {

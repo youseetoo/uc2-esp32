@@ -108,8 +108,8 @@ namespace WifiController
 			deserializeJson(*WifiController::getJDoc(), payload);
 			if (WifiController::getJDoc()->containsKey(keyLed) && moduleController.get(AvailableModules::led) != nullptr)
 				moduleController.get(AvailableModules::led)->act();
-			if (WifiController::getJDoc()->containsKey(key_motor))
-				motor.act();
+			if (WifiController::getJDoc()->containsKey(key_motor) && moduleController.get(AvailableModules::motor) != nullptr)
+				moduleController.get(AvailableModules::motor)->act();
 
 			break;
 		}

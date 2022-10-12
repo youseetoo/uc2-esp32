@@ -5,25 +5,25 @@
 namespace RestApi
 {
 	void Pid_act()
-    {
-        deserialize();
-        pid.act();
-        serialize();
-    }
+	{
+		deserialize();
+		pid.act();
+		serialize();
+	}
 
-    void Pid_get()
-    {
-        deserialize();
-        pid.get();
-        serialize();
-    }
+	void Pid_get()
+	{
+		deserialize();
+		pid.get();
+		serialize();
+	}
 
-    void Pid_set()
-    {
-        deserialize();
-        pid.set();
-        serialize();
-    }
+	void Pid_set()
+	{
+		deserialize();
+		pid.set();
+		serialize();
+	}
 }
 
 PidController::PidController(/* args */){};
@@ -52,13 +52,15 @@ void PidController::act()
 
 	if (!PID_active)
 	{
-// force shutdown the motor
-#ifdef IS_MOTOR
-		motor.data[Stepper::X]->speed = 0;
-		motor.steppers[Stepper::X]->setSpeed(0);
-		motor.steppers[Stepper::X]->setMaxSpeed(0);
-		motor.steppers[Stepper::X]->runSpeed();
-#endif
+		// force shutdown the motor
+		if (moduleController.get(AvailableModules::motor) != nullptr)
+		{
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			motor->data[Stepper::X]->speed = 0;
+			motor->steppers[Stepper::X]->setSpeed(0);
+			motor->steppers[Stepper::X]->setMaxSpeed(0);
+			motor->steppers[Stepper::X]->runSpeed();
+		}
 	}
 
 	WifiController::getJDoc()->clear();
@@ -85,12 +87,14 @@ void PidController::background()
 
 	sensorValueAvg = (float)sensorValueAvg / (float)N_sensor_avg;
 	long motorValue = returnControlValue(PID_target, sensorValueAvg, PID_Kp, PID_Ki, PID_Kd);
-#ifdef IS_MOTOR
-	motor.data[Stepper::X]->isforever = 1; // run motor at certain speed
-	motor.data[Stepper::X]->speed = motorValue;
-	motor.steppers[Stepper::X]->setSpeed(motorValue);
-	motor.steppers[Stepper::X]->setMaxSpeed(motorValue);
-#endif
+	if (moduleController.get(AvailableModules::motor) != nullptr)
+	{
+		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+		motor->data[Stepper::X]->isforever = 1; // run motor at certain speed
+		motor->data[Stepper::X]->speed = motorValue;
+		motor->steppers[Stepper::X]->setSpeed(motorValue);
+		motor->steppers[Stepper::X]->setMaxSpeed(motorValue);
+	}
 }
 
 long PidController::returnControlValue(float controlTarget, float sensorValue, float Kp, float Ki, float Kd)

@@ -298,7 +298,7 @@ void ps_3_4_controller::activate()
 	if (moduleController.get(AvailableModules::led) != nullptr)
 	{
 #ifdef IS_LED
-		LedController * led = (LedController*)moduleController.get(AvailableModules::led);
+		LedController *led = (LedController *)moduleController.get(AvailableModules::led);
 		if (is_cross())
 		{
 			IS_PS_CONTROLER_LEDARRAY = !IS_PS_CONTROLER_LEDARRAY;
@@ -394,55 +394,58 @@ void ps_3_4_controller::control()
 {
 	if (is_connected() && IS_PSCONTROLER_ACTIVE)
 	{
-#ifdef IS_MOTOR
-		// Y-Direction
-		if (abs(analog_ly()) > offset_val)
+		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
-			// move_z
-			stick_ly = analog_ly();
-			stick_ly = stick_ly - sgn(stick_ly) * offset_val;
-			motor.data[Stepper::Y]->speed = stick_ly * 5 * global_speed;
-			if (!motor.steppers[Stepper::Y]->areOutputsEnabled())
-				motor.steppers[Stepper::Y]->enableOutputs();
-		}
-		else if (motor.data[Stepper::Y]->speed != 0)
-		{
-			motor.data[Stepper::Y]->speed = 0;
-			motor.steppers[Stepper::Y]->setSpeed(motor.data[Stepper::Y]->speed); // set motor off only once to not affect other modes
-		}
+			/* code */
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			// Y-Direction
+			if (abs(analog_ly()) > offset_val)
+			{
+				// move_z
+				stick_ly = analog_ly();
+				stick_ly = stick_ly - sgn(stick_ly) * offset_val;
+				motor->data[Stepper::Y]->speed = stick_ly * 5 * global_speed;
+				if (!motor->steppers[Stepper::Y]->areOutputsEnabled())
+					motor->steppers[Stepper::Y]->enableOutputs();
+			}
+			else if (motor->data[Stepper::Y]->speed != 0)
+			{
+				motor->data[Stepper::Y]->speed = 0;
+				motor->steppers[Stepper::Y]->setSpeed(motor->data[Stepper::Y]->speed); // set motor off only once to not affect other modes
+			}
 
-		// Z-Direction
-		if ((abs(analog_rx()) > offset_val))
-		{
-			// move_x
-			stick_rx = analog_rx();
-			stick_rx = stick_rx - sgn(stick_rx) * offset_val;
-			motor.data[Stepper::Z]->speed = stick_rx * 5 * global_speed;
-			if (!motor.steppers[Stepper::Z]->areOutputsEnabled())
-				motor.steppers[Stepper::Z]->enableOutputs();
-		}
-		else if (motor.data[Stepper::Z]->speed != 0)
-		{
-			motor.data[Stepper::Z]->speed = 0;
-			motor.steppers[Stepper::Z]->setSpeed(motor.data[Stepper::Z]->speed); // set motor off only once to not affect other modes
-		}
+			// Z-Direction
+			if ((abs(analog_rx()) > offset_val))
+			{
+				// move_x
+				stick_rx = analog_rx();
+				stick_rx = stick_rx - sgn(stick_rx) * offset_val;
+				motor->data[Stepper::Z]->speed = stick_rx * 5 * global_speed;
+				if (!motor->steppers[Stepper::Z]->areOutputsEnabled())
+					motor->steppers[Stepper::Z]->enableOutputs();
+			}
+			else if (motor->data[Stepper::Z]->speed != 0)
+			{
+				motor->data[Stepper::Z]->speed = 0;
+				motor->steppers[Stepper::Z]->setSpeed(motor->data[Stepper::Z]->speed); // set motor off only once to not affect other modes
+			}
 
-		// X-direction
-		if ((abs(analog_ry()) > offset_val))
-		{
-			// move_y
-			stick_ry = analog_ry();
-			stick_ry = stick_ry - sgn(stick_ry) * offset_val;
-			motor.data[Stepper::X]->speed = stick_ry * 5 * global_speed;
-			if (!motor.steppers[Stepper::X]->areOutputsEnabled())
-				motor.steppers[Stepper::X]->enableOutputs();
+			// X-direction
+			if ((abs(analog_ry()) > offset_val))
+			{
+				// move_y
+				stick_ry = analog_ry();
+				stick_ry = stick_ry - sgn(stick_ry) * offset_val;
+				motor->data[Stepper::X]->speed = stick_ry * 5 * global_speed;
+				if (!motor->steppers[Stepper::X]->areOutputsEnabled())
+					motor->steppers[Stepper::X]->enableOutputs();
+			}
+			else if (motor->data[Stepper::X]->speed != 0)
+			{
+				motor->data[Stepper::X]->speed = 0;
+				motor->steppers[Stepper::X]->setSpeed(motor->data[Stepper::X]->speed); // set motor off only once to not affect other modes
+			}
 		}
-		else if (motor.data[Stepper::X]->speed != 0)
-		{
-			motor.data[Stepper::X]->speed = 0;
-			motor.steppers[Stepper::X]->setSpeed(motor.data[Stepper::X]->speed); // set motor off only once to not affect other modes
-		}
-#endif
 		/*
 			// fine control for Z using buttons
 			if ( PS4.data.button.down) {
@@ -532,23 +535,22 @@ void ps_3_4_controller::control()
 
 #endif
 
-#ifdef IS_MOTOR
-		// run all motors simultaneously
-		for (int i = 0; i < motor.steppers.size(); i++)
+		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
-			motor.steppers[i]->setSpeed(motor.data[i]->speed);
+			/* code */
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			// run all motors simultaneously
+			for (int i = 0; i < motor->steppers.size(); i++)
+			{
+				motor->steppers[i]->setSpeed(motor->data[i]->speed);
+				if (motor->data[i]->speed != 0)
+				{
+					motor->data[i]->isforever = true;
+				}
+				else
+					motor->data[i]->isforever = false;	
+			}
 		}
-
-		// TODO: figure out what isforever realy do, comment it out for now
-		/*if (motor.mspeed1 || motor.mspeed2 || motor.mspeed3)
-		{
-		  motor.isforever = true;
-		}
-		else
-		{
-		  motor.isforever = false;
-		}*/
-#endif
 	}
 }
 

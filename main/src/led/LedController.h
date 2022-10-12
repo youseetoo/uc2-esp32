@@ -105,7 +105,6 @@ public:
     LedConfig ledconfig;
 
     void setup() override;
-    void begin() override;
     void loop() override;
     /*
     {

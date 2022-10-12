@@ -70,15 +70,15 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 #ifdef IS_MOTOR
 	if (task == motor_act_endpoint)
 	{
-		motor.act();
+		moduleController.get(AvailableModules::motor)->act();
 	}
 	if (task == motor_set_endpoint)
 	{
-		motor.set();
+		moduleController.get(AvailableModules::motor)->set();
 	}
 	if (task == motor_get_endpoint)
 	{
-		motor.get();
+		moduleController.get(AvailableModules::motor)->get();
 	}
 #endif
 /*

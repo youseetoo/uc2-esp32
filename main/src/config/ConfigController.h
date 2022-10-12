@@ -5,6 +5,7 @@
 #include "../../pinstruct.h"
 #include "../wifi/WifiController.h"
 #include "esp_log.h"
+#include "../motor/MotorPins.h"
 #include "../motor/FocusMotor.h"
 #include "../led/LedConfig.h"
 
@@ -33,8 +34,8 @@ namespace Config
     void get();
     bool isFirstRun();
     void setWifiConfig(String ssid, String pw, bool ap, bool prefopen);
-    void setMotorPinConfig(bool prefsOpen);
-    void getMotorPins();
+    void setMotorPinConfig(bool prefsOpen, std::array<MotorPins, 4> pins);
+    void getMotorPins(std::array<MotorPins, 4> pins);
     void setLedPins(bool prefsOpen, LedConfig config);
     void getLedPins(LedConfig config);
 }

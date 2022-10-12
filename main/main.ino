@@ -41,6 +41,7 @@
 #include "src/serial/SerialProcess.h"
 #endif
 #include "src/bt/BtController.h"
+#include "ModuleController.h"
 
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -71,16 +72,15 @@ void setup()
 	Config::setup(pins);
 
 	WifiController::getJDoc()->clear();
+	
 	// connect to wifi if necessary
 	log_i("wifi.setup");
 	WifiController::setup();
+
+	moduleController.setup();
 #ifdef IS_SLM
 	log_i("IS_SLM");
 	slm.setup();
-#endif
-#ifdef IS_LED
-	log_i("IS_LED");
-	led.setup();
 #endif
 
 #ifdef IS_MOTOR
@@ -160,6 +160,9 @@ void loop()
 #ifdef IS_WIFI
 	WifiController::handelMessages();
 #endif
+
+	moduleController.loop();
+
 #if defined IS_PS4 || defined IS_PS3
 	ps_c.control(); // if controller is operating motors, overheating protection is enabled
 #endif

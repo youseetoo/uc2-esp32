@@ -28,7 +28,7 @@ int ps_3_4_controller::is_share()
 	return PS4.event.button_down.share;
 #endif
 #ifdef IS_PS3
-	return 0; //Ps3.event.button_down.share; // lib dont contain share button
+	return 0; // Ps3.event.button_down.share; // lib dont contain share button
 #endif
 }
 
@@ -108,7 +108,7 @@ int ps_3_4_controller::is_charging()
 	return PS4.Charging();
 #endif
 #ifdef IS_PS3
-	return 0; //Ps3.Charging(); // lib dont contain it
+	return 0; // Ps3.Charging(); // lib dont contain it
 #endif
 }
 
@@ -260,10 +260,10 @@ void ps_3_4_controller::onConnect()
 #ifdef IS_PS4
 	log_i("Battery Level : %d\n", PS4.Battery());
 #endif
-//disabled Ps3 dont contain Battery func
-//#ifdef IS_PS3
-//	log_i("Battery Level : %d\n", Ps3.Battery());
-//#endif
+	// disabled Ps3 dont contain Battery func
+	//#ifdef IS_PS3
+	//	log_i("Battery Level : %d\n", Ps3.Battery());
+	//#endif
 }
 
 void ps_3_4_controller::onAttach()
@@ -295,28 +295,32 @@ void ps_3_4_controller::activate()
 			Serial.println(IS_PSCONTROLER_ACTIVE);
 		delay(1000); // Debounce?
 	}
+	if (moduleController.get(AvailableModules::led) != nullptr)
+	{
 #ifdef IS_LED
-	if (is_cross())
-	{
-		IS_PS_CONTROLER_LEDARRAY = !IS_PS_CONTROLER_LEDARRAY;
-		if (DEBUG)
-			Serial.print("Turning LED Matrix to (cross): ");
-		if (DEBUG)
-			Serial.println(IS_PS_CONTROLER_LEDARRAY);
-		led.set_all(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
-		delay(1000); // Debounce?
-	}
-	if (is_circle())
-	{
-		IS_PS_CONTROLER_LEDARRAY = !IS_PS_CONTROLER_LEDARRAY;
-		if (DEBUG)
-			Serial.print("Turning LED Matrix to (circle): ");
-		if (DEBUG)
-			Serial.println(IS_PS_CONTROLER_LEDARRAY);
-		led.set_center(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
-		delay(1000); // Debounce?
-	}
+		LedController * led = (LedController*)moduleController.get(AvailableModules::led);
+		if (is_cross())
+		{
+			IS_PS_CONTROLER_LEDARRAY = !IS_PS_CONTROLER_LEDARRAY;
+			if (DEBUG)
+				Serial.print("Turning LED Matrix to (cross): ");
+			if (DEBUG)
+				Serial.println(IS_PS_CONTROLER_LEDARRAY);
+			led->set_all(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
+			delay(1000); // Debounce?
+		}
+		if (is_circle())
+		{
+			IS_PS_CONTROLER_LEDARRAY = !IS_PS_CONTROLER_LEDARRAY;
+			if (DEBUG)
+				Serial.print("Turning LED Matrix to (circle): ");
+			if (DEBUG)
+				Serial.println(IS_PS_CONTROLER_LEDARRAY);
+			led->set_center(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
+			delay(1000); // Debounce?
+		}
 #endif
+	}
 	// LASER
 #ifdef IS_LASER
 	if (is_triangle())

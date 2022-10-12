@@ -175,20 +175,20 @@ namespace Config
 			preferences.end();
 	}
 
-	void getLedPins()
+	void getLedPins(LedConfig config)
 	{
 		preferences.begin(prefNamespace, false);
-		led.ledconfig.ledCount = preferences.getInt(keyLEDCount,0);
-		led.ledconfig.ledPin = preferences.getInt(keyLEDPin,0);
+		config.ledCount = preferences.getInt(keyLEDCount,0);
+		config.ledPin = preferences.getInt(keyLEDPin,0);
 		preferences.end();
 	}
 
-	void setLedPins(bool openPrefs)
+	void setLedPins(bool openPrefs, LedConfig config)
 	{
 		if (!openPrefs)
 			preferences.begin(prefNamespace, false);
-		preferences.putInt(keyLEDCount, led.ledconfig.ledCount);
-		preferences.putInt(keyLEDPin, led.ledconfig.ledPin);
+		preferences.putInt(keyLEDCount, config.ledCount);
+		preferences.putInt(keyLEDPin, config.ledPin);
 		log_i("pin:%i count:%i", preferences.getInt(keyLEDPin), preferences.getInt(keyLEDCount));
 		if(!openPrefs)
 			preferences.end();
@@ -247,7 +247,7 @@ namespace Config
 		preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
 
 		setMotorPinConfig(openPrefs);
-		setLedPins(openPrefs);
+		//setLedPins(openPrefs);
 		
 		preferences.putInt(keyDigital1Pin, pins->digital_PIN_1);
 		preferences.putInt(keyDigital2Pin, pins->digital_PIN_2);
@@ -407,8 +407,8 @@ namespace Config
 		setPinsToJson(keyMotorADirPin, motor.pins[Stepper::A].DIR);
 		setPinsToJson(keyMotorEnableA, motor.pins[Stepper::A].ENABLE);
 
-		setPinsToJson(keyLEDCount, led.ledconfig.ledCount);
-		setPinsToJson(keyLEDPin, led.ledconfig.ledPin);
+		//setPinsToJson(keyLEDCount, led.ledconfig.ledCount);
+		//setPinsToJson(keyLEDPin, led.ledconfig.ledPin);
 
 		setPinsToJson(keyDigital1Pin, pins->digital_PIN_1);
 		setPinsToJson(keyDigital2Pin, pins->digital_PIN_2);

@@ -106,8 +106,8 @@ namespace WifiController
 		case WStype_TEXT:
 			log_i("[%u] get Text: %s\n", num, payload);
 			deserializeJson(*WifiController::getJDoc(), payload);
-			if (WifiController::getJDoc()->containsKey(keyLed))
-				led.act();
+			if (WifiController::getJDoc()->containsKey(keyLed) && moduleController.get(AvailableModules::led) != nullptr)
+				moduleController.get(AvailableModules::led)->act();
 			if (WifiController::getJDoc()->containsKey(key_motor))
 				motor.act();
 

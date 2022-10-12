@@ -6,6 +6,7 @@
 #include "../wifi/WifiController.h"
 #include "esp_log.h"
 #include "../motor/FocusMotor.h"
+#include "../led/LedConfig.h"
 
 namespace RestApi
 {
@@ -34,6 +35,6 @@ namespace Config
     void setWifiConfig(String ssid, String pw, bool ap, bool prefopen);
     void setMotorPinConfig(bool prefsOpen);
     void getMotorPins();
-    void setLedPins(bool prefsOpen);
-    void getLedPins();
+    void setLedPins(bool prefsOpen, LedConfig config);
+    void getLedPins(LedConfig config);
 }

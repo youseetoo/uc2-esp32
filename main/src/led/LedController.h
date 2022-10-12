@@ -6,6 +6,9 @@
 #include "../../pinstruct.h"
 #include "../config/JsonKeys.h"
 #include "../wifi/WifiController.h"
+#include "../../Module.h"
+#include "LedConfig.h"
+#include "../../ModuleController.h"
 
 //functions that get registered by the webserver to handel the requests/responses
 namespace RestApi
@@ -48,13 +51,9 @@ enum LedModes
     multi
 };
 
-struct LedConfig
-{
-    int ledCount = 0;
-    int ledPin = 0;
-};
 
-class LedController
+
+class LedController : public Module
 {
 private:
     // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
@@ -100,9 +99,14 @@ private:
     void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
 
 public:
+
+    LedController();
+    ~LedController();
     LedConfig ledconfig;
 
-    void setup();
+    void setup() override;
+    void begin() override;
+    void loop() override;
     /*
     {
     "led": {
@@ -131,5 +135,5 @@ public:
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
 };
-extern LedController led;
+//extern LedController led;
 #endif

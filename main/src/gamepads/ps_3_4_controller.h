@@ -3,12 +3,6 @@
 #pragma once
 
 
-#ifdef IS_MOTOR
-    #include "../motor/FocusMotor.h"
-#endif
-#ifdef IS_LED
-#include "../led/LedController.h"
-#endif
     #include "../state/State.h"
 #ifdef IS_LASER
     #include "../laser/LaserController.h"

@@ -10,17 +10,11 @@
 #include "esp_log.h"
 #include "SPIFFS.h"
 
-#ifdef IS_MOTOR
-#include "../motor/FocusMotor.h"
-#endif 
 #ifdef IS_LASER
 #include "../laser/LaserController.h"
 #endif
 #if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"
-#endif
-#ifdef IS_LED
-#include "../led/LedController.h"
 #endif
 #ifdef IS_ANALOG
 #include "../analog/AnalogController.h"

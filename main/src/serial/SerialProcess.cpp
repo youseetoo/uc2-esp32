@@ -64,23 +64,24 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 		state.set();
 	if (task == state_get_endpoint)
 		state.get();
-/*
-  Drive Motors
-*/
-#ifdef IS_MOTOR
-	if (task == motor_act_endpoint)
+	/*
+	  Drive Motors
+	*/
+	if (moduleController.get(AvailableModules::motor) != nullptr)
 	{
-		moduleController.get(AvailableModules::motor)->act();
+		if (task == motor_act_endpoint)
+		{
+			moduleController.get(AvailableModules::motor)->act();
+		}
+		if (task == motor_set_endpoint)
+		{
+			moduleController.get(AvailableModules::motor)->set();
+		}
+		if (task == motor_get_endpoint)
+		{
+			moduleController.get(AvailableModules::motor)->get();
+		}
 	}
-	if (task == motor_set_endpoint)
-	{
-		moduleController.get(AvailableModules::motor)->set();
-	}
-	if (task == motor_get_endpoint)
-	{
-		moduleController.get(AvailableModules::motor)->get();
-	}
-#endif
 /*
   Operate SLM
 */

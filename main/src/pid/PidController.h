@@ -3,9 +3,6 @@
 #pragma once
 #include "ArduinoJson.h"
 #include "../../pinstruct.h"
-#ifdef IS_MOTOR
-#include "../motor/FocusMotor.h"
-#endif
 #include "../wifi/WifiController.h"
 #include "../../ModuleController.h"
 

@@ -297,7 +297,6 @@ void ps_3_4_controller::activate()
 	}
 	if (moduleController.get(AvailableModules::led) != nullptr)
 	{
-#ifdef IS_LED
 		LedController *led = (LedController *)moduleController.get(AvailableModules::led);
 		if (is_cross())
 		{
@@ -319,7 +318,6 @@ void ps_3_4_controller::activate()
 			led->set_center(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
 			delay(1000); // Debounce?
 		}
-#endif
 	}
 	// LASER
 #ifdef IS_LASER
@@ -548,7 +546,7 @@ void ps_3_4_controller::control()
 					motor->data[i]->isforever = true;
 				}
 				else
-					motor->data[i]->isforever = false;	
+					motor->data[i]->isforever = false;
 			}
 		}
 	}

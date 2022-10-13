@@ -240,4 +240,19 @@ namespace Config
 		preferences.clear();
 		return true;
 	}
+
+	void setModuleConfig(bool openPrefs,ModuleConfig pins)
+	{
+		if (!openPrefs)
+			preferences.begin(prefNamespace, false);
+
+		preferences.putBytes("module",(byte *)&pins, sizeof(ModuleConfig));
+
+		if (!openPrefs)
+			preferences.end();
+	}
+    void getModuleConfig(ModuleConfig pin)
+	{
+		preferences.getBytes("module", (byte *)&pin, sizeof(ModuleConfig));
+	}
 }

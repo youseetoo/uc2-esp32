@@ -11,6 +11,7 @@
 #include "../dac/DacPins.h"
 #include "../analog/AnalogPins.h"
 #include "../digital/DigitalPins.h"
+#include "../../ModuleConfig.h"
 
 namespace Config
 {
@@ -31,4 +32,6 @@ namespace Config
     void getAnalogPins(AnalogPins pin);
     void setDigitalPins(bool openPrefs,DigitalPins pins);
     void getDigitalPins(DigitalPins pin);
+    void setModuleConfig(bool openPrefs,ModuleConfig pins);
+    void getModuleConfig(ModuleConfig pin);
 }

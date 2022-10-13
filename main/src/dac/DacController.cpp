@@ -14,36 +14,36 @@ namespace RestApi
 	void Dac_act()
     {
         deserialize();
-        dac.act();
+		moduleController.get(AvailableModules::dac)->act();
         serialize();
     }
 
     void Dac_get()
     {
         deserialize();
-        dac.get();
+        moduleController.get(AvailableModules::dac)->get();
         serialize();
     }
 
     void Dac_set()
     {
         deserialize();
-        dac.set();
+        moduleController.get(AvailableModules::dac)->set();
         serialize();
     }
 }
 
-void DacController::setup(PINDEF *pins)
+void DacController::setup()
 {
-	this->pins = pins;
+	Config::getDacPins(pins);
 #ifdef IS_DAC
 	dacm = new DAC_Module();
 	dacm->Setup(DAC_CHANNEL_1, 1000, 50, 0, 0, 2);
 	dacm->Setup(DAC_CHANNEL_2, 1000, 50, 0, 0, 2);
 #endif
 #ifdef IS_DAC_FAKE
-	pinMode(pins->dac_fake_1, OUTPUT);
-	pinMode(pins->dac_fake_2, OUTPUT);
+	pinMode(pins.dac_fake_1, OUTPUT);
+	pinMode(pins.dac_fake_2, OUTPUT);
 	frequency = 1;
 	(
 		drive_galvo,   // Function that should be called
@@ -55,6 +55,8 @@ void DacController::setup(PINDEF *pins)
 	);
 #endif
 }
+
+void DacController::loop(){}
 
 // Custom function accessible by the API
 void DacController::act()
@@ -152,27 +154,19 @@ void DacController::act()
 
 void DacController::set()
 {
-	// here you can set parameters
-	int value = (*WifiController::getJDoc())["value"];
-
-	if (DEBUG)
+	if ((*WifiController::getJDoc()).containsKey(keyDACfake1Pin))
 	{
-		Serial.print("value ");
-		Serial.println(value);
+		pins.dac_fake_1 = (*WifiController::getJDoc())[keyDACfake1Pin];
+		Config::setDacPins(false,pins);
+		setup();
 	}
-
-	int dac_set = (*WifiController::getJDoc())["dac_set"];
-
-	if (dac_set != NULL)
+	if ((*WifiController::getJDoc()).containsKey(keyDACfake2Pin))
 	{
-		if (DEBUG)
-			Serial.print("dac_set ");
-		Serial.println(dac_set);
-		// SET SOMETHING
+		pins.dac_fake_2 = (*WifiController::getJDoc())[keyDACfake2Pin];
+		Config::setDacPins(false,pins);
+		setup();
 	}
-
 	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
 }
 
 // Custom function accessible by the API
@@ -196,14 +190,12 @@ void DacController::drive_galvo(void *parameter)
 
 	while (true)
 	{ // infinite loop
-		digitalWrite(d->pins->dac_fake_1, HIGH);
-		digitalWrite(d->pins->dac_fake_2, HIGH);
+		digitalWrite(d->pins.dac_fake_1, HIGH);
+		digitalWrite(d->pins.dac_fake_2, HIGH);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
-		digitalWrite(d->pins->dac_fake_1, LOW);
-		digitalWrite(d->pins->dac_fake_2, LOW);
+		digitalWrite(d->pins.dac_fake_1, LOW);
+		digitalWrite(d->pins.dac_fake_2, LOW);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
 	}
 }
-
-DacController dac;
 #endif

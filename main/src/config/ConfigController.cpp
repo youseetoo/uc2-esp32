@@ -1,94 +1,37 @@
 #include "ConfigController.h"
 
-namespace RestApi
-{
-	void Config_act()
-	{
-		deserialize();
-		Config::act();
-		serialize();
-	}
-
-	void Config_get()
-	{
-		deserialize();
-		Config::get();
-		serialize();
-	}
-
-	void Config_set()
-	{
-		deserialize();
-		Config::set();
-		serialize();
-	}
-}
-
 namespace Config
 {
 
 	Preferences preferences;
-	PINDEF *pins;
 
 	const char *prefNamespace = "UC2";
 
-	/*
-	  {
-	  "motXstp": 1,
-	  "motXdir": 2,
-	  "motYstp": 3,
-	  "motYdir": 4,
-	  "motZstp": 5,
-	  "motZdir": 6,
-	  "motAstp": 7,
-	  "motAdir": 8,
-	  "motEnable": 9,
-	  "ledArrPin": 0,
-	  "ledArrNum": 64,
-	  "digitalPin1":10,
-	  "digitalPin2":11,
-	  "analogPin1":12,
-	  "analogPin2":13,
-	  "analogPin3":14,
-	  "laserPin1":15,
-	  "laserPin2":16,
-	  "laserPin3":17,
-	  "dacFake1":18,
-	  "dacFake2":19,
-	  "identifier": "TEST",
-	  "ssid": "ssid",
-	  "PW": "PW"
-	  }
-	*/
-
-	void setWifiConfig(String ssid, String pw, bool ap, bool prefopen)
+	void setWifiConfig(WifiConfig config, bool prefopen)
 	{
 		bool open = prefopen;
 		if (!prefopen)
 			open = preferences.begin(prefNamespace, false);
-		log_i("setWifiConfig ssid: %s, pw: %s, ap:%s prefopen:%s", ssid, pw, boolToChar(ap), boolToChar(open));
-		preferences.putString(keyWifiSSID, ssid);
-		preferences.putString(keyWifiPW, pw);
-		preferences.putInt(keyWifiAP, ap);
+		log_i("setWifiConfig ssid: %s, pw: %s, ap:%s prefopen:%s", config.mSSID, config.mPWD, boolToChar(config.mAP), boolToChar(open));
+		preferences.putString(keyWifiSSID, config.mSSID);
+		preferences.putString(keyWifiPW, config.mPWD);
+		preferences.putInt(keyWifiAP, config.mAP);
 		log_i("setWifiConfig pref ssid: %s pw:%s", preferences.getString(keyWifiSSID), preferences.getString(keyWifiPW));
 		if (!prefopen)
 			preferences.end();
 	}
 
-	void setJsonToPref(const char *key)
+	void getWifiConfig(WifiConfig config)
 	{
-		if (WifiController::getJDoc()->containsKey(key))
-			preferences.putInt(key, (*WifiController::getJDoc())[key]);
+		config.mSSID = preferences.getString(keyWifiSSID);
+
+		config.mPWD = preferences.getString(keyWifiPW);
+		config.mAP = preferences.getInt(keyWifiAP);
 	}
 
-	void setPinsToJson(const char *key, int val)
-	{
-		(*WifiController::getJDoc())[key] = val;
-	}
 
-	void setup(PINDEF *pin)
+	void setup()
 	{
-		pins = pin;
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
 		if (isFirstRun())
 		{
@@ -212,6 +155,53 @@ namespace Config
 		pins.LASER_PIN_3 = preferences.getInt(keyLaser3Pin, pins.LASER_PIN_3);
 	}
 
+	void setDacPins(bool openPrefs, DacPins pins)
+	{
+		if (!openPrefs)
+			preferences.begin(prefNamespace, false);
+		preferences.putInt(keyDACfake1Pin, pins.dac_fake_1);
+		preferences.putInt(keyDACfake2Pin, pins.dac_fake_2);
+		if (!openPrefs)
+			preferences.end();
+	}
+	void getDacPins(DacPins pins)
+	{
+		pins.dac_fake_1 = preferences.getInt(keyDACfake1Pin, pins.dac_fake_1);
+		pins.dac_fake_2 = preferences.getInt(keyDACfake2Pin, pins.dac_fake_2);
+	}
+	void setAnalogPins(bool openPrefs, AnalogPins pins)
+	{
+		if (!openPrefs)
+			preferences.begin(prefNamespace, false);
+		preferences.putInt(keyAnalog1Pin, pins.analog_PIN_1);
+		preferences.putInt(keyAnalog2Pin, pins.analog_PIN_2);
+		preferences.putInt(keyAnalog3Pin, pins.analog_PIN_3);
+		if (!openPrefs)
+			preferences.end();
+	}
+	void getAnalogPins(AnalogPins pins)
+	{
+		pins.analog_PIN_1 = preferences.getInt(keyAnalog1Pin, pins.analog_PIN_1);
+		pins.analog_PIN_2 = preferences.getInt(keyAnalog2Pin, pins.analog_PIN_2);
+		pins.analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins.analog_PIN_3);
+	}
+	void setDigitalPins(bool openPrefs, DigitalPins pins)
+	{
+		if (!openPrefs)
+			preferences.begin(prefNamespace, false);
+		preferences.putInt(keyDigital1Pin, pins.digital_PIN_1);
+		preferences.putInt(keyDigital2Pin, pins.digital_PIN_2);
+		preferences.putInt(keyDigital3Pin, pins.digital_PIN_3);
+		if (!openPrefs)
+			preferences.end();
+	}
+	void getDigitalPins(DigitalPins pins)
+	{
+		pins.digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins.digital_PIN_1);
+		pins.digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins.digital_PIN_2);
+		pins.digital_PIN_3 = preferences.getInt(keyDigital3Pin, pins.digital_PIN_3);
+	}
+
 	bool isFirstRun()
 	{
 		bool rdystate = preferences.begin(prefNamespace, false);
@@ -228,15 +218,11 @@ namespace Config
 		{
 			log_i("yes, resetSettings");
 			resetPreferences();
-			initempty();
-			savePreferencesFromPins(true);
-			applyPreferencesToPins();
 			preferences.putString(dateKey, compiled_date); // FIXME?
 		}
 		else
 		{
 			log_i("no, loadSettings");
-			applyPreferencesToPins();
 		}
 		preferences.end();
 
@@ -254,232 +240,4 @@ namespace Config
 		preferences.clear();
 		return true;
 	}
-
-	void savePreferencesFromPins(bool openPrefs)
-	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
-		preferences.putInt(keyAnalog1Pin, (*pins).analog_PIN_1);
-		preferences.putInt(keyAnalog1Pin, pins->analog_PIN_1);
-		preferences.putInt(keyAnalog2Pin, pins->analog_PIN_2);
-		preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
-
-		preferences.putInt(keyDigital1Pin, pins->digital_PIN_1);
-		preferences.putInt(keyDigital2Pin, pins->digital_PIN_2);
-		preferences.putInt(keyDigital3Pin, pins->digital_PIN_3);
-
-		preferences.putInt(keyAnalog1Pin, pins->analog_PIN_1);
-		preferences.putInt(keyAnalog2Pin, pins->analog_PIN_2);
-		preferences.putInt(keyAnalog3Pin, pins->analog_PIN_3);
-
-		preferences.putInt(keyDACfake1Pin, pins->dac_fake_1);
-		preferences.putInt(keyDACfake2Pin, pins->dac_fake_2);
-		preferences.putString(keyIdentifier, pins->identifier_setup);
-		preferences.putString(keyWifiSSID, WifiController::getSsid());
-		preferences.putString(keyWifiPW, WifiController::getPw());
-		preferences.putInt(keyWifiAP, WifiController::getAp());
-		if (!openPrefs)
-			preferences.end();
-	}
-
-	void initempty()
-	{
-		preferences.putString(dateKey, "");
-		preferences.putInt(keyAnalog1Pin, 0);
-		preferences.putInt(keyAnalog1Pin, 0);
-		preferences.putInt(keyAnalog2Pin, 0);
-		preferences.putInt(keyAnalog3Pin, 0);
-
-		preferences.putInt(keyMotorAStepPin, 0);
-		preferences.putInt(keyMotorXStepPin, 0);
-		preferences.putInt(keyMotorYStepPin, 0);
-		preferences.putInt(keyMotorZStepPin, 0);
-
-		preferences.putInt(keyMotorADirPin, 0);
-		preferences.putInt(keyMotorXDirPin, 0);
-		preferences.putInt(keyMotorYDirPin, 0);
-		preferences.putInt(keyMotorZDirPin, 0);
-
-		preferences.putInt(keyMotorEnableA, 0);
-		preferences.putInt(keyMotorEnableX, 0);
-		preferences.putInt(keyMotorEnableY, 0);
-		preferences.putInt(keyMotorEnableZ, 0);
-
-		preferences.putInt(keyMotorEnableAinverted, 0);
-		preferences.putInt(keyMotorEnableXinverted, 0);
-		preferences.putInt(keyMotorEnableYinverted, 0);
-		preferences.putInt(keyMotorEnableZinverted, 0);
-
-		preferences.putInt(keyLEDPin, 0);
-		preferences.putInt(keyLEDCount, 0);
-
-		preferences.putInt(keyDigital1Pin, 0);
-		preferences.putInt(keyDigital2Pin, 0);
-		preferences.putInt(keyDigital3Pin, 0);
-
-		preferences.putInt(keyAnalog1Pin, 0);
-		preferences.putInt(keyAnalog2Pin, 0);
-		preferences.putInt(keyAnalog3Pin, 0);
-
-		preferences.putInt(keyLaser1Pin, 0);
-		preferences.putInt(keyLaser2Pin, 0);
-		preferences.putInt(keyLaser3Pin, 0);
-
-		preferences.putInt(keyDACfake1Pin, 0);
-		preferences.putInt(keyDACfake2Pin, 0);
-		preferences.putString(keyIdentifier, "");
-		preferences.putString(keyWifiSSID, "Uc2");
-		preferences.putString(keyWifiPW, "");
-		preferences.putInt(keyWifiAP, true);
-	}
-
-	bool setPreferences()
-	{
-		preferences.begin(prefNamespace, false);
-
-		setJsonToPref(keyDigital1Pin);
-		setJsonToPref(keyDigital2Pin);
-		setJsonToPref(keyDigital3Pin);
-
-		setJsonToPref(keyAnalog1Pin);
-		setJsonToPref(keyAnalog2Pin);
-		setJsonToPref(keyAnalog3Pin);
-
-		setJsonToPref(keyLaser1Pin);
-		setJsonToPref(keyLaser2Pin);
-		setJsonToPref(keyLaser3Pin);
-
-		setJsonToPref(keyDACfake1Pin);
-		setJsonToPref(keyDACfake2Pin);
-
-		preferences.putString(keyIdentifier, (const char *)(*WifiController::getJDoc())[keyIdentifier]);
-		setWifiConfig((*WifiController::getJDoc())[keyWifiSSID], (*WifiController::getJDoc())[keyWifiPW], (*WifiController::getJDoc())[keyWifiAP], true);
-		preferences.end();
-		return true;
-	}
-
-	void applyPreferencesToPins()
-	{
-		// motor loads pins on setup
-
-		// led.ledconfig.ledPin = preferences.getInt(keyLEDPin, 0);
-		// led.ledconfig.ledCount = preferences.getInt(keyLEDCount, 0);
-
-		pins->digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins->digital_PIN_1);
-		pins->digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins->digital_PIN_2);
-		pins->digital_PIN_3 = preferences.getInt(keyDigital3Pin, pins->digital_PIN_3);
-
-		pins->analog_PIN_1 = preferences.getInt(keyAnalog1Pin, pins->analog_PIN_1);
-		pins->analog_PIN_2 = preferences.getInt(keyAnalog2Pin, pins->analog_PIN_2);
-		pins->analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins->analog_PIN_3);
-
-		
-
-		pins->dac_fake_1 = preferences.getInt(keyDACfake1Pin, pins->dac_fake_1);
-		pins->dac_fake_2 = preferences.getInt(keyDACfake2Pin, pins->dac_fake_2);
-
-		pins->identifier_setup = preferences.getString(keyIdentifier, pins->identifier_setup).c_str();
-		if (WifiController::getSsid() != nullptr)
-			log_i("ssid bevor:%s", WifiController::getSsid());
-		else
-			log_i("ssid is nullptr");
-		String ssid = preferences.getString(keyWifiSSID);
-
-		String pw = preferences.getString(keyWifiPW);
-		bool ap = preferences.getInt(keyWifiAP);
-		WifiController::setWifiConfig(ssid, pw, ap);
-		log_i("ssid after:%s pref ssid:%s", WifiController::getSsid().c_str(), preferences.getString(keyWifiSSID, WifiController::getSsid()).c_str());
-	}
-
-	bool getPreferences()
-	{
-
-		preferences.begin(prefNamespace, false);
-		applyPreferencesToPins();
-
-		WifiController::getJDoc()->clear();
-
-		// Assign to JSON WifiController::getJDoc()ument
-		/*setPinsToJson(keyMotorXStepPin, motor.pins[Stepper::X].STEP);
-		setPinsToJson(keyMotorXDirPin, motor.pins[Stepper::X].DIR);
-		setPinsToJson(keyMotorEnableX, motor.pins[Stepper::X].ENABLE);
-
-		setPinsToJson(keyMotorYStepPin, motor.pins[Stepper::Y].STEP);
-		setPinsToJson(keyMotorYDirPin, motor.pins[Stepper::Y].DIR);
-		setPinsToJson(keyMotorEnableY, motor.pins[Stepper::Y].ENABLE);
-
-		setPinsToJson(keyMotorZStepPin, motor.pins[Stepper::Z].STEP);
-		setPinsToJson(keyMotorZDirPin, motor.pins[Stepper::Z].DIR);
-		setPinsToJson(keyMotorEnableZ, motor.pins[Stepper::Z].ENABLE);
-
-		setPinsToJson(keyMotorAStepPin, motor.pins[Stepper::A].STEP);
-		setPinsToJson(keyMotorADirPin, motor.pins[Stepper::A].DIR);
-		setPinsToJson(keyMotorEnableA, motor.pins[Stepper::A].ENABLE);*/
-
-		// setPinsToJson(keyLEDCount, led.ledconfig.ledCount);
-		// setPinsToJson(keyLEDPin, led.ledconfig.ledPin);
-
-		setPinsToJson(keyDigital1Pin, pins->digital_PIN_1);
-		setPinsToJson(keyDigital2Pin, pins->digital_PIN_2);
-
-		setPinsToJson(keyAnalog1Pin, pins->analog_PIN_1);
-		setPinsToJson(keyAnalog2Pin, pins->analog_PIN_2);
-		setPinsToJson(keyAnalog3Pin, pins->analog_PIN_3);
-
-		//setPinsToJson(keyLaser1Pin, pins->LASER_PIN_1);
-		//setPinsToJson(keyLaser2Pin, pins->LASER_PIN_2);
-		//setPinsToJson(keyLaser3Pin, pins->LASER_PIN_3);
-
-		setPinsToJson(keyDACfake1Pin, pins->dac_fake_1);
-		setPinsToJson(keyDACfake2Pin, pins->dac_fake_2);
-
-		(*WifiController::getJDoc())[keyIdentifier] = pins->identifier_setup;
-		(*WifiController::getJDoc())[keyWifiSSID] = WifiController::getSsid();
-		(*WifiController::getJDoc())[keyWifiPW] = WifiController::getSsid();
-
-		serializeJson(*WifiController::getJDoc(), Serial);
-
-		preferences.end();
-		return true;
-	}
-
-	void loop()
-	{
-		if (Serial.available())
-		{
-			DeserializationError error = deserializeJson((*WifiController::getJDoc()), Serial);
-
-			if (error)
-			{
-				log_i("%s", error);
-			}
-			else
-			{
-				setPreferences();
-				getPreferences();
-			}
-		}
-	}
-
-	void act()
-	{
-		resetPreferences();
-		WifiController::getJDoc()->clear();
-		(*WifiController::getJDoc())["return"] = 1;
-	}
-
-	void set()
-	{
-		setPreferences();
-		WifiController::getJDoc()->clear();
-		(*WifiController::getJDoc())["return"] = 1;
-	}
-
-	void get()
-	{
-		getPreferences();
-		WifiController::getJDoc()->clear();
-		(*WifiController::getJDoc())["return"] = 1;
-	}
-
 }

@@ -3,7 +3,6 @@
 #ifdef IS_SCANNER
 #pragma once
 #include "ArduinoJson.h"
-#include "../../pinstruct.h"
 //#include <FreeRTOS.h>
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"

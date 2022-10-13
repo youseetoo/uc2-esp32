@@ -2,7 +2,7 @@
 #ifdef IS_PID
 #pragma once
 #include "ArduinoJson.h"
-#include "../../pinstruct.h"
+
 #include "../wifi/WifiController.h"
 #include "../../ModuleController.h"
 #include "../sensor/SensorPins.h"

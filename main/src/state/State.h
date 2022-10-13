@@ -1,7 +1,6 @@
 #pragma once
 #include "../../config.h"
 #include "ArduinoJson.h"
-#include "../../pinstruct.h"
 #include "../config/JsonKeys.h"
 #include "esp_log.h"
 #if defined IS_PS3 || defined IS_PS4
@@ -31,7 +30,6 @@ public:
 	State();
 	~State();
 	bool DEBUG = false;
-	PINDEF *pins;
 
 	const char *identifier_name = "UC2_Feather";
 	const char *identifier_id = "V1.2";
@@ -47,10 +45,8 @@ public:
 	void act();
 	void set();
 	void get();
-	void setup(PINDEF *pins);
+	void setup();
 	void printInfo();
-
-	void getDefaultPinDef(PINDEF *pindef);
 };
 
 extern State state;

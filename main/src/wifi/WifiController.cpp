@@ -24,21 +24,8 @@ namespace RestApi
 	void connectToWifi()
 	{
 		deserialize();
-		log_i("connectToWifi");
-		bool ap = (*WifiController::getJDoc())[keyWifiAP];
-		String ssid = (*WifiController::getJDoc())[keyWifiSSID];
-		String pw = (*WifiController::getJDoc())[keyWifiPW];
-		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
-		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
-		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
-		WifiController::setWifiConfig(ssid, pw, ap);
-		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
-		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
-		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
-		Config::setWifiConfig(ssid, pw, ap, false);
-		WifiController::getJDoc()->clear();
+		WifiController::connect();
 		serialize();
-		WifiController::setup();
 		// ESP.restart();
 	}
 }
@@ -46,14 +33,11 @@ namespace RestApi
 namespace WifiController
 {
 
-	const String mSSIDAP = F("UC2");
-	const String hostname = F("youseetoo");
-	String mSSID = "Uc2";
-	String mPWD = "";
-	bool mAP = true;
+	
 	WebServer *server = nullptr;
 	WebSocketsServer *webSocket = nullptr;
 	DynamicJsonDocument *jsonDocument;
+	WifiConfig config;
 
 	DynamicJsonDocument *getJDoc()
 	{
@@ -62,15 +46,15 @@ namespace WifiController
 
 	String getSsid()
 	{
-		return mSSID;
+		return config.mSSID;
 	}
 	String getPw()
 	{
-		return mPWD;
+		return config.mPWD;
 	}
 	bool getAp()
 	{
-		return mAP;
+		return config.mAP;
 	}
 
 	WebServer *getServer()
@@ -84,6 +68,23 @@ namespace WifiController
 			webSocket->loop();
 		if (server != nullptr)
 			server->handleClient();
+	}
+
+	void connect()
+	{
+		log_i("connectToWifi");
+		bool ap = (*WifiController::getJDoc())[keyWifiAP];
+		String ssid = (*WifiController::getJDoc())[keyWifiSSID];
+		String pw = (*WifiController::getJDoc())[keyWifiPW];
+		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
+		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
+		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		WifiController::setWifiConfig(ssid, pw, ap);
+		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
+		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
+		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		WifiController::getJDoc()->clear();
+		WifiController::setup();
 	}
 
 	void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -130,10 +131,11 @@ namespace WifiController
 
 	void setWifiConfig(String SSID, String PWD, bool ap)
 	{
-		log_i("mssid:%s pw:%s ap:%s", mSSID, mPWD, boolToChar(ap));
-		mSSID = SSID;
-		mPWD = PWD;
-		mAP = ap;
+		log_i("mssid:%s pw:%s ap:%s", config.mSSID, config.mPWD, boolToChar(config.mAP));
+		config.mSSID = SSID;
+		config.mPWD = PWD;
+		config.mAP = ap;
+		Config::setWifiConfig(config,false);
 	}
 
 	void createAp(String ssid, String password)
@@ -144,7 +146,7 @@ namespace WifiController
 		if (ssid.isEmpty())
 		{
 			log_i("Ssid empty, start Uc2 open softap");
-			WiFi.softAP(mSSIDAP.c_str());
+			WiFi.softAP(config.mSSIDAP.c_str());
 		}
 		else if (password.isEmpty())
 		{
@@ -162,27 +164,28 @@ namespace WifiController
 
 	void setup()
 	{
-		if (mSSID != nullptr)
-			log_i("mssid:%s pw:%s ap:%s", mSSID, mPWD, boolToChar(mAP));
+		Config::getWifiConfig(config);
+		if (config.mSSID != nullptr)
+			log_i("mssid:%s pw:%s ap:%s", config.mSSID, config.mPWD, boolToChar(config.mAP));
 		if (server != nullptr)
 		{
 			server->close();
 			server = nullptr;
 		}
-		if (mSSID == "")
+		if (config.mSSID == "")
 		{
-			mAP = true;
-			createAp(mSSIDAP, mPWD);
+			config.mAP = true;
+			createAp(config.mSSIDAP, config.mPWD);
 		}
-		else if (mAP)
+		else if (config.mAP)
 		{
-			createAp(mSSID, mPWD);
+			createAp(config.mSSID, config.mPWD);
 		}
 		else
 		{
 			WiFi.softAPdisconnect();
-			log_i("Connect to:%s", mSSID);
-			WiFi.begin(mSSID.c_str(), mPWD.c_str());
+			log_i("Connect to:%s", config.mSSID);
+			WiFi.begin(config.mSSID.c_str(), config.mPWD.c_str());
 
 			int nConnectTrials = 0;
 			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 10)
@@ -195,10 +198,10 @@ namespace WifiController
 			if (nConnectTrials == 10)
 			{
 				log_i("failed to connect,Start softap");
-				mAP = true;
-				mSSID = mSSIDAP;
-				mPWD = "";
-				createAp(mSSIDAP, "");
+				config.mAP = true;
+				config.mSSID = config.mSSIDAP;
+				config.mPWD = "";
+				createAp(config.mSSIDAP, "");
 			}
 			else
 			{
@@ -334,11 +337,6 @@ namespace WifiController
 		server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
 		server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
 #endif
-
-		server->on(config_act_endpoint, HTTP_POST, RestApi::Config_act);
-		server->on(config_get_endpoint, HTTP_POST, RestApi::Config_get);
-		server->on(config_set_endpoint, HTTP_POST, RestApi::Config_set);
-
 		log_i("Setting up HTTP Routing END");
 	}
 }

@@ -24,6 +24,7 @@
     #include "../dac/DacController.h"
 #endif
 #include <WebSocketsServer.h>
+#include "WifiConfig.h"
 
 namespace RestApi
 {
@@ -70,7 +71,7 @@ namespace WifiController
     
     //Wifi
     
-    void setWifiConfig(String mSSID,String mPWD,bool ap);
+    void setWifiConfig(String SSID, String PWD, bool ap);
     String getSsid();
     String getPw();
     bool getAp();
@@ -81,5 +82,6 @@ namespace WifiController
     void getCSS();
     void getjquery();
     void getjs();
+    void connect();
 }
 #endif

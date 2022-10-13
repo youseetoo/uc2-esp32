@@ -21,6 +21,15 @@
 #ifdef IS_READSENSOR
 #include "src/sensor/SensorController.h"
 #endif
+#if defined IS_DAC || defined IS_DAC_FAKE
+#include "src/dac/DacController.h"
+#endif
+#ifdef IS_ANALOG
+#include "src/analog/AnalogController.h"
+#endif
+#ifdef IS_DIGITAL
+#include "src/digital/DigitalController.h"
+#endif
 
 enum class AvailableModules
 {

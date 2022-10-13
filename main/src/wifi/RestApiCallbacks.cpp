@@ -113,10 +113,6 @@ namespace RestApi
         (*WifiController::getJDoc()).add(update_endpoint);
         (*WifiController::getJDoc()).add(identity_endpoint);
 
-        (*WifiController::getJDoc()).add(config_act_endpoint);
-        (*WifiController::getJDoc()).add(config_set_endpoint);
-        (*WifiController::getJDoc()).add(config_get_endpoint);
-
         (*WifiController::getJDoc()).add(state_act_endpoint);
         (*WifiController::getJDoc()).add(state_set_endpoint);
         (*WifiController::getJDoc()).add(state_get_endpoint);

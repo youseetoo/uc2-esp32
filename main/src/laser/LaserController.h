@@ -1,7 +1,6 @@
 #include "../../config.h"
 #ifdef IS_LASER
 #pragma once
-#include "../../pinstruct.h"
 #include "ArduinoJson.h"
 #include <String.h>
 #include "../wifi/WifiController.h"

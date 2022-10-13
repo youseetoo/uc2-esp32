@@ -3,7 +3,6 @@
 #pragma once
 #include "Adafruit_NeoPixel.h"
 #include "ArduinoJson.h"
-#include "../../pinstruct.h"
 #include "../config/JsonKeys.h"
 #include "../wifi/WifiController.h"
 #include "../../Module.h"

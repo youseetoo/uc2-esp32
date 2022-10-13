@@ -2,8 +2,9 @@
 #ifdef IS_DIGITAL
 #pragma once
 #include "ArduinoJson.h"
-#include "../../pinstruct.h"
 #include "../wifi/RestApiCallbacks.h"
+#include "DigitalPins.h"
+#include "../../Module.h"
 
 namespace RestApi
 {
@@ -12,7 +13,7 @@ namespace RestApi
     void Digital_set();
 };
 
-class DigitalController
+class DigitalController : public Module
 {
 private:
     /* data */
@@ -22,16 +23,16 @@ public:
 
     bool isBusy;
     bool DEBUG = false;
-    PINDEF * pins;
+    DigitalPins pins;
 
     int digital_val_1 = 0;
     int digital_val_2 = 0;
     int digital_val_3 = 0;
 
-    void act(DynamicJsonDocument * jsonDocument);
-    void set(DynamicJsonDocument * jsonDocument);
-    void get(DynamicJsonDocument * jsonDocument);
-    void setup(PINDEF * pins);
+    void act() override;
+    void set() override;
+    void get() override;
+    void setup() override;
+    void loop() override;
 };
-extern DigitalController digital;
 #endif

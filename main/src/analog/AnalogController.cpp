@@ -7,21 +7,21 @@ namespace RestApi
 	void Analog_act()
     {
         deserialize();
-        analog.act();
+		moduleController.get(AvailableModules::analog)->act();
         serialize();
     }
 
     void Analog_get()
     {
         deserialize();
-        analog.get();
+        moduleController.get(AvailableModules::analog)->get();
         serialize();
     }
 
     void Analog_set()
     {
         deserialize();
-        analog.set();
+        moduleController.get(AvailableModules::analog)->set();
         serialize();
     }
 }
@@ -29,17 +29,19 @@ namespace RestApi
 AnalogController::AnalogController(){};
 AnalogController::~AnalogController(){};
 
-void AnalogController::setup(PINDEF *pins)
+void AnalogController::loop(){}
+
+void AnalogController::setup()
 {
-	this->pins = pins;
+	Config::getAnalogPins(pins);
 	Serial.println("Setting Up analog");
 	/* setup the PWM ports and reset them to 0*/
 	ledcSetup(PWM_CHANNEL_analog_1, pwm_frequency, pwm_resolution);
-	ledcAttachPin(pins->analog_PIN_1, PWM_CHANNEL_analog_1);
+	ledcAttachPin(pins.analog_PIN_1, PWM_CHANNEL_analog_1);
 	ledcWrite(PWM_CHANNEL_analog_1, 0);
 
 	ledcSetup(PWM_CHANNEL_analog_2, pwm_frequency, pwm_resolution);
-	ledcAttachPin(pins->analog_PIN_2, PWM_CHANNEL_analog_2);
+	ledcAttachPin(pins.analog_PIN_2, PWM_CHANNEL_analog_2);
 	ledcWrite(PWM_CHANNEL_analog_2, 0);
 }
 
@@ -104,38 +106,38 @@ void AnalogController::set()
 
 	if (analogid == 1)
 	{
-		pins->analog_PIN_1 = analogpin;
-		pinMode(pins->analog_PIN_1, OUTPUT);
-		digitalWrite(pins->analog_PIN_1, LOW);
+		pins.analog_PIN_1 = analogpin;
+		pinMode(pins.analog_PIN_1, OUTPUT);
+		digitalWrite(pins.analog_PIN_1, LOW);
 
 		/* setup the PWM ports and reset them to 0*/
 		ledcSetup(PWM_CHANNEL_analog_1, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins->analog_PIN_1, PWM_CHANNEL_analog_1);
+		ledcAttachPin(pins.analog_PIN_1, PWM_CHANNEL_analog_1);
 		ledcWrite(PWM_CHANNEL_analog_1, 0);
 	}
 	else if (analogid == 2)
 	{
-		pins->analog_PIN_2 = analogpin;
-		pinMode(pins->analog_PIN_2, OUTPUT);
-		digitalWrite(pins->analog_PIN_2, LOW);
+		pins.analog_PIN_2 = analogpin;
+		pinMode(pins.analog_PIN_2, OUTPUT);
+		digitalWrite(pins.analog_PIN_2, LOW);
 
 		/* setup the PWM ports and reset them to 0*/
 		ledcSetup(PWM_CHANNEL_analog_2, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins->analog_PIN_2, PWM_CHANNEL_analog_2);
+		ledcAttachPin(pins.analog_PIN_2, PWM_CHANNEL_analog_2);
 		ledcWrite(PWM_CHANNEL_analog_2, 0);
 	}
 	else if (analogid == 3)
 	{
-		pins->analog_PIN_3 = analogpin;
-		pinMode(pins->analog_PIN_3, OUTPUT);
-		digitalWrite(pins->analog_PIN_3, LOW);
+		pins.analog_PIN_3 = analogpin;
+		pinMode(pins.analog_PIN_3, OUTPUT);
+		digitalWrite(pins.analog_PIN_3, LOW);
 
 		/* setup the PWM ports and reset them to 0*/
 		ledcSetup(PWM_CHANNEL_analog_3, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins->analog_PIN_3, PWM_CHANNEL_analog_3);
+		ledcAttachPin(pins.analog_PIN_3, PWM_CHANNEL_analog_3);
 		ledcWrite(PWM_CHANNEL_analog_3, 0);
 	}
-
+	Config::setAnalogPins(false,pins);
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())["return"] = 1;
 }
@@ -152,7 +154,7 @@ void AnalogController::get()
 	{
 		if (DEBUG)
 			Serial.println("analog 1");
-		analogpin = pins->analog_PIN_1;
+		analogpin = pins.analog_PIN_1;
 		analogval = analog_val_1;
 	}
 	else if (analogid == 2)
@@ -161,7 +163,7 @@ void AnalogController::get()
 			Serial.println("AXIS 2");
 		if (DEBUG)
 			Serial.println("analog 2");
-		analogpin = pins->analog_PIN_2;
+		analogpin = pins.analog_PIN_2;
 		analogval = analog_val_2;
 	}
 	else if (analogid == 3)
@@ -170,7 +172,7 @@ void AnalogController::get()
 			Serial.println("AXIS 3");
 		if (DEBUG)
 			Serial.println("analog 1");
-		analogpin = pins->analog_PIN_3;
+		analogpin = pins.analog_PIN_3;
 		analogval = analog_val_3;
 	}
 
@@ -179,5 +181,4 @@ void AnalogController::get()
 	(*WifiController::getJDoc())["analogval"] = analogval;
 	(*WifiController::getJDoc())["analogpin"] = analogpin;
 }
-AnalogController analog;
 #endif

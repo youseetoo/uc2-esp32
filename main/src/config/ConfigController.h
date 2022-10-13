@@ -2,43 +2,33 @@
 #include "Preferences.h"
 #include "ArduinoJson.h"
 #include "JsonKeys.h"
-#include "../../pinstruct.h"
-#include "../wifi/WifiController.h"
+#include "../wifi/WifiConfig.h"
 #include "esp_log.h"
 #include "../motor/MotorPins.h"
 #include "../motor/FocusMotor.h"
 #include "../led/LedConfig.h"
 #include "../laser/LaserPins.h"
-
-namespace RestApi
-{
-    void Config_act();
-    void Config_get();
-    void Config_set();
-};
+#include "../dac/DacPins.h"
+#include "../analog/AnalogPins.h"
+#include "../digital/DigitalPins.h"
 
 namespace Config
 {
-
-    void setJsonToPref(const char *key);
-    void setPinsToJson(const char *key, int val);
-    void setup(PINDEF *pins);
+    void setup();
     bool resetPreferences();
-    bool setPreferences();
-    bool getPreferences();
-    void initempty();
-    void savePreferencesFromPins(bool openPrefs);
-    void applyPreferencesToPins();
-    void loop();
-    void act();
-    void set();
-    void get();
     bool isFirstRun();
-    void setWifiConfig(String ssid, String pw, bool ap, bool prefopen);
+    void setWifiConfig(WifiConfig config, bool prefopen);
+    void getWifiConfig(WifiConfig config);
     void setMotorPinConfig(bool prefsOpen, std::array<MotorPins, 4> pins);
     void getMotorPins(std::array<MotorPins, 4> pins);
     void setLedPins(bool prefsOpen, LedConfig config);
     void getLedPins(LedConfig config);
     void setLaserPins(bool openPrefs,LaserPins pins);
     void getLaserPins(LaserPins pin);
+    void setDacPins(bool openPrefs,DacPins pins);
+    void getDacPins(DacPins pin);
+    void setAnalogPins(bool openPrefs,AnalogPins pins);
+    void getAnalogPins(AnalogPins pin);
+    void setDigitalPins(bool openPrefs,DigitalPins pins);
+    void getDigitalPins(DigitalPins pin);
 }

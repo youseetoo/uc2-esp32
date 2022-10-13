@@ -101,51 +101,54 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 			moduleController.get(AvailableModules::slm)->get();
 		}
 	}
-/*
-  Drive DAC
-*/
-#ifdef IS_DAC
-	if (task == dac_act_endpoint)
-		dac.act();
-	if (task == dac_set_endpoint)
-		dac.set();
-	if (task == dac_get_endpoint)
-		dac.get();
-#endif
-/*
-  Drive Laser
-*/
-if(moduleController.get(AvailableModules::laser) != nullptr)
-{
-	if (task == laser_act_endpoint)
-		moduleController.get(AvailableModules::laser)->act();
-	if (task == laser_set_endpoint)
-		moduleController.get(AvailableModules::laser)->get();
-	if (task == laser_get_endpoint)
-		moduleController.get(AvailableModules::laser)->set();
-}
-/*
-  Drive analog
-*/
-#ifdef IS_ANALOG
-	if (task == analog_act_endpoint)
-		analog.act();
-	if (task == analog_set_endpoint)
-		analog.set();
-	if (task == analog_get_endpoint)
-		analog.get();
-#endif
-/*
-  Drive digital
-*/
-#ifdef IS_DIGITAL
-	if (task == digital_act_endpoint)
-		digital.act(jsonDocument);
-	if (task == digital_set_endpoint)
-		digital.set(jsonDocument);
-	if (task == digital_get_endpoint)
-		digital.get(jsonDocument);
-#endif
+	/*
+	  Drive DAC
+	*/
+	if (moduleController.get(AvailableModules::dac) != nullptr)
+	{
+		if (task == dac_act_endpoint)
+			moduleController.get(AvailableModules::dac)->act();
+		if (task == dac_set_endpoint)
+			moduleController.get(AvailableModules::dac)->set();
+		if (task == dac_get_endpoint)
+			moduleController.get(AvailableModules::dac)->get();
+	}
+	/*
+	  Drive Laser
+	*/
+	if (moduleController.get(AvailableModules::laser) != nullptr)
+	{
+		if (task == laser_act_endpoint)
+			moduleController.get(AvailableModules::laser)->act();
+		if (task == laser_set_endpoint)
+			moduleController.get(AvailableModules::laser)->get();
+		if (task == laser_get_endpoint)
+			moduleController.get(AvailableModules::laser)->set();
+	}
+	/*
+	  Drive analog
+	*/
+	if (moduleController.get(AvailableModules::analog) != nullptr)
+	{
+		if (task == analog_act_endpoint)
+			moduleController.get(AvailableModules::analog)->act();
+		if (task == analog_set_endpoint)
+			moduleController.get(AvailableModules::analog)->set();
+		if (task == analog_get_endpoint)
+			moduleController.get(AvailableModules::analog)->get();
+	}
+	/*
+	  Drive digital
+	*/
+	if (moduleController.get(AvailableModules::digital) != nullptr)
+	{
+		if (task == digital_act_endpoint)
+			moduleController.get(AvailableModules::digital)->act();
+		if (task == digital_set_endpoint)
+			moduleController.get(AvailableModules::digital)->set();
+		if (task == digital_get_endpoint)
+			moduleController.get(AvailableModules::digital)->get();
+	}
 	/*
 	  Drive LED Matrix
 	*/
@@ -158,15 +161,6 @@ if(moduleController.get(AvailableModules::laser) != nullptr)
 		if (task == ledarr_get_endpoint)
 			moduleController.get(AvailableModules::led)->get();
 	}
-	/*
-	  Change Configuration
-	*/
-	if (task == config_act_endpoint)
-		Config::act();
-	if (task == config_set_endpoint)
-		Config::set();
-	if (task == config_get_endpoint)
-		Config::get();
 
 	/*
 	  Read the sensor

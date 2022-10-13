@@ -7,21 +7,21 @@ namespace RestApi
 	void Digital_act()
 	{
 		deserialize();
-		digital.act(WifiController::getJDoc());
+		moduleController.get(AvailableModules::digital)->act();
 		serialize();
 	}
 
 	void Digital_get()
 	{
 		deserialize();
-		digital.get(WifiController::getJDoc());
+		moduleController.get(AvailableModules::digital)->get();
 		serialize();
 	}
 
 	void Digital_set()
 	{
 		deserialize();
-		digital.set(WifiController::getJDoc());
+		moduleController.get(AvailableModules::digital)->set();
 		serialize();
 	}
 }
@@ -30,8 +30,9 @@ DigitalController::DigitalController(/* args */){};
 DigitalController::~DigitalController(){};
 
 // Custom function accessible by the API
-void DigitalController::act(DynamicJsonDocument *jsonDocument)
+void DigitalController::act()
 {
+	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	// here you can do something
 	Serial.println("digital_act_fct");
 	isBusy = true;
@@ -54,15 +55,15 @@ void DigitalController::act(DynamicJsonDocument *jsonDocument)
 		if (digitalval == -1)
 		{
 			// perform trigger
-			digitalWrite(pins->digital_PIN_1, HIGH);
+			digitalWrite(pins.digital_PIN_1, HIGH);
 			delay(triggerdelay);
-			digitalWrite(pins->digital_PIN_1, LOW);
+			digitalWrite(pins.digital_PIN_1, LOW);
 		}
 		else
 		{
-			digitalWrite(pins->digital_PIN_1, digital_val_1);
+			digitalWrite(pins.digital_PIN_1, digital_val_1);
 			Serial.print("digital_PIN ");
-			Serial.println(pins->digital_PIN_1);
+			Serial.println(pins.digital_PIN_1);
 		}
 	}
 	else if (digitalid == 2)
@@ -71,15 +72,15 @@ void DigitalController::act(DynamicJsonDocument *jsonDocument)
 		if (digitalval == -1)
 		{
 			// perform trigger
-			digitalWrite(pins->digital_PIN_2, HIGH);
+			digitalWrite(pins.digital_PIN_2, HIGH);
 			delay(triggerdelay);
-			digitalWrite(pins->digital_PIN_2, LOW);
+			digitalWrite(pins.digital_PIN_2, LOW);
 		}
 		else
 		{
-			digitalWrite(pins->digital_PIN_2, digital_val_2);
+			digitalWrite(pins.digital_PIN_2, digital_val_2);
 			Serial.print("digital_PIN ");
-			Serial.println(pins->digital_PIN_2);
+			Serial.println(pins.digital_PIN_2);
 		}
 	}
 	else if (digitalid == 3)
@@ -88,25 +89,25 @@ void DigitalController::act(DynamicJsonDocument *jsonDocument)
 		if (digitalval == -1)
 		{
 			// perform trigger
-			digitalWrite(pins->digital_PIN_3, HIGH);
+			digitalWrite(pins.digital_PIN_3, HIGH);
 			delay(triggerdelay);
-			digitalWrite(pins->digital_PIN_3, LOW);
+			digitalWrite(pins.digital_PIN_3, LOW);
 		}
 		else
 		{
-			digitalWrite(pins->digital_PIN_3, digital_val_3);
+			digitalWrite(pins.digital_PIN_3, digital_val_3);
 			Serial.print("digital_PIN ");
-			Serial.println(pins->digital_PIN_3);
+			Serial.println(pins.digital_PIN_3);
 		}
 	}
 	jsonDocument->clear();
 	(*jsonDocument)["return"] = 1;
 }
 
-void DigitalController::set(DynamicJsonDocument *jsonDocument)
+void DigitalController::set()
 {
 	// here you can set parameters
-
+	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	int digitalid = (*jsonDocument)["digitalid"];
 	int digitalpin = (*jsonDocument)["digitalpin"];
 	if (DEBUG)
@@ -120,31 +121,33 @@ void DigitalController::set(DynamicJsonDocument *jsonDocument)
 	{
 		if (digitalid == 1)
 		{
-			pins->digital_PIN_1 = digitalpin;
-			pinMode(pins->digital_PIN_1, OUTPUT);
-			digitalWrite(pins->digital_PIN_1, LOW);
+			pins.digital_PIN_1 = digitalpin;
+			pinMode(pins.digital_PIN_1, OUTPUT);
+			digitalWrite(pins.digital_PIN_1, LOW);
 		}
 		else if (digitalid == 2)
 		{
-			pins->digital_PIN_2 = digitalpin;
-			pinMode(pins->digital_PIN_2, OUTPUT);
-			digitalWrite(pins->digital_PIN_2, LOW);
+			pins.digital_PIN_2 = digitalpin;
+			pinMode(pins.digital_PIN_2, OUTPUT);
+			digitalWrite(pins.digital_PIN_2, LOW);
 		}
 		else if (digitalid == 3)
 		{
-			pins->digital_PIN_3 = digitalpin;
-			pinMode(pins->digital_PIN_3, OUTPUT);
-			digitalWrite(pins->digital_PIN_3, LOW);
+			pins.digital_PIN_3 = digitalpin;
+			pinMode(pins.digital_PIN_3, OUTPUT);
+			digitalWrite(pins.digital_PIN_3, LOW);
 		}
 	}
+	Config::setDigitalPins(false,pins);
 	isBusy = false;
 	jsonDocument->clear();
 	(*jsonDocument)["return"] = 1;
 }
 
 // Custom function accessible by the API
-void DigitalController::get(DynamicJsonDocument *jsonDocument)
+void DigitalController::get()
 {
+	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	// GET SOME PARAMETERS HERE
 	int digitalid = (*jsonDocument)["digitalid"];
 	int digitalpin = 0;
@@ -154,7 +157,7 @@ void DigitalController::get(DynamicJsonDocument *jsonDocument)
 	{
 		if (DEBUG)
 			Serial.println("digital 1");
-		digitalpin = pins->digital_PIN_1;
+		digitalpin = pins.digital_PIN_1;
 		digitalval = digital_val_1;
 	}
 	else if (digitalid == 2)
@@ -163,7 +166,7 @@ void DigitalController::get(DynamicJsonDocument *jsonDocument)
 			Serial.println("AXIS 2");
 		if (DEBUG)
 			Serial.println("digital 2");
-		digitalpin = pins->digital_PIN_2;
+		digitalpin = pins.digital_PIN_2;
 		digitalval = digital_val_2;
 	}
 	else if (digitalid == 3)
@@ -172,7 +175,7 @@ void DigitalController::get(DynamicJsonDocument *jsonDocument)
 			Serial.println("AXIS 3");
 		if (DEBUG)
 			Serial.println("digital 1");
-		digitalpin = pins->digital_PIN_3;
+		digitalpin = pins.digital_PIN_3;
 		digitalval = digital_val_3;
 	}
 
@@ -182,27 +185,27 @@ void DigitalController::get(DynamicJsonDocument *jsonDocument)
 	(*jsonDocument)["digitalpin"] = digitalpin;
 }
 
-void DigitalController::setup(PINDEF *pins)
+void DigitalController::setup()
 {
-	this->pins = pins;
+	Config::getDigitalPins(pins);
 	Serial.println("Setting Up digital");
 	/* setup the output nodes and reset them to 0*/
-	pinMode(pins->digital_PIN_1, OUTPUT);
+	pinMode(pins.digital_PIN_1, OUTPUT);
 
-	digitalWrite(pins->digital_PIN_1, HIGH);
+	digitalWrite(pins.digital_PIN_1, HIGH);
 	delay(50);
-	digitalWrite(pins->digital_PIN_1, LOW);
+	digitalWrite(pins.digital_PIN_1, LOW);
 
-	pinMode(pins->digital_PIN_2, OUTPUT);
-	digitalWrite(pins->digital_PIN_2, HIGH);
+	pinMode(pins.digital_PIN_2, OUTPUT);
+	digitalWrite(pins.digital_PIN_2, HIGH);
 	delay(50);
-	digitalWrite(pins->digital_PIN_2, LOW);
+	digitalWrite(pins.digital_PIN_2, LOW);
 
-	pinMode(pins->digital_PIN_3, OUTPUT);
-	digitalWrite(pins->digital_PIN_3, HIGH);
+	pinMode(pins.digital_PIN_3, OUTPUT);
+	digitalWrite(pins.digital_PIN_3, HIGH);
 	delay(50);
-	digitalWrite(pins->digital_PIN_3, LOW);
+	digitalWrite(pins.digital_PIN_3, LOW);
 }
 
-DigitalController digital;
+void DigitalController::loop(){}
 #endif

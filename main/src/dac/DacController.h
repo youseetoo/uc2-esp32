@@ -4,8 +4,9 @@
 
 #include "ArduinoJson.h"
 #include "DAC_Module.h"
-#include "../../pinstruct.h"
 #include "../wifi/WifiController.h"
+#include "DacPins.h"
+#include "../../Module.h"
 
 namespace RestApi
 {
@@ -14,7 +15,7 @@ namespace RestApi
     void Dac_set();
 };
 
-class DacController
+class DacController : public Module
 {
 private:
 #ifdef IS_DAC
@@ -25,7 +26,7 @@ public:
     DacController();
     ~DacController();
     bool DEBUG = false;
-    PINDEF *pins;
+    DacPins pins;
 
     // DAC-specific parameters
     dac_channel_t dac_channel = DAC_CHANNEL_1;
@@ -39,12 +40,12 @@ public:
 
     boolean dac_is_running = false;
 
-    void setup(PINDEF *pins);
+    void setup() override;
 
-    void act();
-    void set();
-    void get();
+    void act() override;
+    void set() override;
+    void get() override;
+    void loop() override;
     static void drive_galvo(void *parameter);
 };
-extern DacController dac;
 #endif

@@ -46,10 +46,6 @@ static const PROGMEM String PID_act_endpoint = "/PID_act";
 static const PROGMEM String PID_set_endpoint = "/PID_set";
 static const PROGMEM String PID_get_endpoint = "/PID_get";
 
-static const PROGMEM String config_act_endpoint = "/config_act";
-static const PROGMEM String config_set_endpoint = "/config_set";
-static const PROGMEM String config_get_endpoint = "/config_get";
-
 static const PROGMEM String features_endpoint = "/features_get";
 static const PROGMEM String identity_endpoint = "/identity";
 static const PROGMEM String ota_endpoint = "/ota";

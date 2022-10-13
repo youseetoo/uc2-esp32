@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_ANALOG
 #pragma once
 #include "../../config.h"
 #include "ArduinoJson.h"
@@ -60,4 +59,3 @@ public:
     void setup() override;
     void loop() override;
 };
-#endif

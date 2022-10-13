@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_PID
 #pragma once
 #include "ArduinoJson.h"
 
@@ -43,4 +42,3 @@ public:
     void get() override;
     void set() override;
 };
-#endif

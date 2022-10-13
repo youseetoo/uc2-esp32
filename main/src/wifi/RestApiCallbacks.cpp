@@ -8,7 +8,7 @@ namespace RestApi
     {
         int erase = nvs_flash_erase(); // erase the NVS partition and...
         int init = nvs_flash_init();   // initialize the NVS partition.
-        log_i( "erased:%s init:%s", erase, init);
+        log_i("erased:%s init:%s", erase, init);
         delay(500);
     }
 
@@ -37,7 +37,7 @@ namespace RestApi
 
     void deserialize()
     {
-        //int argcount = WifiController::getServer()->args();
+        // int argcount = WifiController::getServer()->args();
         /*for (int i = 0; i < argcount; i++)
         {
             log_i( "%s", WifiController::getServer()->arg(i));
@@ -71,14 +71,12 @@ namespace RestApi
         ESP.restart();
     }
 
-
-
     void upload()
     {
         HTTPUpload &upload = WifiController::getServer()->upload();
         if (upload.status == UPLOAD_FILE_START)
         {
-            log_i( "Update: %s\n", upload.filename.c_str());
+            log_i("Update: %s\n", upload.filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN))
             { // start with max available size
                 Update.printError(Serial);
@@ -96,7 +94,7 @@ namespace RestApi
         {
             if (Update.end(true))
             { // true to set the size to the current progress
-                log_i( "Update Success: %u\nRebooting...\n", upload.totalSize);
+                log_i("Update Success: %u\nRebooting...\n", upload.totalSize);
             }
             else
             {
@@ -120,48 +118,55 @@ namespace RestApi
         (*WifiController::getJDoc()).add(scanwifi_endpoint);
         (*WifiController::getJDoc()).add(connectwifi_endpoint);
 
-#ifdef IS_LASER
-        (*WifiController::getJDoc()).add(laser_act_endpoint);
-        (*WifiController::getJDoc()).add(laser_set_endpoint);
-        (*WifiController::getJDoc()).add(laser_get_endpoint);
-#endif
-#ifdef IS_MOTOR
-        (*WifiController::getJDoc()).add(motor_act_endpoint);
-        (*WifiController::getJDoc()).add(motor_set_endpoint);
-        (*WifiController::getJDoc()).add(motor_get_endpoint);
-#endif
-#ifdef IS_PID
-        (*WifiController::getJDoc()).add(PID_act_endpoint);
-        (*WifiController::getJDoc()).add(PID_set_endpoint);
-        (*WifiController::getJDoc()).add(PID_get_endpoint);
-#endif
-#ifdef IS_ANALOG
-        (*WifiController::getJDoc()).add(analog_act_endpoint);
-        (*WifiController::getJDoc()).add(analog_set_endpoint);
-        (*WifiController::getJDoc()).add(analog_get_endpoint);
-#endif
-#ifdef IS_DIGITAL
-        (*WifiController::getJDoc()).add(digital_act_endpoint);
-        (*WifiController::getJDoc()).add(digital_set_endpoint);
-        (*WifiController::getJDoc()).add(digital_get_endpoint);
-#endif
-#ifdef IS_DAC
-        (*WifiController::getJDoc()).add(dac_act_endpoint);
-        (*WifiController::getJDoc()).add(dac_set_endpoint);
-        (*WifiController::getJDoc()).add(dac_get_endpoint);
-#endif
-#ifdef IS_SLM
-        (*WifiController::getJDoc()).add(slm_act_endpoint);
-        (*WifiController::getJDoc()).add(slm_set_endpoint);
-        (*WifiController::getJDoc()).add(slm_get_endpoint);
-#endif
-#ifdef IS_LED
-        (*WifiController::getJDoc()).add(ledarr_act_endpoint);
-        (*WifiController::getJDoc()).add(ledarr_set_endpoint);
-        (*WifiController::getJDoc()).add(ledarr_get_endpoint);
-#endif
+        if (moduleController.get(AvailableModules::laser) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(laser_act_endpoint);
+            (*WifiController::getJDoc()).add(laser_set_endpoint);
+            (*WifiController::getJDoc()).add(laser_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::motor) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(motor_act_endpoint);
+            (*WifiController::getJDoc()).add(motor_set_endpoint);
+            (*WifiController::getJDoc()).add(motor_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::pid) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(PID_act_endpoint);
+            (*WifiController::getJDoc()).add(PID_set_endpoint);
+            (*WifiController::getJDoc()).add(PID_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::analog) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(analog_act_endpoint);
+            (*WifiController::getJDoc()).add(analog_set_endpoint);
+            (*WifiController::getJDoc()).add(analog_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::digital) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(digital_act_endpoint);
+            (*WifiController::getJDoc()).add(digital_set_endpoint);
+            (*WifiController::getJDoc()).add(digital_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::dac) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(dac_act_endpoint);
+            (*WifiController::getJDoc()).add(dac_set_endpoint);
+            (*WifiController::getJDoc()).add(dac_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::slm) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(slm_act_endpoint);
+            (*WifiController::getJDoc()).add(slm_set_endpoint);
+            (*WifiController::getJDoc()).add(slm_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::led) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(ledarr_act_endpoint);
+            (*WifiController::getJDoc()).add(ledarr_set_endpoint);
+            (*WifiController::getJDoc()).add(ledarr_get_endpoint);
+        }
         serialize();
     }
 
-    
 }

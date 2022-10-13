@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_SLM
 #pragma once
 #include "JPEGDecoder.h"
 #include "Adafruit_ST7735.h" // Hardware-specific library for ST7735
@@ -71,5 +70,3 @@ public:
 	void jpegRender(int xpos, int ypos);
 	void drawJpeg(String filename, int xpos, int ypos);
 };
-
-#endif

@@ -3,9 +3,6 @@
 #include "esp_log.h"
 
 #include "src/state/State.h"
-#ifdef IS_SCANNER
-#include "src/scanner/ScannerController.h"
-#endif
 
 
 #if defined IS_PS4 || defined IS_PS3
@@ -13,9 +10,7 @@
 #endif
 #include "src/wifi/WifiController.h"
 #include "src/config/ConfigController.h"
-#ifdef IS_SERIAL
 #include "src/serial/SerialProcess.h"
-#endif
 #include "src/bt/BtController.h"
 #include "ModuleController.h"
 
@@ -58,11 +53,7 @@ void setup()
 #endif
 	//ps_c.start();
 #endif
-#ifdef IS_SCANNER
-	log_i("IS_SCANNER");
-	scanner.setup(pins);
-#endif
-
+	WifiController::begin();
 	log_i("End setup");
 }
 
@@ -70,12 +61,8 @@ void loop()
 {
 	// for any timing-related purposes
 	state.currentMillis = millis();
-#ifdef IS_SERIAL
 	serial.loop(WifiController::getJDoc());
-#endif
-#ifdef IS_WIFI
 	WifiController::handelMessages();
-#endif
 
 	moduleController.loop();
 

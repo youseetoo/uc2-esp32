@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_MOTOR
 #include "FocusMotor.h"
 
 namespace RestApi
@@ -287,4 +286,3 @@ void FocusMotor::startAllDrives()
 	}
 }
 
-#endif

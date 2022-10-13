@@ -1,5 +1,4 @@
 #include "../../config.h"
-#if defined IS_DAC || defined IS_DAC_FAKE
 #pragma once
 
 #include "ArduinoJson.h"
@@ -18,9 +17,7 @@ namespace RestApi
 class DacController : public Module
 {
 private:
-#ifdef IS_DAC
     DAC_Module *dacm;
-#endif
 
 public:
     DacController();
@@ -48,4 +45,3 @@ public:
     void loop() override;
     static void drive_galvo(void *parameter);
 };
-#endif

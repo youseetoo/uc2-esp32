@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_PID
 #include "PidController.h"
 
 namespace RestApi
@@ -188,4 +187,3 @@ void PidController::setup()
 	if (DEBUG)
 		Serial.println("Setting up sensors...");
 }
-#endif

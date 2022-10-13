@@ -2,33 +2,28 @@
 
 void ModuleController::setup()
 {
-#ifdef IS_LED
-    modules.insert(std::make_pair(AvailableModules::led, dynamic_cast<Module *>(new LedController())));
-#endif
-#ifdef IS_MOTOR
-    modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
-#endif
-#ifdef IS_SLM
-    modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module *>(new SlmController())));
-#endif
-#ifdef IS_READSENSOR
-    modules.insert(std::make_pair(AvailableModules::sensor, dynamic_cast<Module *>(new SensorController())));
-#endif
-#ifdef IS_PID
-    modules.insert(std::make_pair(AvailableModules::pid, dynamic_cast<Module *>(new PidController())));
-#endif
-#ifdef IS_LASER
-    modules.insert(std::make_pair(AvailableModules::laser, dynamic_cast<Module *>(new LaserController())));
-#endif
-#if defined IS_DAC || defined IS_DAC_FAKE
-    modules.insert(std::make_pair(AvailableModules::dac, dynamic_cast<Module *>(new DacController())));
-#endif
-#ifdef IS_ANALOG
-    modules.insert(std::make_pair(AvailableModules::analog, dynamic_cast<Module *>(new AnalogController())));
-#endif
-#ifdef IS_DIGITAL
-    modules.insert(std::make_pair(AvailableModules::digital, dynamic_cast<Module *>(new DigitalController())));
-#endif
+    moduleConfig.led = true;
+    moduleConfig.motor = true;
+    if (moduleConfig.led)
+        modules.insert(std::make_pair(AvailableModules::led, dynamic_cast<Module *>(new LedController())));
+    if (moduleConfig.motor)
+        modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
+    if (moduleConfig.slm)
+        modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module *>(new SlmController())));
+    if (moduleConfig.sensor)
+        modules.insert(std::make_pair(AvailableModules::sensor, dynamic_cast<Module *>(new SensorController())));
+    if (moduleConfig.pid)
+        modules.insert(std::make_pair(AvailableModules::pid, dynamic_cast<Module *>(new PidController())));
+    if (moduleConfig.laser)
+        modules.insert(std::make_pair(AvailableModules::laser, dynamic_cast<Module *>(new LaserController())));
+    if (moduleConfig.dac)
+        modules.insert(std::make_pair(AvailableModules::dac, dynamic_cast<Module *>(new DacController())));
+    if (moduleConfig.analog)
+        modules.insert(std::make_pair(AvailableModules::analog, dynamic_cast<Module *>(new AnalogController())));
+    if (moduleConfig.digital)
+        modules.insert(std::make_pair(AvailableModules::digital, dynamic_cast<Module *>(new DigitalController())));
+    if (moduleConfig.scanner)
+        modules.insert(std::make_pair(AvailableModules::digital, dynamic_cast<Module *>(new ScannerController())));
     for (auto const &x : modules)
     {
         x.second->setup();

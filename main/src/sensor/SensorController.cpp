@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_READSENSOR
 
 #include "SensorController.h"
 
@@ -101,5 +100,4 @@ if (DEBUG) Serial.println("readsensor_get_fct");
 void SensorController::setup(){
   if(DEBUG) Serial.println("Setting up sensors...");
 }
-#endif
 

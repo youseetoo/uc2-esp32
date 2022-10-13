@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_READSENSOR
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
@@ -25,4 +24,3 @@ public:
     void loop() override;
 };
 
-#endif

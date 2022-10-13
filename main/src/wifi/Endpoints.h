@@ -12,23 +12,17 @@ static const PROGMEM String motor_act_endpoint = "/motor_act";
 static const PROGMEM String motor_set_endpoint = "/motor_set";
 static const PROGMEM String motor_get_endpoint = "/motor_get";
 
-#ifdef IS_DAC
 static const PROGMEM String dac_act_endpoint = "/dac_act";
 static const PROGMEM String dac_set_endpoint = "/dac_set";
 static const PROGMEM String dac_get_endpoint = "/dac_get";
-#endif
 
-#ifdef IS_ANALOG
 static const PROGMEM String analog_act_endpoint = "/analog_act";
 static const PROGMEM String analog_set_endpoint = "/analog_set";
 static const PROGMEM String analog_get_endpoint = "/analog_get";
-#endif
 
-#ifdef IS_DIGITAL
 static const PROGMEM String digital_act_endpoint = "/digital_act";
 static const PROGMEM String digital_set_endpoint = "/digital_set";
 static const PROGMEM String digital_get_endpoint = "/digital_get";
-#endif
 
 static const PROGMEM String ledarr_act_endpoint = "/ledarr_act";
 static const PROGMEM String ledarr_set_endpoint = "/ledarr_set";

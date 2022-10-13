@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_MOTOR
 #pragma once
 #include "../../config.h"
 #include "AccelStepper.h"
@@ -148,5 +147,3 @@ private:
     void startStepper(int i);
     void startAllDrives();
 };
-
-#endif

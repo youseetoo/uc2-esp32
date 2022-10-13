@@ -9,18 +9,9 @@
 #include "../wifi/WifiController.h"
 #include "../bt/BtController.h"
 #include <esp_log.h>
-#if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"
-#endif
-#ifdef IS_ANALOG
 #include "../analog/AnalogController.h"
-#endif
-#ifdef IS_DIGITAL
 #include "../digital/DigitalController.h"
-#endif
-#if defined IS_DAC || defined IS_DAC_FAKE
-#include "../dac/DacController.h"
-#endif
 namespace RestApi
 {
     /*

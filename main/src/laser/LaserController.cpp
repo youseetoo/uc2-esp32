@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_LASER
 #include "LaserController.h"
 
 namespace RestApi
@@ -249,4 +248,3 @@ void LaserController::loop()
   if (LASER_despeckle_3 > 0 && LASER_val_3 > 0)
     LASER_despeckle(LASER_despeckle_3, 3, LASER_despeckle_period_3);
 }
-#endif

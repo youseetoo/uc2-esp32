@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_ANALOG
 #include "AnalogController.h"
 
 namespace RestApi
@@ -181,4 +180,3 @@ void AnalogController::get()
 	(*WifiController::getJDoc())["analogval"] = analogval;
 	(*WifiController::getJDoc())["analogpin"] = analogpin;
 }
-#endif

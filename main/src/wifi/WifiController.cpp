@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_WIFI
 #include "WifiController.h"
 
 namespace RestApi
@@ -33,7 +32,6 @@ namespace RestApi
 namespace WifiController
 {
 
-	
 	WebServer *server = nullptr;
 	WebSocketsServer *webSocket = nullptr;
 	DynamicJsonDocument *jsonDocument;
@@ -85,6 +83,7 @@ namespace WifiController
 		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
 		WifiController::getJDoc()->clear();
 		WifiController::setup();
+		WifiController::begin();
 	}
 
 	void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
@@ -135,7 +134,7 @@ namespace WifiController
 		config.mSSID = SSID;
 		config.mPWD = PWD;
 		config.mAP = ap;
-		Config::setWifiConfig(config,false);
+		Config::setWifiConfig(config, false);
 	}
 
 	void createAp(String ssid, String password)
@@ -219,11 +218,14 @@ namespace WifiController
 		{
 			createJsonDoc();
 		}
+	}
+
+	void begin()
+	{
 		webSocket->begin();
 		webSocket->onEvent(webSocketEvent);
 		setup_routing();
 		server->begin();
-		log_i("HTTP Running server  nullptr: %s jsondoc  nullptr: %s", boolToChar(server == nullptr), boolToChar(jsonDocument == nullptr));
 	}
 
 	void getIndexPage()
@@ -290,55 +292,61 @@ namespace WifiController
 		server->on(bt_paireddevices_endpoint, HTTP_GET, RestApi::Bt_getPairedDevices);
 
 		// POST
-#ifdef IS_MOTOR
-		server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
-		server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
-		server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
-#endif
+		if (moduleController.get(AvailableModules::motor) != nullptr)
+		{
+			server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
+			server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
+			server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
+		}
 
-#ifdef IS_DAC
-		server->on(dac_act_endpoint, HTTP_POST, RestApi::Dac_act);
-		server->on(dac_get_endpoint, HTTP_POST, RestApi::Dac_get);
-		server->on(dac_set_endpoint, HTTP_POST, RestApi::Dac_set);
-#endif
+		if (moduleController.get(AvailableModules::dac) != nullptr)
+		{
+			server->on(dac_act_endpoint, HTTP_POST, RestApi::Dac_act);
+			server->on(dac_get_endpoint, HTTP_POST, RestApi::Dac_get);
+			server->on(dac_set_endpoint, HTTP_POST, RestApi::Dac_set);
+		}
 
-#ifdef IS_LASER
-		server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
-		server->on(laser_get_endpoint, HTTP_POST, RestApi::Laser_get);
-		server->on(laser_set_endpoint, HTTP_POST, RestApi::Laser_set);
-#endif
+		if (moduleController.get(AvailableModules::laser) != nullptr)
+		{
+			server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
+			server->on(laser_get_endpoint, HTTP_POST, RestApi::Laser_get);
+			server->on(laser_set_endpoint, HTTP_POST, RestApi::Laser_set);
+		}
 
-#ifdef IS_ANALOG
-		server->on(analog_act_endpoint, HTTP_POST, RestApi::Analog_act);
-		server->on(analog_get_endpoint, HTTP_POST, RestApi::Analog_get);
-		server->on(analog_set_endpoint, HTTP_POST, RestApi::Analog_set);
-#endif
+		if (moduleController.get(AvailableModules::analog) != nullptr)
+		{
+			server->on(analog_act_endpoint, HTTP_POST, RestApi::Analog_act);
+			server->on(analog_get_endpoint, HTTP_POST, RestApi::Analog_get);
+			server->on(analog_set_endpoint, HTTP_POST, RestApi::Analog_set);
+		}
 
-#ifdef IS_DIGITAL
-		server->on(digital_act_endpoint, HTTP_POST, RestApi::Digital_act);
-		server->on(digital_get_endpoint, HTTP_POST, RestApi::Digital_get);
-		server->on(digital_set_endpoint, HTTP_POST, RestApi::Digital_set);
-#endif
+		if (moduleController.get(AvailableModules::digital) != nullptr)
+		{
+			server->on(digital_act_endpoint, HTTP_POST, RestApi::Digital_act);
+			server->on(digital_get_endpoint, HTTP_POST, RestApi::Digital_get);
+			server->on(digital_set_endpoint, HTTP_POST, RestApi::Digital_set);
+		}
 
-#ifdef IS_PID
-		server->on(PID_act_endpoint, HTTP_POST, RestApi::Pid_act);
-		server->on(PID_get_endpoint, HTTP_POST, RestApi::Pid_get);
-		server->on(PID_set_endpoint, HTTP_POST, RestApi::Pid_set);
-#endif
+		if (moduleController.get(AvailableModules::pid) != nullptr)
+		{
+			server->on(PID_act_endpoint, HTTP_POST, RestApi::Pid_act);
+			server->on(PID_get_endpoint, HTTP_POST, RestApi::Pid_get);
+			server->on(PID_set_endpoint, HTTP_POST, RestApi::Pid_set);
+		}
 
-#ifdef IS_LED
-		server->on(ledarr_act_endpoint, HTTP_POST, RestApi::Led_act);
-		server->on(ledarr_get_endpoint, HTTP_GET, RestApi::Led_get);
-		server->on(ledarr_set_endpoint, HTTP_POST, RestApi::Led_set);
-#endif
+		if (moduleController.get(AvailableModules::led) != nullptr)
+		{
+			server->on(ledarr_act_endpoint, HTTP_POST, RestApi::Led_act);
+			server->on(ledarr_get_endpoint, HTTP_GET, RestApi::Led_get);
+			server->on(ledarr_set_endpoint, HTTP_POST, RestApi::Led_set);
+		}
 
-#ifdef IS_SLM
-		server->on(slm_act_endpoint, HTTP_POST, RestApi::Slm_act);
-		server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
-		server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
-#endif
+		if (moduleController.get(AvailableModules::slm) != nullptr)
+		{
+			server->on(slm_act_endpoint, HTTP_POST, RestApi::Slm_act);
+			server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
+			server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
+		}
 		log_i("Setting up HTTP Routing END");
 	}
 }
-
-#endif

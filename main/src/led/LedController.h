@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_LED
 #pragma once
 #include "Adafruit_NeoPixel.h"
 #include "ArduinoJson.h"
@@ -134,4 +133,3 @@ public:
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
 };
 //extern LedController led;
-#endif

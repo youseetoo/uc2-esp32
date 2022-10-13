@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_DIGITAL
 #include "DigitalController.h"
 
 namespace RestApi
@@ -208,4 +207,3 @@ void DigitalController::setup()
 }
 
 void DigitalController::loop(){}
-#endif

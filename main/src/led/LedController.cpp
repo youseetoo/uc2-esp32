@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_LED
 #include "LedController.h"
 
 namespace RestApi
@@ -52,17 +51,9 @@ void LedController::loop()
 // Custom function accessible by the API
 void LedController::act()
 {
-#ifdef DEBUG_LED
-	log_i("start parsing json matrix is null:%s", boolToChar(matrix == nullptr));
-#endif
-
 	if (WifiController::getJDoc()->containsKey(keyLed))
 	{
 		LedModes LEDArrMode = static_cast<LedModes>((*WifiController::getJDoc())[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
-#ifdef DEBUG_LED
-		log_i("LEDArrMode : %i", LEDArrMode);
-		log_i("containsKey : led_array %s", boolToChar((*WifiController::getJDoc())[keyLed].containsKey(key_led_array)));
-#endif
 		// individual pattern gets adressed
 		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
@@ -283,4 +274,3 @@ void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)
 }
 //LedController led;
 
-#endif

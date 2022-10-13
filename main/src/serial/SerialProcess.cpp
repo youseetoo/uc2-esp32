@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_SERIAL
 
 #include "SerialProcess.h"
 
@@ -13,7 +12,6 @@ SerialProcess::~SerialProcess()
 
 void SerialProcess::loop(DynamicJsonDocument *jsonDocument)
 {
-#ifdef IS_SERIAL
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
 	{
@@ -50,7 +48,6 @@ void SerialProcess::loop(DynamicJsonDocument *jsonDocument)
 			jsonProcessor(task, jsonDocument);
 		}
 	}
-#endif
 }
 
 void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument)
@@ -252,4 +249,3 @@ void SerialProcess::tableProcessor(DynamicJsonDocument *jsonDocument)
 	tmpJsonDoc.clear();
 }
 SerialProcess serial;
-#endif

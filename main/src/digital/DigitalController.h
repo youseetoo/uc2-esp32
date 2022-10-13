@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_DIGITAL
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/RestApiCallbacks.h"
@@ -35,4 +34,3 @@ public:
     void setup() override;
     void loop() override;
 };
-#endif

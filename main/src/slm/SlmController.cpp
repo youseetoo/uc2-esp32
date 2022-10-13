@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_SLM
 #include "SlmController.h"
 
 namespace RestApi
@@ -392,4 +391,3 @@ void SlmController::createArray(const char *filename)
 	Serial.println("};\r\n");
 	jpgFile.close();
 }
-#endif

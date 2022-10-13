@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_LASER
 #pragma once
 #include "ArduinoJson.h"
 #include <String.h>
@@ -67,4 +66,3 @@ public:
 
 };
 
-#endif

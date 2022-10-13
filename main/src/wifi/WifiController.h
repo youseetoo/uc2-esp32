@@ -1,5 +1,4 @@
 #include "../../config.h"
-#ifdef IS_WIFI
 #pragma once
 
 #include "WiFi.h"
@@ -9,20 +8,10 @@
 #include "RestApiCallbacks.h"
 #include "esp_log.h"
 #include "SPIFFS.h"
-
-#if defined IS_DAC || defined IS_DAC_FAKE
-#include "../dac/DacController.h"
-#endif
-#ifdef IS_ANALOG
 #include "../analog/AnalogController.h"
-#endif
-#ifdef IS_DIGITAL
 #include "../digital/DigitalController.h"
-#endif
 #include "../config/ConfigController.h"
-#if defined IS_DAC || defined IS_DAC_FAKE
-    #include "../dac/DacController.h"
-#endif
+#include "../dac/DacController.h"
 #include <WebSocketsServer.h>
 #include "WifiConfig.h"
 
@@ -56,32 +45,30 @@ namespace RestApi
 
 namespace WifiController
 {
-    
+
     void createAp(String ssid, String password);
-    
+
     /* data */
 
-    
-    
     void setup_routing();
     void handelMessages();
     void createJsonDoc();
-    void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
+    void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
     void sendJsonWebSocketMsg();
-    
-    //Wifi
-    
+    void begin();
+
+    // Wifi
+
     void setWifiConfig(String SSID, String PWD, bool ap);
     String getSsid();
     String getPw();
     bool getAp();
     void setup();
-    DynamicJsonDocument * getJDoc();
-    WebServer * getServer();
+    DynamicJsonDocument *getJDoc();
+    WebServer *getServer();
     void getIndexPage();
     void getCSS();
     void getjquery();
     void getjs();
     void connect();
 }
-#endif

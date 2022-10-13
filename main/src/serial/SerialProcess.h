@@ -1,20 +1,11 @@
 #include "../../config.h"
-#ifdef IS_SERIAL
 #pragma once
 #include "ArduinoJson.h"
-#ifdef IS_ANALOG
 #include "../analog/AnalogController.h"
-#endif
 #include "../state/State.h"
-#ifdef IS_SCANNER
 #include "../scanner/ScannerController.h"
-#endif
-#ifdef IS_DIGITAL
 #include "../digital/DigitalController.h"
-#endif
-#if defined IS_DAC || defined IS_DAC_FAKE
 #include "../dac/DacController.h"
-#endif
 #include "../config/ConfigController.h"
 #include "../wifi/Endpoints.h"
 
@@ -31,5 +22,3 @@ public:
 };
 
 extern SerialProcess serial;
-
-#endif

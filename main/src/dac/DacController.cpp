@@ -1,5 +1,4 @@
 #include "../../config.h"
-#if defined IS_DAC || defined IS_DAC_FAKE
 #include "DacController.h"
 
 DacController::DacController(){
@@ -12,36 +11,33 @@ DacController::~DacController(){
 namespace RestApi
 {
 	void Dac_act()
-    {
-        deserialize();
+	{
+		deserialize();
 		moduleController.get(AvailableModules::dac)->act();
-        serialize();
-    }
+		serialize();
+	}
 
-    void Dac_get()
-    {
-        deserialize();
-        moduleController.get(AvailableModules::dac)->get();
-        serialize();
-    }
+	void Dac_get()
+	{
+		deserialize();
+		moduleController.get(AvailableModules::dac)->get();
+		serialize();
+	}
 
-    void Dac_set()
-    {
-        deserialize();
-        moduleController.get(AvailableModules::dac)->set();
-        serialize();
-    }
+	void Dac_set()
+	{
+		deserialize();
+		moduleController.get(AvailableModules::dac)->set();
+		serialize();
+	}
 }
 
 void DacController::setup()
 {
 	Config::getDacPins(pins);
-#ifdef IS_DAC
 	dacm = new DAC_Module();
 	dacm->Setup(DAC_CHANNEL_1, 1000, 50, 0, 0, 2);
 	dacm->Setup(DAC_CHANNEL_2, 1000, 50, 0, 0, 2);
-#endif
-#ifdef IS_DAC_FAKE
 	pinMode(pins.dac_fake_1, OUTPUT);
 	pinMode(pins.dac_fake_2, OUTPUT);
 	frequency = 1;
@@ -53,10 +49,9 @@ void DacController::setup()
 		1,			   // Task priority
 		NULL		   // Task handle
 	);
-#endif
 }
 
-void DacController::loop(){}
+void DacController::loop() {}
 
 // Custom function accessible by the API
 void DacController::act()
@@ -126,8 +121,6 @@ void DacController::act()
 		Serial.println(offset);
 	}
 
-#ifdef IS_DAC
-
 	if (dac_is_running)
 		if (frequency == 0)
 		{
@@ -146,7 +139,6 @@ void DacController::act()
 		dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 		dacm->dac_offset_set(dac_channel, offset);
 	}
-#endif
 
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())["return"] = 1;
@@ -157,13 +149,13 @@ void DacController::set()
 	if ((*WifiController::getJDoc()).containsKey(keyDACfake1Pin))
 	{
 		pins.dac_fake_1 = (*WifiController::getJDoc())[keyDACfake1Pin];
-		Config::setDacPins(false,pins);
+		Config::setDacPins(false, pins);
 		setup();
 	}
 	if ((*WifiController::getJDoc()).containsKey(keyDACfake2Pin))
 	{
 		pins.dac_fake_2 = (*WifiController::getJDoc())[keyDACfake2Pin];
-		Config::setDacPins(false,pins);
+		Config::setDacPins(false, pins);
 		setup();
 	}
 	WifiController::getJDoc()->clear();
@@ -198,4 +190,3 @@ void DacController::drive_galvo(void *parameter)
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
 	}
 }
-#endif

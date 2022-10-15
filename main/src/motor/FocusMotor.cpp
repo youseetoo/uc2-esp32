@@ -118,14 +118,14 @@ void FocusMotor::set()
 			for (int i = 0; i < (*doc)[key_motor][key_steppers].size(); i++)
 			{
 				Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppers][i][key_stepperid]);
-				pins[i].DIR = (*doc)[key_motor][key_steppers][i][key_dir];
-				pins[i].STEP = (*doc)[key_motor][key_steppers][i][key_step];
-				pins[i].ENABLE = (*doc)[key_motor][key_steppers][i][key_enable];
-				pins[i].direction_inverted = (*doc)[key_motor][key_steppers][i][key_dir_inverted];
-				pins[i].step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
-				pins[i].enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
+				pins[i]->DIR = (*doc)[key_motor][key_steppers][i][key_dir];
+				pins[i]->STEP = (*doc)[key_motor][key_steppers][i][key_step];
+				pins[i]->ENABLE = (*doc)[key_motor][key_steppers][i][key_enable];
+				pins[i]->direction_inverted = (*doc)[key_motor][key_steppers][i][key_dir_inverted];
+				pins[i]->step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
+				pins[i]->enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
 			}
-			Config::setMotorPinConfig(false,pins);
+			Config::setMotorPinConfig(pins);
 			setup();
 		}
 	}
@@ -139,12 +139,12 @@ void FocusMotor::get()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		(*doc)[key_steppers][i][key_stepperid] = i;
-		(*doc)[key_steppers][i][key_dir] = pins[i].DIR;
-		(*doc)[key_steppers][i][key_step] = pins[i].STEP;
-		(*doc)[key_steppers][i][key_enable] = pins[i].ENABLE;
-		(*doc)[key_steppers][i][key_dir_inverted] = pins[i].direction_inverted;
-		(*doc)[key_steppers][i][key_step_inverted] = pins[i].step_inverted;
-		(*doc)[key_steppers][i][key_enable_inverted] = pins[i].enable_inverted;
+		(*doc)[key_steppers][i][key_dir] = pins[i]->DIR;
+		(*doc)[key_steppers][i][key_step] = pins[i]->STEP;
+		(*doc)[key_steppers][i][key_enable] = pins[i]->ENABLE;
+		(*doc)[key_steppers][i][key_dir_inverted] = pins[i]->direction_inverted;
+		(*doc)[key_steppers][i][key_step_inverted] = pins[i]->step_inverted;
+		(*doc)[key_steppers][i][key_enable_inverted] = pins[i]->enable_inverted;
 		(*doc)[key_steppers][i][key_position] = data[i]->currentPosition;
 		(*doc)[key_steppers][i][key_speed] = data[i]->speed;
 		(*doc)[key_steppers][i][key_speedmax] = data[i]->maxspeed;
@@ -153,21 +153,17 @@ void FocusMotor::get()
 
 void FocusMotor::setup()
 {
-	// inti clean pin and motordata
-	for (int i = 0; i < 4; i++)
-	{
-		data[i] = new MotorData();
-	}
 	// get pins from config
 	Config::getMotorPins(pins);
 	// create the stepper
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < steppers.size(); i++)
 	{
-		log_i("Pins: Step: %i Dir: %i Enable:%i", pins[i].STEP, pins[i].DIR, pins[i].ENABLE);
-		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i].STEP, pins[i].DIR);
-		steppers[i]->setEnablePin(pins[i].ENABLE);
-		steppers[i]->setPinsInverted(pins[i].step_inverted, pins[i].direction_inverted, pins[i].enable_inverted);
+		data[i] = new MotorData();
+		log_i("Pins: Step: %i Dir: %i Enable:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE);
+		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
+		steppers[i]->setEnablePin(pins[i]->ENABLE);
+		steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
 	}
 
 	/*
@@ -189,10 +185,10 @@ void FocusMotor::setup()
 
 void FocusMotor::loop()
 {
-	for (int i = 0; i < steppers.size(); i++)
+	for (int i = 0; i < 4; i++)
 	{
 		// log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
-		if(steppers[i] == nullptr || pins[i].DIR == 0)
+		if(steppers[i] == nullptr || pins[i]->DIR == 0)
 			return;
 		if (data[i]->isforever)
 		{
@@ -227,7 +223,7 @@ void FocusMotor::loop()
 		}
 		data[i]->currentPosition = steppers[i]->currentPosition();
 #ifdef DEBUG_MOTOR
-		if (pins[i].DIR > 0 && steppers[i]->areOutputsEnabled())
+		if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
 			log_i("current Pos:%i target pos:%i", data[i]->currentPosition, data[i]->targetPosition);
 #endif
 	}
@@ -236,7 +232,7 @@ void FocusMotor::loop()
 void FocusMotor::stopAllDrives()
 {
 	// Immediately stop the motor
-	for (int i = 0; i < steppers.size(); i++)
+	for (int i = 0; i < 4; i++)
 	{
 		stopStepper(i);
 	}
@@ -259,9 +255,9 @@ void FocusMotor::startAllDrives()
 			  boolToChar(data[i] == nullptr),
 			  data[i]->speed,
 			  data[i]->maxspeed,
-			  pins[i].STEP,
-			  pins[i].DIR,
-			  pins[i].ENABLE,
+			  pins[i]->STEP,
+			  pins[i]->DIR,
+			  pins[i]->ENABLE,
 			  boolToChar(steppers[i]->areOutputsEnabled()));
 		if (!steppers[i]->areOutputsEnabled())
 			steppers[i]->enableOutputs();

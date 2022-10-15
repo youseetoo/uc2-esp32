@@ -7,28 +7,21 @@ namespace Config
 
 	const char *prefNamespace = "UC2";
 
-	void setWifiConfig(WifiConfig config, bool prefopen)
+	void setWifiConfig(WifiConfig *config)
 	{
-		bool open = prefopen;
-		if (!prefopen)
-			open = preferences.begin(prefNamespace, false);
-		log_i("setWifiConfig ssid: %s, pw: %s, ap:%s prefopen:%s", config.mSSID, config.mPWD, boolToChar(config.mAP), boolToChar(open));
-		preferences.putString(keyWifiSSID, config.mSSID);
-		preferences.putString(keyWifiPW, config.mPWD);
-		preferences.putInt(keyWifiAP, config.mAP);
-		log_i("setWifiConfig pref ssid: %s pw:%s", preferences.getString(keyWifiSSID), preferences.getString(keyWifiPW));
-		if (!prefopen)
-			preferences.end();
+		preferences.begin(prefNamespace, false);
+		preferences.putBytes(keyWifiSSID, config, sizeof(WifiConfig));
+		preferences.end();
 	}
 
-	void getWifiConfig(WifiConfig config)
+	WifiConfig *getWifiConfig()
 	{
-		config.mSSID = preferences.getString(keyWifiSSID);
-
-		config.mPWD = preferences.getString(keyWifiPW);
-		config.mAP = preferences.getInt(keyWifiAP);
+		preferences.begin(prefNamespace, false);
+		WifiConfig *conf = new WifiConfig();
+		preferences.getBytes(keyWifiSSID, conf, sizeof(WifiConfig));
+		preferences.end();
+		return conf;
 	}
-
 
 	void setup()
 	{
@@ -41,165 +34,127 @@ namespace Config
 		// checkSetupCompleted();
 	}
 
-	void getMotorPins(std::array<MotorPins, 4> pins)
+	void getMotorPins(MotorPins * pins[])
 	{
-
 		preferences.begin(prefNamespace, false);
-		pins[Stepper::X].STEP = preferences.getInt(keyMotorXStepPin);
-		pins[Stepper::X].DIR = preferences.getInt(keyMotorXDirPin);
-		pins[Stepper::X].ENABLE = preferences.getInt(keyMotorEnableX);
-		pins[Stepper::X].enable_inverted = preferences.getInt(keyMotorEnableXinverted);
-		pins[Stepper::X].step_inverted = preferences.getInt(keyMotorXStepPinInverted);
-		pins[Stepper::X].direction_inverted = preferences.getInt(keyMotorXDirPinInverted);
-
-		pins[Stepper::Y].STEP = preferences.getInt(keyMotorYStepPin);
-		pins[Stepper::Y].DIR = preferences.getInt(keyMotorYDirPin);
-		pins[Stepper::Y].ENABLE = preferences.getInt(keyMotorEnableY);
-		pins[Stepper::Y].enable_inverted = preferences.getInt(keyMotorEnableYinverted);
-		pins[Stepper::Y].step_inverted = preferences.getInt(keyMotorYStepPinInverted);
-		pins[Stepper::Y].direction_inverted = preferences.getInt(keyMotorYDirPinInverted);
-
-		pins[Stepper::Z].STEP = preferences.getInt(keyMotorZStepPin);
-		pins[Stepper::Z].DIR = preferences.getInt(keyMotorZDirPin);
-		pins[Stepper::Z].ENABLE = preferences.getInt(keyMotorEnableZ);
-		pins[Stepper::Z].enable_inverted = preferences.getInt(keyMotorEnableZinverted);
-		pins[Stepper::Z].step_inverted = preferences.getInt(keyMotorZStepPinInverted);
-		pins[Stepper::Z].direction_inverted = preferences.getInt(keyMotorZDirPinInverted);
-
-		pins[Stepper::A].STEP = preferences.getInt(keyMotorAStepPin);
-		pins[Stepper::A].DIR = preferences.getInt(keyMotorADirPin);
-		pins[Stepper::A].ENABLE = preferences.getInt(keyMotorEnableA);
-		pins[Stepper::A].enable_inverted = preferences.getInt(keyMotorEnableAinverted);
-		pins[Stepper::A].step_inverted = preferences.getInt(keyMotorAStepPinInverted);
-		pins[Stepper::A].direction_inverted = preferences.getInt(keyMotorADirPinInverted);
+		pins[Stepper::A] = new MotorPins();
+		if (preferences.getBytesLength(keyMotorADirPin) > 0)
+		{
+			preferences.getBytes(keyMotorADirPin, pins[Stepper::A], sizeof(MotorPins));
+			log_i("get stepper a");
+		}
+		pins[Stepper::X] = new MotorPins();
+		if (preferences.getBytesLength(keyMotorXDirPin) > 0)
+		{
+			preferences.getBytes(keyMotorXDirPin, pins[Stepper::X], sizeof(MotorPins));
+			log_i("get stepper x");
+		}
+		pins[Stepper::Y] = new MotorPins();
+		if (preferences.getBytesLength(keyMotorYDirPin) > 0)
+		{
+			preferences.getBytes(keyMotorYDirPin, pins[Stepper::Y], sizeof(MotorPins));
+			log_i("get stepper y");
+		}
+		pins[Stepper::Z] = new MotorPins();
+		if (preferences.getBytesLength(keyMotorZDirPin) > 0)
+		{
+			preferences.getBytes(keyMotorZDirPin, pins[Stepper::Z], sizeof(MotorPins));
+			log_i("get stepper z");
+		}
 		preferences.end();
 	}
 
-	void setMotorPinConfig(bool prefsOpen, std::array<MotorPins, 4> pins)
-	{
-		if (!prefsOpen)
-			preferences.begin(prefNamespace, false);
-		preferences.putInt(keyMotorAStepPin, pins[Stepper::A].STEP);
-		preferences.putInt(keyMotorXStepPin, pins[Stepper::X].STEP);
-		preferences.putInt(keyMotorYStepPin, pins[Stepper::Y].STEP);
-		preferences.putInt(keyMotorZStepPin, pins[Stepper::Z].STEP);
-
-		preferences.putInt(keyMotorADirPin, pins[Stepper::A].DIR);
-		preferences.putInt(keyMotorXDirPin, pins[Stepper::X].DIR);
-		preferences.putInt(keyMotorYDirPin, pins[Stepper::Y].DIR);
-		preferences.putInt(keyMotorZDirPin, pins[Stepper::Z].DIR);
-
-		preferences.putInt(keyMotorEnableA, pins[Stepper::A].ENABLE);
-		preferences.putInt(keyMotorEnableX, pins[Stepper::X].ENABLE);
-		preferences.putInt(keyMotorEnableY, pins[Stepper::Y].ENABLE);
-		preferences.putInt(keyMotorEnableY, pins[Stepper::Z].ENABLE);
-
-		preferences.putInt(keyMotorADirPinInverted, pins[Stepper::A].direction_inverted);
-		preferences.putInt(keyMotorAStepPinInverted, pins[Stepper::A].step_inverted);
-		preferences.putInt(keyMotorEnableAinverted, pins[Stepper::A].enable_inverted);
-
-		preferences.putInt(keyMotorXDirPinInverted, pins[Stepper::X].direction_inverted);
-		preferences.putInt(keyMotorXStepPinInverted, pins[Stepper::X].step_inverted);
-		preferences.putInt(keyMotorEnableXinverted, pins[Stepper::X].enable_inverted);
-
-		preferences.putInt(keyMotorYDirPinInverted, pins[Stepper::Y].direction_inverted);
-		preferences.putInt(keyMotorYStepPinInverted, pins[Stepper::Y].step_inverted);
-		preferences.putInt(keyMotorEnableYinverted, pins[Stepper::Y].enable_inverted);
-
-		preferences.putInt(keyMotorZDirPinInverted, pins[Stepper::Z].direction_inverted);
-		preferences.putInt(keyMotorZStepPinInverted, pins[Stepper::Z].step_inverted);
-		preferences.putInt(keyMotorEnableZinverted, pins[Stepper::Z].enable_inverted);
-
-		log_i("Stepper A step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorAStepPin), preferences.getInt(keyMotorADirPin), preferences.getInt(keyMotorEnableA));
-		log_i("Stepper X step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorXStepPin), preferences.getInt(keyMotorXDirPin), preferences.getInt(keyMotorEnableX));
-		log_i("Stepper Y step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorYStepPin), preferences.getInt(keyMotorYDirPin), preferences.getInt(keyMotorEnableY));
-		log_i("Stepper Z step:%i dir:%i enablepin:%i", preferences.getInt(keyMotorZStepPin), preferences.getInt(keyMotorZDirPin), preferences.getInt(keyMotorEnableZ));
-		if (!prefsOpen)
-			preferences.end();
-	}
-
-	void getLedPins(LedConfig config)
+	void setMotorPinConfig(MotorPins * pins[])
 	{
 		preferences.begin(prefNamespace, false);
-		config.ledCount = preferences.getInt(keyLEDCount, 0);
-		config.ledPin = preferences.getInt(keyLEDPin, 0);
+		preferences.putBytes(keyMotorADirPin, pins[Stepper::A], sizeof(MotorPins));
+		preferences.putBytes(keyMotorXDirPin, pins[Stepper::X], sizeof(MotorPins));
+		preferences.putBytes(keyMotorYDirPin, pins[Stepper::Y], sizeof(MotorPins));
+		preferences.putBytes(keyMotorZDirPin, pins[Stepper::Z], sizeof(MotorPins));
 		preferences.end();
 	}
 
-	void setLedPins(bool openPrefs, LedConfig config)
+	LedConfig *getLedPins()
 	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
-		preferences.putInt(keyLEDCount, config.ledCount);
-		preferences.putInt(keyLEDPin, config.ledPin);
-		log_i("pin:%i count:%i", preferences.getInt(keyLEDPin), preferences.getInt(keyLEDCount));
-		if (!openPrefs)
-			preferences.end();
+		preferences.begin(prefNamespace, false);
+		LedConfig *config = new LedConfig();
+		preferences.getBytes(keyLed, config, sizeof(LedConfig));
+		preferences.end();
+		return config;
 	}
 
-	void setLaserPins(bool openPrefs, LaserPins pins)
+	void setLedPins(LedConfig *config)
 	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
+		preferences.begin(prefNamespace, false);
+		preferences.putBytes(keyLed, config, sizeof(LedConfig));
+		preferences.end();
+	}
+
+	void setLaserPins(LaserPins pins)
+	{
+
+		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyLaser1Pin, pins.LASER_PIN_1);
 		preferences.putInt(keyLaser2Pin, pins.LASER_PIN_2);
 		preferences.putInt(keyLaser3Pin, pins.LASER_PIN_3);
-		if (!openPrefs)
-			preferences.end();
+
+		preferences.end();
 	}
 	void getLaserPins(LaserPins pins)
 	{
-
+		preferences.begin(prefNamespace, false);
 		pins.LASER_PIN_1 = preferences.getInt(keyLaser1Pin, pins.LASER_PIN_1);
 		pins.LASER_PIN_2 = preferences.getInt(keyLaser2Pin, pins.LASER_PIN_2);
 		pins.LASER_PIN_3 = preferences.getInt(keyLaser3Pin, pins.LASER_PIN_3);
+		preferences.end();
 	}
 
-	void setDacPins(bool openPrefs, DacPins pins)
+	void setDacPins(DacPins pins)
 	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
+		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyDACfake1Pin, pins.dac_fake_1);
 		preferences.putInt(keyDACfake2Pin, pins.dac_fake_2);
-		if (!openPrefs)
-			preferences.end();
+		preferences.end();
 	}
 	void getDacPins(DacPins pins)
 	{
+		preferences.begin(prefNamespace, false);
 		pins.dac_fake_1 = preferences.getInt(keyDACfake1Pin, pins.dac_fake_1);
 		pins.dac_fake_2 = preferences.getInt(keyDACfake2Pin, pins.dac_fake_2);
+		preferences.end();
 	}
-	void setAnalogPins(bool openPrefs, AnalogPins pins)
+	void setAnalogPins(AnalogPins pins)
 	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
+		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyAnalog1Pin, pins.analog_PIN_1);
 		preferences.putInt(keyAnalog2Pin, pins.analog_PIN_2);
 		preferences.putInt(keyAnalog3Pin, pins.analog_PIN_3);
-		if (!openPrefs)
-			preferences.end();
+		preferences.end();
 	}
 	void getAnalogPins(AnalogPins pins)
 	{
+		preferences.begin(prefNamespace, false);
 		pins.analog_PIN_1 = preferences.getInt(keyAnalog1Pin, pins.analog_PIN_1);
 		pins.analog_PIN_2 = preferences.getInt(keyAnalog2Pin, pins.analog_PIN_2);
 		pins.analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins.analog_PIN_3);
+		preferences.end();
 	}
-	void setDigitalPins(bool openPrefs, DigitalPins pins)
+	void setDigitalPins(DigitalPins pins)
 	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
+
+		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyDigital1Pin, pins.digital_PIN_1);
 		preferences.putInt(keyDigital2Pin, pins.digital_PIN_2);
 		preferences.putInt(keyDigital3Pin, pins.digital_PIN_3);
-		if (!openPrefs)
-			preferences.end();
+		preferences.end();
 	}
 	void getDigitalPins(DigitalPins pins)
 	{
+		preferences.begin(prefNamespace, false);
 		pins.digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins.digital_PIN_1);
 		pins.digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins.digital_PIN_2);
 		pins.digital_PIN_3 = preferences.getInt(keyDigital3Pin, pins.digital_PIN_3);
+		preferences.end();
 	}
 
 	bool isFirstRun()
@@ -241,18 +196,20 @@ namespace Config
 		return true;
 	}
 
-	void setModuleConfig(bool openPrefs,ModuleConfig pins)
+	void setModuleConfig(ModuleConfig *pins)
 	{
-		if (!openPrefs)
-			preferences.begin(prefNamespace, false);
-
-		preferences.putBytes("module",(byte *)&pins, sizeof(ModuleConfig));
-
-		if (!openPrefs)
-			preferences.end();
+		preferences.begin(prefNamespace, false);
+		size_t s = preferences.putBytes("module", pins, sizeof(ModuleConfig));
+		log_i("setModuleConfig size:%i", s);
+		preferences.end();
 	}
-    void getModuleConfig(ModuleConfig pin)
+	ModuleConfig *getModuleConfig()
 	{
-		preferences.getBytes("module", (byte *)&pin, sizeof(ModuleConfig));
+		preferences.begin(prefNamespace, true);
+		ModuleConfig *pin = new ModuleConfig();
+		size_t s = preferences.getBytes("module", pin, sizeof(ModuleConfig));
+		log_i("getModuleConfig size:%i", s);
+		preferences.end();
+		return pin;
 	}
 }

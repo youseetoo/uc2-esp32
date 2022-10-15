@@ -137,7 +137,7 @@ void DigitalController::set()
 			digitalWrite(pins.digital_PIN_3, LOW);
 		}
 	}
-	Config::setDigitalPins(false,pins);
+	Config::setDigitalPins(pins);
 	isBusy = false;
 	jsonDocument->clear();
 	(*jsonDocument)["return"] = 1;

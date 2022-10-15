@@ -136,7 +136,7 @@ void AnalogController::set()
 		ledcAttachPin(pins.analog_PIN_3, PWM_CHANNEL_analog_3);
 		ledcWrite(PWM_CHANNEL_analog_3, 0);
 	}
-	Config::setAnalogPins(false,pins);
+	Config::setAnalogPins(pins);
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())["return"] = 1;
 }

@@ -79,3 +79,12 @@ static const PROGMEM char * key_step_inverted = "step_inverted";
 static const PROGMEM char * key_enable_inverted = "enable_inverted";
 
 static const PROGMEM char *dateKey = "date";
+static const PROGMEM char *key_modules = "modules";
+static const PROGMEM char *key_slm = "slm";
+static const PROGMEM char *key_sensor = "sensor";
+static const PROGMEM char *key_pid = "pid";
+static const PROGMEM char *key_laser = "laser";
+static const PROGMEM char *key_dac = "dac";
+static const PROGMEM char *key_analog = "analog";
+static const PROGMEM char *key_digital = "digital";
+static const PROGMEM char *key_scanner = "scanner";

@@ -32,12 +32,14 @@ class ModuleController
 {
 private:
     std::map<AvailableModules, Module *> modules;
-    ModuleConfig moduleConfig;
+    ModuleConfig * moduleConfig;
 
 public:
     void setup();
     void loop();
     Module *get(AvailableModules mod);
+    void get();
+    void set();
 };
 
 extern ModuleController moduleController;

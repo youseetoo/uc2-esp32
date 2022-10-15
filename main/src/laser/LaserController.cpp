@@ -170,7 +170,7 @@ void LaserController::set() {
     }
   }
 
-  Config::setLaserPins(false,pins);
+  Config::setLaserPins(pins);
   WifiController::getJDoc()->clear();
   (*WifiController::getJDoc())["return"] = 1;
 }

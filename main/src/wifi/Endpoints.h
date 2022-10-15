@@ -53,3 +53,6 @@ static const PROGMEM String bt_connect_endpoint = "/bt_connect";
 static const PROGMEM String bt_remove_endpoint = "/bt_remove";
 static const PROGMEM String bt_paireddevices_endpoint = "/bt_paireddevices";
 
+static const PROGMEM String modules_get_endpoint = "/modules_get";
+static const PROGMEM String modules_set_endpoint = "/modules_set";
+

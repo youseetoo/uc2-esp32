@@ -149,13 +149,13 @@ void DacController::set()
 	if ((*WifiController::getJDoc()).containsKey(keyDACfake1Pin))
 	{
 		pins.dac_fake_1 = (*WifiController::getJDoc())[keyDACfake1Pin];
-		Config::setDacPins(false, pins);
+		Config::setDacPins(pins);
 		setup();
 	}
 	if ((*WifiController::getJDoc()).containsKey(keyDACfake2Pin))
 	{
 		pins.dac_fake_2 = (*WifiController::getJDoc())[keyDACfake2Pin];
-		Config::setDacPins(false, pins);
+		Config::setDacPins(pins);
 		setup();
 	}
 	WifiController::getJDoc()->clear();

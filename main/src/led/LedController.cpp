@@ -30,11 +30,11 @@ LedController::~LedController() {}
 
 void LedController::setup()
 {
-	Config::getLedPins(ledconfig);
+	ledconfig = Config::getLedPins();
 	// LED Matrix
-	matrix = new Adafruit_NeoPixel(ledconfig.ledCount, ledconfig.ledPin, NEO_GRB + NEO_KHZ800);
+	matrix = new Adafruit_NeoPixel(ledconfig->ledCount, ledconfig->ledPin, NEO_GRB + NEO_KHZ800);
 	log_i("setup matrix is null:%s", boolToChar(matrix == nullptr));
-	log_i("LED_ARRAY_PIN: %i", ledconfig.ledPin);
+	log_i("LED_ARRAY_PIN: %i", ledconfig->ledPin);
 	matrix->begin();
 	matrix->setBrightness(255);
 	if (!isOn)
@@ -91,7 +91,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::left)
 		{
 			set_left(
-				ledconfig.ledCount,
+				ledconfig->ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -100,7 +100,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::right)
 		{
 			set_right(
-				ledconfig.ledCount,
+				ledconfig->ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -109,7 +109,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::top)
 		{
 			set_top(
-				ledconfig.ledCount,
+				ledconfig->ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -118,7 +118,7 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::bottom)
 		{
 			set_bottom(
-				ledconfig.ledCount,
+				ledconfig->ledCount,
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
 				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
@@ -137,16 +137,18 @@ void LedController::act()
 	isBusy = false;
 }
 
+//{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}
+//{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"0","red":"0","green":"0"}]}}
 void LedController::set()
 {
 	if (WifiController::getJDoc()->containsKey(keyLed))
 	{
 		if ((*WifiController::getJDoc())[keyLed].containsKey(keyLEDPin))
-			ledconfig.ledPin = (*WifiController::getJDoc())[keyLed][keyLEDPin];
+			ledconfig->ledPin = (*WifiController::getJDoc())[keyLed][keyLEDPin];
 		if ((*WifiController::getJDoc())[keyLed].containsKey(keyLEDCount))
-			ledconfig.ledCount = (*WifiController::getJDoc())[keyLed][keyLEDCount];
-		log_i("led pin:%i count:%i", ledconfig.ledPin, ledconfig.ledCount);
-		Config::setLedPins(false,ledconfig);
+			ledconfig->ledCount = (*WifiController::getJDoc())[keyLed][keyLEDCount];
+		log_i("led pin:%i count:%i", ledconfig->ledPin, ledconfig->ledCount);
+		Config::setLedPins(ledconfig);
 		setup();
 	}
 	WifiController::getJDoc()->clear();
@@ -156,8 +158,8 @@ void LedController::set()
 void LedController::get()
 {
 	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())[keyLEDCount] = ledconfig.ledCount;
-	(*WifiController::getJDoc())[keyLEDPin] = ledconfig.ledPin;
+	(*WifiController::getJDoc())[keyLEDCount] = ledconfig->ledCount;
+	(*WifiController::getJDoc())[keyLEDPin] = ledconfig->ledPin;
 	(*WifiController::getJDoc())[keyLEDArrMode].add(0);
 	(*WifiController::getJDoc())[keyLEDArrMode].add(1);
 	(*WifiController::getJDoc())[keyLEDArrMode].add(2);

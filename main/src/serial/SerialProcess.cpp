@@ -198,6 +198,11 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 		RestApi::resetNvFLash();
 	}
 
+	if(task == modules_set_endpoint)
+		moduleController.set();
+	if(task == modules_get_endpoint)
+		moduleController.get();
+
 	// Send JSON information back
 	Serial.println("++");
 	serializeJson((*jsonDocument), Serial);

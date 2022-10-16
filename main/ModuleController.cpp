@@ -1,5 +1,21 @@
 #include "ModuleController.h"
 
+namespace RestApi
+{
+    void getModules()
+    {
+        deserialize();
+        moduleController.get();
+        serialize();
+    }
+    void setModules()
+    {
+        deserialize();
+        moduleController.set();
+        serialize();
+    }
+};
+
 void ModuleController::setup()
 {
     // moduleConfig.led = true;
@@ -82,6 +98,18 @@ Module *ModuleController::get(AvailableModules mod)
 
 void ModuleController::get()
 {
+    DynamicJsonDocument *jdoc = WifiController::getJDoc();
+    jdoc->clear();
+    (*jdoc)[key_modules][keyLed] = moduleConfig->led;
+    (*jdoc)[key_modules][key_motor] = moduleConfig->motor;
+    (*jdoc)[key_modules][key_slm] = moduleConfig->slm;
+    (*jdoc)[key_modules][key_sensor] = moduleConfig->sensor;
+    (*jdoc)[key_modules][key_pid] = moduleConfig->pid;
+    (*jdoc)[key_modules][key_laser] = moduleConfig->laser;
+    (*jdoc)[key_modules][key_dac] = moduleConfig->dac;
+    (*jdoc)[key_modules][key_analog] = moduleConfig->analog;
+    (*jdoc)[key_modules][key_digital] = moduleConfig->digital;
+    (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
 }
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "sensor" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analog" : 0, "digital" : 0, "scanner" : 0}}
 void ModuleController::set()

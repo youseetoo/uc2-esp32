@@ -291,6 +291,9 @@ namespace WifiController
 		server->on(bt_remove_endpoint, HTTP_POST, RestApi::Bt_remove);
 		server->on(bt_paireddevices_endpoint, HTTP_GET, RestApi::Bt_getPairedDevices);
 
+		server->on(modules_get_endpoint, HTTP_GET,RestApi::getModules);
+		server->on(modules_get_endpoint, HTTP_POST,RestApi::setModules);
+
 		// POST
 		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{

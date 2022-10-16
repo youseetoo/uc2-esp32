@@ -14,6 +14,12 @@
 #include "src/digital/DigitalController.h"
 #include "src/scanner/ScannerController.h"
 
+namespace RestApi
+{
+    void getModules();
+    void setModules();
+};
+
 enum class AvailableModules
 {
     analog,

@@ -3,6 +3,9 @@ Rest Api Endpoint Description
 
 | Endpoint                                  | Type | Socket|
 | ------------------------------------------| ---- | ----  |
+| [/modules_set](#modules_set)              | Post | false |
+| [/modules_get](#modules_get)              | Get  | false |
+|   |  |
 | [/ledarr_act](#ledarr_act)                | Post | true  |
 | [/ledarr_get](#ledarr_get)                | Get  | false |
 | [/ledarr_set](#ledarr_set)                | Post | false |
@@ -19,6 +22,50 @@ Rest Api Endpoint Description
 | [/bt_remove](#bt_remove)                  | Post | false |
 | [/bt_paireddevices](#bt_paireddevices)    | Post | false |
 
+
+/modules_set
+============
+POST
+```
+{
+    "modules" : 
+    {
+        "led" : 1,
+        "motor": 1, 
+        "slm" : 0, 
+        "sensor" : 0, 
+        "pid" : 0, 
+        "laser" : 0, 
+        "dac" : 0, 
+        "analog" : 0, 
+        "digital" : 0, 
+        "scanner" : 0
+    }
+
+}
+```
+
+/modules_get
+============
+GET
+```
+{
+    "modules" : 
+    {
+        "led" : 1,
+        "motor": 1, 
+        "slm" : 0, 
+        "sensor" : 0, 
+        "pid" : 0, 
+        "laser" : 0, 
+        "dac" : 0, 
+        "analog" : 0, 
+        "digital" : 0, 
+        "scanner" : 0
+    }
+
+}
+```
 
 /ledarr_act
 ===========

@@ -17,11 +17,12 @@
     </form>
     <button id="connectbutton" onclick="tryToConnect()">Connect</button>
 
-    <div class="tab">
+    <div class="tab" id="tab">
         <button class="tablinks" onclick="openTab(event, 'Wifi')">Wifi</button>
         <button class="tablinks" onclick="openTab(event, 'BT')">BT</button>
         <button class="tablinks" onclick="openTab(event, 'Motor')">Motor</button>
         <button class="tablinks" onclick="openTab(event, 'LED')">LED</button>
+        <button class="tablinks" onclick="openTab(event, 'Laser')">Laser</button>
     </div>
 
     <div id="Wifi" class="tabcontent">
@@ -178,6 +179,10 @@
                 onchange="updateLeds()"><br>
         </form>
 
+    </div>
+
+    <div id="Laser" class="tabcontent">
+        <h3>Laser</h3>
     </div>
 
 </body>

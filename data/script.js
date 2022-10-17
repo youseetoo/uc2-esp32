@@ -1,4 +1,6 @@
 window.addEventListener('load', (event) => {
+
+    getModulesAndFillTabs();
     getLedSetting();
     getMotoretting();
     createWebsocket();
@@ -42,6 +44,21 @@ function openTab(evt, tabName) {
     }
     document.getElementById(tabName).style.display = "block";
     evt.currentTarget.className += " active";
+}
+
+function getModulesAndFillTabs()
+{
+    $.getJSON(getUri() + "/modules_get", function (data) {
+        $("#tab").empty();
+        $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Wifi\')">Wifi</button>')
+        $("#tab").append('<button class="tablinks" onclick="openTab(event, \'BT\')">BT</button>')
+        if(data["modules"]["led"] != 0)
+            $("#tab").append('<button class="tablinks" onclick="openTab(event, \'LED\')">LED</button>')
+        if(data["modules"]["motor"] != 0)
+            $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Motor\')">Motor</button>')
+        if(data["modules"]["laser"] != 0)
+            $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Laser\')">Laser</button>')
+    });
 }
 
 function getSsids() {

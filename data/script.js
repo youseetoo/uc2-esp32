@@ -52,13 +52,43 @@ function getModulesAndFillTabs()
         $("#tab").empty();
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Wifi\')">Wifi</button>')
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'BT\')">BT</button>')
+        $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Modules\')">Modules</button>')
         if(data["modules"]["led"] != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'LED\')">LED</button>')
         if(data["modules"]["motor"] != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Motor\')">Motor</button>')
         if(data["modules"]["laser"] != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Laser\')">Laser</button>')
+
+
+        $("#m_enable_analog").attr('checked',data["modules"]["analog"]);
+        $("#m_enable_dac").attr('checked',data["modules"]["dac"]);
+        $("#m_enable_digital").attr('checked',data["modules"]["digital"]);
+        $("#m_enable_laser").attr('checked' ,data["modules"]["laser"]);
+        $("#m_enable_motor").attr('checked', data["modules"]["motor"]);
+        $("#m_enable_led").attr('checked', data["modules"]["led"]);
+        $("#m_enable_pid").attr('checked',data["modules"]["pid"]);
+        $("#m_enable_scanner").attr('checked',data["modules"]["scanner"]);
+        $("#m_enable_sensor").attr('checked',data["modules"]["sensor"]);
+        $("#m_enable_slm").attr('checked',data["modules"]["slm"]);
     });
+}
+
+function setModuleSettings() {
+    $("#steppinxinvert:checked").val()? 1 : 0;
+    var analog = $("#m_enable_analog:checked").val()? 1 : 0;
+    var dac = $("#m_enable_dac:checked").val()? 1 : 0;
+    var digital = $("#m_enable_digital:checked").val()? 1 : 0;
+    var laser = $("#m_enable_laser:checked").val()? 1 : 0;
+    var motor = $("#m_enable_motor:checked").val()? 1 : 0;
+    var led = $("#m_enable_led:checked").val()? 1 : 0;
+    var pid = $("#m_enable_pid:checked").val()? 1 : 0;
+    var scanner = $("#m_enable_scanner:checked").val()? 1 : 0;
+    var sensor = $("#m_enable_sensor:checked").val()? 1 : 0;
+    var slm = $("#m_enable_slm:checked").val()? 1 : 0;
+    var jstr = JSON.stringify({ modules: { analog: analog, dac: dac,digital:digital,laser:laser,motor:motor,led:led,pid:pid,scanner:scanner,sensor:sensor,slm:slm } });
+    post(jstr, "/modules_set");
+    getModulesAndFillTabs();
 }
 
 function getSsids() {

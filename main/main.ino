@@ -63,7 +63,6 @@ void loop()
 	state.currentMillis = millis();
 	serial.loop(WifiController::getJDoc());
 	WifiController::handelMessages();
-
 	moduleController.loop();
 
 #if defined IS_PS4 || defined IS_PS3

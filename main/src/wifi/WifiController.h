@@ -3,7 +3,6 @@
 
 #include "WiFi.h"
 #include "HardwareSerial.h"
-#include "parameters_wifi.h"
 #include "../state/State.h"
 #include "RestApiCallbacks.h"
 #include "esp_log.h"

@@ -58,11 +58,6 @@ namespace RestApi
         WifiController::getServer()->send_P(200, "application/json", output);
     }
 
-    void ota()
-    {
-        WifiController::getServer()->sendHeader("Connection", "close");
-        WifiController::getServer()->send(200, "text/html", otaindex);
-    }
 
     void update()
     {

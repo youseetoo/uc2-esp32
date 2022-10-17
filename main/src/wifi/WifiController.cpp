@@ -263,6 +263,15 @@ namespace WifiController
 		SPIFFS.end();
 	}
 
+	void getOtaIndex()
+	{
+		SPIFFS.begin();
+		File file = SPIFFS.open("/ota.html", "r");
+		server->streamFile(file, "text/html");
+		file.close();
+		SPIFFS.end();
+	}
+
 	void setup_routing()
 	{
 		log_i("Setting up HTTP Routing");
@@ -274,7 +283,7 @@ namespace WifiController
 		server->on(identity_endpoint, RestApi::getIdentity);
 		server->on(features_endpoint, RestApi::getEndpoints);
 
-		server->on(ota_endpoint, HTTP_GET, RestApi::ota);
+		server->on(ota_endpoint, HTTP_GET, getOtaIndex);
 		/*handling uploading firmware file */
 		server->on(update_endpoint, HTTP_POST, RestApi::update, RestApi::upload);
 

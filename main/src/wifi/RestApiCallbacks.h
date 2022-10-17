@@ -4,7 +4,7 @@
 #include <WebServer.h>
 #include <nvs_flash.h>
 #include "Endpoints.h"
-#include "parameters_wifi.h"
+#include "Update.h"
 #include "../config/ConfigController.h"
 #include "../wifi/WifiController.h"
 #include "../bt/BtController.h"
@@ -18,7 +18,6 @@ namespace RestApi
         handle invalide requests with a error message
     */
     void handleNotFound();
-    void ota();
     void update();
     void upload();
     /*

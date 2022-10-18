@@ -137,19 +137,23 @@
 
         <form>
             <label for="xRange">X</label><br>
-            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="xRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="xRange" oninput="updateMotors()"
+                onchange="updateMotors()"><br>
         </form>
         <form>
             <label for="yRange">Y</label><br>
-            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="yRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="yRange" oninput="updateMotors()"
+                onchange="updateMotors()"><br>
         </form>
         <form>
             <label for="zRange">Z</label><br>
-            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="zRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="zRange" oninput="updateMotors()"
+                onchange="updateMotors()"><br>
         </form>
         <form>
             <label for="aRange">A</label><br>
-            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="aRange" oninput="updateMotors()" onchange="updateMotors()"><br>
+            <input step="1" type="range" min="0" max="28" value="14" class="slider" id="aRange" oninput="updateMotors()"
+                onchange="updateMotors()"><br>
         </form>
     </div>
 
@@ -182,7 +186,44 @@
     </div>
 
     <div id="Laser" class="tabcontent">
-        <h3>Laser</h3>
+        <h3>Laser Setup</h3>
+        <label for="laser1pin">Laser1 Pin:</label>
+        <input type="text" id="laser1pin">
+        <button id="setlaser1pin" onclick="setLaserPin('1')">Set Laser1 Pin</button><br>
+        <label for="laser2pin">Laser2 Pin:</label>
+        <input type="text" id="laser2pin">
+        <button id="setlaser2pin" onclick="setLaserPin('2')">Set Laser2 Pin</button><br>
+        <label for="laser3pin">Laser3 Pin:</label>
+        <input type="text" id="laser3pin">
+        <button id="setlaser3pin" onclick="setLaserPin('3')">Set Laser3 Pin</button><br>
+
+        <h3>Laser Control</h3>
+        <label for="laser1value">Laser1:</label>
+        <label for="laser1value">Value:</label>
+        <input type="text" id="laser1value">
+        <label for="laser1despeckel">Despeckel:</label>
+        <input type="text" id="laser1despeckel">
+        <label for="laser1periode">Periode:</label>
+        <input type="text" id="laser1periode">
+        <button id="apply1" onclick="setLaserAct('1')">Apply</button><br>
+
+        <label for="laser2value">Laser2:</label>
+        <label for="laser2value">Value:</label>
+        <input type="text" id="laser2value">
+        <label for="laser2despeckel">Despeckel:</label>
+        <input type="text" id="laser2despeckel">
+        <label for="laser2periode">Periode:</label>
+        <input type="text" id="laser2periode">
+        <button id="apply2" onclick="setLaserAct('2')">Apply</button><br>
+
+        <label for="laser3value">Laser3:</label>
+        <label for="laser3value">Value:</label>
+        <input type="text" id="laser3value">
+        <label for="laser3despeckel">Despeckel:</label>
+        <input type="text" id="laser3despeckel">
+        <label for="laser3periode">Periode:</label>
+        <input type="text" id="laser3periode">
+        <button id="apply2" onclick="setLaserAct('3')">Apply</button><br>
     </div>
 
     <div id="Modules" class="tabcontent">

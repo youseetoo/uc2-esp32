@@ -3,6 +3,7 @@ window.addEventListener('load', (event) => {
     getModulesAndFillTabs();
     getLedSetting();
     getMotoretting();
+    laserget();
     createWebsocket();
 });
 
@@ -10,7 +11,7 @@ var websocket;
 
 function createWebsocket() {
     if ($("#url").val() == "")
-        websocket = new WebSocket('ws://'+$(location).attr('hostname')+':81/');
+        websocket = new WebSocket('ws://' + $(location).attr('hostname') + ':81/');
     else
         websocket = new WebSocket('ws://' + $("#url").val() + ':81/');
 }
@@ -46,47 +47,46 @@ function openTab(evt, tabName) {
     evt.currentTarget.className += " active";
 }
 
-function getModulesAndFillTabs()
-{
+function getModulesAndFillTabs() {
     $.getJSON(getUri() + "/modules_get", function (data) {
         $("#tab").empty();
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Wifi\')">Wifi</button>')
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'BT\')">BT</button>')
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Modules\')">Modules</button>')
-        if(data["modules"]["led"] != 0)
+        if (data["modules"]["led"] != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'LED\')">LED</button>')
-        if(data["modules"]["motor"] != 0)
+        if (data["modules"]["motor"] != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Motor\')">Motor</button>')
-        if(data["modules"]["laser"] != 0)
+        if (data["modules"]["laser"] != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Laser\')">Laser</button>')
 
 
-        $("#m_enable_analog").attr('checked',data["modules"]["analog"]);
-        $("#m_enable_dac").attr('checked',data["modules"]["dac"]);
-        $("#m_enable_digital").attr('checked',data["modules"]["digital"]);
-        $("#m_enable_laser").attr('checked' ,data["modules"]["laser"]);
+        $("#m_enable_analog").attr('checked', data["modules"]["analog"]);
+        $("#m_enable_dac").attr('checked', data["modules"]["dac"]);
+        $("#m_enable_digital").attr('checked', data["modules"]["digital"]);
+        $("#m_enable_laser").attr('checked', data["modules"]["laser"]);
         $("#m_enable_motor").attr('checked', data["modules"]["motor"]);
         $("#m_enable_led").attr('checked', data["modules"]["led"]);
-        $("#m_enable_pid").attr('checked',data["modules"]["pid"]);
-        $("#m_enable_scanner").attr('checked',data["modules"]["scanner"]);
-        $("#m_enable_sensor").attr('checked',data["modules"]["sensor"]);
-        $("#m_enable_slm").attr('checked',data["modules"]["slm"]);
+        $("#m_enable_pid").attr('checked', data["modules"]["pid"]);
+        $("#m_enable_scanner").attr('checked', data["modules"]["scanner"]);
+        $("#m_enable_sensor").attr('checked', data["modules"]["sensor"]);
+        $("#m_enable_slm").attr('checked', data["modules"]["slm"]);
     });
 }
 
 function setModuleSettings() {
-    $("#steppinxinvert:checked").val()? 1 : 0;
-    var analog = $("#m_enable_analog:checked").val()? 1 : 0;
-    var dac = $("#m_enable_dac:checked").val()? 1 : 0;
-    var digital = $("#m_enable_digital:checked").val()? 1 : 0;
-    var laser = $("#m_enable_laser:checked").val()? 1 : 0;
-    var motor = $("#m_enable_motor:checked").val()? 1 : 0;
-    var led = $("#m_enable_led:checked").val()? 1 : 0;
-    var pid = $("#m_enable_pid:checked").val()? 1 : 0;
-    var scanner = $("#m_enable_scanner:checked").val()? 1 : 0;
-    var sensor = $("#m_enable_sensor:checked").val()? 1 : 0;
-    var slm = $("#m_enable_slm:checked").val()? 1 : 0;
-    var jstr = JSON.stringify({ modules: { analog: analog, dac: dac,digital:digital,laser:laser,motor:motor,led:led,pid:pid,scanner:scanner,sensor:sensor,slm:slm } });
+    $("#steppinxinvert:checked").val() ? 1 : 0;
+    var analog = $("#m_enable_analog:checked").val() ? 1 : 0;
+    var dac = $("#m_enable_dac:checked").val() ? 1 : 0;
+    var digital = $("#m_enable_digital:checked").val() ? 1 : 0;
+    var laser = $("#m_enable_laser:checked").val() ? 1 : 0;
+    var motor = $("#m_enable_motor:checked").val() ? 1 : 0;
+    var led = $("#m_enable_led:checked").val() ? 1 : 0;
+    var pid = $("#m_enable_pid:checked").val() ? 1 : 0;
+    var scanner = $("#m_enable_scanner:checked").val() ? 1 : 0;
+    var sensor = $("#m_enable_sensor:checked").val() ? 1 : 0;
+    var slm = $("#m_enable_slm:checked").val() ? 1 : 0;
+    var jstr = JSON.stringify({ modules: { analog: analog, dac: dac, digital: digital, laser: laser, motor: motor, led: led, pid: pid, scanner: scanner, sensor: sensor, slm: slm } });
     post(jstr, "/modules_set");
     getModulesAndFillTabs();
 }
@@ -243,14 +243,14 @@ function setMotorSettings() {
     var sa = $("#steppina").val();
     var da = $("#dirpina").val();
     var ea = $("#powerpina").val();
-    var sai = $("#steppinainvert:checked").val()? 1 : 0;
+    var sai = $("#steppinainvert:checked").val() ? 1 : 0;
     var dai = $("#dirpinainvert:checked").val() ? 1 : 0;
     var eai = $("#powerpinainvert:checked").val() ? 1 : 0;
 
     var sx = $("#steppinx").val();
     var dx = $("#dirpinx").val();
     var ex = $("#powerpinx").val();
-    var sxi = $("#steppinxinvert:checked").val()? 1 : 0;
+    var sxi = $("#steppinxinvert:checked").val() ? 1 : 0;
     var dxi = $("#dirpinxinvert:checked").val() ? 1 : 0;
     var exi = $("#powerpinxinvert:checked").val() ? 1 : 0;
 
@@ -258,7 +258,7 @@ function setMotorSettings() {
     var dy = $("#dirpiny").val();
     var ey = $("#powerpiny").val();
     var syi = $("#steppinyinvert:checked").val() ? 1 : 0;
-    var dyi = $("#steppinyinvert:checked").val()? 1 : 0;
+    var dyi = $("#steppinyinvert:checked").val() ? 1 : 0;
     var eyi = $("#powerpinyinvert:checked").val() ? 1 : 0;
 
     var sz = $("#steppinz").val();
@@ -309,4 +309,40 @@ function updateMotors() {
             }
         });
     websocket.send(jstr);
+}
+
+function laserget() {
+    $.getJSON(getUri() + "/laser_get", function (data) {
+        var l1 = data["LASER1pin"];
+        var l2 = data["LASER2pin"];
+        var l3 = data["LASER3pin"];
+        $("#laser1pin").val(l1);
+        $("#laser2pin").val(l2);
+        $("#laser3pin").val(l3);
+    });
+}
+
+function setLaserPin(laserid) {
+    var pin = $('#laser' + laserid + 'pin').val();
+    var jstr = JSON.stringify(
+        {
+            LASERid: laserid,
+            LASERpin: pin
+        });
+    post(jstr, "/laser_set");
+}
+
+
+function setLaserAct(laserid) {
+    var value = $('#laser' + laserid + 'value').val();
+    var despeckel = $('#laser' + laserid + 'despeckel').val();
+    var periode = $('#laser' + laserid + 'periode').val();
+    var jstr = JSON.stringify(
+        {
+            LASERid: laserid,
+            LASERval: value,
+            LASERdespeckle : despeckel,
+            LASERdespecklePeriod : periode
+        });
+    post(jstr, "/laser_act");
 }

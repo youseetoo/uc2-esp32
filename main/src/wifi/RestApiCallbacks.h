@@ -12,6 +12,7 @@
 #include "../dac/DacController.h"
 #include "../analog/AnalogController.h"
 #include "../digital/DigitalController.h"
+#include "../laser/LaserController.h"
 namespace RestApi
 {
     /*

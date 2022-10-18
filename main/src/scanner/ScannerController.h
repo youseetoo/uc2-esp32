@@ -42,10 +42,10 @@ public:
 
     int scannernFrames = 1;
 
-    void act();
-    void get();
-    void set();
-    void setup();
-    void loop();
+    void act() override;
+    void get() override;
+    void set() override;
+    void setup() override;
+    void loop() override;
     static void controlGalvoTask(void *parameters);
 };

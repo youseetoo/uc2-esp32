@@ -171,6 +171,8 @@ namespace WifiController
 			server->close();
 			server = nullptr;
 		}
+		if (webSocket != nullptr)
+			webSocket->close();
 		if (config->mSSID == "")
 		{
 			config->mAP = true;
@@ -208,11 +210,7 @@ namespace WifiController
 				// server = new WebServer(WiFi.localIP(),80);
 			}
 		}
-		if (server != nullptr)
-			server->close();
 		server = new WebServer(80);
-		if (webSocket != nullptr)
-			webSocket->close();
 		webSocket = new WebSocketsServer(81);
 		if (jsonDocument == nullptr)
 		{
@@ -306,6 +304,7 @@ namespace WifiController
 		// POST
 		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
+			log_i("add motor endpoints");
 			server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
 			server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
 			server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
@@ -313,6 +312,7 @@ namespace WifiController
 
 		if (moduleController.get(AvailableModules::dac) != nullptr)
 		{
+			log_i("add dac endpoints");
 			server->on(dac_act_endpoint, HTTP_POST, RestApi::Dac_act);
 			server->on(dac_get_endpoint, HTTP_POST, RestApi::Dac_get);
 			server->on(dac_set_endpoint, HTTP_POST, RestApi::Dac_set);
@@ -320,13 +320,15 @@ namespace WifiController
 
 		if (moduleController.get(AvailableModules::laser) != nullptr)
 		{
-			server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
-			server->on(laser_get_endpoint, HTTP_POST, RestApi::Laser_get);
+			log_i("add laser endpoints");
 			server->on(laser_set_endpoint, HTTP_POST, RestApi::Laser_set);
+			server->on(laser_get_endpoint, HTTP_GET, RestApi::Laser_get);
+			server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
 		}
 
 		if (moduleController.get(AvailableModules::analog) != nullptr)
 		{
+			log_i("add analog endpoints");
 			server->on(analog_act_endpoint, HTTP_POST, RestApi::Analog_act);
 			server->on(analog_get_endpoint, HTTP_POST, RestApi::Analog_get);
 			server->on(analog_set_endpoint, HTTP_POST, RestApi::Analog_set);
@@ -334,6 +336,7 @@ namespace WifiController
 
 		if (moduleController.get(AvailableModules::digital) != nullptr)
 		{
+			log_i("add digital endpoints");
 			server->on(digital_act_endpoint, HTTP_POST, RestApi::Digital_act);
 			server->on(digital_get_endpoint, HTTP_POST, RestApi::Digital_get);
 			server->on(digital_set_endpoint, HTTP_POST, RestApi::Digital_set);
@@ -341,6 +344,7 @@ namespace WifiController
 
 		if (moduleController.get(AvailableModules::pid) != nullptr)
 		{
+			log_i("add pid endpoints");
 			server->on(PID_act_endpoint, HTTP_POST, RestApi::Pid_act);
 			server->on(PID_get_endpoint, HTTP_POST, RestApi::Pid_get);
 			server->on(PID_set_endpoint, HTTP_POST, RestApi::Pid_set);
@@ -348,6 +352,7 @@ namespace WifiController
 
 		if (moduleController.get(AvailableModules::led) != nullptr)
 		{
+			log_i("add led endpoints");
 			server->on(ledarr_act_endpoint, HTTP_POST, RestApi::Led_act);
 			server->on(ledarr_get_endpoint, HTTP_GET, RestApi::Led_get);
 			server->on(ledarr_set_endpoint, HTTP_POST, RestApi::Led_set);
@@ -355,6 +360,7 @@ namespace WifiController
 
 		if (moduleController.get(AvailableModules::slm) != nullptr)
 		{
+			log_i("add slm endpoints");
 			server->on(slm_act_endpoint, HTTP_POST, RestApi::Slm_act);
 			server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
 			server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);

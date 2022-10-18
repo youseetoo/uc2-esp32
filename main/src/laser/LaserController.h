@@ -58,11 +58,11 @@ public:
     bool DEBUG = false;
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
-    void act();
-    void set();
-    void get();
-    void setup();
-    void loop();
+    void act() override;
+    void set() override;
+    void get() override;
+    void setup() override;
+    void loop() override;
 
 };
 

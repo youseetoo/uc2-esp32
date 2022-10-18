@@ -1,9 +1,7 @@
 window.addEventListener('load', (event) => {
 
     getModulesAndFillTabs();
-    getLedSetting();
-    getMotoretting();
-    laserget();
+    updateUi();
     createWebsocket();
 });
 
@@ -31,6 +29,16 @@ function getUri() {
     else
         uri = "http://" + $("#url").val();
     return uri;
+}
+
+function updateUi()
+{
+    if ($("#m_enable_led:checked").val())
+        getLedSetting();
+    if ($("#m_enable_motor:checked").val())
+        getMotoretting();
+    if ($("#m_enable_laser:checked").val())
+        laserget();
 }
 
 function openTab(evt, tabName) {
@@ -89,6 +97,7 @@ function setModuleSettings() {
     var jstr = JSON.stringify({ modules: { analog: analog, dac: dac, digital: digital, laser: laser, motor: motor, led: led, pid: pid, scanner: scanner, sensor: sensor, slm: slm } });
     post(jstr, "/modules_set");
     getModulesAndFillTabs();
+    updateUi();
 }
 
 function getSsids() {
@@ -341,8 +350,8 @@ function setLaserAct(laserid) {
         {
             LASERid: laserid,
             LASERval: value,
-            LASERdespeckle : despeckel,
-            LASERdespecklePeriod : periode
+            LASERdespeckle: despeckel,
+            LASERdespecklePeriod: periode
         });
     post(jstr, "/laser_act");
 }

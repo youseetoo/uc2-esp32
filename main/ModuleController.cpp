@@ -20,6 +20,15 @@ void ModuleController::setup()
 {
     // moduleConfig.led = true;
     // moduleConfig.motor = true;
+    for (auto const &x : modules)
+    {
+        if (x.second != nullptr)
+        {
+            delete x.second;
+            x.second = nullptr;
+        }
+    }
+    modules.clear();
     moduleConfig = Config::getModuleConfig();
     if (moduleConfig->led)
     {
@@ -139,6 +148,7 @@ void ModuleController::set()
             moduleConfig->scanner = (*jdoc)[key_modules][key_scanner];
         Config::setModuleConfig(moduleConfig);
         setup();
+        WifiController::restartWebServer();
     }
     jdoc->clear();
 }

@@ -38,9 +38,9 @@ class ModuleController
 {
 private:
     std::map<AvailableModules, Module *> modules;
-    ModuleConfig * moduleConfig;
-
+   
 public:
+    ModuleConfig * moduleConfig;
     void setup();
     void loop();
     Module *get(AvailableModules mod);

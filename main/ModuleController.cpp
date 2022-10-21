@@ -25,7 +25,6 @@ void ModuleController::setup()
         if (x.second != nullptr)
         {
             delete x.second;
-            x.second = nullptr;
         }
     }
     modules.clear();

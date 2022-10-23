@@ -135,23 +135,30 @@
         </div>
         <button id="setmotorsettings" onclick="setMotorSettings()">Set Motor Settings</button>
 
+        <h3>Motor Drive Range</h3>
+        <label>X</label><br>
+        <label>Y</label><br>
+        <label>Z</label><br>
+        <label>A</label><br>
+
+        <h3>Motor Control</h3>
         <form>
-            <label for="xRange">X</label><br>
+            <label for="xRange">X </label><label id="posx"></label><br>
             <input step="1" type="range" min="0" max="28" value="14" class="slider" id="xRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
         <form>
-            <label for="yRange">Y</label><br>
+            <label for="yRange">Y </label><label id="posy"></label><br>
             <input step="1" type="range" min="0" max="28" value="14" class="slider" id="yRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
         <form>
-            <label for="zRange">Z</label><br>
+            <label for="zRange">Z </label><label id="posz"></label><br>
             <input step="1" type="range" min="0" max="28" value="14" class="slider" id="zRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
         <form>
-            <label for="aRange">A</label><br>
+            <label for="aRange">A </label><label id="posa"></label><br>
             <input step="1" type="range" min="0" max="28" value="14" class="slider" id="aRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>

@@ -37,22 +37,17 @@ namespace RestApi
 
     void deserialize()
     {
-        String body = WifiController::getServer()->arg("plain");
-        if (body != "")
-        {
-            deserializeJson(*WifiController::getJDoc(), body);
-            //serializeJsonPretty((*WifiController::getJDoc()), Serial);
-        }
+        deserializeJson(*WifiController::getJDoc(), WifiController::getServer()->arg("plain"));
+        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
     }
 
     void serialize()
     {
-        //serializeJsonPretty((*WifiController::getJDoc()), Serial);
+        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
         serializeJson((*WifiController::getJDoc()), output);
         WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
         WifiController::getServer()->send_P(200, "application/json", output);
     }
-
 
     void update()
     {

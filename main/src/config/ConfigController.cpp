@@ -74,6 +74,7 @@ namespace Config
 		preferences.end();
 	}
 
+
 	LedConfig *getLedPins()
 	{
 		preferences.begin(prefNamespace, false);
@@ -92,12 +93,10 @@ namespace Config
 
 	void setLaserPins(LaserPins pins)
 	{
-
 		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyLaser1Pin, pins.LASER_PIN_1);
 		preferences.putInt(keyLaser2Pin, pins.LASER_PIN_2);
 		preferences.putInt(keyLaser3Pin, pins.LASER_PIN_3);
-
 		preferences.end();
 	}
 	void getLaserPins(LaserPins pins)

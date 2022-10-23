@@ -18,13 +18,15 @@ namespace RestApi
 
 void ModuleController::setup()
 {
+
     // moduleConfig.led = true;
     // moduleConfig.motor = true;
-    for (auto const &x : modules)
+    for (auto &x : modules)
     {
         if (x.second != nullptr)
         {
             delete x.second;
+            //x.second = nullptr;
         }
     }
     modules.clear();
@@ -79,7 +81,7 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::scanner, dynamic_cast<Module *>(new ScannerController())));
         log_i("add scanner");
     }
-    for (auto const &x : modules)
+    for (auto &x : modules)
     {
         if (x.second != nullptr)
             x.second->setup();
@@ -88,14 +90,12 @@ void ModuleController::setup()
 
 void ModuleController::loop()
 {
-    for (auto const &x : modules)
+    for (auto &x : modules)
     {
-        if (x.second == nullptr)
+        if (x.second != nullptr)
         {
-            // log_e("second is null, wtf.. module count:%i", modules.size());
-            return;
+             x.second->loop();
         }
-        x.second->loop();
     }
 }
 

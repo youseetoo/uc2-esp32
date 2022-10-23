@@ -25,8 +25,8 @@ namespace RestApi
 	}
 }
 
-LedController::LedController() {}
-LedController::~LedController() {}
+LedController::LedController() : Module() { log_i("ctor"); }
+LedController::~LedController() { log_i("~ctor"); }
 
 void LedController::setup()
 {
@@ -46,6 +46,7 @@ void LedController::setup()
 
 void LedController::loop()
 {
+	
 }
 
 // Custom function accessible by the API
@@ -274,5 +275,4 @@ void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)
 	matrix.show();
 	*/
 }
-//LedController led;
-
+// LedController led;

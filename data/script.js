@@ -12,6 +12,22 @@ function createWebsocket() {
         websocket = new WebSocket('ws://' + $(location).attr('hostname') + ':81/');
     else
         websocket = new WebSocket('ws://' + $("#url").val() + ':81/');
+    websocket.addEventListener('message', function ({ data }) {
+        let result = JSON.parse(data);
+        var steppers = result["steppers"];
+        for (var i = 0; i < steppers.length; i++) {
+            var id = steppers[i]["stepperid"];
+            var curpos = steppers[i]["cur_pos"];
+            if(id == 0)
+                $("#posa").val(curpos);
+            if(id == 1)
+                $("#posx").val(curpos);
+            if(id == 2)
+                $("#posy").val(curpos);
+            if(id == 2)
+                $("#posz").val(curpos); 
+        }
+       });
 }
 
 function post(jstr, uri) {
@@ -125,7 +141,7 @@ function ssidItemClick(name) {
 function connectToWifi() {
     var ssidstr = $("#ssid").val();
     var pwstr = $("#password").val();
-    var apb = $("#ap").val();
+    var apb = $("#ap").checked;
     var jstr = JSON.stringify({ ssid: ssidstr, PW: pwstr, AP: apb ? 1 : 0 });
     post(jstr, "/wifi/connect");
 }
@@ -214,35 +230,35 @@ function getMotoretting() {
 
             if (id == 0) {
                 $("#steppina").val(step);
-                $("#steppinainvert").checked = stepin;
+                $("#steppinainvert").attr('checked', stepin);
                 $("#dirpina").val(dir);
-                $("#dirpinainvert").checked = dirin;
+                $("#dirpinainvert").attr('checked', dirin);
                 $("#powerpina").val(power);
-                $("#powerpinainvert").checked = powerin;
+                $("#powerpinainvert").attr('checked', powerin);
             }
             else if (id == 1) {
                 $("#steppinx").val(step);
-                $("#steppinxinvert").checked = stepin;
+                $("#steppinxinvert").attr('checked', stepin);
                 $("#dirpinx").val(dir);
-                $("#dirpinxinvert").checked = dirin;
+                $("#dirpinxinvert").attr('checked', dirin);
                 $("#powerpinx").val(power);
-                $("#powerpinxinvert").checked = powerin;
+                $("#powerpinxinvert").attr('checked', powerin);
             }
             else if (id == 2) {
                 $("#steppiny").val(step);
-                $("#steppinyinvert").checked = stepin;
+                $("#steppinyinvert").attr('checked', stepin);
                 $("#dirpiny").val(dir);
-                $("#dirpinyinvert").checked = dirin;
+                $("#dirpinyinvert").attr('checked', dirin);
                 $("#powerpiny").val(power);
-                $("#powerpinyinvert").checked = powerin;
+                $("#powerpinyinvert").attr('checked', powerin);
             }
             else if (id == 3) {
                 $("#steppinz").val(step);
-                $("#steppinzinvert").checked = stepin;
+                $("#steppinzinvert").attr('checked', stepin);
                 $("#dirpinz").val(dir);
-                $("#dirpinzinvert").checked = dirin;
+                $("#dirpinzinvert").attr('checked', dirin);
                 $("#powerpinz").val(power);
-                $("#powerpinzinvert").checked = powerin;
+                $("#powerpinzinvert").attr('checked', powerin);
             }
         }
     });

@@ -35,7 +35,7 @@ namespace WifiController
 	WebServer *server = nullptr;
 	WebSocketsServer *webSocket = nullptr;
 	DynamicJsonDocument *jsonDocument;
-	WifiConfig * config;
+	WifiConfig *config;
 
 	DynamicJsonDocument *getJDoc()
 	{
@@ -112,14 +112,17 @@ namespace WifiController
 				moduleController.get(AvailableModules::motor)->act();
 
 			break;
+		default:
+			break;
 		}
 	}
 
 	void sendJsonWebSocketMsg()
 	{
+		log_i("socket broadcast");
 		String s;
 		serializeJson((*WifiController::getJDoc()), s);
-		webSocket->broadcastTXT(s);
+		webSocket->broadcastTXT(s.c_str());
 	}
 
 	void createJsonDoc()
@@ -165,7 +168,7 @@ namespace WifiController
 	{
 		config = Config::getWifiConfig();
 		if (config->mSSID != nullptr)
-			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, boolToChar(config->mAP));
+			log_i("mssid:%s pw:%s ap:%s", config->mSSID.c_str(), config->mPWD.c_str(), boolToChar(config->mAP));
 		if (server != nullptr)
 			server->close();
 		if (webSocket != nullptr)
@@ -186,14 +189,14 @@ namespace WifiController
 			WiFi.begin(config->mSSID.c_str(), config->mPWD.c_str());
 
 			int nConnectTrials = 0;
-			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 10)
+			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 5)
 			{
 				log_i("Wait for connection");
 				delay(200);
-				nConnectTrials += 1;
+				nConnectTrials++;
 				// we can even make the ESP32 to sleep
 			}
-			if (nConnectTrials == 10)
+			if (nConnectTrials >= 5)
 			{
 				log_i("failed to connect,Start softap");
 				config->mAP = true;
@@ -207,9 +210,9 @@ namespace WifiController
 				// server = new WebServer(WiFi.localIP(),80);
 			}
 		}
-		if(server == nullptr)
+		if (server == nullptr)
 			server = new WebServer(80);
-		if(webSocket == nullptr)
+		if (webSocket == nullptr)
 			webSocket = new WebSocketsServer(81);
 		if (jsonDocument == nullptr)
 		{
@@ -307,8 +310,8 @@ namespace WifiController
 		server->on(bt_remove_endpoint, HTTP_POST, RestApi::Bt_remove);
 		server->on(bt_paireddevices_endpoint, HTTP_GET, RestApi::Bt_getPairedDevices);
 
-		server->on(modules_get_endpoint, HTTP_GET,RestApi::getModules);
-		server->on(modules_set_endpoint, HTTP_POST,RestApi::setModules);
+		server->on(modules_get_endpoint, HTTP_GET, RestApi::getModules);
+		server->on(modules_set_endpoint, HTTP_POST, RestApi::setModules);
 
 		// POST
 		if (moduleController.moduleConfig->motor != 0)

@@ -25,8 +25,8 @@ namespace RestApi
 	}
 }
 
-FocusMotor::FocusMotor(){}
-FocusMotor::~FocusMotor(){}
+FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
+FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
 void FocusMotor::act()
 {
@@ -77,8 +77,6 @@ void FocusMotor::startStepper(int i)
 	log_i("start stepper:%i isforver:%i", i, data[i]->isforever);
 	if (!steppers[i]->areOutputsEnabled())
 		steppers[i]->enableOutputs();
-	steppers[i]->setSpeed(data[i]->speed);
-	steppers[i]->setMaxSpeed(data[i]->maxspeed);
 	if (!data[i]->isforever)
 	{
 		if (data[i]->absolutePosition)
@@ -124,6 +122,10 @@ void FocusMotor::set()
 				pins[i]->direction_inverted = (*doc)[key_motor][key_steppers][i][key_dir_inverted];
 				pins[i]->step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
 				pins[i]->enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
+				if ((*doc)[key_motor][key_steppers][i].containsKey(key_min_position))
+					pins[i]->min_position = (*doc)[key_motor][key_steppers][i][key_min_position];
+				if ((*doc)[key_motor][key_steppers][i].containsKey(key_max_position))
+					pins[i]->max_position = (*doc)[key_motor][key_steppers][i][key_max_position];
 			}
 			Config::setMotorPinConfig(pins);
 			setup();
@@ -148,6 +150,9 @@ void FocusMotor::get()
 		(*doc)[key_steppers][i][key_position] = data[i]->currentPosition;
 		(*doc)[key_steppers][i][key_speed] = data[i]->speed;
 		(*doc)[key_steppers][i][key_speedmax] = data[i]->maxspeed;
+		(*doc)[key_steppers][i][key_max_position] = pins[i]->max_position;
+		(*doc)[key_steppers][i][key_min_position] = pins[i]->min_position;
+		(*doc)[key_steppers][i][key_current_position] = pins[i]->current_position;
 	}
 }
 
@@ -178,54 +183,60 @@ void FocusMotor::setup()
 		steppers[i]->enableOutputs();
 		steppers[i]->runToNewPosition(-100);
 		steppers[i]->runToNewPosition(100);
-		steppers[i]->setCurrentPosition(0);
+		steppers[i]->setCurrentPosition(pins[i]->current_position);
 		steppers[i]->disableOutputs();
 	}
 }
 
 void FocusMotor::loop()
 {
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < steppers.size(); i++)
 	{
-		// log_i("data %i isnull:%s stepper is null:%s", i,boolToChar(data[i] == nullptr), boolToChar(steppers[i] == nullptr));
-		if(steppers[i] == nullptr || pins[i]->DIR == 0)
-			return;
-		if (data[i]->isforever)
+		if (steppers[i] != nullptr && pins[i]->DIR > 0)
 		{
-			steppers[i]->setSpeed(data[i]->speed);
-			steppers[i]->setMaxSpeed(data[i]->maxspeed);
-			steppers[i]->runSpeed();
-		}
-		else
-		{
-			// run at constant speed
-			if (data[i]->isaccelerated)
+			if (data[i]->isforever)
 			{
-				steppers[i]->run();
+				log_i("forever drive");
+				steppers[i]->setSpeed(data[i]->speed);
+				steppers[i]->setMaxSpeed(data[i]->maxspeed);
+				steppers[i]->runSpeed();
 			}
 			else
 			{
-				steppers[i]->runSpeedToPosition();
+				// run at constant speed
+				if (data[i]->isaccelerated)
+				{
+					steppers[i]->run();
+				}
+				else
+				{
+					steppers[i]->runSpeedToPosition();
+				}
+				// checks if a stepper is still running
+				if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
+				{
+					log_i("stop stepper:%i", i);
+					// if not turn it off
+					steppers[i]->disableOutputs();
+					// send current position to client
+					DynamicJsonDocument *jdoc = WifiController::getJDoc();
+					jdoc->clear();
+					(*jdoc)[key_steppers][i][key_stepperid] = i;
+					(*jdoc)[key_steppers][i][key_position] = data[i]->currentPosition;
+					WifiController::sendJsonWebSocketMsg();
+					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+					{
+						pins[i]->current_position = steppers[i]->currentPosition();
+						Config::setMotorPinConfig(pins);
+					}
+				}
 			}
-			// checks if a stepper is still running
-			if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
-			{
-				log_i("stop stepper:%i", i);
-				// if not turn it off
-				steppers[i]->disableOutputs();
-				// send current position to client
-				DynamicJsonDocument *jdoc = WifiController::getJDoc();
-				jdoc->clear();
-				(*jdoc)[key_steppers][i][key_stepperid] = i;
-				(*jdoc)[key_steppers][i][key_position] = data[i]->currentPosition;
-				WifiController::sendJsonWebSocketMsg();
-			}
-		}
-		data[i]->currentPosition = steppers[i]->currentPosition();
+			data[i]->currentPosition = steppers[i]->currentPosition();
 #ifdef DEBUG_MOTOR
-		if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
-			log_i("current Pos:%i target pos:%i", data[i]->currentPosition, data[i]->targetPosition);
+			if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
+				log_i("current Pos:%i target pos:%i", data[i]->currentPosition, data[i]->targetPosition);
 #endif
+		}
 	}
 }
 
@@ -281,4 +292,3 @@ void FocusMotor::startAllDrives()
 		data[i]->currentPosition = steppers[i]->currentPosition();
 	}
 }
-

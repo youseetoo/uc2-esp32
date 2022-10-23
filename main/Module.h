@@ -1,11 +1,14 @@
 #pragma once
+#include <esp32-hal-log.h>
 
 class Module
 {
     public:
-    virtual void setup();
-    virtual void loop();
-    virtual void act();
-    virtual void set();
-    virtual void get();
+    Module();
+	virtual ~Module();
+    virtual void setup() = 0;
+    virtual void loop() = 0;
+    virtual void act() = 0;
+    virtual void set() = 0;
+    virtual void get() = 0;
 };

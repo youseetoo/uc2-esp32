@@ -18,7 +18,7 @@ private:
 public:
     SerialProcess(/* args */);
     ~SerialProcess();
-    void loop(DynamicJsonDocument * jsonDocument);
+    void loop();
 };
 
 extern SerialProcess serial;

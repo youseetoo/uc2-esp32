@@ -16,12 +16,13 @@ namespace RestApi
 	void FocusMotor_act();
 	void FocusMotor_get();
 	void FocusMotor_set();
+	void FocusMotor_setCalibration();
 };
 
 struct MotorData
 {
 	long speed = 0;
-	long maxspeed = 20000;
+	long maxspeed = 200000;
 	long acceleration = 0;
 	long currentPosition = 0;
 	long targetPosition = 0;
@@ -78,6 +79,7 @@ public:
 	// std::array<MotorPins *, 4> pins;
 	MotorPins *pins[4];
 
+	void setMinMaxRange();
 	void act() override;
 	void set() override;
 	/*
@@ -141,8 +143,13 @@ public:
 
 private:
 	int logcount;
+	unsigned long nextSocketUpdateTime;
 	void stopAllDrives();
 	void stopStepper(int i);
 	void startStepper(int i);
 	void startAllDrives();
+	void applyMinPos(int i);
+	void applyMaxPos(int i);
+	void sendMotorPos(int i, int arraypos);
+	void resetMotorPos(int i);
 };

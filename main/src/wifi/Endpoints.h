@@ -11,6 +11,7 @@ static const PROGMEM String laser_get_endpoint = "/laser_get";
 static const PROGMEM String motor_act_endpoint = "/motor_act";
 static const PROGMEM String motor_set_endpoint = "/motor_set";
 static const PROGMEM String motor_get_endpoint = "/motor_get";
+static const PROGMEM String motor_setcalibration_endpoint = "/motor_setcalibration";
 
 static const PROGMEM String dac_act_endpoint = "/dac_act";
 static const PROGMEM String dac_set_endpoint = "/dac_set";

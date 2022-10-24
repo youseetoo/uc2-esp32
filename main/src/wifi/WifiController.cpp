@@ -99,9 +99,6 @@ namespace WifiController
 		{
 			IPAddress ip = webSocket->remoteIP(num);
 			log_i("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-
-			// send message to client
-			webSocket->sendTXT(num, "Connected");
 		}
 		break;
 		case WStype_TEXT:
@@ -120,7 +117,7 @@ namespace WifiController
 
 	void sendJsonWebSocketMsg()
 	{
-		log_i("socket broadcast");
+		//log_i("socket broadcast");
 		String s;
 		serializeJson((*WifiController::getJDoc()), s);
 		webSocket->broadcastTXT(s.c_str());
@@ -318,6 +315,7 @@ namespace WifiController
 			server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
 			server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
 			server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
+			server->on(motor_setcalibration_endpoint,HTTP_POST, RestApi::FocusMotor_setCalibration);
 		}
 
 		if (moduleController.moduleConfig->dac != 0)

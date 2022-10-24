@@ -137,29 +137,33 @@
 
         <h3>Motor Drive Range</h3>
         <label>X</label><br>
+        <button onclick="setMotorRangeCalibration(0, 1)">Min Range</button><button onclick="setMotorRangeCalibration(1, 1)">Max Range</button><button onclick="setMotorRangeCalibration(2, 1)">Reset</button><br>
         <label>Y</label><br>
+        <button onclick="setMotorRangeCalibration(0, 2)">Min Range</button><button onclick="setMotorRangeCalibration(1, 2)">Max Range</button><button onclick="setMotorRangeCalibration(2, 2)">Reset</button><br>
         <label>Z</label><br>
+        <button onclick="setMotorRangeCalibration(0, 3)">Min Range</button><button onclick="setMotorRangeCalibration(1, 3)">Max Range</button><button onclick="setMotorRangeCalibration(2, 3)">Reset</button><br>
         <label>A</label><br>
+        <button onclick="setMotorRangeCalibration(0, 0)">Min Range</button><button onclick="setMotorRangeCalibration(1, 0)">Max Range</button><button onclick="setMotorRangeCalibration(2, 0)">Reset</button><br>
 
         <h3>Motor Control</h3>
         <form>
-            <label for="xRange">X </label><label id="posx"></label><br>
-            <input step="1" type="range" min="0" max="32" value="16" class="slider" id="xRange" oninput="updateMotors()"
+            <label for="xRange">X </label><label id="posx">0</label><br>
+            <input step="1" type="range" min="0" max="34" value="17" class="slider" id="xRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
         <form>
-            <label for="yRange">Y </label><label id="posy"></label><br>
-            <input step="1" type="range" min="0" max="32" value="16" class="slider" id="yRange" oninput="updateMotors()"
+            <label for="yRange">Y </label><label id="posy">0</label><br>
+            <input step="1" type="range" min="0" max="34" value="17" class="slider" id="yRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
         <form>
-            <label for="zRange">Z </label><label id="posz"></label><br>
-            <input step="1" type="range" min="0" max="32" value="16" class="slider" id="zRange" oninput="updateMotors()"
+            <label for="zRange">Z </label><label id="posz">0</label><br>
+            <input step="1" type="range" min="0" max="34" value="17" class="slider" id="zRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
         <form>
-            <label for="aRange">A </label><label id="posa"></label><br>
-            <input step="1" type="range" min="0" max="32" value="16" class="slider" id="aRange" oninput="updateMotors()"
+            <label for="aRange">A </label><label id="posa">0</label><br>
+            <input step="1" type="range" min="0" max="34" value="17" class="slider" id="aRange" oninput="updateMotors()"
                 onchange="updateMotors()"><br>
         </form>
     </div>

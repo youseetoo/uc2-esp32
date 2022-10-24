@@ -12,22 +12,22 @@ function createWebsocket() {
         websocket = new WebSocket('ws://' + $(location).attr('hostname') + ':81/');
     else
         websocket = new WebSocket('ws://' + $("#url").val() + ':81/');
-    websocket.addEventListener('message', function ({ data }) {
-        let result = JSON.parse(data);
+    websocket.addEventListener('message', function (data) {
+        var result = JSON.parse(data.data); // $.parseJSON(data);
         var steppers = result["steppers"];
         for (var i = 0; i < steppers.length; i++) {
             var id = steppers[i]["stepperid"];
-            var curpos = steppers[i]["cur_pos"];
-            if(id == 0)
-                $("#posa").val(curpos);
-            if(id == 1)
-                $("#posx").val(curpos);
-            if(id == 2)
-                $("#posy").val(curpos);
-            if(id == 2)
-                $("#posz").val(curpos); 
+            var curpos = steppers[i]["position"];
+            if (id == 0)
+                $("#posa").html(curpos);
+            if (id == 1)
+                $("#posx").html(curpos);
+            if (id == 2)
+                $("#posy").html(curpos);
+            if (id == 2)
+                $("#posz").html(curpos);
         }
-       });
+    });
 }
 
 function post(jstr, uri) {
@@ -47,8 +47,7 @@ function getUri() {
     return uri;
 }
 
-function updateUi()
-{
+function updateUi() {
     if ($("#m_enable_led:checked").val())
         getLedSetting();
     if ($("#m_enable_motor:checked").val())
@@ -308,7 +307,46 @@ function setMotorSettings() {
     post(jstr, "/motor_set");
 }
 
-var motorspeeds = [-80000,-8000,-4000, -2000, -1000, -500, -200, -100, -50, -20, -10, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 4000,8000,80000];
+function setMotorRangeCalibration(min, id) {
+    var jstr = "";
+    if (min == 0) {
+        jstr = JSON.stringify(
+            {
+                motor:
+                {
+                    steppers: [
+                        { stepperid: id, min_pos: 0 }
+                    ]
+                }
+            });
+    }
+    else if(min == 1) {
+        jstr = JSON.stringify(
+            {
+                motor:
+                {
+                    steppers: [
+                        { stepperid: id, max_pos: 0 }
+                    ]
+                }
+            });
+    }
+    else
+    {
+        jstr = JSON.stringify(
+            {
+                motor:
+                {
+                    steppers: [
+                        { stepperid: id, max_pos: 0, min_pos: 0 }
+                    ]
+                }
+            });
+    }
+    post(jstr, "/motor_setcalibration");
+}
+
+var motorspeeds = [-160000,-80000, -8000, -4000, -2000, -1000, -500, -200, -100, -50, -20, -10, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 80000,160000];
 
 function updateMotors() {
     var xr = $("#xRange").val();

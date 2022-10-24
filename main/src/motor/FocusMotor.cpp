@@ -196,7 +196,7 @@ void FocusMotor::loop()
 		{
 			if (data[i]->isforever)
 			{
-				log_i("forever drive");
+				//log_i("forever drive");
 				steppers[i]->setSpeed(data[i]->speed);
 				steppers[i]->setMaxSpeed(data[i]->maxspeed);
 				steppers[i]->runSpeed();

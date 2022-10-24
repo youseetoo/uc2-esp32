@@ -37,3 +37,7 @@
   .container {
     display: flex;
 }
+
+.slider {
+width: 40%;
+}

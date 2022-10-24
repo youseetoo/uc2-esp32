@@ -61,7 +61,7 @@ void loop()
 {
 	// for any timing-related purposes
 	state.currentMillis = millis();
-	serial.loop(WifiController::getJDoc());
+	serial.loop();
 	WifiController::handelMessages();
 	moduleController.loop();
 

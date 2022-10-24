@@ -10,11 +10,12 @@ SerialProcess::~SerialProcess()
 {
 }
 
-void SerialProcess::loop(DynamicJsonDocument *jsonDocument)
+void SerialProcess::loop()
 {
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
 	{
+		DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 		DeserializationError error = deserializeJson((*jsonDocument), Serial);
 		// free(Serial);
 		if (error)
@@ -191,7 +192,7 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 	}
 	if (task == connectwifi_endpoint)
 	{
-		RestApi::connectToWifi();
+		WifiController::connect();
 	}
 	if (task == reset_nv_flash_endpoint)
 	{

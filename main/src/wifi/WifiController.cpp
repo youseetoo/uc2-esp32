@@ -71,12 +71,13 @@ namespace WifiController
 	void connect()
 	{
 		log_i("connectToWifi");
+		
 		bool ap = (*WifiController::getJDoc())[keyWifiAP];
 		String ssid = (*WifiController::getJDoc())[keyWifiSSID];
 		String pw = (*WifiController::getJDoc())[keyWifiPW];
-		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
-		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
-		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		log_i("ssid: %s wifi:%s", ssid.c_str(), WifiController::getSsid().c_str());
+		log_i("pw: %s wifi:%s", pw.c_str(), WifiController::getPw().c_str());
+		log_i("ap: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
 		WifiController::setWifiConfig(ssid, pw, ap);
 		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
 		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
@@ -161,14 +162,13 @@ namespace WifiController
 			WiFi.softAP(ssid.c_str(), password.c_str());
 		}
 		log_i("Connected. IP: %s", WiFi.softAPIP().toString());
-		// server = new WebServer(WiFi.softAPIP(),80);
 	}
 
 	void setup()
 	{
 		config = Config::getWifiConfig();
 		if (config->mSSID != nullptr)
-			log_i("mssid:%s pw:%s ap:%s", config->mSSID.c_str(), config->mPWD.c_str(), boolToChar(config->mAP));
+			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, boolToChar(config->mAP));
 		if (server != nullptr)
 			server->close();
 		if (webSocket != nullptr)
@@ -192,9 +192,8 @@ namespace WifiController
 			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 5)
 			{
 				log_i("Wait for connection");
-				delay(200);
+				delay(400);
 				nConnectTrials++;
-				// we can even make the ESP32 to sleep
 			}
 			if (nConnectTrials >= 5)
 			{
@@ -207,7 +206,6 @@ namespace WifiController
 			else
 			{
 				log_i("Connected. IP: %s", WiFi.localIP());
-				// server = new WebServer(WiFi.localIP(),80);
 			}
 		}
 		if (server == nullptr)

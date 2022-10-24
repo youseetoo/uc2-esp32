@@ -203,6 +203,20 @@ POST
 }
 ```
 
+/home_act
+===========
+POST
+```
+{
+    home:
+    {
+        steppers: [
+            { "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1 }
+        ]
+    }
+}
+```
+
 /wifi/scan
 ===========
 GET

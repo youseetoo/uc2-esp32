@@ -127,3 +127,5 @@ void HomeMotor::get()
 void HomeMotor::loop()
 {}
 
+void HomeMotor::setup()
+{}

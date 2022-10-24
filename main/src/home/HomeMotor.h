@@ -34,7 +34,7 @@ class HomeMotor : public Module
 public:
 	HomeMotor();
 	~HomeMotor();
-	bool DEBUG = false;
+	bool DEBUG = true;
 
 	void act() override;
 	void set() override;

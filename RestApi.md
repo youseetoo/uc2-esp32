@@ -121,10 +121,10 @@ POST
     motor:
     {
         steppers: [
-            { stepperid: 0, speed: 0, isforever: 0 }, // a
-            { stepperid: 1, speed: 0, isforever: 0 }, // x
-            { stepperid: 2, speed: 0, isforever: 0 }, // y
-            { stepperid: 3, speed: 0, isforever: 0 }  // z
+            { stepperid: 0, speed: 0, isforever: 0 }, 
+            { stepperid: 1, speed: 0, isforever: 0 },
+            { stepperid: 2, speed: 0, isforever: 0 },
+            { stepperid: 3, speed: 0, isforever: 0 } 
         ]
     }
 }

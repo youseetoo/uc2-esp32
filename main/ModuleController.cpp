@@ -41,6 +41,11 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
         log_i("add motor");
     }
+    if (moduleConfig->home)
+    {
+        modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
+        log_i("add motor");
+    }    
     if (moduleConfig->slm)
     {
         modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module *>(new SlmController())));
@@ -110,6 +115,7 @@ void ModuleController::get()
     jdoc->clear();
     (*jdoc)[key_modules][keyLed] = moduleConfig->led;
     (*jdoc)[key_modules][key_motor] = moduleConfig->motor;
+    (*jdoc)[key_modules][key_home] = moduleConfig->home;
     (*jdoc)[key_modules][key_slm] = moduleConfig->slm;
     (*jdoc)[key_modules][key_sensor] = moduleConfig->sensor;
     (*jdoc)[key_modules][key_pid] = moduleConfig->pid;
@@ -129,6 +135,8 @@ void ModuleController::set()
             moduleConfig->led = (*jdoc)[key_modules][keyLed];
         if ((*jdoc)[key_modules].containsKey(key_motor))
             moduleConfig->motor = (*jdoc)[key_modules][key_motor];
+        if ((*jdoc)[key_modules].containsKey(key_home))
+            moduleConfig->home = (*jdoc)[key_modules][key_home];
         if ((*jdoc)[key_modules].containsKey(key_slm))
             moduleConfig->slm = (*jdoc)[key_modules][key_slm];
         if ((*jdoc)[key_modules].containsKey(key_sensor))

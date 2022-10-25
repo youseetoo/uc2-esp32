@@ -21,13 +21,13 @@ void AnalogInController::act() {
   if (DEBUG) Serial.print("readanaloginID "); Serial.println(readanaloginID);
   switch (readanaloginID) {
     case 0:
-      analoginpin = pins.ADC_pin_0;
+      analoginpin = pins.analogin_PIN_0;
       break;
     case 1:
-      analoginpin = pins.ADC_pin_1;
+      analoginpin = pins.analogin_PIN_1;
       break;
     case 2:
-      analoginpin = pins.ADC_pin_2;
+      analoginpin = pins.analogin_PIN_2;
       break;
   }
 
@@ -55,13 +55,13 @@ void AnalogInController::get() {
 
   switch (readanaloginID) {
     case 0:
-      pins.ADC_pin_0 = readanaloginPIN;
+      pins.analogin_PIN_0 = readanaloginPIN;
       break;
     case 1:
-      pins.ADC_pin_1 = readanaloginPIN;
+      pins.analogin_PIN_1 = readanaloginPIN;
       break;
     case 2:
-      pins.ADC_pin_2 = readanaloginPIN;
+      pins.analogin_PIN_2 = readanaloginPIN;
       break;
   }
 
@@ -80,13 +80,13 @@ if (DEBUG) Serial.println("readanalogin_get_fct");
   int readanaloginPIN = 0;
   switch (readanaloginID) {
     case 0:
-      readanaloginPIN = pins.ADC_pin_0;
+      readanaloginPIN = pins.analogin_PIN_0;
       break;
     case 1:
-      readanaloginPIN = pins.ADC_pin_1;
+      readanaloginPIN = pins.analogin_PIN_1;
       break;
     case 2:
-      readanaloginPIN = pins.ADC_pin_2;
+      readanaloginPIN = pins.analogin_PIN_2;
       break;
   }
 

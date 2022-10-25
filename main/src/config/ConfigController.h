@@ -9,7 +9,8 @@
 #include "../led/LedConfig.h"
 #include "../laser/LaserPins.h"
 #include "../dac/DacPins.h"
-#include "../analog/AnalogPins.h"
+#include "../analogin/AnalogInPins.h"
+#include "../analogout/AnalogOutPins.h"
 #include "../digitalout/DigitalOutPins.h"
 #include "../../ModuleConfig.h"
 
@@ -28,10 +29,12 @@ namespace Config
     void getLaserPins(LaserPins pin);
     void setDacPins(DacPins pins);
     void getDacPins(DacPins pin);
-    void setAnalogPins(AnalogPins pins);
-    void getAnalogPins(AnalogPins pin);
+    void setAnalogInPins(AnalogInPins pins);
+    void getAnalogInPins(AnalogInPins pin);
     void setDigitalOutPins(DigitalOutPins pins);
-    void getDigitalOutPins(DigitalOutPins pin);
+    void getDigitalOutPins(DigitalOutPins pins);
+    void getAnalogOutPins(AnalogOutPins pin);
+    void setAnalogOutPins(AnalogOutPins pins);
     void setModuleConfig(ModuleConfig * pins);
     ModuleConfig * getModuleConfig();
 }

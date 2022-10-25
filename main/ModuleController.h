@@ -11,7 +11,7 @@
 #include "src/pid/PidController.h"
 #include "src/analogin/AnalogInController.h"
 #include "src/dac/DacController.h"
-#include "src/analog/AnalogController.h"
+#include "src/analogout/AnalogOutController.h"
 #include "src/digitalout/DigitalOutController.h"
 #include "src/scanner/ScannerController.h"
 
@@ -23,7 +23,7 @@ namespace RestApi
 
 enum class AvailableModules
 {
-    analog,
+    analogout,
     dac,
     digitalout,
     laser,

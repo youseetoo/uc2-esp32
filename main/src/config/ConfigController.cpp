@@ -122,20 +122,36 @@ namespace Config
 		pins.dac_fake_2 = preferences.getInt(keyDACfake2Pin, pins.dac_fake_2);
 		preferences.end();
 	}
-	void setAnalogPins(AnalogPins pins)
+	void setAnalogInPins(AnalogInPins pins)
 	{
 		preferences.begin(prefNamespace, false);
-		preferences.putInt(keyAnalog1Pin, pins.analog_PIN_1);
-		preferences.putInt(keyAnalog2Pin, pins.analog_PIN_2);
-		preferences.putInt(keyAnalog3Pin, pins.analog_PIN_3);
+		preferences.putInt(keyAnalogIn1Pin, pins.analogin_PIN_1);
+		preferences.putInt(keyAnalogIn2Pin, pins.analogin_PIN_2);
+		preferences.putInt(keyAnalogIn3Pin, pins.analogin_PIN_3);
 		preferences.end();
 	}
-	void getAnalogPins(AnalogPins pins)
+	void getAnalogInPins(AnalogInPins pins)
 	{
 		preferences.begin(prefNamespace, false);
-		pins.analog_PIN_1 = preferences.getInt(keyAnalog1Pin, pins.analog_PIN_1);
-		pins.analog_PIN_2 = preferences.getInt(keyAnalog2Pin, pins.analog_PIN_2);
-		pins.analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins.analog_PIN_3);
+		pins.analogin_PIN_1 = preferences.getInt(keyAnalogIn1Pin, pins.analogin_PIN_1);
+		pins.analogin_PIN_2 = preferences.getInt(keyAnalogIn2Pin, pins.analogin_PIN_2);
+		pins.analogin_PIN_3 = preferences.getInt(keyAnalogIn3Pin, pins.analogin_PIN_3);
+		preferences.end();
+	}
+	void setAnalogOutPins(AnalogOutPins pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.putInt(keyAnalogOut2Pin, pins.analogout_PIN_1);
+		preferences.putInt(keyAnalogOut2Pin, pins.analogout_PIN_2);
+		preferences.putInt(keyAnalogOut3Pin, pins.analogout_PIN_3);
+		preferences.end();
+	}
+	void getAnalogOutPins(AnalogOutPins pins)
+	{
+		preferences.begin(prefNamespace, false);
+		pins.analogout_PIN_1 = preferences.getInt(keyAnalogOut1Pin, pins.analogout_PIN_1);
+		pins.analogout_PIN_2 = preferences.getInt(keyAnalogOut2Pin, pins.analogout_PIN_2);
+		pins.analogout_PIN_3 = preferences.getInt(keyAnalogOut3Pin, pins.analogout_PIN_3);
 		preferences.end();
 	}
 	void setDigitalOutPins(DigitalOutPins pins)

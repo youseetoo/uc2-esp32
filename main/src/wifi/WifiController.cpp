@@ -334,12 +334,12 @@ namespace WifiController
 			server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
 		}
 
-		if (moduleController.moduleConfig->analog != 0)
+		if (moduleController.moduleConfig->analogout != 0)
 		{
-			log_i("add analog endpoints");
-			server->on(analog_act_endpoint, HTTP_POST, RestApi::Analog_act);
-			server->on(analog_get_endpoint, HTTP_POST, RestApi::Analog_get);
-			server->on(analog_set_endpoint, HTTP_POST, RestApi::Analog_set);
+			log_i("add analogout endpoints");
+			server->on(analogout_act_endpoint, HTTP_POST, RestApi::AnalogOut_act);
+			server->on(analogout_get_endpoint, HTTP_POST, RestApi::AnalogOut_get);
+			server->on(analogout_set_endpoint, HTTP_POST, RestApi::AnalogOut_set);
 		}
 
 		if (moduleController.moduleConfig->digitalout != 0)

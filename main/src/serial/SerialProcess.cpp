@@ -145,16 +145,16 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 			moduleController.get(AvailableModules::laser)->set();
 	}
 	/*
-	  Drive analog
+	  Drive analogout
 	*/
-	if (moduleController.get(AvailableModules::analog) != nullptr)
+	if (moduleController.get(AvailableModules::analogout) != nullptr)
 	{
-		if (task == analog_act_endpoint)
-			moduleController.get(AvailableModules::analog)->act();
-		if (task == analog_set_endpoint)
-			moduleController.get(AvailableModules::analog)->set();
-		if (task == analog_get_endpoint)
-			moduleController.get(AvailableModules::analog)->get();
+		if (task == analogout_act_endpoint)
+			moduleController.get(AvailableModules::analogout)->act();
+		if (task == analogout_set_endpoint)
+			moduleController.get(AvailableModules::analogout)->set();
+		if (task == analogout_get_endpoint)
+			moduleController.get(AvailableModules::analogout)->get();
 	}
 	/*
 	  Drive digitalout

@@ -57,13 +57,13 @@ void DigitalOutController::act()
 		if (digitaloutval == -1)
 		{
 			// perform trigger
-			digitaWrite(pins.digitalout_PIN_1, HIGH);
+			digitalWrite(pins.digitalout_PIN_1, HIGH);
 			delay(triggerdelay);
-			digitaWrite(pins.digitalout_PIN_1, LOW);
+			digitalWrite(pins.digitalout_PIN_1, LOW);
 		}
 		else
 		{
-			digitaWrite(pins.digitalout_PIN_1, digitalout_val_1);
+			digitalWrite(pins.digitalout_PIN_1, digitalout_val_1);
 			Serial.print("digitalout_PIN ");
 			Serial.println(pins.digitalout_PIN_1);
 		}
@@ -74,13 +74,13 @@ void DigitalOutController::act()
 		if (digitaloutval == -1)
 		{
 			// perform trigger
-			digitaWrite(pins.digitalout_PIN_2, HIGH);
+			digitalWrite(pins.digitalout_PIN_2, HIGH);
 			delay(triggerdelay);
-			digitaWrite(pins.digitalout_PIN_2, LOW);
+			digitalWrite(pins.digitalout_PIN_2, LOW);
 		}
 		else
 		{
-			digitaWrite(pins.digitalout_PIN_2, digitalout_val_2);
+			digitalWrite(pins.digitalout_PIN_2, digitalout_val_2);
 			Serial.print("digitalout_PIN ");
 			Serial.println(pins.digitalout_PIN_2);
 		}
@@ -91,13 +91,13 @@ void DigitalOutController::act()
 		if (digitaloutval == -1)
 		{
 			// perform trigger
-			digitaWrite(pins.digitalout_PIN_3, HIGH);
+			digitalWrite(pins.digitalout_PIN_3, HIGH);
 			delay(triggerdelay);
-			digitaWrite(pins.digitalout_PIN_3, LOW);
+			digitalWrite(pins.digitalout_PIN_3, LOW);
 		}
 		else
 		{
-			digitaWrite(pins.digitalout_PIN_3, digitalout_val_3);
+			digitalWrite(pins.digitalout_PIN_3, digitalout_val_3);
 			Serial.print("digitalout_PIN ");
 			Serial.println(pins.digitalout_PIN_3);
 		}
@@ -125,19 +125,19 @@ void DigitalOutController::set()
 		{
 			pins.digitalout_PIN_1 = digitaloutpin;
 			pinMode(pins.digitalout_PIN_1, OUTPUT);
-			digitaWrite(pins.digitalout_PIN_1, LOW);
+			digitalWrite(pins.digitalout_PIN_1, LOW);
 		}
 		else if (digitaloutid == 2)
 		{
 			pins.digitalout_PIN_2 = digitaloutpin;
 			pinMode(pins.digitalout_PIN_2, OUTPUT);
-			digitaWrite(pins.digitalout_PIN_2, LOW);
+			digitalWrite(pins.digitalout_PIN_2, LOW);
 		}
 		else if (digitaloutid == 3)
 		{
 			pins.digitalout_PIN_3 = digitaloutpin;
 			pinMode(pins.digitalout_PIN_3, OUTPUT);
-			digitaWrite(pins.digitalout_PIN_3, LOW);
+			digitalWrite(pins.digitalout_PIN_3, LOW);
 		}
 	}
 	Config::setDigitalOutPins(pins);
@@ -194,19 +194,19 @@ void DigitalOutController::setup()
 	/* setup the output nodes and reset them to 0*/
 	pinMode(pins.digitalout_PIN_1, OUTPUT);
 
-	digitaWrite(pins.digitalout_PIN_1, HIGH);
+	digitalWrite(pins.digitalout_PIN_1, HIGH);
 	delay(50);
-	digitaWrite(pins.digitalout_PIN_1, LOW);
+	digitalWrite(pins.digitalout_PIN_1, LOW);
 
 	pinMode(pins.digitalout_PIN_2, OUTPUT);
-	digitaWrite(pins.digitalout_PIN_2, HIGH);
+	digitalWrite(pins.digitalout_PIN_2, HIGH);
 	delay(50);
-	digitaWrite(pins.digitalout_PIN_2, LOW);
+	digitalWrite(pins.digitalout_PIN_2, LOW);
 
 	pinMode(pins.digitalout_PIN_3, OUTPUT);
-	digitaWrite(pins.digitalout_PIN_3, HIGH);
+	digitalWrite(pins.digitalout_PIN_3, HIGH);
 	delay(50);
-	digitaWrite(pins.digitalout_PIN_3, LOW);
+	digitalWrite(pins.digitalout_PIN_3, LOW);
 }
 
 void DigitalOutController::loop(){}

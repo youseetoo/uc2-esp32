@@ -2,7 +2,7 @@
 
 struct ModuleConfig
 {
-    bool analog = false;
+    bool analogout = false;
     bool dac = false;
     bool digitalout = true;
     bool laser = true;

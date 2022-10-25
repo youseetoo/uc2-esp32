@@ -10,7 +10,8 @@
 #include "../bt/BtController.h"
 #include <esp_log.h>
 #include "../dac/DacController.h"
-#include "../analog/AnalogController.h"
+#include "../analogin/AnalogInController.h"
+#include "../analogout/AnalogOutController.h"
 #include "../digitalout/DigitalOutController.h"
 #include "../laser/LaserController.h"
 namespace RestApi

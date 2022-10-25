@@ -7,7 +7,7 @@
 #include "RestApiCallbacks.h"
 #include "esp_log.h"
 #include "SPIFFS.h"
-#include "../analog/AnalogController.h"
+#include "../analogin/AnalogInController.h"
 #include "../digitalout/DigitalOutController.h"
 #include "../config/ConfigController.h"
 #include "../dac/DacController.h"

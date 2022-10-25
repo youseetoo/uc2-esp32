@@ -77,7 +77,7 @@ void PidController::loop()
 	{
 		// hardcoded for now:
 		int N_analogin_avg = 50;
-		int analoginpin = pins.ADC_pin_0;
+		int analoginpin = pins.analogin_PIN_0;
 
 		// get rid of noise?
 		float analoginValueAvg = 0;
@@ -141,13 +141,13 @@ void PidController::set()
 	switch (PIDID)
 	{
 	case 0:
-		pins.ADC_pin_0 = PIDPIN;
+		pins.analogin_PIN_0 = PIDPIN;
 		break;
 	case 1:
-		pins.ADC_pin_1 = PIDPIN;
+		pins.analogin_PIN_1 = PIDPIN;
 		break;
 	case 2:
-		pins.ADC_pin_2 = PIDPIN;
+		pins.analogin_PIN_2 = PIDPIN;
 		break;
 	}
 
@@ -166,13 +166,13 @@ void PidController::get()
 	switch (PIDID)
 	{
 	case 0:
-		PIDPIN = pins.ADC_pin_0;
+		PIDPIN = pins.analogin_PIN_0;
 		break;
 	case 1:
-		PIDPIN = pins.ADC_pin_1;
+		PIDPIN = pins.analogin_PIN_1;
 		break;
 	case 2:
-		PIDPIN = pins.ADC_pin_2;
+		PIDPIN = pins.analogin_PIN_2;
 		break;
 	}
 

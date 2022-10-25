@@ -71,10 +71,10 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::dac, dynamic_cast<Module *>(new DacController())));
         log_i("add dac");
     }
-    if (moduleConfig->analog)
+    if (moduleConfig->analogout)
     {
-        modules.insert(std::make_pair(AvailableModules::analog, dynamic_cast<Module *>(new AnalogController())));
-        log_i("add analog");
+        modules.insert(std::make_pair(AvailableModules::analogout, dynamic_cast<Module *>(new AnalogOutController())));
+        log_i("add analogout");
     }
     if (moduleConfig->digitalout)
     {
@@ -121,11 +121,11 @@ void ModuleController::get()
     (*jdoc)[key_modules][key_pid] = moduleConfig->pid;
     (*jdoc)[key_modules][key_laser] = moduleConfig->laser;
     (*jdoc)[key_modules][key_dac] = moduleConfig->dac;
-    (*jdoc)[key_modules][key_analog] = moduleConfig->analog;
+    (*jdoc)[key_modules][key_analogout] = moduleConfig->analogout;
     (*jdoc)[key_modules][key_digitalout] = moduleConfig->digitalout;
     (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
 }
-// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analog" : 0, "digitalout" : 0, "scanner" : 0}}
+// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "scanner" : 0}}
 void ModuleController::set()
 {
     DynamicJsonDocument *jdoc = WifiController::getJDoc();
@@ -147,8 +147,8 @@ void ModuleController::set()
             moduleConfig->laser = (*jdoc)[key_modules][key_laser];
         if ((*jdoc)[key_modules].containsKey(key_dac))
             moduleConfig->dac = (*jdoc)[key_modules][key_dac];
-        if ((*jdoc)[key_modules].containsKey(key_analog))
-            moduleConfig->analog = (*jdoc)[key_modules][key_analog];
+        if ((*jdoc)[key_modules].containsKey(key_analogout))
+            moduleConfig->analogout = (*jdoc)[key_modules][key_analogout];
         if ((*jdoc)[key_modules].containsKey(key_digitalout))
             moduleConfig->digitalout = (*jdoc)[key_modules][key_digitalout];
         if ((*jdoc)[key_modules].containsKey(key_scanner))

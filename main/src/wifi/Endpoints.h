@@ -21,9 +21,9 @@ static const PROGMEM String dac_act_endpoint = "/dac_act";
 static const PROGMEM String dac_set_endpoint = "/dac_set";
 static const PROGMEM String dac_get_endpoint = "/dac_get";
 
-static const PROGMEM String analog_act_endpoint = "/analog_act";
-static const PROGMEM String analog_set_endpoint = "/analog_set";
-static const PROGMEM String analog_get_endpoint = "/analog_get";
+static const PROGMEM String analogout_act_endpoint = "/analogout_act";
+static const PROGMEM String analogout_set_endpoint = "/analogout_set";
+static const PROGMEM String analogout_get_endpoint = "/analogout_get";
 
 static const PROGMEM String digitalout_act_endpoint = "/digitalout_act";
 static const PROGMEM String digitalout_set_endpoint = "/digitalout_set";

@@ -171,7 +171,7 @@ void LaserController::set()
 			{
 				pins.LASER_PIN_1 = LASERpin;
 				pinMode(pins.LASER_PIN_1, OUTPUT);
-				digitaWrite(pins.LASER_PIN_1, LOW);
+				digitalWrite(pins.LASER_PIN_1, LOW);
 				/* setup the PWM ports and reset them to 0*/
 				ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
 				ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
@@ -181,7 +181,7 @@ void LaserController::set()
 			{
 				pins.LASER_PIN_2 = LASERpin;
 				pinMode(pins.LASER_PIN_2, OUTPUT);
-				digitaWrite(pins.LASER_PIN_2, LOW);
+				digitalWrite(pins.LASER_PIN_2, LOW);
 				/* setup the PWM ports and reset them to 0*/
 				ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
 				ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
@@ -191,7 +191,7 @@ void LaserController::set()
 			{
 				pins.LASER_PIN_3 = LASERpin;
 				pinMode(pins.LASER_PIN_3, OUTPUT);
-				digitaWrite(pins.LASER_PIN_3, LOW);
+				digitalWrite(pins.LASER_PIN_3, LOW);
 				/* setup the PWM ports and reset them to 0*/
 				ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
 				ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
@@ -221,7 +221,7 @@ void LaserController::setup()
 	if (pins.LASER_PIN_1 != 0)
 	{
 		pinMode(pins.LASER_PIN_1, OUTPUT);
-		digitaWrite(pins.LASER_PIN_1, LOW);
+		digitalWrite(pins.LASER_PIN_1, LOW);
 		ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
 		ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
 		ledcWrite(PWM_CHANNEL_LASER_1, 10000);
@@ -232,7 +232,7 @@ void LaserController::setup()
 	if (pins.LASER_PIN_2 != 0)
 	{
 		pinMode(pins.LASER_PIN_2, OUTPUT);
-		digitaWrite(pins.LASER_PIN_2, LOW);
+		digitalWrite(pins.LASER_PIN_2, LOW);
 		ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
 		ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
 		ledcWrite(PWM_CHANNEL_LASER_2, 10000);
@@ -243,7 +243,7 @@ void LaserController::setup()
 	if (pins.LASER_PIN_3 != 0)
 	{
 		pinMode(pins.LASER_PIN_3, OUTPUT);
-		digitaWrite(pins.LASER_PIN_3, LOW);
+		digitalWrite(pins.LASER_PIN_3, LOW);
 		ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
 		ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
 		ledcWrite(PWM_CHANNEL_LASER_3, 10000);

@@ -1,7 +1,7 @@
 #include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
-#include "../analog/AnalogController.h"
+#include "../analogin/AnalogInController.h"
 #include "../state/State.h"
 #include "../scanner/ScannerController.h"
 #include "../digitalout/DigitalOutController.h"

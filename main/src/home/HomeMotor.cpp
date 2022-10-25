@@ -1,6 +1,8 @@
 #include "../../config.h"
 #include "HomeMotor.h"
 
+
+
 namespace RestApi
 {
 	void HomeMotor_act()
@@ -29,7 +31,7 @@ HomeMotor::HomeMotor() : Module() { log_i("ctor"); }
 HomeMotor::~HomeMotor() { log_i("~ctor"); }
 
 
-// {"task":"/home_act", "home": {"home":1, "steppers": [{"id":0, "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1}]}}
+// {"task":"/home_act", "home": {"home":1, "steppers": [{"id":1, "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1}]}}
 void HomeMotor::act()
 {
 	if (DEBUG)
@@ -90,13 +92,21 @@ void HomeMotor::doHome(int i){
 			while(!breakCondition){
 				// FIXME: Better to put this into an array..
 				// Check if limitswitch was hit
-				if(hdata[i]->homeEndposPin==1)
-					breakCondition = digitalin->digitalin_val_1;
-				else if(hdata[i]->homeEndposPin==2)
-					breakCondition = digitalin->digitalin_val_2;
-				else if(hdata[i]->homeEndposPin==3)
-					breakCondition = digitalin->digitalin_val_3;
-
+				if(hdata[i]->homeEndposPin==1){
+					//breakCondition = digitalin->digitalin_val_1;
+					breakCondition = digitalRead(pins.digitalin_PIN_1);
+					Serial.println(pins.digitalin_PIN_1);
+				}
+				else if(hdata[i]->homeEndposPin==2){
+					//breakCondition = digitalin->digitalin_val_2;
+					breakCondition = digitalRead(pins.digitalin_PIN_2);
+					Serial.println(pins.digitalin_PIN_2);
+				}
+				else if(hdata[i]->homeEndposPin==3){
+					//breakCondition = digitalin->digitalin_val_3;
+					breakCondition = digitalRead(pins.digitalin_PIN_3);
+					Serial.println(pins.digitalin_PIN_3);
+				}
 				if (millis()-cTime>hdata[i]->homeTimeout)
 					breakCondition = true;
 

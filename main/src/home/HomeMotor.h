@@ -10,6 +10,8 @@
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"
+#include "../digitalin/DigitalInPins.h" 
+
 
 namespace RestApi
 {
@@ -43,6 +45,8 @@ public:
 	void setup() override;
 	void loop() override;
 
+	// FIXME: There should be a better way of doing it! Reuse the module!
+    DigitalInPins pins;
 	std::array<HomeData *, 4> hdata;
 
 private:

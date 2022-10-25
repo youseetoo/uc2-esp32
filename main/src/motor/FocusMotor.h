@@ -139,12 +139,13 @@ public:
 	*/
 	void get() override;
 	void setup() override;
-	void loop() override;
+	void loop() override;	
+	void stopAllDrives();
 
 private:
 	int logcount;
 	unsigned long nextSocketUpdateTime;
-	void stopAllDrives();
+
 	void stopStepper(int i);
 	void startStepper(int i);
 	void startAllDrives();

@@ -44,24 +44,24 @@ void HomeMotor::act()
 		{
 			Serial.println(i);
 			Stepper s = static_cast<Stepper>((*j)[key_home][key_steppers][i][key_stepperid]);
-			Serial.println("1");
+			
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_endpospin))
 				hdata[s]->homeEndposPin = (*j)[key_home][key_steppers][i][key_home_endpospin];
-			Serial.println("2");
+			
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_timeout))
 				hdata[s]->homeTimeout = (*j)[key_home][key_steppers][i][key_home_timeout];
-			Serial.println("3");
+			
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_speed))
 				hdata[s]->homeSpeed = (*j)[key_home][key_steppers][i][key_home_speed];
-			Serial.println("4");
+			
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_maxspeed))
 				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
-			Serial.println("5");
+			
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
 				hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
-			Serial.println("6");
+			
+			// go home 
 			doHome(s);
-	
 	
 		}
 	}
@@ -75,7 +75,7 @@ void HomeMotor::doHome(int i){
 	Serial.println("do Home");
 	log_i("home stepper:%i direction:%i, endpos Pin: %i, homeMaxSpeed: %i, homeSpeed: %i, homeTimeout: %i ", i, hdata[i]->homeDirection, hdata[i]->homeEndposPin, hdata[i]->homeMaxspeed, hdata[i]->homeSpeed, hdata[i]->homeTimeout);
 
-	DigitalInController * digitalin = (DigitalInController)moduleController.get(AvailableModules::digitalin);
+	DigitalInController * digitalin = (DigitalInController*)moduleController.get(AvailableModules::digitalin);
 	FocusMotor * motor = (FocusMotor*)moduleController.get(AvailableModules::motor);
 	motor->stopAllDrives(); // Make sure nothing is moving
 	if (moduleController.get(AvailableModules::motor) != nullptr)
@@ -88,10 +88,6 @@ void HomeMotor::doHome(int i){
 			// FIXME: This is a blocking operation - not a good idea!
 			bool breakCondition = false;
 			while(!breakCondition){
-				Serial.print("Breakcondition: ");
-				Serial.println(breakCondition);
-
-
 				// FIXME: Better to put this into an array..
 				// Check if limitswitch was hit
 				if(hdata[i]->homeEndposPin==1)
@@ -104,10 +100,16 @@ void HomeMotor::doHome(int i){
 				if (millis()-cTime>hdata[i]->homeTimeout)
 					breakCondition = true;
 
+				Serial.print("Breakcondition: ");
+				Serial.println(breakCondition);
+
 				// Run Motor forever..
 				motor->steppers[i]->runSpeed();
 				
 			}
+
+			// resetting the current position of this motor 
+			motor->steppers[i]->setCurrentPosition(0);
 			
 			// alternative: run motor in background, but how to trigger a stop by a motor?
 			// motor->data[i]->isforever = true;

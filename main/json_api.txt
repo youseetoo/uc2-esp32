@@ -101,10 +101,10 @@
         "LASERdespeckle" : 1,
         "LASERdespecklePeriod" : 1
     },
-    "digital" :
+    "digitalout" :
     {
-        "digitalid" : 1,
-        "digitalval" : 1,
+        "digitaloutid" : 1,
+        "digitaloutval" : 1,
     },
     "dac" :
     {
@@ -117,8 +117,8 @@
     "config" : 
     {
 
-        "digitalPin1" : 1,
-        "digitalPin2" : 1,
+        "digitaloutPin1" : 1,
+        "digitaloutPin2" : 1,
 
         "analogPin1" : 1,
         "analogPin2" : 1,
@@ -191,10 +191,10 @@
         "LASERid" : 1,
         "LASERpin" : 1
     },
-    "digital" : 
+    "digitalout" : 
     {
-        "digitalid" : 1,
-        "digitalpin" : 1
+        "digitaloutid" : 1,
+        "digitaloutpin" : 1
     },
     "dac" :
     {
@@ -216,8 +216,8 @@
         "ledArrPin" : 1,
         "ledArrNum" : 1,
 
-        "digitalPin1" : 1,
-        "digitalPin2" : 1,
+        "digitaloutPin1" : 1,
+        "digitaloutPin2" : 1,
 
         "analogPin1" : 1,
         "analogPin2" : 1,

@@ -4,7 +4,7 @@
 #include "../analog/AnalogController.h"
 #include "../state/State.h"
 #include "../scanner/ScannerController.h"
-#include "../digital/DigitalController.h"
+#include "../digitalout/DigitalOutController.h"
 #include "../dac/DacController.h"
 #include "../config/ConfigController.h"
 #include "../wifi/Endpoints.h"

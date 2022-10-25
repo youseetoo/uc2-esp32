@@ -11,7 +11,7 @@
 #include <esp_log.h>
 #include "../dac/DacController.h"
 #include "../analog/AnalogController.h"
-#include "../digital/DigitalController.h"
+#include "../digitalout/DigitalOutController.h"
 #include "../laser/LaserController.h"
 namespace RestApi
 {

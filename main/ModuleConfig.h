@@ -4,7 +4,7 @@ struct ModuleConfig
 {
     bool analog = false;
     bool dac = false;
-    bool digital = true;
+    bool digitalout = true;
     bool laser = true;
     bool led = true;
     bool motor = true;

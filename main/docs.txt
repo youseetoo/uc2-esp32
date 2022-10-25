@@ -55,8 +55,8 @@
   operate the analog out
   {"task": "/analog_act", "analogid": 1, "analogval":1000}
 
-  operate the digital out
-  {"task": "/digital_act", "digitalid": 1, "digitalval":1}
+  operate the digitalout out
+  {"task": "/digitalout_act", "digitaloutid": 1, "digitaloutval":1}
 
   operate the dac (e.g. lightsheet)
   {"task": "/dac_act", "dac_channel": 1, "frequency":1, "offset":0, "amplitude":0, "clk_div": 1000}
@@ -94,10 +94,10 @@
   "repeats_n": 5,
   "0": {"task": "/motor_act", "speed":1000, "pos1":4000, "pos2":4000, "pos3":4000, "isabs":1, "isblock":1, "isen":1},
   "1": {"task": "/state_act", "delay": 100},
-  "2": {"task": "/digital_act", "digitalid": 1, "digitalval":1},
-  "3": {"task": "/digital_act", "digitalid": 2, "digitalval":1},
-  "4": {"task": "/digital_act", "digitalid": 2, "digitalval":0},
-  "5": {"task": "/digital_act", "digitalid": 1, "digitalval":0},
+  "2": {"task": "/digitalout_act", "digitaloutid": 1, "digitaloutval":1},
+  "3": {"task": "/digitalout_act", "digitaloutid": 2, "digitaloutval":1},
+  "4": {"task": "/digitalout_act", "digitaloutid": 2, "digitaloutval":0},
+  "5": {"task": "/digitalout_act", "digitaloutid": 1, "digitaloutval":0},
   "6": {"task": "/laser_act", "LASERid":1, "LASERval":10000, "LASERdespeckle":100},
   "7": {"task": "/state_act", "delay": 100},
   "8": {"task": "/laser_act", "LASERid":1, "LASERval":10000, "LASERdespeckle":100}
@@ -114,7 +114,7 @@
   "task": "multitable",
   "task_n": 2,
   "repeats_n": 200,
-  "0": {"task": "/digital_act", "digitalid": 1, "digitalval":-1},
+  "0": {"task": "/digitalout_act", "digitaloutid": 1, "digitaloutval":-1},
   "1": {"task": "/state_act", "delay": 50}
   }
   {"task": "/motor_act", "isstop":1}
@@ -137,8 +137,8 @@
   "motEnable": 13,
   "ledArrPin": 17,
   "ledArrNum": 16,
-  "digitalPin1":10,
-  "digitalPin2":11,
+  "digitaloutPin1":10,
+  "digitaloutPin2":11,
   "analogPin1":0,
   "analogPin2":0,
   "analogPin3":0,

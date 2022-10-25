@@ -127,11 +127,11 @@ namespace RestApi
             (*WifiController::getJDoc()).add(analog_set_endpoint);
             (*WifiController::getJDoc()).add(analog_get_endpoint);
         }
-        if (moduleController.get(AvailableModules::digital) != nullptr)
+        if (moduleController.get(AvailableModules::digitalout) != nullptr)
         {
-            (*WifiController::getJDoc()).add(digital_act_endpoint);
-            (*WifiController::getJDoc()).add(digital_set_endpoint);
-            (*WifiController::getJDoc()).add(digital_get_endpoint);
+            (*WifiController::getJDoc()).add(digitalout_act_endpoint);
+            (*WifiController::getJDoc()).add(digitalout_set_endpoint);
+            (*WifiController::getJDoc()).add(digitalout_get_endpoint);
         }
         if (moduleController.get(AvailableModules::dac) != nullptr)
         {

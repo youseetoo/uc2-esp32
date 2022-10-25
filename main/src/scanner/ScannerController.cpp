@@ -69,9 +69,9 @@ void ScannerController::loop()
 						if (moduleController.get(AvailableModules::laser) != nullptr)
 						{
 							LaserController *laser = (LaserController *)moduleController.get(AvailableModules::laser);
-							ledcWrite(laser->PWM_CHANNEL_LASER_1, scannerLaserVal); // digitalWrite(LASER_PIN_1, HIGH); //
+							ledcWrite(laser->PWM_CHANNEL_LASER_1, scannerLaserVal); // digitaWrite(LASER_PIN_1, HIGH); //
 							delayMicroseconds(scannerExposure);
-							ledcWrite(laser->PWM_CHANNEL_LASER_1, 0); //             digitalWrite(LASER_PIN_1, LOW); //
+							ledcWrite(laser->PWM_CHANNEL_LASER_1, 0); //             digitaWrite(LASER_PIN_1, LOW); //
 							delayMicroseconds(scannerDelay);
 						}
 					}
@@ -150,9 +150,9 @@ void ScannerController::act()
 				if (moduleController.get(AvailableModules::laser) != nullptr)
 				{
 					LaserController *laser = (LaserController *)moduleController.get(AvailableModules::laser);
-					ledcWrite(laser->PWM_CHANNEL_LASER_1, scannerLaserVal); // digitalWrite(LASER_PIN_1, HIGH); //
+					ledcWrite(laser->PWM_CHANNEL_LASER_1, scannerLaserVal); // digitaWrite(LASER_PIN_1, HIGH); //
 					delayMicroseconds(scannerExposure);
-					ledcWrite(laser->PWM_CHANNEL_LASER_1, 0); //             digitalWrite(LASER_PIN_1, LOW); //
+					ledcWrite(laser->PWM_CHANNEL_LASER_1, 0); //             digitaWrite(LASER_PIN_1, LOW); //
 					delayMicroseconds(scannerDelay);
 				}
 			}

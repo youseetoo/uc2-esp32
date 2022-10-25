@@ -1,8 +1,8 @@
 #pragma once
 
-struct DigitalPins
+struct DigitalOutPins
 {
-    int digital_PIN_1;
-    int digital_PIN_2;
-    int digital_PIN_3;
+    int digitalout_PIN_1;
+    int digitalout_PIN_2;
+    int digitalout_PIN_3;
 };

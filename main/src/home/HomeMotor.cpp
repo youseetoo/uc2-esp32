@@ -74,7 +74,7 @@ void HomeMotor::act()
 void HomeMotor::doHome(int i){
 	Serial.println("do Home");
 		//if (moduleController.get(AvailableModules::motor) != nullptr)
-		//if (moduleController.get(AvailableModules::digital) != nullptr)
+		//if (moduleController.get(AvailableModules::digitalout) != nullptr)
 
 	log_i("home stepper:%i direction:%i, endpos Pin: %i", i, hdata[i]->homeDirection, hdata[i]->homeEndposPin);
 	

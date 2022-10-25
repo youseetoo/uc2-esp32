@@ -39,7 +39,7 @@ POST
         "laser" : 0, 
         "dac" : 0, 
         "analog" : 0, 
-        "digital" : 0, 
+        "digitalout" : 0, 
         "scanner" : 0
     }
 
@@ -61,7 +61,7 @@ GET
         "laser" : 0, 
         "dac" : 0, 
         "analog" : 0, 
-        "digital" : 0, 
+        "digitalout" : 0, 
         "scanner" : 0
     }
 

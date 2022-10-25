@@ -342,12 +342,12 @@ namespace WifiController
 			server->on(analog_set_endpoint, HTTP_POST, RestApi::Analog_set);
 		}
 
-		if (moduleController.moduleConfig->digital != 0)
+		if (moduleController.moduleConfig->digitalout != 0)
 		{
-			log_i("add digital endpoints");
-			server->on(digital_act_endpoint, HTTP_POST, RestApi::Digital_act);
-			server->on(digital_get_endpoint, HTTP_POST, RestApi::Digital_get);
-			server->on(digital_set_endpoint, HTTP_POST, RestApi::Digital_set);
+			log_i("add digitalout endpoints");
+			server->on(digitalout_act_endpoint, HTTP_POST, RestApi::DigitalOut_act);
+			server->on(digitalout_get_endpoint, HTTP_POST, RestApi::DigitalOut_get);
+			server->on(digitalout_set_endpoint, HTTP_POST, RestApi::DigitalOut_set);
 		}
 
 		if (moduleController.moduleConfig->pid != 0)

@@ -107,7 +107,7 @@ void AnalogController::set()
 	{
 		pins.analog_PIN_1 = analogpin;
 		pinMode(pins.analog_PIN_1, OUTPUT);
-		digitalWrite(pins.analog_PIN_1, LOW);
+		digitaWrite(pins.analog_PIN_1, LOW);
 
 		/* setup the PWM ports and reset them to 0*/
 		ledcSetup(PWM_CHANNEL_analog_1, pwm_frequency, pwm_resolution);
@@ -118,7 +118,7 @@ void AnalogController::set()
 	{
 		pins.analog_PIN_2 = analogpin;
 		pinMode(pins.analog_PIN_2, OUTPUT);
-		digitalWrite(pins.analog_PIN_2, LOW);
+		digitaWrite(pins.analog_PIN_2, LOW);
 
 		/* setup the PWM ports and reset them to 0*/
 		ledcSetup(PWM_CHANNEL_analog_2, pwm_frequency, pwm_resolution);
@@ -129,7 +129,7 @@ void AnalogController::set()
 	{
 		pins.analog_PIN_3 = analogpin;
 		pinMode(pins.analog_PIN_3, OUTPUT);
-		digitalWrite(pins.analog_PIN_3, LOW);
+		digitaWrite(pins.analog_PIN_3, LOW);
 
 		/* setup the PWM ports and reset them to 0*/
 		ledcSetup(PWM_CHANNEL_analog_3, pwm_frequency, pwm_resolution);

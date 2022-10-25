@@ -12,7 +12,7 @@
 #include "src/analogin/AnalogInController.h"
 #include "src/dac/DacController.h"
 #include "src/analog/AnalogController.h"
-#include "src/digital/DigitalController.h"
+#include "src/digitalout/DigitalOutController.h"
 #include "src/scanner/ScannerController.h"
 
 namespace RestApi
@@ -25,7 +25,7 @@ enum class AvailableModules
 {
     analog,
     dac,
-    digital,
+    digitalout,
     laser,
     led,
     motor,

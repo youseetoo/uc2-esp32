@@ -28,9 +28,9 @@ static const PROGMEM char * keyMotorEnableAinverted = "motEnableA_inv";
 static const PROGMEM char * keyLEDPin = "ledArrPin";
 static const PROGMEM char * keyLEDCount = "ledArrNum";
 
-static const PROGMEM char * keyDigital1Pin = "digitalPin1";
-static const PROGMEM char * keyDigital2Pin = "digitalPin2";
-static const PROGMEM char * keyDigital3Pin = "digitalPin3";
+static const PROGMEM char * keyDigitalOut1Pin = "digitaloutPin1";
+static const PROGMEM char * keyDigitalOut2Pin = "digitaloutPin2";
+static const PROGMEM char * keyDigitalOut3Pin = "digitaloutPin3";
 
 static const PROGMEM char * keyAnalog1Pin = "analogPin1";
 static const PROGMEM char * keyAnalog2Pin = "analogPin2";
@@ -96,5 +96,5 @@ static const PROGMEM char *key_pid = "pid";
 static const PROGMEM char *key_laser = "laser";
 static const PROGMEM char *key_dac = "dac";
 static const PROGMEM char *key_analog = "analog";
-static const PROGMEM char *key_digital = "digital";
+static const PROGMEM char *key_digitalout = "digitalout";
 static const PROGMEM char *key_scanner = "scanner";

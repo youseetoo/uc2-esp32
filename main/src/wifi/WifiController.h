@@ -8,7 +8,7 @@
 #include "esp_log.h"
 #include "SPIFFS.h"
 #include "../analog/AnalogController.h"
-#include "../digital/DigitalController.h"
+#include "../digitalout/DigitalOutController.h"
 #include "../config/ConfigController.h"
 #include "../dac/DacController.h"
 #include "../pid/PidController.h"

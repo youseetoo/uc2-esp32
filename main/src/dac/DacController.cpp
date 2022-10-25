@@ -182,11 +182,11 @@ void DacController::drive_galvo(void *parameter)
 
 	while (true)
 	{ // infinite loop
-		digitalWrite(d->pins.dac_fake_1, HIGH);
-		digitalWrite(d->pins.dac_fake_2, HIGH);
+		digitaWrite(d->pins.dac_fake_1, HIGH);
+		digitaWrite(d->pins.dac_fake_2, HIGH);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
-		digitalWrite(d->pins.dac_fake_1, LOW);
-		digitalWrite(d->pins.dac_fake_2, LOW);
+		digitaWrite(d->pins.dac_fake_1, LOW);
+		digitaWrite(d->pins.dac_fake_2, LOW);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
 	}
 }

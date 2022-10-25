@@ -138,21 +138,21 @@ namespace Config
 		pins.analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins.analog_PIN_3);
 		preferences.end();
 	}
-	void setDigitalPins(DigitalPins pins)
+	void setDigitalOutPins(DigitalOutPins pins)
 	{
 
 		preferences.begin(prefNamespace, false);
-		preferences.putInt(keyDigital1Pin, pins.digital_PIN_1);
-		preferences.putInt(keyDigital2Pin, pins.digital_PIN_2);
-		preferences.putInt(keyDigital3Pin, pins.digital_PIN_3);
+		preferences.putInt(keyDigitalOut1Pin, pins.digitalout_PIN_1);
+		preferences.putInt(keyDigitalOut2Pin, pins.digitalout_PIN_2);
+		preferences.putInt(keyDigitalOut3Pin, pins.digitalout_PIN_3);
 		preferences.end();
 	}
-	void getDigitalPins(DigitalPins pins)
+	void getDigitalOutPins(DigitalOutPins pins)
 	{
 		preferences.begin(prefNamespace, false);
-		pins.digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins.digital_PIN_1);
-		pins.digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins.digital_PIN_2);
-		pins.digital_PIN_3 = preferences.getInt(keyDigital3Pin, pins.digital_PIN_3);
+		pins.digitalout_PIN_1 = preferences.getInt(keyDigitalOut1Pin, pins.digitalout_PIN_1);
+		pins.digitalout_PIN_2 = preferences.getInt(keyDigitalOut2Pin, pins.digitalout_PIN_2);
+		pins.digitalout_PIN_3 = preferences.getInt(keyDigitalOut3Pin, pins.digitalout_PIN_3);
 		preferences.end();
 	}
 

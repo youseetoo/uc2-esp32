@@ -28,51 +28,51 @@ namespace RestApi
 HomeMotor::HomeMotor() : Module() { log_i("ctor"); }
 HomeMotor::~HomeMotor() { log_i("~ctor"); }
 
+
+// {"task":"/home_act", "home": {"home":1, "steppers": [{"id":0, "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1}]}}
 void HomeMotor::act()
 {
 	if (DEBUG)
 		Serial.println("home_act_fct");
 	DynamicJsonDocument *j = WifiController::getJDoc();
-	if (j->containsKey(key_home))
+
+	if ((*j).containsKey(key_home)){
+	if ((*j)[key_home].containsKey(key_steppers))
 	{
-		if ((*j)[key_home].containsKey(key_steppers))
+		Serial.println("contains key");
+		for (int i = 0; i < (*j)[key_home][key_steppers].size(); i++)
 		{
-			for (int i = 0; i < (*j)[key_home][key_steppers].size(); i++)
-			{
-				Stepper s = static_cast<Stepper>((*j)[key_home][key_steppers][i][key_stepperid]);
-
-				if ((*j)[key_home][key_steppers][i].containsKey(key_home_endpospin))
-					hdata[s]->homeEndposPin = (*j)[key_home][key_steppers][i][key_home_endpospin];
-
-				if ((*j)[key_home][key_steppers][i].containsKey(key_home_timeout))
-					hdata[s]->homeTimeout = (*j)[key_home][key_steppers][i][key_home_timeout];
-
-				if ((*j)[key_home][key_steppers][i].containsKey(key_home_speed))
-					hdata[s]->homeSpeed = (*j)[key_home][key_steppers][i][key_home_speed];
-
-				if ((*j)[key_home][key_steppers][i].containsKey(key_home_maxspeed))
-					hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
-
-				if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
-					hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
-
-				doHome(s);
-		
-		
-			}
+			Serial.println(i);
+			Stepper s = static_cast<Stepper>((*j)[key_home][key_steppers][i][key_stepperid]);
+			Serial.println("1");
+			if ((*j)[key_home][key_steppers][i].containsKey(key_home_endpospin))
+				hdata[s]->homeEndposPin = (*j)[key_home][key_steppers][i][key_home_endpospin];
+			Serial.println("2");
+			if ((*j)[key_home][key_steppers][i].containsKey(key_home_timeout))
+				hdata[s]->homeTimeout = (*j)[key_home][key_steppers][i][key_home_timeout];
+			Serial.println("3");
+			if ((*j)[key_home][key_steppers][i].containsKey(key_home_speed))
+				hdata[s]->homeSpeed = (*j)[key_home][key_steppers][i][key_home_speed];
+			Serial.println("4");
+			if ((*j)[key_home][key_steppers][i].containsKey(key_home_maxspeed))
+				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
+			Serial.println("5");
+			if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
+				hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
+			Serial.println("6");
+			doHome(s);
+	
+	
 		}
 	}
+	}
+
 	WifiController::getJDoc()->clear();
 }
 
 
 void HomeMotor::doHome(int i){
-	int homeEndposPin = 0;
-	long homeTimeout = 10000; // ms
-	long homeSpeed = 0;
-	long homeMaxspeed = 20000;
-	int homeDirection = 1;
-	
+	Serial.println("do Home");
 		//if (moduleController.get(AvailableModules::motor) != nullptr)
 		//if (moduleController.get(AvailableModules::digital) != nullptr)
 

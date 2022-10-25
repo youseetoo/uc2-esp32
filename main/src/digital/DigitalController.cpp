@@ -1,6 +1,9 @@
 #include "../../config.h"
 #include "DigitalController.h"
 
+
+// This is for digitalout
+
 namespace RestApi
 {
 	void Digital_act()

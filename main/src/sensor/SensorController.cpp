@@ -1,103 +1,103 @@
 #include "../../config.h"
 
-#include "SensorController.h"
+#include "AnalogInController.h"
 
-SensorController::SensorController(/* args */){};
-SensorController::~SensorController(){};
+AnalogInController::AnalogInController(/* args */){};
+AnalogInController::~AnalogInController(){};
 
-void SensorController::loop() {}
+void AnalogInController::loop() {}
 
 // Custom function accessible by the API
-void SensorController::act() {
+void AnalogInController::act() {
 
   // here you can do something
-  if (DEBUG) Serial.println("readsensor_act_fct");
-  int readsensorID = (int)(*WifiController::getJDoc())["readsensorID"];
-  int mN_sensor_avg = N_sensor_avg;
-  if (WifiController::getJDoc()->containsKey("N_sensor_avg"))
-    mN_sensor_avg = (int)(*WifiController::getJDoc())["N_sensor_avg"];
-  int sensorpin = 0 ;
+  if (DEBUG) Serial.println("readanalogin_act_fct");
+  int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
+  int mN_analogin_avg = N_analogin_avg;
+  if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
+    mN_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
+  int analoginpin = 0 ;
 
-  if (DEBUG) Serial.print("readsensorID "); Serial.println(readsensorID);
-  switch (readsensorID) {
+  if (DEBUG) Serial.print("readanaloginID "); Serial.println(readanaloginID);
+  switch (readanaloginID) {
     case 0:
-      sensorpin = pins.ADC_pin_0;
+      analoginpin = pins.ADC_pin_0;
       break;
     case 1:
-      sensorpin = pins.ADC_pin_1;
+      analoginpin = pins.ADC_pin_1;
       break;
     case 2:
-      sensorpin = pins.ADC_pin_2;
+      analoginpin = pins.ADC_pin_2;
       break;
   }
 
-  float sensorValueAvg = 0;
-  for (int imeas=0; imeas < N_sensor_avg; imeas++) {
-    sensorValueAvg += analogRead(sensorpin);
+  float analoginValueAvg = 0;
+  for (int imeas=0; imeas < N_analogin_avg; imeas++) {
+    analoginValueAvg += analogRead(analoginpin);
   }
-  float returnValue = (float)sensorValueAvg / (float)N_sensor_avg;
+  float returnValue = (float)analoginValueAvg / (float)N_analogin_avg;
 
   WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["sensorValue"] = returnValue;
-  (*WifiController::getJDoc())["sensorpin"] = sensorpin;
-  (*WifiController::getJDoc())["N_sensor_avg"] = N_sensor_avg;
+  (*WifiController::getJDoc())["analoginValue"] = returnValue;
+  (*WifiController::getJDoc())["analoginpin"] = analoginpin;
+  (*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
 
 }
 
 
 
-void SensorController::get() {
-  if (DEBUG) Serial.println("readsensor_set_fct");
-  int readsensorID = (int)(*WifiController::getJDoc())["readsensorID"];
-  int readsensorPIN = (int)(*WifiController::getJDoc())["readsensorPIN"];
-  if (WifiController::getJDoc()->containsKey("N_sensor_avg"))
-    N_sensor_avg = (int)(*WifiController::getJDoc())["N_sensor_avg"];
+void AnalogInController::get() {
+  if (DEBUG) Serial.println("readanalogin_set_fct");
+  int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
+  int readanaloginPIN = (int)(*WifiController::getJDoc())["readanaloginPIN"];
+  if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
+    N_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
 
-  switch (readsensorID) {
+  switch (readanaloginID) {
     case 0:
-      pins.ADC_pin_0 = readsensorPIN;
+      pins.ADC_pin_0 = readanaloginPIN;
       break;
     case 1:
-      pins.ADC_pin_1 = readsensorPIN;
+      pins.ADC_pin_1 = readanaloginPIN;
       break;
     case 2:
-      pins.ADC_pin_2 = readsensorPIN;
+      pins.ADC_pin_2 = readanaloginPIN;
       break;
   }
 
 
   WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["readsensorPIN"] = readsensorPIN;
-  (*WifiController::getJDoc())["readsensorID"] = readsensorID;
+  (*WifiController::getJDoc())["readanaloginPIN"] = readanaloginPIN;
+  (*WifiController::getJDoc())["readanaloginID"] = readanaloginID;
 }
 
 
 
 // Custom function accessible by the API
-void SensorController::set() {
-if (DEBUG) Serial.println("readsensor_get_fct");
-  int readsensorID = (int)(*WifiController::getJDoc())["readsensorID"];
-  int readsensorPIN = 0;
-  switch (readsensorID) {
+void AnalogInController::set() {
+if (DEBUG) Serial.println("readanalogin_get_fct");
+  int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
+  int readanaloginPIN = 0;
+  switch (readanaloginID) {
     case 0:
-      readsensorPIN = pins.ADC_pin_0;
+      readanaloginPIN = pins.ADC_pin_0;
       break;
     case 1:
-      readsensorPIN = pins.ADC_pin_1;
+      readanaloginPIN = pins.ADC_pin_1;
       break;
     case 2:
-      readsensorPIN = pins.ADC_pin_2;
+      readanaloginPIN = pins.ADC_pin_2;
       break;
   }
 
   WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["N_sensor_avg"] = N_sensor_avg;
-  (*WifiController::getJDoc())["readsensorPIN"] = readsensorPIN;
-  (*WifiController::getJDoc())["readsensorID"] = readsensorID;
+  (*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
+  (*WifiController::getJDoc())["readanaloginPIN"] = readanaloginPIN;
+  (*WifiController::getJDoc())["readanaloginID"] = readanaloginID;
 }
 
 
-void SensorController::setup(){
-  if(DEBUG) Serial.println("Setting up sensors...");
+void AnalogInController::setup(){
+  if(DEBUG) Serial.println("Setting up analogins...");
 }
 

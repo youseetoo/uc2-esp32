@@ -37,9 +37,9 @@ static const PROGMEM String slm_act_endpoint = "/slm_act";
 static const PROGMEM String slm_set_endpoint = "/slm_set";
 static const PROGMEM String slm_get_endpoint = "/slm_get";
 
-static const PROGMEM String readsensor_act_endpoint = "/readsensor_act";
-static const PROGMEM String readsensor_set_endpoint = "/readsensor_set";
-static const PROGMEM String readsensor_get_endpoint = "/readsensor_get";
+static const PROGMEM String readanalogin_act_endpoint = "/readanalogin_act";
+static const PROGMEM String readanalogin_set_endpoint = "/readanalogin_set";
+static const PROGMEM String readanalogin_get_endpoint = "/readanalogin_get";
 
 static const PROGMEM String PID_act_endpoint = "/PID_act";
 static const PROGMEM String PID_set_endpoint = "/PID_set";

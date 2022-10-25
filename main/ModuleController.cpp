@@ -44,17 +44,17 @@ void ModuleController::setup()
     if (moduleConfig->home)
     {
         modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
-        log_i("add motor");
+        log_i("add home");
     }    
     if (moduleConfig->slm)
     {
         modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module *>(new SlmController())));
         log_i("add slm");
     }
-    if (moduleConfig->sensor)
+    if (moduleConfig->analogin)
     {
-        modules.insert(std::make_pair(AvailableModules::sensor, dynamic_cast<Module *>(new SensorController())));
-        log_i("add sensor");
+        modules.insert(std::make_pair(AvailableModules::analogin, dynamic_cast<Module *>(new AnalogInController())));
+        log_i("add analogin");
     }
     if (moduleConfig->pid)
     {
@@ -117,7 +117,7 @@ void ModuleController::get()
     (*jdoc)[key_modules][key_motor] = moduleConfig->motor;
     (*jdoc)[key_modules][key_home] = moduleConfig->home;
     (*jdoc)[key_modules][key_slm] = moduleConfig->slm;
-    (*jdoc)[key_modules][key_sensor] = moduleConfig->sensor;
+    (*jdoc)[key_modules][key_analogin] = moduleConfig->analogin;
     (*jdoc)[key_modules][key_pid] = moduleConfig->pid;
     (*jdoc)[key_modules][key_laser] = moduleConfig->laser;
     (*jdoc)[key_modules][key_dac] = moduleConfig->dac;
@@ -125,7 +125,7 @@ void ModuleController::get()
     (*jdoc)[key_modules][key_digital] = moduleConfig->digital;
     (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
 }
-// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "sensor" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analog" : 0, "digital" : 0, "scanner" : 0}}
+// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analog" : 0, "digital" : 0, "scanner" : 0}}
 void ModuleController::set()
 {
     DynamicJsonDocument *jdoc = WifiController::getJDoc();
@@ -139,8 +139,8 @@ void ModuleController::set()
             moduleConfig->home = (*jdoc)[key_modules][key_home];
         if ((*jdoc)[key_modules].containsKey(key_slm))
             moduleConfig->slm = (*jdoc)[key_modules][key_slm];
-        if ((*jdoc)[key_modules].containsKey(key_sensor))
-            moduleConfig->sensor = (*jdoc)[key_modules][key_sensor];
+        if ((*jdoc)[key_modules].containsKey(key_analogin))
+            moduleConfig->analogin = (*jdoc)[key_modules][key_analogin];
         if ((*jdoc)[key_modules].containsKey(key_pid))
             moduleConfig->pid = (*jdoc)[key_modules][key_pid];
         if ((*jdoc)[key_modules].containsKey(key_laser))

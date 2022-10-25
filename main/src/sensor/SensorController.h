@@ -3,19 +3,19 @@
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
 #include "../../Module.h"
-#include "SensorPins.h"
+#include "AnalogInPins.h"
 
-class SensorController : public Module
+class AnalogInController : public Module
 {
 private:
     /* data */
 public:
-    SensorController(/* args */);
-    ~SensorController();
+    AnalogInController(/* args */);
+    ~AnalogInController();
     bool DEBUG = false;
-    SensorPins pins;
+    AnalogInPins pins;
 
-    int N_sensor_avg; //no idea if it should be equal to that that one inside PidController.h 
+    int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
 
     void setup() override;
     void act() override;

@@ -182,16 +182,16 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 	}
 
 	/*
-	  Read the sensor
+	  Read the analogin
 	*/
-	if (moduleController.get(AvailableModules::sensor) != nullptr)
+	if (moduleController.get(AvailableModules::analogin) != nullptr)
 	{
-		if (task == readsensor_act_endpoint)
-			moduleController.get(AvailableModules::sensor)->act();
-		if (task == readsensor_set_endpoint)
-			moduleController.get(AvailableModules::sensor)->set();
-		if (task == readsensor_get_endpoint)
-			moduleController.get(AvailableModules::sensor)->get();
+		if (task == readanalogin_act_endpoint)
+			moduleController.get(AvailableModules::analogin)->act();
+		if (task == readanalogin_set_endpoint)
+			moduleController.get(AvailableModules::analogin)->set();
+		if (task == readanalogin_get_endpoint)
+			moduleController.get(AvailableModules::analogin)->get();
 	}
 
 	/*

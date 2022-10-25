@@ -9,7 +9,7 @@
 #include "src/laser/LaserController.h"
 #include "src/slm/SlmController.h"
 #include "src/pid/PidController.h"
-#include "src/sensor/SensorController.h"
+#include "src/analogin/AnalogInController.h"
 #include "src/dac/DacController.h"
 #include "src/analog/AnalogController.h"
 #include "src/digital/DigitalController.h"
@@ -32,7 +32,7 @@ enum class AvailableModules
     home,
     pid,
     scanner,
-    sensor,
+    analogin,
     slm,
 };
 

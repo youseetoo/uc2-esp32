@@ -10,7 +10,7 @@ struct ModuleConfig
     bool motor = true;
     bool pid = false;
     bool scanner = false;
-    bool sensor = false;
+    bool analogin = false;
     bool slm = false;
     bool home = true;
 };

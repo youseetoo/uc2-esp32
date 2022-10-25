@@ -82,26 +82,6 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 	}
 
 	/*
-	  Home Motors
-	*/
-	if (moduleController.get(AvailableModules::home) != nullptr)
-	{
-		if (task == home_act_endpoint)
-		{
-			moduleController.get(AvailableModules::home)->act();
-		}
-		if (task == home_set_endpoint)
-		{
-			moduleController.get(AvailableModules::home)->set();
-		}
-		if (task == home_get_endpoint)
-		{
-			moduleController.get(AvailableModules::home)->get();
-		}
-	}
-
-
-	/*
 	  Operate SLM
 	*/
 

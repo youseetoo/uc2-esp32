@@ -350,6 +350,14 @@ namespace WifiController
 			server->on(digitalout_set_endpoint, HTTP_POST, RestApi::DigitalOut_set);
 		}
 
+		if (moduleController.moduleConfig->digitalin != 0)
+		{
+			log_i("add digitalin endpoints");
+			server->on(digitalin_act_endpoint, HTTP_POST, RestApi::DigitalIn_act);
+			server->on(digitalin_get_endpoint, HTTP_POST, RestApi::DigitalIn_get);
+			server->on(digitalin_set_endpoint, HTTP_POST, RestApi::DigitalIn_set);
+		}
+
 		if (moduleController.moduleConfig->pid != 0)
 		{
 			log_i("add pid endpoints");

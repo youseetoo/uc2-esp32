@@ -133,6 +133,12 @@ namespace RestApi
             (*WifiController::getJDoc()).add(digitalout_set_endpoint);
             (*WifiController::getJDoc()).add(digitalout_get_endpoint);
         }
+        if (moduleController.get(AvailableModules::digitalin) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(digitalin_act_endpoint);
+            (*WifiController::getJDoc()).add(digitalin_set_endpoint);
+            (*WifiController::getJDoc()).add(digitalin_get_endpoint);
+        }
         if (moduleController.get(AvailableModules::dac) != nullptr)
         {
             (*WifiController::getJDoc()).add(dac_act_endpoint);

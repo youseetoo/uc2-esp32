@@ -32,6 +32,10 @@ static const PROGMEM char * keyDigitalOut1Pin = "digitaloutPin1";
 static const PROGMEM char * keyDigitalOut2Pin = "digitaloutPin2";
 static const PROGMEM char * keyDigitalOut3Pin = "digitaloutPin3";
 
+static const PROGMEM char * keyDigitalIn1Pin = "digitalinPin1";
+static const PROGMEM char * keyDigitalIn2Pin = "digitalinPin2";
+static const PROGMEM char * keyDigitalIn3Pin = "digitalinPin3";
+
 static const PROGMEM char * keyAnalogIn1Pin = "analoginPin1";
 static const PROGMEM char * keyAnalogIn2Pin = "analoginPin2";
 static const PROGMEM char * keyAnalogIn3Pin = "analoginPin3";
@@ -101,4 +105,5 @@ static const PROGMEM char *key_laser = "laser";
 static const PROGMEM char *key_dac = "dac";
 static const PROGMEM char *key_analogout = "analogout";
 static const PROGMEM char *key_digitalout = "digitalout";
+static const PROGMEM char *key_digitalin = "digitalin";
 static const PROGMEM char *key_scanner = "scanner";

@@ -81,6 +81,11 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::digitalout, dynamic_cast<Module *>(new DigitalOutController())));
         log_i("add digitalout");
     }
+    if (moduleConfig->digitalin)
+    {
+        modules.insert(std::make_pair(AvailableModules::digitalin, dynamic_cast<Module *>(new DigitalInController())));
+        log_i("add digitalin");
+    }
     if (moduleConfig->scanner)
     {
         modules.insert(std::make_pair(AvailableModules::scanner, dynamic_cast<Module *>(new ScannerController())));
@@ -123,9 +128,10 @@ void ModuleController::get()
     (*jdoc)[key_modules][key_dac] = moduleConfig->dac;
     (*jdoc)[key_modules][key_analogout] = moduleConfig->analogout;
     (*jdoc)[key_modules][key_digitalout] = moduleConfig->digitalout;
+    (*jdoc)[key_modules][key_digitalin] = moduleConfig->digitalin;
     (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
 }
-// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "scanner" : 0}}
+// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
 void ModuleController::set()
 {
     DynamicJsonDocument *jdoc = WifiController::getJDoc();
@@ -151,6 +157,8 @@ void ModuleController::set()
             moduleConfig->analogout = (*jdoc)[key_modules][key_analogout];
         if ((*jdoc)[key_modules].containsKey(key_digitalout))
             moduleConfig->digitalout = (*jdoc)[key_modules][key_digitalout];
+        if ((*jdoc)[key_modules].containsKey(key_digitalin))
+            moduleConfig->digitalin = (*jdoc)[key_modules][key_digitalin];
         if ((*jdoc)[key_modules].containsKey(key_scanner))
             moduleConfig->scanner = (*jdoc)[key_modules][key_scanner];
         Config::setModuleConfig(moduleConfig);

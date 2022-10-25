@@ -29,6 +29,10 @@ static const PROGMEM String digitalout_act_endpoint = "/digitalout_act";
 static const PROGMEM String digitalout_set_endpoint = "/digitalout_set";
 static const PROGMEM String digitalout_get_endpoint = "/digitalout_get";
 
+static const PROGMEM String digitalin_act_endpoint = "/digitalin_act";
+static const PROGMEM String digitalin_set_endpoint = "/digitalin_set";
+static const PROGMEM String digitalin_get_endpoint = "/digitalin_get";
+
 static const PROGMEM String ledarr_act_endpoint = "/ledarr_act";
 static const PROGMEM String ledarr_set_endpoint = "/ledarr_set";
 static const PROGMEM String ledarr_get_endpoint = "/ledarr_get";

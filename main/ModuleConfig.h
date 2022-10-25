@@ -5,6 +5,7 @@ struct ModuleConfig
     bool analogout = false;
     bool dac = false;
     bool digitalout = true;
+    bool digitalin = true;
     bool laser = true;
     bool led = true;
     bool motor = true;

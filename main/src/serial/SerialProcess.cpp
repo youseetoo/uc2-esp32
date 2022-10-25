@@ -169,6 +169,18 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 			moduleController.get(AvailableModules::digitalout)->get();
 	}
 	/*
+	  Drive digitalin
+	*/
+	if (moduleController.get(AvailableModules::digitalin) != nullptr)
+	{
+		if (task == digitalin_act_endpoint)
+			moduleController.get(AvailableModules::digitalin)->act();
+		if (task == digitalin_set_endpoint)
+			moduleController.get(AvailableModules::digitalin)->set();
+		if (task == digitalin_get_endpoint)
+			moduleController.get(AvailableModules::digitalin)->get();
+	}
+	/*
 	  Drive LED Matrix
 	*/
 	if (moduleController.get(AvailableModules::led) != nullptr)

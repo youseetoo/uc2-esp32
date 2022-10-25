@@ -12,6 +12,7 @@
 #include "../analogin/AnalogInPins.h"
 #include "../analogout/AnalogOutPins.h"
 #include "../digitalout/DigitalOutPins.h"
+#include "../digitalin/DigitalInPins.h"
 #include "../../ModuleConfig.h"
 
 namespace Config
@@ -33,6 +34,8 @@ namespace Config
     void getAnalogInPins(AnalogInPins pin);
     void setDigitalOutPins(DigitalOutPins pins);
     void getDigitalOutPins(DigitalOutPins pins);
+    void setDigitalInPins(DigitalInPins pins);
+    void getDigitalInPins(DigitalInPins pins);    
     void getAnalogOutPins(AnalogOutPins pin);
     void setAnalogOutPins(AnalogOutPins pins);
     void setModuleConfig(ModuleConfig * pins);

@@ -171,6 +171,23 @@ namespace Config
 		pins.digitalout_PIN_3 = preferences.getInt(keyDigitalOut3Pin, pins.digitalout_PIN_3);
 		preferences.end();
 	}
+	void setDigitalIntPins(DigitalInPins pins)
+	{
+
+		preferences.begin(prefNamespace, false);
+		preferences.putInt(keyDigitalIn1Pin, pins.digitalin_PIN_1);
+		preferences.putInt(keyDigitalIn2Pin, pins.digitalin_PIN_2);
+		preferences.putInt(keyDigitalIn3Pin, pins.digitalin_PIN_3);
+		preferences.end();
+	}
+	void getDigitalInPins(DigitalInPins pins)
+	{
+		preferences.begin(prefNamespace, false);
+		pins.digitalin_PIN_1 = preferences.getInt(keyDigitalIn1Pin, pins.digitalin_PIN_1);
+		pins.digitalin_PIN_2 = preferences.getInt(keyDigitalIn2Pin, pins.digitalin_PIN_2);
+		pins.digitalin_PIN_3 = preferences.getInt(keyDigitalIn3Pin, pins.digitalin_PIN_3);
+		preferences.end();
+	}
 
 	bool isFirstRun()
 	{

@@ -9,6 +9,7 @@
 #include "SPIFFS.h"
 #include "../analogin/AnalogInController.h"
 #include "../digitalout/DigitalOutController.h"
+#include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "../dac/DacController.h"
 #include "../pid/PidController.h"

@@ -13,6 +13,7 @@ Rest Api Endpoint Description
 | [/motor_act](#motor_act)                  | Post | true  |
 | [/motor_get](#motor_get)                  | Get  | false |
 | [/motor_set](#motor_set)                  | Post | false |
+| [/motor_setcalibration](#motor_set)       | Post | false |
 |   |  |
 | [/wifi/scan](#wifiscan)                   | Get  | false |
 | [/wifi/connect](#wificonnect)             | Post | false |
@@ -198,6 +199,42 @@ POST
             { stepperid: 1, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
             { stepperid: 2, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
             { stepperid: 3, step: 0, dir: 0, enable: 0, step_inverted: 0, dir_inverted: 0, enable_inverted: 0 },
+        ]
+    }
+}
+```
+/motor_setcalibration
+==========
+POST
+set it like this to apply the current pos as min_pos. min pos gets defined as 0 position
+```
+{
+    motor:
+    {
+        steppers: [
+            { stepperid: id, min_pos: 0 }
+        ]
+    }
+}
+```
+set it like this to apply the current pos as max_pos. max pos should be a positiv value.
+```
+{
+    motor:
+    {
+        steppers: [
+            { stepperid: id, max_pos: 0 }
+        ]
+    }
+}
+```
+set min and max pos to reset it
+```
+{
+    motor:
+    {
+        steppers: [
+            { stepperid: id, max_pos: 0, min_pos:0 }
         ]
     }
 }

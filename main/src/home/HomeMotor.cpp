@@ -73,12 +73,45 @@ void HomeMotor::act()
 
 void HomeMotor::doHome(int i){
 	Serial.println("do Home");
-		//if (moduleController.get(AvailableModules::motor) != nullptr)
-		//if (moduleController.get(AvailableModules::digitalout) != nullptr)
-		//if (moduleController.get(AvailableModules::digitalin) != nullptr)
+	log_i("home stepper:%i direction:%i, endpos Pin: %i, homeMaxSpeed: %i, homeSpeed: %i, homeTimeout: %i ", i, hdata[i]->homeDirection, hdata[i]->homeEndposPin, hdata[i]->homeMaxspeed, hdata[i]->homeSpeed, hdata[i]->homeTimeout);
 
-	log_i("home stepper:%i direction:%i, endpos Pin: %i", i, hdata[i]->homeDirection, hdata[i]->homeEndposPin);
-	
+	DigitalInController * digitalin = (DigitalInController)moduleController.get(AvailableModules::digitalin);
+	FocusMotor * motor = (FocusMotor*)moduleController.get(AvailableModules::motor);
+	motor->stopAllDrives(); // Make sure nothing is moving
+	if (moduleController.get(AvailableModules::motor) != nullptr)
+		{
+			// initiate a motor run and stop once the endstop is hit
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			motor->steppers[i]->setSpeed(hdata[i]->homeDirection*hdata[i]->homeSpeed);
+			
+			long cTime = millis();
+			// FIXME: This is a blocking operation - not a good idea!
+			bool breakCondition = false;
+			while(!breakCondition){
+				Serial.print("Breakcondition: ");
+				Serial.println(breakCondition);
+
+
+				// FIXME: Better to put this into an array..
+				// Check if limitswitch was hit
+				if(hdata[i]->homeEndposPin==1)
+					breakCondition = digitalin->digitalin_val_1;
+				else if(hdata[i]->homeEndposPin==2)
+					breakCondition = digitalin->digitalin_val_2;
+				else if(hdata[i]->homeEndposPin==3)
+					breakCondition = digitalin->digitalin_val_3;
+
+				if (millis()-cTime>hdata[i]->homeTimeout)
+					breakCondition = true;
+
+				// Run Motor forever..
+				motor->steppers[i]->runSpeed();
+				
+			}
+			
+			// alternative: run motor in background, but how to trigger a stop by a motor?
+			// motor->data[i]->isforever = true;
+		}
 }
 
 void HomeMotor::set()
@@ -126,7 +159,9 @@ void HomeMotor::get()
 
 
 void HomeMotor::loop()
-{}
+{
+
+}
 
 void HomeMotor::setup()
 {}

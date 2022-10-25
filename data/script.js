@@ -124,6 +124,15 @@ function getModulesAndFillTabs() {
     });
 }
 
+function hideOrShow(id) {
+    var x = document.getElementById(id);
+    if (x.style.display == "none" || x.style.display == "") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+
 function setModuleSettings() {
     $("#steppinxinvert:checked").val() ? 1 : 0;
     analog = $("#m_enable_analog:checked").val() ? 1 : 0;

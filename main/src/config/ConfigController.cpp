@@ -171,7 +171,7 @@ namespace Config
 		pins.digitalout_PIN_3 = preferences.getInt(keyDigitalOut3Pin, pins.digitalout_PIN_3);
 		preferences.end();
 	}
-	void setDigitalIntPins(DigitalInPins pins)
+	void setDigitalInPins(DigitalInPins pins)
 	{
 
 		preferences.begin(prefNamespace, false);

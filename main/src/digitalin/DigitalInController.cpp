@@ -59,20 +59,20 @@ void DigitalInController::set()
 		if (digitalinid == 1)
 		{
 			pins.digitalin_PIN_1 = digitalinpin;
-			pinMode(pins.digitalin_PIN_1, OUTPUT);
-			digitalWrite(pins.digitalin_PIN_1, LOW);
+			pinMode(pins.digitalin_PIN_1, INPUT);
+			digitalWrite(pins.digitalin_PIN_1, HIGH); // PULLUP
 		}
 		else if (digitalinid == 2)
 		{
 			pins.digitalin_PIN_2 = digitalinpin;
-			pinMode(pins.digitalin_PIN_2, OUTPUT);
-			digitalWrite(pins.digitalin_PIN_2, LOW);
+			pinMode(pins.digitalin_PIN_2, INPUT); // PULLUP
+			digitalWrite(pins.digitalin_PIN_2, HIGH);
 		}
 		else if (digitalinid == 3)
 		{
 			pins.digitalin_PIN_3 = digitalinpin;
-			pinMode(pins.digitalin_PIN_3, OUTPUT);
-			digitalWrite(pins.digitalin_PIN_3, LOW);
+			pinMode(pins.digitalin_PIN_3, INPUT); // PULLUP
+			digitalWrite(pins.digitalin_PIN_3, HIGH);
 		}
 	}
 	Config::setDigitalInPins(pins);
@@ -133,8 +133,8 @@ void DigitalInController::setup()
 }
 
 void DigitalInController::loop(){
-
-/*
-	digitalRead()
-	*/
+	// readout digital pins one by one
+	digitalin_val_1 = digitalRead(pins.digitalin_PIN_1);
+	digitalin_val_2 = digitalRead(pins.digitalin_PIN_2);
+	digitalin_val_3 = digitalRead(pins.digitalin_PIN_3);
 }

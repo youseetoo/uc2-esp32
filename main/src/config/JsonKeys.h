@@ -94,7 +94,6 @@ static const PROGMEM char * key_step_inverted = "step_inverted";
 static const PROGMEM char * key_enable_inverted = "enable_inverted";
 static const PROGMEM char * key_min_position = "min_pos";
 static const PROGMEM char * key_max_position = "max_pos";
-static const PROGMEM char * key_current_position = "cur_pos";
 
 static const PROGMEM char *dateKey = "date";
 static const PROGMEM char *key_modules = "modules";

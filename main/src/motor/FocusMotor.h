@@ -24,7 +24,6 @@ struct MotorData
 	long speed = 0;
 	long maxspeed = 200000;
 	long acceleration = 0;
-	long currentPosition = 0;
 	long targetPosition = 0;
 	bool isforever = false;
 	bool isaccelerated = false;

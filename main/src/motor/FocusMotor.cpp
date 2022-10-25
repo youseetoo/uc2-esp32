@@ -121,7 +121,7 @@ void FocusMotor::startStepper(int i)
 			steppers[i]->runSpeed();
 		}
 	}
-	data[i]->currentPosition = steppers[i]->currentPosition();
+	pins[i]->current_position = steppers[i]->currentPosition();
 }
 
 void FocusMotor::set()
@@ -181,7 +181,6 @@ void FocusMotor::applyMinPos(int i)
 	steppers[i]->setCurrentPosition(0);
 	pins[i]->current_position = 0;
 	pins[i]->min_position = 0;
-	data[i]->currentPosition = 0;
 	log_i("curPos:%i min_pos:%i", pins[i]->current_position, pins[i]->min_position);
 	Config::setMotorPinConfig(pins);
 }
@@ -206,12 +205,11 @@ void FocusMotor::get()
 		(*doc)[key_steppers][i][key_dir_inverted] = pins[i]->direction_inverted;
 		(*doc)[key_steppers][i][key_step_inverted] = pins[i]->step_inverted;
 		(*doc)[key_steppers][i][key_enable_inverted] = pins[i]->enable_inverted;
-		(*doc)[key_steppers][i][key_position] = data[i]->currentPosition;
 		(*doc)[key_steppers][i][key_speed] = data[i]->speed;
 		(*doc)[key_steppers][i][key_speedmax] = data[i]->maxspeed;
 		(*doc)[key_steppers][i][key_max_position] = pins[i]->max_position;
 		(*doc)[key_steppers][i][key_min_position] = pins[i]->min_position;
-		(*doc)[key_steppers][i][key_current_position] = pins[i]->current_position;
+		(*doc)[key_steppers][i][key_position] = pins[i]->current_position;
 	}
 }
 
@@ -300,7 +298,6 @@ void FocusMotor::loop()
 			if (steppers[i]->areOutputsEnabled())
 			{
 				pins[i]->current_position = steppers[i]->currentPosition();
-				data[i]->currentPosition = steppers[i]->currentPosition();
 				if (millis() >= nextSocketUpdateTime)
 				{
 					sendMotorPos(i, arraypos);
@@ -310,7 +307,7 @@ void FocusMotor::loop()
 
 #ifdef DEBUG_MOTOR
 			if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
-				log_i("current Pos:%i target pos:%i", data[i]->currentPosition, data[i]->targetPosition);
+				log_i("current Pos:%i target pos:%i", pins[i]->current_position, data[i]->targetPosition);
 #endif
 		}
 	}
@@ -339,7 +336,7 @@ void FocusMotor::stopStepper(int i)
 {
 	steppers[i]->stop();
 	data[i]->isforever = false;
-	data[i]->currentPosition = steppers[i]->currentPosition();
+	pins[i]->current_position = steppers[i]->currentPosition();
 	steppers[i]->disableOutputs();
 }
 
@@ -375,6 +372,6 @@ void FocusMotor::startAllDrives()
 				steppers[i]->run();
 			}
 		}
-		data[i]->currentPosition = steppers[i]->currentPosition();
+		pins[i]->current_position = steppers[i]->currentPosition();
 	}
 }

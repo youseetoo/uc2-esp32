@@ -1,11 +1,34 @@
 window.addEventListener('load', (event) => {
 
     getModulesAndFillTabs();
-    updateUi();
-    createWebsocket();
+
 });
 
 var websocket;
+var modules;
+var analog;
+var dac;
+var digital;
+var laser;
+var motor;
+var led;
+var pid;
+var scanner;
+var sensor;
+var slm;
+
+function setModules(data) {
+    analog = data["modules"]["analog"];
+    dac = data["modules"]["dac"];
+    digital = data["modules"]["digital"];
+    laser = data["modules"]["laser"];
+    motor = data["modules"]["motor"];
+    led = data["modules"]["led"];
+    pid = data["modules"]["pid"];
+    scanner = data["modules"]["scanner"];
+    sensor = data["modules"]["sensor"];
+    slm = data["modules"]["slm"];
+}
 
 function createWebsocket() {
     if ($("#url").val() == "")
@@ -48,11 +71,11 @@ function getUri() {
 }
 
 function updateUi() {
-    if ($("#m_enable_led:checked").val())
+    if (led)
         getLedSetting();
-    if ($("#m_enable_motor:checked").val())
+    if (motor)
         getMotoretting();
-    if ($("#m_enable_laser:checked").val())
+    if (laser)
         laserget();
 }
 
@@ -76,39 +99,43 @@ function getModulesAndFillTabs() {
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Wifi\')">Wifi</button>')
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'BT\')">BT</button>')
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Modules\')">Modules</button>')
-        if (data["modules"]["led"] != 0)
+        setModules(data);
+        if (led != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'LED\')">LED</button>')
-        if (data["modules"]["motor"] != 0)
+        if (motor != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Motor\')">Motor</button>')
-        if (data["modules"]["laser"] != 0)
+        if (laser != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Laser\')">Laser</button>')
 
 
-        $("#m_enable_analog").attr('checked', data["modules"]["analog"]);
-        $("#m_enable_dac").attr('checked', data["modules"]["dac"]);
-        $("#m_enable_digital").attr('checked', data["modules"]["digital"]);
-        $("#m_enable_laser").attr('checked', data["modules"]["laser"]);
-        $("#m_enable_motor").attr('checked', data["modules"]["motor"]);
-        $("#m_enable_led").attr('checked', data["modules"]["led"]);
-        $("#m_enable_pid").attr('checked', data["modules"]["pid"]);
-        $("#m_enable_scanner").attr('checked', data["modules"]["scanner"]);
-        $("#m_enable_sensor").attr('checked', data["modules"]["sensor"]);
-        $("#m_enable_slm").attr('checked', data["modules"]["slm"]);
+        $("#m_enable_analog").attr('checked', analog);
+        $("#m_enable_dac").attr('checked', dac);
+        $("#m_enable_digital").attr('checked', digital);
+        $("#m_enable_laser").attr('checked', laser);
+        $("#m_enable_motor").attr('checked', motor);
+        $("#m_enable_led").attr('checked', led);
+        $("#m_enable_pid").attr('checked', pid);
+        $("#m_enable_scanner").attr('checked', scanner);
+        $("#m_enable_sensor").attr('checked', sensor);
+        $("#m_enable_slm").attr('checked', slm);
+
+        updateUi();
+        createWebsocket();
     });
 }
 
 function setModuleSettings() {
     $("#steppinxinvert:checked").val() ? 1 : 0;
-    var analog = $("#m_enable_analog:checked").val() ? 1 : 0;
-    var dac = $("#m_enable_dac:checked").val() ? 1 : 0;
-    var digital = $("#m_enable_digital:checked").val() ? 1 : 0;
-    var laser = $("#m_enable_laser:checked").val() ? 1 : 0;
-    var motor = $("#m_enable_motor:checked").val() ? 1 : 0;
-    var led = $("#m_enable_led:checked").val() ? 1 : 0;
-    var pid = $("#m_enable_pid:checked").val() ? 1 : 0;
-    var scanner = $("#m_enable_scanner:checked").val() ? 1 : 0;
-    var sensor = $("#m_enable_sensor:checked").val() ? 1 : 0;
-    var slm = $("#m_enable_slm:checked").val() ? 1 : 0;
+    analog = $("#m_enable_analog:checked").val() ? 1 : 0;
+    dac = $("#m_enable_dac:checked").val() ? 1 : 0;
+    digital = $("#m_enable_digital:checked").val() ? 1 : 0;
+    laser = $("#m_enable_laser:checked").val() ? 1 : 0;
+    motor = $("#m_enable_motor:checked").val() ? 1 : 0;
+    led = $("#m_enable_led:checked").val() ? 1 : 0;
+    pid = $("#m_enable_pid:checked").val() ? 1 : 0;
+    scanner = $("#m_enable_scanner:checked").val() ? 1 : 0;
+    sensor = $("#m_enable_sensor:checked").val() ? 1 : 0;
+    slm = $("#m_enable_slm:checked").val() ? 1 : 0;
     var jstr = JSON.stringify({ modules: { analog: analog, dac: dac, digital: digital, laser: laser, motor: motor, led: led, pid: pid, scanner: scanner, sensor: sensor, slm: slm } });
     post(jstr, "/modules_set");
     getModulesAndFillTabs();
@@ -129,7 +156,9 @@ function tryToConnect() {
     $.getJSON(getUri() + "/features_get", function (data) {
         console.log(data);
         createWebsocket();
+        updateUi();
     });
+
 }
 
 function ssidItemClick(name) {
@@ -226,6 +255,8 @@ function getMotoretting() {
             var stepin = steppers[i]["step_inverted"];
             var dirin = steppers[i]["dir_inverted"];
             var powerin = steppers[i]["enable_inverted"];
+            var max_pos = steppers[i]["max_pos"];
+            var curpos = steppers[i]["position"];
 
             if (id == 0) {
                 $("#steppina").val(step);
@@ -234,6 +265,8 @@ function getMotoretting() {
                 $("#dirpinainvert").attr('checked', dirin);
                 $("#powerpina").val(power);
                 $("#powerpinainvert").attr('checked', powerin);
+                $("#posa_max").html(max_pos);
+                $("#posa").html(curpos);
             }
             else if (id == 1) {
                 $("#steppinx").val(step);
@@ -242,6 +275,8 @@ function getMotoretting() {
                 $("#dirpinxinvert").attr('checked', dirin);
                 $("#powerpinx").val(power);
                 $("#powerpinxinvert").attr('checked', powerin);
+                $("#posx_max").html(max_pos);
+                $("#posx").html(curpos);
             }
             else if (id == 2) {
                 $("#steppiny").val(step);
@@ -250,6 +285,8 @@ function getMotoretting() {
                 $("#dirpinyinvert").attr('checked', dirin);
                 $("#powerpiny").val(power);
                 $("#powerpinyinvert").attr('checked', powerin);
+                $("#posy_max").html(max_pos);
+                $("#posy").html(curpos);
             }
             else if (id == 3) {
                 $("#steppinz").val(step);
@@ -258,6 +295,8 @@ function getMotoretting() {
                 $("#dirpinzinvert").attr('checked', dirin);
                 $("#powerpinz").val(power);
                 $("#powerpinzinvert").attr('checked', powerin);
+                $("#posz_max").html(max_pos);
+                $("#posz").html(curpos);
             }
         }
     });
@@ -320,7 +359,7 @@ function setMotorRangeCalibration(min, id) {
                 }
             });
     }
-    else if(min == 1) {
+    else if (min == 1) {
         jstr = JSON.stringify(
             {
                 motor:
@@ -331,8 +370,7 @@ function setMotorRangeCalibration(min, id) {
                 }
             });
     }
-    else
-    {
+    else {
         jstr = JSON.stringify(
             {
                 motor:
@@ -344,9 +382,10 @@ function setMotorRangeCalibration(min, id) {
             });
     }
     post(jstr, "/motor_setcalibration");
+    getMotoretting();
 }
 
-var motorspeeds = [-160000,-80000, -8000, -4000, -2000, -1000, -500, -200, -100, -50, -20, -10, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 80000,160000];
+var motorspeeds = [-160000, -80000, -8000, -4000, -2000, -1000, -500, -200, -100, -50, -20, -10, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 80000, 160000];
 
 function updateMotors() {
     var xr = $("#xRange").val();

@@ -69,6 +69,7 @@ void FocusMotor::act()
 				else
 				{
 #if defined IS_PS3 || defined IS_PS4
+					// the Serial/Wifi has always priority / PS controller is slave
 					if (ps_c.IS_PSCONTROLER_ACTIVE)
 						ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
 #endif
@@ -92,35 +93,40 @@ void FocusMotor::act()
 
 void FocusMotor::startStepper(int i)
 {
-	log_i("start stepper:%i isforver:%i", i, data[i]->isforever);
+	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed);
+	
+	//TODO: Find a solution for the enable
+	/*
 	if (!steppers[i]->areOutputsEnabled())
 		steppers[i]->enableOutputs();
+	*/
+
 
 	// set speed
 	steppers[i]->setMaxSpeed(data[i]->maxspeed);
 	steppers[i]->setSpeed(data[i]->speed);
-	if (!data[i]->isforever)
-	{
-		if (data[i]->absolutePosition)
-		{
-			// absolute position coordinates
-			steppers[i]->moveTo(data[i]->targetPosition);
-			steppers[i]->run();
-		}
-		else
-		{
-			// relative position coordinates
-			steppers[i]->move(data[i]->targetPosition);
-			steppers[i]->run();
-		}
-	}
-	else if (data[i]->isforever)
-	{
+
+	// initiate motion -> afterwards steps will be performed in .loop()
+	if (data[i]->isforever){ // drive forever
 		if (data[i]->speed == 0)
 			stopStepper(i);
 		else
 		{
 			steppers[i]->runSpeed();
+		}
+	}
+	else{ // drive a defined distance
+		// absolute
+		if (data[i]->absolutePosition)
+		{
+			// initiate a move to an absolute position
+			steppers[i]->moveTo(data[i]->targetPosition);
+			}
+		// relative
+		else
+		{
+			// initiate a move to a relative position
+			steppers[i]->move(data[i]->targetPosition);
 		}
 	}
 	pins[i]->current_position = steppers[i]->currentPosition();
@@ -257,9 +263,15 @@ void FocusMotor::setup()
 
 void FocusMotor::loop()
 {
+	for (int ii=0; ii<10;ii++){
+		
+	// will be called in every global CMU cycle
 	int arraypos = 0;
+
+	// iterate over all available motors
 	for (int i = 0; i < steppers.size(); i++)
-	{
+	{	
+		// move motor only if available
 		if (steppers[i] != nullptr && pins[i]->DIR > 0)
 		{
 			// move motor if within allowed step-range
@@ -273,56 +285,63 @@ void FocusMotor::loop()
 					return;
 				}
 			}
-			// turn motors forever if necessary
-			if (data[i]->isforever)
-			{
-				// log_i("forever drive");
+			else{
+				// set speed
 				steppers[i]->setSpeed(data[i]->speed);
 				steppers[i]->setMaxSpeed(data[i]->maxspeed);
-				steppers[i]->runSpeed();
-			}
-			else
-			{
-				// run at constant speed
-				if (data[i]->isaccelerated)
-				{
-					steppers[i]->run();
+
+				// turn motors forever if necessary
+				if (data[i]->isforever){
+					// log_i("forever drive");
+					steppers[i]->runSpeed();
 				}
-				else
-				{
-					steppers[i]->runSpeedToPosition();
-				}
-				// checks if a stepper is still running
-				if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
-				{
-					log_i("stop stepper:%i", i);
-					// if not turn it off
-					steppers[i]->disableOutputs();
-					sendMotorPos(i, arraypos);
-					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+				else{
+					// run at constant speed
+					if (data[i]->isaccelerated)
+					{	
+						// this performs acceleration/decellartion ramps
+						steppers[i]->run();
+					}
+					else
 					{
-						pins[i]->current_position = steppers[i]->currentPosition();
-						Config::setMotorPinConfig(pins);
+						// this runs at constant speed
+						steppers[i]->runSpeedToPosition();
+					}
+					
+					// checks if a stepper is still running
+					if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
+					{
+						log_i("stop stepper:%i", i);
+						// if not turn it off
+						steppers[i]->disableOutputs();
+						sendMotorPos(i, arraypos);
+						if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+						{
+							pins[i]->current_position = steppers[i]->currentPosition();
+							Config::setMotorPinConfig(pins);
+						}
 					}
 				}
-			}
-			// send current position to client
-			//{"steppers":[{"stepperid":1,"position":3}]}
-			if (steppers[i]->areOutputsEnabled())
-			{
-				pins[i]->current_position = steppers[i]->currentPosition();
-				if (millis() >= nextSocketUpdateTime)
+				// send current position to client
+				//{"steppers":[{"stepperid":1,"position":3}]}
+				if (steppers[i]->areOutputsEnabled())
 				{
-					sendMotorPos(i, arraypos);
-					nextSocketUpdateTime = millis() + 500UL;
+					pins[i]->current_position = steppers[i]->currentPosition();
+					if (millis() >= nextSocketUpdateTime)
+					{
+						sendMotorPos(i, arraypos);
+						nextSocketUpdateTime = millis() + 500UL;
+					}
 				}
-			}
 
-#ifdef DEBUG_MOTOR
-			if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
-				log_i("current Pos:%i target pos:%i", pins[i]->current_position, data[i]->targetPosition);
-#endif
+	#ifdef DEBUG_MOTOR
+				if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
+					log_i("current Pos:%i target pos:%i", pins[i]->current_position, data[i]->targetPosition);
+	#endif
+			}
 		}
+		
+	}
 	}
 }
 

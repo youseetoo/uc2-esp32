@@ -321,3 +321,24 @@ POST
     mac: "01:02:03:04:05:06",
 }
 ```
+
+
+/digitalin_set
+==========
+POST
+```
+{
+    "digitalinid":1, 
+    "digitalinpin":39
+}
+```
+
+/digitalin_get
+==========
+POST
+```
+{
+    "digitalinid":1
+}
+```
+

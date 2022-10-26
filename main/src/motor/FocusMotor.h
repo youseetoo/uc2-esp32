@@ -95,7 +95,7 @@ public:
 	  "enable_inverted": false,
 	  "position": 0,
 	  "speed": 0,
-	  "speedmax": 20000
+	  "speedmax": 200000
 	},
 	{
 	  "stepperid": 1,

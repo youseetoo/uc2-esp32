@@ -63,8 +63,8 @@ void FocusMotor::act()
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_isaccel))
 					data[s]->isaccelerated = (*j)[key_motor][key_steppers][i][key_isaccel];
-
-				if ((*j)[key_motor][key_steppers][i].containsKey(key_isstop))
+				
+				if ((*j)[key_motor][key_steppers][i][key_isstop])
 					stopStepper(s);
 				else
 				{
@@ -95,6 +95,10 @@ void FocusMotor::startStepper(int i)
 	log_i("start stepper:%i isforver:%i", i, data[i]->isforever);
 	if (!steppers[i]->areOutputsEnabled())
 		steppers[i]->enableOutputs();
+
+	// set speed
+	steppers[i]->setMaxSpeed(data[i]->maxspeed);
+	steppers[i]->setSpeed(data[i]->speed);
 	if (!data[i]->isforever)
 	{
 		if (data[i]->absolutePosition)
@@ -116,8 +120,6 @@ void FocusMotor::startStepper(int i)
 			stopStepper(i);
 		else
 		{
-			steppers[i]->setMaxSpeed(data[i]->maxspeed);
-			steppers[i]->setSpeed(data[i]->speed);
 			steppers[i]->runSpeed();
 		}
 	}
@@ -140,6 +142,11 @@ void FocusMotor::set()
 				pins[s]->direction_inverted = (*doc)[key_motor][key_steppers][i][key_dir_inverted];
 				pins[s]->step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
 				pins[s]->enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
+
+				// applying "hard" boundaries for step-range
+				pins[s]->min_position = (*doc)[key_motor][key_steppers][i][key_min_position];
+				pins[s]->max_position = (*doc)[key_motor][key_steppers][i][key_max_position];
+
 			}
 			Config::setMotorPinConfig(pins);
 			setup();
@@ -224,8 +231,11 @@ void FocusMotor::setup()
 		data[i] = new MotorData();
 		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
-		steppers[i]->setEnablePin(pins[i]->ENABLE);
-		steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
+		// we have only one enable pin for all - in most cases it's inverted
+		pinMode(pins[i]->ENABLE, OUTPUT);
+		digitalWrite(pins[i]->ENABLE, LOW);
+		//steppers[i]->setEnablePin(pins[i]->ENABLE);
+		//steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
 	}
 
 	/*
@@ -252,8 +262,10 @@ void FocusMotor::loop()
 	{
 		if (steppers[i] != nullptr && pins[i]->DIR > 0)
 		{
+			// move motor if within allowed step-range
 			if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
 			{
+				// compute steps to go and stop if necessary
 				if ((pins[i]->current_position + data[i]->speed / 200 >= pins[i]->max_position && data[i]->speed > 0) || (pins[i]->current_position + data[i]->speed / 200 <= pins[i]->min_position && data[i]->speed < 0))
 				{
 					stopStepper(i);
@@ -261,6 +273,7 @@ void FocusMotor::loop()
 					return;
 				}
 			}
+			// turn motors forever if necessary
 			if (data[i]->isforever)
 			{
 				// log_i("forever drive");

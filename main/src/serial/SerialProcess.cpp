@@ -120,9 +120,9 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 		if (task == laser_act_endpoint)
 			moduleController.get(AvailableModules::laser)->act();
 		if (task == laser_set_endpoint)
-			moduleController.get(AvailableModules::laser)->get();
-		if (task == laser_get_endpoint)
 			moduleController.get(AvailableModules::laser)->set();
+		if (task == laser_get_endpoint)
+			moduleController.get(AvailableModules::laser)->get();
 	}
 	/*
 	  Drive analogout

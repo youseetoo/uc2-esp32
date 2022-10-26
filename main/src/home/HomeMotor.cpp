@@ -104,22 +104,36 @@ void HomeMotor::loop()
 	//check if motor and digitalin is avail
 	if (moduleController.get(AvailableModules::motor) != nullptr && moduleController.get(AvailableModules::digitalin) != nullptr)
 	{
-		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+		FocusMotor * motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 		DigitalInController * digitalin = (DigitalInController*)moduleController.get(AvailableModules::digitalin);
-		//if one of the endpoints returned > 0 all drives get stopped
-		// or if the timeout is reached all drives get stopped
-		if (digitalin->digitalin_val_1 || digitalin->digitalin_val_2 || digitalin->digitalin_val_3 || hdata[0]->homeTimeStarted + hdata[0]->homeTimeout < millis())
+		//expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
+		if(digitalin->digitalin_val_1)
 		{
-			for (int i = 0; i < motor->steppers.size(); i++)
-			{
-				motor->steppers[i]->stop();
-			}
+			int speed = motor->data[Stepper::X]->speed;
+			motor->steppers[Stepper::X]->stop();
+			//blocks until stepper reached new position wich would be optimal outside of the endstep
+			if(speed > 0)
+				motor->steppers[Stepper::X]->runToNewPosition(-100);
+			else
+				motor->steppers[Stepper::X]->runToNewPosition(100);
 		}
+		if(digitalin->digitalin_val_2)
 		{
-			motor->stopAllDrives();
-			// TODO: we need to move the motor by N-steps into the other direction so that the Switch is not blocked and now motor will move
-			// Each homing event will trigger only one motor axis.
-			//how can we get the current motor axis?
+			int speed = motor->data[Stepper::Y]->speed;
+			motor->steppers[Stepper::X]->stop();
+			if(speed > 0)
+				motor->steppers[Stepper::Y]->runToNewPosition(-100);
+			else
+				motor->steppers[Stepper::Y]->runToNewPosition(100);
+		}
+		if(digitalin->digitalin_val_3)
+		{
+			int speed = motor->data[Stepper::Z]->speed;
+			motor->steppers[Stepper::Z]->stop();
+			if(speed > 0)
+				motor->steppers[Stepper::Z]->runToNewPosition(-100);
+			else
+				motor->steppers[Stepper::Z]->runToNewPosition(100);
 		}
 	}
 }

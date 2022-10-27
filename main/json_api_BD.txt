@@ -12,6 +12,14 @@
         ]
     }
 }
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 0, "position": 100, "speed": 2000, "isabs": 0, "isaccel":0}
+        ]
+    }
+}
 
 {"task": "/digitalin_set", "digitalinid":1, "digitalinpin":13}
 {"task": "/digitalin_set", "digitalinid":2, "digitalinpin":5}
@@ -26,8 +34,8 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 0, "position": -100, "speed": 2000, "isabs": 0, "isaccel":1},
-            { "stepperid": 1, "position": -100, "speed": 2000, "isabs": 0, "isaccel":1}
+            { "stepperid": 0, "position": -10000, "speed": 2000, "isabs": 0, "isaccel":1},
+            { "stepperid": 1, "position": -10000, "speed": 2000, "isabs": 0, "isaccel":1}
         ]
     }
 }

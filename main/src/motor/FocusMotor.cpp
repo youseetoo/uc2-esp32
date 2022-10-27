@@ -73,17 +73,8 @@ void FocusMotor::act()
 					if (ps_c.IS_PSCONTROLER_ACTIVE)
 						ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
 #endif
-					if (pins[s]->max_position != 0 || pins[s]->min_position != 0)
-					{
-						if ((pins[s]->current_position + data[s]->speed / 200 >= pins[s]->max_position && data[s]->speed > 0) || (pins[s]->current_position + data[s]->speed / 200 <= pins[s]->min_position && data[s]->speed < 0))
-						{
-							return;
-						}
-						else
-							startStepper(s);
-					}
-					else
-						startStepper(s);
+
+					startStepper(s);
 				}
 			}
 		}
@@ -93,7 +84,7 @@ void FocusMotor::act()
 
 void FocusMotor::startStepper(int i)
 {
-	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed);
+	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition);
 	
 	//TODO: Find a solution for the enable
 	/*
@@ -184,25 +175,31 @@ void FocusMotor::setMinMaxRange()
 
 void FocusMotor::resetMotorPos(int i)
 {
+	/*
 	pins[i]->min_position = 0;
 	pins[i]->max_position = 0;
 	Config::setMotorPinConfig(pins);
+	*/
 }
 
 void FocusMotor::applyMinPos(int i)
 {
+	/*
 	steppers[i]->setCurrentPosition(0);
 	pins[i]->current_position = 0;
 	pins[i]->min_position = 0;
 	log_i("curPos:%i min_pos:%i", pins[i]->current_position, pins[i]->min_position);
 	Config::setMotorPinConfig(pins);
+	*/
 }
 
 void FocusMotor::applyMaxPos(int i)
 {
+	/*
 	pins[i]->max_position = steppers[i]->currentPosition();
 	log_i("curPos:%i max_pos:%i", pins[i]->current_position, pins[i]->max_position);
 	Config::setMotorPinConfig(pins);
+	*/
 }
 
 void FocusMotor::get()
@@ -263,8 +260,7 @@ void FocusMotor::setup()
 
 void FocusMotor::loop()
 {
-	for (int ii=0; ii<10;ii++){
-		
+
 	// will be called in every global CMU cycle
 	int arraypos = 0; //TODO: When is this value changed?
 
@@ -274,18 +270,7 @@ void FocusMotor::loop()
 		// move motor only if available
 		if (steppers[i] != nullptr && pins[i]->DIR > 0)
 		{
-			// move motor if within allowed step-range
-			if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
-			{
-				// compute steps to go and stop if necessary
-				if ((pins[i]->current_position + data[i]->speed / 200 >= pins[i]->max_position && data[i]->speed > 0) || (pins[i]->current_position + data[i]->speed / 200 <= pins[i]->min_position && data[i]->speed < 0))
-				{
-					stopStepper(i);
-					sendMotorPos(i, arraypos);
-					return;
-				}
-			}
-			else{
+
 				// set speed
 				steppers[i]->setSpeed(data[i]->speed);
 				steppers[i]->setMaxSpeed(data[i]->maxspeed);
@@ -311,10 +296,12 @@ void FocusMotor::loop()
 					// checks if a stepper is still running
 					if (steppers[i]->distanceToGo() == 0 )//TODO Need to check this here? : && steppers[i]->areOutputsEnabled())
 					{
+#ifdef DEBUG_MOTOR						
 						log_i("stop stepper:%i", i);
+#endif
 						// if not turn it off
-						steppers[i]->disableOutputs();
-						sendMotorPos(i, arraypos);
+						//steppers[i]->disableOutputs();
+						//sendMotorPos(i, arraypos);
 						/*
 						if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
 						{
@@ -323,9 +310,10 @@ void FocusMotor::loop()
 						}
 						*/
 					}
-				}
+				
 				// send current position to client
 				//{"steppers":[{"stepperid":1,"position":3}]}
+				/*
 				if (steppers[i]->areOutputsEnabled())
 				{
 					pins[i]->current_position = steppers[i]->currentPosition();
@@ -335,12 +323,13 @@ void FocusMotor::loop()
 						nextSocketUpdateTime = millis() + 500UL;
 					}
 				}
+				*/
 
 	#ifdef DEBUG_MOTOR
 				if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
 					log_i("current Pos:%i target pos:%i", pins[i]->current_position, data[i]->targetPosition);
 	#endif
-			}
+			
 		}
 		
 	}

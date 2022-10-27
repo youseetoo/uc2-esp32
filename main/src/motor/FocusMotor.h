@@ -11,6 +11,8 @@
 #include "../../ModuleController.h"
 #include "MotorPins.h"
 
+#define DEBUG_MOTOR
+
 namespace RestApi
 {
 	void FocusMotor_act();

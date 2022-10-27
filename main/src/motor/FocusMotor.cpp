@@ -266,7 +266,7 @@ void FocusMotor::loop()
 	for (int ii=0; ii<10;ii++){
 		
 	// will be called in every global CMU cycle
-	int arraypos = 0;
+	int arraypos = 0; //TODO: When is this value changed?
 
 	// iterate over all available motors
 	for (int i = 0; i < steppers.size(); i++)
@@ -309,17 +309,19 @@ void FocusMotor::loop()
 					}
 					
 					// checks if a stepper is still running
-					if (steppers[i]->distanceToGo() == 0 && steppers[i]->areOutputsEnabled())
+					if (steppers[i]->distanceToGo() == 0 )//TODO Need to check this here? : && steppers[i]->areOutputsEnabled())
 					{
 						log_i("stop stepper:%i", i);
 						// if not turn it off
 						steppers[i]->disableOutputs();
 						sendMotorPos(i, arraypos);
+						/*
 						if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
 						{
 							pins[i]->current_position = steppers[i]->currentPosition();
 							Config::setMotorPinConfig(pins);
 						}
+						*/
 					}
 				}
 				// send current position to client

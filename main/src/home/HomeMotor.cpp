@@ -144,9 +144,10 @@ void HomeMotor::loop()
 			motor->steppers[Stepper::X]->stop();
 			//blocks until stepper reached new position wich would be optimal outside of the endstep
 			if(speed > 0)
-				motor->steppers[Stepper::X]->runToNewPosition(-homeEndposRelease);
+				motor->steppers[Stepper::X]->moveTo(-homeEndposRelease);
 			else
-				motor->steppers[Stepper::X]->runToNewPosition(homeEndposRelease);
+				motor->steppers[Stepper::X]->moveTo(homeEndposRelease);
+			motor->steppers[Stepper::X]->runToPosition();
 			hdata[Stepper::X]->homeIsActive = false;
 			motor->steppers[Stepper::X]->setCurrentPosition(0);
 			motor->data[Stepper::X]->isforever = false;
@@ -157,9 +158,10 @@ void HomeMotor::loop()
 			int speed = motor->data[Stepper::Y]->speed;
 			motor->steppers[Stepper::X]->stop();
 			if(speed > 0)
-				motor->steppers[Stepper::Y]->runToNewPosition(-homeEndposRelease);
+				motor->steppers[Stepper::Y]->moveTo(-homeEndposRelease);
 			else
-				motor->steppers[Stepper::Y]->runToNewPosition(homeEndposRelease);
+				motor->steppers[Stepper::Y]->moveTo(homeEndposRelease);
+			motor->steppers[Stepper::Y]->runToPosition();
 			hdata[Stepper::Y]->homeIsActive = false;
 			motor->steppers[Stepper::Y]->setCurrentPosition(0);
 			motor->data[Stepper::Y]->isforever = false;
@@ -170,9 +172,10 @@ void HomeMotor::loop()
 			int speed = motor->data[Stepper::Z]->speed;
 			motor->steppers[Stepper::Z]->stop();
 			if(speed > 0)
-				motor->steppers[Stepper::Z]->runToNewPosition(-homeEndposRelease);
+				motor->steppers[Stepper::Z]->moveTo(-homeEndposRelease);
 			else
-				motor->steppers[Stepper::Z]->runToNewPosition(homeEndposRelease);
+				motor->steppers[Stepper::Z]->moveTo(homeEndposRelease);
+			motor->steppers[Stepper::Z]->runToPosition();
 			hdata[Stepper::Z]->homeIsActive = false;
 			motor->steppers[Stepper::Z]->setCurrentPosition(0);
 			motor->data[Stepper::Z]->isforever = false;

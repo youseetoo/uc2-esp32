@@ -63,7 +63,7 @@ void FocusMotor::act()
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_isaccel))
 					data[s]->isaccelerated = (*j)[key_motor][key_steppers][i][key_isaccel];
-				
+
 				if ((*j)[key_motor][key_steppers][i][key_isstop])
 					stopStepper(s);
 				else
@@ -85,20 +85,60 @@ void FocusMotor::act()
 void FocusMotor::startStepper(int i)
 {
 	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition);
-	
-	//TODO: Find a solution for the enable
-	/*
-	if (!steppers[i]->areOutputsEnabled())
-		steppers[i]->enableOutputs();
-	*/
-
 
 	// set speed
 	steppers[i]->setMaxSpeed(data[i]->maxspeed);
 	steppers[i]->setSpeed(data[i]->speed);
 
-	// initiate motion -> afterwards steps will be performed in .loop()
-	if (data[i]->isforever){ // drive forever
+	// Handle the Enable pin that is either same for all or each motor has its own
+	if(isShareEnable)
+	{
+		bool enable = false;
+		for (size_t i = 0; i < steppers.size(); i++)
+		{
+			if(steppers[i]->areOutputsEnabled())
+				enable = true;
+		}
+		if(!enable)
+		{
+			for (size_t i = 0; i < steppers.size(); i++)
+			{
+				if(pins[i]->ENABLE > 0 && !enable)
+				{
+					steppers[i]->enableOutputs();
+					enable = true;
+					return;
+				}
+			}
+		}
+	}
+	else if (!steppers[i]->areOutputsEnabled())
+	{
+		steppers[i]->enableOutputs();
+		}
+
+
+	data[i]->stopped = false;
+
+	// switch between moving forever or defined distance mode
+	if (!data[i]->isforever)
+	{
+		steppers[i]->setSpeed(data[i]->speed);
+		if (data[i]->absolutePosition)
+		{
+			// absolute position coordinates
+			steppers[i]->moveTo(data[i]->targetPosition);
+			steppers[i]->run();
+		}
+		else
+		{
+			// relative position coordinates
+			steppers[i]->move(data[i]->targetPosition);
+			steppers[i]->run();
+		}
+	}
+	else if (data[i]->isforever) 	// initiate motion -> afterwards steps will be performed in .loop()
+	{
 		if (data[i]->speed == 0)
 			stopStepper(i);
 		else
@@ -228,7 +268,7 @@ void FocusMotor::setup()
 	// get pins from config
 	Config::getMotorPins(pins);
 	// create the stepper
-
+	isShareEnable = shareEnablePin();
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		data[i] = new MotorData();
@@ -266,7 +306,7 @@ void FocusMotor::loop()
 
 	// iterate over all available motors
 	for (int i = 0; i < steppers.size(); i++)
-	{	
+	{
 		// move motor only if available
 		if (steppers[i] != nullptr && pins[i]->DIR > 0)
 		{
@@ -274,26 +314,35 @@ void FocusMotor::loop()
 				// set speed
 				steppers[i]->setSpeed(data[i]->speed);
 				steppers[i]->setMaxSpeed(data[i]->maxspeed);
+			// turn motors forever if necessary
+			if (data[i]->isforever){
+				steppers[i]->runSpeed();
+			}
+			else
+			{
+				// run at constant speed
+				steppers[i]->setSpeed(data[i]->speed);
+				steppers[i]->setMaxSpeed(data[i]->maxspeed);
 
-				// turn motors forever if necessary
-				if (data[i]->isforever){
-					// log_i("forever drive");
-					/*
-					Serial.print("forever drive: ");
-					Serial.print(data[i]->speed);
-					Serial.print(" ");
-					Serial.println(i);
-					*/
-					steppers[i]->runSpeed();
+				if (data[i]->isaccelerated) // run with acceleration
+				{
+					steppers[i]->run();
 				}
-				else{
-					// run at constant speed
-					if (data[i]->isaccelerated)
-					{	
-						// this performs acceleration/decellartion ramps
-						steppers[i]->run();
-					}
-					else
+				else // run at constant speed
+				{
+					steppers[i]->runSpeedToPosition();
+				}
+				// checks if a stepper is still running
+				if (steppers[i]->distanceToGo() == 0 && !data[i]->stopped)
+				{
+					log_i("stop stepper:%i", i);
+					// if not turn it off
+					if(!isShareEnable)
+						steppers[i]->disableOutputs();
+					data[i]->stopped = true;
+					sendMotorPos(i, arraypos);
+					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+>>>>>>> origin/devInk
 					{
 						// this runs at constant speed
 						/*
@@ -304,11 +353,11 @@ void FocusMotor::loop()
 						*/
 						steppers[i]->runSpeedToPosition();
 					}
-					
+
 					// checks if a stepper is still running
 					if (steppers[i]->distanceToGo() == 0 )//TODO Need to check this here? : && steppers[i]->areOutputsEnabled())
 					{
-#ifdef DEBUG_MOTOR						
+#ifdef DEBUG_MOTOR
 						log_i("stop stepper:%i", i);
 #endif
 						// if not turn it off
@@ -322,7 +371,7 @@ void FocusMotor::loop()
 						}
 						*/
 					}
-				
+
 				// send current position to client
 				//{"steppers":[{"stepperid":1,"position":3}]}
 				/*
@@ -341,10 +390,28 @@ void FocusMotor::loop()
 				if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
 					log_i("current Pos:%i target pos:%i", pins[i]->current_position, data[i]->targetPosition);
 	#endif
-			
+
 		}
-		
+
 	}
+	}
+
+	if(isShareEnable)
+	{
+		if (data[Stepper::A]->stopped
+		&& data[Stepper::X]->stopped
+		&& data[Stepper::Y]->stopped
+		&& data[Stepper::Z]->stopped)
+		{
+			if(pins[Stepper::A]->ENABLE > 0)
+				steppers[Stepper::A]->disableOutputs();
+			else if(pins[Stepper::X]->ENABLE> 0)
+				steppers[Stepper::X]->disableOutputs();
+			else if(pins[Stepper::Y]->ENABLE> 0)
+				steppers[Stepper::Y]->disableOutputs();
+			else if(pins[Stepper::Z]->ENABLE> 0)
+				steppers[Stepper::Z]->disableOutputs();
+		}
 	}
 }
 
@@ -371,42 +438,33 @@ void FocusMotor::stopStepper(int i)
 {
 	steppers[i]->stop();
 	data[i]->isforever = false;
+	data[i]->speed = 0;
 	pins[i]->current_position = steppers[i]->currentPosition();
-	steppers[i]->disableOutputs();
+	data[i]->stopped = true;
+	if(!isShareEnable)
+		steppers[i]->disableOutputs();
 }
 
 void FocusMotor::startAllDrives()
 {
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		log_i("is stepper %i null:%s set speed/max %i/%i step:%i dir%i enablepin:%i outputenabled:%s",
-			  i,
-			  boolToChar(data[i] == nullptr),
-			  data[i]->speed,
-			  data[i]->maxspeed,
-			  pins[i]->STEP,
-			  pins[i]->DIR,
-			  pins[i]->ENABLE,
-			  boolToChar(steppers[i]->areOutputsEnabled()));
-		if (!steppers[i]->areOutputsEnabled())
-			steppers[i]->enableOutputs();
-		steppers[i]->setSpeed(data[i]->speed);
-		steppers[i]->setMaxSpeed(data[i]->maxspeed);
-		if (!data[i]->isforever)
-		{
-			if (data[i]->absolutePosition)
-			{
-				// absolute position coordinates
-				steppers[i]->moveTo(data[i]->targetPosition);
-				steppers[i]->run();
-			}
-			else
-			{
-				// relative position coordinates
-				steppers[i]->move(data[i]->targetPosition);
-				steppers[i]->run();
-			}
-		}
-		pins[i]->current_position = steppers[i]->currentPosition();
+		startStepper(i);
 	}
+}
+
+bool FocusMotor::shareEnablePin()
+{
+	bool share = false;
+	int lastval = 0;
+	for(int i =0; i < 4;i++)
+	{
+		if (pins[i]->ENABLE > 0 && lastval == pins[i]->ENABLE)
+		{
+			share = true;
+		}
+		else if(pins[i]->ENABLE > 0)
+			lastval = pins[i]->ENABLE;
+	}
+	return share;
 }

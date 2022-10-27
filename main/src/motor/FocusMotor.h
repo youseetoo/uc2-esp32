@@ -30,6 +30,7 @@ struct MotorData
 	bool isforever = false;
 	bool isaccelerated = false;
 	bool absolutePosition = false;
+	bool stopped = true;
 };
 
 enum Stepper
@@ -146,6 +147,7 @@ public:
 private:
 	int logcount;
 	unsigned long nextSocketUpdateTime;
+	bool isShareEnable;
 
 	void stopStepper(int i);
 	void startStepper(int i);
@@ -154,4 +156,5 @@ private:
 	void applyMaxPos(int i);
 	void sendMotorPos(int i, int arraypos);
 	void resetMotorPos(int i);
+	bool shareEnablePin();
 };

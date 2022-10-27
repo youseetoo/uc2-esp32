@@ -111,16 +111,11 @@ void FocusMotor::startStepper(int i)
 				}
 			}
 		}
+
 	}
 	else if (!steppers[i]->areOutputsEnabled())
-	{
 		steppers[i]->enableOutputs();
-		}
-
-
 	data[i]->stopped = false;
-
-	// switch between moving forever or defined distance mode
 	if (!data[i]->isforever)
 	{
 		steppers[i]->setSpeed(data[i]->speed);
@@ -394,6 +389,24 @@ void FocusMotor::loop()
 		}
 
 	}
+	}
+
+	if(isShareEnable)
+	{
+		if (data[Stepper::A]->stopped
+		&& data[Stepper::X]->stopped
+		&& data[Stepper::Y]->stopped
+		&& data[Stepper::Z]->stopped)
+		{
+			if(pins[Stepper::A]->ENABLE > 0)
+				steppers[Stepper::A]->disableOutputs();
+			else if(pins[Stepper::X]->ENABLE> 0)
+				steppers[Stepper::X]->disableOutputs();
+			else if(pins[Stepper::Y]->ENABLE> 0)
+				steppers[Stepper::Y]->disableOutputs();
+			else if(pins[Stepper::Z]->ENABLE> 0)
+				steppers[Stepper::Z]->disableOutputs();
+		}
 	}
 
 	if(isShareEnable)

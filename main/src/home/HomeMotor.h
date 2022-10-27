@@ -29,6 +29,7 @@ struct HomeData
 	long homeMaxspeed = 20000;
 	int homeDirection = 1;
 	long homeTimeStarted = 0;
+	bool homeIsActive = false;
 };
 
 class HomeMotor : public Module
@@ -38,6 +39,8 @@ public:
 	HomeMotor();
 	~HomeMotor();
 	bool DEBUG = true;
+	int homeEndposRelease = 2000;
+	bool isHoming = false;
 	std::array<HomeData *, 4> hdata;
 
 	void act() override;

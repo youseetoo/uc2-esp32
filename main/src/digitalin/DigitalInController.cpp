@@ -134,4 +134,6 @@ void DigitalInController::loop(){
 	digitalin_val_1 = digitalRead(pins.digitalin_PIN_1);
 	digitalin_val_2 = digitalRead(pins.digitalin_PIN_2);
 	digitalin_val_3 = digitalRead(pins.digitalin_PIN_3);
+
+
 }

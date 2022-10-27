@@ -34,8 +34,8 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 0, "position": -10000, "speed": 2000, "isabs": 0, "isaccel":1},
-            { "stepperid": 1, "position": -10000, "speed": 2000, "isabs": 0, "isaccel":1}
+            { "stepperid": 0, "position": -10000, "speed": 2000, "isabs": 0, "isaccel":0},
+            { "stepperid": 1, "position": -10000, "speed": 2000, "isabs": 0, "isaccel":0}
         ]
     }
 }
@@ -43,3 +43,30 @@
 {"task":"/motor_act",  "steppers": [ { "stepperid": 1, "speed": 1000, "isforever": 1} ] }
 
 {"task": "/laser_get"}
+
+{"task": "/home_get"}
+{"task": "/home_set"}
+
+// {"task":"/home_act", "home": {"home":1, "steppers": [{"id":0, "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1}]}}
+
+{
+  "task": "/home_act",
+  "home": [
+    {
+      "home": 1,
+      "endpospin": 1,
+      "timeout": 1000,
+      "speed": 2000,
+      "direction": 1
+    }
+  ]
+}
+
+{"task":"/home_act",
+    "home":
+    {
+        "steppers": [
+            { "stepperid": 1, "timeout":1000, "speed":1000, "direction":1}
+        ]
+    }
+}

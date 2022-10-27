@@ -54,28 +54,22 @@ void HomeMotor::act()
 				hdata[s]->homeTimeout = (*j)[key_home][key_steppers][i][key_home_timeout];			
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_speed))
 				hdata[s]->homeSpeed = (*j)[key_home][key_steppers][i][key_home_speed];
-			Serial.println("speed");
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_maxspeed))
 				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
-			Serial.println("maxspeed");
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
 				hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
 			
 			// grab current time
 			hdata[s]->homeTimeStarted = millis();
-			Serial.println("direction");
 			hdata[s]->homeIsActive = true;
 
 			//trigger go home by starting the motor in the right direction
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-			Serial.println("motor");
 			motor->data[s]->isforever = true;
 			motor->data[s]->speed = hdata[s]->homeSpeed;
 			motor->data[s]->maxspeed = hdata[s]->homeMaxspeed;
 
 			// now we will go into loop and need to stop once the button is hit or timeout is reached
-			
-			serializeJsonPretty((*j), Serial);
 			log_i("Home Data Motor %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i", i, hdata[s]->homeTimeout, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted);
 	
 		}
@@ -87,11 +81,43 @@ void HomeMotor::act()
 
 void HomeMotor::get()
 {
-	
+	if (DEBUG)
+		Serial.println("home_get_fct");
+	DynamicJsonDocument *j = WifiController::getJDoc();
+
+	// add the home data to the json
+	(*j)[key_home][key_steppers][0][key_home_timeout] = hdata[Stepper::A]->homeTimeout;
+	(*j)[key_home][key_steppers][0][key_home_speed] = hdata[Stepper::A]->homeSpeed;
+	(*j)[key_home][key_steppers][0][key_home_maxspeed] = hdata[Stepper::A]->homeMaxspeed;
+	(*j)[key_home][key_steppers][0][key_home_direction] = hdata[Stepper::A]->homeDirection;
+	(*j)[key_home][key_steppers][0][key_home_timestarted] = hdata[Stepper::A]->homeTimeStarted;
+	(*j)[key_home][key_steppers][0][key_home_isactive] = hdata[Stepper::A]->homeIsActive;
+
+	(*j)[key_home][key_steppers][1][key_home_timeout] = hdata[Stepper::X]->homeTimeout;
+	(*j)[key_home][key_steppers][1][key_home_speed] = hdata[Stepper::X]->homeSpeed;
+	(*j)[key_home][key_steppers][1][key_home_maxspeed] = hdata[Stepper::X]->homeMaxspeed;
+	(*j)[key_home][key_steppers][1][key_home_direction] = hdata[Stepper::X]->homeDirection;
+	(*j)[key_home][key_steppers][1][key_home_timestarted] = hdata[Stepper::X]->homeTimeStarted;
+	(*j)[key_home][key_steppers][1][key_home_isactive] = hdata[Stepper::X]->homeIsActive;
+
+	(*j)[key_home][key_steppers][2][key_home_timeout] = hdata[Stepper::Y]->homeTimeout;
+	(*j)[key_home][key_steppers][2][key_home_speed] = hdata[Stepper::Y]->homeSpeed;
+	(*j)[key_home][key_steppers][2][key_home_maxspeed] = hdata[Stepper::Y]->homeMaxspeed;
+	(*j)[key_home][key_steppers][2][key_home_direction] = hdata[Stepper::Y]->homeDirection;
+	(*j)[key_home][key_steppers][2][key_home_timestarted] = hdata[Stepper::Y]->homeTimeStarted;
+	(*j)[key_home][key_steppers][2][key_home_isactive] = hdata[Stepper::Y]->homeIsActive;
+
+	(*j)[key_home][key_steppers][3][key_home_timeout] = hdata[Stepper::Z]->homeTimeout;
+	(*j)[key_home][key_steppers][3][key_home_speed] = hdata[Stepper::Z]->homeSpeed;
+	(*j)[key_home][key_steppers][3][key_home_maxspeed] = hdata[Stepper::Z]->homeMaxspeed;
+	(*j)[key_home][key_steppers][3][key_home_direction] = hdata[Stepper::Z]->homeDirection;
+	(*j)[key_home][key_steppers][3][key_home_timestarted] = hdata[Stepper::Z]->homeTimeStarted;
+	(*j)[key_home][key_steppers][3][key_home_isactive] = hdata[Stepper::Z]->homeIsActive;
+
 }
+
 void HomeMotor::set()
-{
-	
+{	
 }
 
 
@@ -107,15 +133,10 @@ void HomeMotor::loop()
 	{	
 		// get motor and switch instances
 		FocusMotor * motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-		
 		DigitalInController * digitalin = (DigitalInController*)moduleController.get(AvailableModules::digitalin);
 
-		/*
-		Serial.print("digitalin loop: ");
-		Serial.print(digitalin->digitalin_val_1);
-		Serial.print(digitalin->digitalin_val_2);
-		Serial.println(digitalin->digitalin_val_3);*/
 		//expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
+		// 0=A , 1=X, 2=Y , 3=Z
 		if(hdata[Stepper::X]->homeIsActive && ( digitalin->digitalin_val_1 || hdata[Stepper::X]->homeTimeStarted + hdata[Stepper::X]->homeTimeout < millis()))
 		{
 			// stopping motor and going reversing direction to release endstops
@@ -123,7 +144,7 @@ void HomeMotor::loop()
 			motor->steppers[Stepper::X]->stop();
 			//blocks until stepper reached new position wich would be optimal outside of the endstep
 			if(speed > 0)
-				motor->steppers[Stepper::X]->runToNewPosition(homeEndposRelease);
+				motor->steppers[Stepper::X]->runToNewPosition(-homeEndposRelease);
 			else
 				motor->steppers[Stepper::X]->runToNewPosition(homeEndposRelease);
 			hdata[Stepper::X]->homeIsActive = false;

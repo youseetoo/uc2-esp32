@@ -59,17 +59,17 @@ void DigitalInController::set()
 		if (digitalinid == 1)
 		{
 			pins.digitalin_PIN_1 = digitalinpin;
-			pinMode(pins.digitalin_PIN_1, INPUT_PULLUP);  // PULLUP
+			pinMode(pins.digitalin_PIN_1, INPUT_PULLDOWN);  // PULLDOWN
 		}
 		else if (digitalinid == 2)
 		{
 			pins.digitalin_PIN_2 = digitalinpin;
-			pinMode(pins.digitalin_PIN_2, INPUT_PULLUP); // PULLUP
+			pinMode(pins.digitalin_PIN_2, INPUT_PULLDOWN); // PULLDOWN
 		}
 		else if (digitalinid == 3)
 		{
 			pins.digitalin_PIN_3 = digitalinpin;
-			pinMode(pins.digitalin_PIN_3, INPUT_PULLUP); // PULLUP
+			pinMode(pins.digitalin_PIN_3, INPUT_PULLDOWN); // PULLDOWN
 		}
 	}
 	Config::setDigitalInPins(pins);
@@ -124,9 +124,9 @@ void DigitalInController::setup()
 	Config::getDigitalInPins(pins);
 	Serial.println("Setting Up digitalin");
 	/* setup the output nodes and reset them to 0*/
-	pinMode(pins.digitalin_PIN_1, INPUT_PULLUP);
-	pinMode(pins.digitalin_PIN_2, INPUT_PULLUP);
-	pinMode(pins.digitalin_PIN_3, INPUT_PULLUP);
+	pinMode(pins.digitalin_PIN_1, INPUT_PULLDOWN);
+	pinMode(pins.digitalin_PIN_2, INPUT_PULLDOWN);
+	pinMode(pins.digitalin_PIN_3, INPUT_PULLDOWN);
 }
 
 void DigitalInController::loop(){

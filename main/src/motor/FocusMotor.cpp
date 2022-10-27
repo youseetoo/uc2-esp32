@@ -278,6 +278,12 @@ void FocusMotor::loop()
 				// turn motors forever if necessary
 				if (data[i]->isforever){
 					// log_i("forever drive");
+					/*
+					Serial.print("forever drive: ");
+					Serial.print(data[i]->speed);
+					Serial.print(" ");
+					Serial.println(i);
+					*/
 					steppers[i]->runSpeed();
 				}
 				else{
@@ -290,6 +296,12 @@ void FocusMotor::loop()
 					else
 					{
 						// this runs at constant speed
+						/*
+						Serial.print("Stepper running: ");
+						Serial.print(i);
+						Serial.print(" ");
+						Serial.println(steppers[i]->distanceToGo());
+						*/
 						steppers[i]->runSpeedToPosition();
 					}
 					

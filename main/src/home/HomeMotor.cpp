@@ -69,15 +69,14 @@ void HomeMotor::act()
 			//trigger go home by starting the motor in the right direction
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 			Serial.println("motor");
-			motor->steppers[i]->setSpeed(hdata[s]->homeDirection*hdata[s]->homeSpeed);
-			motor->steppers[i]->setMaxSpeed(hdata[s]->homeMaxspeed);
-			motor->steppers[i]->runSpeed();
+			motor->data[s]->isforever = true;
+			motor->data[s]->speed = hdata[s]->homeSpeed;
+			motor->data[s]->maxspeed = hdata[s]->homeMaxspeed;
 
 			// now we will go into loop and need to stop once the button is hit or timeout is reached
 			
 			serializeJsonPretty((*j), Serial);
-			Serial.println(s);
-			log_i("Home Data Motor %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i", i, hdata[s]->homeTimeout, hdata[s]->homeSpeed, hdata[s]->homeMaxspeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted);
+			log_i("Home Data Motor %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i", i, hdata[s]->homeTimeout, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted);
 	
 		}
 	}
@@ -111,10 +110,11 @@ void HomeMotor::loop()
 		
 		DigitalInController * digitalin = (DigitalInController*)moduleController.get(AvailableModules::digitalin);
 
+		/*
 		Serial.print("digitalin loop: ");
 		Serial.print(digitalin->digitalin_val_1);
 		Serial.print(digitalin->digitalin_val_2);
-		Serial.println(digitalin->digitalin_val_3);
+		Serial.println(digitalin->digitalin_val_3);*/
 		//expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 		if(hdata[Stepper::X]->homeIsActive && ( digitalin->digitalin_val_1 || hdata[Stepper::X]->homeTimeStarted + hdata[Stepper::X]->homeTimeout < millis()))
 		{
@@ -128,6 +128,7 @@ void HomeMotor::loop()
 				motor->steppers[Stepper::X]->runToNewPosition(homeEndposRelease);
 			hdata[Stepper::X]->homeIsActive = false;
 			motor->steppers[Stepper::X]->setCurrentPosition(0);
+			motor->data[Stepper::X]->isforever = false;
 			log_i("Home Motor X done");
 		}
 		if(hdata[Stepper::Y]->homeIsActive && (digitalin->digitalin_val_2 || hdata[Stepper::Y]->homeTimeStarted + hdata[Stepper::Y]->homeTimeout < millis()))
@@ -140,6 +141,7 @@ void HomeMotor::loop()
 				motor->steppers[Stepper::Y]->runToNewPosition(homeEndposRelease);
 			hdata[Stepper::Y]->homeIsActive = false;
 			motor->steppers[Stepper::Y]->setCurrentPosition(0);
+			motor->data[Stepper::Y]->isforever = false;
 			log_i("Home Motor Y done");
 		}
 		if(hdata[Stepper::Z]->homeIsActive && (digitalin->digitalin_val_3 || hdata[Stepper::Z]->homeTimeStarted + hdata[Stepper::Z]->homeTimeout < millis()))
@@ -152,6 +154,7 @@ void HomeMotor::loop()
 				motor->steppers[Stepper::Z]->runToNewPosition(homeEndposRelease);
 			hdata[Stepper::Z]->homeIsActive = false;
 			motor->steppers[Stepper::Z]->setCurrentPosition(0);
+			motor->data[Stepper::Z]->isforever = false;
 			log_i("Home Motor Z done");
 		}
 	}
@@ -161,4 +164,10 @@ void HomeMotor::loop()
 not needed all stuff get setup inside motor and digitalin, but must get implemented
 */
 void HomeMotor::setup()
-{}
+{
+	
+	for (int i = 0; i < 4; i++)
+  	{
+    hdata[i] = new HomeData ();
+	}
+}

@@ -58,7 +58,9 @@ void HomeMotor::act()
 				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
 			if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
 				hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
-			
+			if ((*j)[key_home][key_steppers][i].containsKey(key_home_endposrelease))
+				hdata[s]->homeEndposRelease = (*j)[key_home][key_steppers][i][key_home_endposrelease];
+
 			// grab current time
 			hdata[s]->homeTimeStarted = millis();
 			hdata[s]->homeIsActive = true;
@@ -70,7 +72,7 @@ void HomeMotor::act()
 			motor->data[s]->maxspeed = hdata[s]->homeMaxspeed;
 
 			// now we will go into loop and need to stop once the button is hit or timeout is reached
-			log_i("Home Data Motor %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i", i, hdata[s]->homeTimeout, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted);
+			log_i("Home Data Motor %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i", i, hdata[s]->homeTimeout, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection*hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndposRelease);
 	
 		}
 	}
@@ -144,9 +146,9 @@ void HomeMotor::loop()
 			motor->steppers[Stepper::X]->stop();
 			//blocks until stepper reached new position wich would be optimal outside of the endstep
 			if(speed > 0)
-				motor->steppers[Stepper::X]->moveTo(-homeEndposRelease);
+				motor->steppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease);
 			else
-				motor->steppers[Stepper::X]->moveTo(homeEndposRelease);
+				motor->steppers[Stepper::X]->move(hdata[Stepper::X]->homeEndposRelease);
 			motor->steppers[Stepper::X]->runToPosition();
 			hdata[Stepper::X]->homeIsActive = false;
 			motor->steppers[Stepper::X]->setCurrentPosition(0);
@@ -158,9 +160,9 @@ void HomeMotor::loop()
 			int speed = motor->data[Stepper::Y]->speed;
 			motor->steppers[Stepper::X]->stop();
 			if(speed > 0)
-				motor->steppers[Stepper::Y]->moveTo(-homeEndposRelease);
+				motor->steppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease);
 			else
-				motor->steppers[Stepper::Y]->moveTo(homeEndposRelease);
+				motor->steppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease);
 			motor->steppers[Stepper::Y]->runToPosition();
 			hdata[Stepper::Y]->homeIsActive = false;
 			motor->steppers[Stepper::Y]->setCurrentPosition(0);
@@ -172,9 +174,9 @@ void HomeMotor::loop()
 			int speed = motor->data[Stepper::Z]->speed;
 			motor->steppers[Stepper::Z]->stop();
 			if(speed > 0)
-				motor->steppers[Stepper::Z]->moveTo(-homeEndposRelease);
+				motor->steppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease);
 			else
-				motor->steppers[Stepper::Z]->moveTo(homeEndposRelease);
+				motor->steppers[Stepper::Z]->move(hdata[Stepper::Z]->homeEndposRelease);
 			motor->steppers[Stepper::Z]->runToPosition();
 			hdata[Stepper::Z]->homeIsActive = false;
 			motor->steppers[Stepper::Z]->setCurrentPosition(0);

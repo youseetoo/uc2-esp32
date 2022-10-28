@@ -30,6 +30,7 @@ struct HomeData
 	int homeDirection = 1;
 	long homeTimeStarted = 0;
 	bool homeIsActive = false;
+	int homeEndposRelease = 1000;
 };
 
 class HomeMotor : public Module

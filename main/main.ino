@@ -63,7 +63,7 @@ void loop()
 	// for any timing-related purposes
 	state.currentMillis = millis();
 	serial.loop();
-	// TODO: Time consuming? WifiController::handelMessages();
+	WifiController::handelMessages();
 	moduleController.loop();
 
 #if defined IS_PS4 || defined IS_PS3

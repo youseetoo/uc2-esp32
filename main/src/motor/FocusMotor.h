@@ -157,4 +157,6 @@ private:
 	void sendMotorPos(int i, int arraypos);
 	void resetMotorPos(int i);
 	bool shareEnablePin();
+	void powerOnMotor(int stepperid);
+	void powerOffSharedMotor();
 };

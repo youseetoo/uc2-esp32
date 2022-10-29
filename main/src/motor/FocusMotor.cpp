@@ -68,13 +68,19 @@ void FocusMotor::act()
 					stopStepper(s);
 				else
 				{
-#if defined IS_PS3 || defined IS_PS4
-					// the Serial/Wifi has always priority / PS controller is slave
-					if (ps_c.IS_PSCONTROLER_ACTIVE)
-						ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
-#endif
-
-					startStepper(s);
+					// if drive min/max range is set
+					if (pins[s]->max_position != 0 || pins[s]->min_position != 0)
+					{
+						// if min or max postion is reached ignore the motor start in that direction
+						if ((pins[s]->current_position + data[s]->speed / 200 >= pins[s]->max_position && data[s]->speed > 0) || (pins[s]->current_position + data[s]->speed / 200 <= pins[s]->min_position && data[s]->speed < 0))
+						{
+							return;
+						}
+						else
+							startStepper(s);
+					}
+					else
+						startStepper(s);
 				}
 			}
 		}
@@ -82,10 +88,58 @@ void FocusMotor::act()
 	WifiController::getJDoc()->clear();
 }
 
+void FocusMotor::powerOnMotor(int stepperid)
+{
+	// if all motor share the same enable pin
+	if (isShareEnable)
+	{
+		// check if its already enabled
+		bool enable = false;
+		for (size_t i = 0; i < steppers.size(); i++)
+		{
+			if (steppers[i]->areOutputsEnabled())
+				enable = true;
+		}
+		// if not power on enable pin
+		if (!enable)
+		{
+			for (size_t i = 0; i < steppers.size(); i++)
+			{
+				if (pins[i]->ENABLE > 0 && !enable)
+				{
+					steppers[i]->enableOutputs();
+					enable = true;
+					return;
+				}
+			}
+		}
+	}
+	else if (!steppers[stepperid]->areOutputsEnabled())
+		steppers[stepperid]->enableOutputs();
+}
+
+void FocusMotor::powerOffSharedMotor()
+{
+	if (isShareEnable)
+	{
+		if (data[Stepper::A]->stopped && data[Stepper::X]->stopped && data[Stepper::Y]->stopped && data[Stepper::Z]->stopped)
+		{
+			if (pins[Stepper::A]->ENABLE > 0 && steppers[Stepper::A]->areOutputsEnabled())
+				steppers[Stepper::A]->disableOutputs();
+			else if (pins[Stepper::X]->ENABLE > 0 && steppers[Stepper::X]->areOutputsEnabled())
+				steppers[Stepper::X]->disableOutputs();
+			else if (pins[Stepper::Y]->ENABLE > 0 && steppers[Stepper::Y]->areOutputsEnabled())
+				steppers[Stepper::Y]->disableOutputs();
+			else if (pins[Stepper::Z]->ENABLE > 0 && steppers[Stepper::Z]->areOutputsEnabled())
+				steppers[Stepper::Z]->disableOutputs();
+		}
+	}
+}
+
 void FocusMotor::startStepper(int i)
 {
 	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition);
-
+	powerOnMotor(i);
 	// set speed
 	steppers[i]->setMaxSpeed(data[i]->maxspeed);
 	steppers[i]->setSpeed(data[i]->speed);
@@ -104,7 +158,7 @@ void FocusMotor::startStepper(int i)
 			steppers[i]->runSpeed();
 		}
 		// DEFINED POSITION
-		else 
+		else
 		{
 			if (data[i]->absolutePosition)
 			{
@@ -172,31 +226,25 @@ void FocusMotor::setMinMaxRange()
 
 void FocusMotor::resetMotorPos(int i)
 {
-	/*
 	pins[i]->min_position = 0;
 	pins[i]->max_position = 0;
 	Config::setMotorPinConfig(pins);
-	*/
 }
 
 void FocusMotor::applyMinPos(int i)
 {
-	/*
 	steppers[i]->setCurrentPosition(0);
 	pins[i]->current_position = 0;
 	pins[i]->min_position = 0;
 	log_i("curPos:%i min_pos:%i", pins[i]->current_position, pins[i]->min_position);
 	Config::setMotorPinConfig(pins);
-	*/
 }
 
 void FocusMotor::applyMaxPos(int i)
 {
-	/*
 	pins[i]->max_position = steppers[i]->currentPosition();
 	log_i("curPos:%i max_pos:%i", pins[i]->current_position, pins[i]->max_position);
 	Config::setMotorPinConfig(pins);
-	*/
 }
 
 void FocusMotor::get()
@@ -229,13 +277,10 @@ void FocusMotor::setup()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		data[i] = new MotorData();
-		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
+		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i shareEnablePin:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position, isShareEnable);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
-		// we have only one enable pin for all - in most cases it's inverted
-		pinMode(pins[i]->ENABLE, OUTPUT);
-		digitalWrite(pins[i]->ENABLE, LOW);
-		// steppers[i]->setEnablePin(pins[i]->ENABLE);
-		// steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
+		steppers[i]->setEnablePin(pins[i]->ENABLE);
+		steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
 	}
 
 	/*
@@ -254,12 +299,14 @@ void FocusMotor::setup()
 		steppers[i]->disableOutputs();
 	}
 }
-
+// will be called in every global CMU cycle
 void FocusMotor::loop()
 {
-
-	// will be called in every global CMU cycle
-	int arraypos = 0; // TODO: When is this value changed?
+	/*
+		used to track how many motors got applied to the json array, send to websocket clients
+		if we use i for it, the json array gets filled for every not added motor with NULL
+	*/
+	int arraypos = 0;
 
 	// iterate over all available motors
 	for (int i = 0; i < steppers.size(); i++)
@@ -267,6 +314,16 @@ void FocusMotor::loop()
 		// move motor only if available
 		if (steppers[i] != nullptr && pins[i]->DIR > 0)
 		{
+			// if drive range limits are set
+			if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+			{
+				if ((pins[i]->current_position + data[i]->speed / 200 >= pins[i]->max_position && data[i]->speed > 0) || (pins[i]->current_position + data[i]->speed / 200 <= pins[i]->min_position && data[i]->speed < 0))
+				{
+					stopStepper(i);
+					sendMotorPos(i, arraypos);
+					return;
+				}
+			}
 			// set speed
 			steppers[i]->setSpeed(data[i]->speed);
 			steppers[i]->setMaxSpeed(data[i]->maxspeed);
@@ -286,9 +343,37 @@ void FocusMotor::loop()
 				{
 					steppers[i]->runSpeedToPosition();
 				}
+
+				// checks if a stepper is still running
+				if (steppers[i]->distanceToGo() == 0 && !data[i]->stopped)
+				{
+					log_i("stop stepper:%i", i);
+					// if not turn it off if its not sharedenable pin
+					if (!isShareEnable)
+						steppers[i]->disableOutputs();
+					data[i]->stopped = true;
+					sendMotorPos(i, arraypos);
+					// if drive range limits are set store current postion in preferences
+					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+					{
+						pins[i]->current_position = steppers[i]->currentPosition();
+						Config::setMotorPinConfig(pins);
+					}
+				}
+			}
+			// send motor position to connected websocket clients while not stopped
+			if (!data[i]->stopped)
+			{
+				pins[i]->current_position = steppers[i]->currentPosition();
+				if (millis() >= nextSocketUpdateTime)
+				{
+					sendMotorPos(i, arraypos);
+					nextSocketUpdateTime = millis() + 500UL;
+				}
 			}
 		}
 	}
+	powerOffSharedMotor();
 }
 
 void FocusMotor::sendMotorPos(int i, int arraypos)

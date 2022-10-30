@@ -353,3 +353,24 @@ GET
 
 }
 ```
+
+
+/digitalin_set
+==========
+POST
+```
+{
+    "digitalinid":1, 
+    "digitalinpin":39
+}
+```
+
+/digitalin_get
+==========
+POST
+```
+{
+    "digitalinid":1
+}
+```
+

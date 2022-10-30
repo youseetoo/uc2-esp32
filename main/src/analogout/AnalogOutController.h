@@ -52,9 +52,9 @@ public:
     int PWM_CHANNEL_analogout_2 = 5;
     int PWM_CHANNEL_analogout_3 = 6;
 
-    void act() override;
-    void set() override;
-    void get() override;
+    void act(JsonObject  jsonDocument) override;
+    void set(JsonObject  jsonDocument) override;
+    void get(JsonObject  jsonDocument) override;
 
     void setup() override;
     void loop() override;

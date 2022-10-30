@@ -74,5 +74,5 @@ namespace WifiController
     void getCSS();
     void getjquery();
     void getjs();
-    void connect();
+    void connect(JsonObject j);
 }

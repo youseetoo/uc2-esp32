@@ -59,9 +59,9 @@ public:
 	bool DEBUG = false;
 	bool isBusy;
 
-	void act() override;
-	void set() override;
-	void get() override;
+	void act(JsonObject job) override;
+	void set(JsonObject job) override;
+	void get(JsonObject job) override;
 	void setup() override;
 	void loop() override;
 

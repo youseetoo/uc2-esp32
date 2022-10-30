@@ -25,9 +25,9 @@ class AnalogJoystick : public Module
     AnalogJoystick();
 	virtual ~AnalogJoystick();
     void setup() override;
-    void act() override;
-    void set() override;
-    void get() override;
+    void act(JsonObject  jsonDocument) override;
+    void set(JsonObject  jsonDocument) override;
+    void get(JsonObject  jsonDocument) override;
     void loop() override;
 
 };

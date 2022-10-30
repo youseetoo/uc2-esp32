@@ -26,7 +26,7 @@ namespace RestApi
     /*
         load the body data from the client request into the jsondoc
     */
-    void deserialize();
+    JsonObject deserialize();
     /*
         fill the input from the jsondoc and send a response to the client
     */

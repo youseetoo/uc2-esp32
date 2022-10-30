@@ -7,7 +7,7 @@ struct MotorPins
     bool step_inverted = false;
     bool direction_inverted = false;
     bool enable_inverted = false;
-    int min_position = -100000; // some very low number by default
-    int max_position =  100000; // some very large number by default
+    int min_position = 0;
+    int max_position =  0;
     int current_position =0;
 };

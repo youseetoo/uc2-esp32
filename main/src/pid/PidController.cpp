@@ -5,22 +5,19 @@ namespace RestApi
 {
 	void Pid_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::pid)->act();
+		moduleController.get(AvailableModules::pid)->act(deserialize());
 		serialize();
 	}
 
 	void Pid_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::pid)->get();
+		moduleController.get(AvailableModules::pid)->get(deserialize());
 		serialize();
 	}
 
 	void Pid_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::pid)->set();
+		moduleController.get(AvailableModules::pid)->set(deserialize());
 		serialize();
 	}
 }
@@ -29,25 +26,25 @@ PidController::PidController(/* args */){};
 PidController::~PidController(){};
 
 // Custom function accessible by the API
-void PidController::act()
+void PidController::act(JsonObject ob)
 {
 
 	// here you can do something
 	if (DEBUG)
 		Serial.println("PID_act_fct");
 
-	if (WifiController::getJDoc()->containsKey("PIDactive"))
-		PID_active = (int)(*WifiController::getJDoc())["PIDactive"];
-	if (WifiController::getJDoc()->containsKey("Kp"))
-		PID_Kp = (*WifiController::getJDoc())["Kp"];
-	if ((*WifiController::getJDoc()).containsKey("Ki"))
-		PID_Ki = (*WifiController::getJDoc())["Ki"];
-	if (WifiController::getJDoc()->containsKey("Kd"))
-		PID_Kd = (*WifiController::getJDoc())["Kd"];
-	if (WifiController::getJDoc()->containsKey("target"))
-		PID_target = (*WifiController::getJDoc())["target"];
-	if (WifiController::getJDoc()->containsKey("PID_updaterate"))
-		PID_updaterate = (int)(*WifiController::getJDoc())["PID_updaterate"];
+	if (ob.containsKey("PIDactive"))
+		PID_active = (int)(ob)["PIDactive"];
+	if (ob.containsKey("Kp"))
+		PID_Kp = (ob)["Kp"];
+	if ((ob).containsKey("Ki"))
+		PID_Ki = (ob)["Ki"];
+	if (ob.containsKey("Kd"))
+		PID_Kd = (ob)["Kd"];
+	if (ob.containsKey("target"))
+		PID_target = (ob)["target"];
+	if (ob.containsKey("PID_updaterate"))
+		PID_updaterate = (int)(ob)["PID_updaterate"];
 
 	if (!PID_active)
 	{
@@ -129,14 +126,14 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 	return stepperOut;
 }
 
-void PidController::set()
+void PidController::set(JsonObject ob)
 {
 	if (DEBUG)
 		Serial.println("PID_set_fct");
-	int PIDID = (int)(*WifiController::getJDoc())["PIDID"];
-	int PIDPIN = (int)(*WifiController::getJDoc())["PIDPIN"];
-	if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
-		N_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
+	int PIDID = (int)(ob)["PIDID"];
+	int PIDPIN = (int)(ob)["PIDPIN"];
+	if (ob.containsKey("N_analogin_avg"))
+		N_analogin_avg = (int)(ob)["N_analogin_avg"];
 
 	switch (PIDID)
 	{
@@ -150,14 +147,10 @@ void PidController::set()
 		pins.analogin_PIN_2 = PIDPIN;
 		break;
 	}
-
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["PIDPIN"] = PIDPIN;
-	(*WifiController::getJDoc())["PIDID"] = PIDID;
 }
 
 // Custom function accessible by the API
-void PidController::get()
+void PidController::get(JsonObject ob)
 {
 	if (DEBUG)
 		Serial.println("PID_get_fct");

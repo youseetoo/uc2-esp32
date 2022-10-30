@@ -5,9 +5,8 @@ namespace RestApi
 {
 	void Laser_act()
 	{
-		deserialize();
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->act();
+			moduleController.get(AvailableModules::laser)->act(deserialize());
 		else
 			log_i("laser controller is null!");
 		serialize();
@@ -15,9 +14,8 @@ namespace RestApi
 
 	void Laser_get()
 	{
-		deserialize();
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->get();
+			moduleController.get(AvailableModules::laser)->get(deserialize());
 		else
 			log_i("laser controller is null!");
 		serialize();
@@ -26,9 +24,8 @@ namespace RestApi
 	void Laser_set()
 	{
 		log_i("laser set!");
-		deserialize();
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->set();
+			moduleController.get(AvailableModules::laser)->set(deserialize());
 		else
 			log_i("laser controller is null!");
 		serialize();
@@ -86,20 +83,20 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 }
 
 // Custom function accessible by the API
-void LaserController::act()
+void LaserController::act(JsonObject ob)
 {
 	// here you can do something
 	Serial.println("LASER_act_fct");
 
 	isBusy = true;
 
-	int LASERid = (*WifiController::getJDoc())["LASERid"];
-	int LASERval = (*WifiController::getJDoc())["LASERval"];
-	int LASERdespeckle = (*WifiController::getJDoc())["LASERdespeckle"];
+	int LASERid = (ob)["LASERid"];
+	int LASERval = (ob)["LASERval"];
+	int LASERdespeckle = (ob)["LASERdespeckle"];
 	int LASERdespecklePeriod = 20;
-	if (WifiController::getJDoc()->containsKey("LASERdespecklePeriod"))
+	if (ob.containsKey("LASERdespecklePeriod"))
 	{
-		LASERdespecklePeriod = (*WifiController::getJDoc())["LASERdespecklePeriod"];
+		LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
 	}
 
 	if (DEBUG)
@@ -157,13 +154,13 @@ void LaserController::act()
 	isBusy = false;
 }
 
-void LaserController::set()
+void LaserController::set(JsonObject ob)
 {
 	// here you can set parameters
-	if (WifiController::getJDoc()->containsKey("LASERid") && WifiController::getJDoc()->containsKey("LASERpin"))
+	if (ob.containsKey("LASERid") && ob.containsKey("LASERpin"))
 	{
-		int LASERid = (*WifiController::getJDoc())["LASERid"];
-		int LASERpin = (*WifiController::getJDoc())["LASERpin"];
+		int LASERid = (ob)["LASERid"];
+		int LASERpin = (ob)["LASERpin"];
 		log_i("LaserId: %i Pin:%i", LASERid, LASERpin);
 		if (LASERpin != 0)
 		{
@@ -200,11 +197,10 @@ void LaserController::set()
 		}
 		Config::setLaserPins(pins);
 	}
-	WifiController::getJDoc()->clear();
 }
 
 // Custom function accessible by the API
-void LaserController::get()
+void LaserController::get(JsonObject  ob)
 {
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())["LASER1pin"] = pins.LASER_PIN_1;

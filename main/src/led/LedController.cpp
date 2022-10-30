@@ -5,22 +5,19 @@ namespace RestApi
 {
 	void Led_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::led)->act();
+		moduleController.get(AvailableModules::led)->act(deserialize());
 		serialize();
 	}
 
 	void Led_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::led)->get();
+		moduleController.get(AvailableModules::led)->get(deserialize());
 		serialize();
 	}
 
 	void Led_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::led)->set();
+		moduleController.get(AvailableModules::led)->set(deserialize());
 		serialize();
 	}
 }
@@ -50,22 +47,22 @@ void LedController::loop()
 }
 
 // Custom function accessible by the API
-void LedController::act()
+void LedController::act(JsonObject ob)
 {
-	if (WifiController::getJDoc()->containsKey(keyLed))
+	if (ob.containsKey(keyLed))
 	{
-		LedModes LEDArrMode = static_cast<LedModes>((*WifiController::getJDoc())[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
+		LedModes LEDArrMode = static_cast<LedModes>(ob[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
 		// individual pattern gets adressed
 		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 		{
-			for (int i = 0; i < (*WifiController::getJDoc())[keyLed][key_led_array].size(); i++)
+			for (int i = 0; i < ob[keyLed][key_led_array].size(); i++)
 			{
 				set_led_RGB(
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyid],
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyRed],
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyGreen],
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyBlue]);
+					ob[keyLed][key_led_array][i][keyid],
+					ob[keyLed][key_led_array][i][keyRed],
+					ob[keyLed][key_led_array][i][keyGreen],
+					ob[keyLed][key_led_array][i][keyBlue]);
 			}
 		}
 		// only if a single led will be updated, all others stay the same
@@ -73,18 +70,18 @@ void LedController::act()
 		else if (LEDArrMode == LedModes::single)
 		{
 			set_led_RGB(
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyid],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				ob[keyLed][key_led_array][0][keyid],
+				ob[keyLed][key_led_array][0][keyRed],
+				ob[keyLed][key_led_array][0][keyGreen],
+				ob[keyLed][key_led_array][0][keyBlue]);
 		}
 		// turn on all LEDs
 		// PYTHON: send_LEDMatrix_full(self, intensity = (255,255,255),timeout=1)
 		else if (LEDArrMode == LedModes::full)
 		{
-			u_int8_t r = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed];
-			u_int8_t g = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen];
-			u_int8_t b = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue];
+			u_int8_t r = ob[keyLed][key_led_array][0][keyRed];
+			u_int8_t g = ob[keyLed][key_led_array][0][keyGreen];
+			u_int8_t b = ob[keyLed][key_led_array][0][keyBlue];
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
 			set_all(r, g, b);
 		}
@@ -93,36 +90,36 @@ void LedController::act()
 		{
 			set_left(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				ob[keyLed][key_led_array][0][keyRed],
+				ob[keyLed][key_led_array][0][keyGreen],
+				ob[keyLed][key_led_array][0][keyBlue]);
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::right)
 		{
 			set_right(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				ob[keyLed][key_led_array][0][keyRed],
+				ob[keyLed][key_led_array][0][keyGreen],
+				ob[keyLed][key_led_array][0][keyBlue]);
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::top)
 		{
 			set_top(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				ob[keyLed][key_led_array][0][keyRed],
+				ob[keyLed][key_led_array][0][keyGreen],
+				ob[keyLed][key_led_array][0][keyBlue]);
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::bottom)
 		{
 			set_bottom(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				ob[keyLed][key_led_array][0][keyRed],
+				ob[keyLed][key_led_array][0][keyGreen],
+				ob[keyLed][key_led_array][0][keyBlue]);
 		}
 		else if (LEDArrMode == LedModes::off)
 		{
@@ -140,23 +137,22 @@ void LedController::act()
 
 //{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}
 //{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"0","red":"0","green":"0"}]}}
-void LedController::set()
+void LedController::set(JsonObject ob)
 {
-	if (WifiController::getJDoc()->containsKey(keyLed))
+	if (ob.containsKey(keyLed))
 	{
-		if ((*WifiController::getJDoc())[keyLed].containsKey(keyLEDPin))
-			ledconfig->ledPin = (*WifiController::getJDoc())[keyLed][keyLEDPin];
-		if ((*WifiController::getJDoc())[keyLed].containsKey(keyLEDCount))
-			ledconfig->ledCount = (*WifiController::getJDoc())[keyLed][keyLEDCount];
+		if (ob[keyLed].containsKey(keyLEDPin))
+			ledconfig->ledPin = ob[keyLed][keyLEDPin];
+		if (ob[keyLed].containsKey(keyLEDCount))
+			ledconfig->ledCount = ob[keyLed][keyLEDCount];
 		log_i("led pin:%i count:%i", ledconfig->ledPin, ledconfig->ledCount);
 		Config::setLedPins(ledconfig);
 		setup();
 	}
-	WifiController::getJDoc()->clear();
 }
 
 // Custom function accessible by the API
-void LedController::get()
+void LedController::get(JsonObject ob)
 {
 	WifiController::getJDoc()->clear();
 	(*WifiController::getJDoc())[keyLEDCount] = ledconfig->ledCount;

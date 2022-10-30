@@ -12,22 +12,19 @@ namespace RestApi
 {
 	void HomeMotor_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::home)->act();
+		moduleController.get(AvailableModules::home)->act(deserialize());
 		serialize();
 	}
 
 	void HomeMotor_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::home)->get();
+		moduleController.get(AvailableModules::home)->get(deserialize());
 		serialize();
 	}
 
 	void HomeMotor_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::home)->set();
+		moduleController.get(AvailableModules::home)->set(deserialize());
 		serialize();
 	}
 }
@@ -35,31 +32,30 @@ namespace RestApi
 Handle REST calls to the HomeMotor module
 */
 //{"task":"/home_act", "home":{"steppers":[{"endpospin":1, "timeout":1000, "speed":1000, "direction":1]}}
-void HomeMotor::act()
+void HomeMotor::act(JsonObject  j)
 {
 	if (DEBUG)
 		Serial.println("home_act_fct");
-	DynamicJsonDocument *j = WifiController::getJDoc();
 
 	
-	if ((*j).containsKey(key_home)){
-	if ((*j)[key_home].containsKey(key_steppers))
+	if ((j).containsKey(key_home)){
+	if ((j)[key_home].containsKey(key_steppers))
 	{
 		Serial.println("contains key");
-		for (int i = 0; i < (*j)[key_home][key_steppers].size(); i++)
+		for (int i = 0; i < (j)[key_home][key_steppers].size(); i++)
 		{
-			Stepper s = static_cast<Stepper>((*j)[key_home][key_steppers][i][key_stepperid]);
+			Stepper s = static_cast<Stepper>((j)[key_home][key_steppers][i][key_stepperid]);
 
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_timeout))
-				hdata[s]->homeTimeout = (*j)[key_home][key_steppers][i][key_home_timeout];			
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_speed))
-				hdata[s]->homeSpeed = (*j)[key_home][key_steppers][i][key_home_speed];
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_maxspeed))
-				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
-				hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_endposrelease))
-				hdata[s]->homeEndposRelease = (*j)[key_home][key_steppers][i][key_home_endposrelease];
+			if ((j)[key_home][key_steppers][i].containsKey(key_home_timeout))
+				hdata[s]->homeTimeout = (j)[key_home][key_steppers][i][key_home_timeout];			
+			if (j[key_home][key_steppers][i].containsKey(key_home_speed))
+				hdata[s]->homeSpeed = (j)[key_home][key_steppers][i][key_home_speed];
+			if (j[key_home][key_steppers][i].containsKey(key_home_maxspeed))
+				hdata[s]->homeMaxspeed = (j)[key_home][key_steppers][i][key_home_maxspeed];
+			if (j[key_home][key_steppers][i].containsKey(key_home_direction))
+				hdata[s]->homeDirection = j[key_home][key_steppers][i][key_home_direction];
+			if (j[key_home][key_steppers][i].containsKey(key_home_endposrelease))
+				hdata[s]->homeEndposRelease = j[key_home][key_steppers][i][key_home_endposrelease];
 
 			// grab current time
 			hdata[s]->homeTimeStarted = millis();
@@ -81,7 +77,7 @@ void HomeMotor::act()
 	WifiController::getJDoc()->clear();
 }
 
-void HomeMotor::get()
+void HomeMotor::get(JsonObject ob)
 {
 	if (DEBUG)
 		Serial.println("home_get_fct");
@@ -118,7 +114,7 @@ void HomeMotor::get()
 
 }
 
-void HomeMotor::set()
+void HomeMotor::set(JsonObject ob)
 {	
 }
 

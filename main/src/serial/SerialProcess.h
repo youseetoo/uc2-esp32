@@ -13,8 +13,7 @@
 class SerialProcess
 {
 private:
-    void jsonProcessor(String task,DynamicJsonDocument * jsonDocument);
-    void tableProcessor(DynamicJsonDocument * jsonDocument);
+    void jsonProcessor(String task,JsonObject jsonDocument);
     /* data */
 public:
     SerialProcess(/* args */);

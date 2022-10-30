@@ -28,9 +28,9 @@ public:
     int digitalin_val_2 = 0;
     int digitalin_val_3 = 0;
 
-    void act() override;
-    void set() override;
-    void get() override;
+    void act(JsonObject jsonDocument) override;
+    void set(JsonObject jsonDocument) override;
+    void get(JsonObject jsonDocument) override;
     void setup() override;
     void loop() override;
 };

@@ -79,9 +79,9 @@ public:
 	// std::array<MotorPins *, 4> pins;
 	MotorPins *pins[4];
 
-	void setMinMaxRange();
-	void act() override;
-	void set() override;
+	void setMinMaxRange(JsonObject  ob);
+	void act(JsonObject  ob) override;
+	void set(JsonObject  ob) override;
 	/*
 		returns
 		{
@@ -137,7 +137,7 @@ public:
   ]
   }
 	*/
-	void get() override;
+	void get(JsonObject ob) override;
 	void setup() override;
 	void loop() override;	
 	void stopAllDrives();

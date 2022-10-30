@@ -22,6 +22,9 @@ Rest Api Endpoint Description
 | [/bt_connect](#bt_connect)                | Post | false |
 | [/bt_remove](#bt_remove)                  | Post | false |
 | [/bt_paireddevices](#bt_paireddevices)    | Post | false |
+|   |  |
+| [/analog_joystick_set](#analog_joystick_set)    | Post | false |
+| [/analog_joystick_get](#analog_joystick_get)    | Post | false |
 
 
 /modules_set
@@ -319,5 +322,34 @@ POST
 ```
 { 
     mac: "01:02:03:04:05:06",
+}
+```
+
+
+/analog_joystick_set
+============
+POST
+```
+{
+    "joy" : 
+    {
+        "joyX" : 35,
+        "joyY": 34
+    }
+
+}
+```
+
+/analog_joystick_get
+============
+GET
+```
+{
+    "joy" : 
+    {
+        "joyX" : 35,
+        "joyY": 34
+    }
+
 }
 ```

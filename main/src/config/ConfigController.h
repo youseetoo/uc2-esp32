@@ -11,6 +11,7 @@
 #include "../dac/DacPins.h"
 #include "../analogin/AnalogInPins.h"
 #include "../analogout/AnalogOutPins.h"
+#include "../analogin/JoystickPins.h"
 #include "../digitalout/DigitalOutPins.h"
 #include "../digitalin/DigitalInPins.h"
 #include "../../ModuleConfig.h"
@@ -40,4 +41,6 @@ namespace Config
     void setAnalogOutPins(AnalogOutPins pins);
     void setModuleConfig(ModuleConfig * pins);
     ModuleConfig * getModuleConfig();
+    void setAnalogJoyStickPins(JoystickPins * pins);
+    void getAnalogJoyStickPins(JoystickPins * pins);
 }

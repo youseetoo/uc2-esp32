@@ -381,6 +381,12 @@ namespace WifiController
 			server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
 			server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
 		}
+		if (moduleController.moduleConfig->analogJoystick != 0)
+		{
+			log_i("add analog joystick endpoints");
+			server->on(analog_joystick_set_endpoint, HTTP_POST, RestApi::AnalogJoystick_set);
+			server->on(analog_joystick_get_endpoint, HTTP_POST, RestApi::AnalogJoystick_get);
+		}
 		log_i("Setting up HTTP Routing END");
 	}
 }

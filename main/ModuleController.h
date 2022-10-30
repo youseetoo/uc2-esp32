@@ -10,6 +10,7 @@
 #include "src/slm/SlmController.h"
 #include "src/pid/PidController.h"
 #include "src/analogin/AnalogInController.h"
+#include "src/analogin/AnalogJoystick.h"
 #include "src/dac/DacController.h"
 #include "src/analogout/AnalogOutController.h"
 #include "src/digitalout/DigitalOutController.h"
@@ -36,6 +37,7 @@ enum class AvailableModules
     scanner,
     analogin,
     slm,
+    analogJoystick,
 };
 
 class ModuleController

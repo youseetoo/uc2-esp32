@@ -4,14 +4,15 @@ struct ModuleConfig
 {
     bool analogout = false;
     bool dac = false;
-    bool digitalout = true;
-    bool digitalin = true;
-    bool laser = true;
-    bool led = true;
-    bool motor = true;
+    bool digitalout = false;
+    bool digitalin = false;
+    bool laser = false;
+    bool led = false;
+    bool motor = false;
     bool pid = false;
     bool scanner = false;
     bool analogin = false;
     bool slm = false;
-    bool home = true;
+    bool home = false;
+    bool analogJoystick = false;
 };

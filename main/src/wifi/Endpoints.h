@@ -60,4 +60,6 @@ static const PROGMEM String bt_paireddevices_endpoint = "/bt_paireddevices";
 
 static const PROGMEM String modules_get_endpoint = "/modules_get";
 static const PROGMEM String modules_set_endpoint = "/modules_set";
+static const PROGMEM String analog_joystick_set_endpoint = "/analog_joystick_set";
+static const PROGMEM String analog_joystick_get_endpoint = "/analog_joystick_get";
 

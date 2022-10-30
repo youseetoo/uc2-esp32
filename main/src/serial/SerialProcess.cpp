@@ -199,6 +199,14 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 			moduleController.get(AvailableModules::pid)->get();
 	}
 
+	if(moduleController.get(AvailableModules::analogJoystick) != nullptr)
+	{
+		if(task ==analog_joystick_set_endpoint)
+			moduleController.get(AvailableModules::analogJoystick)->set();
+		if(task ==analog_joystick_get_endpoint)
+			moduleController.get(AvailableModules::analogJoystick)->get();
+	}
+
 	if (task == scanwifi_endpoint)
 	{
 		RestApi::scanWifi();

@@ -91,6 +91,12 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::scanner, dynamic_cast<Module *>(new ScannerController())));
         log_i("add scanner");
     }
+    if (moduleConfig->analogJoystick)
+    {
+        modules.insert(std::make_pair(AvailableModules::analogJoystick, dynamic_cast<Module *>(new AnalogJoystick())));
+        log_i("add scanner");
+    }
+    
     for (auto &x : modules)
     {
         if (x.second != nullptr)
@@ -130,6 +136,7 @@ void ModuleController::get()
     (*jdoc)[key_modules][key_digitalout] = moduleConfig->digitalout;
     (*jdoc)[key_modules][key_digitalin] = moduleConfig->digitalin;
     (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
+    (*jdoc)[key_modules][key_joy] = moduleConfig->analogJoystick;
 }
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
 void ModuleController::set()
@@ -161,6 +168,8 @@ void ModuleController::set()
             moduleConfig->digitalin = (*jdoc)[key_modules][key_digitalin];
         if ((*jdoc)[key_modules].containsKey(key_scanner))
             moduleConfig->scanner = (*jdoc)[key_modules][key_scanner];
+        if ((*jdoc)[key_modules].containsKey(key_joy))
+            moduleConfig->analogJoystick = (*jdoc)[key_modules][key_joy];
         Config::setModuleConfig(moduleConfig);
         setup();
         WifiController::restartWebServer();

@@ -91,6 +91,20 @@ namespace Config
 		preferences.end();
 	}
 
+	void setAnalogJoyStickPins(JoystickPins * pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.putBytes(key_joy, pins, sizeof(JoystickPins));
+		preferences.end();
+	}
+
+    void getAnalogJoyStickPins(JoystickPins * pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.getBytes(key_joy, pins, sizeof(JoystickPins));
+		preferences.end();
+	}
+
 	void setLaserPins(LaserPins pins)
 	{
 		preferences.begin(prefNamespace, false);

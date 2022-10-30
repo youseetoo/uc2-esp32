@@ -141,18 +141,21 @@ public:
 	void setup() override;
 	void loop() override;	
 	void stopAllDrives();
+	void stopStepper(int i);
+	void startStepper(int i);
 
 private:
 	int logcount;
 	unsigned long nextSocketUpdateTime;
 	bool isShareEnable;
 
-	void stopStepper(int i);
-	void startStepper(int i);
+	
 	void startAllDrives();
 	void applyMinPos(int i);
 	void applyMaxPos(int i);
 	void sendMotorPos(int i, int arraypos);
 	void resetMotorPos(int i);
 	bool shareEnablePin();
+	void disableEnablePin(int i);
+	void enableEnablePin(int i);
 };

@@ -93,31 +93,7 @@ void FocusMotor::act()
 void FocusMotor::startStepper(int i)
 {
 	log_i("start stepper:%i isforver:%i", i, data[i]->isforever);
-	if(isShareEnable)
-	{
-		bool enable = false;
-		for (size_t i = 0; i < steppers.size(); i++)
-		{
-			if(steppers[i]->areOutputsEnabled())
-				enable = true;
-		}
-
-		if(!enable)
-		{
-			for (size_t i = 0; i < steppers.size(); i++)
-			{
-				if(pins[i]->ENABLE > 0 && !enable)
-				{
-					steppers[i]->enableOutputs();
-					enable = true;
-					return;
-				}
-			}
-		}
-		
-	}
-	else if (!steppers[i]->areOutputsEnabled())
-		steppers[i]->enableOutputs();
+	enableEnablePin(i);
 	data[i]->stopped = false;
 	if (!data[i]->isforever)
 	{
@@ -137,14 +113,9 @@ void FocusMotor::startStepper(int i)
 	}
 	else if (data[i]->isforever)
 	{
-		if (data[i]->speed == 0)
-			stopStepper(i);
-		else
-		{
-			steppers[i]->setMaxSpeed(data[i]->maxspeed);
-			steppers[i]->setSpeed(data[i]->speed);
-			steppers[i]->runSpeed();
-		}
+		steppers[i]->setMaxSpeed(data[i]->maxspeed);
+		steppers[i]->setSpeed(data[i]->speed);
+		steppers[i]->runSpeed();
 	}
 	pins[i]->current_position = steppers[i]->currentPosition();
 }
@@ -286,34 +257,32 @@ void FocusMotor::loop()
 					return;
 				}
 			}
+			steppers[i]->setSpeed(data[i]->speed);
+			steppers[i]->setMaxSpeed(data[i]->maxspeed);
 			if (data[i]->isforever)
 			{
-				// log_i("forever drive");
-				steppers[i]->setSpeed(data[i]->speed);
-				steppers[i]->setMaxSpeed(data[i]->maxspeed);
 				steppers[i]->runSpeed();
 			}
 			else
 			{
 				// run at constant speed
-				steppers[i]->setSpeed(data[i]->speed);
-				steppers[i]->setMaxSpeed(data[i]->maxspeed);
-				if (data[i]->isaccelerated)
+
+				if (data[i]->absolutePosition)
 				{
-					steppers[i]->run();
+					// absolute position coordinates
+					steppers[i]->moveTo(data[i]->targetPosition);
 				}
 				else
 				{
-					steppers[i]->runSpeedToPosition();
+					// relative position coordinates
+					steppers[i]->move(data[i]->targetPosition);
 				}
 				// checks if a stepper is still running
 				if (steppers[i]->distanceToGo() == 0 && !data[i]->stopped)
 				{
 					log_i("stop stepper:%i", i);
 					// if not turn it off
-					if(!isShareEnable)
-						steppers[i]->disableOutputs();
-					data[i]->stopped = true;
+					stopStepper(i);
 					sendMotorPos(i, arraypos);
 					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
 					{
@@ -324,15 +293,6 @@ void FocusMotor::loop()
 			}
 			// send current position to client
 			//{"steppers":[{"stepperid":1,"position":3}]}
-			if (!data[i]->stopped)
-			{
-				pins[i]->current_position = steppers[i]->currentPosition();
-				if (millis() >= nextSocketUpdateTime)
-				{
-					sendMotorPos(i, arraypos);
-					nextSocketUpdateTime = millis() + 500UL;
-				}
-			}
 
 #ifdef DEBUG_MOTOR
 			if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
@@ -341,22 +301,23 @@ void FocusMotor::loop()
 		}
 	}
 
-	if(isShareEnable)
+	arraypos = 0;
+	if (millis() >= nextSocketUpdateTime)
 	{
-		if (data[Stepper::A]->stopped 
-		&& data[Stepper::X]->stopped 
-		&& data[Stepper::Y]->stopped 
-		&& data[Stepper::Z]->stopped)
+		for (int i = 0; i < steppers.size(); i++)
 		{
-			if(pins[Stepper::A]->ENABLE > 0)
-				steppers[Stepper::A]->disableOutputs();
-			else if(pins[Stepper::X]->ENABLE> 0)
-				steppers[Stepper::X]->disableOutputs();
-			else if(pins[Stepper::Y]->ENABLE> 0)
-				steppers[Stepper::Y]->disableOutputs();
-			else if(pins[Stepper::Z]->ENABLE> 0)
-				steppers[Stepper::Z]->disableOutputs();
+			if (!data[i]->stopped)
+			{
+				pins[i]->current_position = steppers[i]->currentPosition();
+				sendMotorPos(i, arraypos);
+			}
 		}
+		nextSocketUpdateTime = millis() + 500UL;
+	}
+
+	if (isShareEnable)
+	{
+		disableEnablePin(-1);
 	}
 }
 
@@ -386,8 +347,7 @@ void FocusMotor::stopStepper(int i)
 	data[i]->speed = 0;
 	pins[i]->current_position = steppers[i]->currentPosition();
 	data[i]->stopped = true;
-	if(!isShareEnable)
-		steppers[i]->disableOutputs();
+	disableEnablePin(i);
 }
 
 void FocusMotor::startAllDrives()
@@ -402,14 +362,76 @@ bool FocusMotor::shareEnablePin()
 {
 	bool share = false;
 	int lastval = 0;
-	for(int i =0; i < 4;i++)
+	for (int i = 0; i < 4; i++)
 	{
 		if (pins[i]->ENABLE > 0 && lastval == pins[i]->ENABLE)
 		{
 			share = true;
 		}
-		else if(pins[i]->ENABLE > 0)
+		else if (pins[i]->ENABLE > 0)
 			lastval = pins[i]->ENABLE;
 	}
+	log_i("motors share same enable pin:%s", boolToChar(share));
 	return share;
+}
+
+void FocusMotor::disableEnablePin(int i)
+{
+	if (!isShareEnable && i > -1)
+		steppers[i]->disableOutputs();
+	else
+	{
+		if (data[Stepper::A]->stopped && data[Stepper::X]->stopped &&
+			data[Stepper::Y]->stopped &&
+			data[Stepper::Z]->stopped &&
+			(steppers[Stepper::A]->areOutputsEnabled() || steppers[Stepper::X]->areOutputsEnabled() || steppers[Stepper::Y]->areOutputsEnabled() || steppers[Stepper::Z]->areOutputsEnabled()))
+		{
+			log_i("disable motors A enable:%i stop:%i X enable:%i stop:%i Y enable:%i stop:%i Z enable:%i stop:%i",
+				  steppers[Stepper::A]->areOutputsEnabled(),
+				  data[Stepper::A]->stopped,
+				  steppers[Stepper::X]->areOutputsEnabled(),
+				  data[Stepper::X]->stopped,
+				  steppers[Stepper::Y]->areOutputsEnabled(),
+				  data[Stepper::Y]->stopped,
+				  steppers[Stepper::Z]->areOutputsEnabled(),
+				  data[Stepper::Z]->stopped);
+
+			if (pins[Stepper::A]->ENABLE > 0 && steppers[Stepper::A]->areOutputsEnabled())
+				steppers[Stepper::A]->disableOutputs();
+			else if (pins[Stepper::X]->ENABLE > 0 && steppers[Stepper::X]->areOutputsEnabled())
+				steppers[Stepper::X]->disableOutputs();
+			else if (pins[Stepper::Y]->ENABLE > 0 && steppers[Stepper::Y]->areOutputsEnabled())
+				steppers[Stepper::Y]->disableOutputs();
+			else if (pins[Stepper::Z]->ENABLE > 0 && steppers[Stepper::Z]->areOutputsEnabled())
+				steppers[Stepper::Z]->disableOutputs();
+		}
+	}
+}
+
+void FocusMotor::enableEnablePin(int i)
+{
+	if (isShareEnable)
+	{
+		bool enable = false;
+		for (size_t i = 0; i < steppers.size(); i++)
+		{
+			if (steppers[i]->areOutputsEnabled() && !enable)
+				enable = true;
+		}
+
+		if (!enable)
+		{
+			for (size_t i = 0; i < steppers.size(); i++)
+			{
+				if (pins[i]->ENABLE > 0 && !enable)
+				{
+					steppers[i]->enableOutputs();
+					enable = true;
+					return;
+				}
+			}
+		}
+	}
+	else if (!steppers[i]->areOutputsEnabled())
+		steppers[i]->enableOutputs();
 }

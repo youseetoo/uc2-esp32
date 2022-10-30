@@ -16,6 +16,7 @@ var pid;
 var scanner;
 var sensor;
 var slm;
+var analogJoystick;
 
 function setModules(data) {
     analog = data["modules"]["analog"];
@@ -28,6 +29,7 @@ function setModules(data) {
     scanner = data["modules"]["scanner"];
     sensor = data["modules"]["sensor"];
     slm = data["modules"]["slm"];
+    analogJoystick = data["modules"]["joy"];
 }
 
 function createWebsocket() {
@@ -118,10 +120,20 @@ function getModulesAndFillTabs() {
         $("#m_enable_scanner").attr('checked', scanner);
         $("#m_enable_sensor").attr('checked', sensor);
         $("#m_enable_slm").attr('checked', slm);
+        $("#m_enable_analogjoystick").attr('checked', analogJoystick);
 
         updateUi();
         createWebsocket();
     });
+}
+
+function hideOrShow(id) {
+    var x = document.getElementById(id);
+    if (x.style.display == "none" || x.style.display == "") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
 }
 
 function setModuleSettings() {
@@ -136,7 +148,8 @@ function setModuleSettings() {
     scanner = $("#m_enable_scanner:checked").val() ? 1 : 0;
     sensor = $("#m_enable_sensor:checked").val() ? 1 : 0;
     slm = $("#m_enable_slm:checked").val() ? 1 : 0;
-    var jstr = JSON.stringify({ modules: { analog: analog, dac: dac, digital: digital, laser: laser, motor: motor, led: led, pid: pid, scanner: scanner, sensor: sensor, slm: slm } });
+    analogJoystick = $("#m_enable_analogjoystick:checked").val() ? 1 : 0;
+    var jstr = JSON.stringify({ modules: { analog: analog, dac: dac, digital: digital, laser: laser, motor: motor, led: led, pid: pid, scanner: scanner, sensor: sensor, slm: slm, joy:analogJoystick } });
     post(jstr, "/modules_set");
     getModulesAndFillTabs();
     updateUi();

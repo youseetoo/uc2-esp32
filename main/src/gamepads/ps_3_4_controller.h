@@ -4,7 +4,7 @@
 
 #include "../state/State.h"
 #include "../laser/LaserController.h"
-#include "../analog/AnalogController.h"
+#include "../analogin/AnalogInController.h"
 #ifdef IS_PS4
 #include "PS4Controller.h"
 #endif
@@ -58,7 +58,7 @@ public:
 
     int global_speed = 2; // multiplier for the speed
 
-    int analog_val_1 = 0;
+    int analogout_val_1 = 0;
     int pwm_max = 0; // no idea how big it should be
 
     bool DEBUG = false;

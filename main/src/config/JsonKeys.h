@@ -28,13 +28,21 @@ static const PROGMEM char * keyMotorEnableAinverted = "motEnableA_inv";
 static const PROGMEM char * keyLEDPin = "ledArrPin";
 static const PROGMEM char * keyLEDCount = "ledArrNum";
 
-static const PROGMEM char * keyDigital1Pin = "digitalPin1";
-static const PROGMEM char * keyDigital2Pin = "digitalPin2";
-static const PROGMEM char * keyDigital3Pin = "digitalPin3";
+static const PROGMEM char * keyDigitalOut1Pin = "digitaloutPin1";
+static const PROGMEM char * keyDigitalOut2Pin = "digitaloutPin2";
+static const PROGMEM char * keyDigitalOut3Pin = "digitaloutPin3";
 
-static const PROGMEM char * keyAnalog1Pin = "analogPin1";
-static const PROGMEM char * keyAnalog2Pin = "analogPin2";
-static const PROGMEM char * keyAnalog3Pin = "analogPin3";
+static const PROGMEM char * keyDigitalIn1Pin = "digitalinPin1";
+static const PROGMEM char * keyDigitalIn2Pin = "digitalinPin2";
+static const PROGMEM char * keyDigitalIn3Pin = "digitalinPin3";
+
+static const PROGMEM char * keyAnalogIn1Pin = "analoginPin1";
+static const PROGMEM char * keyAnalogIn2Pin = "analoginPin2";
+static const PROGMEM char * keyAnalogIn3Pin = "analoginPin3";
+
+static const PROGMEM char * keyAnalogOut1Pin = "analogoutPin1";
+static const PROGMEM char * keyAnalogOut2Pin = "analogoutPin2";
+static const PROGMEM char * keyAnalogOut3Pin = "analogoutPin3";
 
 static const PROGMEM char * keyLaser1Pin = "laserPin1";
 static const PROGMEM char * keyLaser2Pin = "laserPin2";
@@ -60,6 +68,16 @@ static const PROGMEM char * key_led_array = "led_array";
 static const PROGMEM char * key_led_isOn = "led_ison";
 
 static const PROGMEM char * key_motor = "motor";
+static const PROGMEM char * key_home = "home";
+static const PROGMEM char * key_home_endpospin = "endpospin";
+static const PROGMEM char * key_home_timeout = "timeout";
+static const PROGMEM char * key_home_speed = "speed";
+static const PROGMEM char * key_home_maxspeed = "maxspeed";
+static const PROGMEM char * key_home_direction = "direction";
+static const PROGMEM char * key_home_timestarted = "timestarted";
+static const PROGMEM char * key_home_isactive = "isactive";
+static const PROGMEM char * key_home_endposrelease = "endposrelease";
+
 static const PROGMEM char * key_steppers = "steppers";
 static const PROGMEM char * key_stepperid = "stepperid";
 static const PROGMEM char * key_speed = "speed";
@@ -83,10 +101,14 @@ static const PROGMEM char * key_max_position = "max_pos";
 static const PROGMEM char *dateKey = "date";
 static const PROGMEM char *key_modules = "modules";
 static const PROGMEM char *key_slm = "slm";
-static const PROGMEM char *key_sensor = "sensor";
+static const PROGMEM char *key_analogin = "analogin";
 static const PROGMEM char *key_pid = "pid";
 static const PROGMEM char *key_laser = "laser";
 static const PROGMEM char *key_dac = "dac";
-static const PROGMEM char *key_analog = "analog";
-static const PROGMEM char *key_digital = "digital";
+static const PROGMEM char *key_analogout = "analogout";
+static const PROGMEM char *key_digitalout = "digitalout";
+static const PROGMEM char *key_digitalin = "digitalin";
 static const PROGMEM char *key_scanner = "scanner";
+static const PROGMEM char *key_joy = "joy";
+static const PROGMEM char *key_joiypinX = "joyX";
+static const PROGMEM char *key_joiypinY = "joyY";

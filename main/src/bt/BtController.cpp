@@ -49,30 +49,14 @@ namespace RestApi
 namespace BtController
 {
 
-    BLEUUID HID_SERVICE_UUID("00001812-0000-1000-8000-00805f9b34fb");
+    BluetoothSerial btClassic;
 
     bool doConnect = false;
     bool connected = false;
     bool doScan = false;
-    BLERemoteCharacteristic *pRemoteCharacteristic;
-    BLEAdvertisedDevice *myDevice;
-    BLEAddress *mac;
     bool ENABLE = false;
-
-    void my_gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-    {
-        log_i("custom gattc event handler, event: %d", (uint8_t)event);
-    }
-
-    void my_gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gatts_cb_param_t *param)
-    {
-        log_i("custom gatts event handler, event: %d", (uint8_t)event);
-    }
-
-    void my_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
-    {
-        log_i("custom gap event handler, event: %d", (uint8_t)event);
-    }
+    int BT_DISCOVER_TIME = 10000;
+    BTAddress *mac;
 
     void setup()
     {
@@ -80,21 +64,20 @@ namespace BtController
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-        BLEDevice::init("ESP32-BLE-1");
+        btClassic.begin("ESP32-BLE-1");
     }
 
     void scanForDevices(DynamicJsonDocument *jdoc)
     {
         log_i("Start scanning BT");
-        BLEScan *pBLEScan = BLEDevice::getScan();
-        BLEScanResults foundDevices = scanAndGetResult(pBLEScan);
+        BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
         (*jdoc).clear();
-        for (int i = 0; i < foundDevices.getCount(); i++)
+        for (int i = 0; i < foundDevices->getCount(); i++)
         {
-            log_i("Device %i %s", i, foundDevices.getDevice(i).toString().c_str());
+            log_i("Device %i %s", i, foundDevices->getDevice(i)->toString().c_str());
             JsonObject ob = (*jdoc).createNestedObject();
-            ob["name"] = foundDevices.getDevice(i).getName();
-            ob["mac"] = foundDevices.getDevice(i).getAddress().toString();
+            ob["name"] = foundDevices->getDevice(i)->getName();
+            ob["mac"] = foundDevices->getDevice(i)->getAddress().toString();
         }
         // pBLEScan->clearResults();
         // pBLEScan->stop();
@@ -146,61 +129,11 @@ namespace BtController
         }
     }
 
-    BLEScanResults scanAndGetResult(BLEScan *pBLEScan)
-    {
-        BLEScanResults foundDevices = pBLEScan->start(2, false);
-        int counter = 0;
-        while (foundDevices.getCount() == 0 && counter < 10)
-        {
-            delay(200);
-            counter++;
-            log_i("Scanning %i", counter);
-        }
-        log_i("Found devices:%i", foundDevices.getCount());
-        return foundDevices;
-    }
-
-    void notifyCallback(
-        BLERemoteCharacteristic *pBLERemoteCharacteristic,
-        uint8_t *pData,
-        size_t length,
-        bool isNotify)
-    {
-        log_i("Notify callback for characteristic ");
-        log_i("%s", pBLERemoteCharacteristic->getUUID().toString().c_str());
-        log_i(" of data length ");
-        log_i("%i", length);
-        log_i("data: ");
-        log_i("%s", pData);
-    }
-
     void setMacAndConnect(String m)
     {
 
-        mac = new BLEAddress(m.c_str());
+        mac = new BTAddress(m.c_str());
         log_i("input mac %s  BLEAdress: %s", m.c_str(), mac->toString().c_str());
-        BLEScan *pBLEScan = BLEDevice::getScan();
-        BLEScanResults foundDevices = scanAndGetResult(pBLEScan);
-
-        for (int i = 0; i < foundDevices.getCount(); i++)
-        {
-            BLEAdvertisedDevice advertisedDevice = foundDevices.getDevice(i);
-            log_i("advertisedDevice %i %s ", i, advertisedDevice.toString().c_str());
-            log_i("haveServiceUUID %s isHidService %s  have macAdress: %s",
-                  boolToChar(advertisedDevice.haveServiceUUID()),
-                  boolToChar(advertisedDevice.isAdvertisingService(HID_SERVICE_UUID)),
-                  boolToChar(advertisedDevice.getAddress().equals((*mac))));
-            if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(HID_SERVICE_UUID) && advertisedDevice.getAddress().equals((*mac)))
-            {
-                log_i("found matching device %i ", i);
-                // BLEDevice::getScan()->stop();
-                myDevice = &advertisedDevice;
-                doConnect = true;
-
-            } // Found our server
-        }
-        // pBLEScan->clearResults();
-        // pBLEScan->stop();
         if (doConnect)
         {
             log_i("connectToServer");
@@ -215,7 +148,7 @@ namespace BtController
     {
         log_i("Forming a connection to ");
         // log_i("%s", myDevice->getAddress().toString().c_str());
-
+        /*btClassic.connect
         BLEClient *pClient = BLEDevice::createClient();
         // pClient->setMTU(23);
         log_i(" - Created client");
@@ -272,12 +205,12 @@ namespace BtController
             pRemoteCharacteristic->registerForNotify(notifyCallback);
 
         connected = true;
-        return true;
+        return true;*/
     }
 
     void removePairedDevice(String pairedmac)
     {
-        BLEAddress * add = new BLEAddress(pairedmac.c_str());
+        BTAddress * add = new BTAddress(pairedmac.c_str());
         esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t*)add->getNative());
         log_i("paired device removed:%s", boolToChar(tError == ESP_OK));
     }

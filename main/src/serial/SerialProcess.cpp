@@ -81,6 +81,25 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 		}
 	}
 	/*
+	  Home Motors
+	*/
+	if (moduleController.get(AvailableModules::home) != nullptr)
+	{
+		if (task == home_act_endpoint)
+		{
+			moduleController.get(AvailableModules::home)->act();
+		}
+		if (task == home_set_endpoint)
+		{
+			moduleController.get(AvailableModules::home)->set();
+		}
+		if (task == home_get_endpoint)
+		{
+			moduleController.get(AvailableModules::home)->get();
+		}
+	}
+
+	/*
 	  Operate SLM
 	*/
 
@@ -119,33 +138,45 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 		if (task == laser_act_endpoint)
 			moduleController.get(AvailableModules::laser)->act();
 		if (task == laser_set_endpoint)
-			moduleController.get(AvailableModules::laser)->get();
-		if (task == laser_get_endpoint)
 			moduleController.get(AvailableModules::laser)->set();
+		if (task == laser_get_endpoint)
+			moduleController.get(AvailableModules::laser)->get();
 	}
 	/*
-	  Drive analog
+	  Drive analogout
 	*/
-	if (moduleController.get(AvailableModules::analog) != nullptr)
+	if (moduleController.get(AvailableModules::analogout) != nullptr)
 	{
-		if (task == analog_act_endpoint)
-			moduleController.get(AvailableModules::analog)->act();
-		if (task == analog_set_endpoint)
-			moduleController.get(AvailableModules::analog)->set();
-		if (task == analog_get_endpoint)
-			moduleController.get(AvailableModules::analog)->get();
+		if (task == analogout_act_endpoint)
+			moduleController.get(AvailableModules::analogout)->act();
+		if (task == analogout_set_endpoint)
+			moduleController.get(AvailableModules::analogout)->set();
+		if (task == analogout_get_endpoint)
+			moduleController.get(AvailableModules::analogout)->get();
 	}
 	/*
-	  Drive digital
+	  Drive digitalout
 	*/
-	if (moduleController.get(AvailableModules::digital) != nullptr)
+	if (moduleController.get(AvailableModules::digitalout) != nullptr)
 	{
-		if (task == digital_act_endpoint)
-			moduleController.get(AvailableModules::digital)->act();
-		if (task == digital_set_endpoint)
-			moduleController.get(AvailableModules::digital)->set();
-		if (task == digital_get_endpoint)
-			moduleController.get(AvailableModules::digital)->get();
+		if (task == digitalout_act_endpoint)
+			moduleController.get(AvailableModules::digitalout)->act();
+		if (task == digitalout_set_endpoint)
+			moduleController.get(AvailableModules::digitalout)->set();
+		if (task == digitalout_get_endpoint)
+			moduleController.get(AvailableModules::digitalout)->get();
+	}
+	/*
+	  Drive digitalin
+	*/
+	if (moduleController.get(AvailableModules::digitalin) != nullptr)
+	{
+		if (task == digitalin_act_endpoint)
+			moduleController.get(AvailableModules::digitalin)->act();
+		if (task == digitalin_set_endpoint)
+			moduleController.get(AvailableModules::digitalin)->set();
+		if (task == digitalin_get_endpoint)
+			moduleController.get(AvailableModules::digitalin)->get();
 	}
 	/*
 	  Drive LED Matrix
@@ -161,16 +192,16 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 	}
 
 	/*
-	  Read the sensor
+	  Read the analogin
 	*/
-	if (moduleController.get(AvailableModules::sensor) != nullptr)
+	if (moduleController.get(AvailableModules::analogin) != nullptr)
 	{
-		if (task == readsensor_act_endpoint)
-			moduleController.get(AvailableModules::sensor)->act();
-		if (task == readsensor_set_endpoint)
-			moduleController.get(AvailableModules::sensor)->set();
-		if (task == readsensor_get_endpoint)
-			moduleController.get(AvailableModules::sensor)->get();
+		if (task == readanalogin_act_endpoint)
+			moduleController.get(AvailableModules::analogin)->act();
+		if (task == readanalogin_set_endpoint)
+			moduleController.get(AvailableModules::analogin)->set();
+		if (task == readanalogin_get_endpoint)
+			moduleController.get(AvailableModules::analogin)->get();
 	}
 
 	/*
@@ -184,6 +215,14 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 			moduleController.get(AvailableModules::pid)->set();
 		if (task == PID_get_endpoint)
 			moduleController.get(AvailableModules::pid)->get();
+	}
+
+	if(moduleController.get(AvailableModules::analogJoystick) != nullptr)
+	{
+		if(task ==analog_joystick_set_endpoint)
+			moduleController.get(AvailableModules::analogJoystick)->set();
+		if(task ==analog_joystick_get_endpoint)
+			moduleController.get(AvailableModules::analogJoystick)->get();
 	}
 
 	if (task == scanwifi_endpoint)

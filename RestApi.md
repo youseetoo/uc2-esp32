@@ -22,6 +22,9 @@ Rest Api Endpoint Description
 | [/bt_connect](#bt_connect)                | Post | false |
 | [/bt_remove](#bt_remove)                  | Post | false |
 | [/bt_paireddevices](#bt_paireddevices)    | Post | false |
+|   |  |
+| [/analog_joystick_set](#analog_joystick_set)    | Post | false |
+| [/analog_joystick_get](#analog_joystick_get)    | Post | false |
 
 
 /modules_set
@@ -39,7 +42,7 @@ POST
         "laser" : 0, 
         "dac" : 0, 
         "analog" : 0, 
-        "digital" : 0, 
+        "digitalout" : 0, 
         "scanner" : 0
     }
 
@@ -61,7 +64,7 @@ GET
         "laser" : 0, 
         "dac" : 0, 
         "analog" : 0, 
-        "digital" : 0, 
+        "digitalout" : 0, 
         "scanner" : 0
     }
 
@@ -122,10 +125,10 @@ POST
     motor:
     {
         steppers: [
-            { stepperid: 0, speed: 0, isforever: 0 }, // a
-            { stepperid: 1, speed: 0, isforever: 0 }, // x
-            { stepperid: 2, speed: 0, isforever: 0 }, // y
-            { stepperid: 3, speed: 0, isforever: 0 }  // z
+            { stepperid: 0, speed: 0, isforever: 0 }, 
+            { stepperid: 1, speed: 0, isforever: 0 },
+            { stepperid: 2, speed: 0, isforever: 0 },
+            { stepperid: 3, speed: 0, isforever: 0 } 
         ]
     }
 }
@@ -240,6 +243,20 @@ set min and max pos to reset it
 }
 ```
 
+/home_act
+===========
+POST
+```
+{
+    home:
+    {
+        steppers: [
+            { "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1 }
+        ]
+    }
+}
+```
+
 /wifi/scan
 ===========
 GET
@@ -307,3 +324,53 @@ POST
     mac: "01:02:03:04:05:06",
 }
 ```
+
+
+/analog_joystick_set
+============
+POST
+```
+{
+    "joy" : 
+    {
+        "joyX" : 35,
+        "joyY": 34
+    }
+
+}
+```
+
+/analog_joystick_get
+============
+GET
+```
+{
+    "joy" : 
+    {
+        "joyX" : 35,
+        "joyY": 34
+    }
+
+}
+```
+
+
+/digitalin_set
+==========
+POST
+```
+{
+    "digitalinid":1, 
+    "digitalinpin":39
+}
+```
+
+/digitalin_get
+==========
+POST
+```
+{
+    "digitalinid":1
+}
+```
+

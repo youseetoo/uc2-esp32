@@ -121,17 +121,23 @@ namespace RestApi
             (*WifiController::getJDoc()).add(PID_set_endpoint);
             (*WifiController::getJDoc()).add(PID_get_endpoint);
         }
-        if (moduleController.get(AvailableModules::analog) != nullptr)
+        if (moduleController.get(AvailableModules::analogout) != nullptr)
         {
-            (*WifiController::getJDoc()).add(analog_act_endpoint);
-            (*WifiController::getJDoc()).add(analog_set_endpoint);
-            (*WifiController::getJDoc()).add(analog_get_endpoint);
+            (*WifiController::getJDoc()).add(analogout_act_endpoint);
+            (*WifiController::getJDoc()).add(analogout_set_endpoint);
+            (*WifiController::getJDoc()).add(analogout_get_endpoint);
         }
-        if (moduleController.get(AvailableModules::digital) != nullptr)
+        if (moduleController.get(AvailableModules::digitalout) != nullptr)
         {
-            (*WifiController::getJDoc()).add(digital_act_endpoint);
-            (*WifiController::getJDoc()).add(digital_set_endpoint);
-            (*WifiController::getJDoc()).add(digital_get_endpoint);
+            (*WifiController::getJDoc()).add(digitalout_act_endpoint);
+            (*WifiController::getJDoc()).add(digitalout_set_endpoint);
+            (*WifiController::getJDoc()).add(digitalout_get_endpoint);
+        }
+        if (moduleController.get(AvailableModules::digitalin) != nullptr)
+        {
+            (*WifiController::getJDoc()).add(digitalin_act_endpoint);
+            (*WifiController::getJDoc()).add(digitalin_set_endpoint);
+            (*WifiController::getJDoc()).add(digitalin_get_endpoint);
         }
         if (moduleController.get(AvailableModules::dac) != nullptr)
         {

@@ -460,77 +460,77 @@ void ps_3_4_controller::control()
 			}
 		*/
 
-		if (moduleController.get(AvailableModules::analog) != nullptr)
+		if (moduleController.get(AvailableModules::analogout) != nullptr)
 		{
-			AnalogController *analog = (AnalogController *)moduleController.get(AvailableModules::analog);
+			AnalogOutController *analogout = (AnalogOutController *)moduleController.get(AvailableModules::analogout);
 			/*
 			   Keypad left
 			*/
 			if (left())
 			{
 				// fine lens -
-				analog_val_1 -= 1;
+				analogout_val_1 -= 1;
 				delay(100);
-				ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+				ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 			}
 			if (right())
 			{
 				// fine lens +
-				analog_val_1 += 1;
+				analogout_val_1 += 1;
 				delay(100);
-				ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+				ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 			}
 			// unknown button
 			/*if (PS4.data.button.start) {
 			  // reset
-			  analog_val_1 = 0;
-			  ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+			  analogout_val_1 = 0;
+			  ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 			}*/
 
 			int offset_val_shoulder = 5;
 			if (abs(r2()) > offset_val_shoulder)
 			{
-				// analog_val_1++ coarse
-				if ((analog_val_1 + 1000 < pwm_max))
+				// analogout_val_1++ coarse
+				if ((analogout_val_1 + 1000 < pwm_max))
 				{
-					analog_val_1 += 1000;
-					ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+					analogout_val_1 += 1000;
+					ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 				}
 				if (DEBUG)
-					Serial.println(analog_val_1);
+					Serial.println(analogout_val_1);
 				delay(100);
 			}
 
 			if (abs(l2()) > offset_val_shoulder)
 			{
-				// analog_val_1-- coarse
-				if ((analog_val_1 - 1000 > 0))
+				// analogout_val_1-- coarse
+				if ((analogout_val_1 - 1000 > 0))
 				{
-					analog_val_1 -= 1000;
-					ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+					analogout_val_1 -= 1000;
+					ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 				}
 				if (DEBUG)
-					Serial.println(analog_val_1);
+					Serial.println(analogout_val_1);
 				delay(100);
 			}
 
 			if (abs(r1()) > offset_val_shoulder)
 			{
-				// analog_val_1 + semi coarse
-				if ((analog_val_1 + 100 < pwm_max))
+				// analogout_val_1 + semi coarse
+				if ((analogout_val_1 + 100 < pwm_max))
 				{
-					analog_val_1 += 100;
-					ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+					analogout_val_1 += 100;
+					ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 					delay(100);
 				}
 			}
 			if (abs(l1()) > offset_val_shoulder)
 			{
-				// analog_val_1 - semi coarse
-				if ((analog_val_1 - 100 > 0))
+				// analogout_val_1 - semi coarse
+				if ((analogout_val_1 - 100 > 0))
 				{
-					analog_val_1 -= 100;
-					ledcWrite(analog->PWM_CHANNEL_analog_1, analog_val_1);
+					analogout_val_1 -= 100;
+					ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 					delay(50);
 				}
 			}

@@ -4,7 +4,7 @@
 
 #include "../wifi/WifiController.h"
 #include "../../ModuleController.h"
-#include "../sensor/SensorPins.h"
+#include "../analogin/AnalogInPins.h"
 
 namespace RestApi
 {
@@ -17,7 +17,7 @@ class PidController : public Module
 {
 private:
     /* data */
-    long returnControlValue(float controlTarget, float sensorValue, float Kp, float Ki, float Kd);
+    long returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd);
 public:
     PidController(/* args */);
     ~PidController();
@@ -32,9 +32,9 @@ public:
     float PID_target = 500;
     float PID_updaterate = 200; // ms
     bool PID_active=false;
-    SensorPins pins;
+    AnalogInPins pins;
 
-    int N_sensor_avg = 50;
+    int N_analogin_avg = 50;
 
     void setup() override;
     void loop() override;

@@ -91,6 +91,20 @@ namespace Config
 		preferences.end();
 	}
 
+	void setAnalogJoyStickPins(JoystickPins * pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.putBytes(key_joy, pins, sizeof(JoystickPins));
+		preferences.end();
+	}
+
+    void getAnalogJoyStickPins(JoystickPins * pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.getBytes(key_joy, pins, sizeof(JoystickPins));
+		preferences.end();
+	}
+
 	void setLaserPins(LaserPins pins)
 	{
 		preferences.begin(prefNamespace, false);
@@ -122,37 +136,70 @@ namespace Config
 		pins.dac_fake_2 = preferences.getInt(keyDACfake2Pin, pins.dac_fake_2);
 		preferences.end();
 	}
-	void setAnalogPins(AnalogPins pins)
+	void setAnalogInPins(AnalogInPins pins)
 	{
 		preferences.begin(prefNamespace, false);
-		preferences.putInt(keyAnalog1Pin, pins.analog_PIN_1);
-		preferences.putInt(keyAnalog2Pin, pins.analog_PIN_2);
-		preferences.putInt(keyAnalog3Pin, pins.analog_PIN_3);
+		preferences.putInt(keyAnalogIn1Pin, pins.analogin_PIN_1);
+		preferences.putInt(keyAnalogIn2Pin, pins.analogin_PIN_2);
+		preferences.putInt(keyAnalogIn3Pin, pins.analogin_PIN_3);
 		preferences.end();
 	}
-	void getAnalogPins(AnalogPins pins)
+	void getAnalogInPins(AnalogInPins pins)
 	{
 		preferences.begin(prefNamespace, false);
-		pins.analog_PIN_1 = preferences.getInt(keyAnalog1Pin, pins.analog_PIN_1);
-		pins.analog_PIN_2 = preferences.getInt(keyAnalog2Pin, pins.analog_PIN_2);
-		pins.analog_PIN_3 = preferences.getInt(keyAnalog3Pin, pins.analog_PIN_3);
+		pins.analogin_PIN_1 = preferences.getInt(keyAnalogIn1Pin, pins.analogin_PIN_1);
+		pins.analogin_PIN_2 = preferences.getInt(keyAnalogIn2Pin, pins.analogin_PIN_2);
+		pins.analogin_PIN_3 = preferences.getInt(keyAnalogIn3Pin, pins.analogin_PIN_3);
 		preferences.end();
 	}
-	void setDigitalPins(DigitalPins pins)
+	void setAnalogOutPins(AnalogOutPins pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.putInt(keyAnalogOut2Pin, pins.analogout_PIN_1);
+		preferences.putInt(keyAnalogOut2Pin, pins.analogout_PIN_2);
+		preferences.putInt(keyAnalogOut3Pin, pins.analogout_PIN_3);
+		preferences.end();
+	}
+	void getAnalogOutPins(AnalogOutPins pins)
+	{
+		preferences.begin(prefNamespace, false);
+		pins.analogout_PIN_1 = preferences.getInt(keyAnalogOut1Pin, pins.analogout_PIN_1);
+		pins.analogout_PIN_2 = preferences.getInt(keyAnalogOut2Pin, pins.analogout_PIN_2);
+		pins.analogout_PIN_3 = preferences.getInt(keyAnalogOut3Pin, pins.analogout_PIN_3);
+		preferences.end();
+	}
+	void setDigitalOutPins(DigitalOutPins pins)
 	{
 
 		preferences.begin(prefNamespace, false);
-		preferences.putInt(keyDigital1Pin, pins.digital_PIN_1);
-		preferences.putInt(keyDigital2Pin, pins.digital_PIN_2);
-		preferences.putInt(keyDigital3Pin, pins.digital_PIN_3);
+		preferences.putInt(keyDigitalOut1Pin, pins.digitalout_PIN_1);
+		preferences.putInt(keyDigitalOut2Pin, pins.digitalout_PIN_2);
+		preferences.putInt(keyDigitalOut3Pin, pins.digitalout_PIN_3);
 		preferences.end();
 	}
-	void getDigitalPins(DigitalPins pins)
+	void getDigitalOutPins(DigitalOutPins pins)
 	{
 		preferences.begin(prefNamespace, false);
-		pins.digital_PIN_1 = preferences.getInt(keyDigital1Pin, pins.digital_PIN_1);
-		pins.digital_PIN_2 = preferences.getInt(keyDigital2Pin, pins.digital_PIN_2);
-		pins.digital_PIN_3 = preferences.getInt(keyDigital3Pin, pins.digital_PIN_3);
+		pins.digitalout_PIN_1 = preferences.getInt(keyDigitalOut1Pin, pins.digitalout_PIN_1);
+		pins.digitalout_PIN_2 = preferences.getInt(keyDigitalOut2Pin, pins.digitalout_PIN_2);
+		pins.digitalout_PIN_3 = preferences.getInt(keyDigitalOut3Pin, pins.digitalout_PIN_3);
+		preferences.end();
+	}
+	void setDigitalInPins(DigitalInPins pins)
+	{
+
+		preferences.begin(prefNamespace, false);
+		preferences.putInt(keyDigitalIn1Pin, pins.digitalin_PIN_1);
+		preferences.putInt(keyDigitalIn2Pin, pins.digitalin_PIN_2);
+		preferences.putInt(keyDigitalIn3Pin, pins.digitalin_PIN_3);
+		preferences.end();
+	}
+	void getDigitalInPins(DigitalInPins pins)
+	{
+		preferences.begin(prefNamespace, false);
+		pins.digitalin_PIN_1 = preferences.getInt(keyDigitalIn1Pin, pins.digitalin_PIN_1);
+		pins.digitalin_PIN_2 = preferences.getInt(keyDigitalIn2Pin, pins.digitalin_PIN_2);
+		pins.digitalin_PIN_3 = preferences.getInt(keyDigitalIn3Pin, pins.digitalin_PIN_3);
 		preferences.end();
 	}
 

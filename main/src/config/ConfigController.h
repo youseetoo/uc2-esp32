@@ -9,8 +9,11 @@
 #include "../led/LedConfig.h"
 #include "../laser/LaserPins.h"
 #include "../dac/DacPins.h"
-#include "../analog/AnalogPins.h"
-#include "../digital/DigitalPins.h"
+#include "../analogin/AnalogInPins.h"
+#include "../analogout/AnalogOutPins.h"
+#include "../analogin/JoystickPins.h"
+#include "../digitalout/DigitalOutPins.h"
+#include "../digitalin/DigitalInPins.h"
 #include "../../ModuleConfig.h"
 
 namespace Config
@@ -28,10 +31,16 @@ namespace Config
     void getLaserPins(LaserPins pin);
     void setDacPins(DacPins pins);
     void getDacPins(DacPins pin);
-    void setAnalogPins(AnalogPins pins);
-    void getAnalogPins(AnalogPins pin);
-    void setDigitalPins(DigitalPins pins);
-    void getDigitalPins(DigitalPins pin);
+    void setAnalogInPins(AnalogInPins pins);
+    void getAnalogInPins(AnalogInPins pin);
+    void setDigitalOutPins(DigitalOutPins pins);
+    void getDigitalOutPins(DigitalOutPins pins);
+    void setDigitalInPins(DigitalInPins pins);
+    void getDigitalInPins(DigitalInPins pins);    
+    void getAnalogOutPins(AnalogOutPins pin);
+    void setAnalogOutPins(AnalogOutPins pins);
     void setModuleConfig(ModuleConfig * pins);
     ModuleConfig * getModuleConfig();
+    void setAnalogJoyStickPins(JoystickPins * pins);
+    void getAnalogJoyStickPins(JoystickPins * pins);
 }

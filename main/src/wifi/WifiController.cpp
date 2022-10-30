@@ -334,20 +334,28 @@ namespace WifiController
 			server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
 		}
 
-		if (moduleController.moduleConfig->analog != 0)
+		if (moduleController.moduleConfig->analogout != 0)
 		{
-			log_i("add analog endpoints");
-			server->on(analog_act_endpoint, HTTP_POST, RestApi::Analog_act);
-			server->on(analog_get_endpoint, HTTP_POST, RestApi::Analog_get);
-			server->on(analog_set_endpoint, HTTP_POST, RestApi::Analog_set);
+			log_i("add analogout endpoints");
+			server->on(analogout_act_endpoint, HTTP_POST, RestApi::AnalogOut_act);
+			server->on(analogout_get_endpoint, HTTP_POST, RestApi::AnalogOut_get);
+			server->on(analogout_set_endpoint, HTTP_POST, RestApi::AnalogOut_set);
 		}
 
-		if (moduleController.moduleConfig->digital != 0)
+		if (moduleController.moduleConfig->digitalout != 0)
 		{
-			log_i("add digital endpoints");
-			server->on(digital_act_endpoint, HTTP_POST, RestApi::Digital_act);
-			server->on(digital_get_endpoint, HTTP_POST, RestApi::Digital_get);
-			server->on(digital_set_endpoint, HTTP_POST, RestApi::Digital_set);
+			log_i("add digitalout endpoints");
+			server->on(digitalout_act_endpoint, HTTP_POST, RestApi::DigitalOut_act);
+			server->on(digitalout_get_endpoint, HTTP_POST, RestApi::DigitalOut_get);
+			server->on(digitalout_set_endpoint, HTTP_POST, RestApi::DigitalOut_set);
+		}
+
+		if (moduleController.moduleConfig->digitalin != 0)
+		{
+			log_i("add digitalin endpoints");
+			server->on(digitalin_act_endpoint, HTTP_POST, RestApi::DigitalIn_act);
+			server->on(digitalin_get_endpoint, HTTP_POST, RestApi::DigitalIn_get);
+			server->on(digitalin_set_endpoint, HTTP_POST, RestApi::DigitalIn_set);
 		}
 
 		if (moduleController.moduleConfig->pid != 0)
@@ -372,6 +380,12 @@ namespace WifiController
 			server->on(slm_act_endpoint, HTTP_POST, RestApi::Slm_act);
 			server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
 			server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
+		}
+		if (moduleController.moduleConfig->analogJoystick != 0)
+		{
+			log_i("add analog joystick endpoints");
+			server->on(analog_joystick_set_endpoint, HTTP_POST, RestApi::AnalogJoystick_set);
+			server->on(analog_joystick_get_endpoint, HTTP_POST, RestApi::AnalogJoystick_get);
 		}
 		log_i("Setting up HTTP Routing END");
 	}

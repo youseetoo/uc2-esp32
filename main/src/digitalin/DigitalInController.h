@@ -2,31 +2,31 @@
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/RestApiCallbacks.h"
-#include "DigitalPins.h"
+#include "DigitalInPins.h"
 #include "../../Module.h"
 
 namespace RestApi
 {
-    void Digital_act();
-    void Digital_get();
-    void Digital_set();
+    void DigitalIn_act();
+    void DigitalIn_get();
+    void DigitalIn_set();
 };
 
-class DigitalController : public Module
+class DigitalInController : public Module
 {
 private:
     /* data */
 public:
-    DigitalController(/* args */);
-    ~DigitalController();
+    DigitalInController(/* args */);
+    ~DigitalInController();
 
     bool isBusy;
     bool DEBUG = false;
-    DigitalPins pins;
+    DigitalInPins pins;
 
-    int digital_val_1 = 0;
-    int digital_val_2 = 0;
-    int digital_val_3 = 0;
+    int digitalin_val_1 = 0;
+    int digitalin_val_2 = 0;
+    int digitalin_val_3 = 0;
 
     void act() override;
     void set() override;

@@ -10,8 +10,10 @@
 #include "../bt/BtController.h"
 #include <esp_log.h>
 #include "../dac/DacController.h"
-#include "../analog/AnalogController.h"
-#include "../digital/DigitalController.h"
+#include "../analogin/AnalogInController.h"
+#include "../analogout/AnalogOutController.h"
+#include "../digitalout/DigitalOutController.h"
+#include "../digitalin/DigitalInController.h"
 #include "../laser/LaserController.h"
 namespace RestApi
 {
@@ -26,7 +28,7 @@ namespace RestApi
     */
     void deserialize();
     /*
-        fill the output from the jsondoc and send a response to the client
+        fill the input from the jsondoc and send a response to the client
     */
     void serialize();
     void getIdentity();

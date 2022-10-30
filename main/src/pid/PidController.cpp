@@ -76,18 +76,18 @@ void PidController::loop()
 	if (PID_active && (state.currentMillis - state.startMillis >= PID_updaterate))
 	{
 		// hardcoded for now:
-		int N_sensor_avg = 50;
-		int sensorpin = pins.ADC_pin_0;
+		int N_analogin_avg = 50;
+		int analoginpin = pins.analogin_PIN_0;
 
 		// get rid of noise?
-		float sensorValueAvg = 0;
-		for (int imeas = 0; imeas < N_sensor_avg; imeas++)
+		float analoginValueAvg = 0;
+		for (int imeas = 0; imeas < N_analogin_avg; imeas++)
 		{
-			sensorValueAvg += analogRead(sensorpin);
+			analoginValueAvg += analogRead(analoginpin);
 		}
 
-		sensorValueAvg = (float)sensorValueAvg / (float)N_sensor_avg;
-		long motorValue = returnControlValue(PID_target, sensorValueAvg, PID_Kp, PID_Ki, PID_Kd);
+		analoginValueAvg = (float)analoginValueAvg / (float)N_analogin_avg;
+		long motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
 		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -100,11 +100,11 @@ void PidController::loop()
 	}
 }
 
-long PidController::returnControlValue(float controlTarget, float sensorValue, float Kp, float Ki, float Kd)
+long PidController::returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd)
 {
-	float sensorOffset = 0.;
+	float analoginOffset = 0.;
 	float maxError = 1.;
-	float error = (controlTarget - (sensorValue - sensorOffset)) / maxError;
+	float error = (controlTarget - (analoginValue - analoginOffset)) / maxError;
 	float cP = Kp * error;
 	float cI = Ki * errorRunSum;
 	float cD = Kd * (error - previousError);
@@ -125,7 +125,7 @@ long PidController::returnControlValue(float controlTarget, float sensorValue, f
 	previousError = error;
 
 	if (DEBUG)
-		Serial.println("sensorValue: " + String(sensorValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
+		Serial.println("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
 	return stepperOut;
 }
 
@@ -135,19 +135,19 @@ void PidController::set()
 		Serial.println("PID_set_fct");
 	int PIDID = (int)(*WifiController::getJDoc())["PIDID"];
 	int PIDPIN = (int)(*WifiController::getJDoc())["PIDPIN"];
-	if (WifiController::getJDoc()->containsKey("N_sensor_avg"))
-		N_sensor_avg = (int)(*WifiController::getJDoc())["N_sensor_avg"];
+	if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
+		N_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
 
 	switch (PIDID)
 	{
 	case 0:
-		pins.ADC_pin_0 = PIDPIN;
+		pins.analogin_PIN_0 = PIDPIN;
 		break;
 	case 1:
-		pins.ADC_pin_1 = PIDPIN;
+		pins.analogin_PIN_1 = PIDPIN;
 		break;
 	case 2:
-		pins.ADC_pin_2 = PIDPIN;
+		pins.analogin_PIN_2 = PIDPIN;
 		break;
 	}
 
@@ -166,18 +166,18 @@ void PidController::get()
 	switch (PIDID)
 	{
 	case 0:
-		PIDPIN = pins.ADC_pin_0;
+		PIDPIN = pins.analogin_PIN_0;
 		break;
 	case 1:
-		PIDPIN = pins.ADC_pin_1;
+		PIDPIN = pins.analogin_PIN_1;
 		break;
 	case 2:
-		PIDPIN = pins.ADC_pin_2;
+		PIDPIN = pins.analogin_PIN_2;
 		break;
 	}
 
 	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["N_sensor_avg"] = N_sensor_avg;
+	(*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
 	(*WifiController::getJDoc())["PIDPIN"] = PIDPIN;
 	(*WifiController::getJDoc())["PIDID"] = PIDID;
 }
@@ -185,5 +185,5 @@ void PidController::get()
 void PidController::setup()
 {
 	if (DEBUG)
-		Serial.println("Setting up sensors...");
+		Serial.println("Setting up analogins...");
 }

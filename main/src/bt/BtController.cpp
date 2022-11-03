@@ -49,13 +49,13 @@ namespace RestApi
 namespace BtController
 {
 
-    BluetoothSerial btClassic;
+    
 
     bool doConnect = false;
     bool connected = false;
     bool doScan = false;
     bool ENABLE = false;
-    int BT_DISCOVER_TIME = 10000;
+    int BT_DISCOVER_TIME = 5000;
     BTAddress *mac;
 
     void setup()
@@ -64,13 +64,15 @@ namespace BtController
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-        btClassic.begin("ESP32-BLE-1");
+        
     }
 
     void scanForDevices(DynamicJsonDocument *jdoc)
     {
         log_i("Start scanning BT");
-        BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
+        BluetoothSerial * btClassic = new BluetoothSerial();
+        btClassic->begin("ESP32-BLE-1");
+        BTScanResults *foundDevices = btClassic->discover(BT_DISCOVER_TIME);
         (*jdoc).clear();
         for (int i = 0; i < foundDevices->getCount(); i++)
         {
@@ -79,6 +81,9 @@ namespace BtController
             ob["name"] = foundDevices->getDevice(i)->getName();
             ob["mac"] = foundDevices->getDevice(i)->getAddress().toString();
         }
+        btClassic->discoverClear();
+        btClassic->end();
+        delete(btClassic);
         // pBLEScan->clearResults();
         // pBLEScan->stop();
     }
@@ -134,19 +139,18 @@ namespace BtController
 
         mac = new BTAddress(m.c_str());
         log_i("input mac %s  BLEAdress: %s", m.c_str(), mac->toString().c_str());
-        if (doConnect)
-        {
-            log_i("connectToServer");
-            delay(1000);
-            connectToServer();
-        }
-        else
-            log_i("failed to find device");
+        
+        log_i("connectToServer");
+        connectToServer();
     }
 
+    bt_hid_host hidhost;
     bool connectToServer()
     {
+        
         log_i("Forming a connection to ");
+        hidhost.scanAndConnect(mac->getNative());
+        return true;
         // log_i("%s", myDevice->getAddress().toString().c_str());
         /*btClassic.connect
         BLEClient *pClient = BLEDevice::createClient();

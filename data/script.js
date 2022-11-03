@@ -211,7 +211,7 @@ function btItemClick(name) {
 
 function connectToBT() {
     var macbt = $("#mac").val();
-    var psxl = $("#psx").val();
+    var psxl = $("#psx:checked").val();
     var jstr = JSON.stringify({ mac: macbt, psx: psxl ? 1 : 0 });
     post(jstr, "/bt_connect");
 }

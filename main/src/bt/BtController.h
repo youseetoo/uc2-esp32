@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include "../../config.h"
 #include "../wifi/RestApiCallbacks.h"
+#include "bt_hid_host.h"
 
 namespace RestApi
 {

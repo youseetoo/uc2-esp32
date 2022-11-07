@@ -80,11 +80,12 @@ static const PROGMEM char * key_home_timestarted = "timestarted";
 static const PROGMEM char * key_home_isactive = "isactive";
 static const PROGMEM char * key_home_endposrelease = "endposrelease";
 
-static const PROGMEM char * key_steppinpers = "steppers";
+static const PROGMEM char * key_steppers = "steppers";
 static const PROGMEM char * key_steppinperid = "stepperid";
 static const PROGMEM char * key_speed = "speed";
 static const PROGMEM char * key_speedmax = "speedmax";
 static const PROGMEM char * key_position = "position";
+static const PROGMEM char * key_stopped = "isbusy";
 static const PROGMEM char * key_isabs = "isabs";
 static const PROGMEM char * key_isstop = "isstop";
 static const PROGMEM char * key_isaccel = "isaccel";

@@ -11,8 +11,6 @@
 #include "../../ModuleController.h"
 #include "MotorPins.h"
 
-
-
 namespace RestApi
 {
 	void FocusMotor_act();
@@ -84,64 +82,10 @@ public:
 	void setMinMaxRange();
 	void act() override;
 	void set() override;
-	/*
-		returns
-		{
-  "steppers": [
-	{
-	  "stepperid": 0,
-	  "dir": 0,
-	  "step": 0,
-	  "enable": 0,
-	  "dir_inverted": false,
-	  "step_inverted": false,
-	  "enable_inverted": false,
-	  "position": 0,
-	  "speed": 0,
-	  "speedmax": 200000
-	},
-	{
-	  "stepperid": 1,
-	  "dir": 21,
-	  "step": 19,
-	  "enable": 18,
-	  "dir_inverted": false,
-	  "step_inverted": false,
-	  "enable_inverted": true,
-	  "position": 0,
-	  "speed": 0,
-	  "speedmax": 20000
-	},
-	{
-	  "stepperid": 2,
-	  "dir": 0,
-	  "step": 0,
-	  "enable": 0,
-	  "dir_inverted": false,
-	  "step_inverted": false,
-	  "enable_inverted": false,
-	  "position": 0,
-	  "speed": 0,
-	  "speedmax": 20000
-	},
-	{
-	  "stepperid": 3,
-	  "dir": 0,
-	  "step": 0,
-	  "enable": 0,
-	  "dir_inverted": false,
-	  "step_inverted": false,
-	  "enable_inverted": false,
-	  "position": 0,
-	  "speed": 0,
-	  "speedmax": 20000
-	}
-  ]
-  }
-	*/
+
 	void get() override;
 	void setup() override;
-	void loop() override;	
+	void loop() override;
 	void stopAllDrives();
 
 private:

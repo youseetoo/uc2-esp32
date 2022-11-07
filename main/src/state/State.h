@@ -40,7 +40,7 @@ public:
 	// timing variables
 	unsigned long startMillis;
 	unsigned long currentMillis;
-	bool isBusy = false;
+	bool isBusy = false; // TODO this is not working!!!
 
 	void act();
 	void set();

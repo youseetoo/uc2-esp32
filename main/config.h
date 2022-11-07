@@ -1,4 +1,4 @@
-#define BAUDRATE 115200
+#define BAUDRATE 2000000
 
 #define boolToChar(b) ((b)?"true":"false")
 

@@ -23,8 +23,33 @@ namespace Config
 		return conf;
 	}
 
+	void resetAllPinPreferences()
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.clear();
+		preferences.end();
+	}
+
+	void checkifBootWentThrough(){
+		//indicate if boot went through successfully
+		preferences.begin(prefNamespace, false);
+		preferences.putBool(keyIsBootinng, false);
+		preferences.end();
+	}
+
 	void setup()
 	{
+
+		preferences.begin(prefNamespace, false);
+		if(preferences.getBool(keyIsBootinng, false))
+		{ // if the boot process stopped for whatever reason, clear settings
+			preferences.clear();
+			log_i("The boot process stopped for whatever reason, clear settings");
+			preferences.putBool(keyIsBootinng, true);
+		}
+		preferences.putBool(keyIsBootinng, true);
+		preferences.end();
+
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
 		if (isFirstRun())
 		{

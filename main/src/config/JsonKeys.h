@@ -52,7 +52,9 @@ static const PROGMEM char * keyDACfake1Pin = "dacFake1";
 static const PROGMEM char * keyDACfake2Pin = "dacFake2";
 
 static const PROGMEM char * keyIdentifier = "identifier";
+static const PROGMEM char * key_return = "return";
 
+static const PROGMEM char * keyIsBootinng  = "isBooting";
 static const PROGMEM char * keyWifiSSID = "ssid";
 static const PROGMEM char * keyWifiPW = "PW";
 static const PROGMEM char * keyWifiAP = "AP";

@@ -4,7 +4,6 @@
 
 #include "src/state/State.h"
 
-
 #if defined IS_PS4 || defined IS_PS3
 #include "src/gamepads/ps_3_4_controller.h"
 #endif
@@ -13,6 +12,7 @@
 #include "src/serial/SerialProcess.h"
 #include "src/bt/BtController.h"
 #include "ModuleController.h"
+
 
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -56,6 +56,10 @@ void setup()
 #endif
 	WifiController::begin();
 	log_i("End setup");
+
+
+	// check if boot process went through
+	Config::checkifBootWentThrough();
 }
 
 void loop()

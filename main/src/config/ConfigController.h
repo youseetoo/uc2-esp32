@@ -40,4 +40,5 @@ namespace Config
     void setAnalogOutPins(AnalogOutPins pins);
     void setModuleConfig(ModuleConfig * pins);
     ModuleConfig * getModuleConfig();
+    void checkifBootWentThrough();
 }

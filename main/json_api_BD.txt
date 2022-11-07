@@ -61,18 +61,6 @@
 
 // {"task":"/home_act", "home": {"home":1, "steppers": [{"id":0, "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1}]}}
 
-{
-  "task": "/home_act",
-  "home": [
-    {
-      "home": 1,
-      "endpospin": 1,
-      "timeout": 1000,
-      "speed": 2000,
-      "direction": 1
-    }
-  ]
-}
 
 {"task":"/home_act",
     "home":

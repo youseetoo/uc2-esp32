@@ -113,6 +113,9 @@ void LaserController::act()
 		Serial.print("LASERdespecklePeriod ");
 		Serial.println(LASERdespecklePeriod);
 	}
+	
+	// clear document
+	WifiController::getJDoc()->clear();
 
 	if (LASERid == 1 && pins.LASER_PIN_1 != 0)
 	{
@@ -125,6 +128,7 @@ void LaserController::act()
 			Serial.println(pins.LASER_PIN_1);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+		(*WifiController::getJDoc())[key_return] = 1;
 	}
 	else if (LASERid == 2  && pins.LASER_PIN_2 != 0)
 	{
@@ -137,6 +141,7 @@ void LaserController::act()
 			Serial.println(pins.LASER_PIN_2);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
+		(*WifiController::getJDoc())[key_return] = 1;
 	}
 	else if (LASERid == 3  && pins.LASER_PIN_3 != 0)
 	{
@@ -149,10 +154,12 @@ void LaserController::act()
 			Serial.println(pins.LASER_PIN_3);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
+		(*WifiController::getJDoc())[key_return] = 1;
+	}
+	else{
+		(*WifiController::getJDoc())[key_return] = 0;
 	}
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
 
 	isBusy = false;
 }

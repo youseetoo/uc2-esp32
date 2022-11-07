@@ -43,23 +43,23 @@ void HomeMotor::act()
 
 	
 	if ((*j).containsKey(key_home)){
-	if ((*j)[key_home].containsKey(key_steppers))
+	if ((*j)[key_home].containsKey(key_steppinpers))
 	{
 		Serial.println("contains key");
-		for (int i = 0; i < (*j)[key_home][key_steppers].size(); i++)
+		for (int i = 0; i < (*j)[key_home][key_steppinpers].size(); i++)
 		{
-			Stepper s = static_cast<Stepper>((*j)[key_home][key_steppers][i][key_stepperid]);
+			Stepper s = static_cast<Stepper>((*j)[key_home][key_steppinpers][i][key_steppinperid]);
 
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_timeout))
-				hdata[s]->homeTimeout = (*j)[key_home][key_steppers][i][key_home_timeout];			
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_speed))
-				hdata[s]->homeSpeed = (*j)[key_home][key_steppers][i][key_home_speed];
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_maxspeed))
-				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppers][i][key_home_maxspeed];
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_direction))
-				hdata[s]->homeDirection = (*j)[key_home][key_steppers][i][key_home_direction];
-			if ((*j)[key_home][key_steppers][i].containsKey(key_home_endposrelease))
-				hdata[s]->homeEndposRelease = (*j)[key_home][key_steppers][i][key_home_endposrelease];
+			if ((*j)[key_home][key_steppinpers][i].containsKey(key_home_timeout))
+				hdata[s]->homeTimeout = (*j)[key_home][key_steppinpers][i][key_home_timeout];			
+			if ((*j)[key_home][key_steppinpers][i].containsKey(key_home_speed))
+				hdata[s]->homeSpeed = (*j)[key_home][key_steppinpers][i][key_home_speed];
+			if ((*j)[key_home][key_steppinpers][i].containsKey(key_home_maxspeed))
+				hdata[s]->homeMaxspeed = (*j)[key_home][key_steppinpers][i][key_home_maxspeed];
+			if ((*j)[key_home][key_steppinpers][i].containsKey(key_home_direction))
+				hdata[s]->homeDirection = (*j)[key_home][key_steppinpers][i][key_home_direction];
+			if ((*j)[key_home][key_steppinpers][i].containsKey(key_home_endposrelease))
+				hdata[s]->homeEndposRelease = (*j)[key_home][key_steppinpers][i][key_home_endposrelease];
 
 			// grab current time
 			hdata[s]->homeTimeStarted = millis();
@@ -88,33 +88,33 @@ void HomeMotor::get()
 	DynamicJsonDocument *j = WifiController::getJDoc();
 
 	// add the home data to the json
-	(*j)[key_home][key_steppers][0][key_home_timeout] = hdata[Stepper::A]->homeTimeout;
-	(*j)[key_home][key_steppers][0][key_home_speed] = hdata[Stepper::A]->homeSpeed;
-	(*j)[key_home][key_steppers][0][key_home_maxspeed] = hdata[Stepper::A]->homeMaxspeed;
-	(*j)[key_home][key_steppers][0][key_home_direction] = hdata[Stepper::A]->homeDirection;
-	(*j)[key_home][key_steppers][0][key_home_timestarted] = hdata[Stepper::A]->homeTimeStarted;
-	(*j)[key_home][key_steppers][0][key_home_isactive] = hdata[Stepper::A]->homeIsActive;
+	(*j)[key_home][key_steppinpers][0][key_home_timeout] = hdata[Stepper::A]->homeTimeout;
+	(*j)[key_home][key_steppinpers][0][key_home_speed] = hdata[Stepper::A]->homeSpeed;
+	(*j)[key_home][key_steppinpers][0][key_home_maxspeed] = hdata[Stepper::A]->homeMaxspeed;
+	(*j)[key_home][key_steppinpers][0][key_home_direction] = hdata[Stepper::A]->homeDirection;
+	(*j)[key_home][key_steppinpers][0][key_home_timestarted] = hdata[Stepper::A]->homeTimeStarted;
+	(*j)[key_home][key_steppinpers][0][key_home_isactive] = hdata[Stepper::A]->homeIsActive;
 
-	(*j)[key_home][key_steppers][1][key_home_timeout] = hdata[Stepper::X]->homeTimeout;
-	(*j)[key_home][key_steppers][1][key_home_speed] = hdata[Stepper::X]->homeSpeed;
-	(*j)[key_home][key_steppers][1][key_home_maxspeed] = hdata[Stepper::X]->homeMaxspeed;
-	(*j)[key_home][key_steppers][1][key_home_direction] = hdata[Stepper::X]->homeDirection;
-	(*j)[key_home][key_steppers][1][key_home_timestarted] = hdata[Stepper::X]->homeTimeStarted;
-	(*j)[key_home][key_steppers][1][key_home_isactive] = hdata[Stepper::X]->homeIsActive;
+	(*j)[key_home][key_steppinpers][1][key_home_timeout] = hdata[Stepper::X]->homeTimeout;
+	(*j)[key_home][key_steppinpers][1][key_home_speed] = hdata[Stepper::X]->homeSpeed;
+	(*j)[key_home][key_steppinpers][1][key_home_maxspeed] = hdata[Stepper::X]->homeMaxspeed;
+	(*j)[key_home][key_steppinpers][1][key_home_direction] = hdata[Stepper::X]->homeDirection;
+	(*j)[key_home][key_steppinpers][1][key_home_timestarted] = hdata[Stepper::X]->homeTimeStarted;
+	(*j)[key_home][key_steppinpers][1][key_home_isactive] = hdata[Stepper::X]->homeIsActive;
 
-	(*j)[key_home][key_steppers][2][key_home_timeout] = hdata[Stepper::Y]->homeTimeout;
-	(*j)[key_home][key_steppers][2][key_home_speed] = hdata[Stepper::Y]->homeSpeed;
-	(*j)[key_home][key_steppers][2][key_home_maxspeed] = hdata[Stepper::Y]->homeMaxspeed;
-	(*j)[key_home][key_steppers][2][key_home_direction] = hdata[Stepper::Y]->homeDirection;
-	(*j)[key_home][key_steppers][2][key_home_timestarted] = hdata[Stepper::Y]->homeTimeStarted;
-	(*j)[key_home][key_steppers][2][key_home_isactive] = hdata[Stepper::Y]->homeIsActive;
+	(*j)[key_home][key_steppinpers][2][key_home_timeout] = hdata[Stepper::Y]->homeTimeout;
+	(*j)[key_home][key_steppinpers][2][key_home_speed] = hdata[Stepper::Y]->homeSpeed;
+	(*j)[key_home][key_steppinpers][2][key_home_maxspeed] = hdata[Stepper::Y]->homeMaxspeed;
+	(*j)[key_home][key_steppinpers][2][key_home_direction] = hdata[Stepper::Y]->homeDirection;
+	(*j)[key_home][key_steppinpers][2][key_home_timestarted] = hdata[Stepper::Y]->homeTimeStarted;
+	(*j)[key_home][key_steppinpers][2][key_home_isactive] = hdata[Stepper::Y]->homeIsActive;
 
-	(*j)[key_home][key_steppers][3][key_home_timeout] = hdata[Stepper::Z]->homeTimeout;
-	(*j)[key_home][key_steppers][3][key_home_speed] = hdata[Stepper::Z]->homeSpeed;
-	(*j)[key_home][key_steppers][3][key_home_maxspeed] = hdata[Stepper::Z]->homeMaxspeed;
-	(*j)[key_home][key_steppers][3][key_home_direction] = hdata[Stepper::Z]->homeDirection;
-	(*j)[key_home][key_steppers][3][key_home_timestarted] = hdata[Stepper::Z]->homeTimeStarted;
-	(*j)[key_home][key_steppers][3][key_home_isactive] = hdata[Stepper::Z]->homeIsActive;
+	(*j)[key_home][key_steppinpers][3][key_home_timeout] = hdata[Stepper::Z]->homeTimeout;
+	(*j)[key_home][key_steppinpers][3][key_home_speed] = hdata[Stepper::Z]->homeSpeed;
+	(*j)[key_home][key_steppinpers][3][key_home_maxspeed] = hdata[Stepper::Z]->homeMaxspeed;
+	(*j)[key_home][key_steppinpers][3][key_home_direction] = hdata[Stepper::Z]->homeDirection;
+	(*j)[key_home][key_steppinpers][3][key_home_timestarted] = hdata[Stepper::Z]->homeTimeStarted;
+	(*j)[key_home][key_steppinpers][3][key_home_isactive] = hdata[Stepper::Z]->homeIsActive;
 
 }
 

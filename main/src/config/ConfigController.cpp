@@ -32,31 +32,38 @@ namespace Config
 
 	void checkifBootWentThrough(){
 		//indicate if boot went through successfully
+		log_i("Boot went through successfully");
 		preferences.begin(prefNamespace, false);
-		preferences.putBool(keyIsBootinng, false);
+		preferences.putBool(keyIsBooting, false);
 		preferences.end();
 	}
 
 	void setup()
 	{
-
+		// check if boot process went through
 		preferences.begin(prefNamespace, false);
-		if(preferences.getBool(keyIsBootinng, false))
+		if(preferences.getBool(keyIsBooting, false))
 		{ // if the boot process stopped for whatever reason, clear settings
 			preferences.clear();
 			log_i("The boot process stopped for whatever reason, clear settings");
-			preferences.putBool(keyIsBootinng, true);
 		}
-		preferences.putBool(keyIsBootinng, true);
+		else{
+			log_i("Boot process went through..");
+		}
+		preferences.putBool(keyIsBooting, true);
 		preferences.end();
 
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
 		if (isFirstRun())
 		{
+			//TODO: Not working yet, date is not getting set correctly in preferences...
+			/*
 			log_i("First Run, resetting config");
+			preferences.begin(prefNamespace, false);
+			preferences.clear();
+			preferences.end();
+			*/
 		}
-		// check if setup went through after new config - avoid endless boot-loop
-		// checkSetupCompleted();
 	}
 
 	void getMotorPins(MotorPins * pins[])

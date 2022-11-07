@@ -43,28 +43,28 @@ void FocusMotor::act()
 	DynamicJsonDocument *j = WifiController::getJDoc();
 	if (j->containsKey(key_motor))
 	{
-		if ((*j)[key_motor].containsKey(key_steppers))
+		if ((*j)[key_motor].containsKey(key_steppinpers))
 		{
-			for (int i = 0; i < (*j)[key_motor][key_steppers].size(); i++)
+			for (int i = 0; i < (*j)[key_motor][key_steppinpers].size(); i++)
 			{
-				Stepper s = static_cast<Stepper>((*j)[key_motor][key_steppers][i][key_stepperid]);
+				Stepper s = static_cast<Stepper>((*j)[key_motor][key_steppinpers][i][key_steppinperid]);
 
-				if ((*j)[key_motor][key_steppers][i].containsKey(key_speed))
-					data[s]->speed = (*j)[key_motor][key_steppers][i][key_speed];
+				if ((*j)[key_motor][key_steppinpers][i].containsKey(key_speed))
+					data[s]->speed = (*j)[key_motor][key_steppinpers][i][key_speed];
 
-				if ((*j)[key_motor][key_steppers][i].containsKey(key_position))
-					data[s]->targetPosition = (*j)[key_motor][key_steppers][i][key_position];
+				if ((*j)[key_motor][key_steppinpers][i].containsKey(key_position))
+					data[s]->targetPosition = (*j)[key_motor][key_steppinpers][i][key_position];
 
-				if ((*j)[key_motor][key_steppers][i].containsKey(key_isforever))
-					data[s]->isforever = (*j)[key_motor][key_steppers][i][key_isforever];
+				if ((*j)[key_motor][key_steppinpers][i].containsKey(key_isforever))
+					data[s]->isforever = (*j)[key_motor][key_steppinpers][i][key_isforever];
 
-				if ((*j)[key_motor][key_steppers][i].containsKey(key_isabs))
-					data[s]->absolutePosition = (*j)[key_motor][key_steppers][i][key_isabs];
+				if ((*j)[key_motor][key_steppinpers][i].containsKey(key_isabs))
+					data[s]->absolutePosition = (*j)[key_motor][key_steppinpers][i][key_isabs];
 
-				if ((*j)[key_motor][key_steppers][i].containsKey(key_isaccel))
-					data[s]->isaccelerated = (*j)[key_motor][key_steppers][i][key_isaccel];
+				if ((*j)[key_motor][key_steppinpers][i].containsKey(key_isaccel))
+					data[s]->isaccelerated = (*j)[key_motor][key_steppinpers][i][key_isaccel];
 
-				if ((*j)[key_motor][key_steppers][i][key_isstop])
+				if ((*j)[key_motor][key_steppinpers][i][key_isstop])
 					stopStepper(s);
 				else
 				{
@@ -134,48 +134,52 @@ void FocusMotor::set()
 	DynamicJsonDocument *doc = WifiController::getJDoc();
 	if (doc->containsKey(key_motor))
 	{
-		if ((*doc)[key_motor].containsKey(key_steppers))
+		if ((*doc)[key_motor].containsKey(key_steppinpers))
 		{
-			for (int i = 0; i < (*doc)[key_motor][key_steppers].size(); i++)
+			for (int i = 0; i < (*doc)[key_motor][key_steppinpers].size(); i++)
 			{
-				Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppers][i][key_stepperid]);
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_dir))
-				pins[s]->DIR = (*doc)[key_motor][key_steppers][i][key_dir];
+				Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppinpers][i][key_steppinperid]);
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_dirpin))
+				pins[s]->DIR = (*doc)[key_motor][key_steppinpers][i][key_dirpin];
 				
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_step))
-				pins[s]->STEP = (*doc)[key_motor][key_steppers][i][key_step];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_steppin))
+				pins[s]->STEP = (*doc)[key_motor][key_steppinpers][i][key_steppin];
 				
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_enable))
-				pins[s]->ENABLE = (*doc)[key_motor][key_steppers][i][key_enable];
 				
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_dir_inverted))
-				pins[s]->direction_inverted = (*doc)[key_motor][key_steppers][i][key_dir_inverted];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_enablepin))
+					pins[s]->ENABLE = (*doc)[key_motor][key_steppinpers][i][key_enablepin];		
 				
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_step_inverted))
-				pins[s]->step_inverted = (*doc)[key_motor][key_steppers][i][key_step_inverted];
+				// directly set the pins
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_isen))
+					digitalWrite(pins[s]->ENABLE, !(bool)(*doc)[key_motor][key_steppinpers][i][key_isen]);		
+
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_dirpin_inverted))
+				pins[s]->direction_inverted = (*doc)[key_motor][key_steppinpers][i][key_dirpin_inverted];
 				
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_enable_inverted))
-				pins[s]->enable_inverted = (*doc)[key_motor][key_steppers][i][key_enable_inverted];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_steppin_inverted))
+				pins[s]->step_inverted = (*doc)[key_motor][key_steppinpers][i][key_steppin_inverted];
+				
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_enablepin_inverted))
+				pins[s]->enable_inverted = (*doc)[key_motor][key_steppinpers][i][key_enablepin_inverted];
 
 				// applying "hard" boundaries for step-range
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_min_position))
-					pins[s]->min_position = (*doc)[key_motor][key_steppers][i][key_min_position];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_min_position))
+					pins[s]->min_position = (*doc)[key_motor][key_steppinpers][i][key_min_position];
 
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_max_position))
-					pins[s]->max_position = (*doc)[key_motor][key_steppers][i][key_max_position];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_max_position))
+					pins[s]->max_position = (*doc)[key_motor][key_steppinpers][i][key_max_position];
 
 				// override current position
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_position))
-					pins[s]->current_position = (*doc)[key_motor][key_steppers][i][key_position];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_position))
+					pins[s]->current_position = (*doc)[key_motor][key_steppinpers][i][key_position];
 
 				// adjust accelaration
 				/* //TODO: NOT IMPLEMENTED
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_acceleration))
-					pins[s]->acceleration = (*doc)[key_motor][key_steppers][i][key_acceleration];
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_acceleration))
+					pins[s]->acceleration = (*doc)[key_motor][key_steppinpers][i][key_acceleration];
 				*/
 
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_enable))
-					digitalWrite(pins[s]->ENABLE, !(*doc)[key_motor][key_steppers][i][key_acceleration]);
+
 			}
 			Config::setMotorPinConfig(pins);
 			setup();
@@ -189,16 +193,16 @@ void FocusMotor::setMinMaxRange()
 	DynamicJsonDocument *doc = WifiController::getJDoc();
 	if (doc->containsKey(key_motor))
 	{
-		if ((*doc)[key_motor].containsKey(key_steppers))
+		if ((*doc)[key_motor].containsKey(key_steppinpers))
 		{
-			for (int i = 0; i < (*doc)[key_motor][key_steppers].size(); i++)
+			for (int i = 0; i < (*doc)[key_motor][key_steppinpers].size(); i++)
 			{
-				Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppers][i][key_stepperid]);
-				if ((*doc)[key_motor][key_steppers][i].containsKey(key_min_position) && (*doc)[key_motor][key_steppers][i].containsKey(key_max_position))
+				Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppinpers][i][key_steppinperid]);
+				if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_min_position) && (*doc)[key_motor][key_steppinpers][i].containsKey(key_max_position))
 					resetMotorPos(s);
-				else if ((*doc)[key_motor][key_steppers][i].containsKey(key_min_position))
+				else if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_min_position))
 					applyMinPos(s);
-				else if ((*doc)[key_motor][key_steppers][i].containsKey(key_max_position))
+				else if ((*doc)[key_motor][key_steppinpers][i].containsKey(key_max_position))
 					applyMaxPos(s);
 			}
 		}
@@ -242,8 +246,10 @@ void FocusMotor::get()
 		doc->clear();
 		for (int i = 0; i < steppers.size(); i++)
 		{
-			(*doc)[key_motor][key_steppers][i][key_stepperid] = i;
-			(*doc)[key_motor][key_steppers][i][key_position] = pins[i]->current_position;
+			// update position and push it to the json
+			pins[i]->current_position = steppers[i]->currentPosition();
+			(*doc)[key_motor][key_steppinpers][i][key_steppinperid] = i;
+			(*doc)[key_motor][key_steppinpers][i][key_position] = pins[i]->current_position;
 		}	
 		return;
 	}
@@ -253,17 +259,17 @@ void FocusMotor::get()
 	for (int i = 0; i < steppers.size(); i++)
 	{	
 
-		(*doc)[key_steppers][i][key_stepperid] = i;
-		(*doc)[key_steppers][i][key_dir] = pins[i]->DIR;
-		(*doc)[key_steppers][i][key_step] = pins[i]->STEP;
-		(*doc)[key_steppers][i][key_enable] = pins[i]->ENABLE;
-		(*doc)[key_steppers][i][key_dir_inverted] = pins[i]->direction_inverted;
-		(*doc)[key_steppers][i][key_step_inverted] = pins[i]->step_inverted;
-		(*doc)[key_steppers][i][key_enable_inverted] = pins[i]->enable_inverted;
-		(*doc)[key_steppers][i][key_speed] = data[i]->speed;
-		(*doc)[key_steppers][i][key_speedmax] = data[i]->maxspeed;
-		(*doc)[key_steppers][i][key_max_position] = pins[i]->max_position;
-		(*doc)[key_steppers][i][key_min_position] = pins[i]->min_position;
+		(*doc)[key_steppinpers][i][key_steppinperid] = i;
+		(*doc)[key_steppinpers][i][key_dirpin] = pins[i]->DIR;
+		(*doc)[key_steppinpers][i][key_steppin] = pins[i]->STEP;
+		(*doc)[key_steppinpers][i][key_enablepin] = pins[i]->ENABLE;
+		(*doc)[key_steppinpers][i][key_dirpin_inverted] = pins[i]->direction_inverted;
+		(*doc)[key_steppinpers][i][key_steppin_inverted] = pins[i]->step_inverted;
+		(*doc)[key_steppinpers][i][key_enablepin_inverted] = pins[i]->enable_inverted;
+		(*doc)[key_steppinpers][i][key_speed] = data[i]->speed;
+		(*doc)[key_steppinpers][i][key_speedmax] = data[i]->maxspeed;
+		(*doc)[key_steppinpers][i][key_max_position] = pins[i]->max_position;
+		(*doc)[key_steppinpers][i][key_min_position] = pins[i]->min_position;
 		
 	}
 }
@@ -273,7 +279,7 @@ void FocusMotor::setup()
 	// get pins from config
 	Config::getMotorPins(pins);
 	// create the stepper
-	isShareEnable = shareEnablePin();
+	//isShareEnable = shareEnablePin();
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		data[i] = new MotorData();
@@ -295,7 +301,7 @@ void FocusMotor::setup()
 	{
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
-		steppers[i]->enableOutputs();
+		//steppers[i]->enableOutputs();
 		steppers[i]->runToNewPosition(-100);
 		steppers[i]->runToNewPosition(100);
 		steppers[i]->setCurrentPosition(pins[i]->current_position);
@@ -343,8 +349,8 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 {
 	DynamicJsonDocument *jdoc = WifiController::getJDoc();
 	jdoc->clear();
-	(*jdoc)[key_steppers][arraypos][key_stepperid] = i;
-	(*jdoc)[key_steppers][arraypos][key_position] = pins[i]->current_position;
+	(*jdoc)[key_steppinpers][arraypos][key_steppinperid] = i;
+	(*jdoc)[key_steppinpers][arraypos][key_position] = pins[i]->current_position;
 	arraypos++;
 	WifiController::sendJsonWebSocketMsg();
 }
@@ -365,8 +371,8 @@ void FocusMotor::stopStepper(int i)
 	data[i]->speed = 0;
 	pins[i]->current_position = steppers[i]->currentPosition();
 	data[i]->stopped = true;
-	if (!isShareEnable)
-		steppers[i]->disableOutputs();
+	//if (!isShareEnable)
+	//	steppers[i]->disableOutputs();
 }
 
 void FocusMotor::startAllDrives()
@@ -378,7 +384,7 @@ void FocusMotor::startAllDrives()
 }
 
 bool FocusMotor::shareEnablePin()
-{
+{/*
 	bool share = false;
 	int lastval = 0;
 	for (int i = 0; i < 4; i++)
@@ -392,4 +398,6 @@ bool FocusMotor::shareEnablePin()
 	}
 	share = true; // TODO: special case
 	return share;
+
+	*/
 }

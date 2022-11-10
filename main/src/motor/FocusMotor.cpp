@@ -312,8 +312,8 @@ void FocusMotor::setup()
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
 		// steppers[i]->enableOutputs();
-		steppers[i]->runToNewPosition(-100);
-		steppers[i]->runToNewPosition(100);
+		// steppers[i]->runToNewPosition(-100);
+		// steppers[i]->runToNewPosition(100);
 		steppers[i]->setCurrentPosition(pins[i]->current_position);
 		steppers[i]->disableOutputs();
 		data[i]->stopped = true; // inidcate that we are busy now to keep serial happy

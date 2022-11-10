@@ -32,10 +32,10 @@ public:
 	bool DEBUG = false;
 
 	const char *identifier_name = "UC2_Feather";
-	const char *identifier_id = "V1.2";
+	const char *identifier_id = "V2.0";
 	const char *identifier_date = __DATE__ "" __TIME__;
 	const char *identifier_author = "BD";
-	const char *IDENTIFIER_NAME = "";
+	const char *IDENTIFIER_NAME = "uc2-esp";
 
 	// timing variables
 	unsigned long startMillis;

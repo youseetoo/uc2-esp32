@@ -5,6 +5,7 @@
 #include "ModuleConfig.h"
 #include "src/led/LedController.h"
 #include "src/motor/FocusMotor.h"
+#include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
 #include "src/laser/LaserController.h"
 #include "src/slm/SlmController.h"
@@ -25,6 +26,7 @@ namespace RestApi
 enum class AvailableModules
 {
     analogout,
+    config,
     dac,
     digitalout,
     digitalin,

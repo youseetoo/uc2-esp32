@@ -15,7 +15,7 @@ public:
     bool DEBUG = false;
     AnalogInPins pins;
 
-    int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
+    int nanaloginavg; //no idea if it should be equal to that that one inside PidController.h 
 
     void setup() override;
     void act() override;

@@ -14,6 +14,30 @@
 #include "../digitalout/DigitalOutPins.h"
 #include "../digitalin/DigitalInPins.h"
 #include "../../ModuleConfig.h"
+#include "../../ModuleController.h"
+namespace RestApi
+{
+	void Config_act();
+	void Config_get();
+	void Config_set();
+};
+
+class ConfigController : public Module
+{
+
+public:
+	ConfigController();
+	~ConfigController();
+	bool DEBUG = false;
+
+	void act() override;
+	void set() override;
+	void get() override;
+	void setup() override;
+	void loop() override;
+
+};
+
 
 namespace Config
 {

@@ -76,17 +76,17 @@ void PidController::loop()
 	if (PID_active && (state.currentMillis - state.startMillis >= PID_updaterate))
 	{
 		// hardcoded for now:
-		int N_analogin_avg = 50;
+		int nanaloginavg = 50;
 		int analoginpin = pins.analogin_PIN_0;
 
 		// get rid of noise?
 		float analoginValueAvg = 0;
-		for (int imeas = 0; imeas < N_analogin_avg; imeas++)
+		for (int imeas = 0; imeas < nanaloginavg; imeas++)
 		{
 			analoginValueAvg += analogRead(analoginpin);
 		}
 
-		analoginValueAvg = (float)analoginValueAvg / (float)N_analogin_avg;
+		analoginValueAvg = (float)analoginValueAvg / (float)nanaloginavg;
 		long motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
 		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
@@ -135,8 +135,8 @@ void PidController::set()
 		Serial.println("PID_set_fct");
 	int PIDID = (int)(*WifiController::getJDoc())["PIDID"];
 	int PIDPIN = (int)(*WifiController::getJDoc())["PIDPIN"];
-	if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
-		N_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
+	if (WifiController::getJDoc()->containsKey("nanaloginavg"))
+		nanaloginavg = (int)(*WifiController::getJDoc())["nanaloginavg"];
 
 	switch (PIDID)
 	{
@@ -177,7 +177,7 @@ void PidController::get()
 	}
 
 	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
+	(*WifiController::getJDoc())["nanaloginavg"] = nanaloginavg;
 	(*WifiController::getJDoc())["PIDPIN"] = PIDPIN;
 	(*WifiController::getJDoc())["PIDID"] = PIDID;
 }

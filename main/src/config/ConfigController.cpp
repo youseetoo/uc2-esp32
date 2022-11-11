@@ -1,4 +1,80 @@
 #include "ConfigController.h"
+#include "../motor/MotorPins.h"
+
+namespace RestApi
+{
+	void Config_act()
+	{
+		deserialize();
+		moduleController.get(AvailableModules::config)->act();
+		serialize();
+	}
+
+	void Config_get()
+	{
+		deserialize();
+		moduleController.get(AvailableModules::config)->get();
+		serialize();
+	}
+
+	void Config_set()
+	{
+		deserialize();
+		moduleController.get(AvailableModules::config)->set();
+		serialize();
+	}
+
+}
+
+ConfigController::ConfigController() : Module() { log_i("ctor"); }
+ConfigController::~ConfigController() { log_i("~ctor"); }
+
+void ConfigController::act()
+{
+	log_i("config act");
+}
+
+void ConfigController::set()
+{
+	log_i("config set");
+	
+	DynamicJsonDocument *doc = WifiController::getJDoc();
+	serializeJsonPretty((*doc), Serial);
+
+/*
+	// attaching Motor settings
+	for (int i = 0; i < (*doc)[key_motor][key_steppers].size(); i++)
+	{
+		Stepper s = static_cast<Stepper>((*doc)[key_motor][key_steppers][i][key_steppinperid]);
+		pins[s]->DIR = (*doc)[key_motor][key_steppers][i][key_dirpin];
+		pins[s]->STEP = (*doc)[key_motor][key_steppers][i][key_steppin];
+		pins[s]->ENABLE = (*doc)[key_motor][key_steppers][i][key_enablepin];
+		pins[s]->direction_inverted = (*doc)[key_motor][key_steppers][i][key_dirpin_inverted];
+		pins[s]->step_inverted = (*doc)[key_motor][key_steppers][i][key_steppin_inverted];
+		pins[s]->enable_inverted = (*doc)[key_motor][key_steppers][i][key_enablepin_inverted];
+		pins[s]->min_position = (*doc)[key_motor][key_steppers][i][key_min_position];
+		pins[s]->max_position = (*doc)[key_motor][key_steppers][i][key_max_position];
+		pins[s]->current_position = (*doc)[key_motor][key_steppers][i][key_position];
+	}
+	Config::setMotorPinConfig(pins);
+	FocusMotor::setup();
+	*/
+	// attaching LED settings
+
+	// attaching XX settings 
+	
+	doc->clear();
+
+}
+void ConfigController::get()
+{
+}
+void ConfigController::setup()
+{
+}
+void ConfigController::loop()
+{
+}
 
 namespace Config
 {
@@ -30,8 +106,9 @@ namespace Config
 		preferences.end();
 	}
 
-	void checkifBootWentThrough(){
-		//indicate if boot went through successfully
+	void checkifBootWentThrough()
+	{
+		// indicate if boot went through successfully
 		log_i("Boot went through successfully");
 		preferences.begin(prefNamespace, false);
 		preferences.putBool(keyIsBooting, false);
@@ -42,12 +119,13 @@ namespace Config
 	{
 		// check if boot process went through
 		preferences.begin(prefNamespace, false);
-		if(preferences.getBool(keyIsBooting, false))
+		if (preferences.getBool(keyIsBooting, false))
 		{ // if the boot process stopped for whatever reason, clear settings
 			preferences.clear();
 			log_i("The boot process stopped for whatever reason, clear settings");
 		}
-		else{
+		else
+		{
 			log_i("Boot process went through..");
 		}
 		preferences.putBool(keyIsBooting, true);
@@ -56,7 +134,7 @@ namespace Config
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
 		if (isFirstRun())
 		{
-			//TODO: Not working yet, date is not getting set correctly in preferences...
+			// TODO: Not working yet, date is not getting set correctly in preferences...
 			/*
 			log_i("First Run, resetting config");
 			preferences.begin(prefNamespace, false);
@@ -66,7 +144,7 @@ namespace Config
 		}
 	}
 
-	void getMotorPins(MotorPins * pins[])
+	void getMotorPins(MotorPins *pins[])
 	{
 		preferences.begin(prefNamespace, false);
 		pins[Stepper::A] = new MotorPins();
@@ -96,7 +174,7 @@ namespace Config
 		preferences.end();
 	}
 
-	void setMotorPinConfig(MotorPins * pins[])
+	void setMotorPinConfig(MotorPins *pins[])
 	{
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(keyMotorADirPin, pins[Stepper::A], sizeof(MotorPins));
@@ -105,7 +183,6 @@ namespace Config
 		preferences.putBytes(keyMotorZDirPin, pins[Stepper::Z], sizeof(MotorPins));
 		preferences.end();
 	}
-
 
 	LedConfig *getLedPins()
 	{

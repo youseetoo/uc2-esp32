@@ -69,6 +69,8 @@ static const PROGMEM char * keyid = "id";
 static const PROGMEM char * key_led_array = "led_array";
 static const PROGMEM char * key_led_isOn = "led_ison";
 
+static const PROGMEM char * key_config = "config";
+
 static const PROGMEM char * key_motor = "motor";
 static const PROGMEM char * key_home = "home";
 static const PROGMEM char * key_home_endpospin = "endpospin";

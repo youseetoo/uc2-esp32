@@ -31,6 +31,11 @@ void ModuleController::setup()
     }
     modules.clear();
     moduleConfig = Config::getModuleConfig();
+    if (moduleConfig->config)
+    {
+        modules.insert(std::make_pair(AvailableModules::config, dynamic_cast<Module *>(new ConfigController())));
+        log_i("add config");
+    }
     if (moduleConfig->led)
     {
         modules.insert(std::make_pair(AvailableModules::led, dynamic_cast<Module *>(new LedController())));
@@ -116,9 +121,11 @@ Module *ModuleController::get(AvailableModules mod)
 
 void ModuleController::get()
 {
+    // register all modules that have a get routine
     DynamicJsonDocument *jdoc = WifiController::getJDoc();
     jdoc->clear();
     (*jdoc)[key_modules][keyLed] = moduleConfig->led;
+    (*jdoc)[key_modules][key_config] = moduleConfig->config;
     (*jdoc)[key_modules][key_motor] = moduleConfig->motor;
     (*jdoc)[key_modules][key_home] = moduleConfig->home;
     (*jdoc)[key_modules][key_slm] = moduleConfig->slm;
@@ -134,6 +141,7 @@ void ModuleController::get()
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
 void ModuleController::set()
 {
+    // register all set routines 
     DynamicJsonDocument *jdoc = WifiController::getJDoc();
     if (jdoc->containsKey(key_modules))
     {
@@ -141,6 +149,8 @@ void ModuleController::set()
             moduleConfig->led = (*jdoc)[key_modules][keyLed];
         if ((*jdoc)[key_modules].containsKey(key_motor))
             moduleConfig->motor = (*jdoc)[key_modules][key_motor];
+        if ((*jdoc)[key_modules].containsKey(key_config))
+            moduleConfig->config = (*jdoc)[key_modules][key_config];
         if ((*jdoc)[key_modules].containsKey(key_home))
             moduleConfig->home = (*jdoc)[key_modules][key_home];
         if ((*jdoc)[key_modules].containsKey(key_slm))

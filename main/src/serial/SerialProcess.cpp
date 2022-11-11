@@ -62,6 +62,25 @@ void SerialProcess::jsonProcessor(String task, DynamicJsonDocument *jsonDocument
 		state.set();
 	if (task == state_get_endpoint)
 		state.get();
+
+	/*
+	  Setting config
+	*/
+	if (moduleController.get(AvailableModules::config) != nullptr)
+	{
+		if (task == config_act_endpoint)
+		{
+			moduleController.get(AvailableModules::config)->act();
+		}
+		if (task == config_set_endpoint)
+		{
+			moduleController.get(AvailableModules::config)->set();
+		}
+		if (task == config_get_endpoint)
+		{
+			moduleController.get(AvailableModules::config)->get();
+		}
+	}
 	/*
 	  Drive Motors
 	*/

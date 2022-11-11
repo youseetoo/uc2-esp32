@@ -318,6 +318,14 @@ namespace WifiController
 			server->on(motor_setcalibration_endpoint,HTTP_POST, RestApi::FocusMotor_setCalibration);
 		}
 
+		if (moduleController.moduleConfig->config != 0)
+		{
+			log_i("add motor endpoints");
+			server->on(config_act_endpoint, HTTP_POST, RestApi::Config_act);
+			server->on(config_get_endpoint, HTTP_GET, RestApi::Config_get);
+			server->on(config_set_endpoint, HTTP_POST, RestApi::Config_set);
+		}
+
 		if (moduleController.moduleConfig->dac != 0)
 		{
 			log_i("add dac endpoints");

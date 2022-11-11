@@ -34,7 +34,7 @@ public:
     bool PID_active=false;
     AnalogInPins pins;
 
-    int N_analogin_avg = 50;
+    int nanaloginavg = 50;
 
     void setup() override;
     void loop() override;

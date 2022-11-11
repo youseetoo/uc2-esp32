@@ -11,14 +11,14 @@ void AnalogInController::loop() {}
 void AnalogInController::act() {
 
   // here you can do something
-  if (DEBUG) Serial.println("readanalogin_act_fct");
+  log_i("readanalogin_act_fct");
   int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
-  int mN_analogin_avg = N_analogin_avg;
-  if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
-    mN_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
+  int mnanaloginavg = nanaloginavg;
+  if (WifiController::getJDoc()->containsKey("nanaloginavg"))
+    mnanaloginavg = (int)(*WifiController::getJDoc())["nanaloginavg"];
   int analoginpin = 0 ;
 
-  if (DEBUG) Serial.print("readanaloginID "); Serial.println(readanaloginID);
+  log_i("readanaloginID %i", readanaloginID);
   switch (readanaloginID) {
     case 0:
       analoginpin = pins.analogin_PIN_0;
@@ -32,52 +32,25 @@ void AnalogInController::act() {
   }
 
   float analoginValueAvg = 0;
-  for (int imeas=0; imeas < N_analogin_avg; imeas++) {
+  for (int imeas=0; imeas < nanaloginavg; imeas++) {
     analoginValueAvg += analogRead(analoginpin);
   }
-  float returnValue = (float)analoginValueAvg / (float)N_analogin_avg;
+  float returnValue = (float)analoginValueAvg / (float)nanaloginavg;
 
   WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["analoginValue"] = returnValue;
-  (*WifiController::getJDoc())["analoginpin"] = analoginpin;
-  (*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
-
-}
-
-
-
-void AnalogInController::get() {
-  if (DEBUG) Serial.println("readanalogin_set_fct");
-  int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
-  int readanaloginPIN = (int)(*WifiController::getJDoc())["readanaloginPIN"];
-  if (WifiController::getJDoc()->containsKey("N_analogin_avg"))
-    N_analogin_avg = (int)(*WifiController::getJDoc())["N_analogin_avg"];
-
-  switch (readanaloginID) {
-    case 0:
-      pins.analogin_PIN_0 = readanaloginPIN;
-      break;
-    case 1:
-      pins.analogin_PIN_1 = readanaloginPIN;
-      break;
-    case 2:
-      pins.analogin_PIN_2 = readanaloginPIN;
-      break;
-  }
-
-
-  WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["readanaloginPIN"] = readanaloginPIN;
+  (*WifiController::getJDoc())["analoginVAL"] = returnValue;
+  (*WifiController::getJDoc())["readanaloginPIN"] = analoginpin;
+  (*WifiController::getJDoc())["nanaloginavg"] = nanaloginavg;
   (*WifiController::getJDoc())["readanaloginID"] = readanaloginID;
 }
 
 
 
-// Custom function accessible by the API
-void AnalogInController::set() {
-if (DEBUG) Serial.println("readanalogin_get_fct");
+void AnalogInController::get() {
+  log_i("readanalogin_set_fct");
   int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
   int readanaloginPIN = 0;
+
   switch (readanaloginID) {
     case 0:
       readanaloginPIN = pins.analogin_PIN_0;
@@ -88,16 +61,48 @@ if (DEBUG) Serial.println("readanalogin_get_fct");
     case 2:
       readanaloginPIN = pins.analogin_PIN_2;
       break;
+    case 3:
+      readanaloginPIN = pins.analogin_PIN_3;
+      break;      
   }
 
   WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
+  (*WifiController::getJDoc())["readanaloginPIN"] = readanaloginPIN;
+  (*WifiController::getJDoc())["readanaloginID"] = readanaloginID;
+  (*WifiController::getJDoc())["nanaloginavg"] = nanaloginavg;
+}
+
+
+
+// Custom function accessible by the API
+void AnalogInController::set() {
+log_i("readanalogin_get_fct");
+  int readanaloginID = (int)(*WifiController::getJDoc())["readanaloginID"];
+  int readanaloginPIN = (int)(*WifiController::getJDoc())["readanaloginPIN"];
+  nanaloginavg = (int)(*WifiController::getJDoc())["nanaloginavg"];
+  switch (readanaloginID) {
+    case 0:
+      pins.analogin_PIN_0 = readanaloginPIN;
+      break;
+    case 1:
+      pins.analogin_PIN_1 = readanaloginPIN;
+      break;
+    case 2:
+      pins.analogin_PIN_2 = readanaloginPIN;
+      break;
+    case 3:
+      pins.analogin_PIN_3 = readanaloginPIN;
+      break;      
+  }
+
+  WifiController::getJDoc()->clear();
+  (*WifiController::getJDoc())["nanaloginavg"] = nanaloginavg;
   (*WifiController::getJDoc())["readanaloginPIN"] = readanaloginPIN;
   (*WifiController::getJDoc())["readanaloginID"] = readanaloginID;
 }
 
 
 void AnalogInController::setup(){
-  if(DEBUG) Serial.println("Setting up analogins...");
+  log_i("Setting up analogins...");
 }
 

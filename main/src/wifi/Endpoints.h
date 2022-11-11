@@ -13,6 +13,10 @@ static const PROGMEM String motor_set_endpoint = "/motor_set";
 static const PROGMEM String motor_get_endpoint = "/motor_get";
 static const PROGMEM String motor_setcalibration_endpoint = "/motor_setcalibration";
 
+static const PROGMEM String config_act_endpoint = "/config_act";
+static const PROGMEM String config_set_endpoint = "/config_set";
+static const PROGMEM String config_get_endpoint = "/config_get";
+
 static const PROGMEM String home_act_endpoint = "/home_act";
 static const PROGMEM String home_set_endpoint = "/home_set";
 static const PROGMEM String home_get_endpoint = "/home_get";

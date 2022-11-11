@@ -214,6 +214,8 @@ void LaserController::set()
 void LaserController::get()
 {
 	WifiController::getJDoc()->clear();
+			int LASERid = (*WifiController::getJDoc())["LASERid"];
+		int LASERpin = (*WifiController::getJDoc())["LASERpin"];
 	(*WifiController::getJDoc())["LASER1pin"] = pins.LASER_PIN_1;
 	(*WifiController::getJDoc())["LASER2pin"] = pins.LASER_PIN_2;
 	(*WifiController::getJDoc())["LASER3pin"] = pins.LASER_PIN_3;

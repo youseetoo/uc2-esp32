@@ -26,3 +26,13 @@
 	path = lib/Adafruit-ST7735-Library
 	url = https://github.com/adafruit/Adafruit-ST7735-Library.git
 	branch = master
+[submodule "lib/arduinoWebSockets"]
+	path = lib/arduinoWebSockets
+	url = https://github.com/Links2004/arduinoWebSockets
+	branch = master
+[submodule "lib/Adafruit-GFX-Library"]
+	path = lib/Adafruit-GFX-Library
+	url = https://github.com/adafruit/Adafruit-GFX-Library
+	branch = master
+
+

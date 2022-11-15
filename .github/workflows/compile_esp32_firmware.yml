@@ -54,4 +54,4 @@ jobs:
           asset_path: binaries.zip
           asset_name: binaries.zip
           asset_content_type: application/zip
-U
+

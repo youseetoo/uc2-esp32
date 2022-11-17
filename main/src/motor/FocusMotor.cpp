@@ -51,18 +51,26 @@ void FocusMotor::act()
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_speed))
 					data[s]->speed = (*j)[key_motor][key_steppers][i][key_speed];
+				else // if no speed is given, use the default speed
+					data[s]->speed = data[s]->0;
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_position))
 					data[s]->targetPosition = (*j)[key_motor][key_steppers][i][key_position];
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_isforever))
 					data[s]->isforever = (*j)[key_motor][key_steppers][i][key_isforever];
+				else // if not set, set to false
+					data[s]->isforever = false;
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_isabs))
 					data[s]->absolutePosition = (*j)[key_motor][key_steppers][i][key_isabs];
+				else // we always set absolute position to false if not set
+					data[s]->absolutePosition = false;
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_isaccel))
 					data[s]->isaccelerated = (*j)[key_motor][key_steppers][i][key_isaccel];
+				else // we always switch off acceleration if not set
+					data[s]->isaccelerated = false;
 
 				if ((*j)[key_motor][key_steppers][i][key_isstop])
 					stopStepper(s);
@@ -344,6 +352,8 @@ void FocusMotor::loop()
 			{ // only run if not already at position
 				if (steppers[i]->distanceToGo() != 0)
 				{
+					data[i]->stopped=false;
+
 					// run at constant speed
 					if (data[i]->isaccelerated) // run with acceleration
 					{
@@ -356,6 +366,11 @@ void FocusMotor::loop()
 				}
 				else
 				{
+					if (!data[i]->stopped){
+						// send message that motor is done only once to not slow down the loop
+						// printf("{'m':%1i, 'isBusy':0}", i);
+						Serial.print("{'motor':");Serial.print(i);Serial.print(", 'isDone':"); Serial.print(!data[i]->stopped); Serial.println("}");
+					}
 					data[i]->stopped=true;
 				}
 			}

@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          ref: devBD
       - name: Setup Arduino CLI
         uses: arduino/setup-arduino-cli@v1
       - name: Install platform

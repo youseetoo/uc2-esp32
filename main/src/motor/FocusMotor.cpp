@@ -339,7 +339,7 @@ void FocusMotor::loop()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		// move motor only if available
-		if (steppers[i] != nullptr ) // TODO: Makes sense, but if no config is given, the return value fails. 
+		if (steppers[i] != nullptr && pins[i]->DIR > 0) // TODO: Makes sense, but if no config is given, the return value fails. 
 		{
 			// set speed
 			steppers[i]->setSpeed(data[i]->speed);

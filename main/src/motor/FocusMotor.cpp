@@ -52,7 +52,7 @@ void FocusMotor::act()
 				// if no speed is given, use the default speed
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_speed))
 					data[s]->speed = (*j)[key_motor][key_steppers][i][key_speed];
-				else 
+				else
 					data[s]->speed = 0;
 
 				if ((*j)[key_motor][key_steppers][i].containsKey(key_position))
@@ -339,7 +339,7 @@ void FocusMotor::loop()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		// move motor only if available
-		if (steppers[i] != nullptr && pins[i]->DIR > 0) // TODO: Makes sense, but if no config is given, the return value fails. 
+		if (steppers[i] != nullptr && pins[i]->DIR > 0) // TODO: Makes sense, but if no config is given, the return value fails.
 		{
 			// set speed
 			steppers[i]->setSpeed(data[i]->speed);

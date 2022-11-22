@@ -100,6 +100,7 @@ void State::get()
 		(*WifiController::getJDoc())["identifier_author"] = identifier_author;
 		//(*jsonDocument)["identifier_setup"] = pins->identifier_setup;
 		(*WifiController::getJDoc())["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
+		(*WifiController::getJDoc())["configIsSet"] = config_set; // TODO: Implement! 
 	}
 }
 

@@ -30,6 +30,7 @@ struct MotorData
 	bool isaccelerated = false;
 	bool absolutePosition = false;
 	bool stopped = true;
+	
 };
 
 enum Stepper

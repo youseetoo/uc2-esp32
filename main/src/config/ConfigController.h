@@ -43,7 +43,7 @@ namespace Config
 {
     void setup();
     bool resetPreferences();
-    bool isFirstRun();
+    bool resertOnFirstBoot();
     void setWifiConfig(WifiConfig * config);
     WifiConfig * getWifiConfig();
     void setMotorPinConfig(MotorPins * pins[]);

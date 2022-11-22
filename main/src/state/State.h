@@ -36,6 +36,7 @@ public:
 	const char *identifier_date = __DATE__ "" __TIME__;
 	const char *identifier_author = "BD";
 	const char *IDENTIFIER_NAME = "uc2-esp";
+	bool config_set = false;
 
 	// timing variables
 	unsigned long startMillis;

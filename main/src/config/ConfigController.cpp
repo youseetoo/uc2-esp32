@@ -132,16 +132,7 @@ namespace Config
 		preferences.end();
 
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
-		if (isFirstRun())
-		{
-			// TODO: Not working yet, date is not getting set correctly in preferences...
-			/*
-			log_i("First Run, resetting config");
-			preferences.begin(prefNamespace, false);
-			preferences.clear();
-			preferences.end();
-			*/
-		}
+		resertOnFirstBoot();
 	}
 
 	void getMotorPins(MotorPins *pins[])
@@ -298,10 +289,10 @@ namespace Config
 		preferences.end();
 	}
 
-	bool isFirstRun()
+	bool resertOnFirstBoot()
 	{
 		bool rdystate = preferences.begin(prefNamespace, false);
-		log_i("isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
+		log_i("resertOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
 		// define preference name
 		const char *compiled_date = __DATE__ " " __TIME__;
 		String stored_date = preferences.getString(dateKey, ""); // FIXME
@@ -309,7 +300,6 @@ namespace Config
 		log_i("Stored date: %s", stored_date.c_str());
 		log_i("Compiled date: %s", compiled_date);
 
-		log_i("First run? ");
 		if (!stored_date.equals(compiled_date))
 		{
 			log_i("yes, resetSettings");
@@ -326,7 +316,7 @@ namespace Config
 		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
 		String datetest = preferences.getString(dateKey, "");
 		preferences.end();
-		log_i("isFirstRun End datetest:%s", datetest.c_str());
+		log_i("resertOnFirstBoot End datetest:%s", datetest.c_str());
 		return !stored_date.equals(compiled_date);
 	}
 

@@ -2,7 +2,7 @@ name: Compile ESP32 bin
 
 on:
   release:
-    types: [created, published]
+    types: [created, published, edited]
   workflow_dispatch:
   
 jobs:

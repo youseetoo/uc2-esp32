@@ -22,8 +22,7 @@ namespace RestApi
 
 	void connectToWifi()
 	{
-		deserialize();
-		WifiController::connect();
+		WifiController::connect(deserialize());
 		serialize();
 		// ESP.restart();
 	}
@@ -68,13 +67,13 @@ namespace WifiController
 			server->handleClient();
 	}
 
-	void connect()
+	void connect(JsonObject j)
 	{
 		log_i("connectToWifi");
 		
-		bool ap = (*WifiController::getJDoc())[keyWifiAP];
-		String ssid = (*WifiController::getJDoc())[keyWifiSSID];
-		String pw = (*WifiController::getJDoc())[keyWifiPW];
+		bool ap = j[keyWifiAP];
+		String ssid = j[keyWifiSSID];
+		String pw = j[keyWifiPW];
 		log_i("ssid: %s wifi:%s", ssid.c_str(), WifiController::getSsid().c_str());
 		log_i("pw: %s wifi:%s", pw.c_str(), WifiController::getPw().c_str());
 		log_i("ap: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
@@ -82,7 +81,6 @@ namespace WifiController
 		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
 		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
 		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
-		WifiController::getJDoc()->clear();
 		WifiController::setup();
 		WifiController::begin();
 	}
@@ -105,9 +103,9 @@ namespace WifiController
 			log_i("[%u] get Text: %s\n", num, payload);
 			deserializeJson(*WifiController::getJDoc(), payload);
 			if (WifiController::getJDoc()->containsKey(keyLed) && moduleController.get(AvailableModules::led) != nullptr)
-				moduleController.get(AvailableModules::led)->act();
+				moduleController.get(AvailableModules::led)->act(WifiController::getJDoc()->as<JsonObject>());
 			if (WifiController::getJDoc()->containsKey(key_motor) && moduleController.get(AvailableModules::motor) != nullptr)
-				moduleController.get(AvailableModules::motor)->act();
+				moduleController.get(AvailableModules::motor)->act(WifiController::getJDoc()->as<JsonObject>());
 
 			break;
 		default:

@@ -28,9 +28,9 @@ public:
     int digitalout_val_2 = 0;
     int digitalout_val_3 = 0;
 
-    void act() override;
-    void set() override;
-    void get() override;
+    void act(JsonObject  ob) override;
+    void set(JsonObject ob) override;
+    void get(JsonObject ob) override;
     void setup() override;
     void loop() override;
 };

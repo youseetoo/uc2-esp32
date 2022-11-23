@@ -85,16 +85,15 @@ void ScannerController::loop()
 }
 
 // Custom function accessible by the API
-void ScannerController::act()
+void ScannerController::act(JsonObject ob)
 {
 
-	DynamicJsonDocument *jsonDocument = WifiController::getJDoc();
 	// here you can do something
 	if (DEBUG)
 		Serial.println("scanner_act_fct");
 
 	// select scanning mode
-	const char *scannerMode = (*jsonDocument)["scannerMode"];
+	const char *scannerMode = (ob)["scannerMode"];
 
 	if (strcmp(scannerMode, "pattern") == 0)
 	{
@@ -107,32 +106,32 @@ void ScannerController::act()
 		scannernFrames = 1;
 		scannerDelay = 0;
 
-		if (jsonDocument->containsKey("scannerExposure"))
+		if (ob.containsKey("scannerExposure"))
 		{
-			scannerExposure = (*jsonDocument)["scannerExposure"];
+			scannerExposure = ob["scannerExposure"];
 		}
-		if (jsonDocument->containsKey("scannerLaserVal"))
+		if (ob.containsKey("scannerLaserVal"))
 		{
-			scannerLaserVal = (*jsonDocument)["scannerLaserVal"];
+			scannerLaserVal = ob["scannerLaserVal"];
 		}
-		if (jsonDocument->containsKey("scannerDelay"))
+		if (ob.containsKey("scannerDelay"))
 		{
-			scannerDelay = (*jsonDocument)["scannerDelay"];
+			scannerDelay = ob["scannerDelay"];
 		}
-		if (jsonDocument->containsKey("scannernFrames"))
+		if (ob.containsKey("scannernFrames"))
 		{
-			scannernFrames = (*jsonDocument)["scannernFrames"];
+			scannernFrames = ob["scannernFrames"];
 		}
-		if (jsonDocument->containsKey("arraySize"))
+		if (ob.containsKey("arraySize"))
 		{
-			arraySize = (*jsonDocument)["arraySize"];
+			arraySize = ob["arraySize"];
 		}
 
 		for (int iFrame = 0; iFrame < scannernFrames; iFrame++)
 		{
 			for (int i = 0; i < arraySize; i++)
 			{												// Iterate through results
-				int scannerIndex = (*jsonDocument)["i"][i]; // Implicit cast
+				int scannerIndex = ob["i"][i]; // Implicit cast
 				int scannerPosY = scannerIndex % 255;
 				int scannerPosX = scannerIndex / 255;
 				dacWrite(scannerPinY, scannerPosY);
@@ -183,65 +182,65 @@ void ScannerController::act()
 
 		scannerDelay = 0;
 
-		if (jsonDocument->containsKey("scannernFrames"))
+		if (ob.containsKey("scannernFrames"))
 		{
-			scannernFrames = (*jsonDocument)["scannernFrames"];
+			scannernFrames = ob["scannernFrames"];
 		}
-		if (jsonDocument->containsKey("scannerXFrameMax"))
+		if (ob.containsKey("scannerXFrameMax"))
 		{
-			scannerXFrameMax = (*jsonDocument)["scannerXFrameMax"];
+			scannerXFrameMax = ob["scannerXFrameMax"];
 		}
-		if (jsonDocument->containsKey("scannerXFrameMin"))
+		if (ob.containsKey("scannerXFrameMin"))
 		{
-			scannerXFrameMin = (*jsonDocument)["scannerXFrameMin"];
+			scannerXFrameMin = ob["scannerXFrameMin"];
 		}
-		if (jsonDocument->containsKey("scannerYFrameMax"))
+		if (ob.containsKey("scannerYFrameMax"))
 		{
-			scannerYFrameMax = (*jsonDocument)["scannerYFrameMax"];
+			scannerYFrameMax = ob["scannerYFrameMax"];
 		}
-		if (jsonDocument->containsKey("scannerYFrameMin"))
+		if (ob.containsKey("scannerYFrameMin"))
 		{
-			scannerYFrameMin = (*jsonDocument)["scannerYFrameMin"];
+			scannerYFrameMin = ob["scannerYFrameMin"];
 		}
-		if (jsonDocument->containsKey("scannerXStep"))
+		if (ob.containsKey("scannerXStep"))
 		{
-			scannerXStep = (*jsonDocument)["scannerXStep"];
+			scannerXStep = ob["scannerXStep"];
 		}
-		if (jsonDocument->containsKey("scannerYStep"))
+		if (ob.containsKey("scannerYStep"))
 		{
-			scannerYStep = (*jsonDocument)["scannerYStep"];
+			scannerYStep = ob["scannerYStep"];
 		}
-		if (jsonDocument->containsKey("scannerxMin"))
+		if (ob.containsKey("scannerxMin"))
 		{
-			scannerxMin = (*jsonDocument)["scannerxMin"];
+			scannerxMin = ob["scannerxMin"];
 		}
-		if (jsonDocument->containsKey("scannerLaserVal"))
+		if (ob.containsKey("scannerLaserVal"))
 		{
-			scannerLaserVal = (*jsonDocument)["scannerLaserVal"];
+			scannerLaserVal = ob["scannerLaserVal"];
 		}
-		if (jsonDocument->containsKey("scanneryMin"))
+		if (ob.containsKey("scanneryMin"))
 		{
-			scanneryMin = (*jsonDocument)["scanneryMin"];
+			scanneryMin = ob["scanneryMin"];
 		}
-		if (jsonDocument->containsKey("scannerxMax"))
+		if (ob.containsKey("scannerxMax"))
 		{
-			scannerxMax = (*jsonDocument)["scannerxMax"];
+			scannerxMax = ob["scannerxMax"];
 		}
-		if (jsonDocument->containsKey("scanneryMax"))
+		if (ob.containsKey("scanneryMax"))
 		{
-			scanneryMax = (*jsonDocument)["scanneryMax"];
+			scanneryMax = ob["scanneryMax"];
 		}
-		if (jsonDocument->containsKey("scannerExposure"))
+		if (ob.containsKey("scannerExposure"))
 		{
-			scannerExposure = (*jsonDocument)["scannerExposure"];
+			scannerExposure = ob["scannerExposure"];
 		}
-		if (jsonDocument->containsKey("scannerEnable"))
+		if (ob.containsKey("scannerEnable"))
 		{
-			scannerEnable = (*jsonDocument)["scannerEnable"];
+			scannerEnable = ob["scannerEnable"];
 		}
-		if (jsonDocument->containsKey("scannerDelay"))
+		if (ob.containsKey("scannerDelay"))
 		{
-			scannerDelay = (*jsonDocument)["scannerDelay"];
+			scannerDelay = ob["scannerDelay"];
 		}
 
 		if (DEBUG)
@@ -290,22 +289,20 @@ void ScannerController::act()
 			Serial.print("scannerDelay ");
 		Serial.println(scannerDelay);
 
-		jsonDocument->clear();
 		if (DEBUG)
 			Serial.println("Start controlGalvoTask");
 		isScanRunning = scannerEnable; // Trigger a frame acquisition
 		if (DEBUG)
 			Serial.println("Done with setting up Tasks");
-		(*jsonDocument)["return"] = 1;
 	}
 }
 
-void ScannerController::set()
+void ScannerController::set(JsonObject  ob)
 {
 }
 
 // Custom function accessible by the API
-void ScannerController::get()
+void ScannerController::get(JsonObject  ob)
 {
 }
 

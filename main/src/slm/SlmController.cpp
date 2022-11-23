@@ -5,22 +5,19 @@ namespace RestApi
 {
 	void Slm_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::slm)->act();
+		moduleController.get(AvailableModules::slm)->act(deserialize());
 		serialize();
 	}
 
 	void Slm_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::slm)->get();
+		moduleController.get(AvailableModules::slm)->get(deserialize());
 		serialize();
 	}
 
 	void Slm_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::slm)->set();
+		moduleController.get(AvailableModules::slm)->set(deserialize());
 		serialize();
 	}
 }
@@ -31,7 +28,7 @@ SlmController::~SlmController(){};
 
 void SlmController::loop(){}
 // Custom function accessible by the API
-void SlmController::act()
+void SlmController::act(JsonObject  ob)
 {
 
 	// here you can do something
@@ -39,7 +36,7 @@ void SlmController::act()
 		Serial.println("slm_act_fct");
 	isBusy = true;
 
-	const char *slmMode = (*WifiController::getJDoc())["slmMode"]; // "ring", "clear"
+	const char *slmMode = ob["slmMode"]; // "ring", "clear"
 
 	// individual pattern gets adressed
 	// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
@@ -52,14 +49,14 @@ void SlmController::act()
 		int radius = 0;
 		uint16_t color = 0;
 
-		if (WifiController::getJDoc()->containsKey("posX"))
-			posX = (*WifiController::getJDoc())["posX"];
-		if (WifiController::getJDoc()->containsKey("posY"))
-			posY = (*WifiController::getJDoc())["posY"];
-		if (WifiController::getJDoc()->containsKey("radius"))
-			radius = (*WifiController::getJDoc())["radius"];
-		if (WifiController::getJDoc()->containsKey("color"))
-			color = (*WifiController::getJDoc())["color"];
+		if (ob.containsKey("posX"))
+			posX = ob["posX"];
+		if (ob.containsKey("posY"))
+			posY = ob["posY"];
+		if (ob.containsKey("radius"))
+			radius = ob["radius"];
+		if (ob.containsKey("color"))
+			color = ob["color"];
 		tft.fillCircle(posX, posY, radius, color);
 	}
 	// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
@@ -73,16 +70,16 @@ void SlmController::act()
 		int nY = 0;
 		uint16_t color = 0;
 
-		if (WifiController::getJDoc()->containsKey("posX"))
-			posX = (*WifiController::getJDoc())["posX"];
-		if (WifiController::getJDoc()->containsKey("posY"))
-			posY = (*WifiController::getJDoc())["posY"];
-		if (WifiController::getJDoc()->containsKey("nX"))
-			nX = (*WifiController::getJDoc())["nX"];
-		if (WifiController::getJDoc()->containsKey("nY"))
-			nY = (*WifiController::getJDoc())["nY"];
-		if (WifiController::getJDoc()->containsKey("color"))
-			color = (*WifiController::getJDoc())["color"];
+		if (ob.containsKey("posX"))
+			posX = ob["posX"];
+		if (ob.containsKey("posY"))
+			posY = ob["posY"];
+		if (ob.containsKey("nX"))
+			nX = ob["nX"];
+		if (ob.containsKey("nY"))
+			nY = ob["nY"];
+		if (ob.containsKey("color"))
+			color = ob["color"];
 		tft.drawRect(posX, posY, nX, nY, color);
 	}
 
@@ -90,7 +87,7 @@ void SlmController::act()
 	{
 		if (DEBUG)
 			Serial.println("full");
-		uint16_t color = (*WifiController::getJDoc())["color"];
+		uint16_t color = ob["color"];
 		tft.fillScreen(color);
 	}
 	if (strcmp(slmMode, "clear"))
@@ -105,10 +102,10 @@ void SlmController::act()
 	{
 		if (DEBUG)
 			Serial.println("image");
-		int startX = (*WifiController::getJDoc())["startX"];
-		int startY = (*WifiController::getJDoc())["startY"];
-		int endX = (*WifiController::getJDoc())["endX"];
-		int endY = (*WifiController::getJDoc())["endY"];
+		int startX = ob["startX"];
+		int startY = ob["startY"];
+		int endX = ob["endX"];
+		int endY = ob["endY"];
 
 		int nX = endX - startX;
 		int nY = endY - startY;
@@ -116,7 +113,7 @@ void SlmController::act()
 		{
 			for (int iy = 0; iy < nY; iy++)
 			{
-				uint16_t color = (*WifiController::getJDoc())["color"][ix * (nX) + iy]; // Implicit cast
+				uint16_t color = ob["color"][ix * (nX) + iy]; // Implicit cast
 				Serial.println(color);
 				tft.drawPixel(iy + nY, ix + nX, color);
 			}
@@ -128,30 +125,28 @@ void SlmController::act()
 	isBusy = false;
 }
 
-void SlmController::set()
+void SlmController::set(JsonObject  ob)
 {
 	/*
-	  if (WifiController::getJDoc()["LED_ARRAY_PIN"] != 0) {
-	  //if (DEBUG) Serial.print("LED_ARRAY_PIN "); Serial.println(WifiController::getJDoc()["LED_ARRAY_PIN"]);
-	  LED_ARRAY_PIN = WifiController::getJDoc()["LED_ARRAY_PIN"];
+	  if (ob["LED_ARRAY_PIN"] != 0) {
+	  //if (DEBUG) Serial.print("LED_ARRAY_PIN "); Serial.println(ob["LED_ARRAY_PIN"]);
+	  LED_ARRAY_PIN = ob["LED_ARRAY_PIN"];
 	  }
 
-	  if (WifiController::getJDoc()["LED_N_X"] != 0) {
-	  //if (DEBUG) Serial.print("LED_N_X "); Serial.println(WifiController::getJDoc()["LED_N_X"]);
-	  LED_N_X = WifiController::getJDoc()["LED_N_X"];
+	  if (ob["LED_N_X"] != 0) {
+	  //if (DEBUG) Serial.print("LED_N_X "); Serial.println(ob["LED_N_X"]);
+	  LED_N_X = ob["LED_N_X"];
 	  }
 
-	  if (WifiController::getJDoc()["LED_N_Y"] != 0) {
-	  //if (DEBUG) Serial.print("LED_N_Y "); Serial.println(WifiController::getJDoc()["LED_N_Y"]);
-	  LED_N_Y = WifiController::getJDoc()["LED_N_Y"];
+	  if (ob["LED_N_Y"] != 0) {
+	  //if (DEBUG) Serial.print("LED_N_Y "); Serial.println(ob["LED_N_Y"]);
+	  LED_N_Y = ob["LED_N_Y"];
 	  }
 	*/
-	(*WifiController::getJDoc()).clear();
-	(*WifiController::getJDoc())["return"] = 1;
 }
 
 // Custom function accessible by the API
-void SlmController::get()
+void SlmController::get(JsonObject ob)
 {
 	/*
 	  WifiController::getJDoc().clear();

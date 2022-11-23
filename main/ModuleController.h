@@ -51,7 +51,7 @@ public:
     void loop();
     Module *get(AvailableModules mod);
     void get();
-    void set();
+    void set(JsonObject j);
 };
 
 extern ModuleController moduleController;

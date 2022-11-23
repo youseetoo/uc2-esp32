@@ -38,7 +38,7 @@ public:
 
     void setup() override;
     void loop() override;
-    void act() override;
-    void get() override;
-    void set() override;
+    void act(JsonObject ob) override;
+    void get(JsonObject ob) override;
+    void set(JsonObject ob) override;
 };

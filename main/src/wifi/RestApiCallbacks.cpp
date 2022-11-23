@@ -35,9 +35,10 @@ namespace RestApi
         (*WifiController::getServer()).send(404, "text/plain", message);
     }
 
-    void deserialize()
+    JsonObject deserialize()
     {
         deserializeJson(*WifiController::getJDoc(), WifiController::getServer()->arg("plain"));
+        return WifiController::getJDoc()->as<JsonObject>();
         // serializeJsonPretty((*WifiController::getJDoc()), Serial);
     }
 

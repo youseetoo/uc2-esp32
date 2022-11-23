@@ -10,8 +10,7 @@ namespace RestApi
     }
     void setModules()
     {
-        deserialize();
-        moduleController.set();
+        moduleController.set(deserialize());
         serialize();
     }
 };
@@ -139,42 +138,41 @@ void ModuleController::get()
     (*jdoc)[key_modules][key_joy] = moduleConfig->analogJoystick;
 }
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
-void ModuleController::set()
+void ModuleController::set(JsonObject j)
 {
-    DynamicJsonDocument *jdoc = WifiController::getJDoc();
-    if (jdoc->containsKey(key_modules))
+    if (j.containsKey(key_modules))
     {
-        if ((*jdoc)[key_modules].containsKey(keyLed))
-            moduleConfig->led = (*jdoc)[key_modules][keyLed];
-        if ((*jdoc)[key_modules].containsKey(key_motor))
-            moduleConfig->motor = (*jdoc)[key_modules][key_motor];
-        if ((*jdoc)[key_modules].containsKey(key_home))
-            moduleConfig->home = (*jdoc)[key_modules][key_home];
-        if ((*jdoc)[key_modules].containsKey(key_slm))
-            moduleConfig->slm = (*jdoc)[key_modules][key_slm];
-        if ((*jdoc)[key_modules].containsKey(key_analogin))
-            moduleConfig->analogin = (*jdoc)[key_modules][key_analogin];
-        if ((*jdoc)[key_modules].containsKey(key_pid))
-            moduleConfig->pid = (*jdoc)[key_modules][key_pid];
-        if ((*jdoc)[key_modules].containsKey(key_laser))
-            moduleConfig->laser = (*jdoc)[key_modules][key_laser];
-        if ((*jdoc)[key_modules].containsKey(key_dac))
-            moduleConfig->dac = (*jdoc)[key_modules][key_dac];
-        if ((*jdoc)[key_modules].containsKey(key_analogout))
-            moduleConfig->analogout = (*jdoc)[key_modules][key_analogout];
-        if ((*jdoc)[key_modules].containsKey(key_digitalout))
-            moduleConfig->digitalout = (*jdoc)[key_modules][key_digitalout];
-        if ((*jdoc)[key_modules].containsKey(key_digitalin))
-            moduleConfig->digitalin = (*jdoc)[key_modules][key_digitalin];
-        if ((*jdoc)[key_modules].containsKey(key_scanner))
-            moduleConfig->scanner = (*jdoc)[key_modules][key_scanner];
-        if ((*jdoc)[key_modules].containsKey(key_joy))
-            moduleConfig->analogJoystick = (*jdoc)[key_modules][key_joy];
+        if (j[key_modules].containsKey(keyLed))
+            moduleConfig->led = j[key_modules][keyLed];
+        if (j[key_modules].containsKey(key_motor))
+            moduleConfig->motor = j[key_modules][key_motor];
+        if (j[key_modules].containsKey(key_home))
+            moduleConfig->home = j[key_modules][key_home];
+        if (j[key_modules].containsKey(key_slm))
+            moduleConfig->slm = j[key_modules][key_slm];
+        if (j[key_modules].containsKey(key_analogin))
+            moduleConfig->analogin = j[key_modules][key_analogin];
+        if (j[key_modules].containsKey(key_pid))
+            moduleConfig->pid = j[key_modules][key_pid];
+        if (j[key_modules].containsKey(key_laser))
+            moduleConfig->laser = j[key_modules][key_laser];
+        if (j[key_modules].containsKey(key_dac))
+            moduleConfig->dac = j[key_modules][key_dac];
+        if (j[key_modules].containsKey(key_analogout))
+            moduleConfig->analogout = j[key_modules][key_analogout];
+        if (j[key_modules].containsKey(key_digitalout))
+            moduleConfig->digitalout = j[key_modules][key_digitalout];
+        if (j[key_modules].containsKey(key_digitalin))
+            moduleConfig->digitalin = j[key_modules][key_digitalin];
+        if (j[key_modules].containsKey(key_scanner))
+            moduleConfig->scanner = j[key_modules][key_scanner];
+        if (j[key_modules].containsKey(key_joy))
+            moduleConfig->analogJoystick = j[key_modules][key_joy];
         Config::setModuleConfig(moduleConfig);
         setup();
         WifiController::restartWebServer();
     }
-    jdoc->clear();
+    WifiController::getJDoc()->clear();
 }
 
 ModuleController moduleController;

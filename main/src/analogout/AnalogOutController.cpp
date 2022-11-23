@@ -5,22 +5,19 @@ namespace RestApi
 {
 	void AnalogOut_act()
     {
-        deserialize();
-		moduleController.get(AvailableModules::analogout)->act();
+		moduleController.get(AvailableModules::analogout)->act(deserialize());
         serialize();
     }
 
     void AnalogOut_get()
     {
-        deserialize();
-        moduleController.get(AvailableModules::analogout)->get();
+        moduleController.get(AvailableModules::analogout)->get(deserialize());
         serialize();
     }
 
     void AnalogOut_set()
     {
-        deserialize();
-        moduleController.get(AvailableModules::analogout)->set();
+        moduleController.get(AvailableModules::analogout)->set(deserialize());
         serialize();
     }
 }
@@ -45,13 +42,13 @@ void AnalogOutController::setup()
 }
 
 // Custom function accessible by the API
-void AnalogOutController::act()
+void AnalogOutController::act(JsonObject  ob)
 {
 	// here you can do something
 	Serial.println("analogout_act_fct");
 
-	int analogoutid = (*WifiController::getJDoc())["analogoutid"];
-	int analogoutval = (*WifiController::getJDoc())["analogoutval"];
+	int analogoutid = (ob)["analogoutid"];
+	int analogoutval = (ob)["analogoutval"];
 
 	if (DEBUG)
 	{
@@ -80,20 +77,20 @@ void AnalogOutController::act()
 	(*WifiController::getJDoc())["return"] = 1;
 }
 
-void AnalogOutController::set()
+void AnalogOutController::set(JsonObject  ob)
 {
 	// here you can set parameters
 
 	int analogoutid = 0;
-	if (WifiController::getJDoc()->containsKey("analogoutid"))
+	if (ob.containsKey("analogoutid"))
 	{
-		analogoutid = (*WifiController::getJDoc())["analogoutid"];
+		analogoutid = (ob)["analogoutid"];
 	}
 
 	int analogoutpin = 0;
-	if (WifiController::getJDoc()->containsKey("analogoutpin"))
+	if (ob.containsKey("analogoutpin"))
 	{
-		int analogoutpin = (*WifiController::getJDoc())["analogoutpin"];
+		int analogoutpin = (ob)["analogoutpin"];
 	}
 
 	if (DEBUG)
@@ -137,12 +134,11 @@ void AnalogOutController::set()
 		ledcWrite(PWM_CHANNEL_analogout_3, 0);
 	}
 	Config::setAnalogOutPins(pins);
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+
 }
 
 // Custom function accessible by the API
-void AnalogOutController::get()
+void AnalogOutController::get(JsonObject jsonDocument)
 {
 	// GET SOME PARAMETERS HERE
 	int analogoutid = (*WifiController::getJDoc())["analogoutid"];

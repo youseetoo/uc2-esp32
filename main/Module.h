@@ -1,5 +1,6 @@
 #pragma once
 #include <esp32-hal-log.h>
+#include <ArduinoJson.h>
 
 class Module
 {
@@ -8,7 +9,7 @@ class Module
 	virtual ~Module();
     virtual void setup() = 0;
     virtual void loop() = 0;
-    virtual void act() = 0;
-    virtual void set() = 0;
-    virtual void get() = 0;
+    virtual void act(JsonObject job) = 0;
+    virtual void set(JsonObject job) = 0;
+    virtual void get(JsonObject job) = 0;
 };

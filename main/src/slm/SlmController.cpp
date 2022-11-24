@@ -5,20 +5,17 @@ namespace RestApi
 {
 	void Slm_act()
 	{
-		moduleController.get(AvailableModules::slm)->act(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::slm)->act(deserialize()));
 	}
 
 	void Slm_get()
 	{
-		moduleController.get(AvailableModules::slm)->get(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::slm)->get(deserialize()));
 	}
 
 	void Slm_set()
 	{
-		moduleController.get(AvailableModules::slm)->set(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::slm)->set(deserialize()));
 	}
 }
 
@@ -28,7 +25,7 @@ SlmController::~SlmController(){};
 
 void SlmController::loop(){}
 // Custom function accessible by the API
-void SlmController::act(JsonObject  ob)
+DynamicJsonDocument SlmController::act(DynamicJsonDocument ob)
 {
 
 	// here you can do something
@@ -119,13 +116,13 @@ void SlmController::act(JsonObject  ob)
 			}
 		}
 	}
-
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	ob.clear();
+	ob["return"] = 1;
 	isBusy = false;
+	return ob;
 }
 
-void SlmController::set(JsonObject  ob)
+DynamicJsonDocument SlmController::set(DynamicJsonDocument doc)
 {
 	/*
 	  if (ob["LED_ARRAY_PIN"] != 0) {
@@ -146,7 +143,7 @@ void SlmController::set(JsonObject  ob)
 }
 
 // Custom function accessible by the API
-void SlmController::get(JsonObject ob)
+DynamicJsonDocument SlmController::get(DynamicJsonDocument doc)
 {
 	/*
 	  WifiController::getJDoc().clear();

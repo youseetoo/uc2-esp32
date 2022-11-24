@@ -15,8 +15,8 @@ void SerialProcess::loop()
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
 	{
-		DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
-		DeserializationError error = deserializeJson((*jsonDocument), Serial);
+		DynamicJsonDocument  jsonDocument(4096);
+		DeserializationError error = deserializeJson(jsonDocument, Serial);
 		// free(Serial);
 		if (error)
 		{
@@ -25,21 +25,21 @@ void SerialProcess::loop()
 			return;
 		}
 		Serial.flush();
-		if((*jsonDocument).containsKey("tasks"))
+		if(jsonDocument.containsKey("tasks"))
 		{
-			log_i("task to process:%i", (*jsonDocument)["tasks"].size());
-			for(int i =0; i < (*jsonDocument)["tasks"].size(); i++)
+			log_i("task to process:%i", jsonDocument["tasks"].size());
+			for(int i =0; i < jsonDocument["tasks"].size(); i++)
 			{
-				String task_s = (*jsonDocument)["tasks"][i]["task"];
-				JsonObject  doc = (*jsonDocument)["tasks"][i].as<JsonObject>();
+				String task_s = jsonDocument["tasks"][i]["task"];
+				JsonObject  doc = jsonDocument["tasks"][i].as<JsonObject>();
 				jsonProcessor(task_s, doc);
 			}
 		}
 		else
 		{
 			log_i("process singel task");
-			String task_s = (*jsonDocument)["task"];
-			JsonObject ob = (*jsonDocument).as<JsonObject>();
+			String task_s = jsonDocument["task"];
+			JsonObject ob = jsonDocument.as<JsonObject>();
 			jsonProcessor(task_s, ob);
 		}
 	}
@@ -52,15 +52,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		moduleController.set(jsonDocument);
 	if(task == modules_get_endpoint)
 		moduleController.get();
-	/*
-		Return state
-	*/
-	if (task == state_act_endpoint)
-		state.act();
-	if (task == state_set_endpoint)
-		state.set();
-	if (task == state_get_endpoint)
-		state.get();
 	/*
 	  Drive Motors
 	*/

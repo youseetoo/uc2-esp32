@@ -44,9 +44,9 @@ public:
 	bool isHoming = false;
 	std::array<HomeData *, 4> hdata;
 
-	void act(JsonObject  ob) override;
-	void set(JsonObject ob) override;
-	void get(JsonObject ob) override;
+	DynamicJsonDocument act(DynamicJsonDocument  ob) override;
+	DynamicJsonDocument set(DynamicJsonDocument ob) override;
+	DynamicJsonDocument get(DynamicJsonDocument ob) override;
 	void setup() override;
 	void loop() override;
 

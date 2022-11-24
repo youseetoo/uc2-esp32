@@ -2,7 +2,6 @@
 #pragma once
 #include "ArduinoJson.h"
 #include "../analogin/AnalogInController.h"
-#include "../state/State.h"
 #include "../scanner/ScannerController.h"
 #include "../digitalout/DigitalOutController.h"
 #include "../digitalin/DigitalInController.h"

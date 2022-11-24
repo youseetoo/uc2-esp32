@@ -8,20 +8,17 @@ namespace RestApi
 {
 	void DigitalIn_act()
 	{
-		moduleController.get(AvailableModules::digitalin)->act(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalin)->act(deserialize()));
 	}
 
 	void DigitalIn_get()
 	{
-		moduleController.get(AvailableModules::digitalin)->get(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalin)->get(deserialize()));
 	}
 
 	void DigitalIn_set()
 	{
-		moduleController.get(AvailableModules::digitalin)->set(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalin)->set(deserialize()));
 	}
 }
 
@@ -29,7 +26,7 @@ DigitalInController::DigitalInController(/* args */){};
 DigitalInController::~DigitalInController(){};
 
 // Custom function accessible by the API
-void DigitalInController::act(JsonObject jsonDocument)
+DynamicJsonDocument DigitalInController::act(DynamicJsonDocument jsonDocument)
 {
 	// here you can do something
 	Serial.println("digitalin_act_fct");
@@ -37,7 +34,7 @@ void DigitalInController::act(JsonObject jsonDocument)
 	(jsonDocument)["return"] = 1;
 }
 
-void DigitalInController::set(JsonObject  jsonDocument)
+DynamicJsonDocument DigitalInController::set(DynamicJsonDocument  jsonDocument)
 {
 	// here you can set parameters
 	int digitalinid = (jsonDocument)["digitalinid"];
@@ -72,11 +69,11 @@ void DigitalInController::set(JsonObject  jsonDocument)
 }
 
 // Custom function accessible by the API
-void DigitalInController::get(JsonObject  j)
+DynamicJsonDocument DigitalInController::get(DynamicJsonDocument  jsonDocument)
 {
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
+	
 	// GET SOME PARAMETERS HERE
-	int digitalinid = (*jsonDocument)["digitalinid"];
+	int digitalinid = jsonDocument["digitalinid"];
 	int digitalinpin = 0;
 	int digitalinval = 0;
 
@@ -106,10 +103,11 @@ void DigitalInController::get(JsonObject  j)
 		digitalinval = digitalin_val_3;
 	}
 
-	jsonDocument->clear();
-	(*jsonDocument)["digitalinid"] = digitalinid;
-	(*jsonDocument)["digitalinval"] = digitalinval;
-	(*jsonDocument)["digitalinpin"] = digitalinpin;
+	jsonDocument.clear();
+	jsonDocument["digitalinid"] = digitalinid;
+	jsonDocument["digitalinval"] = digitalinval;
+	jsonDocument["digitalinpin"] = digitalinpin;
+	return jsonDocument;
 }
 
 void DigitalInController::setup()

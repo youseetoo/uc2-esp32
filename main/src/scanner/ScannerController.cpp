@@ -85,7 +85,7 @@ void ScannerController::loop()
 }
 
 // Custom function accessible by the API
-void ScannerController::act(JsonObject ob)
+DynamicJsonDocument ScannerController::act(DynamicJsonDocument ob)
 {
 
 	// here you can do something
@@ -297,12 +297,12 @@ void ScannerController::act(JsonObject ob)
 	}
 }
 
-void ScannerController::set(JsonObject  ob)
+DynamicJsonDocument ScannerController::set(DynamicJsonDocument  ob)
 {
 }
 
 // Custom function accessible by the API
-void ScannerController::get(JsonObject  ob)
+DynamicJsonDocument ScannerController::get(DynamicJsonDocument  ob)
 {
 }
 

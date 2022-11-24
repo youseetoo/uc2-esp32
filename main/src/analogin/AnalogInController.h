@@ -18,9 +18,9 @@ public:
     int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
 
     void setup() override;
-    void act(JsonObject jsonDocument) override;
-    void set(JsonObject jsonDocument) override;
-    void get(JsonObject jsonDocument) override;
+    DynamicJsonDocument act(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument set(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void loop() override;
 };
 

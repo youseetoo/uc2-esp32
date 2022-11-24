@@ -4,14 +4,11 @@ namespace RestApi
 {
     void getModules()
     {
-        deserialize();
-        moduleController.get();
-        serialize();
+        serialize(moduleController.get());
     }
     void setModules()
     {
-        moduleController.set(deserialize());
-        serialize();
+        serialize(moduleController.set(deserialize()));
     }
 };
 
@@ -119,26 +116,26 @@ Module *ModuleController::get(AvailableModules mod)
     return modules[mod];
 }
 
-void ModuleController::get()
+DynamicJsonDocument ModuleController::get()
 {
-    DynamicJsonDocument *jdoc = WifiController::getJDoc();
-    jdoc->clear();
-    (*jdoc)[key_modules][keyLed] = moduleConfig->led;
-    (*jdoc)[key_modules][key_motor] = moduleConfig->motor;
-    (*jdoc)[key_modules][key_home] = moduleConfig->home;
-    (*jdoc)[key_modules][key_slm] = moduleConfig->slm;
-    (*jdoc)[key_modules][key_analogin] = moduleConfig->analogin;
-    (*jdoc)[key_modules][key_pid] = moduleConfig->pid;
-    (*jdoc)[key_modules][key_laser] = moduleConfig->laser;
-    (*jdoc)[key_modules][key_dac] = moduleConfig->dac;
-    (*jdoc)[key_modules][key_analogout] = moduleConfig->analogout;
-    (*jdoc)[key_modules][key_digitalout] = moduleConfig->digitalout;
-    (*jdoc)[key_modules][key_digitalin] = moduleConfig->digitalin;
-    (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
-    (*jdoc)[key_modules][key_joy] = moduleConfig->analogJoystick;
+    DynamicJsonDocument doc(4096);
+    doc[key_modules][keyLed] = moduleConfig->led;
+    doc[key_modules][key_motor] = moduleConfig->motor;
+    doc[key_modules][key_home] = moduleConfig->home;
+    doc[key_modules][key_slm] = moduleConfig->slm;
+    doc[key_modules][key_analogin] = moduleConfig->analogin;
+    doc[key_modules][key_pid] = moduleConfig->pid;
+    doc[key_modules][key_laser] = moduleConfig->laser;
+    doc[key_modules][key_dac] = moduleConfig->dac;
+    doc[key_modules][key_analogout] = moduleConfig->analogout;
+    doc[key_modules][key_digitalout] = moduleConfig->digitalout;
+    doc[key_modules][key_digitalin] = moduleConfig->digitalin;
+    doc[key_modules][key_scanner] = moduleConfig->scanner;
+    doc[key_modules][key_joy] = moduleConfig->analogJoystick;
+    return doc;
 }
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
-void ModuleController::set(JsonObject j)
+DynamicJsonDocument ModuleController::set(DynamicJsonDocument j)
 {
     if (j.containsKey(key_modules))
     {
@@ -172,7 +169,6 @@ void ModuleController::set(JsonObject j)
         setup();
         WifiController::restartWebServer();
     }
-    WifiController::getJDoc()->clear();
 }
 
 ModuleController moduleController;

@@ -5,34 +5,30 @@ namespace RestApi
 {
 	void FocusMotor_act()
 	{
-		moduleController.get(AvailableModules::motor)->act(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::motor)->act(deserialize()));
 	}
 
 	void FocusMotor_get()
 	{
-		moduleController.get(AvailableModules::motor)->get(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::motor)->get(deserialize()));
 	}
 
 	void FocusMotor_set()
 	{
-		moduleController.get(AvailableModules::motor)->set(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::motor)->set(deserialize()));
 	}
 
 	void FocusMotor_setCalibration()
 	{
 		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-		motor->setMinMaxRange(deserialize());
-		serialize();
+		serialize(motor->setMinMaxRange(deserialize()));
 	}
 }
 
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
 FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
-void FocusMotor::act(JsonObject doc)
+DynamicJsonDocument FocusMotor::act(DynamicJsonDocument doc)
 {
 	if (DEBUG)
 		Serial.println("motor_act_fct");
@@ -71,7 +67,8 @@ void FocusMotor::act(JsonObject doc)
 					{
 						if ((pins[s]->current_position + data[s]->speed / 200 >= pins[s]->max_position && data[s]->speed > 0) || (pins[s]->current_position + data[s]->speed / 200 <= pins[s]->min_position && data[s]->speed < 0))
 						{
-							return;
+							doc.clear();
+							return doc;
 						}
 						else
 							startStepper(s);
@@ -82,7 +79,8 @@ void FocusMotor::act(JsonObject doc)
 			}
 		}
 	}
-	WifiController::getJDoc()->clear();
+	doc.clear();
+	return doc;
 }
 
 void FocusMotor::startStepper(int i)
@@ -115,7 +113,7 @@ void FocusMotor::startStepper(int i)
 	pins[i]->current_position = steppers[i]->currentPosition();
 }
 
-void FocusMotor::set(JsonObject doc)
+DynamicJsonDocument FocusMotor::set(DynamicJsonDocument doc)
 {
 	if (doc.containsKey(key_motor))
 	{
@@ -137,7 +135,7 @@ void FocusMotor::set(JsonObject doc)
 	}
 }
 
-void FocusMotor::setMinMaxRange(JsonObject  doc)
+DynamicJsonDocument FocusMotor::setMinMaxRange(DynamicJsonDocument  doc)
 {
 	if (doc.containsKey(key_motor))
 	{
@@ -180,25 +178,25 @@ void FocusMotor::applyMaxPos(int i)
 	Config::setMotorPinConfig(pins);
 }
 
-void FocusMotor::get(JsonObject ob)
+DynamicJsonDocument FocusMotor::get(DynamicJsonDocument ob)
 {
-	DynamicJsonDocument *doc = WifiController::getJDoc();
-	doc->clear();
+	ob.clear();
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		(*doc)[key_steppers][i][key_stepperid] = i;
-		(*doc)[key_steppers][i][key_dir] = pins[i]->DIR;
-		(*doc)[key_steppers][i][key_step] = pins[i]->STEP;
-		(*doc)[key_steppers][i][key_enable] = pins[i]->ENABLE;
-		(*doc)[key_steppers][i][key_dir_inverted] = pins[i]->direction_inverted;
-		(*doc)[key_steppers][i][key_step_inverted] = pins[i]->step_inverted;
-		(*doc)[key_steppers][i][key_enable_inverted] = pins[i]->enable_inverted;
-		(*doc)[key_steppers][i][key_speed] = data[i]->speed;
-		(*doc)[key_steppers][i][key_speedmax] = data[i]->maxspeed;
-		(*doc)[key_steppers][i][key_max_position] = pins[i]->max_position;
-		(*doc)[key_steppers][i][key_min_position] = pins[i]->min_position;
-		(*doc)[key_steppers][i][key_position] = pins[i]->current_position;
+		ob[key_steppers][i][key_stepperid] = i;
+		ob[key_steppers][i][key_dir] = pins[i]->DIR;
+		ob[key_steppers][i][key_step] = pins[i]->STEP;
+		ob[key_steppers][i][key_enable] = pins[i]->ENABLE;
+		ob[key_steppers][i][key_dir_inverted] = pins[i]->direction_inverted;
+		ob[key_steppers][i][key_step_inverted] = pins[i]->step_inverted;
+		ob[key_steppers][i][key_enable_inverted] = pins[i]->enable_inverted;
+		ob[key_steppers][i][key_speed] = data[i]->speed;
+		ob[key_steppers][i][key_speedmax] = data[i]->maxspeed;
+		ob[key_steppers][i][key_max_position] = pins[i]->max_position;
+		ob[key_steppers][i][key_min_position] = pins[i]->min_position;
+		ob[key_steppers][i][key_position] = pins[i]->current_position;
 	}
+	return ob;
 }
 
 void FocusMotor::setup()
@@ -315,12 +313,11 @@ void FocusMotor::loop()
 
 void FocusMotor::sendMotorPos(int i, int arraypos)
 {
-	DynamicJsonDocument *jdoc = WifiController::getJDoc();
-	jdoc->clear();
-	(*jdoc)[key_steppers][arraypos][key_stepperid] = i;
-	(*jdoc)[key_steppers][arraypos][key_position] = pins[i]->current_position;
+	DynamicJsonDocument doc(4096);
+	doc[key_steppers][arraypos][key_stepperid] = i;
+	doc[key_steppers][arraypos][key_position] = pins[i]->current_position;
 	arraypos++;
-	WifiController::sendJsonWebSocketMsg();
+	WifiController::sendJsonWebSocketMsg(doc);
 }
 
 void FocusMotor::stopAllDrives()

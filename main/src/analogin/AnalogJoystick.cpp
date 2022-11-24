@@ -4,13 +4,11 @@ namespace RestApi
 {
     void AnalogJoystick_set()
     {
-        moduleController.get(AvailableModules::analogJoystick)->set(deserialize());
-        serialize();
+        serialize(moduleController.get(AvailableModules::analogJoystick)->set(deserialize()));
     }
     void AnalogJoystick_get()
     {
-        moduleController.get(AvailableModules::analogJoystick)->get(deserialize());
-        serialize();
+        serialize(moduleController.get(AvailableModules::analogJoystick)->get(deserialize()));
     }
 };
 
@@ -23,8 +21,8 @@ void AnalogJoystick::setup()
     pinMode(pins->x_pin, INPUT);
     pinMode(pins->y_pin, INPUT);
 }
-void AnalogJoystick::act(JsonObject jsonDocument) {}
-void AnalogJoystick::set(JsonObject doc) {
+DynamicJsonDocument AnalogJoystick::act(DynamicJsonDocument jsonDocument) {}
+DynamicJsonDocument AnalogJoystick::set(DynamicJsonDocument doc) {
 	if (doc.containsKey(key_joy))
     {
         if((doc)[key_joy].containsKey(key_joiypinX))
@@ -36,11 +34,10 @@ void AnalogJoystick::set(JsonObject doc) {
     Config::setAnalogJoyStickPins(pins);
     setup();
 }
-void AnalogJoystick::get(JsonObject  jsonDocument) {
-    DynamicJsonDocument *doc = WifiController::getJDoc();
-    doc->clear();
-    (*doc)[key_joy][key_joiypinX] = pins->x_pin;
-    (*doc)[key_joy][key_joiypinY] = pins->y_pin;
+DynamicJsonDocument AnalogJoystick::get(DynamicJsonDocument  doc) {
+    doc.clear();
+    doc[key_joy][key_joiypinX] = pins->x_pin;
+    doc[key_joy][key_joiypinY] = pins->y_pin;
 }
 void AnalogJoystick::loop()
 {

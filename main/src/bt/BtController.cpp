@@ -4,16 +4,14 @@ namespace RestApi
 {
     void Bt_startScan()
     {
-        deserialize();
-        BtController::scanForDevices(WifiController::getJDoc());
-        serialize();
+        serialize(BtController::scanForDevices(deserialize()));
     }
 
     void Bt_connect()
     {
-        deserialize();
-        String mac = (*WifiController::getJDoc())["mac"];
-        int ps = (*WifiController::getJDoc())["psx"];
+        DynamicJsonDocument doc = deserialize();
+        String mac = doc["mac"];
+        int ps = doc["psx"];
        
         if (ps == 0)
         {
@@ -25,24 +23,22 @@ namespace RestApi
         }
         
         
-        WifiController::getJDoc()->clear();
-        serialize();
+        doc.clear();
+        serialize(doc);
     }
 
     void Bt_getPairedDevices()
     {
-        deserialize();
-        BtController::getPairedDevices(WifiController::getJDoc());
-        serialize();
+        serialize(BtController::getPairedDevices(deserialize()));
     }
 
     void Bt_remove()
     {
-        deserialize();
-        String mac = (*WifiController::getJDoc())["mac"];
+        DynamicJsonDocument doc = deserialize();
+        String mac = doc["mac"];
         BtController::removePairedDevice(mac);
-        WifiController::getJDoc()->clear();
-        serialize();
+        doc.clear();
+        serialize(doc);
     }
 }
 
@@ -67,20 +63,21 @@ namespace BtController
         btClassic.begin("ESP32-BLE-1");
     }
 
-    void scanForDevices(DynamicJsonDocument *jdoc)
+    DynamicJsonDocument scanForDevices(DynamicJsonDocument jdoc)
     {
         log_i("Start scanning BT");
         BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
-        (*jdoc).clear();
+        jdoc.clear();
         for (int i = 0; i < foundDevices->getCount(); i++)
         {
             log_i("Device %i %s", i, foundDevices->getDevice(i)->toString().c_str());
-            JsonObject ob = (*jdoc).createNestedObject();
+            JsonObject ob = jdoc.createNestedObject();
             ob["name"] = foundDevices->getDevice(i)->getName();
             ob["mac"] = foundDevices->getDevice(i)->getAddress().toString();
         }
         // pBLEScan->clearResults();
         // pBLEScan->stop();
+        return jdoc;
     }
 
 #define PAIR_MAX_DEVICES 20
@@ -97,14 +94,14 @@ namespace BtController
         return str;
     }
 
-    void getPairedDevices(DynamicJsonDocument *jdoc)
+    DynamicJsonDocument getPairedDevices(DynamicJsonDocument jdoc)
     {
-        jdoc->clear();
+        jdoc.clear();
         int count = esp_bt_gap_get_bond_device_num();
         if (!count)
         {
             log_i("No bonded device found.");
-            JsonObject ob = (*jdoc).createNestedObject();
+            JsonObject ob = jdoc.createNestedObject();
             ob["name"] = "No bonded device found";
         }
         else
@@ -121,12 +118,13 @@ namespace BtController
             {
                 for (int i = 0; i < count; i++)
                 {
-                    JsonObject ob = (*jdoc).createNestedObject();
+                    JsonObject ob = jdoc.createNestedObject();
                     ob["name"] = "";
                     ob["mac"] = bda2str(pairedDeviceBtAddr[i], bda_str, 18);
                 }
             }
         }
+        return jdoc;
     }
 
     void setMacAndConnect(String m)

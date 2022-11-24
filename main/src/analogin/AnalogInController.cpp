@@ -8,7 +8,7 @@ AnalogInController::~AnalogInController(){};
 void AnalogInController::loop() {}
 
 // Custom function accessible by the API
-void AnalogInController::act(JsonObject ob) {
+DynamicJsonDocument AnalogInController::act(DynamicJsonDocument ob) {
 
   // here you can do something
   if (DEBUG) Serial.println("readanalogin_act_fct");
@@ -37,16 +37,17 @@ void AnalogInController::act(JsonObject ob) {
   }
   float returnValue = (float)analoginValueAvg / (float)N_analogin_avg;
 
-  WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["analoginValue"] = returnValue;
-  (*WifiController::getJDoc())["analoginpin"] = analoginpin;
-  (*WifiController::getJDoc())["N_analogin_avg"] = N_analogin_avg;
+  ob.clear();
+  ob["analoginValue"] = returnValue;
+  ob["analoginpin"] = analoginpin;
+  ob["N_analogin_avg"] = N_analogin_avg;
+  return ob;
 
 }
 
 
 
-void AnalogInController::get(JsonObject ob) {
+DynamicJsonDocument AnalogInController::get(DynamicJsonDocument ob) {
   if (DEBUG) Serial.println("readanalogin_set_fct");
   int readanaloginID = (int)(ob)["readanaloginID"];
   int readanaloginPIN = (int)(ob)["readanaloginPIN"];
@@ -66,15 +67,16 @@ void AnalogInController::get(JsonObject ob) {
   }
 
 
-  WifiController::getJDoc()->clear();
-  (*WifiController::getJDoc())["readanaloginPIN"] = readanaloginPIN;
-  (*WifiController::getJDoc())["readanaloginID"] = readanaloginID;
+  ob.clear();
+  ob["readanaloginPIN"] = readanaloginPIN;
+  ob["readanaloginID"] = readanaloginID;
+  return ob;
 }
 
 
 
 // Custom function accessible by the API
-void AnalogInController::set(JsonObject jsonDocument) {
+DynamicJsonDocument AnalogInController::set(DynamicJsonDocument jsonDocument) {
 if (DEBUG) Serial.println("readanalogin_get_fct");
   int readanaloginID = (int)(jsonDocument)["readanaloginID"];
   int readanaloginPIN = 0;

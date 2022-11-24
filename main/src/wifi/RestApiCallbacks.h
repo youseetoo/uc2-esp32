@@ -26,12 +26,11 @@ namespace RestApi
     /*
         load the body data from the client request into the jsondoc
     */
-    JsonObject deserialize();
+    DynamicJsonDocument deserialize();
     /*
         fill the input from the jsondoc and send a response to the client
     */
-    void serialize();
-    void getIdentity();
+    void serialize(DynamicJsonDocument doc);
     /*
         returns an array that contains the endpoints
         endpoint:/features_get or /

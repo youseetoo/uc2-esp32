@@ -12,12 +12,6 @@ namespace RestApi
         delay(500);
     }
 
-    void getIdentity()
-    {
-        // if(DEBUG) Serial.println("Get Identity");
-        WifiController::getServer()->send(200, "application/json", state.identifier_name);
-    }
-
     void handleNotFound()
     {
         String message = "File Not Found\n\n";
@@ -35,17 +29,19 @@ namespace RestApi
         (*WifiController::getServer()).send(404, "text/plain", message);
     }
 
-    JsonObject deserialize()
+    DynamicJsonDocument deserialize()
     {
-        deserializeJson(*WifiController::getJDoc(), WifiController::getServer()->arg("plain"));
-        return WifiController::getJDoc()->as<JsonObject>();
+        String plain = WifiController::getServer()->arg("plain");
+        DynamicJsonDocument doc(plain.length());
+        deserializeJson(doc, plain);
+        return doc;
         // serializeJsonPretty((*WifiController::getJDoc()), Serial);
     }
 
-    void serialize()
+    void serialize(DynamicJsonDocument doc)
     {
         // serializeJsonPretty((*WifiController::getJDoc()), Serial);
-        serializeJson((*WifiController::getJDoc()), output);
+        serializeJson(doc, output);
         WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
         WifiController::getServer()->send_P(200, "application/json", output);
     }
@@ -91,74 +87,69 @@ namespace RestApi
 
     void getEndpoints()
     {
-        deserialize();
-        WifiController::getJDoc()->clear();
-        (*WifiController::getJDoc()).add(ota_endpoint);
-        (*WifiController::getJDoc()).add(update_endpoint);
-        (*WifiController::getJDoc()).add(identity_endpoint);
+        DynamicJsonDocument doc(4096);
+        doc.add(ota_endpoint);
+        doc.add(update_endpoint);
+        doc.add(identity_endpoint);
 
-        (*WifiController::getJDoc()).add(state_act_endpoint);
-        (*WifiController::getJDoc()).add(state_set_endpoint);
-        (*WifiController::getJDoc()).add(state_get_endpoint);
-
-        (*WifiController::getJDoc()).add(scanwifi_endpoint);
-        (*WifiController::getJDoc()).add(connectwifi_endpoint);
+        doc.add(scanwifi_endpoint);
+        doc.add(connectwifi_endpoint);
 
         if (moduleController.get(AvailableModules::laser) != nullptr)
         {
-            (*WifiController::getJDoc()).add(laser_act_endpoint);
-            (*WifiController::getJDoc()).add(laser_set_endpoint);
-            (*WifiController::getJDoc()).add(laser_get_endpoint);
+            doc.add(laser_act_endpoint);
+            doc.add(laser_set_endpoint);
+            doc.add(laser_get_endpoint);
         }
         if (moduleController.get(AvailableModules::motor) != nullptr)
         {
-            (*WifiController::getJDoc()).add(motor_act_endpoint);
-            (*WifiController::getJDoc()).add(motor_set_endpoint);
-            (*WifiController::getJDoc()).add(motor_get_endpoint);
+            doc.add(motor_act_endpoint);
+            doc.add(motor_set_endpoint);
+            doc.add(motor_get_endpoint);
         }
         if (moduleController.get(AvailableModules::pid) != nullptr)
         {
-            (*WifiController::getJDoc()).add(PID_act_endpoint);
-            (*WifiController::getJDoc()).add(PID_set_endpoint);
-            (*WifiController::getJDoc()).add(PID_get_endpoint);
+            doc.add(PID_act_endpoint);
+            doc.add(PID_set_endpoint);
+            doc.add(PID_get_endpoint);
         }
         if (moduleController.get(AvailableModules::analogout) != nullptr)
         {
-            (*WifiController::getJDoc()).add(analogout_act_endpoint);
-            (*WifiController::getJDoc()).add(analogout_set_endpoint);
-            (*WifiController::getJDoc()).add(analogout_get_endpoint);
+            doc.add(analogout_act_endpoint);
+            doc.add(analogout_set_endpoint);
+            doc.add(analogout_get_endpoint);
         }
         if (moduleController.get(AvailableModules::digitalout) != nullptr)
         {
-            (*WifiController::getJDoc()).add(digitalout_act_endpoint);
-            (*WifiController::getJDoc()).add(digitalout_set_endpoint);
-            (*WifiController::getJDoc()).add(digitalout_get_endpoint);
+            doc.add(digitalout_act_endpoint);
+            doc.add(digitalout_set_endpoint);
+            doc.add(digitalout_get_endpoint);
         }
         if (moduleController.get(AvailableModules::digitalin) != nullptr)
         {
-            (*WifiController::getJDoc()).add(digitalin_act_endpoint);
-            (*WifiController::getJDoc()).add(digitalin_set_endpoint);
-            (*WifiController::getJDoc()).add(digitalin_get_endpoint);
+            doc.add(digitalin_act_endpoint);
+            doc.add(digitalin_set_endpoint);
+            doc.add(digitalin_get_endpoint);
         }
         if (moduleController.get(AvailableModules::dac) != nullptr)
         {
-            (*WifiController::getJDoc()).add(dac_act_endpoint);
-            (*WifiController::getJDoc()).add(dac_set_endpoint);
-            (*WifiController::getJDoc()).add(dac_get_endpoint);
+            doc.add(dac_act_endpoint);
+            doc.add(dac_set_endpoint);
+            doc.add(dac_get_endpoint);
         }
         if (moduleController.get(AvailableModules::slm) != nullptr)
         {
-            (*WifiController::getJDoc()).add(slm_act_endpoint);
-            (*WifiController::getJDoc()).add(slm_set_endpoint);
-            (*WifiController::getJDoc()).add(slm_get_endpoint);
+            doc.add(slm_act_endpoint);
+            doc.add(slm_set_endpoint);
+            doc.add(slm_get_endpoint);
         }
         if (moduleController.get(AvailableModules::led) != nullptr)
         {
-            (*WifiController::getJDoc()).add(ledarr_act_endpoint);
-            (*WifiController::getJDoc()).add(ledarr_set_endpoint);
-            (*WifiController::getJDoc()).add(ledarr_get_endpoint);
+            doc.add(ledarr_act_endpoint);
+            doc.add(ledarr_set_endpoint);
+            doc.add(ledarr_get_endpoint);
         }
-        serialize();
+        serialize(doc);
     }
 
 }

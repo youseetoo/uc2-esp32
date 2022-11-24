@@ -2,7 +2,6 @@
 #if defined IS_PS3 || defined IS_PS4
 #pragma once
 
-#include "../state/State.h"
 #include "../laser/LaserController.h"
 #include "../analogin/AnalogInController.h"
 #ifdef IS_PS4
@@ -11,6 +10,15 @@
 #ifdef IS_PS3
 #include "Ps3Controller.h"
 #endif
+
+static int8_t sgn(int val)
+{
+	if (val < 0)
+		return -1;
+	if (val == 0)
+		return 0;
+	return 1;
+}
 
 class ps_3_4_controller
 {

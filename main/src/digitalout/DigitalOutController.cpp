@@ -8,20 +8,17 @@ namespace RestApi
 {
 	void DigitalOut_act()
 	{
-		moduleController.get(AvailableModules::digitalout)->act(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalout)->act(deserialize()));
 	}
 
 	void DigitalOut_get()
 	{
-		moduleController.get(AvailableModules::digitalout)->get(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalout)->get(deserialize()));
 	}
 
 	void DigitalOut_set()
 	{
-		moduleController.get(AvailableModules::digitalout)->set(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalout)->set(deserialize()));
 	}
 }
 
@@ -29,7 +26,7 @@ DigitalOutController::DigitalOutController(/* args */){};
 DigitalOutController::~DigitalOutController(){};
 
 // Custom function accessible by the API
-void DigitalOutController::act(JsonObject jsonDocument)
+DynamicJsonDocument DigitalOutController::act(DynamicJsonDocument jsonDocument)
 {
 	// here you can do something
 	Serial.println("digitalout_act_fct");
@@ -102,7 +99,7 @@ void DigitalOutController::act(JsonObject jsonDocument)
 	(jsonDocument)["return"] = 1;
 }
 
-void DigitalOutController::set(JsonObject jsonDocument)
+DynamicJsonDocument DigitalOutController::set(DynamicJsonDocument jsonDocument)
 {
 	// here you can set parameters
 	int digitaloutid = (jsonDocument)["digitaloutid"];
@@ -140,11 +137,10 @@ void DigitalOutController::set(JsonObject jsonDocument)
 }
 
 // Custom function accessible by the API
-void DigitalOutController::get(JsonObject j)
+DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 {
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	// GET SOME PARAMETERS HERE
-	int digitaloutid = (*jsonDocument)["digitaloutid"];
+	int digitaloutid = jsonDocument["digitaloutid"];
 	int digitaloutpin = 0;
 	int digitaloutval = 0;
 
@@ -174,10 +170,11 @@ void DigitalOutController::get(JsonObject j)
 		digitaloutval = digitalout_val_3;
 	}
 
-	jsonDocument->clear();
-	(*jsonDocument)["digitaloutid"] = digitaloutid;
-	(*jsonDocument)["digitaloutval"] = digitaloutval;
-	(*jsonDocument)["digitaloutpin"] = digitaloutpin;
+	jsonDocument.clear();
+	jsonDocument["digitaloutid"] = digitaloutid;
+	jsonDocument["digitaloutval"] = digitaloutval;
+	jsonDocument["digitaloutpin"] = digitaloutpin;
+	return jsonDocument;
 }
 
 void DigitalOutController::setup()

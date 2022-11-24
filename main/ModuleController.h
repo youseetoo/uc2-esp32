@@ -50,8 +50,8 @@ public:
     void setup();
     void loop();
     Module *get(AvailableModules mod);
-    void get();
-    void set(JsonObject j);
+    DynamicJsonDocument get();
+    DynamicJsonDocument set(DynamicJsonDocument j);
 };
 
 extern ModuleController moduleController;

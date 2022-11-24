@@ -28,9 +28,9 @@ public:
     int digitalin_val_2 = 0;
     int digitalin_val_3 = 0;
 
-    void act(JsonObject jsonDocument) override;
-    void set(JsonObject jsonDocument) override;
-    void get(JsonObject jsonDocument) override;
+    DynamicJsonDocument act(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument set(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void setup() override;
     void loop() override;
 };

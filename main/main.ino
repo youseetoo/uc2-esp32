@@ -2,8 +2,6 @@
 #include "ArduinoJson.h"
 #include "esp_log.h"
 
-#include "src/state/State.h"
-
 
 #if defined IS_PS4 || defined IS_PS3
 #include "src/gamepads/ps_3_4_controller.h"
@@ -27,18 +25,9 @@ void setup()
 	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
 
 	// for any timing related puposes..
-	state.startMillis = millis();
-	log_i("wifi.createJsonDoc()");
-	WifiController::createJsonDoc();
-
-	log_i("state.setup");
-	state.setup();
-	state.printInfo();
 
 	log_i("Config::setup");
 	Config::setup();
-
-	WifiController::getJDoc()->clear();
 	
 	// connect to wifi if necessary
 	log_i("wifi.setup");
@@ -61,7 +50,6 @@ void setup()
 void loop()
 {
 	// for any timing-related purposes
-	state.currentMillis = millis();
 	serial.loop();
 	WifiController::handelMessages();
 	moduleController.loop();

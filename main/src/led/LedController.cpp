@@ -5,20 +5,18 @@ namespace RestApi
 {
 	void Led_act()
 	{
-		moduleController.get(AvailableModules::led)->act(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::led)->act(deserialize()));
 	}
 
 	void Led_get()
 	{
-		moduleController.get(AvailableModules::led)->get(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::led)->get(deserialize()));
+
 	}
 
 	void Led_set()
 	{
-		moduleController.get(AvailableModules::led)->set(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::led)->set(deserialize()));
 	}
 }
 
@@ -47,7 +45,7 @@ void LedController::loop()
 }
 
 // Custom function accessible by the API
-void LedController::act(JsonObject ob)
+DynamicJsonDocument LedController::act(DynamicJsonDocument ob)
 {
 	if (ob.containsKey(keyLed))
 	{
@@ -131,13 +129,14 @@ void LedController::act(JsonObject ob)
 		log_i("failed to parse json. required keys are led_array,LEDArrMode");
 	}
 
-	WifiController::getJDoc()->clear();
+	ob.clear();
 	isBusy = false;
+	return ob;
 }
 
 //{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}
 //{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"0","red":"0","green":"0"}]}}
-void LedController::set(JsonObject ob)
+DynamicJsonDocument LedController::set(DynamicJsonDocument ob)
 {
 	if (ob.containsKey(keyLed))
 	{
@@ -152,20 +151,21 @@ void LedController::set(JsonObject ob)
 }
 
 // Custom function accessible by the API
-void LedController::get(JsonObject ob)
+DynamicJsonDocument LedController::get(DynamicJsonDocument ob)
 {
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())[keyLEDCount] = ledconfig->ledCount;
-	(*WifiController::getJDoc())[keyLEDPin] = ledconfig->ledPin;
-	(*WifiController::getJDoc())[keyLEDArrMode].add(0);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(1);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(2);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(3);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(4);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(5);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(6);
-	(*WifiController::getJDoc())[keyLEDArrMode].add(7);
-	(*WifiController::getJDoc())[key_led_isOn] = isOn;
+	ob.clear();
+	ob[keyLEDCount] = ledconfig->ledCount;
+	ob[keyLEDPin] = ledconfig->ledPin;
+	ob[keyLEDArrMode].add(0);
+	ob[keyLEDArrMode].add(1);
+	ob[keyLEDArrMode].add(2);
+	ob[keyLEDArrMode].add(3);
+	ob[keyLEDArrMode].add(4);
+	ob[keyLEDArrMode].add(5);
+	ob[keyLEDArrMode].add(6);
+	ob[keyLEDArrMode].add(7);
+	ob[key_led_isOn] = isOn;
+	return ob;
 }
 
 /***************************************************************************************************/

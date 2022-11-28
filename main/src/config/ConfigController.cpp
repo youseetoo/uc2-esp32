@@ -270,21 +270,23 @@ namespace Config
 
 	bool resertOnFirstBoot()
 	{
+		// check if boot for the first time
+		preferences.begin(prefNamespace, false);
 		bool rdystate = preferences.begin(prefNamespace, false);
 		log_i("resertOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
+		
 		// define preference name
 		const char *compiled_date = __DATE__ " " __TIME__;
 		String stored_date = preferences.getString(dateKey, ""); // FIXME
-
 		log_i("Stored date: %s", stored_date.c_str());
 		log_i("Compiled date: %s", compiled_date);
 
+		// check if preference name is the same as compiled date -> if so, reset pin configurations
 		if (!stored_date.equals(compiled_date))
 		{
 			log_i("yes, resetSettings");
 			resetPreferences();
 			preferences.putString(dateKey, compiled_date); // FIXME?
-
 		}
 		else
 		{

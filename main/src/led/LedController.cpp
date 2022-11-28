@@ -93,6 +93,7 @@ void LedController::act()
 					(*jDoc)[keyLed][key_led_array][i][keyGreen],
 					(*jDoc)[keyLed][key_led_array][i][keyBlue]);
 			}
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -104,7 +105,7 @@ void LedController::act()
 				(*jDoc)[keyLed][key_led_array][0][keyRed],
 				(*jDoc)[keyLed][key_led_array][0][keyGreen],
 				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
-
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -116,7 +117,7 @@ void LedController::act()
 			u_int8_t b = (*jDoc)[keyLed][key_led_array][0][keyBlue];
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
 			set_all(r, g, b);
-
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -128,6 +129,7 @@ void LedController::act()
 				(*jDoc)[keyLed][key_led_array][0][keyRed],
 				(*jDoc)[keyLed][key_led_array][0][keyGreen],
 				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -139,6 +141,7 @@ void LedController::act()
 				(*jDoc)[keyLed][key_led_array][0][keyRed],
 				(*jDoc)[keyLed][key_led_array][0][keyGreen],
 				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -150,6 +153,7 @@ void LedController::act()
 				(*jDoc)[keyLed][key_led_array][0][keyRed],
 				(*jDoc)[keyLed][key_led_array][0][keyGreen],
 				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -161,6 +165,7 @@ void LedController::act()
 				(*jDoc)[keyLed][key_led_array][0][keyRed],
 				(*jDoc)[keyLed][key_led_array][0][keyGreen],
 				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			matrix->show(); //  Update strip to match
 			jDoc->clear();
 			(*jDoc)[key_return] = LEDArrMode;
 		}
@@ -229,7 +234,6 @@ void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)
 	{
 		set_led_RGB(i, R, G, B);
 	}
-	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -248,7 +252,6 @@ void LedController::set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, LED_PATTERN_DPC_LEFT_8x8[i] * R, LED_PATTERN_DPC_LEFT_8x8[i] * G, LED_PATTERN_DPC_LEFT_8x8[i] * B);
 		}
 	}
-	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -267,7 +270,6 @@ void LedController::set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * R, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * G, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * B);
 		}
 	}
-	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -286,7 +288,6 @@ void LedController::set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, (LED_PATTERN_DPC_TOP_8x8[i]) * R, (LED_PATTERN_DPC_TOP_8x8[i]) * G, (LED_PATTERN_DPC_TOP_8x8[i]) * B);
 		}
 	}
-	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -305,7 +306,6 @@ void LedController::set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B
 			set_led_RGB(i, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * R, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * G, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * B);
 		}
 	}
-	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)

@@ -19,7 +19,7 @@ namespace RestApi
         }
         else 
         {
-            ps_c.start(mac);
+            BtController::connectPsxController(mac);
         }
         
         
@@ -46,6 +46,7 @@ namespace BtController
 {
 
     BluetoothSerial btClassic;
+    PsXController psx;
 
     bool doConnect = false;
     bool connected = false;
@@ -60,11 +61,17 @@ namespace BtController
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-        btClassic.begin("ESP32-BLE-1");
+        
+    }
+
+    void loop()
+    {
+        psx.loop();
     }
 
     DynamicJsonDocument scanForDevices(DynamicJsonDocument jdoc)
     {
+        btClassic.begin("ESP32-BLE-1");
         log_i("Start scanning BT");
         BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
         jdoc.clear();
@@ -77,6 +84,7 @@ namespace BtController
         }
         // pBLEScan->clearResults();
         // pBLEScan->stop();
+        btClassic.end();
         return jdoc;
     }
 
@@ -140,6 +148,12 @@ namespace BtController
         }
         else
             log_i("failed to find device");
+    }
+
+    void connectPsxController(String mac)
+    {
+        log_i("start psx advertising with mac: %s", mac.c_str());
+        psx.setup(mac);
     }
 
     bool connectToServer()

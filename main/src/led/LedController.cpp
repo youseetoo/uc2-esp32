@@ -44,6 +44,11 @@ void LedController::loop()
 	
 }
 
+bool LedController::TurnedOn()
+{
+	return isOn;
+}
+
 // Custom function accessible by the API
 DynamicJsonDocument LedController::act(DynamicJsonDocument ob)
 {

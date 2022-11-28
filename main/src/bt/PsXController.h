@@ -1,0 +1,39 @@
+#pragma once
+
+#include "PsController.h"
+#include "../../ModuleController.h"
+
+static int8_t sgn(int val)
+{
+	if (val < 0)
+		return -1;
+	if (val == 0)
+		return 0;
+	return 1;
+}
+
+class PsXController
+{
+    private:
+    PSController psx;
+    bool IS_PS_CONTROLER_LEDARRAY = false;
+    int offset_val = 20; // make sure you do not accidentally turn on two directions at the same time
+    int stick_ly = 0;
+    int stick_lx = 0;
+    int stick_rx = 0;
+    int stick_ry = 0;
+
+    int speed_x = 0;
+    int speed_y = 0;
+    int speed_z = 0;
+    int global_speed = 2; // multiplier for the speed
+
+    int analogout_val_1 = 0;
+    int pwm_max = 0; // no idea how big it should be
+    public:
+    /*
+    fake mac address that is stored inside the ps controller for paring
+    */
+    void setup(String mac);
+    void loop();
+};

@@ -4,9 +4,6 @@
 #include "AccelStepper.h"
 #include "ArduinoJson.h"
 #include "../digitalin/DigitalInController.h"
-#if defined IS_PS3 || defined IS_PS4
-#include "../gamepads/ps_3_4_controller.h"
-#endif
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"

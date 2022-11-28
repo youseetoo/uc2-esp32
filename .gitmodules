@@ -1,14 +1,6 @@
-[submodule "lib/PS4-esp32"]
-	path = lib/PS4-esp32
-	url = https://github.com/youseetoo/PS4-esp32.git
-	branch = master
 [submodule "lib/AccelStepper"]
 	path = lib/AccelStepper
 	url = https://github.com/youseetoo/AccelStepper.git
-	branch = master
-[submodule "lib/esp32-ps3"]
-	path = lib/esp32-ps3
-	url = https://github.com/youseetoo/esp32-ps3.git
 	branch = master
 [submodule "lib/JPEGDecoder"]
 	path = lib/JPEGDecoder
@@ -32,3 +24,6 @@
 [submodule "lib/arduinoWebSockets"]
 	path = lib/arduinoWebSockets
 	url = https://github.com/youseetoo/arduinoWebSockets.git
+[submodule "lib/PSController"]
+	path = lib/PSController
+	url = https://github.com/youseetoo/PSController.git

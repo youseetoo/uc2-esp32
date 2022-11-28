@@ -1,11 +1,6 @@
 #include "config.h"
 #include "ArduinoJson.h"
 #include "esp_log.h"
-
-
-#if defined IS_PS4 || defined IS_PS3
-#include "src/gamepads/ps_3_4_controller.h"
-#endif
 #include "src/wifi/WifiController.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
@@ -34,15 +29,8 @@ void setup()
 	WifiController::setup();
 
 	moduleController.setup();
-
 	BtController::setup();
 
-#if defined IS_PS4 || defined IS_PS3
-#ifdef DEBUG_GAMEPAD
-	ps_c.DEBUG = true;
-#endif
-	//ps_c.start();
-#endif
 	WifiController::begin();
 	log_i("End setup");
 }
@@ -52,9 +40,6 @@ void loop()
 	// for any timing-related purposes
 	serial.loop();
 	WifiController::handelMessages();
+	BtController::loop();
 	moduleController.loop();
-
-#if defined IS_PS4 || defined IS_PS3
-	ps_c.control(); // if controller is operating motors, overheating protection is enabled
-#endif
 }

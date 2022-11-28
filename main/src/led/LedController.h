@@ -101,7 +101,7 @@ public:
     LedController();
     ~LedController();
     LedConfig * ledconfig;
-
+    bool TurnedOn();
     void setup() override;
     void loop() override;
     /*

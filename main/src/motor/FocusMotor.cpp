@@ -59,10 +59,6 @@ DynamicJsonDocument FocusMotor::act(DynamicJsonDocument doc)
 					stopStepper(s);
 				else
 				{
-#if defined IS_PS3 || defined IS_PS4
-					if (ps_c.IS_PSCONTROLER_ACTIVE)
-						ps_c.IS_PSCONTROLER_ACTIVE = false; // override PS controller settings #TODO: Somehow reset it later?
-#endif
 					if (pins[s]->max_position != 0 || pins[s]->min_position != 0)
 					{
 						if ((pins[s]->current_position + data[s]->speed / 200 >= pins[s]->max_position && data[s]->speed > 0) || (pins[s]->current_position + data[s]->speed / 200 <= pins[s]->min_position && data[s]->speed < 0))

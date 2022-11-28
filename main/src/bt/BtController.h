@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include "../../config.h"
 #include "../wifi/RestApiCallbacks.h"
+#include "PsXController.h"
 
 namespace RestApi
 {
@@ -37,9 +38,11 @@ namespace BtController
     DynamicJsonDocument scanForDevices(DynamicJsonDocument  jdoc);
     
     void setMacAndConnect(String m);
+    void connectPsxController(String mac);
     void removePairedDevice(String pairedmac);
     DynamicJsonDocument getPairedDevices(DynamicJsonDocument jdoc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
+    void loop();
     
 }

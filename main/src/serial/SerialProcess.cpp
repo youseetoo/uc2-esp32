@@ -15,8 +15,11 @@ void SerialProcess::loop()
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
 	{
-		DynamicJsonDocument  jsonDocument(4096);
-		DeserializationError error = deserializeJson(jsonDocument, Serial);
+		
+		String s = Serial.readString();
+		int si= s.length() * 8;
+		DynamicJsonDocument  jsonDocument(si);
+		DeserializationError error = deserializeJson(jsonDocument, s);
 		// free(Serial);
 		if (error)
 		{

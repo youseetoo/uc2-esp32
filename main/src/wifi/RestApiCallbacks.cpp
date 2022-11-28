@@ -32,7 +32,7 @@ namespace RestApi
     DynamicJsonDocument deserialize()
     {
         String plain = WifiController::getServer()->arg("plain");
-        DynamicJsonDocument doc(plain.length());
+        DynamicJsonDocument doc(plain.length()*8);
         deserializeJson(doc, plain);
         return doc;
         // serializeJsonPretty((*WifiController::getJDoc()), Serial);

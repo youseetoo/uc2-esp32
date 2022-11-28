@@ -230,6 +230,21 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		RestApi::resetNvFLash();
 	}
+	if (task == bt_connect_endpoint)
+	{
+		String mac = jsonDocument["mac"];
+        int ps = jsonDocument["psx"];
+       
+        if (ps == 0)
+        {
+            BtController::setMacAndConnect(mac);
+        }
+        else 
+        {
+            BtController::connectPsxController(mac);
+        }
+	}
+	
 
 	Serial.println(jsonDocument);
 	

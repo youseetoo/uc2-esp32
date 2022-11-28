@@ -61,6 +61,11 @@ namespace BtController
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
+        String m = Config::getPsxMac();
+        if (!m.isEmpty())
+        {
+            psx.setup(m);
+        }
         
     }
 
@@ -153,6 +158,7 @@ namespace BtController
     void connectPsxController(String mac)
     {
         log_i("start psx advertising with mac: %s", mac.c_str());
+        Config::setPsxMac(mac);
         psx.setup(mac);
     }
 

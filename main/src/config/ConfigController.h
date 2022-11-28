@@ -43,4 +43,6 @@ namespace Config
     ModuleConfig * getModuleConfig();
     void setAnalogJoyStickPins(JoystickPins * pins);
     void getAnalogJoyStickPins(JoystickPins * pins);
+    void setPsxMac(String mac);
+    String getPsxMac();
 }

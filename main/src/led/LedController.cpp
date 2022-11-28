@@ -35,8 +35,10 @@ void LedController::setup()
 	ledconfig = Config::getLedPins();
 
 	// load default values if not set
-	if (not ledconfig->ledPin) ledconfig->ledPin = PIN_DEF_LED;
-	if (not ledconfig->ledCount) ledconfig->ledCount = PIN_DEF_LED_NUM;
+	if (not ledconfig->ledPin)
+		ledconfig->ledPin = PIN_DEF_LED;
+	if (not ledconfig->ledCount)
+		ledconfig->ledCount = PIN_DEF_LED_NUM;
 
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(ledconfig->ledCount, ledconfig->ledPin, NEO_GRB + NEO_KHZ800);
@@ -56,96 +58,125 @@ void LedController::setup()
 
 void LedController::loop()
 {
-	
 }
 
 // Custom function accessible by the API
 void LedController::act()
 {
+	/*
+	Mode 0: array,
+	Mode 1: full,
+	Mode 2: single,
+	Mode 3: off,
+	Mode 4: left,
+	Mode 5: right,
+	Mode 6: top,
+	Mode 7: bottom,
+	Mode 8: multi
+	*/
+
+	// get json document through serial
+	DynamicJsonDocument *jDoc = WifiController::getJDoc();
+
 	if (WifiController::getJDoc()->containsKey(keyLed))
 	{
-		LedModes LEDArrMode = static_cast<LedModes>((*WifiController::getJDoc())[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
+		LedModes LEDArrMode = static_cast<LedModes>((*jDoc)[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
+
 		// individual pattern gets adressed
-		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 		{
-			for (int i = 0; i < (*WifiController::getJDoc())[keyLed][key_led_array].size(); i++)
+			for (int i = 0; i < (*jDoc)[keyLed][key_led_array].size(); i++)
 			{
 				set_led_RGB(
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyid],
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyRed],
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyGreen],
-					(*WifiController::getJDoc())[keyLed][key_led_array][i][keyBlue]);
+					(*jDoc)[keyLed][key_led_array][i][keyid],
+					(*jDoc)[keyLed][key_led_array][i][keyRed],
+					(*jDoc)[keyLed][key_led_array][i][keyGreen],
+					(*jDoc)[keyLed][key_led_array][i][keyBlue]);
 			}
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		// only if a single led will be updated, all others stay the same
-		// PYTHON: send_LEDMatrix_single(self, indexled=0, intensity=(255,255,255), timeout=1)
 		else if (LEDArrMode == LedModes::single)
 		{
 			set_led_RGB(
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyid],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				(*jDoc)[keyLed][key_led_array][0][keyid],
+				(*jDoc)[keyLed][key_led_array][0][keyRed],
+				(*jDoc)[keyLed][key_led_array][0][keyGreen],
+				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		// turn on all LEDs
-		// PYTHON: send_LEDMatrix_full(self, intensity = (255,255,255),timeout=1)
 		else if (LEDArrMode == LedModes::full)
 		{
-			u_int8_t r = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed];
-			u_int8_t g = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen];
-			u_int8_t b = (*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue];
+			u_int8_t r = (*jDoc)[keyLed][key_led_array][0][keyRed];
+			u_int8_t g = (*jDoc)[keyLed][key_led_array][0][keyGreen];
+			u_int8_t b = (*jDoc)[keyLed][key_led_array][0][keyBlue];
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
 			set_all(r, g, b);
+
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::left)
 		{
 			set_left(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				(*jDoc)[keyLed][key_led_array][0][keyRed],
+				(*jDoc)[keyLed][key_led_array][0][keyGreen],
+				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::right)
 		{
 			set_right(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				(*jDoc)[keyLed][key_led_array][0][keyRed],
+				(*jDoc)[keyLed][key_led_array][0][keyGreen],
+				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::top)
 		{
 			set_top(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				(*jDoc)[keyLed][key_led_array][0][keyRed],
+				(*jDoc)[keyLed][key_led_array][0][keyGreen],
+				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::bottom)
 		{
 			set_bottom(
 				ledconfig->ledCount,
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyRed],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyGreen],
-				(*WifiController::getJDoc())[keyLed][key_led_array][0][keyBlue]);
+				(*jDoc)[keyLed][key_led_array][0][keyRed],
+				(*jDoc)[keyLed][key_led_array][0][keyGreen],
+				(*jDoc)[keyLed][key_led_array][0][keyBlue]);
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 		else if (LEDArrMode == LedModes::off)
 		{
 			matrix->clear();
+			jDoc->clear();
+			(*jDoc)[key_return] = LEDArrMode;
 		}
 	}
 	else
 	{
+		jDoc->clear();
+		(*jDoc)[key_return] = -1;
 		log_i("failed to parse json. required keys are led_array,LEDArrMode");
 	}
-
-	WifiController::getJDoc()->clear();
-	isBusy = false;
 }
 
 //{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}

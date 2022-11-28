@@ -285,41 +285,6 @@ namespace Config
 			resetPreferences();
 			preferences.putString(dateKey, compiled_date); // FIXME?
 
-			// write default pin configurations from pindef.h
-			MotorPins motorA, motorX, motorY, motorZ;
-			motorA.STEP = PIN_DEF_MOTOR_STP_A;
-			motorA.DIR = PIN_DEF_MOTOR_DIR_A;
-			motorA.ENABLE = PIN_DEF_MOTOR_EN_A;
-			motorX.STEP = PIN_DEF_MOTOR_STP_X;
-			motorX.DIR = PIN_DEF_MOTOR_DIR_X;
-			motorX.ENABLE = PIN_DEF_MOTOR_EN_X;
-			motorY.STEP = PIN_DEF_MOTOR_STP_Y;
-			motorY.DIR = PIN_DEF_MOTOR_DIR_Y;
-			motorY.ENABLE = PIN_DEF_MOTOR_EN_Y;
-			motorZ.STEP = PIN_DEF_MOTOR_STP_Z;
-			motorZ.DIR = PIN_DEF_MOTOR_DIR_Z;
-			motorZ.ENABLE = PIN_DEF_MOTOR_EN_Z;
-
-			preferences.putBytes(keyMotorADirPin, &motorA, sizeof(MotorPins));
-			preferences.putBytes(keyMotorXDirPin, &motorX, sizeof(MotorPins));
-			preferences.putBytes(keyMotorYDirPin, &motorY, sizeof(MotorPins));
-			preferences.putBytes(keyMotorZDirPin, &motorZ, sizeof(MotorPins));
-
-			// LASER
-			LaserPins laserPin;
-			laserPin.LASER_PIN_1 = PIN_DEF_LASER_1;
-			laserPin.LASER_PIN_2 = PIN_DEF_LASER_2;
-			laserPin.LASER_PIN_3 = PIN_DEF_LASER_3;
-			preferences.putInt(keyLaser1Pin, laserPin.LASER_PIN_1);
-			preferences.putInt(keyLaser2Pin, laserPin.LASER_PIN_2);
-			preferences.putInt(keyLaser3Pin, laserPin.LASER_PIN_3);
-			
-			// LED
-			LedConfig * ledconfig;
-			ledconfig->ledPin = PIN_DEF_LED;
-			ledconfig->ledCount = PIN_DEF_LED_NUM;
-			preferences.putBytes(keyLed, ledconfig, sizeof(LedConfig));
-		
 		}
 		else
 		{

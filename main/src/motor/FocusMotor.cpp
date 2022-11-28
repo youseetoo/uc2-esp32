@@ -1,6 +1,6 @@
 #include "../../config.h"
 #include "FocusMotor.h"
-
+#include "../../pindef.h"
 namespace RestApi
 {
 	void FocusMotor_act()
@@ -296,6 +296,24 @@ void FocusMotor::setup()
 {
 	// get pins from config
 	Config::getMotorPins(pins);
+
+	// if pins have not been set => load defaults
+	if(not pins[0]->STEP) pins[0]->STEP=PIN_DEF_MOTOR_STP_A;
+	if(not pins[0]->DIR) pins[0]->DIR=PIN_DEF_MOTOR_DIR_A;
+	if(not pins[0]->ENABLE) pins[0]->ENABLE=PIN_DEF_MOTOR_EN_A;
+	if(not pins[1]->STEP) pins[1]->STEP=PIN_DEF_MOTOR_STP_X;
+	if(not pins[1]->DIR) pins[1]->DIR=PIN_DEF_MOTOR_DIR_X;
+	if(not pins[1]->ENABLE) pins[1]->ENABLE=PIN_DEF_MOTOR_EN_X;
+	if(not pins[2]->STEP) pins[2]->STEP=PIN_DEF_MOTOR_STP_Y;
+	if(not pins[2]->DIR) pins[2]->DIR=PIN_DEF_MOTOR_DIR_Y;
+	if(not pins[2]->ENABLE) pins[2]->ENABLE=PIN_DEF_MOTOR_EN_Y;
+	if(not pins[3]->STEP) pins[3]->STEP=PIN_DEF_MOTOR_STP_Z;
+	if(not pins[3]->DIR) pins[3]->DIR=PIN_DEF_MOTOR_DIR_Z;
+	if(not pins[3]->ENABLE) pins[3]->ENABLE=PIN_DEF_MOTOR_EN_Z;
+
+	// write updated motor config to flash
+	Config::setMotorPinConfig(pins);
+	
 	// create the stepper
 	// isShareEnable = shareEnablePin();
 	for (int i = 0; i < steppers.size(); i++)

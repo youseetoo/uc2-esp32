@@ -1,5 +1,6 @@
 #include "../../config.h"
 #include "LaserController.h"
+#include "../../pindef.h"
 
 namespace RestApi
 {
@@ -214,8 +215,8 @@ void LaserController::set()
 void LaserController::get()
 {
 	WifiController::getJDoc()->clear();
-			int LASERid = (*WifiController::getJDoc())["LASERid"];
-		int LASERpin = (*WifiController::getJDoc())["LASERpin"];
+	int LASERid = (*WifiController::getJDoc())["LASERid"];
+	int LASERpin = (*WifiController::getJDoc())["LASERpin"];
 	(*WifiController::getJDoc())["LASER1pin"] = pins.LASER_PIN_1;
 	(*WifiController::getJDoc())["LASER2pin"] = pins.LASER_PIN_2;
 	(*WifiController::getJDoc())["LASER3pin"] = pins.LASER_PIN_3;
@@ -223,42 +224,56 @@ void LaserController::get()
 
 void LaserController::setup()
 {
-	Serial.println("Setting Up LASERs");
+	log_i("Setting Up LASERs");
 
 	Config::getLaserPins(pins);
-	// switch of the LASER directly
-	if (pins.LASER_PIN_1 != 0)
-	{
-		pinMode(pins.LASER_PIN_1, OUTPUT);
-		digitalWrite(pins.LASER_PIN_1, LOW);
-		ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
-		ledcWrite(PWM_CHANNEL_LASER_1, 10000);
-		delay(500);
-		ledcWrite(PWM_CHANNEL_LASER_1, 0);
-	}
+	
+	// Setting up the differen PWM channels for the laser
 
-	if (pins.LASER_PIN_2 != 0)
+	// if laser pin is not defined try loading it from the pindef.h file
+	if (not pins.LASER_PIN_1)
 	{
-		pinMode(pins.LASER_PIN_2, OUTPUT);
-		digitalWrite(pins.LASER_PIN_2, LOW);
-		ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
-		ledcWrite(PWM_CHANNEL_LASER_2, 10000);
-		delay(500);
-		ledcWrite(PWM_CHANNEL_LASER_2, 0);
+		pins.LASER_PIN_1 = PIN_DEF_LASER_1; // default value
 	}
+	log_i("Laser ID 1, pin: %i", pins.LASER_PIN_1);
+	pinMode(pins.LASER_PIN_1, OUTPUT);
+	digitalWrite(pins.LASER_PIN_1, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
+	ledcWrite(PWM_CHANNEL_LASER_1, 10000);
+	delay(500);
+	ledcWrite(PWM_CHANNEL_LASER_1, 0);
+	
+	// if laser pin is not defined try loading it from the pindef.h file
+	if (not pins.LASER_PIN_2)
+	{
+		pins.LASER_PIN_2 = PIN_DEF_LASER_2; // default value
+	}
+	log_i("Laser ID 2, pin: %i", pins.LASER_PIN_2);
+	pinMode(pins.LASER_PIN_2, OUTPUT);
+	digitalWrite(pins.LASER_PIN_2, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
+	ledcWrite(PWM_CHANNEL_LASER_2, 10000);
+	delay(500);
+	ledcWrite(PWM_CHANNEL_LASER_2, 0);
 
-	if (pins.LASER_PIN_3 != 0)
+	// if laser pin is not defined try loading it from the pindef.h file
+	if (not pins.LASER_PIN_3)
 	{
-		pinMode(pins.LASER_PIN_3, OUTPUT);
-		digitalWrite(pins.LASER_PIN_3, LOW);
-		ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
-		ledcWrite(PWM_CHANNEL_LASER_3, 10000);
-		delay(500);
-		ledcWrite(PWM_CHANNEL_LASER_3, 0);
+		pins.LASER_PIN_3 = PIN_DEF_LASER_3; // default value
 	}
+	log_i("Laser ID 3, pin: %i", pins.LASER_PIN_3);
+	pinMode(pins.LASER_PIN_3, OUTPUT);
+	digitalWrite(pins.LASER_PIN_3, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
+	ledcWrite(PWM_CHANNEL_LASER_3, 10000);
+	delay(500);
+	ledcWrite(PWM_CHANNEL_LASER_3, 0);
+
+	// Write out updated settings to preferences permanently
+	Config::setLaserPins(pins);
 }
 
 void LaserController::loop()

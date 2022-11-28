@@ -1,5 +1,6 @@
 #include "../../config.h"
 #include "LedController.h"
+#include "../../pindef.h"
 
 namespace RestApi
 {
@@ -30,7 +31,13 @@ LedController::~LedController() { log_i("~ctor"); }
 
 void LedController::setup()
 {
+	// get led config from preferences
 	ledconfig = Config::getLedPins();
+
+	// load default values if not set
+	if (not ledconfig->ledPin) ledconfig->ledPin = PIN_DEF_LED;
+	if (not ledconfig->ledCount) ledconfig->ledCount = PIN_DEF_LED_NUM;
+
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(ledconfig->ledCount, ledconfig->ledPin, NEO_GRB + NEO_KHZ800);
 	log_i("setup matrix is null:%s", boolToChar(matrix == nullptr));
@@ -42,6 +49,9 @@ void LedController::setup()
 	else
 		set_all(255, 255, 255);
 	matrix->show(); //  Update strip to match
+
+	// write out updated config to Preferences
+	Config::setLedPins(ledconfig);
 }
 
 void LedController::loop()

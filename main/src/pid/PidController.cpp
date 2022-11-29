@@ -30,18 +30,18 @@ int PidController::act(DynamicJsonDocument ob)
 	if (DEBUG)
 		Serial.println("PID_act_fct");
 
-	if (ob.containsKey("PIDactive"))
-		PID_active = (int)(ob)["PIDactive"];
-	if (ob.containsKey("Kp"))
-		PID_Kp = (ob)["Kp"];
-	if ((ob).containsKey("Ki"))
-		PID_Ki = (ob)["Ki"];
-	if (ob.containsKey("Kd"))
-		PID_Kd = (ob)["Kd"];
-	if (ob.containsKey("target"))
-		PID_target = (ob)["target"];
-	if (ob.containsKey("PID_updaterate"))
-		PID_updaterate = (int)(ob)["PID_updaterate"];
+	if (ob.containsKey(key_PIDactive))
+		PID_active = (int)(ob)[key_PIDactive];
+	if (ob.containsKey(key_Kp))
+		PID_Kp = (ob)[key_Kp];
+	if ((ob).containsKey(key_Ki))
+		PID_Ki = (ob)[key_Ki];
+	if (ob.containsKey(key_Kd))
+		PID_Kd = (ob)[key_Kd];
+	if (ob.containsKey(key_target))
+		PID_target = (ob)[key_target];
+	if (ob.containsKey(key_PID_updaterate))
+		PID_updaterate = (int)(ob)[key_PID_updaterate];
 
 	if (!PID_active)
 	{
@@ -121,10 +121,10 @@ int PidController::set(DynamicJsonDocument ob)
 {
 	if (DEBUG)
 		Serial.println("PID_set_fct");
-	int PIDID = (int)(ob)["PIDID"];
-	int PIDPIN = (int)(ob)["PIDPIN"];
-	if (ob.containsKey("N_analogin_avg"))
-		N_analogin_avg = (int)(ob)["N_analogin_avg"];
+	int PIDID = (int)(ob)[key_PIDID];
+	int PIDPIN = (int)(ob)[key_PIDPIN];
+	if (ob.containsKey(key_N_analogin_avg))
+		N_analogin_avg = (int)(ob)[key_N_analogin_avg];
 
 	switch (PIDID)
 	{
@@ -146,7 +146,7 @@ DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
 {
 	if (DEBUG)
 		Serial.println("PID_get_fct");
-	int PIDID = (int)(ob)["PIDID"];
+	int PIDID = (int)(ob)[key_PIDID];
 	int PIDPIN = 0;
 	switch (PIDID)
 	{
@@ -162,9 +162,9 @@ DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
 	}
 
 	ob.clear();
-	ob["N_analogin_avg"] = N_analogin_avg;
-	ob["PIDPIN"] = PIDPIN;
-	ob["PIDID"] = PIDID;
+	ob[N_analogin_avg] = N_analogin_avg;
+	ob[key_PIDPIN] = PIDPIN;
+	ob[key_PIDID] = PIDID;
 	return ob;
 }
 

@@ -14,14 +14,14 @@ int AnalogInController::act(DynamicJsonDocument ob)
 	// here you can do something
 	if (DEBUG)
 		Serial.println("readanalogin_act_fct");
-	int readanaloginID = (int)(ob)["readanaloginID"];
+	int readanaloginID = (int)(ob)[key_readanaloginID];
 	int mN_analogin_avg = N_analogin_avg;
-	if (ob.containsKey("N_analogin_avg"))
-		mN_analogin_avg = (int)(ob)["N_analogin_avg"];
+	if (ob.containsKey(key_N_analogin_avg))
+		mN_analogin_avg = (int)(ob)[key_N_analogin_avg];
 	int analoginpin = 0;
 
 	if (DEBUG)
-		Serial.print("readanaloginID ");
+		Serial.print(key_readanaloginID);
 	Serial.println(readanaloginID);
 	switch (readanaloginID)
 	{
@@ -50,10 +50,10 @@ DynamicJsonDocument AnalogInController::get(DynamicJsonDocument ob)
 {
 	if (DEBUG)
 		Serial.println("readanalogin_set_fct");
-	int readanaloginID = (int)(ob)["readanaloginID"];
-	int readanaloginPIN = (int)(ob)["readanaloginPIN"];
-	if (ob.containsKey("N_analogin_avg"))
-		N_analogin_avg = (int)(ob)["N_analogin_avg"];
+	int readanaloginID = (int)(ob)[key_readanaloginID];
+	int readanaloginPIN = (int)(ob)[key_readanaloginPIN];
+	if (ob.containsKey(key_N_analogin_avg))
+		N_analogin_avg = (int)(ob)[key_N_analogin_avg];
 
 	switch (readanaloginID)
 	{
@@ -69,8 +69,8 @@ DynamicJsonDocument AnalogInController::get(DynamicJsonDocument ob)
 	}
 
 	ob.clear();
-	ob["readanaloginPIN"] = readanaloginPIN;
-	ob["readanaloginID"] = readanaloginID;
+	ob[key_readanaloginPIN] = readanaloginPIN;
+	ob[key_readanaloginID] = readanaloginID;
 	return ob;
 }
 
@@ -79,7 +79,7 @@ int AnalogInController::set(DynamicJsonDocument jsonDocument)
 {
 	if (DEBUG)
 		Serial.println("readanalogin_get_fct");
-	int readanaloginID = (int)(jsonDocument)["readanaloginID"];
+	int readanaloginID = (int)(jsonDocument)[key_readanaloginID];
 	int readanaloginPIN = 0;
 	switch (readanaloginID)
 	{

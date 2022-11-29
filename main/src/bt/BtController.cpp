@@ -19,7 +19,7 @@ namespace RestApi
         }
         else 
         {
-            BtController::connectPsxController(mac);
+            BtController::connectPsxController(mac,ps);
         }
         
         
@@ -62,9 +62,10 @@ namespace BtController
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
         String m = Config::getPsxMac();
+        int type = Config::getPsxControllerType();
         if (!m.isEmpty())
         {
-            psx.setup(m);
+            psx.setup(m,type);
         }
         
     }
@@ -155,11 +156,12 @@ namespace BtController
             log_i("failed to find device");
     }
 
-    void connectPsxController(String mac)
+    void connectPsxController(String mac,int type)
     {
-        log_i("start psx advertising with mac: %s", mac.c_str());
+        log_i("start psx advertising with mac: %s type:%i", mac.c_str(), type);
         Config::setPsxMac(mac);
-        psx.setup(mac);
+        Config::setPsxControllerType(type);
+        psx.setup(mac, type);
     }
 
     bool connectToServer()

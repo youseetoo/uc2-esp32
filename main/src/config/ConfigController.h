@@ -45,4 +45,6 @@ namespace Config
     void getAnalogJoyStickPins(JoystickPins * pins);
     void setPsxMac(String mac);
     String getPsxMac();
+    void setPsxControllerType(int type);
+    int getPsxControllerType();
 }

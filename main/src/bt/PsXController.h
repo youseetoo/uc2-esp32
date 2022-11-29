@@ -15,7 +15,7 @@ static int8_t sgn(int val)
 class PsXController
 {
     private:
-    PSController psx;
+    PSController * psx = nullptr;
     bool IS_PS_CONTROLER_LEDARRAY = false;
     int offset_val = 20; // make sure you do not accidentally turn on two directions at the same time
     int stick_ly = 0;
@@ -33,7 +33,8 @@ class PsXController
     public:
     /*
     fake mac address that is stored inside the ps controller for paring
+    type 1 = ps3, 2 = ps4
     */
-    void setup(String mac);
+    void setup(String mac, int type);
     void loop();
 };

@@ -241,7 +241,7 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
         }
         else 
         {
-            BtController::connectPsxController(mac);
+            BtController::connectPsxController(mac, ps);
         }
 	}
 	

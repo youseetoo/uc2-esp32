@@ -59,8 +59,8 @@ public:
 	bool DEBUG = false;
 	bool isBusy;
 
-	DynamicJsonDocument act(DynamicJsonDocument doc) override;
-	DynamicJsonDocument set(DynamicJsonDocument doc) override;
+	int act(DynamicJsonDocument doc) override;
+	int set(DynamicJsonDocument doc) override;
 	DynamicJsonDocument get(DynamicJsonDocument doc) override;
 	void setup() override;
 	void loop() override;

@@ -78,9 +78,9 @@ public:
 	// std::array<MotorPins *, 4> pins;
 	MotorPins *pins[4];
 
-	DynamicJsonDocument setMinMaxRange(DynamicJsonDocument  ob);
-	DynamicJsonDocument act(DynamicJsonDocument  ob) override;
-	DynamicJsonDocument set(DynamicJsonDocument  ob) override;
+	int setMinMaxRange(DynamicJsonDocument  ob);
+	int act(DynamicJsonDocument  ob) override;
+	int set(DynamicJsonDocument  ob) override;
 	/*
 		returns
 		{

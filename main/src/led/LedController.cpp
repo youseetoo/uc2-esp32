@@ -50,7 +50,7 @@ bool LedController::TurnedOn()
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument LedController::act(DynamicJsonDocument ob)
+int LedController::act(DynamicJsonDocument ob)
 {
 	if (ob.containsKey(keyLed))
 	{
@@ -133,15 +133,12 @@ DynamicJsonDocument LedController::act(DynamicJsonDocument ob)
 	{
 		log_i("failed to parse json. required keys are led_array,LEDArrMode");
 	}
-
-	ob.clear();
-	isBusy = false;
-	return ob;
+	return 1;
 }
 
 //{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}
 //{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"0","red":"0","green":"0"}]}}
-DynamicJsonDocument LedController::set(DynamicJsonDocument ob)
+int LedController::set(DynamicJsonDocument ob)
 {
 	if (ob.containsKey(keyLed))
 	{
@@ -153,6 +150,7 @@ DynamicJsonDocument LedController::set(DynamicJsonDocument ob)
 		Config::setLedPins(ledconfig);
 		setup();
 	}
+	return 1;
 }
 
 // Custom function accessible by the API

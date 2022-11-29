@@ -28,8 +28,8 @@ public:
     int digitalout_val_2 = 0;
     int digitalout_val_3 = 0;
 
-    DynamicJsonDocument act(DynamicJsonDocument  ob) override;
-    DynamicJsonDocument set(DynamicJsonDocument ob) override;
+    int act(DynamicJsonDocument  ob) override;
+    int set(DynamicJsonDocument ob) override;
     DynamicJsonDocument get(DynamicJsonDocument ob) override;
     void setup() override;
     void loop() override;

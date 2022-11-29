@@ -51,7 +51,7 @@ public:
     void loop();
     Module *get(AvailableModules mod);
     DynamicJsonDocument get();
-    DynamicJsonDocument set(DynamicJsonDocument j);
+    int set(DynamicJsonDocument j);
 };
 
 extern ModuleController moduleController;

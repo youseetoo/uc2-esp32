@@ -23,7 +23,7 @@ PidController::PidController(/* args */){};
 PidController::~PidController(){};
 
 // Custom function accessible by the API
-DynamicJsonDocument PidController::act(DynamicJsonDocument ob)
+int PidController::act(DynamicJsonDocument ob)
 {
 
 	// here you can do something
@@ -55,15 +55,7 @@ DynamicJsonDocument PidController::act(DynamicJsonDocument ob)
 			motor->steppers[Stepper::X]->runSpeed();
 		}
 	}
-
-	ob.clear();
-	ob["Kp"] = PID_Kp;
-	ob["Ki"] = PID_Ki;
-	ob["Kd"] = PID_Kd;
-	ob["PID_updaterate"] = PID_updaterate;
-	ob["PID"] = PID_active;
-	ob["target"] = PID_target;
-	return ob;
+	return 1;
 }
 
 void PidController::loop()
@@ -125,7 +117,7 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 	return stepperOut;
 }
 
-DynamicJsonDocument PidController::set(DynamicJsonDocument ob)
+int PidController::set(DynamicJsonDocument ob)
 {
 	if (DEBUG)
 		Serial.println("PID_set_fct");
@@ -146,8 +138,7 @@ DynamicJsonDocument PidController::set(DynamicJsonDocument ob)
 		pins.analogin_PIN_2 = PIDPIN;
 		break;
 	}
-	ob.clear();
-	return ob;
+	return 1;
 }
 
 // Custom function accessible by the API

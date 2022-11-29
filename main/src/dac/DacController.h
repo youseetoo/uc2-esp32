@@ -39,8 +39,8 @@ public:
 
     void setup() override;
 
-    DynamicJsonDocument act(DynamicJsonDocument jsonDocument) override;
-    DynamicJsonDocument set(DynamicJsonDocument jsonDocument) override;
+    int act(DynamicJsonDocument jsonDocument) override;
+    int set(DynamicJsonDocument jsonDocument) override;
     DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void loop() override;
     static void drive_galvo(void *parameter);

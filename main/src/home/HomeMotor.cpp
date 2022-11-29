@@ -29,7 +29,7 @@ namespace RestApi
 Handle REST calls to the HomeMotor module
 */
 //{"task":"/home_act", "home":{"steppers":[{"endpospin":1, "timeout":1000, "speed":1000, "direction":1]}}
-DynamicJsonDocument HomeMotor::act(DynamicJsonDocument  j)
+int HomeMotor::act(DynamicJsonDocument  j)
 {
 	if (DEBUG)
 		Serial.println("home_act_fct");
@@ -72,6 +72,7 @@ DynamicJsonDocument HomeMotor::act(DynamicJsonDocument  j)
 	}
 
 	j.clear();
+	return 1;
 }
 
 DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
@@ -110,8 +111,9 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	return ob;
 }
 
-DynamicJsonDocument HomeMotor::set(DynamicJsonDocument ob)
+int HomeMotor::set(DynamicJsonDocument ob)
 {	
+	return 1;
 }
 
 

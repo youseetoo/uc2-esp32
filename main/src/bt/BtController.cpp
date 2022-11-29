@@ -226,6 +226,7 @@ namespace BtController
 
         connected = true;
         return true;*/
+        return false;
     }
 
     void removePairedDevice(String pairedmac)

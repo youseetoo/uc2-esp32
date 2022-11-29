@@ -25,7 +25,7 @@ SlmController::~SlmController(){};
 
 void SlmController::loop(){}
 // Custom function accessible by the API
-DynamicJsonDocument SlmController::act(DynamicJsonDocument ob)
+int SlmController::act(DynamicJsonDocument ob)
 {
 
 	// here you can do something
@@ -116,13 +116,11 @@ DynamicJsonDocument SlmController::act(DynamicJsonDocument ob)
 			}
 		}
 	}
-	ob.clear();
-	ob["return"] = 1;
 	isBusy = false;
-	return ob;
+	return 1;
 }
 
-DynamicJsonDocument SlmController::set(DynamicJsonDocument doc)
+int SlmController::set(DynamicJsonDocument doc)
 {
 	/*
 	  if (ob["LED_ARRAY_PIN"] != 0) {
@@ -140,6 +138,7 @@ DynamicJsonDocument SlmController::set(DynamicJsonDocument doc)
 	  LED_N_Y = ob["LED_N_Y"];
 	  }
 	*/
+	return 1;
 }
 
 // Custom function accessible by the API
@@ -151,6 +150,7 @@ DynamicJsonDocument SlmController::get(DynamicJsonDocument doc)
 	  WifiController::getJDoc()["LED_N_X"] = LED_N_X;
 	  WifiController::getJDoc()["LED_N_Y"] = LED_N_Y;
 	*/
+	return doc;
 }
 
 /***************************************************************************************************/

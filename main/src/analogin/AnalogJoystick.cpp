@@ -21,8 +21,9 @@ void AnalogJoystick::setup()
     pinMode(pins->x_pin, INPUT);
     pinMode(pins->y_pin, INPUT);
 }
-DynamicJsonDocument AnalogJoystick::act(DynamicJsonDocument jsonDocument) {}
-DynamicJsonDocument AnalogJoystick::set(DynamicJsonDocument doc) {
+int AnalogJoystick::act(DynamicJsonDocument jsonDocument) { return 1;}
+
+int AnalogJoystick::set(DynamicJsonDocument doc) {
 	if (doc.containsKey(key_joy))
     {
         if((doc)[key_joy].containsKey(key_joiypinX))
@@ -33,12 +34,16 @@ DynamicJsonDocument AnalogJoystick::set(DynamicJsonDocument doc) {
     doc.clear();
     Config::setAnalogJoyStickPins(pins);
     setup();
+    return 1;
 }
+
 DynamicJsonDocument AnalogJoystick::get(DynamicJsonDocument  doc) {
     doc.clear();
     doc[key_joy][key_joiypinX] = pins->x_pin;
     doc[key_joy][key_joiypinY] = pins->y_pin;
+    return doc;
 }
+
 void AnalogJoystick::loop()
 {
 

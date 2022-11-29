@@ -80,7 +80,7 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument LaserController::act(DynamicJsonDocument ob)
+int LaserController::act(DynamicJsonDocument ob)
 {
 	// here you can do something
 	Serial.println("LASER_act_fct");
@@ -145,14 +145,11 @@ DynamicJsonDocument LaserController::act(DynamicJsonDocument ob)
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
 	}
 
-	ob.clear();
-	ob["return"] = 1;
-
 	isBusy = false;
-	return ob;
+	return 1;
 }
 
-DynamicJsonDocument LaserController::set(DynamicJsonDocument ob)
+int LaserController::set(DynamicJsonDocument ob)
 {
 	// here you can set parameters
 	if (ob.containsKey("LASERid") && ob.containsKey("LASERpin"))
@@ -195,6 +192,7 @@ DynamicJsonDocument LaserController::set(DynamicJsonDocument ob)
 		}
 		Config::setLaserPins(pins);
 	}
+	return 1;
 }
 
 // Custom function accessible by the API

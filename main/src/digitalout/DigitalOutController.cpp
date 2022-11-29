@@ -26,7 +26,7 @@ DigitalOutController::DigitalOutController(/* args */){};
 DigitalOutController::~DigitalOutController(){};
 
 // Custom function accessible by the API
-DynamicJsonDocument DigitalOutController::act(DynamicJsonDocument jsonDocument)
+int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 {
 	// here you can do something
 	Serial.println("digitalout_act_fct");
@@ -95,11 +95,10 @@ DynamicJsonDocument DigitalOutController::act(DynamicJsonDocument jsonDocument)
 			Serial.println(pins.digitalout_PIN_3);
 		}
 	}
-	jsonDocument.clear();
-	(jsonDocument)["return"] = 1;
+	return 1;
 }
 
-DynamicJsonDocument DigitalOutController::set(DynamicJsonDocument jsonDocument)
+int DigitalOutController::set(DynamicJsonDocument jsonDocument)
 {
 	// here you can set parameters
 	int digitaloutid = (jsonDocument)["digitaloutid"];
@@ -111,7 +110,7 @@ DynamicJsonDocument DigitalOutController::set(DynamicJsonDocument jsonDocument)
 		Serial.print("digitaloutpin ");
 	Serial.println(digitaloutpin);
 
-	if (digitaloutid != NULL and digitaloutpin != NULL)
+	if (digitaloutid != 0 and digitaloutpin != 0)
 	{
 		if (digitaloutid == 1)
 		{
@@ -134,6 +133,7 @@ DynamicJsonDocument DigitalOutController::set(DynamicJsonDocument jsonDocument)
 	}
 	Config::setDigitalOutPins(pins);
 	isBusy = false;
+	return 1;
 }
 
 // Custom function accessible by the API

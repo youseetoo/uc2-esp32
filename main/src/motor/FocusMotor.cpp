@@ -28,7 +28,7 @@ namespace RestApi
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
 FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
-DynamicJsonDocument FocusMotor::act(DynamicJsonDocument doc)
+int FocusMotor::act(DynamicJsonDocument doc)
 {
 	if (DEBUG)
 		Serial.println("motor_act_fct");
@@ -63,8 +63,7 @@ DynamicJsonDocument FocusMotor::act(DynamicJsonDocument doc)
 					{
 						if ((pins[s]->current_position + data[s]->speed / 200 >= pins[s]->max_position && data[s]->speed > 0) || (pins[s]->current_position + data[s]->speed / 200 <= pins[s]->min_position && data[s]->speed < 0))
 						{
-							doc.clear();
-							return doc;
+							return 1;
 						}
 						else
 							startStepper(s);
@@ -75,8 +74,7 @@ DynamicJsonDocument FocusMotor::act(DynamicJsonDocument doc)
 			}
 		}
 	}
-	doc.clear();
-	return doc;
+	return 1;
 }
 
 void FocusMotor::startStepper(int i)
@@ -109,7 +107,7 @@ void FocusMotor::startStepper(int i)
 	pins[i]->current_position = steppers[i]->currentPosition();
 }
 
-DynamicJsonDocument FocusMotor::set(DynamicJsonDocument doc)
+int FocusMotor::set(DynamicJsonDocument doc)
 {
 	if (doc.containsKey(key_motor))
 	{
@@ -129,9 +127,10 @@ DynamicJsonDocument FocusMotor::set(DynamicJsonDocument doc)
 			setup();
 		}
 	}
+	return 1;
 }
 
-DynamicJsonDocument FocusMotor::setMinMaxRange(DynamicJsonDocument  doc)
+int FocusMotor::setMinMaxRange(DynamicJsonDocument  doc)
 {
 	if (doc.containsKey(key_motor))
 	{
@@ -149,6 +148,7 @@ DynamicJsonDocument FocusMotor::setMinMaxRange(DynamicJsonDocument  doc)
 			}
 		}
 	}
+	return 1;
 }
 
 void FocusMotor::resetMotorPos(int i)

@@ -48,7 +48,7 @@ void DacController::setup()
 void DacController::loop() {}
 
 // Custom function accessible by the API
-DynamicJsonDocument DacController::act(DynamicJsonDocument ob)
+int DacController::act(DynamicJsonDocument ob)
 {
 	// here you can do something
 
@@ -134,12 +134,10 @@ DynamicJsonDocument DacController::act(DynamicJsonDocument ob)
 		dacm->dac_offset_set(dac_channel, offset);
 	}
 
-	ob.clear();
-	ob["return"] = 1;
-	return ob;
+	return 1;
 }
 
-DynamicJsonDocument DacController::set(DynamicJsonDocument ob)
+int DacController::set(DynamicJsonDocument ob)
 {
 	if ((ob).containsKey(keyDACfake1Pin))
 	{
@@ -153,6 +151,7 @@ DynamicJsonDocument DacController::set(DynamicJsonDocument ob)
 		Config::setDacPins(pins);
 		setup();
 	}
+	return 1;
 }
 
 // Custom function accessible by the API

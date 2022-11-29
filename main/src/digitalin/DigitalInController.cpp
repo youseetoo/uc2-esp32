@@ -26,15 +26,14 @@ DigitalInController::DigitalInController(/* args */){};
 DigitalInController::~DigitalInController(){};
 
 // Custom function accessible by the API
-DynamicJsonDocument DigitalInController::act(DynamicJsonDocument jsonDocument)
+int DigitalInController::act(DynamicJsonDocument jsonDocument)
 {
 	// here you can do something
 	Serial.println("digitalin_act_fct");
-	jsonDocument.clear();
-	(jsonDocument)["return"] = 1;
+	return 1;
 }
 
-DynamicJsonDocument DigitalInController::set(DynamicJsonDocument  jsonDocument)
+int DigitalInController::set(DynamicJsonDocument  jsonDocument)
 {
 	// here you can set parameters
 	int digitalinid = (jsonDocument)["digitalinid"];
@@ -46,7 +45,7 @@ DynamicJsonDocument DigitalInController::set(DynamicJsonDocument  jsonDocument)
 		Serial.print("digitalinpin ");
 	Serial.println(digitalinpin);
 
-	if (digitalinid != NULL and digitalinpin != NULL)
+	if (digitalinid != 0 and digitalinpin != 0)
 	{
 		if (digitalinid == 1)
 		{
@@ -66,6 +65,7 @@ DynamicJsonDocument DigitalInController::set(DynamicJsonDocument  jsonDocument)
 	}
 	Config::setDigitalInPins(pins);
 	isBusy = false;
+	return 1;
 }
 
 // Custom function accessible by the API

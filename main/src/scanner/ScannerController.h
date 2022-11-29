@@ -42,9 +42,9 @@ public:
 
     int scannernFrames = 1;
 
-    DynamicJsonDocument act(DynamicJsonDocument  ob) override;
+    int act(DynamicJsonDocument  ob) override;
     DynamicJsonDocument get(DynamicJsonDocument  ob) override;
-    DynamicJsonDocument set(DynamicJsonDocument ob) override;
+    int set(DynamicJsonDocument ob) override;
     void setup() override;
     void loop() override;
     static void controlGalvoTask(void *parameters);

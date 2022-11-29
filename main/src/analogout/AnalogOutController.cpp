@@ -39,7 +39,7 @@ void AnalogOutController::setup()
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument AnalogOutController::act(DynamicJsonDocument  ob)
+int AnalogOutController::act(DynamicJsonDocument  ob)
 {
 	// here you can do something
 	Serial.println("analogout_act_fct");
@@ -70,12 +70,10 @@ DynamicJsonDocument AnalogOutController::act(DynamicJsonDocument  ob)
 		analogout_val_3 = analogoutval;
 		ledcWrite(PWM_CHANNEL_analogout_3, analogoutval);
 	}
-	ob.clear();
-	ob["return"] = 1;
-	return ob;
+	return 1;
 }
 
-DynamicJsonDocument AnalogOutController::set(DynamicJsonDocument  ob)
+int AnalogOutController::set(DynamicJsonDocument  ob)
 {
 	// here you can set parameters
 
@@ -132,7 +130,7 @@ DynamicJsonDocument AnalogOutController::set(DynamicJsonDocument  ob)
 		ledcWrite(PWM_CHANNEL_analogout_3, 0);
 	}
 	Config::setAnalogOutPins(pins);
-
+	return 1;
 }
 
 // Custom function accessible by the API

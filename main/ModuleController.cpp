@@ -135,7 +135,7 @@ DynamicJsonDocument ModuleController::get()
     return doc;
 }
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
-DynamicJsonDocument ModuleController::set(DynamicJsonDocument j)
+int ModuleController::set(DynamicJsonDocument j)
 {
     if (j.containsKey(key_modules))
     {
@@ -169,6 +169,7 @@ DynamicJsonDocument ModuleController::set(DynamicJsonDocument j)
         setup();
         WifiController::restartWebServer();
     }
+    return 1;
 }
 
 ModuleController moduleController;

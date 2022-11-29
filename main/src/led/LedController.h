@@ -119,7 +119,7 @@ public:
     }
     }
     */
-    DynamicJsonDocument act(DynamicJsonDocument  ob) override;
+    int act(DynamicJsonDocument  ob) override;
     /*{
   "led": {
     "ledArrNum": 64,
@@ -127,7 +127,7 @@ public:
   }
 }
     */
-    DynamicJsonDocument set(DynamicJsonDocument  ob) override;
+    int set(DynamicJsonDocument  ob) override;
     DynamicJsonDocument get(DynamicJsonDocument  ob) override;
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);

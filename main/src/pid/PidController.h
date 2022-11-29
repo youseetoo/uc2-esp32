@@ -41,7 +41,7 @@ public:
 
     void setup() override;
     void loop() override;
-    DynamicJsonDocument act(DynamicJsonDocument ob) override;
+    int act(DynamicJsonDocument ob) override;
     DynamicJsonDocument get(DynamicJsonDocument ob) override;
-    DynamicJsonDocument set(DynamicJsonDocument ob) override;
+    int set(DynamicJsonDocument ob) override;
 };

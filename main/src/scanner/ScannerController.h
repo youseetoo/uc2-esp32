@@ -1,5 +1,3 @@
-
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 //#include <FreeRTOS.h>

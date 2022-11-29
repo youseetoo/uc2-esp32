@@ -233,6 +233,6 @@ namespace BtController
     {
         BTAddress * add = new BTAddress(pairedmac.c_str());
         esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t*)add->getNative());
-        log_i("paired device removed:%s", boolToChar(tError == ESP_OK));
+        log_i("paired device removed:%s", tError == ESP_OK);
     }
 }

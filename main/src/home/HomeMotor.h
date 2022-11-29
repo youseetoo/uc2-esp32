@@ -1,6 +1,4 @@
-#include "../../config.h"
 #pragma once
-#include "../../config.h"
 #include "AccelStepper.h"
 #include "ArduinoJson.h"
 #include "../digitalin/DigitalInController.h"

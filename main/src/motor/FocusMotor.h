@@ -1,10 +1,6 @@
-#include "../../config.h"
 #pragma once
-#include "../../config.h"
 #include "AccelStepper.h"
 #include "ArduinoJson.h"
-#if defined IS_PS3 || defined IS_PS4
-#endif
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"

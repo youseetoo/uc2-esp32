@@ -1,6 +1,4 @@
-#include "../../config.h"
 #pragma once
-
 #include "ArduinoJson.h"
 #include "DAC_Module.h"
 #include "../wifi/WifiController.h"

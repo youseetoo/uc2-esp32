@@ -68,11 +68,11 @@ namespace WifiController
 		String pw = doc[keyWifiPW];
 		log_i("ssid: %s wifi:%s", ssid.c_str(), WifiController::getSsid().c_str());
 		log_i("pw: %s wifi:%s", pw.c_str(), WifiController::getPw().c_str());
-		log_i("ap: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		log_i("ap: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setWifiConfig(ssid, pw, ap);
 		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
 		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
-		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setup();
 		WifiController::begin();
 		doc.clear();
@@ -110,7 +110,7 @@ namespace WifiController
 
 	void setWifiConfig(String SSID, String PWD, bool ap)
 	{
-		log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, boolToChar(config->mAP));
+		log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
 		config->mSSID = SSID;
 		config->mPWD = PWD;
 		config->mAP = ap;
@@ -144,7 +144,7 @@ namespace WifiController
 	{
 		config = Config::getWifiConfig();
 		if (config->mSSID != nullptr)
-			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, boolToChar(config->mAP));
+			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
 		if (server != nullptr)
 			server->close();
 		if (webSocket != nullptr)

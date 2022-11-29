@@ -1,5 +1,4 @@
 #pragma once
-#include "../../config.h"
 #include <ArduinoJson.h>
 #include <WebServer.h>
 #include <nvs_flash.h>

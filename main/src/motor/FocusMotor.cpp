@@ -356,7 +356,7 @@ bool FocusMotor::shareEnablePin()
 		else if (pins[i]->ENABLE > 0)
 			lastval = pins[i]->ENABLE;
 	}
-	log_i("motors share same enable pin:%s", boolToChar(share));
+	log_i("motors share same enable pin:%s", share);
 	return share;
 }
 

@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"

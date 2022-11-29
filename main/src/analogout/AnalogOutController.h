@@ -1,6 +1,4 @@
-#include "../../config.h"
 #pragma once
-#include "../../config.h"
 #include "ArduinoJson.h"
 #include "esp_err.h"
 #include "esp_log.h"

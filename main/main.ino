@@ -1,4 +1,3 @@
-#include "config.h"
 #include "ArduinoJson.h"
 #include "esp_log.h"
 #include "src/wifi/WifiController.h"
@@ -10,6 +9,7 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
+int BAUDRATE = 115200;
 
 void setup()
 {

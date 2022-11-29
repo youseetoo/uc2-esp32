@@ -28,7 +28,7 @@ void LedController::setup()
 	ledconfig = Config::getLedPins();
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(ledconfig->ledCount, ledconfig->ledPin, NEO_GRB + NEO_KHZ800);
-	log_i("setup matrix is null:%s", boolToChar(matrix == nullptr));
+	log_i("setup matrix is null:%s", matrix == nullptr);
 	log_i("LED_ARRAY_PIN: %i", ledconfig->ledPin);
 	matrix->begin();
 	matrix->setBrightness(255);

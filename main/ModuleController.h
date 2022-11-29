@@ -1,5 +1,4 @@
 #pragma once
-#include "config.h"
 #include <map>
 #include "Module.h"
 #include "ModuleConfig.h"

@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 
@@ -33,12 +32,15 @@ public:
     float PID_updaterate = 200; // ms
     bool PID_active=false;
     AnalogInPins pins;
+    // timing variables
+	unsigned long startMillis;
+	unsigned long currentMillis;
 
     int N_analogin_avg = 50;
 
     void setup() override;
     void loop() override;
-    void act(JsonObject ob) override;
-    void get(JsonObject ob) override;
-    void set(JsonObject ob) override;
+    int act(DynamicJsonDocument ob) override;
+    DynamicJsonDocument get(DynamicJsonDocument ob) override;
+    int set(DynamicJsonDocument ob) override;
 };

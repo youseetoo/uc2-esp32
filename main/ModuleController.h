@@ -1,5 +1,4 @@
 #pragma once
-#include "config.h"
 #include <map>
 #include "Module.h"
 #include "ModuleConfig.h"
@@ -50,8 +49,8 @@ public:
     void setup();
     void loop();
     Module *get(AvailableModules mod);
-    void get();
-    void set(JsonObject j);
+    DynamicJsonDocument get();
+    int set(DynamicJsonDocument j);
 };
 
 extern ModuleController moduleController;

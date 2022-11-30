@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 #include <String.h>
@@ -58,9 +57,9 @@ public:
     bool DEBUG = false;
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
-    void act(JsonObject  ob) override;
-    void set(JsonObject  ob) override;
-    void get(JsonObject  ob) override;
+    int act(DynamicJsonDocument  ob) override;
+    int set(DynamicJsonDocument  ob) override;
+    DynamicJsonDocument get(DynamicJsonDocument  ob) override;
     void setup() override;
     void loop() override;
 

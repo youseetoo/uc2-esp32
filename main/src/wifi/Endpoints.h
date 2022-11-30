@@ -1,8 +1,4 @@
 #pragma once
-#include "../../config.h"
-static const PROGMEM String state_act_endpoint = "/state_act";
-static const PROGMEM String state_set_endpoint = "/state_set";
-static const PROGMEM String state_get_endpoint = "/state_get";
 
 static const PROGMEM String laser_act_endpoint = "/laser_act";
 static const PROGMEM String laser_set_endpoint = "/laser_set";

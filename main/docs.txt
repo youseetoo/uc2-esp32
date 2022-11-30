@@ -18,11 +18,14 @@
   {"task": "/state_get", "active":1}
   {"task": "/wifi/connect", "AP": 1,"PW": "","ssid": "Uc2"}
 //cant run inside tasks
+
+//cant run inside tasks because json array seems not to care about the order 
 {"task": "/wifi/connect", "AP": 1,"PW": "","ssid": "Uc2"}
-//cant run inside tasks
+//cant run inside tasks because json array seems not to care about the order
 {"task":"/modules_set", "modules" : {"motor": 1, joy:1}}
+{"task":"/bt_connect","psx": 2, "mac":"4c:63:71:cd:31:a0"}
 //apply all pins at once
-{"tasks": [{"task":"/motor_set","motor":{"steppers": [{ "stepperid": 1, "step": 26, "dir": 16, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 1 },{ "stepperid": 2, "step": 25, "dir": 27, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 1 }]}},{"task":"/analog_joystick_set", "joy" : {"joyX": 35, joyY:34}}]}
+{"tasks": [{"task":"/modules_set", "modules" : {"motor": 1, joy:1}},{"task":"/motor_set","motor":{"steppers": [{ "stepperid": 1, "step": 26, "dir": 16, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 1 },{ "stepperid": 2, "step": 25, "dir": 27, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 1 }]}},{"task":"/analog_joystick_set", "joy" : {"joyX": 35, joyY:34}}]}
 
 
   retrieve sensor value

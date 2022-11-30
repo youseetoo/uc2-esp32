@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
@@ -18,9 +17,9 @@ public:
     int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
 
     void setup() override;
-    void act(JsonObject jsonDocument) override;
-    void set(JsonObject jsonDocument) override;
-    void get(JsonObject jsonDocument) override;
+    int act(DynamicJsonDocument jsonDocument) override;
+    int set(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void loop() override;
 };
 

@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "JPEGDecoder.h"
 #include "Adafruit_ST7735.h" // Hardware-specific library for ST7735
@@ -59,9 +58,9 @@ public:
 	bool DEBUG = false;
 	bool isBusy;
 
-	void act(JsonObject job) override;
-	void set(JsonObject job) override;
-	void get(JsonObject job) override;
+	int act(DynamicJsonDocument doc) override;
+	int set(DynamicJsonDocument doc) override;
+	DynamicJsonDocument get(DynamicJsonDocument doc) override;
 	void setup() override;
 	void loop() override;
 

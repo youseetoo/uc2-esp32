@@ -12,19 +12,17 @@ namespace RestApi
 			while (true)
 				;
 		}
-		WifiController::getJDoc()->clear();
+		DynamicJsonDocument doc(4096);
 		for (int i = 0; i < networkcount; i++)
 		{
-			(*WifiController::getJDoc()).add(WiFi.SSID(i));
+			doc.add(WiFi.SSID(i));
 		}
-		serialize();
+		serialize(doc);
 	}
 
 	void connectToWifi()
 	{
-		WifiController::connect(deserialize());
-		serialize();
-		// ESP.restart();
+		serialize(WifiController::connect(deserialize()));
 	}
 }
 
@@ -33,13 +31,7 @@ namespace WifiController
 
 	WebServer *server = nullptr;
 	WebSocketsServer *webSocket = nullptr;
-	DynamicJsonDocument *jsonDocument;
 	WifiConfig *config;
-
-	DynamicJsonDocument *getJDoc()
-	{
-		return jsonDocument;
-	}
 
 	String getSsid()
 	{
@@ -67,69 +59,58 @@ namespace WifiController
 			server->handleClient();
 	}
 
-	void connect(JsonObject j)
+	DynamicJsonDocument connect(DynamicJsonDocument doc)
 	{
 		log_i("connectToWifi");
 		
-		bool ap = j[keyWifiAP];
-		String ssid = j[keyWifiSSID];
-		String pw = j[keyWifiPW];
+		bool ap = doc[keyWifiAP];
+		String ssid = doc[keyWifiSSID];
+		String pw = doc[keyWifiPW];
 		log_i("ssid: %s wifi:%s", ssid.c_str(), WifiController::getSsid().c_str());
 		log_i("pw: %s wifi:%s", pw.c_str(), WifiController::getPw().c_str());
-		log_i("ap: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		log_i("ap: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setWifiConfig(ssid, pw, ap);
 		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
 		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
-		log_i("ap json: %s wifi:%s", boolToChar(ap), boolToChar(WifiController::getAp()));
+		log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setup();
 		WifiController::begin();
+		doc.clear();
+		return doc;
 	}
 
 	void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 	{
-
-		switch (type)
-		{
-		case WStype_DISCONNECTED:
+		if(type == WStype_DISCONNECTED)
 			log_i("[%u] Disconnected!\n", num);
-			break;
-		case WStype_CONNECTED:
+		else if(type == WStype_CONNECTED)
 		{
 			IPAddress ip = webSocket->remoteIP(num);
 			log_i("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 		}
-		break;
-		case WStype_TEXT:
+		else if(type == WStype_TEXT)
+		{
 			log_i("[%u] get Text: %s\n", num, payload);
-			deserializeJson(*WifiController::getJDoc(), payload);
-			if (WifiController::getJDoc()->containsKey(keyLed) && moduleController.get(AvailableModules::led) != nullptr)
-				moduleController.get(AvailableModules::led)->act(WifiController::getJDoc()->as<JsonObject>());
-			if (WifiController::getJDoc()->containsKey(key_motor) && moduleController.get(AvailableModules::motor) != nullptr)
-				moduleController.get(AvailableModules::motor)->act(WifiController::getJDoc()->as<JsonObject>());
-
-			break;
-		default:
-			break;
+			DynamicJsonDocument doc(4096);
+			deserializeJson(doc, payload);
+			if (doc.containsKey(keyLed) && moduleController.get(AvailableModules::led) != nullptr)
+				moduleController.get(AvailableModules::led)->act(doc);
+			if (doc.containsKey(key_motor) && moduleController.get(AvailableModules::motor) != nullptr)
+				moduleController.get(AvailableModules::motor)->act(doc);
 		}
 	}
 
-	void sendJsonWebSocketMsg()
+	void sendJsonWebSocketMsg(DynamicJsonDocument doc)
 	{
 		//log_i("socket broadcast");
 		String s;
-		serializeJson((*WifiController::getJDoc()), s);
+		serializeJson(doc, s);
 		webSocket->broadcastTXT(s.c_str());
-	}
-
-	void createJsonDoc()
-	{
-		jsonDocument = new DynamicJsonDocument(4096);
-		log_i("WifiController::createJsonDoc is null:%s", boolToChar(jsonDocument == nullptr));
 	}
 
 	void setWifiConfig(String SSID, String PWD, bool ap)
 	{
-		log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, boolToChar(config->mAP));
+		log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
 		config->mSSID = SSID;
 		config->mPWD = PWD;
 		config->mAP = ap;
@@ -163,7 +144,7 @@ namespace WifiController
 	{
 		config = Config::getWifiConfig();
 		if (config->mSSID != nullptr)
-			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, boolToChar(config->mAP));
+			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
 		if (server != nullptr)
 			server->close();
 		if (webSocket != nullptr)
@@ -207,10 +188,6 @@ namespace WifiController
 			server = new WebServer(80);
 		if (webSocket == nullptr)
 			webSocket = new WebSocketsServer(81);
-		if (jsonDocument == nullptr)
-		{
-			createJsonDoc();
-		}
 	}
 
 	void restartWebServer()
@@ -279,11 +256,7 @@ namespace WifiController
 	{
 		log_i("Setting up HTTP Routing");
 		server->onNotFound(RestApi::handleNotFound);
-		server->on(state_act_endpoint, HTTP_POST, RestApi::State_act);
-		server->on(state_get_endpoint, HTTP_POST, RestApi::State_get);
-		server->on(state_set_endpoint, HTTP_POST, RestApi::State_set);
 
-		server->on(identity_endpoint, RestApi::getIdentity);
 		server->on(features_endpoint, RestApi::getEndpoints);
 
 		server->on(ota_endpoint, HTTP_GET, getOtaIndex);

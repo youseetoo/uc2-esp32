@@ -85,7 +85,7 @@ void ScannerController::loop()
 }
 
 // Custom function accessible by the API
-void ScannerController::act(JsonObject ob)
+int ScannerController::act(DynamicJsonDocument ob)
 {
 
 	// here you can do something
@@ -295,15 +295,18 @@ void ScannerController::act(JsonObject ob)
 		if (DEBUG)
 			Serial.println("Done with setting up Tasks");
 	}
+	return 1;
 }
 
-void ScannerController::set(JsonObject  ob)
+int ScannerController::set(DynamicJsonDocument  ob)
 {
+	return 1;
 }
 
 // Custom function accessible by the API
-void ScannerController::get(JsonObject  ob)
+DynamicJsonDocument ScannerController::get(DynamicJsonDocument  ob)
 {
+	return ob;
 }
 
 /***************************************************************************************************/

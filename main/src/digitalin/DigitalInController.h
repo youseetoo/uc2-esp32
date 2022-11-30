@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/RestApiCallbacks.h"
@@ -28,9 +27,9 @@ public:
     int digitalin_val_2 = 0;
     int digitalin_val_3 = 0;
 
-    void act(JsonObject jsonDocument) override;
-    void set(JsonObject jsonDocument) override;
-    void get(JsonObject jsonDocument) override;
+    int act(DynamicJsonDocument jsonDocument) override;
+    int set(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void setup() override;
     void loop() override;
 };

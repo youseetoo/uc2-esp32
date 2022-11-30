@@ -1,12 +1,7 @@
-#include "../../config.h"
 #pragma once
-#include "../../config.h"
 #include "AccelStepper.h"
 #include "ArduinoJson.h"
 #include "../digitalin/DigitalInController.h"
-#if defined IS_PS3 || defined IS_PS4
-#include "../gamepads/ps_3_4_controller.h"
-#endif
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"
@@ -44,9 +39,9 @@ public:
 	bool isHoming = false;
 	std::array<HomeData *, 4> hdata;
 
-	void act(JsonObject  ob) override;
-	void set(JsonObject ob) override;
-	void get(JsonObject ob) override;
+	int act(DynamicJsonDocument  ob) override;
+	int set(DynamicJsonDocument ob) override;
+	DynamicJsonDocument get(DynamicJsonDocument ob) override;
 	void setup() override;
 	void loop() override;
 

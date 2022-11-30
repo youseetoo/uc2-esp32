@@ -6,29 +6,26 @@ namespace RestApi
 	void Laser_act()
 	{
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->act(deserialize());
+			serialize(moduleController.get(AvailableModules::laser)->act(deserialize()));
 		else
 			log_i("laser controller is null!");
-		serialize();
 	}
 
 	void Laser_get()
 	{
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->get(deserialize());
+			serialize(moduleController.get(AvailableModules::laser)->get(deserialize()));
 		else
 			log_i("laser controller is null!");
-		serialize();
 	}
 
 	void Laser_set()
 	{
 		log_i("laser set!");
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->set(deserialize());
+			serialize(moduleController.get(AvailableModules::laser)->set(deserialize()));
 		else
 			log_i("laser controller is null!");
-		serialize();
 	}
 }
 
@@ -83,7 +80,7 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 }
 
 // Custom function accessible by the API
-void LaserController::act(JsonObject ob)
+int LaserController::act(DynamicJsonDocument ob)
 {
 	// here you can do something
 	Serial.println("LASER_act_fct");
@@ -148,13 +145,11 @@ void LaserController::act(JsonObject ob)
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
 	}
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
-
 	isBusy = false;
+	return 1;
 }
 
-void LaserController::set(JsonObject ob)
+int LaserController::set(DynamicJsonDocument ob)
 {
 	// here you can set parameters
 	if (ob.containsKey("LASERid") && ob.containsKey("LASERpin"))
@@ -197,15 +192,17 @@ void LaserController::set(JsonObject ob)
 		}
 		Config::setLaserPins(pins);
 	}
+	return 1;
 }
 
 // Custom function accessible by the API
-void LaserController::get(JsonObject  ob)
+DynamicJsonDocument LaserController::get(DynamicJsonDocument  ob)
 {
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["LASER1pin"] = pins.LASER_PIN_1;
-	(*WifiController::getJDoc())["LASER2pin"] = pins.LASER_PIN_2;
-	(*WifiController::getJDoc())["LASER3pin"] = pins.LASER_PIN_3;
+	ob.clear();
+	ob["LASER1pin"] = pins.LASER_PIN_1;
+	ob["LASER2pin"] = pins.LASER_PIN_2;
+	ob["LASER3pin"] = pins.LASER_PIN_3;
+	return ob;
 }
 
 void LaserController::setup()

@@ -1,6 +1,4 @@
-#include "../../config.h"
 #pragma once
-#include "../../config.h"
 #include "ArduinoJson.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -52,9 +50,9 @@ public:
     int PWM_CHANNEL_analogout_2 = 5;
     int PWM_CHANNEL_analogout_3 = 6;
 
-    void act(JsonObject  jsonDocument) override;
-    void set(JsonObject  jsonDocument) override;
-    void get(JsonObject  jsonDocument) override;
+    int act(DynamicJsonDocument  jsonDocument) override;
+    int set(DynamicJsonDocument  jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument  jsonDocument) override;
 
     void setup() override;
     void loop() override;

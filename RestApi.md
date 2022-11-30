@@ -308,12 +308,13 @@ GET
 }
 ```
 /bt_connect
+psx = 1 Ps3Controller, psx = 2 Ps4Controller
 ===========
 POST
 ```
 { 
-    mac: "01:02:03:04:05:06", 
-    psx: 0 
+    "mac": "01:02:03:04:05:06", 
+    "psx": 0 
 }
 ```
 /bt_remove
@@ -321,7 +322,7 @@ POST
 POST
 ```
 { 
-    mac: "01:02:03:04:05:06",
+    "mac": "01:02:03:04:05:06",
 }
 ```
 

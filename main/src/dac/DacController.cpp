@@ -12,20 +12,17 @@ namespace RestApi
 {
 	void Dac_act()
 	{
-		moduleController.get(AvailableModules::dac)->act(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::dac)->act(deserialize()));
 	}
 
 	void Dac_get()
 	{
-		moduleController.get(AvailableModules::dac)->get(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::dac)->get(deserialize()));
 	}
 
 	void Dac_set()
 	{
-		moduleController.get(AvailableModules::dac)->set(deserialize());
-		serialize();
+		serialize(moduleController.get(AvailableModules::dac)->set(deserialize()));
 	}
 }
 
@@ -51,7 +48,7 @@ void DacController::setup()
 void DacController::loop() {}
 
 // Custom function accessible by the API
-void DacController::act(JsonObject ob)
+int DacController::act(DynamicJsonDocument ob)
 {
 	// here you can do something
 
@@ -137,11 +134,10 @@ void DacController::act(JsonObject ob)
 		dacm->dac_offset_set(dac_channel, offset);
 	}
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	return 1;
 }
 
-void DacController::set(JsonObject ob)
+int DacController::set(DynamicJsonDocument ob)
 {
 	if ((ob).containsKey(keyDACfake1Pin))
 	{
@@ -155,16 +151,18 @@ void DacController::set(JsonObject ob)
 		Config::setDacPins(pins);
 		setup();
 	}
+	return 1;
 }
 
 // Custom function accessible by the API
-void DacController::get(JsonObject jsonDocument)
+DynamicJsonDocument DacController::get(DynamicJsonDocument jsonDocument)
 {
 	// GET SOME PARAMETERS HERE
 	int dac_variable = 12343;
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["dac_variable"] = dac_variable;
+	jsonDocument.clear();
+	jsonDocument["dac_variable"] = dac_variable;
+	return jsonDocument;
 }
 
 /*

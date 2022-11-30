@@ -258,4 +258,34 @@ namespace Config
 		preferences.end();
 		return pin;
 	}
+
+	void setPsxMac(String mac)
+	{
+		preferences.begin(prefNamespace, true);
+		preferences.putString("mac", mac);
+		preferences.end();
+	}
+
+	String getPsxMac()
+	{
+		preferences.begin(prefNamespace, true);
+		String m = preferences.getString("mac");
+		preferences.end();
+		return m;
+	}
+
+	int getPsxControllerType()
+	{
+		preferences.begin(prefNamespace, true);
+		int m = preferences.getInt("controllertype");
+		preferences.end();
+		return m;
+	}
+
+	void setPsxControllerType(int type)
+	{
+		preferences.begin(prefNamespace, true);
+		preferences.putInt("controllertype", type);
+		preferences.end();
+	}
 }

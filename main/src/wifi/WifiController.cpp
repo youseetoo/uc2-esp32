@@ -118,9 +118,12 @@ namespace WifiController
 
 	void createAp(String ssid, String password)
 	{
+		// This creates an access point with the specified name and password
+
 		WiFi.disconnect();
 		log_i("Ssid %s pw %s", ssid, password);
 
+		// load default config
 		if (ssid.isEmpty())
 		{
 			log_i("Ssid empty, start Uc2 open softap");
@@ -141,13 +144,22 @@ namespace WifiController
 
 	void setup()
 	{
+		// initialize the Wifi module
+
+		// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
 		config = Config::getWifiConfig();
-		if (config->mSSID != nullptr)
+		if ((config->mSSID != nullptr) and (config->mPWD != nullptr))
 			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
+		
+		// if the server is already open => close it 
 		if (server != nullptr)
 			server->close();
+
+		// if the webSocket is already open => close it
 		if (webSocket != nullptr)
 			webSocket->close();
+
+		// load default settings for Wifi AP
 		if (config->mSSID == "")
 		{
 			config->mAP = true;
@@ -159,10 +171,12 @@ namespace WifiController
 		}
 		else
 		{
+			// if the Wifi is not in AP mode => connect to an available Wifi Hotspot
 			WiFi.softAPdisconnect();
 			log_i("Connect to:%s", config->mSSID);
 			WiFi.begin(config->mSSID.c_str(), config->mPWD.c_str());
 
+			// wait for connection 5-times, if not connected => start AP
 			int nConnectTrials = 0;
 			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 5)
 			{
@@ -183,8 +197,12 @@ namespace WifiController
 				log_i("Connected. IP: %s", WiFi.localIP());
 			}
 		}
+
+		// initialize the webserver
 		if (server == nullptr)
 			server = new WebServer(80);
+
+		// initialize the webSocket
 		if (webSocket == nullptr)
 			webSocket = new WebSocketsServer(81);
 	}

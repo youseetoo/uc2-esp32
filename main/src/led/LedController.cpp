@@ -36,10 +36,14 @@ void LedController::setup()
 
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(ledconfig->ledCount, ledconfig->ledPin, NEO_GRB + NEO_KHZ800);
-	log_i("setup matrix is null:%s", matrix == nullptr);
-	log_i("LED_ARRAY_PIN: %i", ledconfig->ledPin);
+	log_i("LED_ARRAY_PIN: %i and LED_NUM: %i", ledconfig->ledPin, ledconfig->ledCount);
+	//log_i("setup matrix is null:%s", (bool)matrix == nullptr);
+	
+	// initialize LED Strip
 	matrix->begin();
 	matrix->setBrightness(255);
+
+	// either set the default color or turn off the leds
 	if (!isOn)
 		set_all(0, 0, 0);
 	else

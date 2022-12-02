@@ -2,6 +2,7 @@
 
 void PsXController::setup(String mac, int type)
 {
+	// select the type of wifi controller - either PS3 or PS4
 	if(type == 1)
 		psx = new PSController(nullptr, PSController::kPS3);
 	else if(type == 2)
@@ -11,11 +12,16 @@ void PsXController::setup(String mac, int type)
 
 void PsXController::loop()
 {
+	// This is called in every MCU cycle
+
+	// This ensures the mapping of physical inputs (e.g. buttons) to logical outputs (e.g. motor)
+
 	//log_i("psx connected:%i",psx.isConnected());
     if (psx != nullptr && psx->isConnected())
     {
         if (moduleController.get(AvailableModules::led) != nullptr)
         {
+			// switch LED on/off on cross/circle button press
             LedController *led = (LedController *)moduleController.get(AvailableModules::led);
             if (psx->event.button_down.cross)
             {
@@ -34,41 +40,14 @@ void PsXController::loop()
 
         if (moduleController.get(AvailableModules::laser) != nullptr)
         {
+			
             LaserController *laser = (LaserController *)moduleController.get(AvailableModules::laser);
-            if (psx->event.button_down.triangle)
-            {
-                Serial.print("Turning on LAser 10000");
-                ledcWrite(laser->PWM_CHANNEL_LASER_1, 10000);
-                // delay(100); // Debounce?
-            }
-            if (psx->event.button_down.square)
-            {
-                Serial.print("Turning off LAser ");
-                ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
-                // delay(100); // Debounce?
-            }
-
-            // FOCUS
-            /*
-              if (pS4Controller.event.button_down.up) {
-                if (not getEnableMotor())
-                  setEnableMotor(true);
-                POSITION_MOTOR_X = stepper_X.currentPosition();
-                stepper_X.move(POSITION_MOTOR_X+2);
-                delay(100); //Debounce?
-              }
-              if (pS4Controller.event.button_down.down) {
-                    if (not getEnableMotor())
-                  setEnableMotor(true);
-                POSITION_MOTOR_X = stepper_X.currentPosition();
-                stepper_X.move(POSITION_MOTOR_X-2);
-                delay(100); //Debounce?
-              }
-            */
-
+            
             // LASER 1
+			// switch laser 1 on/off on triangle/square button press
             if (psx->event.button_down.up)
             {
+				// Switch laser 2 on/off on up/down button press
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
                 delay(100); // Debounce?
@@ -81,6 +60,7 @@ void PsXController::loop()
             }
 
             // LASER 2
+			// switch laser 2 on/off on triangle/square button press
             if (psx->event.button_down.right)
             {
                 Serial.print("Turning on LAser 10000");
@@ -95,7 +75,7 @@ void PsXController::loop()
             }
         }
 
-
+		// MOTORS
         if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
 			/* code */
@@ -227,6 +207,41 @@ void PsXController::loop()
 				}
 			}
 		}
+
+					/*
+			if (psx->event.button_down.triangle)
+            {
+                Serial.print("Turning on LAser 10000");
+                ledcWrite(laser->PWM_CHANNEL_LASER_1, 10000);
+                // delay(100); // Debounce?
+            }
+            if (psx->event.button_down.square)
+            {
+                Serial.print("Turning off LAser ");
+                ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
+                // delay(100); // Debounce?
+            }
+			*/
+
+            // FOCUS
+            /*
+              if (pS4Controller.event.button_down.up) {
+                if (not getEnableMotor())
+                  setEnableMotor(true);
+                POSITION_MOTOR_X = stepper_X.currentPosition();
+                stepper_X.move(POSITION_MOTOR_X+2);
+                delay(100); //Debounce?
+              }
+              if (pS4Controller.event.button_down.down) {
+                    if (not getEnableMotor())
+                  setEnableMotor(true);
+                POSITION_MOTOR_X = stepper_X.currentPosition();
+                stepper_X.move(POSITION_MOTOR_X-2);
+                delay(100); //Debounce?
+              }
+            */
+
+
 		/*if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);

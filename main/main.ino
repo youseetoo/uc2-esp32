@@ -15,13 +15,14 @@
 void setup()
 {
 	// Start Serial
-	Serial.begin(BAUDRATE);
+	Serial.begin(BAUDRATE); // default is 115200
 	delay(500);
+
+	// Disable brownout detector
 	log_i("Start setup");
-	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
+	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
 
-	// for any timing related puposes..
-
+	// initialize the pin/settings configurator
 	log_i("Config::setup");
 	Config::setup();
 
@@ -29,12 +30,15 @@ void setup()
 	log_i("wifi.setup");
 	WifiController::setup();
 
+	// initialize the module controller
 	moduleController.setup();
+
+	// initialize the bluetooth controller
 	BtController::setup();
 
+	// start with the wifi (either AP or connecting to wifi)
 	WifiController::begin();
 	log_i("End setup");
-
 
 	// check if boot process went through
 	Config::checkifBootWentThrough();

@@ -57,14 +57,22 @@ namespace BtController
 
     void setup()
     {
+
+        // setting up the bluetooth controller
+
         //BLEDevice::setCustomGapHandler(my_gap_event_handler);
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
+
+        // get the bluetooth config 
         String m = Config::getPsxMac();
         int type = Config::getPsxControllerType();
+
+        // if the mac is not empty, try to connect to the psx controller
         if (!m.isEmpty())
         {
+            // initiate either PS3 or PS4 controller
             psx.setup(m,type);
         }
         
@@ -72,11 +80,13 @@ namespace BtController
 
     void loop()
     {
+        // this maps the physical inputs (e.g. joystick) to the physical outputs (e.g. motor)
         psx.loop();
     }
 
     DynamicJsonDocument scanForDevices(DynamicJsonDocument doc)
     {
+        // scan for bluetooth devices and return the list of devices
         btClassic.begin("ESP32-BLE-1");
         log_i("Start scanning BT");
         BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);

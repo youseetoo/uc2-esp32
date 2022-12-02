@@ -110,9 +110,9 @@ namespace RestApi
         }
         if (moduleController.get(AvailableModules::config) != nullptr)
         {
-            (*WifiController::getJDoc()).add(config_act_endpoint);
-            (*WifiController::getJDoc()).add(config_set_endpoint);
-            (*WifiController::getJDoc()).add(config_get_endpoint);
+            doc.add(config_act_endpoint);
+            doc.add(config_set_endpoint);
+            doc.add(config_get_endpoint);
         }        
         if (moduleController.get(AvailableModules::motor) != nullptr)
         {

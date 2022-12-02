@@ -3,7 +3,6 @@
 #include <BluetoothSerial.h>
 #include "esp_err.h"
 #include <ArduinoJson.h>
-#include "../../config.h"
 #include "../wifi/RestApiCallbacks.h"
 #include "PsXController.h"
 
@@ -35,12 +34,12 @@ namespace RestApi
 namespace BtController
 {
     void setup();
-    DynamicJsonDocument scanForDevices(DynamicJsonDocument  jdoc);
+    DynamicJsonDocument scanForDevices(DynamicJsonDocument  doc);
     
     void setMacAndConnect(String m);
     void connectPsxController(String mac, int type);
     void removePairedDevice(String pairedmac);
-    DynamicJsonDocument getPairedDevices(DynamicJsonDocument jdoc);
+    DynamicJsonDocument getPairedDevices(DynamicJsonDocument doc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
     void loop();

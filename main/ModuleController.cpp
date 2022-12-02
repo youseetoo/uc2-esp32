@@ -27,11 +27,6 @@ void ModuleController::setup()
     }
     modules.clear();
     moduleConfig = Config::getModuleConfig();
-    if (moduleConfig->config)
-    {
-        modules.insert(std::make_pair(AvailableModules::config, dynamic_cast<Module *>(new ConfigController())));
-        log_i("add config");
-    }
     if (moduleConfig->led)
     {
         modules.insert(std::make_pair(AvailableModules::led, dynamic_cast<Module *>(new LedController())));

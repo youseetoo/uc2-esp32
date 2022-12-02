@@ -36,7 +36,7 @@ public:
 	unsigned long startMillis;
 	unsigned long currentMillis;
 
-    int nanaloginavg = 50;
+    int N_analogin_avg = 50;
 
     void setup() override;
     void loop() override;

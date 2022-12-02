@@ -1,5 +1,3 @@
-#define BAUDRATE 115200 // 500000
-
 #define boolToChar(b) ((b)?"true":"false")
 
 //#define IS_PS3

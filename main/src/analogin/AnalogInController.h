@@ -14,7 +14,7 @@ public:
     bool DEBUG = false;
     AnalogInPins pins;
 
-    int nanaloginavg; //no idea if it should be equal to that that one inside PidController.h 
+    int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
 
     void setup() override;
     int act(DynamicJsonDocument jsonDocument) override;

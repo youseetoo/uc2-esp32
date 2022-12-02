@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 
 #include "WiFi.h"

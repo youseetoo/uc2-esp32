@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "SlmController.h"
 
 namespace RestApi

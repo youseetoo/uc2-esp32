@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "FocusMotor.h"
 #include "../../pindef.h"
 namespace RestApi
@@ -81,14 +80,14 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				}
 			}
 		}
-		WifiController::getJDoc()->clear();
+		doc.clear();
 		// have some return value, that the function was called correctly
-		(*j)[key_return] = 1;
+		doc[key_return] = 1;
 	}
 	else
 	{
-		WifiController::getJDoc()->clear();
-		(*j)[key_return] = 0;
+		doc.clear();
+		doc[key_return] = 0;
 	}
 	return 1;
 }
@@ -132,12 +131,12 @@ int FocusMotor::set(DynamicJsonDocument doc)
 			for (int i = 0; i < doc[key_motor][key_steppers].size(); i++)
 			{
 				Stepper s = static_cast<Stepper>(doc[key_motor][key_steppers][i][key_stepperid]);
-				pins[s]->DIR = doc[key_motor][key_steppers][i][key_dir];
-				pins[s]->STEP = doc[key_motor][key_steppers][i][key_step];
-				pins[s]->ENABLE = doc[key_motor][key_steppers][i][key_enable];
-				pins[s]->direction_inverted = doc[key_motor][key_steppers][i][key_dir_inverted];
-				pins[s]->step_inverted = doc[key_motor][key_steppers][i][key_step_inverted];
-				pins[s]->enable_inverted = doc[key_motor][key_steppers][i][key_enable_inverted];
+				pins[s]->DIR = doc[key_motor][key_steppers][i][key_dirpin];
+				pins[s]->STEP = doc[key_motor][key_steppers][i][key_steppin];
+				pins[s]->ENABLE = doc[key_motor][key_steppers][i][key_enablepin];
+				pins[s]->direction_inverted = doc[key_motor][key_steppers][i][key_dirpin_inverted];
+				pins[s]->step_inverted = doc[key_motor][key_steppers][i][key_steppin_inverted];
+				pins[s]->enable_inverted = doc[key_motor][key_steppers][i][key_enablepin_inverted];
 				pins[s]->current_position = doc[key_motor][key_steppers][i][key_position];
 				pins[s]->max_position = doc[key_motor][key_steppers][i][key_max_position];
 				pins[s]->min_position = doc[key_motor][key_steppers][i][key_min_position];
@@ -195,29 +194,29 @@ void FocusMotor::applyMaxPos(int i)
 
 DynamicJsonDocument FocusMotor::get(DynamicJsonDocument ob)
 {
-		if (ob->containsKey(key_position))
+		if (ob.containsKey(key_position))
 		{
-			ob->clear();
+			ob.clear();
 			for (int i = 0; i < steppers.size(); i++)
 			{
 				// update position and push it to the json
 				pins[i]->current_position = steppers[i]->currentPosition();
-				ob[key_motor][key_steppers][i][key_steppinperid] = i;
+				ob[key_motor][key_steppers][i][key_stepperid] = i;
 				ob[key_motor][key_steppers][i][key_position] = pins[i]->current_position;
 			}
-			return;
+			return ob;
 		}
 
 		// only return if motor is still busy
-		if (ob->containsKey(key_stopped))
+		if (ob.containsKey(key_stopped))
 		{
-			ob->clear();
+			ob.clear();
 			for (int i = 0; i < steppers.size(); i++)
 			{
 				// update position and push it to the json
 			 ob[key_motor][key_steppers][i][key_stopped] = !data[i]->stopped;
 			}
-			return;
+			return ob;
 		}
 
 
@@ -225,12 +224,12 @@ DynamicJsonDocument FocusMotor::get(DynamicJsonDocument ob)
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		ob[key_steppers][i][key_stepperid] = i;
-		ob[key_steppers][i][key_dir] = pins[i]->DIR;
-		ob[key_steppers][i][key_step] = pins[i]->STEP;
-		ob[key_steppers][i][key_enable] = pins[i]->ENABLE;
-		ob[key_steppers][i][key_dir_inverted] = pins[i]->direction_inverted;
-		ob[key_steppers][i][key_step_inverted] = pins[i]->step_inverted;
-		ob[key_steppers][i][key_enable_inverted] = pins[i]->enable_inverted;
+		ob[key_steppers][i][key_dirpin] = pins[i]->DIR;
+		ob[key_steppers][i][key_steppin] = pins[i]->STEP;
+		ob[key_steppers][i][key_enablepin] = pins[i]->ENABLE;
+		ob[key_steppers][i][key_dirpin_inverted] = pins[i]->direction_inverted;
+		ob[key_steppers][i][key_steppin_inverted] = pins[i]->step_inverted;
+		ob[key_steppers][i][key_enablepin_inverted] = pins[i]->enable_inverted;
 		ob[key_steppers][i][key_speed] = data[i]->speed;
 		ob[key_steppers][i][key_speedmax] = data[i]->maxspeed;
 		ob[key_steppers][i][key_max_position] = pins[i]->max_position;

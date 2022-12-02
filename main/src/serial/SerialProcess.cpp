@@ -1,4 +1,3 @@
-#include "../../config.h"
 
 #include "SerialProcess.h"
 
@@ -49,7 +48,6 @@ void SerialProcess::loop()
 
 void SerialProcess::serialize(DynamicJsonDocument doc)
 {
-	// serializeJsonPretty((*WifiController::getJDoc()), Serial);
 	serializeJson(doc, Serial);
 }
 

@@ -1,5 +1,4 @@
 #pragma once
-#include "../../config.h"
 #include "ArduinoJson.h"
 #include "../config/JsonKeys.h"
 #include "esp_log.h"
@@ -15,16 +14,9 @@ namespace RestApi
     void State_set();
 };
 
-static int8_t sgn(int val)
-{
-	if (val < 0)
-		return -1;
-	if (val == 0)
-		return 0;
-	return 1;
-}
 
-class State
+
+class State : public Module
 {
 public:
 	State();
@@ -43,11 +35,10 @@ public:
 	unsigned long currentMillis;
 	bool isBusy = false; // TODO this is not working!!!
 
-	void act();
-	void set();
-	void get();
+	int act(DynamicJsonDocument  ob) override;
+	int set(DynamicJsonDocument  ob) override;
+	DynamicJsonDocument get(DynamicJsonDocument ob) override;
+
 	void setup();
 	void printInfo();
 };
-
-extern State state;

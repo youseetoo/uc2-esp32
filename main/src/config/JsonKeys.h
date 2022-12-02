@@ -83,7 +83,7 @@ static const PROGMEM char * key_home_isactive = "isactive";
 static const PROGMEM char * key_home_endposrelease = "endposrelease";
 
 static const PROGMEM char * key_steppers = "steppers";
-static const PROGMEM char * key_steppinperid = "stepperid";
+static const PROGMEM char * key_stepperid = "stepperid";
 static const PROGMEM char * key_speed = "speed";
 static const PROGMEM char * key_speedmax = "speedmax";
 static const PROGMEM char * key_position = "position";

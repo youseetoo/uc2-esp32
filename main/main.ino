@@ -10,7 +10,7 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-int BAUDRATE = 115200;
+#define BAUDRATE 115200
 
 void setup()
 {

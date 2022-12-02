@@ -75,23 +75,23 @@ namespace BtController
         psx.loop();
     }
 
-    DynamicJsonDocument scanForDevices(DynamicJsonDocument jdoc)
+    DynamicJsonDocument scanForDevices(DynamicJsonDocument doc)
     {
         btClassic.begin("ESP32-BLE-1");
         log_i("Start scanning BT");
         BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
-        jdoc.clear();
+        doc.clear();
         for (int i = 0; i < foundDevices->getCount(); i++)
         {
             log_i("Device %i %s", i, foundDevices->getDevice(i)->toString().c_str());
-            JsonObject ob = jdoc.createNestedObject();
+            JsonObject ob = doc.createNestedObject();
             ob["name"] = foundDevices->getDevice(i)->getName();
             ob["mac"] = foundDevices->getDevice(i)->getAddress().toString();
         }
         // pBLEScan->clearResults();
         // pBLEScan->stop();
         btClassic.end();
-        return jdoc;
+        return doc;
     }
 
 #define PAIR_MAX_DEVICES 20
@@ -108,14 +108,14 @@ namespace BtController
         return str;
     }
 
-    DynamicJsonDocument getPairedDevices(DynamicJsonDocument jdoc)
+    DynamicJsonDocument getPairedDevices(DynamicJsonDocument doc)
     {
-        jdoc.clear();
+        doc.clear();
         int count = esp_bt_gap_get_bond_device_num();
         if (!count)
         {
             log_i("No bonded device found.");
-            JsonObject ob = jdoc.createNestedObject();
+            JsonObject ob = doc.createNestedObject();
             ob["name"] = "No bonded device found";
         }
         else
@@ -132,13 +132,13 @@ namespace BtController
             {
                 for (int i = 0; i < count; i++)
                 {
-                    JsonObject ob = jdoc.createNestedObject();
+                    JsonObject ob = doc.createNestedObject();
                     ob["name"] = "";
                     ob["mac"] = bda2str(pairedDeviceBtAddr[i], bda_str, 18);
                 }
             }
         }
-        return jdoc;
+        return doc;
     }
 
     void setMacAndConnect(String m)

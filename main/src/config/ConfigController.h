@@ -15,7 +15,8 @@
 #include "../digitalout/DigitalOutPins.h"
 #include "../digitalin/DigitalInPins.h"
 #include "../../ModuleConfig.h"
-#include "../../ModuleController.h"
+
+
 namespace RestApi
 {
 	void Config_act();
@@ -23,28 +24,12 @@ namespace RestApi
 	void Config_set();
 };
 
-class ConfigController : public Module
-{
-
-public:
-	ConfigController();
-	~ConfigController();
-	bool DEBUG = false;
-
-	void act() override;
-	void set() override;
-	void get() override;
-	void setup() override;
-	void loop() override;
-
-};
-
 
 namespace Config
 {
     void setup();
     bool resetPreferences();
-    bool resertOnFirstBoot();
+    bool isFirstRun();
     void setWifiConfig(WifiConfig * config);
     WifiConfig * getWifiConfig();
     void setMotorPinConfig(MotorPins * pins[]);
@@ -60,16 +45,18 @@ namespace Config
     void setDigitalOutPins(DigitalOutPins pins);
     void getDigitalOutPins(DigitalOutPins pins);
     void setDigitalInPins(DigitalInPins pins);
-    void getDigitalInPins(DigitalInPins pins);
+    void getDigitalInPins(DigitalInPins pins);    
     void getAnalogOutPins(AnalogOutPins pin);
     void setAnalogOutPins(AnalogOutPins pins);
     void setModuleConfig(ModuleConfig * pins);
     ModuleConfig * getModuleConfig();
-		void checkifBootWentThrough();
     void setAnalogJoyStickPins(JoystickPins * pins);
     void getAnalogJoyStickPins(JoystickPins * pins);
     void setPsxMac(String mac);
     String getPsxMac();
     void setPsxControllerType(int type);
     int getPsxControllerType();
+    void checkifBootWentThrough();
+    void getDigitalInPins(DigitalInPins pins);
+    bool resertOnFirstBoot();
 }

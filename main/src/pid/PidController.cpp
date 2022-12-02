@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "PidController.h"
 
 namespace RestApi
@@ -64,17 +63,16 @@ void PidController::loop()
 	if (PID_active && (currentMillis - startMillis >= PID_updaterate))
 	{
 		// hardcoded for now:
-		int nanaloginavg = 50;
 		int analoginpin = pins.analogin_PIN_0;
 
 		// get rid of noise?
 		float analoginValueAvg = 0;
-		for (int imeas = 0; imeas < nanaloginavg; imeas++)
+		for (int imeas = 0; imeas < N_analogin_avg; imeas++)
 		{
 			analoginValueAvg += analogRead(analoginpin);
 		}
 
-		analoginValueAvg = (float)analoginValueAvg / (float)nanaloginavg;
+		analoginValueAvg = (float)analoginValueAvg / (float)N_analogin_avg;
 		long motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
 		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{

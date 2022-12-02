@@ -1,58 +1,26 @@
 #include "ConfigController.h"
-#include "../motor/MotorPins.h"
-#include "../../pindef.h"
+
+
+
+
+
 namespace RestApi
 {
 	void Config_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::config)->act();
-		serialize();
+		serialize(moduleController.get(AvailableModules::config)->act(deserialize()));
 	}
 
 	void Config_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::config)->get();
-		serialize();
+		serialize(moduleController.get(AvailableModules::config)->get(deserialize()));
 	}
 
 	void Config_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::config)->set();
-		serialize();
+		serialize(moduleController.get(AvailableModules::config)->set(deserialize()));
 	}
 
-}
-
-ConfigController::ConfigController() : Module() { log_i("ctor"); }
-ConfigController::~ConfigController() { log_i("~ctor"); }
-
-void ConfigController::act()
-{
-	log_i("config act");
-}
-
-void ConfigController::set()
-{
-	log_i("config set");
-	
-	DynamicJsonDocument *doc = WifiController::getJDoc();
-	serializeJsonPretty((*doc), Serial);
-
-
-	doc->clear();
-
-}
-void ConfigController::get()
-{
-}
-void ConfigController::setup()
-{
-}
-void ConfigController::loop()
-{
 }
 
 namespace Config
@@ -78,43 +46,18 @@ namespace Config
 		return conf;
 	}
 
-	void resetAllPinPreferences()
-	{
-		preferences.begin(prefNamespace, false);
-		preferences.clear();
-		preferences.end();
-	}
-
-	void checkifBootWentThrough()
-	{
-		// indicate if boot went through successfully
-		log_i("Boot went through successfully");
-		preferences.begin(prefNamespace, false);
-		preferences.putBool(keyIsBooting, false);
-		preferences.end();
-	}
-
 	void setup()
 	{
-		// check if boot process went through
-		preferences.begin(prefNamespace, false);
-		if (preferences.getBool(keyIsBooting, false))
-		{ // if the boot process stopped for whatever reason, clear settings
-			preferences.clear();
-			log_i("The boot process stopped for whatever reason, clear settings");
-		}
-		else
-		{
-			log_i("Boot process went through..");
-		}
-		preferences.putBool(keyIsBooting, true);
-		preferences.end();
-
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
-		resertOnFirstBoot();
+		if (isFirstRun())
+		{
+			log_i("First Run, resetting config");
+		}
+		// check if setup went through after new config - avoid endless boot-loop
+		// checkSetupCompleted();
 	}
 
-	void getMotorPins(MotorPins *pins[])
+	void getMotorPins(MotorPins * pins[])
 	{
 		preferences.begin(prefNamespace, false);
 		pins[Stepper::A] = new MotorPins();
@@ -144,7 +87,7 @@ namespace Config
 		preferences.end();
 	}
 
-	void setMotorPinConfig(MotorPins *pins[])
+	void setMotorPinConfig(MotorPins * pins[])
 	{
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(keyMotorADirPin, pins[Stepper::A], sizeof(MotorPins));
@@ -153,6 +96,7 @@ namespace Config
 		preferences.putBytes(keyMotorZDirPin, pins[Stepper::Z], sizeof(MotorPins));
 		preferences.end();
 	}
+
 
 	LedConfig *getLedPins()
 	{
@@ -282,20 +226,18 @@ namespace Config
 		preferences.end();
 	}
 
-	bool resertOnFirstBoot()
+	bool isFirstRun()
 	{
-		// check if boot for the first time
-		preferences.begin(prefNamespace, false);
 		bool rdystate = preferences.begin(prefNamespace, false);
-		log_i("resertOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
-		
+		log_i("isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
 		// define preference name
 		const char *compiled_date = __DATE__ " " __TIME__;
 		String stored_date = preferences.getString(dateKey, ""); // FIXME
+
 		log_i("Stored date: %s", stored_date.c_str());
 		log_i("Compiled date: %s", compiled_date);
 
-		// check if preference name is the same as compiled date -> if so, reset pin configurations
+		log_i("First run? ");
 		if (!stored_date.equals(compiled_date))
 		{
 			log_i("yes, resetSettings");
@@ -312,7 +254,7 @@ namespace Config
 		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
 		String datetest = preferences.getString(dateKey, "");
 		preferences.end();
-		log_i("resertOnFirstBoot End datetest:%s", datetest.c_str());
+		log_i("isFirstRun End datetest:%s", datetest.c_str());
 		return !stored_date.equals(compiled_date);
 	}
 
@@ -367,6 +309,15 @@ namespace Config
 	{
 		preferences.begin(prefNamespace, true);
 		preferences.putInt("controllertype", type);
+		preferences.end();
+	}
+
+	void checkifBootWentThrough()
+	{
+		// indicate if boot went through successfully
+		log_i("Boot went through successfully");
+		preferences.begin(prefNamespace, false);
+		preferences.putBool(keyIsBooting, false);
 		preferences.end();
 	}
 }

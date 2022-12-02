@@ -15,6 +15,7 @@
 #include "src/analogout/AnalogOutController.h"
 #include "src/digitalout/DigitalOutController.h"
 #include "src/digitalin/DigitalInController.h"
+#include "src/state/State.h"
 #include "src/scanner/ScannerController.h"
 
 namespace RestApi
@@ -38,6 +39,7 @@ enum class AvailableModules
     scanner,
     analogin,
     slm,
+    state,
     analogJoystick,
 };
 

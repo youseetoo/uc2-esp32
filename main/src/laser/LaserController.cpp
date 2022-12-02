@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "LaserController.h"
 #include "../../pindef.h"
 
@@ -92,6 +91,8 @@ int LaserController::act(DynamicJsonDocument ob)
 	int LASERval = (ob)["LASERval"];
 	int LASERdespeckle = (ob)["LASERdespeckle"];
 	int LASERdespecklePeriod = 20;
+	ob.clear();
+
 	if (ob.containsKey("LASERdespecklePeriod"))
 	{
 		LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
@@ -109,9 +110,6 @@ int LaserController::act(DynamicJsonDocument ob)
 		Serial.println(LASERdespecklePeriod);
 	}
 
-	// clear document
-	WifiController::getJDoc()->clear();
-
 	if (LASERid == 1 && pins.LASER_PIN_1 != 0)
 	{
 		LASER_val_1 = LASERval;
@@ -123,7 +121,7 @@ int LaserController::act(DynamicJsonDocument ob)
 			Serial.println(pins.LASER_PIN_1);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
-		(*WifiController::getJDoc())[key_return] = 1;
+		ob[key_return] = 1;
 	}
 	else if (LASERid == 2  && pins.LASER_PIN_2 != 0)
 	{
@@ -136,7 +134,7 @@ int LaserController::act(DynamicJsonDocument ob)
 			Serial.println(pins.LASER_PIN_2);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
-		(*WifiController::getJDoc())[key_return] = 1;
+		ob[key_return] = 1;
 	}
 	else if (LASERid == 3  && pins.LASER_PIN_3 != 0)
 	{
@@ -149,16 +147,15 @@ int LaserController::act(DynamicJsonDocument ob)
 			Serial.println(pins.LASER_PIN_3);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
-		(*WifiController::getJDoc())[key_return] = 1;
+		ob[key_return] = 1;
 	}
 	else{
-		(*WifiController::getJDoc())[key_return] = 0;
+		ob[key_return] = 0;
 	}
 
 	isBusy = false;
 	return 1;
 }
-
 int LaserController::set(DynamicJsonDocument ob)
 {
 	// here you can set parameters

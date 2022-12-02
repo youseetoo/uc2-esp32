@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "LedController.h"
 #include "../../pindef.h"
 
@@ -89,8 +88,8 @@ int LedController::act(DynamicJsonDocument ob)
 					ob[keyLed][key_led_array][i][keyBlue]);
 			}
 			matrix->show(); //  Update strip to match
-			jDoc->clear();
-			(*jDoc)[key_return] = LEDArrMode;
+			ob.clear();
+			ob[key_return] = LEDArrMode;
 		}
 		// only if a single led will be updated, all others stay the same
 		else if (LEDArrMode == LedModes::single)
@@ -162,14 +161,14 @@ int LedController::act(DynamicJsonDocument ob)
 		else if (LEDArrMode == LedModes::off)
 		{
 			matrix->clear();
-			jDoc->clear();
-			(*jDoc)[key_return] = LEDArrMode;
+			ob.clear();
+			ob[key_return] = LEDArrMode;
 		}
 	}
 	else
 	{
-		jDoc->clear();
-		(*jDoc)[key_return] = -1;
+		ob.clear();
+		ob[key_return] = -1;
 		log_i("failed to parse json. required keys are led_array,LEDArrMode");
 	}
 	return 1;

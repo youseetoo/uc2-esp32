@@ -18,11 +18,16 @@ class PsXController
     private:
     PSController * psx = nullptr;
     bool IS_PS_CONTROLER_LEDARRAY = false;
-    int offset_val = 20; // make sure you do not accidentally turn on two directions at the same time
+    int offset_val = 1; // make sure you do not accidentally turn on two directions at the same time
     int stick_ly = 0;
     int stick_lx = 0;
     int stick_rx = 0;
     int stick_ry = 0;
+
+    bool joystick_drive_X = false;
+    bool joystick_drive_Y = false;
+    bool joystick_drive_Z = false;
+    bool joystick_drive_A = false;
 
     int speed_x = 0;
     int speed_y = 0;

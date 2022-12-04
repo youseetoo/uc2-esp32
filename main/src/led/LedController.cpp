@@ -222,6 +222,7 @@ DynamicJsonDocument LedController::get(DynamicJsonDocument ob)
 void LedController::set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t B)
 {
 	matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
+	matrix->show();
 }
 
 void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)
@@ -230,6 +231,7 @@ void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)
 	{
 		set_led_RGB(i, R, G, B);
 	}
+	matrix->show();
 }
 
 void LedController::set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -248,6 +250,7 @@ void LedController::set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, LED_PATTERN_DPC_LEFT_8x8[i] * R, LED_PATTERN_DPC_LEFT_8x8[i] * G, LED_PATTERN_DPC_LEFT_8x8[i] * B);
 		}
 	}
+	matrix->show();
 }
 
 void LedController::set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -266,6 +269,7 @@ void LedController::set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * R, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * G, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * B);
 		}
 	}
+	matrix->show();
 }
 
 void LedController::set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -284,6 +288,7 @@ void LedController::set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, (LED_PATTERN_DPC_TOP_8x8[i]) * R, (LED_PATTERN_DPC_TOP_8x8[i]) * G, (LED_PATTERN_DPC_TOP_8x8[i]) * B);
 		}
 	}
+	matrix->show();
 }
 
 void LedController::set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -302,6 +307,7 @@ void LedController::set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B
 			set_led_RGB(i, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * R, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * G, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * B);
 		}
 	}
+	matrix->show();
 }
 
 void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)

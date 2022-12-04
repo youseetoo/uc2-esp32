@@ -277,6 +277,10 @@ void FocusMotor::setup()
 
 	// write updated motor config to flash
 	Config::setMotorPinConfig(pins);
+	
+	// enable motors
+	pinMode(pins[3]->ENABLE, OUTPUT);
+	digitalWrite(pins[3]->ENABLE, LOW);
 
 	// create the stepper
 	// isShareEnable = shareEnablePin();
@@ -286,8 +290,8 @@ void FocusMotor::setup()
 		data[i]->stopped = false; // inidcate that we are busy now to keep serial happy
 		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
-		steppers[i]->setEnablePin(pins[i]->ENABLE);
-		steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
+		//steppers[i]->setEnablePin(pins[i]->ENABLE);
+		//steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
 	}
 
 	/*

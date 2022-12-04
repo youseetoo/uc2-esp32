@@ -25,14 +25,16 @@ void PsXController::loop()
             LedController *led = (LedController *)moduleController.get(AvailableModules::led);
             if (psx->event.button_down.cross)
             {
+				log_i("Turn on LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
-                led->set_all(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
+                led->set_all(255, 255, 255);
                 delay(1000); // Debounce?
             }
             if (psx->event.button_down.circle)
             {
+				log_i("Turn off LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
-                led->set_center(255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY, 255 * IS_PS_CONTROLER_LEDARRAY);
+                led->set_all(0,0,0);
                 delay(1000); // Debounce?
             }
         }
@@ -83,54 +85,59 @@ void PsXController::loop()
 			// Y-Direction
 			if (abs(psx->state.analog.stick.ly) > offset_val)
 			{
-				// move_z
 				stick_ly = psx->state.analog.stick.ly;
 				stick_ly = stick_ly - sgn(stick_ly) * offset_val;
 				motor->data[Stepper::Y]->speed = stick_ly * 5 * global_speed;
 				motor->data[Stepper::Y]->isforever = true;
+				joystick_drive_Y = true;
 				if (motor->data[Stepper::Y]->stopped)
                 {
                     motor->startStepper(Stepper::Y);
                 }
 			}
-			else if (motor->data[Stepper::Y]->speed != 0)
+			else if (motor->data[Stepper::Y]->speed != 0 && joystick_drive_Y)
 			{
 				motor->stopStepper(Stepper::Y);
+				joystick_drive_Y = false;
 			}
 
-			// Z-Direction
+			// X-Direction
 			if ((abs(psx->state.analog.stick.rx) > offset_val))
 			{
 				// move_x
 				stick_rx = psx->state.analog.stick.rx;
 				stick_rx = stick_rx - sgn(stick_rx) * offset_val;
-				motor->data[Stepper::Z]->speed = stick_rx * 5 * global_speed;
-				motor->data[Stepper::Z]->isforever = true;
-				if (motor->data[Stepper::Z]->stopped)
-                {
-                    motor->startStepper(Stepper::Z);
-                }
-			}
-			else if (motor->data[Stepper::Z]->speed != 0)
-			{
-				motor->stopStepper(Stepper::Z);
-			}
-			// X-direction
-			if ((abs(psx->state.analog.stick.ry) > offset_val))
-			{
-				// move_y
-				stick_ry = psx->state.analog.stick.ry;
-				stick_ry = stick_ry - sgn(stick_ry) * offset_val;
-				motor->data[Stepper::X]->speed = stick_ry * 5 * global_speed;
+				motor->data[Stepper::X]->speed = stick_rx * 5 * global_speed;
 				motor->data[Stepper::X]->isforever = true;
+				joystick_drive_X = true;
 				if (motor->data[Stepper::X]->stopped)
                 {
                     motor->startStepper(Stepper::X);
                 }
 			}
-			else if (motor->data[Stepper::X]->speed != 0)
+			else if (motor->data[Stepper::X]->speed != 0 && joystick_drive_X)
 			{
 				motor->stopStepper(Stepper::X);
+				joystick_drive_X = false;
+			}
+
+			// Z-direction
+			if ((abs(psx->state.analog.stick.ry) > offset_val))
+			{
+				stick_ry = psx->state.analog.stick.ry;
+				stick_ry = stick_ry - sgn(stick_ry) * offset_val;
+				motor->data[Stepper::Z]->speed = stick_ry * 5 * global_speed;
+				motor->data[Stepper::Z]->isforever = true;
+				joystick_drive_Z = true;
+				if (motor->data[Stepper::Z]->stopped)
+                {
+                    motor->startStepper(Stepper::Z);
+                }
+			}
+			else if (motor->data[Stepper::Z]->speed != 0 && joystick_drive_Z)
+			{
+				motor->stopStepper(Stepper::Z);
+				joystick_drive_Z = false;
 			}
 		}
 

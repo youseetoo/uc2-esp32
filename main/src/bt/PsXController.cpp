@@ -144,14 +144,14 @@ void PsXController::loop()
 			{
 				// fine lens -
 				analogout_val_1 -= 1;
-				delay(100);
+				delay(50);
 				ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 			}
 			if (psx->event.button_down.right)
 			{
 				// fine lens +
 				analogout_val_1 += 1;
-				delay(100);
+				delay(50);
 				ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 			}
 			// unknown button

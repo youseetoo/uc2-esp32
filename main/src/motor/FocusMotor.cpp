@@ -148,7 +148,7 @@ int FocusMotor::set(DynamicJsonDocument doc)
 	return 1;
 }
 
-int FocusMotor::setMinMaxRange(DynamicJsonDocument  doc)
+int FocusMotor::setMinMaxRange(DynamicJsonDocument doc)
 {
 	if (doc.containsKey(key_motor))
 	{
@@ -192,51 +192,56 @@ void FocusMotor::applyMaxPos(int i)
 	Config::setMotorPinConfig(pins);
 }
 
-DynamicJsonDocument FocusMotor::get(DynamicJsonDocument ob)
+DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 {
-		if (ob.containsKey(key_position))
+	log_i("get motor");
+	StaticJsonDocument<512> doc; // create return doc
+	// only return the position of the stepper
+	if (docin.containsKey(key_position))
+	{
+		docin.clear();
+		for (int i = 0; i < steppers.size(); i++)
 		{
-			ob.clear();
-			for (int i = 0; i < steppers.size(); i++)
-			{
-				// update position and push it to the json
-				pins[i]->current_position = steppers[i]->currentPosition();
-				ob[key_motor][key_steppers][i][key_stepperid] = i;
-				ob[key_motor][key_steppers][i][key_position] = pins[i]->current_position;
-			}
-			return ob;
+			// update position and push it to the json
+			pins[i]->current_position = steppers[i]->currentPosition();
+			doc[key_motor][key_steppers][i][key_stepperid] = i;
+			doc[key_motor][key_steppers][i][key_position] = pins[i]->current_position;
 		}
+		return doc;
+	}
 
-		// only return if motor is still busy
-		if (ob.containsKey(key_stopped))
+	// only return if motor is still busy
+	if (docin.containsKey(key_stopped))
+	{
+		docin.clear();
+		for (int i = 0; i < steppers.size(); i++)
 		{
-			ob.clear();
-			for (int i = 0; i < steppers.size(); i++)
-			{
-				// update position and push it to the json
-			 ob[key_motor][key_steppers][i][key_stopped] = !data[i]->stopped;
-			}
-			return ob;
+			// update position and push it to the json
+			doc[key_motor][key_steppers][i][key_stopped] = !data[i]->stopped;
 		}
+		return doc;
+	}
 
-
-	ob.clear();
+	// return the whole config
+	docin.clear();
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		ob[key_steppers][i][key_stepperid] = i;
-		ob[key_steppers][i][key_dirpin] = pins[i]->DIR;
-		ob[key_steppers][i][key_steppin] = pins[i]->STEP;
-		ob[key_steppers][i][key_enablepin] = pins[i]->ENABLE;
-		ob[key_steppers][i][key_dirpin_inverted] = pins[i]->direction_inverted;
-		ob[key_steppers][i][key_steppin_inverted] = pins[i]->step_inverted;
-		ob[key_steppers][i][key_enablepin_inverted] = pins[i]->enable_inverted;
-		ob[key_steppers][i][key_speed] = data[i]->speed;
-		ob[key_steppers][i][key_speedmax] = data[i]->maxspeed;
-		ob[key_steppers][i][key_max_position] = pins[i]->max_position;
-		ob[key_steppers][i][key_min_position] = pins[i]->min_position;
-		ob[key_steppers][i][key_position] = pins[i]->current_position;
+		doc[key_steppers][i][key_stepperid] = i;
+		doc[key_steppers][i][key_dirpin] = pins[i]->DIR;
+		doc[key_steppers][i][key_steppin] = pins[i]->STEP;
+		doc[key_steppers][i][key_enablepin] = pins[i]->ENABLE;
+		doc[key_steppers][i][key_dirpin_inverted] = pins[i]->direction_inverted;
+		doc[key_steppers][i][key_steppin_inverted] = pins[i]->step_inverted;
+		doc[key_steppers][i][key_enablepin_inverted] = pins[i]->enable_inverted;
+		doc[key_steppers][i][key_speed] = data[i]->speed;
+		doc[key_steppers][i][key_speedmax] = data[i]->maxspeed;
+		doc[key_steppers][i][key_max_position] = pins[i]->max_position;
+		doc[key_steppers][i][key_min_position] = pins[i]->min_position;
+		doc[key_steppers][i][key_position] = pins[i]->current_position;
 	}
-	return ob;
+
+	
+	return doc;
 }
 
 void FocusMotor::setup()
@@ -245,18 +250,30 @@ void FocusMotor::setup()
 	Config::getMotorPins(pins);
 
 	// if pins have not been set => load defaults
-	if(not pins[0]->STEP) pins[0]->STEP=PIN_DEF_MOTOR_STP_A;
-	if(not pins[0]->DIR) pins[0]->DIR=PIN_DEF_MOTOR_DIR_A;
-	if(not pins[0]->ENABLE) pins[0]->ENABLE=PIN_DEF_MOTOR_EN_A;
-	if(not pins[1]->STEP) pins[1]->STEP=PIN_DEF_MOTOR_STP_X;
-	if(not pins[1]->DIR) pins[1]->DIR=PIN_DEF_MOTOR_DIR_X;
-	if(not pins[1]->ENABLE) pins[1]->ENABLE=PIN_DEF_MOTOR_EN_X;
-	if(not pins[2]->STEP) pins[2]->STEP=PIN_DEF_MOTOR_STP_Y;
-	if(not pins[2]->DIR) pins[2]->DIR=PIN_DEF_MOTOR_DIR_Y;
-	if(not pins[2]->ENABLE) pins[2]->ENABLE=PIN_DEF_MOTOR_EN_Y;
-	if(not pins[3]->STEP) pins[3]->STEP=PIN_DEF_MOTOR_STP_Z;
-	if(not pins[3]->DIR) pins[3]->DIR=PIN_DEF_MOTOR_DIR_Z;
-	if(not pins[3]->ENABLE) pins[3]->ENABLE=PIN_DEF_MOTOR_EN_Z;
+	if (not pins[0]->STEP)
+		pins[0]->STEP = PIN_DEF_MOTOR_STP_A;
+	if (not pins[0]->DIR)
+		pins[0]->DIR = PIN_DEF_MOTOR_DIR_A;
+	if (not pins[0]->ENABLE)
+		pins[0]->ENABLE = PIN_DEF_MOTOR_EN_A;
+	if (not pins[1]->STEP)
+		pins[1]->STEP = PIN_DEF_MOTOR_STP_X;
+	if (not pins[1]->DIR)
+		pins[1]->DIR = PIN_DEF_MOTOR_DIR_X;
+	if (not pins[1]->ENABLE)
+		pins[1]->ENABLE = PIN_DEF_MOTOR_EN_X;
+	if (not pins[2]->STEP)
+		pins[2]->STEP = PIN_DEF_MOTOR_STP_Y;
+	if (not pins[2]->DIR)
+		pins[2]->DIR = PIN_DEF_MOTOR_DIR_Y;
+	if (not pins[2]->ENABLE)
+		pins[2]->ENABLE = PIN_DEF_MOTOR_EN_Y;
+	if (not pins[3]->STEP)
+		pins[3]->STEP = PIN_DEF_MOTOR_STP_Z;
+	if (not pins[3]->DIR)
+		pins[3]->DIR = PIN_DEF_MOTOR_DIR_Z;
+	if (not pins[3]->ENABLE)
+		pins[3]->ENABLE = PIN_DEF_MOTOR_EN_Z;
 
 	// write updated motor config to flash
 	Config::setMotorPinConfig(pins);
@@ -319,7 +336,7 @@ void FocusMotor::loop()
 			{ // only run if not already at position
 				if (steppers[i]->distanceToGo() != 0)
 				{
-					data[i]->stopped=false;
+					data[i]->stopped = false;
 
 					// run at constant speed
 					if (data[i]->isaccelerated) // run with acceleration
@@ -333,12 +350,17 @@ void FocusMotor::loop()
 				}
 				else
 				{
-					if (!data[i]->stopped){
+					if (!data[i]->stopped)
+					{
 						// send message that motor is done only once to not slow down the loop
 						// printf("{'m':%1i, 'isBusy':0}", i);
-						Serial.print("{'motor':");Serial.print(i);Serial.print(", 'isDone':"); Serial.print(!data[i]->stopped); Serial.println("}");
+						Serial.print("{'motor':");
+						Serial.print(i);
+						Serial.print(", 'isDone':");
+						Serial.print(!data[i]->stopped);
+						Serial.println("}");
 					}
-					data[i]->stopped=true;
+					data[i]->stopped = true;
 /*
 */				}
 			}

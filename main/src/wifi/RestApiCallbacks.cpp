@@ -150,12 +150,6 @@ namespace RestApi
             doc.add(dac_set_endpoint);
             doc.add(dac_get_endpoint);
         }
-        if (moduleController.get(AvailableModules::slm) != nullptr)
-        {
-            doc.add(slm_act_endpoint);
-            doc.add(slm_set_endpoint);
-            doc.add(slm_get_endpoint);
-        }
         if (moduleController.get(AvailableModules::led) != nullptr)
         {
             doc.add(ledarr_act_endpoint);

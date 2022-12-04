@@ -28,6 +28,10 @@ void State::setup()
 {
 }
 
+void State::loop()
+{
+}
+
 // Custom function accessible by the API
 int State::act(DynamicJsonDocument doc)
 {
@@ -59,6 +63,7 @@ int State::act(DynamicJsonDocument doc)
 	}
 	doc.clear();
 	doc["return"] = 1;
+	return 1;
 }
 
 int State::set(DynamicJsonDocument doc)
@@ -73,18 +78,20 @@ int State::set(DynamicJsonDocument doc)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument State::get(DynamicJsonDocument doc)
+DynamicJsonDocument State::get(DynamicJsonDocument docin)
 {
+
+	StaticJsonDocument<512> doc; // create return doc
+
 	// GET SOME PARAMETERS HERE
-	if (doc.containsKey("isBusy"))
+	if (docin.containsKey("isBusy"))
 	{
-		doc.clear();
+		docin.clear();
 		doc["isBusy"] = isBusy; // returns state of function that takes longer to finalize (e.g. motor)
 	}
-
-	else if (doc.containsKey("pscontroller"))
+	else if (docin.containsKey("pscontroller"))
 	{
-		doc.clear();
+		docin.clear();
 #if defined IS_PS3 || defined IS_PS4
 		doc["pscontroller"] = ps_c.IS_PSCONTROLER_ACTIVE; // returns state of function that takes longer to finalize (e.g. motor)
 #endif
@@ -96,10 +103,10 @@ DynamicJsonDocument State::get(DynamicJsonDocument doc)
 		doc["identifier_id"] = identifier_id;
 		doc["identifier_date"] = identifier_date;
 		doc["identifier_author"] = identifier_author;
-		//(*jsonDocument)["identifier_setup"] = pins->identifier_setup;
 		doc["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
 		doc["configIsSet"] = config_set; // TODO: Implement! 
 	}
+	return doc;
 }
 
 void State::printInfo()

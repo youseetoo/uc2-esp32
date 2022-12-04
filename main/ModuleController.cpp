@@ -37,6 +37,13 @@ void ModuleController::setup()
         log_i("add led");
     }
 
+    // eventually load the state module
+    if (moduleConfig->state)
+    {
+        modules.insert(std::make_pair(AvailableModules::state, dynamic_cast<Module *>(new  State())));
+        log_i("add state");
+    }
+
     // eventually load the motor module
     if (moduleConfig->motor)
     {
@@ -51,12 +58,6 @@ void ModuleController::setup()
         log_i("add home");
     }
 
-    // eventually load the slm module
-    if (moduleConfig->slm)
-    {
-        modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module *>(new SlmController())));
-        log_i("add slm");
-    }
 
     // eventually load the analogin module
     if (moduleConfig->analogin)
@@ -150,7 +151,6 @@ DynamicJsonDocument ModuleController::get()
     doc[key_modules][keyLed] = moduleConfig->led;
     doc[key_modules][key_motor] = moduleConfig->motor;
     doc[key_modules][key_home] = moduleConfig->home;
-    doc[key_modules][key_slm] = moduleConfig->slm;
     doc[key_modules][key_analogin] = moduleConfig->analogin;
     doc[key_modules][key_pid] = moduleConfig->pid;
     doc[key_modules][key_laser] = moduleConfig->laser;
@@ -162,9 +162,10 @@ DynamicJsonDocument ModuleController::get()
     doc[key_modules][key_joy] = moduleConfig->analogJoystick;
     return doc;
 }
-// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
+// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
 int ModuleController::set(DynamicJsonDocument j)
 {
+    // set active modules
     if (j.containsKey(key_modules))
     {
         if (j[key_modules].containsKey(keyLed))
@@ -173,8 +174,6 @@ int ModuleController::set(DynamicJsonDocument j)
             moduleConfig->motor = j[key_modules][key_motor];
         if (j[key_modules].containsKey(key_home))
             moduleConfig->home = j[key_modules][key_home];
-        if (j[key_modules].containsKey(key_slm))
-            moduleConfig->slm = j[key_modules][key_slm];
         if (j[key_modules].containsKey(key_analogin))
             moduleConfig->analogin = j[key_modules][key_analogin];
         if (j[key_modules].containsKey(key_pid))

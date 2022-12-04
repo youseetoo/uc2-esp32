@@ -7,7 +7,6 @@
 #include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
 #include "src/laser/LaserController.h"
-#include "src/slm/SlmController.h"
 #include "src/pid/PidController.h"
 #include "src/analogin/AnalogInController.h"
 #include "src/analogin/AnalogJoystick.h"
@@ -38,7 +37,6 @@ enum class AvailableModules
     pid,
     scanner,
     analogin,
-    slm,
     state,
     analogJoystick,
 };

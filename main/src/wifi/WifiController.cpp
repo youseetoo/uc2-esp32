@@ -370,13 +370,6 @@ namespace WifiController
 			server->on(ledarr_set_endpoint, HTTP_POST, RestApi::Led_set);
 		}
 
-		if (moduleController.moduleConfig->slm != 0)
-		{
-			log_i("add slm endpoints");
-			server->on(slm_act_endpoint, HTTP_POST, RestApi::Slm_act);
-			server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
-			server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
-		}
 		if (moduleController.moduleConfig->analogJoystick != 0)
 		{
 			log_i("add analog joystick endpoints");

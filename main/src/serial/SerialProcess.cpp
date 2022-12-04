@@ -38,7 +38,7 @@ void SerialProcess::loop()
 		}
 		else
 		{
-			log_i("process singel task");
+			log_i("process single task");
 			String task_s = jsonDocument["task"];
 			JsonObject ob = jsonDocument.as<JsonObject>();
 			jsonProcessor(task_s, ob);
@@ -48,7 +48,10 @@ void SerialProcess::loop()
 
 void SerialProcess::serialize(DynamicJsonDocument doc)
 {
+	Serial.println("++");
 	serializeJson(doc, Serial);
+	Serial.println();
+	Serial.println("--");
 }
 
 void SerialProcess::serialize(int success)
@@ -58,10 +61,32 @@ void SerialProcess::serialize(int success)
 
 void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 {
+	/*
+	 enabling/disabling modules
+	 */
 	if (task == modules_set_endpoint)
 		serialize(moduleController.set(jsonDocument));
 	if (task == modules_get_endpoint)
 		serialize(moduleController.get());
+
+	/*
+	Return State
+	*/
+	if (moduleController.get(AvailableModules::state) != nullptr)
+	{
+		if (task ==  state_act_endpoint)
+		{
+			serialize(moduleController.get(AvailableModules::state)->act(jsonDocument));
+		}
+		if (task == state_set_endpoint)
+		{
+			serialize(moduleController.get(AvailableModules::state)->set(jsonDocument));
+		}
+		if (task == state_get_endpoint)
+		{
+			serialize(moduleController.get(AvailableModules::state)->get(jsonDocument));
+		}
+	}
 	/*
 	  Drive Motors
 	*/
@@ -99,25 +124,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		}
 	}
 
-	/*
-	  Operate SLM
-	*/
-
-	if (moduleController.get(AvailableModules::slm) != nullptr)
-	{
-		if (task == slm_act_endpoint)
-		{
-			serialize(moduleController.get(AvailableModules::slm)->act(jsonDocument));
-		}
-		if (task == slm_set_endpoint)
-		{
-			serialize(moduleController.get(AvailableModules::slm)->set(jsonDocument));
-		}
-		if (task == slm_get_endpoint)
-		{
-			serialize(moduleController.get(AvailableModules::slm)->get(jsonDocument));
-		}
-	}
 	/*
 	  Drive DAC
 	*/
@@ -251,6 +257,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 			BtController::connectPsxController(mac, ps);
 		}
 	}
-	Serial.println(task);
+
 }
 SerialProcess serial;

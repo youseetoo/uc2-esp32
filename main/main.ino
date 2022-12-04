@@ -17,6 +17,7 @@ void setup()
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
 	delay(500);
+	Serial.setTimeout(50);
 
 	// Disable brownout detector
 	log_i("Start setup");

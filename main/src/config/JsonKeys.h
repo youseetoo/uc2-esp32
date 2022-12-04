@@ -105,7 +105,6 @@ static const PROGMEM char * key_max_position = "max_pos";
 
 static const PROGMEM char *dateKey = "date";
 static const PROGMEM char *key_modules = "modules";
-static const PROGMEM char *key_slm = "slm";
 static const PROGMEM char *key_analogin = "analogin";
 static const PROGMEM char *key_pid = "pid";
 static const PROGMEM char *key_laser = "laser";

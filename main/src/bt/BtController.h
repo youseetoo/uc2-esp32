@@ -31,9 +31,11 @@ namespace RestApi
     void Bt_remove();
 };
 
-namespace BtController
+namespace BtController //class BtController : public Module
 {
-    void setup();
+    //public:
+    void setup();// override;
+    void loop();// override;
     DynamicJsonDocument scanForDevices(DynamicJsonDocument  doc);
     
     void setMacAndConnect(String m);
@@ -42,6 +44,6 @@ namespace BtController
     DynamicJsonDocument getPairedDevices(DynamicJsonDocument doc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
-    void loop();
+    
     
 }

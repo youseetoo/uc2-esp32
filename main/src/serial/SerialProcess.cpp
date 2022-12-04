@@ -70,6 +70,22 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		serialize(moduleController.get());
 
 	/*
+	Handle BTController
+	
+	if (moduleController.get(AvailableModules::btController) != nullptr)
+	{
+		if (task == bt_scan_endpoint) // start for Bluetooth Devices
+			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_startScan(jsonDocument));
+		if (task == bt_paireddevices_endpoint) // get paired devices
+			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_getPairedDevices(jsonDocument));
+		if (task == bt_connect_endpoint) // connect to device
+			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_connect(jsonDocument));
+		if (task == bt_remove_endpoint) // remove paired device
+			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_remove(jsonDocument));
+	}
+	*/
+
+	/*
 	Return State
 	*/
 	if (moduleController.get(AvailableModules::state) != nullptr)
@@ -232,11 +248,11 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	}
 
 	if (task == scanwifi_endpoint)
-	{
-		RestApi::scanWifi();
+	{	// {"task":"/wifi/scan"}
+		serialize(RestApi::scanWifi());
 	}
 	if (task == connectwifi_endpoint)
-	{
+	{ 	// {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 		WifiController::connect(jsonDocument);
 	}
 	if (task == reset_nv_flash_endpoint)
@@ -245,6 +261,7 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	}
 	if (task == bt_connect_endpoint)
 	{
+		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 		String mac = jsonDocument["mac"];
 		int ps = jsonDocument["psx"];
 
@@ -256,6 +273,10 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		{
 			BtController::connectPsxController(mac, ps);
 		}
+	}
+	if (task == bt_scan_endpoint)
+	{
+		BtController::scanForDevices(jsonDocument);
 	}
 
 }

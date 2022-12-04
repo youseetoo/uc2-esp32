@@ -15,6 +15,7 @@
 #include "src/digitalout/DigitalOutController.h"
 #include "src/digitalin/DigitalInController.h"
 #include "src/state/State.h"
+#include "src/bt/BtController.h"
 #include "src/scanner/ScannerController.h"
 
 namespace RestApi
@@ -26,6 +27,7 @@ namespace RestApi
 enum class AvailableModules
 {
     analogout,
+    btcontroller,
     config,
     dac,
     digitalout,

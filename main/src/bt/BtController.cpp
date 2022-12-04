@@ -42,6 +42,9 @@ namespace RestApi
     }
 }
 
+//BtController::BtController() : Module() { log_i("ctor"); }
+//BtController::~BtController() { log_i("~ctor"); }
+
 namespace BtController
 {
 

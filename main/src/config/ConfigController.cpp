@@ -39,6 +39,19 @@ namespace Config
 		WifiConfig *conf = new WifiConfig();
 		preferences.getBytes(keyWifiSSID, conf, sizeof(WifiConfig));
 		preferences.end();
+
+		// check if mAP is set
+		if (not conf->mAP)
+			conf->mAP = true;
+		// check if ssid is set
+		if (not conf->mSSID)
+			conf->mSSID = "Uc2";
+		// check if password is set
+		if (not conf->mPWD)
+			conf->mPWD = "";
+		// check if hostname is set
+		if (not conf->hostname)
+			conf->hostname = "youseetoo";
 		return conf;
 	}
 

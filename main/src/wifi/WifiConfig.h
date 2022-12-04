@@ -3,8 +3,8 @@
 
 struct WifiConfig
 {
-    const String mSSIDAP = F("UC2");
-	const String hostname = F("youseetoo");
+    String mSSIDAP = F("UC2");
+	String hostname = F("youseetoo");
 	String mSSID = "Uc2";
 	String mPWD = "";
 	bool mAP = true;

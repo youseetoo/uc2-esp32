@@ -13,7 +13,7 @@ struct ModuleConfig
     bool pid = false;
     bool scanner = false;
     bool analogin = false;
-
+    bool btcontroller = true;
     bool home = false;
     bool state = true;
     bool analogJoystick = false;

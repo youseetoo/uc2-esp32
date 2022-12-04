@@ -37,6 +37,14 @@ void ModuleController::setup()
         log_i("add led");
     }
 
+    // eventually load the BTController module
+    /*
+    if (moduleConfig->btcontroller)
+    {
+        modules.insert(std::make_pair(AvailableModules::btcontroller, dynamic_cast<Module *>(new BTController())));
+        log_i("add btcontroller");
+    }*/
+
     // eventually load the state module
     if (moduleConfig->state)
     {

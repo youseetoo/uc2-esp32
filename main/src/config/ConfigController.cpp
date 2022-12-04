@@ -1,5 +1,6 @@
 #include "ConfigController.h"
 
+
 namespace RestApi
 {
 	void Config_act()
@@ -353,7 +354,7 @@ namespace Config
 	}
 
 	int getPsxControllerType()
-	{
+	{		
 		preferences.begin(prefNamespace, true);
 		int m = preferences.getInt("controllertype");
 		preferences.end();

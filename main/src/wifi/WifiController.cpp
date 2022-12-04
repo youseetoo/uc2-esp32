@@ -164,13 +164,13 @@ namespace WifiController
 		// load default settings for Wifi AP
 		if (config->mSSID == "")
 		{
-			log_i("No SSID is given: Create AP with default credentials Uc2 and no password")
+			log_i("No SSID is given: Create AP with default credentials Uc2 and no password");
 			config->mAP = true;
 			createAp(config->mSSIDAP, config->mPWD);
 		}
 		else if (config->mAP)
 		{
-			log_i("AP is true: Create AP with default credentials Uc2 and no password")
+			log_i("AP is true: Create AP with default credentials Uc2 and no password");
 			createAp(config->mSSID, config->mPWD);
 		}
 		else

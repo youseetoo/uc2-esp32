@@ -1,3 +1,4 @@
+#pragma once
 // initial pin definitions
 
 // ESP32-WEMOS D1 R32
@@ -24,5 +25,9 @@ const int PIN_DEF_LED_NUM = 64;
 const int PIN_DEF_END_X = GPIO_NUM_13;
 const int PIN_DEF_END_Y = GPIO_NUM_5;
 const int PIN_DEF_END_Z = GPIO_NUM_23; 
+
+const String PS4_MAC_DEF = "1a:2b:3c:01:01:01";
+const int PS4_ENUM_DEF = 2;
+
 
 

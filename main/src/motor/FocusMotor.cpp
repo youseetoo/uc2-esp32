@@ -66,17 +66,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 					stopStepper(s);
 				else
 				{
-					if (pins[s]->max_position != 0 || pins[s]->min_position != 0)
-					{
-						if ((pins[s]->current_position + data[s]->speed / 200 >= pins[s]->max_position && data[s]->speed > 0) || (pins[s]->current_position + data[s]->speed / 200 <= pins[s]->min_position && data[s]->speed < 0))
-						{
-							return 1;
-						}
-						else
-							startStepper(s);
-					}
-					else
-						startStepper(s);
+					startStepper(s);
 				}
 			}
 		}
@@ -94,31 +84,23 @@ int FocusMotor::act(DynamicJsonDocument doc)
 
 void FocusMotor::startStepper(int i)
 {
-	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition);
+	log_i("start stepper:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isaccel:%i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition, data[i]->isaccelerated);
 
 	data[i]->stopped = false;
+	steppers[i]->setSpeed(data[i]->speed);
 	if (!data[i]->isforever)
-	{
-		steppers[i]->setSpeed(data[i]->speed);
+	{ // run to position
 		steppers[i]->setMaxSpeed(data[i]->maxspeed);
 		if (data[i]->absolutePosition)
 		{
 			// absolute position coordinates
 			steppers[i]->moveTo(data[i]->targetPosition);
-			steppers[i]->run();
 		}
 		else
 		{
 			// relative position coordinates
 			steppers[i]->move(data[i]->targetPosition);
-			steppers[i]->run();
 		}
-	}
-	else if (data[i]->isforever)
-	{
-		steppers[i]->setMaxSpeed(data[i]->maxspeed);
-		steppers[i]->setSpeed(data[i]->speed);
-		steppers[i]->runSpeed();
 	}
 	pins[i]->current_position = steppers[i]->currentPosition();
 }
@@ -196,7 +178,7 @@ void FocusMotor::applyMaxPos(int i)
 DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 {
 	log_i("get motor");
-	StaticJsonDocument<512> doc; // create return doc
+	StaticJsonDocument<1024> doc; // create return doc
 	// only return the position of the stepper
 	if (docin.containsKey(key_position))
 	{
@@ -234,8 +216,8 @@ DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 		doc[key_steppers][i][key_dirpin_inverted] = pins[i]->direction_inverted;
 		doc[key_steppers][i][key_steppin_inverted] = pins[i]->step_inverted;
 		doc[key_steppers][i][key_enablepin_inverted] = pins[i]->enable_inverted;
-		doc[key_steppers][i][key_speed] = data[i]->speed;
-		doc[key_steppers][i][key_speedmax] = data[i]->maxspeed;
+		doc[key_steppers][i][key_speed] = steppers[i]->speed();		  // data[i]->speed;
+		doc[key_steppers][i][key_speedmax] = steppers[i]->maxSpeed(); // data[i]->maxspeed;
 		doc[key_steppers][i][key_max_position] = pins[i]->max_position;
 		doc[key_steppers][i][key_min_position] = pins[i]->min_position;
 		doc[key_steppers][i][key_position] = pins[i]->current_position;
@@ -277,10 +259,6 @@ void FocusMotor::setup()
 
 	// write updated motor config to flash
 	Config::setMotorPinConfig(pins);
-	
-	// enable motors
-	pinMode(pins[3]->ENABLE, OUTPUT);
-	digitalWrite(pins[3]->ENABLE, LOW);
 
 	// create the stepper
 	// isShareEnable = shareEnablePin();
@@ -290,8 +268,11 @@ void FocusMotor::setup()
 		data[i]->stopped = false; // inidcate that we are busy now to keep serial happy
 		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
-		//steppers[i]->setEnablePin(pins[i]->ENABLE);
-		//steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
+		// steppers[i]->setEnablePin(pins[i]->ENABLE);
+		// steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
+		//  enable motors
+		pinMode(pins[i]->ENABLE, OUTPUT);
+		digitalWrite(pins[i]->ENABLE, LOW);
 	}
 
 	/*
@@ -299,15 +280,28 @@ void FocusMotor::setup()
 	*/
 	Serial.println("Setting Up Motors");
 	Serial.println("Setting Up Motor A,X,Y,Z");
+
+	// set speed/accelleration
+	steppers[Stepper::A]->setMaxSpeed(MAX_VELOCITY_A);
+	steppers[Stepper::A]->setSpeed(CURRENT_SPEED_A);
+	steppers[Stepper::A]->setAcceleration(MAX_ACCELERATION_A);
+	steppers[Stepper::X]->setMaxSpeed(MAX_VELOCITY_X);
+	steppers[Stepper::X]->setSpeed(CURRENT_SPEED_X);
+	steppers[Stepper::X]->setAcceleration(MAX_ACCELERATION_X);
+	steppers[Stepper::Y]->setMaxSpeed(MAX_VELOCITY_Y);
+	steppers[Stepper::Y]->setSpeed(CURRENT_SPEED_Y);
+	steppers[Stepper::Y]->setAcceleration(MAX_ACCELERATION_Y);
+	steppers[Stepper::Z]->setMaxSpeed(MAX_VELOCITY_Z);
+	steppers[Stepper::Z]->setSpeed(CURRENT_SPEED_Z);
+	steppers[Stepper::Z]->setAcceleration(MAX_ACCELERATION_Z);
+
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
-		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
-		// steppers[i]->enableOutputs();
-		// steppers[i]->runToNewPosition(-100);
-		// steppers[i]->runToNewPosition(100);
+		steppers[i]->enableOutputs();
+		steppers[i]->runToNewPosition(-10);
+		steppers[i]->runToNewPosition(10);
 		steppers[i]->setCurrentPosition(pins[i]->current_position);
-		steppers[i]->disableOutputs();
+		// steppers[i]->disableOutputs();
 		data[i]->stopped = true; // inidcate that we are busy now to keep serial happy
 	}
 }
@@ -334,12 +328,14 @@ void FocusMotor::loop()
 			}
 			*/
 			steppers[i]->setSpeed(data[i]->speed);
-			steppers[i]->setMaxSpeed(data[i]->maxspeed);
+
+			// steppers[i]->setMaxSpeed(data[i]->maxspeed);
 			if (data[i]->isforever)
 			{
 				steppers[i]->runSpeed();
 			}
-			else{ // only run if not already at position
+			else
+			{ // only run if not already at position
 				if (steppers[i]->distanceToGo() != 0)
 				{
 					data[i]->stopped = false;
@@ -365,41 +361,14 @@ void FocusMotor::loop()
 						Serial.print(", 'isDone':");
 						Serial.print(!data[i]->stopped);
 						Serial.println("}");
+						data[i]->stopped = true;
 					}
-					data[i]->stopped = true;
-/*
-*/				}
-			}
-			// send current position to client
-			//{"steppers":[{"stepperid":1,"position":3}]}
-
-#ifdef DEBUG_MOTOR
-			if (pins[i]->DIR > 0 && steppers[i]->areOutputsEnabled())
-				log_i("current Pos:%i target pos:%i", pins[i]->current_position, data[i]->targetPosition);
-#endif
-		}
-	}
-
-	/*
-	arraypos = 0;
-	if (millis() >= nextSocketUpdateTime)
-	{
-		for (int i = 0; i < steppers.size(); i++)
-		{
-			if (!data[i]->stopped)
-			{
-				pins[i]->current_position = steppers[i]->currentPosition();
-				sendMotorPos(i, arraypos);
+				}
+				// send current position to client
+				//{"steppers":[{"stepperid":1,"position":3}]}
 			}
 		}
-		nextSocketUpdateTime = millis() + 500UL;
 	}
-
-	if (isShareEnable)
-	{
-		disableEnablePin(-1);
-	}
-	*/
 }
 
 void FocusMotor::sendMotorPos(int i, int arraypos)

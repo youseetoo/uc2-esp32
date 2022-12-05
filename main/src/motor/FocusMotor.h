@@ -69,6 +69,10 @@ public:
 	long MAX_ACCELERATION_X = 100000;
 	long MAX_ACCELERATION_Y = 100000;
 	long MAX_ACCELERATION_Z = 100000;
+	long CURRENT_SPEED_A = 10000;
+	long CURRENT_SPEED_X = 10000;
+	long CURRENT_SPEED_Y = 10000;
+	long CURRENT_SPEED_Z = 10000;
 
 	std::array<AccelStepper *, 4> steppers;
 	std::array<MotorData *, 4> data;

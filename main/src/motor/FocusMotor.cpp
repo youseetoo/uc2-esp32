@@ -277,7 +277,7 @@ void FocusMotor::setup()
 
 	// write updated motor config to flash
 	Config::setMotorPinConfig(pins);
-	
+
 	// enable motors
 	pinMode(pins[3]->ENABLE, OUTPUT);
 	digitalWrite(pins[3]->ENABLE, LOW);
@@ -290,8 +290,8 @@ void FocusMotor::setup()
 		data[i]->stopped = false; // inidcate that we are busy now to keep serial happy
 		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
-		//steppers[i]->setEnablePin(pins[i]->ENABLE);
-		//steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
+		// steppers[i]->setEnablePin(pins[i]->ENABLE);
+		// steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);
 	}
 
 	/*
@@ -312,6 +312,20 @@ void FocusMotor::setup()
 	}
 }
 
+bool FocusMotor::checkIfMinMaxPosIsReached(int arraypos, int i)
+{
+	if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+	{
+		if ((pins[i]->current_position + data[i]->speed / 200 >= pins[i]->max_position && data[i]->speed > 0) || (pins[i]->current_position + data[i]->speed / 200 <= pins[i]->min_position && data[i]->speed < 0))
+		{
+			stopStepper(i);
+			sendMotorPos(i, arraypos);
+			return true;
+		}
+	}
+	return false;
+}
+
 void FocusMotor::loop()
 {
 	int arraypos = 0;
@@ -322,24 +336,16 @@ void FocusMotor::loop()
 		// move motor only if available
 		if (steppers[i] != nullptr && pins[i]->DIR > 0) // TODO: Makes sense, but if no config is given, the return value fails.
 		{
-			/*
-			if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
-			{
-				if ((pins[i]->current_position + data[i]->speed / 200 >= pins[i]->max_position && data[i]->speed > 0) || (pins[i]->current_position + data[i]->speed / 200 <= pins[i]->min_position && data[i]->speed < 0))
-				{
-					stopStepper(i);
-					sendMotorPos(i, arraypos);
-					return;
-				}
-			}
-			*/
+			if (checkIfMinMaxPosIsReached(arraypos, i))
+				return;
 			steppers[i]->setSpeed(data[i]->speed);
 			steppers[i]->setMaxSpeed(data[i]->maxspeed);
 			if (data[i]->isforever)
 			{
 				steppers[i]->runSpeed();
 			}
-			else{ // only run if not already at position
+			else
+			{ // only run if not already at position
 				if (steppers[i]->distanceToGo() != 0)
 				{
 					data[i]->stopped = false;
@@ -367,8 +373,7 @@ void FocusMotor::loop()
 						Serial.println("}");
 					}
 					data[i]->stopped = true;
-/*
-*/				}
+				}
 			}
 			// send current position to client
 			//{"steppers":[{"stepperid":1,"position":3}]}
@@ -380,8 +385,17 @@ void FocusMotor::loop()
 		}
 	}
 
-	/*
 	arraypos = 0;
+	updateWebSocket(arraypos);
+
+	if (isShareEnable)
+	{
+		disableEnablePin(-1);
+	}
+}
+
+void FocusMotor::updateWebSocket(int arraypos)
+{
 	if (millis() >= nextSocketUpdateTime)
 	{
 		for (int i = 0; i < steppers.size(); i++)
@@ -394,12 +408,6 @@ void FocusMotor::loop()
 		}
 		nextSocketUpdateTime = millis() + 500UL;
 	}
-
-	if (isShareEnable)
-	{
-		disableEnablePin(-1);
-	}
-	*/
 }
 
 void FocusMotor::sendMotorPos(int i, int arraypos)

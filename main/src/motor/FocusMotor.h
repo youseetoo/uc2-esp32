@@ -99,4 +99,6 @@ private:
 	bool shareEnablePin();
 	void disableEnablePin(int i);
 	void enableEnablePin(int i);
+	bool checkIfMinMaxPosIsReached(int arraypos, int i);
+	void updateWebSocket(int arraypos);
 };

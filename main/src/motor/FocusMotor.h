@@ -24,7 +24,6 @@ struct MotorData
 	bool isaccelerated = false;
 	bool absolutePosition = false;
 	bool stopped = true;
-
 };
 
 enum Stepper
@@ -78,9 +77,64 @@ public:
 	int setMinMaxRange(DynamicJsonDocument  ob);
 	int act(DynamicJsonDocument  ob) override;
 	int set(DynamicJsonDocument  ob) override;
+	/*
+		returns
+		{
+  "steppers": [
+	{
+	  "stepperid": 0,
+	  "dir": 0,
+	  "step": 0,
+	  "enable": 0,
+	  "dir_inverted": false,
+	  "step_inverted": false,
+	  "enable_inverted": false,
+	  "position": 0,
+	  "speed": 0,
+	  "speedmax": 20000
+	},
+	{
+	  "stepperid": 1,
+	  "dir": 21,
+	  "step": 19,
+	  "enable": 18,
+	  "dir_inverted": false,
+	  "step_inverted": false,
+	  "enable_inverted": true,
+	  "position": 0,
+	  "speed": 0,
+	  "speedmax": 20000
+	},
+	{
+	  "stepperid": 2,
+	  "dir": 0,
+	  "step": 0,
+	  "enable": 0,
+	  "dir_inverted": false,
+	  "step_inverted": false,
+	  "enable_inverted": false,
+	  "position": 0,
+	  "speed": 0,
+	  "speedmax": 20000
+	},
+	{
+	  "stepperid": 3,
+	  "dir": 0,
+	  "step": 0,
+	  "enable": 0,
+	  "dir_inverted": false,
+	  "step_inverted": false,
+	  "enable_inverted": false,
+	  "position": 0,
+	  "speed": 0,
+	  "speedmax": 20000
+	}
+  ]
+  }
+	*/
 	DynamicJsonDocument get(DynamicJsonDocument ob) override;
 	void setup() override;
-	void loop() override;
+	void loop() override;	
 	void stopAllDrives();
 	void stopStepper(int i);
 	void startStepper(int i);
@@ -90,7 +144,7 @@ private:
 	unsigned long nextSocketUpdateTime;
 	bool isShareEnable;
 
-
+	
 	void startAllDrives();
 	void applyMinPos(int i);
 	void applyMaxPos(int i);

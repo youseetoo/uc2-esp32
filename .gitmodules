@@ -21,9 +21,11 @@
 [submodule "lib/Adafruit-GFX-Library"]
 	path = lib/Adafruit-GFX-Library
 	url = https://github.com/youseetoo/Adafruit-GFX-Library.git
+	branch = master
 [submodule "lib/arduinoWebSockets"]
 	path = lib/arduinoWebSockets
 	url = https://github.com/youseetoo/arduinoWebSockets.git
+	branch = master
 [submodule "lib/PSController"]
 	path = lib/PSController
 	url = https://github.com/youseetoo/PSController.git

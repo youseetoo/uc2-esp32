@@ -1,4 +1,5 @@
 #include "BtController.h"
+#include "pindef.h"
 
 namespace RestApi
 {
@@ -42,6 +43,9 @@ namespace RestApi
     }
 }
 
+//BtController::BtController() : Module() { log_i("ctor"); }
+//BtController::~BtController() { log_i("~ctor"); }
+
 namespace BtController
 {
 
@@ -57,14 +61,28 @@ namespace BtController
 
     void setup()
     {
+
+        // setting up the bluetooth controller
+
         //BLEDevice::setCustomGapHandler(my_gap_event_handler);
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
+
+        // get the bluetooth config 
         String m = Config::getPsxMac();
         int type = Config::getPsxControllerType();
+
+        if(m.isEmpty()){
+            m = PS4_MAC_DEF;
+            type = PS4_ENUM_DEF;
+        }
+
+        // if the mac is not empty, try to connect to the psx controller
         if (!m.isEmpty())
         {
+            // initiate either PS3 or PS4 controller
+            log_i("Connecting to PSX controller");
             psx.setup(m,type);
         }
         
@@ -72,26 +90,28 @@ namespace BtController
 
     void loop()
     {
+        // this maps the physical inputs (e.g. joystick) to the physical outputs (e.g. motor)
         psx.loop();
     }
 
-    DynamicJsonDocument scanForDevices(DynamicJsonDocument jdoc)
+    DynamicJsonDocument scanForDevices(DynamicJsonDocument doc)
     {
+        // scan for bluetooth devices and return the list of devices
         btClassic.begin("ESP32-BLE-1");
         log_i("Start scanning BT");
         BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
-        jdoc.clear();
+        doc.clear();
         for (int i = 0; i < foundDevices->getCount(); i++)
         {
             log_i("Device %i %s", i, foundDevices->getDevice(i)->toString().c_str());
-            JsonObject ob = jdoc.createNestedObject();
+            JsonObject ob = doc.createNestedObject();
             ob["name"] = foundDevices->getDevice(i)->getName();
             ob["mac"] = foundDevices->getDevice(i)->getAddress().toString();
         }
         // pBLEScan->clearResults();
         // pBLEScan->stop();
         btClassic.end();
-        return jdoc;
+        return doc;
     }
 
 #define PAIR_MAX_DEVICES 20
@@ -108,14 +128,14 @@ namespace BtController
         return str;
     }
 
-    DynamicJsonDocument getPairedDevices(DynamicJsonDocument jdoc)
+    DynamicJsonDocument getPairedDevices(DynamicJsonDocument doc)
     {
-        jdoc.clear();
+        doc.clear();
         int count = esp_bt_gap_get_bond_device_num();
         if (!count)
         {
             log_i("No bonded device found.");
-            JsonObject ob = jdoc.createNestedObject();
+            JsonObject ob = doc.createNestedObject();
             ob["name"] = "No bonded device found";
         }
         else
@@ -132,13 +152,13 @@ namespace BtController
             {
                 for (int i = 0; i < count; i++)
                 {
-                    JsonObject ob = jdoc.createNestedObject();
+                    JsonObject ob = doc.createNestedObject();
                     ob["name"] = "";
                     ob["mac"] = bda2str(pairedDeviceBtAddr[i], bda_str, 18);
                 }
             }
         }
-        return jdoc;
+        return doc;
     }
 
     void setMacAndConnect(String m)

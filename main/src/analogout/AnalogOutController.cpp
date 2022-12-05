@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "AnalogOutController.h"
 
 namespace RestApi

@@ -1,5 +1,3 @@
-#include "../../config.h"
-
 #include "AnalogInController.h"
 
 AnalogInController::AnalogInController(/* args */){};

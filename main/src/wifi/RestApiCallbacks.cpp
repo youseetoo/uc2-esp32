@@ -108,6 +108,12 @@ namespace RestApi
             doc.add(laser_set_endpoint);
             doc.add(laser_get_endpoint);
         }
+        if (moduleController.get(AvailableModules::config) != nullptr)
+        {
+            doc.add(config_act_endpoint);
+            doc.add(config_set_endpoint);
+            doc.add(config_get_endpoint);
+        }        
         if (moduleController.get(AvailableModules::motor) != nullptr)
         {
             doc.add(motor_act_endpoint);
@@ -143,12 +149,6 @@ namespace RestApi
             doc.add(dac_act_endpoint);
             doc.add(dac_set_endpoint);
             doc.add(dac_get_endpoint);
-        }
-        if (moduleController.get(AvailableModules::slm) != nullptr)
-        {
-            doc.add(slm_act_endpoint);
-            doc.add(slm_set_endpoint);
-            doc.add(slm_get_endpoint);
         }
         if (moduleController.get(AvailableModules::led) != nullptr)
         {

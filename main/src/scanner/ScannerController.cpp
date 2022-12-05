@@ -1,5 +1,4 @@
 
-#include "../../config.h"
 #include "ScannerController.h"
 
 ScannerController::ScannerController(){

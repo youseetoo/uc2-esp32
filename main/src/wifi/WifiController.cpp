@@ -1,9 +1,8 @@
-#include "../../config.h"
 #include "WifiController.h"
 
 namespace RestApi
 {
-	void scanWifi()
+	DynamicJsonDocument scanWifi()
 	{
 		log_i("scanWifi");
 		int networkcount = WiFi.scanNetworks();
@@ -15,9 +14,10 @@ namespace RestApi
 		DynamicJsonDocument doc(4096);
 		for (int i = 0; i < networkcount; i++)
 		{
-			doc.add(WiFi.SSID(i));
+			doc["ssid"].add(WiFi.SSID(i));
 		}
 		serialize(doc);
+		return doc;
 	}
 
 	void connectToWifi()
@@ -68,11 +68,11 @@ namespace WifiController
 		String pw = doc[keyWifiPW];
 		log_i("ssid: %s wifi:%s", ssid.c_str(), WifiController::getSsid().c_str());
 		log_i("pw: %s wifi:%s", pw.c_str(), WifiController::getPw().c_str());
-		log_i("ap: %s wifi:%s", ap, WifiController::getAp());
+		//log_i("ap: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setWifiConfig(ssid, pw, ap);
 		log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
 		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
-		log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
+		//log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setup();
 		WifiController::begin();
 		doc.clear();
@@ -110,7 +110,7 @@ namespace WifiController
 
 	void setWifiConfig(String SSID, String PWD, bool ap)
 	{
-		log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
+		//log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
 		config->mSSID = SSID;
 		config->mPWD = PWD;
 		config->mAP = ap;
@@ -119,9 +119,12 @@ namespace WifiController
 
 	void createAp(String ssid, String password)
 	{
+		// This creates an access point with the specified name and password
+
 		WiFi.disconnect();
 		log_i("Ssid %s pw %s", ssid, password);
 
+		// load default config
 		if (ssid.isEmpty())
 		{
 			log_i("Ssid empty, start Uc2 open softap");
@@ -142,28 +145,42 @@ namespace WifiController
 
 	void setup()
 	{
+		// initialize the Wifi module
+
+		// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
 		config = Config::getWifiConfig();
-		if (config->mSSID != nullptr)
-			log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
+
+		if ((config->mSSID != nullptr) and (config->mPWD != nullptr))
+			log_i("mssid:%s pw:%s", config->mSSID, config->mPWD);//, config->mAP);
+		
+		// if the server is already open => close it 
 		if (server != nullptr)
 			server->close();
+
+		// if the webSocket is already open => close it
 		if (webSocket != nullptr)
 			webSocket->close();
+
+		// load default settings for Wifi AP
 		if (config->mSSID == "")
 		{
+			log_i("No SSID is given: Create AP with default credentials Uc2 and no password");
 			config->mAP = true;
 			createAp(config->mSSIDAP, config->mPWD);
 		}
 		else if (config->mAP)
 		{
+			log_i("AP is true: Create AP with default credentials Uc2 and no password");
 			createAp(config->mSSID, config->mPWD);
 		}
 		else
 		{
+			// if the Wifi is not in AP mode => connect to an available Wifi Hotspot
 			WiFi.softAPdisconnect();
 			log_i("Connect to:%s", config->mSSID);
 			WiFi.begin(config->mSSID.c_str(), config->mPWD.c_str());
 
+			// wait for connection 5-times, if not connected => start AP
 			int nConnectTrials = 0;
 			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 5)
 			{
@@ -184,8 +201,12 @@ namespace WifiController
 				log_i("Connected. IP: %s", WiFi.localIP());
 			}
 		}
+
+		// initialize the webserver
 		if (server == nullptr)
 			server = new WebServer(80);
+
+		// initialize the webSocket
 		if (webSocket == nullptr)
 			webSocket = new WebSocketsServer(81);
 	}
@@ -289,6 +310,14 @@ namespace WifiController
 			server->on(motor_setcalibration_endpoint,HTTP_POST, RestApi::FocusMotor_setCalibration);
 		}
 
+		if (moduleController.moduleConfig->config != 0)
+		{
+			log_i("add motor endpoints");
+			server->on(config_act_endpoint, HTTP_POST, RestApi::Config_act);
+			server->on(config_get_endpoint, HTTP_GET, RestApi::Config_get);
+			server->on(config_set_endpoint, HTTP_POST, RestApi::Config_set);
+		}
+
 		if (moduleController.moduleConfig->dac != 0)
 		{
 			log_i("add dac endpoints");
@@ -345,13 +374,6 @@ namespace WifiController
 			server->on(ledarr_set_endpoint, HTTP_POST, RestApi::Led_set);
 		}
 
-		if (moduleController.moduleConfig->slm != 0)
-		{
-			log_i("add slm endpoints");
-			server->on(slm_act_endpoint, HTTP_POST, RestApi::Slm_act);
-			server->on(slm_get_endpoint, HTTP_POST, RestApi::Slm_get);
-			server->on(slm_set_endpoint, HTTP_POST, RestApi::Slm_set);
-		}
 		if (moduleController.moduleConfig->analogJoystick != 0)
 		{
 			log_i("add analog joystick endpoints");

@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 
 #include "WiFi.h"
@@ -30,7 +29,7 @@ namespace RestApi
             ....
         ]
     */
-    void scanWifi();
+    DynamicJsonDocument scanWifi();
     /*
         connect to a wifi network or create ap
         endpoint:/wifi/connect

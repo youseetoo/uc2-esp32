@@ -1,5 +1,5 @@
-#include "../../config.h"
 #include "LaserController.h"
+#include "../../pindef.h"
 
 namespace RestApi
 {
@@ -91,6 +91,8 @@ int LaserController::act(DynamicJsonDocument ob)
 	int LASERval = (ob)["LASERval"];
 	int LASERdespeckle = (ob)["LASERdespeckle"];
 	int LASERdespecklePeriod = 20;
+	ob.clear();
+
 	if (ob.containsKey("LASERdespecklePeriod"))
 	{
 		LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
@@ -119,6 +121,7 @@ int LaserController::act(DynamicJsonDocument ob)
 			Serial.println(pins.LASER_PIN_1);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+		ob[key_return] = 1;
 	}
 	else if (LASERid == 2  && pins.LASER_PIN_2 != 0)
 	{
@@ -131,6 +134,7 @@ int LaserController::act(DynamicJsonDocument ob)
 			Serial.println(pins.LASER_PIN_2);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
+		ob[key_return] = 1;
 	}
 	else if (LASERid == 3  && pins.LASER_PIN_3 != 0)
 	{
@@ -143,12 +147,15 @@ int LaserController::act(DynamicJsonDocument ob)
 			Serial.println(pins.LASER_PIN_3);
 		}
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
+		ob[key_return] = 1;
+	}
+	else{
+		ob[key_return] = 0;
 	}
 
 	isBusy = false;
 	return 1;
 }
-
 int LaserController::set(DynamicJsonDocument ob)
 {
 	// here you can set parameters
@@ -207,42 +214,56 @@ DynamicJsonDocument LaserController::get(DynamicJsonDocument  ob)
 
 void LaserController::setup()
 {
-	Serial.println("Setting Up LASERs");
+	log_i("Setting Up LASERs");
 
 	Config::getLaserPins(pins);
-	// switch of the LASER directly
-	if (pins.LASER_PIN_1 != 0)
-	{
-		pinMode(pins.LASER_PIN_1, OUTPUT);
-		digitalWrite(pins.LASER_PIN_1, LOW);
-		ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
-		ledcWrite(PWM_CHANNEL_LASER_1, 10000);
-		delay(500);
-		ledcWrite(PWM_CHANNEL_LASER_1, 0);
-	}
 
-	if (pins.LASER_PIN_2 != 0)
-	{
-		pinMode(pins.LASER_PIN_2, OUTPUT);
-		digitalWrite(pins.LASER_PIN_2, LOW);
-		ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
-		ledcWrite(PWM_CHANNEL_LASER_2, 10000);
-		delay(500);
-		ledcWrite(PWM_CHANNEL_LASER_2, 0);
-	}
+	// Setting up the differen PWM channels for the laser
 
-	if (pins.LASER_PIN_3 != 0)
+	// if laser pin is not defined try loading it from the pindef.h file
+	if (not pins.LASER_PIN_1)
 	{
-		pinMode(pins.LASER_PIN_3, OUTPUT);
-		digitalWrite(pins.LASER_PIN_3, LOW);
-		ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
-		ledcWrite(PWM_CHANNEL_LASER_3, 10000);
-		delay(500);
-		ledcWrite(PWM_CHANNEL_LASER_3, 0);
+		pins.LASER_PIN_1 = PIN_DEF_LASER_1; // default value
 	}
+	log_i("Laser ID 1, pin: %i", pins.LASER_PIN_1);
+	pinMode(pins.LASER_PIN_1, OUTPUT);
+	digitalWrite(pins.LASER_PIN_1, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
+	ledcWrite(PWM_CHANNEL_LASER_1, 10000);
+	delay(100);
+	ledcWrite(PWM_CHANNEL_LASER_1, 0);
+
+	// if laser pin is not defined try loading it from the pindef.h file
+	if (not pins.LASER_PIN_2)
+	{
+		pins.LASER_PIN_2 = PIN_DEF_LASER_2; // default value
+	}
+	log_i("Laser ID 2, pin: %i", pins.LASER_PIN_2);
+	pinMode(pins.LASER_PIN_2, OUTPUT);
+	digitalWrite(pins.LASER_PIN_2, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
+	ledcWrite(PWM_CHANNEL_LASER_2, 10000);
+	delay(100);
+	ledcWrite(PWM_CHANNEL_LASER_2, 0);
+
+	// if laser pin is not defined try loading it from the pindef.h file
+	if (not pins.LASER_PIN_3)
+	{
+		pins.LASER_PIN_3 = PIN_DEF_LASER_3; // default value
+	}
+	log_i("Laser ID 3, pin: %i", pins.LASER_PIN_3);
+	pinMode(pins.LASER_PIN_3, OUTPUT);
+	digitalWrite(pins.LASER_PIN_3, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
+	ledcWrite(PWM_CHANNEL_LASER_3, 10000);
+	delay(100);
+	ledcWrite(PWM_CHANNEL_LASER_3, 0);
+
+	// Write out updated settings to preferences permanently
+	Config::setLaserPins(pins);
 }
 
 void LaserController::loop()

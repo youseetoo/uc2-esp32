@@ -1,5 +1,25 @@
 #include "ConfigController.h"
 
+
+namespace RestApi
+{
+	void Config_act()
+	{
+		serialize(moduleController.get(AvailableModules::config)->act(deserialize()));
+	}
+
+	void Config_get()
+	{
+		serialize(moduleController.get(AvailableModules::config)->get(deserialize()));
+	}
+
+	void Config_set()
+	{
+		serialize(moduleController.get(AvailableModules::config)->set(deserialize()));
+	}
+
+}
+
 namespace Config
 {
 
@@ -20,21 +40,45 @@ namespace Config
 		WifiConfig *conf = new WifiConfig();
 		preferences.getBytes(keyWifiSSID, conf, sizeof(WifiConfig));
 		preferences.end();
+
+		// check if mAP is set
+		if (not conf->mAP)
+			conf->mAP = true;
+		// check if ssid is set
+		if (not conf->mSSID)
+			conf->mSSID = "Uc2";
+		// check if password is set
+		if (not conf->mPWD)
+			conf->mPWD = "";
+		// check if hostname is set
+		if (not conf->hostname)
+			conf->hostname = "youseetoo";
 		return conf;
 	}
 
 	void setup()
 	{
-		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
-		if (isFirstRun())
-		{
-			log_i("First Run, resetting config");
+		// check if boot process went through
+		preferences.begin(prefNamespace, false);
+
+		// check if the flag has been reset after last boot process
+		if (preferences.getBool(keyIsBooting, false))
+		{ // if the boot process stopped for whatever reason, clear settings
+			preferences.clear();
+			log_i("The boot process stopped for whatever reason, clear settings");
 		}
-		// check if setup went through after new config - avoid endless boot-loop
-		// checkSetupCompleted();
+		else
+		{
+			log_i("Boot process went through..");
+		}
+		preferences.putBool(keyIsBooting, true);
+		preferences.end();
+
+		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
+		resertOnFirstBoot();
 	}
 
-	void getMotorPins(MotorPins * pins[])
+	void getMotorPins(MotorPins *pins[])
 	{
 		preferences.begin(prefNamespace, false);
 		pins[Stepper::A] = new MotorPins();
@@ -64,7 +108,7 @@ namespace Config
 		preferences.end();
 	}
 
-	void setMotorPinConfig(MotorPins * pins[])
+	void setMotorPinConfig(MotorPins *pins[])
 	{
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(keyMotorADirPin, pins[Stepper::A], sizeof(MotorPins));
@@ -73,7 +117,6 @@ namespace Config
 		preferences.putBytes(keyMotorZDirPin, pins[Stepper::Z], sizeof(MotorPins));
 		preferences.end();
 	}
-
 
 	LedConfig *getLedPins()
 	{
@@ -91,14 +134,14 @@ namespace Config
 		preferences.end();
 	}
 
-	void setAnalogJoyStickPins(JoystickPins * pins)
+	void setAnalogJoyStickPins(JoystickPins *pins)
 	{
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(key_joy, pins, sizeof(JoystickPins));
 		preferences.end();
 	}
 
-    void getAnalogJoyStickPins(JoystickPins * pins)
+	void getAnalogJoyStickPins(JoystickPins *pins)
 	{
 		preferences.begin(prefNamespace, false);
 		preferences.getBytes(key_joy, pins, sizeof(JoystickPins));
@@ -242,6 +285,40 @@ namespace Config
 		return true;
 	}
 
+	bool resertOnFirstBoot()
+	{
+		// check if boot for the first time
+		preferences.begin(prefNamespace, false);
+		bool rdystate = preferences.begin(prefNamespace, false);
+		log_i("resertOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
+
+		// define preference name
+		const char *compiled_date = __DATE__ " " __TIME__;
+		String stored_date = preferences.getString(dateKey, ""); // FIXME
+		log_i("Stored date: %s", stored_date.c_str());
+		log_i("Compiled date: %s", compiled_date);
+
+		// check if preference name is the same as compiled date -> if so, reset pin configurations
+		if (!stored_date.equals(compiled_date))
+		{
+			log_i("yes, resetSettings");
+			resetPreferences();
+			preferences.putString(dateKey, compiled_date); // FIXME?
+		}
+		else
+		{
+			log_i("no, loadSettings");
+		}
+		preferences.end();
+
+		rdystate = preferences.begin(prefNamespace, false);
+		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
+		String datetest = preferences.getString(dateKey, "");
+		preferences.end();
+		log_i("resertOnFirstBoot End datetest:%s", datetest.c_str());
+		return !stored_date.equals(compiled_date);
+	}
+
 	void setModuleConfig(ModuleConfig *pins)
 	{
 		preferences.begin(prefNamespace, false);
@@ -261,6 +338,7 @@ namespace Config
 
 	void setPsxMac(String mac)
 	{
+		// set mac address of the ps controller
 		preferences.begin(prefNamespace, true);
 		preferences.putString("mac", mac);
 		preferences.end();
@@ -268,6 +346,7 @@ namespace Config
 
 	String getPsxMac()
 	{
+		// this hosts the MAC-address of the ps controller
 		preferences.begin(prefNamespace, true);
 		String m = preferences.getString("mac");
 		preferences.end();
@@ -275,7 +354,7 @@ namespace Config
 	}
 
 	int getPsxControllerType()
-	{
+	{		
 		preferences.begin(prefNamespace, true);
 		int m = preferences.getInt("controllertype");
 		preferences.end();
@@ -284,8 +363,18 @@ namespace Config
 
 	void setPsxControllerType(int type)
 	{
+		// this is either PS3, PS4 or X
 		preferences.begin(prefNamespace, true);
 		preferences.putInt("controllertype", type);
+		preferences.end();
+	}
+
+	void checkifBootWentThrough()
+	{
+		// indicate if boot went through successfully
+		log_i("Boot went through successfully");
+		preferences.begin(prefNamespace, false);
+		preferences.putBool(keyIsBooting, false);
 		preferences.end();
 	}
 }

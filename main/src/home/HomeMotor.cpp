@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "HomeMotor.h"
 
 
@@ -34,7 +33,7 @@ int HomeMotor::act(DynamicJsonDocument  j)
 	if (DEBUG)
 		Serial.println("home_act_fct");
 
-	
+
 	if ((j).containsKey(key_home)){
 		if ((j)[key_home].containsKey(key_steppers))
 		{
@@ -44,7 +43,7 @@ int HomeMotor::act(DynamicJsonDocument  j)
 				Stepper s = static_cast<Stepper>((j)[key_home][key_steppers][i][key_stepperid]);
 
 				if ((j)[key_home][key_steppers][i].containsKey(key_home_timeout))
-					hdata[s]->homeTimeout = (j)[key_home][key_steppers][i][key_home_timeout];			
+					hdata[s]->homeTimeout = (j)[key_home][key_steppers][i][key_home_timeout];
 				if (j[key_home][key_steppers][i].containsKey(key_home_speed))
 					hdata[s]->homeSpeed = (j)[key_home][key_steppers][i][key_home_speed];
 				if (j[key_home][key_steppers][i].containsKey(key_home_maxspeed))
@@ -112,7 +111,7 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 }
 
 int HomeMotor::set(DynamicJsonDocument ob)
-{	
+{
 	return 1;
 }
 
@@ -126,7 +125,7 @@ void HomeMotor::loop()
 {
 	// this will be called everytime, so we need to make this optional with a switch
 	if (moduleController.get(AvailableModules::motor) != nullptr && moduleController.get(AvailableModules::digitalin) != nullptr)
-	{	
+	{
 		// get motor and switch instances
 		FocusMotor * motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 		DigitalInController * digitalin = (DigitalInController*)moduleController.get(AvailableModules::digitalin);
@@ -185,7 +184,7 @@ not needed all stuff get setup inside motor and digitalin, but must get implemen
 */
 void HomeMotor::setup()
 {
-	
+
 	for (int i = 0; i < 4; i++)
   	{
     hdata[i] = new HomeData ();

@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "DacController.h"
 
 DacController::DacController(){

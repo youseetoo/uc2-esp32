@@ -6,33 +6,43 @@
 #include "src/bt/BtController.h"
 #include "ModuleController.h"
 
+
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-int BAUDRATE = 115200;
+#define BAUDRATE 115200
 
 void setup()
 {
 	// Start Serial
-	Serial.begin(BAUDRATE);
+	Serial.begin(BAUDRATE); // default is 115200
 	delay(500);
+	Serial.setTimeout(50);
+
+	// Disable brownout detector
 	log_i("Start setup");
-	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // disable brownout detector
+	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
 
-	// for any timing related puposes..
-
+	// initialize the pin/settings configurator
 	log_i("Config::setup");
 	Config::setup();
-	
+
 	// connect to wifi if necessary
 	log_i("wifi.setup");
 	WifiController::setup();
 
+	// initialize the module controller
 	moduleController.setup();
+
+	// initialize the bluetooth controller
 	BtController::setup();
 
+	// start with the wifi (either AP or connecting to wifi)
 	WifiController::begin();
 	log_i("End setup");
+
+	// check if boot process went through
+	Config::checkifBootWentThrough();
 }
 
 void loop()

@@ -1,0 +1,79 @@
+
+{"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "home":1, "analogin" : 0, "pid" : 0, "laser" : 1, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
+
+
+# X,Y,Z,A => 1,2,3,0
+{"task":"/motor_set",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 1, "step": 26, "dir": 16, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0},
+			{ "stepperid": 2, "step": 25, "dir": 27, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0},
+			{ "stepperid": 3, "step": 17, "dir": 14, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0},
+			{ "stepperid": 0, "step": 19, "dir": 18, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0}
+        ]
+    }
+}
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 0, "position": 100, "speed": 2000, "isabs": 0, "isaccel":0}
+        ]
+    }
+}
+
+{"task": "/digitalin_set", "digitalinid":1, "digitalinpin":13}
+{"task": "/digitalin_set", "digitalinid":2, "digitalinpin":5}
+{"task": "/digitalin_set", "digitalinid":3, "digitalinpin":23}
+
+{"task": "/digitalin_set", "digitalinid":3, "digitalinpin":34}
+{"task": "/laser_set", "LASERid":1, "LASERpin":18}
+{"task": "/laser_set", "LASERid":2, "LASERpin":19}
+{"task": "/ledarr_set", "led":{"ledArrPin":32, "ledArrNum":64}}
+
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 1, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0},
+            { "stepperid": 2, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0}
+        ]
+    }
+}
+
+
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 1, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0}
+        ]
+    }
+}
+
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 1, "isforever": 1, "speed": 2000}
+        ]
+    }
+}
+
+{"task": "/laser_get"}
+
+{"task": "/home_get"}
+{"task": "/home_set"}
+
+// {"task":"/home_act", "home": {"home":1, "steppers": [{"id":0, "endpospin": 0, "timeout": 10000, "speed": 1000, "direction":1}]}}
+
+
+{"task":"/home_act",
+    "home":
+    {
+        "steppers": [
+            { "stepperid": 1, "timeout":1000, "speed":1000, "direction":1, "endposrelease":500}
+        ]
+    }
+}

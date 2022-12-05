@@ -16,6 +16,15 @@
 #include "../digitalin/DigitalInPins.h"
 #include "../../ModuleConfig.h"
 
+
+namespace RestApi
+{
+	void Config_act();
+	void Config_get();
+	void Config_set();
+};
+
+
 namespace Config
 {
     void setup();
@@ -47,4 +56,7 @@ namespace Config
     String getPsxMac();
     void setPsxControllerType(int type);
     int getPsxControllerType();
+    void checkifBootWentThrough();
+    void getDigitalInPins(DigitalInPins pins);
+    bool resertOnFirstBoot();
 }

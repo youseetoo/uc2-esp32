@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "PidController.h"
 
 namespace RestApi
@@ -64,7 +63,6 @@ void PidController::loop()
 	if (PID_active && (currentMillis - startMillis >= PID_updaterate))
 	{
 		// hardcoded for now:
-		int N_analogin_avg = 50;
 		int analoginpin = pins.analogin_PIN_0;
 
 		// get rid of noise?

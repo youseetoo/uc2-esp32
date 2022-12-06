@@ -18,7 +18,7 @@ struct MotorData
 {
 	long speed = 0;
 	long maxspeed = 200000;
-	long acceleration = 0;
+	long acceleration = 2000;
 	long targetPosition = 0;
 	bool isforever = false;
 	bool isaccelerated = false;
@@ -64,10 +64,10 @@ public:
 	long MAX_VELOCITY_X = 20000;
 	long MAX_VELOCITY_Y = 20000;
 	long MAX_VELOCITY_Z = 20000;
-	long MAX_ACCELERATION_A = 100000;
-	long MAX_ACCELERATION_X = 100000;
-	long MAX_ACCELERATION_Y = 100000;
-	long MAX_ACCELERATION_Z = 100000;
+	long MAX_ACCELERATION_A = 5000;
+	long MAX_ACCELERATION_X = 5000;
+	long MAX_ACCELERATION_Y = 5000;
+	long MAX_ACCELERATION_Z = 5000;
 
 	std::array<AccelStepper *, 4> steppers;
 	std::array<MotorData *, 4> data;

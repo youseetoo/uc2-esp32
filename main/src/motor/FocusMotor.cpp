@@ -70,6 +70,29 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else
 					data[s]->acceleration = 20000;
 
+
+				// make sure speed and position are pointing in the same direction
+				if (data[s]->absolutePosition)
+				{
+					// if an absolute position occurs, wehave to compute its direction (positive or negative)
+					if (data[s]->targetPosition > steppers[s]->currentPosition())
+						data[s]->speed = abs(data[s]->speed);
+					else if (data[s]->targetPosition < steppers[s]->currentPosition())
+						data[s]->speed = -abs(data[s]->speed);
+					else // 0
+						data[s]->speed = 0;
+				}
+				else
+				{
+					// if relativce position the direction and speed sign have to match
+					if (data[s]->targetPosition > 0)
+						data[s]->speed = abs(data[s]->speed);
+					else if (data[s]->targetPosition < 0)
+						data[s]->speed = -abs(data[s]->speed);
+					else // 0
+						data[s]->speed = 0;
+				}
+				
 				log_i("start stepper (act): motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i", s, i, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated);
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_isstop))
@@ -93,6 +116,8 @@ int FocusMotor::act(DynamicJsonDocument doc)
 	}
 	return 1;
 }
+
+
 
 void FocusMotor::startStepper(int i)
 {
@@ -119,11 +144,13 @@ void FocusMotor::startStepper(int i)
 		}
 
 		// perform first step
-		if(data[i]->isaccelerated){
+		if (data[i]->isaccelerated)
+		{
 			steppers[i]->setAcceleration(data[i]->acceleration);
 			steppers[i]->run();
-		}	
-		else{
+		}
+		else
+		{
 			steppers[i]->runSpeedToPosition();
 		}
 	}
@@ -134,8 +161,8 @@ void FocusMotor::startStepper(int i)
 		steppers[i]->setSpeed(data[i]->speed);
 		steppers[i]->runSpeed();
 	}
-	//log_i("start stepper:%i isforver:%i, speed: %L, maxSpeed: %L, steps: %i, isabsolute: %i, isacceleration: %i", i, data[i]->isforever, steppers[i]->speed(), steppers[i]->maxSpeed(), data[i]->targetPosition, data[i]->absolutePosition, data[i]->isaccelerated);
-	Serial.println("Speed (motor/data)" + String(steppers[i]->speed())+ " / "+String(data[i]->speed)); 
+	// log_i("start stepper:%i isforver:%i, speed: %L, maxSpeed: %L, steps: %i, isabsolute: %i, isacceleration: %i", i, data[i]->isforever, steppers[i]->speed(), steppers[i]->maxSpeed(), data[i]->targetPosition, data[i]->absolutePosition, data[i]->isaccelerated);
+	Serial.println("Speed (motor/data)" + String(steppers[i]->speed()) + " / " + String(data[i]->speed));
 	pins[i]->current_position = steppers[i]->currentPosition();
 }
 
@@ -395,13 +422,15 @@ void FocusMotor::loop()
 
 				// run at constant speed
 				if (data[i]->isaccelerated)
-				{	
-					//Serial.println("Speed (accel) " + String(steppers[i]->speed()));
+				{
+					// Serial.println("Speed (accel) " + String(steppers[i]->speed()));
+					Serial.println("Distance to go (accel)" + String(i) + " - "+ String(steppers[i]->distanceToGo()));
 					steppers[i]->run();
 				}
 				else // run accelerated
 				{
-					Serial.println("Speed (non accel) " + String(steppers[i]->speed()));
+					Serial.println("Distance to go " + String(i) + " - "+ String(steppers[i]->distanceToGo()));
+					// Serial.println("Speed (non accel) " + String(steppers[i]->speed()));
 					steppers[i]->runSpeedToPosition();
 				}
 			}
@@ -437,7 +466,7 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	doc[key_steppers][arraypos][key_position] = pins[i]->current_position;
 	doc[key_steppers][arraypos]["isDone"] = true;
 	arraypos++;
-	//SerialProcess::serialize(doc);
+	// SerialProcess::serialize(doc);
 	Serial.println("++");
 	serializeJson(doc, Serial);
 	Serial.println();

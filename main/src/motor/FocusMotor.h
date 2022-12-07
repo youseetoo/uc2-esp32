@@ -12,6 +12,7 @@ namespace RestApi
 	void FocusMotor_get();
 	void FocusMotor_set();
 	void FocusMotor_setCalibration();
+	void FocusMotor_motorsBusy();
 };
 
 struct MotorData
@@ -77,6 +78,7 @@ public:
 	int setMinMaxRange(DynamicJsonDocument  ob);
 	int act(DynamicJsonDocument  ob) override;
 	int set(DynamicJsonDocument  ob) override;
+	bool motorsBusy();
 	/*
 		returns
 		{
@@ -138,6 +140,7 @@ public:
 	void stopAllDrives();
 	void stopStepper(int i);
 	void startStepper(int i);
+	
 
 private:
 	int logcount;

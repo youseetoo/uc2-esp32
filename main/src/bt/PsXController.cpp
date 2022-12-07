@@ -81,7 +81,9 @@ void PsXController::loop()
 			{
 				stick_ly = psx->state.analog.stick.ly;
 				stick_ly = stick_ly - sgn(stick_ly) * offset_val;
-				motor->data[Stepper::Z]->speed = stick_ly * 5 * global_speed;
+				if(abs(stick_ly)>50)stick_ly=2*stick_ly; // add more speed above threshold
+				motor->data[Stepper::Z]->speed = stick_ly * global_speed;
+				Serial.println(motor->data[Stepper::Z]->speed);
 				motor->data[Stepper::Z]->isforever = true;
 				joystick_drive_Z = true;
 				if (motor->data[Stepper::Z]->stopped)
@@ -101,7 +103,8 @@ void PsXController::loop()
 				// move_x
 				stick_rx = psx->state.analog.stick.rx;
 				stick_rx = stick_rx - sgn(stick_rx) * offset_val;
-				motor->data[Stepper::X]->speed = stick_rx * 5 * global_speed;
+				motor->data[Stepper::X]->speed = stick_rx * global_speed;
+				if(abs(stick_rx)>50)stick_rx=2*stick_rx; // add more speed above threshold
 				motor->data[Stepper::X]->isforever = true;
 				joystick_drive_X = true;
 				if (motor->data[Stepper::X]->stopped)
@@ -120,7 +123,8 @@ void PsXController::loop()
 			{
 				stick_ry = psx->state.analog.stick.ry;
 				stick_ry = stick_ry - sgn(stick_ry) * offset_val;
-				motor->data[Stepper::Y]->speed = stick_ry * 5 * global_speed;
+				motor->data[Stepper::Y]->speed = stick_ry * global_speed;
+				if(abs(stick_ry)>50)stick_ry=2*stick_ry; // add more speed above threshold
 				motor->data[Stepper::Y]->isforever = true;
 				joystick_drive_Y = true;
 				if (motor->data[Stepper::Y]->stopped)

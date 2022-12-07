@@ -82,80 +82,61 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 // Custom function accessible by the API
 int LaserController::act(DynamicJsonDocument ob)
 {
-	// here you can do something
-	Serial.println("LASER_act_fct");
-
-	isBusy = true;
-
-	int LASERid = (ob)["LASERid"];
-	int LASERval = (ob)["LASERval"];
-	int LASERdespeckle = (ob)["LASERdespeckle"];
-	int LASERdespecklePeriod = 20;
+	// JSON String
+	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
+	
+	// assign values
+	int LASERid = 0;
+	int LASERval = 0;
+	int LASERdespeckle = 0;
+	int LASERdespecklePeriod = 0;
+	// default values overridden
+	if(ob.containsKey("LASERid")) LASERid = (ob)["LASERid"];
+	if(ob.containsKey("LASERval")) LASERval = (ob)["LASERval"];
+	if(ob.containsKey("LASERdespeckle")) LASERdespeckle = (ob)["LASERdespeckle"];
+	if(ob.containsKey("LASERdespecklePeriod")) LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
 	ob.clear();
 
-	if (ob.containsKey("LASERdespecklePeriod"))
-	{
-		LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
-	}
+	// debugging
+	log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
-	if (DEBUG)
-	{
-		Serial.print("LASERid ");
-		Serial.println(LASERid);
-		Serial.print("LASERval ");
-		Serial.println(LASERval);
-		Serial.print("LASERdespeckle ");
-		Serial.println(LASERdespeckle);
-		Serial.print("LASERdespecklePeriod ");
-		Serial.println(LASERdespecklePeriod);
-	}
-
+	// action LASER 1
 	if (LASERid == 1 && pins.LASER_PIN_1 != 0)
 	{
 		LASER_val_1 = LASERval;
 		LASER_despeckle_1 = LASERdespeckle;
 		LASER_despeckle_period_1 = LASERdespecklePeriod;
-		if (DEBUG)
-		{
-			Serial.print("LaserPIN ");
-			Serial.println(pins.LASER_PIN_1);
-		}
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 		ob[key_return] = 1;
 	}
+	// action LASER 2
 	else if (LASERid == 2  && pins.LASER_PIN_2 != 0)
 	{
 		LASER_val_2 = LASERval;
 		LASER_despeckle_2 = LASERdespeckle;
 		LASER_despeckle_period_2 = LASERdespecklePeriod;
-		if (DEBUG)
-		{
-			Serial.print("LaserPIN ");
-			Serial.println(pins.LASER_PIN_2);
-		}
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 		ob[key_return] = 1;
 	}
+	// action LASER 3
 	else if (LASERid == 3  && pins.LASER_PIN_3 != 0)
 	{
 		LASER_val_3 = LASERval;
 		LASER_despeckle_3 = LASERdespeckle;
 		LASER_despeckle_period_3 = LASERdespecklePeriod;
-		if (DEBUG)
-		{
-			Serial.print("LaserPIN ");
-			Serial.println(pins.LASER_PIN_3);
-		}
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 		ob[key_return] = 1;
 	}
 	else{
 		ob[key_return] = 0;
 	}
-
-	isBusy = false;
-	return 1;
+	return ob[key_return];
 }
+
+
 int LaserController::set(DynamicJsonDocument ob)
 {
 	// here you can set parameters

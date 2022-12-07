@@ -25,6 +25,12 @@ namespace RestApi
 		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 		serialize(motor->setMinMaxRange(deserialize()));
 	}
+
+	void FocusMotor_motorsBusy()
+	{
+		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+		serialize(motor->motorsBusy());
+	}
 }
 
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
@@ -423,14 +429,14 @@ void FocusMotor::loop()
 				// run at constant speed
 				if (data[i]->isaccelerated)
 				{
-					// Serial.println("Speed (accel) " + String(steppers[i]->speed()));
-					Serial.println("Distance to go (accel)" + String(i) + " - "+ String(steppers[i]->distanceToGo()));
+					//Serial.println("Speed (accel) /data" + String(steppers[i]->speed())+"/"+String(data[i]->speed));
+					// Serial.println("Distance to go (accel)" + String(i) + " - "+ String(steppers[i]->distanceToGo()));
 					steppers[i]->run();
 				}
 				else // run accelerated
 				{
-					Serial.println("Distance to go " + String(i) + " - "+ String(steppers[i]->distanceToGo()));
-					// Serial.println("Speed (non accel) " + String(steppers[i]->speed()));
+					//Serial.println("Distance to go " + String(i) + " - "+ String(steppers[i]->distanceToGo()));
+					//Serial.println("Speed (non accel) /data" + String(steppers[i]->speed())+"/"+String(data[i]->speed));
 					steppers[i]->runSpeedToPosition();
 				}
 			}
@@ -482,6 +488,9 @@ void FocusMotor::stopAllDrives()
 		stopStepper(i);
 	}
 }
+
+
+
 
 void FocusMotor::stopStepper(int i)
 {

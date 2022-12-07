@@ -53,10 +53,15 @@ namespace WifiController
 
 	void handelMessages()
 	{
+		/* //FIXME
+		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+		if (!motor->motorsBusy()) {
+			*/
+	
 		if (webSocket != nullptr)
 			webSocket->loop();
 		if (server != nullptr)
-			server->handleClient();
+			server->handleClient();	
 	}
 
 	DynamicJsonDocument connect(DynamicJsonDocument doc)

@@ -5,6 +5,7 @@
 #include "src/serial/SerialProcess.h"
 #include "src/bt/BtController.h"
 #include "ModuleController.h"
+#include "src/motor/FocusMotor.h"
 
 
 #include "soc/soc.h"
@@ -45,11 +46,27 @@ void setup()
 	Config::checkifBootWentThrough();
 }
 
+long tProcessServer = 100; // process server every 100ms
+long oldTime = 0;
+
 void loop()
 {
-	// for any timing-related purposes
+
+	// receive and process serial messages
 	serial.loop();
-	WifiController::handelMessages();
+
+	// process the server every 100ms
+	// 	if (true){//motor->motorsBusy() or millis()-oldTime > tProcessServer) {
+	if (moduleController.get(AvailableModules::wifi) != nullptr and moduleController.get(AvailableModules::wifi)){
+		oldTime = millis();
+		WifiController::handelMessages();
+	}
+	
+	// handle PS-controller inputs
 	BtController::loop();
+
+	// process all commands in their modules
 	moduleController.loop();
+	unsigned long end = micros();
+	//log_i("loop took %i ms", end - now);
 }

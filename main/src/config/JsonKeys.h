@@ -114,6 +114,7 @@ static const PROGMEM char *key_digitalout = "digitalout";
 static const PROGMEM char *key_digitalin = "digitalin";
 static const PROGMEM char *key_scanner = "scanner";
 static const PROGMEM char *key_joy = "joy";
+static const PROGMEM char *key_wifi = "wifi";
 static const PROGMEM char *key_joiypinX = "joyX";
 static const PROGMEM char *key_joiypinY = "joyY";
 static const PROGMEM char *key_readanaloginID = "readanaloginID";

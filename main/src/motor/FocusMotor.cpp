@@ -245,7 +245,7 @@ void FocusMotor::applyMaxPos(int i)
 DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 {
 	log_i("get motor");
-	StaticJsonDocument<512> doc; // create return doc
+	StaticJsonDocument<1024> doc; // create return doc
 	// only return the position of the stepper
 	if (docin.containsKey(key_position))
 	{
@@ -363,8 +363,8 @@ void FocusMotor::setup()
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
 		// steppers[i]->enableOutputs();
-		steppers[i]->runToNewPosition(-100);
-		steppers[i]->runToNewPosition(100);
+		steppers[i]->runToNewPosition(-10);
+		steppers[i]->runToNewPosition(10);
 		steppers[i]->setCurrentPosition(pins[i]->current_position);
 		steppers[i]->enableOutputs();
 		// steppers[i]->disableOutputs();

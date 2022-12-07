@@ -53,7 +53,7 @@ void ModuleController::setup()
     }
 
     // eventually load the motor module
-    if (false and moduleConfig->motor)
+    if (moduleConfig->motor)
     {
         modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
         log_i("add motor");

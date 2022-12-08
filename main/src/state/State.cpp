@@ -1,107 +1,112 @@
 #include "State.h"
 
+
 namespace RestApi
 {
 	void State_act()
 	{
-		deserialize();
-		state.act();
-		serialize();
+		moduleController.get(AvailableModules::state)->act(deserialize());
 	}
 
 	void State_get()
 	{
-		deserialize();
-		state.get();
-		serialize();
+		serialize(moduleController.get(AvailableModules::state)->set(deserialize()));
 	}
 
 	void State_set()
 	{
-		deserialize();
-		state.set();
-		serialize();
+		serialize(moduleController.get(AvailableModules::state)->set(deserialize()));
 	}
 }
 
-State::State(){};
-State::~State(){};
+State::State() : Module() { log_i("ctor"); }
+State::~State() { log_i("~ctor"); }
+
+
 
 void State::setup()
 {
 }
 
+void State::loop()
+{
+}
+
 // Custom function accessible by the API
-void State::act()
+int State::act(DynamicJsonDocument doc)
 {
 	// here you can do something
 	if (DEBUG)
 		log_i("state_act_fct");
 
 	// assign default values to thhe variables
-	if ((WifiController::getJDoc())->containsKey("restart"))
+	if (doc.containsKey("restart"))
 	{
 		ESP.restart();
 	}
 	// assign default values to thhe variables
-	if (WifiController::getJDoc()->containsKey("delay"))
+	if (doc.containsKey("delay"))
 	{
-		int mdelayms = (*WifiController::getJDoc())["delay"];
+		int mdelayms = doc["delay"];
 		delay(mdelayms);
 	}
-	if (WifiController::getJDoc()->containsKey("isBusy"))
+	if (doc.containsKey("isBusy"))
 	{
-		isBusy = (*WifiController::getJDoc())["isBusy"];
+		isBusy = doc["isBusy"];
 	}
 
-	if (WifiController::getJDoc()->containsKey("pscontroller"))
+	if (doc.containsKey("pscontroller"))
 	{
 #if defined IS_PS3 || defined IS_PS4
-		ps_c.IS_PSCONTROLER_ACTIVE = (*WifiController::getJDoc())["pscontroller"];
+		ps_c.IS_PSCONTROLER_ACTIVE = doc["pscontroller"];
 #endif
 	}
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	doc.clear();
+	doc["return"] = 1;
+	return 1;
 }
 
-void State::set()
+int State::set(DynamicJsonDocument doc)
 {
 	// here you can set parameters
 
-	int isdebug = (*WifiController::getJDoc())["isdebug"];
+	int isdebug = doc["isdebug"];
 	DEBUG = isdebug;
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	doc.clear();
+	doc["return"] = 1;
+	return 1;
 }
 
 // Custom function accessible by the API
-void State::get()
+DynamicJsonDocument State::get(DynamicJsonDocument docin)
 {
-	// GET SOME PARAMETERS HERE
-	if (WifiController::getJDoc()->containsKey("isBusy"))
-	{
-		WifiController::getJDoc()->clear();
-		(*WifiController::getJDoc())["isBusy"] = isBusy; // returns state of function that takes longer to finalize (e.g. motor)
-	}
 
-	else if (WifiController::getJDoc()->containsKey("pscontroller"))
+	StaticJsonDocument<512> doc; // create return doc
+
+	// GET SOME PARAMETERS HERE
+	if (docin.containsKey("isBusy"))
 	{
-		WifiController::getJDoc()->clear();
+		docin.clear();
+		doc["isBusy"] = isBusy; // returns state of function that takes longer to finalize (e.g. motor)
+	}
+	else if (docin.containsKey("pscontroller"))
+	{
+		docin.clear();
 #if defined IS_PS3 || defined IS_PS4
-		(*WifiController::getJDoc())["pscontroller"] = ps_c.IS_PSCONTROLER_ACTIVE; // returns state of function that takes longer to finalize (e.g. motor)
+		doc["pscontroller"] = ps_c.IS_PSCONTROLER_ACTIVE; // returns state of function that takes longer to finalize (e.g. motor)
 #endif
 	}
 	else
 	{
-		WifiController::getJDoc()->clear();
-		(*WifiController::getJDoc())["identifier_name"] = identifier_name;
-		(*WifiController::getJDoc())["identifier_id"] = identifier_id;
-		(*WifiController::getJDoc())["identifier_date"] = identifier_date;
-		(*WifiController::getJDoc())["identifier_author"] = identifier_author;
-		//(*jsonDocument)["identifier_setup"] = pins->identifier_setup;
-		(*WifiController::getJDoc())["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
-		(*WifiController::getJDoc())["configIsSet"] = config_set; // TODO: Implement! 
+		doc.clear();
+		doc["identifier_name"] = identifier_name;
+		doc["identifier_id"] = identifier_id;
+		doc["identifier_date"] = identifier_date;
+		doc["identifier_author"] = identifier_author;
+		doc["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
+		doc["configIsSet"] = config_set; // TODO: Implement! 
 	}
+	return doc;
 }
 
 void State::printInfo()
@@ -113,4 +118,4 @@ void State::printInfo()
 	// log_i("A first try can be: \{\"task\": \"/state_get\"");
 }
 
-State state;
+

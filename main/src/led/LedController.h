@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "Adafruit_NeoPixel.h"
 #include "ArduinoJson.h"
@@ -101,7 +100,7 @@ public:
     LedController();
     ~LedController();
     LedConfig * ledconfig;
-
+    bool TurnedOn();
     void setup() override;
     void loop() override;
     /*
@@ -119,7 +118,7 @@ public:
     }
     }
     */
-    void act() override;
+    int act(DynamicJsonDocument  ob) override;
     /*{
   "led": {
     "ledArrNum": 64,
@@ -127,9 +126,10 @@ public:
   }
 }
     */
-    void set() override;
-    void get() override;
+    int set(DynamicJsonDocument  ob) override;
+    DynamicJsonDocument get(DynamicJsonDocument  ob) override;
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
+    void sendDone(int key_return);
 };
 //extern LedController led;

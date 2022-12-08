@@ -1,9 +1,7 @@
-#include "../../config.h"
 #pragma once
 
 #include "WiFi.h"
 #include "HardwareSerial.h"
-#include "../state/State.h"
 #include "RestApiCallbacks.h"
 #include "esp_log.h"
 #include "SPIFFS.h"
@@ -31,7 +29,7 @@ namespace RestApi
             ....
         ]
     */
-    void scanWifi();
+    DynamicJsonDocument scanWifi();
     /*
         connect to a wifi network or create ap
         endpoint:/wifi/connect
@@ -57,7 +55,7 @@ namespace WifiController
     void handelMessages();
     void createJsonDoc();
     void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
-    void sendJsonWebSocketMsg();
+    void sendJsonWebSocketMsg(DynamicJsonDocument doc);
     void begin();
     void restartWebServer();
 
@@ -68,11 +66,10 @@ namespace WifiController
     String getPw();
     bool getAp();
     void setup();
-    DynamicJsonDocument *getJDoc();
     WebServer *getServer();
     void getIndexPage();
     void getCSS();
     void getjquery();
     void getjs();
-    void connect();
+    DynamicJsonDocument connect(DynamicJsonDocument doc);
 }

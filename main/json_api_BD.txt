@@ -1,6 +1,8 @@
-
+{"task":"/modules_get"}
 {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "home":1, "analogin" : 0, "pid" : 0, "laser" : 1, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
 
+
+{"task":"/modules_set", "modules" : {"led" : 0, "motor": 1, "slm" : 0, "home":0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
 
 # X,Y,Z,A => 1,2,3,0
 {"task":"/motor_set",
@@ -36,18 +38,19 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0},
-            { "stepperid": 2, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":0},
+            { "stepperid": 2, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":0}
         ]
     }
 }
+
 
 
 {"task":"/motor_act",
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -1000, "speed": 1000, "isabs": 0, "isaccel":0}
         ]
     }
 }
@@ -61,6 +64,7 @@
     }
 }
 
+{"task": "/laser_act", }
 {"task": "/laser_get"}
 
 {"task": "/home_get"}
@@ -77,3 +81,11 @@
         ]
     }
 }
+
+
+{"task":"/wifi/scan"}
+{"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
+{"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
+
+
+{"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "red":0, "green":5, "blue":0}]}}

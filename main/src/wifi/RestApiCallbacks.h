@@ -1,5 +1,4 @@
 #pragma once
-#include "../../config.h"
 #include <ArduinoJson.h>
 #include <WebServer.h>
 #include <nvs_flash.h>
@@ -26,12 +25,12 @@ namespace RestApi
     /*
         load the body data from the client request into the jsondoc
     */
-    void deserialize();
+    DynamicJsonDocument deserialize();
     /*
         fill the input from the jsondoc and send a response to the client
     */
-    void serialize();
-    void getIdentity();
+    void serialize(DynamicJsonDocument doc);
+    void serialize(int success);
     /*
         returns an array that contains the endpoints
         endpoint:/features_get or /

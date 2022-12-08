@@ -1,4 +1,3 @@
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
@@ -15,12 +14,12 @@ public:
     bool DEBUG = false;
     AnalogInPins pins;
 
-    int nanaloginavg; //no idea if it should be equal to that that one inside PidController.h 
+    int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
 
     void setup() override;
-    void act() override;
-    void set() override;
-    void get() override;
+    int act(DynamicJsonDocument jsonDocument) override;
+    int set(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void loop() override;
 };
 

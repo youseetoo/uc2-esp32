@@ -1,5 +1,3 @@
-
-#include "../../config.h"
 #pragma once
 #include "ArduinoJson.h"
 //#include <FreeRTOS.h>
@@ -42,9 +40,9 @@ public:
 
     int scannernFrames = 1;
 
-    void act() override;
-    void get() override;
-    void set() override;
+    int act(DynamicJsonDocument  ob) override;
+    DynamicJsonDocument get(DynamicJsonDocument  ob) override;
+    int set(DynamicJsonDocument ob) override;
     void setup() override;
     void loop() override;
     static void controlGalvoTask(void *parameters);

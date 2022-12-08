@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "LaserController.h"
 #include "../../pindef.h"
 
@@ -6,33 +5,27 @@ namespace RestApi
 {
 	void Laser_act()
 	{
-		deserialize();
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->act();
+			serialize(moduleController.get(AvailableModules::laser)->act(deserialize()));
 		else
 			log_i("laser controller is null!");
-		serialize();
 	}
 
 	void Laser_get()
 	{
-		deserialize();
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->get();
+			serialize(moduleController.get(AvailableModules::laser)->get(deserialize()));
 		else
 			log_i("laser controller is null!");
-		serialize();
 	}
 
 	void Laser_set()
 	{
 		log_i("laser set!");
-		deserialize();
 		if (moduleController.get(AvailableModules::laser) != nullptr)
-			moduleController.get(AvailableModules::laser)->set();
+			serialize(moduleController.get(AvailableModules::laser)->set(deserialize()));
 		else
 			log_i("laser controller is null!");
-		serialize();
 	}
 }
 
@@ -87,91 +80,70 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 }
 
 // Custom function accessible by the API
-void LaserController::act()
+int LaserController::act(DynamicJsonDocument ob)
 {
-	// here you can do something
-	Serial.println("LASER_act_fct");
-
-	isBusy = true;
-
-	int LASERid = (*WifiController::getJDoc())["LASERid"];
-	int LASERval = (*WifiController::getJDoc())["LASERval"];
-	int LASERdespeckle = (*WifiController::getJDoc())["LASERdespeckle"];
-	int LASERdespecklePeriod = 20;
-	if (WifiController::getJDoc()->containsKey("LASERdespecklePeriod"))
-	{
-		LASERdespecklePeriod = (*WifiController::getJDoc())["LASERdespecklePeriod"];
-	}
-
-	if (DEBUG)
-	{
-		Serial.print("LASERid ");
-		Serial.println(LASERid);
-		Serial.print("LASERval ");
-		Serial.println(LASERval);
-		Serial.print("LASERdespeckle ");
-		Serial.println(LASERdespeckle);
-		Serial.print("LASERdespecklePeriod ");
-		Serial.println(LASERdespecklePeriod);
-	}
+	// JSON String
+	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
 	
-	// clear document
-	WifiController::getJDoc()->clear();
+	// assign values
+	int LASERid = 0;
+	int LASERval = 0;
+	int LASERdespeckle = 0;
+	int LASERdespecklePeriod = 0;
+	// default values overridden
+	if(ob.containsKey("LASERid")) LASERid = (ob)["LASERid"];
+	if(ob.containsKey("LASERval")) LASERval = (ob)["LASERval"];
+	if(ob.containsKey("LASERdespeckle")) LASERdespeckle = (ob)["LASERdespeckle"];
+	if(ob.containsKey("LASERdespecklePeriod")) LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
+	ob.clear();
 
+	// debugging
+	log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
+
+	// action LASER 1
 	if (LASERid == 1 && pins.LASER_PIN_1 != 0)
 	{
 		LASER_val_1 = LASERval;
 		LASER_despeckle_1 = LASERdespeckle;
 		LASER_despeckle_period_1 = LASERdespecklePeriod;
-		if (DEBUG)
-		{
-			Serial.print("LaserPIN ");
-			Serial.println(pins.LASER_PIN_1);
-		}
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
-		(*WifiController::getJDoc())[key_return] = 1;
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+		ob[key_return] = 1;
 	}
+	// action LASER 2
 	else if (LASERid == 2  && pins.LASER_PIN_2 != 0)
 	{
 		LASER_val_2 = LASERval;
 		LASER_despeckle_2 = LASERdespeckle;
 		LASER_despeckle_period_2 = LASERdespecklePeriod;
-		if (DEBUG)
-		{
-			Serial.print("LaserPIN ");
-			Serial.println(pins.LASER_PIN_2);
-		}
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
-		(*WifiController::getJDoc())[key_return] = 1;
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+		ob[key_return] = 1;
 	}
+	// action LASER 3
 	else if (LASERid == 3  && pins.LASER_PIN_3 != 0)
 	{
 		LASER_val_3 = LASERval;
 		LASER_despeckle_3 = LASERdespeckle;
 		LASER_despeckle_period_3 = LASERdespecklePeriod;
-		if (DEBUG)
-		{
-			Serial.print("LaserPIN ");
-			Serial.println(pins.LASER_PIN_3);
-		}
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
-		(*WifiController::getJDoc())[key_return] = 1;
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+		ob[key_return] = 1;
 	}
 	else{
-		(*WifiController::getJDoc())[key_return] = 0;
+		ob[key_return] = 0;
 	}
-
-
-	isBusy = false;
+	return ob[key_return];
 }
 
-void LaserController::set()
+
+int LaserController::set(DynamicJsonDocument ob)
 {
 	// here you can set parameters
-	if (WifiController::getJDoc()->containsKey("LASERid") && WifiController::getJDoc()->containsKey("LASERpin"))
+	if (ob.containsKey("LASERid") && ob.containsKey("LASERpin"))
 	{
-		int LASERid = (*WifiController::getJDoc())["LASERid"];
-		int LASERpin = (*WifiController::getJDoc())["LASERpin"];
+		int LASERid = (ob)["LASERid"];
+		int LASERpin = (ob)["LASERpin"];
 		log_i("LaserId: %i Pin:%i", LASERid, LASERpin);
 		if (LASERpin != 0)
 		{
@@ -208,18 +180,17 @@ void LaserController::set()
 		}
 		Config::setLaserPins(pins);
 	}
-	WifiController::getJDoc()->clear();
+	return 1;
 }
 
 // Custom function accessible by the API
-void LaserController::get()
+DynamicJsonDocument LaserController::get(DynamicJsonDocument  ob)
 {
-	WifiController::getJDoc()->clear();
-	int LASERid = (*WifiController::getJDoc())["LASERid"];
-	int LASERpin = (*WifiController::getJDoc())["LASERpin"];
-	(*WifiController::getJDoc())["LASER1pin"] = pins.LASER_PIN_1;
-	(*WifiController::getJDoc())["LASER2pin"] = pins.LASER_PIN_2;
-	(*WifiController::getJDoc())["LASER3pin"] = pins.LASER_PIN_3;
+	ob.clear();
+	ob["LASER1pin"] = pins.LASER_PIN_1;
+	ob["LASER2pin"] = pins.LASER_PIN_2;
+	ob["LASER3pin"] = pins.LASER_PIN_3;
+	return ob;
 }
 
 void LaserController::setup()
@@ -227,7 +198,7 @@ void LaserController::setup()
 	log_i("Setting Up LASERs");
 
 	Config::getLaserPins(pins);
-	
+
 	// Setting up the differen PWM channels for the laser
 
 	// if laser pin is not defined try loading it from the pindef.h file
@@ -241,9 +212,9 @@ void LaserController::setup()
 	ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
 	ledcWrite(PWM_CHANNEL_LASER_1, 10000);
-	delay(500);
+	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_1, 0);
-	
+
 	// if laser pin is not defined try loading it from the pindef.h file
 	if (not pins.LASER_PIN_2)
 	{
@@ -255,7 +226,7 @@ void LaserController::setup()
 	ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
 	ledcWrite(PWM_CHANNEL_LASER_2, 10000);
-	delay(500);
+	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_2, 0);
 
 	// if laser pin is not defined try loading it from the pindef.h file
@@ -269,7 +240,7 @@ void LaserController::setup()
 	ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
 	ledcWrite(PWM_CHANNEL_LASER_3, 10000);
-	delay(500);
+	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_3, 0);
 
 	// Write out updated settings to preferences permanently

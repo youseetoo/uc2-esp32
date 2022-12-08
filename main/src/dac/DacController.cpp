@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "DacController.h"
 
 DacController::DacController(){
@@ -12,23 +11,17 @@ namespace RestApi
 {
 	void Dac_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::dac)->act();
-		serialize();
+		serialize(moduleController.get(AvailableModules::dac)->act(deserialize()));
 	}
 
 	void Dac_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::dac)->get();
-		serialize();
+		serialize(moduleController.get(AvailableModules::dac)->get(deserialize()));
 	}
 
 	void Dac_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::dac)->set();
-		serialize();
+		serialize(moduleController.get(AvailableModules::dac)->set(deserialize()));
 	}
 }
 
@@ -54,7 +47,7 @@ void DacController::setup()
 void DacController::loop() {}
 
 // Custom function accessible by the API
-void DacController::act()
+int DacController::act(DynamicJsonDocument ob)
 {
 	// here you can do something
 
@@ -63,42 +56,42 @@ void DacController::act()
 	// apply default parameters
 	// DAC Channel
 	dac_channel = DAC_CHANNEL_1;
-	if (WifiController::getJDoc()->containsKey("dac_channel"))
+	if (ob.containsKey("dac_channel"))
 	{
-		dac_channel = (*WifiController::getJDoc())["dac_channel"];
+		dac_channel = (ob)["dac_channel"];
 	}
 
 	// DAC Frequency
 	frequency = 1000;
-	if (WifiController::getJDoc()->containsKey("frequency"))
+	if (ob.containsKey("frequency"))
 	{
-		frequency = (*WifiController::getJDoc())["frequency"];
+		frequency = (ob)["frequency"];
 	}
 
 	// DAC offset
 	int offset = 0;
-	if (WifiController::getJDoc()->containsKey("offset"))
+	if (ob.containsKey("offset"))
 	{
-		int offset = (*WifiController::getJDoc())["offset"];
+		int offset = (ob)["offset"];
 	}
 
 	// DAC amplitude
 	int amplitude = 0;
-	if (WifiController::getJDoc()->containsKey("amplitude"))
+	if (ob.containsKey("amplitude"))
 	{
-		int amplitude = (*WifiController::getJDoc())["amplitude"];
+		int amplitude = (ob)["amplitude"];
 	}
 
 	// DAC clk_div
 	int clk_div = 0;
-	if (WifiController::getJDoc()->containsKey("clk_div"))
+	if (ob.containsKey("clk_div"))
 	{
-		int clk_div = (*WifiController::getJDoc())["clk_div"];
+		int clk_div = (ob)["clk_div"];
 	}
 
-	if ((*WifiController::getJDoc())["dac_channel"] == 1)
+	if ((ob)["dac_channel"] == 1)
 		dac_channel = DAC_CHANNEL_1;
-	else if ((*WifiController::getJDoc())["dac_channel"] == 2)
+	else if ((ob)["dac_channel"] == 2)
 		dac_channel = DAC_CHANNEL_2;
 
 	// Scale output of a DAC channel using two bit pattern:
@@ -140,35 +133,35 @@ void DacController::act()
 		dacm->dac_offset_set(dac_channel, offset);
 	}
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	return 1;
 }
 
-void DacController::set()
+int DacController::set(DynamicJsonDocument ob)
 {
-	if ((*WifiController::getJDoc()).containsKey(keyDACfake1Pin))
+	if ((ob).containsKey(keyDACfake1Pin))
 	{
-		pins.dac_fake_1 = (*WifiController::getJDoc())[keyDACfake1Pin];
+		pins.dac_fake_1 = (ob)[keyDACfake1Pin];
 		Config::setDacPins(pins);
 		setup();
 	}
-	if ((*WifiController::getJDoc()).containsKey(keyDACfake2Pin))
+	if ((ob).containsKey(keyDACfake2Pin))
 	{
-		pins.dac_fake_2 = (*WifiController::getJDoc())[keyDACfake2Pin];
+		pins.dac_fake_2 = (ob)[keyDACfake2Pin];
 		Config::setDacPins(pins);
 		setup();
 	}
-	WifiController::getJDoc()->clear();
+	return 1;
 }
 
 // Custom function accessible by the API
-void DacController::get()
+DynamicJsonDocument DacController::get(DynamicJsonDocument jsonDocument)
 {
 	// GET SOME PARAMETERS HERE
 	int dac_variable = 12343;
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["dac_variable"] = dac_variable;
+	jsonDocument.clear();
+	jsonDocument["dac_variable"] = dac_variable;
+	return jsonDocument;
 }
 
 /*

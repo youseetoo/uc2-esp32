@@ -1,58 +1,23 @@
 #include "ConfigController.h"
-#include "../motor/MotorPins.h"
-#include "../../pindef.h"
+
+
 namespace RestApi
 {
 	void Config_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::config)->act();
-		serialize();
+		serialize(moduleController.get(AvailableModules::config)->act(deserialize()));
 	}
 
 	void Config_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::config)->get();
-		serialize();
+		serialize(moduleController.get(AvailableModules::config)->get(deserialize()));
 	}
 
 	void Config_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::config)->set();
-		serialize();
+		serialize(moduleController.get(AvailableModules::config)->set(deserialize()));
 	}
 
-}
-
-ConfigController::ConfigController() : Module() { log_i("ctor"); }
-ConfigController::~ConfigController() { log_i("~ctor"); }
-
-void ConfigController::act()
-{
-	log_i("config act");
-}
-
-void ConfigController::set()
-{
-	log_i("config set");
-	
-	DynamicJsonDocument *doc = WifiController::getJDoc();
-	serializeJsonPretty((*doc), Serial);
-
-
-	doc->clear();
-
-}
-void ConfigController::get()
-{
-}
-void ConfigController::setup()
-{
-}
-void ConfigController::loop()
-{
 }
 
 namespace Config
@@ -75,29 +40,28 @@ namespace Config
 		WifiConfig *conf = new WifiConfig();
 		preferences.getBytes(keyWifiSSID, conf, sizeof(WifiConfig));
 		preferences.end();
+
+		// check if mAP is set
+		if (not conf->mAP)
+			conf->mAP = true;
+		// check if ssid is set
+		if (not conf->mSSID)
+			conf->mSSID = "Uc2";
+		// check if password is set
+		if (not conf->mPWD)
+			conf->mPWD = "";
+		// check if hostname is set
+		if (not conf->hostname)
+			conf->hostname = "youseetoo";
 		return conf;
-	}
-
-	void resetAllPinPreferences()
-	{
-		preferences.begin(prefNamespace, false);
-		preferences.clear();
-		preferences.end();
-	}
-
-	void checkifBootWentThrough()
-	{
-		// indicate if boot went through successfully
-		log_i("Boot went through successfully");
-		preferences.begin(prefNamespace, false);
-		preferences.putBool(keyIsBooting, false);
-		preferences.end();
 	}
 
 	void setup()
 	{
 		// check if boot process went through
 		preferences.begin(prefNamespace, false);
+
+		// check if the flag has been reset after last boot process
 		if (preferences.getBool(keyIsBooting, false))
 		{ // if the boot process stopped for whatever reason, clear settings
 			preferences.clear();
@@ -167,6 +131,20 @@ namespace Config
 	{
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(keyLed, config, sizeof(LedConfig));
+		preferences.end();
+	}
+
+	void setAnalogJoyStickPins(JoystickPins *pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.putBytes(key_joy, pins, sizeof(JoystickPins));
+		preferences.end();
+	}
+
+	void getAnalogJoyStickPins(JoystickPins *pins)
+	{
+		preferences.begin(prefNamespace, false);
+		preferences.getBytes(key_joy, pins, sizeof(JoystickPins));
 		preferences.end();
 	}
 
@@ -268,13 +246,52 @@ namespace Config
 		preferences.end();
 	}
 
+	bool isFirstRun()
+	{
+		bool rdystate = preferences.begin(prefNamespace, false);
+		log_i("isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
+		// define preference name
+		const char *compiled_date = __DATE__ " " __TIME__;
+		String stored_date = preferences.getString(dateKey, ""); // FIXME
+
+		log_i("Stored date: %s", stored_date.c_str());
+		log_i("Compiled date: %s", compiled_date);
+
+		log_i("First run? ");
+		if (!stored_date.equals(compiled_date))
+		{
+			log_i("yes, resetSettings");
+			resetPreferences();
+			preferences.putString(dateKey, compiled_date); // FIXME?
+		}
+		else
+		{
+			log_i("no, loadSettings");
+		}
+		preferences.end();
+
+		rdystate = preferences.begin(prefNamespace, false);
+		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
+		String datetest = preferences.getString(dateKey, "");
+		preferences.end();
+		log_i("isFirstRun End datetest:%s", datetest.c_str());
+		return !stored_date.equals(compiled_date);
+	}
+
+	bool resetPreferences()
+	{
+		log_i("resetPreferences");
+		preferences.clear();
+		return true;
+	}
+
 	bool resertOnFirstBoot()
 	{
 		// check if boot for the first time
 		preferences.begin(prefNamespace, false);
 		bool rdystate = preferences.begin(prefNamespace, false);
 		log_i("resertOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
-		
+
 		// define preference name
 		const char *compiled_date = __DATE__ " " __TIME__;
 		String stored_date = preferences.getString(dateKey, ""); // FIXME
@@ -302,13 +319,6 @@ namespace Config
 		return !stored_date.equals(compiled_date);
 	}
 
-	bool resetPreferences()
-	{
-		log_i("resetPreferences");
-		preferences.clear();
-		return true;
-	}
-
 	void setModuleConfig(ModuleConfig *pins)
 	{
 		preferences.begin(prefNamespace, false);
@@ -324,5 +334,47 @@ namespace Config
 		log_i("getModuleConfig size:%i", s);
 		preferences.end();
 		return pin;
+	}
+
+	void setPsxMac(String mac)
+	{
+		// set mac address of the ps controller
+		preferences.begin(prefNamespace, true);
+		preferences.putString("mac", mac);
+		preferences.end();
+	}
+
+	String getPsxMac()
+	{
+		// this hosts the MAC-address of the ps controller
+		preferences.begin(prefNamespace, true);
+		String m = preferences.getString("mac");
+		preferences.end();
+		return m;
+	}
+
+	int getPsxControllerType()
+	{		
+		preferences.begin(prefNamespace, true);
+		int m = preferences.getInt("controllertype");
+		preferences.end();
+		return m;
+	}
+
+	void setPsxControllerType(int type)
+	{
+		// this is either PS3, PS4 or X
+		preferences.begin(prefNamespace, true);
+		preferences.putInt("controllertype", type);
+		preferences.end();
+	}
+
+	void checkifBootWentThrough()
+	{
+		// indicate if boot went through successfully
+		log_i("Boot went through successfully");
+		preferences.begin(prefNamespace, false);
+		preferences.putBool(keyIsBooting, false);
+		preferences.end();
 	}
 }

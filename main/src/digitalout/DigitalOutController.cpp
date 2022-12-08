@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "DigitalOutController.h"
 
 
@@ -8,23 +7,17 @@ namespace RestApi
 {
 	void DigitalOut_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::digitalout)->act();
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalout)->act(deserialize()));
 	}
 
 	void DigitalOut_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::digitalout)->get();
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalout)->get(deserialize()));
 	}
 
 	void DigitalOut_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::digitalout)->set();
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalout)->set(deserialize()));
 	}
 }
 
@@ -32,16 +25,15 @@ DigitalOutController::DigitalOutController(/* args */){};
 DigitalOutController::~DigitalOutController(){};
 
 // Custom function accessible by the API
-void DigitalOutController::act()
+int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 {
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	// here you can do something
 	Serial.println("digitalout_act_fct");
 	isBusy = true;
 	int triggerdelay = 10;
 
-	int digitaloutid = (*jsonDocument)["digitaloutid"];
-	int digitaloutval = (*jsonDocument)["digitaloutval"];
+	int digitaloutid = (jsonDocument)["digitaloutid"];
+	int digitaloutval = (jsonDocument)["digitaloutval"];
 
 	if (DEBUG)
 	{
@@ -102,16 +94,14 @@ void DigitalOutController::act()
 			Serial.println(pins.digitalout_PIN_3);
 		}
 	}
-	jsonDocument->clear();
-	(*jsonDocument)["return"] = 1;
+	return 1;
 }
 
-void DigitalOutController::set()
+int DigitalOutController::set(DynamicJsonDocument jsonDocument)
 {
 	// here you can set parameters
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
-	int digitaloutid = (*jsonDocument)["digitaloutid"];
-	int digitaloutpin = (*jsonDocument)["digitaloutpin"];
+	int digitaloutid = (jsonDocument)["digitaloutid"];
+	int digitaloutpin = (jsonDocument)["digitaloutpin"];
 	if (DEBUG)
 		Serial.print("digitaloutid ");
 	Serial.println(digitaloutid);
@@ -119,7 +109,7 @@ void DigitalOutController::set()
 		Serial.print("digitaloutpin ");
 	Serial.println(digitaloutpin);
 
-	if (digitaloutid != NULL and digitaloutpin != NULL)
+	if (digitaloutid != 0 and digitaloutpin != 0)
 	{
 		if (digitaloutid == 1)
 		{
@@ -142,16 +132,14 @@ void DigitalOutController::set()
 	}
 	Config::setDigitalOutPins(pins);
 	isBusy = false;
-	jsonDocument->clear();
-	(*jsonDocument)["return"] = 1;
+	return 1;
 }
 
 // Custom function accessible by the API
-void DigitalOutController::get()
+DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 {
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	// GET SOME PARAMETERS HERE
-	int digitaloutid = (*jsonDocument)["digitaloutid"];
+	int digitaloutid = jsonDocument["digitaloutid"];
 	int digitaloutpin = 0;
 	int digitaloutval = 0;
 
@@ -181,10 +169,11 @@ void DigitalOutController::get()
 		digitaloutval = digitalout_val_3;
 	}
 
-	jsonDocument->clear();
-	(*jsonDocument)["digitaloutid"] = digitaloutid;
-	(*jsonDocument)["digitaloutval"] = digitaloutval;
-	(*jsonDocument)["digitaloutpin"] = digitaloutpin;
+	jsonDocument.clear();
+	jsonDocument["digitaloutid"] = digitaloutid;
+	jsonDocument["digitaloutval"] = digitaloutval;
+	jsonDocument["digitaloutpin"] = digitaloutpin;
+	return jsonDocument;
 }
 
 void DigitalOutController::setup()

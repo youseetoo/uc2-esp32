@@ -1,5 +1,4 @@
 #pragma once
-#include "config.h"
 #include <map>
 #include "Module.h"
 #include "ModuleConfig.h"
@@ -8,13 +7,15 @@
 #include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
 #include "src/laser/LaserController.h"
-#include "src/slm/SlmController.h"
 #include "src/pid/PidController.h"
 #include "src/analogin/AnalogInController.h"
+#include "src/analogin/AnalogJoystick.h"
 #include "src/dac/DacController.h"
 #include "src/analogout/AnalogOutController.h"
 #include "src/digitalout/DigitalOutController.h"
 #include "src/digitalin/DigitalInController.h"
+#include "src/state/State.h"
+#include "src/bt/BtController.h"
 #include "src/scanner/ScannerController.h"
 
 namespace RestApi
@@ -26,6 +27,7 @@ namespace RestApi
 enum class AvailableModules
 {
     analogout,
+    btcontroller,
     config,
     dac,
     digitalout,
@@ -37,7 +39,9 @@ enum class AvailableModules
     pid,
     scanner,
     analogin,
-    slm,
+    state,
+    analogJoystick,
+    wifi
 };
 
 class ModuleController
@@ -50,8 +54,8 @@ public:
     void setup();
     void loop();
     Module *get(AvailableModules mod);
-    void get();
-    void set();
+    DynamicJsonDocument get();
+    int set(DynamicJsonDocument j);
 };
 
 extern ModuleController moduleController;

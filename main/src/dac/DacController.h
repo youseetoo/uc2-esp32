@@ -1,6 +1,4 @@
-#include "../../config.h"
 #pragma once
-
 #include "ArduinoJson.h"
 #include "DAC_Module.h"
 #include "../wifi/WifiController.h"
@@ -39,9 +37,9 @@ public:
 
     void setup() override;
 
-    void act() override;
-    void set() override;
-    void get() override;
+    int act(DynamicJsonDocument jsonDocument) override;
+    int set(DynamicJsonDocument jsonDocument) override;
+    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
     void loop() override;
     static void drive_galvo(void *parameter);
 };

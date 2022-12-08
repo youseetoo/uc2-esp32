@@ -1,27 +1,20 @@
-#include "../../config.h"
 #include "AnalogOutController.h"
 
 namespace RestApi
 {
 	void AnalogOut_act()
     {
-        deserialize();
-		moduleController.get(AvailableModules::analogout)->act();
-        serialize();
+		serialize(moduleController.get(AvailableModules::analogout)->act(deserialize()));
     }
 
     void AnalogOut_get()
     {
-        deserialize();
-        moduleController.get(AvailableModules::analogout)->get();
-        serialize();
+        serialize(moduleController.get(AvailableModules::analogout)->get(deserialize()));
     }
 
     void AnalogOut_set()
     {
-        deserialize();
-        moduleController.get(AvailableModules::analogout)->set();
-        serialize();
+        serialize(moduleController.get(AvailableModules::analogout)->set(deserialize()));
     }
 }
 
@@ -45,13 +38,13 @@ void AnalogOutController::setup()
 }
 
 // Custom function accessible by the API
-void AnalogOutController::act()
+int AnalogOutController::act(DynamicJsonDocument  ob)
 {
 	// here you can do something
 	Serial.println("analogout_act_fct");
 
-	int analogoutid = (*WifiController::getJDoc())["analogoutid"];
-	int analogoutval = (*WifiController::getJDoc())["analogoutval"];
+	int analogoutid = (ob)["analogoutid"];
+	int analogoutval = (ob)["analogoutval"];
 
 	if (DEBUG)
 	{
@@ -76,24 +69,23 @@ void AnalogOutController::act()
 		analogout_val_3 = analogoutval;
 		ledcWrite(PWM_CHANNEL_analogout_3, analogoutval);
 	}
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	return 1;
 }
 
-void AnalogOutController::set()
+int AnalogOutController::set(DynamicJsonDocument  ob)
 {
 	// here you can set parameters
 
 	int analogoutid = 0;
-	if (WifiController::getJDoc()->containsKey("analogoutid"))
+	if (ob.containsKey("analogoutid"))
 	{
-		analogoutid = (*WifiController::getJDoc())["analogoutid"];
+		analogoutid = (ob)["analogoutid"];
 	}
 
 	int analogoutpin = 0;
-	if (WifiController::getJDoc()->containsKey("analogoutpin"))
+	if (ob.containsKey("analogoutpin"))
 	{
-		int analogoutpin = (*WifiController::getJDoc())["analogoutpin"];
+		int analogoutpin = (ob)["analogoutpin"];
 	}
 
 	if (DEBUG)
@@ -137,15 +129,14 @@ void AnalogOutController::set()
 		ledcWrite(PWM_CHANNEL_analogout_3, 0);
 	}
 	Config::setAnalogOutPins(pins);
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["return"] = 1;
+	return 1;
 }
 
 // Custom function accessible by the API
-void AnalogOutController::get()
+DynamicJsonDocument AnalogOutController::get(DynamicJsonDocument jsonDocument)
 {
 	// GET SOME PARAMETERS HERE
-	int analogoutid = (*WifiController::getJDoc())["analogoutid"];
+	int analogoutid = jsonDocument["analogoutid"];
 	int analogoutpin = 0;
 	int analogoutval = 0;
 
@@ -175,8 +166,9 @@ void AnalogOutController::get()
 		analogoutval = analogout_val_3;
 	}
 
-	WifiController::getJDoc()->clear();
-	(*WifiController::getJDoc())["analogoutid"] = analogoutid;
-	(*WifiController::getJDoc())["analogoutval"] = analogoutval;
-	(*WifiController::getJDoc())["analogoutpin"] = analogoutpin;
+	jsonDocument.clear();
+	jsonDocument["analogoutid"] = analogoutid;
+	jsonDocument["analogoutval"] = analogoutval;
+	jsonDocument["analogoutpin"] = analogoutpin;
+	return jsonDocument;
 }

@@ -4,20 +4,18 @@ namespace RestApi
 {
     void getModules()
     {
-        deserialize();
-        moduleController.get();
-        serialize();
+        serialize(moduleController.get());
     }
     void setModules()
     {
-        deserialize();
-        moduleController.set();
-        serialize();
+        serialize(moduleController.set(deserialize()));
     }
 };
 
 void ModuleController::setup()
 {
+
+    // activate all modules that are configured
 
     // moduleConfig.led = true;
     // moduleConfig.motor = true;
@@ -31,71 +29,107 @@ void ModuleController::setup()
     }
     modules.clear();
     moduleConfig = Config::getModuleConfig();
-    if (moduleConfig->config)
-    {
-        modules.insert(std::make_pair(AvailableModules::config, dynamic_cast<Module *>(new ConfigController())));
-        log_i("add config");
-    }
+    
+    // eventually load the LED module
     if (moduleConfig->led)
     {
         modules.insert(std::make_pair(AvailableModules::led, dynamic_cast<Module *>(new LedController())));
         log_i("add led");
     }
+
+    // eventually load the BTController module
+    /*
+    if (moduleConfig->btcontroller)
+    {
+        modules.insert(std::make_pair(AvailableModules::btcontroller, dynamic_cast<Module *>(new BTController())));
+        log_i("add btcontroller");
+    }*/
+
+    // eventually load the state module
+    if (moduleConfig->state)
+    {
+        modules.insert(std::make_pair(AvailableModules::state, dynamic_cast<Module *>(new  State())));
+        log_i("add state");
+    }
+
+    // eventually load the motor module
     if (moduleConfig->motor)
     {
         modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
         log_i("add motor");
     }
+
+    // eventually load the motor homing module
     if (moduleConfig->home)
     {
         modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
         log_i("add home");
-    }    
-    if (moduleConfig->slm)
-    {
-        modules.insert(std::make_pair(AvailableModules::slm, dynamic_cast<Module *>(new SlmController())));
-        log_i("add slm");
     }
+
+
+    // eventually load the analogin module
     if (moduleConfig->analogin)
     {
         modules.insert(std::make_pair(AvailableModules::analogin, dynamic_cast<Module *>(new AnalogInController())));
         log_i("add analogin");
     }
+
+    // eventually load the pid controller module
     if (moduleConfig->pid)
     {
         modules.insert(std::make_pair(AvailableModules::pid, dynamic_cast<Module *>(new PidController())));
         log_i("add pid");
     }
+
+    // eventually load the pilaserd controller module
     if (moduleConfig->laser)
     {
         modules.insert(std::make_pair(AvailableModules::laser, dynamic_cast<Module *>(new LaserController())));
         log_i("add laser");
     }
+
+    // eventually load the dac module
     if (moduleConfig->dac)
     {
         modules.insert(std::make_pair(AvailableModules::dac, dynamic_cast<Module *>(new DacController())));
         log_i("add dac");
     }
+
+    // eventually load the analogout module
     if (moduleConfig->analogout)
     {
         modules.insert(std::make_pair(AvailableModules::analogout, dynamic_cast<Module *>(new AnalogOutController())));
         log_i("add analogout");
     }
+
+    // eventually load the digitalout module
     if (moduleConfig->digitalout)
     {
         modules.insert(std::make_pair(AvailableModules::digitalout, dynamic_cast<Module *>(new DigitalOutController())));
         log_i("add digitalout");
     }
+
+    // eventually load the digitalin module
     if (moduleConfig->digitalin)
     {
         modules.insert(std::make_pair(AvailableModules::digitalin, dynamic_cast<Module *>(new DigitalInController())));
         log_i("add digitalin");
     }
+
+    // eventually load the scanner module
     if (moduleConfig->scanner)
     {
         modules.insert(std::make_pair(AvailableModules::scanner, dynamic_cast<Module *>(new ScannerController())));
         log_i("add scanner");
     }
+
+    // eventually load the analogJoystick module
+    if (moduleConfig->analogJoystick)
+    {
+        modules.insert(std::make_pair(AvailableModules::analogJoystick, dynamic_cast<Module *>(new AnalogJoystick())));
+        log_i("add scanner");
+    }
+
     for (auto &x : modules)
     {
         if (x.second != nullptr)
@@ -119,63 +153,62 @@ Module *ModuleController::get(AvailableModules mod)
     return modules[mod];
 }
 
-void ModuleController::get()
+DynamicJsonDocument ModuleController::get()
 {
-    // register all modules that have a get routine
-    DynamicJsonDocument *jdoc = WifiController::getJDoc();
-    jdoc->clear();
-    (*jdoc)[key_modules][keyLed] = moduleConfig->led;
-    (*jdoc)[key_modules][key_config] = moduleConfig->config;
-    (*jdoc)[key_modules][key_motor] = moduleConfig->motor;
-    (*jdoc)[key_modules][key_home] = moduleConfig->home;
-    (*jdoc)[key_modules][key_slm] = moduleConfig->slm;
-    (*jdoc)[key_modules][key_analogin] = moduleConfig->analogin;
-    (*jdoc)[key_modules][key_pid] = moduleConfig->pid;
-    (*jdoc)[key_modules][key_laser] = moduleConfig->laser;
-    (*jdoc)[key_modules][key_dac] = moduleConfig->dac;
-    (*jdoc)[key_modules][key_analogout] = moduleConfig->analogout;
-    (*jdoc)[key_modules][key_digitalout] = moduleConfig->digitalout;
-    (*jdoc)[key_modules][key_digitalin] = moduleConfig->digitalin;
-    (*jdoc)[key_modules][key_scanner] = moduleConfig->scanner;
+    DynamicJsonDocument doc(4096);
+    doc[key_modules][keyLed] = moduleConfig->led;
+    doc[key_modules][key_motor] = moduleConfig->motor;
+    doc[key_modules][key_home] = moduleConfig->home;
+    doc[key_modules][key_analogin] = moduleConfig->analogin;
+    doc[key_modules][key_pid] = moduleConfig->pid;
+    doc[key_modules][key_laser] = moduleConfig->laser;
+    doc[key_modules][key_dac] = moduleConfig->dac;
+    doc[key_modules][key_analogout] = moduleConfig->analogout;
+    doc[key_modules][key_digitalout] = moduleConfig->digitalout;
+    doc[key_modules][key_digitalin] = moduleConfig->digitalin;
+    doc[key_modules][key_scanner] = moduleConfig->scanner;
+    doc[key_modules][key_joy] = moduleConfig->analogJoystick;
+    doc[key_modules][key_wifi] = moduleConfig->wifi;
+    return doc;
 }
-// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
-void ModuleController::set()
+// {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
+int ModuleController::set(DynamicJsonDocument j)
 {
-    // register all set routines 
-    DynamicJsonDocument *jdoc = WifiController::getJDoc();
-    if (jdoc->containsKey(key_modules))
+    // set active modules
+    if (j.containsKey(key_modules))
     {
-        if ((*jdoc)[key_modules].containsKey(keyLed))
-            moduleConfig->led = (*jdoc)[key_modules][keyLed];
-        if ((*jdoc)[key_modules].containsKey(key_motor))
-            moduleConfig->motor = (*jdoc)[key_modules][key_motor];
-        if ((*jdoc)[key_modules].containsKey(key_config))
-            moduleConfig->config = (*jdoc)[key_modules][key_config];
-        if ((*jdoc)[key_modules].containsKey(key_home))
-            moduleConfig->home = (*jdoc)[key_modules][key_home];
-        if ((*jdoc)[key_modules].containsKey(key_slm))
-            moduleConfig->slm = (*jdoc)[key_modules][key_slm];
-        if ((*jdoc)[key_modules].containsKey(key_analogin))
-            moduleConfig->analogin = (*jdoc)[key_modules][key_analogin];
-        if ((*jdoc)[key_modules].containsKey(key_pid))
-            moduleConfig->pid = (*jdoc)[key_modules][key_pid];
-        if ((*jdoc)[key_modules].containsKey(key_laser))
-            moduleConfig->laser = (*jdoc)[key_modules][key_laser];
-        if ((*jdoc)[key_modules].containsKey(key_dac))
-            moduleConfig->dac = (*jdoc)[key_modules][key_dac];
-        if ((*jdoc)[key_modules].containsKey(key_analogout))
-            moduleConfig->analogout = (*jdoc)[key_modules][key_analogout];
-        if ((*jdoc)[key_modules].containsKey(key_digitalout))
-            moduleConfig->digitalout = (*jdoc)[key_modules][key_digitalout];
-        if ((*jdoc)[key_modules].containsKey(key_digitalin))
-            moduleConfig->digitalin = (*jdoc)[key_modules][key_digitalin];
-        if ((*jdoc)[key_modules].containsKey(key_scanner))
-            moduleConfig->scanner = (*jdoc)[key_modules][key_scanner];
+        if (j[key_modules].containsKey(keyLed))
+            moduleConfig->led = j[key_modules][keyLed];
+        if (j[key_modules].containsKey(key_motor))
+            moduleConfig->motor = j[key_modules][key_motor];
+        if (j[key_modules].containsKey(key_home))
+            moduleConfig->home = j[key_modules][key_home];
+        if (j[key_modules].containsKey(key_analogin))
+            moduleConfig->analogin = j[key_modules][key_analogin];
+        if (j[key_modules].containsKey(key_pid))
+            moduleConfig->pid = j[key_modules][key_pid];
+        if (j[key_modules].containsKey(key_laser))
+            moduleConfig->laser = j[key_modules][key_laser];
+        if (j[key_modules].containsKey(key_dac))
+            moduleConfig->dac = j[key_modules][key_dac];
+        if (j[key_modules].containsKey(key_analogout))
+            moduleConfig->analogout = j[key_modules][key_analogout];
+        if (j[key_modules].containsKey(key_digitalout))
+            moduleConfig->digitalout = j[key_modules][key_digitalout];
+        if (j[key_modules].containsKey(key_digitalin))
+            moduleConfig->digitalin = j[key_modules][key_digitalin];
+        if (j[key_modules].containsKey(key_scanner))
+            moduleConfig->scanner = j[key_modules][key_scanner];
+        if (j[key_modules].containsKey(key_joy))
+            moduleConfig->analogJoystick = j[key_modules][key_joy];
+        if (j[key_modules].containsKey(key_wifi))
+            moduleConfig->wifi = j[key_modules][key_wifi];
+                        
         Config::setModuleConfig(moduleConfig);
         setup();
         WifiController::restartWebServer();
     }
-    jdoc->clear();
+    return 1;
 }
 
 ModuleController moduleController;

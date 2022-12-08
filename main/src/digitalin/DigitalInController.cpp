@@ -1,4 +1,3 @@
-#include "../../config.h"
 #include "DigitalInController.h"
 
 
@@ -8,23 +7,17 @@ namespace RestApi
 {
 	void DigitalIn_act()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::digitalin)->act();
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalin)->act(deserialize()));
 	}
 
 	void DigitalIn_get()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::digitalin)->get();
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalin)->get(deserialize()));
 	}
 
 	void DigitalIn_set()
 	{
-		deserialize();
-		moduleController.get(AvailableModules::digitalin)->set();
-		serialize();
+		serialize(moduleController.get(AvailableModules::digitalin)->set(deserialize()));
 	}
 }
 
@@ -32,21 +25,18 @@ DigitalInController::DigitalInController(/* args */){};
 DigitalInController::~DigitalInController(){};
 
 // Custom function accessible by the API
-void DigitalInController::act()
+int DigitalInController::act(DynamicJsonDocument jsonDocument)
 {
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
 	// here you can do something
 	Serial.println("digitalin_act_fct");
-	jsonDocument->clear();
-	(*jsonDocument)["return"] = 1;
+	return 1;
 }
 
-void DigitalInController::set()
+int DigitalInController::set(DynamicJsonDocument  jsonDocument)
 {
 	// here you can set parameters
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
-	int digitalinid = (*jsonDocument)["digitalinid"];
-	int digitalinpin = (*jsonDocument)["digitalinpin"];
+	int digitalinid = (jsonDocument)["digitalinid"];
+	int digitalinpin = (jsonDocument)["digitalinpin"];
 	if (DEBUG)
 		Serial.print("digitalinid ");
 	Serial.println(digitalinid);
@@ -54,7 +44,7 @@ void DigitalInController::set()
 		Serial.print("digitalinpin ");
 	Serial.println(digitalinpin);
 
-	if (digitalinid != NULL and digitalinpin != NULL)
+	if (digitalinid != 0 and digitalinpin != 0)
 	{
 		if (digitalinid == 1)
 		{
@@ -74,16 +64,15 @@ void DigitalInController::set()
 	}
 	Config::setDigitalInPins(pins);
 	isBusy = false;
-	jsonDocument->clear();
-	(*jsonDocument)["return"] = 1;
+	return 1;
 }
 
 // Custom function accessible by the API
-void DigitalInController::get()
+DynamicJsonDocument DigitalInController::get(DynamicJsonDocument  jsonDocument)
 {
-	DynamicJsonDocument * jsonDocument = WifiController::getJDoc();
+	
 	// GET SOME PARAMETERS HERE
-	int digitalinid = (*jsonDocument)["digitalinid"];
+	int digitalinid = jsonDocument["digitalinid"];
 	int digitalinpin = 0;
 	int digitalinval = 0;
 
@@ -113,10 +102,11 @@ void DigitalInController::get()
 		digitalinval = digitalin_val_3;
 	}
 
-	jsonDocument->clear();
-	(*jsonDocument)["digitalinid"] = digitalinid;
-	(*jsonDocument)["digitalinval"] = digitalinval;
-	(*jsonDocument)["digitalinpin"] = digitalinpin;
+	jsonDocument.clear();
+	jsonDocument["digitalinid"] = digitalinid;
+	jsonDocument["digitalinval"] = digitalinval;
+	jsonDocument["digitalinpin"] = digitalinpin;
+	return jsonDocument;
 }
 
 void DigitalInController::setup()

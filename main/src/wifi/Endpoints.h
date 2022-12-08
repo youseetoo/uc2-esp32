@@ -1,12 +1,12 @@
 #pragma once
-#include "../../config.h"
-static const PROGMEM String state_act_endpoint = "/state_act";
-static const PROGMEM String state_set_endpoint = "/state_set";
-static const PROGMEM String state_get_endpoint = "/state_get";
 
 static const PROGMEM String laser_act_endpoint = "/laser_act";
 static const PROGMEM String laser_set_endpoint = "/laser_set";
 static const PROGMEM String laser_get_endpoint = "/laser_get";
+
+static const PROGMEM String state_act_endpoint = "/state_act";
+static const PROGMEM String state_set_endpoint = "/state_set";
+static const PROGMEM String state_get_endpoint = "/state_get";
 
 static const PROGMEM String motor_act_endpoint = "/motor_act";
 static const PROGMEM String motor_set_endpoint = "/motor_set";
@@ -41,10 +41,6 @@ static const PROGMEM String ledarr_act_endpoint = "/ledarr_act";
 static const PROGMEM String ledarr_set_endpoint = "/ledarr_set";
 static const PROGMEM String ledarr_get_endpoint = "/ledarr_get";
 
-static const PROGMEM String slm_act_endpoint = "/slm_act";
-static const PROGMEM String slm_set_endpoint = "/slm_set";
-static const PROGMEM String slm_get_endpoint = "/slm_get";
-
 static const PROGMEM String readanalogin_act_endpoint = "/readanalogin_act";
 static const PROGMEM String readanalogin_set_endpoint = "/readanalogin_set";
 static const PROGMEM String readanalogin_get_endpoint = "/readanalogin_get";
@@ -68,4 +64,6 @@ static const PROGMEM String bt_paireddevices_endpoint = "/bt_paireddevices";
 
 static const PROGMEM String modules_get_endpoint = "/modules_get";
 static const PROGMEM String modules_set_endpoint = "/modules_set";
+static const PROGMEM String analog_joystick_set_endpoint = "/analog_joystick_set";
+static const PROGMEM String analog_joystick_get_endpoint = "/analog_joystick_get";
 

@@ -17,4 +17,5 @@ struct ModuleConfig
     bool home = false;
     bool state = true;
     bool analogJoystick = false;
+    bool wifi = false;
 };

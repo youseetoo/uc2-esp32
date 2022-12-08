@@ -41,6 +41,7 @@ enum class AvailableModules
     analogin,
     state,
     analogJoystick,
+    wifi
 };
 
 class ModuleController

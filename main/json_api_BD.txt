@@ -1,6 +1,8 @@
-{"task":"modules_get"}
+{"task":"/modules_get"}
 {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "home":1, "analogin" : 0, "pid" : 0, "laser" : 1, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
 
+
+{"task":"/modules_set", "modules" : {"led" : 0, "motor": 1, "slm" : 0, "home":0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
 
 # X,Y,Z,A => 1,2,3,0
 {"task":"/motor_set",
@@ -42,11 +44,13 @@
     }
 }
 
+
+
 {"task":"/motor_act",
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -100, "speed": 2000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -1000, "speed": 1000, "isabs": 0, "isaccel":0}
         ]
     }
 }

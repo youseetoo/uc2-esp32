@@ -168,6 +168,7 @@ DynamicJsonDocument ModuleController::get()
     doc[key_modules][key_digitalin] = moduleConfig->digitalin;
     doc[key_modules][key_scanner] = moduleConfig->scanner;
     doc[key_modules][key_joy] = moduleConfig->analogJoystick;
+    doc[key_modules][key_wifi] = moduleConfig->wifi;
     return doc;
 }
 // {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 0, "scanner" : 0}}
@@ -200,6 +201,9 @@ int ModuleController::set(DynamicJsonDocument j)
             moduleConfig->scanner = j[key_modules][key_scanner];
         if (j[key_modules].containsKey(key_joy))
             moduleConfig->analogJoystick = j[key_modules][key_joy];
+        if (j[key_modules].containsKey(key_wifi))
+            moduleConfig->wifi = j[key_modules][key_wifi];
+                        
         Config::setModuleConfig(moduleConfig);
         setup();
         WifiController::restartWebServer();

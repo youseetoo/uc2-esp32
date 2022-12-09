@@ -6,6 +6,9 @@ name: CI
 # events but only for the master branch
 on:
   workflow_dispatch:
+  release:
+  types: [created, published, edited]
+
   
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
@@ -32,3 +35,23 @@ jobs:
       run: pio lib install
     - name: Run PlatformIO
       run: platformio run
+    - name: Copy files to build path
+      run: cp .pio/build/esp32dev/*.bin ./build/
+    - name: "Run if changes have been detected"
+      if: steps.auto-commit-action.outputs.changes_detected == 'true'
+      run: echo "Changes!"
+    - name: create ZIP
+      uses: vimtor/action-zip@v1
+      with:
+        files: ./build/
+        dest: binaries.zip
+    - name: upload artifact
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: binaries.zip
+        asset_name: binaries.zip
+        asset_content_type: application/zip
+

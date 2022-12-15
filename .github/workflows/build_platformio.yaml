@@ -30,11 +30,11 @@ jobs:
         pip install platformio
         ls lib
     # It is important to first install the libraries before compiling, since otherwise compilation might fail to find the just-installed libraries
-    - name: Install platformIO libraries
-      run: pio lib -g install 1    
-      # run: pio lib install
+    #    - name: Install platformIO libraries
+    #  run: pio lib -g install 1    
+    #  # run: pio lib install
     - name: Run PlatformIO
-      run: platformio run
+      run: pio run -e debug -v
     - name: Copy files to build path
       run: cp .pio/build/esp32dev/*.bin ./build/
     - name: "Run if changes have been detected"

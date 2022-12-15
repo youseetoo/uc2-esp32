@@ -32,6 +32,8 @@ jobs:
     # It is important to first install the libraries before compiling, since otherwise compilation might fail to find the just-installed libraries
     - name: Install platformIO libraries
       run: pio lib install
+      
+    # run for WEMOS => pindef.h
     - name: Run PlatformIO
       run: pio run 
     - name: merge into one binary
@@ -39,11 +41,42 @@ jobs:
         dir .pio/build/esp32dev/ 
         mv .pio/build/esp32dev/*.bin build/
         cd build
-        python -m esptool --chip esp32 merge_bin  -o merged-firmware.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+        python -m esptool --chip esp32 esp32_wemos.bin  -o merged-firmware.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
         path: build/merged-firmware.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/esp32_wemos.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+        
+    # run for uc2-standalone-v1
+    - name: Find and Replace
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "pindef.h"
+        replace: "pindef_UC2_1.h"
+        regex: false
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 esp32_uc2_1.bin  -o merged-firmware.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/esp32_uc2_1.bin
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
@@ -56,5 +89,34 @@ jobs:
         user_name: 'beniroquai'
         commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
-    
-
+    # run for uc2-standalone-v2
+    - name: Find and Replace
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "pindef_UC2_1.h"
+        replace: "pindef_UC2_2.h"
+        regex: false
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 esp32_uc2_2.bin  -o merged-firmware.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/esp32_uc2_2.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/merged-firmware.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+        

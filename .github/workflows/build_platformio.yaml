@@ -37,12 +37,23 @@ jobs:
     - name: merge into one binary
       run: |
         dir .pio/build/esp32dev/ 
-        mv .pio/build/esp32dev/*.bin build/
+        move .pio/build/esp32dev/*.bin build/
         python -m esptool --chip esp32 merge_bin  -o merged-firmware.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot.bin  0x10000 firmware.bin
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
         path: build/merged-firmware.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/merged-firmware.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
     
 

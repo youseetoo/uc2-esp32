@@ -34,7 +34,7 @@ jobs:
     #  run: pio lib -g install 1    
     #  # run: pio lib install
     - name: Run PlatformIO
-      run: pio run -e debug -v
+      run: pio run -d esp32dev -e debug -v 
     - name: Copy files to build path
       run: cp .pio/build/esp32dev/*.bin ./build/
     - name: "Run if changes have been detected"

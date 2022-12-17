@@ -1,14 +1,14 @@
 #pragma once
-// initial pin definitions in "pindef_WEMOS.h"
+// initial pin definitions in "pindef_UC2_2.h"
 
 // ESP32-WEMOS D1 R32
 const int PIN_DEF_MOTOR_DIR_A = 0;
-const int PIN_DEF_MOTOR_DIR_X = GPIO_NUM_16; 
-const int PIN_DEF_MOTOR_DIR_Y = GPIO_NUM_27;
+const int PIN_DEF_MOTOR_DIR_X = 0; 
+const int PIN_DEF_MOTOR_DIR_Y = 0;
 const int PIN_DEF_MOTOR_DIR_Z = GPIO_NUM_14;
 const int PIN_DEF_MOTOR_STP_A = 0;
-const int PIN_DEF_MOTOR_STP_X = GPIO_NUM_26;
-const int PIN_DEF_MOTOR_STP_Y = GPIO_NUM_25;
+const int PIN_DEF_MOTOR_STP_X = 0;
+const int PIN_DEF_MOTOR_STP_Y = 0;
 const int PIN_DEF_MOTOR_STP_Z = GPIO_NUM_17;
 const int PIN_DEF_MOTOR_EN_A = GPIO_NUM_12;
 const int PIN_DEF_MOTOR_EN_X = GPIO_NUM_12;

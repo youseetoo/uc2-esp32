@@ -29,19 +29,12 @@ void DacController::setup()
 {
 	Config::getDacPins(pins);
 	dacm = new DAC_Module();
+	log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
 	dacm->Setup(DAC_CHANNEL_1, 1000, 50, 0, 0, 2);
 	dacm->Setup(DAC_CHANNEL_2, 1000, 50, 0, 0, 2);
 	pinMode(pins.dac_fake_1, OUTPUT);
 	pinMode(pins.dac_fake_2, OUTPUT);
 	frequency = 1;
-	(
-		drive_galvo,   // Function that should be called
-		"drive_galvo", // Name of the task (for debugging)
-		1000,		   // Stack size (bytes)
-		this,		   // Parameter to pass
-		1,			   // Task priority
-		NULL		   // Task handle
-	);
 }
 
 void DacController::loop() {}
@@ -49,6 +42,7 @@ void DacController::loop() {}
 // Custom function accessible by the API
 int DacController::act(DynamicJsonDocument ob)
 {
+	
 	// here you can do something
 
 	Serial.println("dac_act_fct");
@@ -104,31 +98,32 @@ int DacController::act(DynamicJsonDocument ob)
 	else if (amplitude == 3)
 		scale = 11;
 
-	if (DEBUG)
-	{
-		Serial.print("dac_channel ");
-		Serial.println(dac_channel);
-		Serial.print("frequency ");
-		Serial.println(frequency);
-		Serial.print("offset ");
-		Serial.println(offset);
-	}
+	// Output debugging information
+	Serial.print("dac_channel ");
+	Serial.println(dac_channel);
+	Serial.print("frequency ");
+	Serial.println(frequency);
+	Serial.print("offset ");
+	Serial.println(offset);
 
 	if (dac_is_running)
 		if (frequency == 0)
 		{
+			Serial.println("Constant value on DAC");
 			dac_is_running = false;
 			dacm->Stop(dac_channel);
 			dacWrite(dac_channel, offset);
 		}
 		else
 		{
+			Serial.println("Restarting DAC");
 			dacm->Stop(dac_channel);
 			dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 			dac_is_running = true;
 		}
 	else
 	{
+		Serial.println("Starting DAC");
 		dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 		dacm->dac_offset_set(dac_channel, offset);
 	}
@@ -169,7 +164,8 @@ DynamicJsonDocument DacController::get(DynamicJsonDocument jsonDocument)
 */
 
 void DacController::drive_galvo(void *parameter)
-{
+{	
+	// FIXME:_ This is the "Fake" galvo if we cannot access pin 25/26 - should run in background 
 
 	DacController *d = (DacController *)parameter;
 

@@ -30,8 +30,9 @@ void DacController::setup()
 	Config::getDacPins(pins);
 	dacm = new DAC_Module();
 	log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
-	dacm->Setup(DAC_CHANNEL_1, 1000, 50, 0, 0, 2);
-	dacm->Setup(DAC_CHANNEL_2, 1000, 50, 0, 0, 2);
+	// void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int scale, int phase, int invert) {
+	dacm->Setup(DAC_CHANNEL_1, 1, 50, 0, 0, 2);
+	dacm->Setup(DAC_CHANNEL_2, 1, 50, 0, 0, 2);
 	pinMode(pins.dac_fake_1, OUTPUT);
 	pinMode(pins.dac_fake_2, OUTPUT);
 	frequency = 1;

@@ -1,5 +1,6 @@
 #include "LaserController.h"
-#include "../../pindef_UC2_2.h"
+#include "../serial/SerialProcess.h"
+#include "../../pindef.h"
 
 namespace RestApi
 {
@@ -133,6 +134,10 @@ int LaserController::act(DynamicJsonDocument ob)
 	else{
 		ob[key_return] = 0;
 	}
+
+	// print return
+	serialize(ob);
+
 	return ob[key_return];
 }
 
@@ -201,7 +206,7 @@ void LaserController::setup()
 
 	// Setting up the differen PWM channels for the laser
 
-	// if laser pin is not defined try loading it from the pindef_UC2_2.h file
+	// if laser pin is not defined try loading it from the pindef.h file
 	if (not pins.LASER_PIN_1)
 	{
 		pins.LASER_PIN_1 = PIN_DEF_LASER_1; // default value
@@ -215,7 +220,7 @@ void LaserController::setup()
 	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_1, 0);
 
-	// if laser pin is not defined try loading it from the pindef_UC2_2.h file
+	// if laser pin is not defined try loading it from the pindef.h file
 	if (not pins.LASER_PIN_2)
 	{
 		pins.LASER_PIN_2 = PIN_DEF_LASER_2; // default value
@@ -229,7 +234,7 @@ void LaserController::setup()
 	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_2, 0);
 
-	// if laser pin is not defined try loading it from the pindef_UC2_2.h file
+	// if laser pin is not defined try loading it from the pindef.h file
 	if (not pins.LASER_PIN_3)
 	{
 		pins.LASER_PIN_3 = PIN_DEF_LASER_3; // default value

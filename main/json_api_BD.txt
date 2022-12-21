@@ -9,8 +9,8 @@
 
 {"task":"/dac_act_fct", "dac_channel":1, "frequency":1000, "offset":0, "amplitude":1}
 
-{"task": "/laser_act", "LASERid":1, "LASERval": 1024}
-{"task":"/dac_act", "dac_channel":1, "frequency":100}
+{"task": "/laser_act", "LASERid":2, "LASERval": 200}
+{"task":"/dac_act", "dac_channel":1, "frequency":1}
 
 
 # X,Y,Z,A => 1,2,3,0

@@ -56,7 +56,12 @@ void SerialProcess::serialize(DynamicJsonDocument doc)
 
 void SerialProcess::serialize(int success)
 {
-	Serial.println(success);
+	StaticJsonDocument<16> doc;
+	doc["success"] = success;
+	Serial.println("++");
+	serializeJson(doc, Serial);
+	Serial.println();
+	Serial.println("--");
 }
 
 void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)

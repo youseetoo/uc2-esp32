@@ -2,11 +2,11 @@
 // initial pin definitions in "pindef_WEMOS.h"
 
 // ESP32-WEMOS D1 R32
-const int PIN_DEF_MOTOR_DIR_A = 0;
+const int PIN_DEF_MOTOR_DIR_A = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
 const int PIN_DEF_MOTOR_DIR_X = GPIO_NUM_16; 
 const int PIN_DEF_MOTOR_DIR_Y = GPIO_NUM_27;
 const int PIN_DEF_MOTOR_DIR_Z = GPIO_NUM_14;
-const int PIN_DEF_MOTOR_STP_A = 0;
+const int PIN_DEF_MOTOR_STP_A = GPIO_NUM_5; // Bridge from Endstop Y to Motor A (GPIO_NUM_5)
 const int PIN_DEF_MOTOR_STP_X = GPIO_NUM_26;
 const int PIN_DEF_MOTOR_STP_Y = GPIO_NUM_25;
 const int PIN_DEF_MOTOR_STP_Z = GPIO_NUM_17;
@@ -27,8 +27,8 @@ const int PIN_DEF_LED = GPIO_NUM_4;
 const int PIN_DEF_LED_NUM = 64;
 
 const int PIN_DEF_END_X = GPIO_NUM_13;
-const int PIN_DEF_END_Y = GPIO_NUM_5;
-const int PIN_DEF_END_Z = GPIO_NUM_23; 
+const int PIN_DEF_END_Y = 0; //GPIO_NUM_5;
+const int PIN_DEF_END_Z = 0;// GPIO_NUM_23; 
 
 const String PIN_PS4_MAC_DEF = "1a:2b:3c:01:01:01";
 const int PIN_PS4_ENUM_DEF = 2;

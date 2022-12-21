@@ -135,9 +135,6 @@ int LaserController::act(DynamicJsonDocument ob)
 		ob[key_return] = 0;
 	}
 
-	// print return
-	serialize(ob);
-
 	return ob[key_return];
 }
 

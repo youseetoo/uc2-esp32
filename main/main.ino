@@ -40,28 +40,14 @@ void setup()
 
 	// start with the wifi (either AP or connecting to wifi)
 	WifiController::begin();
+	WifiController::createTasks();
 	log_i("End setup");
 }
 
-long tProcessServer = 100; // process server every 100ms
-long oldTime = 0;
-
 void loop()
 {
-
 	// receive and process serial messages
 	serial.loop();
-
-	// process the server every 100ms
-	// 	if (true){//motor->motorsBusy() or millis()-oldTime > tProcessServer) {
-	if (moduleController.get(AvailableModules::wifi) != nullptr and moduleController.get(AvailableModules::wifi)){
-		oldTime = millis();
-		WifiController::handelMessages();
-	}
-	
-	// handle PS-controller inputs
-	BtController::loop();
-
 	// process all commands in their modules
 	moduleController.loop();
 }

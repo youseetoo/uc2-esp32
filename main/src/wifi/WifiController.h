@@ -44,16 +44,18 @@ namespace RestApi
     void connectToWifi();
 };
 
+void processWebSocketTask(void * p);
+void processHttpTask(void * p);
+
 namespace WifiController
 {
 
     void createAp(String ssid, String password);
+    void createTasks();
 
     /* data */
 
     void setup_routing();
-    void handelMessages();
-    void createJsonDoc();
     void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
     void sendJsonWebSocketMsg(DynamicJsonDocument doc);
     void begin();
@@ -67,6 +69,7 @@ namespace WifiController
     bool getAp();
     void setup();
     WebServer *getServer();
+    WebSocketsServer * getSocket();
     void getIndexPage();
     void getCSS();
     void getjquery();

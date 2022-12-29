@@ -42,6 +42,14 @@ namespace RestApi
     }
 }
 
+void btControllerLoop(void *p)
+{
+    for(;;)
+    {
+        BtController::loop();
+        vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
+}
 //BtController::BtController() : Module() { log_i("ctor"); }
 //BtController::~BtController() { log_i("~ctor"); }
 
@@ -84,6 +92,7 @@ namespace BtController
             log_i("Connecting to PSX controller");
             psx.setup(m,type);
         }
+        xTaskCreate(&btControllerLoop, "btController_task", 2048, NULL, 5, NULL);
         
     }
 

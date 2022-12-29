@@ -26,12 +26,33 @@ namespace RestApi
 	}
 }
 
+void processWebSocketTask(void *p)
+{
+	for (;;)
+	{
+		if (WifiController::getSocket() != nullptr)
+			WifiController::getSocket()->loop();
+		vTaskDelay(5 / portTICK_PERIOD_MS);
+	}
+}
+
+void processHttpTask(void *p)
+{
+	for (;;)
+	{
+		if (WifiController::getServer() != nullptr)
+			WifiController::getServer()->handleClient();
+		vTaskDelay(5 / portTICK_PERIOD_MS);
+	}
+}
 namespace WifiController
 {
 
 	WebServer *server = nullptr;
 	WebSocketsServer *webSocket = nullptr;
 	WifiConfig *config;
+	TaskHandle_t httpTaskHandel;
+	TaskHandle_t socketTaskHandel;
 
 	String getSsid()
 	{
@@ -51,17 +72,15 @@ namespace WifiController
 		return server;
 	}
 
-	void handelMessages()
+	 WebSocketsServer * getSocket()
+	 {
+		return webSocket;
+	 }
+
+	void createTasks()
 	{
-		/* //FIXME
-		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-		if (!motor->motorsBusy()) {
-			*/
-	
-		if (webSocket != nullptr)
-			webSocket->loop();
-		if (server != nullptr)
-			server->handleClient();	
+		xTaskCreate(&processHttpTask, "http_task", 4096, NULL, 5, &httpTaskHandel);
+		xTaskCreate(&processWebSocketTask, "socket_task", 4096, NULL, 5, &socketTaskHandel);
 	}
 
 	DynamicJsonDocument connect(DynamicJsonDocument doc)
@@ -80,6 +99,7 @@ namespace WifiController
 		//log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setup();
 		WifiController::begin();
+		createTasks();
 		doc.clear();
 		return doc;
 	}
@@ -153,6 +173,10 @@ namespace WifiController
 		// initialize the Wifi module
 
 		// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
+		if(socketTaskHandel != nullptr)
+			vTaskDelete(socketTaskHandel);
+		if(httpTaskHandel != nullptr)
+			vTaskDelete(httpTaskHandel);
 		config = Config::getWifiConfig();
 
 		if ((config->mSSID != nullptr) and (config->mPWD != nullptr))

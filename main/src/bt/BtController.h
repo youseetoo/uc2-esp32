@@ -32,6 +32,7 @@ namespace RestApi
     void Bt_remove();
 };
 
+void btControllerLoop(void *p);
 namespace BtController //class BtController : public Module
 {
     //public:

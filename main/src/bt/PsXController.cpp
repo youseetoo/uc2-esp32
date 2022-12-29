@@ -83,7 +83,7 @@ void PsXController::loop()
 				stick_ly = stick_ly - sgn(stick_ly) * offset_val;
 				if(abs(stick_ly)>50)stick_ly=2*stick_ly; // add more speed above threshold
 				motor->data[Stepper::Z]->speed = stick_ly * global_speed;
-				Serial.println(motor->data[Stepper::Z]->speed);
+				//Serial.println(motor->data[Stepper::Z]->speed);
 				motor->data[Stepper::Z]->isforever = true;
 				joystick_drive_Z = true;
 				if (motor->data[Stepper::Z]->stopped)
@@ -175,7 +175,7 @@ void PsXController::loop()
 					analogout_val_1 += 1000;
 					ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 				}
-                Serial.println(analogout_val_1);
+                //Serial.println(analogout_val_1);
 				//delay(100);
 			}
 
@@ -187,7 +187,7 @@ void PsXController::loop()
 					analogout_val_1 -= 1000;
 					ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
 				}
-                Serial.println(analogout_val_1);
+                //Serial.println(analogout_val_1);
 				//delay(100);
 			}
 

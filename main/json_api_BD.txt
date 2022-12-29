@@ -4,6 +4,15 @@
 
 {"task":"/modules_set", "modules" : {"led" : 0, "motor": 1, "slm" : 0, "home":0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
 
+{"task":"/modules_set", "modules" : {"dac" : 1}}
+
+
+{"task":"/dac_act_fct", "dac_channel":1, "frequency":1000, "offset":0, "amplitude":1}
+
+{"task": "/laser_act", "LASERid":2, "LASERval": 200}
+{"task":"/dac_act", "dac_channel":1, "frequency":1}
+
+
 # X,Y,Z,A => 1,2,3,0
 {"task":"/motor_set",
     "motor":
@@ -33,6 +42,8 @@
 {"task": "/laser_set", "LASERid":1, "LASERpin":18}
 {"task": "/laser_set", "LASERid":2, "LASERpin":19}
 {"task": "/ledarr_set", "led":{"ledArrPin":32, "ledArrNum":64}}
+
+{"task": "/laser_act", "LASERid":2, "LASERpin":19}
 
 {"task":"/motor_act",
     "motor":
@@ -64,7 +75,18 @@
     }
 }
 
-{"task": "/laser_act", }
+        path = '/laser_act'
+        
+        payload = {
+            "task": path,
+            "LASERid": channel,
+            "LASERval": value,
+            "LASERdespeckle": int(value*despeckleAmplitude),
+            "LASERdespecklePeriod": int(despecklePeriod),
+
+        }
+
+{"task": "/laser_act", "LASERid":1, "LASERval": 1024}
 {"task": "/laser_get"}
 
 {"task": "/home_get"}

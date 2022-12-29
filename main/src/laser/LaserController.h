@@ -1,6 +1,6 @@
 #pragma once
 #include "ArduinoJson.h"
-#include <String.h>
+//#include <String.h>
 #include "../wifi/WifiController.h"
 #include "LaserPins.h"
 #include "../../Module.h"

@@ -1,4 +1,5 @@
 #include "LaserController.h"
+#include "../serial/SerialProcess.h"
 #include "../../pindef.h"
 
 namespace RestApi
@@ -133,6 +134,7 @@ int LaserController::act(DynamicJsonDocument ob)
 	else{
 		ob[key_return] = 0;
 	}
+
 	return ob[key_return];
 }
 

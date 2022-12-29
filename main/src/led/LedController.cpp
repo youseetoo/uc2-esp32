@@ -176,6 +176,7 @@ int LedController::act(DynamicJsonDocument ob)
 		ob[key_return] = -1;
 		log_i("failed to parse json. required keys are led_array,LEDArrMode");
 	}
+	sendDone(ob[key_return]);
 	return 1;
 }
 
@@ -193,6 +194,7 @@ int LedController::set(DynamicJsonDocument ob)
 		Config::setLedPins(ledconfig);
 		setup();
 	}
+	sendDone(1);
 	return 1;
 }
 
@@ -319,3 +321,14 @@ void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)
 	*/
 }
 // LedController led;
+
+
+void LedController::sendDone(int key_return){
+	DynamicJsonDocument doc(128);
+	doc[key_led_array]["isDone"] = key_return;
+	// SerialProcess::serialize(doc);
+	Serial.println("++");
+	serializeJson(doc, Serial);
+	Serial.println();
+	Serial.println("--");
+}

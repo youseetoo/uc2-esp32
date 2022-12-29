@@ -74,8 +74,8 @@ namespace BtController
         int type = Config::getPsxControllerType();
 
         if(m.isEmpty()){
-            m = PS4_MAC_DEF;
-            type = PS4_ENUM_DEF;
+            m = PIN_PS4_MAC_DEF;
+            type = PIN_PS4_ENUM_DEF;
         }
 
         // if the mac is not empty, try to connect to the psx controller

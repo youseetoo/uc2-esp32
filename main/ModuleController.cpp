@@ -133,7 +133,7 @@ void ModuleController::loop()
 {
     for (auto &x : modules)
     {
-        if (x.second != nullptr && x.first != AvailableModules::motor && x.first != AvailableModules::analogJoystick)
+        if (x.second != nullptr && x.first != AvailableModules::motor && x.first != AvailableModules::analogJoystick && x.first != AvailableModules::home)
         {
              x.second->loop();
         }

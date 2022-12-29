@@ -26,6 +26,8 @@ struct HomeData
 	int homeEndposRelease = 1000;
 };
 
+void processHomeLoop(void * p);
+
 class HomeMotor : public Module
 {
 

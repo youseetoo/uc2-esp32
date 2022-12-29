@@ -19,6 +19,17 @@ namespace RestApi
 		serialize(moduleController.get(AvailableModules::home)->get(deserialize()));
 	}
 }
+
+void processHomeLoop(void * p)
+{
+	Module * m = moduleController.get(AvailableModules::home);
+	for(;;)
+	{
+		m->loop();
+		vTaskDelay(1 / portTICK_PERIOD_MS);
+	}
+}
+
 /*
 Handle REST calls to the HomeMotor module
 */
@@ -180,4 +191,5 @@ void HomeMotor::setup()
   	{
     	hdata[i] = new HomeData ();
 	}
+	xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 }

@@ -14,8 +14,7 @@ namespace RestApi
 	}
 }
 
-
-void sendUpdateToClients(void * p)
+void sendUpdateToClients(void *p)
 {
 	for (;;)
 	{
@@ -32,13 +31,26 @@ void sendUpdateToClients(void * p)
 	}
 }
 
-void processLoop(void *pvParameter)
+
+void driveMotorXLoop(void *pvParameter)
 {
-	for (;;)
-	{
-		moduleController.get(AvailableModules::motor)->loop();
-		vTaskDelay(1 / portTICK_PERIOD_MS);
-	}
+	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+	motor->driveMotorLoop(Stepper::X);
+}
+void driveMotorYLoop(void *pvParameter)
+{
+	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+	motor->driveMotorLoop(Stepper::Y);
+}
+void driveMotorZLoop(void *pvParameter)
+{
+	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+	motor->driveMotorLoop(Stepper::Z);
+}
+void driveMotorALoop(void *pvParameter)
+{
+	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+	motor->driveMotorLoop(Stepper::A);
 }
 
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
@@ -128,50 +140,58 @@ void FocusMotor::setup()
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 	disableEnablePin(0);
-	xTaskCreate(&processLoop, "motor_task", 2048, NULL, 5, NULL);
+	if(pinConfig.MOTOR_A_DIR > 0)
+		xTaskCreate(&driveMotorALoop, "motor_task_A", 1024, NULL, 5, NULL);
+	if(pinConfig.MOTOR_X_DIR > 0)
+		xTaskCreate(&driveMotorXLoop, "motor_task_X", 1024, NULL, 5, NULL);
+	if(pinConfig.MOTOR_Y_DIR > 0)
+		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 1024, NULL, 5, NULL);
+	if(pinConfig.MOTOR_Z_DIR > 0)
+		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 1024, NULL, 5, NULL);
 	xTaskCreate(&sendUpdateToClients, "motor_websocket_task", 2048, NULL, 5, NULL);
+}
+
+void FocusMotor::driveMotorLoop(int stepperid)
+{
+	AccelStepper *s = steppers[stepperid];
+	MotorData *d = data[stepperid];
+	for (;;)
+	{
+		s->setMaxSpeed(d->maxspeed);
+		if (d->isforever)
+		{
+			s->setSpeed(d->speed);
+			s->runSpeed();
+		}
+		else
+		{
+
+			if (d->absolutePosition)
+			{
+				// absolute position coordinates
+				s->moveTo(d->targetPosition);
+			}
+			else
+			{
+				// relative position coordinates
+				s->move(d->targetPosition);
+			}
+			// checks if a stepper is still running
+			if (s->distanceToGo() == 0 && !d->stopped)
+			{
+				log_i("stop stepper:%i", stepperid);
+				// if not turn it off
+				stopStepper(stepperid);
+			}
+		}
+		d->currentPosition = s->currentPosition();
+		vTaskDelay(1 / portTICK_PERIOD_MS);
+	}
 }
 
 void FocusMotor::loop()
 {
-	int arraypos = 0;
-	for (int i = 0; i < steppers.size(); i++)
-	{
-		if (steppers[i] != nullptr)
-		{
-
-			steppers[i]->setMaxSpeed(data[i]->maxspeed);
-			if (data[i]->isforever)
-			{
-				steppers[i]->setSpeed(data[i]->speed);
-				steppers[i]->runSpeed();
-			}
-			else
-			{
-
-				if (data[i]->absolutePosition)
-				{
-					// absolute position coordinates
-					steppers[i]->moveTo(data[i]->targetPosition);
-				}
-				else
-				{
-					// relative position coordinates
-					steppers[i]->move(data[i]->targetPosition);
-				}
-				// checks if a stepper is still running
-				if (steppers[i]->distanceToGo() == 0 && !data[i]->stopped)
-				{
-					log_i("stop stepper:%i", i);
-					// if not turn it off
-					stopStepper(i);
-				}
-			}
-			data[i]->currentPosition = steppers[i]->currentPosition();
-		}
-
-		//disableEnablePin(-1);
-	}
+	
 }
 
 void FocusMotor::sendMotorPos(int i, int arraypos)

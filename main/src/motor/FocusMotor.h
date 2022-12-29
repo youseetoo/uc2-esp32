@@ -16,7 +16,10 @@ namespace RestApi
 
 void sendUpdateToClients(void *p);
 
-void processLoop(void *pvParameter);
+void driveMotorXLoop(void *pvParameter);
+void driveMotorYLoop(void *pvParameter);
+void driveMotorZLoop(void *pvParameter);
+void driveMotorALoop(void *pvParameter);
 
 struct MotorData
 {
@@ -61,6 +64,7 @@ public:
 	void stopStepper(int i);
 	void startStepper(int i);
 	void sendMotorPos(int i, int arraypos);
+	void driveMotorLoop(int stepperid);
 
 private:
 	int logcount;

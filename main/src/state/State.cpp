@@ -10,13 +10,9 @@ namespace RestApi
 
 	void State_get()
 	{
-		serialize(moduleController.get(AvailableModules::state)->set(deserialize()));
+		serialize(moduleController.get(AvailableModules::state)->get(deserialize()));
 	}
 
-	void State_set()
-	{
-		serialize(moduleController.get(AvailableModules::state)->set(deserialize()));
-	}
 }
 
 State::State() : Module() { log_i("ctor"); }
@@ -61,17 +57,6 @@ int State::act(DynamicJsonDocument doc)
 		ps_c.IS_PSCONTROLER_ACTIVE = doc["pscontroller"];
 #endif
 	}
-	doc.clear();
-	doc["return"] = 1;
-	return 1;
-}
-
-int State::set(DynamicJsonDocument doc)
-{
-	// here you can set parameters
-
-	int isdebug = doc["isdebug"];
-	DEBUG = isdebug;
 	doc.clear();
 	doc["return"] = 1;
 	return 1;

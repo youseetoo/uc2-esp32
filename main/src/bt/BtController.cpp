@@ -1,5 +1,4 @@
 #include "BtController.h"
-#include "pindef.h"
 
 namespace RestApi
 {
@@ -73,9 +72,9 @@ namespace BtController
         String m = Config::getPsxMac();
         int type = Config::getPsxControllerType();
 
-        if(m.isEmpty()){
-            m = PIN_PS4_MAC_DEF;
-            type = PIN_PS4_ENUM_DEF;
+        if(m.isEmpty() && !pinConfig.PSX_MAC.isEmpty()){
+            m = pinConfig.PSX_MAC;
+            type = pinConfig.PSX_CONTROLLER_TYPE;
         }
 
         // if the mac is not empty, try to connect to the psx controller

@@ -4,7 +4,7 @@
 #include "../config/JsonKeys.h"
 #include "../wifi/WifiController.h"
 #include "../../Module.h"
-#include "LedConfig.h"
+#include "../../PinConfig.h"
 #include "../../ModuleController.h"
 
 //functions that get registered by the webserver to handel the requests/responses
@@ -32,7 +32,6 @@ namespace RestApi
         */
     void Led_act();
     void Led_get();
-    void Led_set();
 };
 
 enum LedModes
@@ -99,7 +98,6 @@ public:
 
     LedController();
     ~LedController();
-    LedConfig * ledconfig;
     bool TurnedOn();
     void setup() override;
     void loop() override;
@@ -126,10 +124,8 @@ public:
   }
 }
     */
-    int set(DynamicJsonDocument  ob) override;
     DynamicJsonDocument get(DynamicJsonDocument  ob) override;
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
-    void sendDone(int key_return);
 };
 //extern LedController led;

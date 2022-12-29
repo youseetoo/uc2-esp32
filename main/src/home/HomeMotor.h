@@ -5,7 +5,6 @@
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"
-#include "../digitalin/DigitalInPins.h" 
 
 
 
@@ -13,7 +12,6 @@ namespace RestApi
 {
 	void HomeMotor_act();
 	void HomeMotor_get();
-	void HomeMotor_set();
 };
 
 struct HomeData
@@ -40,7 +38,6 @@ public:
 	std::array<HomeData *, 4> hdata;
 
 	int act(DynamicJsonDocument  ob) override;
-	int set(DynamicJsonDocument ob) override;
 	DynamicJsonDocument get(DynamicJsonDocument ob) override;
 	void setup() override;
 	void loop() override;

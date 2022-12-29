@@ -1,5 +1,4 @@
 #include "LedController.h"
-#include "../../pindef.h"
 
 namespace RestApi
 {
@@ -13,11 +12,6 @@ namespace RestApi
 		serialize(moduleController.get(AvailableModules::led)->get(deserialize()));
 
 	}
-
-	void Led_set()
-	{
-		serialize(moduleController.get(AvailableModules::led)->set(deserialize()));
-	}
 }
 
 LedController::LedController() : Module() { log_i("ctor"); }
@@ -25,37 +19,22 @@ LedController::~LedController() { log_i("~ctor"); }
 
 void LedController::setup()
 {
-	// get led config from preferences
-	ledconfig = Config::getLedPins();
-
-	// load default values if not set
-	if (not ledconfig->ledPin)
-		ledconfig->ledPin = PIN_DEF_LED;
-	if (not ledconfig->ledCount)
-		ledconfig->ledCount = PIN_DEF_LED_NUM;
-
 	// LED Matrix
-	matrix = new Adafruit_NeoPixel(ledconfig->ledCount, ledconfig->ledPin, NEO_GRB + NEO_KHZ800);
-	log_i("LED_ARRAY_PIN: %i and LED_NUM: %i", ledconfig->ledPin, ledconfig->ledCount);
-	//log_i("setup matrix is null:%s", (bool)matrix == nullptr);
-	
-	// initialize LED Strip
+	matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+	log_i("setup matrix is null:%s", matrix == nullptr);
+	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	matrix->begin();
 	matrix->setBrightness(255);
-
-	// either set the default color or turn off the leds
 	if (!isOn)
 		set_all(0, 0, 0);
 	else
 		set_all(255, 255, 255);
 	matrix->show(); //  Update strip to match
-
-	// write out updated config to Preferences
-	Config::setLedPins(ledconfig);
 }
 
 void LedController::loop()
 {
+	
 }
 
 bool LedController::TurnedOn()
@@ -66,22 +45,11 @@ bool LedController::TurnedOn()
 // Custom function accessible by the API
 int LedController::act(DynamicJsonDocument ob)
 {
-	
-		/*
-		Mode 0: array,
-		Mode 1: full,
-		Mode 2: single,
-		Mode 3: off,
-		Mode 4: left,
-		Mode 5: right,
-		Mode 6: top,
-		Mode 7: bottom,
-		Mode 8: multi
-		*/
 	if (ob.containsKey(keyLed))
 	{
 		LedModes LEDArrMode = static_cast<LedModes>(ob[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
 		// individual pattern gets adressed
+		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 		{
 			for (int i = 0; i < ob[keyLed][key_led_array].size(); i++)
@@ -92,11 +60,9 @@ int LedController::act(DynamicJsonDocument ob)
 					ob[keyLed][key_led_array][i][keyGreen],
 					ob[keyLed][key_led_array][i][keyBlue]);
 			}
-			matrix->show(); //  Update strip to match
-			ob.clear();
-			ob[key_return] = LEDArrMode;
 		}
 		// only if a single led will be updated, all others stay the same
+		// PYTHON: send_LEDMatrix_single(self, indexled=0, intensity=(255,255,255), timeout=1)
 		else if (LEDArrMode == LedModes::single)
 		{
 			set_led_RGB(
@@ -104,10 +70,9 @@ int LedController::act(DynamicJsonDocument ob)
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
-				matrix->show(); //  Update strip to match
-				ob[key_return] = LEDArrMode;
-					}
+		}
 		// turn on all LEDs
+		// PYTHON: send_LEDMatrix_full(self, intensity = (255,255,255),timeout=1)
 		else if (LEDArrMode == LedModes::full)
 		{
 			u_int8_t r = ob[keyLed][key_led_array][0][keyRed];
@@ -115,86 +80,52 @@ int LedController::act(DynamicJsonDocument ob)
 			u_int8_t b = ob[keyLed][key_led_array][0][keyBlue];
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
 			set_all(r, g, b);
-			matrix->show(); //  Update strip to match
-			matrix->show(); //  Update strip to match
-			ob[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::left)
 		{
 			set_left(
-				ledconfig->ledCount,
+				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
-				matrix->show(); //  Update strip to match
-				ob[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::right)
 		{
 			set_right(
-				ledconfig->ledCount,
+				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
-				matrix->show(); //  Update strip to match
-				ob[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::top)
 		{
 			set_top(
-				ledconfig->ledCount,
+				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
-				matrix->show(); //  Update strip to match
-				ob[key_return] = LEDArrMode;
 		}
 		// turn off all LEDs
 		else if (LEDArrMode == LedModes::bottom)
 		{
 			set_bottom(
-				ledconfig->ledCount,
+				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
-				matrix->show(); //  Update strip to match
-				ob[key_return] = LEDArrMode;
 		}
 		else if (LEDArrMode == LedModes::off)
 		{
 			matrix->clear();
-			ob.clear();
-			ob[key_return] = LEDArrMode;
 		}
 	}
 	else
 	{
-		ob.clear();
-		ob[key_return] = -1;
 		log_i("failed to parse json. required keys are led_array,LEDArrMode");
 	}
-	sendDone(ob[key_return]);
-	return 1;
-}
-
-//{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}
-//{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"0","red":"0","green":"0"}]}}
-int LedController::set(DynamicJsonDocument ob)
-{
-	if (ob.containsKey(keyLed))
-	{
-		if (ob[keyLed].containsKey(keyLEDPin))
-			ledconfig->ledPin = ob[keyLed][keyLEDPin];
-		if (ob[keyLed].containsKey(keyLEDCount))
-			ledconfig->ledCount = ob[keyLed][keyLEDCount];
-		log_i("led pin:%i count:%i", ledconfig->ledPin, ledconfig->ledCount);
-		Config::setLedPins(ledconfig);
-		setup();
-	}
-	sendDone(1);
 	return 1;
 }
 
@@ -202,8 +133,8 @@ int LedController::set(DynamicJsonDocument ob)
 DynamicJsonDocument LedController::get(DynamicJsonDocument ob)
 {
 	ob.clear();
-	ob[keyLEDCount] = ledconfig->ledCount;
-	ob[keyLEDPin] = ledconfig->ledPin;
+	ob[keyLEDCount] = pinConfig.LED_COUNT;
+	ob[keyLEDPin] = pinConfig.LED_PIN;
 	ob[keyLEDArrMode].add(0);
 	ob[keyLEDArrMode].add(1);
 	ob[keyLEDArrMode].add(2);
@@ -224,7 +155,6 @@ DynamicJsonDocument LedController::get(DynamicJsonDocument ob)
 void LedController::set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t B)
 {
 	matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
-	matrix->show();
 }
 
 void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)
@@ -233,7 +163,7 @@ void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)
 	{
 		set_led_RGB(i, R, G, B);
 	}
-	matrix->show();
+	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -252,7 +182,7 @@ void LedController::set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, LED_PATTERN_DPC_LEFT_8x8[i] * R, LED_PATTERN_DPC_LEFT_8x8[i] * G, LED_PATTERN_DPC_LEFT_8x8[i] * B);
 		}
 	}
-	matrix->show();
+	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -271,7 +201,7 @@ void LedController::set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * R, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * G, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * B);
 		}
 	}
-	matrix->show();
+	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -290,7 +220,7 @@ void LedController::set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
 			set_led_RGB(i, (LED_PATTERN_DPC_TOP_8x8[i]) * R, (LED_PATTERN_DPC_TOP_8x8[i]) * G, (LED_PATTERN_DPC_TOP_8x8[i]) * B);
 		}
 	}
-	matrix->show();
+	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
@@ -309,7 +239,7 @@ void LedController::set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B
 			set_led_RGB(i, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * R, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * G, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * B);
 		}
 	}
-	matrix->show();
+	matrix->show(); //  Update strip to match
 }
 
 void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)
@@ -321,14 +251,3 @@ void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)
 	*/
 }
 // LedController led;
-
-
-void LedController::sendDone(int key_return){
-	DynamicJsonDocument doc(128);
-	doc[key_led_array]["isDone"] = key_return;
-	// SerialProcess::serialize(doc);
-	Serial.println("++");
-	serializeJson(doc, Serial);
-	Serial.println();
-	Serial.println("--");
-}

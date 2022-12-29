@@ -3,7 +3,6 @@
 #include "../config/JsonKeys.h"
 #include "esp_log.h"
 #if defined IS_PS3 || defined IS_PS4
-#include "../gamepads/ps_3_4_controller.h"
 #endif
 #include "../wifi/WifiController.h"
 
@@ -11,7 +10,6 @@ namespace RestApi
 {
 	void State_act();
     void State_get();
-    void State_set();
 };
 
 
@@ -36,7 +34,6 @@ public:
 	bool isBusy = false; // TODO this is not working!!!
 
 	int act(DynamicJsonDocument  ob) override;
-	int set(DynamicJsonDocument  ob) override;
 	DynamicJsonDocument get(DynamicJsonDocument ob) override;
 
 	void setup() override;

@@ -303,86 +303,67 @@ namespace WifiController
 		server->on(bt_paireddevices_endpoint, HTTP_GET, RestApi::Bt_getPairedDevices);
 
 		server->on(modules_get_endpoint, HTTP_GET, RestApi::getModules);
-		server->on(modules_set_endpoint, HTTP_POST, RestApi::setModules);
 
 		// POST
-		if (moduleController.moduleConfig->motor != 0)
+		if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
 			log_i("add motor endpoints");
 			server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
 			server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
-			server->on(motor_set_endpoint, HTTP_POST, RestApi::FocusMotor_set);
-			server->on(motor_setcalibration_endpoint,HTTP_POST, RestApi::FocusMotor_setCalibration);
 		}
 
-		if (moduleController.moduleConfig->config != 0)
-		{
-			log_i("add motor endpoints");
-			server->on(config_act_endpoint, HTTP_POST, RestApi::Config_act);
-			server->on(config_get_endpoint, HTTP_GET, RestApi::Config_get);
-			server->on(config_set_endpoint, HTTP_POST, RestApi::Config_set);
-		}
-
-		if (moduleController.moduleConfig->dac != 0)
+		if (moduleController.get(AvailableModules::dac) != nullptr)
 		{
 			log_i("add dac endpoints");
 			server->on(dac_act_endpoint, HTTP_POST, RestApi::Dac_act);
 			server->on(dac_get_endpoint, HTTP_POST, RestApi::Dac_get);
-			server->on(dac_set_endpoint, HTTP_POST, RestApi::Dac_set);
 		}
 
-		if (moduleController.moduleConfig->laser != 0)
+		if (moduleController.get(AvailableModules::laser) != nullptr)
 		{
 			log_i("add laser endpoints");
-			server->on(laser_set_endpoint, HTTP_POST, RestApi::Laser_set);
 			server->on(laser_get_endpoint, HTTP_GET, RestApi::Laser_get);
 			server->on(laser_act_endpoint, HTTP_POST, RestApi::Laser_act);
 		}
 
-		if (moduleController.moduleConfig->analogout != 0)
+		if (moduleController.get(AvailableModules::analogout) != nullptr)
 		{
 			log_i("add analogout endpoints");
 			server->on(analogout_act_endpoint, HTTP_POST, RestApi::AnalogOut_act);
 			server->on(analogout_get_endpoint, HTTP_POST, RestApi::AnalogOut_get);
-			server->on(analogout_set_endpoint, HTTP_POST, RestApi::AnalogOut_set);
 		}
 
-		if (moduleController.moduleConfig->digitalout != 0)
+		if (moduleController.get(AvailableModules::digitalout) != nullptr != 0)
 		{
 			log_i("add digitalout endpoints");
 			server->on(digitalout_act_endpoint, HTTP_POST, RestApi::DigitalOut_act);
 			server->on(digitalout_get_endpoint, HTTP_POST, RestApi::DigitalOut_get);
-			server->on(digitalout_set_endpoint, HTTP_POST, RestApi::DigitalOut_set);
 		}
 
-		if (moduleController.moduleConfig->digitalin != 0)
+		if (moduleController.get(AvailableModules::digitalin) != nullptr)
 		{
 			log_i("add digitalin endpoints");
 			server->on(digitalin_act_endpoint, HTTP_POST, RestApi::DigitalIn_act);
 			server->on(digitalin_get_endpoint, HTTP_POST, RestApi::DigitalIn_get);
-			server->on(digitalin_set_endpoint, HTTP_POST, RestApi::DigitalIn_set);
 		}
 
-		if (moduleController.moduleConfig->pid != 0)
+		if (moduleController.get(AvailableModules::pid) != nullptr)
 		{
 			log_i("add pid endpoints");
 			server->on(PID_act_endpoint, HTTP_POST, RestApi::Pid_act);
 			server->on(PID_get_endpoint, HTTP_POST, RestApi::Pid_get);
-			server->on(PID_set_endpoint, HTTP_POST, RestApi::Pid_set);
 		}
 
-		if (moduleController.moduleConfig->led != 0)
+		if (moduleController.get(AvailableModules::led) != nullptr)
 		{
 			log_i("add led endpoints");
 			server->on(ledarr_act_endpoint, HTTP_POST, RestApi::Led_act);
 			server->on(ledarr_get_endpoint, HTTP_GET, RestApi::Led_get);
-			server->on(ledarr_set_endpoint, HTTP_POST, RestApi::Led_set);
 		}
 
-		if (moduleController.moduleConfig->analogJoystick != 0)
+		if (moduleController.get(AvailableModules::analogJoystick) != nullptr)
 		{
 			log_i("add analog joystick endpoints");
-			server->on(analog_joystick_set_endpoint, HTTP_POST, RestApi::AnalogJoystick_set);
 			server->on(analog_joystick_get_endpoint, HTTP_POST, RestApi::AnalogJoystick_get);
 		}
 		log_i("Setting up HTTP Routing END");

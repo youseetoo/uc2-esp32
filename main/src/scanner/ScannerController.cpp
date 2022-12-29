@@ -297,11 +297,6 @@ int ScannerController::act(DynamicJsonDocument ob)
 	return 1;
 }
 
-int ScannerController::set(DynamicJsonDocument  ob)
-{
-	return 1;
-}
-
 // Custom function accessible by the API
 DynamicJsonDocument ScannerController::get(DynamicJsonDocument  ob)
 {

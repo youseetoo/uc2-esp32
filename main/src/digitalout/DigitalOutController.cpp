@@ -14,11 +14,6 @@ namespace RestApi
 	{
 		serialize(moduleController.get(AvailableModules::digitalout)->get(deserialize()));
 	}
-
-	void DigitalOut_set()
-	{
-		serialize(moduleController.get(AvailableModules::digitalout)->set(deserialize()));
-	}
 }
 
 DigitalOutController::DigitalOutController(/* args */){};
@@ -49,15 +44,15 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 		if (digitaloutval == -1)
 		{
 			// perform trigger
-			digitalWrite(pins.digitalout_PIN_1, HIGH);
+			digitalWrite(pinConfig.DIGITAL_OUT_1, HIGH);
 			delay(triggerdelay);
-			digitalWrite(pins.digitalout_PIN_1, LOW);
+			digitalWrite(pinConfig.DIGITAL_OUT_1, LOW);
 		}
 		else
 		{
-			digitalWrite(pins.digitalout_PIN_1, digitalout_val_1);
+			digitalWrite(pinConfig.DIGITAL_OUT_1, digitalout_val_1);
 			Serial.print("digitalout_PIN ");
-			Serial.println(pins.digitalout_PIN_1);
+			Serial.println(pinConfig.DIGITAL_OUT_1);
 		}
 	}
 	else if (digitaloutid == 2)
@@ -66,15 +61,15 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 		if (digitaloutval == -1)
 		{
 			// perform trigger
-			digitalWrite(pins.digitalout_PIN_2, HIGH);
+			digitalWrite(pinConfig.DIGITAL_OUT_2, HIGH);
 			delay(triggerdelay);
-			digitalWrite(pins.digitalout_PIN_2, LOW);
+			digitalWrite(pinConfig.DIGITAL_OUT_2, LOW);
 		}
 		else
 		{
-			digitalWrite(pins.digitalout_PIN_2, digitalout_val_2);
+			digitalWrite(pinConfig.DIGITAL_OUT_2, digitalout_val_2);
 			Serial.print("digitalout_PIN ");
-			Serial.println(pins.digitalout_PIN_2);
+			Serial.println(pinConfig.DIGITAL_OUT_2);
 		}
 	}
 	else if (digitaloutid == 3)
@@ -83,55 +78,17 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 		if (digitaloutval == -1)
 		{
 			// perform trigger
-			digitalWrite(pins.digitalout_PIN_3, HIGH);
+			digitalWrite(pinConfig.DIGITAL_OUT_3, HIGH);
 			delay(triggerdelay);
-			digitalWrite(pins.digitalout_PIN_3, LOW);
+			digitalWrite(pinConfig.DIGITAL_OUT_3, LOW);
 		}
 		else
 		{
-			digitalWrite(pins.digitalout_PIN_3, digitalout_val_3);
+			digitalWrite(pinConfig.DIGITAL_OUT_3, digitalout_val_3);
 			Serial.print("digitalout_PIN ");
-			Serial.println(pins.digitalout_PIN_3);
+			Serial.println(pinConfig.DIGITAL_OUT_3);
 		}
 	}
-	return 1;
-}
-
-int DigitalOutController::set(DynamicJsonDocument jsonDocument)
-{
-	// here you can set parameters
-	int digitaloutid = (jsonDocument)["digitaloutid"];
-	int digitaloutpin = (jsonDocument)["digitaloutpin"];
-	if (DEBUG)
-		Serial.print("digitaloutid ");
-	Serial.println(digitaloutid);
-	if (DEBUG)
-		Serial.print("digitaloutpin ");
-	Serial.println(digitaloutpin);
-
-	if (digitaloutid != 0 and digitaloutpin != 0)
-	{
-		if (digitaloutid == 1)
-		{
-			pins.digitalout_PIN_1 = digitaloutpin;
-			pinMode(pins.digitalout_PIN_1, OUTPUT);
-			digitalWrite(pins.digitalout_PIN_1, LOW);
-		}
-		else if (digitaloutid == 2)
-		{
-			pins.digitalout_PIN_2 = digitaloutpin;
-			pinMode(pins.digitalout_PIN_2, OUTPUT);
-			digitalWrite(pins.digitalout_PIN_2, LOW);
-		}
-		else if (digitaloutid == 3)
-		{
-			pins.digitalout_PIN_3 = digitaloutpin;
-			pinMode(pins.digitalout_PIN_3, OUTPUT);
-			digitalWrite(pins.digitalout_PIN_3, LOW);
-		}
-	}
-	Config::setDigitalOutPins(pins);
-	isBusy = false;
 	return 1;
 }
 
@@ -147,7 +104,7 @@ DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 	{
 		if (DEBUG)
 			Serial.println("digitalout 1");
-		digitaloutpin = pins.digitalout_PIN_1;
+		digitaloutpin = pinConfig.DIGITAL_OUT_1;
 		digitaloutval = digitalout_val_1;
 	}
 	else if (digitaloutid == 2)
@@ -156,7 +113,7 @@ DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 			Serial.println("AXIS 2");
 		if (DEBUG)
 			Serial.println("digitalout 2");
-		digitaloutpin = pins.digitalout_PIN_2;
+		digitaloutpin = pinConfig.DIGITAL_OUT_2;
 		digitaloutval = digitalout_val_2;
 	}
 	else if (digitaloutid == 3)
@@ -165,7 +122,7 @@ DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 			Serial.println("AXIS 3");
 		if (DEBUG)
 			Serial.println("digitalout 1");
-		digitaloutpin = pins.digitalout_PIN_3;
+		digitaloutpin = pinConfig.DIGITAL_OUT_3;
 		digitaloutval = digitalout_val_3;
 	}
 
@@ -178,24 +135,23 @@ DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 
 void DigitalOutController::setup()
 {
-	Config::getDigitalOutPins(pins);
 	Serial.println("Setting Up digitalout");
 	/* setup the output nodes and reset them to 0*/
-	pinMode(pins.digitalout_PIN_1, OUTPUT);
+	pinMode(pinConfig.DIGITAL_OUT_1, OUTPUT);
 
-	digitalWrite(pins.digitalout_PIN_1, HIGH);
+	digitalWrite(pinConfig.DIGITAL_OUT_1, HIGH);
 	delay(50);
-	digitalWrite(pins.digitalout_PIN_1, LOW);
+	digitalWrite(pinConfig.DIGITAL_OUT_1, LOW);
 
-	pinMode(pins.digitalout_PIN_2, OUTPUT);
-	digitalWrite(pins.digitalout_PIN_2, HIGH);
+	pinMode(pinConfig.DIGITAL_OUT_2, OUTPUT);
+	digitalWrite(pinConfig.DIGITAL_OUT_2, HIGH);
 	delay(50);
-	digitalWrite(pins.digitalout_PIN_2, LOW);
+	digitalWrite(pinConfig.DIGITAL_OUT_2, LOW);
 
-	pinMode(pins.digitalout_PIN_3, OUTPUT);
-	digitalWrite(pins.digitalout_PIN_3, HIGH);
+	pinMode(pinConfig.DIGITAL_OUT_3, OUTPUT);
+	digitalWrite(pinConfig.DIGITAL_OUT_3, HIGH);
 	delay(50);
-	digitalWrite(pins.digitalout_PIN_3, LOW);
+	digitalWrite(pinConfig.DIGITAL_OUT_3, LOW);
 }
 
 void DigitalOutController::loop(){}

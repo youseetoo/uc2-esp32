@@ -62,102 +62,6 @@
 
     <div id="Motor" class="tabcontent">
         <h3>Motor</h3>
-        <button onclick="hideOrShow('motorpins')">Pins</button>
-        <div class="container" id="motorpins">
-            <form class="pin">
-                <label>Stepper X</label><br>
-                <label for="steppinx">Step Pin</label><br>
-                <input type="text" id="steppinx" name="steppinx"><br>
-                <input type="checkbox" id="steppinxinvert">
-                <label for="steppinxinvert">Inverted</label><br>
-
-                <label for="dirpinx">Dir Pin:</label><br>
-                <input type="text" id="dirpinx" name="dirpinx"><br>
-                <input type="checkbox" id="dirpinxinvert">
-                <label for="dirpinxinvert">Inverted</label><br>
-
-                <label for="powerpinx">Power Pin:</label><br>
-                <input type="text" id="powerpinx" name="powerpinx"><br>
-                <input type="checkbox" id="powerpinxinvert">
-                <label for="powerpinxinvert">Inverted</label><br>
-            </form>
-            <form class="pin">
-                <label>Stepper Y</label><br>
-                <label for="steppiny">Step Pin</label><br>
-                <input type="text" id="steppiny" name="steppiny"><br>
-                <input type="checkbox" id="steppinyinvert">
-                <label for="steppinyinvert">Inverted</label><br>
-
-                <label for="dirpiny">Dir Pin:</label><br>
-                <input type="text" id="dirpiny"><br>
-                <input type="checkbox" id="dirpinyinvert">
-                <label for="dirpinyinvert">Inverted</label><br>
-
-                <label for="powerpiny">Power Pin:</label><br>
-                <input type="text" id="powerpiny"><br>
-                <input type="checkbox" id="powerpinyinvert">
-                <label for="powerpinyinvert">Inverted</label><br>
-            </form>
-
-            <form class="pin">
-                <label>Stepper Z</label><br>
-                <label for="steppinz">Step Pin</label><br>
-                <input type="text" id="steppinz"><br>
-                <input type="checkbox" id="steppinzinvert">
-                <label for="steppinzinvert">Inverted</label><br>
-
-                <label for="dirpinz">Dir Pin:</label><br>
-                <input type="text" id="dirpinz"><br>
-                <input type="checkbox" id="dirpinzinvert">
-                <label for="dirpinzinvert">Inverted</label><br>
-
-                <label for="powerpinz">Power Pin:</label><br>
-                <input type="text" id="powerpinz"><br>
-                <input type="checkbox" id="powerpinzinvert">
-                <label for="powerpinzinvert">Inverted</label><br>
-            </form>
-            <form class="pin">
-                <label>Stepper A</label><br>
-                <label for="steppina">Step Pin</label><br>
-                <input type="text" id="steppina"><br>
-                <input type="checkbox" id="steppinainvert">
-                <label for="steppinainvert">Inverted</label><br>
-
-                <label for="dirpina">Dir Pin:</label><br>
-                <input type="text" id="dirpina"><br>
-                <input type="checkbox" id="dirpinainvert">
-                <label for="dirpinainvert">Inverted</label><br>
-
-                <label for="powerpina">Power Pin:</label><br>
-                <input type="text" id="powerpina"><br>
-                <input type="checkbox" id="powerpinainvert">
-                <label for="powerpinainvert">Inverted</label><br>
-            </form>
-            <div>
-                <button id="setmotorsettings" onclick="setMotorSettings()">Set Motor Settings</button>
-            </div>
-        </div>
-
-        <h3>Motor Drive Range</h3>
-        <button onclick="hideOrShow('motorrange')">Drive Range</button>
-        <div class="container" id="motorrange">
-            <label>X</label><br>
-            <button onclick="setMotorRangeCalibration(0, 1)">Min Range</button><button
-                onclick="setMotorRangeCalibration(1, 1)">Max Range</button><label id="posx_max">0</label><button
-                onclick="setMotorRangeCalibration(2, 1)">Reset</button><br>
-            <label>Y</label><br>
-            <button onclick="setMotorRangeCalibration(0, 2)">Min Range</button><button
-                onclick="setMotorRangeCalibration(1, 2)">Max Range</button><label id="posy_max">0</label><button
-                onclick="setMotorRangeCalibration(2, 2)">Reset</button><br>
-            <label>Z</label><br>
-            <button onclick="setMotorRangeCalibration(0, 3)">Min Range</button><button
-                onclick="setMotorRangeCalibration(1, 3)">Max Range</button><label id="posz_max">0</label><button
-                onclick="setMotorRangeCalibration(2, 3)">Reset</button><br>
-            <label>A</label><br>
-            <button onclick="setMotorRangeCalibration(0, 0)">Min Range</button><button
-                onclick="setMotorRangeCalibration(1, 0)">Max Range</button><label id="posa_max">0</label><button
-                onclick="setMotorRangeCalibration(2, 0)">Reset</button><br>
-        </div>
         <div>
             <h3>Motor Control</h3>
             <form>
@@ -185,16 +89,6 @@
 
     <div id="LED" class="tabcontent">
         <h3>LED</h3>
-        <button onclick="hideOrShow('ledpins')">Pins</button>
-        <div class="container" id="ledpins">
-            <form>
-                <label for="ledcount">LED Count:</label><br>
-                <input type="text" id="ledcount"><br>
-                <label for="ledpin">PIN:</label><br>
-                <input type="text" id="ledpin">
-            </form>
-            <button id="setledsettings" onclick="setLedSettings()">Set Led Settings</button>
-        </div>
         <form>
             <input type="checkbox" id="enableled" onclick='enableLeds(this)'>
             <label for="enableled">Enable Leds</label><br>
@@ -215,16 +109,6 @@
     </div>
 
     <div id="Laser" class="tabcontent">
-        <h3>Laser Setup</h3>
-        <label for="laser1pin">Laser1 Pin:</label>
-        <input type="text" id="laser1pin">
-        <button id="setlaser1pin" onclick="setLaserPin('1')">Set Laser1 Pin</button><br>
-        <label for="laser2pin">Laser2 Pin:</label>
-        <input type="text" id="laser2pin">
-        <button id="setlaser2pin" onclick="setLaserPin('2')">Set Laser2 Pin</button><br>
-        <label for="laser3pin">Laser3 Pin:</label>
-        <input type="text" id="laser3pin">
-        <button id="setlaser3pin" onclick="setLaserPin('3')">Set Laser3 Pin</button><br>
 
         <h3>Laser Control</h3>
         <label for="laser1value">Laser1:</label>
@@ -253,33 +137,6 @@
         <label for="laser3periode">Periode:</label>
         <input type="text" id="laser3periode">
         <button id="apply2" onclick="setLaserAct('3')">Apply</button><br>
-    </div>
-
-    <div id="Modules" class="tabcontent">
-        <h3>Modules</h3>
-        <input type="checkbox" id="m_enable_analog">
-        <label for="m_enable_analog">Enable AnalogIn</label><br>
-        <input type="checkbox" id="m_enable_dac">
-        <label for="m_enable_dac">Enable Dac</label><br>
-        <input type="checkbox" id="m_enable_digitalout">
-        <label for="m_enable_digitalout">Enable DigitalOut</label><br>
-        <input type="checkbox" id="m_enable_led">
-        <label for="m_enable_led">Enable Led</label><br>
-        <input type="checkbox" id="m_enable_motor">
-        <label for="m_enable_motor">Enable Motor</label><br>
-        <input type="checkbox" id="m_enable_laser">
-        <label for="m_enable_laser">Enable Laser</label><br>
-        <input type="checkbox" id="m_enable_pid">
-        <label for="m_enable_pid">Enable Pid</label><br>
-        <input type="checkbox" id="m_enable_scanner">
-        <label for="m_enable_scanner">Enable Scanner</label><br>
-        <input type="checkbox" id="m_enable_sensor">
-        <label for="m_enable_sensor">Enable Sensor</label><br>
-        <input type="checkbox" id="m_enable_slm">
-        <label for="m_enable_slm">Enable Slm</label><br>
-        <input type="checkbox" id="m_enable_analogjoystick">
-        <label for="m_enable_analogjoystick">Enable Analog Joystick</label><br>
-        <button id="setmodules" onclick="setModuleSettings()">Set Module Settings</button>
     </div>
 
 </body>

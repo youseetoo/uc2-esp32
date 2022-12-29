@@ -12,10 +12,6 @@ namespace RestApi
 		serialize(moduleController.get(AvailableModules::pid)->get(deserialize()));
 	}
 
-	void Pid_set()
-	{
-		serialize(moduleController.get(AvailableModules::pid)->set(deserialize()));
-	}
 }
 
 PidController::PidController(/* args */){};
@@ -63,7 +59,7 @@ void PidController::loop()
 	if (PID_active && (currentMillis - startMillis >= PID_updaterate))
 	{
 		// hardcoded for now:
-		int analoginpin = pins.analogin_PIN_0;
+		int analoginpin = pinConfig.pid1;
 
 		// get rid of noise?
 		float analoginValueAvg = 0;
@@ -115,30 +111,6 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 	return stepperOut;
 }
 
-int PidController::set(DynamicJsonDocument ob)
-{
-	if (DEBUG)
-		Serial.println("PID_set_fct");
-	int PIDID = (int)(ob)[key_PIDID];
-	int PIDPIN = (int)(ob)[key_PIDPIN];
-	if (ob.containsKey(key_N_analogin_avg))
-		N_analogin_avg = (int)(ob)[key_N_analogin_avg];
-
-	switch (PIDID)
-	{
-	case 0:
-		pins.analogin_PIN_0 = PIDPIN;
-		break;
-	case 1:
-		pins.analogin_PIN_1 = PIDPIN;
-		break;
-	case 2:
-		pins.analogin_PIN_2 = PIDPIN;
-		break;
-	}
-	return 1;
-}
-
 // Custom function accessible by the API
 DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
 {
@@ -149,13 +121,13 @@ DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
 	switch (PIDID)
 	{
 	case 0:
-		PIDPIN = pins.analogin_PIN_0;
+		PIDPIN = pinConfig.pid1;
 		break;
 	case 1:
-		PIDPIN = pins.analogin_PIN_1;
+		PIDPIN = pinConfig.pid2;
 		break;
 	case 2:
-		PIDPIN = pins.analogin_PIN_2;
+		PIDPIN = pinConfig.pid3;
 		break;
 	}
 

@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include "../wifi/RestApiCallbacks.h"
 #include "PsXController.h"
+#include "../../PinConfig.h"
 
 namespace RestApi
 {

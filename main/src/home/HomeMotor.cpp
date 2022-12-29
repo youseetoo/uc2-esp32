@@ -18,11 +18,6 @@ namespace RestApi
 	{
 		serialize(moduleController.get(AvailableModules::home)->get(deserialize()));
 	}
-
-	void HomeMotor_set()
-	{
-		serialize(moduleController.get(AvailableModules::home)->set(deserialize()));
-	}
 }
 /*
 Handle REST calls to the HomeMotor module
@@ -110,10 +105,6 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	return ob;
 }
 
-int HomeMotor::set(DynamicJsonDocument ob)
-{
-	return 1;
-}
 
 
 
@@ -187,6 +178,6 @@ void HomeMotor::setup()
 
 	for (int i = 0; i < 4; i++)
   	{
-    hdata[i] = new HomeData ();
+    	hdata[i] = new HomeData ();
 	}
 }

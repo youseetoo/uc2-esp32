@@ -41,9 +41,6 @@ void setup()
 	// start with the wifi (either AP or connecting to wifi)
 	WifiController::begin();
 	log_i("End setup");
-
-	// check if boot process went through
-	Config::checkifBootWentThrough();
 }
 
 long tProcessServer = 100; // process server every 100ms
@@ -67,6 +64,4 @@ void loop()
 
 	// process all commands in their modules
 	moduleController.loop();
-	unsigned long end = micros();
-	//log_i("loop took %i ms", end - now);
 }

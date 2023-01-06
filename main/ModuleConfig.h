@@ -5,7 +5,7 @@ struct ModuleConfig
     bool analogout = false;
     bool dac = false;
     bool digitalout = false;
-    bool digitalin = false;
+    bool digitalin = true;
     bool laser = true;
     bool led = true;
     bool config = true;
@@ -14,7 +14,7 @@ struct ModuleConfig
     bool scanner = false;
     bool analogin = false;
     bool btcontroller = true;
-    bool home = false;
+    bool home = true;
     bool state = true;
     bool analogJoystick = false;
     bool wifi = false;

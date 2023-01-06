@@ -1,5 +1,5 @@
 #pragma once
-// initial pin definitions in "pindef.h"
+// initial pin definitions in "pindef_UC2_2.h"
 
 // UC2 STandalone V2
 const int PIN_DEF_MOTOR_DIR_A = GPIO_NUM_21;
@@ -26,9 +26,9 @@ const int PIN_DEF_LASER_3 = GPIO_NUM_15;
 const int PIN_DEF_LED = GPIO_NUM_32;
 const int PIN_DEF_LED_NUM = 25;
 
-const int PIN_DEF_END_X = GPIO_NUM_34;
-const int PIN_DEF_END_Y = GPIO_NUM_35;
-const int PIN_DEF_END_Z = 0; 
+const int PIN_DEF_END_X = GPIO_NUM_36; // sensor_vn
+const int PIN_DEF_END_Y = GPIO_NUM_34;
+const int PIN_DEF_END_Z = GPIO_NUM_35; 
 
 const String PIN_PS4_MAC_DEF = "1a:2b:3c:01:01:01";
 const int PIN_PS4_ENUM_DEF = 2;

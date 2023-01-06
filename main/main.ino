@@ -66,7 +66,6 @@ void loop()
 	BtController::loop();
 
 	// process all commands in their modules
-	moduleController.loop();
 	unsigned long end = micros();
 	//log_i("loop took %i ms", end - now);
 }

@@ -1,6 +1,6 @@
 #include <string>
 
-// This will switch between configs at runtime (e.g. pindef.h)
+// This will switch between configs at runtime (e.g. pindef_UC2_2.h)
 class pindefConfigurator {
   public:
     int PIN_DEF_MOTOR_DIR_A;

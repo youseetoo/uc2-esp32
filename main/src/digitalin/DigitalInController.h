@@ -27,6 +27,10 @@ public:
     int digitalin_val_2 = 0;
     int digitalin_val_3 = 0;
 
+    int digitalin_PIN_1 = 0;
+    int digitalin_PIN_2 = 0;
+    int digitalin_PIN_3 = 0;
+    
     int act(DynamicJsonDocument jsonDocument) override;
     int set(DynamicJsonDocument jsonDocument) override;
     DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;

@@ -75,7 +75,7 @@ namespace Config
 		preferences.end();
 
 		// if we boot for the first time => reset the preferences! // TODO: Smart? If not, we may have the problem that a wrong pin will block bootup
-		resertOnFirstBoot();
+		resetOnFirstBoot();
 	}
 
 	void getMotorPins(MotorPins *pins[])
@@ -213,7 +213,6 @@ namespace Config
 	}
 	void setDigitalOutPins(DigitalOutPins pins)
 	{
-
 		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyDigitalOut1Pin, pins.digitalout_PIN_1);
 		preferences.putInt(keyDigitalOut2Pin, pins.digitalout_PIN_2);
@@ -230,7 +229,6 @@ namespace Config
 	}
 	void setDigitalInPins(DigitalInPins pins)
 	{
-
 		preferences.begin(prefNamespace, false);
 		preferences.putInt(keyDigitalIn1Pin, pins.digitalin_PIN_1);
 		preferences.putInt(keyDigitalIn2Pin, pins.digitalin_PIN_2);
@@ -246,38 +244,6 @@ namespace Config
 		preferences.end();
 	}
 
-	bool isFirstRun()
-	{
-		bool rdystate = preferences.begin(prefNamespace, false);
-		log_i("isFirstRun Start preferences rdy %s", rdystate ? "true" : "false");
-		// define preference name
-		const char *compiled_date = __DATE__ " " __TIME__;
-		String stored_date = preferences.getString(dateKey, ""); // FIXME
-
-		log_i("Stored date: %s", stored_date.c_str());
-		log_i("Compiled date: %s", compiled_date);
-
-		log_i("First run? ");
-		if (!stored_date.equals(compiled_date))
-		{
-			log_i("yes, resetSettings");
-			resetPreferences();
-			preferences.putString(dateKey, compiled_date); // FIXME?
-		}
-		else
-		{
-			log_i("no, loadSettings");
-		}
-		preferences.end();
-
-		rdystate = preferences.begin(prefNamespace, false);
-		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
-		String datetest = preferences.getString(dateKey, "");
-		preferences.end();
-		log_i("isFirstRun End datetest:%s", datetest.c_str());
-		return !stored_date.equals(compiled_date);
-	}
-
 	bool resetPreferences()
 	{
 		log_i("resetPreferences");
@@ -285,12 +251,12 @@ namespace Config
 		return true;
 	}
 
-	bool resertOnFirstBoot()
+	bool resetOnFirstBoot()
 	{
 		// check if boot for the first time
 		preferences.begin(prefNamespace, false);
 		bool rdystate = preferences.begin(prefNamespace, false);
-		log_i("resertOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
+		log_i("resetOnFirstBoot Start preferences rdy %s", rdystate ? "true" : "false");
 
 		// define preference name
 		const char *compiled_date = __DATE__ " " __TIME__;
@@ -315,7 +281,7 @@ namespace Config
 		log_i("datatest pref rdy %s", rdystate ? "true" : "false");
 		String datetest = preferences.getString(dateKey, "");
 		preferences.end();
-		log_i("resertOnFirstBoot End datetest:%s", datetest.c_str());
+		log_i("resetOnFirstBoot End datetest:%s", datetest.c_str());
 		return !stored_date.equals(compiled_date);
 	}
 

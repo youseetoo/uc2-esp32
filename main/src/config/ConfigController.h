@@ -29,7 +29,6 @@ namespace Config
 {
     void setup();
     bool resetPreferences();
-    bool isFirstRun();
     void setWifiConfig(WifiConfig * config);
     WifiConfig * getWifiConfig();
     void setMotorPinConfig(MotorPins * pins[]);
@@ -58,5 +57,5 @@ namespace Config
     int getPsxControllerType();
     void checkifBootWentThrough();
     void getDigitalInPins(DigitalInPins pins);
-    bool resertOnFirstBoot();
+    bool resetOnFirstBoot();
 }

@@ -1,5 +1,5 @@
 #include "FocusMotor.h"
-#include "../../pindef.h"
+#include "../../pindef_UC2_2.h"
 #include "../serial/SerialProcess.h"
 
 

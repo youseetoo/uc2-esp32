@@ -66,7 +66,6 @@ void ModuleController::setup()
         log_i("add home");
     }
 
-
     // eventually load the analogin module
     if (moduleConfig->analogin)
     {

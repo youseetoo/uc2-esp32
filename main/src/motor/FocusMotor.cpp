@@ -347,7 +347,7 @@ void FocusMotor::setup()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		data[i] = new MotorData();
-		log_i("Pins: Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
+		log_i("Pins for stepper: %i, Step: %i Dir: %i Enable:%i min_pos:%i max_pos:%i", i, pins[i]->STEP, pins[i]->DIR, pins[i]->ENABLE, pins[i]->min_position, pins[i]->max_position);
 		steppers[i] = new AccelStepper(AccelStepper::DRIVER, pins[i]->STEP, pins[i]->DIR);
 		steppers[i]->setEnablePin(pins[i]->ENABLE);
 		steppers[i]->setPinsInverted(pins[i]->step_inverted, pins[i]->direction_inverted, pins[i]->enable_inverted);

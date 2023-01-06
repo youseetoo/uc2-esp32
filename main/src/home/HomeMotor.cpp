@@ -36,19 +36,23 @@ int HomeMotor::act(DynamicJsonDocument j)
 	{
 		if ((j)[key_home].containsKey(key_steppers))
 		{
-			Serial.println("contains key");
 			for (int i = 0; i < (j)[key_home][key_steppers].size(); i++)
 			{
 				Stepper s = static_cast<Stepper>((j)[key_home][key_steppers][i][key_stepperid]);
 
+				// set timeout until the motor should seek for the endstop
 				if ((j)[key_home][key_steppers][i].containsKey(key_home_timeout))
 					hdata[s]->homeTimeout = (j)[key_home][key_steppers][i][key_home_timeout];
+				// set speed of the motor while searching for the endstop
 				if (j[key_home][key_steppers][i].containsKey(key_home_speed))
 					hdata[s]->homeSpeed = (j)[key_home][key_steppers][i][key_home_speed];
+				// set max speed of the motor while searching for the endstop
 				if (j[key_home][key_steppers][i].containsKey(key_home_maxspeed))
 					hdata[s]->homeMaxspeed = (j)[key_home][key_steppers][i][key_home_maxspeed];
+				// set the direction in which the motor should walk to the endstop
 				if (j[key_home][key_steppers][i].containsKey(key_home_direction))
 					hdata[s]->homeDirection = j[key_home][key_steppers][i][key_home_direction];
+				// how much should we move in the opposite direction compared to the endstop?
 				if (j[key_home][key_steppers][i].containsKey(key_home_endposrelease))
 					hdata[s]->homeEndposRelease = j[key_home][key_steppers][i][key_home_endposrelease];
 
@@ -59,11 +63,12 @@ int HomeMotor::act(DynamicJsonDocument j)
 				// trigger go home by starting the motor in the right direction
 				FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 				motor->data[s]->isforever = true;
-				motor->data[s]->speed = hdata[s]->homeSpeed;
-				motor->data[s]->maxspeed = hdata[s]->homeMaxspeed;
+				motor->data[s]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
+				motor->data[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
 
 				// now we will go into loop and need to stop once the button is hit or timeout is reached
-				log_i("Home Data Motor %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i", i, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndposRelease);
+				log_i("Home Data Motor %i, Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i", 
+					i, s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndposRelease);
 			}
 		}
 	}
@@ -108,12 +113,6 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	doc[key_home][key_steppers][3][key_home_timestarted] = hdata[Stepper::Z]->homeTimeStarted;
 	doc[key_home][key_steppers][3][key_home_isactive] = hdata[Stepper::Z]->homeIsActive;
 
-	DigitalInPins pins;
-	Config::getDigitalInPins(pins);
-	pinMode(pins.digitalin_PIN_1, INPUT_PULLDOWN);
-	log_i("digitalin_PIN_1: %i", digitalRead(pins.digitalin_PIN_1));
-
-
 	log_i("home_get_fct done");
 	serializeJsonPretty(doc, Serial);
 	return doc;
@@ -135,6 +134,7 @@ void HomeMotor::loop()
 		// get motor and switch instances
 		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 		DigitalInController *digitalin = (DigitalInController *)moduleController.get(AvailableModules::digitalin);
+	
 
 		// expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 		//  0=A , 1=X, 2=Y , 3=Z

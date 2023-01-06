@@ -43,19 +43,19 @@ int DigitalInController::set(DynamicJsonDocument jsonDocument)
 		if (digitalinid == 1)
 		{
 			pins.digitalin_PIN_1 = digitalinpin;
-			pinMode(pins.digitalin_PIN_1, INPUT_PULLDOWN); // PULLDOWN
+			pinMode(pins.digitalin_PIN_1, INPUT_PULLUP); // PULLDOWN
 			log_i("Setting digitalin_PIN_1: %i", digitalinpin);
 		}
 		else if (digitalinid == 2)
 		{
 			pins.digitalin_PIN_2 = digitalinpin;
-			pinMode(pins.digitalin_PIN_2, INPUT_PULLDOWN); // PULLDOWN
+			pinMode(pins.digitalin_PIN_2, INPUT_PULLUP); // PULLDOWN
 			log_i("Setting digitalin_PIN_2: %i", digitalinpin);
 		}
 		else if (digitalinid == 3)
 		{
 			pins.digitalin_PIN_3 = digitalinpin;
-			pinMode(pins.digitalin_PIN_3, INPUT_PULLDOWN); // PULLDOWN
+			pinMode(pins.digitalin_PIN_3, INPUT_PULLUP); // PULLDOWN
 			log_i("Setting digitalin_PIN_3: %i", digitalinpin);
 		}
 	}
@@ -111,16 +111,15 @@ void DigitalInController::setup()
 	{
 		pins.digitalin_PIN_1 = PIN_DEF_END_X;
 	}
-	pinMode(pins.digitalin_PIN_1, INPUT_PULLDOWN);
+	pinMode(pins.digitalin_PIN_1, INPUT_PULLUP);
 	log_i("Setting digitalin_PIN_1: %i, value: %i", pins.digitalin_PIN_1, digitalRead(pins.digitalin_PIN_1));
-	Serial.println(pins.digitalin_PIN_1);
 	
 	/* Input 2 */
 	if (not pins.digitalin_PIN_2)
 	{
 		pins.digitalin_PIN_2 = PIN_DEF_END_Y;
 	}
-	pinMode(pins.digitalin_PIN_2, INPUT_PULLDOWN);
+	pinMode(pins.digitalin_PIN_2, INPUT_PULLUP);
 	log_i("Setting digitalin_PIN_2: %i, value: %i", pins.digitalin_PIN_2, digitalRead(pins.digitalin_PIN_2));
 
 	/* Input 3 */
@@ -128,7 +127,7 @@ void DigitalInController::setup()
 	{
 		pins.digitalin_PIN_3 = PIN_DEF_END_Z;
 	}
-	pinMode(pins.digitalin_PIN_3, INPUT_PULLDOWN);
+	pinMode(pins.digitalin_PIN_3, INPUT_PULLUP);
 	log_i("Setting digitalin_PIN_3: %i, value: %i", pins.digitalin_PIN_3, digitalRead(pins.digitalin_PIN_3));
 
 	Config::setDigitalInPins(pins); // save the pins to the config
@@ -138,10 +137,10 @@ void DigitalInController::loop()
 {
 
 	//FIXME: Never reaches this position..
-	
+
 	// readout digital pins one by one
 	digitalin_val_1 = digitalRead(pins.digitalin_PIN_1);
 	digitalin_val_2 = digitalRead(pins.digitalin_PIN_2);
 	digitalin_val_3 = digitalRead(pins.digitalin_PIN_3);
-	log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
+	//log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 }

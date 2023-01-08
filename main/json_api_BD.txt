@@ -33,7 +33,7 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 3, "position": -1000, "speed": 1000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -10000, "speed": 10000, "isabs": 0, "isaccel":0}
         ]
     }
 }
@@ -77,8 +77,12 @@ payload = {
 # HOME
 {"task": "/home_get"}
 {"task": "/home_set"}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 10000, "direction":1, "endposrelease":500}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 10000, "direction":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000},
+{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
+
 
 
 

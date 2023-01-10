@@ -24,8 +24,8 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":0},
-            { "stepperid": 2, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0},
+            { "stepperid": 2, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0}
         ]
     }
 }
@@ -77,10 +77,12 @@ payload = {
 # HOME
 {"task": "/home_get"}
 {"task": "/home_set"}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":-1, "endposrelease":3000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endposrelease":3000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 15000, "direction":-1, "endposrelease":3000}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000},
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
 
 
@@ -95,7 +97,7 @@ payload = {
 {"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "red":0, "green":5, "blue":0}]}}
 
 
-
+{"task": "/motor_get"}
 
 # HOLISHEET
 {"task":"/modules_set", "modules" : {"dac" : 1}}

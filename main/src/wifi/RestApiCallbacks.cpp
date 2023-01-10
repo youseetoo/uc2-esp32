@@ -41,6 +41,11 @@ namespace RestApi
     void serialize(DynamicJsonDocument doc)
     {
         //serializeJsonPretty(doc, Serial);
+        Serial.println("++");
+        serializeJson(doc, Serial);
+        Serial.println();
+        Serial.println("--");
+
         serializeJson(doc, output);
         WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
         WifiController::getServer()->send_P(200, "application/json", output);

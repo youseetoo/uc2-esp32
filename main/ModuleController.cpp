@@ -58,7 +58,6 @@ void ModuleController::setup()
         log_i("add home");
     }
 
-
     // eventually load the analogin module
     if (pinConfig.analogin_PIN_0 > 0 || pinConfig.analogin_PIN_1 > 0 || pinConfig.analogin_PIN_2 > 0 || pinConfig.analogin_PIN_3 > 0)
     {

@@ -1,6 +1,5 @@
 #include "DigitalInController.h"
 
-
 // This is for digitalinout
 
 namespace RestApi
@@ -28,45 +27,40 @@ int DigitalInController::act(DynamicJsonDocument jsonDocument)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument DigitalInController::get(DynamicJsonDocument  jsonDocument)
+DynamicJsonDocument DigitalInController::get(DynamicJsonDocument jsonDocument)
 {
-	
+
 	// GET SOME PARAMETERS HERE
 	int digitalinid = jsonDocument["digitalinid"];
 	int digitalinpin = 0;
 	int digitalinval = 0;
 
+	// RESET THE JSON DOCUMENT
+	jsonDocument.clear();
+
+	// cretae new json document
+	DynamicJsonDocument doc(1024);
+	//
 	if (digitalinid == 1)
 	{
-		if (DEBUG)
-			Serial.println("digitalin 1");
 		digitalinpin = pinConfig.DIGITAL_IN_1;
-		digitalinval = digitalin_val_1;
+		digitalinval = digitalRead(pinConfig.DIGITAL_IN_1);
 	}
 	else if (digitalinid == 2)
 	{
-		if (DEBUG)
-			Serial.println("AXIS 2");
-		if (DEBUG)
-			Serial.println("digitalin 2");
 		digitalinpin = pinConfig.DIGITAL_IN_2;
-		digitalinval = digitalin_val_2;
+		digitalinval = digitalRead(pinConfig.DIGITAL_IN_2);
 	}
 	else if (digitalinid == 3)
 	{
-		if (DEBUG)
-			Serial.println("AXIS 3");
-		if (DEBUG)
-			Serial.println("digitalin 1");
 		digitalinpin = pinConfig.DIGITAL_IN_3;
-		digitalinval = digitalin_val_3;
+		digitalinval = digitalRead(pinConfig.DIGITAL_IN_3);
 	}
 
-	jsonDocument.clear();
-	jsonDocument["digitalinid"] = digitalinid;
-	jsonDocument["digitalinval"] = digitalinval;
-	jsonDocument["digitalinpin"] = digitalinpin;
-	return jsonDocument;
+	doc["digitalinid"] = digitalinid;
+	doc["digitalinval"] = digitalinval;
+	doc["digitalinpin"] = digitalinpin;
+	return doc;
 }
 
 void DigitalInController::setup()
@@ -78,11 +72,14 @@ void DigitalInController::setup()
 	pinMode(pinConfig.DIGITAL_IN_3, INPUT_PULLDOWN);
 }
 
-void DigitalInController::loop(){
+void DigitalInController::loop()
+{
+
+	//FIXME: Never reaches this position..
+
 	// readout digital pins one by one
 	digitalin_val_1 = digitalRead(pinConfig.DIGITAL_IN_1);
 	digitalin_val_2 = digitalRead(pinConfig.DIGITAL_IN_2);
 	digitalin_val_3 = digitalRead(pinConfig.DIGITAL_IN_3);
-
-
+	//log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 }

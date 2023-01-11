@@ -92,6 +92,13 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
     int PSX_CONTROLLER_TYPE = 2;
 };
 
+struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
+{
+    int PIN_DEF_END_X = 12;
+    int PIN_DEF_END_Y = 0; // GPIO_NUM_5;
+    int PIN_DEF_END_Z = 13; // GPIO_NUM_23;
+};
+
 struct X_MOTOR_64LED : PinConfig
 {
     int MOTOR_X_DIR = 21;
@@ -212,4 +219,5 @@ struct WEMOS : PinConfig
     int PSX_CONTROLLER_TYPE = 2;
 };
 
-static XYZ_MOTOR_JOYSTICK pinConfig;
+//static XYZ_MOTOR_JOYSTICK pinConfig;
+static XYZ_MOTOR_ENDSTOP_JOYSTICK pinConfig;

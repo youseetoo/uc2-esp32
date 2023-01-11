@@ -31,16 +31,21 @@ namespace RestApi
 
     DynamicJsonDocument deserialize()
     {
+        //serializeJsonPretty(doc, Serial);
         String plain = WifiController::getServer()->arg("plain");
         DynamicJsonDocument doc(plain.length() * 8);
         deserializeJson(doc, plain);
         return doc;
-        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
     }
 
     void serialize(DynamicJsonDocument doc)
     {
-        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
+        //serializeJsonPretty(doc, Serial);
+        Serial.println("++");
+        serializeJson(doc, Serial);
+        Serial.println();
+        Serial.println("--");
+
         serializeJson(doc, output);
         WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
         WifiController::getServer()->send_P(200, "application/json", output);
@@ -48,7 +53,7 @@ namespace RestApi
 
     void serialize(int success)
     {
-        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
+        //serializeJsonPretty(doc, Serial);
         WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
         WifiController::getServer()->send_P(200, "application/json", output);
     }

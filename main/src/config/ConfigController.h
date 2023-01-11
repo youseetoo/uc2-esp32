@@ -10,7 +10,6 @@ namespace Config
 {
     void setup();
     bool resetPreferences();
-    bool isFirstRun();
     void setWifiConfig(WifiConfig * config);
     WifiConfig * getWifiConfig();
     void setPsxMac(String mac);

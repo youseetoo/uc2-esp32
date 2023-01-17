@@ -95,8 +95,8 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 {
     int PIN_DEF_END_X = 12;
-    int PIN_DEF_END_Y = 0; // GPIO_NUM_5;
-    int PIN_DEF_END_Z = 13; // GPIO_NUM_23;
+    int PIN_DEF_END_Y = 13;
+    int PIN_DEF_END_Z = 5;
 };
 
 struct X_MOTOR_64LED : PinConfig

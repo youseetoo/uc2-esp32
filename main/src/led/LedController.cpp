@@ -43,6 +43,11 @@ void LedController::setup()
 	matrix->begin();
 	matrix->setBrightness(255);
 
+	// test led array
+	set_all(100,100,100);
+	delay(50);
+	set_all(0,0,0);
+
 	// either set the default color or turn off the leds
 	if (!isOn)
 		set_all(0, 0, 0);
@@ -180,8 +185,8 @@ int LedController::act(DynamicJsonDocument ob)
 	return 1;
 }
 
-//{"led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"128","red":"128","green":"128"}]}}
-//{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"blue":"0","red":"0","green":"0"}]}}
+//{"led":{"LEDArrMode":1,"led_array":[{"id":0,"b":"128","r":"128","g":"128"}]}}
+//{"task" : "/ledarr_act", "led":{"LEDArrMode":1,"led_array":[{"id":0,"b":"0","r":"0","g":"0"}]}}
 int LedController::set(DynamicJsonDocument ob)
 {
 	if (ob.containsKey(keyLed))

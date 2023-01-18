@@ -19,10 +19,10 @@ namespace RestApi
                 "LEDArrMode": 1,
                 "led_array": [
                     {
-                        "blue": 0,
-                        "green": 0,
+                        "b": 0,
+                        "g": 0,
                         "id": 0,
-                        "red": 0
+                        "r": 0
                     }
                 ]
             }
@@ -109,10 +109,10 @@ public:
         "LEDArrMode": 1,
         "led_array": [
         {
-            "blue": 0,
-            "green": 0,
+            "b": 0,
+            "g": 0,
             "id": 0,
-            "red": 0
+            "r": 0
         }
         ]
     }

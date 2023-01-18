@@ -62,9 +62,9 @@ static const PROGMEM char * keyWifiAP = "AP";
 static const PROGMEM char * keyLed = "led";
 static const PROGMEM char * keyLEDArrMode = "LEDArrMode";
 
-static const PROGMEM char * keyRed = "red";
-static const PROGMEM char * keyGreen = "green";
-static const PROGMEM char * keyBlue = "blue";
+static const PROGMEM char * keyRed = "r";
+static const PROGMEM char * keyGreen = "g";
+static const PROGMEM char * keyBlue = "b";
 static const PROGMEM char * keyid = "id";
 static const PROGMEM char * key_led_array = "led_array";
 static const PROGMEM char * key_led_isOn = "led_ison";

@@ -101,13 +101,27 @@ payload = {
 
 # HOLISHEET
 {"task":"/modules_set", "modules" : {"dac" : 1}}
-{"task": "/laser_act", "LASERid":2, "LASERval": 400}
+{"task": "/laser_act", "LASERid":1, "LASERval": 512}
 {"task":"/dac_act", "dac_channel":1, "frequency":1}
 {"task":"/motor_act",
     "motor":
     {
         "steppers": [
-            { "stepperid": 3, "isforever": 1, "speed": 200, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0},
+            { "stepperid": 2, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}
+        ]
+    }
+}
+
+
+
+
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 1, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0},
+            { "stepperid": 3, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}
         ]
     }
 }

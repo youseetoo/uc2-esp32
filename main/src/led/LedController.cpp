@@ -25,6 +25,11 @@ void LedController::setup()
 	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	matrix->begin();
 	matrix->setBrightness(255);
+	// test led array
+	set_all(100,100,100);
+	delay(50);
+	set_all(0,0,0);
+
 	if (!isOn)
 		set_all(0, 0, 0);
 	else

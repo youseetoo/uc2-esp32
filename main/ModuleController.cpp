@@ -33,12 +33,12 @@ void ModuleController::setup()
     }
 
     // eventually load the BTController module
-    /*
-    if (moduleConfig->btcontroller)
+    
+    if (pinConfig.enableBlueTooth)
     {
-        modules.insert(std::make_pair(AvailableModules::btcontroller, dynamic_cast<Module *>(new BTController())));
+        modules.insert(std::make_pair(AvailableModules::btcontroller, dynamic_cast<Module *>(new BtController())));
         log_i("add btcontroller");
-    }*/
+    }
 
     
     modules.insert(std::make_pair(AvailableModules::state, dynamic_cast<Module *>(new  State())));

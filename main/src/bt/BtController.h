@@ -3,8 +3,8 @@
 #include <BluetoothSerial.h>
 #include "esp_err.h"
 #include <ArduinoJson.h>
-#include "../wifi/RestApiCallbacks.h"
-#include "PsXController.h"
+#include "../../ModuleController.h"
+#include "PSController.h"
 #include "../../PinConfig.h"
 
 namespace RestApi
@@ -33,11 +33,51 @@ namespace RestApi
 };
 
 void btControllerLoop(void *p);
-namespace BtController //class BtController : public Module
+class BtController : public Module
 {
-    //public:
-    void setup();// override;
-    void loop();// override;
+    private:
+    bool IS_PS_CONTROLER_LEDARRAY = false;
+    int offset_val = 5; // make sure you do not accidentally turn on two directions at the same time
+    int stick_ly = 0;
+    int stick_lx = 0;
+    int stick_rx = 0;
+    int stick_ry = 0;
+
+    bool joystick_drive_X = false;
+    bool joystick_drive_Y = false;
+    bool joystick_drive_Z = false;
+    bool joystick_drive_A = false;
+
+    int speed_x = 0;
+    int speed_y = 0;
+    int speed_z = 0;
+    int global_speed = 10; // multiplier for the speed
+
+    int analogout_val_1 = 0;
+    int pwm_max = 0; // no idea how big it should be
+    int8_t sgn(int val);
+    PSController * psx = nullptr;
+    void setupPS(String mac, int type);
+
+    public:
+    BtController();
+	~BtController();
+
+    #define PAIR_MAX_DEVICES 20
+    char bda_str[18];
+    BluetoothSerial btClassic;
+
+    bool doConnect = false;
+    bool connected = false;
+    bool doScan = false;
+    bool ENABLE = false;
+    int BT_DISCOVER_TIME = 10000;
+    BTAddress *mac;
+
+    void setup() override;
+    void loop() override;
+    int act(DynamicJsonDocument doc) override;
+    DynamicJsonDocument get(DynamicJsonDocument doc) override;
     DynamicJsonDocument scanForDevices(DynamicJsonDocument  doc);
     
     void setMacAndConnect(String m);
@@ -48,4 +88,4 @@ namespace BtController //class BtController : public Module
     bool connectToServer();
     
     
-}
+};

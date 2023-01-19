@@ -3,7 +3,6 @@
 #include "src/wifi/WifiController.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
-#include "src/bt/BtController.h"
 #include "ModuleController.h"
 #include "src/motor/FocusMotor.h"
 
@@ -36,7 +35,6 @@ void setup()
 	moduleController.setup();
 
 	// initialize the bluetooth controller
-	BtController::setup();
 
 	// start with the wifi (either AP or connecting to wifi)
 	WifiController::begin();

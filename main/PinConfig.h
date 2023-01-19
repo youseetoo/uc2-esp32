@@ -72,6 +72,7 @@ struct PinConfig
     int PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
     bool enableScanner = false;
+    bool enableBlueTooth = false;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig

@@ -232,24 +232,25 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		RestApi::resetNvFLash();
 	}
-	if (task == bt_connect_endpoint)
+	if (task == bt_connect_endpoint && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 		String mac = jsonDocument["mac"];
 		int ps = jsonDocument["psx"];
-
+		BtController * bt = (BtController*) moduleController.get(AvailableModules::btcontroller);
 		if (ps == 0)
 		{
-			BtController::setMacAndConnect(mac);
+			bt->setMacAndConnect(mac);
 		}
 		else
 		{
-			BtController::connectPsxController(mac, ps);
+			bt->connectPsxController(mac, ps);
 		}
 	}
-	if (task == bt_scan_endpoint)
+	if (task == bt_scan_endpoint && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
-		BtController::scanForDevices(jsonDocument);
+		BtController * bt = (BtController*) moduleController.get(AvailableModules::btcontroller);
+		bt->scanForDevices(jsonDocument);
 	}
 
 }

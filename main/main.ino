@@ -1,10 +1,8 @@
 #include "ArduinoJson.h"
 #include "esp_log.h"
-#include "src/wifi/WifiController.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
 #include "ModuleController.h"
-#include "src/motor/FocusMotor.h"
 
 
 #include "soc/soc.h"
@@ -27,18 +25,9 @@ void setup()
 	log_i("Config::setup");
 	Config::setup();
 
-	// connect to wifi if necessary
-	log_i("wifi.setup");
-	WifiController::setup();
-
 	// initialize the module controller
 	moduleController.setup();
 
-	// initialize the bluetooth controller
-
-	// start with the wifi (either AP or connecting to wifi)
-	WifiController::begin();
-	WifiController::createTasks();
 	log_i("End setup");
 }
 

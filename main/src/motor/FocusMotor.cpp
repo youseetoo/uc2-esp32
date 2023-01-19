@@ -196,11 +196,15 @@ void FocusMotor::loop()
 
 void FocusMotor::sendMotorPos(int i, int arraypos)
 {
-	DynamicJsonDocument doc(4096);
-	doc[key_steppers][arraypos][key_stepperid] = i;
-	doc[key_steppers][arraypos][key_position] = data[i]->currentPosition;
-	arraypos++;
-	WifiController::sendJsonWebSocketMsg(doc);
+	if(moduleController.get(AvailableModules::wifi) != nullptr)
+	{
+		WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+		DynamicJsonDocument doc(4096);
+		doc[key_steppers][arraypos][key_stepperid] = i;
+		doc[key_steppers][arraypos][key_position] = data[i]->currentPosition;
+		arraypos++;
+		w->sendJsonWebSocketMsg(doc);
+	}
 }
 
 void FocusMotor::stopAllDrives()

@@ -14,25 +14,27 @@ namespace RestApi
 
     void handleNotFound()
     {
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
         String message = "File Not Found\n\n";
         message += "URI: ";
-        message += (*WifiController::getServer()).uri();
+        message += (*w->getServer()).uri();
         message += "\nMethod: ";
-        message += ((*WifiController::getServer()).method() == HTTP_GET) ? "GET" : "POST";
+        message += ((*w->getServer()).method() == HTTP_GET) ? "GET" : "POST";
         message += "\nArguments: ";
-        message += (*WifiController::getServer()).args();
+        message += (*w->getServer()).args();
         message += "\n";
-        for (uint8_t i = 0; i < (*WifiController::getServer()).args(); i++)
+        for (uint8_t i = 0; i < (*w->getServer()).args(); i++)
         {
-            message += " " + (*WifiController::getServer()).argName(i) + ": " + (*WifiController::getServer()).arg(i) + "\n";
+            message += " " + (*w->getServer()).argName(i) + ": " + (*w->getServer()).arg(i) + "\n";
         }
-        (*WifiController::getServer()).send(404, "text/plain", message);
+        (*w->getServer()).send(404, "text/plain", message);
     }
 
     DynamicJsonDocument deserialize()
     {
         //serializeJsonPretty(doc, Serial);
-        String plain = WifiController::getServer()->arg("plain");
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        String plain = w->getServer()->arg("plain");
         DynamicJsonDocument doc(plain.length() * 8);
         deserializeJson(doc, plain);
         return doc;
@@ -47,27 +49,31 @@ namespace RestApi
         Serial.println("--");
 
         serializeJson(doc, output);
-        WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
-        WifiController::getServer()->send_P(200, "application/json", output);
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        w->getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
+        w->getServer()->send_P(200, "application/json", output);
     }
 
     void serialize(int success)
     {
         //serializeJsonPretty(doc, Serial);
-        WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
-        WifiController::getServer()->send_P(200, "application/json", output);
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        w->getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
+        w->getServer()->send_P(200, "application/json", output);
     }
 
     void update()
     {
-        WifiController::getServer()->sendHeader("Connection", "close");
-        WifiController::getServer()->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        w->getServer()->sendHeader("Connection", "close");
+        w->getServer()->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
         ESP.restart();
     }
 
     void upload()
     {
-        HTTPUpload &upload = WifiController::getServer()->upload();
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        HTTPUpload &upload = w->getServer()->upload();
         if (upload.status == UPLOAD_FILE_START)
         {
             log_i("Update: %s\n", upload.filename.c_str());

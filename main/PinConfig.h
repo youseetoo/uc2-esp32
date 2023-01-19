@@ -73,6 +73,7 @@ struct PinConfig
 
     bool enableScanner = false;
     bool enableBlueTooth = false;
+    bool enableWifi = false;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig

@@ -185,7 +185,7 @@ function updateLeds() {
         var redc = $("#redRange").val();
         var greenc = $("#greenRange").val();
         var bluec = $("#blueRange").val();
-        var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, blue: bluec, red: redc, green: greenc }] } });
+        var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, b: bluec, r: redc, g: greenc }] } });
         websocket.send(jstr);
     }
 }

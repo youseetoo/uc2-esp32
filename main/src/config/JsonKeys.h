@@ -36,6 +36,22 @@ static const PROGMEM char * keyDigitalIn1Pin = "digitalinPin1";
 static const PROGMEM char * keyDigitalIn2Pin = "digitalinPin2";
 static const PROGMEM char * keyDigitalIn3Pin = "digitalinPin3";
 
+static const PROGMEM char * keyDigitalOut1IsTrigger = "digitalout1IsTrigger";
+static const PROGMEM char * keyDigitalOut2IsTrigger = "digitalout2IsTrigger";
+static const PROGMEM char * keyDigitalOut3IsTrigger = "digitalout3IsTrigger";
+
+static const PROGMEM char * keyDigitalOut1TriggerDelayOn = "digitalout1TriggerDelayOn"; 
+static const PROGMEM char * keyDigitalOut2TriggerDelayOn = "digitalout2TriggerDelayOn";
+static const PROGMEM char * keyDigitalOut3TriggerDelayOn = "digitalout3TriggerDelayOn";
+
+static const PROGMEM char * keyDigitalOut1TriggerDelayOff = "digitalout1TriggerDelayOff";
+static const PROGMEM char * keyDigitalOut2TriggerDelayOff = "digitalout2TriggerDelayOff";
+static const PROGMEM char * keyDigitalOut3TriggerDelayOff = "digitalout3TriggerDelayOff";
+
+static const PROGMEM char * keyDigitalOutid = "digitaloutid";
+static const PROGMEM char * keyDigitalOutVal = "digitaloutval";
+static const PROGMEM char * keyDigitalOutIsTriggerReset = "digitaloutistriggerreset";
+
 static const PROGMEM char * keyAnalogIn1Pin = "analoginPin1";
 static const PROGMEM char * keyAnalogIn2Pin = "analoginPin2";
 static const PROGMEM char * keyAnalogIn3Pin = "analoginPin3";

@@ -48,6 +48,11 @@
 
 
 
+# DIGITAL OUT 
+// trigger 
+{"task":"/digitalout_set", "digitaloutid":1, "digitaloutpin":4}
+{"task":"/digitalout_act", "digitalout1TriggerDelayOn":100, "digitalout1TriggerDelayOff":10, "digitalout1IsTrigger":1,  "digitalout2TriggerDelayOn":10, "digitalout2TriggerDelayOff":100, "digitalout2IsTrigger":1}
+{"task":"/digitalout_act", "digitaloutistriggerreset":1}
 
 
 # DIGITAL IN

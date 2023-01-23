@@ -1,5 +1,5 @@
 #include "LedController.h"
-#include "../../pindef_UC2_2.h"
+#include "../../pindef.h"
 
 namespace RestApi
 {

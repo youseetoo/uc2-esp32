@@ -1,5 +1,5 @@
 #pragma once
-// initial pin definitions in "pindef_UC2_2.h"
+// initial pin definitions in "pindef.h"
 
 // UC2 STandalone V1
 const int PIN_DEF_MOTOR_DIR_A = GPIO_NUM_21;

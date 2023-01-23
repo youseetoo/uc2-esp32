@@ -1,5 +1,5 @@
 #pragma once
-// initial pin definitions in "pindef_UC2_2.h"
+// initial pin definitions in "pindef.h"
 
 // ESP32-WEMOS D1 R32
 const int PIN_DEF_MOTOR_DIR_A = 0;

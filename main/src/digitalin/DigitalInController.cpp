@@ -1,5 +1,5 @@
 #include "DigitalInController.h"
-#include "../../pindef_UC2_2.h"
+#include "../../pindef.h"
 
 // This is for digitalinout
 

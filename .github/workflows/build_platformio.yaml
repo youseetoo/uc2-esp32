@@ -45,7 +45,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
-        path: build/merged-firmware.bin
+        path: build/esp32_wemos.bin
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:

@@ -55,6 +55,17 @@ int State::act(DynamicJsonDocument doc)
 		isBusy = doc["isBusy"];
 	}
 
+	if (doc.containsKey("isRest")){
+		log_i("resetPreferences");
+		Preferences preferences;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, false);
+		preferences.clear();
+		preferences.end();
+		ESP.restart();
+		return true;
+	}
+
 	if (doc.containsKey("pscontroller"))
 	{
 #if defined IS_PS3 || defined IS_PS4
@@ -105,6 +116,7 @@ DynamicJsonDocument State::get(DynamicJsonDocument docin)
 		doc["identifier_author"] = identifier_author;
 		doc["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
 		doc["configIsSet"] = config_set; // TODO: Implement! 
+		doc["pindef"] = "pindef.h";
 	}
 	return doc;
 }

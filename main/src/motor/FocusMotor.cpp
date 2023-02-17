@@ -31,6 +31,7 @@ namespace RestApi
 		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 		serialize(motor->motorsBusy());
 	}
+
 }
 
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
@@ -128,7 +129,8 @@ int FocusMotor::act(DynamicJsonDocument doc)
 void FocusMotor::startStepper(int i)
 {
 
-	// enableEnablePin(i);
+	//enableEnablePin(i);
+	steppers[i]->enableOutputs();
 	data[i]->stopped = false;
 
 	// set motor state according to commands
@@ -174,10 +176,28 @@ void FocusMotor::startStepper(int i)
 
 int FocusMotor::set(DynamicJsonDocument doc)
 {
+
+	// only enable/disable motors
+	if (doc.containsKey(key_isen))
+	{
+		for (int i = 0; i < steppers.size(); i++)
+		{
+			// turn on/off holding current
+			if (doc[key_isen]){
+				steppers[i]->enableOutputs();
+			}
+			else{
+				steppers[i]->disableOutputs();
+			}
+			
+		}
+	}
+
 	if (doc.containsKey(key_motor))
 	{
 		if (doc[key_motor].containsKey(key_steppers))
 		{
+	
 			for (int i = 0; i < doc[key_motor][key_steppers].size(); i++)
 			{
 				Stepper s = static_cast<Stepper>(doc[key_motor][key_steppers][i][key_stepperid]);
@@ -362,11 +382,11 @@ void FocusMotor::setup()
 	{
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
-		// steppers[i]->enableOutputs();
+		steppers[i]->enableOutputs();
 		steppers[i]->runToNewPosition(-10);
 		steppers[i]->runToNewPosition(10);
 		steppers[i]->setCurrentPosition(pins[i]->current_position);
-		steppers[i]->enableOutputs();
+		//steppers[i]->enableOutputs();
 		// steppers[i]->disableOutputs();
 	}
 }
@@ -564,6 +584,7 @@ void FocusMotor::disableEnablePin(int i)
 
 void FocusMotor::enableEnablePin(int i)
 {
+	// if all motors share the same enable pin
 	if (isShareEnable)
 	{
 		bool enable = false;
@@ -586,6 +607,7 @@ void FocusMotor::enableEnablePin(int i)
 			}
 		}
 	}
+	// individual enable pins
 	else if (!steppers[i]->areOutputsEnabled())
 		steppers[i]->enableOutputs();
 }

@@ -13,6 +13,7 @@ namespace RestApi
 	void FocusMotor_set();
 	void FocusMotor_setCalibration();
 	void FocusMotor_motorsBusy();
+	void FocusMotor_setEnable();
 };
 
 struct MotorData

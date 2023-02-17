@@ -20,6 +20,7 @@
         ]
     }
 }
+{"task":"/motor_set", "isen":0}
 {"task":"/motor_act",
     "motor":
     {
@@ -33,7 +34,7 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -10000, "speed": 10000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -1000, "speed": 100, "isabs": 0, "isaccel":0}
         ]
     }
 }

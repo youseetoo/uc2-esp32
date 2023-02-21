@@ -52,6 +52,8 @@ void SerialProcess::serialize(DynamicJsonDocument doc)
 	serializeJson(doc, Serial);
 	Serial.println();
 	Serial.println("--");
+	doc.clear();
+	doc.garbageCollect();
 }
 
 void SerialProcess::serialize(int success)
@@ -62,6 +64,8 @@ void SerialProcess::serialize(int success)
 	serializeJson(doc, Serial);
 	Serial.println();
 	Serial.println("--");
+	doc.clear();
+	doc.garbageCollect();
 }
 
 void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
@@ -283,6 +287,9 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		BtController::scanForDevices(jsonDocument);
 	}
+
+	jsonDocument.clear();
+
 
 }
 SerialProcess serial;

@@ -26,6 +26,9 @@ struct MotorData
 	bool isaccelerated = false;
 	bool absolutePosition = false;
 	bool stopped = true;
+	// milliseconds to switch off motors after operation
+	int timeoutDisable = 1000;
+	int timeLastActive = 0; 
 };
 
 enum Stepper
@@ -61,6 +64,8 @@ public:
 	static const int FULLSTEPS_PER_REV_X = 200;
 	static const int FULLSTEPS_PER_REV_Y = 200;
 	static const int FULLSTEPS_PER_REV_Z = 200;
+
+	
 
 	long MAX_VELOCITY_A = 20000;
 	long MAX_VELOCITY_X = 20000;

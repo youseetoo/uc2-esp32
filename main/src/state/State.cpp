@@ -92,7 +92,7 @@ int State::set(DynamicJsonDocument doc)
 DynamicJsonDocument State::get(DynamicJsonDocument docin)
 {
 
-	StaticJsonDocument<512> doc; // create return doc
+	DynamicJsonDocument doc(4096); //StaticJsonDocument<512> doc; // create return doc
 
 	// GET SOME PARAMETERS HERE
 	if (docin.containsKey("isBusy"))

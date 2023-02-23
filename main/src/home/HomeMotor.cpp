@@ -81,7 +81,7 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	log_i("home_get_fct");
 	ob.clear();
 
-	StaticJsonDocument<1024> doc; // create return doc
+	DynamicJsonDocument doc(4096); //StaticJsonDocument<1024> doc; // create return doc
 
 	// add the home data to the json
 	doc[key_home][key_steppers][0][key_home_timeout] = hdata[Stepper::A]->homeTimeout;
@@ -125,7 +125,7 @@ int HomeMotor::set(DynamicJsonDocument ob)
 void sendHomeDone(int axis){
 	// send home done to client
 
-	StaticJsonDocument<256> doc;
+	DynamicJsonDocument doc(4096); //StaticJsonDocument<256> doc;
 	JsonObject home_steppers = doc["home"]["steppers"].createNestedObject();
 	home_steppers["axis"] = axis;
 	home_steppers["isDone"] = true;

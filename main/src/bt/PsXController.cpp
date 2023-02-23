@@ -75,6 +75,7 @@ void PsXController::loop()
         if (moduleController.get(AvailableModules::motor) != nullptr)
 		{
 			/* code */
+			// Z-Direction
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 			// Z-Direction
 			if (abs(psx->state.analog.stick.ly) > offset_val)
@@ -96,6 +97,28 @@ void PsXController::loop()
 				motor->stopStepper(Stepper::Z);
 				joystick_drive_Z = false;
 			}
+
+			/* code */
+			// A-Direction
+			if (abs(psx->state.analog.stick.lx) > offset_val)
+			{
+				stick_lx = psx->state.analog.stick.lx;
+				stick_lx = stick_lx - sgn(stick_lx) * offset_val;
+				if(abs(stick_lx)>50)stick_lx=2*stick_lx; // add more speed above threshold
+				motor->data[Stepper::A]->speed = stick_lx * global_speed;
+				motor->data[Stepper::A]->isforever = true;
+				joystick_drive_A = true;
+				if (motor->data[Stepper::A]->stopped)
+                {
+                    motor->startStepper(Stepper::A);
+                }
+			}
+			else if (motor->data[Stepper::A]->speed != 0 && joystick_drive_A)
+			{
+				motor->stopStepper(Stepper::A);
+				joystick_drive_A = false;
+			}
+
 
 			// X-Direction
 			if ((abs(psx->state.analog.stick.rx) > offset_val))

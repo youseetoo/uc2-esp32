@@ -58,7 +58,7 @@ void SerialProcess::serialize(DynamicJsonDocument doc)
 
 void SerialProcess::serialize(int success)
 {
-	StaticJsonDocument<16> doc;
+	DynamicJsonDocument doc(4096); //StaticJsonDocument<16> doc;
 	doc["success"] = success;
 	Serial.println("++");
 	serializeJson(doc, Serial);

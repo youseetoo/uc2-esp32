@@ -265,7 +265,7 @@ void FocusMotor::applyMaxPos(int i)
 DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 {
 	log_i("get motor");
-	StaticJsonDocument<1024> doc; // create return doc
+	DynamicJsonDocument doc(4096); //StaticJsonDocument<1024> doc; // create return doc
 	// only return the position of the stepper
 	if (docin.containsKey(key_position))
 	{
@@ -437,6 +437,9 @@ void FocusMotor::loop()
 					// if not turn it off
 					stopStepper(i);
 					sendMotorPos(i, arraypos);
+
+					// initialte a disabling of the motors after the timeout has reached
+					data[i]->timeLastActive	= millis();
 					/*
 					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
 					{
@@ -460,6 +463,17 @@ void FocusMotor::loop()
 					steppers[i]->runSpeedToPosition();
 				}
 			}
+		}
+	}
+
+	// check if we want to disable motors after timeout
+	bool timeoutReached = true;
+	for (int i = 0; i < steppers.size(); i++)
+	{
+		timeoutReached &= (millis() - data[i]->timeLastActive) > data[i]->timeoutDisable;
+		if(timeoutReached)
+		{ 	// only if all of the motors have reached their timeout, disable the enable pin
+			disableEnablePin(-1);
 		}
 	}
 }

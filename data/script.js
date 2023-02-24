@@ -5,30 +5,13 @@ window.addEventListener('load', (event) => {
 });
 
 var websocket;
-var modules;
-var analog;
-var dac;
-var digital;
-var laser;
 var motor;
 var led;
-var pid;
-var scanner;
-var sensor;
-var slm;
 var analogJoystick;
 
 function setModules(data) {
-    analog = data["modules"]["analog"];
-    dac = data["modules"]["dac"];
-    digital = data["modules"]["digital"];
-    laser = data["modules"]["laser"];
     motor = data["modules"]["motor"];
     led = data["modules"]["led"];
-    pid = data["modules"]["pid"];
-    scanner = data["modules"]["scanner"];
-    sensor = data["modules"]["sensor"];
-    slm = data["modules"]["slm"];
     analogJoystick = data["modules"]["joy"];
 }
 
@@ -49,7 +32,7 @@ function createWebsocket() {
                 $("#posx").html(curpos);
             if (id == 2)
                 $("#posy").html(curpos);
-            if (id == 2)
+            if (id == 3)
                 $("#posz").html(curpos);
         }
     });
@@ -100,7 +83,6 @@ function getModulesAndFillTabs() {
         $("#tab").empty();
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Wifi\')">Wifi</button>')
         $("#tab").append('<button class="tablinks" onclick="openTab(event, \'BT\')">BT</button>')
-        $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Modules\')">Modules</button>')
         setModules(data);
         if (led != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'LED\')">LED</button>')
@@ -108,19 +90,6 @@ function getModulesAndFillTabs() {
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Motor\')">Motor</button>')
         if (laser != 0)
             $("#tab").append('<button class="tablinks" onclick="openTab(event, \'Laser\')">Laser</button>')
-
-
-        $("#m_enable_analog").attr('checked', analog);
-        $("#m_enable_dac").attr('checked', dac);
-        $("#m_enable_digital").attr('checked', digital);
-        $("#m_enable_laser").attr('checked', laser);
-        $("#m_enable_motor").attr('checked', motor);
-        $("#m_enable_led").attr('checked', led);
-        $("#m_enable_pid").attr('checked', pid);
-        $("#m_enable_scanner").attr('checked', scanner);
-        $("#m_enable_sensor").attr('checked', sensor);
-        $("#m_enable_slm").attr('checked', slm);
-        $("#m_enable_analogjoystick").attr('checked', analogJoystick);
 
         updateUi();
         createWebsocket();
@@ -134,25 +103,6 @@ function hideOrShow(id) {
     } else {
         x.style.display = "none";
     }
-}
-
-function setModuleSettings() {
-    $("#steppinxinvert:checked").val() ? 1 : 0;
-    analog = $("#m_enable_analog:checked").val() ? 1 : 0;
-    dac = $("#m_enable_dac:checked").val() ? 1 : 0;
-    digital = $("#m_enable_digital:checked").val() ? 1 : 0;
-    laser = $("#m_enable_laser:checked").val() ? 1 : 0;
-    motor = $("#m_enable_motor:checked").val() ? 1 : 0;
-    led = $("#m_enable_led:checked").val() ? 1 : 0;
-    pid = $("#m_enable_pid:checked").val() ? 1 : 0;
-    scanner = $("#m_enable_scanner:checked").val() ? 1 : 0;
-    sensor = $("#m_enable_sensor:checked").val() ? 1 : 0;
-    slm = $("#m_enable_slm:checked").val() ? 1 : 0;
-    analogJoystick = $("#m_enable_analogjoystick:checked").val() ? 1 : 0;
-    var jstr = JSON.stringify({ modules: { analog: analog, dac: dac, digital: digital, laser: laser, motor: motor, led: led, pid: pid, scanner: scanner, sensor: sensor, slm: slm, joy:analogJoystick } });
-    post(jstr, "/modules_set");
-    getModulesAndFillTabs();
-    updateUi();
 }
 
 function getSsids() {
@@ -222,22 +172,6 @@ function removePairedBtDevices() {
     post(jstr, "/bt_remove");
 }
 
-function getLedSetting() {
-    $.getJSON(getUri() + "/ledarr_get", function (data) {
-        var leds = data["ledArrNum"];
-        var pin = data["ledArrPin"];
-        $("#ledcount").val(leds);
-        $("#ledpin").val(pin);
-    });
-}
-
-function setLedSettings() {
-    var ledcount = $("#ledcount").val();
-    var pin = $("#ledpin").val();
-    var jstr = JSON.stringify({ led: { ledArrPin: pin, ledArrNum: ledcount } });
-    post(jstr, "/ledarr_set");
-}
-
 function enableLeds(cb) {
     var redc = $("#redRange").val();
     var greenc = $("#greenRange").val();
@@ -251,151 +185,9 @@ function updateLeds() {
         var redc = $("#redRange").val();
         var greenc = $("#greenRange").val();
         var bluec = $("#blueRange").val();
-        var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, blue: bluec, red: redc, green: greenc }] } });
+        var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, b: bluec, r: redc, g: greenc }] } });
         websocket.send(jstr);
     }
-}
-
-
-function getMotoretting() {
-    $.getJSON(getUri() + "/motor_get", function (data) {
-        var steppers = data["steppers"];
-        for (var i = 0; i < steppers.length; i++) {
-            var id = steppers[i]["stepperid"];
-            var step = steppers[i]["step"];
-            var dir = steppers[i]["dir"];
-            var power = steppers[i]["enable"];
-            var stepin = steppers[i]["step_inverted"];
-            var dirin = steppers[i]["dir_inverted"];
-            var powerin = steppers[i]["enable_inverted"];
-            var max_pos = steppers[i]["max_pos"];
-            var curpos = steppers[i]["position"];
-
-            if (id == 0) {
-                $("#steppina").val(step);
-                $("#steppinainvert").attr('checked', stepin);
-                $("#dirpina").val(dir);
-                $("#dirpinainvert").attr('checked', dirin);
-                $("#powerpina").val(power);
-                $("#powerpinainvert").attr('checked', powerin);
-                $("#posa_max").html(max_pos);
-                $("#posa").html(curpos);
-            }
-            else if (id == 1) {
-                $("#steppinx").val(step);
-                $("#steppinxinvert").attr('checked', stepin);
-                $("#dirpinx").val(dir);
-                $("#dirpinxinvert").attr('checked', dirin);
-                $("#powerpinx").val(power);
-                $("#powerpinxinvert").attr('checked', powerin);
-                $("#posx_max").html(max_pos);
-                $("#posx").html(curpos);
-            }
-            else if (id == 2) {
-                $("#steppiny").val(step);
-                $("#steppinyinvert").attr('checked', stepin);
-                $("#dirpiny").val(dir);
-                $("#dirpinyinvert").attr('checked', dirin);
-                $("#powerpiny").val(power);
-                $("#powerpinyinvert").attr('checked', powerin);
-                $("#posy_max").html(max_pos);
-                $("#posy").html(curpos);
-            }
-            else if (id == 3) {
-                $("#steppinz").val(step);
-                $("#steppinzinvert").attr('checked', stepin);
-                $("#dirpinz").val(dir);
-                $("#dirpinzinvert").attr('checked', dirin);
-                $("#powerpinz").val(power);
-                $("#powerpinzinvert").attr('checked', powerin);
-                $("#posz_max").html(max_pos);
-                $("#posz").html(curpos);
-            }
-        }
-    });
-}
-
-function setMotorSettings() {
-    var sa = $("#steppina").val();
-    var da = $("#dirpina").val();
-    var ea = $("#powerpina").val();
-    var sai = $("#steppinainvert:checked").val() ? 1 : 0;
-    var dai = $("#dirpinainvert:checked").val() ? 1 : 0;
-    var eai = $("#powerpinainvert:checked").val() ? 1 : 0;
-
-    var sx = $("#steppinx").val();
-    var dx = $("#dirpinx").val();
-    var ex = $("#powerpinx").val();
-    var sxi = $("#steppinxinvert:checked").val() ? 1 : 0;
-    var dxi = $("#dirpinxinvert:checked").val() ? 1 : 0;
-    var exi = $("#powerpinxinvert:checked").val() ? 1 : 0;
-
-    var sy = $("#steppiny").val();
-    var dy = $("#dirpiny").val();
-    var ey = $("#powerpiny").val();
-    var syi = $("#steppinyinvert:checked").val() ? 1 : 0;
-    var dyi = $("#steppinyinvert:checked").val() ? 1 : 0;
-    var eyi = $("#powerpinyinvert:checked").val() ? 1 : 0;
-
-    var sz = $("#steppinz").val();
-    var dz = $("#dirpinz").val();
-    var ez = $("#powerpinz").val();
-    var szi = $("#steppinzinvert:checked").val() ? 1 : 0;
-    var dzi = $("#dirpinzinvert:checked").val() ? 1 : 0;
-    var ezi = $("#powerpinzinvert:checked").val() ? 1 : 0;
-
-    var jstr = JSON.stringify(
-        {
-            motor:
-            {
-                steppers: [
-                    { stepperid: 0, step: sa, dir: da, enable: ea, step_inverted: sai, dir_inverted: dai, enable_inverted: eai },
-                    { stepperid: 1, step: sx, dir: dx, enable: ex, step_inverted: sxi, dir_inverted: dxi, enable_inverted: exi },
-                    { stepperid: 2, step: sy, dir: dy, enable: ey, step_inverted: syi, dir_inverted: dyi, enable_inverted: eyi },
-                    { stepperid: 3, step: sz, dir: dz, enable: ez, step_inverted: szi, dir_inverted: dzi, enable_inverted: ezi },
-                ]
-            }
-        });
-    post(jstr, "/motor_set");
-}
-
-function setMotorRangeCalibration(min, id) {
-    var jstr = "";
-    if (min == 0) {
-        jstr = JSON.stringify(
-            {
-                motor:
-                {
-                    steppers: [
-                        { stepperid: id, min_pos: 0 }
-                    ]
-                }
-            });
-    }
-    else if (min == 1) {
-        jstr = JSON.stringify(
-            {
-                motor:
-                {
-                    steppers: [
-                        { stepperid: id, max_pos: 0 }
-                    ]
-                }
-            });
-    }
-    else {
-        jstr = JSON.stringify(
-            {
-                motor:
-                {
-                    steppers: [
-                        { stepperid: id, max_pos: 0, min_pos: 0 }
-                    ]
-                }
-            });
-    }
-    post(jstr, "/motor_setcalibration");
-    getMotoretting();
 }
 
 var motorspeeds = [-160000, -80000, -8000, -4000, -2000, -1000, -500, -200, -100, -50, -20, -10, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 80000, 160000];
@@ -424,27 +216,6 @@ function updateMotors() {
             }
         });
     websocket.send(jstr);
-}
-
-function laserget() {
-    $.getJSON(getUri() + "/laser_get", function (data) {
-        var l1 = data["LASER1pin"];
-        var l2 = data["LASER2pin"];
-        var l3 = data["LASER3pin"];
-        $("#laser1pin").val(l1);
-        $("#laser2pin").val(l2);
-        $("#laser3pin").val(l3);
-    });
-}
-
-function setLaserPin(laserid) {
-    var pin = $('#laser' + laserid + 'pin').val();
-    var jstr = JSON.stringify(
-        {
-            LASERid: laserid,
-            LASERpin: pin
-        });
-    post(jstr, "/laser_set");
 }
 
 

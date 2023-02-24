@@ -2,7 +2,6 @@
 #include "ArduinoJson.h"
 //#include <String.h>
 #include "../wifi/WifiController.h"
-#include "LaserPins.h"
 #include "../../Module.h"
 #include "../config/ConfigController.h"
 
@@ -10,7 +9,6 @@ namespace RestApi
 {
     void Laser_act();
     void Laser_get();
-    void Laser_set();
 };
 
 class LaserController : public Module
@@ -22,7 +20,6 @@ public:
     ~LaserController();
 
     bool isBusy;
-    LaserPins pins;
     
     int LASER_val_1 = 0;
     int LASER_val_2 = 0;
@@ -58,7 +55,7 @@ public:
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(DynamicJsonDocument  ob) override;
-    int set(DynamicJsonDocument  ob) override;
+
     DynamicJsonDocument get(DynamicJsonDocument  ob) override;
     void setup() override;
     void loop() override;

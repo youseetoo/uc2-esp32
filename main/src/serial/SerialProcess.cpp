@@ -73,8 +73,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	/*
 	 enabling/disabling modules
 	 */
-	if (task == modules_set_endpoint)
-		serialize(moduleController.set(jsonDocument));
 	if (task == modules_get_endpoint)
 		serialize(moduleController.get());
 
@@ -102,10 +100,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		{
 			serialize(moduleController.get(AvailableModules::state)->act(jsonDocument));
 		}
-		if (task == state_set_endpoint)
-		{
-			serialize(moduleController.get(AvailableModules::state)->set(jsonDocument));
-		}
 		if (task == state_get_endpoint)
 		{
 			serialize(moduleController.get(AvailableModules::state)->get(jsonDocument));
@@ -119,10 +113,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		if (task == motor_act_endpoint)
 		{
 			serialize(moduleController.get(AvailableModules::motor)->act(jsonDocument));
-		}
-		if (task == motor_set_endpoint)
-		{
-			serialize(moduleController.get(AvailableModules::motor)->set(jsonDocument));
 		}
 		if (task == motor_get_endpoint)
 		{
@@ -138,10 +128,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		{
 			serialize(moduleController.get(AvailableModules::home)->act(jsonDocument));
 		}
-		if (task == home_set_endpoint)
-		{
-			serialize(moduleController.get(AvailableModules::home)->set(jsonDocument));
-		}
 		if (task == home_get_endpoint)
 		{
 			serialize(moduleController.get(AvailableModules::home)->get(jsonDocument));
@@ -155,8 +141,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == dac_act_endpoint)
 			serialize(moduleController.get(AvailableModules::dac)->act(jsonDocument));
-		if (task == dac_set_endpoint)
-			serialize(moduleController.get(AvailableModules::dac)->set(jsonDocument));
 		if (task == dac_get_endpoint)
 			serialize(moduleController.get(AvailableModules::dac)->get(jsonDocument));
 	}
@@ -167,8 +151,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == laser_act_endpoint)
 			serialize(moduleController.get(AvailableModules::laser)->act(jsonDocument));
-		if (task == laser_set_endpoint)
-			serialize(moduleController.get(AvailableModules::laser)->set(jsonDocument));
 		if (task == laser_get_endpoint)
 			serialize(moduleController.get(AvailableModules::laser)->get(jsonDocument));
 	}
@@ -179,8 +161,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == analogout_act_endpoint)
 			serialize(moduleController.get(AvailableModules::analogout)->act(jsonDocument));
-		if (task == analogout_set_endpoint)
-			serialize(moduleController.get(AvailableModules::analogout)->set(jsonDocument));
 		if (task == analogout_get_endpoint)
 			serialize(moduleController.get(AvailableModules::analogout)->get(jsonDocument));
 	}
@@ -191,8 +171,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == digitalout_act_endpoint)
 			serialize(moduleController.get(AvailableModules::digitalout)->act(jsonDocument));
-		if (task == digitalout_set_endpoint)
-			serialize(moduleController.get(AvailableModules::digitalout)->set(jsonDocument));
 		if (task == digitalout_get_endpoint)
 			serialize(moduleController.get(AvailableModules::digitalout)->get(jsonDocument));
 	}
@@ -203,8 +181,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == digitalin_act_endpoint)
 			serialize(moduleController.get(AvailableModules::digitalin)->act(jsonDocument));
-		if (task == digitalin_set_endpoint)
-			serialize(moduleController.get(AvailableModules::digitalin)->set(jsonDocument));
 		if (task == digitalin_get_endpoint)
 			serialize(moduleController.get(AvailableModules::digitalin)->get(jsonDocument));
 	}
@@ -215,8 +191,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == ledarr_act_endpoint)
 			serialize(moduleController.get(AvailableModules::led)->act(jsonDocument));
-		if (task == ledarr_set_endpoint)
-			serialize(moduleController.get(AvailableModules::led)->set(jsonDocument));
 		if (task == ledarr_get_endpoint)
 			serialize(moduleController.get(AvailableModules::led)->get(jsonDocument));
 	}
@@ -228,8 +202,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == readanalogin_act_endpoint)
 			serialize(moduleController.get(AvailableModules::analogin)->act(jsonDocument));
-		if (task == readanalogin_set_endpoint)
-			serialize(moduleController.get(AvailableModules::analogin)->set(jsonDocument));
 		if (task == readanalogin_get_endpoint)
 			serialize(moduleController.get(AvailableModules::analogin)->get(jsonDocument));
 	}
@@ -241,16 +213,12 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{
 		if (task == PID_act_endpoint)
 			serialize(moduleController.get(AvailableModules::pid)->act(jsonDocument));
-		if (task == PID_set_endpoint)
-			serialize(moduleController.get(AvailableModules::pid)->set(jsonDocument));
 		if (task == PID_get_endpoint)
 			serialize(moduleController.get(AvailableModules::pid)->get(jsonDocument));
 	}
 
 	if (moduleController.get(AvailableModules::analogJoystick) != nullptr)
 	{
-		if (task == analog_joystick_set_endpoint)
-			serialize(moduleController.get(AvailableModules::analogJoystick)->set(jsonDocument));
 		if (task == analog_joystick_get_endpoint)
 			serialize(moduleController.get(AvailableModules::analogJoystick)->get(jsonDocument));
 	}
@@ -259,32 +227,34 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	{	// {"task":"/wifi/scan"}
 		serialize(RestApi::scanWifi());
 	}
-	if (task == connectwifi_endpoint)
+	if (task == connectwifi_endpoint&& moduleController.get(AvailableModules::wifi) != nullptr)
 	{ 	// {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
-		WifiController::connect(jsonDocument);
+		WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+		w->connect(jsonDocument);
 	}
 	if (task == reset_nv_flash_endpoint)
 	{
 		RestApi::resetNvFLash();
 	}
-	if (task == bt_connect_endpoint)
+	if (task == bt_connect_endpoint && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 		String mac = jsonDocument["mac"];
 		int ps = jsonDocument["psx"];
-
+		BtController * bt = (BtController*) moduleController.get(AvailableModules::btcontroller);
 		if (ps == 0)
 		{
-			BtController::setMacAndConnect(mac);
+			bt->setMacAndConnect(mac);
 		}
 		else
 		{
-			BtController::connectPsxController(mac, ps);
+			bt->connectPsxController(mac, ps);
 		}
 	}
-	if (task == bt_scan_endpoint)
+	if (task == bt_scan_endpoint && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
-		BtController::scanForDevices(jsonDocument);
+		BtController * bt = (BtController*) moduleController.get(AvailableModules::btcontroller);
+		bt->scanForDevices(jsonDocument);
 	}
 
 	jsonDocument.clear();

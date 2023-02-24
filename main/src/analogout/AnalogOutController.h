@@ -7,13 +7,11 @@
 #include "soc/ledc_reg.h"
 #include "../wifi/WifiController.h"
 #include "../../Module.h"
-#include "AnalogOutPins.h"
 
 namespace RestApi
 {
     void AnalogOut_act();
     void AnalogOut_get();
-    void AnalogOut_set();
 };
 
 /*
@@ -24,7 +22,6 @@ class AnalogOutController : public Module
 public:
     AnalogOutController();
     ~AnalogOutController();
-    AnalogOutPins pins;
     bool DEBUG = false;
 #define J1772_LEDC_TIMER LEDC_TIMER_0
 #define J1772_LEDC_CHANNEL LEDC_CHANNEL_0
@@ -51,7 +48,6 @@ public:
     int PWM_CHANNEL_analogout_3 = 6;
 
     int act(DynamicJsonDocument  jsonDocument) override;
-    int set(DynamicJsonDocument  jsonDocument) override;
     DynamicJsonDocument get(DynamicJsonDocument  jsonDocument) override;
 
     void setup() override;

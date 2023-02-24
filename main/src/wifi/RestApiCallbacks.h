@@ -6,7 +6,6 @@
 #include "Update.h"
 #include "../config/ConfigController.h"
 #include "../wifi/WifiController.h"
-#include "../bt/BtController.h"
 #include <esp_log.h>
 #include "../dac/DacController.h"
 #include "../analogin/AnalogInController.h"

@@ -42,19 +42,39 @@ namespace RestApi
         output[]
     */
     void connectToWifi();
+
+    void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+    void getIndexPage();
+    void getCSS();
+    void getjquery();
+    void getjs();
+    void getOtaIndex();
 };
 
-namespace WifiController
-{
+void processWebSocketTask(void * p);
+void processHttpTask(void * p);
 
+
+
+class WifiController : public Module
+{
+    private:
+    WebServer *server = nullptr;
+	WebSocketsServer *webSocket = nullptr;
+	WifiConfig *config;
+    TaskHandle_t httpTaskHandel;
+    TaskHandle_t socketTaskHandel;
+	
+    public:
+    WifiController();
+    ~WifiController();
     void createAp(String ssid, String password);
+    void createTasks();
 
     /* data */
 
     void setup_routing();
-    void handelMessages();
-    void createJsonDoc();
-    void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length);
+    
     void sendJsonWebSocketMsg(DynamicJsonDocument doc);
     void begin();
     void restartWebServer();
@@ -65,11 +85,12 @@ namespace WifiController
     String getSsid();
     String getPw();
     bool getAp();
-    void setup();
+    void setup() override;
+    void loop() override;
+    int act(DynamicJsonDocument doc) override;
+    DynamicJsonDocument get(DynamicJsonDocument doc) override;
     WebServer *getServer();
-    void getIndexPage();
-    void getCSS();
-    void getjquery();
-    void getjs();
+    WebSocketsServer * getSocket();
+    
     DynamicJsonDocument connect(DynamicJsonDocument doc);
-}
+};

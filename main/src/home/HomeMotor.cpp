@@ -17,12 +17,18 @@ namespace RestApi
 	{
 		serialize(moduleController.get(AvailableModules::home)->get(deserialize()));
 	}
+}
 
-	void HomeMotor_set()
+void processHomeLoop(void * p)
+{
+	Module * m = moduleController.get(AvailableModules::home);
+	for(;;)
 	{
-		serialize(moduleController.get(AvailableModules::home)->set(deserialize()));
+		m->loop();
+		vTaskDelay(1 / portTICK_PERIOD_MS);
 	}
 }
+
 /*
 Handle REST calls to the HomeMotor module
 */
@@ -117,10 +123,6 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	return doc;
 }
 
-int HomeMotor::set(DynamicJsonDocument ob)
-{
-	return 1;
-}
 
 void sendHomeDone(int axis){
 	// send home done to client
@@ -220,6 +222,7 @@ void HomeMotor::setup()
 	log_i("HomeMotor setup");
 	for (int i = 0; i < 4; i++)
 	{
-		hdata[i] = new HomeData();
+    	hdata[i] = new HomeData ();
 	}
+	xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 }

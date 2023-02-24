@@ -1,29 +1,5 @@
 #pragma once
 //using a key for preferences allows only a length of 15 chars
-static const PROGMEM  char * keyMotorXStepPin  = "motXstp";
-static const PROGMEM  char * keyMotorXStepPinInverted  = "motXstp_inv";
-static const PROGMEM  char * keyMotorXDirPin = "motXdir";
-static const PROGMEM  char * keyMotorXDirPinInverted = "motXdir_inv";
-static const PROGMEM  char * keyMotorYStepPin = "motYstp";
-static const PROGMEM  char * keyMotorYStepPinInverted = "motYstp_inv";
-static const PROGMEM  char * keyMotorYDirPin = "motYdir";
-static const PROGMEM  char * keyMotorYDirPinInverted = "motYdir_inv";
-static const PROGMEM  char * keyMotorZStepPin = "motZstp";
-static const PROGMEM  char * keyMotorZStepPinInverted = "motZstp_inv";
-static const PROGMEM  char * keyMotorZDirPin = "motZdir";
-static const PROGMEM  char * keyMotorZDirPinInverted = "motZdir_inv";
-static const PROGMEM char * keyMotorAStepPin = "motAstp";
-static const PROGMEM char * keyMotorAStepPinInverted = "motAstp_inv";
-static const PROGMEM char * keyMotorADirPin = "motAdir";
-static const PROGMEM char * keyMotorADirPinInverted = "motAdir_inv";
-static const PROGMEM char * keyMotorEnableX = "motEnableX";
-static const PROGMEM char * keyMotorEnableXinverted = "motEnableX_inv";
-static const PROGMEM char * keyMotorEnableY = "motEnableY";
-static const PROGMEM char * keyMotorEnableYinverted = "motEnableY_inv";
-static const PROGMEM char * keyMotorEnableZ = "motEnableZ";
-static const PROGMEM char * keyMotorEnableZinverted = "motEnableZ_inv";
-static const PROGMEM char * keyMotorEnableA = "motEnableA";
-static const PROGMEM char * keyMotorEnableAinverted = "motEnableA_inv";
 
 static const PROGMEM char * keyLEDPin = "ledArrPin";
 static const PROGMEM char * keyLEDCount = "ledArrNum";

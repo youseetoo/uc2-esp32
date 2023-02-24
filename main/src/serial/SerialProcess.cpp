@@ -78,10 +78,10 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 	if (task == modules_get_endpoint)
 		serialize(moduleController.get());
 
-	/*
-	Handle BTController
 	
-	if (moduleController.get(AvailableModules::btController) != nullptr)
+	//Handle BTController
+	/*
+	if (moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		if (task == bt_scan_endpoint) // start for Bluetooth Devices
 			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_startScan(jsonDocument));
@@ -93,7 +93,6 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_remove(jsonDocument));
 	}
 	*/
-
 	/*
 	Return State
 	*/

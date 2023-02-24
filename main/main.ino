@@ -37,6 +37,7 @@ void setup()
 
 	// initialize the bluetooth controller
 	BtController::setup();
+	
 
 	// start with the wifi (either AP or connecting to wifi)
 	WifiController::begin();

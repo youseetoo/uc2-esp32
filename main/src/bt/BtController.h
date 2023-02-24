@@ -37,7 +37,7 @@ namespace BtController //class BtController : public Module
     void setup();// override;
     void loop();// override;
     DynamicJsonDocument scanForDevices(DynamicJsonDocument  doc);
-    
+    void removeAllPairedDevices();
     void setMacAndConnect(String m);
     void connectPsxController(String mac, int type);
     void removePairedDevice(String pairedmac);

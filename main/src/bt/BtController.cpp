@@ -68,12 +68,15 @@ namespace BtController
         //BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
         //BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
         //BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-
+        // always remove all the devices?
+        removeAllPairedDevices(); 
+        
         // get the bluetooth config 
         String m = Config::getPsxMac();
         int type = Config::getPsxControllerType();
 
         if(m.isEmpty()){
+            log_d("Using default PSx settings");
             m = PIN_PS4_MAC_DEF;
             type = PIN_PS4_ENUM_DEF;
         }
@@ -83,6 +86,8 @@ namespace BtController
         {
             // initiate either PS3 or PS4 controller
             log_i("Connecting to PSX controller");
+            log_i("Settings: Mac %s, type %i", m, type);
+            Serial.println(m);
             psx.setup(m,type);
         }
         
@@ -254,5 +259,32 @@ namespace BtController
         BTAddress * add = new BTAddress(pairedmac.c_str());
         esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t*)add->getNative());
         log_i("paired device removed:%s", tError == ESP_OK);
+    }
+
+    void removeAllPairedDevices(){
+        int count = esp_bt_gap_get_bond_device_num();
+        if (!count)
+        {
+            log_i("No bonded device found.");
+        }
+        else
+        {
+            log_i("Bonded device count: %d", count);
+            if (PAIR_MAX_DEVICES < count)
+            {
+                count = PAIR_MAX_DEVICES;
+                log_i("Reset bonded device count: %d", count);
+            }
+            esp_bd_addr_t pairedDeviceBtAddr[PAIR_MAX_DEVICES];
+            esp_err_t tError = esp_bt_gap_get_bond_device_list(&count, pairedDeviceBtAddr);
+            if (ESP_OK == tError)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    log_i("Removing bonded device: %i", pairedDeviceBtAddr[i], bda_str, 18);
+                    esp_err_t tError = esp_bt_gap_remove_bond_device(pairedDeviceBtAddr[i]);
+                }
+            }
+        }
     }
 }

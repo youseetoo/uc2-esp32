@@ -3,7 +3,7 @@
 {"task":"/modules_get"}
 {"task":"/modules_set", "modules" : {"led" : 1, "motor": 1, "slm" : 0, "home":1, "analogin" : 0, "pid" : 0, "laser" : 1, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
 {"task":"/modules_set", "modules" : {"led" : 0, "motor": 1, "slm" : 0, "home":0, "analogin" : 0, "pid" : 0, "laser" : 0, "dac" : 0, "analogout" : 0, "digitalout" : 0, "digitalin" : 1, "scanner" : 0}}
-
+{"task":"/state_get"}
 # DAC
 {"task":"/dac_act_fct", "dac_channel":1, "frequency":1000, "offset":0, "amplitude":1}
 
@@ -27,7 +27,7 @@
     {
         "steppers": [
             { "stepperid": 1, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0},
-            { "stepperid": 2, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0}
+            { "stepperid": 3, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0}
         ]
     }
 }

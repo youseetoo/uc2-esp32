@@ -292,8 +292,8 @@ void WifiController::loop()
 {
 }
 
-int WifiController::act(DynamicJsonDocument doc) {}
-DynamicJsonDocument WifiController::get(DynamicJsonDocument doc) {}
+int WifiController::act(DynamicJsonDocument doc) {return 1;}
+DynamicJsonDocument WifiController::get(DynamicJsonDocument doc) {return doc;}
 
 void WifiController::restartWebServer()
 {

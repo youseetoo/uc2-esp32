@@ -114,7 +114,7 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_1, digitalout_val_1);
-			Serial.print("digitalout_PIN ");
+			Serial.print("DIGITAL_OUT ");
 			Serial.println(pinConfig.DIGITAL_OUT_1);
 		}
 	}
@@ -131,7 +131,7 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_2, digitalout_val_2);
-			Serial.print("digitalout_PIN ");
+			Serial.print("DIGITAL_OUT ");
 			Serial.println(pinConfig.DIGITAL_OUT_2);
 		}
 	}
@@ -148,7 +148,7 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_3, digitalout_val_3);
-			Serial.print("digitalout_PIN ");
+			Serial.print("DIGITAL_OUT ");
 			Serial.println(pinConfig.DIGITAL_OUT_3);
 		}
 	}
@@ -221,27 +221,27 @@ void DigitalOutController::loop(){
 
 	// run trigger table based on previously set parameters
 	if (is_digital_trigger_1){
-		digitalWrite(pins.digitalout_PIN_1, HIGH);
-		//log_i("digitalout_PIN_1 HIGH");
+		digitalWrite(pinConfig.DIGITAL_OUT_1, HIGH);
+		//log_i("DIGITAL_OUT_1 HIGH");
 		delay(digitalout_trigger_delay_1_on);
-		digitalWrite(pins.digitalout_PIN_1, LOW);
-		//log_i("digitalout_PIN_1 LOW");
+		digitalWrite(pinConfig.DIGITAL_OUT_1, LOW);
+		//log_i("DIGITAL_OUT_1 LOW");
 		delay(digitalout_trigger_delay_1_off);
 	}
 	if (is_digital_trigger_2){
-		digitalWrite(pins.digitalout_PIN_2, HIGH);
-		//log_i("digitalout_PIN_2 HIGH");
+		digitalWrite(pinConfig.DIGITAL_OUT_2, HIGH);
+		//log_i("DIGITAL_OUT_2 HIGH");
 		delay(digitalout_trigger_delay_2_on);
-		digitalWrite(pins.digitalout_PIN_2, LOW);
-		//log_i("digitalout_PIN_2 LOW");
+		digitalWrite(pinConfig.DIGITAL_OUT_2, LOW);
+		//log_i("DIGITAL_OUT_2 LOW");
 		delay(digitalout_trigger_delay_2_off);
 	}
 	if (is_digital_trigger_3){
-		digitalWrite(pins.digitalout_PIN_3, HIGH);
-		//log_i("digitalout_PIN_3 HIGH");
+		digitalWrite(pinConfig.DIGITAL_OUT_3, HIGH);
+		//log_i("DIGITAL_OUT_3 HIGH");
 		delay(digitalout_trigger_delay_3_on);
-		digitalWrite(pins.digitalout_PIN_3, LOW);
-		//log_i("digitalout_PIN_3 LOW");
+		digitalWrite(pinConfig.DIGITAL_OUT_3, LOW);
+		//log_i("DIGITAL_OUT_3 LOW");
 		delay(digitalout_trigger_delay_3_off);
 	}
 

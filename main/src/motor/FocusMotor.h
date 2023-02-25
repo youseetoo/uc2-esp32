@@ -10,6 +10,7 @@ namespace RestApi
 {
 	void FocusMotor_act();
 	void FocusMotor_get();
+	void FocusMotor_set();
 	void FocusMotor_setCalibration();
 };
 
@@ -61,6 +62,7 @@ public:
 
 	int act(DynamicJsonDocument  ob) override;
 	DynamicJsonDocument get(DynamicJsonDocument ob) override;
+	int set(DynamicJsonDocument doc);
 	void setup() override;
 	void loop() override;
 	void stopAllDrives();

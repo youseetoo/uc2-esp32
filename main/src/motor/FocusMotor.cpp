@@ -58,6 +58,25 @@ FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
 int FocusMotor::act(DynamicJsonDocument doc)
 {
+
+	// only enable/disable motors
+	if (doc.containsKey(key_isen))
+	{
+		for (int i = 0; i < steppers.size(); i++)
+		{
+			// turn on/off holding current
+			if (doc[key_isen]){
+				steppers[i]->enableOutputs();
+			}
+			else{
+				steppers[i]->disableOutputs();
+			}
+
+		}
+		return 1;
+	}
+
+	// do everything else
 	if (doc.containsKey(key_motor))
 	{
 		if (doc[key_motor].containsKey(key_steppers))
@@ -101,50 +120,6 @@ void FocusMotor::startStepper(int i)
 	data[i]->stopped = false;
 }
 
-DynamicJsonDocument FocusMotor::set(DynamicJsonDocument doc)
-{
-	log_i("set motor");
-
-	// only enable/disable motors
-	if (doc.containsKey(key_isen))
-	{
-		for (int i = 0; i < steppers.size(); i++)
-		{
-			// turn on/off holding current
-			if (doc[key_isen]){
-				steppers[i]->enableOutputs();
-			}
-			else{
-				steppers[i]->disableOutputs();
-			}
-
-		}
-	}
-	// return all information
-	if (doc.containsKey(key_motor))
-	{
-		if (doc[key_motor].containsKey(key_steppers))
-		{
-
-			for (int i = 0; i < doc[key_motor][key_steppers].size(); i++)
-			{
-				Stepper s = static_cast<Stepper>(doc[key_motor][key_steppers][i][key_stepperid]);
-				pins[s]->DIR = doc[key_motor][key_steppers][i][key_dirpin];
-				pins[s]->STEP = doc[key_motor][key_steppers][i][key_steppin];
-				pins[s]->ENABLE = doc[key_motor][key_steppers][i][key_enablepin];
-				pins[s]->direction_inverted = doc[key_motor][key_steppers][i][key_dirpin_inverted];
-				pins[s]->step_inverted = doc[key_motor][key_steppers][i][key_steppin_inverted];
-				pins[s]->enable_inverted = doc[key_motor][key_steppers][i][key_enablepin_inverted];
-				pins[s]->current_position = doc[key_motor][key_steppers][i][key_position];
-				pins[s]->max_position = doc[key_motor][key_steppers][i][key_max_position];
-				pins[s]->min_position = doc[key_motor][key_steppers][i][key_min_position];
-			}
-			Config::setMotorPinConfig(pins);
-			setup();
-		}
-	}
-	return 1;
-}
 
 
 DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
@@ -158,9 +133,9 @@ DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 		for (int i = 0; i < steppers.size(); i++)
 		{
 			// update position and push it to the json
-			pins[i]->current_position = steppers[i]->currentPosition();
+			data[i]->currentPosition = 1;
 			doc[key_motor][key_steppers][i][key_stepperid] = i;
-			doc[key_motor][key_steppers][i][key_position] = pins[i]->current_position;
+			doc[key_motor][key_steppers][i][key_position] = steppers[i]->currentPosition();
 		}
 		return doc;
 	}
@@ -181,10 +156,10 @@ DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 	docin.clear();
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		ob[key_steppers][i][key_stepperid] = i;
-		ob[key_steppers][i][key_position] = data[i]->currentPosition;
+		doc[key_steppers][i][key_stepperid] = i;
+		doc[key_steppers][i][key_position] = data[i]->currentPosition;
 	}
-	return ob;
+	return doc;
 }
 
 void FocusMotor::setup()
@@ -213,7 +188,7 @@ void FocusMotor::setup()
 		steppers[i]->enableOutputs();
 		steppers[i]->runToNewPosition(-10);
 		steppers[i]->runToNewPosition(10);
-		steppers[i]->setCurrentPosition(pins[i]->current_position);
+		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 		//steppers[i]->enableOutputs();
 		// steppers[i]->disableOutputs();
 	}

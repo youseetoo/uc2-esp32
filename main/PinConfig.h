@@ -3,6 +3,7 @@
 // default Pin structure
 struct PinConfig
 {
+    String pindefName = "pindef";
     // motor x direction pin
     int MOTOR_X_DIR = 0;
     // motor x step pin
@@ -24,9 +25,9 @@ struct PinConfig
     // motor power pin is inverted
     bool MOTOR_ENABLE_INVERTED = false;
 
-    // led control pin
+    // LED_PINcontrol pin
     int LED_PIN = 0;
-    // led count from the strip
+    // LED_PINcount from the strip
     int LED_COUNT = 0;
 
     // anlog joystick x pin
@@ -78,6 +79,7 @@ struct PinConfig
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
+    String pindefName = "XYZ_MOTOR_JOYSTICK";
     int MOTOR_X_DIR = 16;
     int MOTOR_X_STEP = 26;
     int MOTOR_Y_DIR = 27;
@@ -96,13 +98,15 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
 
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 {
+    String pindefName = "XYZ_MOTOR_ENDSTOP_JOYSTICK";
     int PIN_DEF_END_X = 12;
     int PIN_DEF_END_Y = 13;
     int PIN_DEF_END_Z = 5;
 };
 
-struct X_MOTOR_64LED : PinConfig
+struct X_MOTOR_64LED_PIN: PinConfig
 {
+    String pindefName = "X_Motor_64LED";
     int MOTOR_X_DIR = 21;
     int MOTOR_X_STEP = 19;
     int MOTOR_ENABLE = 18;
@@ -114,6 +118,7 @@ struct X_MOTOR_64LED : PinConfig
 
 struct HoLiSheet : PinConfig
 {
+    String pindefName = "HoLiSheet";
     int MOTOR_Z_DIR = GPIO_NUM_14;
     int MOTOR_Z_STEP = GPIO_NUM_17;
     int MOTOR_ENABLE = GPIO_NUM_12;
@@ -136,6 +141,7 @@ struct HoLiSheet : PinConfig
 
 struct UC2_1 : PinConfig
 {
+    String pindefName = "UC2_1";
     // UC2 STandalone V1
     int MOTOR_A_DIR = GPIO_NUM_21;
     int MOTOR_X_DIR = GPIO_NUM_33;
@@ -165,6 +171,8 @@ struct UC2_1 : PinConfig
 
 struct UC2_2 : PinConfig
 {
+    String pindefName = "UC2_2";
+
     // UC2 STandalone V2
     int MOTOR_A_DIR = GPIO_NUM_21;
     int MOTOR_X_DIR = GPIO_NUM_33;
@@ -181,8 +189,8 @@ struct UC2_2 : PinConfig
     int LASER_2 = GPIO_NUM_4;
     int LASER_3 = GPIO_NUM_15;
 
-    int LED = GPIO_NUM_32;
-    int LED_NUM = 25;
+    int LED_PIN= GPIO_NUM_32;
+    int LED_COUNT = 64;
 
     int PIN_DEF_END_X = GPIO_NUM_34;
     int PIN_DEF_END_Y = GPIO_NUM_35;
@@ -190,10 +198,14 @@ struct UC2_2 : PinConfig
 
     String PSX_MAC = "1a:2b:3c:01:01:01";
     int PSX_CONTROLLER_TYPE = 2;
+    boolean enableBlueTooth = true;
+
+
 };
 
 struct WEMOS : PinConfig
 {
+    String pindefName = "WEMOS";
     // ESP32-WEMOS D1 R32
     int MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
     int MOTOR_X_DIR = GPIO_NUM_16;
@@ -210,8 +222,8 @@ struct WEMOS : PinConfig
     int LASER_2 = GPIO_NUM_19;
     int LASER_3 = 0; // GPIO_NUM_21
 
-    int LED = GPIO_NUM_4;
-    int LED_NUM = 64;
+    int LED_PIN= GPIO_NUM_4;
+    int LED_COUNT = 64;
 
     int PIN_DEF_END_X = GPIO_NUM_13;
     int PIN_DEF_END_Y = 0; // GPIO_NUM_5;
@@ -222,4 +234,4 @@ struct WEMOS : PinConfig
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static XYZ_MOTOR_ENDSTOP_JOYSTICK pinConfig;
+static UC2_2 pinConfig;

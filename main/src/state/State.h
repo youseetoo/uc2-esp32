@@ -5,6 +5,7 @@
 #if defined IS_PS3 || defined IS_PS4
 #endif
 #include "../wifi/WifiController.h"
+#include "../config/ConfigController.h"
 
 namespace RestApi
 {

@@ -65,7 +65,7 @@ DynamicJsonDocument DigitalInController::get(DynamicJsonDocument jsonDocument)
 
 void DigitalInController::setup()
 {
-	Serial.println("Setting Up digitalin");
+	log_i("Setting Up digitalin");
 	/* setup the output nodes and reset them to 0*/
 	pinMode(pinConfig.DIGITAL_IN_1, INPUT_PULLDOWN);
 	pinMode(pinConfig.DIGITAL_IN_2, INPUT_PULLDOWN);

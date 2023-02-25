@@ -101,7 +101,7 @@ DynamicJsonDocument State::get(DynamicJsonDocument docin)
 		doc["identifier_author"] = identifier_author;
 		doc["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
 		doc["configIsSet"] = config_set; // TODO: Implement! 
-		doc["pindef"] = "pindef.h";
+		doc["pindef"] = pinConfig.pindefName;
 	}
 	return doc;
 }

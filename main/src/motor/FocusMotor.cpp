@@ -87,6 +87,10 @@ int FocusMotor::act(DynamicJsonDocument doc)
 
 				Stepper s = static_cast<Stepper>(doc[key_motor][key_steppers][i][key_stepperid]);
 
+				if (doc[key_motor][key_steppers][i].containsKey(key_speed))
+					data[s]->speed = doc[key_motor][key_steppers][i][key_speed];
+				else
+					data[s]->speed = 0;
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_position))
 					data[s]->targetPosition = doc[key_motor][key_steppers][i][key_position];
@@ -139,19 +143,11 @@ int FocusMotor::act(DynamicJsonDocument doc)
 					stopStepper(s);
 				else
 				{
-
 					startStepper(s);
 				}
 			}
 		}
-	}{"task":"/motor_act",
-    "motor":
-    {
-        "steppers": [
-            { "stepperid": 2, "position": -1000, "speed": 1000, "isabs": 0, "isaccel":0}
-        ]
-    }
-}
+	}
 	return 1;
 }
 
@@ -164,9 +160,9 @@ void FocusMotor::startStepper(int i)
 		// absolute position coordinates
 		steppers[i]->moveTo(data[i]->targetPosition);
 	}
-	else if(!data[i]->isforever)
+	else if (!data[i]->isforever)
 	{
-		//relative coordinates
+		// relative coordinates
 		steppers[i]->move(data[i]->targetPosition);
 	}
 
@@ -246,55 +242,61 @@ void FocusMotor::setup()
 	}
 	disableEnablePin(0);
 	if (pinConfig.MOTOR_A_DIR > 0)
-		xTaskCreate(&driveMotorALoop, "motor_task_A", 1024, NULL, 5, NULL);
+		xTaskCreate(&driveMotorALoop, "motor_task_A", 4096, NULL, 5, NULL);
 	if (pinConfig.MOTOR_X_DIR > 0)
-		xTaskCreate(&driveMotorXLoop, "motor_task_X", 1024, NULL, 5, NULL);
+		xTaskCreate(&driveMotorXLoop, "motor_task_X", 4096, NULL, 5, NULL);
 	if (pinConfig.MOTOR_Y_DIR > 0)
-		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 1024, NULL, 5, NULL);
+		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 4096, NULL, 5, NULL);
 	if (pinConfig.MOTOR_Z_DIR > 0)
-		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 1024, NULL, 5, NULL);
+		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 4096, NULL, 5, NULL);
 
-	// xTaskCreate(&sendUpdateToClients, "motor_websocket_task", 2048, NULL, 5, NULL);
+	//xTaskCreate(&sendUpdateToClients, "motor_websocket_task", 2048, NULL, 5, NULL);
 }
 
 void FocusMotor::driveMotorLoop(int stepperid)
 {
-	AccelStepper *s = steppers[stepperid];
-	MotorData *d = data[stepperid];
+	AccelStepper *tSteppers = steppers[stepperid];
+	MotorData *tData = data[stepperid];
+	int arraypos = 0;
 	// log_i("start motor loop:%i", stepperid);
 	for (;;)
 	{
 
-		s->setMaxSpeed(d->maxspeed);
-		if (d->isforever)
+		tSteppers->setMaxSpeed(tData->maxspeed);
+		if (tData->isforever)
 		{
-			s->setSpeed(d->speed);
-			s->runSpeed();
+			tSteppers->setSpeed(tData->speed);
+			tSteppers->runSpeed();
 		}
 		else
 		{
-			if (d->isaccelerated == 1)
+			if (tData->isaccelerated == 1)
 			{
-				s->run();
+				tSteppers->run();
 			}
 			else
 			{
-				s->setSpeed(d->speed);
-				s->runSpeed();
+				tSteppers->setSpeed(tData->speed);
+				tSteppers->runSpeed();
 			}
 			// checks if a stepper is still running
-			if (s->distanceToGo() == 0 && !d->stopped)
+			if (tSteppers->distanceToGo() == 0 && !tData->stopped)
 			{
 				// if not turn it off
 				stopStepper(stepperid);
+
+				sendMotorPos(stepperid, arraypos);
+
+				// initialte a disabling of the motors after the timeout has reached
+				tData->timeLastActive	= millis();
 			}
 		}
-		d->currentPosition = s->currentPosition();
+		tData->currentPosition = tSteppers->currentPosition();
 		vTaskDelay(1 / portTICK_PERIOD_MS);
 	}
 }
 
-//dont use it, it get no longer triggered from modulehandler
+// dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
 {
 
@@ -314,15 +316,24 @@ void FocusMotor::loop()
 
 void FocusMotor::sendMotorPos(int i, int arraypos)
 {
+	DynamicJsonDocument doc(4096);
+	doc[key_steppers][arraypos][key_stepperid] = i;
+	doc[key_steppers][arraypos][key_position] = data[i]->currentPosition;
+	doc[key_steppers][arraypos]["isDone"] = true;
+	arraypos++;
+
 	if (moduleController.get(AvailableModules::wifi) != nullptr)
 	{
 		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
-		DynamicJsonDocument doc(4096);
-		doc[key_steppers][arraypos][key_stepperid] = i;
-		doc[key_steppers][arraypos][key_position] = data[i]->currentPosition;
-		arraypos++;
 		w->sendJsonWebSocketMsg(doc);
 	}
+	// print result - will that work in the case of an xTask?
+	Serial.println("++");
+	serializeJson(doc, Serial);
+	Serial.println();
+	Serial.println("--");
+	
+
 }
 
 void FocusMotor::stopAllDrives()
@@ -336,7 +347,6 @@ void FocusMotor::stopAllDrives()
 
 void FocusMotor::stopStepper(int i)
 {
-	log_i("stop stepper:%i", i);
 	steppers[i]->stop();
 	data[i]->isforever = false;
 	data[i]->speed = 0;

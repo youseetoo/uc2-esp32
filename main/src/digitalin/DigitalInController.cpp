@@ -83,3 +83,4 @@ void DigitalInController::loop()
 	digitalin_val_3 = digitalRead(pinConfig.DIGITAL_IN_3);
 	//log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 }
+

@@ -31,7 +31,6 @@ void sendUpdateToClients(void *p)
 	}
 }
 
-
 void driveMotorXLoop(void *pvParameter)
 {
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -66,13 +65,14 @@ int FocusMotor::act(DynamicJsonDocument doc)
 		for (int i = 0; i < steppers.size(); i++)
 		{
 			// turn on/off holding current
-			if (doc[key_isen]){
+			if (doc[key_isen])
+			{
 				steppers[i]->enableOutputs();
 			}
-			else{
+			else
+			{
 				steppers[i]->disableOutputs();
 			}
-
 		}
 		return 1;
 	}
@@ -84,32 +84,66 @@ int FocusMotor::act(DynamicJsonDocument doc)
 		{
 			for (int i = 0; i < doc[key_motor][key_steppers].size(); i++)
 			{
+
 				Stepper s = static_cast<Stepper>(doc[key_motor][key_steppers][i][key_stepperid]);
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_speed))
 					data[s]->speed = doc[key_motor][key_steppers][i][key_speed];
+				else
+					data[s]->speed = 0;
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_position))
 					data[s]->targetPosition = doc[key_motor][key_steppers][i][key_position];
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_isforever))
 					data[s]->isforever = doc[key_motor][key_steppers][i][key_isforever];
+				else // if not set, set to false
+					data[s]->isforever = false;
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_isabs))
 					data[s]->absolutePosition = doc[key_motor][key_steppers][i][key_isabs];
+				else // we always set absolute position to false if not set
+					data[s]->absolutePosition = false;
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel))
-					data[s]->isaccelerated = doc[key_motor][key_steppers][i][key_isaccel];
+					data[s]->isaccelerated = (bool)doc[key_motor][key_steppers][i][key_isaccel];
+				else // we always switch off acceleration if not set
+					data[s]->isaccelerated = false;
 
-				log_i("data %i speed:%i steps %i forever:%i", s, data[s]->speed, data[s]->targetPosition, data[s]->isforever);
-				
-				if (doc[key_motor][key_steppers][i].containsKey(key_isstop)){
-					log_i("stop motor %i", s);
-					stopStepper(s);
+				if (doc[key_motor][key_steppers][i].containsKey(key_acceleration))
+					data[s]->acceleration = doc[key_motor][key_steppers][i][key_acceleration];
+				else
+					data[s]->acceleration = 20000;
+
+				// make sure speed and position are pointing in the same direction
+				if (data[s]->absolutePosition)
+				{
+					// if an absolute position occurs, wehave to compute its direction (positive or negative)
+					if (data[s]->targetPosition > steppers[s]->currentPosition())
+						data[s]->speed = abs(data[s]->speed);
+					else if (data[s]->targetPosition < steppers[s]->currentPosition())
+						data[s]->speed = -abs(data[s]->speed);
+					else // 0
+						data[s]->speed = 0;
 				}
 				else
 				{
-					log_i("start motor %i", s);
+					// if relativce position the direction and speed sign have to match
+					if (data[s]->targetPosition > 0)
+						data[s]->speed = abs(data[s]->speed);
+					else if (data[s]->targetPosition < 0)
+						data[s]->speed = -abs(data[s]->speed);
+					else // 0
+						data[s]->speed = 0;
+				}
+
+				log_i("start stepper (act): motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i", s, i, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated);
+
+				if (doc[key_motor][key_steppers][i].containsKey(key_isstop))
+					stopStepper(s);
+				else
+				{
+
 					startStepper(s);
 				}
 			}
@@ -125,12 +159,10 @@ void FocusMotor::startStepper(int i)
 	data[i]->stopped = false;
 }
 
-
-
 DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 {
 	log_i("get motor");
-	DynamicJsonDocument doc(4096); //StaticJsonDocument<1024> doc; // create return doc
+	DynamicJsonDocument doc(4096); // StaticJsonDocument<1024> doc; // create return doc
 	// only return the position of the stepper
 	if (docin.containsKey(key_position))
 	{
@@ -179,7 +211,7 @@ void FocusMotor::setup()
 	log_i("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
 	log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
 	log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
-	
+
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		data[i] = new MotorData();
@@ -188,7 +220,7 @@ void FocusMotor::setup()
 	/*
 	   Motor related settings
 	*/
-	
+
 	enableEnablePin(0);
 	for (int i = 0; i < steppers.size(); i++)
 	{
@@ -198,30 +230,30 @@ void FocusMotor::setup()
 		steppers[i]->runToNewPosition(-10);
 		steppers[i]->runToNewPosition(10);
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
-		//steppers[i]->enableOutputs();
-		// steppers[i]->disableOutputs();
+		// steppers[i]->enableOutputs();
+		//  steppers[i]->disableOutputs();
 	}
 	disableEnablePin(0);
-	if(pinConfig.MOTOR_A_DIR > 0)
+	if (pinConfig.MOTOR_A_DIR > 0)
 		xTaskCreate(&driveMotorALoop, "motor_task_A", 1024, NULL, 5, NULL);
-	if(pinConfig.MOTOR_X_DIR > 0)
+	if (pinConfig.MOTOR_X_DIR > 0)
 		xTaskCreate(&driveMotorXLoop, "motor_task_X", 1024, NULL, 5, NULL);
-	if(pinConfig.MOTOR_Y_DIR > 0)
+	if (pinConfig.MOTOR_Y_DIR > 0)
 		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 1024, NULL, 5, NULL);
-	if(pinConfig.MOTOR_Z_DIR > 0)
+	if (pinConfig.MOTOR_Z_DIR > 0)
 		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 1024, NULL, 5, NULL);
-	
-	//xTaskCreate(&sendUpdateToClients, "motor_websocket_task", 2048, NULL, 5, NULL);
+
+	// xTaskCreate(&sendUpdateToClients, "motor_websocket_task", 2048, NULL, 5, NULL);
 }
 
 void FocusMotor::driveMotorLoop(int stepperid)
 {
 	AccelStepper *s = steppers[stepperid];
 	MotorData *d = data[stepperid];
-	//log_i("start motor loop:%i", stepperid);
+	// log_i("start motor loop:%i", stepperid);
 	for (;;)
 	{
-		
+
 		s->setMaxSpeed(d->maxspeed);
 		if (d->isforever)
 		{
@@ -267,8 +299,8 @@ void FocusMotor::loop()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		timeoutReached &= ((millis() - data[i]->timeLastActive) > data[i]->timeoutDisable);
-		if(timeoutReached)
-		{ 	// only if all of the motors have reached their timeout, disable the enable pin
+		if (timeoutReached)
+		{ // only if all of the motors have reached their timeout, disable the enable pin
 			disableEnablePin(-1);
 		}
 	}
@@ -276,9 +308,9 @@ void FocusMotor::loop()
 
 void FocusMotor::sendMotorPos(int i, int arraypos)
 {
-	if(moduleController.get(AvailableModules::wifi) != nullptr)
+	if (moduleController.get(AvailableModules::wifi) != nullptr)
 	{
-		WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
 		DynamicJsonDocument doc(4096);
 		doc[key_steppers][arraypos][key_stepperid] = i;
 		doc[key_steppers][arraypos][key_position] = data[i]->currentPosition;

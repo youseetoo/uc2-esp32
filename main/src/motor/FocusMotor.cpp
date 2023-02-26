@@ -67,10 +67,10 @@ int FocusMotor::act(DynamicJsonDocument doc)
 		{
 			// turn on/off holding current
 			if (doc[key_isen]){
-				steppers[i]->enableOutputs();
+				disableEnablePin(0);
 			}
 			else{
-				steppers[i]->disableOutputs();
+				enableEnablePin(0);
 			}
 
 		}
@@ -101,17 +101,9 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel))
 					data[s]->isaccelerated = doc[key_motor][key_steppers][i][key_isaccel];
 
-				log_i("data %i speed:%i steps %i forever:%i", s, data[s]->speed, data[s]->targetPosition, data[s]->isforever);
-				
-				if (doc[key_motor][key_steppers][i].containsKey(key_isstop)){
-					log_i("stop motor %i", s);
-					stopStepper(s);
-				}
-				else
-				{
-					log_i("start motor %i", s);
-					startStepper(s);
-				}
+				log_i("data %i speed:%i target %i forever:%i absolute:%i accelerated:%i", s, data[s]->speed, data[s]->targetPosition, data[s]->isforever,data[s]->absolutePosition,data[s]->acceleration);
+				log_i("start motor %i", s);
+				startStepper(s);
 			}
 		}
 	}
@@ -120,8 +112,19 @@ int FocusMotor::act(DynamicJsonDocument doc)
 
 void FocusMotor::startStepper(int i)
 {
-	log_i("start stepper:%i isforver:%i", i, data[i]->isforever);
 	enableEnablePin(i);
+	steppers[i]->setMaxSpeed(data[i]->maxspeed);
+	if (data[i]->absolutePosition == 1)
+	{
+		// absolute position coordinates
+		steppers[i]->moveTo(data[i]->targetPosition);
+	}
+	else if(!data[i]->isforever)
+	{
+		//relative coordinates
+		steppers[i]->move(data[i]->targetPosition);
+	}
+	
 	data[i]->stopped = false;
 }
 
@@ -194,12 +197,9 @@ void FocusMotor::setup()
 	{
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
-		steppers[i]->enableOutputs();
 		steppers[i]->runToNewPosition(-10);
 		steppers[i]->runToNewPosition(10);
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
-		//steppers[i]->enableOutputs();
-		// steppers[i]->disableOutputs();
 	}
 	disableEnablePin(0);
 	if(pinConfig.MOTOR_A_DIR > 0)
@@ -222,7 +222,6 @@ void FocusMotor::driveMotorLoop(int stepperid)
 	for (;;)
 	{
 		
-		s->setMaxSpeed(d->maxspeed);
 		if (d->isforever)
 		{
 			s->setSpeed(d->speed);
@@ -230,24 +229,18 @@ void FocusMotor::driveMotorLoop(int stepperid)
 		}
 		else
 		{
-
-			if (d->absolutePosition)
+			if (d->isaccelerated == 1)
 			{
-				// absolute position coordinates
-				s->moveTo(d->targetPosition);
+				s->run();
 			}
 			else
 			{
-				// relative position coordinates
-				Serial.print("steps to go :");
-				Serial.println(s->distanceToGo());
-				s->move(d->targetPosition);
-			}
+				s->setSpeed(d->speed);
+				s->runSpeed();
+			}			
 			// checks if a stepper is still running
 			if (s->distanceToGo() == 0 && !d->stopped)
 			{
-				Serial.print("stop stepper id: ");
-				Serial.println(stepperid);
 				// if not turn it off
 				stopStepper(stepperid);
 			}
@@ -257,6 +250,7 @@ void FocusMotor::driveMotorLoop(int stepperid)
 	}
 }
 
+//dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
 {
 

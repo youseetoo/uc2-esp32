@@ -30,8 +30,8 @@ struct MotorData
 	long targetPosition = 0;
 	long currentPosition = 0;
 	bool isforever = false;
-	bool isaccelerated = false;
-	bool absolutePosition = false;
+	bool isaccelerated = 0;
+	bool absolutePosition = 0;
 	bool stopped = true;
 	// milliseconds to switch off motors after operation
 	int timeoutDisable = 1000;

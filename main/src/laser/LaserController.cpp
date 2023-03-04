@@ -1,6 +1,4 @@
 #include "LaserController.h"
-#include "../serial/SerialProcess.h"
-#include "../../pindef.h"
 
 namespace RestApi
 {
@@ -16,15 +14,6 @@ namespace RestApi
 	{
 		if (moduleController.get(AvailableModules::laser) != nullptr)
 			serialize(moduleController.get(AvailableModules::laser)->get(deserialize()));
-		else
-			log_i("laser controller is null!");
-	}
-
-	void Laser_set()
-	{
-		log_i("laser set!");
-		if (moduleController.get(AvailableModules::laser) != nullptr)
-			serialize(moduleController.get(AvailableModules::laser)->set(deserialize()));
 		else
 			log_i("laser controller is null!");
 	}
@@ -85,7 +74,7 @@ int LaserController::act(DynamicJsonDocument ob)
 {
 	// JSON String
 	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
-	
+
 	// assign values
 	int LASERid = 0;
 	int LASERval = 0;
@@ -102,7 +91,7 @@ int LaserController::act(DynamicJsonDocument ob)
 	log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
 	// action LASER 1
-	if (LASERid == 1 && pins.LASER_PIN_1 != 0)
+	if (LASERid == 1 && pinConfig.LASER_1 != 0)
 	{
 		LASER_val_1 = LASERval;
 		LASER_despeckle_1 = LASERdespeckle;
@@ -112,7 +101,7 @@ int LaserController::act(DynamicJsonDocument ob)
 		ob[key_return] = 1;
 	}
 	// action LASER 2
-	else if (LASERid == 2  && pins.LASER_PIN_2 != 0)
+	else if (LASERid == 2  && pinConfig.LASER_2 != 0)
 	{
 		LASER_val_2 = LASERval;
 		LASER_despeckle_2 = LASERdespeckle;
@@ -122,7 +111,7 @@ int LaserController::act(DynamicJsonDocument ob)
 		ob[key_return] = 1;
 	}
 	// action LASER 3
-	else if (LASERid == 3  && pins.LASER_PIN_3 != 0)
+	else if (LASERid == 3  && pinConfig.LASER_3 != 0)
 	{
 		LASER_val_3 = LASERval;
 		LASER_despeckle_3 = LASERdespeckle;
@@ -138,60 +127,13 @@ int LaserController::act(DynamicJsonDocument ob)
 	return ob[key_return];
 }
 
-
-int LaserController::set(DynamicJsonDocument ob)
-{
-	// here you can set parameters
-	if (ob.containsKey("LASERid") && ob.containsKey("LASERpin"))
-	{
-		int LASERid = (ob)["LASERid"];
-		int LASERpin = (ob)["LASERpin"];
-		log_i("LaserId: %i Pin:%i", LASERid, LASERpin);
-		if (LASERpin != 0)
-		{
-			if (LASERid == 1)
-			{
-				pins.LASER_PIN_1 = LASERpin;
-				pinMode(pins.LASER_PIN_1, OUTPUT);
-				digitalWrite(pins.LASER_PIN_1, LOW);
-				/* setup the PWM ports and reset them to 0*/
-				ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-				ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
-				ledcWrite(PWM_CHANNEL_LASER_1, 0);
-			}
-			else if (LASERid == 2)
-			{
-				pins.LASER_PIN_2 = LASERpin;
-				pinMode(pins.LASER_PIN_2, OUTPUT);
-				digitalWrite(pins.LASER_PIN_2, LOW);
-				/* setup the PWM ports and reset them to 0*/
-				ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-				ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
-				ledcWrite(PWM_CHANNEL_LASER_2, 0);
-			}
-			else if (LASERid == 3)
-			{
-				pins.LASER_PIN_3 = LASERpin;
-				pinMode(pins.LASER_PIN_3, OUTPUT);
-				digitalWrite(pins.LASER_PIN_3, LOW);
-				/* setup the PWM ports and reset them to 0*/
-				ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-				ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
-				ledcWrite(PWM_CHANNEL_LASER_3, 0);
-			}
-		}
-		Config::setLaserPins(pins);
-	}
-	return 1;
-}
-
 // Custom function accessible by the API
 DynamicJsonDocument LaserController::get(DynamicJsonDocument  ob)
 {
 	ob.clear();
-	ob["LASER1pin"] = pins.LASER_PIN_1;
-	ob["LASER2pin"] = pins.LASER_PIN_2;
-	ob["LASER3pin"] = pins.LASER_PIN_3;
+	ob["LASER1pin"] = pinConfig.LASER_1;
+	ob["LASER2pin"] = pinConfig.LASER_2;
+	ob["LASER3pin"] = pinConfig.LASER_3;
 	return ob;
 }
 
@@ -199,63 +141,43 @@ void LaserController::setup()
 {
 	log_i("Setting Up LASERs");
 
-	Config::getLaserPins(pins);
 
 	// Setting up the differen PWM channels for the laser
-
-	// if laser pin is not defined try loading it from the pindef.h file
-	if (not pins.LASER_PIN_1)
-	{
-		pins.LASER_PIN_1 = PIN_DEF_LASER_1; // default value
-	}
-	log_i("Laser ID 1, pin: %i", pins.LASER_PIN_1);
-	pinMode(pins.LASER_PIN_1, OUTPUT);
-	digitalWrite(pins.LASER_PIN_1, LOW);
+	log_i("Laser ID 1, pin: %i", pinConfig.LASER_1);
+	pinMode(pinConfig.LASER_1, OUTPUT);
+	digitalWrite(pinConfig.LASER_1, LOW);
 	ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-	ledcAttachPin(pins.LASER_PIN_1, PWM_CHANNEL_LASER_1);
+	ledcAttachPin(pinConfig.LASER_1, PWM_CHANNEL_LASER_1);
 	ledcWrite(PWM_CHANNEL_LASER_1, 10000);
 	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_1, 0);
 
-	// if laser pin is not defined try loading it from the pindef.h file
-	if (not pins.LASER_PIN_2)
-	{
-		pins.LASER_PIN_2 = PIN_DEF_LASER_2; // default value
-	}
-	log_i("Laser ID 2, pin: %i", pins.LASER_PIN_2);
-	pinMode(pins.LASER_PIN_2, OUTPUT);
-	digitalWrite(pins.LASER_PIN_2, LOW);
+	log_i("Laser ID 2, pin: %i", pinConfig.LASER_2);
+	pinMode(pinConfig.LASER_2, OUTPUT);
+	digitalWrite(pinConfig.LASER_2, LOW);
 	ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-	ledcAttachPin(pins.LASER_PIN_2, PWM_CHANNEL_LASER_2);
+	ledcAttachPin(pinConfig.LASER_2, PWM_CHANNEL_LASER_2);
 	ledcWrite(PWM_CHANNEL_LASER_2, 10000);
 	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_2, 0);
 
-	// if laser pin is not defined try loading it from the pindef.h file
-	if (not pins.LASER_PIN_3)
-	{
-		pins.LASER_PIN_3 = PIN_DEF_LASER_3; // default value
-	}
-	log_i("Laser ID 3, pin: %i", pins.LASER_PIN_3);
-	pinMode(pins.LASER_PIN_3, OUTPUT);
-	digitalWrite(pins.LASER_PIN_3, LOW);
+	log_i("Laser ID 3, pin: %i", pinConfig.LASER_3);
+	pinMode(pinConfig.LASER_3, OUTPUT);
+	digitalWrite(pinConfig.LASER_3, LOW);
 	ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-	ledcAttachPin(pins.LASER_PIN_3, PWM_CHANNEL_LASER_3);
+	ledcAttachPin(pinConfig.LASER_3, PWM_CHANNEL_LASER_3);
 	ledcWrite(PWM_CHANNEL_LASER_3, 10000);
 	delay(100);
 	ledcWrite(PWM_CHANNEL_LASER_3, 0);
-
-	// Write out updated settings to preferences permanently
-	Config::setLaserPins(pins);
 }
 
 void LaserController::loop()
 {
 	// attempting to despeckle by wiggeling the temperature-dependent modes of the laser?
-	if (LASER_despeckle_1 > 0 && LASER_val_1 > 0 && pins.LASER_PIN_1 != 0)
+	if (LASER_despeckle_1 > 0 && LASER_val_1 > 0 && pinConfig.LASER_1 != 0)
 		LASER_despeckle(LASER_despeckle_1, 1, LASER_despeckle_period_1);
-	if (LASER_despeckle_2 > 0 && LASER_val_2 > 0 && pins.LASER_PIN_2 != 0)
+	if (LASER_despeckle_2 > 0 && LASER_val_2 > 0 && pinConfig.LASER_2 != 0)
 		LASER_despeckle(LASER_despeckle_2, 2, LASER_despeckle_period_2);
-	if (LASER_despeckle_3 > 0 && LASER_val_3 > 0 && pins.LASER_PIN_3 != 0)
+	if (LASER_despeckle_3 > 0 && LASER_val_3 > 0 && pinConfig.LASER_3 != 0)
 		LASER_despeckle(LASER_despeckle_3, 3, LASER_despeckle_period_3);
 }

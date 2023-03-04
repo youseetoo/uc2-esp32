@@ -18,23 +18,17 @@ namespace RestApi
 	{
 		serialize(moduleController.get(AvailableModules::dac)->get(deserialize()));
 	}
-
-	void Dac_set()
-	{
-		serialize(moduleController.get(AvailableModules::dac)->set(deserialize()));
-	}
 }
 
 void DacController::setup()
 {
-	Config::getDacPins(pins);
 	dacm = new DAC_Module();
 	log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
 	// void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int scale, int phase, int invert) {
 	dacm->Setup(DAC_CHANNEL_1, 1, 50, 0, 0, 2);
 	dacm->Setup(DAC_CHANNEL_2, 1, 50, 0, 0, 2);
-	pinMode(pins.dac_fake_1, OUTPUT);
-	pinMode(pins.dac_fake_2, OUTPUT);
+	pinMode(pinConfig.dac_fake_1, OUTPUT);
+	pinMode(pinConfig.dac_fake_2, OUTPUT);
 	frequency = 1;
 }
 
@@ -132,23 +126,6 @@ int DacController::act(DynamicJsonDocument ob)
 	return 1;
 }
 
-int DacController::set(DynamicJsonDocument ob)
-{
-	if ((ob).containsKey(keyDACfake1Pin))
-	{
-		pins.dac_fake_1 = (ob)[keyDACfake1Pin];
-		Config::setDacPins(pins);
-		setup();
-	}
-	if ((ob).containsKey(keyDACfake2Pin))
-	{
-		pins.dac_fake_2 = (ob)[keyDACfake2Pin];
-		Config::setDacPins(pins);
-		setup();
-	}
-	return 1;
-}
-
 // Custom function accessible by the API
 DynamicJsonDocument DacController::get(DynamicJsonDocument jsonDocument)
 {
@@ -172,11 +149,11 @@ void DacController::drive_galvo(void *parameter)
 
 	while (true)
 	{ // infinite loop
-		digitalWrite(d->pins.dac_fake_1, HIGH);
-		digitalWrite(d->pins.dac_fake_2, HIGH);
+		digitalWrite(pinConfig.dac_fake_1, HIGH);
+		digitalWrite(pinConfig.dac_fake_2, HIGH);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
-		digitalWrite(d->pins.dac_fake_1, LOW);
-		digitalWrite(d->pins.dac_fake_2, LOW);
+		digitalWrite(pinConfig.dac_fake_1, LOW);
+		digitalWrite(pinConfig.dac_fake_2, LOW);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
 	}
 }

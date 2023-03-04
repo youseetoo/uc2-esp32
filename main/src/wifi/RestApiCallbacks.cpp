@@ -14,55 +14,66 @@ namespace RestApi
 
     void handleNotFound()
     {
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
         String message = "File Not Found\n\n";
         message += "URI: ";
-        message += (*WifiController::getServer()).uri();
+        message += (*w->getServer()).uri();
         message += "\nMethod: ";
-        message += ((*WifiController::getServer()).method() == HTTP_GET) ? "GET" : "POST";
+        message += ((*w->getServer()).method() == HTTP_GET) ? "GET" : "POST";
         message += "\nArguments: ";
-        message += (*WifiController::getServer()).args();
+        message += (*w->getServer()).args();
         message += "\n";
-        for (uint8_t i = 0; i < (*WifiController::getServer()).args(); i++)
+        for (uint8_t i = 0; i < (*w->getServer()).args(); i++)
         {
-            message += " " + (*WifiController::getServer()).argName(i) + ": " + (*WifiController::getServer()).arg(i) + "\n";
+            message += " " + (*w->getServer()).argName(i) + ": " + (*w->getServer()).arg(i) + "\n";
         }
-        (*WifiController::getServer()).send(404, "text/plain", message);
+        (*w->getServer()).send(404, "text/plain", message);
     }
 
     DynamicJsonDocument deserialize()
     {
-        String plain = WifiController::getServer()->arg("plain");
+        //serializeJsonPretty(doc, Serial);
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        String plain = w->getServer()->arg("plain");
         DynamicJsonDocument doc(plain.length() * 8);
         deserializeJson(doc, plain);
         return doc;
-        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
     }
 
     void serialize(DynamicJsonDocument doc)
     {
-        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
+        //serializeJsonPretty(doc, Serial);
+        Serial.println("++");
+        serializeJson(doc, Serial);
+        Serial.println();
+        Serial.println("--");
+
         serializeJson(doc, output);
-        WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
-        WifiController::getServer()->send_P(200, "application/json", output);
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        w->getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
+        w->getServer()->send_P(200, "application/json", output);
     }
 
     void serialize(int success)
     {
-        // serializeJsonPretty((*WifiController::getJDoc()), Serial);
-        WifiController::getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
-        WifiController::getServer()->send_P(200, "application/json", output);
+        //serializeJsonPretty(doc, Serial);
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        w->getServer()->sendHeader("Access-Control-Allow-Origin", "*", false);
+        w->getServer()->send_P(200, "application/json", output);
     }
 
     void update()
     {
-        WifiController::getServer()->sendHeader("Connection", "close");
-        WifiController::getServer()->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        w->getServer()->sendHeader("Connection", "close");
+        w->getServer()->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
         ESP.restart();
     }
 
     void upload()
     {
-        HTTPUpload &upload = WifiController::getServer()->upload();
+        WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+        HTTPUpload &upload = w->getServer()->upload();
         if (upload.status == UPLOAD_FILE_START)
         {
             log_i("Update: %s\n", upload.filename.c_str());
@@ -105,55 +116,46 @@ namespace RestApi
         if (moduleController.get(AvailableModules::laser) != nullptr)
         {
             doc.add(laser_act_endpoint);
-            doc.add(laser_set_endpoint);
             doc.add(laser_get_endpoint);
         }
         if (moduleController.get(AvailableModules::config) != nullptr)
         {
             doc.add(config_act_endpoint);
-            doc.add(config_set_endpoint);
             doc.add(config_get_endpoint);
         }        
         if (moduleController.get(AvailableModules::motor) != nullptr)
         {
             doc.add(motor_act_endpoint);
-            doc.add(motor_set_endpoint);
             doc.add(motor_get_endpoint);
         }
         if (moduleController.get(AvailableModules::pid) != nullptr)
         {
             doc.add(PID_act_endpoint);
-            doc.add(PID_set_endpoint);
             doc.add(PID_get_endpoint);
         }
         if (moduleController.get(AvailableModules::analogout) != nullptr)
         {
             doc.add(analogout_act_endpoint);
-            doc.add(analogout_set_endpoint);
             doc.add(analogout_get_endpoint);
         }
         if (moduleController.get(AvailableModules::digitalout) != nullptr)
         {
             doc.add(digitalout_act_endpoint);
-            doc.add(digitalout_set_endpoint);
             doc.add(digitalout_get_endpoint);
         }
         if (moduleController.get(AvailableModules::digitalin) != nullptr)
         {
             doc.add(digitalin_act_endpoint);
-            doc.add(digitalin_set_endpoint);
             doc.add(digitalin_get_endpoint);
         }
         if (moduleController.get(AvailableModules::dac) != nullptr)
         {
             doc.add(dac_act_endpoint);
-            doc.add(dac_set_endpoint);
             doc.add(dac_get_endpoint);
         }
         if (moduleController.get(AvailableModules::led) != nullptr)
         {
             doc.add(ledarr_act_endpoint);
-            doc.add(ledarr_set_endpoint);
             doc.add(ledarr_get_endpoint);
         }
         serialize(doc);

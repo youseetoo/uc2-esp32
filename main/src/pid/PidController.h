@@ -3,13 +3,11 @@
 
 #include "../wifi/WifiController.h"
 #include "../../ModuleController.h"
-#include "../analogin/AnalogInPins.h"
 
 namespace RestApi
 {
     void Pid_act();
     void Pid_get();
-    void Pid_set();
 };
 
 class PidController : public Module
@@ -31,7 +29,6 @@ public:
     float PID_target = 500;
     float PID_updaterate = 200; // ms
     bool PID_active=false;
-    AnalogInPins pins;
     // timing variables
 	unsigned long startMillis;
 	unsigned long currentMillis;
@@ -42,5 +39,4 @@ public:
     void loop() override;
     int act(DynamicJsonDocument ob) override;
     DynamicJsonDocument get(DynamicJsonDocument ob) override;
-    int set(DynamicJsonDocument ob) override;
 };

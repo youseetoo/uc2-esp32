@@ -1,29 +1,5 @@
 #pragma once
 //using a key for preferences allows only a length of 15 chars
-static const PROGMEM  char * keyMotorXStepPin  = "motXstp";
-static const PROGMEM  char * keyMotorXStepPinInverted  = "motXstp_inv";
-static const PROGMEM  char * keyMotorXDirPin = "motXdir";
-static const PROGMEM  char * keyMotorXDirPinInverted = "motXdir_inv";
-static const PROGMEM  char * keyMotorYStepPin = "motYstp";
-static const PROGMEM  char * keyMotorYStepPinInverted = "motYstp_inv";
-static const PROGMEM  char * keyMotorYDirPin = "motYdir";
-static const PROGMEM  char * keyMotorYDirPinInverted = "motYdir_inv";
-static const PROGMEM  char * keyMotorZStepPin = "motZstp";
-static const PROGMEM  char * keyMotorZStepPinInverted = "motZstp_inv";
-static const PROGMEM  char * keyMotorZDirPin = "motZdir";
-static const PROGMEM  char * keyMotorZDirPinInverted = "motZdir_inv";
-static const PROGMEM char * keyMotorAStepPin = "motAstp";
-static const PROGMEM char * keyMotorAStepPinInverted = "motAstp_inv";
-static const PROGMEM char * keyMotorADirPin = "motAdir";
-static const PROGMEM char * keyMotorADirPinInverted = "motAdir_inv";
-static const PROGMEM char * keyMotorEnableX = "motEnableX";
-static const PROGMEM char * keyMotorEnableXinverted = "motEnableX_inv";
-static const PROGMEM char * keyMotorEnableY = "motEnableY";
-static const PROGMEM char * keyMotorEnableYinverted = "motEnableY_inv";
-static const PROGMEM char * keyMotorEnableZ = "motEnableZ";
-static const PROGMEM char * keyMotorEnableZinverted = "motEnableZ_inv";
-static const PROGMEM char * keyMotorEnableA = "motEnableA";
-static const PROGMEM char * keyMotorEnableAinverted = "motEnableA_inv";
 
 static const PROGMEM char * keyLEDPin = "ledArrPin";
 static const PROGMEM char * keyLEDCount = "ledArrNum";
@@ -35,6 +11,22 @@ static const PROGMEM char * keyDigitalOut3Pin = "digitaloutPin3";
 static const PROGMEM char * keyDigitalIn1Pin = "digitalinPin1";
 static const PROGMEM char * keyDigitalIn2Pin = "digitalinPin2";
 static const PROGMEM char * keyDigitalIn3Pin = "digitalinPin3";
+
+static const PROGMEM char * keyDigitalOut1IsTrigger = "digitalout1IsTrigger";
+static const PROGMEM char * keyDigitalOut2IsTrigger = "digitalout2IsTrigger";
+static const PROGMEM char * keyDigitalOut3IsTrigger = "digitalout3IsTrigger";
+
+static const PROGMEM char * keyDigitalOut1TriggerDelayOn = "digitalout1TriggerDelayOn"; 
+static const PROGMEM char * keyDigitalOut2TriggerDelayOn = "digitalout2TriggerDelayOn";
+static const PROGMEM char * keyDigitalOut3TriggerDelayOn = "digitalout3TriggerDelayOn";
+
+static const PROGMEM char * keyDigitalOut1TriggerDelayOff = "digitalout1TriggerDelayOff";
+static const PROGMEM char * keyDigitalOut2TriggerDelayOff = "digitalout2TriggerDelayOff";
+static const PROGMEM char * keyDigitalOut3TriggerDelayOff = "digitalout3TriggerDelayOff";
+
+static const PROGMEM char * keyDigitalOutid = "digitaloutid";
+static const PROGMEM char * keyDigitalOutVal = "digitaloutval";
+static const PROGMEM char * keyDigitalOutIsTriggerReset = "digitaloutistriggerreset";
 
 static const PROGMEM char * keyAnalogIn1Pin = "analoginPin1";
 static const PROGMEM char * keyAnalogIn2Pin = "analoginPin2";
@@ -62,9 +54,9 @@ static const PROGMEM char * keyWifiAP = "AP";
 static const PROGMEM char * keyLed = "led";
 static const PROGMEM char * keyLEDArrMode = "LEDArrMode";
 
-static const PROGMEM char * keyRed = "red";
-static const PROGMEM char * keyGreen = "green";
-static const PROGMEM char * keyBlue = "blue";
+static const PROGMEM char * keyRed = "r";
+static const PROGMEM char * keyGreen = "g";
+static const PROGMEM char * keyBlue = "b";
 static const PROGMEM char * keyid = "id";
 static const PROGMEM char * key_led_array = "led_array";
 static const PROGMEM char * key_led_isOn = "led_ison";
@@ -72,6 +64,7 @@ static const PROGMEM char * key_led_isOn = "led_ison";
 static const PROGMEM char * key_config = "config";
 
 static const PROGMEM char * key_motor = "motor";
+static const PROGMEM char * key_enablemotors = "motoren";
 static const PROGMEM char * key_home = "home";
 static const PROGMEM char * key_home_endpospin = "endpospin";
 static const PROGMEM char * key_home_timeout = "timeout";

@@ -140,16 +140,16 @@ GET
       "LEDArrMode": 0,
       "led_array": [
           {
-              "blue": 255,
-              "green": 255,
+              "b": 255,
+              "g": 255,
               "id": 0,
-              "red": 255
+              "r": 255
           },
           {
-              "blue": 255,
-              "green": 255,
+              "b": 255,
+              "g": 255,
               "id": 1,
-              "red": 255
+              "r": 255
           }
       ]
   }}
@@ -160,9 +160,9 @@ GET
       "LEDArrMode": 1,
       "led_array": [
           {
-              "blue": 255,
-              "green": 255,
-              "red": 255
+              "b": 255,
+              "g": 255,
+              "r": 255
           }
       ]
   }}
@@ -173,9 +173,9 @@ GET
       "LEDArrMode": 4,
       "led_array": [
           {
-              "blue": 255,
-              "green": 255,
-              "red": 255
+              "b": 255,
+              "g": 255,
+              "r": 255
           }
       ]
   }}
@@ -190,10 +190,10 @@ POST
         "LEDArrMode": 1,
         "led_array": [
             {
-                "blue": 0,
-                "green": 0,
+                "b": 0,
+                "g": 0,
                 "id": 0,
-                "red": 0
+                "r": 0
             }
         ]
     }

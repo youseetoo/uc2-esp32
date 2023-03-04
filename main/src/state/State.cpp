@@ -10,13 +10,9 @@ namespace RestApi
 
 	void State_get()
 	{
-		serialize(moduleController.get(AvailableModules::state)->set(deserialize()));
+		serialize(moduleController.get(AvailableModules::state)->get(deserialize()));
 	}
 
-	void State_set()
-	{
-		serialize(moduleController.get(AvailableModules::state)->set(deserialize()));
-	}
 }
 
 State::State() : Module() { log_i("ctor"); }
@@ -55,6 +51,17 @@ int State::act(DynamicJsonDocument doc)
 		isBusy = doc["isBusy"];
 	}
 
+	if (doc.containsKey("isRest")){
+		log_i("resetPreferences");
+		Preferences preferences;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, false);
+		preferences.clear();
+		preferences.end();
+		ESP.restart();
+		return true;
+	}
+
 	if (doc.containsKey("pscontroller"))
 	{
 #if defined IS_PS3 || defined IS_PS4
@@ -66,22 +73,11 @@ int State::act(DynamicJsonDocument doc)
 	return 1;
 }
 
-int State::set(DynamicJsonDocument doc)
-{
-	// here you can set parameters
-
-	int isdebug = doc["isdebug"];
-	DEBUG = isdebug;
-	doc.clear();
-	doc["return"] = 1;
-	return 1;
-}
-
 // Custom function accessible by the API
 DynamicJsonDocument State::get(DynamicJsonDocument docin)
 {
 
-	StaticJsonDocument<512> doc; // create return doc
+	DynamicJsonDocument doc(4096); //StaticJsonDocument<512> doc; // create return doc
 
 	// GET SOME PARAMETERS HERE
 	if (docin.containsKey("isBusy"))
@@ -105,6 +101,7 @@ DynamicJsonDocument State::get(DynamicJsonDocument docin)
 		doc["identifier_author"] = identifier_author;
 		doc["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
 		doc["configIsSet"] = config_set; // TODO: Implement! 
+		doc["pindef"] = pinConfig.pindefName;
 	}
 	return doc;
 }

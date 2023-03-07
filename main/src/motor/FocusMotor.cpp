@@ -113,7 +113,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				if (doc[key_motor][key_steppers][i].containsKey(key_acceleration))
 					data[s]->acceleration = doc[key_motor][key_steppers][i][key_acceleration];
 				else
-					data[s]->acceleration = 20000;
+					data[s]->acceleration = 200;
 
 				// make sure speed and position are pointing in the same direction
 				if (data[s]->absolutePosition)
@@ -137,7 +137,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 						data[s]->speed = 0;
 				}
 
-				log_i("start stepper (act): motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i", s, i, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated);
+				log_i("start stepper (act): motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", s, i, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated, data[s]->acceleration);
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_isstop))
 					stopStepper(s);
@@ -155,6 +155,7 @@ void FocusMotor::startStepper(int i)
 {
 	enableEnablePin(i);
 	steppers[i]->setMaxSpeed(data[i]->maxspeed);
+	steppers[i]->setAcceleration(data[i]->acceleration);
 	if (data[i]->absolutePosition == 1)
 	{
 		// absolute position coordinates
@@ -235,9 +236,9 @@ void FocusMotor::setup()
 	for (int i = 0; i < steppers.size(); i++)
 	{
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
-		steppers[i]->setAcceleration(MAX_ACCELERATION_A);
-		steppers[i]->runToNewPosition(-10);
-		steppers[i]->runToNewPosition(10);
+		steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
+		steppers[i]->runToNewPosition(-50);
+		steppers[i]->runToNewPosition(50);
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 	disableEnablePin(0);

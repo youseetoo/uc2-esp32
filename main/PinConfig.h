@@ -169,6 +169,43 @@ struct UC2_1 : PinConfig
     int PSX_CONTROLLER_TYPE = 2;
 };
 
+
+
+struct UC2_Insert : PinConfig
+{
+    String pindefName = "UC2UC2_Insert";
+
+    // UC2 STandalone V2
+    int MOTOR_A_DIR = 0;
+    int MOTOR_X_DIR = GPIO_NUM_19;
+    int MOTOR_Y_DIR = 0;
+    int MOTOR_Z_DIR = 0;
+    int MOTOR_A_STEP = 0;
+    int MOTOR_X_STEP = GPIO_NUM_35;
+    int MOTOR_Y_STEP = 0;
+    int MOTOR_Z_STEP = 0;
+    int MOTOR_ENABLE = GPIO_NUM_33;
+    bool MOTOR_ENABLE_INVERTED = true;
+
+    int LASER_1 = 0;
+    int LASER_2 = 0;
+    int LASER_3 = 0;
+
+    int LED_PIN= GPIO_NUM_4;
+    int LED_COUNT = 64;
+
+    int PIN_DEF_END_X = 0;
+    int PIN_DEF_END_Y = 0;
+    int PIN_DEF_END_Z = 0;
+
+    String PSX_MAC = "1a:2b:3c:01:01:01";
+    int PSX_CONTROLLER_TYPE = 2;
+    boolean enableBlueTooth = true;
+
+
+};
+
+
 struct UC2_2 : PinConfig
 {
     String pindefName = "UC2_2";
@@ -203,9 +240,9 @@ struct UC2_2 : PinConfig
 
 };
 
-struct WEMOS : PinConfig
+struct UC2_WEMOS : PinConfig
 {
-    String pindefName = "WEMOS";
+    String pindefName = "UC2_WEMOS";
     // ESP32-WEMOS D1 R32
     int MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
     int MOTOR_X_DIR = GPIO_NUM_16;
@@ -235,3 +272,9 @@ struct WEMOS : PinConfig
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
 static UC2_2 pinConfig;
+
+
+
+
+
+

@@ -34,6 +34,13 @@ jobs:
       run: pio lib install
       
     # run for WEMOS => pindef.h
+    - name: Find and Replace
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "static UC2"
+        replace: "static UC2_WEMOS pinConfig; //"
+        regex: false
+
     - name: Run PlatformIO
       run: pio run 
     - name: merge into one binary
@@ -62,8 +69,8 @@ jobs:
     - name: Find and Replace
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "pindef.h"
-        replace: "pindef_UC2_1.h"
+        find: "static UC2"
+        replace: "static UC2_1 pinConfig; //"
         regex: false
     - name: Run PlatformIO
       run: pio run 
@@ -93,8 +100,8 @@ jobs:
     - name: Find and Replace
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "pindef_UC2_1.h"
-        replace: "pindef_UC2_2.h"
+        find: "static UC2"
+        replace: "static UC2_2 pinConfig; //"
         regex: false
     - name: Run PlatformIO
       run: pio run 

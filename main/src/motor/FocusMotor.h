@@ -56,6 +56,7 @@ public:
 	// global variables for the motor
 	long MAX_VELOCITY_A = 20000;
 	long MAX_ACCELERATION_A = 100000;
+	long DEFAULT_ACCELERATION_A = 200;
 
 	std::array<AccelStepper *, 4> steppers;
 	std::array<MotorData *, 4> data;

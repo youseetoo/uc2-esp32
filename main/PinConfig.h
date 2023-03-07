@@ -284,8 +284,8 @@ struct UC2e : PinConfig
 
     // Sensor pins, Analog-to-digital converter enabled
     int SENSOR_1 = GPIO_NUM_35; // SENSOR_1, PP_17, PCIe B14
-    int SENSOR_1 = GPIO_NUM_36; // SENSOR_2, PP_18, PCIe B15
-    int SENSOR_1 = GPIO_NUM_39; // SENSOR_3, PP_19, PCIe B17
+    int SENSOR_2 = GPIO_NUM_36; // SENSOR_2, PP_18, PCIe B15
+    int SENSOR_3 = GPIO_NUM_39; // SENSOR_3, PP_19, PCIe B17
 
     // I2C pins, digital bus to control various functions of the baseplane and SUES modules
     int I2C_SDA = GPIO_NUM_21; // I2C_SDA, SDA, PCIe B6

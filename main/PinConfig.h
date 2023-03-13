@@ -293,7 +293,7 @@ struct UC2e : PinConfig
 
 };
 
-struct WEMOS : PinConfig
+struct UC2_WEMOS : PinConfig
 {
     String pindefName = "UC2_WEMOS";
     // ESP32-WEMOS D1 R32
@@ -324,4 +324,4 @@ struct WEMOS : PinConfig
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_2 pinConfig;
+static UC2_WEMOS pinConfig; //_2 pinConfig;

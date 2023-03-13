@@ -6,8 +6,6 @@ name: Compile ESP32 Platformio
 # events but only for the master branch
 on:
   workflow_dispatch:
-  release:
-    types: [created, published, edited]
   
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
@@ -21,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: mergeBD
+        ref: devBD
         submodules: recursive
     - name: Set up Python
       uses: actions/setup-python@v1
@@ -36,6 +34,13 @@ jobs:
       run: pio lib install
       
     # run for WEMOS => pindef.h
+    - name: Find and Replace (UC2-WEMOS)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "static UC2"
+        replace: "static UC2_WEMOS pinConfig; //"
+        regex: false
+
     - name: Run PlatformIO
       run: pio run 
     - name: merge into one binary
@@ -47,7 +52,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
-        path: build/esp32_wemos.bin
+        path: build/merged-firmware.bin
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
@@ -58,14 +63,14 @@ jobs:
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'
         user_name: 'beniroquai'
-        commit_message: 'A new firmware binary has been released (esp32_wemos.bin) => https://github.com/youseetoo/uc2-esp32'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
     # run for uc2-standalone-v1
-    - name: Find and Replace
+    - name: Find and Replace (UC2-1)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "pindef.h"
-        replace: "pindef_UC2_1.h"
+        find: "static UC2"
+        replace: "static UC2_1 pinConfig; //"
         regex: false
     - name: Run PlatformIO
       run: pio run 
@@ -89,14 +94,14 @@ jobs:
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'
         user_name: 'beniroquai'
-        commit_message: 'A new firmware binary has been released (esp32_uc2_1.bin) => https://github.com/youseetoo/uc2-esp32'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
     # run for uc2-standalone-v2
-    - name: Find and Replace
+    - name: Find and Replace (UC2-2)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "pindef_UC2_1.h"
-        replace: "pindef_UC2_2.h"
+        find: "static UC2"
+        replace: "static UC2_2 pinConfig; //"
         regex: false
     - name: Run PlatformIO
       run: pio run 
@@ -120,5 +125,5 @@ jobs:
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'
         user_name: 'beniroquai'
-        commit_message: 'A new firmware binary has been released (esp32_uc2_2.bin) => https://github.com/youseetoo/uc2-esp32'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         

@@ -237,8 +237,8 @@ void FocusMotor::setup()
 	{
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
-		steppers[i]->runToNewPosition(-50);
-		steppers[i]->runToNewPosition(50);
+		steppers[i]->runToNewPosition(-10);
+		steppers[i]->runToNewPosition(10);
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 	disableEnablePin(0);

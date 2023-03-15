@@ -247,14 +247,15 @@ void FocusMotor::setup()
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 	disableEnablePin(0);
+
 	if (pinConfig.MOTOR_A_DIR > 0)
-		xTaskCreate(&driveMotorALoop, "motor_task_A", 4096, NULL, 5, NULL);
+		xTaskCreate(&driveMotorALoop, "motor_task_A", 4096, NULL, tskIDLE_PRIORITY, NULL);
 	if (pinConfig.MOTOR_X_DIR > 0)
-		xTaskCreate(&driveMotorXLoop, "motor_task_X", 4096, NULL, 5, NULL);
+		xTaskCreate(&driveMotorXLoop, "motor_task_X", 4096, NULL, tskIDLE_PRIORITY, NULL);
 	if (pinConfig.MOTOR_Y_DIR > 0)
-		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 4096, NULL, 5, NULL);
+		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 4096, NULL, tskIDLE_PRIORITY, NULL);
 	if (pinConfig.MOTOR_Z_DIR > 0)
-		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 4096, NULL, 5, NULL);
+		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 4096, NULL, tskIDLE_PRIORITY, NULL);
 
 	//xTaskCreate(&sendUpdateToClients, "motor_websocket_task", 2048, NULL, 5, NULL);
 }
@@ -265,9 +266,10 @@ void FocusMotor::driveMotorLoop(int stepperid)
 	MotorData *tData = data[stepperid];
 	int arraypos = 0;
 	// log_i("start motor loop:%i", stepperid);
+	tSteppers->setMaxSpeed(tData->maxspeed);
 	for (;;)
 	{
-		tSteppers->setMaxSpeed(tData->maxspeed);
+
 		if (tData->isforever)
 		{
 			tSteppers->setSpeed(tData->speed);
@@ -297,7 +299,8 @@ void FocusMotor::driveMotorLoop(int stepperid)
 			}
 		}
 		tData->currentPosition = tSteppers->currentPosition();
-		//vTaskDelay(1 / portTICK_PERIOD_MS);
+		const TickType_t xDelay = 0;// / portTICK_PERIOD_MS;
+		//vTaskDelay(xDelay);
 	}
 }
 

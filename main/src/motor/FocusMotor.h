@@ -36,6 +36,7 @@ struct MotorData
 	// milliseconds to switch off motors after operation
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
+	bool isEnable = 1; // keeping motor on after job is completed?
 };
 
 enum Stepper

@@ -324,4 +324,6 @@ struct UC2_WEMOS : PinConfig
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_2 pinConfig; //_2 pinConfig;
+static UC2_2 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
+
+//{"task":"/state_get"}

@@ -92,6 +92,11 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else
 					data[s]->speed = 0;
 
+				if (doc[key_motor][key_steppers][i].containsKey(key_isen))
+					data[s]->isEnable = doc[key_motor][key_steppers][i][key_isen];
+				else
+					data[s]->isEnable = 0;
+
 				if (doc[key_motor][key_steppers][i].containsKey(key_position))
 					data[s]->targetPosition = doc[key_motor][key_steppers][i][key_position];
 
@@ -237,8 +242,8 @@ void FocusMotor::setup()
 	{
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
-		steppers[i]->runToNewPosition(-10);
-		steppers[i]->runToNewPosition(10);
+		steppers[i]->runToNewPosition(-1);
+		steppers[i]->runToNewPosition(1);
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 	disableEnablePin(0);
@@ -262,7 +267,6 @@ void FocusMotor::driveMotorLoop(int stepperid)
 	// log_i("start motor loop:%i", stepperid);
 	for (;;)
 	{
-
 		tSteppers->setMaxSpeed(tData->maxspeed);
 		if (tData->isforever)
 		{
@@ -293,7 +297,7 @@ void FocusMotor::driveMotorLoop(int stepperid)
 			}
 		}
 		tData->currentPosition = tSteppers->currentPosition();
-		vTaskDelay(1 / portTICK_PERIOD_MS);
+		//vTaskDelay(1 / portTICK_PERIOD_MS);
 	}
 }
 
@@ -353,7 +357,8 @@ void FocusMotor::stopStepper(int i)
 	data[i]->speed = 0;
 	data[i]->currentPosition = steppers[i]->currentPosition();
 	data[i]->stopped = true;
-	disableEnablePin(i);
+	if (not data[i]->isEnable)
+		disableEnablePin(i);
 }
 
 void FocusMotor::startAllDrives()

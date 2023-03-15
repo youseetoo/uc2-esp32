@@ -64,7 +64,6 @@ static const PROGMEM char * key_led_isOn = "led_ison";
 static const PROGMEM char * key_config = "config";
 
 static const PROGMEM char * key_motor = "motor";
-static const PROGMEM char * key_enablemotors = "motoren";
 static const PROGMEM char * key_home = "home";
 static const PROGMEM char * key_home_endpospin = "endpospin";
 static const PROGMEM char * key_home_timeout = "timeout";

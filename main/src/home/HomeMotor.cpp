@@ -37,6 +37,23 @@ int HomeMotor::act(DynamicJsonDocument j)
 	if (DEBUG)
 		Serial.println("home_act_fct");
 
+	// set position
+	if ((j).containsKey(key_setposition))
+	{
+		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+		if ((j)[key_setposition].containsKey(key_steppers))
+		{
+			for (int i = 0; i < (j)[key_setposition][key_steppers].size(); i++)
+			{
+				Stepper s = static_cast<Stepper>((j)[key_setposition][key_steppers][i][key_stepperid]);
+				long pos = (j)[key_setposition][key_steppers][i][key_currentpos];
+				motor->steppers[s]->setCurrentPosition(pos);
+				log_d("set position %d to %d", s, pos);		
+			}
+		}
+	}
+
+	// initiate homing
 	if ((j).containsKey(key_home))
 	{
 		if ((j)[key_home].containsKey(key_steppers))

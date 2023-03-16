@@ -59,6 +59,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 {
 	log_i("motor act");
 
+	serializeJsonPretty(doc, Serial);
 	// only enable/disable motors
 	if (doc.containsKey(key_isen))
 	{
@@ -67,15 +68,19 @@ int FocusMotor::act(DynamicJsonDocument doc)
 			// turn on/off holding current
 			if (doc[key_isen])
 			{
+				log_d("enable motor %d", i);
 				steppers[i]->enableOutputs();
 			}
 			else
 			{
+				log_d("disable motor %d", i);
 				steppers[i]->disableOutputs();
 			}
 		}
 		return 1;
 	}
+
+	
 
 	// do everything else
 	if (doc.containsKey(key_motor))
@@ -240,6 +245,8 @@ void FocusMotor::setup()
 	enableEnablePin(0);
 	for (int i = 0; i < steppers.size(); i++)
 	{
+		steppers[i]->setEnablePin(pinConfig.MOTOR_ENABLE);
+		steppers[i]->setPinsInverted(pinConfig.MOTOR_ENABLE_INVERTED, false, true);
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
 		steppers[i]->runToNewPosition(-1);

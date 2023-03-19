@@ -19,10 +19,10 @@ LedController::~LedController() { log_i("~ctor"); }
 
 void LedController::setup()
 {
+	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
 	//log_i("setup matrix is null:%s", matrix == nullptr);
-	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	matrix->begin();
 	matrix->setBrightness(255);
 	// test led array

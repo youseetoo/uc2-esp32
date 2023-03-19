@@ -58,7 +58,7 @@ void ModuleController::setup()
     }
 
     // eventually load the motor homing module
-    if (pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0)
+    if (false)// pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0)
     {
         modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
         pinConfig.DIGITAL_IN_1=pinConfig.PIN_DEF_END_X;
@@ -129,15 +129,22 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::analogJoystick, dynamic_cast<Module *>(new AnalogJoystick())));
         log_i("add scanner");
     }
+
+
     //if wifi enable call its setup first bevor calling other mods setup
     if (pinConfig.enableWifi)
     {
         Module * w = get(AvailableModules::wifi);
         w->setup();
     }
-    
+
+
+    // call setup on all modules
+    log_d("setup all modules");
     for (auto &x : modules)
     {
+        log_d("Setup module %d", x.first);
+        
         if (x.second != nullptr && x.first != AvailableModules::wifi)
             x.second->setup();
     }
@@ -148,6 +155,7 @@ void ModuleController::setup()
         w->begin();
         w->createTasks();
     }
+
 }
 
 void ModuleController::loop()

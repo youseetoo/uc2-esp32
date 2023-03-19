@@ -22,6 +22,7 @@ State::~State() { log_i("~ctor"); }
 
 void State::setup()
 {
+	log_d("Setup State");
 }
 
 void State::loop()

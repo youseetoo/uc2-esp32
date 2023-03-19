@@ -1,5 +1,5 @@
 #pragma once
-#include "AccelStepper.h"
+#include "FastAccelStepper.h"
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
@@ -59,7 +59,7 @@ public:
 	long MAX_ACCELERATION_A = 100000;
 	long DEFAULT_ACCELERATION_A = 200;
 
-	std::array<AccelStepper *, 4> steppers;
+	std::array<FastAccelStepper *, 4> faststeppers;
 	std::array<MotorData *, 4> data;
 
 	int act(DynamicJsonDocument  ob) override;

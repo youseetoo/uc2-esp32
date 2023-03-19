@@ -22,8 +22,9 @@ namespace RestApi
 
 void DacController::setup()
 {
-	dacm = new DAC_Module();
 	log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
+	
+	dacm = new DAC_Module();
 	// void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int scale, int phase, int invert) {
 	dacm->Setup(DAC_CHANNEL_1, 1, 50, 0, 0, 2);
 	dacm->Setup(DAC_CHANNEL_2, 1, 50, 0, 0, 2);

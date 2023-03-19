@@ -2,6 +2,10 @@
 	path = lib/AccelStepper
 	url = https://github.com/youseetoo/AccelStepper.git
 	branch = master
+[submodule "lib/FastAccelStepper"]
+	path = lib/FastAccelStepper
+	url = https://github.com/youseetoo/FastAccelStepper.git
+	branch = master	
 [submodule "lib/JPEGDecoder"]
 	path = lib/JPEGDecoder
 	url = https://github.com/youseetoo/JPEGDecoder.git

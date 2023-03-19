@@ -11,6 +11,7 @@ SerialProcess::~SerialProcess()
 
 void SerialProcess::loop()
 {
+	log_d("SerialProcess::loop()");
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
 	{

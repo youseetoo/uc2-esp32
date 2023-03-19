@@ -69,6 +69,7 @@ DynamicJsonDocument BtController::get(DynamicJsonDocument doc)
 void BtController::setup()
 {
 
+    log_d("Setup bluetooth controller");
     // setting up the bluetooth controller
 
     // BLEDevice::setCustomGapHandler(my_gap_event_handler);

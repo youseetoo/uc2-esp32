@@ -25,6 +25,7 @@ namespace Config
 
 	void setup()
 	{
+		log_d("Setup ConfigController");
 	}
 
 	bool resetPreferences()

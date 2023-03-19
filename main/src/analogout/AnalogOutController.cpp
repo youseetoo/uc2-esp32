@@ -21,7 +21,7 @@ void AnalogOutController::loop(){}
 
 void AnalogOutController::setup()
 {
-	Serial.println("Setting Up analogout");
+	log_d("Setup AnalogOutController");
 	/* setup the PWM ports and reset them to 0*/
 	ledcSetup(PWM_CHANNEL_analogout_1, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.analogout_PIN_1, PWM_CHANNEL_analogout_1);

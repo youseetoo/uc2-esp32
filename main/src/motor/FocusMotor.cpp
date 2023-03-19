@@ -200,57 +200,82 @@ void FocusMotor::setup()
 {
 	// setup the pins
 	log_i("Setting Up Motor A,X,Y,Z");
-	FastAccelStepperEngine engine = FastAccelStepperEngine();
 	engine.init();
 
-	// setup the stepper A
-	log_i("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
-	faststeppers[Stepper::A] = new FastAccelStepper();
-	faststeppers[Stepper::A] = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
-	faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
-	faststeppers[Stepper::A]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::A]->setAutoEnable(true);
-
-	// setup the stepper X
-	log_i("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
-	faststeppers[Stepper::X] = new FastAccelStepper();
-	faststeppers[Stepper::X] = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
-	faststeppers[Stepper::X]->setDirectionPin(pinConfig.MOTOR_X_DIR);
-	faststeppers[Stepper::X]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::X]->setAutoEnable(true);
-
-	// setup the stepper Y
-	log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
-	faststeppers[Stepper::Y] = new FastAccelStepper();
-	faststeppers[Stepper::Y] = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
-	faststeppers[Stepper::Y]->setDirectionPin(pinConfig.MOTOR_Y_DIR);
-	faststeppers[Stepper::Y]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::Y]->setAutoEnable(true);
-
-	// setup the stepper Z
-	log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
-	faststeppers[Stepper::Z] = new FastAccelStepper();
-	faststeppers[Stepper::Z] = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
-	faststeppers[Stepper::Z]->setDirectionPin(pinConfig.MOTOR_Z_DIR);
-	faststeppers[Stepper::Z]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::Z]->setAutoEnable(true);
+	/*
+	log_d("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
+	FastAccelStepper *motorA = NULL;
+	motorA = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
+	log_d("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
+	FastAccelStepper *motorX = NULL;
+	motorX = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
+	log_d("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
+	FastAccelStepper *motorY = NULL;
+	motorY = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
+	log_d("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
+	FastAccelStepper *motorZ = NULL;
+	motorZ = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
+*/
+	
 	// setup the data
 	for (int i = 0; i < faststeppers.size(); i++)
 	{
 		data[i] = new MotorData();
 	}
 
-	// setup motors
-	for (int i = 0; i < faststeppers.size(); i++)
-	{
-		faststeppers[i]->setSpeedInHz(MAX_VELOCITY_A);
-		faststeppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
-		faststeppers[i]->setCurrentPosition(data[i]->currentPosition);
-	}
+	// setup the stepper A
+	log_i("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
+	faststeppers[Stepper::A] = NULL;
+	faststeppers[Stepper::A] = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
+	faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
+	faststeppers[Stepper::A]->setEnablePin(pinConfig.MOTOR_ENABLE);
+	faststeppers[Stepper::A]->setAutoEnable(true);
+	faststeppers[Stepper::A]->setSpeedInHz(MAX_VELOCITY_A);
+	faststeppers[Stepper::A]->setAcceleration(DEFAULT_ACCELERATION);
+	faststeppers[Stepper::A]->setCurrentPosition(data[Stepper::A]->currentPosition);
+	faststeppers[Stepper::A]->move(2);
+	faststeppers[Stepper::A]->move(-2);
 
-	log_d("Motor Setup Done");
-	delay(1000);
-	log_d("Motor Setup really Done");
+	// setup the stepper X
+	log_i("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
+	faststeppers[Stepper::X] = NULL;
+	faststeppers[Stepper::X] = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
+	faststeppers[Stepper::X]->setDirectionPin(pinConfig.MOTOR_X_DIR);
+	faststeppers[Stepper::X]->setEnablePin(pinConfig.MOTOR_ENABLE);
+	faststeppers[Stepper::X]->setAutoEnable(true);
+	faststeppers[Stepper::X]->setSpeedInHz(MAX_VELOCITY_A);
+	faststeppers[Stepper::X]->setAcceleration(DEFAULT_ACCELERATION);
+	faststeppers[Stepper::X]->setCurrentPosition(data[Stepper::X]->currentPosition);
+	faststeppers[Stepper::X]->move(2);
+	faststeppers[Stepper::X]->move(-2);
+
+	// setup the stepper Y
+	log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
+	faststeppers[Stepper::Y] = NULL;
+	faststeppers[Stepper::Y] = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
+	faststeppers[Stepper::Y]->setDirectionPin(pinConfig.MOTOR_Y_DIR);
+	faststeppers[Stepper::Y]->setEnablePin(pinConfig.MOTOR_ENABLE);
+	faststeppers[Stepper::Y]->setAutoEnable(true);
+	faststeppers[Stepper::Y]->setSpeedInHz(MAX_VELOCITY_A);
+	faststeppers[Stepper::Y]->setAcceleration(DEFAULT_ACCELERATION);
+	faststeppers[Stepper::Y]->setCurrentPosition(data[Stepper::Y]->currentPosition);
+	faststeppers[Stepper::Y]->move(2);
+	faststeppers[Stepper::Y]->move(-2);
+
+
+	// setup the stepper Z
+	log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
+	faststeppers[Stepper::Z] = NULL;
+	faststeppers[Stepper::Z] = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
+	faststeppers[Stepper::Z]->setDirectionPin(pinConfig.MOTOR_Z_DIR);
+	faststeppers[Stepper::Z]->setEnablePin(pinConfig.MOTOR_ENABLE);
+	faststeppers[Stepper::Z]->setAutoEnable(true);
+	faststeppers[Stepper::Z]->setSpeedInHz(MAX_VELOCITY_A);
+	faststeppers[Stepper::Z]->setAcceleration(DEFAULT_ACCELERATION);
+	faststeppers[Stepper::Z]->setCurrentPosition(data[Stepper::Z]->currentPosition);
+	faststeppers[Stepper::Z]->move(2);
+	faststeppers[Stepper::Z]->move(-2);
+
 }
 
 

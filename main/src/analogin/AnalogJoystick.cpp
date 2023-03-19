@@ -37,7 +37,7 @@ DynamicJsonDocument AnalogJoystick::get(DynamicJsonDocument  doc) {
 
 void AnalogJoystick::loop()
 { 
-    /*
+    
     if (moduleController.get(AvailableModules::motor) != nullptr)
     {
         FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -87,5 +87,5 @@ void AnalogJoystick::loop()
             }
         }
     }
-    */
+    
 }

@@ -33,7 +33,6 @@ void setup()
 
 void loop()
 {
-	log_d("loop");
 	// receive and process serial messages
 	serial.loop();
 	// process all commands in their modules

@@ -138,7 +138,6 @@ void ModuleController::setup()
         w->setup();
     }
 
-
     // call setup on all modules
     log_d("setup all modules");
     for (auto &x : modules)

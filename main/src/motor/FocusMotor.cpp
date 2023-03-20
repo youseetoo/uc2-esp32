@@ -92,17 +92,17 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else // we always set absolute position to false if not set
 					data[s]->absolutePosition = false;
 
-				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel)){
+				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel))
+				{
 					data[s]->isaccelerated = (bool)doc[key_motor][key_steppers][i][key_isaccel];
 					data[s]->acceleration = 4294967295;
 				}
-				else {
+				else
+				{
 					// we always switch off acceleration if not set
 					data[s]->isaccelerated = false;
 					data[s]->acceleration = DEFAULT_ACCELERATION;
 				}
-
-
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_acceleration))
 					data[s]->acceleration = doc[key_motor][key_steppers][i][key_acceleration];
@@ -150,15 +150,37 @@ void FocusMotor::startStepper(int i)
 	enableEnablePin(i);
 	faststeppers[i]->setSpeedInHz(data[i]->maxspeed);
 	faststeppers[i]->setAcceleration(data[i]->acceleration);
-	if (data[i]->absolutePosition == 1)
+
+	if (data[i]->isforever)
 	{
-		// absolute position coordinates
-		faststeppers[i]->moveTo(data[i]->targetPosition, false);
+		// run forver (e.g. PSx or initaited via Serial)
+		if (data[i]->maxspeed > 0)
+		{
+			// run clockwise
+			faststeppers[i]->runForward();
+		}
+		else
+		{
+			// run counterclockwise
+			faststeppers[i]->runBackward();
+		}
 	}
-	else if (!data[i]->isforever)
+	else
 	{
-		// relative coordinates
-		faststeppers[i]->move(data[i]->targetPosition, false);
+		if (data[i]->absolutePosition == 1)
+		{
+			// absolute position coordinates
+			faststeppers[i]->moveTo(data[i]->targetPosition, false);
+		}
+		else if (data[i]->absolutePosition == 0)
+		{
+			// relative position coordinates
+			faststeppers[i]->move(data[i]->targetPosition, false);
+		}
+		else if (!data[i]->isforever)
+		{
+			// relative coordinates
+		}
 	}
 	data[i]->stopped = false;
 }
@@ -223,7 +245,7 @@ void FocusMotor::setup()
 	FastAccelStepper *motorZ = NULL;
 	motorZ = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
 */
-	
+
 	// setup the data
 	for (int i = 0; i < faststeppers.size(); i++)
 	{
@@ -269,7 +291,6 @@ void FocusMotor::setup()
 	faststeppers[Stepper::Y]->move(2);
 	faststeppers[Stepper::Y]->move(-2);
 
-
 	// setup the stepper Z
 	log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
 	faststeppers[Stepper::Z] = NULL;
@@ -282,9 +303,7 @@ void FocusMotor::setup()
 	faststeppers[Stepper::Z]->setCurrentPosition(data[Stepper::Z]->currentPosition);
 	faststeppers[Stepper::Z]->move(2);
 	faststeppers[Stepper::Z]->move(-2);
-
 }
-
 
 // dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
@@ -294,7 +313,7 @@ void FocusMotor::loop()
 	for (int i = 0; i < faststeppers.size(); i++)
 	{
 		log_d("Checking motor pos %i", i);
-		
+
 		long distanceToGo = faststeppers[i]->getCurrentPosition() - faststeppers[i]->targetPos();
 		if (distanceToGo == 0 && data[i]->stopped)
 		{
@@ -304,7 +323,6 @@ void FocusMotor::loop()
 			sendMotorPos(i, 0);
 		}
 	}
-
 }
 
 void FocusMotor::sendMotorPos(int i, int arraypos)

@@ -180,12 +180,11 @@ void BtController::loop()
                 if (abs(stick_ly) > 50)
                     stick_ly = 2 * stick_ly; // add more speed above threshold
                 motor->data[Stepper::Z]->speed = stick_ly * global_speed;
-                // Serial.println(motor->data[Stepper::Z]->speed);
-                motor->data[Stepper::Z]->isforever = true;
                 joystick_drive_Z = true;
                 if (motor->data[Stepper::Z]->stopped)
                 {
-                    motor->startStepper(Stepper::Z);
+                    int nextPosition = motor->faststeppers[Stepper::Z]->getCurrentPosition()+motor->data[Stepper::Z]->speed;
+                    motor->faststeppers[Stepper::Z]->moveTo(nextPosition, false);
                 }
             }
             else if (motor->data[Stepper::Z]->speed != 0 && joystick_drive_Z)
@@ -203,11 +202,11 @@ void BtController::loop()
                 motor->data[Stepper::X]->speed = stick_rx * global_speed;
                 if (abs(stick_rx) > 50)
                     stick_rx = 2 * stick_rx; // add more speed above threshold
-                motor->data[Stepper::X]->isforever = true;
                 joystick_drive_X = true;
                 if (motor->data[Stepper::X]->stopped)
                 {
-                    motor->startStepper(Stepper::X);
+                    int nextPosition = motor->faststeppers[Stepper::X]->getCurrentPosition()+motor->data[Stepper::X]->speed;
+                    motor->faststeppers[Stepper::X]->moveTo(nextPosition, false);
                 }
             }
             else if (motor->data[Stepper::X]->speed != 0 && joystick_drive_X)
@@ -224,11 +223,11 @@ void BtController::loop()
                 motor->data[Stepper::Y]->speed = stick_ry * global_speed;
                 if (abs(stick_ry) > 50)
                     stick_ry = 2 * stick_ry; // add more speed above threshold
-                motor->data[Stepper::Y]->isforever = true;
                 joystick_drive_Y = true;
                 if (motor->data[Stepper::Y]->stopped)
                 {
-                    motor->startStepper(Stepper::Y);
+                    int nextPosition = motor->faststeppers[Stepper::Y]->getCurrentPosition()+motor->data[Stepper::Y]->speed;
+                    motor->faststeppers[Stepper::Y]->moveTo(nextPosition, false);
                 }
             }
             else if (motor->data[Stepper::Y]->speed != 0 && joystick_drive_Y)
@@ -236,6 +235,29 @@ void BtController::loop()
                 motor->stopStepper(Stepper::Y);
                 joystick_drive_Y = false;
             }
+
+            // A-direction
+            if ((abs(psx->state.analog.stick.lx) > offset_val))
+            {
+                stick_lx = psx->state.analog.stick.lx;
+                stick_lx = stick_lx - sgn(stick_lx) * offset_val;
+                motor->data[Stepper::A]->speed = stick_lx * global_speed;
+                if (abs(stick_lx) > 50)
+                    stick_lx = 2 * stick_lx; // add more speed above threshold
+                joystick_drive_A = true;
+                if (motor->data[Stepper::A]->stopped)
+                {
+                    int nextPosition = motor->faststeppers[Stepper::A]->getCurrentPosition()+motor->data[Stepper::A]->speed;
+                    motor->faststeppers[Stepper::A]->moveTo(nextPosition, false);
+                }
+            }
+            else if (motor->data[Stepper::A]->speed != 0 && joystick_drive_A)
+            {
+                motor->stopStepper(Stepper::A);
+                joystick_drive_A = false;
+            }
+
+
         }
 
         if (moduleController.get(AvailableModules::analogout) != nullptr)

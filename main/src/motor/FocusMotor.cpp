@@ -92,15 +92,22 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else // we always set absolute position to false if not set
 					data[s]->absolutePosition = false;
 
-				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel))
+				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel)){
 					data[s]->isaccelerated = (bool)doc[key_motor][key_steppers][i][key_isaccel];
-				else // we always switch off acceleration if not set
+					data[s]->acceleration = 4294967295;
+				}
+				else {
+					// we always switch off acceleration if not set
 					data[s]->isaccelerated = false;
+					data[s]->acceleration = DEFAULT_ACCELERATION;
+				}
+
+
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_acceleration))
 					data[s]->acceleration = doc[key_motor][key_steppers][i][key_acceleration];
 				else
-					data[s]->acceleration = 200;
+					data[s]->acceleration = DEFAULT_ACCELERATION;
 
 				// make sure speed and position are pointing in the same direction
 				if (data[s]->absolutePosition)

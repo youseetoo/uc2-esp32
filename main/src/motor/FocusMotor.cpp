@@ -307,17 +307,15 @@ void FocusMotor::setup()
 
 // dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
-{
-	log_d("Motor Loop");
+{	
 	// checks if a stepper is still running
 	for (int i = 0; i < faststeppers.size(); i++)
 	{
-		log_d("Checking motor pos %i", i);
-
 		long distanceToGo = faststeppers[i]->getCurrentPosition() - faststeppers[i]->targetPos();
-		if (distanceToGo == 0 && data[i]->stopped)
+		bool isRunning = faststeppers[i]->isRunning();
+		if (not isRunning && not data[i]->stopped)
 		{
-			// if not turn it off
+			// Only send the information when the motor is halting
 			log_d("Sending motor pos %i", i);
 			stopStepper(i);
 			sendMotorPos(i, 0);

@@ -75,6 +75,8 @@ struct PinConfig
     bool enableScanner = false;
     bool enableBlueTooth = false;
     bool enableWifi = false;
+
+    int JOYSTICK_SPEED_MULTIPLIER = 10;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
@@ -233,7 +235,7 @@ struct UC2_2 : PinConfig
     int PIN_DEF_END_Y = GPIO_NUM_35;
     int PIN_DEF_END_Z = 0;
 
-    String PSX_MAC = "1a:2b:3c:01:01:01";
+    String PSX_MAC = "1a:2b:3c:01:01:02";
     int PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
     boolean enableBlueTooth = true;
 
@@ -319,8 +321,11 @@ struct UC2_WEMOS : PinConfig
     int PIN_DEF_END_Y = 0; // GPIO_NUM_5;
     int PIN_DEF_END_Z = 0; // GPIO_NUM_23;
 
-    String PSX_MAC = "1a:2b:3c:01:01:01";
+    String PSX_MAC = "1a:2b:3c:01:01:03";
     int PSX_CONTROLLER_TYPE = 2;
+    boolean enableBlueTooth = true;
+
+    int JOYSTICK_SPEED_MULTIPLIER = 1;
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;

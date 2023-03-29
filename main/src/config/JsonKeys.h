@@ -87,6 +87,7 @@ static const PROGMEM char * key_isstop = "isstop";
 static const PROGMEM char * key_isaccel = "isaccel";
 static const PROGMEM char * key_acceleration = "accel";
 static const PROGMEM char * key_isen = "isen";
+static const PROGMEM char * key_isenauto = "isenauto";
 static const PROGMEM char * key_isforever = "isforever";
 static const PROGMEM char * key_dirpin = "dir";
 static const PROGMEM char * key_steppin = "step";

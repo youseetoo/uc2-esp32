@@ -40,6 +40,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 
 	serializeJsonPretty(doc, Serial);
 	// only enable/disable motors
+	// {"task":"/motor_act", "isen":1, "isenauto":1}
 	if (doc.containsKey(key_isen))
 	{
 		for (int i = 0; i < faststeppers.size(); i++)
@@ -47,16 +48,34 @@ int FocusMotor::act(DynamicJsonDocument doc)
 			// turn on/off holding current
 			if (doc[key_isen])
 			{
-				log_d("enable motor %d", i);
+				log_d("enable motor %d - going manual mode!", i);
 				faststeppers[i]->enableOutputs();
+				faststeppers[i]->setAutoEnable(false);
 			}
 			else
 			{
-				log_d("disable motor %d", i);
+				log_d("disable motor %d - going manual mode!", i);
 				faststeppers[i]->disableOutputs();
+				faststeppers[i]->setAutoEnable(false);
 			}
 		}
-		return 1;
+	}
+	if (doc.containsKey(key_isenauto))
+	{
+		for (int i = 0; i < faststeppers.size(); i++)
+		{
+			// turn on/off holding current
+			if (doc[key_isenauto])
+			{
+				log_d("enable motor %d - automode on", i);
+				faststeppers[i]->setAutoEnable(true);
+			}
+			else
+			{
+				log_d("disable motor %d - automode off", i);
+				faststeppers[i]->setAutoEnable(false);
+			}
+		}
 	}
 
 	// do everything else

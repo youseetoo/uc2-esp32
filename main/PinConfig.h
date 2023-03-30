@@ -77,6 +77,7 @@ struct PinConfig
     bool enableWifi = false;
 
     int JOYSTICK_SPEED_MULTIPLIER = 10;
+    int JOYSTICK_MAX_ILLU = 100;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
@@ -169,6 +170,8 @@ struct UC2_1 : PinConfig
 
     String PSX_MAC = "1a:2b:3c:01:01:01";
     int PSX_CONTROLLER_TYPE = 2;
+
+    int JOYSTICK_SPEED_MULTIPLIER = 2;
 };
 
 

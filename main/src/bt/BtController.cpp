@@ -132,7 +132,7 @@ void BtController::loop()
             {
                 log_i("Turn on LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
-                led->set_all(255, 255, 255);
+                led->set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
             }
             if (psx->event.button_down.circle)
             {
@@ -188,7 +188,7 @@ void BtController::loop()
                 stick_ly = stick_ly - sgn(stick_ly) * offset_val;
                 if (abs(stick_ly) > 50)
                     stick_ly = 2 * stick_ly; // add more speed above threshold
-                motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ly * global_speed;
+                motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ly;
                 joystick_drive_Z = true;
                 motor->faststeppers[Stepper::Z]->enableOutputs();
                 motor->faststeppers[Stepper::Z]->setAutoEnable(false);
@@ -210,7 +210,7 @@ void BtController::loop()
                 // move_x
                 stick_rx = psx->state.analog.stick.rx;
                 stick_rx = stick_rx - sgn(stick_rx) * offset_val;
-                motor->data[Stepper::X]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_rx * global_speed;
+                motor->data[Stepper::X]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_rx;
                 motor->faststeppers[Stepper::X]->enableOutputs();
                 motor->faststeppers[Stepper::X]->setAutoEnable(false);
 
@@ -234,7 +234,7 @@ void BtController::loop()
             {
                 stick_ry = psx->state.analog.stick.ry;
                 stick_ry = stick_ry - sgn(stick_ry) * offset_val;
-                motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry * global_speed;
+                motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry;
                 motor->faststeppers[Stepper::Y]->enableOutputs();
                 motor->faststeppers[Stepper::Y]->setAutoEnable(false);
 
@@ -258,7 +258,7 @@ void BtController::loop()
             {
                 stick_lx = psx->state.analog.stick.lx;
                 stick_lx = stick_lx - sgn(stick_lx) * offset_val;
-                motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx * global_speed;
+                motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx;
                 motor->faststeppers[Stepper::A]->enableOutputs();
                 motor->faststeppers[Stepper::A]->setAutoEnable(false);
 

@@ -51,7 +51,7 @@ class BtController : public Module
     int speed_x = 0;
     int speed_y = 0;
     int speed_z = 0;
-    int global_speed = 10; // multiplier for the speed
+    
 
     int analogout_val_1 = 0;
     int pwm_max = 0; // no idea how big it should be

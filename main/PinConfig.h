@@ -78,6 +78,7 @@ struct PinConfig
 
     int JOYSTICK_SPEED_MULTIPLIER = 10;
     int JOYSTICK_MAX_ILLU = 100;
+    int JOYSTICK_SPEED_MULTIPLIER_Z  = 10;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
@@ -328,10 +329,11 @@ struct UC2_WEMOS : PinConfig
     int PSX_CONTROLLER_TYPE = 2;
     boolean enableBlueTooth = true;
 
-    int JOYSTICK_SPEED_MULTIPLIER = 1;
+    int JOYSTICK_SPEED_MULTIPLIER = 5;
+    int JOYSTICK_SPEED_MULTIPLIER_Z = 3;
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_2 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
+static UC2_WEMOS pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
 
 //{"task":"/state_get"}

@@ -188,7 +188,7 @@ void BtController::loop()
                 stick_ly = stick_ly - sgn(stick_ly) * offset_val;
                 if (abs(stick_ly) > 50)
                     stick_ly = 2 * stick_ly; // add more speed above threshold
-                motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ly;
+                motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z * stick_ly;
                 joystick_drive_Z = true;
                 motor->faststeppers[Stepper::Z]->enableOutputs();
                 motor->faststeppers[Stepper::Z]->setAutoEnable(false);

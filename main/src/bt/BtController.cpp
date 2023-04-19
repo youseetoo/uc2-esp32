@@ -190,8 +190,8 @@ void BtController::loop()
                     stick_ly = 2 * stick_ly; // add more speed above threshold
                 motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z * stick_ly;
                 joystick_drive_Z = true;
-                motor->faststeppers[Stepper::Z]->enableOutputs();
-                motor->faststeppers[Stepper::Z]->setAutoEnable(false);
+                //motor->faststeppers[Stepper::Z]->enableOutputs();
+                //motor->faststeppers[Stepper::Z]->setAutoEnable(false);
                 if (motor->data[Stepper::Z]->stopped)
                 {
                     int nextPosition = motor->faststeppers[Stepper::Z]->getCurrentPosition() + motor->data[Stepper::Z]->speed;
@@ -211,8 +211,8 @@ void BtController::loop()
                 stick_rx = psx->state.analog.stick.rx;
                 stick_rx = stick_rx - sgn(stick_rx) * offset_val;
                 motor->data[Stepper::X]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_rx;
-                motor->faststeppers[Stepper::X]->enableOutputs();
-                motor->faststeppers[Stepper::X]->setAutoEnable(false);
+                //motor->faststeppers[Stepper::X]->enableOutputs();
+                //motor->faststeppers[Stepper::X]->setAutoEnable(false);
 
                 if (abs(stick_rx) > 50)
                     stick_rx = 2 * stick_rx; // add more speed above threshold
@@ -235,8 +235,8 @@ void BtController::loop()
                 stick_ry = psx->state.analog.stick.ry;
                 stick_ry = stick_ry - sgn(stick_ry) * offset_val;
                 motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry;
-                motor->faststeppers[Stepper::Y]->enableOutputs();
-                motor->faststeppers[Stepper::Y]->setAutoEnable(false);
+                //motor->faststeppers[Stepper::Y]->enableOutputs();
+                //motor->faststeppers[Stepper::Y]->setAutoEnable(false);
 
                 if (abs(stick_ry) > 50)
                     stick_ry = 2 * stick_ry; // add more speed above threshold
@@ -259,8 +259,8 @@ void BtController::loop()
                 stick_lx = psx->state.analog.stick.lx;
                 stick_lx = stick_lx - sgn(stick_lx) * offset_val;
                 motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx;
-                motor->faststeppers[Stepper::A]->enableOutputs();
-                motor->faststeppers[Stepper::A]->setAutoEnable(false);
+                //motor->faststeppers[Stepper::A]->enableOutputs();
+                //motor->faststeppers[Stepper::A]->setAutoEnable(false);
 
                 if (abs(stick_lx) > 50)
                     stick_lx = 2 * stick_lx; // add more speed above threshold
@@ -541,14 +541,13 @@ char *bda2str(const uint8_t *bda, char *str, size_t size)
 
 void BtController::removeAllPairedDevices()
 {
-/*
+
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     esp_bt_controller_init(&bt_cfg);
     esp_bt_controller_enable(ESP_BT_MODE_BTDM);
 
     // Get the maximum number of paired devices
-    uint16_t num_devices;
-    esp_bt_gap_get_bond_device_num(&num_devices);
+    int num_devices = esp_bt_gap_get_bond_device_num();
 
     // Get the list of paired devices
     esp_bd_addr_t *devices = (esp_bd_addr_t *)malloc(num_devices * sizeof(esp_bd_addr_t));
@@ -565,5 +564,5 @@ void BtController::removeAllPairedDevices()
 
     esp_bt_controller_disable();
     esp_bt_controller_deinit();
-*/
+
 }

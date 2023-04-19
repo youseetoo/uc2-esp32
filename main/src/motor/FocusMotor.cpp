@@ -166,7 +166,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 
 void FocusMotor::startStepper(int i)
 {
-	enableEnablePin(i);
+	//enableEnablePin(i);
 	faststeppers[i]->setSpeedInHz(data[i]->maxspeed);
 	faststeppers[i]->setAcceleration(data[i]->acceleration);
 
@@ -250,21 +250,6 @@ void FocusMotor::setup()
 	log_i("Setting Up Motor A,X,Y,Z");
 	engine.init();
 
-	/*
-	log_d("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
-	FastAccelStepper *motorA = NULL;
-	motorA = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
-	log_d("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
-	FastAccelStepper *motorX = NULL;
-	motorX = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
-	log_d("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
-	FastAccelStepper *motorY = NULL;
-	motorY = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
-	log_d("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
-	FastAccelStepper *motorZ = NULL;
-	motorZ = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
-*/
-
 	// setup the data
 	for (int i = 0; i < faststeppers.size(); i++)
 	{
@@ -277,7 +262,7 @@ void FocusMotor::setup()
 	faststeppers[Stepper::A] = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
 	faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
 	faststeppers[Stepper::A]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::A]->setAutoEnable(true);
+	faststeppers[Stepper::A]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 	faststeppers[Stepper::A]->setSpeedInHz(MAX_VELOCITY_A);
 	faststeppers[Stepper::A]->setAcceleration(DEFAULT_ACCELERATION);
 	faststeppers[Stepper::A]->setCurrentPosition(data[Stepper::A]->currentPosition);
@@ -290,7 +275,7 @@ void FocusMotor::setup()
 	faststeppers[Stepper::X] = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
 	faststeppers[Stepper::X]->setDirectionPin(pinConfig.MOTOR_X_DIR);
 	faststeppers[Stepper::X]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::X]->setAutoEnable(true);
+	faststeppers[Stepper::X]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 	faststeppers[Stepper::X]->setSpeedInHz(MAX_VELOCITY_A);
 	faststeppers[Stepper::X]->setAcceleration(DEFAULT_ACCELERATION);
 	faststeppers[Stepper::X]->setCurrentPosition(data[Stepper::X]->currentPosition);
@@ -303,7 +288,7 @@ void FocusMotor::setup()
 	faststeppers[Stepper::Y] = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
 	faststeppers[Stepper::Y]->setDirectionPin(pinConfig.MOTOR_Y_DIR);
 	faststeppers[Stepper::Y]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::Y]->setAutoEnable(true);
+	faststeppers[Stepper::Y]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 	faststeppers[Stepper::Y]->setSpeedInHz(MAX_VELOCITY_A);
 	faststeppers[Stepper::Y]->setAcceleration(DEFAULT_ACCELERATION);
 	faststeppers[Stepper::Y]->setCurrentPosition(data[Stepper::Y]->currentPosition);
@@ -316,7 +301,7 @@ void FocusMotor::setup()
 	faststeppers[Stepper::Z] = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
 	faststeppers[Stepper::Z]->setDirectionPin(pinConfig.MOTOR_Z_DIR);
 	faststeppers[Stepper::Z]->setEnablePin(pinConfig.MOTOR_ENABLE);
-	faststeppers[Stepper::Z]->setAutoEnable(true);
+	faststeppers[Stepper::Z]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 	faststeppers[Stepper::Z]->setSpeedInHz(MAX_VELOCITY_A);
 	faststeppers[Stepper::Z]->setAcceleration(DEFAULT_ACCELERATION);
 	faststeppers[Stepper::Z]->setCurrentPosition(data[Stepper::Z]->currentPosition);
@@ -374,12 +359,14 @@ void FocusMotor::stopAllDrives()
 void FocusMotor::stopStepper(int i)
 {
 	faststeppers[i]->forceStop();
+	faststeppers[i]->stopMove();
 	data[i]->isforever = false;
 	data[i]->speed = 0;
 	data[i]->currentPosition = faststeppers[i]->getCurrentPosition();
 	data[i]->stopped = true;
-	if (not data[i]->isEnable)
-		disableEnablePin(i);
+
+/*	if (not data[i]->isEnable)
+		disableEnablePin(i);*/
 }
 
 void FocusMotor::startAllDrives()
@@ -392,7 +379,7 @@ void FocusMotor::startAllDrives()
 
 void FocusMotor::disableEnablePin(int i)
 {
-
+	/*
 	if (data[Stepper::A]->stopped &&
 		data[Stepper::X]->stopped &&
 		data[Stepper::Y]->stopped &&
@@ -403,14 +390,17 @@ void FocusMotor::disableEnablePin(int i)
 		digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
 		power_enable = false;
 	}
+	*/
 }
 
 void FocusMotor::enableEnablePin(int i)
 {
+	/*
 	if (!power_enable)
 	{
 		pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
 		digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
 		power_enable = true;
 	}
+	*/
 }

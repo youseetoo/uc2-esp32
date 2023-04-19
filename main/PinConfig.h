@@ -24,6 +24,8 @@ struct PinConfig
     int MOTOR_ENABLE = 0;
     // motor power pin is inverted
     bool MOTOR_ENABLE_INVERTED = false;
+    // keep motors on after idle time?
+    bool MOTOR_AUTOENABLE = true;
 
     // LED_PINcontrol pin
     int LED_PIN = 0;
@@ -148,12 +150,12 @@ struct UC2_1 : PinConfig
     String pindefName = "UC2_1";
     // UC2 STandalone V1
     int MOTOR_A_DIR = GPIO_NUM_21;
-    int MOTOR_X_DIR = GPIO_NUM_33;
-    int MOTOR_Y_DIR = GPIO_NUM_16;
+    int MOTOR_Y_DIR = GPIO_NUM_33;
+    int MOTOR_X_DIR = GPIO_NUM_16;
     int MOTOR_Z_DIR = GPIO_NUM_14;
     int MOTOR_A_STEP = GPIO_NUM_22;
-    int MOTOR_X_STEP = GPIO_NUM_2;
-    int MOTOR_Y_STEP = GPIO_NUM_27;
+    int MOTOR_Y_STEP = GPIO_NUM_2;
+    int MOTOR_X_STEP = GPIO_NUM_27;
     int MOTOR_Z_STEP = GPIO_NUM_12;
     int MOTOR_ENABLE = GPIO_NUM_13;
     bool MOTOR_ENABLE_INVERTED = true;
@@ -169,10 +171,12 @@ struct UC2_1 : PinConfig
     int PIN_DEF_END_Y = GPIO_NUM_11;
     int PIN_DEF_END_Z = 0;
 
-    String PSX_MAC = "1a:2b:3c:01:01:01";
+    String PSX_MAC = "1a:2b:3c:01:01:05";
     int PSX_CONTROLLER_TYPE = 2;
 
-    int JOYSTICK_SPEED_MULTIPLIER = 2;
+    int JOYSTICK_SPEED_MULTIPLIER = 20;
+    boolean enableBlueTooth = true;
+
 };
 
 
@@ -227,6 +231,7 @@ struct UC2_2 : PinConfig
     int MOTOR_Z_STEP = GPIO_NUM_12;
     int MOTOR_ENABLE = GPIO_NUM_13;
     bool MOTOR_ENABLE_INVERTED = true;
+    bool MOTOR_AUTOENABLE = true;
 
     int LASER_1 = GPIO_NUM_17;
     int LASER_2 = GPIO_NUM_4;
@@ -239,9 +244,14 @@ struct UC2_2 : PinConfig
     int PIN_DEF_END_Y = GPIO_NUM_35;
     int PIN_DEF_END_Z = 0;
 
-    String PSX_MAC = "1a:2b:3c:01:01:02";
+    String PSX_MAC = "1a:2b:3c:01:01:05";
     int PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
     boolean enableBlueTooth = true;
+
+
+    int JOYSTICK_SPEED_MULTIPLIER = 30;
+    int JOYSTICK_MAX_ILLU = 100;
+    int JOYSTICK_SPEED_MULTIPLIER_Z  = 30;
 
 
 };
@@ -334,6 +344,6 @@ struct UC2_WEMOS : PinConfig
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_WEMOS pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
+static UC2_2 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
 
 //{"task":"/state_get"}

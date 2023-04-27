@@ -128,27 +128,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else
 					data[s]->acceleration = DEFAULT_ACCELERATION;
 
-				// make sure speed and position are pointing in the same direction
-				if (data[s]->absolutePosition)
-				{
-					// if an absolute position occurs, wehave to compute its direction (positive or negative)
-					if (data[s]->targetPosition > faststeppers[s]->getCurrentPosition())
-						data[s]->speed = abs(data[s]->speed);
-					else if (data[s]->targetPosition < faststeppers[s]->getCurrentPosition())
-						data[s]->speed = -abs(data[s]->speed);
-					else // 0
-						data[s]->speed = 0;
-				}
-				else
-				{
-					// if relativce position the direction and speed sign have to match
-					if (data[s]->targetPosition > 0)
-						data[s]->speed = abs(data[s]->speed);
-					else if (data[s]->targetPosition < 0)
-						data[s]->speed = -abs(data[s]->speed);
-					else // 0
-						data[s]->speed = 0;
-				}
+				
 
 				log_i("start stepper (act): motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", s, i, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated, data[s]->acceleration);
 

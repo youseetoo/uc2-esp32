@@ -167,13 +167,13 @@ int FocusMotor::act(DynamicJsonDocument doc)
 void FocusMotor::startStepper(int i)
 {
 	//enableEnablePin(i);
-	faststeppers[i]->setSpeedInHz(data[i]->maxspeed);
+	faststeppers[i]->setSpeedInHz(data[i]->speed);
 	faststeppers[i]->setAcceleration(data[i]->acceleration);
 
 	if (data[i]->isforever)
 	{
 		// run forver (e.g. PSx or initaited via Serial)
-		if (data[i]->maxspeed > 0)
+		if (data[i]->speed > 0)
 		{
 			// run clockwise
 			faststeppers[i]->runForward();

@@ -244,7 +244,7 @@ struct UC2_2 : PinConfig
     int PIN_DEF_END_Y = GPIO_NUM_35;
     int PIN_DEF_END_Z = 0;
 
-    String PSX_MAC = "1a:2b:3c:01:01:05";
+    String PSX_MAC = "1a:2b:3c:01:01:04";
     int PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
     boolean enableBlueTooth = true;
 

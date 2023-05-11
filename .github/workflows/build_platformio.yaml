@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: devBD
+        ref: mergeBD
         submodules: recursive
     - name: Set up Python
       uses: actions/setup-python@v1
@@ -34,7 +34,7 @@ jobs:
       run: pio lib install
       
     # run for WEMOS => pindef.h
-    - name: Find and Replace
+    - name: Find and Replace (UC2-WEMOS)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
         find: "static UC2"
@@ -66,7 +66,7 @@ jobs:
         commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
     # run for uc2-standalone-v1
-    - name: Find and Replace
+    - name: Find and Replace (UC2-1)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
         find: "static UC2"
@@ -97,7 +97,7 @@ jobs:
         commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
     # run for uc2-standalone-v2
-    - name: Find and Replace
+    - name: Find and Replace (UC2-2)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
         find: "static UC2"

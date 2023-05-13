@@ -19,15 +19,15 @@ LedController::~LedController() { log_i("~ctor"); }
 
 void LedController::setup()
 {
+	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
 	//log_i("setup matrix is null:%s", matrix == nullptr);
-	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	matrix->begin();
 	matrix->setBrightness(255);
 	// test led array
 	set_all(100,100,100);
-	delay(50);
+	delay(1);
 	set_all(0,0,0);
 
 	if (!isOn)
@@ -50,6 +50,7 @@ bool LedController::TurnedOn()
 // Custom function accessible by the API
 int LedController::act(DynamicJsonDocument ob)
 {
+	serializeJsonPretty(ob, Serial);
 	if (ob.containsKey(keyLed))
 	{
 		LedModes LEDArrMode = static_cast<LedModes>(ob[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
@@ -57,6 +58,7 @@ int LedController::act(DynamicJsonDocument ob)
 		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 		{
+			log_d("LED: array/multi");
 			for (int i = 0; i < ob[keyLed][key_led_array].size(); i++)
 			{
 				set_led_RGB(
@@ -65,57 +67,65 @@ int LedController::act(DynamicJsonDocument ob)
 					ob[keyLed][key_led_array][i][keyGreen],
 					ob[keyLed][key_led_array][i][keyBlue]);
 			}
+			matrix->show(); //  Update strip to match
 		}
 		// only if a single led will be updated, all others stay the same
-		// PYTHON: send_LEDMatrix_single(self, indexled=0, intensity=(255,255,255), timeout=1)
+		// {"task": "/ledarr_act", "led": {"LEDArrMode": 2, "led_array": [{"id": 0, "r": 255, "g": 255, "b": 255}]}}
 		else if (LEDArrMode == LedModes::single)
 		{
+			log_d("LED: single");
 			set_led_RGB(
 				ob[keyLed][key_led_array][0][keyid],
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
+			matrix->show(); //  Update strip to match
 		}
 		// turn on all LEDs
 		// PYTHON: send_LEDMatrix_full(self, intensity = (255,255,255),timeout=1)
 		else if (LEDArrMode == LedModes::full)
 		{
+			log_d("LED: full");
 			u_int8_t r = ob[keyLed][key_led_array][0][keyRed];
 			u_int8_t g = ob[keyLed][key_led_array][0][keyGreen];
 			u_int8_t b = ob[keyLed][key_led_array][0][keyBlue];
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
 			set_all(r, g, b);
 		}
-		// turn off all LEDs
+		// set left
 		else if (LEDArrMode == LedModes::left)
 		{
+			log_d("LED: left");
 			set_left(
 				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
 		}
-		// turn off all LEDs
+		// set right
 		else if (LEDArrMode == LedModes::right)
 		{
+			log_d("LED: right");
 			set_right(
 				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
 		}
-		// turn off all LEDs
+		// set top
 		else if (LEDArrMode == LedModes::top)
 		{
+			log_d("LED: top");
 			set_top(
 				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
 				ob[keyLed][key_led_array][0][keyGreen],
 				ob[keyLed][key_led_array][0][keyBlue]);
 		}
-		// turn off all LEDs
+		// set bottom
 		else if (LEDArrMode == LedModes::bottom)
 		{
+			log_d("LED: bottom");
 			set_bottom(
 				pinConfig.LED_COUNT,
 				ob[keyLed][key_led_array][0][keyRed],
@@ -124,7 +134,9 @@ int LedController::act(DynamicJsonDocument ob)
 		}
 		else if (LEDArrMode == LedModes::off)
 		{
+			log_d("LED: all off");
 			matrix->clear();
+			matrix->show(); //  Update strip to match
 		}
 	}
 	else
@@ -155,10 +167,11 @@ DynamicJsonDocument LedController::get(DynamicJsonDocument ob)
 /***************************************************************************************************/
 /*******************************************  LED Array  *******************************************/
 /***************************************************************************************************/
-/*******************************FROM OCTOPI ********************************************************/
+
 
 void LedController::set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t B)
 {
+	//log_d("setting led %i, color %i, %i, %i", iLed, R, G, B);
 	matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
 }
 

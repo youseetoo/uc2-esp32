@@ -22,11 +22,7 @@ namespace RestApi
 void processHomeLoop(void * p)
 {
 	Module * m = moduleController.get(AvailableModules::home);
-	for(;;)
-	{
-		m->loop();
-		vTaskDelay(1 / portTICK_PERIOD_MS);
-	}
+	
 }
 
 /*
@@ -37,6 +33,23 @@ int HomeMotor::act(DynamicJsonDocument j)
 	if (DEBUG)
 		Serial.println("home_act_fct");
 
+	// set position
+	if ((j).containsKey(key_setposition))
+	{
+		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+		if ((j)[key_setposition].containsKey(key_steppers))
+		{
+			for (int i = 0; i < (j)[key_setposition][key_steppers].size(); i++)
+			{
+				Stepper s = static_cast<Stepper>((j)[key_setposition][key_steppers][i][key_stepperid]);
+				long pos = (j)[key_setposition][key_steppers][i][key_currentpos];
+				motor->faststeppers[s]->setCurrentPosition(pos);
+				log_d("set position %d to %d", s, pos);		
+			}
+		}
+	}
+
+	// initiate homing
 	if ((j).containsKey(key_home))
 	{
 		if ((j)[key_home].containsKey(key_steppers))
@@ -142,6 +155,7 @@ void sendHomeDone(int axis){
 */
 void HomeMotor::loop()
 {
+	/*
 	// this will be called everytime, so we need to make this optional with a switch
 	if (moduleController.get(AvailableModules::motor) != nullptr && moduleController.get(AvailableModules::digitalin) != nullptr)
 	{
@@ -156,7 +170,7 @@ void HomeMotor::loop()
 		{
 			// stopping motor and going reversing direction to release endstops
 			int speed = motor->data[Stepper::X]->speed;
-			motor->steppers[Stepper::X]->stop();
+			motor->faststeppers[Stepper::X]->forceStop();
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
 			if (speed > 0)
 				motor->steppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease);
@@ -177,9 +191,9 @@ void HomeMotor::loop()
 		if (hdata[Stepper::Y]->homeIsActive && (digitalin->digitalin_val_2 || hdata[Stepper::Y]->homeTimeStarted + hdata[Stepper::Y]->homeTimeout < millis()))
 		{
 			int speed = motor->data[Stepper::Y]->speed;
-			motor->steppers[Stepper::Y]->stop();
+			motor->steppers[Stepper::Y]->forceStop();
 			if (speed > 0)
-				motor->steppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease);
+				motor->faststeppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease);
 			else
 				motor->steppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease);
 			motor->steppers[Stepper::Y]->runToPosition();
@@ -196,7 +210,7 @@ void HomeMotor::loop()
 		if (hdata[Stepper::Z]->homeIsActive && (digitalin->digitalin_val_3 || hdata[Stepper::Z]->homeTimeStarted + hdata[Stepper::Z]->homeTimeout < millis()))
 		{
 			int speed = motor->data[Stepper::Z]->speed;
-			motor->steppers[Stepper::Z]->stop();
+			motor->steppers[Stepper::Z]->forceStop();
 			if (speed > 0)
 				motor->steppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease);
 			else
@@ -212,6 +226,7 @@ void HomeMotor::loop()
 			sendHomeDone(3);
 		}
 	}
+	*/
 }
 
 /*
@@ -224,5 +239,5 @@ void HomeMotor::setup()
 	{
     	hdata[i] = new HomeData ();
 	}
-	xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
+	//xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 }

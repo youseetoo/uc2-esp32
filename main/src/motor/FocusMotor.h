@@ -1,5 +1,5 @@
 #pragma once
-#include "AccelStepper.h"
+#include "FastAccelStepper.h"
 #include "ArduinoJson.h"
 #include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
@@ -31,11 +31,12 @@ struct MotorData
 	long currentPosition = 0;
 	bool isforever = false;
 	bool isaccelerated = 0;
-	bool absolutePosition = 0;
+	bool absolutePosition = 0; 	// running relative or aboslute position?
 	bool stopped = true;
 	// milliseconds to switch off motors after operation
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
+	bool isEnable = 1; // keeping motor on after job is completed?
 };
 
 enum Stepper
@@ -53,11 +54,14 @@ public:
 	FocusMotor();
 	~FocusMotor();
 
+	FastAccelStepperEngine engine = FastAccelStepperEngine();
+	
 	// global variables for the motor
 	long MAX_VELOCITY_A = 20000;
 	long MAX_ACCELERATION_A = 100000;
+	long DEFAULT_ACCELERATION = 5000;
 
-	std::array<AccelStepper *, 4> steppers;
+	std::array<FastAccelStepper *, 4> faststeppers;
 	std::array<MotorData *, 4> data;
 
 	int act(DynamicJsonDocument  ob) override;

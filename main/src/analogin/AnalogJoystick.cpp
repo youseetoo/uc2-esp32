@@ -21,6 +21,7 @@ AnalogJoystick::AnalogJoystick(/* args */){};
 AnalogJoystick::~AnalogJoystick(){};
 void AnalogJoystick::setup()
 {
+    log_d("Setup analog joystick");
     pinMode(pinConfig.ANLOG_JOYSTICK_X, INPUT);
     pinMode(pinConfig.ANLOG_JOYSTICK_Y, INPUT);
     xTaskCreate(&processLoopAJoy, "analogJoyStick_task", 2048, NULL, 5, NULL);
@@ -36,6 +37,7 @@ DynamicJsonDocument AnalogJoystick::get(DynamicJsonDocument  doc) {
 
 void AnalogJoystick::loop()
 { 
+    
     if (moduleController.get(AvailableModules::motor) != nullptr)
     {
         FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -85,4 +87,5 @@ void AnalogJoystick::loop()
             }
         }
     }
+    
 }

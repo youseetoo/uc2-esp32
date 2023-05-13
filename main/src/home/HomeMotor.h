@@ -1,5 +1,5 @@
 #pragma once
-#include "AccelStepper.h"
+#include "FastAccelStepper.h"
 #include "ArduinoJson.h"
 #include "../digitalin/DigitalInController.h"
 #include "../wifi/WifiController.h"

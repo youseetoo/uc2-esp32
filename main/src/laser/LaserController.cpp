@@ -149,7 +149,7 @@ void LaserController::setup()
 	ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.LASER_1, PWM_CHANNEL_LASER_1);
 	ledcWrite(PWM_CHANNEL_LASER_1, 10000);
-	delay(100);
+	delay(10);
 	ledcWrite(PWM_CHANNEL_LASER_1, 0);
 
 	log_i("Laser ID 2, pin: %i", pinConfig.LASER_2);
@@ -158,7 +158,7 @@ void LaserController::setup()
 	ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.LASER_2, PWM_CHANNEL_LASER_2);
 	ledcWrite(PWM_CHANNEL_LASER_2, 10000);
-	delay(100);
+	delay(10);
 	ledcWrite(PWM_CHANNEL_LASER_2, 0);
 
 	log_i("Laser ID 3, pin: %i", pinConfig.LASER_3);
@@ -167,7 +167,7 @@ void LaserController::setup()
 	ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.LASER_3, PWM_CHANNEL_LASER_3);
 	ledcWrite(PWM_CHANNEL_LASER_3, 10000);
-	delay(100);
+	delay(10);
 	ledcWrite(PWM_CHANNEL_LASER_3, 0);
 }
 

@@ -64,7 +64,6 @@ static const PROGMEM char * key_led_isOn = "led_ison";
 static const PROGMEM char * key_config = "config";
 
 static const PROGMEM char * key_motor = "motor";
-static const PROGMEM char * key_enablemotors = "motoren";
 static const PROGMEM char * key_home = "home";
 static const PROGMEM char * key_home_endpospin = "endpospin";
 static const PROGMEM char * key_home_timeout = "timeout";
@@ -76,6 +75,8 @@ static const PROGMEM char * key_home_isactive = "isactive";
 static const PROGMEM char * key_home_endposrelease = "endposrelease";
 
 static const PROGMEM char * key_steppers = "steppers";
+static const PROGMEM char * key_setposition = "setpos";
+static const PROGMEM char * key_currentpos = "posval";
 static const PROGMEM char * key_stepperid = "stepperid";
 static const PROGMEM char * key_speed = "speed";
 static const PROGMEM char * key_speedmax = "speedmax";
@@ -84,8 +85,9 @@ static const PROGMEM char * key_stopped = "isbusy";
 static const PROGMEM char * key_isabs = "isabs";
 static const PROGMEM char * key_isstop = "isstop";
 static const PROGMEM char * key_isaccel = "isaccel";
-static const PROGMEM char * key_acceleration = "acceleration";
+static const PROGMEM char * key_acceleration = "accel";
 static const PROGMEM char * key_isen = "isen";
+static const PROGMEM char * key_isenauto = "isenauto";
 static const PROGMEM char * key_isforever = "isforever";
 static const PROGMEM char * key_dirpin = "dir";
 static const PROGMEM char * key_steppin = "step";

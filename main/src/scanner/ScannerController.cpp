@@ -310,6 +310,7 @@ DynamicJsonDocument ScannerController::get(DynamicJsonDocument  ob)
 
 void ScannerController::setup()
 {
+	log_d("Setup ScannerController");
 	loop(); // run not as a task
 	disableCore0WDT();
 	xTaskCreate(ScannerController::controlGalvoTask, "controlGalvoTask", 10000, this, 1, NULL);

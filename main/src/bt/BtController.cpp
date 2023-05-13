@@ -69,6 +69,7 @@ DynamicJsonDocument BtController::get(DynamicJsonDocument doc)
 void BtController::setup()
 {
 
+    log_d("Setup bluetooth controller");
     // setting up the bluetooth controller
 
     // BLEDevice::setCustomGapHandler(my_gap_event_handler);
@@ -87,6 +88,8 @@ void BtController::setup()
         removeAllPairedDevices();
         m = pinConfig.PSX_MAC;
         type = pinConfig.PSX_CONTROLLER_TYPE;
+        log_d("Using MAC address");
+        Serial.println(pinConfig.PSX_MAC);
     }
 
     // if the mac is not empty, try to connect to the psx controller
@@ -103,10 +106,17 @@ void BtController::setupPS(String mac, int type)
 {
     // select the type of wifi controller - either PS3 or PS4
     if (type == 1)
+    {
+        log_d("Connecting to PS3");
         psx = new PSController(nullptr, PSController::kPS3);
+    }
     else if (type == 2)
+    {
+        log_d("Connecting to PS4");
         psx = new PSController(nullptr, PSController::kPS4);
-    psx->startListening(mac);
+    }
+    bool returnBluetooth = psx->startListening(mac);
+    log_d("Return Bluetooth %i", returnBluetooth);
 }
 
 void BtController::loop()
@@ -122,7 +132,7 @@ void BtController::loop()
             {
                 log_i("Turn on LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
-                led->set_all(255, 255, 255);
+                led->set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
             }
             if (psx->event.button_down.circle)
             {
@@ -178,13 +188,14 @@ void BtController::loop()
                 stick_ly = stick_ly - sgn(stick_ly) * offset_val;
                 if (abs(stick_ly) > 50)
                     stick_ly = 2 * stick_ly; // add more speed above threshold
-                motor->data[Stepper::Z]->speed = stick_ly * global_speed;
-                // Serial.println(motor->data[Stepper::Z]->speed);
-                motor->data[Stepper::Z]->isforever = true;
+                motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z * stick_ly;
                 joystick_drive_Z = true;
+                //motor->faststeppers[Stepper::Z]->enableOutputs();
+                //motor->faststeppers[Stepper::Z]->setAutoEnable(false);
                 if (motor->data[Stepper::Z]->stopped)
                 {
-                    motor->startStepper(Stepper::Z);
+                    int nextPosition = motor->faststeppers[Stepper::Z]->getCurrentPosition() + motor->data[Stepper::Z]->speed;
+                    motor->faststeppers[Stepper::Z]->moveTo(nextPosition, false);
                 }
             }
             else if (motor->data[Stepper::Z]->speed != 0 && joystick_drive_Z)
@@ -199,14 +210,17 @@ void BtController::loop()
                 // move_x
                 stick_rx = psx->state.analog.stick.rx;
                 stick_rx = stick_rx - sgn(stick_rx) * offset_val;
-                motor->data[Stepper::X]->speed = stick_rx * global_speed;
+                motor->data[Stepper::X]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_rx;
+                //motor->faststeppers[Stepper::X]->enableOutputs();
+                //motor->faststeppers[Stepper::X]->setAutoEnable(false);
+
                 if (abs(stick_rx) > 50)
                     stick_rx = 2 * stick_rx; // add more speed above threshold
-                motor->data[Stepper::X]->isforever = true;
                 joystick_drive_X = true;
                 if (motor->data[Stepper::X]->stopped)
                 {
-                    motor->startStepper(Stepper::X);
+                    int nextPosition = motor->faststeppers[Stepper::X]->getCurrentPosition() + motor->data[Stepper::X]->speed;
+                    motor->faststeppers[Stepper::X]->moveTo(nextPosition, false);
                 }
             }
             else if (motor->data[Stepper::X]->speed != 0 && joystick_drive_X)
@@ -220,20 +234,47 @@ void BtController::loop()
             {
                 stick_ry = psx->state.analog.stick.ry;
                 stick_ry = stick_ry - sgn(stick_ry) * offset_val;
-                motor->data[Stepper::Y]->speed = stick_ry * global_speed;
+                motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry;
+                //motor->faststeppers[Stepper::Y]->enableOutputs();
+                //motor->faststeppers[Stepper::Y]->setAutoEnable(false);
+
                 if (abs(stick_ry) > 50)
                     stick_ry = 2 * stick_ry; // add more speed above threshold
-                motor->data[Stepper::Y]->isforever = true;
                 joystick_drive_Y = true;
                 if (motor->data[Stepper::Y]->stopped)
                 {
-                    motor->startStepper(Stepper::Y);
+                    int nextPosition = motor->faststeppers[Stepper::Y]->getCurrentPosition() + motor->data[Stepper::Y]->speed;
+                    motor->faststeppers[Stepper::Y]->moveTo(nextPosition, false);
                 }
             }
             else if (motor->data[Stepper::Y]->speed != 0 && joystick_drive_Y)
             {
                 motor->stopStepper(Stepper::Y);
                 joystick_drive_Y = false;
+            }
+
+            // A-direction
+            if ((abs(psx->state.analog.stick.lx) > offset_val))
+            {
+                stick_lx = psx->state.analog.stick.lx;
+                stick_lx = stick_lx - sgn(stick_lx) * offset_val;
+                motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx;
+                //motor->faststeppers[Stepper::A]->enableOutputs();
+                //motor->faststeppers[Stepper::A]->setAutoEnable(false);
+
+                if (abs(stick_lx) > 50)
+                    stick_lx = 2 * stick_lx; // add more speed above threshold
+                joystick_drive_A = true;
+                if (motor->data[Stepper::A]->stopped)
+                {
+                    int nextPosition = motor->faststeppers[Stepper::A]->getCurrentPosition() + motor->data[Stepper::A]->speed;
+                    motor->faststeppers[Stepper::A]->moveTo(nextPosition, false);
+                }
+            }
+            else if (motor->data[Stepper::A]->speed != 0 && joystick_drive_A)
+            {
+                motor->stopStepper(Stepper::A);
+                joystick_drive_A = false;
             }
         }
 
@@ -481,7 +522,6 @@ int8_t BtController::sgn(int val)
     return 1;
 }
 
-
 char bda_str[18];
 
 char *bda2str(const uint8_t *bda, char *str, size_t size)
@@ -495,30 +535,34 @@ char *bda2str(const uint8_t *bda, char *str, size_t size)
     return str;
 }
 
+#include "esp_bt.h"
+#include "esp_bt_device.h"
+
+
 void BtController::removeAllPairedDevices()
 {
-    int count = esp_bt_gap_get_bond_device_num();
-    if (!count)
+
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    esp_bt_controller_init(&bt_cfg);
+    esp_bt_controller_enable(ESP_BT_MODE_BTDM);
+
+    // Get the maximum number of paired devices
+    int num_devices = esp_bt_gap_get_bond_device_num();
+
+    // Get the list of paired devices
+    esp_bd_addr_t *devices = (esp_bd_addr_t *)malloc(num_devices * sizeof(esp_bd_addr_t));
+    esp_bt_gap_get_bond_device_list(&num_devices, devices);
+
+    // Delete each paired device
+    for (int i = 0; i < num_devices; i++)
     {
-        log_i("No bonded device found.");
+        Serial.println("REmoving device...");
+        esp_bt_gap_remove_bond_device(devices[i]);
     }
-    else
-    {
-        log_i("Bonded device count: %d", count);
-        if (PAIR_MAX_DEVICES < count)
-        {
-            count = PAIR_MAX_DEVICES;
-            log_i("Reset bonded device count: %d", count);
-        }
-        esp_bd_addr_t pairedDeviceBtAddr[PAIR_MAX_DEVICES];
-        esp_err_t tError = esp_bt_gap_get_bond_device_list(&count, pairedDeviceBtAddr);
-        if (ESP_OK == tError)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                log_i("Removing bonded device: %i", pairedDeviceBtAddr[i], bda_str, 18);
-                esp_err_t tError = esp_bt_gap_remove_bond_device(pairedDeviceBtAddr[i]);
-            }
-        }
-    }
+
+    free(devices);
+
+    esp_bt_controller_disable();
+    esp_bt_controller_deinit();
+
 }

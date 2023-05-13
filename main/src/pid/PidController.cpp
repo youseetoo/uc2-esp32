@@ -45,9 +45,8 @@ int PidController::act(DynamicJsonDocument ob)
 		{
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 			motor->data[Stepper::X]->speed = 0;
-			motor->steppers[Stepper::X]->setSpeed(0);
-			motor->steppers[Stepper::X]->setMaxSpeed(0);
-			motor->steppers[Stepper::X]->runSpeed();
+			motor->faststeppers[Stepper::X]->setSpeedInHz(0);
+			motor->faststeppers[Stepper::X]->forceStop();
 		}
 	}
 	return 1;
@@ -75,8 +74,7 @@ void PidController::loop()
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 			motor->data[Stepper::X]->isforever = 1; // run motor at certain speed
 			motor->data[Stepper::X]->speed = motorValue;
-			motor->steppers[Stepper::X]->setSpeed(motorValue);
-			motor->steppers[Stepper::X]->setMaxSpeed(motorValue);
+			motor->faststeppers[Stepper::X]->setSpeedInHz(motorValue);
 		}
 		startMillis = millis();
 	}
@@ -140,7 +138,6 @@ DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
 
 void PidController::setup()
 {
+	log_d("Setup PID");
 	startMillis = millis();
-	if (DEBUG)
-		Serial.println("Setting up analogins...");
 }

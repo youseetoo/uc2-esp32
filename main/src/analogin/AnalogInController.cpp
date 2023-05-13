@@ -61,6 +61,5 @@ DynamicJsonDocument AnalogInController::get(DynamicJsonDocument ob)
 
 void AnalogInController::setup()
 {
-	if (DEBUG)
-		Serial.println("Setting up analogins...");
+	log_d("Setup AnalogInController");
 }

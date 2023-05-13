@@ -219,7 +219,7 @@ void WifiController::createAp(String ssid, String password)
 void WifiController::setup()
 {
 	// initialize the Wifi module
-
+	log_d("Setup Wifi");
 	// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
 	if (socketTaskHandel != nullptr)
 		vTaskDelete(socketTaskHandel);

@@ -50,7 +50,7 @@ bool LedController::TurnedOn()
 // Custom function accessible by the API
 int LedController::act(DynamicJsonDocument ob)
 {
-	serializeJsonPretty(ob, Serial);
+	//serializeJsonPretty(ob, Serial);
 	if (ob.containsKey(keyLed))
 	{
 		LedModes LEDArrMode = static_cast<LedModes>(ob[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",

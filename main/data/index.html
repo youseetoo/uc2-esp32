@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>UC2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <script src="jquery-3.6.1.min.js"></script>
+    <script src="script.js"></script>
+
+    <form>
+        <label for="url">URL:</label><br>
+        <input type="text" id="url" name="url"><br>
+    </form>
+    <button id="connectbutton" onclick="tryToConnect()">Connect</button>
+
+    <div class="tab" id="tab">
+        <button class="tablinks" onclick="openTab(event, 'Wifi')">Wifi</button>
+        <button class="tablinks" onclick="openTab(event, 'BT')">BT</button>
+        <button class="tablinks" onclick="openTab(event, 'Motor')">Motor</button>
+        <button class="tablinks" onclick="openTab(event, 'LED')">LED</button>
+        <button class="tablinks" onclick="openTab(event, 'Laser')">Laser</button>
+    </div>
+
+    <div id="Wifi" class="tabcontent">
+        <h3>Wifi</h3>
+        <button id="getssids" onclick="getSsids()">Get SSIDs</button>
+        <ul id="ssids">
+        </ul>
+        <form>
+            <label for="ssid">SSID:</label><br>
+            <input type="text" id="ssid" name="ssid"><br>
+            <label for="password">Password:</label><br>
+            <input type="text" id="password" name="password">
+            <input type="checkbox" id="ap" name="ap">
+            <label for="ap">Access Point</label>
+        </form>
+        <button id="connect" onclick="connectToWifi()">Connect</button>
+    </div>
+
+    <div id="BT" class="tabcontent">
+        <h3>BT</h3>
+        <button id="getbtdevices" onclick="getBtDevices()">Get BT Devices</button>
+        <button id="getpairedbtdevices" onclick="getPairedBtDevices()">Get Paired BT Devices</button>
+
+        <ul id="btdevices">
+        </ul>
+
+        <form>
+            <label for="mac">MAC:</label><br>
+            <input type="text" id="mac" name="mac"><br>
+            <input type="checkbox" id="psx" name="psx" checked>
+            <label for="psx">Use ps library</label>
+        </form>
+
+        <button id="connectbt" onclick="connectToBT()">Connect</button>
+        <button id="removebt" onclick="removePairedBtDevices()">Remove Paired BT Device</button>
+    </div>
+
+    <div id="Motor" class="tabcontent">
+        <h3>Motor</h3>
+        <div>
+            <h3>Motor Control</h3>
+            <form>
+                <label for="xRange">X </label><label id="posx">0</label><br>
+                <input step="1" type="range" min="0" max="34" value="17" class="slider" id="xRange"
+                    oninput="updateMotors()" onchange="updateMotors()"><br>
+            </form>
+            <form>
+                <label for="yRange">Y </label><label id="posy">0</label><br>
+                <input step="1" type="range" min="0" max="34" value="17" class="slider" id="yRange"
+                    oninput="updateMotors()" onchange="updateMotors()"><br>
+            </form>
+            <form>
+                <label for="zRange">Z </label><label id="posz">0</label><br>
+                <input step="1" type="range" min="0" max="34" value="17" class="slider" id="zRange"
+                    oninput="updateMotors()" onchange="updateMotors()"><br>
+            </form>
+            <form>
+                <label for="aRange">A </label><label id="posa">0</label><br>
+                <input step="1" type="range" min="0" max="34" value="17" class="slider" id="aRange"
+                    oninput="updateMotors()" onchange="updateMotors()"><br>
+            </form>
+        </div>
+    </div>
+
+    <div id="LED" class="tabcontent">
+        <h3>LED</h3>
+        <form>
+            <input type="checkbox" id="enableled" onclick='enableLeds(this)'>
+            <label for="enableled">Enable Leds</label><br>
+
+            <label for="redRange">Red</label><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="redRange" oninput="updateLeds()"
+                onchange="updateLeds()"><br>
+
+            <label for="greenRange">Green</label><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="greenRange" oninput="updateLeds()"
+                onchange="updateLeds()"><br>
+
+            <label for="blueRange">Blue</label><br>
+            <input type="range" min="0" max="255" value="128" class="slider" id="blueRange" oninput="updateLeds()"
+                onchange="updateLeds()"><br>
+        </form>
+
+    </div>
+
+    <div id="Laser" class="tabcontent">
+
+        <h3>Laser Control</h3>
+        <label for="laser1value">Laser1:</label>
+        <label for="laser1value">Value:</label>
+        <input type="text" id="laser1value">
+        <label for="laser1despeckel">Despeckel:</label>
+        <input type="text" id="laser1despeckel">
+        <label for="laser1periode">Periode:</label>
+        <input type="text" id="laser1periode">
+        <button id="apply1" onclick="setLaserAct('1')">Apply</button><br>
+
+        <label for="laser2value">Laser2:</label>
+        <label for="laser2value">Value:</label>
+        <input type="text" id="laser2value">
+        <label for="laser2despeckel">Despeckel:</label>
+        <input type="text" id="laser2despeckel">
+        <label for="laser2periode">Periode:</label>
+        <input type="text" id="laser2periode">
+        <button id="apply2" onclick="setLaserAct('2')">Apply</button><br>
+
+        <label for="laser3value">Laser3:</label>
+        <label for="laser3value">Value:</label>
+        <input type="text" id="laser3value">
+        <label for="laser3despeckel">Despeckel:</label>
+        <input type="text" id="laser3despeckel">
+        <label for="laser3periode">Periode:</label>
+        <input type="text" id="laser3periode">
+        <button id="apply2" onclick="setLaserAct('3')">Apply</button><br>
+    </div>
+
+</body>
+
+</html>

@@ -125,15 +125,15 @@ WifiController::~WifiController() {}
 
 String WifiController::getSsid()
 {
-	return config->mSSID;
+	return pinConfig.mSSID;
 }
 String WifiController::getPw()
 {
-	return config->mPWD;
+	return pinConfig.mPWD;
 }
 bool WifiController::getAp()
 {
-	return config->mAP;
+	return pinConfig.mAP;
 }
 
 WebServer *WifiController::getServer()
@@ -148,8 +148,8 @@ WebSocketsServer *WifiController::getSocket()
 
 void WifiController::createTasks()
 {
-	xTaskCreate(&processHttpTask, "http_task", 4096, NULL, 5, &httpTaskHandel);
-	xTaskCreate(&processWebSocketTask, "socket_task", 4096, NULL, 5, &socketTaskHandel);
+	xTaskCreate(&processHttpTask, "http_task", 4096, NULL, 5, &httpTaskHandle);
+	xTaskCreate(&processWebSocketTask, "socket_task", 4096, NULL, 5, &socketTaskHandle);
 }
 
 DynamicJsonDocument WifiController::connect(DynamicJsonDocument doc)
@@ -183,10 +183,10 @@ void WifiController::sendJsonWebSocketMsg(DynamicJsonDocument doc)
 
 void WifiController::setWifiConfig(String SSID, String PWD, bool ap)
 {
-	// log_i("mssid:%s pw:%s ap:%s", config->mSSID, config->mPWD, config->mAP);
-	config->mSSID = SSID;
-	config->mPWD = PWD;
-	config->mAP = ap;
+	// log_i("mssid:%s pw:%s ap:%s", pinConfig.mSSID, pinConfig.mPWD, pinConfig.mAP);
+	pinConfig.mSSID = SSID;
+	pinConfig.mPWD = PWD;
+	pinConfig.mAP = ap;
 	Config::setWifiConfig(config);
 }
 
@@ -201,7 +201,7 @@ void WifiController::createAp(String ssid, String password)
 	if (ssid.isEmpty())
 	{
 		log_i("Ssid empty, start Uc2 open softap");
-		WiFi.softAP(config->mSSIDAP.c_str());
+		WiFi.softAP(pinConfig.mSSIDAP.c_str());
 	}
 	else if (password.isEmpty())
 	{
@@ -221,14 +221,17 @@ void WifiController::setup()
 	// initialize the Wifi module
 	log_d("Setup Wifi");
 	// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
-	if (socketTaskHandel != nullptr)
-		vTaskDelete(socketTaskHandel);
-	if (httpTaskHandel != nullptr)
-		vTaskDelete(httpTaskHandel);
+	
+	/* FIXME: Why would this be necessary @killerink
+	if (socketTaskHandle != nullptr)
+		vTaskDelete(socketTaskHandle);
+	if (httpTaskHandle != nullptr)
+		vTaskDelete(httpTaskHandle);
+	*/
 	config = Config::getWifiConfig();
 
-	if ((config->mSSID != nullptr) and (config->mPWD != nullptr))
-		log_i("mssid:%s pw:%s", config->mSSID, config->mPWD); //, config->mAP);
+	if ((pinConfig.mSSID != nullptr) and (pinConfig.mPWD != nullptr))
+		log_i("mssid:%s pw:%s", pinConfig.mSSID, pinConfig.mPWD); //, pinConfig.mAP);
 
 	// if the server is already open => close it
 	if (server != nullptr)
@@ -239,39 +242,41 @@ void WifiController::setup()
 		webSocket->close();
 
 	// load default settings for Wifi AP
-	if (config->mSSID == "")
+	if (pinConfig.mSSID == "")
 	{
 		log_i("No SSID is given: Create AP with default credentials Uc2 and no password");
-		config->mAP = true;
-		createAp(config->mSSIDAP, config->mPWD);
+		pinConfig.mAP = true;
+		createAp(pinConfig.mSSIDAP, pinConfig.mPWD);
 	}
-	else if (config->mAP)
+	else if (pinConfig.mAP)
 	{
 		log_i("AP is true: Create AP with default credentials Uc2 and no password");
-		createAp(config->mSSID, config->mPWD);
+		createAp(pinConfig.mSSID, pinConfig.mPWD);
 	}
 	else
 	{
 		// if the Wifi is not in AP mode => connect to an available Wifi Hotspot
 		WiFi.softAPdisconnect();
-		log_i("Connect to:%s", config->mSSID);
-		WiFi.begin(config->mSSID.c_str(), config->mPWD.c_str());
+		log_i("Connect to:%s", pinConfig.mSSID);
+		WiFi.waitForConnectResult();
+		WiFi.begin(pinConfig.mSSID.c_str(), pinConfig.mPWD.c_str());
 
 		// wait for connection 5-times, if not connected => start AP
 		int nConnectTrials = 0;
-		while (WiFi.status() != WL_CONNECTED && nConnectTrials <= 5)
+		int nConnectTrialsMax = 20;
+		while (WiFi.status() != WL_CONNECTED && nConnectTrials <= nConnectTrialsMax)
 		{
 			log_i("Wait for connection");
-			delay(400);
+			delay(500);
 			nConnectTrials++;
 		}
-		if (nConnectTrials >= 5)
+		if (nConnectTrials >= nConnectTrialsMax)
 		{
 			log_i("failed to connect,Start softap");
-			config->mAP = true;
-			config->mSSID = config->mSSIDAP;
-			config->mPWD = "";
-			createAp(config->mSSIDAP, "");
+			pinConfig.mAP = true;
+			pinConfig.mSSID = pinConfig.mSSIDAP;
+			pinConfig.mPWD = "";
+			createAp(pinConfig.mSSIDAP, "");
 		}
 		else
 		{
@@ -346,6 +351,13 @@ void WifiController::setup_routing()
 		server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
 		server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
 	}
+
+	if (moduleController.get(AvailableModules::state) != nullptr)
+	{
+		log_i("add state endpoints");
+		server->on(state_act_endpoint, HTTP_POST, RestApi::State_act);
+		server->on(state_get_endpoint, HTTP_GET, RestApi::State_get);
+	}	
 
 	if (moduleController.get(AvailableModules::dac) != nullptr)
 	{

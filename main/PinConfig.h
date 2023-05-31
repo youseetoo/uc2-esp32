@@ -76,11 +76,18 @@ struct PinConfig
 
     bool enableScanner = false;
     bool enableBlueTooth = false;
-    bool enableWifi = false;
+    bool enableWifi = true;
 
     int JOYSTICK_SPEED_MULTIPLIER = 10;
     int JOYSTICK_MAX_ILLU = 100;
     int JOYSTICK_SPEED_MULTIPLIER_Z  = 10;
+
+    // WIFI
+    String mSSID = "Uc2";
+	String mPWD = "";
+    bool mAP = true;
+    String mSSIDAP = F("UC2");
+	String hostname = F("youseetoo");
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
@@ -341,9 +348,48 @@ struct UC2_WEMOS : PinConfig
 
     int JOYSTICK_SPEED_MULTIPLIER = 5;
     int JOYSTICK_SPEED_MULTIPLIER_Z = 3;
+
+    String mSSID = "Blynk";
+	String mPWD = "12345678";
+    bool mAP = false;
+
 };
 
+
+struct OMNISCOPE : PinConfig
+{
+    String pindefName = "UC2_WEMOS";
+    // ESP32-WEMOS D1 R32
+    int MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
+    int MOTOR_X_DIR = GPIO_NUM_16;
+    int MOTOR_Y_DIR = GPIO_NUM_27;
+    int MOTOR_Z_DIR = GPIO_NUM_14;
+    int MOTOR_A_STEP = GPIO_NUM_5; // Bridge from Endstop Y to Motor A (GPIO_NUM_5)
+    int MOTOR_X_STEP = GPIO_NUM_26;
+    int MOTOR_Y_STEP = GPIO_NUM_25;
+    int MOTOR_Z_STEP = GPIO_NUM_17;
+    int MOTOR_ENABLE = GPIO_NUM_12;
+    bool MOTOR_ENABLE_INVERTED = true;
+
+    int LED_PIN= GPIO_NUM_4;
+    int LED_COUNT = 128;
+
+    int PIN_DEF_END_X = 0;
+    int PIN_DEF_END_Y = 0; // GPIO_NUM_5;
+    int PIN_DEF_END_Z = 0; // GPIO_NUM_23;
+
+    String PSX_MAC = "1a:2b:3c:01:01:03";
+    int PSX_CONTROLLER_TYPE = 2;
+    boolean enableBlueTooth = false;
+
+    String mSSID = "BenMur"; //"omniscope";
+	String mPWD = "MurBen3128"; //"omniscope";
+    bool mAP = false;
+
+};
+
+
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_2 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
+static OMNISCOPE pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
 
 //{"task":"/state_get"}

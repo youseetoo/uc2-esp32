@@ -62,8 +62,8 @@ class WifiController : public Module
     WebServer *server = nullptr;
 	WebSocketsServer *webSocket = nullptr;
 	WifiConfig *config;
-    TaskHandle_t httpTaskHandel;
-    TaskHandle_t socketTaskHandel;
+    TaskHandle_t httpTaskHandle;
+    TaskHandle_t socketTaskHandle;
 	
     public:
     WifiController();

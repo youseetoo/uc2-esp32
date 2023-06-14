@@ -111,17 +111,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else // we always set absolute position to false if not set
 					data[s]->absolutePosition = false;
 
-				if (doc[key_motor][key_steppers][i].containsKey(key_isaccel))
-				{
-					data[s]->isaccelerated = (bool)doc[key_motor][key_steppers][i][key_isaccel];
-					data[s]->acceleration = 4294967295;
-				}
-				else
-				{
-					// we always switch off acceleration if not set
-					data[s]->isaccelerated = false;
-					data[s]->acceleration = DEFAULT_ACCELERATION;
-				}
+
 
 				if (doc[key_motor][key_steppers][i].containsKey(key_acceleration))
 					data[s]->acceleration = doc[key_motor][key_steppers][i][key_acceleration];
@@ -259,8 +249,8 @@ void FocusMotor::setup()
 	faststeppers[Stepper::X]->setSpeedInHz(MAX_VELOCITY_A);
 	faststeppers[Stepper::X]->setAcceleration(DEFAULT_ACCELERATION);
 	faststeppers[Stepper::X]->setCurrentPosition(data[Stepper::X]->currentPosition);
-	faststeppers[Stepper::X]->move(2);
-	faststeppers[Stepper::X]->move(-2);
+	faststeppers[Stepper::X]->move(2000);
+	faststeppers[Stepper::X]->move(-2000);
 
 	// setup the stepper Y
 	log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);

@@ -19,10 +19,9 @@ namespace RestApi
 	}
 }
 
-void processHomeLoop(void * p)
+void processHomeLoop(void *p)
 {
-	Module * m = moduleController.get(AvailableModules::home);
-	
+	Module *m = moduleController.get(AvailableModules::home);
 }
 
 /*
@@ -44,7 +43,7 @@ int HomeMotor::act(DynamicJsonDocument j)
 				Stepper s = static_cast<Stepper>((j)[key_setposition][key_steppers][i][key_stepperid]);
 				long pos = (j)[key_setposition][key_steppers][i][key_currentpos];
 				motor->faststeppers[s]->setCurrentPosition(pos);
-				log_d("set position %d to %d", s, pos);		
+				log_d("set position %d to %d", s, pos);
 			}
 		}
 	}
@@ -85,8 +84,10 @@ int HomeMotor::act(DynamicJsonDocument j)
 				motor->data[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
 
 				// now we will go into loop and need to stop once the button is hit or timeout is reached
-				log_i("Home Data Motor %i, Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i", 
-					i, s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndposRelease);
+				log_i("Home Data Motor %i, Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i",
+					  i, s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndposRelease);
+
+				motor->startStepper(s);
 			}
 		}
 	}
@@ -100,7 +101,7 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	log_i("home_get_fct");
 	ob.clear();
 
-	DynamicJsonDocument doc(4096); //StaticJsonDocument<1024> doc; // create return doc
+	DynamicJsonDocument doc(4096); // StaticJsonDocument<1024> doc; // create return doc
 
 	// add the home data to the json
 	doc[key_home][key_steppers][0][key_home_timeout] = hdata[Stepper::A]->homeTimeout;
@@ -136,11 +137,11 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	return doc;
 }
 
-
-void sendHomeDone(int axis){
+void sendHomeDone(int axis)
+{
 	// send home done to client
 
-	DynamicJsonDocument doc(4096); //StaticJsonDocument<256> doc;
+	DynamicJsonDocument doc(4096); // StaticJsonDocument<256> doc;
 	JsonObject home_steppers = doc["home"]["steppers"].createNestedObject();
 	home_steppers["axis"] = axis;
 	home_steppers["isDone"] = true;
@@ -155,14 +156,13 @@ void sendHomeDone(int axis){
 */
 void HomeMotor::loop()
 {
-	/*
+
 	// this will be called everytime, so we need to make this optional with a switch
 	if (moduleController.get(AvailableModules::motor) != nullptr && moduleController.get(AvailableModules::digitalin) != nullptr)
 	{
 		// get motor and switch instances
 		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 		DigitalInController *digitalin = (DigitalInController *)moduleController.get(AvailableModules::digitalin);
-	
 
 		// expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 		//  0=A , 1=X, 2=Y , 3=Z
@@ -173,60 +173,54 @@ void HomeMotor::loop()
 			motor->faststeppers[Stepper::X]->forceStop();
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
 			if (speed > 0)
-				motor->steppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease);
+				motor->faststeppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease, true);
 			else
-				motor->steppers[Stepper::X]->move(hdata[Stepper::X]->homeEndposRelease);
+				motor->faststeppers[Stepper::X]->move(hdata[Stepper::X]->homeEndposRelease, true);
 
 			hdata[Stepper::X]->homeIsActive = false;
-			motor->steppers[Stepper::X]->runToPosition();
-			motor->steppers[Stepper::X]->setCurrentPosition(0);
-			motor->steppers[Stepper::X]->setSpeed(0);
+			motor->faststeppers[Stepper::X]->setCurrentPosition(0);
+			motor->faststeppers[Stepper::X]->setSpeedInHz(0);
 			motor->data[Stepper::X]->isforever = false;
-			motor->steppers[Stepper::X]->stop();
+			motor->faststeppers[Stepper::X]->forceStop();
 			log_i("Home Motor X done");
-			log_i("Distance to go X: %i", motor->steppers[Stepper::X]->distanceToGo());
-			// send home done to client
 			sendHomeDone(1);
 		}
 		if (hdata[Stepper::Y]->homeIsActive && (digitalin->digitalin_val_2 || hdata[Stepper::Y]->homeTimeStarted + hdata[Stepper::Y]->homeTimeout < millis()))
 		{
 			int speed = motor->data[Stepper::Y]->speed;
-			motor->steppers[Stepper::Y]->forceStop();
+			motor->faststeppers[Stepper::Y]->forceStop();
 			if (speed > 0)
-				motor->faststeppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease);
+				motor->faststeppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease, true);
 			else
-				motor->steppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease);
-			motor->steppers[Stepper::Y]->runToPosition();
+				motor->faststeppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease, true);
 			hdata[Stepper::Y]->homeIsActive = false;
-			motor->steppers[Stepper::Y]->setCurrentPosition(0);
-			motor->steppers[Stepper::Y]->setSpeed(0);
+			motor->faststeppers[Stepper::Y]->setCurrentPosition(0);
+			motor->faststeppers[Stepper::Y]->setSpeedInHz(0);
 			motor->data[Stepper::Y]->isforever = false;
 			log_i("Home Motor Y done");
-			log_i("Distance to go Y: %i", motor->steppers[Stepper::Y]->distanceToGo());
-			// send home done to client
+			// log_i("Distance to go Y: %i", motor->faststeppers[Stepper::Y]->distanceToGo());
+			//  send home done to client
 			sendHomeDone(2);
-			log_i("Distance to go Y: %i", motor->steppers[Stepper::X]->distanceToGo());
+			// log_i("Distance to go Y: %i", motor->faststeppers[Stepper::X]->distanceToGo());
 		}
 		if (hdata[Stepper::Z]->homeIsActive && (digitalin->digitalin_val_3 || hdata[Stepper::Z]->homeTimeStarted + hdata[Stepper::Z]->homeTimeout < millis()))
 		{
 			int speed = motor->data[Stepper::Z]->speed;
-			motor->steppers[Stepper::Z]->forceStop();
+			motor->faststeppers[Stepper::Z]->forceStop();
 			if (speed > 0)
-				motor->steppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease);
+				motor->faststeppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease, true);
 			else
-				motor->steppers[Stepper::Z]->move(hdata[Stepper::Z]->homeEndposRelease);
-			motor->steppers[Stepper::Z]->runToPosition();
+				motor->faststeppers[Stepper::Z]->move(hdata[Stepper::Z]->homeEndposRelease, true);
 			hdata[Stepper::Z]->homeIsActive = false;
-			motor->steppers[Stepper::Z]->setCurrentPosition(0);
-			motor->steppers[Stepper::Z]->setSpeed(0);
+			motor->faststeppers[Stepper::Z]->setCurrentPosition(0);
+			motor->faststeppers[Stepper::Z]->setSpeedInHz(0);
 			motor->data[Stepper::Z]->isforever = false;
 			log_i("Home Motor Z done");
-			log_i("Distance to go Z: %i", motor->steppers[Stepper::Z]->distanceToGo());
-			// send home done to client
+			// log_i("Distance to go Z: %i", motor->faststeppers[Stepper::Z]->distanceToGo());
+			//  send home done to client
 			sendHomeDone(3);
 		}
 	}
-	*/
 }
 
 /*
@@ -237,7 +231,7 @@ void HomeMotor::setup()
 	log_i("HomeMotor setup");
 	for (int i = 0; i < 4; i++)
 	{
-    	hdata[i] = new HomeData ();
+		hdata[i] = new HomeData();
 	}
-	//xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
+	// xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 }

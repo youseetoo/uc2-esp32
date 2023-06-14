@@ -39,6 +39,7 @@ int State::act(DynamicJsonDocument doc)
 	// assign default values to thhe variables
 	if (doc.containsKey("restart"))
 	{
+		//{"task": "/state_act", "restart": 1}
 		ESP.restart();
 	}
 	// assign default values to thhe variables

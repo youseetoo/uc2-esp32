@@ -67,8 +67,11 @@ void DigitalInController::setup()
 {
 	log_i("Setting Up digitalin");
 	/* setup the output nodes and reset them to 0*/
+	log_i("DigitalIn 1: %i", pinConfig.DIGITAL_IN_1);
 	pinMode(pinConfig.DIGITAL_IN_1, INPUT_PULLDOWN);
+	log_i("DigitalIn 2: %i", pinConfig.DIGITAL_IN_2);
 	pinMode(pinConfig.DIGITAL_IN_2, INPUT_PULLDOWN);
+	log_i("DigitalIn 3: %i", pinConfig.DIGITAL_IN_3);
 	pinMode(pinConfig.DIGITAL_IN_3, INPUT_PULLDOWN);
 }
 

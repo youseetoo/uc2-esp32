@@ -247,9 +247,13 @@ struct UC2_2 : PinConfig
     int LED_PIN= GPIO_NUM_32;
     int LED_COUNT = 64;
 
+    // FIXME: Is this redudant?! 
     int PIN_DEF_END_X = GPIO_NUM_34;
-    int PIN_DEF_END_Y = GPIO_NUM_35;
+    int PIN_DEF_END_Y = GPIO_NUM_39;
     int PIN_DEF_END_Z = 0;
+    int DIGITAL_IN_1 = PIN_DEF_END_X;
+    int DIGITAL_IN_2 = PIN_DEF_END_Y;
+    int DIGITAL_IN_3 = PIN_DEF_END_Z;
 
     String PSX_MAC = "1a:2b:3c:01:01:04";
     int PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
@@ -382,14 +386,14 @@ struct OMNISCOPE : PinConfig
     int PSX_CONTROLLER_TYPE = 2;
     boolean enableBlueTooth = false;
 
-    String mSSID = "BenMur"; //"omniscope";
-	String mPWD = "MurBen3128"; //"omniscope";
+    String mSSID = "Blynk"; //"omniscope";
+	String mPWD = "12345678"; //"omniscope";
     bool mAP = false;
 
 };
 
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static OMNISCOPE pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig;
+static UC2_2 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

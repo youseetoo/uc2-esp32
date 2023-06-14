@@ -58,7 +58,7 @@ void ModuleController::setup()
     }
 
     // eventually load the motor homing module
-    if (false)// pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0)
+    if ( pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0)
     {
         modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
         pinConfig.DIGITAL_IN_1=pinConfig.PIN_DEF_END_X;

@@ -173,10 +173,11 @@ void HomeMotor::loop()
 			motor->faststeppers[Stepper::X]->forceStop();
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
 			if (speed > 0)
-				motor->faststeppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease, true);
+				motor->faststeppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease);
 			else
-				motor->faststeppers[Stepper::X]->move(hdata[Stepper::X]->homeEndposRelease, true);
-
+				motor->faststeppers[Stepper::X]->move(hdata[Stepper::X]->homeEndposRelease);
+			// wait until stepper reached new position
+			while (motor->faststeppers[Stepper::X]->getCurrentPosition() - motor->faststeppers[Stepper::X]->targetPos()) delay(1);
 			hdata[Stepper::X]->homeIsActive = false;
 			motor->faststeppers[Stepper::X]->setCurrentPosition(0);
 			motor->faststeppers[Stepper::X]->setSpeedInHz(0);
@@ -190,9 +191,11 @@ void HomeMotor::loop()
 			int speed = motor->data[Stepper::Y]->speed;
 			motor->faststeppers[Stepper::Y]->forceStop();
 			if (speed > 0)
-				motor->faststeppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease, true);
+				motor->faststeppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease);
 			else
-				motor->faststeppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease, true);
+				motor->faststeppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease);
+			// wait until stepper reached new position
+			while (motor->faststeppers[Stepper::Y]->getCurrentPosition() - motor->faststeppers[Stepper::Y]->targetPos()) delay(1);
 			hdata[Stepper::Y]->homeIsActive = false;
 			motor->faststeppers[Stepper::Y]->setCurrentPosition(0);
 			motor->faststeppers[Stepper::Y]->setSpeedInHz(0);
@@ -208,9 +211,11 @@ void HomeMotor::loop()
 			int speed = motor->data[Stepper::Z]->speed;
 			motor->faststeppers[Stepper::Z]->forceStop();
 			if (speed > 0)
-				motor->faststeppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease, true);
+				motor->faststeppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease);
 			else
-				motor->faststeppers[Stepper::Z]->move(hdata[Stepper::Z]->homeEndposRelease, true);
+				motor->faststeppers[Stepper::Z]->move(hdata[Stepper::Z]->homeEndposRelease);
+			// wait until stepper reached new position
+			while (motor->faststeppers[Stepper::Z]->getCurrentPosition() - motor->faststeppers[Stepper::Z]->targetPos()) delay(1);				
 			hdata[Stepper::Z]->homeIsActive = false;
 			motor->faststeppers[Stepper::Z]->setCurrentPosition(0);
 			motor->faststeppers[Stepper::Z]->setSpeedInHz(0);

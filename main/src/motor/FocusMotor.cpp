@@ -111,14 +111,10 @@ int FocusMotor::act(DynamicJsonDocument doc)
 				else // we always set absolute position to false if not set
 					data[s]->absolutePosition = false;
 
-
-
 				if (doc[key_motor][key_steppers][i].containsKey(key_acceleration))
 					data[s]->acceleration = doc[key_motor][key_steppers][i][key_acceleration];
 				else
 					data[s]->acceleration = DEFAULT_ACCELERATION;
-
-				
 
 				log_i("start stepper (act): motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", s, i, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated, data[s]->acceleration);
 
@@ -136,7 +132,7 @@ int FocusMotor::act(DynamicJsonDocument doc)
 
 void FocusMotor::startStepper(int i)
 {
-	//enableEnablePin(i);
+	// enableEnablePin(i);
 	faststeppers[i]->setSpeedInHz(data[i]->speed);
 	faststeppers[i]->setAcceleration(data[i]->acceleration);
 
@@ -226,6 +222,15 @@ void FocusMotor::setup()
 		data[i] = new MotorData();
 	}
 
+
+	/* restore previously saved motor position values*/
+	preferences.begin("motor-positions", false);
+	data[Stepper::A]->currentPosition = preferences.getLong(("motor"+String(Stepper::A)).c_str());
+	data[Stepper::X]->currentPosition = preferences.getLong(("motor"+String(Stepper::X)).c_str());
+	data[Stepper::Y]->currentPosition = preferences.getLong(("motor"+String(Stepper::Y)).c_str());
+	data[Stepper::Z]->currentPosition = preferences.getLong(("motor"+String(Stepper::Z)).c_str());
+	preferences.end();
+
 	// setup the stepper A
 	log_i("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
 	faststeppers[Stepper::A] = NULL;
@@ -277,11 +282,12 @@ void FocusMotor::setup()
 	faststeppers[Stepper::Z]->setCurrentPosition(data[Stepper::Z]->currentPosition);
 	faststeppers[Stepper::Z]->move(2);
 	faststeppers[Stepper::Z]->move(-2);
+
 }
 
 // dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
-{	
+{
 	// checks if a stepper is still running
 	for (int i = 0; i < faststeppers.size(); i++)
 	{
@@ -315,6 +321,10 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	serializeJson(doc, Serial);
 	Serial.println();
 	Serial.println("--");
+
+	preferences.begin("motor-positions", false);
+	preferences.putLong(("motor"+String(i)).c_str(), data[i]->currentPosition);
+	preferences.end();
 }
 
 void FocusMotor::stopAllDrives()
@@ -335,8 +345,7 @@ void FocusMotor::stopStepper(int i)
 	data[i]->currentPosition = faststeppers[i]->getCurrentPosition();
 	data[i]->stopped = true;
 
-/*	if (not data[i]->isEnable)
-		disableEnablePin(i);*/
+
 }
 
 void FocusMotor::startAllDrives()

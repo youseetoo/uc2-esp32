@@ -5,6 +5,7 @@
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"
 #include "../../PinConfig.h"
+#include <Preferences.h>
 
 namespace RestApi
 {
@@ -24,6 +25,7 @@ void driveMotorALoop(void *pvParameter);
 
 struct MotorData
 {
+	
 	long speed = 0;
 	long maxspeed = 200000;
 	long acceleration = 0;
@@ -53,7 +55,7 @@ class FocusMotor : public Module
 public:
 	FocusMotor();
 	~FocusMotor();
-
+	Preferences preferences;
 	FastAccelStepperEngine engine = FastAccelStepperEngine();
 	
 	// global variables for the motor

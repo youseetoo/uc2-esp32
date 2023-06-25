@@ -15,30 +15,6 @@ namespace RestApi
 }
 
 
-void driveMotorXLoop(void *pvParameter)
-{
-	log_d("driveMotorXLoop");
-	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
-	rotator->driveMotorLoop(Rotators::rX);
-}
-void driveMotorYLoop(void *pvParameter)
-{
-	log_d("driveMotorYLoop");
-	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
-	rotator->driveMotorLoop(Rotators::rY);
-}
-void driveMotorZLoop(void *pvParameter)
-{
-	log_d("driveMotorZLoop");
-	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
-	rotator->driveMotorLoop(Rotators::rZ);
-}
-void driveMotorALoop(void *pvParameter)
-{
-	log_d("driveMotorALoop");
-	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
-	rotator->driveMotorLoop(Rotators::rA);
-}
 
 Rotator::Rotator() : Module() { log_i("ctor"); }
 Rotator::~Rotator() { log_i("~ctor"); }
@@ -248,19 +224,7 @@ void Rotator::setup()
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 
-	/*
-	if (pinConfig.ROTATOR_A_0 > 0)
-		xTaskCreate(&driveMotorALoop, "motor_task_A", 4096, NULL, tskIDLE_PRIORITY, NULL);
-	if (pinConfig.ROTATOR_X_0 > 0)
-		xTaskCreate(&driveMotorXLoop, "motor_task_X", 4096, NULL, tskIDLE_PRIORITY, NULL);
-	if (pinConfig.ROTATOR_Y_0 > 0)
-		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 4096, NULL, tskIDLE_PRIORITY, NULL);
-	if (pinConfig.ROTATOR_Z_0 > 0)
-		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 4096, NULL, tskIDLE_PRIORITY, NULL);
-	*/
 	
-}
-
 void Rotator::driveMotorLoop(int stepperid)
 {
 	//log_d("driveMotorLoop %i", stepperid);

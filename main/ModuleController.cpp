@@ -57,6 +57,13 @@ void ModuleController::setup()
         log_i("add motor");
     }
 
+    // load the rotator module
+    if (pinConfig.ROTATOR_ENABLE > 0)
+    {
+        modules.insert(std::make_pair(AvailableModules::rotator, dynamic_cast<Module *>(new Rotator())));
+        log_i("add rotator");
+    }
+
     // eventually load the motor homing module
     if ( pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0)
     {
@@ -177,6 +184,7 @@ DynamicJsonDocument ModuleController::get()
     DynamicJsonDocument doc(4096);
     doc[key_modules][keyLed] = pinConfig.LED_PIN > 0;
     doc[key_modules][key_motor] = pinConfig.MOTOR_ENABLE > 0;
+    doc[key_modules][key_rotator] = pinConfig.ROTATOR_ENABLE > 0;
     doc[key_modules][key_home] = pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0;
     doc[key_modules][key_analogin] = pinConfig.analogin_PIN_0 > 0 || pinConfig.analogin_PIN_1 > 0 || pinConfig.analogin_PIN_2 > 0 || pinConfig.analogin_PIN_3 > 0;
     doc[key_modules][key_pid] =pinConfig.pid1 > 0 || pinConfig.pid2 > 0 || pinConfig.pid3 > 0;

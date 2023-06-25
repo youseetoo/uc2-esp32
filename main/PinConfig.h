@@ -27,6 +27,25 @@ struct PinConfig
     // keep motors on after idle time?
     bool MOTOR_AUTOENABLE = true;
 
+    // Rototar settings for 28byj-48
+    bool ROTATOR_ENABLE = true;
+    int ROTATOR_A_0 = 0;
+    int ROTATOR_A_1 = 0;
+    int ROTATOR_A_2 = 0;
+    int ROTATOR_A_3 = 0;
+    int ROTATOR_X_0 = 0;
+    int ROTATOR_X_1 = 0;
+    int ROTATOR_X_2 = 0;
+    int ROTATOR_X_3 = 0;
+    int ROTATOR_Y_0 = 0;
+    int ROTATOR_Y_1 = 0;
+    int ROTATOR_Y_2 = 0;
+    int ROTATOR_Y_3 = 0;
+    int ROTATOR_Z_0 = 0;
+    int ROTATOR_Z_1 = 0;
+    int ROTATOR_Z_2 = 0;
+    int ROTATOR_Z_3 = 0;
+    
     // LED_PINcontrol pin
     int LED_PIN = 0;
     // LED_PINcount from the strip

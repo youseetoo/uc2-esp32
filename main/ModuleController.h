@@ -4,6 +4,7 @@
 #include "PinConfig.h"
 #include "src/led/LedController.h"
 #include "src/motor/FocusMotor.h"
+#include "src/rotator/Rotator.h"
 #include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
 #include "src/laser/LaserController.h"
@@ -34,6 +35,7 @@ enum class AvailableModules
     laser,
     led,
     motor,
+    rotator,
     home,
     pid,
     scanner,

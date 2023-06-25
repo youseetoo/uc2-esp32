@@ -351,7 +351,12 @@ void WifiController::setup_routing()
 		server->on(motor_act_endpoint, HTTP_POST, RestApi::FocusMotor_act);
 		server->on(motor_get_endpoint, HTTP_GET, RestApi::FocusMotor_get);
 	}
-
+	if (moduleController.get(AvailableModules::rotator) != nullptr)
+	{
+		log_i("add rotator endpoints");
+		server->on(rotator_act_endpoint, HTTP_POST, RestApi::Rotator_act);
+		server->on(rotator_get_endpoint, HTTP_GET, RestApi::Rotator_get);
+	}
 	if (moduleController.get(AvailableModules::state) != nullptr)
 	{
 		log_i("add state endpoints");

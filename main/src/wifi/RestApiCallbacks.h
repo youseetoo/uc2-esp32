@@ -50,6 +50,9 @@ namespace RestApi
         "/motor_act",
         "/motor_set",
         "/motor_get",
+        "/rotator_act",
+        "/rotator_set",
+        "/rotator_get",
         "/ledarr_act",
         "/ledarr_set",
         "/ledarr_get"

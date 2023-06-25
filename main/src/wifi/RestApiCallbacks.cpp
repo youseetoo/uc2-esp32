@@ -128,6 +128,11 @@ namespace RestApi
             doc.add(motor_act_endpoint);
             doc.add(motor_get_endpoint);
         }
+        if (moduleController.get(AvailableModules::rotator) != nullptr)
+        {
+            doc.add(rotator_act_endpoint);
+            doc.add(rotator_get_endpoint);
+        }        
         if (moduleController.get(AvailableModules::pid) != nullptr)
         {
             doc.add(PID_act_endpoint);

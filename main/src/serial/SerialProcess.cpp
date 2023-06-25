@@ -120,6 +120,20 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 		}
 	}
 	/*
+	  Drive Rotators
+	*/
+	if (moduleController.get(AvailableModules::rotator) != nullptr)
+	{
+		if (task == rotator_act_endpoint)
+		{
+			serialize(moduleController.get(AvailableModules::rotator)->act(jsonDocument));
+		}
+		if (task == rotator_get_endpoint)
+		{
+			serialize(moduleController.get(AvailableModules::rotator)->get(jsonDocument));
+		}
+	}	
+	/*
 	  Home Motors
 	*/
 	if (moduleController.get(AvailableModules::home) != nullptr)

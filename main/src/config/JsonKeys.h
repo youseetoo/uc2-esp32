@@ -74,6 +74,8 @@ static const PROGMEM char * key_home_timestarted = "timestarted";
 static const PROGMEM char * key_home_isactive = "isactive";
 static const PROGMEM char * key_home_endposrelease = "endposrelease";
 
+static const PROGMEM char * key_rotator = "rotator";
+
 static const PROGMEM char * key_steppers = "steppers";
 static const PROGMEM char * key_setposition = "setpos";
 static const PROGMEM char * key_currentpos = "posval";

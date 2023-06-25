@@ -71,6 +71,7 @@ public:
 	void stopStepper(int i);
 	void startStepper(int i);
 	void driveMotorLoop(int stepperid);
+	void sendRotatorPos(int i, int arraypos);
 
 private:
 	int logcount;

@@ -412,7 +412,20 @@ struct OMNISCOPE : PinConfig
 };
 
 
+struct CassetteRecorder : PinConfig
+{
+    String pindefName = "CassetteRecorder";
+    // ESP32-WEMOS D1 R32
+    int ROTATOR_X_0 = GPIO_NUM_13; 
+    int ROTATOR_X_1 = GPIO_NUM_14; 
+    int ROTATOR_X_2 = GPIO_NUM_12; 
+    int ROTATOR_X_3 = GPIO_NUM_27; 
+    bool ROTATOR_ENABLE = true; 
+
+    
+};
+
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_2 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+static CassetteRecorder pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

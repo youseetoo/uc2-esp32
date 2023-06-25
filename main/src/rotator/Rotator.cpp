@@ -17,23 +17,27 @@ namespace RestApi
 
 void driveMotorXLoop(void *pvParameter)
 {
-	Rotator *motor = (Rotator *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Rotators::rX);
+	log_d("driveMotorXLoop");
+	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
+	rotator->driveMotorLoop(Rotators::rX);
 }
 void driveMotorYLoop(void *pvParameter)
 {
-	Rotator *motor = (Rotator *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Rotators::rY);
+	log_d("driveMotorYLoop");
+	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
+	rotator->driveMotorLoop(Rotators::rY);
 }
 void driveMotorZLoop(void *pvParameter)
 {
-	Rotator *motor = (Rotator *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Rotators::rZ);
+	log_d("driveMotorZLoop");
+	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
+	rotator->driveMotorLoop(Rotators::rZ);
 }
 void driveMotorALoop(void *pvParameter)
 {
-	Rotator *motor = (Rotator *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Rotators::rA);
+	log_d("driveMotorALoop");
+	Rotator *rotator = (Rotator *)moduleController.get(AvailableModules::rotator);
+	rotator->driveMotorLoop(Rotators::rA);
 }
 
 Rotator::Rotator() : Module() { log_i("ctor"); }
@@ -147,7 +151,7 @@ int Rotator::act(DynamicJsonDocument doc)
 
 void Rotator::startStepper(int i)
 {
-
+	log_d("start rotator: motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition, data[i]->isaccelerated, data[i]->acceleration);
 	steppers[i]->setMaxSpeed(data[i]->maxspeed);
 	steppers[i]->setAcceleration(data[i]->acceleration);
 	if (data[i]->absolutePosition == 1)
@@ -166,7 +170,7 @@ void Rotator::startStepper(int i)
 
 DynamicJsonDocument Rotator::get(DynamicJsonDocument docin)
 {
-	log_i("get motor");
+	log_i("get rotator");
 	DynamicJsonDocument doc(4096); // StaticJsonDocument<1024> doc; // create return doc
 	// only return the position of the stepper
 	if (docin.containsKey(key_position))
@@ -208,14 +212,19 @@ void Rotator::setup()
 {
 	// setup the pins
 	log_i("Setting Up Motor A,X,Y,Z");
+	if(pinConfig.ROTATOR_A_0>0)
 	steppers[Rotators::rA] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.ROTATOR_A_0, pinConfig.ROTATOR_A_1, pinConfig.ROTATOR_A_2, pinConfig.ROTATOR_A_3);
+	if(pinConfig.ROTATOR_X_0>0)
 	steppers[Rotators::rX] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.ROTATOR_X_0, pinConfig.ROTATOR_X_1, pinConfig.ROTATOR_X_2, pinConfig.ROTATOR_X_3);
+	if(pinConfig.ROTATOR_Y_0>0)
 	steppers[Rotators::rY] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.ROTATOR_Y_0, pinConfig.ROTATOR_Y_1, pinConfig.ROTATOR_Y_2, pinConfig.ROTATOR_Y_3);
+	if(pinConfig.ROTATOR_Z_0>0)
 	steppers[Rotators::rZ] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.ROTATOR_Z_0, pinConfig.ROTATOR_Z_1, pinConfig.ROTATOR_Z_2, pinConfig.ROTATOR_Z_3);
-	log_i("Motor A, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_A_0, pinConfig.ROTATOR_A_1, pinConfig.ROTATOR_A_2, pinConfig.ROTATOR_A_3);
-	log_i("Motor X, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_X_0, pinConfig.ROTATOR_X_1, pinConfig.ROTATOR_X_2, pinConfig.ROTATOR_X_3);
-	log_i("Motor Y, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_Y_0, pinConfig.ROTATOR_Y_1, pinConfig.ROTATOR_Y_2, pinConfig.ROTATOR_Y_3);
-	log_i("Motor Z, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_Z_0, pinConfig.ROTATOR_Z_1, pinConfig.ROTATOR_Z_2, pinConfig.ROTATOR_Z_3);
+	
+	log_i("Rotator A, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_A_0, pinConfig.ROTATOR_A_1, pinConfig.ROTATOR_A_2, pinConfig.ROTATOR_A_3);
+	log_i("Rotator X, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_X_0, pinConfig.ROTATOR_X_1, pinConfig.ROTATOR_X_2, pinConfig.ROTATOR_X_3);
+	log_i("Rotator Y, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_Y_0, pinConfig.ROTATOR_Y_1, pinConfig.ROTATOR_Y_2, pinConfig.ROTATOR_Y_3);
+	log_i("Rotator Z, dir, step: %i, %i, %i, %i", pinConfig.ROTATOR_Z_0, pinConfig.ROTATOR_Z_1, pinConfig.ROTATOR_Z_2, pinConfig.ROTATOR_Z_3);
 
 	for (int i = 0; i < steppers.size(); i++)
 	{
@@ -226,8 +235,12 @@ void Rotator::setup()
 	   Motor related settings
 	*/
 
+	// setting default values
 	for (int i = 0; i < steppers.size(); i++)
 	{
+		if(steppers[i]==nullptr)
+			continue;
+		log_d("setting default values for motor %i", i);
 		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
 		steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
 		steppers[i]->runToNewPosition(-1);
@@ -235,6 +248,7 @@ void Rotator::setup()
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
 
+	/*
 	if (pinConfig.ROTATOR_A_0 > 0)
 		xTaskCreate(&driveMotorALoop, "motor_task_A", 4096, NULL, tskIDLE_PRIORITY, NULL);
 	if (pinConfig.ROTATOR_X_0 > 0)
@@ -243,12 +257,13 @@ void Rotator::setup()
 		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 4096, NULL, tskIDLE_PRIORITY, NULL);
 	if (pinConfig.ROTATOR_Z_0 > 0)
 		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 4096, NULL, tskIDLE_PRIORITY, NULL);
-
+	*/
 	
 }
 
 void Rotator::driveMotorLoop(int stepperid)
 {
+	//log_d("driveMotorLoop %i", stepperid);
 	AccelStepper *tSteppers = steppers[stepperid];
 	RotatorData *tData = data[stepperid];
 	int arraypos = 0;
@@ -279,7 +294,7 @@ void Rotator::driveMotorLoop(int stepperid)
 				// if not turn it off
 				stopStepper(stepperid);
 
-				sendMotorPos(stepperid, arraypos);
+				//sendRotatorPos(stepperid, arraypos);
 
 				// initialte a disabling of the motors after the timeout has reached
 				tData->timeLastActive	= millis();
@@ -291,21 +306,65 @@ void Rotator::driveMotorLoop(int stepperid)
 	}
 }
 
+
+
 // dont use it, it get no longer triggered from modulehandler
 void Rotator::loop()
 {
+	int arraypos = 0;
 
-	// Motor logic runs in a background loop => task
-
-	// check if we want to disable motors after timeout
-	bool timeoutReached = true;
+	// iterate over all available motors
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		timeoutReached &= ((millis() - data[i]->timeLastActive) > data[i]->timeoutDisable);
+
+		// move motor only if available
+		if (steppers[i] != nullptr)
+		{
+			steppers[i]->setSpeed(data[i]->speed);
+			steppers[i]->setMaxSpeed(data[i]->maxspeed);
+
+			// run forever
+			if (data[i]->isforever)
+			{
+				steppers[i]->runSpeed();
+			}
+			else // run certain steps
+			{
+				// checks if a stepper is still running
+				if (steppers[i]->distanceToGo() == 0 && !data[i]->stopped)
+				{
+					log_i("stop stepper:%i", i);
+					// if not turn it off
+					stopStepper(i);
+					sendRotatorPos(i, arraypos);
+					/*
+					if (pins[i]->max_position != 0 || pins[i]->min_position != 0)
+					{
+						pins[i]->current_position = steppers[i]->currentPosition();
+						Config::setMotorPinConfig(pins);
+					}
+					*/
+				}
+
+				// run at constant speed
+				if (data[i]->isaccelerated)
+				{
+					//Serial.println("Speed (accel) /data" + String(steppers[i]->speed())+"/"+String(data[i]->speed));
+					// Serial.println("Distance to go (accel)" + String(i) + " - "+ String(steppers[i]->distanceToGo()));
+					steppers[i]->run();
+				}
+				else // run accelerated
+				{
+					//Serial.println("Distance to go " + String(i) + " - "+ String(steppers[i]->distanceToGo()));
+					//Serial.println("Speed (non accel) /data" + String(steppers[i]->speed())+"/"+String(data[i]->speed));
+					steppers[i]->runSpeedToPosition();
+				}
+			}
+		}
 	}
 }
 
-void Rotator::sendMotorPos(int i, int arraypos)
+void Rotator::sendRotatorPos(int i, int arraypos)
 {
 	DynamicJsonDocument doc(4096);
 	doc[key_steppers][arraypos][key_stepperid] = i;

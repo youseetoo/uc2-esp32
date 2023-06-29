@@ -426,7 +426,7 @@ struct CassetteRecorder : PinConfig
 
 struct XYZRotator : PinConfig
 {
-    String pindefName = "CassetteRecorder";
+    String pindefName = "XYZRotator";
     // ESP32-WEMOS D1 R32
     int ROTATOR_X_0 = GPIO_NUM_14; 
     int ROTATOR_X_1 = GPIO_NUM_27; 

@@ -154,7 +154,8 @@ payload = {
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": 10000, "speed": 500, "isabs": 0, "isaccel":0}
+            { "stepperid": 2, "position": 10000, "speed": 500, "isabs": 0, "isaccel":0}
         ]
     }
 }
+{"task":"/state_get"}

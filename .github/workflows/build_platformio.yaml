@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: master
+        ref: main
         submodules: recursive
     - name: Set up Python
       uses: actions/setup-python@v1

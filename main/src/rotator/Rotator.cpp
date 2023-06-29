@@ -223,7 +223,7 @@ void Rotator::setup()
 		steppers[i]->runToNewPosition(1);
 		steppers[i]->setCurrentPosition(data[i]->currentPosition);
 	}
-
+}
 	
 void Rotator::driveMotorLoop(int stepperid)
 {

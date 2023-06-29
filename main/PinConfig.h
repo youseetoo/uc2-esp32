@@ -421,11 +421,25 @@ struct CassetteRecorder : PinConfig
     int ROTATOR_X_2 = GPIO_NUM_12; 
     int ROTATOR_X_3 = GPIO_NUM_27; 
     bool ROTATOR_ENABLE = true; 
+};
 
-    
+
+struct XYZRotator : PinConfig
+{
+    String pindefName = "CassetteRecorder";
+    // ESP32-WEMOS D1 R32
+    int ROTATOR_X_0 = GPIO_NUM_14; 
+    int ROTATOR_X_1 = GPIO_NUM_27; 
+    int ROTATOR_X_2 = GPIO_NUM_26; 
+    int ROTATOR_X_3 = GPIO_NUM_25; 
+    int ROTATOR_Y_0 = GPIO_NUM_33; 
+    int ROTATOR_Y_1 = GPIO_NUM_32; 
+    int ROTATOR_Y_2 = GPIO_NUM_35; 
+    int ROTATOR_Y_3 = GPIO_NUM_34;     
+    bool ROTATOR_ENABLE = true; 
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static CassetteRecorder pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+static XYZRotator pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

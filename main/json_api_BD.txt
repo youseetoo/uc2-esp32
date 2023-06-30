@@ -145,7 +145,7 @@ payload = {
 
 {"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
 
-
+{"task":"/motor_act", "isen":1, "isenauto":0}
 
 {"task":"/home_act", "setpos":1, "home": {"steppers": [{"stepperid":1, "posval": 20000}]}}
 

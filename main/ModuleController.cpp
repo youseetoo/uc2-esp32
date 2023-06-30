@@ -58,7 +58,7 @@ void ModuleController::setup()
     }
 
     // load the rotator module
-    if (pinConfig.ROTATOR_ENABLE > 0)
+    if (pinConfig.ROTATOR_ENABLE > 0 and (pinConfig.ROTATOR_X_0>0 or pinConfig.ROTATOR_Y_0>0 or pinConfig.ROTATOR_Z_0>0  or pinConfig.ROTATOR_A_0>0 ))
     {
         modules.insert(std::make_pair(AvailableModules::rotator, dynamic_cast<Module *>(new Rotator())));
         log_i("add rotator");

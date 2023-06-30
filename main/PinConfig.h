@@ -379,7 +379,7 @@ struct UC2_WEMOS : PinConfig
 };
 
 
-struct OMNISCOPE : PinConfig
+struct UC2_OMNISCOPE : PinConfig
 {
     String pindefName = "UC2_WEMOS";
     // ESP32-WEMOS D1 R32
@@ -412,7 +412,7 @@ struct OMNISCOPE : PinConfig
 };
 
 
-struct CassetteRecorder : PinConfig
+struct UC2_CassetteRecorder : PinConfig
 {
     String pindefName = "CassetteRecorder";
     // ESP32-WEMOS D1 R32
@@ -424,7 +424,7 @@ struct CassetteRecorder : PinConfig
 };
 
 
-struct XYZRotator : PinConfig
+struct UC2_XYZRotator : PinConfig
 {
     String pindefName = "XYZRotator";
     // ESP32-WEMOS D1 R32
@@ -440,6 +440,6 @@ struct XYZRotator : PinConfig
 };
 
 //static XYZ_MOTOR_JOYSTICK pinConfig;
-static XYZRotator pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+static UC2_WEMOS pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

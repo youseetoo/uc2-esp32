@@ -43,10 +43,10 @@ void ModuleController::setup()
     if (pinConfig.enableWifi)
     {
         modules.insert(std::make_pair(AvailableModules::wifi, dynamic_cast<Module *>(new WifiController())));
-        log_i("add btcontroller");
+        log_i("add wificntroller");
     }
 
-    
+    // add the state module
     modules.insert(std::make_pair(AvailableModules::state, dynamic_cast<Module *>(new  State())));
     log_i("add state");
 

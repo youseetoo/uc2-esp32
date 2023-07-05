@@ -214,14 +214,16 @@ void Rotator::setup()
 	// setting default values
 	for (int i = 0; i < steppers.size(); i++)
 	{
-		if(steppers[i]==nullptr)
-			continue;
-		log_d("setting default values for motor %i", i);
-		steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
-		steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
-		steppers[i]->runToNewPosition(-1);
-		steppers[i]->runToNewPosition(1);
-		steppers[i]->setCurrentPosition(data[i]->currentPosition);
+		if(steppers[i]){
+			log_d("setting default values for motor %i", i);
+			steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
+			steppers[i]->setAcceleration(DEFAULT_ACCELERATION_A);
+			steppers[i]->runToNewPosition(-1);
+			steppers[i]->runToNewPosition(1);
+			log_d("1");
+			
+			steppers[i]->setCurrentPosition(data[i]->currentPosition);
+	}
 	}
 }
 	

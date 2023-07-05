@@ -94,7 +94,7 @@ struct PinConfig
     int PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
     bool enableScanner = false;
-    bool enableBlueTooth = false;
+    bool enableBlueTooth = true;
     bool enableWifi = true;
 
     int JOYSTICK_SPEED_MULTIPLIER = 10;
@@ -198,7 +198,7 @@ struct UC2_1 : PinConfig
     int PIN_DEF_END_Z = 0;
 
     String PSX_MAC = "1a:2b:3c:01:01:05";
-    int PSX_CONTROLLER_TYPE = 2;
+    int PSX_CONTROLLER_TYPE = 1;
 
     int JOYSTICK_SPEED_MULTIPLIER = 20;
     boolean enableBlueTooth = true;
@@ -426,20 +426,25 @@ struct UC2_CassetteRecorder : PinConfig
 
 struct UC2_XYZRotator : PinConfig
 {
-    String pindefName = "XYZRotator";
+    String pindefName = "UC2_XYZRotator";
     // ESP32-WEMOS D1 R32
-    int ROTATOR_X_0 = GPIO_NUM_14; 
-    int ROTATOR_X_1 = GPIO_NUM_27; 
-    int ROTATOR_X_2 = GPIO_NUM_26; 
-    int ROTATOR_X_3 = GPIO_NUM_25; 
-    int ROTATOR_Y_0 = GPIO_NUM_33; 
-    int ROTATOR_Y_1 = GPIO_NUM_32; 
-    int ROTATOR_Y_2 = GPIO_NUM_35; 
-    int ROTATOR_Y_3 = GPIO_NUM_34;     
+    int ROTATOR_X_0 = GPIO_NUM_13; 
+    int ROTATOR_X_1 = GPIO_NUM_14; 
+    int ROTATOR_X_2 = GPIO_NUM_12; 
+    int ROTATOR_X_3 = GPIO_NUM_27; 
+    int ROTATOR_Y_0 = GPIO_NUM_26; 
+    int ROTATOR_Y_1 = GPIO_NUM_33; 
+    int ROTATOR_Y_2 = GPIO_NUM_25; 
+    int ROTATOR_Y_3 = GPIO_NUM_32;     
     bool ROTATOR_ENABLE = true; 
+
+    String PSX_MAC = "1a:2b:3c:01:01:01";
+    int PSX_CONTROLLER_TYPE = 1;
+    bool enableBlueTooth = false;
+
 };
 
-//static XYZ_MOTOR_JOYSTICK pinConfig;
-static UC2_WEMOS pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+
+static UC2_XYZRotator pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

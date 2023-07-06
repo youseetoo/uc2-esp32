@@ -72,6 +72,9 @@ int HomeMotor::act(DynamicJsonDocument j)
 				// how much should we move in the opposite direction compared to the endstop?
 				if (j[key_home][key_steppers][i].containsKey(key_home_endposrelease))
 					hdata[s]->homeEndposRelease = j[key_home][key_steppers][i][key_home_endposrelease];
+				// polarity of endstop signal
+				if (j[key_home][key_steppers][i].containsKey(key_home_endstoppolarity))
+					hdata[s]->homeEndStopPolarity = j[key_home][key_steppers][i][key_home_endstoppolarity];
 
 				// grab current time
 				hdata[s]->homeTimeStarted = millis();
@@ -166,7 +169,7 @@ void HomeMotor::loop()
 
 		// expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 		//  0=A , 1=X, 2=Y , 3=Z
-		if (hdata[Stepper::X]->homeIsActive && (digitalin->digitalin_val_1 || hdata[Stepper::X]->homeTimeStarted + hdata[Stepper::X]->homeTimeout < millis()))
+		if (hdata[Stepper::X]->homeIsActive && (abs(hdata[Stepper::X]->homeEndStopPolarity-digitalin->digitalin_val_1) || hdata[Stepper::X]->homeTimeStarted + hdata[Stepper::X]->homeTimeout < millis()))
 		{
 			// stopping motor and going reversing direction to release endstops
 			int speed = motor->data[Stepper::X]->speed;
@@ -186,7 +189,7 @@ void HomeMotor::loop()
 			log_i("Home Motor X done");
 			sendHomeDone(1);
 		}
-		if (hdata[Stepper::Y]->homeIsActive && (digitalin->digitalin_val_2 || hdata[Stepper::Y]->homeTimeStarted + hdata[Stepper::Y]->homeTimeout < millis()))
+		if (hdata[Stepper::Y]->homeIsActive && (abs(hdata[Stepper::Y]->homeEndStopPolarity-digitalin->digitalin_val_2)|| hdata[Stepper::Y]->homeTimeStarted + hdata[Stepper::Y]->homeTimeout < millis()))
 		{
 			int speed = motor->data[Stepper::Y]->speed;
 			motor->faststeppers[Stepper::Y]->forceStop();
@@ -206,7 +209,7 @@ void HomeMotor::loop()
 			sendHomeDone(2);
 			// log_i("Distance to go Y: %i", motor->faststeppers[Stepper::X]->distanceToGo());
 		}
-		if (hdata[Stepper::Z]->homeIsActive && (digitalin->digitalin_val_3 || hdata[Stepper::Z]->homeTimeStarted + hdata[Stepper::Z]->homeTimeout < millis()))
+		if (hdata[Stepper::Z]->homeIsActive && (abs(hdata[Stepper::Z]->homeEndStopPolarity-digitalin->digitalin_val_3) || hdata[Stepper::Z]->homeTimeStarted + hdata[Stepper::Z]->homeTimeout < millis()))
 		{
 			int speed = motor->data[Stepper::Z]->speed;
 			motor->faststeppers[Stepper::Z]->forceStop();

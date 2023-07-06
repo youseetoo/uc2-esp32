@@ -73,6 +73,7 @@ static const PROGMEM char * key_home_direction = "direction";
 static const PROGMEM char * key_home_timestarted = "timestarted";
 static const PROGMEM char * key_home_isactive = "isactive";
 static const PROGMEM char * key_home_endposrelease = "endposrelease";
+static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
 
 static const PROGMEM char * key_rotator = "rotator";
 

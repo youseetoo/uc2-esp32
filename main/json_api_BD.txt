@@ -87,9 +87,9 @@ payload = {
 # HOME
 {"task": "/home_get"}
 {"task": "/home_set"}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":3000}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":-1, "endposrelease":3000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":3000, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":-1, "endposrelease":3000, "endstoppolarity":1}]}}
 
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}

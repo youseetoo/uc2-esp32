@@ -435,7 +435,11 @@ struct UC2_XYZRotator : PinConfig
     int ROTATOR_Y_0 = GPIO_NUM_26; 
     int ROTATOR_Y_1 = GPIO_NUM_33; 
     int ROTATOR_Y_2 = GPIO_NUM_25; 
-    int ROTATOR_Y_3 = GPIO_NUM_32;     
+    int ROTATOR_Y_3 = GPIO_NUM_32;    
+    int ROTATOR_Z_0 = GPIO_NUM_5; 
+    int ROTATOR_Z_1 = GPIO_NUM_19; 
+    int ROTATOR_Z_2 = GPIO_NUM_18; 
+    int ROTATOR_Z_3 = GPIO_NUM_21;         
     bool ROTATOR_ENABLE = true; 
 
     String PSX_MAC = "1a:2b:3c:01:01:01";
@@ -445,6 +449,6 @@ struct UC2_XYZRotator : PinConfig
 };
 
 
-static UC2_XYZRotator pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+static UC2_2 pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

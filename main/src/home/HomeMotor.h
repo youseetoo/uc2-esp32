@@ -24,6 +24,7 @@ struct HomeData
 	long homeTimeStarted = 0;
 	bool homeIsActive = false;
 	int homeEndposRelease = 1000;
+	bool homeEndStopPolarity = 0; // normally open
 };
 
 void processHomeLoop(void * p);

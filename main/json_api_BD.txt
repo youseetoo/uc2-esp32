@@ -118,6 +118,7 @@ payload = {
     {
         "steppers": [
             { "stepperid": 1, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0},
+            { "stepperid": 3, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0},
             { "stepperid": 2, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}
         ]
     }

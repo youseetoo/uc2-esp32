@@ -176,12 +176,12 @@ struct UC2_1 : PinConfig
     String pindefName = "UC2_1";
     // UC2 STandalone V1
     int MOTOR_A_DIR = GPIO_NUM_21;
-    int MOTOR_Y_DIR = GPIO_NUM_33;
-    int MOTOR_X_DIR = GPIO_NUM_16;
+    int MOTOR_X_DIR = GPIO_NUM_33;
+    int MOTOR_Y_DIR = GPIO_NUM_16;
     int MOTOR_Z_DIR = GPIO_NUM_14;
     int MOTOR_A_STEP = GPIO_NUM_22;
-    int MOTOR_Y_STEP = GPIO_NUM_2;
-    int MOTOR_X_STEP = GPIO_NUM_27;
+    int MOTOR_X_STEP = GPIO_NUM_2;
+    int MOTOR_Y_STEP = GPIO_NUM_27;
     int MOTOR_Z_STEP = GPIO_NUM_12;
     int MOTOR_ENABLE = GPIO_NUM_13;
     bool MOTOR_ENABLE_INVERTED = true;
@@ -449,6 +449,6 @@ struct UC2_XYZRotator : PinConfig
 };
 
 
-static UC2_2 pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+static UC2_1 pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

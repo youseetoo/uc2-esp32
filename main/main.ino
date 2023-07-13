@@ -10,12 +10,32 @@
 
 #define BAUDRATE 115200
 
+#ifdef UC2_3
+#include <Wire.h>
+#include <Adafruit_PCA9535.h>
+Adafruit_PCA9535 io; // Create an instance of the PCA9535
+#endif
+
+
+
 void setup()
 {
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
 	delay(500);
 	Serial.setTimeout(50);
+
+	#ifdef UC2_3
+	Wire.begin();
+
+	if (!io.begin()) {
+		Serial.println("PCA9535 not found");
+		while (1);
+	}
+
+	// Configure pin 0 as an output
+	io.pinMode(0, OUTPUT);
+	#endif
 
 	// Disable brownout detector
 	log_i("Start setup");

@@ -556,7 +556,7 @@ void BtController::removeAllPairedDevices()
     // Delete each paired device
     for (int i = 0; i < num_devices; i++)
     {
-        Serial.println("REmoving device...");
+        //Serial.println("REmoving device...");
         esp_bt_gap_remove_bond_device(devices[i]);
     }
 

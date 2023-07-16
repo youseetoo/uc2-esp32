@@ -449,6 +449,6 @@ struct UC2_XYZRotator : PinConfig
 };
 
 
-static UC2_1 pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+static UC2_2 pinConfig; //UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
 
 //{"task":"/state_get"}

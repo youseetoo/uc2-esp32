@@ -25,6 +25,7 @@ namespace Config
 
 	void setup()
 	{
+		nvs_flash_init();
 		log_d("Setup ConfigController");
 	}
 

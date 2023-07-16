@@ -10,7 +10,7 @@
 
 #define BAUDRATE 115200
 
-void setup()
+extern "C" void app_main(void)
 {
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
@@ -21,6 +21,7 @@ void setup()
 	log_i("Start setup");
 	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
+
 	// initialize the pin/settings configurator
 	log_i("Config::setup");
 	Config::setup();
@@ -29,6 +30,7 @@ void setup()
 	moduleController.setup();
 
 	log_i("End setup");
+	
 }
 
 void loop()

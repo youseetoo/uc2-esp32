@@ -385,7 +385,7 @@ void WifiController::setup_routing()
 		server->on(analogout_get_endpoint, HTTP_POST, RestApi::AnalogOut_get);
 	}
 
-	if (moduleController.get(AvailableModules::digitalout) != nullptr != 0)
+	if (moduleController.get(AvailableModules::digitalout) != nullptr)
 	{
 		log_i("add digitalout endpoints");
 		server->on(digitalout_act_endpoint, HTTP_POST, RestApi::DigitalOut_act);

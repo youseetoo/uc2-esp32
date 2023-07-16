@@ -1,6 +1,7 @@
 #include "HidController.h"
 
 GamePadData gamePadData;
+bool hidIsConnected = false;
 
 void setupHidController()
 {
@@ -45,6 +46,7 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             const uint8_t *bda = esp_hidh_dev_bda_get(param->open.dev);
             ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->open.dev));
             esp_hidh_dev_dump(param->open.dev, stdout);
+            hidIsConnected = true;
         } else {
             ESP_LOGE(TAG, " OPEN failed!");
         }
@@ -73,7 +75,7 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             gamePadData.RightX = d->RightX;
             gamePadData.RightY = d->RightY;
 
-            gamePadData.dpaddirection = static_cast<DpadDirection>(d->Dpad);
+            gamePadData.dpaddirection = static_cast<Dpad::Direction>(d->Dpad);
         }
         else if (param->input.length == 9)
         {
@@ -93,24 +95,24 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             gamePadData.RightY = d->RightY;
             if (d->Buttons.dpad == 0)
             {
-                gamePadData.dpaddirection = DpadDirection::none;
+                gamePadData.dpaddirection = Dpad::Direction::none;
             }
             
             if (d->Buttons.dpad == 16)
             {
-                gamePadData.dpaddirection = DpadDirection::up;
+                gamePadData.dpaddirection = Dpad::Direction::up;
             }
             if (d->Buttons.dpad == 32)
             {
-                gamePadData.dpaddirection = DpadDirection::right;
+                gamePadData.dpaddirection = Dpad::Direction::right;
             }
             if (d->Buttons.dpad == 64)
             {
-                gamePadData.dpaddirection = DpadDirection::down;
+                gamePadData.dpaddirection = Dpad::Direction::down;
             }
             if (d->Buttons.dpad == 128)
             {
-                gamePadData.dpaddirection = DpadDirection::left;
+                gamePadData.dpaddirection = Dpad::Direction::left;
             }
         }
         
@@ -140,6 +142,7 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
         break;
     }
     case ESP_HIDH_CLOSE_EVENT: {
+        hidIsConnected = false;
         const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
         ESP_LOGI(TAG, ESP_BD_ADDR_STR " CLOSE: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->close.dev));
         break;

@@ -1,6 +1,9 @@
 #pragma once
 
-typedef enum {up =0, up_right =1 , right = 2, right_down = 3, down = 4,down_left =5, left = 6, left_up = 7,none = 15} DpadDirection;
+struct Dpad
+{
+  enum Direction {up =0, up_right =1 , right = 2, right_down = 3, down = 4,down_left =5, left = 6, left_up = 7,none = 15};
+};
 
 struct GamePadData
 {
@@ -16,7 +19,7 @@ struct GamePadData
   uint16_t LeftY;
   uint16_t RightX;
   uint16_t RightY;
-  DpadDirection dpaddirection;
+  Dpad::Direction dpaddirection;
 };
 
 

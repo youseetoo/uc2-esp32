@@ -25,6 +25,7 @@
 static const char *TAG = "HIDGamePad";
 
 extern GamePadData gamePadData;
+extern bool hidIsConnected;
 
 void setupHidController();
 

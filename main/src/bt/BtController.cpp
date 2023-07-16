@@ -122,19 +122,19 @@ void BtController::setupPS(String mac, int type)
 void BtController::loop()
 {
     // this maps the physical inputs (e.g. joystick) to the physical outputs (e.g. motor)
-    if (psx != nullptr && psx->isConnected())
+    if ((psx != nullptr && psx->isConnected()) || hidIsConnected)
     {
         if (moduleController.get(AvailableModules::led) != nullptr)
         {
             // switch LED on/off on cross/circle button press
             LedController *led = (LedController *)moduleController.get(AvailableModules::led);
-            if (psx->event.button_down.cross)
+            if (psx->event.button_down.cross || gamePadData.cross)
             {
                 log_i("Turn on LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
                 led->set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
             }
-            if (psx->event.button_down.circle)
+            if (psx->event.button_down.circle || gamePadData.circle)
             {
                 log_i("Turn off LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
@@ -150,13 +150,13 @@ void BtController::loop()
 
             // LASER 1
             // switch laser 1 on/off on triangle/square button press
-            if (psx->event.button_down.up)
+            if (psx->event.button_down.up || gamePadData.dpaddirection == Dpad::Direction::up)
             {
                 // Switch laser 2 on/off on up/down button press
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
             }
-            if (psx->event.button_down.down)
+            if (psx->event.button_down.down || gamePadData.dpaddirection == Dpad::Direction::down)
             {
                 Serial.print("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 0);
@@ -164,12 +164,12 @@ void BtController::loop()
 
             // LASER 2
             // switch laser 2 on/off on triangle/square button press
-            if (psx->event.button_down.right)
+            if (psx->event.button_down.right || gamePadData.dpaddirection == Dpad::Direction::right)
             {
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 20000);
             }
-            if (psx->event.button_down.left)
+            if (psx->event.button_down.left || gamePadData.dpaddirection == Dpad::Direction::left)
             {
                 Serial.print("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
@@ -182,9 +182,12 @@ void BtController::loop()
             /* code */
             FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
             // Z-Direction
-            if (abs(psx->state.analog.stick.ly) > offset_val)
+            if ((abs(psx->state.analog.stick.ly) > offset_val) || (abs(gamePadData.LeftY) > offset_val))
             {
-                stick_ly = psx->state.analog.stick.ly;
+                if(abs(psx->state.analog.stick.ly) > offset_val)
+                    stick_ly = psx->state.analog.stick.ly;
+                if(abs(gamePadData.LeftY) > offset_val)
+                     stick_ly = gamePadData.LeftY;
                 stick_ly = stick_ly - sgn(stick_ly) * offset_val;
                 if (abs(stick_ly) > 50)
                     stick_ly = 2 * stick_ly; // add more speed above threshold
@@ -205,10 +208,13 @@ void BtController::loop()
             }
 
             // X-Direction
-            if ((abs(psx->state.analog.stick.rx) > offset_val))
+            if ((abs(psx->state.analog.stick.rx) > offset_val) || (abs(gamePadData.RightX) > offset_val))
             {
                 // move_x
-                stick_rx = psx->state.analog.stick.rx;
+                if(abs(psx->state.analog.stick.rx) > offset_val)
+                    stick_rx = psx->state.analog.stick.rx;
+                if(abs(gamePadData.RightX) > offset_val)
+                    stick_rx = gamePadData.RightX;
                 stick_rx = stick_rx - sgn(stick_rx) * offset_val;
                 motor->data[Stepper::X]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_rx;
                 //motor->faststeppers[Stepper::X]->enableOutputs();
@@ -230,9 +236,12 @@ void BtController::loop()
             }
 
             // Y-direction
-            if ((abs(psx->state.analog.stick.ry) > offset_val))
+            if ((abs(psx->state.analog.stick.ry) > offset_val) || (abs(gamePadData.RightY) > offset_val))
             {
-                stick_ry = psx->state.analog.stick.ry;
+                if(abs(psx->state.analog.stick.ry) > offset_val)
+                    stick_ry = psx->state.analog.stick.ry;
+                if(abs(gamePadData.RightY) > offset_val)
+                    stick_ry = gamePadData.RightY;
                 stick_ry = stick_ry - sgn(stick_ry) * offset_val;
                 motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry;
                 //motor->faststeppers[Stepper::Y]->enableOutputs();
@@ -254,9 +263,12 @@ void BtController::loop()
             }
 
             // A-direction
-            if ((abs(psx->state.analog.stick.lx) > offset_val))
+            if ((abs(psx->state.analog.stick.lx) > offset_val) || (abs(gamePadData.LeftX) > offset_val))
             {
-                stick_lx = psx->state.analog.stick.lx;
+                if(abs(psx->state.analog.stick.lx) > offset_val)
+                    stick_lx = psx->state.analog.stick.lx;
+                if(abs(gamePadData.LeftX) > offset_val)
+                    stick_lx = gamePadData.LeftX;
                 stick_lx = stick_lx - sgn(stick_lx) * offset_val;
                 motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx;
                 //motor->faststeppers[Stepper::A]->enableOutputs();
@@ -284,14 +296,14 @@ void BtController::loop()
             /*
                Keypad left
             */
-            if (psx->event.button_down.left)
+            if (psx->event.button_down.left || gamePadData.dpaddirection == Dpad::Direction::left)
             {
                 // fine lens -
                 analogout_val_1 -= 1;
                 delay(50);
                 ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
             }
-            if (psx->event.button_down.right)
+            if (psx->event.button_down.right  || gamePadData.dpaddirection == Dpad::Direction::right)
             {
                 // fine lens +
                 analogout_val_1 += 1;
@@ -357,20 +369,7 @@ void BtController::loop()
 DynamicJsonDocument BtController::scanForDevices(DynamicJsonDocument doc)
 {
     // scan for bluetooth devices and return the list of devices
-    btClassic.begin("ESP32-BLE-1");
-    log_i("Start scanning BT");
-    BTScanResults *foundDevices = btClassic.discover(BT_DISCOVER_TIME);
-    doc.clear();
-    for (int i = 0; i < foundDevices->getCount(); i++)
-    {
-        log_i("Device %i %s", i, foundDevices->getDevice(i)->toString().c_str());
-        JsonObject ob = doc.createNestedObject();
-        ob["name"] = foundDevices->getDevice(i)->getName();
-        ob["mac"] = foundDevices->getDevice(i)->getAddress().toString();
-    }
-    // pBLEScan->clearResults();
-    // pBLEScan->stop();
-    btClassic.end();
+    setupHidController();
     return doc;
 }
 
@@ -420,17 +419,6 @@ DynamicJsonDocument BtController::getPairedDevices(DynamicJsonDocument doc)
 
 void BtController::setMacAndConnect(String m)
 {
-
-    mac = new BTAddress(m.c_str());
-    log_i("input mac %s  BLEAdress: %s", m.c_str(), mac->toString().c_str());
-    if (doConnect)
-    {
-        log_i("connectToServer");
-        delay(1000);
-        connectToServer();
-    }
-    else
-        log_i("failed to find device");
 }
 
 void BtController::connectPsxController(String mac, int type)
@@ -508,8 +496,7 @@ bool BtController::connectToServer()
 
 void BtController::removePairedDevice(String pairedmac)
 {
-    BTAddress *add = new BTAddress(pairedmac.c_str());
-    esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t *)add->getNative());
+    esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t *)pairedmac.c_str());
     log_i("paired device removed:%s", tError == ESP_OK);
 }
 

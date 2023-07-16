@@ -1,11 +1,11 @@
 #pragma once
 
-#include <BluetoothSerial.h>
 #include "esp_err.h"
 #include <ArduinoJson.h>
 #include "../../ModuleController.h"
 #include "PSController.h"
 #include "../../PinConfig.h"
+#include "HidController.h"
 
 namespace RestApi
 {
@@ -65,14 +65,12 @@ class BtController : public Module
 
     #define PAIR_MAX_DEVICES 20
     char bda_str[18];
-    BluetoothSerial btClassic;
 
     bool doConnect = false;
     bool connected = false;
     bool doScan = false;
     bool ENABLE = false;
     int BT_DISCOVER_TIME = 10000;
-    BTAddress *mac;
 
     void setup() override;
     void loop() override;

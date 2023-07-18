@@ -10,11 +10,24 @@
 
 #define BAUDRATE 115200
 
+extern "C" void looper(void *p)
+{
+	for(;;)
+	{
+		// receive and process serial messages
+		serial.loop();
+		// process all commands in their modules
+		moduleController.loop();
+		vTaskDelay(5);
+	}
+	vTaskDelete(NULL);
+}
+
 extern "C" void app_main(void)
 {
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
-	delay(500);
+	//delay(500);
 	Serial.setTimeout(50);
 
 	// Disable brownout detector
@@ -30,13 +43,10 @@ extern "C" void app_main(void)
 	moduleController.setup();
 
 	log_i("End setup");
+	xTaskCreatePinnedToCore(&looper, "loop", 8128, NULL, 5, NULL,1);
+	//xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
+
 	
 }
 
-void loop()
-{
-	// receive and process serial messages
-	serial.loop();
-	// process all commands in their modules
-	moduleController.loop();
-}
+

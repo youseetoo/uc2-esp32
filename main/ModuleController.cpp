@@ -146,10 +146,10 @@ void ModuleController::setup()
     }
 
     // call setup on all modules
-    log_d("setup all modules");
+    log_i("setup all modules");
     for (auto &x : modules)
     {
-        
+        log_i("setup module:%d isNull:%d", x.first,(x.second == nullptr));
         if (x.second != nullptr && x.first != AvailableModules::wifi)
             x.second->setup();
     }

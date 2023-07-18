@@ -99,7 +99,7 @@ void BtController::setup()
         log_i("Connecting to PSX controller");
         setupPS(m, type);
     }
-    xTaskCreate(&btControllerLoop, "btController_task", 2048, NULL, 5, NULL);
+    //xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
 }
 
 void BtController::setupPS(String mac, int type)
@@ -128,13 +128,24 @@ void BtController::loop()
         {
             // switch LED on/off on cross/circle button press
             LedController *led = (LedController *)moduleController.get(AvailableModules::led);
-            if (psx->event.button_down.cross || gamePadData.cross)
+            bool cross = false;
+            bool circle = false;
+            if(psx != nullptr)
+            {
+                cross = psx->event.button_down.cross;
+                circle = psx->event.button_down.circle;
+            }
+            else if(hidIsConnected){
+                cross = gamePadData.cross;
+                circle = gamePadData.circle;
+            }
+            if (cross)
             {
                 log_i("Turn on LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
                 led->set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
             }
-            if (psx->event.button_down.circle || gamePadData.circle)
+            if (circle)
             {
                 log_i("Turn off LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
@@ -145,18 +156,33 @@ void BtController::loop()
 
         if (moduleController.get(AvailableModules::laser) != nullptr)
         {
-
+            bool up = false;
+            bool down = false;
+            bool right = false;
+            bool left = false;
             LaserController *laser = (LaserController *)moduleController.get(AvailableModules::laser);
-
+            if(psx != nullptr)
+            {
+                up = psx->event.button_down.up;
+                down = psx->event.button_down.down;
+                right = psx->event.button_down.right;
+                left = psx->event.button_down.left;
+            }
+            else if(hidIsConnected)
+            {
+                up = gamePadData.dpaddirection == Dpad::Direction::up;
+                down = gamePadData.dpaddirection == Dpad::Direction::down;
+                left = gamePadData.dpaddirection == Dpad::Direction::left;
+                right = gamePadData.dpaddirection == Dpad::Direction::right;
+            }
             // LASER 1
             // switch laser 1 on/off on triangle/square button press
-            if (psx->event.button_down.up || gamePadData.dpaddirection == Dpad::Direction::up)
-            {
+            if (up){
                 // Switch laser 2 on/off on up/down button press
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
             }
-            if (psx->event.button_down.down || gamePadData.dpaddirection == Dpad::Direction::down)
+            if (down)
             {
                 Serial.print("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 0);
@@ -164,12 +190,12 @@ void BtController::loop()
 
             // LASER 2
             // switch laser 2 on/off on triangle/square button press
-            if (psx->event.button_down.right || gamePadData.dpaddirection == Dpad::Direction::right)
+            if (right)
             {
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 20000);
             }
-            if (psx->event.button_down.left || gamePadData.dpaddirection == Dpad::Direction::left)
+            if (left)
             {
                 Serial.print("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
@@ -181,24 +207,47 @@ void BtController::loop()
         {
             /* code */
             FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-            // Z-Direction
-            if ((abs(psx->state.analog.stick.ly) > offset_val) || (abs(gamePadData.LeftY) > offset_val))
+            int zvalue = 0;
+            int xvalue = 0;
+            int yvalue = 0;
+            int avalue = 0;
+            if(psx != nullptr)
             {
-                if(abs(psx->state.analog.stick.ly) > offset_val)
-                    stick_ly = psx->state.analog.stick.ly;
-                if(abs(gamePadData.LeftY) > offset_val)
-                     stick_ly = gamePadData.LeftY;
+                zvalue = psx->state.analog.stick.ly;
+                xvalue = psx->state.analog.stick.rx;
+                yvalue = psx->state.analog.stick.ry;
+                avalue = psx->state.analog.stick.lx;
+            }
+            else if(hidIsConnected)
+            {
+                zvalue = gamePadData.LeftY;
+                xvalue = gamePadData.RightX;
+                yvalue = gamePadData.RightY;
+                avalue = gamePadData.LeftX;
+            }
+            if (logCounter > 300)
+            {
+                log_i("X:%d", xvalue);
+                logCounter =0;
+            }
+            else
+                logCounter++;
+            
+            // Z-Direction
+            if (abs(zvalue) > offset_val)
+            {
+                stick_ly = zvalue;
                 stick_ly = stick_ly - sgn(stick_ly) * offset_val;
                 if (abs(stick_ly) > 50)
                     stick_ly = 2 * stick_ly; // add more speed above threshold
                 motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z * stick_ly;
+                motor->data[Stepper::Z]->isforever = true;
                 joystick_drive_Z = true;
                 //motor->faststeppers[Stepper::Z]->enableOutputs();
                 //motor->faststeppers[Stepper::Z]->setAutoEnable(false);
                 if (motor->data[Stepper::Z]->stopped)
                 {
-                    int nextPosition = motor->faststeppers[Stepper::Z]->getCurrentPosition() + motor->data[Stepper::Z]->speed;
-                    motor->faststeppers[Stepper::Z]->moveTo(nextPosition, false);
+                    motor->startStepper(Stepper::Z);
                 }
             }
             else if (motor->data[Stepper::Z]->speed != 0 && joystick_drive_Z)
@@ -206,27 +255,19 @@ void BtController::loop()
                 motor->stopStepper(Stepper::Z);
                 joystick_drive_Z = false;
             }
-
+            
+            
             // X-Direction
-            if ((abs(psx->state.analog.stick.rx) > offset_val) || (abs(gamePadData.RightX) > offset_val))
+            if (xvalue >= offset_val || xvalue <= -offset_val)
             {
                 // move_x
-                if(abs(psx->state.analog.stick.rx) > offset_val)
-                    stick_rx = psx->state.analog.stick.rx;
-                if(abs(gamePadData.RightX) > offset_val)
-                    stick_rx = gamePadData.RightX;
-                stick_rx = stick_rx - sgn(stick_rx) * offset_val;
-                motor->data[Stepper::X]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_rx;
-                //motor->faststeppers[Stepper::X]->enableOutputs();
-                //motor->faststeppers[Stepper::X]->setAutoEnable(false);
-
-                if (abs(stick_rx) > 50)
-                    stick_rx = 2 * stick_rx; // add more speed above threshold
-                joystick_drive_X = true;
-                if (motor->data[Stepper::X]->stopped)
+                motor->data[Stepper::X]->speed = xvalue;
+                motor->data[Stepper::X]->isforever = true;
+                
+                if (motor->data[Stepper::X]->stopped && !joystick_drive_X)
                 {
-                    int nextPosition = motor->faststeppers[Stepper::X]->getCurrentPosition() + motor->data[Stepper::X]->speed;
-                    motor->faststeppers[Stepper::X]->moveTo(nextPosition, false);
+                    motor->startStepper(Stepper::X);
+                    joystick_drive_X = true;
                 }
             }
             else if (motor->data[Stepper::X]->speed != 0 && joystick_drive_X)
@@ -236,14 +277,12 @@ void BtController::loop()
             }
 
             // Y-direction
-            if ((abs(psx->state.analog.stick.ry) > offset_val) || (abs(gamePadData.RightY) > offset_val))
+            if (abs(yvalue) > offset_val)
             {
-                if(abs(psx->state.analog.stick.ry) > offset_val)
-                    stick_ry = psx->state.analog.stick.ry;
-                if(abs(gamePadData.RightY) > offset_val)
-                    stick_ry = gamePadData.RightY;
+                stick_ry = yvalue;
                 stick_ry = stick_ry - sgn(stick_ry) * offset_val;
                 motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry;
+                motor->data[Stepper::Y]->isforever = true;
                 //motor->faststeppers[Stepper::Y]->enableOutputs();
                 //motor->faststeppers[Stepper::Y]->setAutoEnable(false);
 
@@ -252,8 +291,7 @@ void BtController::loop()
                 joystick_drive_Y = true;
                 if (motor->data[Stepper::Y]->stopped)
                 {
-                    int nextPosition = motor->faststeppers[Stepper::Y]->getCurrentPosition() + motor->data[Stepper::Y]->speed;
-                    motor->faststeppers[Stepper::Y]->moveTo(nextPosition, false);
+                    motor->startStepper(Stepper::Y);
                 }
             }
             else if (motor->data[Stepper::Y]->speed != 0 && joystick_drive_Y)
@@ -263,14 +301,12 @@ void BtController::loop()
             }
 
             // A-direction
-            if ((abs(psx->state.analog.stick.lx) > offset_val) || (abs(gamePadData.LeftX) > offset_val))
+            if (abs(avalue) > offset_val)
             {
-                if(abs(psx->state.analog.stick.lx) > offset_val)
-                    stick_lx = psx->state.analog.stick.lx;
-                if(abs(gamePadData.LeftX) > offset_val)
-                    stick_lx = gamePadData.LeftX;
+                stick_lx = avalue;
                 stick_lx = stick_lx - sgn(stick_lx) * offset_val;
                 motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx;
+                motor->data[Stepper::A]->isforever = true;
                 //motor->faststeppers[Stepper::A]->enableOutputs();
                 //motor->faststeppers[Stepper::A]->setAutoEnable(false);
 
@@ -279,8 +315,7 @@ void BtController::loop()
                 joystick_drive_A = true;
                 if (motor->data[Stepper::A]->stopped)
                 {
-                    int nextPosition = motor->faststeppers[Stepper::A]->getCurrentPosition() + motor->data[Stepper::A]->speed;
-                    motor->faststeppers[Stepper::A]->moveTo(nextPosition, false);
+                    motor->startStepper(Stepper::A);
                 }
             }
             else if (motor->data[Stepper::A]->speed != 0 && joystick_drive_A)

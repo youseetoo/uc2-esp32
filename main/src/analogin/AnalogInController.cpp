@@ -39,7 +39,7 @@ int AnalogInController::act(DynamicJsonDocument ob)
 	{
 		analoginValueAvg += analogRead(analoginpin);
 	}
-	float returnValue = (float)analoginValueAvg / (float)N_analogin_avg;
+	//float returnValue = (float)analoginValueAvg / (float)N_analogin_avg;
 
 	return 1;
 }

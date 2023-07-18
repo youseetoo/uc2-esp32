@@ -57,4 +57,4 @@ public:
     DynamicJsonDocument get();
 };
 
-extern ModuleController moduleController;
+extern "C" ModuleController moduleController;

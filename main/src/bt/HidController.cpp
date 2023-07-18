@@ -5,7 +5,7 @@ bool hidIsConnected = false;
 
 void setupHidController()
 {
-    
+    btStarted();
 ESP_LOGI(TAG, "setup");
  esp_err_t ret;
 #if HID_HOST_MODE == HIDH_IDLE_MODE
@@ -25,12 +25,12 @@ ESP_LOGI(TAG, "setup");
 #endif /* CONFIG_BT_BLE_ENABLED */
     esp_hidh_config_t config = {
         .callback = hidh_callback,
-        .event_stack_size = 4096,
+        .event_stack_size = 8096,
         .callback_arg = NULL,
     };
     ESP_ERROR_CHECK( esp_hidh_init(&config) );
-    //hid_demo_task();
-    xTaskCreatePinnedToCore(&hid_demo_task, "hid_task",8192, NULL, 5, NULL,1);
+    hid_demo_task(nullptr);
+    //xTaskCreatePinnedToCore(&hid_demo_task, "hid_task",4096, NULL, 5, NULL,1);
 }
 
 int slowInputLog = 0;
@@ -39,6 +39,14 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
 {
     esp_hidh_event_t event = (esp_hidh_event_t)id;
     esp_hidh_event_data_t *param = (esp_hidh_event_data_t *)event_data;
+    /*if (slowInputLog == 300)
+    {
+        log_i("input size:%d", param->input.length);
+        log_i("This Task watermark: %d bytes", uxTaskGetStackHighWaterMark(NULL));
+        slowInputLog = 0;
+    }
+    else 
+        slowInputLog++;*/
 
     switch (event) {
     case ESP_HIDH_OPEN_EVENT: {
@@ -60,7 +68,7 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
     case ESP_HIDH_INPUT_EVENT: {
         if (param->input.length == 15)
         {
-            HyperXClutchData * d = (HyperXClutchData*)param->input.data;
+            const HyperXClutchData * d = (HyperXClutchData*)param->input.data;
             gamePadData.circle = d->Buttons.B;
             gamePadData.cross = d->Buttons.A;
             gamePadData.triangle = d->Buttons.Y;
@@ -70,16 +78,16 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             gamePadData.r1 = d->Buttons.R1;
             gamePadData.r2 = d->Buttons.R2;
 
-            gamePadData.LeftX = d->LeftX;
-            gamePadData.LeftY = d->LeftY;
-            gamePadData.RightX = d->RightX;
-            gamePadData.RightY = d->RightY;
+            gamePadData.LeftX = d->LeftX - 32768;
+            gamePadData.LeftY = d->LeftY - 32768;
+            gamePadData.RightX = d->RightX - 32768;
+            gamePadData.RightY = d->RightY - 32768;
 
             gamePadData.dpaddirection = static_cast<Dpad::Direction>(d->Dpad);
         }
         else if (param->input.length == 9)
         {
-            DS4Data * d = (DS4Data*)param->input.data;
+            const DS4Data * d = (DS4Data*)param->input.data;
             gamePadData.circle = d->Buttons.circle;
             gamePadData.cross = d->Buttons.cross;
             gamePadData.triangle = d->Buttons.triangle;
@@ -88,11 +96,16 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             gamePadData.l2 = d->Buttons.l2;
             gamePadData.r1 = d->Buttons.r1;
             gamePadData.r2 = d->Buttons.r2;
-
-            gamePadData.LeftX = d->LeftX;
-            gamePadData.LeftY = d->LeftY;
-            gamePadData.RightX = d->RightX;
-            gamePadData.RightY = d->RightY;
+            
+            gamePadData.LeftX = ((int16_t)(d->LeftX - 128)) <<8;
+            gamePadData.LeftY = ((int16_t)(d->LeftY -128)) <<8;
+            gamePadData.RightX = ((int16_t)(d->RightX -128)) <<8;
+            gamePadData.RightY = ((int16_t)(d->RightY -128)) <<8;
+            /*gamePadData.LeftX = (d->LeftX);
+            gamePadData.LeftY = (d->LeftY);
+            gamePadData.RightX = (d->RightX);
+            gamePadData.RightY = (d->RightY);*/
+            
             if (d->Buttons.dpad == 0)
             {
                 gamePadData.dpaddirection = Dpad::Direction::none;
@@ -115,22 +128,8 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
                 gamePadData.dpaddirection = Dpad::Direction::left;
             }
         }
-        
-        
-        /*const uint8_t *bda = esp_hidh_dev_bda_get(param->input.dev);
-        HyperXClutchData * d = (HyperXClutchData*)param->input.data;
-        if(slowInputLog == 200)
-        {
-            ESP_LOGI(TAG,"A:%d, B:%d, X:%d, Y:%d, L1:%d, L2:%d, R1:%d, R2:%d, Start:%d, Select:%d, Home:%d" , (*d).Buttons.A, d->Buttons.B,d->Buttons.X,d->Buttons.Y,d->Buttons.L1,d->Buttons.L2,d->Buttons.R1,d->Buttons.R2,d->Buttons.Start,d->Buttons.Select,d->Buttons.Home);
-            ESP_LOGI(TAG,"leftX:%d, leftY:%d, rightX:%d, rightY:%d", d->LeftX, d->LeftY,d->RightX,d->RightY);
-            ESP_LOGI(TAG, "Dpad direction:%d", d->Dpad);
-            //ESP_LOGI(TAG,"up:%d, down:%d, left:%d, right:%d, up_left:%d, up_right:%d, down_left:%d, down_right:%d", d->Dpad.up, d->Dpad.down, d->Dpad.left, d->Dpad.right, d->Dpad.up_left, d->Dpad.up_right, d->Dpad.down_left,d->Dpad.down_right);
-            //ESP_LOGI(TAG, ESP_BD_ADDR_STR " INPUT: %8s, MAP: %2u, ID: %3u, Len: %d, Data:", ESP_BD_ADDR_HEX(bda), esp_hid_usage_str(param->input.usage), param->input.map_index, param->input.report_id, param->input.length);
-            //ESP_LOG_BUFFER_HEX(TAG, param->input.data, param->input.length);
-            slowInputLog = 0;
-        }
         else
-            slowInputLog++;*/
+            log_i("unknown size:%d", param->input.length );
         break;
     }
     case ESP_HIDH_FEATURE_EVENT: {
@@ -201,6 +200,6 @@ void hid_demo_task(void *pvParameters)
         esp_hid_scan_results_free(results);
     }
     ESP_LOGI(TAG, "vtaskdelete hid_demo_task");
-    vTaskDelete(NULL);
+    //vTaskDelete(NULL);
 }
 

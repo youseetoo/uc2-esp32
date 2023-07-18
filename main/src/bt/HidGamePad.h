@@ -15,10 +15,10 @@ struct GamePadData
   uint8_t r1;
   uint8_t l2;
   uint8_t r2;
-  uint16_t LeftX;
-  uint16_t LeftY;
-  uint16_t RightX;
-  uint16_t RightY;
+  int16_t LeftX;
+  int16_t LeftY;
+  int16_t RightX;
+  int16_t RightY;
   Dpad::Direction dpaddirection;
 };
 

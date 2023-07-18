@@ -48,6 +48,9 @@
     }
 }
 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isforever": 1, "speed": 2000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isforever": 0, "speed": 0}]}}
+
 
 
 # DIGITAL OUT 
@@ -107,7 +110,8 @@ payload = {
 {"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "red":0, "green":5, "blue":0}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":0, "led_array":[{"id":0, "red":0, "green":5, "blue":0}]}}
 
-{"task": "/motor_get"}
+{"task":"/motor_get"}
+{"task":"/bt_scan"}
 
 # HOLISHEET
 {"task":"/modules_set", "modules" : {"dac" : 1}}

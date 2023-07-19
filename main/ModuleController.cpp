@@ -170,6 +170,7 @@ void ModuleController::loop()
         if (x.second != nullptr &&  x.first != AvailableModules::analogJoystick )
         {
              x.second->loop();
+             vTaskDelay(1);
         }
     }
 }

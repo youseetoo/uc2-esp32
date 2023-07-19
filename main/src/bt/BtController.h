@@ -37,7 +37,7 @@ class BtController : public Module
 {
     private:
     bool IS_PS_CONTROLER_LEDARRAY = false;
-    int offset_val = 600; // make sure you do not accidentally turn on two directions at the same time
+    int offset_val = 769; // make sure you do not accidentally turn on two directions at the same time
     int stick_ly = 0;
     int stick_lx = 0;
     int stick_rx = 0;
@@ -60,6 +60,8 @@ class BtController : public Module
     int8_t sgn(int val);
     PSController * psx = nullptr;
     void setupPS(String mac, int type);
+    void handelAxis(int value,int stepper);
+    
 
     public:
     BtController();
@@ -86,6 +88,7 @@ class BtController : public Module
     DynamicJsonDocument getPairedDevices(DynamicJsonDocument doc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
+    
     
     
 };

@@ -95,6 +95,7 @@ struct PinConfig
 
     bool enableScanner = false;
     bool enableBlueTooth = true;
+    bool useBtHID = false; //enabling this disable psxcontroller
     bool enableWifi = true;
 
     int JOYSTICK_SPEED_MULTIPLIER = 10;
@@ -124,8 +125,7 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
     int ANLOG_JOYSTICK_X = 35;
     int ANLOG_JOYSTICK_Y = 34;
 
-    String PSX_MAC = "4c:63:71:cd:31:a0";
-    int PSX_CONTROLLER_TYPE = 2;
+    bool useBtHID = true;
 };
 
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK

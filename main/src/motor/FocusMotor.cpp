@@ -364,6 +364,8 @@ void FocusMotor::stopAllDrives()
 
 void FocusMotor::stopStepper(int i)
 {
+	if(faststeppers[i] == nullptr)
+		return;
 	faststeppers[i]->forceStop();
 	faststeppers[i]->stopMove();
 	data[i]->isforever = false;

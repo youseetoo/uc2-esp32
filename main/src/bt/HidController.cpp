@@ -29,7 +29,6 @@ ESP_LOGI(TAG, "setup");
         .callback_arg = NULL,
     };
     ESP_ERROR_CHECK( esp_hidh_init(&config) );
-    hid_demo_task(nullptr);
     //xTaskCreatePinnedToCore(&hid_demo_task, "hid_task",4096, NULL, 5, NULL,1);
 }
 

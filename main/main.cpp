@@ -16,9 +16,10 @@ extern "C" void looper(void *p)
 	{
 		// receive and process serial messages
 		serial.loop();
+		vTaskDelay(1);
 		// process all commands in their modules
 		moduleController.loop();
-		vTaskDelay(5);
+		
 	}
 	vTaskDelete(NULL);
 }

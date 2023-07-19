@@ -70,35 +70,33 @@ void BtController::setup()
 {
 
     log_d("Setup bluetooth controller");
-    // setting up the bluetooth controller
-
-    // BLEDevice::setCustomGapHandler(my_gap_event_handler);
-    // BLEDevice::setCustomGattsHandler(my_gatts_event_handler);
-    // BLEDevice::setCustomGattcHandler(my_gattc_event_handler);
-    // BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-
     // get the bluetooth config
-    String m = Config::getPsxMac();
-    int type = Config::getPsxControllerType();
-
-    if (m.isEmpty() && !pinConfig.PSX_MAC.isEmpty())
+    if(!pinConfig.useBtHID)
     {
+        String m = Config::getPsxMac();
+        int type = Config::getPsxControllerType();
 
-        // always remove all the devices?
-        removeAllPairedDevices();
-        m = pinConfig.PSX_MAC;
-        type = pinConfig.PSX_CONTROLLER_TYPE;
-        log_d("Using MAC address");
-        Serial.println(pinConfig.PSX_MAC);
-    }
+        if (m.isEmpty() && !pinConfig.PSX_MAC.isEmpty())
+        {
 
-    // if the mac is not empty, try to connect to the psx controller
-    if (!m.isEmpty())
-    {
-        // initiate either PS3 or PS4 controller
-        log_i("Connecting to PSX controller");
-        setupPS(m, type);
+            // always remove all the devices?
+            removeAllPairedDevices();
+            m = pinConfig.PSX_MAC;
+            type = pinConfig.PSX_CONTROLLER_TYPE;
+            log_d("Using MAC address");
+            Serial.println(pinConfig.PSX_MAC);
+        }
+
+        // if the mac is not empty, try to connect to the psx controller
+        if (!m.isEmpty())
+        {
+            // initiate either PS3 or PS4 controller
+            log_i("Connecting to PSX controller");
+            setupPS(m, type);
+        }
     }
+    else
+        setupHidController();
     //xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
 }
 
@@ -117,6 +115,40 @@ void BtController::setupPS(String mac, int type)
     }
     bool returnBluetooth = psx->startListening(mac);
     log_d("Return Bluetooth %i", returnBluetooth);
+}
+
+void BtController::handelAxis(int value,int s)
+{
+    FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+    if (value >= offset_val || value <= -offset_val)
+    {
+        // move_x
+        motor->data[s]->speed = value;
+        motor->data[s]->isforever = true;
+        motor->startStepper(s);
+        if(s == Stepper::X)
+            joystick_drive_X = true;
+        if(s == Stepper::Y)
+            joystick_drive_Y = true;
+        if (s == Stepper::Z)
+            joystick_drive_Z = true;
+        if (s == Stepper::A)
+            joystick_drive_A = true;
+        
+        
+    }
+    else if (joystick_drive_X)
+    {
+        motor->stopStepper(s);
+        if(s == Stepper::X)
+            joystick_drive_X = false;
+        if(s == Stepper::Y)
+            joystick_drive_Y = false;
+        if (s == Stepper::Z)
+            joystick_drive_Z = false;
+        if (s == Stepper::A)
+            joystick_drive_A = false;
+    }
 }
 
 void BtController::loop()
@@ -225,7 +257,7 @@ void BtController::loop()
                 yvalue = gamePadData.RightY;
                 avalue = gamePadData.LeftX;
             }
-            if (logCounter > 300)
+            if (logCounter > 100)
             {
                 log_i("X:%d", xvalue);
                 logCounter =0;
@@ -234,111 +266,60 @@ void BtController::loop()
                 logCounter++;
             
             // Z-Direction
-            if (abs(zvalue) > offset_val)
-            {
-                stick_ly = zvalue;
-                stick_ly = stick_ly - sgn(stick_ly) * offset_val;
-                if (abs(stick_ly) > 50)
-                    stick_ly = 2 * stick_ly; // add more speed above threshold
-                motor->data[Stepper::Z]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z * stick_ly;
-                motor->data[Stepper::Z]->isforever = true;
-                joystick_drive_Z = true;
-                //motor->faststeppers[Stepper::Z]->enableOutputs();
-                //motor->faststeppers[Stepper::Z]->setAutoEnable(false);
-                if (motor->data[Stepper::Z]->stopped)
-                {
-                    motor->startStepper(Stepper::Z);
-                }
-            }
-            else if (motor->data[Stepper::Z]->speed != 0 && joystick_drive_Z)
+            handelAxis(zvalue, Stepper::Z);
             {
                 motor->stopStepper(Stepper::Z);
                 joystick_drive_Z = false;
             }
             
-            
             // X-Direction
-            if (xvalue >= offset_val || xvalue <= -offset_val)
-            {
-                // move_x
-                motor->data[Stepper::X]->speed = xvalue;
-                motor->data[Stepper::X]->isforever = true;
-                
-                if (motor->data[Stepper::X]->stopped && !joystick_drive_X)
-                {
-                    motor->startStepper(Stepper::X);
-                    joystick_drive_X = true;
-                }
-            }
-            else if (motor->data[Stepper::X]->speed != 0 && joystick_drive_X)
-            {
-                motor->stopStepper(Stepper::X);
-                joystick_drive_X = false;
-            }
-
+            handelAxis(xvalue, Stepper::X);
+            
             // Y-direction
-            if (abs(yvalue) > offset_val)
-            {
-                stick_ry = yvalue;
-                stick_ry = stick_ry - sgn(stick_ry) * offset_val;
-                motor->data[Stepper::Y]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_ry;
-                motor->data[Stepper::Y]->isforever = true;
-                //motor->faststeppers[Stepper::Y]->enableOutputs();
-                //motor->faststeppers[Stepper::Y]->setAutoEnable(false);
-
-                if (abs(stick_ry) > 50)
-                    stick_ry = 2 * stick_ry; // add more speed above threshold
-                joystick_drive_Y = true;
-                if (motor->data[Stepper::Y]->stopped)
-                {
-                    motor->startStepper(Stepper::Y);
-                }
-            }
-            else if (motor->data[Stepper::Y]->speed != 0 && joystick_drive_Y)
-            {
-                motor->stopStepper(Stepper::Y);
-                joystick_drive_Y = false;
-            }
+            handelAxis(yvalue, Stepper::Y);
 
             // A-direction
-            if (abs(avalue) > offset_val)
-            {
-                stick_lx = avalue;
-                stick_lx = stick_lx - sgn(stick_lx) * offset_val;
-                motor->data[Stepper::A]->speed = 0.1 * pinConfig.JOYSTICK_SPEED_MULTIPLIER * stick_lx;
-                motor->data[Stepper::A]->isforever = true;
-                //motor->faststeppers[Stepper::A]->enableOutputs();
-                //motor->faststeppers[Stepper::A]->setAutoEnable(false);
-
-                if (abs(stick_lx) > 50)
-                    stick_lx = 2 * stick_lx; // add more speed above threshold
-                joystick_drive_A = true;
-                if (motor->data[Stepper::A]->stopped)
-                {
-                    motor->startStepper(Stepper::A);
-                }
-            }
-            else if (motor->data[Stepper::A]->speed != 0 && joystick_drive_A)
-            {
-                motor->stopStepper(Stepper::A);
-                joystick_drive_A = false;
-            }
+            handelAxis(avalue, Stepper::A);
         }
 
         if (moduleController.get(AvailableModules::analogout) != nullptr)
         {
             AnalogOutController *analogout = (AnalogOutController *)moduleController.get(AvailableModules::analogout);
+            bool left = false;
+            bool right = false;
+            bool r1 = false;
+            bool r2 = false;
+            bool l1 = false;
+            bool l2 = false;
+            if(psx != nullptr)
+            {
+                left = psx->event.button_down.left;
+                right = psx->event.button_down.right;
+                r1 = psx->event.button_down.r1;
+                r2 = psx->event.button_down.r2;
+                l1 = psx->event.button_down.l1;
+                l2 = psx->event.button_down.l2;
+            }
+            else if(hidIsConnected)
+            {
+                left = gamePadData.dpaddirection == Dpad::Direction::left;
+                right = gamePadData.dpaddirection == Dpad::Direction::right;
+                r1 = gamePadData.r1;
+                r2 = gamePadData.r2;
+                l1 = gamePadData.l1;
+                l2 = gamePadData.l2;
+            }
             /*
                Keypad left
             */
-            if (psx->event.button_down.left || gamePadData.dpaddirection == Dpad::Direction::left)
+            if (left)
             {
                 // fine lens -
                 analogout_val_1 -= 1;
                 delay(50);
                 ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
             }
-            if (psx->event.button_down.right  || gamePadData.dpaddirection == Dpad::Direction::right)
+            if (right)
             {
                 // fine lens +
                 analogout_val_1 += 1;
@@ -351,9 +332,7 @@ void BtController::loop()
               analogout_val_1 = 0;
               ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
             }*/
-
-            int offset_val_shoulder = 5;
-            if (abs(psx->event.button_down.r2) > offset_val_shoulder)
+            if (r2)
             {
                 // analogout_val_1++ coarse
                 if ((analogout_val_1 + 1000 < pwm_max))
@@ -364,8 +343,7 @@ void BtController::loop()
                 // Serial.println(analogout_val_1);
                 // delay(100);
             }
-
-            if (abs(psx->event.button_down.l2) > offset_val_shoulder)
+            if (l2)
             {
                 // analogout_val_1-- coarse
                 if ((analogout_val_1 - 1000 > 0))
@@ -377,7 +355,7 @@ void BtController::loop()
                 // delay(100);
             }
 
-            if (abs(psx->event.button_down.l1) > offset_val_shoulder)
+            if (l1)
             {
                 // analogout_val_1 + semi coarse
                 if ((analogout_val_1 + 100 < pwm_max))
@@ -387,7 +365,7 @@ void BtController::loop()
                     // delay(100);
                 }
             }
-            if (abs(psx->event.button_down.r1) > offset_val_shoulder)
+            if (r1)
             {
                 // analogout_val_1 - semi coarse
                 if ((analogout_val_1 - 100 > 0))
@@ -404,7 +382,7 @@ void BtController::loop()
 DynamicJsonDocument BtController::scanForDevices(DynamicJsonDocument doc)
 {
     // scan for bluetooth devices and return the list of devices
-    setupHidController();
+    hid_demo_task(nullptr);
     return doc;
 }
 

@@ -2,106 +2,109 @@
 #include "esp_err.h"
 #include "Arduino.h"
 // default Pin structure
+
+const int8_t disabled = -1;
+
 struct PinConfig
 {
      String pindefName = "pindef";
     // motor x direction pin
-     uint8_t MOTOR_X_DIR = 0;
+     int8_t MOTOR_X_DIR = disabled;
     // motor x step pin
-     uint8_t MOTOR_X_STEP = 0;
+     int8_t MOTOR_X_STEP = disabled;
     // motor y direction pin
-     uint8_t MOTOR_Y_DIR = 0;
+     int8_t MOTOR_Y_DIR = disabled;
     // motor y step pin
-     uint8_t MOTOR_Y_STEP = 0;
+     int8_t MOTOR_Y_STEP = disabled;
     // motor z direction pin
-     uint8_t MOTOR_Z_DIR = 0;
+     int8_t MOTOR_Z_DIR = disabled;
     // motor z step pin
-     uint8_t MOTOR_Z_STEP = 0;
+     int8_t MOTOR_Z_STEP = disabled;
     // motor a direction pin
-     uint8_t MOTOR_A_DIR = 0;
+     int8_t MOTOR_A_DIR = disabled;
     // motor a step pin
-     uint8_t MOTOR_A_STEP = 0;
+     int8_t MOTOR_A_STEP = disabled;
     // motor enable power
-     uint8_t MOTOR_ENABLE = 0;
+     int8_t MOTOR_ENABLE = disabled;
     // motor power pin is inverted
      bool MOTOR_ENABLE_INVERTED = false;
     // keep motors on after idle time?
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
 
     // Rototar settings for 28byj-48
-     bool ROTATOR_ENABLE = true;
-     uint8_t ROTATOR_A_0 = 0;
-     uint8_t ROTATOR_A_1 = 0;
-     uint8_t ROTATOR_A_2 = 0;
-     uint8_t ROTATOR_A_3 = 0;
-     uint8_t ROTATOR_X_0 = 0;
-     uint8_t ROTATOR_X_1 = 0;
-     uint8_t ROTATOR_X_2 = 0;
-     uint8_t ROTATOR_X_3 = 0;
-     uint8_t ROTATOR_Y_0 = 0;
-     uint8_t ROTATOR_Y_1 = 0;
-     uint8_t ROTATOR_Y_2 = 0;
-     uint8_t ROTATOR_Y_3 = 0;
-     uint8_t ROTATOR_Z_0 = 0;
-     uint8_t ROTATOR_Z_1 = 0;
-     uint8_t ROTATOR_Z_2 = 0;
-     uint8_t ROTATOR_Z_3 = 0;
+     bool ROTATOR_ENABLE = false;
+     int8_t ROTATOR_A_0 = disabled;
+     int8_t ROTATOR_A_1 = disabled;
+     int8_t ROTATOR_A_2 = disabled;
+     int8_t ROTATOR_A_3 = disabled;
+     int8_t ROTATOR_X_0 = disabled;
+     int8_t ROTATOR_X_1 = disabled;
+     int8_t ROTATOR_X_2 = disabled;
+     int8_t ROTATOR_X_3 = disabled;
+     int8_t ROTATOR_Y_0 = disabled;
+     int8_t ROTATOR_Y_1 = disabled;
+     int8_t ROTATOR_Y_2 = disabled;
+     int8_t ROTATOR_Y_3 = disabled;
+     int8_t ROTATOR_Z_0 = disabled;
+     int8_t ROTATOR_Z_1 = disabled;
+     int8_t ROTATOR_Z_2 = disabled;
+     int8_t ROTATOR_Z_3 = disabled;
     
     // LED_PINcontrol pin
-     uint8_t LED_PIN = 0;
+     int8_t LED_PIN = disabled;
     // LED_PINcount from the strip
-     uint8_t LED_COUNT = 0;
+     int8_t LED_COUNT = disabled;
 
     // anlog joystick x pin
-     uint8_t ANLOG_JOYSTICK_X = 0;
+     int8_t ANLOG_JOYSTICK_X = disabled;
     // analog joystick y pin
-     uint8_t ANLOG_JOYSTICK_Y = 0;
+     int8_t ANLOG_JOYSTICK_Y = disabled;
 
-     uint8_t LASER_1 = 0;
-     uint8_t LASER_2 = 0;
-     uint8_t LASER_3 = 0; // GPIO_NUM_21
+     int8_t LASER_1 = disabled;
+     int8_t LASER_2 = disabled;
+     int8_t LASER_3 = disabled; // GPIO_NUM_21
 
-     uint8_t PIN_DEF_END_X = 0;
-     uint8_t PIN_DEF_END_Y = 0;
-     uint8_t PIN_DEF_END_Z = 0;
+     int8_t PIN_DEF_END_X = disabled;
+     int8_t PIN_DEF_END_Y = disabled;
+     int8_t PIN_DEF_END_Z = disabled;
 
-     uint8_t DIGITAL_OUT_1 = 0;
-     uint8_t DIGITAL_OUT_2 = 0;
-     uint8_t DIGITAL_OUT_3 = 0;
+     int8_t DIGITAL_OUT_1 = disabled;
+     int8_t DIGITAL_OUT_2 = disabled;
+     int8_t DIGITAL_OUT_3 = disabled;
 
-     uint8_t DIGITAL_IN_1 = 0;
-     uint8_t DIGITAL_IN_2 = 0;
-     uint8_t DIGITAL_IN_3 = 0;
+     int8_t DIGITAL_IN_1 = disabled;
+     int8_t DIGITAL_IN_2 = disabled;
+     int8_t DIGITAL_IN_3 = disabled;
 
     // GALVos are always connected to 25/26
-     uint8_t dac_fake_1 = 0; // RESET-ABORT just toggles between 1 and 0
-     uint8_t dac_fake_2 = 0; // Coolant
+     int8_t dac_fake_1 = disabled; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = disabled; // Coolant
 
     // analogout out (e.g. Lenses)
-     uint8_t analogout_PIN_1 = 0;
-     uint8_t analogout_PIN_2 = 0;
-     uint8_t analogout_PIN_3 = 0;
+     int8_t analogout_PIN_1 = disabled;
+     int8_t analogout_PIN_2 = disabled;
+     int8_t analogout_PIN_3 = disabled;
 
-     uint8_t analogin_PIN_0 = 0;
-     uint8_t analogin_PIN_1 = 0;
-     uint8_t analogin_PIN_2 = 0;
-     uint8_t analogin_PIN_3 = 0;
+     int8_t analogin_PIN_0 = disabled;
+     int8_t analogin_PIN_1 = disabled;
+     int8_t analogin_PIN_2 = disabled;
+     int8_t analogin_PIN_3 =disabled;
 
-     uint8_t pid1 = 0;
-     uint8_t pid2 = 0;
-     uint8_t pid3 = 0;
+     int8_t pid1 = disabled;
+     int8_t pid2 = disabled;
+     int8_t pid3 = disabled;
 
      String PSX_MAC = "";
-     uint8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
+     int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
      bool enableScanner = false;
      bool enableBlueTooth = true;
      bool useBtHID = false; //enabling this disable psxcontroller
      bool enableWifi = true;
 
-     uint8_t JOYSTICK_SPEED_MULTIPLIER = 10;
-     uint8_t JOYSTICK_MAX_ILLU = 100;
-     uint8_t JOYSTICK_SPEED_MULTIPLIER_Z  = 10;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z  = 10;
 
     // WIFI
      String mSSID = "Uc2";
@@ -111,36 +114,36 @@ struct PinConfig
 	 String hostname = "youseetoo";
 
      // for caliper
-     uint8_t X_CAL_DATA = 0;
-     uint8_t Y_CAL_DATA = 0;
-     uint8_t Z_CAL_DATA = 0;
+     int8_t X_CAL_DATA = disabled;
+     int8_t Y_CAL_DATA = disabled;
+     int8_t Z_CAL_DATA = disabled;
 
     // I2c
-     uint8_t I2C_SCL = 0;
-     uint8_t I2C_SDA = 0;
-     uint8_t I2C_ADD = 0;
+     int8_t I2C_SCL = disabled;
+     int8_t I2C_SDA = disabled;
+     int8_t I2C_ADD = disabled;
 
     // SPI
-     uint8_t SPI_MOSI = 0;
-     uint8_t SPI_MISO = 0;
-     uint8_t SPI_SCK = 0;
-     uint8_t SPI_CS = 0;
+     int8_t SPI_MOSI = disabled;
+     int8_t SPI_MISO = disabled;
+     int8_t SPI_SCK = disabled;
+     int8_t SPI_CS = disabled;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
      String pindefName = "XYZ_MOTOR_JOYSTICK";
-     uint8_t MOTOR_X_DIR = 16;
-     uint8_t MOTOR_X_STEP = 26;
-     uint8_t MOTOR_Y_DIR = 27;
-     uint8_t MOTOR_Y_STEP = 25;
-     uint8_t MOTOR_Z_DIR = 14;
-     uint8_t MOTOR_Z_STEP = 17;
-     uint8_t MOTOR_ENABLE = 12;
+     int8_t MOTOR_X_DIR = 16;
+     int8_t MOTOR_X_STEP = 26;
+     int8_t MOTOR_Y_DIR = 27;
+     int8_t MOTOR_Y_STEP = 25;
+     int8_t MOTOR_Z_DIR = 14;
+     int8_t MOTOR_Z_STEP = 17;
+     int8_t MOTOR_ENABLE = 12;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t ANLOG_JOYSTICK_X = 0;
-     uint8_t ANLOG_JOYSTICK_Y = 0;
+     int8_t ANLOG_JOYSTICK_X = 0;
+     int8_t ANLOG_JOYSTICK_Y = 0;
 
      bool useBtHID = true;
 };
@@ -148,76 +151,76 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 {
      String pindefName = "XYZ_MOTOR_ENDSTOP_JOYSTICK";
-     uint8_t PIN_DEF_END_X = 12;
-     uint8_t PIN_DEF_END_Y = 13;
-     uint8_t PIN_DEF_END_Z = 5;
+     int8_t PIN_DEF_END_X = 12;
+     int8_t PIN_DEF_END_Y = 13;
+     int8_t PIN_DEF_END_Z = 5;
 };
 
 struct X_MOTOR_64LED_PIN: PinConfig
 {
      String pindefName = "X_Motor_64LED";
-     uint8_t MOTOR_X_DIR = 21;
-     uint8_t MOTOR_X_STEP = 19;
-     uint8_t MOTOR_ENABLE = 18;
+     int8_t MOTOR_X_DIR = 21;
+     int8_t MOTOR_X_STEP = 19;
+     int8_t MOTOR_ENABLE = 18;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t LED_PIN = 27;
-     uint8_t LED_COUNT = 64;
+     int8_t LED_PIN = 27;
+     int8_t LED_COUNT = 64;
 };
 
 struct HoLiSheet : PinConfig
 {
      String pindefName = "HoLiSheet";
-     uint8_t MOTOR_Z_DIR = GPIO_NUM_14;
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_17;
-     uint8_t MOTOR_ENABLE = GPIO_NUM_12;
+     int8_t MOTOR_Z_DIR = GPIO_NUM_14;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_17;
+     int8_t MOTOR_ENABLE = GPIO_NUM_12;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t LASER_1 = GPIO_NUM_18;
-     uint8_t LASER_2 = GPIO_NUM_19;
-     uint8_t LASER_3 = 0; // GPIO_NUM_21
+     int8_t LASER_1 = GPIO_NUM_18;
+     int8_t LASER_2 = GPIO_NUM_19;
+     int8_t LASER_3 = disabled; // GPIO_NUM_21
 
-     uint8_t LED_PIN = GPIO_NUM_4;
-     uint8_t LED_COUNT = 64;
+     int8_t LED_PIN = GPIO_NUM_4;
+     int8_t LED_COUNT = 64;
 
-     uint8_t PIN_DEF_END_X = GPIO_NUM_13;
-     uint8_t PIN_DEF_END_Y = GPIO_NUM_5;
-     uint8_t PIN_DEF_END_Z = GPIO_NUM_23;
+     int8_t PIN_DEF_END_X = GPIO_NUM_13;
+     int8_t PIN_DEF_END_Y = GPIO_NUM_5;
+     int8_t PIN_DEF_END_Z = GPIO_NUM_23;
 
      String PSX_MAC = "1a:2b:3c:01:01:01";
-     uint8_t PSX_CONTROLLER_TYPE = 2;
+     int8_t PSX_CONTROLLER_TYPE = 2;
 };
 
 struct UC2_1 : PinConfig
 {
      String pindefName = "UC2_1";
     // UC2 STandalone V1
-     uint8_t MOTOR_A_DIR = GPIO_NUM_21;
-     uint8_t MOTOR_X_DIR = GPIO_NUM_33;
-     uint8_t MOTOR_Y_DIR = GPIO_NUM_16;
-     uint8_t MOTOR_Z_DIR = GPIO_NUM_14;
-     uint8_t MOTOR_A_STEP = GPIO_NUM_22;
-     uint8_t MOTOR_X_STEP = GPIO_NUM_2;
-     uint8_t MOTOR_Y_STEP = GPIO_NUM_27;
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_12;
-     uint8_t MOTOR_ENABLE = GPIO_NUM_13;
+     int8_t MOTOR_A_DIR = GPIO_NUM_21;
+     int8_t MOTOR_X_DIR = GPIO_NUM_33;
+     int8_t MOTOR_Y_DIR = GPIO_NUM_16;
+     int8_t MOTOR_Z_DIR = GPIO_NUM_14;
+     int8_t MOTOR_A_STEP = GPIO_NUM_22;
+     int8_t MOTOR_X_STEP = GPIO_NUM_2;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_27;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_12;
+     int8_t MOTOR_ENABLE = GPIO_NUM_13;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t LASER_1 = GPIO_NUM_4;
-     uint8_t LASER_2 = GPIO_NUM_15;
-     uint8_t LASER_3 = 0; // GPIO_NUM_21
+     int8_t LASER_1 = GPIO_NUM_4;
+     int8_t LASER_2 = GPIO_NUM_15;
+     int8_t LASER_3 = disabled; // GPIO_NUM_21
 
-     uint8_t LED_PIN = GPIO_NUM_17;
-     uint8_t LED_COUNT = 25;
+     int8_t LED_PIN = GPIO_NUM_17;
+     int8_t LED_COUNT = 25;
 
-     uint8_t PIN_DEF_END_X = GPIO_NUM_10;
-     uint8_t PIN_DEF_END_Y = GPIO_NUM_11;
-     uint8_t PIN_DEF_END_Z = 0;
+     int8_t PIN_DEF_END_X = GPIO_NUM_10;
+     int8_t PIN_DEF_END_Y = GPIO_NUM_11;
+     int8_t PIN_DEF_END_Z = disabled;
 
      String PSX_MAC = "1a:2b:3c:01:01:05";
-     uint8_t PSX_CONTROLLER_TYPE = 1;
+     int8_t PSX_CONTROLLER_TYPE = 1;
 
-     uint8_t JOYSTICK_SPEED_MULTIPLIER = 20;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 20;
      boolean enableBlueTooth = true;
 
 };
@@ -229,30 +232,30 @@ struct UC2_Insert : PinConfig
      String pindefName = "UC2UC2_Insert";
 
     // UC2 STandalone V2
-     uint8_t MOTOR_A_DIR = 0;
-     uint8_t MOTOR_X_DIR = GPIO_NUM_19;
-     uint8_t MOTOR_Y_DIR = 0;
-     uint8_t MOTOR_Z_DIR = 0;
-     uint8_t MOTOR_A_STEP = 0;
-     uint8_t MOTOR_X_STEP = GPIO_NUM_35;
-     uint8_t MOTOR_Y_STEP = 0;
-     uint8_t MOTOR_Z_STEP = 0;
-     uint8_t MOTOR_ENABLE = GPIO_NUM_33;
+     int8_t MOTOR_A_DIR = disabled;
+     int8_t MOTOR_X_DIR = GPIO_NUM_19;
+     int8_t MOTOR_Y_DIR = disabled;
+     int8_t MOTOR_Z_DIR = disabled;
+     int8_t MOTOR_A_STEP = disabled;
+     int8_t MOTOR_X_STEP = GPIO_NUM_35;
+     int8_t MOTOR_Y_STEP = disabled;
+     int8_t MOTOR_Z_STEP = disabled;
+     int8_t MOTOR_ENABLE = GPIO_NUM_33;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t LASER_1 = 0;
-     uint8_t LASER_2 = 0;
-     uint8_t LASER_3 = 0;
+     int8_t LASER_1 = disabled;
+     int8_t LASER_2 = disabled;
+     int8_t LASER_3 = disabled;
 
-     uint8_t LED_PIN= GPIO_NUM_4;
-     uint8_t LED_COUNT = 64;
+     int8_t LED_PIN= GPIO_NUM_4;
+     int8_t LED_COUNT = 64;
 
-     uint8_t PIN_DEF_END_X = 0;
-     uint8_t PIN_DEF_END_Y = 0;
-     uint8_t PIN_DEF_END_Z = 0;
+     int8_t PIN_DEF_END_X = disabled;
+     int8_t PIN_DEF_END_Y = disabled;
+     int8_t PIN_DEF_END_Z = disabled;
 
      String PSX_MAC = "1a:2b:3c:01:01:01";
-     uint8_t PSX_CONTROLLER_TYPE = 2;
+     int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = true;
 
 
@@ -264,41 +267,41 @@ struct UC2_2 : PinConfig
      String pindefName = "UC2_2";
 
     // UC2 STandalone V2
-     uint8_t MOTOR_A_DIR = GPIO_NUM_21;
-     uint8_t MOTOR_X_DIR = GPIO_NUM_33;
-     uint8_t MOTOR_Y_DIR = GPIO_NUM_16;
-     uint8_t MOTOR_Z_DIR = GPIO_NUM_14;
-     uint8_t MOTOR_A_STEP = GPIO_NUM_22;
-     uint8_t MOTOR_X_STEP = GPIO_NUM_2;
-     uint8_t MOTOR_Y_STEP = GPIO_NUM_27;
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_12;
-     uint8_t MOTOR_ENABLE = GPIO_NUM_13;
+     int8_t MOTOR_A_DIR = GPIO_NUM_21;
+     int8_t MOTOR_X_DIR = GPIO_NUM_33;
+     int8_t MOTOR_Y_DIR = GPIO_NUM_16;
+     int8_t MOTOR_Z_DIR = GPIO_NUM_14;
+     int8_t MOTOR_A_STEP = GPIO_NUM_22;
+     int8_t MOTOR_X_STEP = GPIO_NUM_2;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_27;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_12;
+     int8_t MOTOR_ENABLE = GPIO_NUM_13;
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
 
-     uint8_t LASER_1 = GPIO_NUM_17;
-     uint8_t LASER_2 = GPIO_NUM_4;
-     uint8_t LASER_3 = GPIO_NUM_15;
+     int8_t LASER_1 = GPIO_NUM_17;
+     int8_t LASER_2 = GPIO_NUM_4;
+     int8_t LASER_3 = GPIO_NUM_15;
 
-     uint8_t LED_PIN= GPIO_NUM_32;
-     uint8_t LED_COUNT = 64;
+     int8_t LED_PIN= GPIO_NUM_32;
+     int8_t LED_COUNT = 64;
 
     // FIXME: Is this redudant?! 
-     uint8_t PIN_DEF_END_X = GPIO_NUM_34;
-     uint8_t PIN_DEF_END_Y = GPIO_NUM_39;
-     uint8_t PIN_DEF_END_Z = 0;
-     uint8_t DIGITAL_IN_1 = PIN_DEF_END_X;
-     uint8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
-     uint8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
+     int8_t PIN_DEF_END_X = GPIO_NUM_34;
+     int8_t PIN_DEF_END_Y = GPIO_NUM_39;
+     int8_t PIN_DEF_END_Z = disabled;
+     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
+     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
+     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
 
      String PSX_MAC = "1a:2b:3c:01:01:04";
-     uint8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+     int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      bool enableBlueTooth = true;
 
 
-     uint8_t JOYSTICK_SPEED_MULTIPLIER = 30;
-     uint8_t JOYSTICK_MAX_ILLU = 100;
-     uint8_t JOYSTICK_SPEED_MULTIPLIER_Z  = 30;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z  = 30;
 
 
 };
@@ -313,46 +316,46 @@ struct UC2e : PinConfig
     // See https://github.com/openUC2/UC2-SUES/blob/main/uc2-express-bus.md#esp32-module-pinout
 
     // Stepper Motor control pins
-     uint8_t MOTOR_X_DIR = GPIO_NUM_12; // STEP-1_DIR, PP_05, PCIe A8
-     uint8_t MOTOR_Y_DIR = GPIO_NUM_13; // STEP-2_DIR, PP_06, PCIe A9
-     uint8_t MOTOR_Z_DIR = GPIO_NUM_14; // STEP-3_DIR, PP_07, PCIe A10
-     uint8_t MOTOR_A_DIR = GPIO_NUM_15; // STEP-4_DIR, PP_08, PCIe A11
-     uint8_t MOTOR_X_STEP = GPIO_NUM_0; // STEP-1_STP, PP_01, PCIe A1
-     uint8_t MOTOR_Y_STEP = GPIO_NUM_2; // STEP-2_STP, PP_02, PCIe A5
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_4; // STEP-3_STP, PP_03, PCIe A6
-     uint8_t MOTOR_A_STEP = GPIO_NUM_5; // STEP-4_STP, PP_04, PCIe A7
-     uint8_t MOTOR_ENABLE = GPIO_NUM_17; // STEP_EN, PP_09, PCIe A13. Enables/disables all stepper drivers' output.
+     int8_t MOTOR_X_DIR = GPIO_NUM_12; // STEP-1_DIR, PP_05, PCIe A8
+     int8_t MOTOR_Y_DIR = GPIO_NUM_13; // STEP-2_DIR, PP_06, PCIe A9
+     int8_t MOTOR_Z_DIR = GPIO_NUM_14; // STEP-3_DIR, PP_07, PCIe A10
+     int8_t MOTOR_A_DIR = GPIO_NUM_15; // STEP-4_DIR, PP_08, PCIe A11
+     int8_t MOTOR_X_STEP = GPIO_NUM_0; // STEP-1_STP, PP_01, PCIe A1
+     int8_t MOTOR_Y_STEP = GPIO_NUM_2; // STEP-2_STP, PP_02, PCIe A5
+     int8_t MOTOR_Z_STEP = GPIO_NUM_4; // STEP-3_STP, PP_03, PCIe A6
+     int8_t MOTOR_A_STEP = GPIO_NUM_5; // STEP-4_STP, PP_04, PCIe A7
+     int8_t MOTOR_ENABLE = GPIO_NUM_17; // STEP_EN, PP_09, PCIe A13. Enables/disables all stepper drivers' output.
      bool MOTOR_ENABLE_INVERTED = true; // When set to a logic high, the outputs are disabled.
 
     // LED pins (addressable - WS2812 and equivalent)
-     uint8_t NEOPIXEL_PIN = GPIO_NUM_18; // NEOPIXEL, PP_10, PCIe A14. I changed the name from LED_PIN to indicate that it's for an adressable LED chain
-     uint8_t LED_COUNT = 64; // I havent touched this
+     int8_t NEOPIXEL_PIN = GPIO_NUM_18; // NEOPIXEL, PP_10, PCIe A14. I changed the name from LED_PIN to indicate that it's for an adressable LED chain
+     int8_t LED_COUNT = 64; // I havent touched this
 
     // Main power switch for all the AUX modules of the baseplane
-     uint8_t BASEPLANE_ENABLE = GPIO_NUM_16; // UC2e_EN, ENABLE, PCIe A17. ESP32 module in Controller slot of baseplane switches power off all AUX modules. HIGH activates AUX modules.
+     int8_t BASEPLANE_ENABLE = GPIO_NUM_16; // UC2e_EN, ENABLE, PCIe A17. ESP32 module in Controller slot of baseplane switches power off all AUX modules. HIGH activates AUX modules.
 
     // Pulse Width Modulation pins
-     uint8_t PWM_1 = GPIO_NUM_19; // PWM_1, PP_11, PCIe A16
-     uint8_t PWM_2 = GPIO_NUM_23; // PWM_2, PP_12, PCIe B8
-     uint8_t PWM_3 = GPIO_NUM_27; // PWM_3, PP_15, PCIe B11
-     uint8_t PWM_4 = GPIO_NUM_32; // PWM_4, PP_16, PCIe B12
+     int8_t PWM_1 = GPIO_NUM_19; // PWM_1, PP_11, PCIe A16
+     int8_t PWM_2 = GPIO_NUM_23; // PWM_2, PP_12, PCIe B8
+     int8_t PWM_3 = GPIO_NUM_27; // PWM_3, PP_15, PCIe B11
+     int8_t PWM_4 = GPIO_NUM_32; // PWM_4, PP_16, PCIe B12
 
     // Digital-to-Analog converter pins
-     uint8_t DAC_1 = GPIO_NUM_25; // DAC_1, PP_13, PCIe B9
-     uint8_t DAC_2 = GPIO_NUM_27; // DAC_2, PP_14, PCIe B10
+     int8_t DAC_1 = GPIO_NUM_25; // DAC_1, PP_13, PCIe B9
+     int8_t DAC_2 = GPIO_NUM_27; // DAC_2, PP_14, PCIe B10
 
     // Other pins that sense PCIe/housekeeping things
-     uint8_t UC2E_OWN_ADDR = GPIO_NUM_33; // Analog input! The voltage indicates into which slot of the baseplane the ESP32 module is plugged.
-     uint8_t UC2E_VOLTAGE = GPIO_NUM_34; // Analog input! Can measure the (12V) baseplane power via a voltage divider.
+     int8_t UC2E_OWN_ADDR = GPIO_NUM_33; // Analog input! The voltage indicates into which slot of the baseplane the ESP32 module is plugged.
+     int8_t UC2E_VOLTAGE = GPIO_NUM_34; // Analog input! Can measure the (12V) baseplane power via a voltage divider.
 
     // Sensor pins, Analog-to-digital converter enabled
-     uint8_t SENSOR_1 = GPIO_NUM_35; // SENSOR_1, PP_17, PCIe B14
-     uint8_t SENSOR_2 = GPIO_NUM_36; // SENSOR_2, PP_18, PCIe B15
-     uint8_t SENSOR_3 = GPIO_NUM_39; // SENSOR_3, PP_19, PCIe B17
+     int8_t SENSOR_1 = GPIO_NUM_35; // SENSOR_1, PP_17, PCIe B14
+     int8_t SENSOR_2 = GPIO_NUM_36; // SENSOR_2, PP_18, PCIe B15
+     int8_t SENSOR_3 = GPIO_NUM_39; // SENSOR_3, PP_19, PCIe B17
 
     // I2C pins, digital bus to control various functions of the baseplane and SUES modules
-     uint8_t I2C_SDA = GPIO_NUM_21; // I2C_SDA, SDA, PCIe B6
-     uint8_t I2C_SCL = GPIO_NUM_22; // I2C_SCL, SCL, PCIe B5
+     int8_t I2C_SDA = GPIO_NUM_21; // I2C_SDA, SDA, PCIe B6
+     int8_t I2C_SCL = GPIO_NUM_22; // I2C_SCL, SCL, PCIe B5
 
 };
 
@@ -360,34 +363,34 @@ struct UC2_WEMOS : PinConfig
 {
      String pindefName = "UC2_WEMOS";
     // ESP32-WEMOS D1 R32
-     uint8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
-     uint8_t MOTOR_X_DIR = GPIO_NUM_16;
-     uint8_t MOTOR_Y_DIR = GPIO_NUM_27;
-     uint8_t MOTOR_Z_DIR = GPIO_NUM_14;
-     uint8_t MOTOR_A_STEP = GPIO_NUM_5; // Bridge from Endstop Y to Motor A (GPIO_NUM_5)
-     uint8_t MOTOR_X_STEP = GPIO_NUM_26;
-     uint8_t MOTOR_Y_STEP = GPIO_NUM_25;
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_17;
-     uint8_t MOTOR_ENABLE = GPIO_NUM_12;
+     int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
+     int8_t MOTOR_X_DIR = GPIO_NUM_16;
+     int8_t MOTOR_Y_DIR = GPIO_NUM_27;
+     int8_t MOTOR_Z_DIR = GPIO_NUM_14;
+     int8_t MOTOR_A_STEP = GPIO_NUM_5; // Bridge from Endstop Y to Motor A (GPIO_NUM_5)
+     int8_t MOTOR_X_STEP = GPIO_NUM_26;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_25;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_17;
+     int8_t MOTOR_ENABLE = GPIO_NUM_12;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t LASER_1 = GPIO_NUM_18;
-     uint8_t LASER_2 = GPIO_NUM_19;
-     uint8_t LASER_3 = 0; // GPIO_NUM_21
+     int8_t LASER_1 = GPIO_NUM_18;
+     int8_t LASER_2 = GPIO_NUM_19;
+     int8_t LASER_3 = disabled; // GPIO_NUM_21
 
-     uint8_t LED_PIN= GPIO_NUM_4;
-     uint8_t LED_COUNT = 64;
+     int8_t LED_PIN= GPIO_NUM_4;
+     int8_t LED_COUNT = 64;
 
-     uint8_t PIN_DEF_END_X = GPIO_NUM_13;
-     uint8_t PIN_DEF_END_Y = 0; // GPIO_NUM_5;
-     uint8_t PIN_DEF_END_Z = 0; // GPIO_NUM_23;
+     int8_t PIN_DEF_END_X = GPIO_NUM_13;
+     int8_t PIN_DEF_END_Y = disabled; // GPIO_NUM_5;
+     int8_t PIN_DEF_END_Z = disabled; // GPIO_NUM_23;
 
      String PSX_MAC = "1a:2b:3c:01:01:03";
-     uint8_t PSX_CONTROLLER_TYPE = 2;
+     int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = true;
 
-     uint8_t JOYSTICK_SPEED_MULTIPLIER = 5;
-     uint8_t JOYSTICK_SPEED_MULTIPLIER_Z = 3;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 3;
 
      String mSSID = "Blynk";
 	 String mPWD = "12345678";
@@ -400,26 +403,26 @@ struct UC2_OMNISCOPE : PinConfig
 {
      String pindefName = "UC2_WEMOS";
     // ESP32-WEMOS D1 R32
-     uint8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
-     uint8_t MOTOR_X_DIR = GPIO_NUM_16;
-     uint8_t MOTOR_Y_DIR = GPIO_NUM_27;
-     uint8_t MOTOR_Z_DIR = GPIO_NUM_14;
-     uint8_t MOTOR_A_STEP = GPIO_NUM_5; // Bridge from Endstop Y to Motor A (GPIO_NUM_5)
-     uint8_t MOTOR_X_STEP = GPIO_NUM_26;
-     uint8_t MOTOR_Y_STEP = GPIO_NUM_25;
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_17;
-     uint8_t MOTOR_ENABLE = GPIO_NUM_12;
+     int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
+     int8_t MOTOR_X_DIR = GPIO_NUM_16;
+     int8_t MOTOR_Y_DIR = GPIO_NUM_27;
+     int8_t MOTOR_Z_DIR = GPIO_NUM_14;
+     int8_t MOTOR_A_STEP = GPIO_NUM_5; // Bridge from Endstop Y to Motor A (GPIO_NUM_5)
+     int8_t MOTOR_X_STEP = GPIO_NUM_26;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_25;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_17;
+     int8_t MOTOR_ENABLE = GPIO_NUM_12;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     uint8_t LED_PIN= GPIO_NUM_4;
-     uint8_t LED_COUNT = 128;
+     int8_t LED_PIN= GPIO_NUM_4;
+     int8_t LED_COUNT = 128;
 
-     uint8_t PIN_DEF_END_X = 0;
-     uint8_t PIN_DEF_END_Y = 0; // GPIO_NUM_5;
-     uint8_t PIN_DEF_END_Z = 0; // GPIO_NUM_23;
+     int8_t PIN_DEF_END_X = disabled;
+     int8_t PIN_DEF_END_Y = disabled; // GPIO_NUM_5;
+     int8_t PIN_DEF_END_Z = disabled; // GPIO_NUM_23;
 
      String PSX_MAC = "1a:2b:3c:01:01:03";
-     uint8_t PSX_CONTROLLER_TYPE = 2;
+     int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = false;
 
      String mSSID = "Blynk"; //"omniscope";
@@ -433,10 +436,10 @@ struct UC2_CassetteRecorder : PinConfig
 {
      String pindefName = "CassetteRecorder";
     // ESP32-WEMOS D1 R32
-     uint8_t ROTATOR_X_0 = GPIO_NUM_13; 
-     uint8_t ROTATOR_X_1 = GPIO_NUM_14; 
-     uint8_t ROTATOR_X_2 = GPIO_NUM_12; 
-     uint8_t ROTATOR_X_3 = GPIO_NUM_27; 
+     int8_t ROTATOR_X_0 = GPIO_NUM_13; 
+     int8_t ROTATOR_X_1 = GPIO_NUM_14; 
+     int8_t ROTATOR_X_2 = GPIO_NUM_12; 
+     int8_t ROTATOR_X_3 = GPIO_NUM_27; 
      bool ROTATOR_ENABLE = true; 
 };
 
@@ -445,22 +448,22 @@ struct UC2_XYZRotator : PinConfig
 {
      String pindefName = "UC2_XYZRotator";
     // ESP32-WEMOS D1 R32
-     uint8_t ROTATOR_X_0 = GPIO_NUM_13; 
-     uint8_t ROTATOR_X_1 = GPIO_NUM_14; 
-     uint8_t ROTATOR_X_2 = GPIO_NUM_12; 
-     uint8_t ROTATOR_X_3 = GPIO_NUM_27; 
-     uint8_t ROTATOR_Y_0 = GPIO_NUM_26; 
-     uint8_t ROTATOR_Y_1 = GPIO_NUM_33; 
-     uint8_t ROTATOR_Y_2 = GPIO_NUM_25; 
-     uint8_t ROTATOR_Y_3 = GPIO_NUM_32;    
-     uint8_t ROTATOR_Z_0 = GPIO_NUM_5; 
-     uint8_t ROTATOR_Z_1 = GPIO_NUM_19; 
-     uint8_t ROTATOR_Z_2 = GPIO_NUM_18; 
-     uint8_t ROTATOR_Z_3 = GPIO_NUM_21;         
+     int8_t ROTATOR_X_0 = GPIO_NUM_13; 
+     int8_t ROTATOR_X_1 = GPIO_NUM_14; 
+     int8_t ROTATOR_X_2 = GPIO_NUM_12; 
+     int8_t ROTATOR_X_3 = GPIO_NUM_27; 
+     int8_t ROTATOR_Y_0 = GPIO_NUM_26; 
+     int8_t ROTATOR_Y_1 = GPIO_NUM_33; 
+     int8_t ROTATOR_Y_2 = GPIO_NUM_25; 
+     int8_t ROTATOR_Y_3 = GPIO_NUM_32;    
+     int8_t ROTATOR_Z_0 = GPIO_NUM_5; 
+     int8_t ROTATOR_Z_1 = GPIO_NUM_19; 
+     int8_t ROTATOR_Z_2 = GPIO_NUM_18; 
+     int8_t ROTATOR_Z_3 = GPIO_NUM_21;         
      bool ROTATOR_ENABLE = true; 
 
      String PSX_MAC = "1a:2b:3c:01:01:01";
-     uint8_t PSX_CONTROLLER_TYPE = 1;
+     int8_t PSX_CONTROLLER_TYPE = 1;
      bool enableBlueTooth = false;
 
 };
@@ -486,7 +489,7 @@ struct UC2_3 : PinConfig
     X_Cal-Clk 33
     Y_Cal-Clk 35
     Z_CAL-CLK 17
-    IOexp_ uint8_t 27
+    IOexp_ int8_t 27
     
     A_STEP 13
     X_STEP 16
@@ -515,66 +518,61 @@ struct UC2_3 : PinConfig
     X_LIMIT P5
     Y_LIMIT P6
     Z_LIMIT P7
-     uint8_t MOTOR_ENABLE = -1;
+     int8_t MOTOR_ENABLE = -1;
     i2c addr should be 0x27
     http://www.ti.com/lit/ds/symlink/tca9535.pdf
     C561273
     */
 
-     uint8_t MOTOR_A_DIR = 0;
-     uint8_t MOTOR_X_DIR = 0;
-     uint8_t MOTOR_Y_DIR = 0;
-     uint8_t MOTOR_Z_DIR = 0;
+     int8_t MOTOR_A_STEP = GPIO_NUM_15;
+     int8_t MOTOR_X_STEP = GPIO_NUM_16;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
 
-     uint8_t MOTOR_A_STEP = GPIO_NUM_13;
-     uint8_t MOTOR_X_STEP = GPIO_NUM_16;
-     uint8_t MOTOR_Y_STEP = GPIO_NUM_14;
-     uint8_t MOTOR_Z_STEP = GPIO_NUM_0;
-
-     uint8_t MOTOR_ENABLE = 0;
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
 
-     uint8_t LASER_1 = GPIO_NUM_12;
-     uint8_t LASER_2 = GPIO_NUM_4;
-     uint8_t LASER_3 = GPIO_NUM_2;
+     int8_t LASER_1 = GPIO_NUM_12;
+     int8_t LASER_2 = GPIO_NUM_4;
+     int8_t LASER_3 = GPIO_NUM_2;
 
-     uint8_t LED_PIN= GPIO_NUM_13;
-     uint8_t LED_COUNT = 64;
+     int8_t LED_PIN= GPIO_NUM_13;
+     int8_t LED_COUNT = 64;
 
 
 
     // FIXME: Is this redudant?! 
-     uint8_t PIN_DEF_END_X = 0;
-     uint8_t PIN_DEF_END_Y = 0;
-     uint8_t PIN_DEF_END_Z = 0;
-     uint8_t DIGITAL_IN_1 = PIN_DEF_END_X;
-     uint8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
-     uint8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
+     int8_t PIN_DEF_END_X = disabled;
+     int8_t PIN_DEF_END_Y = disabled;
+     int8_t PIN_DEF_END_Z = disabled;
+     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
+     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
+     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
 
-     String PSX_MAC = "1a:2b:3c:01:01:04";
-     uint8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+     //String PSX_MAC = "1a:2b:3c:01:01:04";
+     //int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      bool enableBlueTooth = true;
+     bool useBtHID = true;
 
-     uint8_t JOYSTICK_SPEED_MULTIPLIER = 30;
-     uint8_t JOYSTICK_MAX_ILLU = 100;
-     uint8_t JOYSTICK_SPEED_MULTIPLIER_Z  = 30;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z  = 30;
 
     // for caliper
-     uint8_t X_CAL_DATA = GPIO_NUM_32;
-     uint8_t Y_CAL_DATA = GPIO_NUM_34;
-     uint8_t Z_CAL_DATA = GPIO_NUM_36;
+     int8_t X_CAL_DATA = GPIO_NUM_32;
+     int8_t Y_CAL_DATA = GPIO_NUM_34;
+     int8_t Z_CAL_DATA = GPIO_NUM_36;
 
     // I2c
-     uint8_t I2C_SCL = GPIO_NUM_22;
-     uint8_t I2C_SDA = GPIO_NUM_21;
-     uint8_t I2C_ADD = 0x27;
+     int8_t I2C_SCL = GPIO_NUM_22;
+     int8_t I2C_SDA = GPIO_NUM_21;
+     int8_t I2C_ADD = 0x27;
 
     // SPI
-     uint8_t SPI_MOSI = GPIO_NUM_23;
-     uint8_t SPI_MISO = GPIO_NUM_19;
-     uint8_t SPI_SCK = GPIO_NUM_18;
-     uint8_t SPI_CS = GPIO_NUM_5;
+     int8_t SPI_MOSI = GPIO_NUM_23;
+     int8_t SPI_MISO = GPIO_NUM_19;
+     int8_t SPI_SCK = GPIO_NUM_18;
+     int8_t SPI_CS = GPIO_NUM_5;
 
 
 };

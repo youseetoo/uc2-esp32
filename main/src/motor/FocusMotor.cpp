@@ -245,6 +245,9 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value) {
 	if(pin == 104)//a
 		configRegister.Port.P0.bit.Bit4 = value;
 	log_i("external pin cb for pin:%d value:%d",pin, value);
+	if(ESP_OK != _tca9535->TCA9535WriteOutput(&configRegister))
+		log_e("i2c write failed");
+
 	return value;
 }
 
@@ -259,7 +262,7 @@ void FocusMotor::setup()
 		_tca9535 = new tca9535();
 		
 		if(ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
-			log_i("failed to init tca9535");
+			log_e("failed to init tca9535");
 		else
 			log_i("tca9535 init!");
 	}
@@ -285,7 +288,7 @@ void FocusMotor::setup()
 	preferences.end();
 
 	// setup the stepper A
-	if (pinConfig.MOTOR_A_STEP > 0)
+	if (pinConfig.MOTOR_A_STEP >= 0)
 	{
 		log_i("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
 		faststeppers[Stepper::A] = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
@@ -307,7 +310,7 @@ void FocusMotor::setup()
 	}
 
 	// setup the stepper X
-	if (pinConfig.MOTOR_X_STEP > 0)
+	if (pinConfig.MOTOR_X_STEP >= 0)
 	{
 		log_i("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
 		faststeppers[Stepper::X] = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
@@ -329,7 +332,7 @@ void FocusMotor::setup()
 	}
 
 	// setup the stepper Y
-	if (pinConfig.MOTOR_Y_STEP > 0)
+	if (pinConfig.MOTOR_Y_STEP >= 0)
 	{
 		log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
 		faststeppers[Stepper::Y] = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
@@ -352,7 +355,7 @@ void FocusMotor::setup()
 	}
 
 	// setup the stepper Z
-	if (pinConfig.MOTOR_Z_STEP > 0)
+	if (pinConfig.MOTOR_Z_STEP >= 0)
 	{
 		log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
 		faststeppers[Stepper::Z] = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);

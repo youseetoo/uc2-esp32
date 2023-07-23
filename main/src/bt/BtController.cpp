@@ -259,7 +259,7 @@ void BtController::loop()
             }
             if (logCounter > 100)
             {
-                log_i("X:%d", xvalue);
+                log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);
                 logCounter =0;
             }
             else
@@ -267,10 +267,6 @@ void BtController::loop()
             
             // Z-Direction
             handelAxis(zvalue, Stepper::Z);
-            {
-                motor->stopStepper(Stepper::Z);
-                joystick_drive_Z = false;
-            }
             
             // X-Direction
             handelAxis(xvalue, Stepper::X);

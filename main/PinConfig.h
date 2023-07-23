@@ -339,7 +339,7 @@ struct UC2e : PinConfig
 
 };
 
-struct UC2_WEMOS : PinConfig
+struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
     String pindefName = "UC2_WEMOS";
     // ESP32-WEMOS D1 R32
@@ -354,14 +354,14 @@ struct UC2_WEMOS : PinConfig
     int MOTOR_ENABLE = GPIO_NUM_12;
     bool MOTOR_ENABLE_INVERTED = true;
 
-    int LASER_1 = GPIO_NUM_18;
-    int LASER_2 = GPIO_NUM_19;
-    int LASER_3 = 0; // GPIO_NUM_21
+    int LASER_1 = GPIO_NUM_18; //WEMOS_D1_R32_SPINDLE_ENABLE_PIN
+    int LASER_2 = GPIO_NUM_19; //WEMOS_D1_R32_SPINDLEPWMPIN
+    int LASER_3 = GPIO_NUM_13; //WEMOS_D1_R32_X_LIMIT_PIN
 
     int LED_PIN= GPIO_NUM_4;
     int LED_COUNT = 64;
 
-    int PIN_DEF_END_X = GPIO_NUM_13;
+    int PIN_DEF_END_X = 0;
     int PIN_DEF_END_Y = 0; // GPIO_NUM_5;
     int PIN_DEF_END_Z = 0; // GPIO_NUM_23;
 

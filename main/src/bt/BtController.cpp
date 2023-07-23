@@ -171,17 +171,19 @@ void BtController::loop()
                 cross = gamePadData.cross;
                 circle = gamePadData.circle;
             }
-            if (cross)
+            if (cross && !led_on)
             {
                 log_i("Turn on LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
                 led->set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
+                led_on = true;
             }
-            if (circle)
+            if (circle && led_on)
             {
                 log_i("Turn off LED ");
                 IS_PS_CONTROLER_LEDARRAY = !led->TurnedOn();
                 led->set_all(0, 0, 0);
+                led_on = false;
             }
         }
         /* code */
@@ -209,28 +211,32 @@ void BtController::loop()
             }
             // LASER 1
             // switch laser 1 on/off on triangle/square button press
-            if (up){
+            if (up && !laser_on){
                 // Switch laser 2 on/off on up/down button press
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
+                laser_on = true;
             }
-            if (down)
+            if (down && laser_on)
             {
                 Serial.print("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 0);
+                laser_on = false;
             }
 
             // LASER 2
             // switch laser 2 on/off on triangle/square button press
-            if (right)
+            if (right && !laser2_on)
             {
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 20000);
+                laser2_on = true;
             }
-            if (left)
+            if (left && laser2_on)
             {
                 Serial.print("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
+                laser2_on = false;
             }
         }
 

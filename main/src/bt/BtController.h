@@ -37,7 +37,7 @@ class BtController : public Module
 {
     private:
     bool IS_PS_CONTROLER_LEDARRAY = false;
-    int offset_val = 769; // make sure you do not accidentally turn on two directions at the same time
+    int offset_val = 1281; // make sure you do not accidentally turn on two directions at the same time
     int stick_ly = 0;
     int stick_lx = 0;
     int stick_rx = 0;
@@ -47,6 +47,9 @@ class BtController : public Module
     bool joystick_drive_Y = false;
     bool joystick_drive_Z = false;
     bool joystick_drive_A = false;
+    bool laser_on = false;
+    bool laser2_on = false;
+    bool led_on = false;
 
     int speed_x = 0;
     int speed_y = 0;

@@ -31,6 +31,13 @@ void sendUpdateToClients(void *p)
 	}
 }
 
+bool externalPinCallback(uint8_t pin, uint8_t value)
+{
+	FocusMotor * m = (FocusMotor*)moduleController.get(AvailableModules::motor);
+	return m->setExternalPin(pin,value);
+}
+
+
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
 FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
@@ -220,11 +227,42 @@ DynamicJsonDocument FocusMotor::get(DynamicJsonDocument docin)
 	return doc;
 }
 
+
+bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value) {
+	// This example returns the previous value of the output.
+	// Consequently, FastAccelStepper needs to call setExternalPin twice
+	// in order to successfully change the output value.
+	pin = pin & ~PIN_EXTERNAL_FLAG;
+	TCA9535_Register configRegister;
+	if(pin == 100) //enable
+		configRegister.Port.P0.bit.Bit0 = value;
+	if(pin == 101)//x
+		configRegister.Port.P0.bit.Bit1 = value;
+	if(pin == 102)//y
+		configRegister.Port.P0.bit.Bit2 = value;
+	if(pin == 103)//z
+		configRegister.Port.P0.bit.Bit3 = value;
+	if(pin == 104)//a
+		configRegister.Port.P0.bit.Bit4 = value;
+	log_i("external pin cb for pin:%d value:%d",pin, value);
+	return value;
+}
+
 void FocusMotor::setup()
 {
 	// setup the pins
 	log_i("Setting Up Motor A,X,Y,Z");
 	engine.init();
+	if(pinConfig.I2C_SCL > 0)
+	{
+		engine.setExternalCallForPin(&externalPinCallback);
+		_tca9535 = new tca9535();
+		
+		if(ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
+			log_i("failed to init tca9535");
+		else
+			log_i("tca9535 init!");
+	}
 
 	// setup the data
 	for (int i = 0; i < faststeppers.size(); i++)
@@ -247,12 +285,19 @@ void FocusMotor::setup()
 	preferences.end();
 
 	// setup the stepper A
-	if (pinConfig.MOTOR_A_DIR > 0)
+	if (pinConfig.MOTOR_A_STEP > 0)
 	{
 		log_i("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
 		faststeppers[Stepper::A] = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
 		faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
-		faststeppers[Stepper::A]->setEnablePin(pinConfig.MOTOR_ENABLE);
+		if (pinConfig.I2C_SCL > 0){
+			faststeppers[Stepper::A]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+			faststeppers[Stepper::A]->setDirectionPin(104 | PIN_EXTERNAL_FLAG);
+		}
+		else{
+			faststeppers[Stepper::A]->setEnablePin(pinConfig.MOTOR_ENABLE);
+			faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
+		}
 		faststeppers[Stepper::A]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 		faststeppers[Stepper::A]->setSpeedInHz(MAX_VELOCITY_A);
 		faststeppers[Stepper::A]->setAcceleration(DEFAULT_ACCELERATION);
@@ -262,12 +307,19 @@ void FocusMotor::setup()
 	}
 
 	// setup the stepper X
-	if (pinConfig.MOTOR_X_DIR > 0)
+	if (pinConfig.MOTOR_X_STEP > 0)
 	{
 		log_i("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
 		faststeppers[Stepper::X] = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
-		faststeppers[Stepper::X]->setDirectionPin(pinConfig.MOTOR_X_DIR);
-		faststeppers[Stepper::X]->setEnablePin(pinConfig.MOTOR_ENABLE);
+		
+		if (pinConfig.I2C_SCL > 0){
+			faststeppers[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+			faststeppers[Stepper::X]->setDirectionPin(101 | PIN_EXTERNAL_FLAG);
+		}
+		else {
+			faststeppers[Stepper::X]->setEnablePin(pinConfig.MOTOR_ENABLE);
+			faststeppers[Stepper::X]->setDirectionPin(pinConfig.MOTOR_X_DIR);
+		}
 		faststeppers[Stepper::X]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 		faststeppers[Stepper::X]->setSpeedInHz(MAX_VELOCITY_A);
 		faststeppers[Stepper::X]->setAcceleration(DEFAULT_ACCELERATION);
@@ -277,12 +329,20 @@ void FocusMotor::setup()
 	}
 
 	// setup the stepper Y
-	if (pinConfig.MOTOR_Y_DIR > 0)
+	if (pinConfig.MOTOR_Y_STEP > 0)
 	{
 		log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
 		faststeppers[Stepper::Y] = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
-		faststeppers[Stepper::Y]->setDirectionPin(pinConfig.MOTOR_Y_DIR);
-		faststeppers[Stepper::Y]->setEnablePin(pinConfig.MOTOR_ENABLE);
+		
+		if (pinConfig.I2C_SCL > 0){
+			faststeppers[Stepper::Y]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+			faststeppers[Stepper::Y]->setDirectionPin(102 | PIN_EXTERNAL_FLAG);
+		}
+		else
+		{
+			faststeppers[Stepper::Y]->setEnablePin(pinConfig.MOTOR_ENABLE);
+			faststeppers[Stepper::Y]->setDirectionPin(pinConfig.MOTOR_Y_DIR);
+		}
 		faststeppers[Stepper::Y]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 		faststeppers[Stepper::Y]->setSpeedInHz(MAX_VELOCITY_A);
 		faststeppers[Stepper::Y]->setAcceleration(DEFAULT_ACCELERATION);
@@ -292,12 +352,20 @@ void FocusMotor::setup()
 	}
 
 	// setup the stepper Z
-	if (pinConfig.MOTOR_Z_DIR > 0)
+	if (pinConfig.MOTOR_Z_STEP > 0)
 	{
 		log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
 		faststeppers[Stepper::Z] = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
-		faststeppers[Stepper::Z]->setDirectionPin(pinConfig.MOTOR_Z_DIR);
-		faststeppers[Stepper::Z]->setEnablePin(pinConfig.MOTOR_ENABLE);
+		
+		if (pinConfig.I2C_SCL > 0)
+		{
+			faststeppers[Stepper::Z]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+			faststeppers[Stepper::Z]->setDirectionPin(103 | PIN_EXTERNAL_FLAG);
+		}
+		else {
+			faststeppers[Stepper::Z]->setEnablePin(pinConfig.MOTOR_ENABLE);
+			faststeppers[Stepper::Z]->setDirectionPin(pinConfig.MOTOR_Z_DIR);
+		}
 		faststeppers[Stepper::Z]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
 		faststeppers[Stepper::Z]->setSpeedInHz(MAX_VELOCITY_A);
 		faststeppers[Stepper::Z]->setAcceleration(DEFAULT_ACCELERATION);

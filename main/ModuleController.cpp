@@ -51,7 +51,7 @@ void ModuleController::setup()
     log_i("add state");
 
     // eventually load the motor module
-    if (pinConfig.MOTOR_ENABLE > 0)
+    if (pinConfig.MOTOR_ENABLE > 0 || pinConfig.I2C_SCL>0)
     {
         modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
         log_i("add motor");

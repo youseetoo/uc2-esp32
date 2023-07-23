@@ -6,6 +6,7 @@
 #include "../../ModuleController.h"
 #include "../../PinConfig.h"
 #include <Preferences.h>
+#include "../i2c/tca9535.h"
 
 namespace RestApi
 {
@@ -22,6 +23,8 @@ void driveMotorXLoop(void *pvParameter);
 void driveMotorYLoop(void *pvParameter);
 void driveMotorZLoop(void *pvParameter);
 void driveMotorALoop(void *pvParameter);
+
+bool externalPinCallback();
 
 struct MotorData
 {
@@ -76,8 +79,10 @@ public:
 	void startStepper(int i);
 	void sendMotorPos(int i, int arraypos);
 	void driveMotorLoop(int stepperid);
+	bool setExternalPin(uint8_t pin, uint8_t value);
 
 private:
+	tca9535 * _tca9535;
 	int logcount;
 	bool power_enable = false;
 

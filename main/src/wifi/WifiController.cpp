@@ -184,9 +184,9 @@ void WifiController::sendJsonWebSocketMsg(DynamicJsonDocument doc)
 void WifiController::setWifiConfig(String SSID, String PWD, bool ap)
 {
 	// log_i("mssid:%s pw:%s ap:%s", pinConfig.mSSID, pinConfig.mPWD, pinConfig.mAP);
-	pinConfig.mSSID = SSID;
-	pinConfig.mPWD = PWD;
-	pinConfig.mAP = ap;
+	config->mSsid = SSID;
+	config->pw = PWD;
+	config->ap = ap;
 	Config::setWifiConfig(config);
 }
 
@@ -245,7 +245,7 @@ void WifiController::setup()
 	if (pinConfig.mSSID == "")
 	{
 		log_i("No SSID is given: Create AP with default credentials Uc2 and no password");
-		pinConfig.mAP = true;
+		config->ap = true;
 		createAp(pinConfig.mSSIDAP, pinConfig.mPWD);
 	}
 	else if (pinConfig.mAP)
@@ -273,9 +273,9 @@ void WifiController::setup()
 		if (nConnectTrials >= nConnectTrialsMax)
 		{
 			log_i("failed to connect,Start softap");
-			pinConfig.mAP = true;
-			pinConfig.mSSID = pinConfig.mSSIDAP;
-			pinConfig.mPWD = "";
+			config->ap = true;
+			config->mSsid = pinConfig.mSSIDAP;
+			config->pw = "";
 			createAp(pinConfig.mSSIDAP, "");
 		}
 		else

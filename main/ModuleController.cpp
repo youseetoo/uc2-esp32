@@ -68,9 +68,9 @@ void ModuleController::setup()
     if ( pinConfig.PIN_DEF_END_X > 0 || pinConfig.PIN_DEF_END_Y > 0 || pinConfig.PIN_DEF_END_Z > 0)
     {
         modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
-        pinConfig.DIGITAL_IN_1=pinConfig.PIN_DEF_END_X;
+        /*pinConfig.DIGITAL_IN_1=pinConfig.PIN_DEF_END_X;
         pinConfig.DIGITAL_IN_2=pinConfig.PIN_DEF_END_Y;
-        pinConfig.DIGITAL_IN_3=pinConfig.PIN_DEF_END_Z;
+        pinConfig.DIGITAL_IN_3=pinConfig.PIN_DEF_END_Z;*/
         log_i("add home");
     }
 

@@ -1,7 +1,8 @@
 #pragma once
-//#include <Wstring.h>
 
 struct WifiConfig
 {
-	
+	String mSsid;
+    String pw;
+    bool ap;
 };

@@ -1,38 +1,6 @@
 #pragma once
 #include "Adafruit_NeoPixel.h"
-#include "ArduinoJson.h"
-#include "../config/JsonKeys.h"
-#include "../wifi/WifiController.h"
 #include "../../Module.h"
-#include "../../PinConfig.h"
-#include "../../ModuleController.h"
-
-//functions that get registered by the webserver to handel the requests/responses
-namespace RestApi
-{
-    /*
-        controls the leds
-        endpoint:/ledarr_act
-        input
-        {
-            "led": {
-                "LEDArrMode": 1,
-                "led_array": [
-                    {
-                        "b": 0,
-                        "g": 0,
-                        "id": 0,
-                        "r": 0
-                    }
-                ]
-            }
-        }
-        output
-        []
-        */
-    void Led_act();
-    void Led_get();
-};
 
 enum LedModes
 {

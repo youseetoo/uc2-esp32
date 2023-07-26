@@ -1,14 +1,7 @@
 #pragma once
-#include "ArduinoJson.h"
-#include "DAC_Module.h"
-#include "../wifi/WifiController.h"
-#include "../../Module.h"
 
-namespace RestApi
-{
-    void Dac_act();
-    void Dac_get();
-};
+#include "DAC_Module.h"
+#include "../../Module.h"
 
 class DacController : public Module
 {

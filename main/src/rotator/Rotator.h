@@ -1,19 +1,6 @@
 #pragma once
+#include "Module.h"
 #include "AccelStepper.h"
-#include "ArduinoJson.h"
-#include "../wifi/WifiController.h"
-#include "../config/ConfigController.h"
-#include "../../ModuleController.h"
-#include "../../PinConfig.h"
-
-namespace RestApi
-{
-	void Rotator_act();
-	void Rotator_get();
-	void Rotator_set();
-	void Rotator_setCalibration();
-};
-
 
 void sendUpdateToClients(void *p);
 

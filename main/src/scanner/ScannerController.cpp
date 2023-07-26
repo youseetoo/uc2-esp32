@@ -1,5 +1,9 @@
 
 #include "ScannerController.h"
+#include "soc/timer_group_struct.h"
+#include "soc/timer_group_reg.h"
+#include "../laser/LaserController.h"
+#include "../../ModuleController.h"
 
 ScannerController::ScannerController(){
 

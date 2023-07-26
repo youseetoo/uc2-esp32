@@ -1,36 +1,9 @@
 #pragma once
 
 #include "esp_err.h"
-#include <ArduinoJson.h>
 #include "../../ModuleController.h"
 #include "PSController.h"
-#include "../../PinConfig.h"
 #include "HidController.h"
-
-namespace RestApi
-{
-    /*
-    returns an array that contains the visible bt devices
-        endpoint:/bt_scan
-        input[]
-        output
-        [
-            {
-                "name" :"HyperX",
-                "mac": "01:02:03:04:05:06"
-            }
-            ,
-            {
-                "name": "",
-                "mac": "01:02:03:04:05:06"
-            },
-        ]
-    */
-    void Bt_startScan();
-    void Bt_connect();
-    void Bt_getPairedDevices();
-    void Bt_remove();
-};
 
 void btControllerLoop(void *p);
 class BtController : public Module

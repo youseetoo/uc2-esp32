@@ -1,14 +1,8 @@
 #pragma once
-#include "ArduinoJson.h"
 
-#include "../wifi/WifiController.h"
 #include "../../ModuleController.h"
+#include "../motor/FocusMotor.h"
 
-namespace RestApi
-{
-    void Pid_act();
-    void Pid_get();
-};
 
 class PidController : public Module
 {

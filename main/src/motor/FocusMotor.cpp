@@ -1,18 +1,6 @@
 #include "../../config.h"
 #include "FocusMotor.h"
-
-namespace RestApi
-{
-	void FocusMotor_act()
-	{
-		serialize(moduleController.get(AvailableModules::motor)->act(deserialize()));
-	}
-
-	void FocusMotor_get()
-	{
-		serialize(moduleController.get(AvailableModules::motor)->get(deserialize()));
-	}
-}
+#include "../wifi/WifiController.h"
 
 void sendUpdateToClients(void *p)
 {

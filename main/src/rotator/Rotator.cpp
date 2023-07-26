@@ -1,20 +1,9 @@
-#include "../../config.h"
 #include "Rotator.h"
-
-namespace RestApi
-{
-	void Rotator_act()
-	{
-		serialize(moduleController.get(AvailableModules::motor)->act(deserialize()));
-	}
-
-	void Rotator_get()
-	{
-		serialize(moduleController.get(AvailableModules::motor)->get(deserialize()));
-	}
-}
-
-
+#include "../wifi/WifiController.h"
+#include "../config/ConfigController.h"
+#include "../../ModuleController.h"
+#include "../../PinConfig.h"
+#include "../motor/FocusMotor.h"
 
 Rotator::Rotator() : Module() { log_i("ctor"); }
 Rotator::~Rotator() { log_i("~ctor"); }

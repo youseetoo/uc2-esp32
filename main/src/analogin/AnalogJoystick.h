@@ -1,14 +1,6 @@
 #pragma once
-#include <Arduino.h>
 #include "../../Module.h"
-#include "../../ModuleController.h"
-#include "../config/ConfigController.h"
-#include "../../PinConfig.h"
-
-namespace RestApi
-{
-	void AnalogJoystick_get();
-};
+#include "ArduinoJson.h"
 
 
 void processLoopAJoy(void *param);

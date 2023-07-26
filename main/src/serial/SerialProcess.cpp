@@ -1,5 +1,14 @@
 
 #include "SerialProcess.h"
+#include "../config/ConfigController.h"
+#include "../wifi/Endpoints.h"
+#include "../analogin/AnalogInController.h"
+#include "../scanner/ScannerController.h"
+#include "../digitalout/DigitalOutController.h"
+#include "../digitalin/DigitalInController.h"
+#include "../dac/DacController.h"
+#include "../bt/BtController.h"
+#include "../wifi/RestApiCallbacks.h"
 
 SerialProcess::SerialProcess(/* args */)
 {

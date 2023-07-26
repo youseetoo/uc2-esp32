@@ -1,19 +1,5 @@
 #include "DigitalInController.h"
 
-// This is for digitalinout
-
-namespace RestApi
-{
-	void DigitalIn_act()
-	{
-		serialize(moduleController.get(AvailableModules::digitalin)->act(deserialize()));
-	}
-
-	void DigitalIn_get()
-	{
-		serialize(moduleController.get(AvailableModules::digitalin)->get(deserialize()));
-	}
-}
 
 DigitalInController::DigitalInController(/* args */){};
 DigitalInController::~DigitalInController(){};

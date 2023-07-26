@@ -1,49 +1,15 @@
 #include "BtController.h"
-
-namespace RestApi
-{
-    void Bt_startScan()
-    {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        serialize(bt->scanForDevices(deserialize()));
-    }
-
-    void Bt_connect()
-    {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        DynamicJsonDocument doc = deserialize();
-        String mac = doc["mac"];
-        int ps = doc["psx"];
-
-        if (ps == 0)
-        {
-            bt->setMacAndConnect(mac);
-        }
-        else
-        {
-            bt->connectPsxController(mac, ps);
-        }
-
-        doc.clear();
-        serialize(doc);
-    }
-
-    void Bt_getPairedDevices()
-    {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        serialize(bt->getPairedDevices(deserialize()));
-    }
-
-    void Bt_remove()
-    {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        DynamicJsonDocument doc = deserialize();
-        String mac = doc["mac"];
-        bt->removePairedDevice(mac);
-        doc.clear();
-        serialize(doc);
-    }
-}
+#include "PinConfig.h"
+#include <esp_log.h>
+#include "../dac/DacController.h"
+#include "../analogin/AnalogInController.h"
+#include "../analogout/AnalogOutController.h"
+#include "../digitalout/DigitalOutController.h"
+#include "../digitalin/DigitalInController.h"
+#include "../laser/LaserController.h"
+#include "../wifi/RestApiCallbacks.h"
+#include "../led/LedController.h"
+#include "../motor/FocusMotor.h"
 
 void btControllerLoop(void *p)
 {
@@ -71,7 +37,7 @@ void BtController::setup()
 
     log_d("Setup bluetooth controller");
     // get the bluetooth config
-    if(!pinConfig.useBtHID)
+    if (!pinConfig.useBtHID)
     {
         String m = Config::getPsxMac();
         int type = Config::getPsxControllerType();
@@ -97,7 +63,7 @@ void BtController::setup()
     }
     else
         setupHidController();
-    //xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
+    // xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
 }
 
 void BtController::setupPS(String mac, int type)
@@ -117,7 +83,7 @@ void BtController::setupPS(String mac, int type)
     log_d("Return Bluetooth %i", returnBluetooth);
 }
 
-void BtController::handelAxis(int value,int s)
+void BtController::handelAxis(int value, int s)
 {
     FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
     if (value >= offset_val || value <= -offset_val)
@@ -126,23 +92,21 @@ void BtController::handelAxis(int value,int s)
         motor->data[s]->speed = value;
         motor->data[s]->isforever = true;
         motor->startStepper(s);
-        if(s == Stepper::X)
+        if (s == Stepper::X)
             joystick_drive_X = true;
-        if(s == Stepper::Y)
+        if (s == Stepper::Y)
             joystick_drive_Y = true;
         if (s == Stepper::Z)
             joystick_drive_Z = true;
         if (s == Stepper::A)
             joystick_drive_A = true;
-        
-        
     }
     else if (joystick_drive_X)
     {
         motor->stopStepper(s);
-        if(s == Stepper::X)
+        if (s == Stepper::X)
             joystick_drive_X = false;
-        if(s == Stepper::Y)
+        if (s == Stepper::Y)
             joystick_drive_Y = false;
         if (s == Stepper::Z)
             joystick_drive_Z = false;
@@ -162,12 +126,13 @@ void BtController::loop()
             LedController *led = (LedController *)moduleController.get(AvailableModules::led);
             bool cross = false;
             bool circle = false;
-            if(psx != nullptr)
+            if (psx != nullptr)
             {
                 cross = psx->event.button_down.cross;
                 circle = psx->event.button_down.circle;
             }
-            else if(hidIsConnected){
+            else if (hidIsConnected)
+            {
                 cross = gamePadData.cross;
                 circle = gamePadData.circle;
             }
@@ -195,14 +160,14 @@ void BtController::loop()
             bool right = false;
             bool left = false;
             LaserController *laser = (LaserController *)moduleController.get(AvailableModules::laser);
-            if(psx != nullptr)
+            if (psx != nullptr)
             {
                 up = psx->event.button_down.up;
                 down = psx->event.button_down.down;
                 right = psx->event.button_down.right;
                 left = psx->event.button_down.left;
             }
-            else if(hidIsConnected)
+            else if (hidIsConnected)
             {
                 up = gamePadData.dpaddirection == Dpad::Direction::up;
                 down = gamePadData.dpaddirection == Dpad::Direction::down;
@@ -211,7 +176,8 @@ void BtController::loop()
             }
             // LASER 1
             // switch laser 1 on/off on triangle/square button press
-            if (up && !laser_on){
+            if (up && !laser_on)
+            {
                 // Switch laser 2 on/off on up/down button press
                 Serial.print("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
@@ -249,14 +215,14 @@ void BtController::loop()
             int xvalue = 0;
             int yvalue = 0;
             int avalue = 0;
-            if(psx != nullptr)
+            if (psx != nullptr)
             {
                 zvalue = psx->state.analog.stick.ly;
                 xvalue = psx->state.analog.stick.rx;
                 yvalue = psx->state.analog.stick.ry;
                 avalue = psx->state.analog.stick.lx;
             }
-            else if(hidIsConnected)
+            else if (hidIsConnected)
             {
                 zvalue = gamePadData.LeftY;
                 xvalue = gamePadData.RightX;
@@ -266,17 +232,17 @@ void BtController::loop()
             if (logCounter > 100)
             {
                 log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);
-                logCounter =0;
+                logCounter = 0;
             }
             else
                 logCounter++;
-            
+
             // Z-Direction
             handelAxis(zvalue, Stepper::Z);
-            
+
             // X-Direction
             handelAxis(xvalue, Stepper::X);
-            
+
             // Y-direction
             handelAxis(yvalue, Stepper::Y);
 
@@ -293,7 +259,7 @@ void BtController::loop()
             bool r2 = false;
             bool l1 = false;
             bool l2 = false;
-            if(psx != nullptr)
+            if (psx != nullptr)
             {
                 left = psx->event.button_down.left;
                 right = psx->event.button_down.right;
@@ -302,7 +268,7 @@ void BtController::loop()
                 l1 = psx->event.button_down.l1;
                 l2 = psx->event.button_down.l2;
             }
-            else if(hidIsConnected)
+            else if (hidIsConnected)
             {
                 left = gamePadData.dpaddirection == Dpad::Direction::left;
                 right = gamePadData.dpaddirection == Dpad::Direction::right;
@@ -540,7 +506,6 @@ char *bda2str(const uint8_t *bda, char *str, size_t size)
 #include "esp_bt.h"
 #include "esp_bt_device.h"
 
-
 void BtController::removeAllPairedDevices()
 {
 
@@ -566,5 +531,4 @@ void BtController::removeAllPairedDevices()
 
     esp_bt_controller_disable();
     esp_bt_controller_deinit();
-
 }

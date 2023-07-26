@@ -1,20 +1,16 @@
 #pragma once
 
+#include "EspHttpsServer.h"
 #include "WiFi.h"
 #include "HardwareSerial.h"
 #include "RestApiCallbacks.h"
 #include "esp_log.h"
 #include "SPIFFS.h"
-#include "../analogin/AnalogInController.h"
-#include "../digitalout/DigitalOutController.h"
-#include "../digitalin/DigitalInController.h"
-#include "../config/ConfigController.h"
-#include "../dac/DacController.h"
-#include "../pid/PidController.h"
-#include "../laser/LaserController.h"
-#include "../led/LedController.h"
+#include "Module.h"
 #include <WebSocketsServer.h>
 #include "WifiConfig.h"
+#include "EspWifiController.h"
+
 
 namespace RestApi
 {
@@ -64,6 +60,11 @@ class WifiController : public Module
 	WifiConfig *config;
     TaskHandle_t httpTaskHandle;
     TaskHandle_t socketTaskHandle;
+    bool useEspWifi = true;
+    bool useEspHTTPS = true;
+    EspWifiController espWifiController;
+    EspHttpsServer httpsServer;
+
 	
     public:
     WifiController();

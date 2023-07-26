@@ -1,23 +1,14 @@
 #include "AnalogOutController.h"
-
-namespace RestApi
-{
-	void AnalogOut_act()
-    {
-		serialize(moduleController.get(AvailableModules::analogout)->act(deserialize()));
-    }
-
-    void AnalogOut_get()
-    {
-        serialize(moduleController.get(AvailableModules::analogout)->get(deserialize()));
-    }
-
-}
+#include "esp_err.h"
+#include "esp_log.h"
+#include "driver/ledc.h"
+#include "driver/periph_ctrl.h"
+#include "soc/ledc_reg.h"
 
 AnalogOutController::AnalogOutController(){};
 AnalogOutController::~AnalogOutController(){};
 
-void AnalogOutController::loop(){}
+void AnalogOutController::loop() {}
 
 void AnalogOutController::setup()
 {
@@ -33,7 +24,7 @@ void AnalogOutController::setup()
 }
 
 // Custom function accessible by the API
-int AnalogOutController::act(DynamicJsonDocument  ob)
+int AnalogOutController::act(DynamicJsonDocument ob)
 {
 	// here you can do something
 	Serial.println("analogout_act_fct");

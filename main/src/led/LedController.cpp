@@ -1,19 +1,5 @@
 #include "LedController.h"
 
-namespace RestApi
-{
-	void Led_act()
-	{
-		serialize(moduleController.get(AvailableModules::led)->act(deserialize()));
-	}
-
-	void Led_get()
-	{
-		serialize(moduleController.get(AvailableModules::led)->get(deserialize()));
-
-	}
-}
-
 LedController::LedController() : Module() { log_i("ctor"); }
 LedController::~LedController() { log_i("~ctor"); }
 

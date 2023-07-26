@@ -1,9 +1,5 @@
 #pragma once
-#include "ArduinoJson.h"
-//#include <FreeRTOS.h>
-#include "soc/timer_group_struct.h"
-#include "soc/timer_group_reg.h"
-#include "../laser/LaserController.h"
+
 #include "../../Module.h"
 
 class ScannerController : public Module

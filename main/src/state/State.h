@@ -1,18 +1,5 @@
 #pragma once
-#include "ArduinoJson.h"
-#include "../config/JsonKeys.h"
-#include "esp_log.h"
-#if defined IS_PS3 || defined IS_PS4
-#endif
-#include "../wifi/WifiController.h"
-#include "../config/ConfigController.h"
-
-namespace RestApi
-{
-	void State_act();
-    void State_get();
-};
-
+#include "../../Module.h"
 
 
 class State : public Module

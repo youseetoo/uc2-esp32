@@ -1,19 +1,7 @@
 #include "State.h"
-
-
-namespace RestApi
-{
-	void State_act()
-	{
-		moduleController.get(AvailableModules::state)->act(deserialize());
-	}
-
-	void State_get()
-	{
-		serialize(moduleController.get(AvailableModules::state)->get(deserialize()));
-	}
-
-}
+#include "esp_log.h"
+#include "../config/ConfigController.h"
+#include "Preferences.h"
 
 State::State() : Module() { log_i("ctor"); }
 State::~State() { log_i("~ctor"); }

@@ -1,21 +1,5 @@
 #include "DigitalOutController.h"
 
-
-// This is for digitaloutout
-
-namespace RestApi
-{
-	void DigitalOut_act()
-	{
-		serialize(moduleController.get(AvailableModules::digitalout)->act(deserialize()));
-	}
-
-	void DigitalOut_get()
-	{
-		serialize(moduleController.get(AvailableModules::digitalout)->get(deserialize()));
-	}
-}
-
 DigitalOutController::DigitalOutController(/* args */){};
 DigitalOutController::~DigitalOutController(){};
 

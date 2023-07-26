@@ -1,13 +1,5 @@
 #pragma once
-#include "ArduinoJson.h"
-#include "../wifi/RestApiCallbacks.h"
 #include "../../Module.h"
-
-namespace RestApi
-{
-    void DigitalIn_act();
-    void DigitalIn_get();
-};
 
 class DigitalInController : public Module
 {

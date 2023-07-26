@@ -1,12 +1,6 @@
 #include "AnalogJoystick.h"
-
-namespace RestApi
-{
-    void AnalogJoystick_get()
-    {
-        serialize(moduleController.get(AvailableModules::analogJoystick)->get(deserialize()));
-    }
-};
+#include "../../ModuleController.h"
+#include "../motor/FocusMotor.h"
 
 void processLoopAJoy(void * param)
 {

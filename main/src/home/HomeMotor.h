@@ -1,18 +1,6 @@
 #pragma once
-#include "FastAccelStepper.h"
-#include "ArduinoJson.h"
-#include "../digitalin/DigitalInController.h"
-#include "../wifi/WifiController.h"
-#include "../config/ConfigController.h"
+
 #include "../../ModuleController.h"
-
-
-
-namespace RestApi
-{
-	void HomeMotor_act();
-	void HomeMotor_get();
-};
 
 struct HomeData
 {

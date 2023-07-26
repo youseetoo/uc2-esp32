@@ -1,6 +1,4 @@
 #pragma once
-#include "ArduinoJson.h"
-#include "../wifi/WifiController.h"
 #include "../../Module.h"
 
 class AnalogInController : public Module

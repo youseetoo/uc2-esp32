@@ -1,10 +1,7 @@
 #pragma once
-#include "Preferences.h"
+
 #include "ArduinoJson.h"
-#include "JsonKeys.h"
 #include "../wifi/WifiConfig.h"
-#include "esp_log.h"
-#include "../motor/FocusMotor.h"
 
 namespace Config
 {

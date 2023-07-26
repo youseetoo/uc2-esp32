@@ -1,15 +1,5 @@
 #pragma once
-#include "ArduinoJson.h"
-//#include <String.h>
-#include "../wifi/WifiController.h"
 #include "../../Module.h"
-#include "../config/ConfigController.h"
-
-namespace RestApi
-{
-    void Laser_act();
-    void Laser_get();
-};
 
 class LaserController : public Module
 {

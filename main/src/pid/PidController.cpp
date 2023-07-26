@@ -1,19 +1,5 @@
 #include "PidController.h"
 
-namespace RestApi
-{
-	void Pid_act()
-	{
-		serialize(moduleController.get(AvailableModules::pid)->act(deserialize()));
-	}
-
-	void Pid_get()
-	{
-		serialize(moduleController.get(AvailableModules::pid)->get(deserialize()));
-	}
-
-}
-
 PidController::PidController(/* args */){};
 PidController::~PidController(){};
 

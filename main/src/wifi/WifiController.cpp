@@ -1,4 +1,12 @@
 #include "WifiController.h"
+#include "../analogin/AnalogInController.h"
+#include "../digitalout/DigitalOutController.h"
+#include "../digitalin/DigitalInController.h"
+#include "../config/ConfigController.h"
+#include "../dac/DacController.h"
+#include "../pid/PidController.h"
+#include "../laser/LaserController.h"
+#include "../led/LedController.h"
 
 namespace RestApi
 {
@@ -148,7 +156,10 @@ WebSocketsServer *WifiController::getSocket()
 
 void WifiController::createTasks()
 {
-	xTaskCreate(&processHttpTask, "http_task", 4096, NULL, 5, &httpTaskHandle);
+	if(!useEspHTTPS)
+	{
+		xTaskCreate(&processHttpTask, "http_task", 4096, NULL, 5, &httpTaskHandle);
+	}
 	xTaskCreate(&processWebSocketTask, "socket_task", 4096, NULL, 5, &socketTaskHandle);
 }
 
@@ -221,7 +232,7 @@ void WifiController::setup()
 	// initialize the Wifi module
 	log_d("Setup Wifi");
 	// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
-	
+
 	/* FIXME: Why would this be necessary @killerink
 	if (socketTaskHandle != nullptr)
 		vTaskDelete(socketTaskHandle);
@@ -233,60 +244,91 @@ void WifiController::setup()
 	if ((pinConfig.mSSID != nullptr) and (pinConfig.mPWD != nullptr))
 		log_i("mssid:%s pw:%s", pinConfig.mSSID, pinConfig.mPWD); //, pinConfig.mAP);
 
-	// if the server is already open => close it
-	if (server != nullptr)
-		server->close();
+	if (useEspHTTPS)
+	{
+		if (httpsServer.running())
+		{
+			httpsServer.stop_webserver();
+		}
+	}
+	else
+	{
+		// if the server is already open => close it
+		if (server != nullptr)
+			server->close();
+	}
 
 	// if the webSocket is already open => close it
 	if (webSocket != nullptr)
 		webSocket->close();
 
-	// load default settings for Wifi AP
-	if (pinConfig.mSSID == "")
+	if (useEspWifi)
 	{
-		log_i("No SSID is given: Create AP with default credentials Uc2 and no password");
-		config->ap = true;
-		createAp(pinConfig.mSSIDAP, pinConfig.mPWD);
-	}
-	else if (pinConfig.mAP)
-	{
-		log_i("AP is true: Create AP with default credentials Uc2 and no password");
-		createAp(pinConfig.mSSID, pinConfig.mPWD);
+		if (config->mSsid == "")
+		{
+			config->ap = pinConfig.mAP;
+			config->mSsid = pinConfig.mSSID;
+			config->pw = pinConfig.mPWD;
+		}
+		espWifiController.setWifiConfig(config);
+		espWifiController.connect();
 	}
 	else
 	{
-		// if the Wifi is not in AP mode => connect to an available Wifi Hotspot
-		WiFi.softAPdisconnect();
-		log_i("Connect to:%s", pinConfig.mSSID);
-		WiFi.waitForConnectResult();
-		WiFi.begin(pinConfig.mSSID.c_str(), pinConfig.mPWD.c_str());
-
-		// wait for connection 5-times, if not connected => start AP
-		int nConnectTrials = 0;
-		int nConnectTrialsMax = 20;
-		while (WiFi.status() != WL_CONNECTED && nConnectTrials <= nConnectTrialsMax)
+		// load default settings for Wifi AP
+		if (pinConfig.mSSID == "")
 		{
-			log_i("Wait for connection");
-			delay(500);
-			nConnectTrials++;
-		}
-		if (nConnectTrials >= nConnectTrialsMax)
-		{
-			log_i("failed to connect,Start softap");
+			log_i("No SSID is given: Create AP with default credentials Uc2 and no password");
 			config->ap = true;
-			config->mSsid = pinConfig.mSSIDAP;
-			config->pw = "";
-			createAp(pinConfig.mSSIDAP, "");
+			createAp(pinConfig.mSSIDAP, pinConfig.mPWD);
+		}
+		else if (pinConfig.mAP)
+		{
+			log_i("AP is true: Create AP with default credentials Uc2 and no password");
+			createAp(pinConfig.mSSID, pinConfig.mPWD);
 		}
 		else
 		{
-			log_i("Connected. IP: %s", WiFi.localIP());
+			// if the Wifi is not in AP mode => connect to an available Wifi Hotspot
+			WiFi.softAPdisconnect();
+			log_i("Connect to:%s", pinConfig.mSSID);
+			WiFi.waitForConnectResult();
+			WiFi.begin(pinConfig.mSSID.c_str(), pinConfig.mPWD.c_str());
+
+			// wait for connection 5-times, if not connected => start AP
+			int nConnectTrials = 0;
+			int nConnectTrialsMax = 20;
+			while (WiFi.status() != WL_CONNECTED && nConnectTrials <= nConnectTrialsMax)
+			{
+				log_i("Wait for connection");
+				delay(500);
+				nConnectTrials++;
+			}
+			if (nConnectTrials >= nConnectTrialsMax)
+			{
+				log_i("failed to connect,Start softap");
+				config->ap = true;
+				config->mSsid = pinConfig.mSSIDAP;
+				config->pw = "";
+				createAp(pinConfig.mSSIDAP, "");
+			}
+			else
+			{
+				log_i("Connected. IP: %s", WiFi.localIP());
+			}
 		}
 	}
 
-	// initialize the webserver
-	if (server == nullptr)
-		server = new WebServer(80);
+	if (useEspHTTPS)
+	{
+		httpsServer.start_webserver();
+	}
+	else
+	{
+		// initialize the webserver
+		if (server == nullptr)
+			server = new WebServer(80);
+	}
 
 	// initialize the webSocket
 	if (webSocket == nullptr)
@@ -297,25 +339,37 @@ void WifiController::loop()
 {
 }
 
-int WifiController::act(DynamicJsonDocument doc) {return 1;}
-DynamicJsonDocument WifiController::get(DynamicJsonDocument doc) {return doc;}
+int WifiController::act(DynamicJsonDocument doc) { return 1; }
+DynamicJsonDocument WifiController::get(DynamicJsonDocument doc) { return doc; }
 
 void WifiController::restartWebServer()
 {
-	if (server != nullptr)
+	if (useEspHTTPS)
 	{
-		server->close();
+		if (httpsServer.running())
+			httpsServer.stop_webserver();
+		httpsServer.start_webserver();
 	}
-	setup_routing();
-	server->begin();
+	else
+	{
+		if (server != nullptr)
+		{
+			server->close();
+		}
+		setup_routing();
+		server->begin();
+	}
 }
 
 void WifiController::begin()
 {
 	webSocket->begin();
 	webSocket->onEvent(RestApi::webSocketEvent);
-	setup_routing();
-	server->begin();
+	if (!useEspHTTPS)
+	{
+		setup_routing();
+		server->begin();
+	}
 }
 
 void WifiController::setup_routing()
@@ -362,7 +416,7 @@ void WifiController::setup_routing()
 		log_i("add state endpoints");
 		server->on(state_act_endpoint, HTTP_POST, RestApi::State_act);
 		server->on(state_get_endpoint, HTTP_GET, RestApi::State_get);
-	}	
+	}
 
 	if (moduleController.get(AvailableModules::dac) != nullptr)
 	{

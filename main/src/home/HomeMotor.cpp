@@ -1,23 +1,12 @@
 #include "HomeMotor.h"
+#include "../motor/FocusMotor.h"
+#include "FastAccelStepper.h"
+#include "../digitalin/DigitalInController.h"
+#include "../config/ConfigController.h"
 
 HomeMotor::HomeMotor() : Module() { log_i("ctor"); }
 HomeMotor::~HomeMotor() { log_i("~ctor"); }
 
-/*
-Trigger the HomeMotor to move to the home position (?)
-*/
-namespace RestApi
-{
-	void HomeMotor_act()
-	{
-		serialize(moduleController.get(AvailableModules::home)->act(deserialize()));
-	}
-
-	void HomeMotor_get()
-	{
-		serialize(moduleController.get(AvailableModules::home)->get(deserialize()));
-	}
-}
 
 void processHomeLoop(void *p)
 {
@@ -107,33 +96,16 @@ DynamicJsonDocument HomeMotor::get(DynamicJsonDocument ob)
 	DynamicJsonDocument doc(4096); // StaticJsonDocument<1024> doc; // create return doc
 
 	// add the home data to the json
-	doc[key_home][key_steppers][0][key_home_timeout] = hdata[Stepper::A]->homeTimeout;
-	doc[key_home][key_steppers][0][key_home_speed] = hdata[Stepper::A]->homeSpeed;
-	doc[key_home][key_steppers][0][key_home_maxspeed] = hdata[Stepper::A]->homeMaxspeed;
-	doc[key_home][key_steppers][0][key_home_direction] = hdata[Stepper::A]->homeDirection;
-	doc[key_home][key_steppers][0][key_home_timestarted] = hdata[Stepper::A]->homeTimeStarted;
-	doc[key_home][key_steppers][0][key_home_isactive] = hdata[Stepper::A]->homeIsActive;
 
-	doc[key_home][key_steppers][1][key_home_timeout] = hdata[Stepper::X]->homeTimeout;
-	doc[key_home][key_steppers][1][key_home_speed] = hdata[Stepper::X]->homeSpeed;
-	doc[key_home][key_steppers][1][key_home_maxspeed] = hdata[Stepper::X]->homeMaxspeed;
-	doc[key_home][key_steppers][1][key_home_direction] = hdata[Stepper::X]->homeDirection;
-	doc[key_home][key_steppers][1][key_home_timestarted] = hdata[Stepper::X]->homeTimeStarted;
-	doc[key_home][key_steppers][1][key_home_isactive] = hdata[Stepper::X]->homeIsActive;
-
-	doc[key_home][key_steppers][2][key_home_timeout] = hdata[Stepper::Y]->homeTimeout;
-	doc[key_home][key_steppers][2][key_home_speed] = hdata[Stepper::Y]->homeSpeed;
-	doc[key_home][key_steppers][2][key_home_maxspeed] = hdata[Stepper::Y]->homeMaxspeed;
-	doc[key_home][key_steppers][2][key_home_direction] = hdata[Stepper::Y]->homeDirection;
-	doc[key_home][key_steppers][2][key_home_timestarted] = hdata[Stepper::Y]->homeTimeStarted;
-	doc[key_home][key_steppers][2][key_home_isactive] = hdata[Stepper::Y]->homeIsActive;
-
-	doc[key_home][key_steppers][3][key_home_timeout] = hdata[Stepper::Z]->homeTimeout;
-	doc[key_home][key_steppers][3][key_home_speed] = hdata[Stepper::Z]->homeSpeed;
-	doc[key_home][key_steppers][3][key_home_maxspeed] = hdata[Stepper::Z]->homeMaxspeed;
-	doc[key_home][key_steppers][3][key_home_direction] = hdata[Stepper::Z]->homeDirection;
-	doc[key_home][key_steppers][3][key_home_timestarted] = hdata[Stepper::Z]->homeTimeStarted;
-	doc[key_home][key_steppers][3][key_home_isactive] = hdata[Stepper::Z]->homeIsActive;
+	for(int i =0; i < 4;i++)
+	{
+		doc[key_home][key_steppers][i][key_home_timeout] = hdata[i]->homeTimeout;
+		doc[key_home][key_steppers][i][key_home_speed] = hdata[i]->homeSpeed;
+		doc[key_home][key_steppers][i][key_home_maxspeed] = hdata[i]->homeMaxspeed;
+		doc[key_home][key_steppers][i][key_home_direction] = hdata[i]->homeDirection;
+		doc[key_home][key_steppers][i][key_home_timestarted] = hdata[i]->homeTimeStarted;
+		doc[key_home][key_steppers][i][key_home_isactive] = hdata[i]->homeIsActive;
+	}
 
 	log_i("home_get_fct done");
 	serializeJsonPretty(doc, Serial);

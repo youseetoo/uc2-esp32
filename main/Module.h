@@ -1,6 +1,7 @@
 #pragma once
-#include <esp32-hal-log.h>
 #include <ArduinoJson.h>
+#include "PinConfig.h"
+#include "JsonKeys.h"
 
 class Module
 {

@@ -1,18 +1,5 @@
 #pragma once
-#include "ArduinoJson.h"
-#include "esp_err.h"
-#include "esp_log.h"
-#include "driver/ledc.h"
-#include "driver/periph_ctrl.h"
-#include "soc/ledc_reg.h"
-#include "../wifi/WifiController.h"
 #include "../../Module.h"
-
-namespace RestApi
-{
-    void AnalogOut_act();
-    void AnalogOut_get();
-};
 
 /*
     class is used to control up to 3 leds with esp32 LED PWM Controller on analogout pins

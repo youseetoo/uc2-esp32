@@ -7,18 +7,6 @@ DacController::~DacController(){
 
 };
 
-namespace RestApi
-{
-	void Dac_act()
-	{
-		serialize(moduleController.get(AvailableModules::dac)->act(deserialize()));
-	}
-
-	void Dac_get()
-	{
-		serialize(moduleController.get(AvailableModules::dac)->get(deserialize()));
-	}
-}
 
 void DacController::setup()
 {

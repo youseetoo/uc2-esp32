@@ -1,20 +1,10 @@
 #pragma once
 #include "FastAccelStepper.h"
-#include "ArduinoJson.h"
-#include "../wifi/WifiController.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"
-#include "../../PinConfig.h"
 #include <Preferences.h>
 #include "../i2c/tca9535.h"
 
-namespace RestApi
-{
-	void FocusMotor_act();
-	void FocusMotor_get();
-	void FocusMotor_set();
-	void FocusMotor_setCalibration();
-};
 
 
 void sendUpdateToClients(void *p);

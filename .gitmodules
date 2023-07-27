@@ -5,7 +5,7 @@
 [submodule "lib/FastAccelStepper"]
 	path = lib/FastAccelStepper
 	url = https://github.com/youseetoo/FastAccelStepper.git
-	branch = master	
+	branch = master
 [submodule "lib/JPEGDecoder"]
 	path = lib/JPEGDecoder
 	url = https://github.com/youseetoo/JPEGDecoder.git
@@ -25,10 +25,6 @@
 [submodule "lib/Adafruit-GFX-Library"]
 	path = lib/Adafruit-GFX-Library
 	url = https://github.com/youseetoo/Adafruit-GFX-Library.git
-	branch = master
-[submodule "lib/arduinoWebSockets"]
-	path = lib/arduinoWebSockets
-	url = https://github.com/youseetoo/arduinoWebSockets.git
 	branch = master
 [submodule "lib/PSController"]
 	path = lib/PSController

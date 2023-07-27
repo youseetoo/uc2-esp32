@@ -1,5 +1,6 @@
 #pragma once
 #include "WifiConfig.h"
+#include "ArduinoJson.h"
 
 class EspWifiController
 {
@@ -10,6 +11,8 @@ class EspWifiController
 #define WIFI_FAIL_BIT      BIT1
     private:
         WifiConfig * wconfig;
+        const uint8_t DEFAULT_SCAN_LIST_SIZE = 10;
+        const char* TAG = "EspWifiController";
         /* FreeRTOS event group to signal when we are connected*/
         
 
@@ -19,5 +22,5 @@ class EspWifiController
         void connect();
         void disconnect();
         void setWifiConfig(WifiConfig * _wconfig){wconfig = _wconfig;}
-
+        DynamicJsonDocument wifi_scan();
 };

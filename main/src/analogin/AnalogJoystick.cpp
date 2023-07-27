@@ -18,7 +18,7 @@ void AnalogJoystick::setup()
     log_d("Setup analog joystick");
     pinMode(pinConfig.ANLOG_JOYSTICK_X, INPUT);
     pinMode(pinConfig.ANLOG_JOYSTICK_Y, INPUT);
-    xTaskCreate(&processLoopAJoy, "analogJoyStick_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&processLoopAJoy, "analogJoyStick_task", pinConfig.ANALOGJOYSTICK_TASK_STACKSIZE, NULL, 5, NULL);
 }
 int AnalogJoystick::act(DynamicJsonDocument jsonDocument) { return 1;}
 

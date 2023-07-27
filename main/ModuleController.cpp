@@ -147,15 +147,6 @@ void ModuleController::setup()
         modules.insert(std::make_pair(AvailableModules::analogJoystick, dynamic_cast<Module *>(new AnalogJoystick())));
         log_i("add scanner");
     }
-
-
-    //if wifi enable call its setup first bevor calling other mods setup
-    if (pinConfig.enableWifi)
-    {
-        Module * w = get(AvailableModules::wifi);
-        w->setup();
-    }
-
     // call setup on all modules
     log_i("setup all modules");
     for (auto &x : modules)
@@ -167,9 +158,8 @@ void ModuleController::setup()
     //after all mods are loaded start serving http stuff
     if (pinConfig.enableWifi)
     {
-        WifiController* w = (WifiController*)get(AvailableModules::wifi);
-        w->begin();
-        w->createTasks();
+        Module * w = get(AvailableModules::wifi);
+        w->setup();
     }
 
 }

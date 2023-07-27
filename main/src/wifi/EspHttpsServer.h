@@ -14,9 +14,11 @@ class EspHttpsServer
 private:
     httpd_handle_t server;
     bool run = false;
+    
 
 public:
     void start_webserver();
     void stop_webserver();
     bool running();
+    void sendText(char* msg);
 };

@@ -248,17 +248,18 @@ void SerialProcess::jsonProcessor(String task, JsonObject jsonDocument)
 
 	if (task == scanwifi_endpoint)
 	{	// {"task":"/wifi/scan"}
-		serialize(RestApi::scanWifi());
+		WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
+		serialize(w->scan());
 	}
 	if (task == connectwifi_endpoint&& moduleController.get(AvailableModules::wifi) != nullptr)
 	{ 	// {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 		WifiController * w = (WifiController*)moduleController.get(AvailableModules::wifi);
 		w->connect(jsonDocument);
 	}
-	if (task == reset_nv_flash_endpoint)
+	/*if (task == reset_nv_flash_endpoint)
 	{
 		RestApi::resetNvFLash();
-	}
+	}*/
 	if (task == bt_connect_endpoint && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}

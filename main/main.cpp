@@ -3,6 +3,7 @@
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
 #include "ModuleController.h"
+#include "PinConfig.h"
 
 
 #include "soc/soc.h"
@@ -44,7 +45,7 @@ extern "C" void app_main(void)
 	moduleController.setup();
 
 	log_i("End setup");
-	xTaskCreatePinnedToCore(&looper, "loop", 8128, NULL, 5, NULL,1);
+	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, 5, NULL,1);
 	//xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
 
 	

@@ -17,6 +17,7 @@
 #include "src/bt/BtController.h"
 #include "src/scanner/ScannerController.h"
 #include "src/wifi/WifiController.h"
+#include "cJSON.h"
 
 
 void ModuleController::setup()
@@ -181,22 +182,25 @@ Module *ModuleController::get(AvailableModules mod)
     return modules[mod];
 }
 
-DynamicJsonDocument ModuleController::get()
+cJSON * ModuleController::get()
 {
-    DynamicJsonDocument doc(4096);
-    doc[key_modules][keyLed] = pinConfig.LED_PIN >= 0;
-    doc[key_modules][key_motor] = pinConfig.MOTOR_ENABLE >= 0;
-    doc[key_modules][key_rotator] = pinConfig.ROTATOR_ENABLE;
-    doc[key_modules][key_home] = pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0;
-    doc[key_modules][key_analogin] = pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0;
-    doc[key_modules][key_pid] =pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0;
-    doc[key_modules][key_laser] = pinConfig.LASER_1 >= 0 || pinConfig.LASER_2 >= 0 || pinConfig.LASER_3 >= 0;
-    doc[key_modules][key_dac] = pinConfig.dac_fake_1 >= 0 || pinConfig.dac_fake_2 >= 0;
-    doc[key_modules][key_analogout] = pinConfig.analogout_PIN_1 >= 0 || pinConfig.analogout_PIN_2 >= 0 || pinConfig.analogout_PIN_3 >= 0;
-    doc[key_modules][key_digitalout] = pinConfig.DIGITAL_OUT_1 >= 0 || pinConfig.DIGITAL_OUT_2 >= 0 ||pinConfig.DIGITAL_OUT_3 >= 0;
-    doc[key_modules][key_digitalin] = pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 ||pinConfig.DIGITAL_IN_3 >= 0;
-    doc[key_modules][key_scanner] = pinConfig.enableScanner;
-    doc[key_modules][key_joy] = pinConfig.ANLOG_JOYSTICK_X >= 0 || pinConfig.ANLOG_JOYSTICK_Y >= 0;
+    cJSON * doc = cJSON_CreateObject();
+    cJSON * mod = cJSON_CreateObject();
+    cJSON_AddItemToObject(doc,key_modules,mod);
+    cJSON_AddItemToObject(mod,keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
+    cJSON_AddItemToObject(mod,key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
+    cJSON_AddItemToObject(mod,key_rotator, cJSON_CreateNumber(pinConfig.ROTATOR_ENABLE != false));
+    cJSON_AddItemToObject(mod,key_home, cJSON_CreateNumber((pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0)));
+    cJSON_AddItemToObject(mod,key_analogin, cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
+    cJSON_AddItemToObject(mod,key_pid, cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));
+    cJSON_AddItemToObject(mod,key_laser, cJSON_CreateNumber((pinConfig.LASER_1 >= 0 || pinConfig.LASER_2 >= 0 || pinConfig.LASER_3 >= 0)));
+    cJSON_AddItemToObject(mod,key_dac, cJSON_CreateNumber((pinConfig.dac_fake_1 >= 0 || pinConfig.dac_fake_2 >= 0)));
+    cJSON_AddItemToObject(mod,key_analogout, cJSON_CreateNumber((pinConfig.analogout_PIN_1 >= 0 || pinConfig.analogout_PIN_2 >= 0 || pinConfig.analogout_PIN_3 >= 0)));
+    cJSON_AddItemToObject(mod,key_digitalout, cJSON_CreateNumber((pinConfig.DIGITAL_OUT_1 >= 0 || pinConfig.DIGITAL_OUT_2 >= 0 ||pinConfig.DIGITAL_OUT_3 >= 0)));
+    cJSON_AddItemToObject(mod,key_digitalin, cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 ||pinConfig.DIGITAL_IN_3 >= 0)));
+    cJSON_AddItemToObject(mod,key_scanner, cJSON_CreateNumber(pinConfig.enableScanner));
+    cJSON_AddItemToObject(mod,key_joy, cJSON_CreateNumber((pinConfig.ANLOG_JOYSTICK_X >= 0 || pinConfig.ANLOG_JOYSTICK_Y >= 0)));
+
     return doc;
 }
 

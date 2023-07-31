@@ -25,19 +25,19 @@ class WifiController : public Module
 
     void setup_routing();
     
-    void sendJsonWebSocketMsg(DynamicJsonDocument doc);
+    void sendJsonWebSocketMsg(cJSON * doc);
     void restartWebServer();
 
     // Wifi
 
-    void setWifiConfig(String SSID, String PWD, bool ap);
-    String getSsid();
-    String getPw();
+    void setWifiConfig(char* SSID, char* PWD, bool ap);
+    char* getSsid();
+    char* getPw();
     bool getAp();
     void setup() override;
     void loop() override;
-    int act(DynamicJsonDocument doc) override;
-    DynamicJsonDocument get(DynamicJsonDocument doc) override;
-    DynamicJsonDocument connect(DynamicJsonDocument doc);
-    DynamicJsonDocument scan();
+    int act(cJSON * doc) override;
+    cJSON * get(cJSON * doc) override;
+    cJSON * connect(cJSON * doc);
+    cJSON * scan();
 };

@@ -21,8 +21,8 @@ public:
 	unsigned long currentMillis;
 	bool isBusy = false; // TODO this is not working!!!
 
-	int act(DynamicJsonDocument  ob) override;
-	DynamicJsonDocument get(DynamicJsonDocument ob) override;
+	int act(cJSON * ob) override;
+	cJSON *  get(cJSON *  ob) override;
 
 	void setup() override;
 	void printInfo();

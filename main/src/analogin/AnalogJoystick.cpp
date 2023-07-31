@@ -1,6 +1,7 @@
 #include "AnalogJoystick.h"
 #include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
+#include "cJSON.h"
 
 void processLoopAJoy(void * param)
 {
@@ -20,13 +21,27 @@ void AnalogJoystick::setup()
     pinMode(pinConfig.ANLOG_JOYSTICK_Y, INPUT);
     xTaskCreate(&processLoopAJoy, "analogJoyStick_task", pinConfig.ANALOGJOYSTICK_TASK_STACKSIZE, NULL, 5, NULL);
 }
-int AnalogJoystick::act(DynamicJsonDocument jsonDocument) { return 1;}
+int AnalogJoystick::act(cJSON* jsonDocument) { return 1;}
 
-DynamicJsonDocument AnalogJoystick::get(DynamicJsonDocument  doc) {
-    doc.clear();
-    doc[key_joy][key_joiypinX] = pinConfig.ANLOG_JOYSTICK_X;
-    doc[key_joy][key_joiypinY] = pinConfig.ANLOG_JOYSTICK_Y;
-    return doc;
+
+/*"joy" : 
+    {
+        "joyX" : 1,
+        "joyY" : 1
+    }*/
+cJSON* AnalogJoystick::get(cJSON*  doc) {
+
+    cJSON *monitor = cJSON_CreateObject();
+    cJSON *analogholder = NULL;
+    cJSON *x = NULL;
+    cJSON *y = NULL;
+    analogholder = cJSON_CreateObject();
+    cJSON_AddItemToObject(monitor, key_joy, analogholder);
+    x = cJSON_CreateNumber(pinConfig.ANLOG_JOYSTICK_X);
+    y = cJSON_CreateNumber(pinConfig.ANLOG_JOYSTICK_Y);
+    cJSON_AddItemToObject(analogholder, key_joiypinX, x);
+    cJSON_AddItemToObject(analogholder, key_joiypinY, y);
+    return monitor;
 }
 
 void AnalogJoystick::loop()

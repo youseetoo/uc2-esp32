@@ -6,16 +6,16 @@ AnalogInController::~AnalogInController(){};
 void AnalogInController::loop() {}
 
 // Custom function accessible by the API
-int AnalogInController::act(DynamicJsonDocument ob)
+int AnalogInController::act(cJSON* ob)
 {
-
+	cJSON *monitor_json = ob;
 	// here you can do something
 	if (DEBUG)
 		Serial.println("readanalogin_act_fct");
-	int readanaloginID = (int)(ob)[key_readanaloginID];
+	int readanaloginID = cJSON_GetObjectItemCaseSensitive(monitor_json, key_N_analogin_avg)->valueint; //(int)(ob)[key_readanaloginID];
 	int mN_analogin_avg = N_analogin_avg;
-	if (ob.containsKey(key_N_analogin_avg))
-		mN_analogin_avg = (int)(ob)[key_N_analogin_avg];
+	if (readanaloginID != NULL)
+		mN_analogin_avg = readanaloginID;
 	int analoginpin = 0;
 
 	if (DEBUG)
@@ -44,19 +44,24 @@ int AnalogInController::act(DynamicJsonDocument ob)
 	return 1;
 }
 
-DynamicJsonDocument AnalogInController::get(DynamicJsonDocument ob)
+cJSON* AnalogInController::get(cJSON* ob)
 {
 	if (DEBUG)
 		Serial.println("readanalogin_set_fct");
-	int readanaloginID = (int)(ob)[key_readanaloginID];
-	int readanaloginPIN = (int)(ob)[key_readanaloginPIN];
-	if (ob.containsKey(key_N_analogin_avg))
-		N_analogin_avg = (int)(ob)[key_N_analogin_avg];
-
-	ob.clear();
-	ob[key_readanaloginPIN] = readanaloginPIN;
-	ob[key_readanaloginID] = readanaloginID;
-	return ob;
+	
+	cJSON *monitor_json = ob;
+	int readanaloginID = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginID)->valueint; //(int)(ob)[key_readanaloginID];
+	int readanaloginPIN = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginPIN)->valueint; //(int)(ob)[key_readanaloginPIN];
+	N_analogin_avg = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginPIN)->valueint; //(int)(ob)[key_N_analogin_avg];
+	cJSON *monitor = cJSON_CreateObject();
+    cJSON *analogholder = NULL;
+    cJSON *x = NULL;
+    cJSON *y = NULL;
+    x = cJSON_CreateNumber(readanaloginPIN);
+    y = cJSON_CreateNumber(readanaloginID);
+    cJSON_AddItemToObject(monitor, key_readanaloginPIN, x);
+    cJSON_AddItemToObject(monitor, key_readanaloginID, y);
+	return monitor;
 }
 
 void AnalogInController::setup()

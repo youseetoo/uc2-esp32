@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include "Module.h"
+#include "cJSON.h"
 
 enum class AvailableModules
 {
@@ -32,7 +33,7 @@ public:
     void setup();
     void loop();
     Module *get(AvailableModules mod);
-    DynamicJsonDocument get();
+    cJSON * get();
 };
 
-extern "C" ModuleController moduleController;
+extern ModuleController moduleController;

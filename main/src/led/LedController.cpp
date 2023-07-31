@@ -34,89 +34,49 @@ bool LedController::TurnedOn()
 }
 
 // Custom function accessible by the API
-int LedController::act(DynamicJsonDocument ob)
+int LedController::act(cJSON * ob)
 {
 	//serializeJsonPretty(ob, Serial);
-	if (ob.containsKey(keyLed))
+	cJSON * led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
+	if (led != NULL)
 	{
-		LedModes LEDArrMode = static_cast<LedModes>(ob[keyLed][keyLEDArrMode]); // "array", "full", "single", "off", "left", "right", "top", "bottom",
-		// individual pattern gets adressed
-		// PYTHON: send_LEDMatrix_array(self, led_pattern, timeout=1)
+		LedModes LEDArrMode = static_cast<LedModes>(cJSON_GetObjectItemCaseSensitive(led, keyLEDArrMode)->valueint);
+		cJSON * ledarr = cJSON_GetObjectItemCaseSensitive(led,key_led_array);
 		if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 		{
 			log_d("LED: array/multi");
-			for (int i = 0; i < ob[keyLed][key_led_array].size(); i++)
+			cJSON * arri = NULL;
+			cJSON_ArrayForEach(arri, ledarr)
 			{
 				set_led_RGB(
-					ob[keyLed][key_led_array][i][keyid],
-					ob[keyLed][key_led_array][i][keyRed],
-					ob[keyLed][key_led_array][i][keyGreen],
-					ob[keyLed][key_led_array][i][keyBlue]);
+							cJSON_GetObjectItemCaseSensitive(arri,keyid)->valueint,
+							cJSON_GetObjectItemCaseSensitive(arri,keyRed)->valueint,
+							cJSON_GetObjectItemCaseSensitive(arri,keyGreen)->valueint,
+							cJSON_GetObjectItemCaseSensitive(arri,keyBlue)->valueint);
+
 			}
 			matrix->show(); //  Update strip to match
 		}
-		// only if a single led will be updated, all others stay the same
-		// {"task": "/ledarr_act", "led": {"LEDArrMode": 2, "led_array": [{"id": 0, "r": 255, "g": 255, "b": 255}]}}
-		else if (LEDArrMode == LedModes::single)
+		else if (LEDArrMode == LedModes::full || LedModes::single || LedModes::left || LedModes::right || LedModes::top || bottom)
 		{
-			log_d("LED: single");
-			set_led_RGB(
-				ob[keyLed][key_led_array][0][keyid],
-				ob[keyLed][key_led_array][0][keyRed],
-				ob[keyLed][key_led_array][0][keyGreen],
-				ob[keyLed][key_led_array][0][keyBlue]);
-			matrix->show(); //  Update strip to match
-		}
-		// turn on all LEDs
-		// PYTHON: send_LEDMatrix_full(self, intensity = (255,255,255),timeout=1)
-		else if (LEDArrMode == LedModes::full)
-		{
-			log_d("LED: full");
-			u_int8_t r = ob[keyLed][key_led_array][0][keyRed];
-			u_int8_t g = ob[keyLed][key_led_array][0][keyGreen];
-			u_int8_t b = ob[keyLed][key_led_array][0][keyBlue];
+			cJSON * item = cJSON_GetArrayItem(ledarr,0);
+			u_int8_t id = cJSON_GetObjectItemCaseSensitive(item,keyid)->valueint;
+			u_int8_t r = cJSON_GetObjectItemCaseSensitive(item,keyRed)->valueint;
+			u_int8_t g = cJSON_GetObjectItemCaseSensitive(item,keyGreen)->valueint;
+			u_int8_t b = cJSON_GetObjectItemCaseSensitive(item,keyBlue)->valueint;
 			isOn = r == 0 && g == 0 && b == 0 ? false : true;
-			set_all(r, g, b);
-		}
-		// set left
-		else if (LEDArrMode == LedModes::left)
-		{
-			log_d("LED: left");
-			set_left(
-				pinConfig.LED_COUNT,
-				ob[keyLed][key_led_array][0][keyRed],
-				ob[keyLed][key_led_array][0][keyGreen],
-				ob[keyLed][key_led_array][0][keyBlue]);
-		}
-		// set right
-		else if (LEDArrMode == LedModes::right)
-		{
-			log_d("LED: right");
-			set_right(
-				pinConfig.LED_COUNT,
-				ob[keyLed][key_led_array][0][keyRed],
-				ob[keyLed][key_led_array][0][keyGreen],
-				ob[keyLed][key_led_array][0][keyBlue]);
-		}
-		// set top
-		else if (LEDArrMode == LedModes::top)
-		{
-			log_d("LED: top");
-			set_top(
-				pinConfig.LED_COUNT,
-				ob[keyLed][key_led_array][0][keyRed],
-				ob[keyLed][key_led_array][0][keyGreen],
-				ob[keyLed][key_led_array][0][keyBlue]);
-		}
-		// set bottom
-		else if (LEDArrMode == LedModes::bottom)
-		{
-			log_d("LED: bottom");
-			set_bottom(
-				pinConfig.LED_COUNT,
-				ob[keyLed][key_led_array][0][keyRed],
-				ob[keyLed][key_led_array][0][keyGreen],
-				ob[keyLed][key_led_array][0][keyBlue]);
+			if(LEDArrMode == LedModes::full)
+				set_all(r, g, b);
+			else if(LEDArrMode == LedModes::single)
+				set_led_RGB(id,r,g,b);
+			else if(LEDArrMode == LedModes::left)
+				set_left(pinConfig.LED_COUNT,r,g,b);
+			else if(LEDArrMode == LedModes::right)
+				set_right(pinConfig.LED_COUNT,r,g,b);
+			else if(LEDArrMode == LedModes::top)
+				set_top(pinConfig.LED_COUNT,r,g,b);
+			else if(LEDArrMode == LedModes::bottom)
+				set_bottom(pinConfig.LED_COUNT,r,g,b);
 		}
 		else if (LEDArrMode == LedModes::off)
 		{
@@ -125,29 +85,28 @@ int LedController::act(DynamicJsonDocument ob)
 			matrix->show(); //  Update strip to match
 		}
 	}
-	else
-	{
-		log_i("failed to parse json. required keys are led_array,LEDArrMode");
-	}
 	return 1;
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument LedController::get(DynamicJsonDocument ob)
+cJSON * LedController::get(cJSON * ob)
 {
-	ob.clear();
-	ob[keyLEDCount] = pinConfig.LED_COUNT;
-	ob[keyLEDPin] = pinConfig.LED_PIN;
-	ob[keyLEDArrMode].add(0);
-	ob[keyLEDArrMode].add(1);
-	ob[keyLEDArrMode].add(2);
-	ob[keyLEDArrMode].add(3);
-	ob[keyLEDArrMode].add(4);
-	ob[keyLEDArrMode].add(5);
-	ob[keyLEDArrMode].add(6);
-	ob[keyLEDArrMode].add(7);
-	ob[key_led_isOn] = isOn;
-	return ob;
+	cJSON * j = cJSON_CreateObject();
+	setJsonInt(j, keyLEDCount,pinConfig.LED_COUNT);
+	setJsonInt(j, keyLEDPin,pinConfig.LED_PIN);
+	setJsonInt(j, key_led_isOn,isOn);
+
+	cJSON * arr = cJSON_CreateArray();
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(0));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(1));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(2));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(3));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(4));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(5));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(6));
+	cJSON_AddItemToArray(arr,cJSON_CreateNumber(7));
+	cJSON_AddItemToObject(j,keyLEDArrMode,arr);
+	return j;
 }
 
 /***************************************************************************************************/
@@ -159,6 +118,7 @@ void LedController::set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t 
 {
 	//log_d("setting led %i, color %i, %i, %i", iLed, R, G, B);
 	matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
+	matrix->show();
 }
 
 void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)

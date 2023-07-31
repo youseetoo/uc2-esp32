@@ -1,6 +1,5 @@
 #pragma once
 #include "../../Module.h"
-#include "ArduinoJson.h"
 
 
 void processLoopAJoy(void *param);
@@ -18,8 +17,8 @@ class AnalogJoystick : public Module
     AnalogJoystick();
 	virtual ~AnalogJoystick();
     void setup() override;
-    int act(DynamicJsonDocument  jsonDocument) override;
-    DynamicJsonDocument get(DynamicJsonDocument  jsonDocument) override;
+    int act(cJSON*  jsonDocument) override;
+    cJSON* get(cJSON*  jsonDocument) override;
     void loop() override;
 
 };

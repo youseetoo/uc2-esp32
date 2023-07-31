@@ -1,5 +1,5 @@
 #pragma once
-#include <ArduinoJson.h>
+#include <cjson/cJSON.h>
 #include <nvs_flash.h>
 #include "Endpoints.h"
 #include "Update.h"
@@ -17,11 +17,11 @@ namespace RestApi
     /*
         load the body data from the client request into the jsondoc
     */
-    DynamicJsonDocument deserializeESP(httpd_req_t *req);
+    cJSON * deserializeESP(httpd_req_t *req);
     /*
         fill the input from the jsondoc and send a response to the client
     */
-    void serializeESP(DynamicJsonDocument doc,httpd_req_t *req);
+    void serializeESP(cJSON * doc,httpd_req_t *req);
     void serializeESP(int doc,httpd_req_t *req);
     /*
         returns an array that contains the endpoints

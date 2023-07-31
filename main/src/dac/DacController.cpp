@@ -24,9 +24,10 @@ void DacController::setup()
 void DacController::loop() {}
 
 // Custom function accessible by the API
-int DacController::act(DynamicJsonDocument ob)
+int DacController::act(cJSON* ob)
 {
 	
+	cJSON *monitor_json = ob;
 	// here you can do something
 
 	Serial.println("dac_act_fct");
@@ -34,42 +35,47 @@ int DacController::act(DynamicJsonDocument ob)
 	// apply default parameters
 	// DAC Channel
 	dac_channel = DAC_CHANNEL_1;
-	if (ob.containsKey("dac_channel"))
+	cJSON *dac_channelj = cJSON_GetObjectItemCaseSensitive(monitor_json, "dac_channel");
+	if (cJSON_IsNumber(dac_channelj) && dac_channelj->valueint != NULL)
 	{
-		dac_channel = (ob)["dac_channel"];
+		dac_channel = (dac_channel_t)dac_channelj->valueint;//(ob)["dac_channel"];
 	}
 
 	// DAC Frequency
 	frequency = 1000;
-	if (ob.containsKey("frequency"))
+	cJSON *frequencyj = cJSON_GetObjectItemCaseSensitive(monitor_json, "frequency");
+	if (cJSON_IsNumber(frequencyj) && frequencyj->valueint != NULL)
 	{
-		frequency = (ob)["frequency"];
+		frequency = frequencyj->valueint;
 	}
 
 	// DAC offset
 	int offset = 0;
-	if (ob.containsKey("offset"))
+	cJSON *offsetj = cJSON_GetObjectItemCaseSensitive(monitor_json, "offset");
+	if (cJSON_IsNumber(offsetj) && offsetj->valueint != NULL)
 	{
-		int offset = (ob)["offset"];
+		offset = frequencyj->valueint;
 	}
 
 	// DAC amplitude
 	int amplitude = 0;
-	if (ob.containsKey("amplitude"))
+	cJSON *amplitudej = cJSON_GetObjectItemCaseSensitive(monitor_json, "amplitude");
+	if (cJSON_IsNumber(amplitudej) && amplitudej->valueint != NULL)
 	{
-		int amplitude = (ob)["amplitude"];
+		amplitude = amplitudej->valueint;
 	}
 
 	// DAC clk_div
 	int clk_div = 0;
-	if (ob.containsKey("clk_div"))
+	cJSON *clk_divj = cJSON_GetObjectItemCaseSensitive(monitor_json, "amplitude");
+	if (cJSON_IsNumber(clk_divj) && clk_divj->valueint != NULL)
 	{
-		int clk_div = (ob)["clk_div"];
+		clk_div = clk_divj->valueint;
 	}
 
-	if ((ob)["dac_channel"] == 1)
+	if (dac_channel == 1)
 		dac_channel = DAC_CHANNEL_1;
-	else if ((ob)["dac_channel"] == 2)
+	else if (dac_channel == 2)
 		dac_channel = DAC_CHANNEL_2;
 
 	// Scale output of a DAC channel using two bit pattern:
@@ -116,14 +122,9 @@ int DacController::act(DynamicJsonDocument ob)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument DacController::get(DynamicJsonDocument jsonDocument)
+cJSON* DacController::get(cJSON* jsonDocument)
 {
-	// GET SOME PARAMETERS HERE
-	int dac_variable = 12343;
-
-	jsonDocument.clear();
-	jsonDocument["dac_variable"] = dac_variable;
-	return jsonDocument;
+	return NULL;
 }
 
 /*

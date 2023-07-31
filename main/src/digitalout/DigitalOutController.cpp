@@ -4,7 +4,7 @@ DigitalOutController::DigitalOutController(/* args */){};
 DigitalOutController::~DigitalOutController(){};
 
 // Custom function accessible by the API
-int DigitalOutController::act(DynamicJsonDocument jsonDocument)
+int DigitalOutController::act(cJSON*  jsonDocument)
 {
 	// here you can do something
 	Serial.println("digitalout_act_fct");
@@ -13,65 +13,32 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 
 	// set default parameters
 	// is trigger active?
-	if(jsonDocument.containsKey(keyDigitalOut1IsTrigger))
-		is_digital_trigger_1 = (jsonDocument)[keyDigitalOut1IsTrigger];
-	else
-		is_digital_trigger_1 = false;
-	if(jsonDocument.containsKey(keyDigitalOut2IsTrigger))
-		is_digital_trigger_2 = (jsonDocument)[keyDigitalOut2IsTrigger];
-	else
-		is_digital_trigger_2 = false;
-	if(jsonDocument.containsKey(keyDigitalOut3IsTrigger))
-		is_digital_trigger_3 = (jsonDocument)[keyDigitalOut3IsTrigger];
-	else
-		is_digital_trigger_3 = false;
+	is_digital_trigger_1 = getJsonInt(jsonDocument, keyDigitalOut1IsTrigger);
+	is_digital_trigger_2=getJsonInt(jsonDocument, keyDigitalOut2IsTrigger);
+	is_digital_trigger_3 =getJsonInt(jsonDocument, keyDigitalOut3IsTrigger);
 	
 	// on-delay
-	if(jsonDocument.containsKey(keyDigitalOut1TriggerDelayOn))
-		digitalout_trigger_delay_1_on = (jsonDocument)[keyDigitalOut1TriggerDelayOn];
-	else
-		digitalout_trigger_delay_1_on = 0;
-	if(jsonDocument.containsKey(keyDigitalOut2TriggerDelayOn))
-		digitalout_trigger_delay_2_on = (jsonDocument)[keyDigitalOut2TriggerDelayOn];
-	else
-		digitalout_trigger_delay_2_on = 0;
-	if(jsonDocument.containsKey(keyDigitalOut3TriggerDelayOn))	
-		digitalout_trigger_delay_3_on = (jsonDocument)[keyDigitalOut3TriggerDelayOn];
-	else
-		digitalout_trigger_delay_3_on = 0;
+	digitalout_trigger_delay_1_on =getJsonInt(jsonDocument, keyDigitalOut1TriggerDelayOn);
+	digitalout_trigger_delay_2_on=getJsonInt(jsonDocument, keyDigitalOut2TriggerDelayOn);
+	digitalout_trigger_delay_3_on =getJsonInt(jsonDocument, keyDigitalOut3TriggerDelayOn);
 	
 	// off-delay
-	if(jsonDocument.containsKey(keyDigitalOut1TriggerDelayOff))
-		digitalout_trigger_delay_1_off = (jsonDocument)[keyDigitalOut1TriggerDelayOff];
-	else
-		digitalout_trigger_delay_1_off = 0;
-	if(jsonDocument.containsKey(keyDigitalOut2TriggerDelayOff))
-		digitalout_trigger_delay_2_off = (jsonDocument)[keyDigitalOut2TriggerDelayOff];
-	else
-		digitalout_trigger_delay_2_off = 0;
-	if(jsonDocument.containsKey(keyDigitalOut3TriggerDelayOff))
-		digitalout_trigger_delay_3_off = (jsonDocument)[keyDigitalOut3TriggerDelayOff];
-	else
-		digitalout_trigger_delay_3_off = 0;
-
+	digitalout_trigger_delay_1_off = getJsonInt(jsonDocument, keyDigitalOut1TriggerDelayOff);
+	digitalout_trigger_delay_2_off = getJsonInt(jsonDocument, keyDigitalOut2TriggerDelayOff);
+	digitalout_trigger_delay_3_off = getJsonInt(jsonDocument, keyDigitalOut3TriggerDelayOff);
+	int reset = getJsonInt(jsonDocument, keyDigitalOutIsTriggerReset);
+	
 	// reset trigger
-	if(jsonDocument.containsKey(keyDigitalOutIsTriggerReset)){
-		if((jsonDocument)[keyDigitalOutIsTriggerReset]){
-			is_digital_trigger_1 = false;
-			is_digital_trigger_2 = false;
-			is_digital_trigger_3 = false;
-		}
+	if(reset == 1){
+		is_digital_trigger_1 = false;
+		is_digital_trigger_2 = false;
+		is_digital_trigger_3 = false;
 	}
 
 	// 
-	int digitaloutid=0;
-	int digitaloutval=0;
-	if (jsonDocument.containsKey(keyDigitalOutid))
-		digitaloutid = (jsonDocument)[keyDigitalOutid];
-	if (jsonDocument.containsKey(keyDigitalOutVal))
-		digitaloutval = (jsonDocument)[keyDigitalOutVal];
+	int digitaloutid=getJsonInt(jsonDocument, keyDigitalOutid);
+	int digitaloutval=getJsonInt(jsonDocument, keyDigitalOutVal);
 		
-
 	// print debugging information
 	log_d("digitaloutid %d", digitaloutid);
 	log_d("digitaloutval %d", digitaloutval);
@@ -140,10 +107,11 @@ int DigitalOutController::act(DynamicJsonDocument jsonDocument)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
+cJSON*  DigitalOutController::get(cJSON*  jsonDocument)
 {
 	// GET SOME PARAMETERS HERE
-	int digitaloutid = jsonDocument["digitaloutid"];
+	int digitaloutid = getJsonInt(jsonDocument, "digitaloutid");
+	
 	int digitaloutpin = 0;
 	int digitaloutval = 0;
 
@@ -173,10 +141,10 @@ DynamicJsonDocument DigitalOutController::get(DynamicJsonDocument jsonDocument)
 		digitaloutval = digitalout_val_3;
 	}
 
-	jsonDocument.clear();
-	jsonDocument["digitaloutid"] = digitaloutid;
-	jsonDocument["digitaloutval"] = digitaloutval;
-	jsonDocument["digitaloutpin"] = digitaloutpin;
+	jsonDocument = cJSON_CreateObject();
+	setJsonInt(jsonDocument,"digitaloutid",digitaloutid);
+	setJsonInt(jsonDocument,"digitaloutval",digitaloutval);
+	setJsonInt(jsonDocument,"digitaloutpin",digitaloutpin);
 	return jsonDocument;
 }
 

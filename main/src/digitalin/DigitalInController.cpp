@@ -5,7 +5,7 @@ DigitalInController::DigitalInController(/* args */){};
 DigitalInController::~DigitalInController(){};
 
 // Custom function accessible by the API
-int DigitalInController::act(DynamicJsonDocument jsonDocument)
+int DigitalInController::act(cJSON* jsonDocument)
 {
 	// here you can do something
 	Serial.println("digitalin_act_fct");
@@ -13,19 +13,16 @@ int DigitalInController::act(DynamicJsonDocument jsonDocument)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument DigitalInController::get(DynamicJsonDocument jsonDocument)
+cJSON* DigitalInController::get(cJSON* jsonDocument)
 {
 
 	// GET SOME PARAMETERS HERE
-	int digitalinid = jsonDocument["digitalinid"];
+	cJSON *monitor_json = jsonDocument;
+	int digitalinid = cJSON_GetObjectItemCaseSensitive(monitor_json, "digitalinid")->valueint;//jsonDocument["digitalinid"];
 	int digitalinpin = 0;
 	int digitalinval = 0;
 
-	// RESET THE JSON DOCUMENT
-	jsonDocument.clear();
-
 	// cretae new json document
-	DynamicJsonDocument doc(1024);
 	//
 	if (digitalinid == 1)
 	{
@@ -42,11 +39,14 @@ DynamicJsonDocument DigitalInController::get(DynamicJsonDocument jsonDocument)
 		digitalinpin = pinConfig.DIGITAL_IN_3;
 		digitalinval = digitalRead(pinConfig.DIGITAL_IN_3);
 	}
-
-	doc["digitalinid"] = digitalinid;
-	doc["digitalinval"] = digitalinval;
-	doc["digitalinpin"] = digitalinpin;
-	return doc;
+	monitor_json = cJSON_CreateObject();
+	cJSON * id = cJSON_CreateNumber(digitalinid);
+	cJSON_AddItemToObject(monitor_json, "digitalinid", id);
+	cJSON * val = cJSON_CreateNumber(digitalinval);
+	cJSON_AddItemToObject(monitor_json, "digitalinval", val);
+	cJSON * pin = cJSON_CreateNumber(digitalinpin);
+	cJSON_AddItemToObject(monitor_json, "digitalinpin", pin);
+	return monitor_json;
 }
 
 void DigitalInController::setup()

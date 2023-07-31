@@ -2,7 +2,7 @@
 #include "Arduino.h"
 struct WifiConfig
 {
-	String mSsid;
-    String pw;
+	char* mSsid;
+    char* pw;
     bool ap;
 };

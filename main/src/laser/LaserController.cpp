@@ -52,7 +52,7 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 }
 
 // Custom function accessible by the API
-int LaserController::act(DynamicJsonDocument ob)
+int LaserController::act(cJSON * ob)
 {
 	// JSON String
 	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
@@ -63,16 +63,10 @@ int LaserController::act(DynamicJsonDocument ob)
 	int LASERdespeckle = 0;
 	int LASERdespecklePeriod = 0;
 	// default values overridden
-	if (ob.containsKey("LASERid"))
-		LASERid = (ob)["LASERid"];
-	if (ob.containsKey("LASERval"))
-		LASERval = (ob)["LASERval"];
-	if (ob.containsKey("LASERdespeckle"))
-		LASERdespeckle = (ob)["LASERdespeckle"];
-	if (ob.containsKey("LASERdespecklePeriod"))
-		LASERdespecklePeriod = (ob)["LASERdespecklePeriod"];
-	ob.clear();
-
+	LASERid=getJsonInt(ob,"LASERid");
+	LASERval=getJsonInt(ob,"LASERval");
+	LASERdespeckle=getJsonInt(ob,"LASERdespeckle");
+	LASERdespecklePeriod=getJsonInt(ob,"LASERdespecklePeriod");
 	// debugging
 	log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
@@ -84,7 +78,7 @@ int LaserController::act(DynamicJsonDocument ob)
 		LASER_despeckle_period_1 = LASERdespecklePeriod;
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		ob[key_return] = 1;
+		return 1;
 	}
 	// action LASER 2
 	else if (LASERid == 2 && pinConfig.LASER_2 != 0)
@@ -94,7 +88,7 @@ int LaserController::act(DynamicJsonDocument ob)
 		LASER_despeckle_period_2 = LASERdespecklePeriod;
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		ob[key_return] = 1;
+		return 1;
 	}
 	// action LASER 3
 	else if (LASERid == 3 && pinConfig.LASER_3 != 0)
@@ -104,24 +98,22 @@ int LaserController::act(DynamicJsonDocument ob)
 		LASER_despeckle_period_3 = LASERdespecklePeriod;
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		ob[key_return] = 1;
+		return 1;
 	}
 	else
 	{
-		ob[key_return] = 0;
+		return 0;
 	}
-
-	return ob[key_return];
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument LaserController::get(DynamicJsonDocument ob)
+cJSON * LaserController::get(cJSON * ob)
 {
-	ob.clear();
-	ob["LASER1pin"] = pinConfig.LASER_1;
-	ob["LASER2pin"] = pinConfig.LASER_2;
-	ob["LASER3pin"] = pinConfig.LASER_3;
-	return ob;
+	cJSON * j = cJSON_CreateObject();
+	setJsonInt(j,"LASER1pin", pinConfig.LASER_1);
+	setJsonInt(j,"LASER2pin", pinConfig.LASER_2);
+	setJsonInt(j,"LASER3pin", pinConfig.LASER_3);
+	return j;
 }
 
 void LaserController::setup()

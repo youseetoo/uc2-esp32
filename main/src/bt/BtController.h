@@ -35,7 +35,7 @@ class BtController : public Module
     int pwm_max = 0; // no idea how big it should be
     int8_t sgn(int val);
     PSController * psx = nullptr;
-    void setupPS(String mac, int type);
+    void setupPS(char* mac, int type);
     void handelAxis(int value,int stepper);
     
 
@@ -54,14 +54,14 @@ class BtController : public Module
 
     void setup() override;
     void loop() override;
-    int act(DynamicJsonDocument doc) override;
-    DynamicJsonDocument get(DynamicJsonDocument doc) override;
-    DynamicJsonDocument scanForDevices(DynamicJsonDocument  doc);
+    int act(cJSON * doc) override;
+    cJSON * get(cJSON * doc) override;
+    cJSON * scanForDevices(cJSON *  doc);
     void removeAllPairedDevices();
-    void setMacAndConnect(String m);
-    void connectPsxController(String mac, int type);
-    void removePairedDevice(String pairedmac);
-    DynamicJsonDocument getPairedDevices(DynamicJsonDocument doc);
+    void setMacAndConnect(char* m);
+    void connectPsxController(char* mac, int type);
+    void removePairedDevice(char* pairedmac);
+    cJSON * getPairedDevices(cJSON * doc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
     

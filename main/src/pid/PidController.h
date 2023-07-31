@@ -31,6 +31,6 @@ public:
 
     void setup() override;
     void loop() override;
-    int act(DynamicJsonDocument ob) override;
-    DynamicJsonDocument get(DynamicJsonDocument ob) override;
+    int act(cJSON * ob) override;
+    cJSON * get(cJSON * ob) override;
 };

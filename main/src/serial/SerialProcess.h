@@ -1,13 +1,12 @@
 #pragma once
-#include "ArduinoJson.h"
-
+#include "cJSON.h"
 
 
 class SerialProcess
 {
 private:
-    void jsonProcessor(String task,JsonObject jsonDocument);
-    void serialize(DynamicJsonDocument doc);
+    void jsonProcessor(char * task,cJSON * jsonDocument);
+    void serialize(cJSON * doc);
     void serialize(int success);
     /* data */
 public:

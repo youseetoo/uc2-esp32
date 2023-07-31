@@ -4,25 +4,18 @@ PidController::PidController(/* args */){};
 PidController::~PidController(){};
 
 // Custom function accessible by the API
-int PidController::act(DynamicJsonDocument ob)
+int PidController::act(cJSON *ob)
 {
 
+	PID_active = getJsonInt(ob, key_PIDactive);
+	PID_Kp = getJsonInt(ob, key_Kp);
+	PID_Ki = getJsonInt(ob, key_Ki);
+	PID_Kd = getJsonInt(ob, key_Kd);
+	PID_target = getJsonInt(ob, key_target);
+	PID_updaterate = getJsonInt(ob, key_PID_updaterate);
 	// here you can do something
 	if (DEBUG)
 		Serial.println("PID_act_fct");
-
-	if (ob.containsKey(key_PIDactive))
-		PID_active = (int)(ob)[key_PIDactive];
-	if (ob.containsKey(key_Kp))
-		PID_Kp = (ob)[key_Kp];
-	if ((ob).containsKey(key_Ki))
-		PID_Ki = (ob)[key_Ki];
-	if (ob.containsKey(key_Kd))
-		PID_Kd = (ob)[key_Kd];
-	if (ob.containsKey(key_target))
-		PID_target = (ob)[key_target];
-	if (ob.containsKey(key_PID_updaterate))
-		PID_updaterate = (int)(ob)[key_PID_updaterate];
 
 	if (!PID_active)
 	{
@@ -96,11 +89,11 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
+cJSON *PidController::get(cJSON *ob)
 {
 	if (DEBUG)
 		Serial.println("PID_get_fct");
-	int PIDID = (int)(ob)[key_PIDID];
+	int PIDID = getJsonInt(ob, key_PIDID);
 	int PIDPIN = 0;
 	switch (PIDID)
 	{
@@ -115,11 +108,11 @@ DynamicJsonDocument PidController::get(DynamicJsonDocument ob)
 		break;
 	}
 
-	ob.clear();
-	ob[N_analogin_avg] = N_analogin_avg;
-	ob[key_PIDPIN] = PIDPIN;
-	ob[key_PIDID] = PIDID;
-	return ob;
+	cJSON *ret = cJSON_CreateObject();
+	setJsonInt(ret, key_N_analogin_avg, N_analogin_avg);
+	setJsonInt(ret, key_PIDPIN, PIDPIN);
+	setJsonInt(ret, key_PIDID, PIDID);
+	return ret;
 }
 
 void PidController::setup()

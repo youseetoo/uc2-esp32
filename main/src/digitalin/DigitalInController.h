@@ -17,8 +17,8 @@ public:
     int digitalin_val_3 = 0;
 
     
-    int act(DynamicJsonDocument jsonDocument) override;
-    DynamicJsonDocument get(DynamicJsonDocument jsonDocument) override;
+    int act(cJSON* jsonDocument) override;
+    cJSON* get(cJSON* jsonDocument) override;
     void setup() override;
     void loop() override;
 };

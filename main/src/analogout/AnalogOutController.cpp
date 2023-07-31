@@ -24,13 +24,14 @@ void AnalogOutController::setup()
 }
 
 // Custom function accessible by the API
-int AnalogOutController::act(DynamicJsonDocument ob)
+int AnalogOutController::act(cJSON* ob)
 {
 	// here you can do something
 	Serial.println("analogout_act_fct");
+	cJSON *monitor_json = ob;
 
-	int analogoutid = (ob)["analogoutid"];
-	int analogoutval = (ob)["analogoutval"];
+	int analogoutid = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutid")->valueint; //(ob)["analogoutid"];
+	int analogoutval = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutval")->valueint; //(ob)["analogoutval"];
 
 	if (DEBUG)
 	{
@@ -59,10 +60,12 @@ int AnalogOutController::act(DynamicJsonDocument ob)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument AnalogOutController::get(DynamicJsonDocument jsonDocument)
+cJSON* AnalogOutController::get(cJSON* jsonDocument)
 {
+
+	cJSON *monitor_json = jsonDocument;
 	// GET SOME PARAMETERS HERE
-	int analogoutid = jsonDocument["analogoutid"];
+	int analogoutid = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutid")->valueint; //(ob)["analogoutid"];
 	int analogoutpin = 0;
 	int analogoutval = 0;
 
@@ -92,9 +95,17 @@ DynamicJsonDocument AnalogOutController::get(DynamicJsonDocument jsonDocument)
 		analogoutval = analogout_val_3;
 	}
 
-	jsonDocument.clear();
-	jsonDocument["analogoutid"] = analogoutid;
-	jsonDocument["analogoutval"] = analogoutval;
-	jsonDocument["analogoutpin"] = analogoutpin;
-	return jsonDocument;
+	cJSON *monitor = cJSON_CreateObject();
+    cJSON *analogholder = NULL;
+    cJSON *pin = NULL;
+    cJSON *id = NULL;
+    cJSON *val = NULL;
+    pin = cJSON_CreateNumber(analogoutpin);
+    id = cJSON_CreateNumber(analogoutid);
+    val = cJSON_CreateNumber(analogoutval);
+    cJSON_AddItemToObject(monitor, "analogoutpin", pin);
+    cJSON_AddItemToObject(monitor, "analogoutval", val);
+    cJSON_AddItemToObject(monitor, "analogoutid", id);
+
+	return monitor;
 }

@@ -40,17 +40,17 @@ namespace Config
 		return true;
 	}
 
-	void setPsxMac(String mac)
+	void setPsxMac(char* mac)
 	{
 		preferences.begin(prefNamespace, true);
 		preferences.putString("mac", mac);
 		preferences.end();
 	}
 
-	String getPsxMac()
+	char* getPsxMac()
 	{
 		preferences.begin(prefNamespace, true);
-		String m = preferences.getString("mac");
+		char* m = (char*)preferences.getString("mac").c_str();
 		preferences.end();
 		return m;
 	}

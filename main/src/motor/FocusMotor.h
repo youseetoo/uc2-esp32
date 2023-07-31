@@ -59,9 +59,9 @@ public:
 	std::array<FastAccelStepper *, 4> faststeppers;
 	std::array<MotorData *, 4> data;
 
-	int act(DynamicJsonDocument  ob) override;
-	DynamicJsonDocument get(DynamicJsonDocument ob) override;
-	int set(DynamicJsonDocument doc);
+	int act(cJSON * ob) override;
+	cJSON * get(cJSON * ob) override;
+	int set(cJSON * doc);
 	void setup() override;
 	void loop() override;
 	void stopAllDrives();

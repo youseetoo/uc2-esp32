@@ -10,10 +10,6 @@
 	path = lib/JPEGDecoder
 	url = https://github.com/youseetoo/JPEGDecoder.git
 	branch = master
-[submodule "lib/ArduinoJson"]
-	path = lib/ArduinoJson
-	url = https://github.com/bblanchon/ArduinoJson.git
-	branch = 6.x
 [submodule "lib/Adafruit_NeoPixel"]
 	path = lib/Adafruit_NeoPixel
 	url = https://github.com/adafruit/Adafruit_NeoPixel.git
@@ -29,3 +25,7 @@
 [submodule "lib/PSController"]
 	path = lib/PSController
 	url = https://github.com/youseetoo/PSController.git
+[submodule "main/cJSON"]
+	path = main/cJSON
+	url = https://github.com/DaveGamble/cJSON.git
+	branch = master

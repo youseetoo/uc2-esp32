@@ -29,8 +29,8 @@ public:
     bool is_digital_trigger_2 = false;
     bool is_digital_trigger_3 = false;
     
-    int act(DynamicJsonDocument  ob) override;
-    DynamicJsonDocument get(DynamicJsonDocument ob) override;
+    int act(cJSON*   ob) override;
+    cJSON*  get(cJSON*  ob) override;
     void setup() override;
     void loop() override;
 };

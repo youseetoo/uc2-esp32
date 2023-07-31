@@ -49,9 +49,9 @@ public:
 	std::array<AccelStepper *, 4> steppers;
 	std::array<RotatorData *, 4> data;
 
-	int act(DynamicJsonDocument  ob) override;
-	DynamicJsonDocument get(DynamicJsonDocument ob) override;
-	int set(DynamicJsonDocument doc);
+	int act(cJSON *ob) override;
+	cJSON *get(cJSON *ob) override;
+	int set(cJSON *doc);
 	void setup() override;
 	void loop() override;
 	void stopAllDrives();
@@ -65,5 +65,4 @@ private:
 	bool power_enable = false;
 
 	void startAllDrives();
-
 };

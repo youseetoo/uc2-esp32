@@ -202,19 +202,6 @@ void EspHttpsServer::start_webserver()
             .handler = RestApi::FocusMotor_getESP};
         httpd_register_uri_handler(server, &motor_get);
     }
-    if (moduleController.get(AvailableModules::rotator) != nullptr)
-    {
-        httpd_uri_t motor_act = {
-            .uri = rotator_act_endpoint,
-            .method = HTTP_POST,
-            .handler = RestApi::Rotator_actESP};
-        httpd_register_uri_handler(server, &motor_act);
-        httpd_uri_t motor_get = {
-            .uri = rotator_get_endpoint,
-            .method = HTTP_GET,
-            .handler = RestApi::Rotator_getESP};
-        httpd_register_uri_handler(server, &motor_get);
-    }
     if (moduleController.get(AvailableModules::state) != nullptr)
     {
         httpd_uri_t motor_act = {

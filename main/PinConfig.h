@@ -11,7 +11,24 @@ struct PinConfig
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 25;
-     const char* pindefName = "pindef";
+     const char *pindefName = "pindef";
+
+     // by default Focusmotor use fastaccelstepper. if false Accelstepper lib get used
+     bool useFastAccelStepper = true;
+     // see AccelStepper.h MotorInterfaceType
+     /*
+     typedef enum
+     {
+          FUNCTION  = 0, ///< Use the functional interface, implementing your own driver functions (internal use only)
+          DRIVER    = 1, ///< Stepper Driver, 2 driver pins required
+          FULL2WIRE = 2, ///< 2 wire stepper, 2 motor pins required
+          FULL3WIRE = 3, ///< 3 wire stepper, such as HDD spindle, 3 motor pins required
+          FULL4WIRE = 4, ///< 4 wire full stepper, 4 motor pins required
+          HALF3WIRE = 6, ///< 3 wire half stepper, such as HDD spindle, 3 motor pins required
+          HALF4WIRE = 8  ///< 4 wire half stepper, 4 motor pins required
+     } MotorInterfaceType;
+     */
+     int8_t AccelStepperMotorType = 8;
      // motor x direction pin
      int8_t MOTOR_X_DIR = disabled;
      // motor x step pin
@@ -35,24 +52,14 @@ struct PinConfig
      // keep motors on after idle time?
      bool MOTOR_AUTOENABLE = false;
 
-     // Rototar settings for 28byj-48
-     bool ROTATOR_ENABLE = false;
-     int8_t ROTATOR_A_0 = disabled;
-     int8_t ROTATOR_A_1 = disabled;
-     int8_t ROTATOR_A_2 = disabled;
-     int8_t ROTATOR_A_3 = disabled;
-     int8_t ROTATOR_X_0 = disabled;
-     int8_t ROTATOR_X_1 = disabled;
-     int8_t ROTATOR_X_2 = disabled;
-     int8_t ROTATOR_X_3 = disabled;
-     int8_t ROTATOR_Y_0 = disabled;
-     int8_t ROTATOR_Y_1 = disabled;
-     int8_t ROTATOR_Y_2 = disabled;
-     int8_t ROTATOR_Y_3 = disabled;
-     int8_t ROTATOR_Z_0 = disabled;
-     int8_t ROTATOR_Z_1 = disabled;
-     int8_t ROTATOR_Z_2 = disabled;
-     int8_t ROTATOR_Z_3 = disabled;
+     int8_t MOTOR_X_0 = disabled;
+     int8_t MOTOR_X_1 = disabled;
+     int8_t MOTOR_Y_0 = disabled;
+     int8_t MOTOR_Y_1 = disabled;
+     int8_t MOTOR_Z_0 = disabled;
+     int8_t MOTOR_Z_1 = disabled;
+     int8_t MOTOR_A_0 = disabled;
+     int8_t MOTOR_A_1 = disabled;
 
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
@@ -98,7 +105,7 @@ struct PinConfig
      int8_t pid2 = disabled;
      int8_t pid3 = disabled;
 
-     const char* PSX_MAC = "";
+     const char *PSX_MAC = "";
      int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
      bool enableScanner = false;
@@ -111,11 +118,11 @@ struct PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
 
      // WIFI
-     const char* mSSID = "Uc2";
-     const char* mPWD = "";
+     const char *mSSID = "Uc2";
+     const char *mPWD = "";
      bool mAP = true;
-     const char* mSSIDAP = "UC2";
-     const char* hostname = "youseetoo";
+     const char *mSSIDAP = "UC2";
+     const char *hostname = "youseetoo";
 
      // for caliper
      int8_t X_CAL_DATA = disabled;
@@ -136,7 +143,7 @@ struct PinConfig
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
-     const char* pindefName = "XYZ_MOTOR_JOYSTICK";
+     const char *pindefName = "XYZ_MOTOR_JOYSTICK";
      int8_t MOTOR_X_DIR = 16;
      int8_t MOTOR_X_STEP = 26;
      int8_t MOTOR_Y_DIR = 27;
@@ -154,7 +161,7 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
 
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 {
-     const char* pindefName = "XYZ_MOTOR_ENDSTOP_JOYSTICK";
+     const char *pindefName = "XYZ_MOTOR_ENDSTOP_JOYSTICK";
      int8_t PIN_DEF_END_X = 12;
      int8_t PIN_DEF_END_Y = 13;
      int8_t PIN_DEF_END_Z = 5;
@@ -162,7 +169,7 @@ struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 
 struct X_MOTOR_64LED_PIN : PinConfig
 {
-     const char* pindefName = "X_Motor_64LED";
+     const char *pindefName = "X_Motor_64LED";
      int8_t MOTOR_X_DIR = 21;
      int8_t MOTOR_X_STEP = 19;
      int8_t MOTOR_ENABLE = 18;
@@ -174,7 +181,7 @@ struct X_MOTOR_64LED_PIN : PinConfig
 
 struct HoLiSheet : PinConfig
 {
-     const char* pindefName = "HoLiSheet";
+     const char *pindefName = "HoLiSheet";
      int8_t MOTOR_Z_DIR = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_17;
      int8_t MOTOR_ENABLE = GPIO_NUM_12;
@@ -191,13 +198,13 @@ struct HoLiSheet : PinConfig
      int8_t PIN_DEF_END_Y = GPIO_NUM_5;
      int8_t PIN_DEF_END_Z = GPIO_NUM_23;
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:01";
+     const char *PSX_MAC = "1a:2b:3c:01:01:01";
      int8_t PSX_CONTROLLER_TYPE = 2;
 };
 
 struct UC2_1 : PinConfig
 {
-     const char* pindefName = "UC2_1";
+     const char *pindefName = "UC2_1";
      // UC2 STandalone V1
      int8_t MOTOR_A_DIR = GPIO_NUM_21;
      int8_t MOTOR_X_DIR = GPIO_NUM_33;
@@ -221,7 +228,7 @@ struct UC2_1 : PinConfig
      int8_t PIN_DEF_END_Y = GPIO_NUM_11;
      int8_t PIN_DEF_END_Z = disabled;
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:05";
+     const char *PSX_MAC = "1a:2b:3c:01:01:05";
      int8_t PSX_CONTROLLER_TYPE = 1;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 20;
@@ -230,7 +237,7 @@ struct UC2_1 : PinConfig
 
 struct UC2_Insert : PinConfig
 {
-     const char* pindefName = "UC2UC2_Insert";
+     const char *pindefName = "UC2UC2_Insert";
 
      // UC2 STandalone V2
      int8_t MOTOR_A_DIR = disabled;
@@ -255,14 +262,14 @@ struct UC2_Insert : PinConfig
      int8_t PIN_DEF_END_Y = disabled;
      int8_t PIN_DEF_END_Z = disabled;
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:01";
+     const char *PSX_MAC = "1a:2b:3c:01:01:01";
      int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = true;
 };
 
 struct UC2_2 : PinConfig
 {
-     const char* pindefName = "UC2_2";
+     const char *pindefName = "UC2_2";
 
      // UC2 STandalone V2
      int8_t MOTOR_A_DIR = GPIO_NUM_21;
@@ -292,7 +299,7 @@ struct UC2_2 : PinConfig
      int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
      int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:04";
+     const char *PSX_MAC = "1a:2b:3c:01:01:04";
      int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      bool enableBlueTooth = true;
 
@@ -303,7 +310,7 @@ struct UC2_2 : PinConfig
 
 struct UC2e : PinConfig
 {
-     const char* pindefName = "UC2e";
+     const char *pindefName = "UC2e";
 
      // UC2e (UC2-express-bus) pinout of the SUES system (modules and baseplane) dictated by the spec for the ESP32 module pinout
      // that document maps ESP32 pins to UC2e pins (and pin locations on the physical PCIe x1 connector
@@ -355,7 +362,7 @@ struct UC2e : PinConfig
 
 struct UC2_WEMOS : PinConfig
 {
-     const char* pindefName = "UC2_WEMOS";
+     const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
      int8_t MOTOR_X_DIR = GPIO_NUM_16;
@@ -379,21 +386,21 @@ struct UC2_WEMOS : PinConfig
      int8_t PIN_DEF_END_Y = disabled; // GPIO_NUM_5;
      int8_t PIN_DEF_END_Z = disabled; // GPIO_NUM_23;
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:03";
+     const char *PSX_MAC = "1a:2b:3c:01:01:03";
      int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 3;
 
-     const char* mSSID = "Blynk";
-     const char* mPWD = "12345678";
+     const char *mSSID = "Blynk";
+     const char *mPWD = "12345678";
      bool mAP = false;
 };
 
 struct UC2_OMNISCOPE : PinConfig
 {
-     const char* pindefName = "UC2_WEMOS";
+     const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
      int8_t MOTOR_X_DIR = GPIO_NUM_16;
@@ -413,7 +420,7 @@ struct UC2_OMNISCOPE : PinConfig
      int8_t PIN_DEF_END_Y = disabled; // GPIO_NUM_5;
      int8_t PIN_DEF_END_Z = disabled; // GPIO_NUM_23;
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:03";
+     const char *PSX_MAC = "1a:2b:3c:01:01:03";
      int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = false;
 
@@ -424,34 +431,38 @@ struct UC2_OMNISCOPE : PinConfig
 
 struct UC2_CassetteRecorder : PinConfig
 {
-     const char* pindefName = "CassetteRecorder";
+     const char *pindefName = "CassetteRecorder";
+     bool useFastAccelStepper = false;
+     int8_t AccelStepperMotorType = 8;
      // ESP32-WEMOS D1 R32
-     int8_t ROTATOR_X_0 = GPIO_NUM_13;
-     int8_t ROTATOR_X_1 = GPIO_NUM_14;
-     int8_t ROTATOR_X_2 = GPIO_NUM_12;
-     int8_t ROTATOR_X_3 = GPIO_NUM_27;
+     int8_t MOTOR_X_STEP = GPIO_NUM_13;
+     int8_t MOTOR_X_DIR = GPIO_NUM_14;
+     int8_t MOTOR_X_0 = GPIO_NUM_12;
+     int8_t MOTOR_X_1 = GPIO_NUM_27;
      bool ROTATOR_ENABLE = true;
 };
 
 struct UC2_XYZRotator : PinConfig
 {
-     const char* pindefName = "UC2_XYZRotator";
-     // ESP32-WEMOS D1 R32
-     int8_t ROTATOR_X_0 = GPIO_NUM_13;
-     int8_t ROTATOR_X_1 = GPIO_NUM_14;
-     int8_t ROTATOR_X_2 = GPIO_NUM_12;
-     int8_t ROTATOR_X_3 = GPIO_NUM_27;
-     int8_t ROTATOR_Y_0 = GPIO_NUM_26;
-     int8_t ROTATOR_Y_1 = GPIO_NUM_33;
-     int8_t ROTATOR_Y_2 = GPIO_NUM_25;
-     int8_t ROTATOR_Y_3 = GPIO_NUM_32;
-     int8_t ROTATOR_Z_0 = GPIO_NUM_5;
-     int8_t ROTATOR_Z_1 = GPIO_NUM_19;
-     int8_t ROTATOR_Z_2 = GPIO_NUM_18;
-     int8_t ROTATOR_Z_3 = GPIO_NUM_21;
-     bool ROTATOR_ENABLE = true;
+     const char *pindefName = "UC2_XYZRotator";
 
-     const char* PSX_MAC = "1a:2b:3c:01:01:01";
+     bool useFastAccelStepper = false;
+     int8_t AccelStepperMotorType = 8;
+     // ESP32-WEMOS D1 R32
+     int8_t MOTOR_X_STEP = GPIO_NUM_13;
+     int8_t MOTOR_X_DIR = GPIO_NUM_14;
+     int8_t MOTOR_X_0 = GPIO_NUM_12;
+     int8_t MOTOR_X_1 = GPIO_NUM_27;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_26;
+     int8_t MOTOR_Y_DIR = GPIO_NUM_33;
+     int8_t MOTOR_Y_0 = GPIO_NUM_25;
+     int8_t MOTOR_Y_1 = GPIO_NUM_32;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_5;
+     int8_t MOTOR_Z_DIR = GPIO_NUM_19;
+     int8_t MOTOR_Z_0 = GPIO_NUM_18;
+     int8_t MOTOR_Z_1 = GPIO_NUM_21;
+
+     const char *PSX_MAC = "1a:2b:3c:01:01:01";
      int8_t PSX_CONTROLLER_TYPE = 1;
      bool enableBlueTooth = false;
 };
@@ -559,7 +570,6 @@ struct UC2_3 : PinConfig
      int8_t SPI_MISO = GPIO_NUM_19;
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
-
 };
 
 const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

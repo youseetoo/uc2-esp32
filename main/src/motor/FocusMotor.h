@@ -1,5 +1,6 @@
 #pragma once
 #include "FastAccelStepper.h"
+#include "AccelStepper.h"
 #include "../config/ConfigController.h"
 #include "../../ModuleController.h"
 #include <Preferences.h>
@@ -57,6 +58,7 @@ public:
 	long DEFAULT_ACCELERATION = 500000;
 
 	std::array<FastAccelStepper *, 4> faststeppers;
+	std::array<AccelStepper *, 4> steppers;
 	std::array<MotorData *, 4> data;
 
 	int act(cJSON * ob) override;
@@ -64,7 +66,6 @@ public:
 	int set(cJSON * doc);
 	void setup() override;
 	void loop() override;
-	void stopAllDrives();
 	void stopStepper(int i);
 	void startStepper(int i);
 	void sendMotorPos(int i, int arraypos);
@@ -76,7 +77,12 @@ private:
 	int logcount;
 	bool power_enable = false;
 
-	void startAllDrives();
 	void disableEnablePin(int i);
 	void enableEnablePin(int i);
+	void setupFastAccelStepper();
+	void setupAccelStepper();
+	void startFastAccelStepper(int i);
+	void startAccelStepper(int i);
+	void stopFastAccelStepper(int i);
+	void stopAccelStepper(int i);
 };

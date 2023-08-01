@@ -2,7 +2,6 @@
 #include "PinConfig.h"
 #include "src/led/LedController.h"
 #include "src/motor/FocusMotor.h"
-#include "src/rotator/Rotator.h"
 #include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
 #include "src/laser/LaserController.h"
@@ -67,13 +66,6 @@ void ModuleController::setup()
     {
         modules.insert(std::make_pair(AvailableModules::motor, dynamic_cast<Module *>(new FocusMotor())));
         log_i("add motor");
-    }
-
-    // load the rotator module
-    if (pinConfig.ROTATOR_ENABLE && (pinConfig.ROTATOR_X_0 >=0 || pinConfig.ROTATOR_Y_0>=0 || pinConfig.ROTATOR_Z_0>=0  || pinConfig.ROTATOR_A_0>=0 ))
-    {
-        modules.insert(std::make_pair(AvailableModules::rotator, dynamic_cast<Module *>(new Rotator())));
-        log_i("add rotator");
     }
 
     // eventually load the motor homing module
@@ -189,7 +181,6 @@ cJSON * ModuleController::get()
     cJSON_AddItemToObject(doc,key_modules,mod);
     cJSON_AddItemToObject(mod,keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
     cJSON_AddItemToObject(mod,key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
-    cJSON_AddItemToObject(mod,key_rotator, cJSON_CreateNumber(pinConfig.ROTATOR_ENABLE != false));
     cJSON_AddItemToObject(mod,key_home, cJSON_CreateNumber((pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0)));
     cJSON_AddItemToObject(mod,key_analogin, cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
     cJSON_AddItemToObject(mod,key_pid, cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));

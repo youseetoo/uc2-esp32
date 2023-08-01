@@ -131,11 +131,6 @@ namespace RestApi
             cJSON_AddItemToArray(doc, cJSON_CreateString(motor_act_endpoint));
             cJSON_AddItemToArray(doc, cJSON_CreateString(motor_get_endpoint));
         }
-        if (moduleController.get(AvailableModules::rotator) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(rotator_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(rotator_get_endpoint));
-        }
         if (moduleController.get(AvailableModules::pid) != nullptr)
         {
             cJSON_AddItemToArray(doc, cJSON_CreateString(PID_act_endpoint));
@@ -314,18 +309,6 @@ namespace RestApi
     esp_err_t pid_getESP(httpd_req_t *req)
     {
         serializeESP(moduleController.get(AvailableModules::pid)->get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-
-    esp_err_t Rotator_actESP(httpd_req_t *req)
-    {
-        serializeESP(moduleController.get(AvailableModules::rotator)->act(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-
-    esp_err_t Rotator_getESP(httpd_req_t *req)
-    {
-        serializeESP(moduleController.get(AvailableModules::rotator)->get(deserializeESP(req)), req);
         return ESP_OK;
     }
 

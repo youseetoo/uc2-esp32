@@ -10,9 +10,6 @@ __attribute__ ((unused)) static const  char* motor_act_endpoint = "/motor_act";
 __attribute__ ((unused)) static const  char* motor_get_endpoint = "/motor_get";
 __attribute__ ((unused)) static const  char* motor_setcalibration_endpoint = "/motor_setcalibration";
 
-__attribute__ ((unused)) static const  char* rotator_act_endpoint = "/rotator_act";
-__attribute__ ((unused)) static const  char* rotator_get_endpoint = "/rotator_get";
-
 __attribute__ ((unused)) static const  char* config_act_endpoint = "/config_act";
 __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get";
 

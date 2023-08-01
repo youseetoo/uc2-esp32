@@ -143,20 +143,6 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		}
 	}
 	/*
-	  Drive Rotators
-	*/
-	if (moduleController.get(AvailableModules::rotator) != nullptr)
-	{
-		if (strcmp(task, rotator_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::rotator)->act(jsonDocument));
-		}
-		if (strcmp(task, rotator_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::rotator)->get(jsonDocument));
-		}
-	}
-	/*
 	  Home Motors
 	*/
 	if (moduleController.get(AvailableModules::home) != nullptr)

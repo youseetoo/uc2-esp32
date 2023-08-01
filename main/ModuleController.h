@@ -14,7 +14,6 @@ enum class AvailableModules
     laser,
     led,
     motor,
-    rotator,
     home,
     pid,
     scanner,

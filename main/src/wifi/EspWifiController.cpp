@@ -16,31 +16,14 @@ static int s_retry_num = 0;
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
-    {
-        esp_wifi_connect();
-    }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
-    {
-        if (s_retry_num < 4)
-        {
-            esp_wifi_connect();
-            s_retry_num++;
-            log_i("retry to connect to the AP");
-        }
-        else
-        {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-        }
-        log_i("connect to the AP fail");
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
-    {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        log_i("got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-        s_retry_num = 0;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-    }
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+		log_i("WIFI_EVENT_STA_DISCONNECTED");
+		esp_wifi_connect();
+		xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+	} else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+		log_i("IP_EVENT_STA_GOT_IP");
+		xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+	}
 }
 
 void EspWifiController::initSoftAp()
@@ -71,12 +54,17 @@ void EspWifiController::initSoftAp()
     {
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
+
+    wifi_config_t sta_config = { 0 };
+	strcpy((char *)sta_config.sta.ssid, wconfig->mSsid);
+	strcpy((char *)sta_config.sta.password, wconfig->pw);
+    
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
     log_i("wifi_init_softap finished. SSID:%s password:%s",
           wconfig->mSsid, wconfig->pw);
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-
     
 }
 

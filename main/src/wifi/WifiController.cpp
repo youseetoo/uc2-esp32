@@ -50,7 +50,9 @@ cJSON * WifiController::scan()
 void WifiController::sendJsonWebSocketMsg(cJSON * doc)
 {
 	// log_i("socket broadcast");
-	httpsServer.sendText(cJSON_Print(doc));
+	char * s = cJSON_Print(doc); 
+	httpsServer.sendText(s);
+	free(s);
 }
 
 void WifiController::setWifiConfig(char* SSID, char* PWD, bool ap)

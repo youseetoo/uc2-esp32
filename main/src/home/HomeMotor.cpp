@@ -121,6 +121,7 @@ void sendHomeDone(int axis)
 	char * ret = cJSON_Print(json);
 	cJSON_Delete(json);
 	Serial.println(ret);
+	free(ret);
 	Serial.println();
 	Serial.println("--");
 }

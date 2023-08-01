@@ -314,7 +314,9 @@ void Rotator::sendRotatorPos(int i, int arraypos)
 	}
 	// print result - will that work in the case of an xTask?
 	Serial.println("++");
-	Serial.println(cJSON_Print(root));
+	char* s = cJSON_Print(root);
+	Serial.println(s);
+	free(s);
 	Serial.println();
 	Serial.println("--");
 }

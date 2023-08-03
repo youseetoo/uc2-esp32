@@ -8,6 +8,7 @@ esp_err_t styles_get_handler(httpd_req_t *req);
 esp_err_t jquery_get_handler(httpd_req_t *req);
 esp_err_t ota_get_handler(httpd_req_t *req);
 esp_err_t script_get_handler(httpd_req_t *req);
+esp_err_t handle_ws_req(httpd_req_t *req);
 
 class EspHttpsServer
 {

@@ -1,8 +1,9 @@
 #include "EspHttpsServer.h"
-#include "../../ModuleController.h"
+#include "ModuleController.h"
 #include "Endpoints.h"
 #include "RestApiCallbacks.h"
 #include "esp_log.h"
+#include "cJSON.h"
 
 extern const char index_start[] asm("_binary_index_html_start");
 extern const char index_end[] asm("_binary_index_html_end");
@@ -42,11 +43,12 @@ esp_err_t handle_ws_req(httpd_req_t *req)
 
     if (ws_pkt.len)
     {
-        DynamicJsonDocument doc(4096);
-        deserializeJson(doc, ws_pkt.payload);
-        if (doc.containsKey(keyLed) && moduleController.get(AvailableModules::led) != nullptr)
+        cJSON * doc = cJSON_Parse((const char*)(ws_pkt.payload));
+        cJSON * led = cJSON_GetObjectItemCaseSensitive(doc,keyLed);
+        cJSON * motor = cJSON_GetObjectItemCaseSensitive(doc,key_motor);
+        if (led != NULL && moduleController.get(AvailableModules::led) != nullptr)
             moduleController.get(AvailableModules::led)->act(doc);
-        if (doc.containsKey(key_motor) && moduleController.get(AvailableModules::motor) != nullptr)
+        if (motor != NULL && moduleController.get(AvailableModules::motor) != nullptr)
             moduleController.get(AvailableModules::motor)->act(doc);
     }
     return ESP_OK;
@@ -200,19 +202,6 @@ void EspHttpsServer::start_webserver()
             .handler = RestApi::FocusMotor_getESP};
         httpd_register_uri_handler(server, &motor_get);
     }
-    if (moduleController.get(AvailableModules::rotator) != nullptr)
-    {
-        httpd_uri_t motor_act = {
-            .uri = rotator_act_endpoint,
-            .method = HTTP_POST,
-            .handler = RestApi::Rotator_actESP};
-        httpd_register_uri_handler(server, &motor_act);
-        httpd_uri_t motor_get = {
-            .uri = rotator_get_endpoint,
-            .method = HTTP_GET,
-            .handler = RestApi::Rotator_getESP};
-        httpd_register_uri_handler(server, &motor_get);
-    }
     if (moduleController.get(AvailableModules::state) != nullptr)
     {
         httpd_uri_t motor_act = {
@@ -346,6 +335,29 @@ void EspHttpsServer::start_webserver()
         .user_ctx = NULL,
         .is_websocket = true};
         httpd_register_uri_handler(server, &ws);
+    }
+    if(moduleController.get(AvailableModules::btcontroller)!= nullptr)
+    {
+        httpd_uri_t motor_get = {
+            .uri = bt_scan_endpoint,
+            .method = HTTP_GET,
+            .handler = RestApi::Bt_startScanESP};
+        httpd_register_uri_handler(server, &motor_get);
+         httpd_uri_t btpair = {
+            .uri = bt_paireddevices_endpoint,
+            .method = HTTP_GET,
+            .handler = RestApi::Bt_getPairedDevicesESP};
+        httpd_register_uri_handler(server, &btpair);
+        httpd_uri_t btcon = {
+            .uri = bt_connect_endpoint,
+            .method = HTTP_POST,
+            .handler = RestApi::Bt_connectESP};
+        httpd_register_uri_handler(server, &btcon);
+        httpd_uri_t btrem= {
+            .uri = bt_remove_endpoint,
+            .method = HTTP_POST,
+            .handler = RestApi::Bt_connectESP};
+        httpd_register_uri_handler(server, &btrem);
     }
     run = true;
 }

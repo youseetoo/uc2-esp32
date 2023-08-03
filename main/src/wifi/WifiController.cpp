@@ -11,52 +11,51 @@
 WifiController::WifiController() {}
 WifiController::~WifiController() {}
 
-String WifiController::getSsid()
+char* WifiController::getSsid()
 {
-	return pinConfig.mSSID;
+	return (char*)pinConfig.mSSID;
 }
-String WifiController::getPw()
+char* WifiController::getPw()
 {
-	return pinConfig.mPWD;
+	return (char*)pinConfig.mPWD;
 }
 bool WifiController::getAp()
 {
 	return pinConfig.mAP;
 }
 
-DynamicJsonDocument WifiController::connect(DynamicJsonDocument doc)
+cJSON * WifiController::connect(cJSON * doc)
 {
 	log_i("connectToWifi");
-
-	bool ap = doc[keyWifiAP];
-	String ssid = doc[keyWifiSSID];
-	String pw = doc[keyWifiPW];
-	log_i("ssid: %s wifi:%s", ssid.c_str(), WifiController::getSsid().c_str());
-	log_i("pw: %s wifi:%s", pw.c_str(), WifiController::getPw().c_str());
+	bool ap = getJsonInt(doc,keyWifiAP);
+	
+	char * ssid = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(doc, keyWifiSSID));
+	char * pw  =  cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(doc, keyWifiAP));
+	log_i("ssid: %s wifi:%s", ssid, WifiController::getSsid());
+	log_i("pw: %s wifi:%s", pw, WifiController::getPw());
 	// log_i("ap: %s wifi:%s", ap, WifiController::getAp());
 	WifiController::setWifiConfig(ssid, pw, ap);
 	log_i("ssid json: %s wifi:%s", ssid, WifiController::getSsid());
 	log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
 	// log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
 	WifiController::setup();
-	doc.clear();
-	return doc;
+	return NULL;
 }
 
-DynamicJsonDocument WifiController::scan()
+cJSON * WifiController::scan()
 {
 	return espWifiController.wifi_scan();
 }
 
-void WifiController::sendJsonWebSocketMsg(DynamicJsonDocument doc)
+void WifiController::sendJsonWebSocketMsg(cJSON * doc)
 {
 	// log_i("socket broadcast");
-	String s;
-	serializeJson(doc, s);
-	httpsServer.sendText((char*)s.c_str());
+	char * s = cJSON_Print(doc); 
+	httpsServer.sendText(s);
+	free(s);
 }
 
-void WifiController::setWifiConfig(String SSID, String PWD, bool ap)
+void WifiController::setWifiConfig(char* SSID, char* PWD, bool ap)
 {
 	// log_i("mssid:%s pw:%s ap:%s", pinConfig.mSSID, pinConfig.mPWD, pinConfig.mAP);
 	config->mSsid = SSID;
@@ -72,18 +71,18 @@ void WifiController::setup()
 	// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
 	config = Config::getWifiConfig();
 
-	if ((pinConfig.mSSID != nullptr) and (pinConfig.mPWD != nullptr))
+	if ((pinConfig.mSSID != nullptr) && (pinConfig.mPWD != nullptr))
 		log_i("mssid:%s pw:%s", pinConfig.mSSID, pinConfig.mPWD); //, pinConfig.mAP);
 	if (httpsServer.running())
 	{
 		httpsServer.stop_webserver();
 	}
 
-	if (config->mSsid == "")
+	if (config->mSsid == NULL || strcmp(config->mSsid, ""))
 	{
 		config->ap = pinConfig.mAP;
-		config->mSsid = pinConfig.mSSID;
-		config->pw = pinConfig.mPWD;
+		config->mSsid = (char*)pinConfig.mSSID;
+		config->pw = (char*)pinConfig.mPWD;
 	}
 	espWifiController.setWifiConfig(config);
 	espWifiController.connect();
@@ -94,8 +93,8 @@ void WifiController::loop()
 {
 }
 
-int WifiController::act(DynamicJsonDocument doc) { return 1; }
-DynamicJsonDocument WifiController::get(DynamicJsonDocument doc) { return doc; }
+int WifiController::act(cJSON * doc) { return 1; }
+cJSON * WifiController::get(cJSON * doc) { return doc; }
 
 void WifiController::restartWebServer()
 {

@@ -88,7 +88,7 @@ void ScannerController::loop()
 }
 
 // Custom function accessible by the API
-int ScannerController::act(DynamicJsonDocument ob)
+int ScannerController::act(cJSON * ob)
 {
 
 	// here you can do something
@@ -96,7 +96,7 @@ int ScannerController::act(DynamicJsonDocument ob)
 		Serial.println("scanner_act_fct");
 
 	// select scanning mode
-	const char *scannerMode = (ob)["scannerMode"];
+	char *scannerMode = cJSON_GetObjectItemCaseSensitive(ob,"scannerMode")->valuestring;// (ob)["scannerMode"];
 
 	if (strcmp(scannerMode, "pattern") == 0)
 	{
@@ -108,33 +108,17 @@ int ScannerController::act(DynamicJsonDocument ob)
 		scannerLaserVal = 32000;
 		scannernFrames = 1;
 		scannerDelay = 0;
-
-		if (ob.containsKey("scannerExposure"))
-		{
-			scannerExposure = ob["scannerExposure"];
-		}
-		if (ob.containsKey("scannerLaserVal"))
-		{
-			scannerLaserVal = ob["scannerLaserVal"];
-		}
-		if (ob.containsKey("scannerDelay"))
-		{
-			scannerDelay = ob["scannerDelay"];
-		}
-		if (ob.containsKey("scannernFrames"))
-		{
-			scannernFrames = ob["scannernFrames"];
-		}
-		if (ob.containsKey("arraySize"))
-		{
-			arraySize = ob["arraySize"];
-		}
+		setJsonInt(ob, "scannerExposure",scannerExposure);
+		setJsonInt(ob, "scannerLaserVal",scannerLaserVal);
+		setJsonInt(ob, "scannerDelay",scannerDelay);
+		setJsonInt(ob, "scannernFrames",scannernFrames);
+		setJsonInt(ob, "arraySize",arraySize);
 
 		for (int iFrame = 0; iFrame < scannernFrames; iFrame++)
 		{
 			for (int i = 0; i < arraySize; i++)
 			{												// Iterate through results
-				int scannerIndex = ob["i"][i]; // Implicit cast
+				int scannerIndex = cJSON_GetArrayItem(ob,i)->valueint;// ob["i"][i]; // Implicit cast
 				int scannerPosY = scannerIndex % 255;
 				int scannerPosX = scannerIndex / 255;
 				dacWrite(scannerPinY, scannerPosY);
@@ -185,66 +169,21 @@ int ScannerController::act(DynamicJsonDocument ob)
 
 		scannerDelay = 0;
 
-		if (ob.containsKey("scannernFrames"))
-		{
-			scannernFrames = ob["scannernFrames"];
-		}
-		if (ob.containsKey("scannerXFrameMax"))
-		{
-			scannerXFrameMax = ob["scannerXFrameMax"];
-		}
-		if (ob.containsKey("scannerXFrameMin"))
-		{
-			scannerXFrameMin = ob["scannerXFrameMin"];
-		}
-		if (ob.containsKey("scannerYFrameMax"))
-		{
-			scannerYFrameMax = ob["scannerYFrameMax"];
-		}
-		if (ob.containsKey("scannerYFrameMin"))
-		{
-			scannerYFrameMin = ob["scannerYFrameMin"];
-		}
-		if (ob.containsKey("scannerXStep"))
-		{
-			scannerXStep = ob["scannerXStep"];
-		}
-		if (ob.containsKey("scannerYStep"))
-		{
-			scannerYStep = ob["scannerYStep"];
-		}
-		if (ob.containsKey("scannerxMin"))
-		{
-			scannerxMin = ob["scannerxMin"];
-		}
-		if (ob.containsKey("scannerLaserVal"))
-		{
-			scannerLaserVal = ob["scannerLaserVal"];
-		}
-		if (ob.containsKey("scanneryMin"))
-		{
-			scanneryMin = ob["scanneryMin"];
-		}
-		if (ob.containsKey("scannerxMax"))
-		{
-			scannerxMax = ob["scannerxMax"];
-		}
-		if (ob.containsKey("scanneryMax"))
-		{
-			scanneryMax = ob["scanneryMax"];
-		}
-		if (ob.containsKey("scannerExposure"))
-		{
-			scannerExposure = ob["scannerExposure"];
-		}
-		if (ob.containsKey("scannerEnable"))
-		{
-			scannerEnable = ob["scannerEnable"];
-		}
-		if (ob.containsKey("scannerDelay"))
-		{
-			scannerDelay = ob["scannerDelay"];
-		}
+		setJsonInt(ob, "scannernFrames",scannernFrames);
+		setJsonInt(ob, "scannerXFrameMax",scannerXFrameMax);
+		setJsonInt(ob, "scannerXFrameMin",scannerXFrameMin);
+		setJsonInt(ob, "scannerYFrameMax",scannerYFrameMax);
+		setJsonInt(ob, "scannerYFrameMin",scannerYFrameMin);
+		setJsonInt(ob, "scannerXStep",scannerXStep);
+		setJsonInt(ob, "scannerYStep",scannerYStep);
+		setJsonInt(ob, "scannerxMin",scannerxMin);
+		setJsonInt(ob, "scannerLaserVal",scannerLaserVal);
+		setJsonInt(ob, "scanneryMin",scanneryMin);
+		setJsonInt(ob, "scannerxMax",scannerxMax);
+		setJsonInt(ob, "scanneryMax",scanneryMax);
+		setJsonInt(ob, "scannerExposure",scannerExposure);
+		setJsonInt(ob, "scannerEnable",scannerEnable);
+		setJsonInt(ob, "scannerDelay",scannerDelay);
 
 		if (DEBUG)
 			Serial.print("scannerxMin ");
@@ -302,9 +241,9 @@ int ScannerController::act(DynamicJsonDocument ob)
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument ScannerController::get(DynamicJsonDocument  ob)
+cJSON * ScannerController::get(cJSON *  ob)
 {
-	return ob;
+	return NULL;
 }
 
 /***************************************************************************************************/

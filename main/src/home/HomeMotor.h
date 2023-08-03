@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../ModuleController.h"
+#include "../motor/FocusMotor.h"
 
 struct HomeData
 {
@@ -28,10 +29,11 @@ public:
 	bool isHoming = false;
 	std::array<HomeData *, 4> hdata;
 
-	int act(DynamicJsonDocument  ob) override;
-	DynamicJsonDocument get(DynamicJsonDocument ob) override;
+	int act(cJSON * ob) override;
+	cJSON * get(cJSON * ob) override;
 	void setup() override;
 	void loop() override;
 
 private:
+	void checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor);
 };

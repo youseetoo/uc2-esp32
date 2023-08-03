@@ -18,30 +18,32 @@ void State::loop()
 }
 
 // Custom function accessible by the API
-int State::act(DynamicJsonDocument doc)
+int State::act(cJSON *  doc)
 {
 	// here you can do something
 	if (DEBUG)
 		log_i("state_act_fct");
-
+	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
 	// assign default values to thhe variables
-	if (doc.containsKey("restart"))
+	if (restart != NULL)
 	{
 		//{"task": "/state_act", "restart": 1}
 		ESP.restart();
 	}
 	// assign default values to thhe variables
-	if (doc.containsKey("delay"))
+	cJSON * del = cJSON_GetObjectItemCaseSensitive(doc,"delay");
+	if (del != NULL)
 	{
-		int mdelayms = doc["delay"];
+		int mdelayms = del->valueint;
 		delay(mdelayms);
 	}
-	if (doc.containsKey("isBusy"))
+	cJSON * BUSY = cJSON_GetObjectItemCaseSensitive(doc,"isBusy");
+	if (BUSY != NULL)
 	{
-		isBusy = doc["isBusy"];
+		isBusy = BUSY->valueint;
 	}
-
-	if (doc.containsKey("isRest")){
+	cJSON * reset = cJSON_GetObjectItemCaseSensitive(doc,"isRest");
+	if (reset != NULL){
 		log_i("resetPreferences");
 		Preferences preferences;
 		const char *prefNamespace = "UC2";
@@ -51,47 +53,29 @@ int State::act(DynamicJsonDocument doc)
 		ESP.restart();
 		return true;
 	}
-
-	if (doc.containsKey("pscontroller"))
-	{
-#if defined IS_PS3 || defined IS_PS4
-		ps_c.IS_PSCONTROLER_ACTIVE = doc["pscontroller"];
-#endif
-	}
-	doc.clear();
-	doc["return"] = 1;
 	return 1;
 }
 
 // Custom function accessible by the API
-DynamicJsonDocument State::get(DynamicJsonDocument docin)
+cJSON *  State::get(cJSON *  docin)
 {
-
-	DynamicJsonDocument doc(4096); //StaticJsonDocument<512> doc; // create return doc
+	cJSON * doc = cJSON_CreateObject(); 
 
 	// GET SOME PARAMETERS HERE
-	if (docin.containsKey("isBusy"))
+	cJSON * BUSY = cJSON_GetObjectItemCaseSensitive(doc,"isBusy");
+	if (BUSY != NULL)
 	{
-		docin.clear();
-		doc["isBusy"] = isBusy; // returns state of function that takes longer to finalize (e.g. motor)
-	}
-	else if (docin.containsKey("pscontroller"))
-	{
-		docin.clear();
-#if defined IS_PS3 || defined IS_PS4
-		doc["pscontroller"] = ps_c.IS_PSCONTROLER_ACTIVE; // returns state of function that takes longer to finalize (e.g. motor)
-#endif
+		cJSON_AddItemToObject(doc,"isBusy", cJSON_CreateNumber(((int)isBusy)));
 	}
 	else
 	{
-		doc.clear();
-		doc["identifier_name"] = identifier_name;
-		doc["identifier_id"] = identifier_id;
-		doc["identifier_date"] = identifier_date;
-		doc["identifier_author"] = identifier_author;
-		doc["IDENTIFIER_NAME"] = IDENTIFIER_NAME;
-		doc["configIsSet"] = config_set; // TODO: Implement! 
-		doc["pindef"] = pinConfig.pindefName;
+		cJSON_AddItemToObject(doc,"identifier_name", cJSON_CreateString(identifier_name));
+		cJSON_AddItemToObject(doc,"identifier_id", cJSON_CreateString(identifier_id));
+		cJSON_AddItemToObject(doc,"identifier_date", cJSON_CreateString(identifier_date));
+		cJSON_AddItemToObject(doc,"identifier_author", cJSON_CreateString(identifier_author));
+		cJSON_AddItemToObject(doc,"IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
+		cJSON_AddItemToObject(doc,"configIsSet", cJSON_CreateNumber(config_set));
+		cJSON_AddItemToObject(doc,"pindef", cJSON_CreateString(pinConfig.pindefName));
 	}
 	return doc;
 }

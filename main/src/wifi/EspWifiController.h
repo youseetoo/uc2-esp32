@@ -1,6 +1,6 @@
 #pragma once
 #include "WifiConfig.h"
-#include "ArduinoJson.h"
+#include "cJSON.h"
 
 class EspWifiController
 {
@@ -22,5 +22,5 @@ class EspWifiController
         void connect();
         void disconnect();
         void setWifiConfig(WifiConfig * _wconfig){wconfig = _wconfig;}
-        DynamicJsonDocument wifi_scan();
+        cJSON * wifi_scan();
 };

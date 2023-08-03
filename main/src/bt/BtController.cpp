@@ -22,12 +22,12 @@ void btControllerLoop(void *p)
 BtController::BtController() { log_i("ctor"); }
 BtController::~BtController() { log_i("~ctor"); }
 
-int BtController::act(DynamicJsonDocument doc)
+int BtController::act(cJSON *doc)
 {
     return 0;
 }
 
-DynamicJsonDocument BtController::get(DynamicJsonDocument doc)
+cJSON *BtController::get(cJSON *doc)
 {
     return doc;
 }
@@ -39,22 +39,22 @@ void BtController::setup()
     // get the bluetooth config
     if (!pinConfig.useBtHID)
     {
-        String m = Config::getPsxMac();
+        char* m = Config::getPsxMac();
         int type = Config::getPsxControllerType();
 
-        if (m.isEmpty() && !pinConfig.PSX_MAC.isEmpty())
+        if (m != NULL && pinConfig.PSX_MAC != NULL)
         {
 
             // always remove all the devices?
             removeAllPairedDevices();
-            m = pinConfig.PSX_MAC;
+            m = (char*)pinConfig.PSX_MAC;
             type = pinConfig.PSX_CONTROLLER_TYPE;
             log_d("Using MAC address");
             Serial.println(pinConfig.PSX_MAC);
         }
 
         // if the mac is not empty, try to connect to the psx controller
-        if (!m.isEmpty())
+        if (m != NULL)
         {
             // initiate either PS3 or PS4 controller
             log_i("Connecting to PSX controller");
@@ -66,7 +66,7 @@ void BtController::setup()
     // xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
 }
 
-void BtController::setupPS(String mac, int type)
+void BtController::setupPS(char *mac, int type)
 {
     // select the type of wifi controller - either PS3 or PS4
     if (type == 1)
@@ -347,11 +347,11 @@ void BtController::loop()
     }
 }
 
-DynamicJsonDocument BtController::scanForDevices(DynamicJsonDocument doc)
+cJSON *BtController::scanForDevices(cJSON *doc)
 {
     // scan for bluetooth devices and return the list of devices
     hid_demo_task(nullptr);
-    return doc;
+    return NULL;
 }
 
 char *BtController::bda2str(const uint8_t *bda, char *str, size_t size)
@@ -365,15 +365,16 @@ char *BtController::bda2str(const uint8_t *bda, char *str, size_t size)
     return str;
 }
 
-DynamicJsonDocument BtController::getPairedDevices(DynamicJsonDocument doc)
+cJSON *BtController::getPairedDevices(cJSON *doc)
 {
-    doc.clear();
+    cJSON *root = cJSON_CreateObject();
     int count = esp_bt_gap_get_bond_device_num();
     if (!count)
     {
         log_i("No bonded device found.");
-        JsonObject ob = doc.createNestedObject();
-        ob["name"] = "No bonded device found";
+        cJSON *item = cJSON_CreateObject();
+        cJSON_AddItemToArray(root, item);
+        cJSON_AddStringToObject(item, "name", "No bonded device found");
     }
     else
     {
@@ -389,22 +390,23 @@ DynamicJsonDocument BtController::getPairedDevices(DynamicJsonDocument doc)
         {
             for (int i = 0; i < count; i++)
             {
-                JsonObject ob = doc.createNestedObject();
-                ob["name"] = "";
-                ob["mac"] = bda2str(pairedDeviceBtAddr[i], bda_str, 18);
+                cJSON *item = cJSON_CreateObject();
+                cJSON_AddItemToArray(root, item);
+                cJSON_AddStringToObject(item, "name", "");
+                cJSON_AddStringToObject(item, "mac", bda2str(pairedDeviceBtAddr[i], bda_str, 18));
             }
         }
     }
     return doc;
 }
 
-void BtController::setMacAndConnect(String m)
+void BtController::setMacAndConnect(char* m)
 {
 }
 
-void BtController::connectPsxController(String mac, int type)
+void BtController::connectPsxController(char* mac, int type)
 {
-    log_i("start psx advertising with mac: %s type:%i", mac.c_str(), type);
+    log_i("start psx advertising with mac: %s type:%i", mac, type);
     Config::setPsxMac(mac);
     Config::setPsxControllerType(type);
     setupPS(mac, type);
@@ -475,9 +477,9 @@ bool BtController::connectToServer()
     return false;
 }
 
-void BtController::removePairedDevice(String pairedmac)
+void BtController::removePairedDevice(char* pairedmac)
 {
-    esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t *)pairedmac.c_str());
+    esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t *)pairedmac);
     log_i("paired device removed:%s", tError == ESP_OK);
 }
 

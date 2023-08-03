@@ -17,9 +17,9 @@ function setModules(data) {
 
 function createWebsocket() {
     if ($("#url").val() == "")
-        websocket = new WebSocket('ws://' + $(location).attr('hostname') + ':81/');
+        websocket = new WebSocket('ws://' + $(location).attr('hostname') + '/ws/');
     else
-        websocket = new WebSocket('ws://' + $("#url").val() + ':81/');
+        websocket = new WebSocket('ws://' + $("#url").val() + '/ws/');
     websocket.addEventListener('message', function (data) {
         var result = JSON.parse(data.data); // $.parseJSON(data);
         var steppers = result["steppers"];

@@ -44,9 +44,9 @@ public:
     bool DEBUG = false;
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
-    int act(DynamicJsonDocument  ob) override;
+    int act(cJSON * ob) override;
 
-    DynamicJsonDocument get(DynamicJsonDocument  ob) override;
+    cJSON * get(cJSON *  ob) override;
     void setup() override;
     void loop() override;
 

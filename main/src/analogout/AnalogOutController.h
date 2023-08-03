@@ -34,8 +34,8 @@ public:
     int PWM_CHANNEL_analogout_2 = 5;
     int PWM_CHANNEL_analogout_3 = 6;
 
-    int act(DynamicJsonDocument  jsonDocument) override;
-    DynamicJsonDocument get(DynamicJsonDocument  jsonDocument) override;
+    int act(cJSON*  jsonDocument) override;
+    cJSON* get(cJSON*  jsonDocument) override;
 
     void setup() override;
     void loop() override;

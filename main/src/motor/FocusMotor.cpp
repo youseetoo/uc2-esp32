@@ -8,7 +8,7 @@ void sendUpdateToClients(void *p)
 	{
 		int arraypos = 0;
 		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-		for (int i = 0; i < motor->faststeppers.size(); i++)
+		for (int i = 0; i < motor->data.size(); i++)
 		{
 			if (!motor->data[i]->stopped)
 			{
@@ -25,27 +25,6 @@ bool externalPinCallback(uint8_t pin, uint8_t value)
 	return m->setExternalPin(pin, value);
 }
 
-void driveMotorXLoop(void *pvParameter)
-{
-	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Stepper::X);
-}
-void driveMotorYLoop(void *pvParameter)
-{
-	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Stepper::Y);
-}
-void driveMotorZLoop(void *pvParameter)
-{
-	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Stepper::Z);
-}
-void driveMotorALoop(void *pvParameter)
-{
-	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-	motor->driveMotorLoop(Stepper::A);
-}
-
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
 FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
@@ -58,30 +37,22 @@ int FocusMotor::act(cJSON *doc)
 	cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
 	if (isen != NULL)
 	{
-		for (int i = 0; i < faststeppers.size(); i++)
+		if (pinConfig.useFastAccelStepper)
 		{
-			if (isen->valueint == 1)
-			{
-				log_d("enable motor %d - going manual mode!", i);
-				faststeppers[i]->enableOutputs();
-				faststeppers[i]->setAutoEnable(false);
-			}
-			else
-			{
-				log_d("disable motor %d - going manual mode!", i);
-				faststeppers[i]->disableOutputs();
-				faststeppers[i]->setAutoEnable(false);
-			}
+			faccel.Enable(isen->valueint);
+		}
+		else
+		{
+			accel.Enable(isen->valueint);
 		}
 	}
 
 	cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
 	if (autoen != NULL)
 	{
-		for (int i = 0; i < faststeppers.size(); i++)
+		if (pinConfig.useFastAccelStepper)
 		{
-			log_d("enable motor %d - automode on", i);
-			faststeppers[i]->setAutoEnable(autoen->valueint);
+			faccel.setAutoEnable(autoen->valueint);
 		}
 	}
 
@@ -102,14 +73,12 @@ int FocusMotor::act(cJSON *doc)
 				data[s]->absolutePosition = getJsonInt(stp, key_isabs);
 				data[s]->acceleration = getJsonInt(stp, key_acceleration);
 				data[s]->isaccelerated = getJsonInt(stp, key_isaccel);
-				int stop = getJsonInt(stp, key_isstop);
-				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", s, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated, data[s]->acceleration);
-				if (stop == 0)
+				cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
+				if (cstop != NULL || (!data[s]->isforever && !data[s]->absolutePosition && !data[s]->stopped))
 					stopStepper(s);
 				else
-				{
 					startStepper(s);
-				}
+				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", s, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated, data[s]->acceleration);
 			}
 		}
 		else
@@ -120,75 +89,12 @@ int FocusMotor::act(cJSON *doc)
 	return 1;
 }
 
-void FocusMotor::startFastAccelStepper(int i)
-{
-	// enableEnablePin(i);
-	if (faststeppers[i] == nullptr)
-	{
-		return;
-	}
-	int speed = data[i]->speed;
-	if (data[i]->speed < 0)
-	{
-		speed *= -1;
-	}
-
-	faststeppers[i]->setSpeedInHz(speed);
-	faststeppers[i]->setAcceleration(data[i]->acceleration);
-
-	if (data[i]->isforever)
-	{
-		// run forver (e.g. PSx or initaited via Serial)
-		if (data[i]->speed > 0)
-		{
-			// run clockwise
-			faststeppers[i]->runForward();
-		}
-		else
-		{
-			// run counterclockwise
-			faststeppers[i]->runBackward();
-		}
-	}
-	else
-	{
-		if (data[i]->absolutePosition == 1)
-		{
-			// absolute position coordinates
-			faststeppers[i]->moveTo(data[i]->targetPosition, false);
-		}
-		else if (data[i]->absolutePosition == 0)
-		{
-			// relative position coordinates
-			faststeppers[i]->move(data[i]->targetPosition, false);
-		}
-	}
-	data[i]->stopped = false;
-}
-void FocusMotor::startAccelStepper(int i)
-{
-	log_d("start rotator: motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition, data[i]->isaccelerated, data[i]->acceleration);
-	steppers[i]->setMaxSpeed(data[i]->maxspeed);
-	steppers[i]->setAcceleration(data[i]->acceleration);
-	if (data[i]->absolutePosition == 1)
-	{
-		// absolute position coordinates
-		steppers[i]->moveTo(data[i]->targetPosition);
-	}
-	else if (!data[i]->isforever)
-	{
-		// relative coordinates
-		steppers[i]->move(data[i]->targetPosition);
-	}
-	data[i]->stopped = false;
-}
-
 void FocusMotor::startStepper(int i)
 {
 	if (pinConfig.useFastAccelStepper)
-		startFastAccelStepper(i);
+		faccel.startFastAccelStepper(i);
 	else
-		startAccelStepper(i);
+		accel.startAccelStepper(i);
 }
 
 cJSON *FocusMotor::get(cJSON *docin)
@@ -209,9 +115,11 @@ cJSON *FocusMotor::get(cJSON *docin)
 			cJSON *aritem = cJSON_CreateObject();
 			setJsonInt(aritem, key_stepperid, i);
 			if (pinConfig.useFastAccelStepper)
-				setJsonInt(aritem, key_position, faststeppers[i]->getCurrentPosition());
+				faccel.updateData(i);
 			else
-				setJsonInt(aritem, key_position, steppers[i]->currentPosition());
+				accel.updateData(i);
+
+			setJsonInt(aritem, key_position, data[i]->currentPosition);
 			cJSON_AddItemToArray(stprs, aritem);
 		}
 		return doc;
@@ -230,12 +138,12 @@ cJSON *FocusMotor::get(cJSON *docin)
 	}
 
 	// return the whole config
-	for (int i = 0; i < faststeppers.size(); i++)
+	for (int i = 0; i < data.size(); i++)
 	{
 		if (pinConfig.useFastAccelStepper)
-			data[i]->currentPosition = faststeppers[i]->getCurrentPosition();
+			faccel.updateData(i);
 		else
-			data[i]->currentPosition = steppers[i]->currentPosition();
+			accel.updateData(i);
 		cJSON *aritem = cJSON_CreateObject();
 		setJsonInt(aritem, key_stepperid, i);
 		setJsonInt(aritem, key_position, data[i]->currentPosition);
@@ -250,46 +158,102 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 	// Consequently, FastAccelStepper needs to call setExternalPin twice
 	// in order to successfully change the output value.
 	pin = pin & ~PIN_EXTERNAL_FLAG;
-	TCA9535_Register configRegister;
 	if (pin == 100) // enable
-		configRegister.Port.P0.bit.Bit0 = value;
+		outRegister.Port.P0.bit.Bit0 = value;
 	if (pin == 101) // x
-		configRegister.Port.P0.bit.Bit1 = value;
+		outRegister.Port.P0.bit.Bit1 = value;
 	if (pin == 102) // y
-		configRegister.Port.P0.bit.Bit2 = value;
+		outRegister.Port.P0.bit.Bit2 = value;
 	if (pin == 103) // z
-		configRegister.Port.P0.bit.Bit3 = value;
+		outRegister.Port.P0.bit.Bit3 = value;
 	if (pin == 104) // a
-		configRegister.Port.P0.bit.Bit4 = value;
+		outRegister.Port.P0.bit.Bit4 = value;
 	log_i("external pin cb for pin:%d value:%d", pin, value);
-	if (ESP_OK != _tca9535->TCA9535WriteOutput(&configRegister))
+	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
 		log_e("i2c write failed");
 
 	return value;
 }
 
-void FocusMotor::setupFastAccelStepper()
+void FocusMotor::init_tca()
 {
-	engine.init();
-	if (pinConfig.I2C_SCL > 0)
-	{
-		engine.setExternalCallForPin(&externalPinCallback);
-		_tca9535 = new tca9535();
+	_tca9535 = new tca9535();
 
-		if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
-			log_e("failed to init tca9535");
-		else
-			log_i("tca9535 init!");
-	}
+	if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
+		log_e("failed to init tca9535");
+	else
+		log_i("tca9535 init!");
+	TCA9535_Register configRegister;
+	_tca9535->TCA9535ReadInput(&configRegister);
+	log_i("Input b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  configRegister.Port.P0.bit.Bit0,
+		  configRegister.Port.P0.bit.Bit1,
+		  configRegister.Port.P0.bit.Bit2,
+		  configRegister.Port.P0.bit.Bit3,
+		  configRegister.Port.P0.bit.Bit4,
+		  configRegister.Port.P0.bit.Bit5,
+		  configRegister.Port.P0.bit.Bit6,
+		  configRegister.Port.P0.bit.Bit7);
+	_tca9535->TCA9535ReadOutput(&configRegister);
+	log_i("Output b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  configRegister.Port.P0.bit.Bit0,
+		  configRegister.Port.P0.bit.Bit1,
+		  configRegister.Port.P0.bit.Bit2,
+		  configRegister.Port.P0.bit.Bit3,
+		  configRegister.Port.P0.bit.Bit4,
+		  configRegister.Port.P0.bit.Bit5,
+		  configRegister.Port.P0.bit.Bit6,
+		  configRegister.Port.P0.bit.Bit7);
+	_tca9535->TCA9535ReadPolarity(&configRegister);
+	log_i("Polarity b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  configRegister.Port.P0.bit.Bit0,
+		  configRegister.Port.P0.bit.Bit1,
+		  configRegister.Port.P0.bit.Bit2,
+		  configRegister.Port.P0.bit.Bit3,
+		  configRegister.Port.P0.bit.Bit4,
+		  configRegister.Port.P0.bit.Bit5,
+		  configRegister.Port.P0.bit.Bit6,
+		  configRegister.Port.P0.bit.Bit7);
+	_tca9535->TCA9535ReadConfig(&configRegister);
+	log_i("Config b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  configRegister.Port.P0.bit.Bit0,
+		  configRegister.Port.P0.bit.Bit1,
+		  configRegister.Port.P0.bit.Bit2,
+		  configRegister.Port.P0.bit.Bit3,
+		  configRegister.Port.P0.bit.Bit4,
+		  configRegister.Port.P0.bit.Bit5,
+		  configRegister.Port.P0.bit.Bit6,
+		  configRegister.Port.P0.bit.Bit7);
 
-	// setup the data
-	for (int i = 0; i < faststeppers.size(); i++)
-	{
-		data[i] = new MotorData();
-		faststeppers[i] = nullptr;
-	}
+	configRegister.Port.P0.bit.Bit0 = 1; // motor enable
+	configRegister.Port.P0.bit.Bit1 = 1; // x
+	configRegister.Port.P0.bit.Bit2 = 1; // y
+	configRegister.Port.P0.bit.Bit3 = 1; // z
+	configRegister.Port.P0.bit.Bit4 = 1; // a
+	configRegister.Port.P0.bit.Bit5 = 0;
+	configRegister.Port.P0.bit.Bit6 = 0;
+	configRegister.Port.P0.bit.Bit7 = 0;
+	if (ESP_OK != _tca9535->TCA9535WriteConfig(&configRegister))
+		log_e("failed to write config to tca9535");
+	else
+		log_i("tca9535 config written!");
 
-	/* restore previously saved motor position values*/
+	_tca9535->TCA9535ReadConfig(&configRegister);
+	log_i("b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  configRegister.Port.P0.bit.Bit0,
+		  configRegister.Port.P0.bit.Bit1,
+		  configRegister.Port.P0.bit.Bit2,
+		  configRegister.Port.P0.bit.Bit3,
+		  configRegister.Port.P0.bit.Bit4,
+		  configRegister.Port.P0.bit.Bit5,
+		  configRegister.Port.P0.bit.Bit6,
+		  configRegister.Port.P0.bit.Bit7);
+}
+
+void FocusMotor::setup()
+{
+	// setup the pins
+	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
 	if (pinConfig.MOTOR_A_DIR > 0)
 		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
@@ -300,204 +264,26 @@ void FocusMotor::setupFastAccelStepper()
 	if (pinConfig.MOTOR_Z_DIR > 0)
 		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
 	preferences.end();
-
-	// setup the stepper A
-	if (pinConfig.MOTOR_A_STEP >= 0)
-	{
-		log_i("Motor A, dir, step: %i, %i", pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
-		faststeppers[Stepper::A] = engine.stepperConnectToPin(pinConfig.MOTOR_A_STEP);
-		faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
-		if (pinConfig.I2C_SCL > 0)
-		{
-			faststeppers[Stepper::A]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-			faststeppers[Stepper::A]->setDirectionPin(104 | PIN_EXTERNAL_FLAG);
-		}
-		else
-		{
-			faststeppers[Stepper::A]->setEnablePin(pinConfig.MOTOR_ENABLE);
-			faststeppers[Stepper::A]->setDirectionPin(pinConfig.MOTOR_A_DIR);
-		}
-		faststeppers[Stepper::A]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
-		faststeppers[Stepper::A]->setSpeedInHz(MAX_VELOCITY_A);
-		faststeppers[Stepper::A]->setAcceleration(DEFAULT_ACCELERATION);
-		faststeppers[Stepper::A]->setCurrentPosition(data[Stepper::A]->currentPosition);
-		faststeppers[Stepper::A]->move(2);
-		faststeppers[Stepper::A]->move(-2);
-	}
-
-	// setup the stepper X
-	if (pinConfig.MOTOR_X_STEP >= 0)
-	{
-		log_i("Motor X, dir, step: %i, %i", pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
-		faststeppers[Stepper::X] = engine.stepperConnectToPin(pinConfig.MOTOR_X_STEP);
-
-		if (pinConfig.I2C_SCL > 0)
-		{
-			faststeppers[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-			faststeppers[Stepper::X]->setDirectionPin(101 | PIN_EXTERNAL_FLAG);
-		}
-		else
-		{
-			faststeppers[Stepper::X]->setEnablePin(pinConfig.MOTOR_ENABLE);
-			faststeppers[Stepper::X]->setDirectionPin(pinConfig.MOTOR_X_DIR);
-		}
-		faststeppers[Stepper::X]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
-		faststeppers[Stepper::X]->setSpeedInHz(MAX_VELOCITY_A);
-		faststeppers[Stepper::X]->setAcceleration(DEFAULT_ACCELERATION);
-		faststeppers[Stepper::X]->setCurrentPosition(data[Stepper::X]->currentPosition);
-		faststeppers[Stepper::X]->move(2000);
-		faststeppers[Stepper::X]->move(-2000);
-	}
-
-	// setup the stepper Y
-	if (pinConfig.MOTOR_Y_STEP >= 0)
-	{
-		log_i("Motor Y, dir, step: %i, %i", pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
-		faststeppers[Stepper::Y] = engine.stepperConnectToPin(pinConfig.MOTOR_Y_STEP);
-
-		if (pinConfig.I2C_SCL > 0)
-		{
-			faststeppers[Stepper::Y]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-			faststeppers[Stepper::Y]->setDirectionPin(102 | PIN_EXTERNAL_FLAG);
-		}
-		else
-		{
-			faststeppers[Stepper::Y]->setEnablePin(pinConfig.MOTOR_ENABLE);
-			faststeppers[Stepper::Y]->setDirectionPin(pinConfig.MOTOR_Y_DIR);
-		}
-		faststeppers[Stepper::Y]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
-		faststeppers[Stepper::Y]->setSpeedInHz(MAX_VELOCITY_A);
-		faststeppers[Stepper::Y]->setAcceleration(DEFAULT_ACCELERATION);
-		faststeppers[Stepper::Y]->setCurrentPosition(data[Stepper::Y]->currentPosition);
-		faststeppers[Stepper::Y]->move(2);
-		faststeppers[Stepper::Y]->move(-2);
-	}
-
-	// setup the stepper Z
-	if (pinConfig.MOTOR_Z_STEP >= 0)
-	{
-		log_i("Motor Z, dir, step: %i, %i", pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
-		faststeppers[Stepper::Z] = engine.stepperConnectToPin(pinConfig.MOTOR_Z_STEP);
-
-		if (pinConfig.I2C_SCL > 0)
-		{
-			faststeppers[Stepper::Z]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-			faststeppers[Stepper::Z]->setDirectionPin(103 | PIN_EXTERNAL_FLAG);
-		}
-		else
-		{
-			faststeppers[Stepper::Z]->setEnablePin(pinConfig.MOTOR_ENABLE);
-			faststeppers[Stepper::Z]->setDirectionPin(pinConfig.MOTOR_Z_DIR);
-		}
-		faststeppers[Stepper::Z]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
-		faststeppers[Stepper::Z]->setSpeedInHz(MAX_VELOCITY_A);
-		faststeppers[Stepper::Z]->setAcceleration(DEFAULT_ACCELERATION);
-		faststeppers[Stepper::Z]->setCurrentPosition(data[Stepper::Z]->currentPosition);
-		faststeppers[Stepper::Z]->move(2);
-		faststeppers[Stepper::Z]->move(-2);
-	}
-}
-void FocusMotor::setupAccelStepper()
-{
-
-	if (pinConfig.I2C_SCL > 0)
-	{
-		_tca9535 = new tca9535();
-
-		if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
-			log_e("failed to init tca9535");
-		else
-			log_i("tca9535 init!");
-
-		if (pinConfig.MOTOR_A_STEP > -1)
-		{
-			steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104| PIN_EXTERNAL_FLAG);
-			steppers[Stepper::A]->setExternalCallForPin(&externalPinCallback);
-		}
-		if (pinConfig.MOTOR_X_STEP > -1)
-		{
-			steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP & PIN_EXTERNAL_FLAG, 101| PIN_EXTERNAL_FLAG);
-			steppers[Stepper::X]->setExternalCallForPin(&externalPinCallback);
-		}
-		if (pinConfig.MOTOR_Y_STEP > -1)
-		{
-			steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP& PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG);
-			steppers[Stepper::Y]->setExternalCallForPin(&externalPinCallback);
-		}
-		if (pinConfig.MOTOR_Z_STEP > -1)
-		{
-			steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP & PIN_EXTERNAL_FLAG, 103 | PIN_EXTERNAL_FLAG);
-			steppers[Stepper::Z]->setExternalCallForPin(&externalPinCallback);
-		}
-	}
-	else
-	{
-		if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
-		{
-			if (pinConfig.MOTOR_A_STEP > -1)
-				steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR);
-			if (pinConfig.MOTOR_X_STEP > -1)
-				steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
-			if (pinConfig.MOTOR_Y_STEP > -1)
-				steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR);
-			if (pinConfig.MOTOR_Z_STEP > -1)
-				steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
-		}
-		else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
-		{
-			if (pinConfig.MOTOR_A_STEP > -1)
-				steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
-			if (pinConfig.MOTOR_X_STEP > -1)
-				steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
-			if (pinConfig.MOTOR_Y_STEP > -1)
-				steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
-			if (pinConfig.MOTOR_Z_STEP > -1)
-				steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
-		}
-	}
-
-	for (int i = 0; i < steppers.size(); i++)
-	{
-		data[i] = new MotorData();
-	}
-
-	/*
-	   Motor related settings
-	*/
-
-	// setting default values
-	for (int i = 0; i < steppers.size(); i++)
-	{
-		if (steppers[i])
-		{
-			log_d("setting default values for motor %i", i);
-			steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
-			steppers[i]->setAcceleration(DEFAULT_ACCELERATION);
-			steppers[i]->runToNewPosition(-1);
-			steppers[i]->runToNewPosition(1);
-			log_d("1");
-
-			steppers[i]->setCurrentPosition(data[i]->currentPosition);
-		}
-	}
-	if (pinConfig.MOTOR_A_DIR > -1)
-		xTaskCreate(&driveMotorALoop, "motor_task_A", 1024, NULL, 5, NULL);
-	if (pinConfig.MOTOR_X_DIR > -1)
-		xTaskCreate(&driveMotorXLoop, "motor_task_X", 1024, NULL, 5, NULL);
-	if (pinConfig.MOTOR_Y_DIR > -1)
-		xTaskCreate(&driveMotorYLoop, "motor_task_Y", 1024, NULL, 5, NULL);
-	if (pinConfig.MOTOR_Z_DIR > -1)
-		xTaskCreate(&driveMotorZLoop, "motor_task_Z", 1024, NULL, 5, NULL);
-}
-
-void FocusMotor::setup()
-{
-	// setup the pins
-	log_i("Setting Up Motor A,X,Y,Z");
 	if (pinConfig.useFastAccelStepper)
-		setupFastAccelStepper();
+	{
+		if (pinConfig.I2C_SCL > 0)
+		{
+			init_tca();
+			faccel.setExternalCallForPin(externalPinCallback);
+		}
+		faccel.data = data;
+		faccel.setupFastAccelStepper();
+	}
 	else
-		setupAccelStepper();
+	{
+		if (pinConfig.I2C_SCL > 0)
+		{
+			init_tca();
+			accel.setExternalCallForPin(externalPinCallback);
+		}
+		accel.data = data;
+		accel.setupAccelStepper();
+	}
 }
 
 // dont use it, it get no longer triggered from modulehandler
@@ -535,32 +321,13 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	preferences.end();
 }
 
-void FocusMotor::stopFastAccelStepper(int i)
-{
-	if (faststeppers[i] == nullptr)
-		return;
-	faststeppers[i]->forceStop();
-	faststeppers[i]->stopMove();
-	data[i]->isforever = false;
-	data[i]->speed = 0;
-	data[i]->currentPosition = faststeppers[i]->getCurrentPosition();
-	data[i]->stopped = true;
-}
-void FocusMotor::stopAccelStepper(int i)
-{
-	steppers[i]->stop();
-	data[i]->isforever = false;
-	data[i]->speed = 0;
-	data[i]->currentPosition = steppers[i]->currentPosition();
-	data[i]->stopped = true;
-}
-
 void FocusMotor::stopStepper(int i)
 {
+	log_i("Stop Stepper:%i", i);
 	if (pinConfig.useFastAccelStepper)
-		stopFastAccelStepper(i);
+		faccel.stopFastAccelStepper(i);
 	else
-		stopAccelStepper(i);
+		accel.stopAccelStepper(i);
 }
 
 void FocusMotor::disableEnablePin(int i)
@@ -591,40 +358,10 @@ void FocusMotor::enableEnablePin(int i)
 	*/
 }
 
-void FocusMotor::driveMotorLoop(int stepperid)
+void FocusMotor::setPosition(Stepper s, int pos)
 {
-	AccelStepper *s = steppers[stepperid];
-	MotorData *d = data[stepperid];
-	for (;;)
+	if (pinConfig.useFastAccelStepper)
 	{
-		s->setMaxSpeed(d->maxspeed);
-		if (d->isforever)
-		{
-			s->setSpeed(d->speed);
-			s->runSpeed();
-		}
-		else
-		{
-
-			if (d->absolutePosition)
-			{
-				// absolute position coordinates
-				s->moveTo(d->targetPosition);
-			}
-			else
-			{
-				// relative position coordinates
-				s->move(d->targetPosition);
-			}
-			// checks if a stepper is still running
-			if (s->distanceToGo() == 0 && !d->stopped)
-			{
-				log_i("stop stepper:%i", stepperid);
-				// if not turn it off
-				stopStepper(stepperid);
-			}
-		}
-		d->currentPosition = s->currentPosition();
-		vTaskDelay(1 / portTICK_PERIOD_MS);
+		faccel.setPosition(s, pos);
 	}
 }

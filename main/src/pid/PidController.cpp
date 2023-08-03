@@ -24,8 +24,7 @@ int PidController::act(cJSON *ob)
 		{
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 			motor->data[Stepper::X]->speed = 0;
-			motor->faststeppers[Stepper::X]->setSpeedInHz(0);
-			motor->faststeppers[Stepper::X]->forceStop();
+			motor->stopStepper(Stepper::X);
 		}
 	}
 	return 1;
@@ -53,7 +52,7 @@ void PidController::loop()
 			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 			motor->data[Stepper::X]->isforever = 1; // run motor at certain speed
 			motor->data[Stepper::X]->speed = motorValue;
-			motor->faststeppers[Stepper::X]->setSpeedInHz(motorValue);
+			motor->startStepper(Stepper::X);
 		}
 		startMillis = millis();
 	}

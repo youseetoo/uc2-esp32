@@ -1,5 +1,4 @@
 #include "HomeMotor.h"
-#include "../motor/FocusMotor.h"
 #include "FastAccelStepper.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
@@ -33,7 +32,7 @@ int HomeMotor::act(cJSON * j)
 			cJSON_ArrayForEach(stp,stprs)
 			{
 				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp,key_stepperid)->valueint);
-				motor->faststeppers[s]->setCurrentPosition(cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
+				motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
 			}
 		}
 		
@@ -126,6 +125,30 @@ void sendHomeDone(int axis)
 	Serial.println("--");
 }
 
+
+void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor)
+{
+	if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity-digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()))
+		{
+			// stopping motor and going reversing direction to release endstops
+			int speed = motor->data[s]->speed;
+			motor->stopStepper(s);
+			// blocks until stepper reached new position wich would be optimal outside of the endstep
+			if (speed > 0)
+				motor->data[s]->targetPosition = -hdata[s]->homeEndposRelease;
+			else
+				motor->data[s]->targetPosition = hdata[s]->homeEndposRelease;
+			motor->startStepper(s);
+			// wait until stepper reached new position
+			while (motor->data[s]->currentPosition - motor->data[s]->targetPosition) delay(1);
+			hdata[s]->homeIsActive = false;
+			motor->setPosition(s, 0);
+			motor->stopStepper(s);
+			motor->data[s]->isforever = false;
+			log_i("Home Motor X done");
+			sendHomeDone(s);
+		}
+}
 /*
 	get called repeatedly, dont block this
 */
@@ -141,65 +164,9 @@ void HomeMotor::loop()
 
 		// expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 		//  0=A , 1=X, 2=Y , 3=Z
-		if (hdata[Stepper::X]->homeIsActive && (abs(hdata[Stepper::X]->homeEndStopPolarity-digitalin->digitalin_val_1) || hdata[Stepper::X]->homeTimeStarted + hdata[Stepper::X]->homeTimeout < millis()))
-		{
-			// stopping motor and going reversing direction to release endstops
-			int speed = motor->data[Stepper::X]->speed;
-			motor->faststeppers[Stepper::X]->forceStop();
-			// blocks until stepper reached new position wich would be optimal outside of the endstep
-			if (speed > 0)
-				motor->faststeppers[Stepper::X]->move(-hdata[Stepper::X]->homeEndposRelease);
-			else
-				motor->faststeppers[Stepper::X]->move(hdata[Stepper::X]->homeEndposRelease);
-			// wait until stepper reached new position
-			while (motor->faststeppers[Stepper::X]->getCurrentPosition() - motor->faststeppers[Stepper::X]->targetPos()) delay(1);
-			hdata[Stepper::X]->homeIsActive = false;
-			motor->faststeppers[Stepper::X]->setCurrentPosition(0);
-			motor->faststeppers[Stepper::X]->setSpeedInHz(0);
-			motor->data[Stepper::X]->isforever = false;
-			motor->faststeppers[Stepper::X]->forceStop();
-			log_i("Home Motor X done");
-			sendHomeDone(1);
-		}
-		if (hdata[Stepper::Y]->homeIsActive && (abs(hdata[Stepper::Y]->homeEndStopPolarity-digitalin->digitalin_val_2)|| hdata[Stepper::Y]->homeTimeStarted + hdata[Stepper::Y]->homeTimeout < millis()))
-		{
-			int speed = motor->data[Stepper::Y]->speed;
-			motor->faststeppers[Stepper::Y]->forceStop();
-			if (speed > 0)
-				motor->faststeppers[Stepper::Y]->move(-hdata[Stepper::Y]->homeEndposRelease);
-			else
-				motor->faststeppers[Stepper::Y]->move(hdata[Stepper::Y]->homeEndposRelease);
-			// wait until stepper reached new position
-			while (motor->faststeppers[Stepper::Y]->getCurrentPosition() - motor->faststeppers[Stepper::Y]->targetPos()) delay(1);
-			hdata[Stepper::Y]->homeIsActive = false;
-			motor->faststeppers[Stepper::Y]->setCurrentPosition(0);
-			motor->faststeppers[Stepper::Y]->setSpeedInHz(0);
-			motor->data[Stepper::Y]->isforever = false;
-			log_i("Home Motor Y done");
-			// log_i("Distance to go Y: %i", motor->faststeppers[Stepper::Y]->distanceToGo());
-			//  send home done to client
-			sendHomeDone(2);
-			// log_i("Distance to go Y: %i", motor->faststeppers[Stepper::X]->distanceToGo());
-		}
-		if (hdata[Stepper::Z]->homeIsActive && (abs(hdata[Stepper::Z]->homeEndStopPolarity-digitalin->digitalin_val_3) || hdata[Stepper::Z]->homeTimeStarted + hdata[Stepper::Z]->homeTimeout < millis()))
-		{
-			int speed = motor->data[Stepper::Z]->speed;
-			motor->faststeppers[Stepper::Z]->forceStop();
-			if (speed > 0)
-				motor->faststeppers[Stepper::Z]->move(-hdata[Stepper::Z]->homeEndposRelease);
-			else
-				motor->faststeppers[Stepper::Z]->move(hdata[Stepper::Z]->homeEndposRelease);
-			// wait until stepper reached new position
-			while (motor->faststeppers[Stepper::Z]->getCurrentPosition() - motor->faststeppers[Stepper::Z]->targetPos()) delay(1);				
-			hdata[Stepper::Z]->homeIsActive = false;
-			motor->faststeppers[Stepper::Z]->setCurrentPosition(0);
-			motor->faststeppers[Stepper::Z]->setSpeedInHz(0);
-			motor->data[Stepper::Z]->isforever = false;
-			log_i("Home Motor Z done");
-			// log_i("Distance to go Z: %i", motor->faststeppers[Stepper::Z]->distanceToGo());
-			//  send home done to client
-			sendHomeDone(3);
-		}
+		checkAndProcessHome(Stepper::X, digitalin->digitalin_val_1,motor);
+		checkAndProcessHome(Stepper::Y, digitalin->digitalin_val_2,motor);
+		checkAndProcessHome(Stepper::Z, digitalin->digitalin_val_3,motor);
 	}
 }
 

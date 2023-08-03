@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../ModuleController.h"
+#include "../motor/FocusMotor.h"
 
 struct HomeData
 {
@@ -34,4 +35,5 @@ public:
 	void loop() override;
 
 private:
+	void checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor);
 };

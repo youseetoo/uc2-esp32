@@ -75,6 +75,14 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isacti
 __attribute__ ((unused)) static const PROGMEM char * key_home_endposrelease = "endposrelease";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
 
+
+__attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_timeout = "timeout";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_getpos = "posval";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "maxspeed";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direction";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
+
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
 
 __attribute__ ((unused)) static const PROGMEM char * key_steppers = "steppers";

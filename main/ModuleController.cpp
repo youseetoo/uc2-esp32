@@ -4,6 +4,7 @@
 #include "src/motor/FocusMotor.h"
 #include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
+#include "src/encoder/EncoderController.h"
 #include "src/laser/LaserController.h"
 #include "src/pid/PidController.h"
 #include "src/analogin/AnalogInController.h"
@@ -76,6 +77,16 @@ void ModuleController::setup()
         pinConfig.DIGITAL_IN_2=pinConfig.PIN_DEF_END_Y;
         pinConfig.DIGITAL_IN_3=pinConfig.PIN_DEF_END_Z;*/
         log_i("add home");
+    }
+
+    // eventually load the motor encoder module
+    if ( pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)
+    {
+        modules.insert(std::make_pair(AvailableModules::encoder, dynamic_cast<Module *>(new EncoderController())));
+        /*pinConfig.DIGITAL_IN_1=pinConfig.PIN_DEF_END_X;
+        pinConfig.DIGITAL_IN_2=pinConfig.PIN_DEF_END_Y;
+        pinConfig.DIGITAL_IN_3=pinConfig.PIN_DEF_END_Z;*/
+        log_i("add encoder");
     }
 
     // eventually load the analogin module
@@ -181,7 +192,8 @@ cJSON * ModuleController::get()
     cJSON_AddItemToObject(doc,key_modules,mod);
     cJSON_AddItemToObject(mod,keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
     cJSON_AddItemToObject(mod,key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
-    cJSON_AddItemToObject(mod,key_home, cJSON_CreateNumber((pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0)));
+    cJSON_AddItemToObject(mod,key_home, cJSON_CreateNumber((pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)));
+    cJSON_AddItemToObject(mod,key_encoder, cJSON_CreateNumber((pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0)));
     cJSON_AddItemToObject(mod,key_analogin, cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
     cJSON_AddItemToObject(mod,key_pid, cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));
     cJSON_AddItemToObject(mod,key_laser, cJSON_CreateNumber((pinConfig.LASER_1 >= 0 || pinConfig.LASER_2 >= 0 || pinConfig.LASER_3 >= 0)));

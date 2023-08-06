@@ -9,6 +9,7 @@
 #include "soc/rtc_cntl_reg.h"
 
 #define BAUDRATE 115200
+long lastHeapUpdateTime;
 
 extern "C" void looper(void *p)
 {
@@ -19,6 +20,13 @@ extern "C" void looper(void *p)
 		vTaskDelay(1);
 		// process all commands in their modules
 		moduleController.loop();
+		
+		if (pinConfig.dumpHeap && lastHeapUpdateTime +1000000 < esp_timer_get_time())
+		{
+			/* code */
+			log_i("free heap:%d", ESP.getFreeHeap());
+			lastHeapUpdateTime = esp_timer_get_time();
+		}
 		
 	}
 	vTaskDelete(NULL);
@@ -34,7 +42,6 @@ extern "C" void app_main(void)
 	// Disable brownout detector
 	log_i("Start setup");
 	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-
 
 	// initialize the pin/settings configurator
 	log_i("Config::setup");

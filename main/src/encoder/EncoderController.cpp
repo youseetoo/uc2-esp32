@@ -54,11 +54,14 @@ cJSON * EncoderController::get(cJSON * docin)
 	if (isPos>0 and encoderID >=0)
 	{
 		cJSON *aritem = cJSON_CreateObject();
-
-		log_d("read encoder %i", encoderID);
 		edata[encoderID]->requestPosition = true;
-		edata[encoderID]->posval = readValue(edata[encoderID]->clkPin, edata[encoderID]->dataPin);
+		posval = readValue(edata[encoderID]->clkPin, edata[encoderID]->dataPin);
+		edata[encoderID]->posval = posval;
+
 		log_d("read encoder %i get position %f", encoderID, edata[encoderID]->posval);
+	    cJSON_AddNumberToObject(aritem, "posval", posval);
+    	cJSON_AddNumberToObject(aritem, "encoderID", encoderID);
+    	cJSON_AddItemToObject(doc, "encoder_data", aritem);
 	}
 	return doc;
 }
@@ -136,7 +139,7 @@ float EncoderController::readValue(int clockpin, int datapin) {
   float returnValue = -99999.;
   unsigned long tMicros;
   unsigned long tStart = micros();
-  log_d("Reading value with pins %i %i", clockpin, datapin);
+// log_d("Reading value with pins %i %i", clockpin, datapin);
   while (digitalRead(clockpin) == HIGH) {
 	// timeout 
 	if (micros() - tStart > 10000) {
@@ -147,7 +150,7 @@ float EncoderController::readValue(int clockpin, int datapin) {
 
   while (digitalRead(clockpin) == LOW) {
 	// timeout 
-	if (micros() - tStart > 70000) {
+	if (micros() - tStart > 200000) {
 		log_e("timeout2");
 		return -99999.;
   }} // Wait for the end of the HIGH pulse
@@ -163,7 +166,7 @@ float EncoderController::readValue(int clockpin, int datapin) {
 float EncoderController::decode(int clockpin, int datapin) {
   float result;
   int sign = 1; // Initialize sign to positive
-  long value = -999999; // Initialize value to zero
+  long value = 0; // Initialize value to zero
 
   for (int i = 0; i < 23; i++) {
     while (digitalRead(clockpin) == HIGH) {} // Wait until clock returns to HIGH (the first bit is not needed)
@@ -180,6 +183,6 @@ float EncoderController::decode(int clockpin, int datapin) {
   }
 
   result = (value * sign) / 100.00; // Calculate the result (value with sign and two decimal places)
-  delay(50); // Delay for a short time to avoid continuous decoding
+  //delay(50); // Delay for a short time to avoid continuous decoding
   return result;
 }

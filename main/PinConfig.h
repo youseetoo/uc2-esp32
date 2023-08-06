@@ -571,6 +571,7 @@ struct UC2_3 : PinConfig
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD = 0x27;
+     gpio_num_t  I2C_INT = GPIO_NUM_27;
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_23;

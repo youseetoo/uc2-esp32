@@ -177,6 +177,9 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 
 void FocusMotor::init_tca()
 {
+	gpio_pad_select_gpio(pinConfig.I2C_INT);
+	gpio_set_direction(pinConfig.I2C_INT, GPIO_MODE_INPUT);
+	gpio_set_pull_mode(pinConfig.I2C_INT, GPIO_PULLUP_ONLY);
 	_tca9535 = new tca9535();
 
 	if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))

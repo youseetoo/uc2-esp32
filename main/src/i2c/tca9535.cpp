@@ -136,11 +136,11 @@ esp_err_t tca9535::TCA9535WriteStruct(TCA9535_Register *reg, tca9535_reg_t reg_n
 
 	memcpy(reg_data, reg, sizeof(reg_data));
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, ( TCA9535_ADDRESS << 1 ) | i2c_rw_t::I2C_MASTER_WRITE,ACK_CHECK_EN);
-	i2c_master_write_byte(cmd, reg_num, ACK_CHECK_EN);
-	i2c_master_write(cmd, reg_data, 2, ACK_VAL);
-	i2c_master_stop(cmd);
+	ESP_ERROR_CHECK(i2c_master_start(cmd));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, ( TCA9535_ADDRESS << 1 ) | i2c_rw_t::I2C_MASTER_WRITE,ACK_CHECK_EN));
+	ESP_ERROR_CHECK(i2c_master_write_byte(cmd, reg_num, ACK_CHECK_EN));
+	ESP_ERROR_CHECK(i2c_master_write(cmd, reg_data, 2, i2c_ack_type_t::I2C_MASTER_ACK));
+	ESP_ERROR_CHECK(i2c_master_stop(cmd));
 	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 100 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 

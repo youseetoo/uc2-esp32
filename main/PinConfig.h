@@ -535,6 +535,8 @@ struct UC2_3 : PinConfig
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
+     bool useFastAccelStepper = true;
+     int8_t AccelStepperMotorType = 1;
 
      int8_t LASER_1 = GPIO_NUM_12;
      int8_t LASER_2 = GPIO_NUM_4;
@@ -580,8 +582,7 @@ struct UC2_3 : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 
-     bool useFastAccelStepper = true;
-     int8_t AccelStepperMotorType = 1;
+    
 };
 
 const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

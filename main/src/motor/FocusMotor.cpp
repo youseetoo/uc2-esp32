@@ -170,9 +170,34 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 		outRegister.Port.P0.bit.Bit4 = value;
 	log_i("external pin cb for pin:%d value:%d", pin, value);
 	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
+	//if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))
 		log_e("i2c write failed");
 
 	return value;
+}
+
+void FocusMotor::dumpRegister(const char * name, TCA9535_Register configRegister)
+{
+	log_i("%s port0 b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  name,
+		  configRegister.Port.P0.bit.Bit0,
+		  configRegister.Port.P0.bit.Bit1,
+		  configRegister.Port.P0.bit.Bit2,
+		  configRegister.Port.P0.bit.Bit3,
+		  configRegister.Port.P0.bit.Bit4,
+		  configRegister.Port.P0.bit.Bit5,
+		  configRegister.Port.P0.bit.Bit6,
+		  configRegister.Port.P0.bit.Bit7);
+	/*log_i("%s port1 b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
+		  name,
+		  configRegister.Port.P1.bit.Bit0,
+		  configRegister.Port.P1.bit.Bit1,
+		  configRegister.Port.P1.bit.Bit2,
+		  configRegister.Port.P1.bit.Bit3,
+		  configRegister.Port.P1.bit.Bit4,
+		  configRegister.Port.P1.bit.Bit5,
+		  configRegister.Port.P1.bit.Bit6,
+		  configRegister.Port.P1.bit.Bit7);*/
 }
 
 void FocusMotor::init_tca()
@@ -188,69 +213,38 @@ void FocusMotor::init_tca()
 		log_i("tca9535 init!");
 	TCA9535_Register configRegister;
 	_tca9535->TCA9535ReadInput(&configRegister);
-	log_i("Input b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  configRegister.Port.P0.bit.Bit0,
-		  configRegister.Port.P0.bit.Bit1,
-		  configRegister.Port.P0.bit.Bit2,
-		  configRegister.Port.P0.bit.Bit3,
-		  configRegister.Port.P0.bit.Bit4,
-		  configRegister.Port.P0.bit.Bit5,
-		  configRegister.Port.P0.bit.Bit6,
-		  configRegister.Port.P0.bit.Bit7);
+	dumpRegister("Input", configRegister);
 	_tca9535->TCA9535ReadOutput(&configRegister);
-	log_i("Output b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  configRegister.Port.P0.bit.Bit0,
-		  configRegister.Port.P0.bit.Bit1,
-		  configRegister.Port.P0.bit.Bit2,
-		  configRegister.Port.P0.bit.Bit3,
-		  configRegister.Port.P0.bit.Bit4,
-		  configRegister.Port.P0.bit.Bit5,
-		  configRegister.Port.P0.bit.Bit6,
-		  configRegister.Port.P0.bit.Bit7);
+	dumpRegister("Output", configRegister);
 	_tca9535->TCA9535ReadPolarity(&configRegister);
-	log_i("Polarity b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  configRegister.Port.P0.bit.Bit0,
-		  configRegister.Port.P0.bit.Bit1,
-		  configRegister.Port.P0.bit.Bit2,
-		  configRegister.Port.P0.bit.Bit3,
-		  configRegister.Port.P0.bit.Bit4,
-		  configRegister.Port.P0.bit.Bit5,
-		  configRegister.Port.P0.bit.Bit6,
-		  configRegister.Port.P0.bit.Bit7);
+	dumpRegister("Polarity", configRegister);
 	_tca9535->TCA9535ReadConfig(&configRegister);
-	log_i("Config b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  configRegister.Port.P0.bit.Bit0,
-		  configRegister.Port.P0.bit.Bit1,
-		  configRegister.Port.P0.bit.Bit2,
-		  configRegister.Port.P0.bit.Bit3,
-		  configRegister.Port.P0.bit.Bit4,
-		  configRegister.Port.P0.bit.Bit5,
-		  configRegister.Port.P0.bit.Bit6,
-		  configRegister.Port.P0.bit.Bit7);
+	dumpRegister("Config", configRegister);
 
-	configRegister.Port.P0.bit.Bit0 = 1; // motor enable
-	configRegister.Port.P0.bit.Bit1 = 1; // x
-	configRegister.Port.P0.bit.Bit2 = 1; // y
-	configRegister.Port.P0.bit.Bit3 = 1; // z
-	configRegister.Port.P0.bit.Bit4 = 1; // a
-	configRegister.Port.P0.bit.Bit5 = 0;
-	configRegister.Port.P0.bit.Bit6 = 0;
-	configRegister.Port.P0.bit.Bit7 = 0;
+	configRegister.Port.P0.bit.Bit0 = 0; // motor enable
+	configRegister.Port.P0.bit.Bit1 = 0; // x
+	configRegister.Port.P0.bit.Bit2 = 0; // y
+	configRegister.Port.P0.bit.Bit3 = 0; // z
+	configRegister.Port.P0.bit.Bit4 = 0; // a
+	configRegister.Port.P0.bit.Bit5 = 1;
+	configRegister.Port.P0.bit.Bit6 = 1;
+	configRegister.Port.P0.bit.Bit7 = 1;
+
+	/*configRegister.Port.P1.bit.Bit0 = 1; // motor enable
+	configRegister.Port.P1.bit.Bit1 = 1; // x
+	configRegister.Port.P1.bit.Bit2 = 1; // y
+	configRegister.Port.P1.bit.Bit3 = 1; // z
+	configRegister.Port.P1.bit.Bit4 = 1; // a
+	configRegister.Port.P1.bit.Bit5 = 0;
+	configRegister.Port.P1.bit.Bit6 = 0;
+	configRegister.Port.P1.bit.Bit7 = 0;*/
 	if (ESP_OK != _tca9535->TCA9535WriteConfig(&configRegister))
 		log_e("failed to write config to tca9535");
 	else
 		log_i("tca9535 config written!");
 
 	_tca9535->TCA9535ReadConfig(&configRegister);
-	log_i("b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  configRegister.Port.P0.bit.Bit0,
-		  configRegister.Port.P0.bit.Bit1,
-		  configRegister.Port.P0.bit.Bit2,
-		  configRegister.Port.P0.bit.Bit3,
-		  configRegister.Port.P0.bit.Bit4,
-		  configRegister.Port.P0.bit.Bit5,
-		  configRegister.Port.P0.bit.Bit6,
-		  configRegister.Port.P0.bit.Bit7);
+	dumpRegister("Config", configRegister);
 }
 
 void FocusMotor::setup()

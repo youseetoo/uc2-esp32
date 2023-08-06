@@ -106,7 +106,7 @@ void FAccelStep::setupFastAccelStepper()
 void FAccelStep::setupFastAccelStepper(Stepper stepper, int motoren, int motordir, int motorstp)
 {
     faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
-    faststeppers[stepper]->setEnablePin(motoren, false);
+    faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
     faststeppers[stepper]->setDirectionPin(motordir, false);
     faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
     faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);

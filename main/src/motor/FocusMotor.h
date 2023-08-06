@@ -46,4 +46,5 @@ private:
 	void enableEnablePin(int i);
 
 	void init_tca();
+	void dumpRegister(const char * name, TCA9535_Register configRegister);
 };

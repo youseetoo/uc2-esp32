@@ -15,6 +15,7 @@ enum class AvailableModules
     led,
     motor,
     home,
+    encoder,
     pid,
     scanner,
     analogin,

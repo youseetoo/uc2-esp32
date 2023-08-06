@@ -156,6 +156,20 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 			serialize(moduleController.get(AvailableModules::home)->get(jsonDocument));
 		}
 	}
+	/*
+	  Encoders
+	*/
+	if (moduleController.get(AvailableModules::encoder) != nullptr)
+	{
+		if (strcmp(task, encoder_act_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::encoder)->act(jsonDocument));
+		}
+		if (strcmp(task, encoder_get_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::encoder)->get(jsonDocument));
+		}
+	}
 
 	/*
 	  Drive DAC

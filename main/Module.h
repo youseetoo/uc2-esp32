@@ -8,6 +8,9 @@ class Module
     protected:
     int getJsonInt(cJSON* job,const char* key);
     void setJsonInt(cJSON* job,const char* key, int valToSet);
+    void setJsonFloat(cJSON* job,const char* key, float valToSet);
+    float getJsonFloat(cJSON* job,const char* key);
+    
     public:
     Module();
 	virtual ~Module();

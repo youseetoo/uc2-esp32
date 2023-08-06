@@ -95,6 +95,9 @@ namespace RestApi
 	esp_err_t HomeMotor_setESP(httpd_req_t *req);
     esp_err_t HomeMotor_getESP(httpd_req_t *req);
 
+	esp_err_t EncoderMotor_setESP(httpd_req_t *req);
+    esp_err_t EncoderMotor_getESP(httpd_req_t *req);
+
     esp_err_t laser_setESP(httpd_req_t *req);
     esp_err_t laser_getESP(httpd_req_t *req);
 

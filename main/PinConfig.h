@@ -129,6 +129,10 @@ struct PinConfig
      int8_t X_CAL_DATA = disabled;
      int8_t Y_CAL_DATA = disabled;
      int8_t Z_CAL_DATA = disabled;
+     int8_t X_CAL_CLK = disabled;
+     int8_t Y_CAL_CLK = disabled;
+     int8_t Z_CAL_CLK = disabled;
+
 
      // I2c
      int8_t I2C_SCL = disabled;
@@ -560,11 +564,15 @@ struct UC2_3 : PinConfig
      int8_t X_CAL_DATA = GPIO_NUM_32;
      int8_t Y_CAL_DATA = GPIO_NUM_34;
      int8_t Z_CAL_DATA = GPIO_NUM_36;
-
+     int8_t X_CAL_CLK = GPIO_NUM_33;
+     int8_t Y_CAL_CLK = GPIO_NUM_35;
+     int8_t Z_CAL_CLK = GPIO_NUM_17;
+     
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD = 0x27;
+     gpio_num_t  I2C_INT = GPIO_NUM_27;
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_23;

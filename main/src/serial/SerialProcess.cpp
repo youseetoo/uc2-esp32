@@ -56,6 +56,9 @@ void SerialProcess::loop()
 		}
 		else
 		{
+			const char *error_ptr = cJSON_GetErrorPtr();
+			if(error_ptr != NULL)
+				log_i("error while parsing:%s",error_ptr);
 			log_i("Serial input is null");
 		}
 		c.clear();

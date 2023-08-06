@@ -61,7 +61,6 @@ void FAccelStep::setupFastAccelStepper()
     // setup the data
     for (int i = 0; i < faststeppers.size(); i++)
     {
-        data[i] = new MotorData();
         faststeppers[i] = nullptr;
     }
 

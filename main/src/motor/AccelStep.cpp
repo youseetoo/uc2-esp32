@@ -77,11 +77,6 @@ void AccelStep::setupAccelStepper()
         }
     }
 
-    for (int i = 0; i < steppers.size(); i++)
-    {
-        data[i] = new MotorData();
-    }
-
     /*
        Motor related settings
     */

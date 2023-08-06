@@ -256,6 +256,11 @@ void FocusMotor::init_tca()
 void FocusMotor::setup()
 {
 	// setup the pins
+	 for (int i = 0; i < data.size(); i++)
+    {
+        data[i] = new MotorData();
+    }
+
 	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
 	if (pinConfig.MOTOR_A_DIR > 0)

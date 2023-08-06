@@ -5,9 +5,19 @@ Module::~Module(){}
 
 
 int Module::getJsonInt(cJSON* job,const char* key){
+    if(job == NULL)
+    {
+        log_e("json %s is null", key);
+        return 0;
+    }
     cJSON *val = cJSON_GetObjectItemCaseSensitive(job, key);
-    if (cJSON_IsNumber(val) && val->valueint != NULL)
-        return val->valueint;
+    if(val == NULL)
+    {
+        log_e("json value %s is null", key);
+        return 0;
+    }
+    if (cJSON_IsNumber(val))
+        return cJSON_GetNumberValue(val);
     return 0;
 }
 

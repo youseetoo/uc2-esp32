@@ -74,11 +74,19 @@ int FocusMotor::act(cJSON *doc)
 				data[s]->acceleration = getJsonInt(stp, key_acceleration);
 				data[s]->isaccelerated = getJsonInt(stp, key_isaccel);
 				cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-				if (cstop != NULL || (!data[s]->isforever && !data[s]->absolutePosition && !data[s]->stopped))
+				if (cstop != NULL)
 					stopStepper(s);
 				else
 					startStepper(s);
-				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", s, data[s]->isforever, data[s]->speed, data[s]->maxspeed, data[s]->targetPosition, data[s]->absolutePosition, data[s]->isaccelerated, data[s]->acceleration);
+				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", 
+				s, 
+				data[s]->isforever, 
+				data[s]->speed, 
+				data[s]->maxspeed, 
+				data[s]->targetPosition, 
+				data[s]->absolutePosition, 
+				data[s]->isaccelerated, 
+				data[s]->acceleration);
 			}
 		}
 		else

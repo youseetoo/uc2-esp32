@@ -429,8 +429,8 @@ struct UC2_OMNISCOPE : PinConfig
      int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = false;
 
-     String mSSID = "Blynk";   //"omniscope";
-     String mPWD = "12345678"; //"omniscope";
+     const char * mSSID = "Blynk";   //"omniscope";
+     const char * mPWD = "12345678"; //"omniscope";
      bool mAP = false;
 };
 
@@ -478,7 +478,7 @@ struct UC2_3 : PinConfig
      This is the newest electronics where direction/enable are on a seperate port extender
      */
      /*
-      String pindefName = "UC2_3";
+      const char * pindefName = "UC2_3";
 
      Y_Cal-Data 34
      X_Cal-Data 32
@@ -535,7 +535,7 @@ struct UC2_3 : PinConfig
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
-     bool useFastAccelStepper = true;
+     bool useFastAccelStepper = false;
      int8_t AccelStepperMotorType = 1;
 
      int8_t LASER_1 = GPIO_NUM_12;
@@ -553,7 +553,7 @@ struct UC2_3 : PinConfig
      int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
      int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
 
-     // String PSX_MAC = "1a:2b:3c:01:01:04";
+     // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      bool enableBlueTooth = true;
      bool useBtHID = true;

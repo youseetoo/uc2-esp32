@@ -12,6 +12,7 @@ class AccelStep
 private:
     bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
     std::array<AccelStepper *, 4> steppers;
+    std::array<TaskHandle_t *,4> stepper_task_handlers;
 
 public:
     std::array<MotorData *, 4> data;

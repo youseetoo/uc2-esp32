@@ -25,30 +25,29 @@ void driveMotorALoop(void *pvParameter)
 
 void AccelStep::setupAccelStepper()
 {
-
+    for(int i =0; i < stepper_task_handlers.size(); i++)
+    {
+        stepper_task_handlers[i] = NULL;
+    }
     if (pinConfig.I2C_SCL > 0)
     {
         if (pinConfig.MOTOR_A_STEP > -1)
         {
-            steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG);
-            steppers[Stepper::A]->setExternalCallForPin(_externalCallForPin);
+            steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG,-1,-1,true,_externalCallForPin);
         }
         if (pinConfig.MOTOR_X_STEP > -1)
         {
-            steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG);
-            steppers[Stepper::X]->setExternalCallForPin(_externalCallForPin);
+            steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG,-1,-1,true,_externalCallForPin);
             steppers[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-            steppers[Stepper::X]->setPinsInverted(false, false, false);
+            steppers[Stepper::X]->setPinsInverted(false, false, true);
         }
         if (pinConfig.MOTOR_Y_STEP > -1)
         {
-            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG);
-            steppers[Stepper::Y]->setExternalCallForPin(_externalCallForPin);
+            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG,-1,-1,true,_externalCallForPin);
         }
         if (pinConfig.MOTOR_Z_STEP > -1)
         {
-            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG);
-            steppers[Stepper::Z]->setExternalCallForPin(_externalCallForPin);
+            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG,-1,-1,true,_externalCallForPin);
         }
     }
     else
@@ -96,32 +95,30 @@ void AccelStep::setupAccelStepper()
             steppers[i]->setCurrentPosition(data[i]->currentPosition);
         }
     }
-    if (pinConfig.MOTOR_A_DIR > -1)
-        xTaskCreate(&driveMotorALoop, "motor_task_A", 1024, NULL, 5, NULL);
-    if (pinConfig.MOTOR_X_DIR > -1)
-        xTaskCreate(&driveMotorXLoop, "motor_task_X", 1024, NULL, 5, NULL);
-    if (pinConfig.MOTOR_Y_DIR > -1)
-        xTaskCreate(&driveMotorYLoop, "motor_task_Y", 1024, NULL, 5, NULL);
-    if (pinConfig.MOTOR_Z_DIR > -1)
-        xTaskCreate(&driveMotorZLoop, "motor_task_Z", 1024, NULL, 5, NULL);
+
 }
 
 void AccelStep::startAccelStepper(int i)
 {
+    //if(data[i]->stopped)
+        //return;
     log_d("start rotator: motor:%i, index: %i isforver:%i, speed: %i, maxSpeed: %i, steps: %i, isabsolute: %i, isacceleration: %i, acceleration: %i", i, data[i]->isforever, data[i]->speed, data[i]->maxspeed, data[i]->targetPosition, data[i]->absolutePosition, data[i]->isaccelerated, data[i]->acceleration);
     steppers[i]->setMaxSpeed(data[i]->maxspeed);
     steppers[i]->setAcceleration(data[i]->acceleration);
-    if (data[i]->absolutePosition == 1)
-    {
-        // absolute position coordinates
-        steppers[i]->moveTo(data[i]->targetPosition);
-    }
-    else if (!data[i]->isforever)
-    {
-        // relative coordinates
-        steppers[i]->move(data[i]->targetPosition);
-    }
     data[i]->stopped = false;
+    if (i == 0 && stepper_task_handlers[i] == NULL)
+        xTaskCreate(&driveMotorALoop, "motor_task_A", 4096, NULL, 5, stepper_task_handlers[i]);
+    //if (i == 1 && stepper_task_handlers[i] == NULL)
+    //{
+        xTaskCreatePinnedToCore(&driveMotorXLoop, "motor_task_X", 12000, NULL, 5, stepper_task_handlers[i],1);
+        log_i("started x task");
+    //}
+    //else
+    //    log_i("x wont start");
+    if (i == 2 && stepper_task_handlers[i] == NULL)
+        xTaskCreate(&driveMotorYLoop, "motor_task_Y", 4096, NULL, 5, stepper_task_handlers[i]);
+    if (i == 3 && stepper_task_handlers[i] == NULL)
+        xTaskCreate(&driveMotorZLoop, "motor_task_Z", 4096, NULL, 5, stepper_task_handlers[i]);
 }
 
 void AccelStep::stopAccelStepper(int i)
@@ -137,7 +134,8 @@ void AccelStep::driveMotorLoop(int stepperid)
 {
     AccelStepper *s = steppers[stepperid];
     MotorData *d = data[stepperid];
-    for (;;)
+    log_i("Start Task %i", stepperid);
+    while (!d->stopped)
     {
         s->setMaxSpeed(d->maxspeed);
         if (d->isforever)
@@ -169,6 +167,9 @@ void AccelStep::driveMotorLoop(int stepperid)
         d->currentPosition = s->currentPosition();
         vTaskDelay(1 / portTICK_PERIOD_MS);
     }
+    d->stopped = true;
+    log_i("Stop Task %i", stepperid);
+    vTaskDelete(stepper_task_handlers[stepperid]);
 }
 
 void AccelStep::Enable(bool en)

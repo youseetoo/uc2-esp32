@@ -173,3 +173,9 @@ void FAccelStep::setPosition(Stepper s, int val)
 {
     faststeppers[s]->setCurrentPosition(val);
 }
+
+
+bool FAccelStep::isRunning(int i)
+{
+    return faststeppers[i]->isRunning();
+}

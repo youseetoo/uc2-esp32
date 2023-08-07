@@ -20,4 +20,5 @@ class FAccelStep
     void setAutoEnable(bool enable);
     void Enable(bool enable);
     void setPosition(Stepper s, int val);
+    bool isRunning(int i);
 };

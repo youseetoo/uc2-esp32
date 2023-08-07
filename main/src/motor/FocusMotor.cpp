@@ -170,13 +170,13 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 		outRegister.Port.P0.bit.Bit4 = value;
 	log_i("external pin cb for pin:%d value:%d", pin, value);
 	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
-	//if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))
+		// if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))
 		log_e("i2c write failed");
 
 	return value;
 }
 
-void FocusMotor::dumpRegister(const char * name, TCA9535_Register configRegister)
+void FocusMotor::dumpRegister(const char *name, TCA9535_Register configRegister)
 {
 	log_i("%s port0 b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
 		  name,
@@ -250,10 +250,10 @@ void FocusMotor::init_tca()
 void FocusMotor::setup()
 {
 	// setup the pins
-	 for (int i = 0; i < data.size(); i++)
-    {
-        data[i] = new MotorData();
-    }
+	for (int i = 0; i < data.size(); i++)
+	{
+		data[i] = new MotorData();
+	}
 
 	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
@@ -291,6 +291,21 @@ void FocusMotor::setup()
 // dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
 {
+	if (pinConfig.useFastAccelStepper)
+	{
+		// checks if a stepper is still running
+		for (int i = 0; i < data.size(); i++)
+		{
+			bool isRunning = faccel.isRunning(i);
+			if (!isRunning && !data[i]->stopped)
+			{
+				// Only send the information when the motor is halting
+				log_d("Sending motor pos %i", i);
+				stopStepper(i);
+				sendMotorPos(i, 0);
+			}
+		}
+	}
 }
 
 void FocusMotor::sendMotorPos(int i, int arraypos)

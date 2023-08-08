@@ -582,6 +582,8 @@ struct UC2_3 : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 
+     // WiFI
+     bool enableWifi = false;
     
 };
 

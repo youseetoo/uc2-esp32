@@ -168,7 +168,7 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 		outRegister.Port.P0.bit.Bit3 = value;
 	if (pin == 104) // a
 		outRegister.Port.P0.bit.Bit4 = value;
-	log_i("external pin cb for pin:%d value:%d", pin, value);
+	//log_i("external pin cb for pin:%d value:%d", pin, value);
 	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
 		// if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))
 		log_e("i2c write failed");

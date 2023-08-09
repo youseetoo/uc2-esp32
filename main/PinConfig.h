@@ -133,7 +133,6 @@ struct PinConfig
      int8_t Y_CAL_CLK = disabled;
      int8_t Z_CAL_CLK = disabled;
 
-
      // I2c
      int8_t I2C_SCL = disabled;
      int8_t I2C_SDA = disabled;
@@ -365,7 +364,7 @@ struct UC2e : PinConfig
      int8_t I2C_SCL = GPIO_NUM_22; // I2C_SCL, SCL, PCIe B5
 };
 
-struct UC2_WEMOS : PinConfig
+struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
      const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
@@ -380,14 +379,14 @@ struct UC2_WEMOS : PinConfig
      int8_t MOTOR_ENABLE = GPIO_NUM_12;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     int8_t LASER_1 = GPIO_NUM_18;
-     int8_t LASER_2 = GPIO_NUM_19;
-     int8_t LASER_3 = disabled; // GPIO_NUM_21
+     int8_t LASER_1 = GPIO_NUM_18; // WEMOS_D1_R32_SPINDLE_ENABLE_PIN
+     int8_t LASER_2 = GPIO_NUM_19; // WEMOS_D1_R32_SPINDLEPWMPIN
+     int8_t LASER_3 = GPIO_NUM_13; // WEMOS_D1_R32_X_LIMIT_PIN
 
      int8_t LED_PIN = GPIO_NUM_4;
      int8_t LED_COUNT = 64;
 
-     int8_t PIN_DEF_END_X = GPIO_NUM_13;
+     int8_t PIN_DEF_END_X = 0;
      int8_t PIN_DEF_END_Y = disabled; // GPIO_NUM_5;
      int8_t PIN_DEF_END_Z = disabled; // GPIO_NUM_23;
 
@@ -429,8 +428,8 @@ struct UC2_OMNISCOPE : PinConfig
      int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = false;
 
-     const char * mSSID = "Blynk";   //"omniscope";
-     const char * mPWD = "12345678"; //"omniscope";
+     const char *mSSID = "Blynk";   //"omniscope";
+     const char *mPWD = "12345678"; //"omniscope";
      bool mAP = false;
 };
 
@@ -569,20 +568,18 @@ struct UC2_3 : PinConfig
      int8_t X_CAL_CLK = GPIO_NUM_33;
      int8_t Y_CAL_CLK = GPIO_NUM_35;
      int8_t Z_CAL_CLK = GPIO_NUM_17;
-     
+
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD = 0x27;
-     gpio_num_t  I2C_INT = GPIO_NUM_27;
+     gpio_num_t I2C_INT = GPIO_NUM_27;
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
-
-    
 };
 
 const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

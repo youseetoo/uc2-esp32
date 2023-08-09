@@ -21,6 +21,7 @@ struct MotorData
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
+	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
 };
 
 enum Stepper

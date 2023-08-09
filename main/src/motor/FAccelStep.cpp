@@ -73,6 +73,7 @@ void FAccelStep::setupFastAccelStepper()
             setupFastAccelStepper(Stepper::A, 100 | PIN_EXTERNAL_FLAG, 104 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
         else
             setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
+        data[Stepper::A]->isActivated = true;
     }
 
     // setup the stepper X
@@ -82,6 +83,7 @@ void FAccelStep::setupFastAccelStepper()
             setupFastAccelStepper(Stepper::X, 100 | PIN_EXTERNAL_FLAG, 101 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
         else
             setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
+        data[Stepper::X]->isActivated = true;
     }
 
     // setup the stepper Y
@@ -91,6 +93,7 @@ void FAccelStep::setupFastAccelStepper()
             setupFastAccelStepper(Stepper::Y, 100 | PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
         else
             setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
+        data[Stepper::Y]->isActivated = true;
     }
 
     // setup the stepper Z
@@ -100,6 +103,7 @@ void FAccelStep::setupFastAccelStepper()
             setupFastAccelStepper(Stepper::Z, 100 | PIN_EXTERNAL_FLAG, 103 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
         else
             setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
+        data[Stepper::Z]->isActivated = true;
     }
 }
 

@@ -25,60 +25,83 @@ void driveMotorALoop(void *pvParameter)
 
 void AccelStep::setupAccelStepper()
 {
+    /*
+      Motor related settings
+    */
     for (int i = 0; i < taskRunning.size(); i++)
     {
         taskRunning[i] = false;
     }
-    if (pinConfig.I2C_SCL > 0)
+
+    if (pinConfig.MOTOR_A_STEP > -1)
     {
-        if (pinConfig.MOTOR_A_STEP > -1)
+        if (pinConfig.I2C_SCL > 0)
         {
             steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+            data[Stepper::A]->isActivated = true;
         }
-        if (pinConfig.MOTOR_X_STEP > -1)
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+        {
+            steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR);
+        }
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
+        {
+            steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
+        }
+        data[Stepper::A]->isActivated = true;
+    }
+    if (pinConfig.MOTOR_X_STEP > -1)
+    {
+        if (pinConfig.I2C_SCL > 0)
         {
             steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
             steppers[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
             steppers[Stepper::X]->setPinsInverted(false, false, true);
         }
-        if (pinConfig.MOTOR_Y_STEP > -1)
-        {
-            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-        }
-        if (pinConfig.MOTOR_Z_STEP > -1)
-        {
-            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-        }
-    }
-    else
-    {
         if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
         {
-            if (pinConfig.MOTOR_A_STEP > -1)
-                steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR);
-            if (pinConfig.MOTOR_X_STEP > -1)
-                steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
-            if (pinConfig.MOTOR_Y_STEP > -1)
-                steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR);
-            if (pinConfig.MOTOR_Z_STEP > -1)
-                steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
+            steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
         }
         else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
         {
-            if (pinConfig.MOTOR_A_STEP > -1)
-                steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
-            if (pinConfig.MOTOR_X_STEP > -1)
-                steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
-            if (pinConfig.MOTOR_Y_STEP > -1)
-                steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
-            if (pinConfig.MOTOR_Z_STEP > -1)
-                steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
+            steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
         }
+        data[Stepper::X]->isActivated = true;
+    }
+    if (pinConfig.MOTOR_Y_STEP > -1)
+    {
+        if (pinConfig.I2C_SCL > 0)
+        {
+            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+        }
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+        {
+            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR);
+        }
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
+        {
+            steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
+        }
+        data[Stepper::Y]->isActivated = true;
+    }
+    if (pinConfig.MOTOR_Z_STEP > -1)
+    {
+        if (pinConfig.I2C_SCL > 0)
+        {
+            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+        }
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+        {
+            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
+        }
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
+        {
+            steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
+        }
+        data[Stepper::Z]->isActivated = true;
     }
 
-    /*
-       Motor related settings
-    */
+    
 
     // setting default values
     for (int i = 0; i < steppers.size(); i++)
@@ -127,7 +150,7 @@ void AccelStep::startAccelStepper(int i)
     steppers[i]->setAcceleration(data[i]->acceleration);
     if (data[i]->absolutePosition)
     {
-        if(data[i]->currentPosition == data[i]->targetPosition)
+        if (data[i]->currentPosition == data[i]->targetPosition)
             return;
         // absolute position coordinates
         steppers[i]->moveTo(data[i]->targetPosition);
@@ -184,7 +207,7 @@ void AccelStep::driveMotorLoop(int stepperid)
             if (!s->run())
                 stopAccelStepper(stepperid);
             // checks if a stepper is still running
-            //log_i("distance to go:%i", s->distanceToGo());
+            // log_i("distance to go:%i", s->distanceToGo());
             if (s->distanceToGo() == 0 && !d->stopped)
             {
                 log_i("stop stepper:%i", stepperid);

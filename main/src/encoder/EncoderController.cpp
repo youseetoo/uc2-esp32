@@ -19,9 +19,56 @@ Handle REST calls to the EncoderController module
 int EncoderController::act(cJSON * j)
 {
 	// set position
-	cJSON * setpos = cJSON_GetObjectItem(j,key_setposition);
 	if (DEBUG)
-		Serial.println("encoder_act_fct");
+		log_i("encoder_act_fct");
+
+	// set position
+	cJSON * calibrate = cJSON_GetObjectItem(j,key_encoder_calibrate);
+
+
+	if(calibrate != NULL)
+	{
+		// {"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 0, "currentpos": 0 } ]}}
+		// depending on the axis, move for 1000 steps forward and measure the distance using the encoder in mm
+		// do the same for the way back and calculate the steps per mm
+		// print calibrate cjson
+		log_i("calibrate %s", cJSON_Print(calibrate));
+		cJSON * stprs = cJSON_GetObjectItem(calibrate,key_steppers);
+		log_i("calibrate %s", cJSON_Print(stprs));
+		if (stprs != NULL)
+		{
+			// print stprs
+			log_i("stprs %s", cJSON_Print(stprs));
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			cJSON * stp = NULL;
+			cJSON_ArrayForEach(stp,stprs)
+			{
+				log_i("stp %s", cJSON_Print(stp));
+				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp,key_stepperid)->valueint);
+				// calibrate for 1000 steps in X 
+				float steps_to_go = 1000;
+
+				// read encoder value for X and store value
+				float posval_init = readValue(edata[s]->clkPin, edata[s]->dataPin);
+
+				// move 1000 steps forward in background 
+				motor->move(s, steps_to_go, true);
+
+				// read encoder value for X and store value
+				float posval_final = readValue(edata[s]->clkPin, edata[s]->dataPin);
+
+				// calculate steps per mm
+				float steps_per_mm = steps_to_go / (posval_final - posval_init);
+
+				// store steps per mm in config
+				//ConfigController *config = (ConfigController *)moduleController.get(AvailableModules::config);
+				//config->setEncoderStepsPerMM(s, steps_per_mm);
+				log_d("calibrated encoder %i with %f steps per mm", s, steps_per_mm);
+				//motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
+			}
+		}
+		
+	}		
 	return 1;
 }
 

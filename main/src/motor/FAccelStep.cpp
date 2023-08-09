@@ -179,3 +179,9 @@ bool FAccelStep::isRunning(int i)
 {
     return faststeppers[i]->isRunning();
 }
+
+void FAccelStep::move(Stepper s, int steps, bool blocking)
+{
+    // move the motor by the given steps 
+    faststeppers[s]->move(steps, blocking);
+}

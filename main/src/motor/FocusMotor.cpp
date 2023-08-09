@@ -390,3 +390,12 @@ void FocusMotor::setPosition(Stepper s, int pos)
 		faccel.setPosition(s, pos);
 	}
 }
+
+void FocusMotor::move(Stepper s, int steps, bool blocking)
+{
+	if (pinConfig.useFastAccelStepper)
+	{
+		faccel.move(s, steps, blocking);
+	}
+
+}

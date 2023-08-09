@@ -79,7 +79,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = 
 __attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_timeout = "timeout";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_getpos = "posval";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "maxspeed";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "calpos";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
 

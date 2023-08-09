@@ -15,7 +15,7 @@ void sendUpdateToClients(void *p)
 				motor->sendMotorPos(i, arraypos);
 			}
 		}
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }
 
@@ -294,6 +294,7 @@ void FocusMotor::setup()
 		accel.data = data;
 		accel.setupAccelStepper();
 	}
+	xTaskCreate(sendUpdateToClients,"sendUpdateToClients",4096,NULL,6,NULL);
 }
 
 // dont use it, it get no longer triggered from modulehandler
@@ -311,6 +312,9 @@ void FocusMotor::loop()
 				log_d("Sending motor pos %i", i);
 				stopStepper(i);
 				sendMotorPos(i, 0);
+				preferences.begin("motor-positions", false);
+				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+				preferences.end();
 			}
 		}
 	}
@@ -318,6 +322,10 @@ void FocusMotor::loop()
 
 void FocusMotor::sendMotorPos(int i, int arraypos)
 {
+	if(pinConfig.useFastAccelStepper)
+		faccel.updateData(i);
+	else
+		accel.updateData(i);
 	cJSON *root = cJSON_CreateObject();
 	cJSON *stprs = cJSON_CreateArray();
 	cJSON_AddItemToObject(root, key_steppers, stprs);
@@ -340,10 +348,6 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	free(s);
 	Serial.println();
 	Serial.println("--");
-
-	preferences.begin("motor-positions", false);
-	preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-	preferences.end();
 }
 
 void FocusMotor::stopStepper(int i)

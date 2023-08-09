@@ -46,7 +46,9 @@ namespace RestApi
             }
             cur_len += received;
         }
-        cJSON *doc = cJSON_Parse(buf);
+        cJSON *doc = NULL;
+        if(total_req_len > 0)
+            doc = cJSON_Parse(buf);
         return doc;
     }
 
@@ -55,7 +57,8 @@ namespace RestApi
         httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
         httpd_resp_set_type(req, "application/json");
         char * s = cJSON_Print(doc);
-        httpd_resp_sendstr(req, s);
+        //log_i("send:%s", s);
+        httpd_resp_send(req, s, strlen(s));
         free(s);
     }
 
@@ -109,7 +112,7 @@ namespace RestApi
 
     esp_err_t getEndpoints(httpd_req_t *req)
     {
-        cJSON *doc = cJSON_CreateObject();
+        cJSON *doc = cJSON_CreateArray();
         cJSON_AddItemToArray(doc, cJSON_CreateString(ota_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(update_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(identity_endpoint));

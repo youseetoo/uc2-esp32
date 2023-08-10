@@ -82,6 +82,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_encoder_getpos = "posva
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "calpos";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
 
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
 

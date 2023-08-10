@@ -47,6 +47,7 @@ int FocusMotor::act(cJSON *doc)
 		}
 	}
 
+	// only set motors to autoenable
 	cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
 	if (autoen != NULL)
 	{
@@ -55,6 +56,7 @@ int FocusMotor::act(cJSON *doc)
 			faccel.setAutoEnable(autoen->valueint);
 		}
 	}
+
 
 	cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 	if (mot != NULL)

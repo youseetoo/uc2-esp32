@@ -20,6 +20,8 @@ int HomeMotor::act(cJSON * j)
 {
 	// set position
 	cJSON * setpos = cJSON_GetObjectItem(j,key_setposition);
+	// {"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+	
 	if (DEBUG)
 		Serial.println("home_act_fct");
 	if(setpos != NULL)
@@ -33,6 +35,7 @@ int HomeMotor::act(cJSON * j)
 			{
 				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp,key_stepperid)->valueint);
 				motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
+				log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
 			}
 		}
 		

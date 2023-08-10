@@ -123,6 +123,73 @@ payload = {
 {"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":0}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":0, "led_array":[{"id":0, "r":0, "g":5, "b":0}]}}
 
+# center spot 
+{"task":"/ledarr_act", "led":{"LEDArrMode":8, "led_array":[
+    {"id":0, "r":255, "g":255, "b":255}]}}
+{"task":"/ledarr_act", "led":{"LEDArrMode":8, "led_array":[
+    {"id":0, "r":0, "g":0, "b":0}]}}
+
+
+# middle ring 
+{"task":"/ledarr_act", "led":{"LEDArrMode":8, "led_array":[
+    {"id":1, "r":255, "g":255, "b":255},
+    {"id":2, "r":255, "g":255, "b":255},
+    {"id":3, "r":255, "g":255, "b":255},
+    {"id":4, "r":255, "g":255, "b":255},
+    {"id":5, "r":255, "g":255, "b":255},
+    {"id":6, "r":255, "g":255, "b":255},
+    {"id":7, "r":255, "g":255, "b":255},
+    {"id":8, "r":255, "g":255, "b":255},
+    {"id":9, "r":255, "g":255, "b":255}]}}
+
+{"task":"/ledarr_act", "led":{"LEDArrMode":8, "led_array":[
+    {"id":1, "r":0, "g":0, "b":0},
+    {"id":2, "r":0, "g":0, "b":0},
+    {"id":3, "r":0, "g":0, "b":0},
+    {"id":4, "r":0, "g":0, "b":0},
+    {"id":5, "r":0, "g":0, "b":0},
+    {"id":6, "r":0, "g":0, "b":0},
+    {"id":7, "r":0, "g":0, "b":0},
+    {"id":8, "r":0, "g":0, "b":0},
+    {"id":9, "r":0, "g":0, "b":0}]}}
+
+# outer ring
+{"task":"/ledarr_act", "led":{"LEDArrMode":8, "led_array":[
+    {"id":9, "r":255, "g":255, "b":255},
+    {"id":10, "r":255, "g":255, "b":255},
+    {"id":11, "r":255, "g":255, "b":255},
+    {"id":12, "r":255, "g":255, "b":255},
+    {"id":13, "r":255, "g":255, "b":255},
+    {"id":14, "r":255, "g":255, "b":255},
+    {"id":15, "r":255, "g":255, "b":255},
+    {"id":16, "r":255, "g":255, "b":255},
+    {"id":17, "r":255, "g":255, "b":255},
+    {"id":18, "r":255, "g":255, "b":255},
+    {"id":19, "r":255, "g":255, "b":255},
+    {"id":20, "r":255, "g":255, "b":255},
+    {"id":21, "r":255, "g":255, "b":255},
+    {"id":22, "r":255, "g":255, "b":255}, 
+    {"id":23, "r":255, "g":255, "b":255},
+    {"id":24, "r":255, "g":255, "b":255}]}}
+
+{"task":"/ledarr_act", "led":{"LEDArrMode":8, "led_array":[
+    {"id":9, "r":0, "g":0, "b":0},
+    {"id":10, "r":0, "g":0, "b":0},
+    {"id":11, "r":0, "g":0, "b":0},
+    {"id":12, "r":0, "g":0, "b":0},
+    {"id":13, "r":0, "g":0, "b":0},
+    {"id":14, "r":0, "g":0, "b":0},
+    {"id":15, "r":0, "g":0, "b":0},
+    {"id":16, "r":0, "g":0, "b":0},
+    {"id":17, "r":0, "g":0, "b":0},
+    {"id":18, "r":0, "g":0, "b":0},
+    {"id":19, "r":0, "g":0, "b":0},
+    {"id":20, "r":0, "g":0, "b":0},
+    {"id":21, "r":0, "g":0, "b":0},
+    {"id":22, "r":0, "g":0, "b":0}, 
+    {"id":23, "r":0, "g":0, "b":0},
+    {"id":24, "r":0, "g":0, "b":0}]}}
+
 {"task":"/motor_get"}
 {"task":"/bt_scan"}
 
@@ -140,10 +207,23 @@ payload = {
         ]
     }
 }
+
+{"task":"/motor_act",
+    "motor":
+    {
+        "steppers": [
+            { "stepperid": 1, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0},
+            { "stepperid": 3, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0},
+            { "stepperid": 2, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0},
+            { "stepperid": 2, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0}
+        ]
+    }
+}
+
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 10090, "speed": -10000, "isabs": 0, "isaccel":0}]}}
 
-{"task":"/encoder_get", "encoder": { "posval": 1,    "id": 0  }}
-
+{"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -3200 , "speed": 10000} ]}}
+{"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}
 
 
 {"task":"/motor_act",
@@ -156,6 +236,8 @@ payload = {
     }
 }
 
+{"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}]}}
+{"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 {"task":"/motor_act", "isen":1, "isenauto":0}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -1000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
@@ -165,7 +247,8 @@ payload = {
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
-
+{"task":"/motor_get"}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -50000, "speed": 15000, "isabs": 1, "isaccel":1, "accel":1000}]}}
 gives
 ++
 {

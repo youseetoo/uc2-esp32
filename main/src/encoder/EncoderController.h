@@ -8,8 +8,13 @@ struct EncoderData
 	float posval = 0.0f;
 	bool requestPosition = false;
 	int encoderID = -1;
-	int clkPin = -1;
+	bool requestCalibration = false;
+	int calibsteps = 0;
 	int dataPin = -1;
+	int clkPin = -1;
+	float valuePreCalib = 0.0f;
+	float valuePostCalib = 0.0f;
+	float stepsPerMM = 0.0f;
 };
 
 void processHomeLoop(void * p);

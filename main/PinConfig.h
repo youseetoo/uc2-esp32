@@ -53,6 +53,7 @@ struct PinConfig
      // keep motors on after idle time?
      bool MOTOR_AUTOENABLE = false;
 
+     gpio_num_t  I2C_INT = GPIO_NUM_NC;
      int8_t MOTOR_X_0 = disabled;
      int8_t MOTOR_X_1 = disabled;
      int8_t MOTOR_Y_0 = disabled;
@@ -70,7 +71,7 @@ struct PinConfig
      // anlog joystick x pin
      int8_t ANLOG_JOYSTICK_X = disabled;
      // analog joystick y pin
-     int8_t ANLOG_JOYSTICK_Y = disabled;
+     int8_t ANLOG_JOYSTICK_Y = disabled; 
 
      int8_t LASER_1 = disabled;
      int8_t LASER_2 = disabled;

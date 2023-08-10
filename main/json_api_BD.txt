@@ -220,9 +220,9 @@ payload = {
     }
 }
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 10090, "speed": -10000, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 
-{"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -3200 , "speed": 10000} ]}}
+{"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 20000} ]}}
 {"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}
 
 

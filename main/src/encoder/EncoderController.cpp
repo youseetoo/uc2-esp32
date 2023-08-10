@@ -156,7 +156,7 @@ void EncoderController::loop()
 		// check if we need to read the encoder for all motors
 		for (int i = 0; i < motor->data.size(); i++)
 		{
-			if (edata[i]->requestCalibration and motor->data[0]->stopped)
+			if (edata[i]->requestCalibration and motor->data[i]->stopped)
 			{
 				edata[i]->requestCalibration = false;
 				delay(1000); // wait until slide settles

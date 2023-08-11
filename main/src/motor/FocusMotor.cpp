@@ -58,6 +58,30 @@ int FocusMotor::act(cJSON *doc)
 	}
 
 
+
+	// set position
+	cJSON * setpos = cJSON_GetObjectItem(doc,key_setposition);
+	// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+
+	if(setpos != NULL)
+	{
+		log_d("setpos");
+		cJSON * stprs = cJSON_GetObjectItem(setpos,key_steppers);
+		if (stprs != NULL)
+		{
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			cJSON * stp = NULL;
+			cJSON_ArrayForEach(stp,stprs)
+			{
+				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp,key_stepperid)->valueint);
+				motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
+				log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
+			}
+		}
+		return 1;
+	}
+	
+
 	cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 	if (mot != NULL)
 	{

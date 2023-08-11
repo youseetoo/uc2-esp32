@@ -236,8 +236,10 @@ payload = {
     }
 }
 
+{"task":"/home_act", "setpos":1, "home": {"steppers": [{"stepperid":1, "posval": 20000}]}}
 {"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}]}}
-{"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+{"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+{"task": "/motor_get"}
 {"task":"/motor_act", "isen":1, "isenauto":0}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -1000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
@@ -271,8 +273,6 @@ gives
 {"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
 
 
-
-{"task":"/home_act", "setpos":1, "home": {"steppers": [{"stepperid":1, "posval": 20000}]}}
 
 {"task":"/rotator_get"}
 {"task":"/rotator_act",

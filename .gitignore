@@ -13,3 +13,4 @@ build/firmware.bin
 #build/partitions.bin
 .github/workflows/Bildschirmfoto 2022-12-15 um 22.37.11.png
 /build/*
+/dependencies.lock

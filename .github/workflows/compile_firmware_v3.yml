@@ -1,0 +1,160 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Compile ESP32 Platformio
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  workflow_dispatch:
+  
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: bthid
+        submodules: recursive
+    - name: Set up Python
+      uses: actions/setup-python@v1
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        pip install esptool
+        dir 
+    # It is important to first install the libraries before compiling, since otherwise compilation might fail to find the just-installed libraries
+    - name: Install platformIO libraries
+      run: pio lib install
+      
+    # run for WEMOS => pindef.h
+    - name: Find and Replace (UC2-WEMOS)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "static UC2"
+        replace: "static UC2_WEMOS pinConfig; //"
+        regex: false
+
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 merge_bin  -o esp32_wemos.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/merged-firmware.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/esp32_wemos.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+        
+    # run for uc2-standalone-v1
+    - name: Find and Replace (UC2-1)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "static UC2"
+        replace: "static UC2_1 pinConfig; //"
+        regex: false
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 merge_bin  -o esp32_uc2_1.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/esp32_uc2_1.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/esp32_uc2_1.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+        
+    # run for uc2-standalone-v2
+    - name: Find and Replace (UC2-2)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "static UC2"
+        replace: "static UC2_2 pinConfig; //"
+        regex: false
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 merge_bin  -o esp32_uc2_2.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/esp32_uc2_2.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/esp32_uc2_2.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+
+    # run for uc2-standalone-v3
+    - name: Find and Replace (UC2-3)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "static UC2"
+        replace: "static UC2_3 pinConfig; //"
+        regex: false
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 merge_bin  -o esp32_uc2_3.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/esp32_uc2_2.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/esp32_uc2_3.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+                

@@ -479,7 +479,7 @@ struct UC2_3 : PinConfig
      This is the newest electronics where direction/enable are on a seperate port extender
      */
      /*
-      const char * pindefName = "UC2_3";
+      
 
      Y_Cal-Data 34
      X_Cal-Data 32
@@ -529,6 +529,8 @@ struct UC2_3 : PinConfig
      C561273
      */
 
+     const char * pindefName = "UC2_3";
+     
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;

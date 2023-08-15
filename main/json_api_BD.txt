@@ -250,7 +250,7 @@ payload = {
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_get"}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -50000, "speed": 15000, "isabs": 1, "isaccel":1, "accel":1000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5000, "speed": 15000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 gives
 ++
 {

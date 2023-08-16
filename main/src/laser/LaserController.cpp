@@ -40,10 +40,8 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 		if (LASER_val_wiggle < 0)
 			LASER_val_wiggle += (2 * abs(laserwiggle));
 
-		if (DEBUG)
-			Serial.println(LASERid);
-		if (DEBUG)
-			Serial.println(LASER_val_wiggle);
+		log_d(LASERid);
+		log_d(LASER_val_wiggle);
 
 		ledcWrite(PWM_CHANNEL_LASER, LASER_val_wiggle);
 

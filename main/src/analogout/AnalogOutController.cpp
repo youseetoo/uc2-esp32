@@ -27,7 +27,7 @@ void AnalogOutController::setup()
 int AnalogOutController::act(cJSON* ob)
 {
 	// here you can do something
-	Serial.println("analogout_act_fct");
+	log_d("analogout_act_fct");
 	cJSON *monitor_json = ob;
 
 	int analogoutid = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutid")->valueint; //(ob)["analogoutid"];
@@ -35,10 +35,8 @@ int AnalogOutController::act(cJSON* ob)
 
 	if (DEBUG)
 	{
-		Serial.print("analogoutid ");
-		Serial.println(analogoutid);
-		Serial.print("analogoutval ");
-		Serial.println(analogoutval);
+		log_d("analogoutid %i", analogoutid);
+		log_d("analogoutval%i",  analogoutval);
 	}
 
 	if (analogoutid == 1)

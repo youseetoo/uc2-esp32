@@ -8,7 +8,7 @@ DigitalInController::~DigitalInController(){};
 int DigitalInController::act(cJSON* jsonDocument)
 {
 	// here you can do something
-	Serial.println("digitalin_act_fct");
+	log_d("digitalin_act_fct");
 	return 1;
 }
 

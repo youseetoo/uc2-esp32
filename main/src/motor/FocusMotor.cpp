@@ -320,6 +320,8 @@ void FocusMotor::setup()
 		accel.data = data;
 		accel.setupAccelStepper();
 	}
+	log_i("Creating Task sendUpdateToClients");
+	xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
 }
 
 // dont use it, it get no longer triggered from modulehandler
@@ -334,7 +336,7 @@ void FocusMotor::loop()
 			if (!isRunning && !data[i]->stopped)
 			{
 				// Only send the information when the motor is halting
-				log_d("Sending motor pos %i", i);
+				// log_d("Sending motor pos %i", i);
 				stopStepper(i);
 				sendMotorPos(i, 0);
 			}
@@ -351,20 +353,20 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	cJSON_AddItemToArray(stprs, item);
 	cJSON_AddNumberToObject(item, key_stepperid, i);
 	cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-	cJSON_AddNumberToObject(item, "isDone", true);
+	cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 	arraypos++;
 
 	if (moduleController.get(AvailableModules::wifi) != nullptr)
 	{
 		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
 		w->sendJsonWebSocketMsg(root);
-	}
+	} 
 	// print result - will that work in the case of an xTask?
 	Serial.println("++");
 	char *s = cJSON_Print(root);
 	Serial.println(s);
 	free(s);
-	Serial.println();
+	//Serial.println();
 	Serial.println("--");
 
 	preferences.begin("motor-positions", false);

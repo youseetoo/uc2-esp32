@@ -10,17 +10,15 @@ int AnalogInController::act(cJSON* ob)
 {
 	cJSON *monitor_json = ob;
 	// here you can do something
-	if (DEBUG)
-		Serial.println("readanalogin_act_fct");
+	log_d("readanalogin_act_fct");
 	int readanaloginID = cJSON_GetObjectItemCaseSensitive(monitor_json, key_N_analogin_avg)->valueint; //(int)(ob)[key_readanaloginID];
 	int mN_analogin_avg = N_analogin_avg;
 	if (readanaloginID != NULL)
 		mN_analogin_avg = readanaloginID;
 	int analoginpin = 0;
 
-	if (DEBUG)
-		Serial.print(key_readanaloginID);
-	Serial.println(readanaloginID);
+	log_d(key_readanaloginID);
+	log_d(readanaloginID);
 	switch (readanaloginID)
 	{
 	case 0:
@@ -46,8 +44,7 @@ int AnalogInController::act(cJSON* ob)
 
 cJSON* AnalogInController::get(cJSON* ob)
 {
-	if (DEBUG)
-		Serial.println("readanalogin_set_fct");
+	log_d("readanalogin_set_fct");
 	
 	cJSON *monitor_json = ob;
 	int readanaloginID = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginID)->valueint; //(int)(ob)[key_readanaloginID];

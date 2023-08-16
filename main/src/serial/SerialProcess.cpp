@@ -20,6 +20,7 @@ SerialProcess::~SerialProcess()
 
 void SerialProcess::loop()
 {
+
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
 	{
@@ -48,17 +49,17 @@ void SerialProcess::loop()
 
 				cJSON *string = cJSON_GetObjectItemCaseSensitive(root, "task");
 				char *ss = cJSON_GetStringValue(string);
-				log_i("Process task:%s", ss);
+				// log_i("Process task:%s", ss);
 				jsonProcessor(ss, root);
 			}
-			
+
 			cJSON_Delete(root);
 		}
 		else
 		{
 			const char *error_ptr = cJSON_GetErrorPtr();
-			if(error_ptr != NULL)
-				log_i("error while parsing:%s",error_ptr);
+			if (error_ptr != NULL)
+				log_i("error while parsing:%s", error_ptr);
 			log_i("Serial input is null");
 		}
 		c.clear();
@@ -68,9 +69,9 @@ void SerialProcess::loop()
 void SerialProcess::serialize(cJSON *doc)
 {
 	Serial.println("++");
-	if(doc != NULL)
+	if (doc != NULL)
 	{
-		char * s = cJSON_Print(doc);
+		char *s = cJSON_Print(doc);
 		Serial.println(s);
 		cJSON_Delete(doc);
 		free(s);
@@ -84,7 +85,7 @@ void SerialProcess::serialize(int success)
 	cJSON *v = cJSON_CreateNumber(success);
 	cJSON_AddItemToObject(doc, "success", v);
 	Serial.println("++");
-	char * s = cJSON_Print(doc);
+	char *s = cJSON_Print(doc);
 	Serial.println(s);
 	cJSON_Delete(doc);
 	free(s);
@@ -94,11 +95,17 @@ void SerialProcess::serialize(int success)
 
 void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 {
+
+	// Check if the command gets through
+	int moduleAvailable = false;
 	/*
 	 enabling/disabling modules
 	 */
 	if (strcmp(task, modules_get_endpoint) == 0)
+	{
 		serialize(moduleController.get());
+		moduleAvailable = true;
+	}
 
 	// Handle BTController
 	/*
@@ -123,11 +130,13 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		{
 			log_i("State act");
 			serialize(moduleController.get(AvailableModules::state)->act(jsonDocument));
+			moduleAvailable = true;
 		}
 		if (strcmp(task, state_get_endpoint) == 0)
 		{
 			log_i("State get");
 			serialize(moduleController.get(AvailableModules::state)->get(jsonDocument));
+			moduleAvailable = true;
 		}
 	}
 	/*
@@ -139,10 +148,12 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		{
 			log_i("process motor act");
 			serialize(moduleController.get(AvailableModules::motor)->act(jsonDocument));
+			moduleAvailable = true;
 		}
 		if (strcmp(task, motor_get_endpoint) == 0)
 		{
 			serialize(moduleController.get(AvailableModules::motor)->get(jsonDocument));
+			moduleAvailable = true;
 		}
 	}
 	/*
@@ -153,10 +164,12 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		if (strcmp(task, home_act_endpoint) == 0)
 		{
 			serialize(moduleController.get(AvailableModules::home)->act(jsonDocument));
+			moduleAvailable = true;
 		}
 		if (strcmp(task, home_get_endpoint) == 0)
 		{
 			serialize(moduleController.get(AvailableModules::home)->get(jsonDocument));
+			moduleAvailable = true;
 		}
 	}
 	/*
@@ -167,10 +180,12 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		if (strcmp(task, encoder_act_endpoint) == 0)
 		{
 			serialize(moduleController.get(AvailableModules::encoder)->act(jsonDocument));
+			moduleAvailable = true;
 		}
 		if (strcmp(task, encoder_get_endpoint) == 0)
 		{
 			serialize(moduleController.get(AvailableModules::encoder)->get(jsonDocument));
+			moduleAvailable = true;
 		}
 	}
 
@@ -180,9 +195,15 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::dac) != nullptr)
 	{
 		if (strcmp(task, dac_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::dac)->act(jsonDocument));
+			moduleAvailable = true;
+		}
 		if (strcmp(task, dac_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::dac)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 	/*
 	  Drive Laser
@@ -190,9 +211,15 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::laser) != nullptr)
 	{
 		if (strcmp(task, laser_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::laser)->act(jsonDocument));
+			moduleAvailable = true;
+		}
 		if (strcmp(task, laser_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::laser)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 	/*
 	  Drive analogout
@@ -200,9 +227,16 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::analogout) != nullptr)
 	{
 		if (strcmp(task, analogout_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::analogout)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+
 		if (strcmp(task, analogout_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::analogout)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 	/*
 	  Drive digitalout
@@ -210,9 +244,15 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::digitalout) != nullptr)
 	{
 		if (strcmp(task, digitalout_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::digitalout)->act(jsonDocument));
+			moduleAvailable = true;
+		}
 		if (strcmp(task, digitalout_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::digitalout)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 	/*
 	  Drive digitalin
@@ -220,9 +260,16 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::digitalin) != nullptr)
 	{
 		if (strcmp(task, digitalin_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::digitalin)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+
 		if (strcmp(task, digitalin_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::digitalin)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 	/*
 	  Drive LED Matrix
@@ -230,9 +277,16 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::led) != nullptr)
 	{
 		if (strcmp(task, ledarr_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::led)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+
 		if (strcmp(task, ledarr_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::led)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 
 	/*
@@ -241,9 +295,16 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::analogin) != nullptr)
 	{
 		if (strcmp(task, readanalogin_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::analogin)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+
 		if (strcmp(task, readanalogin_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::analogin)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 
 	/*
@@ -252,31 +313,45 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (moduleController.get(AvailableModules::pid) != nullptr)
 	{
 		if (strcmp(task, PID_act_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::pid)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+
 		if (strcmp(task, PID_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::pid)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 
 	if (moduleController.get(AvailableModules::analogJoystick) != nullptr)
 	{
 		if (strcmp(task, analog_joystick_get_endpoint) == 0)
+		{
 			serialize(moduleController.get(AvailableModules::analogJoystick)->get(jsonDocument));
+			moduleAvailable = true;
+		}
 	}
 
 	if (strcmp(task, scanwifi_endpoint) == 0)
-	{ // {"task":"/wifi/scan"}
+	{
 		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
 		serialize(w->scan());
+		moduleAvailable = true;
+	}
+	{ // {"task":"/wifi/scan"}
 	}
 	if (strcmp(task, connectwifi_endpoint) == 0 && moduleController.get(AvailableModules::wifi) != nullptr)
 	{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
 		w->connect(jsonDocument);
+		moduleAvailable = true;
 	}
 	/*if (task == reset_nv_flash_endpoint)
 	{
 		RestApi::resetNvFLash();
-	}*/
+	}*/ 
 	if (strcmp(task, bt_connect_endpoint) == 0 && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
@@ -291,11 +366,19 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		{
 			bt->connectPsxController(mac, ps);
 		}
+		moduleAvailable = true;
 	}
 	if (strcmp(task, bt_scan_endpoint) == 0 && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
 		bt->scanForDevices(jsonDocument);
+		moduleAvailable = true;
+	}
+	// module has not been loaded, so we need at least some error handling/message
+	if (!moduleAvailable)
+	{
+		// we want to state that the command didn't get through
+		serialize(0);
 	}
 }
 SerialProcess serial;

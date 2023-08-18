@@ -17,12 +17,20 @@ void State::loop()
 {
 }
 
+// {"task":"/state_act", "restart":1}
+// {"task":"/state_act", "delay":1000}
+// {"task":"/state_act", "isBusy":1}
+// {"task":"/state_act", "resetPreferences":1}
+
 // Custom function accessible by the API
 int State::act(cJSON *  doc)
 {
 	// here you can do something
 	if (DEBUG)
 		log_i("state_act_fct");
+		
+	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
+	
 	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
 	// assign default values to thhe variables
 	if (restart != NULL)
@@ -42,7 +50,7 @@ int State::act(cJSON *  doc)
 	{
 		isBusy = BUSY->valueint;
 	}
-	cJSON * reset = cJSON_GetObjectItemCaseSensitive(doc,"isRest");
+	cJSON * reset = cJSON_GetObjectItemCaseSensitive(doc,"resetPrefs");
 	if (reset != NULL){
 		log_i("resetPreferences");
 		Preferences preferences;

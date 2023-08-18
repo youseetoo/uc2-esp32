@@ -34,14 +34,24 @@ void SerialProcess::loop()
 			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
 			if (tasks != NULL)
 			{
-				log_i("Process tasks");
-				cJSON *t = NULL;
-				char *string = NULL;
-				cJSON_ArrayForEach(t, tasks)
+
+				// {"tasks":[{"task":"/state_get"},{"task":"/state_act", "delay":1000}],"nTimes":2}
+				int nTimes = 1;
+				// perform the table n-times
+				if (cJSON_GetObjectItemCaseSensitive(root, "nTimes")->valueint != NULL)
+					nTimes = cJSON_GetObjectItemCaseSensitive(root, "nTimes")->valueint;
+
+				for (int i = 0; i < nTimes; i++)
 				{
-					cJSON *ta = cJSON_GetObjectItemCaseSensitive(t, "task");
-					string = cJSON_GetStringValue(ta);
-					jsonProcessor(string, t);
+					log_i("Process tasks");
+					cJSON *t = NULL;
+					char *string = NULL;
+					cJSON_ArrayForEach(t, tasks)
+					{
+						cJSON *ta = cJSON_GetObjectItemCaseSensitive(t, "task");
+						string = cJSON_GetStringValue(ta);
+						jsonProcessor(string, t);
+					}
 				}
 			}
 			else
@@ -79,11 +89,11 @@ void SerialProcess::serialize(cJSON *doc)
 	Serial.println("--");
 }
 
-void SerialProcess::serialize(int success)
+void SerialProcess::serialize(int idsuccess)
 {
 	cJSON *doc = cJSON_CreateObject();
-	cJSON *v = cJSON_CreateNumber(success);
-	cJSON_AddItemToObject(doc, "success", v);
+	cJSON *v = cJSON_CreateNumber(idsuccess);
+	cJSON_AddItemToObject(doc, "idsuccess", v);
 	Serial.println("++");
 	char *s = cJSON_Print(doc);
 	Serial.println(s);
@@ -351,7 +361,7 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	/*if (task == reset_nv_flash_endpoint)
 	{
 		RestApi::resetNvFLash();
-	}*/ 
+	}*/
 	if (strcmp(task, bt_connect_endpoint) == 0 && moduleController.get(AvailableModules::btcontroller) != nullptr)
 	{
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}

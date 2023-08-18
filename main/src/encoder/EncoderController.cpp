@@ -140,7 +140,6 @@ void sendPosition(int axis)
 	cJSON_Delete(json);
 	Serial.println(ret);
 	free(ret);
-	Serial.println();
 	Serial.println("--");
 }
 

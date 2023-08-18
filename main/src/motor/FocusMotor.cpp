@@ -321,7 +321,7 @@ void FocusMotor::setup()
 		accel.setupAccelStepper();
 	}
 	log_i("Creating Task sendUpdateToClients");
-	xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
+	//xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
 }
 
 // dont use it, it get no longer triggered from modulehandler
@@ -366,7 +366,6 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	char *s = cJSON_Print(root);
 	Serial.println(s);
 	free(s);
-	//Serial.println();
 	Serial.println("--");
 
 	preferences.begin("motor-positions", false);

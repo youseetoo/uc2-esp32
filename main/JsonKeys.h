@@ -4,6 +4,8 @@
 __attribute__ ((unused)) static const PROGMEM char * keyLEDPin = "ledArrPin";
 __attribute__ ((unused)) static const PROGMEM char * keyLEDCount = "ledArrNum";
 
+__attribute__ ((unused)) static const PROGMEM char * keyQueueID = "qid";
+
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut1Pin = "digitaloutPin1";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut2Pin = "digitaloutPin2";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut3Pin = "digitaloutPin3";

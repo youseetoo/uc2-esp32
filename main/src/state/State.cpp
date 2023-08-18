@@ -26,11 +26,11 @@ void State::loop()
 int State::act(cJSON *  doc)
 {
 	// here you can do something
-	if (DEBUG)
-		log_i("state_act_fct");
+	log_i("state_act_fct");
 		
-	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
-	
+	// get the command queue id from serial if available and add that to the return json
+	int qid = getJsonInt(doc, keyQueueID);
+
 	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
 	// assign default values to thhe variables
 	if (restart != NULL)
@@ -61,12 +61,17 @@ int State::act(cJSON *  doc)
 		ESP.restart();
 		return true;
 	}
-	return 1;
+	return qid;
 }
 
 // Custom function accessible by the API
 cJSON *  State::get(cJSON *  docin)
-{
+{	// {"task":"/state_get", "qid":2}
+
+	// get the command queue id from serial if available and add that to the return json
+	int qid = getJsonInt(docin, "qid");
+	
+	// create the return json document
 	cJSON * doc = cJSON_CreateObject(); 
 
 	// GET SOME PARAMETERS HERE
@@ -84,6 +89,7 @@ cJSON *  State::get(cJSON *  docin)
 		cJSON_AddItemToObject(doc,"IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
 		cJSON_AddItemToObject(doc,"configIsSet", cJSON_CreateNumber(config_set));
 		cJSON_AddItemToObject(doc,"pindef", cJSON_CreateString(pinConfig.pindefName));
+		cJSON_AddItemToObject(doc,keyQueueID, cJSON_CreateNumber(qid));
 	}
 	return doc;
 }

@@ -18,7 +18,7 @@
 #include "src/scanner/ScannerController.h"
 #include "src/wifi/WifiController.h"
 #include "cJSON.h"
-
+#include "Module.h"
 
 void ModuleController::setup()
 {
@@ -187,7 +187,7 @@ Module *ModuleController::get(AvailableModules mod)
 
 cJSON * ModuleController::get()
 {
-    cJSON * doc = cJSON_CreateObject();
+    cJSON * doc = cJSON_CreateObject();    
     cJSON * mod = cJSON_CreateObject();
     cJSON_AddItemToObject(doc,key_modules,mod);
     cJSON_AddItemToObject(mod,keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));

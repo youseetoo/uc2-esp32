@@ -16,9 +16,6 @@ int AnalogInController::act(cJSON* ob)
 	if (readanaloginID != NULL)
 		mN_analogin_avg = readanaloginID;
 	int analoginpin = 0;
-
-	log_d(key_readanaloginID);
-	log_d(readanaloginID);
 	switch (readanaloginID)
 	{
 	case 0:

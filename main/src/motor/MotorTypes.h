@@ -21,6 +21,7 @@ struct MotorData
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
+	int qid = -1; // for keeping sync with commands sent by the serial and their responses
 };
 
 enum Stepper

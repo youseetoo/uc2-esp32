@@ -82,8 +82,8 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 	errorRunSum = errorRunSum + error;
 	previousError = error;
 
-	if (DEBUG)
-		log_d("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
+// 	if (DEBUG)
+		//log_d("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
 	return stepperOut;
 }
 

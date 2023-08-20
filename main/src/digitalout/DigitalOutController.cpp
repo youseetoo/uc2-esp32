@@ -65,8 +65,6 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_1, digitalout_val_1);
-			log_d("DIGITAL_OUT ");
-			log_d(pinConfig.DIGITAL_OUT_1);
 		}
 	}
 	else if (digitaloutid == 2)
@@ -82,8 +80,6 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_2, digitalout_val_2);
-			log_d("DIGITAL_OUT ");
-			log_d(pinConfig.DIGITAL_OUT_2);
 		}
 	}
 	else if (digitaloutid == 3)
@@ -99,8 +95,6 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_3, digitalout_val_3);
-			log_d("DIGITAL_OUT ");
-			log_d(pinConfig.DIGITAL_OUT_3);
 		}
 	}
 	return 1;

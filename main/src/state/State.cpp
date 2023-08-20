@@ -67,7 +67,6 @@ int State::act(cJSON *  doc)
 // Custom function accessible by the API
 cJSON *  State::get(cJSON *  docin)
 {	// {"task":"/state_get", "qid":2}
-
 	// get the command queue id from serial if available and add that to the return json
 	int qid = getJsonInt(docin, "qid");
 	

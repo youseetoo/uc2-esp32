@@ -49,8 +49,7 @@ void BtController::setup()
             removeAllPairedDevices();
             m = (char*)pinConfig.PSX_MAC;
             type = pinConfig.PSX_CONTROLLER_TYPE;
-            log_d("Using MAC address");
-            log_d(pinConfig.PSX_MAC);
+            log_d("Using MAC address %c", pinConfig.PSX_MAC);
         }
 
         // if the mac is not empty, try to connect to the psx controller

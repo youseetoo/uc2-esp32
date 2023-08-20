@@ -19,6 +19,7 @@ Handle REST calls to the HomeMotor module
 int HomeMotor::act(cJSON * j)
 {
 	cJSON * home = cJSON_GetObjectItem(j,key_home);
+	int qid = getJsonInt(j, "qid");
 	if (home != NULL)
 	{
 		cJSON * stprs = cJSON_GetObjectItem(home,key_steppers);
@@ -35,7 +36,7 @@ int HomeMotor::act(cJSON * j)
 				hdata[s]->homeDirection =getJsonInt(stp,key_home_direction);
 				hdata[s]->homeEndposRelease=getJsonInt(stp,key_home_endposrelease);
 				hdata[s]->homeEndStopPolarity =getJsonInt(stp,key_home_endstoppolarity);
-
+				hdata[s]->qid = qid;
 				// grab current time
 				hdata[s]->homeTimeStarted = millis();
 				hdata[s]->homeIsActive = true;
@@ -60,11 +61,14 @@ int HomeMotor::act(cJSON * j)
 cJSON * HomeMotor::get(cJSON * ob)
 {
 	log_i("home_get_fct");
+	int qid = getJsonInt(ob, "qid");
 	cJSON * doc = cJSON_CreateObject();
 	cJSON * home = cJSON_CreateObject();
 	cJSON_AddItemToObject(doc,key_home, home);
+	cJSON_AddItemToObject(doc, keyQueueID, cJSON_CreateNumber(qid));
 	cJSON * arr = cJSON_CreateArray();
 	cJSON_AddItemToObject(home,key_steppers, arr);
+	
 
 	// add the home data to the json
 

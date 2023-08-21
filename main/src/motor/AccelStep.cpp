@@ -163,6 +163,12 @@ void AccelStep::stopAccelStepper(int i)
     data[i]->stopped = true;
 }
 
+bool AccelStep::isRunning(int stepperid){
+    AccelStepper *s = steppers[stepperid];
+    MotorData *d = data[stepperid];
+    return s->isRunning();
+}
+
 void AccelStep::driveMotorLoop(int stepperid)
 {
     taskRunning[stepperid] = true;

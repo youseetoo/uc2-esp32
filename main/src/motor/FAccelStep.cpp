@@ -4,7 +4,7 @@
 void FAccelStep::startFastAccelStepper(int i)
 {
     // enableEnablePin(i);
-
+    log_i("Start Stepper %i ", i);
     if (faststeppers[i] == nullptr)
     {
         return;

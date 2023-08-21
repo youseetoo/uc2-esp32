@@ -55,7 +55,7 @@ int HomeMotor::act(cJSON * j)
 			}
 		}
 	}
-	return 1;
+	return qid; 
 }
 
 cJSON * HomeMotor::get(cJSON * ob)
@@ -116,14 +116,19 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *mot
 			// stopping motor and going reversing direction to release endstops
 			int speed = motor->data[s]->speed;
 			motor->stopStepper(s);
+			Serial.println("STOP");
+			motor->setPosition(s, 0);
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
 			if (speed > 0)
 				motor->data[s]->targetPosition = -hdata[s]->homeEndposRelease;
 			else
 				motor->data[s]->targetPosition = hdata[s]->homeEndposRelease;
+			motor->data[s]->absolutePosition = false;
 			motor->startStepper(s);
+			Serial.println("START");
 			// wait until stepper reached new position
-			while (motor->data[s]->currentPosition - motor->data[s]->targetPosition) delay(1);
+			while (motor->isRunning(s)) 
+				delay(1);
 			hdata[s]->homeIsActive = false;
 			motor->setPosition(s, 0);
 			motor->stopStepper(s);

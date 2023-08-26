@@ -119,7 +119,7 @@ payload = {
 {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 
 
-{"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
+{"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":0}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":0, "led_array":[{"id":0, "r":0, "g":5, "b":0}]}}
 
@@ -227,8 +227,9 @@ payload = {
     }
 }
 
-{"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 1, "position": -20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
-{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 1, "position": -20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+
+{"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -2000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": 20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 
 {"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 20000} ]}}
 {"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}

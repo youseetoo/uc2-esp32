@@ -127,3 +127,35 @@ jobs:
         user_name: 'beniroquai'
         commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
         
+    # run for uc2-standalone-v3
+    - name: Find and Replace (UC2-3)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "const UC2"
+        replace: "const UC2_3 pinConfig; //"
+        regex: false
+    - name: Run PlatformIO
+      run: pio run 
+    - name: merge into one binary
+      run: |
+        dir .pio/build/esp32dev/ 
+        mv .pio/build/esp32dev/*.bin build/
+        cd build
+        python -m esptool --chip esp32 merge_bin  -o esp32_uc2_3.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: build/esp32_uc2_3.bin
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'build/esp32_uc2_3.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'
+                
+

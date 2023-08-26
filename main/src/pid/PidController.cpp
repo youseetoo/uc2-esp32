@@ -15,7 +15,7 @@ int PidController::act(cJSON *ob)
 	PID_updaterate = getJsonInt(ob, key_PID_updaterate);
 	// here you can do something
 	if (DEBUG)
-		Serial.println("PID_act_fct");
+		log_d("PID_act_fct");
 
 	if (!PID_active)
 	{
@@ -82,8 +82,8 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 	errorRunSum = errorRunSum + error;
 	previousError = error;
 
-	if (DEBUG)
-		Serial.println("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
+// 	if (DEBUG)
+		//log_d("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
 	return stepperOut;
 }
 
@@ -91,7 +91,7 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 cJSON *PidController::get(cJSON *ob)
 {
 	if (DEBUG)
-		Serial.println("PID_get_fct");
+		log_d("PID_get_fct");
 	int PIDID = getJsonInt(ob, key_PIDID);
 	int PIDPIN = 0;
 	switch (PIDID)

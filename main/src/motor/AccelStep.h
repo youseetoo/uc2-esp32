@@ -24,4 +24,5 @@ public:
     void updateData(int i);
     void Enable(bool enable);
     void setPosition(Stepper s, int val);
+    bool isRunning(int i);
 };

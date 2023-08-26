@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 
 const long MAX_VELOCITY_A = 20000;
@@ -7,7 +7,7 @@ const long DEFAULT_ACCELERATION = 500000;
 
 struct MotorData
 {
-	
+
 	long speed = 0;
 	long maxspeed = 200000;
 	long acceleration = 0;
@@ -21,7 +21,9 @@ struct MotorData
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
+
 	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
+	int qid = -1; // for keeping sync with commands sent by the serial and their responses
 };
 
 enum Stepper

@@ -53,6 +53,7 @@ struct PinConfig
      // keep motors on after idle time?
      bool MOTOR_AUTOENABLE = false;
 
+     gpio_num_t  I2C_INT = GPIO_NUM_NC;
      int8_t MOTOR_X_0 = disabled;
      int8_t MOTOR_X_1 = disabled;
      int8_t MOTOR_Y_0 = disabled;
@@ -477,7 +478,7 @@ struct UC2_3 : PinConfig
      This is the newest electronics where direction/enable are on a seperate port extender
      */
      /*
-      const char * pindefName = "UC2_3";
+
 
      Y_Cal-Data 34
      X_Cal-Data 32
@@ -526,6 +527,8 @@ struct UC2_3 : PinConfig
      http://www.ti.com/lit/ds/symlink/tca9535.pdf
      C561273
      */
+
+     const char * pindefName = "UC2_3";
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
@@ -582,4 +585,4 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 };
 
-const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_2 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

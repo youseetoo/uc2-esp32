@@ -21,4 +21,5 @@ class FAccelStep
     void Enable(bool enable);
     void setPosition(Stepper s, int val);
     bool isRunning(int i);
+    void move(Stepper s, int steps, bool blocking);
 };

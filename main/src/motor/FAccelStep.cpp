@@ -4,7 +4,7 @@
 void FAccelStep::startFastAccelStepper(int i)
 {
     // enableEnablePin(i);
-
+    log_i("Start Stepper %i ", i);
     if (faststeppers[i] == nullptr)
     {
         return;
@@ -182,4 +182,10 @@ void FAccelStep::setPosition(Stepper s, int val)
 bool FAccelStep::isRunning(int i)
 {
     return faststeppers[i]->isRunning();
+}
+
+void FAccelStep::move(Stepper s, int steps, bool blocking)
+{
+    // move the motor by the given steps 
+    faststeppers[s]->move(steps, blocking);
 }

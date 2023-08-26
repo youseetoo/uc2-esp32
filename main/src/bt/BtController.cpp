@@ -49,8 +49,7 @@ void BtController::setup()
             removeAllPairedDevices();
             m = (char*)pinConfig.PSX_MAC;
             type = pinConfig.PSX_CONTROLLER_TYPE;
-            log_d("Using MAC address");
-            Serial.println(pinConfig.PSX_MAC);
+            log_d("Using MAC address %c", pinConfig.PSX_MAC);
         }
 
         // if the mac is not empty, try to connect to the psx controller
@@ -179,13 +178,13 @@ void BtController::loop()
             if (up && !laser_on)
             {
                 // Switch laser 2 on/off on up/down button press
-                Serial.print("Turning on LAser 10000");
+                log_d("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 20000);
                 laser_on = true;
             }
             if (down && laser_on)
             {
-                Serial.print("Turning off LAser ");
+                log_d("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_2, 0);
                 laser_on = false;
             }
@@ -194,13 +193,13 @@ void BtController::loop()
             // switch laser 2 on/off on triangle/square button press
             if (right && !laser2_on)
             {
-                Serial.print("Turning on LAser 10000");
+                log_d("Turning on LAser 10000");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 20000);
                 laser2_on = true;
             }
             if (left && laser2_on)
             {
-                Serial.print("Turning off LAser ");
+                log_d("Turning off LAser ");
                 ledcWrite(laser->PWM_CHANNEL_LASER_1, 0);
                 laser2_on = false;
             }
@@ -308,8 +307,6 @@ void BtController::loop()
                     analogout_val_1 += 1000;
                     ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
                 }
-                // Serial.println(analogout_val_1);
-                // delay(100);
             }
             if (l2)
             {
@@ -319,8 +316,6 @@ void BtController::loop()
                     analogout_val_1 -= 1000;
                     ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
                 }
-                // Serial.println(analogout_val_1);
-                // delay(100);
             }
 
             if (l1)
@@ -525,7 +520,7 @@ void BtController::removeAllPairedDevices()
     // Delete each paired device
     for (int i = 0; i < num_devices; i++)
     {
-        //Serial.println("REmoving device...");
+        log_d("REmoving device...");
         esp_bt_gap_remove_bond_device(devices[i]);
     }
 

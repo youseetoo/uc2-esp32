@@ -14,7 +14,7 @@
   {"identifier_name":"UC2_Feather","identifier_id":"V0.1","identifier_date":"2022-02-04","identifier_author":"BD"}
   --
 
-  {"task": "/state_set", "isdebug":0}
+  {"task": "/state_set"}
   {"task": "/state_get", "active":1}
   {"task": "/wifi/connect", "AP": 1,"PW": "","ssid": "Uc2"}
 //cant run inside tasks
@@ -25,7 +25,12 @@
 {"task":"/modules_set", "modules" : {"motor": 1, joy:1}}
 {"task":"/bt_connect","psx": 2, "mac":"4c:63:71:cd:31:a0"}
 //apply all pins at once
-{"tasks": [{"task":"/modules_set", "modules" : {"motor": 1, joy:1}},{"task":"/motor_set","motor":{"steppers": [{ "stepperid": 1, "step": 26, "dir": 16, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 1 },{ "stepperid": 2, "step": 25, "dir": 27, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 1 }]}},{"task":"/analog_joystick_set", "joy" : {"joyX": 35, joyY:34}}]}
+
+{"tasks":[{"task":"/state_act", "delay":1000},{"task":"/state_act", "restart":1}], "nTimes":2}
+{"task":"/state_act", "delay":1000}
+{"task":"/state_act", "restart":1}
+{"task":"/state_act", "isBusy":1}
+{"task":"/state_act", "resetPreferences":1}
 
 
   retrieve sensor value

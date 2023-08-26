@@ -1,5 +1,5 @@
 #pragma once
-#include <cjson/cJSON.h>
+#include "cJSON.h"
 #include <nvs_flash.h>
 #include "Endpoints.h"
 #include "Update.h"

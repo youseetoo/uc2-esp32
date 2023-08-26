@@ -18,27 +18,8 @@ Handle REST calls to the HomeMotor module
 */
 int HomeMotor::act(cJSON * j)
 {
-	// set position
-	cJSON * setpos = cJSON_GetObjectItem(j,key_setposition);
-	if (DEBUG)
-		Serial.println("home_act_fct");
-	if(setpos != NULL)
-	{
-		cJSON * stprs = cJSON_GetObjectItem(setpos,key_steppers);
-		if (stprs != NULL)
-		{
-			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-			cJSON * stp = NULL;
-			cJSON_ArrayForEach(stp,stprs)
-			{
-				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp,key_stepperid)->valueint);
-				motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
-			}
-		}
-		
-	}
-	
 	cJSON * home = cJSON_GetObjectItem(j,key_home);
+	int qid = getJsonInt(j, "qid");
 	if (home != NULL)
 	{
 		cJSON * stprs = cJSON_GetObjectItem(home,key_steppers);
@@ -55,7 +36,7 @@ int HomeMotor::act(cJSON * j)
 				hdata[s]->homeDirection =getJsonInt(stp,key_home_direction);
 				hdata[s]->homeEndposRelease=getJsonInt(stp,key_home_endposrelease);
 				hdata[s]->homeEndStopPolarity =getJsonInt(stp,key_home_endstoppolarity);
-
+				hdata[s]->qid = qid;
 				// grab current time
 				hdata[s]->homeTimeStarted = millis();
 				hdata[s]->homeIsActive = true;
@@ -74,17 +55,20 @@ int HomeMotor::act(cJSON * j)
 			}
 		}
 	}
-	return 1;
+	return qid; 
 }
 
 cJSON * HomeMotor::get(cJSON * ob)
 {
 	log_i("home_get_fct");
+	int qid = getJsonInt(ob, "qid");
 	cJSON * doc = cJSON_CreateObject();
 	cJSON * home = cJSON_CreateObject();
 	cJSON_AddItemToObject(doc,key_home, home);
+	cJSON_AddItemToObject(doc, keyQueueID, cJSON_CreateNumber(qid));
 	cJSON * arr = cJSON_CreateArray();
 	cJSON_AddItemToObject(home,key_steppers, arr);
+	
 
 	// add the home data to the json
 
@@ -121,7 +105,6 @@ void sendHomeDone(int axis)
 	cJSON_Delete(json);
 	Serial.println(ret);
 	free(ret);
-	Serial.println();
 	Serial.println("--");
 }
 
@@ -133,14 +116,17 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *mot
 			// stopping motor and going reversing direction to release endstops
 			int speed = motor->data[s]->speed;
 			motor->stopStepper(s);
+			motor->setPosition(s, 0);
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
 			if (speed > 0)
 				motor->data[s]->targetPosition = -hdata[s]->homeEndposRelease;
 			else
 				motor->data[s]->targetPosition = hdata[s]->homeEndposRelease;
+			motor->data[s]->absolutePosition = false;
 			motor->startStepper(s);
 			// wait until stepper reached new position
-			while (motor->data[s]->currentPosition - motor->data[s]->targetPosition) delay(1);
+			while (motor->isRunning(s)) 
+				delay(1);
 			hdata[s]->homeIsActive = false;
 			motor->setPosition(s, 0);
 			motor->stopStepper(s);

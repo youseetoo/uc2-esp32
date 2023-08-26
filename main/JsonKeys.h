@@ -4,6 +4,8 @@
 __attribute__ ((unused)) static const PROGMEM char * keyLEDPin = "ledArrPin";
 __attribute__ ((unused)) static const PROGMEM char * keyLEDCount = "ledArrNum";
 
+__attribute__ ((unused)) static const PROGMEM char * keyQueueID = "qid";
+
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut1Pin = "digitaloutPin1";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut2Pin = "digitaloutPin2";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut3Pin = "digitaloutPin3";
@@ -79,9 +81,10 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = 
 __attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_timeout = "timeout";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_getpos = "posval";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "maxspeed";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "calpos";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
 
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
 

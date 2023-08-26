@@ -40,11 +40,6 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 		if (LASER_val_wiggle < 0)
 			LASER_val_wiggle += (2 * abs(laserwiggle));
 
-		if (DEBUG)
-			Serial.println(LASERid);
-		if (DEBUG)
-			Serial.println(LASER_val_wiggle);
-
 		ledcWrite(PWM_CHANNEL_LASER, LASER_val_wiggle);
 
 		delay(LASERperiod);
@@ -56,6 +51,8 @@ int LaserController::act(cJSON * ob)
 {
 	// JSON String
 	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
+
+	int qid = getJsonInt(ob, keyQueueID);
 
 	// assign values
 	int LASERid = 0;
@@ -78,7 +75,7 @@ int LaserController::act(cJSON * ob)
 		LASER_despeckle_period_1 = LASERdespecklePeriod;
 		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		return 1;
+		return qid;
 	}
 	// action LASER 2
 	else if (LASERid == 2 && pinConfig.LASER_2 != 0)
@@ -88,7 +85,7 @@ int LaserController::act(cJSON * ob)
 		LASER_despeckle_period_2 = LASERdespecklePeriod;
 		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		return 1;
+		return qid;
 	}
 	// action LASER 3
 	else if (LASERid == 3 && pinConfig.LASER_3 != 0)
@@ -98,21 +95,23 @@ int LaserController::act(cJSON * ob)
 		LASER_despeckle_period_3 = LASERdespecklePeriod;
 		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		return 1;
+		return qid;
 	}
 	else
 	{
-		return 0;
+		return -qid;
 	}
 }
 
 // Custom function accessible by the API
 cJSON * LaserController::get(cJSON * ob)
 {
+	int qid = getJsonInt(ob, keyQueueID);
 	cJSON * j = cJSON_CreateObject();
 	setJsonInt(j,"LASER1pin", pinConfig.LASER_1);
 	setJsonInt(j,"LASER2pin", pinConfig.LASER_2);
 	setJsonInt(j,"LASER3pin", pinConfig.LASER_3);
+	setJsonInt(j,keyQueueID, qid);
 	return j;
 }
 

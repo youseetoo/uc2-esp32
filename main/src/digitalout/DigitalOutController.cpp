@@ -7,7 +7,7 @@ DigitalOutController::~DigitalOutController(){};
 int DigitalOutController::act(cJSON*  jsonDocument)
 {
 	// here you can do something
-	Serial.println("digitalout_act_fct");
+	log_d("digitalout_act_fct");
 	isBusy = true;
 	int triggerdelay = 10;
 
@@ -65,8 +65,6 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_1, digitalout_val_1);
-			Serial.print("DIGITAL_OUT ");
-			Serial.println(pinConfig.DIGITAL_OUT_1);
 		}
 	}
 	else if (digitaloutid == 2)
@@ -82,8 +80,6 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_2, digitalout_val_2);
-			Serial.print("DIGITAL_OUT ");
-			Serial.println(pinConfig.DIGITAL_OUT_2);
 		}
 	}
 	else if (digitaloutid == 3)
@@ -99,8 +95,6 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		else
 		{
 			digitalWrite(pinConfig.DIGITAL_OUT_3, digitalout_val_3);
-			Serial.print("DIGITAL_OUT ");
-			Serial.println(pinConfig.DIGITAL_OUT_3);
 		}
 	}
 	return 1;
@@ -118,25 +112,25 @@ cJSON*  DigitalOutController::get(cJSON*  jsonDocument)
 	if (digitaloutid == 1)
 	{
 		if (DEBUG)
-			Serial.println("digitalout 1");
+			log_d("digitalout 1");
 		digitaloutpin = pinConfig.DIGITAL_OUT_1;
 		digitaloutval = digitalout_val_1;
 	}
 	else if (digitaloutid == 2)
 	{
 		if (DEBUG)
-			Serial.println("AXIS 2");
+			log_d("AXIS 2");
 		if (DEBUG)
-			Serial.println("digitalout 2");
+			log_d("digitalout 2");
 		digitaloutpin = pinConfig.DIGITAL_OUT_2;
 		digitaloutval = digitalout_val_2;
 	}
 	else if (digitaloutid == 3)
 	{
 		if (DEBUG)
-			Serial.println("AXIS 3");
+			log_d("AXIS 3");
 		if (DEBUG)
-			Serial.println("digitalout 1");
+			log_d("digitalout 1");
 		digitaloutpin = pinConfig.DIGITAL_OUT_3;
 		digitaloutval = digitalout_val_3;
 	}
@@ -150,7 +144,7 @@ cJSON*  DigitalOutController::get(cJSON*  jsonDocument)
 
 void DigitalOutController::setup()
 {
-	Serial.println("Setting Up digitalout");
+	log_d("Setting Up digitalout");
 	/* setup the output nodes and reset them to 0*/
 	pinMode(pinConfig.DIGITAL_OUT_1, OUTPUT);
 

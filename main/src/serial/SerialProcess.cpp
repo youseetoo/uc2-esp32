@@ -18,6 +18,52 @@ SerialProcess::~SerialProcess()
 {
 }
 
+struct ModulesToCheck
+{
+	const char *act;
+	const char *get;
+	AvailableModules mod;
+};
+
+ModulesToCheck modulesToCheck[] = {
+	[0] = {.act = state_act_endpoint,
+		   .get = state_get_endpoint,
+		   .mod = AvailableModules::state},
+	[1] = {.act = motor_act_endpoint,
+		   .get = motor_get_endpoint,
+		   .mod = AvailableModules::motor},
+	[2] = {.act = home_act_endpoint,
+		   .get = home_get_endpoint,
+		   .mod = AvailableModules::home},
+	[3] = {.act = encoder_act_endpoint,
+		   .get = encoder_get_endpoint,
+		   .mod = AvailableModules::encoder},
+	[4] = {.act = dac_act_endpoint,
+		   .get = dac_get_endpoint,
+		   .mod = AvailableModules::dac},
+	[5] = {.act = laser_act_endpoint,
+		   .get = laser_get_endpoint,
+		   .mod = AvailableModules::laser},
+	[6] = {.act = analogout_act_endpoint,
+		   .get = analogout_get_endpoint,
+		   .mod = AvailableModules::analogout},
+	[7] = {.act = digitalout_act_endpoint,
+		   .get = digitalout_get_endpoint,
+		   .mod = AvailableModules::digitalout},
+	[8] = {.act = digitalin_act_endpoint,
+		   .get = digitalin_get_endpoint,
+		   .mod = AvailableModules::digitalin},
+	[9] = {.act = ledarr_act_endpoint,
+		   .get = ledarr_get_endpoint,
+		   .mod = AvailableModules::led},
+	[10] = {.act = readanalogin_act_endpoint,
+			.get = readanalogin_get_endpoint,
+			.mod = AvailableModules::analogin},
+	[11] = {.act = PID_act_endpoint,
+			.get = PID_get_endpoint,
+			.mod = AvailableModules::pid},
+};
+
 void SerialProcess::loop()
 {
 
@@ -108,231 +154,32 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 
 	// Check if the command gets through
 	int moduleAvailable = false;
-	/*
-	 enabling/disabling modules
-	 */
+
+	// loop through modules with act and get methods
+	size_t size = sizeof(modulesToCheck) / sizeof(modulesToCheck[0]);
+	for (size_t i = 0; i < size; i++)
+	{
+		if (moduleController.get(modulesToCheck[i].mod) != nullptr)
+		{
+			if (strcmp(task, modulesToCheck[i].act) == 0)
+			{
+				log_i("State act");
+				serialize(moduleController.get(modulesToCheck[i].mod)->act(jsonDocument));
+				moduleAvailable = true;
+			}
+			if (strcmp(task, modulesToCheck[i].get) == 0)
+			{
+				log_i("State get");
+				serialize(moduleController.get(modulesToCheck[i].mod)->get(jsonDocument));
+				moduleAvailable = true;
+			}
+		}
+	}
+
 	if (strcmp(task, modules_get_endpoint) == 0)
 	{
 		serialize(moduleController.get());
 		moduleAvailable = true;
-	}
-
-	// Handle BTController
-	/*
-	if (moduleController.get(AvailableModules::btcontroller) != nullptr)
-	{
-		if (task == bt_scan_endpoint) // start for Bluetooth Devices
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_startScan(jsonDocument));
-		if (task == bt_paireddevices_endpoint) // get paired devices
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_getPairedDevices(jsonDocument));
-		if (task == bt_connect_endpoint) // connect to device
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_connect(jsonDocument));
-		if (task == bt_remove_endpoint) // remove paired device
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_remove(jsonDocument));
-	}
-	*/
-	/*
-	Return State
-	*/
-	if (moduleController.get(AvailableModules::state) != nullptr)
-	{
-		if (strcmp(task, state_act_endpoint) == 0)
-		{
-			log_i("State act");
-			serialize(moduleController.get(AvailableModules::state)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, state_get_endpoint) == 0)
-		{
-			log_i("State get");
-			serialize(moduleController.get(AvailableModules::state)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Drive Motors
-	*/
-	if (moduleController.get(AvailableModules::motor) != nullptr)
-	{
-		if (strcmp(task, motor_act_endpoint) == 0)
-		{
-			log_i("process motor act");
-			serialize(moduleController.get(AvailableModules::motor)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, motor_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::motor)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Home Motors
-	*/
-	if (moduleController.get(AvailableModules::home) != nullptr)
-	{
-		if (strcmp(task, home_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::home)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, home_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::home)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Encoders
-	*/
-	if (moduleController.get(AvailableModules::encoder) != nullptr)
-	{
-		if (strcmp(task, encoder_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::encoder)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, encoder_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::encoder)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-
-	/*
-	  Drive DAC
-	*/
-	if (moduleController.get(AvailableModules::dac) != nullptr)
-	{
-		if (strcmp(task, dac_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::dac)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, dac_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::dac)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Drive Laser
-	*/
-	if (moduleController.get(AvailableModules::laser) != nullptr)
-	{
-		if (strcmp(task, laser_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::laser)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, laser_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::laser)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Drive analogout
-	*/
-	if (moduleController.get(AvailableModules::analogout) != nullptr)
-	{
-		if (strcmp(task, analogout_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::analogout)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-
-		if (strcmp(task, analogout_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::analogout)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Drive digitalout
-	*/
-	if (moduleController.get(AvailableModules::digitalout) != nullptr)
-	{
-		if (strcmp(task, digitalout_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::digitalout)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-		if (strcmp(task, digitalout_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::digitalout)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Drive digitalin
-	*/
-	if (moduleController.get(AvailableModules::digitalin) != nullptr)
-	{
-		if (strcmp(task, digitalin_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::digitalin)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-
-		if (strcmp(task, digitalin_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::digitalin)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-	/*
-	  Drive LED Matrix
-	*/
-	if (moduleController.get(AvailableModules::led) != nullptr)
-	{
-		if (strcmp(task, ledarr_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::led)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-
-		if (strcmp(task, ledarr_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::led)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-
-	/*
-	  Read the analogin
-	*/
-	if (moduleController.get(AvailableModules::analogin) != nullptr)
-	{
-		if (strcmp(task, readanalogin_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::analogin)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-
-		if (strcmp(task, readanalogin_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::analogin)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-
-	/*
-	  Control PID controller
-	*/
-	if (moduleController.get(AvailableModules::pid) != nullptr)
-	{
-		if (strcmp(task, PID_act_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::pid)->act(jsonDocument));
-			moduleAvailable = true;
-		}
-
-		if (strcmp(task, PID_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::pid)->get(jsonDocument));
-			moduleAvailable = true;
-		}
 	}
 
 	if (moduleController.get(AvailableModules::analogJoystick) != nullptr)
@@ -350,8 +197,7 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		serialize(w->scan());
 		moduleAvailable = true;
 	}
-	{ // {"task":"/wifi/scan"}
-	}
+	// {"task":"/wifi/scan"}
 	if (strcmp(task, connectwifi_endpoint) == 0 && moduleController.get(AvailableModules::wifi) != nullptr)
 	{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);

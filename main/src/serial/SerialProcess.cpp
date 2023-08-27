@@ -388,7 +388,7 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	if (!moduleAvailable)
 	{
 		// we want to state that the command didn't get through
-		serialize(-1);
+		serialize(0);
 	}
 }
 SerialProcess serial;

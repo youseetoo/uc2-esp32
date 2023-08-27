@@ -40,12 +40,14 @@ cJSON* DigitalInController::get(cJSON* jsonDocument)
 		digitalinval = digitalRead(pinConfig.DIGITAL_IN_3);
 	}
 	monitor_json = cJSON_CreateObject();
+	cJSON * digitalinholder = cJSON_CreateObject();
+	cJSON_AddItemToObject(monitor_json, key_digitalin, digitalinholder);
 	cJSON * id = cJSON_CreateNumber(digitalinid);
-	cJSON_AddItemToObject(monitor_json, "digitalinid", id);
+	cJSON_AddItemToObject(digitalinholder, "digitalinid", id);
 	cJSON * val = cJSON_CreateNumber(digitalinval);
-	cJSON_AddItemToObject(monitor_json, "digitalinval", val);
+	cJSON_AddItemToObject(digitalinholder, "digitalinval", val);
 	cJSON * pin = cJSON_CreateNumber(digitalinpin);
-	cJSON_AddItemToObject(monitor_json, "digitalinpin", pin);
+	cJSON_AddItemToObject(digitalinholder, "digitalinpin", pin);
 	return monitor_json;
 }
 

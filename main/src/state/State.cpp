@@ -30,8 +30,6 @@ int State::act(cJSON *  doc)
 		log_i("state_act_fct");
 		
 	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
-	
-	cJSON * restart = cJSON_GetObjectItemCaseSensitive(doc,"restart");
 	// assign default values to thhe variables
 	if (restart != NULL)
 	{
@@ -65,25 +63,28 @@ int State::act(cJSON *  doc)
 }
 
 // Custom function accessible by the API
+//return json {"state":{...}} as qid
 cJSON *  State::get(cJSON *  docin)
 {
 	cJSON * doc = cJSON_CreateObject(); 
+	cJSON * st = cJSON_CreateObject(); 
+	cJSON_AddItemToObject(doc, "state", st);
 
 	// GET SOME PARAMETERS HERE
 	cJSON * BUSY = cJSON_GetObjectItemCaseSensitive(doc,"isBusy");
 	if (BUSY != NULL)
 	{
-		cJSON_AddItemToObject(doc,"isBusy", cJSON_CreateNumber(((int)isBusy)));
+		cJSON_AddItemToObject(st,"isBusy", cJSON_CreateNumber(((int)isBusy)));
 	}
 	else
 	{
-		cJSON_AddItemToObject(doc,"identifier_name", cJSON_CreateString(identifier_name));
-		cJSON_AddItemToObject(doc,"identifier_id", cJSON_CreateString(identifier_id));
-		cJSON_AddItemToObject(doc,"identifier_date", cJSON_CreateString(identifier_date));
-		cJSON_AddItemToObject(doc,"identifier_author", cJSON_CreateString(identifier_author));
-		cJSON_AddItemToObject(doc,"IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
-		cJSON_AddItemToObject(doc,"configIsSet", cJSON_CreateNumber(config_set));
-		cJSON_AddItemToObject(doc,"pindef", cJSON_CreateString(pinConfig.pindefName));
+		cJSON_AddItemToObject(st,"identifier_name", cJSON_CreateString(identifier_name));
+		cJSON_AddItemToObject(st,"identifier_id", cJSON_CreateString(identifier_id));
+		cJSON_AddItemToObject(st,"identifier_date", cJSON_CreateString(identifier_date));
+		cJSON_AddItemToObject(st,"identifier_author", cJSON_CreateString(identifier_author));
+		cJSON_AddItemToObject(st,"IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
+		cJSON_AddItemToObject(st,"configIsSet", cJSON_CreateNumber(config_set));
+		cJSON_AddItemToObject(st,"pindef", cJSON_CreateString(pinConfig.pindefName));
 	}
 	return doc;
 }

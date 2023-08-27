@@ -142,9 +142,11 @@ cJSON*  DigitalOutController::get(cJSON*  jsonDocument)
 	}
 
 	jsonDocument = cJSON_CreateObject();
-	setJsonInt(jsonDocument,"digitaloutid",digitaloutid);
-	setJsonInt(jsonDocument,"digitaloutval",digitaloutval);
-	setJsonInt(jsonDocument,"digitaloutpin",digitaloutpin);
+	cJSON * douth= cJSON_CreateObject();
+	cJSON_AddItemToObject(jsonDocument, key_digitalout, douth);
+	setJsonInt(douth,"digitaloutid",digitaloutid);
+	setJsonInt(douth,"digitaloutval",digitaloutval);
+	setJsonInt(douth,"digitaloutpin",digitaloutpin);
 	return jsonDocument;
 }
 

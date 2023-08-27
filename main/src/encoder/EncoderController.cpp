@@ -83,6 +83,7 @@ int EncoderController::act(cJSON *j)
 	return 1;
 }
 
+//returns json {"encoder":{..}}
 cJSON *EncoderController::get(cJSON *docin)
 {
 	// {"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}
@@ -107,6 +108,8 @@ cJSON *EncoderController::get(cJSON *docin)
 		}
 	}
 
+	encoder = cJSON_CreateObject();
+	cJSON_AddItemToObject(doc, key_encoder, encoder);
 	float posval = 0;
 	if (isPos > 0 and encoderID >= 0)
 	{
@@ -118,11 +121,12 @@ cJSON *EncoderController::get(cJSON *docin)
 		log_d("read encoder %i get position %f", encoderID, edata[encoderID]->posval);
 		cJSON_AddNumberToObject(aritem, "posval", posval);
 		cJSON_AddNumberToObject(aritem, "encoderID", encoderID);
-		cJSON_AddItemToObject(doc, "encoder_data", aritem);
+		cJSON_AddItemToObject(encoder, "encoder_data", aritem);
 	}
 	return doc;
 }
 
+//returns json {"encoder":{..}}
 void sendPosition(int axis)
 {
 	// send home done to client

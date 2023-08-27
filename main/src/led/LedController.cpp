@@ -89,12 +89,15 @@ int LedController::act(cJSON * ob)
 }
 
 // Custom function accessible by the API
+//returns json {"led":{..}}  as qid
 cJSON * LedController::get(cJSON * ob)
 {
 	cJSON * j = cJSON_CreateObject();
-	setJsonInt(j, keyLEDCount,pinConfig.LED_COUNT);
-	setJsonInt(j, keyLEDPin,pinConfig.LED_PIN);
-	setJsonInt(j, key_led_isOn,isOn);
+	cJSON * ld = cJSON_CreateObject();
+	cJSON_AddItemToObject(j,keyLed,ld);
+	setJsonInt(ld, keyLEDCount,pinConfig.LED_COUNT);
+	setJsonInt(ld, keyLEDPin,pinConfig.LED_PIN);
+	setJsonInt(ld, key_led_isOn,isOn);
 
 	cJSON * arr = cJSON_CreateArray();
 	cJSON_AddItemToArray(arr,cJSON_CreateNumber(0));
@@ -105,7 +108,7 @@ cJSON * LedController::get(cJSON * ob)
 	cJSON_AddItemToArray(arr,cJSON_CreateNumber(5));
 	cJSON_AddItemToArray(arr,cJSON_CreateNumber(6));
 	cJSON_AddItemToArray(arr,cJSON_CreateNumber(7));
-	cJSON_AddItemToObject(j,keyLEDArrMode,arr);
+	cJSON_AddItemToObject(ld,keyLEDArrMode,arr);
 	return j;
 }
 

@@ -15,14 +15,18 @@ struct MotorData
 	long currentPosition = 0;
 	bool isforever = false;
 	bool isaccelerated = 0;
-	bool absolutePosition = 0; 	// running relative or aboslute position?
+	// running relative or aboslute position! gets ignored when isforever is true
+	bool absolutePosition = 0; 	
 	bool stopped = true;
 	// milliseconds to switch off motors after operation
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
 
-	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
+	//flag that indicate if a motor is realy availible and not just a motor wiht no function.
+	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
+	//and its needed to show only true initialized motors inside webui and android app.
+	bool isActivated = 0;
 };
 
 enum Stepper

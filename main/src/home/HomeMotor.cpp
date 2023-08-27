@@ -54,7 +54,7 @@ int HomeMotor::act(cJSON * j)
 			}
 		}
 	}
-	return qid; 
+	return 1; 
 }
 
 cJSON * HomeMotor::get(cJSON * ob)
@@ -84,6 +84,8 @@ cJSON * HomeMotor::get(cJSON * ob)
 	return doc;
 }
 
+//home done returns
+//{"home":{...}} thats the qid
 void sendHomeDone(int axis)
 {
 	// send home done to client

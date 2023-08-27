@@ -56,9 +56,6 @@ int FocusMotor::act(cJSON *doc)
 			faccel.setAutoEnable(autoen->valueint);
 		}
 	}
-
-
-
 	// set position
 	cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
 	// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
@@ -78,7 +75,7 @@ int FocusMotor::act(cJSON *doc)
 				log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
 			}
 		}
-		return qid;
+		return 1; // motor will return pos per socket or serial inside loop. act is fire and forget
 	}
 
 	cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
@@ -130,6 +127,7 @@ void FocusMotor::startStepper(int i)
 		accel.startAccelStepper(i);
 }
 
+// returns json {"motor":{...}} as qid
 cJSON *FocusMotor::get(cJSON *docin)
 {
 	log_i("get motor");
@@ -384,6 +382,7 @@ bool FocusMotor::isRunning(int i)
 	}
 }
 
+//returns json {"steppers":[...]} as qid
 void FocusMotor::sendMotorPos(int i, int arraypos)
 {
 	if (pinConfig.useFastAccelStepper)

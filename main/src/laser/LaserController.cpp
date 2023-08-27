@@ -105,12 +105,15 @@ int LaserController::act(cJSON * ob)
 }
 
 // Custom function accessible by the API
+//returns json {"laser":{..}}  as qid
 cJSON * LaserController::get(cJSON * ob)
 {
 	cJSON * j = cJSON_CreateObject();
-	setJsonInt(j,"LASER1pin", pinConfig.LASER_1);
-	setJsonInt(j,"LASER2pin", pinConfig.LASER_2);
-	setJsonInt(j,"LASER3pin", pinConfig.LASER_3);
+	cJSON * ls = cJSON_CreateObject();
+	cJSON_AddItemToObject(j,key_laser,ls);
+	setJsonInt(ls,"LASER1pin", pinConfig.LASER_1);
+	setJsonInt(ls,"LASER2pin", pinConfig.LASER_2);
+	setJsonInt(ls,"LASER3pin", pinConfig.LASER_3);
 	return j;
 }
 

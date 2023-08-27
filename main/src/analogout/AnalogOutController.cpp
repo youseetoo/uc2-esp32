@@ -94,16 +94,17 @@ cJSON* AnalogOutController::get(cJSON* jsonDocument)
 	}
 
 	cJSON *monitor = cJSON_CreateObject();
-    cJSON *analogholder = NULL;
+    cJSON *analogholder = cJSON_CreateObject();
+	cJSON_AddItemToObject(monitor,key_analogout, analogholder);
     cJSON *pin = NULL;
     cJSON *id = NULL;
     cJSON *val = NULL;
     pin = cJSON_CreateNumber(analogoutpin);
     id = cJSON_CreateNumber(analogoutid);
     val = cJSON_CreateNumber(analogoutval);
-    cJSON_AddItemToObject(monitor, "analogoutpin", pin);
-    cJSON_AddItemToObject(monitor, "analogoutval", val);
-    cJSON_AddItemToObject(monitor, "analogoutid", id);
+    cJSON_AddItemToObject(analogholder, "analogoutpin", pin);
+    cJSON_AddItemToObject(analogholder, "analogoutval", val);
+    cJSON_AddItemToObject(analogholder, "analogoutid", id);
 
 	return monitor;
 }

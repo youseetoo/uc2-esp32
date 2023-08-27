@@ -42,22 +42,22 @@ int AnalogInController::act(cJSON* ob)
 	return 1;
 }
 
+//return json {"analogin":{...}}
 cJSON* AnalogInController::get(cJSON* ob)
 {
 	log_d("readanalogin_set_fct");
-	
 	cJSON *monitor_json = ob;
 	int readanaloginID = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginID)->valueint; //(int)(ob)[key_readanaloginID];
 	int readanaloginPIN = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginPIN)->valueint; //(int)(ob)[key_readanaloginPIN];
 	N_analogin_avg = cJSON_GetObjectItemCaseSensitive(monitor_json, key_readanaloginPIN)->valueint; //(int)(ob)[key_N_analogin_avg];
+	//create return json
 	cJSON *monitor = cJSON_CreateObject();
-    cJSON *analogholder = NULL;
-    cJSON *x = NULL;
-    cJSON *y = NULL;
-    x = cJSON_CreateNumber(readanaloginPIN);
-    y = cJSON_CreateNumber(readanaloginID);
-    cJSON_AddItemToObject(monitor, key_readanaloginPIN, x);
-    cJSON_AddItemToObject(monitor, key_readanaloginID, y);
+	cJSON * analogin = cJSON_CreateObject();
+	cJSON_AddItemToObject(monitor, key_analogin, analogin);
+    cJSON *x = cJSON_CreateNumber(readanaloginPIN);
+    cJSON *y = cJSON_CreateNumber(readanaloginID);
+    cJSON_AddItemToObject(analogin, key_readanaloginPIN, x);
+    cJSON_AddItemToObject(analogin, key_readanaloginID, y);
 	return monitor;
 }
 

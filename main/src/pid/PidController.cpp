@@ -88,6 +88,7 @@ long PidController::returnControlValue(float controlTarget, float analoginValue,
 }
 
 // Custom function accessible by the API
+//returns json {"pid":{...}} as qid
 cJSON *PidController::get(cJSON *ob)
 {
 	if (DEBUG)
@@ -108,9 +109,11 @@ cJSON *PidController::get(cJSON *ob)
 	}
 
 	cJSON *ret = cJSON_CreateObject();
-	setJsonInt(ret, key_N_analogin_avg, N_analogin_avg);
-	setJsonInt(ret, key_PIDPIN, PIDPIN);
-	setJsonInt(ret, key_PIDID, PIDID);
+	cJSON *pd = cJSON_CreateObject();
+	cJSON_AddItemToObject(ret, key_pid,pd);
+	setJsonInt(pd, key_N_analogin_avg, N_analogin_avg);
+	setJsonInt(pd, key_PIDPIN, PIDPIN);
+	setJsonInt(pd, key_PIDID, PIDID);
 	return ret;
 }
 

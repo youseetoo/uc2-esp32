@@ -195,7 +195,6 @@ bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 		outRegister.Port.P0.bit.Bit4 = value;
 	// log_i("external pin cb for pin:%d value:%d", pin, value);
 	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
-		// if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))
 		log_e("i2c write failed");
 
 	return value;
@@ -225,43 +224,8 @@ void FocusMotor::dumpRegister(const char *name, TCA9535_Register configRegister)
 		  configRegister.Port.P1.bit.Bit7);*/
 }
 
-static QueueHandle_t gpio_evt_queue = NULL;
-
-static void IRAM_ATTR gpio_isr_handler(void *arg)
-{
-	uint32_t gpio_num = (uint32_t)arg;
-	xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
-}
-
-static void gpio_task_example(void *arg)
-{
-	uint32_t io_num;
-	for (;;)
-	{
-		if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY))
-		{
-			printf("GPIO[%" PRIu32 "] intr, val: %d\n", io_num, gpio_get_level(pinConfig.I2C_INT));
-		}
-	}
-}
-
 void FocusMotor::init_tca()
 {
-	gpio_pad_select_gpio((gpio_num_t)pinConfig.I2C_INT);
-	gpio_set_direction((gpio_num_t)pinConfig.I2C_INT, GPIO_MODE_INPUT_OUTPUT);
-	gpio_pulldown_en((gpio_num_t)pinConfig.I2C_INT);
-	gpio_pullup_dis((gpio_num_t)pinConfig.I2C_INT);
-	gpio_set_intr_type((gpio_num_t)pinConfig.I2C_INT, GPIO_INTR_ANYEDGE);
-
-	// create a queue to handle gpio event from isr
-	gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-	// start gpio task
-	xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
-
-	// install gpio isr service
-	gpio_install_isr_service(0);
-	// hook isr handler for specific gpio pin
-	gpio_isr_handler_add((gpio_num_t)pinConfig.I2C_INT, gpio_isr_handler, (void *)pinConfig.I2C_INT);
 	_tca9535 = new tca9535();
 
 	if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))

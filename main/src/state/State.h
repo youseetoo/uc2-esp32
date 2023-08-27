@@ -20,7 +20,6 @@ public:
 	unsigned long startMillis;
 	unsigned long currentMillis;
 	bool isBusy = false; // TODO this is not working!!!
-	bool isSending = false;
 
 	int act(cJSON * ob) override;
 	cJSON *  get(cJSON *  ob) override;

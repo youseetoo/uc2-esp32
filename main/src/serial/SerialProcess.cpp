@@ -9,7 +9,6 @@
 #include "../dac/DacController.h"
 #include "../bt/BtController.h"
 #include "../wifi/RestApiCallbacks.h"
-#include "../state/State.h"
 
 SerialProcess::SerialProcess(/* args */)
 {
@@ -79,12 +78,7 @@ void SerialProcess::loop()
 
 void SerialProcess::serialize(cJSON *doc)
 {
-	// We need to lock the communication in case other modules want to send stuff too
-	// This smells more like a thread lock or something?
 	Serial.println("++");
-	State *state = (State *)moduleController.get(AvailableModules::state);
-	state->isSending = true;
-
 	if (doc != NULL)
 	{
 		char *s = cJSON_Print(doc);
@@ -93,16 +87,13 @@ void SerialProcess::serialize(cJSON *doc)
 		free(s);
 	}
 	Serial.println("--");
-	state->isSending = false;
 }
 
-void SerialProcess::serialize(int qid)
+void SerialProcess::serialize(int idsuccess)
 {
 	cJSON *doc = cJSON_CreateObject();
-	cJSON *v = cJSON_CreateNumber(qid);
-	cJSON *n = cJSON_CreateNumber(1);
-	cJSON_AddItemToObject(doc, keyQueueID, v);
-	cJSON_AddItemToObject(doc, "success", n);
+	cJSON *v = cJSON_CreateNumber(idsuccess);
+	cJSON_AddItemToObject(doc, "idsuccess", v);
 	Serial.println("++");
 	char *s = cJSON_Print(doc);
 	Serial.println(s);
@@ -396,16 +387,8 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	// module has not been loaded, so we need at least some error handling/message
 	if (!moduleAvailable)
 	{
-		int qid = 1;
-		cJSON *val = cJSON_GetObjectItemCaseSensitive(jsonDocument, keyQueueID);
-		if (val == NULL)
-		{
-			qid = 0;
-		}
-		if (cJSON_IsNumber(val) and qid >0)
-			qid = cJSON_GetNumberValue(val);
-		
-		serialize(-qid);
+		// we want to state that the command didn't get through
+		serialize(-1);
 	}
 }
 SerialProcess serial;

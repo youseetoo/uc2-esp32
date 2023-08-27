@@ -23,7 +23,6 @@ struct MotorData
 	bool isEnable = 1; // keeping motor on after job is completed?
 
 	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
-	int qid = -1; // for keeping sync with commands sent by the serial and their responses
 };
 
 enum Stepper

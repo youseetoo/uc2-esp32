@@ -14,7 +14,6 @@ struct HomeData
 	bool homeIsActive = false;
 	int homeEndposRelease = 1000;
 	bool homeEndStopPolarity = 0; // normally open
-	int qid = -1; // qeue id
 };
 
 void processHomeLoop(void * p);

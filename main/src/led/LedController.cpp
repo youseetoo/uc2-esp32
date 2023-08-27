@@ -38,7 +38,6 @@ int LedController::act(cJSON * ob)
 {
 	//serializeJsonPretty(ob, Serial);
 	cJSON * led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
-	int qid = getJsonInt(ob, "qid");
 	if (led != NULL)
 	{
 		LedModes LEDArrMode = static_cast<LedModes>(cJSON_GetObjectItemCaseSensitive(led, keyLEDArrMode)->valueint);
@@ -86,19 +85,16 @@ int LedController::act(cJSON * ob)
 			matrix->show(); //  Update strip to match
 		}
 	}
-	return qid;
+	return 1;
 }
 
 // Custom function accessible by the API
 cJSON * LedController::get(cJSON * ob)
 {
 	cJSON * j = cJSON_CreateObject();
-	int qid = getJsonInt(ob, "qid");
-
 	setJsonInt(j, keyLEDCount,pinConfig.LED_COUNT);
 	setJsonInt(j, keyLEDPin,pinConfig.LED_PIN);
 	setJsonInt(j, key_led_isOn,isOn);
-	setJsonInt(j, keyQueueID, qid);
 
 	cJSON * arr = cJSON_CreateArray();
 	cJSON_AddItemToArray(arr,cJSON_CreateNumber(0));

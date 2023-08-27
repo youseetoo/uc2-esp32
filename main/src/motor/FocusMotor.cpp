@@ -1,8 +1,6 @@
 #include "../../config.h"
 #include "FocusMotor.h"
 #include "../wifi/WifiController.h"
-#include "../serial/SerialProcess.h"
-#include "../state/State.h"
 
 void sendUpdateToClients(void *p)
 {
@@ -37,8 +35,6 @@ int FocusMotor::act(cJSON *doc)
 	// only enable/disable motors
 	// {"task":"/motor_act", "isen":1, "isenauto":1}
 	cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
-	int qid = getJsonInt(doc, "qid");
-
 	if (isen != NULL)
 	{
 		if (pinConfig.useFastAccelStepper)
@@ -60,6 +56,8 @@ int FocusMotor::act(cJSON *doc)
 			faccel.setAutoEnable(autoen->valueint);
 		}
 	}
+
+
 
 	// set position
 	cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
@@ -84,7 +82,6 @@ int FocusMotor::act(cJSON *doc)
 	}
 
 	cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
-
 	if (mot != NULL)
 	{
 		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
@@ -95,7 +92,6 @@ int FocusMotor::act(cJSON *doc)
 			{
 				Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
 				data[s]->speed = getJsonInt(stp, key_speed);
-				data[s]->qid = qid;
 				data[s]->isEnable = getJsonInt(stp, key_isen);
 				data[s]->targetPosition = getJsonInt(stp, key_position);
 				data[s]->isforever = getJsonInt(stp, key_isforever);
@@ -123,7 +119,7 @@ int FocusMotor::act(cJSON *doc)
 	}
 	else
 		log_i("Motor json is null");
-	return qid;
+	return 1;
 }
 
 void FocusMotor::startStepper(int i)
@@ -136,12 +132,8 @@ void FocusMotor::startStepper(int i)
 
 cJSON *FocusMotor::get(cJSON *docin)
 {
-	// get the command queue id from serial if available and add that to the return json
-	int qid = getJsonInt(docin, "qid");
-
 	log_i("get motor");
 	cJSON *doc = cJSON_CreateObject();
-	setJsonInt(doc, keyQueueID, qid);
 	cJSON *pos = cJSON_GetObjectItemCaseSensitive(docin, key_position);
 	cJSON *stop = cJSON_GetObjectItemCaseSensitive(docin, key_stopped);
 	cJSON *mot = cJSON_CreateObject();
@@ -366,12 +358,7 @@ void FocusMotor::loop()
 		for (int i = 0; i < data.size(); i++)
 		{
 			bool isRunning = faccel.isRunning(i);
-
-			// should only send a response if there is nothing else is sent
-			State *state = (State *)moduleController.get(AvailableModules::state);
-			bool isSending = state->isSending;
-
-			if (!isRunning && !data[i]->stopped & !isSending)
+			if (!isRunning && !data[i]->stopped)
 			{
 				// Only send the information when the motor is halting
 				// log_d("Sending motor pos %i", i);
@@ -404,7 +391,6 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	else
 		accel.updateData(i);
 	cJSON *root = cJSON_CreateObject();
-	setJsonInt(root, keyQueueID, data[i]->qid);
 	cJSON *stprs = cJSON_CreateArray();
 	cJSON_AddItemToObject(root, key_steppers, stprs);
 	cJSON *item = cJSON_CreateObject();
@@ -412,7 +398,6 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	cJSON_AddNumberToObject(item, key_stepperid, i);
 	cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
 	cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-
 	arraypos++;
 
 	if (moduleController.get(AvailableModules::wifi) != nullptr)
@@ -420,7 +405,6 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
 		w->sendJsonWebSocketMsg(root);
 	}
-
 	// print result - will that work in the case of an xTask?
 	Serial.println("++");
 	char *s = cJSON_Print(root);

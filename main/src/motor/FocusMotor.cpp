@@ -187,6 +187,24 @@ cJSON *FocusMotor::get(cJSON *docin)
 	return doc;
 }
 
+
+int FocusMotor::getExternalPinValue(uint8_t pin)
+{
+	// read register?
+	//_tca9535->TCA9535WriteOutput(&outRegister);
+	_tca9535->TCA9535ReadInput(&inRegister);
+
+	int value = -1;
+	pin = pin & ~PIN_EXTERNAL_FLAG;
+	if (pin == 105) // endstop X
+		value = inRegister.Port.P0.bit.Bit5;
+	if (pin == 106) // endstop Y
+		value = inRegister.Port.P0.bit.Bit6;
+	if (pin == 107) // endstop Z
+		value = inRegister.Port.P0.bit.Bit7;
+	return value;
+}
+
 bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 {
 	// This example returns the previous value of the output.

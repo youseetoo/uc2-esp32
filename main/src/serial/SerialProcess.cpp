@@ -35,7 +35,7 @@ void SerialProcess::loop()
 			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
 			if (tasks != NULL)
 			{
-
+				// {"tasks:":[{"task": "/state_get"}, {"task": "/state_act", "delay": 1000}], "nTimes": 3}
 				// {"tasks":[{"task":"/state_get"},{"task":"/state_act", "delay":1000}],"nTimes":2}
 				int nTimes = 1;
 				// perform the table n-times

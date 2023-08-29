@@ -32,12 +32,14 @@ public:
 	void startStepper(int i);
 	void sendMotorPos(int i, int arraypos);
 	bool setExternalPin(uint8_t pin, uint8_t value);
+	int getExternalPinValue(uint8_t pin);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
 private:
 	tca9535 *_tca9535;
 	TCA9535_Register outRegister;
+	TCA9535_Register inRegister;
 	FAccelStep faccel;
 	
 	int logcount;

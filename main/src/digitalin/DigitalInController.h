@@ -1,6 +1,6 @@
 #pragma once
 #include "../../Module.h"
-
+#include "../motor/FocusMotor.h"
 class DigitalInController : public Module
 {
 private:

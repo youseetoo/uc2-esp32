@@ -548,9 +548,9 @@ struct UC2_3 : PinConfig
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
-     int8_t PIN_DEF_END_X = disabled;
-     int8_t PIN_DEF_END_Y = disabled;
-     int8_t PIN_DEF_END_Z = disabled;
+     int8_t PIN_DEF_END_X = 105; // I2C TCA
+     int8_t PIN_DEF_END_Y = 106;
+     int8_t PIN_DEF_END_Z = 107;
      int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
      int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
      int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
@@ -585,4 +585,4 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 };
 
-const UC2_2 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

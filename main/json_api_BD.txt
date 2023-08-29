@@ -73,10 +73,6 @@
 
 
 # DIGITAL IN
-{"task": "/digitalin_set", "digitalinid":1, "digitalinpin":13}
-{"task": "/digitalin_set", "digitalinid":2, "digitalinpin":5}
-{"task": "/digitalin_set", "digitalinid":3, "digitalinpin":23}
-
 {"task": "/digitalin_get", "digitalinid":1}
 {"task": "/digitalin_get", "digitalinid":2}
 {"task": "/digitalin_get", "digitalinid":3}
@@ -101,7 +97,6 @@ payload = {
 
 # HOME
 {"task": "/home_get"}
-{"task": "/home_set"}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":3000, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":-1, "endposrelease":3000, "endstoppolarity":0}]}}

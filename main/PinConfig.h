@@ -146,6 +146,7 @@ struct PinConfig
      int8_t SPI_CS = disabled;
 };
 
+#if defined CXYZ_MOTOR_JOYSTICK || defined CXYZ_MOTOR_ENDSTOP_JOYSTICK
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
      const char *pindefName = "XYZ_MOTOR_JOYSTICK";
@@ -163,7 +164,12 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
 
      bool useBtHID = true;
 };
+#ifndef CXYZ_MOTOR_ENDSTOP_JOYSTICK
+const XYZ_MOTOR_JOYSTICK pinConfig;
+#endif
+#endif
 
+#ifdef CXYZ_MOTOR_ENDSTOP_JOYSTICK
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 {
      const char *pindefName = "XYZ_MOTOR_ENDSTOP_JOYSTICK";
@@ -171,7 +177,10 @@ struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
      int8_t PIN_DEF_END_Y = 13;
      int8_t PIN_DEF_END_Z = 5;
 };
+const XYZ_MOTOR_ENDSTOP_JOYSTICK pinConfig;
+#endif
 
+#ifdef CX_MOTOR_64LED_PIN
 struct X_MOTOR_64LED_PIN : PinConfig
 {
      const char *pindefName = "X_Motor_64LED";
@@ -183,7 +192,10 @@ struct X_MOTOR_64LED_PIN : PinConfig
      int8_t LED_PIN = 27;
      int8_t LED_COUNT = 64;
 };
+const X_MOTOR_64LED_PIN pinConfig;
+#endif
 
+#ifdef CHoLiSheet
 struct HoLiSheet : PinConfig
 {
      const char *pindefName = "HoLiSheet";
@@ -205,8 +217,12 @@ struct HoLiSheet : PinConfig
 
      const char *PSX_MAC = "1a:2b:3c:01:01:01";
      int8_t PSX_CONTROLLER_TYPE = 2;
-};
 
+};
+const HoLiSheet pinConfig;
+#endif
+
+#ifdef CUC2_1
 struct UC2_1 : PinConfig
 {
      const char *pindefName = "UC2_1";
@@ -239,7 +255,10 @@ struct UC2_1 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 20;
      boolean enableBlueTooth = true;
 };
+const UC2_1 pinConfig;
+#endif
 
+#ifdef CUC2_Insert
 struct UC2_Insert : PinConfig
 {
      const char *pindefName = "UC2UC2_Insert";
@@ -271,7 +290,10 @@ struct UC2_Insert : PinConfig
      int8_t PSX_CONTROLLER_TYPE = 2;
      boolean enableBlueTooth = true;
 };
+const UC2_Insert pinConfig;
+#endif
 
+#ifdef CUC2_2
 struct UC2_2 : PinConfig
 {
      const char *pindefName = "UC2_2";
@@ -312,7 +334,10 @@ struct UC2_2 : PinConfig
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
 };
+const UC2_2 pinConfig;
+#endif
 
+#ifdef CUC2e
 struct UC2e : PinConfig
 {
      const char *pindefName = "UC2e";
@@ -364,7 +389,10 @@ struct UC2e : PinConfig
      int8_t I2C_SDA = GPIO_NUM_21; // I2C_SDA, SDA, PCIe B6
      int8_t I2C_SCL = GPIO_NUM_22; // I2C_SCL, SCL, PCIe B5
 };
+const UC2e pinConfig;
+#endif
 
+#ifdef CUC2_WEMOS
 struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
      const char *pindefName = "UC2_WEMOS";
@@ -402,7 +430,10 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
      const char *mPWD = "12345678";
      bool mAP = false;
 };
+const UC2_WEMOS pinConfig;
+#endif
 
+#ifdef CUC2_OMNISCOPE
 struct UC2_OMNISCOPE : PinConfig
 {
      const char *pindefName = "UC2_WEMOS";
@@ -433,7 +464,10 @@ struct UC2_OMNISCOPE : PinConfig
      const char *mPWD = "12345678"; //"omniscope";
      bool mAP = false;
 };
+const UC2_OMNISCOPE pinConfig;
+#endif
 
+#ifdef CUC2_CassetteRecorder
 struct UC2_CassetteRecorder : PinConfig
 {
      const char *pindefName = "CassetteRecorder";
@@ -446,7 +480,10 @@ struct UC2_CassetteRecorder : PinConfig
      int8_t MOTOR_X_1 = GPIO_NUM_27;
      bool ROTATOR_ENABLE = true;
 };
+const UC2_CassetteRecorder pinConfig;
+#endif
 
+#ifdef CUC2_XYZRotator
 struct UC2_XYZRotator : PinConfig
 {
      const char *pindefName = "UC2_XYZRotator";
@@ -471,7 +508,10 @@ struct UC2_XYZRotator : PinConfig
      int8_t PSX_CONTROLLER_TYPE = 1;
      bool enableBlueTooth = false;
 };
+const UC2_XYZRotator pinConfig;
+#endif
 
+#ifdef CUC2_3
 struct UC2_3 : PinConfig
 {
      /*
@@ -584,5 +624,7 @@ struct UC2_3 : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 };
+const UC2_3 pinConfig;
+#endif
 
-const UC2_2 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+ // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

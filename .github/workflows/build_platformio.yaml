@@ -37,8 +37,8 @@ jobs:
     - name: Find and Replace (UC2-WEMOS)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "static UC2"
-        replace: "static UC2_WEMOS pinConfig; //"
+        find: "const UC2"
+        replace: "const UC2_WEMOS pinConfig; //"
         regex: false
 
     - name: Run PlatformIO
@@ -69,8 +69,8 @@ jobs:
     - name: Find and Replace (UC2-1)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "static UC2"
-        replace: "static UC2_1 pinConfig; //"
+        find: "const UC2"
+        replace: "const UC2_1 pinConfig; //"
         regex: false
     - name: Run PlatformIO
       run: pio run 
@@ -100,8 +100,8 @@ jobs:
     - name: Find and Replace (UC2-2)
       uses: jacobtomlinson/gha-find-replace@v2
       with:
-        find: "static UC2"
-        replace: "static UC2_2 pinConfig; //"
+        find: "const UC2"
+        replace: "const UC2_2 pinConfig; //"
         regex: false
     - name: Run PlatformIO
       run: pio run 

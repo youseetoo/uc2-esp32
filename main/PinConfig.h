@@ -368,6 +368,13 @@ struct UC2e : PinConfig
 struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
      const char *pindefName = "UC2_WEMOS";
+     const char *mSSIDAP = "UC2_WEMOS";
+     const char *mSSID = "UC2_WEMOS";
+     const char *mPWD = "12345678";
+
+     bool mAP = true;
+     const char *hostname = "youseetoo";
+
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
      int8_t MOTOR_X_DIR = GPIO_NUM_16;
@@ -398,9 +405,7 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
      int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 3;
 
-     const char *mSSID = "Blynk";
-     const char *mPWD = "12345678";
-     bool mAP = false;
+
 };
 
 struct UC2_OMNISCOPE : PinConfig
@@ -529,6 +534,9 @@ struct UC2_3 : PinConfig
      */
 
      const char * pindefName = "UC2_3";
+     const char *mSSID = "UC2_3";
+     bool mAP = true;
+     const char *mPWD = "12345678";
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;

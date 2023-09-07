@@ -108,6 +108,7 @@ void EspWifiController::wifi_init_sta()
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+    log_i("Waiting for wifi");
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
                                            pdFALSE,
@@ -116,6 +117,7 @@ void EspWifiController::wifi_init_sta()
 
     /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
      * happened. */
+    log_d("bits: %d", bits);
     if (bits & WIFI_CONNECTED_BIT)
     {
         log_i("connected to ap SSID:%s password:%s",

@@ -445,6 +445,7 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 	Serial.println(s);
 	free(s);
 	Serial.println("--");
+	cJSON_Delete(root);
 }
 
 void FocusMotor::stopStepper(int i)

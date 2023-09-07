@@ -75,6 +75,7 @@ void WifiController::setup()
 		log_i("mssid:%s pw:%s", pinConfig.mSSID, pinConfig.mPWD); //, pinConfig.mAP);
 	if (httpsServer.running())
 	{
+		log_i("stop webserver");
 		httpsServer.stop_webserver();
 	}
 

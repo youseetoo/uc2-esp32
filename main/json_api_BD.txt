@@ -77,10 +77,6 @@
 {"task": "/digitalin_get", "digitalinid":2}
 {"task": "/digitalin_get", "digitalinid":3}
 
-{"task": "/digitalin_set", "digitalinid":3, "digitalinpin":34}
-{"task": "/laser_set", "LASERid":1, "LASERpin":18}
-{"task": "/laser_set", "LASERid":2, "LASERpin":19}
-{"task": "/ledarr_set", "led":{"ledArrPin":32, "ledArrNum":64}}
 
 
 # LASER
@@ -203,24 +199,6 @@ payload = {
     }
 }
 
-{"task":"/motor_act",
-    "motor":
-    {
-        "steppers": [
-            { "stepperid": 1, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0,"isstop":1}]
-    }}
-
-{"task":"/motor_act",
-    "motor":
-    {
-        "steppers": [
-            { "stepperid": 1, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0},
-            { "stepperid": 3, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0},
-            { "stepperid": 2, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0},
-            { "stepperid": 2, "position": 0, "speed": 15000, "isabs": 1, "isaccel":0}
-        ]
-    }
-}
 
 
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -2000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
@@ -239,6 +217,9 @@ payload = {
         ]
     }
 }
+
+{"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+
 
 {"task":"/home_act", "qid": 10, "setpos":1, "home": {"steppers": [{"stepperid":1, "posval": 20000}]}}
 {"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}]}}

@@ -9,24 +9,11 @@
 
 # MOTOR
 # X,Y,Z,A => 1,2,3,0
-{"task":"/motor_set",
-    "motor":
-    {
-        "steppers": [
-            { "stepperid": 1, "step": 26, "dir": 16, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0},
-			{ "stepperid": 2, "step": 25, "dir": 27, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0},
-			{ "stepperid": 3, "step": 17, "dir": 14, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0},
-			{ "stepperid": 0, "step": 19, "dir": 18, "enable": 12, "step_inverted": 0, "dir_inverted": 0, "enable_inverted": 0 , "min_pos":0, "max_pos":0}
-        ]
-    }
-}
-
 {"task":"/motor_act",
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0},
-            { "stepperid": 3, "position": 10000, "speed": 5000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -200000, "speed": 1000, "isabs": 0, "isaccel":0}
         ]
     }
 }
@@ -107,7 +94,7 @@ payload = {
 
 {"task":"/wifi/scan"}
 {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
-{"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
+
 
 
 {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
@@ -264,7 +251,7 @@ gives
     "motor":
     {
         "steppers": [
-            { "stepperid": 2, "position": 10000, "speed": 500, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": 10000, "speed": 500, "isabs": 0, "isaccel":0}
         ]
     }
 }

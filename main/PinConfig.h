@@ -107,6 +107,13 @@ struct PinConfig
      int8_t pid2 = disabled;
      int8_t pid3 = disabled;
 
+     int8_t X_ENC_PWM = disabled;
+     int8_t Y_ENC_PWM = disabled;
+     int8_t Z_ENC_PWM = disabled;
+     int8_t X_ENC_IND = disabled;
+     int8_t Y_ENC_IND = disabled;
+     int8_t Z_ENC_IND = disabled;
+
      const char *PSX_MAC = "";
      int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
@@ -449,8 +456,10 @@ struct UC2_CassetteRecorder : PinConfig
      int8_t MOTOR_X_DIR = GPIO_NUM_14;
      int8_t MOTOR_X_0 = GPIO_NUM_12;
      int8_t MOTOR_X_1 = GPIO_NUM_27;
-     bool ROTATOR_ENABLE = true;
+     int MOTOR_ENABLE = GPIO_NUM_27;
 };
+
+
 
 struct UC2_XYZRotator : PinConfig
 {
@@ -570,7 +579,7 @@ struct UC2_3 : PinConfig
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
 
      // for caliper
      int8_t X_CAL_DATA = GPIO_NUM_32;
@@ -593,4 +602,4 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 };
 
-const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_CassetteRecorder pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

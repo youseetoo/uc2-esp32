@@ -19,6 +19,9 @@ __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
 __attribute__ ((unused)) static const  char* encoder_act_endpoint = "/encoder_act";
 __attribute__ ((unused)) static const  char* encoder_get_endpoint = "/encoder_get";
 
+__attribute__ ((unused)) static const  char* linearencoder_act_endpoint = "/linearencoder_act";
+__attribute__ ((unused)) static const  char* linearencoder_get_endpoint = "/linearencoder_get";
+
 __attribute__ ((unused)) static const  char* dac_act_endpoint = "/dac_act";
 __attribute__ ((unused)) static const  char* dac_get_endpoint = "/dac_get";
 

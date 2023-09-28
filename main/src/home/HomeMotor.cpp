@@ -101,7 +101,7 @@ void sendHomeDone(int axis)
 	cJSON_AddItemToObject(steppers, "axis", axs);
 	cJSON_AddItemToObject(steppers, "isDone", done);
 	Serial.println("++");
-	char * ret = cJSON_Print(json);
+	char * ret = cJSON_PrintUnformatted(json);
 	cJSON_Delete(json);
 	Serial.println(ret);
 	free(ret);

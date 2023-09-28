@@ -86,6 +86,14 @@ __attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direct
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
 
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder = "linencoder";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_timeout = "timeout";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_getpos = "posval";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibrate = "calpos";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos = "calibsteps";
+
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
 
 __attribute__ ((unused)) static const PROGMEM char * key_steppers = "steppers";

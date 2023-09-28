@@ -207,7 +207,22 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 			moduleAvailable = true;
 		}
 	}
-
+	/*
+	  LinearEncoders
+	*/
+	if (moduleController.get(AvailableModules::linearencoder) != nullptr)
+	{
+		if (strcmp(task, linearencoder_act_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::linearencoder)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+		if (strcmp(task, linearencoder_get_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::linearencoder)->get(jsonDocument));
+			moduleAvailable = true;
+		}
+	}
 	/*
 	  Drive DAC
 	*/

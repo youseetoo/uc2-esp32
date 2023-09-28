@@ -342,8 +342,10 @@ void FocusMotor::setup()
 
 	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
-	if (pinConfig.MOTOR_A_DIR > 0)
+	if (pinConfig.MOTOR_A_DIR > 0){
 		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
+		log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
+		}
 	if (pinConfig.MOTOR_X_DIR > 0)
 		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
 	if (pinConfig.MOTOR_Y_DIR > 0)
@@ -351,6 +353,7 @@ void FocusMotor::setup()
 	if (pinConfig.MOTOR_Z_DIR > 0)
 		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
 	preferences.end();
+	
 	if (pinConfig.useFastAccelStepper)
 	{
 		if (pinConfig.I2C_SCL > 0)
@@ -397,6 +400,7 @@ void FocusMotor::loop()
 				sendMotorPos(i, 0);
 				preferences.begin("motor-positions", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+				log_i("Motor %i position: %i", i, data[i]->currentPosition);
 				preferences.end();
 			}
 		}

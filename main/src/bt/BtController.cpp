@@ -100,7 +100,7 @@ void BtController::handelAxis(int value, int s)
         if (s == Stepper::A)
             joystick_drive_A = true;
     }
-    else if (joystick_drive_X)
+    else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
     {
         motor->stopStepper(s);
         if (s == Stepper::X)

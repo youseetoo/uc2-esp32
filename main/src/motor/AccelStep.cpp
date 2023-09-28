@@ -106,7 +106,7 @@ void AccelStep::setupAccelStepper()
     // setting default values
     for (int i = 0; i < steppers.size(); i++)
     {
-        if (steppers[i])
+        if (steppers[i] and data[i]->isActivated)
         {
             log_d("setting default values for motor %i", i);
             steppers[i]->setMaxSpeed(MAX_VELOCITY_A);

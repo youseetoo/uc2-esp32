@@ -85,12 +85,15 @@ int LinearEncoderController::act(cJSON *j)
 
 cJSON *LinearEncoderController::get(cJSON *docin)
 {
-    // {"task":"/linearencoder_get", "linearencoder": { "posval": 1,    "id": 1  }}
-
+    // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
+    // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 0  }}
     log_i("linearencoder_get_fct");
     int isPos = -1;
     int linearencoderID = -1;
+    // print json
+
     cJSON *doc = cJSON_CreateObject();
+    //Serial.println(cJSON_Print(docin));
     cJSON *linearencoder = cJSON_GetObjectItemCaseSensitive(docin, key_linearencoder);
     if (cJSON_IsObject(linearencoder))
     {
@@ -112,10 +115,12 @@ cJSON *LinearEncoderController::get(cJSON *docin)
     {
         cJSON *aritem = cJSON_CreateObject();
         posval = encoders[linearencoderID]->readPosition();
+        int edgeCounter = encoders[linearencoderID]->readEdgeCounter();
         edata[linearencoderID]->posval = posval;
 
         log_d("read linearencoder %i get position %f", linearencoderID, edata[linearencoderID]->posval);
         cJSON_AddNumberToObject(aritem, "posval", posval);
+        cJSON_AddNumberToObject(aritem, "edgeCounter", edgeCounter);
         cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
         cJSON_AddItemToObject(doc, "linearencoder_data", aritem);
     }
@@ -131,6 +136,9 @@ void LinearEncoderController::loop()
 {
     if (moduleController.get(AvailableModules::linearencoder) != nullptr)
     {
+        Serial.println(encoders[1]->readPosition());
+
+
         FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
         // check if we need to read the linearencoder for all motors
@@ -167,16 +175,22 @@ void LinearEncoderController::setup()
         edata[i]->linearencoderID = i;
     }
     if (pinConfig.X_ENC_PWM >= 0)
-    {
+    {   
+        log_i("Adding X Encoder: %i, %i", pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
         encoders[1] = new AS5311(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
+        encoders[1]->begin();
     }
     if (pinConfig.Y_ENC_PWM >= 0)
     {
+        log_i("Adding Y Encoder: %i, %i", pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
         encoders[2] = new AS5311(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
+        encoders[2]->begin();
     }
     if (pinConfig.Z_ENC_PWM >= 0)
     {
+        log_i("Adding Z Encoder: %i, %i", pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
         encoders[3] = new AS5311(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
+        encoders[3]->begin();
     }
 }
 

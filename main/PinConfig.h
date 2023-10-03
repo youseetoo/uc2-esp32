@@ -602,4 +602,128 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 };
 
-const UC2_CassetteRecorder pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+
+struct UC2_linencoder : PinConfig
+{
+     /*
+     This is the newest electronics where direction/enable are on a seperate port extender
+     */
+     /*
+
+
+     Y_Cal-Data 34
+     X_Cal-Data 32
+     Z_Cal-Data 36
+     I2C_SCL 22
+     I2C_SDA 21
+
+     SPI_MOSI 23
+     SPI_MISO 19
+     SPI_SCK 18
+     SPI_CS 5
+     X_Cal-Clk 33
+     Y_Cal-Clk 35
+     Z_CAL-CLK 17
+     IOexp_ int8_t 27
+
+     A_STEP 13
+     X_STEP 16
+     Y_STEP 14
+     Z_STEP 0
+     LED_1 13
+
+     PWM_1 12
+     PWM_2 4
+     PWM_3 2
+
+     In_1 - 39
+     */
+     // UC2 STandalone V3
+     // https://github.com/openUC2/UC2-SUES
+     // 05998e057ac97c1e101c9ccc1f17070f89dd3f7c
+
+     /*
+     IOExpander
+     We are using a port extender on I2c to control
+     STEP_ENABLE P0
+     X_DIR P1
+     Y_DIR P2
+     Z_DIR P3
+     A_DIR P4
+     X_LIMIT P5
+     Y_LIMIT P6
+     Z_LIMIT P7
+      int8_t MOTOR_ENABLE = -1;
+     i2c addr should be 0x27
+     http://www.ti.com/lit/ds/symlink/tca9535.pdf
+     C561273
+     */
+
+     const char * pindefName = "UC2_3";
+     const char *mSSID = "UC2_3";
+     bool mAP = true;
+     const char *mPWD = "12345678";
+
+     int8_t MOTOR_A_STEP = disabled;
+     int8_t MOTOR_X_STEP = disabled;
+     int8_t MOTOR_Y_STEP = disabled;
+     int8_t MOTOR_Z_STEP = disabled;
+
+     bool MOTOR_ENABLE_INVERTED = true;
+     bool MOTOR_AUTOENABLE = true;
+     bool useFastAccelStepper = true;
+     int8_t AccelStepperMotorType = 1;
+
+     int8_t LASER_1 = disabled;
+     int8_t LASER_2 = disabled;
+     int8_t LASER_3 = disabled;
+
+     int8_t LED_PIN = disabled;
+     int8_t LED_COUNT = 64;
+
+     // FIXME: Is this redudant?!
+     int8_t PIN_DEF_END_X = 105; // I2C TCA
+     int8_t PIN_DEF_END_Y = 106;
+     int8_t PIN_DEF_END_Z = 107;
+     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
+     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
+     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
+
+     // const char * PSX_MAC = "1a:2b:3c:01:01:04";
+     // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+     bool enableBlueTooth = true;
+     bool useBtHID = true;
+
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
+
+     // for caliper
+     int8_t X_CAL_DATA = disabled;
+     int8_t Y_CAL_DATA = disabled;
+     int8_t Z_CAL_DATA = disabled;
+     int8_t X_CAL_CLK = disabled;
+     int8_t Y_CAL_CLK = disabled;
+     int8_t Z_CAL_CLK = disabled;
+
+     // I2c
+     int8_t I2C_SCL = disabled;
+     int8_t I2C_SDA = disabled;
+     int8_t I2C_ADD = 0x27;
+     gpio_num_t I2C_INT = (gpio_num_t)disabled;
+
+     // SPI
+     int8_t SPI_MOSI = disabled;
+     int8_t SPI_MISO = disabled;
+     int8_t SPI_SCK = disabled;
+     int8_t SPI_CS = disabled;
+
+     // linear encoder
+
+     int8_t X_ENC_PWM = GPIO_NUM_26;
+     int8_t X_ENC_IND = GPIO_NUM_27;
+
+};
+     
+
+const UC2_linencoder pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

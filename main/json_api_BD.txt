@@ -7,6 +7,10 @@
 # DAC
 {"task":"/dac_act_fct", "dac_channel":1, "frequency":1000, "offset":0, "amplitude":1}
 
+
+{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
+
+
 # MOTOR
 # X,Y,Z,A => 1,2,3,0
 {"task":"/motor_act",

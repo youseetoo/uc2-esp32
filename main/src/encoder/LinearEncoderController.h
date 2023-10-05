@@ -38,5 +38,4 @@ public:
 
 private:
 	float readValue(int clkPin, int dataPin);
-	float decode(int clkPin, int dataPin);
 };

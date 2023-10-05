@@ -111,17 +111,19 @@ cJSON *LinearEncoderController::get(cJSON *docin)
     }
 
     float posval = 0;
+    int edgeCounter = 0;
     if (isPos > 0 and linearencoderID >= 0)
     {
         cJSON *aritem = cJSON_CreateObject();
         posval = encoders[linearencoderID]->readPosition();
-        int edgeCounter = encoders[linearencoderID]->readEdgeCounter();
-        edata[linearencoderID]->posval = posval;
+        edgeCounter = encoders[linearencoderID]->readEdgeCounter();
+        edata[linearencoderID]->posval = edgeCounter+posval;
 
         log_d("read linearencoder %i get position %f", linearencoderID, edata[linearencoderID]->posval);
         cJSON_AddNumberToObject(aritem, "posval", posval);
         cJSON_AddNumberToObject(aritem, "edgeCounter", edgeCounter);
         cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
+        cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
         cJSON_AddItemToObject(doc, "linearencoder_data", aritem);
     }
     return doc;
@@ -136,7 +138,7 @@ void LinearEncoderController::loop()
 {
     if (moduleController.get(AvailableModules::linearencoder) != nullptr)
     {
-        Serial.println(encoders[1]->readPosition());
+       // Serial.println(encoders[1]->readPosition());
 
 
         FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -192,40 +194,4 @@ void LinearEncoderController::setup()
         encoders[3] = new AS5311(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
         encoders[3]->begin();
     }
-}
-
-
-
-// Decode Function - Decodes the received IR signal
-float LinearEncoderController::decode(int clockpin, int datapin)
-{
-    float result;
-    int sign = 1;   // Initialize sign to positive
-    long value = 0; // Initialize value to zero
-
-    for (int i = 0; i < 23; i++)
-    {
-        while (digitalRead(clockpin) == HIGH)
-        {
-        } // Wait until clock returns to HIGH (the first bit is not needed)
-        while (digitalRead(clockpin) == LOW)
-        {
-        } // Wait until clock returns to LOW
-
-        if (digitalRead(datapin) == LOW)
-        {
-            if (i < 20)
-            {
-                value |= 1 << i; // Set the bit in 'value' at position 'i' to 1
-            }
-            if (i == 20)
-            {
-                sign = -1; // Set sign to negative
-            }
-        }
-    }
-
-    result = (value * sign) / 100.00; // Calculate the result (value with sign and two decimal places)
-    // delay(50); // Delay for a short time to avoid continuous decoding
-    return result;
 }

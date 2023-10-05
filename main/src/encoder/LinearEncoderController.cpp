@@ -3,6 +3,7 @@
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"
+#include "PIDController.h"
 
 LinearEncoderController::LinearEncoderController() : Module() { log_i("ctor"); }
 LinearEncoderController::~LinearEncoderController() { log_i("~ctor"); }
@@ -17,11 +18,12 @@ Handle REST calls to the LinearEncoderController module
 */
 int LinearEncoderController::act(cJSON *j)
 {
-    // set position
     log_i("linearencoder_act_fct");
 
-    // set position
+    // calibrate the step-to-mm value
+    cJSON *movePrecise = cJSON_GetObjectItem(j, key_linearencoder_moveprecise);
     cJSON *calibrate = cJSON_GetObjectItem(j, key_linearencoder_calibrate);
+    cJSON *setup = cJSON_GetObjectItem(j, key_linearencoder_setup);
 
     if (calibrate != NULL)
     {
@@ -39,12 +41,8 @@ int LinearEncoderController::act(cJSON *j)
             {
                 Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
                 // measure current value
-                for (int t = 0; t < 2; t++)
-                { // read twice?
-                    //edata[s]->valuePreCalib = readValue(edata[s]->clkPin, edata[s]->dataPin);
-                    delay(40);
-                }
-                delay(100); // wait until slide settles
+                edata[s]->valuePreCalib = encoders[s]->readPosition();
+                log_i("pre calib %f", edata[s]->valuePreCalib);
                 int calibsteps = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_calibpos)->valueint;
                 int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                 // get the motor object and chang the values so that it will move 1000 steps forward
@@ -55,30 +53,61 @@ int LinearEncoderController::act(cJSON *j)
                 motor->startStepper(s);
                 edata[s]->requestCalibration = true;
                 log_d("pre calib %f", edata[s]->valuePreCalib);
-                /*
-                    // calibrate for 1000 steps in X
-                    float steps_to_go = 1000;
-
-                    // read linearencoder value for X and store value
-                    float posval_init = readValue(edata[s]->clkPin, edata[s]->dataPin);
-
-                    // move 1000 steps forward in background
-                    motor->move(s, steps_to_go, true);
-
-                    // read linearencoder value for X and store value
-                    float posval_final = readValue(edata[s]->clkPin, edata[s]->dataPin);
-
-                    // calculate steps per mm
-                    float steps_per_mm = steps_to_go / (posval_final - posval_init);
-
-                    // store steps per mm in config
-                    //ConfigController *config = (ConfigController *)moduleController.get(AvailableModules::config);
-                    //config->setLinearEncoderStepsPerMM(s, steps_per_mm);
-                    log_d("calibrated linearencoder %i with %f steps per mm", s, steps_per_mm);
-                    //motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp,key_currentpos)->valueint);
-                    */
             }
         }
+    }
+    else if (movePrecise!= NULL){
+        // initiate a motor start and let the motor run until it reaches the position 
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500 , "speed": 10000} ]}}        
+        cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
+        log_i("move precise");
+        if (stprs != NULL)
+        {
+            log_i("move precise 2");
+            FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+            cJSON *stp = NULL;
+            cJSON_ArrayForEach(stp, stprs)
+            {
+                Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+                // measure current value
+                edata[s]->valuePreCalib = encoders[s]->readPosition();
+                int posToGo = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
+                float distanceToGo = posToGo - edata[s]->valuePreCalib;
+                int sign = distanceToGo>0?1:-1;
+                edata[s]->positionToGo = posToGo;
+                int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
+                // get the motor object and chang the values so that it will move 1000 steps forward
+                motor->data[s]->isforever = true;
+                motor->data[s]->speed = abs(speed)*sign;
+                motor->startStepper(s);
+                edata[s]->movePrecise = true;
+                log_d("Move precise %f at speed %f", edata[s]->valuePreCalib, motor->data[s]->speed);
+            }
+        }
+    }
+    else if (setup!=NULL){
+        // {"task": "/linearencoder_act", "setup": {"steppers": [ { "stepperid": 1, "position": 0}]}}
+        // setup the linearencoder
+        // print setup cjson
+        cJSON *stprs = cJSON_GetObjectItem(setup, key_steppers);
+        if (stprs != NULL)
+        {
+            // print stprs
+            FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+            cJSON *stp = NULL;
+            cJSON_ArrayForEach(stp, stprs)
+            {
+                Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+                // set the current position of the encoder to the given value
+                float newPosition = (float) cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
+                encoders[s]->setOffset(newPosition-encoders[s]->readPosition());
+                log_i("set position %f", encoders[s]->readPosition());
+            }
+        }
+    }
+    else
+    {
+        log_e("unknown command");
     }
     return 1;
 }
@@ -93,7 +122,6 @@ cJSON *LinearEncoderController::get(cJSON *docin)
     // print json
 
     cJSON *doc = cJSON_CreateObject();
-    //Serial.println(cJSON_Print(docin));
     cJSON *linearencoder = cJSON_GetObjectItemCaseSensitive(docin, key_linearencoder);
     if (cJSON_IsObject(linearencoder))
     {
@@ -110,17 +138,19 @@ cJSON *LinearEncoderController::get(cJSON *docin)
         }
     }
 
-    float posval = 0;
+    float pwmVal = 0.;
     int edgeCounter = 0;
+    float posVal = 0.0f;
     if (isPos > 0 and linearencoderID >= 0)
     {
         cJSON *aritem = cJSON_CreateObject();
-        posval = encoders[linearencoderID]->readPosition();
+        pwmVal = encoders[linearencoderID]->readPWM();
         edgeCounter = encoders[linearencoderID]->readEdgeCounter();
-        edata[linearencoderID]->posval = edgeCounter+posval;
-
+        posVal = encoders[linearencoderID]->readPosition();
+        edata[linearencoderID]->posval = posVal;
+        
         log_d("read linearencoder %i get position %f", linearencoderID, edata[linearencoderID]->posval);
-        cJSON_AddNumberToObject(aritem, "posval", posval);
+        cJSON_AddNumberToObject(aritem, "pwmVal", pwmVal);
         cJSON_AddNumberToObject(aritem, "edgeCounter", edgeCounter);
         cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
         cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
@@ -138,26 +168,43 @@ void LinearEncoderController::loop()
 {
     if (moduleController.get(AvailableModules::linearencoder) != nullptr)
     {
-       // Serial.println(encoders[1]->readPosition());
-
-
+    
         FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
         // check if we need to read the linearencoder for all motors
         for (int i = 0; i < motor->data.size(); i++)
         {
+            
             if (edata[i]->requestCalibration and motor->data[i]->stopped)
             {
                 edata[i]->requestCalibration = false;
                 delay(1000); // wait until slide settles
-                for (int t = 0; t < 2; t++)
-                { // read twice?
-                    //edata[i]->valuePostCalib = readValue(edata[i]->clkPin, edata[i]->dataPin);
-                    delay(40);
-                }
+                // read linearencoder value for given axis                
+                edata[i]->valuePostCalib = encoders[i]->readPosition();
+                log_i("post calib %f", edata[i]->valuePostCalib);
                 edata[i]->stepsPerMM = edata[i]->calibsteps / (edata[i]->valuePostCalib - edata[i]->valuePreCalib);
-                log_d("post calib %f", edata[i]->valuePostCalib);
                 log_d("calibrated linearencoder %i with %f steps per mm", i, edata[i]->stepsPerMM);
+            }
+            if (edata[i]->movePrecise)
+            {
+                // read current encoder position
+                edata[i]->posval = encoders[i]->readPosition();
+
+                // PID Controller
+                PIDController pid(2.0, 1.0, 0.5);  // Tune these parameters
+                float speed = pid.compute(edata[i]->positionToGo, edata[i]->posval);
+
+                log_i("Current position %f, position to go %f, speed %f\n",
+                      edata[i]->posval, edata[i]->positionToGo, speed);
+
+                // need to be PID?!
+                float distanceToGo = edata[i]->positionToGo - edata[i]->posval;
+                int sign = motor->data[i]->speed>0?1:-1;
+                log_d("Current position %f, position to go %f, distance2Go %f, sign %i", edata[i]->posval, edata[i]->positionToGo, distanceToGo, sign);
+                if (sign*(edata[i]->positionToGo - edata[i]->posval)<0){
+                    motor->stopStepper(i);
+                    edata[i]->movePrecise = false;
+                }
             }
         }
     }

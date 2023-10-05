@@ -664,21 +664,26 @@ struct UC2_linencoder : PinConfig
      bool mAP = true;
      const char *mPWD = "12345678";
 
-     int8_t MOTOR_A_STEP = disabled;
-     int8_t MOTOR_X_STEP = disabled;
+     int8_t MOTOR_A_STEP = GPIO_NUM_15;
+     int8_t MOTOR_X_STEP = GPIO_NUM_14;
      int8_t MOTOR_Y_STEP = disabled;
-     int8_t MOTOR_Z_STEP = disabled;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     int8_t MOTOR_ENABLE = GPIO_NUM_13;
+     int8_t MOTOR_A_DIR = GPIO_NUM_21;
+     int8_t MOTOR_X_DIR = GPIO_NUM_16;
+     int8_t MOTOR_Y_DIR = disabled;
+     int8_t MOTOR_Z_DIR = disabled;
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
      bool useFastAccelStepper = true;
      int8_t AccelStepperMotorType = 1;
 
-     int8_t LASER_1 = disabled;
-     int8_t LASER_2 = disabled;
-     int8_t LASER_3 = disabled;
+     int8_t LASER_1 = GPIO_NUM_12;
+     int8_t LASER_2 = GPIO_NUM_4;
+     int8_t LASER_3 = GPIO_NUM_2;
 
-     int8_t LED_PIN = disabled;
+     int8_t LED_PIN = GPIO_NUM_13;
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
@@ -707,21 +712,14 @@ struct UC2_linencoder : PinConfig
      int8_t Z_CAL_CLK = disabled;
 
      // I2c
-     int8_t I2C_SCL = disabled;
-     int8_t I2C_SDA = disabled;
+/*     int8_t I2C_SCL = GPIO_NUM_22;
+     int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD = 0x27;
-     gpio_num_t I2C_INT = (gpio_num_t)disabled;
-
-     // SPI
-     int8_t SPI_MOSI = disabled;
-     int8_t SPI_MISO = disabled;
-     int8_t SPI_SCK = disabled;
-     int8_t SPI_CS = disabled;
+     gpio_num_t I2C_INT = GPIO_NUM_27;*/
 
      // linear encoder
-
-     int8_t X_ENC_PWM = GPIO_NUM_26;
-     int8_t X_ENC_IND = GPIO_NUM_27;
+     int8_t X_ENC_PWM = GPIO_NUM_32;
+     int8_t X_ENC_IND = GPIO_NUM_33;
 
 };
      

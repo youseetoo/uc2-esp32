@@ -8,14 +8,19 @@ class AS5311 {
     AS5311(int pwmPin, int interruptPin);
     
     void begin();
-    float readPosition();
+    float readPWM();
     int readEdgeCounter();
+    float readPosition();
+    static void setOffset(float offset);
+    static float getOffset();
+
   private:
     static int _pwmPin, _interruptPin;
     static bool writing_counter;
     static volatile uint32_t _pos_edg_0, _pos_edg_1, _neg_edg_0;
     static volatile int _edgeCounter;
     static volatile float _position;
+    static volatile float _offset;
     static volatile bool _time_2_print;
     static QueueHandle_t dataQueue;  // Define the Queue handle globally.
     static void handleDataTask(void *parameter);

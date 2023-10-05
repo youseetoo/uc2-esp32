@@ -346,8 +346,10 @@ void FocusMotor::setup()
 		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
 		log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
-	if (pinConfig.MOTOR_X_DIR > 0)
+	if (pinConfig.MOTOR_X_DIR > 0){
 		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
+		log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
+		}
 	if (pinConfig.MOTOR_Y_DIR > 0)
 		data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
 	if (pinConfig.MOTOR_Z_DIR > 0)
@@ -386,6 +388,9 @@ void FocusMotor::loop()
 		// checks if a stepper is still running
 		for (int i = 0; i < data.size(); i++)
 		{
+			// check if motor is registered 
+			if (!data[i]->isActivated)
+				continue;
 			bool isRunning = faccel.isRunning(i);
 
 			// should only send a response if there is nothing else is sent

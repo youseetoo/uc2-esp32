@@ -7,6 +7,7 @@ volatile uint32_t AS5311::_neg_edg_0 = 0;
 volatile AS5311::PWM_Params AS5311::_pwm = {0, 0, 0};
 volatile int AS5311::_edgeCounter = 0;
 volatile float AS5311::_position = 0.f;
+volatile float AS5311::_offset = 0.f;
 QueueHandle_t AS5311::dataQueue = nullptr;  // Define the Queue handle globally.
 
 int AS5311::_pwmPin = 0;
@@ -37,12 +38,24 @@ void AS5311::begin() {
     NULL);              /* Task handle. */
 }
 
-float AS5311::readPosition() {
+float AS5311::readPWM() {
   return _position;
 }
 
 int AS5311::readEdgeCounter() {
   return _edgeCounter;
+}
+
+float AS5311::readPosition() {
+  return 2000.*(_edgeCounter+_position)+_offset;
+}
+
+void AS5311::setOffset(float offset) {
+  _offset = offset;
+}
+
+float AS5311::getOffset() {
+  return _offset;
 }
 
 void IRAM_ATTR AS5311::_handleRisingEdge() {

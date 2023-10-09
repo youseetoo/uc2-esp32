@@ -582,13 +582,13 @@ struct UC2_3 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
 
      // for caliper
-     int8_t X_CAL_DATA = GPIO_NUM_32;
-     int8_t Y_CAL_DATA = GPIO_NUM_34;
-     int8_t Z_CAL_DATA = GPIO_NUM_36;
-     int8_t X_CAL_CLK = GPIO_NUM_33;
-     int8_t Y_CAL_CLK = GPIO_NUM_35;
-     int8_t Z_CAL_CLK = GPIO_NUM_17;
-
+     int8_t X_ENC_PWM = GPIO_NUM_32;
+     int8_t Y_ENC_PWM = GPIO_NUM_34;
+     int8_t Z_ENC_PWM = GPIO_NUM_36;
+     int8_t X_ENC_IND = GPIO_NUM_33;
+     int8_t Y_ENC_IND = GPIO_NUM_35;
+     int8_t Z_ENC_IND = GPIO_NUM_17;
+     
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
@@ -724,4 +724,4 @@ struct UC2_linencoder : PinConfig
 };
      
 
-const UC2_linencoder pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

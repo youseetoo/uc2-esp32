@@ -1,15 +1,15 @@
 #pragma once
 
 
-const long MAX_VELOCITY_A = 20000;
+const long MAX_VELOCITY_A = 40000;
 const long MAX_ACCELERATION_A = 100000;
-const long DEFAULT_ACCELERATION = 500000;
+const long DEFAULT_ACCELERATION = 100000;
 
 struct MotorData
 {
 
 	long speed = 0;
-	long maxspeed = 200000;
+	long maxspeed = MAX_VELOCITY_A;
 	long acceleration = 0;
 	long targetPosition = 0;
 	long currentPosition = 0;

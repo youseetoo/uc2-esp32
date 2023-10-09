@@ -5,7 +5,7 @@
 
 class AS5311 {
   public:
-    AS5311(int pwmPin, int interruptPin);
+    AS5311(int pwmPin, int interruptPin, bool is_isr_service_installed);
     
     void begin();
     float readPWM();
@@ -25,6 +25,8 @@ class AS5311 {
     static QueueHandle_t dataQueue;  // Define the Queue handle globally.
     static void handleDataTask(void *parameter);
     static float calculateRollingAverage(float newVal);
+    static bool _is_isr_service_installed;
+
     typedef struct {
       uint32_t period;
       uint32_t duty_cycle;
@@ -33,8 +35,8 @@ class AS5311 {
 
     static volatile PWM_Params _pwm;
 
-    static void IRAM_ATTR _handleRisingEdge();
-    static void IRAM_ATTR _Ext_PWM_ISR_handler();
+    static void IRAM_ATTR _handleRisingEdge(void* arg);
+    static void IRAM_ATTR _Ext_PWM_ISR_handler(void* arg);
     static void IRAM_ATTR _print_adcpwm();
 };
 

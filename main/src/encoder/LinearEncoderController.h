@@ -4,12 +4,14 @@
 #include "../motor/FocusMotor.h"
 #include "AS5311.h"
 
+
 struct LinearEncoderData
 {	
 	float posval = 0.0f;
 	bool requestPosition = false;
 	int linearencoderID = -1;
 	bool requestCalibration = false;
+	bool homeAxis = false;
 	bool movePrecise = false;
 	int calibsteps = 0;
 	int dataPin = -1;
@@ -18,6 +20,12 @@ struct LinearEncoderData
 	float positionToGo = 0.0f;
 	float valuePostCalib = 0.0f;
 	float stepsPerMM = 0.0f;
+	float offset = 0.0f;
+	float lastPosition = 0.0f;
+	// PID controller variables
+	float c_p = 2.;
+	float c_i = 0.1;
+	float c_d = 0.1;
 };
 
 void processHomeLoop(void * p);
@@ -31,7 +39,9 @@ public:
 	
     std::array<LinearEncoderData *, 4> edata;
     std::array<AS5311 *, 4> encoders;
-
+	
+	void setCurrentPosition(int encoderIndex, float offsetPos);
+	float getCurrentPosition(int encoderIndex);
 
 	int act(cJSON * ob) override;
 	cJSON * get(cJSON * ob) override;
@@ -39,5 +49,5 @@ public:
 	void loop() override;
 
 private:
-	float readValue(int clkPin, int dataPin);
+	float calculateRollingAverage(float newValue);
 };

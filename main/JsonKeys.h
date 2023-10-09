@@ -87,11 +87,15 @@ __attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
 
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder = "linencoder";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cp = "cp";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_ci = "ci";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cd = "cd";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_position = "position";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_timeout = "timeout";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_getpos = "posval";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibrate = "calpos";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_setup = "setup";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_home = "home";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_moveprecise = "moveP";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id";

@@ -77,9 +77,9 @@ void AS5311AB::_processEncoderData(void *parameter)
     {
         if (xQueueReceive(_encoderQueue, &position, portMAX_DELAY))
         {
+            // Need to return this to something outside the queue?
             currentPosition += position;
-            // Handle your data here, ensure you are not in an ISR when using certain functions (like Serial).
-            Serial.println(currentPosition);
+            //Serial.println(currentPosition);
         }
     }
 }

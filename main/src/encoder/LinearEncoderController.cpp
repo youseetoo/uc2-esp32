@@ -62,7 +62,7 @@ int LinearEncoderController::act(cJSON *j)
     {
         // we want to start a motor until the linear encoder does not track any position change
         //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 2, "speed": 10000} ]}}
-        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 2, "direction":1, "speed": 15000} ]}}
+        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "direction":1, "speed": 15000} ]}}
         cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
         if (stprs != NULL)
         {
@@ -93,10 +93,10 @@ int LinearEncoderController::act(cJSON *j)
     else if (movePrecise != NULL)
     {
         // initiate a motor start and let the motor run until it reaches the position
-        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500 , "speed": 10000} ]}}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "speed": 20000} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000, "cp":10, "ci":1, "cd":0.5} ]}}
-        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000, "cp":20, "ci":1, "cd":0.5} ]}}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 15000 , "speed": 10000, "cp":20, "ci":1, "cd":0.5} ]}}
         cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
         if (stprs != NULL)
         {
@@ -107,10 +107,13 @@ int LinearEncoderController::act(cJSON *j)
                 Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
                 // measure current value
                 edata[s]->valuePreCalib = getCurrentPosition(s);
+                edata[s]->isAbsolute = cJSON_GetObjectItemCaseSensitive(stp, key_isabs)->valueint;
+
                 int posToGo = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
-                float distanceToGo = posToGo - edata[s]->valuePreCalib;
+                float distanceToGo = posToGo - edata[s]->isAbsolute*edata[s]->valuePreCalib;
                 int sign = distanceToGo > 0 ? 1 : -1;
                 edata[s]->positionToGo = posToGo;
+                
 
                 // PID Controller
                 edata[s]->c_p = 2.0;
@@ -179,7 +182,7 @@ void LinearEncoderController::setCurrentPosition(int encoderIndex, float offsetP
 
 float LinearEncoderController::getCurrentPosition(int encoderIndex)
 {
-    return edata[encoderIndex]->offset + encoders[encoderIndex]->getPosition();
+    return conversionFactor * (edata[encoderIndex]->offset + encoders[encoderIndex]->getPosition());
 }
 
 cJSON *LinearEncoderController::get(cJSON *docin)
@@ -260,7 +263,7 @@ void LinearEncoderController::loop()
                 float currentPos = getCurrentPosition(i);
                 float currentPosAvg = calculateRollingAverage(currentPos);
                 log_d("current pos %f, current pos avg %f", currentPos, currentPosAvg);
-                float thresholdPositionChange = 0.2;
+                float thresholdPositionChange = 2;
                 if (abs(currentPosAvg - edata[i]->lastPosition) < thresholdPositionChange)
                 {
                     log_i("Stopping motor %i", i);
@@ -282,7 +285,7 @@ void LinearEncoderController::loop()
                     motor->stopStepper(i);
                     motor->data[i]->isforever = false;
                     edata[i]->homeAxis = false;
-                    edata[i]->lastPosition = 0.0f;
+                    edata[i]->lastPosition = -1000000.0f;
 
                     // set the current position to zero
                     edata[i]->offset = -getCurrentPosition(i);
@@ -291,6 +294,8 @@ void LinearEncoderController::loop()
             }
             if (edata[i]->movePrecise)
             {
+                //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 15000 , "speed": 10000, "cp":20, "ci":10, "cd":10} ]}}
+                //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "speed": 10000, "cp":40, "ci":1, "cd":10} ]}}
                 // read current encoder position
                 edata[i]->posval = getCurrentPosition(i);
 
@@ -304,8 +309,8 @@ void LinearEncoderController::loop()
                     speed = sign * motor->data[i]->maxspeed;
                 }
                 // initiate a motion with updated speed
-                log_i("Current position %f, position to go %f, speed %f\n",
-                      edata[i]->posval, edata[i]->positionToGo, speed);
+                //log_i("Current position %f, position to go %f, speed %f\n",
+                //      edata[i]->posval, edata[i]->positionToGo, speed);
                 motor->data[i]->speed = speed;
                 motor->data[i]->isforever = true;
                 motor->startStepper(i);
@@ -313,7 +318,7 @@ void LinearEncoderController::loop()
                 // when should we end the motion?!
                 float distanceToGo = edata[i]->positionToGo - edata[i]->posval;
 
-                if (abs(distanceToGo) < 10)
+                if (abs(distanceToGo) < 2)
                 {
                     log_i("Stopping motor %i", i);
                     motor->data[i]->speed = 0;
@@ -321,7 +326,8 @@ void LinearEncoderController::loop()
                     motor->stopStepper(i);
                     edata[i]->movePrecise = false;
                 }
-            } //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000, "cp":10, "ci":10.0, "cd":1.0} ]}}
+            } 
+            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000, "cp":10, "ci":10.0, "cd":1.0} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": -40000 , "speed": 10000, "cp":10.0, "ci":5.0, "cd":0.0} ]}}
         }
     }
@@ -350,13 +356,13 @@ void LinearEncoderController::setup()
     if (pinConfig.Y_ENC_PWM >= 0)
     {
         log_i("Adding Y Encoder: %i, %i", pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
-        encoders[2] = new AS5311AB(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND, true);
+        encoders[2] = new AS5311AB(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
         encoders[2]->begin();
     }
     if (pinConfig.Z_ENC_PWM >= 0)
     {
         log_i("Adding Z Encoder: %i, %i", pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
-        encoders[3] = new AS5311AB(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND, true);
+        encoders[3] = new AS5311AB(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
         encoders[3]->begin();
     }
     */
@@ -365,7 +371,7 @@ void LinearEncoderController::setup()
 float LinearEncoderController::calculateRollingAverage(float newVal)
 {
 
-    static float values[3] = {0.0, 0.0, 0.0};
+    static float values[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
     static int insertIndex = 0;
     static float sum = 0.0;
 
@@ -373,7 +379,7 @@ float LinearEncoderController::calculateRollingAverage(float newVal)
     values[insertIndex] = newVal;
     sum += newVal;
 
-    insertIndex = (insertIndex + 1) % 3;
+    insertIndex = (insertIndex + 1) % 5;
 
-    return sum / 3.0;
+    return sum / 5.0;
 }

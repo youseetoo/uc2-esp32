@@ -24,7 +24,7 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -200000, "speed": 1000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -20000, "speed": 20000, "isabs": 0, "isaccel":0, "accel":10000}
         ]
     }
 }

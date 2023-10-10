@@ -14,6 +14,7 @@ struct LinearEncoderData
 	bool requestCalibration = false;
 	bool homeAxis = false;
 	bool movePrecise = false;
+	bool isAbsolute = true;
 	int calibsteps = 0;
 	int dataPin = -1;
 	int clkPin = -1;
@@ -22,7 +23,7 @@ struct LinearEncoderData
 	float valuePostCalib = 0.0f;
 	float stepsPerMM = 0.0f;
 	float offset = 0.0f;
-	float lastPosition = 0.0f;
+	float lastPosition = -1000000.0f;
 	// PID controller variables
 	float c_p = 2.;
 	float c_i = 0.1;
@@ -51,5 +52,6 @@ public:
 	void loop() override;
 
 private:
+	float conversionFactor = 2.0/1024.0; // 2mm per 1024 steps from AS5311
 	float calculateRollingAverage(float newValue);
 };

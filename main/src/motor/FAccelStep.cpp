@@ -4,7 +4,7 @@
 void FAccelStep::startFastAccelStepper(int i)
 {
     // enableEnablePin(i);
-    log_i("Start Stepper %i ", i);
+    //log_i("Start Stepper %i ", i);
     if (faststeppers[i] == nullptr)
     {
         return;
@@ -24,13 +24,11 @@ void FAccelStep::startFastAccelStepper(int i)
         if (data[i]->speed > 0)
         {
             // run clockwise
-            log_i("forward");
             faststeppers[i]->runForward();
         }
         else
         {
             // run counterclockwise
-            log_i("backward");
             faststeppers[i]->runBackward();
         }
     }

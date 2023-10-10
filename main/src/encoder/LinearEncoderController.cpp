@@ -158,8 +158,10 @@ int LinearEncoderController::act(cJSON *j)
                 // set the current position of the encoder to the given value
                 float newPosition = (float)cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
 
+                /*
                 encoders[s]->setOffset(newPosition - encoders[s]->readPosition());
                 log_i("set position %f", getCurrentPosition(s));
+                */
             }
         }
     }
@@ -177,7 +179,7 @@ void LinearEncoderController::setCurrentPosition(int encoderIndex, float offsetP
 
 float LinearEncoderController::getCurrentPosition(int encoderIndex)
 {
-    return edata[encoderIndex]->offset + encoders[encoderIndex]->readPosition();
+    return edata[encoderIndex]->offset + encoders[encoderIndex]->getPosition();
 }
 
 cJSON *LinearEncoderController::get(cJSON *docin)
@@ -213,9 +215,9 @@ cJSON *LinearEncoderController::get(cJSON *docin)
     if (isPos > 0 and linearencoderID >= 0)
     {
         cJSON *aritem = cJSON_CreateObject();
-        pwmVal = encoders[linearencoderID]->readPWM();
-        edgeCounter = encoders[linearencoderID]->readEdgeCounter();
-        posVal = encoders[linearencoderID]->readPosition();
+        pwmVal = 0;// encoders[linearencoderID]->readPWM();
+        edgeCounter = 0; // encoders[linearencoderID]->readEdgeCounter();
+        posVal = encoders[linearencoderID]->getPosition();
         edata[linearencoderID]->posval = posVal;
 
         log_d("read linearencoder %i get position %f", linearencoderID, edata[linearencoderID]->posval);
@@ -341,20 +343,20 @@ void LinearEncoderController::setup()
     if (pinConfig.X_ENC_PWM >= 0)
     {
         log_i("Adding X Encoder: %i, %i", pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
-        encoders[1] = new AS5311(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND, true);
+        encoders[1] = new AS5311AB(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
         encoders[1]->begin();
     }
     /*
     if (pinConfig.Y_ENC_PWM >= 0)
     {
         log_i("Adding Y Encoder: %i, %i", pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
-        encoders[2] = new AS5311(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND, true);
+        encoders[2] = new AS5311AB(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND, true);
         encoders[2]->begin();
     }
     if (pinConfig.Z_ENC_PWM >= 0)
     {
         log_i("Adding Z Encoder: %i, %i", pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
-        encoders[3] = new AS5311(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND, true);
+        encoders[3] = new AS5311AB(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND, true);
         encoders[3]->begin();
     }
     */

@@ -287,10 +287,6 @@ void FocusMotor::init_tca()
 	xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
 
 	// install gpio isr service
-	log_i("install gpio isr service");
-	gpio_install_isr_service(0);
-	// hook isr handler for specific gpio pin
-	gpio_isr_handler_add((gpio_num_t)pinConfig.I2C_INT, gpio_isr_handler, (void *)pinConfig.I2C_INT);
 	_tca9535 = new tca9535();
 
 	if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))

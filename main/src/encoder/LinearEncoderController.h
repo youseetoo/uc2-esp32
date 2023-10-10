@@ -3,6 +3,7 @@
 #include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
 #include "AS5311.h"
+#include "AS5311AB.h"
 
 
 struct LinearEncoderData
@@ -38,8 +39,9 @@ public:
 	~LinearEncoderController();
 	
     std::array<LinearEncoderData *, 4> edata;
-    std::array<AS5311 *, 4> encoders;
-	
+    //std::array<AS5311 *, 4> encoders;
+	std::array<AS5311AB *, 4> encoders;
+
 	void setCurrentPosition(int encoderIndex, float offsetPos);
 	float getCurrentPosition(int encoderIndex);
 

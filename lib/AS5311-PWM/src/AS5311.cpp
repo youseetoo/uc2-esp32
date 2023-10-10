@@ -89,7 +89,7 @@ float AS5311::getOffset()
 
 void IRAM_ATTR AS5311::_handleRisingEdge(void* arg)
 {
-  log_i("Rising edge detected on pin %d", (uint32_t)arg);
+//  log_i("Rising edge detected on pin %d", (uint32_t)arg);
   PWM_Params localData;
   localData.period = 0;
   localData.duty_cycle = 0;

@@ -349,23 +349,21 @@ void LinearEncoderController::setup()
     if (pinConfig.X_ENC_PWM >= 0)
     {
         log_i("Adding X Encoder: %i, %i", pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
-        encoders[1] = new AS5311AB(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
-        encoders[1]->begin();
+        encoders[1] = new AS5311AB();
+        encoders[1]->begin(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
     }
-    /*
     if (pinConfig.Y_ENC_PWM >= 0)
     {
         log_i("Adding Y Encoder: %i, %i", pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
-        encoders[2] = new AS5311AB(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
-        encoders[2]->begin();
+        encoders[2] = new AS5311AB();
+        encoders[2]->begin(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
     }
     if (pinConfig.Z_ENC_PWM >= 0)
     {
         log_i("Adding Z Encoder: %i, %i", pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
-        encoders[3] = new AS5311AB(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
-        encoders[3]->begin();
+        encoders[3] = new AS5311AB();
+        encoders[3]->begin(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
     }
-    */
 }
 
 float LinearEncoderController::calculateRollingAverage(float newVal)

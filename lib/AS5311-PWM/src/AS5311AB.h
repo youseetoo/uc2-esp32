@@ -4,22 +4,22 @@
 #include "Arduino.h"
 #include "freertos/queue.h"
 
-class AS5311AB {
+class AS5311AB
+{
 public:
-    AS5311AB(int pinA, int pinB);
-    void begin();
+    AS5311AB();
+    void begin(int pinA, int pinB);
     int getPosition();
 
 private:
-    static int _pinA;
-    static int _pinB;
-    static volatile int _encoderPos;
-    static QueueHandle_t _encoderQueue;
+    int _pinA;
+    int _pinB;
+    volatile int _encoderPos;
+    QueueHandle_t _encoderQueue;
 
-
-    static void IRAM_ATTR _handleAChange();
-    static void IRAM_ATTR _handleBChange();
-    static void _processEncoderData(void* parameter);
+    void _handleAChange();
+    void _handleBChange();
+    static void _processEncoderData(void *parameter);
 };
 
 #endif

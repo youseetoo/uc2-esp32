@@ -1,27 +1,28 @@
 #include "AS5311AB.h"
 
-volatile int AS5311AB::_encoderPos = 0;
-QueueHandle_t AS5311AB::_encoderQueue = nullptr;
-int AS5311AB::_pinA = 0;
-int AS5311AB::_pinB = 0;
 
-AS5311AB::AS5311AB(int pinA, int pinB)
+AS5311AB::AS5311AB()
 {
-    log_i("STarting encoder on pins %i and %i", pinA, pinB);
-    AS5311AB::_pinA = pinA;
-    AS5311AB::_pinB = pinB;
+
 }
 
-void AS5311AB::begin()
+void AS5311AB::begin(int pinA, int pinB)
 {
+    log_i("STarting encoder on pins %i and %i", pinA, pinB);
+    _pinA = pinA;
+    _pinB = pinB;
+    _encoderPos = 0;
+
     pinMode(_pinA, INPUT_PULLUP);
     pinMode(_pinB, INPUT_PULLUP);
 
-    attachInterrupt(digitalPinToInterrupt(_pinA), _handleAChange, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(_pinB), _handleBChange, CHANGE);
+attachInterrupt(digitalPinToInterrupt(_pinA), reinterpret_cast<void (*)(void)>(+[](void* instance) {
+    static_cast<AS5311AB*>(instance)->_handleAChange();
+}), CHANGE);
+attachInterrupt(digitalPinToInterrupt(_pinB), reinterpret_cast<void (*)(void)>(+[](void* instance) {
+    static_cast<AS5311AB*>(instance)->_handleBChange();
+}), CHANGE);
 
-    _encoderQueue = xQueueCreate(10, sizeof(int));
-    xTaskCreate(_processEncoderData, "ProcessEncoder", 2048, NULL, 2, NULL);
     log_d("Encoder started");
 }
 
@@ -34,39 +35,70 @@ int AS5311AB::getPosition()
     return AS5311AB::_encoderPos;
 }
 
-void IRAM_ATTR AS5311AB::_handleAChange()
+void AS5311AB::_handleAChange()
 {
-    if (digitalRead(digitalPinToInterrupt(AS5311AB::_pinA)) == digitalRead(digitalPinToInterrupt(AS5311AB::_pinB)))
+    Serial.println("A changed");
+    /*
+    int aVal = digitalRead(_pinA);
+    int bVal = digitalRead(_pinB);
+    if (aVal == HIGH)
     {
-        AS5311AB::_encoderPos++;
-        int ret = 1;
-        xQueueSendFromISR(_encoderQueue, &ret, NULL);
+        if (bVal == LOW)
+        {
+            _encoderPos++;
+        }
+        else
+        {
+            _encoderPos--;
+        }
     }
     else
     {
-        AS5311AB::_encoderPos--;
-        int ret = -1;
-        xQueueSendFromISR(_encoderQueue, &ret, NULL);
+        if (bVal == HIGH)
+        {
+            _encoderPos++;
+        }
+        else
+        {
+            _encoderPos--;
+        }
     }
-    // now we want to push the value to the queue
-    
+    */
 }
 
-void IRAM_ATTR AS5311AB::_handleBChange()
+void AS5311AB::_handleBChange()
 {
-    if (digitalRead(digitalPinToInterrupt(AS5311AB::_pinB)) == digitalRead(digitalPinToInterrupt(AS5311AB::_pinA)))
+    Serial.println("B changed");
+    /*
+    int aVal = digitalRead(_pinA);
+    int bVal = digitalRead(_pinB);
+    Serial.println("B changed");
+    Serial.println(aVal);
+    Serial.println(bVal);
+    Serial.println(_encoderPos);
+    if (bVal == HIGH)
     {
-        AS5311AB::_encoderPos--;
-        int ret = -1;
-        xQueueSendFromISR(_encoderQueue, &ret, NULL);
+        if (aVal == HIGH)
+        {
+            _encoderPos++;
+        }
+        else
+        {
+            _encoderPos--;
+        }
     }
     else
     {
-        AS5311AB::_encoderPos++;
-        int ret = 1;
-        xQueueSendFromISR(_encoderQueue, &ret, NULL);
+        if (aVal == LOW)
+        {
+            _encoderPos++;
+        }
+        else
+        {
+            _encoderPos--;
+        }
     }
-
+    */
 }
 
 void AS5311AB::_processEncoderData(void *parameter)
@@ -75,11 +107,14 @@ void AS5311AB::_processEncoderData(void *parameter)
     int currentPosition = 0;
     for (;;)
     {
+        vTaskDelay(1000 / portTICK_PERIOD_MS); //FIXME: Not working yet
+        /*
         if (xQueueReceive(_encoderQueue, &position, portMAX_DELAY))
         {
             // Need to return this to something outside the queue?
             currentPosition += position;
             //Serial.println(currentPosition);
         }
+        */
     }
 }

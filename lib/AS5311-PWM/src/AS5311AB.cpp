@@ -37,7 +37,6 @@ int AS5311AB::getPosition()
 
 void AS5311AB::_handleAChange()
 {
-    Serial.println("A changed");
     /*
     int aVal = digitalRead(_pinA);
     int bVal = digitalRead(_pinB);
@@ -68,11 +67,9 @@ void AS5311AB::_handleAChange()
 
 void AS5311AB::_handleBChange()
 {
-    Serial.println("B changed");
-    /*
     int aVal = digitalRead(_pinA);
     int bVal = digitalRead(_pinB);
-    Serial.println("B changed");
+    /*
     Serial.println(aVal);
     Serial.println(bVal);
     Serial.println(_encoderPos);

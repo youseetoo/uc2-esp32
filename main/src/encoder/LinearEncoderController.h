@@ -41,7 +41,7 @@ public:
 	
     std::array<LinearEncoderData *, 4> edata;
     //std::array<AS5311 *, 4> encoders;
-	std::array<AS5311AB *, 4> encoders;
+	std::array<AS5311AB, 4> encoders;
 
 	void setCurrentPosition(int encoderIndex, float offsetPos);
 	float getCurrentPosition(int encoderIndex);

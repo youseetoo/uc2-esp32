@@ -182,7 +182,7 @@ void LinearEncoderController::setCurrentPosition(int encoderIndex, float offsetP
 
 float LinearEncoderController::getCurrentPosition(int encoderIndex)
 {
-    return conversionFactor * (edata[encoderIndex]->offset + encoders[encoderIndex]->getPosition());
+    return conversionFactor * (edata[encoderIndex]->offset + encoders[encoderIndex].getPosition());
 }
 
 cJSON *LinearEncoderController::get(cJSON *docin)
@@ -220,7 +220,7 @@ cJSON *LinearEncoderController::get(cJSON *docin)
         cJSON *aritem = cJSON_CreateObject();
         pwmVal = 0;// encoders[linearencoderID]->readPWM();
         edgeCounter = 0; // encoders[linearencoderID]->readEdgeCounter();
-        posVal = encoders[linearencoderID]->getPosition();
+        posVal = encoders[linearencoderID].getPosition();
         edata[linearencoderID]->posval = posVal;
 
         log_d("read linearencoder %i get position %f", linearencoderID, edata[linearencoderID]->posval);
@@ -349,20 +349,19 @@ void LinearEncoderController::setup()
     if (pinConfig.X_ENC_PWM >= 0)
     {
         log_i("Adding X Encoder: %i, %i", pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
-        encoders[1] = new AS5311AB();
-        encoders[1]->begin(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
+        encoders[1].begin(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
     }
     if (pinConfig.Y_ENC_PWM >= 0)
     {
         log_i("Adding Y Encoder: %i, %i", pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
-        encoders[2] = new AS5311AB();
-        encoders[2]->begin(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
+        //encoders[2] = new AS5311AB();
+        encoders[2].begin(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
     }
     if (pinConfig.Z_ENC_PWM >= 0)
     {
         log_i("Adding Z Encoder: %i, %i", pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
-        encoders[3] = new AS5311AB();
-        encoders[3]->begin(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
+        //encoders[3] = new AS5311AB();
+        encoders[3].begin(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
     }
 }
 

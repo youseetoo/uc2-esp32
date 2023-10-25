@@ -52,9 +52,25 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 	log_d("is_digital_trigger_2 %d", is_digital_trigger_2);
 	log_d("is_digital_trigger_3 %d", is_digital_trigger_3);
 
+	setPin(digitaloutid, digitaloutval, triggerdelay);
+
+	return 1;
+}
+
+
+void DigitalOutController::setPin(int digitaloutid, int digitaloutval, int triggerdelay){
+
+	/*
+	setting a pin off a certain value 
+
+	digitaloutid: 1,2,3
+	digitaloutval: 0, 	LOW
+				   1,	HIGH
+				   -1, 	trigger
+	triggerdelay: delay in ms for trigger
+	*/
 	if (digitaloutid == 1)
 	{
-		digitalout_val_1 = digitaloutval;
 		if (digitaloutval == -1)
 		{
 			// perform trigger
@@ -64,12 +80,11 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		}
 		else
 		{
-			digitalWrite(pinConfig.DIGITAL_OUT_1, digitalout_val_1);
+			digitalWrite(pinConfig.DIGITAL_OUT_1, digitaloutval);
 		}
 	}
-	else if (digitaloutid == 2)
+		else if (digitaloutid == 2)
 	{
-		digitalout_val_2 = digitaloutval;
 		if (digitaloutval == -1)
 		{
 			// perform trigger
@@ -79,12 +94,11 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		}
 		else
 		{
-			digitalWrite(pinConfig.DIGITAL_OUT_2, digitalout_val_2);
+			digitalWrite(pinConfig.DIGITAL_OUT_2, digitaloutval);
 		}
 	}
 	else if (digitaloutid == 3)
 	{
-		digitalout_val_3 = digitaloutval;
 		if (digitaloutval == -1)
 		{
 			// perform trigger
@@ -94,10 +108,13 @@ int DigitalOutController::act(cJSON*  jsonDocument)
 		}
 		else
 		{
-			digitalWrite(pinConfig.DIGITAL_OUT_3, digitalout_val_3);
+			digitalWrite(pinConfig.DIGITAL_OUT_3, digitaloutval);
 		}
 	}
-	return 1;
+	else
+	{
+		log_d("digitaloutid not found");
+	}
 }
 
 // Custom function accessible by the API

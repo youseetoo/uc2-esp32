@@ -78,13 +78,12 @@
 
 
 # LASER
-{"task": "/laser_act", "LASERid":2, "LASERpin":19}
-payload = {
-    "task": path,
-    "LASERid": channel,
-    "LASERval": value,
-    "LASERdespeckle": int(value*despeckleAmplitude),
-    "LASERdespecklePeriod": int(despecklePeriod),
+{
+    "task": laser_act,
+    "LASERid": 1,
+    "LASERval": 512,
+    "LASERdespeckle": 50,
+    "LASERdespecklePeriod": 30,
 }
 {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
 {"task": "/laser_get"}
@@ -210,11 +209,11 @@ payload = {
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1},
-            { "stepperid": 3, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}
+            { "stepperid": 1, "position": -1000000, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}
         ]
     }
 }
+{"task": "/motor_get"}
 
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 

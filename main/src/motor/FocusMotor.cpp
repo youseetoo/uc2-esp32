@@ -3,6 +3,7 @@
 #include "../wifi/WifiController.h"
 #include "../serial/SerialProcess.h"
 #include "../state/State.h"
+#include "../digitalout/DigitalOutController.h"
 
 void sendUpdateToClients(void *p)
 {
@@ -393,6 +394,20 @@ void FocusMotor::loop()
 			// should only send a response if there is nothing else is sent
 			State *state = (State *)moduleController.get(AvailableModules::state);
 			bool isSending = state->isSending;
+			
+
+			// Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically 
+			bool isTriggered = false;
+			long offsetTrigger = 100;
+			long triggerPeriod = 1000; 
+			if (data[i]->currentPosition-offsetTrigger % triggerPeriod == 0)
+				isTriggered = true;	
+			else
+				isTriggered = false;
+
+			DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
+			//digitalOut->setPin(i, isTriggered, 0);
+
 
 			if (!isRunning && !data[i]->stopped & !isSending)
 			{

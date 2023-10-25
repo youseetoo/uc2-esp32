@@ -33,4 +33,5 @@ public:
     cJSON*  get(cJSON*  ob) override;
     void setup() override;
     void loop() override;
+    void setPin(int digitaloutid, int digitaloutval, int triggerdelay);
 };

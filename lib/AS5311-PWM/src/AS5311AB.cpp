@@ -67,9 +67,11 @@ void AS5311AB::_handleAChange()
 
 void AS5311AB::_handleBChange()
 {
+    //if(_pinA == nullptr || _pinB == nullptr) return;
+    /*
     int aVal = digitalRead(_pinA);
     int bVal = digitalRead(_pinB);
-    /*
+    
     Serial.println(aVal);
     Serial.println(bVal);
     Serial.println(_encoderPos);

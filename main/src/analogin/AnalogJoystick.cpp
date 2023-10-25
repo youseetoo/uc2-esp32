@@ -1,35 +1,40 @@
 #include "AnalogJoystick.h"
 #include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
-#include "cJSON.h"
 
-void processLoopAJoy(void * param)
-{
-    for(;;)
-    {
-        moduleController.get(AvailableModules::analogJoystick)->loop();
-        vTaskDelay(5 / portTICK_PERIOD_MS);
-    }
-}
+#include "cJSON.h"
+#include "../encoder/InterruptController.h"
+
+static const char * JoyTAG = "AnalogJoystick";
 
 AnalogJoystick::AnalogJoystick(/* args */){};
 AnalogJoystick::~AnalogJoystick(){};
+
+void processEvent(uint8_t pin)
+{
+    ESP_LOGI(TAG,"processEvent from pin %i", pin);
+    AnalogJoystick *j = (AnalogJoystick *)moduleController.get(AvailableModules::analogJoystick);
+    if (pin == pinConfig.ANLOG_JOYSTICK_X)
+        j->driveMotor(Stepper::X, j->joystick_drive_X, pin);
+    if (pin == pinConfig.ANLOG_JOYSTICK_Y)
+        j->driveMotor(Stepper::Y, j->joystick_drive_Y, pin);
+}
+
 void AnalogJoystick::setup()
 {
-    log_d("Setup analog joystick");
-    pinMode(pinConfig.ANLOG_JOYSTICK_X, INPUT);
-    pinMode(pinConfig.ANLOG_JOYSTICK_Y, INPUT);
-    xTaskCreate(&processLoopAJoy, "analogJoyStick_task", pinConfig.ANALOGJOYSTICK_TASK_STACKSIZE, NULL, 5, NULL);
+    ESP_LOGI(JoyTAG,"Setup analog joystick");
+    addInterruptListner(pinConfig.ANLOG_JOYSTICK_X, (Listner)&processEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListner(pinConfig.ANLOG_JOYSTICK_Y, (Listner)&processEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 }
-int AnalogJoystick::act(cJSON* jsonDocument) { return 1;}
+int AnalogJoystick::act(cJSON *jsonDocument) { return 1; }
 
-
-/*"joy" : 
+/*"joy" :
     {
         "joyX" : 1,
         "joyY" : 1
     }*/
-cJSON* AnalogJoystick::get(cJSON*  doc) {
+cJSON *AnalogJoystick::get(cJSON *doc)
+{
 
     cJSON *monitor = cJSON_CreateObject();
     cJSON *analogholder = NULL;
@@ -44,57 +49,36 @@ cJSON* AnalogJoystick::get(cJSON*  doc) {
     return monitor;
 }
 
-void AnalogJoystick::loop()
-{ 
+void AnalogJoystick::driveMotor(Stepper s, int joystick_drive, int pin)
+{
     
     if (moduleController.get(AvailableModules::motor) != nullptr)
     {
         FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-        if (pinConfig.ANLOG_JOYSTICK_X > 0)
+        int val = analogRead(pin) - max_in_value / 2;
+        ESP_LOGI(JoyTAG,"drive motor :%i x drive:%i , x:%i", motor->data[s]->stopped, joystick_drive, val);
+        if (val >= zeropoint || val <= -zeropoint)
         {
-            int x = analogRead(pinConfig.ANLOG_JOYSTICK_X) - max_in_value / 2;
-            //log_i("X: %i" , x);
-            if (x >= zeropoint|| x <= -zeropoint)
+            motor->data[s]->speed = val;
+            motor->data[s]->isforever = true;
+
+            if (motor->data[s]->stopped && joystick_drive_X == 0)
             {
-                motor->data[Stepper::X]->speed = x;
-                motor->data[Stepper::X]->isforever = true;
-                
-                if (motor->data[Stepper::X]->stopped && joystick_drive_X == 0)
-                {
-                     log_i("start motor X");
-                    joystick_drive_X = 1;
-                    motor->startStepper(Stepper::X);
-                }
-            }
-            else if (!motor->data[Stepper::X]->stopped && joystick_drive_X > 0 && (x <= zeropoint || x >= -zeropoint))
-            {
-                log_i("stop motor X stopped:%i x drive:%i , x:%i", motor->data[Stepper::X]->stopped, joystick_drive_X, x);
-                motor->stopStepper(Stepper::X);
-                joystick_drive_X = 0;
+                ESP_LOGI(JoyTAG,"start motor X");
+                joystick_drive = 1;
+                motor->startStepper(s);
             }
         }
-        if (pinConfig.ANLOG_JOYSTICK_Y > 0)
+        else if (!motor->data[s]->stopped && joystick_drive > 0 && (val <= zeropoint || val >= -zeropoint))
         {
-            int y = analogRead(pinConfig.ANLOG_JOYSTICK_Y) - max_in_value / 2;
-            //log_i("Y: %i", y);
-            if (y >= zeropoint || y <= -zeropoint)
-            {
-                motor->data[Stepper::Y]->speed = y;
-                motor->data[Stepper::Y]->isforever = true;
-                if (motor->data[Stepper::Y]->stopped && joystick_drive_Y == 0)
-                {
-                    log_i("start motor Y");
-                    joystick_drive_Y = 1;
-                    motor->startStepper(Stepper::Y);
-                }
-            }
-            else if (!motor->data[Stepper::Y]->stopped && joystick_drive_Y > 0 && (y <= zeropoint || y >= -zeropoint))
-            {
-                log_i("stop motor Y");
-                motor->stopStepper(Stepper::Y);
-                joystick_drive_Y = 0;
-            }
+            ESP_LOGI(JoyTAG,"stop motor X stopped:%i x drive:%i , x:%i", motor->data[s]->stopped, joystick_drive, val);
+            motor->stopStepper(s);
+            joystick_drive = 0;
         }
     }
+}
+
+void AnalogJoystick::loop()
+{
     
 }

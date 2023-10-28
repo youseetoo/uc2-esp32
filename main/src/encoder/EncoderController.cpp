@@ -4,12 +4,20 @@
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"
 
+#include "InterruptController.h"
+
 EncoderController::EncoderController() : Module() { log_i("ctor"); }
 EncoderController::~EncoderController() { log_i("~ctor"); }
+
 
 void processEncoderLoop(void *p)
 {
 	Module *m = moduleController.get(AvailableModules::encoder);
+}
+
+void processEncoderEvent(uint8_t pin)
+{
+    log_d("processEncoderEvent from pin %i", pin);
 }
 
 /*
@@ -187,6 +195,14 @@ void EncoderController::setup()
 	pinMode(pinConfig.Z_CAL_CLK, INPUT);
 	pinMode(pinConfig.Z_CAL_DATA, INPUT);
 
+	/*
+    addInterruptListner(pinConfig.X_CAL_CLK, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListner(pinConfig.X_CAL_DATA, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListner(pinConfig.Y_CAL_CLK, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListner(pinConfig.Y_CAL_DATA, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListner(pinConfig.Z_CAL_CLK, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListner(pinConfig.Z_CAL_DATA, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+	*/
 	for (int i = 0; i < 4; i++)
 	{
 		// A,X,y,z // the zeroth is unused but we need to keep the loops happy

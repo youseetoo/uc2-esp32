@@ -2,7 +2,6 @@
 
 #include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
-#include "AS5311.h"
 #include "AS5311AB.h"
 
 

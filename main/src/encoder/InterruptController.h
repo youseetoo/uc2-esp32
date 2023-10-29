@@ -8,7 +8,8 @@
 typedef void (*Listner)(uint8_t pin);
 
 // Global variable declarations
-extern const char *TAG = "InterruptController";
+extern const char *InterruptTAG; // Declaration only
+
 extern QueueHandle_t dataQueue;
 extern std::map<uint8_t, Listner> interruptListners;
 extern bool interruptControllerIsInit;

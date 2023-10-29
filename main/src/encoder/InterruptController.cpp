@@ -6,6 +6,8 @@
 // Global variable definitions
 QueueHandle_t dataQueue = xQueueCreate(10, sizeof(uint8_t));
 std::map<uint8_t, Listner> interruptListners;
+const char *InterruptTAG = "InterruptController"; // Definition
+
 bool interruptControllerIsInit = false;
 
 // Function definitions
@@ -15,21 +17,21 @@ void IRAM_ATTR ISR_handler(void *arg) {
 }
 
 void QueueHandler(void *param) {
-    ESP_LOGI(TAG, "start QueueHandler");
+    ESP_LOGI(InterruptTAG, "start QueueHandler");
     uint8_t pin;
     for (;;) {
         if (xQueueReceive(dataQueue, &pin, portMAX_DELAY)) {
-            ESP_LOGD(TAG, "xQueueReceive from pin %i", pin);
+            ESP_LOGD(InterruptTAG, "xQueueReceive from pin %i", pin);
             if (interruptListners[pin] == nullptr)
                 return;
             interruptListners[pin](pin);
         }
     }
-    ESP_LOGI(TAG, "end QueueHandler");
+    ESP_LOGI(InterruptTAG, "end QueueHandler");
 }
 
 void init() {
-    ESP_LOGI(TAG, "init");
+    ESP_LOGI(InterruptTAG, "init");
     interruptControllerIsInit = true;
     gpio_install_isr_service(0);
     xTaskCreate(

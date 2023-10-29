@@ -12,7 +12,7 @@ AnalogJoystick::~AnalogJoystick(){};
 
 void processEvent(uint8_t pin)
 {
-    ESP_LOGI(TAG,"processEvent from pin %i", pin);
+    log_d("processEvent from pin %i", pin);
     AnalogJoystick *j = (AnalogJoystick *)moduleController.get(AvailableModules::analogJoystick);
     if (pin == pinConfig.ANLOG_JOYSTICK_X)
         j->driveMotor(Stepper::X, j->joystick_drive_X, pin);

@@ -23,8 +23,8 @@ void processEvent(uint8_t pin)
 void AnalogJoystick::setup()
 {
     ESP_LOGI(JoyTAG,"Setup analog joystick");
-    addInterruptListner(pinConfig.ANLOG_JOYSTICK_X, (Listner)&processEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-    addInterruptListner(pinConfig.ANLOG_JOYSTICK_Y, (Listner)&processEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListener(pinConfig.ANLOG_JOYSTICK_X, (Listener)&processEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+    addInterruptListener(pinConfig.ANLOG_JOYSTICK_Y, (Listener)&processEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 }
 int AnalogJoystick::act(cJSON *jsonDocument) { return 1; }
 

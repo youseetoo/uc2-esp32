@@ -35,7 +35,9 @@ public:
 	void setup() override;
 	void loop() override;
 
+
 private:
 	float readValue(int clkPin, int dataPin);
 	float decode(int clkPin, int dataPin);
+	void processEncoderEvent(uint8_t pin);
 };

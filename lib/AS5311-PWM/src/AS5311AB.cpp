@@ -37,7 +37,7 @@ int AS5311AB::getPosition()
 
 void AS5311AB::_handleAChange()
 {
-    /*
+    
     int aVal = digitalRead(_pinA);
     int bVal = digitalRead(_pinB);
     if (aVal == HIGH)
@@ -62,13 +62,13 @@ void AS5311AB::_handleAChange()
             _encoderPos--;
         }
     }
-    */
+    
 }
 
 void AS5311AB::_handleBChange()
 {
     //if(_pinA == nullptr || _pinB == nullptr) return;
-    /*
+    
     int aVal = digitalRead(_pinA);
     int bVal = digitalRead(_pinB);
     
@@ -97,7 +97,7 @@ void AS5311AB::_handleBChange()
             _encoderPos--;
         }
     }
-    */
+    
 }
 
 void AS5311AB::_processEncoderData(void *parameter)

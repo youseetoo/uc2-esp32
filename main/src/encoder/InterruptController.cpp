@@ -5,7 +5,7 @@
 
 // Global variable definitions
 QueueHandle_t dataQueue = xQueueCreate(10, sizeof(uint8_t));
-std::map<uint8_t, Listner> interruptListners;
+std::map<uint8_t, Listener> interruptListeners;
 const char *InterruptTAG = "InterruptController"; // Definition
 
 bool interruptControllerIsInit = false;
@@ -22,9 +22,9 @@ void QueueHandler(void *param) {
     for (;;) {
         if (xQueueReceive(dataQueue, &pin, portMAX_DELAY)) {
             ESP_LOGD(InterruptTAG, "xQueueReceive from pin %i", pin);
-            if (interruptListners[pin] == nullptr)
+            if (interruptListeners[pin] == nullptr)
                 return;
-            interruptListners[pin](pin);
+            interruptListeners[pin](pin);
         }
     }
     ESP_LOGI(InterruptTAG, "end QueueHandler");
@@ -43,10 +43,10 @@ void init() {
         NULL);        /* Task handle. */
 }
 
-void addInterruptListner(uint8_t pin, Listner listner, gpio_int_type_t int_type) {
+void addInterruptListener(uint8_t pin, Listener listener, gpio_int_type_t int_type) {
     if (!interruptControllerIsInit)
         init();
-    interruptListners.insert(std::make_pair(pin, listner));
+    interruptListeners.insert(std::make_pair(pin, listener));
     gpio_config_t io_conf_pwm = {
         .pin_bit_mask = (1ULL << pin),
         .mode = GPIO_MODE_INPUT,
@@ -58,7 +58,7 @@ void addInterruptListner(uint8_t pin, Listner listner, gpio_int_type_t int_type)
     gpio_isr_handler_add((gpio_num_t)pin, ISR_handler, (void *)pin);
 }
 
-void removeInterruptListner(uint8_t pin) {
-    interruptListners.erase(pin);
+void removeInterruptListener(uint8_t pin) {
+    interruptListeners.erase(pin);
     gpio_isr_handler_remove((gpio_num_t)pin);
 }

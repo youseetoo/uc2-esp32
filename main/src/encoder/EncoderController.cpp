@@ -9,15 +9,47 @@
 EncoderController::EncoderController() : Module() { log_i("ctor"); }
 EncoderController::~EncoderController() { log_i("~ctor"); }
 
-
 void processEncoderLoop(void *p)
 {
 	Module *m = moduleController.get(AvailableModules::encoder);
 }
 
-void processEncoderEvent(uint8_t pin)
+void  EncoderController::processEncoderEvent(uint8_t pin)
 {
-    log_d("processEncoderEvent from pin %i", pin);
+
+	// for X 
+	if (pin == pinConfig.X_ENC_IND)
+	{
+		// 
+		bool pinA = digitalRead(pinConfig.X_ENC_PWM);
+		bool pinB = digitalRead(pinConfig.X_ENC_IND);
+		if (pinB == HIGH)
+		{
+			if (pinA == HIGH) edata[1]->posval ++; 
+			else edata[1]->posval --;
+		}
+		else
+		{
+			if (pinA == LOW) edata[1]->posval ++;
+			else edata[1]->posval --;
+		}
+	}
+	if (pin == pinConfig.X_ENC_PWM)
+	{
+		// 
+		bool pinA = digitalRead(pinConfig.X_ENC_PWM);
+		bool pinB = digitalRead(pinConfig.X_ENC_IND);
+		if (pinA == HIGH)
+		{
+			if (pinA == LOW) edata[1]->posval ++; 
+			else edata[1]->posval --;
+		}
+		else
+		{
+			if (pinA == HIGH) edata[1]->posval ++;
+			else edata[1]->posval --;
+		}
+	}
 }
 
 /*
@@ -47,11 +79,12 @@ int EncoderController::act(cJSON *j)
 			cJSON_ArrayForEach(stp, stprs)
 			{
 				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-				// measure current value	
-				for (int t=0; t<2; t++){ // read twice?
+				// measure current value
+				for (int t = 0; t < 2; t++)
+				{ // read twice?
 					edata[s]->valuePreCalib = readValue(edata[s]->clkPin, edata[s]->dataPin);
 					delay(40);
-					}
+				}
 				delay(100); // wait until slide settles
 				int calibsteps = cJSON_GetObjectItemCaseSensitive(stp, key_encoder_calibpos)->valueint;
 				int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
@@ -167,10 +200,11 @@ void EncoderController::loop()
 			{
 				edata[i]->requestCalibration = false;
 				delay(1000); // wait until slide settles
-				for (int t=0; t<2; t++){ // read twice?
+				for (int t = 0; t < 2; t++)
+				{ // read twice?
 					edata[i]->valuePostCalib = readValue(edata[i]->clkPin, edata[i]->dataPin);
 					delay(40);
-					}
+				}
 				edata[i]->stepsPerMM = edata[i]->calibsteps / (edata[i]->valuePostCalib - edata[i]->valuePreCalib);
 				log_d("post calib %f", edata[i]->valuePostCalib);
 				log_d("calibrated encoder %i with %f steps per mm", i, edata[i]->stepsPerMM);
@@ -178,7 +212,6 @@ void EncoderController::loop()
 		}
 	}
 }
-
 
 /*
 not needed all stuff get setup inside motor and digitalin, but must get implemented
@@ -195,14 +228,13 @@ void EncoderController::setup()
 	pinMode(pinConfig.Z_CAL_CLK, INPUT);
 	pinMode(pinConfig.Z_CAL_DATA, INPUT);
 
-	
-    addInterruptListner(pinConfig.X_CAL_CLK, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-    addInterruptListner(pinConfig.X_CAL_DATA, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-    addInterruptListner(pinConfig.Y_CAL_CLK, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-    addInterruptListner(pinConfig.Y_CAL_DATA, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-    addInterruptListner(pinConfig.Z_CAL_CLK, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-    addInterruptListner(pinConfig.Z_CAL_DATA, (Listner)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-	
+	addInterruptListener(pinConfig.X_CAL_CLK, (Listener)&EncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+	addInterruptListener(pinConfig.X_CAL_DATA, (Listener)&EncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+	addInterruptListener(pinConfig.Y_CAL_CLK, (Listener)&EncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+	addInterruptListener(pinConfig.Y_CAL_DATA, (Listener)&EncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+	addInterruptListener(pinConfig.Z_CAL_CLK, (Listener)&EncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+	addInterruptListener(pinConfig.Z_CAL_DATA, (Listener)&EncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+
 	for (int i = 0; i < 4; i++)
 	{
 		// A,X,y,z // the zeroth is unused but we need to keep the loops happy
@@ -210,7 +242,7 @@ void EncoderController::setup()
 		edata[i]->encoderID = i;
 	}
 	edata[0]->clkPin = -1;
-	edata[0]->dataPin = -1;	
+	edata[0]->dataPin = -1;
 	edata[1]->clkPin = pinConfig.X_CAL_CLK;
 	edata[1]->dataPin = pinConfig.X_CAL_DATA;
 	edata[2]->clkPin = pinConfig.Y_CAL_CLK;

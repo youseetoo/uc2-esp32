@@ -5,12 +5,66 @@
 #include "HardwareSerial.h"
 #include "PIDController.h"
 
+#include "InterruptController.h"
+
 LinearEncoderController::LinearEncoderController() : Module() { log_i("ctor"); }
 LinearEncoderController::~LinearEncoderController() { log_i("~ctor"); }
 
 void processLinearEncoderLoop(void *p)
 {
     Module *m = moduleController.get(AvailableModules::linearencoder);
+}
+
+
+
+void LinearEncoderController::processEncoderEvent(uint8_t pin)
+{
+
+	// for X
+	if (pin == pinConfig.X_ENC_IND or pin == pinConfig.X_CAL_CLK)
+	{
+		if (pin == pinConfig.X_ENC_IND)
+		{
+			//
+			bool pinA = digitalRead(pinConfig.X_ENC_PWM);
+			bool pinB = digitalRead(pinConfig.X_ENC_IND);
+			if (pinB == HIGH)
+			{
+				if (pinA == HIGH)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
+			else
+			{
+				if (pinA == LOW)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
+		}
+		else if (pin == pinConfig.X_ENC_PWM)
+		{
+			//
+			bool pinA = digitalRead(pinConfig.X_ENC_PWM);
+			bool pinB = digitalRead(pinConfig.X_ENC_IND);
+			if (pinA == HIGH)
+			{
+				if (pinA == LOW)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
+			else
+			{
+				if (pinA == HIGH)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
+		}
+		log_d("X encoder %f", edata[1]->posval);
+	}
 }
 
 /*
@@ -338,7 +392,8 @@ not needed all stuff get setup inside motor and digitalin, but must get implemen
 */
 void LinearEncoderController::setup()
 {
-    log_i("LinearEncoder setup");
+    // for AS5311
+    log_i("LinearEncoder setup AS5311 - A/B interface");
 
     for (int i = 0; i < 4; i++)
     {
@@ -346,22 +401,30 @@ void LinearEncoderController::setup()
         edata[i] = new LinearEncoderData();
         edata[i]->linearencoderID = i;
     }
-    if (pinConfig.X_ENC_PWM >= 0)
+
+    if (pinConfig.ENC_X_A >= 0)
     {
-        log_i("Adding X Encoder: %i, %i", pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
-        encoders[1].begin(pinConfig.X_ENC_PWM, pinConfig.X_ENC_IND);
+        log_i("Adding X Encoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
+        pinMode(pinConfig.ENC_X_A, INPUT_PULLUP);
+        pinMode(pinConfig.ENC_X_B, INPUT_PULLUP);
+        addInterruptListener(pinConfig.ENC_X_A, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+        addInterruptListener(pinConfig.ENC_X_B, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
     }
-    if (pinConfig.Y_ENC_PWM >= 0)
+    if (pinConfig.ENC_X_A >= 0)
     {
-        log_i("Adding Y Encoder: %i, %i", pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
-        //encoders[2] = new AS5311AB();
-        encoders[2].begin(pinConfig.Y_ENC_PWM, pinConfig.Y_ENC_IND);
+        log_i("Adding Y Encoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_Y_B);
+        pinMode(pinConfig.ENC_Y_A, INPUT_PULLUP);
+        pinMode(pinConfig.ENC_Y_B, INPUT_PULLUP);
+        addInterruptListener(pinConfig.ENC_Y_A, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+        addInterruptListener(pinConfig.ENC_Y_B, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
     }
-    if (pinConfig.Z_ENC_PWM >= 0)
+    if (pinConfig.ENC_Z_A >= 0)
     {
-        log_i("Adding Z Encoder: %i, %i", pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
-        //encoders[3] = new AS5311AB();
-        encoders[3].begin(pinConfig.Z_ENC_PWM, pinConfig.Z_ENC_IND);
+        log_i("Adding Z Encoder: %i, %i", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
+        pinMode(pinConfig.ENC_Z_A, INPUT_PULLUP);
+        pinMode(pinConfig.ENC_Z_B, INPUT_PULLUP);
+        addInterruptListener(pinConfig.ENC_Z_A, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+        addInterruptListener(pinConfig.ENC_Z_B, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
     }
 }
 

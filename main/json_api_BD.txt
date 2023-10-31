@@ -90,10 +90,11 @@
 
 # HOME
 {"task": "/home_get"}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":3000, "endstoppolarity":1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":-1, "endposrelease":3000, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":10000, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1, "endposrelease":4000, "endstoppolarity":0}]}}
 
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
@@ -189,9 +190,8 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0},
-            { "stepperid": 3, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0},
-            { "stepperid": 2, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0}
+            { "stepperid": 0, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0},
+            { "stepperid": 3, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0}
         ]
     }
 }
@@ -218,7 +218,7 @@
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 
 
-{"task":"/home_act", "qid": 10, "setpos":1, "home": {"steppers": [{"stepperid":1, "posval": 20000}]}}
+{"task":"/home_act", "qid": 10, "setpos":1, "home": {"steppers": [{"stepperid":3, "posval": 20000}]}}
 {"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}]}}
 {"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 {"task": "/motor_get"}

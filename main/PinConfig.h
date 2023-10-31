@@ -141,6 +141,14 @@ struct PinConfig
      int8_t Y_CAL_CLK = disabled;
      int8_t Z_CAL_CLK = disabled;
 
+     // for AS5311
+     int8_t ENC_X_A = disabled;
+     int8_t ENC_Y_A = disabled;
+     int8_t ENC_Z_A = disabled;
+     int8_t ENC_X_B = disabled;
+     int8_t ENC_Y_B = disabled;
+     int8_t ENC_Z_B = disabled;
+
      // I2c
      int8_t I2C_SCL = disabled;
      int8_t I2C_SDA = disabled;
@@ -581,13 +589,15 @@ struct UC2_3 : PinConfig
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
 
-     // for caliper
-     int8_t X_ENC_PWM = GPIO_NUM_32;
-     int8_t Y_ENC_PWM = GPIO_NUM_34;
-     int8_t Z_ENC_PWM = GPIO_NUM_36;
-     int8_t X_ENC_IND = GPIO_NUM_33;
-     int8_t Y_ENC_IND = GPIO_NUM_35;
-     int8_t Z_ENC_IND = GPIO_NUM_17;
+
+     // for AS5311
+     int8_t ENC_X_A = GPIO_NUM_32;
+     int8_t ENC_Y_A = GPIO_NUM_34;
+     int8_t ENC_Z_A = GPIO_NUM_36;
+     int8_t ENC_X_B = GPIO_NUM_33;
+     int8_t ENC_Y_B = GPIO_NUM_35;
+     int8_t ENC_Z_B = GPIO_NUM_17;
+
      
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;
@@ -702,14 +712,6 @@ struct UC2_linencoder : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
-
-     // for caliper
-     int8_t X_CAL_DATA = disabled;
-     int8_t Y_CAL_DATA = disabled;
-     int8_t Z_CAL_DATA = disabled;
-     int8_t X_CAL_CLK = disabled;
-     int8_t Y_CAL_CLK = disabled;
-     int8_t Z_CAL_CLK = disabled;
 
      // I2c
 /*     int8_t I2C_SCL = GPIO_NUM_22;

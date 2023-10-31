@@ -21,7 +21,7 @@ void QueueHandler(void *param) {
     uint8_t pin;
     for (;;) {
         if (xQueueReceive(dataQueue, &pin, portMAX_DELAY)) {
-            ESP_LOGD(InterruptTAG, "xQueueReceive from pin %i", pin);
+            ESP_LOGD(InterruptTAG, "<<<xQueueReceive from pin>>> %i", pin);
             if (interruptListeners[pin] == nullptr)
                 return;
             interruptListeners[pin](pin);
@@ -44,6 +44,7 @@ void init() {
 }
 
 void addInterruptListener(uint8_t pin, Listener listener, gpio_int_type_t int_type) {
+    log_d("addInterruptListener %i", pin);
     if (!interruptControllerIsInit)
         init();
     interruptListeners.insert(std::make_pair(pin, listener));

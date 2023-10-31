@@ -14,41 +14,53 @@ void processEncoderLoop(void *p)
 	Module *m = moduleController.get(AvailableModules::encoder);
 }
 
-void  EncoderController::processEncoderEvent(uint8_t pin)
+void EncoderController::processEncoderEvent(uint8_t pin)
 {
 
-	// for X 
-	if (pin == pinConfig.X_ENC_IND)
+	// for X
+	if (pin == pinConfig.X_ENC_IND or pin == pinConfig.X_CAL_CLK)
 	{
-		// 
-		bool pinA = digitalRead(pinConfig.X_ENC_PWM);
-		bool pinB = digitalRead(pinConfig.X_ENC_IND);
-		if (pinB == HIGH)
+		if (pin == pinConfig.X_ENC_IND)
 		{
-			if (pinA == HIGH) edata[1]->posval ++; 
-			else edata[1]->posval --;
+			//
+			bool pinA = digitalRead(pinConfig.X_ENC_PWM);
+			bool pinB = digitalRead(pinConfig.X_ENC_IND);
+			if (pinB == HIGH)
+			{
+				if (pinA == HIGH)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
+			else
+			{
+				if (pinA == LOW)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
 		}
-		else
+		else if (pin == pinConfig.X_ENC_PWM)
 		{
-			if (pinA == LOW) edata[1]->posval ++;
-			else edata[1]->posval --;
+			//
+			bool pinA = digitalRead(pinConfig.X_ENC_PWM);
+			bool pinB = digitalRead(pinConfig.X_ENC_IND);
+			if (pinA == HIGH)
+			{
+				if (pinA == LOW)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
+			else
+			{
+				if (pinA == HIGH)
+					edata[1]->posval++;
+				else
+					edata[1]->posval--;
+			}
 		}
-	}
-	if (pin == pinConfig.X_ENC_PWM)
-	{
-		// 
-		bool pinA = digitalRead(pinConfig.X_ENC_PWM);
-		bool pinB = digitalRead(pinConfig.X_ENC_IND);
-		if (pinA == HIGH)
-		{
-			if (pinA == LOW) edata[1]->posval ++; 
-			else edata[1]->posval --;
-		}
-		else
-		{
-			if (pinA == HIGH) edata[1]->posval ++;
-			else edata[1]->posval --;
-		}
+		log_d("X encoder %f", edata[1]->posval);
 	}
 }
 

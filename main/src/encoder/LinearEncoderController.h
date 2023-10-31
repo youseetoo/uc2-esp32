@@ -44,6 +44,7 @@ public:
 
 	void setCurrentPosition(int encoderIndex, float offsetPos);
 	float getCurrentPosition(int encoderIndex);
+	void processEncoderEvent(uint8_t pin);
 
 	int act(cJSON * ob) override;
 	cJSON * get(cJSON * ob) override;

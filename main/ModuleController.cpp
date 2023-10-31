@@ -88,14 +88,17 @@ void ModuleController::setup()
     }
 
     // eventually load the linear encoder module
-    if ( pinConfig.X_ENC_PWM >= 0 || pinConfig.Y_ENC_PWM >= 0 || pinConfig.Z_ENC_PWM >= 0)
+    if ( pinConfig.ENC_X_A >= 0 || pinConfig.ENC_Y_A >= 0 || pinConfig.ENC_Z_A >= 0)
     {
+        // AS5311
         modules.insert(std::make_pair(AvailableModules::linearencoder, dynamic_cast<Module *>(new LinearEncoderController())));
         /*pinConfig.DIGITAL_IN_1=pinConfig.PIN_DEF_END_X;
         pinConfig.DIGITAL_IN_2=pinConfig.PIN_DEF_END_Y;
         pinConfig.DIGITAL_IN_3=pinConfig.PIN_DEF_END_Z;*/
         log_i("add linear encoder");
     }
+
+    
 
     // eventually load the analogin module
     if (pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)

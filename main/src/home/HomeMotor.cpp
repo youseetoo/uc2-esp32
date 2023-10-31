@@ -46,12 +46,20 @@ int HomeMotor::act(cJSON * j)
 				motor->data[s]->isforever = true;
 				motor->data[s]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
 				motor->data[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
-
+				motor->startStepper(s);
+				if (s==Stepper::Z){
+					// we may have a dual axis so we would need to start A too
+					log_i("Starting A too");
+					motor->data[Stepper::A]->isforever = true;
+					motor->data[Stepper::A]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
+					motor->data[Stepper::A]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
+					motor->startStepper(Stepper::A);
+				}
 				// now we will go into loop and need to stop once the button is hit or timeout is reached
 				log_i("Home Data Motor  Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i",
 					   s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndposRelease);
 
-				motor->startStepper(s);
+				
 			}
 		}
 	}
@@ -117,13 +125,34 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *mot
 			int speed = motor->data[s]->speed;
 			motor->stopStepper(s);
 			motor->setPosition(s, 0);
+			if (s==Stepper::Z){
+				// we may have a dual axis so we would need to start A too
+				motor->stopStepper(Stepper::A);
+				motor->setPosition(Stepper::A, 0);
+			}
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
-			if (speed > 0)
+			if (speed > 0){
 				motor->data[s]->targetPosition = -hdata[s]->homeEndposRelease;
-			else
+				if (s==Stepper::Z){
+					// we may have a dual axis so we would need to start A too
+					motor->data[Stepper::A]->targetPosition = -hdata[s]->homeEndposRelease;
+				}
+				}
+			else{
 				motor->data[s]->targetPosition = hdata[s]->homeEndposRelease;
+				if (s==Stepper::Z){
+					// we may have a dual axis so we would need to start A too
+					motor->data[Stepper::A]->targetPosition = hdata[s]->homeEndposRelease;
+				}
+			}
+				
 			motor->data[s]->absolutePosition = false;
 			motor->startStepper(s);
+			if (s==Stepper::Z){
+				// we may have a dual axis so we would need to start A too
+				motor->data[Stepper::A]->absolutePosition = false;
+				motor->startStepper(Stepper::A);
+			}
 			// wait until stepper reached new position
 			while (motor->isRunning(s)) 
 				delay(1);
@@ -133,6 +162,15 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *mot
 			motor->data[s]->isforever = false;
 			log_i("Home Motor X done");
 			sendHomeDone(s);
+			if (s==Stepper::A){
+				// we may have a dual axis so we would need to start A too
+				hdata[Stepper::A]->homeIsActive = false;
+				motor->setPosition(Stepper::A, 0);
+				motor->stopStepper(Stepper::A);
+				motor->data[Stepper::A]->isforever = false;
+				log_i("Home Motor A done");
+				sendHomeDone(Stepper::A);
+			}
 		}
 }
 /*

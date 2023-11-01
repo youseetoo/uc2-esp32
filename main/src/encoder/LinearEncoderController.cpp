@@ -21,13 +21,14 @@ void LinearEncoderController::processEncoderEvent(uint8_t pin)
 {
 
 	// for X
-	if (pin == pinConfig.X_ENC_IND or pin == pinConfig.X_CAL_CLK)
+    log_i("EVENT %i", pin);
+	if (pin == pinConfig.ENC_X_A or pin == pinConfig.ENC_X_B)
 	{
-		if (pin == pinConfig.X_ENC_IND)
+		if (pin == pinConfig.ENC_X_B)
 		{
 			//
-			bool pinA = digitalRead(pinConfig.X_ENC_PWM);
-			bool pinB = digitalRead(pinConfig.X_ENC_IND);
+			bool pinA = digitalRead(pinConfig.ENC_X_A);
+			bool pinB = digitalRead(pinConfig.ENC_X_B);
 			if (pinB == HIGH)
 			{
 				if (pinA == HIGH)
@@ -43,11 +44,11 @@ void LinearEncoderController::processEncoderEvent(uint8_t pin)
 					edata[1]->posval--;
 			}
 		}
-		else if (pin == pinConfig.X_ENC_PWM)
+		else if (pin == pinConfig.ENC_X_A)
 		{
 			//
-			bool pinA = digitalRead(pinConfig.X_ENC_PWM);
-			bool pinB = digitalRead(pinConfig.X_ENC_IND);
+			bool pinA = digitalRead(pinConfig.ENC_X_A);
+			bool pinB = digitalRead(pinConfig.ENC_X_B);
 			if (pinA == HIGH)
 			{
 				if (pinA == LOW)

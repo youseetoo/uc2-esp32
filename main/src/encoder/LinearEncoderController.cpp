@@ -404,7 +404,7 @@ void LinearEncoderController::setup()
 
     if (pinConfig.ENC_X_A >= 0)
     {
-        log_i("Adding X Encoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
+        log_i("Adding X LinearEncoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
         pinMode(pinConfig.ENC_X_A, INPUT_PULLUP);
         pinMode(pinConfig.ENC_X_B, INPUT_PULLUP);
         addInterruptListener(pinConfig.ENC_X_A, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
@@ -412,7 +412,7 @@ void LinearEncoderController::setup()
     }
     if (pinConfig.ENC_X_A >= 0)
     {
-        log_i("Adding Y Encoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_Y_B);
+        log_i("Adding Y LinearEncoder: %i, %i", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
         pinMode(pinConfig.ENC_Y_A, INPUT_PULLUP);
         pinMode(pinConfig.ENC_Y_B, INPUT_PULLUP);
         addInterruptListener(pinConfig.ENC_Y_A, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
@@ -420,7 +420,7 @@ void LinearEncoderController::setup()
     }
     if (pinConfig.ENC_Z_A >= 0)
     {
-        log_i("Adding Z Encoder: %i, %i", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
+        log_i("Adding Z LinearEncoder: %i, %i", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
         pinMode(pinConfig.ENC_Z_A, INPUT_PULLUP);
         pinMode(pinConfig.ENC_Z_B, INPUT_PULLUP);
         addInterruptListener(pinConfig.ENC_Z_A, (Listener)&LinearEncoderController::processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);

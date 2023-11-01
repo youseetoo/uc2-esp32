@@ -344,6 +344,7 @@ void BtController::loop()
 
 cJSON *BtController::scanForDevices(cJSON *doc)
 {
+    log_i("scanForDevices - this does not work on all ESP32 even if same fabricate and same version");
     // scan for bluetooth devices and return the list of devices
     hid_demo_task(nullptr);
     return NULL;

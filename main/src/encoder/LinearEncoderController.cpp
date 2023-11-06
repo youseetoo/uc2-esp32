@@ -128,8 +128,8 @@ int LinearEncoderController::act(cJSON *j)
     else if (home != NULL)
     {
         // we want to start a motor until the linear encoder does not track any position change
-        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "speed": 10000} ]}}
-        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "direction":1, "speed": 15000} ]}}
+        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "speed": -1000} ]}}
+        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "direction":-1, "speed": 40000} ]}}
         cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
         if (stprs != NULL)
         {
@@ -144,15 +144,9 @@ int LinearEncoderController::act(cJSON *j)
                 log_i("pre home %f", edata[s]->positionPreMove);
                 int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                 // get the motor object and let it run forever int he specfied direction
-                int direction = 1;
-                if (cJSON_GetObjectItemCaseSensitive(stp, key_home_direction) != NULL)
-                {
-                    // 1 or -1
-                    direction = cJSON_GetObjectItemCaseSensitive(stp, key_home_direction)->valueint;
-                }
-                log_d("home direction %i", direction);
+                edata[s]->timeSinceMotorStart = millis();
                 motor->data[s]->isforever = true;
-                motor->data[s]->speed = direction * abs(speed);
+                motor->data[s]->speed = speed;
                 motor->startStepper(s);
                 edata[s]->homeAxis = true;
             }
@@ -359,20 +353,23 @@ void LinearEncoderController::loop()
                 // we track the position and if there is no to little change we will stop the motor and set the position to zero
                 float currentPos = getCurrentPosition(i);
                 float currentPosAvg = calculateRollingAverage(currentPos);
-                log_d("current pos %f, current pos avg %f", currentPos, currentPosAvg);
-                float thresholdPositionChange = 2;
-                if (abs(currentPosAvg - edata[i]->lastPosition) < thresholdPositionChange)
+                log_d("current pos %f, current pos avg %f, need to go to: %f", currentPos, currentPosAvg, edata[i]->positionToGo);
+                float thresholdPositionChange = 0.1f;
+                int startupTimout = 1000;
+                
+                if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
+                    (millis() - edata[i]->timeSinceMotorStart) > startupTimout)
                 {
-                    log_i("Stopping motor %i", i);
-                    motor->data[i]->speed = 0;
+                    log_i("Stopping motor  %i because there might be something in the way", i);
                     motor->data[i]->isforever = false;
+                    motor->stopStepper(i);
                     // move opposite direction to get the motor away from the endstop
                     // motor->setPosition(i, 0);
                     // blocks until stepper reached new position wich would be optimal outside of the endstep
                     if (motor->data[i]->speed > 0)
-                        motor->data[i]->targetPosition = -50;
+                        motor->data[i]->targetPosition = -100;
                     else
-                        motor->data[i]->targetPosition = 50;
+                        motor->data[i]->targetPosition = 100;
                     motor->data[i]->absolutePosition = false;
                     motor->startStepper(i);
                     // wait until stepper reached new position
@@ -383,7 +380,7 @@ void LinearEncoderController::loop()
                     motor->data[i]->isforever = false;
                     edata[i]->homeAxis = false;
                     edata[i]->lastPosition = -1000000.0f;
-
+                    motor->data[i]->speed = 0;
                     // set the current position to zero
                     edata[i]->posval = 0;
                 }

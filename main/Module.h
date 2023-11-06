@@ -6,7 +6,7 @@
 class Module
 {
     protected:
-    int getJsonInt(cJSON* job,const char* key);
+    int getJsonInt(cJSON* job,const char* key, int defaultVal = 0);
     void setJsonInt(cJSON* job,const char* key, int valToSet);
     void setJsonFloat(cJSON* job,const char* key, float valToSet);
     float getJsonFloat(cJSON* job,const char* key);

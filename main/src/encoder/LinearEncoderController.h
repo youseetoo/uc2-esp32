@@ -3,7 +3,7 @@
 #include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
 #include "AS5311AB.h"
-
+#include "PIDController.h"
 
 struct LinearEncoderData
 {	
@@ -17,16 +17,18 @@ struct LinearEncoderData
 	int calibsteps = 0;
 	int dataPin = -1;
 	int clkPin = -1;
-	float valuePreCalib = 0.0f;
+	float positionPreMove = 0.0f;
 	float positionToGo = 0.0f;
 	float valuePostCalib = 0.0f;
 	float stepsPerMM = 0.0f;
-	float offset = 0.0f;
+	long timeSinceMotorStart = 0;
 	float lastPosition = -1000000.0f;
-	// PID controller variables
+	// PID controller variablexs
 	float c_p = 2.;
 	float c_i = 0.1;
 	float c_d = 0.1;
+	float mmPerStep = 1.95f;
+	PIDController pid = PIDController(c_p, c_i, c_d);
 };
 
 void processHomeLoop(void * p);
@@ -44,7 +46,6 @@ public:
 
 	void setCurrentPosition(int encoderIndex, float offsetPos);
 	float getCurrentPosition(int encoderIndex);
-	void processEncoderEvent(uint8_t pin);
 
 	int act(cJSON * ob) override;
 	cJSON * get(cJSON * ob) override;

@@ -94,7 +94,7 @@ int EncoderController::act(cJSON *j)
 				// measure current value
 				for (int t = 0; t < 2; t++)
 				{ // read twice?
-					edata[s]->valuePreCalib = readValue(edata[s]->clkPin, edata[s]->dataPin);
+					edata[s]->positionPreMove = readValue(edata[s]->clkPin, edata[s]->dataPin);
 					delay(40);
 				}
 				delay(100); // wait until slide settles
@@ -107,7 +107,7 @@ int EncoderController::act(cJSON *j)
 				motor->data[s]->speed = speed;
 				motor->startStepper(s);
 				edata[s]->requestCalibration = true;
-				log_d("pre calib %f", edata[s]->valuePreCalib);
+				log_d("pre calib %f", edata[s]->positionPreMove);
 				/*
 					// calibrate for 1000 steps in X
 					float steps_to_go = 1000;
@@ -217,7 +217,7 @@ void EncoderController::loop()
 					edata[i]->valuePostCalib = readValue(edata[i]->clkPin, edata[i]->dataPin);
 					delay(40);
 				}
-				edata[i]->stepsPerMM = edata[i]->calibsteps / (edata[i]->valuePostCalib - edata[i]->valuePreCalib);
+				edata[i]->stepsPerMM = edata[i]->calibsteps / (edata[i]->valuePostCalib - edata[i]->positionPreMove);
 				log_d("post calib %f", edata[i]->valuePostCalib);
 				log_d("calibrated encoder %i with %f steps per mm", i, edata[i]->stepsPerMM);
 			}

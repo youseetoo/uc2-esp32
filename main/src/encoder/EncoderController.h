@@ -12,7 +12,7 @@ struct EncoderData
 	int calibsteps = 0;
 	int dataPin = -1;
 	int clkPin = -1;
-	float valuePreCalib = 0.0f;
+	float positionPreMove = 0.0f;
 	float valuePostCalib = 0.0f;
 	float stepsPerMM = 0.0f;
 };

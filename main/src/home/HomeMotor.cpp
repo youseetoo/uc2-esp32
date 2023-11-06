@@ -34,7 +34,7 @@ int HomeMotor::act(cJSON * j)
 				hdata[s]->homeSpeed = getJsonInt(stp,key_home_speed);
 				hdata[s]->homeMaxspeed =getJsonInt(stp,key_home_maxspeed);
 				hdata[s]->homeDirection =getJsonInt(stp,key_home_direction);
-				hdata[s]->homeEndposRelease=getJsonInt(stp,key_home_endposrelease);
+				hdata[s]->homeEndposRelease=getJsonInt(stp,key_home_endposrelease, 1000);
 				hdata[s]->homeEndStopPolarity =getJsonInt(stp,key_home_endstoppolarity);
 				hdata[s]->qid = qid;
 				// grab current time

@@ -1,24 +1,19 @@
 #pragma once
-#include "../../Module.h"
+#include "cJSON.h"
 
-class DigitalInController : public Module
+
+namespace DigitalInController
 {
-private:
-    /* data */
-public:
-    DigitalInController(/* args */);
-    ~DigitalInController();
+    static bool isBusy;
+    static bool DEBUG = false;
 
-    bool isBusy;
-    bool DEBUG = false;
-
-    int digitalin_val_1 = 0;
-    int digitalin_val_2 = 0;
-    int digitalin_val_3 = 0;
+    static int digitalin_val_1 = 0;
+    static int digitalin_val_2 = 0;
+    static int digitalin_val_3 = 0;
 
     
-    int act(cJSON* jsonDocument) override;
-    cJSON* get(cJSON* jsonDocument) override;
-    void setup() override;
-    void loop() override;
+    int act(cJSON* jsonDocument);
+    cJSON* get(cJSON* jsonDocument);
+    void setup();
+    void loop();
 };

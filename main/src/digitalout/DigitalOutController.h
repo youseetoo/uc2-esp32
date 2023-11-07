@@ -1,36 +1,29 @@
 #pragma once
-#include "../../Module.h"
+#include "cJSON.h"
 
-
-class DigitalOutController : public Module
+namespace DigitalOutController
 {
-private:
-    /* data */
-public:
-    DigitalOutController(/* args */);
-    ~DigitalOutController();
+    static bool isBusy;
+    static bool DEBUG = false;
 
-    bool isBusy;
-    bool DEBUG = false;
-
-    int digitalout_val_1 = 0;
-    int digitalout_val_2 = 0;
-    int digitalout_val_3 = 0;
+    static int digitalout_val_1 = 0;
+    static int digitalout_val_2 = 0;
+    static int digitalout_val_3 = 0;
 
     /// trigger settings
-    long digitalout_trigger_delay_1_on = 0;
-    long digitalout_trigger_delay_2_on = 0;
-    long digitalout_trigger_delay_3_on = 0;
-    long digitalout_trigger_delay_1_off = 0;
-    long digitalout_trigger_delay_2_off = 0;
-    long digitalout_trigger_delay_3_off = 0;
+    static long digitalout_trigger_delay_1_on = 0;
+    static long digitalout_trigger_delay_2_on = 0;
+    static long digitalout_trigger_delay_3_on = 0;
+    static long digitalout_trigger_delay_1_off = 0;
+    static long digitalout_trigger_delay_2_off = 0;
+    static long digitalout_trigger_delay_3_off = 0;
 
-    bool is_digital_trigger_1 = false;
-    bool is_digital_trigger_2 = false;
-    bool is_digital_trigger_3 = false;
+    static bool is_digital_trigger_1 = false;
+    static bool is_digital_trigger_2 = false;
+    static bool is_digital_trigger_3 = false;
     
-    int act(cJSON*   ob) override;
-    cJSON*  get(cJSON*  ob) override;
-    void setup() override;
-    void loop() override;
+    int act(cJSON* ob);
+    cJSON*  get(cJSON*  ob);
+    void setup();
+    void loop();
 };

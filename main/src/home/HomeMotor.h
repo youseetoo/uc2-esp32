@@ -1,7 +1,7 @@
 #pragma once
-
-#include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
+#include "cJSON.h"
+
 
 struct HomeData
 {
@@ -18,22 +18,17 @@ struct HomeData
 
 void processHomeLoop(void * p);
 
-class HomeMotor : public Module
+namespace HomeMotor
 {
 
-public:
-	HomeMotor();
-	~HomeMotor();
-	bool DEBUG = true;
-	int homeEndposRelease = 2000;
-	bool isHoming = false;
-	std::array<HomeData *, 4> hdata;
+	static bool DEBUG = true;
+	static int homeEndposRelease = 2000;
+	static bool isHoming = false;
+	static std::array<HomeData *, 4> hdata;
 
-	int act(cJSON * ob) override;
-	cJSON * get(cJSON * ob) override;
-	void setup() override;
-	void loop() override;
-
-private:
-	void checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor);
+	int act(cJSON * ob);
+	cJSON * get(cJSON * ob);
+	void setup();
+	void loop();
+	void checkAndProcessHome(Stepper s, int digitalin_val);
 };

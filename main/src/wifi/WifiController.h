@@ -1,25 +1,10 @@
 #pragma once
 
-#include "EspHttpsServer.h"
-#include "RestApiCallbacks.h"
-#include "esp_log.h"
-#include "Module.h"
-#include "WifiConfig.h"
-#include "EspWifiController.h"
+#include "cJSON.h"
 
-
-
-class WifiController : public Module
+namespace WifiController
 {
-    private:
-	WifiConfig *config;
-    EspWifiController espWifiController;
-    EspHttpsServer httpsServer;
-
 	
-    public:
-    WifiController();
-    ~WifiController();
 
     /* data */
 
@@ -34,10 +19,9 @@ class WifiController : public Module
     char* getSsid();
     char* getPw();
     bool getAp();
-    void setup() override;
-    void loop() override;
-    int act(cJSON * doc) override;
-    cJSON * get(cJSON * doc) override;
+    void setup();
+    int act(cJSON * doc);
+    cJSON * get(cJSON * doc);
     cJSON * connect(cJSON * doc);
     cJSON * scan();
 };

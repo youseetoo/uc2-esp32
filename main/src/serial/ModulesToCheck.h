@@ -1,6 +1,7 @@
 #pragma once
-#include "../../ModuleController.h"
+
 #include "../wifi/Endpoints.h"
+#include "../../AvailableModules.h"
 struct ModulesToCheck
 {
 	const char *act;

@@ -10,8 +10,6 @@ private:
     void serialize(int success);
     /* data */
 public:
-    SerialProcess(/* args */);
-    ~SerialProcess();
     void loop();
 };
 

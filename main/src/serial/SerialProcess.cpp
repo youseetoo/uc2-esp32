@@ -1,25 +1,54 @@
 
 #include "SerialProcess.h"
-#include "../config/ConfigController.h"
 #include "../wifi/Endpoints.h"
-#include "../analogin/AnalogInController.h"
-#include "../scanner/ScannerController.h"
-#include "../digitalout/DigitalOutController.h"
-#include "../digitalin/DigitalInController.h"
-#include "../dac/DacController.h"
-#include "../bt/BtController.h"
+#include "Arduino.h"
+#include "PinConfig.h"
 #include "../wifi/RestApiCallbacks.h"
 #include "ModulesToCheck.h"
-
-SerialProcess::SerialProcess(/* args */)
-{
-}
-
-SerialProcess::~SerialProcess()
-{
-}
-
-
+#ifdef ANALOG_IN_CONTROLLER
+#include "../analogin/AnalogInController.h"
+#endif
+#ifdef ANALOG_OUT_CONTROLLER
+#include "../analogout/AnalogOutController.h"
+#endif
+#ifdef BLUETOOTH
+#include "../bt/BtController.h"
+#endif
+#include "../config/ConfigController.h"
+#ifdef DAC_CONTROLLER
+#include "../dac/DacController.h"
+#endif
+#ifdef DIGITAL_IN_CONTROLLER
+#include "../digitalin/DigitalInController.h"
+#endif
+#ifdef DIGITAL_OUT_CONTROLLER
+#include "../digitalout/DigitalOutController.h"
+#endif
+#ifdef ENCODER_CONTROLLER
+#include "../encoder/EncoderController.h"
+#endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
+#endif
+#ifdef FOCUS_MOTOR
+#include "../motor/FocusMotor.h"
+#endif
+#ifdef PID_CONTROLLER
+#include "../pid/PidController.h"
+#endif
+#ifdef SCANNER_CONTROLLER
+#include "../scanner/ScannerController.h"
+#endif
+#include "../state/State.h"
+#ifdef WIFI
+#include "../wifi/WifiController.h"
+#endif
 
 void SerialProcess::loop()
 {
@@ -112,81 +141,129 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	// Check if the command gets through
 	int moduleAvailable = false;
 
-	// loop through modules with act and get methods
-	size_t size = sizeof(modulesToCheck) / sizeof(modulesToCheck[0]);
-	for (size_t i = 0; i < size; i++)
-	{
-		if (moduleController.get(modulesToCheck[i].mod) != nullptr)
-		{
-			if (strcmp(task, modulesToCheck[i].act) == 0)
-			{
-				log_i("State act");
-				serialize(moduleController.get(modulesToCheck[i].mod)->act(jsonDocument));
-				moduleAvailable = true;
-			}
-			if (strcmp(task, modulesToCheck[i].get) == 0)
-			{
-				log_i("State get");
-				serialize(moduleController.get(modulesToCheck[i].mod)->get(jsonDocument));
-				moduleAvailable = true;
-			}
-		}
-	}
+	/*#ifdef ANALOG_IN_CONTROLLER
+		if (strcmp(task, analogin_act_endpoint) == 0)
+			serialize(AnalogInController::act(jsonDocument));
+		if (strcmp(task, analogin_get_endpoint) == 0)
+			serialize(AnalogInController::get(jsonDocument));
+	#endif*/
 
-	if (strcmp(task, modules_get_endpoint) == 0)
-	{
-		serialize(moduleController.get());
-		moduleAvailable = true;
-	}
+#ifdef ANALOG_OUT_CONTROLLER
+	if (strcmp(task, analogout_act_endpoint) == 0)
+		serialize(AnalogOutController::act(jsonDocument));
+	if (strcmp(task, analogout_get_endpoint) == 0)
+		serialize(AnalogOutController::get(jsonDocument));
+#endif
 
-	if (moduleController.get(AvailableModules::analogJoystick) != nullptr)
-	{
-		if (strcmp(task, analog_joystick_get_endpoint) == 0)
-		{
-			serialize(moduleController.get(AvailableModules::analogJoystick)->get(jsonDocument));
-			moduleAvailable = true;
-		}
-	}
-
-	if (strcmp(task, scanwifi_endpoint) == 0)
-	{
-		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
-		serialize(w->scan());
-		moduleAvailable = true;
-	}
-	// {"task":"/wifi/scan"}
-	if (strcmp(task, connectwifi_endpoint) == 0 && moduleController.get(AvailableModules::wifi) != nullptr)
-	{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
-		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
-		w->connect(jsonDocument);
-		moduleAvailable = true;
-	}
-	/*if (task == reset_nv_flash_endpoint)
-	{
-		RestApi::resetNvFLash();
-	}*/
-	if (strcmp(task, bt_connect_endpoint) == 0 && moduleController.get(AvailableModules::btcontroller) != nullptr)
+#ifdef BLUETOOTH
+	if (strcmp(task, bt_connect_endpoint) == 0)
 	{
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 		char *mac = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "mac")); // jsonDocument["mac"];
 		int ps = cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "psx"));	 // jsonDocument["psx"];
-		BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
 		if (ps == 0)
 		{
-			bt->setMacAndConnect(mac);
+			BtController::setMacAndConnect(mac);
 		}
 		else
 		{
-			bt->connectPsxController(mac, ps);
+			BtController::connectPsxController(mac, ps);
 		}
 		moduleAvailable = true;
 	}
-	if (strcmp(task, bt_scan_endpoint) == 0 && moduleController.get(AvailableModules::btcontroller) != nullptr)
+	if (strcmp(task, bt_scan_endpoint) == 0)
 	{
-		BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-		bt->scanForDevices(jsonDocument);
+		BtController::scanForDevices(jsonDocument);
 		moduleAvailable = true;
 	}
+#endif
+
+#ifdef DAC_CONTROLLER
+	if (strcmp(task, dac_act_endpoint) == 0)
+		serialize(DacController::act(jsonDocument));
+		// if (strcmp(task, dac_get_endpoint) == 0)
+		//	serialize(DacController::get(jsonDocument));
+#endif
+
+#ifdef DIGITAL_IN_CONTROLLER
+	if (strcmp(task, digitalin_act_endpoint) == 0)
+		serialize(DigitalInController::act(jsonDocument));
+	if (strcmp(task, digitalin_get_endpoint) == 0)
+		serialize(DigitalInController::get(jsonDocument));
+#endif
+#ifdef DIGITAL_OUT_CONTROLLER
+	if (strcmp(task, digitalout_act_endpoint) == 0)
+		serialize(DigitalOutController::act(jsonDocument));
+	if (strcmp(task, digitalout_get_endpoint) == 0)
+		serialize(DigitalOutController::get(jsonDocument));
+#endif
+
+#ifdef ENCODER_CONTROLLER
+	if (strcmp(task, encoder_act_endpoint) == 0)
+		serialize(EncoderController::act(jsonDocument));
+	if (strcmp(task, encoder_get_endpoint) == 0)
+		serialize(EncoderController::get(jsonDocument));
+#endif
+
+#ifdef HOME_MOTOR
+	if (strcmp(task, home_get_endpoint) == 0)
+		serialize(HomeMotor::get(jsonDocument));
+	if (strcmp(task, home_act_endpoint) == 0)
+		serialize(HomeMotor::act(jsonDocument));
+#endif
+#ifdef LASER_CONTROLLER
+	if (strcmp(task, laser_get_endpoint) == 0)
+		serialize(LaserController::get(jsonDocument));
+	if (strcmp(task, laser_act_endpoint) == 0)
+		serialize(LaserController::act(jsonDocument));
+#endif
+#ifdef LED_CONTROLLER
+	if (strcmp(task, ledarr_get_endpoint) == 0)
+		serialize(LedController::get(jsonDocument));
+	if (strcmp(task, ledarr_act_endpoint) == 0)
+		serialize(LedController::act(jsonDocument));
+#endif
+#ifdef FOCUS_MOTOR
+	if (strcmp(task, motor_get_endpoint) == 0)
+		serialize(FocusMotor::get(jsonDocument));
+	if (strcmp(task, motor_act_endpoint) == 0)
+		serialize(FocusMotor::act(jsonDocument));
+#endif
+#ifdef PID_CONTROLLER
+	if (strcmp(task, PID_get_endpoint) == 0)
+		serialize(PidController::get(jsonDocument));
+	if (strcmp(task, PID_act_endpoint) == 0)
+		serialize(PidController::act(jsonDocument));
+#endif
+
+	if (strcmp(task, state_act_endpoint) == 0)
+		serialize(State::act(jsonDocument));
+	if (strcmp(task, state_get_endpoint) == 0)
+		serialize(State::get(jsonDocument));
+
+	if (strcmp(task, modules_get_endpoint) == 0)
+	{
+		serialize(State::getModules());
+		moduleAvailable = true;
+	}
+#ifdef WIFI
+	if (strcmp(task, scanwifi_endpoint) == 0)
+	{
+		serialize(WifiController::scan());
+		moduleAvailable = true;
+	}
+	// {"task":"/wifi/scan"}
+	if (strcmp(task, connectwifi_endpoint) == 0)
+	{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
+		WifiController::connect(jsonDocument);
+		moduleAvailable = true;
+	}
+#endif
+	/*if (task == reset_nv_flash_endpoint)
+	{
+		RestApi::resetNvFLash();
+	}*/
+
 	// module has not been loaded, so we need at least some error handling/message
 	if (!moduleAvailable)
 	{

@@ -6,10 +6,6 @@ FILE(GLOB_RECURSE app_sources2 ${CMAKE_SOURCE_DIR}/main/src/*.*)
 
 idf_component_register(SRCS ${app_sources}main.cpp
                             ${app_sources2}
-                            ${app_sources}Module.h
-                            ${app_sources}Module.cpp
-                            ${app_sources}ModuleController.h
-                            ${app_sources}ModuleController.cpp
                             ${app_sources}PinConfig.h
                             ${app_sources}JsonKeys.h
                             ${app_sources}cJSON/cJSON.h

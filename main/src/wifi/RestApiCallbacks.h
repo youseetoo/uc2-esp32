@@ -1,10 +1,8 @@
 #pragma once
 #include "cJSON.h"
-#include <nvs_flash.h>
-#include "Endpoints.h"
-#include "Update.h"
-#include "../config/ConfigController.h"
-#include "../wifi/WifiController.h"
+#include "PinConfig.h"
+
+
 
 #include "esp_https_server.h"
 namespace RestApi
@@ -17,12 +15,12 @@ namespace RestApi
     /*
         load the body data from the client request into the jsondoc
     */
-    cJSON * deserializeESP(httpd_req_t *req);
+    cJSON *deserializeESP(httpd_req_t *req);
     /*
         fill the input from the jsondoc and send a response to the client
     */
-    void serializeESP(cJSON * doc,httpd_req_t *req);
-    void serializeESP(int doc,httpd_req_t *req);
+    void serializeESP(cJSON *doc, httpd_req_t *req);
+    void serializeESP(int doc, httpd_req_t *req);
     /*
         returns an array that contains the endpoints
         endpoint:/features_get or /
@@ -51,90 +49,102 @@ namespace RestApi
         "/ledarr_get"
         ]
     */
-    //TODO: void getEndpoints();
+    // TODO: void getEndpoints();
     esp_err_t getEndpoints(httpd_req_t *req);
-    
-    //TODO: void resetNvFLash();
 
-    esp_err_t AnalogJoystick_getESP(httpd_req_t *req);
-
+    // TODO: void resetNvFLash();
+#ifdef ANALOG_OUT_CONTROLLER
     esp_err_t AnalogOut_setESP(httpd_req_t *req);
     esp_err_t AnalogOut_getESP(httpd_req_t *req);
+#endif
 
-     /*
-    returns an array that contains the visible bt devices
-        endpoint:/bt_scan
-        input[]
-        output
-        [
-            {
-                "name" :"HyperX",
-                "mac": "01:02:03:04:05:06"
-            }
-            ,
-            {
-                "name": "",
-                "mac": "01:02:03:04:05:06"
-            },
-        ]
-    */
+    /*
+   returns an array that contains the visible bt devices
+       endpoint:/bt_scan
+       input[]
+       output
+       [
+           {
+               "name" :"HyperX",
+               "mac": "01:02:03:04:05:06"
+           }
+           ,
+           {
+               "name": "",
+               "mac": "01:02:03:04:05:06"
+           },
+       ]
+   */
+#ifdef BLUETOOTH
     esp_err_t Bt_startScanESP(httpd_req_t *req);
     esp_err_t Bt_connectESP(httpd_req_t *req);
     esp_err_t Bt_getPairedDevicesESP(httpd_req_t *req);
     esp_err_t Bt_removeESP(httpd_req_t *req);
+#endif
 
+#ifdef DAC_CONTROLLER
     esp_err_t Dac_setESP(httpd_req_t *req);
-    esp_err_t Dac_getESP(httpd_req_t *req);
-
+    //esp_err_t Dac_getESP(httpd_req_t *req);
+#endif
+#ifdef DIGITAL_IN_CONTROLLER
     esp_err_t DigitalIn_setESP(httpd_req_t *req);
     esp_err_t DigitalIn_getESP(httpd_req_t *req);
-
+#endif
+#ifdef DIGITAL_OUT_CONTROLLER
     esp_err_t DigitalOut_setESP(httpd_req_t *req);
     esp_err_t DigitalOut_getESP(httpd_req_t *req);
+#endif
 
-	esp_err_t HomeMotor_setESP(httpd_req_t *req);
+#ifdef HOME_MOTOR
+    esp_err_t HomeMotor_setESP(httpd_req_t *req);
     esp_err_t HomeMotor_getESP(httpd_req_t *req);
+#endif
 
-	esp_err_t EncoderMotor_setESP(httpd_req_t *req);
+#ifdef ENCODER_CONTROLLER
+    esp_err_t EncoderMotor_setESP(httpd_req_t *req);
     esp_err_t EncoderMotor_getESP(httpd_req_t *req);
+#endif
 
+#ifdef LASER_CONTROLLER
     esp_err_t laser_setESP(httpd_req_t *req);
     esp_err_t laser_getESP(httpd_req_t *req);
+#endif
 
-        /*
-        controls the leds
-        endpoint:/ledarr_act
-        input
-        {
-            "led": {
-                "LEDArrMode": 1,
-                "led_array": [
-                    {
-                        "b": 0,
-                        "g": 0,
-                        "id": 0,
-                        "r": 0
-                    }
-                ]
-            }
+    /*
+    controls the leds
+    endpoint:/ledarr_act
+    input
+    {
+        "led": {
+            "LEDArrMode": 1,
+            "led_array": [
+                {
+                    "b": 0,
+                    "g": 0,
+                    "id": 0,
+                    "r": 0
+                }
+            ]
         }
-        output
-        []
-        */
+    }
+    output
+    []
+    */
+#ifdef LASER_CONTROLLER
     esp_err_t Led_setESP(httpd_req_t *req);
     esp_err_t led_getESP(httpd_req_t *req);
-
-	esp_err_t FocusMotor_actESP(httpd_req_t *req);
-	esp_err_t FocusMotor_getESP(httpd_req_t *req);
-
+#endif
+#ifdef FOCUS_MOTOR
+    esp_err_t FocusMotor_actESP(httpd_req_t *req);
+    esp_err_t FocusMotor_getESP(httpd_req_t *req);
+#endif
+#ifdef PID_CONTROLLER
     esp_err_t pid_setESP(httpd_req_t *req);
     esp_err_t pid_getESP(httpd_req_t *req);
+#endif
 
-	esp_err_t Rotator_actESP(httpd_req_t *req);
-	esp_err_t Rotator_getESP(httpd_req_t *req);
-
-	esp_err_t State_actESP(httpd_req_t *req);
-	esp_err_t State_getESP(httpd_req_t *req);
+    esp_err_t State_actESP(httpd_req_t *req);
+    esp_err_t State_getESP(httpd_req_t *req);
 
     esp_err_t getModulesESP(httpd_req_t *req);
 
@@ -149,6 +159,7 @@ namespace RestApi
             ....
         ]
     */
+#ifdef WIFI
     esp_err_t scanWifiESP(httpd_req_t *req);
     /*
         connect to a wifi network or create ap
@@ -162,5 +173,5 @@ namespace RestApi
         output[]
     */
     esp_err_t connectToWifiESP(httpd_req_t *req);
-
+#endif
 };

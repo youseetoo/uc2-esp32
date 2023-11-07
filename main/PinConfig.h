@@ -3,6 +3,23 @@
 #include "Arduino.h"
 // default Pin structure
 
+#define ANALOG_IN_CONTROLLER
+#define ANALOG_JOYSTICK
+#define ANALOG_OUT_CONTROLLER
+#define BLUETOOTH
+#define DAC_CONTROLLER
+#define DIGITAL_IN_CONTROLLER
+#define DIGITAL_OUT_CONTROLLER
+#define ENCODER_CONTROLLER
+#define HOME_MOTOR
+#define LASER_CONTROLLER
+#define LED_CONTROLLER
+#define FOCUS_MOTOR
+#define PID_CONTROLLER
+#define SCANNER_CONTROLLER
+#define WIFI
+
+
 const int8_t disabled = -1;
 
 struct PinConfig
@@ -150,18 +167,23 @@ struct PinConfig
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
      const char *pindefName = "XYZ_MOTOR_JOYSTICK";
+     #define MOTOR_X
      int8_t MOTOR_X_DIR = 16;
      int8_t MOTOR_X_STEP = 26;
+     #define MOTOR_Y
      int8_t MOTOR_Y_DIR = 27;
      int8_t MOTOR_Y_STEP = 25;
+     #define MOTOR_Z
      int8_t MOTOR_Z_DIR = 14;
      int8_t MOTOR_Z_STEP = 17;
      int8_t MOTOR_ENABLE = 12;
      bool MOTOR_ENABLE_INVERTED = true;
 
+     #define ANALOG_JOYSTICK
      int8_t ANLOG_JOYSTICK_X = 0;
      int8_t ANLOG_JOYSTICK_Y = 0;
 
+     #define BLUETOOTH
      bool useBtHID = true;
 };
 #ifndef CXYZ_MOTOR_ENDSTOP_JOYSTICK

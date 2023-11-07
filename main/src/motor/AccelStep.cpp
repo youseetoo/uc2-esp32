@@ -1,26 +1,21 @@
 #include "AccelStep.h"
-#include "ModuleController.h"
 #include "FocusMotor.h"
 
 void driveMotorXLoop(void *pvParameter)
 {
-    FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-    motor->accel.driveMotorLoop(Stepper::X);
+    FocusMotor::accel.driveMotorLoop(Stepper::X);
 }
 void driveMotorYLoop(void *pvParameter)
 {
-    FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-    motor->accel.driveMotorLoop(Stepper::Y);
+    FocusMotor::accel.driveMotorLoop(Stepper::Y);
 }
 void driveMotorZLoop(void *pvParameter)
 {
-    FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-    motor->accel.driveMotorLoop(Stepper::Z);
+    FocusMotor::accel.driveMotorLoop(Stepper::Z);
 }
 void driveMotorALoop(void *pvParameter)
 {
-    FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-    motor->accel.driveMotorLoop(Stepper::A);
+    FocusMotor::accel.driveMotorLoop(Stepper::A);
 }
 
 void AccelStep::setupAccelStepper()

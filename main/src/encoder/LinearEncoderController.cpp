@@ -128,8 +128,7 @@ int LinearEncoderController::act(cJSON *j)
     else if (home != NULL)
     {
         // we want to start a motor until the linear encoder does not track any position change
-        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "speed": -1000} ]}}
-        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "direction":-1, "speed": 40000} ]}}
+        //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "endposrelease":-100, "speed": -40000} ]}}
         cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
         if (stprs != NULL)
         {
@@ -145,6 +144,7 @@ int LinearEncoderController::act(cJSON *j)
                 int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                 // get the motor object and let it run forever int he specfied direction
                 edata[s]->timeSinceMotorStart = millis();
+                edata[s]->endPosRelease = cJSON_GetObjectItemCaseSensitive(stp, key_home_endposrelease)->valueint;
                 motor->data[s]->isforever = true;
                 motor->data[s]->speed = speed;
                 motor->startStepper(s);
@@ -156,6 +156,7 @@ int LinearEncoderController::act(cJSON *j)
     {
         // initiate a motor start and let the motor run until it reaches the position
         // {"task": "/linearencoder_get", "stepperid": 1}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1000, "isabs":1,  "cp":100, "ci":0., "cd":10} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
         //{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
@@ -366,10 +367,7 @@ void LinearEncoderController::loop()
                     // move opposite direction to get the motor away from the endstop
                     // motor->setPosition(i, 0);
                     // blocks until stepper reached new position wich would be optimal outside of the endstep
-                    if (motor->data[i]->speed > 0)
-                        motor->data[i]->targetPosition = -100;
-                    else
-                        motor->data[i]->targetPosition = 100;
+                    motor->data[i]->targetPosition = edata[i]->endPosRelease;
                     motor->data[i]->absolutePosition = false;
                     motor->startStepper(i);
                     // wait until stepper reached new position

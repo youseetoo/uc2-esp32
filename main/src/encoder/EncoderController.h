@@ -26,7 +26,6 @@ public:
 	EncoderController();
 	~EncoderController();
 	bool DEBUG = true;
-	int homeEndposRelease = 2000;
 	bool isHoming = false;
 	std::array<EncoderData *, 4> edata;
 

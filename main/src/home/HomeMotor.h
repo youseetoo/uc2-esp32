@@ -12,7 +12,7 @@ struct HomeData
 	int homeDirection = 1;
 	long homeTimeStarted = 0;
 	bool homeIsActive = false;
-	int homeEndposRelease = 1000;
+	bool homeInEndposReleaseMode = false;
 	bool homeEndStopPolarity = 0; // normally open
 	int qid = -1; // qeue id
 };
@@ -26,7 +26,6 @@ public:
 	HomeMotor();
 	~HomeMotor();
 	bool DEBUG = true;
-	int homeEndposRelease = 2000;
 	bool isHoming = false;
 	std::array<HomeData *, 4> hdata;
 

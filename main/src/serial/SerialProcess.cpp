@@ -342,6 +342,23 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 	}
 
 	/*
+	Read the DS28B20 Controller
+	*/
+	if(moduleController.get(AvailableModules::ds18b20) != nullptr)
+	{
+		if(strcmp(task, ds18b20_act_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::ds18b20)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+		if(strcmp(task, ds18b20_get_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::ds18b20)->get(jsonDocument));
+			moduleAvailable = true;
+		}
+	}
+
+	/*
 	  Control PID controller
 	*/
 	if (moduleController.get(AvailableModules::pid) != nullptr)

@@ -40,6 +40,9 @@ __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get"
 __attribute__ ((unused)) static const  char* readanalogin_act_endpoint = "/readanalogin_act";
 __attribute__ ((unused)) static const  char* readanalogin_get_endpoint = "/readanalogin_get";
 
+__attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act";
+__attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
+
 __attribute__ ((unused)) static const  char* PID_act_endpoint = "/PID_act";
 __attribute__ ((unused)) static const  char* PID_get_endpoint = "/PID_get";
 

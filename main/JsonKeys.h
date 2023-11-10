@@ -130,6 +130,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_max_position = "max_pos
 __attribute__ ((unused)) static const PROGMEM char *dateKey = "date";
 __attribute__ ((unused)) static const PROGMEM char *key_modules = "modules";
 __attribute__ ((unused)) static const PROGMEM char *key_analogin = "analogin";
+
 __attribute__ ((unused)) static const PROGMEM char *key_pid = "pid";
 __attribute__ ((unused)) static const PROGMEM char *key_laser = "laser";
 __attribute__ ((unused)) static const PROGMEM char *key_dac = "dac";
@@ -152,3 +153,7 @@ __attribute__ ((unused)) static const PROGMEM char *key_Ki = "Ki";
 __attribute__ ((unused)) static const PROGMEM char *key_Kd = "Kd";
 __attribute__ ((unused)) static const PROGMEM char *key_target = "target";
 __attribute__ ((unused)) static const PROGMEM char *key_PID_updaterate = "PID_updaterate";
+
+__attribute__ ((unused)) static const PROGMEM char *key_ds18b20 = "ds18b20";
+__attribute__ ((unused)) static const PROGMEM char *key_ds18b20_id = "sensorid";
+__attribute__ ((unused)) static const PROGMEM char *key_ds18b20_val = "sensorval";

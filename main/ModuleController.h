@@ -20,6 +20,7 @@ enum class AvailableModules
     pid,
     scanner,
     analogin,
+    ds18b20,
     state,
     analogJoystick,
     wifi

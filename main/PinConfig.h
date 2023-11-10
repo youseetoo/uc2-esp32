@@ -159,6 +159,9 @@ struct PinConfig
      int8_t SPI_MISO = disabled;
      int8_t SPI_SCK = disabled;
      int8_t SPI_CS = disabled;
+
+     // Temperature Sensor
+     int8_t DS28b20_PIN = disabled;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
@@ -610,6 +613,9 @@ struct UC2_3 : PinConfig
      int8_t SPI_MISO = GPIO_NUM_19;
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
+
+     // Temperature
+     int8_t DS28b20_PIN = GPIO_NUM_25;
 };
 
 

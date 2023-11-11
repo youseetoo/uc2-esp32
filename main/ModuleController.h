@@ -15,6 +15,7 @@ enum class AvailableModules
     led,
     motor,
     home,
+    heat,
     encoder,
     linearencoder,
     pid,

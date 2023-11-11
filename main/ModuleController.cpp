@@ -4,6 +4,7 @@
 #include "src/motor/FocusMotor.h"
 #include "src/config/ConfigController.h"
 #include "src/home/HomeMotor.h"
+#include "src/heat/HeatController.h"
 #include "src/encoder/EncoderController.h"
 #include "src/encoder/LinearEncoderController.h"
 #include "src/laser/LaserController.h"
@@ -76,6 +77,13 @@ void ModuleController::setup()
     {
         modules.insert(std::make_pair(AvailableModules::home, dynamic_cast<Module *>(new HomeMotor())));
         log_i("add home");
+    }
+
+    // eventually load the heat module
+    if (pinConfig.DS28b20_PIN >= 0)
+    {
+        modules.insert(std::make_pair(AvailableModules::heat, dynamic_cast<Module *>(new HeatController())));
+        log_i("add heat");
     }
 
     // eventually load the motor encoder module
@@ -214,6 +222,7 @@ cJSON * ModuleController::get()
     cJSON_AddItemToObject(mod,key_encoder, cJSON_CreateNumber((pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)));
     cJSON_AddItemToObject(mod,key_linearencoder, cJSON_CreateNumber((pinConfig.X_ENC_PWM >= 0 || pinConfig.Y_ENC_PWM >= 0 || pinConfig.Z_ENC_PWM >= 0)));
     cJSON_AddItemToObject(mod,key_home, cJSON_CreateNumber((pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0)));
+    cJSON_AddItemToObject(mod,key_heat, cJSON_CreateNumber(pinConfig.DS28b20_PIN >= 0));
     cJSON_AddItemToObject(mod,key_analogin, cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
     cJSON_AddItemToObject(mod,key_ds18b20, cJSON_CreateNumber(pinConfig.DS28b20_PIN >= 0));
     cJSON_AddItemToObject(mod,key_pid, cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));

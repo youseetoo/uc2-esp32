@@ -10,7 +10,6 @@ void DS18b20Controller::loop() {
 	if ((millis()-lastReading)>(readingPeriod) and pinConfig.DS28b20_PIN > -1)
 	{
 		currentValueCelcius = readTemperature();
-		Serial.println(currentValueCelcius);
 		lastReading = millis();
 	}
 }

@@ -153,7 +153,11 @@ __attribute__ ((unused)) static const PROGMEM char *key_Ki = "Ki";
 __attribute__ ((unused)) static const PROGMEM char *key_Kd = "Kd";
 __attribute__ ((unused)) static const PROGMEM char *key_target = "target";
 __attribute__ ((unused)) static const PROGMEM char *key_PID_updaterate = "PID_updaterate";
+__attribute__ ((unused)) static const PROGMEM char *key_heatactive = "active";
+__attribute__ ((unused)) static const PROGMEM char *key_heat_updaterate = "heat_updaterate";
+
 
 __attribute__ ((unused)) static const PROGMEM char *key_ds18b20 = "ds18b20";
 __attribute__ ((unused)) static const PROGMEM char *key_ds18b20_id = "sensorid";
 __attribute__ ((unused)) static const PROGMEM char *key_ds18b20_val = "sensorval";
+__attribute__ ((unused)) static const PROGMEM char *key_heat = "heat";

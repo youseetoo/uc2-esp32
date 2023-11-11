@@ -16,6 +16,9 @@ __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get"
 __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
 __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
 
+__attribute__ ((unused)) static const  char* heat_act_endpoint = "/heat_act";
+__attribute__ ((unused)) static const  char* heat_get_endpoint = "/heat_get";
+
 __attribute__ ((unused)) static const  char* encoder_act_endpoint = "/encoder_act";
 __attribute__ ((unused)) static const  char* encoder_get_endpoint = "/encoder_get";
 

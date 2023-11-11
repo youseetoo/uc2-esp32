@@ -46,6 +46,8 @@ public:
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(cJSON * ob) override;
 
+    void setPWM(int pwmValue, int pwmChannel);
+
     cJSON * get(cJSON *  ob) override;
     void setup() override;
     void loop() override;

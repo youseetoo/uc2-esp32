@@ -40,10 +40,15 @@ void LaserController::LASER_despeckle(int LASERdespeckle, int LASERid, int LASER
 		if (LASER_val_wiggle < 0)
 			LASER_val_wiggle += (2 * abs(laserwiggle));
 
-		ledcWrite(PWM_CHANNEL_LASER, LASER_val_wiggle);
+		setPWM(LASER_val_wiggle, PWM_CHANNEL_LASER);
 
 		delay(LASERperiod);
 	}
+}
+
+void LaserController::setPWM(int pwmValue, int pwmChannel){
+	// sets the PWM value for the given channel
+	ledcWrite(pwmChannel, pwmValue);
 }
 
 // Custom function accessible by the API
@@ -73,7 +78,7 @@ int LaserController::act(cJSON * ob)
 		LASER_val_1 = LASERval;
 		LASER_despeckle_1 = LASERdespeckle;
 		LASER_despeckle_period_1 = LASERdespecklePeriod;
-		ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+		setPWM(LASERval, PWM_CHANNEL_LASER_1);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 		return qid;
 	}
@@ -83,7 +88,7 @@ int LaserController::act(cJSON * ob)
 		LASER_val_2 = LASERval;
 		LASER_despeckle_2 = LASERdespeckle;
 		LASER_despeckle_period_2 = LASERdespecklePeriod;
-		ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
+		setPWM(LASERval, PWM_CHANNEL_LASER_2);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 		return qid;
 	}
@@ -93,7 +98,7 @@ int LaserController::act(cJSON * ob)
 		LASER_val_3 = LASERval;
 		LASER_despeckle_3 = LASERdespeckle;
 		LASER_despeckle_period_3 = LASERdespecklePeriod;
-		ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
+		setPWM(LASERval, PWM_CHANNEL_LASER_3);
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 		return qid;
 	}
@@ -125,27 +130,27 @@ void LaserController::setup()
 	digitalWrite(pinConfig.LASER_1, LOW);
 	ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.LASER_1, PWM_CHANNEL_LASER_1);
-	ledcWrite(PWM_CHANNEL_LASER_1, 10000);
-	delay(10);
-	ledcWrite(PWM_CHANNEL_LASER_1, 0);
+	setPWM(10000, PWM_CHANNEL_LASER_1);
+	delay(5);
+	setPWM(0, PWM_CHANNEL_LASER_1);
 
 	log_i("Laser ID 2, pin: %i", pinConfig.LASER_2);
 	pinMode(pinConfig.LASER_2, OUTPUT);
 	digitalWrite(pinConfig.LASER_2, LOW);
 	ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.LASER_2, PWM_CHANNEL_LASER_2);
-	ledcWrite(PWM_CHANNEL_LASER_2, 10000);
-	delay(10);
-	ledcWrite(PWM_CHANNEL_LASER_2, 0);
+	setPWM(10000, PWM_CHANNEL_LASER_2);
+	delay(5);
+	setPWM(0, PWM_CHANNEL_LASER_2);
 
 	log_i("Laser ID 3, pin: %i", pinConfig.LASER_3);
 	pinMode(pinConfig.LASER_3, OUTPUT);
 	digitalWrite(pinConfig.LASER_3, LOW);
 	ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
 	ledcAttachPin(pinConfig.LASER_3, PWM_CHANNEL_LASER_3);
-	ledcWrite(PWM_CHANNEL_LASER_3, 10000);
-	delay(10);
-	ledcWrite(PWM_CHANNEL_LASER_3, 0);
+	setPWM(10000, PWM_CHANNEL_LASER_3);
+	delay(5);
+	setPWM(0, PWM_CHANNEL_LASER_3);
 }
 
 void LaserController::loop()

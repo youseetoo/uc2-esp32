@@ -270,6 +270,18 @@ namespace RestApi
         return ESP_OK;
     }
 
+    esp_err_t Heat_setESP(httpd_req_t *req)
+    {
+        serializeESP(moduleController.get(AvailableModules::heat)->act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t Heat_getESP(httpd_req_t *req)
+    {
+        serializeESP(moduleController.get(AvailableModules::heat)->get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
     esp_err_t EncoderMotor_setESP(httpd_req_t *req)
     {
         serializeESP(moduleController.get(AvailableModules::encoder)->act(deserializeESP(req)), req);

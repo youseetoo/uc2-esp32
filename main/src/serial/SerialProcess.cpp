@@ -192,6 +192,22 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		}
 	}
 	/*
+		Control Heating Unit 
+	*/
+	if(moduleController.get(AvailableModules::heat) != nullptr)
+	{
+		if(strcmp(task, heat_act_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::heat)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+		if(strcmp(task, heat_get_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::heat)->get(jsonDocument));
+			moduleAvailable = true;
+		}
+	}
+	/*
 	  Encoders
 	*/
 	if (moduleController.get(AvailableModules::encoder) != nullptr)

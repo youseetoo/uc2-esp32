@@ -24,6 +24,7 @@ void SerialProcess::loop()
 
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
+
 	{
 		String c = Serial.readString();
 		const char *s = c.c_str();

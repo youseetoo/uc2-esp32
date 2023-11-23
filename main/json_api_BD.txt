@@ -188,14 +188,15 @@
 
 # HOLISHEET
 {"task":"/modules_set", "modules" : {"dac" : 1}}
-{"task": "/laser_act", "LASERid":1, "LASERval": 512}
+{"task": "/laser_act", "LASERid":1, "LASERval": 51}
+{"task": "/laser_act", "LASERid":1, "LASERval": 0}
+{"task": "/laser_act", "LASERid":1, "LASERval": 1023}
 {"task":"/dac_act", "dac_channel":1, "frequency":1}
 {"task":"/motor_act",
     "motor":
     {
         "steppers": [
-            { "stepperid": 0, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0},
-            { "stepperid": 3, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0}
+            { "stepperid": 3, "position": -100000, "speed": 15000, "isabs": 0, "isaccel":0}
         ]
     }
 }

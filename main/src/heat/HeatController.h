@@ -23,8 +23,14 @@ public:
     float temp_pid_Ki = 0.1;
     float temp_pid_Kd = 0.1;
     float temp_pid_target = 500;
-    float temp_pid_updaterate = 200; // ms
+    float temp_pid_updaterate = 200000; // ms
+    int maxPWMValue = 511;
     bool Heat_active=false;
+
+    long t_tempControlStarted = 0;
+    float temp_tempControlStarted = 0.0f;
+    int timeToReach80PercentTargetTemperature = 200000; // change in temperature in 60 seconds otherwise we stop
+
     // timing variables
 	unsigned long startMillis;
 	unsigned long currentMillis;

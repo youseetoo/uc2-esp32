@@ -1,5 +1,6 @@
 #pragma once
 #include "Adafruit_NeoPixel.h"
+#include <Adafruit_IS31FL3741.h>
 #include "../../Module.h"
 
 enum LedModes
@@ -22,6 +23,7 @@ class LedController : public Module
 private:
     // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
     Adafruit_NeoPixel *matrix;
+    Adafruit_IS31FL3741 *matrixI2C;
     bool DEBUG = false;
     bool isBusy;
     bool isOn = false;

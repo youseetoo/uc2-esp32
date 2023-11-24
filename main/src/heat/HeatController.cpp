@@ -160,15 +160,22 @@ long HeatController::returnControlValue(float controlTarget, float analoginValue
 // Custom function accessible by the API
 cJSON *HeatController::get(cJSON *ob)
 {
+	// {"task": "/heat_get"}
 	if (DEBUG)
 		log_d("Heat_get_fct");
-
+	
+	int qid = getJsonInt(ob, "qid");
 	cJSON *ret = cJSON_CreateObject();
-	setJsonInt(ret, key_N_analogin_avg, N_analogin_avg);
-	/*
-	setJsonInt(ret, key_heatPIN, HeatPIN);
-	setJsonInt(ret, key_heatID, HeatID);
-	*/
+	float temperatureValueAvg = 9999.0f;
+	if (moduleController.get(AvailableModules::laser) != nullptr and moduleController.get(AvailableModules::ds18b20) != nullptr)
+	{
+		// get modules
+		DS18b20Controller *ds18b20 = (DS18b20Controller *)moduleController.get(AvailableModules::ds18b20);
+		temperatureValueAvg = ds18b20->currentValueCelcius;
+	}
+	setJsonFloat(ret, key_heat, temperatureValueAvg);
+	cJSON_AddItemToObject(ret, keyQueueID, cJSON_CreateNumber(qid));
+
 	return ret;
 }
 

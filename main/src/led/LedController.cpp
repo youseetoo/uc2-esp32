@@ -8,9 +8,20 @@ void LedController::setup()
 	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 	// LED Matrix
 	matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
-	//log_i("setup matrix is null:%s", matrix == nullptr);
+	matrixI2C = new Adafruit_IS31FL3741();
+	
+	// setup Adfruit neopixel
 	matrix->begin();
 	matrix->setBrightness(255);
+
+	// setup Adfruit I2C
+	matrixI2C->begin();
+	matrixI2C->setLEDscaling(0xFF);
+  	matrixI2C->setGlobalCurrent(0xFF);
+	Serial.print("Global current set to: ");
+	Serial.println(matrixI2C->getGlobalCurrent());
+	matrixI2C->enable(true); // bring out of shutdown
+	
 	// test led array
 	set_all(100,100,100);
 	delay(1);
@@ -123,6 +134,11 @@ void LedController::set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t 
 	//log_d("setting led %i, color %i, %i, %i", iLed, R, G, B);
 	matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
 	matrix->show();
+
+	int x = iLed % 8;
+	int y = iLed / 8;
+	
+	//matrixI2C->setLEDvalue(0, iLed, matrix->Color(R, G, B));
 }
 
 void LedController::set_all(u_int8_t R, u_int8_t G, u_int8_t B)

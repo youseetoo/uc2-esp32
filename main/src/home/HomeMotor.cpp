@@ -47,7 +47,7 @@ int HomeMotor::act(cJSON * j)
 				motor->data[s]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
 				motor->data[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
 				motor->startStepper(s);
-				if (s==Stepper::Z){
+				if (s==Stepper::Z and pinConfig.isDualAxisZ){
 					// we may have a dual axis so we would need to start A too
 					log_i("Starting A too");
 					motor->data[Stepper::A]->isforever = true;
@@ -96,7 +96,7 @@ cJSON * HomeMotor::get(cJSON * ob)
 	return doc;
 }
 
-void sendHomeDone(int axis)
+void HomeMotor::sendHomeDone(int axis)
 {
 	// send home done to client
 	cJSON * json = cJSON_CreateObject();
@@ -108,6 +108,8 @@ void sendHomeDone(int axis)
 	cJSON * done = cJSON_CreateNumber(true);
 	cJSON_AddItemToObject(steppers, "axis", axs);
 	cJSON_AddItemToObject(steppers, "isDone", done);
+	cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
+	setJsonInt(json, keyQueueID, hdata[axis]->qid);
 	Serial.println("++");
 	char * ret = cJSON_PrintUnformatted(json);
 	cJSON_Delete(json);
@@ -126,7 +128,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 			log_i("Home Motor %i hit endstop, reversing direction",s);
 			motor->data[s]->speed = -motor->data[s]->speed;
 			motor->startStepper(s);
-			if(s==Stepper::Z){
+			if(s==Stepper::Z and pinConfig.isDualAxisZ){
 				// we may have a dual axis so we would need to start A too
 				motor->data[Stepper::A]->speed = -motor->data[Stepper::A]->speed;
 				motor->startStepper(Stepper::A);
@@ -138,7 +140,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 			log_i("Home Motor %i lef endstop, stopping",s);
 			motor->stopStepper(s);
 			motor->setPosition(s, 0);
-			if (s==Stepper::Z){
+			if (s==Stepper::Z and pinConfig.isDualAxisZ){
 				// we may have a dual axis so we would need to start A too
 				motor->stopStepper(Stepper::A);
 				motor->setPosition(Stepper::A, 0);
@@ -146,7 +148,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 			motor->data[s]->isforever = false;
 			log_i("Home Motor X done");
 			sendHomeDone(s);
-			if (s==Stepper::A){
+			if (s==Stepper::A  and pinConfig.isDualAxisZ){
 				// we may have a dual axis so we would need to start A too
 				hdata[Stepper::A]->homeIsActive = false;
 				motor->setPosition(Stepper::A, 0);

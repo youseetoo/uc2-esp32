@@ -33,6 +33,7 @@ FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
 int FocusMotor::act(cJSON *doc)
 {
+	Serial.println("act");
 	log_i("motor act");
 
 	// only enable/disable motors
@@ -108,6 +109,7 @@ int FocusMotor::act(cJSON *doc)
 					stopStepper(s);
 				else
 					startStepper(s);
+				Serial.println("Start Stepper");
 				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
 					  s,
 					  data[s]->isforever,

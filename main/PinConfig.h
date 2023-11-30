@@ -162,6 +162,9 @@ struct PinConfig
 
      // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
+
+     // dual motor for Z?
+     bool isDualAxisZ = false;
 };
 
 struct XYZ_MOTOR_JOYSTICK : PinConfig
@@ -616,6 +619,9 @@ struct UC2_3 : PinConfig
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;
+
+     // dual axis Z
+     bool isDualAxisZ = true;
 };
 
 

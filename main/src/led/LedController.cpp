@@ -235,3 +235,69 @@ void LedController::set_center(u_int8_t R, u_int8_t G, u_int8_t B)
 	*/
 }
 // LedController led;
+
+
+/*
+
+#include <Adafruit_IS31FL3741.h>
+
+Adafruit_IS31FL3741_QT ledmatrix;
+// If colors appear wrong on matrix, try invoking constructor like so:
+// Adafruit_IS31FL3741_QT ledmatrix(IS3741_RBG);
+
+
+// Create a new instance of the TwoWire class to represent the I2C bus
+TwoWire customI2C = TwoWire(0);  // '0' is just an arbitrary number
+
+int8_t I2C_SCL = GPIO_NUM_22;
+int8_t I2C_SDA = GPIO_NUM_21;
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Adafruit QT RGB Matrix Simple RGB Swirl Test");
+
+  // Initialize the custom I2C bus
+  customI2C.begin(I2C_SDA, I2C_SCL);
+
+
+   if (!ledmatrix.begin(IS3741_ADDR_DEFAULT, &customI2C)) {
+    Serial.println("IS41 not found");
+    while (1);
+  }
+
+  Serial.println("IS41 found!");
+
+  // By default the LED controller communicates over I2C at 400 KHz.
+  // Arduino Uno can usually do 800 KHz, and 32-bit microcontrollers 1 MHz.
+  customI2C.setClock(800000);
+
+  // Set brightness to max and bring controller out of shutdown state
+  ledmatrix.setLEDscaling(0xFF);
+  ledmatrix.setGlobalCurrent(0xFF);
+  Serial.print("Global current set to: ");
+  Serial.println(ledmatrix.getGlobalCurrent());
+  ledmatrix.enable(true); // bring out of shutdown
+}
+
+uint16_t hue_offset = 0;
+
+void drawRing(int centerX, int centerY, int radius, uint16_t color) {
+  for (int y = 0; y < ledmatrix.height(); y++) {
+    for (int x = 0; x < ledmatrix.width(); x++) {
+      int dx = x - centerX;
+      int dy = y - centerY;
+      // Check if the point is on the circumference of the circle
+      if (dx * dx + dy * dy >= (radius-1) * (radius-1) &&
+          dx * dx + dy * dy <= radius * radius) {
+        ledmatrix.drawPixel(x, y, color);
+      }
+    }
+  }
+}
+
+
+
+  // Draw rings with different radii and centers
+//  drawRing(int centerX, int centerY, int radius, uint16_t color)
+  drawRing(5, 5, 4, ledmatrix.color565(255, 255, 255)); // Small red ring
+*/

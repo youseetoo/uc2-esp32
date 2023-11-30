@@ -11,6 +11,7 @@
 #include "../led/LedController.h"
 #include "../motor/FocusMotor.h"
 
+
 void btControllerLoop(void *p)
 {
     for (;;)
@@ -87,8 +88,13 @@ void BtController::handelAxis(int value, int s)
     FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
     if (value >= offset_val || value <= -offset_val)
     {
-        // move_x
+        // move motor
+        if (s == Stepper::Z){
+            value = (int)((float)value/(float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
+        }
+
         motor->data[s]->speed = value;
+        motor->data[s]->acceleration = MAX_ACCELERATION_A;
         motor->data[s]->isforever = true;
         motor->startStepper(s);
         if (s == Stepper::X)
@@ -99,9 +105,11 @@ void BtController::handelAxis(int value, int s)
             joystick_drive_Z = true;
         if (s == Stepper::A)
             joystick_drive_A = true;
+        log_i("move %i, %i", value, s);
     }
     else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
     {
+        log_i("stop %i", s);
         motor->stopStepper(s);
         if (s == Stepper::X)
             joystick_drive_X = false;
@@ -238,6 +246,15 @@ void BtController::loop()
 
             // Z-Direction
             handelAxis(zvalue, Stepper::Z);
+            // A-direction 
+            if (pinConfig.isDualAxisZ){
+                // move at same speed
+                handelAxis(zvalue, Stepper::A);
+            }
+            else{
+                handelAxis(avalue, Stepper::A);
+            }
+            
 
             // X-Direction
             handelAxis(xvalue, Stepper::X);
@@ -245,8 +262,7 @@ void BtController::loop()
             // Y-direction
             handelAxis(yvalue, Stepper::Y);
 
-            // A-direction
-            handelAxis(avalue, Stepper::A);
+            
         }
 
         if (moduleController.get(AvailableModules::analogout) != nullptr)

@@ -8,7 +8,7 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-#define BAUDRATE 115200
+#define BAUDRATE 500000 // 115200
 long lastHeapUpdateTime;
 
 extern "C" void looper(void *p)

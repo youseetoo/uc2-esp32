@@ -33,7 +33,8 @@ public:
 	cJSON * get(cJSON * ob) override;
 	void setup() override;
 	void loop() override;
-
+	void sendHomeDone(int axis);
 private:
 	void checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor);
+
 };

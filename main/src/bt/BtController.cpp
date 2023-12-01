@@ -89,7 +89,19 @@ void BtController::handelAxis(int value, int s)
     if (value >= offset_val || value <= -offset_val)
     {
 
+        if (value > 0)
+        {
+            value -= offset_val;
+        }
+        else
+        {
+            value += offset_val;
+        }
+        if(s==Stepper::Z or (s==Stepper::A and pinConfig.isDualAxisZ)){
+            // divide by 2 to slow down
+            value = (float)((int)value/(float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
 
+        }
         motor->data[s]->speed = value;
         motor->data[s]->acceleration = MAX_ACCELERATION_A;
         motor->data[s]->isforever = true;
@@ -106,7 +118,7 @@ void BtController::handelAxis(int value, int s)
     }
     else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
     {
-        log_i("stop %i", s);
+        //log_i("stop %i", s);
         motor->stopStepper(s);
         if (s == Stepper::X)
             joystick_drive_X = false;
@@ -222,13 +234,10 @@ void BtController::loop()
             if (psx != nullptr)
             {
                 zvalue = psx->state.analog.stick.ly;
-                zvalue = (int)((float)zvalue/(float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
-
                 xvalue = psx->state.analog.stick.rx;
                 yvalue = psx->state.analog.stick.ry;
                 avalue = psx->state.analog.stick.lx;
                 // move motor
-        
         
             }
             else if (hidIsConnected)
@@ -238,6 +247,7 @@ void BtController::loop()
                 yvalue = gamePadData.RightY;
                 avalue = gamePadData.LeftX;
             }
+
             if (logCounter > 100)
             {
                 log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);

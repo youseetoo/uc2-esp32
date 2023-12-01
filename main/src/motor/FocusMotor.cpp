@@ -473,7 +473,6 @@ void FocusMotor::sendMotorPos(int i, int arraypos)
 
 void FocusMotor::stopStepper(int i)
 {
-	log_i("Stop Stepper:%i", i);
 	if (pinConfig.useFastAccelStepper)
 		faccel.stopFastAccelStepper(i);
 	else

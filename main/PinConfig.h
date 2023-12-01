@@ -592,8 +592,8 @@ struct UC2_3 : PinConfig
      bool useBtHID = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
-     int8_t JOYSTICK_MAX_ILLU = 100;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
+     int8_t JOYSTICK_MAX_ILLU = 255;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
 
 
      // for AS5311

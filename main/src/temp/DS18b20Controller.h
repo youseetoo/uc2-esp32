@@ -1,6 +1,6 @@
 #pragma once
 #include "../../Module.h"
-
+#include "../../ModuleController.h"
 #include "OneWire.h"; 
 #include "DallasTemperature.h"; 
 
@@ -19,13 +19,18 @@ public:
     float readingPeriod = 1000; // ms
     float currentValueCelcius = 0.0;
     
+    bool isRequestingTemperature = false;
+    long requestStartTime = 0;
+    const long MAX_WAIT = 1000; // ms
     DeviceAddress *mDS18B20Addresses;
     OneWire *mOneWire; 
     DallasTemperature *mDS18B20;
     float readTemperature();
+    TaskHandle_t temperatureTaskHandle;
     void setup() override;
     int act(cJSON* jsonDocument) override;
     cJSON* get(cJSON* jsonDocument) override;
     void loop() override;
+    void readSensorTask(void* parameter);
 };
 

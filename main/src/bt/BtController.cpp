@@ -88,10 +88,7 @@ void BtController::handelAxis(int value, int s)
     FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
     if (value >= offset_val || value <= -offset_val)
     {
-        // move motor
-        if (s == Stepper::Z){
-            value = (int)((float)value/(float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
-        }
+
 
         motor->data[s]->speed = value;
         motor->data[s]->acceleration = MAX_ACCELERATION_A;
@@ -225,9 +222,14 @@ void BtController::loop()
             if (psx != nullptr)
             {
                 zvalue = psx->state.analog.stick.ly;
+                zvalue = (int)((float)zvalue/(float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
+
                 xvalue = psx->state.analog.stick.rx;
                 yvalue = psx->state.analog.stick.ry;
                 avalue = psx->state.analog.stick.lx;
+                // move motor
+        
+        
             }
             else if (hidIsConnected)
             {

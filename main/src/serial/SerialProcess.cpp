@@ -4,7 +4,6 @@
 #include "Arduino.h"
 #include "PinConfig.h"
 #include "../wifi/RestApiCallbacks.h"
-#include "ModulesToCheck.h"
 #ifdef ANALOG_IN_CONTROLLER
 #include "../analogin/AnalogInController.h"
 #endif

@@ -1,8 +1,9 @@
 #pragma once
 #include "cJSON.h"
 
-
+#ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
+#endif
 
 namespace PidController
 {

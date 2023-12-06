@@ -162,6 +162,7 @@ struct PinConfig
 
      // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
+     int8_t heatUnit_PIN = disabled;
 
      // dual motor for Z?
      bool isDualAxisZ = false;
@@ -332,6 +333,10 @@ struct UC2_2 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
+
+     int8_t DAC_1 = disabled;
+     int8_t DAC_2 = disabled;
+     int8_t ds28b20_PIN = disabled; 
 };
 
 struct UC2e : PinConfig
@@ -619,9 +624,12 @@ struct UC2_3 : PinConfig
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;
+     int8_t heatUnit_PIN = GPIO_NUM_26;
 
      // dual axis Z
      bool isDualAxisZ = true;
+
+
 };
 
 
@@ -736,6 +744,90 @@ struct UC2_linencoder : PinConfig
      int8_t X_ENC_IND = GPIO_NUM_33;
 
 };
+
+
+struct UC2_LineFrameTrigger : PinConfig
+{
+     /*
+     This is the newest electronics where direction/enable are on a seperate port extender
+     */
+     /*
+
+     // based on UC2_3
+     */
+
+     const char * pindefName = "UC2_3";
+     const char *mSSID = "UC2_3";
+     bool mAP = true;
+     const char *mPWD = "12345678";
+
+     int8_t MOTOR_A_STEP = GPIO_NUM_15;
+     int8_t MOTOR_X_STEP = GPIO_NUM_16;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+
+     bool MOTOR_ENABLE_INVERTED = true;
+     bool MOTOR_AUTOENABLE = true;
+     int8_t AccelStepperMotorType = 1;
+
+     int8_t LASER_1 = disabled;
+     int8_t LASER_2 = disabled;
+     int8_t LASER_3 = disabled;
+
+     int8_t DIGITAL_OUT_1 = GPIO_NUM_12;
+     int8_t DIGITAL_OUT_2 = GPIO_NUM_4;
+     int8_t DIGITAL_OUT_3 = GPIO_NUM_2;
+     
+     int8_t LED_PIN = GPIO_NUM_13;
+     int8_t LED_COUNT = 64;
+
+     // FIXME: Is this redudant?!
+     int8_t PIN_DEF_END_X = 105; // I2C TCA
+     int8_t PIN_DEF_END_Y = 106;
+     int8_t PIN_DEF_END_Z = 107;
+     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
+     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
+     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
+
+     // const char * PSX_MAC = "1a:2b:3c:01:01:04";
+     // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+     bool enableBlueTooth = true;
+     bool useBtHID = true;
+
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
+     int8_t JOYSTICK_MAX_ILLU = 255;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
+
+
+     // for AS5311
+     int8_t ENC_X_A = GPIO_NUM_32;
+     int8_t ENC_Y_A = GPIO_NUM_34;
+     int8_t ENC_Z_A = GPIO_NUM_36;
+     int8_t ENC_X_B = GPIO_NUM_33;
+     int8_t ENC_Y_B = GPIO_NUM_35;
+     int8_t ENC_Z_B = GPIO_NUM_17;
+
+     
+     // I2c
+     int8_t I2C_SCL = GPIO_NUM_22;
+     int8_t I2C_SDA = GPIO_NUM_21;
+     int8_t I2C_ADD = 0x27;
+     gpio_num_t I2C_INT = GPIO_NUM_27;
+
+     // SPI
+     int8_t SPI_MOSI = GPIO_NUM_23;
+     int8_t SPI_MISO = GPIO_NUM_19;
+     int8_t SPI_SCK = GPIO_NUM_18;
+     int8_t SPI_CS = GPIO_NUM_5;
+
+     // Temperature
+     int8_t DS28b20_PIN = GPIO_NUM_25;
+
+     // dual axis Z
+     bool isDualAxisZ = true;
+     bool useFastAccelStepper = false;
+};
+
      
 
-const UC2_3 pinConfig; // UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_LineFrameTrigger pinConfig; // UC2_3 UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

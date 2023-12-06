@@ -114,8 +114,8 @@ void FAccelStep::setupFastAccelStepper(Stepper stepper, int motoren, int motordi
     faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);
     faststeppers[stepper]->setAcceleration(DEFAULT_ACCELERATION);
     faststeppers[stepper]->setCurrentPosition(data[stepper]->currentPosition);
-    faststeppers[stepper]->move(2);
-    faststeppers[stepper]->move(-2);
+    faststeppers[stepper]->move(1);
+    faststeppers[stepper]->move(-1);
 }
 
 void FAccelStep::stopFastAccelStepper(int i)
@@ -128,6 +128,11 @@ void FAccelStep::stopFastAccelStepper(int i)
     data[i]->speed = 0;
     data[i]->currentPosition = faststeppers[i]->getCurrentPosition();
     data[i]->stopped = true;
+}
+
+long FAccelStep::getCurrentPosition(Stepper s)
+{
+    return faststeppers[s]->getCurrentPosition();
 }
 
 void FAccelStep::setExternalCallForPin(

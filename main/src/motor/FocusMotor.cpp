@@ -33,7 +33,6 @@ FocusMotor::~FocusMotor() { log_i("~ctor"); }
 
 int FocusMotor::act(cJSON *doc)
 {
-	Serial.println("act");
 	log_i("motor act");
 
 	// only enable/disable motors
@@ -85,6 +84,33 @@ int FocusMotor::act(cJSON *doc)
 		return qid;
 	}
 
+	// set trigger
+	cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
+	// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
+	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -50000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
+	// {"task": "/motor_get"}
+	if (settrigger != NULL)
+	{
+		log_d("settrigger");
+		cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
+		if (stprs != NULL)
+		{
+			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			cJSON *stp = NULL;
+			cJSON_ArrayForEach(stp, stprs)
+			{
+				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+				motor->data[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
+				motor->data[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
+				motor->data[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
+				log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
+				log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
+				log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
+			}
+		}
+		return qid;
+	}
+
 	cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 
 	if (mot != NULL)
@@ -109,7 +135,6 @@ int FocusMotor::act(cJSON *doc)
 					stopStepper(s);
 				else
 					startStepper(s);
-				Serial.println("Start Stepper");
 				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
 					  s,
 					  data[s]->isforever,
@@ -183,13 +208,15 @@ cJSON *FocusMotor::get(cJSON *docin)
 			cJSON *aritem = cJSON_CreateObject();
 			setJsonInt(aritem, key_stepperid, i);
 			setJsonInt(aritem, key_position, data[i]->currentPosition);
-			setJsonInt(aritem,"isActivated",data[i]->isActivated);
+			setJsonInt(aritem, "isActivated", data[i]->isActivated);
+			setJsonInt(aritem, key_triggeroffset, data[i]->offsetTrigger);
+			setJsonInt(aritem, key_triggerperiod, data[i]->triggerPeriod);
+			setJsonInt(aritem, key_triggerpin, data[i]->triggerPin);
 			cJSON_AddItemToArray(stprs, aritem);
 		}
 	}
 	return doc;
 }
-
 
 int FocusMotor::getExternalPinValue(uint8_t pin)
 {
@@ -342,20 +369,30 @@ void FocusMotor::setup()
 
 	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
-	if (pinConfig.MOTOR_A_DIR > 0){
+	if (pinConfig.MOTOR_A_DIR > 0)
+	{
 		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
 		log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
-		}
-	if (pinConfig.MOTOR_X_DIR > 0){
+	}
+	if (pinConfig.MOTOR_X_DIR > 0)
+	{
 		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
 		log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
-		}
+	}
 	if (pinConfig.MOTOR_Y_DIR > 0)
 		data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
 	if (pinConfig.MOTOR_Z_DIR > 0)
 		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
 	preferences.end();
-	
+
+	// setup trigger pins
+	if (pinConfig.DIGITAL_OUT_1 > 0)
+		data[Stepper::X]->triggerPin = 1;
+	if (pinConfig.DIGITAL_OUT_2 > 0)
+		data[Stepper::Y]->triggerPin = 2;
+	if (pinConfig.DIGITAL_OUT_3 > 0)
+		data[Stepper::Z]->triggerPin = 3;
+
 	if (pinConfig.useFastAccelStepper)
 	{
 		if (pinConfig.I2C_SCL > 0)
@@ -388,7 +425,7 @@ void FocusMotor::loop()
 		// checks if a stepper is still running
 		for (int i = 0; i < data.size(); i++)
 		{
-			// check if motor is registered 
+			// check if motor is registered
 			if (!data[i]->isActivated)
 				continue;
 			bool isRunning = faccel.isRunning(i);
@@ -396,20 +433,32 @@ void FocusMotor::loop()
 			// should only send a response if there is nothing else is sent
 			State *state = (State *)moduleController.get(AvailableModules::state);
 			bool isSending = state->isSending;
-			
 
-			// Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically 
-			bool isTriggered = false;
-			long offsetTrigger = 100;
-			long triggerPeriod = 1000; 
-			if (data[i]->currentPosition-offsetTrigger % triggerPeriod == 0)
-				isTriggered = true;	
-			else
-				isTriggered = false;
-
-			DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
-			//digitalOut->setPin(i, isTriggered, 0);
-
+			// Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically
+			if (isRunning and data[i]->triggerPeriod > 0)
+			{
+					Stepper s = static_cast<Stepper>(i);
+					data[i]->currentPosition = getCurrentPosition(s);
+					log_i("Current position %i", data[i]->currentPosition);
+					if ((data[i]->currentPosition - data[i]->offsetTrigger) % data[i]->triggerPeriod == 0)
+					{
+						data[i]->isTriggered = true;
+						log_i("Triggering pin %i, current Pos %i, trigger period %i", data[i]->triggerPin, data[i]->currentPosition, data[i]->triggerPeriod);
+						DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
+						digitalOut->setPin(data[i]->triggerPin, data[i]->isTriggered, 0);
+					}
+					else
+					{
+						if (data[i]->isTriggered)
+						{
+							data[i]->isTriggered = false;
+							log_i("Triggering pin %i", data[i]->triggerPin);
+							DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
+							digitalOut->setPin(data[i]->triggerPin, data[i]->isTriggered, 0);
+						}
+					}
+				
+			}
 
 			if (!isRunning && !data[i]->stopped & !isSending)
 			{
@@ -513,6 +562,20 @@ void FocusMotor::setPosition(Stepper s, int pos)
 	{
 		faccel.setPosition(s, pos);
 	}
+}
+
+long FocusMotor::getCurrentPosition(Stepper s)
+{
+	if (pinConfig.useFastAccelStepper)
+	{
+		return faccel.getCurrentPosition(s);
+	}
+	else 
+	{
+		return accel.getCurrentPosition(s);
+	}
+	
+	return 0;
 }
 
 void FocusMotor::move(Stepper s, int steps, bool blocking)

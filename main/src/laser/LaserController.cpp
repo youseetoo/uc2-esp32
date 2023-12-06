@@ -116,6 +116,7 @@ cJSON * LaserController::get(cJSON * ob)
 	setJsonInt(j,"LASER1pin", pinConfig.LASER_1);
 	setJsonInt(j,"LASER2pin", pinConfig.LASER_2);
 	setJsonInt(j,"LASER3pin", pinConfig.LASER_3);
+	setJsonInt(j,"HeatUnitPin", pinConfig.heatUnit_PIN);
 	setJsonInt(j,keyQueueID, qid);
 	return j;
 }
@@ -151,6 +152,17 @@ void LaserController::setup()
 	setPWM(10000, PWM_CHANNEL_LASER_3);
 	delay(5);
 	setPWM(0, PWM_CHANNEL_LASER_3);
+
+	if (pinConfig.heatUnit_PIN > 0)
+	{
+		pinMode(pinConfig.heatUnit_PIN, OUTPUT);
+		digitalWrite(pinConfig.heatUnit_PIN, LOW);
+		ledcSetup(PWM_CHANNEL_heatUnit, pwm_frequency, pwm_resolution);
+		ledcAttachPin(pinConfig.heatUnit_PIN, PWM_CHANNEL_heatUnit);
+		setPWM(10000, PWM_CHANNEL_heatUnit);
+		delay(5);
+		setPWM(0, PWM_CHANNEL_heatUnit);
+	}
 }
 
 void LaserController::loop()

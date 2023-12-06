@@ -81,7 +81,11 @@ int HeatController::act(cJSON *ob)
 
 void HeatController::loop()
 {
-	int pwmChannel = 0;
+	int pwmChannel = pinConfig.heatUnit_PIN;
+	if (pwmChannel < 0)
+	{
+		return;
+	}
 	// we need a protection against temperature runaway and overshoot
 
 	if (moduleController.get(AvailableModules::laser) != nullptr and moduleController.get(AvailableModules::ds18b20) != nullptr)

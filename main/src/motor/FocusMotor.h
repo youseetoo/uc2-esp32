@@ -36,6 +36,7 @@ public:
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
+	long getCurrentPosition(Stepper s);
 private:
 	tca9535 *_tca9535;
 	TCA9535_Register outRegister;

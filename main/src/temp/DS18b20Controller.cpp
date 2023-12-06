@@ -15,7 +15,7 @@ void DS18b20Controller::loop() {
 void temperatureTask(void *pvParameters) {
 	for (;;) {
 		DS18b20Controller *ds18b20 = (DS18b20Controller *)moduleController.get(AvailableModules::ds18b20);
-
+		ds18b20->mDS18B20->requestTemperatures();
         ds18b20->currentValueCelcius=ds18b20->mDS18B20->getTempCByIndex(0);
         // Sleep for a while
         vTaskDelay(pdMS_TO_TICKS(1000)); // Adjust the delay as needed
@@ -36,7 +36,7 @@ int DS18b20Controller::act(cJSON *ob)
 
 cJSON *DS18b20Controller::get(cJSON *ob)
 {
-	// {"task": "/heat_get"}
+	// {"task": "/ds18b20_get"}
 	cJSON *monitor_json = ob;
 	// here you can do something
 	float returnValue = readTemperature();

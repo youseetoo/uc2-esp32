@@ -22,6 +22,7 @@ public:
     void setExternalCallForPin(bool (*func)(uint8_t pin, uint8_t value));
     void driveMotorLoop(int stepperid);
     void updateData(int i);
+    long getCurrentPosition(int i);
     void Enable(bool enable);
     void setPosition(Stepper s, int val);
     bool isRunning(int i);

@@ -69,26 +69,15 @@ cJSON* AnalogOutController::get(cJSON* jsonDocument)
 
 	if (analogoutid == 1)
 	{
-		if (DEBUG)
-			Serial.println("analogout 1");
 		analogoutpin = pinConfig.analogout_PIN_1;
 		analogoutval = analogout_val_1;
 	}
 	else if (analogoutid == 2)
-	{
-		if (DEBUG)
-			Serial.println("AXIS 2");
-		if (DEBUG)
-			Serial.println("analogout 2");
-		analogoutpin = pinConfig.analogout_PIN_2;
+	{	analogoutpin = pinConfig.analogout_PIN_2;
 		analogoutval = analogout_val_2;
 	}
 	else if (analogoutid == 3)
 	{
-		if (DEBUG)
-			Serial.println("AXIS 3");
-		if (DEBUG)
-			Serial.println("analogout 1");
 		analogoutpin = pinConfig.analogout_PIN_3;
 		analogoutval = analogout_val_3;
 	}

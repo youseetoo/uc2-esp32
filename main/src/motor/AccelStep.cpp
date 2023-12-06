@@ -1,6 +1,7 @@
 #include "AccelStep.h"
 #include "ModuleController.h"
 #include "FocusMotor.h"
+#include "../digitalout/DigitalOutController.h"
 
 void driveMotorXLoop(void *pvParameter)
 {
@@ -101,8 +102,6 @@ void AccelStep::setupAccelStepper()
         data[Stepper::Z]->isActivated = true;
     }
 
-    
-
     // setting default values
     for (int i = 0; i < steppers.size(); i++)
     {
@@ -186,7 +185,8 @@ void AccelStep::stopAccelStepper(int i)
     data[i]->stopped = true;
 }
 
-bool AccelStep::isRunning(int stepperid){
+bool AccelStep::isRunning(int stepperid)
+{
     AccelStepper *s = steppers[stepperid];
     MotorData *d = data[stepperid];
     return s->isRunning();
@@ -220,6 +220,22 @@ void AccelStep::driveMotorLoop(int stepperid)
                 // if not turn it off
                 stopAccelStepper(stepperid);
             }
+            else
+            {
+                // trigger if a trigger is due
+                // Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically
+                if (data[stepperid]->triggerPeriod > 0)
+                {
+                    if ((data[stepperid]->currentPosition - data[stepperid]->offsetTrigger) % data[stepperid]->triggerPeriod == 0)
+                    {
+                        data[stepperid]->isTriggered = true;
+                        //log_i("Triggering pin %i, current Pos %i, trigger period %i", data[stepperid]->triggerPin, data[stepperid]->currentPosition, data[stepperid]->triggerPeriod);
+                        DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
+                        digitalOut->setPin(data[stepperid]->triggerPin, data[stepperid]->isTriggered, 0);
+                        digitalOut->setPin(data[stepperid]->triggerPin, !data[stepperid]->isTriggered, 0);
+                    }
+                }
+            }
         }
         d->currentPosition = s->currentPosition();
         vTaskDelay(1 / portTICK_PERIOD_MS);
@@ -228,6 +244,11 @@ void AccelStep::driveMotorLoop(int stepperid)
     log_i("Stop Task %i", stepperid);
     taskRunning[stepperid] = false;
     vTaskDelete(NULL);
+}
+
+long AccelStep::getCurrentPosition(int i)
+{
+    return steppers[i]->currentPosition();
 }
 
 void AccelStep::Enable(bool en)

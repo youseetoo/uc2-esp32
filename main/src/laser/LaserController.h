@@ -31,6 +31,7 @@ public:
     int PWM_CHANNEL_LASER_1 = 0;
     int PWM_CHANNEL_LASER_2 = 1;
     int PWM_CHANNEL_LASER_3 = 2;
+    int PWM_CHANNEL_heatUnit = 3;
 
     // temperature dependent despeckeling?
     int LASER_despeckle_1 = 0;

@@ -217,11 +217,13 @@ int LinearEncoderController::act(cJSON *j)
                 motor->startStepper(s);
                 edata[s]->movePrecise = true;
                 log_d("Move precise from %f to %f at speed %f", edata[s]->positionPreMove, edata[s]->positionToGo, motor->data[s]->speed);
+                /*
                 Serial.println(motor->data[s]->speed);
                 Serial.println(edata[s]->positionPreMove);
                 Serial.println(edata[s]->positionToGo);
                 Serial.println(edata[s]->isAbsolute);
                 Serial.println(speed);
+                */
             }
         }
     }

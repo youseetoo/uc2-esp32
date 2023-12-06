@@ -126,7 +126,10 @@ __attribute__ ((unused)) static const PROGMEM char * key_steppin_inverted = "ste
 __attribute__ ((unused)) static const PROGMEM char * key_enablepin_inverted = "enable_inverted";
 __attribute__ ((unused)) static const PROGMEM char * key_min_position = "min_pos";
 __attribute__ ((unused)) static const PROGMEM char * key_max_position = "max_pos";
-
+__attribute__ ((unused)) static const PROGMEM char * key_settrigger = "setTrig";
+__attribute__ ((unused)) static const PROGMEM char * key_triggerpin = "trigPin";
+__attribute__ ((unused)) static const PROGMEM char * key_triggerperiod = "trigPer";
+__attribute__ ((unused)) static const PROGMEM char * key_triggeroffset = "trigOff";
 __attribute__ ((unused)) static const PROGMEM char *dateKey = "date";
 __attribute__ ((unused)) static const PROGMEM char *key_modules = "modules";
 __attribute__ ((unused)) static const PROGMEM char *key_analogin = "analogin";

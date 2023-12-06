@@ -24,6 +24,12 @@ struct MotorData
 
 	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
 	int qid = -1; // for keeping sync with commands sent by the serial and their responses
+
+	// for triggering frame or lineclock
+	bool isTriggered = false; // state if we send a pulse
+	long offsetTrigger = 0;	// offset in steps
+	long triggerPeriod = -1; // give a pulse every n steps
+	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
 };
 
 enum Stepper

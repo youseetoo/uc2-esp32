@@ -1,6 +1,7 @@
+#include "PinConfig.h"
+#ifdef ANALOG_OUT_CONTROLLER
 #include "AnalogOutController.h"
 
-#include "PinConfig.h"
 #include "JsonKeys.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -109,3 +110,5 @@ namespace AnalogOutController
 		return monitor;
 	}
 }
+
+#endif

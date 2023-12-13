@@ -1,14 +1,7 @@
-#include "WifiController.h"
-/*#include "../analogin/AnalogInController.h"
-#include "../digitalout/DigitalOutController.h"
-#include "../digitalin/DigitalInController.h"
-
-#include "../dac/DacController.h"
-#include "../pid/PidController.h"
-#include "../laser/LaserController.h"
-#include "../led/LedController.h"*/
-#include "../../cJsonTool.h"
 #include "PinConfig.h"
+#ifdef WIFI
+#include "WifiController.h"
+#include "../../cJsonTool.h"
 #include "JsonKeys.h"
 #include "../config/ConfigController.h"
 #include "EspHttpsServer.h"
@@ -111,3 +104,4 @@ namespace WifiController
 		httpsServer.start_webserver();
 	}
 }
+#endif

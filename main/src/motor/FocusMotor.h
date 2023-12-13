@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef FOCUS_MOTOR
 #pragma once
 #include "cJsonTool.h"
 #include "Arduino.h"
@@ -48,3 +50,4 @@ namespace FocusMotor
 	void init_tca();
 	void dumpRegister(const char * name, TCA9535_Register configRegister);
 };
+#endif

@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef LED_CONTROLLER
 #pragma once
 #include "Adafruit_NeoPixel.h"
 #include "cJSON.h"
@@ -91,4 +93,4 @@ namespace LedController
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
 };
-//extern LedController led;
+#endif

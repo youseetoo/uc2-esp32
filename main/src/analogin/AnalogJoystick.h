@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef ANALOG_JOYSTICK
 #pragma once
 
 #include "../motor/MotorTypes.h"
@@ -16,3 +18,4 @@ namespace AnalogJoystick
     void setup();
     void driveMotor(Stepper s, int joystick_drive,int pin);
 };
+#endif

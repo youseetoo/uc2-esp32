@@ -48,6 +48,9 @@
 #ifdef SCANNER_CONTROLLER
 #include "src/scanner/ScannerController.h"
 #endif
+#ifdef HOME_MOTOR
+#include "src/home/HomeMotor.h"
+#endif
 
 #define BAUDRATE 115200
 long lastHeapUpdateTime;

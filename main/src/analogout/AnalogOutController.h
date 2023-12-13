@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef ANALOG_OUT_CONTROLLER
 #pragma once
 #include "cJSON.h"
 #include "Arduino.h"
@@ -37,3 +39,4 @@ namespace AnalogOutController
 
     void setup();
 };
+#endif

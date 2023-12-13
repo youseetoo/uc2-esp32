@@ -1,7 +1,9 @@
+#include "PinConfig.h"
+#ifdef PID_CONTROLLER
 #include "PidController.h"
 #include "cJsonTool.h"
 #include "Arduino.h"
-#include "PinConfig.h"
+
 #include "JsonKeys.h"
 
 namespace PidController
@@ -122,3 +124,4 @@ namespace PidController
 		startMillis = millis();
 	}
 }
+#endif

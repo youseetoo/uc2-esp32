@@ -1,6 +1,8 @@
+#include "PinConfig.h"
+#ifdef ANALOG_IN_CONTROLLER
+
 #include "AnalogInController.h"
 #include "Arduino.h"
-#include "PinConfig.h"
 #include "JsonKeys.h"
 
 namespace AnalogInController
@@ -66,3 +68,4 @@ namespace AnalogInController
 		log_d("Setup AnalogInController");
 	}
 }
+#endif

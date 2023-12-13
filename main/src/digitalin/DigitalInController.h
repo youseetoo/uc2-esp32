@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef DIGITAL_IN_CONTROLLER
 #pragma once
 #include "cJSON.h"
 
@@ -17,3 +19,4 @@ namespace DigitalInController
     void setup();
     void loop();
 };
+#endif

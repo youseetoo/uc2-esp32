@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef LASER_CONTROLLER
 #pragma once
 #include "cJSON.h"
 #include "Arduino.h"
@@ -47,4 +49,5 @@ namespace LaserController
     void loop();
 
 };
+#endif
 

@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef HOME_MOTOR
 #include "HomeMotor.h"
 #include "FastAccelStepper.h"
 #include "../digitalin/DigitalInController.h"
@@ -5,7 +7,6 @@
 #include "HardwareSerial.h"
 #include "../../cJsonTool.h"
 #include "Arduino.h"
-#include "../../PinConfig.h"
 #include "../../JsonKeys.h"
 
 namespace HomeMotor
@@ -168,3 +169,4 @@ namespace HomeMotor
 		// xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 	}
 }
+#endif

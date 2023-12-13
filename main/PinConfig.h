@@ -3,7 +3,7 @@
 #include "Arduino.h"
 // default Pin structure
 
-#define ANALOG_IN_CONTROLLER
+/*#define ANALOG_IN_CONTROLLER
 #define ANALOG_JOYSTICK
 #define ANALOG_OUT_CONTROLLER
 #define BLUETOOTH
@@ -17,7 +17,7 @@
 #define FOCUS_MOTOR
 #define PID_CONTROLLER
 #define SCANNER_CONTROLLER
-#define WIFI
+#define WIFI*/
 
 
 const int8_t disabled = -1;
@@ -166,6 +166,10 @@ struct PinConfig
 #if defined CXYZ_MOTOR_JOYSTICK || defined CXYZ_MOTOR_ENDSTOP_JOYSTICK
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
+     #define ANALOG_JOYSTICK
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define WIFI
      const char *pindefName = "XYZ_MOTOR_JOYSTICK";
      #define MOTOR_X
      int8_t MOTOR_X_DIR = 16;
@@ -194,6 +198,7 @@ const XYZ_MOTOR_JOYSTICK pinConfig;
 #ifdef CXYZ_MOTOR_ENDSTOP_JOYSTICK
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : XYZ_MOTOR_JOYSTICK
 {
+     #define HOME_MOTOR
      const char *pindefName = "XYZ_MOTOR_ENDSTOP_JOYSTICK";
      int8_t PIN_DEF_END_X = 12;
      int8_t PIN_DEF_END_Y = 13;
@@ -205,6 +210,10 @@ const XYZ_MOTOR_ENDSTOP_JOYSTICK pinConfig;
 #ifdef CX_MOTOR_64LED_PIN
 struct X_MOTOR_64LED_PIN : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define WIFI
+     #define LED_CONTROLLER
      const char *pindefName = "X_Motor_64LED";
      int8_t MOTOR_X_DIR = 21;
      int8_t MOTOR_X_STEP = 19;
@@ -220,6 +229,10 @@ const X_MOTOR_64LED_PIN pinConfig;
 #ifdef CHoLiSheet
 struct HoLiSheet : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
      const char *pindefName = "HoLiSheet";
      int8_t MOTOR_Z_DIR = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_17;
@@ -247,6 +260,11 @@ const HoLiSheet pinConfig;
 #ifdef CUC2_1
 struct UC2_1 : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
      const char *pindefName = "UC2_1";
      // UC2 STandalone V1
      int8_t MOTOR_A_DIR = GPIO_NUM_21;
@@ -283,6 +301,11 @@ const UC2_1 pinConfig;
 #ifdef CUC2_Insert
 struct UC2_Insert : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
      const char *pindefName = "UC2UC2_Insert";
 
      // UC2 STandalone V2
@@ -318,6 +341,12 @@ const UC2_Insert pinConfig;
 #ifdef CUC2_2
 struct UC2_2 : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER
      const char *pindefName = "UC2_2";
 
      // UC2 STandalone V2
@@ -362,6 +391,13 @@ const UC2_2 pinConfig;
 #ifdef CUC2e
 struct UC2e : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
+     #define DAC_CONTROLLER
+     #define ANALOG_IN_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER
      const char *pindefName = "UC2e";
 
      // UC2e (UC2-express-bus) pinout of the SUES system (modules and baseplane) dictated by the spec for the ESP32 module pinout
@@ -417,6 +453,12 @@ const UC2e pinConfig;
 #ifdef CUC2_WEMOS
 struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define WIFI
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
      const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
@@ -458,6 +500,11 @@ const UC2_WEMOS pinConfig;
 #ifdef CUC2_OMNISCOPE
 struct UC2_OMNISCOPE : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     #define WIFI
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
      const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)
@@ -492,6 +539,8 @@ const UC2_OMNISCOPE pinConfig;
 #ifdef CUC2_CassetteRecorder
 struct UC2_CassetteRecorder : PinConfig
 {
+     #define FOCUS_MOTOR
+
      const char *pindefName = "CassetteRecorder";
      bool useFastAccelStepper = false;
      int8_t AccelStepperMotorType = 8;
@@ -508,6 +557,9 @@ const UC2_CassetteRecorder pinConfig;
 #ifdef CUC2_XYZRotator
 struct UC2_XYZRotator : PinConfig
 {
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+
      const char *pindefName = "UC2_XYZRotator";
 
      bool useFastAccelStepper = false;
@@ -589,7 +641,13 @@ struct UC2_3 : PinConfig
      http://www.ti.com/lit/ds/symlink/tca9535.pdf
      C561273
      */
-
+     #define FOCUS_MOTOR
+     #define BLUETOOTH
+     //#define WIFI
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER
      const char * pindefName = "UC2_3";
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;

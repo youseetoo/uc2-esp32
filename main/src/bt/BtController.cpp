@@ -1,5 +1,6 @@
-#include "BtController.h"
 #include "PinConfig.h"
+#ifdef BLUETOOTH
+#include "BtController.h"
 #include <esp_log.h>
 #include "../analogout/AnalogOutController.h"
 #include "../laser/LaserController.h"
@@ -502,3 +503,4 @@ namespace BtController
         esp_bt_controller_deinit();
     }
 } // namespace name
+#endif

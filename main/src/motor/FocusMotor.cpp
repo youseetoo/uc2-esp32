@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef FOCUS_MOTOR
 #include "../../config.h"
 #include "FocusMotor.h"
 #include "../wifi/WifiController.h"
@@ -425,3 +427,4 @@ namespace FocusMotor
 		}
 	}
 }
+#endif

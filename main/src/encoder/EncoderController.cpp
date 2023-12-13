@@ -1,10 +1,11 @@
+#include "PinConfig.h"
+#ifdef ENCODER_CONTROLLER
 #include "EncoderController.h"
 #include "FastAccelStepper.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"
 
-#include "../../PinConfig.h"
 #include "../../JsonKeys.h"
 
 #ifdef FOCUS_MOTOR
@@ -283,3 +284,4 @@ namespace EncoderController
 		return result;
 	}
 }
+#endif

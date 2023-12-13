@@ -1,6 +1,7 @@
+#include "PinConfig.h"
+#ifdef ANALOG_JOYSTICK
 #include "AnalogJoystick.h"
 #include "Arduino.h"
-#include "../../PinConfig.h"
 #include "../../JsonKeys.h"
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
@@ -57,3 +58,4 @@ namespace AnalogJoystick
 #endif
     }
 }
+#endif

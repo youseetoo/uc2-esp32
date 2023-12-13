@@ -1,8 +1,8 @@
-
+#include "PinConfig.h"
+#ifdef SCANNER_CONTROLLER
 #include "ScannerController.h"
 #include "cJsonTool.h"
 #include "Arduino.h"
-#include "PinConfig.h"
 #include "JsonKeys.h"
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
@@ -270,3 +270,4 @@ namespace ScannerController
 		vTaskDelete(NULL);
 	}
 }
+#endif

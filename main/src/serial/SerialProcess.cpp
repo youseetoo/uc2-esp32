@@ -160,14 +160,12 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 		char *mac = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "mac")); // jsonDocument["mac"];
 		int ps = cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "psx"));	 // jsonDocument["psx"];
-		if (ps == 0)
-		{
+		#ifdef BTHID
 			BtController::setMacAndConnect(mac);
-		}
-		else
-		{
+		#endif
+		#ifdef PSXCONTROLLER
 			BtController::connectPsxController(mac, ps);
-		}
+		#endif
 		moduleAvailable = true;
 	}
 	if (strcmp(task, bt_scan_endpoint) == 0)

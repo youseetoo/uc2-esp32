@@ -232,14 +232,12 @@ namespace RestApi
         char *mac = (char *)cJSON_GetObjectItemCaseSensitive(doc, "mac")->valuestring;
         int ps = cJSON_GetObjectItemCaseSensitive(doc, "psx")->valueint;
 
-        if (ps == 0)
-        {
+        #ifdef BTHID
             BtController::setMacAndConnect(mac);
-        }
-        else
-        {
+        #endif
+        #ifdef PSCONTROLLER
             BtController::connectPsxController(mac, ps);
-        }
+        #endif
         cJSON_Delete(doc);
         return ESP_OK;
     }

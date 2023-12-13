@@ -3,7 +3,9 @@
 #pragma once
 
 #include "esp_err.h"
+#ifdef PSXCONTROLLER
 #include "PSController.h"
+#endif
 #include "cJSON.h"
 
 namespace BtController
@@ -33,8 +35,11 @@ namespace BtController
     static int analogout_val_1 = 0;
     static int pwm_max = 0; // no idea how big it should be
     static int8_t sgn(int val);
+    #ifdef PSXCONTROLLER
     static PSController * psx = nullptr;
     void setupPS(char* mac, int type);
+    void connectPsxController(char* mac, int type);
+    #endif
     void handelAxis(int value,int stepper);
     
 
@@ -52,7 +57,7 @@ namespace BtController
     cJSON * scanForDevices(cJSON *  doc);
     void removeAllPairedDevices();
     void setMacAndConnect(char* m);
-    void connectPsxController(char* mac, int type);
+    
     void removePairedDevice(char* pairedmac);
     cJSON * getPairedDevices(cJSON * doc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);

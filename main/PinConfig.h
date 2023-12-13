@@ -3,7 +3,10 @@
 #include "Arduino.h"
 // default Pin structure
 
-/*#define ANALOG_IN_CONTROLLER
+/*
+available modules. to enable a module define them inside your config
+
+#define ANALOG_IN_CONTROLLER
 #define ANALOG_JOYSTICK
 #define ANALOG_OUT_CONTROLLER
 #define BLUETOOTH
@@ -17,7 +20,14 @@
 #define FOCUS_MOTOR
 #define PID_CONTROLLER
 #define SCANNER_CONTROLLER
-#define WIFI*/
+#define WIFI
+*/
+
+/*
+bt defines
+#define BTHID
+#define PSXCONTROLLER
+*/
 
 
 const int8_t disabled = -1;
@@ -128,8 +138,6 @@ struct PinConfig
      int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
      bool enableScanner = false;
-     bool enableBlueTooth = true;
-     bool useBtHID = false; // enabling this disable psxcontroller
      bool enableWifi = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
@@ -169,26 +177,20 @@ struct XYZ_MOTOR_JOYSTICK : PinConfig
      #define ANALOG_JOYSTICK
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define BTHID
      #define WIFI
      const char *pindefName = "XYZ_MOTOR_JOYSTICK";
-     #define MOTOR_X
      int8_t MOTOR_X_DIR = 16;
      int8_t MOTOR_X_STEP = 26;
-     #define MOTOR_Y
      int8_t MOTOR_Y_DIR = 27;
      int8_t MOTOR_Y_STEP = 25;
-     #define MOTOR_Z
      int8_t MOTOR_Z_DIR = 14;
      int8_t MOTOR_Z_STEP = 17;
      int8_t MOTOR_ENABLE = 12;
      bool MOTOR_ENABLE_INVERTED = true;
 
-     #define ANALOG_JOYSTICK
      int8_t ANLOG_JOYSTICK_X = 0;
      int8_t ANLOG_JOYSTICK_Y = 0;
-
-     #define BLUETOOTH
-     bool useBtHID = true;
 };
 #ifndef CXYZ_MOTOR_ENDSTOP_JOYSTICK
 const XYZ_MOTOR_JOYSTICK pinConfig;
@@ -211,8 +213,6 @@ const XYZ_MOTOR_ENDSTOP_JOYSTICK pinConfig;
 struct X_MOTOR_64LED_PIN : PinConfig
 {
      #define FOCUS_MOTOR
-     #define BLUETOOTH
-     #define WIFI
      #define LED_CONTROLLER
      const char *pindefName = "X_Motor_64LED";
      int8_t MOTOR_X_DIR = 21;
@@ -231,6 +231,7 @@ struct HoLiSheet : PinConfig
 {
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define PSXCONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
      const char *pindefName = "HoLiSheet";
@@ -262,6 +263,7 @@ struct UC2_1 : PinConfig
 {
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define PSXCONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER
@@ -293,7 +295,6 @@ struct UC2_1 : PinConfig
      int8_t PSX_CONTROLLER_TYPE = 1;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 20;
-     boolean enableBlueTooth = true;
 };
 const UC2_1 pinConfig;
 #endif
@@ -303,6 +304,7 @@ struct UC2_Insert : PinConfig
 {
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define PSXCONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER
@@ -333,7 +335,6 @@ struct UC2_Insert : PinConfig
 
      const char *PSX_MAC = "1a:2b:3c:01:01:01";
      int8_t PSX_CONTROLLER_TYPE = 2;
-     boolean enableBlueTooth = true;
 };
 const UC2_Insert pinConfig;
 #endif
@@ -343,6 +344,7 @@ struct UC2_2 : PinConfig
 {
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define PSXCONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER
@@ -379,7 +381,6 @@ struct UC2_2 : PinConfig
 
      const char *PSX_MAC = "1a:2b:3c:01:01:04";
      int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
-     bool enableBlueTooth = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
@@ -455,6 +456,7 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define PSXCONTROLLER
      #define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR
@@ -485,7 +487,6 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 
      const char *PSX_MAC = "1a:2b:3c:01:01:03";
      int8_t PSX_CONTROLLER_TYPE = 2;
-     boolean enableBlueTooth = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 3;
@@ -502,6 +503,7 @@ struct UC2_OMNISCOPE : PinConfig
 {
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define PSXCONTROLLER
      #define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR
@@ -527,7 +529,6 @@ struct UC2_OMNISCOPE : PinConfig
 
      const char *PSX_MAC = "1a:2b:3c:01:01:03";
      int8_t PSX_CONTROLLER_TYPE = 2;
-     boolean enableBlueTooth = false;
 
      const char *mSSID = "Blynk";   //"omniscope";
      const char *mPWD = "12345678"; //"omniscope";
@@ -558,7 +559,6 @@ const UC2_CassetteRecorder pinConfig;
 struct UC2_XYZRotator : PinConfig
 {
      #define FOCUS_MOTOR
-     #define BLUETOOTH
 
      const char *pindefName = "UC2_XYZRotator";
 
@@ -578,9 +578,6 @@ struct UC2_XYZRotator : PinConfig
      int8_t MOTOR_Z_0 = GPIO_NUM_18;
      int8_t MOTOR_Z_1 = GPIO_NUM_21;
 
-     const char *PSX_MAC = "1a:2b:3c:01:01:01";
-     int8_t PSX_CONTROLLER_TYPE = 1;
-     bool enableBlueTooth = false;
 };
 const UC2_XYZRotator pinConfig;
 #endif
@@ -643,6 +640,7 @@ struct UC2_3 : PinConfig
      */
      #define FOCUS_MOTOR
      #define BLUETOOTH
+     #define BTHID
      //#define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR
@@ -677,8 +675,6 @@ struct UC2_3 : PinConfig
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
-     bool enableBlueTooth = true;
-     bool useBtHID = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;

@@ -1,3 +1,5 @@
+#include "PinConfig.h"
+#ifdef BTHID
 #pragma once 
 
 #include "freertos/FreeRTOS.h"
@@ -35,3 +37,4 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
 #define SCAN_DURATION_SECONDS 5
 
 void hid_demo_task(void *pvParameters);
+#endif

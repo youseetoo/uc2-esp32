@@ -7,7 +7,9 @@
 #include "../led/LedController.h"
 #include "../motor/FocusMotor.h"
 #include "../config/ConfigController.h"
+#ifdef BTHID
 #include "HidController.h"
+#endif
 
 #include "Arduino.h"
 #include "JsonKeys.h"
@@ -29,8 +31,7 @@ namespace BtController
 
         log_d("Setup bluetooth controller");
         // get the bluetooth config
-        if (!pinConfig.useBtHID)
-        {
+        #ifdef PSXCONTROLLER
             char *m = Config::getPsxMac();
             int type = Config::getPsxControllerType();
 
@@ -52,12 +53,14 @@ namespace BtController
                 log_i("Connecting to PSX controller");
                 setupPS(m, type);
             }
-        }
-        else
+        #endif
+        #ifdef BTHID
             setupHidController();
+        #endif
         // xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
     }
 
+#ifdef PSXCONTROLLER
     void setupPS(char *mac, int type)
     {
         // select the type of wifi controller - either PS3 or PS4
@@ -74,6 +77,7 @@ namespace BtController
         bool returnBluetooth = psx->startListening(mac);
         log_d("Return Bluetooth %i", returnBluetooth);
     }
+#endif
 
     void handelAxis(int value, int s)
     {
@@ -111,22 +115,31 @@ namespace BtController
     void loop()
     {
         // this maps the physical inputs (e.g. joystick) to the physical outputs (e.g. motor)
-        if ((psx != nullptr && psx->isConnected()) || hidIsConnected)
+        #ifdef BTHID
+        if (hidIsConnected)
+        #endif
+        #ifdef PSXCONTROLLER
+        if ((psx != nullptr && psx->isConnected()))
+        #endif
         {
 #ifdef LED_CONTROLLER
             // switch LED on/off on cross/circle button press
             bool cross = false;
             bool circle = false;
+            #ifdef PSXCONTROLLER
             if (psx != nullptr)
             {
                 cross = psx->event.button_down.cross;
                 circle = psx->event.button_down.circle;
             }
-            else if (hidIsConnected)
+            #endif
+            #ifdef BTHID 
+            if (hidIsConnected)
             {
                 cross = gamePadData.cross;
                 circle = gamePadData.circle;
             }
+            #endif
             if (cross && !led_on)
             {
                 log_i("Turn on LED ");
@@ -149,6 +162,7 @@ namespace BtController
             bool down = false;
             bool right = false;
             bool left = false;
+            #ifdef PSXCONTROLLER
             if (psx != nullptr)
             {
                 up = psx->event.button_down.up;
@@ -156,13 +170,16 @@ namespace BtController
                 right = psx->event.button_down.right;
                 left = psx->event.button_down.left;
             }
-            else if (hidIsConnected)
+            #endif
+            #ifdef BTHID 
+            if (hidIsConnected)
             {
                 up = gamePadData.dpaddirection == Dpad::Direction::up;
                 down = gamePadData.dpaddirection == Dpad::Direction::down;
                 left = gamePadData.dpaddirection == Dpad::Direction::left;
                 right = gamePadData.dpaddirection == Dpad::Direction::right;
             }
+            #endif
             // LASER 1
             // switch laser 1 on/off on triangle/square button press
             if (up && !laser_on)
@@ -202,6 +219,7 @@ namespace BtController
             int xvalue = 0;
             int yvalue = 0;
             int avalue = 0;
+            #ifdef PSXCONTROLLER
             if (psx != nullptr)
             {
                 zvalue = psx->state.analog.stick.ly;
@@ -209,13 +227,16 @@ namespace BtController
                 yvalue = psx->state.analog.stick.ry;
                 avalue = psx->state.analog.stick.lx;
             }
-            else if (hidIsConnected)
+            #endif
+            #ifdef BTHID 
+            if (hidIsConnected)
             {
                 zvalue = gamePadData.LeftY;
                 xvalue = gamePadData.RightX;
                 yvalue = gamePadData.RightY;
                 avalue = gamePadData.LeftX;
             }
+            #endif
             if (logCounter > 100)
             {
                 log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);
@@ -244,6 +265,7 @@ namespace BtController
             bool r2 = false;
             bool l1 = false;
             bool l2 = false;
+            #ifdef PSXCONTROLLER
             if (psx != nullptr)
             {
                 left = psx->event.button_down.left;
@@ -253,7 +275,9 @@ namespace BtController
                 l1 = psx->event.button_down.l1;
                 l2 = psx->event.button_down.l2;
             }
-            else if (hidIsConnected)
+            #endif
+            #ifdef BTHID 
+            if (hidIsConnected)
             {
                 left = gamePadData.dpaddirection == Dpad::Direction::left;
                 right = gamePadData.dpaddirection == Dpad::Direction::right;
@@ -262,6 +286,7 @@ namespace BtController
                 l1 = gamePadData.l1;
                 l2 = gamePadData.l2;
             }
+            #endif
             /*
                Keypad left
             */
@@ -331,7 +356,9 @@ namespace BtController
     cJSON *scanForDevices(cJSON *doc)
     {
         // scan for bluetooth devices and return the list of devices
+        #ifdef BTHID
         hid_demo_task(nullptr);
+        #endif
         return NULL;
     }
 
@@ -349,6 +376,7 @@ namespace BtController
     cJSON *getPairedDevices(cJSON *doc)
     {
         cJSON *root = cJSON_CreateObject();
+        #ifdef BTHID
         int count = esp_bt_gap_get_bond_device_num();
         if (!count)
         {
@@ -378,6 +406,7 @@ namespace BtController
                 }
             }
         }
+        #endif
         return doc;
     }
 
@@ -385,6 +414,7 @@ namespace BtController
     {
     }
 
+#ifdef PSXCONTROLLER
     void connectPsxController(char *mac, int type)
     {
         log_i("start psx advertising with mac: %s type:%i", mac, type);
@@ -392,6 +422,7 @@ namespace BtController
         Config::setPsxControllerType(type);
         setupPS(mac, type);
     }
+#endif
 
     bool connectToServer()
     {
@@ -460,8 +491,11 @@ namespace BtController
 
     void removePairedDevice(char *pairedmac)
     {
+        #ifdef BTHID
         esp_err_t tError = esp_bt_gap_remove_bond_device((uint8_t *)pairedmac);
+       
         log_i("paired device removed:%s", tError == ESP_OK);
+        #endif
     }
 
     int8_t sgn(int val)
@@ -478,7 +512,7 @@ namespace BtController
 
     void removeAllPairedDevices()
     {
-
+        #ifdef BTHID
         esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
         esp_bt_controller_init(&bt_cfg);
         esp_bt_controller_enable(ESP_BT_MODE_BTDM);
@@ -501,6 +535,7 @@ namespace BtController
 
         esp_bt_controller_disable();
         esp_bt_controller_deinit();
+        #endif
     }
 } // namespace name
 #endif

@@ -1,5 +1,7 @@
-#include "HidController.h"
 #include "PinConfig.h"
+#ifdef BTHID
+#include "HidController.h"
+
 
 GamePadData gamePadData;
 bool hidIsConnected = false;
@@ -202,4 +204,5 @@ void hid_demo_task(void *pvParameters)
     ESP_LOGI(TAG, "vtaskdelete hid_demo_task");
     //vTaskDelete(NULL);
 }
+#endif
 

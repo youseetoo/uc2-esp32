@@ -202,7 +202,7 @@
     }
 }
 
-{"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 1, "position": 40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+{"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 1, "position": 400, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}

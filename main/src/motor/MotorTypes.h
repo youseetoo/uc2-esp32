@@ -22,6 +22,7 @@ struct MotorData
 	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
 
+	bool wasRunning = false; // flag to check if the motor was running in the last loop
 	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
 	int qid = -1; // for keeping sync with commands sent by the serial and their responses
 

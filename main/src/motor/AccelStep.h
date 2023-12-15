@@ -26,4 +26,5 @@ public:
     void Enable(bool enable);
     void setPosition(Stepper s, int val);
     bool isRunning(int i);
+    void sendMotorPos(int i, int arraypos);
 };

@@ -422,58 +422,60 @@ void FocusMotor::setup()
 // dont use it, it get no longer triggered from modulehandler
 void FocusMotor::loop()
 {
-	if (pinConfig.useFastAccelStepper)
+	// checks if a stepper is still running
+	for (int i = 0; i < data.size(); i++)
 	{
-		// checks if a stepper is still running
-		for (int i = 0; i < data.size(); i++)
-		{
-			// check if motor is registered
-			if (!data[i]->isActivated)
-				continue;
-			bool isRunning = faccel.isRunning(i);
+		// check if motor is registered
+		if (!data[i]->isActivated)
+			continue;
+		bool isRunning = true;
+		if (pinConfig.useFastAccelStepper)
+			isRunning = faccel.isRunning(i);
+		else
+			isRunning = accel.isRunning(i);
 
-			// should only send a response if there is nothing else is sent
-			State *state = (State *)moduleController.get(AvailableModules::state);
-			bool isSending = state->isSending;
-			/*
-			// Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically
-			if (isRunning and data[i]->triggerPeriod > 0)
-			{
-					Stepper s = static_cast<Stepper>(i);
-					data[i]->currentPosition = getCurrentPosition(s);
-					log_i("Current position %i", data[i]->currentPosition);
-					if ((data[i]->currentPosition - data[i]->offsetTrigger) % data[i]->triggerPeriod == 0)
+		// should only send a response if there is nothing else is sent
+		State *state = (State *)moduleController.get(AvailableModules::state);
+		bool isSending = state->isSending;
+		/*
+		// Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically
+		if (isRunning and data[i]->triggerPeriod > 0)
+		{
+				Stepper s = static_cast<Stepper>(i);
+				data[i]->currentPosition = getCurrentPosition(s);
+				log_i("Current position %i", data[i]->currentPosition);
+				if ((data[i]->currentPosition - data[i]->offsetTrigger) % data[i]->triggerPeriod == 0)
+				{
+					data[i]->isTriggered = true;
+					log_i("Triggering pin %i, current Pos %i, trigger period %i", data[i]->triggerPin, data[i]->currentPosition, data[i]->triggerPeriod);
+					DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
+					digitalOut->setPin(data[i]->triggerPin, data[i]->isTriggered, 0);
+				}
+				else
+				{
+					if (data[i]->isTriggered)
 					{
-						data[i]->isTriggered = true;
-						log_i("Triggering pin %i, current Pos %i, trigger period %i", data[i]->triggerPin, data[i]->currentPosition, data[i]->triggerPeriod);
+						data[i]->isTriggered = false;
+						log_i("Triggering pin %i", data[i]->triggerPin);
 						DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
 						digitalOut->setPin(data[i]->triggerPin, data[i]->isTriggered, 0);
 					}
-					else
-					{
-						if (data[i]->isTriggered)
-						{
-							data[i]->isTriggered = false;
-							log_i("Triggering pin %i", data[i]->triggerPin);
-							DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
-							digitalOut->setPin(data[i]->triggerPin, data[i]->isTriggered, 0);
-						}
-					}
-				
-			}
-			*/
-			if (!isRunning && !data[i]->stopped & !isSending)
-			{
-				// Only send the information when the motor is halting
-				// log_d("Sending motor pos %i", i);
-				stopStepper(i);
-				sendMotorPos(i, 0);
-				preferences.begin("motor-positions", false);
-				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-				log_i("Motor %i position: %i", i, data[i]->currentPosition);
-				preferences.end();
-			}
+				}
+
 		}
+		*/
+		if (((!isRunning && !data[i]->stopped) or (!pinConfig.useFastAccelStepper and !isRunning and data[i]->wasRunning)) & !isSending)
+		{
+			// Only send the information when the motor is halting
+			// log_d("Sending motor pos %i", i);
+			stopStepper(i);
+			sendMotorPos(i, 0);
+			preferences.begin("motor-positions", false);
+			preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+			log_i("Motor %i position: %i", i, data[i]->currentPosition);
+			preferences.end();
+		}
+		data[i]->wasRunning = isRunning;
 	}
 }
 
@@ -572,11 +574,11 @@ long FocusMotor::getCurrentPosition(Stepper s)
 	{
 		return faccel.getCurrentPosition(s);
 	}
-	else 
+	else
 	{
 		return accel.getCurrentPosition(s);
 	}
-	
+
 	return 0;
 }
 

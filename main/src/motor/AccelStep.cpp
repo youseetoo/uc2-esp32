@@ -2,6 +2,7 @@
 #include "ModuleController.h"
 #include "FocusMotor.h"
 #include "../digitalout/DigitalOutController.h"
+#include "Module.h"
 
 void driveMotorXLoop(void *pvParameter)
 {
@@ -123,8 +124,6 @@ void AccelStep::setupAccelStepper()
             log_d("setting default values for motor %i", i);
             steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
             steppers[i]->setAcceleration(DEFAULT_ACCELERATION);
-            steppers[i]->runToNewPosition(-1000);
-            steppers[i]->runToNewPosition(1000);
             steppers[i]->setCurrentPosition(data[i]->currentPosition);
         }
     }
@@ -257,6 +256,8 @@ void AccelStep::driveMotorLoop(int stepperid)
     taskRunning[stepperid] = false;
     vTaskDelete(NULL);
 }
+
+
 
 long AccelStep::getCurrentPosition(int i)
 {

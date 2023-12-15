@@ -34,6 +34,7 @@ extern "C" void looper(void *p)
 
 extern "C" void app_main(void)
 {
+	esp_log_level_set("*", ESP_LOG_NONE);
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
 	//delay(500);
@@ -54,6 +55,8 @@ extern "C" void app_main(void)
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, 5, NULL,1);
 	//xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
 
+	// disable logging
+	
 	
 }
 

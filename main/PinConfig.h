@@ -756,8 +756,8 @@ struct UC2_LineFrameTrigger : PinConfig
      // based on UC2_3
      */
 
-     const char * pindefName = "UC2_3";
-     const char *mSSID = "UC2_3";
+     const char * pindefName = "UC2_LineFrameTrigger";
+     const char *mSSID = "UC2_LineFrameTrigger";
      bool mAP = true;
      const char *mPWD = "12345678";
 
@@ -824,10 +824,10 @@ struct UC2_LineFrameTrigger : PinConfig
      int8_t DS28b20_PIN = GPIO_NUM_25;
 
      // dual axis Z
-     bool isDualAxisZ = true;
+     bool isDualAxisZ = false;
      bool useFastAccelStepper = false;
 };
 
      
 
-const UC2_LineFrameTrigger pinConfig; // UC2_3 UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_LineFrameTrigger pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

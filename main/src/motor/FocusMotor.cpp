@@ -87,7 +87,9 @@ int FocusMotor::act(cJSON *doc)
 	// set trigger
 	cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
 	// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
-	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -50000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
+	// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
+	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
 	// {"task": "/motor_get"}
 	if (settrigger != NULL)
 	{
@@ -433,7 +435,7 @@ void FocusMotor::loop()
 			// should only send a response if there is nothing else is sent
 			State *state = (State *)moduleController.get(AvailableModules::state);
 			bool isSending = state->isSending;
-
+			/*
 			// Implement an output trigger for a camera that is triggered if the stage has moved n-steps periodically
 			if (isRunning and data[i]->triggerPeriod > 0)
 			{
@@ -459,7 +461,7 @@ void FocusMotor::loop()
 					}
 				
 			}
-
+			*/
 			if (!isRunning && !data[i]->stopped & !isSending)
 			{
 				// Only send the information when the motor is halting

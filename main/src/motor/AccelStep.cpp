@@ -36,10 +36,13 @@ void AccelStep::setupAccelStepper()
 
     if (pinConfig.MOTOR_A_STEP > -1)
     {
+        data[Stepper::A]->isActivated = true;
         if (pinConfig.I2C_SCL > 0)
         {
             steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-            data[Stepper::A]->isActivated = true;
+            steppers[Stepper::A]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+            steppers[Stepper::A]->setPinsInverted(false, false, true);
+
         }
         else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
         {
@@ -53,6 +56,7 @@ void AccelStep::setupAccelStepper()
     }
     if (pinConfig.MOTOR_X_STEP > -1)
     {
+        data[Stepper::X]->isActivated = true;
         if (pinConfig.I2C_SCL > 0)
         {
             steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
@@ -71,9 +75,12 @@ void AccelStep::setupAccelStepper()
     }
     if (pinConfig.MOTOR_Y_STEP > -1)
     {
+        data[Stepper::Y]->isActivated = true;
         if (pinConfig.I2C_SCL > 0)
         {
             steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+            steppers[Stepper::Y]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+            steppers[Stepper::Y]->setPinsInverted(false, false, true);
         }
         else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
         {
@@ -86,17 +93,23 @@ void AccelStep::setupAccelStepper()
         data[Stepper::Y]->isActivated = true;
     }
     if (pinConfig.MOTOR_Z_STEP > -1)
-    {
+    {            
+        data[Stepper::Z]->isActivated = true;
         if (pinConfig.I2C_SCL > 0)
         {
+            log_i("using external call for dir pin");
             steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+            steppers[Stepper::Z]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+            steppers[Stepper::Z]->setPinsInverted(false, false, true);
         }
         else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
         {
+            log_i("using internal call for dir pin");
             steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
         }
         else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
         {
+            log_i("using ULN2003 driver");
             steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
         }
         data[Stepper::Z]->isActivated = true;
@@ -110,10 +123,8 @@ void AccelStep::setupAccelStepper()
             log_d("setting default values for motor %i", i);
             steppers[i]->setMaxSpeed(MAX_VELOCITY_A);
             steppers[i]->setAcceleration(DEFAULT_ACCELERATION);
-            steppers[i]->runToNewPosition(-1);
-            steppers[i]->runToNewPosition(1);
-            log_d("1");
-
+            steppers[i]->runToNewPosition(-1000);
+            steppers[i]->runToNewPosition(1000);
             steppers[i]->setCurrentPosition(data[i]->currentPosition);
         }
     }
@@ -198,6 +209,7 @@ void AccelStep::driveMotorLoop(int stepperid)
     AccelStepper *s = steppers[stepperid];
     MotorData *d = data[stepperid];
     log_i("Start Task %i", stepperid);
+    Enable(true);
     while (!d->stopped)
     {
         s->setMaxSpeed(d->maxspeed);

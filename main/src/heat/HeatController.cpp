@@ -59,7 +59,7 @@ int HeatController::act(cJSON *ob)
 			timeToReach80PercentTargetTemperature = getJsonInt(ob, key_timeToReach80PercentTargetTemperature);
 		}
 		else{
-			timeToReach80PercentTargetTemperature = 600000;
+			timeToReach80PercentTargetTemperature = -1;
 		}
 		
 
@@ -111,7 +111,8 @@ void HeatController::loop()
 
 			// some safety mechanisms
 			// if  temperature is not in a certain band after a time X, we have a runaway
-			if (abs(temp_pid_target-temperatureValueAvg)>1 and (millis() - t_tempControlStarted) > timeToReach80PercentTargetTemperature)
+			if (abs(temp_pid_target-temperatureValueAvg)>1 and (millis() - t_tempControlStarted) > timeToReach80PercentTargetTemperature and
+				timeToReach80PercentTargetTemperature>0)	
 			{
 				Heat_active = false;
 				pwmValue = 0;

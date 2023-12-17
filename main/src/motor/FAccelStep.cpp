@@ -1,5 +1,5 @@
 #include "FAccelStep.h"
-#include "PinConfig.h"
+#include <PinConfig.h>"
 
 void FAccelStep::startFastAccelStepper(int i)
 {

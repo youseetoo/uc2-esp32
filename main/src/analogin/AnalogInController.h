@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef ANALOG_IN_CONTROLLER
 #pragma once
 #include "cJSON.h"

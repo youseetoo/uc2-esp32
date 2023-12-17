@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef ANALOG_IN_CONTROLLER
 
 #include "AnalogInController.h"

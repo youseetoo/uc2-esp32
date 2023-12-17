@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef SCANNER_CONTROLLER
 #include "ScannerController.h"
 #include "cJsonTool.h"

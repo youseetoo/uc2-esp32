@@ -1,9 +1,9 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef FOCUS_MOTOR
 #pragma once
 #include "cJsonTool.h"
 #include "Arduino.h"
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #include "JsonKeys.h"
 #include "FAccelStep.h"
 #include "AccelStep.h"
@@ -37,8 +37,11 @@ namespace FocusMotor
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	static bool isRunning(int i);
-	static tca9535 *_tca9535;
+	#ifdef USE_TCA9535
 	static TCA9535_Register outRegister;
+	void dumpRegister(const char * name, TCA9535_Register configRegister);
+	void init_tca();
+	#endif
 	static FAccelStep faccel;
 	
 	static int logcount;
@@ -47,7 +50,8 @@ namespace FocusMotor
 	void disableEnablePin(int i);
 	void enableEnablePin(int i);
 
-	void init_tca();
-	void dumpRegister(const char * name, TCA9535_Register configRegister);
+
+	
+	
 };
 #endif

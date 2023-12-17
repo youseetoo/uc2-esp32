@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef WIFI
 #include "WifiController.h"
 #include "../../cJsonTool.h"

@@ -29,6 +29,11 @@ bt defines
 #define PSXCONTROLLER
 */
 
+/*
+motor defines
+#define USE_TCA9535
+*/
+
 
 const int8_t disabled = -1;
 

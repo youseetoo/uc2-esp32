@@ -16,3 +16,4 @@ build/firmware.bin
 /dependencies.lock
 /sdkconfig.*
 !/sdkconfig.defaults
+/main/PinConfig.h

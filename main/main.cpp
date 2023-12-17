@@ -1,7 +1,7 @@
 #include "esp_log.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
-#include "PinConfig.h"
+#include <PinConfig.h>"
 
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"

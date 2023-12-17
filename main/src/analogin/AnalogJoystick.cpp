@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef ANALOG_JOYSTICK
 #include "AnalogJoystick.h"
 #include "Arduino.h"

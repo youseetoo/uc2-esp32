@@ -57,6 +57,7 @@ struct UC2_3 : PinConfig
      C561273
      */
      #define FOCUS_MOTOR
+     #define USE_TCA9535
      #define BLUETOOTH
      #define BTHID
      //#define WIFI

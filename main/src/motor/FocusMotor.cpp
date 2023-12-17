@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>
 #ifdef FOCUS_MOTOR
 #include "../../config.h"
 #include "FocusMotor.h"
@@ -183,6 +183,7 @@ namespace FocusMotor
 		// Consequently, FastAccelStepper needs to call setExternalPin twice
 		// in order to successfully change the output value.
 		pin = pin & ~PIN_EXTERNAL_FLAG;
+#ifdef USE_TCA9535
 		if (pin == 100) // enable
 			outRegister.Port.P0.bit.Bit0 = value;
 		if (pin == 101) // x
@@ -196,10 +197,11 @@ namespace FocusMotor
 		// log_i("external pin cb for pin:%d value:%d", pin, value);
 		if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
 			log_e("i2c write failed");
-
+#endif
 		return value;
 	}
 
+#ifdef USE_TCA9535
 	void dumpRegister(const char *name, TCA9535_Register configRegister)
 	{
 		log_i("%s port0 b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
@@ -267,6 +269,7 @@ namespace FocusMotor
 		_tca9535->TCA9535ReadConfig(&configRegister);
 		dumpRegister("Config", configRegister);
 	}
+#endif
 
 	void setup()
 	{
@@ -289,21 +292,25 @@ namespace FocusMotor
 		preferences.end();
 		if (pinConfig.useFastAccelStepper)
 		{
+			#ifdef USE_TCA9535
 			if (pinConfig.I2C_SCL > 0)
 			{
 				init_tca();
 				faccel.setExternalCallForPin(externalPinCallback);
 			}
+			#endif
 			faccel.data = data;
 			faccel.setupFastAccelStepper();
 		}
 		else
 		{
+			#ifdef USE_TCA9535
 			if (pinConfig.I2C_SCL > 0)
 			{
 				init_tca();
 				accel.setExternalCallForPin(externalPinCallback);
 			}
+			#endif
 			accel.data = data;
 			accel.setupAccelStepper();
 		}
@@ -363,9 +370,9 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 		arraypos++;
 
-		#ifdef WIFI
-			WifiController::sendJsonWebSocketMsg(root);
-		#endif
+#ifdef WIFI
+		WifiController::sendJsonWebSocketMsg(root);
+#endif
 		// print result - will that work in the case of an xTask?
 		Serial.println("++");
 		char *s = cJSON_Print(root);

@@ -1,4 +1,4 @@
-#include "PinConfig.h"
+#include <PinConfig.h>"
 #ifdef DIGITAL_IN_CONTROLLER
 #include "DigitalInController.h"
 #include "Arduino.h"

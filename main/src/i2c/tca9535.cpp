@@ -5,8 +5,7 @@
 #include "esp_log.h"
 #include "string.h"
 
-namespace TCA9535
-{
+
 	#define I2C_MASTER_NUM             I2C_NUM_1        /*!< I2C port number for master dev */
     #define I2C_MASTER_TX_BUF_DISABLE  0                /*!< I2C master do not need buffer */
     #define I2C_MASTER_RX_BUF_DISABLE  0                /*!< I2C master do not need buffer */
@@ -189,4 +188,3 @@ namespace TCA9535
 	{
 		return TCA9535ReadStruct(reg, TCA9535_CONFIG_REG0);
 	}
-}

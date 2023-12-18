@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef PID_CONTROLLER
 #include "PidController.h"
 #include "cJsonTool.h"

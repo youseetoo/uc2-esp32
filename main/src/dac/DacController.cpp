@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef DAC_CONTROLLER
 #include "DacController.h"
 #include "Arduino.h"

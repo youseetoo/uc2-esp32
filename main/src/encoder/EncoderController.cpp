@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef ENCODER_CONTROLLER
 #include "EncoderController.h"
 #include "FastAccelStepper.h"

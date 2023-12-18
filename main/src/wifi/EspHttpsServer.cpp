@@ -4,7 +4,7 @@
 #include "esp_log.h"
 #include "cJSON.h"
 #include "JsonKeys.h"
-#include <PinConfig.h>"
+#include <PinConfig.h>
 
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"

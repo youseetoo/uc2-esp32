@@ -4,6 +4,15 @@
 #include "FocusMotor.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
+#ifdef USE_TCA9535
+#include "../i2c/tca9535.h"
+#endif
+#ifdef USE_FASTACCEL
+#include "FAccelStep.h"
+#endif
+#ifdef USE_ACCELSTEP
+#include "AccelStep.h"
+#endif
 
 namespace FocusMotor
 {
@@ -38,25 +47,22 @@ namespace FocusMotor
 		cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
 		if (isen != NULL)
 		{
-			if (pinConfig.useFastAccelStepper)
-			{
-				faccel.Enable(isen->valueint);
-			}
-			else
-			{
-				accel.Enable(isen->valueint);
-			}
+#ifdef USE_FASTACCEL
+			FAccelStep::Enable(isen->valueint);
+#endif
+#ifdef USE_ACCELSTEP
+			AccelStep::Enable(isen->valueint);
+#endif
 		}
 
 		// only set motors to autoenable
 		cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
+#ifdef USE_FASTACCEL
 		if (autoen != NULL)
 		{
-			if (pinConfig.useFastAccelStepper)
-			{
-				faccel.setAutoEnable(autoen->valueint);
-			}
+			FAccelStep::setAutoEnable(autoen->valueint);
 		}
+#endif
 		// set position
 		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
@@ -121,10 +127,12 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
-		if (pinConfig.useFastAccelStepper)
-			faccel.startFastAccelStepper(i);
-		else
-			accel.startAccelStepper(i);
+#ifdef USE_FASTACCEL
+		FAccelStep::startFastAccelStepper(i);
+#endif
+#ifdef USE_ACCELSTEP
+		AccelStep::startAccelStepper(i);
+#endif
 	}
 
 	// returns json {"motor":{...}} as qid
@@ -147,10 +155,12 @@ namespace FocusMotor
 				data[i]->currentPosition = 1;
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
-				if (pinConfig.useFastAccelStepper)
-					faccel.updateData(i);
-				else
-					accel.updateData(i);
+#ifdef USE_FASTACCEL
+				FAccelStep::updateData(i);
+#endif
+#ifdef USE_ACCELSTEP
+				AccelStep::updateData(i);
+#endif
 
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
 				cJSON_AddItemToArray(stprs, aritem);
@@ -163,10 +173,12 @@ namespace FocusMotor
 			}
 			else // return the whole config
 			{
-				if (pinConfig.useFastAccelStepper)
-					faccel.updateData(i);
-				else
-					accel.updateData(i);
+#ifdef USE_FASTACCEL
+				FAccelStep::updateData(i);
+#endif
+#ifdef USE_ACCELSTEP
+				AccelStep::updateData(i);
+#endif
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
@@ -195,7 +207,7 @@ namespace FocusMotor
 		if (pin == 104) // a
 			outRegister.Port.P0.bit.Bit4 = value;
 		// log_i("external pin cb for pin:%d value:%d", pin, value);
-		if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
+		if (ESP_OK != TCA9535WriteOutput(&outRegister))
 			log_e("i2c write failed");
 #endif
 		return value;
@@ -228,20 +240,18 @@ namespace FocusMotor
 
 	void init_tca()
 	{
-		_tca9535 = new tca9535();
-
-		if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
+		if (ESP_OK != TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
 			log_e("failed to init tca9535");
 		else
 			log_i("tca9535 init!");
 		TCA9535_Register configRegister;
-		_tca9535->TCA9535ReadInput(&configRegister);
+		TCA9535ReadInput(&configRegister);
 		dumpRegister("Input", configRegister);
-		_tca9535->TCA9535ReadOutput(&configRegister);
+		TCA9535ReadOutput(&configRegister);
 		dumpRegister("Output", configRegister);
-		_tca9535->TCA9535ReadPolarity(&configRegister);
+		TCA9535ReadPolarity(&configRegister);
 		dumpRegister("Polarity", configRegister);
-		_tca9535->TCA9535ReadConfig(&configRegister);
+		TCA9535ReadConfig(&configRegister);
 		dumpRegister("Config", configRegister);
 
 		configRegister.Port.P0.bit.Bit0 = 0; // motor enable
@@ -261,12 +271,12 @@ namespace FocusMotor
 		configRegister.Port.P1.bit.Bit5 = 0;
 		configRegister.Port.P1.bit.Bit6 = 0;
 		configRegister.Port.P1.bit.Bit7 = 0;*/
-		if (ESP_OK != _tca9535->TCA9535WriteConfig(&configRegister))
+		if (ESP_OK != TCA9535WriteConfig(&configRegister))
 			log_e("failed to write config to tca9535");
 		else
 			log_i("tca9535 config written!");
 
-		_tca9535->TCA9535ReadConfig(&configRegister);
+		TCA9535ReadConfig(&configRegister);
 		dumpRegister("Config", configRegister);
 	}
 #endif
@@ -290,30 +300,30 @@ namespace FocusMotor
 		if (pinConfig.MOTOR_Z_DIR > 0)
 			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
 		preferences.end();
-		if (pinConfig.useFastAccelStepper)
+#ifdef USE_FASTACCEL
+#ifdef USE_TCA9535
+		if (pinConfig.I2C_SCL > 0)
 		{
-			#ifdef USE_TCA9535
-			if (pinConfig.I2C_SCL > 0)
-			{
-				init_tca();
-				faccel.setExternalCallForPin(externalPinCallback);
-			}
-			#endif
-			faccel.data = data;
-			faccel.setupFastAccelStepper();
+			init_tca();
+			FAccelStep::setExternalCallForPin(externalPinCallback);
 		}
-		else
+#endif
+
+		FAccelStep::data = data;
+		FAccelStep::setupFastAccelStepper();
+#endif
+#ifdef USE_ACCELSTEP
+#ifdef USE_TCA9535
+		if (pinConfig.I2C_SCL > 0)
 		{
-			#ifdef USE_TCA9535
-			if (pinConfig.I2C_SCL > 0)
-			{
-				init_tca();
-				accel.setExternalCallForPin(externalPinCallback);
-			}
-			#endif
-			accel.data = data;
-			accel.setupAccelStepper();
+			init_tca();
+			AccelStep::setExternalCallForPin(externalPinCallback);
 		}
+#endif
+
+		AccelStep::data = data;
+		AccelStep::setupAccelStepper();
+#endif
 		log_i("Creating Task sendUpdateToClients");
 		// xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
 	}
@@ -321,45 +331,44 @@ namespace FocusMotor
 	// dont use it, it get no longer triggered from modulehandler
 	void loop()
 	{
-		if (pinConfig.useFastAccelStepper)
+#ifdef USE_FASTACCEL
+		// checks if a stepper is still running
+		for (int i = 0; i < data.size(); i++)
 		{
-			// checks if a stepper is still running
-			for (int i = 0; i < data.size(); i++)
+			bool isRunning = FAccelStep::isRunning(i);
+			if (!isRunning && !data[i]->stopped)
 			{
-				bool isRunning = faccel.isRunning(i);
-				if (!isRunning && !data[i]->stopped)
-				{
-					// Only send the information when the motor is halting
-					// log_d("Sending motor pos %i", i);
-					stopStepper(i);
-					sendMotorPos(i, 0);
-					preferences.begin("motor-positions", false);
-					preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-					preferences.end();
-				}
+				// Only send the information when the motor is halting
+				// log_d("Sending motor pos %i", i);
+				stopStepper(i);
+				sendMotorPos(i, 0);
+				preferences.begin("motor-positions", false);
+				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+				preferences.end();
 			}
 		}
+#endif
 	}
 
 	bool isRunning(int i)
 	{
-		if (pinConfig.useFastAccelStepper)
-		{
-			return faccel.isRunning(i);
-		}
-		else
-		{
-			return accel.isRunning(i);
-		}
+#ifdef USE_FASTACCEL
+		return FAccelStep::isRunning(i);
+#endif
+#ifdef USE_ACCELSTEP
+		return AccelStep::isRunning(i);
+#endif
 	}
 
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos)
 	{
-		if (pinConfig.useFastAccelStepper)
-			faccel.updateData(i);
-		else
-			accel.updateData(i);
+#ifdef USE_FASTACCEL
+		FAccelStep::updateData(i);
+#endif
+#ifdef USE_ACCELSTEP
+		AccelStep::updateData(i);
+#endif
 		cJSON *root = cJSON_CreateObject();
 		cJSON *stprs = cJSON_CreateArray();
 		cJSON_AddItemToObject(root, key_steppers, stprs);
@@ -384,10 +393,12 @@ namespace FocusMotor
 	void stopStepper(int i)
 	{
 		log_i("Stop Stepper:%i", i);
-		if (pinConfig.useFastAccelStepper)
-			faccel.stopFastAccelStepper(i);
-		else
-			accel.stopAccelStepper(i);
+#ifdef USE_FASTACCEL
+		FAccelStep::stopFastAccelStepper(i);
+#endif
+#ifdef USE_ACCELSTEP
+		AccelStep::stopAccelStepper(i);
+#endif
 	}
 
 	void disableEnablePin(int i)
@@ -420,18 +431,16 @@ namespace FocusMotor
 
 	void setPosition(Stepper s, int pos)
 	{
-		if (pinConfig.useFastAccelStepper)
-		{
-			faccel.setPosition(s, pos);
-		}
+#ifdef USE_FASTACCEL
+		FAccelStep::setPosition(s, pos);
+#endif
 	}
 
 	void move(Stepper s, int steps, bool blocking)
 	{
-		if (pinConfig.useFastAccelStepper)
-		{
-			faccel.move(s, steps, blocking);
-		}
+#ifdef USE_FASTACCEL
+		FAccelStep::move(s, steps, blocking);
+#endif
 	}
 }
 #endif

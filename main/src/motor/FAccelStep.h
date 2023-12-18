@@ -2,15 +2,14 @@
 #include "FastAccelStepper.h"
 #include "MotorTypes.h"
 
-class FAccelStep
+namespace FAccelStep
 {
-    private:
-    FastAccelStepperEngine engine = FastAccelStepperEngine();
-    std::array<FastAccelStepper *, 4> faststeppers;
-    bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
 
-    public:
-    std::array<MotorData *, 4> data;
+    static FastAccelStepperEngine engine = FastAccelStepperEngine();
+    static std::array<FastAccelStepper *, 4> faststeppers;
+    static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
+
+    static std::array<MotorData *, 4> data;
     void startFastAccelStepper(int i);
     void stopFastAccelStepper(int i);
     void setupFastAccelStepper();

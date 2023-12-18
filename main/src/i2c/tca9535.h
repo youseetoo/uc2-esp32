@@ -2,8 +2,7 @@
 #include "esp_err.h"
 
 //https://github.com/Gordon01/esp32-tca9535/
-namespace TCA9535
-{
+
 
 typedef enum {
 	TCA9535_INPUT_REG0 =	0x00,		/*!< Input status register */
@@ -45,17 +44,15 @@ typedef union {
 	struct TCA9535_sRegister Port;		/*!< Register data as separate ports */
 } TCA9535_Register;
 
-   
-    esp_err_t TCA9535Init(uint8_t I2C_MASTER_SCL_IO, uint8_t I2C_MASTER_SDA_IO,uint8_t TCA9535_ADDRESS);
-    unsigned char TCA9535ReadSingleRegister(tca9535_reg_t address);
-    esp_err_t TCA9535WriteSingleRegister(tca9535_reg_t address, unsigned short regVal);
+esp_err_t TCA9535Init(uint8_t I2C_MASTER_SCL_IO, uint8_t I2C_MASTER_SDA_IO,uint8_t TCA9535_ADDRESS);
+unsigned char TCA9535ReadSingleRegister(tca9535_reg_t address);
+esp_err_t TCA9535WriteSingleRegister(tca9535_reg_t address, unsigned short regVal);
 
-    esp_err_t TCA9535WriteOutput(TCA9535_Register *reg);
-    esp_err_t TCA9535WritePolarity(TCA9535_Register *reg);
-    esp_err_t TCA9535WriteConfig(TCA9535_Register *reg);
+esp_err_t TCA9535WriteOutput(TCA9535_Register *reg);
+esp_err_t TCA9535WritePolarity(TCA9535_Register *reg);
+esp_err_t TCA9535WriteConfig(TCA9535_Register *reg);
 
-    esp_err_t TCA9535ReadInput(TCA9535_Register *reg);
-    esp_err_t TCA9535ReadOutput(TCA9535_Register *reg);
-    esp_err_t TCA9535ReadPolarity(TCA9535_Register *reg);
-    esp_err_t TCA9535ReadConfig(TCA9535_Register *reg);
-};
+esp_err_t TCA9535ReadInput(TCA9535_Register *reg);
+esp_err_t TCA9535ReadOutput(TCA9535_Register *reg);
+esp_err_t TCA9535ReadPolarity(TCA9535_Register *reg);
+esp_err_t TCA9535ReadConfig(TCA9535_Register *reg);

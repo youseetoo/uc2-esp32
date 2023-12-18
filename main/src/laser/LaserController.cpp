@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef LASER_CONTROLLER
 #include "LaserController.h"
 #include "cJsonTool.h"

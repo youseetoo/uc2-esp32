@@ -1,17 +1,25 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef FOCUS_MOTOR
 #pragma once
 #include "cJsonTool.h"
 #include "Arduino.h"
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #include "JsonKeys.h"
-#include "FAccelStep.h"
-#include "AccelStep.h"
+
 #include "../config/ConfigController.h"
 
 #include <Preferences.h>
+#ifdef USE_TCA9535
 #include "../i2c/tca9535.h"
+#endif
 #include "MotorTypes.h"
+
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP
+#error Pls set USE_FASTACCEL or USE_ACCELSTEP
+#endif
+#if defined USE_FASTACCEL && defined USE_ACCELSTEP
+#error Pls set only USE_FASTACCEL or USE_ACCELSTEP, currently both are active
+#endif
 
 void sendUpdateToClients(void *p);
 
@@ -22,7 +30,6 @@ namespace FocusMotor
 	static Preferences preferences;
 
 	// global variables for the motor
-	static AccelStep accel;
 	static std::array<MotorData *, 4> data;
 
 	int act(cJSON *ob);
@@ -42,7 +49,6 @@ namespace FocusMotor
 	void dumpRegister(const char * name, TCA9535_Register configRegister);
 	void init_tca();
 	#endif
-	static FAccelStep faccel;
 	
 	static int logcount;
 	static bool power_enable = false;

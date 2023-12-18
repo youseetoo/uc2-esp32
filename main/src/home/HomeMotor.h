@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef HOME_MOTOR
 #pragma once
 #include "../motor/FocusMotor.h"

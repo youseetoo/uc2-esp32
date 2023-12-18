@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef HOME_MOTOR
 #include "HomeMotor.h"
 #include "FastAccelStepper.h"

@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef BLUETOOTH
 #include "BtController.h"
 #include <esp_log.h>

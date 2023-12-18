@@ -1,4 +1,4 @@
-#include <PinConfig.h>"
+#include <PinConfig.h>
 #ifdef LED_CONTROLLER
 #pragma once
 #include "Adafruit_NeoPixel.h"

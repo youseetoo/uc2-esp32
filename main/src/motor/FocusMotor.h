@@ -3,7 +3,6 @@
 #pragma once
 #include "cJsonTool.h"
 #include "Arduino.h"
-#include <PinConfig.h>
 #include "JsonKeys.h"
 
 #include "../config/ConfigController.h"

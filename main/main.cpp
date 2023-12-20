@@ -30,9 +30,6 @@
 #ifdef ENCODER_CONTROLLER
 #include "src/encoder/EncoderController.h"
 #endif
-#ifdef ENCODER_CONTROLLER
-#include "src/home/HomeMotor.h"
-#endif
 #ifdef LASER_CONTROLLER
 #include "src/laser/LaserController.h"
 #endif
@@ -50,6 +47,9 @@
 #endif
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
+#endif
+#ifdef WIFI
+#include "src/wifi/WifiController.h"
 #endif
 
 
@@ -87,6 +87,8 @@ extern "C" void looper(void *p)
 		ScannerController::loop();
 		vTaskDelay(1);
 #endif
+
+
 		// process all commands in their modules
 
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time())
@@ -142,6 +144,9 @@ extern "C" void setupApp(void)
 #endif
 #ifdef SCANNER_CONTROLLER
 	ScannerController::setup();
+#endif
+#ifdef WIFI
+	WifiController::setup();
 #endif
 }
 

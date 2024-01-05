@@ -87,9 +87,12 @@
     "LASERdespeckle": 50,
     "LASERdespecklePeriod": 30,
 }
+{"task": "/laser_act", "LASERid":1, "LASERval": 10000}
 {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
 {"task": "/laser_get"}
-
+{"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo
+{"task": "/laser_act", "LASERid":1, "LASERval": 100}
+{"task": "/laser_act", "LASERid":1, "LASERval": 20}
 # HOME
 {"task": "/home_get"}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
@@ -201,7 +204,12 @@
         ]
     }
 }
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1, "speed": 1000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 2, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 1000, "isabs": 0.0, "isaccel": 1, "isen": true}]}, "qid": 8}
 
+
+{"task": "/motor_act","qid":3,"motor":{"steppers": [{"stepperid": 1, "position": 400, "speed": 10000, "isabs": 0, "isaccel": 0, "isen": true}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 1, "position": 400, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}

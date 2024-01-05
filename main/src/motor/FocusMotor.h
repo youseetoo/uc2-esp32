@@ -21,7 +21,11 @@ public:
 
 	// global variables for the motor
 	AccelStep accel;
+	FAccelStep faccel;
+	
 	std::array<MotorData *, 4> data;
+
+	StageScanningData *stageScanningData;
 
 	int act(cJSON *ob) override;
 	cJSON *get(cJSON *ob) override;
@@ -37,11 +41,13 @@ public:
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
 	long getCurrentPosition(Stepper s);
+	
+	TaskHandle_t TaskHandle_stagescan_t;
+	
 private:
 	tca9535 *_tca9535;
 	TCA9535_Register outRegister;
 	TCA9535_Register inRegister;
-	FAccelStep faccel;
 	
 	int logcount;
 	bool power_enable = false;

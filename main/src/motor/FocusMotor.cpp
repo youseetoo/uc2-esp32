@@ -5,6 +5,108 @@
 #include "../state/State.h"
 #include "../digitalout/DigitalOutController.h"
 
+void moveMotor(int stepPin, int dirPin, int steps, bool direction, int delayTimeStep)
+{
+	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+
+	//  direction perhaps externally controlled
+	if (pinConfig.I2C_SCL > -1)
+	{
+		motor->setExternalPin(dirPin, direction);
+	}
+	else
+	{
+		digitalWrite(dirPin, direction ? HIGH : LOW);
+	}
+
+	for (int i = 0; i < steps; ++i)
+	{
+		digitalWrite(stepPin, HIGH);
+		ets_delay_us(delayTimeStep); // Adjust delay for speed
+		digitalWrite(stepPin, LOW);
+		ets_delay_us(delayTimeStep); // Adjust delay for speed
+	}
+}
+
+void triggerOutput(int outputPin)
+{
+	DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
+	// Output trigger logic
+	digitalOut->setPin(outputPin, 0, 0);
+	digitalOut->setPin(outputPin, 1, 0);
+	digitalOut->setPin(outputPin, 0, 0);
+}
+
+void stageScan(void *p)
+{ //
+	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+
+	// Turn on motors
+	if (pinConfig.useFastAccelStepper)
+	{
+		motor->faccel.Enable(1);
+	}
+	else
+	{
+		motor->accel.Enable(1);
+	}
+	// Scanning logic
+	int nStepsLine = motor->stageScanningData->nStepsLine;
+	int dStepsLine = motor->stageScanningData->dStepsLine;
+	int nTriggerLine = motor->stageScanningData->nTriggerLine;
+	int nStepsPixel = motor->stageScanningData->nStepsPixel;
+	int dStepsPixel = motor->stageScanningData->dStepsPixel;
+	int nTriggerPixel = motor->stageScanningData->nTriggerPixel;
+	int delayTimeStep = motor->stageScanningData->delayTimeStep;
+
+	int pinDirPixel = motor->data[Stepper::X]->dirPin;
+	int pinDirLine = motor->data[Stepper::Y]->dirPin;
+	int pinStpPixel = motor->data[Stepper::X]->stpPin;
+	int pinStpLine = motor->data[Stepper::Y]->stpPin;
+	int pinTrigPixel = motor->data[Stepper::X]->triggerPin;
+	int pinTrigLine = motor->data[Stepper::Y]->triggerPin;
+	int pinTrigFrame = motor->data[Stepper::Z]->triggerPin;
+
+	// frameclock
+	triggerOutput(pinTrigFrame);
+	triggerOutput(pinTrigLine);
+	int stepCounterPixel = 0;
+	int stepCounterLine = 0;
+	for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
+	{
+		for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
+		{
+			if (stageScanningData->stopped)
+			{
+				break;
+			}
+			// Move X motor forward at even steps, backward at odd steps
+			bool directionX = iLine % 2 == 0;
+			moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
+			stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
+
+			// Handle Triggering
+			if (iPixel % nTriggerPixel == 0)
+			{
+				triggerOutput(pinTrigPixel);
+			}
+		}
+
+		// Move Y motor after each line
+		moveMotor(pinStpLine, pinDirLine, dStepsLine, 0, delayTimeStep);
+		stepCounterLine += dStepsLine;
+		if (iLine % nTriggerLine == 0)
+		{
+			triggerOutput(pinTrigLine);
+		}
+	}
+
+	//Reset Position and move back to origin
+	motor->data[Stepper::X]->currentPosition += stepCounterPixel;
+	motor->data[Stepper::Y]->currentPosition += stepCounterLine;
+	vTaskDelete(NULL);
+}
+
 void sendUpdateToClients(void *p)
 {
 	for (;;)
@@ -110,6 +212,23 @@ int FocusMotor::act(cJSON *doc)
 				log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
 			}
 		}
+		return qid;
+	}
+{"task": "/motor_act", "stagescan": {"nStepsLine": 1000, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 1000, "dStepsPixel": 10, "nTriggerPixel": 10, "delayTimeStep": 10}}
+	// start independent stageScan
+	// 
+	cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
+	if (stagescan != NULL)
+	{
+		stageScanningData->nStepsLine = getJsonInt(stagescan, "nStepsLine");
+		stageScanningData->dStepsLine = getJsonInt(stagescan, "dStepsLine");
+		stageScanningData->nTriggerLine = getJsonInt(stagescan, "nTriggerLine");
+		stageScanningData->nStepsPixel = getJsonInt(stagescan, "nStepsPixel");
+		stageScanningData->dStepsPixel = getJsonInt(stagescan, "dStepsPixel");
+		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
+		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
+		stageScanningData->stopped = getJsonInt(stagescan, "stopped");
+		xTaskCreate(stageScan, "stageScan", 4096, NULL, 2,  &TaskHandle_stagescan_t);
 		return qid;
 	}
 
@@ -368,23 +487,38 @@ void FocusMotor::setup()
 	{
 		data[i] = new MotorData();
 	}
+	stageScanningData = new StageScanningData();
 
 	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
 	if (pinConfig.MOTOR_A_DIR > 0)
 	{
+		data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
+		data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
 		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
 		log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 	}
 	if (pinConfig.MOTOR_X_DIR > 0)
 	{
+		data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
+		data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
 		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
 		log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 	}
 	if (pinConfig.MOTOR_Y_DIR > 0)
+	{
+		data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
+		data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
 		data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
+		log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
+	}
 	if (pinConfig.MOTOR_Z_DIR > 0)
+	{
+		data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
+		data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
 		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
+		log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
+	}
 	preferences.end();
 
 	// setup trigger pins
@@ -415,8 +549,8 @@ void FocusMotor::setup()
 		accel.data = data;
 		accel.setupAccelStepper();
 	}
-	log_i("Creating Task sendUpdateToClients");
-	// xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
+	// log_i("Creating Task sendUpdateToClients");
+	//  xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
 }
 
 // dont use it, it get no longer triggered from modulehandler

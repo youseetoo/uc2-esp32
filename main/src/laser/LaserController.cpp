@@ -56,7 +56,8 @@ int LaserController::act(cJSON * ob)
 {
 	// JSON String
 	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
-
+	// {"task":"/laser_act", "LASERid":1, "LASERval":1220, "LASERdespeckle":0, "LASERdespecklePeriod":0}
+	// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":0, "LASERdespecklePeriod":0}
 	int qid = getJsonInt(ob, keyQueueID);
 
 	// assign values
@@ -71,6 +72,25 @@ int LaserController::act(cJSON * ob)
 	LASERdespecklePeriod=getJsonInt(ob,"LASERdespecklePeriod");
 	// debugging
 	log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
+
+	cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
+	if (setPWMFreq != NULL)
+	{	// {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo
+		int pwmFreq = setPWMFreq->valueint;
+
+		log_i("Setting PWM frequency to %i", pwmFreq);
+		if(LASERid==1 & pinConfig.LASER_1!=0){
+					Serial.println(pwmFreq);
+		Serial.println(LASERid);
+		ledcSetup(PWM_CHANNEL_LASER_1, pwmFreq, pwm_resolution);
+		}
+			
+		if(LASERid==2 & pinConfig.LASER_2!=0)
+			ledcSetup(PWM_CHANNEL_LASER_2, pwmFreq, pwm_resolution);
+		if(LASERid==3 & pinConfig.LASER_3!=0)
+			ledcSetup(PWM_CHANNEL_LASER_3, pwmFreq, pwm_resolution);
+		return qid;
+	}
 
 	// action LASER 1
 	if (LASERid == 1 && pinConfig.LASER_1 != 0)
@@ -116,7 +136,7 @@ cJSON * LaserController::get(cJSON * ob)
 	setJsonInt(j,"LASER1pin", pinConfig.LASER_1);
 	setJsonInt(j,"LASER2pin", pinConfig.LASER_2);
 	setJsonInt(j,"LASER3pin", pinConfig.LASER_3);
-	setJsonInt(j,"HeatUnitPin", pinConfig.heatUnit_PIN);
+	setJsonInt(j,"LASER0pin", pinConfig.LASER_0);
 	setJsonInt(j,keyQueueID, qid);
 	return j;
 }
@@ -124,8 +144,16 @@ cJSON * LaserController::get(cJSON * ob)
 void LaserController::setup()
 {
 	log_i("Setting Up LASERs");
-
 	// Setting up the differen PWM channels for the laser
+	log_i("Laser ID 0, pin: %i", pinConfig.LASER_0);
+	pinMode(pinConfig.LASER_0, OUTPUT);
+	digitalWrite(pinConfig.LASER_0, LOW);
+	ledcSetup(PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
+	ledcAttachPin(pinConfig.LASER_0, PWM_CHANNEL_LASER_0);
+	setPWM(10000, PWM_CHANNEL_LASER_0);
+	delay(5);
+	setPWM(0, PWM_CHANNEL_LASER_0);
+
 	log_i("Laser ID 1, pin: %i", pinConfig.LASER_1);
 	pinMode(pinConfig.LASER_1, OUTPUT);
 	digitalWrite(pinConfig.LASER_1, LOW);
@@ -153,16 +181,6 @@ void LaserController::setup()
 	delay(5);
 	setPWM(0, PWM_CHANNEL_LASER_3);
 
-	if (pinConfig.heatUnit_PIN > 0)
-	{
-		pinMode(pinConfig.heatUnit_PIN, OUTPUT);
-		digitalWrite(pinConfig.heatUnit_PIN, LOW);
-		ledcSetup(PWM_CHANNEL_heatUnit, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pinConfig.heatUnit_PIN, PWM_CHANNEL_heatUnit);
-		setPWM(10000, PWM_CHANNEL_heatUnit);
-		delay(5);
-		setPWM(0, PWM_CHANNEL_heatUnit);
-	}
 }
 
 void LaserController::loop()

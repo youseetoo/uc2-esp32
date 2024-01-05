@@ -23,15 +23,15 @@ public:
     int pwm_max = (int)pow(2,pwm_resolution);
     */
 
-    int pwm_resolution = 10; //8bit 256, 10bit  1024, 12bit 4096;
-    int pwm_frequency =  5000;//19000; //12000
+    int pwm_resolution = pinConfig.pwm_resolution; //8bit 256, 10bit  1024, 12bit 4096;
+    int pwm_frequency =  pinConfig.pwm_frequency; //19000; // 5000; //12000
     long pwm_max = (int)pow(2, pwm_resolution);
 
 
     int PWM_CHANNEL_LASER_1 = 0;
     int PWM_CHANNEL_LASER_2 = 1;
     int PWM_CHANNEL_LASER_3 = 2;
-    int PWM_CHANNEL_heatUnit = 3;
+    int PWM_CHANNEL_LASER_0 = 3;
 
     // temperature dependent despeckeling?
     int LASER_despeckle_1 = 0;

@@ -81,11 +81,12 @@ int HeatController::act(cJSON *ob)
 
 void HeatController::loop()
 {
-	int pwmChannel = pinConfig.heatUnit_PIN;
-	if (pwmChannel < 0)
+	int pwmPin = pinConfig.LASER_0;
+	if (pwmPin < 0)
 	{
 		return;
 	}
+	
 	// we need a protection against temperature runaway and overshoot
 
 	if (moduleController.get(AvailableModules::laser) != nullptr and moduleController.get(AvailableModules::ds18b20) != nullptr)
@@ -93,6 +94,8 @@ void HeatController::loop()
 		// get modules
 		LaserController *pwmController = (LaserController *)moduleController.get(AvailableModules::laser);
 		DS18b20Controller *ds18b20 = (DS18b20Controller *)moduleController.get(AvailableModules::ds18b20);
+
+		int pwmChannel = pwmController->PWM_CHANNEL_LASER_0;
 
 		if (Heat_active && ((millis() - startMillis) >= temp_pid_updaterate))
 		{
@@ -119,7 +122,6 @@ void HeatController::loop()
 				log_e("HeatController::loop: temperature runaway detected, stopping heat");
 			}
 			log_i("Heat: %f, pwmValue: %f", temperatureValueAvg, pwmValue);
-
 			pwmController->setPWM(pwmValue, pwmChannel);
 			startMillis = millis();
 		}

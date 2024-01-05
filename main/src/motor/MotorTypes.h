@@ -5,6 +5,17 @@ const long MAX_VELOCITY_A = 40000;
 const long MAX_ACCELERATION_A = 100000;
 const long DEFAULT_ACCELERATION = 100000;
 
+struct StageScanningData{
+	int nStepsLine = 100;
+	int dStepsLine = 1;
+	int nTriggerLine = 1;
+	int nStepsPixel = 100;
+	int dStepsPixel = 1;
+	int nTriggerPixel = 1;
+	int delayTimeStep = 10;
+	int stopped = 0;
+};
+
 struct MotorData
 {
 
@@ -31,6 +42,8 @@ struct MotorData
 	long offsetTrigger = 0;	// offset in steps
 	long triggerPeriod = -1; // give a pulse every n steps
 	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
+	int dirPin = -1;
+	int stpPin = -1;
 };
 
 enum Stepper

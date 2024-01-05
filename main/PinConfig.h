@@ -73,9 +73,13 @@ struct PinConfig
      // analog joystick y pin
      int8_t ANLOG_JOYSTICK_Y = disabled;
 
+     int8_t LASER_0 = disabled;
      int8_t LASER_1 = disabled;
      int8_t LASER_2 = disabled;
      int8_t LASER_3 = disabled; // GPIO_NUM_21
+
+     int pwm_resolution = 10; //8bit 256, 10bit  1024, 12bit 4096;
+     int pwm_frequency =  19000; // 5000; //12000
 
      int8_t PIN_DEF_END_X = disabled;
      int8_t PIN_DEF_END_Y = disabled;
@@ -162,7 +166,6 @@ struct PinConfig
 
      // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
-     int8_t heatUnit_PIN = disabled;
 
      // dual motor for Z?
      bool isDualAxisZ = false;
@@ -398,6 +401,9 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
      const char *mSSID = "UC2_WEMOS";
      const char *mPWD = "12345678";
 
+     int pwm_resolution = 12; //8bit 256, 10bit  1024, 12bit 4096;
+     int pwm_frequency =  19000; // 5000; //12000
+     
      bool mAP = true;
      const char *hostname = "youseetoo";
 
@@ -624,7 +630,7 @@ struct UC2_3 : PinConfig
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;
-     int8_t heatUnit_PIN = GPIO_NUM_26;
+     int8_t LASER_0 = GPIO_NUM_26;
 
      // dual axis Z
      bool isDualAxisZ = true;
@@ -765,6 +771,11 @@ struct UC2_LineFrameTrigger : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     int8_t MOTOR_ENABLE = 105;
+     int8_t MOTOR_A_DIR = 104;
+     int8_t MOTOR_X_DIR = 101;
+     int8_t MOTOR_Y_DIR = 102;
+     int8_t MOTOR_Z_DIR = 103;
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;

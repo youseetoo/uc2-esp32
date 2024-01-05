@@ -14,6 +14,7 @@ struct StageScanningData{
 	int nTriggerPixel = 1;
 	int delayTimeStep = 10;
 	int stopped = 0;
+	int nFrames = 1;
 };
 
 struct MotorData

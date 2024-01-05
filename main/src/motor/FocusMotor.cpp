@@ -38,7 +38,8 @@ void triggerOutput(int outputPin)
 }
 
 void stageScan(void *p)
-{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 0, "stopped": 0, "nFrames": 5}}"}}
+{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
+	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
 	// Turn on motors
@@ -68,49 +69,52 @@ void stageScan(void *p)
 	int pinTrigLine = motor->data[Stepper::Y]->triggerPin;
 	int pinTrigFrame = motor->data[Stepper::Z]->triggerPin;
 
-	// frameclock
-	triggerOutput(pinTrigFrame);
-	triggerOutput(pinTrigLine);
-	int stepCounterPixel = 0;
-	int stepCounterLine = 0;
-	for (int iFrame = 0; iFrame < nFrames; iFrame++){
-	for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
+	for (int iFrame = 0; iFrame < nFrames; iFrame++)
 	{
-		for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
+		// frameclock
+		triggerOutput(pinTrigFrame);
+		triggerOutput(pinTrigLine);
+		int stepCounterPixel = 0;
+		int stepCounterLine = 0;
+		for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 		{
-			if (motor->stageScanningData->stopped)
+			for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
 			{
-				break;
-			}
-			// Move X motor forward at even steps, backward at odd steps
-			bool directionX = iLine % 2 == 0;
-			moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
-			stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
+				if (motor->stageScanningData->stopped)
+				{
+					break;
+				}
+				// Move X motor forward at even steps, backward at odd steps
+				bool directionX = iLine % 2 == 0;
+				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
+				stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
 
-			// Handle Triggering
-			if (iPixel % nTriggerPixel == 0)
+				// Handle Triggering
+				if (iPixel % nTriggerPixel == 0)
+				{
+					triggerOutput(pinTrigPixel);
+				}
+			}
+
+			// Move Y motor after each line
+			moveMotor(pinStpLine, pinDirLine, dStepsLine, 0, delayTimeStep);
+			stepCounterLine += dStepsLine;
+			if (iLine % nTriggerLine == 0)
 			{
-				triggerOutput(pinTrigPixel);
+				triggerOutput(pinTrigLine);
 			}
 		}
 
-		// Move Y motor after each line
-		moveMotor(pinStpLine, pinDirLine, dStepsLine, 0, delayTimeStep);
-		stepCounterLine += dStepsLine;
-		if (iLine % nTriggerLine == 0)
-		{
-			triggerOutput(pinTrigLine);
-		}
+		// Reset Position and move back to origin
+		motor->data[Stepper::X]->currentPosition += stepCounterPixel;
+		motor->data[Stepper::Y]->currentPosition += stepCounterLine;
+		moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
+		moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine > 0, delayTimeStep*10);
+		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
+		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
+		ets_delay_us(200000); // Adjust delay for speed
+		
 	}
-	}
-	//Reset Position and move back to origin
-	motor->data[Stepper::X]->currentPosition += stepCounterPixel;
-	motor->data[Stepper::Y]->currentPosition += stepCounterLine;
-	moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine>0, delayTimeStep);
-	moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine>0, delayTimeStep);
-	motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
-	motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
-
 	vTaskDelete(NULL);
 }
 
@@ -223,10 +227,16 @@ int FocusMotor::act(cJSON *doc)
 	}
 
 	// start independent stageScan
-	// 
+	//
 	cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
 	if (stagescan != NULL)
 	{
+		stageScanningData->stopped = getJsonInt(stagescan, "stopped");
+		if (stageScanningData->stopped)
+		{
+			log_i("stagescan stopped");
+			return qid;
+		}
 		stageScanningData->nStepsLine = getJsonInt(stagescan, "nStepsLine");
 		stageScanningData->dStepsLine = getJsonInt(stagescan, "dStepsLine");
 		stageScanningData->nTriggerLine = getJsonInt(stagescan, "nTriggerLine");
@@ -235,8 +245,7 @@ int FocusMotor::act(cJSON *doc)
 		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
 		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
 		stageScanningData->nFrames = getJsonInt(stagescan, "nFrames");
-		stageScanningData->stopped = getJsonInt(stagescan, "stopped");
-		xTaskCreate(stageScan, "stageScan", 4096, NULL, 2,  &TaskHandle_stagescan_t);
+		xTaskCreate(stageScan, "stageScan", 4096, NULL, 2, &TaskHandle_stagescan_t);
 		return qid;
 	}
 

@@ -38,7 +38,7 @@ void triggerOutput(int outputPin)
 }
 
 void stageScan(void *p)
-{ //
+{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 0, "stopped": 0}}
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
 	// Turn on motors
@@ -76,7 +76,7 @@ void stageScan(void *p)
 	{
 		for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
 		{
-			if (stageScanningData->stopped)
+			if (motor->stageScanningData->stopped)
 			{
 				break;
 			}
@@ -104,6 +104,11 @@ void stageScan(void *p)
 	//Reset Position and move back to origin
 	motor->data[Stepper::X]->currentPosition += stepCounterPixel;
 	motor->data[Stepper::Y]->currentPosition += stepCounterLine;
+	moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine>0, delayTimeStep);
+	moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine>0, delayTimeStep);
+	motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
+	motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
+
 	vTaskDelete(NULL);
 }
 
@@ -214,7 +219,7 @@ int FocusMotor::act(cJSON *doc)
 		}
 		return qid;
 	}
-{"task": "/motor_act", "stagescan": {"nStepsLine": 1000, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 1000, "dStepsPixel": 10, "nTriggerPixel": 10, "delayTimeStep": 10}}
+
 	// start independent stageScan
 	// 
 	cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");

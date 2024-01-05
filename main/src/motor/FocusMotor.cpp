@@ -38,7 +38,7 @@ void triggerOutput(int outputPin)
 }
 
 void stageScan(void *p)
-{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 0, "stopped": 0}}
+{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 0, "stopped": 0, "nFrames": 5}}"}}
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
 	// Turn on motors
@@ -58,6 +58,7 @@ void stageScan(void *p)
 	int dStepsPixel = motor->stageScanningData->dStepsPixel;
 	int nTriggerPixel = motor->stageScanningData->nTriggerPixel;
 	int delayTimeStep = motor->stageScanningData->delayTimeStep;
+	int nFrames = motor->stageScanningData->nFrames;
 
 	int pinDirPixel = motor->data[Stepper::X]->dirPin;
 	int pinDirLine = motor->data[Stepper::Y]->dirPin;
@@ -72,6 +73,7 @@ void stageScan(void *p)
 	triggerOutput(pinTrigLine);
 	int stepCounterPixel = 0;
 	int stepCounterLine = 0;
+	for (int iFrame = 0; iFrame < nFrames; iFrame++){
 	for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 	{
 		for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
@@ -100,7 +102,7 @@ void stageScan(void *p)
 			triggerOutput(pinTrigLine);
 		}
 	}
-
+	}
 	//Reset Position and move back to origin
 	motor->data[Stepper::X]->currentPosition += stepCounterPixel;
 	motor->data[Stepper::Y]->currentPosition += stepCounterLine;
@@ -232,6 +234,7 @@ int FocusMotor::act(cJSON *doc)
 		stageScanningData->dStepsPixel = getJsonInt(stagescan, "dStepsPixel");
 		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
 		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
+		stageScanningData->nFrames = getJsonInt(stagescan, "nFrames");
 		stageScanningData->stopped = getJsonInt(stagescan, "stopped");
 		xTaskCreate(stageScan, "stageScan", 4096, NULL, 2,  &TaskHandle_stagescan_t);
 		return qid;

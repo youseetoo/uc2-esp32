@@ -25,6 +25,7 @@ extern "C" void looper(void *p)
 		{
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
+			//Serial2.println("free heap"+String(ESP.getFreeHeap()));
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 		
@@ -33,13 +34,20 @@ extern "C" void looper(void *p)
 }
 
 extern "C" void app_main(void)
-{
-	esp_log_level_set("*", ESP_LOG_NONE);
+{	
+	// adjust logging programmatically
+	esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
 	//delay(500);
 	Serial.setTimeout(50);
 
+	// Start Serial 2 
+	/*
+	Serial2.begin(BAUDRATE, SERIAL_8N1, pinConfig.SERIAL2_RX, pinConfig.SERIAL2_TX);
+	Serial2.setTimeout(50);
+	Serial2.println("Serial2 started");
+	*/
 	// Disable brownout detector
 	log_i("Start setup");
 	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
@@ -53,9 +61,6 @@ extern "C" void app_main(void)
 
 	log_i("End setup");
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, 5, NULL,1);
-	//xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
-
-	// disable logging
 	
 	
 }

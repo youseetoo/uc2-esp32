@@ -27,7 +27,6 @@ public:
     int pwm_frequency =  pinConfig.pwm_frequency; //19000; // 5000; //12000
     long pwm_max = (int)pow(2, pwm_resolution);
 
-
     int PWM_CHANNEL_LASER_1 = 0;
     int PWM_CHANNEL_LASER_2 = 1;
     int PWM_CHANNEL_LASER_3 = 2;

@@ -92,7 +92,8 @@
 {"task": "/laser_get"}
 {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo
 {"task": "/laser_act", "LASERid":1, "LASERval": 100}
-{"task": "/laser_act", "LASERid":1, "LASERval": 20}
+{"task": "/laser_act", "LASERid":2, "LASERval": 1000}
+{"task": "/laser_act", "LASERid":3, "LASERval": 1000}
 # HOME
 {"task": "/home_get"}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}

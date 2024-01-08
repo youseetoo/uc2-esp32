@@ -82,7 +82,7 @@ void ModuleController::setup()
     }
 
     // eventually load the heat module
-    if (pinConfig.DS28b20_PIN >= 0)
+    if (pinConfig.DS28b20_PIN >= 0 and false)
     {
         // eventually load the ds18b20 module
         modules.insert(std::make_pair(AvailableModules::heat, dynamic_cast<Module *>(new HeatController())));

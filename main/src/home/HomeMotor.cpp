@@ -192,5 +192,4 @@ void HomeMotor::setup()
 	{
 		hdata[i] = new HomeData();
 	}
-	// xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 }

@@ -2,7 +2,7 @@
 #include "../bt/BtController.h"
 #include "Endpoints.h"
 
-#define SCRATCH_BUFSIZE (10240)
+#define SCRATCH_BUFSIZE (4096)//(10240)
 
 typedef struct rest_server_context
 {
@@ -24,7 +24,12 @@ namespace RestApi
 
     cJSON *deserializeESP(httpd_req_t *req)
     {
-        // serializeJsonPretty(doc, Serial);
+        // print req specs
+        log_i("req->content_len: %d", req->content_len);
+        log_i("req->method: %d", req->method);
+        log_i("req->uri: %s", req->uri);
+        //log_i("req->user_ctx: %s", req->user_ctx);
+
         int total_req_len = req->content_len;
         int cur_len = 0;
         char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
@@ -37,7 +42,13 @@ namespace RestApi
         }
         while (cur_len < total_req_len)
         {
+            log_i("Free heap before function: %d", esp_get_free_heap_size());
+            // print variables
+            log_i("total_req_len: %d", total_req_len);
+            log_i("cur_len: %d", cur_len);
+            //log_i("buf: %s", buf);
             received = httpd_req_recv(req, buf + cur_len, total_req_len);
+            log_i("Free heap after function: %d", esp_get_free_heap_size());
             if (received <= 0)
             {
                 /* Respond with 500 Internal Server Error */
@@ -56,8 +67,18 @@ namespace RestApi
     {
         httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
         httpd_resp_set_type(req, "application/json");
+        // print req specs
+        log_i("req->content_len: %d", req->content_len);
+        log_i("req->method: %d", req->method);
+        log_i("req->uri: %s", req->uri);
+        //log_i("req->user_ctx: %s", req->user_ctx);
         char * s = cJSON_Print(doc);
-        //log_i("send:%s", s);
+        if(s == nullptr){
+            log_e("ERROR NULLPTR");
+        }
+        // print buffer size of s
+        log_i("buffer size of s: %d", strlen(s));
+        log_i("send:%s", s);
         httpd_resp_send(req, s, strlen(s));
         free(s);
     }

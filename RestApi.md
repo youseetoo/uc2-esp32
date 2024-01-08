@@ -264,6 +264,15 @@ POST
 
 ### /motor_act
 
+*CURL:*
+
+```bash
+curl -X POST http://192.168.4.1/motor_act \
+     -H "Content-Type: application/json" \
+     -d '{"steppers": [{"stepperid": 1, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0}]}'
+```
+
+
 *SERIAL:*
 
 ```json

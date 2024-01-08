@@ -60,7 +60,7 @@ void DS18b20Controller::setup()
 		mDS18B20->begin();
 
 		// Create the temperature reading task
-		xTaskCreate(temperatureTask, "TemperatureTask", 2048, this, 1, &temperatureTaskHandle);
+		xTaskCreate(temperatureTask, "TemperatureTask", pinConfig.TEMPERATURE_TASK_STACKSIZE, this, 1, &temperatureTaskHandle);
 
 
 	}

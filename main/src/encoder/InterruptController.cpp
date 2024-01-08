@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "PinConfig.h"
 
 // Global variable definitions
 QueueHandle_t dataQueue = xQueueCreate(10, sizeof(uint8_t));
@@ -37,7 +38,7 @@ void init() {
     xTaskCreate(
         QueueHandler, /* Task function. */
         "HandleData", /* String with name of task. */
-        8096,        /* Stack size in bytes. */
+        pinConfig.INTERRUPT_TASK_STACKSIZE,        /* Stack size in bytes. */
         NULL,         /* Parameter passed as input to the task */
         1,            /* Priority at which the task is created. */
         NULL);        /* Task handle. */

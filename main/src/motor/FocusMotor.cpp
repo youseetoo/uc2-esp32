@@ -38,8 +38,10 @@ void triggerOutput(int outputPin)
 }
 
 void stageScan(void *p)
-{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
+{ 
+	//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
 	// Turn on motors
@@ -245,7 +247,7 @@ int FocusMotor::act(cJSON *doc)
 		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
 		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
 		stageScanningData->nFrames = getJsonInt(stagescan, "nFrames");
-		xTaskCreate(stageScan, "stageScan", 4096, NULL, 2, &TaskHandle_stagescan_t);
+		xTaskCreate(stageScan, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 2, &TaskHandle_stagescan_t);
 		return qid;
 	}
 

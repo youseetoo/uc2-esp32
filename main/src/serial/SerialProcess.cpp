@@ -24,7 +24,6 @@ void SerialProcess::loop()
 
 	// Config::loop(); // make it sense to call this everyime?
 	if (Serial.available())
-
 	{
 		String c = Serial.readString();
 		const char *s = c.c_str();
@@ -76,6 +75,11 @@ void SerialProcess::loop()
 		}
 		c.clear();
 	}
+	/*
+	if (Serial2.available()){
+		Serial.println(Serial2.readString());
+	}
+	*/
 }
 
 void SerialProcess::serialize(cJSON *doc)

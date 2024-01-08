@@ -164,19 +164,18 @@ void DigitalOutController::setup()
 	log_d("Setting Up digitalout");
 	/* setup the output nodes and reset them to 0*/
 	pinMode(pinConfig.DIGITAL_OUT_1, OUTPUT);
-
 	digitalWrite(pinConfig.DIGITAL_OUT_1, HIGH);
-	delay(50);
+	delay(20);
 	digitalWrite(pinConfig.DIGITAL_OUT_1, LOW);
 
 	pinMode(pinConfig.DIGITAL_OUT_2, OUTPUT);
 	digitalWrite(pinConfig.DIGITAL_OUT_2, HIGH);
-	delay(50);
+	delay(20);
 	digitalWrite(pinConfig.DIGITAL_OUT_2, LOW);
 
 	pinMode(pinConfig.DIGITAL_OUT_3, OUTPUT);
 	digitalWrite(pinConfig.DIGITAL_OUT_3, HIGH);
-	delay(50);
+	delay(20);
 	digitalWrite(pinConfig.DIGITAL_OUT_3, LOW);
 }
 

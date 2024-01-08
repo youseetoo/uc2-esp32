@@ -8,10 +8,13 @@ const int8_t disabled = -1;
 struct PinConfig
 {
      const bool dumpHeap = false;
-     const uint16_t MAIN_TASK_STACKSIZE = 8128;
+     const uint16_t MAIN_TASK_STACKSIZE = 4096; //8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
-     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
+     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 4096;//8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 25;
+     const uint16_t INTERRUPT_TASK_STACKSIZE = 4096; //8096;
+     const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; //8096;
+     const uint16_t STAGESCAN_TASK_STACKSIZE = 1024; //8096;
      const char *pindefName = "pindef";
 
      // by default Focusmotor use fastaccelstepper. if false Accelstepper lib get used
@@ -599,13 +602,14 @@ struct UC2_3 : PinConfig
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
-     bool enableBlueTooth = true;
-     bool useBtHID = true;
+     bool enableBlueTooth = false;
+     bool useBtHID = false;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
 
+     bool dumpHeap = true;
 
      // for AS5311
      int8_t ENC_X_A = GPIO_NUM_32;
@@ -615,6 +619,9 @@ struct UC2_3 : PinConfig
      int8_t ENC_Y_B = GPIO_NUM_35;
      int8_t ENC_Z_B = GPIO_NUM_17;
 
+     // Serial 2    
+     int8_t SERIAL2_TX = GPIO_NUM_26;
+     int8_t SERIAL2_RX = GPIO_NUM_25;
      
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;
@@ -629,8 +636,8 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 
      // Temperature
-     int8_t DS28b20_PIN = GPIO_NUM_25;
-     int8_t LASER_0 = GPIO_NUM_26;
+     int8_t DS28b20_PIN = disabled; //GPIO_NUM_25;
+     int8_t LASER_0 = disabled; //GPIO_NUM_26;
 
      // dual axis Z
      bool isDualAxisZ = true;
@@ -841,4 +848,4 @@ struct UC2_LineFrameTrigger : PinConfig
 
      
 
-const UC2_LineFrameTrigger pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_3 pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

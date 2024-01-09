@@ -8,10 +8,10 @@ const int8_t disabled = -1;
 struct PinConfig
 {
      const bool dumpHeap = false;
-     const uint16_t MAIN_TASK_STACKSIZE = 4096; //8128;
+     const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 4096;//8096;
-     const uint16_t HTTP_MAX_URI_HANDLERS = 25;
+     const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t INTERRUPT_TASK_STACKSIZE = 4096; //8096;
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; //8096;
      const uint16_t STAGESCAN_TASK_STACKSIZE = 1024; //8096;

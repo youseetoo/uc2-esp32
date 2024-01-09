@@ -32,7 +32,7 @@ namespace RestApi
 
         int total_req_len = req->content_len;
         int cur_len = 0;
-        char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+        char buf[total_req_len];
         int received = 0;
         if (total_req_len >= SCRATCH_BUFSIZE)
         {
@@ -85,9 +85,7 @@ namespace RestApi
 
     void serializeESP(int doc, httpd_req_t *req)
     {
-        httpd_resp_set_type(req, "application/json");
-        httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-        httpd_resp_sendstr(req, (char *)doc);
+        httpd_resp_send_chunk(req, NULL, 0);
     }
 
     /*void update()

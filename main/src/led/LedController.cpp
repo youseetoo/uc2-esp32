@@ -70,7 +70,7 @@ int LedController::act(cJSON * ob)
 			}
 			matrix->show(); //  Update strip to match
 		}
-		else if (LEDArrMode == LedModes::full || LedModes::single || LedModes::left || LedModes::right || LedModes::top || bottom)
+		else if (LEDArrMode == LedModes::full || LEDArrMode ==LedModes::single || LEDArrMode ==LedModes::left || LEDArrMode ==LedModes::right || LEDArrMode ==LedModes::top || LEDArrMode ==LedModes::bottom)
 		{
 			cJSON * item = cJSON_GetArrayItem(ledarr,0);
 			u_int8_t id = cJSON_GetObjectItemCaseSensitive(item,keyid)->valueint;

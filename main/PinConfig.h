@@ -571,7 +571,7 @@ struct UC2_3 : PinConfig
      */
 
      const char * pindefName = "UC2_3";
-     const char *mSSID = "UC2_3";
+     const char *mSSID = "UC2_3_new";
      bool mAP = true;
      const char *mPWD = "12345678";
 

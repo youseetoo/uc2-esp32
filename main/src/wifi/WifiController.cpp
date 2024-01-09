@@ -82,13 +82,13 @@ void WifiController::setup()
 	}
 
 	if (config->mSsid == NULL || strcmp(config->mSsid, ""))
-	{
+	{	
 		// modify the ssid to be unique for each device based on its MAC address
 		char *modssid = (char *)malloc(32);
 		uint8_t mac[6];
 		esp_wifi_get_mac(WIFI_IF_STA, mac);
 		sprintf(modssid, "%s_%02X%02X%02X", pinConfig.mSSID, mac[3],  mac[5]);
-		config->mSsid = modssid;
+		config->mSsid = strdup(pinConfig.mSSID); //modssid;
 		config->ap = pinConfig.mAP;
 		//config->mSsid = (char *)pinConfig.mSSID;
 		config->pw = (char *)pinConfig.mPWD;

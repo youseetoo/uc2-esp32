@@ -7,6 +7,7 @@
 
 void moveMotor(int stepPin, int dirPin, int steps, bool direction, int delayTimeStep)
 {
+	steps = abs(steps);
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
 	//  direction perhaps externally controlled
@@ -32,14 +33,14 @@ void triggerOutput(int outputPin)
 {
 	DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
 	// Output trigger logic
-	digitalOut->setPin(outputPin, 0, 0);
 	digitalOut->setPin(outputPin, 1, 0);
+	ets_delay_us(4); // Adjust delay for speed
 	digitalOut->setPin(outputPin, 0, 0);
 }
 
 void stageScan(void *p)
 { 
-	//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}}
+	//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -78,6 +79,7 @@ void stageScan(void *p)
 		triggerOutput(pinTrigLine);
 		int stepCounterPixel = 0;
 		int stepCounterLine = 0;
+		bool directionX = 0;
 		for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 		{
 			for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
@@ -87,7 +89,7 @@ void stageScan(void *p)
 					break;
 				}
 				// Move X motor forward at even steps, backward at odd steps
-				bool directionX = iLine % 2 == 0;
+				//bool directionX = iLine % 2 == 0;
 				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
 				stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
 
@@ -97,9 +99,12 @@ void stageScan(void *p)
 					triggerOutput(pinTrigPixel);
 				}
 			}
+			// move back x stepper by step counter 
+			moveMotor(pinStpPixel, pinDirPixel, nStepsLine, !directionX, delayTimeStep*20);
 
 			// Move Y motor after each line
-			moveMotor(pinStpLine, pinDirLine, dStepsLine, 0, delayTimeStep);
+			bool directionY = 0;
+			moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
 			stepCounterLine += dStepsLine;
 			if (iLine % nTriggerLine == 0)
 			{
@@ -108,9 +113,11 @@ void stageScan(void *p)
 		}
 
 		// Reset Position and move back to origin
+		/*
 		motor->data[Stepper::X]->currentPosition += stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition += stepCounterLine;
 		moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
+		*/
 		moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine > 0, delayTimeStep*10);
 		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;

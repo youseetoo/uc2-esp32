@@ -172,18 +172,18 @@ void AccelStep::startAccelStepper(int i)
     data[i]->stopped = false;
 
     if (i == 0 && !taskRunning[i])
-        xTaskCreate(&driveMotorALoop, "motor_task_A", 2024, NULL, 5, NULL);
+        xTaskCreate(&driveMotorALoop, "motor_task_A", pinConfig.STACKSIZE_MOTOR, NULL, 5, NULL);
     if (i == 1 && !taskRunning[i])
     {
-        xTaskCreate(&driveMotorXLoop, "motor_task_X", 2024, NULL, 5, NULL);
+        xTaskCreate(&driveMotorXLoop, "motor_task_X", pinConfig.STACKSIZE_MOTOR, NULL, 5, NULL);
         log_i("started x task");
     }
     // else
     //     log_i("x wont start");
     if (i == 2 && !taskRunning[i])
-        xTaskCreate(&driveMotorYLoop, "motor_task_Y", 2024, NULL, 5, NULL);
+        xTaskCreate(&driveMotorYLoop, "motor_task_Y", pinConfig.STACKSIZE_MOTOR, NULL, 5, NULL);
     if (i == 3 && !taskRunning[i])
-        xTaskCreate(&driveMotorZLoop, "motor_task_Z", 2024, NULL, 5, NULL);
+        xTaskCreate(&driveMotorZLoop, "motor_task_Z", pinConfig.STACKSIZE_MOTOR, NULL, 5, NULL);
 }
 
 void AccelStep::stopAccelStepper(int i)

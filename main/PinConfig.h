@@ -8,14 +8,18 @@ const int8_t disabled = -1;
 struct PinConfig
 {
      const bool dumpHeap = false;
+     int dumpHeapUpdatePeriod = 500000;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 4096;//8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t INTERRUPT_TASK_STACKSIZE = 4096; //8096;
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; //8096;
-     const uint16_t STAGESCAN_TASK_STACKSIZE = 1024; //8096;
+     const uint16_t STAGESCAN_TASK_STACKSIZE = 2048; //8096;
+     const uint16_t STACKSIZE_MOTOR = 4096; //8096;
      const char *pindefName = "pindef";
+
+     const uint16_t IMAGE_ACTIVE = 1; // enable image sending/receiving from USB to Wifi
 
      // by default Focusmotor use fastaccelstepper. if false Accelstepper lib get used
      bool useFastAccelStepper = true;
@@ -611,6 +615,7 @@ struct UC2_3 : PinConfig
 
      bool dumpHeap = true;
 
+
      // for AS5311
      int8_t ENC_X_A = GPIO_NUM_32;
      int8_t ENC_Y_A = GPIO_NUM_34;
@@ -848,4 +853,4 @@ struct UC2_LineFrameTrigger : PinConfig
 
      
 
-const UC2_3 pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_LineFrameTrigger pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

@@ -61,7 +61,7 @@
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": 100,"isabs": 1}]}}
 
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 500, "speed": 15000, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 
 
 
@@ -87,7 +87,7 @@
     "LASERdespeckle": 50,
     "LASERdespecklePeriod": 30,
 }
-{"task": "/laser_act", "LASERid":1, "LASERval": 10000}
+{"task": "/laser_act", "LASERid":1, "LASERval": 1000}
 {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
 {"task": "/laser_get"}
 {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo

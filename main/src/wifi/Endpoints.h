@@ -46,6 +46,10 @@ __attribute__ ((unused)) static const  char* readanalogin_get_endpoint = "/reada
 __attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act";
 __attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
 
+__attribute__ ((unused)) static const  char* image_act_endpoint = "/image_act";
+__attribute__ ((unused)) static const  char* image_get_endpoint = "/image_get";
+__attribute__ ((unused)) static const  char* image_transfer_endpoint = "/image_transfer";
+
 __attribute__ ((unused)) static const  char* PID_act_endpoint = "/PID_act";
 __attribute__ ((unused)) static const  char* PID_get_endpoint = "/PID_get";
 

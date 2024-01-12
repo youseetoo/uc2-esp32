@@ -165,3 +165,5 @@ __attribute__ ((unused)) static const PROGMEM char *key_ds18b20 = "ds18b20";
 __attribute__ ((unused)) static const PROGMEM char *key_ds18b20_id = "sensorid";
 __attribute__ ((unused)) static const PROGMEM char *key_ds18b20_val = "sensorval";
 __attribute__ ((unused)) static const PROGMEM char *key_heat = "heat";
+
+__attribute__ ((unused)) static const PROGMEM char *key_image = "image";

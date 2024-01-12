@@ -21,7 +21,7 @@ extern "C" void looper(void *p)
 		// process all commands in their modules
 		moduleController.loop();
 		
-		if (pinConfig.dumpHeap && lastHeapUpdateTime +1000000 < esp_timer_get_time())
+		if (pinConfig.dumpHeap && lastHeapUpdateTime +pinConfig.dumpHeapUpdatePeriod < esp_timer_get_time())
 		{
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
@@ -36,7 +36,7 @@ extern "C" void looper(void *p)
 extern "C" void app_main(void)
 {	
 	// adjust logging programmatically
-	esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
+	//esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
 	// Start Serial
 	Serial.begin(BAUDRATE); // default is 115200
 	//delay(500);

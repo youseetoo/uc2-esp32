@@ -1,5 +1,6 @@
 #include "RestApiCallbacks.h"
 #include "../bt/BtController.h"
+#include "../image/ImageController.h"
 #include "Endpoints.h"
 
 #define SCRATCH_BUFSIZE (4096)//(10240)
@@ -25,11 +26,6 @@ namespace RestApi
     cJSON *deserializeESP(httpd_req_t *req)
     {
         // print req specs
-        log_i("req->content_len: %d", req->content_len);
-        log_i("req->method: %d", req->method);
-        log_i("req->uri: %s", req->uri);
-        //log_i("req->user_ctx: %s", req->user_ctx);
-
         int total_req_len = req->content_len;
         int cur_len = 0;
         char buf[total_req_len];
@@ -42,13 +38,7 @@ namespace RestApi
         }
         while (cur_len < total_req_len)
         {
-            log_i("Free heap before function: %d", esp_get_free_heap_size());
-            // print variables
-            log_i("total_req_len: %d", total_req_len);
-            log_i("cur_len: %d", cur_len);
-            //log_i("buf: %s", buf);
             received = httpd_req_recv(req, buf + cur_len, total_req_len);
-            log_i("Free heap after function: %d", esp_get_free_heap_size());
             if (received <= 0)
             {
                 /* Respond with 500 Internal Server Error */
@@ -67,18 +57,12 @@ namespace RestApi
     {
         httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
         httpd_resp_set_type(req, "application/json");
-        // print req specs
-        log_i("req->content_len: %d", req->content_len);
-        log_i("req->method: %d", req->method);
-        log_i("req->uri: %s", req->uri);
-        //log_i("req->user_ctx: %s", req->user_ctx);
         char * s = cJSON_Print(doc);
         if(s == nullptr){
             log_e("ERROR NULLPTR");
+            return;
         }
         // print buffer size of s
-        log_i("buffer size of s: %d", strlen(s));
-        log_i("send:%s", s);
         httpd_resp_send(req, s, strlen(s));
         free(s);
     }
@@ -208,6 +192,23 @@ namespace RestApi
     {
         BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
         serializeESP(bt->scanForDevices(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t Image_getBase64ESP(httpd_req_t *req)
+    {
+        ImageController *img = (ImageController *)moduleController.get(AvailableModules::image);
+        // we want to send the image as a base64 string over http
+
+        //serializeESP(img->get(deserializeESP(req)), req);
+        httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+        httpd_resp_set_type(req, "image/jpeg");
+        httpd_resp_set_hdr(req, "Content-Encoding", "identity");
+        //return httpd_resp_send(req, (const char *)favicon_32x32_png, favicon_32x32_png_len);
+        //httpd_resp_send(req, img->getBase64Image().c_str(), img->getBase64Image().length());
+        int buf_len = strlen(img->image_base64);
+        httpd_resp_send(req, img->image_base64, buf_len);
+        
         return ESP_OK;
     }
 

@@ -12,6 +12,7 @@
 #include "src/analogin/AnalogInController.h"
 #include "src/analogin/AnalogJoystick.h"
 #include "src/temp/DS18b20Controller.h"
+#include "src/image/ImageController.h"
 #include "src/dac/DacController.h"
 #include "src/analogout/AnalogOutController.h"
 #include "src/digitalout/DigitalOutController.h"
@@ -90,6 +91,13 @@ void ModuleController::setup()
         // eventually load the ds18b20 module
         modules.insert(std::make_pair(AvailableModules::ds18b20, dynamic_cast<Module *>(new DS18b20Controller())));
         log_i("add ds18b20");
+    }
+
+    // eventually load the image module
+    if (pinConfig.IMAGE_ACTIVE >= 0)
+    {
+        modules.insert(std::make_pair(AvailableModules::image, dynamic_cast<Module *>(new ImageController())));
+        log_i("add image");
     }
 
     // eventually load the motor encoder module
@@ -221,6 +229,7 @@ cJSON *ModuleController::get()
     cJSON_AddItemToObject(mod, key_heat, cJSON_CreateNumber(pinConfig.DS28b20_PIN >= 0));
     cJSON_AddItemToObject(mod, key_analogin, cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
     cJSON_AddItemToObject(mod, key_ds18b20, cJSON_CreateNumber(pinConfig.DS28b20_PIN >= 0));
+    cJSON_AddItemToObject(mod, key_image, cJSON_CreateNumber(pinConfig.IMAGE_ACTIVE >= 0));
     cJSON_AddItemToObject(mod, key_pid, cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));
     cJSON_AddItemToObject(mod, key_laser, cJSON_CreateNumber((pinConfig.LASER_1 >= 0 || pinConfig.LASER_2 >= 0 || pinConfig.LASER_3 >= 0)));
     cJSON_AddItemToObject(mod, key_dac, cJSON_CreateNumber((pinConfig.dac_fake_1 >= 0 || pinConfig.dac_fake_2 >= 0)));

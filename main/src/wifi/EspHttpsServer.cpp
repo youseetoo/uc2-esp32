@@ -429,6 +429,14 @@ void EspHttpsServer::start_webserver()
             .handler = RestApi::Bt_connectESP};
         httpd_register_uri_handler(server, &btrem);
     }
+    if (moduleController.get(AvailableModules::image) != nullptr)
+    {
+        httpd_uri_t motor_get = {
+            .uri = image_get_endpoint,
+            .method = HTTP_GET,
+            .handler = RestApi::Image_getBase64ESP};
+        httpd_register_uri_handler(server, &motor_get);
+    }
     run = true;
 }
 

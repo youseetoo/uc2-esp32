@@ -130,21 +130,6 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		serialize(moduleController.get());
 		moduleAvailable = true;
 	}
-
-	// Handle BTController
-	/*
-	if (moduleController.get(AvailableModules::btcontroller) != nullptr)
-	{
-		if (task == bt_scan_endpoint) // start for Bluetooth Devices
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_startScan(jsonDocument));
-		if (task == bt_paireddevices_endpoint) // get paired devices
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_getPairedDevices(jsonDocument));
-		if (task == bt_connect_endpoint) // connect to device
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_connect(jsonDocument));
-		if (task == bt_remove_endpoint) // remove paired device
-			serialize(moduleController.get(AvailableModules::btcontroller)->Bt_remove(jsonDocument));
-	}
-	*/
 	/*
 	Return State
 	*/
@@ -375,6 +360,23 @@ void SerialProcess::jsonProcessor(char *task, cJSON *jsonDocument)
 		if(strcmp(task, ds18b20_get_endpoint) == 0)
 		{
 			serialize(moduleController.get(AvailableModules::ds18b20)->get(jsonDocument));
+			moduleAvailable = true;
+		}
+	}
+
+	/* 
+	Read the Image Controller 
+	*/
+	if(moduleController.get(AvailableModules::image) != nullptr)
+	{
+		if(strcmp(task, image_act_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::image)->act(jsonDocument));
+			moduleAvailable = true;
+		}
+		if(strcmp(task, image_get_endpoint) == 0)
+		{
+			serialize(moduleController.get(AvailableModules::image)->get(jsonDocument));
 			moduleAvailable = true;
 		}
 	}

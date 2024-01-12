@@ -24,7 +24,8 @@ enum class AvailableModules
     ds18b20,
     state,
     analogJoystick,
-    wifi
+    wifi,
+    image
 };
 
 class ModuleController

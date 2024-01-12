@@ -101,6 +101,7 @@ namespace RestApi
     esp_err_t LinearEncoderMotor_setESP(httpd_req_t *req);
     esp_err_t LinearEncoderMotor_getESP(httpd_req_t *req);
 
+    esp_err_t Image_getBase64ESP(httpd_req_t *req);
     
 
     esp_err_t laser_setESP(httpd_req_t *req);

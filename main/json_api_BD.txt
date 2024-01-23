@@ -191,6 +191,12 @@
 {"task":"/motor_get"}
 {"task":"/bt_scan"}
 
+// Stage scan
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 256, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 256, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
+	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
+
+
 # HOLISHEET
 {"task":"/modules_set", "modules" : {"dac" : 1}}
 {"task": "/laser_act", "LASERid":1, "LASERval": 51}

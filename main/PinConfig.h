@@ -339,6 +339,7 @@ struct UC2_2 : PinConfig
      const char *PSX_MAC = "1a:2b:3c:01:01:04";
      int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      bool enableBlueTooth = true;
+     bool useBtHID = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
@@ -347,6 +348,7 @@ struct UC2_2 : PinConfig
      int8_t DAC_1 = disabled;
      int8_t DAC_2 = disabled;
      int8_t ds28b20_PIN = disabled; 
+
 };
 
 struct UC2e : PinConfig
@@ -607,7 +609,7 @@ struct UC2_3 : PinConfig
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      bool enableBlueTooth = false;
-     bool useBtHID = false;
+     bool useBtHID = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 255;
@@ -774,9 +776,10 @@ struct UC2_LineFrameTrigger : PinConfig
      // based on UC2_3
      */
 
+     bool enableWifi = false;
      const char * pindefName = "UC2_LineFrameTrigger";
      const char *mSSID = "UC2_LineFrameTrigger";
-     bool mAP = true;
+     bool mAP = false;
      const char *mPWD = "12345678";
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;

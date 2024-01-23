@@ -29,18 +29,25 @@ void moveMotor(int stepPin, int dirPin, int steps, bool direction, int delayTime
 	}
 }
 
-void triggerOutput(int outputPin)
+void triggerOutput(int outputPin, int state=-1)
 {
+	// if state is -1 we alternate from 0,1,0
 	DigitalOutController *digitalOut = (DigitalOutController *)moduleController.get(AvailableModules::digitalout);
 	// Output trigger logic
-	digitalOut->setPin(outputPin, 1, 0);
-	ets_delay_us(4); // Adjust delay for speed
-	digitalOut->setPin(outputPin, 0, 0);
+	if (state==-1){
+		digitalOut->setPin(outputPin, 1, 0);
+		ets_delay_us(5); // Adjust delay for speed
+		digitalOut->setPin(outputPin, 0, 0);
+	}
+	else{
+		digitalOut->setPin(outputPin, state, 0);
+	}
 }
 
 void stageScan(void *p)
-{ 
-	//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
+{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -75,53 +82,63 @@ void stageScan(void *p)
 	for (int iFrame = 0; iFrame < nFrames; iFrame++)
 	{
 		// frameclock
-		triggerOutput(pinTrigFrame);
-		triggerOutput(pinTrigLine);
+		
 		int stepCounterPixel = 0;
 		int stepCounterLine = 0;
 		bool directionX = 0;
+		int iPixel = 0;
+		
+		triggerOutput(pinTrigFrame,1);
 		for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 		{
-			for (int iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
-			{
+			triggerOutput(pinTrigLine,1);
+		
+			for (iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
+			{				
 				if (motor->stageScanningData->stopped)
 				{
 					break;
 				}
-				// Move X motor forward at even steps, backward at odd steps
-				//bool directionX = iLine % 2 == 0;
-				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
-				stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
-
-				// Handle Triggering
 				if (iPixel % nTriggerPixel == 0)
 				{
 					triggerOutput(pinTrigPixel);
 				}
+				
+				// Move X motor forward at even steps, backward at odd steps
+				//bool directionX = iLine % 2 == 0;
+				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
+				//stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
+
+				triggerOutput(pinTrigLine,0);
 			}
+			
+			if (iLine >=dStepsLine){
+				triggerOutput(pinTrigFrame,0);
+			}
+
 			// move back x stepper by step counter 
-			moveMotor(pinStpPixel, pinDirPixel, nStepsLine, !directionX, delayTimeStep*20);
+			moveMotor(pinStpPixel, pinDirPixel, iPixel, !directionX, (2+delayTimeStep)*10);
 
 			// Move Y motor after each line
 			bool directionY = 0;
-			moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
 			stepCounterLine += dStepsLine;
-			if (iLine % nTriggerLine == 0)
-			{
-				triggerOutput(pinTrigLine);
-			}
+			moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
+			
+			
 		}
-
+			
 		// Reset Position and move back to origin
 		/*
 		motor->data[Stepper::X]->currentPosition += stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition += stepCounterLine;
 		moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
 		*/
-		moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine > 0, delayTimeStep*10);
+
+		moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine > 0, (2+delayTimeStep)*10);
 		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
 		ets_delay_us(200000); // Adjust delay for speed
+		
 		
 	}
 	vTaskDelete(NULL);
@@ -210,11 +227,11 @@ int FocusMotor::act(cJSON *doc)
 	cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
 	// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
 	// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
-	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
 	// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
 	// {"task": "/motor_get"}
 	if (settrigger != NULL)
-	{
+	{ 
 		log_d("settrigger");
 		cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
 		if (stprs != NULL)
@@ -254,7 +271,7 @@ int FocusMotor::act(cJSON *doc)
 		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
 		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
 		stageScanningData->nFrames = getJsonInt(stagescan, "nFrames");
-		xTaskCreate(stageScan, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 2, &TaskHandle_stagescan_t);
+		xTaskCreate(stageScan, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
 		return qid;
 	}
 

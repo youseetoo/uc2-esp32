@@ -202,8 +202,16 @@ namespace RestApi
 
         //serializeESP(img->get(deserializeESP(req)), req);
         httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+        /*
         httpd_resp_set_type(req, "image/jpeg");
         httpd_resp_set_hdr(req, "Content-Encoding", "identity");
+        */
+        // Set Content-Type for base64 encoded data
+        httpd_resp_set_type(req, "text/plain");
+
+        // It's also a good idea to indicate that the content is base64 encoded
+        httpd_resp_set_hdr(req, "Content-Transfer-Encoding", "base64");
+
         //return httpd_resp_send(req, (const char *)favicon_32x32_png, favicon_32x32_png_len);
         //httpd_resp_send(req, img->getBase64Image().c_str(), img->getBase64Image().length());
         int buf_len = strlen(img->image_base64);

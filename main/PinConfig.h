@@ -817,8 +817,8 @@ struct UC2_LineFrameTrigger : PinConfig
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
-     bool enableBlueTooth = true;
-     bool useBtHID = true;
+     bool enableBlueTooth = false;
+     bool useBtHID = false;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 255;

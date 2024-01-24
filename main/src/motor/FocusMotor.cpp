@@ -44,8 +44,8 @@ void triggerOutput(int outputPin, int state=-1)
 	}
 }
 
-void stageScan(void *p)
-{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}}
+void stageScan()
+{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
@@ -62,9 +62,8 @@ void stageScan(void *p)
 		motor->accel.Enable(1);
 	}
 	// Scanning logic
-	int nStepsLine = motor->stageScanningData->nStepsLine;
+	int nStepsLine = motor->stageScanningData->nStepsLine;	
 	int dStepsLine = motor->stageScanningData->dStepsLine;
-	int nTriggerLine = motor->stageScanningData->nTriggerLine;
 	int nStepsPixel = motor->stageScanningData->nStepsPixel;
 	int dStepsPixel = motor->stageScanningData->dStepsPixel;
 	int nTriggerPixel = motor->stageScanningData->nTriggerPixel;
@@ -88,7 +87,11 @@ void stageScan(void *p)
 		bool directionX = 0;
 		int iPixel = 0;
 		
+		// ensure all clocks come almost at the same time
 		triggerOutput(pinTrigFrame,1);
+		triggerOutput(pinTrigLine,1);
+		triggerOutput(pinTrigPixel,1);
+
 		for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 		{
 			triggerOutput(pinTrigLine,1);
@@ -108,20 +111,20 @@ void stageScan(void *p)
 				//bool directionX = iLine % 2 == 0;
 				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
 				//stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
-
-				triggerOutput(pinTrigLine,0);
+				if (iPixel ==0){
+					// turn off line/frame clock after first pixel
+					triggerOutput(pinTrigLine,0);
+					triggerOutput(pinTrigFrame,0);
+				}
+					
 			}
 			
-			if (iLine >=dStepsLine){
-				triggerOutput(pinTrigFrame,0);
-			}
 
 			// move back x stepper by step counter 
 			moveMotor(pinStpPixel, pinDirPixel, iPixel, !directionX, (2+delayTimeStep)*10);
 
 			// Move Y motor after each line
 			bool directionY = 0;
-			stepCounterLine += dStepsLine;
 			moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
 			
 			
@@ -134,7 +137,7 @@ void stageScan(void *p)
 		moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
 		*/
 
-		moveMotor(pinStpLine, pinDirLine, stepCounterLine, stepCounterLine > 0, (2+delayTimeStep)*10);
+		moveMotor(pinStpLine, pinDirLine, nStepsLine, stepCounterLine > 0, (2+delayTimeStep)*10);
 		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
 		ets_delay_us(200000); // Adjust delay for speed
@@ -271,7 +274,8 @@ int FocusMotor::act(cJSON *doc)
 		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
 		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
 		stageScanningData->nFrames = getJsonInt(stagescan, "nFrames");
-		xTaskCreate(stageScan, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
+		//xTaskCreate(stageScan, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
+		stageScan();
 		return qid;
 	}
 

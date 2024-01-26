@@ -44,12 +44,9 @@ void triggerOutput(int outputPin, int state=-1)
 	}
 }
 
-void stageScan()
-{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-	// {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
-	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
+
+
+void stageScan(bool isThread = false){
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 
 	// Turn on motors
@@ -111,7 +108,7 @@ void stageScan()
 				//bool directionX = iLine % 2 == 0;
 				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
 				//stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
-				if (iPixel ==0){
+				if (iPixel == 1){
 					// turn off line/frame clock after first pixel
 					triggerOutput(pinTrigLine,0);
 					triggerOutput(pinTrigFrame,0);
@@ -140,11 +137,21 @@ void stageScan()
 		moveMotor(pinStpLine, pinDirLine, nStepsLine, stepCounterLine > 0, (2+delayTimeStep)*10);
 		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
-		ets_delay_us(200000); // Adjust delay for speed
+		ets_delay_us(10000); // Adjust delay for speed
 		
 		
 	}
-	vTaskDelete(NULL);
+	if (isThread)
+		vTaskDelete(NULL);
+}
+
+void stageScanThread(void *arg)
+{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
+	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
+	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
+	stageScan(true);
 }
 
 void sendUpdateToClients(void *p)
@@ -274,7 +281,7 @@ int FocusMotor::act(cJSON *doc)
 		stageScanningData->nTriggerPixel = getJsonInt(stagescan, "nTriggerPixel");
 		stageScanningData->delayTimeStep = getJsonInt(stagescan, "delayTimeStep");
 		stageScanningData->nFrames = getJsonInt(stagescan, "nFrames");
-		//xTaskCreate(stageScan, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
+		//xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
 		stageScan();
 		return qid;
 	}

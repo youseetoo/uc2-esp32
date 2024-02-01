@@ -36,7 +36,7 @@ void triggerOutput(int outputPin, int state=-1)
 	// Output trigger logic
 	if (state==-1){
 		digitalOut->setPin(outputPin, 1, 0);
-		ets_delay_us(1); // Adjust delay for speed
+		//ets_delay_us(1); // Adjust delay for speed
 		digitalOut->setPin(outputPin, 0, 0);
 	}
 	else{
@@ -85,24 +85,17 @@ void stageScan(bool isThread = false){
 		int iPixel = 0;
 		
 		// ensure all clocks come almost at the same time
-		triggerOutput(pinTrigFrame,1);
-
+		
 		for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 		{
-
-			triggerOutput(pinTrigLine,1);
-			triggerOutput(pinTrigPixel,1);
-					
+			
 			for (iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
 			{				
 				if (motor->stageScanningData->stopped)
 				{
 					break;
 				}
-				if (iPixel % nTriggerPixel == 0)
-				{
-					triggerOutput(pinTrigPixel);
-				}
+				triggerOutput(pinTrigPixel);
 				
 				// Move X motor forward at even steps, backward at odd steps
 				//bool directionX = iLine % 2 == 0;
@@ -110,13 +103,12 @@ void stageScan(bool isThread = false){
 				//stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
 				if (iPixel == 1){
 					// turn off line/frame clock after first pixel
-					triggerOutput(pinTrigLine,0);
-					triggerOutput(pinTrigFrame,0);
+					
 				}
 					
 			}
 			
-
+			triggerOutput(pinTrigLine);
 			// move back x stepper by step counter 
 			moveMotor(pinStpPixel, pinDirPixel, iPixel, !directionX, (2+delayTimeStep)*10);
 
@@ -133,7 +125,7 @@ void stageScan(bool isThread = false){
 		motor->data[Stepper::Y]->currentPosition += stepCounterLine;
 		moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
 		*/
-
+		triggerOutput(pinTrigFrame);
 		moveMotor(pinStpLine, pinDirLine, nStepsLine, stepCounterLine > 0, (2+delayTimeStep)*10);
 		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
@@ -147,7 +139,7 @@ void stageScan(bool isThread = false){
 
 void stageScanThread(void *arg)
 	//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 5, "stopped": 0, "nFrames": 3000}}}
-{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}}
+{ 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}

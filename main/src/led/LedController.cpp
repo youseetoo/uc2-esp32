@@ -8,9 +8,10 @@
 
 namespace LedController
 {
-
+	const char * TAG = "LedController";
 	void setup()
 	{
+	
 		log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 		// LED Matrix
 		matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -37,6 +38,7 @@ namespace LedController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
+		ESP_LOGI(TAG, "act");
 		// serializeJsonPretty(ob, Serial);
 		cJSON *led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
 		if (led != NULL)
@@ -45,7 +47,7 @@ namespace LedController
 			cJSON *ledarr = cJSON_GetObjectItemCaseSensitive(led, key_led_array);
 			if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 			{
-				log_d("LED: array/multi");
+				ESP_LOGI(TAG, "LED: array/multi");
 				cJSON *arri = NULL;
 				cJSON_ArrayForEach(arri, ledarr)
 				{
@@ -57,7 +59,7 @@ namespace LedController
 				}
 				matrix->show(); //  Update strip to match
 			}
-			else if (LEDArrMode == LedModes::full || LedModes::single || LedModes::left || LedModes::right || LedModes::top || bottom)
+			else if (LEDArrMode == LedModes::full || LEDArrMode ==LedModes::single || LEDArrMode ==LedModes::left || LEDArrMode ==::right || LEDArrMode ==::top || LEDArrMode ==LedModes::bottom)
 			{
 				cJSON *item = cJSON_GetArrayItem(ledarr, 0);
 				u_int8_t id = cJSON_GetObjectItemCaseSensitive(item, keyid)->valueint;
@@ -80,7 +82,7 @@ namespace LedController
 			}
 			else if (LEDArrMode == LedModes::off)
 			{
-				log_d("LED: all off");
+				ESP_LOGI(TAG, "LED: all off");
 				matrix->clear();
 				matrix->show(); //  Update strip to match
 			}

@@ -1,6 +1,6 @@
 #pragma once
 #include "FastAccelStepper.h"
-#include "MotorTypes.h"
+#include "FocusMotor.h"
 
 namespace FAccelStep
 {
@@ -8,8 +8,7 @@ namespace FAccelStep
     static FastAccelStepperEngine engine = FastAccelStepperEngine();
     static std::array<FastAccelStepper *, 4> faststeppers;
     static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
-
-    static std::array<MotorData *, 4> data;
+    
     void startFastAccelStepper(int i);
     void stopFastAccelStepper(int i);
     void setupFastAccelStepper();

@@ -6,6 +6,8 @@
 #include "../laser/LaserController.h"
 #include "../led/LedController.h"
 #include "../motor/FocusMotor.h"
+#include "../motor/MotorTypes.h"
+using namespace FocusMotor;
 #include "../config/ConfigController.h"
 #ifdef BTHID
 #include "HidController.h"
@@ -85,8 +87,8 @@ namespace BtController
         if (value >= offset_val || value <= -offset_val)
         {
             // move_x
-            FocusMotor::data[s]->speed = value;
-            FocusMotor::data[s]->isforever = true;
+            getData()[s]->speed = value;
+            getData()[s]->isforever = true;
             FocusMotor::startStepper(s);
             if (s == Stepper::X)
                 joystick_drive_X = true;

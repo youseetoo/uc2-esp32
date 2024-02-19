@@ -3,6 +3,7 @@
 
 #include "AccelStep.h"
 #include "FocusMotor.h"
+using namespace FocusMotor;
 
 void driveMotorXLoop(void *pvParameter)
 {
@@ -29,6 +30,8 @@ namespace AccelStep
         /*
           Motor related settings
         */
+
+        
         for (int i = 0; i < taskRunning.size(); i++)
         {
             taskRunning[i] = false;
@@ -39,7 +42,7 @@ namespace AccelStep
             if (pinConfig.I2C_SCL > 0)
             {
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-                data[Stepper::A]->isActivated = true;
+                getData()[Stepper::A]->isActivated = true;
             }
             else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
@@ -49,7 +52,7 @@ namespace AccelStep
             {
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
             }
-            data[Stepper::A]->isActivated = true;
+            getData()[Stepper::A]->isActivated = true;
         }
         if (pinConfig.MOTOR_X_STEP > -1)
         {
@@ -67,7 +70,7 @@ namespace AccelStep
             {
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
             }
-            data[Stepper::X]->isActivated = true;
+            getData()[Stepper::X]->isActivated = true;
         }
         if (pinConfig.MOTOR_Y_STEP > -1)
         {
@@ -83,7 +86,7 @@ namespace AccelStep
             {
                 steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
             }
-            data[Stepper::Y]->isActivated = true;
+            getData()[Stepper::Y]->isActivated = true;
         }
         if (pinConfig.MOTOR_Z_STEP > -1)
         {
@@ -99,7 +102,7 @@ namespace AccelStep
             {
                 steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
             }
-            data[Stepper::Z]->isActivated = true;
+            getData()[Stepper::Z]->isActivated = true;
         }
 
         // setting default values
@@ -114,52 +117,52 @@ namespace AccelStep
                 steppers[i]->runToNewPosition(1);
                 log_d("1");
 
-                steppers[i]->setCurrentPosition(data[i]->currentPosition);
+                steppers[i]->setCurrentPosition(getData()[i]->currentPosition);
             }
         }
     }
 
     void startAccelStepper(int i)
     {
-        // if (!data[i]->stopped)
+        // if (!getData()[i]->stopped)
         //     stopAccelStepper(i);
         log_d("start rotator: motor:%i, isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
               i,
-              data[i]->isforever,
-              data[i]->speed,
-              data[i]->maxspeed,
-              data[i]->targetPosition,
-              data[i]->absolutePosition,
-              data[i]->isaccelerated,
-              data[i]->acceleration);
-        if (!data[i]->isforever)
+              getData()[i]->isforever,
+              getData()[i]->speed,
+              getData()[i]->maxspeed,
+              getData()[i]->targetPosition,
+              getData()[i]->absolutePosition,
+              getData()[i]->isaccelerated,
+              getData()[i]->acceleration);
+        if (!getData()[i]->isforever)
         {
             // accelstepper wants in relative mode that targetpostion and speed point into same direction
-            if (!data[i]->absolutePosition && ((data[i]->targetPosition < 0 && data[i]->speed > 0) || (data[i]->targetPosition > 0 && data[i]->speed < 0)))
-                data[i]->speed *= -1;
+            if (!getData()[i]->absolutePosition && ((getData()[i]->targetPosition < 0 && getData()[i]->speed > 0) || (getData()[i]->targetPosition > 0 && getData()[i]->speed < 0)))
+                getData()[i]->speed *= -1;
             // in absolute mode speed direction is up to the target and current position difference
-            if (data[i]->absolutePosition)
+            if (getData()[i]->absolutePosition)
             {
-                int speeddir = data[i]->targetPosition - data[i]->currentPosition;
-                if ((speeddir > 0 && data[i]->speed < 0) || (speeddir < 0 && data[i]->speed > 0))
-                    data[i]->speed *= -1;
+                int speeddir = getData()[i]->targetPosition - getData()[i]->currentPosition;
+                if ((speeddir > 0 && getData()[i]->speed < 0) || (speeddir < 0 && getData()[i]->speed > 0))
+                    getData()[i]->speed *= -1;
             }
         }
-        steppers[i]->setMaxSpeed(data[i]->maxspeed);
-        steppers[i]->setAcceleration(data[i]->acceleration);
-        if (data[i]->absolutePosition)
+        steppers[i]->setMaxSpeed(getData()[i]->maxspeed);
+        steppers[i]->setAcceleration(getData()[i]->acceleration);
+        if (getData()[i]->absolutePosition)
         {
-            if (data[i]->currentPosition == data[i]->targetPosition)
+            if (getData()[i]->currentPosition == getData()[i]->targetPosition)
                 return;
             // absolute position coordinates
-            steppers[i]->moveTo(data[i]->targetPosition);
+            steppers[i]->moveTo(getData()[i]->targetPosition);
         }
         else
         {
             // relative position coordinates
-            steppers[i]->move(data[i]->targetPosition);
+            steppers[i]->move(getData()[i]->targetPosition);
         }
-        data[i]->stopped = false;
+        getData()[i]->stopped = false;
 
         if (i == 0 && !taskRunning[i])
             xTaskCreate(&driveMotorALoop, "motor_task_A", 2024, NULL, 5, NULL);
@@ -178,17 +181,17 @@ namespace AccelStep
 
     void stopAccelStepper(int i)
     {
+        log_i("stop stepper %i", i);
         steppers[i]->stop();
-        data[i]->isforever = false;
-        data[i]->speed = 0;
-        data[i]->currentPosition = steppers[i]->currentPosition();
-        data[i]->stopped = true;
+        getData()[i]->isforever = false;
+        getData()[i]->speed = 0;
+        getData()[i]->currentPosition = steppers[i]->currentPosition();
+        getData()[i]->stopped = true;
     }
 
     bool isRunning(int stepperid)
     {
         AccelStepper *s = steppers[stepperid];
-        MotorData *d = data[stepperid];
         return s->isRunning();
     }
 
@@ -196,35 +199,34 @@ namespace AccelStep
     {
         taskRunning[stepperid] = true;
         AccelStepper *s = steppers[stepperid];
-        MotorData *d = data[stepperid];
         log_i("Start Task %i", stepperid);
-        while (!d->stopped)
+        while (!getData()[stepperid]->stopped)
         {
-            s->setMaxSpeed(d->maxspeed);
-            if (d->isforever)
+            s->setMaxSpeed(getData()[stepperid]->maxspeed);
+            if (getData()[stepperid]->isforever)
             {
-                s->setSpeed(d->speed);
+                s->setSpeed(getData()[stepperid]->speed);
                 s->runSpeed();
             }
             else
             {
-                if (!data[stepperid]->isaccelerated)
-                    s->setSpeed(d->speed);
+                if (!getData()[stepperid]->isaccelerated)
+                    s->setSpeed(getData()[stepperid]->speed);
                 if (!s->run())
                     stopAccelStepper(stepperid);
                 // checks if a stepper is still running
                 // log_i("distance to go:%i", s->distanceToGo());
-                if (s->distanceToGo() == 0 && !d->stopped)
+                if (s->distanceToGo() == 0 && !getData()[stepperid]->stopped)
                 {
                     log_i("stop stepper:%i", stepperid);
                     // if not turn it off
                     stopAccelStepper(stepperid);
                 }
             }
-            d->currentPosition = s->currentPosition();
+            getData()[stepperid]->currentPosition = s->currentPosition();
             vTaskDelay(1 / portTICK_PERIOD_MS);
         }
-        d->stopped = true;
+        getData()[stepperid]->stopped = true;
         log_i("Stop Task %i", stepperid);
         taskRunning[stepperid] = false;
         vTaskDelete(NULL);
@@ -248,7 +250,7 @@ namespace AccelStep
 
     void updateData(int val)
     {
-        data[val]->currentPosition = steppers[val]->currentPosition();
+        getData()[val]->currentPosition = steppers[val]->currentPosition();
     }
 
     void setExternalCallForPin(

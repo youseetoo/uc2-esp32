@@ -105,15 +105,18 @@ esp_err_t handle_ws_req(httpd_req_t *req)
             free(buf);
             return ret;
         }
+        
         cJSON *doc = cJSON_Parse((const char *)(ws_pkt.payload));
         cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
         cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
+        ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
 #ifdef LED_CONTROLLER
-        if (led != NULL)
+        //ESP_LOGI(TAG_HTTPSSERV,"led controller act");
+        if (led != nullptr)
             LedController::act(doc);
 #endif
 #ifdef FOCUS_MOTOR
-        if (motor != NULL)
+        if (motor != nullptr)
             FocusMotor::act(doc);
 #endif
         cJSON_Delete(doc);

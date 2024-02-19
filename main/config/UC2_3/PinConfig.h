@@ -56,15 +56,15 @@ struct UC2_3 : PinConfig
      http://www.ti.com/lit/ds/symlink/tca9535.pdf
      C561273
      */
-     //#define FOCUS_MOTOR
-     //#define USE_TCA9535
-     //#define BLUETOOTH
-     //#define BTHID
-     //#define WIFI
-     //#define LED_CONTROLLER
-     //#define HOME_MOTOR
-     //#define LASER_CONTROLLER
-     //#define DIGITAL_IN_CONTROLLER
+     #define FOCUS_MOTOR
+     #define USE_TCA9535
+     #define BLUETOOTH
+     #define BTHID
+     #define WIFI
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER
      const char * pindefName = "UC2_3";
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;

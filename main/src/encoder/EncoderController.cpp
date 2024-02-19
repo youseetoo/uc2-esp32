@@ -10,6 +10,8 @@
 
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
+#include "../motor/MotorTypes.h"
+using namespace FocusMotor;
 #endif
 
 namespace EncoderController
@@ -58,9 +60,9 @@ namespace EncoderController
 					// get the motor object and chang the values so that it will move 1000 steps forward
 					edata[s]->calibsteps = calibsteps;
 #ifdef FOCUS_MOTOR
-					FocusMotor::data[s]->targetPosition = calibsteps;
-					FocusMotor::data[s]->absolutePosition = false;
-					FocusMotor::data[s]->speed = speed;
+					getData()[s]->targetPosition = calibsteps;
+					getData()[s]->absolutePosition = false;
+					getData()[s]->speed = speed;
 					FocusMotor::startStepper(s);
 #endif
 					edata[s]->requestCalibration = true;
@@ -164,9 +166,9 @@ namespace EncoderController
 	{
 		#ifdef FOCUS_MOTOR
 			// check if we need to read the encoder for all motors
-			for (int i = 0; i < FocusMotor::data.size(); i++)
+			for (int i = 0; i < 4; i++)
 			{
-				if (edata[i]->requestCalibration and FocusMotor::data[i]->stopped)
+				if (edata[i]->requestCalibration && getData()[i]->stopped)
 				{
 					edata[i]->requestCalibration = false;
 					delay(1000); // wait until slide settles

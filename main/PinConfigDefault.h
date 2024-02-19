@@ -43,7 +43,7 @@ struct PinConfig
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
-     const uint16_t HTTP_MAX_URI_HANDLERS = 25;
+     const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const char *pindefName = "pindef";
 
      // by default Focusmotor use fastaccelstepper. if false Accelstepper lib get used

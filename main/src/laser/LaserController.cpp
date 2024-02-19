@@ -38,8 +38,8 @@ namespace LaserController
 			if (LASER_val_wiggle < 0)
 				LASER_val_wiggle += (2 * abs(laserwiggle));
 
-			log_d(LASERid);
-			log_d(LASER_val_wiggle);
+			log_d("%i",LASERid);
+			log_d("%i",LASER_val_wiggle);
 
 			ledcWrite(PWM_CHANNEL_LASER, LASER_val_wiggle);
 

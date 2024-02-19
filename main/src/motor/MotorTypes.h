@@ -5,6 +5,8 @@ const long MAX_VELOCITY_A = 20000;
 const long MAX_ACCELERATION_A = 100000;
 const long DEFAULT_ACCELERATION = 500000;
 
+
+
 struct MotorData
 {
 
@@ -13,7 +15,7 @@ struct MotorData
 	long acceleration = 0;
 	long targetPosition = 0;
 	long currentPosition = 0;
-	bool isforever = false;
+	int isforever = false;
 	bool isaccelerated = 0;
 	// running relative or aboslute position! gets ignored when isforever is true
 	bool absolutePosition = 0; 	
@@ -29,9 +31,11 @@ struct MotorData
 	bool isActivated = 0;
 };
 
+
+
 enum Stepper
 {
-	A,
+	A =0,
 	X,
 	Y,
 	Z

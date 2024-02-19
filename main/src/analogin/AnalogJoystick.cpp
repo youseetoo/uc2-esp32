@@ -1,10 +1,11 @@
 #include <PinConfig.h>
-#ifdef ANALOG_JOYSTICK
+
 #include "AnalogJoystick.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
+#include "../motor/MotorTypes.h"
 #endif
 #include "../encoder/InterruptController.h"
 
@@ -35,22 +36,22 @@ namespace AnalogJoystick
 #ifdef FOCUS_MOTOR
 
         int val = analogRead(pin) - max_in_value / 2;
-        ESP_LOGI(JoyTAG, "drive motor :%i x drive:%i , x:%i", FocusMotor::data[s]->stopped, joystick_drive, val);
+        ESP_LOGI(JoyTAG, "drive motor :%i x drive:%i , x:%i", data[s]->stopped, joystick_drive, val);
         if (val >= zeropoint || val <= -zeropoint)
         {
-            FocusMotor::data[s]->speed = val;
-            FocusMotor::data[s]->isforever = true;
+            data[s]->speed = val;
+            data[s]->isforever = true;
 
-            if (FocusMotor::data[s]->stopped && joystick_drive_X == 0)
+            if (data[s]->stopped && joystick_drive_X == 0)
             {
                 ESP_LOGI(JoyTAG, "start motor X");
                 joystick_drive = 1;
                 FocusMotor::startStepper(s);
             }
         }
-        else if (!FocusMotor::data[s]->stopped && joystick_drive > 0 && (val <= zeropoint || val >= -zeropoint))
+        else if (!data[s]->stopped && joystick_drive > 0 && (val <= zeropoint || val >= -zeropoint))
         {
-            ESP_LOGI(JoyTAG, "stop motor X stopped:%i x drive:%i , x:%i", FocusMotor::data[s]->stopped, joystick_drive, val);
+            ESP_LOGI(JoyTAG, "stop motor X stopped:%i x drive:%i , x:%i", data[s]->stopped, joystick_drive, val);
             FocusMotor::stopStepper(s);
             joystick_drive = 0;
         }
@@ -58,4 +59,3 @@ namespace AnalogJoystick
 #endif
     }
 }
-#endif

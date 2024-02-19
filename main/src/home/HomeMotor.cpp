@@ -8,6 +8,8 @@
 #include "../../cJsonTool.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
+#include "../motor/MotorTypes.h"
+using namespace FocusMotor;
 
 namespace HomeMotor
 {
@@ -45,9 +47,9 @@ namespace HomeMotor
 
 // trigger go home by starting the motor in the right direction
 #ifdef FOCUS_MOTOR
-					FocusMotor::data[s]->isforever = true;
-					FocusMotor::data[s]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
-					FocusMotor::data[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
+					getData()[s]->isforever = true;
+					getData()[s]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
+					getData()[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
 
 					// now we will go into loop and need to stop once the button is hit or timeout is reached
 					log_i("Home Data Motor  Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosRelease %i",
@@ -116,15 +118,15 @@ namespace HomeMotor
 		{
 // stopping motor and going reversing direction to release endstops
 #ifdef FOCUS_MOTOR
-			int speed = FocusMotor::data[s]->speed;
+			int speed = getData()[s]->speed;
 			FocusMotor::stopStepper(s);
 			FocusMotor::setPosition(s, 0);
 			// blocks until stepper reached new position wich would be optimal outside of the endstep
 			if (speed > 0)
-				FocusMotor::data[s]->targetPosition = -hdata[s]->homeEndposRelease;
+				getData()[s]->targetPosition = -hdata[s]->homeEndposRelease;
 			else
-				FocusMotor::data[s]->targetPosition = hdata[s]->homeEndposRelease;
-			FocusMotor::data[s]->absolutePosition = false;
+				getData()[s]->targetPosition = hdata[s]->homeEndposRelease;
+			getData()[s]->absolutePosition = false;
 			FocusMotor::startStepper(s);
 			// wait until stepper reached new position
 			while (FocusMotor::isRunning(s))
@@ -132,7 +134,7 @@ namespace HomeMotor
 			hdata[s]->homeIsActive = false;
 			FocusMotor::setPosition(s, 0);
 			FocusMotor::stopStepper(s);
-			FocusMotor::data[s]->isforever = false;
+			getData()[s]->isforever = false;
 			log_i("Home Motor X done");
 			sendHomeDone(s);
 #endif

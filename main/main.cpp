@@ -103,6 +103,10 @@ extern "C" void looper(void *p)
 
 extern "C" void setupApp(void)
 {
+
+#ifdef FOCUS_MOTOR
+	FocusMotor::setup();
+#endif
 #ifdef ANALOG_IN_CONTROLLER
 	AnalogInController::setup();
 #endif
@@ -136,9 +140,7 @@ extern "C" void setupApp(void)
 #ifdef LED_CONTROLLER
 	LedController::setup();
 #endif
-#ifdef FOCUS_MOTOR
-	FocusMotor::setup();
-#endif
+
 #ifdef PID_CONTROLLER
 	PidController::setup();
 #endif

@@ -28,9 +28,6 @@ namespace FocusMotor
 {
 	static Preferences preferences;
 
-	// global variables for the motor
-	static std::array<MotorData *, 4> data;
-
 	int act(cJSON *ob);
 	cJSON *get(cJSON *ob);
 	int set(cJSON *doc);
@@ -42,7 +39,7 @@ namespace FocusMotor
 	bool setExternalPin(uint8_t pin, uint8_t value);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
-	static bool isRunning(int i);
+	bool isRunning(int i);
 	#ifdef USE_TCA9535
 	static TCA9535_Register outRegister;
 	void dumpRegister(const char * name, TCA9535_Register configRegister);
@@ -54,6 +51,8 @@ namespace FocusMotor
 
 	void disableEnablePin(int i);
 	void enableEnablePin(int i);
+
+	MotorData ** getData();
 
 
 	

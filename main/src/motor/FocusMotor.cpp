@@ -17,12 +17,24 @@
 namespace FocusMotor
 {
 
+	MotorData a_dat;
+	MotorData x_dat;
+	MotorData y_dat;
+	MotorData z_dat;
+	MotorData * data[4];
+
+	MotorData ** getData()
+	{
+		return data;
+	}
+	
+
 	void sendUpdateToClients(void *p)
 	{
 		for (;;)
 		{
 			int arraypos = 0;
-			for (int i = 0; i < data.size(); i++)
+			for (int i = 0; i < 4; i++)
 			{
 				if (!data[i]->stopped)
 				{
@@ -36,6 +48,17 @@ namespace FocusMotor
 	bool externalPinCallback(uint8_t pin, uint8_t value)
 	{
 		return setExternalPin(pin, value);
+	}
+
+	void startStepper(int i)
+	{
+		log_i("start stepper %i", i);
+#ifdef USE_FASTACCEL
+		FAccelStep::startFastAccelStepper(i);
+#endif
+#ifdef USE_ACCELSTEP
+		AccelStep::startAccelStepper(i);
+#endif
 	}
 
 	int act(cJSON *doc)
@@ -125,16 +148,6 @@ namespace FocusMotor
 		return 1;
 	}
 
-	void startStepper(int i)
-	{
-#ifdef USE_FASTACCEL
-		FAccelStep::startFastAccelStepper(i);
-#endif
-#ifdef USE_ACCELSTEP
-		AccelStep::startAccelStepper(i);
-#endif
-	}
-
 	// returns json {"motor":{...}} as qid
 	cJSON *get(cJSON *docin)
 	{
@@ -147,7 +160,7 @@ namespace FocusMotor
 		cJSON *stprs = cJSON_CreateArray();
 		cJSON_AddItemToObject(mot, key_steppers, stprs);
 
-		for (int i = 0; i < data.size(); i++)
+		for (int i = 0; i < 4; i++)
 		{
 			if (pos != NULL)
 			{
@@ -206,7 +219,7 @@ namespace FocusMotor
 			outRegister.Port.P0.bit.Bit3 = value;
 		if (pin == 104) // a
 			outRegister.Port.P0.bit.Bit4 = value;
-		// log_i("external pin cb for pin:%d value:%d", pin, value);
+		log_i("external pin cb for pin:%d value:%d", pin, value);
 		if (ESP_OK != TCA9535WriteOutput(&outRegister))
 			log_e("i2c write failed");
 #endif
@@ -283,12 +296,19 @@ namespace FocusMotor
 
 	void setup()
 	{
-		// setup the pins
-		for (int i = 0; i < data.size(); i++)
-		{
-			data[i] = new MotorData();
-		}
-
+		data[Stepper::A] = &a_dat;
+		data[Stepper::X] = &x_dat;
+		data[Stepper::Y] = &y_dat;
+		data[Stepper::Z] = &z_dat;
+		if(data[Stepper::A] == nullptr)
+			log_e("Stepper A data NULL");
+		if(data[Stepper::X] == nullptr)
+			log_e("Stepper X data NULL");
+		if(data[Stepper::Y] == nullptr)
+			log_e("Stepper Y data NULL");
+		if(data[Stepper::Z] == nullptr)
+			log_e("Stepper Z data NULL");
+		
 		log_i("Setting Up Motor A,X,Y,Z");
 		preferences.begin("motor-positions", false);
 		if (pinConfig.MOTOR_A_DIR > 0)
@@ -309,7 +329,6 @@ namespace FocusMotor
 		}
 #endif
 
-		FAccelStep::data = data;
 		FAccelStep::setupFastAccelStepper();
 #endif
 #ifdef USE_ACCELSTEP
@@ -321,7 +340,6 @@ namespace FocusMotor
 		}
 #endif
 
-		AccelStep::data = data;
 		AccelStep::setupAccelStepper();
 #endif
 		log_i("Creating Task sendUpdateToClients");
@@ -333,7 +351,7 @@ namespace FocusMotor
 	{
 #ifdef USE_FASTACCEL
 		// checks if a stepper is still running
-		for (int i = 0; i < data.size(); i++)
+		for (int i = 0; i < 4; i++)
 		{
 			bool isRunning = FAccelStep::isRunning(i);
 			if (!isRunning && !data[i]->stopped)

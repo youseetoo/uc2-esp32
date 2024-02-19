@@ -14,7 +14,6 @@ namespace AccelStep
     static std::array<AccelStepper *, 4> steppers;
     static std::array<bool ,4> taskRunning;
 
-    static std::array<MotorData *, 4> data;
     void setupAccelStepper();
     void startAccelStepper(int i);
     void stopAccelStepper(int i);

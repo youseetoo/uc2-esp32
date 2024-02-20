@@ -30,6 +30,35 @@ extern const unsigned char prvtkey_pem_end[] asm("_binary_prvtkey_pem_end");
 
 const char *TAG_HTTPSSERV = "EspHttpsServer";
 
+QueueHandle_t websocketMSGQueue;
+xTaskHandle xHandle;
+const int max_char_length = 512;
+
+void processWebsocketMSG(void *pvParameters)
+{
+    char t[max_char_length];
+    for(;;)
+    {
+        xQueueReceive(websocketMSGQueue, &t, portMAX_DELAY);
+        log_i("recv: %s", t);
+        cJSON *doc = cJSON_Parse((const char *)(t));
+        cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
+        cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
+        ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
+#ifdef LED_CONTROLLER
+        // ESP_LOGI(TAG_HTTPSSERV,"led controller act");
+        if (led != nullptr)
+            LedController::act(doc);
+#endif
+#ifdef FOCUS_MOTOR
+        if (motor != nullptr)
+            FocusMotor::act(doc);
+#endif
+        cJSON_Delete(doc);
+    }
+    vTaskDelete(xHandle);
+}
+
 struct async_resp_arg
 {
     httpd_handle_t hd;
@@ -105,21 +134,17 @@ esp_err_t handle_ws_req(httpd_req_t *req)
             free(buf);
             return ret;
         }
+        if(ws_pkt.len < max_char_length)
+        {
+            char t[max_char_length];
+            if(uxQueueMessagesWaiting(websocketMSGQueue) == 2)
+            {
+                xQueueReceive(websocketMSGQueue, (void*)&t, 0);
+            }
+            strcpy(t, (const char *)ws_pkt.payload);
+            int ret = xQueueSend(websocketMSGQueue, (void *)t, 0);
+        }
         
-        cJSON *doc = cJSON_Parse((const char *)(ws_pkt.payload));
-        cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
-        cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
-        ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
-#ifdef LED_CONTROLLER
-        //ESP_LOGI(TAG_HTTPSSERV,"led controller act");
-        if (led != nullptr)
-            LedController::act(doc);
-#endif
-#ifdef FOCUS_MOTOR
-        if (motor != nullptr)
-            FocusMotor::act(doc);
-#endif
-        cJSON_Delete(doc);
         // ESP_LOGI(TAG_HTTPSSERV, "Got packet with message: %s", ws_pkt.payload);
     }
     ESP_LOGI(TAG_HTTPSSERV, "Packet type: %d", ws_pkt.type);
@@ -220,7 +245,11 @@ esp_err_t script_get_handler(httpd_req_t *req)
 
 void EspHttpsServer::start_webserver()
 {
+    if (websocketMSGQueue == nullptr)
+        websocketMSGQueue = xQueueCreate(2, sizeof(char[max_char_length]));
 
+    if (xHandle == nullptr)
+        xTaskCreate(processWebsocketMSG, "sendsocketmsg", 4 * 1024, NULL, 1, &xHandle);
     // Start the httpd server
     log_i("Starting server");
     httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();

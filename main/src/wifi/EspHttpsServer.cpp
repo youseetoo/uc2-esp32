@@ -40,11 +40,11 @@ void processWebsocketMSG(void *pvParameters)
     for(;;)
     {
         xQueueReceive(websocketMSGQueue, &t, portMAX_DELAY);
-        log_i("recv: %s", t);
+        //log_i("recv: %s", t);
         cJSON *doc = cJSON_Parse((const char *)(t));
         cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
         cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
-        ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
+        //ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
 #ifdef LED_CONTROLLER
         // ESP_LOGI(TAG_HTTPSSERV,"led controller act");
         if (led != nullptr)
@@ -115,7 +115,7 @@ esp_err_t handle_ws_req(httpd_req_t *req)
         ESP_LOGE(TAG_HTTPSSERV, "httpd_ws_recv_frame failed to get frame len with %d", ret);
         return ret;
     }
-    ESP_LOGI(TAG_HTTPSSERV, "frame len is %d", ws_pkt.len);
+    //ESP_LOGI(TAG_HTTPSSERV, "frame len is %d", ws_pkt.len);
     if (ws_pkt.len)
     {
         /* ws_pkt.len + 1 is for NULL termination as we are expecting a string */
@@ -147,7 +147,7 @@ esp_err_t handle_ws_req(httpd_req_t *req)
         
         // ESP_LOGI(TAG_HTTPSSERV, "Got packet with message: %s", ws_pkt.payload);
     }
-    ESP_LOGI(TAG_HTTPSSERV, "Packet type: %d", ws_pkt.type);
+    //ESP_LOGI(TAG_HTTPSSERV, "Packet type: %d", ws_pkt.type);
     if (ws_pkt.type == HTTPD_WS_TYPE_TEXT &&
         strcmp((char *)ws_pkt.payload, "Trigger async") == 0)
     {

@@ -38,7 +38,7 @@ namespace FAccelStep
                 log_i("forward");
                 faststeppers[i]->runForward();
             }
-            else
+            else if(getData()[i]->speed < 0)
             {
                 // run counterclockwise
                 log_i("backward");

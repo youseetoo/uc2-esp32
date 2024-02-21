@@ -41,7 +41,6 @@ namespace AccelStep
             if (pinConfig.I2C_SCL > 0)
             {
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-                getData()[Stepper::A]->isActivated = true;
             }
             else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
@@ -58,10 +57,10 @@ namespace AccelStep
             if (pinConfig.I2C_SCL > 0)
             {
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-                steppers[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-                steppers[Stepper::X]->setPinsInverted(false, false, true);
+                //[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+                //steppers[Stepper::X]->setPinsInverted(false, false, true);
             }
-            if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+            else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
             }

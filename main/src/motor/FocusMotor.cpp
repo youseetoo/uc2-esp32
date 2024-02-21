@@ -52,7 +52,7 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
-		log_i("start stepper %i", i);
+		//log_i("start stepper %i", i);
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
 #endif
@@ -63,7 +63,7 @@ namespace FocusMotor
 
 	int act(cJSON *doc)
 	{
-		log_i("motor act");
+		//log_i("motor act");
 
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}

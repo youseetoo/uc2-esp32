@@ -129,7 +129,7 @@ namespace FocusMotor
 						stopStepper(s);
 					else
 						startStepper(s);
-					log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
+					/*log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
 						  s,
 						  data[s]->isforever,
 						  data[s]->speed,
@@ -137,7 +137,7 @@ namespace FocusMotor
 						  data[s]->targetPosition,
 						  data[s]->absolutePosition,
 						  data[s]->isaccelerated,
-						  data[s]->acceleration);
+						  data[s]->acceleration);*/
 				}
 			}
 			else

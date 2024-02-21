@@ -31,7 +31,6 @@ namespace AccelStep
           Motor related settings
         */
 
-        
         for (int i = 0; i < taskRunning.size(); i++)
         {
             taskRunning[i] = false;
@@ -122,10 +121,39 @@ namespace AccelStep
         }
     }
 
+    void poweron()
+    {
+        if (!power_enable)
+        {
+            if (pinConfig.I2C_SCL > 0)
+                _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+            else
+                steppers[0]->enableOutputs();
+            power_enable = true;
+            log_i("poweron motors");
+        }
+    }
+
+    void poweroff()
+    {
+        if (getData()[Stepper::A]->stopped &&
+            getData()[Stepper::X]->stopped &&
+            getData()[Stepper::Y]->stopped &&
+            getData()[Stepper::Z]->stopped &&
+            power_enable)
+        {
+            if (pinConfig.I2C_SCL > 0)
+                _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
+            else
+                steppers[0]->disableOutputs();
+            power_enable = false;
+            log_i("poweroff motors");
+        }
+    }
+
     void startAccelStepper(int i)
     {
-        // if (!getData()[i]->stopped)
-        //     stopAccelStepper(i);
+
         log_d("start rotator: motor:%i, isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
               i,
               getData()[i]->isforever,
@@ -198,6 +226,7 @@ namespace AccelStep
     void driveMotorLoop(int stepperid)
     {
         taskRunning[stepperid] = true;
+        poweron();
         AccelStepper *s = steppers[stepperid];
         log_i("Start Task %i", stepperid);
         while (!getData()[stepperid]->stopped)
@@ -224,9 +253,11 @@ namespace AccelStep
                 }
             }
             getData()[stepperid]->currentPosition = s->currentPosition();
+
             vTaskDelay(1 / portTICK_PERIOD_MS);
         }
         getData()[stepperid]->stopped = true;
+        poweroff();
         log_i("Stop Task %i", stepperid);
         taskRunning[stepperid] = false;
         vTaskDelete(NULL);

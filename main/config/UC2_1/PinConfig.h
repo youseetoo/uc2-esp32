@@ -3,12 +3,12 @@
 #include "PinConfigDefault.h"
 struct UC2_1 : PinConfig
 {
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
-     #define LASER_CONTROLLER
+     #define LASER_CONTROLLER*/
      const char *pindefName = "UC2_1";
      // UC2 STandalone V1
      int8_t MOTOR_A_DIR = GPIO_NUM_21;

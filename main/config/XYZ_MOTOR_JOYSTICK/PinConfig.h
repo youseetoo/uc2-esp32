@@ -3,11 +3,11 @@
 #include "PinConfigDefault.h"
 struct XYZ_MOTOR_JOYSTICK : PinConfig
 {
-     #define ANALOG_JOYSTICK
+     /*#define ANALOG_JOYSTICK
      #define FOCUS_MOTOR
      #define BLUETOOTH
      #define BTHID
-     #define WIFI
+     #define WIFI*/
 
      const char *pindefName = "XYZ_MOTOR_JOYSTICK";
      const int8_t MOTOR_X_DIR = 16;

@@ -3,12 +3,12 @@
 #include "PinConfigDefault.h"
 struct UC2_OMNISCOPE : PinConfig
 {
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define WIFI
      #define LED_CONTROLLER
-     #define HOME_MOTOR
+     #define HOME_MOTOR*/
      const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)

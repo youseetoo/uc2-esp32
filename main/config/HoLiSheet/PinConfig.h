@@ -3,11 +3,11 @@
 #include "PinConfigDefault.h"
 struct HoLiSheet : PinConfig
 {
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define LED_CONTROLLER
-     #define HOME_MOTOR
+     #define HOME_MOTOR*/
      const char *pindefName = "HoLiSheet";
      int8_t MOTOR_Z_DIR = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_17;

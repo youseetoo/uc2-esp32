@@ -8,13 +8,13 @@ namespace cJsonTool
     {
         if (job == NULL)
         {
-            log_e("json %s is null", key);
+            //log_e("json %s is null", key);
             return 0;
         }
         cJSON *val = cJSON_GetObjectItemCaseSensitive(job, key);
         if (val == NULL)
         {
-            log_e("json value %s is null", key);
+            //log_e("json value %s is null", key);
             return 0;
         }
         if (cJSON_IsNumber(val))

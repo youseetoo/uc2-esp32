@@ -3,13 +3,13 @@
 #include "PinConfigDefault.h"
 struct UC2e : PinConfig
 {
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER
      #define DAC_CONTROLLER
      #define ANALOG_IN_CONTROLLER
-     #define DIGITAL_IN_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER*/
      const char *pindefName = "UC2e";
 
      // UC2e (UC2-express-bus) pinout of the SUES system (modules and baseplane) dictated by the spec for the ESP32 module pinout

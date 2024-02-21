@@ -56,7 +56,7 @@ struct UC2_3 : PinConfig
      http://www.ti.com/lit/ds/symlink/tca9535.pdf
      C561273
      */
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define USE_TCA9535
      #define BLUETOOTH
      #define BTHID
@@ -64,7 +64,7 @@ struct UC2_3 : PinConfig
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER
-     #define DIGITAL_IN_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER*/
      const char * pindefName = "UC2_3";
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
@@ -74,7 +74,7 @@ struct UC2_3 : PinConfig
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
-     bool useFastAccelStepper = true;
+     bool useFastAccelStepper = false;
      int8_t AccelStepperMotorType = 1;
 
      int8_t LASER_1 = GPIO_NUM_12;

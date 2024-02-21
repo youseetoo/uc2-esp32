@@ -3,13 +3,13 @@
 #include "PinConfigDefault.h"
 struct UC2_2 : PinConfig
 {
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER
-     #define DIGITAL_IN_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER*/
      const char *pindefName = "UC2_2";
 
      // UC2 STandalone V2

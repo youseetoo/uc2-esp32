@@ -3,13 +3,13 @@
 #include "PinConfigDefault.h"
 struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
-     #define FOCUS_MOTOR
+     /*#define FOCUS_MOTOR
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR
-     #define LASER_CONTROLLER
+     #define LASER_CONTROLLER*/
      const char *pindefName = "UC2_WEMOS";
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_A_DIR = GPIO_NUM_23; // Bridge from Endstop Z to Motor A (GPIO_NUM_23)

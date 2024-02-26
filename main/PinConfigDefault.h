@@ -45,9 +45,7 @@ struct PinConfig
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const char *pindefName = "pindef";
-
-     // by default Focusmotor use fastaccelstepper. if false Accelstepper lib get used
-     bool useFastAccelStepper = true;
+     
      // see AccelStepper.h MotorInterfaceType
      /*
      typedef enum
@@ -142,16 +140,13 @@ struct PinConfig
      const char *PSX_MAC = "";
      int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
-     bool enableScanner = false;
-     bool enableWifi = true;
-
      int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
 
      // WIFI
      const char *mSSID = "Uc2";
-     const char *mPWD = "";
+     const char *mPWD = "12345678";
      bool mAP = true;
      const char *mSSIDAP = "UC2";
      const char *hostname = "youseetoo";

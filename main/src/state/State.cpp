@@ -113,7 +113,9 @@ namespace State
 		cJSON_AddItemToObject(mod, key_analogout, cJSON_CreateNumber((pinConfig.analogout_PIN_1 >= 0 || pinConfig.analogout_PIN_2 >= 0 || pinConfig.analogout_PIN_3 >= 0)));
 		cJSON_AddItemToObject(mod, key_digitalout, cJSON_CreateNumber((pinConfig.DIGITAL_OUT_1 >= 0 || pinConfig.DIGITAL_OUT_2 >= 0 || pinConfig.DIGITAL_OUT_3 >= 0)));
 		cJSON_AddItemToObject(mod, key_digitalin, cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 || pinConfig.DIGITAL_IN_3 >= 0)));
-		cJSON_AddItemToObject(mod, key_scanner, cJSON_CreateNumber(pinConfig.enableScanner));
+#ifdef SCANNER_CONTROLLER
+		cJSON_AddItemToObject(mod, key_scanner, cJSON_CreateNumber(1));
+#endif
 
 		return doc;
 	}

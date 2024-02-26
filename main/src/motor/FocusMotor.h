@@ -49,9 +49,6 @@ namespace FocusMotor
 	static int logcount;
 	static bool power_enable = false;
 
-	void disableEnablePin(int i);
-	void enableEnablePin(int i);
-
 	MotorData ** getData();
 
 

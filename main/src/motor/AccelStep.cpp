@@ -25,6 +25,43 @@ void driveMotorALoop(void *pvParameter)
 namespace AccelStep
 {
 
+    void poweron()
+    {
+        if (!power_enable)
+        {
+            if (pinConfig.I2C_SCL > 0)
+                _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+            else
+            {
+                pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
+                digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+            }
+            power_enable = true;
+            log_i("poweron motors");
+        }
+    }
+
+    void poweroff(bool force)
+    {
+        if ((getData()[Stepper::A]->stopped &&
+             getData()[Stepper::X]->stopped &&
+             getData()[Stepper::Y]->stopped &&
+             getData()[Stepper::Z]->stopped &&
+             power_enable) ||
+            force)
+        {
+            if (pinConfig.I2C_SCL > 0)
+                _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
+            else
+            {
+                pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
+                digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
+            }
+            power_enable = false;
+            log_i("poweroff motors");
+        }
+    }
+
     void setupAccelStepper()
     {
         /*
@@ -58,7 +95,7 @@ namespace AccelStep
             {
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
                 //[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-                //steppers[Stepper::X]->setPinsInverted(false, false, true);
+                // steppers[Stepper::X]->setPinsInverted(false, false, true);
             }
             else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
@@ -118,36 +155,7 @@ namespace AccelStep
                 steppers[i]->setCurrentPosition(getData()[i]->currentPosition);
             }
         }
-    }
-
-    void poweron()
-    {
-        if (!power_enable)
-        {
-            if (pinConfig.I2C_SCL > 0)
-                _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            else
-                steppers[0]->enableOutputs();
-            power_enable = true;
-            log_i("poweron motors");
-        }
-    }
-
-    void poweroff()
-    {
-        if (getData()[Stepper::A]->stopped &&
-            getData()[Stepper::X]->stopped &&
-            getData()[Stepper::Y]->stopped &&
-            getData()[Stepper::Z]->stopped &&
-            power_enable)
-        {
-            if (pinConfig.I2C_SCL > 0)
-                _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            else
-                steppers[0]->disableOutputs();
-            power_enable = false;
-            log_i("poweroff motors");
-        }
+        poweroff(false);
     }
 
     void startAccelStepper(int i)
@@ -256,7 +264,7 @@ namespace AccelStep
             vTaskDelay(1 / portTICK_PERIOD_MS);
         }
         getData()[stepperid]->stopped = true;
-        poweroff();
+        poweroff(false);
         log_i("Stop Task %i", stepperid);
         taskRunning[stepperid] = false;
         vTaskDelete(NULL);
@@ -264,18 +272,12 @@ namespace AccelStep
 
     void Enable(bool en)
     {
-        for (int i = 0; i < steppers.size(); i++)
+        if (en)
         {
-            if (steppers[i] != nullptr)
-            {
-                if (en)
-                {
-                    steppers[i]->enableOutputs();
-                }
-                else
-                    steppers[i]->disableOutputs();
-            }
+            poweron();
         }
+        else
+            poweroff(true);
     }
 
     void updateData(int val)

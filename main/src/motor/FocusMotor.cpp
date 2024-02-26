@@ -419,34 +419,6 @@ namespace FocusMotor
 #endif
 	}
 
-	void disableEnablePin(int i)
-	{
-		/*
-		if (data[Stepper::A]->stopped &&
-			data[Stepper::X]->stopped &&
-			data[Stepper::Y]->stopped &&
-			data[Stepper::Z]->stopped &&
-			power_enable)
-		{
-			pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
-			digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-			power_enable = false;
-		}
-		*/
-	}
-
-	void enableEnablePin(int i)
-	{
-		/*
-		if (!power_enable)
-		{
-			pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
-			digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-			power_enable = true;
-		}
-		*/
-	}
-
 	void setPosition(Stepper s, int pos)
 	{
 #ifdef USE_FASTACCEL

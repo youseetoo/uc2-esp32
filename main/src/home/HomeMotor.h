@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef HOME_MOTOR
 #pragma once
 #include "../motor/FocusMotor.h"
 #include "cJSON.h"
@@ -34,4 +33,3 @@ namespace HomeMotor
 	void loop();
 	void checkAndProcessHome(Stepper s, int digitalin_val);
 };
-#endif

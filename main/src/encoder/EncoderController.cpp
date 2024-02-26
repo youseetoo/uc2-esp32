@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef ENCODER_CONTROLLER
 #include "EncoderController.h"
 #include "FastAccelStepper.h"
 #include "../digitalin/DigitalInController.h"
@@ -286,4 +285,3 @@ namespace EncoderController
 		return result;
 	}
 }
-#endif

@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef PID_CONTROLLER
 #pragma once
 #include "cJSON.h"
 #ifdef FOCUS_MOTOR
@@ -34,4 +33,3 @@ namespace PidController
     int act(cJSON * ob);
     cJSON * get(cJSON * ob);
 };
-#endif

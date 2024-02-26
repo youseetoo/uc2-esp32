@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef BLUETOOTH
 #pragma once
 
 #include "esp_err.h"
@@ -66,4 +65,3 @@ namespace BtController
     
     
 };
-#endif

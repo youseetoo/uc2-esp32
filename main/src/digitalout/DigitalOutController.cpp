@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef DIGITAL_OUT_CONTROLLER
 #include "DigitalOutController.h"
 #include "Arduino.h"
 #include "JsonKeys.h"
@@ -209,4 +208,3 @@ namespace DigitalOutController
 		}
 	}
 }
-#endif

@@ -1,5 +1,5 @@
 #include <PinConfig.h>
-#ifdef WIFI
+
 #include "WifiController.h"
 #include "../../cJsonTool.h"
 #include "JsonKeys.h"
@@ -104,4 +104,3 @@ namespace WifiController
 		httpsServer.start_webserver();
 	}
 }
-#endif

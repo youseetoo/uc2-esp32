@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef FOCUS_MOTOR
 
 #include "AccelStep.h"
 #include "FocusMotor.h"
@@ -291,4 +290,3 @@ namespace AccelStep
         _externalCallForPin = func;
     }
 }
-#endif

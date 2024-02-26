@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef LASER_CONTROLLER
 #include "LaserController.h"
 #include "cJsonTool.h"
 #include "JsonKeys.h"
@@ -159,4 +158,3 @@ namespace LaserController
 			LASER_despeckle(LASER_despeckle_3, 3, LASER_despeckle_period_3);
 	}
 }
-#endif

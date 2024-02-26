@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef DIGITAL_IN_CONTROLLER
 #include "DigitalInController.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
@@ -77,4 +76,3 @@ namespace DigitalInController
 		// log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 	}
 }
-#endif

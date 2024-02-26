@@ -1,5 +1,5 @@
 #include <PinConfig.h>
-#ifdef LED_CONTROLLER
+
 #include "LedController.h"
 #include "cJsonTool.h"
 #include "Arduino.h"
@@ -219,4 +219,3 @@ namespace LedController
 		*/
 	}
 }
-#endif

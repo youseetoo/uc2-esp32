@@ -1,4 +1,3 @@
-#ifdef FOCUS_MOTOR
 #pragma once
 #include "AccelStepper.h"
 #include "MotorTypes.h"
@@ -24,4 +23,3 @@ namespace AccelStep
     void setPosition(Stepper s, int val);
     bool isRunning(int i);
 };
-#endif

@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef DAC_CONTROLLER
 #include "DacController.h"
 #include "Arduino.h"
 #include "JsonKeys.h"
@@ -138,4 +137,3 @@ namespace DacController
 		}
 	}
 }
-#endif

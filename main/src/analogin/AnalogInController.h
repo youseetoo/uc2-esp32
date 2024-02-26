@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef ANALOG_IN_CONTROLLER
 #pragma once
 #include "cJSON.h"
 
@@ -15,5 +14,4 @@ namespace AnalogInController
     int act(cJSON* jsonDocument);
     cJSON* get(cJSON* jsonDocument);
 };
-#endif
 

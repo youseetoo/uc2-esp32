@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef ANALOG_OUT_CONTROLLER
 #include "AnalogOutController.h"
 
 #include "JsonKeys.h"
@@ -110,5 +109,3 @@ namespace AnalogOutController
 		return monitor;
 	}
 }
-
-#endif

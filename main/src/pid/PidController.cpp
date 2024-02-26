@@ -1,5 +1,5 @@
 #include <PinConfig.h>
-#ifdef PID_CONTROLLER
+
 #include "PidController.h"
 #include "cJsonTool.h"
 #include "Arduino.h"
@@ -124,4 +124,3 @@ namespace PidController
 		startMillis = millis();
 	}
 }
-#endif

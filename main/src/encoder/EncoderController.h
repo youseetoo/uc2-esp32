@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef ENCODER_CONTROLLER
 #pragma once
 #include "cJSON.h"
 #include "Arduino.h"
@@ -36,4 +35,3 @@ namespace EncoderController
 	float readValue(int clkPin, int dataPin);
 	float decode(int clkPin, int dataPin);
 };
-#endif

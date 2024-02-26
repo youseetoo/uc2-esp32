@@ -1,6 +1,5 @@
-#include <PinConfig.h>
-#ifdef SCANNER_CONTROLLER
 #pragma once
+#include <PinConfig.h>
 #include "cJSON.h"
 
 
@@ -37,4 +36,3 @@ namespace ScannerController
     void loop();
     void controlGalvoTask(void *parameters);
 };
-#endif

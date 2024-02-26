@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef BTHID
 #include "HidController.h"
 
 
@@ -204,5 +203,4 @@ void hid_demo_task(void *pvParameters)
     ESP_LOGI(TAG, "vtaskdelete hid_demo_task");
     //vTaskDelete(NULL);
 }
-#endif
 

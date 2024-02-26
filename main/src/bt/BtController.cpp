@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef BLUETOOTH
 #include "BtController.h"
 #include <esp_log.h>
 #include "../analogout/AnalogOutController.h"
@@ -540,4 +539,3 @@ namespace BtController
         #endif
     }
 } // namespace name
-#endif

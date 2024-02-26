@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef DIGITAL_OUT_CONTROLLER
 #pragma once
 #include "cJSON.h"
 
@@ -29,4 +28,3 @@ namespace DigitalOutController
     void setup();
     void loop();
 };
-#endif

@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef DAC_CONTROLLER
 #pragma once
 #include "cJSON.h"
 #include "DAC_Module.h"
@@ -28,4 +27,3 @@ namespace DacController
     int act(cJSON* jsonDocument);
     void drive_galvo(void *parameter);
 };
-#endif

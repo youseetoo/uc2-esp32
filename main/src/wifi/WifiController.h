@@ -1,5 +1,4 @@
-#include <PinConfig.h>
-#ifdef WIFI
+
 #pragma once
 
 #include "cJSON.h"
@@ -27,4 +26,3 @@ namespace WifiController
     cJSON * connect(cJSON * doc);
     cJSON * scan();
 };
-#endif

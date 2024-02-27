@@ -154,7 +154,7 @@ namespace AccelStep
                 steppers[i]->setCurrentPosition(getData()[i]->currentPosition);
             }
         }
-        poweroff(false);
+        poweroff(true);
     }
 
     void startAccelStepper(int i)
@@ -199,18 +199,18 @@ namespace AccelStep
         getData()[i]->stopped = false;
 
         if (i == 0 && !taskRunning[i])
-            xTaskCreate(&driveMotorALoop, "motor_task_A", 2024, NULL, 5, NULL);
+            xTaskCreate(&driveMotorALoop, "motor_task_A", 2024, NULL, 1, NULL);
         if (i == 1 && !taskRunning[i])
         {
-            xTaskCreate(&driveMotorXLoop, "motor_task_X", 2024, NULL, 5, NULL);
+            xTaskCreate(&driveMotorXLoop, "motor_task_X", 2024, NULL, 1, NULL);
             log_i("started x task");
         }
         // else
         //     log_i("x wont start");
         if (i == 2 && !taskRunning[i])
-            xTaskCreate(&driveMotorYLoop, "motor_task_Y", 2024, NULL, 5, NULL);
+            xTaskCreate(&driveMotorYLoop, "motor_task_Y", 2024, NULL, 1, NULL);
         if (i == 3 && !taskRunning[i])
-            xTaskCreate(&driveMotorZLoop, "motor_task_Z", 2024, NULL, 5, NULL);
+            xTaskCreate(&driveMotorZLoop, "motor_task_Z", 2024, NULL, 1, NULL);
     }
 
     void stopAccelStepper(int i)
@@ -234,10 +234,11 @@ namespace AccelStep
         taskRunning[stepperid] = true;
         poweron();
         AccelStepper *s = steppers[stepperid];
+        s->setMaxSpeed(getData()[stepperid]->maxspeed);
         log_i("Start Task %i", stepperid);
         while (!getData()[stepperid]->stopped)
         {
-            s->setMaxSpeed(getData()[stepperid]->maxspeed);
+            
             if (getData()[stepperid]->isforever)
             {
                 s->setSpeed(getData()[stepperid]->speed);
@@ -259,8 +260,6 @@ namespace AccelStep
                 }
             }
             getData()[stepperid]->currentPosition = s->currentPosition();
-
-            vTaskDelay(1 / portTICK_PERIOD_MS);
         }
         getData()[stepperid]->stopped = true;
         poweroff(false);

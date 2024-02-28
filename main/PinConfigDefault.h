@@ -44,6 +44,8 @@ struct PinConfig
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
+     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4*1024;
+     
      const char *pindefName = "pindef";
      
      // see AccelStepper.h MotorInterfaceType

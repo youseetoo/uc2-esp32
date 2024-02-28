@@ -29,6 +29,7 @@ struct MotorData
 	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
 	//and its needed to show only true initialized motors inside webui and android app.
 	bool isActivated = 0;
+	bool endstop_hit = false;
 };
 
 

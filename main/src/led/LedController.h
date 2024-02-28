@@ -63,7 +63,7 @@ namespace LedController
     void set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
     void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
 
-    static bool TurnedOn();
+    bool TurnedOn();
     void setup();
     /*
     {

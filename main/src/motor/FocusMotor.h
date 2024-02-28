@@ -1,5 +1,4 @@
 #include <PinConfig.h>
-#ifdef FOCUS_MOTOR
 #pragma once
 #include "cJsonTool.h"
 #include "Arduino.h"
@@ -40,19 +39,9 @@ namespace FocusMotor
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
-	#ifdef USE_TCA9535
-	static TCA9535_Register outRegister;
-	void dumpRegister(const char * name, TCA9535_Register configRegister);
-	void init_tca();
-	#endif
 	
 	static int logcount;
 	static bool power_enable = false;
 
 	MotorData ** getData();
-
-
-	
-	
 };
-#endif

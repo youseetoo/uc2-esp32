@@ -92,6 +92,7 @@ if(WIFI EQUAL 1)
 endif()
 if(USE_TCA9535 EQUAL 1)
     list(APPEND srcs ${mainsrc}src/i2c/tca9535.cpp)
+    list(APPEND srcs ${mainsrc}src/i2c/tca_controller.cpp)
 endif()
 
 idf_component_register(SRCS ${srcs})

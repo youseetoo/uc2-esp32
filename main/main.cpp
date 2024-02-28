@@ -51,6 +51,9 @@
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
+#ifdef USE_TCA9535
+#include "src/i2c/tca_controller.h"
+#endif
 
 
 #define BAUDRATE 115200
@@ -62,30 +65,23 @@ extern "C" void looper(void *p)
 	{
 		// receive and process serial messages
 		serial.loop();
-		vTaskDelay(1);
 #ifdef ENCODER_CONTROLLER
 		EncoderController::loop();
-		vTaskDelay(1);
 #endif
 #ifdef HOME_MOTOR
 		HomeMotor::loop();
-		vTaskDelay(1);
 #endif
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
-		vTaskDelay(1);
 #endif
 #ifdef FOCUS_MOTOR
 		FocusMotor::loop();
-		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
 		PidController::loop();
-		vTaskDelay(1);
 #endif
 #ifdef SCANNER_CONTROLLER
 		ScannerController::loop();
-		vTaskDelay(1);
 #endif
 
 
@@ -104,6 +100,9 @@ extern "C" void looper(void *p)
 extern "C" void setupApp(void)
 {
 
+#ifdef USE_TCA9535
+	tca_controller::init_tca();
+#endif
 #ifdef FOCUS_MOTOR
 	FocusMotor::setup();
 #endif

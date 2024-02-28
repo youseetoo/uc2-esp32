@@ -1,4 +1,4 @@
-#include <PinConfig.h>
+#include "PinConfig.h"
 #include "BtController.h"
 #include <esp_log.h>
 #include "../analogout/AnalogOutController.h"
@@ -58,7 +58,7 @@ namespace BtController
         #ifdef BTHID
             setupHidController();
         #endif
-        // xTaskCreate(&btControllerLoop, "btController_task", 4092, NULL, 5, NULL);
+        xTaskCreate(&btControllerLoop, "btController_task", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, 5, NULL);
     }
 
 #ifdef PSXCONTROLLER

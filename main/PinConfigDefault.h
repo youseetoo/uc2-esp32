@@ -40,11 +40,16 @@ const int8_t disabled = -1;
 struct PinConfig
 {
      const bool dumpHeap = false;
+     const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4*1024;
+     const uint16_t MOTOR_TASK_STACKSIZE = 2024;
+     const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 8096;
+     const uint16_t TCA_TASK_STACKSIZE = 2024;
+     const uint16_t SCANNER_TASK_STACKSIZE = 10000;
      
      const char *pindefName = "pindef";
      

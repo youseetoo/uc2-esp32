@@ -248,7 +248,7 @@ namespace ScannerController
 		log_d("Setup ScannerController");
 		loop(); // run not as a task
 		disableCore0WDT();
-		xTaskCreate(controlGalvoTask, "controlGalvoTask", 10000, NULL, 1, NULL);
+		xTaskCreate(controlGalvoTask, "controlGalvoTask", pinConfig.SCANNER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 	}
 
 	void controlGalvoTask(void *parameter)

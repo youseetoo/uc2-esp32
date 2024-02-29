@@ -2,6 +2,7 @@
 
 #include "AccelStep.h"
 #include "FocusMotor.h"
+#include "esp_task_wdt.h"
 using namespace FocusMotor;
 
 void driveMotorXLoop(void *pvParameter)
@@ -199,18 +200,18 @@ namespace AccelStep
         getData()[i]->stopped = false;
 
         if (i == 0 && !taskRunning[i])
-            xTaskCreate(&driveMotorALoop, "motor_task_A", 2024, NULL, 1, NULL);
+            xTaskCreate(&driveMotorALoop, "motor_task_A", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
         if (i == 1 && !taskRunning[i])
         {
-            xTaskCreate(&driveMotorXLoop, "motor_task_X", 2024, NULL, 1, NULL);
+            xTaskCreate(&driveMotorXLoop, "motor_task_X", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
             log_i("started x task");
         }
         // else
         //     log_i("x wont start");
         if (i == 2 && !taskRunning[i])
-            xTaskCreate(&driveMotorYLoop, "motor_task_Y", 2024, NULL, 1, NULL);
+            xTaskCreate(&driveMotorYLoop, "motor_task_Y", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
         if (i == 3 && !taskRunning[i])
-            xTaskCreate(&driveMotorZLoop, "motor_task_Z", 2024, NULL, 1, NULL);
+            xTaskCreate(&driveMotorZLoop, "motor_task_Z", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
     }
 
     void stopAccelStepper(int i)
@@ -238,7 +239,12 @@ namespace AccelStep
         log_i("Start Task %i", stepperid);
         while (!getData()[stepperid]->stopped)
         {
-            
+            if (getData()[stepperid]->endstop_hit)
+            {
+                getData()[stepperid]->stopped = true;
+                getData()[stepperid]->isforever = false;
+                break;
+            }
             if (getData()[stepperid]->isforever)
             {
                 s->setSpeed(getData()[stepperid]->speed);

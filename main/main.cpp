@@ -67,23 +67,29 @@ extern "C" void looper(void *p)
 		serial.loop();
 #ifdef ENCODER_CONTROLLER
 		EncoderController::loop();
+		vTaskDelay(1);
 #endif
 #ifdef HOME_MOTOR
 		HomeMotor::loop();
+		vTaskDelay(1);
 #endif
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
+		vTaskDelay(1);
 #endif
 #ifdef FOCUS_MOTOR
 		FocusMotor::loop();
+		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
 		PidController::loop();
+		vTaskDelay(1);
 #endif
 #ifdef SCANNER_CONTROLLER
 		ScannerController::loop();
+		vTaskDelay(1);
 #endif
-
+		
 
 		// process all commands in their modules
 
@@ -170,6 +176,6 @@ extern "C" void app_main(void)
 	setupApp();
 
 	log_i("End setup");
-	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, 5, NULL, 1);
+	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
 }

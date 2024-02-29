@@ -12,6 +12,7 @@
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
 #endif
+#include "esp_task_wdt.h"
 
 extern const char index_start[] asm("_binary_index_html_start");
 extern const char index_end[] asm("_binary_index_html_end");
@@ -36,6 +37,7 @@ const int max_char_length = 512;
 
 void processWebsocketMSG(void *pvParameters)
 {
+    esp_task_wdt_delete(NULL);
     char t[max_char_length];
     for(;;)
     {
@@ -249,7 +251,7 @@ void EspHttpsServer::start_webserver()
         websocketMSGQueue = xQueueCreate(2, sizeof(char[max_char_length]));
 
     if (xHandle == nullptr)
-        xTaskCreate(processWebsocketMSG, "sendsocketmsg", 4 * 1024, NULL, 1, &xHandle);
+        xTaskCreate(processWebsocketMSG, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
     // Start the httpd server
     log_i("Starting server");
     httpd_ssl_config_t conf = HTTPD_SSL_CONFIG_DEFAULT();

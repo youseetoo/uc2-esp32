@@ -5,9 +5,9 @@
 
 namespace tca_controller
 {
-    #define PIN_EXTERNAL_FLAG 128
-    TCA9535_Register outRegister;
-    bool setExternalPin(uint8_t pin, uint8_t value)
+#define PIN_EXTERNAL_FLAG 128
+	TCA9535_Register outRegister;
+	bool setExternalPin(uint8_t pin, uint8_t value)
 	{
 		// This example returns the previous value of the output.
 		// Consequently, FastAccelStepper needs to call setExternalPin twice
@@ -56,15 +56,16 @@ namespace tca_controller
 			  configRegister.Port.P1.bit.Bit7);*/
 	}
 
-	void tca_read_endstopTask(void * p)
+	void tca_read_endstopTask(void *p)
 	{
 		TCA9535_Register inputFromTcaRegister;
-		for(;;)
+		for (;;)
 		{
 			TCA9535ReadInput(&inputFromTcaRegister);
-			FocusMotor::getData()[1]->endstop_hit = inputFromTcaRegister.Port.P0.bit.Bit5;
-			FocusMotor::getData()[2]->endstop_hit = inputFromTcaRegister.Port.P0.bit.Bit6;
-			FocusMotor::getData()[3]->endstop_hit = inputFromTcaRegister.Port.P0.bit.Bit7;
+			FocusMotor::getData()[Stepper::X]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit5;
+			FocusMotor::getData()[Stepper::Y]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit6;
+			FocusMotor::getData()[Stepper::Z]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit7;
+			vTaskDelay(1);
 		}
 	}
 
@@ -108,7 +109,7 @@ namespace tca_controller
 
 		TCA9535ReadConfig(&configRegister);
 		dumpRegister("Config", configRegister);
-		xTaskCreate(&tca_read_endstopTask, "tca_read_endstopTask", 2024, NULL, 1, NULL);
+		xTaskCreate(&tca_read_endstopTask, "tca_read_endstopTask", pinConfig.TCA_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 	}
 #endif
 } // namespace tca_controller

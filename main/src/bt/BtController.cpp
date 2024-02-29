@@ -58,7 +58,7 @@ namespace BtController
         #ifdef BTHID
             setupHidController();
         #endif
-        xTaskCreate(&btControllerLoop, "btController_task", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, 5, NULL);
+        xTaskCreate(&btControllerLoop, "btController_task", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
     }
 
 #ifdef PSXCONTROLLER

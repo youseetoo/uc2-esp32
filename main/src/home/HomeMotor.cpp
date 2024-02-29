@@ -44,15 +44,15 @@ int HomeMotor::act(cJSON * j)
 				// trigger go home by starting the motor in the right direction
 				FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
 				motor->data[s]->isforever = true;
-				motor->data[s]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
-				motor->data[s]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
+				motor->data[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
+				motor->data[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
 				motor->startStepper(s);
 				if (s==Stepper::Z and pinConfig.isDualAxisZ){
 					// we may have a dual axis so we would need to start A too
 					log_i("Starting A too");
 					motor->data[Stepper::A]->isforever = true;
-					motor->data[Stepper::A]->speed = hdata[s]->homeDirection * hdata[s]->homeSpeed;
-					motor->data[Stepper::A]->maxspeed = hdata[s]->homeDirection * hdata[s]->homeMaxspeed;
+					motor->data[Stepper::A]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
+					motor->data[Stepper::A]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
 					motor->startStepper(Stepper::A);
 				}
 				// now we will go into loop and need to stop once the button is hit or timeout is reached
@@ -118,23 +118,34 @@ void HomeMotor::sendHomeDone(int axis)
 	Serial.println("--");
 }
 
-
+//{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":0, "endstoppolarity":1}]}}
 void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *motor)
 {
+	
+	// if we hit the endstop, reverse direction 
 	if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity-digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) 
 		&& !hdata[s]->homeInEndposReleaseMode)
 		{
 			// reverse direction to release endstops
 			log_i("Home Motor %i hit endstop, reversing direction",s);
-			motor->data[s]->speed = -motor->data[s]->speed;
+			log_i("Speed was %i and is %i",motor->data[s]->speed, -(motor->data[s]->speed));
+			motor->stopStepper(s);
+			delay(500);
+			int mSpeed = motor->data[s]->speed;
+			motor->data[s]->speed = -(motor->data[s]->speed);
+			motor->data[s]->isforever = true;
 			motor->startStepper(s);
 			if(s==Stepper::Z and pinConfig.isDualAxisZ){
 				// we may have a dual axis so we would need to start A too
+				motor->stopStepper(Stepper::A);
+				delay(500);
+				motor->data[Stepper::A]->isforever = true;
 				motor->data[Stepper::A]->speed = -motor->data[Stepper::A]->speed;
 				motor->startStepper(Stepper::A);
 			}
 			hdata[s]->homeInEndposReleaseMode = true;
 		}
+	// if we are in endpos release mode and the endstop is released, stop the motor - or if timeout is reached
 	else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode && 
 		(!abs(hdata[s]->homeEndStopPolarity-digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())){
 			log_i("Home Motor %i lef endstop, stopping",s);

@@ -48,6 +48,7 @@ void triggerOutput(int outputPin, int state = -1)
 	}
 }
 
+// {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nStepsPixel": 100, "dStepsPixel": 2, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}}
 void stageScan(bool isThread = false)
 {
 	FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
@@ -90,11 +91,15 @@ void stageScan(bool isThread = false)
 		// Set pins high simultaenously at frame start
 		uint32_t mask = (1 << pinConfig.DIGITAL_OUT_1) | (1 << pinConfig.DIGITAL_OUT_2) | (1 << pinConfig.DIGITAL_OUT_3);
 		GPIO.out_w1ts = mask; // all high
-		
+		bool directionY = 0;
 		for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
 		{
-			// pulses the line trigger (or switch off in the first round)
-			triggerOutput(pinTrigLine);
+			// for every line all high
+			if (iLine > 0)
+			{
+				mask = (1 << pinConfig.DIGITAL_OUT_1) | (1 << pinConfig.DIGITAL_OUT_2);
+				GPIO.out_w1ts = mask; // all high
+			}
 
 			for (iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
 			{
@@ -103,23 +108,28 @@ void stageScan(bool isThread = false)
 				{
 					break;
 				}
+
 				// pulses the pixel trigger (or switch off in the first round)
-				triggerOutput(pinTrigPixel);
+				mask = (1 << pinConfig.DIGITAL_OUT_1);
+				GPIO.out_w1ts = mask; // all high
 
 				// Move X motor forward at even steps, backward at odd steps
 				// bool directionX = iLine % 2 == 0;
 				moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
 				// stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
+
+				// all low
+				mask = (1 << pinConfig.DIGITAL_OUT_1) | (1 << pinConfig.DIGITAL_OUT_2) | (1 << pinConfig.DIGITAL_OUT_3);
+				GPIO.out_w1tc = mask; // all low
 			}
-		
 
-		// move back x stepper by step counter
-		moveMotor(pinStpPixel, pinDirPixel, iPixel, !directionX, (2 + delayTimeStep) * 10);
+			// move back x stepper by step counter
+			moveMotor(pinStpPixel, pinDirPixel, iPixel, !directionX, (2 + delayTimeStep) * 10);
 
-		// Move Y motor after each line
-		bool directionY = 0;
-		moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
-		}		
+			// Move Y motor after each line
+			moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
+			stepCounterLine += (dStepsLine * (directionY ? 1 : -1));
+		}
 
 		// Reset Position and move back to origin
 		/*
@@ -127,12 +137,15 @@ void stageScan(bool isThread = false)
 		motor->data[Stepper::Y]->currentPosition += stepCounterLine;
 		moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
 		*/
-		triggerOutput(pinTrigFrame, 0);
-		
-		moveMotor(pinStpLine, pinDirLine, nStepsLine, stepCounterLine > 0, (2 + delayTimeStep) * 10);
+		// triggerOutput(pinTrigFrame, 0);
+
+		moveMotor(pinStpLine, pinDirLine, nStepsLine, !directionY, (2 + delayTimeStep) * 10);
 		motor->data[Stepper::X]->currentPosition -= stepCounterPixel;
 		motor->data[Stepper::Y]->currentPosition -= stepCounterLine;
 		ets_delay_us(10000); // Adjust delay for speed
+
+		// print frame number as json
+		Serial.println("{\"frame\": " + String(iFrame) + "}");
 	}
 
 	if (isThread)
@@ -140,13 +153,8 @@ void stageScan(bool isThread = false)
 }
 
 void stageScanThread(void *arg)
-//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 5, "stopped": 0, "nFrames": 3000}}}
-{ // {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-	// {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-	// {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
-	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
-	stageScan(true);
+//{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nStepsPixel": 100, "dStepsPixel": 2, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}}
+{ 	stageScan(true);
 }
 
 void sendUpdateToClients(void *p)

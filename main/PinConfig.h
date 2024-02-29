@@ -647,7 +647,7 @@ struct UC2_3 : PinConfig
      int8_t LASER_0 = disabled; //GPIO_NUM_26;
 
      // dual axis Z
-     bool isDualAxisZ = true;
+     bool isDualAxisZ = false;
 
 
 };
@@ -817,8 +817,8 @@ struct UC2_LineFrameTrigger : PinConfig
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
-     bool enableBlueTooth = false;
-     bool useBtHID = false;
+     bool enableBlueTooth = true;
+     bool useBtHID = true;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 255;
@@ -856,4 +856,4 @@ struct UC2_LineFrameTrigger : PinConfig
 
      
 
-const UC2_LineFrameTrigger pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;
+const UC2_3 pinConfig; // UC2_3 UC2_LineFrameTrigger UC2_1 pinConfig; //_WEMOS pinConfig; //_2 pinConfig; //_2 pinConfig; OMNISCOPE;

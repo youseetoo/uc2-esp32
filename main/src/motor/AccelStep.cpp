@@ -64,7 +64,7 @@ void AccelStep::setupAccelStepper()
             steppers[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
             steppers[Stepper::X]->setPinsInverted(false, false, true);
         }
-        if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+        else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
         {
             steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
         }

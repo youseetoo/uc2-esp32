@@ -24,7 +24,7 @@ extern "C" void looper(void *p)
 		if (pinConfig.dumpHeap && lastHeapUpdateTime +pinConfig.dumpHeapUpdatePeriod < esp_timer_get_time())
 		{
 			/* code */
-			log_i("free heap:%d", ESP.getFreeHeap());
+			//log_i("free heap:%d", ESP.getFreeHeap());
 			//Serial2.println("free heap"+String(ESP.getFreeHeap()));
 			lastHeapUpdateTime = esp_timer_get_time();
 		}

@@ -57,7 +57,7 @@
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -1000, "speed": -100}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 1000, "speed": 100}]}}
 //absolute
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 1000, "speed": 100,"isabs": 1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 10000, "speed": 10000,"isabs": 1}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": 100,"isabs": 1}]}}
 
 

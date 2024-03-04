@@ -69,6 +69,7 @@ namespace FocusMotor
 				free(s);
 				Serial.println("--");
 			}
+			cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
 	}

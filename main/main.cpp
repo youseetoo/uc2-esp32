@@ -45,9 +45,9 @@
 #ifdef SCANNER_CONTROLLER
 #include "src/scanner/ScannerController.h"
 #endif
-#ifdef HOME_MOTOR
+/*#ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
-#endif
+#endif*/
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
@@ -64,15 +64,15 @@ extern "C" void looper(void *p)
 	for (;;)
 	{
 		// receive and process serial messages
-		serial.loop();
+		SerialProcess::loop();
 #ifdef ENCODER_CONTROLLER
 		EncoderController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef HOME_MOTOR
+/*#ifdef HOME_MOTOR
 		HomeMotor::loop();
 		vTaskDelay(1);
-#endif
+#endif*/
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
 		vTaskDelay(1);
@@ -106,6 +106,7 @@ extern "C" void looper(void *p)
 extern "C" void setupApp(void)
 {
 
+SerialProcess::setup();
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
@@ -136,9 +137,9 @@ extern "C" void setupApp(void)
 #ifdef ENCODER_CONTROLLER
 	EncoderController::setup();
 #endif
-#ifdef HOME_MOTOR
+/*#ifdef HOME_MOTOR
 	HomeMotor::setup();
-#endif
+#endif*/
 #ifdef LASER_CONTROLLER
 	LaserController::setup();
 #endif

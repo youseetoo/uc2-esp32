@@ -239,12 +239,7 @@ namespace AccelStep
         log_i("Start Task %i", stepperid);
         while (!getData()[stepperid]->stopped)
         {
-            if (getData()[stepperid]->endstop_hit)
-            {
-                getData()[stepperid]->stopped = true;
-                getData()[stepperid]->isforever = false;
-                break;
-            }
+            
             if (getData()[stepperid]->isforever)
             {
                 s->setSpeed(getData()[stepperid]->speed);

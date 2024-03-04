@@ -42,13 +42,13 @@ struct PinConfig
      const bool dumpHeap = false;
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
-     const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2024;
+     const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2048;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4*1024;
-     const uint16_t MOTOR_TASK_STACKSIZE = 2024;
+     const uint16_t MOTOR_TASK_STACKSIZE = 4*1024;
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 8096;
-     const uint16_t TCA_TASK_STACKSIZE = 2024;
+     const uint16_t TCA_TASK_STACKSIZE = 2048;
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
      
      const char *pindefName = "pindef";
@@ -89,6 +89,16 @@ struct PinConfig
      bool MOTOR_ENABLE_INVERTED = false;
      // keep motors on after idle time?
      bool MOTOR_AUTOENABLE = false;
+
+     int8_t HOME_X_DIR = -1;
+     int8_t HOME_Y_DIR = -1;
+     int8_t HOME_Z_DIR = -1;
+     int HOME_X_SPEED = 3000;
+     int HOME_Y_SPEED = 3000;
+     int HOME_Z_SPEED = 3000;
+     bool HOME_X_SIG_INVERTED = false;
+     bool HOME_Y_SIG_INVERTED = false;
+     bool HOME_Z_SIG_INVERTED = false;
 
      gpio_num_t  I2C_INT = GPIO_NUM_NC;
      int8_t MOTOR_X_0 = disabled;

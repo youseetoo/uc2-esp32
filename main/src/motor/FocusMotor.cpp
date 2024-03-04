@@ -12,6 +12,9 @@
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
 #endif
+#ifdef HOME_MOTOR
+#include "HomeDrive.h"
+#endif
 
 namespace FocusMotor
 {
@@ -20,13 +23,12 @@ namespace FocusMotor
 	MotorData x_dat;
 	MotorData y_dat;
 	MotorData z_dat;
-	MotorData * data[4];
+	MotorData *data[4];
 
-	MotorData ** getData()
+	MotorData **getData()
 	{
 		return data;
 	}
-	
 
 	void sendUpdateToClients(void *p)
 	{
@@ -46,7 +48,7 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
-		//log_i("start stepper %i", i);
+		// log_i("start stepper %i", i);
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
 #endif
@@ -55,52 +57,8 @@ namespace FocusMotor
 #endif
 	}
 
-	int act(cJSON *doc)
+	void parseMotorDriveJson(cJSON *doc)
 	{
-		//log_i("motor act");
-
-		// only enable/disable motors
-		// {"task":"/motor_act", "isen":1, "isenauto":1}
-		cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
-		if (isen != NULL)
-		{
-#ifdef USE_FASTACCEL
-			FAccelStep::Enable(isen->valueint);
-#endif
-#ifdef USE_ACCELSTEP
-			AccelStep::Enable(isen->valueint);
-#endif
-		}
-
-		// only set motors to autoenable
-		cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
-#ifdef USE_FASTACCEL
-		if (autoen != NULL)
-		{
-			FAccelStep::setAutoEnable(autoen->valueint);
-		}
-#endif
-		// set position
-		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
-		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
-
-		if (setpos != NULL)
-		{
-			log_d("setpos");
-			cJSON *stprs = cJSON_GetObjectItem(setpos, key_steppers);
-			if (stprs != NULL)
-			{
-				cJSON *stp = NULL;
-				cJSON_ArrayForEach(stp, stprs)
-				{
-					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-					setPosition(s, cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
-					log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
-				}
-			}
-			return 1; // motor will return pos per socket or serial inside loop. act is fire and forget
-		}
-
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
 		{
@@ -139,6 +97,91 @@ namespace FocusMotor
 		}
 		else
 			log_i("Motor json is null");
+	}
+
+	bool parseSetPosition(cJSON *doc)
+	{
+		// set position
+		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+
+		if (setpos != NULL)
+		{
+			log_d("setpos");
+			cJSON *stprs = cJSON_GetObjectItem(setpos, key_steppers);
+			if (stprs != NULL)
+			{
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					setPosition(s, cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
+					log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
+				}
+			}
+			return true; // motor will return pos per socket or serial inside loop. act is fire and forget
+		}
+		return false;
+	}
+
+	void parseEnableMotor(cJSON *doc)
+	{
+		cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
+		if (isen != NULL)
+		{
+#ifdef USE_FASTACCEL
+			FAccelStep::Enable(isen->valueint);
+#endif
+#ifdef USE_ACCELSTEP
+			AccelStep::Enable(isen->valueint);
+#endif
+		}
+	}
+
+	void parseAutoEnableMotor(cJSON *doc)
+	{
+		cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
+#ifdef USE_FASTACCEL
+		if (autoen != NULL)
+		{
+			FAccelStep::setAutoEnable(autoen->valueint);
+		}
+#endif
+	}
+
+#ifdef HOME_MOTOR
+	void parseHome(cJSON *doc)
+	{
+		cJSON *home = cJSON_GetObjectItemCaseSensitive(doc, "home");
+		if (home != NULL)
+		{
+			cJSON *t;
+			cJSON_ArrayForEach(t, home)
+			{
+				log_i("Drive home:%s", t);
+				Stepper s = static_cast<Stepper>(t->valueint);
+				HomeDrive::driveHome(s);
+			}
+		}
+	}
+#endif
+
+	int act(cJSON *doc)
+	{
+		// log_i("motor act");
+
+		// only enable/disable motors
+		// {"task":"/motor_act", "isen":1, "isenauto":1}
+		//{"task":"/motor_act","home":[1,2]}
+		parseEnableMotor(doc);
+		// only set motors to autoenable
+		parseAutoEnableMotor(doc);
+		if (parseSetPosition(doc))
+			return 1;
+		parseMotorDriveJson(doc);
+#ifdef HOME_MOTOR
+		parseHome(doc);
+#endif
 		return 1;
 	}
 
@@ -202,15 +245,15 @@ namespace FocusMotor
 		data[Stepper::X] = &x_dat;
 		data[Stepper::Y] = &y_dat;
 		data[Stepper::Z] = &z_dat;
-		if(data[Stepper::A] == nullptr)
+		if (data[Stepper::A] == nullptr)
 			log_e("Stepper A data NULL");
-		if(data[Stepper::X] == nullptr)
+		if (data[Stepper::X] == nullptr)
 			log_e("Stepper X data NULL");
-		if(data[Stepper::Y] == nullptr)
+		if (data[Stepper::Y] == nullptr)
 			log_e("Stepper Y data NULL");
-		if(data[Stepper::Z] == nullptr)
+		if (data[Stepper::Z] == nullptr)
 			log_e("Stepper Z data NULL");
-		
+
 		log_i("Setting Up Motor A,X,Y,Z");
 		preferences.begin("motor-positions", false);
 		if (pinConfig.MOTOR_A_DIR > 0)
@@ -333,4 +376,3 @@ namespace FocusMotor
 #endif
 	}
 }
-

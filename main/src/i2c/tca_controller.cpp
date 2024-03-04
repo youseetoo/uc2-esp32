@@ -65,7 +65,7 @@ namespace tca_controller
 			FocusMotor::getData()[Stepper::X]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit5;
 			FocusMotor::getData()[Stepper::Y]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit6;
 			FocusMotor::getData()[Stepper::Z]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit7;
-			vTaskDelay(1);
+			vTaskDelay(2);
 		}
 	}
 

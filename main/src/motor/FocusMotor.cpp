@@ -30,21 +30,49 @@ namespace FocusMotor
 		return data;
 	}
 
+#ifdef WIFI
 	void sendUpdateToClients(void *p)
 	{
 		for (;;)
 		{
-			int arraypos = 0;
+			cJSON *root = cJSON_CreateObject();
+			cJSON *stprs = cJSON_CreateArray();
+			cJSON_AddItemToObject(root, key_steppers, stprs);
+			int added = 0;
 			for (int i = 0; i < 4; i++)
 			{
 				if (!data[i]->stopped)
 				{
-					sendMotorPos(i, arraypos);
+#ifdef USE_FASTACCEL
+					FAccelStep::updateData(i);
+#endif
+#ifdef USE_ACCELSTEP
+					AccelStep::updateData(i);
+#endif
+					cJSON *item = cJSON_CreateObject();
+					cJSON_AddItemToArray(stprs, item);
+					cJSON_AddNumberToObject(item, key_stepperid, i);
+					cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
+					cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+					added++;
 				}
+			}
+			if (added > 0)
+			{
+#ifdef WIFI
+				WifiController::sendJsonWebSocketMsg(root);
+#endif
+				// print result - will that work in the case of an xTask?
+				Serial.println("++");
+				char *s = cJSON_Print(root);
+				Serial.println(s);
+				free(s);
+				Serial.println("--");
 			}
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
 	}
+#endif
 
 	void startStepper(int i)
 	{
@@ -285,8 +313,10 @@ namespace FocusMotor
 
 		AccelStep::setupAccelStepper();
 #endif
+#ifdef WIFI
 		log_i("Creating Task sendUpdateToClients");
-		// xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
+		xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+#endif
 	}
 
 	// dont use it, it get no longer triggered from modulehandler

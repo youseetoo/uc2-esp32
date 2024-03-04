@@ -55,8 +55,8 @@ namespace WifiController
 	{
 		// log_i("socket broadcast");
 		char *s = cJSON_Print(doc);
-		httpsServer.sendText(s);
-		free(s);
+		if(s != nullptr && strlen(s) > 0)
+			httpsServer.sendText(s);
 	}
 
 	void setWifiConfig(char *SSID, char *PWD, bool ap)

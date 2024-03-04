@@ -47,6 +47,7 @@ struct PinConfig
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4*1024;
      const uint16_t MOTOR_TASK_STACKSIZE = 4*1024;
+     const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 6*1024;
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 8096;
      const uint16_t TCA_TASK_STACKSIZE = 2048;
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;

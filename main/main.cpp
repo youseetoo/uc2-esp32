@@ -57,7 +57,10 @@
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-
+#ifdef HEAT_CONTROLLER
+#include "src/heat/DS18b20Controller.h"
+#include "src/heat/HeatController.h"
+#endif
 
 long lastHeapUpdateTime;
 
@@ -95,7 +98,12 @@ extern "C" void looper(void *p)
 		ScannerController::loop();
 		vTaskDelay(1);
 #endif
-		
+#ifdef HEAT_CONTROLLER
+		DS18b20Controller::loop();
+		vTaskDelay(1);
+		HeatController::loop();
+		vTaskDelay(1);
+#endif
 
 		// process all commands in their modules
 
@@ -103,7 +111,7 @@ extern "C" void looper(void *p)
 		{
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
-			//Serial2.println("free heap"+String(ESP.getFreeHeap()));
+			// Serial2.println("free heap"+String(ESP.getFreeHeap()));
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 	}
@@ -113,7 +121,7 @@ extern "C" void looper(void *p)
 extern "C" void setupApp(void)
 {
 
-SerialProcess::setup();
+	SerialProcess::setup();
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
@@ -166,18 +174,22 @@ SerialProcess::setup();
 #ifdef WIFI
 	WifiController::setup();
 #endif
+#ifdef HEAT_CONTROLLER
+	DS18b20Controller::setup();
+	HeatController::setup();
+#endif
 }
 
 extern "C" void app_main(void)
-{	
+{
 	// adjust logging programmatically
-	//esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
+	// esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);
 	Serial.setTimeout(50);
 
-	// Start Serial 2 
+	// Start Serial 2
 	/*
 	Serial2.begin(BAUDRATE, SERIAL_8N1, pinConfig.SERIAL2_RX, pinConfig.SERIAL2_TX);
 	Serial2.setTimeout(50);

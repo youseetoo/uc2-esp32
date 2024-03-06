@@ -423,6 +423,28 @@ void EspHttpsServer::start_webserver()
         .handler = RestApi::led_getESP};
     httpd_register_uri_handler(server, &led_get);
 #endif
+#ifdef HEAT_CONTROLLER
+    httpd_uri_t heat_act = {
+        .uri = heat_act_endpoint,
+        .method = HTTP_POST,
+        .handler = RestApi::Heat_setESP};
+    httpd_register_uri_handler(server, &heat_act);
+    httpd_uri_t heat_get = {
+        .uri = heat_get_endpoint,
+        .method = HTTP_GET,
+        .handler = RestApi::Heat_getESP};
+    httpd_register_uri_handler(server, &heat_get);
+    httpd_uri_t dsb_act = {
+        .uri = ds18b20_act_endpoint,
+        .method = HTTP_POST,
+        .handler = RestApi::DS18B20_actESP};
+    httpd_register_uri_handler(server, &dsb_act);
+    httpd_uri_t dsb_get = {
+        .uri = ds18b20_get_endpoint,
+        .method = HTTP_GET,
+        .handler = RestApi::DS18B20_getESP};
+    httpd_register_uri_handler(server, &dsb_get);
+#endif
 
 #ifdef WIFI
     httpd_uri_t wifi_get = {

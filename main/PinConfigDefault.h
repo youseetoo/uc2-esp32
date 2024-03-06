@@ -50,6 +50,7 @@ struct PinConfig
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 8096;
      const uint16_t TCA_TASK_STACKSIZE = 2048;
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
+     const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; //8096;
      const unsigned long BAUDRATE = 115200;
 
      const char *pindefName = "pindef";
@@ -124,6 +125,7 @@ struct PinConfig
      int8_t LASER_1 = disabled;
      int8_t LASER_2 = disabled;
      int8_t LASER_3 = disabled; // GPIO_NUM_21
+     int8_t LASER_0 = disabled;
 
      int8_t PIN_DEF_END_X = disabled;
      int8_t PIN_DEF_END_Y = disabled;
@@ -195,4 +197,7 @@ struct PinConfig
      int8_t SPI_MISO = disabled;
      int8_t SPI_SCK = disabled;
      int8_t SPI_CS = disabled;
+
+      // Temperature Sensor
+     int8_t DS28b20_PIN = disabled;
 };

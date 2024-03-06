@@ -21,6 +21,7 @@ OPTION(BTHID "BTHID" OFF)
 OPTION(PSXCONTROLLER "psx controller" OFF)
 OPTION(HOME_MOTOR "HomeMotor" OFF)
 OPTION(USE_TCA9535 "USE_TCA9535" OFF)
+OPTION(HEAT_CONTROLLER "USE_TCA9535" OFF)
 
 
 
@@ -98,6 +99,10 @@ endif()
 if(USE_TCA9535 EQUAL 1)
     list(APPEND srcs ${mainsrc}src/i2c/tca9535.cpp)
     list(APPEND srcs ${mainsrc}src/i2c/tca_controller.cpp)
+endif()
+if(HEAT_CONTROLLER EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/heat/DS18b20Controller.cpp)
+    list(APPEND srcs ${mainsrc}src/heat/HeatController.cpp)
 endif()
 
 idf_component_register(SRCS ${srcs})

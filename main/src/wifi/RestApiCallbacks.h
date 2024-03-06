@@ -2,8 +2,6 @@
 #include "cJSON.h"
 #include <PinConfig.h>
 
-
-
 #include "esp_https_server.h"
 namespace RestApi
 {
@@ -84,7 +82,7 @@ namespace RestApi
 
 #ifdef DAC_CONTROLLER
     esp_err_t Dac_setESP(httpd_req_t *req);
-    //esp_err_t Dac_getESP(httpd_req_t *req);
+    // esp_err_t Dac_getESP(httpd_req_t *req);
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
     esp_err_t DigitalIn_setESP(httpd_req_t *req);
@@ -177,5 +175,12 @@ namespace RestApi
         output[]
     */
     esp_err_t connectToWifiESP(httpd_req_t *req);
+#endif
+
+#ifdef HEAT_CONTROLLER
+    esp_err_t Heat_setESP(httpd_req_t *req);
+    esp_err_t Heat_getESP(httpd_req_t *req);
+    esp_err_t DS18B20_getESP(httpd_req_t *req);
+    esp_err_t DS18B20_actESP(httpd_req_t *req);
 #endif
 };

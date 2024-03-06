@@ -37,13 +37,19 @@ namespace LaserController
 			if (LASER_val_wiggle < 0)
 				LASER_val_wiggle += (2 * abs(laserwiggle));
 
-			log_d("%i",LASERid);
-			log_d("%i",LASER_val_wiggle);
+			log_d("%i", LASERid);
+			log_d("%i", LASER_val_wiggle);
 
 			ledcWrite(PWM_CHANNEL_LASER, LASER_val_wiggle);
 
 			delay(LASERperiod);
 		}
+	}
+
+	void setPWM(int pwmValue, int pwmChannel)
+	{
+		// sets the PWM value for the given channel
+		ledcWrite(pwmChannel, pwmValue);
 	}
 
 	// Custom function accessible by the API

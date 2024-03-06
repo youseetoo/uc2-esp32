@@ -54,6 +54,10 @@
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
+#ifdef HEAT_CONTROLLER
+#include "../heat/HeatController.h"
+#include "../heat/DS18b20Controller.h"
+#endif
 
 #define SCRATCH_BUFSIZE (10240)
 
@@ -405,5 +409,30 @@ namespace RestApi
         return ESP_OK;
     }
 
+#endif
+
+#ifdef HEAT_CONTROLLER
+    esp_err_t Heat_setESP(httpd_req_t *req)
+    {
+        serializeESP(HeatController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t Heat_getESP(httpd_req_t *req)
+    {
+        serializeESP(HeatController::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t DS18B20_actESP(httpd_req_t *req)
+    {
+        serializeESP(DS18b20Controller::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t DS18B20_getESP(httpd_req_t *req)
+    {
+        serializeESP(DS18b20Controller::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
 #endif
 }

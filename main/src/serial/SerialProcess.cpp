@@ -52,6 +52,11 @@
 #include "../wifi/WifiController.h"
 #endif
 
+#ifdef HEAT_CONTROLLER
+#include "../heat/HeatController.h"
+#include "../heat/DS18b20Controller.h"
+#endif
+
 namespace SerialProcess
 {
 	QueueHandle_t serialMSGQueue;
@@ -94,8 +99,6 @@ namespace SerialProcess
 				// log_i("Process task:%s", ss);
 				jsonProcessor(ss, &root);
 			}
-
-			
 		}
 		cJSON_Delete(&root);
 		vTaskDelete(NULL);
@@ -163,16 +166,6 @@ namespace SerialProcess
 	void jsonProcessor(char *task, cJSON *jsonDocument)
 	{
 
-		// Check if the command gets through
-		int moduleAvailable = false;
-
-		/*#ifdef ANALOG_IN_CONTROLLER
-			if (strcmp(task, analogin_act_endpoint) == 0)
-				serialize(AnalogInController::act(jsonDocument));
-			if (strcmp(task, analogin_get_endpoint) == 0)
-				serialize(AnalogInController::get(jsonDocument));
-		#endif*/
-
 #ifdef ANALOG_OUT_CONTROLLER
 		if (strcmp(task, analogout_act_endpoint) == 0)
 			serialize(AnalogOutController::act(jsonDocument));
@@ -192,12 +185,10 @@ namespace SerialProcess
 #ifdef PSXCONTROLLER
 			BtController::connectPsxController(mac, ps);
 #endif
-			moduleAvailable = true;
 		}
 		if (strcmp(task, bt_scan_endpoint) == 0)
 		{
 			BtController::scanForDevices(jsonDocument);
-			moduleAvailable = true;
 		}
 #endif
 
@@ -280,31 +271,27 @@ namespace SerialProcess
 		if (strcmp(task, modules_get_endpoint) == 0)
 		{
 			serialize(State::getModules());
-			moduleAvailable = true;
 		}
 #ifdef WIFI
 		if (strcmp(task, scanwifi_endpoint) == 0)
 		{
 			serialize(WifiController::scan());
-			moduleAvailable = true;
 		}
 		// {"task":"/wifi/scan"}
 		if (strcmp(task, connectwifi_endpoint) == 0)
 		{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 			WifiController::connect(jsonDocument);
-			moduleAvailable = true;
 		}
 #endif
-		/*if (task == reset_nv_flash_endpoint)
-		{
-			RestApi::resetNvFLash();
-		}*/
-
-		// module has not been loaded, so we need at least some error handling/message
-		if (!moduleAvailable)
-		{
-			// we want to state that the command didn't get through
-			serialize(0);
-		}
+#ifdef HEAT_CONTROLLER
+		if (strcmp(task, heat_get_endpoint) == 0)
+			serialize(HeatController::get(jsonDocument));
+		if (strcmp(task, heat_act_endpoint) == 0)
+			serialize(HeatController::act(jsonDocument));
+		if (strcmp(task, ds18b20_get_endpoint) == 0)
+			serialize(DS18b20Controller::get(jsonDocument));
+		if (strcmp(task, ds18b20_act_endpoint) == 0)
+			serialize(DS18b20Controller::act(jsonDocument));
+#endif
 	}
 }

@@ -75,3 +75,10 @@ __attribute__ ((unused)) static const  char* bt_paireddevices_endpoint = "/bt_pa
 
 __attribute__ ((unused)) static const  char* modules_get_endpoint = "/modules_get";
 
+#ifdef HEAT_CONTROLLER
+__attribute__ ((unused)) static const  char* heat_act_endpoint = "/heat_act";
+__attribute__ ((unused)) static const  char* heat_get_endpoint = "/heat_get";
+__attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act";
+__attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
+#endif
+

@@ -33,6 +33,7 @@ namespace LaserController
     static int LASER_despeckle_1 = 0;
     static int LASER_despeckle_2 = 0;
     static int LASER_despeckle_3 = 0;
+    static int PWM_CHANNEL_LASER_0 = 3;
 
     static int LASER_despeckle_period_1 = 20;
     static int LASER_despeckle_period_2 = 20;
@@ -46,6 +47,7 @@ namespace LaserController
     cJSON * get(cJSON *  ob);
     void setup();
     void loop();
+    void setPWM(int pwmValue, int pwmChannel);
 
 };
 

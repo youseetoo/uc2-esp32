@@ -154,6 +154,13 @@ GET
       ]
   }}
 
+```bash
+curl -X POST http://192.168.4.1/ledarr_act \
+     -H "Content-Type: application/json" \
+     -d '{"led": { "LEDArrMode": 0, "led_array": [ { "b": 255, "g": 255, "id": 0, "r": 255 }, { "b": 255, "g": 255, "id": 1, "r": 255 } ] }}'
+```
+
+
 # Set all LEDs with a certain colour
 {"task": "/ledarr_act",   
   "led": {
@@ -246,6 +253,12 @@ POST
 {"task": "/laser_act", "LASERid":0, "LASERval":1000, "LASERdespeckle":1, "LASERdespecklePeriod":20}
 ```
 
+```bash
+curl -X POST http://192.168.4.1/laser_act \
+     -H "Content-Type: application/json" \
+     -d '{ "LASERid":0, "LASERval":1000, "LASERdespeckle":1, "LASERdespecklePeriod":20}'
+```
+
 ### /laser_get
 
 ```json
@@ -263,6 +276,15 @@ POST
 # X,Y,Z,A => 1,2,3,0
 
 ### /motor_act
+
+*CURL:*
+
+```bash
+curl -X POST http://192.168.4.1/motor_act \
+     -H "Content-Type: application/json" \
+     -d '{"motor": { "steppers": [ { "stepperid": 1, "position": 10000, "speed": 15000, "isabs": 0, "isaccel":0} ] } }'
+```
+
 
 *SERIAL:*
 

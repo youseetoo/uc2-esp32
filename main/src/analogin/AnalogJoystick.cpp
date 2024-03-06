@@ -11,10 +11,20 @@
 
 
 namespace AnalogJoystick
+
+void processEvent(uint8_t pin)
+{
+    log_d("processEvent from pin %i", pin);
+    AnalogJoystick *j = (AnalogJoystick *)moduleController.get(AvailableModules::analogJoystick);
+    if (pin == pinConfig.ANLOG_JOYSTICK_X)
+        j->driveMotor(Stepper::X, j->joystick_drive_X, pin);
+    if (pin == pinConfig.ANLOG_JOYSTICK_Y)
+        j->driveMotor(Stepper::Y, j->joystick_drive_Y, pin);
+}
+
 {
 
     static const char *JoyTAG = "AnalogJoystick";
-
     void processEvent(uint8_t pin)
     {
         ESP_LOGI(TAG, "processEvent from pin %i", pin);

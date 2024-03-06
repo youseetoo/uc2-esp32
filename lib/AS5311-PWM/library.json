@@ -1,0 +1,24 @@
+{
+  "name": "AS5311-PWM",
+  "keywords": "5311 , Linear Encoder",
+  "description": "",
+  "homepage": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "version": "1",
+  "authors": {
+    "name": "Benedict Diederich",
+    "url": ""
+  },
+  "exclude": [
+    ".github",
+    "extras"
+  ],
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "libArchive": false
+  }
+}

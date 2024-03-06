@@ -96,6 +96,21 @@ __attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
 #endif
 
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder = "linencoder";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cp = "cp";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_ci = "ci";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cd = "cd";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_position = "position";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_timeout = "timeout";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_getpos = "posval";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibrate = "calpos";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_setup = "setup";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_home = "home";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_moveprecise = "moveP";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos = "calibsteps";
+
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
 
 #ifdef FOCUS_MOTOR
@@ -124,10 +139,14 @@ __attribute__ ((unused)) static const PROGMEM char * key_enablepin_inverted = "e
 __attribute__ ((unused)) static const PROGMEM char * key_min_position = "min_pos";
 __attribute__ ((unused)) static const PROGMEM char * key_max_position = "max_pos";
 #endif
-
+__attribute__ ((unused)) static const PROGMEM char * key_settrigger = "setTrig";
+__attribute__ ((unused)) static const PROGMEM char * key_triggerpin = "trigPin";
+__attribute__ ((unused)) static const PROGMEM char * key_triggerperiod = "trigPer";
+__attribute__ ((unused)) static const PROGMEM char * key_triggeroffset = "trigOff";
 __attribute__ ((unused)) static const PROGMEM char *dateKey = "date";
 __attribute__ ((unused)) static const PROGMEM char *key_modules = "modules";
 __attribute__ ((unused)) static const PROGMEM char *key_analogin = "analogin";
+
 __attribute__ ((unused)) static const PROGMEM char *key_pid = "pid";
 __attribute__ ((unused)) static const PROGMEM char *key_laser = "laser";
 __attribute__ ((unused)) static const PROGMEM char *key_dac = "dac";
@@ -150,3 +169,14 @@ __attribute__ ((unused)) static const PROGMEM char *key_Ki = "Ki";
 __attribute__ ((unused)) static const PROGMEM char *key_Kd = "Kd";
 __attribute__ ((unused)) static const PROGMEM char *key_target = "target";
 __attribute__ ((unused)) static const PROGMEM char *key_PID_updaterate = "PID_updaterate";
+__attribute__ ((unused)) static const PROGMEM char *key_heatactive = "active";
+__attribute__ ((unused)) static const PROGMEM char *key_heat_updaterate = "heat_updaterate";
+__attribute__ ((unused)) static const PROGMEM char *key_timeToReach80PercentTargetTemperature = "timeout";
+
+
+__attribute__ ((unused)) static const PROGMEM char *key_ds18b20 = "ds18b20";
+__attribute__ ((unused)) static const PROGMEM char *key_ds18b20_id = "sensorid";
+__attribute__ ((unused)) static const PROGMEM char *key_ds18b20_val = "sensorval";
+__attribute__ ((unused)) static const PROGMEM char *key_heat = "heat";
+
+__attribute__ ((unused)) static const PROGMEM char *key_image = "image";

@@ -1,6 +1,4 @@
 #pragma once
-
-#include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
 #include "AS5311AB.h"
 #include "PIDController.h"
@@ -34,26 +32,15 @@ struct LinearEncoderData
 
 void processHomeLoop(void * p);
 
-class LinearEncoderController : public Module
+namespace LinearEncoderController
 {
-
-public:
-	LinearEncoderController();
-	~LinearEncoderController();
-	
-    std::array<LinearEncoderData *, 4> edata;
-    //std::array<AS5311 *, 4> encoders;
-	std::array<AS5311AB, 4> encoders;
-
 	void setCurrentPosition(int encoderIndex, float offsetPos);
 	float getCurrentPosition(int encoderIndex);
 
-	int act(cJSON * ob) override;
-	cJSON * get(cJSON * ob) override;
-	void setup() override;
-	void loop() override;
+	int act(cJSON * ob);
+	cJSON * get(cJSON * ob);
+	void setup();
+	void loop();
 
-private:
-	float conversionFactor = 2.0/1024.0; // 2mm per 1024 steps from AS5311
 	float calculateRollingAverage(float newValue);
 };

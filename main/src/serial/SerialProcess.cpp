@@ -26,6 +26,9 @@
 #ifdef ENCODER_CONTROLLER
 #include "../encoder/EncoderController.h"
 #endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
 /*#ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif*/
@@ -225,6 +228,19 @@ namespace SerialProcess
 			serialize(EncoderController::get(jsonDocument));
 #endif
 
+/*
+	  LinearEncoders
+	*/
+#ifdef LINEAR_ENCODER_CONTROLLER
+		if (strcmp(task, linearencoder_act_endpoint) == 0)
+		{
+			serialize(LinearEncoderController::act(jsonDocument));
+		}
+		if (strcmp(task, linearencoder_get_endpoint) == 0)
+		{
+			serialize(LinearEncoderController::get(jsonDocument));
+		}
+#endif
 /*#ifdef HOME_MOTOR
 	if (strcmp(task, home_get_endpoint) == 0)
 		serialize(HomeMotor::get(jsonDocument));

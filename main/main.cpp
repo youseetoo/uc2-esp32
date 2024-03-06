@@ -30,6 +30,9 @@
 #ifdef ENCODER_CONTROLLER
 #include "src/encoder/EncoderController.h"
 #endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "src/encoder/LinearEncoderController.h"
+#endif
 #ifdef LASER_CONTROLLER
 #include "src/laser/LaserController.h"
 #endif
@@ -66,6 +69,10 @@ extern "C" void looper(void *p)
 		SerialProcess::loop();
 #ifdef ENCODER_CONTROLLER
 		EncoderController::loop();
+		vTaskDelay(1);
+#endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+		LinearEncoderController::loop();
 		vTaskDelay(1);
 #endif
 /*#ifdef HOME_MOTOR
@@ -137,6 +144,9 @@ SerialProcess::setup();
 #ifdef ENCODER_CONTROLLER
 	EncoderController::setup();
 #endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+	LinearEncoderController::setup();
+#endif
 /*#ifdef HOME_MOTOR
 	HomeMotor::setup();
 #endif*/
@@ -163,7 +173,7 @@ extern "C" void app_main(void)
 	// adjust logging programmatically
 	//esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
 	// Start Serial
-	Serial.begin(BAUDRATE); // default is 115200
+	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);
 	Serial.setTimeout(50);
 

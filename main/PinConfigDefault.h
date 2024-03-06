@@ -34,7 +34,6 @@ motor defines
 #define USE_TCA9535
 */
 
-
 const int8_t disabled = -1;
 
 struct PinConfig
@@ -45,15 +44,16 @@ struct PinConfig
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2048;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
-     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4*1024;
-     const uint16_t MOTOR_TASK_STACKSIZE = 4*1024;
-     const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 6*1024;
+     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 1024;
+     const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
+     const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 6 * 1024;
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 8096;
      const uint16_t TCA_TASK_STACKSIZE = 2048;
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
-     
+     const unsigned long BAUDRATE = 115200;
+
      const char *pindefName = "pindef";
-     
+
      // see AccelStepper.h MotorInterfaceType
      /*
      typedef enum
@@ -101,7 +101,7 @@ struct PinConfig
      bool HOME_Y_SIG_INVERTED = false;
      bool HOME_Z_SIG_INVERTED = false;
 
-     gpio_num_t  I2C_INT = GPIO_NUM_NC;
+     gpio_num_t I2C_INT = GPIO_NUM_NC;
      int8_t MOTOR_X_0 = disabled;
      int8_t MOTOR_X_1 = disabled;
      int8_t MOTOR_Y_0 = disabled;
@@ -177,6 +177,14 @@ struct PinConfig
      int8_t Y_CAL_CLK = disabled;
      int8_t Z_CAL_CLK = disabled;
 
+     // for AS5311
+     int8_t ENC_X_A = disabled;
+     int8_t ENC_Y_A = disabled;
+     int8_t ENC_Z_A = disabled;
+     int8_t ENC_X_B = disabled;
+     int8_t ENC_Y_B = disabled;
+     int8_t ENC_Z_B = disabled;
+
      // I2c
      int8_t I2C_SCL = disabled;
      int8_t I2C_SDA = disabled;
@@ -188,4 +196,3 @@ struct PinConfig
      int8_t SPI_SCK = disabled;
      int8_t SPI_CS = disabled;
 };
-

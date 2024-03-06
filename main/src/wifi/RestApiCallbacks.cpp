@@ -29,6 +29,9 @@
 #ifdef ENCODER_CONTROLLER
 #include "../encoder/EncoderController.h"
 #endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
@@ -309,6 +312,18 @@ namespace RestApi
     esp_err_t EncoderMotor_getESP(httpd_req_t *req)
     {
         serializeESP(EncoderController::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+    esp_err_t LinearEncoderMotor_setESP(httpd_req_t *req)
+    {
+        serializeESP(LinearEncoderController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t LinearEncoderMotor_getESP(httpd_req_t *req)
+    {
+        serializeESP(LinearEncoderController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

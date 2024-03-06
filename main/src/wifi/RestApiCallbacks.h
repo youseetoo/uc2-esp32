@@ -104,6 +104,10 @@ namespace RestApi
     esp_err_t EncoderMotor_setESP(httpd_req_t *req);
     esp_err_t EncoderMotor_getESP(httpd_req_t *req);
 #endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+    esp_err_t LinearEncoderMotor_setESP(httpd_req_t *req);
+    esp_err_t LinearEncoderMotor_getESP(httpd_req_t *req);
+#endif
 
 #ifdef LASER_CONTROLLER
     esp_err_t laser_setESP(httpd_req_t *req);

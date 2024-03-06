@@ -10,6 +10,7 @@ OPTION(DAC_CONTROLLER "DAC" OFF)
 OPTION(DIGITAL_IN_CONTROLLER "DIGITAL_IN_CONTROLLER" OFF)
 OPTION(DIGITAL_OUT_CONTROLLER "DIGITAL_OUT_CONTROLLER" OFF)
 OPTION(ENCODER_CONTROLLER "ENCODER_CONTROLLER" OFF)
+OPTION(LINEAR_ENCODER_CONTROLLER "LINEAR_ENCODER_CONTROLLER" OFF)
 OPTION(LASER_CONTROLLER "Laser" OFF)
 OPTION(LED_CONTROLLER "LED" OFF)
 OPTION(PID_CONTROLLER "PID_CONTROLLER" OFF)
@@ -35,6 +36,7 @@ set(srcs    ${mainsrc}main.cpp
             ${mainsrc}src/serial/SerialProcess.cpp
             ${mainsrc}src/State/State.cpp
             ${mainsrc}src/config/ConfigController.cpp
+            ${mainsrc}src/encoder/InterruptController.cpp
          )
 
 if(ANALOG_IN_CONTROLLER EQUAL 1)
@@ -61,6 +63,9 @@ if(DIGITAL_OUT_CONTROLLER EQUAL 1)
 endif()
 if(ENCODER_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/encoder/EncoderController.cpp)
+endif()
+if(LINEAR_ENCODER_CONTROLLER EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/encoder/LinearEncoderController.cpp)
 endif()
 if(HOME_MOTOR EQUAL 1)
     list(APPEND srcs ${mainsrc}src/motor/HomeDrive.cpp)

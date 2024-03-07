@@ -35,7 +35,6 @@ namespace FocusMotor
 	void stopStepper(int i);
 	void startStepper(int i);
 	void sendMotorPos(int i, int arraypos);
-	bool setExternalPin(uint8_t pin, uint8_t value);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);

@@ -1,6 +1,7 @@
 #include "StageScan.h"
 #include "Arduino.h"
 #include "FocusMotor.h"
+#include "../i2c/tca_controller.h"
 
 namespace StageScan
 {
@@ -18,7 +19,7 @@ namespace StageScan
         //  direction perhaps externally controlled
         if (pinConfig.I2C_SCL > -1)
         {
-            FocusMotor::setExternalPin(dirPin, direction);
+            tca_controller::setExternalPin(dirPin, direction);
         }
         else
         {

@@ -29,9 +29,9 @@
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
-/*#ifdef HOME_MOTOR
+#ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
-#endif*/
+#endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
@@ -232,12 +232,12 @@ namespace SerialProcess
 			serialize(LinearEncoderController::get(jsonDocument));
 		}
 #endif
-/*#ifdef HOME_MOTOR
+#ifdef HOME_MOTOR
 	if (strcmp(task, home_get_endpoint) == 0)
 		serialize(HomeMotor::get(jsonDocument));
 	if (strcmp(task, home_act_endpoint) == 0)
 		serialize(HomeMotor::act(jsonDocument));
-#endif*/
+#endif
 #ifdef LASER_CONTROLLER
 		if (strcmp(task, laser_get_endpoint) == 0)
 			serialize(LaserController::get(jsonDocument));

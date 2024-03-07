@@ -48,9 +48,9 @@
 #ifdef SCANNER_CONTROLLER
 #include "src/scanner/ScannerController.h"
 #endif
-/*#ifdef HOME_MOTOR
+#ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
-#endif*/
+#endif
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
@@ -78,10 +78,10 @@ extern "C" void looper(void *p)
 		LinearEncoderController::loop();
 		vTaskDelay(1);
 #endif
-/*#ifdef HOME_MOTOR
+#ifdef HOME_MOTOR
 		HomeMotor::loop();
 		vTaskDelay(1);
-#endif*/
+#endif
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
 		vTaskDelay(1);
@@ -153,9 +153,9 @@ extern "C" void setupApp(void)
 #ifdef LINEAR_ENCODER_CONTROLLER
 	LinearEncoderController::setup();
 #endif
-/*#ifdef HOME_MOTOR
+#ifdef HOME_MOTOR
 	HomeMotor::setup();
-#endif*/
+#endif
 #ifdef LASER_CONTROLLER
 	LaserController::setup();
 #endif

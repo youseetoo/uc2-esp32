@@ -12,10 +12,12 @@
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
 #endif
-#ifdef HOME_MOTOR
+#ifdef HOME_DRIVE
 #include "HomeDrive.h"
 #endif
+#ifdef STAGE_SCAN
 #include "StageScan.h"
+#endif
 
 namespace FocusMotor
 {
@@ -201,6 +203,7 @@ namespace FocusMotor
 	}
 #endif
 
+#ifdef STAGE_SCAN
 	void parseStageScan(cJSON *doc)
 	{
 		// set trigger
@@ -254,6 +257,7 @@ namespace FocusMotor
 			StageScan::stageScan();
 		}
 	}
+#endif
 
 	int act(cJSON *doc)
 	{
@@ -268,8 +272,11 @@ namespace FocusMotor
 		if (parseSetPosition(doc))
 			return 1;
 		parseMotorDriveJson(doc);
-#ifdef HOME_MOTOR
+#ifdef HOME_DRIVE
 		parseHome(doc);
+#endif
+#ifdef STAGE_SCAN
+		parseStageScan(doc);
 #endif
 		return 1;
 	}

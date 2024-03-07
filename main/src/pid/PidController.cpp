@@ -26,7 +26,7 @@ namespace PidController
 		{
 // force shutdown the motor
 #ifdef FOCUS_MOTOR
-			FocusMotor::data[Stepper::X]->speed = 0;
+			FocusMotor::getData()[Stepper::X]->speed = 0;
 			FocusMotor::stopStepper(Stepper::X);
 #endif
 		}
@@ -51,8 +51,8 @@ namespace PidController
 			analoginValueAvg = (float)analoginValueAvg / (float)N_analogin_avg;
 			long motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
 #ifdef FOCUS_MOTOR
-			FocusMotor::data[Stepper::X]->isforever = 1; // run motor at certain speed
-			FocusMotor::data[Stepper::X]->speed = motorValue;
+			FocusMotor::getData()[Stepper::X]->isforever = 1; // run motor at certain speed
+			FocusMotor::getData()[Stepper::X]->speed = motorValue;
 			FocusMotor::startStepper(Stepper::X);
 #endif
 			startMillis = millis();

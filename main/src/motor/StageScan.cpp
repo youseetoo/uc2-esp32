@@ -65,7 +65,7 @@ namespace StageScan
         }
     }
 
-    void stageScan(bool isThread = false)
+    void stageScan(bool isThread)
     {
 
         FocusMotor::enable(true);

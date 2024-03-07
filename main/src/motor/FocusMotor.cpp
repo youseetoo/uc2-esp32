@@ -186,7 +186,7 @@ namespace FocusMotor
 #endif
 	}
 
-#ifdef HOME_MOTOR
+#ifdef HOME_DRIVE
 	void parseHome(cJSON *doc)
 	{
 		cJSON *home = cJSON_GetObjectItemCaseSensitive(doc, "home");

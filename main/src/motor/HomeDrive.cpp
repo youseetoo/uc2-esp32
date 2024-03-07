@@ -11,7 +11,7 @@ namespace HomeDrive
 		// send home done to client
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
-		cJSON_AddItemToObject(json, key_home, home);
+		cJSON_AddItemToObject(json, "home", home);
 		cJSON *steppers = cJSON_CreateObject();
 		cJSON_AddItemToObject(home, key_steppers, steppers);
 		cJSON *axs = cJSON_CreateNumber(axis);

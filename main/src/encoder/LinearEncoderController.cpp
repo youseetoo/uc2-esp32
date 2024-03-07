@@ -125,6 +125,7 @@ namespace LinearEncoderController
         }
         else if (home != NULL)
         {
+#ifdef HOME_MOTOR
             // we want to start a motor until the linear encoder does not track any position change
             //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "endposrelease":-100, "speed": -40000} ]}}
             cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
@@ -148,6 +149,7 @@ namespace LinearEncoderController
                     edata[s]->homeAxis = true;
                 }
             }
+#endif
         }
         else if (movePrecise != NULL)
         {
@@ -451,24 +453,24 @@ namespace LinearEncoderController
             log_i("Adding X LinearEncoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
             pinMode(pinConfig.ENC_X_A, INPUT_PULLUP);
             pinMode(pinConfig.ENC_X_B, INPUT_PULLUP);
-            InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         }
         if (pinConfig.ENC_X_A >= 0)
         {
             log_i("Adding Y LinearEncoder: %i, %i", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
             pinMode(pinConfig.ENC_Y_A, INPUT_PULLUP);
             pinMode(pinConfig.ENC_Y_B, INPUT_PULLUP);
-            InterruptController::addInterruptListner(pinConfig.ENC_Y_A, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            InterruptController::addInterruptListner(pinConfig.ENC_Y_B, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            InterruptController::addInterruptListner(pinConfig.ENC_Y_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            InterruptController::addInterruptListner(pinConfig.ENC_Y_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         }
         if (pinConfig.ENC_Z_A >= 0)
         {
             log_i("Adding Z LinearEncoder: %i, %i", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
             pinMode(pinConfig.ENC_Z_A, INPUT_PULLUP);
             pinMode(pinConfig.ENC_Z_B, INPUT_PULLUP);
-            InterruptController::addInterruptListner(pinConfig.ENC_Z_A, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            InterruptController::addInterruptListner(pinConfig.ENC_Z_B, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            InterruptController::addInterruptListner(pinConfig.ENC_Z_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            InterruptController::addInterruptListner(pinConfig.ENC_Z_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         }
     }
 

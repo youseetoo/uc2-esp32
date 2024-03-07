@@ -39,6 +39,7 @@ namespace FocusMotor
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
+	void enable(bool en);
 	
 	static int logcount;
 	static bool power_enable = false;

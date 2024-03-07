@@ -15,6 +15,7 @@
 #ifdef HOME_MOTOR
 #include "HomeDrive.h"
 #endif
+#include "StageScan.h"
 
 namespace FocusMotor
 {
@@ -153,17 +154,22 @@ namespace FocusMotor
 		return false;
 	}
 
+	void enable(bool en)
+	{
+		#ifdef USE_FASTACCEL
+			FAccelStep::Enable(en);
+#endif
+#ifdef USE_ACCELSTEP
+			AccelStep::Enable(en);
+#endif
+	}
+
 	void parseEnableMotor(cJSON *doc)
 	{
 		cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
 		if (isen != NULL)
 		{
-#ifdef USE_FASTACCEL
-			FAccelStep::Enable(isen->valueint);
-#endif
-#ifdef USE_ACCELSTEP
-			AccelStep::Enable(isen->valueint);
-#endif
+			enable(isen->valueint);
 		}
 	}
 
@@ -194,6 +200,60 @@ namespace FocusMotor
 		}
 	}
 #endif
+
+	void parseStageScan(cJSON *doc)
+	{
+		// set trigger
+		cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
+		// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
+		// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
+		// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+		// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+		// {"task": "/motor_get"}
+		if (settrigger != NULL)
+		{
+			log_d("settrigger");
+			cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
+			if (stprs != NULL)
+			{
+
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					FocusMotor::getData()[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
+					FocusMotor::getData()[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
+					FocusMotor::getData()[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
+					log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
+					log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
+					log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
+				}
+			}
+		}
+
+		// start independent stageScan
+		//
+		cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
+		if (stagescan != NULL)
+		{
+			StageScan::getStageScanData()->stopped = cJsonTool::getJsonInt(stagescan, "stopped");
+			if (StageScan::getStageScanData()->stopped )
+			{
+				log_i("stagescan stopped");
+				return;
+			}
+			StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
+			StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
+			StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
+			StageScan::getStageScanData()->nStepsPixel = cJsonTool::getJsonInt(stagescan, "nStepsPixel");
+			StageScan::getStageScanData()->dStepsPixel = cJsonTool::getJsonInt(stagescan, "dStepsPixel");
+			StageScan::getStageScanData()->nTriggerPixel = cJsonTool::getJsonInt(stagescan, "nTriggerPixel");
+			StageScan::getStageScanData()->delayTimeStep = cJsonTool::getJsonInt(stagescan, "delayTimeStep");
+			StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+			// xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
+			StageScan::stageScan();
+		}
+	}
 
 	int act(cJSON *doc)
 	{

@@ -6,7 +6,6 @@ const long MAX_ACCELERATION_A = 100000;
 const long DEFAULT_ACCELERATION = 500000;
 
 
-
 struct MotorData
 {
 
@@ -30,6 +29,14 @@ struct MotorData
 	//and its needed to show only true initialized motors inside webui and android app.
 	bool isActivated = 0;
 	bool endstop_hit = false;
+
+	// for triggering frame or lineclock
+	bool isTriggered = false; // state if we send a pulse
+	long offsetTrigger = 0;	// offset in steps
+	long triggerPeriod = -1; // give a pulse every n steps
+	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
+	int dirPin = -1;
+	int stpPin = -1;
 };
 
 

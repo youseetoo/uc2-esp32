@@ -13,7 +13,6 @@ namespace DS18b20Controller
     void setup();
     int act(cJSON* jsonDocument);
     cJSON* get(cJSON* jsonDocument);
-    void loop();
     void readSensorTask(void* parameter);
     float getCurrentValueCelcius();
 };

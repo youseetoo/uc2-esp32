@@ -99,8 +99,6 @@ extern "C" void looper(void *p)
 		vTaskDelay(1);
 #endif
 #ifdef HEAT_CONTROLLER
-		DS18b20Controller::loop();
-		vTaskDelay(1);
 		HeatController::loop();
 		vTaskDelay(1);
 #endif

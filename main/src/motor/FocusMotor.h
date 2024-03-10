@@ -1,60 +1,47 @@
+#include <PinConfig.h>
 #pragma once
-#include "FAccelStep.h"
-#include "AccelStep.h"
+#include "cJsonTool.h"
+#include "Arduino.h"
+#include "JsonKeys.h"
+
 #include "../config/ConfigController.h"
-#include "../../ModuleController.h"
+
 #include <Preferences.h>
+#ifdef USE_TCA9535
 #include "../i2c/tca9535.h"
+#endif
 #include "MotorTypes.h"
+
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP
+#error Pls set USE_FASTACCEL or USE_ACCELSTEP
+#endif
+#if defined USE_FASTACCEL && defined USE_ACCELSTEP
+#error Pls set only USE_FASTACCEL or USE_ACCELSTEP, currently both are active
+#endif
 
 void sendUpdateToClients(void *p);
 
 bool externalPinCallback();
 
-class FocusMotor : public Module
+namespace FocusMotor
 {
+	static Preferences preferences;
 
-public:
-	FocusMotor();
-	~FocusMotor();
-	Preferences preferences;
-
-	// global variables for the motor
-	AccelStep accel;
-	FAccelStep faccel;
-	
-	std::array<MotorData *, 4> data;
-
-	StageScanningData *stageScanningData;
-
-	int act(cJSON *ob) override;
-	cJSON *get(cJSON *ob) override;
+	int act(cJSON *ob);
+	cJSON *get(cJSON *ob);
 	int set(cJSON *doc);
-	void setup() override;
-	void loop() override;
+	void setup();
+	void loop();
 	void stopStepper(int i);
 	void startStepper(int i);
 	void sendMotorPos(int i, int arraypos);
-	bool setExternalPin(uint8_t pin, uint8_t value);
-	int getExternalPinValue(uint8_t pin);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
-	long getCurrentPosition(Stepper s);
+	void enable(bool en);
 	
-	TaskHandle_t TaskHandle_stagescan_t;
-	
-private:
-	tca9535 *_tca9535;
-	TCA9535_Register outRegister;
-	TCA9535_Register inRegister;
-	
-	int logcount;
-	bool power_enable = false;
+	static int logcount;
+	static bool power_enable = false;
 
-	void disableEnablePin(int i);
-	void enableEnablePin(int i);
-
-	void init_tca();
-	void dumpRegister(const char * name, TCA9535_Register configRegister);
+	MotorData ** getData();
 };

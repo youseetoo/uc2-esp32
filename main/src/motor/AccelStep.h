@@ -7,15 +7,12 @@ void driveMotorYLoop(void *pvParameter);
 void driveMotorZLoop(void *pvParameter);
 void driveMotorALoop(void *pvParameter);
 
-class AccelStep
+namespace AccelStep
 {
-private:
-    bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
-    std::array<AccelStepper *, 4> steppers;
-    std::array<bool ,4> taskRunning;
+    static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
+    static std::array<AccelStepper *, 4> steppers;
+    static std::array<bool ,4> taskRunning;
 
-public:
-    std::array<MotorData *, 4> data;
     void setupAccelStepper();
     void startAccelStepper(int i);
     void stopAccelStepper(int i);

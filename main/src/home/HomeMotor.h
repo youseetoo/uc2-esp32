@@ -1,7 +1,8 @@
+#include <PinConfig.h>
 #pragma once
-
-#include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
+#include "cJSON.h"
+
 
 struct HomeData
 {
@@ -12,29 +13,23 @@ struct HomeData
 	int homeDirection = 1;
 	long homeTimeStarted = 0;
 	bool homeIsActive = false;
-	bool homeInEndposReleaseMode = false;
+	int homeEndposRelease = 1000;
 	bool homeEndStopPolarity = 0; // normally open
-	int qid = -1; // qeue id
 };
 
 void processHomeLoop(void * p);
 
-class HomeMotor : public Module
+namespace HomeMotor
 {
 
-public:
-	HomeMotor();
-	~HomeMotor();
-	bool DEBUG = true;
-	bool isHoming = false;
-	std::array<HomeData *, 4> hdata;
+	static bool DEBUG = true;
+	static int homeEndposRelease = 2000;
+	static bool isHoming = false;
+	static std::array<HomeData *, 4> hdata;
 
-	int act(cJSON * ob) override;
-	cJSON * get(cJSON * ob) override;
-	void setup() override;
-	void loop() override;
-	void sendHomeDone(int axis);
-private:
-	void checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor);
-
+	int act(cJSON * ob);
+	cJSON * get(cJSON * ob);
+	void setup();
+	void loop();
+	void checkAndProcessHome(Stepper s, int digitalin_val);
 };

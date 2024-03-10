@@ -1,16 +1,14 @@
 #pragma once
 #include "FastAccelStepper.h"
-#include "MotorTypes.h"
+#include "FocusMotor.h"
 
-class FAccelStep
+namespace FAccelStep
 {
-    private:
-    FastAccelStepperEngine engine = FastAccelStepperEngine();
-    std::array<FastAccelStepper *, 4> faststeppers;
-    bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
 
-    public:
-    std::array<MotorData *, 4> data;
+    static FastAccelStepperEngine engine = FastAccelStepperEngine();
+    static std::array<FastAccelStepper *, 4> faststeppers;
+    static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
+    
     void startFastAccelStepper(int i);
     void stopFastAccelStepper(int i);
     void setupFastAccelStepper();

@@ -1,5 +1,6 @@
+#include <PinConfig.h>
 #include "HidController.h"
-#include "PinConfig.h"
+
 
 GamePadData gamePadData;
 bool hidIsConnected = false;

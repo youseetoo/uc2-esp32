@@ -18,6 +18,7 @@ struct PinConfig
      const uint16_t STAGESCAN_TASK_STACKSIZE = 2048; //8096;
      const uint16_t STACKSIZE_MOTOR = 4096; //8096;
      const char *pindefName = "pindef";
+     long BAUDRATE = 500000;
 
      const uint16_t IMAGE_ACTIVE = 1; // enable image sending/receiving from USB to Wifi
 
@@ -781,6 +782,7 @@ struct UC2_LineFrameTrigger : PinConfig
      const char *mSSID = "UC2_LineFrameTrigger";
      bool mAP = false;
      const char *mPWD = "12345678";
+     long BAUDRATE = 115200;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
@@ -791,7 +793,7 @@ struct UC2_LineFrameTrigger : PinConfig
      int8_t MOTOR_X_DIR = 101;
      int8_t MOTOR_Y_DIR = 102;
      int8_t MOTOR_Z_DIR = 103;
-
+     bool useFastAccelStepper = false;
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
      int8_t AccelStepperMotorType = 1;
@@ -851,7 +853,6 @@ struct UC2_LineFrameTrigger : PinConfig
 
      // dual axis Z
      bool isDualAxisZ = false;
-     bool useFastAccelStepper = false;
 };
 
      

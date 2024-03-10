@@ -56,6 +56,7 @@ void stageScan(bool isThread = false)
 	// Turn on motors
 	if (pinConfig.useFastAccelStepper)
 	{
+		motor->faccel.setAutoEnable(false);
 		motor->faccel.Enable(1);
 	}
 	else

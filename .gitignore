@@ -19,3 +19,5 @@ build/firmware.bin
 /main/PinConfig.h
 /dependencies.lock
 /dependencies.lock
+
+THID*

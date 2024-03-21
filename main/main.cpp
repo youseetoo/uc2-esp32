@@ -26,7 +26,7 @@ extern "C" void looper(void *p)
 		{
 			/* code */
 			//log_i("free heap:%d", ESP.getFreeHeap());
-			//Serial2.println("free heap"+String(ESP.getFreeHeap()));
+			Serial.println("free heap"+String(ESP.getFreeHeap()));
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 		

@@ -1,6 +1,7 @@
 #pragma once
 #include "esp_err.h"
 #include "Arduino.h"
+#include "PinConfigESP32S3.h"
 // default Pin structure
 
 const int8_t disabled = -1;
@@ -523,6 +524,7 @@ struct UC2_XYZRotator : PinConfig
 
 struct UC2_3 : PinConfig
 {
+     //bool dumpHeap = true;
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
      */
@@ -616,8 +618,6 @@ struct UC2_3 : PinConfig
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
 
-     bool dumpHeap = true;
-
 
      // for AS5311
      int8_t ENC_X_A = GPIO_NUM_32;
@@ -644,8 +644,8 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 
      // Temperature
-     int8_t DS28b20_PIN = disabled; //GPIO_NUM_25;
-     int8_t LASER_0 = disabled; //GPIO_NUM_26;
+     int8_t DS28b20_PIN = GPIO_NUM_25;
+     int8_t LASER_0 = GPIO_NUM_26;
 
      // dual axis Z
      bool isDualAxisZ = false;

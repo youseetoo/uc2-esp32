@@ -20,6 +20,7 @@ enum class AvailableModules
     linearencoder,
     pid,
     scanner,
+    galvo,
     analogin,
     ds18b20,
     state,

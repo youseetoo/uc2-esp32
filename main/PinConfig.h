@@ -131,6 +131,7 @@ struct PinConfig
      int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
      bool enableScanner = false;
+     bool enableGalvo = false;
      bool enableBlueTooth = true;
      bool useBtHID = false; // enabling this disable psxcontroller
      bool enableWifi = true;

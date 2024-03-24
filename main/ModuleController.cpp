@@ -20,6 +20,7 @@
 #include "src/state/State.h"
 #include "src/bt/BtController.h"
 #include "src/scanner/ScannerController.h"
+#include "src/scanner/GalvoController.h"
 #include "src/wifi/WifiController.h"
 #include "cJSON.h"
 #include "Module.h"
@@ -175,6 +176,13 @@ void ModuleController::setup()
     {
         modules.insert(std::make_pair(AvailableModules::scanner, dynamic_cast<Module *>(new ScannerController())));
         log_i("add scanner");
+    }
+
+    // eventually load the galvo module 
+    if (pinConfig.enableGalvo)
+    {
+        modules.insert(std::make_pair(AvailableModules::galvo, dynamic_cast<Module *>(new GalvoController())));
+        log_i("add galvo");
     }
 
     // eventually load the analogJoystick module

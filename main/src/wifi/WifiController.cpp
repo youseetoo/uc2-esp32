@@ -8,6 +8,8 @@
 #include "esp_log.h"
 #include "WifiConfig.h"
 #include "EspWifiController.h"
+#include "mdns.h"
+#include "PinConfig.h"
 
 namespace WifiController
 {
@@ -80,6 +82,7 @@ namespace WifiController
 		if (httpsServer.running())
 		{
 			httpsServer.stop_webserver();
+			mdns_free();
 		}
 
 		if (config->mSsid == NULL || strcmp(config->mSsid, ""))
@@ -91,6 +94,10 @@ namespace WifiController
 		espWifiController.setWifiConfig(config);
 		espWifiController.connect();
 		httpsServer.start_webserver();
+		mdns_init();
+		mdns_hostname_set(pinConfig.pindefName);
+		mdns_instance_name_set(pinConfig.pindefName);
+		mdns_service_add(pinConfig.pindefName, "_http", "_tcp", 80, NULL, 0);
 	}
 
 	int act(cJSON *doc) { return 1; }
@@ -98,9 +105,13 @@ namespace WifiController
 
 	void restartWebServer()
 	{
-
+		mdns_free();
 		if (httpsServer.running())
 			httpsServer.stop_webserver();
 		httpsServer.start_webserver();
+		mdns_init();
+		mdns_hostname_set(pinConfig.pindefName);
+		mdns_instance_name_set(pinConfig.pindefName);
+		mdns_service_add(pinConfig.pindefName, "_http", "_tcp", 80, NULL, 0);
 	}
 }

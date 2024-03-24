@@ -3,7 +3,7 @@
 #include "Preferences.h"
 #include "JsonKeys.h"
 #include "nvs_flash.h"
-
+#include "PinConfig.h"
 namespace Config
 {
 
@@ -31,6 +31,7 @@ namespace Config
 	{
 		nvs_flash_init();
 		log_d("Setup ConfigController");
+		log_d("Using PinConfig: %s", pinConfig.pindefName);
 	}
 
 	bool resetPreferences()

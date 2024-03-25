@@ -15,7 +15,7 @@ namespace HomeMotor
 
 	void processHomeLoop(void *p)
 	{
-		
+
 	}
 
 	/*

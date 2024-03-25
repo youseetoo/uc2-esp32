@@ -8,12 +8,13 @@ struct HomeData
 {
 	int homeEndposPin = 0;
 	long homeTimeout = 10000; // ms
-	long homeSpeed = 0;
-	long homeMaxspeed = 20000;
+	int homeSpeed = 10000;
+	int homeMaxspeed = 20000;
 	int homeDirection = 1;
 	long homeTimeStarted = 0;
 	bool homeIsActive = false;
 	int homeEndposRelease = 1000;
+	int homeInEndposReleaseMode = 0;
 	bool homeEndStopPolarity = 0; // normally open
 };
 

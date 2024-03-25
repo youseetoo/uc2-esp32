@@ -8,20 +8,29 @@
 
 namespace LedController
 {
-	const char * TAG = "LedController";
-	void setup()
-	{
-	
-		log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
-		// LED Matrix
-		matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
-		// log_i("setup matrix is null:%s", matrix == nullptr);
-		matrix->begin();
-		matrix->setBrightness(255);
-		// test led array
-		set_all(100, 100, 100);
-		delay(1);
-		set_all(0, 0, 0);
+	log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
+	// LED Matrix
+	matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+
+	// setup Adfruit neopixel
+	matrix->begin();
+	matrix->setBrightness(255);
+
+	// setup Adfruit I2C
+	/*
+	matrixI2C = new Adafruit_IS31FL3741();
+	matrixI2C->begin();
+	matrixI2C->setLEDscaling(0xFF);
+	matrixI2C->setGlobalCurrent(0xFF);
+	Serial.print("Global current set to: ");
+	Serial.println(matrixI2C->getGlobalCurrent());
+	matrixI2C->enable(true); // bring out of shutdown
+	*/
+	// test led array
+	set_all(100, 100, 100);
+	delay(1);
+	set_all(0, 0, 0);
+
 
 		if (!isOn)
 			set_all(0, 0, 0);

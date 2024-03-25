@@ -29,6 +29,7 @@ namespace AnalogOutController
 		// here you can do something
 		log_d("analogout_act_fct");
 		cJSON *monitor_json = ob;
+		int qid = getJsonInt(ob, "qid");
 
 		int analogoutid = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutid")->valueint;	 //(ob)["analogoutid"];
 		int analogoutval = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutval")->valueint; //(ob)["analogoutval"];
@@ -54,7 +55,7 @@ namespace AnalogOutController
 			analogout_val_3 = analogoutval;
 			ledcWrite(PWM_CHANNEL_analogout_3, analogoutval);
 		}
-		return 1;
+		return qid;
 	}
 
 	// Custom function accessible by the API

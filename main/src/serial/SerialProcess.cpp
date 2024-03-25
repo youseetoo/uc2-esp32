@@ -149,11 +149,12 @@ namespace SerialProcess
 		Serial.println("--");
 	}
 
-	void serialize(int idsuccess)
+	void serialize(int qid)
 	{
 		cJSON *doc = cJSON_CreateObject();
-		cJSON *v = cJSON_CreateNumber(idsuccess);
-		cJSON_AddItemToObject(doc, "idsuccess", v);
+		cJSON *v = cJSON_CreateNumber(qid);
+		cJSON_AddItemToObject(doc, "qid", v);
+		cJSON_AddItemToObject(doc, "idsuccess", 1);
 		Serial.println("++");
 		char *s = cJSON_Print(doc);
 		Serial.println(s);

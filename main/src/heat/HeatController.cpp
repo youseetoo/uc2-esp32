@@ -37,6 +37,7 @@ namespace HeatController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
+		int qid = getJsonInt(ob, "qid");
 #ifdef LASER_CONTROLLER
 			// {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":37, "timeout":600000, "updaterate":1000}
 			// {"task": "/heat_act", "active":0}
@@ -112,8 +113,9 @@ namespace HeatController
 			log_d("Heat_act_fct");
 			log_i("Heat_active: %d, temp_pid_Kp: %f, temp_pid_Ki: %f, temp_pid_Kd: %f, temp_pid_target: %f, temp_pid_updaterate: %f", Heat_active, temp_pid_Kp, temp_pid_Ki, temp_pid_Kd, temp_pid_target, temp_pid_updaterate);
 
-			return 1;
+			
 #endif
+	return qid;
 	}
 
 	void loop()

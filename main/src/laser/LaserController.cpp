@@ -57,7 +57,7 @@ namespace LaserController
 	{
 		// JSON String
 		// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
-
+		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// assign values
 		int LASERid = 0;
 		int LASERval = 0;
@@ -79,7 +79,7 @@ namespace LaserController
 			LASER_despeckle_period_1 = LASERdespecklePeriod;
 			ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			return 1;
+			return qid;
 		}
 		// action LASER 2
 		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
@@ -89,7 +89,7 @@ namespace LaserController
 			LASER_despeckle_period_2 = LASERdespecklePeriod;
 			ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			return 1;
+			return qid;
 		}
 		// action LASER 3
 		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
@@ -99,7 +99,7 @@ namespace LaserController
 			LASER_despeckle_period_3 = LASERdespecklePeriod;
 			ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			return 1;
+			return qid;
 		}
 		else
 		{

@@ -2,15 +2,17 @@
 #include "DigitalInController.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
+#include "cJsonTool.h"
 
 namespace DigitalInController
 {
 	// Custom function accessible by the API
 	int act(cJSON *jsonDocument)
 	{
+		int qid = cJsonTool::getJsonInt(jsonDocument, "qid");
 		// here you can do something
 		log_d("digitalin_act_fct");
-		return 1;
+		return qid;
 	}
 
 	// Custom function accessible by the API

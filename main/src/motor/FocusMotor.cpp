@@ -262,7 +262,7 @@ namespace FocusMotor
 	int act(cJSON *doc)
 	{
 		// log_i("motor act");
-
+		int qid = cJsonTool::getJsonInt(doc, "qid");
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
 		//{"task":"/motor_act","home":[1,2]}
@@ -278,7 +278,7 @@ namespace FocusMotor
 #ifdef STAGE_SCAN
 		parseStageScan(doc);
 #endif
-		return 1;
+		return qid;
 	}
 
 	// returns json {"motor":{...}} as qid

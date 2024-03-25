@@ -11,7 +11,7 @@ namespace PidController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
-
+		int qid = cJsonTool::getJsonInt(ob, "qid");
 		PID_active = cJsonTool::getJsonInt(ob, key_PIDactive);
 		PID_Kp = cJsonTool::getJsonInt(ob, key_Kp);
 		PID_Ki = cJsonTool::getJsonInt(ob, key_Ki);
@@ -30,7 +30,7 @@ namespace PidController
 			FocusMotor::stopStepper(Stepper::X);
 #endif
 		}
-		return 1;
+		return qid;
 	}
 
 	void loop()

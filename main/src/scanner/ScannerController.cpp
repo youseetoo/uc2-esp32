@@ -90,7 +90,7 @@ namespace ScannerController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
-
+		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// here you can do something
 		if (DEBUG)
 			Serial.println("scanner_act_fct");
@@ -235,7 +235,7 @@ namespace ScannerController
 			if (DEBUG)
 				Serial.println("Done with setting up Tasks");
 		}
-		return 1;
+		return qid;
 	}
 
 	/***************************************************************************************************/

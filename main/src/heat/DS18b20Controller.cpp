@@ -3,6 +3,7 @@
 #include "DallasTemperature.h"
 #include "JsonKeys.h"
 #include "PinConfig.h"
+#include "cJsonTool.h"
 
 namespace DS18b20Controller
 {
@@ -45,7 +46,8 @@ namespace DS18b20Controller
 	int act(cJSON *ob)
 	{
 		// nothing to do here
-		return 1;
+		int qid = cJsonTool::getJsonInt(ob, "qid");
+		return qid;
 	}
 
 	cJSON *get(cJSON *ob)

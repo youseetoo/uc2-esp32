@@ -29,7 +29,7 @@ namespace EncoderController
 		// set position
 		if (DEBUG)
 			log_i("encoder_act_fct");
-
+		int qid = cJsonTool::getJsonInt(j, "qid");
 		// set position
 		cJSON *calibrate = cJSON_GetObjectItem(j, key_encoder_calibrate);
 
@@ -91,7 +91,7 @@ namespace EncoderController
 				}
 			}
 		}
-		return 1;
+		return qid;
 	}
 
 	// returns json {"encoder":{..}}

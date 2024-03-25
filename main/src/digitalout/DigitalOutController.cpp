@@ -11,6 +11,7 @@ namespace DigitalOutController
 	{
 		// here you can do something
 		log_d("digitalout_act_fct");
+		int qid = cJsonTool::getJsonInt(jsonDocument, "qid");
 		isBusy = true;
 		int triggerdelay = 10;
 
@@ -107,7 +108,7 @@ namespace DigitalOutController
 				log_d(pinConfig.DIGITAL_OUT_3);
 			}
 		}
-		return 1;
+		return qid;
 	}
 
 	// Custom function accessible by the API

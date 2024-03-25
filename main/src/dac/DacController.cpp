@@ -24,6 +24,7 @@ namespace DacController
 	{
 
 		cJSON *monitor_json = ob;
+		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// here you can do something
 
 		Serial.println("dac_act_fct");
@@ -114,7 +115,7 @@ namespace DacController
 			dacm->dac_offset_set(dac_channel, offset);
 		}
 
-		return 1;
+		return qid;
 	}
 
 

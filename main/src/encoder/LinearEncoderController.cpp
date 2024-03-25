@@ -86,7 +86,7 @@ namespace LinearEncoderController
     int act(cJSON *j)
     {
         log_i("linearencoder_act_fct");
-
+        int qid = cJsonTool::getJsonInt(j, "qid");
         // calibrate the step-to-mm value
         cJSON *movePrecise = cJSON_GetObjectItem(j, key_linearencoder_moveprecise);
         cJSON *calibrate = cJSON_GetObjectItem(j, key_linearencoder_calibrate);
@@ -253,7 +253,7 @@ namespace LinearEncoderController
         {
             log_e("unknown command");
         }
-        return 1;
+        return qid;
     }
 
     void setCurrentPosition(int encoderIndex, float offsetPos)

@@ -10,6 +10,7 @@ namespace AnalogInController
 	int act(cJSON *ob)
 	{
 		cJSON *monitor_json = ob;
+		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// here you can do something
 		log_d("readanalogin_act_fct");
 		int readanaloginID = cJSON_GetObjectItemCaseSensitive(monitor_json, key_N_analogin_avg)->valueint; //(int)(ob)[key_readanaloginID];
@@ -40,7 +41,7 @@ namespace AnalogInController
 		}
 		// float returnValue = (float)analoginValueAvg / (float)N_analogin_avg;
 
-		return 1;
+		return qid;
 	}
 
 	// return json {"analogin":{...}}

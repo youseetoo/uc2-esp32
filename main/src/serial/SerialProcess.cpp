@@ -154,7 +154,7 @@ namespace SerialProcess
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *v = cJSON_CreateNumber(qid);
 		cJSON_AddItemToObject(doc, "qid", v);
-		cJSON_AddItemToObject(doc, "idsuccess", 1);
+		cJSON_AddItemToObject(doc, "idsuccess", cJSON_CreateNumber(1));
 		Serial.println("++");
 		char *s = cJSON_Print(doc);
 		Serial.println(s);

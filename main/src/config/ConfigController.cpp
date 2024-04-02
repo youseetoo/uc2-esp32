@@ -32,6 +32,7 @@ namespace Config
 		nvs_flash_init();
 		log_d("Setup ConfigController");
 		log_d("Using PinConfig: %s", pinConfig.pindefName);
+		log_d("Compile time: %s %s", __DATE__, __TIME__);
 	}
 
 	bool resetPreferences()

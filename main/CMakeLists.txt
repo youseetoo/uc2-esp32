@@ -1,7 +1,7 @@
 # This file was automatically generated for projects
 # without default 'CMakeLists.txt' file.
 
-set(CONFIG "XYZ_MOTOR_JOYSTICK" CACHE STRING "Board Config")
+set(CONFIG "UC2_3" CACHE STRING "Board Config")
 OPTION(ANALOG_IN_CONTROLLER "ANALOG_IN_CONTROLLER" OFF)
 OPTION(ANALOG_JOYSTICK "AnalogJoystick" OFF)
 OPTION(ANALOG_OUT_CONTROLLER "ANALOG_OUT_CONTROLLER" OFF)

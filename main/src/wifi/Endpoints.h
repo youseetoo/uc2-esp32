@@ -49,6 +49,10 @@ __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitali
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";
 #endif
+#ifdef MESSAGE_CONTROLLER
+__attribute__ ((unused)) static const  char* message_act_endpoint = "/message_act";
+__attribute__ ((unused)) static const  char* message_get_endpoint = "/message_get";
+#endif
 #ifdef ANALOG_IN_CONTROLLER
 __attribute__ ((unused)) static const  char* readanalogin_act_endpoint = "/readanalogin_act";
 __attribute__ ((unused)) static const  char* readanalogin_get_endpoint = "/readanalogin_get";

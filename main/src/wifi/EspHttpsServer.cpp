@@ -9,6 +9,9 @@
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#ifdef MESSAGE_CONTROLLER
+#include "../message/MessageController.h"
+#endif
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
 #endif
@@ -45,12 +48,17 @@ void processWebsocketMSG(void *pvParameters)
         //log_i("recv: %s", t);
         cJSON *doc = cJSON_Parse((const char *)(t));
         cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
+        cJSON *message = cJSON_GetObjectItemCaseSensitive(doc, key_message);
         cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
         //ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
 #ifdef LED_CONTROLLER
         // ESP_LOGI(TAG_HTTPSSERV,"led controller act");
         if (led != nullptr)
             LedController::act(doc);
+#endif
+#ifdef MESSAGE_CONTROLLER
+        if (message != nullptr)
+            MessageController::act(doc);
 #endif
 #ifdef FOCUS_MOTOR
         if (motor != nullptr)
@@ -415,13 +423,25 @@ void EspHttpsServer::start_webserver()
     httpd_uri_t led_act = {
         .uri = ledarr_act_endpoint,
         .method = HTTP_POST,
-        .handler = RestApi::Led_setESP};
+        .handler = RestApi::led_actESP};
     httpd_register_uri_handler(server, &led_act);
     httpd_uri_t led_get = {
         .uri = ledarr_get_endpoint,
         .method = HTTP_GET,
         .handler = RestApi::led_getESP};
     httpd_register_uri_handler(server, &led_get);
+#endif
+#ifdef MESSAGE_CONTROLLER
+    httpd_uri_t message_act = {
+        .uri = message_act_endpoint,
+        .method = HTTP_POST,
+        .handler = RestApi::message_actESP};
+    httpd_register_uri_handler(server, &message_act);
+    httpd_uri_t message_get = {
+        .uri = message_get_endpoint,
+        .method = HTTP_GET,
+        .handler = RestApi::message_getESP};
+    httpd_register_uri_handler(server, &message_get);
 #endif
 #ifdef HEAT_CONTROLLER
     httpd_uri_t heat_act = {

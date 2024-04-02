@@ -41,6 +41,9 @@
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#ifdef MESSAGE_CONTROLLER
+#include "../message/MessageController.h"
+#endif
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
 #endif
@@ -206,6 +209,10 @@ namespace RestApi
         cJSON_AddItemToArray(doc, cJSON_CreateString(ledarr_act_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(ledarr_get_endpoint));
 #endif
+#ifdef MESSAGE_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(message_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(message_get_endpoint));
+#endif
         serializeESP(doc, req);
         return ESP_OK;
     }
@@ -344,7 +351,7 @@ namespace RestApi
     }
 #endif
 #ifdef LED_CONTROLLER
-    esp_err_t Led_setESP(httpd_req_t *req)
+    esp_err_t led_actESP(httpd_req_t *req)
     {
         serializeESP(LedController::act(deserializeESP(req)), req);
         return ESP_OK;
@@ -352,6 +359,18 @@ namespace RestApi
     esp_err_t led_getESP(httpd_req_t *req)
     {
         serializeESP(LedController::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+#ifdef MESSAGE_CONTROLLER
+    esp_err_t message_actESP(httpd_req_t *req)
+    {
+        serializeESP(MessageController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t message_getESP(httpd_req_t *req)
+    {
+        serializeESP(MessageController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

@@ -112,6 +112,8 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id"
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos = "calibsteps";
 
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
+__attribute__ ((unused)) static const PROGMEM char * key_message = "message";
+
 
 #ifdef FOCUS_MOTOR
 __attribute__ ((unused)) static const PROGMEM char * key_motor = "motor";

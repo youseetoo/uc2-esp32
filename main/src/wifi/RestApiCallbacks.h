@@ -133,8 +133,12 @@ namespace RestApi
     []
     */
 #ifdef LASER_CONTROLLER
-    esp_err_t Led_setESP(httpd_req_t *req);
+    esp_err_t led_actESP(httpd_req_t *req);
     esp_err_t led_getESP(httpd_req_t *req);
+#endif
+#ifdef MESSAGE_CONTROLLER
+    esp_err_t message_actESP(httpd_req_t *req);
+    esp_err_t message_getESP(httpd_req_t *req);
 #endif
 #ifdef FOCUS_MOTOR
     esp_err_t FocusMotor_actESP(httpd_req_t *req);

@@ -105,6 +105,9 @@ namespace State
 		cJSON_AddItemToObject(mod, keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
 		cJSON_AddItemToObject(mod, key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
 		cJSON_AddItemToObject(mod, key_encoder, cJSON_CreateNumber((pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)));
+#ifdef MESSAGE_CONTROLLER
+cJSON_AddItemToObject(mod, key_message, cJSON_CreateNumber(1));
+#endif
 #ifdef HOME_MOTOR
 		cJSON_AddItemToObject(mod, key_home, cJSON_CreateNumber((pinConfig.PIN_DEF_END_X >= 0 || pinConfig.PIN_DEF_END_Y >= 0 || pinConfig.PIN_DEF_END_Z >= 0)));
 #endif

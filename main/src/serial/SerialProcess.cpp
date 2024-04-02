@@ -38,6 +38,9 @@
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#ifdef MESSAGE_CONTROLLER
+#include "../message/MessageController.h"
+#endif
 #ifdef FOCUS_MOTOR
 #include "../motor/FocusMotor.h"
 #endif
@@ -250,6 +253,12 @@ namespace SerialProcess
 			serialize(LedController::get(jsonDocument));
 		if (strcmp(task, ledarr_act_endpoint) == 0)
 			serialize(LedController::act(jsonDocument));
+#endif
+#ifdef MESSAGE_CONTROLLER
+		if (strcmp(task, message_get_endpoint) == 0)
+			serialize(MessageController::get(jsonDocument));
+		if (strcmp(task, message_act_endpoint) == 0)
+			serialize(MessageController::act(jsonDocument));
 #endif
 #ifdef FOCUS_MOTOR
 		if (strcmp(task, motor_get_endpoint) == 0)

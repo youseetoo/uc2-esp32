@@ -66,6 +66,7 @@ struct UC2_3 : PinConfig
      #define LASER_CONTROLLER
      #define DIGITAL_IN_CONTROLLER*/
      const char * pindefName = "UC2_3";
+     const unsigned long BAUDRATE = 500000;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
@@ -74,7 +75,7 @@ struct UC2_3 : PinConfig
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
-     bool useFastAccelStepper = false;
+     bool useFastAccelStepper = true;
      int8_t AccelStepperMotorType = 1;
 
      int8_t LASER_1 = GPIO_NUM_12;
@@ -98,6 +99,7 @@ struct UC2_3 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
+     
 
      // for caliper
      int8_t X_CAL_DATA = GPIO_NUM_32;

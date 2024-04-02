@@ -39,6 +39,9 @@
 #ifdef LED_CONTROLLER
 #include "src/led/LedController.h"
 #endif
+#ifdef MESSAGE_CONTROLLER
+#include "src/message/MessageController.h"
+#endif
 #ifdef FOCUS_MOTOR
 #include "src/motor/FocusMotor.h"
 #endif

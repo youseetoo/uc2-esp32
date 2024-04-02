@@ -66,6 +66,8 @@ struct UC2_3 : PinConfig
      #define LASER_CONTROLLER
      #define DIGITAL_IN_CONTROLLER*/
      const char * pindefName = "UC2_3";
+     const char *mSSID = "UC2_3";
+     const char *mPWD = "12345678";
      const unsigned long BAUDRATE = 500000;
      bool dumpHeap = true;
      int8_t MOTOR_A_STEP = GPIO_NUM_15;

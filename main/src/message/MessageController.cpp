@@ -53,6 +53,7 @@ namespace MessageController
 	void sendMesageSerial(int key, int value)
 	{
 		// send home done to client
+		log_i("key: %i, value: %i", key, value);
 		cJSON *json = cJSON_CreateObject();
 		cJSON *message = cJSON_CreateObject();
 		cJSON_AddItemToObject(json, "message", message);

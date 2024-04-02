@@ -166,7 +166,9 @@ extern "C" void setupApp(void)
 #ifdef LED_CONTROLLER
 	LedController::setup();
 #endif
-
+#ifdef MESSAGE_CONTROLLER
+	MessageController::setup();
+#endif
 #ifdef PID_CONTROLLER
 	PidController::setup();
 #endif

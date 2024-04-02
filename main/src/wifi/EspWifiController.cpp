@@ -66,7 +66,7 @@ void EspWifiController::initSoftAp()
     ESP_ERROR_CHECK(esp_wifi_start());
     log_i("wifi_init_softap finished. SSID:%s password:%s",
           wconfig->mSsid, wconfig->pw);
-    
+    log_i("Current IP address: %s", "1");
 }
 
 void EspWifiController::wifi_init_sta()

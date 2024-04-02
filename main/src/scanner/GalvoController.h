@@ -24,4 +24,5 @@ public:
     cJSON * get(cJSON *  ob) override;
     void setup() override;
     void loop() override;
+    void writeInt(int);
   };

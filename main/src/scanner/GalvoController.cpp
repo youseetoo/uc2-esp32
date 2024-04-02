@@ -80,7 +80,7 @@ cJSON *GalvoController::get(cJSON *ob)
 /****************************************** ********************************************************/
 
 // Function to write an integer in network byte order (big endian)
-void writeInt(int value)
+void GalvoController::writeInt(int value)
 {
     Wire.write((value >> 24) & 0xFF);
     Wire.write((value >> 16) & 0xFF);

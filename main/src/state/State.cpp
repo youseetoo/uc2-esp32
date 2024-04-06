@@ -19,6 +19,7 @@ namespace State
 	// {"task":"/state_act", "delay":1000}
 	// {"task":"/state_act", "isBusy":1}
 	// {"task":"/state_act", "resetPreferences":1}
+	// {"task":"/state_act", "debug":0} // 0-5
 
 	// Custom function accessible by the API
 	int act(cJSON *doc)
@@ -41,6 +42,14 @@ namespace State
 			int mdelayms = del->valueint;
 			delay(mdelayms);
 		}
+		// set debug level
+		cJSON *debug = cJSON_GetObjectItemCaseSensitive(doc, "debug");
+		if (debug != NULL)
+		{
+			DEBUG = debug->valueint;
+			esp_log_level_set("MessageController", (esp_log_level_t)DEBUG);
+		}
+		// assign default values to thhe variables
 		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(doc, "isBusy");
 		if (BUSY != NULL)
 		{

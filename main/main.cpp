@@ -66,7 +66,7 @@
 #endif
 
 
-long lastHeapUpdateTime;
+long lastHeapUpdateTime = 0;
 
 extern "C" void looper(void *p)
 {
@@ -108,12 +108,10 @@ extern "C" void looper(void *p)
 #endif
 
 		// process all commands in their modules
-
-		if (pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time())
 		{
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
-			// Serial2.println("free heap"+String(ESP.getFreeHeap()));
+			Serial.println("free heap"+String(ESP.getFreeHeap()));
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 	}
@@ -124,7 +122,6 @@ extern "C" void setupApp(void)
 {
 
 	SerialProcess::setup();
-#ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
 #ifdef FOCUS_MOTOR

@@ -278,10 +278,10 @@ gives
             { "stepperid": 1, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}
     ]}}
 
+ {"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
+
+
 {"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
-
-
-
 {"task":"/rotator_get"}
 {"task":"/rotator_act",
     "motor":
@@ -300,3 +300,9 @@ gives
     }
 }
 {"task":"/state_get"}
+
+	// {"task":"/state_act", "restart":1}
+	// {"task":"/state_act", "delay":1000}
+	// {"task":"/state_act", "isBusy":1}
+	// {"task":"/state_act", "resetPreferences":1}
+	{"task":"/state_act", "debug":4} // 0-5

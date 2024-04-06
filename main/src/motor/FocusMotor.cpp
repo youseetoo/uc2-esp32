@@ -129,6 +129,7 @@ namespace FocusMotor
 		}
 		else
 			log_i("Motor json is null");
+
 	}
 
 	bool parseSetPosition(cJSON *doc)

@@ -64,6 +64,9 @@ namespace MessageController
 		Serial.println("++");
 		char *ret = cJSON_Print(json);
 		cJSON_Delete(json);
+		cJSON_Delete(message);
+		cJSON_Delete(jsonkey);
+		cJSON_Delete(jsonvalue);
 		Serial.println(ret);
 		free(ret);
 		Serial.println("--");

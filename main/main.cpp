@@ -2,7 +2,6 @@
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
 #include <PinConfig.h>
-
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -108,7 +107,7 @@ extern "C" void looper(void *p)
 #endif
 
 		// process all commands in their modules
-		{
+		if (true && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){ //pinConfig.dumpHeap
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
 			Serial.println("free heap"+String(ESP.getFreeHeap()));
@@ -122,6 +121,7 @@ extern "C" void setupApp(void)
 {
 
 	SerialProcess::setup();
+#ifdef USE_TCA9535	
 	tca_controller::init_tca();
 #endif
 #ifdef FOCUS_MOTOR

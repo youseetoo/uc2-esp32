@@ -8,25 +8,70 @@ Similar to the legacy UC2-REST Firmware, the microcontroller can communicate usi
 {"task":"/state_get"}
 ```
 
-A list of all commands that can be sent via HTTP requests and serial commands (e.g. by using the Arduino IDE-contained Serial monitor at 115200 BAUD) can be found in the [RestApi.md](./RestApi.md)-file.
+A list of all commands that can be sent via HTTP requests and serial commands (e.g. by using the Arduino IDE-contained Serial monitor at 50000 BAUD) can be found in the [RestApi.md](./RestApi.md)-file.
 
 # Setting up the build environment
 
-In order to build the code, you have to follow the following steps:
+Certainly! Below is a tutorial crafted for beginners who are interested in developing firmware for the UC2-ESP project using Visual Studio Code with PlatformIO. This project is specifically designed for the ESP32 platform, leveraging both Arduino and ESP-IDF frameworks as defined in its `platformio.ini` file.
 
-1. Install Visual Studio Code + the Extension called "Platform.io" => Restart Visual studio code to load PIO
-2. Clone this repository including all the submodules: `git clone --recurse-submodules https://github.com/youseetoo/uc2-esp32`
-3. Open the main folder in the Visual Studio Code
-4. Adjust the settings in the file `platformio.ini`-file (mostly the port)
-4.1. Go to Platformio Home and navigate to Devices
-4.2 Copy the Device port (if connected) and insert that into the `platformio.ini`, e.g. `upload_port = /dev/cu.SLAB_USBtoUART` or `COM3`for windoof
-5. Hit the `PlatformIO upload` button; The following task will be run: `platformio run --target upload`; The code is getting compiled and saved into `./.pio/build/`
-5.1 The code will be uploaded. If eerything goes right the terminal says: `Leaving... Hard resetting via RTS pin...``
-6. open the PlatformIO serial monitor (remember to also change the port in the `platform.io` accordingly) and check the ESP32's output (eventually hit the reset button)
-7. In case you have any problems: File an issue :-)
+### Prerequisites
+Before diving into the development process, ensure you have the following:
+1. **Visual Studio Code** installed on your computer.
+2. **PlatformIO IDE** extension for Visual Studio Code.
+3. **Git** installed for cloning the repository.
+
+### Setting Up Your Development Environment
+
+#### Step 1: Install Visual Studio Code and PlatformIO
+1. Download and install **Visual Studio Code** (VS Code) from the [official website](https://code.visualstudio.com/).
+2. Open VS Code and navigate to the Extensions view by clicking on the square icon on the sidebar or pressing `Ctrl+Shift+X`.
+3. Search for "PlatformIO IDE" and click on the install button.
+4. Restart VS Code to ensure the PlatformIO IDE extension is properly loaded.
+
+#### Step 2: Clone the UC2-ESP Repository
+1. Open a terminal or command prompt.
+2. Clone the UC2-ESP repository by executing:
+   ```
+   git clone --recurse-submodules https://github.com/youseetoo/uc2-esp32
+   ```
+3. This command clones the repository and all its submodules, ensuring you have the complete codebase.
+
+#### Step 3: Open the Project in VS Code
+1. Open VS Code, go to the File menu, and select "Open Folder".
+2. Navigate to the directory where you cloned the UC2-ESP repository and select the `uc2-esp32` folder.
+
+#### Step 4: Configuration
+1. Once the project is open in VS Code, locate the `platformio.ini` file in the root directory. This file contains the configuration for your project environment.
+2. If your development board is connected, you can set the `upload_port` based on your system:
+   - For Linux/Mac: `upload_port = /dev/cu.SLAB_USBtoUART`
+   - For Windows: `upload_port = COM3` (adjust the COM port based on your system)
+3. Examine the `PinConfig.h` file to select the appropriate board configuration by setting the desired `PinConfig` structure, e.g., `const UC2_3 pinConfig;`.
+
+#### Step 5: Building and Uploading the Firmware
+1. With the project open in VS Code, click on the PlatformIO icon on the sidebar.
+2. Under the "Quick Access" section, locate your environment (e.g., `esp32dev`) and click on the "Upload" button. This action compiles the code and uploads it to your ESP32 board.
+3. After uploading, the terminal will display messages about the process. A successful upload ends with "Leaving... Hard resetting via RTS pin...".
+
+#### Step 6: Monitoring Output
+1. To view the serial output from your ESP32, click on the "Monitor" button in the PlatformIO Quick Access section.
+2. Ensure the `monitor_speed` in the `platformio.ini` file matches the baud rate set in your program (default is 500000 for this project).
+3. If necessary, reset your ESP32 board to start the program from the beginning.
+
+#### Step 7: Debugging and Troubleshooting
+If you encounter issues during development or uploading:
+- Double-check your `platformio.ini` configurations, especially the `upload_port` and board settings.
+- Review the serial monitor output for any error messages.
+- Ensure your ESP32 board is correctly connected to your computer.
+- For specific problems, consider filing an issue in the [UC2-ESP GitHub repository](https://github.com/youseetoo/uc2-esp32) for support.
+
+### Testing and Experimentation
+To test various functionalities, refer to the `json_api_BD.txt` file in the `main` directory for a collection of JSON commands that can be sent to the ESP32.
+
+This guide covers the basics to get started with firmware development for the UC2-ESP project using VS Code and PlatformIO. As you become more familiar with the project, explore the codebase to understand the implementation details and how you can contribute to its development.
+
+In order to test several commands, you can find a useful list of `json`files in this file: [main/json_api_BD.txt](main/json_api_BD.txt)
 
 
-  In order to test several commands, you can find a useful list of `json`files in this file: [main/json_api_BD.txt](main/json_api_BD.txt)
 # Flash the firmware using the Web-Tool
 
 A new way to flash the firmware to the ESP32 is to use the open-source ESPHome Webtool. We have modified it such that the software in thi repo is compiled and uploaded to the website:
@@ -42,7 +87,7 @@ There you can select the board you have and flash the code. If the driver is pro
 
 # Additional information
 
-This is a fastly moving repo and the information may get outdated quickly. Please also check the relevant information in our [documentation](https://openuc2.github.io/docs/Electronics/uc2e1)
+This is a fastly moving repo and the information may get outdated quickly. Please also check the relevant information in our [documentation](https://openuc2.github.io/docs/Electronics/)
 
 
 # Information about the REST commands
@@ -56,10 +101,6 @@ The general structure for the serial would become:
 ````
 
 to get the information about the MCU. A additional cheat-sheet can be found [here](main/json_api_BD.txt)
-
-# Implement your own module
-
-The object oriented structure of the Firmware allows one to (more-less) easily implement additional components/modules. A rough structure where to add the different components like endpoints, REST-hooks, etc. is summarized [here](DOC_Firmware.md).
 
 # Some Arduino-CLI/ESPTOOL/PlatformIO-related commands
 

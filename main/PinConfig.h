@@ -19,7 +19,7 @@ struct PinConfig
      const uint16_t STAGESCAN_TASK_STACKSIZE = 2048; //8096;
      const uint16_t STACKSIZE_MOTOR = 4096; //8096;
      const char *pindefName = "pindef";
-     long BAUDRATE = 500000;
+     long BAUDRATE = 115200;//500000;
 
      const uint16_t IMAGE_ACTIVE = 1; // enable image sending/receiving from USB to Wifi
 
@@ -627,6 +627,11 @@ struct UC2_3 : PinConfig
      int8_t ENC_X_B = GPIO_NUM_33;
      int8_t ENC_Y_B = GPIO_NUM_35;
      int8_t ENC_Z_B = GPIO_NUM_17;
+     bool ENC_A_direction = true; 
+     bool ENC_X_direction = true; 
+     bool ENC_Y_direction = true; 
+     bool ENC_Z_direction = true; 
+     
 
      // Serial 2    
      int8_t SERIAL2_TX = GPIO_NUM_26;

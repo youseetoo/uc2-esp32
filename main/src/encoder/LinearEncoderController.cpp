@@ -19,12 +19,12 @@ void processEncoderEvent(uint8_t pin)
     LinearEncoderController *l = (LinearEncoderController *)moduleController.get(AvailableModules::linearencoder);
     // for X
 
-    if (pin == pinConfig.ENC_X_B)
+    if ((pin == pinConfig.ENC_X_B))
     { // X-A changed
         bool pinA = digitalRead(pinConfig.ENC_X_A);
         bool pinB = digitalRead(pinConfig.ENC_X_B);
 
-        if (pinA == pinB)
+        if ((pinA == pinB)^l->edata[1]->direction)
             l->edata[1]->posval += l->edata[1]->mmPerStep;
         else
             l->edata[1]->posval -= l->edata[1]->mmPerStep;
@@ -34,7 +34,7 @@ void processEncoderEvent(uint8_t pin)
         bool pinA = digitalRead(pinConfig.ENC_X_A);
         bool pinB = digitalRead(pinConfig.ENC_X_B);
 
-        if (pinA != pinB)
+        if ((pinA != pinB)^l->edata[1]->direction)
             l->edata[1]->posval += l->edata[1]->mmPerStep;
         else
             l->edata[1]->posval -= l->edata[1]->mmPerStep;
@@ -44,17 +44,17 @@ void processEncoderEvent(uint8_t pin)
         bool pinA = digitalRead(pinConfig.ENC_Y_A);
         bool pinB = digitalRead(pinConfig.ENC_Y_B);
 
-        if (pinA == pinB)
+        if ((pinA == pinB)^l->edata[2]->direction)
             l->edata[2]->posval += l->edata[2]->mmPerStep;
         else
-            l->edata[2]->posval -= l->edata[1]->mmPerStep;
+            l->edata[2]->posval -= l->edata[2]->mmPerStep;
     }
     else if (pin == pinConfig.ENC_Y_B)
     { // Y-B changed
         bool pinA = digitalRead(pinConfig.ENC_Y_A);
         bool pinB = digitalRead(pinConfig.ENC_Y_B);
 
-        if (pinA != pinB)
+        if ((pinA != pinB)^l->edata[2]->direction)
             l->edata[2]->posval += l->edata[2]->mmPerStep;
         else
             l->edata[2]->posval -= l->edata[2]->mmPerStep;
@@ -63,8 +63,7 @@ void processEncoderEvent(uint8_t pin)
     { // Z-A changed
         bool pinA = digitalRead(pinConfig.ENC_Z_A);
         bool pinB = digitalRead(pinConfig.ENC_Z_B);
-
-        if (pinA == pinB)
+        if ((pinA == pinB)^l->edata[3]->direction))
             l->edata[3]->posval += l->edata[3]->mmPerStep;
         else
             l->edata[3]->posval -= l->edata[3]->mmPerStep;
@@ -74,7 +73,7 @@ void processEncoderEvent(uint8_t pin)
         bool pinA = digitalRead(pinConfig.ENC_Z_A);
         bool pinB = digitalRead(pinConfig.ENC_Z_B);
 
-        if (pinA != pinB)
+        if ((pinA != pinB)^l->edata[3]->direction))
             l->edata[3]->posval += l->edata[3]->mmPerStep;
         else
             l->edata[3]->posval -= l->edata[3]->mmPerStep;
@@ -156,11 +155,12 @@ int LinearEncoderController::act(cJSON *j)
     {
         // initiate a motor start and let the motor run until it reaches the position
         // {"task": "/linearencoder_get", "stepperid": 1}
-        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1000, "isabs":1,  "cp":100, "ci":0., "cd":10} ]}}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1000, "isabs":1,  "cp":100, "ci":0., "cd":10, "speed":1000} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
         //{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
-        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500 , "isabs":0, "speed": -10000, "cp":20, "ci":10, "cd":10} ]}}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": -500 , "isabs":0, "speed": 2000, "cp":20, "ci":1, "cd":5, "direction":1} ]}}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
 
         cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
@@ -202,12 +202,17 @@ int LinearEncoderController::act(cJSON *j)
                     edata[s]->c_i = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci)->valuedouble;
                 if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd) != NULL)
                     edata[s]->c_d = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
+                if (cJSON_GetObjectItemCaseSensitive(stp, key_speed) != NULL)
+                    edata[s]->maxSpeed = abs(cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint);
+                if (cJSON_GetObjectItemCaseSensitive(stp, key_speed) != NULL)
+                    edata[s]->direction = abs(cJSON_GetObjectItemCaseSensitive(stp, "direction")->valueint);
+
                 edata[s]->pid = PIDController(edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
                 float speed = edata[s]->pid.compute(edata[s]->positionToGo, edata[s]->posval);
                 int sign = speed > 0 ? 1 : -1;
-                if (speed > motor->data[s]->maxspeed)
+                if (abs(speed) > abs(edata[s]->maxSpeed))
                 {
-                    speed = (float)(sign * motor->data[s]->maxspeed);
+                    speed = (float)(sign * edata[s]->maxSpeed);
                 }
 
                 // get the motor object and chang the values so that it will move 1000 steps forward
@@ -216,14 +221,12 @@ int LinearEncoderController::act(cJSON *j)
                 edata[s]->timeSinceMotorStart = millis();
                 motor->startStepper(s);
                 edata[s]->movePrecise = true;
-                log_d("Move precise from %f to %f at speed %f", edata[s]->positionPreMove, edata[s]->positionToGo, motor->data[s]->speed);
-                /*
+                log_d("Move precise from %f to %f at speed %f, direction %b", edata[s]->positionPreMove, edata[s]->positionToGo, motor->data[s]->speed, edata[s]->direction);
                 Serial.println(motor->data[s]->speed);
                 Serial.println(edata[s]->positionPreMove);
                 Serial.println(edata[s]->positionToGo);
                 Serial.println(edata[s]->isAbsolute);
                 Serial.println(speed);
-                */
             }
         }
     }
@@ -265,6 +268,7 @@ void LinearEncoderController::setCurrentPosition(int encoderIndex, float offsetP
 
 float LinearEncoderController::getCurrentPosition(int encoderIndex)
 {
+
     return edata[encoderIndex]->posval;
 }
 
@@ -275,9 +279,9 @@ cJSON *LinearEncoderController::get(cJSON *docin)
     // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
     // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 3  }}
     log_i("linearencoder_get_fct");
-    int isPos = -1;
-    int linearencoderID = -1;
-    float posVal = 0.0f;
+    int isPos = -1;           // change position
+    int linearencoderID = -1; // which linearencoder
+    float posVal = 0.0f;      // position value
 
     cJSON *doc = cJSON_CreateObject();
     cJSON *linearencoder = cJSON_GetObjectItemCaseSensitive(docin, key_linearencoder);
@@ -300,6 +304,7 @@ cJSON *LinearEncoderController::get(cJSON *docin)
     int edgeCounter = 0;
     if (isPos > 0 and linearencoderID >= 0)
     {
+
         cJSON *aritem = cJSON_CreateObject();
         pwmVal = 0;      // encoders[linearencoderID]->readPWM();
         edgeCounter = 0; // encoders[linearencoderID]->readEdgeCounter();
@@ -308,6 +313,7 @@ cJSON *LinearEncoderController::get(cJSON *docin)
         cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
         cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
         cJSON_AddItemToObject(doc, "linearencoder_data", aritem);
+        Serial.println("linearencoder_data for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
     }
     else
     {
@@ -321,6 +327,7 @@ cJSON *LinearEncoderController::get(cJSON *docin)
 
             cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
             cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
+            Serial.println("linearencoder_data for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
         }
         cJSON_AddItemToObject(doc, "linearencoder_data", aritem);
     }
@@ -359,7 +366,7 @@ void LinearEncoderController::loop()
                 log_d("current pos %f, current pos avg %f, need to go to: %f", currentPos, currentPosAvg, edata[i]->positionToGo);
                 float thresholdPositionChange = 0.1f;
                 int startupTimout = 1000;
-                
+
                 if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
                     (millis() - edata[i]->timeSinceMotorStart) > startupTimout)
                 {
@@ -390,13 +397,16 @@ void LinearEncoderController::loop()
             {
                 // read current encoder position
 
+                float currentPos = getCurrentPosition(i);
+                float currentPosAvg = calculateRollingAverage(currentPos);
+
                 // PID Controller
-                float speed = -edata[i]->pid.compute(edata[i]->positionToGo, edata[i]->posval);
+                float speed = -edata[i]->pid.compute(edata[i]->positionToGo, currentPos);
                 int sign = speed > 0 ? 1 : -1;
                 // if speed is too high, limit it to the maximum of motor
-                if (abs(speed) > motor->data[i]->maxspeed)
+                if (abs(speed) > abs(edata[i]->maxSpeed))
                 {
-                    speed = (float)(sign * motor->data[i]->maxspeed);
+                    speed = (float)(sign * edata[i]->maxSpeed);
                 }
                 // initiate a motion with updated speed
                 // log_i("Current position %f, position to go %f, speed %f\n",
@@ -406,9 +416,9 @@ void LinearEncoderController::loop()
                 motor->startStepper(i);
 
                 // when should we end the motion?!
-                float distanceToGo = edata[i]->positionToGo - edata[i]->posval;
+                float distanceToGo = edata[i]->positionToGo - currentPos;
 
-                if (abs(distanceToGo) < 1)
+                if (abs(distanceToGo) < 1) // TODO: adaptive threshold ?
                 {
                     log_i("Stopping motor %i, distance to go: %f", i, distanceToGo);
                     motor->data[i]->speed = 0;
@@ -418,12 +428,11 @@ void LinearEncoderController::loop()
                 }
 
                 // in case the motor position does not move for 5 cycles, we stop the motor
-                float currentPos = getCurrentPosition(i);
-                float currentPosAvg = calculateRollingAverage(currentPos);
-                log_d("current pos %f, current pos avg %f, need to go to: %f at speed %f", currentPos, currentPosAvg, edata[i]->positionToGo, speed);
+                // {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1000 , "isabs":0, "speed": 10000, "cp":20, "ci":0, "cd":10} ]}}
+                log_d("current pos %f, current pos avg %f, need to go to: %f at speed %f, distanceToGo %f", currentPos, currentPosAvg, edata[i]->positionToGo, speed, distanceToGo);
                 float thresholdPositionChange = 0.01f;
                 int startupTimout = 1000;
-                
+
                 if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
                     (millis() - edata[i]->timeSinceMotorStart) > startupTimout and
                     abs(distanceToGo) > 2)
@@ -459,14 +468,16 @@ void LinearEncoderController::setup()
         log_i("Adding X LinearEncoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
         pinMode(pinConfig.ENC_X_A, INPUT_PULLUP);
         pinMode(pinConfig.ENC_X_B, INPUT_PULLUP);
+        edata[1]->direction = pinConfig.ENC_X_direction;
         addInterruptListener(pinConfig.ENC_X_A, (Listener)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         addInterruptListener(pinConfig.ENC_X_B, (Listener)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
     }
-    if (pinConfig.ENC_X_A >= 0)
+    if (pinConfig.ENC_Y_A >= 0)
     {
         log_i("Adding Y LinearEncoder: %i, %i", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
         pinMode(pinConfig.ENC_Y_A, INPUT_PULLUP);
         pinMode(pinConfig.ENC_Y_B, INPUT_PULLUP);
+        edata[2]->direction = pinConfig.ENC_Y_direction;
         addInterruptListener(pinConfig.ENC_Y_A, (Listener)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         addInterruptListener(pinConfig.ENC_Y_B, (Listener)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
     }
@@ -475,6 +486,7 @@ void LinearEncoderController::setup()
         log_i("Adding Z LinearEncoder: %i, %i", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
         pinMode(pinConfig.ENC_Z_A, INPUT_PULLUP);
         pinMode(pinConfig.ENC_Z_B, INPUT_PULLUP);
+        edata[3]->direction = pinConfig.ENC_Z_direction;
         addInterruptListener(pinConfig.ENC_Z_A, (Listener)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         addInterruptListener(pinConfig.ENC_Z_B, (Listener)&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
     }

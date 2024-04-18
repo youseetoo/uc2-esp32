@@ -7,7 +7,8 @@
 
 struct LinearEncoderData
 {	
-	bool direction = false;
+	bool encoderDirection = false;
+	bool motorDirection = false;
 	float posval = 0.0f;
 	bool requestPosition = false;
 	int linearencoderID = -1;

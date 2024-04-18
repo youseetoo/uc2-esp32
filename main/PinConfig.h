@@ -627,10 +627,14 @@ struct UC2_3 : PinConfig
      int8_t ENC_X_B = GPIO_NUM_33;
      int8_t ENC_Y_B = GPIO_NUM_35;
      int8_t ENC_Z_B = GPIO_NUM_17;
-     bool ENC_A_direction = true; 
-     bool ENC_X_direction = true; 
-     bool ENC_Y_direction = true; 
-     bool ENC_Z_direction = true; 
+     bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_encoderDirection = true; 
+     bool ENC_Y_encoderDirection = true; 
+     bool ENC_Z_encoderDirection = true; 
+     bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_motorDirection = true;
+     bool ENC_Y_motorDirection = true;
+     bool ENC_Z_motorDirection = true;
      
 
      // Serial 2    

@@ -19,7 +19,7 @@ struct StageScanningData{
 
 struct MotorData
 {
-
+	bool directionPinInverted = false;
 	long speed = 0;
 	long maxspeed = MAX_VELOCITY_A;
 	long acceleration = 0;

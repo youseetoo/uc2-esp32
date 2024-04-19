@@ -22,6 +22,7 @@
 
 # MOTOR
 # X,Y,Z,A => 1,2,3,0
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 2, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
@@ -110,7 +111,7 @@
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
 # Heating
- {"task": "/heat_act", "active":1, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000}
+ {"task": "/heat_act", "active":0, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000}
  {"task": "/heat_act", "active":0}
  {"task": "/heat_get"}
 

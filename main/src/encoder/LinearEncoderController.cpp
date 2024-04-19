@@ -158,7 +158,7 @@ int LinearEncoderController::act(cJSON *j)
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
         //{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
-        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": -500 , "isabs":0, "speed": 1000, "cp":10, "ci":1, "cd":5, "encdir":1, "motdir":1} ]}}
+        //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 5000 , "isabs":0, "speed": 20000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
         //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
 
@@ -209,7 +209,7 @@ int LinearEncoderController::act(cJSON *j)
                     motor->data[s]->directionPinInverted = abs(cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint);
                 
                 edata[s]->pid = PIDController(edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
-                float speed = edata[s]->pid.compute(edata[s]->positionToGo, edata[s]->posval);
+                float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
                 int sign = speed > 0 ? 1 : -1;
                 if (abs(speed) > abs(edata[s]->maxSpeed))
                 {
@@ -220,14 +220,10 @@ int LinearEncoderController::act(cJSON *j)
                 motor->data[s]->isforever = true;
                 motor->data[s]->speed = speed;
                 edata[s]->timeSinceMotorStart = millis();
-                motor->startStepper(s);
                 edata[s]->movePrecise = true;
-                log_d("Move precise from %f to %f at speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, motor->data[s]->speed, edata[s]->encoderDirection);
-                Serial.println(motor->data[s]->speed);
-                Serial.println(edata[s]->positionPreMove);
-                Serial.println(edata[s]->positionToGo);
-                Serial.println(edata[s]->isAbsolute);
-                Serial.println(speed);
+                log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, motor->data[s]->speed, speed, edata[s]->encoderDirection);
+                motor->startStepper(s);
+                
             }
         }
     }
@@ -366,7 +362,7 @@ void LinearEncoderController::loop()
                 float currentPosAvg = calculateRollingAverage(currentPos);
                 log_d("current pos %f, current pos avg %f, need to go to: %f", currentPos, currentPosAvg, edata[i]->positionToGo);
                 float thresholdPositionChange = 0.1f;
-                int startupTimout = 1000;
+                int startupTimout = 2000; // time to track if there is no movement which could mean the motion is blocked
 
                 if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
                     (millis() - edata[i]->timeSinceMotorStart) > startupTimout)
@@ -401,8 +397,8 @@ void LinearEncoderController::loop()
                 float currentPos = getCurrentPosition(i);
                 float currentPosAvg = calculateRollingAverage(currentPos);
 
-                // PID Controller
-                float speed = -edata[i]->pid.compute(edata[i]->positionToGo, currentPos);
+                // PID Controller 
+                float speed = edata[i]->pid.compute(edata[i]->positionToGo, currentPos);
                 int sign = speed > 0 ? 1 : -1;
                 // if speed is too high, limit it to the maximum of motor
                 if (abs(speed) > abs(edata[i]->maxSpeed))
@@ -436,13 +432,14 @@ void LinearEncoderController::loop()
 
                 if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
                     (millis() - edata[i]->timeSinceMotorStart) > startupTimout and
-                    abs(distanceToGo) > 2)
+                    abs(distanceToGo) > 5)
                 {
                     log_i("Stopping motor  %i because there might be something in the way", i);
                     motor->data[i]->speed = 0;
                     motor->data[i]->isforever = false;
                     motor->stopStepper(i);
                     edata[i]->movePrecise = false;
+                    log_i("Final Position %f", getCurrentPosition(i));
                 }
             }
         }

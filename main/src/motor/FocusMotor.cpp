@@ -178,28 +178,7 @@ void sendUpdateToClients(void *p)
 bool externalPinCallback(uint8_t pin, uint8_t value)
 {
 	FocusMotor *m = (FocusMotor *)moduleController.get(AvailableModules::motor);
-	
-	// get the directionInverted
-	int motorIndex = -1;
-	if (pin == pinConfig.MOTOR_X_DIR)
-		motorIndex = 0;
-	else if (pin == pinConfig.MOTOR_Y_DIR)
-		motorIndex = 1;
-	else if (pin == pinConfig.MOTOR_Z_DIR)
-		motorIndex = 2;
-	else if (pin == pinConfig.MOTOR_A_DIR)
-		motorIndex = 3;
-	else if (pinConfig.I2C_SCL > -1 and pin==228)
-		motorIndex = 1;
-	else if (pinConfig.I2C_SCL > -1 and pin==229)
-	 	motorIndex = 2;
-	else if (pinConfig.I2C_SCL > -1 and pin==230)
-	 	motorIndex = 3;
-	else if (pinConfig.I2C_SCL > -1 and pin==231)
-		motorIndex = 0;
-	log_i("external pin cb for pin:%d value:%d, motor direction:%d", pin, value, m->data[motorIndex]->directionPinInverted);
-
-	return m->setExternalPin(pin, value^m->data[motorIndex]->directionPinInverted);
+	return m->setExternalPin(pin, value);
 }
 
 FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
@@ -437,20 +416,23 @@ int FocusMotor::getExternalPinValue(uint8_t pin)
 
 bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
 {
+		
+
 	// This example returns the previous value of the output.
 	// Consequently, FastAccelStepper needs to call setExternalPin twice
 	// in order to successfully change the output value.
+	FocusMotor *m = (FocusMotor *)moduleController.get(AvailableModules::motor);
 	pin = pin & ~PIN_EXTERNAL_FLAG;
 	if (pin == 100) // enable
 		outRegister.Port.P0.bit.Bit0 = value;
 	if (pin == 101) // x
-		outRegister.Port.P0.bit.Bit1 = value;
+		outRegister.Port.P0.bit.Bit1 = value^m->data[1]->directionPinInverted;;
 	if (pin == 102) // y
-		outRegister.Port.P0.bit.Bit2 = value;
+		outRegister.Port.P0.bit.Bit2 = value^m->data[2]->directionPinInverted;;
 	if (pin == 103) // z
-		outRegister.Port.P0.bit.Bit3 = value;
+		outRegister.Port.P0.bit.Bit3 = value^m->data[3]->directionPinInverted;;
 	if (pin == 104) // a
-		outRegister.Port.P0.bit.Bit4 = value;
+		outRegister.Port.P0.bit.Bit4 = value^m->data[0]->directionPinInverted;;
 	// log_i("external pin cb for pin:%d value:%d", pin, value);
 	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
 		// if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))

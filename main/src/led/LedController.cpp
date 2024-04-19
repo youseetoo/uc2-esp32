@@ -264,6 +264,7 @@ void setup() {
   customI2C.begin(I2C_SDA, I2C_SCL);
 
 
+
    if (!ledmatrix.begin(IS3741_ADDR_DEFAULT, &customI2C)) {
 	Serial.println("IS41 not found");
 	while (1);

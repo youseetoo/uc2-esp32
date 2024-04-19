@@ -3,7 +3,7 @@
 #include "../../ModuleController.h"
 #include "../temp/DS18b20Controller.h"
 #include "../laser/LaserController.h"
-
+#include <Preferences.h>
 
 class HeatController : public Module
 {
@@ -14,6 +14,8 @@ public:
     HeatController(/* args */);
     ~HeatController();
     bool DEBUG = false;
+
+    Preferences preferences;
 
     float errorRunSum=0;
     float previousError=0;

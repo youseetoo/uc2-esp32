@@ -5,6 +5,8 @@
 
 struct LinearEncoderData
 {	
+	bool encoderDirection = false;
+	bool motorDirection = false;
 	float posval = 0.0f;
 	bool requestPosition = false;
 	int linearencoderID = -1;
@@ -22,6 +24,7 @@ struct LinearEncoderData
 	float stepsPerMM = 0.0f;
 	long timeSinceMotorStart = 0;
 	float lastPosition = -1000000.0f;
+	float maxSpeed = 10000.0f;
 	// PID controller variablexs
 	float c_p = 2.;
 	float c_i = 0.1;

@@ -2,6 +2,7 @@ class PIDController {
 public:
     float kp, ki, kd;
     float integral, previous_error;
+    
 
     PIDController(float kp, float ki, float kd) : kp(kp), ki(ki), kd(kd), integral(0), previous_error(0) {}
 

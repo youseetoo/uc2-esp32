@@ -8,7 +8,7 @@ const long DEFAULT_ACCELERATION = 500000;
 
 struct MotorData
 {
-
+	bool directionPinInverted = false;
 	long speed = 0;
 	long maxspeed = 200000;
 	long acceleration = 0;

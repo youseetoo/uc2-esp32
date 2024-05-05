@@ -11,7 +11,7 @@ namespace LedController
 	const char * TAG = "LedController";
 	void setup()
 	{
-	
+
 		log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 		// LED Matrix
 		matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);

@@ -91,6 +91,7 @@ namespace FocusMotor
 
 	void parseMotorDriveJson(cJSON *doc)
 	{
+		#ifdef FOCUS_CONTROLLER
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
 		{
@@ -130,6 +131,7 @@ namespace FocusMotor
 		else
 			log_i("Motor json is null");
 
+		#endif
 	}
 
 	bool parseSetPosition(cJSON *doc)
@@ -330,6 +332,9 @@ namespace FocusMotor
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
 				cJsonTool::setJsonInt(aritem, "isActivated", data[i]->isActivated);
+				cJsonTool::setJsonInt(aritem, key_triggeroffset, data[i]->offsetTrigger);
+				cJsonTool::setJsonInt(aritem, key_triggerperiod, data[i]->triggerPeriod);
+				cJsonTool::setJsonInt(aritem, key_triggerpin, data[i]->triggerPin);
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 		}
@@ -352,16 +357,47 @@ namespace FocusMotor
 			log_e("Stepper Z data NULL");
 
 		log_i("Setting Up Motor A,X,Y,Z");
-		preferences.begin("motor-positions", false);
-		if (pinConfig.MOTOR_A_DIR > 0)
-			data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
-		if (pinConfig.MOTOR_X_DIR > 0)
-			data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
-		if (pinConfig.MOTOR_Y_DIR > 0)
-			data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
-		if (pinConfig.MOTOR_Z_DIR > 0)
-			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
-		preferences.end();
+	log_i("Setting Up Motor A,X,Y,Z");
+	preferences.begin("motor-positions", false);
+	if (pinConfig.MOTOR_A_DIR > 0)
+	{
+		data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
+		data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
+		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
+		log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
+	}
+	if (pinConfig.MOTOR_X_DIR > 0)
+	{
+		data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
+		data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
+		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
+		log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
+	}
+	if (pinConfig.MOTOR_Y_DIR > 0)
+	{
+		data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
+		data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
+		data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
+		log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
+	}
+	if (pinConfig.MOTOR_Z_DIR > 0)
+	{
+		data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
+		data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
+		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
+		log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
+	}
+	preferences.end();
+
+		// setup trigger pins
+		if (pinConfig.DIGITAL_OUT_1 > 0)
+			data[Stepper::X]->triggerPin = 1; // pixel^
+		if (pinConfig.DIGITAL_OUT_2 > 0)
+			data[Stepper::Y]->triggerPin = 2; // line^
+		if (pinConfig.DIGITAL_OUT_3 > 0)
+			data[Stepper::Z]->triggerPin = 3; // frame^
+
+
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
 		if (pinConfig.I2C_SCL > 0)

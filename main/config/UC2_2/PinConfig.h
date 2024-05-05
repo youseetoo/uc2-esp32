@@ -3,7 +3,7 @@
 #include "PinConfigDefault.h"
 struct UC2_2 : PinConfig
 {
-     /*#define FOCUS_MOTOR
+     /*#define FOCUS_CONTROLLER
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define LED_CONTROLLER

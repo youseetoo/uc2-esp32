@@ -5,6 +5,7 @@
 
 struct LinearEncoderData
 {	
+	float conversionFactor = 2.0 / 1024.0; // 2mm per 1024 steps from AS5311
 	bool encoderDirection = false;
 	bool motorDirection = false;
 	float posval = 0.0f;

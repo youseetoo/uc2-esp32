@@ -3,7 +3,7 @@
 #include "PinConfigDefault.h"
 struct X_MOTOR_64LED_PIN : PinConfig
 {
-     //#define FOCUS_MOTOR
+     //#define FOCUS_CONTROLLER
      //#define LED_CONTROLLER
      const char *pindefName = "X_Motor_64LED";
      int8_t MOTOR_X_DIR = 21;

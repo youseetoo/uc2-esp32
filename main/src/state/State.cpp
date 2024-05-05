@@ -111,9 +111,15 @@ namespace State
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *mod = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, key_modules, mod);
+#ifdef LED_CONTROLLER
 		cJSON_AddItemToObject(mod, keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
+#endif
+#ifdef FOCUS_CONTROLLER
 		cJSON_AddItemToObject(mod, key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
+#endif
+#ifdef ENCODER_CONTROLLER
 		cJSON_AddItemToObject(mod, key_encoder, cJSON_CreateNumber((pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)));
+#endif
 #ifdef MESSAGE_CONTROLLER
 cJSON_AddItemToObject(mod, key_message, cJSON_CreateNumber(1));
 #endif

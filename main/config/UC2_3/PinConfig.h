@@ -56,7 +56,7 @@ struct UC2_3 : PinConfig
      http://www.ti.com/lit/ds/symlink/tca9535.pdf
      C561273
      */
-     /*#define FOCUS_MOTOR
+     /*#define FOCUS_CONTROLLER
      #define USE_TCA9535
      #define BLUETOOTH
      #define BTHID
@@ -72,6 +72,15 @@ struct UC2_3 : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     
+     bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_encoderDirection = true; 
+     bool ENC_Y_encoderDirection = true; 
+     bool ENC_Z_encoderDirection = true; 
+     bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_motorDirection = true;
+     bool ENC_Y_motorDirection = true;
+     bool ENC_Z_motorDirection = true;
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;

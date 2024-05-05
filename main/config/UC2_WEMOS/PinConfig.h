@@ -3,7 +3,7 @@
 #include "PinConfigDefault.h"
 struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
 {
-     /*#define FOCUS_MOTOR
+     /*#define FOCUS_CONTROLLER
      #define BLUETOOTH
      #define PSXCONTROLLER
      #define WIFI

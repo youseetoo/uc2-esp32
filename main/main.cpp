@@ -41,7 +41,7 @@
 #ifdef MESSAGE_CONTROLLER
 #include "src/message/MessageController.h"
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "src/motor/FocusMotor.h"
 #endif
 #ifdef PID_CONTROLLER
@@ -89,7 +89,7 @@ extern "C" void looper(void *p)
 		LaserController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 		FocusMotor::loop();
 		vTaskDelay(1);
 #endif
@@ -124,7 +124,7 @@ extern "C" void setupApp(void)
 #ifdef USE_TCA9535	
 	tca_controller::init_tca();
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 	FocusMotor::setup();
 #endif
 #ifdef ANALOG_IN_CONTROLLER

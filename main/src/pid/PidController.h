@@ -1,7 +1,7 @@
 #include <PinConfig.h>
 #pragma once
 #include "cJSON.h"
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
 

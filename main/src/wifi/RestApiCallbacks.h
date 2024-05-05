@@ -140,7 +140,7 @@ namespace RestApi
     esp_err_t message_actESP(httpd_req_t *req);
     esp_err_t message_getESP(httpd_req_t *req);
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
     esp_err_t FocusMotor_actESP(httpd_req_t *req);
     esp_err_t FocusMotor_getESP(httpd_req_t *req);
 #endif

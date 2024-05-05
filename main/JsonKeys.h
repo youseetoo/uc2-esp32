@@ -114,8 +114,6 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos 
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
 __attribute__ ((unused)) static const PROGMEM char * key_message = "message";
 
-
-#ifdef FOCUS_MOTOR
 __attribute__ ((unused)) static const PROGMEM char * key_motor = "motor";
 __attribute__ ((unused)) static const PROGMEM char * key_steppers = "steppers";
 __attribute__ ((unused)) static const PROGMEM char * key_setposition = "setpos";
@@ -140,7 +138,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_steppin_inverted = "ste
 __attribute__ ((unused)) static const PROGMEM char * key_enablepin_inverted = "enable_inverted";
 __attribute__ ((unused)) static const PROGMEM char * key_min_position = "min_pos";
 __attribute__ ((unused)) static const PROGMEM char * key_max_position = "max_pos";
-#endif
+
 __attribute__ ((unused)) static const PROGMEM char * key_settrigger = "setTrig";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerpin = "trigPin";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerperiod = "trigPer";

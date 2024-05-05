@@ -44,7 +44,7 @@
 #ifdef MESSAGE_CONTROLLER
 #include "../message/MessageController.h"
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
 #ifdef PID_CONTROLLER
@@ -181,7 +181,7 @@ namespace RestApi
         cJSON_AddItemToArray(doc, cJSON_CreateString(laser_act_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(laser_get_endpoint));
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
         cJSON_AddItemToArray(doc, cJSON_CreateString(motor_act_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(motor_get_endpoint));
 #endif
@@ -374,7 +374,7 @@ namespace RestApi
         return ESP_OK;
     }
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
     esp_err_t FocusMotor_actESP(httpd_req_t *req)
     {
         serializeESP(FocusMotor::act(deserializeESP(req)), req);

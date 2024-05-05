@@ -12,7 +12,7 @@
 #ifdef MESSAGE_CONTROLLER
 #include "../message/MessageController.h"
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
 #include "esp_task_wdt.h"
@@ -60,7 +60,7 @@ void processWebsocketMSG(void *pvParameters)
         if (message != nullptr)
             MessageController::act(doc);
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
         if (motor != nullptr)
             FocusMotor::act(doc);
 #endif
@@ -323,7 +323,7 @@ void EspHttpsServer::start_webserver()
         .handler = RestApi::getEndpoints};
     httpd_register_uri_handler(server, &featureget);
 
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
     httpd_uri_t motor_act = {
         .uri = motor_act_endpoint,
         .method = HTTP_POST,

@@ -4,10 +4,10 @@
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"
-
+#include "cJsonTool.h"
 #include "../../JsonKeys.h"
 
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
 using namespace FocusMotor;
@@ -26,10 +26,9 @@ namespace EncoderController
 	*/
 	int act(cJSON *j)
 	{
-		// set position
-		if (DEBUG)
-			log_i("encoder_act_fct");
+		log_i("encoder_act_fct");
 		int qid = cJsonTool::getJsonInt(j, "qid");
+		#ifdef FOCUS_CONTROLLER && ENCODER_CONTROLLER
 		// set position
 		cJSON *calibrate = cJSON_GetObjectItem(j, key_encoder_calibrate);
 
@@ -58,7 +57,7 @@ namespace EncoderController
 					int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
 					// get the motor object and chang the values so that it will move 1000 steps forward
 					edata[s]->calibsteps = calibsteps;
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 					getData()[s]->targetPosition = calibsteps;
 					getData()[s]->absolutePosition = false;
 					getData()[s]->speed = speed;
@@ -91,6 +90,7 @@ namespace EncoderController
 				}
 			}
 		}
+		#endif
 		return qid;
 	}
 
@@ -137,33 +137,12 @@ namespace EncoderController
 		return doc;
 	}
 
-	// returns json {"encoder":{..}}
-	void sendPosition(int axis)
-	{
-		// send home done to client
-		cJSON *json = cJSON_CreateObject();
-		cJSON *encoder = cJSON_CreateObject();
-		cJSON_AddItemToObject(json, key_encoder, encoder);
-		cJSON *steppers = cJSON_CreateObject();
-		cJSON_AddItemToObject(encoder, key_steppers, steppers);
-		cJSON *axs = cJSON_CreateNumber(axis);
-		cJSON *done = cJSON_CreateNumber(true);
-		cJSON_AddItemToObject(steppers, "axis", axs);
-		cJSON_AddItemToObject(steppers, "isDone", done);
-		Serial.println("++");
-		char *ret = cJSON_Print(json);
-		cJSON_Delete(json);
-		Serial.println(ret);
-		free(ret);
-		Serial.println("--");
-	}
-
 	/*
 		get called repeatedly, dont block this
 	*/
 	void loop()
 	{
-		#ifdef FOCUS_MOTOR
+		#ifdef FOCUS_CONTROLLER
 			// check if we need to read the encoder for all motors
 			for (int i = 0; i < 4; i++)
 			{

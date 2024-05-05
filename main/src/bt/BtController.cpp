@@ -10,7 +10,7 @@
 #ifdef LASER_CONTROLLER
 #include "../led/LedController.h"
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
 using namespace FocusMotor;
@@ -90,7 +90,7 @@ namespace BtController
 
     void handelAxis(int value, int s)
     {
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
         if (value >= offset_val || value <= -offset_val)
         {
             // move_x
@@ -222,7 +222,7 @@ namespace BtController
 #endif
 
             // MOTORS
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
             /* code */
             int zvalue = 0;
             int xvalue = 0;

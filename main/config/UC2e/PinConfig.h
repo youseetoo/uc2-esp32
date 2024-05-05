@@ -3,7 +3,7 @@
 #include "PinConfigDefault.h"
 struct UC2e : PinConfig
 {
-     /*#define FOCUS_MOTOR
+     /*#define FOCUS_CONTROLLER
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER

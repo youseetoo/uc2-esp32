@@ -65,7 +65,7 @@ namespace HomeMotor
 						hdata[s]->homeEndStopPolarity = 0;
 					}
 					// trigger go home by starting the motor in the right direction
-					#ifdef FOCUS_MOTOR
+					#ifdef FOCUS_CONTROLLER
 					getData()[s]->data[s]->isforever = true;
 					getData()[s]->data[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 					getData()[s]->data[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
@@ -142,7 +142,7 @@ namespace HomeMotor
 void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val)
 {
 
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 
 	// if we hit the endstop, reverse direction
 	if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || 
@@ -224,7 +224,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val)
 
 // expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 //  0=A , 1=X, 2=Y , 3=Z
-#if defined FOCUS_MOTOR && defined DIGITAL_IN_CONTROLLER
+#if defined FOCUS_CONTROLLER && defined DIGITAL_IN_CONTROLLER
 		checkAndProcessHome(Stepper::X, DigitalInController::digitalin_val_1);
 		checkAndProcessHome(Stepper::Y, DigitalInController::digitalin_val_2);
 		checkAndProcessHome(Stepper::Z, DigitalInController::digitalin_val_3);

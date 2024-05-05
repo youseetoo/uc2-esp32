@@ -13,18 +13,25 @@ namespace Config
 
 	void setWifiConfig(WifiConfig *config)
 	{
+		#ifdef WIFI
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(keyWifiSSID, config, sizeof(WifiConfig));
 		preferences.end();
+		#endif
 	}
 
 	WifiConfig *getWifiConfig()
 	{
+		#ifdef WIFI
 		preferences.begin(prefNamespace, false);
 		WifiConfig *conf = new WifiConfig();
 		preferences.getBytes(keyWifiSSID, conf, sizeof(WifiConfig));
 		preferences.end();
 		return conf;
+		#else
+		WifiConfig *conf = new WifiConfig();
+		return conf;
+		#endif
 	}
 
 	void setup()

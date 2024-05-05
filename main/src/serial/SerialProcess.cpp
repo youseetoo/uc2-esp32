@@ -41,7 +41,7 @@
 #ifdef MESSAGE_CONTROLLER
 #include "../message/MessageController.h"
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
 #ifdef PID_CONTROLLER
@@ -260,7 +260,7 @@ namespace SerialProcess
 		if (strcmp(task, message_act_endpoint) == 0)
 			serialize(MessageController::act(jsonDocument));
 #endif
-#ifdef FOCUS_MOTOR
+#ifdef FOCUS_CONTROLLER
 		if (strcmp(task, motor_get_endpoint) == 0)
 			serialize(FocusMotor::get(jsonDocument));
 		if (strcmp(task, motor_act_endpoint) == 0)

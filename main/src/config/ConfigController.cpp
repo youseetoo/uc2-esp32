@@ -59,8 +59,10 @@ namespace Config
 	char* getPsxMac()
 	{
 		preferences.begin(prefNamespace, true);
-		char* m = (char*)preferences.getString("mac").c_str();
-		preferences.end();
+		String macString = preferences.getString("mac", "00:00:00:00:00:00");
+		char* m = new char[macString.length() + 1];
+		strcpy(m, macString.c_str());
+		
 		return m;
 	}
 

@@ -17,7 +17,7 @@ available modules. to enable a module define them inside your config
 #define HOME_MOTOR
 #define LASER_CONTROLLER
 #define LED_CONTROLLER
-#define FOCUS_CONTROLLER
+#define MOTOR_CONTROLLER
 #define PID_CONTROLLER
 #define SCANNER_CONTROLLER
 #define WIFI

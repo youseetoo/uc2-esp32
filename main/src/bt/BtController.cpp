@@ -10,7 +10,7 @@
 #ifdef LASER_CONTROLLER
 #include "../led/LedController.h"
 #endif
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
 using namespace FocusMotor;
@@ -38,7 +38,6 @@ namespace BtController
     void setup()
     {
 
-        log_d("Setup bluetooth controller");
         // get the bluetooth config
         #ifdef PSXCONTROLLER
             char *m = Config::getPsxMac();
@@ -46,13 +45,10 @@ namespace BtController
 
             if (m != NULL && pinConfig.PSX_MAC != NULL)
             {
-
                 // always remove all the devices?
                 removeAllPairedDevices();
                 m = (char *)pinConfig.PSX_MAC;
                 type = pinConfig.PSX_CONTROLLER_TYPE;
-                log_d("Using MAC address");
-                log_d(pinConfig.PSX_MAC);
             }
 
             // if the mac is not empty, try to connect to the psx controller
@@ -90,7 +86,7 @@ namespace BtController
 
     void handelAxis(int value, int s)
     {
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
         if (value >= offset_val || value <= -offset_val)
         {
             // move_x
@@ -222,7 +218,7 @@ namespace BtController
 #endif
 
             // MOTORS
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
             /* code */
             int zvalue = 0;
             int xvalue = 0;
@@ -536,7 +532,7 @@ namespace BtController
         // Delete each paired device
         for (int i = 0; i < num_devices; i++)
         {
-            log_d("REmoving device...");
+            //log_d("REmoving device...");
             esp_bt_gap_remove_bond_device(devices[i]);
         }
 

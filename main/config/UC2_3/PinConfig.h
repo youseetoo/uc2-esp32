@@ -56,7 +56,7 @@ struct UC2_3 : PinConfig
      http://www.ti.com/lit/ds/symlink/tca9535.pdf
      C561273
      */
-     /*#define FOCUS_CONTROLLER
+     /*#define MOTOR_CONTROLLER
      #define USE_TCA9535
      #define BLUETOOTH
      #define BTHID

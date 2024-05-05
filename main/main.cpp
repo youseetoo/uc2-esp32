@@ -41,7 +41,7 @@
 #ifdef MESSAGE_CONTROLLER
 #include "src/message/MessageController.h"
 #endif
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 #include "src/motor/FocusMotor.h"
 #endif
 #ifdef PID_CONTROLLER
@@ -89,7 +89,7 @@ extern "C" void looper(void *p)
 		LaserController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 		FocusMotor::loop();
 		vTaskDelay(1);
 #endif
@@ -107,7 +107,7 @@ extern "C" void looper(void *p)
 #endif
 
 		// process all commands in their modules
-		if (true && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){ //pinConfig.dumpHeap
+		if (pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){ 
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
 			Serial.println("free heap"+String(ESP.getFreeHeap()));
@@ -124,7 +124,7 @@ extern "C" void setupApp(void)
 #ifdef USE_TCA9535	
 	tca_controller::init_tca();
 #endif
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 	FocusMotor::setup();
 #endif
 #ifdef ANALOG_IN_CONTROLLER

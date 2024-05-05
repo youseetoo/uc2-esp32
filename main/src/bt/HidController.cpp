@@ -7,6 +7,7 @@ bool hidIsConnected = false;
 
 void setupHidController()
 {
+    #ifdef BTHID
     btStarted();
 ESP_LOGI(TAG, "setup");
  esp_err_t ret;
@@ -32,6 +33,7 @@ ESP_LOGI(TAG, "setup");
     };
     ESP_ERROR_CHECK( esp_hidh_init(&config) );
     //xTaskCreatePinnedToCore(&hid_demo_task, "hid_task",4096, NULL, 5, NULL,1);
+    #endif
 }
 
 int slowInputLog = 0;

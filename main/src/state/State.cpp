@@ -114,7 +114,7 @@ namespace State
 #ifdef LED_CONTROLLER
 		cJSON_AddItemToObject(mod, keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
 #endif
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 		cJSON_AddItemToObject(mod, key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
 #endif
 #ifdef ENCODER_CONTROLLER

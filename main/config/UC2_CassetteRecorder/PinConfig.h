@@ -3,7 +3,7 @@
 #include "PinConfigDefault.h"
 struct UC2_CassetteRecorder : PinConfig
 {
-     //#define FOCUS_CONTROLLER
+     //#define MOTOR_CONTROLLER
 
      const char *pindefName = "CassetteRecorder";
      bool useFastAccelStepper = false;

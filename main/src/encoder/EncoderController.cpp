@@ -7,7 +7,7 @@
 #include "cJsonTool.h"
 #include "../../JsonKeys.h"
 
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
 using namespace FocusMotor;
@@ -28,7 +28,7 @@ namespace EncoderController
 	{
 		log_i("encoder_act_fct");
 		int qid = cJsonTool::getJsonInt(j, "qid");
-		#ifdef FOCUS_CONTROLLER && ENCODER_CONTROLLER
+		#ifdef MOTOR_CONTROLLER && ENCODER_CONTROLLER
 		// set position
 		cJSON *calibrate = cJSON_GetObjectItem(j, key_encoder_calibrate);
 
@@ -57,7 +57,7 @@ namespace EncoderController
 					int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
 					// get the motor object and chang the values so that it will move 1000 steps forward
 					edata[s]->calibsteps = calibsteps;
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 					getData()[s]->targetPosition = calibsteps;
 					getData()[s]->absolutePosition = false;
 					getData()[s]->speed = speed;
@@ -142,7 +142,7 @@ namespace EncoderController
 	*/
 	void loop()
 	{
-		#ifdef FOCUS_CONTROLLER
+		#ifdef MOTOR_CONTROLLER
 			// check if we need to read the encoder for all motors
 			for (int i = 0; i < 4; i++)
 			{

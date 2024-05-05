@@ -4,7 +4,7 @@
 struct XYZ_MOTOR_ENDSTOP_JOYSTICK : PinConfig
 {
      /*#define ANALOG_JOYSTICK
-     #define FOCUS_CONTROLLER
+     #define MOTOR_CONTROLLER
      #define BLUETOOTH
      #define BTHID
      #define WIFI*/

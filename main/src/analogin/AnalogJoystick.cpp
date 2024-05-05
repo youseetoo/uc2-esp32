@@ -3,7 +3,7 @@
 #include "AnalogJoystick.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
 #endif
@@ -32,7 +32,7 @@ namespace AnalogJoystick
 
     void driveMotor(Stepper s, int joystick_drive, int pin)
     {
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 
         int val = analogRead(pin) - max_in_value / 2;
         ESP_LOGI(TAG, "drive motor :%i x drive:%i , x:%i", FocusMotor::getData()[s]->stopped, joystick_drive, val);

@@ -30,7 +30,13 @@ namespace FocusMotor
 
 	MotorData **getData()
 	{
-		return data;
+		if (data != nullptr)
+			return data;
+		else{
+			MotorData *mData[4];
+			return mData;
+		}
+
 	}
 
 #ifdef WIFI
@@ -91,7 +97,7 @@ namespace FocusMotor
 
 	void parseMotorDriveJson(cJSON *doc)
 	{
-		#ifdef FOCUS_CONTROLLER
+		#ifdef MOTOR_CONTROLLER
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
 		{
@@ -419,8 +425,9 @@ namespace FocusMotor
 		AccelStep::setupAccelStepper();
 #endif
 #ifdef WIFI
-		log_i("Creating Task sendUpdateToClients");
-		xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+		// TODO: This causes the heap to overload?
+		//log_i("Creating Task sendUpdateToClients");
+		//xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 #endif
 	}
 

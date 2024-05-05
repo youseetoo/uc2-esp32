@@ -62,7 +62,7 @@ monitor_filters = esp32_exception_decoder
 #-DHOME_MOTOR
 #-DLASER_CONTROLLER
 #-DLED_CONTROLLER
-#-DFOCUS_MOTOR
+#-DMOTOR_CONTROLLER
 	#-DUSE_FASTACCEL
 	#-DUSE_ACCELSTEP
 #-DPID_CONTROLLER
@@ -88,7 +88,7 @@ monitor_filters = esp32_exception_decoder
 	lib_deps = https://github.com/youseetoo/FastAccelStepper.git
 	build_flags =
 		${env:esp32dev.build_flags}
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DBLUETOOTH=1
 		-BTHID=1
@@ -103,7 +103,7 @@ monitor_filters = esp32_exception_decoder
 	lib_deps = https://github.com/youseetoo/FastAccelStepper.git
 	build_flags =
 		${env:esp32dev.build_flags}
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DBLUETOOTH=1
 		-DBTHID=1
@@ -120,7 +120,7 @@ monitor_filters = esp32_exception_decoder
 			https://github.com/adafruit/Adafruit_NeoPixel.git
 	build_flags =
 		${env:esp32dev.build_flags}
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DLED_CONTROLLER=1
 	board_build.cmake_extra_args = 
@@ -133,7 +133,7 @@ monitor_filters = esp32_exception_decoder
 			https://github.com/adafruit/Adafruit_NeoPixel.git
 	build_flags =
 		${env:esp32dev.build_flags}
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DBLUETOOTH=1
 		-BTHID=1
@@ -152,7 +152,7 @@ monitor_filters = esp32_exception_decoder
 	${env:esp32dev.build_flags}
 	-DBLUETOOTH=1
 	-BTHID=1
-	-DFOCUS_MOTOR=1
+	-DMOTOR_CONTROLLER=1
 	-DUSE_FASTACCEL=1
 	-DWIFI=1
 	-DHOME_MOTOR=1
@@ -170,7 +170,7 @@ monitor_filters = esp32_exception_decoder
 		${env:esp32dev.build_flags}
 		-DBLUETOOTH=1
 		-BTHID=1
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DWIFI=1
 		-DHOME_MOTOR=1
@@ -188,7 +188,7 @@ monitor_filters = esp32_exception_decoder
 		${env:esp32dev.build_flags}
 		-DBLUETOOTH=1
 		-BTHID=1
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DWIFI=1
 		-DHOME_MOTOR=1
@@ -205,7 +205,7 @@ monitor_filters = esp32_exception_decoder
 			https://github.com/adafruit/Adafruit_NeoPixel.git
 	build_flags =
 		${env:esp32dev.build_flags}
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DHOME_MOTOR=1
 		-DDAC_CONTROLLER=1
@@ -222,7 +222,7 @@ monitor_filters = esp32_exception_decoder
 			https://github.com/adafruit/Adafruit_NeoPixel.git
 	build_flags =
 		${env:esp32dev.build_flags}
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DUSE_FASTACCEL=1
 		-DBLUETOOTH=1
 		-BTHID=1
@@ -238,7 +238,7 @@ monitor_filters = esp32_exception_decoder
 	lib_deps = https://github.com/youseetoo/AccelStepper.git
 	build_flags =
 	${env:esp32dev.build_flags}
-	-DFOCUS_MOTOR=1
+	-DMOTOR_CONTROLLER=1
 	-DUSE_ACCELSTEP=1
 	board_build.cmake_extra_args = 
 		-DCONFIG=UC2_OMNISCOPE
@@ -250,7 +250,7 @@ monitor_filters = esp32_exception_decoder
 	lib_deps = https://github.com/youseetoo/AccelStepper.git
 	build_flags =
 	${env:esp32dev.build_flags}
-	-DFOCUS_MOTOR=1
+	-DMOTOR_CONTROLLER=1
 	-DUSE_ACCELSTEP=1
 	board_build.cmake_extra_args = 
 		-DCONFIG=UC2_CassetteRecorder
@@ -260,7 +260,7 @@ monitor_filters = esp32_exception_decoder
 	extends = env:esp32dev
 	build_flags =
 	${env:esp32dev.build_flags}
-	-DFOCUS_MOTOR=1
+	-DMOTOR_CONTROLLER=1
 	-DUSE_ACCELSTEP=1
 	board_build.cmake_extra_args = 
 		-DCONFIG=UC2_XYZRotator
@@ -279,7 +279,7 @@ monitor_filters = esp32_exception_decoder
 		${env:esp32dev.build_flags}
 		-DBLUETOOTH=1
 		-DBTHID=1
-		-DFOCUS_MOTOR=1
+		-DMOTOR_CONTROLLER=1
 		-DWIFI=1
 		-DLASER_CONTROLLER=1
 		-DLED_CONTROLLER=1

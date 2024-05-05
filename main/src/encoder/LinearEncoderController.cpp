@@ -342,7 +342,7 @@ namespace LinearEncoderController
     */
     void loop()
     {
-#ifdef FOCUS_CONTROLLER
+#ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors
         for (int i = 0; i < 4; i++)
         {

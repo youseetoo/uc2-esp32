@@ -111,12 +111,12 @@ struct UC2_3 : PinConfig
      
 
      // for caliper
-     int8_t X_CAL_DATA = GPIO_NUM_32;
-     int8_t Y_CAL_DATA = GPIO_NUM_34;
-     int8_t Z_CAL_DATA = GPIO_NUM_36;
-     int8_t X_CAL_CLK = GPIO_NUM_33;
-     int8_t Y_CAL_CLK = GPIO_NUM_35;
-     int8_t Z_CAL_CLK = GPIO_NUM_17;
+     int8_t ENC_X_A = GPIO_NUM_32;
+     int8_t ENC_Y_A = GPIO_NUM_34;
+     int8_t ENC_Z_A = GPIO_NUM_36;
+     int8_t ENC_X_B = GPIO_NUM_33;
+     int8_t ENC_Y_B = GPIO_NUM_35;
+     int8_t ENC_Z_B = GPIO_NUM_17;
 
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;

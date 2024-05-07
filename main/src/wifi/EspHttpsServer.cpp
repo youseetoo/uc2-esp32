@@ -15,6 +15,9 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
 #include "esp_task_wdt.h"
 
 extern const char index_start[] asm("_binary_index_html_start");
@@ -40,16 +43,20 @@ const int max_char_length = 512;
 
 void processWebsocketMSG(void *pvParameters)
 {
+    /*
+    These messages are processed by the socket and can for example be sent by the ESP display
+    */
     esp_task_wdt_delete(NULL);
     char t[max_char_length];
     for(;;)
     {
         xQueueReceive(websocketMSGQueue, &t, portMAX_DELAY);
-        //log_i("recv: %s", t);
         cJSON *doc = cJSON_Parse((const char *)(t));
         cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
         cJSON *message = cJSON_GetObjectItemCaseSensitive(doc, key_message);
         cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
+        cJSON *laser = cJSON_GetObjectItemCaseSensitive(doc, key_laser);
+
         //ESP_LOGI(TAG_HTTPSSERV, "parse json null doc %i , led %i , motor %i", doc != nullptr, led != nullptr, motor != nullptr);
 #ifdef LED_CONTROLLER
         // ESP_LOGI(TAG_HTTPSSERV,"led controller act");
@@ -64,6 +71,11 @@ void processWebsocketMSG(void *pvParameters)
         if (motor != nullptr)
             FocusMotor::act(doc);
 #endif
+#ifdef LASER_CONTROLLER
+        if (laser != nullptr)
+            LaserController::act(doc);
+#endif
+
         cJSON_Delete(doc);
     }
     vTaskDelete(xHandle);

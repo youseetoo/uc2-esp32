@@ -24,7 +24,7 @@ namespace tca_controller
 			outRegister.Port.P0.bit.Bit3 = value;
 		if (pin == 104) // a
 			outRegister.Port.P0.bit.Bit4 = value;
-		log_i("external pin cb for pin:%d value:%d", pin, value);
+		//log_i("external pin cb for pin:%d value:%d", pin, value);
 		if (ESP_OK != TCA9535WriteOutput(&outRegister))
 			log_e("i2c write failed");
 #endif

@@ -167,10 +167,10 @@ namespace LinearEncoderController
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
             //{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 5000 , "isabs":0, "speed": 20000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0} ]}}
+            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
-
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": -5000 , "isabs":0, "speed": 20000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0} ]}}
             cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
             if (stprs != NULL)
             {

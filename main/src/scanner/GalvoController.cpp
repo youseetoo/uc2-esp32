@@ -3,7 +3,6 @@
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
 #include "../laser/LaserController.h"
-#include "../../ModuleController.h"
 #include "Wire.h"
 GalvoController::GalvoController(){
 

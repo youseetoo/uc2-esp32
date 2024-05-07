@@ -431,7 +431,6 @@ namespace FocusMotor
 #endif
 	}
 
-	// dont use it, it get no longer triggered from modulehandler
 	void loop()
 	{
 #ifdef USE_FASTACCEL

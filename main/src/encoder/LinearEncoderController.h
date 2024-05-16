@@ -26,11 +26,13 @@ struct LinearEncoderData
 	long timeSinceMotorStart = 0;
 	float lastPosition = -1000000.0f;
 	float maxSpeed = 10000.0f;
+	bool correctResidualOnly = false; // correct for residual error after open-loop steps only
+	float stp2phys = 1.0f; // conversion factor from steps to physical units
 	// PID controller variablexs
 	float c_p = 2.;
 	float c_i = 0.1;
 	float c_d = 0.1;
-	float mmPerStep = 1.95f;
+	float mumPerStep = 1.95f; // dividided by 2048 steps
 	PIDController pid = PIDController(c_p, c_i, c_d);
 };
 

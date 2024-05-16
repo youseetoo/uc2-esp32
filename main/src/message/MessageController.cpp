@@ -16,8 +16,10 @@ namespace MessageController
 
 
 	// Custom function accessible by the API
+	
 	int act(cJSON *ob)
-	{	// {"task":"/message_act", "key":1, "value":0}
+	{	// {"message":{"key":"message","value":2}} or 
+		// {"task":"/message_act", "message":{"key":"message","value":2}}
 		/*
 		data lookup:
 		{
@@ -28,12 +30,16 @@ namespace MessageController
 			3		|	gain			|	0...100
 
 		*/
-		ESP_LOGI(TAG, "act");
-		int qid = cJsonTool::getJsonInt(ob, "qid");
-		int key = cJsonTool::getJsonInt(ob, "key");
-		int value = cJsonTool::getJsonInt(ob, "value");
+	ESP_LOGI(TAG, "act");
+	cJSON *message = cJSON_GetObjectItem(ob, "message");
+	int qid = 0;
+	if (message != NULL){
+    	qid = cJsonTool::getJsonInt(message, "qid");
+		int key = cJsonTool::getJsonInt(message, "key");
+		int value = cJsonTool::getJsonInt(message, "value");
 		// now we print this data over serial	
 		sendMesageSerial(key, value);
+	}
 		return qid;
 	}
 
@@ -63,12 +69,10 @@ namespace MessageController
 		cJSON_AddItemToObject(message, "data", jsonvalue);
 		Serial.println("++");
 		char *ret = cJSON_Print(json);
-		cJSON_Delete(json);
-		cJSON_Delete(message);
-		cJSON_Delete(jsonkey);
-		cJSON_Delete(jsonvalue);
+		cJSON_Delete(json);  // Only delete the top-level object
 		Serial.println(ret);
 		free(ret);
 		Serial.println("--");
+
 	}
 }

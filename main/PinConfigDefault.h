@@ -38,7 +38,7 @@ const int8_t disabled = -1;
 
 struct PinConfig
 {
-     const bool dumpHeap = false;
+     const bool dumpHeap = true;
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2048;

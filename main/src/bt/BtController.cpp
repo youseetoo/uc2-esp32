@@ -10,6 +10,9 @@
 #ifdef LASER_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#ifdef MESSAGE_CONTROLLER
+#include "../message/MessageController.h"
+#endif
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
@@ -160,8 +163,35 @@ namespace BtController
                 led_on = false;
             }
 #endif
-            /* code */
-
+#ifdef MESSAGE_CONTROLLER
+            // send message on triangle/square button press
+            bool triangle = false;
+            bool square = false;
+            #ifdef PSXCONTROLLER
+            if (psx != nullptr)
+            {
+                triangle = psx->event.button_down.triangle;
+                square = psx->event.button_down.square;
+            }
+            #endif
+            #ifdef BTHID 
+            if (hidIsConnected)
+            {
+                triangle = gamePadData.triangle;
+                square = gamePadData.square;
+            }
+            #endif
+            if (triangle)
+            {
+                log_i("Send message ");
+                MessageController::sendMesageSerial(1, 1);
+            }
+            if (square)
+            {
+                log_i("Send message ");
+                MessageController::sendMesageSerial(1, 0);
+            }      
+#endif
 #ifdef LASER_CONTROLLER
             bool up = false;
             bool down = false;

@@ -218,7 +218,6 @@ void EspHttpsServer::sendText(char *msg)
 esp_err_t index_get_handler(httpd_req_t *req)
 {
     log_i("Serve index");
-
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, index_start, index_end - index_start);
 

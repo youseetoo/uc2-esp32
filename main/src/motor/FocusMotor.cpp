@@ -433,11 +433,16 @@ namespace FocusMotor
 
 	void loop()
 	{
-#ifdef USE_FASTACCEL
+#ifdef USE_FASTACCEL or USE_ACCELSTEP
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
+			#ifdef USE_FASTACCEL
 			bool isRunning = FAccelStep::isRunning(i);
+			#endif
+			#ifdef USE_ACCELSTEP
+			bool isRunning = AccelStep::isRunning(i);
+			#endif
 			if (!isRunning && !data[i]->stopped)
 			{
 				// Only send the information when the motor is halting

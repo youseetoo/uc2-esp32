@@ -120,7 +120,8 @@ extern "C" void looper(void *p)
 extern "C" void setupApp(void)
 {
 	// setup debugging level 
-	esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
+	esp_log_level_set("*", ESP_LOG_DEBUG);
+	//esp_log_level_set("*", ESP_LOG_NONE);
 
 	SerialProcess::setup();
 #ifdef USE_TCA9535	

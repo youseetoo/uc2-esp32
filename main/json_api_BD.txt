@@ -22,7 +22,7 @@
 
 # MOTOR
 # X,Y,Z,A => 1,2,3,0
-{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 3, "position": 4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 2, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }

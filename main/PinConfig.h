@@ -658,7 +658,7 @@ struct UC2_3 : PinConfig
      int8_t LASER_0 = GPIO_NUM_26;
 
      // dual axis Z
-     bool isDualAxisZ = false;
+     bool isDualAxisZ = true;
 
 
 };

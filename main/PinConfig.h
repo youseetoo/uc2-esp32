@@ -162,7 +162,14 @@ struct PinConfig
      int8_t ENC_X_B = disabled;
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_B = disabled;
-
+     bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_encoderDirection = true; 
+     bool ENC_Y_encoderDirection = true; 
+     bool ENC_Z_encoderDirection = true; 
+     bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_motorDirection = true;
+     bool ENC_Y_motorDirection = true;
+     bool ENC_Z_motorDirection = true;
      // I2c
      int8_t I2C_SCL = disabled;
      int8_t I2C_SDA = disabled;

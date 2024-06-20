@@ -64,7 +64,7 @@ int HomeMotor::act(cJSON *j)
 				motor->data[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 				motor->data[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
 				motor->startStepper(s);
-				if (s == Stepper::Z and pinConfig.isDualAxisZ)
+				if (s == Stepper::Z and (motor->isDualAxisZ == true))
 				{
 					// we may have a dual axis so we would need to start A too
 					log_i("Starting A too");
@@ -150,7 +150,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 		// homeInEndposReleaseMode = 2 means we are done
 		// reverse direction to release endstops
 		motor->stopStepper(s);
-		if (s == Stepper::Z and pinConfig.isDualAxisZ)
+		if (s == Stepper::Z and (motor->isDualAxisZ == true))
 		{
 			// we may have a dual axis so we would need to start A too
 			motor->stopStepper(Stepper::A);
@@ -168,7 +168,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 		log_i("Home Motor %i in endpos release mode  %i", s, hdata[s]->homeInEndposReleaseMode);
 		motor->startStepper(s);
 		
-		if (s == Stepper::Z and pinConfig.isDualAxisZ)
+		if (s == Stepper::Z and (motor->isDualAxisZ == true))
 		{
 			// we may have a dual axis so we would need to start A too
 			motor->data[Stepper::A]->speed = -motor->data[Stepper::A]->speed ;
@@ -184,7 +184,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 		log_i("Home Motor %i in endpos release mode %i", s, hdata[s]->homeInEndposReleaseMode);
 		motor->stopStepper(s);
 		motor->setPosition(s, 0);
-		if (s == Stepper::Z and pinConfig.isDualAxisZ)
+		if (s == Stepper::Z and (motor->isDualAxisZ == true))
 		{
 			// we may have a dual axis so we would need to start A too
 			motor->stopStepper(Stepper::A);
@@ -193,7 +193,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val, FocusMotor *mo
 		motor->data[s]->isforever = false;
 		log_i("Home Motor X done");
 		sendHomeDone(s);
-		if (s == Stepper::A and pinConfig.isDualAxisZ)
+		if (s == Stepper::A and (motor->isDualAxisZ == true))
 		{
 			// we may have a dual axis so we would need to start A too
 			hdata[Stepper::A]->homeIsActive = false;
@@ -238,4 +238,5 @@ void HomeMotor::setup()
 	{
 		hdata[i] = new HomeData();
 	}
+
 }

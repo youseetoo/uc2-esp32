@@ -41,6 +41,7 @@ public:
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
 	long getCurrentPosition(Stepper s);
+	bool isDualAxisZ = false;
 	
 	TaskHandle_t TaskHandle_stagescan_t;
 	
@@ -48,6 +49,7 @@ private:
 	tca9535 *_tca9535;
 	TCA9535_Register outRegister;
 	TCA9535_Register inRegister;
+	
 	
 	int logcount;
 	bool power_enable = false;

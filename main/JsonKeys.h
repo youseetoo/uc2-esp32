@@ -76,6 +76,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_timestarted = "tim
 __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isactive";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endposrelease = "endposrelease";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
+__attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";
 
 
 __attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";

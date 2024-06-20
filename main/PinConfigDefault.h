@@ -190,7 +190,7 @@ struct PinConfig
      // I2c
      int8_t I2C_SCL = disabled;
      int8_t I2C_SDA = disabled;
-     int8_t I2C_ADD = disabled;
+     int8_t I2C_ADD_TCA = disabled;
 
      // SPI
      int8_t SPI_MOSI = disabled;

@@ -2,6 +2,8 @@
 #include "tca9535.h"
 #include "PinConfig.h"
 #include "../motor/FocusMotor.h"
+#include "Wire.h"
+#define SLAVE_ADDRESS 0x40  // I2C address of the ESP32
 
 namespace tca_controller
 {
@@ -24,7 +26,7 @@ namespace tca_controller
 			outRegister.Port.P0.bit.Bit3 = value;
 		if (pin == 104) // a
 			outRegister.Port.P0.bit.Bit4 = value;
-		//log_i("external pin cb for pin:%d value:%d", pin, value);
+		// log_i("external pin cb for pin:%d value:%d", pin, value);
 		if (ESP_OK != TCA9535WriteOutput(&outRegister))
 			log_e("i2c write failed");
 #endif
@@ -70,9 +72,63 @@ namespace tca_controller
 		}
 	}
 
+	void i2c_scan()
+	{
+		byte error, address;
+		int nDevices;
+
+		Serial.println("Scanning...");
+
+		nDevices = 0;
+		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL);  // Initialize I2C with defined pins and address
+		
+		for (int i=0; i<10;i++){
+			Wire.beginTransmission(SLAVE_ADDRESS);
+			Wire.write(i);  // Send the pattern number to the ESP32
+			Wire.endTransmission();
+			delay(500);
+		}
+
+
+		for (address = 1; address < 127; address++)
+		{
+			// The i2c_scanner uses the return value of
+			// the Write.endTransmisstion to see if
+			// a device did acknowledge to the address.
+			
+			Wire.beginTransmission(address);
+			
+			error = Wire.endTransmission();
+
+			if (error == 0)
+			{
+				Serial.print("I2C device found at address 0x");
+				if (address < 16)
+					Serial.print("0");
+				Serial.print(address, HEX);
+				Serial.println("  !");
+
+				nDevices++;
+			}
+			else if (error == 4)
+			{
+				Serial.print("Unknow error at address 0x");
+				if (address < 16)
+					Serial.print("0");
+				Serial.println(address, HEX);
+			}
+		}
+		if (nDevices == 0)
+			Serial.println("No I2C devices found\n");
+		else
+			Serial.println("done\n");
+	}
+
 	void init_tca()
 	{
-		if (ESP_OK != TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
+		// scan I2C for all devices
+		i2c_scan();
+		if (ESP_OK != TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD_TCA))
 			log_e("failed to init tca9535");
 		else
 			log_i("tca9535 init!");

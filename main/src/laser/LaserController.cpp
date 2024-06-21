@@ -79,17 +79,18 @@ int LaserController::act(cJSON *ob)
 		int pwmFreq = setPWMFreq->valueint;
 
 		log_i("Setting PWM frequency to %i", pwmFreq);
-		if (LASERid == 1 & pinConfig.LASER_1 != 0)
+		if (LASERid == 1 && pinConfig.LASER_1 != 0)
 		{
-			Serial.println(pwmFreq);
-			Serial.println(LASERid);
 			ledcSetup(PWM_CHANNEL_LASER_1, pwmFreq, pwm_resolution);
 		}
-
-		if (LASERid == 2 & pinConfig.LASER_2 != 0)
+		if (LASERid == 2 && pinConfig.LASER_2 != 0)
+		{
 			ledcSetup(PWM_CHANNEL_LASER_2, pwmFreq, pwm_resolution);
-		if (LASERid == 3 & pinConfig.LASER_3 != 0)
+		}
+		if (LASERid == 3 && pinConfig.LASER_3 != 0)
+		{
 			ledcSetup(PWM_CHANNEL_LASER_3, pwmFreq, pwm_resolution);
+		}
 		return qid;
 	}
 

@@ -31,7 +31,10 @@ int DacController::act(cJSON* ob)
 	// here you can do something
 
 	Serial.println("dac_act_fct");
-
+	#ifdef ESP32S3_MODEL_XIAO
+		Serial.println("DAC not supported on this board");
+		return 0;
+	#else
 	// apply default parameters
 	// DAC Channel
 	dac_channel = DAC_CHANNEL_1;
@@ -119,6 +122,7 @@ int DacController::act(cJSON* ob)
 	}
 
 	return 1;
+	#endif
 }
 
 // Custom function accessible by the API
@@ -133,6 +137,10 @@ cJSON* DacController::get(cJSON* jsonDocument)
 
 void DacController::drive_galvo(void *parameter)
 {	
+	#ifdef ESP32S3_MODEL_XIAO
+		Serial.println("DAC not supported on this board");
+		return;
+	#else
 	// FIXME:_ This is the "Fake" galvo if we cannot access pin 25/26 - should run in background 
 
 	DacController *d = (DacController *)parameter;
@@ -146,4 +154,5 @@ void DacController::drive_galvo(void *parameter)
 		digitalWrite(pinConfig.dac_fake_2, LOW);
 		vTaskDelay(d->frequency / portTICK_PERIOD_MS); // pause 1ms
 	}
+	#endif
 }

@@ -87,7 +87,9 @@ void WifiController::setup()
 		char *modssid = (char *)malloc(32);
 		uint8_t mac[6];
 		esp_wifi_get_mac(WIFI_IF_STA, mac);
-		sprintf(modssid, "%s_%02X%02X%02X", pinConfig.mSSID, mac[3],  mac[5]);
+		#ifndef ESP32 ESP32S3_MODEL_XIAO
+		sprintf(modssid, "%s_%02X%02X%02X", pinConfig.mSSID, (unsigned int)mac[3], (unsigned int)mac[5]);
+		#endif
 		config->mSsid = strdup(pinConfig.mSSID); //modssid;
 		config->ap = pinConfig.mAP;
 		//config->mSsid = (char *)pinConfig.mSSID;

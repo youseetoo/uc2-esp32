@@ -32,6 +32,9 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
+#ifdef USE_I2C
+#include "../i2c/i2c_controller.h"
+#endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
@@ -241,6 +244,12 @@ namespace SerialProcess
 		serialize(HomeMotor::get(jsonDocument));
 	if (strcmp(task, home_act_endpoint) == 0)
 		serialize(HomeMotor::act(jsonDocument));
+#endif
+#ifdef USE_I2C
+	if (strcmp(task, i2c_get_endpoint) == 0)
+		serialize(i2c_controller::get(jsonDocument));
+	if (strcmp(task, i2c_act_endpoint) == 0)
+		serialize(i2c_controller::act(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		if (strcmp(task, laser_get_endpoint) == 0)

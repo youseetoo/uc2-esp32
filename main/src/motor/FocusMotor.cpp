@@ -32,11 +32,11 @@ namespace FocusMotor
 	{
 		if (data != nullptr)
 			return data;
-		else{
+		else
+		{
 			MotorData *mData[4];
 			return mData;
 		}
-
 	}
 
 #ifdef WIFI
@@ -97,7 +97,7 @@ namespace FocusMotor
 
 	void parseMotorDriveJson(cJSON *doc)
 	{
-		#ifdef MOTOR_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
 		{
@@ -137,7 +137,7 @@ namespace FocusMotor
 		else
 			log_i("Motor json is null");
 
-		#endif
+#endif
 	}
 
 	bool parseSetPosition(cJSON *doc)
@@ -146,25 +146,23 @@ namespace FocusMotor
 		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 
-	// set dual axis if necessary
-	cJSON *dualaxisZ = cJSON_GetObjectItemCaseSensitive(doc, key_home_isDualAxis);
-	if (dualaxisZ != NULL)
-	{
-		// {"task": "/motor_act", "isDualAxisZ": 1}
-		// store this in the preferences
-		Preferences preferences;
-		isDualAxisZ = dualaxisZ->valueint;
-		const char *prefNamespace = "UC2";
-		preferences.begin(prefNamespace, false);
-		preferences.putBool("dualAxZ", isDualAxisZ);
-		log_i("isDualAxisZ is set to: %i", isDualAxisZ);
-		preferences.end();
-	}
-	// set position
-	cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
-	// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+		// set dual axis if necessary
+		cJSON *dualaxisZ = cJSON_GetObjectItemCaseSensitive(doc, key_home_isDualAxis);
+		if (dualaxisZ != NULL)
+		{
+			// {"task": "/motor_act", "isDualAxisZ": 1}
+			// store this in the preferences
+			Preferences preferences;
+			isDualAxisZ = dualaxisZ->valueint;
+			const char *prefNamespace = "UC2";
+			preferences.begin(prefNamespace, false);
+			preferences.putBool("dualAxZ", isDualAxisZ);
+			log_i("isDualAxisZ is set to: %i", isDualAxisZ);
+			preferences.end();
+		}
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 
-	if (setpos != NULL)
+		if (setpos != NULL)
 		{
 			log_d("setpos");
 			cJSON *stprs = cJSON_GetObjectItem(setpos, key_steppers);
@@ -185,11 +183,11 @@ namespace FocusMotor
 
 	void enable(bool en)
 	{
-		#ifdef USE_FASTACCEL
-			FAccelStep::Enable(en);
+#ifdef USE_FASTACCEL
+		FAccelStep::Enable(en);
 #endif
 #ifdef USE_ACCELSTEP
-			AccelStep::Enable(en);
+		AccelStep::Enable(en);
 #endif
 	}
 
@@ -267,7 +265,7 @@ namespace FocusMotor
 		if (stagescan != NULL)
 		{
 			StageScan::getStageScanData()->stopped = cJsonTool::getJsonInt(stagescan, "stopped");
-			if (StageScan::getStageScanData()->stopped )
+			if (StageScan::getStageScanData()->stopped)
 			{
 				log_i("stagescan stopped");
 				return;
@@ -380,45 +378,45 @@ namespace FocusMotor
 		if (data[Stepper::Z] == nullptr)
 			log_e("Stepper Z data NULL");
 
-	// Read dual axis from preferences if available
-	Preferences preferences;
-	const char *prefNamespace = "UC2";
-	preferences.begin(prefNamespace, false);
-	isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
-	preferences.end();
+		// Read dual axis from preferences if available
+		Preferences preferences;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, false);
+		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
+		preferences.end();
 
-	// setup motor pins
-	log_i("Setting Up Motor A,X,Y,Z");
-	preferences.begin("motor-positions", false);
-	if (pinConfig.MOTOR_A_DIR > 0)
-	{
-		data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
-		data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
-		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
-		log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
-	}
-	if (pinConfig.MOTOR_X_DIR > 0)
-	{
-		data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
-		data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
-		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
-		log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
-	}
-	if (pinConfig.MOTOR_Y_DIR > 0)
-	{
-		data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
-		data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
-		data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
-		log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
-	}
-	if (pinConfig.MOTOR_Z_DIR > 0)
-	{
-		data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
-		data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
-		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
-		log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
-	}
-	preferences.end();
+		// setup motor pins
+		log_i("Setting Up Motor A,X,Y,Z");
+		preferences.begin("motor-positions", false);
+		if (pinConfig.MOTOR_A_DIR > 0)
+		{
+			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
+			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
+			data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
+			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
+		}
+		if (pinConfig.MOTOR_X_DIR > 0)
+		{
+			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
+			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
+			data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
+			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
+		}
+		if (pinConfig.MOTOR_Y_DIR > 0)
+		{
+			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
+			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
+			data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
+			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
+		}
+		if (pinConfig.MOTOR_Z_DIR > 0)
+		{
+			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
+			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
+			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
+			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
+		}
+		preferences.end();
 
 		// setup trigger pins
 		if (pinConfig.DIGITAL_OUT_1 > 0)
@@ -427,7 +425,6 @@ namespace FocusMotor
 			data[Stepper::Y]->triggerPin = 2; // line^
 		if (pinConfig.DIGITAL_OUT_3 > 0)
 			data[Stepper::Z]->triggerPin = 3; // frame^
-
 
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
@@ -451,8 +448,8 @@ namespace FocusMotor
 #endif
 #ifdef WIFI
 		// TODO: This causes the heap to overload?
-		//log_i("Creating Task sendUpdateToClients");
-		//xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+		// log_i("Creating Task sendUpdateToClients");
+		// xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 #endif
 	}
 
@@ -462,12 +459,12 @@ namespace FocusMotor
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
-			#ifdef USE_FASTACCEL
+#ifdef USE_FASTACCEL
 			bool isRunning = FAccelStep::isRunning(i);
-			#endif
-			#ifdef USE_ACCELSTEP
+#endif
+#ifdef USE_ACCELSTEP
 			bool isRunning = AccelStep::isRunning(i);
-			#endif
+#endif
 			if (!isRunning && !data[i]->stopped)
 			{
 				// Only send the information when the motor is halting

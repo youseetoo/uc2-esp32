@@ -32,10 +32,6 @@ namespace HomeMotor
 
 				cJSON *stp = NULL;
 				cJSON_ArrayForEach(stp, stprs)
-				getData()[s]->data[s]->isforever = true;
-				getData()[s]->data[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-				getData()[s]->data[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
-				getData()[s]->startStepper(s);
 				if (s == Stepper::Z and (getData()[s]->isDualAxisZ == true))
 				{
 					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
@@ -75,7 +71,7 @@ namespace HomeMotor
 					getData()[s]->data[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 					getData()[s]->data[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
 					getData()[s]->startStepper(s);
-					if (s == Stepper::Z and pinConfig.isDualAxisZ)
+					if (s == Stepper::Z and getData()->isDualAxisZ)
 					{
 						// we may have a dual axis so we would need to start A too
 						log_i("Starting A too");
@@ -160,7 +156,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val)
 		// homeInEndposReleaseMode = 2 means we are done
 		// reverse direction to release endstops
 		getData()[s]->stopStepper(s);
-		if (s == Stepper::Z and (pinConfig.isDualAxisZ==true))
+		if (s == Stepper::Z and (getData()->isDualAxisZ==true))
 		{
 			// we may have a dual axis so we would need to start A too
 			getData()[s]->stopStepper(Stepper::A);
@@ -178,7 +174,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val)
 		log_i("Home Motor %i in endpos release mode  %i", s, hdata[s]->homeInEndposReleaseMode);
 		getData()[s]->startStepper(s);
 
-		if (s == Stepper::Z and (motor->isDualAxisZ == true))
+		if (s == Stepper::Z and (getData()->isDualAxisZ == true))
 		{
 			// we may have a dual axis so we would need to start A too
 			getData()[s]->data[Stepper::A]->speed = -getData()[s]->data[Stepper::A]->speed ;
@@ -194,7 +190,7 @@ void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val)
 		log_i("Home Motor %i in endpos release mode %i", s, hdata[s]->homeInEndposReleaseMode);
 		getData()[s]->stopStepper(s);
 		getData()[s]->setPosition(s, 0);
-		if (s == Stepper::Z and (pinConfig.isDualAxisZ==true))
+		if (s == Stepper::Z and (getData()->isDualAxisZ==true))
 		{
 			// we may have a dual axis so we would need to start A too
 			getData()[s]->stopStepper(Stepper::A);

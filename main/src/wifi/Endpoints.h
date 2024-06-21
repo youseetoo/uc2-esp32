@@ -21,6 +21,12 @@ __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get"
 __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
 __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
 #endif
+
+#ifdef USE_I2C
+__attribute__ ((unused)) static const  char* i2c_act_endpoint = "/i2c_act";
+__attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
+#endif
+
 #ifdef ENCODER_CONTROLLER
 __attribute__ ((unused)) static const  char* encoder_act_endpoint = "/encoder_act";
 __attribute__ ((unused)) static const  char* encoder_get_endpoint = "/encoder_get";

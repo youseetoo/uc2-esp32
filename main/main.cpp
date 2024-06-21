@@ -59,6 +59,9 @@
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
+#ifdef USE_I2C
+#include "src/i2c/i2c_controller.h"
+#endif
 #ifdef HEAT_CONTROLLER
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
@@ -93,6 +96,10 @@ extern "C" void looper(void *p)
 		FocusMotor::loop();
 		vTaskDelay(1);
 #endif
+#ifdef USE_I2C
+		i2c_controller::loop();
+		vTaskDelay(1);
+#endif 
 #ifdef PID_CONTROLLER
 		PidController::loop();
 		vTaskDelay(1);
@@ -126,6 +133,9 @@ extern "C" void setupApp(void)
 	SerialProcess::setup();
 #ifdef USE_TCA9535	
 	tca_controller::init_tca();
+#endif
+#ifdef USE_I2C
+	i2c_controller::setup();
 #endif
 #ifdef MOTOR_CONTROLLER
 	FocusMotor::setup();

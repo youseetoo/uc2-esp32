@@ -29,7 +29,7 @@ __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut1IsTrigger = "
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut2IsTrigger = "digitalout2IsTrigger";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut3IsTrigger = "digitalout3IsTrigger";
 
-__attribute__ ((unused)) static const PROGMEM char * keyDigitalOut1TriggerDelayOn = "digitalout1TriggerDelayOn"; 
+__attribute__ ((unused)) static const PROGMEM char * keyDigitalOut1TriggerDelayOn = "digitalout1TriggerDelayOn";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut2TriggerDelayOn = "digitalout2TriggerDelayOn";
 __attribute__ ((unused)) static const PROGMEM char * keyDigitalOut3TriggerDelayOn = "digitalout3TriggerDelayOn";
 
@@ -84,7 +84,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_timestarted = "tim
 __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isactive";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endposrelease = "endposrelease";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
-#endif
+__attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";
 
 #ifdef ENCODER_CONTROLLER
 __attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";

@@ -38,10 +38,19 @@ namespace FocusMotor
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
-	void enable(bool en);
-	
-	static int logcount;
-	static bool power_enable = false;
+	long getCurrentPosition(Stepper s);
+	bool isDualAxisZ = false;
+
+	TaskHandle_t TaskHandle_stagescan_t;
+
+private:
+	tca9535 *_tca9535;
+	TCA9535_Register outRegister;
+	TCA9535_Register inRegister;
+
+
+	int logcount;
+	bool power_enable = false;
 
 	MotorData ** getData();
 };

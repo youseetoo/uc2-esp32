@@ -137,4 +137,5 @@ namespace DacController
 			vTaskDelay(frequency / portTICK_PERIOD_MS); // pause 1ms
 		}
 	}
+	#endif
 }

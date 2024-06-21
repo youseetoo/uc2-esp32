@@ -197,7 +197,7 @@ void hid_demo_task(void *pvParameters)
             esp_hidh_dev_t * dev = esp_hidh_dev_open(cr->bda, cr->transport, cr->ble.addr_type);
             
             ESP_LOGI(TAG, "connected...");
-            printf("esp_hidh_dev_open returned %d\n", dev);
+            //printf("esp_hidh_dev_open returned %d\n", dev);
         }
         //free the results
         esp_hid_scan_results_free(results);

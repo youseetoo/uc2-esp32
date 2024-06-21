@@ -146,7 +146,25 @@ namespace FocusMotor
 		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 
-		if (setpos != NULL)
+	// set dual axis if necessary
+	cJSON *dualaxisZ = cJSON_GetObjectItemCaseSensitive(doc, key_home_isDualAxis);
+	if (dualaxisZ != NULL)
+	{
+		// {"task": "/motor_act", "isDualAxisZ": 1}
+		// store this in the preferences
+		Preferences preferences;
+		isDualAxisZ = dualaxisZ->valueint;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, false);
+		preferences.putBool("dualAxZ", isDualAxisZ);
+		log_i("isDualAxisZ is set to: %i", isDualAxisZ);
+		preferences.end();
+	}
+	// set position
+	cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
+	// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+
+	if (setpos != NULL)
 		{
 			log_d("setpos");
 			cJSON *stprs = cJSON_GetObjectItem(setpos, key_steppers);
@@ -362,7 +380,14 @@ namespace FocusMotor
 		if (data[Stepper::Z] == nullptr)
 			log_e("Stepper Z data NULL");
 
-		log_i("Setting Up Motor A,X,Y,Z");
+	// Read dual axis from preferences if available
+	Preferences preferences;
+	const char *prefNamespace = "UC2";
+	preferences.begin(prefNamespace, false);
+	isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
+	preferences.end();
+
+	// setup motor pins
 	log_i("Setting Up Motor A,X,Y,Z");
 	preferences.begin("motor-positions", false);
 	if (pinConfig.MOTOR_A_DIR > 0)

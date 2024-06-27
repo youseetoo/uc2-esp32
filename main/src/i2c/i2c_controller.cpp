@@ -68,6 +68,11 @@ namespace i2c_controller
 	{
 		// scan I2C for all devices
 		i2c_scan();
+		if (pinConfig.I2C_DEV_ADDR >= 0)
+		{
+			Wire.begin(pinConfig.I2C_DEV_ADDR, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+			Wire.onReceive(receiveEvent);
+		}
 	}
 
 	void loop()
@@ -134,5 +139,39 @@ namespace i2c_controller
 		}
 	}
 
+	void receiveEvent(int numBytes)
+	{
+		log_i("Received %d bytes", numBytes);
+		while (Wire.available())
+		{
+			if (numBytes < 3)
+				return; // Invalid packet
+
+			int packetIndex = Wire.read();
+			int totalPackets = Wire.read();
+
+			if (packetIndex == 0)
+			{
+				receivedJsonString = "";
+				expectedPackets = totalPackets;
+				receivedPackets = 0;
+			}
+
+			while (Wire.available())
+			{
+				char c = Wire.read();
+				receivedJsonString += c;
+			}
+
+			receivedPackets++;
+
+			if (receivedPackets == expectedPackets)
+			{
+				Serial.println("Complete JSON received:");
+				Serial.println(receivedJsonString);
+				// Process the JSON string
+			}
+		}
+	}
 #endif
 } // namespace i2c_controller

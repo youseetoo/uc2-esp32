@@ -5,6 +5,14 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
+#undef PSXCONTROLLER
+
+// TODO: Just for testing
+#ifdef ESP32S3_MODEL_XIAO
+#define GPIO_NUM_22 GPIO_NUM_17
+#define GPIO_NUM_23 GPIO_NUM_17
+#endif
+
 #ifdef ANALOG_IN_CONTROLLER
 #include "src/analogin/AnalogInController.h"
 #endif
@@ -193,7 +201,10 @@ extern "C" void setupApp(void)
 	HeatController::setup();
 #endif
 }
-
+#ifdef PSXCONTROLLER
+#pragma message ("Der Variablenname ist: PSXCONTROLLER")
+#undef PSXCONTROLLER
+#endif
 extern "C" void app_main(void)
 {
 	// adjust logging programmatically

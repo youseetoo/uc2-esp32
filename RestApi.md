@@ -626,3 +626,13 @@ POST
     "digitalinid":1
 }
 ```
+
+
+/message_act
+==========
+POST
+```bash
+curl -X POST http://192.168.4.1/message_act \
+     -H "Content-Type: application/json" \
+     -d '{"key":1, "value":1}'
+```

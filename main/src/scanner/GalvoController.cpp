@@ -3,7 +3,6 @@
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
 #include "../laser/LaserController.h"
-#include "../../ModuleController.h"
 #include "Wire.h"
 GalvoController::GalvoController(){
 
@@ -20,7 +19,7 @@ void GalvoController::loop()
 int GalvoController::act(cJSON *ob)
 {
     // here you can do something
-
+    int qid = cJsonTool::getJsonInt(ob, "qid");
     /*
     int X_MIN = 0;
     int X_MAX = 30000;
@@ -65,7 +64,7 @@ int GalvoController::act(cJSON *ob)
         Serial.println(error);
     }
 
-    return 1;
+    return qid;
 }
 
 // Custom function accessible by the API

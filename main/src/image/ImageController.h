@@ -1,7 +1,7 @@
 #pragma once
 #include "../../Module.h"
 #include "../../ModuleController.h"
-
+// TODO: need to update this function to match the new framework
 class ImageController : public Module
 {
 private:

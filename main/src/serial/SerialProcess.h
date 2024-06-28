@@ -1,18 +1,13 @@
 #pragma once
 #include "cJSON.h"
-#include "../../Module.h"
 
-class SerialProcess
+
+namespace SerialProcess
 {
-private:
     void jsonProcessor(char * task,cJSON * jsonDocument);
     void serialize(cJSON * doc);
     void serialize(int success);
-    /* data */
-public:
-    SerialProcess(/* args */);
-    ~SerialProcess();
+    void setup();
     void loop();
 };
 
-extern SerialProcess serial;

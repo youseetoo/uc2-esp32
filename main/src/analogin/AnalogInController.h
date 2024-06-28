@@ -1,20 +1,17 @@
+#include <PinConfig.h>
 #pragma once
-#include "../../Module.h"
+#include "cJSON.h"
 
-class AnalogInController : public Module
+
+
+namespace AnalogInController
 {
-private:
-    /* data */
-public:
-    AnalogInController(/* args */);
-    ~AnalogInController();
-    bool DEBUG = false;
+    static bool DEBUG = false;
 
-    int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
+    static int N_analogin_avg; //no idea if it should be equal to that that one inside PidController.h 
 
-    void setup() override;
-    int act(cJSON* jsonDocument) override;
-    cJSON* get(cJSON* jsonDocument) override;
-    void loop() override;
+    void setup();
+    int act(cJSON* jsonDocument);
+    cJSON* get(cJSON* jsonDocument);
 };
 

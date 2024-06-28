@@ -3,7 +3,7 @@
 #include "Preferences.h"
 #include "JsonKeys.h"
 #include "nvs_flash.h"
-
+#include "PinConfig.h"
 namespace Config
 {
 
@@ -13,24 +13,33 @@ namespace Config
 
 	void setWifiConfig(WifiConfig *config)
 	{
+		#ifdef WIFI
 		preferences.begin(prefNamespace, false);
 		preferences.putBytes(keyWifiSSID, config, sizeof(WifiConfig));
 		preferences.end();
+		#endif
 	}
 
 	WifiConfig *getWifiConfig()
 	{
+		#ifdef WIFI
 		preferences.begin(prefNamespace, false);
 		WifiConfig *conf = new WifiConfig();
 		preferences.getBytes(keyWifiSSID, conf, sizeof(WifiConfig));
 		preferences.end();
 		return conf;
+		#else
+		WifiConfig *conf = new WifiConfig();
+		return conf;
+		#endif
 	}
 
 	void setup()
 	{
 		nvs_flash_init();
 		log_d("Setup ConfigController");
+		log_d("Using PinConfig: %s", pinConfig.pindefName);
+		log_d("Compile time: %s %s", __DATE__, __TIME__);
 	}
 
 	bool resetPreferences()
@@ -50,8 +59,10 @@ namespace Config
 	char* getPsxMac()
 	{
 		preferences.begin(prefNamespace, true);
-		char* m = (char*)preferences.getString("mac").c_str();
-		preferences.end();
+		String macString = preferences.getString("mac", "00:00:00:00:00:00");
+		char* m = new char[macString.length() + 1];
+		strcpy(m, macString.c_str());
+		
 		return m;
 	}
 

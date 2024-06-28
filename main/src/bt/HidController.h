@@ -1,3 +1,4 @@
+#include <PinConfig.h>
 #pragma once 
 
 #include "freertos/FreeRTOS.h"

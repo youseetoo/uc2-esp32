@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../Module.h"
-
+// TODO: need to update this function to match the new framework
 class GalvoController : public Module
 {
 private:

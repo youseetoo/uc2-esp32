@@ -1,6 +1,7 @@
 #pragma once
 #include "WifiConfig.h"
 #include "cJSON.h"
+#include "Arduino.h"
 
 class EspWifiController
 {

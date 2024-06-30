@@ -125,7 +125,8 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
-
+     int8_t I2C_DEV_ADDR = 0x08;
+     
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;

@@ -142,7 +142,6 @@ namespace HomeMotor
 	}
 void HomeMotor::checkAndProcessHome(Stepper s, int digitalin_val)
 {
-
 #ifdef MOTOR_CONTROLLER
 
 	// if we hit the endstop, reverse direction

@@ -141,6 +141,10 @@ namespace i2c_controller
 
 	void receiveEvent(int numBytes)
 	{
+		String receivedJsonString = "";
+		int expectedPackets = 0;
+		int receivedPackets = 0;
+
 		log_i("Received %d bytes", numBytes);
 		while (Wire.available())
 		{
@@ -152,6 +156,7 @@ namespace i2c_controller
 
 			if (packetIndex == 0)
 			{
+
 				receivedJsonString = "";
 				expectedPackets = totalPackets;
 				receivedPackets = 0;

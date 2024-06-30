@@ -1,7 +1,8 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-struct UC2_3 : PinConfig
+#undef PSXCONTROLLER
+struct UC2_ESP32S3_XIAO : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
@@ -65,7 +66,7 @@ struct UC2_3 : PinConfig
      #define HOME_MOTOR
      #define LASER_CONTROLLER
      #define DIGITAL_IN_CONTROLLER*/
-     const char * pindefName = "UC2_3_default";
+     const char * pindefName = "UC2_esp32s3_xiao";
      const unsigned long BAUDRATE = 500000;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
@@ -124,11 +125,12 @@ struct UC2_3 : PinConfig
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
-
+     int8_t I2C_DEV_ADDR = 0x08;
+     
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 };
-const UC2_3 pinConfig;
+const UC2_ESP32S3_XIAO pinConfig;

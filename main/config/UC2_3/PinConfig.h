@@ -85,7 +85,6 @@ struct UC2_3 : PinConfig
 
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
-     bool useFastAccelStepper = true;
      int8_t AccelStepperMotorType = 1;
 
      int8_t LASER_1 = GPIO_NUM_12;

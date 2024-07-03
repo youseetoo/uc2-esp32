@@ -6,7 +6,6 @@ struct UC2_CassetteRecorder : PinConfig
      //#define MOTOR_CONTROLLER
 
      const char *pindefName = "CassetteRecorder";
-     bool useFastAccelStepper = false;
      int8_t AccelStepperMotorType = 8;
      // ESP32-WEMOS D1 R32
      int8_t MOTOR_X_STEP = GPIO_NUM_13;

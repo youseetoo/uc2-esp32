@@ -71,7 +71,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
-     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_15;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
      bool isDualAxisZ = true;
      
@@ -93,7 +93,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t LASER_2 = GPIO_NUM_4;
      int8_t LASER_3 = GPIO_NUM_2;
 
-     int8_t LED_PIN = GPIO_NUM_13;
+     int8_t LED_PIN = GPIO_NUM_14; // internally conncted to the LED array on the LED matrix Waveshare board 
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
@@ -121,12 +121,12 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t ENC_Z_B = GPIO_NUM_17;
 
      // I2c
-     int8_t I2C_SCL = GPIO_NUM_17; // GPIO_NUM_22;
-     int8_t I2C_SDA = GPIO_NUM_21;
+     int8_t I2C_SCL = GPIO_NUM_7; // GPIO_NUM_22;
+     int8_t I2C_SDA = GPIO_NUM_8
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
      int8_t I2C_DEV_ADDR = 0x08;
-     
+
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;

@@ -22,6 +22,7 @@ namespace i2c_controller
 		nDevices = 0;
 		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Initialize I2C with defined pins and address
 
+		Serial.println("Sending patterns to the ESP32");
 		for (int i = 0; i < 10; i++)
 		{
 			Wire.beginTransmission(SLAVE_ADDRESS);
@@ -67,8 +68,8 @@ namespace i2c_controller
 	void setup()
 	{
 		// scan I2C for all devices
-		i2c_scan();
-		if (pinConfig.I2C_DEV_ADDR >= 0)
+		//	i2c_scan();
+		if (0)// (pinConfig.I2C_DEV_ADDR >= 0)
 		{
 			Wire.begin(pinConfig.I2C_DEV_ADDR, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);

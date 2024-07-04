@@ -1,8 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO : PinConfig
+struct UC2_3 : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
@@ -66,13 +65,13 @@ struct UC2_ESP32S3_XIAO : PinConfig
      #define HOME_MOTOR
      #define LASER_CONTROLLER
      #define DIGITAL_IN_CONTROLLER*/
-     const char * pindefName = "UC2_esp32s3_xiao";
+     const char * pindefName = "UC2_3_default";
      const unsigned long BAUDRATE = 500000;
 
-     int8_t MOTOR_A_STEP = GPIO_NUM_15;
-     int8_t MOTOR_X_STEP = GPIO_NUM_16;
-     int8_t MOTOR_Y_STEP = GPIO_NUM_15;
-     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     int8_t MOTOR_A_STEP = disabled;
+     int8_t MOTOR_X_STEP = disabled;
+     int8_t MOTOR_Y_STEP = disabled;
+     int8_t MOTOR_Z_STEP = disabled;
      bool isDualAxisZ = true;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
@@ -92,7 +91,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t LASER_2 = GPIO_NUM_4;
      int8_t LASER_3 = GPIO_NUM_2;
 
-     int8_t LED_PIN = GPIO_NUM_14; // internally conncted to the LED array on the LED matrix Waveshare board 
+     int8_t LED_PIN = GPIO_NUM_13;
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
@@ -120,8 +119,8 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t ENC_Z_B = GPIO_NUM_17;
 
      // I2c
-     int8_t I2C_SCL = GPIO_NUM_7; // GPIO_NUM_22;
-     int8_t I2C_SDA = GPIO_NUM_8;
+     int8_t I2C_SCL = GPIO_NUM_17; // GPIO_NUM_22;
+     int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
      int8_t I2C_DEV_ADDR = 0x08;
@@ -132,4 +131,4 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 };
-const UC2_ESP32S3_XIAO pinConfig;
+const UC2_3 pinConfig;

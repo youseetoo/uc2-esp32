@@ -19,7 +19,9 @@ namespace StageScan
         //  direction perhaps externally controlled
         if (pinConfig.I2C_SCL > -1)
         {
+            #ifdef USE_TCA
             tca_controller::setExternalPin(dirPin, direction);
+            #endif
         }
         else
         {

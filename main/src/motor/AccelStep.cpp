@@ -50,13 +50,12 @@ namespace AccelStep
              power_enable) ||
             force)
         {
-            if (pinConfig.I2C_SCL > 0)
+            #ifdef USE_TCA9535
                 _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            else
-            {
+            #else
                 pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
                 digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            }
+            #endif
             power_enable = false;
             log_i("poweroff motors");
         }

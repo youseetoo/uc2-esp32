@@ -68,8 +68,8 @@ namespace i2c_controller
 	void setup()
 	{
 		// scan I2C for all devices
-		//	i2c_scan();
-		if (0)// (pinConfig.I2C_DEV_ADDR >= 0)
+		i2c_scan();
+		if (pinConfig.I2C_DEV_ADDR >= 0)
 		{
 			Wire.begin(pinConfig.I2C_DEV_ADDR, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);

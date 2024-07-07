@@ -112,12 +112,12 @@ struct UC2_ESP32S3_XIAO : PinConfig
      
 
      // for caliper
-     int8_t ENC_X_A = GPIO_NUM_32;
-     int8_t ENC_Y_A = GPIO_NUM_34;
-     int8_t ENC_Z_A = GPIO_NUM_36;
-     int8_t ENC_X_B = GPIO_NUM_33;
-     int8_t ENC_Y_B = GPIO_NUM_35;
-     int8_t ENC_Z_B = GPIO_NUM_17;
+     int8_t ENC_X_A = disabled;
+     int8_t ENC_Y_A = disabled;
+     int8_t ENC_Z_A = disabled;
+     int8_t ENC_X_B = disabled;
+     int8_t ENC_Y_B = disabled;
+     int8_t ENC_Z_B = disabled;
 
      // I2c
      int8_t I2C_SCL = GPIO_NUM_7; // GPIO_NUM_22;

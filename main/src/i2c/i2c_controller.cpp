@@ -4,11 +4,13 @@
 #include "cJsonTool.h"
 #include "JsonKeys.h"
 
+#include "../serial/SerialProcess.h"
 #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
 
 #define SLAVE_ADDRESS 0x40
 #define MAX_I2C_BUFFER_SIZE 32
 
+using namespace SerialProcess;
 namespace i2c_controller
 {
 #ifdef USE_I2C
@@ -67,8 +69,7 @@ namespace i2c_controller
 
 	void setup()
 	{
-		// scan I2C for all devices
-		i2c_scan();
+		// Begin I2C slave communication with the defined pins and address
 		if (pinConfig.I2C_DEV_ADDR >= 0)
 		{
 			Wire.begin(pinConfig.I2C_DEV_ADDR, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
@@ -103,6 +104,8 @@ namespace i2c_controller
 
 	cJSON *get(cJSON *ob)
 	{
+		// scan I2C for all devices
+		i2c_scan();
 		cJSON *j = cJSON_CreateObject();
 		cJSON *ls = cJSON_CreateObject();
 		cJSON_AddItemToObject(j, "i2c", ls);
@@ -142,9 +145,14 @@ namespace i2c_controller
 
 	void receiveEvent(int numBytes)
 	{
-		String receivedJsonString = "";
-		int expectedPackets = 0;
-		int receivedPackets = 0;
+		/*
+		This receives data over I2C that gets parsed into a json for later action. 
+		Potentially we need to add the message to the serial queue for processing on 
+		individual devices?
+		*/
+		static String receivedJsonString = "";
+		static int expectedPackets = 0;
+		static int receivedPackets = 0;
 
 		log_i("Received %d bytes", numBytes);
 		while (Wire.available())
@@ -157,7 +165,6 @@ namespace i2c_controller
 
 			if (packetIndex == 0)
 			{
-
 				receivedJsonString = "";
 				expectedPackets = totalPackets;
 				receivedPackets = 0;
@@ -175,7 +182,26 @@ namespace i2c_controller
 			{
 				Serial.println("Complete JSON received:");
 				Serial.println(receivedJsonString);
+
 				// Process the JSON string
+				cJSON *root = cJSON_Parse(receivedJsonString.c_str());
+				if (root != NULL)
+				{
+					// Add the JSON to the serial queue for processing
+					SerialProcess::addJsonToQueue(root);
+				}
+				else
+				{
+					const char *error_ptr = cJSON_GetErrorPtr();
+					if (error_ptr != NULL)
+						log_i("error while parsing:%s", error_ptr);
+					log_i("I2C input is null");
+				}
+
+				// Reset for the next message
+				receivedJsonString = "";
+				expectedPackets = 0;
+				receivedPackets = 0;
 			}
 		}
 	}

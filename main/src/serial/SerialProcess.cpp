@@ -65,11 +65,15 @@
 
 namespace SerialProcess
 {
-	QueueHandle_t serialMSGQueue;
-	xTaskHandle xHandle;
+	QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
+	xTaskHandle xHandle;			// Task handle for the serial task
 
 	void serialTask(void *p)
 	{
+		/*
+		This task reads in json-formated strings that gets parsed and assigned to 
+		individual devices (e.g. laser, motor)
+		*/
 		cJSON root;
 		for (;;)
 		{
@@ -77,7 +81,6 @@ namespace SerialProcess
 			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(&root, "tasks");
 			if (tasks != NULL)
 			{
-
 				// {"tasks":[{"task":"/state_get"},{"task":"/state_act", "delay":1000}],"nTimes":2}
 				int nTimes = 1;
 				// perform the table n-times
@@ -116,6 +119,12 @@ namespace SerialProcess
 			serialMSGQueue = xQueueCreate(2, sizeof(cJSON));
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+	}
+
+	void addJsonToQueue(cJSON * doc)
+	{
+		// this bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
+		xQueueSend(serialMSGQueue, (void *)doc, 0);
 	}
 
 	void loop()

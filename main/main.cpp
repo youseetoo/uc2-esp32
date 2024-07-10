@@ -80,6 +80,7 @@ long lastHeapUpdateTime = 0;
 
 extern "C" void looper(void *p)
 {
+	log_i("Starting loop");
 	for (;;)
 	{
 		// receive and process serial messages
@@ -134,6 +135,7 @@ extern "C" void looper(void *p)
 
 extern "C" void setupApp(void)
 {
+	log_i("SetupApp");
 	// setup debugging level 
 	esp_log_level_set("*", ESP_LOG_DEBUG);
 	//esp_log_level_set("*", ESP_LOG_NONE);

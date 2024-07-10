@@ -28,7 +28,8 @@ OPTION(HEAT_CONTROLLER "USE_TCA9535" OFF)
 
 
 # Copy the correct PinConfig.h file to the main directory depending on the selected configuration in platformio.ini
-file(COPY ${CMAKE_SOURCE_DIR}/main/config/${CONFIG}/PinConfig.h DESTINATION ${CMAKE_SOURCE_DIR}/main/)
+# file(COPY ${CMAKE_SOURCE_DIR}/main/config/${CONFIG}/PinConfig.h DESTINATION ${CMAKE_SOURCE_DIR}/main/)
+# THIS IS DONE VIA PRESCRIPT
 
 set(mainsrc ${CMAKE_SOURCE_DIR}/main/)
 

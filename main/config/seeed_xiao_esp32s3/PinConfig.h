@@ -120,11 +120,10 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t ENC_Z_B = disabled;
 
      // I2c
-     int8_t I2C_SCL = GPIO_NUM_7; // GPIO_NUM_22;
-     int8_t I2C_SDA = GPIO_NUM_8;
+     int8_t I2C_SCL = GPIO_NUM_7; 
+     int8_t I2C_SDA = GPIO_NUM_6;
      int8_t I2C_ADD_TCA = 0x27;
-     gpio_num_t I2C_INT = GPIO_NUM_27;
-     int8_t I2C_DEV_ADDR = 0x08;
+     int8_t I2C_ADD_SLAVE = 0x08; // IF 0 then we are in I2C slave mode
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;

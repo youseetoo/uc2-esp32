@@ -16,6 +16,7 @@ namespace i2c_controller
 #ifdef USE_I2C
 	void i2c_scan()
 	{
+		// TODO: We need to ensure that we are in the correct mode (e.g. I2C master mode)
 		byte error, address;
 		int nDevices;
 
@@ -70,9 +71,9 @@ namespace i2c_controller
 	void setup()
 	{
 		// Begin I2C slave communication with the defined pins and address
-		if (pinConfig.I2C_DEV_ADDR >= 0)
+		if (pinConfig.I2C_ADD_SLAVE >= 0)
 		{
-			Wire.begin(pinConfig.I2C_DEV_ADDR, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
 		}
 	}
@@ -84,28 +85,29 @@ namespace i2c_controller
 
 	int act(cJSON *ob)
 	{
+		// This converts an incoming json string from Serial into a json object and sends it to the I2C slave under a given address
 		// JSON String
 		// {"task":"/i2c_act", "LED":1}
+		log_i("I2C act");
+		log_i("Ob: %s", cJSON_Print(ob));
+		if (pinConfig.I2C_ADD_SLAVE >= 0)
+			return -1; // I2C is in slave mode
 		int qid = cJsonTool::getJsonInt(ob, "qid");
-
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL);
+		// TODO: Maybe it would be better to do this in Serial direclty with an additional flag for I2C communication (e.g. relay anything to I2C)
 		String jsonString = "{\"task\":\"/ledarr_act\", \"led\":{\"LEDArrMode\":8, \"led_array\":[{\"id\":1, \"r\":255, \"g\":255, \"b\":255},{\"id\":2, \"r\":255, \"g\":255, \"b\":255},{\"id\":3, \"r\":255, \"g\":255, \"b\":255},{\"id\":4, \"r\":255, \"g\":255, \"b\":255},{\"id\":5, \"r\":255, \"g\":255, \"b\":255},{\"id\":6, \"r\":255, \"g\":255, \"b\":255},{\"id\":7, \"r\":255, \"g\":255, \"b\":255},{\"id\":8, \"r\":255, \"g\":255, \"b\":255},{\"id\":9, \"r\":255, \"g\":255, \"b\":255}]}}";
 		uint8_t slave_addr = SLAVE_ADDRESS;
 		sendJsonString(jsonString, slave_addr);
-		/*
-		// assign values
-		int LASERid = 0;
-		LASERid = cJsonTool::getJsonInt(ob, "LASERid");
-		// debugging
-		log_i("LaserID  %i", LASERid);
-		*/
+		// TODO: we would need to wait for some repsonse - or better have a reading queue for the I2C devices to send back data to the serial
 		return qid;
 	}
 
 	cJSON *get(cJSON *ob)
 	{
 		// scan I2C for all devices
-		i2c_scan();
+		// {"task":"/i2c_get"}
+		if (!pinConfig.I2C_ADD_SLAVE >= 0)
+			i2c_scan(); // I2C is in slave mode
+		log_i("I2C get");
 		cJSON *j = cJSON_CreateObject();
 		cJSON *ls = cJSON_CreateObject();
 		cJSON_AddItemToObject(j, "i2c", ls);
@@ -115,6 +117,8 @@ namespace i2c_controller
 
 	void sendJsonString(String jsonString, uint8_t slave_addr)
 	{
+		// This sends a json string to the I2C slave under a given address
+		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // switch to I2C master mode ??
 		int jsonLength = jsonString.length();
 		int totalPackets = (jsonLength + MAX_I2C_BUFFER_SIZE - 3) / (MAX_I2C_BUFFER_SIZE - 3); // Calculate total packets
 

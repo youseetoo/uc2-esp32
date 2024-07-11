@@ -65,8 +65,8 @@ struct UC2_3 : PinConfig
      #define HOME_MOTOR
      #define LASER_CONTROLLER
      #define DIGITAL_IN_CONTROLLER*/
-     const char * pindefName = "UC2_3_default";
-     const unsigned long BAUDRATE = 500000;
+     const char * pindefName = "UC2_3";
+     const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;

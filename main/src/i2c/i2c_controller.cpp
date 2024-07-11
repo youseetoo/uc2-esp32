@@ -105,7 +105,7 @@ namespace i2c_controller
 	{
 		// scan I2C for all devices
 		// {"task":"/i2c_get"}
-		if (!pinConfig.I2C_ADD_SLAVE >= 0)
+		if (!(pinConfig.I2C_ADD_SLAVE >= 0))
 			i2c_scan(); // I2C is in slave mode
 		log_i("I2C get");
 		cJSON *j = cJSON_CreateObject();

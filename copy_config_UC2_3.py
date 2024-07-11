@@ -1,11 +1,15 @@
 import shutil
 import os
 
-def before_build(source, target, env):
-    source_file = "main/config/UC2_3/PinConfig.h"
-    destination_file = "main/PinConfig.h"
-    shutil.copy(source_file, destination_file)
-    print(f"Copied {source_file} to {destination_file}")
-
+def before_build():
+    print("Executing pre-build script...")  # This will print to the PlatformIO build log
+    try:
+        source_file = "main/config/UC2_3/PinConfig.h"
+        destination_file = "main/PinConfig.h"
+        shutil.copy(source_file, destination_file)
+        print(f"Copied {source_file} to {destination_file}")
+    except Exception as e:
+        print("Error, not copied")
+        print(e)
 # Register the before_build function as a pre-build action
-env.AddPreAction("buildprog", before_build)
+before_build()

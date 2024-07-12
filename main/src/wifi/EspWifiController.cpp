@@ -13,19 +13,30 @@
 // #include "lwip/sys.h"
 
 static EventGroupHandle_t s_wifi_event_group;
-static void event_handler(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data)
+int s_retry_num = 0;
+
+static void event_handler(void* arg, esp_event_base_t event_base,
+                                int32_t event_id, void* event_data)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
-    {
-        log_i("WIFI_EVENT_STA_DISCONNECTED");
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
-        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
-    {
-        log_i("IP_EVENT_STA_GOT_IP");
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < WIFI_MAXIMUM_RETRY) {
+            esp_wifi_connect();
+            s_retry_num++;
+            log_e("retry to connect to the AP");
+        } else {
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        }
+        log_e("connect to the AP fail");
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        log_i("got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+    else{
+        log_i("event_base: %s event_id: %d", event_base, event_id);
     }
 }
 
@@ -119,24 +130,30 @@ void EspWifiController::wifi_init_sta()
 
     // Configure the Wi-Fi connection settings
     wifi_config_t wifi_config = {};
-    memcpy(wifi_config.sta.ssid, wconfig->mSsid, 32);
-
     // Check if the password is empty or null to determine if it's an open network
     if (strlen(wconfig->pw) == 0)
     {
         log_i("No password set for Wi-Fi network %s", wconfig->mSsid);
-        wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN; // Open network
-        wifi_config.sta.password[0] = '\0'; // No password
+        strcpy((char*)wifi_config.sta.ssid, wconfig->mSsid);
+        strcpy((char*)wifi_config.sta.password, "\0"); // Leeres Passwort für offenes Netzwerk
+        log_i("Connecting to Wi-Fi network %s", wifi_config.sta.ssid); 
+        log_i("Password: %s", wifi_config.sta.password);
+
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
+
     }
     else
     {
         wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK; // WPA2-PSK network
-        memcpy(wifi_config.sta.password, wconfig->pw, 64); // Set the password
+        strcpy((char*)wifi_config.sta.ssid, wconfig->mSsid); // Set the SSID
+        strcpy((char*)wifi_config.sta.password, wconfig->pw); // Set the password
+        //memcpy(wifi_config.sta.password, wconfig->pw, sizeof(wifi_config.sta.password)); // Set the password
     }
+    
 
     // Additional Wi-Fi configuration settings
-    wifi_config.sta.pmf_cfg.capable = true;
-    wifi_config.sta.pmf_cfg.required = false;
+    //wifi_config.sta.pmf_cfg.capable = true;
+    //wifi_config.sta.pmf_cfg.required = false;
 
     // Set the Wi-Fi mode to station
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -162,7 +179,6 @@ void EspWifiController::wifi_init_sta()
 
     // Wait until the connection is established or failed
     log_i("Waiting for Wi-Fi");
-    log_i("free heap:%d", ESP.getFreeHeap());
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
                                            pdFALSE,

@@ -5,6 +5,9 @@
 
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
+#define WIFI_MAXIMUM_RETRY 5
+#define WIFI_TIMEOUT_MS 5000 // Timeout in milliseconds (30 seconds)
+
 class EspWifiController
 {
     /* The event group allows multiple bits for each event, but we only care about two events:
@@ -16,9 +19,6 @@ class EspWifiController
         const char* TAG = "EspWifiController";
         /* FreeRTOS event group to signal when we are connected*/
         
-        #define WIFI_MAXIMUM_RETRY 5
-        #define WIFI_TIMEOUT_MS 5000 // Timeout in milliseconds (30 seconds)
-
 
 
         void initSoftAp();
@@ -28,4 +28,5 @@ class EspWifiController
         void disconnect();
         void setWifiConfig(WifiConfig * _wconfig){wconfig = _wconfig;}
         cJSON * wifi_scan();
+        
 };

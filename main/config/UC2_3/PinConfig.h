@@ -119,16 +119,25 @@ struct UC2_3 : PinConfig
      int8_t ENC_Z_B = GPIO_NUM_17;
 
      // I2c
-     int8_t I2C_SCL = GPIO_NUM_17; // GPIO_NUM_22;
+     int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
-     int8_t I2C_ADD_SLAVE = 0x08;
+     int8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
+     int8_t I2C_ADD_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
+
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
+
+     // WIFI - specific to SEEED microscope
+     const char *mSSID = "Matchboxscope-64E83351D290";
+     const char *mPWD =  "";
+     bool mAP = false;
+     const char *mSSIDAP = "UC2";            
+     const char *hostname = "youseetoo";     
 };
 const UC2_3 pinConfig;

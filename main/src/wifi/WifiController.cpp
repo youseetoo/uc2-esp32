@@ -77,14 +77,18 @@ namespace WifiController
 		// retrieve Wifi Settings from Config (e.g. AP or SSId settings)
 		config = Config::getWifiConfig();
 
+		// if the Wifi settings are not set, use the default settings
 		if ((pinConfig.mSSID != nullptr) && (pinConfig.mPWD != nullptr))
 			log_i("mssid:%s pw:%s", pinConfig.mSSID, pinConfig.mPWD); //, pinConfig.mAP);
+		
+		// start the webserver
 		if (httpsServer.running())
 		{
 			httpsServer.stop_webserver();
 			mdns_free();
 		}
 
+		
 		if (config->mSsid == NULL || strcmp(config->mSsid, ""))
 		{
 			config->ap = pinConfig.mAP;

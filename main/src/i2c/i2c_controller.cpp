@@ -5,9 +5,6 @@
 #include "JsonKeys.h"
 
 #include "../serial/SerialProcess.h"
-#define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
-
-#define SLAVE_ADDRESS 0x40
 #define MAX_I2C_BUFFER_SIZE 32
 
 using namespace SerialProcess;
@@ -28,7 +25,7 @@ namespace i2c_controller
 		Serial.println("Sending patterns to the ESP32");
 		for (int i = 0; i < 10; i++)
 		{
-			Wire.beginTransmission(SLAVE_ADDRESS);
+			Wire.beginTransmission(pinConfig.I2C_ADD_REMOTE_DEVICE);
 			Wire.write(i); // Send the pattern number to the ESP32
 			Wire.endTransmission();
 			delay(500);
@@ -95,7 +92,7 @@ namespace i2c_controller
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// TODO: Maybe it would be better to do this in Serial direclty with an additional flag for I2C communication (e.g. relay anything to I2C)
 		String jsonString = "{\"task\":\"/ledarr_act\", \"led\":{\"LEDArrMode\":8, \"led_array\":[{\"id\":1, \"r\":255, \"g\":255, \"b\":255},{\"id\":2, \"r\":255, \"g\":255, \"b\":255},{\"id\":3, \"r\":255, \"g\":255, \"b\":255},{\"id\":4, \"r\":255, \"g\":255, \"b\":255},{\"id\":5, \"r\":255, \"g\":255, \"b\":255},{\"id\":6, \"r\":255, \"g\":255, \"b\":255},{\"id\":7, \"r\":255, \"g\":255, \"b\":255},{\"id\":8, \"r\":255, \"g\":255, \"b\":255},{\"id\":9, \"r\":255, \"g\":255, \"b\":255}]}}";
-		uint8_t slave_addr = SLAVE_ADDRESS;
+		uint8_t slave_addr = pinConfig.I2C_ADD_REMOTE_DEVICE;
 		sendJsonString(jsonString, slave_addr);
 		// TODO: we would need to wait for some repsonse - or better have a reading queue for the I2C devices to send back data to the serial
 		return qid;

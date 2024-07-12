@@ -191,6 +191,9 @@ struct PinConfig
      int8_t I2C_SCL = disabled;
      int8_t I2C_SDA = disabled;
      int8_t I2C_ADD_TCA = disabled;
+     int8_t I2C_ADD_SLAVE = disabled;    // I2C address of the ESP32 if it's a slave
+     int8_t I2C_ADD_REMOTE_DEVICE = disabled; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
+
 
      // SPI
      int8_t SPI_MOSI = disabled;

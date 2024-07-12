@@ -126,7 +126,6 @@ extern "C" void looper(void *p)
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){ 
 			/* code */
 			log_i("free heap:%d", ESP.getFreeHeap());
-			Serial.println("free heap"+String(ESP.getFreeHeap()));
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 	}
@@ -137,7 +136,7 @@ extern "C" void setupApp(void)
 {
 	log_i("SetupApp");
 	// setup debugging level 
-	esp_log_level_set("*", ESP_LOG_DEBUG);
+	//esp_log_level_set("*", ESP_LOG_DEBUG); {"task":"/state_get"}
 	//esp_log_level_set("*", ESP_LOG_NONE);
 
 	SerialProcess::setup();

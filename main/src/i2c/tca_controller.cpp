@@ -63,6 +63,11 @@ namespace tca_controller
 		TCA9535_Register inputFromTcaRegister;
 		for (;;)
 		{
+			if (not tca_initiated)
+			{
+				vTaskDelay(1000);
+				continue;
+			}
 			TCA9535ReadInput(&inputFromTcaRegister);
 
 			FocusMotor::getData()[Stepper::X]->endstop_hit = !inputFromTcaRegister.Port.P0.bit.Bit5;
@@ -74,10 +79,15 @@ namespace tca_controller
 
 	void init_tca()
 	{
-		if (ESP_OK != TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD_TCA))
+		if (ESP_OK != TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD_TCA)){
 			log_e("failed to init tca9535");
+			tca_initiated = false;
+		}
 		else
+		{	
 			log_i("tca9535 init!");
+			tca_initiated = true;
+		}
 		TCA9535_Register configRegister;
 		TCA9535ReadInput(&configRegister);
 		dumpRegister("Input", configRegister);

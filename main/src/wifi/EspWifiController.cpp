@@ -187,8 +187,10 @@ void EspWifiController::wifi_init_sta()
 
 
     // Set the Wi-Fi configuration
+    ESP_ERROR_CHECK(esp_wifi_stop()); // first stop again
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-
+    log_i("Connecting to Wi-Fi network %s", wifi_config.sta.ssid);
+    log_i("Password: %s", wifi_config.sta.password);
     // Start the Wi-Fi
     ESP_ERROR_CHECK(esp_wifi_start());
     log_i("wifi_init_sta finished.");

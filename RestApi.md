@@ -161,6 +161,7 @@ curl -X POST http://192.168.4.2/ledarr_act \
 ```
 
 
+
 # Set all LEDs with a certain colour
 {"task": "/ledarr_act",   
   "led": {
@@ -174,6 +175,10 @@ curl -X POST http://192.168.4.2/ledarr_act \
       ]
   }}
 
+```bash
+curl -X POST http://192.168.4.2/ledarr_act \
+     -H "Content-Type: application/json" \
+     -d '{"led": { "LEDArrMode": 1, "led_array": [ { "b": 255, "g": 255, "id": 0, "r": 255 }] }}'
 # Set all LEDs (left half) with a certain colour
 {"task": "/ledarr_act",   
   "led": {

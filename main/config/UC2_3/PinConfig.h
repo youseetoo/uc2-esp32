@@ -134,7 +134,7 @@ struct UC2_3 : PinConfig
      int8_t SPI_CS = GPIO_NUM_5;
 
      // WIFI - specific to SEEED microscope
-     const char *mSSID = "UC2xSeeed-64E83351D290";
+     const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";
      bool mAP = false;
      const char *mSSIDAP = "UC2";            

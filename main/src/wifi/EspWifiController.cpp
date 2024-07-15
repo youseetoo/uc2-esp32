@@ -97,7 +97,6 @@ void EspWifiController::wifi_init_sta()
     This connects the ESP32 to an external Wi-Fi network provided by the
     mSSID and the PW in the pinconfig.h.
     */
-
     // Create an event group to manage Wi-Fi events
     s_wifi_event_group = xEventGroupCreate();
 
@@ -128,14 +127,45 @@ void EspWifiController::wifi_init_sta()
                                                         NULL,
                                                         &instance_got_ip));
 
+
     // Configure the Wi-Fi connection settings
     wifi_config_t wifi_config = {};
+
+    // Set the Wi-Fi mode to station
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+
+    // Set the Wi-Fi configuration
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+
+    // Start the Wi-Fi
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    // Scan available networks
+    cJSON *wifi_scan_results = wifi_scan();
+
+    if (wifi_scan_results)
+    {
+        // Check if we are connected to a specific network and use this for the connection
+        const char *prefix = "UC2xSeeed";
+        char *filtered_ssids = filter_ssid_starting_with(wifi_scan_results, prefix);
+        if (filtered_ssids == NULL)
+        {
+            log_i("No SSID found starting with %s", prefix);
+         
+        }
+        else{
+            log_i("Filtered SSIDs: %s", filtered_ssids);
+            wconfig->mSsid = filtered_ssids;
+        }
+    }
+
+
     // Check if the password is empty or null to determine if it's an open network
     if (strlen(wconfig->pw) == 0)
     {
         log_i("No password set for Wi-Fi network %s", wconfig->mSsid);
         strcpy((char*)wifi_config.sta.ssid, wconfig->mSsid);
-        strcpy((char*)wifi_config.sta.password, "\0"); // Leeres Passwort für offenes Netzwerk
+        strcpy((char*)wifi_config.sta.password, "\0");
         log_i("Connecting to Wi-Fi network %s", wifi_config.sta.ssid); 
         log_i("Password: %s", wifi_config.sta.password);
 
@@ -155,8 +185,6 @@ void EspWifiController::wifi_init_sta()
     //wifi_config.sta.pmf_cfg.capable = true;
     //wifi_config.sta.pmf_cfg.required = false;
 
-    // Set the Wi-Fi mode to station
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
     // Set the Wi-Fi configuration
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
@@ -174,8 +202,7 @@ void EspWifiController::wifi_init_sta()
     }
     xTimerStart(s_wifi_timer, 0);
 
-    // Scan available networks
-    wifi_scan();
+
 
     // Wait until the connection is established or failed
     log_i("Waiting for Wi-Fi");
@@ -262,3 +289,32 @@ cJSON *EspWifiController::wifi_scan()
     }
     return root;
 }
+
+
+
+
+char* EspWifiController::filter_ssid_starting_with(cJSON *root, const char *prefix)
+{
+    cJSON *item = NULL;
+
+    // Iterate through each SSID in the root array
+    cJSON_ArrayForEach(item, root)
+    {
+        const char *ssid = cJSON_GetStringValue(item);
+        if (ssid && strncmp(ssid, prefix, strlen(prefix)) == 0)
+        {
+            // Duplicate the matching SSID to return it
+            char *result = strdup(ssid);
+
+            // Clean up the JSON objects
+            cJSON_Delete(root);
+            return result;  // The caller is responsible for freeing this memory
+        }
+    }
+
+    // Clean up the JSON objects
+    cJSON_Delete(root);
+    return NULL;
+}
+
+

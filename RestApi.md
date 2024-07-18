@@ -259,7 +259,7 @@ POST
 ```
 
 ```bash
-curl -X POST http://192.168.4.1/laser_act \
+curl -X POST http://192.168.4.3/laser_act \
      -H "Content-Type: application/json" \
      -d '{ "LASERid":0, "LASERval":1000, "LASERdespeckle":1, "LASERdespecklePeriod":20}'
 ```

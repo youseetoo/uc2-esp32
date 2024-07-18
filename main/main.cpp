@@ -123,9 +123,10 @@ extern "C" void looper(void *p)
 #endif
 
 		// process all commands in their modules
-		if (pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){ 
+		if ( pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){  // 
 			/* code */
-			log_i("free heap:%d", ESP.getFreeHeap());
+			Serial.print("free heap:");
+			Serial.println(ESP.getFreeHeap());
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 	}

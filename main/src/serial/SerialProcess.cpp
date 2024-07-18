@@ -153,6 +153,10 @@ namespace SerialProcess
 
 	void serialize(cJSON *doc)
 	{
+		Serial.print("free heap: 1 ");
+		int heap = ESP.getFreeHeap();
+		Serial.println(heap);
+
 		Serial.println("++");
 		if (doc != NULL)
 		{
@@ -162,10 +166,19 @@ namespace SerialProcess
 			free(s);
 		}
 		Serial.println("--");
+
+		Serial.print("free heap: 2 ");
+		heap = ESP.getFreeHeap();
+		Serial.println(heap);
+
 	}
 
 	void serialize(int qid)
 	{
+		Serial.print("free heap: 1 ");
+		int heap = ESP.getFreeHeap();
+		Serial.println(heap);
+
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *v = cJSON_CreateNumber(qid);
 		cJSON_AddItemToObject(doc, "qid", v);
@@ -174,9 +187,14 @@ namespace SerialProcess
 		char *s = cJSON_Print(doc);
 		Serial.println(s);
 		cJSON_Delete(doc);
+		cJSON_Delete(v); //????
 		free(s);
 		Serial.println();
 		Serial.println("--");
+
+		Serial.print("free heap: 2 ");
+		heap = ESP.getFreeHeap();
+		Serial.println(heap);
 	}
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)

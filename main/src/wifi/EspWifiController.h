@@ -18,7 +18,7 @@ class EspWifiController
         const uint8_t DEFAULT_SCAN_LIST_SIZE = 10;
         const char* TAG = "EspWifiController";
         /* FreeRTOS event group to signal when we are connected*/
-        void initSoftAp();
+        void wifi_init_soft_ap();
         void wifi_init_sta();
         char* filter_ssid_starting_with(cJSON *root, const char *prefix);
 

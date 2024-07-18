@@ -136,7 +136,7 @@ struct UC2_3 : PinConfig
      // WIFI - specific to SEEED microscope
      const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";
-     bool mAP = false;
+     bool mAP = true; // false;
      const char *mSSIDAP = "UC2";            
      const char *hostname = "youseetoo";     
 };

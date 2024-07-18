@@ -72,20 +72,29 @@ namespace State
 
 	// Custom function accessible by the API
 	// return json {"state":{...}} as qid
+	// {"task":"/state_get",  "qid":1}
+	// {"task":"/state_get", "isBusy":1}
+	// {"task":"/state_get", "heap":1}
 	cJSON *get(cJSON *docin)
 	{
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *st = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, "state", st);
 
-		// GET SOME PARAMETERS HERE
-		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(doc, "isBusy");
+		// GET SOME PARAMETERS HERE 
+		int qid = cJsonTool::getJsonInt(docin, "qid");
+		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(docin, "isBusy");
+		cJSON *HEAP = cJSON_GetObjectItemCaseSensitive(docin, "heap");
 		if (BUSY != NULL)
 		{
 			cJSON_AddItemToObject(st, "isBusy", cJSON_CreateNumber(((int)isBusy)));
 		}
-		else
+		else if (HEAP != NULL)
 		{
+			cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
+		}
+		else
+		{ 
 			cJSON_AddItemToObject(st, "identifier_name", cJSON_CreateString(identifier_name));
 			cJSON_AddItemToObject(st, "identifier_id", cJSON_CreateString(identifier_id));
 			cJSON_AddItemToObject(st, "identifier_date", cJSON_CreateString(identifier_date));
@@ -93,7 +102,10 @@ namespace State
 			cJSON_AddItemToObject(st, "IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
+			//cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
 		}
+		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
+
 		return doc;
 	}
 

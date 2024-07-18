@@ -1,8 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO : PinConfig
+struct UC2_3 : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
@@ -66,12 +65,12 @@ struct UC2_ESP32S3_XIAO : PinConfig
      #define HOME_MOTOR
      #define LASER_CONTROLLER
      #define DIGITAL_IN_CONTROLLER*/
-     const char * pindefName = "UC2_esp32s3_xiao";
-     const unsigned long BAUDRATE = 500000;
+     const char * pindefName = "UC2_3";
+     const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
-     int8_t MOTOR_Y_STEP = GPIO_NUM_15;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
      bool isDualAxisZ = true;
      
@@ -92,7 +91,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t LASER_2 = GPIO_NUM_4;
      int8_t LASER_3 = GPIO_NUM_2;
 
-     int8_t LED_PIN = GPIO_NUM_14; // internally conncted to the LED array on the LED matrix Waveshare board 
+     int8_t LED_PIN = GPIO_NUM_13;
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
@@ -112,23 +111,33 @@ struct UC2_ESP32S3_XIAO : PinConfig
      
 
      // for caliper
-     int8_t ENC_X_A = disabled;
-     int8_t ENC_Y_A = disabled;
-     int8_t ENC_Z_A = disabled;
-     int8_t ENC_X_B = disabled;
-     int8_t ENC_Y_B = disabled;
-     int8_t ENC_Z_B = disabled;
+     int8_t ENC_X_A = GPIO_NUM_32;
+     int8_t ENC_Y_A = GPIO_NUM_34;
+     int8_t ENC_Z_A = GPIO_NUM_36;
+     int8_t ENC_X_B = GPIO_NUM_33;
+     int8_t ENC_Y_B = GPIO_NUM_35;
+     int8_t ENC_Z_B = GPIO_NUM_17;
 
      // I2c
-     int8_t I2C_SCL = GPIO_NUM_7; 
-     int8_t I2C_SDA = GPIO_NUM_6;
+     int8_t I2C_SCL = GPIO_NUM_22;
+     int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
-     int8_t I2C_ADD_SLAVE = 0x08; // IF 0 then we are in I2C slave mode
+     gpio_num_t I2C_INT = GPIO_NUM_27;
+     int8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
+     int8_t I2C_ADD_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
+
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
+
+     // WIFI - specific to SEEED microscope
+     const char *mSSID = "UC2xSeeed-";
+     const char *mPWD =  "";
+     bool mAP = true; // false;
+     const char *mSSIDAP = "UC2";            
+     const char *hostname = "youseetoo";     
 };
-const UC2_ESP32S3_XIAO pinConfig;
+const UC2_3 pinConfig;

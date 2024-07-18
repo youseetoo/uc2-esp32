@@ -65,66 +65,70 @@
 
 namespace SerialProcess
 {
-	QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
-	xTaskHandle xHandle;			// Task handle for the serial task
+	QueueHandle_t serialMSGQueue; // Queue that buffers incoming messages and delegates them to the appropriate task
+	xTaskHandle xHandle;		  // Task handle for the serial task
 
 	void serialTask(void *p)
 	{
-		/*
-		This task reads in json-formated strings that gets parsed and assigned to 
-		individual devices (e.g. laser, motor)
-		*/
-		cJSON root;
 		for (;;)
 		{
+			cJSON *root = NULL;
 			xQueueReceive(serialMSGQueue, &root, portMAX_DELAY);
-			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(&root, "tasks");
+			if (root == NULL)
+				continue; // Handle NULL case
+
+			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
 			if (tasks != NULL)
 			{
-				// {"tasks":[{"task":"/state_get"},{"task":"/state_act", "delay":1000}],"nTimes":2}
 				int nTimes = 1;
-				// perform the table n-times
-				if (cJSON_GetObjectItemCaseSensitive(&root, "nTimes")->valueint != NULL)
-					nTimes = cJSON_GetObjectItemCaseSensitive(&root, "nTimes")->valueint;
+				cJSON *nTimesItem = cJSON_GetObjectItemCaseSensitive(root, "nTimes");
+				if (nTimesItem != NULL)
+					nTimes = nTimesItem->valueint;
 
 				for (int i = 0; i < nTimes; i++)
 				{
 					log_i("Process tasks");
 					cJSON *t = NULL;
-					char *string = NULL;
 					cJSON_ArrayForEach(t, tasks)
 					{
 						cJSON *ta = cJSON_GetObjectItemCaseSensitive(t, "task");
-						string = cJSON_GetStringValue(ta);
-						jsonProcessor(string, t);
+						if (ta != NULL)
+						{
+							char *string = cJSON_GetStringValue(ta);
+							if (string != NULL)
+								jsonProcessor(string, t);
+						}
 					}
 				}
 			}
 			else
 			{
-
-				cJSON *string = cJSON_GetObjectItemCaseSensitive(&root, "task");
-				char *ss = cJSON_GetStringValue(string);
-				// log_i("Process task:%s", ss);
-				jsonProcessor(ss, &root);
+				cJSON *string = cJSON_GetObjectItemCaseSensitive(root, "task");
+				if (string != NULL)
+				{
+					char *ss = cJSON_GetStringValue(string);
+					if (ss != NULL)
+						jsonProcessor(ss, root);
+				}
 			}
+
+			cJSON_Delete(root); // Delete root after processing
 		}
-		cJSON_Delete(&root);
 		vTaskDelete(NULL);
 	}
 
 	void setup()
 	{
 		if (serialMSGQueue == nullptr)
-			serialMSGQueue = xQueueCreate(2, sizeof(cJSON));
+			serialMSGQueue = xQueueCreate(2, sizeof(cJSON *)); // Queue for cJSON pointers
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
 	}
 
-	void addJsonToQueue(cJSON * doc)
+	void addJsonToQueue(cJSON *doc)
 	{
-		// this bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
-		xQueueSend(serialMSGQueue, (void *)doc, 0);
+		// This bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
+		xQueueSend(serialMSGQueue, &doc, 0);
 	}
 
 	void loop()
@@ -138,13 +142,13 @@ namespace SerialProcess
 			cJSON *root = cJSON_Parse(s);
 			if (root != NULL)
 			{
-				xQueueSend(serialMSGQueue, (void *)root, 0);
+				xQueueSend(serialMSGQueue, &root, 0); // Send pointer to queue
 			}
 			else
 			{
 				const char *error_ptr = cJSON_GetErrorPtr();
 				if (error_ptr != NULL)
-					log_i("error while parsing:%s", error_ptr);
+					log_i("Error while parsing:%s", error_ptr);
 				log_i("Serial input is null");
 			}
 			c.clear();
@@ -153,10 +157,6 @@ namespace SerialProcess
 
 	void serialize(cJSON *doc)
 	{
-		Serial.print("free heap: 1 ");
-		int heap = ESP.getFreeHeap();
-		Serial.println(heap);
-
 		Serial.println("++");
 		if (doc != NULL)
 		{
@@ -166,19 +166,10 @@ namespace SerialProcess
 			free(s);
 		}
 		Serial.println("--");
-
-		Serial.print("free heap: 2 ");
-		heap = ESP.getFreeHeap();
-		Serial.println(heap);
-
 	}
 
 	void serialize(int qid)
 	{
-		Serial.print("free heap: 1 ");
-		int heap = ESP.getFreeHeap();
-		Serial.println(heap);
-
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *v = cJSON_CreateNumber(qid);
 		cJSON_AddItemToObject(doc, "qid", v);
@@ -187,19 +178,19 @@ namespace SerialProcess
 		char *s = cJSON_Print(doc);
 		Serial.println(s);
 		cJSON_Delete(doc);
-		cJSON_Delete(v); //????
 		free(s);
 		Serial.println();
 		Serial.println("--");
-
-		Serial.print("free heap: 2 ");
-		heap = ESP.getFreeHeap();
-		Serial.println(heap);
 	}
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
 	{
 
+		/*
+		This function takes in the task (e.g. /state_get)
+		and a JSON object that holds the information for the
+		task that needs to be processed. It calls the get/act
+		function for the different controllers*/
 #ifdef ANALOG_OUT_CONTROLLER
 		if (strcmp(task, analogout_act_endpoint) == 0)
 			serialize(AnalogOutController::act(jsonDocument));
@@ -267,16 +258,16 @@ namespace SerialProcess
 		}
 #endif
 #ifdef HOME_MOTOR
-	if (strcmp(task, home_get_endpoint) == 0)
-		serialize(HomeMotor::get(jsonDocument));
-	if (strcmp(task, home_act_endpoint) == 0)
-		serialize(HomeMotor::act(jsonDocument));
+		if (strcmp(task, home_get_endpoint) == 0)
+			serialize(HomeMotor::get(jsonDocument));
+		if (strcmp(task, home_act_endpoint) == 0)
+			serialize(HomeMotor::act(jsonDocument));
 #endif
 #ifdef USE_I2C
-	if (strcmp(task, i2c_get_endpoint) == 0)
-		serialize(i2c_controller::get(jsonDocument));
-	if (strcmp(task, i2c_act_endpoint) == 0)
-		serialize(i2c_controller::act(jsonDocument));
+		if (strcmp(task, i2c_get_endpoint) == 0)
+			serialize(i2c_controller::get(jsonDocument));
+		if (strcmp(task, i2c_act_endpoint) == 0)
+			serialize(i2c_controller::act(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		if (strcmp(task, laser_get_endpoint) == 0)

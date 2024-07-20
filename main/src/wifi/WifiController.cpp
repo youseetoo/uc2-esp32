@@ -59,6 +59,7 @@ namespace WifiController
 		char *s = cJSON_Print(doc);
 		if(s != nullptr && strlen(s) > 0)
 			httpsServer.sendText(s);
+		free(s);
 	}
 
 	void setWifiConfig(char *SSID, char *PWD, bool ap)

@@ -157,28 +157,48 @@ namespace SerialProcess
 
 	void serialize(cJSON *doc)
 	{
+		// e.g. used for state_get or sendMotorPos()
 		Serial.println("++");
 		if (doc != NULL)
 		{
+			// Print the JSON document to a string
 			char *s = cJSON_Print(doc);
-			Serial.println(s);
-			cJSON_Delete(doc);
-			free(s);
+			if (s != NULL)
+			{
+				Serial.println(s);
+				free(s); // Free the string created by cJSON_Print
+			}
+			cJSON_Delete(doc); // Free the cJSON object
 		}
 		Serial.println("--");
 	}
 
 	void serialize(int qid)
 	{
+		// used for most of the returns of act/get functions
 		cJSON *doc = cJSON_CreateObject();
+		if (doc == NULL)
+			return; // Handle memory allocation failure
+
 		cJSON *v = cJSON_CreateNumber(qid);
-		cJSON_AddItemToObject(doc, "qid", v);
-		cJSON_AddItemToObject(doc, "idsuccess", cJSON_CreateNumber(1));
+		if (v != NULL)
+		{
+			cJSON_AddItemToObject(doc, "qid", v);
+		}
+
+		cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(1));
 		Serial.println("++");
+
+		// Print the JSON document to a string
 		char *s = cJSON_Print(doc);
-		Serial.println(s);
-		cJSON_Delete(doc);
-		free(s);
+		if (s != NULL)
+		{
+			Serial.println(s);
+			free(s); // Free the string created by cJSON_Print
+		}
+
+		cJSON_Delete(doc); // Free the cJSON object
+
 		Serial.println();
 		Serial.println("--");
 	}

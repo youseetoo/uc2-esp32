@@ -38,7 +38,7 @@ namespace LedController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
-		ESP_LOGI(TAG, "act");
+		
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// serializeJsonPretty(ob, Serial);
 		cJSON *led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
@@ -48,7 +48,7 @@ namespace LedController
 			cJSON *ledarr = cJSON_GetObjectItemCaseSensitive(led, key_led_array);
 			if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 			{
-				ESP_LOGI(TAG, "LED: array/multi");
+				
 				cJSON *arri = NULL;
 				cJSON_ArrayForEach(arri, ledarr)
 				{

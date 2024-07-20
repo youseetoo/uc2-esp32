@@ -23,6 +23,7 @@ struct MotorData
 	int timeoutDisable = 1000;
 	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
+	int qid = -1;
 
 	//flag that indicate if a motor is realy availible and not just a motor wiht no function.
 	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized

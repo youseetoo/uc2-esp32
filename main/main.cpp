@@ -4,8 +4,10 @@
 #include <PinConfig.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
+#include "esp_task_wdt.h"
 
 #undef PSXCONTROLLER
+#define WDTIMEOUT 2 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
 #ifdef ESP32S3_MODEL_XIAO
@@ -81,8 +83,13 @@ long lastHeapUpdateTime = 0;
 extern "C" void looper(void *p)
 {
 	log_i("Starting loop");
+	// Enable the watchdog timer to detect and recover from system crashes
+	esp_task_wdt_init(WDTIMEOUT, true);  // Enable panic so ESP32 restarts
+	esp_task_wdt_add(NULL);  // Add current thread to WDT watch
+
 	for (;;)
 	{
+		esp_task_wdt_reset();  // Reset (feed) the watchdog timer
 		// receive and process serial messages
 		SerialProcess::loop();
 #ifdef ENCODER_CONTROLLER
@@ -129,12 +136,15 @@ extern "C" void looper(void *p)
 			Serial.println(ESP.getFreeHeap());
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
+		// Allow other tasks to run and reset the WDT
+        vTaskDelay(pdMS_TO_TICKS(1));
 	}
 	vTaskDelete(NULL);
 }
 
 extern "C" void setupApp(void)
 {
+	
 	log_i("SetupApp");
 	// setup debugging level 
 	//esp_log_level_set("*", ESP_LOG_DEBUG); {"task":"/state_get"}
@@ -233,7 +243,8 @@ extern "C" void app_main(void)
 	// initialize the module controller
 	setupApp();
 
-	log_i("End setup");
+	Serial.println("/{'setup':'done'/}");
+
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
 }

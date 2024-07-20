@@ -120,12 +120,13 @@ namespace HomeMotor
 	}
 
 	// home done returns
-	//{"home":{...}} thats the qid
+	//{"home":{...}} 
 	void sendHomeDone(int axis)
 	{
 		// send home done to client
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
+		cJSON_AddNumberToObject(json, "qid", hdata[axis]->qid);
 		cJSON_AddItemToObject(json, key_home, home);
 		cJSON *steppers = cJSON_CreateObject();
 		cJSON_AddItemToObject(home, key_steppers, steppers);
@@ -136,6 +137,7 @@ namespace HomeMotor
 		Serial.println("++");
 		char *ret = cJSON_Print(json);
 		cJSON_Delete(json);
+		cJSON_Delete(home);
 		Serial.println(ret);
 		free(ret);
 		Serial.println("--");

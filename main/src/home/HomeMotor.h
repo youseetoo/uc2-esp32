@@ -16,6 +16,7 @@ struct HomeData
 	int homeEndposRelease = 1000;
 	int homeInEndposReleaseMode = 0;
 	bool homeEndStopPolarity = 0; // normally open
+	int qid = -1;
 };
 
 void processHomeLoop(void * p);

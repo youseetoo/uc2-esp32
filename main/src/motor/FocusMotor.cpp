@@ -97,6 +97,11 @@ namespace FocusMotor
 
 	void parseMotorDriveJson(cJSON *doc)
 	{
+		/*
+		We receive a JSON string e.g. in the form: 
+		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+		And assign it to the different motors
+		*/
 #ifdef MOTOR_CONTROLLER
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
@@ -108,6 +113,7 @@ namespace FocusMotor
 				cJSON_ArrayForEach(stp, stprs)
 				{
 					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
+					data[s]->qid = cJsonTool::getJsonInt(doc, "qid");
 					data[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
 					data[s]->isEnable = cJsonTool::getJsonInt(stp, key_isen);
 					data[s]->targetPosition = cJsonTool::getJsonInt(stp, key_position);
@@ -489,35 +495,56 @@ namespace FocusMotor
 #endif
 	}
 
-	// returns json {"steppers":[...]} as qid
-	void sendMotorPos(int i, int arraypos)
-	{
+// returns json {"steppers":[...]} as qid
+void sendMotorPos(int i, int arraypos)
+{
 #ifdef USE_FASTACCEL
-		FAccelStep::updateData(i);
+    FAccelStep::updateData(i);
 #endif
 #ifdef USE_ACCELSTEP
-		AccelStep::updateData(i);
+    AccelStep::updateData(i);
 #endif
-		cJSON *root = cJSON_CreateObject();
-		cJSON *stprs = cJSON_CreateArray();
-		cJSON_AddItemToObject(root, key_steppers, stprs);
-		cJSON *item = cJSON_CreateObject();
-		cJSON_AddItemToArray(stprs, item);
-		cJSON_AddNumberToObject(item, key_stepperid, i);
-		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-		arraypos++;
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) return; // Handle allocation failure
+
+    cJSON *stprs = cJSON_CreateArray();
+    if (stprs == NULL)
+    {
+        cJSON_Delete(root);
+        return; // Handle allocation failure
+    }
+    cJSON_AddItemToObject(root, key_steppers, stprs);
+    cJSON_AddNumberToObject(root, "qid", data[i]->qid);
+    
+    cJSON *item = cJSON_CreateObject();
+    if (item == NULL)
+    {
+        cJSON_Delete(root);
+        return; // Handle allocation failure
+    }
+    cJSON_AddItemToArray(stprs, item);
+    cJSON_AddNumberToObject(item, key_stepperid, i);
+    cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
+    cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+    arraypos++;
 
 #ifdef WIFI
-		WifiController::sendJsonWebSocketMsg(root);
+    WifiController::sendJsonWebSocketMsg(root);
 #endif
-		// print result - will that work in the case of an xTask?
-		Serial.println("++");
-		char *s = cJSON_Print(root);
-		Serial.println(s);
-		free(s);
-		Serial.println("--");
-	}
+
+    // Print result - will that work in the case of an xTask?
+    Serial.println("++");
+    char *s = cJSON_Print(root);
+    if (s != NULL)
+    {
+        Serial.println(s);
+        free(s);
+    }
+    Serial.println("--");
+
+    cJSON_Delete(root);  // Free the root object, which also frees all nested objects
+}
+
 
 	void stopStepper(int i)
 	{

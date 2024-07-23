@@ -130,8 +130,8 @@ extern "C" void looper(void *p)
 #endif
 
 		// process all commands in their modules
-		if ( pinConfig.dumpHeap && lastHeapUpdateTime + 1000000 < esp_timer_get_time()){  // 
-			/* code */
+		if ( pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time()){  // 
+			/* code */ 
 			Serial.print("free heap:");
 			Serial.println(ESP.getFreeHeap());
 			lastHeapUpdateTime = esp_timer_get_time();
@@ -243,7 +243,7 @@ extern "C" void app_main(void)
 	// initialize the module controller
 	setupApp();
 
-	Serial.println("/{'setup':'done'/}");
+	Serial.println("{'setup':'done'}");
 
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);

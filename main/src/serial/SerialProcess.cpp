@@ -185,8 +185,13 @@ namespace SerialProcess
 		{
 			cJSON_AddItemToObject(doc, "qid", v);
 		}
-
-		cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(1));
+		// indicate success or failure based on qid value
+		if (qid > 0)
+			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(1));
+		else if (qid < 0)
+			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(-1));
+		else
+			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(0));
 		Serial.println("++");
 
 		// Print the JSON document to a string

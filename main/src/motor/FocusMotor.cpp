@@ -292,16 +292,22 @@ namespace FocusMotor
 
 	int act(cJSON *doc)
 	{
-		// log_i("motor act");
+		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
-		//{"task":"/motor_act","home":[1,2]}
 		parseEnableMotor(doc);
+
 		// only set motors to autoenable
+		// {"task":"/motor_act", "isen":1, "isenauto":1, "qid":1}
 		parseAutoEnableMotor(doc);
-		if (parseSetPosition(doc))
-			return 1;
+		
+		// set position of motors in eeprom
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
+		parseSetPosition(doc);
+			
+		// move motor drive
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
 #ifdef HOME_DRIVE
 		parseHome(doc);
@@ -315,8 +321,10 @@ namespace FocusMotor
 	// returns json {"motor":{...}} as qid
 	cJSON *get(cJSON *docin)
 	{
+		// {"task": "/motor_get", "qid": 1}
 		log_i("get motor");
 		cJSON *doc = cJSON_CreateObject();
+		int qid = cJsonTool::getJsonInt(docin, "qid");
 		cJSON *pos = cJSON_GetObjectItemCaseSensitive(docin, key_position);
 		cJSON *stop = cJSON_GetObjectItemCaseSensitive(docin, key_stopped);
 		cJSON *mot = cJSON_CreateObject();
@@ -366,6 +374,7 @@ namespace FocusMotor
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 		}
+		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
 		return doc;
 	}
 

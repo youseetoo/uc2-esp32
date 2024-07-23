@@ -53,6 +53,9 @@
 #ifdef SCANNER_CONTROLLER
 #include "../scanner/ScannerController.h"
 #endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
 #include "../state/State.h"
 #ifdef WIFI
 #include "../wifi/WifiController.h"
@@ -317,6 +320,18 @@ namespace SerialProcess
 			serialize(FocusMotor::get(jsonDocument));
 		if (strcmp(task, motor_act_endpoint) == 0)
 			serialize(FocusMotor::act(jsonDocument));
+#endif
+#ifdef SCANNER_CONTROLLER
+		if (strcmp(task, scanner_get_endpoint) == 0)
+			serialize(ScannerController::get(jsonDocument));
+		if (strcmp(task, scanner_act_endpoint) == 0)
+			serialize(ScannerController::act(jsonDocument));
+#endif
+#ifdef GALVO_CONTROLLER
+		if (strcmp(task, galvo_get_endpoint) == 0)
+			serialize(GalvoController::get(jsonDocument));
+		if (strcmp(task, galvo_act_endpoint) == 0)
+			serialize(GalvoController::act(jsonDocument));
 #endif
 #ifdef PID_CONTROLLER
 		if (strcmp(task, PID_get_endpoint) == 0)

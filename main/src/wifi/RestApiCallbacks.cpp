@@ -47,11 +47,17 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
 #ifdef PID_CONTROLLER
 #include "../pid/PidController.h"
 #endif
 #ifdef SCANNER_CONTROLLER
 #include "../scanner/ScannerController.h"
+#endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
 #endif
 #include "../state/State.h"
 #ifdef WIFI
@@ -184,6 +190,10 @@ namespace RestApi
 #ifdef MOTOR_CONTROLLER
         cJSON_AddItemToArray(doc, cJSON_CreateString(motor_act_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(motor_get_endpoint));
+#endif
+#ifdef GALVO_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(galvo_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(galvo_get_endpoint));
 #endif
 #ifdef PID_CONTROLLER
         cJSON_AddItemToArray(doc, cJSON_CreateString(PID_act_endpoint));
@@ -384,6 +394,19 @@ namespace RestApi
     esp_err_t FocusMotor_getESP(httpd_req_t *req)
     {
         serializeESP(FocusMotor::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+#ifdef GALVO_CONTROLLER
+    esp_err_t rotator_actESP(httpd_req_t *req)
+    {
+        serializeESP(GalvoController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t rotator_getESP(httpd_req_t *req)
+    {
+        serializeESP(GalvoController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

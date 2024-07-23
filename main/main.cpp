@@ -60,6 +60,9 @@
 #ifdef SCANNER_CONTROLLER
 #include "src/scanner/ScannerController.h"
 #endif
+#ifdef GALVO_CONTROLLER
+#include "src/scanner/GalvoController.h"
+#endif
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
 #endif
@@ -96,6 +99,10 @@ extern "C" void looper(void *p)
 		EncoderController::loop();
 		vTaskDelay(1);
 #endif
+#ifdef GALVO_CONTROLLER
+		GalvoController::loop();
+		vTaskDelay(1);
+#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 		LinearEncoderController::loop();
 		vTaskDelay(1);
@@ -122,6 +129,10 @@ extern "C" void looper(void *p)
 #endif
 #ifdef SCANNER_CONTROLLER
 		ScannerController::loop();
+		vTaskDelay(1);
+#endif
+#ifdef GALVO_CONTROLLER
+		GalvoController::loop();
 		vTaskDelay(1);
 #endif
 #ifdef HEAT_CONTROLLER
@@ -184,6 +195,9 @@ extern "C" void setupApp(void)
 #ifdef ENCODER_CONTROLLER
 	EncoderController::setup();
 #endif
+#ifdef GALVO_CONTROLLER
+	GalvoController::setup();
+#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 	LinearEncoderController::setup();
 #endif
@@ -204,6 +218,9 @@ extern "C" void setupApp(void)
 #endif
 #ifdef SCANNER_CONTROLLER
 	ScannerController::setup();
+#endif
+#ifdef GALVO_CONTROLLER
+	GalvoController::setup();
 #endif
 #ifdef WIFI
 	WifiController::setup();

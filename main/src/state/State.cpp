@@ -129,6 +129,9 @@ namespace State
 #ifdef MOTOR_CONTROLLER
 		cJSON_AddItemToObject(mod, key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
 #endif
+#ifdef GPIO_CONTROLLER
+		cJSON_AddItemToObject(mod, key_gpio, cJSON_CreateNumber((pinConfig.GPIO_PIN_1 >= 0 || pinConfig.GPIO_PIN_2 >= 0 || pinConfig.GPIO_PIN_3 >= 0)));
+#endif
 #ifdef ENCODER_CONTROLLER
 		cJSON_AddItemToObject(mod, key_encoder, cJSON_CreateNumber((pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)));
 #endif

@@ -14,6 +14,9 @@ __attribute__ ((unused)) static const  char* motor_get_endpoint = "/motor_get";
 __attribute__ ((unused)) static const  char* motor_setcalibration_endpoint = "/motor_setcalibration";
 #endif
 
+__attribute__ ((unused)) static const  char* galvo_act_endpoint = "/galvo_act";
+__attribute__ ((unused)) static const  char* galvo_get_endpoint = "/galvo_get";
+
 __attribute__ ((unused)) static const  char* config_act_endpoint = "/config_act";
 __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get";
 

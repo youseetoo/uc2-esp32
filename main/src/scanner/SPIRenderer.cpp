@@ -5,7 +5,9 @@
 #include "driver/gpio.h"
 #include "driver/timer.h"
 #include "esp_err.h"
-#include "esp_log.h"
+#include "esp_log.h"{"task":"/state_get", "heap":1}
+#include <esp32-hal-log.h>
+
 
 static const char *TAG = "Renderer";
 #define PIN_NUM_MISO -1
@@ -58,8 +60,8 @@ void SPIRenderer::draw()
   // Set the initial position
   for (int iFrame = 0; iFrame <= nFrames; iFrame++)
   {
-    printf("Drawing %d\n out of %d", iFrame, nFrames);
-    printf("X_MIN %d\n, X_MAX %d\n, Y_MIN %d\n, Y_MAX %d\n, STEP %d\n", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP);
+    log_d("Drawing %d\n out of %d", iFrame, nFrames);
+    log_d("X_MIN %d\n, X_MAX %d\n, Y_MIN %d\n, Y_MAX %d\n, STEP %d\n", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP);
 
     // set all trigger high at the same time
     set_gpio_pins(1,1,1); 
@@ -89,7 +91,7 @@ void SPIRenderer::draw()
         t2.flags = SPI_TRANS_USE_TXDATA;
         t2.tx_data[0] = 0b01010000 | ((dacY >> 8) & 0xF);
         t2.tx_data[1] = dacY & 255;
-        printf("x/y %d %d and X/Y to draw %d %d\n", x, y, dacX, dacY);
+        log_d("x/y %d %d and X/Y to draw %d %d\n", x, y, dacX, dacY);
         spi_device_polling_transmit(spi, &t2);
 
         // Load the DAC
@@ -172,7 +174,7 @@ void SPIRenderer::setParameters(int xmin, int xmax, int ymin, int ymax, int step
 void SPIRenderer::start()
 {
   // start the SPI renderer
-  printf("Starting to draw %d\n", 1);
+  log_d("Starting to draw %d\n", 1);
   draw();
-  printf("Done with drawing %d", 1);
+  log_d("Done with drawing %d", 1);
 }

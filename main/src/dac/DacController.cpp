@@ -2,6 +2,7 @@
 #include "DacController.h"
 #include "Arduino.h"
 #include "JsonKeys.h"
+#include "cJsonTool.h"
 
 namespace DacController
 {
@@ -22,13 +23,14 @@ namespace DacController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
+		/*
+		{"task":"/dac_act", "dac_channel":1, "frequency":0, "offset":0, "amplitude":1, "divider":1, "phase":0, "invert":2, "qid":1}
+		*/
+
 
 		cJSON *monitor_json = ob;
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// here you can do something
-
-		Serial.println("dac_act_fct");
-
 		// apply default parameters
 		// DAC Channel
 		dac_channel = DAC_CHANNEL_1;
@@ -39,7 +41,6 @@ namespace DacController
 		}
 
 		// DAC Frequency
-		frequency = 1000;
 		cJSON *frequencyj = cJSON_GetObjectItemCaseSensitive(monitor_json, "frequency");
 		if (cJSON_IsNumber(frequencyj) && frequencyj->valueint != NULL)
 		{
@@ -54,6 +55,22 @@ namespace DacController
 			offset = frequencyj->valueint;
 		}
 
+		// DAC phase
+		int phase = 0;
+		cJSON *phasej = cJSON_GetObjectItemCaseSensitive(monitor_json, "phase");
+		if (cJSON_IsNumber(phasej) && phasej->valueint != NULL)
+		{
+			phase = phasej->valueint;
+		}
+
+		// DAC invert
+		int invert = 2;
+		cJSON *invertj = cJSON_GetObjectItemCaseSensitive(monitor_json, "invert");
+		if (cJSON_IsNumber(invertj) && invertj->valueint != NULL)
+		{
+			invert = invertj->valueint;
+		}
+
 		// DAC amplitude
 		int amplitude = 0;
 		cJSON *amplitudej = cJSON_GetObjectItemCaseSensitive(monitor_json, "amplitude");
@@ -64,7 +81,7 @@ namespace DacController
 
 		// DAC clk_div
 		int clk_div = 0;
-		cJSON *clk_divj = cJSON_GetObjectItemCaseSensitive(monitor_json, "amplitude");
+		cJSON *clk_divj = cJSON_GetObjectItemCaseSensitive(monitor_json, "divider");
 		if (cJSON_IsNumber(clk_divj) && clk_divj->valueint != NULL)
 		{
 			clk_div = clk_divj->valueint;
@@ -85,32 +102,21 @@ namespace DacController
 		else if (amplitude == 3)
 			scale = 11;
 
-		// Output debugging information
-		Serial.print("dac_channel ");
-		Serial.println(dac_channel);
-		Serial.print("frequency ");
-		Serial.println(frequency);
-		Serial.print("offset ");
-		Serial.println(offset);
-
 		if (dac_is_running)
 			if (frequency == 0)
 			{
-				Serial.println("Constant value on DAC");
 				dac_is_running = false;
 				dacm->Stop(dac_channel);
 				dacWrite(dac_channel, offset);
 			}
 			else
 			{
-				Serial.println("Restarting DAC");
 				dacm->Stop(dac_channel);
 				dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 				dac_is_running = true;
 			}
 		else
 		{
-			Serial.println("Starting DAC");
 			dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 			dacm->dac_offset_set(dac_channel, offset);
 		}
@@ -137,5 +143,4 @@ namespace DacController
 			vTaskDelay(frequency / portTICK_PERIOD_MS); // pause 1ms
 		}
 	}
-	#endif
 }

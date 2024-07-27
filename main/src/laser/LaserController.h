@@ -39,10 +39,15 @@ namespace LaserController
     static int LASER_despeckle_period_2 = 20;
     static int LASER_despeckle_period_3 = 20;
 
+    static int minPulseWidth = 500;
+    static int maxPulseWidth = 2500;
+
     static bool DEBUG = false;
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(cJSON * ob);
+    void configurePWM(int servoPin, int resolution, int ledChannel, int frequency);
+    void moveServo(int ledChannel, int angle, int frequency, int resolution);
 
     cJSON * get(cJSON *  ob);
     void setup();

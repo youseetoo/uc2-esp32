@@ -58,6 +58,11 @@ namespace LaserController
 		// JSON String
 		// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
 		int qid = cJsonTool::getJsonInt(ob, "qid");
+		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
+		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
+		bool hasLASERval = cJSON_HasObjectItem(ob, "LASERval"); // check if ob contains the key "LASERval"
+		bool isServo = cJSON_HasObjectItem(ob, "servo");		// check if ob contains the key "LASERRes"
+
 		// assign values
 		int LASERid = 0;
 		int LASERval = 0;
@@ -71,33 +76,114 @@ namespace LaserController
 		// debugging
 		log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
+		/*
+		Set Laser PWM Frequency
+		*/
+		if (setPWMFreq != NULL and isServo == false)
+		{ // {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50, "LASERval":1000, "qid":1}
+			pwm_frequency = setPWMFreq->valueint;
+			log_i("Setting PWM frequency to %i", pwmFreq);
+			if (LASERid == 1 && pinConfig.LASER_1 != 0)
+			{
+				ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
+			}
+			if (LASERid == 2 && pinConfig.LASER_2 != 0)
+			{
+				ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
+			}
+			if (LASERid == 3 && pinConfig.LASER_3 != 0)
+			{
+				ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
+			}
+		}
+
+		/*
+		Set Laser PWM REsolution
+		*/
+		if (setPWMRes != NULL and isServo == false)
+		{ // {"task":"/laser_act", "LASERid":1 ,"LASERRes":16} // for servo
+			log_i("Setting PWM frequency to %i", pwmFreq);
+			if (LASERid == 1 && pinConfig.LASER_1 != 0)
+			{
+				ledcSetup(PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
+			}
+			if (LASERid == 2 && pinConfig.LASER_2 != 0)
+			{
+				ledcSetup(PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
+			}
+			if (LASERid == 3 && pinConfig.LASER_3 != 0)
+			{
+				ledcSetup(PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
+			}
+		}
+
 		// action LASER 1
-		if (LASERid == 1 && pinConfig.LASER_1 != 0)
+		if (LASERid == 1 && pinConfig.LASER_1 != 0 && hasLASERval)
 		{
 			LASER_val_1 = LASERval;
 			LASER_despeckle_1 = LASERdespeckle;
 			LASER_despeckle_period_1 = LASERdespecklePeriod;
-			ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+			if (isServo)
+			{
+				// for servo
+				// {"task":"/laser_act", "LASERid":1 ,"LASERval":100, "servo":1, "qid":1}
+				pwm_frequency = 50;
+				pwm_resolution = 16;
+
+				configurePWM(pinConfig.LASER_1, pwm_resolution, PWM_CHANNEL_LASER_1, pwm_frequency);
+				moveServo(PWM_CHANNEL_LASER_1, LASERval, pwm_frequency, pwm_resolution);
+			}
+			else 
+			{
+				ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
 		}
 		// action LASER 2
-		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
+		else if (LASERid == 2 && pinConfig.LASER_2 != 0 && hasLASERval)
 		{
 			LASER_val_2 = LASERval;
 			LASER_despeckle_2 = LASERdespeckle;
 			LASER_despeckle_period_2 = LASERdespecklePeriod;
-			ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
+			if (isServo)
+			{
+				// for servo
+				// {"task":"/laser_act", "LASERid":2 ,"LASERval":50, "servo":1, "qid":1}
+				pwm_frequency = 50;
+				pwm_resolution = 16;
+
+				configurePWM(pinConfig.LASER_2, pwm_frequency, PWM_CHANNEL_LASER_2, pwm_frequency);
+				moveServo(PWM_CHANNEL_LASER_2, LASERval, pwm_frequency, pwm_resolution);
+			}
+			else
+			{
+				ledcWrite(PWM_CHANNEL_LASER_2, LASERval);
+			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
 		}
 		// action LASER 3
-		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
+		else if (LASERid == 3 && pinConfig.LASER_3 != 0 && hasLASERval)
 		{
 			LASER_val_3 = LASERval;
 			LASER_despeckle_3 = LASERdespeckle;
 			LASER_despeckle_period_3 = LASERdespecklePeriod;
-			ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
+			if (isServo)
+			{
+				// for servo
+				// {"task":"/laser_act", "LASERid":3 ,"LASERval":50, "servo":1, "qid":1}
+				pwm_frequency = 50;
+				pwm_resolution = 16;
+
+				configurePWM(pinConfig.LASER_3, pwm_frequency, PWM_CHANNEL_LASER_3, pwm_frequency);
+				moveServo(PWM_CHANNEL_LASER_3, LASERval, pwm_frequency, pwm_resolution);
+			}
+			else
+			{
+				ledcWrite(PWM_CHANNEL_LASER_3, LASERval);
+			}
+
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
 		}
@@ -105,6 +191,29 @@ namespace LaserController
 		{
 			return 0;
 		}
+	}
+
+	void moveServo(int ledChannel, int angle, int frequency, int resolution)
+	{
+		// Map the angle to the corresponding pulse width
+		int pulseWidth = map(angle, 0, 180, minPulseWidth, maxPulseWidth);
+		// Convert the pulse width to a duty cycle value
+		int dutyCycle = map(pulseWidth, 0, 1000000 / frequency, 0, (1 << resolution) - 1);
+		// Write the duty cycle to the LEDC channel
+		ledcWrite(ledChannel, dutyCycle);
+	}
+
+	void configurePWM(int servoPin, int resolution, int ledChannel, int frequency)
+	{
+		// Detach the pin
+		ledcDetachPin(servoPin);
+		// Configure the LEDC PWM channel with the new frequency
+		ledcSetup(ledChannel, frequency, resolution);
+		// Attach the LEDC channel to the specified GPIO pin
+		ledcAttachPin(servoPin, ledChannel);
+
+
+		
 	}
 
 	// Custom function accessible by the API

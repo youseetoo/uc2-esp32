@@ -1,7 +1,7 @@
 #pragma once
 
 #include <PinConfig.h>
-#pragma once
+#include "SPIRenderer.h"
 #include "cJSON.h"
 #include "Arduino.h"
 
@@ -17,6 +17,8 @@ namespace  GalvoController
     static int STEP = 1000;
     static int tPixelDwelltime = 1;
     static int nFrames = 10;
+
+    static SPIRenderer *renderer; 
 
     int act(cJSON * ob);
     cJSON * get(cJSON *  ob);

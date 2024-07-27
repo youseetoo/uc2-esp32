@@ -99,10 +99,7 @@ extern "C" void looper(void *p)
 		EncoderController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef GALVO_CONTROLLER
-		GalvoController::loop();
-		vTaskDelay(1);
-#endif
+
 #ifdef LINEAR_ENCODER_CONTROLLER
 		LinearEncoderController::loop();
 		vTaskDelay(1);
@@ -195,9 +192,6 @@ extern "C" void setupApp(void)
 #ifdef ENCODER_CONTROLLER
 	EncoderController::setup();
 #endif
-#ifdef GALVO_CONTROLLER
-	GalvoController::setup();
-#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 	LinearEncoderController::setup();
 #endif
@@ -219,15 +213,15 @@ extern "C" void setupApp(void)
 #ifdef SCANNER_CONTROLLER
 	ScannerController::setup();
 #endif
-#ifdef GALVO_CONTROLLER
-	GalvoController::setup();
-#endif
 #ifdef WIFI
 	WifiController::setup();
 #endif
 #ifdef HEAT_CONTROLLER
 	DS18b20Controller::setup();
 	HeatController::setup();
+#endif
+#ifdef GALVO_CONTROLLER
+	GalvoController::setup();
 #endif
 }
 #ifdef PSXCONTROLLER
@@ -236,6 +230,12 @@ extern "C" void setupApp(void)
 #endif
 extern "C" void app_main(void)
 {
+	// Setzt das Log-Level für alle Tags auf WARNING, um INFO-Nachrichten zu unterdrücken
+    esp_log_level_set("*", ESP_LOG_WARN);
+
+    // Oder, wenn der Tag bekannt ist, z.B. "gpio", nur für diesen Tag setzen
+    esp_log_level_set("gpio", ESP_LOG_WARN);
+
 	// adjust logging programmatically
 	// esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
 	// Start Serial

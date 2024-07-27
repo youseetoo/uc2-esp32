@@ -24,7 +24,9 @@ namespace GalvoController
 
     // Custom function accessible by the API
     int act(cJSON *ob)
-    {
+
+    {   // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":30000, "Y_MIN":0, "Y_MAX":30000, "STEP":1000, "tPixelDwelltime":1, "nFrames":1}
+        // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":30000, "Y_MIN":0, "Y_MAX":30000, "STEP":1000, "tPixelDwelltime":0, "nFrames":100}
         // here you can do something
         int qid = cJsonTool::getJsonInt(ob, "qid");
         /*
@@ -36,13 +38,7 @@ namespace GalvoController
         int tPixelDwelltime = 1;
         int nFrames = 10;
         */
-        X_MIN = 0;
-        X_MAX = 30000;
-        Y_MIN = 0;
-        Y_MAX = 30000;
-        STEP = 1000;
-        tPixelDwelltime = 1;
-        nFrames = 10;
+
         X_MIN = cJsonTool::getJsonInt(ob, "X_MIN", X_MIN);
         X_MAX = cJsonTool::getJsonInt(ob, "X_MAX", X_MAX);
         Y_MIN = cJsonTool::getJsonInt(ob, "Y_MIN", Y_MIN);
@@ -52,7 +48,6 @@ namespace GalvoController
         nFrames = cJsonTool::getJsonInt(ob, "nFrames", nFrames);
 
 
-        SPIRenderer *renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         tPixelDwelltime += 1;
         renderer->setParameters(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         renderer->start();
@@ -104,7 +99,9 @@ namespace GalvoController
     void setup()
     {
         log_d("Setup GalvoController");
-        Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Start I2C as master
+        Serial.println("Setup GalvoController");
+        renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
+        //Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Start I2C as master
     }
 
 }

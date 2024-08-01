@@ -18,15 +18,25 @@ namespace DacController
 		pinMode(pinConfig.dac_fake_1, OUTPUT);
 		pinMode(pinConfig.dac_fake_2, OUTPUT);
 		frequency = 1;
+
+		// make short high/low pulses on the dac channels
+		dacm->Setup(DAC_CHANNEL_1, 1, 0, 0, 0, 0); // channel, clk_div, frequency, scale, phase, invert);
+		dacWrite(DAC_CHANNEL_1, 255);
+		delay(100);
+		dacWrite(DAC_CHANNEL_1, 0);
+		dacm->Setup(DAC_CHANNEL_2, 1, 0, 0, 0, 0); // clk_div, frequency, scale, phase, invert);
+		dacWrite(DAC_CHANNEL_2, 255);
+		delay(100);
+		dacWrite(DAC_CHANNEL_2, 0);
+		
 	}
 
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
 		/*
-		{"task":"/dac_act", "dac_channel":1, "frequency":0, "offset":0, "amplitude":1, "divider":1, "phase":0, "invert":2, "qid":1}
+		{"task":"/dac_act", "dac_channel":1, "frequency":1, "offset":20, "amplitude":1, "divider":1, "phase":0, "invert":0, "qid":2}
 		*/
-
 
 		cJSON *monitor_json = ob;
 		int qid = cJsonTool::getJsonInt(ob, "qid");
@@ -38,6 +48,18 @@ namespace DacController
 		if (cJSON_IsNumber(dac_channelj) && dac_channelj->valueint != NULL)
 		{
 			dac_channel = (dac_channel_t)dac_channelj->valueint; //(ob)["dac_channel"];
+		}
+
+		// only set the DAC value (e.g. analog value 0-255)
+		cJSON *dac_value = cJSON_GetObjectItemCaseSensitive(monitor_json, "dac_value");
+		if (cJSON_IsNumber(dac_value) && dac_value->valueint != NULL)
+		{ // {"task":"/dac_act", "dac_channel":1, "dac_value":255, "qid":2}
+			dacm->Stop(dac_channel);
+			dac_is_running = false;
+			// set default value for DAC
+			dacm->Setup(dac_channel, 1, 0, 0, 0, 0);
+			dacWrite(dac_channel, dac_value->valueint);
+			return qid;
 		}
 
 		// DAC Frequency
@@ -103,6 +125,7 @@ namespace DacController
 			scale = 11;
 
 		if (dac_is_running)
+		{
 			if (frequency == 0)
 			{
 				dac_is_running = false;
@@ -115,6 +138,7 @@ namespace DacController
 				dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 				dac_is_running = true;
 			}
+		}
 		else
 		{
 			dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
@@ -123,7 +147,6 @@ namespace DacController
 
 		return qid;
 	}
-
 
 	/*
 	   wrapper for HTTP requests

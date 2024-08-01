@@ -91,7 +91,7 @@
     "LASERdespeckle": 50,
     "LASERdespecklePeriod": 30,
 }
-{"task": "/laser_act", "LASERid":1, "LASERval": 1000}
+{"task": "/laser_act", "LASERid":3, "LASERval": 200}
 {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
 {"task": "/laser_get"}
 {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo

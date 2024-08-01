@@ -55,8 +55,10 @@ namespace LaserController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
+		
 		// JSON String
-		// {"task":"/laser_act", "LASERid":1, "LASERval":100, "LASERdespeckle":10, "LASERdespecklePeriod":20}
+		// {"task":"/laser_act", "LASERid":1, "LASERval":1000, "LASERdespeckle":0, "LASERdespecklePeriod":0}
+		// {"task":"/laser_act", "LASERid":1, "LASERval":10000}
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
 		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
@@ -101,7 +103,7 @@ namespace LaserController
 		Set Laser PWM REsolution
 		*/
 		if (setPWMRes != NULL and isServo == false)
-		{ // {"task":"/laser_act", "LASERid":1 ,"LASERRes":16} // for servo
+		{ // {"task":"/laser_act", "LASERid":2 ,"LASERRes":16} // for servo
 			log_i("Setting PWM frequency to %i", pwmFreq);
 			if (LASERid == 1 && pinConfig.LASER_1 != 0)
 			{
@@ -126,7 +128,7 @@ namespace LaserController
 			if (isServo)
 			{
 				// for servo
-				// {"task":"/laser_act", "LASERid":1 ,"LASERval":100, "servo":1, "qid":1}
+				// {"task":"/laser_act", "LASERid":1 ,"LASERval":99, "servo":1, "qid":1}
 				pwm_frequency = 50;
 				pwm_resolution = 16;
 
@@ -135,7 +137,12 @@ namespace LaserController
 			}
 			else 
 			{
+				Serial.print("Laser 1: ");
+				Serial.println(LASERval);
+				ledcWrite(PWM_CHANNEL_LASER_1, 10000);
+				delay(100);
 				ledcWrite(PWM_CHANNEL_LASER_1, LASERval);
+				ledcWrite(PWM_CHANNEL_LASER_1, 0);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
@@ -260,6 +267,12 @@ namespace LaserController
 		ledcWrite(PWM_CHANNEL_LASER_3, 10000);
 		delay(10);
 		ledcWrite(PWM_CHANNEL_LASER_3, 0);
+		// TODO: Why is the channel configuration lost?
+		delay(1000);
+		ledcWrite(PWM_CHANNEL_LASER_1, 10000);
+		delay(10);
+		ledcWrite(PWM_CHANNEL_LASER_1, 0);
+
 	}
 
 	void loop()

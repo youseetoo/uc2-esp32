@@ -22,6 +22,7 @@ namespace HeatController
     static float temp_pid_updaterate = 200000; // ms
     static int maxPWMValue = 511;
     static bool Heat_active=false;
+    static bool Heat_was_active = false;
 
     static long t_tempControlStarted = 0;
     static float temp_tempControlStarted = 0.0f;

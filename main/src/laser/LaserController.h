@@ -25,9 +25,9 @@ namespace LaserController
     static long pwm_max = (int)pow(2, pwm_resolution);
 
 
-    static int PWM_CHANNEL_LASER_1 = 0;
-    static int PWM_CHANNEL_LASER_2 = 1;
-    static int PWM_CHANNEL_LASER_3 = 2;
+    static int PWM_CHANNEL_LASER_1 = 1;
+    static int PWM_CHANNEL_LASER_2 = 2;
+    static int PWM_CHANNEL_LASER_3 = 3;
 
     // temperature dependent despeckeling?
     static int LASER_despeckle_1 = 0;
@@ -53,6 +53,7 @@ namespace LaserController
     void setup();
     void loop();
     void setPWM(int pwmValue, int pwmChannel);
+    void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res);
 
 };
 

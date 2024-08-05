@@ -72,10 +72,12 @@ namespace ScannerController
 							delayMicroseconds(scannerDelay);
 // expose Laser
 #ifdef LASER_CONTROLLER
+							/*
 							ledcWrite(LaserController::PWM_CHANNEL_LASER_1, scannerLaserVal); // digitalWrite(LASER_PIN_1, HIGH); //
 							delayMicroseconds(scannerExposure);
 							ledcWrite(LaserController::PWM_CHANNEL_LASER_1, 0); //             digitalWrite(LASER_PIN_1, LOW); //
 							delayMicroseconds(scannerDelay);
+							*/
 #endif
 						}
 					}
@@ -133,12 +135,14 @@ namespace ScannerController
 					// Serial.print("Y");Serial.println(scannerPosY);
 					delayMicroseconds(scannerDelay);
 					// expose Laser
+					/*
 					#ifdef LASER_CONTROLLER
 						ledcWrite(LaserController::PWM_CHANNEL_LASER_1, scannerLaserVal); // digitalWrite(LASER_PIN_1, HIGH); //
 						delayMicroseconds(scannerExposure);
 						ledcWrite(LaserController::PWM_CHANNEL_LASER_1, 0); //             digitalWrite(LASER_PIN_1, LOW); //
 						delayMicroseconds(scannerDelay);
 					#endif
+					*/
 				}
 			}
 		}

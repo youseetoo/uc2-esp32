@@ -14,13 +14,24 @@ namespace AnalogOutController
 	{
 		log_d("Setup AnalogOutController");
 		/* setup the PWM ports and reset them to 0*/
-		ledcSetup(PWM_CHANNEL_analogout_1, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pinConfig.analogout_PIN_1, PWM_CHANNEL_analogout_1);
-		ledcWrite(PWM_CHANNEL_analogout_1, 0);
-
-		ledcSetup(PWM_CHANNEL_analogout_2, pwm_frequency, pwm_resolution);
-		ledcAttachPin(pinConfig.analogout_PIN_2, PWM_CHANNEL_analogout_2);
-		ledcWrite(PWM_CHANNEL_analogout_2, 0);
+		if (pinConfig.analogout_PIN_1>0)
+		{
+			ledcSetup(PWM_CHANNEL_analogout_1, pwm_frequency, pwm_resolution);
+			ledcAttachPin(pinConfig.analogout_PIN_1, PWM_CHANNEL_analogout_1);
+			ledcWrite(PWM_CHANNEL_analogout_1, 0);
+		}
+		if (pinConfig.analogout_PIN_2>0)
+		{
+			ledcSetup(PWM_CHANNEL_analogout_2, pwm_frequency, pwm_resolution);
+			ledcAttachPin(pinConfig.analogout_PIN_2, PWM_CHANNEL_analogout_2);
+			ledcWrite(PWM_CHANNEL_analogout_2, 0);
+		}
+		if (pinConfig.analogout_PIN_3>0)
+		{
+			ledcSetup(PWM_CHANNEL_analogout_3, pwm_frequency, pwm_resolution);
+			ledcAttachPin(pinConfig.analogout_PIN_3, PWM_CHANNEL_analogout_3);
+			ledcWrite(PWM_CHANNEL_analogout_3, 0);
+		}
 	}
 
 	// Custom function accessible by the API

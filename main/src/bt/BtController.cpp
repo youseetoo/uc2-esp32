@@ -233,6 +233,7 @@ namespace BtController
 
             // LASER 2
             // switch laser 2 on/off on triangle/square button press
+            /*
             if (right && !laser2_on)
             {
                 log_d("Turning on LAser 10000");
@@ -242,9 +243,11 @@ namespace BtController
             if (left && laser2_on)
             {
                 log_d("Turning off LAser ");
+                Serial.println("Turning off LAser ");
                 ledcWrite(LaserController::PWM_CHANNEL_LASER_1, 0);
                 laser2_on = false;
             }
+            */
 #endif
 
             // MOTORS
@@ -325,14 +328,14 @@ namespace BtController
             /*
                Keypad left
             */
-            if (left)
+            if (left and pinConfig.ANALOGOUT_1 >=0)
             {
                 // fine lens -
                 analogout_val_1 -= 1;
                 delay(50);
                 ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
             }
-            if (right)
+            if (right and pinConfig.ANALOGOUT_1 >=0)
             {
                 // fine lens +
                 analogout_val_1 += 1;
@@ -345,7 +348,7 @@ namespace BtController
               analogout_val_1 = 0;
               ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
             }*/
-            if (r2)
+            if (r2 and pinConfig.ANALOGOUT_1 >=0)
             {
                 // analogout_val_1++ coarse
                 if ((analogout_val_1 + 1000 < pwm_max))
@@ -354,7 +357,7 @@ namespace BtController
                     ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
                 }
             }
-            if (l2)
+            if (l2 and pinConfig.ANALOGOUT_1 >=0)
             {
                 // analogout_val_1-- coarse
                 if ((analogout_val_1 - 1000 > 0))
@@ -364,7 +367,7 @@ namespace BtController
                 }
             }
 
-            if (l1)
+            if (l1 and pinConfig.ANALOGOUT_1 >=0)
             {
                 // analogout_val_1 + semi coarse
                 if ((analogout_val_1 + 100 < pwm_max))
@@ -374,7 +377,7 @@ namespace BtController
                     // delay(100);
                 }
             }
-            if (r1)
+            if (r1 and pinConfig.ANALOGOUT_1 >=0)
             {
                 // analogout_val_1 - semi coarse
                 if ((analogout_val_1 - 100 > 0))

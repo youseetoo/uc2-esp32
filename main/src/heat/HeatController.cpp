@@ -47,14 +47,16 @@ namespace HeatController
 			log_i("Heat: %f, pwmValue: %f", temperatureValueAvg, pwmValue);
 			LaserController::setPWM(pwmValue, pwmChannel);
 			startMillis = millis();
+			Heat_was_active = true;
 		}
-		else if (Heat_active == false)
-		{ // if we are not using it, turn it off
+		else if (Heat_active == false and Heat_was_active == true)
+		{ // if we are not using it, turn it off - but only once! 
 			if (ledcRead(pwmChannel) != 0)
 			{
 				log_i("Heat: %f, pwmValue: %f", DS18b20Controller::getCurrentValueCelcius(), 0.0f);
 				LaserController::setPWM(0, pwmChannel);
 			}
+			Heat_was_active = false;
 		}
 
 #endif

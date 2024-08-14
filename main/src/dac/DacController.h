@@ -15,6 +15,7 @@ namespace DacController
         static dac_channel_t dac_channel = DAC_CHANNEL_1;
     #endif
 
+    static bool fake_galvo_running = false;
     static uint32_t clk_div = 0;
     static uint32_t scale = 0;
     static uint32_t invert = 2;

@@ -95,6 +95,7 @@
 {"task": "/laser_act", "LASERid":1, "LASERval": 1000, "LASERdespeckle": 50,  "LASERdespecklePeriod": 30}
 {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo
 {"task": "/laser_act", "LASERid":1, "LASERval": 100}
+{"task": "/laser_act", "LASERid":2, "LASERval": 100}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1023}
 {"task": "/laser_act", "LASERid":3, "LASERval": 1000}
 # HOME
@@ -239,13 +240,16 @@
     "motor":
     {
         "steppers": [
-            { "stepperid": 1, "position": -1000000, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}
+            { "stepperid": 3, "position": -100, "speed": 150, "isabs": 0, "isaccel":0, "isen":1},
+            { "stepperid": 2, "position": -100, "speed": 150, "isabs": 0, "isaccel":0, "isen":1}
         ]
     }
 }
 {"task": "/motor_get"}
 
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 3, "position": -100, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}, { "stepperid": 2, "position": -100, "speed": 150, "isabs": 0, "isaccel":0, "isen":1} ] } }
 
 
 {"task":"/home_act", "qid": 10, "setpos":1, "home": {"steppers": [{"stepperid":3, "posval": 20000}]}}
@@ -284,8 +288,10 @@ gives
 
  {"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
 
+{"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 3, "position": 100, "speed": 200, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
 
-{"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 1, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
+
+{"task":"/motor_act",     "motor":     {         "steppers": [             { "stepperid": 3, "position": -1000, "speed": 2000, "isabs": 0, "isaccel":1, "isen":0, "accel":20000}     ]}}
 {"task":"/rotator_get"}
 {"task":"/rotator_act",
     "motor":

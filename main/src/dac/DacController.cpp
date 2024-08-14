@@ -35,7 +35,10 @@ namespace DacController
 	int act(cJSON *ob)
 	{
 		/*
-		{"task":"/dac_act", "dac_channel":1, "frequency":1, "offset":20, "amplitude":1, "divider":1, "phase":0, "invert":0, "qid":2}
+		{"task":"/dac_act", "dac_channel":1, "frequency":0, "offset":100, "amplitude":1, "divider":1, "phase":0, "invert":0, "qid":2}
+		{"task":"/dac_act", "dac_channel":1, "frequency":10, "offset":1, "amplitude":1, "divider":0, "phase":0, "invert":1, "qid":2}
+		{"task":"/dac_act", "dac_channel":1, "frequency":100, "isFake":1, "qid":2}
+		{"task":"/dac_act", "dac_channel":1, "frequency":10, "isFake":1, "qid":2}
 		*/
 
 		cJSON *monitor_json = ob;
@@ -43,7 +46,16 @@ namespace DacController
 		// here you can do something
 		// apply default parameters
 		// DAC Channel
+		bool isFake = cJsonTool::getJsonInt(ob, "isFake", 0);
+		if (isFake)
+		{
+			cJSON *frequencyj = cJSON_GetObjectItemCaseSensitive(monitor_json, "frequency");
+			frequency = frequencyj->valueint;
+			xTaskCreatePinnedToCore(drive_galvo, "drive_galvo", 4096, NULL, 1, NULL, 1);
+			return qid;
+		}
 		dac_channel = DAC_CHANNEL_1;
+		fake_galvo_running = false;
 		cJSON *dac_channelj = cJSON_GetObjectItemCaseSensitive(monitor_json, "dac_channel");
 		if (cJSON_IsNumber(dac_channelj) && dac_channelj->valueint != NULL)
 		{
@@ -155,9 +167,14 @@ namespace DacController
 	void drive_galvo(void *parameter)
 	{
 		// FIXME:_ This is the "Fake" galvo if we cannot access pin 25/26 - should run in background
+		Serial.println("Starting fake galvo");
+		Serial.println(frequency);
+		fake_galvo_running = true;
+		pinMode(pinConfig.dac_fake_1, OUTPUT);
+		pinMode(pinConfig.dac_fake_2, OUTPUT);
 
-		while (true)
-		{ // infinite loop
+		while (fake_galvo_running)
+		{ // infinite loop 
 			digitalWrite(pinConfig.dac_fake_1, HIGH);
 			digitalWrite(pinConfig.dac_fake_2, HIGH);
 			vTaskDelay(frequency / portTICK_PERIOD_MS); // pause 1ms

@@ -42,7 +42,7 @@ struct PinConfig
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2048;
-     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 8096;
+     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2048;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 1024;
      const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
@@ -140,8 +140,8 @@ struct PinConfig
      int8_t DIGITAL_IN_3 = disabled;
 
      // GALVos are always connected to 25/26
-     int8_t dac_fake_1 = disabled; // RESET-ABORT just toggles between 1 and 0
-     int8_t dac_fake_2 = disabled; // Coolant
+     int8_t dac_fake_1 = disabled; //
+     int8_t dac_fake_2 = disabled; //
 
      // analogout out (e.g. Lenses)
      int8_t analogout_PIN_1 = disabled;

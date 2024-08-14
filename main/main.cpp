@@ -6,7 +6,6 @@
 #include "soc/rtc_cntl_reg.h"
 #include "esp_task_wdt.h"
 
-#undef PSXCONTROLLER
 #define WDTIMEOUT 2 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
@@ -224,20 +223,14 @@ extern "C" void setupApp(void)
 	GalvoController::setup();
 #endif
 }
-#ifdef PSXCONTROLLER
-#pragma message ("Der Variablenname ist: PSXCONTROLLER")
-#undef PSXCONTROLLER
-#endif
 extern "C" void app_main(void)
 {
 	// Setzt das Log-Level für alle Tags auf WARNING, um INFO-Nachrichten zu unterdrücken
-    esp_log_level_set("*", ESP_LOG_WARN);
+    //esp_log_level_set("*", ESP_LOG_WARN);
 
     // Oder, wenn der Tag bekannt ist, z.B. "gpio", nur für diesen Tag setzen
-    esp_log_level_set("gpio", ESP_LOG_WARN);
+    //esp_log_level_set("gpio", ESP_LOG_WARN);
 
-	// adjust logging programmatically
-	// esp_log_level_set("*", ESP_LOG_DEBUG); //ESP_LOG_NONE);
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);

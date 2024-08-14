@@ -102,6 +102,10 @@ struct UC2_3 : PinConfig
      int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
      int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
 
+     int8_t dac_fake_1 = GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = GPIO_NUM_26; // Coolant
+
+
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
 
@@ -109,7 +113,6 @@ struct UC2_3 : PinConfig
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
      
-
      // for caliper
      int8_t ENC_X_A = GPIO_NUM_32;
      int8_t ENC_Y_A = GPIO_NUM_34;

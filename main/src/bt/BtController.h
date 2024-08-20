@@ -10,11 +10,21 @@
 namespace BtController
 {
     static bool IS_PS_CONTROLER_LEDARRAY = false;
-    static int offset_val = 1281; // make sure you do not accidentally turn on two directions at the same time
+    static int offset_val = 2500; // make sure you do not accidentally turn on two directions at the same time
     static int stick_ly = 0;
     static int stick_lx = 0;
     static int stick_rx = 0;
     static int stick_ry = 0;
+
+    // Declare previous state variables
+    static bool prevUp = false;
+    static bool prevDown = false;
+    static bool prevLeft = false;
+    static bool prevRight = false;
+
+    static bool prevTriangle = false;
+    static bool prevSquare = false;
+
 
     static bool joystick_drive_X = false;
     static bool joystick_drive_Y = false;

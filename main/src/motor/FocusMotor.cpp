@@ -167,7 +167,6 @@ namespace FocusMotor
 			preferences.end();
 		}
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
-
 		if (setpos != NULL)
 		{
 			log_d("setpos");

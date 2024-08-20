@@ -102,16 +102,16 @@ struct UC2_3 : PinConfig
      int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
      int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
 
-     int8_t dac_fake_1 = GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
-     int8_t dac_fake_2 = GPIO_NUM_26; // Coolant
+     int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
 
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
 
-     int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
      int8_t JOYSTICK_MAX_ILLU = 100;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
      
      // for caliper
      int8_t ENC_X_A = GPIO_NUM_32;
@@ -142,5 +142,9 @@ struct UC2_3 : PinConfig
      bool mAP = true; // false;
      const char *mSSIDAP = "UC2";            
      const char *hostname = "youseetoo";     
+
+     // Temperature
+     int8_t DS28b20_PIN = GPIO_NUM_25;
+     int8_t LASER_0 = GPIO_NUM_26;
 };
 const UC2_3 pinConfig;

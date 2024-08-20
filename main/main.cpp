@@ -1,3 +1,4 @@
+#undef WIFI
 #include "esp_log.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
@@ -154,8 +155,8 @@ extern "C" void setupApp(void)
 	
 	log_i("SetupApp");
 	// setup debugging level 
-	//esp_log_level_set("*", ESP_LOG_DEBUG); {"task":"/state_get"}
-	//esp_log_level_set("*", ESP_LOG_NONE);
+	//esp_log_level_set("*", ESP_LOG_DEBUG); 
+	esp_log_level_set("*", ESP_LOG_NONE);
 
 	SerialProcess::setup();
 #ifdef USE_TCA9535	

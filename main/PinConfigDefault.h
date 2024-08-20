@@ -203,4 +203,5 @@ struct PinConfig
 
       // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
+     
 };

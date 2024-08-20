@@ -138,8 +138,6 @@ namespace LaserController
 			}
 			else 
 			{
-				Serial.print("Laser 1: ");
-				Serial.println(LASERval);
 				setPWM(LASERval, PWM_CHANNEL_LASER_1);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
@@ -213,8 +211,6 @@ namespace LaserController
 		// Convert the pulse width to a duty cycle value
 		int dutyCycle = map(pulseWidth, 0, 1000000 / frequency, 0, (1 << resolution) - 1);
 		// Write the duty cycle to the LEDC channel
-		Serial.println(dutyCycle);
-		Serial.println(ledChannel);
 		ledcWrite(ledChannel, dutyCycle);
 	}
 
@@ -268,6 +264,19 @@ namespace LaserController
 		delay(10);
 		setPWM(0, PWM_CHANNEL_LASER_3);
 
+		#ifdef HEAT_CONTROLLER
+		// Setting up the differen PWM channels for the heating unit
+		if(pinConfig.LASER_0 > 0)
+		{
+		log_i("Heating Unit, pin: %i", pinConfig.LASER_0);
+		pinMode(pinConfig.LASER_0, OUTPUT);
+		digitalWrite(pinConfig.LASER_0, LOW);
+		setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
+		setPWM(10000, PWM_CHANNEL_LASER_0);
+		delay(10);
+		setPWM(0, PWM_CHANNEL_LASER_0);
+		}
+		#endif
 	}
 
 	void loop()

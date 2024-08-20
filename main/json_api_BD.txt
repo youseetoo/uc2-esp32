@@ -111,7 +111,8 @@
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
 # Heating
- {"task": "/heat_act", "active":0, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000}
+ {"task": "/heat_act", "active":1, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000, "qid":1}
+  {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":22, "timeout":600000, "updaterate":1000, "qid":1}
  {"task": "/heat_act", "active":0}
  {"task": "/heat_get"}
 
@@ -196,7 +197,9 @@
 {"task":"/bt_scan"}
 
 // Stage scan
-
+{"task": "/motor_act", "isDualAxisZ": 1}
+{"task": "/motor_act", "isDualAxisZ": 0}
+// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nStepsPixel": 100, "dStepsPixel": 2, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 256, "dStepsLine": 25, "nStepsPixel": 256, "dStepsPixel": 25, "delayTimeStep": 25, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}

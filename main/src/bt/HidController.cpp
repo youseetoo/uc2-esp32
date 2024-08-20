@@ -45,9 +45,10 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
 {
     esp_hidh_event_t event = (esp_hidh_event_t)id;
     esp_hidh_event_data_t *param = (esp_hidh_event_data_t *)event_data;
-
+    // print HEAP memory
+    esp_log_level_set("*", ESP_LOG_DEBUG); 
     switch (event) {
-        case ESP_HIDH_OPEN_EVENT:
+	    case ESP_HIDH_OPEN_EVENT:
             if (param->open.status == ESP_OK) {
                 const uint8_t *bda = esp_hidh_dev_bda_get(param->open.dev);
                 ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->open.dev));
@@ -85,6 +86,7 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             break;
             }
     }
+    esp_log_level_set("*", ESP_LOG_NONE);            
 }
 
 void handleHidInputEvent(esp_hidh_event_data_t *param)

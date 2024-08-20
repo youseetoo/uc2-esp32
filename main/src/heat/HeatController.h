@@ -26,7 +26,7 @@ namespace HeatController
 
     static long t_tempControlStarted = 0;
     static float temp_tempControlStarted = 0.0f;
-    static int timeToReach80PercentTargetTemperature = 200000; // change in temperature in 60 seconds otherwise we stop
+    static int hTimeout = 200000; // change in temperature in 60 seconds otherwise we stop
 
     // timing variables
 	static unsigned long startMillis;

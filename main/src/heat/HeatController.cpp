@@ -37,14 +37,17 @@ namespace HeatController
 
 			// some safety mechanisms
 			// if  temperature is not in a certain band after a time X, we have a runaway
-			if (abs(temp_pid_target - temperatureValueAvg) > 1 and (millis() - t_tempControlStarted) > timeToReach80PercentTargetTemperature and
-				timeToReach80PercentTargetTemperature > 0)
+			if (abs(temp_pid_target - temperatureValueAvg) > 1 and (millis() - t_tempControlStarted) > hTimeout and
+				hTimeout > 0)
 			{
 				Heat_active = false;
 				pwmValue = 0;
 				log_e("HeatController::loop: temperature runaway detected, stopping heat");
+				hPreferences.begin("heat", false);
+				hPreferences.putBool("heatactive", Heat_active);
+				hPreferences.end();
 			}
-			log_i("Heat: %f, pwmValue: %f", temperatureValueAvg, pwmValue);
+			log_i("Heat: %f, pwmValue: %f, pwmChannel: %i", temperatureValueAvg, pwmValue, pwmChannel);
 			LaserController::setPWM(pwmValue, pwmChannel);
 			startMillis = millis();
 			Heat_was_active = true;
@@ -97,7 +100,7 @@ namespace HeatController
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 #ifdef LASER_CONTROLLER && DS18B20_CONTROLLER
 		hPreferences.begin("heat", false);
-		// {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":37, "timeout":600000, "updaterate":1000}
+		// {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":22, "timeout":600000, "updaterate":1000, "qid":1}
 		// {"task": "/heat_act", "active":0}
 		// if json has key "active" then we set the heat active or not
 		if (cJSON_HasObjectItem(ob, key_heatactive))
@@ -161,16 +164,16 @@ namespace HeatController
 			temp_pid_updaterate = 1000;
 		}
 
-		// if json has key "timeToReach80PercentTargetTemperature" then we set the heat active or not
-		if (cJSON_HasObjectItem(ob, key_timeToReach80PercentTargetTemperature))
+		// if json has key "hTimeout" then we set the heat active or not
+		if (cJSON_HasObjectItem(ob, key_hTimeout))
 		{
-			timeToReach80PercentTargetTemperature = cJsonTool::getJsonInt(ob, key_timeToReach80PercentTargetTemperature);
-			hPreferences.putInt("timeToReach80PercentTargetTemperature", timeToReach80PercentTargetTemperature);
+			hTimeout = cJsonTool::getJsonInt(ob, key_hTimeout);
+			hPreferences.putInt("hTimeout", hTimeout);
 		}
 		else
 		{
-			timeToReach80PercentTargetTemperature = -1;
-			hPreferences.putInt("timeToReach80PercentTargetTemperature", timeToReach80PercentTargetTemperature);
+			hTimeout = -1;
+			hPreferences.putInt("hTimeout", hTimeout);
 		}
 
 		// some safety mechanisms
@@ -202,7 +205,6 @@ namespace HeatController
 	{
 #ifdef LASER_CONTROLLER and DS18B20_CONTROLLER
 		log_d("Setup Heat");
-		log_d("Setup Heat");
 		startMillis = millis();
 
 		// load hPreferences
@@ -213,7 +215,7 @@ namespace HeatController
 		temp_pid_Kd = hPreferences.getFloat("temp_pid_Kd", 0.1);
 		temp_pid_target = hPreferences.getFloat("temp_pid_target", 37);
 		temp_pid_updaterate = hPreferences.getFloat("temp_pid_updaterate", 1000);
-		timeToReach80PercentTargetTemperature = hPreferences.getInt("timeToReach80PercentTargetTemperature", -1);
+		hTimeout = hPreferences.getInt("hTimeout", -1);
 		log_i("Heat_active: %d, temp_pid_Kp: %f, temp_pid_Ki: %f, temp_pid_Kd: %f, temp_pid_target: %f, temp_pid_updaterate: %f", Heat_active, temp_pid_Kp, temp_pid_Ki, temp_pid_Kd, temp_pid_target, temp_pid_updaterate);
 		if (Heat_active)
 		{

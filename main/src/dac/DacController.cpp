@@ -9,6 +9,11 @@ namespace DacController
 
 	void setup()
 	{
+		if (pinConfig.dac_fake_1 < 0 || pinConfig.dac_fake_2 < 0)
+		{
+			Serial.println("No DAC pins defined");
+			return;
+		}
 		log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
 		// TODO: need to update this function to match the new framework
 		dacm = new DAC_Module();

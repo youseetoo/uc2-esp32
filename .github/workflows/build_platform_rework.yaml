@@ -19,7 +19,8 @@ jobs:
     - uses: actions/checkout@v2
       with:
         ref: reworkBD  # Checkout the reworkBD branch
-        submodules: recursive
+        #submodules: recursive
+        submodules: true  # Ensure submodules are checked out
         
     - name: Set up Python
       uses: actions/setup-python@v5

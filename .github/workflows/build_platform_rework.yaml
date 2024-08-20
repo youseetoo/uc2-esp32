@@ -43,16 +43,9 @@ jobs:
         find: "-DCORE_DEBUG_LEVEL=5"
         replace: "-DCORE_DEBUG_LEVEL=0"
         regex: false
-    
-    - name: Find and Replace (UC2-WEMOS)
-      uses: jacobtomlinson/gha-find-replace@v2
-      with:
-        find: "const UC2"
-        replace: "const UC2_WEMOS pinConfig; //"
-        regex: false
 
     - name: Run PlatformIO
-      run: pio run --environment UC2_3  # Run the specific environment
+      run: pio run --environment UC2_3 -v  # Run the specific environment
     
     - name: merge into one binary
       run: |

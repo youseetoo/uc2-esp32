@@ -86,7 +86,7 @@ namespace BtController
     }
 #endif
 
-    void handelAxis(int value, int s)
+    void handleAxis(int value, int s)
     {
 #ifdef MOTOR_CONTROLLER
 
@@ -104,7 +104,7 @@ namespace BtController
         int offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER;
         if(s==Stepper::Z)
         {
-            int offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z;
+            offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z;
         }
         if (value >= offset_val_scaled || value <= -offset_val_scaled)
         {
@@ -119,7 +119,7 @@ namespace BtController
                 joystick_drive_Y = true;
             if (s == Stepper::Z)
                 joystick_drive_Z = true;
-            if (s == Stepper::A)
+            else if (s == Stepper::A)
                 joystick_drive_A = true;
         }
         else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
@@ -306,25 +306,27 @@ namespace BtController
                 else
                     logCounter++;
 
-                // Z-Direction
-                handelAxis(zvalue, Stepper::Z);
 
-                // A-direction
-                if (isDualAxisZ)
-                {
-                    // move at same speed
-                    handelAxis(zvalue, Stepper::A);
+                // Online allow motion in one direction at a time
+                bool zIsRunning = getData()[Stepper::Z]->isforever;
+                bool aIsRunning = getData()[Stepper::A]->isforever;
+
+                if (not aIsRunning or isDualAxisZ){ // Z-direction
+                    handleAxis(zvalue, Stepper::Z);
+                    if (isDualAxisZ) 
+                    {   // Z-Direction
+                        handleAxis(zvalue, Stepper::A);
+                    }
                 }
-                else
-                {
-                    handelAxis(avalue, Stepper::A);
+                if (not zIsRunning and not isDualAxisZ){ // A-direction
+                    handleAxis(avalue, Stepper::A);
                 }
 
                 // X-Direction
-                handelAxis(xvalue, Stepper::X);
+                handleAxis(xvalue, Stepper::X);
 
                 // Y-direction
-                handelAxis(yvalue, Stepper::Y);
+                handleAxis(yvalue, Stepper::Y);
 
 #endif
 

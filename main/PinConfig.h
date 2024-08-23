@@ -126,8 +126,8 @@ struct UC2_3 : PinConfig
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
-     int8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
-     int8_t I2C_ADD_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
+     int8_t I2C_ADDRESS_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
+     int8_t I2C_ADDRESS_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
 
 
      // SPI

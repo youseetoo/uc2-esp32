@@ -10,7 +10,7 @@
 namespace BtController
 {
     static bool IS_PS_CONTROLER_LEDARRAY = false;
-    static int offset_val = 2500; // make sure you do not accidentally turn on two directions at the same time
+    static int offset_val = 1500; // make sure you do not accidentally turn on two directions at the same time
     static int stick_ly = 0;
     static int stick_lx = 0;
     static int stick_rx = 0;
@@ -49,7 +49,7 @@ namespace BtController
     void setupPS(char* mac, int type);
     void connectPsxController(char* mac, int type);
     #endif
-    void handelAxis(int value,int stepper);
+    void handleAxis(int value,int stepper);
     
 
     #define PAIR_MAX_DEVICES 20

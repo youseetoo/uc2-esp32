@@ -1,4 +1,5 @@
 #undef WIFI
+
 #include "esp_log.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"

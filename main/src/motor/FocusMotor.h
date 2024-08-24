@@ -12,10 +12,10 @@
 #endif
 #include "MotorTypes.h"
 
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP
-#error Pls set USE_FASTACCEL or USE_ACCELSTEP
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined USE_I2C_MOTOR
+#error Pls set USE_FASTACCEL or USE_ACCELSTEP or USE_I2C_MOTOR
 #endif
-#if defined USE_FASTACCEL && defined USE_ACCELSTEP
+#if defined USE_FASTACCEL && defined USE_ACCELSTEP && defined USE_I2C_MOTOR
 #error Pls set only USE_FASTACCEL or USE_ACCELSTEP, currently both are active
 #endif
 

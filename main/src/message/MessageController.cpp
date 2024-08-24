@@ -3,7 +3,6 @@
 #include "MessageController.h"
 #include "cJsonTool.h"
 #include "Arduino.h"
-#include <PinConfig.h>
 #include "JsonKeys.h"
 
 namespace MessageController

@@ -1,7 +1,6 @@
+#include "PinConfig.h"
 #include "RestApiCallbacks.h"
-
 #include "Endpoints.h"
-
 #include <nvs_flash.h>
 #include "Endpoints.h"
 #include "Update.h"

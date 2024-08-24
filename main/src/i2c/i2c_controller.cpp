@@ -25,7 +25,7 @@ namespace i2c_controller
 		Serial.println("Sending patterns to the ESP32");
 		for (int i = 0; i < 10; i++)
 		{
-			Wire.beginTransmission(pinConfig.I2C_ADDRESS_REMOTE_DEVICE);
+			Wire.beginTransmission(pinConfig.I2C_ADD_REMOTE_DEVICE);
 			Wire.write(i); // Send the pattern number to the ESP32
 			Wire.endTransmission();
 			delay(500);
@@ -68,9 +68,9 @@ namespace i2c_controller
 	void setup()
 	{
 		// Begin I2C slave communication with the defined pins and address
-		if (pinConfig.I2C_ADDRESS_SLAVE >= 0)
+		if (pinConfig.I2C_ADD_SLAVE >= 0)
 		{
-			Wire.begin(pinConfig.I2C_ADDRESS_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
 		}
 	}
@@ -87,12 +87,12 @@ namespace i2c_controller
 		// {"task":"/i2c_act", "LED":1}
 		log_i("I2C act");
 		log_i("Ob: %s", cJSON_Print(ob));
-		if (pinConfig.I2C_ADDRESS_SLAVE >= 0)
+		if (pinConfig.I2C_ADD_SLAVE >= 0)
 			return -1; // I2C is in slave mode
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// TODO: Maybe it would be better to do this in Serial direclty with an additional flag for I2C communication (e.g. relay anything to I2C)
 		String jsonString = "{\"task\":\"/ledarr_act\", \"led\":{\"LEDArrMode\":8, \"led_array\":[{\"id\":1, \"r\":255, \"g\":255, \"b\":255},{\"id\":2, \"r\":255, \"g\":255, \"b\":255},{\"id\":3, \"r\":255, \"g\":255, \"b\":255},{\"id\":4, \"r\":255, \"g\":255, \"b\":255},{\"id\":5, \"r\":255, \"g\":255, \"b\":255},{\"id\":6, \"r\":255, \"g\":255, \"b\":255},{\"id\":7, \"r\":255, \"g\":255, \"b\":255},{\"id\":8, \"r\":255, \"g\":255, \"b\":255},{\"id\":9, \"r\":255, \"g\":255, \"b\":255}]}}";
-		uint8_t slave_addr = pinConfig.I2C_ADDRESS_REMOTE_DEVICE;
+		uint8_t slave_addr = pinConfig.I2C_ADD_REMOTE_DEVICE;
 		sendJsonString(jsonString, slave_addr);
 		// TODO: we would need to wait for some repsonse - or better have a reading queue for the I2C devices to send back data to the serial
 		return qid;
@@ -102,7 +102,7 @@ namespace i2c_controller
 	{
 		// scan I2C for all devices
 		// {"task":"/i2c_get"}
-		if (!(pinConfig.I2C_ADDRESS_SLAVE >= 0))
+		if (!(pinConfig.I2C_ADD_SLAVE >= 0))
 			i2c_scan(); // I2C is in slave mode
 		log_i("I2C get");
 		cJSON *j = cJSON_CreateObject();

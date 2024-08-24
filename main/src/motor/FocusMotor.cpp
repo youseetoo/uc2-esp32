@@ -9,6 +9,9 @@
 #ifdef USE_FASTACCEL
 #include "FAccelStep.h"
 #endif
+#ifdef USE_I2C_MOTOR
+#include "i2cUc2Motor.h"
+#endif
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
 #endif
@@ -54,9 +57,10 @@ namespace FocusMotor
 				{
 #ifdef USE_FASTACCEL
 					FAccelStep::updateData(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 					AccelStep::updateData(i);
+#elif defined USE_I2C_MOTOR
+					i2cUc2Motor::updateData(i);
 #endif
 					cJSON *item = cJSON_CreateObject();
 					cJSON_AddItemToArray(stprs, item);
@@ -89,9 +93,10 @@ namespace FocusMotor
 		// log_i("start stepper %i", i);
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(i);
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::starti2cUc2Stepper(i);
 #endif
 	}
 
@@ -190,9 +195,10 @@ namespace FocusMotor
 	{
 #ifdef USE_FASTACCEL
 		FAccelStep::Enable(en);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 		AccelStep::Enable(en);
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::Enable(en);
 #endif
 	}
 
@@ -213,6 +219,8 @@ namespace FocusMotor
 		{
 			FAccelStep::setAutoEnable(autoen->valueint);
 		}
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::setAutoEnable(autoen->valueint);
 #endif
 	}
 
@@ -341,9 +349,10 @@ namespace FocusMotor
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 #ifdef USE_FASTACCEL
 				FAccelStep::updateData(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 				AccelStep::updateData(i);
+#elif defined USE_I2C_MOTOR
+				i2cUc2Motor::updateData(i);
 #endif
 
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
@@ -359,9 +368,10 @@ namespace FocusMotor
 			{
 #ifdef USE_FASTACCEL
 				FAccelStep::updateData(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 				AccelStep::updateData(i);
+#elif defined USE_I2C_MOTOR
+				i2cUc2Motor::updateData(i);
 #endif
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
@@ -449,17 +459,18 @@ namespace FocusMotor
 #endif
 
 		FAccelStep::setupFastAccelStepper();
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 #ifdef USE_TCA9535
 		if (pinConfig.I2C_SCL > 0)
 		{
 			AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 		}
 #endif
-
 		AccelStep::setupAccelStepper();
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::setupi2cUc2Stepper();
 #endif
+
 #ifdef WIFI
 		// TODO: This causes the heap to overload?
 		// log_i("Creating Task sendUpdateToClients");
@@ -497,9 +508,10 @@ namespace FocusMotor
 	{
 #ifdef USE_FASTACCEL
 		return FAccelStep::isRunning(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 		return AccelStep::isRunning(i);
+#elif defined USE_I2C_MOTOR
+		return i2cUc2Motor::isRunning(i);
 #endif
 	}
 
@@ -508,9 +520,10 @@ void sendMotorPos(int i, int arraypos)
 {
 #ifdef USE_FASTACCEL
     FAccelStep::updateData(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
     AccelStep::updateData(i);
+#elif defined USE_I2C_MOTOR
+	i2cUc2Motor::updateData(i);
 #endif
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) return; // Handle allocation failure
@@ -559,9 +572,10 @@ void sendMotorPos(int i, int arraypos)
 		log_i("Stop Stepper:%i", i);
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
-#endif
-#ifdef USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::stopi2cUc2Stepper(i);
 #endif
 	}
 
@@ -569,6 +583,8 @@ void sendMotorPos(int i, int arraypos)
 	{
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::setPosition(s, pos);
 #endif
 	}
 
@@ -576,6 +592,8 @@ void sendMotorPos(int i, int arraypos)
 	{
 #ifdef USE_FASTACCEL
 		FAccelStep::move(s, steps, blocking);
+#elif defined USE_I2C_MOTOR
+		i2cUc2Motor::move(s, steps, blocking);
 #endif
 	}
 }

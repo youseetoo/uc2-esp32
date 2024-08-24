@@ -1,8 +1,7 @@
-
+#include <PinConfig.h>
 #include "SerialProcess.h"
 #include "../wifi/Endpoints.h"
 #include "Arduino.h"
-#include <PinConfig.h>
 #include "../wifi/RestApiCallbacks.h"
 #ifdef ANALOG_IN_CONTROLLER
 #include "../analogin/AnalogInController.h"
@@ -60,7 +59,6 @@
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
-
 #ifdef HEAT_CONTROLLER
 #include "../heat/HeatController.h"
 #include "../heat/DS18b20Controller.h"

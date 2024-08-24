@@ -188,11 +188,28 @@ struct PinConfig
      int8_t ENC_Z_B = disabled;
 
      // I2c
-     int8_t I2C_SCL = disabled;
+     bool IS_I2C_MASTER = false;
+     bool IS_I2C_SLAVE = false;
+     int8_t I2C_SCL = disabled;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = disabled;
-     int8_t I2C_ADD_TCA = disabled;
-     int8_t I2C_ADDRESS_SLAVE = disabled;    // I2C address of the ESP32 if it's a slave
-     int8_t I2C_ADDRESS_REMOTE_DEVICE = disabled; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
+
+     // Auxilarry I2C devices
+     int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
+
+     int8_t I2C_ADD_MOT_X = 0x40;
+     int8_t I2C_ADD_MOT_Y = 0x41;
+     int8_t I2C_ADD_MOT_Z = 0x42;
+     int8_t I2C_ADD_MOT_A = 0x43;
+     int8_t I2C_ADD_LEX_MAT = 0x50;
+     int8_t I2C_ADD_LEX_PWM1 = 0x51;
+     int8_t I2C_ADD_LEX_PWM2 = 0x52;
+     int8_t I2C_ADD_LEX_PWM3 = 0x53;
+     int8_t I2C_ADD_LEX_PWM4 = 0x54;
+
+     int8_t IC2_ADD_MASTER = 0x10; // I2C address of the ESP32 if it's a master
+     int8_t I2C_ADD_SLAVE = 0x40;    // I2C address of the ESP32 if it's a slave
+     int8_t I2C_ADD_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
+
 
 
      // SPI

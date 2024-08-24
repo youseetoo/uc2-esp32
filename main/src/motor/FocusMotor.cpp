@@ -198,7 +198,7 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::Enable(en);
 #elif defined USE_I2C_MOTOR
-		i2cUc2Motor::Enable(en);
+		i2cUc2Motor::Enable(en, 0); // TODO: provide the axis
 #endif
 	}
 
@@ -220,7 +220,7 @@ namespace FocusMotor
 			FAccelStep::setAutoEnable(autoen->valueint);
 		}
 #elif defined USE_I2C_MOTOR
-		i2cUc2Motor::setAutoEnable(autoen->valueint);
+		i2cUc2Motor::setAutoEnable(autoen->valueint, 0); // TODO: provide the axis
 #endif
 	}
 
@@ -411,6 +411,7 @@ namespace FocusMotor
 
 		// setup motor pins
 		log_i("Setting Up Motor A,X,Y,Z");
+#ifdef USE_FASTACCEL or USE_ACCELSTEP		
 		preferences.begin("motor-positions", false);
 		if (pinConfig.MOTOR_A_DIR > 0)
 		{
@@ -450,6 +451,8 @@ namespace FocusMotor
 		if (pinConfig.DIGITAL_OUT_3 > 0)
 			data[Stepper::Z]->triggerPin = 3; // frame^
 
+#endif
+
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
 		if (pinConfig.I2C_SCL > 0)
@@ -468,7 +471,16 @@ namespace FocusMotor
 #endif
 		AccelStep::setupAccelStepper();
 #elif defined USE_I2C_MOTOR
-		i2cUc2Motor::setupi2cUc2Stepper();
+		
+		if (pinConfig.I2C_ADD_MOT_A > 0 && pinConfig.I2C_ADD_MOT_X > 0 && pinConfig.I2C_ADD_MOT_Y > 0 && pinConfig.I2C_ADD_MOT_Z > 0)
+		{
+			i2cUc2Motor::setupi2cUc2Stepper();
+
+			//data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
+			//log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
+		}
+
+
 #endif
 
 #ifdef WIFI

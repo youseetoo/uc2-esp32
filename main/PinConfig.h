@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-/*
+
 //#define WIFI
 //#define BLUETOOTH
 //#define BTHID
@@ -14,14 +14,8 @@
 #define ENCODER_CONTROLLER
 #define LINEAR_ENCODER_CONTROLLER
 #define HOME_DRIVE
-#define MESSAGE_CONTROLLER
-#define USE_I2C
-#define DAC_CONTROLLER
-#define HEAT_CONTROLLER
-#define DS18B20_CONTROLLER
 #define USE_I2C
 #define USE_I2C_MOTOR
-*/
 struct UC2_3_I2CMaster : PinConfig
 {
      /*

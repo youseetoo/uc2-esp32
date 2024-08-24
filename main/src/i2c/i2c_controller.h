@@ -12,6 +12,5 @@ namespace i2c_controller
     int act(cJSON * ob);
     cJSON * get(cJSON *  ob);
     void sendJsonString(String jsonString, uint8_t slave_addr);
-
     void receiveEvent(int numBytes);
 };

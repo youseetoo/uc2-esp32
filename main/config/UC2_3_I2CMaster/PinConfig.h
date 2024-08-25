@@ -15,7 +15,6 @@
 #define LINEAR_ENCODER_CONTROLLER
 #define HOME_DRIVE
 #define USE_I2C
-#define USE_I2C_MOTOR
 struct UC2_3_I2CMaster : PinConfig
 {
      /*

@@ -12,19 +12,26 @@
 #endif
 #include "MotorTypes.h"
 
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined USE_I2C_MOTOR
-#error Pls set USE_FASTACCEL or USE_ACCELSTEP or USE_I2C_MOTOR
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP
+#error Pls set USE_FASTACCEL or USE_ACCELSTEP
 #endif
-#if defined USE_FASTACCEL && defined USE_ACCELSTEP && defined USE_I2C_MOTOR
+#if defined USE_FASTACCEL && defined USE_ACCELSTEP
 #error Pls set only USE_FASTACCEL or USE_ACCELSTEP, currently both are active
 #endif
 
 void sendUpdateToClients(void *p);
-
 bool externalPinCallback();
 
 namespace FocusMotor
 {
+
+	// for A,X,Y,Z intialize the I2C addresses
+	uint8_t i2c_addresses[] = {
+		pinConfig.I2C_ADD_MOT_A,
+		pinConfig.I2C_ADD_MOT_X,
+		pinConfig.I2C_ADD_MOT_Y,
+		pinConfig.I2C_ADD_MOT_Z};
+
 	static Preferences preferences;
 
 	int act(cJSON *ob);
@@ -40,11 +47,14 @@ namespace FocusMotor
 	bool isRunning(int i);
 	void enable(bool en);
 	
+	int axis2address(int axis);
+	void sendMotorDataI2C(MotorData motorData, uint8_t axis);
+	String motorDataToJson(MotorData motorData);
+
 	static int logcount;
 	static bool power_enable = false;
 
-	static bool isDualAxisZ = false;	
+	static bool isDualAxisZ = false;
 
-	MotorData ** getData();
+	MotorData **getData();
 };
-

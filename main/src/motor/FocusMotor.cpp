@@ -9,9 +9,6 @@
 #ifdef USE_FASTACCEL
 #include "FAccelStep.h"
 #endif
-#ifdef USE_I2C_MOTOR
-#include "i2cUc2Motor.h"
-#endif
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
 #endif
@@ -21,7 +18,9 @@
 #ifdef STAGE_SCAN
 #include "StageScan.h"
 #endif
-
+#ifdef USE_I2C
+#include "../i2c/i2c_controller.h"
+#endif
 namespace FocusMotor
 {
 
@@ -59,8 +58,6 @@ namespace FocusMotor
 					FAccelStep::updateData(i);
 #elif defined USE_ACCELSTEP
 					AccelStep::updateData(i);
-#elif defined USE_I2C_MOTOR
-					i2cUc2Motor::updateData(i);
 #endif
 					cJSON *item = cJSON_CreateObject();
 					cJSON_AddItemToArray(stprs, item);
@@ -95,15 +92,46 @@ namespace FocusMotor
 		FAccelStep::startFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(i);
-#elif defined USE_I2C_MOTOR
-		i2cUc2Motor::starti2cUc2Stepper(i);
 #endif
 	}
 
+	void parseJsonI2C(cJSON *doc)
+	{
+		/*
+		We parse the incoming JSON string to the motor struct and send it via I2C to the correpsonding motor driver
+		// TODO: We could reuse the parseMotorDriveJson function and just add the I2C send function?
+		*/
+		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
+		if (mot != NULL)
+		{
+			cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
+			cJSON *stp = NULL;
+			if (stprs != NULL)
+			{
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
+					data[s]->qid = cJsonTool::getJsonInt(doc, "qid");
+					data[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
+					data[s]->isEnable = cJsonTool::getJsonInt(stp, key_isen);
+					data[s]->targetPosition = cJsonTool::getJsonInt(stp, key_position);
+					data[s]->isforever = cJsonTool::getJsonInt(stp, key_isforever);
+					data[s]->absolutePosition = cJsonTool::getJsonInt(stp, key_isabs);
+					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
+					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
+					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
+					sendMotorDataI2C(*data[s], s);
+				}
+				else log_i("Motor steppers json is null");
+			}
+			else
+				log_i("Motor json is null");
+		}
+	}
 	void parseMotorDriveJson(cJSON *doc)
 	{
 		/*
-		We receive a JSON string e.g. in the form: 
+		We receive a JSON string e.g. in the form:
 		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		And assign it to the different motors
 		*/
@@ -197,8 +225,6 @@ namespace FocusMotor
 		FAccelStep::Enable(en);
 #elif defined USE_ACCELSTEP
 		AccelStep::Enable(en);
-#elif defined USE_I2C_MOTOR
-		i2cUc2Motor::Enable(en, 0); // TODO: provide the axis
 #endif
 	}
 
@@ -219,8 +245,6 @@ namespace FocusMotor
 		{
 			FAccelStep::setAutoEnable(autoen->valueint);
 		}
-#elif defined USE_I2C_MOTOR
-		i2cUc2Motor::setAutoEnable(autoen->valueint, 0); // TODO: provide the axis
 #endif
 	}
 
@@ -301,6 +325,14 @@ namespace FocusMotor
 	{
 		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
+
+		// parse json to motor struct and send over I2C
+		if (pinConfig.IS_I2C_MASTER)
+		{
+			parseJsonI2C(doc);
+			return qid;
+		}
+
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
 		parseEnableMotor(doc);
@@ -308,11 +340,11 @@ namespace FocusMotor
 		// only set motors to autoenable
 		// {"task":"/motor_act", "isen":1, "isenauto":1, "qid":1}
 		parseAutoEnableMotor(doc);
-		
+
 		// set position of motors in eeprom
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
 		parseSetPosition(doc);
-			
+
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
@@ -351,8 +383,6 @@ namespace FocusMotor
 				FAccelStep::updateData(i);
 #elif defined USE_ACCELSTEP
 				AccelStep::updateData(i);
-#elif defined USE_I2C_MOTOR
-				i2cUc2Motor::updateData(i);
 #endif
 
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
@@ -370,8 +400,6 @@ namespace FocusMotor
 				FAccelStep::updateData(i);
 #elif defined USE_ACCELSTEP
 				AccelStep::updateData(i);
-#elif defined USE_I2C_MOTOR
-				i2cUc2Motor::updateData(i);
 #endif
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
@@ -411,7 +439,7 @@ namespace FocusMotor
 
 		// setup motor pins
 		log_i("Setting Up Motor A,X,Y,Z");
-#ifdef USE_FASTACCEL or USE_ACCELSTEP		
+#ifdef USE_FASTACCEL or USE_ACCELSTEP
 		preferences.begin("motor-positions", false);
 		if (pinConfig.MOTOR_A_DIR > 0)
 		{
@@ -470,17 +498,6 @@ namespace FocusMotor
 		}
 #endif
 		AccelStep::setupAccelStepper();
-#elif defined USE_I2C_MOTOR
-		
-		if (pinConfig.I2C_ADD_MOT_A > 0 && pinConfig.I2C_ADD_MOT_X > 0 && pinConfig.I2C_ADD_MOT_Y > 0 && pinConfig.I2C_ADD_MOT_Z > 0)
-		{
-			i2cUc2Motor::setupi2cUc2Stepper();
-
-			//data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
-			//log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
-		}
-
-
 #endif
 
 #ifdef WIFI
@@ -522,62 +539,58 @@ namespace FocusMotor
 		return FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
 		return AccelStep::isRunning(i);
-#elif defined USE_I2C_MOTOR
-		return i2cUc2Motor::isRunning(i);
 #endif
 	}
 
-// returns json {"steppers":[...]} as qid
-void sendMotorPos(int i, int arraypos)
-{
+	// returns json {"steppers":[...]} as qid
+	void sendMotorPos(int i, int arraypos)
+	{
 #ifdef USE_FASTACCEL
-    FAccelStep::updateData(i);
+		FAccelStep::updateData(i);
 #elif defined USE_ACCELSTEP
-    AccelStep::updateData(i);
-#elif defined USE_I2C_MOTOR
-	i2cUc2Motor::updateData(i);
+		AccelStep::updateData(i);
 #endif
-    cJSON *root = cJSON_CreateObject();
-    if (root == NULL) return; // Handle allocation failure
+		cJSON *root = cJSON_CreateObject();
+		if (root == NULL)
+			return; // Handle allocation failure
 
-    cJSON *stprs = cJSON_CreateArray();
-    if (stprs == NULL)
-    {
-        cJSON_Delete(root);
-        return; // Handle allocation failure
-    }
-    cJSON_AddItemToObject(root, key_steppers, stprs);
-    cJSON_AddNumberToObject(root, "qid", data[i]->qid);
-    
-    cJSON *item = cJSON_CreateObject();
-    if (item == NULL)
-    {
-        cJSON_Delete(root);
-        return; // Handle allocation failure
-    }
-    cJSON_AddItemToArray(stprs, item);
-    cJSON_AddNumberToObject(item, key_stepperid, i);
-    cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-    cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-    arraypos++;
+		cJSON *stprs = cJSON_CreateArray();
+		if (stprs == NULL)
+		{
+			cJSON_Delete(root);
+			return; // Handle allocation failure
+		}
+		cJSON_AddItemToObject(root, key_steppers, stprs);
+		cJSON_AddNumberToObject(root, "qid", data[i]->qid);
+
+		cJSON *item = cJSON_CreateObject();
+		if (item == NULL)
+		{
+			cJSON_Delete(root);
+			return; // Handle allocation failure
+		}
+		cJSON_AddItemToArray(stprs, item);
+		cJSON_AddNumberToObject(item, key_stepperid, i);
+		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
+		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+		arraypos++;
 
 #ifdef WIFI
-    WifiController::sendJsonWebSocketMsg(root);
+		WifiController::sendJsonWebSocketMsg(root);
 #endif
 
-    // Print result - will that work in the case of an xTask?
-    Serial.println("++");
-    char *s = cJSON_Print(root);
-    if (s != NULL)
-    {
-        Serial.println(s);
-        free(s);
-    }
-    Serial.println("--");
+		// Print result - will that work in the case of an xTask?
+		Serial.println("++");
+		char *s = cJSON_Print(root);
+		if (s != NULL)
+		{
+			Serial.println(s);
+			free(s);
+		}
+		Serial.println("--");
 
-    cJSON_Delete(root);  // Free the root object, which also frees all nested objects
-}
-
+		cJSON_Delete(root); // Free the root object, which also frees all nested objects
+	}
 
 	void stopStepper(int i)
 	{
@@ -586,8 +599,6 @@ void sendMotorPos(int i, int arraypos)
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
-#elif defined USE_I2C_MOTOR
-		i2cUc2Motor::stopi2cUc2Stepper(i);
 #endif
 	}
 
@@ -595,8 +606,6 @@ void sendMotorPos(int i, int arraypos)
 	{
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
-#elif defined USE_I2C_MOTOR
-		i2cUc2Motor::setPosition(s, pos);
 #endif
 	}
 
@@ -604,8 +613,58 @@ void sendMotorPos(int i, int arraypos)
 	{
 #ifdef USE_FASTACCEL
 		FAccelStep::move(s, steps, blocking);
-#elif defined USE_I2C_MOTOR
-		i2cUc2Motor::move(s, steps, blocking);
 #endif
+	}
+
+	// Function to convert MotorData structure to JSON string
+	String motorDataToJson(MotorData motorData)
+	{
+		cJSON *root = cJSON_CreateObject();
+		cJSON_AddBoolToObject(root, "directionPinInverted", motorData.directionPinInverted);
+		cJSON_AddNumberToObject(root, "speed", motorData.speed);
+		cJSON_AddNumberToObject(root, "maxspeed", motorData.maxspeed);
+		cJSON_AddNumberToObject(root, "acceleration", motorData.acceleration);
+		cJSON_AddNumberToObject(root, "targetPosition", motorData.targetPosition);
+		cJSON_AddNumberToObject(root, "currentPosition", motorData.currentPosition);
+		cJSON_AddNumberToObject(root, "isforever", motorData.isforever);
+		cJSON_AddBoolToObject(root, "isaccelerated", motorData.isaccelerated);
+		cJSON_AddBoolToObject(root, "absolutePosition", motorData.absolutePosition);
+		cJSON_AddBoolToObject(root, "stopped", motorData.stopped);
+		cJSON_AddNumberToObject(root, "timeoutDisable", motorData.timeoutDisable);
+		cJSON_AddNumberToObject(root, "timeLastActive", motorData.timeLastActive);
+		cJSON_AddBoolToObject(root, "isEnable", motorData.isEnable);
+		cJSON_AddNumberToObject(root, "qid", motorData.qid);
+		cJSON_AddBoolToObject(root, "isActivated", motorData.isActivated);
+		cJSON_AddBoolToObject(root, "endstop_hit", motorData.endstop_hit);
+		cJSON_AddBoolToObject(root, "isTriggered", motorData.isTriggered);
+		cJSON_AddNumberToObject(root, "offsetTrigger", motorData.offsetTrigger);
+		cJSON_AddNumberToObject(root, "triggerPeriod", motorData.triggerPeriod);
+		cJSON_AddNumberToObject(root, "triggerPin", motorData.triggerPin);
+		cJSON_AddNumberToObject(root, "dirPin", motorData.dirPin);
+		cJSON_AddNumberToObject(root, "stpPin", motorData.stpPin);
+
+		char *jsonString = cJSON_Print(root);
+		String result = String(jsonString);
+		cJSON_Delete(root);
+		free(jsonString);
+
+		return result;
+	}
+
+	void sendMotorDataI2C(MotorData motorData, int axis)
+	{
+		uint8_t slave_addr = axis2address(axis);
+		String jsonString = motorDataToJson(motorData);
+		log_i("MotorData to JSON: %s", jsonString);
+		i2c_controller::sendJsonString(jsonString, slave_addr);
+	}
+
+	int axis2address(int axis)
+	{
+		if (axis >= 0 && axis < 4)
+		{
+			return i2c_addresses[axis];
+		}
+		return 0;
 	}
 }

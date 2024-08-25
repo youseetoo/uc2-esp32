@@ -20,7 +20,9 @@
 #endif
 #ifdef USE_I2C
 #include "../i2c/i2c_controller.h"
+#include "WiFi.h"
 #endif
+
 namespace FocusMotor
 {
 
@@ -29,6 +31,13 @@ namespace FocusMotor
 	MotorData y_dat;
 	MotorData z_dat;
 	MotorData *data[4];
+
+	// for A,X,Y,Z intialize the I2C addresses
+	uint8_t i2c_addresses[] = {
+		pinConfig.I2C_ADD_MOT_A,
+		pinConfig.I2C_ADD_MOT_X,
+		pinConfig.I2C_ADD_MOT_Y,
+		pinConfig.I2C_ADD_MOT_Z};
 
 	MotorData **getData()
 	{
@@ -120,20 +129,26 @@ namespace FocusMotor
 					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-					sendMotorDataI2C(*data[s], s);
+					sendMotorDataI2C(*data[s], s); // TODO: This cannot send two motor information simultaenosly
 				}
-				else log_i("Motor steppers json is null");
 			}
 			else
-				log_i("Motor json is null");
+			{
+				log_i("Motor steppers json is null");
+			}
+		}
+		else
+		{
+			log_i("Motor json is null");
 		}
 	}
+
 	void parseMotorDriveJson(cJSON *doc)
 	{
 		/*
 		We receive a JSON string e.g. in the form:
 		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
-		And assign it to the different motors
+		And assign it to the different motors by sending the converted MotorData to the corresponding motor driver via I2C
 		*/
 #ifdef MOTOR_CONTROLLER
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
@@ -321,41 +336,7 @@ namespace FocusMotor
 	}
 #endif
 
-	int act(cJSON *doc)
-	{
-		log_i("motor act");
-		int qid = cJsonTool::getJsonInt(doc, "qid");
 
-		// parse json to motor struct and send over I2C
-		if (pinConfig.IS_I2C_MASTER)
-		{
-			parseJsonI2C(doc);
-			return qid;
-		}
-
-		// only enable/disable motors
-		// {"task":"/motor_act", "isen":1, "isenauto":1}
-		parseEnableMotor(doc);
-
-		// only set motors to autoenable
-		// {"task":"/motor_act", "isen":1, "isenauto":1, "qid":1}
-		parseAutoEnableMotor(doc);
-
-		// set position of motors in eeprom
-		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
-		parseSetPosition(doc);
-
-		// move motor drive
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
-		parseMotorDriveJson(doc);
-#ifdef HOME_DRIVE
-		parseHome(doc);
-#endif
-#ifdef STAGE_SCAN
-		parseStageScan(doc);
-#endif
-		return qid;
-	}
 
 	// returns json {"motor":{...}} as qid
 	cJSON *get(cJSON *docin)
@@ -413,6 +394,43 @@ namespace FocusMotor
 		}
 		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
 		return doc;
+	}
+
+	
+	int act(cJSON *doc)
+	{
+		log_i("motor act");
+		int qid = cJsonTool::getJsonInt(doc, "qid");
+
+		// parse json to motor struct and send over I2C
+		if (pinConfig.I2C_ADD_MOT_X >= 0 or pinConfig.I2C_ADD_MOT_Y >= 0 or pinConfig.I2C_ADD_MOT_Z >= 0 or pinConfig.I2C_ADD_MOT_A >= 0)
+		{
+			parseJsonI2C(doc);
+			return qid;
+		}
+
+		// only enable/disable motors
+		// {"task":"/motor_act", "isen":1, "isenauto":1}
+		parseEnableMotor(doc);
+
+		// only set motors to autoenable
+		// {"task":"/motor_act", "isen":1, "isenauto":1, "qid":1}
+		parseAutoEnableMotor(doc);
+
+		// set position of motors in eeprom
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
+		parseSetPosition(doc);
+
+		// move motor drive
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+		parseMotorDriveJson(doc);
+#ifdef HOME_DRIVE
+		parseHome(doc);
+#endif
+#ifdef STAGE_SCAN
+		parseStageScan(doc);
+#endif
+		return qid;
 	}
 
 	void setup()
@@ -509,7 +527,7 @@ namespace FocusMotor
 
 	void loop()
 	{
-#ifdef USE_FASTACCEL or USE_ACCELSTEP
+#if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
@@ -616,47 +634,25 @@ namespace FocusMotor
 #endif
 	}
 
-	// Function to convert MotorData structure to JSON string
-	String motorDataToJson(MotorData motorData)
-	{
-		cJSON *root = cJSON_CreateObject();
-		cJSON_AddBoolToObject(root, "directionPinInverted", motorData.directionPinInverted);
-		cJSON_AddNumberToObject(root, "speed", motorData.speed);
-		cJSON_AddNumberToObject(root, "maxspeed", motorData.maxspeed);
-		cJSON_AddNumberToObject(root, "acceleration", motorData.acceleration);
-		cJSON_AddNumberToObject(root, "targetPosition", motorData.targetPosition);
-		cJSON_AddNumberToObject(root, "currentPosition", motorData.currentPosition);
-		cJSON_AddNumberToObject(root, "isforever", motorData.isforever);
-		cJSON_AddBoolToObject(root, "isaccelerated", motorData.isaccelerated);
-		cJSON_AddBoolToObject(root, "absolutePosition", motorData.absolutePosition);
-		cJSON_AddBoolToObject(root, "stopped", motorData.stopped);
-		cJSON_AddNumberToObject(root, "timeoutDisable", motorData.timeoutDisable);
-		cJSON_AddNumberToObject(root, "timeLastActive", motorData.timeLastActive);
-		cJSON_AddBoolToObject(root, "isEnable", motorData.isEnable);
-		cJSON_AddNumberToObject(root, "qid", motorData.qid);
-		cJSON_AddBoolToObject(root, "isActivated", motorData.isActivated);
-		cJSON_AddBoolToObject(root, "endstop_hit", motorData.endstop_hit);
-		cJSON_AddBoolToObject(root, "isTriggered", motorData.isTriggered);
-		cJSON_AddNumberToObject(root, "offsetTrigger", motorData.offsetTrigger);
-		cJSON_AddNumberToObject(root, "triggerPeriod", motorData.triggerPeriod);
-		cJSON_AddNumberToObject(root, "triggerPin", motorData.triggerPin);
-		cJSON_AddNumberToObject(root, "dirPin", motorData.dirPin);
-		cJSON_AddNumberToObject(root, "stpPin", motorData.stpPin);
-
-		char *jsonString = cJSON_Print(root);
-		String result = String(jsonString);
-		cJSON_Delete(root);
-		free(jsonString);
-
-		return result;
-	}
-
 	void sendMotorDataI2C(MotorData motorData, int axis)
 	{
 		uint8_t slave_addr = axis2address(axis);
-		String jsonString = motorDataToJson(motorData);
-		log_i("MotorData to JSON: %s", jsonString);
-		i2c_controller::sendJsonString(jsonString, slave_addr);
+		log_i("MotorData to axis: %i", axis);
+
+		// TODO: should we have this inside the I2C controller?
+		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Initialize I2C with defined pins and address
+		Wire.beginTransmission(slave_addr);
+
+		// Cast the structure to a byte array
+		uint8_t *dataPtr = (uint8_t *)&motorData;
+		int dataSize = sizeof(MotorData);
+
+		// Send the byte array over I2C
+		for (int i = 0; i < dataSize; i++)
+		{
+			Wire.write(dataPtr[i]);
+		}
+		Wire.endTransmission();
 	}
 
 	int axis2address(int axis)

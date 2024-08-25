@@ -12,7 +12,7 @@
 #endif
 #include "MotorTypes.h"
 
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined USE_I2C_MOTOR
 #error Pls set USE_FASTACCEL or USE_ACCELSTEP
 #endif
 #if defined USE_FASTACCEL && defined USE_ACCELSTEP
@@ -24,13 +24,6 @@ bool externalPinCallback();
 
 namespace FocusMotor
 {
-
-	// for A,X,Y,Z intialize the I2C addresses
-	uint8_t i2c_addresses[] = {
-		pinConfig.I2C_ADD_MOT_A,
-		pinConfig.I2C_ADD_MOT_X,
-		pinConfig.I2C_ADD_MOT_Y,
-		pinConfig.I2C_ADD_MOT_Z};
 
 	static Preferences preferences;
 
@@ -46,11 +39,11 @@ namespace FocusMotor
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
 	void enable(bool en);
-	
+	void sendMotorDataI2C(MotorData motorData, int axis);
 	int axis2address(int axis);
 	void sendMotorDataI2C(MotorData motorData, uint8_t axis);
 	String motorDataToJson(MotorData motorData);
-
+	void parseJsonI2C(cJSON *doc);
 	static int logcount;
 	static bool power_enable = false;
 

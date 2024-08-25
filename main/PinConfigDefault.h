@@ -36,6 +36,31 @@ motor defines
 
 const int8_t disabled = -1;
 
+
+// will be used to differentiate between the different controllers for I2C 
+enum I2CControllerType : uint8_t
+{
+     mDISABLED = 0,
+     ENCODER = 1,
+     LINEAR_ENCODER = 2,
+     HOME = 3,
+     I2C = 4,
+     TCA = 5,
+     mANALOG = 6,
+     DIGITAL = 7,
+     BT = 8,
+     LASER = 9,
+     LED = 10,
+     PID = 11,
+     SCANNER = 12,
+     WIFI = 13,
+     HEAT = 14,
+     GALVO = 15,
+     MESSAGE = 16,
+     DAC = 17,
+     MOTOR = 18,
+};
+
 struct PinConfig
 {
      const bool dumpHeap = false;
@@ -195,7 +220,8 @@ struct PinConfig
 
      // Auxilarry I2C devices
      int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
-
+     I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
+     int8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
      int8_t I2C_ADD_MOT_X = 0x40;
      int8_t I2C_ADD_MOT_Y = 0x41;
      int8_t I2C_ADD_MOT_Z = 0x42;
@@ -205,11 +231,6 @@ struct PinConfig
      int8_t I2C_ADD_LEX_PWM2 = 0x52;
      int8_t I2C_ADD_LEX_PWM3 = 0x53;
      int8_t I2C_ADD_LEX_PWM4 = 0x54;
-
-     int8_t IC2_ADD_MASTER = 0x10; // I2C address of the ESP32 if it's a master
-     int8_t I2C_ADD_SLAVE = 0x40;    // I2C address of the ESP32 if it's a slave
-     int8_t I2C_ADD_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
-
 
 
      // SPI

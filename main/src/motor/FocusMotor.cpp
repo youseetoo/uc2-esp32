@@ -147,7 +147,7 @@ namespace FocusMotor
 	{
 		/*
 		We receive a JSON string e.g. in the form:
-		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		And assign it to the different motors by sending the converted MotorData to the corresponding motor driver via I2C
 		*/
 #ifdef MOTOR_CONTROLLER

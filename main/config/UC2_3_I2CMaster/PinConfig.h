@@ -7,7 +7,6 @@
 //#define BLUETOOTH
 //#define BTHID
 #define MOTOR_CONTROLLER
-#define USE_TCA9535
 #define ENCODER_CONTROLLER
 #define LINEAR_ENCODER_CONTROLLER
 #define HOME_DRIVE
@@ -76,7 +75,6 @@ struct UC2_3_I2CMaster : PinConfig
 
      // I2c
      bool IS_I2C_MASTER = true;
-     bool IS_I2C_SLAVE = false;
      int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = GPIO_NUM_21;
 
@@ -92,10 +90,6 @@ struct UC2_3_I2CMaster : PinConfig
      int8_t I2C_ADD_LEX_PWM2 = 0x52;
      int8_t I2C_ADD_LEX_PWM3 = 0x53;
      int8_t I2C_ADD_LEX_PWM4 = 0x54;
-
-     int8_t IC2_ADD_MASTER = 0x10; // I2C address of the ESP32 if it's a master
-     int8_t I2C_ADD_SLAVE = 0x40;    // I2C address of the ESP32 if it's a slave
-     int8_t I2C_ADD_REMOTE_DEVICE = 0x40; //  #define SLAVE_ADDRESS 0x40 // I2C address of the ESP32
 
 
      // SPI

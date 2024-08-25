@@ -4,6 +4,8 @@
 #include "cJsonTool.h"
 #include "JsonKeys.h"
 
+#include "../motor/FocusMotor.h"
+
 #include "../serial/SerialProcess.h"
 #define MAX_I2C_BUFFER_SIZE 32
 
@@ -20,16 +22,6 @@ namespace i2c_controller
 		Serial.println("Scanning...");
 
 		nDevices = 0;
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Initialize I2C with defined pins and address
-
-		Serial.println("Sending patterns to the ESP32");
-		for (int i = 0; i < 10; i++)
-		{
-			Wire.beginTransmission(pinConfig.I2C_ADD_REMOTE_DEVICE);
-			Wire.write(i); // Send the pattern number to the ESP32
-			Wire.endTransmission();
-			delay(500);
-		}
 
 		for (address = 1; address < 127; address++)
 		{
@@ -68,10 +60,15 @@ namespace i2c_controller
 	void setup()
 	{
 		// Begin I2C slave communication with the defined pins and address
-		if (pinConfig.I2C_ADD_SLAVE >= 0)
+		if (pinConfig.IS_I2C_SLAVE and pinConfig.I2C_ADD_SLAVE > 0)
 		{
+			log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
 			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
+		}
+		else if (pinConfig.IS_I2C_MASTER)
+		{
+			i2c_scan();
 		}
 	}
 
@@ -92,8 +89,12 @@ namespace i2c_controller
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// TODO: Maybe it would be better to do this in Serial direclty with an additional flag for I2C communication (e.g. relay anything to I2C)
 		String jsonString = "{\"task\":\"/ledarr_act\", \"led\":{\"LEDArrMode\":8, \"led_array\":[{\"id\":1, \"r\":255, \"g\":255, \"b\":255},{\"id\":2, \"r\":255, \"g\":255, \"b\":255},{\"id\":3, \"r\":255, \"g\":255, \"b\":255},{\"id\":4, \"r\":255, \"g\":255, \"b\":255},{\"id\":5, \"r\":255, \"g\":255, \"b\":255},{\"id\":6, \"r\":255, \"g\":255, \"b\":255},{\"id\":7, \"r\":255, \"g\":255, \"b\":255},{\"id\":8, \"r\":255, \"g\":255, \"b\":255},{\"id\":9, \"r\":255, \"g\":255, \"b\":255}]}}";
-		uint8_t slave_addr = pinConfig.I2C_ADD_REMOTE_DEVICE;
-		sendJsonString(jsonString, slave_addr);
+
+		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::MOTOR)
+		{
+			uint8_t slave_addr = pinConfig.I2C_ADD_MOT_X;
+			sendJsonString(jsonString, slave_addr);
+		}
 		// TODO: we would need to wait for some repsonse - or better have a reading queue for the I2C devices to send back data to the serial
 		return qid;
 	}
@@ -146,65 +147,36 @@ namespace i2c_controller
 
 	void receiveEvent(int numBytes)
 	{
-		/*
-		This receives data over I2C that gets parsed into a json for later action. 
-		Potentially we need to add the message to the serial queue for processing on 
-		individual devices?
-		*/
-		static String receivedJsonString = "";
-		static int expectedPackets = 0;
-		static int receivedPackets = 0;
-
-		log_i("Received %d bytes", numBytes);
-		while (Wire.available())
+		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::MOTOR)
 		{
-			if (numBytes < 3)
-				return; // Invalid packet
-
-			int packetIndex = Wire.read();
-			int totalPackets = Wire.read();
-
-			if (packetIndex == 0)
+			if (numBytes == sizeof(MotorData))
 			{
-				receivedJsonString = "";
-				expectedPackets = totalPackets;
-				receivedPackets = 0;
-			}
+				MotorData receivedMotorData;
 
-			while (Wire.available())
-			{
-				char c = Wire.read();
-				receivedJsonString += c;
-			}
-
-			receivedPackets++;
-
-			if (receivedPackets == expectedPackets)
-			{
-				Serial.println("Complete JSON received:");
-				Serial.println(receivedJsonString);
-
-				// Process the JSON string
-				cJSON *root = cJSON_Parse(receivedJsonString.c_str());
-				if (root != NULL)
+				uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
+				for (int i = 0; i < numBytes; i++)
 				{
-					// Add the JSON to the serial queue for processing
-					SerialProcess::addJsonToQueue(root);
+					dataPtr[i] = Wire.read();
 				}
-				else
-				{
-					const char *error_ptr = cJSON_GetErrorPtr();
-					if (error_ptr != NULL)
-						log_i("error while parsing:%s", error_ptr);
-					log_i("I2C input is null");
-				}
-
-				// Reset for the next message
-				receivedJsonString = "";
-				expectedPackets = 0;
-				receivedPackets = 0;
+				log_i("Received MotorData from I2C");
+				log_i("MotorData:");
+				log_i("  currentPosition: %i", receivedMotorData.currentPosition);
+				log_i("  targetPosition: %i", receivedMotorData.targetPosition);
+				// Now `receivedMotorData` contains the deserialized data
+				// You can process `receivedMotorData` as needed
+			}
+			else
+			{
+				// Handle error: received data size does not match expected size
+				log_e("Error: Received data size does not match MotorData size.");
 			}
 		}
+		else
+		{
+			// Handle error: I2C controller type not supported
+			log_e("Error: I2C controller type not supported.");
+		}
 	}
+
 #endif
 } // namespace i2c_controller

@@ -12,13 +12,13 @@
 #define HOME_DRIVE
 #define USE_I2C
 */
-struct UC2_3_I2CSlave : PinConfig
+struct UC2_3_I2CSlaveMotorX : PinConfig
 {
      /*
      This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-     const char * pindefName = "UC2_3_I2CSlave";
+     const char * pindefName = "UC2_3_I2CSlaveMotorX";
      const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
@@ -75,11 +75,13 @@ struct UC2_3_I2CSlave : PinConfig
 
      // I2c
      const char *I2C_NAME = "MOTX";
+     bool IS_I2C_SLAVE = true;
+     I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::MOTOR;
+     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
-     int8_t I2C_ADD_SLAVE = 0x40;    // I2C address of the ESP32 if it's a slave
 
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
@@ -87,15 +89,10 @@ struct UC2_3_I2CSlave : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 
-     // WIFI - specific to SEEED microscope
-     const char *mSSID = "UC2xSeeed-";
-     const char *mPWD =  "";
-     bool mAP = true; // false;
-     const char *mSSIDAP = "UC2";            
-     const char *hostname = "youseetoo";     
+    
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;
      int8_t LASER_0 = GPIO_NUM_26;
 };
-const UC2_3 pinConfig;
+const UC2_3_I2CSlaveMotorX pinConfig;

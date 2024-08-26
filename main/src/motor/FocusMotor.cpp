@@ -12,7 +12,7 @@
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
 #endif
-#ifdef HOME_DRIVE
+#ifdef HOME_MOTOR
 #include "HomeDrive.h"
 #endif
 #ifdef STAGE_SCAN
@@ -263,7 +263,7 @@ namespace FocusMotor
 #endif
 	}
 
-#ifdef HOME_DRIVE
+#ifdef HOME_MOTOR
 	void parseHome(cJSON *doc)
 	{
 		cJSON *home = cJSON_GetObjectItemCaseSensitive(doc, "home");
@@ -424,7 +424,7 @@ namespace FocusMotor
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
-#ifdef HOME_DRIVE
+#ifdef HOME_MOTOR
 		parseHome(doc);
 #endif
 #ifdef STAGE_SCAN

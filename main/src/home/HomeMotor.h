@@ -33,5 +33,6 @@ namespace HomeMotor
 	cJSON * get(cJSON * ob);
 	void setup();
 	void loop();
-	void checkAndProcessHome(Stepper s, int digitalin_val);
+    void checkAndProcessHome(Stepper s, int digitalin_val);
+
 };

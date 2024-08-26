@@ -68,7 +68,9 @@ namespace i2c_controller
 		}
 		else if (pinConfig.IS_I2C_MASTER)
 		{
+			// TODO: We need a receiver for the Master too
 			i2c_scan();
+			
 		}
 	}
 
@@ -90,7 +92,7 @@ namespace i2c_controller
 		// TODO: Maybe it would be better to do this in Serial direclty with an additional flag for I2C communication (e.g. relay anything to I2C)
 		String jsonString = "{\"task\":\"/ledarr_act\", \"led\":{\"LEDArrMode\":8, \"led_array\":[{\"id\":1, \"r\":255, \"g\":255, \"b\":255},{\"id\":2, \"r\":255, \"g\":255, \"b\":255},{\"id\":3, \"r\":255, \"g\":255, \"b\":255},{\"id\":4, \"r\":255, \"g\":255, \"b\":255},{\"id\":5, \"r\":255, \"g\":255, \"b\":255},{\"id\":6, \"r\":255, \"g\":255, \"b\":255},{\"id\":7, \"r\":255, \"g\":255, \"b\":255},{\"id\":8, \"r\":255, \"g\":255, \"b\":255},{\"id\":9, \"r\":255, \"g\":255, \"b\":255}]}}";
 
-		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::MOTOR)
+		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
 			uint8_t slave_addr = pinConfig.I2C_ADD_MOT_X;
 			sendJsonString(jsonString, slave_addr);
@@ -147,7 +149,9 @@ namespace i2c_controller
 
 	void receiveEvent(int numBytes)
 	{
-		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::MOTOR)
+		// Master and Slave
+
+		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
 			if (numBytes == sizeof(MotorData))
 			{
@@ -164,6 +168,10 @@ namespace i2c_controller
 				log_i("  targetPosition: %i", receivedMotorData.targetPosition);
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
+				// if start 
+				FocusMotor::startStepper(0);
+				// if stop
+				FocusMotor::stopStepper(0);
 			}
 			else
 			{

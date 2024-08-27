@@ -3,6 +3,7 @@
 #include "Arduino.h"
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
+#include "../i2c/tca_controller.h"
 
 namespace DigitalInController
 {
@@ -71,10 +72,21 @@ namespace DigitalInController
 
 		// FIXME: Never reaches this position..
 
-		// readout digital pins one by one
-		digitalin_val_1 = digitalRead(pinConfig.DIGITAL_IN_1);
-		digitalin_val_2 = digitalRead(pinConfig.DIGITAL_IN_2);
-		digitalin_val_3 = digitalRead(pinConfig.DIGITAL_IN_3);
+		if (pinConfig.I2C_SCL < 0)
+		{
+			// readout digital pins one by one
+			digitalin_val_1 = digitalRead(pinConfig.DIGITAL_IN_1);
+			digitalin_val_2 = digitalRead(pinConfig.DIGITAL_IN_2);
+			digitalin_val_3 = digitalRead(pinConfig.DIGITAL_IN_3);
+		}
+		else
+		{
+			// read values from the TCA input register
+			digitalin_val_1 = tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_1);
+			digitalin_val_2 = tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_2);
+			digitalin_val_3 = tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_3);
+		}
 		// log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 	}
-}
+} // namespace DigitalInController
+

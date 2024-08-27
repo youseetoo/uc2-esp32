@@ -96,7 +96,7 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
-		// log_i("start stepper %i", i);
+		log_i("start stepper %i", i);
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
@@ -336,8 +336,6 @@ namespace FocusMotor
 	}
 #endif
 
-
-
 	// returns json {"motor":{...}} as qid
 	cJSON *get(cJSON *docin)
 	{
@@ -396,7 +394,6 @@ namespace FocusMotor
 		return doc;
 	}
 
-	
 	int act(cJSON *doc)
 	{
 		log_i("motor act");
@@ -633,6 +630,7 @@ namespace FocusMotor
 		FAccelStep::move(s, steps, blocking);
 #endif
 	}
+
 
 	void sendMotorDataI2C(MotorData motorData, int axis)
 	{

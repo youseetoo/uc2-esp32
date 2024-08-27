@@ -48,6 +48,7 @@ esp_err_t TCA9535Init(uint8_t I2C_MASTER_SCL_IO, uint8_t I2C_MASTER_SDA_IO,uint8
 unsigned char TCA9535ReadSingleRegister(tca9535_reg_t address);
 esp_err_t TCA9535WriteSingleRegister(tca9535_reg_t address, unsigned short regVal);
 
+
 esp_err_t TCA9535WriteOutput(TCA9535_Register *reg);
 esp_err_t TCA9535WritePolarity(TCA9535_Register *reg);
 esp_err_t TCA9535WriteConfig(TCA9535_Register *reg);

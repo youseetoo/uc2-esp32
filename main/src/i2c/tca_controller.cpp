@@ -77,6 +77,21 @@ namespace tca_controller
 		}
 	}
 
+	bool tca_read_endstop(uint8_t pin)
+	{
+		if (not tca_initiated)
+			return false;
+		TCA9535_Register inputFromTcaRegister;
+		TCA9535ReadInput(&inputFromTcaRegister);
+		if (pin == 105) // endstop X
+			return !inputFromTcaRegister.Port.P0.bit.Bit5;
+		if (pin == 106) // endstop Y
+			return !inputFromTcaRegister.Port.P0.bit.Bit6;
+		if (pin == 107) // endstop Z
+			return !inputFromTcaRegister.Port.P0.bit.Bit7;
+		return false;
+	}
+
 	void init_tca()
 	{
 		if (ESP_OK != TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD_TCA)){
@@ -122,7 +137,7 @@ namespace tca_controller
 
 		TCA9535ReadConfig(&configRegister);
 		dumpRegister("Config", configRegister);
-		xTaskCreate(&tca_read_endstopTask, "tca_read_endstopTask", pinConfig.TCA_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+		//xTaskCreate(&tca_read_endstopTask, "tca_read_endstopTask", pinConfig.TCA_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 	}
 #endif
 } // namespace tca_controller

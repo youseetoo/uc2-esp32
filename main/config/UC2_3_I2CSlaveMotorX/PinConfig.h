@@ -48,9 +48,9 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
-     int8_t PIN_DEF_END_X = disabled;
-     int8_t PIN_DEF_END_Y = disabled;
-     int8_t PIN_DEF_END_Z = disabled;
+     int8_t PIN_DEF_END_X = 105;
+     int8_t PIN_DEF_END_Y = 106;
+     int8_t PIN_DEF_END_Z = 107;
      int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
      int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
      int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;

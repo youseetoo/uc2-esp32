@@ -536,6 +536,7 @@ namespace FocusMotor
 #endif
 			if (!isRunning && !data[i]->stopped)
 			{
+				// TODO: REadout register on slave side and check if destination 
 				// Only send the information when the motor is halting
 				// log_d("Sending motor pos %i", i);
 				stopStepper(i);

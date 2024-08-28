@@ -139,7 +139,6 @@ namespace HomeMotor
 		// send home done to client
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
-		cJSON_AddNumberToObject(json, "qid", hdata[axis]->qid);
 		cJSON_AddItemToObject(json, key_home, home);
 		cJSON *steppers = cJSON_CreateObject();
 		cJSON_AddItemToObject(home, key_steppers, steppers);
@@ -147,10 +146,11 @@ namespace HomeMotor
 		cJSON *done = cJSON_CreateNumber(true);
 		cJSON_AddItemToObject(steppers, "axis", axs);
 		cJSON_AddItemToObject(steppers, "isDone", done);
+		cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
+		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
 		Serial.println("++");
-		char *ret = cJSON_Print(json);
+		char *ret = cJSON_PrintUnformatted(json);
 		cJSON_Delete(json);
-		cJSON_Delete(home);
 		Serial.println(ret);
 		free(ret);
 		Serial.println("--");
@@ -160,7 +160,8 @@ namespace HomeMotor
 	{
 #ifdef MOTOR_CONTROLLER
 
-		// if we hit the endstop, reverse direction
+		// log_i("Current STepper %i and digitalin_val %i", s, digitalin_val);
+		//  if we hit the endstop, reverse direction
 		if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) &&
 			hdata[s]->homeInEndposReleaseMode == 0)
 		{
@@ -239,9 +240,9 @@ namespace HomeMotor
 // expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 //  0=A , 1=X, 2=Y , 3=Z
 #if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
-		checkAndProcessHome(Stepper::X, DigitalInController::digitalin_val_1);
-		checkAndProcessHome(Stepper::Y, DigitalInController::digitalin_val_2);
-		checkAndProcessHome(Stepper::Z, DigitalInController::digitalin_val_3);
+		checkAndProcessHome(Stepper::X, DigitalInController::getDigitalVal(1));
+		checkAndProcessHome(Stepper::Y, DigitalInController::getDigitalVal(2));
+		checkAndProcessHome(Stepper::Z, DigitalInController::getDigitalVal(3));
 #endif
 	}
 

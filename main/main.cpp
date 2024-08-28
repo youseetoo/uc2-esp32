@@ -107,6 +107,10 @@ extern "C" void looper(void *p)
 		HomeMotor::loop();
 		vTaskDelay(1);
 #endif
+#ifdef DIGITAL_IN_CONTROLLER
+		DigitalInController::loop();
+		vTaskDelay(1);
+#endif
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
 		vTaskDelay(1);

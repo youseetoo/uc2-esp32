@@ -100,6 +100,7 @@
 {"task": "/laser_act", "LASERid":3, "LASERval": 1000}
 # HOME
 {"task": "/home_get"}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":10000, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1, "endposrelease":4000, "endstoppolarity":0}]}}

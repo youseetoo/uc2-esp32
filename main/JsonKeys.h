@@ -72,6 +72,7 @@ __attribute__ ((unused)) static const PROGMEM char * keyWifiPW = "PW";
 __attribute__ ((unused)) static const PROGMEM char * keyWifiAP = "AP";
 #endif
 __attribute__ ((unused)) static const PROGMEM char * key_config = "config";
+__attribute__ ((unused)) static const PROGMEM char * keyQueueID = "qid";
 
 #ifdef HOME_MOTOR
 __attribute__ ((unused)) static const PROGMEM char * key_home = "home";

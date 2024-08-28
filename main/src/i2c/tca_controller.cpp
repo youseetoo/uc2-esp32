@@ -83,10 +83,12 @@ namespace tca_controller
 			return false;
 		TCA9535_Register inputFromTcaRegister;
 		TCA9535ReadInput(&inputFromTcaRegister);
-		if (pin == 105) // endstop X
+		if (pin == 105){
 			return !inputFromTcaRegister.Port.P0.bit.Bit5;
-		if (pin == 106) // endstop Y
+		} // endstop X
+		if (pin == 106){
 			return !inputFromTcaRegister.Port.P0.bit.Bit6;
+		} // endstop Y
 		if (pin == 107) // endstop Z
 			return !inputFromTcaRegister.Port.P0.bit.Bit7;
 		return false;

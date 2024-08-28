@@ -15,6 +15,7 @@ namespace DigitalInController
     
     int act(cJSON* jsonDocument);
     cJSON* get(cJSON* jsonDocument);
+    bool getDigitalVal(int digitalinid);
     void setup();
     void loop();
 };

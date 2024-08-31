@@ -3,14 +3,6 @@
 #include "PinConfigDefault.h"
 
 
-//#define WIFI
-//#define BLUETOOTH
-//#define BTHID
-#define MOTOR_CONTROLLER
-#define ENCODER_CONTROLLER
-#define LINEAR_ENCODER_CONTROLLER
-#define HOME_MOTOR
-#define USE_I2C
 struct UC2_3_I2CMaster : PinConfig
 {
      /*

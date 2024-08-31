@@ -1,6 +1,7 @@
 #include <PinConfig.h>
 #include "../../config.h"
 #include "FocusMotor.h"
+#include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
 #ifdef USE_TCA9535
@@ -96,7 +97,11 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
+		// @KillerInk should this become a build flag? pinConfig.IS_I2C_MASTER?
 		log_i("start stepper %i", i);
+		if (pinConfig.IS_I2C_MASTER){
+			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+		}
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
@@ -110,6 +115,7 @@ namespace FocusMotor
 		We parse the incoming JSON string to the motor struct and send it via I2C to the correpsonding motor driver
 		// TODO: We could reuse the parseMotorDriveJson function and just add the I2C send function?
 		*/
+		log_i("parseJsonI2C");
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
 		{
@@ -129,7 +135,10 @@ namespace FocusMotor
 					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-					sendMotorDataI2C(*data[s], s); // TODO: This cannot send two motor information simultaenosly
+					if (cstop != NULL)
+						stopStepper(s);
+					else
+						startStepper(s);
 				}
 			}
 			else
@@ -400,7 +409,7 @@ namespace FocusMotor
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 
 		// parse json to motor struct and send over I2C
-		if (pinConfig.I2C_ADD_MOT_X >= 0 or pinConfig.I2C_ADD_MOT_Y >= 0 or pinConfig.I2C_ADD_MOT_Z >= 0 or pinConfig.I2C_ADD_MOT_A >= 0)
+		if (pinConfig.IS_I2C_MASTER)
 		{
 			parseJsonI2C(doc);
 			return qid;
@@ -419,7 +428,7 @@ namespace FocusMotor
 		parseSetPosition(doc);
 
 		// move motor drive
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
 #ifdef HOME_MOTOR
 		parseHome(doc);
@@ -456,28 +465,28 @@ namespace FocusMotor
 		log_i("Setting Up Motor A,X,Y,Z");
 #ifdef USE_FASTACCEL or USE_ACCELSTEP
 		preferences.begin("motor-positions", false);
-		if (pinConfig.MOTOR_A_DIR > 0)
+		if (pinConfig.MOTOR_A_STEP > 0)
 		{
 			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
 			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
 			data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
-		if (pinConfig.MOTOR_X_DIR > 0)
+		if (pinConfig.MOTOR_X_STEP > 0)
 		{
 			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
 			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
 			data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
-		if (pinConfig.MOTOR_Y_DIR > 0)
+		if (pinConfig.MOTOR_Y_STEP > 0)
 		{
 			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
 			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
 			data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
-		if (pinConfig.MOTOR_Z_DIR > 0)
+		if (pinConfig.MOTOR_Z_STEP > 0)
 		{
 			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
@@ -503,7 +512,6 @@ namespace FocusMotor
 			FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 		}
 #endif
-
 		FAccelStep::setupFastAccelStepper();
 #elif defined USE_ACCELSTEP
 #ifdef USE_TCA9535
@@ -524,16 +532,24 @@ namespace FocusMotor
 
 	void loop()
 	{
-#if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
+			bool isRunning = false;
 #ifdef USE_FASTACCEL
-			bool isRunning = FAccelStep::isRunning(i);
+			isRunning = FAccelStep::isRunning(i);
+#elif defined USE_ACCELSTEP
+			isRunning = AccelStep::isRunning(i);
 #endif
-#ifdef USE_ACCELSTEP
-			bool isRunning = AccelStep::isRunning(i);
-#endif
+			// if motor is connected via I2C, we have to pull the data from the slave's register
+			if (pinConfig.IS_I2C_MASTER and pullMotorDataI2CTick > 100)
+			{
+				// log_d("Sending motor pos %i", i);
+				pullMotorDataI2C(i);
+				pullMotorDataI2CTick = 0;
+			} 
+			pullMotorDataI2CTick++;
+
 			if (!isRunning && !data[i]->stopped)
 			{
 				// TODO: REadout register on slave side and check if destination 
@@ -546,8 +562,33 @@ namespace FocusMotor
 				preferences.end();
 			}
 		}
-#endif
 	}
+
+	MotorState pullMotorDataI2C(int axis)
+	{
+		// we pull the data from the slave's register
+		uint8_t slave_addr = axis2address(axis);
+
+		// Request data from the slave but only if inside i2cAddresses
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr)){
+			return MotorState();
+		}
+		
+		Wire.requestFrom(slave_addr, sizeof(MotorState));
+		MotorState motorState; // Initialize with default values
+		// Check if the expected amount of data is received
+		if (Wire.available() == sizeof(MotorState))
+		{
+			Wire.readBytes((uint8_t *)&motorState, sizeof(motorState));
+		}
+		else
+		{
+			log_e("Error: Incorrect data size received");
+		}
+
+		return motorState;
+	}
+
 
 	bool isRunning(int i)
 	{
@@ -616,6 +657,9 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
 #endif
+		if (pinConfig.IS_I2C_MASTER){
+			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+		}
 	}
 
 	void setPosition(Stepper s, int pos)
@@ -639,7 +683,6 @@ namespace FocusMotor
 		log_i("MotorData to axis: %i", axis);
 
 		// TODO: should we have this inside the I2C controller?
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Initialize I2C with defined pins and address
 		Wire.beginTransmission(slave_addr);
 
 		// Cast the structure to a byte array

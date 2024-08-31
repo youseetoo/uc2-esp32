@@ -5,7 +5,10 @@ const long MAX_VELOCITY_A = 20000;
 const long MAX_ACCELERATION_A = 100000;
 const long DEFAULT_ACCELERATION = 500000;
 
-
+struct MotorState {
+	long currentPosition = 0;
+	long isRunning = -1;
+};
 struct MotorData
 {
 	bool directionPinInverted = false;

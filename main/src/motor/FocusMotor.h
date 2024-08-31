@@ -42,7 +42,7 @@ namespace FocusMotor
 	void sendMotorDataI2C(MotorData motorData, int axis);
 	int axis2address(int axis);
 	void sendMotorDataI2C(MotorData motorData, uint8_t axis);
-
+	MotorState pullMotorDataI2C(int axis);
 
 	String motorDataToJson(MotorData motorData);
 	void parseJsonI2C(cJSON *doc);
@@ -50,6 +50,6 @@ namespace FocusMotor
 	static bool power_enable = false;
 
 	static bool isDualAxisZ = false;
-
+	static int pullMotorDataI2CTick = 0;
 	MotorData **getData();
 };

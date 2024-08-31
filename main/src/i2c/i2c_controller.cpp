@@ -13,24 +13,20 @@ using namespace SerialProcess;
 namespace i2c_controller
 {
 #ifdef USE_I2C
+
 	void i2c_scan()
 	{
-		// TODO: We need to ensure that we are in the correct mode (e.g. I2C master mode)
+		// Ensure we start with no stored addresses
+		numDevices = 0;
+
 		byte error, address;
-		int nDevices;
 
 		Serial.println("Scanning...");
 
-		nDevices = 0;
-
 		for (address = 1; address < 127; address++)
 		{
-			// The i2c_scanner uses the return value of
-			// the Write.endTransmisstion to see if
-			// a device did acknowledge to the address.
-
+			// Begin I2C transmission to check if a device acknowledges at this address
 			Wire.beginTransmission(address);
-
 			error = Wire.endTransmission();
 
 			if (error == 0)
@@ -41,20 +37,56 @@ namespace i2c_controller
 				Serial.print(address, HEX);
 				Serial.println("  !");
 
-				nDevices++;
+				// Store the address if the device is found and space is available in the array
+				if (numDevices < MAX_I2C_DEVICES)
+				{
+					i2cAddresses[numDevices] = address;
+					numDevices++;
+				}
+				else
+				{
+					Serial.println("Maximum number of I2C devices reached. Increase MAX_I2C_DEVICES if needed.");
+					break; // Exit the loop if we've reached the maximum storage capacity
+				}
 			}
 			else if (error == 4)
 			{
-				Serial.print("Unknow error at address 0x");
+				Serial.print("Unknown error at address 0x");
 				if (address < 16)
 					Serial.print("0");
 				Serial.println(address, HEX);
 			}
 		}
-		if (nDevices == 0)
+
+		if (numDevices == 0)
 			Serial.println("No I2C devices found\n");
 		else
+		{
+			Serial.print("Found ");
+			Serial.print(numDevices);
+			Serial.println(" I2C devices.");
+			Serial.println("Addresses of detected devices:");
+			for (int i = 0; i < numDevices; i++)
+			{
+				Serial.print("0x");
+				if (i2cAddresses[i] < 16)
+					Serial.print("0");
+				Serial.println(i2cAddresses[i], HEX);
+			}
 			Serial.println("done\n");
+		}
+	}
+
+	bool isAddressInI2CDevices(byte addressToCheck)
+	{
+		for (int i = 0; i < numDevices; i++) // Iterate through the array
+		{
+			if (i2cAddresses[i] == addressToCheck) // Check if the current element matches the address
+			{
+				return true; // Address found in the array
+			}
+		}
+		return false; // Address not found
 	}
 
 	void setup()
@@ -65,12 +97,12 @@ namespace i2c_controller
 			log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
 			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
+			Wire.onRequest(requestEvent);
 		}
 		else if (pinConfig.IS_I2C_MASTER)
 		{
 			// TODO: We need a receiver for the Master too
 			i2c_scan();
-			
 		}
 	}
 
@@ -118,7 +150,6 @@ namespace i2c_controller
 	void sendJsonString(String jsonString, uint8_t slave_addr)
 	{
 		// This sends a json string to the I2C slave under a given address
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // switch to I2C master mode ??
 		int jsonLength = jsonString.length();
 		int totalPackets = (jsonLength + MAX_I2C_BUFFER_SIZE - 3) / (MAX_I2C_BUFFER_SIZE - 3); // Calculate total packets
 
@@ -168,7 +199,7 @@ namespace i2c_controller
 				log_i("  targetPosition: %i", receivedMotorData.targetPosition);
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
-				// if start 
+				// if start
 				FocusMotor::startStepper(0);
 				// if stop
 				FocusMotor::stopStepper(0);
@@ -183,6 +214,38 @@ namespace i2c_controller
 		{
 			// Handle error: I2C controller type not supported
 			log_e("Error: I2C controller type not supported.");
+		}
+	}
+
+	void requestEvent()
+	{
+		// The master request data from the slave
+		log_i("Request Event");
+		// for the motor we would need to send the current position and the state of isRunning
+		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
+		{
+			// The master request data from the slave
+			MotorState motorState;
+			motorState.currentPosition = 0;
+			motorState.isRunning = false;
+			auto focusMotorData = FocusMotor::getData();
+			if (focusMotorData != nullptr && focusMotorData[0] != nullptr)
+			{
+				log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", focusMotorData[0]->currentPosition, !focusMotorData[0]->stopped);
+				motorState.currentPosition = focusMotorData[0]->currentPosition;
+				motorState.isRunning = !focusMotorData[0]->stopped;
+			}
+			else
+			{
+				log_w("Warning: FocusMotor data is null, sending default values");
+			}
+			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
+		}
+		else
+		{
+			// Handle error: I2C controller type not supported
+			log_e("Error: I2C controller type not supported.");
+			Wire.write(0);
 		}
 	}
 

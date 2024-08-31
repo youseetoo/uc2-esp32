@@ -200,7 +200,7 @@
 // Stage scan
 {"task": "/motor_act", "isDualAxisZ": 1, "qid":1}
 {"task": "/motor_act", "isDualAxisZ": 0}
-// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+{"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nStepsPixel": 100, "dStepsPixel": 2, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 256, "dStepsLine": 25, "nStepsPixel": 256, "dStepsPixel": 25, "delayTimeStep": 25, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
@@ -225,7 +225,7 @@
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 2, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 1000, "isabs": 0.0, "isaccel": 1, "isen": true}]}, "qid": 8}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}

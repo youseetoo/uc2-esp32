@@ -211,6 +211,8 @@ struct PinConfig
      int8_t ENC_X_B = disabled;
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_B = disabled;
+     
+     bool isDualAxisZ = false;
 
      // I2c
      bool IS_I2C_MASTER = false;

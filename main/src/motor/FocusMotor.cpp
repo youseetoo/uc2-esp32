@@ -51,6 +51,11 @@ namespace FocusMotor
 		}
 	}
 
+	void setData(int axis, MotorData *mData)
+	{
+		data[axis] = mData;
+	}
+
 #ifdef WIFI
 	void sendUpdateToClients(void *p)
 	{
@@ -99,8 +104,10 @@ namespace FocusMotor
 	{
 		// @KillerInk should this become a build flag? pinConfig.IS_I2C_MASTER?
 		log_i("start stepper %i", i);
-		if (pinConfig.IS_I2C_MASTER){
+		if (pinConfig.IS_I2C_MASTER)
+		{
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+			return;
 		}
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
@@ -136,9 +143,15 @@ namespace FocusMotor
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					if (cstop != NULL)
+					{
+						data[s]->stopped = true;
 						stopStepper(s);
+					}
 					else
+					{
+						data[s]->stopped = false;
 						startStepper(s);
+					}
 				}
 			}
 			else
@@ -169,6 +182,7 @@ namespace FocusMotor
 			{
 				cJSON_ArrayForEach(stp, stprs)
 				{
+					log_i("start stepper from parseMotorDriveJson");
 					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
 					data[s]->qid = cJsonTool::getJsonInt(doc, "qid");
 					data[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
@@ -183,15 +197,6 @@ namespace FocusMotor
 						stopStepper(s);
 					else
 						startStepper(s);
-					/*log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
-						  s,
-						  data[s]->isforever,
-						  data[s]->speed,
-						  data[s]->maxspeed,
-						  data[s]->targetPosition,
-						  data[s]->absolutePosition,
-						  data[s]->isaccelerated,
-						  data[s]->acceleration);*/
 				}
 			}
 			else
@@ -542,17 +547,20 @@ namespace FocusMotor
 			isRunning = AccelStep::isRunning(i);
 #endif
 			// if motor is connected via I2C, we have to pull the data from the slave's register
-			if (pinConfig.IS_I2C_MASTER and pullMotorDataI2CTick > 100)
+			pullMotorDataI2CTick[i]++;
+			if (pinConfig.IS_I2C_MASTER and pullMotorDataI2CTick[i] > 10)
 			{
-				// log_d("Sending motor pos %i", i);
-				pullMotorDataI2C(i);
-				pullMotorDataI2CTick = 0;
-			} 
-			pullMotorDataI2CTick++;
+				log_d("Request Motor State from Motor %i", i);
+				MotorState mMotorState = pullMotorDataI2C(i);
+				isRunning = mMotorState.isRunning;
+				pullMotorDataI2CTick[i] = 0;
+				return;
+				// TODO check if motor is still running and if not, report position to serial
+			}
 
-			if (!isRunning && !data[i]->stopped)
+			if (!isRunning && !data[i]->stopped && !pinConfig.IS_I2C_MASTER)
 			{
-				// TODO: REadout register on slave side and check if destination 
+				// TODO: REadout register on slave side and check if destination
 				// Only send the information when the motor is halting
 				// log_d("Sending motor pos %i", i);
 				stopStepper(i);
@@ -570,10 +578,10 @@ namespace FocusMotor
 		uint8_t slave_addr = axis2address(axis);
 
 		// Request data from the slave but only if inside i2cAddresses
-		if (!i2c_controller::isAddressInI2CDevices(slave_addr)){
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		{	
 			return MotorState();
 		}
-		
 		Wire.requestFrom(slave_addr, sizeof(MotorState));
 		MotorState motorState; // Initialize with default values
 		// Check if the expected amount of data is received
@@ -588,7 +596,6 @@ namespace FocusMotor
 
 		return motorState;
 	}
-
 
 	bool isRunning(int i)
 	{
@@ -657,7 +664,8 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
 #endif
-		if (pinConfig.IS_I2C_MASTER){
+		if (pinConfig.IS_I2C_MASTER)
+		{
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 		}
 	}
@@ -676,8 +684,7 @@ namespace FocusMotor
 #endif
 	}
 
-
-	void sendMotorDataI2C(MotorData motorData, int axis)
+	void sendMotorDataI2C(MotorData motorData, uint8_t axis)
 	{
 		uint8_t slave_addr = axis2address(axis);
 		log_i("MotorData to axis: %i", axis);
@@ -694,7 +701,15 @@ namespace FocusMotor
 		{
 			Wire.write(dataPtr[i]);
 		}
-		Wire.endTransmission();
+		int err = Wire.endTransmission();
+		if (err != 0)
+		{
+			log_e("Error sending motor data to I2C slave at address %i", slave_addr);
+		}
+		else
+		{
+			log_i("Motor data sent to I2C slave at address %i", slave_addr);
+		}
 	}
 
 	int axis2address(int axis)

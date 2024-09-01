@@ -21,7 +21,7 @@ namespace i2c_controller
 
 		byte error, address;
 
-		Serial.println("Scanning...");
+		log_i("Scanning...");
 
 		for (address = 1; address < 127; address++)
 		{
@@ -31,12 +31,7 @@ namespace i2c_controller
 
 			if (error == 0)
 			{
-				Serial.print("I2C device found at address 0x");
-				if (address < 16)
-					Serial.print("0");
-				Serial.print(address, HEX);
-				Serial.println("  !");
-
+				log_i("I2C device found at address 0x%02X  !", address);
 				// Store the address if the device is found and space is available in the array
 				if (numDevices < MAX_I2C_DEVICES)
 				{
@@ -45,35 +40,30 @@ namespace i2c_controller
 				}
 				else
 				{
-					Serial.println("Maximum number of I2C devices reached. Increase MAX_I2C_DEVICES if needed.");
+					log_i("Maximum number of I2C devices reached. Increase MAX_I2C_DEVICES if needed.");
 					break; // Exit the loop if we've reached the maximum storage capacity
 				}
 			}
 			else if (error == 4)
 			{
-				Serial.print("Unknown error at address 0x");
-				if (address < 16)
-					Serial.print("0");
-				Serial.println(address, HEX);
+				log_e("Unknown device found at address 0x%02X  !", address);
 			}
 		}
 
 		if (numDevices == 0)
-			Serial.println("No I2C devices found\n");
+			log_i("No I2C devices found\n");
 		else
 		{
-			Serial.print("Found ");
-			Serial.print(numDevices);
-			Serial.println(" I2C devices.");
-			Serial.println("Addresses of detected devices:");
+			log_i("Found %d I2C devices.", numDevices);
+			log_i("Addresses of detected devices:");
 			for (int i = 0; i < numDevices; i++)
 			{
-				Serial.print("0x");
-				if (i2cAddresses[i] < 16)
-					Serial.print("0");
-				Serial.println(i2cAddresses[i], HEX);
+				if (i2cAddresses[i] < 16) {
+					log_i("0x0%X", i2cAddresses[i]);
+				} else {
+					log_i("0x%X", i2cAddresses[i]);
+				}
 			}
-			Serial.println("done\n");
 		}
 	}
 
@@ -92,7 +82,7 @@ namespace i2c_controller
 	void setup()
 	{
 		// Begin I2C slave communication with the defined pins and address
-		if (pinConfig.IS_I2C_SLAVE and pinConfig.I2C_ADD_SLAVE > 0)
+		if (pinConfig.IS_I2C_SLAVE and pinConfig.I2C_ADD_SLAVE > 0) // this address has to be loaded á la 0,1,2,3 => A,X,Y,Z
 		{
 			log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
 			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
@@ -109,6 +99,12 @@ namespace i2c_controller
 	void loop()
 	{
 		// nothing to do here
+		if (i2cRescanTick > 10000 and pinConfig.IS_I2C_MASTER){
+			log_i("Rescan I2C");
+			i2c_scan();
+			i2cRescanTick = 0;
+		}
+		i2cRescanTick++;
 	}
 
 	int act(cJSON *ob)
@@ -181,28 +177,32 @@ namespace i2c_controller
 	void receiveEvent(int numBytes)
 	{
 		// Master and Slave
-
+		log_i("Receive Event");
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
 			if (numBytes == sizeof(MotorData))
 			{
 				MotorData receivedMotorData;
-
+				int motorAxis = 0; // corresponds to A
 				uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
 				for (int i = 0; i < numBytes; i++)
 				{
 					dataPtr[i] = Wire.read();
 				}
+				// assign the received data to the motor to MotorData *data[4];
+				FocusMotor::setData(motorAxis, &receivedMotorData);
 				log_i("Received MotorData from I2C");
 				log_i("MotorData:");
 				log_i("  currentPosition: %i", receivedMotorData.currentPosition);
 				log_i("  targetPosition: %i", receivedMotorData.targetPosition);
+				log_i("  stopped: %i", receivedMotorData.stopped);
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
 				// if start
-				FocusMotor::startStepper(0);
-				// if stop
-				FocusMotor::stopStepper(0);
+				if (receivedMotorData.stopped)
+					FocusMotor::stopStepper(motorAxis);
+				else
+					FocusMotor::startStepper(motorAxis);
 			}
 			else
 			{

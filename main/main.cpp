@@ -164,7 +164,7 @@ extern "C" void setupApp(void)
 
 	SerialProcess::setup();
 	if(pinConfig.IS_I2C_MASTER){
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL);//, 100000);
 	}
 #ifdef USE_TCA9535	
 	tca_controller::init_tca();

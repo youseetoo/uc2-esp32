@@ -39,7 +39,6 @@ namespace FocusMotor
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
 	void enable(bool en);
-	void sendMotorDataI2C(MotorData motorData, int axis);
 	int axis2address(int axis);
 	void sendMotorDataI2C(MotorData motorData, uint8_t axis);
 	MotorState pullMotorDataI2C(int axis);
@@ -50,6 +49,7 @@ namespace FocusMotor
 	static bool power_enable = false;
 
 	static bool isDualAxisZ = false;
-	static int pullMotorDataI2CTick = 0;
+	static int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
 	MotorData **getData();
+	void setData(int axis, MotorData *data);
 };

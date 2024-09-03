@@ -552,7 +552,6 @@ namespace FocusMotor
 				pullMotorDataI2CTick[i]++;
 				if (pullMotorDataI2CTick[i] > 10)
 				{
-					log_d("Request Motor State from Motor %i", i);
 					MotorState mMotorState = pullMotorDataI2C(i);
 					isRunning = mMotorState.isRunning;
 					pullMotorDataI2CTick[i] = 0;

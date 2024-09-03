@@ -29,13 +29,12 @@ namespace AccelStep
     {
         if (!power_enable)
         {
-            if (pinConfig.I2C_SCL > 0)
+#ifdef USE_TCA9535            
                 _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            else
-            {
+#else
                 pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
                 digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            }
+#endif
             power_enable = true;
             log_i("poweron motors");
         }
@@ -50,12 +49,12 @@ namespace AccelStep
              power_enable) ||
             force)
         {
-            #ifdef USE_TCA9535
-                _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            #else
-                pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
-                digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            #endif
+#ifdef USE_TCA9535
+            _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
+#else
+            pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
+            digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
+#endif
             power_enable = false;
             log_i("poweroff motors");
         }
@@ -74,11 +73,12 @@ namespace AccelStep
 
         if (pinConfig.MOTOR_A_STEP > -1)
         {
-            if (pinConfig.I2C_SCL > 0)
+#ifdef USE_TCA9535
             {
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
             }
-            else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+#else
+            if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR);
             }
@@ -86,17 +86,17 @@ namespace AccelStep
             {
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
             }
+#endif
             getData()[Stepper::A]->isActivated = true;
         }
         if (pinConfig.MOTOR_X_STEP > -1)
         {
-            if (pinConfig.I2C_SCL > 0)
-            {
-                steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-                //[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-                // steppers[Stepper::X]->setPinsInverted(false, false, true);
-            }
-            else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+#ifdef USE_TCA9535
+            steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+            //[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
+            // steppers[Stepper::X]->setPinsInverted(false, false, true);
+#else
+            if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
             }
@@ -104,15 +104,15 @@ namespace AccelStep
             {
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
             }
+#endif
             getData()[Stepper::X]->isActivated = true;
         }
         if (pinConfig.MOTOR_Y_STEP > -1)
         {
-            if (pinConfig.I2C_SCL > 0)
-            {
-                steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-            }
-            else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+#ifdef USE_TCA9535
+            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+#else
+            if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
                 steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR);
             }
@@ -120,15 +120,15 @@ namespace AccelStep
             {
                 steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
             }
+#endif
             getData()[Stepper::Y]->isActivated = true;
         }
         if (pinConfig.MOTOR_Z_STEP > -1)
         {
-            if (pinConfig.I2C_SCL > 0)
-            {
-                steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-            }
-            else if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
+#ifdef USE_TCA9535
+            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+#else
+            if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
             {
                 steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
             }
@@ -136,6 +136,7 @@ namespace AccelStep
             {
                 steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
             }
+#endif
             getData()[Stepper::Z]->isActivated = true;
         }
 
@@ -231,14 +232,13 @@ namespace AccelStep
 
     void driveMotorLoop(int stepperid)
     {
-        taskRunning[stepperid] = true;
         poweron();
         AccelStepper *s = steppers[stepperid];
         s->setMaxSpeed(getData()[stepperid]->maxspeed);
         log_i("Start Task %i", stepperid);
         while (!getData()[stepperid]->stopped)
         {
-            
+
             if (getData()[stepperid]->isforever)
             {
                 s->setSpeed(getData()[stepperid]->speed);

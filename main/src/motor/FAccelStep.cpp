@@ -74,10 +74,9 @@ namespace FAccelStep
         if (getData()[Stepper::Z] == nullptr)
             log_e("Stepper Z getData() NULL");
         engine.init();
-        if (pinConfig.I2C_SCL > 0)
-        {
+#ifdef USE_TCA9535
             engine.setExternalCallForPin(_externalCallForPin);
-        }
+#else
 
         // setup the getData()
         for (int i = 0; i < faststeppers.size(); i++)
@@ -90,40 +89,44 @@ namespace FAccelStep
         // setup the stepper A
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
-            if (pinConfig.I2C_SCL > 0)
+#ifdef USE_TCA9535
                 setupFastAccelStepper(Stepper::A, 100 | PIN_EXTERNAL_FLAG, 104 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
-            else
+#else
                 setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
+#endif
             getData()[Stepper::A]->isActivated = true;
         }
 
         // setup the stepper X
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
-            if (pinConfig.I2C_SCL > 0)
+#ifdef USE_TCA9535
                 setupFastAccelStepper(Stepper::X, 100 | PIN_EXTERNAL_FLAG, 101 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
-            else
+#else
                 setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
+#endif  
             getData()[Stepper::X]->isActivated = true;
         }
 
         // setup the stepper Y
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
-            if (pinConfig.I2C_SCL > 0)
+#if defined USE_TCA9535
                 setupFastAccelStepper(Stepper::Y, 100 | PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
-            else
+#else
                 setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
+#endif
             getData()[Stepper::Y]->isActivated = true;
         }
 
         // setup the stepper Z
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-            if (pinConfig.I2C_SCL > 0)
+#ifdef USE_TCA9535 
                 setupFastAccelStepper(Stepper::Z, 100 | PIN_EXTERNAL_FLAG, 103 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
-            else
+#else
                 setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
+#endif
             getData()[Stepper::Z]->isActivated = true;
         }
     }

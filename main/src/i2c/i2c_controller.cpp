@@ -221,6 +221,7 @@ namespace i2c_controller
 	{
 		// The master request data from the slave
 		log_i("Request Event");
+		int motorAxis = 0;
 		// for the motor we would need to send the current position and the state of isRunning
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
@@ -229,11 +230,11 @@ namespace i2c_controller
 			motorState.currentPosition = 0;
 			motorState.isRunning = false;
 			auto focusMotorData = FocusMotor::getData();
-			if (focusMotorData != nullptr && focusMotorData[0] != nullptr)
+			if (focusMotorData != nullptr && focusMotorData[motorAxis] != nullptr)
 			{
-				log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", focusMotorData[0]->currentPosition, !focusMotorData[0]->stopped);
-				motorState.currentPosition = focusMotorData[0]->currentPosition;
-				motorState.isRunning = !focusMotorData[0]->stopped;
+				log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[motorAxis]->currentPosition, (bool)!focusMotorData[motorAxis]->stopped);
+				motorState.currentPosition = focusMotorData[motorAxis]->currentPosition;
+				motorState.isRunning = !focusMotorData[motorAxis]->stopped;
 			}
 			else
 			{

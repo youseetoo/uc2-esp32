@@ -1,4 +1,5 @@
 #pragma once
+#undef USE_TCA9535
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 

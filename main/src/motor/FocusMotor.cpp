@@ -53,7 +53,7 @@ namespace FocusMotor
 
 	void setData(int axis, MotorData *mData)
 	{
-		data[axis] = mData;
+		getData()[axis] = mData;
 	}
 
 #ifdef WIFI
@@ -469,29 +469,29 @@ namespace FocusMotor
 		// setup motor pins
 		log_i("Setting Up Motor A,X,Y,Z");
 #ifdef USE_FASTACCEL or USE_ACCELSTEP
-		preferences.begin("motor-positions", false);
-		if (pinConfig.MOTOR_A_STEP > 0)
+		preferences.begin("motpos", false);
+		if (pinConfig.MOTOR_A_STEP >= 0)
 		{
 			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
 			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
 			data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
-		if (pinConfig.MOTOR_X_STEP > 0)
+		if (pinConfig.MOTOR_X_STEP >= 0)
 		{
 			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
 			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
 			data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
-		if (pinConfig.MOTOR_Y_STEP > 0)
+		if (pinConfig.MOTOR_Y_STEP >= 0)
 		{
 			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
 			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
 			data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
-		if (pinConfig.MOTOR_Z_STEP > 0)
+		if (pinConfig.MOTOR_Z_STEP >= 0)
 		{
 			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
@@ -512,7 +512,7 @@ namespace FocusMotor
 
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
-		if (pinConfig.I2C_SCL > 0)
+		if (pinConfig.I2C_SCL >= 0)
 		{
 			FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 		}
@@ -520,7 +520,7 @@ namespace FocusMotor
 		FAccelStep::setupFastAccelStepper();
 #elif defined USE_ACCELSTEP
 #ifdef USE_TCA9535
-		if (pinConfig.I2C_SCL > 0)
+		if (pinConfig.I2C_SCL >= 0)
 		{
 			AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 		}
@@ -547,15 +547,18 @@ namespace FocusMotor
 			isRunning = AccelStep::isRunning(i);
 #endif
 			// if motor is connected via I2C, we have to pull the data from the slave's register
-			pullMotorDataI2CTick[i]++;
-			if (pinConfig.IS_I2C_MASTER and pullMotorDataI2CTick[i] > 10)
+			if (pinConfig.IS_I2C_MASTER)
 			{
-				log_d("Request Motor State from Motor %i", i);
-				MotorState mMotorState = pullMotorDataI2C(i);
-				isRunning = mMotorState.isRunning;
-				pullMotorDataI2CTick[i] = 0;
-				return;
-				// TODO check if motor is still running and if not, report position to serial
+				pullMotorDataI2CTick[i]++;
+				if (pullMotorDataI2CTick[i] > 10)
+				{
+					log_d("Request Motor State from Motor %i", i);
+					MotorState mMotorState = pullMotorDataI2C(i);
+					isRunning = mMotorState.isRunning;
+					pullMotorDataI2CTick[i] = 0;
+					return;
+					// TODO check if motor is still running and if not, report position to serial
+				}
 			}
 
 			if (!isRunning && !data[i]->stopped && !pinConfig.IS_I2C_MASTER)
@@ -565,10 +568,12 @@ namespace FocusMotor
 				// log_d("Sending motor pos %i", i);
 				stopStepper(i);
 				sendMotorPos(i, 0);
-				preferences.begin("motor-positions", false);
+				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
+			if (0) Serial.println("Motor "+String(i)+"is running: " + String(isRunning));
+
 		}
 	}
 
@@ -579,7 +584,7 @@ namespace FocusMotor
 
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
-		{	
+		{
 			return MotorState();
 		}
 		Wire.requestFrom(slave_addr, sizeof(MotorState));

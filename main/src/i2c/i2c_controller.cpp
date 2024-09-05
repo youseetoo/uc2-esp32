@@ -183,14 +183,13 @@ namespace i2c_controller
 			if (numBytes == sizeof(MotorData))
 			{
 				MotorData receivedMotorData;
-				int motorAxis = 0; // corresponds to A
 				uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
 				for (int i = 0; i < numBytes; i++)
 				{
 					dataPtr[i] = Wire.read();
 				}
 				// assign the received data to the motor to MotorData *data[4];
-				FocusMotor::setData(motorAxis, &receivedMotorData);
+				FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
 				log_i("Received MotorData from I2C");
 				log_i("MotorData:");
 				log_i("  currentPosition: %i", receivedMotorData.currentPosition);
@@ -200,9 +199,9 @@ namespace i2c_controller
 				// You can process `receivedMotorData` as needed
 				// if start
 				if (receivedMotorData.stopped)
-					FocusMotor::stopStepper(motorAxis);
+					FocusMotor::stopStepper(pinConfig.I2C_MOTOR_AXIS);
 				else
-					FocusMotor::startStepper(motorAxis);
+					FocusMotor::startStepper(pinConfig.I2C_MOTOR_AXIS);
 			}
 			else
 			{
@@ -220,8 +219,7 @@ namespace i2c_controller
 	void requestEvent()
 	{
 		// The master request data from the slave
-		log_i("Request Event");
-		int motorAxis = 0;
+
 		// for the motor we would need to send the current position and the state of isRunning
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
@@ -230,11 +228,12 @@ namespace i2c_controller
 			motorState.currentPosition = 0;
 			motorState.isRunning = false;
 			auto focusMotorData = FocusMotor::getData();
-			if (focusMotorData != nullptr && focusMotorData[motorAxis] != nullptr)
+			if (focusMotorData != nullptr && focusMotorData[pinConfig.I2C_MOTOR_AXIS] != nullptr)
 			{
-				log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[motorAxis]->currentPosition, (bool)!focusMotorData[motorAxis]->stopped);
-				motorState.currentPosition = focusMotorData[motorAxis]->currentPosition;
-				motorState.isRunning = !focusMotorData[motorAxis]->stopped;
+				//log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition, (bool)!focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
+				Serial.println(focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
+				motorState.currentPosition = focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
+				motorState.isRunning = !focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped;
 			}
 			else
 			{
@@ -252,3 +251,102 @@ namespace i2c_controller
 
 #endif
 } // namespace i2c_controller
+
+
+
+/*
+
+READ OUT REGISTERS:
+
+
+#include <Wire.h>
+
+#define SLAVE_ADDRESS 0x08
+
+// Define the number of registers and the data they hold
+#define NUM_REGISTERS 5
+
+// Register array to hold different types of data
+volatile int registers[NUM_REGISTERS] = {0, 1, 2, 3, 4}; // Example initial values
+volatile int currentRegister = 0; // Variable to keep track of which register to respond with
+
+// Function to handle when the master requests data
+void requestEvent() {
+    // Send the current register's data to the master
+    Wire.write((byte*)&registers[currentRegister], sizeof(registers[currentRegister]));
+}
+
+// Function to handle when the master sends data to the slave
+void receiveEvent(int numBytes) {
+    if (numBytes >= 1) {
+        // First byte indicates which register is being addressed
+        currentRegister = Wire.read();
+        if (currentRegister < NUM_REGISTERS && numBytes == 2) {
+            // If there is a second byte, it's the data to write into the register
+            registers[currentRegister] = Wire.read();
+        }
+    }
+}
+
+void setup() {
+    Wire.begin(SLAVE_ADDRESS); // Join I2C bus as slave with address 0x08
+    Wire.onRequest(requestEvent); // Register the request event
+    Wire.onReceive(receiveEvent); // Register the receive event
+
+    Serial.begin(115200);
+}
+
+void loop() {
+    // For demonstration, increment register 0 value every second
+    registers[0]++;
+    delay(1000);
+    Serial.print("Register 0: ");
+    Serial.println(registers[0]);
+}
+
+
+#include <Wire.h>
+
+#define SLAVE_ADDRESS 0x08
+
+int requestedRegister = 0;
+int receivedData = 0;
+
+void requestRegister(int registerNumber) {
+    // Begin transmission to the slave
+    Wire.beginTransmission(SLAVE_ADDRESS);
+    Wire.write(registerNumber); // Send the register number to the slave
+    Wire.endTransmission(false); // End transmission, but keep the connection alive
+
+    // Request the data from the slave (expecting an int size)
+    Wire.requestFrom(SLAVE_ADDRESS, sizeof(receivedData));
+
+    if (Wire.available() >= sizeof(receivedData)) {
+        receivedData = Wire.read(); // Read the data into receivedData
+    }
+
+    // Print the received data to the Serial Monitor
+    Serial.print("Data from register ");
+    Serial.print(registerNumber);
+    Serial.print(": ");
+    Serial.println(receivedData);
+}
+
+void setup() {
+    Wire.begin(); // Join I2C bus as master
+    Serial.begin(115200);
+}
+
+void loop() {
+    // Request data from register 0
+    requestRegister(0);
+    delay(1000); // Wait before requesting again
+
+    // Optionally, request data from other registers
+    requestedRegister = (requestedRegister + 1) % 5; // Cycle through registers 0 to 4
+    requestRegister(requestedRegister);
+    delay(1000);
+}
+
+
+*/

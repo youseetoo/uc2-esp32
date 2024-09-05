@@ -107,13 +107,14 @@ namespace FocusMotor
 		if (pinConfig.IS_I2C_MASTER)
 		{
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
-			return;
 		}
+		else{
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(i);
 #endif
+		}
 	}
 
 	void parseJsonI2C(cJSON *doc)
@@ -144,11 +145,13 @@ namespace FocusMotor
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					if (cstop != NULL)
 					{
+						log_i("stop stepper from parseJsonI2C");
 						data[s]->stopped = true;
 						stopStepper(s);
 					}
 					else
 					{
+						log_i("start stepper from parseJsonI2C");
 						data[s]->stopped = false;
 						startStepper(s);
 					}
@@ -194,9 +197,15 @@ namespace FocusMotor
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					if (cstop != NULL)
+					{
+						log_i("stop stepper from parseMotorDriveJson");
 						stopStepper(s);
+					}
 					else
+					{
+						log_i("start stepper from parseMotorDriveJson");
 						startStepper(s);
+					}
 				}
 			}
 			else
@@ -541,38 +550,55 @@ namespace FocusMotor
 		for (int i = 0; i < 4; i++)
 		{
 			bool isRunning = false;
+			if (getData()[i]->dirPin >= 0 or pinConfig.IS_I2C_MASTER)
+			{
 #ifdef USE_FASTACCEL
-			isRunning = FAccelStep::isRunning(i);
+				isRunning = FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
-			isRunning = AccelStep::isRunning(i);
+				isRunning = AccelStep::isRunning(i);
 #endif
+			}
 			// if motor is connected via I2C, we have to pull the data from the slave's register
 			if (pinConfig.IS_I2C_MASTER)
 			{
 				pullMotorDataI2CTick[i]++;
-				if (pullMotorDataI2CTick[i] > 10)
+				if (pullMotorDataI2CTick[i] > 2)
 				{
+					// TODO: @killerink - should this be done in background to not block the main loop?
 					MotorState mMotorState = pullMotorDataI2C(i);
 					isRunning = mMotorState.isRunning;
+					data[i]->currentPosition = mMotorState.currentPosition;
 					pullMotorDataI2CTick[i] = 0;
-					return;
 					// TODO check if motor is still running and if not, report position to serial
 				}
 			}
 
 			if (!isRunning && !data[i]->stopped && !pinConfig.IS_I2C_MASTER)
 			{
-				// TODO: REadout register on slave side and check if destination
-				// Only send the information when the motor is halting
+				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
+				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 				stopStepper(i);
 				sendMotorPos(i, 0);
 				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
-			if (0) Serial.println("Motor "+String(i)+"is running: " + String(isRunning));
+			else if (!isRunning && !data[i]->stopped && pinConfig.IS_I2C_MASTER)
+			{
+				// TODO: REadout register on slave side and check if destination
+				// Only send the information when the motor is halting
+				// log_d("Sending motor pos %i", i);
+				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				sendMotorPos(i, 0);
+				preferences.begin("motpos", false);
+				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+				preferences.end();
+			}
 
+			
+			if (1)
+				Serial.println("Motor " + String(i) + " is running: " + String(isRunning));
 		}
 	}
 

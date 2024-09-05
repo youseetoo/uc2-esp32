@@ -74,9 +74,10 @@ namespace FAccelStep
         if (getData()[Stepper::Z] == nullptr)
             log_e("Stepper Z getData() NULL");
         engine.init();
+        log_i("FastAccelStepper engine initialized");
 #ifdef USE_TCA9535
             engine.setExternalCallForPin(_externalCallForPin);
-#else
+#endif
 
         // setup the getData()
         for (int i = 0; i < faststeppers.size(); i++)
@@ -92,6 +93,7 @@ namespace FAccelStep
 #ifdef USE_TCA9535
                 setupFastAccelStepper(Stepper::A, 100 | PIN_EXTERNAL_FLAG, 104 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
 #else
+                log_i("setupFastAccelStepper A");
                 setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
 #endif
             getData()[Stepper::A]->isActivated = true;
@@ -103,6 +105,7 @@ namespace FAccelStep
 #ifdef USE_TCA9535
                 setupFastAccelStepper(Stepper::X, 100 | PIN_EXTERNAL_FLAG, 101 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
 #else
+                log_i("setupFastAccelStepper X");
                 setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
 #endif  
             getData()[Stepper::X]->isActivated = true;
@@ -114,6 +117,7 @@ namespace FAccelStep
 #if defined USE_TCA9535
                 setupFastAccelStepper(Stepper::Y, 100 | PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
 #else
+                log_i("setupFastAccelStepper Y");
                 setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
 #endif
             getData()[Stepper::Y]->isActivated = true;
@@ -125,6 +129,7 @@ namespace FAccelStep
 #ifdef USE_TCA9535 
                 setupFastAccelStepper(Stepper::Z, 100 | PIN_EXTERNAL_FLAG, 103 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
 #else
+                log_i("setupFastAccelStepper Z");
                 setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
 #endif
             getData()[Stepper::Z]->isActivated = true;

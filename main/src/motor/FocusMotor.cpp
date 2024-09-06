@@ -573,7 +573,7 @@ namespace FocusMotor
 					data[i]->currentPosition = mMotorState.currentPosition;
 					pullMotorDataI2CTick[i] = 0;
 					// TODO check if motor is still running and if not, report position to serial
-					if (1)
+					if (0)
 						Serial.println("Motor " + String(i) + " is running: " + String(isRunning));
 					if (!isRunning && !data[i]->stopped)
 					{

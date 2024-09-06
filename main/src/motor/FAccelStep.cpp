@@ -17,9 +17,10 @@ namespace FAccelStep
             speed *= -1;
         }
 
+        bool misRunning = faststeppers[i]->isRunning();
         faststeppers[i]->setSpeedInHz(speed);
         faststeppers[i]->setAcceleration(getData()[i]->acceleration);
-        log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
+        log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
 						  i,
 						  getData()[i]->isforever,
 						  getData()[i]->speed,
@@ -27,7 +28,9 @@ namespace FAccelStep
 						  getData()[i]->targetPosition,
 						  getData()[i]->absolutePosition,
 						  getData()[i]->isaccelerated,
-						  getData()[i]->acceleration);
+						  getData()[i]->acceleration, 
+                        getData()[i]->stopped, 
+                        misRunning);
 
         if (getData()[i]->isforever)
         {

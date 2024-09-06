@@ -202,12 +202,14 @@ namespace i2c_controller
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
 				// if start
-				if (receivedMotorData.stopped){
+				if (receivedMotorData.stopped==1){
+					log_i("Stopping motor from I2C");
 					FocusMotor::stopStepper(pinConfig.I2C_MOTOR_AXIS);
-					receivedMotorData.stopped = true;
+					//receivedMotorData.stopped = true;
 				}
 				else{
-					receivedMotorData.stopped = false;
+					log_i("Starting motor from I2C");
+					//receivedMotorData.stopped = false;
 					FocusMotor::startStepper(pinConfig.I2C_MOTOR_AXIS);
 				}
 			}
@@ -235,13 +237,15 @@ namespace i2c_controller
 			MotorState motorState;
 
 			// log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition, (bool)!focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
+			
 			bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
 			long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
-			motorState.currentPosition = currentPosition;
+			Serial.println("motor is running: " + String(isRunning));
+			/*motorState.currentPosition = currentPosition;
 			motorState.isRunning = isRunning;
 			Serial.println("motor is running: " + String(motorState.isRunning));
 			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
-
+			*/
 		}
 		else
 		{

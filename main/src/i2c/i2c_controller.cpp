@@ -58,9 +58,12 @@ namespace i2c_controller
 			log_i("Addresses of detected devices:");
 			for (int i = 0; i < numDevices; i++)
 			{
-				if (i2cAddresses[i] < 16) {
+				if (i2cAddresses[i] < 16)
+				{
 					log_i("0x0%X", i2cAddresses[i]);
-				} else {
+				}
+				else
+				{
 					log_i("0x%X", i2cAddresses[i]);
 				}
 			}
@@ -99,7 +102,8 @@ namespace i2c_controller
 	void loop()
 	{
 		// nothing to do here
-		if (i2cRescanTick > 10000 and pinConfig.IS_I2C_MASTER){
+		if (i2cRescanTick > 10000 and pinConfig.IS_I2C_MASTER)
+		{
 			log_i("Rescan I2C");
 			i2c_scan();
 			i2cRescanTick = 0;
@@ -198,10 +202,14 @@ namespace i2c_controller
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
 				// if start
-				if (receivedMotorData.stopped)
+				if (receivedMotorData.stopped){
 					FocusMotor::stopStepper(pinConfig.I2C_MOTOR_AXIS);
-				else
+					receivedMotorData.stopped = true;
+				}
+				else{
+					receivedMotorData.stopped = false;
 					FocusMotor::startStepper(pinConfig.I2C_MOTOR_AXIS);
+				}
 			}
 			else
 			{
@@ -225,21 +233,15 @@ namespace i2c_controller
 		{
 			// The master request data from the slave
 			MotorState motorState;
-			motorState.currentPosition = 0;
-			motorState.isRunning = false;
-			auto focusMotorData = FocusMotor::getData();
-			if (focusMotorData != nullptr && focusMotorData[pinConfig.I2C_MOTOR_AXIS] != nullptr)
-			{
-				//log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition, (bool)!focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
-				Serial.println(focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
-				motorState.currentPosition = focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
-				motorState.isRunning = !focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped;
-			}
-			else
-			{
-				log_w("Warning: FocusMotor data is null, sending default values");
-			}
+
+			// log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition, (bool)!focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
+			bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
+			long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
+			motorState.currentPosition = currentPosition;
+			motorState.isRunning = isRunning;
+			Serial.println("motor is running: " + String(motorState.isRunning));
 			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
+
 		}
 		else
 		{
@@ -251,8 +253,6 @@ namespace i2c_controller
 
 #endif
 } // namespace i2c_controller
-
-
 
 /*
 
@@ -272,36 +272,36 @@ volatile int currentRegister = 0; // Variable to keep track of which register to
 
 // Function to handle when the master requests data
 void requestEvent() {
-    // Send the current register's data to the master
-    Wire.write((byte*)&registers[currentRegister], sizeof(registers[currentRegister]));
+	// Send the current register's data to the master
+	Wire.write((byte*)&registers[currentRegister], sizeof(registers[currentRegister]));
 }
 
 // Function to handle when the master sends data to the slave
 void receiveEvent(int numBytes) {
-    if (numBytes >= 1) {
-        // First byte indicates which register is being addressed
-        currentRegister = Wire.read();
-        if (currentRegister < NUM_REGISTERS && numBytes == 2) {
-            // If there is a second byte, it's the data to write into the register
-            registers[currentRegister] = Wire.read();
-        }
-    }
+	if (numBytes >= 1) {
+		// First byte indicates which register is being addressed
+		currentRegister = Wire.read();
+		if (currentRegister < NUM_REGISTERS && numBytes == 2) {
+			// If there is a second byte, it's the data to write into the register
+			registers[currentRegister] = Wire.read();
+		}
+	}
 }
 
 void setup() {
-    Wire.begin(SLAVE_ADDRESS); // Join I2C bus as slave with address 0x08
-    Wire.onRequest(requestEvent); // Register the request event
-    Wire.onReceive(receiveEvent); // Register the receive event
+	Wire.begin(SLAVE_ADDRESS); // Join I2C bus as slave with address 0x08
+	Wire.onRequest(requestEvent); // Register the request event
+	Wire.onReceive(receiveEvent); // Register the receive event
 
-    Serial.begin(115200);
+	Serial.begin(115200);
 }
 
 void loop() {
-    // For demonstration, increment register 0 value every second
-    registers[0]++;
-    delay(1000);
-    Serial.print("Register 0: ");
-    Serial.println(registers[0]);
+	// For demonstration, increment register 0 value every second
+	registers[0]++;
+	delay(1000);
+	Serial.print("Register 0: ");
+	Serial.println(registers[0]);
 }
 
 
@@ -313,39 +313,39 @@ int requestedRegister = 0;
 int receivedData = 0;
 
 void requestRegister(int registerNumber) {
-    // Begin transmission to the slave
-    Wire.beginTransmission(SLAVE_ADDRESS);
-    Wire.write(registerNumber); // Send the register number to the slave
-    Wire.endTransmission(false); // End transmission, but keep the connection alive
+	// Begin transmission to the slave
+	Wire.beginTransmission(SLAVE_ADDRESS);
+	Wire.write(registerNumber); // Send the register number to the slave
+	Wire.endTransmission(false); // End transmission, but keep the connection alive
 
-    // Request the data from the slave (expecting an int size)
-    Wire.requestFrom(SLAVE_ADDRESS, sizeof(receivedData));
+	// Request the data from the slave (expecting an int size)
+	Wire.requestFrom(SLAVE_ADDRESS, sizeof(receivedData));
 
-    if (Wire.available() >= sizeof(receivedData)) {
-        receivedData = Wire.read(); // Read the data into receivedData
-    }
+	if (Wire.available() >= sizeof(receivedData)) {
+		receivedData = Wire.read(); // Read the data into receivedData
+	}
 
-    // Print the received data to the Serial Monitor
-    Serial.print("Data from register ");
-    Serial.print(registerNumber);
-    Serial.print(": ");
-    Serial.println(receivedData);
+	// Print the received data to the Serial Monitor
+	Serial.print("Data from register ");
+	Serial.print(registerNumber);
+	Serial.print(": ");
+	Serial.println(receivedData);
 }
 
 void setup() {
-    Wire.begin(); // Join I2C bus as master
-    Serial.begin(115200);
+	Wire.begin(); // Join I2C bus as master
+	Serial.begin(115200);
 }
 
 void loop() {
-    // Request data from register 0
-    requestRegister(0);
-    delay(1000); // Wait before requesting again
+	// Request data from register 0
+	requestRegister(0);
+	delay(1000); // Wait before requesting again
 
-    // Optionally, request data from other registers
-    requestedRegister = (requestedRegister + 1) % 5; // Cycle through registers 0 to 4
-    requestRegister(requestedRegister);
-    delay(1000);
+	// Optionally, request data from other registers
+	requestedRegister = (requestedRegister + 1) % 5; // Cycle through registers 0 to 4
+	requestRegister(requestedRegister);
+	delay(1000);
 }
 
 

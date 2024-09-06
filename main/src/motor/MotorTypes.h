@@ -18,20 +18,18 @@ struct MotorData
 	long targetPosition = 0;
 	long currentPosition = 0;
 	int isforever = false;
-	bool isaccelerated = 0;
+	bool isaccelerated = false;
 	// running relative or aboslute position! gets ignored when isforever is true
 	bool absolutePosition = 0; 	
-	bool stopped = true;
-	// milliseconds to switch off motors after operation
-	int timeoutDisable = 1000;
-	int timeLastActive = 0;
 	bool isEnable = 1; // keeping motor on after job is completed?
 	int qid = -1;
+	bool isStop = false; // stop motor or not
 
 	//flag that indicate if a motor is realy availible and not just a motor wiht no function.
 	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
 	//and its needed to show only true initialized motors inside webui and android app.
 	bool isActivated = 0;
+	bool stopped = true;
 	bool endstop_hit = false;
 
 	// for triggering frame or lineclock

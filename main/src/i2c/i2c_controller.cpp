@@ -193,6 +193,7 @@ namespace i2c_controller
 					dataPtr[i] = Wire.read();
 				}
 				// assign the received data to the motor to MotorData *data[4];
+				Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
 				FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
 				log_i("Received MotorData from I2C");
 				log_i("MotorData:");
@@ -201,17 +202,8 @@ namespace i2c_controller
 				log_i("  stopped: %i", receivedMotorData.stopped);
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
-				// if start
-				if (receivedMotorData.stopped==1){
-					log_i("Stopping motor from I2C");
-					FocusMotor::stopStepper(pinConfig.I2C_MOTOR_AXIS);
-					//receivedMotorData.stopped = true;
-				}
-				else{
-					log_i("Starting motor from I2C");
-					//receivedMotorData.stopped = false;
-					FocusMotor::startStepper(pinConfig.I2C_MOTOR_AXIS);
-				}
+				bool isStop = receivedMotorData.isStop;
+				FocusMotor::toggleStepper(mStepper, isStop);
 			}
 			else
 			{

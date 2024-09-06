@@ -32,9 +32,11 @@ namespace AccelStep
 #ifdef USE_TCA9535            
                 _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
 #else
+            else
+            {
                 pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
                 digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-#endif
+            }
             power_enable = true;
             log_i("poweron motors");
         }

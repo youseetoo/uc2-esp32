@@ -53,7 +53,8 @@ namespace FocusMotor
 
 	void setData(int axis, MotorData *mData)
 	{
-		getData()[axis] = mData;
+		memcpy(data[axis], mData, sizeof(MotorData));
+		// getData()[axis] = mData;
 	}
 
 #ifdef WIFI
@@ -143,17 +144,19 @@ namespace FocusMotor
 					data[s]->absolutePosition = cJsonTool::getJsonInt(stp, key_isabs);
 					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
+					// if cJSON_GetObjectItemCaseSensitive(stp, key_isstop); is not null or true stop the motor
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-					if (cstop != NULL)
+					data[s]->isStop = (cstop != NULL) ? cstop->valueint : false;
+					if (data[s]->isStop)
 					{
 						log_i("stop stepper from parseJsonI2C");
-						data[s]->stopped = true;
+						//data[s]->stopped = true;
 						stopStepper(s);
 					}
 					else
 					{
 						log_i("start stepper from parseJsonI2C");
-						data[s]->stopped = false;
+						//data[s]->stopped = false;
 						startStepper(s);
 					}
 				}
@@ -197,16 +200,8 @@ namespace FocusMotor
 					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-					if (cstop != NULL)
-					{
-						log_i("stop stepper from parseMotorDriveJson");
-						stopStepper(s);
-					}
-					else
-					{
-						log_i("start stepper from parseMotorDriveJson");
-						startStepper(s);
-					}
+					bool isStop = (cstop != NULL) ? cstop->valueint : false;
+					toggleStepper(s, isStop);
 				}
 			}
 			else
@@ -215,6 +210,22 @@ namespace FocusMotor
 		else
 			log_i("Motor json is null");
 
+#endif
+	}
+
+	void toggleStepper(Stepper s, bool isStop)
+	{
+#ifdef MOTOR_CONTROLLER
+		if (isStop)
+		{
+			log_i("stop stepper from parseMotorDriveJson");
+			stopStepper(s);
+		}
+		else
+		{
+			log_i("start stepper from parseMotorDriveJson");
+			startStepper(s);
+		}
 #endif
 	}
 
@@ -551,7 +562,7 @@ namespace FocusMotor
 		for (int i = 0; i < 4; i++)
 		{
 			bool isRunning = false;
-			// we check if the motor was defined 
+			// we check if the motor was defined
 			if (getData()[i]->dirPin >= 0)
 			{
 #ifdef USE_FASTACCEL
@@ -603,7 +614,6 @@ namespace FocusMotor
 					preferences.end();
 				}
 			}
-
 		}
 	}
 

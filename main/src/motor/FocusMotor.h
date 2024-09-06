@@ -42,6 +42,7 @@ namespace FocusMotor
 	int axis2address(int axis);
 	void sendMotorDataI2C(MotorData motorData, uint8_t axis);
 	MotorState pullMotorDataI2C(int axis);
+	void toggleStepper(Stepper s, bool isStop);
 
 	String motorDataToJson(MotorData motorData);
 	void parseJsonI2C(cJSON *doc);

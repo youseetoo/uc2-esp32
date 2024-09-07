@@ -194,16 +194,42 @@ namespace i2c_controller
 				}
 				// assign the received data to the motor to MotorData *data[4];
 				Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
-				FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
+				// FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
+				FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
+				FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
+				FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+				FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+				FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+				FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
+				FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+				FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
+				FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+				// prevent the motor from getting stuck
+				if (FocusMotor::getData()[mStepper]->acceleration <= 0)
+				{
+					FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+				}
+				if (FocusMotor::getData()[mStepper]->speed <= 0)
+				{
+					FocusMotor::getData()[mStepper]->speed = 1000;
+				}
+
+				FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
 				log_i("Received MotorData from I2C");
 				log_i("MotorData:");
-				log_i("  currentPosition: %i", receivedMotorData.currentPosition);
-				log_i("  targetPosition: %i", receivedMotorData.targetPosition);
-				log_i("  stopped: %i", receivedMotorData.stopped);
+				log_i("  qid: %i", (int)FocusMotor::getData()[mStepper]->qid);
+				log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
+				log_i("  targetPosition: %i", (int)FocusMotor::getData()[mStepper]->targetPosition);
+				log_i("  absolutePosition: %i", (bool)FocusMotor::getData()[mStepper]->absolutePosition);
+				log_i("  speed: %i", (int)FocusMotor::getData()[mStepper]->speed);
+				log_i("  acceleration: %i", (bool)FocusMotor::getData()[mStepper]->acceleration);
+				log_i("  isforever: %i", (bool)FocusMotor::getData()[mStepper]->isforever);
+				log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
+				log_i("  isStop: %i", (bool)FocusMotor::getData()[mStepper]->isStop);
+
 				// Now `receivedMotorData` contains the deserialized data
 				// You can process `receivedMotorData` as needed
-				bool isStop = receivedMotorData.isStop;
-				FocusMotor::toggleStepper(mStepper, isStop);
+				// bool isStop = receivedMotorData.isStop;
 			}
 			else
 			{
@@ -227,17 +253,12 @@ namespace i2c_controller
 		{
 			// The master request data from the slave
 			MotorState motorState;
-
-			// log_i("Sending MotorState to I2C, currentPosition: %i, isRunning: %i", (int)focusMotorData[pinConfig.I2C_MOTOR_AXIS]->currentPosition, (bool)!focusMotorData[pinConfig.I2C_MOTOR_AXIS]->stopped);
-			
 			bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
 			long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
-			Serial.println("motor is running: " + String(isRunning));
-			/*motorState.currentPosition = currentPosition;
+			motorState.currentPosition = currentPosition;
 			motorState.isRunning = isRunning;
-			Serial.println("motor is running: " + String(motorState.isRunning));
+			// Serial.println("motor is running: " + String(motorState.isRunning));
 			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
-			*/
 		}
 		else
 		{

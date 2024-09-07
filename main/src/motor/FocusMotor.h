@@ -51,6 +51,7 @@ namespace FocusMotor
 
 	static bool isDualAxisZ = false;
 	static int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
+	static bool waitForFirstRunI2CSlave[4] = {false, false, false, false};
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
 };

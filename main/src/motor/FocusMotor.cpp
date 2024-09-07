@@ -108,6 +108,9 @@ namespace FocusMotor
 		if (pinConfig.IS_I2C_MASTER)
 		{
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			waitForFirstRunI2CSlave[i] = true;
+			getData()[i]->stopped = false;
 		}
 		else
 		{
@@ -147,18 +150,7 @@ namespace FocusMotor
 					// if cJSON_GetObjectItemCaseSensitive(stp, key_isstop); is not null or true stop the motor
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					data[s]->isStop = (cstop != NULL) ? cstop->valueint : false;
-					if (data[s]->isStop)
-					{
-						log_i("stop stepper from parseJsonI2C");
-						//data[s]->stopped = true;
-						stopStepper(s);
-					}
-					else
-					{
-						log_i("start stepper from parseJsonI2C");
-						//data[s]->stopped = false;
-						startStepper(s);
-					}
+					toggleStepper(s, data[s]->isStop);
 				}
 			}
 			else
@@ -569,46 +561,58 @@ namespace FocusMotor
 				isRunning = FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
 				isRunning = AccelStep::isRunning(i);
-				Serial.println("Loop Motor " + String(i) + " is running: " + String(isRunning));
 #endif
+				// Serial.println("Loop Motor " + String(i) + " is running: " + String(isRunning));
 			}
 			// if motor is connected via I2C, we have to pull the data from the slave's register
 			if (pinConfig.IS_I2C_MASTER)
 			{
-				pullMotorDataI2CTick[i]++;
-				if (pullMotorDataI2CTick[i] > 2)
+				if (pullMotorDataI2CTick[i] > 2) // every second loop
 				{
 					// TODO: @killerink - should this be done in background to not block the main loop?
 					MotorState mMotorState = pullMotorDataI2C(i);
 					isRunning = mMotorState.isRunning;
 					data[i]->currentPosition = mMotorState.currentPosition;
 					pullMotorDataI2CTick[i] = 0;
-					// TODO check if motor is still running and if not, report position to serial
-					if (0)
-						Serial.println("Motor " + String(i) + " is running: " + String(isRunning));
-					if (!isRunning && !data[i]->stopped)
-					{
-						// TODO: REadout register on slave side and check if destination
-						// Only send the information when the motor is halting
-						// log_d("Sending motor pos %i", i);
-						log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
-						sendMotorPos(i, 0);
-						getData()[i]->stopped = true;
-						preferences.begin("motpos", false);
-						preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-						preferences.end();
+					if (waitForFirstRunI2CSlave[i])
+					{ // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+						if (isRunning)
+						{
+							waitForFirstRunI2CSlave[i] = false;
+						}
 					}
+					else
+					{
+						// TODO check if motor is still running and if not, report position to serial
+						if (0)
+							log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+						if (!isRunning && !data[i]->stopped)
+						{
+							// TODO: REadout register on slave side and check if destination
+							// Only send the information when the motor is halting
+							// log_d("Sending motor pos %i", i);
+							sendMotorPos(i, 0);
+							getData()[i]->stopped = true;
+							preferences.begin("motpos", false);
+							preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+							preferences.end();
+						}
+					}
+				}
+				else
+				{
+					pullMotorDataI2CTick[i]++;
 				}
 			}
 			else
 			{
-				if (!isRunning && !data[i]->stopped && !pinConfig.IS_I2C_MASTER)
+				if (!isRunning && !data[i]->stopped)
 				{
 					// This is the ordinary case if the motor is not connected via I2C
 					// log_d("Sending motor pos %i", i);
+					log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 					stopStepper(i);
 					sendMotorPos(i, 0);
-					log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 					preferences.begin("motpos", false);
 					preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 					preferences.end();

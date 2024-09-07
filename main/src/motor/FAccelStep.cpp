@@ -8,7 +8,7 @@ namespace FAccelStep
         // enableEnablePin(i);
         if (faststeppers[i] == nullptr)
         {
-            log_e("stepper %i is null",i);
+            log_e("stepper %i is null", i);
             return;
         }
         int speed = getData()[i]->speed;
@@ -17,21 +17,10 @@ namespace FAccelStep
             speed *= -1;
         }
 
-        bool misRunning = faststeppers[i]->isRunning();
         faststeppers[i]->setSpeedInHz(speed);
         faststeppers[i]->setAcceleration(getData()[i]->acceleration);
-        log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
-						  i,
-						  getData()[i]->isforever,
-						  getData()[i]->speed,
-						  getData()[i]->maxspeed,
-						  getData()[i]->targetPosition,
-						  getData()[i]->absolutePosition,
-						  getData()[i]->isaccelerated,
-						  getData()[i]->acceleration, 
-                        getData()[i]->stopped, 
-                        misRunning);
 
+        getData()[i]->stopped = false;
         if (getData()[i]->isforever)
         {
             // run forver (e.g. PSx or initaited via Serial)
@@ -41,7 +30,7 @@ namespace FAccelStep
                 log_i("forward");
                 faststeppers[i]->runForward();
             }
-            else if(getData()[i]->speed < 0)
+            else if (getData()[i]->speed < 0)
             {
                 // run counterclockwise
                 log_i("backward");
@@ -53,17 +42,28 @@ namespace FAccelStep
             if (getData()[i]->absolutePosition == 1)
             {
                 // absolute position coordinates
-                log_i("moveTo %i",getData()[i]->targetPosition);
+                log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
             else if (getData()[i]->absolutePosition == 0)
             {
                 // relative position coordinates
-                log_i("move %i",getData()[i]->targetPosition);
+                log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
             }
         }
-        getData()[i]->stopped = false;
+
+        log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
+              i,
+              getData()[i]->isforever,
+              getData()[i]->speed,
+              getData()[i]->maxspeed,
+              getData()[i]->targetPosition,
+              getData()[i]->absolutePosition,
+              getData()[i]->isaccelerated,
+              getData()[i]->acceleration,
+              getData()[i]->stopped,
+              faststeppers[i]->isRunning());
     }
 
     void setupFastAccelStepper()
@@ -79,7 +79,7 @@ namespace FAccelStep
         engine.init();
         log_i("FastAccelStepper engine initialized");
 #ifdef USE_TCA9535
-            engine.setExternalCallForPin(_externalCallForPin);
+        engine.setExternalCallForPin(_externalCallForPin);
 #endif
 
         // setup the getData()
@@ -94,10 +94,10 @@ namespace FAccelStep
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
 #ifdef USE_TCA9535
-                setupFastAccelStepper(Stepper::A, 100 | PIN_EXTERNAL_FLAG, 104 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
+            setupFastAccelStepper(Stepper::A, 100 | PIN_EXTERNAL_FLAG, 104 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
 #else
-                log_i("setupFastAccelStepper A");
-                setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
+            log_i("setupFastAccelStepper A");
+            setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
 #endif
             getData()[Stepper::A]->isActivated = true;
         }
@@ -106,11 +106,11 @@ namespace FAccelStep
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
 #ifdef USE_TCA9535
-                setupFastAccelStepper(Stepper::X, 100 | PIN_EXTERNAL_FLAG, 101 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
+            setupFastAccelStepper(Stepper::X, 100 | PIN_EXTERNAL_FLAG, 101 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
 #else
-                log_i("setupFastAccelStepper X");
-                setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
-#endif  
+            log_i("setupFastAccelStepper X");
+            setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
+#endif
             getData()[Stepper::X]->isActivated = true;
         }
 
@@ -118,10 +118,10 @@ namespace FAccelStep
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
 #if defined USE_TCA9535
-                setupFastAccelStepper(Stepper::Y, 100 | PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
+            setupFastAccelStepper(Stepper::Y, 100 | PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
 #else
-                log_i("setupFastAccelStepper Y");
-                setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
+            log_i("setupFastAccelStepper Y");
+            setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
 #endif
             getData()[Stepper::Y]->isActivated = true;
         }
@@ -129,11 +129,11 @@ namespace FAccelStep
         // setup the stepper Z
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-#ifdef USE_TCA9535 
-                setupFastAccelStepper(Stepper::Z, 100 | PIN_EXTERNAL_FLAG, 103 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
+#ifdef USE_TCA9535
+            setupFastAccelStepper(Stepper::Z, 100 | PIN_EXTERNAL_FLAG, 103 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
 #else
-                log_i("setupFastAccelStepper Z");
-                setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
+            log_i("setupFastAccelStepper Z");
+            setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
 #endif
             getData()[Stepper::Z]->isActivated = true;
         }
@@ -158,7 +158,7 @@ namespace FAccelStep
             return;
         faststeppers[i]->forceStop();
         faststeppers[i]->stopMove();
-        log_i("stop stepper %i",i);
+        log_i("stop stepper %i", i);
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
@@ -212,6 +212,20 @@ namespace FAccelStep
 
     bool isRunning(int i)
     {
+        /*
+        if (1)
+        {
+            // this always returns false - wtf?!
+            bool isRunning = faststeppers[i]->isRunning();
+            bool isRunningCopy;
+            memcpy(&isRunningCopy, &isRunning, sizeof(bool));
+            Serial.println(isRunningCopy);
+            return isRunningCopy;
+        }
+        else
+        {
+        }
+        */
         return faststeppers[i]->isRunning();
     }
 

@@ -7,7 +7,7 @@ const long DEFAULT_ACCELERATION = 500000;
 
 struct MotorState {
 	long currentPosition = 0;
-	long isRunning = -1;
+	bool isRunning = 0;
 };
 struct MotorData
 {
@@ -20,8 +20,8 @@ struct MotorData
 	int isforever = false;
 	bool isaccelerated = false;
 	// running relative or aboslute position! gets ignored when isforever is true
-	bool absolutePosition = 0; 	
-	bool isEnable = 1; // keeping motor on after job is completed?
+	bool absolutePosition = false; 	
+	bool isEnable = true; // keeping motor on after job is completed?
 	int qid = -1;
 	bool isStop = false; // stop motor or not
 

@@ -102,7 +102,7 @@ namespace i2c_controller
 	void loop()
 	{
 		// nothing to do here
-		if (i2cRescanTick > 10000 and pinConfig.IS_I2C_MASTER)
+		if (i2cRescanTick > i2cRescanAfterNTicks and pinConfig.IS_I2C_MASTER and i2cRescanAfterNTicks > 0)
 		{
 			log_i("Rescan I2C");
 			i2c_scan();
@@ -184,63 +184,121 @@ namespace i2c_controller
 		log_i("Receive Event");
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
-			if (numBytes == sizeof(MotorData))
-			{
-				MotorData receivedMotorData;
-				uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
-				for (int i = 0; i < numBytes; i++)
-				{
-					dataPtr[i] = Wire.read();
-				}
-				// assign the received data to the motor to MotorData *data[4];
-				Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
-				// FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
-				FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
-				FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
-				FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
-				FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
-				FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
-				FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
-				FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
-				FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
-				FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-				// prevent the motor from getting stuck
-				if (FocusMotor::getData()[mStepper]->acceleration <= 0)
-				{
-					FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
-				}
-				if (FocusMotor::getData()[mStepper]->speed <= 0)
-				{
-					FocusMotor::getData()[mStepper]->speed = 1000;
-				}
-
-				FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
-				log_i("Received MotorData from I2C");
-				log_i("MotorData:");
-				log_i("  qid: %i", (int)FocusMotor::getData()[mStepper]->qid);
-				log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
-				log_i("  targetPosition: %i", (int)FocusMotor::getData()[mStepper]->targetPosition);
-				log_i("  absolutePosition: %i", (bool)FocusMotor::getData()[mStepper]->absolutePosition);
-				log_i("  speed: %i", (int)FocusMotor::getData()[mStepper]->speed);
-				log_i("  acceleration: %i", (bool)FocusMotor::getData()[mStepper]->acceleration);
-				log_i("  isforever: %i", (bool)FocusMotor::getData()[mStepper]->isforever);
-				log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
-				log_i("  isStop: %i", (bool)FocusMotor::getData()[mStepper]->isStop);
-
-				// Now `receivedMotorData` contains the deserialized data
-				// You can process `receivedMotorData` as needed
-				// bool isStop = receivedMotorData.isStop;
-			}
-			else
-			{
-				// Handle error: received data size does not match expected size
-				log_e("Error: Received data size does not match MotorData size.");
-			}
+			parseMotorEvent(numBytes);
+		}
+		elif (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLASER)
+		{
+			// Handle incoming data for the laser controller
+			// parseLaserEvent(numBytes);
+		}
+		elif (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLED)
+		{
+			// Handle incoming data for the LED controller
+			// parseLEDEvent(numBytes);
+		}
+		elif (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+		{
+			// Handle incoming data for the motor controller
+			parseDialEvent(numBytes);
 		}
 		else
 		{
 			// Handle error: I2C controller type not supported
 			log_e("Error: I2C controller type not supported.");
+		}
+	}
+
+	void parseDialEvent(int numBytes)
+	{
+
+		// this is a dummy function and will actually be executed on the M5Stack Dial that does not have this firmware yet
+		
+		// incoming command from I2C master will be converted to a dial action
+		if (numBytes == sizeof(DialStateData))
+		{
+			DialStateData receivedDialData;
+			uint8_t *dataPtr = (uint8_t *)&receivedDialData;
+			for (int i = 0; i < numBytes; i++)
+			{
+				dataPtr[i] = Wire.read();
+			}
+			// assign the received data to the dial to DialData *data[4];
+			// Dial::setData(pinConfig.I2C_DIAL_AXIS, &receivedDialData);
+			// prevent the dial from getting stuck
+			if (receivedDialData.resetLastCommand)
+			{
+				// reset the dial
+				// Dial::getData()[pinConfig.I2C_DIAL_AXIS]->resetLastCommand = false;
+			}
+			if (receivedDialData.state > 0)
+			{
+				// do something with the state
+				// Dial::getData()[pinConfig.I2C_DIAL_AXIS]->state = 0;
+			}
+			log_i("Received DialData from I2C");
+		}
+		else
+		{
+			// Handle error: received data size does not match expected size
+			log_e("Error: Received data size does not match DialData size.");
+		}
+	}
+
+
+	void parseMotorEvent(int numBytes)
+	{
+		// incoming command from I2C master will be converted to a motor action
+		if (numBytes == sizeof(MotorData))
+		{
+			MotorData receivedMotorData;
+			uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
+			for (int i = 0; i < numBytes; i++)
+			{
+				dataPtr[i] = Wire.read();
+			}
+			// assign the received data to the motor to MotorData *data[4];
+			Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+			// FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
+			FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
+			FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
+			FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+			FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+			FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+			FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
+			FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+			FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
+			FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+			// prevent the motor from getting stuck
+			if (FocusMotor::getData()[mStepper]->acceleration <= 0)
+			{
+				FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+			}
+			if (FocusMotor::getData()[mStepper]->speed <= 0)
+			{
+				FocusMotor::getData()[mStepper]->speed = 1000;
+			}
+
+			FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
+			log_i("Received MotorData from I2C");
+			log_i("MotorData:");
+			log_i("  qid: %i", (int)FocusMotor::getData()[mStepper]->qid);
+			log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
+			log_i("  targetPosition: %i", (int)FocusMotor::getData()[mStepper]->targetPosition);
+			log_i("  absolutePosition: %i", (bool)FocusMotor::getData()[mStepper]->absolutePosition);
+			log_i("  speed: %i", (int)FocusMotor::getData()[mStepper]->speed);
+			log_i("  acceleration: %i", (bool)FocusMotor::getData()[mStepper]->acceleration);
+			log_i("  isforever: %i", (bool)FocusMotor::getData()[mStepper]->isforever);
+			log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
+			log_i("  isStop: %i", (bool)FocusMotor::getData()[mStepper]->isStop);
+
+			// Now `receivedMotorData` contains the deserialized data
+			// You can process `receivedMotorData` as needed
+			// bool isStop = receivedMotorData.isStop;
+		}
+		else
+		{
+			// Handle error: received data size does not match expected size
+			log_e("Error: Received data size does not match MotorData size.");
 		}
 	}
 

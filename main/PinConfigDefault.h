@@ -58,7 +58,8 @@ enum I2CControllerType : uint8_t
      mGALVO = 15,
      mMESSAGE = 16,
      mDAC = 17,
-     mMOTOR = 18
+     mMOTOR = 18, 
+     mDIAL = 19
 };
 
 struct PinConfig
@@ -234,6 +235,9 @@ struct PinConfig
      int8_t I2C_ADD_LEX_PWM2 = 0x52;
      int8_t I2C_ADD_LEX_PWM3 = 0x53;
      int8_t I2C_ADD_LEX_PWM4 = 0x54;
+
+     // inputs
+     int8_t I2C_ADD_M5_DIAL = 0x60;
 
 
      // SPI

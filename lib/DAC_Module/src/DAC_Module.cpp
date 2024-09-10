@@ -1,5 +1,7 @@
 // Based on https://github.com/krzychb/dac-cosine/blob/master/main/dac-cosine.c
 
+#ifndef ESP32S3_MODEL_XIAO
+#if !defined(ESP32S3_M5Dial)
 #include "DAC_Module.h"
 
 DAC_Module DAC_Module;
@@ -159,3 +161,5 @@ void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int sc
     dac_output_enable(channel);
     #endif
 }
+#endif
+#endif

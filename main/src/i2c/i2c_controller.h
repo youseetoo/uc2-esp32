@@ -4,7 +4,6 @@
 #include "JsonKeys.h"
 #include "Wire.h"
 
-
 namespace i2c_controller
 {
 
@@ -12,6 +11,7 @@ namespace i2c_controller
     static byte i2cAddresses[MAX_I2C_DEVICES]; // Array to store found I2C addresses
     static int numDevices = 0; // Variable to keep track of number of devices found
     static int i2cRescanTick = 0; // Variable to keep track of number of devices found
+    static int i2cRescanAfterNTicks = -1; // Variable to keep track of number of devices found
     void setup();
     void loop();
     int act(cJSON * ob);
@@ -20,4 +20,6 @@ namespace i2c_controller
     void receiveEvent(int numBytes);
     void requestEvent();
     bool isAddressInI2CDevices(byte addressToCheck);
+    void parseDialEvent(int numBytes);
+    void parseMotorEvent(int numBytes);
 };

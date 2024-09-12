@@ -11,7 +11,7 @@
 #include "soc/rtc.h"
 
 #ifndef ESP32S3_MODEL_XIAO
-#if !defined(ESP32S3_M5Dial)
+#if !defined(M5DIAL)
 #include "driver/dac.h"
 #endif
 #endif

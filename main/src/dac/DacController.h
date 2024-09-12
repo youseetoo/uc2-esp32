@@ -12,7 +12,7 @@ namespace DacController
 
     // DAC-specific parameters
     #ifndef ESP32S3_MODEL_XIAO
-    #if !defined(ESP32S3_M5Dial)
+    #if !defined(M5DIAL)
     static dac_channel_t dac_channel = DAC_CHANNEL_1;
     #endif
     #endif

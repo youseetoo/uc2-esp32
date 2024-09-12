@@ -1,7 +1,7 @@
 // Based on https://github.com/krzychb/dac-cosine/blob/master/main/dac-cosine.c
 
 #ifndef ESP32S3_MODEL_XIAO
-#if !defined(ESP32S3_M5Dial)
+#if !defined(M5DIAL)
 #include "DAC_Module.h"
 
 DAC_Module DAC_Module;

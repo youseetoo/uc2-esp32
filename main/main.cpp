@@ -33,7 +33,7 @@
 #ifdef DIGITAL_IN_CONTROLLER
 #include "src/digitalin/DigitalInController.h"
 #endif
-#ifdef DIAL_CONTROLLER
+#ifdef M5DIAL
 #include "src/dial/DialController.h"
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
@@ -82,12 +82,6 @@
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
 #endif
-#ifdef IS_DIAL
-#include <M5Unified.hpp>
-#include <freertos/FreeRTOS.h>
-#include <lvgl.h>
-#include "M5Dial-LVGL.h"
-#endif
 
 
 long lastHeapUpdateTime = 0;
@@ -121,7 +115,7 @@ extern "C" void looper(void *p)
 		DigitalInController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef DIAL_CONTROLLER
+#ifdef M5DIAL
 		DialController::loop();
 		vTaskDelay(1);
 #endif
@@ -206,7 +200,7 @@ extern "C" void setupApp(void)
 #ifdef DIGITAL_IN_CONTROLLER
 	DigitalInController::setup();
 #endif
-#ifdef DIAL_CONTROLLER
+#ifdef M5DIAL
 	DialController::setup();
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
@@ -246,6 +240,8 @@ extern "C" void setupApp(void)
 #ifdef GALVO_CONTROLLER
 	GalvoController::setup();
 #endif
+
+
 }
 extern "C" void app_main(void)
 {

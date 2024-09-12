@@ -5,7 +5,6 @@
 #include "cJsonTool.h"
 #include "../i2c/tca_controller.h"
 
-kjhjkh
 namespace DialController
 {
 	// Custom function accessible by the API
@@ -27,8 +26,18 @@ namespace DialController
 		return monitor_json;
 	}
 
+	void updateDisplay()
+	{
+		M5Dial.Display.clear();
+		M5Dial.Display.drawString(String(axisNames[currentAxis]) + "=" + String(positions[currentAxis]),
+								  M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
+		M5Dial.Display.drawString("Step: " + String(stepSize), M5Dial.Display.width() / 2,
+								  M5Dial.Display.height() / 2 + 30);
+	}
+
 	void pullDialI2C()
 	{
+		/*
 		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
@@ -48,6 +57,7 @@ namespace DialController
 		}
 
 		return motorState;
+		*/
 	}
 
 	void loop()
@@ -83,7 +93,6 @@ namespace DialController
 			if (t.state == 2 or t.state == 7)
 			{ // TOUCH_END
 				long touchDuration = millis() - touchStartTime;
-				USBSerial.printf("Touch duration: %d\n", touchDuration);
 				if (touchDuration < LONG_PRESS_DURATION)
 				{
 					// Short press: switch axis
@@ -123,7 +132,6 @@ namespace DialController
 // For example you can setup the I2C bus
 // or setup the M5Stack Dial
 #ifdef M5DIAL
-		USBSerial.begin(115200); this prevents us from uploading firmware without pushing the boot button 
 		auto cfg = M5.config();
 		M5Dial.begin(cfg, true, false);
 		M5Dial.Display.setTextColor(WHITE);
@@ -132,7 +140,6 @@ namespace DialController
 		M5Dial.Display.setTextSize(1);
 		M5Dial.Display.drawString("X=" + String(positions[currentAxis]), M5Dial.Display.width() / 2,
 								  M5Dial.Display.height() / 2);
-		USBSerial.println("M5Dial setup");
 #endif
 	}
 } // namespace DialController

@@ -27,6 +27,8 @@ OPTION(STAGE_SCAN "StageScan" OFF)
 OPTION(USE_TCA9535 "USE_TCA9535" OFF)
 OPTION(USE_I2C "USE_I2C" OFF)
 OPTION(HEAT_CONTROLLER "USE_TCA9535" OFF)
+OPTION(I2C_MASTER "I2C_MASTER" OFF)
+OPTION(I2C_SLAVE "I2C_SLAVE" OFF)
 
 
 # Copy the correct PinConfig.h file to the main directory depending on the selected configuration in platformio.ini

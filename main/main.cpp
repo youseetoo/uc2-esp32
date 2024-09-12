@@ -33,7 +33,7 @@
 #ifdef DIGITAL_IN_CONTROLLER
 #include "src/digitalin/DigitalInController.h"
 #endif
-#ifdef M5DIAL
+#ifdef DIAL_CONTROLLER
 #include "src/dial/DialController.h"
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
@@ -115,7 +115,7 @@ extern "C" void looper(void *p)
 		DigitalInController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef M5DIAL
+#ifdef DIAL_CONTROLLER
 		DialController::loop();
 		vTaskDelay(1);
 #endif
@@ -200,7 +200,7 @@ extern "C" void setupApp(void)
 #ifdef DIGITAL_IN_CONTROLLER
 	DigitalInController::setup();
 #endif
-#ifdef M5DIAL
+#ifdef DIAL_CONTROLLER
 	DialController::setup();
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER

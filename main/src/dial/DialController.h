@@ -1,5 +1,5 @@
-#include <PinConfig.h>
 #pragma once
+#include <PinConfig.h>
 #include "cJSON.h"
 #include <M5Unified.hpp>
 #include <freertos/FreeRTOS.h>
@@ -35,6 +35,8 @@ namespace DialController
     void pullDialI2C();
     void setup();
     void loop();
+
+    void updateDisplay();
 
     // Array to store X, Y, Z, A positions
     static long positions[4] = {0, 0, 0, 0};

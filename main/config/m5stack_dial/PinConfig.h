@@ -2,7 +2,6 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
-#define M5DIAL
 
 struct UC2_M5StackDial : PinConfig
 {

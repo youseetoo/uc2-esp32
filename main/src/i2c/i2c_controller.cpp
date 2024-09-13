@@ -259,6 +259,7 @@ namespace i2c_controller
 
 	void parseMotorEvent(int numBytes)
 	{
+		#ifdef MOTOR_CONTROLLER
 		// incoming command from I2C master will be converted to a motor action
 		if (numBytes == sizeof(MotorData))
 		{
@@ -312,6 +313,7 @@ namespace i2c_controller
 			// Handle error: received data size does not match expected size
 			log_e("Error: Received data size does not match MotorData size.");
 		}
+		#endif
 	}
 
 	void requestEvent()
@@ -320,7 +322,8 @@ namespace i2c_controller
 
 		// for the motor we would need to send the current position and the state of isRunning
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
-		{
+		{	
+			#ifdef MOTOR_CONTROLLER
 			// The master request data from the slave
 			MotorState motorState;
 			bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
@@ -329,6 +332,9 @@ namespace i2c_controller
 			motorState.isRunning = isRunning;
 			// Serial.println("motor is running: " + String(motorState.isRunning));
 			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
+			#else
+			Wire.write(0);
+			#endif
 		}
 		else
 		{

@@ -4,7 +4,12 @@
 #include "cJsonTool.h"
 #include "JsonKeys.h"
 
+#ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#endif
+#ifdef DIAL_CONTROLLER
+#include "../dial/DialController.h"
+#endif
 
 #include "../serial/SerialProcess.h"
 #define MAX_I2C_BUFFER_SIZE 32
@@ -12,7 +17,6 @@
 using namespace SerialProcess;
 namespace i2c_controller
 {
-#ifdef USE_I2C
 
 	void i2c_scan()
 	{
@@ -85,30 +89,33 @@ namespace i2c_controller
 	void setup()
 	{
 		// Begin I2C slave communication with the defined pins and address
-		if (pinConfig.IS_I2C_SLAVE and pinConfig.I2C_ADD_SLAVE > 0) // this address has to be loaded á la 0,1,2,3 => A,X,Y,Z
+		#ifdef I2C_SLAVE
+		if ( pinConfig.I2C_ADD_SLAVE > 0) // this address has to be loaded á la 0,1,2,3 => A,X,Y,Z
 		{
 			log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
 			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
 			Wire.onRequest(requestEvent);
 		}
-		else if (pinConfig.IS_I2C_MASTER)
-		{
+		#endif
+		#ifdef I2C_MASTER
 			// TODO: We need a receiver for the Master too
 			i2c_scan();
-		}
+		#endif
 	}
 
 	void loop()
 	{
 		// nothing to do here
-		if (i2cRescanTick > i2cRescanAfterNTicks and pinConfig.IS_I2C_MASTER and i2cRescanAfterNTicks > 0)
+		#ifdef I2C_MASTER
+		if (i2cRescanTick > i2cRescanAfterNTicks and i2cRescanAfterNTicks > 0)
 		{
 			log_i("Rescan I2C");
 			i2c_scan();
 			i2cRescanTick = 0;
 		}
 		i2cRescanTick++;
+		#endif
 	}
 
 	int act(cJSON *ob)
@@ -186,17 +193,17 @@ namespace i2c_controller
 		{
 			parseMotorEvent(numBytes);
 		}
-		elif (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLASER)
+		else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLASER)
 		{
 			// Handle incoming data for the laser controller
 			// parseLaserEvent(numBytes);
 		}
-		elif (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLED)
+		else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLED)
 		{
 			// Handle incoming data for the LED controller
 			// parseLEDEvent(numBytes);
 		}
-		elif (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+		else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
 		{
 			// Handle incoming data for the motor controller
 			parseDialEvent(numBytes);
@@ -214,8 +221,10 @@ namespace i2c_controller
 		// this is a dummy function and will actually be executed on the M5Stack Dial that does not have this firmware yet
 		
 		// incoming command from I2C master will be converted to a dial action
-		if (numBytes == sizeof(DialStateData))
+		#ifdef DIAL_CONTROLLER
+		if (numBytes == sizeof(DialController::mPosData))
 		{
+			/*
 			DialStateData receivedDialData;
 			uint8_t *dataPtr = (uint8_t *)&receivedDialData;
 			for (int i = 0; i < numBytes; i++)
@@ -235,6 +244,7 @@ namespace i2c_controller
 				// do something with the state
 				// Dial::getData()[pinConfig.I2C_DIAL_AXIS]->state = 0;
 			}
+			*/
 			log_i("Received DialData from I2C");
 		}
 		else
@@ -242,7 +252,9 @@ namespace i2c_controller
 			// Handle error: received data size does not match expected size
 			log_e("Error: Received data size does not match DialData size.");
 		}
+		#endif
 	}
+
 
 
 	void parseMotorEvent(int numBytes)
@@ -326,7 +338,6 @@ namespace i2c_controller
 		}
 	}
 
-#endif
 } // namespace i2c_controller
 
 /*

@@ -1,6 +1,7 @@
 #pragma once
 #include "esp_err.h"
 #include "Arduino.h"
+#define I2C_MASTER
 // default Pin structure
 
 /*
@@ -216,8 +217,6 @@ struct PinConfig
      bool isDualAxisZ = false;
 
      // I2c
-     bool IS_I2C_MASTER = false;
-     bool IS_I2C_SLAVE = false;
      int8_t I2C_SCL = disabled;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = disabled;
 

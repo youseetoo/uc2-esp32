@@ -1,7 +1,7 @@
 #pragma once
 #include "cJSON.h"
-#include "OneWire.h"; 
-#include "DallasTemperature.h"; 
+#include "OneWire.h" 
+#include "DallasTemperature.h"
 
 
 

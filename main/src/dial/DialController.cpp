@@ -4,7 +4,7 @@
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
 #include "../i2c/tca_controller.h"
-
+#include "../i2c/i2c_controller.h"
 namespace DialController
 {
 	// Custom function accessible by the API
@@ -26,6 +26,18 @@ namespace DialController
 		return monitor_json;
 	}
 
+	DialData getPositionValues()
+	{
+		// Convert the positions array to a DialData struct
+		DialData mDialData;
+		mDialData.pos_abs[0] = positions[0];
+		mDialData.pos_abs[1] = positions[1];
+		mDialData.pos_abs[2] = positions[2];
+		mDialData.pos_abs[3] = positions[3];
+		mDialData.qid = -1;
+		return mDialData;
+	}
+
 	void updateDisplay()
 	{
 		M5Dial.Display.clear();
@@ -35,93 +47,95 @@ namespace DialController
 								  M5Dial.Display.height() / 2 + 30);
 	}
 
-	void pullDialI2C()
+	void pullMotorPosFromDial()
 	{
-		/*
+		// This is the MASTER pulling the data from the DIAL I2C slave (i.e. 4 motor positions)
 		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
+		
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
-			return MotorState();
+			return;
 		}
-		Wire.requestFrom(slave_addr, sizeof(MotorState));
-		MotorState motorState; // Initialize with default values
+		Wire.requestFrom(slave_addr, sizeof(DialData));
+		DialData mDialData;
 		// Check if the expected amount of data is received
-		if (Wire.available() == sizeof(MotorState))
+		if (Wire.available() == sizeof(DialData))
 		{
-			Wire.readBytes((uint8_t *)&motorState, sizeof(motorState));
+			Wire.readBytes((uint8_t *)&mDialData, sizeof(DialData));
 		}
 		else
 		{
-			log_e("Error: Incorrect data size received");
+			log_e("Error: Incorrect data size received in dial Data");
 		}
 
-		return motorState;
-		*/
+		return;
 	}
 
 	void loop()
 	{
 
-		if (pinConfig.IS_I2C_MASTER)
+#ifdef I2C_MASTER
+		if (ticksLastPosPulled >= ticksPosPullInterval)
 		{
-			pullDialI2C(); // here we want to pull the dial data from the I2C bus and assign it to the motors
+			ticksLastPosPulled = 0;
+			// Here we want to pull the dial data from the I2C bus and assign it to the motors
+			pullMotorPosFromDial();
 		}
-		else
-		{
-#ifdef M5DIAL
-			// here we readout the dial values from the M5Stack Dial - so we are the slave
-			M5Dial.update();
+#endif
+#ifdef I2C_SLAVE
+		// here we readout the dial values from the M5Stack Dial - so we are the slave
+		M5Dial.update();
 
-			long newEncoderPos = M5Dial.Encoder.read();
-			if (newEncoderPos != encoderPos)
+		long newEncoderPos = M5Dial.Encoder.read();
+		if (newEncoderPos != encoderPos)
+		{
+			positions[currentAxis] += (newEncoderPos - encoderPos) * stepSize;
+			encoderPos = newEncoderPos;
+			updateDisplay();
+		}
+
+		auto t = M5Dial.Touch.getDetail();
+
+		// Handle touch begin
+		if (t.state == 3)
+		{ // TOUCH_BEGIN
+			touchStartTime = millis();
+		}
+
+		// Handle touch end
+		if (t.state == 2 or t.state == 7)
+		{ // TOUCH_END
+			long touchDuration = millis() - touchStartTime;
+			if (touchDuration < LONG_PRESS_DURATION)
 			{
-				positions[currentAxis] += (newEncoderPos - encoderPos) * stepSize;
-				encoderPos = newEncoderPos;
+				// Short press: switch axis
+				currentAxis = (currentAxis + 1) % 4;
 				updateDisplay();
 			}
-
-			auto t = M5Dial.Touch.getDetail();
-
-			// Handle touch begin
-			if (t.state == 3)
-			{ // TOUCH_BEGIN
-				touchStartTime = millis();
-			}
-
-			// Handle touch end
-			if (t.state == 2 or t.state == 7)
-			{ // TOUCH_END
-				long touchDuration = millis() - touchStartTime;
-				if (touchDuration < LONG_PRESS_DURATION)
+			else if (touchDuration >= 100)
+			{
+				// Long press: change step size
+				if (stepSize == 1)
 				{
-					// Short press: switch axis
-					currentAxis = (currentAxis + 1) % 4;
-					updateDisplay();
+					stepSize = 10;
 				}
-				else if (touchDuration >= 100)
+				else if (stepSize == 10)
 				{
-					// Long press: change step size
-					if (stepSize == 1)
-					{
-						stepSize = 10;
-					}
-					else if (stepSize == 10)
-					{
-						stepSize = 100;
-					}
-					else if (stepSize == 100)
-					{
-						stepSize = 1000;
-					}
-					else
-					{
-						stepSize = 1;
-					}
-					updateDisplay();
+					stepSize = 100;
 				}
+				else if (stepSize == 100)
+				{
+					stepSize = 1000;
+				}
+				else
+				{
+					stepSize = 1;
+				}
+				updateDisplay();
 			}
 		}
+
 #endif
 		// log_i("dial_val_1: %i, dial_val_2: %i, dial_val_3: %i", dial_val_1, dial_val_2, dial_val_3);
 	}
@@ -132,6 +146,11 @@ namespace DialController
 // For example you can setup the I2C bus
 // or setup the M5Stack Dial
 #ifdef M5DIAL
+        mPosData.pos_abs[0] = 0;
+        mPosData.pos_abs[1] = 0;
+        mPosData.pos_abs[2] = 0;
+        mPosData.pos_abs[3] = 0;
+        mPosData.qid = -1;
 		auto cfg = M5.config();
 		M5Dial.begin(cfg, true, false);
 		M5Dial.Display.setTextColor(WHITE);

@@ -103,23 +103,19 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
-		// @KillerInk should this become a build flag? pinConfig.IS_I2C_MASTER?
 		log_i("start stepper %i", i);
-		if (pinConfig.IS_I2C_MASTER)
-		{
+		#ifdef I2C_MASTER
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			waitForFirstRunI2CSlave[i] = true;
 			getData()[i]->stopped = false;
-		}
-		else
-		{
+		#else
 #ifdef USE_FASTACCEL
 			FAccelStep::startFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(i);
 #endif
-		}
+		#endif
 	}
 
 	void parseJsonI2C(cJSON *doc)
@@ -427,11 +423,10 @@ namespace FocusMotor
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 
 		// parse json to motor struct and send over I2C
-		if (pinConfig.IS_I2C_MASTER)
-		{
+		#ifdef I2C_MASTER
 			parseJsonI2C(doc);
 			return qid;
-		}
+		#endif
 
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
@@ -565,8 +560,7 @@ namespace FocusMotor
 				// Serial.println("Loop Motor " + String(i) + " is running: " + String(isRunning));
 			}
 			// if motor is connected via I2C, we have to pull the data from the slave's register
-			if (pinConfig.IS_I2C_MASTER)
-			{
+			#ifdef I2C_MASTER
 				if (pullMotorDataI2CTick[i] > 2) // every second loop
 				{
 					// TODO: @killerink - should this be done in background to not block the main loop?
@@ -603,9 +597,7 @@ namespace FocusMotor
 				{
 					pullMotorDataI2CTick[i]++;
 				}
-			}
-			else
-			{
+			#else
 				if (!isRunning && !data[i]->stopped)
 				{
 					// This is the ordinary case if the motor is not connected via I2C
@@ -617,7 +609,7 @@ namespace FocusMotor
 					preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 					preferences.end();
 				}
-			}
+			#endif
 		}
 	}
 
@@ -713,10 +705,9 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
 #endif
-		if (pinConfig.IS_I2C_MASTER)
-		{
+		#ifdef I2C_MASTER
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
-		}
+		#endif
 	}
 
 	void setPosition(Stepper s, int pos)

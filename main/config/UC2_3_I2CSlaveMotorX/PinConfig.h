@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-
+#define I2C_SLAVE
 /*
 // changing that in the pio.ini enforces recompilation
 #define MOTOR_CONTROLLER
@@ -80,7 +80,6 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
 
      // I2c
      const char *I2C_NAME = "MOTX";
-     bool IS_I2C_SLAVE = true;
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
      int8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  

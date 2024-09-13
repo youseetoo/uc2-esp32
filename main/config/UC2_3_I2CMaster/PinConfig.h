@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-
+#define I2C_MASTER
 
 struct UC2_3_I2CMaster : PinConfig
 {
@@ -66,7 +66,6 @@ struct UC2_3_I2CMaster : PinConfig
      int8_t ENC_Z_B = GPIO_NUM_17;
 
      // I2c
-     bool IS_I2C_MASTER = true;
      int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = GPIO_NUM_21;
 

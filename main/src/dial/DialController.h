@@ -1,19 +1,20 @@
 #pragma once
 #include <PinConfig.h>
 #include "cJSON.h"
-#include <M5Unified.hpp>
 #include <freertos/FreeRTOS.h>
-#include <M5Dial.h>
 #include "../i2c/i2c_controller.h"
 
-
+#ifdef I2C_SLAVE
+#include <M5Unified.hpp>
+#include <M5Dial.h>
+#endif 
 struct DialData {
     // this is the data we will send via I2C from the Dial to the master 
-    long pos_abs[4] = {0, 0, 0, 0}; // the absolute steps the dial has turned since boot (A, X, Y, Z)
-    int qid = -1; // the qid of the dial command
+    int pos_x = 0;
+    int pos_y = 0;
+    int pos_z = 0;
+    int pos_a = 0;
 };
-
-
 
 namespace DialController
 {
@@ -23,12 +24,13 @@ namespace DialController
     void setup();
     void loop();
 
+    void writeTextDisplay(String text);
     void updateDisplay();
     DialData getPositionValues();
     static DialData mPosData;
 
     static int ticksLastPosPulled = 0;
-    static int ticksPosPullInterval = 10; // Pull position from slave every n-times
+    static int ticksPosPullInterval = 50; // Pull position from slave every n-times
 
     // Array to store X, Y, Z, A positions
     static long positions[4] = {0, 0, 0, 0};

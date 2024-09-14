@@ -7,6 +7,7 @@
 #include "esp_task_wdt.h"
 #include "Wire.h"
 
+
 #define WDTIMEOUT 2 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
@@ -83,19 +84,18 @@
 #include "src/heat/HeatController.h"
 #endif
 
-
 long lastHeapUpdateTime = 0;
 
 extern "C" void looper(void *p)
 {
 	log_i("Starting loop");
 	// Enable the watchdog timer to detect and recover from system crashes
-	esp_task_wdt_init(WDTIMEOUT, true);  // Enable panic so ESP32 restarts
-	esp_task_wdt_add(NULL);  // Add current thread to WDT watch
+	esp_task_wdt_init(WDTIMEOUT, true); // Enable panic so ESP32 restarts
+	esp_task_wdt_add(NULL);				// Add current thread to WDT watch
 
 	for (;;)
 	{
-		esp_task_wdt_reset();  // Reset (feed) the watchdog timer
+		esp_task_wdt_reset(); // Reset (feed) the watchdog timer
 		// receive and process serial messages
 		SerialProcess::loop();
 #ifdef ENCODER_CONTROLLER
@@ -130,7 +130,7 @@ extern "C" void looper(void *p)
 #ifdef USE_I2C
 		i2c_controller::loop();
 		vTaskDelay(1);
-#endif 
+#endif
 #ifdef PID_CONTROLLER
 		PidController::loop();
 		vTaskDelay(1);
@@ -149,35 +149,40 @@ extern "C" void looper(void *p)
 #endif
 
 		// process all commands in their modules
-		if ( pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time()){  // 
-			/* code */ 
+		if (pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time())
+		{ //
+			/* code */
 			Serial.print("free heap:");
 			Serial.println(ESP.getFreeHeap());
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 		// Allow other tasks to run and reset the WDT
-        vTaskDelay(pdMS_TO_TICKS(1));
+		vTaskDelay(pdMS_TO_TICKS(1));
 	}
 	vTaskDelete(NULL);
 }
 
 extern "C" void setupApp(void)
 {
-	
-	log_i("SetupApp");
-	// setup debugging level 
-	//esp_log_level_set("*", ESP_LOG_DEBUG); 
-	esp_log_level_set("*", ESP_LOG_NONE);
 
+	log_i("SetupApp");
+	// setup debugging level
+	// esp_log_level_set("*", ESP_LOG_DEBUG);
+	esp_log_level_set("*", ESP_LOG_NONE);
 	SerialProcess::setup();
-	#ifdef I2C_MASTER
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL);//, 100000);
-	#endif
-#ifdef USE_TCA9535	
+#ifdef I2C_MASTER
+	Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); //, 100000);
+#endif
+#ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
 #ifdef USE_I2C
 	i2c_controller::setup();
+#endif
+
+
+#ifdef DIAL_CONTROLLER
+	DialController::setup();
 #endif
 #ifdef MOTOR_CONTROLLER
 	FocusMotor::setup();
@@ -199,9 +204,6 @@ extern "C" void setupApp(void)
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
 	DigitalInController::setup();
-#endif
-#ifdef DIAL_CONTROLLER
-	DialController::setup();
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 	DigitalOutController::setup();
@@ -240,18 +242,17 @@ extern "C" void setupApp(void)
 #ifdef GALVO_CONTROLLER
 	GalvoController::setup();
 #endif
-
-
 }
 extern "C" void app_main(void)
 {
 	// Setzt das Log-Level für alle Tags auf WARNING, um INFO-Nachrichten zu unterdrücken
-    //esp_log_level_set("*", ESP_LOG_WARN);
+	// esp_log_level_set("*", ESP_LOG_WARN);
 
-    // Oder, wenn der Tag bekannt ist, z.B. "gpio", nur für diesen Tag setzen
-    //esp_log_level_set("gpio", ESP_LOG_WARN);
+	// Oder, wenn der Tag bekannt ist, z.B. "gpio", nur für diesen Tag setzen
+	// esp_log_level_set("gpio", ESP_LOG_WARN);
 
 	// Start Serial
+	
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);
 	Serial.setTimeout(50);

@@ -1,8 +1,14 @@
+// if I2C_SLAVE and I2C_MASTer defined at the same time throw an error
+#if defined(I2C_SLAVE) && defined(I2C_MASTER)
+#error "I2C_SLAVE and I2C_MASTER cannot be defined at the same time."
+#endif
+
 #include "i2c_controller.h"
 #include "PinConfig.h"
 #include "Wire.h"
 #include "cJsonTool.h"
 #include "JsonKeys.h"
+#define I2C_SLAVE_ADDR 0x60
 
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
@@ -88,15 +94,13 @@ namespace i2c_controller
 
 	void setup()
 	{
+		
 		// Begin I2C slave communication with the defined pins and address
 		#ifdef I2C_SLAVE
-		if ( pinConfig.I2C_ADD_SLAVE > 0) // this address has to be loaded á la 0,1,2,3 => A,X,Y,Z
-		{
-			log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
+			//log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
 			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
 			Wire.onRequest(requestEvent);
-		}
 		#endif
 		#ifdef I2C_MASTER
 			// TODO: We need a receiver for the Master too
@@ -332,6 +336,22 @@ namespace i2c_controller
 			motorState.isRunning = isRunning;
 			// Serial.println("motor is running: " + String(motorState.isRunning));
 			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
+			#else
+			Wire.write(0);
+			#endif
+		}
+		else if(pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+		{
+			#ifdef DIAL_CONTROLLER
+			// The master request data from the slave
+			DialData dialData;
+			
+			// @KillerInk is there a smarter way to do this?
+			// make a copy of the current dial data
+			dialData = DialController::getPositionValues();
+			Wire.write((uint8_t *)&dialData, sizeof(DialData));
+			// WARNING!! The log_i causes confusion in the I2C communication, but the values are correct
+			//log_i("DialData sent to I2C master: %i, %i, %i, %i", dialData.pos_abs[0], dialData.pos_abs[1], dialData.pos_abs[2], dialData.pos_abs[3]);
 			#else
 			Wire.write(0);
 			#endif

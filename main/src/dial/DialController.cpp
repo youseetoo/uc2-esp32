@@ -5,6 +5,7 @@
 #include "cJsonTool.h"
 #include "../i2c/tca_controller.h"
 #include "../i2c/i2c_controller.h"
+
 namespace DialController
 {
 	// Custom function accessible by the API
@@ -30,21 +31,30 @@ namespace DialController
 	{
 		// Convert the positions array to a DialData struct
 		DialData mDialData;
-		mDialData.pos_abs[0] = positions[0];
-		mDialData.pos_abs[1] = positions[1];
-		mDialData.pos_abs[2] = positions[2];
-		mDialData.pos_abs[3] = positions[3];
-		mDialData.qid = -1;
+		mDialData.pos_a = positions[0];
+		mDialData.pos_x = positions[1];
+		mDialData.pos_y = positions[2];
+		mDialData.pos_z = positions[3];
 		return mDialData;
+	}
+
+	void writeTextDisplay(String text)
+	{
+		#ifdef I2C_SLAVE
+		M5Dial.Display.clear();
+		M5Dial.Display.drawString(text, M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
+		#endif
 	}
 
 	void updateDisplay()
 	{
+		#ifdef I2C_SLAVE
 		M5Dial.Display.clear();
 		M5Dial.Display.drawString(String(axisNames[currentAxis]) + "=" + String(positions[currentAxis]),
 								  M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
 		M5Dial.Display.drawString("Step: " + String(stepSize), M5Dial.Display.width() / 2,
 								  M5Dial.Display.height() / 2 + 30);
+		#endif
 	}
 
 	void pullMotorPosFromDial()
@@ -55,18 +65,22 @@ namespace DialController
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
+			log_e("Error: Dial address not found in i2cAddresses");
 			return;
 		}
 		Wire.requestFrom(slave_addr, sizeof(DialData));
+		//delay(20); // Wait for the data to arrive
+		
 		DialData mDialData;
 		// Check if the expected amount of data is received
 		if (Wire.available() == sizeof(DialData))
 		{
 			Wire.readBytes((uint8_t *)&mDialData, sizeof(DialData));
+			log_i("Received data from dial: %i, %i, %i, %i", mDialData.pos_a, mDialData.pos_x, mDialData.pos_y, mDialData.pos_z);
 		}
 		else
 		{
-			log_e("Error: Incorrect data size received in dial Data");
+			log_e("Error: Incorrect data size received in dial Data. Data size is %i", Wire.available());
 		}
 
 		return;
@@ -74,7 +88,6 @@ namespace DialController
 
 	void loop()
 	{
-
 #ifdef I2C_MASTER
 		if (ticksLastPosPulled >= ticksPosPullInterval)
 		{
@@ -82,6 +95,7 @@ namespace DialController
 			// Here we want to pull the dial data from the I2C bus and assign it to the motors
 			pullMotorPosFromDial();
 		}
+		ticksLastPosPulled++;
 #endif
 #ifdef I2C_SLAVE
 		// here we readout the dial values from the M5Stack Dial - so we are the slave
@@ -145,12 +159,12 @@ namespace DialController
 // Here you can setup the dial controller
 // For example you can setup the I2C bus
 // or setup the M5Stack Dial
-#ifdef M5DIAL
-        mPosData.pos_abs[0] = 0;
-        mPosData.pos_abs[1] = 0;
-        mPosData.pos_abs[2] = 0;
-        mPosData.pos_abs[3] = 0;
-        mPosData.qid = -1;
+
+#ifdef I2C_SLAVE
+        mPosData.pos_a = 0;
+        mPosData.pos_x = 0;
+        mPosData.pos_y = 0;
+        mPosData.pos_z = 0;
 		auto cfg = M5.config();
 		M5Dial.begin(cfg, true, false);
 		M5Dial.Display.setTextColor(WHITE);

@@ -1,7 +1,7 @@
 #pragma once
 #include "esp_err.h"
 #include "Arduino.h"
-#define I2C_MASTER
+
 // default Pin structure
 
 /*

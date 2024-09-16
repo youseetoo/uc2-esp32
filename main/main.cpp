@@ -171,18 +171,16 @@ extern "C" void setupApp(void)
 	esp_log_level_set("*", ESP_LOG_NONE);
 	SerialProcess::setup();
 #ifdef I2C_MASTER
-	Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); //, 100000);
+	Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 400000); // 400 Khz is necessary for the M5Dial
 #endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
-#ifdef USE_I2C
-	i2c_controller::setup();
-#endif
-
-
 #ifdef DIAL_CONTROLLER
 	DialController::setup();
+#endif
+#ifdef USE_I2C
+	i2c_controller::setup();
 #endif
 #ifdef MOTOR_CONTROLLER
 	FocusMotor::setup();

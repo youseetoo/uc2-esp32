@@ -98,7 +98,7 @@ namespace i2c_controller
 		// Begin I2C slave communication with the defined pins and address
 		#ifdef I2C_SLAVE
 			//log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
-			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 400000);
 			Wire.onReceive(receiveEvent);
 			Wire.onRequest(requestEvent);
 		#endif
@@ -228,27 +228,6 @@ namespace i2c_controller
 		#ifdef DIAL_CONTROLLER
 		if (numBytes == sizeof(DialController::mPosData))
 		{
-			/*
-			DialStateData receivedDialData;
-			uint8_t *dataPtr = (uint8_t *)&receivedDialData;
-			for (int i = 0; i < numBytes; i++)
-			{
-				dataPtr[i] = Wire.read();
-			}
-			// assign the received data to the dial to DialData *data[4];
-			// Dial::setData(pinConfig.I2C_DIAL_AXIS, &receivedDialData);
-			// prevent the dial from getting stuck
-			if (receivedDialData.resetLastCommand)
-			{
-				// reset the dial
-				// Dial::getData()[pinConfig.I2C_DIAL_AXIS]->resetLastCommand = false;
-			}
-			if (receivedDialData.state > 0)
-			{
-				// do something with the state
-				// Dial::getData()[pinConfig.I2C_DIAL_AXIS]->state = 0;
-			}
-			*/
 			log_i("Received DialData from I2C");
 		}
 		else
@@ -352,8 +331,7 @@ namespace i2c_controller
 			Wire.write((uint8_t *)&dialData, sizeof(DialData));
 			// WARNING!! The log_i causes confusion in the I2C communication, but the values are correct
 			//log_i("DialData sent to I2C master: %i, %i, %i, %i", dialData.pos_abs[0], dialData.pos_abs[1], dialData.pos_abs[2], dialData.pos_abs[3]);
-			#else
-			Wire.write(0);
+			
 			#endif
 		}
 		else

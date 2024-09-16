@@ -8,13 +8,14 @@
 #include <M5Unified.hpp>
 #include <M5Dial.h>
 #endif 
-struct DialData {
-    // this is the data we will send via I2C from the Dial to the master 
-    int pos_x = 0;
-    int pos_y = 0;
-    int pos_z = 0;
-    int pos_a = 0;
-};
+typedef struct __attribute__((packed))
+{
+    int32_t pos_x = 0;
+    int32_t pos_y = 0;
+    int32_t pos_z = 0;
+    int32_t pos_a = 0;
+} DialData;
+
 
 namespace DialController
 {
@@ -28,7 +29,7 @@ namespace DialController
     void updateDisplay();
     DialData getPositionValues();
     static DialData mPosData;
-
+    
     static int ticksLastPosPulled = 0;
     static int ticksPosPullInterval = 50; // Pull position from slave every n-times
 

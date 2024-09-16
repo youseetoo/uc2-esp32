@@ -61,27 +61,34 @@ namespace DialController
 	{
 		// This is the MASTER pulling the data from the DIAL I2C slave (i.e. 4 motor positions)
 		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
-		
+
+
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			log_e("Error: Dial address not found in i2cAddresses");
 			return;
 		}
-		Wire.requestFrom(slave_addr, sizeof(DialData));
-		//delay(20); // Wait for the data to arrive
-		
 		DialData mDialData;
-		// Check if the expected amount of data is received
+		Wire.requestFrom(slave_addr, sizeof(DialData));
 		if (Wire.available() == sizeof(DialData))
 		{
-			Wire.readBytes((uint8_t *)&mDialData, sizeof(DialData));
-			log_i("Received data from dial: %i, %i, %i, %i", mDialData.pos_a, mDialData.pos_x, mDialData.pos_y, mDialData.pos_z);
-		}
+			Wire.readBytes((char *)&mDialData, sizeof(DialData));
+			Serial.print("Dial data received: X=");
+			Serial.print(mDialData.pos_x);
+			Serial.print(", Y=");
+			Serial.print(mDialData.pos_y);
+			Serial.print(", Z=");
+			Serial.print(mDialData.pos_z);
+			Serial.print(", A=");
+			Serial.println(mDialData.pos_a);
+			}
 		else
 		{
 			log_e("Error: Incorrect data size received in dial Data. Data size is %i", Wire.available());
 		}
+
+
 
 		return;
 	}

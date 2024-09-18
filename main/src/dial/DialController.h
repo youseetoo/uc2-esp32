@@ -28,6 +28,7 @@ namespace DialController
     void writeTextDisplay(String text);
     void updateDisplay();
     DialData getPositionValues();
+    void sendMotorPosI2C();
     static DialData mPosData;
     
     static int ticksLastPosPulled = 0;

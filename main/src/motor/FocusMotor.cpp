@@ -23,6 +23,9 @@
 #include "../i2c/i2c_controller.h"
 #include "WiFi.h"
 #endif
+#ifdef DIAL_CONTROLLER
+#include "../dial/DialController.h"
+#endif
 
 namespace FocusMotor
 {
@@ -104,7 +107,7 @@ namespace FocusMotor
 	void startStepper(int i)
 	{
 		log_i("start stepper %i", i);
-		#ifdef I2C_MASTER
+		#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			waitForFirstRunI2CSlave[i] = true;
@@ -423,7 +426,7 @@ namespace FocusMotor
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 
 		// parse json to motor struct and send over I2C
-		#ifdef I2C_MASTER
+		#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
 			parseJsonI2C(doc);
 			return qid;
 		#endif
@@ -560,7 +563,7 @@ namespace FocusMotor
 				// Serial.println("Loop Motor " + String(i) + " is running: " + String(isRunning));
 			}
 			// if motor is connected via I2C, we have to pull the data from the slave's register
-			#ifdef I2C_MASTER
+			#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
 				if (pullMotorDataI2CTick[i] > 2) // every second loop
 				{
 					// TODO: @killerink - should this be done in background to not block the main loop?
@@ -655,6 +658,10 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::updateData(i);
 #endif
+
+#ifdef DIAL_CONTROLLER
+		DialController::sendMotorPosI2C();
+#endif
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
 			return; // Handle allocation failure
@@ -705,7 +712,7 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
 #endif
-		#ifdef I2C_MASTER
+		#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
 			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 		#endif
 	}

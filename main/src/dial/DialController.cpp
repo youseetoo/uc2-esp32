@@ -1,5 +1,6 @@
 #include <PinConfig.h>
 #include "DialController.h"
+#include "../motor/FocusMotor.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
@@ -40,20 +41,41 @@ namespace DialController
 
 	void writeTextDisplay(String text)
 	{
-		#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE
 		M5Dial.Display.clear();
 		M5Dial.Display.drawString(text, M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
-		#endif
+#endif
 	}
 
 	void updateDisplay()
 	{
-		#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE
 		M5Dial.Display.clear();
 		M5Dial.Display.drawString(String(axisNames[currentAxis]) + "=" + String(positions[currentAxis]),
 								  M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
 		M5Dial.Display.drawString("Step: " + String(stepSize), M5Dial.Display.width() / 2,
 								  M5Dial.Display.height() / 2 + 30);
+#endif
+	}
+
+	void pushMotorPosToDial()
+	{
+		#ifdef I2C_MASTER
+		// This is the Master pushing the data to the DIAL I2C slave (i.e. 4 motor positions) to sync the display with the motors
+		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		{
+			log_e("Error: Dial address not found in i2cAddresses");
+			return;
+		}
+		log_i("Pushing motor positions to dial");
+		Wire.beginTransmission(slave_addr);
+		mPosData.pos_a = FocusMotor::getData()[0]->currentPosition;
+		mPosData.pos_x = FocusMotor::getData()[1]->currentPosition;
+		mPosData.pos_y = FocusMotor::getData()[2]->currentPosition;
+		mPosData.pos_z = FocusMotor::getData()[3]->currentPosition;
+		Wire.write((uint8_t *)&mPosData, sizeof(DialData));
+		Wire.endTransmission();
 		#endif
 	}
 
@@ -61,7 +83,6 @@ namespace DialController
 	{
 		// This is the MASTER pulling the data from the DIAL I2C slave (i.e. 4 motor positions)
 		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
-
 
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
@@ -71,24 +92,44 @@ namespace DialController
 		}
 		DialData mDialData;
 		Wire.requestFrom(slave_addr, sizeof(DialData));
-		if (Wire.available() == sizeof(DialData))
+		delay(5);
+		int dataSize = Wire.available();
+		if (dataSize == sizeof(DialData))
 		{
 			Wire.readBytes((char *)&mDialData, sizeof(DialData));
-			Serial.print("Dial data received: X=");
-			Serial.print(mDialData.pos_x);
-			Serial.print(", Y=");
-			Serial.print(mDialData.pos_y);
-			Serial.print(", Z=");
-			Serial.print(mDialData.pos_z);
-			Serial.print(", A=");
-			Serial.println(mDialData.pos_a);
+
+			// compare the current position of the motor with the dial state and drive the motor to the dial state
+			for (int iMotor = 0; iMotor < 4; iMotor++)
+			{
+				long position2go = 0;
+				if (iMotor == 0)
+					position2go = mDialData.pos_a;
+				if (iMotor == 1)
+					position2go = mDialData.pos_x;
+				if (iMotor == 2)
+					position2go = mDialData.pos_y;
+				if (iMotor == 3)
+					position2go = mDialData.pos_z;
+				// assign the dial state to the motor
+				if (FocusMotor::getData()[iMotor]->currentPosition == position2go)
+					continue;
+				log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
+				FocusMotor::getData()[iMotor]->absolutePosition = 1;
+				FocusMotor::getData()[iMotor]->targetPosition = position2go;
+				FocusMotor::getData()[iMotor]->isforever = 0;
+				FocusMotor::getData()[iMotor]->isaccelerated = 1;
+				FocusMotor::getData()[iMotor]->acceleration = 10000;
+				FocusMotor::getData()[iMotor]->speed = 5000;
+				FocusMotor::getData()[iMotor]->isEnable = 1;
+				FocusMotor::getData()[iMotor]->qid = 0;
+				FocusMotor::getData()[iMotor]->isStop = 0;
+				FocusMotor::startStepper(iMotor);
 			}
+		}
 		else
 		{
-			log_e("Error: Incorrect data size received in dial Data. Data size is %i", Wire.available());
+			log_e("Error: Incorrect data size received in dial from address %i. Data size is %i", slave_addr, dataSize);
 		}
-
-
 
 		return;
 	}
@@ -161,17 +202,36 @@ namespace DialController
 		// log_i("dial_val_1: %i, dial_val_2: %i, dial_val_3: %i", dial_val_1, dial_val_2, dial_val_3);
 	}
 
+	void sendMotorPosI2C()
+	{
+		return;
+		// This is the Master pushing the data to the DIAL I2C slave (i.e. 4 motor positions) to sync the display with the motors
+		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		{
+			log_e("Error: Dial address not found in i2cAddresses");
+			return;
+		}
+		Wire.beginTransmission(slave_addr);
+		mPosData.pos_a = FocusMotor::getData()[0]->currentPosition;
+		mPosData.pos_x = FocusMotor::getData()[1]->currentPosition;
+		mPosData.pos_y = FocusMotor::getData()[2]->currentPosition;
+		mPosData.pos_z = FocusMotor::getData()[3]->currentPosition;
+		Wire.write((uint8_t *)&mPosData, sizeof(DialData));
+		Wire.endTransmission();
+	}
+
 	void setup()
 	{
-// Here you can setup the dial controller
-// For example you can setup the I2C bus
-// or setup the M5Stack Dial
+		// Here you can setup the dial controller
+		// For example you can setup the I2C bus
+		// or setup the M5Stack Dial
 
 #ifdef I2C_SLAVE
-        mPosData.pos_a = 0;
-        mPosData.pos_x = 0;
-        mPosData.pos_y = 0;
-        mPosData.pos_z = 0;
+		mPosData.pos_a = 0;
+		mPosData.pos_x = 0;
+		mPosData.pos_y = 0;
+		mPosData.pos_z = 0;
 		auto cfg = M5.config();
 		M5Dial.begin(cfg, true, false);
 		M5Dial.Display.setTextColor(WHITE);

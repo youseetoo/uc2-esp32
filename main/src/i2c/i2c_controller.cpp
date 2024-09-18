@@ -98,7 +98,7 @@ namespace i2c_controller
 		// Begin I2C slave communication with the defined pins and address
 		#ifdef I2C_SLAVE
 			//log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
-			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 400000);
+			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 			Wire.onReceive(receiveEvent);
 			Wire.onRequest(requestEvent);
 		#endif
@@ -222,13 +222,11 @@ namespace i2c_controller
 	void parseDialEvent(int numBytes)
 	{
 
-		// this is a dummy function and will actually be executed on the M5Stack Dial that does not have this firmware yet
-		
-		// incoming command from I2C master will be converted to a dial action
+		// We will receive the array of 4 positions from the master and have to update the dial display
 		#ifdef DIAL_CONTROLLER
 		if (numBytes == sizeof(DialController::mPosData))
 		{
-			log_i("Received DialData from I2C");
+			log_i("Received DialData fr<  om I2C");
 		}
 		else
 		{
@@ -344,99 +342,3 @@ namespace i2c_controller
 
 } // namespace i2c_controller
 
-/*
-
-READ OUT REGISTERS:
-
-
-#include <Wire.h>
-
-#define SLAVE_ADDRESS 0x08
-
-// Define the number of registers and the data they hold
-#define NUM_REGISTERS 5
-
-// Register array to hold different types of data
-volatile int registers[NUM_REGISTERS] = {0, 1, 2, 3, 4}; // Example initial values
-volatile int currentRegister = 0; // Variable to keep track of which register to respond with
-
-// Function to handle when the master requests data
-void requestEvent() {
-	// Send the current register's data to the master
-	Wire.write((byte*)&registers[currentRegister], sizeof(registers[currentRegister]));
-}
-
-// Function to handle when the master sends data to the slave
-void receiveEvent(int numBytes) {
-	if (numBytes >= 1) {
-		// First byte indicates which register is being addressed
-		currentRegister = Wire.read();
-		if (currentRegister < NUM_REGISTERS && numBytes == 2) {
-			// If there is a second byte, it's the data to write into the register
-			registers[currentRegister] = Wire.read();
-		}
-	}
-}
-
-void setup() {
-	Wire.begin(SLAVE_ADDRESS); // Join I2C bus as slave with address 0x08
-	Wire.onRequest(requestEvent); // Register the request event
-	Wire.onReceive(receiveEvent); // Register the receive event
-
-	Serial.begin(115200);
-}
-
-void loop() {
-	// For demonstration, increment register 0 value every second
-	registers[0]++;
-	delay(1000);
-	Serial.print("Register 0: ");
-	Serial.println(registers[0]);
-}
-
-
-#include <Wire.h>
-
-#define SLAVE_ADDRESS 0x08
-
-int requestedRegister = 0;
-int receivedData = 0;
-
-void requestRegister(int registerNumber) {
-	// Begin transmission to the slave
-	Wire.beginTransmission(SLAVE_ADDRESS);
-	Wire.write(registerNumber); // Send the register number to the slave
-	Wire.endTransmission(false); // End transmission, but keep the connection alive
-
-	// Request the data from the slave (expecting an int size)
-	Wire.requestFrom(SLAVE_ADDRESS, sizeof(receivedData));
-
-	if (Wire.available() >= sizeof(receivedData)) {
-		receivedData = Wire.read(); // Read the data into receivedData
-	}
-
-	// Print the received data to the Serial Monitor
-	Serial.print("Data from register ");
-	Serial.print(registerNumber);
-	Serial.print(": ");
-	Serial.println(receivedData);
-}
-
-void setup() {
-	Wire.begin(); // Join I2C bus as master
-	Serial.begin(115200);
-}
-
-void loop() {
-	// Request data from register 0
-	requestRegister(0);
-	delay(1000); // Wait before requesting again
-
-	// Optionally, request data from other registers
-	requestedRegister = (requestedRegister + 1) % 5; // Cycle through registers 0 to 4
-	requestRegister(requestedRegister);
-	delay(1000);
-}
-
-
-*/

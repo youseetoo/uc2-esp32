@@ -171,9 +171,6 @@ extern "C" void setupApp(void)
 	// esp_log_level_set("*", ESP_LOG_DEBUG);
 	esp_log_level_set("*", ESP_LOG_NONE);
 	SerialProcess::setup();
-#ifdef I2C_MASTER
-	Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
-#endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif

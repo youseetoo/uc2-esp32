@@ -103,7 +103,8 @@ namespace i2c_controller
 			Wire.onRequest(requestEvent);
 		#endif
 		#ifdef I2C_MASTER
-			// TODO: We need a receiver for the Master too
+			// if TCA is active wire doesn't work
+			Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
 			i2c_scan();
 		#endif
 	}

@@ -92,7 +92,6 @@ namespace DialController
 		}
 		DialData mDialData;
 		Wire.requestFrom(slave_addr, sizeof(DialData));
-		delay(5);
 		int dataSize = Wire.available();
 		if (dataSize == sizeof(DialData))
 		{
@@ -114,16 +113,19 @@ namespace DialController
 				if (FocusMotor::getData()[iMotor]->currentPosition == position2go)
 					continue;
 				log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
-				FocusMotor::getData()[iMotor]->absolutePosition = 1;
-				FocusMotor::getData()[iMotor]->targetPosition = position2go;
-				FocusMotor::getData()[iMotor]->isforever = 0;
-				FocusMotor::getData()[iMotor]->isaccelerated = 1;
-				FocusMotor::getData()[iMotor]->acceleration = 10000;
-				FocusMotor::getData()[iMotor]->speed = 5000;
-				FocusMotor::getData()[iMotor]->isEnable = 1;
-				FocusMotor::getData()[iMotor]->qid = 0;
-				FocusMotor::getData()[iMotor]->isStop = 0;
-				FocusMotor::startStepper(iMotor);
+
+				// Here we drive the motor to the dial state
+				Stepper mStepper = static_cast<Stepper>(iMotor);
+				FocusMotor::getData()[mStepper]->absolutePosition = 1;
+				FocusMotor::getData()[mStepper]->targetPosition = position2go;
+				FocusMotor::getData()[mStepper]->isforever = 0;
+				FocusMotor::getData()[mStepper]->isaccelerated = 1;
+				FocusMotor::getData()[mStepper]->acceleration = 10000;
+				FocusMotor::getData()[mStepper]->speed = 10000;
+				FocusMotor::getData()[mStepper]->isEnable = 1;
+				FocusMotor::getData()[mStepper]->qid = 0;
+				FocusMotor::getData()[mStepper]->isStop = 0;
+				FocusMotor::startStepper(mStepper);
 			}
 		}
 		else

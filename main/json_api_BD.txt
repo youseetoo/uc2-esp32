@@ -222,19 +222,19 @@
         ]
     }
 }
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":100000, "position": 10000,  "isabs": 1}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":1000, "position": 10000,  "isabs": 0}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": 10000, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 1000, "speed": 1000, "isabs": 0.0, "isaccel": 1, "isen": true}]}, "qid": 8}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
-{"task": "/motor_act","qid":3,"motor":{"steppers": [{"stepperid": 1, "position": 400, "speed": 10000, "isabs": 0, "isaccel": 0, "isen": true}]}}
+{"task": "/motor_act","qid":3,"motor":{"steppers": [{"stepperid": 2, "position": 400, "speed": 10000, "isabs": 0, "isaccel": 0, "isen": true}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 1, "position": 400, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
-{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": 20090, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": -20090, "speed": 20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 
 {"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 20000} ]}}
 {"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}

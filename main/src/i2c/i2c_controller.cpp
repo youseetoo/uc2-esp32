@@ -261,7 +261,6 @@ namespace i2c_controller
 			FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
 			FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
 			FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
-			FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
 			FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
 			// prevent the motor from getting stuck
 			if (FocusMotor::getData()[mStepper]->acceleration <= 0)

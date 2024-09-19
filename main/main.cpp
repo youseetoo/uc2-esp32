@@ -1,4 +1,3 @@
-//#undef USE_TCA9535
 #include "esp_log.h"
 #include <PinConfig.h>
 #include "src/config/ConfigController.h"
@@ -171,14 +170,14 @@ extern "C" void setupApp(void)
 	// esp_log_level_set("*", ESP_LOG_DEBUG);
 	esp_log_level_set("*", ESP_LOG_NONE);
 	SerialProcess::setup();
+#ifdef USE_I2C
+	i2c_controller::setup();
+#endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
 #ifdef DIAL_CONTROLLER
 	DialController::setup();
-#endif
-#ifdef USE_I2C
-	i2c_controller::setup();
 #endif
 #ifdef MOTOR_CONTROLLER
 	FocusMotor::setup();

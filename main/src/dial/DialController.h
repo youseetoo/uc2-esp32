@@ -32,7 +32,7 @@ namespace DialController
     static DialData mPosData;
     
     static int ticksLastPosPulled = 0;
-    static int ticksPosPullInterval = 50; // Pull position from slave every n-times
+    static int ticksPosPullInterval = 5; // Pull position from slave every n-times
 
     // Array to store X, Y, Z, A positions
     static long positions[4] = {0, 0, 0, 0};

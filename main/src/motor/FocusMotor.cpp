@@ -107,18 +107,18 @@ namespace FocusMotor
 	void startStepper(int i)
 	{
 		log_i("start stepper %i", i);
-		#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
-			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			waitForFirstRunI2CSlave[i] = true;
-			getData()[i]->stopped = false;
-		#else
+#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+		sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+		// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+		waitForFirstRunI2CSlave[i] = true;
+		getData()[i]->stopped = false;
+#else
 #ifdef USE_FASTACCEL
-			FAccelStep::startFastAccelStepper(i);
+		FAccelStep::startFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
-			AccelStep::startAccelStepper(i);
+		AccelStep::startAccelStepper(i);
 #endif
-		#endif
+#endif
 	}
 
 	void parseJsonI2C(cJSON *doc)
@@ -425,11 +425,11 @@ namespace FocusMotor
 		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 
-		// parse json to motor struct and send over I2C
-		#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
-			parseJsonI2C(doc);
-			return qid;
-		#endif
+// parse json to motor struct and send over I2C
+#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+		parseJsonI2C(doc);
+		return qid;
+#endif
 
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
@@ -523,18 +523,13 @@ namespace FocusMotor
 
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
-		if (pinConfig.I2C_SCL >= 0)
-		{
-			FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
-		}
+		log_i("Setting external pin for FastAccelStepper");
+		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 #endif
 		FAccelStep::setupFastAccelStepper();
 #elif defined USE_ACCELSTEP
 #ifdef USE_TCA9535
-		if (pinConfig.I2C_SCL >= 0)
-		{
-			AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
-		}
+		AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 #endif
 		AccelStep::setupAccelStepper();
 #endif
@@ -562,62 +557,64 @@ namespace FocusMotor
 #endif
 				// Serial.println("Loop Motor " + String(i) + " is running: " + String(isRunning));
 			}
-			// if motor is connected via I2C, we have to pull the data from the slave's register
-			#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
-				if (pullMotorDataI2CTick[i] > 2) // every second loop
-				{
-					// TODO: @killerink - should this be done in background to not block the main loop?
-					MotorState mMotorState = pullMotorDataI2C(i);
-					isRunning = mMotorState.isRunning;
-					data[i]->currentPosition = mMotorState.currentPosition;
-					pullMotorDataI2CTick[i] = 0;
-					if (waitForFirstRunI2CSlave[i])
-					{ // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-						if (isRunning)
-						{
-							waitForFirstRunI2CSlave[i] = false;
-						}
-					}
-					else
+// if motor is connected via I2C, we have to pull the data from the slave's register
+#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+			if (pullMotorDataI2CTick[i] > 2) // every second loop
+			{
+				// TODO: @killerink - should this be done in background to not block the main loop?
+				MotorState mMotorState = pullMotorDataI2C(i);
+				isRunning = mMotorState.isRunning;
+				data[i]->currentPosition = mMotorState.currentPosition;
+				pullMotorDataI2CTick[i] = 0;
+				if (waitForFirstRunI2CSlave[i])
+				{ // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+					if (isRunning)
 					{
-						// TODO check if motor is still running and if not, report position to serial
-						if (0)
-							log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
-						if (!isRunning && !data[i]->stopped)
-						{
-							// TODO: REadout register on slave side and check if destination
-							// Only send the information when the motor is halting
-							// log_d("Sending motor pos %i", i);
-							sendMotorPos(i, 0);
-							getData()[i]->stopped = true;
-							preferences.begin("motpos", false);
-							preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-							preferences.end();
-						}
+						waitForFirstRunI2CSlave[i] = false;
 					}
 				}
 				else
 				{
-					pullMotorDataI2CTick[i]++;
+					// TODO check if motor is still running and if not, report position to serial
+					if (0)
+						log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+					if (!isRunning && !data[i]->stopped)
+					{
+						// TODO: REadout register on slave side and check if destination
+						// Only send the information when the motor is halting
+						// log_d("Sending motor pos %i", i);
+						sendMotorPos(i, 0);
+						getData()[i]->stopped = true;
+						preferences.begin("motpos", false);
+						preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+						preferences.end();
+					}
 				}
-			#else
-				if (!isRunning && !data[i]->stopped)
-				{
-					// This is the ordinary case if the motor is not connected via I2C
-					// log_d("Sending motor pos %i", i);
-					log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
-					stopStepper(i);
-					sendMotorPos(i, 0);
-					preferences.begin("motpos", false);
-					preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-					preferences.end();
-				}
-			#endif
+			}
+			else
+			{
+				pullMotorDataI2CTick[i]++;
+			}
+#else
+			log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			if (!isRunning && !data[i]->stopped)
+			{
+				// This is the ordinary case if the motor is not connected via I2C
+				// log_d("Sending motor pos %i", i);
+				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				stopStepper(i);
+				sendMotorPos(i, 0);
+				preferences.begin("motpos", false);
+				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+				preferences.end();
+			}
+#endif
 		}
 	}
 
 	MotorState pullMotorDataI2C(int axis)
 	{
+		#ifdef USE_I2C
 		// we pull the data from the slave's register
 		uint8_t slave_addr = axis2address(axis);
 
@@ -639,6 +636,9 @@ namespace FocusMotor
 		}
 
 		return motorState;
+		#else
+		return MotorState();
+		#endif
 	}
 
 	bool isRunning(int i)
@@ -712,9 +712,9 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
 #endif
-		#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
-			sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
-		#endif
+#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+		sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+#endif
 	}
 
 	void setPosition(Stepper s, int pos)

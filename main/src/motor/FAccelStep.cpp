@@ -79,6 +79,7 @@ namespace FAccelStep
         engine.init();
         log_i("FastAccelStepper engine initialized");
 #ifdef USE_TCA9535
+        log_i("setExternalCallForPin");
         engine.setExternalCallForPin(_externalCallForPin);
 #endif
 
@@ -118,6 +119,7 @@ namespace FAccelStep
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
 #if defined USE_TCA9535
+            log_i("setupFastAccelStepper Y - TCA");
             setupFastAccelStepper(Stepper::Y, 100 | PIN_EXTERNAL_FLAG, 102 | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
 #else
             log_i("setupFastAccelStepper Y");
@@ -141,8 +143,12 @@ namespace FAccelStep
 
     void setupFastAccelStepper(Stepper stepper, int motoren, int motordir, int motorstp)
     {
+        log_i("setupFastAccelStepper %i, enablePin: %i, dirPin: %i, stepPin: %i", stepper, motoren, motordir, motorstp);
+        log_i("stepper %i connected to pin %i", stepper, motorstp);
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
+        log_i("enable pin %i", motoren);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
+        log_i("dir pin %i", motordir);
         faststeppers[stepper]->setDirectionPin(motordir, false);
         faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
         faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);

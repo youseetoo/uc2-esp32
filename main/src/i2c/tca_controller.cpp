@@ -9,15 +9,13 @@ namespace tca_controller
 	bool setExternalPin(uint8_t pin, uint8_t value)
 	{
 #ifdef USE_TCA9535
-		log_i("Pin %d, value %d", pin, value);
+		log_i("setExternalPin %d %d", pin, value);
 		if (pin == 100) // enable
 			TCA.write1(pinEnable, value);  
 		if (pin == 101) // x
 			TCA.write1(pinDirX, value);  
-		if (pin == 102){// y
+		if (pin == 102) // y
 			TCA.write1(pinDirY, value);  
-			log_i("Fire dirpin y");
-		} 
 		if (pin == 103) // z
 			TCA.write1(pinDirZ, value);  
 		if (pin == 104) // a

@@ -548,14 +548,13 @@ namespace FocusMotor
 		{
 			bool isRunning = false;
 			// we check if the motor was defined
-			if (getData()[i]->dirPin >= 0)
+			if (getData()[i]->isActivated)
 			{
 #ifdef USE_FASTACCEL
 				isRunning = FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
 				isRunning = AccelStep::isRunning(i);
 #endif
-				// Serial.println("Loop Motor " + String(i) + " is running: " + String(isRunning));
 			}
 // if motor is connected via I2C, we have to pull the data from the slave's register
 #if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
@@ -575,9 +574,7 @@ namespace FocusMotor
 				}
 				else
 				{
-					// TODO check if motor is still running and if not, report position to serial
-					if (0)
-						log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+					// TODO: check if motor is still running and if not, report position to serial
 					if (!isRunning && !data[i]->stopped)
 					{
 						// TODO: REadout register on slave side and check if destination
@@ -596,7 +593,7 @@ namespace FocusMotor
 				pullMotorDataI2CTick[i]++;
 			}
 #else
-			log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
 			if (!isRunning && !data[i]->stopped)
 			{
 				// This is the ordinary case if the motor is not connected via I2C

@@ -170,14 +170,15 @@ extern "C" void setupApp(void)
 	// esp_log_level_set("*", ESP_LOG_DEBUG);
 	esp_log_level_set("*", ESP_LOG_NONE);
 	SerialProcess::setup();
+#ifdef DIAL_CONTROLLER
+	// need to initialize the dial controller before the i2c controller
+	DialController::setup();
+#endif	
 #ifdef USE_I2C
 	i2c_controller::setup();
 #endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
-#endif
-#ifdef DIAL_CONTROLLER
-	DialController::setup();
 #endif
 #ifdef MOTOR_CONTROLLER
 	FocusMotor::setup();

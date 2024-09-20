@@ -112,7 +112,7 @@ namespace DialController
 				// assign the dial state to the motor
 				if (FocusMotor::getData()[iMotor]->currentPosition == position2go)
 					continue;
-				log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
+				//log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
 
 				// Here we drive the motor to the dial state
 				Stepper mStepper = static_cast<Stepper>(iMotor);

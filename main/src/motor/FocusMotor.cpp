@@ -106,7 +106,6 @@ namespace FocusMotor
 
 	void startStepper(int i)
 	{
-		log_i("start stepper %i", i);
 #if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
 		sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 		// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
@@ -598,7 +597,7 @@ namespace FocusMotor
 			{
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				//log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 				stopStepper(i);
 				sendMotorPos(i, 0);
 				preferences.begin("motpos", false);
@@ -703,7 +702,6 @@ namespace FocusMotor
 
 	void stopStepper(int i)
 	{
-		log_i("Stop Stepper:%i", i);
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP

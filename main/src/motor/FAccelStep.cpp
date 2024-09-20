@@ -42,17 +42,18 @@ namespace FAccelStep
             if (getData()[i]->absolutePosition == 1)
             {
                 // absolute position coordinates
-                log_i("moveTo %i", getData()[i]->targetPosition);
+                //log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
             else if (getData()[i]->absolutePosition == 0)
             {
                 // relative position coordinates
-                log_i("move %i", getData()[i]->targetPosition);
+                //log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
             }
         }
 
+        /*
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -64,6 +65,7 @@ namespace FAccelStep
               getData()[i]->acceleration,
               getData()[i]->stopped,
               faststeppers[i]->isRunning());
+              */
     }
 
     void setupFastAccelStepper()

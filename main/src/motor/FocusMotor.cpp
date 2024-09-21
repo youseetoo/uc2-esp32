@@ -283,10 +283,19 @@ namespace FocusMotor
 #ifdef USE_FASTACCEL
 		if (autoen != NULL)
 		{
-			FAccelStep::setAutoEnable(autoen->valueint);
+			setAutoEnable(autoen->valueint);
 		}
 #endif
 	}
+
+	void setAutoEnable(bool enable)
+	{
+#ifdef USE_FASTACCEL
+		FAccelStep::setAutoEnable(enable);
+#endif
+	}
+
+	
 
 #ifdef HOME_MOTOR
 	void parseHome(cJSON *doc)

@@ -42,30 +42,27 @@ namespace DigitalInController
 	{
 		if (digitalinid == 1)
 		{
-			if (pinConfig.I2C_SCL > 0){
+			#if USE_TCA9535
 				return tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_1);
-			}
-			else{
+			#else
 				return digitalRead(pinConfig.DIGITAL_IN_1);
-			}
+			#endif 
 		}
 		else if (digitalinid == 2)
 		{
-			if (pinConfig.I2C_SCL > 0){
+			#if USE_TCA9535
 				return tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_2);
-			}
-			else{
+			#else
 				return digitalRead(pinConfig.DIGITAL_IN_2);
-			}
+			#endif
 		}
 		else if (digitalinid == 3)
 		{
-			if (pinConfig.I2C_SCL > 0){
+			#ifdef USE_TCA9535
 				return tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_3);
-			}
-			else{
+			#else
 				return digitalRead(pinConfig.DIGITAL_IN_3);
-			}
+			#endif
 		}
 		return false;
 	}

@@ -9,17 +9,9 @@ namespace tca_controller
 	bool setExternalPin(uint8_t pin, uint8_t value)
 	{
 #ifdef USE_TCA9535
+		pin -= 128;
 		log_i("setExternalPin %d %d", pin, value);
-		if (pin == 100) // enable
-			TCA.write1(pinEnable, value);  
-		if (pin == 101) // x
-			TCA.write1(pinDirX, value);  
-		if (pin == 102) // y
-			TCA.write1(pinDirY, value);  
-		if (pin == 103) // z
-			TCA.write1(pinDirZ, value);  
-		if (pin == 104) // a
-			TCA.write1(pinDirA, value);  
+		TCA.write1(pin, value);  
 #endif
 		return value;
 	}
@@ -30,14 +22,7 @@ namespace tca_controller
 		#ifdef USE_TCA9535
 		if (not tca_initiated)
 			return false;
-		if (pin == 105){
-			return !TCA.read1(pinEndstopX);
-		} // endstop X
-		if (pin == 106){
-			return !TCA.read1(pinEndstopY);
-		} // endstop Y
-		if (pin == 107) // endstop Z
-			return !TCA.read1(pinEndstopZ);
+		return !TCA.read1(pin);
 		#endif
 		return false;
 	}
@@ -51,14 +36,14 @@ namespace tca_controller
 		tca_initiated = true;
 
 		// Set all pins to output ?		
-		TCA.pinMode1(pinEnable, OUTPUT);
-		TCA.pinMode1(pinDirX, OUTPUT);
-		TCA.pinMode1(pinDirY, OUTPUT);
-		TCA.pinMode1(pinDirZ, OUTPUT);
-		TCA.pinMode1(pinDirA, OUTPUT);
-		TCA.pinMode1(pinEndstopX, INPUT);
-		TCA.pinMode1(pinEndstopY, INPUT);
-		TCA.pinMode1(pinEndstopZ, INPUT);
+		TCA.pinMode1(pinConfig.MOTOR_ENABLE, OUTPUT);
+		TCA.pinMode1(pinConfig.MOTOR_X_DIR, OUTPUT);
+		TCA.pinMode1(pinConfig.MOTOR_Y_DIR, OUTPUT);
+		TCA.pinMode1(pinConfig.MOTOR_Z_DIR, OUTPUT);
+		TCA.pinMode1(pinConfig.MOTOR_A_DIR, OUTPUT);
+		TCA.pinMode1(pinConfig.DIGITAL_IN_1, INPUT);
+		TCA.pinMode1(pinConfig.DIGITAL_IN_2, INPUT);
+		TCA.pinMode1(pinConfig.DIGITAL_IN_3, INPUT);
 
 		#endif
 	}

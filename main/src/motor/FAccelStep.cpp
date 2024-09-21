@@ -1,5 +1,14 @@
 #include "FAccelStep.h"
 #include <PinConfig.h>
+
+// convert pins to internal pins in setupFastAccelStepper
+#ifdef USE_TCA9535
+#undef PIN_EXTERNAL_FLAG
+#define PIN_EXTERNAL_FLAG 128
+#else
+#undef PIN_EXTERNAL_FLAG
+#define PIN_EXTERNAL_FLAG 0x00
+#endif
 using namespace FocusMotor;
 namespace FAccelStep
 {
@@ -89,61 +98,43 @@ namespace FAccelStep
         {
             faststeppers[i] = nullptr;
         }
-
-        /* restore previously saved motor position values*/
-
         // setup the stepper A
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
-#ifdef USE_TCA9535
-            setupFastAccelStepper(Stepper::A, 100, 104, pinConfig.MOTOR_A_STEP);
-#else
             log_i("setupFastAccelStepper A");
-            setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_STEP);
-#endif
+            setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR  | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
             getData()[Stepper::A]->isActivated = true;
         }
 
         // setup the stepper X
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
-#ifdef USE_TCA9535
-            setupFastAccelStepper(Stepper::X, 100, 101, pinConfig.MOTOR_X_STEP);
-#else
             log_i("setupFastAccelStepper X");
-            setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_STEP);
-#endif
+            setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
             getData()[Stepper::X]->isActivated = true;
         }
 
         // setup the stepper Y
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
-#if defined USE_TCA9535
-            log_i("setupFastAccelStepper Y - TCA");
-            setupFastAccelStepper(Stepper::Y, 100, 102, pinConfig.MOTOR_Y_STEP);
-#else
             log_i("setupFastAccelStepper Y");
-            setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_STEP);
-#endif
+            setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
             getData()[Stepper::Y]->isActivated = true;
         }
 
         // setup the stepper Z
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-#ifdef USE_TCA9535
-            setupFastAccelStepper(Stepper::Z, 100, 103, pinConfig.MOTOR_Z_STEP);
-#else
             log_i("setupFastAccelStepper Z");
-            setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_STEP);
-#endif
+            setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
             getData()[Stepper::Z]->isActivated = true;
         }
     }
 
     void setupFastAccelStepper(Stepper stepper, int motoren, int motordir, int motorstp)
     {
+        log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
+        log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, false);

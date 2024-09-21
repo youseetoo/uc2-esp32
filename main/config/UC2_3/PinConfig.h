@@ -73,6 +73,14 @@ struct UC2_3 : PinConfig
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
      
+     // THIS LIVES ON TCA
+     int8_t MOTOR_ENABLE = 0; 
+     int8_t MOTOR_X_DIR = 1;
+     int8_t MOTOR_Y_DIR = 2;
+     int8_t MOTOR_Z_DIR = 3;
+     int8_t MOTOR_A_DIR = 4;
+
+     
      bool isDualAxisZ = true;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
@@ -96,12 +104,11 @@ struct UC2_3 : PinConfig
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
-     int8_t PIN_DEF_END_X = 105;
-     int8_t PIN_DEF_END_Y = 106;
-     int8_t PIN_DEF_END_Z = 107;
-     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
-     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
-     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
+
+     // THESE LIVE ON THE TCA
+     int8_t DIGITAL_IN_1 = 5;
+     int8_t DIGITAL_IN_2 = 6;
+     int8_t DIGITAL_IN_3 = 7;
 
      int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
      int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant

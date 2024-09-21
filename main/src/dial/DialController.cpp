@@ -116,6 +116,7 @@ namespace DialController
 
 				// Here we drive the motor to the dial state
 				Stepper mStepper = static_cast<Stepper>(iMotor);
+				FocusMotor::setAutoEnable(true);
 				FocusMotor::getData()[mStepper]->absolutePosition = 1;
 				FocusMotor::getData()[mStepper]->targetPosition = position2go;
 				FocusMotor::getData()[mStepper]->isforever = 0;

@@ -19,15 +19,6 @@ I/O-exp. GPIO	target	Input/Output	comment
 06	Y_LIMIT	I	Limit switch input. Output LOW to light LED
 07	Z_LIMIT	I	Limit switch input. Output LOW to light LED
 */
-    // TOOD: Make this part of the pinconfig?
-    static int pinEnable = 0;
-    static int pinDirX = 1;
-    static int pinDirY = 2;
-    static int pinDirZ = 3;
-    static int pinDirA = 4;
-    static int pinEndstopX = 5;
-    static int pinEndstopY = 6;
-    static int pinEndstopZ = 7;
 
     #ifdef USE_TCA9535
 	static TCA9535 TCA(pinConfig.I2C_ADD_TCA);

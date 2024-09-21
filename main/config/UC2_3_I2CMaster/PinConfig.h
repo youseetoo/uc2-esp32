@@ -39,13 +39,10 @@ struct UC2_3_I2CMaster : PinConfig
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
-     int8_t PIN_DEF_END_X = disabled;
-     int8_t PIN_DEF_END_Y = disabled;
-     int8_t PIN_DEF_END_Z = disabled;
-     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
-     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
-     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
-
+     int8_t DIGITAL_IN_1 = disabled;
+     int8_t DIGITAL_IN_2 = disabled;
+     int8_t DIGITAL_IN_3 = disabled;
+     
      int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
      int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
 

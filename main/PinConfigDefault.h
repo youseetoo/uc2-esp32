@@ -154,10 +154,6 @@ struct PinConfig
      int8_t LASER_3 = disabled; // GPIO_NUM_21
      int8_t LASER_0 = disabled;
 
-     int8_t PIN_DEF_END_X = disabled;
-     int8_t PIN_DEF_END_Y = disabled;
-     int8_t PIN_DEF_END_Z = disabled;
-
      int8_t DIGITAL_OUT_1 = disabled;
      int8_t DIGITAL_OUT_2 = disabled;
      int8_t DIGITAL_OUT_3 = disabled;

@@ -24,7 +24,7 @@ void LedController::setup()
 	matrixI2C->enable(true); // bring out of shutdown
 	*/
 	// test led array
-	set_all(100, 100, 100);
+	set_all(50, 50, 50);
 	delay(1);
 	set_all(0, 0, 0);
 

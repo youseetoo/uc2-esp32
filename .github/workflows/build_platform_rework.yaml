@@ -20,8 +20,11 @@ jobs:
       with:
         ref: reworkBD  # Checkout the reworkBD branch
         #submodules: recursive
-        submodules: true  # Ensure submodules are checked out
-        
+        #submodules: true  # Ensure submodules are checked out
+    
+    - name: Checkout submodules
+      run: git submodule update --init --recursive
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:

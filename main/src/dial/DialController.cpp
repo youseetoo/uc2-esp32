@@ -39,6 +39,15 @@ namespace DialController
 		return mDialData;
 	}
 
+	void setPositionValues(DialData mDialData)
+	{
+		// Convert the DialData struct to the positions array
+		positions[0] = mDialData.pos_a;
+		positions[1] = mDialData.pos_x;
+		positions[2] = mDialData.pos_y;
+		positions[3] = mDialData.pos_z;
+	}
+
 	void writeTextDisplay(String text)
 	{
 #ifdef I2C_SLAVE
@@ -66,9 +75,8 @@ namespace DialController
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			log_e("Error: Dial address not found in i2cAddresses");
-			return;
 		}
-		log_i("Pushing motor positions to dial");
+		//log_i("Pushing motor positions to dial");
 		Wire.beginTransmission(slave_addr);
 		mPosData.pos_a = FocusMotor::getData()[0]->currentPosition;
 		mPosData.pos_x = FocusMotor::getData()[1]->currentPosition;
@@ -88,7 +96,6 @@ namespace DialController
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			log_e("Error: Dial address not found in i2cAddresses");
-			return;
 		}
 		DialData mDialData;
 		Wire.requestFrom(slave_addr, sizeof(DialData));
@@ -116,7 +123,8 @@ namespace DialController
 
 				// Here we drive the motor to the dial state
 				Stepper mStepper = static_cast<Stepper>(iMotor);
-				FocusMotor::setAutoEnable(true);
+				FocusMotor::setAutoEnable(false);
+				FocusMotor::setEnable(true);
 				FocusMotor::getData()[mStepper]->absolutePosition = 1;
 				FocusMotor::getData()[mStepper]->targetPosition = position2go;
 				FocusMotor::getData()[mStepper]->isforever = 0;
@@ -145,6 +153,7 @@ namespace DialController
 			ticksLastPosPulled = 0;
 			// Here we want to pull the dial data from the I2C bus and assign it to the motors
 			pullMotorPosFromDial();
+			// pushMotorPosToDial(); // This would be overwritten with the older motor positions on the slave, so we don't do it
 		}
 		ticksLastPosPulled++;
 #endif
@@ -157,8 +166,8 @@ namespace DialController
 		{
 			positions[currentAxis] += (newEncoderPos - encoderPos) * stepSize;
 			encoderPos = newEncoderPos;
-			updateDisplay();
 		}
+		updateDisplay();
 
 		auto t = M5Dial.Touch.getDetail();
 
@@ -203,25 +212,6 @@ namespace DialController
 
 #endif
 		// log_i("dial_val_1: %i, dial_val_2: %i, dial_val_3: %i", dial_val_1, dial_val_2, dial_val_3);
-	}
-
-	void sendMotorPosI2C()
-	{
-		return;
-		// This is the Master pushing the data to the DIAL I2C slave (i.e. 4 motor positions) to sync the display with the motors
-		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
-		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
-		{
-			log_e("Error: Dial address not found in i2cAddresses");
-			return;
-		}
-		Wire.beginTransmission(slave_addr);
-		mPosData.pos_a = FocusMotor::getData()[0]->currentPosition;
-		mPosData.pos_x = FocusMotor::getData()[1]->currentPosition;
-		mPosData.pos_y = FocusMotor::getData()[2]->currentPosition;
-		mPosData.pos_z = FocusMotor::getData()[3]->currentPosition;
-		Wire.write((uint8_t *)&mPosData, sizeof(DialData));
-		Wire.endTransmission();
 	}
 
 	void setup()

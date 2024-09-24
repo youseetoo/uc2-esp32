@@ -44,6 +44,7 @@ namespace FocusMotor
 	MotorState pullMotorDataI2C(int axis);
 	void toggleStepper(Stepper s, bool isStop);
 	void setAutoEnable(bool enable);
+	void setEnable(bool enable);
 	
 	String motorDataToJson(MotorData motorData);
 	void parseJsonI2C(cJSON *doc);

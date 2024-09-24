@@ -98,6 +98,7 @@ namespace FocusMotor
 				free(s);
 				Serial.println("--");
 			}
+			DialController::pushMotorPosToDial()
 			cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
@@ -295,7 +296,14 @@ namespace FocusMotor
 #endif
 	}
 
-	
+	void setEnable(bool enable)
+	{
+		#ifdef USE_FASTACCEL
+		FAccelStep::Enable(enable);
+		#elif defined USE_ACCELSTEP
+		AccelStep::Enable(enable);
+		#endif
+	}	
 
 #ifdef HOME_MOTOR
 	void parseHome(cJSON *doc)
@@ -626,7 +634,7 @@ namespace FocusMotor
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
-			return MotorState();
+			log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
 		}
 		Wire.requestFrom(slave_addr, sizeof(MotorState));
 		MotorState motorState; // Initialize with default values
@@ -664,9 +672,12 @@ namespace FocusMotor
 		AccelStep::updateData(i);
 #endif
 
-#ifdef DIAL_CONTROLLER
-		DialController::sendMotorPosI2C();
-#endif
+		#ifdef DIAL_CONTROLLER
+		// update the dial with the actual motor positions
+		// the motor positions array is updated in the dial controller
+		DialController::pushMotorPosToDial();
+		#endif
+
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
 			return; // Handle allocation failure

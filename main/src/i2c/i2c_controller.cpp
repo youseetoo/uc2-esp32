@@ -94,25 +94,25 @@ namespace i2c_controller
 
 	void setup()
 	{
-		
-		// Begin I2C slave communication with the defined pins and address
-		#ifdef I2C_SLAVE
-			//log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
-			Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
-			Wire.onReceive(receiveEvent);
-			Wire.onRequest(requestEvent);
-		#endif
-		#ifdef I2C_MASTER
-			// if TCA is active wire doesn't work
-			Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
-			i2c_scan();
-		#endif
+
+// Begin I2C slave communication with the defined pins and address
+#ifdef I2C_SLAVE
+		// log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
+		Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+		Wire.onReceive(receiveEvent);
+		Wire.onRequest(requestEvent);
+#endif
+#ifdef I2C_MASTER
+		// if TCA is active wire doesn't work
+		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
+		i2c_scan();
+#endif
 	}
 
 	void loop()
 	{
-		// nothing to do here
-		#ifdef I2C_MASTER
+// nothing to do here
+#ifdef I2C_MASTER
 		if (i2cRescanTick > i2cRescanAfterNTicks and i2cRescanAfterNTicks > 0)
 		{
 			log_i("Rescan I2C");
@@ -120,7 +120,7 @@ namespace i2c_controller
 			i2cRescanTick = 0;
 		}
 		i2cRescanTick++;
-		#endif
+#endif
 	}
 
 	int act(cJSON *ob)
@@ -128,6 +128,14 @@ namespace i2c_controller
 		// This converts an incoming json string from Serial into a json object and sends it to the I2C slave under a given address
 		// JSON String
 		// {"task":"/i2c_act", "LED":1}
+
+		/*
+
+		/////////////////////
+		THIS IS OLD CODE!!!!!
+		/////////////////////
+
+		*/
 		log_i("I2C act");
 		log_i("Ob: %s", cJSON_Print(ob));
 		if (pinConfig.I2C_ADD_SLAVE >= 0)
@@ -193,7 +201,7 @@ namespace i2c_controller
 	void receiveEvent(int numBytes)
 	{
 		// Master and Slave
-		log_i("Receive Event");
+		// log_i("Receive Event");
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
 		{
 			parseMotorEvent(numBytes);
@@ -222,26 +230,35 @@ namespace i2c_controller
 
 	void parseDialEvent(int numBytes)
 	{
-
-		// We will receive the array of 4 positions from the master and have to update the dial display
-		#ifdef DIAL_CONTROLLER
+// We will receive the array of 4 positions from the master and have to update the dial display
+#ifdef DIAL_CONTROLLER
 		if (numBytes == sizeof(DialController::mPosData))
 		{
-			log_i("Received DialData fr<  om I2C");
+			//log_i("Received DialData from I2C");
+
+			// Read the data into the mPosData struct
+			Wire.readBytes((uint8_t *)&DialController::mPosData, sizeof(DialController::mPosData));
+
+			// Now you can access the motor positions and update the dial display
+			int pos_a = DialController::mPosData.pos_a;
+			int pos_x = DialController::mPosData.pos_x;
+			int pos_y = DialController::mPosData.pos_y;
+			int pos_z = DialController::mPosData.pos_z;
+
+			// Perform your specific actions here, such as updating the dial display.
+			DialController::setPositionValues(DialController::mPosData);
 		}
 		else
 		{
 			// Handle error: received data size does not match expected size
 			log_e("Error: Received data size does not match DialData size.");
 		}
-		#endif
+#endif
 	}
-
-
 
 	void parseMotorEvent(int numBytes)
 	{
-		#ifdef MOTOR_CONTROLLER
+#ifdef MOTOR_CONTROLLER
 		// incoming command from I2C master will be converted to a motor action
 		if (numBytes == sizeof(MotorData))
 		{
@@ -294,17 +311,18 @@ namespace i2c_controller
 			// Handle error: received data size does not match expected size
 			log_e("Error: Received data size does not match MotorData size.");
 		}
-		#endif
+#endif
 	}
 
 	void requestEvent()
 	{
-		// The master request data from the slave
-
+// The master request data from the slave
+// !THIS IS ONLY EXECUTED IN I2C SLAVE MODE!
+#ifdef I2C_SLAVE
 		// for the motor we would need to send the current position and the state of isRunning
 		if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
-		{	
-			#ifdef MOTOR_CONTROLLER
+		{
+#ifdef MOTOR_CONTROLLER
 			// The master request data from the slave
 			MotorState motorState;
 			bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
@@ -313,24 +331,24 @@ namespace i2c_controller
 			motorState.isRunning = isRunning;
 			// Serial.println("motor is running: " + String(motorState.isRunning));
 			Wire.write((uint8_t *)&motorState, sizeof(MotorState));
-			#else
+#else
 			Wire.write(0);
-			#endif
+#endif
 		}
-		else if(pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+		else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
 		{
-			#ifdef DIAL_CONTROLLER
+#ifdef DIAL_CONTROLLER
 			// The master request data from the slave
 			DialData dialData;
-			
+
 			// @KillerInk is there a smarter way to do this?
 			// make a copy of the current dial data
 			dialData = DialController::getPositionValues();
 			Wire.write((uint8_t *)&dialData, sizeof(DialData));
 			// WARNING!! The log_i causes confusion in the I2C communication, but the values are correct
-			//log_i("DialData sent to I2C master: %i, %i, %i, %i", dialData.pos_abs[0], dialData.pos_abs[1], dialData.pos_abs[2], dialData.pos_abs[3]);
-			
-			#endif
+			// log_i("DialData sent to I2C master: %i, %i, %i, %i", dialData.pos_abs[0], dialData.pos_abs[1], dialData.pos_abs[2], dialData.pos_abs[3]);
+
+#endif
 		}
 		else
 		{
@@ -338,7 +356,7 @@ namespace i2c_controller
 			log_e("Error: I2C controller type not supported.");
 			Wire.write(0);
 		}
+#endif
 	}
 
 } // namespace i2c_controller
-

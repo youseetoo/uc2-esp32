@@ -22,13 +22,14 @@ namespace DialController
     int act(cJSON *jsonDocument);
     cJSON *get(cJSON *jsonDocument);
     void pullMotorPosFromDial();
+    void pushMotorPosToDial();
     void setup();
     void loop();
 
     void writeTextDisplay(String text);
     void updateDisplay();
     DialData getPositionValues();
-    void sendMotorPosI2C();
+    void setPositionValues(DialData mDialData);
     static DialData mPosData;
     
     static int ticksLastPosPulled = 0;
@@ -36,7 +37,7 @@ namespace DialController
 
     // Array to store X, Y, Z, A positions
     static long positions[4] = {0, 0, 0, 0};
-    static char axisNames[4] = {'X', 'Y', 'Z', 'A'};
+    static char axisNames[4] = {'A', 'X', 'Y', 'Z'};
     static int currentAxis = 0; // 0=X, 1=Y, 2=Z, 3=A
     static int stepSize = 1;    // Step size starts at 1
     static long encoderPos = -999;

@@ -84,11 +84,13 @@ namespace DialController
 		mPosData.pos_z = FocusMotor::getData()[3]->currentPosition;
 		Wire.write((uint8_t *)&mPosData, sizeof(DialData));
 		Wire.endTransmission();
+		positionsPushedToDial = true; // otherwise it will probably always go to 0,0,0,0  on start
 		#endif
 	}
 
 	void pullMotorPosFromDial()
 	{
+#ifdef I2C_MASTER		
 		// This is the MASTER pulling the data from the DIAL I2C slave (i.e. 4 motor positions)
 		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
 
@@ -117,7 +119,8 @@ namespace DialController
 				if (iMotor == 3)
 					position2go = mDialData.pos_z;
 				// assign the dial state to the motor
-				if (FocusMotor::getData()[iMotor]->currentPosition == position2go)
+				// if we run in forever mode we don't want to change the position as we likely use the ps4 controller
+				if(FocusMotor::getData()[0]->isforever or FocusMotor::getData()[iMotor]->currentPosition == position2go)
 					continue;
 				//log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
 
@@ -141,14 +144,14 @@ namespace DialController
 		{
 			log_e("Error: Incorrect data size received in dial from address %i. Data size is %i", slave_addr, dataSize);
 		}
-
+#endif
 		return;
 	}
 
 	void loop()
 	{
 #ifdef I2C_MASTER
-		if (ticksLastPosPulled >= ticksPosPullInterval)
+		if (ticksLastPosPulled >= ticksPosPullInterval and positionsPushedToDial)
 		{
 			ticksLastPosPulled = 0;
 			// Here we want to pull the dial data from the I2C bus and assign it to the motors

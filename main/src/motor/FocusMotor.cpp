@@ -722,6 +722,9 @@ namespace FocusMotor
 
 	void stopStepper(int i)
 	{
+		// only send motor data if it was running before
+		if (not data[i]->stopped)
+			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP

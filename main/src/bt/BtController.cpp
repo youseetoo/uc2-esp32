@@ -307,7 +307,7 @@ namespace BtController
                     logCounter++;
 
 
-                // Online allow motion in one direction at a time
+                // Only allow motion in one direction at a time
                 bool zIsRunning = getData()[Stepper::Z]->isforever;
                 bool aIsRunning = getData()[Stepper::A]->isforever;
 
@@ -318,6 +318,15 @@ namespace BtController
                         handleAxis(zvalue, Stepper::A);
                     }
                 }
+                if (abs(zvalue)<offset_val){
+                    // force stop in case it's trapped
+                    handleAxis(0, Stepper::Z);
+                }
+                if (abs(zvalue)<offset_val and isDualAxisZ){
+                    // force stop in case it's trapped
+                    handleAxis(0, Stepper::A);
+                }
+
                 if (not zIsRunning and not isDualAxisZ){ // A-direction
                     handleAxis(avalue, Stepper::A);
                 }

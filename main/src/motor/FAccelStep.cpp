@@ -36,13 +36,11 @@ namespace FAccelStep
             if (getData()[i]->speed > 0)
             {
                 // run clockwise
-                log_i("forward");
                 faststeppers[i]->runForward();
             }
             else if (getData()[i]->speed < 0)
             {
                 // run counterclockwise
-                log_i("backward");
                 faststeppers[i]->runBackward();
             }
         }
@@ -152,7 +150,7 @@ namespace FAccelStep
             return;
         faststeppers[i]->forceStop();
         faststeppers[i]->stopMove();
-        log_i("stop stepper %i", i);
+        //log_i("stop stepper %i", i);
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
@@ -174,7 +172,6 @@ namespace FAccelStep
     {
         for (int i = 0; i < faststeppers.size(); i++)
         {
-            log_d("enable motor %d - automode on", i);
             faststeppers[i]->setAutoEnable(enable);
         }
     }
@@ -186,13 +183,11 @@ namespace FAccelStep
 
             if (enable)
             {
-                log_d("enable motor %d - going manual mode!", i);
                 faststeppers[i]->enableOutputs();
                 faststeppers[i]->setAutoEnable(false);
             }
             else
             {
-                log_d("disable motor %d - going manual mode!", i);
                 faststeppers[i]->disableOutputs();
                 faststeppers[i]->setAutoEnable(false);
             }

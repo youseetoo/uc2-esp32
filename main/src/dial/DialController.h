@@ -34,13 +34,14 @@ namespace DialController
     
     static int ticksLastPosPulled = 0;
     static int ticksPosPullInterval = 5; // Pull position from slave every n-times
+    static bool positionsPushedToDial = false;
 
     // Array to store X, Y, Z, A positions
     static long positions[4] = {0, 0, 0, 0};
     static char axisNames[4] = {'A', 'X', 'Y', 'Z'};
     static int currentAxis = 0; // 0=X, 1=Y, 2=Z, 3=A
     static int stepSize = 1;    // Step size starts at 1
-    static long encoderPos = -999;
+    static long encoderPos = 0;
 
     // Available touch states
     static const int TOUCH_BEGIN = 3;      // Represents touch start

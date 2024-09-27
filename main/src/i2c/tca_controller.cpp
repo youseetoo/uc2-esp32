@@ -10,7 +10,6 @@ namespace tca_controller
 	{
 #ifdef USE_TCA9535
 		pin -= 128;
-		log_i("setExternalPin %d %d", pin, value);
 		TCA.write1(pin, value);  
 #endif
 		return value;

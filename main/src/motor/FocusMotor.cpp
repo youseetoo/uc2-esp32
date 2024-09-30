@@ -549,6 +549,12 @@ namespace FocusMotor
 #endif
 		AccelStep::setupAccelStepper();
 #endif
+	for(int iMotor = 0; iMotor < 4; iMotor++)
+	{
+		sendMotorPos(iMotor, 0);
+	}
+	
+
 
 #ifdef WIFI
 		// TODO: This causes the heap to overload?

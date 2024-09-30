@@ -14,32 +14,35 @@ typedef struct __attribute__((packed))
     int32_t pos_y = 0;
     int32_t pos_z = 0;
     int32_t pos_a = 0;
+    int32_t intensity = 0;
 } DialData;
-
 
 namespace DialController
 {
     int act(cJSON *jsonDocument);
     cJSON *get(cJSON *jsonDocument);
-    void pullMotorPosFromDial();
+    void pullParamsFromDial();
     void pushMotorPosToDial();
     void setup();
     void loop();
 
+    // Display functions
     void writeTextDisplay(String text);
     void updateDisplay();
-    DialData getPositionValues();
-    void setPositionValues(DialData mDialData);
-    static DialData mPosData;
-    
+
+    // Motor data
+    DialData getDialValues();
+    void setDialValues(DialData mDialData);
+    static DialData mDialData;
+
     static int ticksLastPosPulled = 0;
     static int ticksPosPullInterval = 5; // Pull position from slave every n-times
     static bool positionsPushedToDial = false;
 
     // Array to store X, Y, Z, A positions
-    static long positions[4] = {0, 0, 0, 0};
-    static char axisNames[4] = {'A', 'X', 'Y', 'Z'};
-    static int currentAxis = 0; // 0=X, 1=Y, 2=Z, 3=A
+    static long values[5] = {0, 0, 0, 0, 0};
+    static char axisNames[5] = {'A', 'X', 'Y', 'Z', 'I'};
+    static int currentAxis = 0; // 0=X, 1=Y, 2=Z, 3=A; 4=Intensity
     static int stepSize = 1;    // Step size starts at 1
     static long encoderPos = 0;
 

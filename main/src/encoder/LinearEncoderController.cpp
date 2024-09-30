@@ -370,6 +370,9 @@ namespace LinearEncoderController
     */
     void loop()
     {
+        // print current position of the linearencoder
+        log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
+    
 #ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors
         for (int i = 0; i < 4; i++)
@@ -495,9 +498,6 @@ namespace LinearEncoderController
     */
     void setup()
     {
-        // for AS5311
-        log_i("LinearEncoder setup AS5311 - A/B interface");
-
         // for AS5311
         log_i("LinearEncoder setup AS5311 - A/B interface");
 

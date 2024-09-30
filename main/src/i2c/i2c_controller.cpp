@@ -230,23 +230,25 @@ namespace i2c_controller
 
 	void parseDialEvent(int numBytes)
 	{
-// We will receive the array of 4 positions from the master and have to update the dial display
+// We will receive the array of 4 positions and one intensity from the master and have to update the dial display
 #ifdef DIAL_CONTROLLER
-		if (numBytes == sizeof(DialController::mPosData))
+		if (numBytes == sizeof(DialController::mDialData))
 		{
 			//log_i("Received DialData from I2C");
 
-			// Read the data into the mPosData struct
-			Wire.readBytes((uint8_t *)&DialController::mPosData, sizeof(DialController::mPosData));
+			// Read the data into the mDialData struct
+			Wire.readBytes((uint8_t *)&DialController::mDialData, sizeof(DialController::mDialData));
 
-			// Now you can access the motor positions and update the dial display
-			int pos_a = DialController::mPosData.pos_a;
-			int pos_x = DialController::mPosData.pos_x;
-			int pos_y = DialController::mPosData.pos_y;
-			int pos_z = DialController::mPosData.pos_z;
-
+			/*
+			// Now you can access the motor positions/intensity and update the dial display
+			int pos_a = DialController::mDialData.pos_a;
+			int pos_x = DialController::mDialData.pos_x;
+			int pos_y = DialController::mDialData.pos_y;
+			int pos_z = DialController::mDialData.pos_z;
+			int intensity = DialController::mDialData.intensity;
+			*/
 			// Perform your specific actions here, such as updating the dial display.
-			DialController::setPositionValues(DialController::mPosData);
+			DialController::setDialValues(DialController::mDialData);
 		}
 		else
 		{
@@ -339,14 +341,14 @@ namespace i2c_controller
 		{
 #ifdef DIAL_CONTROLLER
 			// The master request data from the slave
-			DialData dialData;
+			DialData dialDataMotor;
 
 			// @KillerInk is there a smarter way to do this?
 			// make a copy of the current dial data
-			dialData = DialController::getPositionValues();
-			Wire.write((uint8_t *)&dialData, sizeof(DialData));
+			dialDataMotor = DialController::getDialValues();
+			Wire.write((uint8_t *)&dialDataMotor, sizeof(DialData));
 			// WARNING!! The log_i causes confusion in the I2C communication, but the values are correct
-			// log_i("DialData sent to I2C master: %i, %i, %i, %i", dialData.pos_abs[0], dialData.pos_abs[1], dialData.pos_abs[2], dialData.pos_abs[3]);
+			// log_i("DialData sent to I2C master: %i, %i, %i, %i", dialDataMotor.pos_abs[0], dialDataMotor.pos_abs[1], dialDataMotor.pos_abs[2], dialDataMotor.pos_abs[3]);
 
 #endif
 		}

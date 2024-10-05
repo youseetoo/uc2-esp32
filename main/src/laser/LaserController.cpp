@@ -196,6 +196,34 @@ namespace LaserController
 		}
 	}
 
+	bool setLaserVal(int LASERid, int LASERval){
+		if (LASERid == 1 && pinConfig.LASER_1 != 0)
+		{
+			LASER_val_1 = LASERval;
+			setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			return true;
+		}
+		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
+		{
+			LASER_val_2 = LASERval;
+			setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			return true;
+		}
+		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
+		{
+			LASER_val_3 = LASERval;
+			setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	int getLaserVal(int LASERid)
 	{
 		int laserVal = 0;

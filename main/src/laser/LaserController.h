@@ -25,7 +25,7 @@ namespace LaserController
     static long pwm_max = (int)pow(2, pwm_resolution);
 
     int getLaserVal(int LASERid);
-
+    bool setLaserVal(int LASERid, int LASERval);
     static int PWM_CHANNEL_LASER_1 = 1;
     static int PWM_CHANNEL_LASER_2 = 2;
     static int PWM_CHANNEL_LASER_3 = 3;

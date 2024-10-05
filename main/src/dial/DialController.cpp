@@ -173,7 +173,7 @@ namespace DialController
 			int intensity = mDialData.intensity;
 			if (lastIntensity != intensity){
 				lastIntensity = intensity;
-				LaserController::setPWM(intensity, LaserController::PWM_CHANNEL_LASER_1);
+				LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, intensity);
 			}
 #endif
 		}

@@ -1,6 +1,7 @@
 #include <PinConfig.h>
 #include "DialController.h"
 #include "../motor/FocusMotor.h"
+#include "../home/HomeMotor.h"
 #include "../laser/LaserController.h"
 #include "Arduino.h"
 #include "../../JsonKeys.h"
@@ -78,12 +79,15 @@ namespace DialController
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			log_e("Error: Dial address not found in i2cAddresses");
+			return;
 		}
 		Wire.beginTransmission(slave_addr);
 		mDialData.pos_a = FocusMotor::getData()[0]->currentPosition;
 		mDialData.pos_x = FocusMotor::getData()[1]->currentPosition;
 		mDialData.pos_y = FocusMotor::getData()[2]->currentPosition;
 		mDialData.pos_z = FocusMotor::getData()[3]->currentPosition;
+		mDialData.intensity = LaserController::getLaserVal(1);
+		log_i("Motor positions sent to dial: %i, %i, %i, %i, %i", mDialData.pos_a, mDialData.pos_x, mDialData.pos_y, mDialData.pos_z, mDialData.intensity);
 		Wire.write((uint8_t *)&mDialData, sizeof(DialData));
 		Wire.endTransmission();
 		positionsPushedToDial = true; // otherwise it will probably always go to 0,0,0,0  on start
@@ -100,6 +104,7 @@ namespace DialController
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			log_e("Error: Dial address not found in i2cAddresses");
+			return;
 		}
 
 		// REQUEST DATA FROM DIAL
@@ -129,10 +134,25 @@ namespace DialController
 					position2go = mDialData.pos_z;
 				// assign the dial state to the motor
 				// if we run in forever mode we don't want to change the position as we likely use the ps4 controller
-				if (FocusMotor::getData()[0]->isforever or FocusMotor::getData()[iMotor]->currentPosition == position2go)
+				// check if homeMotor is null
+				bool isMotorHoming = false;
+				if (not(HomeMotor::hdata[iMotor] == nullptr))
+				{
+					isMotorHoming = HomeMotor::hdata[iMotor]->homeIsActive;
+				}
+				bool isMotorForever = FocusMotor::getData()[iMotor]->isforever;
+				if (isMotorForever or isMotorHoming or
+					FocusMotor::getData()[iMotor]->currentPosition == position2go)
 					continue;
-				// log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
+				log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
 
+				// check if current position and position2go are within a reasonable range 
+				// if not we don't want to move the motor
+				if (abs(FocusMotor::getData()[iMotor]->currentPosition - position2go) > 10000)
+				{
+					log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
+					continue;
+				}
 				// Here we drive the motor to the dial state
 				Stepper mStepper = static_cast<Stepper>(iMotor);
 				FocusMotor::setAutoEnable(false);
@@ -148,12 +168,14 @@ namespace DialController
 				FocusMotor::getData()[mStepper]->isStop = 0;
 				FocusMotor::startStepper(mStepper);
 			}
-			#ifdef LASER_CONTROLLER
+#ifdef LASER_CONTROLLER
 			// for intensity only
 			int intensity = mDialData.intensity;
-			LaserController::setPWM(intensity, LaserController::PWM_CHANNEL_LASER_1);
-			#endif
-
+			if (lastIntensity != intensity){
+				lastIntensity = intensity;
+				LaserController::setPWM(intensity, LaserController::PWM_CHANNEL_LASER_1);
+			}
+#endif
 		}
 		else
 		{
@@ -163,7 +185,6 @@ namespace DialController
 #endif
 		return;
 	}
-
 
 	void loop()
 	{
@@ -213,7 +234,7 @@ namespace DialController
 			if (touchDuration < LONG_PRESS_DURATION)
 			{
 				// Short press: switch axis
-				currentAxis = (currentAxis + 1) % 4;
+				currentAxis = (currentAxis + 1) % 5;
 				updateDisplay();
 			}
 			else if (touchDuration >= 100)
@@ -234,6 +255,15 @@ namespace DialController
 				else
 				{
 					stepSize = 1;
+				}
+
+				// for illumination we don't want to go beyond 100
+				if (currentAxis == 4)
+				{
+					if (stepSize > 100)
+					{
+						stepSize = 0;
+					}
 				}
 				updateDisplay();
 			}

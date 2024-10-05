@@ -130,7 +130,7 @@ namespace LinearEncoderController
         {
 #ifdef HOME_MOTOR
             // we want to start a motor until the linear encoder does not track any position change
-            //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1, "endposrelease":-100, "speed": -40000} ]}}
+            //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": -40000} ]}}
             cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
             if (stprs != NULL)
             {
@@ -145,7 +145,6 @@ namespace LinearEncoderController
                     int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                     // get the motor object and let it run forever int he specfied direction
                     edata[s]->timeSinceMotorStart = millis();
-                    edata[s]->endPosRelease = cJSON_GetObjectItemCaseSensitive(stp, key_home_endposrelease)->valueint;
                     FocusMotor::getData()[s]->isforever = true;
                     FocusMotor::getData()[s]->speed = speed;
                     FocusMotor::startStepper(s);
@@ -246,7 +245,7 @@ namespace LinearEncoderController
                             FocusMotor::getData()[s]->targetPosition = (float)posToGo/edata[s]->stp2phys;
                         else
                             FocusMotor::getData()[s]->targetPosition = (float)(posToGo + edata[s]->positionPreMove)/edata[s]->stp2phys;
-                        log_d("Move precise from (residual only) %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, FocusMotor::getData()[s]->speed, speed, edata[s]->encoderDirection);
+                        log_d("Move precise from (residual only) %f to %f at motor speed %f, computed speed %f, encoderDirection %f with PID %f, %f, %f", edata[s]->positionPreMove, edata[s]->positionToGo, FocusMotor::getData()[s]->speed, speed, edata[s]->encoderDirection, edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
                         FocusMotor::startStepper(s);
                     }
                     else
@@ -371,7 +370,7 @@ namespace LinearEncoderController
     void loop()
     {
         // print current position of the linearencoder
-        log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
+        //log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
     
 #ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors
@@ -406,7 +405,6 @@ namespace LinearEncoderController
                     // move opposite direction to get the motor away from the endstop
                     // FocusMotor::setPosition(i, 0);
                     // blocks until stepper reached new position wich would be optimal outside of the endstep
-                    FocusMotor::getData()[i]->targetPosition = edata[i]->endPosRelease;
                     FocusMotor::getData()[i]->absolutePosition = false;
                     FocusMotor::startStepper(i);
                     // wait until stepper reached new position
@@ -477,6 +475,7 @@ namespace LinearEncoderController
                 float thresholdPositionChange = 0.01f;
                 int startupTimout = 1000;
 
+                // Stopping motor if there is no movement => something is blocking the motor and we are beyond the startup timeout and we are within the threshold of 5 µm
                 if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
                     (millis() - edata[i]->timeSinceMotorStart) > startupTimout and
                     abs(distanceToGo) > 5)

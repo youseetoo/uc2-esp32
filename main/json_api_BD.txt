@@ -11,7 +11,7 @@
 {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
 {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 2  }}
 # Encoder
-{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 3, "position": -500 , "isabs":1, "speed": 10000} ]}}        
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 3, "position": -100 , "isabs":0, "speed": 10000, "cp":100.0, "ci":1.0, "cd":1.0} ]}}
 {"task": "/linearencoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 10000} ]}}
 {"task": "/linearencoder_act", "setup": {"steppers": [ { "stepperid": 1, "position": 0}]}}
 {"task":"/linearencoder_get", "linencoder": { "posval": 3,    "id": 1  }}
@@ -100,17 +100,17 @@
 {"task": "/laser_act", "LASERid":3, "LASERval": 1000}
 # HOME
 {"task": "/home_get"}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endposrelease":10000, "endstoppolarity":1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1, "endposrelease":4000, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1,  "endstoppolarity":0}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endstoppolarity":0}]}}
 
 
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endposrelease":3000, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endstoppolarity":0}]}}
 # Heating
  {"task": "/heat_act", "active":1, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000, "qid":1}
   {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":22, "timeout":600000, "updaterate":1000, "qid":1}
@@ -222,8 +222,23 @@
         ]
     }
 }
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 1000000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+
+{"task": "/laser_act", "LASERid":1, "LASERval": 200}
+
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 100000,  "isabs": 1}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 100000,  "isabs": 1}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
+
+
+
+
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": 10000, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 1000, "speed": 1000, "isabs": 0.0, "isaccel": 1, "isen": true}]}, "qid": 8}

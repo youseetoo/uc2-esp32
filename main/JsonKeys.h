@@ -83,7 +83,6 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_maxspeed = "maxspe
 __attribute__ ((unused)) static const PROGMEM char * key_home_direction = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_home_timestarted = "timestarted";
 __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isactive";
-__attribute__ ((unused)) static const PROGMEM char * key_home_endposrelease = "endposrelease";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
 #endif 
 __attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";

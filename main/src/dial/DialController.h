@@ -45,6 +45,7 @@ namespace DialController
     static int currentAxis = 0; // 0=X, 1=Y, 2=Z, 3=A; 4=Intensity
     static int stepSize = 1;    // Step size starts at 1
     static long encoderPos = 0;
+    static int lastIntensity = 0;
 
     // Available touch states
     static const int TOUCH_BEGIN = 3;      // Represents touch start

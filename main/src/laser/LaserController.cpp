@@ -138,7 +138,7 @@ namespace LaserController
 			}
 			else 
 			{
-				setPWM(LASERval, PWM_CHANNEL_LASER_1);
+				setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
@@ -161,7 +161,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASERval, PWM_CHANNEL_LASER_2);
+				setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
@@ -184,7 +184,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASERval, PWM_CHANNEL_LASER_3);
+				setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
 			}
 
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
@@ -194,6 +194,29 @@ namespace LaserController
 		{
 			return 0;
 		}
+	}
+
+	int getLaserVal(int LASERid)
+	{
+		int laserVal = 0;
+		if (LASERid == 1)
+		{
+			laserVal=LASER_val_1;
+		}
+		else if (LASERid == 2)
+		{
+			laserVal=LASER_val_2;
+		}
+		else if (LASERid == 3)
+		{
+			laserVal=LASER_val_3;
+		}
+		else
+		{
+			laserVal=0;
+		}
+		log_i("LASERid %i, LASERval %i", LASERid, laserVal);
+		return laserVal;
 	}
 
 	void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res)

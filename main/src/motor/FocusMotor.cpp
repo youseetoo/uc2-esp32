@@ -99,7 +99,7 @@ namespace FocusMotor
 				Serial.println("--");
 			}
 			DialController::pushMotorPosToDial()
-			cJSON_Delete(root);
+				cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
 	}
@@ -298,12 +298,12 @@ namespace FocusMotor
 
 	void setEnable(bool enable)
 	{
-		#ifdef USE_FASTACCEL
+#ifdef USE_FASTACCEL
 		FAccelStep::Enable(enable);
-		#elif defined USE_ACCELSTEP
+#elif defined USE_ACCELSTEP
 		AccelStep::Enable(enable);
-		#endif
-	}	
+#endif
+	}
 
 #ifdef HOME_MOTOR
 	void parseHome(cJSON *doc)
@@ -549,12 +549,18 @@ namespace FocusMotor
 #endif
 		AccelStep::setupAccelStepper();
 #endif
-	for(int iMotor = 0; iMotor < 4; iMotor++)
-	{
-		sendMotorPos(iMotor, 0);
-	}
-	
-
+		for (int iMotor = 0; iMotor < 4; iMotor++)
+		{
+			// need to activate the motor's dir pin eventually
+			// This also updates the dial's positions
+			Stepper s = static_cast<Stepper>(iMotor);
+			data[s]->absolutePosition = true;
+			data[s]->targetPosition = 1;
+			startStepper(iMotor);
+			data[s]->targetPosition = -1;
+			startStepper(iMotor);
+			stopStepper(iMotor);
+		}
 
 #ifdef WIFI
 		// TODO: This causes the heap to overload?
@@ -602,7 +608,8 @@ namespace FocusMotor
 						// TODO: REadout register on slave side and check if destination
 						// Only send the information when the motor is halting
 						// log_d("Sending motor pos %i", i);
-						sendMotorPos(i, 0);
+						//sendMotorPos(i, 0);
+						stopStepper(i);
 						getData()[i]->stopped = true;
 						preferences.begin("motpos", false);
 						preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
@@ -620,9 +627,8 @@ namespace FocusMotor
 			{
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				//log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 				stopStepper(i);
-				sendMotorPos(i, 0);
 				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
@@ -633,7 +639,7 @@ namespace FocusMotor
 
 	MotorState pullMotorDataI2C(int axis)
 	{
-		#ifdef USE_I2C
+#ifdef USE_I2C
 		// we pull the data from the slave's register
 		uint8_t slave_addr = axis2address(axis);
 
@@ -641,6 +647,7 @@ namespace FocusMotor
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
+			return MotorState();
 		}
 		Wire.requestFrom(slave_addr, sizeof(MotorState));
 		MotorState motorState; // Initialize with default values
@@ -655,9 +662,9 @@ namespace FocusMotor
 		}
 
 		return motorState;
-		#else
+#else
 		return MotorState();
-		#endif
+#endif
 	}
 
 	bool isRunning(int i)
@@ -678,11 +685,11 @@ namespace FocusMotor
 		AccelStep::updateData(i);
 #endif
 
-		#ifdef DIAL_CONTROLLER
+#ifdef DIAL_CONTROLLER
 		// update the dial with the actual motor positions
 		// the motor positions array is updated in the dial controller
 		DialController::pushMotorPosToDial();
-		#endif
+#endif
 
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
@@ -743,8 +750,11 @@ namespace FocusMotor
 
 	void setPosition(Stepper s, int pos)
 	{
+		getData()[s]->currentPosition = pos;
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
+#elif defined USE_ACCELSTEP
+		AccelStep::setPosition(s, pos);
 #endif
 	}
 

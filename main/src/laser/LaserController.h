@@ -24,6 +24,7 @@ namespace LaserController
     static int pwm_frequency =  5000;//19000; //12000
     static long pwm_max = (int)pow(2, pwm_resolution);
 
+    int getLaserVal(int LASERid);
 
     static int PWM_CHANNEL_LASER_1 = 1;
     static int PWM_CHANNEL_LASER_2 = 2;

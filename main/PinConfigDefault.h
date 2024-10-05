@@ -68,13 +68,13 @@ struct PinConfig
      const bool dumpHeap = false;
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
-     const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 2048;
-     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2048;
+     const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 1024;
+     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2048; // Don't go below 2048
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
-     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 1024;
+     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 1024; // TODO check if this is ending in stackoverflow 
      const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
      const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 6 * 1024;
-     const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 8096;
+     const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 6 * 1024;
      const uint16_t TCA_TASK_STACKSIZE = 2048;
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; //8096;

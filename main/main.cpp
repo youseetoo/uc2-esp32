@@ -5,7 +5,13 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "esp_task_wdt.h"
+#include "esp_system.h"
 #include "Wire.h"
+#include <Preferences.h>
+#include "nvs_flash.h"
+
+
+Preferences preferences;
 
 
 #define WDTIMEOUT 2 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
@@ -164,11 +170,12 @@ extern "C" void looper(void *p)
 
 extern "C" void setupApp(void)
 {
-
+	
 	log_i("SetupApp");
 	// setup debugging level
 	// esp_log_level_set("*", ESP_LOG_DEBUG);
-	esp_log_level_set("*", ESP_LOG_NONE);
+	
+
 	SerialProcess::setup();
 #ifdef DIAL_CONTROLLER
 	// need to initialize the dial controller before the i2c controller
@@ -238,30 +245,47 @@ extern "C" void setupApp(void)
 #ifdef GALVO_CONTROLLER
 	GalvoController::setup();
 #endif
+
+	Serial.println("{'setup':'done'}");
 }
+
+
 extern "C" void app_main(void)
 {
-	// Setzt das Log-Level für alle Tags auf WARNING, um INFO-Nachrichten zu unterdrücken
-	// esp_log_level_set("*", ESP_LOG_WARN);
+	// Disable brownout detector
+	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+	esp_log_level_set("*", ESP_LOG_NONE);
+	log_i("Start setup");
 
-	// Oder, wenn der Tag bekannt ist, z.B. "gpio", nur für diesen Tag setzen
-	// esp_log_level_set("gpio", ESP_LOG_WARN);
+    // Initialisieren Sie den NVS-Speicher
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        // NVS-Partition ist beschädigt oder eine neue Version wurde gefunden
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
 
-	// Start Serial
+	// read if boot went well from preferences // TODO: Some ESPs have this problem apparently... not sure why
+	preferences.begin("boot_prefs", false);
+	bool hasBooted = preferences.getBool("hasBooted", false); // Check if the ESP32 has already booted successfully before
+
+	// If this is the first boot, set the flag and restart
+	if (!hasBooted and false) { // some ESPs are freaking out on start, but this is not a good solution
+		// Set the flag to indicate that the ESP32 has booted once
+		Serial.println("First boot");
+		preferences.putBool("hasBooted", true);
+		preferences.end();
+		ESP.restart();// Restart the ESP32 immediately
+	}
+
+	preferences.putBool("hasBooted", false); // reset boot flag so that the ESP32 will restart on the next boot
+	preferences.end();
 	
+	// Start Serial	
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);
 	Serial.setTimeout(50);
-
-	// Start Serial 2
-	/*
-	Serial2.begin(BAUDRATE, SERIAL_8N1, pinConfig.SERIAL2_RX, pinConfig.SERIAL2_TX);
-	Serial2.setTimeout(50);
-	Serial2.println("Serial2 started");
-	*/
-	// Disable brownout detector
-	log_i("Start setup");
-	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
 	// initialize the pin/settings configurator
 	log_i("Config::setup");
@@ -270,7 +294,7 @@ extern "C" void app_main(void)
 	// initialize the module controller
 	setupApp();
 
-	Serial.println("{'setup':'done'}");
+
 
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);

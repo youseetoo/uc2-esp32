@@ -209,6 +209,10 @@ struct PinConfig
      int8_t ENC_X_B = disabled;
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_B = disabled;
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
+     
      
      bool isDualAxisZ = false;
 
@@ -219,20 +223,20 @@ struct PinConfig
      // Auxilarry I2C devices
      int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
-     int8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
-     int8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
-     int8_t I2C_ADD_MOT_X = 0x40;
-     int8_t I2C_ADD_MOT_Y = 0x41;
-     int8_t I2C_ADD_MOT_Z = 0x42;
-     int8_t I2C_ADD_MOT_A = 0x43;
-     int8_t I2C_ADD_LEX_MAT = 0x50;
-     int8_t I2C_ADD_LEX_PWM1 = 0x51;
-     int8_t I2C_ADD_LEX_PWM2 = 0x52;
-     int8_t I2C_ADD_LEX_PWM3 = 0x53;
-     int8_t I2C_ADD_LEX_PWM4 = 0x54;
+     uint8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
+     uint8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
+     uint8_t I2C_ADD_MOT_X = 0x40;
+     uint8_t I2C_ADD_MOT_Y = 0x41;
+     uint8_t I2C_ADD_MOT_Z = 0x42;
+     uint8_t I2C_ADD_MOT_A = 0x43;
+     uint8_t I2C_ADD_LEX_MAT = 0x50;
+     uint8_t I2C_ADD_LEX_PWM1 = 0x51;
+     uint8_t I2C_ADD_LEX_PWM2 = 0x52;
+     uint8_t I2C_ADD_LEX_PWM3 = 0x53;
+     uint8_t I2C_ADD_LEX_PWM4 = 0x54;
 
      // inputs
-     int8_t I2C_ADD_M5_DIAL = 0x60;
+     uint8_t I2C_ADD_M5_DIAL = 0x60;
 
 
      // SPI

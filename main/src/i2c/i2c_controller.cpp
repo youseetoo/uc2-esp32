@@ -163,7 +163,15 @@ namespace i2c_controller
 		cJSON *j = cJSON_CreateObject();
 		cJSON *ls = cJSON_CreateObject();
 		cJSON_AddItemToObject(j, "i2c", ls);
-		cJsonTool::setJsonInt(ls, "Info", 1);
+		#ifdef I2C_MASTER
+		cJsonTool::setJsonInt(ls, "isI2CMaster", 1);
+		#endif
+		#ifdef I2C_SLAVE
+		cJsonTool::setJsonInt(ls, "isI2CSlave", 1);
+		#endif
+		cJsonTool::setJsonInt(ls, "deviceAddress", pinConfig.I2C_ADD_SLAVE);
+		cJsonTool::setJsonInt(ls, "pinSDA", pinConfig.I2C_SDA);
+		cJsonTool::setJsonInt(ls, "pinSCL", pinConfig.I2C_SCL);
 		return j;
 	}
 

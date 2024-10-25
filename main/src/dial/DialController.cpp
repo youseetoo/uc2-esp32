@@ -86,7 +86,11 @@ namespace DialController
 		mDialData.pos_x = FocusMotor::getData()[1]->currentPosition;
 		mDialData.pos_y = FocusMotor::getData()[2]->currentPosition;
 		mDialData.pos_z = FocusMotor::getData()[3]->currentPosition;
+		#ifdef LASER_CONTROLLER 
 		mDialData.intensity = LaserController::getLaserVal(1);
+		#else
+		mDialData.intensity = 0;
+		#endif
 		log_i("Motor positions sent to dial: %i, %i, %i, %i, %i", mDialData.pos_a, mDialData.pos_x, mDialData.pos_y, mDialData.pos_z, mDialData.intensity);
 		Wire.write((uint8_t *)&mDialData, sizeof(DialData));
 		Wire.endTransmission();

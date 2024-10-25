@@ -24,6 +24,10 @@ struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
      #define SW_RX            D7   // PB09_D7_RX (Pin 8) UART RX pin for TMC2209
      #define SW_TX            D6   // PB08_A6_TX (Pin 7) UART TX pin for TMC2209
      #define SERIAL_PORT Serial1  // UART Serial port for TMC2209
+     #define I2C_SCL_ext      D5   // PB07_A5_D5 (Pin 6) I2C SCL pin
+     #define I2C_SDA_ext      D4   // PB06_A4_D4 (Pin 5) I2C SDA pin
+     #define I2C_SCL_int     D2   // PA14_A3_D3 (Pin 4) I2C SCL pin
+     #define I2C_SDA_int     D3   // PA13_A10_D10 (Pin 9) I2C SDA pin
 
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
@@ -45,11 +49,13 @@ struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
      int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
      int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
-     int8_t I2C_ADD_TCA = 0x27;
-     gpio_num_t I2C_INT = GPIO_NUM_27;
-
+     
      // I2C configuration (using updated GPIO values)
      int8_t I2C_SCL_ext = GPIO_NUM_6; // D5 -> GPIO6
      int8_t I2C_SDA_ext = GPIO_NUM_5; // D4 -> GPIO5
+
+     // TMC UART 
+     int8_t SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
 };
 const UC2_ESP32S3_XIAO_LEDSERVO pinConfig;

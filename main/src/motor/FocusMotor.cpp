@@ -646,7 +646,7 @@ namespace FocusMotor
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
-			log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
+			// log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
 			return MotorState();
 		}
 		Wire.requestFrom(slave_addr, sizeof(MotorState));
@@ -744,6 +744,11 @@ namespace FocusMotor
 		AccelStep::stopAccelStepper(i);
 #endif
 #if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+		log_i("Stop Motor %i", i);
+		data[i]->stopped = true; // FIME: difference between stopped and isStop? 
+		data[i]->isStop = true;	 // FIME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
+		data[i]->targetPosition = 0; 	// weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
+		data[i]->absolutePosition = false;
 		sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 #endif
 	}
@@ -768,7 +773,7 @@ namespace FocusMotor
 	void sendMotorDataI2C(MotorData motorData, uint8_t axis)
 	{
 		uint8_t slave_addr = axis2address(axis);
-		log_i("MotorData to axis: %i", axis);
+		log_i("MotorData to axis: %i, isStop: %i ", axis, motorData.isStop);
 
 		// TODO: should we have this inside the I2C controller?
 		Wire.beginTransmission(slave_addr);

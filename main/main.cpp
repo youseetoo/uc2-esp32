@@ -1,3 +1,4 @@
+#define CORE_DEBUG_LEVEL 0
 #include "esp_log.h"
 #include <PinConfig.h>
 #include "src/config/ConfigController.h"

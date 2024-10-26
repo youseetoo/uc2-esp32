@@ -78,7 +78,7 @@ namespace DialController
 		uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
-			log_e("Error: Dial address not found in i2cAddresses");
+			log_e("Error (push): Dial address not found in i2cAddresses");
 			return;
 		}
 		Wire.beginTransmission(slave_addr);
@@ -107,7 +107,7 @@ namespace DialController
 		// Request data from the slave but only if inside i2cAddresses
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
-			log_e("Error: Dial address not found in i2cAddresses");
+			log_e("Error (pull): Dial address not found in i2cAddresses");
 			return;
 		}
 

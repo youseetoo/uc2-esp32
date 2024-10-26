@@ -151,6 +151,7 @@ namespace SerialProcess
 				if (error_ptr != NULL)
 					log_i("Error while parsing:%s", error_ptr);
 				log_i("Serial input is null");
+				Serial.println("{\"error\":\"Serial input is null\"}");
 			}
 			c.clear();
 		}

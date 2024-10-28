@@ -21,3 +21,4 @@ build/firmware.bin
 /dependencies.lock
 
 THID*
+/.conda/*

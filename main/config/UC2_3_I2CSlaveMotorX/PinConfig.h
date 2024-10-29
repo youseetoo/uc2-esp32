@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-
+#define I2C_SLAVE
 /*
 // changing that in the pio.ini enforces recompilation
 #define MOTOR_CONTROLLER
@@ -22,9 +22,14 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
      const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
-     int8_t MOTOR_X_STEP = GPIO_NUM_16;
-     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
-     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     int8_t MOTOR_X_STEP = disabled;//GPIO_NUM_16;
+     int8_t MOTOR_Y_STEP = disabled;//GPIO_NUM_14;
+     int8_t MOTOR_Z_STEP = disabled;//GPIO_NUM_0;
+     int8_t MOTOR_A_DIR = GPIO_NUM_16; // assigning dummy pin to start faccel
+     int8_t MOTOR_X_DIR = disabled;
+     int8_t MOTOR_Y_DIR = disabled;
+     int8_t MOTOR_Z_DIR = disabled;
+     
      bool isDualAxisZ = true;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
@@ -48,12 +53,9 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
-     int8_t PIN_DEF_END_X = 105;
-     int8_t PIN_DEF_END_Y = 106;
-     int8_t PIN_DEF_END_Z = 107;
-     int8_t DIGITAL_IN_1 = PIN_DEF_END_X;
-     int8_t DIGITAL_IN_2 = PIN_DEF_END_Y;
-     int8_t DIGITAL_IN_3 = PIN_DEF_END_Z;
+     int8_t DIGITAL_IN_1 = 105;
+     int8_t DIGITAL_IN_2 = 106;
+     int8_t DIGITAL_IN_3 = 107;
 
      int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
      int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
@@ -75,8 +77,8 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
 
      // I2c
      const char *I2C_NAME = "MOTX";
-     bool IS_I2C_SLAVE = true;
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
+     int8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;

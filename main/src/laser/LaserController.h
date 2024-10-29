@@ -7,7 +7,7 @@ namespace LaserController
 {
 
     static bool isBusy;
-    
+    static int LASER_val_0 = 0;
     static int LASER_val_1 = 0;
     static int LASER_val_2 = 0;
     static int LASER_val_3 = 0;
@@ -24,17 +24,20 @@ namespace LaserController
     static int pwm_frequency =  5000;//19000; //12000
     static long pwm_max = (int)pow(2, pwm_resolution);
 
-
+    int getLaserVal(int LASERid);
+    bool setLaserVal(int LASERid, int LASERval);
+    static int PWM_CHANNEL_LASER_0 = 4; // This is used for the Heating Unit 
     static int PWM_CHANNEL_LASER_1 = 1;
     static int PWM_CHANNEL_LASER_2 = 2;
     static int PWM_CHANNEL_LASER_3 = 3;
 
     // temperature dependent despeckeling?
+    static int LASER_despeckle_0 = 0;
     static int LASER_despeckle_1 = 0;
     static int LASER_despeckle_2 = 0;
     static int LASER_despeckle_3 = 0;
-    static int PWM_CHANNEL_LASER_0 = 3; // This is used for the Heating Unit 
 
+    static int LASER_despeckle_period_0 = 20;
     static int LASER_despeckle_period_1 = 20;
     static int LASER_despeckle_period_2 = 20;
     static int LASER_despeckle_period_3 = 20;

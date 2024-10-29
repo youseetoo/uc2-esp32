@@ -30,10 +30,6 @@ struct UC2_Insert : PinConfig
      int8_t LED_PIN = GPIO_NUM_4;
      int8_t LED_COUNT = 64;
 
-     int8_t PIN_DEF_END_X = disabled;
-     int8_t PIN_DEF_END_Y = disabled;
-     int8_t PIN_DEF_END_Z = disabled;
-
      const char *PSX_MAC = "1a:2b:3c:01:01:01";
      int8_t PSX_CONTROLLER_TYPE = 2;
 };

@@ -4,7 +4,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "string.h"
-
+#include "hal/pcnt_types.h"
 
 	#define I2C_MASTER_NUM             I2C_NUM_1        /*!< I2C port number for master dev */
     #define I2C_MASTER_TX_BUF_DISABLE  0                /*!< I2C master do not need buffer */

@@ -12,7 +12,7 @@
 #endif
 #include "MotorTypes.h"
 
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined USE_I2C_MOTOR
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined USE_I2C_MOTOR && !defined DIAL_CONTROLLER
 #error Pls set USE_FASTACCEL or USE_ACCELSTEP
 #endif
 #if defined USE_FASTACCEL && defined USE_ACCELSTEP
@@ -42,7 +42,10 @@ namespace FocusMotor
 	int axis2address(int axis);
 	void sendMotorDataI2C(MotorData motorData, uint8_t axis);
 	MotorState pullMotorDataI2C(int axis);
-
+	void toggleStepper(Stepper s, bool isStop);
+	void setAutoEnable(bool enable);
+	void setEnable(bool enable);
+	
 	String motorDataToJson(MotorData motorData);
 	void parseJsonI2C(cJSON *doc);
 	static int logcount;
@@ -50,6 +53,7 @@ namespace FocusMotor
 
 	static bool isDualAxisZ = false;
 	static int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
+	static bool waitForFirstRunI2CSlave[4] = {false, false, false, false};
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
 };

@@ -29,9 +29,9 @@ struct UC2_1 : PinConfig
      int8_t LED_PIN = GPIO_NUM_17;
      int8_t LED_COUNT = 25;
 
-     int8_t PIN_DEF_END_X = GPIO_NUM_10;
-     int8_t PIN_DEF_END_Y = GPIO_NUM_11;
-     int8_t PIN_DEF_END_Z = disabled;
+     int8_t DIGITAL_IN_1 = GPIO_NUM_10;
+     int8_t DIGITAL_IN_2 = GPIO_NUM_11;
+     int8_t DIGITAL_IN_3 = disabled;
 
      const char *PSX_MAC = "1a:2b:3c:01:01:05";
      int8_t PSX_CONTROLLER_TYPE = 1;

@@ -1,5 +1,5 @@
 #pragma once
-#include "cJson.h"
+#include "cJSON.h"
 #include "Arduino.h"
 
 namespace cJsonTool

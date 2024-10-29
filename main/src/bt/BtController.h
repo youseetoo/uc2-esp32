@@ -10,7 +10,7 @@
 namespace BtController
 {
     static bool IS_PS_CONTROLER_LEDARRAY = false;
-    static int offset_val = 1500; // make sure you do not accidentally turn on two directions at the same time
+    static int offset_val = 513; // make sure you do not accidentally turn on two directions at the same time
     static int stick_ly = 0;
     static int stick_lx = 0;
     static int stick_rx = 0;

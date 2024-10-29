@@ -9,6 +9,7 @@ OPTION(BLUETOOTH "BLUETOOTH" OFF)
 OPTION(DAC_CONTROLLER "DAC" OFF)
 OPTION(DIGITAL_IN_CONTROLLER "DIGITAL_IN_CONTROLLER" OFF)
 OPTION(DIGITAL_OUT_CONTROLLER "DIGITAL_OUT_CONTROLLER" OFF)
+OPTION(DIAL_CONTROLLER "DIAL_CONTROLLER" OFF)
 OPTION(ENCODER_CONTROLLER "ENCODER_CONTROLLER" OFF)
 OPTION(LINEAR_ENCODER_CONTROLLER "LINEAR_ENCODER_CONTROLLER" OFF)
 OPTION(LASER_CONTROLLER "Laser" OFF)
@@ -25,7 +26,9 @@ OPTION(HOME_MOTOR "HomeDrive" OFF)
 OPTION(STAGE_SCAN "StageScan" OFF)
 OPTION(USE_TCA9535 "USE_TCA9535" OFF)
 OPTION(USE_I2C "USE_I2C" OFF)
-OPTION(HEAT_CONTROLLER "USE_TCA9535" OFF)
+OPTION(HEAT_CONTROLLER "HEAT_CONTROLLER" OFF)
+OPTION(I2C_MASTER "I2C_MASTER" OFF)
+OPTION(I2C_SLAVE "I2C_SLAVE" OFF)
 
 
 # Copy the correct PinConfig.h file to the main directory depending on the selected configuration in platformio.ini
@@ -40,7 +43,7 @@ set(srcs    ${mainsrc}main.cpp
             ${mainsrc}cJSON/cJSON.h
             ${mainsrc}cJSON/cJSON_Utils.h
             ${mainsrc}src/serial/SerialProcess.cpp
-            ${mainsrc}src/State/State.cpp
+            ${mainsrc}src/state/State.cpp
             ${mainsrc}src/config/ConfigController.cpp
             ${mainsrc}src/encoder/InterruptController.cpp
          )
@@ -67,6 +70,9 @@ endif()
 if(DIGITAL_OUT_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/digitalout/DigitalOutController.cpp)
 endif()
+if(DIAL_CONTROLLER EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/dial/DialController.cpp)
+endif()
 if(ENCODER_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/encoder/EncoderController.cpp)
 endif()
@@ -86,6 +92,10 @@ if(GALVO_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/scanner/GalvoController.cpp)
     list(APPEND srcs ${mainsrc}src/scanner/SPIRenderer.cpp)
 endif()
+if(USE_I2C EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/i2c/i2c_controller.cpp)
+endif()
+
 if(MOTOR_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/motor/FocusMotor.cpp)
     if(USE_FASTACCEL EQUAL 1)
@@ -102,9 +112,6 @@ if(MOTOR_CONTROLLER EQUAL 1)
     endif()
     if(HOME_MOTOR EQUAL 1)
         list(APPEND srcs ${mainsrc}src/home/HomeMotor.cpp)
-    endif()
-    if(USE_I2C EQUAL 1)
-        list(APPEND srcs ${mainsrc}src/i2c/i2c_controller.cpp)
     endif()
 endif()
 if(PID_CONTROLLER EQUAL 1)

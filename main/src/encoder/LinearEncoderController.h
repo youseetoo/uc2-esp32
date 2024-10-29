@@ -18,7 +18,6 @@ struct LinearEncoderData
 	int calibsteps = 0;
 	int dataPin = -1;
 	int clkPin = -1;
-	int endPosRelease = 0;
 	float positionPreMove = 0.0f;
 	float positionToGo = 0.0f;
 	float valuePostCalib = 0.0f;

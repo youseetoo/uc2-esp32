@@ -120,7 +120,7 @@ namespace LaserController
 		}
 
 		// action LASER 1
-		if (LASERid == 1 && pinConfig.LASER_1 != 0 && hasLASERval)
+		if (LASERid == 1 && pinConfig.LASER_1 >= 0 && hasLASERval)
 		{
 			LASER_val_1 = LASERval;
 			LASER_despeckle_1 = LASERdespeckle;
@@ -144,7 +144,7 @@ namespace LaserController
 			return qid;
 		}
 		// action LASER 2
-		else if (LASERid == 2 && pinConfig.LASER_2 != 0 && hasLASERval)
+		else if (LASERid == 2 && pinConfig.LASER_2 >= 0 && hasLASERval)
 		{
 			LASER_val_2 = LASERval;
 			LASER_despeckle_2 = LASERdespeckle;
@@ -167,7 +167,7 @@ namespace LaserController
 			return qid;
 		}
 		// action LASER 3
-		else if (LASERid == 3 && pinConfig.LASER_3 != 0 && hasLASERval)
+		else if (LASERid == 3 && pinConfig.LASER_3 >= 0 && hasLASERval)
 		{
 			LASER_val_3 = LASERval;
 			LASER_despeckle_3 = LASERdespeckle;
@@ -187,6 +187,31 @@ namespace LaserController
 				setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
 			}
 
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			return qid;
+		}
+		// action LASER 0
+		else if(LASERid == 0 && pinConfig.LASER_0 >= 0 && hasLASERval)
+		{
+			// action LASER 0
+			// {"task":"/laser_act", "LASERid":0 ,"LASERval":50, "qid":1}
+			LASER_val_0 = LASERval;
+			LASER_despeckle_0 = LASERdespeckle;
+			LASER_despeckle_period_0 = LASERdespecklePeriod;
+			if (isServo)
+			{
+				// for servo
+				// {"task":"/laser_act", "LASERid":0 ,"LASERval":50, "servo":1, "qid":1}
+				pwm_frequency = 50;
+				pwm_resolution = 16;
+
+				configurePWM(pinConfig.LASER_0, pwm_frequency, PWM_CHANNEL_LASER_0, pwm_frequency);
+				moveServo(PWM_CHANNEL_LASER_0, LASERval, pwm_frequency, pwm_resolution);
+			}
+			else
+			{
+				setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
+			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return qid;
 		}
@@ -277,12 +302,25 @@ namespace LaserController
 	// returns json {"laser":{..}}  as qid
 	cJSON *get(cJSON *ob)
 	{
+		/*
+		 {"task":"/laser_get"}
+		 {"task":"/laser_get", "qid":1}
+		 returns {"laser": 	{"LASER1pin":1,
+							"LASER2pin":2,
+							"LASER3pin":3,
+							"LASER1val":0,
+							"LASER2val":0,
+							"LASER3val":0}} */
 		cJSON *j = cJSON_CreateObject();
 		cJSON *ls = cJSON_CreateObject();
 		cJSON_AddItemToObject(j, key_laser, ls);
 		cJsonTool::setJsonInt(ls, "LASER1pin", pinConfig.LASER_1);
 		cJsonTool::setJsonInt(ls, "LASER2pin", pinConfig.LASER_2);
 		cJsonTool::setJsonInt(ls, "LASER3pin", pinConfig.LASER_3);
+		cJsonTool::setJsonInt(ls, "LASER1val", getLaserVal(1));
+		cJsonTool::setJsonInt(ls, "LASER2val", getLaserVal(2));
+		cJsonTool::setJsonInt(ls, "LASER3val", getLaserVal(3));
+		
 		return j;
 	}
 

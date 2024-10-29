@@ -70,13 +70,14 @@ namespace State
 		return 1;
 	}
 
-	// Custom function accessible by the API
-	// return json {"state":{...}} as qid
-	// {"task":"/state_get",  "qid":1}
-	// {"task":"/state_get", "isBusy":1}
-	// {"task":"/state_get", "heap":1}
 	cJSON *get(cJSON *docin)
 	{
+		// Custom function accessible by the API
+		// return json {"state":{...}} as qid
+		// {"task":"/state_get",  "qid":1}
+		// {"task":"/state_get", "isBusy":1}
+		// {"task":"/state_get", "heap":1}
+		// This returns: {"identifier_name":UC2_Feather, "identifier_id":V2.0, "identifier_date":__DATE__ __TIME__, "identifier_author":BD, "IDENTIFIER_NAME":uc2-esp, "configIsSet":0, "pindef":UC2}
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *st = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, "state", st);

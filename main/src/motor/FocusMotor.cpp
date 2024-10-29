@@ -105,18 +105,29 @@ namespace FocusMotor
 	}
 #endif
 
-	void startStepper(int i)
+	void startStepper(int axis)
 	{
 #if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
-		sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
-		// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-		waitForFirstRunI2CSlave[i] = true;
-		getData()[i]->stopped = false;
+		// Request data from the slave but only if inside i2cAddresses
+		uint8_t slave_addr = axis2address(axis);
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		{
+			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+			sendMotorPos(axis, 0); // this is an exception. We first get the position, then the success
+		}
+		else
+		{
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+
+			waitForFirstRunI2CSlave[axis] = true;
+			getData()[axis]->stopped = false;
+		}
 #else
 #ifdef USE_FASTACCEL
-		FAccelStep::startFastAccelStepper(i);
+		FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
-		AccelStep::startAccelStepper(i);
+		AccelStep::startAccelStepper(axis);
 #endif
 #endif
 	}
@@ -215,7 +226,7 @@ namespace FocusMotor
 		else
 		{
 			log_i("start stepper from parseMotorDriveJson");
-			startStepper(s);
+			startStepper(s); // TODO: Need dual axis?
 		}
 #endif
 	}
@@ -381,7 +392,28 @@ namespace FocusMotor
 	// returns json {"motor":{...}} as qid
 	cJSON *get(cJSON *docin)
 	{
-		// {"task": "/motor_get", "qid": 1}
+		/*
+		{"task": "/motor_get", "qid": 1}
+		returns
+		{
+			"motor": {
+				"steppers": [
+					{
+						"stepperid": 0,
+						"position": 1000
+					},
+					{
+						"stepperid": 1,
+						"position": 2000
+					},
+					{
+						"stepperid": 2,
+						"position": 3000
+					}
+				]
+			}
+		}*/
+
 		log_i("get motor");
 		cJSON *doc = cJSON_CreateObject();
 		int qid = cJsonTool::getJsonInt(docin, "qid");
@@ -429,6 +461,7 @@ namespace FocusMotor
 				cJsonTool::setJsonInt(aritem, key_triggeroffset, data[i]->offsetTrigger);
 				cJsonTool::setJsonInt(aritem, key_triggerperiod, data[i]->triggerPeriod);
 				cJsonTool::setJsonInt(aritem, key_triggerpin, data[i]->triggerPin);
+				cJsonTool::setJsonInt(aritem, "isDualAxisZ", isDualAxisZ);
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 		}
@@ -608,7 +641,7 @@ namespace FocusMotor
 						// TODO: REadout register on slave side and check if destination
 						// Only send the information when the motor is halting
 						// log_d("Sending motor pos %i", i);
-						//sendMotorPos(i, 0);
+						// sendMotorPos(i, 0);
 						stopStepper(i);
 						getData()[i]->stopped = true;
 						preferences.begin("motpos", false);
@@ -745,9 +778,9 @@ namespace FocusMotor
 #endif
 #if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
 		log_i("Stop Motor %i", i);
-		data[i]->stopped = true; // FIME: difference between stopped and isStop? 
-		data[i]->isStop = true;	 // FIME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
-		data[i]->targetPosition = 0; 	// weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
+		data[i]->stopped = true;	 // FIME: difference between stopped and isStop?
+		data[i]->isStop = true;		 // FIME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
+		data[i]->targetPosition = 0; // weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
 		data[i]->absolutePosition = false;
 		sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 #endif

@@ -53,6 +53,7 @@ namespace HomeMotor
 					hdata[s]->homeMaxspeed = cJsonTool::getJsonInt(stp, key_home_maxspeed);
 					hdata[s]->homeDirection = cJsonTool::getJsonInt(stp, key_home_direction);
 					hdata[s]->homeEndStopPolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
+					FocusMotor::isDualAxisZ = cJsonTool::getJsonInt(stp, key_home_isDualAxis);
 					hdata[s]->qid = qid;
 					hdata[s]->homeInEndposReleaseMode = 0;
 					// grab current time

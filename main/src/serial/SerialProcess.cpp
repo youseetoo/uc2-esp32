@@ -218,15 +218,17 @@ namespace SerialProcess
 		and a JSON object that holds the information for the
 		task that needs to be processed. It calls the get/act
 		function for the different controllers*/
+		if (false) // keep all other else ifs happy
+			return;
 #ifdef ANALOG_OUT_CONTROLLER
-		if (strcmp(task, analogout_act_endpoint) == 0)
+		else if (strcmp(task, analogout_act_endpoint) == 0)
 			serialize(AnalogOutController::act(jsonDocument));
-		if (strcmp(task, analogout_get_endpoint) == 0)
+		else  if (strcmp(task, analogout_get_endpoint) == 0)
 			serialize(AnalogOutController::get(jsonDocument));
 #endif
 
 #ifdef BLUETOOTH
-		if (strcmp(task, bt_connect_endpoint) == 0)
+		else  if (strcmp(task, bt_connect_endpoint) == 0)
 		{
 			// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 			char *mac = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "mac")); // jsonDocument["mac"];
@@ -238,36 +240,36 @@ namespace SerialProcess
 			BtController::connectPsxController(mac, ps);
 #endif
 		}
-		if (strcmp(task, bt_scan_endpoint) == 0)
+		else  if (strcmp(task, bt_scan_endpoint) == 0)
 		{
 			BtController::scanForDevices(jsonDocument);
 		}
 #endif
 
 #ifdef DAC_CONTROLLER
-		if (strcmp(task, dac_act_endpoint) == 0)
+		else  if (strcmp(task, dac_act_endpoint) == 0)
 			serialize(DacController::act(jsonDocument));
-			// if (strcmp(task, dac_get_endpoint) == 0)
+			// else  if (strcmp(task, dac_get_endpoint) == 0)
 			//	serialize(DacController::get(jsonDocument));
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
-		if (strcmp(task, digitalin_act_endpoint) == 0)
+		else  if (strcmp(task, digitalin_act_endpoint) == 0)
 			serialize(DigitalInController::act(jsonDocument));
-		if (strcmp(task, digitalin_get_endpoint) == 0)
+		else  if (strcmp(task, digitalin_get_endpoint) == 0)
 			serialize(DigitalInController::get(jsonDocument));
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-		if (strcmp(task, digitalout_act_endpoint) == 0)
+		else  if (strcmp(task, digitalout_act_endpoint) == 0)
 			serialize(DigitalOutController::act(jsonDocument));
-		if (strcmp(task, digitalout_get_endpoint) == 0)
+		else  if (strcmp(task, digitalout_get_endpoint) == 0)
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
 
 #ifdef ENCODER_CONTROLLER
-		if (strcmp(task, encoder_act_endpoint) == 0)
+		else  if (strcmp(task, encoder_act_endpoint) == 0)
 			serialize(EncoderController::act(jsonDocument));
-		if (strcmp(task, encoder_get_endpoint) == 0)
+		else  if (strcmp(task, encoder_get_endpoint) == 0)
 			serialize(EncoderController::get(jsonDocument));
 #endif
 
@@ -275,99 +277,104 @@ namespace SerialProcess
 	  LinearEncoders
 	*/
 #ifdef LINEAR_ENCODER_CONTROLLER
-		if (strcmp(task, linearencoder_act_endpoint) == 0)
+		else  if (strcmp(task, linearencoder_act_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::act(jsonDocument));
 		}
-		if (strcmp(task, linearencoder_get_endpoint) == 0)
+		else  if (strcmp(task, linearencoder_get_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::get(jsonDocument));
 		}
 #endif
 #ifdef HOME_MOTOR
-		if (strcmp(task, home_get_endpoint) == 0)
+		else  if (strcmp(task, home_get_endpoint) == 0)
 			serialize(HomeMotor::get(jsonDocument));
-		if (strcmp(task, home_act_endpoint) == 0)
+		else  if (strcmp(task, home_act_endpoint) == 0)
 			serialize(HomeMotor::act(jsonDocument));
 #endif
 #ifdef USE_I2C
-		if (strcmp(task, i2c_get_endpoint) == 0)
+		else  if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_controller::get(jsonDocument));
-		if (strcmp(task, i2c_act_endpoint) == 0)
+		else  if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_controller::act(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
-		if (strcmp(task, laser_get_endpoint) == 0)
+		else  if (strcmp(task, laser_get_endpoint) == 0)
 			serialize(LaserController::get(jsonDocument));
-		if (strcmp(task, laser_act_endpoint) == 0)
+		else  if (strcmp(task, laser_act_endpoint) == 0)
 			serialize(LaserController::act(jsonDocument));
 #endif
 #ifdef LED_CONTROLLER
-		if (strcmp(task, ledarr_get_endpoint) == 0)
+		else  if (strcmp(task, ledarr_get_endpoint) == 0)
 			serialize(LedController::get(jsonDocument));
-		if (strcmp(task, ledarr_act_endpoint) == 0)
+		else  if (strcmp(task, ledarr_act_endpoint) == 0)
 			serialize(LedController::act(jsonDocument));
 #endif
 #ifdef MESSAGE_CONTROLLER
-		if (strcmp(task, message_get_endpoint) == 0)
+		else  if (strcmp(task, message_get_endpoint) == 0)
 			serialize(MessageController::get(jsonDocument));
-		if (strcmp(task, message_act_endpoint) == 0)
+		else  if (strcmp(task, message_act_endpoint) == 0)
 			serialize(MessageController::act(jsonDocument));
 #endif
 #ifdef MOTOR_CONTROLLER
-		if (strcmp(task, motor_get_endpoint) == 0)
+		else  if (strcmp(task, motor_get_endpoint) == 0)
 			serialize(FocusMotor::get(jsonDocument));
-		if (strcmp(task, motor_act_endpoint) == 0)
+		else  if (strcmp(task, motor_act_endpoint) == 0)
 			serialize(FocusMotor::act(jsonDocument));
 #endif
 #ifdef SCANNER_CONTROLLER
-		if (strcmp(task, scanner_get_endpoint) == 0)
+		else  if (strcmp(task, scanner_get_endpoint) == 0)
 			serialize(ScannerController::get(jsonDocument));
-		if (strcmp(task, scanner_act_endpoint) == 0)
+		else  if (strcmp(task, scanner_act_endpoint) == 0)
 			serialize(ScannerController::act(jsonDocument));
 #endif
 #ifdef GALVO_CONTROLLER
-		if (strcmp(task, galvo_get_endpoint) == 0)
+		else  if (strcmp(task, galvo_get_endpoint) == 0)
 			serialize(GalvoController::get(jsonDocument));
-		if (strcmp(task, galvo_act_endpoint) == 0)
+		else  if (strcmp(task, galvo_act_endpoint) == 0)
 			serialize(GalvoController::act(jsonDocument));
 #endif
 #ifdef PID_CONTROLLER
-		if (strcmp(task, PID_get_endpoint) == 0)
+		else  if (strcmp(task, PID_get_endpoint) == 0)
 			serialize(PidController::get(jsonDocument));
-		if (strcmp(task, PID_act_endpoint) == 0)
+		else  if (strcmp(task, PID_act_endpoint) == 0)
 			serialize(PidController::act(jsonDocument));
 #endif
 
-		if (strcmp(task, state_act_endpoint) == 0)
+		else  if (strcmp(task, state_act_endpoint) == 0)
 			serialize(State::act(jsonDocument));
-		if (strcmp(task, state_get_endpoint) == 0)
+		else  if (strcmp(task, state_get_endpoint) == 0)
 			serialize(State::get(jsonDocument));
 
-		if (strcmp(task, modules_get_endpoint) == 0)
+		else  if (strcmp(task, modules_get_endpoint) == 0)
 		{
 			serialize(State::getModules());
 		}
 #ifdef WIFI
-		if (strcmp(task, scanwifi_endpoint) == 0)
+		else  if (strcmp(task, scanwifi_endpoint) == 0)
 		{
 			serialize(WifiController::scan());
 		}
 		// {"task":"/wifi/scan"}
-		if (strcmp(task, connectwifi_endpoint) == 0)
+		else  if (strcmp(task, connectwifi_endpoint) == 0)
 		{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 			WifiController::connect(jsonDocument);
 		}
 #endif
 #ifdef HEAT_CONTROLLER
-		if (strcmp(task, heat_get_endpoint) == 0)
+		else  if (strcmp(task, heat_get_endpoint) == 0)
 			serialize(HeatController::get(jsonDocument));
-		if (strcmp(task, heat_act_endpoint) == 0)
+		else  if (strcmp(task, heat_act_endpoint) == 0)
 			serialize(HeatController::act(jsonDocument));
-		if (strcmp(task, ds18b20_get_endpoint) == 0)
+		else  if (strcmp(task, ds18b20_get_endpoint) == 0)
 			serialize(DS18b20Controller::get(jsonDocument));
-		if (strcmp(task, ds18b20_act_endpoint) == 0)
+		else  if (strcmp(task, ds18b20_act_endpoint) == 0)
 			serialize(DS18b20Controller::act(jsonDocument));
 #endif
+		else
+		{
+			// Unknown task
+			serialize(-1);
+		}
 	}
 }

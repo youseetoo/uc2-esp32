@@ -132,47 +132,7 @@ namespace FocusMotor
 #endif
 	}
 
-	void parseJsonI2C(cJSON *doc)
-	{
-		/*
-		We parse the incoming JSON string to the motor struct and send it via I2C to the correpsonding motor driver
-		// TODO: We could reuse the parseMotorDriveJson function and just add the I2C send function?
-		*/
-		log_i("parseJsonI2C");
-		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
-		if (mot != NULL)
-		{
-			cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
-			cJSON *stp = NULL;
-			if (stprs != NULL)
-			{
-				cJSON_ArrayForEach(stp, stprs)
-				{
-					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
-					data[s]->qid = cJsonTool::getJsonInt(doc, "qid");
-					data[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
-					data[s]->isEnable = cJsonTool::getJsonInt(stp, key_isen);
-					data[s]->targetPosition = cJsonTool::getJsonInt(stp, key_position);
-					data[s]->isforever = cJsonTool::getJsonInt(stp, key_isforever);
-					data[s]->absolutePosition = cJsonTool::getJsonInt(stp, key_isabs);
-					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
-					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
-					// if cJSON_GetObjectItemCaseSensitive(stp, key_isstop); is not null or true stop the motor
-					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-					data[s]->isStop = (cstop != NULL) ? cstop->valueint : false;
-					toggleStepper(s, data[s]->isStop);
-				}
-			}
-			else
-			{
-				log_i("Motor steppers json is null");
-			}
-		}
-		else
-		{
-			log_i("Motor json is null");
-		}
-	}
+
 
 	void parseMotorDriveJson(cJSON *doc)
 	{
@@ -528,7 +488,7 @@ namespace FocusMotor
 
 		// setup motor pins
 		log_i("Setting Up Motor A,X,Y,Z");
-#ifdef USE_FASTACCEL or USE_ACCELSTEP
+#ifdef USE_FASTACCEL || USE_ACCELSTEP
 		preferences.begin("motpos", false);
 		if (pinConfig.MOTOR_A_STEP >= 0)
 		{
@@ -670,35 +630,7 @@ namespace FocusMotor
 		}
 	}
 
-	MotorState pullMotorDataI2C(int axis)
-	{
-#ifdef USE_I2C
-		// we pull the data from the slave's register
-		uint8_t slave_addr = axis2address(axis);
 
-		// Request data from the slave but only if inside i2cAddresses
-		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
-		{
-			// log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
-			return MotorState();
-		}
-		Wire.requestFrom(slave_addr, sizeof(MotorState));
-		MotorState motorState; // Initialize with default values
-		// Check if the expected amount of data is received
-		if (Wire.available() == sizeof(MotorState))
-		{
-			Wire.readBytes((uint8_t *)&motorState, sizeof(motorState));
-		}
-		else
-		{
-			log_e("Error: Incorrect data size received");
-		}
-
-		return motorState;
-#else
-		return MotorState();
-#endif
-	}
 
 	bool isRunning(int i)
 	{
@@ -769,7 +701,7 @@ namespace FocusMotor
 	void stopStepper(int i)
 	{
 		// only send motor data if it was running before
-		if (not data[i]->stopped)
+		if (!data[i]->stopped)
 			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
@@ -803,40 +735,5 @@ namespace FocusMotor
 #endif
 	}
 
-	void sendMotorDataI2C(MotorData motorData, uint8_t axis)
-	{
-		uint8_t slave_addr = axis2address(axis);
-		log_i("MotorData to axis: %i, isStop: %i ", axis, motorData.isStop);
-
-		// TODO: should we have this inside the I2C controller?
-		Wire.beginTransmission(slave_addr);
-
-		// Cast the structure to a byte array
-		uint8_t *dataPtr = (uint8_t *)&motorData;
-		int dataSize = sizeof(MotorData);
-
-		// Send the byte array over I2C
-		for (int i = 0; i < dataSize; i++)
-		{
-			Wire.write(dataPtr[i]);
-		}
-		int err = Wire.endTransmission();
-		if (err != 0)
-		{
-			log_e("Error sending motor data to I2C slave at address %i", slave_addr);
-		}
-		else
-		{
-			log_i("Motor data sent to I2C slave at address %i", slave_addr);
-		}
-	}
-
-	int axis2address(int axis)
-	{
-		if (axis >= 0 && axis < 4)
-		{
-			return i2c_addresses[axis];
-		}
-		return 0;
-	}
+	
 }

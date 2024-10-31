@@ -13,7 +13,6 @@ namespace i2c_controller
     static int i2cRescanTick = 0; // Variable to keep track of number of devices found
     static int i2cRescanAfterNTicks = -1; // Variable to keep track of number of devices found
     void setup();
-    void loop();
     int act(cJSON * ob);
     cJSON * get(cJSON *  ob);
     void sendJsonString(String jsonString, uint8_t slave_addr);

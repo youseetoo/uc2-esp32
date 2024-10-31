@@ -86,6 +86,9 @@ Preferences preferences;
 #ifdef USE_I2C
 #include "src/i2c/i2c_controller.h"
 #endif
+#ifdef I2C_MASTER
+	#include "src/i2c/i2c_master.h"
+#endif
 #ifdef HEAT_CONTROLLER
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
@@ -134,8 +137,8 @@ extern "C" void looper(void *p)
 		FocusMotor::loop();
 		vTaskDelay(1);
 #endif
-#ifdef USE_I2C
-		i2c_controller::loop();
+#ifdef I2C_MASTER
+		i2c_master::loop();
 		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
@@ -184,6 +187,9 @@ extern "C" void setupApp(void)
 #endif	
 #ifdef USE_I2C
 	i2c_controller::setup();
+#endif
+#ifdef I2C_MASTER
+	i2c_master::setup();
 #endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
@@ -272,7 +278,7 @@ extern "C" void app_main(void)
 	bool hasBooted = preferences.getBool("hasBooted", false); // Check if the ESP32 has already booted successfully before
 
 	// If this is the first boot, set the flag and restart
-	if (!hasBooted and false) { // some ESPs are freaking out on start, but this is not a good solution
+	if (!hasBooted) { // some ESPs are freaking out on start, but this is not a good solution
 		// Set the flag to indicate that the ESP32 has booted once
 		Serial.println("First boot");
 		preferences.putBool("hasBooted", true);

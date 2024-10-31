@@ -80,17 +80,7 @@ namespace i2c_controller
 		}
 	}
 
-	bool isAddressInI2CDevices(byte addressToCheck)
-	{
-		for (int i = 0; i < numDevices; i++) // Iterate through the array
-		{
-			if (i2cAddresses[i] == addressToCheck) // Check if the current element matches the address
-			{
-				return true; // Address found in the array
-			}
-		}
-		return false; // Address not found
-	}
+	
 
 	void setup()
 	{
@@ -102,26 +92,8 @@ namespace i2c_controller
 		Wire.onReceive(receiveEvent);
 		Wire.onRequest(requestEvent);
 #endif
-#ifdef I2C_MASTER
-		// if TCA is active wire doesn't work
-		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
-		i2c_scan();
-#endif
 	}
 
-	void loop()
-	{
-// nothing to do here
-#ifdef I2C_MASTER
-		if (i2cRescanTick > i2cRescanAfterNTicks and i2cRescanAfterNTicks > 0)
-		{
-			log_i("Rescan I2C");
-			i2c_scan();
-			i2cRescanTick = 0;
-		}
-		i2cRescanTick++;
-#endif
-	}
 
 	int act(cJSON *ob)
 	{

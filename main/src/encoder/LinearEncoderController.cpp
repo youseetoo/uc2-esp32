@@ -2,12 +2,23 @@
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"
+#ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#endif
+#ifdef I2C_MASTER
+#include "../motor/MotorTypes.h"
+#include "../i2c/i2c_master.h"
+#endif
 
 #include "InterruptController.h"
 
 namespace LinearEncoderController
 {
+
+    //function pointer to motordata from different possible targets
+    MotorData **(*getData)();
+    //function pointer to start a stepper
+    void (*startStepper)(int);
 
     std::array<LinearEncoderData *, 4> edata;
     // std::array<AS5311 *, 4> encoders;
@@ -112,11 +123,11 @@ namespace LinearEncoderController
                     int calibsteps = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_calibpos)->valueint;
                     int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                     // get the motor object and chang the values so that it will move 1000 steps forward
-                    FocusMotor::getData()[s]->isforever = false;
-                    FocusMotor::getData()[s]->targetPosition = calibsteps;
-                    FocusMotor::getData()[s]->absolutePosition = false;
-                    FocusMotor::getData()[s]->speed = speed;
-                    FocusMotor::startStepper(s);
+                    getData()[s]->isforever = false;
+                    getData()[s]->targetPosition = calibsteps;
+                    getData()[s]->absolutePosition = false;
+                    getData()[s]->speed = speed;
+                    startStepper(s);
                     edata[s]->calibsteps = calibsteps;
                     edata[s]->requestCalibration = true;
                 }
@@ -144,9 +155,9 @@ namespace LinearEncoderController
                     int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                     // get the motor object and let it run forever int he specfied direction
                     edata[s]->timeSinceMotorStart = millis();
-                    FocusMotor::getData()[s]->isforever = true;
-                    FocusMotor::getData()[s]->speed = speed;
-                    FocusMotor::startStepper(s);
+                    getData()[s]->isforever = true;
+                    getData()[s]->speed = speed;
+                    startStepper(s);
                     edata[s]->homeAxis = true;
                 }
             }
@@ -210,7 +221,7 @@ namespace LinearEncoderController
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                         edata[s]->encoderDirection = abs(cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint);
                     if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
-                        FocusMotor::getData()[s]->directionPinInverted = abs(cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint);
+                        getData()[s]->directionPinInverted = abs(cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint);
                     if (cJSON_GetObjectItemCaseSensitive(stp, "res") != NULL)
                         edata[s]->correctResidualOnly = abs(cJSON_GetObjectItemCaseSensitive(stp, "res")->valueint);
                     else
@@ -235,26 +246,26 @@ namespace LinearEncoderController
                     // get the motor object and chang the values so that it will move 1000 steps forward
                     if (edata[s]->correctResidualOnly)
                     {
-                        FocusMotor::getData()[s]->isforever = false;
-                        FocusMotor::getData()[s]->speed = speed;
+                        getData()[s]->isforever = false;
+                        getData()[s]->speed = speed;
                         edata[s]->timeSinceMotorStart = millis();
                         edata[s]->movePrecise = true;
 
                         if (edata[s]->isAbsolute)
-                            FocusMotor::getData()[s]->targetPosition = (float)posToGo/edata[s]->stp2phys;
+                            getData()[s]->targetPosition = (float)posToGo / edata[s]->stp2phys;
                         else
-                            FocusMotor::getData()[s]->targetPosition = (float)(posToGo + edata[s]->positionPreMove)/edata[s]->stp2phys;
-                        log_d("Move precise from (residual only) %f to %f at motor speed %f, computed speed %f, encoderDirection %f with PID %f, %f, %f", edata[s]->positionPreMove, edata[s]->positionToGo, FocusMotor::getData()[s]->speed, speed, edata[s]->encoderDirection, edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
-                        FocusMotor::startStepper(s);
+                            getData()[s]->targetPosition = (float)(posToGo + edata[s]->positionPreMove) / edata[s]->stp2phys;
+                        log_d("Move precise from (residual only) %f to %f at motor speed %f, computed speed %f, encoderDirection %f with PID %f, %f, %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection, edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
+                        startStepper(s);
                     }
                     else
                     {
-                        FocusMotor::getData()[s]->isforever = true;
-                        FocusMotor::getData()[s]->speed = speed;
+                        getData()[s]->isforever = true;
+                        getData()[s]->speed = speed;
                         edata[s]->timeSinceMotorStart = millis();
                         edata[s]->movePrecise = true;
-                        log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, FocusMotor::getData()[s]->speed, speed, edata[s]->encoderDirection);
-                        FocusMotor::startStepper(s);
+                        log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
+                        startStepper(s);
                     }
                 }
             }
@@ -369,14 +380,14 @@ namespace LinearEncoderController
     void loop()
     {
         // print current position of the linearencoder
-        //log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
-    
+        // log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
+
 #ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors
         for (int i = 0; i < 4; i++)
         {
 
-            if (edata[i]->requestCalibration and FocusMotor::getData()[i]->stopped)
+            if (edata[i]->requestCalibration and getData()[i]->stopped)
             {
                 edata[i]->requestCalibration = false;
                 delay(1000); // wait until slide settles
@@ -399,39 +410,39 @@ namespace LinearEncoderController
                     (millis() - edata[i]->timeSinceMotorStart) > startupTimout)
                 {
                     log_i("Stopping motor  %i because there might be something in the way", i);
-                    FocusMotor::getData()[i]->isforever = false;
+                    getData()[i]->isforever = false;
                     FocusMotor::stopStepper(i);
                     // move opposite direction to get the motor away from the endstop
                     // FocusMotor::setPosition(i, 0);
                     // blocks until stepper reached new position wich would be optimal outside of the endstep
-                    FocusMotor::getData()[i]->absolutePosition = false;
-                    FocusMotor::startStepper(i);
+                    getData()[i]->absolutePosition = false;
+                    startStepper(i);
                     // wait until stepper reached new position
                     while (FocusMotor::isRunning(i))
                         delay(1);
                     // FocusMotor::setPosition(i, 0);
                     FocusMotor::stopStepper(i);
-                    FocusMotor::getData()[i]->isforever = false;
+                    getData()[i]->isforever = false;
                     edata[i]->homeAxis = false;
                     edata[i]->lastPosition = -1000000.0f;
-                    FocusMotor::getData()[i]->speed = 0;
+                    getData()[i]->speed = 0;
                     // set the current position to zero
                     edata[i]->posval = 0;
                 }
                 edata[i]->lastPosition = currentPos;
             }
-            if (edata[i]->correctResidualOnly and FocusMotor::getData()[i]->stopped)
+            if (edata[i]->correctResidualOnly and getData()[i]->stopped)
             {
                 // if we went a concrete number of step we have to move the motor to the correct position based on the encoder
                 edata[i]->correctResidualOnly = false;
-                FocusMotor::getData()[i]->isforever = true;
+                getData()[i]->isforever = true;
                 // read current encoder position
                 float currentPos = getCurrentPosition(i);
                 edata[i]->positionToGo -= currentPos;
                 edata[i]->timeSinceMotorStart = millis();
                 edata[i]->movePrecise = true;
-                log_d("Move precise from %f to %f at motor speed %f, encoderDirection %f", edata[i]->positionPreMove, edata[i]->positionToGo, FocusMotor::getData()[i]->speed, edata[i]->encoderDirection);
-                FocusMotor::startStepper(i);
+                log_d("Move precise from %f to %f at motor speed %f, encoderDirection %f", edata[i]->positionPreMove, edata[i]->positionToGo, getData()[i]->speed, edata[i]->encoderDirection);
+                startStepper(i);
             }
 
             if (edata[i]->movePrecise and not edata[i]->correctResidualOnly)
@@ -452,9 +463,9 @@ namespace LinearEncoderController
                 // initiate a motion with updated speed
                 // log_i("Current position %f, position to go %f, speed %f\n",
                 //      edata[i]->posval, edata[i]->positionToGo, speed);
-                FocusMotor::getData()[i]->speed = speed;
-                FocusMotor::getData()[i]->isforever = true;
-                FocusMotor::startStepper(i);
+                getData()[i]->speed = speed;
+                getData()[i]->isforever = true;
+                startStepper(i);
 
                 // when should we end the motion?!
                 float distanceToGo = edata[i]->positionToGo - currentPos;
@@ -462,8 +473,8 @@ namespace LinearEncoderController
                 if (abs(distanceToGo) < 1) // TODO: adaptive threshold ?
                 {
                     log_i("Stopping motor %i, distance to go: %f", i, distanceToGo);
-                    FocusMotor::getData()[i]->speed = 0;
-                    FocusMotor::getData()[i]->isforever = false;
+                    getData()[i]->speed = 0;
+                    getData()[i]->isforever = false;
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
                 }
@@ -480,8 +491,8 @@ namespace LinearEncoderController
                     abs(distanceToGo) > 5)
                 {
                     log_i("Stopping motor  %i because there might be something in the way", i);
-                    FocusMotor::getData()[i]->speed = 0;
-                    FocusMotor::getData()[i]->isforever = false;
+                    getData()[i]->speed = 0;
+                    getData()[i]->isforever = false;
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
                     log_i("Final Position %f", getCurrentPosition(i));
@@ -496,6 +507,14 @@ namespace LinearEncoderController
     */
     void setup()
     {
+#ifdef MOTOR_CONTROLLER
+        getData = FocusMotor::getData;
+        startStepper = FocusMotor::startStepper;
+#endif
+#ifdef I2C_MASTER
+        getData = i2c_master::getData;
+        startStepper = i2c_master::startStepper;
+#endif
         // for AS5311
         log_i("LinearEncoder setup AS5311 - A/B interface");
 

@@ -1,11 +1,11 @@
 #include "i2c_master.h"
 #include <PinConfig.h>
 #include "Wire.h"
-#include "../motor/MotorTypes.h"
+
 #include "JsonKeys.h"
 #include <Preferences.h>
 #include "../dial/DialController.h"
-Preferences preferences;
+
 
 namespace i2c_master
 {
@@ -29,6 +29,7 @@ namespace i2c_master
     int i2cRescanTick = 0;         // Variable to keep track of number of devices found
     int i2cRescanAfterNTicks = -1; // Variable to keep track of number of devices found
     int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
+    Preferences preferences;
 
     void i2c_scan()
     {
@@ -387,6 +388,11 @@ namespace i2c_master
                 pullMotorDataI2CTick[i]++;
             }
         }
+    }
+
+    MotorData **getData()
+    {
+        return data;
     }
 
 }

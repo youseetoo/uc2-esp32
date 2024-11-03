@@ -4,6 +4,7 @@
 #include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
+#include "../state/State.h"
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -26,6 +27,7 @@
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
+
 
 namespace FocusMotor
 {
@@ -113,7 +115,7 @@ namespace FocusMotor
 		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(axis, 0); // this is an exception. We first get the position, then the success
+			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
 		}
 		else
 		{
@@ -605,6 +607,7 @@ namespace FocusMotor
 	void loop()
 	{
 		// checks if a stepper is still running
+		int nRunning = 0;
 		for (int i = 0; i < 4; i++)
 		{
 			bool isRunning = false;
@@ -613,60 +616,72 @@ namespace FocusMotor
 			{
 #ifdef USE_FASTACCEL
 				isRunning = FAccelStep::isRunning(i);
+				if (isRunning) nRunning += 1;
 #elif defined USE_ACCELSTEP
 				isRunning = AccelStep::isRunning(i);
+				if (isRunning) nRunning += 1;
 #endif
-			}
-// if motor is connected via I2C, we have to pull the data from the slave's register
 #if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
-			if (pullMotorDataI2CTick[i] > 2) // every second loop
-			{
-				// TODO: @killerink - should this be done in background to not block the main loop?
-				MotorState mMotorState = pullMotorDataI2C(i);
-				isRunning = mMotorState.isRunning;
-				data[i]->currentPosition = mMotorState.currentPosition;
-				pullMotorDataI2CTick[i] = 0;
-				if (waitForFirstRunI2CSlave[i])
-				{ // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-					if (isRunning)
+				// if motor is connected via I2C, we have to pull the data from the slave's register
+				if (pullMotorDataI2CTick[i] > 2) // every second loop
+				{
+					// TODO: @killerink - should this be done in background to not block the main loop?
+					MotorState mMotorState = pullMotorDataI2C(i);
+					isRunning = mMotorState.isRunning;
+					if (isRunning) nRunning += 1;
+					data[i]->currentPosition = mMotorState.currentPosition;
+					pullMotorDataI2CTick[i] = 0;
+					if (waitForFirstRunI2CSlave[i])
+					{ // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+						if (isRunning)
+						{
+							waitForFirstRunI2CSlave[i] = false;
+						}
+					}
+					else
 					{
-						waitForFirstRunI2CSlave[i] = false;
+						// TODO: check if motor is still running and if not, report position to serial
+						if (!isRunning && !data[i]->stopped)
+						{
+							// TODO: REadout register on slave side and check if destination
+							// Only send the information when the motor is halting
+							// log_d("Sending motor pos %i", i);
+							// sendMotorPos(i, 0);
+							stopStepper(i);
+							getData()[i]->stopped = true;
+							preferences.begin("motpos", false);
+							preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+							preferences.end();
+						}
 					}
 				}
 				else
 				{
-					// TODO: check if motor is still running and if not, report position to serial
-					if (!isRunning && !data[i]->stopped)
-					{
-						// TODO: REadout register on slave side and check if destination
-						// Only send the information when the motor is halting
-						// log_d("Sending motor pos %i", i);
-						// sendMotorPos(i, 0);
-						stopStepper(i);
-						getData()[i]->stopped = true;
-						preferences.begin("motpos", false);
-						preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-						preferences.end();
-					}
+					pullMotorDataI2CTick[i]++;
 				}
-			}
-			else
-			{
-				pullMotorDataI2CTick[i]++;
-			}
 #else
-			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (!isRunning && !data[i]->stopped)
-			{
-				// This is the ordinary case if the motor is not connected via I2C
-				// log_d("Sending motor pos %i", i);
-				// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
-				stopStepper(i);
-				preferences.begin("motpos", false);
-				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
-				preferences.end();
-			}
+				// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+				if (!isRunning && !data[i]->stopped)
+				{
+					// This is the ordinary case if the motor is not connected via I2C
+					// log_d("Sending motor pos %i", i);
+					// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+					stopStepper(i);
+					preferences.begin("motpos", false);
+					preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+					preferences.end();
+				}
 #endif
+			}
+		}
+		if (nRunning > 0)
+		{
+			//log_d("Busy");
+			State::setBusy(true);
+		}
+		else
+		{
+			State::setBusy(false);
 		}
 	}
 

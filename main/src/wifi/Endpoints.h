@@ -7,6 +7,7 @@ __attribute__ ((unused)) static const  char* laser_get_endpoint = "/laser_get";
 
 __attribute__ ((unused)) static const  char* state_act_endpoint = "/state_act";
 __attribute__ ((unused)) static const  char* state_get_endpoint = "/state_get";
+__attribute__ ((unused)) static const  char* state_busy_endpoint = "/b";
 
 #ifdef MOTOR_CONTROLLER
 __attribute__ ((unused)) static const  char* motor_act_endpoint = "/motor_act";

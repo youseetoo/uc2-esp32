@@ -12,7 +12,6 @@ namespace DigitalOutController
 		// here you can do something
 		log_d("digitalout_act_fct");
 		int qid = cJsonTool::getJsonInt(jsonDocument, "qid");
-		isBusy = true;
 		int triggerdelay = 10;
 
 		// set default parameters

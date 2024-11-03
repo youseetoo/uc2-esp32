@@ -4,7 +4,6 @@
 
 namespace DigitalOutController
 {
-    static bool isBusy;
     static bool DEBUG = false;
 
     static int digitalout_val_1 = 0;

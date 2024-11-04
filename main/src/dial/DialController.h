@@ -22,7 +22,6 @@ namespace DialController
     int act(cJSON *jsonDocument);
     cJSON *get(cJSON *jsonDocument);
     void pullParamsFromDial();
-    void pushMotorPosToDial();
     void setup();
     void loop();
 

@@ -4,8 +4,9 @@
 
 #include "JsonKeys.h"
 #include <Preferences.h>
+#ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
-
+#endif
 
 namespace i2c_master
 {
@@ -30,6 +31,12 @@ namespace i2c_master
     int i2cRescanAfterNTicks = -1; // Variable to keep track of number of devices found
     int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
     Preferences preferences;
+#ifdef DIAL_CONTROLLER
+    DialData mDialData;
+    bool positionsPushedToDial = false;
+    int ticksLastPosPulled = 0;
+    int ticksPosPullInterval = 5; // Pull position from slave every n-times
+#endif
 
     void i2c_scan()
     {
@@ -143,13 +150,40 @@ namespace i2c_master
         return false; // Address not found
     }
 
+#ifdef DIAL_CONTROLLER
+    void pushMotorPosToDial()
+    {
+        // This is the Master pushing the data to the DIAL I2C slave (i.e. 4 motor positions) to sync the display with the motors
+        uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
+        if (!isAddressInI2CDevices(slave_addr))
+        {
+            log_e("Error (push): Dial address not found in i2cAddresses");
+            return;
+        }
+        Wire.beginTransmission(slave_addr);
+        mDialData.pos_a = getData()[0]->currentPosition;
+        mDialData.pos_x = getData()[1]->currentPosition;
+        mDialData.pos_y = getData()[2]->currentPosition;
+        mDialData.pos_z = getData()[3]->currentPosition;
+#ifdef LASER_CONTROLLER
+        mDialData.intensity = LaserController::getLaserVal(1);
+#else
+        mDialData.intensity = 0;
+#endif
+        log_i("Motor positions sent to dial: %i, %i, %i, %i, %i", mDialData.pos_a, mDialData.pos_x, mDialData.pos_y, mDialData.pos_z, mDialData.intensity);
+        Wire.write((uint8_t *)&mDialData, sizeof(DialData));
+        Wire.endTransmission();
+        positionsPushedToDial = true; // otherwise it will probably always go to 0,0,0,0  on start
+    }
+#endif
+
     void sendMotorPos(int i, int arraypos)
     {
 
 #ifdef DIAL_CONTROLLER
         // update the dial with the actual motor positions
         // the motor positions array is updated in the dial controller
-        DialController::pushMotorPosToDial();
+        pushMotorPosToDial();
 #endif
 
         cJSON *root = cJSON_CreateObject();
@@ -212,10 +246,7 @@ namespace i2c_master
         int dataSize = sizeof(MotorData);
 
         // Send the byte array over I2C
-        for (int i = 0; i < dataSize; i++)
-        {
-            Wire.write(dataPtr[i]);
-        }
+        Wire.write(dataPtr, dataSize);
         int err = Wire.endTransmission();
         if (err != 0)
         {
@@ -348,6 +379,100 @@ namespace i2c_master
         return motorState;
     }
 
+#ifdef DIAL_CONTROLLER
+    void pullParamsFromDial()
+    {
+        // This is the MASTER pulling the data from the DIAL I2C slave (i.e. 4 motor positions)
+        uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
+
+        // Request data from the slave but only if inside i2cAddresses
+        if (!isAddressInI2CDevices(slave_addr))
+        {
+            log_e("Error (pull): Dial address not found in i2cAddresses");
+            return;
+        }
+
+        // REQUEST DATA FROM DIAL
+        DialData mDialData;
+        Wire.requestFrom(slave_addr, sizeof(DialData));
+        int dataSize = Wire.available();
+        if (dataSize == sizeof(DialData))
+        {
+            Wire.readBytes((char *)&mDialData, sizeof(DialData));
+            // check of all elelements are zero, if so we don't want to assign them to the motors as we likly catch the startup of the dial
+            if (mDialData.pos_a == 0 and mDialData.pos_x == 0 and mDialData.pos_y == 0 and mDialData.pos_z == 0 and mDialData.intensity == 0)
+            {
+                return;
+            }
+
+            // compare the current position of the motor with the dial state and drive the motor to the dial state
+            for (int iMotor = 0; iMotor < 4; iMotor++)
+            {
+                long position2go = 0;
+                if (iMotor == 0)
+                    position2go = mDialData.pos_a;
+                if (iMotor == 1)
+                    position2go = mDialData.pos_x;
+                if (iMotor == 2)
+                    position2go = mDialData.pos_y;
+                if (iMotor == 3)
+                    position2go = mDialData.pos_z;
+                // assign the dial state to the motor
+                // if we run in forever mode we don't want to change the position as we likely use the ps4 controller
+                // check if homeMotor is null
+
+                // code below does nothing
+
+                /*bool isMotorHoming = false;
+                if (not(HomeMotor::hdata[iMotor] == nullptr))
+                {
+                    isMotorHoming = HomeMotor::hdata[iMotor]->homeIsActive;
+                }
+                bool isMotorForever = getData()[iMotor]->isforever;*/
+                /*if (isMotorForever || isMotorHoming ||
+                    getData()[iMotor]->currentPosition == position2go)
+                    continue;*/
+                log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, getData()[iMotor]->currentPosition, position2go);
+
+                // check if current position and position2go are within a reasonable range
+                // if not we don't want to move the motor
+                if (abs(getData()[iMotor]->currentPosition - position2go) > 10000)
+                {
+                    log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
+                }
+                // Here we drive the motor to the dial state
+                Stepper mStepper = static_cast<Stepper>(iMotor);
+                // we dont have that on master side
+                // setAutoEnable(false);
+                // setEnable(true);
+                getData()[mStepper]->absolutePosition = 1;
+                getData()[mStepper]->targetPosition = position2go;
+                getData()[mStepper]->isforever = 0;
+                getData()[mStepper]->isaccelerated = 1;
+                getData()[mStepper]->acceleration = 10000;
+                getData()[mStepper]->speed = 10000;
+                getData()[mStepper]->isEnable = 1;
+                getData()[mStepper]->qid = 0;
+                getData()[mStepper]->isStop = 0;
+                startStepper(mStepper);
+            }
+#ifdef LASER_CONTROLLER
+            // for intensity only
+            int intensity = mDialData.intensity;
+            if (lastIntensity != intensity)
+            {
+                lastIntensity = intensity;
+                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, intensity);
+            }
+#endif
+        }
+        else
+        {
+            log_e("Error: Incorrect data size received in dial from address %i. Data size is %i", slave_addr, dataSize);
+        }
+    }
+#endif
+
     void loop()
     {
         for (int i = 0; i < 4; i++)
@@ -388,6 +513,14 @@ namespace i2c_master
                 pullMotorDataI2CTick[i]++;
             }
         }
+#ifdef DIAL_CONTROLLER
+        if (ticksLastPosPulled >= ticksPosPullInterval && positionsPushedToDial)
+        {
+            ticksLastPosPulled = 0;
+            // Here we want to pull the dial data from the I2C bus and assign it to the motors
+            pullParamsFromDial();
+        }
+#endif
     }
 
     MotorData **getData()

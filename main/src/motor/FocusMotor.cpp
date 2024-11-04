@@ -252,7 +252,7 @@ namespace FocusMotor
 #endif
 	}
 
-#ifdef HOME_MOTOR
+#ifdef HOME_DRIVE
 	void parseHome(cJSON *doc)
 	{
 		cJSON *home = cJSON_GetObjectItemCaseSensitive(doc, "home");
@@ -426,7 +426,7 @@ namespace FocusMotor
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
-#ifdef HOME_MOTOR
+#ifdef HOME_DRIVE
 		parseHome(doc);
 #endif
 #ifdef STAGE_SCAN

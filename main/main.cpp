@@ -89,6 +89,12 @@ Preferences preferences;
 #ifdef I2C_MASTER
 	#include "src/i2c/i2c_master.h"
 #endif
+#ifdef I2C_SLAVE_MOTOR
+	#include "src/i2c/i2c_slave_motor.h"
+#endif
+#ifdef I2C_SLAVE_DIAL
+	#include "src/i2c/i2c_slave_dial.h"
+#endif
 #ifdef HEAT_CONTROLLER
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
@@ -190,6 +196,12 @@ extern "C" void setupApp(void)
 #endif
 #ifdef I2C_MASTER
 	i2c_master::setup();
+#endif
+#ifdef I2C_SLAVE_MOTOR
+	i2c_slave_motor::setup();
+#endif
+#ifdef I2C_SLAVE_DIAL
+	i2c_slave_dial::setup();
 #endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();

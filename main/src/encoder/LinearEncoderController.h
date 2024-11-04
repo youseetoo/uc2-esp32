@@ -1,7 +1,7 @@
 #pragma once
-#include "../motor/FocusMotor.h"
 #include "AS5311AB.h"
 #include "PIDController.h"
+#include "cJSON.h"
 
 struct LinearEncoderData
 {	

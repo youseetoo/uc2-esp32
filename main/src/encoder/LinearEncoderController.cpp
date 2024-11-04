@@ -11,6 +11,7 @@
 #endif
 
 #include "InterruptController.h"
+#include "JsonKeys.h"
 
 namespace LinearEncoderController
 {

@@ -353,6 +353,11 @@ namespace i2c_master
         return 0;
     }
 
+    cJSON *get(cJSON *ob){
+        // do nothing
+        return NULL;
+    }
+
     MotorState pullMotorDataI2C(int axis)
     {
         // we pull the data from the slave's register

@@ -83,9 +83,6 @@ Preferences preferences;
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-#ifdef USE_I2C
-#include "src/i2c/i2c_controller.h"
-#endif
 #ifdef I2C_MASTER
 	#include "src/i2c/i2c_master.h"
 #endif
@@ -191,9 +188,6 @@ extern "C" void setupApp(void)
 	// need to initialize the dial controller before the i2c controller
 	DialController::setup();
 #endif	
-#ifdef USE_I2C
-	i2c_controller::setup();
-#endif
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif

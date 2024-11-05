@@ -31,9 +31,6 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
-#ifdef USE_I2C
-#include "../i2c/i2c_controller.h"
-#endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
@@ -294,12 +291,6 @@ namespace SerialProcess
 			serialize(HomeMotor::get(jsonDocument));
 		else  if (strcmp(task, home_act_endpoint) == 0)
 			serialize(HomeMotor::act(jsonDocument));
-#endif
-#ifdef USE_I2C
-		else  if (strcmp(task, i2c_get_endpoint) == 0)
-			serialize(i2c_controller::get(jsonDocument));
-		else  if (strcmp(task, i2c_act_endpoint) == 0)
-			serialize(i2c_controller::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
 else  if (strcmp(task, i2c_get_endpoint) == 0)

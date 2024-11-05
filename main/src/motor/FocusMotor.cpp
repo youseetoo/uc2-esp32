@@ -19,10 +19,6 @@
 #ifdef STAGE_SCAN
 #include "StageScan.h"
 #endif
-#ifdef USE_I2C
-#include "../i2c/i2c_controller.h"
-#include "WiFi.h"
-#endif
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif

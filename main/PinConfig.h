@@ -1,61 +1,156 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
+struct UC2_3 : PinConfig
 {
      /*
-     D0: 1
-     D1: 2
-     D2: 3
-     D3: 4
-     D4: 5
-     D5: 6
-     D6: 43
-     D7: 44
-     D8: 7
-     D9: 8
-     D10: 9
-
-     #define STALL_VALUE     100  // StallGuard sensitivity [0..255]
-     #define EN_PIN           D10   // PA4_A1_D1 (Pin 2) Enable pin for motor driver
-     #define DIR_PIN          D8   // PA02_A0_D0 (Pin 1) Direction pin
-     #define STEP_PIN         D9   // PA10_A2_D2 (Pin 3) Step pin
-     #define SW_RX            D7   // PB09_D7_RX (Pin 8) UART RX pin for TMC2209
-     #define SW_TX            D6   // PB08_A6_TX (Pin 7) UART TX pin for TMC2209
-     #define SERIAL_PORT Serial1  // UART Serial port for TMC2209
-     #define I2C_SCL_ext      D5   // PB07_A5_D5 (Pin 6) I2C SCL pin
-     #define I2C_SDA_ext      D4   // PB06_A4_D4 (Pin 5) I2C SDA pin
-     #define I2C_SCL_int     D2   // PA14_A3_D3 (Pin 4) I2C SCL pin
-     #define I2C_SDA_int     D3   // PA13_A10_D10 (Pin 9) I2C SDA pin
-
-    This is a test to work with the UC2_3 board which acts as a I2C slave
+     This is the newest electronics where direction/enable are on a seperate port extender
      */
-     
-     const char * pindefName = "UC2_3_I2CSlaveMotorX";
+     /*
+
+
+     Y_Cal-Data 34
+     X_Cal-Data 32
+     Z_Cal-Data 36
+     I2C_SCL 22
+     I2C_SDA 21
+
+     SPI_MOSI 23
+     SPI_MISO 19
+     SPI_SCK 18
+     SPI_CS 5
+     X_Cal-Clk 33
+     Y_Cal-Clk 35
+     Z_CAL-CLK 17
+     IOexp_ int8_t 27
+
+     A_STEP 13
+     X_STEP 16
+     Y_STEP 14
+     Z_STEP 0
+     LED_1 13
+
+     PWM_1 12
+     PWM_2 4
+     PWM_3 2
+
+     In_1 - 39
+     */
+     // UC2 STandalone V3
+     // https://github.com/openUC2/UC2-SUES
+     // 05998e057ac97c1e101c9ccc1f17070f89dd3f7c
+
+     /*
+     IOExpander
+     We are using a port extender on I2c to control
+     STEP_ENABLE P0
+     X_DIR P1
+     Y_DIR P2
+     Z_DIR P3
+     A_DIR P4
+     X_LIMIT P5
+     Y_LIMIT P6
+     Z_LIMIT P7
+      int8_t MOTOR_ENABLE = -1;
+     i2c addr should be 0x27
+     http://www.ti.com/lit/ds/symlink/tca9535.pdf
+     C561273
+     */
+     /*#define MOTOR_CONTROLLER
+     #define USE_TCA9535
+     #define BLUETOOTH
+     #define BTHID
+     #define WIFI
+     #define LED_CONTROLLER
+     #define HOME_MOTOR
+     #define LASER_CONTROLLER
+     #define DIGITAL_IN_CONTROLLER*/
+     const char * pindefName = "UC2_3";
      const unsigned long BAUDRATE = 115200;
 
-     int8_t MOTOR_A_STEP = GPIO_NUM_8;  // D9 -> GPIO8
-     int8_t MOTOR_A_DIR = GPIO_NUM_7;   // D8 -> GPIO7
-     int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
+     int8_t MOTOR_A_STEP = GPIO_NUM_15;
+     int8_t MOTOR_X_STEP = GPIO_NUM_16;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     
+     // THIS LIVES ON TCA
+     int8_t MOTOR_ENABLE = 0; 
+     int8_t MOTOR_X_DIR = 1;
+     int8_t MOTOR_Y_DIR = 2;
+     int8_t MOTOR_Z_DIR = 3;
+     int8_t MOTOR_A_DIR = 4;
+
+     
+     bool isDualAxisZ = true;
+     
+     bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_encoderDirection = true; 
+     bool ENC_Y_encoderDirection = true; 
+     bool ENC_Z_encoderDirection = true; 
+     bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_motorDirection = true;
+     bool ENC_Y_motorDirection = true;
+     bool ENC_Z_motorDirection = true;
+
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
      int8_t AccelStepperMotorType = 1;
 
-     // I2c
-     const char *I2C_NAME = "MOTX";
-     I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
-     int8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
-     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
-     int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
-     int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
-     
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL_ext = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA_ext = GPIO_NUM_5; // D4 -> GPIO5
+     int8_t LASER_1 = GPIO_NUM_12;
+     int8_t LASER_2 = GPIO_NUM_4;
+     int8_t LASER_3 = GPIO_NUM_2;
 
-     // TMC UART 
-     int8_t SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
-     int8_t SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t LED_PIN = GPIO_NUM_13;
+     int8_t LED_COUNT = 64;
+
+     // FIXME: Is this redudant?!
+
+     // THESE LIVE ON THE TCA
+     int8_t DIGITAL_IN_1 = 5;
+     int8_t DIGITAL_IN_2 = 6;
+     int8_t DIGITAL_IN_3 = 7;
+
+     int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
+
+
+     // const char * PSX_MAC = "1a:2b:3c:01:01:04";
+     // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
+     
+     // for caliper
+     int8_t ENC_X_A = GPIO_NUM_32;
+     int8_t ENC_Y_A = GPIO_NUM_34;
+     int8_t ENC_Z_A = GPIO_NUM_36;
+     int8_t ENC_X_B = GPIO_NUM_33;
+     int8_t ENC_Y_B = GPIO_NUM_35;
+     int8_t ENC_Z_B = GPIO_NUM_17;
+
+     // I2c
+     int8_t I2C_SCL = GPIO_NUM_22; // This is for slave and master the same for the ESP32 board
+     int8_t I2C_SDA = GPIO_NUM_21;
+     int8_t I2C_ADD_TCA = 0x27;
+     gpio_num_t I2C_INT = GPIO_NUM_27;
+
+
+     // SPI
+     int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
+     int8_t SPI_MISO = GPIO_NUM_19;
+     int8_t SPI_SCK = GPIO_NUM_18;
+     int8_t SPI_CS = GPIO_NUM_5;
+
+     // WIFI - specific to SEEED microscope
+     const char *mSSID = "UC2xSeeed-";
+     const char *mPWD =  "";
+     bool mAP = true; // false;
+     const char *mSSIDAP = "UC2";            
+     const char *hostname = "youseetoo";     
+
+     // Temperature
+     int8_t DS28b20_PIN = GPIO_NUM_25;
+     int8_t LASER_0 = GPIO_NUM_26;
 };
-const UC2_ESP32S3_XIAO_LEDSERVO pinConfig;
+const UC2_3 pinConfig;

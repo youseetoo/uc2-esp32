@@ -9,4 +9,5 @@ namespace i2c_master
     void loop();
     MotorData **getData();
     void startStepper(int i);
+    int act(cJSON *doc);
 };

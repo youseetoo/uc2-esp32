@@ -5,6 +5,11 @@
 #include "cJSON.h"
 namespace i2c_master
 {
+
+    // last laser intensity
+    static int lastIntensity = 0;
+
+
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
     void setup();

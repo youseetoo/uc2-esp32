@@ -7,7 +7,6 @@
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
 #include "../i2c/tca_controller.h"
-#include "../i2c/i2c_controller.h"
 
 namespace DialController
 {

@@ -7,6 +7,9 @@
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
 
 namespace i2c_master
 {

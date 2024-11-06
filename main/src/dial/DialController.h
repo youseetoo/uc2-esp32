@@ -2,7 +2,8 @@
 #include <PinConfig.h>
 #include "cJSON.h"
 #include <freertos/FreeRTOS.h>
-#include "../i2c/i2c_controller.h"
+#include "../i2c/i2c_master.h"
+#include "../i2c/i2c_slave_motor.h"
 
 #ifdef I2C_SLAVE
 #include <M5Unified.hpp>
@@ -44,8 +45,6 @@ namespace DialController
     static int currentAxis = 0; // 0=X, 1=Y, 2=Z, 3=A; 4=Intensity
     static int stepSize = 1;    // Step size starts at 1
     static long encoderPos = 0;
-    static int lastIntensity = 0;
-
     // Available touch states
     static const int TOUCH_BEGIN = 3;      // Represents touch start
     static const int TOUCH_HOLD_BEGIN = 7; // Represents touch hold start

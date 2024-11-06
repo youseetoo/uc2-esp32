@@ -106,6 +106,7 @@
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1,  "endstoppolarity":0}]}}
 
+{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 500, "speed": -1500, "isabs": 0, "isaccel":0}]}}

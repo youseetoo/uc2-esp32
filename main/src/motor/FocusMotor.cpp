@@ -20,6 +20,12 @@
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
+#ifdef I2C_SLAVE_MOTOR
+#include "../i2c/i2c_slave_motor.h"
+#endif
+#ifdef I2C_MASTER
+#include "../i2c/i2c_master.h"
+#endif
 
 
 namespace FocusMotor
@@ -118,7 +124,7 @@ namespace FocusMotor
 			waitForFirstRunI2CSlave[axis] = true;
 			getData()[axis]->stopped = false;
 		}
-#else
+#endif
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
@@ -235,6 +241,30 @@ namespace FocusMotor
 		{
 			enable(isen->valueint);
 		}
+	}
+
+	void parseSetAxis(cJSON *doc)
+	{
+		#ifdef I2C_SLAVE_MOTOR
+		cJSON *setaxis = cJSON_GetObjectItem(doc, key_setaxis);
+		if (setaxis != NULL)
+		{
+			cJSON *stprs = cJSON_GetObjectItem(setaxis, key_steppers);
+			if (stprs != NULL)
+			{
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					int axis = cJSON_GetObjectItemCaseSensitive(stp, key_stepperaxis)->valueint;
+					int motorAddress = i2c_addresses[axis];
+					// set the I2C address of the motor
+					i2c_slave_motor::setI2CAddress(motorAddress);
+					log_i("Setting motor axis %i to %i, address:", s, axis, i2c_slave_motor::getI2CAddress());
+				}
+			}
+		}
+		#endif
 	}
 
 	void parseAutoEnableMotor(cJSON *doc)
@@ -358,8 +388,15 @@ namespace FocusMotor
 
 		for (int i = 0; i < 4; i++)
 		{
+			if (i==0 and pinConfig.MOTOR_A_STEP < 0) continue;
+			if (i==1 and pinConfig.MOTOR_X_STEP < 0) continue;
+			if (i==2 and pinConfig.MOTOR_Y_STEP < 0) continue;
+			if (i==3 and pinConfig.MOTOR_Z_STEP < 0) continue;
+
 			if (pos != NULL)
 			{
+
+
 				// update position and push it to the json
 				data[i]->currentPosition = 1;
 				cJSON *aritem = cJSON_CreateObject();
@@ -394,6 +431,10 @@ namespace FocusMotor
 				cJsonTool::setJsonInt(aritem, key_triggerperiod, data[i]->triggerPeriod);
 				cJsonTool::setJsonInt(aritem, key_triggerpin, data[i]->triggerPin);
 				cJsonTool::setJsonInt(aritem, "isDualAxisZ", isDualAxisZ);
+
+				#ifdef I2C_SLAVE_MOTOR
+				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
+				#endif
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 		}
@@ -405,6 +446,19 @@ namespace FocusMotor
 	{
 		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
+
+		#ifdef I2C_SLAVE_MOTOR
+		// set Motor Axis (for I2C)
+		/* 
+			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
+		*/
+		parseSetAxis(doc);
+		#endif
+
+		#ifdef I2C_MASTER
+		// move motor via I2C 
+		i2c_master::parseJsonI2C(doc);
+		#endif
 
 
 		// only enable/disable motors

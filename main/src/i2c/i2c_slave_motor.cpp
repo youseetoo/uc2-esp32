@@ -116,12 +116,41 @@ else
         }
     }
 
+    void setI2CAddress(int address)
+    {
+        #ifdef I2C_SLAVE
+        // Set the I2C address of the slave
+        // Save the I2C address to the preference
+        Preferences preferences;
+        preferences.begin("I2C", false);
+        preferences.putInt("address", address);
+        preferences.end();
+        
+        #endif
+    }
+
+    int getI2CAddress()
+    {
+        #ifdef I2C_SLAVE_MOTOR
+        // Get the I2C address of the slave
+        // Load the I2C address form the preference
+        Preferences preferences;
+        preferences.begin("I2C", false);
+        int address = preferences.getInt("address", pinConfig.I2C_ADD_SLAVE);
+        preferences.end();
+        return address;
+        #else
+        return -1;
+        #endif
+    }
+
+
     void setup()
     {
 
         // Begin I2C slave communication with the defined pins and address
         // log_i("I2C Slave mode on address %i", pinConfig.I2C_ADD_SLAVE);
-        Wire.begin(pinConfig.I2C_ADD_SLAVE, pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+        Wire.begin(getI2CAddress(), pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
         Wire.onReceive(receiveEvent);
         Wire.onRequest(requestEvent);
     }

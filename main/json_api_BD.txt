@@ -101,6 +101,7 @@
 {"task": "/laser_act", "LASERid":3, "LASERval": 1000}
 # HOME
 {"task": "/home_get"}
+
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 2000, "direction":1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":0}]}}
@@ -117,7 +118,7 @@
 
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 3000, "direction":-1, "endstoppolarity":0}]}}
 # Heating
  {"task": "/heat_act", "active":1, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000, "qid":1}
   {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":22, "timeout":600000, "updaterate":1000, "qid":1}

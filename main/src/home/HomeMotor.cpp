@@ -83,9 +83,6 @@ namespace HomeMotor
 					getData()[s]->isEnable = 1;
 					getData()[s]->isaccelerated = 0;
 					FocusMotor::startStepper(s);
-					delay(10);
-					FocusMotor::stopStepper(s);
-					FocusMotor::startStepper(s); // TODO: restart the stepper and hope this time the motor will move in the right direction
 					if (s == Stepper::Z and FocusMotor::isDualAxisZ)
 					{
 						// we may have a dual axis so we would need to start A too
@@ -96,9 +93,6 @@ namespace HomeMotor
 						getData()[Stepper::A]->isEnable = 1;
 						getData()[Stepper::A]->isaccelerated = 0;
 						FocusMotor::startStepper(Stepper::A);
-						delay(10);
-						FocusMotor::stopStepper(Stepper::A);
-						FocusMotor::startStepper(Stepper::A); // TODO: restart the stepper and hope this time the motor will move in the right direction
 					}
 
 					// now we will go into loop and need to stop once the button is hit or timeout is reached

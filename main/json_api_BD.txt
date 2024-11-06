@@ -109,11 +109,13 @@
 
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
+{"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
+{"task":"/tmc_act", "msteps":64, "rms_current":1000}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 50000, "speed": -50000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 30000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":, "timeout": 20000, "speed": 30000, "direction":1, "endstoppolarity":0}]}}
 
 
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}

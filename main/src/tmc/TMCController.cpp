@@ -7,7 +7,7 @@ namespace TMCController
     int act(cJSON *jsonDocument)
     {
         // modify the TMC2209 settings
-        // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "sedn":0b01, "tcoolthrs":0xFFFFF, "blank_time":24, "toff":4}
+        // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
         
         preferences.begin("TMC", false);
 
@@ -101,7 +101,7 @@ namespace TMCController
     cJSON *get(cJSON *jsonDocument)
     {
         // print all TMC2209 settings from preferences
-
+        // {"task":"/tmc_get"}
         preferences.begin("TMC", true);
         cJSON *monitor_json = cJSON_CreateObject();
         cJSON_AddItemToObject(monitor_json, "msteps", cJSON_CreateNumber(preferences.getInt("msteps", 16)));
@@ -115,7 +115,9 @@ namespace TMCController
         cJSON_AddItemToObject(monitor_json, "blank_time", cJSON_CreateNumber(preferences.getInt("blank_time", 24)));
         cJSON_AddItemToObject(monitor_json, "toff", cJSON_CreateNumber(preferences.getInt("toff", 4)));
         preferences.end();
-
+        // print driver settings too
+        cJSTON_AddItemToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());  // Print StallGuard value
+        cJSTON_AddItemToObject(monitor_json, "Current", driver.cs2rms(driver.cs_actual());        
         return monitor_json;
     }
 
@@ -136,6 +138,7 @@ namespace TMCController
         int tmc_tcoolthrs = preferences.getInt("tcoolthrs", 0xFFFFF);
         int tmc_blank_time = preferences.getInt("blank_time", 24);
         int tmc_toff = preferences.getInt("toff", 4);
+        // motor current and stall value
         preferences.end();
 
         driver.begin();

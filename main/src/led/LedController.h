@@ -1,6 +1,8 @@
+#include <PinConfig.h>
 #pragma once
 #include "Adafruit_NeoPixel.h"
-#include "../../Module.h"
+#include "cJSON.h"
+
 
 enum LedModes
 {
@@ -17,19 +19,17 @@ enum LedModes
 
 
 
-class LedController : public Module
+namespace LedController
 {
-private:
     // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
-    Adafruit_NeoPixel *matrix;
-    bool DEBUG = false;
-    bool isBusy;
-    bool isOn = false;
+    static Adafruit_NeoPixel *matrix;
+    static bool DEBUG = false;
+    static bool isOn = false;
 
-    int NLED4x4 = 16;
-    int NLED8x8 = 64;
+    static int NLED4x4 = 16;
+    static int NLED8x8 = 64;
 
-    int LED_PATTERN_DPC_TOP_8x8[64] = {1, 1, 1, 1, 1, 1, 1, 1,
+    static int LED_PATTERN_DPC_TOP_8x8[64] = {1, 1, 1, 1, 1, 1, 1, 1,
                                        1, 1, 1, 1, 1, 1, 1, 1,
                                        1, 1, 1, 1, 1, 1, 1, 1,
                                        1, 1, 1, 1, 1, 1, 1, 1,
@@ -38,7 +38,7 @@ private:
                                        0, 0, 0, 0, 0, 0, 0, 0,
                                        0, 0, 0, 0, 0, 0, 0, 0};
 
-    int LED_PATTERN_DPC_LEFT_8x8[64] = {1, 1, 1, 1, 0, 0, 0, 0,
+    static int LED_PATTERN_DPC_LEFT_8x8[64] = {1, 1, 1, 1, 0, 0, 0, 0,
                                         0, 0, 0, 0, 1, 1, 1, 1,
                                         1, 1, 1, 1, 0, 0, 0, 0,
                                         0, 0, 0, 0, 1, 1, 1, 1,
@@ -47,12 +47,12 @@ private:
                                         1, 1, 1, 1, 0, 0, 0, 0,
                                         0, 0, 0, 0, 1, 1, 1, 1};
 
-    int LED_PATTERN_DPC_TOP_4x4[16] = {1, 1, 1, 1,
+    static int LED_PATTERN_DPC_TOP_4x4[16] = {1, 1, 1, 1,
                                        1, 1, 1, 1,
                                        0, 0, 0, 0,
                                        0, 0, 0, 0};
 
-    int LED_PATTERN_DPC_LEFT_4x4[16] = {1, 1, 0, 0,
+    static int LED_PATTERN_DPC_LEFT_4x4[16] = {1, 1, 0, 0,
                                         0, 0, 1, 1,
                                         1, 1, 0, 0,
                                         0, 0, 1, 1};
@@ -62,13 +62,8 @@ private:
     void set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
     void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
 
-public:
-
-    LedController();
-    ~LedController();
     bool TurnedOn();
-    void setup() override;
-    void loop() override;
+    void setup();
     /*
     {
     "led": {
@@ -84,7 +79,7 @@ public:
     }
     }
     */
-    int act(cJSON * ob) override;
+    int act(cJSON * ob);
     /*{
   "led": {
     "ledArrNum": 64,
@@ -92,8 +87,7 @@ public:
   }
 }
     */
-    cJSON * get(cJSON *  ob) override;
+    cJSON * get(cJSON *  ob);
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
 };
-//extern LedController led;

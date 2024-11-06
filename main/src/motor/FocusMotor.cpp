@@ -1,501 +1,708 @@
+#include <PinConfig.h>
 #include "../../config.h"
 #include "FocusMotor.h"
+#include "Wire.h"
 #include "../wifi/WifiController.h"
-#include "../serial/SerialProcess.h"
+#include "../../cJsonTool.h"
 #include "../state/State.h"
+#ifdef USE_TCA9535
+#include "../i2c/tca_controller.h"
+#endif
+#ifdef USE_FASTACCEL
+#include "FAccelStep.h"
+#endif
+#ifdef USE_ACCELSTEP
+#include "AccelStep.h"
+#endif
+#ifdef STAGE_SCAN
+#include "StageScan.h"
+#endif
+#ifdef DIAL_CONTROLLER
+#include "../dial/DialController.h"
+#endif
+#ifdef I2C_SLAVE_MOTOR
+#include "../i2c/i2c_slave_motor.h"
+#endif
+#ifdef I2C_MASTER
+#include "../i2c/i2c_master.h"
+#endif
 
-void sendUpdateToClients(void *p)
+
+namespace FocusMotor
 {
-	for (;;)
+
+	MotorData a_dat;
+	MotorData x_dat;
+	MotorData y_dat;
+	MotorData z_dat;
+	MotorData *data[4];
+
+	// for A,X,Y,Z intialize the I2C addresses
+	uint8_t i2c_addresses[] = {
+		pinConfig.I2C_ADD_MOT_A,
+		pinConfig.I2C_ADD_MOT_X,
+		pinConfig.I2C_ADD_MOT_Y,
+		pinConfig.I2C_ADD_MOT_Z};
+
+	MotorData **getData()
 	{
-		int arraypos = 0;
-		FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
-		for (int i = 0; i < motor->data.size(); i++)
+		if (data != nullptr)
+			return data;
+		else
 		{
-			if (!motor->data[i]->stopped)
-			{
-				motor->sendMotorPos(i, arraypos);
-			}
+			MotorData *mData[4];
+			return mData;
 		}
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
-}
 
-bool externalPinCallback(uint8_t pin, uint8_t value)
-{
-	FocusMotor *m = (FocusMotor *)moduleController.get(AvailableModules::motor);
-	return m->setExternalPin(pin, value);
-}
-
-FocusMotor::FocusMotor() : Module() { log_i("ctor"); }
-FocusMotor::~FocusMotor() { log_i("~ctor"); }
-
-int FocusMotor::act(cJSON *doc)
-{
-	log_i("motor act");
-
-	// only enable/disable motors
-	// {"task":"/motor_act", "isen":1, "isenauto":1}
-	cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
-	int qid = getJsonInt(doc, "qid");
-
-	if (isen != NULL)
+	void setData(int axis, MotorData *mData)
 	{
-		if (pinConfig.useFastAccelStepper)
+		memcpy(data[axis], mData, sizeof(MotorData));
+		// getData()[axis] = mData;
+	}
+
+#ifdef WIFI
+	void sendUpdateToClients(void *p)
+	{
+		for (;;)
 		{
-			faccel.Enable(isen->valueint);
+			cJSON *root = cJSON_CreateObject();
+			cJSON *stprs = cJSON_CreateArray();
+			cJSON_AddItemToObject(root, key_steppers, stprs);
+			int added = 0;
+			for (int i = 0; i < 4; i++)
+			{
+				if (!data[i]->stopped)
+				{
+#ifdef USE_FASTACCEL
+					FAccelStep::updateData(i);
+#elif defined USE_ACCELSTEP
+					AccelStep::updateData(i);
+#endif
+					cJSON *item = cJSON_CreateObject();
+					cJSON_AddItemToArray(stprs, item);
+					cJSON_AddNumberToObject(item, key_stepperid, i);
+					cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
+					cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+					added++;
+				}
+			}
+			if (added > 0)
+			{
+#ifdef WIFI
+				WifiController::sendJsonWebSocketMsg(root);
+#endif
+				// print result - will that work in the case of an xTask?
+				Serial.println("++");
+				char *s = cJSON_Print(root);
+				Serial.println(s);
+				free(s);
+				Serial.println("--");
+			}
+			DialController::pushMotorPosToDial()
+				cJSON_Delete(root);
+			vTaskDelay(1000 / portTICK_PERIOD_MS);
+		}
+	}
+#endif
+
+	void startStepper(int axis)
+	{
+#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+		// Request data from the slave but only if inside i2cAddresses
+		uint8_t slave_addr = axis2address(axis);
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		{
+			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
 		}
 		else
 		{
-			accel.Enable(isen->valueint);
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+
+			waitForFirstRunI2CSlave[axis] = true;
+			getData()[axis]->stopped = false;
 		}
+#endif
+#ifdef USE_FASTACCEL
+		FAccelStep::startFastAccelStepper(axis);
+#elif defined USE_ACCELSTEP
+		AccelStep::startAccelStepper(axis);
+#endif
 	}
 
-	// only set motors to autoenable
-	cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
-	if (autoen != NULL)
+	void parseMotorDriveJson(cJSON *doc)
 	{
-		if (pinConfig.useFastAccelStepper)
+		/*
+		We receive a JSON string e.g. in the form:
+		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+		And assign it to the different motors by sending the converted MotorData to the corresponding motor driver via I2C
+		*/
+		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
+		if (mot != NULL)
 		{
-			faccel.setAutoEnable(autoen->valueint);
-		}
-	}
-
-	// set position
-	cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
-	// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
-
-	if (setpos != NULL)
-	{
-		log_d("setpos");
-		cJSON *stprs = cJSON_GetObjectItem(setpos, key_steppers);
-		if (stprs != NULL)
-		{
-			FocusMotor *motor = (FocusMotor *)moduleController.get(AvailableModules::motor);
+			cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
 			cJSON *stp = NULL;
-			cJSON_ArrayForEach(stp, stprs)
+			if (stprs != NULL)
 			{
-				Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-				motor->setPosition(s, cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
-				log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					log_i("start stepper from parseMotorDriveJson");
+					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
+					data[s]->qid = cJsonTool::getJsonInt(doc, "qid");
+					data[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
+					data[s]->isEnable = cJsonTool::getJsonInt(stp, key_isen);
+					data[s]->targetPosition = cJsonTool::getJsonInt(stp, key_position);
+					data[s]->isforever = cJsonTool::getJsonInt(stp, key_isforever);
+					data[s]->absolutePosition = cJsonTool::getJsonInt(stp, key_isabs);
+					data[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
+					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
+					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
+					bool isStop = (cstop != NULL) ? cstop->valueint : false;
+					toggleStepper(s, isStop);
+				}
+			}
+			else
+				log_i("Motor steppers json is null");
+		}
+		else
+			log_i("Motor json is null");
+
+	}
+
+	void toggleStepper(Stepper s, bool isStop)
+	{
+		if (isStop)
+		{
+			log_i("stop stepper from parseMotorDriveJson");
+			stopStepper(s);
+		}
+		else
+		{
+			log_i("start stepper from parseMotorDriveJson");
+			startStepper(s); // TODO: Need dual axis?
+		}
+	}
+
+	bool parseSetPosition(cJSON *doc)
+	{
+		// set position
+		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+
+		// set dual axis if necessary
+		cJSON *dualaxisZ = cJSON_GetObjectItemCaseSensitive(doc, key_home_isDualAxis);
+		if (dualaxisZ != NULL)
+		{
+			// {"task": "/motor_act", "isDualAxisZ": 1}
+			// store this in the preferences
+			Preferences preferences;
+			isDualAxisZ = dualaxisZ->valueint;
+			const char *prefNamespace = "UC2";
+			preferences.begin(prefNamespace, false);
+			preferences.putBool("dualAxZ", isDualAxisZ);
+			log_i("isDualAxisZ is set to: %i", isDualAxisZ);
+			preferences.end();
+		}
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
+		if (setpos != NULL)
+		{
+			log_d("setpos");
+			cJSON *stprs = cJSON_GetObjectItem(setpos, key_steppers);
+			if (stprs != NULL)
+			{
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					setPosition(s, cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
+					log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
+				}
+			}
+			return true; // motor will return pos per socket or serial inside loop. act is fire and forget
+		}
+		return false;
+	}
+
+	void enable(bool en)
+	{
+#ifdef USE_FASTACCEL
+		FAccelStep::Enable(en);
+#elif defined USE_ACCELSTEP
+		AccelStep::Enable(en);
+#endif
+	}
+
+	void parseEnableMotor(cJSON *doc)
+	{
+		cJSON *isen = cJSON_GetObjectItemCaseSensitive(doc, key_isen);
+		if (isen != NULL)
+		{
+			enable(isen->valueint);
+		}
+	}
+
+	void parseSetAxis(cJSON *doc)
+	{
+		#ifdef I2C_SLAVE_MOTOR
+		cJSON *setaxis = cJSON_GetObjectItem(doc, key_setaxis);
+		if (setaxis != NULL)
+		{
+			cJSON *stprs = cJSON_GetObjectItem(setaxis, key_steppers);
+			if (stprs != NULL)
+			{
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					int axis = cJSON_GetObjectItemCaseSensitive(stp, key_stepperaxis)->valueint;
+					int motorAddress = i2c_addresses[axis];
+					// set the I2C address of the motor
+					i2c_slave_motor::setI2CAddress(motorAddress);
+					log_i("Setting motor axis %i to %i, address:", s, axis, i2c_slave_motor::getI2CAddress());
+				}
 			}
 		}
+		#endif
+	}
+
+	void parseAutoEnableMotor(cJSON *doc)
+	{
+		cJSON *autoen = cJSON_GetObjectItemCaseSensitive(doc, key_isenauto);
+#ifdef USE_FASTACCEL
+		if (autoen != NULL)
+		{
+			setAutoEnable(autoen->valueint);
+		}
+#endif
+	}
+
+	void setAutoEnable(bool enable)
+	{
+#ifdef USE_FASTACCEL
+		FAccelStep::setAutoEnable(enable);
+#endif
+	}
+
+	void setEnable(bool enable)
+	{
+#ifdef USE_FASTACCEL
+		FAccelStep::Enable(enable);
+#elif defined USE_ACCELSTEP
+		AccelStep::Enable(enable);
+#endif
+	}
+
+
+#ifdef STAGE_SCAN
+	void parseStageScan(cJSON *doc)
+	{
+		// set trigger
+		cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
+		// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
+		// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
+		// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+		// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+		// {"task": "/motor_get"}
+		if (settrigger != NULL)
+		{
+			log_d("settrigger");
+			cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
+			if (stprs != NULL)
+			{
+
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					FocusMotor::getData()[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
+					FocusMotor::getData()[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
+					FocusMotor::getData()[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
+					log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
+					log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
+					log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
+				}
+			}
+		}
+
+		// start independent stageScan
+		//
+		cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
+		if (stagescan != NULL)
+		{
+			StageScan::getStageScanData()->stopped = cJsonTool::getJsonInt(stagescan, "stopped");
+			if (StageScan::getStageScanData()->stopped)
+			{
+				log_i("stagescan stopped");
+				return;
+			}
+			StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
+			StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
+			StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
+			StageScan::getStageScanData()->nStepsPixel = cJsonTool::getJsonInt(stagescan, "nStepsPixel");
+			StageScan::getStageScanData()->dStepsPixel = cJsonTool::getJsonInt(stagescan, "dStepsPixel");
+			StageScan::getStageScanData()->nTriggerPixel = cJsonTool::getJsonInt(stagescan, "nTriggerPixel");
+			StageScan::getStageScanData()->delayTimeStep = cJsonTool::getJsonInt(stagescan, "delayTimeStep");
+			StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+			// xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
+			StageScan::stageScan();
+		}
+	}
+#endif
+
+	// returns json {"motor":{...}} as qid
+	cJSON *get(cJSON *docin)
+	{
+		/*
+		{"task": "/motor_get", "qid": 1}
+		returns
+		{
+			"motor": {
+				"steppers": [
+					{
+						"stepperid": 0,
+						"position": 1000
+					},
+					{
+						"stepperid": 1,
+						"position": 2000
+					},
+					{
+						"stepperid": 2,
+						"position": 3000
+					}
+				]
+			}
+		}*/
+
+		log_i("get motor");
+		cJSON *doc = cJSON_CreateObject();
+		int qid = cJsonTool::getJsonInt(docin, "qid");
+		cJSON *pos = cJSON_GetObjectItemCaseSensitive(docin, key_position);
+		cJSON *stop = cJSON_GetObjectItemCaseSensitive(docin, key_stopped);
+		cJSON *mot = cJSON_CreateObject();
+		cJSON_AddItemToObject(doc, key_motor, mot);
+		cJSON *stprs = cJSON_CreateArray();
+		cJSON_AddItemToObject(mot, key_steppers, stprs);
+
+		for (int i = 0; i < 4; i++)
+		{
+			if (i==0 and pinConfig.MOTOR_A_STEP < 0) continue;
+			if (i==1 and pinConfig.MOTOR_X_STEP < 0) continue;
+			if (i==2 and pinConfig.MOTOR_Y_STEP < 0) continue;
+			if (i==3 and pinConfig.MOTOR_Z_STEP < 0) continue;
+
+			if (pos != NULL)
+			{
+
+
+				// update position and push it to the json
+				data[i]->currentPosition = 1;
+				cJSON *aritem = cJSON_CreateObject();
+				cJsonTool::setJsonInt(aritem, key_stepperid, i);
+#ifdef USE_FASTACCEL
+				FAccelStep::updateData(i);
+#elif defined USE_ACCELSTEP
+				AccelStep::updateData(i);
+#endif
+
+				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
+				cJSON_AddItemToArray(stprs, aritem);
+			}
+			else if (stop != NULL)
+			{
+				cJSON *aritem = cJSON_CreateObject();
+				cJsonTool::setJsonInt(aritem, key_stopped, !data[i]->stopped);
+				cJSON_AddItemToArray(stprs, aritem);
+			}
+			else // return the whole config
+			{
+#ifdef USE_FASTACCEL
+				FAccelStep::updateData(i);
+#elif defined USE_ACCELSTEP
+				AccelStep::updateData(i);
+#endif
+				cJSON *aritem = cJSON_CreateObject();
+				cJsonTool::setJsonInt(aritem, key_stepperid, i);
+				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
+				cJsonTool::setJsonInt(aritem, "isActivated", data[i]->isActivated);
+				cJsonTool::setJsonInt(aritem, key_triggeroffset, data[i]->offsetTrigger);
+				cJsonTool::setJsonInt(aritem, key_triggerperiod, data[i]->triggerPeriod);
+				cJsonTool::setJsonInt(aritem, key_triggerpin, data[i]->triggerPin);
+				cJsonTool::setJsonInt(aritem, "isDualAxisZ", isDualAxisZ);
+
+				#ifdef I2C_SLAVE_MOTOR
+				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
+				#endif
+				cJSON_AddItemToArray(stprs, aritem);
+			}
+		}
+		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
+		return doc;
+	}
+
+	int act(cJSON *doc)
+	{
+		log_i("motor act");
+		int qid = cJsonTool::getJsonInt(doc, "qid");
+
+		#ifdef I2C_SLAVE_MOTOR
+		// set Motor Axis (for I2C)
+		/* 
+			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
+		*/
+		parseSetAxis(doc);
+		#endif
+
+		#ifdef I2C_MASTER
+		// move motor via I2C 
+		i2c_master::parseJsonI2C(doc);
+		#endif
+
+
+		// only enable/disable motors
+		// {"task":"/motor_act", "isen":1, "isenauto":1}
+		parseEnableMotor(doc);
+
+		// only set motors to autoenable
+		// {"task":"/motor_act", "isen":1, "isenauto":1, "qid":1}
+		parseAutoEnableMotor(doc);
+
+		// set position of motors in eeprom
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
+		parseSetPosition(doc);
+
+		// move motor drive
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
+		parseMotorDriveJson(doc);
+
+#ifdef STAGE_SCAN
+		parseStageScan(doc);
+#endif
 		return qid;
 	}
 
-	cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
-
-	if (mot != NULL)
+	void setup()
 	{
-		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
-		cJSON *stp = NULL;
-		if (stprs != NULL)
+		data[Stepper::A] = &a_dat;
+		data[Stepper::X] = &x_dat;
+		data[Stepper::Y] = &y_dat;
+		data[Stepper::Z] = &z_dat;
+		if (data[Stepper::A] == nullptr)
+			log_e("Stepper A data NULL");
+		if (data[Stepper::X] == nullptr)
+			log_e("Stepper X data NULL");
+		if (data[Stepper::Y] == nullptr)
+			log_e("Stepper Y data NULL");
+		if (data[Stepper::Z] == nullptr)
+			log_e("Stepper Z data NULL");
+
+		// Read dual axis from preferences if available
+		Preferences preferences;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, false);
+		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
+		preferences.end();
+
+		// setup motor pins
+		log_i("Setting Up Motor A,X,Y,Z");
+#ifdef USE_FASTACCEL || USE_ACCELSTEP
+		preferences.begin("motpos", false);
+		if (pinConfig.MOTOR_A_STEP >= 0)
 		{
-			cJSON_ArrayForEach(stp, stprs)
-			{
-				Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
-				data[s]->speed = getJsonInt(stp, key_speed);
-				data[s]->qid = qid;
-				data[s]->isEnable = getJsonInt(stp, key_isen);
-				data[s]->targetPosition = getJsonInt(stp, key_position);
-				data[s]->isforever = getJsonInt(stp, key_isforever);
-				data[s]->absolutePosition = getJsonInt(stp, key_isabs);
-				data[s]->acceleration = getJsonInt(stp, key_acceleration);
-				data[s]->isaccelerated = getJsonInt(stp, key_isaccel);
-				cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
-				if (cstop != NULL)
-					stopStepper(s);
-				else
-					startStepper(s);
-				log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
-					  s,
-					  data[s]->isforever,
-					  data[s]->speed,
-					  data[s]->maxspeed,
-					  data[s]->targetPosition,
-					  data[s]->absolutePosition,
-					  data[s]->isaccelerated,
-					  data[s]->acceleration);
-			}
+			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
+			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
+			data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
+			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
-		else
-			log_i("Motor steppers json is null");
-	}
-	else
-		log_i("Motor json is null");
-	return qid;
-}
-
-void FocusMotor::startStepper(int i)
-{
-	if (pinConfig.useFastAccelStepper)
-		faccel.startFastAccelStepper(i);
-	else
-		accel.startAccelStepper(i);
-}
-
-cJSON *FocusMotor::get(cJSON *docin)
-{
-	// get the command queue id from serial if available and add that to the return json
-	int qid = getJsonInt(docin, "qid");
-
-	log_i("get motor");
-	cJSON *doc = cJSON_CreateObject();
-	setJsonInt(doc, keyQueueID, qid);
-	cJSON *pos = cJSON_GetObjectItemCaseSensitive(docin, key_position);
-	cJSON *stop = cJSON_GetObjectItemCaseSensitive(docin, key_stopped);
-	cJSON *mot = cJSON_CreateObject();
-	cJSON_AddItemToObject(doc, key_motor, mot);
-	cJSON *stprs = cJSON_CreateArray();
-	cJSON_AddItemToObject(mot, key_steppers, stprs);
-
-	for (int i = 0; i < data.size(); i++)
-	{
-		if (pos != NULL)
+		if (pinConfig.MOTOR_X_STEP >= 0)
 		{
-			// update position and push it to the json
-			data[i]->currentPosition = 1;
-			cJSON *aritem = cJSON_CreateObject();
-			setJsonInt(aritem, key_stepperid, i);
-			if (pinConfig.useFastAccelStepper)
-				faccel.updateData(i);
-			else
-				accel.updateData(i);
-
-			setJsonInt(aritem, key_position, data[i]->currentPosition);
-			cJSON_AddItemToArray(stprs, aritem);
+			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
+			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
+			data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
+			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
-		else if (stop != NULL)
+		if (pinConfig.MOTOR_Y_STEP >= 0)
 		{
-			cJSON *aritem = cJSON_CreateObject();
-			setJsonInt(aritem, key_stopped, !data[i]->stopped);
-			cJSON_AddItemToArray(stprs, aritem);
+			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
+			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
+			data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
+			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
-		else // return the whole config
+		if (pinConfig.MOTOR_Z_STEP >= 0)
 		{
-			if (pinConfig.useFastAccelStepper)
-				faccel.updateData(i);
-			else
-				accel.updateData(i);
-			cJSON *aritem = cJSON_CreateObject();
-			setJsonInt(aritem, key_stepperid, i);
-			setJsonInt(aritem, key_position, data[i]->currentPosition);
-			setJsonInt(aritem,"isActivated",data[i]->isActivated);
-			cJSON_AddItemToArray(stprs, aritem);
+			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
+			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
+			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
+			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
-	}
-	return doc;
-}
+		preferences.end();
 
+		// setup trigger pins
+		if (pinConfig.DIGITAL_OUT_1 > 0)
+			data[Stepper::X]->triggerPin = 1; // pixel^
+		if (pinConfig.DIGITAL_OUT_2 > 0)
+			data[Stepper::Y]->triggerPin = 2; // line^
+		if (pinConfig.DIGITAL_OUT_3 > 0)
+			data[Stepper::Z]->triggerPin = 3; // frame^
 
-int FocusMotor::getExternalPinValue(uint8_t pin)
-{
-	// read register?
-	//_tca9535->TCA9535WriteOutput(&outRegister);
-	_tca9535->TCA9535ReadInput(&inRegister);
+#endif
 
-	int value = -1;
-	pin = pin & ~PIN_EXTERNAL_FLAG;
-	if (pin == 105) // endstop X
-		value = inRegister.Port.P0.bit.Bit5;
-	if (pin == 106) // endstop Y
-		value = inRegister.Port.P0.bit.Bit6;
-	if (pin == 107) // endstop Z
-		value = inRegister.Port.P0.bit.Bit7;
-	return value;
-}
-
-bool FocusMotor::setExternalPin(uint8_t pin, uint8_t value)
-{
-	// This example returns the previous value of the output.
-	// Consequently, FastAccelStepper needs to call setExternalPin twice
-	// in order to successfully change the output value.
-	pin = pin & ~PIN_EXTERNAL_FLAG;
-	if (pin == 100) // enable
-		outRegister.Port.P0.bit.Bit0 = value;
-	if (pin == 101) // x
-		outRegister.Port.P0.bit.Bit1 = value;
-	if (pin == 102) // y
-		outRegister.Port.P0.bit.Bit2 = value;
-	if (pin == 103) // z
-		outRegister.Port.P0.bit.Bit3 = value;
-	if (pin == 104) // a
-		outRegister.Port.P0.bit.Bit4 = value;
-	// log_i("external pin cb for pin:%d value:%d", pin, value);
-	if (ESP_OK != _tca9535->TCA9535WriteOutput(&outRegister))
-		// if (ESP_OK != _tca9535->TCA9535WriteSingleRegister(TCA9535_INPUT_REG0,outRegister.Port.P0.asInt))
-		log_e("i2c write failed");
-
-	return value;
-}
-
-void FocusMotor::dumpRegister(const char *name, TCA9535_Register configRegister)
-{
-	log_i("%s port0 b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  name,
-		  configRegister.Port.P0.bit.Bit0,
-		  configRegister.Port.P0.bit.Bit1,
-		  configRegister.Port.P0.bit.Bit2,
-		  configRegister.Port.P0.bit.Bit3,
-		  configRegister.Port.P0.bit.Bit4,
-		  configRegister.Port.P0.bit.Bit5,
-		  configRegister.Port.P0.bit.Bit6,
-		  configRegister.Port.P0.bit.Bit7);
-	/*log_i("%s port1 b0:%i, b1:%i, b2:%i, b3:%i, b4:%i, b5:%i, b6:%i, b7:%i",
-		  name,
-		  configRegister.Port.P1.bit.Bit0,
-		  configRegister.Port.P1.bit.Bit1,
-		  configRegister.Port.P1.bit.Bit2,
-		  configRegister.Port.P1.bit.Bit3,
-		  configRegister.Port.P1.bit.Bit4,
-		  configRegister.Port.P1.bit.Bit5,
-		  configRegister.Port.P1.bit.Bit6,
-		  configRegister.Port.P1.bit.Bit7);*/
-}
-
-static QueueHandle_t gpio_evt_queue = NULL;
-
-static void IRAM_ATTR gpio_isr_handler(void *arg)
-{
-	uint32_t gpio_num = (uint32_t)arg;
-	xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
-}
-
-static void gpio_task_example(void *arg)
-{
-	uint32_t io_num;
-	for (;;)
-	{
-		if (xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY))
+#ifdef USE_FASTACCEL
+#ifdef USE_TCA9535
+		log_i("Setting external pin for FastAccelStepper");
+		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+		FAccelStep::setupFastAccelStepper();
+#elif defined USE_ACCELSTEP
+#ifdef USE_TCA9535
+		AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+		AccelStep::setupAccelStepper();
+#endif
+		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
-			printf("GPIO[%" PRIu32 "] intr, val: %d\n", io_num, gpio_get_level(pinConfig.I2C_INT));
+			// need to activate the motor's dir pin eventually
+			// This also updates the dial's positions
+			Stepper s = static_cast<Stepper>(iMotor);
+			data[s]->absolutePosition = false;
+			data[s]->targetPosition = -1;
+			startStepper(iMotor); delay(10);
+			stopStepper(iMotor);
+			data[s]->targetPosition = 1;
+			startStepper(iMotor); delay(10);
+			stopStepper(iMotor);
 		}
-	}
-}
 
-void FocusMotor::init_tca()
-{
-	gpio_pad_select_gpio((gpio_num_t)pinConfig.I2C_INT);
-	gpio_set_direction((gpio_num_t)pinConfig.I2C_INT, GPIO_MODE_INPUT_OUTPUT);
-	gpio_pulldown_en((gpio_num_t)pinConfig.I2C_INT);
-	gpio_pullup_dis((gpio_num_t)pinConfig.I2C_INT);
-	gpio_set_intr_type((gpio_num_t)pinConfig.I2C_INT, GPIO_INTR_ANYEDGE);
-
-	// create a queue to handle gpio event from isr
-	gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-	// start gpio task
-	xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
-
-	// install gpio isr service
-	gpio_install_isr_service(0);
-	// hook isr handler for specific gpio pin
-	gpio_isr_handler_add((gpio_num_t)pinConfig.I2C_INT, gpio_isr_handler, (void *)pinConfig.I2C_INT);
-	_tca9535 = new tca9535();
-
-	if (ESP_OK != _tca9535->TCA9535Init(pinConfig.I2C_SCL, pinConfig.I2C_SDA, pinConfig.I2C_ADD))
-		log_e("failed to init tca9535");
-	else
-		log_i("tca9535 init!");
-	TCA9535_Register configRegister;
-	_tca9535->TCA9535ReadInput(&configRegister);
-	dumpRegister("Input", configRegister);
-	_tca9535->TCA9535ReadOutput(&configRegister);
-	dumpRegister("Output", configRegister);
-	_tca9535->TCA9535ReadPolarity(&configRegister);
-	dumpRegister("Polarity", configRegister);
-	_tca9535->TCA9535ReadConfig(&configRegister);
-	dumpRegister("Config", configRegister);
-
-	configRegister.Port.P0.bit.Bit0 = 0; // motor enable
-	configRegister.Port.P0.bit.Bit1 = 0; // x
-	configRegister.Port.P0.bit.Bit2 = 0; // y
-	configRegister.Port.P0.bit.Bit3 = 0; // z
-	configRegister.Port.P0.bit.Bit4 = 0; // a
-	configRegister.Port.P0.bit.Bit5 = 1;
-	configRegister.Port.P0.bit.Bit6 = 1;
-	configRegister.Port.P0.bit.Bit7 = 1;
-
-	/*configRegister.Port.P1.bit.Bit0 = 1; // motor enable
-	configRegister.Port.P1.bit.Bit1 = 1; // x
-	configRegister.Port.P1.bit.Bit2 = 1; // y
-	configRegister.Port.P1.bit.Bit3 = 1; // z
-	configRegister.Port.P1.bit.Bit4 = 1; // a
-	configRegister.Port.P1.bit.Bit5 = 0;
-	configRegister.Port.P1.bit.Bit6 = 0;
-	configRegister.Port.P1.bit.Bit7 = 0;*/
-	if (ESP_OK != _tca9535->TCA9535WriteConfig(&configRegister))
-		log_e("failed to write config to tca9535");
-	else
-		log_i("tca9535 config written!");
-
-	_tca9535->TCA9535ReadConfig(&configRegister);
-	dumpRegister("Config", configRegister);
-}
-
-void FocusMotor::setup()
-{
-	// setup the pins
-	for (int i = 0; i < data.size(); i++)
-	{
-		data[i] = new MotorData();
+#ifdef WIFI
+		// TODO: This causes the heap to overload?
+		// log_i("Creating Task sendUpdateToClients");
+		// xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+#endif
 	}
 
-	log_i("Setting Up Motor A,X,Y,Z");
-	preferences.begin("motor-positions", false);
-	if (pinConfig.MOTOR_A_DIR > 0)
-		data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
-	if (pinConfig.MOTOR_X_DIR > 0)
-		data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
-	if (pinConfig.MOTOR_Y_DIR > 0)
-		data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
-	if (pinConfig.MOTOR_Z_DIR > 0)
-		data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
-	preferences.end();
-	if (pinConfig.useFastAccelStepper)
-	{
-		if (pinConfig.I2C_SCL > 0)
-		{
-			init_tca();
-			faccel.setExternalCallForPin(externalPinCallback);
-		}
-		faccel.data = data;
-		faccel.setupFastAccelStepper();
-	}
-	else
-	{
-		if (pinConfig.I2C_SCL > 0)
-		{
-			init_tca();
-			accel.setExternalCallForPin(externalPinCallback);
-		}
-		accel.data = data;
-		accel.setupAccelStepper();
-	}
-	log_i("Creating Task sendUpdateToClients");
-	// xTaskCreate(sendUpdateToClients, "sendUpdateToClients", 4096, NULL, 6, NULL);
-}
-
-// dont use it, it get no longer triggered from modulehandler
-void FocusMotor::loop()
-{
-	if (pinConfig.useFastAccelStepper)
+	void loop()
 	{
 		// checks if a stepper is still running
-		for (int i = 0; i < data.size(); i++)
+		int nRunning = 0;
+		for (int i = 0; i < 4; i++)
 		{
-			bool isRunning = faccel.isRunning(i);
-
-			// should only send a response if there is nothing else is sent
-			State *state = (State *)moduleController.get(AvailableModules::state);
-			bool isSending = state->isSending;
-
-			if (!isRunning && !data[i]->stopped & !isSending)
+			bool isRunning = false;
+			// we check if the motor was defined
+			if (getData()[i]->isActivated)
 			{
-				// Only send the information when the motor is halting
+#ifdef USE_FASTACCEL
+				isRunning = FAccelStep::isRunning(i);
+				if (isRunning) nRunning += 1;
+#elif defined USE_ACCELSTEP
+				isRunning = AccelStep::isRunning(i);
+				if (isRunning) nRunning += 1;
+#endif
+			}
+
+			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			if (!isRunning && !data[i]->stopped)
+			{
+				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
+				// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 				stopStepper(i);
-				sendMotorPos(i, 0);
-				preferences.begin("motor-positions", false);
+				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
 		}
 	}
-}
 
-bool FocusMotor::isRunning(int i)
-{
-	if (pinConfig.useFastAccelStepper)
+	bool isRunning(int i)
 	{
-		return faccel.isRunning(i);
-	}
-	else
-	{
-		return accel.isRunning(i);
-	}
-}
-
-void FocusMotor::sendMotorPos(int i, int arraypos)
-{
-	if (pinConfig.useFastAccelStepper)
-		faccel.updateData(i);
-	else
-		accel.updateData(i);
-	cJSON *root = cJSON_CreateObject();
-	setJsonInt(root, keyQueueID, data[i]->qid);
-	cJSON *stprs = cJSON_CreateArray();
-	cJSON_AddItemToObject(root, key_steppers, stprs);
-	cJSON *item = cJSON_CreateObject();
-	cJSON_AddItemToArray(stprs, item);
-	cJSON_AddNumberToObject(item, key_stepperid, i);
-	cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-	cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-
-	arraypos++;
-
-	if (moduleController.get(AvailableModules::wifi) != nullptr)
-	{
-		WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
-		w->sendJsonWebSocketMsg(root);
+#ifdef USE_FASTACCEL
+		return FAccelStep::isRunning(i);
+#elif defined USE_ACCELSTEP
+		return AccelStep::isRunning(i);
+#endif
 	}
 
-	// print result - will that work in the case of an xTask?
-	Serial.println("++");
-	char *s = cJSON_Print(root);
-	Serial.println(s);
-	free(s);
-	Serial.println("--");
-}
-
-void FocusMotor::stopStepper(int i)
-{
-	log_i("Stop Stepper:%i", i);
-	if (pinConfig.useFastAccelStepper)
-		faccel.stopFastAccelStepper(i);
-	else
-		accel.stopAccelStepper(i);
-}
-
-void FocusMotor::disableEnablePin(int i)
-{
-	/*
-	if (data[Stepper::A]->stopped &&
-		data[Stepper::X]->stopped &&
-		data[Stepper::Y]->stopped &&
-		data[Stepper::Z]->stopped &&
-		power_enable)
+	// returns json {"steppers":[...]} as qid
+	void sendMotorPos(int i, int arraypos)
 	{
-		pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
-		digitalWrite(pinConfig.MOTOR_ENABLE, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
-		power_enable = false;
-	}
-	*/
-}
+#ifdef USE_FASTACCEL
+		FAccelStep::updateData(i);
+#elif defined USE_ACCELSTEP
+		AccelStep::updateData(i);
+#endif
 
-void FocusMotor::enableEnablePin(int i)
-{
-	/*
-	if (!power_enable)
-	{
-		pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
-		digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-		power_enable = true;
-	}
-	*/
-}
 
-void FocusMotor::setPosition(Stepper s, int pos)
-{
-	if (pinConfig.useFastAccelStepper)
-	{
-		faccel.setPosition(s, pos);
-	}
-}
+		cJSON *root = cJSON_CreateObject();
+		if (root == NULL)
+			return; // Handle allocation failure
 
-void FocusMotor::move(Stepper s, int steps, bool blocking)
-{
-	if (pinConfig.useFastAccelStepper)
-	{
-		faccel.move(s, steps, blocking);
+		cJSON *stprs = cJSON_CreateArray();
+		if (stprs == NULL)
+		{
+			cJSON_Delete(root);
+			return; // Handle allocation failure
+		}
+		cJSON_AddItemToObject(root, key_steppers, stprs);
+		cJSON_AddNumberToObject(root, "qid", data[i]->qid);
+
+		cJSON *item = cJSON_CreateObject();
+		if (item == NULL)
+		{
+			cJSON_Delete(root);
+			return; // Handle allocation failure
+		}
+		cJSON_AddItemToArray(stprs, item);
+		cJSON_AddNumberToObject(item, key_stepperid, i);
+		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
+		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+		arraypos++;
+
+#ifdef WIFI
+		WifiController::sendJsonWebSocketMsg(root);
+#endif
+
+		// Print result - will that work in the case of an xTask?
+		Serial.println("++");
+		char *s = cJSON_Print(root);
+		if (s != NULL)
+		{
+			Serial.println(s);
+			free(s);
+		}
+		Serial.println("--");
+
+		cJSON_Delete(root); // Free the root object, which also frees all nested objects
 	}
+
+	void stopStepper(int i)
+	{
+		// only send motor data if it was running before
+		if (!data[i]->stopped)
+			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
+#ifdef USE_FASTACCEL
+		FAccelStep::stopFastAccelStepper(i);
+#elif defined USE_ACCELSTEP
+		AccelStep::stopAccelStepper(i);
+#endif
+	}
+
+	void setPosition(Stepper s, int pos)
+	{
+		getData()[s]->currentPosition = pos;
+#ifdef USE_FASTACCEL
+		FAccelStep::setPosition(s, pos);
+#elif defined USE_ACCELSTEP
+		AccelStep::setPosition(s, pos);
+#endif
+	}
+
+	void move(Stepper s, int steps, bool blocking)
+	{
+#ifdef USE_FASTACCEL
+		FAccelStep::move(s, steps, blocking);
+#endif
+	}
+
 }

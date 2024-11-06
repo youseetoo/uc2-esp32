@@ -1,7 +1,7 @@
+#include <PinConfig.h>
 #pragma once
-
-#include "../../ModuleController.h"
-#include "../motor/FocusMotor.h"
+#include "cJSON.h"
+#include "Arduino.h"
 
 struct EncoderData
 {	
@@ -19,23 +19,19 @@ struct EncoderData
 
 void processHomeLoop(void * p);
 
-class EncoderController : public Module
+namespace EncoderController
 {
 
-public:
-	EncoderController();
-	~EncoderController();
-	bool DEBUG = true;
-	int homeEndposRelease = 2000;
-	bool isHoming = false;
-	std::array<EncoderData *, 4> edata;
+	static bool DEBUG = true;
+	static int homeEndposRelease = 2000;
+	static bool isHoming = false;
+	static std::array<EncoderData *, 4> edata;
 
-	int act(cJSON * ob) override;
-	cJSON * get(cJSON * ob) override;
-	void setup() override;
-	void loop() override;
+	int act(cJSON * ob);
+	cJSON * get(cJSON * ob);
+	void setup();
+	void loop();
 
-private:
 	float readValue(int clkPin, int dataPin);
 	float decode(int clkPin, int dataPin);
 };

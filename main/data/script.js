@@ -176,7 +176,7 @@ function enableLeds(cb) {
     var redc = $("#redRange").val();
     var greenc = $("#greenRange").val();
     var bluec = $("#blueRange").val();
-    var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, blue: cb.checked ? bluec : 0, red: cb.checked ? redc : 0, green: cb.checked ? greenc : 0 }] } });
+    var jstr = JSON.stringify({ led: { LEDArrMode: 1, led_array: [{ id: 0, b: cb.checked ? bluec : 0, r: cb.checked ? redc : 0, g: cb.checked ? greenc : 0 }] } });
     post(jstr, "/ledarr_act");
 }
 

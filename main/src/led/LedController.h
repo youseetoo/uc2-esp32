@@ -24,7 +24,6 @@ namespace LedController
     // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
     static Adafruit_NeoPixel *matrix;
     static bool DEBUG = false;
-    static bool isBusy;
     static bool isOn = false;
 
     static int NLED4x4 = 16;

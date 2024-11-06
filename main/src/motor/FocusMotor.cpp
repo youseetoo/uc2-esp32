@@ -4,6 +4,7 @@
 #include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
+#include "../state/State.h"
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -13,15 +14,13 @@
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
 #endif
-#ifdef HOME_MOTOR
-#include "HomeDrive.h"
-#endif
 #ifdef STAGE_SCAN
 #include "StageScan.h"
 #endif
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
+
 
 namespace FocusMotor
 {
@@ -103,6 +102,23 @@ namespace FocusMotor
 
 	void startStepper(int axis)
 	{
+#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+		// Request data from the slave but only if inside i2cAddresses
+		uint8_t slave_addr = axis2address(axis);
+		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		{
+			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+		}
+		else
+		{
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+
+			waitForFirstRunI2CSlave[axis] = true;
+			getData()[axis]->stopped = false;
+		}
+#else
 #ifdef USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
@@ -248,22 +264,6 @@ namespace FocusMotor
 #endif
 	}
 
-#ifdef HOME_DRIVE
-	void parseHome(cJSON *doc)
-	{
-		cJSON *home = cJSON_GetObjectItemCaseSensitive(doc, "home");
-		if (home != NULL)
-		{
-			cJSON *t;
-			cJSON_ArrayForEach(t, home)
-			{
-				log_i("Drive home:%s", t);
-				Stepper s = static_cast<Stepper>(t->valueint);
-				HomeDrive::driveHome(s);
-			}
-		}
-	}
-#endif
 
 #ifdef STAGE_SCAN
 	void parseStageScan(cJSON *doc)
@@ -422,9 +422,7 @@ namespace FocusMotor
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
-#ifdef HOME_DRIVE
-		parseHome(doc);
-#endif
+
 #ifdef STAGE_SCAN
 		parseStageScan(doc);
 #endif
@@ -533,6 +531,7 @@ namespace FocusMotor
 	void loop()
 	{
 		// checks if a stepper is still running
+		int nRunning = 0;
 		for (int i = 0; i < 4; i++)
 		{
 			bool isRunning = false;
@@ -541,8 +540,10 @@ namespace FocusMotor
 			{
 #ifdef USE_FASTACCEL
 				isRunning = FAccelStep::isRunning(i);
+				if (isRunning) nRunning += 1;
 #elif defined USE_ACCELSTEP
 				isRunning = AccelStep::isRunning(i);
+				if (isRunning) nRunning += 1;
 #endif
 			}
 

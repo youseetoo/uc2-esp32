@@ -59,7 +59,8 @@
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isforever": 0}]}}
 //relativ
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -1000, "speed": -100}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -1000, "speed": 1000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -10000, "speed": 1000}]}}
+{"task":"/b"}
 //absolute
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 10000, "speed": 10000,"isabs": 1}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": 100,"isabs": 1}]}}

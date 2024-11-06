@@ -6,7 +6,6 @@
 namespace LaserController
 {
 
-    static bool isBusy;
     static int LASER_val_0 = 0;
     static int LASER_val_1 = 0;
     static int LASER_val_2 = 0;

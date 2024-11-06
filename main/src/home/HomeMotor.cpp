@@ -15,9 +15,6 @@ using namespace FocusMotor;
 namespace HomeMotor
 {
 
-	void processHomeLoop(void *p)
-	{
-	}
 
 	/*
 	Handle REST calls to the HomeMotor module
@@ -47,7 +44,6 @@ namespace HomeMotor
 				{
 					log_i("HomeMotor act %s", stp);
 					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-
 					hdata[s]->homeTimeout = cJsonTool::getJsonInt(stp, key_home_timeout);
 					hdata[s]->homeSpeed = cJsonTool::getJsonInt(stp, key_home_speed);
 					hdata[s]->homeMaxspeed = cJsonTool::getJsonInt(stp, key_home_maxspeed);
@@ -87,6 +83,9 @@ namespace HomeMotor
 					getData()[s]->isEnable = 1;
 					getData()[s]->isaccelerated = 0;
 					FocusMotor::startStepper(s);
+					delay(10);
+					FocusMotor::stopStepper(s);
+					FocusMotor::startStepper(s); // TODO: restart the stepper and hope this time the motor will move in the right direction
 					if (s == Stepper::Z and FocusMotor::isDualAxisZ)
 					{
 						// we may have a dual axis so we would need to start A too
@@ -97,6 +96,9 @@ namespace HomeMotor
 						getData()[Stepper::A]->isEnable = 1;
 						getData()[Stepper::A]->isaccelerated = 0;
 						FocusMotor::startStepper(Stepper::A);
+						delay(10);
+						FocusMotor::stopStepper(Stepper::A);
+						FocusMotor::startStepper(Stepper::A); // TODO: restart the stepper and hope this time the motor will move in the right direction
 					}
 
 					// now we will go into loop and need to stop once the button is hit or timeout is reached
@@ -114,6 +116,7 @@ namespace HomeMotor
 	{
 		log_i("home_get_fct");
 		cJSON *doc = cJSON_CreateObject();
+#ifdef MOTOR_CONTROLLER
 		cJSON *home = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, key_home, home);
 		cJSON *arr = cJSON_CreateArray();
@@ -134,6 +137,7 @@ namespace HomeMotor
 		}
 
 		log_i("home_get_fct done");
+#endif
 		return doc;
 	}
 
@@ -141,6 +145,7 @@ namespace HomeMotor
 	//{"home":{...}}
 	void sendHomeDone(int axis)
 	{
+#ifdef MOTOR_CONTROLLER
 		// send home done to client
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
@@ -161,6 +166,7 @@ namespace HomeMotor
 		Serial.println(ret);
 		free(ret);
 		Serial.println("--");
+#endif
 	}
 
 	void checkAndProcessHome(Stepper s, int digitalin_val)
@@ -266,6 +272,5 @@ namespace HomeMotor
 		{
 			hdata[i] = new HomeData();
 		}
-		// xTaskCreate(&processHomeLoop, "home_task", 1024, NULL, 5, NULL);
 	}
 }

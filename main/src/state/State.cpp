@@ -110,6 +110,16 @@ namespace State
 		return doc;
 	}
 
+	void setBusy(bool busy)
+	{
+		isBusy = busy;
+	}
+
+	bool getBusy()
+	{
+		return isBusy;
+	}
+
 	void printInfo()
 	{
 		if (DEBUG)

@@ -25,4 +25,7 @@ namespace State
 
 	void setup();
 	void printInfo();
+
+	void setBusy(bool busy);
+	bool getBusy();
 };

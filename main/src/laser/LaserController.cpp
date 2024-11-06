@@ -2,6 +2,7 @@
 #include "LaserController.h"
 #include "cJsonTool.h"
 #include "JsonKeys.h"
+#include "../state/State.h"
 
 namespace LaserController
 {
@@ -9,40 +10,36 @@ namespace LaserController
 	void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod)
 	{
 		log_e("LASERdespeckle %i, LASERid %i, LASERperiod %i", LASERdespeckle, LASERid, LASERperiod);
-		if (!isBusy)
+		int LASER_val_wiggle = 0;
+		int PWM_CHANNEL_LASER = 0;
+		if (LASERid == 1)
 		{
-
-			int LASER_val_wiggle = 0;
-			int PWM_CHANNEL_LASER = 0;
-			if (LASERid == 1)
-			{
-				LASER_val_wiggle = LASER_val_1;
-				PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_1;
-			}
-			else if (LASERid == 2)
-			{
-				LASER_val_wiggle = LASER_val_2;
-				PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_2;
-			}
-			else if (LASERid == 3)
-			{
-				LASER_val_wiggle = LASER_val_3;
-				PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_3;
-			}
-			// add random number to current value to let it oscliate
-			long laserwiggle = random(-LASERdespeckle, LASERdespeckle);
-			LASER_val_wiggle += laserwiggle;
-			if (LASER_val_wiggle > pwm_max)
-				LASER_val_wiggle -= (2 * abs(laserwiggle));
-			if (LASER_val_wiggle < 0)
-				LASER_val_wiggle += (2 * abs(laserwiggle));
-
-			log_d("%i", LASERid);
-			log_d("%i", LASER_val_wiggle);
-
-			setPWM(LASER_val_wiggle, PWM_CHANNEL_LASER);
-			delay(LASERperiod);
+			LASER_val_wiggle = LASER_val_1;
+			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_1;
 		}
+		else if (LASERid == 2)
+		{
+			LASER_val_wiggle = LASER_val_2;
+			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_2;
+		}
+		else if (LASERid == 3)
+		{
+			LASER_val_wiggle = LASER_val_3;
+			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_3;
+		}
+		// add random number to current value to let it oscliate
+		long laserwiggle = random(-LASERdespeckle, LASERdespeckle);
+		LASER_val_wiggle += laserwiggle;
+		if (LASER_val_wiggle > pwm_max)
+			LASER_val_wiggle -= (2 * abs(laserwiggle));
+		if (LASER_val_wiggle < 0)
+			LASER_val_wiggle += (2 * abs(laserwiggle));
+
+		log_d("%i", LASERid);
+		log_d("%i", LASER_val_wiggle);
+
+		setPWM(LASER_val_wiggle, PWM_CHANNEL_LASER);
+		delay(LASERperiod);
 	}
 
 	void setPWM(int pwmValue, int pwmChannel)
@@ -54,11 +51,13 @@ namespace LaserController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
-		
+
+
 		// JSON String
 		// {"task":"/laser_act", "LASERid":1, "LASERval":1000}, "LASERdespeckle":0, "LASERdespecklePeriod":0}
 		// {"task":"/laser_act", "LASERid":2, "LASERval":1000}
 		// {"task":"/laser_act", "LASERid":2, "LASERval":10000}
+		State::setBusy(true);
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
 		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
@@ -136,11 +135,12 @@ namespace LaserController
 				configurePWM(pinConfig.LASER_1, pwm_resolution, PWM_CHANNEL_LASER_1, pwm_frequency);
 				moveServo(PWM_CHANNEL_LASER_1, LASERval, pwm_frequency, pwm_resolution);
 			}
-			else 
+			else
 			{
 				setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			State::setBusy(false);
 			return qid;
 		}
 		// action LASER 2
@@ -164,6 +164,7 @@ namespace LaserController
 				setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			State::setBusy(false);
 			return qid;
 		}
 		// action LASER 3
@@ -188,10 +189,11 @@ namespace LaserController
 			}
 
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			State::setBusy(false);
 			return qid;
 		}
 		// action LASER 0
-		else if(LASERid == 0 && pinConfig.LASER_0 >= 0 && hasLASERval)
+		else if (LASERid == 0 && pinConfig.LASER_0 >= 0 && hasLASERval)
 		{
 			// action LASER 0
 			// {"task":"/laser_act", "LASERid":0 ,"LASERval":50, "qid":1}
@@ -213,15 +215,18 @@ namespace LaserController
 				setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			State::setBusy(false);
 			return qid;
 		}
 		else
 		{
+			State::setBusy(false);
 			return 0;
 		}
 	}
 
-	bool setLaserVal(int LASERid, int LASERval){
+	bool setLaserVal(int LASERid, int LASERval)
+	{
 		if (LASERid == 1 && pinConfig.LASER_1 != 0)
 		{
 			LASER_val_1 = LASERval;
@@ -254,19 +259,19 @@ namespace LaserController
 		int laserVal = 0;
 		if (LASERid == 1)
 		{
-			laserVal=LASER_val_1;
+			laserVal = LASER_val_1;
 		}
 		else if (LASERid == 2)
 		{
-			laserVal=LASER_val_2;
+			laserVal = LASER_val_2;
 		}
 		else if (LASERid == 3)
 		{
-			laserVal=LASER_val_3;
+			laserVal = LASER_val_3;
 		}
 		else
 		{
-			laserVal=0;
+			laserVal = 0;
 		}
 		log_i("LASERid %i, LASERval %i", LASERid, laserVal);
 		return laserVal;
@@ -279,7 +284,7 @@ namespace LaserController
 		ledcSetup(pwm_chan, pwm_freq, pwm_res);
 		ledcAttachPin(laser_pin, pwm_chan);
 	}
-	
+
 	void moveServo(int ledChannel, int angle, int frequency, int resolution)
 	{
 		// Map the angle to the corresponding pulse width
@@ -320,7 +325,7 @@ namespace LaserController
 		cJsonTool::setJsonInt(ls, "LASER1val", getLaserVal(1));
 		cJsonTool::setJsonInt(ls, "LASER2val", getLaserVal(2));
 		cJsonTool::setJsonInt(ls, "LASER3val", getLaserVal(3));
-		
+
 		return j;
 	}
 
@@ -336,7 +341,7 @@ namespace LaserController
 		setPWM(10000, PWM_CHANNEL_LASER_1);
 		delay(10);
 		setPWM(0, PWM_CHANNEL_LASER_1);
-	
+
 		log_i("Laser ID 2, pin: %i", pinConfig.LASER_2);
 		pinMode(pinConfig.LASER_2, OUTPUT);
 		digitalWrite(pinConfig.LASER_2, LOW);
@@ -353,24 +358,24 @@ namespace LaserController
 		delay(10);
 		setPWM(0, PWM_CHANNEL_LASER_3);
 
-		#ifdef HEAT_CONTROLLER
+#ifdef HEAT_CONTROLLER
 		// Setting up the differen PWM channels for the heating unit
-		if(pinConfig.LASER_0 > 0)
+		if (pinConfig.LASER_0 > 0)
 		{
-		log_i("Heating Unit, pin: %i", pinConfig.LASER_0);
-		pinMode(pinConfig.LASER_0, OUTPUT);
-		digitalWrite(pinConfig.LASER_0, LOW);
-		setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
-		setPWM(10000, PWM_CHANNEL_LASER_0);
-		delay(10);
-		setPWM(0, PWM_CHANNEL_LASER_0);
+			log_i("Heating Unit, pin: %i", pinConfig.LASER_0);
+			pinMode(pinConfig.LASER_0, OUTPUT);
+			digitalWrite(pinConfig.LASER_0, LOW);
+			setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
+			setPWM(10000, PWM_CHANNEL_LASER_0);
+			delay(10);
+			setPWM(0, PWM_CHANNEL_LASER_0);
 		}
-		#endif
+#endif
 	}
 
 	void loop()
 	{
-		
+
 		// attempting to despeckle by wiggeling the temperature-dependent modes of the laser?
 		if (LASER_despeckle_1 > 0 && LASER_val_1 > 0 && pinConfig.LASER_1 != 0)
 			LASER_despeckle(LASER_despeckle_1, 1, LASER_despeckle_period_1);

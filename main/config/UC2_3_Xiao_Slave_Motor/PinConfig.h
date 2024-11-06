@@ -55,7 +55,10 @@ struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
      int8_t I2C_SDA_ext = GPIO_NUM_5; // D4 -> GPIO5
 
      // TMC UART 
-     int8_t SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
-     int8_t SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
+
+
 };
 const UC2_ESP32S3_XIAO_LEDSERVO pinConfig;

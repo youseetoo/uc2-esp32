@@ -37,6 +37,9 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
@@ -303,6 +306,12 @@ else  if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(LaserController::get(jsonDocument));
 		else if (strcmp(task, laser_act_endpoint) == 0)
 			serialize(LaserController::act(jsonDocument));
+#endif
+#ifdef TMC_CONTROLLER
+		else if (strcmp(task, tmc_get_endpoint) == 0)
+			serialize(TMCController::get(jsonDocument));
+		else if (strcmp(task, tmc_act_endpoint) == 0)
+			serialize(TMCController::act(jsonDocument));
 #endif
 #ifdef LED_CONTROLLER
 		else if (strcmp(task, ledarr_get_endpoint) == 0)

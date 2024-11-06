@@ -5,6 +5,9 @@ __attribute__ ((unused)) static const  char* laser_act_endpoint = "/laser_act";
 __attribute__ ((unused)) static const  char* laser_get_endpoint = "/laser_get";
 #endif
 
+__attribute__ ((unused)) static const  char* tmc_act_endpoint = "/tmc_act";
+__attribute__ ((unused)) static const  char* tmc_get_endpoint = "/tmc_get";
+
 __attribute__ ((unused)) static const  char* state_act_endpoint = "/state_act";
 __attribute__ ((unused)) static const  char* state_get_endpoint = "/state_get";
 __attribute__ ((unused)) static const  char* state_busy_endpoint = "/b";

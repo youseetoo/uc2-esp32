@@ -56,6 +56,9 @@ Preferences preferences;
 #ifdef LASER_CONTROLLER
 #include "src/laser/LaserController.h"
 #endif
+#ifdef TMC_CONTROLLER
+#include "src/tmc/TMCController.h"
+#endif
 #ifdef LED_CONTROLLER
 #include "src/led/LedController.h"
 #endif
@@ -134,6 +137,10 @@ extern "C" void looper(void *p)
 #endif
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
+		vTaskDelay(1);
+#endif
+#ifdef LED_CONTROLLER
+		LedController::loop();
 		vTaskDelay(1);
 #endif
 #ifdef MOTOR_CONTROLLER
@@ -235,6 +242,9 @@ extern "C" void setupApp(void)
 #endif
 #ifdef LASER_CONTROLLER
 	LaserController::setup();
+#endif
+#ifdef TMC_CONTROLLER
+	TMCController::setup();
 #endif
 #ifdef LED_CONTROLLER
 	LedController::setup();

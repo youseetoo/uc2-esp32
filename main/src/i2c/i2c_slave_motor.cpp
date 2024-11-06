@@ -3,6 +3,7 @@
 #include "PinConfig.h"
 #include "../motor/FocusMotor.h"
 
+
 namespace i2c_slave_motor
 {
 

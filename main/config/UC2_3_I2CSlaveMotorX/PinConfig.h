@@ -90,6 +90,11 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 
+     // TMC 
+     int tmc_SW_RX = D7;
+     int tmc_SW_TX = D6;
+     int tmc_pin_diag = D3;
+
     
 
      // Temperature

@@ -514,11 +514,12 @@ namespace FocusMotor
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
 			Stepper s = static_cast<Stepper>(iMotor);
-			data[s]->absolutePosition = true;
-			data[s]->targetPosition = 1;
-			startStepper(iMotor);
+			data[s]->absolutePosition = false;
 			data[s]->targetPosition = -1;
-			startStepper(iMotor);
+			startStepper(iMotor); delay(10);
+			stopStepper(iMotor);
+			data[s]->targetPosition = 1;
+			startStepper(iMotor); delay(10);
 			stopStepper(iMotor);
 		}
 

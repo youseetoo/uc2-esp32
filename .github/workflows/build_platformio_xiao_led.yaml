@@ -52,8 +52,8 @@ jobs:
     
     - name: merge into one binary
       run: |
-        dir .pio/build/UC2_3/ 
-        mv .pio/build/UC2_3/*.bin build/
+        dir .pio/build/seeed_xiao_esp32s3_ledservo/ 
+        mv .pio/build/seeed_xiao_esp32s3_ledservo/*.bin build/
         cd build
         python -m esptool --chip esp32 merge_bin  -o seeed_xiao_esp32s3_ledservo.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
 

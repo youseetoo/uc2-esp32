@@ -336,6 +336,7 @@ namespace i2c_master
                     cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
                     data[s]->isStop = (cstop != NULL) ? cstop->valueint : false;
                     toggleStepper(s, data[s]->isStop);
+                    log_i("Motor %i: Speed: %i, Position: %i, isStop: %i", s, data[s]->speed, data[s]->targetPosition, data[s]->isStop);
                 }
             }
             else

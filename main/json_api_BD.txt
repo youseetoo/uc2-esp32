@@ -110,8 +110,8 @@
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
 
 {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
-{"task":"/tmc_act", "msteps":64, "rms_current":1000}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 50000, "speed": -50000, "isabs": 0, "isaccel":0}]}}
+{"task":"/tmc_act", "msteps":16, "rms_current":400}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5000, "speed": -5000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
@@ -281,6 +281,7 @@
 
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 3, "position": -100, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}, { "stepperid": 2, "position": -100, "speed": 150, "isabs": 0, "isaccel":0, "isen":1} ] } }
 
+			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
 
 {"task":"/home_act", "qid": 10, "setpos":1, "home": {"steppers": [{"stepperid":3, "posval": 20000}]}}
 {"task": "/home_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 0}]}}
@@ -297,6 +298,9 @@
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -10000, "speed": 15000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_get"}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5000, "speed": 15000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+
+
+
 gives
 ++
 {

@@ -8,9 +8,38 @@ namespace TMCController
     {
         // modify the TMC2209 settings
         // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
-        
+        // {"task":"/tmc_act", "reset": 1}
         preferences.begin("TMC", false);
 
+        // reset settings? 
+        bool tmc_resetsettings = cJsonTool::getJsonInt(jsonDocument, "reset");
+        if (tmc_resetsettings == 1){
+            // reset all TMC settings to default values
+            preferences.begin("TMC", false);
+            preferences.putInt("msteps", pinConfig.tmc_microsteps);
+            preferences.putInt("current", pinConfig.tmc_rms_current);
+            preferences.putInt("stall", pinConfig.tmc_stall_value);
+            preferences.putInt("sgthrs", pinConfig.tmc_sgthrs);
+            preferences.putInt("semin", pinConfig.tmc_semin);
+            preferences.putInt("semax", pinConfig.tmc_semax);
+            preferences.putInt("sedn", pinConfig.tmc_sedn);
+            preferences.putInt("tcool", pinConfig.tmc_tcoolthrs);
+            preferences.putInt("blank", pinConfig.tmc_blank_time);
+            preferences.putInt("toff", pinConfig.tmc_toff);
+            preferences.end();
+            log_i("TMC2209 settings reset to default values");
+            // apply default values
+            driver.microsteps(pinConfig.tmc_microsteps);
+            driver.rms_current(pinConfig.tmc_rms_current);
+            driver.SGTHRS(pinConfig.tmc_sgthrs);
+            driver.semin(pinConfig.tmc_semin);
+            driver.semax(pinConfig.tmc_semax);
+            driver.sedn(pinConfig.tmc_sedn);
+            driver.TCOOLTHRS(pinConfig.tmc_tcoolthrs);
+            driver.blank_time(pinConfig.tmc_blank_time);
+            driver.toff(pinConfig.tmc_toff);
+            return 0;
+        }
         // microsteps
         int tmc_microsteps = cJsonTool::getJsonInt(jsonDocument, "msteps");
         if (tmc_microsteps != driver.microsteps() and tmc_microsteps > 0)
@@ -25,7 +54,7 @@ namespace TMCController
         if (tmc_rms_current != driver.rms_current() and tmc_rms_current > 0)
         {
             driver.rms_current(tmc_rms_current);
-            preferences.putInt("rms_current", tmc_rms_current);
+            preferences.putInt("current", tmc_rms_current);
             log_i("TMC2209 RMS current set to %i", tmc_rms_current);
         }
 
@@ -71,7 +100,7 @@ namespace TMCController
         if (tmc_tcoolthrs != driver.TCOOLTHRS() and tmc_tcoolthrs > 0)
         {
             driver.TCOOLTHRS(tmc_tcoolthrs);
-            preferences.putInt("tcoolthrs", tmc_tcoolthrs);
+            preferences.putInt("tcool", tmc_tcoolthrs);
             log_i("TMC2209 TCOOLTHRS set to %i", tmc_tcoolthrs);
         }
 
@@ -80,7 +109,7 @@ namespace TMCController
         if (tmc_blank_time != driver.blank_time() and tmc_blank_time > 0)
         {
             driver.blank_time(tmc_blank_time);
-            preferences.putInt("blank_time", tmc_blank_time);
+            preferences.putInt("blankt", tmc_blank_time);
             log_i("TMC2209 Blank time set to %i", tmc_blank_time);
         }
 
@@ -105,19 +134,19 @@ namespace TMCController
         preferences.begin("TMC", true);
         cJSON *monitor_json = cJSON_CreateObject();
         cJSON_AddItemToObject(monitor_json, "msteps", cJSON_CreateNumber(preferences.getInt("msteps", 16)));
-        cJSON_AddItemToObject(monitor_json, "rms_current", cJSON_CreateNumber(preferences.getInt("rms_current", 400)));
-        cJSON_AddItemToObject(monitor_json, "stall_value", cJSON_CreateNumber(preferences.getInt("stall_value", 100)));
+        cJSON_AddItemToObject(monitor_json, "rms_current", cJSON_CreateNumber(preferences.getInt("current", 400)));
+        cJSON_AddItemToObject(monitor_json, "stall_value", cJSON_CreateNumber(preferences.getInt("stall", 100)));
         cJSON_AddItemToObject(monitor_json, "sgthrs", cJSON_CreateNumber(preferences.getInt("sgthrs", 100)));
         cJSON_AddItemToObject(monitor_json, "semin", cJSON_CreateNumber(preferences.getInt("semin", 5)));
         cJSON_AddItemToObject(monitor_json, "semax", cJSON_CreateNumber(preferences.getInt("semax", 2)));
         cJSON_AddItemToObject(monitor_json, "sedn", cJSON_CreateNumber(preferences.getInt("sedn", 0b01)));
-        cJSON_AddItemToObject(monitor_json, "tcoolthrs", cJSON_CreateNumber(preferences.getInt("tcoolthrs", 0xFFFFF)));
-        cJSON_AddItemToObject(monitor_json, "blank_time", cJSON_CreateNumber(preferences.getInt("blank_time", 24)));
+        cJSON_AddItemToObject(monitor_json, "tcoolthrs", cJSON_CreateNumber(preferences.getInt("tcool", 0xFFFFF)));
+        cJSON_AddItemToObject(monitor_json, "blank_time", cJSON_CreateNumber(preferences.getInt("blank", 24)));
         cJSON_AddItemToObject(monitor_json, "toff", cJSON_CreateNumber(preferences.getInt("toff", 4)));
         preferences.end();
         // print driver settings too
-        cJSTON_AddItemToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());  // Print StallGuard value
-        cJSTON_AddItemToObject(monitor_json, "Current", driver.cs2rms(driver.cs_actual());        
+        cJSON_AddItemToObject(monitor_json, "SG_RESULT", cJSON_CreateNumber(driver.SG_RESULT()));  // Print StallGuard value
+        cJSON_AddItemToObject(monitor_json, "Current", cJSON_CreateNumber(driver.cs2rms(driver.cs_actual())));        
         return monitor_json;
     }
 
@@ -128,16 +157,16 @@ namespace TMCController
 
         preferences.begin("TMC", false);
         Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
-        int tmc_microsteps = preferences.getInt("msteps", 16);
-        int tmc_rms_current = preferences.getInt("rms_current", 400);
-        int tmc_stall_value = preferences.getInt("stall_value", 100);
-        int tmc_sgthrs = preferences.getInt("sgthrs", 100);
-        int tmc_semin = preferences.getInt("semin", 5);
-        int tmc_semax = preferences.getInt("semax", 2);
-        int tmc_sedn = preferences.getInt("sedn", 0b01);
-        int tmc_tcoolthrs = preferences.getInt("tcoolthrs", 0xFFFFF);
-        int tmc_blank_time = preferences.getInt("blank_time", 24);
-        int tmc_toff = preferences.getInt("toff", 4);
+        int tmc_microsteps = preferences.getInt("msteps", pinConfig.tmc_microsteps);
+        int tmc_rms_current = preferences.getInt("current", pinConfig.tmc_rms_current);
+        int tmc_stall_value = preferences.getInt("stall", pinConfig.tmc_stall_value);
+        int tmc_sgthrs = preferences.getInt("sgthrs", pinConfig.tmc_sgthrs);
+        int tmc_semin = preferences.getInt("semin", pinConfig.tmc_semin);
+        int tmc_semax = preferences.getInt("semax", pinConfig.tmc_semax);
+        int tmc_sedn = preferences.getInt("sedn", pinConfig.tmc_sedn);
+        int tmc_tcoolthrs = preferences.getInt("tcool", pinConfig.tmc_tcoolthrs);
+        int tmc_blank_time = preferences.getInt("blank", pinConfig.tmc_blank_time);
+        int tmc_toff = preferences.getInt("toff", pinConfig.tmc_toff);
         // motor current and stall value
         preferences.end();
 

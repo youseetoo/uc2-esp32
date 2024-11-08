@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
+struct UC2_3_Xiao_Slave : PinConfig
 {
      /*
      D0: 1
@@ -58,7 +58,17 @@ struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
      int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
-
-
+     
+     int tmc_microsteps = 16;
+     int tmc_rms_current = 400;
+     int tmc_stall_value = 100;
+     int tmc_sgthrs = 100;
+     int tmc_semin = 5;
+     int tmc_semax = 2;
+     int tmc_sedn = 0b01;
+     int tmc_tcoolthrs = 0xFFFFF;
+     int tmc_blank_time = 24;
+     int tmc_toff = 4;
 };
-const UC2_ESP32S3_XIAO_LEDSERVO pinConfig;
+  
+const UC2_3_Xiao_Slave pinConfig;

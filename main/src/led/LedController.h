@@ -88,6 +88,7 @@ namespace LedController
 }
     */
     cJSON * get(cJSON *  ob);
+    void loop();
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
 };

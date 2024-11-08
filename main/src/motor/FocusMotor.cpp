@@ -259,8 +259,8 @@ namespace FocusMotor
 					int axis = cJSON_GetObjectItemCaseSensitive(stp, key_stepperaxis)->valueint;
 					int motorAddress = i2c_addresses[axis];
 					// set the I2C address of the motor
-					i2c_slave_motor::setI2CAddress(motorAddress);
 					log_i("Setting motor axis %i to %i, address:", s, axis, i2c_slave_motor::getI2CAddress());
+					i2c_slave_motor::setI2CAddress(motorAddress);
 				}
 			}
 		}
@@ -357,24 +357,19 @@ namespace FocusMotor
 		/*
 		{"task": "/motor_get", "qid": 1}
 		returns
-		{
-			"motor": {
-				"steppers": [
-					{
-						"stepperid": 0,
-						"position": 1000
-					},
-					{
-						"stepperid": 1,
-						"position": 2000
-					},
-					{
-						"stepperid": 2,
-						"position": 3000
-					}
-				]
-			}
-		}*/
+{
+        "motor":        {
+                "ste:   [{
+                                "stepperid":    0,
+                                "position":     -157500,
+                                "isActivated":  1,
+                                "trigOff":      0,
+                                "trigPer"                               "isDualAxisZ":  0,
+                                "motorAddress": 67
+                        }]
+        },
+        "qid":  1
+}		}*/
 
 		log_i("get motor");
 		cJSON *doc = cJSON_CreateObject();
@@ -450,7 +445,7 @@ namespace FocusMotor
 		#ifdef I2C_SLAVE_MOTOR
 		// set Motor Axis (for I2C)
 		/* 
-			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 0}]}}
+			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 3}]}}
 		*/
 		parseSetAxis(doc);
 		#endif

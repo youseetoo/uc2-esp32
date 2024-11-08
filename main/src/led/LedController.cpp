@@ -219,4 +219,9 @@ namespace LedController
 		matrix.show();
 		*/
 	}
+
+	void loop()
+	{
+		// log_i("LED loop");
+	}
 }

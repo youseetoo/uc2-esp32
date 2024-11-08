@@ -12,8 +12,10 @@
 #endif
 #include "MotorTypes.h"
 
+#ifdef MOTOR_CONTROLLER
 #if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined I2C_MOTOR && !defined DIAL_CONTROLLER
 #error Pls set USE_FASTACCEL or USE_ACCELSTEP
+#endif
 #endif
 #if defined USE_FASTACCEL && defined USE_ACCELSTEP
 #error Pls set only USE_FASTACCEL or USE_ACCELSTEP, currently both are active

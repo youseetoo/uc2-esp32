@@ -119,14 +119,14 @@ else
 
     void setI2CAddress(int address)
     {
-        #ifdef I2C_SLAVE
+        #ifdef I2C_SLAVE_MOTOR
         // Set the I2C address of the slave
         // Save the I2C address to the preference
         Preferences preferences;
         preferences.begin("I2C", false);
         preferences.putInt("address", address);
         preferences.end();
-        
+        ESP.restart();
         #endif
     }
 
@@ -154,5 +154,6 @@ else
         Wire.begin(getI2CAddress(), pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
         Wire.onReceive(receiveEvent);
         Wire.onRequest(requestEvent);
+        log_i("Starting I2C as slave on address: %i", getI2CAddress());
     }
 }

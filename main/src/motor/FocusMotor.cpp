@@ -445,14 +445,14 @@ namespace FocusMotor
 		#ifdef I2C_SLAVE_MOTOR
 		// set Motor Axis (for I2C)
 		/* 
-			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 3}]}}
+			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 3}]}}
 		*/
 		parseSetAxis(doc);
 		#endif
 
 		#ifdef I2C_MASTER
 		// move motor via I2C 
-		i2c_master::parseJsonI2C(doc);
+		i2c_master::parseMotorJsonI2C(doc);
 		#endif
 
 
@@ -556,6 +556,7 @@ namespace FocusMotor
 #endif
 		AccelStep::setupAccelStepper();
 #endif
+#ifdef USE_FASTACCEL || USE_ACCELSTEP
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
 			// need to activate the motor's dir pin eventually
@@ -569,7 +570,7 @@ namespace FocusMotor
 			startStepper(iMotor); delay(10);
 			stopStepper(iMotor);
 		}
-
+#endif
 #ifdef WIFI
 		// TODO: This causes the heap to overload?
 		// log_i("Creating Task sendUpdateToClients");
@@ -676,17 +677,17 @@ namespace FocusMotor
 
 		#if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
-		uint8_t slave_addr = i2c_master::axis2address(axis);
+		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{
-			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+			getData()[i]->stopped = true; // stop immediately, so that the return of serial gives the current position
+			sendMotorPos(i, 0);			 // this is an exception. We first get the position, then the success
 		}
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			getData()[axis]->stopped = true;
-			i2c_master::sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+			getData()[i]->stopped = true;
+			i2c_master::sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 		}
 		#endif
 

@@ -2,8 +2,10 @@
 #include "Wire.h"
 #include "PinConfig.h"
 #include "../motor/FocusMotor.h"
+#include "../home/HomeMotor.h"
 
-
+using namespace FocusMotor;
+using namespace HomeMotor;
 namespace i2c_slave_motor
 {
 
@@ -57,13 +59,32 @@ namespace i2c_slave_motor
             // You can process `receivedMotorData` as needed
             // bool isStop = receivedMotorData.isStop;
         }
+        else if (numBytes == sizeof(HomeData))
+        {
+            // parse a possible home event
+            log_i("Received HomeData from I2C");
+            HomeData receivedHomeData;
+            uint8_t *dataPtr = (uint8_t *)&receivedHomeData;
+            for (int i = 0; i < numBytes; i++)
+            {
+                dataPtr[i] = Wire.read();
+            }
+            // assign the received data to the motor to MotorData *data[4];
+            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            int homeTimeout = receivedHomeData.homeTimeout;
+            int homeSpeed = receivedHomeData.homeSpeed;
+            int homeMaxspeed = receivedHomeData.homeMaxspeed;
+            int homeDirection = receivedHomeData.homeDirection;
+            int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
+            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            
+        }
         else
         {
             // Handle error: received data size does not match expected size
             log_e("Error: Received data size does not match MotorData size.");
         }
     }
-
 
     void receiveEvent(int numBytes)
     {
@@ -85,7 +106,6 @@ namespace i2c_slave_motor
         }
         else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
         {
-
         }
         else
         {
@@ -110,7 +130,7 @@ namespace i2c_slave_motor
             // Serial.println("motor is running: " + String(motorState.isRunning));
             Wire.write((uint8_t *)&motorState, sizeof(MotorState));
         }
-else
+        else
         {
             // Handle error: I2C controller type not supported
             log_e("Error: I2C controller type not supported.");
@@ -120,7 +140,7 @@ else
 
     void setI2CAddress(int address)
     {
-        #ifdef I2C_SLAVE_MOTOR
+#ifdef I2C_SLAVE_MOTOR
         // Set the I2C address of the slave
         // Save the I2C address to the preference
         Preferences preferences;
@@ -128,12 +148,12 @@ else
         preferences.putInt("address", address);
         preferences.end();
         ESP.restart();
-        #endif
+#endif
     }
 
     int getI2CAddress()
     {
-        #ifdef I2C_SLAVE_MOTOR
+#ifdef I2C_SLAVE_MOTOR
         // Get the I2C address of the slave
         // Load the I2C address form the preference
         Preferences preferences;
@@ -141,11 +161,10 @@ else
         int address = preferences.getInt("address", pinConfig.I2C_ADD_SLAVE);
         preferences.end();
         return address;
-        #else
+#else
         return -1;
-        #endif
+#endif
     }
-
 
     void setup()
     {

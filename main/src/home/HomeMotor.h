@@ -34,5 +34,7 @@ namespace HomeMotor
 	void setup();
 	void loop();
     void checkAndProcessHome(Stepper s, int digitalin_val);
-
+	int parseHomeData(cJSON *doc);
+	void runStepper(int s);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity);
 };

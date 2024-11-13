@@ -69,8 +69,7 @@ namespace DigitalInController
 		
 	void setup()
 	{
-		if (pinConfig.I2C_SCL < 0)
-		{
+		#ifdef  USE_TCA9535
 			log_i("Setting Up digitalin");
 			/* setup the output nodes and reset them to 0*/
 			log_i("DigitalIn 1: %i", pinConfig.DIGITAL_IN_1);
@@ -79,20 +78,18 @@ namespace DigitalInController
 			pinMode(pinConfig.DIGITAL_IN_1, INPUT_PULLDOWN);
 			pinMode(pinConfig.DIGITAL_IN_2, INPUT_PULLDOWN);
 			pinMode(pinConfig.DIGITAL_IN_3, INPUT_PULLDOWN);
-		}
-		else
-		{
+		#else
 			log_i("Setting Up TCA9535 for digitalin");
-		}
+		#endif
 	}
 
 	void loop()
 	{
 
 		// FIXME: Never reaches this position..
-		digitalin_val_1 = getDigitalVal(1);
-		digitalin_val_2 = getDigitalVal(2);
-		digitalin_val_3 = getDigitalVal(3);
+		if (pinConfig.DIGITAL_IN_1 >=0) digitalin_val_1 = getDigitalVal(1);
+		if (pinConfig.DIGITAL_IN_2 >=0) digitalin_val_2 = getDigitalVal(2);
+		if (pinConfig.DIGITAL_IN_3 >=0) digitalin_val_3 = getDigitalVal(3);
 		//log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 	}
 } // namespace DigitalInController

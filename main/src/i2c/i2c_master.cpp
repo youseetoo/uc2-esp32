@@ -235,6 +235,34 @@ namespace i2c_master
         return 0;
     }
 
+    void sendHomeDataI2C(HomeData homeData, uint8_t axis){
+        // send home data to slave via I2C and initiate homing
+        uint8_t slave_addr = axis2address(axis);
+        log_i("HomeData to axis: %i ", axis);
+
+        Wire.beginTransmission(slave_addr);
+
+        // cast the structure to a byte array
+        uint8_t *dataPtr = (uint8_t *)&homeData;
+        int dataSize = sizeof(HomeData);
+
+        // send the byte array over I2C
+        Wire.write(dataPtr, dataSize);
+        int err = Wire.endTransmission();
+        if (err != 0)
+        {
+            log_e("Error sending home data to I2C slave at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("Home data sent to I2C slave at address %i", slave_addr);
+        }
+
+    }
+    
+    
+    
+
     void sendMotorDataI2C(MotorData motorData, uint8_t axis)
     {
         uint8_t slave_addr = axis2address(axis);
@@ -279,6 +307,24 @@ namespace i2c_master
         }
     }
 
+    void startHome(int axis){
+        // Request data from the slave but only if inside i2cAddresses
+        uint8_t slave_addr = axis2address(axis);
+        if (!isAddressInI2CDevices(slave_addr))
+        {
+            data[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+            sendMotorPos(axis, 0);      // this is an exception. We first get the position, then the success
+        }
+        else
+        {
+            // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+            sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+
+            waitForFirstRunI2CSlave[axis] = true;
+            data[axis]->stopped = false;
+        }
+    }
+
     void stopStepper(int i)
     {
         // only send motor data if it was running before
@@ -306,13 +352,21 @@ namespace i2c_master
         }
     }
 
-    void parseJsonI2C(cJSON *doc)
+    void parseHomeJsonI2C(cJSON *doc){
+        /*
+        We parse the incoming JSON string to the motor struct and send it via I2C to the correpsonding motor driver
+        for homing
+        */
+        log_i("parseHomeJsonI2C");
+
+    }
+    void parseMotorJsonI2C(cJSON *doc)
     {
         /*
         We parse the incoming JSON string to the motor struct and send it via I2C to the correpsonding motor driver
         // TODO: We could reuse the parseMotorDriveJson function and just add the I2C send function?
         */
-        log_i("parseJsonI2C");
+        log_i("parseMotorJsonI2C");
         cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
         if (mot != NULL)
         {
@@ -352,7 +406,7 @@ namespace i2c_master
     int act(cJSON *doc)
     {
         // parse json to motor struct and send over I2C
-        parseJsonI2C(doc);
+        parseMotorJsonI2C(doc);
         return 0;
     }
 

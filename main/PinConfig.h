@@ -35,8 +35,8 @@ struct UC2_3_Xiao_Slave : PinConfig
      const char * pindefName = "UC2_3_I2CSlaveMotorX";
      const unsigned long BAUDRATE = 115200;
 
-     int8_t MOTOR_A_STEP = GPIO_NUM_8;  // D9 -> GPIO8
-     int8_t MOTOR_A_DIR = GPIO_NUM_7;   // D8 -> GPIO7
+     int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
+     int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7
      int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = true;
@@ -45,7 +45,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      // I2c
      const char *I2C_NAME = "MOTX";
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
-     int8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
+     int8_t I2C_MOTOR_AXIS = 1;   // On the slave we have one motor axis per slave
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
      int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
      int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
@@ -60,7 +60,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      
      int tmc_microsteps = 16;
-     int tmc_rms_current = 400;
+     int tmc_rms_current = 500;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
      int tmc_semin = 5;
@@ -69,6 +69,9 @@ struct UC2_3_Xiao_Slave : PinConfig
      int tmc_tcoolthrs = 0xFFFFF;
      int tmc_blank_time = 24;
      int tmc_toff = 4;
+
+     // TEmporarily for endstop
+     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
 };
   
 const UC2_3_Xiao_Slave pinConfig;

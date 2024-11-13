@@ -124,6 +124,8 @@ namespace BtController
         }
         else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
         {
+            getData()[s]->speed = 0;
+            getData()[s]->isforever = false;
             FocusMotor::stopStepper(s);
             if (s == Stepper::X)
                 joystick_drive_X = false;

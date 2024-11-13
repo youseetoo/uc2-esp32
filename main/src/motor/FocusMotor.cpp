@@ -108,10 +108,10 @@ namespace FocusMotor
 
 	void startStepper(int axis)
 	{
-#if defined(I2C_MASTER) && defined(USE_I2C_MOTOR)
+#if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
-		uint8_t slave_addr = axis2address(axis);
-		if (!i2c_controller::isAddressInI2CDevices(slave_addr))
+		uint8_t slave_addr = i2c_master::axis2address(axis);
+		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
@@ -119,9 +119,9 @@ namespace FocusMotor
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+			i2c_master::sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
 
-			waitForFirstRunI2CSlave[axis] = true;
+			i2c_master::waitForFirstRunI2CSlave[axis] = true;
 			getData()[axis]->stopped = false;
 		}
 #endif
@@ -673,6 +673,23 @@ namespace FocusMotor
 
 	void stopStepper(int i)
 	{
+
+		#if defined(I2C_MASTER) && defined(I2C_MOTOR)
+		// Request data from the slave but only if inside i2cAddresses
+		uint8_t slave_addr = i2c_master::axis2address(axis);
+		if (!i2c_master::isAddressInI2CDevices(slave_addr))
+		{
+			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+		}
+		else
+		{
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			getData()[axis]->stopped = true;
+			i2c_master::sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+		}
+		#endif
+
 		// only send motor data if it was running before
 		if (!data[i]->stopped)
 			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP

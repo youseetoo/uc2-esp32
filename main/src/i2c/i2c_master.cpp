@@ -29,7 +29,6 @@ namespace i2c_master
     const int MAX_I2C_DEVICES = 20;     // Maximum number of expected devices
     byte i2cAddresses[MAX_I2C_DEVICES]; // Array to store found I2C addresses
     int numDevices = 0;                 // Variable to keep track of number of devices found
-    bool waitForFirstRunI2CSlave[4] = {false, false, false, false};
     int i2cRescanTick = 0;         // Variable to keep track of number of devices found
     int i2cRescanAfterNTicks = -1; // Variable to keep track of number of devices found
     int pullMotorDataI2CTick[4] = {0, 0, 0, 0};

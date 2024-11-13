@@ -34,11 +34,12 @@ namespace i2c_slave_motor
             {
                 FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
             }
-            if (FocusMotor::getData()[mStepper]->speed <= 0)
+            /*
+            if (FocusMotor::getData()[mStepper]->speed == 0) // in case
             {
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
-
+            */
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
             log_i("Received MotorData from I2C");
             log_i("MotorData:");

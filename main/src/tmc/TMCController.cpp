@@ -1,4 +1,7 @@
 #include "TMCController.h"
+
+using namespace FocusMotor;
+
 namespace TMCController
 {
     // TMC2209 instance
@@ -11,9 +14,19 @@ namespace TMCController
         // {"task":"/tmc_act", "reset": 1}
         preferences.begin("TMC", false);
 
-        // reset settings? 
+        // calibrate stallguard?
+        bool tmc_calibrate = cJsonTool::getJsonInt(jsonDocument, "calibrate");
+        if (tmc_calibrate == 1)
+        {   // {"task":"/tmc_act", "calibrate": 10000}
+            int speed = cJsonTool::getJsonInt(jsonDocument, "calibrate");
+            callibrateStallguard(speed);
+            return 0;
+        }
+
+        // reset settings?
         bool tmc_resetsettings = cJsonTool::getJsonInt(jsonDocument, "reset");
-        if (tmc_resetsettings == 1){
+        if (tmc_resetsettings == 1)
+        {
             // reset all TMC settings to default values
             preferences.begin("TMC", false);
             preferences.putInt("msteps", pinConfig.tmc_microsteps);
@@ -57,7 +70,6 @@ namespace TMCController
             preferences.putInt("current", tmc_rms_current);
             log_i("TMC2209 RMS current set to %i", tmc_rms_current);
         }
-
 
         // StallGuard threshold
         int tmc_sgthrs = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
@@ -145,9 +157,73 @@ namespace TMCController
         cJSON_AddItemToObject(monitor_json, "toff", cJSON_CreateNumber(preferences.getInt("toff", 4)));
         preferences.end();
         // print driver settings too
-        cJSON_AddItemToObject(monitor_json, "SG_RESULT", cJSON_CreateNumber(driver.SG_RESULT()));  // Print StallGuard value
-        cJSON_AddItemToObject(monitor_json, "Current", cJSON_CreateNumber(driver.cs2rms(driver.cs_actual())));        
+        cJSON_AddItemToObject(monitor_json, "SG_RESULT", cJSON_CreateNumber(driver.SG_RESULT())); // Print StallGuard value
+        cJSON_AddItemToObject(monitor_json, "Current", cJSON_CreateNumber(driver.cs2rms(driver.cs_actual())));
         return monitor_json;
+    }
+
+    void callibrateStallguard(int speed = 10000)
+    {
+        /*
+        We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
+        We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
+        Call:
+        {"task":"/tmc_act", "calibrate": -30000}
+        */
+
+        // we start moving the motor to get a stallguard value
+        int mStepper = Stepper::A; // we assume we are working with motor A
+                                   // we may have a dual axis so we would need to start A too
+        log_i("Starting A forever");
+        getData()[mStepper]->isforever = true;
+        getData()[mStepper]->speed = speed;
+        getData()[mStepper]->isEnable = 1;
+        getData()[mStepper]->isaccelerated = 0;
+        FocusMotor::startStepper(mStepper);
+        delay(200);
+
+        int START_SGTHRS = 0;
+        int MAX_SGTHRS = 255;
+        int THRESHOLD_STEP = 5;
+        int sgthrs = START_SGTHRS;
+        bool obstacleDetected = false;
+        // Autotuning loop for sensorless homing
+        while (!obstacleDetected && sgthrs <= MAX_SGTHRS)
+        {
+            esp_task_wdt_reset(); // Reset (feed) the watchdog timer
+            // Set the StallGuard threshold
+            driver.SGTHRS(sgthrs);
+            Serial.print("Testing SGTHRS: ");
+            Serial.println(sgthrs);
+
+            // Check for obstacle detection by monitoring the DIAG pin
+            if (digitalRead(pinConfig.tmc_pin_diag) == LOW)
+            {
+                log_i("Obstacle detected at SGTHRS: %i", sgthrs);
+                //FocusMotor::stopStepper(mStepper);
+                //obstacleDetected = true;
+                //break; // Exit the loop as the obstacle is detected
+            }
+
+            // print current and stallguard
+            log_i("Current: %i, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
+
+            // Increment StallGuard threshold if no obstacle is detected
+            sgthrs += THRESHOLD_STEP;
+            delay(100); // Short delay to allow parameter change to take effect
+        }
+
+        if (!obstacleDetected)
+        {
+            Serial.println("Obstacle not detected within threshold range.");
+            // Optionally: Reverse direction or take other actions
+        }
+        else
+        {
+            Serial.print("Optimal SGTHRS found: ");
+            Serial.println(sgthrs);
+        }
+        FocusMotor::stopStepper(mStepper);
     }
 
     void setup()
@@ -193,8 +269,7 @@ namespace TMCController
         // Diag pin reaction
         if (digitalRead(pinConfig.tmc_pin_diag) == LOW)
         {
-            Serial.println("Motor Stopped: Diag Pin Triggered");            
+            Serial.println("Motor Stopped: Diag Pin Triggered");
         }
-
     }
 }

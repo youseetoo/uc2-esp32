@@ -4,15 +4,16 @@
 #include "Arduino.h"
 #include <TMCStepper.h>
 #include <Wire.h>
-#include <FastAccelStepper.h>
 #include "Arduino.h"
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
 #include "PinConfig.h"
 #include "Preferences.h"
+#include "../motor/FocusMotor.h"
+#include "esp_task_wdt.h"
 
 #define DRIVER_ADDRESS 0b00
-#define R_SENSE 0.11f
+#define R_SENSE 0.2f
 namespace TMCController
 {
     static Preferences preferences;
@@ -21,6 +22,7 @@ namespace TMCController
     cJSON * get(cJSON *  ob);
     void setup();
     void loop();
+    void callibrateStallguard(int speed);
 
 };
 

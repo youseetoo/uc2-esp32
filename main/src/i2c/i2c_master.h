@@ -1,6 +1,7 @@
 #pragma once
 #include "../../cJsonTool.h"
 #include "../motor/MotorTypes.h"
+#include "../laser/LaserController.h"
 #include "../home/HomeMotor.h"
 #include "cJsonTool.h"
 #include "cJSON.h"
@@ -23,6 +24,8 @@ namespace i2c_master
     void sendMotorDataI2C(MotorData motorData, uint8_t axis);
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);
     bool isAddressInI2CDevices(byte addressToCheck);
+    void sendLaserDataI2C(LaserData laserData, uint8_t id);
+
 
     void parseHomeJsonI2C(cJSON *doc);
     void parseMotorJsonI2C(cJSON *doc);

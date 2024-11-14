@@ -102,11 +102,14 @@
 # HOME
 {"task": "/home_get"}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 3000, "direction":1, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 3000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":1}]}}
+
+
+
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 2000, "speed": 10000, "direction":1,  "endstoppolarity":0}]}}
 
-{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 2}]}}
+{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 0, "stepperaxis": 3}]}}
 
 {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task":"/tmc_act", "msteps":16, "rms_current":400}
@@ -346,6 +349,7 @@ gives
 }
 {"task":"/state_get"}
 
+
 	// {"task":"/state_act", "restart":1}
 	// {"task":"/state_act", "delay":1000}
 	// {"task":"/state_act", "isBusy":1}
@@ -360,10 +364,10 @@ gives
 {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
 {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":255}]}}
 
-{"task": "/laser_act", "LASERid":3, "LASERval": 1024, "LASERdespeckle": 500,  "LASERdespecklePeriod": 100}
+{"task": "/laser_act", "LASERid":1, "LASERval": 100}
 
-{"task": "/laser_act", "LASERid":1, "LASERval": 1023}
-{"task": "/laser_act", "LASERid":2, "LASERval": 100}
+{"task": "/laser_act", "LASERid":1, "LASERval": 0}
+{"task": "/laser_act", "LASERid":2, "LASERval": 1023}
 {"task": "/laser_act", "LASERid":2, "LASERval": 100, "LASERdespeckle": 500,  "LASERdespecklePeriod": 100}
 {"task": "/laser_act", "LASERid":3, "LASERval": 150, "LASERdespeckle": 500,  "LASERdespecklePeriod": 100}
 {"task": "/laser_act", "LASERid":2, "LASERval": 0}

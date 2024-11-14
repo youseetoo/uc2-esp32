@@ -117,7 +117,7 @@ namespace HomeMotor
 		hdata[axis]->homeIsActive = true;
 		// trigger go home by starting the motor in the right direction
 		// ensure direction is either 1 or -1
-		if (hdata[axis]->homeDirection >= 0)
+		if (homeDirection >= 0)
 		{
 			hdata[axis]->homeDirection = 1;
 		}
@@ -158,6 +158,7 @@ namespace HomeMotor
 			getData()[Stepper::A]->isaccelerated = 0;
 			FocusMotor::startStepper(Stepper::A);
 		}
+		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, hdata[s]->homeDirection);
 	}
 
 	cJSON *get(cJSON *ob)

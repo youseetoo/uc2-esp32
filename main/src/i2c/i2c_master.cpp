@@ -20,6 +20,14 @@ namespace i2c_master
         pinConfig.I2C_ADD_MOT_X,
         pinConfig.I2C_ADD_MOT_Y,
         pinConfig.I2C_ADD_MOT_Z};
+    
+    uint8_t i2c_laseraddresses[] = {
+        pinConfig.I2C_ADD_LEX_PWM0,
+        pinConfig.I2C_ADD_LEX_PWM1,
+        pinConfig.I2C_ADD_LEX_PWM2,
+        pinConfig.I2C_ADD_LEX_PWM3
+        };
+
     // keep track of the motor states
     MotorData a_dat;
     MotorData x_dat;
@@ -233,6 +241,40 @@ namespace i2c_master
             return i2c_addresses[axis];
         }
         return 0;
+    }
+
+    int laserid2address(int id)
+    {
+        // we need to check if the id is in the range of the laser addresses
+        if (id >= 0 && id < numDevices)
+        {
+            return i2c_laseraddresses[id];
+        }
+        return 0;
+    }
+
+    void sendLaserDataI2C(LaserData laserdata, uint8_t id){
+        // we send the laser data to the slave via I2C
+        uint8_t slave_addr = laserid2address(1); // TODO: Hardcoded for now since we only have one laserboard - typically we have multiple lasers on one board
+        log_i("LaserData to id: %i", id);
+
+        Wire.beginTransmission(slave_addr);
+
+        // cast the structure to a byte array
+        uint8_t *dataPtr = (uint8_t *)&laserdata;
+        int dataSize = sizeof(LaserData);
+
+        // send the byte array over I2C
+        Wire.write(dataPtr, dataSize);
+        int err = Wire.endTransmission();
+        if (err != 0)
+        {
+            log_e("Error sending laser data to I2C slave at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("Laser data sent to I2C slave at address %i", slave_addr);
+        }
     }
 
     void sendHomeDataI2C(HomeData homeData, uint8_t axis){

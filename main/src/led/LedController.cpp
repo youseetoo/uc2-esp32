@@ -39,6 +39,7 @@ namespace LedController
 	int act(cJSON *ob)
 	{
 		
+		#ifdef LED_CONTROLLER
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// serializeJsonPretty(ob, Serial);
 		cJSON *led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
@@ -89,6 +90,9 @@ namespace LedController
 			}
 		}
 		return qid;
+		#else
+		return -1;
+		#endif
 	}
 
 	// Custom function accessible by the API
@@ -96,6 +100,7 @@ namespace LedController
 	cJSON *get(cJSON *ob)
 	{
 		cJSON *j = cJSON_CreateObject();
+		#ifdef LED_CONTROLLER
 		cJSON *ld = cJSON_CreateObject();
 		cJSON_AddItemToObject(j, keyLed, ld);
 		cJsonTool::setJsonInt(ld, keyLEDCount, pinConfig.LED_COUNT);
@@ -112,6 +117,7 @@ namespace LedController
 		cJSON_AddItemToArray(arr, cJSON_CreateNumber(6));
 		cJSON_AddItemToArray(arr, cJSON_CreateNumber(7));
 		cJSON_AddItemToObject(ld, keyLEDArrMode, arr);
+		#endif
 		return j;
 	}
 

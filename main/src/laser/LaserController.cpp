@@ -3,7 +3,9 @@
 #include "cJsonTool.h"
 #include "JsonKeys.h"
 #include "../state/State.h"
-
+#ifdef I2C_MASTER 
+#include "../i2c/i2c_master.h"
+#endif
 namespace LaserController
 {
 
@@ -51,8 +53,6 @@ namespace LaserController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
-
-
 		// JSON String
 		// {"task":"/laser_act", "LASERid":1, "LASERval":1000}, "LASERdespeckle":0, "LASERdespecklePeriod":0}
 		// {"task":"/laser_act", "LASERid":2, "LASERval":1000}
@@ -74,6 +74,18 @@ namespace LaserController
 		LASERval = cJsonTool::getJsonInt(ob, "LASERval");
 		LASERdespeckle = cJsonTool::getJsonInt(ob, "LASERdespeckle");
 		LASERdespecklePeriod = cJsonTool::getJsonInt(ob, "LASERdespecklePeriod");
+
+
+		#ifdef I2C_MASTER
+		LaserData laserData;
+		laserData.LASERid = LASERid;
+		laserData.LASERval = LASERval;
+		laserData.LASERdespeckle = LASERdespeckle;
+		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
+		i2c_master::sendLaserDataI2C(laserData, LASERid);
+		return qid; 
+		#else
+
 		// debugging
 		log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
@@ -223,11 +235,19 @@ namespace LaserController
 			State::setBusy(false);
 			return 0;
 		}
+		#endif
 	}
 
 	bool setLaserVal(int LASERid, int LASERval)
 	{
-		if (LASERid == 1 && pinConfig.LASER_1 != 0)
+		if (LASERid == 0 && LASERval >= 0)
+		{
+			LASER_val_0 = LASERval;
+			setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			return true;
+		}
+		else if (LASERid == 1 && pinConfig.LASER_1 != 0)
 		{
 			LASER_val_1 = LASERval;
 			setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
@@ -283,6 +303,15 @@ namespace LaserController
 		log_i("Setting up Laser with PWM Channel %i, PWM Frequency %i, PWM Resolution %i", pwm_chan, pwm_freq, pwm_res);
 		ledcSetup(pwm_chan, pwm_freq, pwm_res);
 		ledcAttachPin(laser_pin, pwm_chan);
+	}
+
+	LaserData getLaserData(){
+		LaserData laserData;
+		laserData.LASERid = 1;
+		laserData.LASERval = LASER_val_1;
+		laserData.LASERdespeckle = LASER_despeckle_1;
+		laserData.LASERdespecklePeriod = LASER_despeckle_period_1;
+		return laserData;
 	}
 
 	void moveServo(int ledChannel, int angle, int frequency, int resolution)

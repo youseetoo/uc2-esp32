@@ -229,11 +229,11 @@ struct PinConfig
      uint8_t I2C_ADD_MOT_Y = 0x41;
      uint8_t I2C_ADD_MOT_Z = 0x42;
      uint8_t I2C_ADD_MOT_A = 0x43;
-     uint8_t I2C_ADD_LEX_MAT = 0x50;
+     uint8_t I2C_ADD_LEX_MAT = 0x60;
+     uint8_t I2C_ADD_LEX_PWM0 = 0x50;
      uint8_t I2C_ADD_LEX_PWM1 = 0x51;
      uint8_t I2C_ADD_LEX_PWM2 = 0x52;
      uint8_t I2C_ADD_LEX_PWM3 = 0x53;
-     uint8_t I2C_ADD_LEX_PWM4 = 0x54;
 
      // inputs
      uint8_t I2C_ADD_M5_DIAL = 0x60;

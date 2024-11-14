@@ -52,7 +52,9 @@ void processWebsocketMSG(void *pvParameters)
     {
         xQueueReceive(websocketMSGQueue, &t, portMAX_DELAY);
         cJSON *doc = cJSON_Parse((const char *)(t));
+        #ifdef LED_CTONROLLER
         cJSON *led = cJSON_GetObjectItemCaseSensitive(doc, keyLed);
+        #endif
         cJSON *message = cJSON_GetObjectItemCaseSensitive(doc, key_message);
         cJSON *motor = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
         cJSON *laser = cJSON_GetObjectItemCaseSensitive(doc, key_laser);

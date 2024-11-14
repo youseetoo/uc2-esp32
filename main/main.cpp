@@ -92,6 +92,9 @@ Preferences preferences;
 #ifdef I2C_SLAVE_MOTOR
 	#include "src/i2c/i2c_slave_motor.h"
 #endif
+#ifdef I2C_SLAVE_LASER
+	#include "src/i2c/i2c_slave_laser.h"
+#endif
 #ifdef I2C_SLAVE_DIAL
 	#include "src/i2c/i2c_slave_dial.h"
 #endif
@@ -200,6 +203,9 @@ extern "C" void setupApp(void)
 #endif
 #ifdef I2C_SLAVE_MOTOR
 	i2c_slave_motor::setup();
+#endif
+#ifdef I2C_SLAVE_LASER
+	i2c_slave_laser::setup();
 #endif
 #ifdef I2C_SLAVE_DIAL
 	i2c_slave_dial::setup();

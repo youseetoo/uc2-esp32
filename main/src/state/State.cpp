@@ -103,6 +103,7 @@ namespace State
 			cJSON_AddItemToObject(st, "IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
+			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
 			//cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
 		}
 		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));

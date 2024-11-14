@@ -3,6 +3,14 @@
 #include "cJSON.h"
 #include "Arduino.h"
 
+struct LaserData
+{
+    int LASERid;
+    int LASERval;
+    int LASERdespeckle;
+    int LASERdespecklePeriod;
+};
+
 namespace LaserController
 {
 
@@ -56,6 +64,8 @@ namespace LaserController
     void loop();
     void setPWM(int pwmValue, int pwmChannel);
     void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res);
+
+    LaserData getLaserData();
 
 };
 

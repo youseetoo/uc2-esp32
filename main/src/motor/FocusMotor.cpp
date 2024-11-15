@@ -119,7 +119,7 @@ namespace FocusMotor
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			i2c_master::sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+			i2c_master::sendMotorDataI2CDriver(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
 
 			i2c_master::waitForFirstRunI2CSlave[axis] = true;
 			getData()[axis]->stopped = false;
@@ -571,6 +571,10 @@ namespace FocusMotor
 			stopStepper(iMotor);
 		}
 #endif
+#ifdef DIAL_CONTROLLER and defined I2C_MASTER
+		// send motor positions to dial
+		DialController::pushMotorPosToDial();
+#endif
 #ifdef WIFI
 		// TODO: This causes the heap to overload?
 		// log_i("Creating Task sendUpdateToClients");
@@ -687,7 +691,7 @@ namespace FocusMotor
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			getData()[i]->stopped = true;
-			i2c_master::sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+			i2c_master::sendMotorDataI2CDriver(*data[i], i); // TODO: This cannot send two motor information simultaenosly
 		}
 		#endif
 

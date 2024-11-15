@@ -3,7 +3,6 @@
 #include "PinConfigDefault.h"
 #include "M5Dial.h"
 #undef PSXCONTROLLER
-#define I2C_SLAVE
 struct UC2_M5StackDial : PinConfig
 {
      /*

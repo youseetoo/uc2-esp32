@@ -305,7 +305,7 @@ namespace i2c_master
     
     
 
-    void sendMotorDataI2C(MotorData motorData, uint8_t axis)
+    void sendMotorDataI2CDriver(MotorData motorData, uint8_t axis)
     {
         uint8_t slave_addr = axis2address(axis);
         log_i("MotorData to axis: %i, isStop: %i ", axis, motorData.isStop);
@@ -342,30 +342,13 @@ namespace i2c_master
         else
         {
             // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-            sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
+            sendMotorDataI2CDriver(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
 
             waitForFirstRunI2CSlave[axis] = true;
             data[axis]->stopped = false;
         }
     }
 
-    void startHome(int axis){
-        // Request data from the slave but only if inside i2cAddresses
-        uint8_t slave_addr = axis2address(axis);
-        if (!isAddressInI2CDevices(slave_addr))
-        {
-            data[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-            sendMotorPos(axis, 0);      // this is an exception. We first get the position, then the success
-        }
-        else
-        {
-            // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-            sendMotorDataI2C(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
-
-            waitForFirstRunI2CSlave[axis] = true;
-            data[axis]->stopped = false;
-        }
-    }
 
     void stopStepper(int i)
     {
@@ -377,7 +360,7 @@ namespace i2c_master
         data[i]->isStop = true;      // FIME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
         data[i]->targetPosition = 0; // weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
         data[i]->absolutePosition = false;
-        sendMotorDataI2C(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+        sendMotorDataI2CDriver(*data[i], i); // TODO: This cannot send two motor information simultaenosly
     }
 
     void toggleStepper(Stepper s, bool isStop)
@@ -543,6 +526,13 @@ namespace i2c_master
                 if (abs(getData()[iMotor]->currentPosition - position2go) > 10000)
                 {
                     log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
+                    continue;
+                }
+                // if there is no position change we don't want to move the motor
+                if (getData()[iMotor]->currentPosition == position2go)
+                {
+                    log_i("Motor %i is already at position %i", iMotor, position2go);
+                    continue;
                 }
                 // Here we drive the motor to the dial state
                 Stepper mStepper = static_cast<Stepper>(iMotor);
@@ -623,6 +613,11 @@ namespace i2c_master
             ticksLastPosPulled = 0;
             // Here we want to pull the dial data from the I2C bus and assign it to the motors
             pullParamsFromDial();
+
+        }
+        else
+        {
+            ticksLastPosPulled++;
         }
 #endif
     }

@@ -37,21 +37,7 @@ namespace i2c_slave_dial
     void receiveEvent(int numBytes)
     {
         // Master and Slave
-        // log_i("Receive Event");
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
-        {
-        }
-        else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLASER)
-        {
-            // Handle incoming data for the laser controller
-            // parseLaserEvent(numBytes);
-        }
-        else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLED)
-        {
-            // Handle incoming data for the LED controller
-            // parseLEDEvent(numBytes);
-        }
-        else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
         {
             // Handle incoming data for the motor controller
             parseDialEvent(numBytes);

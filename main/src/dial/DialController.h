@@ -5,7 +5,7 @@
 #include "../i2c/i2c_master.h"
 #include "../i2c/i2c_slave_motor.h"
 
-#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE_DIAL
 #include <M5Unified.hpp>
 #include <M5Dial.h>
 #endif 

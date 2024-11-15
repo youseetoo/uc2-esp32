@@ -53,7 +53,7 @@ namespace DialController
 
 	void writeTextDisplay(String text)
 	{
-#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE_DIAL
 		M5Dial.Display.clear();
 		M5Dial.Display.drawString(text, M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
 #endif
@@ -61,7 +61,7 @@ namespace DialController
 
 	void updateDisplay()
 	{
-#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE_DIAL
 		M5Dial.Display.clear();
 		M5Dial.Display.drawString(String(axisNames[currentAxis]) + "=" + String(values[currentAxis]),
 								  M5Dial.Display.width() / 2, M5Dial.Display.height() / 2);
@@ -72,7 +72,7 @@ namespace DialController
 
 	void loop()
 	{
-#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE_DIAL
 		// here we readout the dial values from the M5Stack Dial - so we are the slave
 		M5Dial.update();
 
@@ -154,7 +154,7 @@ namespace DialController
 		// For example you can setup the I2C bus
 		// or setup the M5Stack Dial
 
-#ifdef I2C_SLAVE
+#ifdef I2C_SLAVE_DIAL
 		mDialData.pos_a = 0;
 		mDialData.pos_x = 0;
 		mDialData.pos_y = 0;

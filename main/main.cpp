@@ -282,7 +282,7 @@ extern "C" void setupApp(void)
 extern "C" void app_main(void)
 {
 	// Disable brownout detector
-	WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+	// WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 	esp_log_level_set("*", ESP_LOG_NONE);
 	log_i("Start setup");
 
@@ -300,7 +300,7 @@ extern "C" void app_main(void)
 	bool hasBooted = preferences.getBool("hasBooted", false); // Check if the ESP32 has already booted successfully before
 
 	// If this is the first boot, set the flag and restart
-	if (!hasBooted) { // some ESPs are freaking out on start, but this is not a good solution
+	if (false and !hasBooted) { // some ESPs are freaking out on start, but this is not a good solution
 		// Set the flag to indicate that the ESP32 has booted once
 		Serial.println("First boot");
 		preferences.putBool("hasBooted", true);

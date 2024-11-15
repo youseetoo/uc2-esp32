@@ -229,8 +229,7 @@ namespace TMCController
     void setup()
     {
 // TMC2209 Settings
-#define STALL_VALUE 100
-
+        log_i("Setting up TMC2209");
         preferences.begin("TMC", false);
         Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
         int tmc_microsteps = preferences.getInt("msteps", pinConfig.tmc_microsteps);
@@ -246,6 +245,7 @@ namespace TMCController
         // motor current and stall value
         preferences.end();
 
+        log_i("TMC2209 Setup with %i microsteps and %i rms current", tmc_microsteps, tmc_rms_current);
         driver.begin();
         driver.toff(tmc_toff);
         driver.blank_time(tmc_blank_time);
@@ -261,15 +261,13 @@ namespace TMCController
 
         log_i("TMC2209 Setup done with %i microsteps and %i rms current", tmc_microsteps, tmc_rms_current);
 
-        pinMode(pinConfig.tmc_pin_diag, INPUT_PULLUP);
+        pinMode(pinConfig.tmc_pin_diag, INPUT);
     }
 
     void loop()
     {
-        // Diag pin reaction
-        if (digitalRead(pinConfig.tmc_pin_diag) == LOW)
-        {
-            Serial.println("Motor Stopped: Diag Pin Triggered");
-        }
+        
+        // print sg result, current, and stallguard
+        log_i("Current: %i, StallGuard: %i, Diag: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT(), digitalRead(pinConfig.tmc_pin_diag));
     }
 }

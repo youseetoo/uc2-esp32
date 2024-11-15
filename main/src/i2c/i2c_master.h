@@ -29,4 +29,7 @@ namespace i2c_master
 
     void parseHomeJsonI2C(cJSON *doc);
     void parseMotorJsonI2C(cJSON *doc);
+    #ifdef DIAL_CONTROLLER
+    void pushMotorPosToDial();
+    #endif
 };

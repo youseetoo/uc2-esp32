@@ -142,6 +142,24 @@ struct UC2_3 : PinConfig
      int8_t SPI_SCK = GPIO_NUM_18;
      int8_t SPI_CS = GPIO_NUM_5;
 
+     // TMC - testing
+     int8_t tmc_SW_TX = SPI_CS;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_RX = SPI_SCK;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_pin_diag = SPI_MISO; // D3 -> GPIO4
+     
+     int tmc_microsteps = 16;
+     int tmc_rms_current = 500;
+     int tmc_stall_value = 100;
+     int tmc_sgthrs = 100;
+     int tmc_semin = 5;
+     int tmc_semax = 2;
+     int tmc_sedn = 0b01;
+     int tmc_tcoolthrs = 0xFFFFF;
+     int tmc_blank_time = 24;
+     int tmc_toff = 4;
+
+
+
      // WIFI - specific to SEEED microscope
      const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";

@@ -138,6 +138,10 @@ extern "C" void looper(void *p)
 		DialController::loop();
 		vTaskDelay(1);
 #endif
+#ifdef TMC_CONTROLLER
+		TMCController::loop();
+		vTaskDelay(1);
+#endif
 #ifdef LASER_CONTROLLER
 		LaserController::loop();
 		vTaskDelay(1);

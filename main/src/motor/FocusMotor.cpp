@@ -99,7 +99,7 @@ namespace FocusMotor
 				free(s);
 				Serial.println("--");
 			}
-			DialController::pushMotorPosToDial()
+			i2c_master::pushMotorPosToDial()
 				cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
@@ -571,9 +571,9 @@ namespace FocusMotor
 			stopStepper(iMotor);
 		}
 #endif
-#ifdef DIAL_CONTROLLER and defined I2C_MASTER
+#if defined DIAL_CONTROLLER && defined I2C_MASTER
 		// send motor positions to dial
-		DialController::pushMotorPosToDial();
+		i2c_master::pushMotorPosToDial();
 #endif
 #ifdef WIFI
 		// TODO: This causes the heap to overload?

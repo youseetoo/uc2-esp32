@@ -364,7 +364,8 @@ gives
 {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
 {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":255}]}}
 
-{"task": "/laser_act", "LASERid":1, "LASERval": 100}
+{"task": "/laser_act", "LASERid":1, "LASERval": 0}
+{"task": "/laser_act", "LASERid":2, "LASERval": 0}
 
 {"task": "/laser_act", "LASERid":1, "LASERval": 0}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1023}

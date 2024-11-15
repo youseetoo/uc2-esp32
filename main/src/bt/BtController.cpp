@@ -234,21 +234,22 @@ namespace BtController
                     down = gamePadData.dpaddirection == Dpad::Direction::down;
                     left = gamePadData.dpaddirection == Dpad::Direction::left;
                     right = gamePadData.dpaddirection == Dpad::Direction::right;
+                    log_i("up, down, left, right: %d, %d, %d, %d", up, down, left, right);
                 }
 #endif
                 // LASER 1
                 // switch laser 1 on/off on triangle/square button press
-                if (false && up && !prevUp && !laser_on) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
+                if (up && !prevUp && !laser_on) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
                 {
                     // Switch laser 2 on/off on up/down button press
                     log_d("Turning on LAser 10000");
-                    ledcWrite(LaserController::PWM_CHANNEL_LASER_1, 10000);
+                    LaserController::setLaserVal(1, 10000);
                     laser_on = true;
                 }
                 if (down && !prevDown && laser_on)
                 {
                     log_d("Turning off LAser ");
-                    ledcWrite(LaserController::PWM_CHANNEL_LASER_1, 0);
+                    LaserController::setLaserVal(1, 0);
                     laser_on = false;
                 }
 
@@ -257,14 +258,14 @@ namespace BtController
                 if (right && !prevRight && !laser2_on)
                 {
                     log_d("Turning on LAser 2 10000");
-                    ledcWrite(LaserController::PWM_CHANNEL_LASER_2, 10000);
+                    LaserController::setLaserVal(2, 10000);
                     laser2_on = true;
                 }
                 if (left  && !prevLeft && laser2_on)
                 {
                     log_d("Turning off LAser ");
                     Serial.println("Turning off LAser ");
-                    ledcWrite(LaserController::PWM_CHANNEL_LASER_2, 0);
+                    LaserController::setLaserVal(2, 0);
                     laser2_on = false;
                 }
 

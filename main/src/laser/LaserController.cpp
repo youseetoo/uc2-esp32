@@ -240,6 +240,15 @@ namespace LaserController
 
 	bool setLaserVal(int LASERid, int LASERval)
 	{
+		#ifdef I2C_MASTER
+		LaserData laserData;
+		laserData.LASERid = LASERid;
+		laserData.LASERval = LASERval;
+		laserData.LASERdespeckle = 0;
+		laserData.LASERdespecklePeriod = 0;
+		i2c_master::sendLaserDataI2C(laserData, LASERid);
+		return true;
+		#else
 		if (LASERid == 0 && LASERval >= 0)
 		{
 			LASER_val_0 = LASERval;
@@ -272,6 +281,7 @@ namespace LaserController
 		{
 			return false;
 		}
+		#endif
 	}
 
 	int getLaserVal(int LASERid)

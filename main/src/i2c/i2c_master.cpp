@@ -277,6 +277,30 @@ namespace i2c_master
         }
     }
 
+    void sendTMCDataI2C(TMCData tmcData, uint8_t axis){
+        // we send the TMC data to the slave via I2C
+        uint8_t slave_addr = axis2address(axis);
+        log_i("TMCData to axis: %i ", axis);
+
+        Wire.beginTransmission(slave_addr);
+
+        // cast the structure to a byte array
+        uint8_t *dataPtr = (uint8_t *)&tmcData;
+        int dataSize = sizeof(TMCData);
+        
+        // send the byte array over I2C
+        Wire.write(dataPtr, dataSize);
+        int err = Wire.endTransmission();
+        if (err != 0)
+        {
+            log_e("Error sending TMC data to I2C slave at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("TMC data sent to I2C slave at address %i", slave_addr);
+        }
+    }
+
     void sendHomeDataI2C(HomeData homeData, uint8_t axis){
         // send home data to slave via I2C and initiate homing
         uint8_t slave_addr = axis2address(axis);

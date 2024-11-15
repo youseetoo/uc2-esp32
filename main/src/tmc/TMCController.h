@@ -14,6 +14,20 @@
 
 #define DRIVER_ADDRESS 0b00
 #define R_SENSE 0.2f
+
+struct TMCData
+{
+    int msteps;
+    int rms_current;
+    int stall_value;
+    int sgthrs;
+    int semin;
+    int semax;
+    int sedn;
+    int tcoolthrs;
+    int blank_time;
+    int toff;
+};
 namespace TMCController
 {
     static Preferences preferences;

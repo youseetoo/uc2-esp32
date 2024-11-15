@@ -3,6 +3,7 @@
 #include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
 #include "../home/HomeMotor.h"
+#include "../tmc/TMCController.h"
 #include "cJsonTool.h"
 #include "cJSON.h"
 namespace i2c_master
@@ -25,7 +26,7 @@ namespace i2c_master
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);
-
+    void sendTMCDataI2C(TMCData tmcData, uint8_t id);
 
     void parseHomeJsonI2C(cJSON *doc);
     void parseMotorJsonI2C(cJSON *doc);

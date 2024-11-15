@@ -1,4 +1,7 @@
 #include "TMCController.h"
+#ifdef I2C_MASTER
+#include "../i2c/i2c_master.h"
+#endif
 
 using namespace FocusMotor;
 
@@ -9,6 +12,22 @@ namespace TMCController
 
     int act(cJSON *jsonDocument)
     {
+
+        #ifdef I2C_MASTER
+        TMCData tmcData;
+
+        // convert Json to TMCData
+        tmcData.msteps = cJsonTool::getJsonInt(jsonDocument, "msteps");
+        tmcData.rms_current = cJsonTool::getJsonInt(jsonDocument, "rms_current");
+        tmcData.stall_value = cJsonTool::getJsonInt(jsonDocument, "stall_value");
+        tmcData.sgthrs = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
+        tmcData.semin = cJsonTool::getJsonInt(jsonDocument, "semin");
+        tmcData.semax = cJsonTool::getJsonInt(jsonDocument, "semax");
+
+        // send TMC data via I2C
+        i2c_master::sendTMCDataI2C(tmcData, 0);
+        return 0;
+        #else
         // modify the TMC2209 settings
         // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
         // {"task":"/tmc_act", "reset": 1}
@@ -137,10 +156,12 @@ namespace TMCController
         preferences.end();
         Serial.println("TMC Actuated with new parameters.");
         return 0;
+        #endif
     }
 
     cJSON *get(cJSON *jsonDocument)
     {
+        #ifndef IC2_MASTER
         // print all TMC2209 settings from preferences
         // {"task":"/tmc_get"}
         preferences.begin("TMC", true);
@@ -160,10 +181,14 @@ namespace TMCController
         cJSON_AddItemToObject(monitor_json, "SG_RESULT", cJSON_CreateNumber(driver.SG_RESULT())); // Print StallGuard value
         cJSON_AddItemToObject(monitor_json, "Current", cJSON_CreateNumber(driver.cs2rms(driver.cs_actual())));
         return monitor_json;
+        #else
+        return nullptr;
+        #endif
     }
 
     void callibrateStallguard(int speed = 10000)
     {
+        #ifndef IC2_MASTER
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
@@ -224,11 +249,13 @@ namespace TMCController
             Serial.println(sgthrs);
         }
         FocusMotor::stopStepper(mStepper);
+        #endif
     }
 
     void setup()
     {
 // TMC2209 Settings
+#ifndef IC2_MASTER
         log_i("Setting up TMC2209");
         preferences.begin("TMC", false);
         Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
@@ -262,12 +289,15 @@ namespace TMCController
         log_i("TMC2209 Setup done with %i microsteps and %i rms current", tmc_microsteps, tmc_rms_current);
 
         pinMode(pinConfig.tmc_pin_diag, INPUT);
+#endif
     }
 
     void loop()
     {
         
-        // print sg result, current, and stallguard
-        log_i("Current: %i, StallGuard: %i, Diag: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT(), digitalRead(pinConfig.tmc_pin_diag));
+#ifndef IC2_MASTER
+// print sg result, current, and stallguard
+log_i("Current: %i, StallGuard: %i, Diag: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT(), digitalRead(pinConfig.tmc_pin_diag));
+#endif 
     }
 }

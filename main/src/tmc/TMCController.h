@@ -37,6 +37,6 @@ namespace TMCController
     void setup();
     void loop();
     void callibrateStallguard(int speed);
-
+    void setTMCData(TMCData tmcData);
 };
 

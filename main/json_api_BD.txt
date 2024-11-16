@@ -114,7 +114,7 @@
 {"task":"/tmc_act", "msteps":32, "rms_current":600, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task":"/tmc_act", "msteps":16, "rms_current":400}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 50000, "speed": 20000, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 50000, "speed": 200, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 5000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}

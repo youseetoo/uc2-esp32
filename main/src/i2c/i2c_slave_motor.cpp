@@ -3,6 +3,7 @@
 #include "PinConfig.h"
 #include "../motor/FocusMotor.h"
 #include "../home/HomeMotor.h"
+#include "../tmc/TMCController.h"
 
 using namespace FocusMotor;
 using namespace HomeMotor;
@@ -79,6 +80,19 @@ namespace i2c_slave_motor
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
             
         }
+        else if (numBytes == sizeof(TMCData))
+        {
+            // parse a possible TMC event
+            log_i("Received TMCData from I2C");
+            TMCData receivedTMCData;
+            uint8_t *dataPtr = (uint8_t *)&receivedTMCData;
+            for (int i = 0; i < numBytes; i++)
+            {
+                dataPtr[i] = Wire.read();
+            }
+            // assign the received data to the motor to MotorData *data[4];
+            TMCController::setTMCData(receivedTMCData);
+        }
         else
         {
             // Handle error: received data size does not match expected size
@@ -92,20 +106,8 @@ namespace i2c_slave_motor
         // log_i("Receive Event");
         if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
         {
+            // Motor, Home, TMC Events
             parseMotorEvent(numBytes);
-        }
-        else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLASER)
-        {
-            // Handle incoming data for the laser controller
-            // parseLaserEvent(numBytes);
-        }
-        else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mLED)
-        {
-            // Handle incoming data for the LED controller
-            // parseLEDEvent(numBytes);
-        }
-        else if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
-        {
         }
         else
         {

@@ -6,6 +6,10 @@
 #include "cJsonTool.h"
 #include "Arduino.h"
 #include "JsonKeys.h"
+#include <WiFi.h>
+#include <WiFiAP.h>
+#include <ESPmDNS.h>
+#include <ArduinoOTA.h>
 
 namespace State
 {
@@ -34,6 +38,13 @@ namespace State
 		{
 			//{"task": "/state_act", "restart": 1}
 			ESP.restart();
+		}
+
+		cJSON *ota = cJSON_GetObjectItemCaseSensitive(doc, "ota");
+		if (ota != NULL)
+		{
+			//{"task": "/state_act", "ota": 1}
+			startOTA();
 		}
 		// assign default values to thhe variables
 		cJSON *del = cJSON_GetObjectItemCaseSensitive(doc, "delay");
@@ -82,7 +93,7 @@ namespace State
 		cJSON *st = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, "state", st);
 
-		// GET SOME PARAMETERS HERE 
+		// GET SOME PARAMETERS HERE
 		int qid = cJsonTool::getJsonInt(docin, "qid");
 		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(docin, "isBusy");
 		cJSON *HEAP = cJSON_GetObjectItemCaseSensitive(docin, "heap");
@@ -95,7 +106,7 @@ namespace State
 			cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
 		}
 		else
-		{ 
+		{
 			cJSON_AddItemToObject(st, "identifier_name", cJSON_CreateString(identifier_name));
 			cJSON_AddItemToObject(st, "identifier_id", cJSON_CreateString(identifier_id));
 			cJSON_AddItemToObject(st, "identifier_date", cJSON_CreateString(identifier_date));
@@ -104,7 +115,7 @@ namespace State
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
 			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
-			//cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
+			// cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
 		}
 		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
 
@@ -130,6 +141,82 @@ namespace State
 		// log_i("A first try can be: \{\"task\": \"/state_get\"");
 	}
 
+	void startOTA()
+	{
+		// Start a wifi hotspot using an SSID based on the ESPs MAC address with now password
+		// and start an OTA server
+		// This is a blocking function
+
+		// close any ongoing wifi connection
+		WiFi.disconnect(true);
+
+		// Generate SSID based on ESP32's MAC address
+		uint8_t mac[6];
+		esp_read_mac(mac, ESP_MAC_WIFI_STA);
+		String ssid = "ESP32-" + String(mac[3], HEX) + String(mac[4], HEX) + String(mac[5], HEX);
+		ssid.toUpperCase();
+
+		// Start the Wi-Fi access point
+		WiFi.softAP(ssid.c_str());
+		IPAddress IP = WiFi.softAPIP();
+		Serial.print("Access Point started. IP address: ");
+		Serial.println(IP);
+
+		// Set up mDNS responder for local hostname resolution
+		if (!MDNS.begin("esp32"))
+		{
+			Serial.println("Error starting mDNS");
+			return;
+		}
+		Serial.println("mDNS responder started");
+
+		// Configure and start OTA server
+		ArduinoOTA.onStart([]()
+						   {
+        String type;
+        if (ArduinoOTA.getCommand() == U_FLASH)
+            type = "sketch";
+        else
+            type = "filesystem";
+        Serial.println("Start updating " + type); });
+
+		ArduinoOTA.onEnd([]()
+						 { Serial.println("\nEnd"); });
+
+		ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+							  { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); });
+
+		ArduinoOTA.onError([](ota_error_t error)
+						   {
+        Serial.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR)
+            Serial.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR)
+            Serial.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR)
+            Serial.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR)
+            Serial.println("Receive Failed");
+        else if (error == OTA_END_ERROR)
+            Serial.println("End Failed"); });
+
+		ArduinoOTA.begin();
+		Serial.println("OTA server started");
+
+		// Blocking loop to handle OTA updates
+		long cTime = millis();
+		while (true)
+		{
+			ArduinoOTA.handle();
+			delay(100);
+			if (millis() - cTime > 10000)
+			{
+				log_i("Timeout, stopping OTA");
+				break;
+			}
+		}
+	}
+
 	cJSON *getModules()
 	{
 		cJSON *doc = cJSON_CreateObject();
@@ -148,7 +235,7 @@ namespace State
 		cJSON_AddItemToObject(mod, key_encoder, cJSON_CreateNumber((pinConfig.X_CAL_CLK >= 0 || pinConfig.Y_CAL_CLK >= 0 || pinConfig.Z_CAL_CLK >= 0)));
 #endif
 #ifdef MESSAGE_CONTROLLER
-cJSON_AddItemToObject(mod, key_message, cJSON_CreateNumber(1));
+		cJSON_AddItemToObject(mod, key_message, cJSON_CreateNumber(1));
 #endif
 #ifdef HOME_MOTOR
 		cJSON_AddItemToObject(mod, key_home, cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 || pinConfig.DIGITAL_IN_3 >= 0)));

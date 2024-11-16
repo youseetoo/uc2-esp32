@@ -28,4 +28,6 @@ namespace State
 
 	void setBusy(bool busy);
 	bool getBusy();
+
+	void startOTA();
 };

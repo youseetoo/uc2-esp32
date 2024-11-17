@@ -112,6 +112,7 @@ namespace i2c_master
 
     void setup()
     {
+        // TODO: @KillerInkare we still using data?
         data[Stepper::A] = &a_dat;
         data[Stepper::X] = &x_dat;
         data[Stepper::Y] = &y_dat;
@@ -120,38 +121,39 @@ namespace i2c_master
         const char *prefNamespace = "UC2";
         preferences.begin(prefNamespace, false);
 
+        // TODO: Is this still true? >= if TCA is active wire doesn't work
+        Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
+        i2c_scan();
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
-            data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
-            data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
-            data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
-            log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
+            MotorState mMotorState = pullMotorDataI2C(0);
+            getData()[Stepper::A]->currentPosition = mMotorState.currentPosition;
+            preferences.putLong(("motor" + String(Stepper::A)).c_str(), mMotorState.currentPosition);
+            log_i("Motor A position: %i", getData()[Stepper::A]->currentPosition);
         }
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
-            data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
-            data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
-            data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
-            log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
+            MotorState mMotorState = pullMotorDataI2C(1);
+            getData()[Stepper::X]->currentPosition = mMotorState.currentPosition;
+            preferences.putLong(("motor" + String(Stepper::X)).c_str(), mMotorState.currentPosition);
+            log_i("Motor X position: %i", getData()[Stepper::X]->currentPosition);
         }
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
-            data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
-            data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
-            data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
-            log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
+            MotorState mMotorState = pullMotorDataI2C(2);
+            getData()[Stepper::Y]->currentPosition = mMotorState.currentPosition;
+            preferences.putLong(("motor" + String(Stepper::Y)).c_str(), mMotorState.currentPosition);
+            log_i("Motor Y position: %i", getData()[Stepper::Y]->currentPosition);
         }
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-            data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
-            data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
-            data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
-            log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
+            MotorState mMotorState = pullMotorDataI2C(3);
+            getData()[Stepper::Z]->currentPosition = mMotorState.currentPosition;
+            preferences.putLong(("motor" + String(Stepper::Z)).c_str(), mMotorState.currentPosition);
+            log_i("Motor Z position: %i", getData()[Stepper::Z]->currentPosition);
         }
         preferences.end();
-        // if TCA is active wire doesn't work
-        Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
-        i2c_scan();
+        
     }
 
     bool isAddressInI2CDevices(byte addressToCheck)
@@ -346,7 +348,7 @@ namespace i2c_master
             MotorDataI2C reducedData;
             reducedData.targetPosition = motorData.targetPosition;
             reducedData.isforever = motorData.isforever;
-            reducedData.absolutePosition = !motorData.absolutePosition;
+            reducedData.absolutePosition = motorData.absolutePosition;
             reducedData.speed = motorData.speed;
             reducedData.isStop = motorData.isStop;
 
@@ -371,7 +373,7 @@ namespace i2c_master
         }
         else
         {
-            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, reduced %i ", axis, slave_addr, motorData.isStop, motorData.speed, reduced);
+            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i ", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced);
         }
     }
 
@@ -392,14 +394,12 @@ namespace i2c_master
 
     void stopStepper(int i)
     {
-
-
         // only send motor data if it was running before
-        log_i("Stop Motor %i", i);
+        log_i("Stop Motor in I2C Master %i", i);
         if (!data[i]->stopped)
             sendMotorPos(i, 0);
-        data[i]->stopped = true;     // FIME: difference between stopped and isStop?
-        data[i]->isStop = true;      // FIME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
+        data[i]->stopped = true;     // FIXME: difference between stopped and isStop?
+        data[i]->isStop = true;      // FIXME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
         data[i]->targetPosition = 0; // weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
         data[i]->absolutePosition = false;
         sendMotorDataToI2CDriver(*data[i], i, true); // TODO: This cannot send two motor information simultaenosly
@@ -548,36 +548,21 @@ namespace i2c_master
                     position2go = mDialData.pos_y;
                 if (iMotor == 3)
                     position2go = mDialData.pos_z;
-                // assign the dial state to the motor
-                // if we run in forever mode we don't want to change the position as we likely use the ps4 controller
-                // check if homeMotor is null
 
-                // code below does nothing
-
-                /*bool isMotorHoming = false;
-                if (not(HomeMotor::hdata[iMotor] == nullptr))
-                {
-                    isMotorHoming = HomeMotor::hdata[iMotor]->homeIsActive;
-                }
-                bool isMotorForever = getData()[iMotor]->isforever;*/
-                /*if (isMotorForever || isMotorHoming ||
-                    getData()[iMotor]->currentPosition == position2go)
-                    continue;*/
-                log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, getData()[iMotor]->currentPosition, position2go);
 
                 // check if current position and position2go are within a reasonable range
                 // if not we don't want to move the motor
-                if (abs(getData()[iMotor]->currentPosition - position2go) > 10000)
+                if (false & abs(getData()[iMotor]->currentPosition - position2go) > 100000)
                 {
-                    log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
+                    //log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
                     continue;
                 }
                 // if there is no position change we don't want to move the motor
                 if (getData()[iMotor]->currentPosition == position2go)
                 {
-                    log_i("Motor %i is already at position %i", iMotor, position2go);
                     continue;
                 }
+                log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, getData()[iMotor]->currentPosition, position2go);
                 // Here we drive the motor to the dial state
                 Stepper mStepper = static_cast<Stepper>(iMotor);
                 // we dont have that on master side
@@ -592,7 +577,9 @@ namespace i2c_master
                 getData()[mStepper]->isEnable = 1;
                 getData()[mStepper]->qid = 0;
                 getData()[mStepper]->isStop = 0;
-                toggleStepper(mStepper, false);
+                // we want to start a motor no matter if it's connected via I2C or natively
+                log_i("Motor %i: Drive to position %i, at speed %i", mStepper, getData()[mStepper]->targetPosition, getData()[mStepper]->speed);
+                FocusMotor::startStepper(mStepper, true);
             }
 #ifdef LASER_CONTROLLER
             // for intensity only

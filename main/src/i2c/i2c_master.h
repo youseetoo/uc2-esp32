@@ -28,6 +28,7 @@ namespace i2c_master
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);
     void sendTMCDataI2C(TMCData tmcData, uint8_t id);
+    MotorState pullMotorDataI2C(int axis);
 
     void parseHomeJsonI2C(cJSON *doc);
     void parseMotorJsonI2C(cJSON *doc);

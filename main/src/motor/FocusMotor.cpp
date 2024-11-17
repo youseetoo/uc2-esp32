@@ -27,7 +27,6 @@
 #include "../i2c/i2c_master.h"
 #endif
 
-
 namespace FocusMotor
 {
 
@@ -106,9 +105,11 @@ namespace FocusMotor
 	}
 #endif
 
-	void startStepper(int axis, bool reduced=false)
+	void startStepper(int axis, bool reduced = false)
 	{
-		//ensure isStop is false
+		// HIER MURKS!
+		log_i("startStepper %i at speed % and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
+		// ensure isStop is false
 		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
@@ -169,19 +170,16 @@ namespace FocusMotor
 		}
 		else
 			log_i("Motor json is null");
-
 	}
 
 	void toggleStepper(Stepper s, bool isStop)
 	{
 		if (isStop)
 		{
-			log_i("stop stepper from parseMotorDriveJson");
 			stopStepper(s);
 		}
 		else
 		{
-			log_i("start stepper from parseMotorDriveJson");
 			startStepper(s); // TODO: Need dual axis?
 		}
 	}
@@ -246,7 +244,7 @@ namespace FocusMotor
 
 	void parseSetAxis(cJSON *doc)
 	{
-		#ifdef I2C_SLAVE_MOTOR
+#ifdef I2C_SLAVE_MOTOR
 		cJSON *setaxis = cJSON_GetObjectItem(doc, key_setaxis);
 		if (setaxis != NULL)
 		{
@@ -265,7 +263,7 @@ namespace FocusMotor
 				}
 			}
 		}
-		#endif
+#endif
 	}
 
 	void parseAutoEnableMotor(cJSON *doc)
@@ -294,7 +292,6 @@ namespace FocusMotor
 		AccelStep::Enable(enable);
 #endif
 	}
-
 
 #ifdef STAGE_SCAN
 	void parseStageScan(cJSON *doc)
@@ -359,17 +356,17 @@ namespace FocusMotor
 		{"task": "/motor_get", "qid": 1}
 		returns
 {
-        "motor":        {
-                "ste:   [{
-                                "stepperid":    0,
-                                "position":     -157500,
-                                "isActivated":  1,
-                                "trigOff":      0,
-                                "trigPer"                               "isDualAxisZ":  0,
-                                "motorAddress": 67
-                        }]
-        },
-        "qid":  1
+		"motor":        {
+				"ste:   [{
+								"stepperid":    0,
+								"position":     -157500,
+								"isActivated":  1,
+								"trigOff":      0,
+								"trigPer"                               "isDualAxisZ":  0,
+								"motorAddress": 67
+						}]
+		},
+		"qid":  1
 }		}*/
 
 		log_i("get motor");
@@ -384,14 +381,17 @@ namespace FocusMotor
 
 		for (int i = 0; i < 4; i++)
 		{
-			if (i==0 and pinConfig.MOTOR_A_STEP < 0) continue;
-			if (i==1 and pinConfig.MOTOR_X_STEP < 0) continue;
-			if (i==2 and pinConfig.MOTOR_Y_STEP < 0) continue;
-			if (i==3 and pinConfig.MOTOR_Z_STEP < 0) continue;
+			if (i == 0 and pinConfig.MOTOR_A_STEP < 0)
+				continue;
+			if (i == 1 and pinConfig.MOTOR_X_STEP < 0)
+				continue;
+			if (i == 2 and pinConfig.MOTOR_Y_STEP < 0)
+				continue;
+			if (i == 3 and pinConfig.MOTOR_Z_STEP < 0)
+				continue;
 
 			if (pos != NULL)
 			{
-
 
 				// update position and push it to the json
 				data[i]->currentPosition = 1;
@@ -428,9 +428,9 @@ namespace FocusMotor
 				cJsonTool::setJsonInt(aritem, key_triggerpin, data[i]->triggerPin);
 				cJsonTool::setJsonInt(aritem, "isDualAxisZ", isDualAxisZ);
 
-				#ifdef I2C_SLAVE_MOTOR
+#ifdef I2C_SLAVE_MOTOR
 				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
-				#endif
+#endif
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 		}
@@ -443,18 +443,18 @@ namespace FocusMotor
 		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 
-		#ifdef I2C_SLAVE_MOTOR
+#ifdef I2C_SLAVE_MOTOR
 		// set Motor Axis (for I2C)
-		/* 
+		/*
 			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 3}]}}
 		*/
 		parseSetAxis(doc);
-		#endif
+#endif
 
-		#ifdef I2C_MASTER
-		// move motor via I2C 
+#ifdef I2C_MASTER
+		// move motor via I2C
 		i2c_master::parseMotorJsonI2C(doc);
-		#endif
+#endif
 
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
@@ -564,16 +564,19 @@ namespace FocusMotor
 			Stepper s = static_cast<Stepper>(iMotor);
 			data[s]->absolutePosition = false;
 			data[s]->targetPosition = -1;
-			startStepper(iMotor, true); delay(10);
+			startStepper(iMotor, true);
+			delay(10);
 			stopStepper(iMotor);
 			data[s]->targetPosition = 1;
-			startStepper(iMotor, true); delay(10);
+			startStepper(iMotor, true);
+			delay(10);
 			stopStepper(iMotor);
 		}
 #endif
 #ifdef I2C_MASTER
 		// send stop signal to all motors
-		for (int iMotor = 0; iMotor < 4; iMotor++){
+		for (int iMotor = 0; iMotor < 4; iMotor++)
+		{
 			stopStepper(iMotor);
 		}
 #endif
@@ -601,14 +604,14 @@ namespace FocusMotor
 				isRunning = FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
 				isRunning = AccelStep::isRunning(i);
-#endif 
-// TODO: @KillerInk do we need to have an isRunning flag for the I2c Motor, too?
+#endif
+				// TODO: @KillerInk do we need to have an isRunning flag for the I2c Motor, too?
 			}
 
 #ifndef I2C_MASTER
 			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
 			if (!isRunning && !data[i]->stopped)
-			{	
+			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
@@ -639,7 +642,6 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::updateData(i);
 #endif
-
 
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
@@ -686,13 +688,13 @@ namespace FocusMotor
 	void stopStepper(int i)
 	{
 
-		#if defined(I2C_MASTER) && defined(I2C_MOTOR)
+#if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
 		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[i]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(i, 0);			 // this is an exception. We first get the position, then the success
+			sendMotorPos(i, 0);			  // this is an exception. We first get the position, then the success
 		}
 		else
 		{
@@ -700,7 +702,7 @@ namespace FocusMotor
 			getData()[i]->stopped = true;
 			i2c_master::stopStepper(i);
 		}
-		#endif
+#endif
 
 		// only send motor data if it was running before
 		if (!data[i]->stopped)

@@ -34,7 +34,7 @@ namespace FocusMotor
 	void setup();
 	void loop();
 	void stopStepper(int i);
-	void startStepper(int i);
+	void startStepper(int i, bool reduced);
 	void sendMotorPos(int i, int arraypos);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);

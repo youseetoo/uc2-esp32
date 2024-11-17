@@ -111,12 +111,28 @@
 
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 1}]}}
 
-{"task":"/tmc_act", "msteps":32, "rms_current":600, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
-{"task":"/tmc_act", "msteps":16, "rms_current":400}
+# maikcorsocpe 
+{"task":"/tmc_act", "msteps":32, "rms_current":600, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":16, "rms_current":400, "axis": 1}
+
+First:
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 50000, "speed": 200, "isabs": 0, "isaccel":0}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 5000, "isabs": 0, "isaccel":0}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -5000, "speed": 10000, "isabs": 0, "isaccel":0}]}}
+
+{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":2}
+{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
+
+
+{"task": "/laser_act", "LASERid":1, "LASERval": 0}
+{"task": "/laser_act", "LASERid":2, "LASERval": 1023}
+
+
+
+
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":, "timeout": 20000, "speed": 30000, "direction":1, "endstoppolarity":0}]}}

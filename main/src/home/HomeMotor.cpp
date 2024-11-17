@@ -146,7 +146,7 @@ namespace HomeMotor
 		getData()[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
 		getData()[s]->isEnable = 1;
 		getData()[s]->isaccelerated = 0;
-		FocusMotor::startStepper(s);
+		FocusMotor::startStepper(s, false);
 		if (s == Stepper::Z and FocusMotor::isDualAxisZ)
 		{
 			// we may have a dual axis so we would need to start A too
@@ -156,7 +156,7 @@ namespace HomeMotor
 			getData()[Stepper::A]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
 			getData()[Stepper::A]->isEnable = 1;
 			getData()[Stepper::A]->isaccelerated = 0;
-			FocusMotor::startStepper(Stepper::A);
+			FocusMotor::startStepper(Stepper::A, false);
 		}
 		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, hdata[s]->homeDirection);
 	}
@@ -251,14 +251,14 @@ namespace HomeMotor
 		{
 			// if we are in reverse-direction mode, start motor
 			log_i("Home Motor %i in endpos release mode  %i", s, hdata[s]->homeInEndposReleaseMode);
-			FocusMotor::startStepper(s);
+			FocusMotor::startStepper(s, false);
 
 			if (s == Stepper::Z and (FocusMotor::isDualAxisZ))
 			{
 				// we may have a dual axis so we would need to start A too
 				getData()[Stepper::A]->speed = -getData()[s]->speed;
 				getData()[Stepper::A]->isforever = true;
-				FocusMotor::startStepper(Stepper::A);
+				FocusMotor::startStepper(Stepper::A, false);
 			}
 			hdata[s]->homeInEndposReleaseMode = 2;
 			hdata[s]->homeTimeStarted = millis();

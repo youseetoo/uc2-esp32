@@ -60,6 +60,24 @@ namespace i2c_slave_motor
             // You can process `receivedMotorData` as needed
             // bool isStop = receivedMotorData.isStop;
         }
+        else if (numBytes == sizeof(MotorDataI2C)){
+            // parse a possible motor event
+            MotorDataI2C receivedMotorData;
+            uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
+            for (int i = 0; i < numBytes; i++)
+            {
+                dataPtr[i] = Wire.read();
+            }
+            // assign the received data to the motor to MotorData *data[4];
+            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
+            log_i("Received MotorDataI2C from I2C");
+        }
         else if (numBytes == sizeof(HomeData))
         {
             // parse a possible home event

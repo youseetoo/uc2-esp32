@@ -53,7 +53,7 @@ namespace PidController
 #ifdef MOTOR_CONTROLLER
 			FocusMotor::getData()[Stepper::X]->isforever = 1; // run motor at certain speed
 			FocusMotor::getData()[Stepper::X]->speed = motorValue;
-			FocusMotor::startStepper(Stepper::X);
+			FocusMotor::startStepper(Stepper::X, true);
 #endif
 			startMillis = millis();
 		}

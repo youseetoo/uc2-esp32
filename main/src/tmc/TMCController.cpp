@@ -23,9 +23,10 @@ namespace TMCController
         tmcData.sgthrs = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
         tmcData.semin = cJsonTool::getJsonInt(jsonDocument, "semin");
         tmcData.semax = cJsonTool::getJsonInt(jsonDocument, "semax");
+        int axis = cJsonTool::getJsonInt(jsonDocument, "axis");
 
         // send TMC data via I2C
-        i2c_master::sendTMCDataI2C(tmcData, 0);
+        i2c_master::sendTMCDataI2C(tmcData, axis);
         return 0;
         #else
         // modify the TMC2209 settings
@@ -220,7 +221,7 @@ namespace TMCController
         getData()[mStepper]->speed = speed;
         getData()[mStepper]->isEnable = 1;
         getData()[mStepper]->isaccelerated = 0;
-        FocusMotor::startStepper(mStepper);
+        FocusMotor::startStepper(mStepper, false);
         delay(200);
 
         int START_SGTHRS = 0;
@@ -313,7 +314,7 @@ namespace TMCController
         
 #ifndef I2C_MASTER
 // print sg result, current, and stallguard
-log_i("Current: %i, StallGuard: %i, Diag: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT(), digitalRead(pinConfig.tmc_pin_diag));
+//log_i("Current: %i, StallGuard: %i, Diag: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT(), digitalRead(pinConfig.tmc_pin_diag));
 #endif 
     }
 }

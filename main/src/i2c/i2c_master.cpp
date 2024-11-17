@@ -1,6 +1,13 @@
 #include "i2c_master.h"
 #include <PinConfig.h>
 #include "Wire.h"
+#include "esp_log.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+#include "esp_log.h"
+#include "esp_debug_helpers.h"
 
 #include "JsonKeys.h"
 #include <Preferences.h>
@@ -20,13 +27,12 @@ namespace i2c_master
         pinConfig.I2C_ADD_MOT_X,
         pinConfig.I2C_ADD_MOT_Y,
         pinConfig.I2C_ADD_MOT_Z};
-    
+
     uint8_t i2c_laseraddresses[] = {
         pinConfig.I2C_ADD_LEX_PWM0,
         pinConfig.I2C_ADD_LEX_PWM1,
         pinConfig.I2C_ADD_LEX_PWM2,
-        pinConfig.I2C_ADD_LEX_PWM3
-        };
+        pinConfig.I2C_ADD_LEX_PWM3};
 
     // keep track of the motor states
     MotorData a_dat;
@@ -37,8 +43,8 @@ namespace i2c_master
     const int MAX_I2C_DEVICES = 20;     // Maximum number of expected devices
     byte i2cAddresses[MAX_I2C_DEVICES]; // Array to store found I2C addresses
     int numDevices = 0;                 // Variable to keep track of number of devices found
-    int i2cRescanTick = 0;         // Variable to keep track of number of devices found
-    int i2cRescanAfterNTicks = -1; // Variable to keep track of number of devices found
+    int i2cRescanTick = 0;              // Variable to keep track of number of devices found
+    int i2cRescanAfterNTicks = -1;      // Variable to keep track of number of devices found
     int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
     Preferences preferences;
 #ifdef DIAL_CONTROLLER
@@ -253,7 +259,8 @@ namespace i2c_master
         return 0;
     }
 
-    void sendLaserDataI2C(LaserData laserdata, uint8_t id){
+    void sendLaserDataI2C(LaserData laserdata, uint8_t id)
+    {
         // we send the laser data to the slave via I2C
         uint8_t slave_addr = laserid2address(1); // TODO: Hardcoded for now since we only have one laserboard - typically we have multiple lasers on one board
         log_i("LaserData to id: %i", id);
@@ -277,7 +284,8 @@ namespace i2c_master
         }
     }
 
-    void sendTMCDataI2C(TMCData tmcData, uint8_t axis){
+    void sendTMCDataI2C(TMCData tmcData, uint8_t axis)
+    {
         // we send the TMC data to the slave via I2C
         uint8_t slave_addr = axis2address(axis);
         log_i("TMCData to axis: %i ", axis);
@@ -287,7 +295,7 @@ namespace i2c_master
         // cast the structure to a byte array
         uint8_t *dataPtr = (uint8_t *)&tmcData;
         int dataSize = sizeof(TMCData);
-        
+
         // send the byte array over I2C
         Wire.write(dataPtr, dataSize);
         int err = Wire.endTransmission();
@@ -301,7 +309,8 @@ namespace i2c_master
         }
     }
 
-    void sendHomeDataI2C(HomeData homeData, uint8_t axis){
+    void sendHomeDataI2C(HomeData homeData, uint8_t axis)
+    {
         // send home data to slave via I2C and initiate homing
         uint8_t slave_addr = axis2address(axis);
         log_i("HomeData to axis: %i ", axis);
@@ -323,71 +332,80 @@ namespace i2c_master
         {
             log_i("Home data sent to I2C slave at address %i", slave_addr);
         }
-
     }
-    
-    
-    
 
-    void sendMotorDataI2CDriver(MotorData motorData, uint8_t axis)
+    void sendMotorDataToI2CDriver(MotorData motorData, uint8_t axis, bool reduced = false)
     {
+        // send motor data to slave via I2C
         uint8_t slave_addr = axis2address(axis);
-        log_i("MotorData to axis: %i, isStop: %i ", axis, motorData.isStop);
-
-        // TODO: should we have this inside the I2C controller?
         Wire.beginTransmission(slave_addr);
+        int err = 0;
+        if (reduced)
+        {
+            // if we only want to send position, etc. we can reduce the size of the data
+            MotorDataI2C reducedData;
+            reducedData.targetPosition = motorData.targetPosition;
+            reducedData.isforever = motorData.isforever;
+            reducedData.absolutePosition = !motorData.absolutePosition;
+            reducedData.speed = motorData.speed;
+            reducedData.isStop = motorData.isStop;
 
-        // Cast the structure to a byte array
-        uint8_t *dataPtr = (uint8_t *)&motorData;
-        int dataSize = sizeof(MotorData);
-
-        // Send the byte array over I2C
-        Wire.write(dataPtr, dataSize);
-        int err = Wire.endTransmission();
+            uint8_t *dataPtr = (uint8_t *)&reducedData;
+            int dataSize = sizeof(MotorDataI2C);
+            // Send the byte array over I2C
+            Wire.write(dataPtr, dataSize);
+            err = Wire.endTransmission();
+        }
+        else
+        {
+            // Cast the structure to a byte array
+            uint8_t *dataPtr = (uint8_t *)&motorData;
+            int dataSize = sizeof(MotorData);
+            // Send the byte array over I2C
+            Wire.write(dataPtr, dataSize);
+            err = Wire.endTransmission();
+        }
         if (err != 0)
         {
             log_e("Error sending motor data to I2C slave at address %i", slave_addr);
         }
         else
         {
-            log_i("Motor data sent to I2C slave at address %i", slave_addr);
+            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, reduced %i ", axis, slave_addr, motorData.isStop, motorData.speed, reduced);
         }
     }
 
-    void startStepper(int axis)
+    void startStepper(int axis, bool reduced = false)
     {
-        // Request data from the slave but only if inside i2cAddresses
-        uint8_t slave_addr = axis2address(axis);
-        if (!isAddressInI2CDevices(slave_addr))
-        {
-            data[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-            sendMotorPos(axis, 0);      // this is an exception. We first get the position, then the success
-        }
-        else
-        {
-            // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-            sendMotorDataI2CDriver(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
-
+        // TODO: @KillerInk this looks odd.. pointers - when are we syncing the state from the FocusMotor and the I2C driver?
+        MotorData **data = FocusMotor::getData();
+        if (data != nullptr && data[axis] != nullptr) {
             waitForFirstRunI2CSlave[axis] = true;
+            MotorData *m = data[axis];
+            sendMotorDataToI2CDriver(*m, axis, reduced); // Dereferenzieren Sie den Zeiger, um das Objekt zu erhalten
             data[axis]->stopped = false;
-        }
+        } else {
+            // Fehlerbehandlung, falls data oder data[axis] null ist
+            ESP_LOGE("I2C_MASTER", "Invalid motor data for axis %d", axis);
+        }        
     }
-
 
     void stopStepper(int i)
     {
+
+
         // only send motor data if it was running before
+        log_i("Stop Motor %i", i);
         if (!data[i]->stopped)
             sendMotorPos(i, 0);
-        log_i("Stop Motor %i", i);
         data[i]->stopped = true;     // FIME: difference between stopped and isStop?
         data[i]->isStop = true;      // FIME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
         data[i]->targetPosition = 0; // weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
         data[i]->absolutePosition = false;
-        sendMotorDataI2CDriver(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+        sendMotorDataToI2CDriver(*data[i], i, true); // TODO: This cannot send two motor information simultaenosly
     }
 
-    void toggleStepper(Stepper s, bool isStop)
+    void toggleStepper(Stepper s, bool isStop, bool reduced = false)
     {
         if (isStop)
         {
@@ -397,18 +415,19 @@ namespace i2c_master
         else
         {
             log_i("start stepper from parseMotorDriveJson");
-            startStepper(s); // TODO: Need dual axis?
+            startStepper(s, reduced);
         }
     }
 
-    void parseHomeJsonI2C(cJSON *doc){
+    void parseHomeJsonI2C(cJSON *doc)
+    {
         /*
         We parse the incoming JSON string to the motor struct and send it via I2C to the correpsonding motor driver
         for homing
         */
         log_i("parseHomeJsonI2C");
-
     }
+
     void parseMotorJsonI2C(cJSON *doc)
     {
         /*
@@ -459,7 +478,8 @@ namespace i2c_master
         return 0;
     }
 
-    cJSON *get(cJSON *ob){
+    cJSON *get(cJSON *ob)
+    {
         // do nothing
         return NULL;
     }
@@ -484,7 +504,7 @@ namespace i2c_master
         }
         else
         {
-            log_e("Error: Incorrect data size received");
+            log_e("Error: Incorrect data size received from address %i. Data size is %i", slave_addr, Wire.available());
         }
 
         return motorState;
@@ -572,7 +592,7 @@ namespace i2c_master
                 getData()[mStepper]->isEnable = 1;
                 getData()[mStepper]->qid = 0;
                 getData()[mStepper]->isStop = 0;
-                startStepper(mStepper);
+                toggleStepper(mStepper, false);
             }
 #ifdef LASER_CONTROLLER
             // for intensity only
@@ -600,7 +620,7 @@ namespace i2c_master
             {
                 // TODO: @killerink - should this be done in background to not block the main loop?
                 MotorState mMotorState = pullMotorDataI2C(i);
-                data[i]->currentPosition = mMotorState.currentPosition;
+                getData()[i]->currentPosition = mMotorState.currentPosition;
                 pullMotorDataI2CTick[i] = 0;
                 if (waitForFirstRunI2CSlave[i])
                 { // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
@@ -612,16 +632,17 @@ namespace i2c_master
                 else
                 {
                     // TODO: check if motor is still running and if not, report position to serial
-                    if (!mMotorState.isRunning && !data[i]->stopped)
+                    if (!mMotorState.isRunning && !getData()[i]->stopped)
                     {
                         // TODO: REadout register on slave side and check if destination
                         // Only send the information when the motor is halting
-                        // log_d("Sending motor pos %i", i);
                         // sendMotorPos(i, 0);
+                        log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, mMotorState.isRunning, getData()[i]->stopped);
                         stopStepper(i);
-                        data[i]->stopped = true;
-                        preferences.begin("motpos", false);
-                        preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+                        getData()[i]->stopped = true;
+                        const char *prefNamespace = "UC2";
+                        preferences.begin(prefNamespace, false);
+                        preferences.putLong(("motor" + String(i)).c_str(), getData()[i]->currentPosition);
                         preferences.end();
                     }
                 }
@@ -637,7 +658,6 @@ namespace i2c_master
             ticksLastPosPulled = 0;
             // Here we want to pull the dial data from the I2C bus and assign it to the motors
             pullParamsFromDial();
-
         }
         else
         {

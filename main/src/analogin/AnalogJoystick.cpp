@@ -45,7 +45,7 @@ namespace AnalogJoystick
             {
                 ESP_LOGI(TAG, "start motor X");
                 joystick_drive = 1;
-                FocusMotor::startStepper(s);
+                FocusMotor::startStepper(s, true);
             }
         }
         else if (!FocusMotor::getData()[s]->stopped && joystick_drive > 0 && (val <= zeropoint || val >= -zeropoint))

@@ -106,8 +106,10 @@ namespace FocusMotor
 	}
 #endif
 
-	void startStepper(int axis)
+	void startStepper(int axis, bool reduced=false)
 	{
+		//ensure isStop is false
+		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
 		uint8_t slave_addr = i2c_master::axis2address(axis);
@@ -119,8 +121,7 @@ namespace FocusMotor
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			i2c_master::sendMotorDataI2CDriver(*data[axis], axis); // TODO: This cannot send two motor information simultaenosly
-
+			i2c_master::startStepper(axis, reduced); // TODO: This cannot send two motor information simultaenosly
 			i2c_master::waitForFirstRunI2CSlave[axis] = true;
 			getData()[axis]->stopped = false;
 		}
@@ -455,7 +456,6 @@ namespace FocusMotor
 		i2c_master::parseMotorJsonI2C(doc);
 		#endif
 
-
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
 		parseEnableMotor(doc);
@@ -564,10 +564,16 @@ namespace FocusMotor
 			Stepper s = static_cast<Stepper>(iMotor);
 			data[s]->absolutePosition = false;
 			data[s]->targetPosition = -1;
-			startStepper(iMotor); delay(10);
+			startStepper(iMotor, true); delay(10);
 			stopStepper(iMotor);
 			data[s]->targetPosition = 1;
-			startStepper(iMotor); delay(10);
+			startStepper(iMotor, true); delay(10);
+			stopStepper(iMotor);
+		}
+#endif
+#ifdef I2C_MASTER
+		// send stop signal to all motors
+		for (int iMotor = 0; iMotor < 4; iMotor++){
 			stopStepper(iMotor);
 		}
 #endif
@@ -585,7 +591,6 @@ namespace FocusMotor
 	void loop()
 	{
 		// checks if a stepper is still running
-		int nRunning = 0;
 		for (int i = 0; i < 4; i++)
 		{
 			bool isRunning = false;
@@ -594,24 +599,26 @@ namespace FocusMotor
 			{
 #ifdef USE_FASTACCEL
 				isRunning = FAccelStep::isRunning(i);
-				if (isRunning) nRunning += 1;
 #elif defined USE_ACCELSTEP
 				isRunning = AccelStep::isRunning(i);
-				if (isRunning) nRunning += 1;
-#endif
+#endif 
+// TODO: @KillerInk do we need to have an isRunning flag for the I2c Motor, too?
 			}
 
+#ifndef I2C_MASTER
 			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
 			if (!isRunning && !data[i]->stopped)
-			{
+			{	
+				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
+#endif
 		}
 	}
 
@@ -691,7 +698,7 @@ namespace FocusMotor
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			getData()[i]->stopped = true;
-			i2c_master::sendMotorDataI2CDriver(*data[i], i); // TODO: This cannot send two motor information simultaenosly
+			i2c_master::stopStepper(i);
 		}
 		#endif
 

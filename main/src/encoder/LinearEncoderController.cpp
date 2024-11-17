@@ -19,7 +19,7 @@ namespace LinearEncoderController
     //function pointer to motordata from different possible targets
     MotorData **(*getData)();
     //function pointer to start a stepper
-    void (*startStepper)(int);
+    void (*startStepper)(int, bool);
 
     std::array<LinearEncoderData *, 4> edata;
     // std::array<AS5311 *, 4> encoders;
@@ -128,7 +128,7 @@ namespace LinearEncoderController
                     getData()[s]->targetPosition = calibsteps;
                     getData()[s]->absolutePosition = false;
                     getData()[s]->speed = speed;
-                    startStepper(s);
+                    startStepper(s, true);
                     edata[s]->calibsteps = calibsteps;
                     edata[s]->requestCalibration = true;
                 }
@@ -158,7 +158,7 @@ namespace LinearEncoderController
                     edata[s]->timeSinceMotorStart = millis();
                     getData()[s]->isforever = true;
                     getData()[s]->speed = speed;
-                    startStepper(s);
+                    startStepper(s, true);
                     edata[s]->homeAxis = true;
                 }
             }
@@ -257,7 +257,7 @@ namespace LinearEncoderController
                         else
                             getData()[s]->targetPosition = (float)(posToGo + edata[s]->positionPreMove) / edata[s]->stp2phys;
                         log_d("Move precise from (residual only) %f to %f at motor speed %f, computed speed %f, encoderDirection %f with PID %f, %f, %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection, edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
-                        startStepper(s);
+                        startStepper(s, true);
                     }
                     else
                     {
@@ -266,7 +266,7 @@ namespace LinearEncoderController
                         edata[s]->timeSinceMotorStart = millis();
                         edata[s]->movePrecise = true;
                         log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
-                        startStepper(s);
+                        startStepper(s, true);
                     }
                 }
             }
@@ -417,7 +417,7 @@ namespace LinearEncoderController
                     // FocusMotor::setPosition(i, 0);
                     // blocks until stepper reached new position wich would be optimal outside of the endstep
                     getData()[i]->absolutePosition = false;
-                    startStepper(i);
+                    startStepper(i, true);
                     // wait until stepper reached new position
                     while (FocusMotor::isRunning(i))
                         delay(1);
@@ -443,7 +443,7 @@ namespace LinearEncoderController
                 edata[i]->timeSinceMotorStart = millis();
                 edata[i]->movePrecise = true;
                 log_d("Move precise from %f to %f at motor speed %f, encoderDirection %f", edata[i]->positionPreMove, edata[i]->positionToGo, getData()[i]->speed, edata[i]->encoderDirection);
-                startStepper(i);
+                startStepper(i, true);
             }
 
             if (edata[i]->movePrecise and not edata[i]->correctResidualOnly)
@@ -466,7 +466,7 @@ namespace LinearEncoderController
                 //      edata[i]->posval, edata[i]->positionToGo, speed);
                 getData()[i]->speed = speed;
                 getData()[i]->isforever = true;
-                startStepper(i);
+                startStepper(i, true);
 
                 // when should we end the motion?!
                 float distanceToGo = edata[i]->positionToGo - currentPos;

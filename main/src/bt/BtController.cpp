@@ -112,7 +112,8 @@ namespace BtController
             getData()[s]->speed = value;
             getData()[s]->isforever = true;
             getData()[s]->acceleration = MAX_ACCELERATION_A;
-            FocusMotor::startStepper(s);
+            log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
+            FocusMotor::startStepper(s, true);
             if (s == Stepper::X)
                 joystick_drive_X = true;
             if (s == Stepper::Y)
@@ -126,15 +127,23 @@ namespace BtController
         {
             getData()[s]->speed = 0;
             getData()[s]->isforever = false;
-            FocusMotor::stopStepper(s);
-            if (s == Stepper::X)
+            if (s == Stepper::X and joystick_drive_X)
+            {
+                FocusMotor::stopStepper(s);
                 joystick_drive_X = false;
-            if (s == Stepper::Y)
+            }
+            if (s == Stepper::Y and joystick_drive_Y){
+                FocusMotor::stopStepper(s);
                 joystick_drive_Y = false;
-            if (s == Stepper::Z)
+            }
+            if (s == Stepper::Z and joystick_drive_Z){
+                FocusMotor::stopStepper(s);
                 joystick_drive_Z = false;
-            if (s == Stepper::A)
+            }
+            if (s == Stepper::A and joystick_drive_A){
+                FocusMotor::stopStepper(s);
                 joystick_drive_A = false;
+            }
         }
 #endif
     }
@@ -234,7 +243,7 @@ namespace BtController
                     down = gamePadData.dpaddirection == Dpad::Direction::down;
                     left = gamePadData.dpaddirection == Dpad::Direction::left;
                     right = gamePadData.dpaddirection == Dpad::Direction::right;
-                    log_i("up, down, left, right: %d, %d, %d, %d", up, down, left, right);
+                    // log_i("up, down, left, right: %d, %d, %d, %d", up, down, left, right); @KillerInk this never gives any results - why?
                 }
 #endif
                 // LASER 1
@@ -303,7 +312,7 @@ namespace BtController
 #endif
                 if (logCounter > 100)
                 {
-                    log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);
+                    //log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);
                     logCounter = 0;
                 }
                 else

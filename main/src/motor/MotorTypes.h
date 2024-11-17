@@ -9,6 +9,17 @@ struct MotorState {
 	long currentPosition = 0;
 	bool isRunning = 0;
 };
+
+struct MotorDataI2C
+{
+	// a stripped down version of MotorData to be sent over I2C
+	long targetPosition = 0;
+	long speed = 0;
+	bool isforever = false;
+	bool absolutePosition = false;
+	bool isStop = false;
+}__attribute__((packed));
+
 struct MotorData
 {
 	bool directionPinInverted = false;
@@ -40,6 +51,7 @@ struct MotorData
 	int dirPin = -1;
 	int stpPin = -1;
 }__attribute__((packed));
+
 
 
 

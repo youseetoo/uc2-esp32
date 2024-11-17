@@ -19,10 +19,11 @@ namespace i2c_master
     void setup();
     void loop();
     MotorData **getData();
-    void startStepper(int i);
+    void startStepper(int i, bool reduced);
+    void stopStepper(int i);
     void startHome(int i);
     int axis2address(int axis);
-    void sendMotorDataI2CDriver(MotorData motorData, uint8_t axis);
+    void sendMotorDataToI2CDriver(MotorData motorData, uint8_t axis, bool reduced);
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);

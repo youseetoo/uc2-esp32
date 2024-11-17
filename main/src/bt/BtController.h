@@ -10,7 +10,7 @@
 namespace BtController
 {
     static bool IS_PS_CONTROLER_LEDARRAY = false;
-    static int offset_val = 513; // The zero point of the joystick is not always going back to zero, so we need to set a threshold
+    static int offset_val = 1025; // The zero point of the joystick is not always going back to zero, so we need to set a threshold
     static int stick_ly = 0;
     static int stick_lx = 0;
     static int stick_rx = 0;

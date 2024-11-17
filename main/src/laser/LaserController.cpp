@@ -377,25 +377,25 @@ namespace LaserController
 		pinMode(pinConfig.LASER_1, OUTPUT);
 		digitalWrite(pinConfig.LASER_1, LOW);
 		setupLaser(pinConfig.LASER_1, PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-		setPWM(10000, PWM_CHANNEL_LASER_1);
+		setLaserVal(1, 10000);
 		delay(10);
-		setPWM(0, PWM_CHANNEL_LASER_1);
+		setLaserVal(1, 0);
 
 		log_i("Laser ID 2, pin: %i", pinConfig.LASER_2);
 		pinMode(pinConfig.LASER_2, OUTPUT);
 		digitalWrite(pinConfig.LASER_2, LOW);
 		setupLaser(pinConfig.LASER_2, PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-		setPWM(10000, PWM_CHANNEL_LASER_2);
+		setLaserVal(2, 10000);
 		delay(10);
-		setPWM(0, PWM_CHANNEL_LASER_2);
+		setLaserVal(2, 0);
 
 		log_i("Laser ID 3, pin: %i", pinConfig.LASER_3);
 		pinMode(pinConfig.LASER_3, OUTPUT);
 		digitalWrite(pinConfig.LASER_3, LOW);
 		setupLaser(pinConfig.LASER_3, PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-		setPWM(10000, PWM_CHANNEL_LASER_3);
+		setLaserVal(3, 10000);
 		delay(10);
-		setPWM(0, PWM_CHANNEL_LASER_3);
+		setLaserVal(3, 0);
 
 #ifdef HEAT_CONTROLLER
 		// Setting up the differen PWM channels for the heating unit
@@ -405,9 +405,10 @@ namespace LaserController
 			pinMode(pinConfig.LASER_0, OUTPUT);
 			digitalWrite(pinConfig.LASER_0, LOW);
 			setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
-			setPWM(10000, PWM_CHANNEL_LASER_0);
+			setLaserVal(0, 10000);
 			delay(10);
-			setPWM(0, PWM_CHANNEL_LASER_0);
+			setLaserVal(0, 0);
+			
 		}
 #endif
 	}

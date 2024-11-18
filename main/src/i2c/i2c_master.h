@@ -18,7 +18,6 @@ namespace i2c_master
     cJSON *get(cJSON *ob);
     void setup();
     void loop();
-    MotorData **getData();
     void startStepper(int i, bool reduced);
     void stopStepper(int i);
     void startHome(int i);
@@ -28,10 +27,13 @@ namespace i2c_master
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);
     void sendTMCDataI2C(TMCData tmcData, uint8_t id);
-    MotorState pullMotorDataI2C(int axis);
+    MotorState pullMotorDataI2CDriver(int axis);
+    void updateMotorData(int i);    
+    long getMotorPosition(int i);
 
     void parseHomeJsonI2C(cJSON *doc);
     void parseMotorJsonI2C(cJSON *doc);
+
     #ifdef DIAL_CONTROLLER
     void pushMotorPosToDial();
     #endif

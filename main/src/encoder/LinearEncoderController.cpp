@@ -5,10 +5,6 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
-#ifdef I2C_MASTER
-#include "../motor/MotorTypes.h"
-#include "../i2c/i2c_master.h"
-#endif
 
 #include "InterruptController.h"
 #include "JsonKeys.h"
@@ -508,14 +504,9 @@ namespace LinearEncoderController
     */
     void setup()
     {
-#ifdef MOTOR_CONTROLLER
         getData = FocusMotor::getData;
         startStepper = FocusMotor::startStepper;
-#endif
-#ifdef I2C_MASTER
-        getData = i2c_master::getData;
-        startStepper = i2c_master::startStepper;
-#endif
+
         // for AS5311
         log_i("LinearEncoder setup AS5311 - A/B interface");
 

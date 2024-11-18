@@ -35,10 +35,6 @@ namespace DialController
     void setDialValues(DialData mDialData);
     static DialData mDialData;
 
-    static int ticksLastPosPulled = 0;
-    static int ticksPosPullInterval = 5; // Pull position from slave every n-times
-    static bool positionsPushedToDial = false;
-
     // Array to store X, Y, Z, A positions
     static long values[5] = {0, 0, 0, 0, 0};
     static char axisNames[5] = {'A', 'X', 'Y', 'Z', 'I'};

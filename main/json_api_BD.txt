@@ -260,7 +260,7 @@ First:
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 100000,  "isabs": 1}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 1000,  "isabs": 0}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 100000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 

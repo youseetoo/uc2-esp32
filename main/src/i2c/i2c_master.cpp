@@ -18,6 +18,7 @@
 #include "../laser/LaserController.h"
 #endif
 
+using namespace FocusMotor;
 namespace i2c_master
 {
 
@@ -45,7 +46,7 @@ namespace i2c_master
     int numDevices = 0;                 // Variable to keep track of number of devices found
     int i2cRescanTick = 0;              // Variable to keep track of number of devices found
     int i2cRescanAfterNTicks = -1;      // Variable to keep track of number of devices found
-    int pullMotorDataI2CTick[4] = {0, 0, 0, 0};
+    int pullMotorDataI2CDriverTick[4] = {0, 0, 0, 0};
     Preferences preferences;
 #ifdef DIAL_CONTROLLER
     DialData mDialData;
@@ -119,41 +120,40 @@ namespace i2c_master
         data[Stepper::Z] = &z_dat;
 
         const char *prefNamespace = "UC2";
-        preferences.begin(prefNamespace, false);
-
         // TODO: Is this still true? >= if TCA is active wire doesn't work
         Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
         i2c_scan();
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
-            MotorState mMotorState = pullMotorDataI2C(0);
-            getData()[Stepper::A]->currentPosition = mMotorState.currentPosition;
-            preferences.putLong(("motor" + String(Stepper::A)).c_str(), mMotorState.currentPosition);
-            log_i("Motor A position: %i", getData()[Stepper::A]->currentPosition);
+            updateMotorData(Stepper::A);
+            log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
         }
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
-            MotorState mMotorState = pullMotorDataI2C(1);
-            getData()[Stepper::X]->currentPosition = mMotorState.currentPosition;
-            preferences.putLong(("motor" + String(Stepper::X)).c_str(), mMotorState.currentPosition);
-            log_i("Motor X position: %i", getData()[Stepper::X]->currentPosition);
+            updateMotorData(Stepper::X);
+            log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
         }
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
-            MotorState mMotorState = pullMotorDataI2C(2);
-            getData()[Stepper::Y]->currentPosition = mMotorState.currentPosition;
-            preferences.putLong(("motor" + String(Stepper::Y)).c_str(), mMotorState.currentPosition);
-            log_i("Motor Y position: %i", getData()[Stepper::Y]->currentPosition);
+            updateMotorData(Stepper::Y);
+            log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
         }
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-            MotorState mMotorState = pullMotorDataI2C(3);
-            getData()[Stepper::Z]->currentPosition = mMotorState.currentPosition;
-            preferences.putLong(("motor" + String(Stepper::Z)).c_str(), mMotorState.currentPosition);
-            log_i("Motor Z position: %i", getData()[Stepper::Z]->currentPosition);
+            updateMotorData(Stepper::Z);
+            log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
         }
-        preferences.end();
-        
+    }
+
+    void updateMotorData(int i)
+    {
+        MotorState mMotorState = pullMotorDataI2CDriver(i);
+        data[i]->currentPosition = mMotorState.currentPosition;
+    }
+
+    long getMotorPosition(int i)
+    {
+        return data[i]->currentPosition;
     }
 
     bool isAddressInI2CDevices(byte addressToCheck)
@@ -179,10 +179,10 @@ namespace i2c_master
             return;
         }
         Wire.beginTransmission(slave_addr);
-        mDialData.pos_a = getData()[0]->currentPosition;
-        mDialData.pos_x = getData()[1]->currentPosition;
-        mDialData.pos_y = getData()[2]->currentPosition;
-        mDialData.pos_z = getData()[3]->currentPosition;
+        mDialData.pos_a = FocusMotor::getData()[0]->currentPosition;
+        mDialData.pos_x = FocusMotor::getData()[1]->currentPosition;
+        mDialData.pos_y = FocusMotor::getData()[2]->currentPosition;
+        mDialData.pos_z = FocusMotor::getData()[3]->currentPosition;
 #ifdef LASER_CONTROLLER
         mDialData.intensity = LaserController::getLaserVal(1);
 #else
@@ -197,12 +197,11 @@ namespace i2c_master
 
     void sendMotorPos(int i, int arraypos)
     {
-
-#ifdef DIAL_CONTROLLER
-        // update the dial with the actual motor positions
-        // the motor positions array is updated in the dial controller
-        pushMotorPosToDial();
-#endif
+        log_i("sendMotorPos %i", i);
+        // enforce position update on axis 
+        updateMotorData(i);
+        // update on Motor, too, so that the dial is happy
+        getData()[i]->currentPosition = data[i]->currentPosition;
 
         cJSON *root = cJSON_CreateObject();
         if (root == NULL)
@@ -238,8 +237,13 @@ namespace i2c_master
             free(s);
         }
         Serial.println("--");
-
         cJSON_Delete(root); // Free the root object, which also frees all nested objects
+
+#ifdef DIAL_CONTROLLER
+        // update the dial with the actual motor positions
+        // the motor positions array is updated in the dial controller
+        pushMotorPosToDial();
+#endif
     }
 
     int axis2address(int axis)
@@ -373,7 +377,7 @@ namespace i2c_master
         }
         else
         {
-            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i ", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced);
+            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped);
         }
     }
 
@@ -381,28 +385,34 @@ namespace i2c_master
     {
         // TODO: @KillerInk this looks odd.. pointers - when are we syncing the state from the FocusMotor and the I2C driver?
         MotorData **data = FocusMotor::getData();
-        if (data != nullptr && data[axis] != nullptr) {
+        if (data != nullptr && data[axis] != nullptr)
+        {
+            positionsPushedToDial = false;
+            log_i("data[axis]->stopped %i, getData()[axis]->stopped %i, axis %i", data[axis]->stopped, FocusMotor::getData()[axis]->stopped, axis);
             waitForFirstRunI2CSlave[axis] = true;
+            data[axis]->stopped = false;
             MotorData *m = data[axis];
             sendMotorDataToI2CDriver(*m, axis, reduced); // Dereferenzieren Sie den Zeiger, um das Objekt zu erhalten
-            data[axis]->stopped = false;
-        } else {
+        }
+        else
+        {
             // Fehlerbehandlung, falls data oder data[axis] null ist
             ESP_LOGE("I2C_MASTER", "Invalid motor data for axis %d", axis);
-        }        
+        }
     }
 
     void stopStepper(int i)
     {
         // only send motor data if it was running before
         log_i("Stop Motor in I2C Master %i", i);
-        if (!data[i]->stopped)
-            sendMotorPos(i, 0);
-        data[i]->stopped = true;     // FIXME: difference between stopped and isStop?
+        //if (!data[i]->stopped)
         data[i]->isStop = true;      // FIXME: We should send only those bits that are relevant (e.g. start/stop + payload bytes)
         data[i]->targetPosition = 0; // weird bug, probably not interpreted correclty on slave: If we stop the motor it's taking the last position and moves twice
         data[i]->absolutePosition = false;
+        data[i]->stopped = true;     // FIXME: difference between stopped and isStop?
         sendMotorDataToI2CDriver(*data[i], i, true); // TODO: This cannot send two motor information simultaenosly
+        sendMotorPos(i, 0);
+        waitForFirstRunI2CSlave[i] = false; // reset the flag
     }
 
     void toggleStepper(Stepper s, bool isStop, bool reduced = false)
@@ -457,7 +467,8 @@ namespace i2c_master
                     cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
                     data[s]->isStop = (cstop != NULL) ? cstop->valueint : false;
                     toggleStepper(s, data[s]->isStop);
-                    log_i("Motor %i: Speed: %i, Position: %i, isStop: %i", s, data[s]->speed, data[s]->targetPosition, data[s]->isStop);
+                    data[s]->stopped = data[s]->isStop; // TODO: This is a bit confusing, we should have a clear distinction between stopped and isStop - stopped is: not running (but need the previous state), isStop is for stopping a motor that is runnign
+                    log_i("Motor %i: Speed: %i, Position: %i, isStop: %i, stopped %i", s, data[s]->speed, data[s]->targetPosition, data[s]->isStop, data[s]->stopped);
                 }
             }
             else
@@ -484,7 +495,7 @@ namespace i2c_master
         return NULL;
     }
 
-    MotorState pullMotorDataI2C(int axis)
+    MotorState pullMotorDataI2CDriver(int axis)
     {
         // we pull the data from the slave's register
         uint8_t slave_addr = axis2address(axis);
@@ -495,16 +506,32 @@ namespace i2c_master
             // log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
             return MotorState();
         }
-        Wire.requestFrom(slave_addr, sizeof(MotorState));
+
+        // read the data from the slave
+        const int maxRetries = 2; 
+        int retryCount = 0;
+        bool success = false;
         MotorState motorState; // Initialize with default values
-        // Check if the expected amount of data is received
-        if (Wire.available() == sizeof(MotorState))
+        while (retryCount < maxRetries && !success)
         {
-            Wire.readBytes((uint8_t *)&motorState, sizeof(motorState));
+            Wire.requestFrom(slave_addr, sizeof(MotorState));
+            if (Wire.available() == sizeof(MotorState))
+            {
+                Wire.readBytes((uint8_t *)&motorState, sizeof(motorState));
+                success = true; 
+            }
+            else
+            {
+                retryCount++; 
+                log_w("Warning: Incorrect data size received from address %i. Data size is %i. Retry %i/%i", slave_addr, Wire.available(), retryCount, maxRetries);
+                delay(20); // Wait a bit before retrying
+            }
         }
-        else
+
+        if (!success)
         {
-            log_e("Error: Incorrect data size received from address %i. Data size is %i", slave_addr, Wire.available());
+            motorState.currentPosition = FocusMotor::getData()[axis]->currentPosition; // Fallback-Wert setzen
+            log_e("Error: Failed to read correct data size from address %i after %i attempts", slave_addr, maxRetries);
         }
 
         return motorState;
@@ -549,36 +576,35 @@ namespace i2c_master
                 if (iMotor == 3)
                     position2go = mDialData.pos_z;
 
-
                 // check if current position and position2go are within a reasonable range
                 // if not we don't want to move the motor
-                if (false & abs(getData()[iMotor]->currentPosition - position2go) > 100000)
+                log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
+                if (false & abs(FocusMotor::getData()[iMotor]->currentPosition - position2go) > 100000)
                 {
-                    //log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
+                    // log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
                     continue;
                 }
                 // if there is no position change we don't want to move the motor
-                if (getData()[iMotor]->currentPosition == position2go)
+                if (FocusMotor::getData()[iMotor]->currentPosition == position2go)
                 {
                     continue;
                 }
-                log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, getData()[iMotor]->currentPosition, position2go);
                 // Here we drive the motor to the dial state
                 Stepper mStepper = static_cast<Stepper>(iMotor);
                 // we dont have that on master side
                 // setAutoEnable(false);
                 // setEnable(true);
-                getData()[mStepper]->absolutePosition = 1;
-                getData()[mStepper]->targetPosition = position2go;
-                getData()[mStepper]->isforever = 0;
-                getData()[mStepper]->isaccelerated = 1;
-                getData()[mStepper]->acceleration = 10000;
-                getData()[mStepper]->speed = 10000;
-                getData()[mStepper]->isEnable = 1;
-                getData()[mStepper]->qid = 0;
-                getData()[mStepper]->isStop = 0;
+                FocusMotor::getData()[mStepper]->absolutePosition = 1;
+                FocusMotor::getData()[mStepper]->targetPosition = position2go;
+                FocusMotor::getData()[mStepper]->isforever = 0;
+                FocusMotor::getData()[mStepper]->isaccelerated = 1;
+                FocusMotor::getData()[mStepper]->acceleration = 10000;
+                FocusMotor::getData()[mStepper]->speed = 10000;
+                FocusMotor::getData()[mStepper]->isEnable = 1;
+                FocusMotor::getData()[mStepper]->qid = 0;
+                FocusMotor::getData()[mStepper]->isStop = 0;
                 // we want to start a motor no matter if it's connected via I2C or natively
-                log_i("Motor %i: Drive to position %i, at speed %i", mStepper, getData()[mStepper]->targetPosition, getData()[mStepper]->speed);
+                log_i("Motor %i: Drive to position %i, at speed %i", mStepper, FocusMotor::getData()[mStepper]->targetPosition, FocusMotor::getData()[mStepper]->speed);
                 FocusMotor::startStepper(mStepper, true);
             }
 #ifdef LASER_CONTROLLER
@@ -603,12 +629,13 @@ namespace i2c_master
         for (int i = 0; i < 4; i++)
         {
             // if motor is connected via I2C, we have to pull the data from the slave's register
-            if (pullMotorDataI2CTick[i] > 2) // every second loop
+            if (pullMotorDataI2CDriverTick[i] > 2) // every second loop
             {
                 // TODO: @killerink - should this be done in background to not block the main loop?
-                MotorState mMotorState = pullMotorDataI2C(i);
-                getData()[i]->currentPosition = mMotorState.currentPosition;
-                pullMotorDataI2CTick[i] = 0;
+                MotorState mMotorState = pullMotorDataI2CDriver(i);
+                FocusMotor::getData()[i]->currentPosition = mMotorState.currentPosition;
+                pullMotorDataI2CDriverTick[i] = 0;
+                //log_i("Motor %i: Current position: %i, isRunning: %i, firstRun: %i, stopped: %i", i, mMotorState.currentPosition, mMotorState.isRunning, waitForFirstRunI2CSlave[i], data[i]->stopped);
                 if (waitForFirstRunI2CSlave[i])
                 { // we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
                     if (mMotorState.isRunning)
@@ -619,28 +646,27 @@ namespace i2c_master
                 else
                 {
                     // TODO: check if motor is still running and if not, report position to serial
-                    if (!mMotorState.isRunning && !getData()[i]->stopped)
+                    if (!mMotorState.isRunning && !data[i]->stopped)
                     {
                         // TODO: REadout register on slave side and check if destination
                         // Only send the information when the motor is halting
-                        // sendMotorPos(i, 0);
-                        log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, mMotorState.isRunning, getData()[i]->stopped);
+                        log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, mMotorState.isRunning, data[i]->stopped);
                         stopStepper(i);
-                        getData()[i]->stopped = true;
+                        data[i]->stopped = true;
                         const char *prefNamespace = "UC2";
                         preferences.begin(prefNamespace, false);
-                        preferences.putLong(("motor" + String(i)).c_str(), getData()[i]->currentPosition);
+                        preferences.putLong(("motor" + String(i)).c_str(), FocusMotor::getData()[i]->currentPosition); // tODO @KillerInk: This is not the current position - which one to put?
                         preferences.end();
                     }
                 }
             }
             else
             {
-                pullMotorDataI2CTick[i]++;
+                pullMotorDataI2CDriverTick[i]++;
             }
         }
 #ifdef DIAL_CONTROLLER
-        if (ticksLastPosPulled >= ticksPosPullInterval && positionsPushedToDial)
+        if (ticksLastPosPulled >= ticksPosPullInterval)
         {
             ticksLastPosPulled = 0;
             // Here we want to pull the dial data from the I2C bus and assign it to the motors
@@ -653,9 +679,5 @@ namespace i2c_master
 #endif
     }
 
-    MotorData **getData()
-    {
-        return data;
-    }
 
 }

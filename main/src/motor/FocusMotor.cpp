@@ -107,8 +107,7 @@ namespace FocusMotor
 
 	void startStepper(int axis, bool reduced = false)
 	{
-		// HIER MURKS!
-		log_i("startStepper %i at speed % and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
+		log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
 		// ensure isStop is false
 		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
@@ -401,8 +400,9 @@ namespace FocusMotor
 				FAccelStep::updateData(i);
 #elif defined USE_ACCELSTEP
 				AccelStep::updateData(i);
+#elif defined I2C_MASTER
+				data[i]->currentPosition = i2c_master::getMotorPosition(i);
 #endif
-
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
 				cJSON_AddItemToArray(stprs, aritem);
 			}
@@ -574,10 +574,11 @@ namespace FocusMotor
 		}
 #endif
 #ifdef I2C_MASTER
-		// send stop signal to all motors
+		// send stop signal to all motors and update motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
 			stopStepper(iMotor);
+			data[iMotor]->currentPosition = i2c_master::getMotorPosition(iMotor);
 		}
 #endif
 #if defined DIAL_CONTROLLER && defined I2C_MASTER

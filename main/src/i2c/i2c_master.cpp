@@ -50,6 +50,7 @@ namespace i2c_master
     Preferences preferences;
 #ifdef DIAL_CONTROLLER
     DialData mDialData;
+    DialData mDialDataOld;
     bool positionsPushedToDial = false;
     int ticksLastPosPulled = 0;
     int ticksPosPullInterval = 5; // Pull position from slave every n-times
@@ -183,8 +184,17 @@ namespace i2c_master
         mDialData.pos_x = FocusMotor::getData()[1]->currentPosition;
         mDialData.pos_y = FocusMotor::getData()[2]->currentPosition;
         mDialData.pos_z = FocusMotor::getData()[3]->currentPosition;
+
+
+        // sync old values
+        mDialDataOld.pos_a = mDialData.pos_a;
+        mDialDataOld.pos_x = mDialData.pos_x;
+        mDialDataOld.pos_y = mDialData.pos_y;
+        mDialDataOld.pos_z = mDialData.pos_z;
+
 #ifdef LASER_CONTROLLER
         mDialData.intensity = LaserController::getLaserVal(1);
+        mDialDataOld.intensity = mDialData.intensity;
 #else
         mDialData.intensity = 0;
 #endif
@@ -387,12 +397,12 @@ namespace i2c_master
         MotorData **data = FocusMotor::getData();
         if (data != nullptr && data[axis] != nullptr)
         {
+            data[axis]->stopped = false;
             positionsPushedToDial = false;
             log_i("data[axis]->stopped %i, getData()[axis]->stopped %i, axis %i", data[axis]->stopped, FocusMotor::getData()[axis]->stopped, axis);
             waitForFirstRunI2CSlave[axis] = true;
-            data[axis]->stopped = false;
             MotorData *m = data[axis];
-            sendMotorDataToI2CDriver(*m, axis, reduced); // Dereferenzieren Sie den Zeiger, um das Objekt zu erhalten
+            sendMotorDataToI2CDriver(*m, axis, reduced); 
         }
         else
         {
@@ -578,7 +588,7 @@ namespace i2c_master
 
                 // check if current position and position2go are within a reasonable range
                 // if not we don't want to move the motor
-                log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
+                //log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
                 if (false & abs(FocusMotor::getData()[iMotor]->currentPosition - position2go) > 100000)
                 {
                     // log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
@@ -589,23 +599,56 @@ namespace i2c_master
                 {
                     continue;
                 }
+
+                // compare old dial data; if same value, don't move the motor
+                if (iMotor == 0 && mDialDataOld.pos_a == position2go)
+                {
+                    continue;
+                }
+                if (iMotor == 1 && mDialDataOld.pos_x == position2go)
+                {
+                    continue;
+                }
+                if (iMotor == 2 && mDialDataOld.pos_y == position2go)
+                {
+                    continue;
+                }
+                if (iMotor == 3 && mDialDataOld.pos_z == position2go)
+                {
+                    continue;
+                }
+
                 // Here we drive the motor to the dial state
                 Stepper mStepper = static_cast<Stepper>(iMotor);
                 // we dont have that on master side
                 // setAutoEnable(false);
                 // setEnable(true);
+                // we can send the data to the slave directly
+                // #TODO: @KillerInk - for some reason, the motor never triggers a sendPos after we start the motor from here - isstop is always true..
                 FocusMotor::getData()[mStepper]->absolutePosition = 1;
                 FocusMotor::getData()[mStepper]->targetPosition = position2go;
                 FocusMotor::getData()[mStepper]->isforever = 0;
                 FocusMotor::getData()[mStepper]->isaccelerated = 1;
-                FocusMotor::getData()[mStepper]->acceleration = 10000;
+                FocusMotor::getData()[mStepper]->acceleration = 5000;
                 FocusMotor::getData()[mStepper]->speed = 10000;
                 FocusMotor::getData()[mStepper]->isEnable = 1;
                 FocusMotor::getData()[mStepper]->qid = 0;
                 FocusMotor::getData()[mStepper]->isStop = 0;
+                FocusMotor::getData()[mStepper]->stopped = false;
+                data[iMotor]->stopped = false;
                 // we want to start a motor no matter if it's connected via I2C or natively
-                log_i("Motor %i: Drive to position %i, at speed %i", mStepper, FocusMotor::getData()[mStepper]->targetPosition, FocusMotor::getData()[mStepper]->speed);
+                log_i("Motor %i: Drive to position %i, at speed %i, stopped %i", mStepper, FocusMotor::getData()[mStepper]->targetPosition, FocusMotor::getData()[mStepper]->speed, FocusMotor::getData()[mStepper]->stopped);
                 FocusMotor::startStepper(mStepper, true);
+                // update the old dial data
+                if (iMotor == 0)
+                    mDialDataOld.pos_a = position2go;
+                if (iMotor == 1)
+                    mDialDataOld.pos_x = position2go;
+                if (iMotor == 2)
+                    mDialDataOld.pos_y = position2go;   
+                if (iMotor == 3)
+                    mDialDataOld.pos_z = position2go;
+
             }
 #ifdef LASER_CONTROLLER
             // for intensity only

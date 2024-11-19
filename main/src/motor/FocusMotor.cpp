@@ -122,8 +122,6 @@ namespace FocusMotor
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			i2c_master::startStepper(axis, reduced); // TODO: This cannot send two motor information simultaenosly
-			i2c_master::waitForFirstRunI2CSlave[axis] = true;
-			getData()[axis]->stopped = false;
 		}
 #endif
 #ifdef USE_FASTACCEL
@@ -691,6 +689,7 @@ namespace FocusMotor
 
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
+		log_i("stopStepper I2C_MASTER Focus Motor %i", i);
 		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{

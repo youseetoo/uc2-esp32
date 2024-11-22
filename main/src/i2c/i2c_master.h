@@ -18,7 +18,7 @@ namespace i2c_master
     cJSON *get(cJSON *ob);
     void setup();
     void loop();
-    void startStepper(int i, bool reduced);
+    void startStepper(int i, bool reduced, bool external);
     void stopStepper(int i);
     void startHome(int i);
     int axis2address(int axis);
@@ -30,6 +30,9 @@ namespace i2c_master
     MotorState pullMotorDataI2CDriver(int axis);
     void updateMotorData(int i);    
     long getMotorPosition(int i);
+    void setPosition(Stepper s, int pos);
+    void setPositionI2CDriver(Stepper s, long pos);
+    void setMotorStopped(int axis, bool stopped);
 
     void parseHomeJsonI2C(cJSON *doc);
     void parseMotorJsonI2C(cJSON *doc);

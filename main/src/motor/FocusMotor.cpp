@@ -107,7 +107,7 @@ namespace FocusMotor
 
 	void startStepper(int axis, bool reduced = false)
 	{
-		log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
+		//log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
 		// ensure isStop is false
 		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
@@ -121,7 +121,7 @@ namespace FocusMotor
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			i2c_master::startStepper(axis, reduced); // TODO: This cannot send two motor information simultaenosly
+			i2c_master::startStepper(axis, reduced, true); // TODO: This cannot send two motor information simultaenosly
 		}
 #endif
 #ifdef USE_FASTACCEL
@@ -447,11 +447,15 @@ namespace FocusMotor
 			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 3}]}}
 		*/
 		parseSetAxis(doc);
+		return qid;
 #endif
 
 #ifdef I2C_MASTER
 		// move motor via I2C
+		// {"task":"/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
 		i2c_master::parseMotorJsonI2C(doc);
+		return qid;
 #endif
 
 		// only enable/disable motors
@@ -716,12 +720,12 @@ namespace FocusMotor
 
 	void setPosition(Stepper s, int pos)
 	{
-		getData()[s]->currentPosition = pos;
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
 #elif defined USE_ACCELSTEP
 		AccelStep::setPosition(s, pos);
 #endif
+		getData()[s]->currentPosition = pos;
 	}
 
 	void move(Stepper s, int steps, bool blocking)

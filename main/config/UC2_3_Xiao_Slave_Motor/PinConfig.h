@@ -39,7 +39,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7
      int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
      // I2c

@@ -139,6 +139,7 @@ struct PinConfig
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
 
+
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
      // LED_PINcount from the strip
@@ -212,9 +213,23 @@ struct PinConfig
      bool ENC_X_encoderDirection = true;
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
-     
-     
      bool isDualAxisZ = false;
+     
+     // TMC 2209 stuff
+     int8_t tmc_SW_RX = disabled;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_TX = disabled;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
+     
+     int tmc_microsteps = 16;
+     int tmc_rms_current = 500;
+     int tmc_stall_value = 100;
+     int tmc_sgthrs = 100;
+     int tmc_semin = 5;
+     int tmc_semax = 2;
+     int tmc_sedn = 0b01;
+     int tmc_tcoolthrs = 0xFFFFF;
+     int tmc_blank_time = 24;
+     int tmc_toff = 4;
 
      // I2c
      int8_t I2C_SCL = disabled;      // This is the poart that connects to all other slaves

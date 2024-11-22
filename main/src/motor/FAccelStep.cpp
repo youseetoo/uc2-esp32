@@ -136,7 +136,10 @@ namespace FAccelStep
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, false);
-        faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
+        if (pinConfig.MOTOR_AUTOENABLE)
+            faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
+        else
+            faststeppers[stepper]->enableOutputs();
         faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);
         faststeppers[stepper]->setAcceleration(DEFAULT_ACCELERATION);
         faststeppers[stepper]->setCurrentPosition(getData()[stepper]->currentPosition);

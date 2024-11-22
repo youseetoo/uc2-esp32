@@ -15,6 +15,7 @@ namespace AccelStep
 
     void setupAccelStepper();
     void startAccelStepper(int i);
+    void setPosition(Stepper axis, int pos);
     void stopAccelStepper(int i);
     void setExternalCallForPin(bool (*func)(uint8_t pin, uint8_t value));
     void driveMotorLoop(int stepperid);

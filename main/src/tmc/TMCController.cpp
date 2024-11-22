@@ -13,6 +13,7 @@ namespace TMCController
     int act(cJSON *jsonDocument)
     {
 
+
         #ifdef I2C_MASTER
         TMCData tmcData;
 
@@ -29,6 +30,12 @@ namespace TMCController
         i2c_master::sendTMCDataI2C(tmcData, axis);
         return 0;
         #else
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return -1;
+        }
+
         // modify the TMC2209 settings
         // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
         // {"task":"/tmc_act", "reset": 1}
@@ -162,7 +169,12 @@ namespace TMCController
 
     cJSON *get(cJSON *jsonDocument)
     {
-        #ifndef I2C_MASTER
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return jsonDocument;
+        }
+        #ifdef TMC_CONTROLLER
         // print all TMC2209 settings from preferences
         // {"task":"/tmc_get"}
         preferences.begin("TMC", true);
@@ -188,7 +200,12 @@ namespace TMCController
     }
 
     void setTMCData(TMCData tmcData){
-        #ifndef I2C_MASTER
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return;
+        }
+        #ifdef TMC_CONTROLLER
         // set TMC2209 settings
         driver.microsteps(tmcData.msteps);
         driver.rms_current(tmcData.rms_current);
@@ -199,20 +216,25 @@ namespace TMCController
         driver.TCOOLTHRS(tmcData.tcoolthrs);
         driver.blank_time(tmcData.blank_time);
         driver.toff(tmcData.toff);
+        log_i("TMC2209 Setup with %i microsteps and %i rms current", tmcData.msteps, tmcData.rms_current);
         #endif    
     }
 
 
     void callibrateStallguard(int speed = 10000)
     {
-        #ifndef I2C_MASTER
+        #ifdef TMC_CONTROLLER
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
         Call:
         {"task":"/tmc_act", "calibrate": -30000}
         */
-
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return;
+        }
         // we start moving the motor to get a stallguard value
         int mStepper = Stepper::A; // we assume we are working with motor A
                                    // we may have a dual axis so we would need to start A too
@@ -271,8 +293,13 @@ namespace TMCController
 
     void setup()
     {
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return;
+        }
 // TMC2209 Settings
-#ifndef I2C_MASTER
+#ifdef TMC_CONTROLLER
         log_i("Setting up TMC2209");
         preferences.begin("TMC", false);
         Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
@@ -312,7 +339,7 @@ namespace TMCController
     void loop()
     {
         
-#ifndef I2C_MASTER
+#ifdef TMC_CONTROLLER
 // print sg result, current, and stallguard
 //log_i("Current: %i, StallGuard: %i, Diag: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT(), digitalRead(pinConfig.tmc_pin_diag));
 #endif 

@@ -15,7 +15,7 @@
 Preferences preferences;
 
 
-#define WDTIMEOUT 2 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
+#define WDTIMEOUT 5 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
 #ifdef ESP32S3_MODEL_XIAO

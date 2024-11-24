@@ -107,8 +107,8 @@ namespace FocusMotor
 
 	void startStepper(int axis, bool reduced = false)
 	{
-		//log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
-		// ensure isStop is false
+		// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
+		//  ensure isStop is false
 		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
@@ -121,10 +121,10 @@ namespace FocusMotor
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			i2c_master::startStepper(axis, reduced, true); // TODO: This cannot send two motor information simultaenosly
+			MotorData *m = getData()[axis];
+			i2c_master::startStepper(m, axis, reduced);
 		}
-#endif
-#ifdef USE_FASTACCEL
+#elif defined USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(axis);
@@ -399,7 +399,8 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 				AccelStep::updateData(i);
 #elif defined I2C_MASTER
-				data[i]->currentPosition = i2c_master::getMotorPosition(i);
+				MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(i);
+				data[i]->currentPosition = mMotorState.currentPosition;
 #endif
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
 				cJSON_AddItemToArray(stprs, aritem);
@@ -440,23 +441,6 @@ namespace FocusMotor
 	{
 		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
-
-#ifdef I2C_SLAVE_MOTOR
-		// set Motor Axis (for I2C)
-		/*
-			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 3}]}}
-		*/
-		parseSetAxis(doc);
-		return qid;
-#endif
-
-#ifdef I2C_MASTER
-		// move motor via I2C
-		// {"task":"/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
-		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
-		i2c_master::parseMotorJsonI2C(doc);
-		return qid;
-#endif
 
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
@@ -580,7 +564,8 @@ namespace FocusMotor
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
 			stopStepper(iMotor);
-			data[iMotor]->currentPosition = i2c_master::getMotorPosition(iMotor);
+			MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(iMotor);
+			data[iMotor]->currentPosition = mMotorState.currentPosition;
 		}
 #endif
 #if defined DIAL_CONTROLLER && defined I2C_MASTER
@@ -599,42 +584,41 @@ namespace FocusMotor
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
-			bool isRunning = false;
+			bool mIsRunning = false;
 			// we check if the motor was defined
 			if (getData()[i]->isActivated)
 			{
-#ifdef USE_FASTACCEL
-				isRunning = FAccelStep::isRunning(i);
-#elif defined USE_ACCELSTEP
-				isRunning = AccelStep::isRunning(i);
-#endif
-				// TODO: @KillerInk do we need to have an isRunning flag for the I2c Motor, too?
+				mIsRunning = isRunning(i);
 			}
 
-#ifndef I2C_MASTER
 			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (!isRunning && !data[i]->stopped)
+			if (!mIsRunning && !data[i]->stopped)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				log_i("Stop Motor %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
-#endif
 		}
 	}
 
 	bool isRunning(int i)
 	{
+		bool mIsRunning = false;
 #ifdef USE_FASTACCEL
-		return FAccelStep::isRunning(i);
+		mIsRunning = FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
-		return AccelStep::isRunning(i);
+		mIsRunning = AccelStep::isRunning(i);
+#elif defined I2C_MASTER
+		// Request data from the slave but only if inside i2cAddresses
+		MotorState mData = i2c_master::getMotorState(i);
+		mIsRunning = mData.isRunning;
 #endif
+		return mIsRunning;
 	}
 
 	// returns json {"steppers":[...]} as qid
@@ -644,6 +628,9 @@ namespace FocusMotor
 		FAccelStep::updateData(i);
 #elif defined USE_ACCELSTEP
 		AccelStep::updateData(i);
+#elif defined I2C_MASTER
+		MotorState mData = i2c_master::getMotorState(i);
+		data[i]->currentPosition = mData.currentPosition;
 #endif
 
 		cJSON *root = cJSON_CreateObject();
@@ -697,14 +684,9 @@ namespace FocusMotor
 		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			getData()[i]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(i, 0);			  // this is an exception. We first get the position, then the success
-		}
-		else
-		{
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			getData()[i]->stopped = true;
-			i2c_master::stopStepper(i);
 		}
 #endif
 
@@ -715,6 +697,12 @@ namespace FocusMotor
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
+#elif defined I2C_MASTER
+		getData()[i]->isforever = false;
+		getData()[i]->speed = 0;
+		getData()[i]->stopped = true;
+		MotorData *m = getData()[i];
+		i2c_master::stopStepper(m, i);
 #endif
 	}
 

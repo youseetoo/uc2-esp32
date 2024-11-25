@@ -2,6 +2,14 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
+#define DIGITAL_IN_CONTROLLER=1
+#define HOME_MOTOR=1
+#define MOTOR_CONTROLLER=1
+#define I2C_SLAVE_MOTOR=1
+#define USE_FASTACCEL=1
+#define MESSAGE_CONTROLLER=1
+#define TMC_CONTROLLER=1
+#define ESP32S3_MODEL_XIAO=1
 struct UC2_3_Xiao_Slave : PinConfig
 {
      /*

@@ -236,7 +236,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef ANALOG_JOYSTICK
 	AnalogJoystick::setup();
-#endif
+#endif 
 #ifdef ANALOG_OUT_CONTROLLER
 	AnalogOutController::setup();
 #endif

@@ -489,7 +489,7 @@ namespace FocusMotor
 		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
 		preferences.end();
 
-		// setup motor pins
+		// setup motor pins 
 		log_i("Setting Up Motor A,X,Y,Z");
 #ifdef USE_FASTACCEL || USE_ACCELSTEP
 		preferences.begin("motpos", false);
@@ -546,6 +546,7 @@ namespace FocusMotor
 		AccelStep::setupAccelStepper();
 #endif
 #ifdef USE_FASTACCEL || USE_ACCELSTEP
+#ifdef TCA9535
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
 			// need to activate the motor's dir pin eventually
@@ -561,8 +562,19 @@ namespace FocusMotor
 			delay(10);
 			stopStepper(iMotor);
 		}
+#else 
+// send motor positions 
+for (int iMotor = 0; iMotor < 4; iMotor++)
+{
+	if ( data[iMotor]->isActivated )
+	{
+		sendMotorPos(iMotor, 0);
+	}
+}
+#endif // TCA9535
+
 #endif
-#ifdef I2C_MASTER
+#ifdef I2C_MASTER and defined I2C_MOTOR
 		// send stop signal to all motors and update motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
@@ -595,7 +607,7 @@ namespace FocusMotor
 				mIsRunning = isRunning(i);
 			}
 
-			log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			//log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
 			if (!mIsRunning && !data[i]->stopped)
 			{
 				// If the motor is not running, we stop it, report the position and save the position

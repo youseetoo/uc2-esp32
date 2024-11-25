@@ -161,7 +161,7 @@ namespace i2c_slave_motor
             long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
             motorState.currentPosition = currentPosition;
             motorState.isRunning = isRunning;
-            log_i("Motor is running: %i, at position: %i", isRunning, currentPosition);
+            //log_i("Motor is running: %i, at position: %i", isRunning, currentPosition);
             Wire.write((uint8_t *)&motorState, sizeof(MotorState));
         }
         else if (currentRequest == I2C_REQUESTS::REQUEST_HOMESTATE)

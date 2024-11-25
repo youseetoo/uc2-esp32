@@ -210,13 +210,19 @@ namespace TMCController
         driver.microsteps(tmcData.msteps);
         driver.rms_current(tmcData.rms_current);
         driver.SGTHRS(tmcData.sgthrs);
-        driver.semin(tmcData.semin);
-        driver.semax(tmcData.semax);
-        driver.sedn(tmcData.sedn);
-        driver.TCOOLTHRS(tmcData.tcoolthrs);
-        driver.blank_time(tmcData.blank_time);
-        driver.toff(tmcData.toff);
-        log_i("TMC2209 Setup with %i microsteps and %i rms current", tmcData.msteps, tmcData.rms_current);
+        // disable/enable motor driver
+        digitalWrite(pinConfig.MOTOR_ENABLE, HIGH); // disable
+        delay(10);
+        digitalWrite(pinConfig.MOTOR_ENABLE, LOW); // enable
+        	
+        log_i("TMC2209 Setup with %i microsteps and %i rms current, sgthrs %i", tmcData.msteps, tmcData.rms_current, tmcData.sgthrs);
+
+        // save to settings 
+        preferences.begin("TMC", false);
+        preferences.putInt("msteps", tmcData.msteps);
+        preferences.putInt("current", tmcData.rms_current);
+        preferences.putInt("sgthrs", tmcData.sgthrs);
+        preferences.end();
         #endif    
     }
 

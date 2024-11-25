@@ -43,24 +43,14 @@ namespace i2c_slave_motor
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
             */
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
-            log_i("Received MotorData from I2C");
-            log_i("MotorData:");
-            log_i("  qid: %i", (int)FocusMotor::getData()[mStepper]->qid);
-            log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
-            log_i("  targetPosition: %i", (int)FocusMotor::getData()[mStepper]->targetPosition);
-            log_i("  absolutePosition: %i", (bool)FocusMotor::getData()[mStepper]->absolutePosition);
-            log_i("  speed: %i", (int)FocusMotor::getData()[mStepper]->speed);
-            log_i("  acceleration: %i", (bool)FocusMotor::getData()[mStepper]->acceleration);
-            log_i("  isforever: %i", (bool)FocusMotor::getData()[mStepper]->isforever);
-            log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
-            log_i("  isStop: %i", (bool)FocusMotor::getData()[mStepper]->isStop);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
 
             // Now `receivedMotorData` contains the deserialized data
             // You can process `receivedMotorData` as needed
             // bool isStop = receivedMotorData.isStop;
         }
-        else if(numBytes == sizeof(long)){
+        else if (numBytes == sizeof(long))
+        {
             // we forcefully set the position on the slave
             long motorPosition;
             uint8_t *dataPtr = (uint8_t *)&motorPosition;
@@ -71,9 +61,9 @@ namespace i2c_slave_motor
             Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
             FocusMotor::getData()[mStepper]->currentPosition = motorPosition;
             log_i("Received MotorPosition from I2C %i", motorPosition);
-
         }
-        else if (numBytes == sizeof(MotorDataI2C)){
+        else if (numBytes == sizeof(MotorDataI2C))
+        {
             // parse a possible motor event
             MotorDataI2C receivedMotorData;
             uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
@@ -88,7 +78,7 @@ namespace i2c_slave_motor
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
         }
         else if (numBytes == sizeof(HomeData))
         {
@@ -108,7 +98,6 @@ namespace i2c_slave_motor
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
-            
         }
         else if (numBytes == sizeof(TMCData))
         {
@@ -132,17 +121,30 @@ namespace i2c_slave_motor
 
     void receiveEvent(int numBytes)
     {
-        // Master and Slave
-        // log_i("Receive Event");
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
+
+        // if we receive one byte, it is the request type, otherwise it's the data we need to parse
+        if (numBytes == 1)
         {
-            // Motor, Home, TMC Events
-            parseMotorEvent(numBytes);
+            // The master sends the request for the return type
+            uint8_t requestType = Wire.read();
+            currentRequest = static_cast<I2C_REQUESTS>(requestType);
+            switch (currentRequest)
+            {
+            case I2C_REQUESTS::REQUEST_MOTORSTATE:
+                break;
+            case I2C_REQUESTS::REQUEST_HOMESTATE:
+                break;
+            case I2C_REQUESTS::REQUEST_TMCDATA:
+                break;
+            default:
+                log_e("Unknown Request Type");
+                break;
+            }
         }
         else
         {
-            // Handle error: I2C controller type not supported
-            log_e("Error: I2C controller type not supported.");
+            // Motor, Home, TMC Events
+            parseMotorEvent(numBytes);
         }
     }
 
@@ -151,7 +153,7 @@ namespace i2c_slave_motor
         // The master request data from the slave
         // !THIS IS ONLY EXECUTED IN I2C SLAVE MODE!
         // for the motor we would need to send the current position and the state of isRunning
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
+        if (currentRequest == I2C_REQUESTS::REQUEST_MOTORSTATE)
         {
             // The master request data from the slave
             MotorState motorState;
@@ -159,13 +161,23 @@ namespace i2c_slave_motor
             long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
             motorState.currentPosition = currentPosition;
             motorState.isRunning = isRunning;
-            // Serial.println("motor is running: " + String(motorState.isRunning));
+            log_i("Motor is running: %i, at position: %i", isRunning, currentPosition);
             Wire.write((uint8_t *)&motorState, sizeof(MotorState));
+        }
+        else if (currentRequest == I2C_REQUESTS::REQUEST_HOMESTATE)
+        {
+            // The master request data from the slave
+            HomeState homeState;
+            bool isHoming = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeIsActive;
+            homeState.isHoming = isHoming;
+            Serial.println("home is running: " + String(homeState.isHoming));
+            Wire.write((uint8_t *)&homeState, sizeof(HomeState));
         }
         else
         {
             // Handle error: I2C controller type not supported
-            log_e("Error: I2C controller type not supported.");
+            log_e("Error: I2C request type not supported.");
+            log_e("Current Request Code: %i", currentRequest);
             Wire.write(0);
         }
     }

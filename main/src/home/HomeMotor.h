@@ -19,6 +19,13 @@ struct HomeData
 	int qid = -1;
 };
 
+struct HomeState
+{
+	bool isHoming = false;
+	bool isHomed = false;
+	int homehomeInEndposReleaseMode = 0;
+};
+
 void processHomeLoop(void * p);
 
 namespace HomeMotor
@@ -27,7 +34,6 @@ namespace HomeMotor
 	static bool DEBUG = true;
 	static int homeEndposRelease = 2000;
 	static bool isHoming = false;
-	static std::array<HomeData *, 4> hdata;
 
 	int act(cJSON * ob);
 	cJSON * get(cJSON * ob);
@@ -37,4 +43,6 @@ namespace HomeMotor
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity);
+	HomeData** getHomeData();
+
 };

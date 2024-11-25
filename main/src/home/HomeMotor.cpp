@@ -18,6 +18,13 @@ using namespace FocusMotor;
 namespace HomeMotor
 {
 
+    HomeData* hdata[4] = {nullptr, nullptr, nullptr, nullptr};
+
+    HomeData** getHomeData() {
+        return hdata;
+    }
+
+
 	/*
 	Handle REST calls to the HomeMotor module
 	*/
@@ -221,7 +228,20 @@ namespace HomeMotor
 	void checkAndProcessHome(Stepper s, int digitalin_val)
 	{
 #ifdef MOTOR_CONTROLLER
+#ifdef I2C_MASTER
 
+		if (hdata[s]->homeIsActive)
+		{
+			HomeState homeState = i2c_master::pullHomeStateFromI2CDriver(s);
+			bool isHoming = homeState.isHoming;
+			if (!isHoming)
+			{
+				log_i("Home Motor %i is done", s);
+				sendHomeDone(s);
+				hdata[s]->homeIsActive = false;
+			}
+		}
+#else
 		// log_i("Current STepper %i and digitalin_val %i", s, digitalin_val);
 		//  if we hit the endstop or timeout => stop motor and oanch reverse direction mode
 		if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) &&
@@ -237,7 +257,7 @@ namespace HomeMotor
 			getData()[s]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 			getData()[s]->isforever = true;
 			getData()[s]->acceleration = MAX_ACCELERATION_A;
-	
+
 			if (s == Stepper::Z and (FocusMotor::isDualAxisZ))
 			{
 				// we may have a dual axis so we would need to start A too
@@ -279,36 +299,36 @@ namespace HomeMotor
 			hdata[s]->homeIsActive = false;
 			hdata[s]->homeInEndposReleaseMode = 0;
 		}
-
 #endif
-	}
-	/*
-		get called repeatedly, dont block this
-	*/
-	void loop()
-	{
+#endif
+		}
+		/*
+			get called repeatedly, dont block this
+		*/
+		void loop()
+		{
 
-		// this will be called everytime, so we need to make this optional with a switch
-		// get motor and switch instances
+			// this will be called everytime, so we need to make this optional with a switch
+			// get motor and switch instances
 
 // expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 //  0=A , 1=X, 2=Y , 3=Z
 #if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
-		checkAndProcessHome(Stepper::X, DigitalInController::getDigitalVal(1));
-		checkAndProcessHome(Stepper::Y, DigitalInController::getDigitalVal(2));
-		checkAndProcessHome(Stepper::Z, DigitalInController::getDigitalVal(3));
+			checkAndProcessHome(Stepper::X, DigitalInController::getDigitalVal(1));
+			checkAndProcessHome(Stepper::Y, DigitalInController::getDigitalVal(2));
+			checkAndProcessHome(Stepper::Z, DigitalInController::getDigitalVal(3));
 #endif
-	}
+		}
 
-	/*
-	not needed all stuff get setup inside motor and digitalin, but must get implemented
-	*/
-	void setup()
-	{
-		log_i("HomeMotor setup");
-		for (int i = 0; i < 4; i++)
+		/*
+		not needed all stuff get setup inside motor and digitalin, but must get implemented
+		*/
+		void setup()
 		{
-			hdata[i] = new HomeData();
+			log_i("HomeMotor setup");
+			for (int i = 0; i < 4; i++)
+			{
+				hdata[i] = new HomeData();
+			}
 		}
 	}
-}

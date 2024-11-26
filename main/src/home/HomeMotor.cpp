@@ -42,6 +42,7 @@ namespace HomeMotor
 #ifdef I2C_MASTER
 		// send the home data to the slave
 		i2c_master::sendHomeDataI2C(*hdata[axis], axis);
+		getData()[axis]->stopped = true; // overwrite current state - otherwise it'll trigger a force-stop  in the motor loop()
 #else
 		// if we are on motor drivers connected to the board, use those motors
 		runStepper(axis);
@@ -150,21 +151,26 @@ namespace HomeMotor
 		// trigger go home by starting the motor in the right direction
 		FocusMotor::getData()[s]->isforever = true;
 		FocusMotor::getData()[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-		FocusMotor::getData()[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
+		FocusMotor::getData()[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 		FocusMotor::getData()[s]->isEnable = 1;
 		FocusMotor::getData()[s]->isaccelerated = 0;
+		FocusMotor::getData()[s]->isStop = 0;
+		FocusMotor::getData()[s]->stopped = false;
 		FocusMotor::startStepper(s, false);
 		if (s == Stepper::Z and FocusMotor::isDualAxisZ)
 		{
-			// we may have a dual axis so we would need to start A too
+			// we may have a dual axis so we would need to start A too	
 			log_i("Starting A too");
 			FocusMotor::getData()[Stepper::A]->isforever = true;
 			FocusMotor::getData()[Stepper::A]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-			FocusMotor::getData()[Stepper::A]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeMaxspeed);
+			FocusMotor::getData()[Stepper::A]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 			FocusMotor::getData()[Stepper::A]->isEnable = 1;
 			FocusMotor::getData()[Stepper::A]->isaccelerated = 0;
+			FocusMotor::getData()[Stepper::A]->isStop = 0;
+			FocusMotor::getData()[Stepper::A]->stopped = false;
 			FocusMotor::startStepper(Stepper::A, false);
 		}
+		delay(50); // give the motor some time to start
 		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, hdata[s]->homeDirection);
 	}
 
@@ -233,6 +239,7 @@ namespace HomeMotor
 		if (hdata[s]->homeIsActive)
 		{
 			HomeState homeState = i2c_master::pullHomeStateFromI2CDriver(s);
+			log_i("Home State is : %i", homeState.isHoming);
 			bool isHoming = homeState.isHoming;
 			if (!isHoming)
 			{
@@ -279,11 +286,13 @@ namespace HomeMotor
 		{	// RELEASE MODE 2
 			log_i("Home Motor %i in endpos release mode %i", s, hdata[s]->homeInEndposReleaseMode);
 			FocusMotor::stopStepper(s);
+			delay(200);
 			FocusMotor::setPosition(s, 0);
 			if (s == Stepper::Z and (FocusMotor::isDualAxisZ))
 			{
 				// we may have a dual axis so we would need to start A too
 				FocusMotor::stopStepper(Stepper::A);
+				delay(200);
 				FocusMotor::setPosition(Stepper::A, 0);
 				getData()[Stepper::A]->isforever = false;
 			}
@@ -293,7 +302,6 @@ namespace HomeMotor
 		else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode == 3)
 		{
 			// updating clients
-			log_i("Home Motor X done");
 			FocusMotor::setPosition(s, 0);
 			FocusMotor::sendMotorPos(s, 0);
 			sendHomeDone(s);
@@ -314,6 +322,12 @@ namespace HomeMotor
 
 // expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 //  0=A , 1=X, 2=Y , 3=Z
+#ifdef I2C_MASTER && defined I2C_MOTOR
+// checking remotely
+		checkAndProcessHome(Stepper::X, 0);
+		checkAndProcessHome(Stepper::Y, 0);
+		checkAndProcessHome(Stepper::Z, 0);
+#endif
 #if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
 			checkAndProcessHome(Stepper::X, DigitalInController::getDigitalVal(1));
 			checkAndProcessHome(Stepper::Y, DigitalInController::getDigitalVal(2));

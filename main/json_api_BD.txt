@@ -118,10 +118,11 @@
 First:
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 5000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
 
+{"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 1, "posval": 100}]}}
 {"task":"/motor_get"}
 
 {"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":0, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}

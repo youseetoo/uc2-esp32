@@ -19,7 +19,7 @@ namespace PidController
 		PID_target = cJsonTool::getJsonInt(ob, key_target);
 		PID_updaterate = cJsonTool::getJsonInt(ob, key_PID_updaterate);
 		// here you can do something
-		if (DEBUG)
+		if (isDEBUG)
 			log_d("PID_act_fct");
 
 		if (!PID_active)
@@ -83,7 +83,7 @@ namespace PidController
 		errorRunSum = errorRunSum + error;
 		previousError = error;
 
-		if (DEBUG)
+		if (isDEBUG)
 			log_d("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
 		return stepperOut;
 	}
@@ -92,7 +92,7 @@ namespace PidController
 	// returns json {"pid":{...}} as qid
 	cJSON *get(cJSON *ob)
 	{
-		if (DEBUG)
+		if (isDEBUG)
 			log_d("PID_get_fct");
 		int PIDID = cJsonTool::getJsonInt(ob, key_PIDID);
 		int PIDPIN = 0;

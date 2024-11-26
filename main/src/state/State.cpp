@@ -23,13 +23,13 @@ namespace State
 	// {"task":"/state_act", "delay":1000}
 	// {"task":"/state_act", "isBusy":1}
 	// {"task":"/state_act", "resetPreferences":1}
-	// {"task":"/state_act", "debug":0} // 0-5
+	// {"task":"/state_act", "isDEBUG":0} // 0-5
 
 	// Custom function accessible by the API
 	int act(cJSON *doc)
 	{
 		// here you can do something
-		if (DEBUG)
+		if (isDEBUG)
 			log_i("state_act_fct");
 
 		cJSON *restart = cJSON_GetObjectItemCaseSensitive(doc, "restart");
@@ -54,12 +54,14 @@ namespace State
 			delay(mdelayms);
 		}
 		// set debug level
+		/*
 		cJSON *debug = cJSON_GetObjectItemCaseSensitive(doc, "debug");
 		if (debug != NULL)
 		{
-			DEBUG = debug->valueint;
-			esp_log_level_set("MessageController", (esp_log_level_t)DEBUG);
+			isDEBUG = debug->valueint;
+			esp_log_level_set("MessageController", (esp_log_level_t)isDEBUG);
 		}
+		*/
 		// assign default values to thhe variables
 		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(doc, "isBusy");
 		if (BUSY != NULL)
@@ -134,9 +136,9 @@ namespace State
 
 	void printInfo()
 	{
-		if (DEBUG)
+		if (isDEBUG)
 			log_i("You can use this software by sending JSON strings, A full documentation can be found here:");
-		if (DEBUG)
+		if (isDEBUG)
 			log_i("https://github.com/openUC2/UC2-REST/");
 		// log_i("A first try can be: \{\"task\": \"/state_get\"");
 	}

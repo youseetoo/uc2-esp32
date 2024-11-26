@@ -60,7 +60,7 @@ namespace FAccelStep
             }
         }
 
-        /*
+        
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -71,8 +71,8 @@ namespace FAccelStep
               getData()[i]->isaccelerated,
               getData()[i]->acceleration,
               getData()[i]->stopped,
-              faststeppers[i]->isRunning());
-              */
+              isRunning(i));
+              
     }
 
     void setupFastAccelStepper()

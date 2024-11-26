@@ -23,7 +23,7 @@ struct HomeState
 {
 	bool isHoming = false;
 	bool isHomed = false;
-	int homehomeInEndposReleaseMode = 0;
+	int homeInEndposReleaseMode = 0;
 };
 
 void processHomeLoop(void * p);
@@ -31,7 +31,7 @@ void processHomeLoop(void * p);
 namespace HomeMotor
 {
 
-	static bool DEBUG = true;
+	static bool isDEBUG = true;
 	static int homeEndposRelease = 2000;
 	static bool isHoming = false;
 

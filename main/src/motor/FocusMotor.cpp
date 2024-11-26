@@ -720,6 +720,13 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 #endif
 	}
 
+	long getPosition(Stepper s)
+	{
+		log_i("Getting motor %i position", s);
+		updateData(s);
+		return getData()[s]->currentPosition;
+	}
+
 	void setPosition(Stepper s, int pos)
 	{
 #ifdef USE_FASTACCEL

@@ -22,7 +22,7 @@ void processHomeLoop(void * p);
 namespace EncoderController
 {
 
-	static bool DEBUG = true;
+	static bool isDEBUG = true;
 	static int homeEndposRelease = 2000;
 	static bool isHoming = false;
 	static std::array<EncoderData *, 4> edata;

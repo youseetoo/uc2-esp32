@@ -1,4 +1,4 @@
-#define CORE_DEBUG_LEVEL 0
+#define CORE_isDEBUG_LEVEL 0
 #include "esp_log.h"
 #include <PinConfig.h>
 #include "src/config/ConfigController.h"
@@ -206,7 +206,7 @@ extern "C" void setupApp(void)
 
 	log_i("SetupApp");
 	// setup debugging level
-	// esp_log_level_set("*", ESP_LOG_DEBUG);
+	// esp_log_level_set("*", ESP_LOG_isDEBUG);
 
 	SerialProcess::setup();
 #ifdef DIAL_CONTROLLER

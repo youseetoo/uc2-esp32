@@ -78,6 +78,7 @@ namespace i2c_slave_motor
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+            FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
         }
         else if (numBytes == sizeof(HomeData))
@@ -169,8 +170,10 @@ namespace i2c_slave_motor
             // The master request data from the slave
             HomeState homeState;
             bool isHoming = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeIsActive;
+            int homeInEndposReleaseMode = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeInEndposReleaseMode;
             homeState.isHoming = isHoming;
-            Serial.println("home is running: " + String(homeState.isHoming));
+            homeState.homeInEndposReleaseMode = homeInEndposReleaseMode;
+            log_i("Home is running: %i, in endpos release mode: %i", isHoming, homeInEndposReleaseMode);
             Wire.write((uint8_t *)&homeState, sizeof(HomeState));
         }
         else

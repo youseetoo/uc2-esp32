@@ -5,7 +5,7 @@
 
 namespace ScannerController
 {
-    static bool DEBUG = false;
+    static bool isDEBUG = false;
 
     static bool isScanRunning = false;
     static int scannerPinX = 25;

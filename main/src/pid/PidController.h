@@ -11,7 +11,7 @@ namespace PidController
     /* data */
     long returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd);
 
-    static bool DEBUG = false;
+    static bool isDEBUG = false;
 
     static float errorRunSum=0;
     static float previousError=0;

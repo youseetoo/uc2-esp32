@@ -8,7 +8,7 @@ namespace DacController
 {
     static DAC_Module *dacm;
 
-    static bool DEBUG = false;
+    static bool isDEBUG = false;
 
     // DAC-specific parameters
     #ifndef ESP32S3_MODEL_XIAO

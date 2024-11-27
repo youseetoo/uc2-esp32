@@ -246,6 +246,7 @@ namespace HomeMotor
 				log_i("Home Motor %i is done", s);
 				sendHomeDone(s);
 				hdata[s]->homeIsActive = false;
+				FocusMotor::sendMotorPos(s, 0);
 			}
 		}
 #else

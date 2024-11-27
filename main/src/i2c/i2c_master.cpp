@@ -139,7 +139,6 @@ namespace i2c_master
         uint8_t slave_addr = axis2address(axis);
         Wire.beginTransmission(slave_addr);
         int err = 0;
-        log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped);
         if (reduced)
         {
             // if we only want to send position, etc. we can reduce the size of the data
@@ -180,7 +179,8 @@ namespace i2c_master
         if (data != nullptr)
         {
             positionsPushedToDial = false;
-            waitForFirstRunI2CSlave[axis] = true;
+            data->isStop = false; // ensure isStop is false
+            data->stopped = false;
             sendMotorDataToI2CDriver(*data, axis, reduced);
         }
         else
@@ -191,11 +191,10 @@ namespace i2c_master
 
     void stopStepper(MotorData *data, int axis)
     {
-        // esp_backtrace_print(10);
+        esp_backtrace_print(10);
         //  only send motor data if it was running before
         log_i("Stop Motor in I2C Master");
         sendMotorDataToI2CDriver(*data, axis, false);
-        waitForFirstRunI2CSlave[axis] = false; // reset the flag
     }
 
     void setPosition(Stepper s, int pos)

@@ -5,6 +5,7 @@
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
 #include "../state/State.h"
+#include "esp_debug_helpers.h"
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -107,6 +108,7 @@ namespace FocusMotor
 	{
 		// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
 		//  ensure isStop is false
+		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
 		uint8_t slave_addr = i2c_master::axis2address(axis);
@@ -126,7 +128,6 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(axis);
 #endif
-	getData()[axis]->isStop = false;
 	getData()[axis]->stopped = false;
 
 	}
@@ -219,6 +220,22 @@ namespace FocusMotor
 			return true; // motor will return pos per socket or serial inside loop. act is fire and forget
 		}
 		return false;
+	}
+
+	void moveMotor(long pos, int s, bool isRelative)
+	{
+		// move motor
+		// blocking = true => wait until motor is done
+		// blocking = false => fire and forget
+		data[s]->targetPosition = pos;
+		data[s]->isforever = false;
+		data[s]->absolutePosition = !isRelative;
+		data[s]->isStop = false;
+		data[s]->stopped = false;
+		data[s]->speed	= 2000;
+		data[s]->acceleration = 1000;
+		data[s]->isaccelerated = 1;
+		startStepper(s, false);
 	}
 
 	void enable(bool en)
@@ -579,6 +596,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 		// send stop signal to all motors and update motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
+			moveMotor(1, iMotor, true);// wake up motor
 			data[iMotor]->isActivated = true;
 			stopStepper(iMotor);
 			MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(iMotor);
@@ -609,7 +627,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 			}
 
 			//log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (!mIsRunning && !data[i]->stopped)
+			if (!mIsRunning && !data[i]->stopped && !data[i]->isforever)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
@@ -694,6 +712,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
+		//esp_backtrace_print(10);
 		log_i("stopStepper I2C_MASTER Focus Motor %i", i);
 		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
@@ -704,6 +723,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 		}
 #endif
 
+		log_i("stopStepper Focus Motor %i", i);
 		// only send motor data if it was running before
 		if (!data[i]->stopped)
 			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP

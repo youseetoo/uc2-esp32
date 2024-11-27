@@ -112,8 +112,10 @@ namespace BtController
             getData()[s]->speed = value;
             getData()[s]->isforever = true;
             getData()[s]->acceleration = MAX_ACCELERATION_A;
-            log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
-            FocusMotor::startStepper(s, true);
+            getData()[s]->isStop = false;
+            
+            FocusMotor::startStepper(s, false); // first time => send full information
+            
             if (s == Stepper::X)
                 joystick_drive_X = true;
             if (s == Stepper::Y)
@@ -444,6 +446,7 @@ namespace BtController
                 }
 #endif
             }
+            
     }
 
     cJSON *scanForDevices(cJSON *doc)

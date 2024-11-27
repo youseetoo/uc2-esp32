@@ -16,6 +16,8 @@ namespace BtController
     static int stick_rx = 0;
     static int stick_ry = 0;
 
+    // array that stores first runs of motors 
+    static bool firstRun[4] = {true, true, true, true};
     // Declare previous state variables
     static bool prevUp = false;
     static bool prevDown = false;

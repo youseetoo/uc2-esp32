@@ -170,7 +170,7 @@ namespace i2c_master
         }
         else
         {
-            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped);
+            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever);
         }
     }
 
@@ -191,9 +191,9 @@ namespace i2c_master
 
     void stopStepper(MotorData *data, int axis)
     {
-        esp_backtrace_print(10);
+        //esp_backtrace_print(10);
         //  only send motor data if it was running before
-        log_i("Stop Motor in I2C Master");
+        log_i("Stop Motor %i in I2C Master", axis);
         sendMotorDataToI2CDriver(*data, axis, false);
     }
 

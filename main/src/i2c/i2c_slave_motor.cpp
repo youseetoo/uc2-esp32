@@ -4,6 +4,7 @@
 #include "../motor/FocusMotor.h"
 #include "../home/HomeMotor.h"
 #include "../tmc/TMCController.h"
+#include "../state/State.h"
 
 using namespace FocusMotor;
 using namespace HomeMotor;
@@ -136,6 +137,16 @@ namespace i2c_slave_motor
             case I2C_REQUESTS::REQUEST_HOMESTATE:
                 break;
             case I2C_REQUESTS::REQUEST_TMCDATA:
+                break;
+            case I2C_REQUESTS::REQUEST_OTAUPDATE:
+                // start ota server 
+                log_i("Starting OTA");
+                State::startOTA();
+                break;
+            case I2C_REQUESTS::REQUEST_REBOOT:
+                // reboot the device
+                log_i("Rebooting device");
+                ESP.restart();
                 break;
             default:
                 log_e("Unknown Request Type");

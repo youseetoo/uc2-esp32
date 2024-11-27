@@ -613,7 +613,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
+				//log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);

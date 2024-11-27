@@ -12,7 +12,9 @@ enum I2C_REQUESTS
     REQUEST_MOTORSTATE = 0,
     REQUEST_HOMESTATE = 1,
     REQUEST_LASER_DATA = 2,
-    REQUEST_TMCDATA = 3
+    REQUEST_TMCDATA = 3, 
+    REQUEST_OTAUPDATE = 4, 
+    REQUEST_REBOOT = 5
 };
 namespace i2c_master
 {
@@ -41,6 +43,8 @@ namespace i2c_master
     long getMotorPosition(int i);
     void setPosition(Stepper s, int pos);
     void setPositionI2CDriver(Stepper s, long pos);
+    void startOTA(int axis=-1);
+    void reboot();
 
     MotorState getMotorState(int i);
     void parseMotorJsonI2C(cJSON *doc);

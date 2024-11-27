@@ -10,6 +10,7 @@
 #include <WiFiAP.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
+#include "../i2c/i2c_master.h"
 
 namespace State
 {
@@ -36,14 +37,17 @@ namespace State
 		// assign default values to thhe variables
 		if (restart != NULL)
 		{
-			//{"task": "/state_act", "restart": 1}
+			// {"task": "/state_act", "restart": 1}
+			#ifdef I2C_MASTER
+			i2c_master::reboot();
+			#endif
 			ESP.restart();
 		}
 
 		cJSON *ota = cJSON_GetObjectItemCaseSensitive(doc, "ota");
 		if (ota != NULL)
 		{
-			//{"task": "/state_act", "ota": 1}
+			// {"task": "/state_act", "ota": 1}
 			startOTA();
 		}
 		// assign default values to thhe variables
@@ -149,6 +153,11 @@ namespace State
 		// and start an OTA server
 		// This is a blocking function
 
+		#ifdef I2C_MASTER
+		// send OTA Trigger to device
+		i2c_master::startOTA();
+		#elif defined(I2C_SLAVE_MOTOR)
+
 		// close any ongoing wifi connection
 		WiFi.disconnect(true);
 
@@ -161,8 +170,7 @@ namespace State
 		// Start the Wi-Fi access point
 		WiFi.softAP(ssid.c_str());
 		IPAddress IP = WiFi.softAPIP();
-		Serial.print("Access Point started. IP address: ");
-		Serial.println(IP);
+		log_i("OTA server started on %s", IP.toString().c_str());
 
 		// Set up mDNS responder for local hostname resolution
 		if (!MDNS.begin("esp32"))
@@ -170,7 +178,7 @@ namespace State
 			Serial.println("Error starting mDNS");
 			return;
 		}
-		Serial.println("mDNS responder started");
+		log_i("mDNS responder started");
 
 		// Configure and start OTA server
 		ArduinoOTA.onStart([]()
@@ -203,7 +211,7 @@ namespace State
             Serial.println("End Failed"); });
 
 		ArduinoOTA.begin();
-		Serial.println("OTA server started");
+		log_i("OTA server started");
 
 		// Blocking loop to handle OTA updates
 		long cTime = millis();
@@ -211,12 +219,15 @@ namespace State
 		{
 			ArduinoOTA.handle();
 			delay(100);
-			if (millis() - cTime > 10000)
+			if (millis() - cTime > 30000)
 			{
 				log_i("Timeout, stopping OTA");
 				break;
 			}
 		}
+		#else
+		log_i("No OTA for this device");
+		#endif
 	}
 
 	cJSON *getModules()

@@ -67,7 +67,7 @@ namespace MessageController
 		cJSON_AddItemToObject(message, "key", jsonkey);
 		cJSON_AddItemToObject(message, "data", jsonvalue);
 		Serial.println("++");
-		char *ret = cJSON_Print(json);
+		char *ret = cJSON_PrintUnformatted(json);
 		cJSON_Delete(json);  // Only delete the top-level object
 		Serial.println(ret);
 		free(ret);

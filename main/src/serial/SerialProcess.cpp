@@ -167,7 +167,7 @@ namespace SerialProcess
 		if (doc != NULL)
 		{
 			// Print the JSON document to a string
-			char *s = cJSON_Print(doc);
+			char *s = cJSON_PrintUnformatted(doc);
 			if (s != NULL)
 			{
 				Serial.println(s);
@@ -200,7 +200,7 @@ namespace SerialProcess
 		Serial.println("++");
 
 		// Print the JSON document to a string
-		char *s = cJSON_Print(doc);
+		char *s = cJSON_PrintUnformatted(doc);
 		if (s != NULL)
 		{
 			Serial.println(s);

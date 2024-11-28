@@ -116,9 +116,6 @@
 {"task":"/tmc_act", "msteps":16, "rms_current":400, "axis": 1}
 
 First (MAIK):
-
-
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction": -1, "endstoppolarity": 0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
@@ -132,6 +129,8 @@ First (MAIK):
 
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 1000, "isforever":1, "isabs": 0, "isaccel":0}]}}
 
 
 {"task":"/tmc_act", "msteps":4, "rms_current":700, "sgthrs":0, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}

@@ -34,6 +34,7 @@ namespace HomeMotor
 	static bool isDEBUG = true;
 	static int homeEndposRelease = 2000;
 	static bool isHoming = false;
+	static bool isDualAxisZ = false;
 
 	int act(cJSON * ob);
 	cJSON * get(cJSON * ob);
@@ -42,7 +43,7 @@ namespace HomeMotor
     void checkAndProcessHome(Stepper s, int digitalin_val);
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
 	HomeData** getHomeData();
 
 };

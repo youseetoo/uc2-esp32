@@ -56,7 +56,7 @@ namespace WifiController
 	void sendJsonWebSocketMsg(cJSON *doc)
 	{
 		// log_i("socket broadcast");
-		char *s = cJSON_Print(doc);
+		char *s = cJSON_PrintUnformatted(doc);
 		if(s != nullptr && strlen(s) > 0)
 			httpsServer.sendText(s);
 		free(s);

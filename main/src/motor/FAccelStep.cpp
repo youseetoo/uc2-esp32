@@ -27,7 +27,12 @@ namespace FAccelStep
         }
 
         faststeppers[i]->setSpeedInHz(speed);
-        faststeppers[i]->setAcceleration(getData()[i]->acceleration);
+        if(getData()[i]->acceleration <= 0) {
+            faststeppers[i]->setAcceleration(getData()[i]->acceleration);
+        }
+        else{
+            faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
+        }
 
         getData()[i]->stopped = false;
         if (getData()[i]->isforever)

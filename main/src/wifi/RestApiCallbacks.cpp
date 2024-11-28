@@ -121,7 +121,7 @@ namespace RestApi
     {
         httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
         httpd_resp_set_type(req, "application/json");
-        char *s = cJSON_Print(doc);
+        char *s = cJSON_PrintUnformatted(doc);
         // log_i("send:%s", s);
         httpd_resp_send(req, s, strlen(s));
         free(s);

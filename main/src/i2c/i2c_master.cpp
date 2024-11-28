@@ -256,6 +256,7 @@ namespace i2c_master
 
     HomeState pullHomeStateFromI2CDriver(int axis)
     {
+        
         // we pull the data from the slave's register
         uint8_t slave_addr = axis2address(axis);
 

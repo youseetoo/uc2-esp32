@@ -8,6 +8,7 @@ const long DEFAULT_ACCELERATION = 500000;
 struct MotorState {
 	long currentPosition = 0;
 	bool isRunning = 0;
+	//bool isForever = 0;
 };
 
 struct MotorDataI2C

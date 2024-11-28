@@ -99,7 +99,12 @@ namespace i2c_slave_motor
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
-            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            log_i("Received HomeData from I2C, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
+            // TODO: absolutely no clue, but it seems the first one does have a wrong state and does not run 
+            //delay(50);
+            //HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
+
         }
         else if (numBytes == sizeof(TMCData))
         {
@@ -171,8 +176,10 @@ namespace i2c_slave_motor
             MotorState motorState;
             bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
             long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
+            bool isForever = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->isforever;
             motorState.currentPosition = currentPosition;
             motorState.isRunning = isRunning;
+            // motorState.isForever = isForever;
             //log_i("Motor is running: %i, at position: %i", isRunning, currentPosition);
             Wire.write((uint8_t *)&motorState, sizeof(MotorState));
         }

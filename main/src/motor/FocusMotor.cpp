@@ -90,7 +90,7 @@ namespace FocusMotor
 #endif
 				// print result - will that work in the case of an xTask?
 				Serial.println("++");
-				char *s = cJSON_Print(root);
+				char *s = cJSON_PrintUnformatted(root);
 				Serial.println(s);
 				free(s);
 				Serial.println("--");
@@ -128,8 +128,7 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(axis);
 #endif
-	getData()[axis]->stopped = false;
-
+		getData()[axis]->stopped = false;
 	}
 
 	void parseMotorDriveJson(cJSON *doc)
@@ -232,7 +231,7 @@ namespace FocusMotor
 		data[s]->absolutePosition = !isRelative;
 		data[s]->isStop = false;
 		data[s]->stopped = false;
-		data[s]->speed	= 2000;
+		data[s]->speed = 2000;
 		data[s]->acceleration = 1000;
 		data[s]->isaccelerated = 1;
 		startStepper(s, false);
@@ -425,7 +424,7 @@ namespace FocusMotor
 			{
 				// update position and push it to the json
 				log_i("get motor config");
-				updateData(i); 
+				updateData(i);
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
@@ -455,6 +454,7 @@ namespace FocusMotor
 #elif defined I2C_MASTER
 		MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
+		// data[axis]->isforever = mMotorState.isforever;
 #endif
 	}
 
@@ -507,7 +507,7 @@ namespace FocusMotor
 		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
 		preferences.end();
 
-		// setup motor pins 
+		// setup motor pins
 		log_i("Setting Up Motor A,X,Y,Z");
 #ifdef USE_FASTACCEL || USE_ACCELSTEP
 		preferences.begin("motpos", false);
@@ -580,15 +580,15 @@ namespace FocusMotor
 			delay(10);
 			stopStepper(iMotor);
 		}
-#else 
-// send motor positions 
-for (int iMotor = 0; iMotor < 4; iMotor++)
-{
-	if ( data[iMotor]->isActivated )
-	{
-		sendMotorPos(iMotor, 0);
-	}
-}
+#else
+		// send motor positions
+		for (int iMotor = 0; iMotor < 4; iMotor++)
+		{
+			if (data[iMotor]->isActivated)
+			{
+				sendMotorPos(iMotor, 0);
+			}
+		}
 #endif // TCA9535
 
 #endif
@@ -596,7 +596,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 		// send stop signal to all motors and update motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
-			moveMotor(1, iMotor, true);// wake up motor
+			moveMotor(1, iMotor, true); // wake up motor
 			data[iMotor]->isActivated = true;
 			stopStepper(iMotor);
 			MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(iMotor);
@@ -626,7 +626,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 				mIsRunning = isRunning(i);
 			}
 
-			//log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
 			if (!mIsRunning && !data[i]->stopped && !data[i]->isforever)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
@@ -696,7 +696,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 
 		// Print result - will that work in the case of an xTask?
 		Serial.println("++");
-		char *s = cJSON_Print(root);
+		char *s = cJSON_PrintUnformatted(root);
 		if (s != NULL)
 		{
 			Serial.println(s);
@@ -712,7 +712,7 @@ for (int iMotor = 0; iMotor < 4; iMotor++)
 
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
-		//esp_backtrace_print(10);
+		// esp_backtrace_print(10);
 		log_i("stopStepper I2C_MASTER Focus Motor %i", i);
 		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))

@@ -475,6 +475,9 @@ namespace FocusMotor
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
 		parseSetPosition(doc);
 
+		// set axis of motors
+		parseSetAxis(doc);
+
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);

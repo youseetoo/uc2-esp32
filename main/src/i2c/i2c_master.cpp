@@ -248,7 +248,7 @@ namespace i2c_master
         {
             log_i("Home data sent to I2C slave at address %i", slave_addr);
             // need to put the motor into driving state so that a stop can be identified
-            getData()[axis]->stopped = false;
+            // getData()[axis]->stopped = false; // TODO: FIXME
             getData()[axis]->qid = homeData.qid;
             // TODO: Renew i2c_master::setMotorStopped(axis, false);
         }
@@ -266,10 +266,6 @@ namespace i2c_master
             // log_e("Error: I2C slave address %i not found in i2cAddresses", slave_addr);
             return HomeState();
         }
-        // First send the request-code to the slave
-        Wire.beginTransmission(slave_addr);
-        Wire.write(REQUEST_HOMESTATE);
-        Wire.endTransmission();
 
         // read the data from the slave
         const int maxRetries = 2;
@@ -278,6 +274,11 @@ namespace i2c_master
         HomeState homeState; // Initialize with default values
         while (retryCount < maxRetries && !success)
         {
+            // First send the request-code to the slave
+            Wire.beginTransmission(slave_addr);
+            Wire.write(REQUEST_HOMESTATE);
+            Wire.endTransmission();
+
             // temporarily disable watchdog in case of slow I2C communication
             Wire.requestFrom(slave_addr, sizeof(HomeState));
             if (Wire.available() == sizeof(HomeState))
@@ -322,7 +323,7 @@ namespace i2c_master
         uint8_t slave_addr = pinConfig.I2C_ADD_M5_DIAL;
         if (!isAddressInI2CDevices(slave_addr))
         {
-            log_e("Error (push): Dial address not found in i2cAddresses");
+            //log_e("Error (push): Dial address not found in i2cAddresses");
             return;
         }
         Wire.beginTransmission(slave_addr);
@@ -393,6 +394,7 @@ namespace i2c_master
      * TMC
      ***************************************/
 
+    #ifdef TMC_CONTROLLER
     void sendTMCDataI2C(TMCData tmcData, uint8_t axis)
     {
         // we send the TMC data to the slave via I2C
@@ -417,6 +419,7 @@ namespace i2c_master
             log_i("TMC data sent to I2C slave at address %i", slave_addr);
         }
     }
+    #endif
 
     int act(cJSON *doc)
     {
@@ -461,12 +464,14 @@ namespace i2c_master
         int retryCount = 0;
         bool success = false;
         MotorState motorState; // Initialize with default values
-        // First we need to tell the slave which data to send
-        Wire.beginTransmission(slave_addr);
-        Wire.write(I2C_REQUESTS::REQUEST_MOTORSTATE); // Send a code to the slave to request the data
-        Wire.endTransmission();
         while (retryCount < maxRetries && !success)
         {
+            // First we need to tell the slave which data to send
+            Wire.beginTransmission(slave_addr);
+            Wire.write(I2C_REQUESTS::REQUEST_MOTORSTATE); // Send a code to the slave to request the data
+            Wire.endTransmission();
+            delay(10); // Wait a bit before requesting the data
+
             // temporarily disable watchdog in case of slow I2C communication
             Wire.requestFrom(slave_addr, sizeof(MotorState));
             if (Wire.available() == sizeof(MotorState))
@@ -500,7 +505,7 @@ namespace i2c_master
         // Request data from the slave but only if inside i2cAddresses
         if (!isAddressInI2CDevices(slave_addr))
         {
-            log_e("Error (pull): Dial address not found in i2cAddresses");
+            //log_e("Error (pull): Dial address not found in i2cAddresses");
             return;
         }
 

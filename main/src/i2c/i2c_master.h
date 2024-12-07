@@ -3,9 +3,11 @@
 #include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
 #include "../home/HomeMotor.h"
-#include "../tmc/TMCController.h"
 #include "cJsonTool.h"
 #include "cJSON.h"
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
 
 enum I2C_REQUESTS
 {
@@ -36,7 +38,9 @@ namespace i2c_master
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);
+    #ifdef TMC_CONTROLLER
     void sendTMCDataI2C(TMCData tmcData, uint8_t id);
+    #endif
     MotorState pullMotorDataI2CDriver(int axis);
     HomeState pullHomeStateFromI2CDriver(int axis);
     void updateMotorData(int i);    

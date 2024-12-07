@@ -94,12 +94,7 @@ namespace HomeMotor
 		hdata[axis]->homeMaxspeed = homeMaxspeed;
 		hdata[axis]->homeEndStopPolarity = homeEndStopPolarity;
 		hdata[axis]->qid = 0;
-		hdata[axis]->homeInEndposReleaseMode = 0;
 		
-		// grab current time
-		hdata[axis]->homeTimeStarted = millis();
-		hdata[axis]->homeIsActive = true;
-
 		// assign qid/dualaxisz
 		hdata[axis]->qid = qid;
 		isDualAxisZ = isDualAxisZ;
@@ -125,6 +120,11 @@ namespace HomeMotor
 		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		runStepper(axis);
+		// grab current time AFTER we start
+		hdata[axis]->homeInEndposReleaseMode = 0;
+		hdata[axis]->homeTimeStarted = millis();
+		hdata[axis]->homeIsActive = true;
+
 	}
 
 	void runStepper(int s)
@@ -241,13 +241,12 @@ namespace HomeMotor
 		if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) &&
 			hdata[s]->homeInEndposReleaseMode == 0)
 		{	// RELEASE MODE 0
-			log_i("Home Motor %i in endpos release mode %i", s, hdata[s]->homeInEndposReleaseMode);
 			// homeInEndposReleaseMode = 0 means we are not in endpos release mode
 			// homeInEndposReleaseMode = 1 means we are in endpos release mode
 			// homeInEndposReleaseMode = 2 means we are done
 			// reverse direction to release endstops
-
-			hdata[s]->homeInEndposReleaseMode = 1;
+			log_i("Home Motor %i in endpos release mode  %i", s, hdata[s]->homeInEndposReleaseMode);
+			log_i("Motor speed was %i and will be %i", getData()[s]->speed, -getData()[s]->speed);
 			getData()[s]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 			getData()[s]->isforever = true;
 			getData()[s]->acceleration = MAX_ACCELERATION_A;
@@ -258,7 +257,8 @@ namespace HomeMotor
 				getData()[Stepper::A]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 				getData()[Stepper::A]->isforever = true;
 			}
-			log_i("Motor speed was %i and will be %i", getData()[s]->speed, -getData()[s]->speed);
+			delay(20);
+			hdata[s]->homeInEndposReleaseMode = 1;
 		}
 		else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode == 1)
 		{	// RELEASE MODE 1

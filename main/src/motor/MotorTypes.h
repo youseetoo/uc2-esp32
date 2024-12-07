@@ -51,6 +51,7 @@ struct MotorData
 	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
 	int dirPin = -1;
 	int stpPin = -1;
+	
 }__attribute__((packed));
 
 

@@ -122,6 +122,7 @@ namespace FocusMotor
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			MotorData *m = getData()[axis];
 			i2c_master::startStepper(m, axis, reduced);
+			waitForFirstRun[axis] = 1;
 		}
 #elif defined USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(axis);
@@ -622,6 +623,13 @@ namespace FocusMotor
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
+			#ifdef I2C_MASTER
+			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
+			if(waitForFirstRun[i]){
+				waitForFirstRun[i] = 0;
+				continue;
+			}
+			#endif
 			bool mIsRunning = false;
 			// we check if the motor was defined
 			if (getData()[i]->isActivated)

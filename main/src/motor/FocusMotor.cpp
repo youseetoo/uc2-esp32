@@ -27,6 +27,9 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
+#ifdef CAN_MASTER
+#include "../can/can_master.h"
+#endif
 
 namespace FocusMotor
 {
@@ -122,6 +125,21 @@ namespace FocusMotor
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			MotorData *m = getData()[axis];
 			i2c_master::startStepper(m, axis, reduced);
+			waitForFirstRun[axis] = 1;
+		}
+#elif defined(CAN_MASTER) && defined(CAN_MOTOR)
+		// send the motor data to the slave
+		uint8_t slave_addr = can_master::axis2address(axis);
+		if (!can_master::isAddressInI2CDevices(slave_addr))
+		{
+			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+		}
+		else
+		{
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			MotorData *m = getData()[axis];
+			can_master::startStepper(m, axis, reduced);
 			waitForFirstRun[axis] = 1;
 		}
 #elif defined USE_FASTACCEL
@@ -453,7 +471,7 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::updateData(axis);
 #elif defined I2C_MASTER
-		MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(axis);
+		MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
 		// data[axis]->isforever = mMotorState.isforever;
 #endif
@@ -603,7 +621,7 @@ namespace FocusMotor
 			moveMotor(1, iMotor, true); // wake up motor
 			data[iMotor]->isActivated = true;
 			stopStepper(iMotor);
-			MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(iMotor);
+			MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(iMotor);
 			data[iMotor]->currentPosition = mMotorState.currentPosition;
 		}
 #endif

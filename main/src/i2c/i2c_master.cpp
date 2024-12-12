@@ -41,7 +41,7 @@ namespace i2c_master
     int numDevices = 0;                 // Variable to keep track of number of devices found
     int i2cRescanTick = 0;              // Variable to keep track of number of devices found
     int i2cRescanAfterNTicks = -1;      // Variable to keep track of number of devices found
-    int pullMotorDataI2CDriverTick[4] = {0, 0, 0, 0};
+    int pullMotorDataReducedDriverTick[4] = {0, 0, 0, 0};
 #ifdef DIAL_CONTROLLER
     DialData mDialData;
     DialData mDialDataOld;
@@ -120,7 +120,7 @@ namespace i2c_master
 
     MotorState getMotorState(int i)
     {
-        MotorState mMotorState = pullMotorDataI2CDriver(i);
+        MotorState mMotorState = pullMotorDataReducedDriver(i);
         return mMotorState;
     }
 
@@ -142,7 +142,7 @@ namespace i2c_master
         if (reduced)
         {
             // if we only want to send position, etc. we can reduce the size of the data
-            MotorDataI2C reducedData;
+            MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
             reducedData.isforever = motorData.isforever;
             reducedData.absolutePosition = motorData.absolutePosition;
@@ -150,7 +150,7 @@ namespace i2c_master
             reducedData.isStop = motorData.isStop;
 
             uint8_t *dataPtr = (uint8_t *)&reducedData;
-            int dataSize = sizeof(MotorDataI2C);
+            int dataSize = sizeof(MotorDataReduced);
             // Send the byte array over I2C
             Wire.write(dataPtr, dataSize);
             err = Wire.endTransmission();
@@ -441,7 +441,7 @@ namespace i2c_master
         return ob;
     }
 
-    MotorState pullMotorDataI2CDriver(int axis)
+    MotorState pullMotorDataReducedDriver(int axis)
     {
         // log_i("Pulling motor data from I2C driver for axis %i", axis);
         //  we pull the data from the slave's register

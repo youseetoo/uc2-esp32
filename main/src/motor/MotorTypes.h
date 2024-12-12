@@ -11,7 +11,7 @@ struct MotorState {
 	//bool isForever = 0;
 };
 
-struct MotorDataI2C
+struct MotorDataReduced
 {
 	// a stripped down version of MotorData to be sent over I2C
 	long targetPosition = 0;

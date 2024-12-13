@@ -148,6 +148,11 @@ namespace FocusMotor
 		AccelStep::startAccelStepper(axis);
 #endif
 		getData()[axis]->stopped = false;
+
+#ifdef CAN_MOTOR_SLAVE
+	// We push the current state to the master to inform it that we are running and about the current position
+	can_master::sendMotorStateToMaster();
+#endif
 	}
 
 	void parseMotorDriveJson(cJSON *doc)
@@ -295,6 +300,9 @@ namespace FocusMotor
 				}
 			}
 		}
+#endif
+#ifdef CAN_SLAVE_MOTOR
+	log_i("Not implemented yet");
 #endif
 	}
 
@@ -474,6 +482,8 @@ namespace FocusMotor
 		MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
 		// data[axis]->isforever = mMotorState.isforever;
+#elif defined CAN_MASTER
+		// FIXME: nothing to do here since the position is assigned externally? 
 #endif
 	}
 
@@ -734,6 +744,10 @@ namespace FocusMotor
 		Serial.println("--");
 
 		cJSON_Delete(root); // Free the root object, which also frees all nested objects
+		#ifdef CAN_MOTOR_SLAVE
+		// We push the current state to the master to inform it that we are running and about the current position
+		can_master::sendMotorStateToMaster();
+		#endif
 	}
 
 	void stopStepper(int i)

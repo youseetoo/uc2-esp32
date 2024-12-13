@@ -38,6 +38,7 @@ motor defines
 const int8_t disabled = -1;
 
 
+#define LED_BUILTIN = 0; // for Xiao ESP32S3
 // will be used to differentiate between the different controllers for I2C 
 enum I2CControllerType : uint8_t
 {

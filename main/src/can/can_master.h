@@ -9,23 +9,58 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
+#include <ESP32-TWAI-CAN.hpp>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 
-enum CAN_REQUESTS
+#define CAN_RX_TASK_PRIORITY 5
+#define CAN_RX_TASK_STACK 4096
+#define CAN_QUEUE_LENGTH 10
+
+#define NODE_ID_MASK 0xF0      // Upper 4 bits for Node ID
+#define MESSAGE_TYPE_MASK 0x0F // Lower 4 bits for Message Type
+
+// struct for CAN messages
+struct CAN_MESSAGE_TYPE
 {
-    REQUEST_MOTORSTATE = 0,
-    REQUEST_HOMESTATE = 1,
-    REQUEST_LASER_DATA = 2,
-    REQUEST_TMCDATA = 3, 
-    REQUEST_OTAUPDATE = 4, 
-    REQUEST_REBOOT = 5
+    uint8_t MOTOR_ACT = 0;
+    uint8_t MOTOR_GET = 1;
+    uint8_t HOME_SET = 2;
+    uint8_t HOME_GET = 3;
+    uint8_t TMC_SET = 4;
+    uint8_t TMC_GET = 5;
+    uint8_t MOTOR_STATE = 6;
 };
+
+#define GET_NODE_ID(id)       ((id & NODE_ID_MASK) >> 4)
+#define GET_MESSAGE_TYPE(id)  (id & MESSAGE_TYPE_MASK)
+#define CREATE_CAN_ID(node, type) ((node << 4) | type)
+
+struct MultiFrameBuffer
+{
+    uint8_t buffer[256];
+    size_t totalSize;
+    size_t receivedSize;
+    uint8_t currentFrame;
+    bool complete;
+};
+
+struct CANMessage
+{
+    uint8_t nodeID;
+    uint8_t messageType;
+    uint8_t data[256];
+    size_t dataSize;
+};
+
+
 namespace can_master
 {
 
     // last laser intensity
     static int lastIntensity = 0;
     static bool waitForFirstRunCANSlave[4] = {false, false, false, false};
-
 
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
@@ -39,22 +74,20 @@ namespace can_master
     void sendHomeDataCAN(HomeData homeData, uint8_t axis);
     bool isAddressInCANDevices(byte addressToCheck);
     void sendLaserDataCAN(LaserData laserData, uint8_t id);
-    #ifdef TMC_CONTROLLER
-    void sendTMCDataCAN(TMCData tmcData, uint8_t id);
-    #endif
     MotorState pullMotorDataCANDriver(int axis);
     HomeState pullHomeStateFromCANDriver(int axis);
-    void updateMotorData(int i);    
+    void updateMotorData(int i);
     long getMotorPosition(int i);
     void setPosition(Stepper s, int pos);
     void setPositionCANDriver(Stepper s, long pos);
-    void startOTA(int axis=-1);
-    void reboot();
 
     MotorState getMotorState(int i);
     void parseMotorJsonCAN(cJSON *doc);
+    void CANListenerTask(void *param);
+    void processCANMessage(const CANMessage &message);
+    bool sendSegmentedDataCAN(uint16_t msgID, uint8_t messageType, void *data, size_t dataSize);
+    QueueHandle_t messageQueue;
+    MultiFrameBuffer multiFrameBuffers[16];
+    void sendMotorStateToMaster();
 
-    #ifdef DIAL_CONTROLLER
-    void pushMotorPosToDial();
-    #endif
-};
+} // namespace can_master

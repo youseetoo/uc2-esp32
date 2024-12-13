@@ -79,7 +79,6 @@ __attribute__ ((unused)) static const  char* readanalogin_get_endpoint = "/reada
 __attribute__ ((unused)) static const  char* PID_act_endpoint = "/PID_act";
 __attribute__ ((unused)) static const  char* PID_get_endpoint = "/PID_get";
 #endif
-#ifdef WIFI
 __attribute__ ((unused)) static const  char* features_endpoint = "/features_get";
 __attribute__ ((unused)) static const  char* identity_endpoint = "/identity";
 __attribute__ ((unused)) static const  char* ota_endpoint = "/ota";
@@ -87,7 +86,6 @@ __attribute__ ((unused)) static const  char* update_endpoint = "/update";
 __attribute__ ((unused)) static const  char* scanwifi_endpoint = "/wifi/scan";
 __attribute__ ((unused)) static const  char* connectwifi_endpoint = "/wifi/connect";
 __attribute__ ((unused)) static const  char* reset_nv_flash_endpoint = "/resetnv";
-#endif
 #ifdef BLUETOOTH
 __attribute__ ((unused)) static const  char* bt_scan_endpoint = "/bt_scan";
 __attribute__ ((unused)) static const  char* bt_connect_endpoint = "/bt_connect";

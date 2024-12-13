@@ -1,48 +1,100 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO_LEDRING : PinConfig
+
+
+struct UC2_3_I2CMaster : PinConfig
 {
      /*
-     D0: 1
-     D1: 3
-     D2: 3
-     D3: 4
-     D4: 5
-     D5: 6
-     D6: 43
-     D7: 44
-     D8: 7
-     D9: 8
-     D10: 9
-
-     # XIAO
-
-     {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
-     {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":255}]}}
-
-     {"task": "/laser_act", "LASERid":1, "LASERval": 500, "LASERdespeckle": 500,  "LASERdespecklePeriod": 100}
-     {"task": "/laser_act", "LASERid":2, "LASERval": 0}
-     {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
-     {"task": "/laser_act", "LASERid":1, "LASERval": 0}
-     {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
+     This is the newest electronics where direction/enable are on a seperate port extender
      */
-     const char *pindefName = "UC2_ESP32S3_XIAO_LEDRING";
+  
+     const char * pindefName = "UC2_3_I2C_Master";
      const unsigned long BAUDRATE = 115200;
 
-     uint8_t I2C_CONTROLLER_TYPE = I2CControllerType::mLASER;
-     uint8_t I2C_ADD_SLAVE = I2C_ADD_LEX_PWM1; // I2C address of the ESP32 if it's a slave
+     int8_t MOTOR_A_STEP = GPIO_NUM_15;
+     int8_t MOTOR_X_STEP = GPIO_NUM_16;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_14;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+     bool isDualAxisZ = false;
+     
+     bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_encoderDirection = true; 
+     bool ENC_Y_encoderDirection = true; 
+     bool ENC_Z_encoderDirection = true; 
+     bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_motorDirection = true;
+     bool ENC_Y_motorDirection = true;
+     bool ENC_Z_motorDirection = true;
 
-     // Laser control pins (using updated GPIO values)
-     int8_t LASER_1 = GPIO_NUM_3; // D2
-     int8_t LASER_2 = GPIO_NUM_4; // D3 => Motor 1/1
+     bool MOTOR_ENABLE_INVERTED = true;
+     bool MOTOR_AUTOENABLE = true;
+     int8_t AccelStepperMotorType = 1;
+
+     int8_t LASER_1 = GPIO_NUM_12;
+     int8_t LASER_2 = GPIO_NUM_4;
+     int8_t LASER_3 = GPIO_NUM_2;
+
+     int8_t LED_PIN = GPIO_NUM_13;
+     int8_t LED_COUNT = 64;
+
+     // FIXME: Is this redudant?!
+     int8_t DIGITAL_IN_1 = disabled;
+     int8_t DIGITAL_IN_2 = disabled;
+     int8_t DIGITAL_IN_3 = disabled;
      
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 // Touch 1 
-     int8_t DIGITAL_IN_2 = GPIO_NUM_3; // D1 // Touch 2
+     int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
+
+
+     // const char * PSX_MAC = "1a:2b:3c:01:01:04";
+     // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
      
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
+     // for caliper
+     int8_t ENC_X_A = GPIO_NUM_32;
+     int8_t ENC_Y_A = GPIO_NUM_34;
+     int8_t ENC_Z_A = GPIO_NUM_36;
+     int8_t ENC_X_B = GPIO_NUM_33;
+     int8_t ENC_Y_B = GPIO_NUM_35;
+     int8_t ENC_Z_B = GPIO_NUM_17;
+
+     // I2c
+     int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
+     int8_t I2C_SDA = GPIO_NUM_21;
+
+     // Auxilarry I2C devices
+     int8_t I2C_ADD_TCA = 0x27; // this is the port extender on the PCB that controls the direction of the motors
+
+     int8_t I2C_ADD_MOT_X = 0x40;
+     int8_t I2C_ADD_MOT_Y = 0x41;
+     int8_t I2C_ADD_MOT_Z = 0x42;
+     int8_t I2C_ADD_MOT_A = 0x43;
+     int8_t I2C_ADD_LEX_MAT = 0x50;
+     int8_t I2C_ADD_LEX_PWM1 = 0x51;
+     int8_t I2C_ADD_LEX_PWM2 = 0x52;
+     int8_t I2C_ADD_LEX_PWM3 = 0x53;
+     int8_t I2C_ADD_LEX_PWM4 = 0x54;
+
+
+     // SPI
+     int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
+     int8_t SPI_MISO = GPIO_NUM_19;
+     int8_t SPI_SCK = GPIO_NUM_18;
+     int8_t SPI_CS = GPIO_NUM_5;
+
+     // WIFI - specific to SEEED microscope
+     const char *mSSID = "UC2xSeeed-";
+     const char *mPWD =  "";
+     bool mAP = true; // false;
+     const char *mSSIDAP = "UC2";            
+     const char *hostname = "youseetoo";     
+
+     // Temperature
+     int8_t DS28b20_PIN = GPIO_NUM_25;
+     int8_t LASER_0 = GPIO_NUM_26;
 };
-const UC2_ESP32S3_XIAO_LEDRING pinConfig;
+const UC2_3_I2CMaster pinConfig;

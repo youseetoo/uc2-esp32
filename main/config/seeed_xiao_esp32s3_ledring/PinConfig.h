@@ -44,5 +44,9 @@ struct UC2_ESP32S3_XIAO_LEDRING : PinConfig
      // I2C configuration (using updated GPIO values)
      int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
      int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
+
+     int8_t CAN_TX = 5;
+     int8_t CAN_RX = 44;
+
 };
 const UC2_ESP32S3_XIAO_LEDRING pinConfig;

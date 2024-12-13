@@ -142,21 +142,21 @@ bool TwaiCAN::setPins(int8_t txPin, int8_t rxPin) {
     if(rxPin >= 0) rx = rxPin;
     else ret = false;
 
-    LOG_TWAI("Wrong pins or CAN bus running already!");
+    log_i("Wrong pins or CAN bus running already!");
     return ret;
 }
 
 bool TwaiCAN::recover(void) {
     uint32_t ret = 0;
     if(!getStatusInfo()) {
-        LOG_TWAI("CAN bus status read failed!");
+        log_i("CAN bus status read failed!");
         return false;
     }
     switch(status.state)
     {
       case TWAI_STATE_BUS_OFF:
       {
-        LOG_TWAI("Bus was off, starting recovery");
+        log_i("Bus was off, starting recovery");
         return twai_initiate_recovery();
       }
       case TWAI_STATE_RECOVERING:
@@ -171,7 +171,7 @@ bool TwaiCAN::recover(void) {
       }
       default:
       {
-        LOG_TWAI("Wrong state for recovery!");
+        log_i("Wrong state for recovery!");
       }
     }
 
@@ -181,7 +181,7 @@ bool TwaiCAN::recover(void) {
 bool TwaiCAN::restart(void) {
     uint32_t ret = 0;
     if(!getStatusInfo()) {
-        LOG_TWAI("CAN bus status read failed!");
+        log_i("CAN bus status read failed!");
         return false;
     }
     switch(status.state)
@@ -193,7 +193,7 @@ bool TwaiCAN::restart(void) {
       }
       default:
       {
-        LOG_TWAI("Wrong state for restart!");
+        log_i("Wrong state for restart!");
       }
     }
 
@@ -254,17 +254,17 @@ bool TwaiCAN::begin(TwaiSpeed twaiSpeed,
 
             //Install TWAI driver
         if (twai_driver_install(gConfig, tConfig, fConfig) == ESP_OK) {
-            LOG_TWAI("Driver installed");
+            log_i("Driver installed");
         } else {
-            LOG_TWAI("Failed to install driver");
+            log_i("Failed to install driver");
         }
 
         //Start TWAI driver
         if (twai_start() == ESP_OK) {
-            LOG_TWAI("Driver started");
+            log_i("Driver started");
             ret = true;
         } else {
-            LOG_TWAI("Failed to start driver");
+            log_i("Failed to start driver");
         }
         if(!ret) end();
     }
@@ -277,18 +277,18 @@ bool TwaiCAN::end() {
     if(init) {
         //Stop the TWAI driver
         if (twai_stop() == ESP_OK) {
-            LOG_TWAI("Driver stopped\n");
+            log_i("Driver stopped\n");
             ret = true;
         } else {
-            LOG_TWAI("Failed to stop driver\n");
+            log_i("Failed to stop driver\n");
         }
 
         //Uninstall the TWAI driver
         if (twai_driver_uninstall() == ESP_OK) {
-            LOG_TWAI("Driver uninstalled\n");
+            log_i("Driver uninstalled\n");
             ret &= true;
         } else {
-            LOG_TWAI("Failed to uninstall driver\n");
+            log_i("Failed to uninstall driver\n");
             ret &= false;
         }
         init = !ret;

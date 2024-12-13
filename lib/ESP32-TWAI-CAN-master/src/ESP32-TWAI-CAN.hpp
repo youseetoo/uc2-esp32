@@ -112,7 +112,7 @@ class TwaiCAN {
     inline bool IRAM_ATTR readFrame(CanFrame* frame, uint32_t timeout = 1000) {
         bool ret = false;
         if((frame) && twai_receive(frame, pdMS_TO_TICKS(timeout)) == ESP_OK) {
-            LOG_TWAI_RX("Frame received %03X", frame->identifier);
+            //LOG_TWAI_RX("Frame received %03X", frame->identifier);
             ret = true;
         }
         return ret;
@@ -123,7 +123,7 @@ class TwaiCAN {
     inline bool IRAM_ATTR writeFrame(CanFrame* frame, uint32_t timeout = 1) {
         bool ret = false;
         if((frame) && twai_transmit(frame, pdMS_TO_TICKS(timeout)) == ESP_OK) {
-            LOG_TWAI_TX("Frame sent     %03X", frame->identifier);
+            //LOG_TWAI_TX("Frame sent     %03X", frame->identifier);
             ret = true;
         }
         return ret;

@@ -130,7 +130,7 @@ namespace FocusMotor
 #elif defined(CAN_MASTER) && defined(CAN_MOTOR)
 		// send the motor data to the slave
 		uint8_t slave_addr = can_master::axis2address(axis);
-		if (!can_master::isAddressInI2CDevices(slave_addr))
+		if (!true)// FIXME: need to update this to CAN can_master::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success

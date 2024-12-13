@@ -21,16 +21,17 @@
 #define NODE_ID_MASK 0xF0      // Upper 4 bits for Node ID
 #define MESSAGE_TYPE_MASK 0x0F // Lower 4 bits for Message Type
 
+
 // struct for CAN messages
-struct CAN_MESSAGE_TYPE
+enum CAN_MESSAGE_TYPE : uint8_t
 {
-    uint8_t MOTOR_ACT = 0;
-    uint8_t MOTOR_GET = 1;
-    uint8_t HOME_SET = 2;
-    uint8_t HOME_GET = 3;
-    uint8_t TMC_SET = 4;
-    uint8_t TMC_GET = 5;
-    uint8_t MOTOR_STATE = 6;
+    MOTOR_ACT = 0,
+    MOTOR_GET = 1,
+    HOME_SET = 2,
+    HOME_GET = 3,
+    TMC_SET = 4,
+    TMC_GET = 5,
+    MOTOR_STATE = 6
 };
 
 #define GET_NODE_ID(id)       ((id & NODE_ID_MASK) >> 4)
@@ -86,8 +87,10 @@ namespace can_master
     void CANListenerTask(void *param);
     void processCANMessage(const CANMessage &message);
     bool sendSegmentedDataCAN(uint16_t msgID, uint8_t messageType, void *data, size_t dataSize);
-    QueueHandle_t messageQueue;
-    MultiFrameBuffer multiFrameBuffers[16];
+    static QueueHandle_t messageQueue;
+    static MultiFrameBuffer multiFrameBuffers[16];
     void sendMotorStateToMaster();
+        int address2axis(int address);
+
 
 } // namespace can_master

@@ -32,6 +32,7 @@ namespace WifiController
 
 	cJSON *connect(cJSON *doc)
 	{
+		#ifdef WIFI
 		log_i("connectToWifi");
 		bool ap = cJsonTool::getJsonInt(doc, keyWifiAP);
 
@@ -45,6 +46,7 @@ namespace WifiController
 		log_i("pw json: %s wifi:%s", pw, WifiController::getPw());
 		// log_i("ap json: %s wifi:%s", ap, WifiController::getAp());
 		WifiController::setup();
+		#endif
 		return NULL;
 	}
 

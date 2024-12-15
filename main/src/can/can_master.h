@@ -13,30 +13,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "../can/can_messagetype.h"
 
-#define CAN_RX_TASK_PRIORITY 5
+#define CAN_RX_TASK_PRIORITY 7
 #define CAN_RX_TASK_STACK 4096
 #define CAN_QUEUE_LENGTH 10
 
-#define NODE_ID_MASK 0xF0      // Upper 4 bits for Node ID
-#define MESSAGE_TYPE_MASK 0x0F // Lower 4 bits for Message Type
-
-
-// struct for CAN messages
-enum CAN_MESSAGE_TYPE : uint8_t
-{
-    MOTOR_ACT = 0,
-    MOTOR_GET = 1,
-    HOME_SET = 2,
-    HOME_GET = 3,
-    TMC_SET = 4,
-    TMC_GET = 5,
-    MOTOR_STATE = 6
-};
-
-#define GET_NODE_ID(id)       ((id & NODE_ID_MASK) >> 4)
-#define GET_MESSAGE_TYPE(id)  (id & MESSAGE_TYPE_MASK)
-#define CREATE_CAN_ID(node, type) ((node << 4) | type)
 
 struct MultiFrameBuffer
 {
@@ -49,11 +31,14 @@ struct MultiFrameBuffer
 
 struct CANMessage
 {
-    uint8_t nodeID;
+    uint8_t sourceID;
+    uint8_t destID;
     uint8_t messageType;
     uint8_t data[256];
     size_t dataSize;
 };
+
+
 
 
 namespace can_master
@@ -90,7 +75,15 @@ namespace can_master
     static QueueHandle_t messageQueue;
     static MultiFrameBuffer multiFrameBuffers[16];
     void sendMotorStateToMaster();
-        int address2axis(int address);
+    int address2axis(int address);
+    uint8_t getSelfCANID();
+    uint32_t constructExtendedCANID(uint8_t destID, uint8_t messageType, uint8_t flags);
+    void decodeExtendedCANID(uint32_t id, uint8_t &sourceID, uint8_t &destID, uint8_t &messageType, uint8_t &flags);
+
+    bool sendHeartbeatCAN();
+    static uint32_t canLastHeartbeat = 0;
+    static uint16_t canHeartbeatPeriod = 1000;              // Variable to keep track of number of devices found
+
 
 
 } // namespace can_master

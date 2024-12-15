@@ -12,7 +12,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_MASTER
+#ifdef CAN_CONTROLLER
 #include "../can/can_master.h"
 #endif
 

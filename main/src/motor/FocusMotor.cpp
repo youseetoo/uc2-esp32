@@ -27,7 +27,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_MASTER
+#ifdef CAN_CONTROLLER
 #include "../can/can_master.h"
 #endif
 
@@ -127,7 +127,7 @@ namespace FocusMotor
 			i2c_master::startStepper(m, axis, reduced);
 			waitForFirstRun[axis] = 1;
 		}
-#elif defined(CAN_MASTER) && defined(CAN_MOTOR)
+#elif defined(CAN_CONTROLLER) && defined(CAN_MOTOR)
 		// send the motor data to the slave
 		uint8_t slave_addr = can_master::axis2address(axis);
 		if (!true)// FIXME: need to update this to CAN can_master::isAddressInI2CDevices(slave_addr))
@@ -482,7 +482,7 @@ namespace FocusMotor
 		MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
 		// data[axis]->isforever = mMotorState.isforever;
-#elif defined CAN_MASTER
+#elif defined CAN_CONTROLLER
 		// FIXME: nothing to do here since the position is assigned externally? 
 #endif
 	}

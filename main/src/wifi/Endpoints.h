@@ -34,7 +34,7 @@ __attribute__ ((unused)) static const  char* i2c_act_endpoint = "/i2c_act";
 __attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
 #endif
 
-#ifdef CAN_MASTER
+#ifdef CAN_CONTROLLER
 __attribute__ ((unused)) static const  char* can_act_endpoint = "/can_act";
 __attribute__ ((unused)) static const  char* can_get_endpoint = "/can_get";
 #endif

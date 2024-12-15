@@ -142,7 +142,6 @@ bool TwaiCAN::setPins(int8_t txPin, int8_t rxPin) {
     if(rxPin >= 0) rx = rxPin;
     else ret = false;
 
-    log_i("Wrong pins or CAN bus running already!");
     return ret;
 }
 

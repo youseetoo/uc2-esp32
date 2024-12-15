@@ -30,22 +30,74 @@ namespace can_master
     const int MAX_CAN_DEVICES = 20;     // Maximum number of expected devices
     byte canAddresses[MAX_CAN_DEVICES]; // Array to store found CAN addresses
     int numDevices = 0;                 // Variable to keep track of number of devices found
-    int canRescanTick = 0;              // Variable to keep track of number of devices found
     int canRescanAfterNTicks = -1;      // Variable to keep track of number of devices found
     int pullMotorDataCANDriverTick[4] = {0, 0, 0, 0};
+    //std::map<uint8_t, uint32_t> lastHeartbeatReceived; // Tracks last heartbeat from nodes
+
+    // 29-Bit Identifier Scheme
+    // We structure the 29-bit identifier as follows:
+    //
+    // Bits   Field            Purpose
+    // 8      Destination ID   Target device or node (0-255)
+    // 8      Source ID        Sender device or node (0-255)
+    // 8      Message Type     Command/Response type (0-255)
+    // 5      Additional Flags R/W, priority, heartbeat flag, etc.
+    //
+    // This allows:
+    // - Up to 256 devices (0-255 for source and destination IDs).
+    // - 256 message types per communication.
+    // - Additional flags to indicate message priority, error states, or read/write actions.
+
+    uint8_t getSelfCANID()
+    {
+        // Get the I2C address of the slave
+        // Load the I2C address form the preference
+        Preferences preferences;
+        preferences.begin("CAN", false);
+        int can_id = preferences.getInt("can_id", pinConfig.CAN_DEFAULT_ID);
+        preferences.end();
+        return can_id;
+    }
+
+    uint32_t constructExtendedCANID(uint8_t destID, uint8_t messageType, uint8_t flags)
+    {
+        uint32_t id = 0;
+        uint8_t sourceID = getSelfCANID();
+        id |= ((uint32_t)destID & 0xFF) << 21;     // Destination ID (8 bits)
+        id |= ((uint32_t)sourceID & 0xFF) << 13;   // Source ID (8 bits)
+        id |= ((uint32_t)messageType & 0xFF) << 5; // Message Type (8 bits)
+        id |= (flags & 0x1F);                      // Flags (5 bits)
+        return id;
+    }
+
+    void decodeExtendedCANID(uint32_t id, uint8_t &sourceID, uint8_t &destID, uint8_t &messageType, uint8_t &flags)
+    {
+        // id corresponds to the 29-bit CAN ID
+        destID = (id >> 21) & 0xFF;     // Extract Destination ID
+        sourceID = (id >> 13) & 0xFF;   // Extract Source ID
+        messageType = (id >> 5) & 0xFF; // Extract Message Type
+        flags = id & 0x1F;              // Extract Flags
+    }
 
     void CANListenerTask(void *param)
     {
         CanFrame frame;
-
+        log_i("CAN Listener Task started.");
+        int iterator = 0;
         while (true)
         {
-            if (ESP32Can.readFrame(&frame))
+            log_i("CAN Listener Task running %i.", iterator);
+            iterator++;
+            uint16_t timeout = 100;
+            if (ESP32Can.readFrame(&frame, timeout))
             {
-                uint8_t nodeID = GET_NODE_ID(frame.identifier);
-                uint8_t messageType = GET_MESSAGE_TYPE(frame.identifier);
+                // Decode Extended CAN ID
+                uint8_t sourceID, destID, messageType, flags;
+                decodeExtendedCANID(frame.identifier, sourceID, destID, messageType, flags);
+                log_i("Message received from Node %i to Node %i, Type %i", sourceID, destID, messageType);
 
-                MultiFrameBuffer *buffer = &multiFrameBuffers[nodeID];
+                // Select the buffer for the source node
+                MultiFrameBuffer *buffer = &multiFrameBuffers[sourceID];
 
                 uint8_t chunkIndex = frame.data[0]; // Frame number
                 bool isStart = frame.data[1] == 1;  // Start of message
@@ -53,6 +105,8 @@ namespace can_master
 
                 if (isStart)
                 {
+                    // Reset buffer for a new multi-frame message
+                    log_i("New multi-frame message from Node %i", sourceID);
                     buffer->receivedSize = 0;
                     buffer->currentFrame = 0;
                     buffer->complete = false;
@@ -61,16 +115,27 @@ namespace can_master
                 if (chunkIndex == buffer->currentFrame)
                 {
                     size_t chunkSize = frame.data_length_code - 3;
-                    memcpy(buffer->buffer + buffer->receivedSize, &frame.data[3], chunkSize);
-                    buffer->receivedSize += chunkSize;
-                    buffer->currentFrame++;
+                    if (buffer->receivedSize + chunkSize <= sizeof(buffer->buffer))
+                    {
+                        // Copy the current chunk of data into the buffer
+                        memcpy(buffer->buffer + buffer->receivedSize, &frame.data[3], chunkSize);
+                        buffer->receivedSize += chunkSize;
+                        buffer->currentFrame++;
+                    }
+                    else
+                    {
+                        log_e("Buffer overflow for Node %i", sourceID);
+                        continue;
+                    }
 
                     if (isEnd)
                     {
+                        // Mark message as complete
                         buffer->complete = true;
 
                         CANMessage message;
-                        message.nodeID = nodeID;
+                        message.sourceID = sourceID;
+                        message.destID = destID;
                         message.messageType = messageType;
                         message.dataSize = buffer->receivedSize;
                         memcpy(message.data, buffer->buffer, buffer->receivedSize);
@@ -78,25 +143,24 @@ namespace can_master
                         // Push complete message to queue
                         if (xQueueSend(messageQueue, &message, pdMS_TO_TICKS(10)) != pdTRUE)
                         {
-                            log_e("Queue full. Message from Node %i dropped.", nodeID);
+                            log_e("Queue full. Message from Node %i dropped.", sourceID);
                         }
-
-                        log_i("Multi-frame message complete: Node %i, Type %i", nodeID, messageType);
+                        else
+                        {
+                            log_i("Multi-frame message complete: Node %i, Type %i, Size: %i bytes",
+                                  sourceID, messageType, message.dataSize);
+                        }
                     }
+                }
+                else
+                {
+                    log_w("Unexpected frame index from Node %i: expected %i, got %i",
+                          sourceID, buffer->currentFrame, chunkIndex);
                 }
             }
 
-            vTaskDelay(pdMS_TO_TICKS(10)); // Small delay to prevent task starvation
+            vTaskDelay(pdMS_TO_TICKS(1)); // Small delay to prevent task starvation
         }
-    }
-
-    void sendMotorStateToMaster(){
-        MotorState motorState; 
-            long currentPosition = getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition; // Get the current position of the motor
-	        //bool isRunning = getData()[I2C_BUFFER_LENGTH]->isRunning; // Get the current running state of the motor
-            // now send it back to the master
-            uint16_t msgID = CAN_ADDRESS_MASTER;
-            sendSegmentedDataCAN(msgID, CAN_MESSAGE_TYPE::MOTOR_STATE, &motorState, sizeof(MotorState)); 
     }
 
     void processCANMessage(const CANMessage &message)
@@ -104,15 +168,39 @@ namespace can_master
         /*
         This function processes all the possible message types that can be received from the CAN bus.
         Therefore, there is no clear distinction between master and slave anymore. Everyone can send, everyone can receive.
-
         */
-        switch (message.messageType)
+
+        uint8_t sourceID = message.sourceID;
+        uint8_t destID = message.destID;
+        uint8_t messageType = message.messageType;
+
+        log_i("Message received from Node %i to Node %i, Type %i", sourceID, destID, messageType);
+
+        if (destID != 0x00 && destID != 0xFF)
+        { // Ignore if not for the gateway or broadcast
+            log_i("Ignoring message for Node %i", destID);
+            return;
+        }
+
+        switch (messageType)
         {
-        case CAN_MESSAGE_TYPE::MOTOR_ACT:
+        case CANMessageTypeID::HEARTBEAT:
+        {
+            log_i("Heartbeat received from Node %i", sourceID);
+            //lastHeartbeatReceived[sourceID] = millis(); // Update last received heartbeat time
+
+            // Respond to heartbeat request
+            if (message.data[0] == 0x02)
+            {
+                sendHeartbeatCAN();
+            }
+            break;
+        }
+        case CANMessageTypeID::MOTOR_ACT:
         {
             // A motor command from a master arrives at the slave and will be executed
             // THIS CODE is executed on the SLAVE
-            uint8_t motorAxis = address2axis(message.nodeID);
+            uint8_t motorAxis = address2axis(message.destID);
             MotorData motorData;
             memcpy(&motorData, message.data, sizeof(MotorData));
             log_i("MotorState at motorAxis %i, Position=%ld", motorAxis, motorData.currentPosition);
@@ -126,40 +214,53 @@ namespace can_master
             FocusMotor::toggleStepper(static_cast<Stepper>(motorAxis), isStop, false);
             break;
         }
-        case CAN_MESSAGE_TYPE::MOTOR_GET:
+        case CANMessageTypeID::MOTOR_GET:
         {
-            // The CAN master requests the position of the slave under a certain node ID, we have to 
-            // respond with the current motor state and send it via CAN 
+            // The CAN master requests the position of the slave under a certain node ID, we have to
+            // respond with the current motor state and send it via CAN
             // THIS IS SLAVE CODE
             sendMotorStateToMaster();
             break;
         }
-        case CAN_MESSAGE_TYPE::MOTOR_STATE:
+        case CANMessageTypeID::MOTOR_STATE:
         {
             // The slave sends the motor state to the master
             // THIS IS MASTER CODE
             MotorState motorState;
-            int mMotorAxis = address2axis(message.nodeID);
+            int mMotorAxis = address2axis(message.destID);
             memcpy(&motorState, message.data, sizeof(MotorState));
             log_i("MotorState at axis %d: Position=%ld, Running=%d", mMotorAxis, motorState.currentPosition, motorState.isRunning);
-            // now we have to assign this to the respective axis 
-            // convert nodeID to motoraxis 
+            // now we have to assign this to the respective axis
+            // convert nodeID to motoraxis
             getData()[mMotorAxis]->currentPosition = motorState.currentPosition;
-            //getData()[mMotorAxis]->isRunning = motorState.isRunning; // FIXME: Not working like this!
+            // getData()[mMotorAxis]->isRunning = motorState.isRunning; // FIXME: Not working like this!
             break;
         }
 
-        case CAN_MESSAGE_TYPE::HOME_SET:
+        case CANMessageTypeID::HOME_ACT:
         {
             HomeState homeState;
             memcpy(&homeState, message.data, sizeof(HomeState));
-            //log_i("HomeState: Active=%d, EndReleaseMode=%d", homeState.homeIsActive, homeState.homeInEndposReleaseMode);
+            // log_i("HomeState: Active=%d, EndReleaseMode=%d", homeState.homeIsActive, homeState.homeInEndposReleaseMode);
             break;
         }
         default:
-            log_w("Unknown message type %i from Node %i", message.messageType, message.nodeID);
+            log_w("Unknown message type %i from Node %i to Node %i", message.messageType, message.sourceID, message.destID);
             break;
         }
+    }
+
+    bool sendHeartbeatCAN()
+    {
+        // Send a heartbeat message to all devices
+        CanFrame frame;
+        log_i("Sending heartbeat to all nodes on tx%i, rx%i", pinConfig.CAN_TX, pinConfig.CAN_RX);
+        frame.identifier = constructExtendedCANID(CANMessageTypeID::BROADCAST, CANMessageTypeID::HEARTBEAT, 0);
+        frame.extd = 1; // Extended CAN Frame Format (29-bit ID)
+        frame.data_length_code = 1;
+        frame.data[0] = 0x01; // Alive signal from master
+
+        return ESP32Can.writeFrame(&frame);
     }
 
     bool sendSegmentedDataCAN(uint16_t msgID, uint8_t messageType, void *data, size_t dataSize)
@@ -171,7 +272,7 @@ namespace can_master
         {
             CanFrame frame;
             frame.identifier = msgID; // Unique ID per axis or motor
-            frame.extd = 0;           // Standard CAN ID
+            frame.extd = 1;           // Standard CAN ID
             frame.data_length_code = chunkSize;
 
             frame.data[0] = i;                                               // Chunk index
@@ -186,7 +287,7 @@ namespace can_master
                     size_t remainingBytes = dataSize - (i * (chunkSize - 3));
         size_t copySize = min(chunkSize - 3, remainingBytes);
         */
-            
+
             memcpy(&frame.data[4], dataPtr + (i * (chunkSize - 4)), copySize);
 
             // Send the frame and check for success
@@ -208,8 +309,10 @@ namespace can_master
     {
 
         // Initialize CAN
-        ESP32Can.begin(ESP32Can.convertSpeed(500));
+        log_i("Starting CAN on DEST ID: %i on Pins TX %i, RX %i", getSelfCANID(), pinConfig.CAN_TX, pinConfig.CAN_RX);
+        
         ESP32Can.setPins(pinConfig.CAN_TX, pinConfig.CAN_RX);
+        ESP32Can.begin(ESP32Can.convertSpeed(500));
         can_scan();
 
         // Create message queue
@@ -230,13 +333,22 @@ namespace can_master
             NULL,                 // Task handle
             1                     // Core to pin the task
         );
-
-        log_i("CAN Listener Task started.");
     }
+
 
     /**************************************
     MOTOR
     *************************************/
+
+    void sendMotorStateToMaster()
+    {
+        MotorState motorState;
+        long currentPosition = getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition; // Get the current position of the motor
+                                                                                     // bool isRunning = getData()[I2C_BUFFER_LENGTH]->isRunning; // Get the current running state of the motor
+        //  now send it back to the master
+        uint16_t msgID = CAN_ADDRESS_MASTER;
+        sendSegmentedDataCAN(msgID, CANMessageTypeID::MOTOR_STATE, &motorState, sizeof(MotorState));
+    }
 
     MotorState getMotorState(int i)
     {
@@ -260,7 +372,7 @@ namespace can_master
         uint8_t msgID = axis2address(axis); // CAN identifier derived from the axis
         bool mResult = false;
 
-        if (false) //reduced)
+        if (false) // reduced)
         {
             // Reduced version of MotorData
             MotorDataReduced reducedData;
@@ -271,12 +383,12 @@ namespace can_master
             reducedData.isStop = motorData.isStop;
 
             // Send reduced data segmented with MOTOR_STATE message type
-            mResult = sendSegmentedDataCAN(msgID, CAN_MESSAGE_TYPE::MOTOR_ACT, &reducedData, sizeof(MotorDataReduced));
+            mResult = sendSegmentedDataCAN(msgID, CANMessageTypeID::MOTOR_ACT, &reducedData, sizeof(MotorDataReduced));
         }
         else
         {
             // Send full MotorData struct segmented with MOTOR_STATE message type
-            mResult = sendSegmentedDataCAN(msgID, CAN_MESSAGE_TYPE::MOTOR_ACT, &motorData, sizeof(MotorData));
+            mResult = sendSegmentedDataCAN(msgID, CANMessageTypeID::MOTOR_ACT, &motorData, sizeof(MotorData));
         }
 
         if (!mResult)
@@ -296,7 +408,7 @@ namespace can_master
         }
         else
         {
-            ESP_LOGE("CAN_MASTER", "Invalid motor data for axis %d", axis);
+            ESP_LOGE("CAN_CONTROLLER", "Invalid motor data for axis %d", axis);
         }
     }
 
@@ -320,7 +432,7 @@ namespace can_master
         CanFrame frame;
         uint8_t canID = axis2address(s);
         frame.identifier = canID; // Unique CAN ID for each stepper axis
-        frame.extd = 0;           // Standard CAN frame
+        frame.extd = 1;           // Standard CAN frame
         frame.data_length_code = sizeof(long);
 
         // Copy the position into the CAN data payload
@@ -348,10 +460,10 @@ namespace can_master
         bool success = false;
 
         // Prepare the request type for MotorState
-        uint8_t requestType = CAN_MESSAGE_TYPE::MOTOR_GET;
+        uint8_t requestType = CANMessageTypeID::MOTOR_GET;
 
         // Send the request for MOTOR_STATE
-        if (!sendSegmentedDataCAN(canID, CAN_MESSAGE_TYPE::MOTOR_GET, &requestType, sizeof(requestType)))
+        if (!sendSegmentedDataCAN(canID, CANMessageTypeID::MOTOR_GET, &requestType, sizeof(requestType)))
         {
             log_e("Error sending MotorState request to axis %i", axis);
             return false;
@@ -371,7 +483,6 @@ namespace can_master
         // send home data to slave via CAN and initiate homing
         uint8_t msgID = axis2address(axis);
         log_i("HomeData to axis: %i ", axis);
-        
     }
 
     HomeState pullHomeStateFromCANDriver(int axis)
@@ -439,12 +550,19 @@ namespace can_master
 
     void loop()
     {
+        // send heartbeat periodically to all devices
+        if (millis() - canLastHeartbeat > canHeartbeatPeriod)
+        {
+            canLastHeartbeat = millis();
+            sendHeartbeatCAN();
+        }
+
+
         CANMessage receivedMessage;
 
         if (xQueueReceive(messageQueue, &receivedMessage, pdMS_TO_TICKS(100)))
         {
             processCANMessage(receivedMessage);
         }
-
     }
 }

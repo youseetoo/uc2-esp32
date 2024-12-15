@@ -84,7 +84,7 @@ Preferences preferences;
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-#ifdef CAN_MASTER
+#ifdef CAN_CONTROLLER
 #include "src/can/can_master.h"
 #endif
 #ifdef I2C_MASTER
@@ -176,7 +176,7 @@ extern "C" void looper(void *p)
 		i2c_master::loop();
 		vTaskDelay(1);
 #endif
-#ifdef CAN_MASTER
+#ifdef CAN_CONTROLLER
 		can_master::loop();
 		vTaskDelay(1);
 #endif
@@ -236,7 +236,7 @@ extern "C" void setupApp(void)
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
-#ifdef CAN_MASTER
+#ifdef CAN_CONTROLLER
 	can_master::setup();
 #endif
 #ifdef I2C_SLAVE_MOTOR

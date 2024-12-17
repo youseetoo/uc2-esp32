@@ -53,21 +53,21 @@ jobs:
     - name: merge into one binary
       run: |
         dir .pio/build/UC2_3_Xiao_Slave_Motor/ 
-        mv .pio/build/UC2_3_Xiao_Slave_Motor/*.bin build/
-        cd build
+        mv .pio/build/UC2_3_Xiao_Slave_Motor/*.bin builds3/
+        cd builds3
         python -m esptool --chip esp32s3 merge_bin  -o UC2_3_Xiao_Slave_Motor.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
 
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
-        path: build/UC2_3_Xiao_Slave_Motor.bin
+        path: builds3/UC2_3_Xiao_Slave_Motor.bin
 
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
         API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
       with:
-        source_file: 'build/UC2_3_Xiao_Slave_Motor.bin'
+        source_file: 'builds3/UC2_3_Xiao_Slave_Motor.bin'
         destination_repo: 'youseetoo/youseetoo.github.io'
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'

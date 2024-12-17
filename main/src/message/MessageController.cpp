@@ -13,8 +13,17 @@ namespace MessageController
 		log_d("Setup MessageController");
 	}
 
+    void triangle_changed_event(uint8_t pressed)
+    {
+		sendMesageSerial(1, 1);
+    }
 
-	// Custom function accessible by the API
+	void square_changed_event(uint8_t pressed)
+    {
+		sendMesageSerial(1, 0);
+    }
+
+    // Custom function accessible by the API
 	
 	int act(cJSON *ob)
 	{	// {"message":{"key":"message","value":2}} or 

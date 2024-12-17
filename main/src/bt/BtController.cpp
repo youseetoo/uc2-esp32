@@ -1,3 +1,4 @@
+
 #include "PinConfig.h"
 #include "BtController.h"
 #include <esp_log.h>
@@ -25,8 +26,11 @@ using namespace FocusMotor;
 #include "Arduino.h"
 #include "JsonKeys.h"
 
+
 namespace BtController
 {
+    GamePadData lastData;
+
 
     void btControllerLoop(void *p)
     {
@@ -86,365 +90,102 @@ namespace BtController
     }
 #endif
 
-    void handleAxis(int value, int s)
+    void checkdata(uint8_t first, uint8_t sec, void (*event)(uint8_t t))
     {
-#ifdef MOTOR_CONTROLLER
-
-        if (s == Stepper::Z or (s == Stepper::A and isDualAxisZ))
+        if (first != sec)
         {
-            // divide  to slow down
-            value = (float)((int)value / (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
+            first = sec;
+            if (event != nullptr)
+                event(first);
         }
-        else
-        {
-            // divide  to slow down
-            value = (float)((int)value / (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER);
-        }
-
-        int offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER;
-        if(s==Stepper::Z)
-        {
-            offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z;
-        }
-        if (value >= offset_val_scaled || value <= -offset_val_scaled)
-        {
-            // move_x
-            getData()[s]->speed = value;
-            getData()[s]->isforever = true;
-            getData()[s]->acceleration = MAX_ACCELERATION_A;
-            log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
-            FocusMotor::startStepper(s, true);
-            if (s == Stepper::X)
-                joystick_drive_X = true;
-            if (s == Stepper::Y)
-                joystick_drive_Y = true;
-            if (s == Stepper::Z)
-                joystick_drive_Z = true;
-            else if (s == Stepper::A)
-                joystick_drive_A = true;
-        }
-        else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
-        {
-            getData()[s]->speed = 0;
-            getData()[s]->isforever = false;
-            if (s == Stepper::X and joystick_drive_X)
-            {
-                FocusMotor::stopStepper(s);
-                joystick_drive_X = false;
-            }
-            if (s == Stepper::Y and joystick_drive_Y){
-                FocusMotor::stopStepper(s);
-                joystick_drive_Y = false;
-            }
-            if (s == Stepper::Z and joystick_drive_Z){
-                FocusMotor::stopStepper(s);
-                joystick_drive_Z = false;
-            }
-            if (s == Stepper::A and joystick_drive_A){
-                FocusMotor::stopStepper(s);
-                joystick_drive_A = false;
-            }
-        }
-#endif
     }
+
+#ifdef BTHID
 
     void loop()
     {
-// this maps the physical inputs (e.g. joystick) to the physical outputs (e.g. motor)
-#ifdef BTHID
         if (hidIsConnected)
-#endif
-#ifdef PSXCONTROLLER
-            if ((psx != nullptr && psx->isConnected()))
-#endif
+        {
+            checkdata(lastData.cross, gamePadData.cross, cross_changed_event);
+            checkdata(lastData.circle, gamePadData.circle, circle_changed_event);
+            checkdata(lastData.triangle, gamePadData.triangle, triangle_changed_event);
+            checkdata(lastData.square, gamePadData.square, square_changed_event);
+            if(lastData.dpaddirection != gamePadData.dpaddirection)
             {
-#ifdef LED_CONTROLLER
-                // switch LED on/off on cross/circle button press
-                bool cross = false;
-                bool circle = false;
-#ifdef PSXCONTROLLER
-                if (psx != nullptr)
-                {
-                    cross = psx->event.button_down.cross;
-                    circle = psx->event.button_down.circle;
-                }
-#endif
-#ifdef BTHID
-                if (hidIsConnected)
-                {
-                    cross = gamePadData.cross;
-                    circle = gamePadData.circle;
-                }
-#endif
-                if (cross && !led_on)
-                {
-                    log_i("Turn on LED ");
-                    IS_PS_CONTROLER_LEDARRAY = !LedController::TurnedOn();
-                    LedController::set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
-                    led_on = true;
-                }
-                if (circle && led_on)
-                {
-                    log_i("Turn off LED ");
-                    IS_PS_CONTROLER_LEDARRAY = !LedController::TurnedOn();
-                    LedController::set_all(0, 0, 0);
-                    led_on = false;
-                }
-#endif
-#ifdef MESSAGE_CONTROLLER
-                // send message on triangle/square button press
-                bool triangle = false;
-                bool square = false;
-#ifdef PSXCONTROLLER
-                if (psx != nullptr)
-                {
-                    triangle = psx->event.button_down.triangle;
-                    square = psx->event.button_down.square;
-                }
-#endif
-#ifdef BTHID
-                if (hidIsConnected)
-                {
-                    triangle = gamePadData.triangle;
-                    square = gamePadData.square;
-                }
-#endif
-                if (triangle && !prevTriangle)
-                {
-                    log_i("Send message ");
-                    MessageController::sendMesageSerial(1, 1);
-                }
-                if (square && !prevSquare)
-                {
-                    log_i("Send message ");
-                    MessageController::sendMesageSerial(1, 0);
-                }
-                prevTriangle = triangle;
-                prevSquare = square;
-#endif
-#ifdef LASER_CONTROLLER
-                bool up = false;
-                bool down = false;
-                bool right = false;
-                bool left = false;
-#ifdef PSXCONTROLLER
-                if (psx != nullptr)
-                {
-                    up = psx->event.button_down.up;
-                    down = psx->event.button_down.down;
-                    right = psx->event.button_down.right;
-                    left = psx->event.button_down.left;
-                }
-#endif
-#ifdef BTHID
-                if (hidIsConnected)
-                {
-                    up = gamePadData.dpaddirection == Dpad::Direction::up;
-                    down = gamePadData.dpaddirection == Dpad::Direction::down;
-                    left = gamePadData.dpaddirection == Dpad::Direction::left;
-                    right = gamePadData.dpaddirection == Dpad::Direction::right;
-                    // log_i("up, down, left, right: %d, %d, %d, %d", up, down, left, right); @KillerInk this never gives any results - why?
-                }
-#endif
-                // LASER 1
-                // switch laser 1 on/off on triangle/square button press
-                if (up && !prevUp && !laser_on) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
-                {
-                    // Switch laser 2 on/off on up/down button press
-                    log_d("Turning on LAser 10000");
-                    LaserController::setLaserVal(1, 10000);
-                    laser_on = true;
-                }
-                if (down && !prevDown && laser_on)
-                {
-                    log_d("Turning off LAser ");
-                    LaserController::setLaserVal(1, 0);
-                    laser_on = false;
-                }
-
-                // LASER 2
-                // switch laser 2 on/off on triangle/square button press
-                if (right && !prevRight && !laser2_on)
-                {
-                    log_d("Turning on LAser 2 10000");
-                    LaserController::setLaserVal(2, 10000);
-                    laser2_on = true;
-                }
-                if (left  && !prevLeft && laser2_on)
-                {
-                    log_d("Turning off LAser ");
-                    Serial.println("Turning off LAser ");
-                    LaserController::setLaserVal(2, 0);
-                    laser2_on = false;
-                }
-
-                // Update previous state variables
-                prevUp = up;
-                prevDown = down;
-                prevLeft = left;
-                prevRight = right;
-#endif
-
-                // MOTORS
-#ifdef MOTOR_CONTROLLER
-                /* code */
-                int zvalue = 0;
-                int xvalue = 0;
-                int yvalue = 0;
-                int avalue = 0;
-#ifdef PSXCONTROLLER
-                if (psx != nullptr)
-                {
-                    zvalue = psx->state.analog.stick.ly;
-                    xvalue = psx->state.analog.stick.rx;
-                    yvalue = psx->state.analog.stick.ry;
-                    avalue = psx->state.analog.stick.lx;
-                }
-#endif
-#ifdef BTHID
-                if (hidIsConnected)
-                {
-                    zvalue = gamePadData.LeftY;
-                    xvalue = gamePadData.RightX;
-                    yvalue = gamePadData.RightY;
-                    avalue = gamePadData.LeftX;
-                }
-#endif
-                if (logCounter > 100)
-                {
-                    //log_i("X:%d y:%d, z:%d, a:%d", xvalue, yvalue, zvalue, avalue);
-                    logCounter = 0;
-                }
-                else
-                    logCounter++;
-
-
-                // Only allow motion in one direction at a time
-                bool zIsRunning = getData()[Stepper::Z]->isforever;
-                bool aIsRunning = getData()[Stepper::A]->isforever;
-
-                if (not aIsRunning or isDualAxisZ){ // Z-direction
-                    handleAxis(zvalue, Stepper::Z);
-                    if (isDualAxisZ) 
-                    {   // Z-Direction
-                        handleAxis(zvalue, Stepper::A);
-                    }
-                }
-                if (abs(zvalue)<offset_val){
-                    // force stop in case it's trapped
-                    handleAxis(0, Stepper::Z);
-                }
-                if (abs(zvalue)<offset_val and isDualAxisZ){
-                    // force stop in case it's trapped
-                    handleAxis(0, Stepper::A);
-                }
-
-                if (not zIsRunning and not isDualAxisZ){ // A-direction
-                    handleAxis(avalue, Stepper::A);
-                }
-
-                // X-Direction
-                handleAxis(xvalue, Stepper::X);
-
-                // Y-direction
-                handleAxis(yvalue, Stepper::Y);
-
-#endif
-
-#ifdef ANALOG_OUT_CONTROLLER
-                left = false;
-                right = false;
-                bool r1 = false;
-                bool r2 = false;
-                bool l1 = false;
-                bool l2 = false;
-#ifdef PSXCONTROLLER
-                if (psx != nullptr)
-                {
-                    left = psx->event.button_down.left;
-                    right = psx->event.button_down.right;
-                    r1 = psx->event.button_down.r1;
-                    r2 = psx->event.button_down.r2;
-                    l1 = psx->event.button_down.l1;
-                    l2 = psx->event.button_down.l2;
-                }
-#endif
-#ifdef BTHID
-                if (hidIsConnected)
-                {
-                    left = gamePadData.dpaddirection == Dpad::Direction::left;
-                    right = gamePadData.dpaddirection == Dpad::Direction::right;
-                    r1 = gamePadData.r1;
-                    r2 = gamePadData.r2;
-                    l1 = gamePadData.l1;
-                    l2 = gamePadData.l2;
-                }
-#endif
-                /*
-                   Keypad left
-                */
-                if (left and pinConfig.ANALOGOUT_1 >= 0)
-                {
-                    // fine lens -
-                    analogout_val_1 -= 1;
-                    delay(50);
-                    ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
-                }
-                if (right and pinConfig.ANALOGOUT_1 >= 0)
-                {
-                    // fine lens +
-                    analogout_val_1 += 1;
-                    delay(50);
-                    ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
-                }
-                // unknown button
-                /*if (PS4.data.button.start) {
-                  // reset
-                  analogout_val_1 = 0;
-                  ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
-                }*/
-                if (r2 and pinConfig.ANALOGOUT_1 >= 0)
-                {
-                    // analogout_val_1++ coarse
-                    if ((analogout_val_1 + 1000 < pwm_max))
-                    {
-                        analogout_val_1 += 1000;
-                        ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
-                    }
-                }
-                if (l2 and pinConfig.ANALOGOUT_1 >= 0)
-                {
-                    // analogout_val_1-- coarse
-                    if ((analogout_val_1 - 1000 > 0))
-                    {
-                        analogout_val_1 -= 1000;
-                        ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
-                    }
-                }
-
-                if (l1 and pinConfig.ANALOGOUT_1 >= 0)
-                {
-                    // analogout_val_1 + semi coarse
-                    if ((analogout_val_1 + 100 < pwm_max))
-                    {
-                        analogout_val_1 += 100;
-                        ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
-                        // delay(100);
-                    }
-                }
-                if (r1 and pinConfig.ANALOGOUT_1 >= 0)
-                {
-                    // analogout_val_1 - semi coarse
-                    if ((analogout_val_1 - 100 > 0))
-                    {
-                        analogout_val_1 -= 100;
-                        ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
-                        // delay(50);
-                    }
-                }
-#endif
+                lastData.dpaddirection, gamePadData.dpaddirection;
+                if(dpad_changed_event != nullptr)
+                    dpad_changed_event(lastData.dpaddirection);
             }
+
+            /*
+                zvalue = gamePadData.LeftY;
+                xvalue = gamePadData.RightX;
+                yvalue = gamePadData.RightY;
+                avalue = gamePadData.LeftX;
+            */
+            if (xyza_changed_event != nullptr)
+                xyza_changed_event(gamePadData.LeftY, gamePadData.RightX, gamePadData.RightY, gamePadData.LeftX);
+            lastData.LeftX = gamePadData.LeftY;
+            lastData.RightX = gamePadData.RightX;
+            lastData.RightY = gamePadData.RightY;
+            lastData.LeftY = gamePadData.LeftX;
+
+            int left = gamePadData.dpaddirection == Dpad::Direction::left;
+            int right = gamePadData.dpaddirection == Dpad::Direction::right;
+            bool r1 = gamePadData.r1;
+            bool r2 = gamePadData.r2;
+            bool l1 = gamePadData.l1;
+            bool l2 = gamePadData.l2;
+            if (analogcontroller_event != nullptr)
+                analogcontroller_event(left, right, r1, r2, l1, l2);
+        }
     }
+#endif
+
+#ifdef PSXCONTROLLER
+
+    void loop()
+    {
+        if (psx != nullptr && psx->isConnected())
+        {
+            checkdata(lastData.cross, psx->event.button_down.cross, cross_changed_event);
+            checkdata(lastData.circle, psx->event.button_down.circle, circle_changed_event);
+            checkdata(lastData.triangle, psx->event.button_down.triangle, triangle_changed_event);
+            checkdata(lastData.square, psx->event.button_down.square, square_changed_event);
+            Dpad::Direction dir;
+            if (psx->event.button_down.up)
+                dir = Dpad::Direction::up;
+            if (psx->event.button_down.down)
+                dir = Dpad::Direction::down;
+            if (psx->event.button_down.left)
+                dir = Dpad::Direction::left;
+            if (psx->event.button_down.right)
+                dir = Dpad::Direction::right;
+            if (dir != lastData.dpaddirection)
+            {
+                lastData.dpaddirection = dir;
+                if (dpad_changed_event != nullptr)
+                    dpad_changed_event(dir);
+            }
+
+            if (xyza_changed_event != nullptr)
+                xyza_changed_event(psx->state.analog.stick.ly, psx->state.analog.stick.rx, psx->state.analog.stick.ry, psx->state.analog.stick.lx);
+            lastData.LeftX = psx->state.analog.stick.ly;
+            lastData.RightX = psx->state.analog.stick.rx;
+            lastData.RightY = psx->state.analog.stick.ry;
+            lastData.LeftY = psx->state.analog.stick.lx;
+
+            left = psx->event.button_down.left;
+            right = psx->event.button_down.right;
+            r1 = psx->event.button_down.r1;
+            r2 = psx->event.button_down.r2;
+            l1 = psx->event.button_down.l1;
+            l2 = psx->event.button_down.l2;
+            if (analogcontroller_event != nullptr)
+                analogcontroller_event(left, right, r1, r2, l1, l2);
+        }
+    }
+#endif
 
     cJSON *scanForDevices(cJSON *doc)
     {

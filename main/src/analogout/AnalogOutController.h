@@ -37,4 +37,5 @@ namespace AnalogOutController
     cJSON* get(cJSON*  jsonDocument);
 
     void setup();
+    void btcontroller_event(int left, int right, bool r1, bool r2 , bool l1, bool l2);
 };

@@ -231,6 +231,23 @@ extern "C" void setupApp(void)
 #endif
 #ifdef BLUETOOTH
 	BtController::setup();
+	#ifdef LED_CONTROLLER
+		BtController::circle_changed_event = LedController::circle_changed_event;
+		BtController::cross_changed_event = LedController::cross_changed_event;
+	#endif
+	#ifdef MESSAGE_CONTROLLER
+		BtController::triangle_changed_event = MessageController::triangle_changed_event;
+		BtController::square_changed_event = MessageController ::square_changed_event;
+	#endif
+	#ifdef LASER_CONTROLLER
+		BtController::dpad_changed_event = LaserController::dpad_changed_event;
+	#endif
+	#ifdef MOTOR_CONTROLLER
+		BtController::xyza_changed_event = FocusMotor::xyza_changed_event;
+	#endif
+	#ifdef ANALOG_OUT_CONTROLLER
+		BtController::analogcontroller_event = AnalogOutController::btcontroller_event;
+	#endif
 #endif
 #ifdef DAC_CONTROLLER
 	DacController::setup();

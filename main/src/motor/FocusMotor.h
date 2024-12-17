@@ -49,4 +49,6 @@ namespace FocusMotor
 	static bool isDualAxisZ = false;
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
+	void handleAxis(int value, int s);
+	void xyza_changed_event(int x, int y,int z, int a);
 };

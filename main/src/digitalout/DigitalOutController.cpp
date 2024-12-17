@@ -121,25 +121,25 @@ namespace DigitalOutController
 
 		if (digitaloutid == 1)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				log_d("digitalout 1");
 			digitaloutpin = pinConfig.DIGITAL_OUT_1;
 			digitaloutval = digitalout_val_1;
 		}
 		else if (digitaloutid == 2)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				log_d("AXIS 2");
-			if (DEBUG)
+			if (isDEBUG)
 				log_d("digitalout 2");
 			digitaloutpin = pinConfig.DIGITAL_OUT_2;
 			digitaloutval = digitalout_val_2;
 		}
 		else if (digitaloutid == 3)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				log_d("AXIS 3");
-			if (DEBUG)
+			if (isDEBUG)
 				log_d("digitalout 1");
 			digitaloutpin = pinConfig.DIGITAL_OUT_3;
 			digitaloutval = digitalout_val_3;

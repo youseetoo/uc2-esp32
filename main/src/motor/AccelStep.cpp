@@ -31,15 +31,15 @@ namespace AccelStep
         {
 #ifdef USE_TCA9535            
                 _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-#else
-            else
-            {
-                pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
-                digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-            }
-            power_enable = true;
-            log_i("poweron motors");
+#endif
         }
+        else
+        {
+            pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
+            digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+        }
+        power_enable = true;
+        log_i("poweron motors");
     }
 
     void poweroff(bool force)
@@ -216,6 +216,12 @@ namespace AccelStep
             xTaskCreate(&driveMotorZLoop, "motor_task_Z", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
     }
 
+
+    void setPosition(Stepper axis, int pos){
+        getData()[axis]->currentPosition = pos;
+        steppers[axis]->setCurrentPosition(pos);
+    }
+    
     void stopAccelStepper(int i)
     {
         log_i("stop stepper %i", i);

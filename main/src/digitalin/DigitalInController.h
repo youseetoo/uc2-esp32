@@ -5,7 +5,7 @@
 
 namespace DigitalInController
 {
-    static bool DEBUG = false;
+    static bool isDEBUG = false;
 
     static int digitalin_val_1 = 0;
     static int digitalin_val_2 = 0;

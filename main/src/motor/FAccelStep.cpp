@@ -27,7 +27,12 @@ namespace FAccelStep
         }
 
         faststeppers[i]->setSpeedInHz(speed);
-        faststeppers[i]->setAcceleration(getData()[i]->acceleration);
+        if(getData()[i]->acceleration <= 0) {
+            faststeppers[i]->setAcceleration(getData()[i]->acceleration);
+        }
+        else{
+            faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
+        }
 
         getData()[i]->stopped = false;
         if (getData()[i]->isforever)
@@ -37,11 +42,13 @@ namespace FAccelStep
             {
                 // run clockwise
                 faststeppers[i]->runForward();
+                log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
             }
             else if (getData()[i]->speed < 0)
             {
                 // run counterclockwise
                 faststeppers[i]->runBackward();
+                log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
             }
         }
         else
@@ -60,7 +67,7 @@ namespace FAccelStep
             }
         }
 
-        /*
+        
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -71,8 +78,8 @@ namespace FAccelStep
               getData()[i]->isaccelerated,
               getData()[i]->acceleration,
               getData()[i]->stopped,
-              faststeppers[i]->isRunning());
-              */
+              isRunning(i));
+              
     }
 
     void setupFastAccelStepper()
@@ -136,7 +143,10 @@ namespace FAccelStep
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, false);
-        faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
+        if (pinConfig.MOTOR_AUTOENABLE)
+            faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
+        else
+            faststeppers[stepper]->enableOutputs();
         faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);
         faststeppers[stepper]->setAcceleration(DEFAULT_ACCELERATION);
         faststeppers[stepper]->setCurrentPosition(getData()[stepper]->currentPosition);

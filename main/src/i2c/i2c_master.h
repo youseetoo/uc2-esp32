@@ -3,9 +3,21 @@
 #include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
 #include "../home/HomeMotor.h"
-#include "../tmc/TMCController.h"
 #include "cJsonTool.h"
 #include "cJSON.h"
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
+enum I2C_REQUESTS
+{
+    REQUEST_MOTORSTATE = 0,
+    REQUEST_HOMESTATE = 1,
+    REQUEST_LASER_DATA = 2,
+    REQUEST_TMCDATA = 3, 
+    REQUEST_OTAUPDATE = 4, 
+    REQUEST_REBOOT = 5
+};
 namespace i2c_master
 {
 
@@ -18,20 +30,29 @@ namespace i2c_master
     cJSON *get(cJSON *ob);
     void setup();
     void loop();
-    MotorData **getData();
-    void startStepper(int i, bool reduced);
-    void stopStepper(int i);
+    void startStepper(MotorData *data, int axis, bool reduced = false);
+    void stopStepper(MotorData *data, int axis);
     void startHome(int i);
     int axis2address(int axis);
     void sendMotorDataToI2CDriver(MotorData motorData, uint8_t axis, bool reduced);
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);
+    #ifdef TMC_CONTROLLER
     void sendTMCDataI2C(TMCData tmcData, uint8_t id);
-    MotorState pullMotorDataI2C(int axis);
+    #endif
+    MotorState pullMotorDataI2CDriver(int axis);
+    HomeState pullHomeStateFromI2CDriver(int axis);
+    void updateMotorData(int i);    
+    long getMotorPosition(int i);
+    void setPosition(Stepper s, int pos);
+    void setPositionI2CDriver(Stepper s, long pos);
+    void startOTA(int axis=-1);
+    void reboot();
 
-    void parseHomeJsonI2C(cJSON *doc);
+    MotorState getMotorState(int i);
     void parseMotorJsonI2C(cJSON *doc);
+
     #ifdef DIAL_CONTROLLER
     void pushMotorPosToDial();
     #endif

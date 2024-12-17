@@ -108,7 +108,7 @@ namespace AnalogOutController
 		int analogoutid = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutid")->valueint;	 //(ob)["analogoutid"];
 		int analogoutval = cJSON_GetObjectItemCaseSensitive(monitor_json, "analogoutval")->valueint; //(ob)["analogoutval"];
 
-		if (DEBUG)
+		if (isDEBUG)
 		{
 			log_d("analogoutid %i", analogoutid);
 			log_d("analogoutval%i", analogoutval);
@@ -144,25 +144,25 @@ namespace AnalogOutController
 
 		if (analogoutid == 1)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("analogout 1");
 			analogoutpin = pinConfig.analogout_PIN_1;
 			analogoutval = analogout_val_1;
 		}
 		else if (analogoutid == 2)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("AXIS 2");
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("analogout 2");
 			analogoutpin = pinConfig.analogout_PIN_2;
 			analogoutval = analogout_val_2;
 		}
 		else if (analogoutid == 3)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("AXIS 3");
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("analogout 1");
 			analogoutpin = pinConfig.analogout_PIN_3;
 			analogoutval = analogout_val_3;

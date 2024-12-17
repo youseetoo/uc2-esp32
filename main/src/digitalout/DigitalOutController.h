@@ -4,7 +4,7 @@
 
 namespace DigitalOutController
 {
-    static bool DEBUG = false;
+    static bool isDEBUG = false;
 
     static int digitalout_val_1 = 0;
     static int digitalout_val_2 = 0;

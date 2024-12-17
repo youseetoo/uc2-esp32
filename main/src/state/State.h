@@ -5,7 +5,7 @@
 
 namespace State
 {
-	static bool DEBUG = false;
+	static bool isDEBUG = false;
 
 	static const char *identifier_name = "UC2_Feather";
 	static const char *identifier_id = "V2.0";

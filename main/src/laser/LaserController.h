@@ -53,7 +53,7 @@ namespace LaserController
     static int minPulseWidth = 500;
     static int maxPulseWidth = 2500;
 
-    static bool DEBUG = false;
+    static bool isDEBUG = false;
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(cJSON * ob);

@@ -10,6 +10,7 @@
 #include <WiFiAP.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
+#include "../i2c/i2c_master.h"
 
 namespace State
 {
@@ -23,27 +24,30 @@ namespace State
 	// {"task":"/state_act", "delay":1000}
 	// {"task":"/state_act", "isBusy":1}
 	// {"task":"/state_act", "resetPreferences":1}
-	// {"task":"/state_act", "debug":0} // 0-5
+	// {"task":"/state_act", "isDEBUG":0} // 0-5
 
 	// Custom function accessible by the API
 	int act(cJSON *doc)
 	{
 		// here you can do something
-		if (DEBUG)
+		if (isDEBUG)
 			log_i("state_act_fct");
 
 		cJSON *restart = cJSON_GetObjectItemCaseSensitive(doc, "restart");
 		// assign default values to thhe variables
 		if (restart != NULL)
 		{
-			//{"task": "/state_act", "restart": 1}
+			// {"task": "/state_act", "restart": 1}
+			#ifdef I2C_MASTER
+			i2c_master::reboot();
+			#endif
 			ESP.restart();
 		}
 
 		cJSON *ota = cJSON_GetObjectItemCaseSensitive(doc, "ota");
 		if (ota != NULL)
 		{
-			//{"task": "/state_act", "ota": 1}
+			// {"task": "/state_act", "ota": 1}
 			startOTA();
 		}
 		// assign default values to thhe variables
@@ -54,12 +58,14 @@ namespace State
 			delay(mdelayms);
 		}
 		// set debug level
+		/*
 		cJSON *debug = cJSON_GetObjectItemCaseSensitive(doc, "debug");
 		if (debug != NULL)
 		{
-			DEBUG = debug->valueint;
-			esp_log_level_set("MessageController", (esp_log_level_t)DEBUG);
+			isDEBUG = debug->valueint;
+			esp_log_level_set("MessageController", (esp_log_level_t)isDEBUG);
 		}
+		*/
 		// assign default values to thhe variables
 		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(doc, "isBusy");
 		if (BUSY != NULL)
@@ -134,9 +140,9 @@ namespace State
 
 	void printInfo()
 	{
-		if (DEBUG)
+		if (isDEBUG)
 			log_i("You can use this software by sending JSON strings, A full documentation can be found here:");
-		if (DEBUG)
+		if (isDEBUG)
 			log_i("https://github.com/openUC2/UC2-REST/");
 		// log_i("A first try can be: \{\"task\": \"/state_get\"");
 	}
@@ -146,6 +152,11 @@ namespace State
 		// Start a wifi hotspot using an SSID based on the ESPs MAC address with now password
 		// and start an OTA server
 		// This is a blocking function
+
+		#ifdef I2C_MASTER
+		// send OTA Trigger to device
+		i2c_master::startOTA();
+		#elif defined(I2C_SLAVE_MOTOR)
 
 		// close any ongoing wifi connection
 		WiFi.disconnect(true);
@@ -159,8 +170,7 @@ namespace State
 		// Start the Wi-Fi access point
 		WiFi.softAP(ssid.c_str());
 		IPAddress IP = WiFi.softAPIP();
-		Serial.print("Access Point started. IP address: ");
-		Serial.println(IP);
+		log_i("OTA server started on %s", IP.toString().c_str());
 
 		// Set up mDNS responder for local hostname resolution
 		if (!MDNS.begin("esp32"))
@@ -168,7 +178,7 @@ namespace State
 			Serial.println("Error starting mDNS");
 			return;
 		}
-		Serial.println("mDNS responder started");
+		log_i("mDNS responder started");
 
 		// Configure and start OTA server
 		ArduinoOTA.onStart([]()
@@ -201,7 +211,7 @@ namespace State
             Serial.println("End Failed"); });
 
 		ArduinoOTA.begin();
-		Serial.println("OTA server started");
+		log_i("OTA server started");
 
 		// Blocking loop to handle OTA updates
 		long cTime = millis();
@@ -209,12 +219,15 @@ namespace State
 		{
 			ArduinoOTA.handle();
 			delay(100);
-			if (millis() - cTime > 10000)
+			if (millis() - cTime > 30000)
 			{
 				log_i("Timeout, stopping OTA");
 				break;
 			}
 		}
+		#else
+		log_i("No OTA for this device");
+		#endif
 	}
 
 	cJSON *getModules()

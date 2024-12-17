@@ -3,7 +3,7 @@
 #include "cJsonTool.h"
 #include "JsonKeys.h"
 #include "../state/State.h"
-#ifdef I2C_MASTER 
+#ifdef I2C_LASER 
 #include "../i2c/i2c_master.h"
 #endif
 namespace LaserController
@@ -76,7 +76,7 @@ namespace LaserController
 		LASERdespecklePeriod = cJsonTool::getJsonInt(ob, "LASERdespecklePeriod");
 
 
-		#ifdef I2C_MASTER
+		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
@@ -240,7 +240,7 @@ namespace LaserController
 
 	bool setLaserVal(int LASERid, int LASERval)
 	{
-		#ifdef I2C_MASTER
+		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;

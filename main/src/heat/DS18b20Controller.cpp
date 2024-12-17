@@ -7,7 +7,7 @@
 
 namespace DS18b20Controller
 {
-	bool DEBUG = false;
+	bool isDEBUG = false;
 
 	long lastReading = 0;
 	float readingPeriod = 1000; // ms

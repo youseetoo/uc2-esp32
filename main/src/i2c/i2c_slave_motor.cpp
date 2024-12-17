@@ -4,6 +4,7 @@
 #include "../motor/FocusMotor.h"
 #include "../home/HomeMotor.h"
 #include "../tmc/TMCController.h"
+#include "../state/State.h"
 
 using namespace FocusMotor;
 using namespace HomeMotor;
@@ -43,24 +44,27 @@ namespace i2c_slave_motor
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
             */
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
-            log_i("Received MotorData from I2C");
-            log_i("MotorData:");
-            log_i("  qid: %i", (int)FocusMotor::getData()[mStepper]->qid);
-            log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
-            log_i("  targetPosition: %i", (int)FocusMotor::getData()[mStepper]->targetPosition);
-            log_i("  absolutePosition: %i", (bool)FocusMotor::getData()[mStepper]->absolutePosition);
-            log_i("  speed: %i", (int)FocusMotor::getData()[mStepper]->speed);
-            log_i("  acceleration: %i", (bool)FocusMotor::getData()[mStepper]->acceleration);
-            log_i("  isforever: %i", (bool)FocusMotor::getData()[mStepper]->isforever);
-            log_i("  isEnable: %i", (bool)FocusMotor::getData()[mStepper]->isEnable);
-            log_i("  isStop: %i", (bool)FocusMotor::getData()[mStepper]->isStop);
-
+            log_i("Received MotorData from I2C, isEnable: %i, targetPosition: %i, absolutePosition: %i, speed: %i, acceleration: %i, isforever: %i, isStop: %i", receivedMotorData.isEnable, receivedMotorData.targetPosition, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration, receivedMotorData.isforever, receivedMotorData.isStop);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
             // Now `receivedMotorData` contains the deserialized data
             // You can process `receivedMotorData` as needed
             // bool isStop = receivedMotorData.isStop;
         }
-        else if (numBytes == sizeof(MotorDataI2C)){
+        else if (numBytes == sizeof(long))
+        {
+            // we forcefully set the position on the slave
+            long motorPosition;
+            uint8_t *dataPtr = (uint8_t *)&motorPosition;
+            for (int i = 0; i < numBytes; i++)
+            {
+                dataPtr[i] = Wire.read();
+            }
+            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            FocusMotor::getData()[mStepper]->currentPosition = motorPosition;
+            log_i("Received MotorPosition from I2C %i", motorPosition);
+        }
+        else if (numBytes == sizeof(MotorDataI2C))
+        {
             // parse a possible motor event
             MotorDataI2C receivedMotorData;
             uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
@@ -75,8 +79,8 @@ namespace i2c_slave_motor
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop);
-            log_i("Received MotorDataI2C from I2C");
+            FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
         }
         else if (numBytes == sizeof(HomeData))
         {
@@ -95,8 +99,12 @@ namespace i2c_slave_motor
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
-            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
-            
+            log_i("Received HomeData from I2C, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
+            // TODO: absolutely no clue, but it seems the first one does have a wrong state and does not run 
+            //delay(50);
+            //HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
+
         }
         else if (numBytes == sizeof(TMCData))
         {
@@ -120,17 +128,40 @@ namespace i2c_slave_motor
 
     void receiveEvent(int numBytes)
     {
-        // Master and Slave
-        // log_i("Receive Event");
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
+
+        // if we receive one byte, it is the request type, otherwise it's the data we need to parse
+        if (numBytes == 1)
         {
-            // Motor, Home, TMC Events
-            parseMotorEvent(numBytes);
+            // The master sends the request for the return type
+            uint8_t requestType = Wire.read();
+            currentRequest = static_cast<I2C_REQUESTS>(requestType);
+            switch (currentRequest)
+            {
+            case I2C_REQUESTS::REQUEST_MOTORSTATE:
+                break;
+            case I2C_REQUESTS::REQUEST_HOMESTATE:
+                break;
+            case I2C_REQUESTS::REQUEST_TMCDATA:
+                break;
+            case I2C_REQUESTS::REQUEST_OTAUPDATE:
+                // start ota server 
+                log_i("Starting OTA");
+                State::startOTA();
+                break;
+            case I2C_REQUESTS::REQUEST_REBOOT:
+                // reboot the device
+                log_i("Rebooting device");
+                ESP.restart();
+                break;
+            default:
+                log_e("Unknown Request Type");
+                break;
+            }
         }
         else
         {
-            // Handle error: I2C controller type not supported
-            log_e("Error: I2C controller type not supported.");
+            // Motor, Home, TMC Events
+            parseMotorEvent(numBytes);
         }
     }
 
@@ -139,21 +170,35 @@ namespace i2c_slave_motor
         // The master request data from the slave
         // !THIS IS ONLY EXECUTED IN I2C SLAVE MODE!
         // for the motor we would need to send the current position and the state of isRunning
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mMOTOR)
+        if (currentRequest == I2C_REQUESTS::REQUEST_MOTORSTATE)
         {
             // The master request data from the slave
             MotorState motorState;
             bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
             long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
+            bool isForever = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->isforever;
             motorState.currentPosition = currentPosition;
             motorState.isRunning = isRunning;
-            // Serial.println("motor is running: " + String(motorState.isRunning));
+            // motorState.isForever = isForever;
+            //log_i("Motor is running: %i, at position: %i", isRunning, currentPosition);
             Wire.write((uint8_t *)&motorState, sizeof(MotorState));
+        }
+        else if (currentRequest == I2C_REQUESTS::REQUEST_HOMESTATE)
+        {
+            // The master request data from the slave
+            HomeState homeState;
+            bool isHoming = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeIsActive;
+            int homeInEndposReleaseMode = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeInEndposReleaseMode;
+            homeState.isHoming = isHoming;
+            homeState.homeInEndposReleaseMode = homeInEndposReleaseMode;
+            log_i("Home is running: %i, in endpos release mode: %i", isHoming, homeInEndposReleaseMode);
+            Wire.write((uint8_t *)&homeState, sizeof(HomeState));
         }
         else
         {
             // Handle error: I2C controller type not supported
-            log_e("Error: I2C controller type not supported.");
+            log_e("Error: I2C request type not supported.");
+            log_e("Current Request Code: %i", currentRequest);
             Wire.write(0);
         }
     }

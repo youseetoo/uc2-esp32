@@ -89,7 +89,7 @@ namespace HeatController
 		errorRunSum = errorRunSum + error;
 		previousError = error;
 
-		// 	if (DEBUG)
+		// 	if (isDEBUG)
 		// log_d("analoginValue: " + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut));
 		return stepperOut;
 	}

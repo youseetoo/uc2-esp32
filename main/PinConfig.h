@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#define I2C_MASTER
+
 
 struct UC2_3_I2CMaster : PinConfig
 {

@@ -1,4 +1,4 @@
-#define CORE_DEBUG_LEVEL 0
+#define CORE_isDEBUG_LEVEL 0
 #include "esp_log.h"
 #include <PinConfig.h>
 #include "src/config/ConfigController.h"
@@ -11,11 +11,9 @@
 #include <Preferences.h>
 #include "nvs_flash.h"
 
-
 Preferences preferences;
 
-
-#define WDTIMEOUT 2 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
+#define WDTIMEOUT 5 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
 #ifdef ESP32S3_MODEL_XIAO
@@ -87,20 +85,26 @@ Preferences preferences;
 #include "src/i2c/tca_controller.h"
 #endif
 #ifdef I2C_MASTER
-	#include "src/i2c/i2c_master.h"
+#include "src/i2c/i2c_master.h"
 #endif
 #ifdef I2C_SLAVE_MOTOR
-	#include "src/i2c/i2c_slave_motor.h"
+#include "src/i2c/i2c_slave_motor.h"
 #endif
 #ifdef I2C_SLAVE_LASER
-	#include "src/i2c/i2c_slave_laser.h"
+#include "src/i2c/i2c_slave_laser.h"
 #endif
 #ifdef I2C_SLAVE_DIAL
-	#include "src/i2c/i2c_slave_dial.h"
+#include "src/i2c/i2c_slave_dial.h"
 #endif
 #ifdef HEAT_CONTROLLER
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
+#endif
+#ifdef ESPNOW_MASTER
+#include "src/espnow/espnow_master.h"
+#endif
+#ifdef ESPNOW_SLAVE_MOTOR
+#include "src/espnow/espnow_slave_motor.h"
 #endif
 
 long lastHeapUpdateTime = 0;
@@ -174,6 +178,14 @@ extern "C" void looper(void *p)
 		HeatController::loop();
 		vTaskDelay(1);
 #endif
+#ifdef ESPNOW_MASTER
+		espnow_master::loop();
+		vTaskDelay(1);
+#endif
+#ifdef ESPNOW_SLAVE_MOTOR
+		espnow_slave_motor::loop();
+		vTaskDelay(1);
+#endif
 
 		// process all commands in their modules
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time())
@@ -191,17 +203,16 @@ extern "C" void looper(void *p)
 
 extern "C" void setupApp(void)
 {
-	
+
 	log_i("SetupApp");
 	// setup debugging level
-	// esp_log_level_set("*", ESP_LOG_DEBUG);
-	
+	// esp_log_level_set("*", ESP_LOG_isDEBUG);
 
 	SerialProcess::setup();
 #ifdef DIAL_CONTROLLER
 	// need to initialize the dial controller before the i2c controller
 	DialController::setup();
-#endif	
+#endif
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
@@ -225,7 +236,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef ANALOG_JOYSTICK
 	AnalogJoystick::setup();
-#endif
+#endif 
 #ifdef ANALOG_OUT_CONTROLLER
 	AnalogOutController::setup();
 #endif
@@ -295,10 +306,15 @@ extern "C" void setupApp(void)
 #ifdef GALVO_CONTROLLER
 	GalvoController::setup();
 #endif
+#ifdef ESPNOW_MASTER
+	espnow_master::setup();
+#endif
+#ifdef ESPNOW_SLAVE_MOTOR
+	espnow_slave_motor::setup();
+#endif
 
 	Serial.println("{'setup':'done'}");
 }
-
 
 extern "C" void app_main(void)
 {
@@ -307,32 +323,34 @@ extern "C" void app_main(void)
 	esp_log_level_set("*", ESP_LOG_NONE);
 	log_i("Start setup");
 
-    // Initialisieren Sie den NVS-Speicher
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        // NVS-Partition ist beschädigt oder eine neue Version wurde gefunden
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+	// Initialisieren Sie den NVS-Speicher
+	esp_err_t ret = nvs_flash_init();
+	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+	{
+		// NVS-Partition ist beschädigt oder eine neue Version wurde gefunden
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		ret = nvs_flash_init();
+	}
+	ESP_ERROR_CHECK(ret);
 
 	// read if boot went well from preferences // TODO: Some ESPs have this problem apparently... not sure why
 	preferences.begin("boot_prefs", false);
 	bool hasBooted = preferences.getBool("hasBooted", false); // Check if the ESP32 has already booted successfully before
 
 	// If this is the first boot, set the flag and restart
-	if (false and !hasBooted) { // some ESPs are freaking out on start, but this is not a good solution
+	if (false and !hasBooted)
+	{ // some ESPs are freaking out on start, but this is not a good solution
 		// Set the flag to indicate that the ESP32 has booted once
 		Serial.println("First boot");
 		preferences.putBool("hasBooted", true);
 		preferences.end();
-		ESP.restart();// Restart the ESP32 immediately
+		ESP.restart(); // Restart the ESP32 immediately
 	}
 
 	preferences.putBool("hasBooted", false); // reset boot flag so that the ESP32 will restart on the next boot
 	preferences.end();
-	
-	// Start Serial	
+
+	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);
 	Serial.setTimeout(50);
@@ -343,8 +361,6 @@ extern "C" void app_main(void)
 
 	// initialize the module controller
 	setupApp();
-
-
 
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);

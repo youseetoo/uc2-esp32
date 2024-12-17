@@ -5,6 +5,7 @@
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
 #include "../state/State.h"
+#include "esp_debug_helpers.h"
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -73,11 +74,7 @@ namespace FocusMotor
 			{
 				if (!data[i]->stopped)
 				{
-#ifdef USE_FASTACCEL
-					FAccelStep::updateData(i);
-#elif defined USE_ACCELSTEP
-					AccelStep::updateData(i);
-#endif
+					updateData(i);
 					cJSON *item = cJSON_CreateObject();
 					cJSON_AddItemToArray(stprs, item);
 					cJSON_AddNumberToObject(item, key_stepperid, i);
@@ -93,15 +90,15 @@ namespace FocusMotor
 #endif
 				// print result - will that work in the case of an xTask?
 				Serial.println("++");
-				char *s = cJSON_Print(root);
+				char *s = cJSON_PrintUnformatted(root);
 				Serial.println(s);
 				free(s);
 				Serial.println("--");
 			}
-#ifdef I2C_MASTER
-			i2c_master::pushMotorPosToDial()
+#ifdef I2C_MASTER and defined DIAL_CONTROLLER
+			i2c_master::pushMotorPosToDial();
 #endif
-				cJSON_Delete(root);
+			cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
 	}
@@ -109,9 +106,8 @@ namespace FocusMotor
 
 	void startStepper(int axis, bool reduced = false)
 	{
-		// HIER MURKS!
-		log_i("startStepper %i at speed % and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
-		// ensure isStop is false
+		// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
+		//  ensure isStop is false
 		getData()[axis]->isStop = false;
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
@@ -124,16 +120,16 @@ namespace FocusMotor
 		else
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			i2c_master::startStepper(axis, reduced); // TODO: This cannot send two motor information simultaenosly
-			i2c_master::waitForFirstRunI2CSlave[axis] = true;
-			getData()[axis]->stopped = false;
+			MotorData *m = getData()[axis];
+			i2c_master::startStepper(m, axis, reduced);
+			waitForFirstRun[axis] = 1;
 		}
-#endif
-#ifdef USE_FASTACCEL
+#elif defined USE_FASTACCEL
 		FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(axis);
 #endif
+		getData()[axis]->stopped = false;
 	}
 
 	void parseMotorDriveJson(cJSON *doc)
@@ -164,7 +160,7 @@ namespace FocusMotor
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					bool isStop = (cstop != NULL) ? cstop->valueint : false;
-					toggleStepper(s, isStop);
+					toggleStepper(s, isStop, false); // not reduced
 				}
 			}
 			else
@@ -174,7 +170,7 @@ namespace FocusMotor
 			log_i("Motor json is null");
 	}
 
-	void toggleStepper(Stepper s, bool isStop)
+	void toggleStepper(Stepper s, bool isStop, bool reduced)
 	{
 		if (isStop)
 		{
@@ -182,7 +178,7 @@ namespace FocusMotor
 		}
 		else
 		{
-			startStepper(s); // TODO: Need dual axis?
+			startStepper(s, reduced); // TODO: Need dual axis?
 		}
 	}
 
@@ -224,6 +220,22 @@ namespace FocusMotor
 			return true; // motor will return pos per socket or serial inside loop. act is fire and forget
 		}
 		return false;
+	}
+
+	void moveMotor(long pos, int s, bool isRelative)
+	{
+		// move motor
+		// blocking = true => wait until motor is done
+		// blocking = false => fire and forget
+		data[s]->targetPosition = pos;
+		data[s]->isforever = false;
+		data[s]->absolutePosition = !isRelative;
+		data[s]->isStop = false;
+		data[s]->stopped = false;
+		data[s]->speed = 2000;
+		data[s]->acceleration = 1000;
+		data[s]->isaccelerated = 1;
+		startStepper(s, false);
 	}
 
 	void enable(bool en)
@@ -394,33 +406,26 @@ namespace FocusMotor
 
 			if (pos != NULL)
 			{
-
+				log_i("get motor position");
 				// update position and push it to the json
-				data[i]->currentPosition = 1;
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
-#ifdef USE_FASTACCEL
-				FAccelStep::updateData(i);
-#elif defined USE_ACCELSTEP
-				AccelStep::updateData(i);
-#endif
-
+				updateData(i);
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 			else if (stop != NULL)
 			{
+				log_i("stop motor");
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stopped, !data[i]->stopped);
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 			else // return the whole config
 			{
-#ifdef USE_FASTACCEL
-				FAccelStep::updateData(i);
-#elif defined USE_ACCELSTEP
-				AccelStep::updateData(i);
-#endif
+				// update position and push it to the json
+				log_i("get motor config");
+				updateData(i);
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				cJsonTool::setJsonInt(aritem, key_position, data[i]->currentPosition);
@@ -440,23 +445,24 @@ namespace FocusMotor
 		return doc;
 	}
 
+	void updateData(int axis)
+	{
+// Request the current position from the slave motors depending on the interface
+#ifdef USE_FASTACCEL
+		FAccelStep::updateData(axis);
+#elif defined USE_ACCELSTEP
+		AccelStep::updateData(axis);
+#elif defined I2C_MASTER
+		MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(axis);
+		data[axis]->currentPosition = mMotorState.currentPosition;
+		// data[axis]->isforever = mMotorState.isforever;
+#endif
+	}
+
 	int act(cJSON *doc)
 	{
 		log_i("motor act");
 		int qid = cJsonTool::getJsonInt(doc, "qid");
-
-#ifdef I2C_SLAVE_MOTOR
-		// set Motor Axis (for I2C)
-		/*
-			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 3}]}}
-		*/
-		parseSetAxis(doc);
-#endif
-
-#ifdef I2C_MASTER
-		// move motor via I2C
-		i2c_master::parseMotorJsonI2C(doc);
-#endif
 
 		// only enable/disable motors
 		// {"task":"/motor_act", "isen":1, "isenauto":1}
@@ -469,6 +475,9 @@ namespace FocusMotor
 		// set position of motors in eeprom
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
 		parseSetPosition(doc);
+
+		// set axis of motors
+		parseSetAxis(doc);
 
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
@@ -559,6 +568,7 @@ namespace FocusMotor
 		AccelStep::setupAccelStepper();
 #endif
 #ifdef USE_FASTACCEL || USE_ACCELSTEP
+#ifdef TCA9535
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
 			// need to activate the motor's dir pin eventually
@@ -574,12 +584,27 @@ namespace FocusMotor
 			delay(10);
 			stopStepper(iMotor);
 		}
-#endif
-#ifdef I2C_MASTER
-		// send stop signal to all motors
+#else
+		// send motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
+			if (data[iMotor]->isActivated)
+			{
+				sendMotorPos(iMotor, 0);
+			}
+		}
+#endif // TCA9535
+
+#endif
+#ifdef I2C_MASTER and defined I2C_MOTOR
+		// send stop signal to all motors and update motor positions
+		for (int iMotor = 0; iMotor < 4; iMotor++)
+		{
+			moveMotor(1, iMotor, true); // wake up motor
+			data[iMotor]->isActivated = true;
 			stopStepper(iMotor);
+			MotorState mMotorState = i2c_master::pullMotorDataI2CDriver(iMotor);
+			data[iMotor]->currentPosition = mMotorState.currentPosition;
 		}
 #endif
 #if defined DIAL_CONTROLLER && defined I2C_MASTER
@@ -598,52 +623,55 @@ namespace FocusMotor
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
-			bool isRunning = false;
+			#ifdef I2C_MASTER
+			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
+			if(waitForFirstRun[i]){
+				waitForFirstRun[i] = 0;
+				continue;
+			}
+			#endif
+			bool mIsRunning = false;
 			// we check if the motor was defined
 			if (getData()[i]->isActivated)
 			{
-#ifdef USE_FASTACCEL
-				isRunning = FAccelStep::isRunning(i);
-#elif defined USE_ACCELSTEP
-				isRunning = AccelStep::isRunning(i);
-#endif
-				// TODO: @KillerInk do we need to have an isRunning flag for the I2c Motor, too?
+				mIsRunning = isRunning(i);
 			}
 
-#ifndef I2C_MASTER
-			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (!isRunning && !data[i]->stopped)
+			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			if (!mIsRunning && !data[i]->stopped && !data[i]->isforever)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i", i, isRunning, data[i]->stopped);
+				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
 				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
-#endif
 		}
 	}
 
 	bool isRunning(int i)
 	{
+		bool mIsRunning = false;
 #ifdef USE_FASTACCEL
-		return FAccelStep::isRunning(i);
+		mIsRunning = FAccelStep::isRunning(i);
 #elif defined USE_ACCELSTEP
-		return AccelStep::isRunning(i);
+		mIsRunning = AccelStep::isRunning(i);
+#elif defined I2C_MASTER
+		// Request data from the slave but only if inside i2cAddresses
+		MotorState mData = i2c_master::getMotorState(i);
+		mIsRunning = mData.isRunning;
 #endif
+		return mIsRunning;
 	}
 
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos)
 	{
-#ifdef USE_FASTACCEL
-		FAccelStep::updateData(i);
-#elif defined USE_ACCELSTEP
-		AccelStep::updateData(i);
-#endif
+		// update current position of the motor depending on the interface
+		updateData(i);
 
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
@@ -673,10 +701,13 @@ namespace FocusMotor
 #ifdef WIFI
 		WifiController::sendJsonWebSocketMsg(root);
 #endif
+#ifdef I2C_MASTER and defined DIAL_CONTROLLER
+		i2c_master::pushMotorPosToDial();
+#endif
 
 		// Print result - will that work in the case of an xTask?
 		Serial.println("++");
-		char *s = cJSON_Print(root);
+		char *s = cJSON_PrintUnformatted(root);
 		if (s != NULL)
 		{
 			Serial.println(s);
@@ -692,20 +723,18 @@ namespace FocusMotor
 
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
+		// esp_backtrace_print(10);
+		log_i("stopStepper I2C_MASTER Focus Motor %i", i);
 		uint8_t slave_addr = i2c_master::axis2address(i);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			getData()[i]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(i, 0);			  // this is an exception. We first get the position, then the success
 		}
-		else
-		{
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			getData()[i]->stopped = true;
-			i2c_master::stopStepper(i);
-		}
 #endif
 
+		log_i("stopStepper Focus Motor %i", i);
 		// only send motor data if it was running before
 		if (!data[i]->stopped)
 			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
@@ -713,17 +742,31 @@ namespace FocusMotor
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
 		AccelStep::stopAccelStepper(i);
+#elif defined I2C_MASTER
+		getData()[i]->isforever = false;
+		getData()[i]->speed = 0;
+		getData()[i]->stopped = true;
+		getData()[i]->isStop = true;
+		MotorData *m = getData()[i];
+		i2c_master::stopStepper(m, i);
 #endif
+	}
+
+	long getPosition(Stepper s)
+	{
+		log_i("Getting motor %i position", s);
+		updateData(s);
+		return getData()[s]->currentPosition;
 	}
 
 	void setPosition(Stepper s, int pos)
 	{
-		getData()[s]->currentPosition = pos;
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
 #elif defined USE_ACCELSTEP
 		AccelStep::setPosition(s, pos);
 #endif
+		getData()[s]->currentPosition = pos;
 	}
 
 	void move(Stepper s, int steps, bool blocking)

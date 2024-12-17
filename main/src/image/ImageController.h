@@ -8,7 +8,7 @@ private:
 public:
     ImageController(/* args */);
     ~ImageController();
-    bool DEBUG = false;
+    bool isDEBUG = false;
 
     void setup() override;
     int act(cJSON *jsonDocument) override;

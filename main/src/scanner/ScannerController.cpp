@@ -16,7 +16,7 @@ namespace ScannerController
 
 	void loop()
 	{
-		if (DEBUG)
+		if (isDEBUG)
 			Serial.println("Start FrameStack");
 		int roundTripCounter = 0;
 		/*
@@ -85,7 +85,7 @@ namespace ScannerController
 			}
 		}
 		scannernFrames = 0;
-		if (DEBUG)
+		if (isDEBUG)
 			Serial.println("Ending FrameStack");
 	}
 
@@ -94,7 +94,7 @@ namespace ScannerController
 	{
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// here you can do something
-		if (DEBUG)
+		if (isDEBUG)
 			Serial.println("scanner_act_fct");
 
 		// select scanning mode
@@ -102,7 +102,7 @@ namespace ScannerController
 
 		if (strcmp(scannerMode, "pattern") == 0)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("pattern");
 			// individual pattern gets adressed
 			int arraySize = 0;
@@ -149,7 +149,7 @@ namespace ScannerController
 
 		else if (strcmp(scannerMode, "classic") == 0)
 		{
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("classic");
 
 			// assert values
@@ -187,56 +187,56 @@ namespace ScannerController
 			cJsonTool::setJsonInt(ob, "scannerEnable", scannerEnable);
 			cJsonTool::setJsonInt(ob, "scannerDelay", scannerDelay);
 
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerxMin ");
 			Serial.println(scannerxMin);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scanneryMin ");
 			Serial.println(scanneryMin);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerxMax ");
 			Serial.println(scannerxMax);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scanneryMax ");
 			Serial.println(scanneryMax);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerExposure ");
 			Serial.println(scannerExposure);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerEnable ");
 			Serial.println(scannerEnable);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerLaserVal ");
 			Serial.println(scannerLaserVal);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerXFrameMax ");
 			Serial.println(scannerXFrameMax);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerXFrameMin ");
 			Serial.println(scannerXFrameMin);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerYFrameMax ");
 			Serial.println(scannerYFrameMax);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerYFrameMin ");
 			Serial.println(scannerYFrameMin);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerXStep ");
 			Serial.println(scannerXStep);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerYStep ");
 			Serial.println(scannerYStep);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannernFrames ");
 			Serial.println(scannernFrames);
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.print("scannerDelay ");
 			Serial.println(scannerDelay);
 
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("Start controlGalvoTask");
 			isScanRunning = scannerEnable; // Trigger a frame acquisition
-			if (DEBUG)
+			if (isDEBUG)
 				Serial.println("Done with setting up Tasks");
 		}
 		return qid;

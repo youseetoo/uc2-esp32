@@ -112,7 +112,7 @@ namespace BtController
             checkdata(lastData.square, gamePadData.square, square_changed_event);
             if(lastData.dpaddirection != gamePadData.dpaddirection)
             {
-                lastData.dpaddirection, gamePadData.dpaddirection;
+                lastData.dpaddirection = gamePadData.dpaddirection;
                 if(dpad_changed_event != nullptr)
                     dpad_changed_event(lastData.dpaddirection);
             }

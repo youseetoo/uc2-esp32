@@ -41,11 +41,11 @@ namespace BtController
     bool connectToServer();
     void btControllerLoop(void *p);
     
-    void (*cross_changed_event)(uint8_t pressed);
-    void (*circle_changed_event)(uint8_t pressed);
-    void (*triangle_changed_event)(uint8_t pressed);
-    void (*square_changed_event)(uint8_t pressed);
-    void (*dpad_changed_event)(Dpad::Direction pressed);
-    void (*xyza_changed_event)(int x, int y,int z, int a);
-    void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2);
+    static void (*cross_changed_event)(uint8_t pressed);
+    static void (*circle_changed_event)(uint8_t pressed);
+    static void (*triangle_changed_event)(uint8_t pressed);
+    static void (*square_changed_event)(uint8_t pressed);
+    static void (*dpad_changed_event)(Dpad::Direction pressed);
+    static void (*xyza_changed_event)(int x, int y,int z, int a);
+    static void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2);
 };

@@ -1,5 +1,5 @@
-#include <PinConfig.h>
 #pragma once
+#include <PinConfig.h>
 #include "cJSON.h"
 #include "Arduino.h"
 

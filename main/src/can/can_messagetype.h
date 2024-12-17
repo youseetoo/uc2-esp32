@@ -46,6 +46,7 @@ enum CANMessageTypeID {
     MOTOR_STATE      = 0x12,
     HOME_ACT         = 0x13,
     HOME_STATE       = 0x14,
+    MOTOR_ACT_REDUCED= 0x15,
 
     LASER_ACT        = 0x20, // Laser Messages
     LASER_STATE      = 0x21,

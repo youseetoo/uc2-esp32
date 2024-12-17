@@ -35,7 +35,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_CONTROLLER
-#include "../can/can_master.h"
+#include "../can/can_controller.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -306,9 +306,9 @@ else  if (strcmp(task, i2c_get_endpoint) == 0)
 #endif
 #ifdef CAN_CONTROLLER
 		else if (strcmp(task, can_get_endpoint) == 0)
-			serialize(can_master::get(jsonDocument));
+			serialize(can_controller::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)
-			serialize(can_master::act(jsonDocument));
+			serialize(can_controller::act(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		else if (strcmp(task, laser_get_endpoint) == 0)

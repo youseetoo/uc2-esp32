@@ -41,7 +41,7 @@ struct CANMessage
 
 
 
-namespace can_master
+namespace can_controller
 {
 
     // last laser intensity
@@ -71,7 +71,8 @@ namespace can_master
     void parseMotorJsonCAN(cJSON *doc);
     void CANListenerTask(void *param);
     void processCANMessage(const CANMessage &message);
-    bool sendSegmentedDataCAN(uint16_t msgID, uint8_t messageType, void *data, size_t dataSize);
+    bool sendSegmentedDataCAN(uint32_t canID, void *data, size_t dataSize);
+
     static QueueHandle_t messageQueue;
     static MultiFrameBuffer multiFrameBuffers[16];
     void sendMotorStateToMaster();
@@ -86,4 +87,4 @@ namespace can_master
 
 
 
-} // namespace can_master
+} // namespace can_controller

@@ -85,7 +85,7 @@ Preferences preferences;
 #include "src/i2c/tca_controller.h"
 #endif
 #ifdef CAN_CONTROLLER
-#include "src/can/can_master.h"
+#include "src/can/can_controller.h"
 #endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
@@ -177,7 +177,7 @@ extern "C" void looper(void *p)
 		vTaskDelay(1);
 #endif
 #ifdef CAN_CONTROLLER
-		can_master::loop();
+		can_controller::loop();
 		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
@@ -237,7 +237,7 @@ extern "C" void setupApp(void)
 	i2c_master::setup();
 #endif
 #ifdef CAN_CONTROLLER
-	can_master::setup();
+	can_controller::setup();
 #endif
 #ifdef I2C_SLAVE_MOTOR
 	i2c_slave_motor::setup();

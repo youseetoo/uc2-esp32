@@ -28,7 +28,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_CONTROLLER
-#include "../can/can_master.h"
+#include "../can/can_controller.h"
 #endif
 
 namespace FocusMotor
@@ -129,8 +129,8 @@ namespace FocusMotor
 		}
 #elif defined(CAN_CONTROLLER) && defined(CAN_MOTOR)
 		// send the motor data to the slave
-		uint8_t slave_addr = can_master::axis2address(axis);
-		if (!true)// FIXME: need to update this to CAN can_master::isAddressInI2CDevices(slave_addr))
+		uint8_t slave_addr = can_controller::axis2address(axis);
+		if (!true)// FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
@@ -139,7 +139,7 @@ namespace FocusMotor
 		{
 			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 			MotorData *m = getData()[axis];
-			can_master::startStepper(m, axis, reduced);
+			can_controller::startStepper(m, axis, reduced);
 			waitForFirstRun[axis] = 1;
 		}
 #elif defined USE_FASTACCEL
@@ -151,7 +151,7 @@ namespace FocusMotor
 
 #ifdef CAN_MOTOR_SLAVE
 	// We push the current state to the master to inform it that we are running and about the current position
-	can_master::sendMotorStateToMaster();
+	can_controller::sendMotorStateToMaster();
 #endif
 	}
 
@@ -746,7 +746,7 @@ namespace FocusMotor
 		cJSON_Delete(root); // Free the root object, which also frees all nested objects
 		#ifdef CAN_MOTOR_SLAVE
 		// We push the current state to the master to inform it that we are running and about the current position
-		can_master::sendMotorStateToMaster();
+		can_controller::sendMotorStateToMaster();
 		#endif
 	}
 

@@ -65,6 +65,7 @@ Preferences preferences;
 #endif
 #ifdef MOTOR_CONTROLLER
 #include "src/motor/FocusMotor.h"
+#include "src/motor/MotorGamePad.h"
 #endif
 #ifdef PID_CONTROLLER
 #include "src/pid/PidController.h"
@@ -255,7 +256,7 @@ extern "C" void setupApp(void)
 		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
 	#endif
 	#ifdef MOTOR_CONTROLLER
-		BtController::setXYZAChangedEvent(FocusMotor::xyza_changed_event);
+		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
 		//log_i("BtController xyza_changed_event nullptr %d", BtController::xyza_changed_event == nullptr);
 	#endif
 	#ifdef ANALOG_OUT_CONTROLLER

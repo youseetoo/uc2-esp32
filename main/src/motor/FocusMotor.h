@@ -26,9 +26,6 @@ bool externalPinCallback();
 
 namespace FocusMotor
 {
-
-	static Preferences preferences;
-
 	void setup();
 	void loop();
 	void stopStepper(int i);
@@ -50,5 +47,4 @@ namespace FocusMotor
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
 	static bool waitForFirstRun[] = {false, false, false, false};
-	void xyza_changed_event(int x, int y,int z, int a);
 };

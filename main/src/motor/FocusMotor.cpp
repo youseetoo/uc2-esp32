@@ -37,6 +37,8 @@ namespace FocusMotor
 	MotorData z_dat;
 	MotorData *data[4];
 
+	Preferences preferences;
+
 	// for A,X,Y,Z intialize the I2C addresses
 	uint8_t i2c_addresses[] = {
 		pinConfig.I2C_ADD_MOT_A,
@@ -226,7 +228,7 @@ namespace FocusMotor
 			log_e("Stepper Z data NULL");
 
 		// Read dual axis from preferences if available
-		Preferences preferences;
+		
 		const char *prefNamespace = "UC2";
 		preferences.begin(prefNamespace, false);
 		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
@@ -497,112 +499,5 @@ namespace FocusMotor
 #endif
 	}
 
-	bool joystick_drive_X = false;
-	bool joystick_drive_Y = false;
-	bool joystick_drive_Z = false;
-	bool joystick_drive_A = false;
-	int offset_val = 1025;
-
-	void handleAxis(int value, int s)
-	{
-
-		if (s == Stepper::Z or (s == Stepper::A and isDualAxisZ))
-		{
-			// divide  to slow down
-			value = (float)((int)value / (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
-		}
-		else
-		{
-			// divide  to slow down
-			value = (float)((int)value / (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER);
-		}
-
-		int offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER;
-		if (s == Stepper::Z)
-		{
-			offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z;
-		}
-		else if(offset_val_scaled < offset_val)
-			offset_val_scaled = offset_val;
-		if (value >= offset_val_scaled || value <= -offset_val_scaled)
-		{
-			// move_x
-			getData()[s]->speed = value;
-			getData()[s]->isforever = true;
-			getData()[s]->acceleration = MAX_ACCELERATION_A;
-			//log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
-			FocusMotor::startStepper(s, true);
-			if (s == Stepper::X)
-				joystick_drive_X = true;
-			if (s == Stepper::Y)
-				joystick_drive_Y = true;
-			if (s == Stepper::Z)
-				joystick_drive_Z = true;
-			else if (s == Stepper::A)
-				joystick_drive_A = true;
-		}
-		else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
-		{
-			getData()[s]->speed = 0;
-			getData()[s]->isforever = false;
-			if (s == Stepper::X and joystick_drive_X)
-			{
-				FocusMotor::stopStepper(s);
-				joystick_drive_X = false;
-			}
-			if (s == Stepper::Y and joystick_drive_Y)
-			{
-				FocusMotor::stopStepper(s);
-				joystick_drive_Y = false;
-			}
-			if (s == Stepper::Z and joystick_drive_Z)
-			{
-				FocusMotor::stopStepper(s);
-				joystick_drive_Z = false;
-			}
-			if (s == Stepper::A and joystick_drive_A)
-			{
-				FocusMotor::stopStepper(s);
-				joystick_drive_A = false;
-			}
-		}
-	}
-
-	void xyza_changed_event(int x, int y, int z, int a)
-	{
-		//log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
-		// Only allow motion in one direction at a time
-		bool zIsRunning = getData()[Stepper::Z]->isforever;
-		bool aIsRunning = getData()[Stepper::A]->isforever;
-
-		if (!aIsRunning || isDualAxisZ)
-		{ // Z-direction
-			handleAxis(z, Stepper::Z);
-			if (isDualAxisZ)
-			{ // Z-Direction
-				handleAxis(z, Stepper::A);
-			}
-		}
-		if (abs(z) < offset_val)
-		{
-			// force stop in case it's trapped
-			handleAxis(0, Stepper::Z);
-		}
-		if (abs(z) < offset_val && isDualAxisZ)
-		{
-			// force stop in case it's trapped
-			handleAxis(0, Stepper::A);
-		}
-
-		if (!zIsRunning && !isDualAxisZ)
-		{ // A-direction
-			handleAxis(a, Stepper::A);
-		}
-
-		// X-Direction
-		handleAxis(x, Stepper::X);
-
-		// Y-direction
-		handleAxis(y, Stepper::Y);
-	}
+	
 }

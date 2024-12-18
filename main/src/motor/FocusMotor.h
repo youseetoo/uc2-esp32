@@ -29,8 +29,6 @@ namespace FocusMotor
 
 	static Preferences preferences;
 
-	int act(cJSON *ob);
-	cJSON *get(cJSON *ob);
 	void setup();
 	void loop();
 	void stopStepper(int i);
@@ -43,6 +41,8 @@ namespace FocusMotor
 	void toggleStepper(Stepper s, bool isStop, bool reduced);
 	void setAutoEnable(bool enable);
 	void setEnable(bool enable);
+	void setDualAxisZ(bool dual);
+	bool getDualAxisZ();
 	static int logcount;
 	static bool power_enable = false;
 	void updateData(int axis); // pull motor data to the data-array
@@ -50,6 +50,5 @@ namespace FocusMotor
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
 	static bool waitForFirstRun[] = {false, false, false, false};
-	void handleAxis(int value, int s);
 	void xyza_changed_event(int x, int y,int z, int a);
 };

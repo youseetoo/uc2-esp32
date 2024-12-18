@@ -48,7 +48,7 @@
 #include "../message/MessageController.h"
 #endif
 #ifdef MOTOR_CONTROLLER
-#include "../motor/FocusMotor.h"
+#include "../motor/MotorJsonParser.h"
 #endif
 #ifdef PID_CONTROLLER
 #include "../pid/PidController.h"
@@ -328,9 +328,9 @@ else  if (strcmp(task, i2c_get_endpoint) == 0)
 #endif
 #ifdef MOTOR_CONTROLLER
 		else if (strcmp(task, motor_get_endpoint) == 0)
-			serialize(FocusMotor::get(jsonDocument));
+			serialize(MotorJsonParser::get(jsonDocument));
 		else if (strcmp(task, motor_act_endpoint) == 0)
-			serialize(FocusMotor::act(jsonDocument));
+			serialize(MotorJsonParser::act(jsonDocument));
 #endif
 #ifdef SCANNER_CONTROLLER
 		else if (strcmp(task, scanner_get_endpoint) == 0)

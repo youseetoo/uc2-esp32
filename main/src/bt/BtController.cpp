@@ -31,6 +31,14 @@ namespace BtController
 {
     GamePadData lastData;
 
+    void (*cross_changed_event)(int pressed);
+    void (*circle_changed_event)(int pressed);
+    void (*triangle_changed_event)(int pressed);
+    void (*square_changed_event)(int pressed);
+    void (*dpad_changed_event)(Dpad::Direction pressed);
+    void (*xyza_changed_event)(int x, int y,int z, int a);
+    void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2);
+
 
     void btControllerLoop(void *p)
     {
@@ -39,6 +47,41 @@ namespace BtController
             loop();
             vTaskDelay(5 / portTICK_PERIOD_MS);
         }
+    }
+
+    void setCrossChangedEvent(void (*cross_changed_event1)(int pressed))
+    {
+        cross_changed_event = cross_changed_event1;
+    }
+
+    void setCircleChangedEvent(void (*circle_changed_event1)(int pressed))
+    {
+        circle_changed_event = circle_changed_event1;
+    }
+
+    void setTriangleChangedEvent(void (*triangle_changed_event1)(int pressed))
+    {
+        triangle_changed_event = triangle_changed_event1;
+    }
+
+    void setSquareChangedEvent(void (*square_changed_event1)(int pressed))
+    {
+        square_changed_event = square_changed_event1;
+    }
+
+    void setDpadChangedEvent(void (*dpad_changed_event1)(Dpad::Direction pressed))
+    {
+        dpad_changed_event = dpad_changed_event1;
+    }
+
+    void setXYZAChangedEvent(void (*xyza_changed_event1)(int x, int y, int z, int a))
+    {
+        xyza_changed_event = xyza_changed_event1;
+    }
+
+    void setAnalogControllerChangedEvent(void (*analogcontroller_event1)(int left, int right, bool r1, bool r2, bool l1, bool l2))
+    {
+        analogcontroller_event = analogcontroller_event1;
     }
 
     void setup()
@@ -90,7 +133,7 @@ namespace BtController
     }
 #endif
 
-    void checkdata(uint8_t first, uint8_t sec, void (*event)(uint8_t t))
+    void checkdata(int first, int sec, void (*event)(int t))
     {
         if (first != sec)
         {
@@ -104,8 +147,10 @@ namespace BtController
 
     void loop()
     {
+        //log_i("hid connected:%i", hidIsConnected);
         if (hidIsConnected)
         {
+            //log_i("cross_changed_event nullptr %i", cross_changed_event == nullptr);
             checkdata(lastData.cross, gamePadData.cross, cross_changed_event);
             checkdata(lastData.circle, gamePadData.circle, circle_changed_event);
             checkdata(lastData.triangle, gamePadData.triangle, triangle_changed_event);
@@ -123,6 +168,7 @@ namespace BtController
                 yvalue = gamePadData.RightY;
                 avalue = gamePadData.LeftX;
             */
+            //log_i("xyza_changed_event nullptr %i", xyza_changed_event == nullptr);
             if (xyza_changed_event != nullptr)
                 xyza_changed_event(gamePadData.LeftY, gamePadData.RightX, gamePadData.RightY, gamePadData.LeftX);
             lastData.LeftX = gamePadData.LeftY;

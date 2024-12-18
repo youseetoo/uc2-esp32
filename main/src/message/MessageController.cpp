@@ -13,12 +13,12 @@ namespace MessageController
 		log_d("Setup MessageController");
 	}
 
-    void triangle_changed_event(uint8_t pressed)
+    void triangle_changed_event(int pressed)
     {
 		sendMesageSerial(1, 1);
     }
 
-	void square_changed_event(uint8_t pressed)
+	void square_changed_event(int pressed)
     {
 		sendMesageSerial(1, 0);
     }

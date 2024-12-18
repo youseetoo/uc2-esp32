@@ -801,13 +801,15 @@ namespace FocusMotor
 		{
 			offset_val_scaled = offset_val / pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z;
 		}
+		else if(offset_val_scaled < offset_val)
+			offset_val_scaled = offset_val;
 		if (value >= offset_val_scaled || value <= -offset_val_scaled)
 		{
 			// move_x
 			getData()[s]->speed = value;
 			getData()[s]->isforever = true;
 			getData()[s]->acceleration = MAX_ACCELERATION_A;
-			log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
+			//log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
 			FocusMotor::startStepper(s, true);
 			if (s == Stepper::X)
 				joystick_drive_X = true;
@@ -847,6 +849,7 @@ namespace FocusMotor
 
 	void xyza_changed_event(int x, int y, int z, int a)
 	{
+		//log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
 		// Only allow motion in one direction at a time
 		bool zIsRunning = getData()[Stepper::Z]->isforever;
 		bool aIsRunning = getData()[Stepper::A]->isforever;

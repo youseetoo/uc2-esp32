@@ -221,7 +221,7 @@ namespace LedController
 		*/
 	}
 
-	void cross_changed_event(uint8_t pressed)
+	void cross_changed_event(int pressed)
 	{
 		if (pressed && isOn)
 			return;
@@ -230,7 +230,7 @@ namespace LedController
 		isOn = true;
 	}
 
-	void circle_changed_event(uint8_t pressed)
+	void circle_changed_event(int pressed)
 	{
 		if (pressed && !isOn)
 			return;

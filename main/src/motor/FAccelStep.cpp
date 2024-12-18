@@ -42,13 +42,13 @@ namespace FAccelStep
             {
                 // run clockwise
                 faststeppers[i]->runForward();
-                log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                //log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
             }
             else if (getData()[i]->speed < 0)
             {
                 // run counterclockwise
                 faststeppers[i]->runBackward();
-                log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                //log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
             }
         }
         else
@@ -68,7 +68,7 @@ namespace FAccelStep
         }
 
         
-        log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
+        /*log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
               getData()[i]->speed,
@@ -78,7 +78,7 @@ namespace FAccelStep
               getData()[i]->isaccelerated,
               getData()[i]->acceleration,
               getData()[i]->stopped,
-              isRunning(i));
+              isRunning(i));*/
               
     }
 

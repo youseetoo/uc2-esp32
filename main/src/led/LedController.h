@@ -91,6 +91,6 @@ namespace LedController
     void loop();
     void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
     void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
-    void cross_changed_event(uint8_t pressed);
-    void circle_changed_event(uint8_t pressed);
+    void cross_changed_event(int pressed);
+    void circle_changed_event(int pressed);
 };

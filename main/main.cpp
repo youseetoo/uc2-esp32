@@ -241,23 +241,25 @@ extern "C" void setupApp(void)
 	AnalogOutController::setup();
 #endif
 #ifdef BLUETOOTH
+	log_i("BtController setup");
 	BtController::setup();
 	#ifdef LED_CONTROLLER
-		BtController::circle_changed_event = LedController::circle_changed_event;
-		BtController::cross_changed_event = LedController::cross_changed_event;
+		BtController::setCircleChangedEvent(LedController::circle_changed_event);
+		BtController::setCrossChangedEvent(LedController::cross_changed_event);
 	#endif
 	#ifdef MESSAGE_CONTROLLER
-		BtController::triangle_changed_event = MessageController::triangle_changed_event;
-		BtController::square_changed_event = MessageController ::square_changed_event;
+		BtController::setTriangleChangedEvent(MessageController::triangle_changed_event);
+		BtController::setSquareChangedEvent(MessageController ::square_changed_event);
 	#endif
 	#ifdef LASER_CONTROLLER
-		BtController::dpad_changed_event = LaserController::dpad_changed_event;
+		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
 	#endif
 	#ifdef MOTOR_CONTROLLER
-		BtController::xyza_changed_event = FocusMotor::xyza_changed_event;
+		BtController::setXYZAChangedEvent(FocusMotor::xyza_changed_event);
+		//log_i("BtController xyza_changed_event nullptr %d", BtController::xyza_changed_event == nullptr);
 	#endif
 	#ifdef ANALOG_OUT_CONTROLLER
-		BtController::analogcontroller_event = AnalogOutController::btcontroller_event;
+		BtController::setAnalogControllerChangedEvent(AnalogOutController::btcontroller_event);
 	#endif
 #endif
 #ifdef DAC_CONTROLLER

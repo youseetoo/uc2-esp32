@@ -17,7 +17,6 @@ namespace BtController
     void setupPS(char* mac, int type);
     void connectPsxController(char* mac, int type);
     #endif
-    void handleAxis(int value,int stepper);
     
 
     #define PAIR_MAX_DEVICES 20
@@ -40,12 +39,11 @@ namespace BtController
     char * bda2str(const uint8_t *bda, char *str, size_t size);
     bool connectToServer();
     void btControllerLoop(void *p);
-    
-    static void (*cross_changed_event)(uint8_t pressed);
-    static void (*circle_changed_event)(uint8_t pressed);
-    static void (*triangle_changed_event)(uint8_t pressed);
-    static void (*square_changed_event)(uint8_t pressed);
-    static void (*dpad_changed_event)(Dpad::Direction pressed);
-    static void (*xyza_changed_event)(int x, int y,int z, int a);
-    static void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2);
+    void setCrossChangedEvent(void (*cross_changed_event)(int pressed));
+    void setCircleChangedEvent(void(*circle_changed_event)(int pressed));
+    void setTriangleChangedEvent(void (*triangle_changed_event)(int pressed));
+    void setSquareChangedEvent(void (*square_changed_event)(int pressed));
+    void setDpadChangedEvent(void (*dpad_changed_event)(Dpad::Direction pressed));
+    void setXYZAChangedEvent(void (*xyza_changed_event)(int x, int y,int z, int a));
+    void setAnalogControllerChangedEvent(void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2));
 };

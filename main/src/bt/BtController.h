@@ -22,11 +22,6 @@ namespace BtController
     #define PAIR_MAX_DEVICES 20
     static char bda_str[18];
 
-    static bool doConnect = false;
-    static bool connected = false;
-    static bool doScan = false;
-    static bool ENABLE = false;
-    static int BT_DISCOVER_TIME = 10000;
 
     void setup();
     void loop();

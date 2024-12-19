@@ -38,6 +38,10 @@ namespace FocusMotor
 	MotorData *data[4];
 
 	Preferences preferences;
+	int logcount;
+	bool power_enable = false;
+	bool isDualAxisZ = false;
+	bool waitForFirstRun[] = {false, false, false, false};
 
 	// for A,X,Y,Z intialize the I2C addresses
 	uint8_t i2c_addresses[] = {
@@ -110,9 +114,10 @@ namespace FocusMotor
 	{
 		// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
 		//  ensure isStop is false
-		getData()[axis]->isStop = false;
+
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 		// Request data from the slave but only if inside i2cAddresses
+		getData()[axis]->isStop = false;
 		uint8_t slave_addr = i2c_master::axis2address(axis);
 		if (!i2c_master::isAddressInI2CDevices(slave_addr))
 		{
@@ -131,9 +136,7 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 		AccelStep::startAccelStepper(axis);
 #endif
-		getData()[axis]->stopped = false;
 	}
-
 
 	void toggleStepper(Stepper s, bool isStop, bool reduced)
 	{
@@ -163,15 +166,6 @@ namespace FocusMotor
 		startStepper(s, false);
 	}
 
-	void enable(bool en)
-	{
-#ifdef USE_FASTACCEL
-		FAccelStep::Enable(en);
-#elif defined USE_ACCELSTEP
-		AccelStep::Enable(en);
-#endif
-	}
-
 	void setAutoEnable(bool enable)
 	{
 #ifdef USE_FASTACCEL
@@ -188,17 +182,17 @@ namespace FocusMotor
 #endif
 	}
 
-    void setDualAxisZ(bool dual)
-    {
+	void setDualAxisZ(bool dual)
+	{
 		isDualAxisZ = dual;
-    }
+	}
 
-    bool getDualAxisZ()
-    {
-        return isDualAxisZ;
-    }
+	bool getDualAxisZ()
+	{
+		return isDualAxisZ;
+	}
 
-    void updateData(int axis)
+	void updateData(int axis)
 	{
 // Request the current position from the slave motors depending on the interface
 #ifdef USE_FASTACCEL
@@ -212,7 +206,7 @@ namespace FocusMotor
 #endif
 	}
 
-	void setup()
+	void setup_data()
 	{
 		data[Stepper::A] = &a_dat;
 		data[Stepper::X] = &x_dat;
@@ -228,15 +222,16 @@ namespace FocusMotor
 			log_e("Stepper Z data NULL");
 
 		// Read dual axis from preferences if available
-		
 		const char *prefNamespace = "UC2";
 		preferences.begin(prefNamespace, false);
 		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
 		preferences.end();
+	}
 
-		// setup motor pins
-		log_i("Setting Up Motor A,X,Y,Z");
 #ifdef USE_FASTACCEL || USE_ACCELSTEP
+	void fill_data()
+	{
+		// setup motor pins
 		preferences.begin("motpos", false);
 		if (pinConfig.MOTOR_A_STEP >= 0)
 		{
@@ -275,23 +270,13 @@ namespace FocusMotor
 			data[Stepper::Y]->triggerPin = 2; // line^
 		if (pinConfig.DIGITAL_OUT_3 > 0)
 			data[Stepper::Z]->triggerPin = 3; // frame^
-
+	}
 #endif
 
-#ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
-		log_i("Setting external pin for FastAccelStepper");
-		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
-#endif
-		FAccelStep::setupFastAccelStepper();
-#elif defined USE_ACCELSTEP
-#ifdef USE_TCA9535
-		AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
-#endif
-		AccelStep::setupAccelStepper();
-#endif
-#ifdef USE_FASTACCEL || USE_ACCELSTEP
-#ifdef TCA9535
+	void testTca()
+	{
+
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
 			// need to activate the motor's dir pin eventually
@@ -307,7 +292,10 @@ namespace FocusMotor
 			delay(10);
 			stopStepper(iMotor);
 		}
+	}
 #else
+	void sendMotorPosition()
+	{
 		// send motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
@@ -316,10 +304,13 @@ namespace FocusMotor
 				sendMotorPos(iMotor, 0);
 			}
 		}
+	}
 #endif // TCA9535
 
-#endif
-#ifdef I2C_MASTER and defined I2C_MOTOR
+#ifdef I2C_MASTER
+	void setup_i2c()
+	{
+#ifdef I2C_MOTOR
 		// send stop signal to all motors and update motor positions
 		for (int iMotor = 0; iMotor < 4; iMotor++)
 		{
@@ -330,29 +321,68 @@ namespace FocusMotor
 			data[iMotor]->currentPosition = mMotorState.currentPosition;
 		}
 #endif
-#if defined DIAL_CONTROLLER && defined I2C_MASTER
+#if defined DIAL_CONTROLLER
 		// send motor positions to dial
 		i2c_master::pushMotorPosToDial();
 #endif
-#ifdef WIFI
-		// TODO: This causes the heap to overload?
-		// log_i("Creating Task sendUpdateToClients");
-		// xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+	}
+#endif
+
+#ifdef USE_FASTACCEL
+	void setup()
+	{
+		setup_data();
+		fill_data();
+#ifdef USE_TCA9535
+		log_i("Setting external pin for FastAccelStepper");
+		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+		FAccelStep::setupFastAccelStepper();
+
+#ifdef USE_TCA9535
+		testTca();
+#else
+		sendMotorPosition();
+#endif
+#ifdef I2C_MASTER
+		setup_i2c();
 #endif
 	}
+#endif
+
+#ifdef USE_ACCELSTEP
+	void setup()
+	{
+		setup_data();
+		fill_data();
+#ifdef USE_TCA9535
+		AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+		AccelStep::setupAccelStepper();
+#ifdef USE_TCA9535
+		testTca();
+#else
+		sendMotorPosition();
+#endif
+#ifdef I2C_MASTER
+		setup_i2c();
+#endif
+	}
+#endif
 
 	void loop()
 	{
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
-			#ifdef I2C_MASTER
+#ifdef I2C_MASTER
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
-			if(waitForFirstRun[i]){
+			if (waitForFirstRun[i])
+			{
 				waitForFirstRun[i] = 0;
 				continue;
 			}
-			#endif
+#endif
 			bool mIsRunning = false;
 			// we check if the motor was defined
 			if (getData()[i]->isActivated)
@@ -498,6 +528,4 @@ namespace FocusMotor
 		FAccelStep::move(s, steps, blocking);
 #endif
 	}
-
-	
 }

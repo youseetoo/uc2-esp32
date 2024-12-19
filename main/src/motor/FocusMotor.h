@@ -21,8 +21,6 @@
 #error Pls set only USE_FASTACCEL or USE_ACCELSTEP, currently both are active
 #endif
 
-void sendUpdateToClients(void *p);
-bool externalPinCallback();
 
 namespace FocusMotor
 {
@@ -34,17 +32,13 @@ namespace FocusMotor
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
-	void enable(bool en);
 	void toggleStepper(Stepper s, bool isStop, bool reduced);
 	void setAutoEnable(bool enable);
 	void setEnable(bool enable);
 	void setDualAxisZ(bool dual);
 	bool getDualAxisZ();
-	static int logcount;
-	static bool power_enable = false;
+	
 	void updateData(int axis); // pull motor data to the data-array
-	static bool isDualAxisZ = false;
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
-	static bool waitForFirstRun[] = {false, false, false, false};
 };

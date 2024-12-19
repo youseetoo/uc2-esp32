@@ -1,24 +1,6 @@
 
-#include "PinConfig.h"
 #include "BtController.h"
 #include <esp_log.h>
-#ifdef ANALOG_OUT_CONTROLLER
-#include "../analogout/AnalogOutController.h"
-#endif
-#ifdef LASER_CONTROLLER
-#include "../laser/LaserController.h"
-#endif
-#ifdef LASER_CONTROLLER
-#include "../led/LedController.h"
-#endif
-#ifdef MESSAGE_CONTROLLER
-#include "../message/MessageController.h"
-#endif
-#ifdef MOTOR_CONTROLLER
-#include "../motor/FocusMotor.h"
-#include "../motor/MotorTypes.h"
-using namespace FocusMotor;
-#endif
 #include "../config/ConfigController.h"
 #ifdef BTHID
 #include "HidController.h"

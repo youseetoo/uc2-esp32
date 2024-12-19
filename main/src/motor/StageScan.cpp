@@ -71,7 +71,7 @@ namespace StageScan
     void stageScan(bool isThread)
     {
 
-        FocusMotor::enable(true);
+        FocusMotor::setEnable(true);
         // Scanning logic
         int nStepsLine = stageScanningData.nStepsLine;
         int dStepsLine = stageScanningData.dStepsLine;

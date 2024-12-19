@@ -139,7 +139,7 @@ namespace HomeMotor
 		FocusMotor::getData()[s]->isStop = 0;
 		FocusMotor::getData()[s]->stopped = false;
 		FocusMotor::startStepper(s, false);
-		if (s == Stepper::Z and FocusMotor::isDualAxisZ)
+		if (s == Stepper::Z and FocusMotor::getDualAxisZ())
 		{
 			// we may have a dual axis so we would need to start A too	
 			log_i("Starting A too");

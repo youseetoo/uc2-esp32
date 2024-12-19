@@ -43,6 +43,8 @@ namespace FocusMotor
 	bool isDualAxisZ = false;
 	bool waitForFirstRun[] = {false, false, false, false};
 
+	xSemaphoreHandle xMutex = xSemaphoreCreateMutex();
+
 	// for A,X,Y,Z intialize the I2C addresses
 	uint8_t i2c_addresses[] = {
 		pinConfig.I2C_ADD_MOT_A,
@@ -112,30 +114,34 @@ namespace FocusMotor
 
 	void startStepper(int axis, bool reduced = false)
 	{
-		// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
-		//  ensure isStop is false
+		if (xSemaphoreTake(xMutex, portMAX_DELAY))
+		{
+			// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
+			//  ensure isStop is false
 
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
-		// Request data from the slave but only if inside i2cAddresses
-		getData()[axis]->isStop = false;
-		uint8_t slave_addr = i2c_master::axis2address(axis);
-		if (!i2c_master::isAddressInI2CDevices(slave_addr))
-		{
-			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
-		}
-		else
-		{
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			MotorData *m = getData()[axis];
-			i2c_master::startStepper(m, axis, reduced);
-			waitForFirstRun[axis] = 1;
-		}
+			// Request data from the slave but only if inside i2cAddresses
+			getData()[axis]->isStop = false;
+			uint8_t slave_addr = i2c_master::axis2address(axis);
+			if (!i2c_master::isAddressInI2CDevices(slave_addr))
+			{
+				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+			}
+			else
+			{
+				// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+				MotorData *m = getData()[axis];
+				i2c_master::startStepper(m, axis, reduced);
+				waitForFirstRun[axis] = 1;
+			}
 #elif defined USE_FASTACCEL
-		FAccelStep::startFastAccelStepper(axis);
+			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
-		AccelStep::startAccelStepper(axis);
+			AccelStep::startAccelStepper(axis);
 #endif
+			xSemaphoreGive(xMutex);
+		}
 	}
 
 	void toggleStepper(Stepper s, bool isStop, bool reduced)

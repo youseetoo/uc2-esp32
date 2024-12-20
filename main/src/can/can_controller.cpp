@@ -83,17 +83,17 @@ namespace can_controller
     {
         CanFrame frame;
         log_i("CAN Listener Task started.");
-        int iterator = 0;
         while (true)
         {
-            iterator++;
+            // print heap
+            log_i("Free heap: %i", ESP.getFreeHeap());
             uint16_t timeout = 100;
             if (ESP32Can.readFrame(&frame, timeout))
             {
                 // Decode Extended CAN ID
                 uint8_t sourceID, destID, messageType, flags;
                 decodeExtendedCANID(frame.identifier, sourceID, destID, messageType, flags);
-                log_i("Message received from Node %i to Node %i, Type %i", sourceID, destID, messageType);
+                // log_i("Message received from Node %i to Node %i, Type %i", sourceID, destID, messageType);
 
                 // Select the buffer for the source node
                 MultiFrameBuffer *buffer = &multiFrameBuffers[sourceID];
@@ -105,7 +105,7 @@ namespace can_controller
                 if (isStart)
                 {
                     // Reset buffer for a new multi-frame message
-                    log_i("New multi-frame message from Node %i", sourceID);
+                    // log_i("New multi-frame message from Node %i", sourceID);
                     buffer->receivedSize = 0;
                     buffer->currentFrame = 0;
                     buffer->complete = false;
@@ -133,21 +133,29 @@ namespace can_controller
                         buffer->complete = true;
 
                         CANMessage message;
-                        message.sourceID = sourceID;
-                        message.destID = destID;
-                        message.messageType = messageType;
-                        message.dataSize = buffer->receivedSize;
-                        memcpy(message.data, buffer->buffer, buffer->receivedSize);
-
-                        // Push complete message to queue
-                        if (xQueueSend(messageQueue, &message, pdMS_TO_TICKS(10)) != pdTRUE)
+                        if (buffer != nullptr && buffer->buffer != nullptr && buffer->receivedSize <= sizeof(message.data))
                         {
-                            log_e("Queue full. Message from Node %i dropped.", sourceID);
+
+                            message.sourceID = sourceID;
+                            message.destID = destID;
+                            message.messageType = messageType;
+                            message.dataSize = buffer->receivedSize;
+                            memcpy(message.data, buffer->buffer, buffer->receivedSize);
+
+                            // Push complete message to queue
+                            if (xQueueSend(messageQueue, &message, pdMS_TO_TICKS(10)) != pdTRUE)
+                            {
+                                // log_e("Queue full. Message from Node %i dropped.", sourceID);
+                            }
+                            else
+                            {
+                                log_i("Multi-frame message complete: Node %i, Type %i, Size: %i bytes",
+                                      sourceID, messageType, message.dataSize);
+                            }
                         }
                         else
                         {
-                            log_i("Multi-frame message complete: Node %i, Type %i, Size: %i bytes",
-                                  sourceID, messageType, message.dataSize);
+                            log_e("Buffer or message is null or received size is too large.");
                         }
                     }
                 }
@@ -157,8 +165,12 @@ namespace can_controller
                           sourceID, buffer->currentFrame, chunkIndex);
                 }
             }
+            else
+            {
+                log_i("No CAN frame received.");
+            }
 
-            vTaskDelay(pdMS_TO_TICKS(1)); // Small delay to prevent task starvation
+            vTaskDelay(pdMS_TO_TICKS(10)); // Small delay to prevent task starvation
         }
     }
 
@@ -168,6 +180,13 @@ namespace can_controller
         This function processes all the possible message types that can be received from the CAN bus.
         Therefore, there is no clear distinction between master and slave anymore. Everyone can send, everyone can receive.
         */
+
+        // Beispiel: Überprüfen Sie die Größe der Daten
+        if (message.dataSize > sizeof(message.data))
+        {
+            log_e("Message data size exceeds buffer size");
+            return;
+        }
 
         uint8_t sourceID = message.sourceID;
         uint8_t destID = message.destID;
@@ -298,14 +317,9 @@ namespace can_controller
     bool sendHeartbeatCAN()
     {
         // Send a heartbeat message to all devices
-        CanFrame frame;
-        // log_i("Sending heartbeat to all nodes on tx%i, rx%i", pinConfig.CAN_TX, pinConfig.CAN_RX);
-        frame.identifier = constructExtendedCANID(CANMessageTypeID::BROADCAST, CANMessageTypeID::HEARTBEAT, 0);
-        frame.extd = 1; // Extended CAN Frame Format (29-bit ID)
-        frame.data_length_code = 1;
-        frame.data[0] = 0x01; // Alive signal from master
-
-        return ESP32Can.writeFrame(&frame);
+        uint32_t identifier = constructExtendedCANID(CANMessageTypeID::BROADCAST, CANMessageTypeID::HEARTBEAT, 0);
+        uint8_t mData = 1; // Alive signal from master
+        return sendSegmentedDataCAN(identifier, &mData, sizeof(mData));
     }
 
     bool sendSegmentedDataCAN(uint32_t canID, void *data, size_t dataSize)
@@ -364,7 +378,15 @@ namespace can_controller
         }
 
         // Create CAN listener task
-        xTaskCreatePinnedToCore(
+        xTaskCreate(
+            CANListenerTask,      // Task function
+            "CANListenerTask",    // Task name
+            CAN_RX_TASK_STACK,    // Stack size
+            NULL,                 // Task parameters
+            CAN_RX_TASK_PRIORITY, // Task priority
+            NULL                  // Task handle
+        );
+        /*xTaskCreatePinnedToCore(
             CANListenerTask,      // Task function
             "CANListenerTask",    // Task name
             CAN_RX_TASK_STACK,    // Stack size
@@ -373,6 +395,7 @@ namespace can_controller
             NULL,                 // Task handle
             1                     // Core to pin the task
         );
+        */
     }
 
     /**************************************

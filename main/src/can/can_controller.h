@@ -15,7 +15,7 @@
 #include "freertos/queue.h"
 #include "../can/can_messagetype.h"
 
-#define CAN_RX_TASK_PRIORITY 7
+#define CAN_RX_TASK_PRIORITY 5
 #define CAN_RX_TASK_STACK 4096
 #define CAN_QUEUE_LENGTH 10
 
@@ -34,7 +34,7 @@ struct CANMessage
     uint8_t sourceID;
     uint8_t destID;
     uint8_t messageType;
-    uint8_t data[256];
+    uint8_t data[256]; // 256 bytes of data - TODO: ensure this is enough
     size_t dataSize;
 };
 

@@ -37,8 +37,8 @@ motor defines
 
 const int8_t disabled = -1;
 
-
-// will be used to differentiate between the different controllers for I2C 
+#define LED_BUILTIN 0 // for Xiao ESP32S3
+// will be used to differentiate between the different controllers for I2C
 enum I2CControllerType : uint8_t
 {
      mDISABLED = 0,
@@ -59,7 +59,7 @@ enum I2CControllerType : uint8_t
      mGALVO = 15,
      mMESSAGE = 16,
      mDAC = 17,
-     mMOTOR = 18, 
+     mMOTOR = 18,
      mDIAL = 19
 };
 
@@ -71,13 +71,13 @@ struct PinConfig
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 1024;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2048; // Don't go below 2048
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
-     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 1024; // TODO check if this is ending in stackoverflow 
+     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 1024; // TODO check if this is ending in stackoverflow
      const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
      const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 6 * 1024;
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 6 * 1024;
      const uint16_t TCA_TASK_STACKSIZE = 2048;
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
-     const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; //8096;
+     const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; // 8096;
      const unsigned long BAUDRATE = 115200;
 
      const char *pindefName = "pindef";
@@ -138,7 +138,6 @@ struct PinConfig
      int8_t MOTOR_Z_1 = disabled;
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
-
 
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
@@ -214,12 +213,12 @@ struct PinConfig
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
      bool isDualAxisZ = false;
-     
+
      // TMC 2209 stuff
-     int8_t tmc_SW_RX = disabled;// GPIO_NUM_44; // D7 -> GPIO44
-     int8_t tmc_SW_TX = disabled;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_SW_RX = disabled;    // GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_TX = disabled;    // GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
-     
+
      int tmc_microsteps = 16;
      int tmc_rms_current = 500;
      int tmc_stall_value = 100;
@@ -232,14 +231,14 @@ struct PinConfig
      int tmc_toff = 4;
 
      // I2c
-     int8_t I2C_SCL = disabled;      // This is the poart that connects to all other slaves
+     int8_t I2C_SCL = disabled; // This is the poart that connects to all other slaves
      int8_t I2C_SDA = disabled;
 
      // Auxilarry I2C devices
      int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
-     uint8_t I2C_ADD_SLAVE = -1;    // I2C address of the ESP32 if it's a slave
-     uint8_t I2C_MOTOR_AXIS = 0;   // On the slave we have one motor axis per slave
+     uint8_t I2C_ADD_SLAVE = -1; // I2C address of the ESP32 if it's a slave
+     uint8_t I2C_MOTOR_AXIS = 0; // On the slave we have one motor axis per slave
      uint8_t I2C_ADD_MOT_X = 0x40;
      uint8_t I2C_ADD_MOT_Y = 0x41;
      uint8_t I2C_ADD_MOT_Z = 0x42;
@@ -253,14 +252,42 @@ struct PinConfig
      // inputs
      uint8_t I2C_ADD_M5_DIAL = 0x60;
 
-
      // SPI
      int8_t SPI_MOSI = disabled;
      int8_t SPI_MISO = disabled;
      int8_t SPI_SCK = disabled;
      int8_t SPI_CS = disabled;
 
-      // Temperature Sensor
+     // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
-     
+
+     // CAN
+     int8_t CAN_TX = 5;
+     int8_t CAN_RX = 44;
+     int8_t CAN_DEFAULT_ID = CAN_GATEWAY_ID;
+
+     // Source ID Assignment Scheme
+     // Device Type          Starting ID  Range       Total Devices
+     // Gateway (Master)     0x00         0x00        1
+     // Lasers               0x10         0x10 - 0x19 10
+     // Motors               0x20         0x20 - 0x29 10
+     // LEDs                 0x30         0x30 - 0x39 10
+     // Sensors              0x40         0x40 - 0x49 10
+     // Reserved             0xF0         0xF0 - 0xFF Management, Heartbeats
+
+     // Variables for different IDs
+     const uint8_t CAN_GATEWAY_ID = 0x00;
+     const uint8_t CAN_LASER_0_ID = 0x10;
+     const uint8_t CAN_LASER_1_ID = 0x11;
+     const uint8_t CAN_LASER_2_ID = 0x12;
+     const uint8_t CAN_LASER_3_ID = 0x13;
+     const uint8_t CAN_MOTOR_0_ID = 0x20;
+     const uint8_t CAN_MOTOR_1_ID = 0x21;
+     const uint8_t CAN_MOTOR_2_ID = 0x22;
+     const uint8_t CAN_MOTOR_3_ID = 0x23;
+
+     const uint8_t CAN_LED_ID = 0x30;
+
+     const uint8_t CAN_SENSOR_START_ID = 0x40;
+     const uint8_t CAN_RESERVED_START_ID = 0xF0;
 };

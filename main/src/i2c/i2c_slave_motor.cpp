@@ -63,10 +63,10 @@ namespace i2c_slave_motor
             FocusMotor::getData()[mStepper]->currentPosition = motorPosition;
             log_i("Received MotorPosition from I2C %i", motorPosition);
         }
-        else if (numBytes == sizeof(MotorDataI2C))
+        else if (numBytes == sizeof(MotorDataReduced))
         {
             // parse a possible motor event
-            MotorDataI2C receivedMotorData;
+            MotorDataReduced receivedMotorData;
             uint8_t *dataPtr = (uint8_t *)&receivedMotorData;
             for (int i = 0; i < numBytes; i++)
             {

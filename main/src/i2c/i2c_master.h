@@ -41,7 +41,7 @@ namespace i2c_master
     #ifdef TMC_CONTROLLER
     void sendTMCDataI2C(TMCData tmcData, uint8_t id);
     #endif
-    MotorState pullMotorDataI2CDriver(int axis);
+    MotorState pullMotorDataReducedDriver(int axis);
     HomeState pullHomeStateFromI2CDriver(int axis);
     void updateMotorData(int i);    
     long getMotorPosition(int i);

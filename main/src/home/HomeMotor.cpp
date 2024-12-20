@@ -12,6 +12,9 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 
 using namespace FocusMotor;
 

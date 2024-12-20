@@ -67,7 +67,7 @@ namespace espnow_master
         // Request the current position from the slave
         /*
         // TODO: Impelemtn this
-        MotorState mMotorState = pullMotorDataI2CDriver(i);
+        MotorState mMotorState = pullMotorDataReducedDriver(i);
         data[i]->currentPosition = mMotorState.currentPosition;
         */
         data[i]->currentPosition = 0;
@@ -85,7 +85,7 @@ namespace espnow_master
         if (reduced)
         {
             // if we only want to send position, etc. we can reduce the size of the data
-            MotorDataI2C reducedData;
+            MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
             reducedData.isforever = motorData.isforever;
             reducedData.absolutePosition = motorData.absolutePosition;
@@ -105,7 +105,7 @@ namespace espnow_master
 
             // Broadcast the command to all slaves
             uint8_t *dataPtr = (uint8_t *)&reducedData;
-            esp_now_send(NULL, dataPtr, sizeof(MotorDataI2C));
+            esp_now_send(NULL, dataPtr, sizeof(MotorDataReduced));
         }
         else
         {

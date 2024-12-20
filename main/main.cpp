@@ -85,6 +85,9 @@ Preferences preferences;
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
+#ifdef CAN_CONTROLLER
+#include "src/can/can_controller.h"
+#endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
 #endif
@@ -109,7 +112,9 @@ Preferences preferences;
 #endif
 
 long lastHeapUpdateTime = 0;
-
+bool state_led = false;
+long time_led = 0;
+long period_led = 1000;
 extern "C" void looper(void *p)
 {
 	log_i("Starting loop");
@@ -121,6 +126,15 @@ extern "C" void looper(void *p)
 	{
 		esp_task_wdt_reset(); // Reset (feed) the watchdog timer
 		// receive and process serial messages
+		#ifdef ESP32S3_MODEL_XIAO
+		// heartbeat for the LED
+		if (time_led + period_led < esp_timer_get_time())
+		{
+			time_led = esp_timer_get_time();
+			digitalWrite(LED_BUILTIN, state_led);
+			state_led = !state_led;
+		}
+		#endif
 		SerialProcess::loop();
 #ifdef ENCODER_CONTROLLER
 		EncoderController::loop();
@@ -161,6 +175,10 @@ extern "C" void looper(void *p)
 #endif
 #ifdef I2C_MASTER
 		i2c_master::loop();
+		vTaskDelay(1);
+#endif
+#ifdef CAN_CONTROLLER
+		can_controller::loop();
 		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
@@ -208,7 +226,9 @@ extern "C" void setupApp(void)
 	log_i("SetupApp");
 	// setup debugging level
 	// esp_log_level_set("*", ESP_LOG_isDEBUG);
-
+#ifdef DESP32S3_MODEL_XIAO
+  pinMode(LED_BUILTIN, OUTPUT);
+#endif	
 	SerialProcess::setup();
 #ifdef DIAL_CONTROLLER
 	// need to initialize the dial controller before the i2c controller
@@ -216,6 +236,9 @@ extern "C" void setupApp(void)
 #endif
 #ifdef I2C_MASTER
 	i2c_master::setup();
+#endif
+#ifdef CAN_CONTROLLER
+	can_controller::setup();
 #endif
 #ifdef I2C_SLAVE_MOTOR
 	i2c_slave_motor::setup();

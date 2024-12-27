@@ -24,7 +24,7 @@ namespace can_controller
 {
 
     // for A,X,Y,Z intialize the CAN addresses
-    uint8_t CAN_ADDRESS_MASTER = 0;
+    uint8_t CAN_IDESS_MASTER = 0;
 
     // keep track of the motor states
     const int MAX_CAN_DEVICES = 20;     // Maximum number of expected devices
@@ -408,7 +408,7 @@ namespace can_controller
         long currentPosition = getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition; // Get the current position of the motor
                                                                                      // bool isRunning = getData()[I2C_BUFFER_LENGTH]->isRunning; // Get the current running state of the motor
         //  now send it back to the master
-        uint16_t msgID = CAN_ADDRESS_MASTER;
+        uint16_t msgID = CAN_IDESS_MASTER;
         sendSegmentedDataCAN(msgID, &motorState, sizeof(MotorState));
     }
 

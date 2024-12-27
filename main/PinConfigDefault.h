@@ -264,7 +264,6 @@ struct PinConfig
      // CAN
      int8_t CAN_TX = 5;
      int8_t CAN_RX = 44;
-     int8_t CAN_DEFAULT_ID = CAN_GATEWAY_ID;
 
      // Source ID Assignment Scheme
      // Device Type          Starting ID  Range       Total Devices
@@ -276,18 +275,13 @@ struct PinConfig
      // Reserved             0xF0         0xF0 - 0xFF Management, Heartbeats
 
      // Variables for different IDs
-     const uint8_t CAN_GATEWAY_ID = 0x00;
-     const uint8_t CAN_LASER_0_ID = 0x10;
-     const uint8_t CAN_LASER_1_ID = 0x11;
-     const uint8_t CAN_LASER_2_ID = 0x12;
-     const uint8_t CAN_LASER_3_ID = 0x13;
-     const uint8_t CAN_MOTOR_0_ID = 0x20;
-     const uint8_t CAN_MOTOR_1_ID = 0x21;
-     const uint8_t CAN_MOTOR_2_ID = 0x22;
-     const uint8_t CAN_MOTOR_3_ID = 0x23;
+    // addresses
+    uint32_t CAN_ID_CENTRAL_NODE = 0x100; // this is similar to the master address
+    
+    uint32_t CAN_ID_MOT_A = 0x110;
+    uint32_t CAN_ID_MOT_X = 0x111;
+    uint32_t CAN_ID_MOT_Y = 0x112;
+    uint32_t CAN_ID_MOT_Z = 0x113;
 
-     const uint8_t CAN_LED_ID = 0x30;
 
-     const uint8_t CAN_SENSOR_START_ID = 0x40;
-     const uint8_t CAN_RESERVED_START_ID = 0xF0;
 };

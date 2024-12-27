@@ -12,8 +12,8 @@
 
 #define PACKET_SIZE 8
 #define TIMEOUT_SESSION 100
-#define TIMEOUT_FC 100
-#define TIMEOUT_READ 100
+#define TIMEOUT_FC 1000
+#define TIMEOUT_READ 500
 
 // Already declared in ESP32-TWAI-CAN.hpp
 /*
@@ -102,7 +102,7 @@ int CanIsoTp::send(pdu_t *pdu)
             }
             break;
 
-        case CANTP_SEND_CF:
+        case CANTP_SEND_CF: // 4
             // BS = 0 send everything.
             if (pdu->blockSize == 0)
             {
@@ -114,9 +114,12 @@ int CanIsoTp::send(pdu_t *pdu)
                     delay(pdu->separationTimeMin);
                     if (!(ret = send_ConsecutiveFrame(pdu)))
                     {
+                        /*
                         pdu->seqId++;
                         pdu->data += 7;
                         pdu->len -= 7;
+                        log_i("CF, seqId: %d, len %d", pdu->seqId, pdu->len);
+                        */
                         if (pdu->len == 0)
                             pdu->cantpState = CANTP_IDLE;
                     } // End if
@@ -183,7 +186,7 @@ int CanIsoTp::send(pdu_t *pdu)
             // Try reading a frame from TWAI
             if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
             {
-                log_i("Frame received: %d", frame.identifier);
+                log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
                 if (frame.identifier == pdu->rxId && frame.data_length_code > 0)
                 {
                     log_i("Data length: %d", frame.data_length_code);
@@ -347,7 +350,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 {
-    log_i("Sending FC");
+    log_i("Sending FC to ID: %d with ID: %d", pdu->txId, pdu->rxId);
     CanFrame frame = {0};
     frame.identifier = pdu->txId;
     frame.extd = 0;
@@ -363,6 +366,17 @@ int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 {
     log_i("Single Frame received");
+    // if data is empty, allocate memory
+    if (pdu->data == nullptr)
+    {
+        pdu->data = (uint8_t *)malloc(frame->data_length_code - 1);
+        if (!pdu->data)
+        {
+            // Could not allocate; set an error
+            pdu->cantpState = CANTP_ERROR;
+            return 1;
+        }
+    }
     pdu->len = frame->data[0] & 0x0F; // Extract data length
     memcpy(pdu->data, &frame->data[1], pdu->len);
     log_i("Data copied, %d bytes", pdu->len);
@@ -400,7 +414,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     memcpy(pdu->data, &frame->data[2], 6);         // Copy first 6 bytes
     pdu->seqId = 1;                                // Start sequence ID
     pdu->cantpState = IsoTpState::CANTP_WAIT_DATA; // Awaiting consecutive frames
-    log_i("Sending FC");
+    log_i("Sending Flow Control FC");
 
     return send_FlowControlFrame(pdu);
 }

@@ -27,13 +27,12 @@ namespace can_controller
     MessageData txData, rxData;
     pdu_t txPdu, rxPdu;
 
-
     // for A,X,Y,Z intialize the I2C addresses
-    uint8_t can_addresses[] = {
-        pinConfig.I2C_ADD_MOT_A,
-        pinConfig.I2C_ADD_MOT_X,
-        pinConfig.I2C_ADD_MOT_Y,
-        pinConfig.I2C_ADD_MOT_Z};
+    uint32_t CAN_IDs[] = {
+        pinConfig.CAN_ID_MOT_A,
+        pinConfig.CAN_ID_MOT_X,
+        pinConfig.CAN_ID_MOT_Y,
+        pinConfig.CAN_ID_MOT_Z};
 
     void dispatchIsoTpData(uint32_t id, const uint8_t *data, size_t size)
     {
@@ -59,7 +58,7 @@ namespace can_controller
         default:
         {
             // Unknown ID
-            Serial.println("Unknown message ID");
+            log_i("Unknown CAN ID: %u", id);
             // Possibly dump raw bytes
         }
         }
@@ -69,7 +68,12 @@ namespace can_controller
     {
         Preferences preferences;
         preferences.begin("CAN", false);
-        uint32_t address = preferences.getUInt("address", pinConfig.I2C_ADD_SLAVE);
+        // if value not present yet, initialize:
+        if (!preferences.isKey("address"))
+        {
+            preferences.putUInt("address", pinConfig.CAN_ID_CURRENT);
+        }
+        uint32_t address = preferences.getUInt("address", pinConfig.CAN_ID_CURRENT);
         preferences.end();
         return address;
     }
@@ -84,11 +88,12 @@ namespace can_controller
     }
 
     // generic sender function
-    int sendCanMessage(uint32_t receiverID, const uint8_t *data)
+    int sendCanMessage(uint32_t receiverID, const uint8_t *data, uint8_t size)
     {
         // Send the data
+        log_i("Sending data with rxID %u, txID %u, with size %u", receiverID, getCANAddress(), size);
         txPdu.data = (uint8_t *)data;
-        txPdu.len = sizeof(data);
+        txPdu.len = size;
         txPdu.rxId = receiverID; // maybe reverse with txId?
         txPdu.txId = getCANAddress();
         return isoTpSender.send(&txPdu);
@@ -113,8 +118,9 @@ namespace can_controller
             return;
         }
 
+        log_i("CAN bus initialized with address %u", getCANAddress());
 
-
+        /*
         // Initialize data
         txData.counter = 0;
 
@@ -135,6 +141,7 @@ namespace can_controller
         rxPdu.cantpState = CANTP_IDLE;
         rxPdu.blockSize = 0;
         rxPdu.separationTimeMin = 0;
+        */
     }
 
     int act(cJSON *doc)
@@ -146,7 +153,7 @@ namespace can_controller
         {
             setCANAddress(address->valueint);
             return 1;
-        }   
+        }
 
         // if we want to send a message to the motor, we can do it here
         // {"task":"/can_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
@@ -180,12 +187,12 @@ namespace can_controller
             log_i("Motor json is null");
         return 0;
     }
-        
-    int axis2id(int axis)
+
+    uint32_t axis2id(int axis)
     {
         if (axis >= 0 && axis < 4)
         {
-            return can_addresses[axis];
+            return CAN_IDs[axis];
         }
         return 0;
     }
@@ -194,7 +201,7 @@ namespace can_controller
     {
         if (getData()[axis] != nullptr)
         {
-            //positionsPushedToDial = false;
+            // positionsPushedToDial = false;
             getData()[axis]->isStop = false; // ensure isStop is false
             getData()[axis]->stopped = false;
             sendMotorDataToCANDriver(*getData()[axis], axis, reduced);
@@ -212,20 +219,21 @@ namespace can_controller
     void sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced)
     {
         // send motor data to slave via I2C
-        uint8_t slave_addr = axis2id(axis);
-        
+        uint32_t slave_addr = axis2id(axis);
+
         // Cast the structure to a byte array
         uint8_t *dataPtr = (uint8_t *)&motorData;
         int dataSize = sizeof(MotorData);
-        
-        int err = sendCanMessage(slave_addr, dataPtr);
+
+        int err = sendCanMessage(slave_addr, dataPtr, dataSize);
 
         if (err != 0)
         {
             log_e("Error sending motor data to CAN slave at address %i", slave_addr);
         }
-        else{
-            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever);
+        else
+        {
+            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
     }
 
@@ -239,40 +247,25 @@ namespace can_controller
         // Send a message every 1 second
         if (millis() - lastSend >= 10)
         {
-            lastSend = millis();
-            txData.counter++;
-            txPdu.data = (uint8_t *)&txData;
-            txPdu.len = sizeof(txData);
-            if (isoTpSender.send(&txPdu) == 0)
+            // receive data from any node
+            rxPdu.data = genericDataPtr;
+            rxPdu.len = sizeof(genericDataPtr);
+            rxPdu.rxId = 0; // broadcast - listen to all ids
+            rxPdu.txId = getCANAddress(); // doesn't matter, but we use the current id
+            int mError = isoTpSender.receive(&rxPdu);            
+            // int mError = receiveCanMessage(0, (uint8_t *)&genericDataPtr);
+
+            // parse the data depending on the ID's strucutre and size
+            if (mError == 0)
             {
-                Serial.print("Sender: Sent counter = ");
-                Serial.println(txData.counter);
+                log_i("Sender: Received data form ID %u", rxPdu.rxId);
+                dispatchIsoTpData(rxPdu.rxId, rxPdu.data, rxPdu.len);
             }
             else
             {
-                Serial.println("Sender: Error sending");
+                log_e("Sender: No response or error");
             }
-        }
-
-        // receive data from receiver always
-        int result = isoTpSender.receive(&rxPdu);
-        if (result == 0 && rxPdu.cantpState == CANTP_END)
-        {
-            /*
-            Serial.print("Sender: Received response counter = ");
-            Serial.println(rxData.counter);
-            Serial.print("Sender ID: ");
-            Serial.println(rxPdu.rxId);
-                // Dispatch by ID
-                */
-            dispatchIsoTpData(rxPdu.rxId, rxPdu.data, rxPdu.len);
-
-            // Free the data once done
-            // free(rxPdu->data); // will be done inside the receive function
-        }
-        else
-        {
-            Serial.print("Sender: No response or error");
+            lastSend = millis();
         }
     }
 }

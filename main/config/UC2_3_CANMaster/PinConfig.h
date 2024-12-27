@@ -101,5 +101,7 @@ struct UC2_3_I2CMaster : PinConfig
      int8_t CAN_TX = GPIO_NUM_13;
      int8_t CAN_RX = GPIO_NUM_12;
 
+     uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
+
 };
 const UC2_3_I2CMaster pinConfig;

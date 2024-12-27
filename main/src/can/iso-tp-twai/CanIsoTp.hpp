@@ -28,14 +28,14 @@
 
 // ISO-TP State Definitions
 enum IsoTpState {
-    CANTP_IDLE,
-    CANTP_SEND,
-    CANTP_WAIT_FIRST_FC,
-    CANTP_WAIT_FC,
-    CANTP_SEND_CF,
-    CANTP_WAIT_DATA,
-    CANTP_END,
-    CANTP_ERROR
+    CANTP_IDLE, // 0
+    CANTP_SEND, // 1
+    CANTP_WAIT_FIRST_FC, // 2
+    CANTP_WAIT_FC, // 3
+    CANTP_SEND_CF, // 4
+    CANTP_WAIT_DATA, // 5
+    CANTP_END, // 6 
+    CANTP_ERROR // 7
 };
 
 // ISO-TP PDU Structure (PDU = Protocol Data Unit)

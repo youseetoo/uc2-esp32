@@ -11,9 +11,9 @@
 #define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
 
 #define PACKET_SIZE 8
-#define TIMEOUT_SESSION 100
+#define TIMEOUT_SESSION 1000
 #define TIMEOUT_FC 1000
-#define TIMEOUT_READ 500
+#define TIMEOUT_READ 300
 
 // Already declared in ESP32-TWAI-CAN.hpp
 /*
@@ -235,6 +235,7 @@ int CanIsoTp::receive(pdu_t *rxpdu)
         log_i("State in receive: %d", rxpdu->cantpState);
         if (millis() - _timerSession >= TIMEOUT_SESSION)
         {
+            log_i("Session timeout");
             return 1; // Session timeout
         }
 
@@ -283,11 +284,15 @@ int CanIsoTp::receive(pdu_t *rxpdu)
             else
             {
                 log_i("Frame ID mismatch");
+
             }
         }
         else
         {
+            // FIXME: there are still some packages not read at the end... not sure why. Timeout issues? 
             log_i("No frame received");
+            //if (rxpdu->cantpState == CANTP_IDLE) 
+            break;
         }
     }
     log_i("Return: %d", ret);
@@ -390,6 +395,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     // Determine total length from FF
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1];
     pdu->len = totalLen;
+    _rxRestBytes = pdu->len;
 
     // introduce a special case where we don't know the datatype to cast on default, so we create the array and cast it later
     if (pdu->data == nullptr)
@@ -412,8 +418,19 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     }
     // Copy the first 6 bytes
     memcpy(pdu->data, &frame->data[2], 6);         // Copy first 6 bytes
+    _rxRestBytes -= 6;
     pdu->seqId = 1;                                // Start sequence ID
     pdu->cantpState = IsoTpState::CANTP_WAIT_DATA; // Awaiting consecutive frames
+    /*
+        // Send 1° FlowControlFrame
+    pdu_t pdu_fc;
+    pdu_fc.txId = pdu->txId;
+    pdu_fc.rxId = pdu->rxId;
+    pdu_fc.fcStatus = CANTP_FLOWSTATUS_CTS; // FlowControl state
+    pdu_fc.blockSize = 0;
+    pdu_fc.separationTimeMin = 0x7F;
+    return send_FlowControlFrame(&pdu_fc);
+    */
     log_i("Sending Flow Control FC");
 
     return send_FlowControlFrame(pdu);

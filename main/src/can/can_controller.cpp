@@ -38,26 +38,7 @@ namespace can_controller
     {
         switch (id)
         {
-            case pinConfig.CAN_ID_CENTRAL_NODE:
-            {
-                // Parse as CentralNodeData
-                // based on current ID we have to parse the data
-                if (getCANAddress()==pinConfig.CAN_ID_MOT_X)
-                {
-                    // Parse as MotorData
-                    MotorData motor;
-                    if (size >= sizeof(motor))
-                    {
-                        memcpy(&motor, data, sizeof(motor));
-                        // Do something with motor data
-                        Serial.printf("Motor position: %d\n", motor.targetPosition);
-                        // TODO: Push Data to real FocusMotor and start STepper 
 
-                    }
-                    break;
-                }
-                break;
-            }
         case 0x123:
         {
             // Parse as SomeEngineData
@@ -79,7 +60,28 @@ namespace can_controller
         {
             // Unknown ID
             log_i("Unknown CAN ID: %u", id);
-            // Possibly dump raw bytes
+            if (id == pinConfig.CAN_ID_CENTRAL_NODE)
+            {
+                // Parse as CentralNodeData
+                // based on current ID we have to parse the data
+                if (getCANAddress() == pinConfig.CAN_ID_MOT_X)
+                {
+                    // Parse as MotorData
+                    MotorData motor;
+                    if (size >= sizeof(motor))
+                    {
+                        memcpy(&motor, data, sizeof(motor));
+                        // Do something with motor data
+                        log_i("Motor position: %d", motor.targetPosition);
+                        // TODO: Push Data to real FocusMotor and start STepper
+                    }
+                    else{
+                        log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", id, size);
+                    }
+                    break;
+                }
+                break;
+            }
         }
         }
     }
@@ -270,9 +272,9 @@ namespace can_controller
             // receive data from any node
             rxPdu.data = genericDataPtr;
             rxPdu.len = sizeof(genericDataPtr);
-            rxPdu.rxId = 0; // broadcast - listen to all ids
+            rxPdu.rxId = 0;               // broadcast - listen to all ids
             rxPdu.txId = getCANAddress(); // doesn't matter, but we use the current id
-            int mError = isoTpSender.receive(&rxPdu);            
+            int mError = isoTpSender.receive(&rxPdu);
             // int mError = receiveCanMessage(0, (uint8_t *)&genericDataPtr);
 
             // parse the data depending on the ID's strucutre and size

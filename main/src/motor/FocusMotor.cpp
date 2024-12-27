@@ -72,6 +72,8 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
+//method is unused
+/*
 #ifdef WIFI
 	void sendUpdateToClients(void *p)
 	{
@@ -114,6 +116,7 @@ namespace FocusMotor
 		}
 	}
 #endif
+*/
 
 	void startStepper(int axis, bool reduced = false)
 	{

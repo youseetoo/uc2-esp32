@@ -1,6 +1,5 @@
 #include <PinConfig.h>
 #include "HomeMotor.h"
-#include "FastAccelStepper.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"

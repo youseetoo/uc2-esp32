@@ -41,6 +41,7 @@ struct MotorData
 	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
 	//and its needed to show only true initialized motors inside webui and android app.
 	bool isActivated = 0;
+	//internal state used by fast/accel stepper, maybe it shoulde get renamed to isRunning^^ but that need also to invert all true false values
 	bool stopped = true;
 	bool endstop_hit = false;
 

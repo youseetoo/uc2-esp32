@@ -57,5 +57,5 @@ enum CANMessageTypeID {
     SENSOR_GET       = 0x40, // Sensor Messages
     SENSOR_STATE     = 0x41,
 
-    BROADCAST        = 0xF0  // Broadcast Message
+    BROADCAST        = 0xF0  // Broadcast Message (240)
 };

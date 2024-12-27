@@ -1,0 +1,75 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Compile ESP32 Platformio (xiao motor board)
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: betaBD  # Checkout the betaBD branch
+        #submodules: recursive
+        #submodules: true  # Ensure submodules are checked out
+    
+    - name: Checkout submodules
+      run: git submodule update --init --recursive
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+        pip install esptool
+        dir 
+        
+    - name: Install platformIO libraries
+      run: pio lib install
+
+    - name: Find and Replace (LOG LEVEL)
+      uses: jacobtomlinson/gha-find-replace@v2
+      with:
+        find: "-DCORE_DEBUG_LEVEL=5"
+        replace: "-DCORE_DEBUG_LEVEL=0"
+        regex: false
+
+    - name: Run PlatformIO
+      run: pio run --environment UC2_3_Xiao_Slave_Motor -v  # Run the specific environment
+    
+    - name: merge into one binary
+      run: |
+        dir .pio/build/UC2_3_Xiao_Slave_Motor/ 
+        mv .pio/build/UC2_3_Xiao_Slave_Motor/*.bin builds3/
+        cd builds3
+        python -m esptool --chip esp32s3 merge_bin  -o UC2_3_Xiao_Slave_Motor.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: merged-firmware
+        path: builds3/UC2_3_Xiao_Slave_Motor.bin
+
+    - name: Push to youseetoo Webtool
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_file: 'builds3/UC2_3_Xiao_Slave_Motor.bin'
+        destination_repo: 'youseetoo/youseetoo.github.io'
+        destination_folder: 'static/firmware_build'
+        user_email: 'bene.d@gmx.de'
+        user_name: 'beniroquai'
+        commit_message: 'A new firmware binary has been released => https://github.com/youseetoo/uc2-esp32'

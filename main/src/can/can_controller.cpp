@@ -63,25 +63,46 @@ namespace can_controller
             if (id == pinConfig.CAN_ID_CENTRAL_NODE)
             {
                 // Parse as CentralNodeData
+                Stepper motorAxis = static_cast<Stepper>(0);
                 // based on current ID we have to parse the data
                 if (getCANAddress() == pinConfig.CAN_ID_MOT_X)
                 {
-                    // Parse as MotorData
-                    MotorData motor;
-                    if (size >= sizeof(motor))
-                    {
-                        memcpy(&motor, data, sizeof(motor));
-                        // Do something with motor data
-                        log_i("Motor position: %d", motor.targetPosition);
-                        // TODO: Push Data to real FocusMotor and start STepper
-                    }
-                    else{
-                        log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", id, size);
-                    }
-                    break;
+                    motorAxis = Stepper::X;
+                }
+                else if (getCANAddress() == pinConfig.CAN_ID_MOT_Y)
+                {
+                    motorAxis = Stepper::Y;
+                }
+                else if (getCANAddress() == pinConfig.CAN_ID_MOT_Z)
+                {
+                    motorAxis = Stepper::Z;
+                }
+                else if (getCANAddress() == pinConfig.CAN_ID_MOT_A)
+                {
+                    motorAxis = Stepper::A;
+                }
+                else
+                {
+                    log_e("Error: Unknown CAN address %u", getCANAddress());
+                    return;
+                }
+                // Parse as MotorData
+                MotorData motor;
+                if (size >= sizeof(motor))
+                {
+                    memcpy(&motor, data, sizeof(motor));
+                    // Do something with motor data
+                    log_i("Motor position: %d", motor.targetPosition);
+                    getData()[motorAxis]->targetPosition = motor.targetPosition;
+                    FocusMotor::startStepper(motorAxis, false);
+                }
+                else
+                {
+                    log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", id, size);
                 }
                 break;
             }
+            break;
         }
         }
     }

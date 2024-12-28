@@ -223,7 +223,7 @@ int CanIsoTp::send(pdu_t *pdu)
     return ret;
 }
 
-int CanIsoTp::receive(pdu_t *rxpdu)
+int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 {
     uint8_t ret = -1;
     uint8_t N_PCItype = 0;
@@ -240,7 +240,7 @@ int CanIsoTp::receive(pdu_t *rxpdu)
         }
 
         CanFrame frame;
-        if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
+        if (ESP32CanTwai.readFrame(&frame, timeout))
         {
             // log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId

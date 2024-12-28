@@ -65,7 +65,7 @@ public:
     void end();               // Terminate CAN bus
 
     int send(pdu_t *pdu);     // Send ISO-TP message
-    int receive(pdu_t *pdu);  // Receive ISO-TP message
+    int receive(pdu_t *pdu, uint32_t timeout);  // Receive ISO-TP message
 
 private:
     uint32_t _timerSession;

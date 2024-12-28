@@ -34,6 +34,24 @@ namespace can_controller
         pinConfig.CAN_ID_MOT_Y,
         pinConfig.CAN_ID_MOT_Z};
 
+    // Global queue for received messages
+    static QueueHandle_t canQueue;
+
+    void canReceiveTask(void *pvParameters)
+    {
+        pdu_t rxPdu;
+        for (;;)
+        {
+            // Try receiving (blocks up to 100ms, depending on your driver’s API)
+            if (isoTpSender.receive(&rxPdu, 50) == 0)
+            {
+                xQueueSend(canQueue, &rxPdu, portMAX_DELAY);
+            }
+            // Delay to avoid hogging the CPU, adjust as needed
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+
     void dispatchIsoTpData(uint32_t id, const uint8_t *data, size_t size)
     {
         switch (id)
@@ -149,7 +167,7 @@ namespace can_controller
         rxPdu.data = data;
         rxPdu.rxId = getCANAddress();
         rxPdu.txId = senderID;
-        return isoTpSender.receive(&rxPdu);
+        return isoTpSender.receive(&rxPdu, 100);
     }
 
     void setup()
@@ -163,28 +181,10 @@ namespace can_controller
 
         log_i("CAN bus initialized with address %u", getCANAddress());
 
-        /*
-        // Initialize data
-        txData.counter = 0;
-
-        // Setup Tx PDU
-        txPdu.txId = 0x123;
-        txPdu.rxId = 0x456;
-        txPdu.data = (uint8_t *)&txData;
-        txPdu.len = sizeof(txData);
-        txPdu.cantpState = CANTP_IDLE;
-        txPdu.blockSize = 0;
-        txPdu.separationTimeMin = 5;
-
-        // Setup Rx PDU for responses
-        rxPdu.txId = 0x456;   // Receiver's ID
-        rxPdu.rxId = 0;       // broadcast - listen to all ids; 0x123; // Sender's ID
-        rxPdu.data = nullptr; // nullptr indicates that we will parse the data later; size will be dicated by FC frame (uint8_t *)&rxData;
-        rxPdu.len = 0;        //       sizeof(rxData);
-        rxPdu.cantpState = CANTP_IDLE;
-        rxPdu.blockSize = 0;
-        rxPdu.separationTimeMin = 0;
-        */
+        // Create a queue to store incoming pdu_t
+        canQueue = xQueueCreate(5, sizeof(pdu_t));
+        // Create a dedicated task for receiving CAN messages
+        xTaskCreate(canReceiveTask, "canReceiveTask", 2048, NULL, 1, NULL);
     }
 
     int act(cJSON *doc)
@@ -288,14 +288,14 @@ namespace can_controller
     void loop()
     {
         // Send a message every 1 second
-        if (millis() - lastSend >= 10)
+        if ( millis() - lastSend >= 10)
         {
             // receive data from any node
             rxPdu.data = genericDataPtr;
             rxPdu.len = sizeof(genericDataPtr);
             rxPdu.rxId = 0;               // broadcast - listen to all ids
             rxPdu.txId = getCANAddress(); // doesn't matter, but we use the current id
-            int mError = isoTpSender.receive(&rxPdu);
+            int mError = isoTpSender.receive(&rxPdu, 50);
             // int mError = receiveCanMessage(0, (uint8_t *)&genericDataPtr);
 
             // parse the data depending on the ID's strucutre and size
@@ -310,5 +310,18 @@ namespace can_controller
             }
             lastSend = millis();
         }
+    
+    else if(false) // this does not work, consecutive frames are not received in time
+    {
+        static pdu_t rxPdu;
+        // Non-blocking check if there's a new message
+        if (xQueueReceive(canQueue, &rxPdu, 0) == pdTRUE)
+        {
+            // Process received data
+            log_i("Sender: Received data from ID %u", rxPdu.rxId);
+            dispatchIsoTpData(rxPdu.rxId, rxPdu.data, rxPdu.len);
+        }
     }
+    }
+
 }

@@ -232,7 +232,7 @@ int CanIsoTp::receive(pdu_t *rxpdu)
 
     while (rxpdu->cantpState != CANTP_END && rxpdu->cantpState != CANTP_ERROR)
     {
-        log_i("State in receive: %d", rxpdu->cantpState);
+        //log_i("State in receive: %d", rxpdu->cantpState);
         if (millis() - _timerSession >= TIMEOUT_SESSION)
         {
             log_i("Session timeout");
@@ -242,7 +242,7 @@ int CanIsoTp::receive(pdu_t *rxpdu)
         CanFrame frame;
         if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
         {
-            log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
+            // log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
             if (rxpdu->rxId == 0)
             {
@@ -250,12 +250,12 @@ int CanIsoTp::receive(pdu_t *rxpdu)
             }
             if (frame.identifier == rxpdu->rxId)
             {
-                log_i("Data length: %d", frame.data_length_code);
+                // log_i("Data length: %d", frame.data_length_code);
                 // Extract N_PCItype
                 if (frame.data_length_code > 0)
                 {
                     N_PCItype = (frame.data[0] & 0xF0);
-                    log_i("N_PCItype: %d", N_PCItype);
+                    //log_i("N_PCItype: %d", N_PCItype);
                     switch (N_PCItype)
                     {
                     case N_PCItypeSF: // 0x00
@@ -271,7 +271,7 @@ int CanIsoTp::receive(pdu_t *rxpdu)
                         ret = receive_FlowControlFrame(rxpdu, &frame);
                         break;
                     case N_PCItypeCF: // 0x20
-                        log_i("CF received");
+                        //log_i("CF received");
                         ret = receive_ConsecutiveFrame(rxpdu, &frame);
                         break;
                     default:
@@ -343,7 +343,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
     frame.data[0] = N_PCItypeCF | (pdu->seqId & 0x0F); // PCI: Consecutive Frame with sequence number
     uint8_t sizeToSend = (pdu->len > 7) ? 7 : pdu->len;
-    log_i("Sending CF, len: %d, seqID: %d", sizeToSend, frame.data[0] & 0x0F);
+    log_i("Sending CF, len: %d, seqID: %d, size left: %d", sizeToSend, frame.data[0] & 0x0F, pdu->len);
 
     memcpy(&frame.data[1], pdu->data, sizeToSend);
     pdu->data += sizeToSend;
@@ -448,7 +448,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
 
     // Check sequence number to ensure correct order
     uint8_t seqId = frame->data[0] & 0x0F;
-    log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d", pdu->cantpState, pdu->seqId, seqId);
+    log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d with size %d", pdu->cantpState, pdu->seqId, seqId, frame->data_length_code - 1);
     if (seqId != pdu->seqId)
     {
         log_i("Sequence mismatch");
@@ -464,7 +464,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
 
     // Decrease the remaining bytes count
     _rxRestBytes -= sizeToCopy;
-    log_i("Rest bytes: %d", _rxRestBytes);
+    //log_i("Rest bytes: %d", _rxRestBytes);
 
     // If we've received all data, update state to CANTP_END
     if (_rxRestBytes <= 0)
@@ -475,7 +475,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     else
     {
         // indicate how many bytes are left
-        log_i("Bytes left: %d", _rxRestBytes);
+        // log_i("Bytes left: %d", _rxRestBytes);
     }
 
     // Increment sequence ID as original code does (no modulo)

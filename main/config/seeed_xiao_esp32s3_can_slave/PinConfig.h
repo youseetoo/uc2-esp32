@@ -87,8 +87,11 @@ struct UC2_3_Xiao_Slave : PinConfig
      int8_t CAN_TX = GPIO_NUM_7;  // D8 -> GPIO7
      int8_t CAN_RX = 44; // D7 -> GPIO44
 
+     uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
+
      // TEmporarily for endstop
      int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
+
 };
   
 const UC2_3_Xiao_Slave pinConfig;

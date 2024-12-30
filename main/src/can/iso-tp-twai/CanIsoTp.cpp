@@ -11,9 +11,9 @@
 #define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
 
 #define PACKET_SIZE 8
-#define TIMEOUT_SESSION 100
-#define TIMEOUT_FC 100
-#define TIMEOUT_READ 100
+#define TIMEOUT_SESSION 1000
+#define TIMEOUT_FC 1000
+#define TIMEOUT_READ 300
 
 // Already declared in ESP32-TWAI-CAN.hpp
 /*
@@ -102,7 +102,7 @@ int CanIsoTp::send(pdu_t *pdu)
             }
             break;
 
-        case CANTP_SEND_CF:
+        case CANTP_SEND_CF: // 4
             // BS = 0 send everything.
             if (pdu->blockSize == 0)
             {
@@ -114,9 +114,12 @@ int CanIsoTp::send(pdu_t *pdu)
                     delay(pdu->separationTimeMin);
                     if (!(ret = send_ConsecutiveFrame(pdu)))
                     {
+                        /*
                         pdu->seqId++;
                         pdu->data += 7;
                         pdu->len -= 7;
+                        log_i("CF, seqId: %d, len %d", pdu->seqId, pdu->len);
+                        */
                         if (pdu->len == 0)
                             pdu->cantpState = CANTP_IDLE;
                     } // End if
@@ -183,7 +186,7 @@ int CanIsoTp::send(pdu_t *pdu)
             // Try reading a frame from TWAI
             if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
             {
-                log_i("Frame received: %d", frame.identifier);
+                log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
                 if (frame.identifier == pdu->rxId && frame.data_length_code > 0)
                 {
                     log_i("Data length: %d", frame.data_length_code);
@@ -220,7 +223,7 @@ int CanIsoTp::send(pdu_t *pdu)
     return ret;
 }
 
-int CanIsoTp::receive(pdu_t *rxpdu)
+int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 {
     uint8_t ret = -1;
     uint8_t N_PCItype = 0;
@@ -229,16 +232,17 @@ int CanIsoTp::receive(pdu_t *rxpdu)
 
     while (rxpdu->cantpState != CANTP_END && rxpdu->cantpState != CANTP_ERROR)
     {
-        log_i("State in receive: %d", rxpdu->cantpState);
+        //log_i("State in receive: %d", rxpdu->cantpState);
         if (millis() - _timerSession >= TIMEOUT_SESSION)
         {
+            log_i("Session timeout");
             return 1; // Session timeout
         }
 
         CanFrame frame;
-        if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
+        if (ESP32CanTwai.readFrame(&frame, timeout))
         {
-            log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
+            // log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
             if (rxpdu->rxId == 0)
             {
@@ -246,12 +250,12 @@ int CanIsoTp::receive(pdu_t *rxpdu)
             }
             if (frame.identifier == rxpdu->rxId)
             {
-                log_i("Data length: %d", frame.data_length_code);
+                // log_i("Data length: %d", frame.data_length_code);
                 // Extract N_PCItype
                 if (frame.data_length_code > 0)
                 {
                     N_PCItype = (frame.data[0] & 0xF0);
-                    log_i("N_PCItype: %d", N_PCItype);
+                    //log_i("N_PCItype: %d", N_PCItype);
                     switch (N_PCItype)
                     {
                     case N_PCItypeSF: // 0x00
@@ -267,7 +271,7 @@ int CanIsoTp::receive(pdu_t *rxpdu)
                         ret = receive_FlowControlFrame(rxpdu, &frame);
                         break;
                     case N_PCItypeCF: // 0x20
-                        log_i("CF received");
+                        //log_i("CF received");
                         ret = receive_ConsecutiveFrame(rxpdu, &frame);
                         break;
                     default:
@@ -280,11 +284,15 @@ int CanIsoTp::receive(pdu_t *rxpdu)
             else
             {
                 log_i("Frame ID mismatch");
+
             }
         }
         else
         {
+            // FIXME: there are still some packages not read at the end... not sure why. Timeout issues? 
             log_i("No frame received");
+            //if (rxpdu->cantpState == CANTP_IDLE) 
+            break;
         }
     }
     log_i("Return: %d", ret);
@@ -335,7 +343,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
     frame.data[0] = N_PCItypeCF | (pdu->seqId & 0x0F); // PCI: Consecutive Frame with sequence number
     uint8_t sizeToSend = (pdu->len > 7) ? 7 : pdu->len;
-    log_i("Sending CF, len: %d, seqID: %d", sizeToSend, frame.data[0] & 0x0F);
+    log_i("Sending CF, len: %d, seqID: %d, size left: %d", sizeToSend, frame.data[0] & 0x0F, pdu->len);
 
     memcpy(&frame.data[1], pdu->data, sizeToSend);
     pdu->data += sizeToSend;
@@ -347,7 +355,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 {
-    log_i("Sending FC");
+    log_i("Sending FC to ID: %d with ID: %d", pdu->txId, pdu->rxId);
     CanFrame frame = {0};
     frame.identifier = pdu->txId;
     frame.extd = 0;
@@ -363,6 +371,17 @@ int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 {
     log_i("Single Frame received");
+    // if data is empty, allocate memory
+    if (pdu->data == nullptr)
+    {
+        pdu->data = (uint8_t *)malloc(frame->data_length_code - 1);
+        if (!pdu->data)
+        {
+            // Could not allocate; set an error
+            pdu->cantpState = CANTP_ERROR;
+            return 1;
+        }
+    }
     pdu->len = frame->data[0] & 0x0F; // Extract data length
     memcpy(pdu->data, &frame->data[1], pdu->len);
     log_i("Data copied, %d bytes", pdu->len);
@@ -376,6 +395,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     // Determine total length from FF
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1];
     pdu->len = totalLen;
+    _rxRestBytes = pdu->len;
 
     // introduce a special case where we don't know the datatype to cast on default, so we create the array and cast it later
     if (pdu->data == nullptr)
@@ -398,9 +418,20 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     }
     // Copy the first 6 bytes
     memcpy(pdu->data, &frame->data[2], 6);         // Copy first 6 bytes
+    _rxRestBytes -= 6;
     pdu->seqId = 1;                                // Start sequence ID
     pdu->cantpState = IsoTpState::CANTP_WAIT_DATA; // Awaiting consecutive frames
-    log_i("Sending FC");
+    /*
+        // Send 1° FlowControlFrame
+    pdu_t pdu_fc;
+    pdu_fc.txId = pdu->txId;
+    pdu_fc.rxId = pdu->rxId;
+    pdu_fc.fcStatus = CANTP_FLOWSTATUS_CTS; // FlowControl state
+    pdu_fc.blockSize = 0;
+    pdu_fc.separationTimeMin = 0x7F;
+    return send_FlowControlFrame(&pdu_fc);
+    */
+    log_i("Sending Flow Control FC");
 
     return send_FlowControlFrame(pdu);
 }
@@ -417,7 +448,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
 
     // Check sequence number to ensure correct order
     uint8_t seqId = frame->data[0] & 0x0F;
-    log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d", pdu->cantpState, pdu->seqId, seqId);
+    log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d with size %d", pdu->cantpState, pdu->seqId, seqId, frame->data_length_code - 1);
     if (seqId != pdu->seqId)
     {
         log_i("Sequence mismatch");
@@ -433,7 +464,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
 
     // Decrease the remaining bytes count
     _rxRestBytes -= sizeToCopy;
-    log_i("Rest bytes: %d", _rxRestBytes);
+    //log_i("Rest bytes: %d", _rxRestBytes);
 
     // If we've received all data, update state to CANTP_END
     if (_rxRestBytes <= 0)
@@ -444,7 +475,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     else
     {
         // indicate how many bytes are left
-        log_i("Bytes left: %d", _rxRestBytes);
+        // log_i("Bytes left: %d", _rxRestBytes);
     }
 
     // Increment sequence ID as original code does (no modulo)

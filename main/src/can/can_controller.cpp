@@ -120,6 +120,23 @@ namespace can_controller
         }
     }
 
+    void parseMotorState(uint8_t *data, size_t size, uint32_t txID, Stepper mStepper)
+    {
+        // Parse as MotorState
+        if (size == sizeof(MotorState))
+        {
+            MotorState receivedMotorState;
+            memcpy(&receivedMotorState, data, sizeof(MotorState));
+            FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
+            FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
+            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning);
+        }
+        else
+        {
+            log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
+        }
+    }
+
     void parseLaserData(uint8_t *data, size_t size, uint32_t txID)
     {
         // Parse as LaserData
@@ -146,7 +163,7 @@ namespace can_controller
         size_t size = pdu.len;    // Data size
         log_i("CAN RXID: %u, TXID: %u, size: %u", rxID, txID, size);
 
-        // Parse as CentralNodeData
+        // this is coming from the central node, so slaves should react
         if (rxID == pinConfig.CAN_ID_CENTRAL_NODE)
         {
             // if the message was sent from the central node, we need to parse the data and perform an action (e.g. _act , _get) on the slave side
@@ -163,6 +180,12 @@ namespace can_controller
             {
                 log_e("Error: Unknown CAN address %u", txID);
             }
+        }
+        // CAN RXID: 273, TXID: 256, size: 8
+        else if (rxID == pinConfig.CAN_ID_MOT_X) // this is coming from the X motor
+        {
+            // assuming the x-motor updated its position/state
+            parseMotorState(data, size, rxID, Stepper::X);
         }
     }
 
@@ -197,6 +220,8 @@ namespace can_controller
     // generic sender function
     int sendCanMessage(uint32_t receiverID, const uint8_t *data, uint8_t size)
     {
+        lastSend = millis();
+
         if (xSemaphoreTake(canMutex, portMAX_DELAY) == pdTRUE)
         {
             // Send the data
@@ -205,8 +230,9 @@ namespace can_controller
             txPdu.len = size;
             txPdu.rxId = receiverID; // maybe reverse with txId?
             txPdu.txId = getCANAddress();
+            int ret = isoTpSender.send(&txPdu);
             xSemaphoreGive(canMutex);
-            return isoTpSender.send(&txPdu);
+            return ret;
         }
         // Couldn't get the mutex for some reason
         return -1;
@@ -222,8 +248,9 @@ namespace can_controller
             rxPdu.len = sizeof(genericDataPtr);
             rxPdu.rxId = senderID;        // broadcast => 0 - listen to all ids
             rxPdu.txId = getCANAddress(); // doesn't matter, but we use the current id
+            int ret = isoTpSender.receive(&rxPdu, 50);
             xSemaphoreGive(canMutex);
-            return isoTpSender.receive(&rxPdu, 50);
+            return ret;
         }
         return -1;
     }
@@ -404,7 +431,7 @@ namespace can_controller
     void loop()
     {
         // Send a message every 1 second
-        if (1 or millis() - lastSend >= 10)
+        if (millis() - lastSend >= 10)
         {
             int mError = receiveCanMessage(0, (uint8_t *)&genericDataPtr);
 
@@ -414,7 +441,6 @@ namespace can_controller
                 dispatchIsoTpData(rxPdu);
             }
 
-            lastSend = millis();
         }
         /*
         else if (false) // this does not work, consecutive frames are not received in time

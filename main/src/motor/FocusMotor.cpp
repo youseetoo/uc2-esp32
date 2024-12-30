@@ -67,6 +67,9 @@ namespace FocusMotor
 #ifdef WIFI
 	void sendUpdateToClients(void *p)
 	{
+		/*
+		NOT IN USE
+		*/
 		for (;;)
 		{
 			cJSON *root = cJSON_CreateObject();
@@ -101,7 +104,7 @@ namespace FocusMotor
 #ifdef I2C_MASTER and defined DIAL_CONTROLLER
 			i2c_master::pushMotorPosToDial();
 #endif
-#ifdef CAN_MOTOR
+#ifdef CAN_SLAVE_MOTOR
 #endif
 			cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -129,9 +132,9 @@ namespace FocusMotor
 			i2c_master::startStepper(m, axis, reduced);
 			waitForFirstRun[axis] = 1;
 		}
-#elif defined(CAN_CONTROLLER) && defined(CAN_MOTOR)
+#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR) // sending from master to slave
 		// send the motor data to the slave
-		if (!true) // FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
+		if (false) // FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
@@ -149,11 +152,6 @@ namespace FocusMotor
 		AccelStep::startAccelStepper(axis);
 #endif
 		getData()[axis]->stopped = false;
-
-#ifdef CAN_SLAVE_MOTOR
-		// We push the current state to the master to inform it that we are running and about the current position
-		can_controller::sendMotorStateToMaster();
-#endif
 	}
 
 	void parseMotorDriveJson(cJSON *doc)
@@ -650,15 +648,15 @@ namespace FocusMotor
 		// log_i("Creating Task sendUpdateToClients");
 		// xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 #endif
-#if defined CAN_MOTOR and defined CAN_CONTROLLER
-		// send motor positions to CAN
+#if (!defined CAN_CONTROLLER || defined CAN_SLAVE_MOTOR) // if we are the master, we don't check this in the
+		// send motor positions to CAN Master from slave side
 		can_controller::sendMotorStateToMaster();
 #endif
 	}
 
 	void loop()
 	{
-#ifndef CAN_MOTOR
+#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
@@ -797,7 +795,7 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		MotorData *m = getData()[i];
 		i2c_master::stopStepper(m, i);
-#elif defined CAN_CONTROLLER && defined CAN_SLAVE_MOTOR
+#elif defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
 		getData()[i]->isforever = false;
 		getData()[i]->speed = 0;
 		getData()[i]->stopped = true;

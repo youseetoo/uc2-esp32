@@ -27,7 +27,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_MOTOR and defined CAN_CONTROLLER
+#ifdef CAN_CONTROLLER
 #include "../can/can_controller.h"
 #endif
 
@@ -131,7 +131,7 @@ namespace FocusMotor
 		}
 #elif defined(CAN_CONTROLLER) && defined(CAN_MOTOR)
 		// send the motor data to the slave
-		if (!true)// FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
+		if (!true) // FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
 			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
@@ -150,9 +150,9 @@ namespace FocusMotor
 #endif
 		getData()[axis]->stopped = false;
 
-#ifdef CAN_MOTOR_SLAVE
-	// We push the current state to the master to inform it that we are running and about the current position
-	can_controller::sendMotorStateToMaster();
+#ifdef CAN_SLAVE_MOTOR
+		// We push the current state to the master to inform it that we are running and about the current position
+		can_controller::sendMotorStateToMaster();
 #endif
 	}
 
@@ -308,7 +308,7 @@ namespace FocusMotor
 		}
 #endif
 #ifdef CAN_SLAVE_MOTOR
-	log_i("Not implemented yet");
+		log_i("Not implemented yet");
 #endif
 	}
 
@@ -489,7 +489,7 @@ namespace FocusMotor
 		data[axis]->currentPosition = mMotorState.currentPosition;
 		// data[axis]->isforever = mMotorState.isforever;
 #elif defined CAN_CONTROLLER
-		// FIXME: nothing to do here since the position is assigned externally? 
+		// FIXME: nothing to do here since the position is assigned externally?
 #endif
 	}
 
@@ -652,23 +652,24 @@ namespace FocusMotor
 #endif
 #if defined CAN_MOTOR and defined CAN_CONTROLLER
 		// send motor positions to CAN
-		can_controller::sendMotorStateToMaster();	
+		can_controller::sendMotorStateToMaster();
 #endif
 	}
 
 	void loop()
 	{
-		#ifndef CAN_MOTOR
+#ifndef CAN_MOTOR
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
-			#ifdef I2C_MASTER
+#ifdef I2C_MASTER
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
-			if(waitForFirstRun[i]){
+			if (waitForFirstRun[i])
+			{
 				waitForFirstRun[i] = 0;
 				continue;
 			}
-			#endif
+#endif
 			bool mIsRunning = false;
 			// we check if the motor was defined
 			if (getData()[i]->isActivated)
@@ -689,7 +690,7 @@ namespace FocusMotor
 				preferences.end();
 			}
 		}
-		#endif
+#endif
 	}
 
 	bool isRunning(int i)
@@ -759,10 +760,10 @@ namespace FocusMotor
 		Serial.println("--");
 
 		cJSON_Delete(root); // Free the root object, which also frees all nested objects
-		#ifdef CAN_MOTOR_SLAVE
+#ifdef CAN_SLAVE_MOTOR
 		// We push the current state to the master to inform it that we are running and about the current position
 		can_controller::sendMotorStateToMaster();
-		#endif
+#endif
 	}
 
 	void stopStepper(int i)
@@ -781,7 +782,7 @@ namespace FocusMotor
 		}
 #endif
 
-		log_i("stopStepper Focus Motor %i", i);
+		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
 		if (!data[i]->stopped)
 			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
@@ -796,7 +797,7 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		MotorData *m = getData()[i];
 		i2c_master::stopStepper(m, i);
-#elif defined CAN_CONTROLLER && defined CAN_MOTOR
+#elif defined CAN_CONTROLLER && defined CAN_SLAVE_MOTOR
 		getData()[i]->isforever = false;
 		getData()[i]->speed = 0;
 		getData()[i]->stopped = true;
@@ -804,7 +805,6 @@ namespace FocusMotor
 		Stepper s = static_cast<Stepper>(i);
 		can_controller::stopStepper(s);
 #endif
-
 	}
 
 	long getPosition(Stepper s)

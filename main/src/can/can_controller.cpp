@@ -26,6 +26,7 @@ namespace can_controller
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
     pdu_t txPdu, rxPdu;
+    static SemaphoreHandle_t canMutex;
 
     // for A,X,Y,Z intialize the I2C addresses
     uint32_t CAN_IDs[] = {
@@ -39,13 +40,13 @@ namespace can_controller
 
     void canReceiveTask(void *pvParameters)
     {
-        pdu_t rxPdu;
+        pdu_t rxPdu_;
         for (;;)
         {
             // Try receiving (blocks up to 100ms, depending on your driver’s API)
-            if (isoTpSender.receive(&rxPdu, 50) == 0)
+            if (isoTpSender.receive(&rxPdu_, 50) == 0)
             {
-                xQueueSend(canQueue, &rxPdu, portMAX_DELAY);
+                xQueueSend(canQueue, &rxPdu_, portMAX_DELAY);
             }
             // Delay to avoid hogging the CPU, adjust as needed
             vTaskDelay(pdMS_TO_TICKS(100));
@@ -165,7 +166,7 @@ namespace can_controller
         }
     }
 
-    uint32_t getCANAddress()
+    uint32_t getCANAddressPreferences()
     {
         Preferences preferences;
         preferences.begin("CAN", false);
@@ -177,6 +178,11 @@ namespace can_controller
         uint32_t address = preferences.getUInt("address", pinConfig.CAN_ID_CURRENT);
         preferences.end();
         return address;
+    }
+
+    uint32_t getCANAddress()
+    {
+        return current_can_address;
     }
 
     void setCANAddress(uint32_t address)
@@ -191,40 +197,56 @@ namespace can_controller
     // generic sender function
     int sendCanMessage(uint32_t receiverID, const uint8_t *data, uint8_t size)
     {
-        // Send the data
-        log_i("Sending data with rxID %u, txID %u, with size %u", receiverID, getCANAddress(), size);
-        txPdu.data = (uint8_t *)data;
-        txPdu.len = size;
-        txPdu.rxId = receiverID; // maybe reverse with txId?
-        txPdu.txId = getCANAddress();
-        return isoTpSender.send(&txPdu);
+        if (xSemaphoreTake(canMutex, portMAX_DELAY) == pdTRUE)
+        {
+            // Send the data
+            log_i("Sending data with rxID %u, txID %u, with size %u", receiverID, getCANAddress(), size);
+            txPdu.data = (uint8_t *)data;
+            txPdu.len = size;
+            txPdu.rxId = receiverID; // maybe reverse with txId?
+            txPdu.txId = getCANAddress();
+            xSemaphoreGive(canMutex);
+            return isoTpSender.send(&txPdu);
+        }
+        // Couldn't get the mutex for some reason
+        return -1;
     }
 
     // generic receiver function
     int receiveCanMessage(uint32_t senderID, uint8_t *data)
     {
-        // Receive the data
-        rxPdu.data = data;
-        rxPdu.rxId = getCANAddress();
-        rxPdu.txId = senderID;
-        return isoTpSender.receive(&rxPdu, 100);
+        if (xSemaphoreTake(canMutex, portMAX_DELAY) == pdTRUE)
+        {
+            // receive data from any node
+            rxPdu.data = genericDataPtr;
+            rxPdu.len = sizeof(genericDataPtr);
+            rxPdu.rxId = senderID;        // broadcast => 0 - listen to all ids
+            rxPdu.txId = getCANAddress(); // doesn't matter, but we use the current id
+            xSemaphoreGive(canMutex);
+            return isoTpSender.receive(&rxPdu, 50);
+        }
+        return -1;
     }
 
     void setup()
     {
+        // Create a mutex for the CAN bus
+        canMutex = xSemaphoreCreateMutex();
+
         // Initialize CAN bus
         if (!isoTpSender.begin(500, pinConfig.CAN_TX, pinConfig.CAN_RX))
         {
             log_e("Failed to initialize CAN bus");
             return;
         }
+        current_can_address = getCANAddressPreferences();
 
         log_i("CAN bus initialized with address %u", getCANAddress());
 
         // Create a queue to store incoming pdu_t
-        canQueue = xQueueCreate(5, sizeof(pdu_t));
+        // canQueue = xQueueCreate(5, sizeof(pdu_t));
         // Create a dedicated task for receiving CAN messages
-        xTaskCreate(canReceiveTask, "canReceiveTask", 2048, NULL, 1, NULL);
+        // xTaskCreate(canReceiveTask, "canReceiveTask", 2048, NULL, 1, NULL);
     }
 
     int act(cJSON *doc)
@@ -301,11 +323,33 @@ namespace can_controller
         sendMotorDataToCANDriver(*getData()[s], s, false);
     }
 
+
+
+    void sendMotorStateToCANMaster(MotorData motorData)
+    {
+        // send motor state to master via I2C
+        uint32_t slave_addr = getCANAddress();
+        uint32_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
+        MotorState motorState;
+        motorState.currentPosition = motorData.currentPosition;
+        motorState.isRunning = !motorData.stopped;
+        uint8_t *dataPtr = (uint8_t *)&motorState;
+        int dataSize = sizeof(MotorState);
+        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        if (err != 0)
+        {
+            log_e("Error sending motor state to CAN master at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("MotorState to master at address %i, currentPosition: %i, isRunning: %i, size %i", slave_addr, motorState.currentPosition, motorState.isRunning, dataSize);
+        }
+    }
+
     void sendMotorStateToMaster()
     {
         // send the motor state to the master
-        // MotorData motorData = *data[0];
-        // sendMotorDataToCANDriver(motorData, 0, false);
+        sendMotorStateToCANMaster(*getData()[0]);
     }
 
     bool isMotorRunning(int axis)
@@ -362,24 +406,17 @@ namespace can_controller
         // Send a message every 1 second
         if (1 or millis() - lastSend >= 10)
         {
-            // receive data from any node
-            rxPdu.data = genericDataPtr;
-            rxPdu.len = sizeof(genericDataPtr);
-            rxPdu.rxId = 0;               // broadcast - listen to all ids
-            rxPdu.txId = getCANAddress(); // doesn't matter, but we use the current id
-            int mError = isoTpSender.receive(&rxPdu, 50);
-            // int mError = receiveCanMessage(0, (uint8_t *)&genericDataPtr);
+            int mError = receiveCanMessage(0, (uint8_t *)&genericDataPtr);
 
             // parse the data depending on the ID's strucutre and size
             if (mError == 0)
             {
-                log_i("Sender: Received data form ID %u", rxPdu.rxId);
                 dispatchIsoTpData(rxPdu);
             }
 
             lastSend = millis();
         }
-
+        /*
         else if (false) // this does not work, consecutive frames are not received in time
         {
             static pdu_t rxPdu;
@@ -391,5 +428,6 @@ namespace can_controller
                 dispatchIsoTpData(rxPdu);
             }
         }
+        */
     }
 }

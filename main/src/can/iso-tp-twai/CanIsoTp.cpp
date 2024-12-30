@@ -11,8 +11,8 @@
 #define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
 
 #define PACKET_SIZE 8
-#define TIMEOUT_SESSION 1000
-#define TIMEOUT_FC 1000
+#define TIMEOUT_SESSION 300
+#define TIMEOUT_FC 100
 #define TIMEOUT_READ 300
 
 // Already declared in ESP32-TWAI-CAN.hpp
@@ -217,7 +217,7 @@ int CanIsoTp::send(pdu_t *pdu)
 
 int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 {
-    uint8_t ret = -1;
+    uint8_t ret = 1;
     uint8_t N_PCItype = 0;
     uint32_t _timerSession = millis();
     rxpdu->cantpState = CANTP_IDLE;
@@ -230,10 +230,10 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
             log_i("Session timeout");
             return 1; // Session timeout
         }
-
         CanFrame frame;
+
         if (ESP32CanTwai.readFrame(&frame, timeout)) // TODO: As far as I understand, this pulls messages from the internal queue, so we should not need to wait for the timeout here too long
-        {
+        {    
             // log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
             if (rxpdu->rxId == 0)
@@ -255,7 +255,6 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                         ret = receive_SingleFrame(rxpdu, &frame);
                         break;
                     case N_PCItypeFF: // 0x10
-                        log_i("FF received");
                         ret = receive_FirstFrame(rxpdu, &frame);
                         break;
                     case N_PCItypeFC: // 0x30
@@ -348,7 +347,7 @@ int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 {
     log_i("Sending FC to ID: %d with ID: %d", pdu->txId, pdu->rxId);
     CanFrame frame = {0};
-    frame.identifier = pdu->txId;
+    frame.identifier = pdu->txId; 
     frame.extd = 0;
     frame.data_length_code = 3;
 
@@ -382,7 +381,7 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 
 int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
 {
-    log_i("First Frame received");
+    log_i("First Frame received, txID %d, rxID %d", pdu->txId, pdu->rxId);
     // Determine total length from FF
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1];// len is 16bits: 0000 XXXX. 0000 0000.
     pdu->len = totalLen;

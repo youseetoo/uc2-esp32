@@ -44,7 +44,7 @@ namespace can_controller
 
     // allocate memory for the generic data pointer 
     static uint8_t *genericDataPtr = nullptr;
-
+    static uint32_t current_can_address = 0;
 
     static unsigned long lastSend = 0;
     int act(cJSON *doc);

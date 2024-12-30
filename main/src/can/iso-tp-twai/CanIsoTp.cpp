@@ -114,23 +114,18 @@ int CanIsoTp::send(pdu_t *pdu)
                     delay(pdu->separationTimeMin);
                     if (!(ret = send_ConsecutiveFrame(pdu)))
                     {
-                        /*
-                        pdu->seqId++;
-                        pdu->data += 7;
-                        pdu->len -= 7;
-                        log_i("CF, seqId: %d, len %d", pdu->seqId, pdu->len);
-                        */
                         if (pdu->len == 0)
                             pdu->cantpState = CANTP_IDLE;
                     } // End if
                 } // End while
                 if (pdu->len <= 7 && _bsCounter > 0 && pdu->cantpState == CANTP_SEND_CF) // Last block. /!\ bsCounter can be 0.
                 {
+                    log_i("Sending Last block");
                     delay(pdu->separationTimeMin);
                     ret = send_ConsecutiveFrame(pdu);
                     pdu->cantpState = CANTP_IDLE;
                 } // End if
-                log_i("Consecutive Frame sent: %d", ret);
+                log_i("Consecutive Frame sent: %d, remaining len: %d", ret, pdu->len);
             }
 
             // BS != 0, send by blocks.
@@ -145,9 +140,6 @@ int CanIsoTp::send(pdu_t *pdu)
                     if (!(ret = send_ConsecutiveFrame(pdu)))
                     {
                         log_i("Consecutive Frame sent: %d", ret);
-                        pdu->data += 7; // Update pointer.
-                        pdu->len -= 7;  // 7 Bytes sended.
-                        pdu->seqId++;
                         if (_bsCounter == 0 && pdu->len > 0)
                         {
                             pdu->cantpState = CANTP_WAIT_FC;
@@ -212,14 +204,14 @@ int CanIsoTp::send(pdu_t *pdu)
             }
             else
             {
-                // log_i("No frame received");
+                log_i("No frame received");
             }
             // If no frame is received this iteration, loop continues until timeout or receive FC
         }
     }
 
     pdu->cantpState = CANTP_IDLE;
-    log_i("Return: %d", ret);
+    //log_i("Return: %d", ret);
     return ret;
 }
 
@@ -240,7 +232,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
         }
 
         CanFrame frame;
-        if (ESP32CanTwai.readFrame(&frame, timeout))
+        if (ESP32CanTwai.readFrame(&frame, timeout)) // TODO: As far as I understand, this pulls messages from the internal queue, so we should not need to wait for the timeout here too long
         {
             // log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
@@ -290,12 +282,12 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
         else
         {
             // FIXME: there are still some packages not read at the end... not sure why. Timeout issues? 
-            log_i("No frame received");
+            //log_i("No frame received");
             //if (rxpdu->cantpState == CANTP_IDLE) 
             break;
         }
     }
-    log_i("Return: %d", ret);
+    //log_i("Return: %d", ret);
     return ret;
 }
 
@@ -317,7 +309,6 @@ int CanIsoTp::send_SingleFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FirstFrame(pdu_t *pdu)
 {
-    log_i("Sending FF");
     CanFrame frame = {0};
     frame.identifier = pdu->txId;
     frame.extd = 0;
@@ -393,7 +384,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
 {
     log_i("First Frame received");
     // Determine total length from FF
-    uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1];
+    uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1];// len is 16bits: 0000 XXXX. 0000 0000.
     pdu->len = totalLen;
     _rxRestBytes = pdu->len;
 
@@ -459,7 +450,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     // Copy up to 7 bytes (or fewer if _rxRestBytes < 7)
     uint8_t sizeToCopy = (_rxRestBytes > 7) ? 7 : _rxRestBytes;
     // Original offset logic: 6 + (seqId - 1)*7
-    uint16_t offset = 6 + (pdu->seqId - 1) * 7; 
+    uint16_t offset = 6 + 7 * (pdu->seqId - 1); 
     memcpy(pdu->data + offset, &frame->data[1], sizeToCopy);
 
     // Decrease the remaining bytes count
@@ -472,15 +463,9 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
         log_i("All data received");
         pdu->cantpState = CANTP_END;
     }
-    else
-    {
-        // indicate how many bytes are left
-        // log_i("Bytes left: %d", _rxRestBytes);
-    }
 
     // Increment sequence ID as original code does (no modulo)
     pdu->seqId++;
-
     return 0;
 }
 
@@ -490,15 +475,21 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     uint8_t flowStatus = frame->data[0] & 0x0F;
     int ret = 0;
 
+    if (pdu->cantpState != CANTP_WAIT_DATA && pdu->cantpState != CANTP_WAIT_FIRST_FC && pdu->cantpState != CANTP_WAIT_FC){
+        log_e("receive_FlowControlFrame: Invalid state: %d", pdu->cantpState);
+        return 0;
+    }
+
     // Update blockSize and separationTimeMin only when waiting for the first FC
     if (pdu->cantpState == CANTP_WAIT_FIRST_FC)
     {
-        log_i("Updating BS and STmin");
+        //log_i("Updating BS and STmin");
         pdu->blockSize = frame->data[1];
-        pdu->separationTimeMin = frame->data[2];
+        pdu->separationTimeMin = frame->data[2]; // 0x7F, by defaul 127ms
         // Ensure STmin is within allowed range
         if ((pdu->separationTimeMin > 0x7F && pdu->separationTimeMin < 0xF1) || (pdu->separationTimeMin > 0xF9))
         {
+            log_i("STmin out of range, setting to 127ms");
             pdu->separationTimeMin = 0x7F; // Default to max 127ms if out-of-range
         }
     }
@@ -506,9 +497,8 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     switch (flowStatus)
     {
     case CANTP_FLOWSTATUS_CTS: // Continue to send
+        log_i("CTS (Continue to send) frame received");
         pdu->cantpState = CANTP_SEND_CF;
-        _receivedFCWaits = 0;
-        log_i("CTS received, BS: %d, STmin: %d", pdu->blockSize, pdu->separationTimeMin);
         break;
 
     case CANTP_FLOWSTATUS_WT: // Wait

@@ -27,7 +27,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_MOTOR and defined CAN_CONTROLLER
 #include "../can/can_controller.h"
 #endif
 
@@ -101,6 +101,8 @@ namespace FocusMotor
 #ifdef I2C_MASTER and defined DIAL_CONTROLLER
 			i2c_master::pushMotorPosToDial();
 #endif
+#ifdef CAN_MOTOR
+#endif
 			cJSON_Delete(root);
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
@@ -129,7 +131,6 @@ namespace FocusMotor
 		}
 #elif defined(CAN_CONTROLLER) && defined(CAN_MOTOR)
 		// send the motor data to the slave
-		uint8_t slave_addr = can_controller::axis2id(axis);
 		if (!true)// FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
 		{
 			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
@@ -183,7 +184,12 @@ namespace FocusMotor
 					data[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					bool isStop = (cstop != NULL) ? cstop->valueint : false;
-					toggleStepper(s, isStop, false); // not reduced
+					bool isReduced = false;
+					if (cJSON_GetObjectItemCaseSensitive(stp, key_reduced) != NULL)
+					{
+						isReduced = cJSON_GetObjectItemCaseSensitive(stp, key_reduced)->valueint;
+					}
+					toggleStepper(s, isStop, isReduced); // not reduced
 				}
 			}
 			else
@@ -644,10 +650,15 @@ namespace FocusMotor
 		// log_i("Creating Task sendUpdateToClients");
 		// xTaskCreate(sendUpdateToClients, "sendUpdateToWSClients", pinConfig.MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
 #endif
+#if defined CAN_MOTOR and defined CAN_CONTROLLER
+		// send motor positions to CAN
+		can_controller::sendMotorStateToMaster();	
+#endif
 	}
 
 	void loop()
 	{
+		#ifndef CAN_MOTOR
 		// checks if a stepper is still running
 		for (int i = 0; i < 4; i++)
 		{
@@ -678,6 +689,7 @@ namespace FocusMotor
 				preferences.end();
 			}
 		}
+		#endif
 	}
 
 	bool isRunning(int i)
@@ -691,6 +703,9 @@ namespace FocusMotor
 		// Request data from the slave but only if inside i2cAddresses
 		MotorState mData = i2c_master::getMotorState(i);
 		mIsRunning = mData.isRunning;
+#elif defined CAN_CONTROLLER
+		// Slave will push this information to the master via CAN asynchrously
+		mIsRunning = can_controller::isMotorRunning(i);
 #endif
 		return mIsRunning;
 	}
@@ -781,7 +796,15 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		MotorData *m = getData()[i];
 		i2c_master::stopStepper(m, i);
+#elif defined CAN_CONTROLLER && defined CAN_MOTOR
+		getData()[i]->isforever = false;
+		getData()[i]->speed = 0;
+		getData()[i]->stopped = true;
+		getData()[i]->isStop = true;
+		Stepper s = static_cast<Stepper>(i);
+		can_controller::stopStepper(s);
 #endif
+
 	}
 
 	long getPosition(Stepper s)

@@ -114,7 +114,8 @@ namespace BtController
             getData()[s]->acceleration = MAX_ACCELERATION_A;
             getData()[s]->isStop = false;
             
-            FocusMotor::startStepper(s, false); // first time => send full information
+            //FocusMotor::startStepper(s, false); // first time => send full information
+            FocusMotor::startStepper(s, true); // save bandwidth
             
             if (s == Stepper::X)
                 joystick_drive_X = true;

@@ -57,10 +57,15 @@ namespace can_controller
     int sendCanMessage(uint32_t receiverID, const uint8_t *data);
     void setCANAddress(uint32_t address);
     uint32_t getCANAddress();
-    void dispatchIsoTpData(uint32_t id, const uint8_t *data, size_t size);
+    void dispatchIsoTpData(pdu_t&);
+    
+    // motor functions
     void sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced = false);
     void startStepper(MotorData *data, int axis, bool reduced);
-    void stopStepper(int axis);
+    void stopStepper(Stepper s);
+    void sendMotorStateToMaster();	
+    bool isMotorRunning(int axis);
+
 
 
 } // namespace can_controller

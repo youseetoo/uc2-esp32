@@ -52,76 +52,116 @@ namespace can_controller
         }
     }
 
-    void dispatchIsoTpData(uint32_t id, const uint8_t *data, size_t size)
+    void parseMotorData(uint8_t *data, size_t size, uint32_t txID)
     {
-        switch (id)
+        // Parse as MotorData
+        if (size == sizeof(MotorData))
         {
+            MotorData receivedMotorData;
+            memcpy(&receivedMotorData, data, sizeof(MotorData));
+            // assign the received data to the motor to MotorData *data[4];
+            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS); // default axis as motor driver is running its motor on (1)
+            // FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
+            FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
+            FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
+            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+            FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
+            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+            // prevent the motor from getting stuck
+            if (FocusMotor::getData()[mStepper]->acceleration <= 0)
+            {
+                FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+            }
+            /*
+            if (FocusMotor::getData()[mStepper]->speed == 0) // in case
+            {
+                FocusMotor::getData()[mStepper]->speed = 1000;
+            }
+            */
+            Serial.print("Received MotorData from CAN, isEnable: ");
+            Serial.print(receivedMotorData.isEnable);
+            Serial.print(", targetPosition: ");
+            Serial.println(receivedMotorData.targetPosition);
+            log_i("Received MotorData from can, isEnable: %i, targetPosition: %i, absolutePosition: %i, speed: %i, acceleration: %i, isforever: %i, isStop: %i", receivedMotorData.isEnable, receivedMotorData.targetPosition, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration, receivedMotorData.isforever, receivedMotorData.isStop);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+        }
+        else if (size == sizeof(MotorDataReduced))
+        {
+            // use only the reduced data
+            MotorDataReduced receivedMotorData;
+            memcpy(&receivedMotorData, data, sizeof(MotorDataReduced));
+            // assign the received data to the motor to MotorData *data[4];
+            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+            log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
+        }
+        else if (size == sizeof(MotorState))
+        {
+            // update position and is running-state
+            MotorState receivedMotorState;
+            memcpy(&receivedMotorState, data, sizeof(MotorState));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
+            FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
+            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning);
+        }
+        else
+        {
+            log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
+        }
+    }
 
-        case 0x123:
+    void parseLaserData(uint8_t *data, size_t size, uint32_t txID)
+    {
+        // Parse as LaserData
+        LaserData laser;
+        if (size >= sizeof(laser))
         {
-            // Parse as SomeEngineData
-            MessageData engine;
-            if (size >= sizeof(engine))
+            memcpy(&laser, data, sizeof(laser));
+            // Do something with laser data
+            log_i("Laser intensity: %d", laser.LASERval);
+            LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, laser.LASERval);
+        }
+        else
+        {
+            log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
+        }
+    }
+
+    void dispatchIsoTpData(pdu_t &pdu)
+    {
+        // Parse the received data
+        uint32_t rxID = pdu.rxId; // ID from which the message was sent
+        uint32_t txID = pdu.txId; // ID to which the message was sent
+        uint8_t *data = pdu.data; // Data buffer
+        size_t size = pdu.len;    // Data size
+        log_i("CAN RXID: %u, TXID: %u, size: %u", rxID, txID, size);
+
+        // Parse as CentralNodeData
+        if (rxID == pinConfig.CAN_ID_CENTRAL_NODE)
+        {
+            // if the message was sent from the central node, we need to parse the data and perform an action (e.g. _act , _get) on the slave side
+            // assuming the slave is a motor, we can parse the data and send it to the motor
+            if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_MOT_A || txID == pinConfig.CAN_ID_MOT_X || txID == pinConfig.CAN_ID_MOT_Y || txID == pinConfig.CAN_ID_MOT_Z))
             {
-                memcpy(&engine, data, sizeof(engine));
-                // Do something with engine data
-                Serial.printf("Engine RPM: %u\n", engine.counter);
+                parseMotorData(data, size, txID);
             }
-            break;
-        }
-        case 0x456:
-        {
-            // Parse as SomeOtherData
-            break;
-        }
-        default:
-        {
-            // Unknown ID
-            log_i("Unknown CAN ID: %u", id);
-            if (id == pinConfig.CAN_ID_CENTRAL_NODE)
+            else if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_LASER_1 || txID == pinConfig.CAN_ID_LASER_2) || txID == pinConfig.CAN_ID_LASER_3)
             {
-                // Parse as CentralNodeData
-                Stepper motorAxis = static_cast<Stepper>(0);
-                // based on current ID we have to parse the data
-                if (getCANAddress() == pinConfig.CAN_ID_MOT_X)
-                {
-                    motorAxis = Stepper::X;
-                }
-                else if (getCANAddress() == pinConfig.CAN_ID_MOT_Y)
-                {
-                    motorAxis = Stepper::Y;
-                }
-                else if (getCANAddress() == pinConfig.CAN_ID_MOT_Z)
-                {
-                    motorAxis = Stepper::Z;
-                }
-                else if (getCANAddress() == pinConfig.CAN_ID_MOT_A)
-                {
-                    motorAxis = Stepper::A;
-                }
-                else
-                {
-                    log_e("Error: Unknown CAN address %u", getCANAddress());
-                    return;
-                }
-                // Parse as MotorData
-                MotorData motor;
-                if (size >= sizeof(motor))
-                {
-                    memcpy(&motor, data, sizeof(motor));
-                    // Do something with motor data
-                    log_i("Motor position: %d", motor.targetPosition);
-                    getData()[motorAxis]->targetPosition = motor.targetPosition;
-                    FocusMotor::startStepper(motorAxis, false);
-                }
-                else
-                {
-                    log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", id, size);
-                }
-                break;
+                parseLaserData(data, size, txID);
             }
-            break;
-        }
+            else
+            {
+                log_e("Error: Unknown CAN address %u", txID);
+            }
         }
     }
 
@@ -245,6 +285,7 @@ namespace can_controller
         if (getData()[axis] != nullptr)
         {
             // positionsPushedToDial = false;
+            log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
             getData()[axis]->isStop = false; // ensure isStop is false
             getData()[axis]->stopped = false;
             sendMotorDataToCANDriver(*getData()[axis], axis, reduced);
@@ -254,9 +295,22 @@ namespace can_controller
     void stopStepper(Stepper s)
     {
         // stop the motor
+        log_i("Stopping motor on axis %i", s);
         getData()[s]->isStop = true;
         getData()[s]->stopped = true;
         sendMotorDataToCANDriver(*getData()[s], s, false);
+    }
+
+    void sendMotorStateToMaster()
+    {
+        // send the motor state to the master
+        // MotorData motorData = *data[0];
+        // sendMotorDataToCANDriver(motorData, 0, false);
+    }
+
+    bool isMotorRunning(int axis)
+    {
+        return !getData()[axis]->stopped;
     }
 
     void sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced)
@@ -264,12 +318,30 @@ namespace can_controller
         // send motor data to slave via I2C
         uint32_t slave_addr = axis2id(axis);
 
-        // Cast the structure to a byte array
-        uint8_t *dataPtr = (uint8_t *)&motorData;
-        int dataSize = sizeof(MotorData);
+        int err = 0;
+        int dataSize = 0;
+        if (reduced)
+        {
+            log_i("Reducing MotorData to axis: %i", axis);
+            MotorDataReduced reducedData;
+            reducedData.targetPosition = motorData.targetPosition;
+            reducedData.isforever = motorData.isforever;
+            reducedData.absolutePosition = motorData.absolutePosition;
+            reducedData.speed = motorData.speed;
+            reducedData.isStop = motorData.isStop;
 
-        int err = sendCanMessage(slave_addr, dataPtr, dataSize);
-
+            uint8_t *dataPtr = (uint8_t *)&reducedData;
+            dataSize = sizeof(MotorDataReduced);
+            err = sendCanMessage(slave_addr, dataPtr, dataSize);
+        }
+        else
+        {
+            log_i("Sending MotorData to axis: %i", axis);
+            // Cast the structure to a byte array
+            uint8_t *dataPtr = (uint8_t *)&motorData;
+            dataSize = sizeof(MotorData);
+            err = sendCanMessage(slave_addr, dataPtr, dataSize);
+        }
         if (err != 0)
         {
             log_e("Error sending motor data to CAN slave at address %i", slave_addr);
@@ -288,7 +360,7 @@ namespace can_controller
     void loop()
     {
         // Send a message every 1 second
-        if ( millis() - lastSend >= 10)
+        if (1 or millis() - lastSend >= 10)
         {
             // receive data from any node
             rxPdu.data = genericDataPtr;
@@ -302,26 +374,22 @@ namespace can_controller
             if (mError == 0)
             {
                 log_i("Sender: Received data form ID %u", rxPdu.rxId);
-                dispatchIsoTpData(rxPdu.rxId, rxPdu.data, rxPdu.len);
+                dispatchIsoTpData(rxPdu);
             }
-            else
-            {
-                log_e("Sender: No response or error");
-            }
+
             lastSend = millis();
         }
-    
-    else if(false) // this does not work, consecutive frames are not received in time
-    {
-        static pdu_t rxPdu;
-        // Non-blocking check if there's a new message
-        if (xQueueReceive(canQueue, &rxPdu, 0) == pdTRUE)
+
+        else if (false) // this does not work, consecutive frames are not received in time
         {
-            // Process received data
-            log_i("Sender: Received data from ID %u", rxPdu.rxId);
-            dispatchIsoTpData(rxPdu.rxId, rxPdu.data, rxPdu.len);
+            static pdu_t rxPdu;
+            // Non-blocking check if there's a new message
+            if (xQueueReceive(canQueue, &rxPdu, 0) == pdTRUE)
+            {
+                // Process received data
+                log_i("Sender: Received data from ID %u", rxPdu.rxId);
+                dispatchIsoTpData(rxPdu);
+            }
         }
     }
-    }
-
 }

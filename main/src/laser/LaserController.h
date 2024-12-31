@@ -2,6 +2,7 @@
 #pragma once
 #include "cJSON.h"
 #include "Arduino.h"
+#include "../bt/HidGamePad.h"
 
 struct LaserData
 {
@@ -66,6 +67,8 @@ namespace LaserController
     void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res);
 
     LaserData getLaserData();
+
+    void dpad_changed_event(Dpad::Direction pressed);
 
 };
 

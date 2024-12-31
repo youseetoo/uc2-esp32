@@ -14,6 +14,7 @@
 #endif
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#include "../motor/MotorJsonParser.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -71,7 +72,7 @@ void processWebsocketMSG(void *pvParameters)
 #endif
 #ifdef MOTOR_CONTROLLER
         if (motor != nullptr)
-            FocusMotor::act(doc);
+            MotorJsonParser::act(doc);
 #endif
 #ifdef LASER_CONTROLLER
         if (laser != nullptr)

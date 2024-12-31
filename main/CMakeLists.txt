@@ -137,6 +137,8 @@ endif()
 
 if(MOTOR_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/motor/FocusMotor.cpp)
+    list(APPEND srcs ${mainsrc}src/motor/MotorJsonParser.cpp)
+    list(APPEND srcs ${mainsrc}src/motor/MotorGamePad.cpp)
     if(USE_FASTACCEL EQUAL 1)
         list(APPEND srcs ${mainsrc}src/motor/FAccelStep.cpp)
     endif()

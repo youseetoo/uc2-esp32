@@ -8,7 +8,7 @@
 
 namespace LedController
 {
-	const char * TAG = "LedController";
+	const char *TAG = "LedController";
 	void setup()
 	{
 
@@ -38,8 +38,6 @@ namespace LedController
 	// Custom function accessible by the API
 	int act(cJSON *ob)
 	{
-		
-		#ifdef LED_CONTROLLER
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		// serializeJsonPretty(ob, Serial);
 		cJSON *led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
@@ -49,7 +47,7 @@ namespace LedController
 			cJSON *ledarr = cJSON_GetObjectItemCaseSensitive(led, key_led_array);
 			if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
 			{
-				
+
 				cJSON *arri = NULL;
 				cJSON_ArrayForEach(arri, ledarr)
 				{
@@ -61,7 +59,7 @@ namespace LedController
 				}
 				matrix->show(); //  Update strip to match
 			}
-			else if (LEDArrMode == LedModes::full || LEDArrMode ==LedModes::single || LEDArrMode ==LedModes::left || LEDArrMode ==::right || LEDArrMode ==::top || LEDArrMode ==LedModes::bottom)
+			else if (LEDArrMode == LedModes::full || LEDArrMode == LedModes::single || LEDArrMode == LedModes::left || LEDArrMode == ::right || LEDArrMode == ::top || LEDArrMode == LedModes::bottom)
 			{
 				cJSON *item = cJSON_GetArrayItem(ledarr, 0);
 				u_int8_t id = cJSON_GetObjectItemCaseSensitive(item, keyid)->valueint;
@@ -90,9 +88,6 @@ namespace LedController
 			}
 		}
 		return qid;
-		#else
-		return -1;
-		#endif
 	}
 
 	// Custom function accessible by the API
@@ -100,7 +95,7 @@ namespace LedController
 	cJSON *get(cJSON *ob)
 	{
 		cJSON *j = cJSON_CreateObject();
-		#ifdef LED_CONTROLLER
+#ifdef LED_CONTROLLER
 		cJSON *ld = cJSON_CreateObject();
 		cJSON_AddItemToObject(j, keyLed, ld);
 		cJsonTool::setJsonInt(ld, keyLEDCount, pinConfig.LED_COUNT);
@@ -117,7 +112,7 @@ namespace LedController
 		cJSON_AddItemToArray(arr, cJSON_CreateNumber(6));
 		cJSON_AddItemToArray(arr, cJSON_CreateNumber(7));
 		cJSON_AddItemToObject(ld, keyLEDArrMode, arr);
-		#endif
+#endif
 		return j;
 	}
 
@@ -224,6 +219,24 @@ namespace LedController
 		matrix.drawPixel(4, 4, matrix.Color(R,   G,   B));
 		matrix.show();
 		*/
+	}
+
+	void cross_changed_event(int pressed)
+	{
+		if (pressed && isOn)
+			return;
+		log_i("Turn on LED ");
+		LedController::set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
+		isOn = true;
+	}
+
+	void circle_changed_event(int pressed)
+	{
+		if (pressed && !isOn)
+			return;
+		log_i("Turn off LED ");
+		LedController::set_all(0, 0, 0);
+		isOn = false;
 	}
 
 	void loop()

@@ -45,6 +45,7 @@
 #endif
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#include "../motor/MotorJsonParser.h"
 #endif
 #ifdef GALVO_CONTROLLER
 #include "../scanner/GalvoController.h"
@@ -386,13 +387,13 @@ namespace RestApi
 #ifdef MOTOR_CONTROLLER
     esp_err_t FocusMotor_actESP(httpd_req_t *req)
     {
-        serializeESP(FocusMotor::act(deserializeESP(req)), req);
+        serializeESP(MotorJsonParser::act(deserializeESP(req)), req);
         return ESP_OK;
     }
 
     esp_err_t FocusMotor_getESP(httpd_req_t *req)
     {
-        serializeESP(FocusMotor::get(deserializeESP(req)), req);
+        serializeESP(MotorJsonParser::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

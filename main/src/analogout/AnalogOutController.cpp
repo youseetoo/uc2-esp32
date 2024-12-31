@@ -14,23 +14,86 @@ namespace AnalogOutController
 	{
 		log_d("Setup AnalogOutController");
 		/* setup the PWM ports and reset them to 0*/
-		if (pinConfig.analogout_PIN_1>0)
+		if (pinConfig.analogout_PIN_1 > 0)
 		{
 			ledcSetup(PWM_CHANNEL_analogout_1, pwm_frequency, pwm_resolution);
 			ledcAttachPin(pinConfig.analogout_PIN_1, PWM_CHANNEL_analogout_1);
 			ledcWrite(PWM_CHANNEL_analogout_1, 0);
 		}
-		if (pinConfig.analogout_PIN_2>0)
+		if (pinConfig.analogout_PIN_2 > 0)
 		{
 			ledcSetup(PWM_CHANNEL_analogout_2, pwm_frequency, pwm_resolution);
 			ledcAttachPin(pinConfig.analogout_PIN_2, PWM_CHANNEL_analogout_2);
 			ledcWrite(PWM_CHANNEL_analogout_2, 0);
 		}
-		if (pinConfig.analogout_PIN_3>0)
+		if (pinConfig.analogout_PIN_3 > 0)
 		{
 			ledcSetup(PWM_CHANNEL_analogout_3, pwm_frequency, pwm_resolution);
 			ledcAttachPin(pinConfig.analogout_PIN_3, PWM_CHANNEL_analogout_3);
 			ledcWrite(PWM_CHANNEL_analogout_3, 0);
+		}
+	}
+
+	void btcontroller_event(int left, int right, bool r1, bool r2, bool l1, bool l2)
+	{
+		if (left && pinConfig.analogout_PIN_1 >= 0)
+		{
+			// fine lens -
+			analogout_val_1 -= 1;
+			delay(50);
+			ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
+		}
+		if (right and pinConfig.analogout_PIN_1 >= 0)
+		{
+			// fine lens +
+			analogout_val_1 += 1;
+			delay(50);
+			ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
+		}
+		// unknown button
+		/*if (PS4.data.button.start) {
+		  // reset
+		  analogout_val_1 = 0;
+		  ledcWrite(analogout->PWM_CHANNEL_analogout_1, analogout_val_1);
+		}*/
+		if (r2 && pinConfig.analogout_PIN_1 >= 0)
+		{
+			// analogout_val_1++ coarse
+			if ((analogout_val_1 + 1000 < pwm_max))
+			{
+				analogout_val_1 += 1000;
+				ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
+			}
+		}
+		if (l2 && pinConfig.analogout_PIN_1 >= 0)
+		{
+			// analogout_val_1-- coarse
+			if ((analogout_val_1 - 1000 > 0))
+			{
+				analogout_val_1 -= 1000;
+				ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
+			}
+		}
+
+		if (l1 && pinConfig.analogout_PIN_1 >= 0)
+		{
+			// analogout_val_1 + semi coarse
+			if ((analogout_val_1 + 100 < pwm_max))
+			{
+				analogout_val_1 += 100;
+				ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
+				// delay(100);
+			}
+		}
+		if (r1 && pinConfig.analogout_PIN_1 >= 0)
+		{
+			// analogout_val_1 - semi coarse
+			if ((analogout_val_1 - 100 > 0))
+			{
+				analogout_val_1 -= 100;
+				ledcWrite(AnalogOutController::PWM_CHANNEL_analogout_1, analogout_val_1);
+				// delay(50);
+			}
 		}
 	}
 

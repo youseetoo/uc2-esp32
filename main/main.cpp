@@ -65,6 +65,7 @@ Preferences preferences;
 #endif
 #ifdef MOTOR_CONTROLLER
 #include "src/motor/FocusMotor.h"
+#include "src/motor/MotorGamePad.h"
 #endif
 #ifdef PID_CONTROLLER
 #include "src/pid/PidController.h"
@@ -264,7 +265,26 @@ extern "C" void setupApp(void)
 	AnalogOutController::setup();
 #endif
 #ifdef BLUETOOTH
+	log_i("BtController setup");
 	BtController::setup();
+	#ifdef LED_CONTROLLER
+		BtController::setCircleChangedEvent(LedController::circle_changed_event);
+		BtController::setCrossChangedEvent(LedController::cross_changed_event);
+	#endif
+	#ifdef MESSAGE_CONTROLLER
+		BtController::setTriangleChangedEvent(MessageController::triangle_changed_event);
+		BtController::setSquareChangedEvent(MessageController ::square_changed_event);
+	#endif
+	#ifdef LASER_CONTROLLER
+		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
+	#endif
+	#ifdef MOTOR_CONTROLLER
+		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
+		//log_i("BtController xyza_changed_event nullptr %d", BtController::xyza_changed_event == nullptr);
+	#endif
+	#ifdef ANALOG_OUT_CONTROLLER
+		BtController::setAnalogControllerChangedEvent(AnalogOutController::btcontroller_event);
+	#endif
 #endif
 #ifdef DAC_CONTROLLER
 	DacController::setup();

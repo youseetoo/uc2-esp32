@@ -91,6 +91,7 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
 
 void handleHidInputEvent(esp_hidh_event_data_t *param)
 {
+    //ESP_LOGI(TAG,"packet size:%d", param->input.length);
     if (param->input.length == 15) {
         const HyperXClutchData *d = (HyperXClutchData*)param->input.data;
         updateGamePadDataHyperX(d);
@@ -98,7 +99,7 @@ void handleHidInputEvent(esp_hidh_event_data_t *param)
         const DS4Data *d = (DS4Data*)param->input.data;
         updateGamePadDataDS4(d);
     } else {
-        log_i("unknown size:%d", param->input.length);
+        ESP_LOGI(TAG,"unknown size:%d", param->input.length);
     }
 }
 
@@ -137,20 +138,21 @@ void updateGamePadDataDS4(const DS4Data *d)
     gamePadData.RightX = ((int16_t)(d->RightX - 128)) << 8;
     gamePadData.RightY = ((int16_t)(d->RightY - 128)) << 8;
 
+    //log_i("dpad:%d",d->Buttons.dpad);
     switch (d->Buttons.dpad) {
-        case 0:
+        case 8:
             gamePadData.dpaddirection = Dpad::Direction::none;
             break;
-        case 16:
+        case 0:
             gamePadData.dpaddirection = Dpad::Direction::up;
             break;
-        case 32:
+        case 2:
             gamePadData.dpaddirection = Dpad::Direction::right;
             break;
-        case 64:
+        case 4:
             gamePadData.dpaddirection = Dpad::Direction::down;
             break;
-        case 128:
+        case 6:
             gamePadData.dpaddirection = Dpad::Direction::left;
             break;
     }

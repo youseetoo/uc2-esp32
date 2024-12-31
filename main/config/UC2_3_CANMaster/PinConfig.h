@@ -3,7 +3,7 @@
 #include "PinConfigDefault.h"
 
 
-struct UC2_3_I2CMaster : PinConfig
+struct UC2_3_CANMaster : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
@@ -104,4 +104,4 @@ struct UC2_3_I2CMaster : PinConfig
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
 
 };
-const UC2_3_I2CMaster pinConfig;
+const UC2_3_CANMaster pinConfig;

@@ -9,6 +9,7 @@
 #include "InterruptController.h"
 #include "JsonKeys.h"
 
+using namespace FocusMotor;
 namespace LinearEncoderController
 {
 

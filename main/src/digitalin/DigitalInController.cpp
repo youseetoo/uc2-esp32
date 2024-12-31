@@ -42,7 +42,7 @@ namespace DigitalInController
 	{
 		if (digitalinid == 1)
 		{
-			#if USE_TCA9535
+			#if defined USE_TCA9535
 				return tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_1);
 			#else
 				return digitalRead(pinConfig.DIGITAL_IN_1);
@@ -50,7 +50,7 @@ namespace DigitalInController
 		}
 		else if (digitalinid == 2)
 		{
-			#if USE_TCA9535
+			#if defined USE_TCA9535
 				return tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_2);
 			#else
 				return digitalRead(pinConfig.DIGITAL_IN_2);

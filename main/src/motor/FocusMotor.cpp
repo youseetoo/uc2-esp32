@@ -72,56 +72,53 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
-//method is unused
-/*
-#ifdef WIFI
-	void sendUpdateToClients(void *p)
-	{
-		/*
-		NOT IN USE
-		*/
-		for (;;)
+	// method is unused
+	/*
+	#ifdef WIFI
+		void sendUpdateToClients(void *p)
 		{
-			cJSON *root = cJSON_CreateObject();
-			cJSON *stprs = cJSON_CreateArray();
-			cJSON_AddItemToObject(root, key_steppers, stprs);
-			int added = 0;
-			for (int i = 0; i < 4; i++)
+			for (;;)
 			{
-				if (!data[i]->stopped)
+				cJSON *root = cJSON_CreateObject();
+				cJSON *stprs = cJSON_CreateArray();
+				cJSON_AddItemToObject(root, key_steppers, stprs);
+				int added = 0;
+				for (int i = 0; i < 4; i++)
 				{
-					updateData(i);
-					cJSON *item = cJSON_CreateObject();
-					cJSON_AddItemToArray(stprs, item);
-					cJSON_AddNumberToObject(item, key_stepperid, i);
-					cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-					cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-					added++;
+					if (!data[i]->stopped)
+					{
+						updateData(i);
+						cJSON *item = cJSON_CreateObject();
+						cJSON_AddItemToArray(stprs, item);
+						cJSON_AddNumberToObject(item, key_stepperid, i);
+						cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
+						cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+						added++;
+					}
 				}
+				if (added > 0)
+				{
+	#ifdef WIFI
+					WifiController::sendJsonWebSocketMsg(root);
+	#endif
+					// print result - will that work in the case of an xTask?
+					Serial.println("++");
+					char *s = cJSON_PrintUnformatted(root);
+					Serial.println(s);
+					free(s);
+					Serial.println("--");
+				}
+	#ifdef I2C_MASTER and defined DIAL_CONTROLLER
+				i2c_master::pushMotorPosToDial();
+	#endif
+	#ifdef CAN_SLAVE_MOTOR
+	#endif
+				cJSON_Delete(root);
+				vTaskDelay(1000 / portTICK_PERIOD_MS);
 			}
-			if (added > 0)
-			{
-#ifdef WIFI
-				WifiController::sendJsonWebSocketMsg(root);
-#endif
-				// print result - will that work in the case of an xTask?
-				Serial.println("++");
-				char *s = cJSON_PrintUnformatted(root);
-				Serial.println(s);
-				free(s);
-				Serial.println("--");
-			}
-#ifdef I2C_MASTER and defined DIAL_CONTROLLER
-			i2c_master::pushMotorPosToDial();
-#endif
-#ifdef CAN_SLAVE_MOTOR
-#endif
-			cJSON_Delete(root);
-			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
-	}
-#endif
-*/
+	#endif
+	*/
 
 	void startStepper(int axis, bool reduced = false)
 	{
@@ -131,35 +128,35 @@ namespace FocusMotor
 			//  ensure isStop is false
 
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
-		// Request data from the slave but only if inside i2cAddresses
-		getData()[axis]->isStop = false;
-		uint8_t slave_addr = i2c_master::axis2address(axis);
-		if (!i2c_master::isAddressInI2CDevices(slave_addr))
-		{
-			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
-		}
-		else
-		{
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			MotorData *m = getData()[axis];
-			i2c_master::startStepper(m, axis, reduced);
-			waitForFirstRun[axis] = 1;
-		}
+			// Request data from the slave but only if inside i2cAddresses
+			getData()[axis]->isStop = false;
+			uint8_t slave_addr = i2c_master::axis2address(axis);
+			if (!i2c_master::isAddressInI2CDevices(slave_addr))
+			{
+				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+			}
+			else
+			{
+				// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+				MotorData *m = getData()[axis];
+				i2c_master::startStepper(m, axis, reduced);
+				waitForFirstRun[axis] = 1;
+			}
 #elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR) // sending from master to slave
-		// send the motor data to the slave
-		if (false) // FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
-		{
-			getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
-		}
-		else
-		{
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			MotorData *m = getData()[axis];
-			can_controller::startStepper(m, axis, reduced);
-			waitForFirstRun[axis] = 1;
-		}
+			// send the motor data to the slave
+			if (false) // FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
+			{
+				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+			}
+			else
+			{
+				// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+				MotorData *m = getData()[axis];
+				can_controller::startStepper(m, axis, reduced);
+				waitForFirstRun[axis] = 1;
+			}
 #elif defined USE_FASTACCEL
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
@@ -167,8 +164,7 @@ namespace FocusMotor
 #endif
 			xSemaphoreGive(xMutex);
 
-		getData()[axis]->stopped = false;
-	
+			getData()[axis]->stopped = false;
 		}
 	}
 
@@ -200,9 +196,7 @@ namespace FocusMotor
 		startStepper(s, false);
 	}
 
-#ifdef CAN_SLAVE_MOTOR
-		log_i("Not implemented yet");
-#endif
+
 	void setAutoEnable(bool enable)
 	{
 #ifdef USE_FASTACCEL
@@ -267,7 +261,6 @@ namespace FocusMotor
 		preferences.end();
 	}
 
-#ifdef USE_FASTACCEL || USE_ACCELSTEP
 	void fill_data()
 	{
 		// setup motor pins
@@ -310,7 +303,6 @@ namespace FocusMotor
 		if (pinConfig.DIGITAL_OUT_3 > 0)
 			data[Stepper::Z]->triggerPin = 3; // frame^
 	}
-#endif
 
 #ifdef USE_TCA9535
 	void testTca()
@@ -367,6 +359,17 @@ namespace FocusMotor
 	}
 #endif
 
+#if (defined(CAN_CONTROLLER) and not defined(CAN_SLAVE_MOTOR)) || defined I2C_MASTER
+	void setup()
+	{
+		setup_data();
+		fill_data();
+#ifdef I2C_MASTER
+		setup_i2c();
+#endif
+	}
+#endif
+
 #ifdef USE_FASTACCEL
 	void setup()
 	{
@@ -382,13 +385,6 @@ namespace FocusMotor
 		testTca();
 #else
 		sendMotorPosition();
-#endif
-#ifdef I2C_MASTER
-		setup_i2c();
-#endif
-#if (!defined CAN_CONTROLLER || defined CAN_SLAVE_MOTOR) // if we are the master, we don't check this in the
-		// send motor positions to CAN Master from slave side
-		can_controller::sendMotorStateToMaster();
 #endif
 	}
 #endif
@@ -406,9 +402,6 @@ namespace FocusMotor
 		testTca();
 #else
 		sendMotorPosition();
-#endif
-#ifdef I2C_MASTER
-		setup_i2c();
 #endif
 	}
 #endif
@@ -502,7 +495,7 @@ namespace FocusMotor
 #ifdef WIFI
 		WifiController::sendJsonWebSocketMsg(root);
 #endif
-#ifdef I2C_MASTER and defined DIAL_CONTROLLER
+#ifdef defined I2C_MASTER &&defined DIAL_CONTROLLER
 		i2c_master::pushMotorPosToDial();
 #endif
 

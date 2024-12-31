@@ -2,6 +2,7 @@
 #include "AS5311AB.h"
 #include "PIDController.h"
 #include "cJSON.h"
+#include "../motor/FocusMotor.h"
 
 struct LinearEncoderData
 {	

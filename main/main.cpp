@@ -1,6 +1,6 @@
 #define CORE_isDEBUG_LEVEL 0
 #include "esp_log.h"
-#include <PinConfig.h>
+#include "PinConfig.h"
 #include "src/config/ConfigController.h"
 #include "src/serial/SerialProcess.h"
 #include "soc/soc.h"

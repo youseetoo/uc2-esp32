@@ -9,6 +9,8 @@
 #endif
 #include "../encoder/InterruptController.h"
 
+// use namespace FocusMotor
+using namespace FocusMotor;
 namespace AnalogJoystick
 {
     using namespace InterruptController;

@@ -18,6 +18,9 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
 
 using namespace FocusMotor;
 namespace can_controller
@@ -29,31 +32,28 @@ namespace can_controller
     static SemaphoreHandle_t canMutex;
 
     // for A,X,Y,Z intialize the I2C addresses
-    uint32_t CAN_IDs[] = {
+    uint32_t CAN_MOTOR_IDs[] = {
         pinConfig.CAN_ID_MOT_A,
         pinConfig.CAN_ID_MOT_X,
         pinConfig.CAN_ID_MOT_Y,
         pinConfig.CAN_ID_MOT_Z};
 
+    // for 0,1, 2, 3 intialize the CAN LAser addresses
+    uint32_t CAN_LASER_IDs[] = {
+        pinConfig.CAN_ID_LASER_0,
+        pinConfig.CAN_ID_LASER_1,
+        pinConfig.CAN_ID_LASER_2,
+        pinConfig.CAN_ID_LASER_3};
+
+    // create an array of available CAN IDs that will be scanned later
+    const int MAX_CAN_DEVICES = 20;                 // Maximum number of expected devices
+    byte nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store found I2C addresses
+    int currentCANidListEntry = 0;                  // Variable to keep track of number of devices found
+
     // Global queue for received messages
     static QueueHandle_t canQueue;
 
-    void canReceiveTask(void *pvParameters)
-    {
-        pdu_t rxPdu_;
-        for (;;)
-        {
-            // Try receiving (blocks up to 100ms, depending on your driver’s API)
-            if (isoTpSender.receive(&rxPdu_, 50) == 0)
-            {
-                xQueueSend(canQueue, &rxPdu_, portMAX_DELAY);
-            }
-            // Delay to avoid hogging the CPU, adjust as needed
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-    }
-
-    void parseMotorData(uint8_t *data, size_t size, uint32_t txID, uint32_t rxID)
+    void parseMotorAndHomeData(uint8_t *data, size_t size, uint32_t txID, uint32_t rxID)
     {
         // Parse as MotorData
         if (size == sizeof(MotorData))
@@ -104,6 +104,21 @@ namespace can_controller
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
             log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
+        else if (size == sizeof(HomeData))
+        {
+            // Parse as HomeData
+            HomeData receivedHomeData;
+            memcpy(&receivedHomeData, data, sizeof(HomeData));
+            // assign the received data to the motor to MotorData *data[4];
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            int homeTimeout = receivedHomeData.homeTimeout;
+            int homeSpeed = receivedHomeData.homeSpeed;
+            int homeMaxspeed = receivedHomeData.homeMaxspeed;
+            int homeDirection = receivedHomeData.homeDirection;
+            int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
+            log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
+        }
         else
         {
             log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
@@ -124,6 +139,16 @@ namespace can_controller
             log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, mStepper);
             FocusMotor::sendMotorPos(mStepper, 0);
         }
+        else if (size == sizeof(HomeState))
+        {
+            // Parse as HomeState
+            HomeState receivedHomeState;
+            memcpy(&receivedHomeState, data, sizeof(HomeState));
+            HomeMotor::getHomeData()[mStepper]->homeIsActive = receivedHomeState.isHoming;
+            HomeMotor::getHomeData()[mStepper]->homeInEndposReleaseMode = receivedHomeState.homeInEndposReleaseMode;
+            FocusMotor::getData()[mStepper]->currentPosition = receivedHomeState.currentPosition;
+            log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
+        }
         else
         {
             log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
@@ -139,7 +164,23 @@ namespace can_controller
             memcpy(&laser, data, sizeof(laser));
             // Do something with laser data
             log_i("Laser intensity: %d", laser.LASERval);
-            LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, laser.LASERval);
+            // assign PWM channesl to the laserid
+            if (laser.LASERid == 0)
+            {
+                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_0, laser.LASERval);
+            }
+            else if (laser.LASERid == 1)
+            {
+                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, laser.LASERval);
+            }
+            else if (laser.LASERid == 2)
+            {
+                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_2, laser.LASERval);
+            }
+            else if (laser.LASERid == 3)
+            {
+                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_3, laser.LASERval);
+            }
         }
         else
         {
@@ -163,7 +204,7 @@ namespace can_controller
             // assuming the slave is a motor, we can parse the data and send it to the motor
             if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_MOT_A || txID == pinConfig.CAN_ID_MOT_X || txID == pinConfig.CAN_ID_MOT_Y || txID == pinConfig.CAN_ID_MOT_Z))
             {
-                parseMotorData(data, size, txID, rxID);
+                parseMotorAndHomeData(data, size, txID, rxID);
             }
             else if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_LASER_1 || txID == pinConfig.CAN_ID_LASER_2) || txID == pinConfig.CAN_ID_LASER_3)
             {
@@ -231,6 +272,12 @@ namespace can_controller
     int sendCanMessage(uint32_t receiverID, const uint8_t *data, uint8_t size)
     {
         lastSend = millis();
+        // check if the receiverID is in the list of non-working motors
+        if (std::find(std::begin(nonAvailableCANids), std::end(nonAvailableCANids), receiverID) != std::end(nonAvailableCANids))
+        {
+            log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
+            return -1;
+        }
 
         if (xSemaphoreTake(canMutex, portMAX_DELAY) == pdTRUE)
         {
@@ -242,6 +289,14 @@ namespace can_controller
             txPdu.txId = getCANAddress();
             int ret = isoTpSender.send(&txPdu);
             xSemaphoreGive(canMutex);
+            // if ret != 0, we have an error and should add the receiverID to the list of non-working motors
+            if (ret != 0)
+            {
+                log_e("Error sending data to CAN address %u", receiverID);
+                // add the receiverID to the list of non-working IDs
+                nonAvailableCANids[currentCANidListEntry] = receiverID;
+                currentCANidListEntry++;
+            }
             return ret;
         }
         // Couldn't get the mutex for some reason
@@ -297,6 +352,16 @@ namespace can_controller
             return 1;
         }
 
+        // reset the list of non available CAN IDs
+        // {"task":"/can_act", "resetlist": true}
+        cJSON *reset = cJSON_GetObjectItem(doc, "resetlist");
+        if (reset != NULL)
+        {
+            memset(nonAvailableCANids, 0, sizeof(nonAvailableCANids));
+            currentCANidListEntry = 0;
+            return 1;
+        }
+
         // if we want to send a message to the motor, we can do it here
         // {"task":"/can_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
         cJSON *motor = cJSON_GetObjectItem(doc, "motor");
@@ -334,7 +399,7 @@ namespace can_controller
     {
         if (axis >= 0 && axis < 4)
         {
-            return CAN_IDs[axis];
+            return CAN_MOTOR_IDs[axis];
         }
         return 0;
     }
@@ -438,6 +503,61 @@ namespace can_controller
             log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
         return err;
+    }
+
+    void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis)
+    {
+        // send home data to slave via
+        uint32_t slave_addr = axis2id(axis);
+        log_i("Sending HomeData to axis: %i", axis);
+        uint8_t *dataPtr = (uint8_t *)&homeData;
+        int dataSize = sizeof(HomeData);
+        int err = sendCanMessage(slave_addr, dataPtr, dataSize);
+        if (err != 0)
+        {
+            log_e("Error sending home data to CAN slave at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("Home data sent to CAN slave at address %i", slave_addr);
+        }
+    }
+
+    void sendHomeStateToMaster(HomeState homeState)
+    {
+        // send home state to master via I2C
+        uint32_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
+        uint8_t *dataPtr = (uint8_t *)&homeState;
+        int dataSize = sizeof(HomeState);
+        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        if (err != 0)
+        {
+            log_e("Error sending home state to CAN master at address %i", receiverID);
+        }
+        else
+        {
+            log_i("HomeState to master at address %i, isHoming: %i, homeInEndposReleaseMode: %i, size %i", receiverID, homeState.isHoming, homeState.homeInEndposReleaseMode, dataSize);
+        }
+    }
+
+    void sendLaserDataToCANDriver(LaserData laserData)
+    {
+        // send laser data to master via I2C
+        // convert the laserID to the CAN address
+        int laserID = laserData.LASERid;
+        uint32_t receiverID = CAN_LASER_IDs[laserID];
+
+        uint8_t *dataPtr = (uint8_t *)&laserData;
+        int dataSize = sizeof(LaserData);
+        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        if (err != 0)
+        {
+            log_e("Error sending laser data to CAN master at address %i", receiverID);
+        }
+        else
+        {
+            log_i("LaserData to master at address %i, laser intensity: %i, size %i", receiverID, laserData.LASERval, dataSize);
+        }
     }
 
     cJSON *get(cJSON *ob)

@@ -66,6 +66,12 @@ namespace can_controller
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);
 
+    // home functions
+    void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);
+    void sendHomeStateToMaster(HomeState homeState);
+
+    // laser functions
+    void sendLaserDataToCANDriver(LaserData laserData);
 
 
 } // namespace can_controller

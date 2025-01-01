@@ -45,6 +45,10 @@ namespace HomeMotor
 		// send the home data to the slave
 		i2c_master::sendHomeDataI2C(*hdata[axis], axis);
 		getData()[axis]->stopped = true; // overwrite current state - otherwise it'll trigger a force-stop  in the motor loop()
+#ifdef CAN_CONTROLLER
+		// send the home data to the slave
+		can_controller::sendHomeDataToCANDriver(*hdata[axis], axis);
+#endif
 #else
 		// if we are on motor drivers connected to the board, use those motors
 		runStepper(axis);
@@ -217,6 +221,15 @@ namespace HomeMotor
 		free(ret);
 		Serial.println("--");
 #endif
+#ifdef CAN_CONTROLLER && defined CAN_SLAVE_MOTOR
+		// send home state to master 
+		HomeState homeState;
+		homeState.isHoming = false;
+		homeState.isHomed = true;
+		homeState.homeInEndposReleaseMode = 0;
+		homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
+		can_controller::sendHomeStateToMaster(homeState);
+#endif
 	}
 
 	void checkAndProcessHome(Stepper s, int digitalin_val)
@@ -237,6 +250,15 @@ namespace HomeMotor
 				FocusMotor::sendMotorPos(s, 0);
 			}
 		}
+#elif defined CAN_CONTROLLER
+// do nothing as we will receive it as a push message - only keep track of the timeout 
+if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
+{
+	log_i("Home Motor %i is done", s);
+	sendHomeDone(s);
+	hdata[s]->homeIsActive = false;
+	// FocusMotor::sendMotorPos(s, 0);
+}
 #else
 		// log_i("Current STepper %i and digitalin_val %i", s, digitalin_val);
 		//  if we hit the endstop or timeout => stop motor and oanch reverse direction mode

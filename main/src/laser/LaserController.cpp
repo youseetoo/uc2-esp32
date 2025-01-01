@@ -6,6 +6,9 @@
 #ifdef I2C_LASER 
 #include "../i2c/i2c_master.h"
 #endif
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 namespace LaserController
 {
 
@@ -84,6 +87,14 @@ namespace LaserController
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		return qid; 
+		#elif defined CAN_CONTROLLER
+		LaserData laserData;
+		laserData.LASERid = LASERid;
+		laserData.LASERval = LASERval;
+		laserData.LASERdespeckle = LASERdespeckle;
+		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
+		can_controller::sendLaserDataToCANDriver(laserData);
+		return qid;
 		#else
 
 		// debugging
@@ -247,6 +258,14 @@ namespace LaserController
 		laserData.LASERdespeckle = 0;
 		laserData.LASERdespecklePeriod = 0;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
+		return true;
+		#elif defined CAN_CONTROLLER
+		LaserData laserData;
+		laserData.LASERid = LASERid;
+		laserData.LASERval = LASERval;
+		laserData.LASERdespeckle = 0;
+		laserData.LASERdespecklePeriod = 0;
+		can_controller::sendLaserDataToCANDriver(laserData);
 		return true;
 		#else
 		if (LASERid == 0 && LASERval >= 0)

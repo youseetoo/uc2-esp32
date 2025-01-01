@@ -23,8 +23,8 @@ namespace i2c_slave_motor
                 dataPtr[i] = Wire.read();
             }
             // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
-            // FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            // FocusMotor::setData(pinConfig.REMOTE_MOTOR_AXIS_ID, &receivedMotorData);
             FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
             FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
             FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
@@ -59,7 +59,7 @@ namespace i2c_slave_motor
             {
                 dataPtr[i] = Wire.read();
             }
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
             FocusMotor::getData()[mStepper]->currentPosition = motorPosition;
             log_i("Received MotorPosition from I2C %i", motorPosition);
         }
@@ -73,7 +73,7 @@ namespace i2c_slave_motor
                 dataPtr[i] = Wire.read();
             }
             // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
             FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
             FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
@@ -93,7 +93,7 @@ namespace i2c_slave_motor
                 dataPtr[i] = Wire.read();
             }
             // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
             int homeTimeout = receivedHomeData.homeTimeout;
             int homeSpeed = receivedHomeData.homeSpeed;
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
@@ -174,9 +174,9 @@ namespace i2c_slave_motor
         {
             // The master request data from the slave
             MotorState motorState;
-            bool isRunning = !FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->stopped;
-            long currentPosition = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->currentPosition;
-            bool isForever = FocusMotor::getData()[pinConfig.I2C_MOTOR_AXIS]->isforever;
+            bool isRunning = !FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->stopped;
+            long currentPosition = FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->currentPosition;
+            bool isForever = FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->isforever;
             motorState.currentPosition = currentPosition;
             motorState.isRunning = isRunning;
             // motorState.isForever = isForever;
@@ -187,8 +187,8 @@ namespace i2c_slave_motor
         {
             // The master request data from the slave
             HomeState homeState;
-            bool isHoming = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeIsActive;
-            int homeInEndposReleaseMode = HomeMotor::getHomeData()[pinConfig.I2C_MOTOR_AXIS]->homeInEndposReleaseMode;
+            bool isHoming = HomeMotor::getHomeData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->homeIsActive;
+            int homeInEndposReleaseMode = HomeMotor::getHomeData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->homeInEndposReleaseMode;
             homeState.isHoming = isHoming;
             homeState.homeInEndposReleaseMode = homeInEndposReleaseMode;
             log_i("Home is running: %i, in endpos release mode: %i", isHoming, homeInEndposReleaseMode);

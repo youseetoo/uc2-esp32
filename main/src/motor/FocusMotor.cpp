@@ -196,7 +196,6 @@ namespace FocusMotor
 		startStepper(s, false);
 	}
 
-
 	void setAutoEnable(bool enable)
 	{
 #ifdef USE_FASTACCEL
@@ -339,7 +338,7 @@ namespace FocusMotor
 #endif // TCA9535
 
 #ifdef I2C_MASTER
-	void setup_i2c()
+	void setup_i2c_motor()
 	{
 #ifdef I2C_MOTOR
 		// send stop signal to all motors and update motor positions
@@ -358,42 +357,39 @@ namespace FocusMotor
 #endif
 	}
 #endif
-
-#if (defined(CAN_CONTROLLER) and not defined(CAN_SLAVE_MOTOR)) || defined I2C_MASTER
 	void setup()
 	{
+		// Common setup for all
 		setup_data();
 		fill_data();
+
+
 #ifdef I2C_MASTER
-		setup_i2c();
+		setup_i2c_motor();
 #endif
-	}
+
+#if (defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR))
+// stop all motors on startup
+		for (int i = 0; i < 4; i++)
+		{
+			stopStepper(i);
+		}
 #endif
 
 #ifdef USE_FASTACCEL
-	void setup()
-	{
-		setup_data();
-		fill_data();
 #ifdef USE_TCA9535
 		log_i("Setting external pin for FastAccelStepper");
 		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 #endif
 		FAccelStep::setupFastAccelStepper();
-
 #ifdef USE_TCA9535
 		testTca();
 #else
 		sendMotorPosition();
 #endif
-	}
 #endif
 
 #ifdef USE_ACCELSTEP
-	void setup()
-	{
-		setup_data();
-		fill_data();
 #ifdef USE_TCA9535
 		AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
 #endif
@@ -403,8 +399,9 @@ namespace FocusMotor
 #else
 		sendMotorPosition();
 #endif
-	}
 #endif
+
+	}
 
 	void loop()
 	{

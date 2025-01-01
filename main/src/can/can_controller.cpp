@@ -53,7 +53,7 @@ namespace can_controller
         }
     }
 
-    void parseMotorData(uint8_t *data, size_t size, uint32_t txID)
+    void parseMotorData(uint8_t *data, size_t size, uint32_t txID, uint32_t rxID)
     {
         // Parse as MotorData
         if (size == sizeof(MotorData))
@@ -61,8 +61,8 @@ namespace can_controller
             MotorData receivedMotorData;
             memcpy(&receivedMotorData, data, sizeof(MotorData));
             // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS); // default axis as motor driver is running its motor on (1)
-            // FocusMotor::setData(pinConfig.I2C_MOTOR_AXIS, &receivedMotorData);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID); // default axis as motor driver is running its motor on (1)
+            // FocusMotor::setData(pinConfig.REMOTE_MOTOR_AXIS_ID, &receivedMotorData);
             FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
             FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
             FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
@@ -95,7 +95,7 @@ namespace can_controller
             MotorDataReduced receivedMotorData;
             memcpy(&receivedMotorData, data, sizeof(MotorDataReduced));
             // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
             FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
             FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
@@ -103,16 +103,6 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
             log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
-        }
-        else if (size == sizeof(MotorState))
-        {
-            // update position and is running-state
-            MotorState receivedMotorState;
-            memcpy(&receivedMotorState, data, sizeof(MotorState));
-            Stepper mStepper = static_cast<Stepper>(pinConfig.I2C_MOTOR_AXIS);
-            FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
-            FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
-            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning);
         }
         else
         {
@@ -125,11 +115,14 @@ namespace can_controller
         // Parse as MotorState
         if (size == sizeof(MotorState))
         {
+            // this is: The remote motor driver sends a MotorState to the central node which has to update the internal state
+            // update position and is running-state
             MotorState receivedMotorState;
             memcpy(&receivedMotorState, data, sizeof(MotorState));
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
-            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning);
+            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, mStepper);
+            FocusMotor::sendMotorPos(mStepper, 0);
         }
         else
         {
@@ -170,7 +163,7 @@ namespace can_controller
             // assuming the slave is a motor, we can parse the data and send it to the motor
             if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_MOT_A || txID == pinConfig.CAN_ID_MOT_X || txID == pinConfig.CAN_ID_MOT_Y || txID == pinConfig.CAN_ID_MOT_Z))
             {
-                parseMotorData(data, size, txID);
+                parseMotorData(data, size, txID, rxID);
             }
             else if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_LASER_1 || txID == pinConfig.CAN_ID_LASER_2) || txID == pinConfig.CAN_ID_LASER_3)
             {
@@ -182,10 +175,27 @@ namespace can_controller
             }
         }
         // CAN RXID: 273, TXID: 256, size: 8
-        else if (rxID == pinConfig.CAN_ID_MOT_X) // this is coming from the X motor
+        else if (size == sizeof(MotorState)) // this is coming from the X motor
         {
-            // assuming the x-motor updated its position/state
-            parseMotorState(data, size, rxID, Stepper::X);
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            if (rxID == pinConfig.CAN_ID_MOT_A)
+            {
+                mStepper = Stepper::A;
+            }
+            else if (rxID == pinConfig.CAN_ID_MOT_X)
+            {
+                mStepper = Stepper::X;
+            }
+            else if (rxID == pinConfig.CAN_ID_MOT_Y)
+            {
+                mStepper = Stepper::Y;
+            }
+            else if (rxID == pinConfig.CAN_ID_MOT_Z)
+            {
+                mStepper = Stepper::Z;
+            }
+            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", data[0], data[1], mStepper);
+            parseMotorState(data, size, rxID, mStepper);
         }
     }
 
@@ -309,7 +319,7 @@ namespace can_controller
                     getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, "isaccel");
                     cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, "isstop");
                     bool isStop = (cstop != NULL) ? cstop->valueint : false;
-                    sendMotorDataToCANDriver(*getData()[s], s, false);
+                    int err = sendMotorDataToCANDriver(*getData()[s], s, false);
                 }
             }
             else
@@ -337,20 +347,26 @@ namespace can_controller
             log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
             getData()[axis]->isStop = false; // ensure isStop is false
             getData()[axis]->stopped = false;
-            sendMotorDataToCANDriver(*getData()[axis], axis, reduced);
+            int err = sendMotorDataToCANDriver(*getData()[axis], axis, reduced);
+            if (err != 0)
+            {
+                log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
+            }
         }
     }
 
-    void stopStepper(Stepper s)
+    void stopStepper(Stepper axis)
     {
         // stop the motor
-        log_i("Stopping motor on axis %i", s);
-        getData()[s]->isStop = true;
-        getData()[s]->stopped = true;
-        sendMotorDataToCANDriver(*getData()[s], s, false);
+        log_i("Stopping motor on axis %i", axis);
+        getData()[axis]->isStop = true;
+        getData()[axis]->stopped = true;
+        int err = sendMotorDataToCANDriver(*getData()[axis], axis, true);
+        if (err != 0)
+        {
+            log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
+        }
     }
-
-
 
     void sendMotorStateToCANMaster(MotorData motorData)
     {
@@ -376,7 +392,7 @@ namespace can_controller
     void sendMotorStateToMaster()
     {
         // send the motor state to the master
-        sendMotorStateToCANMaster(*getData()[0]);
+        sendMotorStateToCANMaster(*getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]);
     }
 
     bool isMotorRunning(int axis)
@@ -384,7 +400,7 @@ namespace can_controller
         return !getData()[axis]->stopped;
     }
 
-    void sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced)
+    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced)
     {
         // send motor data to slave via I2C
         uint32_t slave_addr = axis2id(axis);
@@ -421,6 +437,7 @@ namespace can_controller
         {
             log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
+        return err;
     }
 
     cJSON *get(cJSON *ob)
@@ -440,7 +457,6 @@ namespace can_controller
             {
                 dispatchIsoTpData(rxPdu);
             }
-
         }
         /*
         else if (false) // this does not work, consecutive frames are not received in time

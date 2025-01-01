@@ -59,7 +59,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      // I2c
      const char *I2C_NAME = "MOTX";
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
-     int8_t I2C_MOTOR_AXIS = 1;   // On the slave we have one motor axis per slave
+     int8_t REMOTE_MOTOR_AXIS_ID = 1;   // On the slave we have one motor axis per slave
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
      int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
      int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3

@@ -1,20 +1,19 @@
 #pragma once
 #include "../../cJsonTool.h"
-#include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
-#include "../home/HomeMotor.h"
 #include "cJsonTool.h"
 #include "cJSON.h"
-#include <ESP32-TWAI-CAN.hpp>
-#ifdef TMC_CONTROLLER
-#include "../tmc/TMCController.h"
-#endif
 #include <ESP32-TWAI-CAN.hpp>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+
 #include "../can/can_messagetype.h"
 #include "../can/iso-tp-twai/CanIsoTp.hpp"
+#include "../laser/LaserController.h"
+#include "../home/HomeMotor.h"
+#include "../motor/FocusMotor.h"
+#include "../motor/MotorTypes.h"
 
 #define CAN_RX_TASK_PRIORITY 5
 #define CAN_RX_TASK_STACK 4096

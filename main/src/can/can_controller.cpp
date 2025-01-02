@@ -15,14 +15,8 @@
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
-#ifdef LASER_CONTROLLER
-#include "../laser/LaserController.h"
-#endif
-#ifdef HOME_MOTOR
-#include "../home/HomeMotor.h"
-#endif
-
 using namespace FocusMotor;
+
 namespace can_controller
 {
 
@@ -46,15 +40,17 @@ namespace can_controller
         pinConfig.CAN_ID_LASER_3};
 
     // create an array of available CAN IDs that will be scanned later
-    const int MAX_CAN_DEVICES = 20;                 // Maximum number of expected devices
+    const int MAX_CAN_DEVICES = 20;                     // Maximum number of expected devices
     uint32_t nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store found I2C addresses
-    int currentCANidListEntry = 0;                  // Variable to keep track of number of devices found
+    int currentCANidListEntry = 0;                      // Variable to keep track of number of devices found
 
     // Global queue for received messages
     static QueueHandle_t canQueue;
 
     void parseMotorAndHomeData(uint8_t *data, size_t size, uint32_t txID, uint32_t rxID)
     {
+#ifdef MOTOR_CONTROLLER
+
         // Parse as MotorData
         log_i("Received MotorData from CAN, size: %i, txID: %i, rxID: %i", size, txID, rxID);
         if (size == sizeof(MotorData))
@@ -124,10 +120,12 @@ namespace can_controller
         {
             log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
+#endif
     }
 
     void parseMotorAndHomeState(uint8_t *data, size_t size, uint32_t txID, Stepper mStepper)
     {
+#ifdef MOTOR_CONTROLLER
         // Parse as MotorState
         log_i("Received MotorState from CAN, size: %i, txID: %i, axis: %i", size, txID, mStepper);
         if (size == sizeof(MotorState))
@@ -156,6 +154,7 @@ namespace can_controller
         {
             log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
+#endif
     }
 
     void parseLaserData(uint8_t *data, size_t size, uint32_t txID)
@@ -198,7 +197,7 @@ namespace can_controller
         uint32_t txID = pdu.txId; // ID to which the message was sent
         uint8_t *data = pdu.data; // Data buffer
         size_t size = pdu.len;    // Data size
-        log_i("CAN RXID: %u, TXID: %u, size: %u", rxID, txID, size);
+        log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
 
         // this is coming from the central node, so slaves should react
         if (rxID == pinConfig.CAN_ID_CENTRAL_NODE)
@@ -212,7 +211,7 @@ namespace can_controller
             {
                 parseMotorAndHomeData(data, size, txID, rxID);
             }
-            else if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_LASER_1 || txID == pinConfig.CAN_ID_LASER_2) || txID == pinConfig.CAN_ID_LASER_3)
+            else if (txID == getCANAddress() && (txID == pinConfig.CAN_ID_LASER_0 || txID == pinConfig.CAN_ID_LASER_1 || txID == pinConfig.CAN_ID_LASER_2) || txID == pinConfig.CAN_ID_LASER_3)
             {
                 parseLaserData(data, size, txID);
             }
@@ -225,7 +224,7 @@ namespace can_controller
         else if (size == sizeof(MotorState) or size == sizeof(HomeState)) // this is coming from the X motor
         {
             /*
-            FROM THE DEVICES => update the state 
+            FROM THE DEVICES => update the state
             */
             Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
             if (rxID == pinConfig.CAN_ID_MOT_A)
@@ -289,7 +288,6 @@ namespace can_controller
         }
         return false; // Address not found
     }
-
 
     // generic sender function
     int sendCanMessage(uint32_t receiverID, const uint8_t *data, uint8_t size)
@@ -368,7 +366,7 @@ namespace can_controller
     int act(cJSON *doc)
     {
         // extract the address and set it to the preferences
-        // {"task":"/can_act", "address": 0x123}
+        // {"task":"/can_act", "address": 544}
         cJSON *address = cJSON_GetObjectItem(doc, "address");
         if (address != NULL)
         {
@@ -386,34 +384,6 @@ namespace can_controller
             return 1;
         }
 
-        // if we want to send a message to the motor, we can do it here
-        // {"task":"/can_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
-        cJSON *motor = cJSON_GetObjectItem(doc, "motor");
-        if (motor != NULL)
-        {
-            cJSON *stprs = cJSON_GetObjectItemCaseSensitive(motor, "steppers");
-            cJSON *stp = NULL;
-            if (stprs != NULL)
-            {
-                cJSON_ArrayForEach(stp, stprs)
-                {
-                    Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, "stepperid")));
-                    getData()[s]->qid = cJsonTool::getJsonInt(doc, "qid");
-                    getData()[s]->speed = cJsonTool::getJsonInt(stp, "speed");
-                    getData()[s]->isEnable = cJsonTool::getJsonInt(stp, "isen");
-                    getData()[s]->targetPosition = cJsonTool::getJsonInt(stp, "position");
-                    getData()[s]->isforever = cJsonTool::getJsonInt(stp, "isforever");
-                    getData()[s]->absolutePosition = cJsonTool::getJsonInt(stp, "isabs");
-                    getData()[s]->acceleration = cJsonTool::getJsonInt(stp, "acceleration");
-                    getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, "isaccel");
-                    cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, "isstop");
-                    bool isStop = (cstop != NULL) ? cstop->valueint : false;
-                    int err = sendMotorDataToCANDriver(*getData()[s], s, false);
-                }
-            }
-            else
-                log_i("Motor steppers json is null");
-        }
         else
             log_i("Motor json is null");
         return 0;
@@ -430,6 +400,7 @@ namespace can_controller
 
     void startStepper(MotorData *data, int axis, bool reduced)
     {
+#ifdef MOTOR_CONTROLLER
         if (getData()[axis] != nullptr)
         {
             // positionsPushedToDial = false;
@@ -442,11 +413,13 @@ namespace can_controller
                 log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
             }
         }
+#endif
     }
 
     void stopStepper(Stepper axis)
     {
-        // stop the motor
+// stop the motor
+#ifdef MOTOR_CONTROLLER
         log_i("Stopping motor on axis %i", axis);
         getData()[axis]->isStop = true;
         getData()[axis]->stopped = true;
@@ -455,6 +428,7 @@ namespace can_controller
         {
             log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
         }
+#endif
     }
 
     void sendMotorStateToCANMaster(MotorData motorData)
@@ -480,13 +454,19 @@ namespace can_controller
 
     void sendMotorStateToMaster()
     {
-        // send the motor state to the master
+// send the motor state to the master
+#ifdef MOTOR_CONTROLLER
         sendMotorStateToCANMaster(*getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]);
+#endif
     }
 
     bool isMotorRunning(int axis)
     {
+#ifdef MOTOR_CONTROLLER
         return !getData()[axis]->stopped;
+#else
+        return false;
+#endif
     }
 
     int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced)
@@ -570,11 +550,11 @@ namespace can_controller
         // convert the laserID to the CAN address
         int laserID = laserData.LASERid;
         uint32_t receiverID = CAN_LASER_IDs[pinConfig.REMOTE_LASER_ID];
-        if(0){
+        if (0)
+        {
             // this is only if we wanted to spread the lasers over different CAN addresses // TODO: check if this is necessary at one point
             receiverID = CAN_LASER_IDs[laserID];
         }
-
 
         uint8_t *dataPtr = (uint8_t *)&laserData;
         int dataSize = sizeof(LaserData);
@@ -591,24 +571,31 @@ namespace can_controller
 
     cJSON *get(cJSON *ob)
     {
-        // get the CAN address
+        // Create a new document that will be returned
+        cJSON *doc = cJSON_CreateObject();
+
+        // Get the CAN address
         // {"task":"/can_get", "address": 1}
         cJSON *address = cJSON_GetObjectItem(ob, "address");
         if (address != NULL)
         {
             int addr = getCANAddress();
-            cJSON_AddNumberToObject(ob, "address", addr);
+            cJSON_AddNumberToObject(doc, "address", addr);
         }
 
-        // get the list of non-working CAN IDs
+        // Get the list of non-working CAN IDs
         // {"task":"/can_get", "nonworking": true}
         cJSON *nonworking = cJSON_GetObjectItem(ob, "nonworking");
         if (nonworking != NULL)
         {
             cJSON *nonworkingArray = cJSON_CreateIntArray((const int *)nonAvailableCANids, MAX_CAN_DEVICES);
-            cJSON_AddItemToObject(ob, "nonworking", nonworkingArray);
+            cJSON_AddItemToObject(doc, "nonworking", nonworkingArray);
         }
-        return ob;
+
+        // Add the original input object for context if needed
+        cJSON_AddItemToObject(doc, "input", ob);
+
+        return doc;
     }
 
     void loop()

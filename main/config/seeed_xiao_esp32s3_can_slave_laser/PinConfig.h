@@ -3,18 +3,13 @@
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
 
+// ATTENTION: THIS IS ONLY FOR LINTING!
 #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
 #define LASER_CONTROLLER
-#define DIGITAL_IN_CONTROLLER
 #define MESSAGE_CONTROLLER
 #define CAN_SLAVE_MOTOR
 #define CAN_CONTROLLER
-#define MOTOR_CONTROLLER
-#define HOME_MOTOR
-#define DIGITAL_IN_CONTROLLER
-#define USE_FASTACCEL
-#define TMC_CONTROLLER
 
 struct UC2_3_Xiao_Slave_Laser : PinConfig
 {
@@ -59,9 +54,6 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
      // I2C configuration (using updated GPIO values)
      int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
      int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
-
-     int8_t CAN_TX = 5;
-     int8_t CAN_RX = 44;
 
      // CAN
      int8_t CAN_TX = GPIO_NUM_7;  // D8 -> GPIO7

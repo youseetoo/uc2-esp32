@@ -43,7 +43,6 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
-
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif

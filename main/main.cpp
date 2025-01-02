@@ -346,7 +346,7 @@ extern "C" void app_main(void)
 {
 	// Disable brownout detector
 	// WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-	esp_log_level_set("*", ESP_LOG_NONE);
+	// esp_log_level_set("*", ESP_LOG_NONE);
 	log_i("Start setup");
 
 	// Initialisieren Sie den NVS-Speicher

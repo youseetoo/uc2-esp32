@@ -46,5 +46,6 @@ namespace HomeMotor
 	void runStepper(int s);
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
 	HomeData** getHomeData();
+	void sendHomeDone(int axis);
 
 };

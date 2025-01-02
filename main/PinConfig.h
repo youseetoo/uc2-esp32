@@ -2,6 +2,18 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
+#define CORE_DEBUG_LEVEL=5
+#define LASER_CONTROLLER=1
+#define DIGITAL_IN_CONTROLLER=1
+#define MESSAGE_CONTROLLER=1
+#define ENCODER_CONTROLLER=1
+#define LINEAR_ENCODER_CONTROLLER=1
+#define CAN_CONTROLLER=1
+#define DIAL_CONTROLLER=1
+#define MOTOR_CONTROLLER=1
+#define HOME_MOTOR=1
+#define BTHID=1 
+#define BLUETOOTH=1	
 
 struct UC2_3_CANMaster : PinConfig
 {

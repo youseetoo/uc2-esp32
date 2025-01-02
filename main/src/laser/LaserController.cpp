@@ -87,7 +87,7 @@ namespace LaserController
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		return qid; 
-		#elif defined CAN_CONTROLLER
+		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
@@ -259,7 +259,7 @@ namespace LaserController
 		laserData.LASERdespecklePeriod = 0;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		return true;
-		#elif defined CAN_CONTROLLER
+		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;

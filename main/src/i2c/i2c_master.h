@@ -32,7 +32,6 @@ namespace i2c_master
     void loop();
     void startStepper(MotorData *data, int axis, bool reduced = false);
     void stopStepper(MotorData *data, int axis);
-    void startHome(int i);
     int axis2address(int axis);
     void sendMotorDataToI2CDriver(MotorData motorData, uint8_t axis, bool reduced);
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);

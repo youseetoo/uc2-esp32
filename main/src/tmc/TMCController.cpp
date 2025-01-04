@@ -2,6 +2,9 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 
 using namespace FocusMotor;
 
@@ -13,7 +16,7 @@ namespace TMCController
     int act(cJSON *jsonDocument)
     {
 
-
+        log_i("TMC actuated");
         #ifdef I2C_MASTER
         TMCData tmcData;
 
@@ -28,6 +31,18 @@ namespace TMCController
 
         // send TMC data via I2C
         i2c_master::sendTMCDataI2C(tmcData, axis);
+        return 0;
+        #elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+        // send TMC data via CAN
+        TMCData tmcData;
+        tmcData.msteps = cJsonTool::getJsonInt(jsonDocument, "msteps");
+        tmcData.rms_current = cJsonTool::getJsonInt(jsonDocument, "rms_current");
+        tmcData.stall_value = cJsonTool::getJsonInt(jsonDocument, "stall_value");
+        tmcData.sgthrs = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
+        tmcData.semin = cJsonTool::getJsonInt(jsonDocument, "semin");
+        tmcData.semax = cJsonTool::getJsonInt(jsonDocument, "semax");
+        int axis = cJsonTool::getJsonInt(jsonDocument, "axis");
+        can_controller::sendTMCDataToCANDriver(tmcData, axis);
         return 0;
         #else
         if (pinConfig.tmc_SW_RX == disabled)
@@ -301,7 +316,7 @@ namespace TMCController
     {
         if (pinConfig.tmc_SW_RX == disabled)
         {
-            log_e("TMC2209 not enabled in this configuration");
+            log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
             return;
         }
 // TMC2209 Settings

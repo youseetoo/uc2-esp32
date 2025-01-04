@@ -14,7 +14,7 @@
 #include "../home/HomeMotor.h"
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
-
+#include "../tmc/TMCController.h"
 #define CAN_RX_TASK_PRIORITY 5
 #define CAN_RX_TASK_STACK 4096
 #define CAN_QUEUE_LENGTH 10
@@ -71,6 +71,10 @@ namespace can_controller
 
     // laser functions
     void sendLaserDataToCANDriver(LaserData laserData);
+
+    // TMC 
+    void sendTMCDataToCANDriver(TMCData tmcData, int axis);
+
 
 
 } // namespace can_controller

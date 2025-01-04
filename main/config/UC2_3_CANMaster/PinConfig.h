@@ -14,6 +14,7 @@
 #define HOME_MOTOR=1
 #define BTHID=1 
 #define BLUETOOTH=1	
+#define TMC_CONTROLLER=1
 
 struct UC2_3_CANMaster : PinConfig
 {

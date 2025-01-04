@@ -63,7 +63,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
      
      // TMC UART 
-     int8_t tmc_SW_RX = disabled;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      

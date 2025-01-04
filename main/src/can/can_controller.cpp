@@ -116,12 +116,22 @@ namespace can_controller
             log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
         }
+        else if (size == sizeof(TMCData))
+        {
+            // parse incoming TMC Data and apply that to the TMC driver
+            log_i("Received TMCData from CAN, size: %i, txID: %i", size, txID);
+            TMCData receivedTMCData;
+            memcpy(&receivedTMCData, data, sizeof(TMCData));
+            log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
+            TMCController::setTMCData(receivedTMCData);
+        }
         else
         {
             log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
 #endif
     }
+
 
     void parseMotorAndHomeState(uint8_t *data, size_t size, uint32_t txID, Stepper mStepper)
     {
@@ -543,6 +553,25 @@ namespace can_controller
             log_i("HomeState to master at address %i, isHoming: %i, homeInEndposReleaseMode: %i, size %i", receiverID, homeState.isHoming, homeState.homeInEndposReleaseMode, dataSize);
         }
     }
+
+    void sendTMCDataToCANDriver(TMCData tmcData, int axis)
+    {
+        // send TMC Data to remote Motor 
+        uint32_t slave_addr = axis2id(axis);
+        log_i("Sending TMCData to axis: %i", axis);
+        uint8_t *dataPtr = (uint8_t *)&tmcData;
+        int dataSize = sizeof(TMCData);
+        int err = sendCanMessage(slave_addr, dataPtr, dataSize);
+        if (err != 0)
+        {
+            log_e("Error sending TMC data to CAN slave at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
+        }
+    }
+
 
     void sendLaserDataToCANDriver(LaserData laserData)
     {

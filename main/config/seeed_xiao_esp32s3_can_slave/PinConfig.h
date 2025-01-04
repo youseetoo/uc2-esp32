@@ -50,7 +50,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
-     int8_t MOTOR_X_DIR = GPIO_NUM_9;   // D8 -> GPIO7
+     int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7
      int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = false;
@@ -58,16 +58,10 @@ struct UC2_3_Xiao_Slave : PinConfig
 
      // I2c
      const char *I2C_NAME = "MOTX";
-     I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
-     int8_t REMOTE_MOTOR_AXIS_ID = 1;   // On the slave we have one motor axis per slave
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
      int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
      int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
      
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL_ext = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA_ext = GPIO_NUM_5; // D4 -> GPIO5
-
      // TMC UART 
      int8_t tmc_SW_RX = disabled;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
@@ -85,9 +79,8 @@ struct UC2_3_Xiao_Slave : PinConfig
      int tmc_toff = 4;
 
      // CAN
-     int8_t CAN_TX = GPIO_NUM_7;  // D8 -> GPIO7
-     int8_t CAN_RX = 44; // D7 -> GPIO44
-
+     int8_t CAN_TX = GPIO_NUM_6; // D5 -> GPIO6
+     int8_t CAN_RX = GPIO_NUM_5; // D4 -> GPIO5
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
 
      // TEmporarily for endstop

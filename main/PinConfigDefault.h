@@ -238,7 +238,7 @@ struct PinConfig
      int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
      uint8_t I2C_ADD_SLAVE = -1; // I2C address of the ESP32 if it's a slave
-     uint8_t REMOTE_MOTOR_AXIS_ID = 0; // On the slave we have one motor axis per slave
+     uint8_t REMOTE_MOTOR_AXIS_ID = 1; // On the slave we have one motor axis per slave
      uint8_t REMOTE_LASER_ID = 0; // On the slave we have one laser axis per slave
      uint8_t I2C_ADD_MOT_X = 0x40;
      uint8_t I2C_ADD_MOT_Y = 0x41;

@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
+struct UC2_ESP32S3_XIAO_LEDRING : PinConfig
 {
      /*
      D0: 1
@@ -28,54 +28,25 @@ struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
      {"task": "/laser_act", "LASERid":1, "LASERval": 0}
      {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
      */
-     const char *pindefName = "UC2_esp32s3_xiao_ledservo";
+     const char *pindefName = "UC2_ESP32S3_XIAO_LEDRING";
      const unsigned long BAUDRATE = 115200;
-     bool ENC_A_encoderDirection = true; // true = count up, false = count down -> invert polarity
-     bool ENC_X_encoderDirection = true;
-     bool ENC_Y_encoderDirection = true;
-     bool ENC_Z_encoderDirection = true;
-     bool ENC_A_motorDirection = true; // true = count up, false = count down -> invert polarity
-     bool ENC_X_motorDirection = true;
-     bool ENC_Y_motorDirection = true;
-     bool ENC_Z_motorDirection = true;
 
-     bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
-     int8_t AccelStepperMotorType = 1;
+     uint8_t I2C_CONTROLLER_TYPE = I2CControllerType::mLASER;
+     uint8_t I2C_ADD_SLAVE = I2C_ADD_LEX_PWM1; // I2C address of the ESP32 if it's a slave
 
      // Laser control pins (using updated GPIO values)
-     int8_t LASER_0 = 44;         // D7 -> GPIO20 (Servo PWM 1) GPIO44 (U0RXD),
-     int8_t LASER_1 = GPIO_NUM_4; // D3 => Motor 1/2  -> GPIO7 (Neopixel pin)
-     int8_t LASER_2 = GPIO_NUM_3; // D2 => Motor 1/1
-     int8_t LASER_3 = GPIO_NUM_7; // D8 -> GPIO6 (Servo PWM 2)
-
-     int8_t DIGITAL_OUT_1 = GPIO_NUM_8; // D9     (Motor 2/2)
-     int8_t DIGITAL_OUT_2 = GPIO_NUM_9; // D10    (Motor 2/1)
-     int8_t DIGITAL_OUT_3 = disabled;
-
-     int8_t LED_PIN = 43; // D6 Neopixel, GPIO43(U0TXD)
-     int8_t LED_COUNT = 1;
-
-     // Digital inputs (currently disabled) // TODO implement TOUCH
-     int8_t DIGITAL_IN_1 = disabled;
-     int8_t DIGITAL_IN_2 = disabled;
-     int8_t DIGITAL_IN_3 = disabled;
-
-     // Joystick configuration
-     int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
-     int8_t JOYSTICK_MAX_ILLU = 100;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
-
-     // Caliper (currently disabled)
-     int8_t ENC_X_A = disabled;
-     int8_t ENC_Y_A = disabled;
-     int8_t ENC_Z_A = disabled;
-     int8_t ENC_X_B = disabled;
-     int8_t ENC_Y_B = disabled;
-     int8_t ENC_Z_B = disabled;
-
+     int8_t LASER_1 = GPIO_NUM_3; // D2
+     int8_t LASER_2 = GPIO_NUM_4; // D3 => Motor 1/1
+     
+     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 // Touch 1 
+     int8_t DIGITAL_IN_2 = GPIO_NUM_3; // D1 // Touch 2
+     
      // I2C configuration (using updated GPIO values)
      int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
      int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
+
+     int8_t CAN_TX = 5;
+     int8_t CAN_RX = 44;
+
 };
-const UC2_ESP32S3_XIAO_LEDSERVO pinConfig;
+const UC2_ESP32S3_XIAO_LEDRING pinConfig;

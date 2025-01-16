@@ -1,31 +1,33 @@
 #pragma once
-#include "../../Module.h"
+#include "cJSON.h"
 
 
-class State : public Module
+
+namespace State
 {
-public:
-	State();
-	~State();
-	bool DEBUG = false;
+	static bool isDEBUG = false;
 
-	const char *identifier_name = "UC2_Feather";
-	const char *identifier_id = "V2.0";
-	const char *identifier_date = __DATE__ "" __TIME__;
-	const char *identifier_author = "BD";
-	const char *IDENTIFIER_NAME = "uc2-esp";
-	bool config_set = false;
+	static const char *identifier_name = "UC2_Feather";
+	static const char *identifier_id = "V2.0";
+	static const char *identifier_date = __DATE__ "" __TIME__;
+	static const char *identifier_author = "BD";
+	static const char *IDENTIFIER_NAME = "uc2-esp";
+	static bool config_set = false;
 
 	// timing variables
-	unsigned long startMillis;
-	unsigned long currentMillis;
-	bool isBusy = false; // TODO this is not working!!!
-	bool isSending = false;
+	static unsigned long startMillis;
+	static unsigned long currentMillis;
+	static bool isBusy = false; // TODO this is not working!!!
 
-	int act(cJSON * ob) override;
-	cJSON *  get(cJSON *  ob) override;
+	int act(cJSON * ob);
+	cJSON *  get(cJSON *  ob);
+	cJSON *getModules();
 
-	void setup() override;
+	void setup();
 	void printInfo();
-	void loop() override;
+
+	void setBusy(bool busy);
+	bool getBusy();
+
+	void startOTA();
 };

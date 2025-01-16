@@ -155,10 +155,11 @@ GET
   }}
 
 ```bash
-curl -X POST http://192.168.4.1/ledarr_act \
+curl -X POST http://192.168.4.2/ledarr_act \
      -H "Content-Type: application/json" \
      -d '{"led": { "LEDArrMode": 0, "led_array": [ { "b": 255, "g": 255, "id": 0, "r": 255 }, { "b": 255, "g": 255, "id": 1, "r": 255 } ] }}'
 ```
+
 
 
 # Set all LEDs with a certain colour
@@ -174,6 +175,10 @@ curl -X POST http://192.168.4.1/ledarr_act \
       ]
   }}
 
+```bash
+curl -X POST http://192.168.4.2/ledarr_act \
+     -H "Content-Type: application/json" \
+     -d '{"led": { "LEDArrMode": 1, "led_array": [ { "b": 255, "g": 255, "id": 0, "r": 255 }] }}'
 # Set all LEDs (left half) with a certain colour
 {"task": "/ledarr_act",   
   "led": {
@@ -254,7 +259,7 @@ POST
 ```
 
 ```bash
-curl -X POST http://192.168.4.1/laser_act \
+curl -X POST http://192.168.4.3/laser_act \
      -H "Content-Type: application/json" \
      -d '{ "LASERid":0, "LASERval":1000, "LASERdespeckle":1, "LASERdespecklePeriod":20}'
 ```
@@ -625,4 +630,14 @@ POST
 {
     "digitalinid":1
 }
+```
+
+
+/message_act
+==========
+POST
+```bash
+curl -X POST http://192.168.4.1/message_act \
+     -H "Content-Type: application/json" \
+     -d '{"key":1, "value":1}'
 ```

@@ -1,9 +1,74 @@
+#include "PinConfig.h"
 #include "RestApiCallbacks.h"
-#include "../bt/BtController.h"
-#include "../image/ImageController.h"
 #include "Endpoints.h"
+#include <nvs_flash.h>
+#include "Endpoints.h"
+#include "Update.h"
 
-#define SCRATCH_BUFSIZE (4096)//(10240)
+
+#ifdef ANALOG_IN_CONTROLLER
+#include "../analogin/AnalogInController.h"
+#endif
+#ifdef ANALOG_OUT_CONTROLLER
+#include "../analogout/AnalogOutController.h"
+#endif
+#ifdef BLUETOOTH
+#include "../bt/BtController.h"
+#endif
+#include "../config/ConfigController.h"
+#ifdef DAC_CONTROLLER
+#include "../dac/DacController.h"
+#endif
+#ifdef DIGITAL_IN_CONTROLLER
+#include "../digitalin/DigitalInController.h"
+#endif
+#ifdef DIGITAL_OUT_CONTROLLER
+#include "../digitalout/DigitalOutController.h"
+#endif
+#ifdef ENCODER_CONTROLLER
+#include "../encoder/EncoderController.h"
+#endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
+#endif
+#ifdef MESSAGE_CONTROLLER
+#include "../message/MessageController.h"
+#endif
+#ifdef MOTOR_CONTROLLER
+#include "../motor/FocusMotor.h"
+#include "../motor/MotorJsonParser.h"
+#endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
+#ifdef PID_CONTROLLER
+#include "../pid/PidController.h"
+#endif
+#ifdef SCANNER_CONTROLLER
+#include "../scanner/ScannerController.h"
+#endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
+#include "../state/State.h"
+#ifdef WIFI
+#include "../wifi/WifiController.h"
+#endif
+#ifdef HEAT_CONTROLLER
+#include "../heat/HeatController.h"
+#include "../heat/DS18b20Controller.h"
+#endif
+
+#define SCRATCH_BUFSIZE (10240)
 
 typedef struct rest_server_context
 {
@@ -25,7 +90,7 @@ namespace RestApi
 
     cJSON *deserializeESP(httpd_req_t *req)
     {
-        // print req specs
+        // serializeJsonPretty(doc, Serial);
         int total_req_len = req->content_len;
         int cur_len = 0;
         char buf[total_req_len];
@@ -48,7 +113,7 @@ namespace RestApi
             cur_len += received;
         }
         cJSON *doc = NULL;
-        if(total_req_len > 0)
+        if (total_req_len > 0)
             doc = cJSON_Parse(buf);
         return doc;
     }
@@ -57,12 +122,8 @@ namespace RestApi
     {
         httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
         httpd_resp_set_type(req, "application/json");
-        char * s = cJSON_Print(doc);
-        if(s == nullptr){
-            log_e("ERROR NULLPTR");
-            return;
-        }
-        // print buffer size of s
+        char *s = cJSON_PrintUnformatted(doc);
+        // log_i("send:%s", s);
         httpd_resp_send(req, s, strlen(s));
         free(s);
     }
@@ -122,290 +183,298 @@ namespace RestApi
         cJSON_AddItemToArray(doc, cJSON_CreateString(scanwifi_endpoint));
         cJSON_AddItemToArray(doc, cJSON_CreateString(connectwifi_endpoint));
 
-        if (moduleController.get(AvailableModules::laser) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(laser_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(laser_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::config) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(config_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(config_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::motor) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(motor_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(motor_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::pid) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(PID_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(PID_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::analogout) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(analogout_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(analogout_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::digitalout) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(digitalout_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(digitalout_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::digitalin) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(digitalin_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(digitalin_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::dac) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(dac_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(dac_get_endpoint));
-        }
-        if (moduleController.get(AvailableModules::led) != nullptr)
-        {
-            cJSON_AddItemToArray(doc, cJSON_CreateString(ledarr_act_endpoint));
-            cJSON_AddItemToArray(doc, cJSON_CreateString(ledarr_get_endpoint));
-        }
+#ifdef LASER_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(laser_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(laser_get_endpoint));
+#endif
+#ifdef MOTOR_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(motor_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(motor_get_endpoint));
+#endif
+#ifdef GALVO_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(galvo_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(galvo_get_endpoint));
+#endif
+#ifdef PID_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(PID_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(PID_get_endpoint));
+#endif
+#ifdef ANALOG_OUT_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(analogout_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(analogout_get_endpoint));
+#endif
+#ifdef DIGITAL_OUT_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(digitalout_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(digitalout_get_endpoint));
+#endif
+#ifdef DIGITAL_IN_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(digitalin_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(digitalin_get_endpoint));
+#endif
+#ifdef DAC_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(dac_act_endpoint));
+        //cJSON_AddItemToArray(doc, cJSON_CreateString(dac_get_endpoint));
+#endif
+#ifdef LED_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(ledarr_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(ledarr_get_endpoint));
+#endif
+#ifdef MESSAGE_CONTROLLER
+        cJSON_AddItemToArray(doc, cJSON_CreateString(message_act_endpoint));
+        cJSON_AddItemToArray(doc, cJSON_CreateString(message_get_endpoint));
+#endif
         serializeESP(doc, req);
         return ESP_OK;
     }
 
-    esp_err_t AnalogJoystick_getESP(httpd_req_t *req)
-    {
-        serializeESP(moduleController.get(AvailableModules::analogJoystick)->get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-
+#ifdef ANALOG_OUT_CONTROLLER
     esp_err_t AnalogOut_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::analogout)->act(deserializeESP(req)), req);
+        serializeESP(AnalogOutController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t AnalogOut_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::analogout)->get(deserializeESP(req)), req);
+        serializeESP(AnalogOutController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
+#endif
 
+#ifdef BLUETOOTH
     esp_err_t Bt_startScanESP(httpd_req_t *req)
     {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        serializeESP(bt->scanForDevices(deserializeESP(req)), req);
-        return ESP_OK;
-    }
 
-    esp_err_t Image_getBase64ESP(httpd_req_t *req)
-    {
-        ImageController *img = (ImageController *)moduleController.get(AvailableModules::image);
-        // we want to send the image as a base64 string over http
-
-        //serializeESP(img->get(deserializeESP(req)), req);
-        httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-        /*
-        httpd_resp_set_type(req, "image/jpeg");
-        httpd_resp_set_hdr(req, "Content-Encoding", "identity");
-        */
-        // Set Content-Type for base64 encoded data
-        httpd_resp_set_type(req, "text/plain");
-
-        // It's also a good idea to indicate that the content is base64 encoded
-        httpd_resp_set_hdr(req, "Content-Transfer-Encoding", "base64");
-
-        //return httpd_resp_send(req, (const char *)favicon_32x32_png, favicon_32x32_png_len);
-        //httpd_resp_send(req, img->getBase64Image().c_str(), img->getBase64Image().length());
-        int buf_len = strlen(img->image_base64);
-        httpd_resp_send(req, img->image_base64, buf_len);
-        
+        serializeESP(BtController::scanForDevices(deserializeESP(req)), req);
         return ESP_OK;
     }
 
     esp_err_t Bt_connectESP(httpd_req_t *req)
     {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        cJSON * doc = deserializeESP(req);
-        char * mac = (char*)cJSON_GetObjectItemCaseSensitive(doc,"mac")->valuestring;
-        int ps = cJSON_GetObjectItemCaseSensitive(doc,"psx")->valueint;
+        cJSON *doc = deserializeESP(req);
+        char *mac = (char *)cJSON_GetObjectItemCaseSensitive(doc, "mac")->valuestring;
+        int ps = cJSON_GetObjectItemCaseSensitive(doc, "psx")->valueint;
 
-        if (ps == 0)
-        {
-            bt->setMacAndConnect(mac);
-        }
-        else
-        {
-            bt->connectPsxController(mac, ps);
-        }
+        #ifdef BTHID
+            BtController::setMacAndConnect(mac);
+        #endif
+        #ifdef PSCONTROLLER
+            BtController::connectPsxController(mac, ps);
+        #endif
         cJSON_Delete(doc);
         return ESP_OK;
     }
     esp_err_t Bt_getPairedDevicesESP(httpd_req_t *req)
     {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        serializeESP(bt->getPairedDevices(deserializeESP(req)), req);
+        serializeESP(BtController::getPairedDevices(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t Bt_removeESP(httpd_req_t *req)
     {
-        BtController *bt = (BtController *)moduleController.get(AvailableModules::btcontroller);
-        cJSON * doc = deserializeESP(req);
-        char * mac = (char*)cJSON_GetObjectItemCaseSensitive(doc,"mac")->valuestring;
-        bt->removePairedDevice(mac);
+        cJSON *doc = deserializeESP(req);
+        char *mac = (char *)cJSON_GetObjectItemCaseSensitive(doc, "mac")->valuestring;
+        BtController::removePairedDevice(mac);
         cJSON_Delete(doc);
         return ESP_OK;
     }
+#endif
 
+#ifdef DAC_CONTROLLER
     esp_err_t Dac_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::dac)->act(deserializeESP(req)), req);
+        serializeESP(DacController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
-    esp_err_t Dac_getESP(httpd_req_t *req)
-    {
-        serializeESP(moduleController.get(AvailableModules::dac)->get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
+#endif
 
+#ifdef DIGITAL_IN_CONTROLLER
     esp_err_t DigitalIn_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::digitalin)->act(deserializeESP(req)), req);
+        serializeESP(DigitalInController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t DigitalIn_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::digitalin)->get(deserializeESP(req)), req);
+        serializeESP(DigitalInController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
+#endif
 
+#ifdef DIGITAL_OUT_CONTROLLER
     esp_err_t DigitalOut_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::digitalout)->act(deserializeESP(req)), req);
+        serializeESP(DigitalOutController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t DigitalOut_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::digitalout)->get(deserializeESP(req)), req);
+        serializeESP(DigitalOutController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
+#endif
 
+#ifdef HOME_MOTOR
     esp_err_t HomeMotor_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::home)->act(deserializeESP(req)), req);
+        serializeESP(HomeMotor::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t HomeMotor_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::home)->get(deserializeESP(req)), req);
+        serializeESP(HomeMotor::get(deserializeESP(req)), req);
         return ESP_OK;
     }
-
-    esp_err_t Heat_setESP(httpd_req_t *req)
-    {
-        serializeESP(moduleController.get(AvailableModules::heat)->act(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-
-    esp_err_t Heat_getESP(httpd_req_t *req)
-    {
-        serializeESP(moduleController.get(AvailableModules::heat)->get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-
+#endif
+#ifdef ENCODER_CONTROLLER
     esp_err_t EncoderMotor_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::encoder)->act(deserializeESP(req)), req);
+        serializeESP(EncoderController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t EncoderMotor_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::encoder)->get(deserializeESP(req)), req);
+        serializeESP(EncoderController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
-
-    esp_err_t LInearEncoderMotor_setESP(httpd_req_t *req)
+#endif
+#ifdef LINEAR_ENCODER_CONTROLLER
+    esp_err_t LinearEncoderMotor_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::linearencoder)->act(deserializeESP(req)), req);
+        serializeESP(LinearEncoderController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t LinearEncoderMotor_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::linearencoder)->get(deserializeESP(req)), req);
+        serializeESP(LinearEncoderController::get(deserializeESP(req)), req);
         return ESP_OK;
-    }    
-
+    }
+#endif
+#ifdef LASER_CONTROLLER
     esp_err_t laser_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::laser)->act(deserializeESP(req)), req);
+        serializeESP(LaserController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t laser_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::laser)->get(deserializeESP(req)), req);
+        serializeESP(LaserController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
-
-    esp_err_t Led_setESP(httpd_req_t *req)
+#endif
+#ifdef LED_CONTROLLER
+    esp_err_t led_actESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::led)->act(deserializeESP(req)), req);
+        serializeESP(LedController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t led_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::led)->get(deserializeESP(req)), req);
+        serializeESP(LedController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
-
+#endif
+#ifdef MESSAGE_CONTROLLER
+    esp_err_t message_actESP(httpd_req_t *req)
+    {
+        serializeESP(MessageController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t message_getESP(httpd_req_t *req)
+    {
+        serializeESP(MessageController::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+#ifdef MOTOR_CONTROLLER
     esp_err_t FocusMotor_actESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::motor)->act(deserializeESP(req)), req);
+        serializeESP(MotorJsonParser::act(deserializeESP(req)), req);
         return ESP_OK;
     }
 
     esp_err_t FocusMotor_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::motor)->get(deserializeESP(req)), req);
+        serializeESP(MotorJsonParser::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+#ifdef GALVO_CONTROLLER
+    esp_err_t rotator_actESP(httpd_req_t *req)
+    {
+        serializeESP(GalvoController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
 
+    esp_err_t rotator_getESP(httpd_req_t *req)
+    {
+        serializeESP(GalvoController::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+#ifdef PID_CONTROLLER
     esp_err_t pid_setESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::pid)->act(deserializeESP(req)), req);
+        serializeESP(PidController::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t pid_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::pid)->get(deserializeESP(req)), req);
+        serializeESP(PidController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
-
+#endif
     esp_err_t State_actESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::state)->act(deserializeESP(req)), req);
+        serializeESP(State::act(deserializeESP(req)), req);
         return ESP_OK;
     }
     esp_err_t State_getESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(AvailableModules::state)->get(deserializeESP(req)), req);
+        serializeESP(State::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 
     esp_err_t getModulesESP(httpd_req_t *req)
     {
-        serializeESP(moduleController.get(), req);
+        serializeESP(State::getModules(), req);
         return ESP_OK;
     }
-
+#ifdef WIFI
     esp_err_t scanWifiESP(httpd_req_t *req)
     {
-        WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
-        serializeESP(w->scan(), req);
+        serializeESP(WifiController::scan(), req);
         return ESP_OK;
     }
 
     esp_err_t connectToWifiESP(httpd_req_t *req)
     {
-        WifiController *w = (WifiController *)moduleController.get(AvailableModules::wifi);
-        serializeESP(w->connect(deserializeESP(req)), req);
+        serializeESP(WifiController::connect(deserializeESP(req)), req);
         return ESP_OK;
     }
 
+#endif
+
+#ifdef HEAT_CONTROLLER
+    esp_err_t Heat_setESP(httpd_req_t *req)
+    {
+        serializeESP(HeatController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t Heat_getESP(httpd_req_t *req)
+    {
+        serializeESP(HeatController::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t DS18B20_actESP(httpd_req_t *req)
+    {
+        serializeESP(DS18b20Controller::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+
+    esp_err_t DS18B20_getESP(httpd_req_t *req)
+    {
+        serializeESP(DS18b20Controller::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
 }

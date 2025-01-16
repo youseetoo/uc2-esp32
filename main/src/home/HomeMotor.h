@@ -1,7 +1,8 @@
+#include <PinConfig.h>
 #pragma once
-
-#include "../../ModuleController.h"
 #include "../motor/FocusMotor.h"
+#include "cJSON.h"
+
 
 struct HomeData
 {
@@ -12,29 +13,39 @@ struct HomeData
 	int homeDirection = 1;
 	long homeTimeStarted = 0;
 	bool homeIsActive = false;
+	int homeEndposRelease = 1000;
 	int homeInEndposReleaseMode = 0;
 	bool homeEndStopPolarity = 0; // normally open
-	int qid = -1; // qeue id
+	int qid = -1;
+};
+
+struct HomeState
+{
+	bool isHoming = false;
+	bool isHomed = false;
+	int homeInEndposReleaseMode = 0;
+	uint32_t currentPosition = 0;
 };
 
 void processHomeLoop(void * p);
 
-class HomeMotor : public Module
+namespace HomeMotor
 {
 
-public:
-	HomeMotor();
-	~HomeMotor();
-	bool DEBUG = true;
-	bool isHoming = false;
-	std::array<HomeData *, 4> hdata;
+	static bool isDEBUG = true;
+	static int homeEndposRelease = 2000;
+	static bool isHoming = false;
+	static bool isDualAxisZ = false;
 
-	int act(cJSON * ob) override;
-	cJSON * get(cJSON * ob) override;
-	void setup() override;
-	void loop() override;
+	int act(cJSON * ob);
+	cJSON * get(cJSON * ob);
+	void setup();
+	void loop();
+    void checkAndProcessHome(Stepper s, int digitalin_val);
+	int parseHomeData(cJSON *doc);
+	void runStepper(int s);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
+	HomeData** getHomeData();
 	void sendHomeDone(int axis);
-private:
-	void checkAndProcessHome(Stepper s, int digitalin_val,FocusMotor *motor);
 
 };

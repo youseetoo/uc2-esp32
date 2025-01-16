@@ -1,5 +1,5 @@
 #pragma once 
-
+#include <PinConfig.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -35,3 +35,9 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
 #define SCAN_DURATION_SECONDS 5
 
 void hid_demo_task(void *pvParameters);
+
+void updateGamePadDataDS4(const DS4Data *d);
+
+void updateGamePadDataHyperX(const HyperXClutchData *d);
+
+void handleHidInputEvent(esp_hidh_event_data_t *param);

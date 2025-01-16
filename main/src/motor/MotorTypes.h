@@ -1,42 +1,49 @@
 #pragma once
 
 
-const long MAX_VELOCITY_A = 40000;
+const long MAX_VELOCITY_A = 20000;
 const long MAX_ACCELERATION_A = 100000;
-const long DEFAULT_ACCELERATION = 100000;
+const long DEFAULT_ACCELERATION = 500000;
 
-struct StageScanningData{
-	int nStepsLine = 100;
-	int dStepsLine = 1;
-	int nTriggerLine = 1;
-	int nStepsPixel = 100;
-	int dStepsPixel = 1;
-	int nTriggerPixel = 1;
-	int delayTimeStep = 10;
-	int stopped = 0;
-	int nFrames = 1;
+struct MotorState {
+	long currentPosition = 0;
+	bool isRunning = 0;
+	//bool isForever = 0;
 };
+
+struct MotorDataReduced
+{
+	// a stripped down version of MotorData to be sent over I2C
+	long targetPosition = 0;
+	long speed = 0;
+	bool isforever = false;
+	bool absolutePosition = false;
+	bool isStop = false;
+}__attribute__((packed));
 
 struct MotorData
 {
 	bool directionPinInverted = false;
 	long speed = 0;
-	long maxspeed = MAX_VELOCITY_A;
+	long maxspeed = 200000;
 	long acceleration = 0;
 	long targetPosition = 0;
 	long currentPosition = 0;
-	bool isforever = false;
-	bool isaccelerated = 1;
-	bool absolutePosition = 0; 	// running relative or aboslute position?
-	bool stopped = true;
-	// milliseconds to switch off motors after operation
-	int timeoutDisable = 1000;
-	int timeLastActive = 0;
-	bool isEnable = 1; // keeping motor on after job is completed?
+	int isforever = false;
+	bool isaccelerated = false;
+	// running relative or aboslute position! gets ignored when isforever is true
+	bool absolutePosition = false; 	
+	bool isEnable = true; // keeping motor on after job is completed?
+	int qid = -1;
+	bool isStop = false; // stop motor or not
 
-	bool wasRunning = false; // flag to check if the motor was running in the last loop
-	bool isActivated = 0;//flag to check if the motor is functional or just there to allocate memory :P
-	int qid = -1; // for keeping sync with commands sent by the serial and their responses
+	//flag that indicate if a motor is realy availible and not just a motor wiht no function.
+	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
+	//and its needed to show only true initialized motors inside webui and android app.
+	bool isActivated = 0;
+	//internal state used by fast/accel stepper, maybe it shoulde get renamed to isRunning^^ but that need also to invert all true false values
+	bool stopped = true;
+	bool endstop_hit = false;
 
 	// for triggering frame or lineclock
 	bool isTriggered = false; // state if we send a pulse
@@ -45,11 +52,15 @@ struct MotorData
 	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
 	int dirPin = -1;
 	int stpPin = -1;
-};
+	
+}__attribute__((packed));
+
+
+
 
 enum Stepper
 {
-	A,
+	A =0,
 	X,
 	Y,
 	Z

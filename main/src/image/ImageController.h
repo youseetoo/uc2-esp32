@@ -1,14 +1,14 @@
 #pragma once
 #include "../../Module.h"
 #include "../../ModuleController.h"
-
+// TODO: need to update this function to match the new framework
 class ImageController : public Module
 {
 private:
 public:
     ImageController(/* args */);
     ~ImageController();
-    bool DEBUG = false;
+    bool isDEBUG = false;
 
     void setup() override;
     int act(cJSON *jsonDocument) override;

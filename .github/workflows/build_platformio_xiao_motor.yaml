@@ -48,33 +48,33 @@ jobs:
         regex: false
 
     - name: Run PlatformIO
-      run: pio run --environment UC2_3_Xiao_Slave_Motor -v  # Run the specific environment
+      run: pio run --environment seeed_xiao_esp32s3_can_slave_motor -v  # Run the specific environment
     
     - name: merge into one binary
       run: |
-        dir .pio/build/UC2_3_Xiao_Slave_Motor/ 
-        cd .pio/build/UC2_3_Xiao_Slave_Motor/
-        python -m esptool --chip esp32s3 merge_bin  -o UC2_3_Xiao_Slave_Motor.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB 0x0000 bootloader.bin  0x8000 partitions.bin  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin  0x10000 firmware.bin
+        dir .pio/build/seeed_xiao_esp32s3_can_slave_motor/ 
+        cd .pio/build/seeed_xiao_esp32s3_can_slave_motor/
+        python -m esptool --chip esp32s3 merge_bin  -o seeed_xiao_esp32s3_can_slave_motor.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB 0x0000 bootloader.bin  0x8000 partitions.bin  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin  0x10000 firmware.bin
     - name: Debug merged firmware
-      run: ls -l .pio/build/UC2_3_Xiao_Slave_Motor/
+      run: ls -l .pio/build/seeed_xiao_esp32s3_can_slave_motor/
 
     - name: Check for merged firmware
       run: |
-        if [ ! -f .pio/build/UC2_3_Xiao_Slave_Motor/UC2_3_Xiao_Slave_Motor.bin ]; then
+        if [ ! -f .pio/build/seeed_xiao_esp32s3_can_slave_motor/seeed_xiao_esp32s3_can_slave_motor.bin ]; then
           echo "Merged firmware binary not found!"
           exit 1
         fi
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
-        path: .pio/build/UC2_3_Xiao_Slave_Motor/UC2_3_Xiao_Slave_Motor.bin
+        path: .pio/build/seeed_xiao_esp32s3_can_slave_motor/seeed_xiao_esp32s3_can_slave_motor.bin
 
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
         API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
       with:
-        source_file: '.pio/build/UC2_3_Xiao_Slave_Motor/UC2_3_Xiao_Slave_Motor.bin'
+        source_file: '.pio/build/seeed_xiao_esp32s3_can_slave_motor/seeed_xiao_esp32s3_can_slave_motor.bin'
         destination_repo: 'youseetoo/youseetoo.github.io'
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'

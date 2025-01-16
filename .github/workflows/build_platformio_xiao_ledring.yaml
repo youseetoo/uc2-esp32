@@ -61,7 +61,7 @@ jobs:
 
     - name: Check for merged firmware
       run: |
-        if [ ! -f .pio/build/seeed_xiao_esp32s3_ledring.bin ]; then
+        if [ ! -f .pio/build/seeed_xiao_esp32s3_ledring/seeed_xiao_esp32s3_ledring.bin ]; then
           echo "Merged firmware binary not found!"
           exit 1
         fi
@@ -69,14 +69,14 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
-        path: .pio/build/seeed_xiao_esp32s3_ledring.bin
+        path: .pio/build/seeed_xiao_esp32s3_ledring/seeed_xiao_esp32s3_ledring.bin
 
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
         API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
       with:
-        source_file: '.pio/build/seeed_xiao_esp32s3_ledring.bin'
+        source_file: '.pio/build/seeed_xiao_esp32s3_ledring/seeed_xiao_esp32s3_ledring.bin'
         destination_repo: 'youseetoo/youseetoo.github.io'
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'

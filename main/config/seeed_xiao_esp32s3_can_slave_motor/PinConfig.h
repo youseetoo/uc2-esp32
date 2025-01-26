@@ -16,7 +16,7 @@
 #define USE_FASTACCEL
 #define TMC_CONTROLLER
 
-struct UC2_3_Xiao_Slave : PinConfig
+struct UC2_3_XIAO_Slave_Motor : PinConfig
 {
      /*
      D0: 1
@@ -46,7 +46,7 @@ struct UC2_3_Xiao_Slave : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-     const char * pindefName = "UC2_3_I2CSlaveMotorX";
+     const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
      const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
@@ -56,12 +56,16 @@ struct UC2_3_Xiao_Slave : PinConfig
      bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
-     // I2c
+     // I2c - as slave
      const char *I2C_NAME = "MOTX";
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
-     int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
-     int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
+     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2 
+     int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
      
+     // I2C  - as controller 
+     int8_t I2C_SCL_ext = GPIO_NUM_5; // D5 -> GPIO5
+     int8_t I2C_SDA_ext = GPIO_NUM_4; // D4 -> GPIO4
+
      // TMC UART 
      int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
@@ -79,8 +83,8 @@ struct UC2_3_Xiao_Slave : PinConfig
      int tmc_toff = 4;
 
      // CAN
-     int8_t CAN_TX = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t CAN_RX = GPIO_NUM_5; // D4 -> GPIO5
+     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
 
      // TEmporarily for endstop
@@ -88,4 +92,4 @@ struct UC2_3_Xiao_Slave : PinConfig
 
 };
   
-const UC2_3_Xiao_Slave pinConfig;
+const UC2_3_XIAO_Slave_Motor pinConfig;

@@ -365,7 +365,7 @@ namespace can_controller
         }
         current_can_address = getCANAddressPreferences();
 
-        log_i("CAN bus initialized with address %u", getCANAddress());
+        log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
 
         // Create a queue to store incoming pdu_t
         // canQueue = xQueueCreate(5, sizeof(pdu_t));

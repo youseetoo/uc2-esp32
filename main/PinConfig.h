@@ -2,11 +2,25 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO_LEDRING : PinConfig
+
+#define CORE_DEBUG_LEVEL
+#define ESP32S3_MODEL_XIAO 
+#define LASER_CONTROLLER
+#define DIGITAL_IN_CONTROLLER
+#define MESSAGE_CONTROLLER
+#define CAN_SLAVE_MOTOR
+#define CAN_CONTROLLER
+#define MOTOR_CONTROLLER
+#define HOME_MOTOR
+#define DIGITAL_IN_CONTROLLER
+#define USE_FASTACCEL
+#define TMC_CONTROLLER
+
+struct UC2_3_XIAO_Slave_Motor : PinConfig
 {
      /*
      D0: 1
-     D1: 3
+     D1: 2
      D2: 3
      D3: 4
      D4: 5
@@ -17,36 +31,65 @@ struct UC2_ESP32S3_XIAO_LEDRING : PinConfig
      D9: 8
      D10: 9
 
-     # XIAO
+     #define STALL_VALUE     100  // StallGuard sensitivity [0..255]
+     #define EN_PIN           D10   // PA4_A1_D1 (Pin 2) Enable pin for motor driver
+     #define DIR_PIN          D8   // PA02_A0_D0 (Pin 1) Direction pin
+     #define STEP_PIN         D9   // PA10_A2_D2 (Pin 3) Step pin
+     #define SW_RX            D7   // PB09_D7_RX (Pin 8) UART RX pin for TMC2209
+     #define SW_TX            D6   // PB08_A6_TX (Pin 7) UART TX pin for TMC2209
+     #define SERIAL_PORT Serial1  // UART Serial port for TMC2209
+     #define I2C_SCL_ext      D5   // PB07_A5_D5 (Pin 6) I2C SCL pin
+     #define I2C_SDA_ext      D4   // PB06_A4_D4 (Pin 5) I2C SDA pin
+     #define I2C_SCL_int     D2   // PA14_A3_D3 (Pin 4) I2C SCL pin
+     #define I2C_SDA_int     D3   // PA13_A10_D10 (Pin 9) I2C SDA pin
 
-     {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
-     {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":255}]}}
-
-     {"task": "/laser_act", "LASERid":1, "LASERval": 500, "LASERdespeckle": 500,  "LASERdespecklePeriod": 100}
-     {"task": "/laser_act", "LASERid":2, "LASERval": 0}
-     {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
-     {"task": "/laser_act", "LASERid":1, "LASERval": 0}
-     {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
+    This is a test to work with the UC2_3 board which acts as a I2C slave
      */
-     const char *pindefName = "UC2_ESP32S3_XIAO_LEDRING";
+     
+     const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
      const unsigned long BAUDRATE = 115200;
 
-     uint8_t I2C_CONTROLLER_TYPE = I2CControllerType::mLASER;
-     uint8_t I2C_ADD_SLAVE = I2C_ADD_LEX_PWM1; // I2C address of the ESP32 if it's a slave
+     int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
+     int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7
+     int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
+     bool MOTOR_ENABLE_INVERTED = true;
+     bool MOTOR_AUTOENABLE = false;
+     int8_t AccelStepperMotorType = 1;
 
-     // Laser control pins (using updated GPIO values)
-     int8_t LASER_1 = GPIO_NUM_3; // D2
-     int8_t LASER_2 = GPIO_NUM_4; // D3 => Motor 1/1
+     // I2c - as slave
+     const char *I2C_NAME = "MOTX";
+     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
+     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2 
+     int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
      
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 // Touch 1 
-     int8_t DIGITAL_IN_2 = GPIO_NUM_3; // D1 // Touch 2
-     
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
+     // I2C  - as controller 
+     int8_t I2C_SCL_ext = GPIO_NUM_5; // D5 -> GPIO5
+     int8_t I2C_SDA_ext = GPIO_NUM_4; // D4 -> GPIO4
 
-     int8_t CAN_TX = 5;
-     int8_t CAN_RX = 44;
+     // TMC UART 
+     int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
+     
+     int tmc_microsteps = 16;
+     int tmc_rms_current = 500;
+     int tmc_stall_value = 100;
+     int tmc_sgthrs = 100;
+     int tmc_semin = 5;
+     int tmc_semax = 2;
+     int tmc_sedn = 0b01;
+     int tmc_tcoolthrs = 0xFFFFF;
+     int tmc_blank_time = 24;
+     int tmc_toff = 4;
+
+     // CAN
+     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+     uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
+
+     // TEmporarily for endstop
+     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
 
 };
-const UC2_ESP32S3_XIAO_LEDRING pinConfig;
+  
+const UC2_3_XIAO_Slave_Motor pinConfig;

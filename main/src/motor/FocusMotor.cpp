@@ -376,6 +376,11 @@ namespace FocusMotor
 		}
 #endif
 
+#ifdef CAN_SLAVE_MOTOR
+	// send current position to master
+	can_controller::sendMotorStateToMaster();
+#endif 
+
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
 		log_i("Setting external pin for FastAccelStepper");

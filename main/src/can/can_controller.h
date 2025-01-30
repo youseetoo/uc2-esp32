@@ -43,7 +43,6 @@ namespace can_controller
 
     // allocate memory for the generic data pointer 
     static uint8_t *genericDataPtr = nullptr;
-    static uint32_t current_can_address = 0;
 
     static unsigned long lastSend = 0;
     int act(cJSON *doc);
@@ -51,6 +50,7 @@ namespace can_controller
     void setup();
     void loop();
 
+    // general CAN-related functions
     uint32_t axis2id(int axis);
     int receiveCanMessage(uint32_t senderID, uint8_t *data);
     int sendCanMessage(uint32_t receiverID, const uint8_t *data);

@@ -45,7 +45,7 @@ namespace HomeMotor
 		// send the home data to the slave
 		i2c_master::sendHomeDataI2C(*hdata[axis], axis);
 		getData()[axis]->stopped = true; // overwrite current state - otherwise it'll trigger a force-stop  in the motor loop()
-#elif defined(CAN_CONTROLLER)
+#elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
 		// send the home data to the slave
 		can_controller::sendHomeDataToCANDriver(*hdata[axis], axis);
 #else
@@ -252,7 +252,7 @@ namespace HomeMotor
 				FocusMotor::sendMotorPos(s, 0);
 			}
 		}
-#elif defined(CAN_CONTROLLER)
+#elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
 // do nothing as we will receive it as a push message - only keep track of the timeout 
 if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
 {

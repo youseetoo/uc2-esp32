@@ -5,7 +5,6 @@
 
 #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
-#define LASER_CONTROLLER
 #define DIGITAL_IN_CONTROLLER
 #define MESSAGE_CONTROLLER
 #define CAN_SLAVE_MOTOR
@@ -86,8 +85,9 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
      int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
+     
 
-     // TEmporarily for endstop
+     // Endstops should be the same for all - depending on the motor
      int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
 
 };

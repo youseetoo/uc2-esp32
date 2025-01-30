@@ -151,8 +151,8 @@ namespace BtController
                 avalue = gamePadData.LeftX;
             */
             //log_i("xyza_changed_event nullptr %i", xyza_changed_event == nullptr);
-            if (xyza_changed_event != nullptr)
-                xyza_changed_event(gamePadData.LeftY, gamePadData.RightX, gamePadData.RightY, gamePadData.LeftX);
+            if (xyza_changed_event != nullptr) // x,y,z,a
+                xyza_changed_event(gamePadData.RightX, gamePadData.RightY, gamePadData.LeftX, gamePadData.LeftY);
             lastData.LeftX = gamePadData.LeftY;
             lastData.RightX = gamePadData.RightX;
             lastData.RightY = gamePadData.RightY;
@@ -196,8 +196,8 @@ namespace BtController
                     dpad_changed_event(dir);
             }
 
-            if (xyza_changed_event != nullptr)
-                xyza_changed_event(psx->state.analog.stick.ly, psx->state.analog.stick.rx, psx->state.analog.stick.ry, psx->state.analog.stick.lx);
+            if (xyza_changed_event != nullptr) // x,y,z,a
+                xyza_changed_event(psx->state.analog.stick.rx, psx->state.analog.stick.ry, psx->state.analog.stick.lx, psx->state.analog.stick.ly);
             lastData.LeftX = psx->state.analog.stick.ly;
             lastData.RightX = psx->state.analog.stick.rx;
             lastData.RightY = psx->state.analog.stick.ry;

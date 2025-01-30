@@ -11,8 +11,8 @@
 #define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
 
 #define PACKET_SIZE 8
-#define TIMEOUT_SESSION 300
-#define TIMEOUT_FC 100
+#define TIMEOUT_SESSION 500
+#define TIMEOUT_FC 200
 #define TIMEOUT_READ 300
 
 // Already declared in ESP32-TWAI-CAN.hpp
@@ -65,7 +65,7 @@ int CanIsoTp::send(pdu_t *pdu)
         bs = false;
         switch (pdu->cantpState)
         {
-        case CANTP_SEND:
+        case CANTP_SEND:    // 1
             // If data fits in a single frame (<= 7 bytes)
             if (pdu->len <= 7)
             {
@@ -82,7 +82,7 @@ int CanIsoTp::send(pdu_t *pdu)
             }
             break;
 
-        case CANTP_WAIT_FIRST_FC:
+        case CANTP_WAIT_FIRST_FC: // 2
             // Check for timeout
             if ((millis() - _timerFCWait) >= TIMEOUT_FC)
             {
@@ -92,7 +92,7 @@ int CanIsoTp::send(pdu_t *pdu)
             }
             break;
 
-        case CANTP_WAIT_FC:
+        case CANTP_WAIT_FC: // 3
             // Check for timeout
             if ((millis() - _timerFCWait) >= TIMEOUT_FC)
             {
@@ -179,7 +179,7 @@ int CanIsoTp::send(pdu_t *pdu)
             if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
             {
                 log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
-                if (frame.identifier == pdu->rxId && frame.data_length_code > 0)
+                if (frame.identifier == pdu->txId && frame.data_length_code > 0)
                 {
                     log_i("Data length: %d", frame.data_length_code);
                     // Check if it's a Flow Control frame
@@ -234,20 +234,23 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 
         if (ESP32CanTwai.readFrame(&frame, timeout)) // TODO: As far as I understand, this pulls messages from the internal queue, so we should not need to wait for the timeout here too long
         {    
-            // log_i("Frame id received: %d, receive id: %d", frame.identifier, rxpdu->rxId);
+            log_i("Frame.identifier: %d, rxId: %d, txId: %d", frame.identifier, rxpdu->rxId, rxpdu->txId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
-            if (rxpdu->rxId == 0)
+            // frame.identifier is the ID to which the message was sent 
+            if (rxpdu->rxId == 0) // Broadcast: accept all frames
             {
-                rxpdu->rxId = frame.identifier;
+                rxpdu->rxId = frame.identifier; // frame.identifier is the ID to which the message was sent
             }
-            if (frame.identifier == rxpdu->rxId)
+            if (frame.identifier == rxpdu->rxId) // e.g. the identifier equals the receiver ID => TODO: Does the frame.identifier hold the receiver or sender ID?
+            // we have two options:
+            // 1. we want to receive all messages from e.g. the master but also listen to those not intended for us (e.g. specific CAN_ID) => Broadcasting
+            // 2. we want to receive only messages that are sent to the current address (e.g. CAN_ID_MOT_A, CAN_ID_MOT_X, CAN_ID_MOT_Y, CAN_ID_MOT_Z)
             {
                 // log_i("Data length: %d", frame.data_length_code);
                 // Extract N_PCItype
                 if (frame.data_length_code > 0)
                 {
                     N_PCItype = (frame.data[0] & 0xF0);
-                    //log_i("N_PCItype: %d", N_PCItype);
                     switch (N_PCItype)
                     {
                     case N_PCItypeSF: // 0x00
@@ -262,7 +265,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                         ret = receive_FlowControlFrame(rxpdu, &frame);
                         break;
                     case N_PCItypeCF: // 0x20
-                        //log_i("CF received");
+                        log_i("CF received");
                         ret = receive_ConsecutiveFrame(rxpdu, &frame);
                         break;
                     default:
@@ -275,7 +278,6 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
             else
             {
                 log_i("Frame ID mismatch");
-
             }
         }
         else
@@ -308,6 +310,7 @@ int CanIsoTp::send_SingleFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FirstFrame(pdu_t *pdu)
 {
+    log_i("Sending FF");
     CanFrame frame = {0};
     frame.identifier = pdu->txId;
     frame.extd = 0;
@@ -326,6 +329,7 @@ int CanIsoTp::send_FirstFrame(pdu_t *pdu)
 
 int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 {
+    log_i("Sending CF");
     CanFrame frame = {0};
     frame.identifier = pdu->txId;
     frame.extd = 0;
@@ -345,9 +349,10 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 {
-    log_i("Sending FC to ID: %d with ID: %d", pdu->txId, pdu->rxId);
+    log_i("Sending FC: frame.identifier = pdu->txId (%u); we are listening on pdu->rxId (%u)",
+          pdu->txId, pdu->rxId);
     CanFrame frame = {0};
-    frame.identifier = pdu->txId; 
+    frame.identifier = pdu->rxId; 
     frame.extd = 0;
     frame.data_length_code = 3;
 
@@ -382,6 +387,7 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
 {
     log_i("First Frame received, txID %d, rxID %d", pdu->txId, pdu->rxId);
+    
     // Determine total length from FF
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1];// len is 16bits: 0000 XXXX. 0000 0000.
     pdu->len = totalLen;
@@ -411,16 +417,6 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     _rxRestBytes -= 6;
     pdu->seqId = 1;                                // Start sequence ID
     pdu->cantpState = IsoTpState::CANTP_WAIT_DATA; // Awaiting consecutive frames
-    /*
-        // Send 1° FlowControlFrame
-    pdu_t pdu_fc;
-    pdu_fc.txId = pdu->txId;
-    pdu_fc.rxId = pdu->rxId;
-    pdu_fc.fcStatus = CANTP_FLOWSTATUS_CTS; // FlowControl state
-    pdu_fc.blockSize = 0;
-    pdu_fc.separationTimeMin = 0x7F;
-    return send_FlowControlFrame(&pdu_fc);
-    */
     log_i("Sending Flow Control FC");
 
     return send_FlowControlFrame(pdu);
@@ -433,8 +429,10 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     _timerCFWait = millis();
 
     // The original code checks if we are waiting for data
-    if (pdu->cantpState != CANTP_WAIT_DATA)
+    if (pdu->cantpState != CANTP_WAIT_DATA){
+        log_i("receive_ConsecutiveFrame: Invalid state: %d", pdu->cantpState);  
         return 0;
+    }
 
     // Check sequence number to ensure correct order
     uint8_t seqId = frame->data[0] & 0x0F;
@@ -480,7 +478,7 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     }
 
     // Update blockSize and separationTimeMin only when waiting for the first FC
-    if (pdu->cantpState == CANTP_WAIT_FIRST_FC)
+    if (pdu->cantpState == CANTP_WAIT_FIRST_FC) // 2
     {
         //log_i("Updating BS and STmin");
         pdu->blockSize = frame->data[1];

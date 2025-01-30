@@ -8,6 +8,7 @@ const long DEFAULT_ACCELERATION = 500000;
 struct MotorState {
 	long currentPosition = 0;
 	bool isRunning = 0;
+	uint8_t axis = 0;
 	//bool isForever = 0;
 };
 

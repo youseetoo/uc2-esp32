@@ -25,6 +25,7 @@ struct HomeState
 	bool isHomed = false;
 	int homeInEndposReleaseMode = 0;
 	uint32_t currentPosition = 0;
+	int axis = 0;
 };
 
 void processHomeLoop(void * p);

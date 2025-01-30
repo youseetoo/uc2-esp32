@@ -11,7 +11,7 @@
 #define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
 
 #define PACKET_SIZE 8
-#define TIMEOUT_SESSION 500
+#define TIMEOUT_SESSION 300
 #define TIMEOUT_FC 200
 #define TIMEOUT_READ 300
 
@@ -237,14 +237,12 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
             log_i("Frame.identifier: %d, rxId: %d, txId: %d", frame.identifier, rxpdu->rxId, rxpdu->txId);
             // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
             // frame.identifier is the ID to which the message was sent 
-            if (rxpdu->rxId == 0) // Broadcast: accept all frames
+            if (rxpdu->rxId == 0) // Broadcast: accept all frames // TODO: not implemented yet
             {
+                log_i("Broadcasting");
                 rxpdu->rxId = frame.identifier; // frame.identifier is the ID to which the message was sent
             }
-            if (frame.identifier == rxpdu->rxId) // e.g. the identifier equals the receiver ID => TODO: Does the frame.identifier hold the receiver or sender ID?
-            // we have two options:
-            // 1. we want to receive all messages from e.g. the master but also listen to those not intended for us (e.g. specific CAN_ID) => Broadcasting
-            // 2. we want to receive only messages that are sent to the current address (e.g. CAN_ID_MOT_A, CAN_ID_MOT_X, CAN_ID_MOT_Y, CAN_ID_MOT_Z)
+            if (frame.identifier == rxpdu->rxId) // we are listening to frame ids with the device's current ID
             {
                 // log_i("Data length: %d", frame.data_length_code);
                 // Extract N_PCItype

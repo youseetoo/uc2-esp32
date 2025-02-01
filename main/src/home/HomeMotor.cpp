@@ -84,9 +84,7 @@ namespace HomeMotor
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 
 					// assign to home data and start stepper if they are wired to that board
-					#if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 					startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
-					#endif
 				}
 			}
 		}
@@ -128,7 +126,9 @@ namespace HomeMotor
 			hdata[axis]->homeEndStopPolarity = 0;
 		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+#if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 		runStepper(axis);
+#endif
 		// grab current time AFTER we start
 		hdata[axis]->homeInEndposReleaseMode = 0;
 		hdata[axis]->homeTimeStarted = millis();
@@ -224,7 +224,7 @@ namespace HomeMotor
 		Serial.println("--");
 #endif
 #if defined(CAN_CONTROLLER) && defined(CAN_SLAVE_MOTOR)
-		// send home state to master 
+		// send home state to master
 		HomeState homeState;
 		homeState.isHoming = false;
 		homeState.isHomed = true;
@@ -253,14 +253,14 @@ namespace HomeMotor
 			}
 		}
 #elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
-// do nothing as we will receive it as a push message - only keep track of the timeout 
-if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
-{
-	log_i("Home Motor %i is done", s);
-	sendHomeDone(s);
-	hdata[s]->homeIsActive = false;
-	// FocusMotor::sendMotorPos(s, 0);
-}
+		// do nothing as we will receive it as a push message - only keep track of the timeout
+		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
+		{
+			log_i("Home Motor %i is done", s);
+			sendHomeDone(s);
+			hdata[s]->homeIsActive = false;
+			// FocusMotor::sendMotorPos(s, 0);
+		}
 #else
 		// log_i("Current STepper %i and digitalin_val %i", s, digitalin_val);
 		//  if we hit the endstop or timeout => stop motor and oanch reverse direction mode

@@ -79,10 +79,6 @@ namespace can_controller
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
             */
-            Serial.print("Received MotorData from CAN, isEnable: ");
-            Serial.print(receivedMotorData.isEnable);
-            Serial.print(", targetPosition: ");
-            Serial.println(receivedMotorData.targetPosition);
             log_i("Received MotorData from can, isEnable: %i, targetPosition: %i, absolutePosition: %i, speed: %i, acceleration: %i, isforever: %i, isStop: %i", receivedMotorData.isEnable, receivedMotorData.targetPosition, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration, receivedMotorData.isforever, receivedMotorData.isStop);
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
         }
@@ -160,20 +156,28 @@ namespace can_controller
             int mStepper = receivedMotorState.axis;
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
-
             FocusMotor::sendMotorPos(mStepper, 0);
+
         }
         else if (size == sizeof(HomeState))
         {
+#ifdef HOME_MOTOR
             // Parse as HomeState
             HomeState receivedHomeState;
             memcpy(&receivedHomeState, data, sizeof(HomeState));
             int mStepper = receivedHomeState.axis;
+            log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
+            // check if mStepper is inside the range of the motors
+            if (mStepper < 0 || mStepper > 3)
+            {
+                log_e("Error: Received HomeState from CAN with invalid axis %i", mStepper);
+                return;
+            }
             HomeMotor::getHomeData()[mStepper]->homeIsActive = receivedHomeState.isHoming;
             HomeMotor::getHomeData()[mStepper]->homeInEndposReleaseMode = receivedHomeState.homeInEndposReleaseMode;
             FocusMotor::getData()[mStepper]->currentPosition = receivedHomeState.currentPosition;
-            log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
             HomeMotor::sendHomeDone(mStepper);
+#endif
         }
         else
         {
@@ -245,7 +249,6 @@ namespace can_controller
             /*
             FROM THE DEVICES => update the state
             */
-            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i", data[0], data[1]);
             parseMotorAndHomeState(data, size, rxID);
         }
         else
@@ -325,6 +328,10 @@ namespace can_controller
         {
             // Send the data
             log_i("Sending data with txID %u, rxID %u, with size %u", receiverID, getCANAddress(), size);
+            if (data == nullptr) {
+                log_e("Null pointer for data in sendCanMessage");
+                return -1;
+            }
             txPdu.data = (uint8_t *)data;
             txPdu.len = size;
             txPdu.txId = receiverID;      // the target ID
@@ -392,7 +399,6 @@ namespace can_controller
 
             return ret;
         }
-        xSemaphoreGive(canMutex);
         return -1;
     }
 
@@ -400,7 +406,10 @@ namespace can_controller
     {
         // Create a mutex for the CAN bus
         canMutex = xSemaphoreCreateMutex();
-
+        if (canMutex == nullptr) {
+            log_e("Failed to create CAN mutex!");
+            ESP.restart();
+        }
         // Initialize CAN bus
         if (!isoTpSender.begin(500, pinConfig.CAN_TX, pinConfig.CAN_RX))
         {
@@ -470,7 +479,7 @@ namespace can_controller
         return 0;
     }
 
-    void startStepper(MotorData *data, int axis, bool reduced)
+    int startStepper(MotorData *data, int axis, bool reduced)
     {
 #ifdef MOTOR_CONTROLLER
         if (getData()[axis] != nullptr)
@@ -483,9 +492,18 @@ namespace can_controller
             if (err != 0)
             {
                 log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
+
             }
+            return err;
         }
+        else{
+            log_e("Error: MotorData is null for axis %i", axis);
+            return -1;
+        }
+#else
+        return -1;
 #endif
+
     }
 
     void stopStepper(Stepper axis)
@@ -586,7 +604,7 @@ namespace can_controller
     {
         // send home data to slave via
         uint32_t slave_addr = axis2id(axis);
-        log_i("Sending HomeData to axis: %i", axis);
+        log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
         uint8_t *dataPtr = (uint8_t *)&homeData;
         int dataSize = sizeof(HomeData);
         int err = sendCanMessage(slave_addr, dataPtr, dataSize);

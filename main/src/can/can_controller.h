@@ -60,7 +60,7 @@ namespace can_controller
     
     // motor functions
     int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced = false);
-    void startStepper(MotorData *data, int axis, bool reduced);
+    int startStepper(MotorData *data, int axis, bool reduced);
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);

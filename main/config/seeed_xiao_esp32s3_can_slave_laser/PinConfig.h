@@ -45,20 +45,16 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
      const unsigned long BAUDRATE = 115200;
 
      // Laser control pins (using updated GPIO values)
-     int8_t LASER_1 = GPIO_NUM_3; // D2
-     int8_t LASER_2 = GPIO_NUM_4; // D3 => Motor 1/1
-     
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 // Touch 1 
-     int8_t DIGITAL_IN_2 = GPIO_NUM_3; // D1 // Touch 2
-     
+     int8_t LASER_1 = GPIO_NUM_8; // D9
+     int8_t LASER_2 = GPIO_NUM_9; // D10
+
      // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
+     int8_t I2C_SCL = disabled; // D5 -> GPIO6
+     int8_t I2C_SDA = disabled; // D4 -> GPIO5
 
      // CAN
-     int8_t CAN_TX = GPIO_NUM_7;  // D8 -> GPIO7
-     int8_t CAN_RX = 44; // D7 -> GPIO44
-
+     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_LASER_0; // TODO: This is a "broadcasting" address, where multiple lasers (PWM) are connected to one device
 
 

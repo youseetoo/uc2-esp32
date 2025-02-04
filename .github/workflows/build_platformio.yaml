@@ -43,7 +43,7 @@ jobs:
         replace: "const UC2_3 pinConfig; //"
         regex: false
     - name: Run PlatformIO
-      run: pio run 
+      run:  pio run --environment UC2_3 
     - name: merge into one binary
       run: |
         dir .pio/build/esp32dev/ 

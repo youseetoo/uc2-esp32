@@ -58,7 +58,7 @@ jobs:
       env:
         API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
       with:
-        source_file: 'build/esp32_uc2_3.bin'
+        source_file: '.pio/build/esp32_uc2_3/esp32_uc2_3.bin'      
         destination_repo: 'youseetoo/youseetoo.github.io'
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'

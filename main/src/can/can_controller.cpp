@@ -24,6 +24,7 @@ namespace can_controller
     MessageData txData, rxData;
     pdu_t txPdu, rxPdu;
     static SemaphoreHandle_t canMutex;
+    static QueueHandle_t canQueue;
 
     // for A,X,Y,Z intialize the I2C addresses
     uint32_t CAN_MOTOR_IDs[] = {
@@ -43,9 +44,6 @@ namespace can_controller
     const int MAX_CAN_DEVICES = 20;                     // Maximum number of expected devices
     uint32_t nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store found I2C addresses
     int currentCANidListEntry = 0;                      // Variable to keep track of number of devices found
-
-    // Global queue for received messages
-    static QueueHandle_t canQueue;
 
     void parseMotorAndHomeData(uint8_t *data, size_t size, uint32_t txID, uint32_t rxID)
     {
@@ -157,7 +155,6 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
             FocusMotor::sendMotorPos(mStepper, 0);
-
         }
         else if (size == sizeof(HomeState))
         {
@@ -305,6 +302,24 @@ namespace can_controller
         return false; // Address not found
     }
 
+void canSendTask(void *pvParameters) {
+    pdu_t pdu;
+    while (true) {
+        if (xQueueReceive(canQueue, &pdu, portMAX_DELAY) == pdTRUE) {
+            if (isoTpSender.send(&pdu) != 0) {
+                log_e("Error sending CAN message to %u", pdu.txId);
+            }
+            else{
+                log_i("Sent CAN message to %u", pdu.txId);
+            }
+            if (pdu.data != nullptr) {  // Ensure it's valid before deleting
+                //delete[] pdu.data;
+                pdu.data = nullptr;  // Avoid double-free issues
+            }
+        }
+    }
+}
+
     // generic sender function
     int sendCanMessage(uint32_t receiverID, const uint8_t *data, uint8_t size)
     {
@@ -318,38 +333,39 @@ namespace can_controller
         */
         lastSend = millis();
         // check if the receiverID is in the list of non-working motors
+
         if (isIDInAvailableCANDevices(receiverID))
         {
             log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
-            // return -1;
+            return -1;
         }
 
         if (xSemaphoreTake(canMutex, portMAX_DELAY) == pdTRUE)
         {
-            // Send the data
-            log_i("Sending data with txID %u, rxID %u, with size %u", receiverID, getCANAddress(), size);
-            if (data == nullptr) {
-                log_e("Null pointer for data in sendCanMessage");
-                return -1;
-            }
+
             txPdu.data = (uint8_t *)data;
             txPdu.len = size;
             txPdu.txId = receiverID;      // the target ID
             txPdu.rxId = getCANAddress(); // the current ID
             int ret = isoTpSender.send(&txPdu);
-            xSemaphoreGive(canMutex);
-            // if ret != 0, we have an error and should add the receiverID to the list of non-working motors
-            if (ret != 0)
+
+            /*
+            pdu_t newPdu;
+            newPdu.data = (uint8_t *)data;
+            newPdu.len = size;
+            newPdu.txId = receiverID;
+            newPdu.rxId = getCANAddress();
+            */
+            if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
             {
-                // TODO: Is this a good idea? Maybe we should try again later?
-                log_e("Error sending data to CAN address; adding %u to the list of non-available CAN Modules", receiverID);
-                // add the receiverID to the list of non-working IDs
-                nonAvailableCANids[currentCANidListEntry] = receiverID;
-                currentCANidListEntry++;
+                log_w("Queue full! Dropping CAN message to %u", receiverID);
+                xSemaphoreGive(canMutex);
+                return -1;
             }
-            return ret;
+
+            xSemaphoreGive(canMutex);
+            return 0;
         }
-        // Couldn't get the mutex for some reason
         return -1;
     }
 
@@ -406,8 +422,13 @@ namespace can_controller
     {
         // Create a mutex for the CAN bus
         canMutex = xSemaphoreCreateMutex();
-        if (canMutex == nullptr) {
-            log_e("Failed to create CAN mutex!");
+        int CAN_QUEUE_SIZE = 20;
+        canQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
+        xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
+
+        if (canMutex == nullptr || canQueue == nullptr)
+        {
+            log_e("Failed to create CAN mutex or queue!");
             ESP.restart();
         }
         // Initialize CAN bus
@@ -418,11 +439,6 @@ namespace can_controller
         }
 
         log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
-
-        // Create a queue to store incoming pdu_t
-        // canQueue = xQueueCreate(5, sizeof(pdu_t));
-        // Create a dedicated task for receiving CAN messages
-        // xTaskCreate(canReceiveTask, "canReceiveTask", 2048, NULL, 1, NULL);
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         uint8_t mCurrentAddress = getCANAddress();
@@ -492,18 +508,17 @@ namespace can_controller
             if (err != 0)
             {
                 log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
-
             }
             return err;
         }
-        else{
+        else
+        {
             log_e("Error: MotorData is null for axis %i", axis);
             return -1;
         }
 #else
         return -1;
 #endif
-
     }
 
     void stopStepper(Stepper axis)

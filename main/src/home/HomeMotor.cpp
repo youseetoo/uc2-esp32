@@ -126,13 +126,13 @@ namespace HomeMotor
 			hdata[axis]->homeEndStopPolarity = 0;
 		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
-#if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
-		runStepper(axis);
-#endif
 		// grab current time AFTER we start
 		hdata[axis]->homeInEndposReleaseMode = 0;
 		hdata[axis]->homeTimeStarted = millis();
 		hdata[axis]->homeIsActive = true;
+#if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
+		runStepper(axis);
+#endif
 	}
 
 	void runStepper(int s)

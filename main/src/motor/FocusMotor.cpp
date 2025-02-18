@@ -157,8 +157,6 @@ namespace FocusMotor
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(axis);
 #endif
-			//xSemaphoreGive(xMutex);
-
 			getData()[axis]->stopped = false;
 		}
 	}

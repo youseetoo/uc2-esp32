@@ -54,7 +54,7 @@ namespace TMCController
         // modify the TMC2209 settings
         // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
         // {"task":"/tmc_act", "reset": 1}
-        preferences.begin("TMC", false);
+        
 
         // calibrate stallguard?
         bool tmc_calibrate = cJsonTool::getJsonInt(jsonDocument, "calibrate");
@@ -95,6 +95,7 @@ namespace TMCController
             driver.toff(pinConfig.tmc_toff);
             return 0;
         }
+        preferences.begin("TMC", false);
         // microsteps
         int tmc_microsteps = cJsonTool::getJsonInt(jsonDocument, "msteps");
         if (tmc_microsteps != driver.microsteps() and tmc_microsteps > 0)
@@ -178,6 +179,11 @@ namespace TMCController
 
         preferences.end();
         Serial.println("TMC Actuated with new parameters.");
+        // disable/enable motor driver
+        digitalWrite(pinConfig.MOTOR_ENABLE, HIGH); // disable
+        delay(10);
+        digitalWrite(pinConfig.MOTOR_ENABLE, LOW); // enable
+        
         return 0;
         #endif
     }
@@ -211,6 +217,21 @@ namespace TMCController
         return monitor_json;
         #else
         return nullptr;
+        #endif
+    }
+
+    void setTMCCurrent(int current){
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return;
+        }
+        #ifdef TMC_CONTROLLER
+        preferences.begin("TMC", false);
+        preferences.putInt("current", current);
+        driver.rms_current(current);
+        preferences.end();
+        log_i("TMC2209 Current set to %i", current);
         #endif
     }
 

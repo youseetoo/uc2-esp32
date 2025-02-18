@@ -197,14 +197,7 @@ extern "C" void looper(void *p)
 		HeatController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef ESPNOW_MASTER
-		espnow_master::loop();
-		vTaskDelay(1);
-#endif
-#ifdef ESPNOW_SLAVE_MOTOR
-		espnow_slave_motor::loop();
-		vTaskDelay(1);
-#endif
+
 
 		// process all commands in their modules
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time())

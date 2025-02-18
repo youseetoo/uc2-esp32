@@ -1,5 +1,8 @@
 #include "FAccelStep.h"
 #include <PinConfig.h>
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif 
 
 // convert pins to internal pins in setupFastAccelStepper
 #ifdef USE_TCA9535
@@ -9,12 +12,15 @@
 #undef PIN_EXTERNAL_FLAG
 #define PIN_EXTERNAL_FLAG 0x00
 #endif
+
 using namespace FocusMotor;
+#ifdef TMC_CONTROLLER
+using namespace TMCController;
+#endif 
 namespace FAccelStep
 {
     void startFastAccelStepper(int i)
     {
-        // enableEnablePin(i);
         if (faststeppers[i] == nullptr)
         {
             log_e("stepper %i is null", i);
@@ -35,6 +41,19 @@ namespace FAccelStep
         {
             faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
         }
+
+        // if the motor speed is above threshold, maximise motor current to avoid stalling
+        #ifdef TMC_CONTROLLER // TODO: This is only working on TMC2209-enabled sattelite boards since we have only one TMC Controller for one motor
+        if (speed > 10000)
+        {
+            TMCController::loop();
+            TMCController::setTMCCurrent((int)((float)pinConfig.tmc_rms_current*1.5));
+        }
+        else
+        {
+            TMCController::setTMCCurrent(pinConfig.tmc_rms_current);
+        }
+        #endif
 
         getData()[i]->stopped = false;
         if (getData()[i]->isforever)

@@ -150,6 +150,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/can_act", "address": 273} // X
 {"task":"/can_act", "address": 274} // Y 
 {"task":"/can_act", "address": 275} // Z 
+{"task":"/can_act", "address": 272} // A
 {"task":"/can_get", "address": 1}
 {"task":"/can_get"}
 {"task":"/can_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 2000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}

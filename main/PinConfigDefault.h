@@ -283,6 +283,12 @@ struct PinConfig
     uint32_t CAN_ID_MOT_X = 0x111;
     uint32_t CAN_ID_MOT_Y = 0x112;
     uint32_t CAN_ID_MOT_Z = 0x113;
+    uint32_t CAN_ID_MOT_B = 0x114;
+    uint32_t CAN_ID_MOT_C = 0x115;
+     uint32_t CAN_ID_MOT_D = 0x116;
+     uint32_t CAN_ID_MOT_E = 0x117;
+     uint32_t CAN_ID_MOT_F = 0x118;
+     uint32_t CAN_ID_MOT_G = 0x119;
 
     uint32_t CAN_ID_LASER_0 = 0x220;
     uint32_t CAN_ID_LASER_1 = 0x221;

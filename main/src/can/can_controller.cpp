@@ -31,7 +31,14 @@ namespace can_controller
         pinConfig.CAN_ID_MOT_A,
         pinConfig.CAN_ID_MOT_X,
         pinConfig.CAN_ID_MOT_Y,
-        pinConfig.CAN_ID_MOT_Z};
+        pinConfig.CAN_ID_MOT_Z, 
+        pinConfig.CAN_ID_MOT_B,
+        pinConfig.CAN_ID_MOT_C,
+        pinConfig.CAN_ID_MOT_D,
+        pinConfig.CAN_ID_MOT_E,
+        pinConfig.CAN_ID_MOT_F,
+        pinConfig.CAN_ID_MOT_G    
+    };
 
     // for 0,1, 2, 3 intialize the CAN LAser addresses
     uint32_t CAN_LASER_IDs[] = {
@@ -129,7 +136,7 @@ namespace can_controller
     int CANid2axis(uint32_t id)
     {
         // function that goes from CAN IDs to motor axis
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
         {
             if (id == CAN_MOTOR_IDs[i])
             {
@@ -488,7 +495,7 @@ void canSendTask(void *pvParameters) {
 
     uint32_t axis2id(int axis)
     {
-        if (axis >= 0 && axis < 4)
+        if (axis >= 0 && axis < MOTOR_AXIS_COUNT)
         {
             return CAN_MOTOR_IDs[axis];
         }

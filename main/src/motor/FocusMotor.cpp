@@ -38,7 +38,7 @@ namespace FocusMotor
 	MotorData x_dat;
 	MotorData y_dat;
 	MotorData z_dat;
-	MotorData *data[4];
+	MotorData *data[MOTOR_AXIS_COUNT];
 
 	Preferences preferences;
 	int logcount;
@@ -61,7 +61,7 @@ namespace FocusMotor
 			return data;
 		else
 		{
-			MotorData *mData[4];
+			MotorData *mData[MOTOR_AXIS_COUNT];
 			return mData;
 		}
 	}
@@ -71,54 +71,6 @@ namespace FocusMotor
 		memcpy(data[axis], mData, sizeof(MotorData));
 		// getData()[axis] = mData;
 	}
-
-	// method is unused
-	/*
-	#ifdef WIFI
-		void sendUpdateToClients(void *p)
-		{
-			for (;;)
-			{
-				cJSON *root = cJSON_CreateObject();
-				cJSON *stprs = cJSON_CreateArray();
-				cJSON_AddItemToObject(root, key_steppers, stprs);
-				int added = 0;
-				for (int i = 0; i < 4; i++)
-				{
-					if (!data[i]->stopped)
-					{
-						updateData(i);
-						cJSON *item = cJSON_CreateObject();
-						cJSON_AddItemToArray(stprs, item);
-						cJSON_AddNumberToObject(item, key_stepperid, i);
-						cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-						cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-						added++;
-					}
-				}
-				if (added > 0)
-				{
-	#ifdef WIFI
-					WifiController::sendJsonWebSocketMsg(root);
-	#endif
-					// print result - will that work in the case of an xTask?
-					Serial.println("++");
-					char *s = cJSON_PrintUnformatted(root);
-					Serial.println(s);
-					free(s);
-					Serial.println("--");
-				}
-	#ifdef I2C_MASTER and defined DIAL_CONTROLLER
-				i2c_master::pushMotorPosToDial();
-	#endif
-	#ifdef CAN_SLAVE_MOTOR
-	#endif
-				cJSON_Delete(root);
-				vTaskDelay(1000 / portTICK_PERIOD_MS);
-			}
-		}
-	#endif
-	*/
 
 	void startStepper(int axis, bool reduced = false)
 	{
@@ -300,7 +252,7 @@ namespace FocusMotor
 	void testTca()
 	{
 
-		for (int iMotor = 0; iMotor < 4; iMotor++)
+		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
@@ -320,7 +272,7 @@ namespace FocusMotor
 	void sendMotorPosition()
 	{
 		// send motor positions
-		for (int iMotor = 0; iMotor < 4; iMotor++)
+		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			if (data[iMotor]->isActivated)
 			{
@@ -335,7 +287,7 @@ namespace FocusMotor
 	{
 #ifdef I2C_MOTOR
 		// send stop signal to all motors and update motor positions
-		for (int iMotor = 0; iMotor < 4; iMotor++)
+		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			moveMotor(1, iMotor, true); // wake up motor
 			data[iMotor]->isActivated = true;
@@ -363,7 +315,7 @@ namespace FocusMotor
 
 #if (defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR))
 // stop all motors on startup
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 			stopStepper(i);
 		}
@@ -405,7 +357,7 @@ namespace FocusMotor
 	{
 #if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
 		// checks if a stepper is still running
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 #ifdef I2C_MASTER
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)

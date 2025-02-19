@@ -93,9 +93,7 @@ struct UC2_3_I2CSlaveMotorX : PinConfig
      // TMC 
      int tmc_SW_RX = D7;
      int tmc_SW_TX = D6;
-     int tmc_pin_diag = D3;
-
-    
+     int tmc_pin_diag = D3; 
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;

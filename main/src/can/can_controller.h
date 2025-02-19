@@ -1,21 +1,20 @@
 #pragma once
 #include "../../cJsonTool.h"
-#include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
-#include "../home/HomeMotor.h"
 #include "cJsonTool.h"
 #include "cJSON.h"
-#include <ESP32-TWAI-CAN.hpp>
-#ifdef TMC_CONTROLLER
-#include "../tmc/TMCController.h"
-#endif
 #include <ESP32-TWAI-CAN.hpp>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+
 #include "../can/can_messagetype.h"
 #include "../can/iso-tp-twai/CanIsoTp.hpp"
-
+#include "../laser/LaserController.h"
+#include "../home/HomeMotor.h"
+#include "../motor/FocusMotor.h"
+#include "../motor/MotorTypes.h"
+#include "../tmc/TMCController.h"
 #define CAN_RX_TASK_PRIORITY 5
 #define CAN_RX_TASK_STACK 4096
 #define CAN_QUEUE_LENGTH 10
@@ -44,7 +43,6 @@ namespace can_controller
 
     // allocate memory for the generic data pointer 
     static uint8_t *genericDataPtr = nullptr;
-    static uint32_t current_can_address = 0;
 
     static unsigned long lastSend = 0;
     int act(cJSON *doc);
@@ -52,6 +50,7 @@ namespace can_controller
     void setup();
     void loop();
 
+    // general CAN-related functions
     uint32_t axis2id(int axis);
     int receiveCanMessage(uint32_t senderID, uint8_t *data);
     int sendCanMessage(uint32_t receiverID, const uint8_t *data);
@@ -61,7 +60,7 @@ namespace can_controller
     
     // motor functions
     int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced = false);
-    void startStepper(MotorData *data, int axis, bool reduced);
+    int startStepper(MotorData *data, int axis, bool reduced);
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);
@@ -72,6 +71,10 @@ namespace can_controller
 
     // laser functions
     void sendLaserDataToCANDriver(LaserData laserData);
+
+    // TMC 
+    void sendTMCDataToCANDriver(TMCData tmcData, int axis);
+
 
 
 } // namespace can_controller

@@ -2,12 +2,13 @@
 
 
 const long MAX_VELOCITY_A = 20000;
-const long MAX_ACCELERATION_A = 100000;
-const long DEFAULT_ACCELERATION = 500000;
+const long MAX_ACCELERATION_A = 50000;
+const long DEFAULT_ACCELERATION = 50000;
 
 struct MotorState {
 	long currentPosition = 0;
 	bool isRunning = 0;
+	uint8_t axis = 0;
 	//bool isForever = 0;
 };
 

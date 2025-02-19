@@ -1,5 +1,8 @@
 #include "FAccelStep.h"
 #include <PinConfig.h>
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif 
 
 // convert pins to internal pins in setupFastAccelStepper
 #ifdef USE_TCA9535
@@ -9,12 +12,15 @@
 #undef PIN_EXTERNAL_FLAG
 #define PIN_EXTERNAL_FLAG 0x00
 #endif
+
 using namespace FocusMotor;
+#ifdef TMC_CONTROLLER
+using namespace TMCController;
+#endif 
 namespace FAccelStep
 {
     void startFastAccelStepper(int i)
     {
-        // enableEnablePin(i);
         if (faststeppers[i] == nullptr)
         {
             log_e("stepper %i is null", i);
@@ -27,28 +33,51 @@ namespace FAccelStep
         }
 
         faststeppers[i]->setSpeedInHz(speed);
-        if(getData()[i]->acceleration <= 0) {
+        if (getData()[i]->acceleration <= 0)
+        {
             faststeppers[i]->setAcceleration(getData()[i]->acceleration);
         }
-        else{
+        else
+        {
             faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
         }
+
+        // if the motor speed is above threshold, maximise motor current to avoid stalling
+        #ifdef TMC_CONTROLLER // TODO: This is only working on TMC2209-enabled sattelite boards since we have only one TMC Controller for one motor
+        if (speed > 10000)
+        {
+            TMCController::loop();
+            TMCController::setTMCCurrent((int)((float)pinConfig.tmc_rms_current*1.5));
+        }
+        else
+        {
+            TMCController::setTMCCurrent(pinConfig.tmc_rms_current);
+        }
+        #endif
 
         getData()[i]->stopped = false;
         if (getData()[i]->isforever)
         {
             // run forver (e.g. PSx or initaited via Serial)
-            if (getData()[i]->speed > 0)
-            {
-                // run clockwise
-                faststeppers[i]->runForward();
-                //log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
-            }
-            else if (getData()[i]->speed < 0)
-            {
-                // run counterclockwise
-                faststeppers[i]->runBackward();
-                //log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+            for (int iStart = 0; iStart < 10; iStart++)
+            { // this is weird, but sometimes necessary for the very first start it seems - timing issue with the QUEUE? // TODO: / FIXME: !!
+                if (getData()[i]->speed > 0)
+                {
+                    // run clockwise
+                    faststeppers[i]->runForward();
+                    log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                }
+                else if (getData()[i]->speed < 0)
+                {
+                    // run counterclockwise
+                    faststeppers[i]->runBackward();
+                    log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                }
+                if (isRunning(i))
+                {
+                    log_i("We need %i starts to get the motor running", iStart);
+                    break;
+                }
             }
         }
         else
@@ -56,19 +85,18 @@ namespace FAccelStep
             if (getData()[i]->absolutePosition == 1)
             {
                 // absolute position coordinates
-                //log_i("moveTo %i", getData()[i]->targetPosition);
+                // log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
             else if (getData()[i]->absolutePosition == 0)
             {
                 // relative position coordinates
-                //log_i("move %i", getData()[i]->targetPosition);
+                // log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
             }
         }
 
-        
-        /*log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
+        log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
               getData()[i]->speed,
@@ -78,8 +106,7 @@ namespace FAccelStep
               getData()[i]->isaccelerated,
               getData()[i]->acceleration,
               getData()[i]->stopped,
-              isRunning(i));*/
-              
+              isRunning(i));
     }
 
     void setupFastAccelStepper()
@@ -107,7 +134,7 @@ namespace FAccelStep
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
             log_i("setupFastAccelStepper A");
-            setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR  | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
+            setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
             getData()[Stepper::A]->isActivated = true;
         }
 
@@ -160,7 +187,7 @@ namespace FAccelStep
             return;
         faststeppers[i]->forceStop();
         faststeppers[i]->stopMove();
-        //log_i("stop stepper %i", i);
+        log_i("stop stepper %i", i);
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();

@@ -33,9 +33,9 @@
 #endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
+#endif
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
-#endif
 #endif
 #ifdef CAN_CONTROLLER
 #include "../can/can_controller.h"
@@ -43,7 +43,6 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
-
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif

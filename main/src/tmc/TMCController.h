@@ -31,10 +31,10 @@ struct TMCData
 namespace TMCController
 {
     static Preferences preferences;
-    void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(cJSON * ob);
     cJSON * get(cJSON *  ob);
     void setup();
+    void setTMCCurrent(int current);
     void loop();
     void callibrateStallguard(int speed);
     void setTMCData(TMCData tmcData);

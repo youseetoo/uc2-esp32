@@ -53,21 +53,30 @@ jobs:
     - name: merge into one binary
       run: |
         dir .pio/build/seeed_xiao_esp32s3_ledring/ 
-        mv .pio/build/seeed_xiao_esp32s3_ledring/*.bin builds3/
-        cd builds3
-        python -m esptool --chip esp32s3 merge_bin  -o seeed_xiao_esp32s3_ledring.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 boot_app0.bin  0x10000 firmware.bin
+        cd .pio/build/seeed_xiao_esp32s3_ledring/
+        python -m esptool --chip esp32s3 merge_bin  -o seeed_xiao_esp32s3_ledring.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB 0x0000 bootloader.bin  0x8000 partitions.bin  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin  0x10000 firmware.bin
+
+    - name: Debug merged firmware
+      run: ls -l .pio/build/seeed_xiao_esp32s3_ledring/
+
+    - name: Check for merged firmware
+      run: |
+        if [ ! -f .pio/build/seeed_xiao_esp32s3_ledring/seeed_xiao_esp32s3_ledring.bin ]; then
+          echo "Merged firmware binary not found!"
+          exit 1
+        fi
 
     - uses: actions/upload-artifact@v3
       with:
         name: merged-firmware
-        path: builds3/seeed_xiao_esp32s3_ledring.bin
+        path: .pio/build/seeed_xiao_esp32s3_ledring/seeed_xiao_esp32s3_ledring.bin
 
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
         API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
       with:
-        source_file: 'builds3/seeed_xiao_esp32s3_ledring.bin'
+        source_file: '.pio/build/seeed_xiao_esp32s3_ledring/seeed_xiao_esp32s3_ledring.bin'
         destination_repo: 'youseetoo/youseetoo.github.io'
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'

@@ -25,6 +25,7 @@ struct HomeState
 	bool isHomed = false;
 	int homeInEndposReleaseMode = 0;
 	uint32_t currentPosition = 0;
+	int axis = 0;
 };
 
 void processHomeLoop(void * p);
@@ -46,5 +47,6 @@ namespace HomeMotor
 	void runStepper(int s);
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
 	HomeData** getHomeData();
+	void sendHomeDone(int axis);
 
 };

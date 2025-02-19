@@ -2,6 +2,9 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 
 using namespace FocusMotor;
 
@@ -13,7 +16,7 @@ namespace TMCController
     int act(cJSON *jsonDocument)
     {
 
-
+        log_i("TMC actuated");
         #ifdef I2C_MASTER
         TMCData tmcData;
 
@@ -29,6 +32,18 @@ namespace TMCController
         // send TMC data via I2C
         i2c_master::sendTMCDataI2C(tmcData, axis);
         return 0;
+        #elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+        // send TMC data via CAN
+        TMCData tmcData;
+        tmcData.msteps = cJsonTool::getJsonInt(jsonDocument, "msteps");
+        tmcData.rms_current = cJsonTool::getJsonInt(jsonDocument, "rms_current");
+        tmcData.stall_value = cJsonTool::getJsonInt(jsonDocument, "stall_value");
+        tmcData.sgthrs = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
+        tmcData.semin = cJsonTool::getJsonInt(jsonDocument, "semin");
+        tmcData.semax = cJsonTool::getJsonInt(jsonDocument, "semax");
+        int axis = cJsonTool::getJsonInt(jsonDocument, "axis");
+        can_controller::sendTMCDataToCANDriver(tmcData, axis);
+        return 0;
         #else
         if (pinConfig.tmc_SW_RX == disabled)
         {
@@ -39,7 +54,7 @@ namespace TMCController
         // modify the TMC2209 settings
         // {"task":"/tmc_act", "msteps":16, "rms_current":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
         // {"task":"/tmc_act", "reset": 1}
-        preferences.begin("TMC", false);
+        
 
         // calibrate stallguard?
         bool tmc_calibrate = cJsonTool::getJsonInt(jsonDocument, "calibrate");
@@ -80,6 +95,7 @@ namespace TMCController
             driver.toff(pinConfig.tmc_toff);
             return 0;
         }
+        preferences.begin("TMC", false);
         // microsteps
         int tmc_microsteps = cJsonTool::getJsonInt(jsonDocument, "msteps");
         if (tmc_microsteps != driver.microsteps() and tmc_microsteps > 0)
@@ -163,6 +179,11 @@ namespace TMCController
 
         preferences.end();
         Serial.println("TMC Actuated with new parameters.");
+        // disable/enable motor driver
+        digitalWrite(pinConfig.MOTOR_ENABLE, HIGH); // disable
+        delay(10);
+        digitalWrite(pinConfig.MOTOR_ENABLE, LOW); // enable
+        
         return 0;
         #endif
     }
@@ -196,6 +217,21 @@ namespace TMCController
         return monitor_json;
         #else
         return nullptr;
+        #endif
+    }
+
+    void setTMCCurrent(int current){
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return;
+        }
+        #ifdef TMC_CONTROLLER
+        preferences.begin("TMC", false);
+        preferences.putInt("current", current);
+        driver.rms_current(current);
+        preferences.end();
+        log_i("TMC2209 Current set to %i", current);
         #endif
     }
 
@@ -301,7 +337,7 @@ namespace TMCController
     {
         if (pinConfig.tmc_SW_RX == disabled)
         {
-            log_e("TMC2209 not enabled in this configuration");
+            log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
             return;
         }
 // TMC2209 Settings

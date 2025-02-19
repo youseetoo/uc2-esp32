@@ -74,6 +74,8 @@ namespace MotorJsonParser
 				cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 				cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 				cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
+				cJsonTool::setJsonInt(aritem, "isStop", FocusMotor::getData()[i]->isStop);
+
 				cJsonTool::setJsonInt(aritem, "isDualAxisZ", FocusMotor::getDualAxisZ());
 
 #ifdef I2C_SLAVE_MOTOR

@@ -2,6 +2,9 @@
 #include "FastAccelStepper.h"
 #include "FocusMotor.h"
 
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
 namespace FAccelStep
 {
 
@@ -21,4 +24,8 @@ namespace FAccelStep
     void setPosition(Stepper s, int val);
     bool isRunning(int i);
     void move(Stepper s, int steps, bool blocking);
+
+    // store old motor current for each motor
+    static int oldMotorCurrent[4] = {0, 0, 0, 0};
+
 };

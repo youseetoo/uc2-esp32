@@ -122,11 +122,8 @@ namespace FocusMotor
 
 	void startStepper(int axis, bool reduced = false)
 	{
-		if (xSemaphoreTake(xMutex, portMAX_DELAY))
+		if (1)//xSemaphoreTake(xMutex, portMAX_DELAY))
 		{
-			// log_i("startStepper %i at speed %i and targetposition %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition);
-			//  ensure isStop is false
-
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 			// Request data from the slave but only if inside i2cAddresses
 			getData()[axis]->isStop = false;
@@ -145,25 +142,21 @@ namespace FocusMotor
 			}
 #elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR) // sending from master to slave
 			// send the motor data to the slave
-			if (false) // FIXME: need to update this to CAN can_controller::isAddressInI2CDevices(slave_addr))
-			{
-				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
-			}
-			else
-			{
 				// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
 				MotorData *m = getData()[axis];
-				can_controller::startStepper(m, axis, reduced);
-				waitForFirstRun[axis] = 1;
-			}
+				int err = can_controller::startStepper(m, axis, reduced);
+				if (err != 0)
+				{
+					// we need to return the position right away
+					getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+					sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+				}
+
 #elif defined USE_FASTACCEL
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(axis);
 #endif
-			xSemaphoreGive(xMutex);
-
 			getData()[axis]->stopped = false;
 		}
 	}
@@ -375,6 +368,11 @@ namespace FocusMotor
 			stopStepper(i);
 		}
 #endif
+
+#ifdef CAN_SLAVE_MOTOR
+	// send current position to master
+	can_controller::sendMotorStateToMaster();
+#endif 
 
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535

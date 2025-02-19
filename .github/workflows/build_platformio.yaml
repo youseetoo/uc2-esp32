@@ -52,13 +52,13 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: merged-firmware
-        path: build/esp32_uc2_3.bin
+        path: build/UC2_3/esp32_uc2_3.bin
     - name: Push to youseetoo Webtool
       uses: dmnemec/copy_file_to_another_repo_action@main
       env:
         API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
       with:
-        source_file: '.pio/build/esp32_uc2_3/esp32_uc2_3.bin'      
+        source_file: '.pio/build/UC2_3/esp32_uc2_3.bin'      
         destination_repo: 'youseetoo/youseetoo.github.io'
         destination_folder: 'static/firmware_build'
         user_email: 'bene.d@gmx.de'

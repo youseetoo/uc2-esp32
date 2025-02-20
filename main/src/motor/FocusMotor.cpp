@@ -38,6 +38,13 @@ namespace FocusMotor
 	MotorData x_dat;
 	MotorData y_dat;
 	MotorData z_dat;
+	MotorData b_dat; 
+	MotorData c_dat; 
+	MotorData d_dat;
+	MotorData e_dat;
+	MotorData f_dat;
+	MotorData g_dat;
+
 	MotorData *data[MOTOR_AXIS_COUNT];
 
 	Preferences preferences;
@@ -185,10 +192,18 @@ namespace FocusMotor
 
 	void setup_data()
 	{
+
 		data[Stepper::A] = &a_dat;
 		data[Stepper::X] = &x_dat;
 		data[Stepper::Y] = &y_dat;
 		data[Stepper::Z] = &z_dat;
+		data[Stepper::B] = &b_dat;
+		data[Stepper::C] = &c_dat;
+		data[Stepper::D] = &d_dat;
+		data[Stepper::E] = &e_dat;
+		data[Stepper::F] = &f_dat;
+		data[Stepper::G] = &g_dat;
+
 		if (data[Stepper::A] == nullptr)
 			log_e("Stepper A data NULL");
 		if (data[Stepper::X] == nullptr)
@@ -197,6 +212,19 @@ namespace FocusMotor
 			log_e("Stepper Y data NULL");
 		if (data[Stepper::Z] == nullptr)
 			log_e("Stepper Z data NULL");
+		if (data[Stepper::B] == nullptr)
+			log_e("Stepper B data NULL");
+		if (data[Stepper::C] == nullptr)
+			log_e("Stepper C data NULL");
+		if (data[Stepper::D] == nullptr)
+			log_e("Stepper D data NULL");
+		if (data[Stepper::E] == nullptr)
+			log_e("Stepper E data NULL");
+		if (data[Stepper::F] == nullptr)
+			log_e("Stepper F data NULL");
+		if (data[Stepper::G] == nullptr)
+			log_e("Stepper G data NULL");
+
 
 		// Read dual axis from preferences if available
 		const char *prefNamespace = "UC2";
@@ -236,6 +264,48 @@ namespace FocusMotor
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
 			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
+		}
+		if (pinConfig.MOTOR_B_STEP >= 0)
+		{
+			data[Stepper::B]->dirPin = pinConfig.MOTOR_B_DIR;
+			data[Stepper::B]->stpPin = pinConfig.MOTOR_B_STEP;
+			data[Stepper::B]->currentPosition = preferences.getLong(("motor" + String(Stepper::B)).c_str());
+			log_i("Motor B position: %i", data[Stepper::B]->currentPosition);
+		}
+		if (pinConfig.MOTOR_C_STEP >= 0)
+		{
+			data[Stepper::C]->dirPin = pinConfig.MOTOR_C_DIR;
+			data[Stepper::C]->stpPin = pinConfig.MOTOR_C_STEP;
+			data[Stepper::C]->currentPosition = preferences.getLong(("motor" + String(Stepper::C)).c_str());
+			log_i("Motor C position: %i", data[Stepper::C]->currentPosition);
+		}
+		if (pinConfig.MOTOR_D_STEP >= 0)
+		{
+			data[Stepper::D]->dirPin = pinConfig.MOTOR_D_DIR;
+			data[Stepper::D]->stpPin = pinConfig.MOTOR_D_STEP;
+			data[Stepper::D]->currentPosition = preferences.getLong(("motor" + String(Stepper::D)).c_str());
+			log_i("Motor D position: %i", data[Stepper::D]->currentPosition);
+		}
+		if (pinConfig.MOTOR_E_STEP >= 0)
+		{
+			data[Stepper::E]->dirPin = pinConfig.MOTOR_E_DIR;
+			data[Stepper::E]->stpPin = pinConfig.MOTOR_E_STEP;
+			data[Stepper::E]->currentPosition = preferences.getLong(("motor" + String(Stepper::E)).c_str());
+			log_i("Motor E position: %i", data[Stepper::E]->currentPosition);
+		}
+		if (pinConfig.MOTOR_F_STEP >= 0)
+		{
+			data[Stepper::F]->dirPin = pinConfig.MOTOR_F_DIR;
+			data[Stepper::F]->stpPin = pinConfig.MOTOR_F_STEP;
+			data[Stepper::F]->currentPosition = preferences.getLong(("motor" + String(Stepper::F)).c_str());
+			log_i("Motor F position: %i", data[Stepper::F]->currentPosition);
+		}
+		if (pinConfig.MOTOR_G_STEP >= 0)
+		{
+			data[Stepper::G]->dirPin = pinConfig.MOTOR_G_DIR;
+			data[Stepper::G]->stpPin = pinConfig.MOTOR_G_STEP;
+			data[Stepper::G]->currentPosition = preferences.getLong(("motor" + String(Stepper::G)).c_str());
+			log_i("Motor G position: %i", data[Stepper::G]->currentPosition);
 		}
 		preferences.end();
 

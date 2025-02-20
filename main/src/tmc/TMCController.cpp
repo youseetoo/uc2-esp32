@@ -221,16 +221,14 @@ namespace TMCController
     }
 
     void setTMCCurrent(int current){
+        // This will change the driver's current but will not save it to preferences (e.g. won't survive boot)
         if (pinConfig.tmc_SW_RX == disabled)
         {
             log_e("TMC2209 not enabled in this configuration");
             return;
         }
         #ifdef TMC_CONTROLLER
-        preferences.begin("TMC", false);
-        preferences.putInt("current", current);
         driver.rms_current(current);
-        preferences.end();
         log_i("TMC2209 Current set to %i", current);
         #endif
     }

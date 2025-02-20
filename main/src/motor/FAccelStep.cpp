@@ -17,6 +17,7 @@ using namespace FocusMotor;
 #ifdef TMC_CONTROLLER
 using namespace TMCController;
 #endif 
+
 namespace FAccelStep
 {
     void startFastAccelStepper(int i)
@@ -51,7 +52,10 @@ namespace FAccelStep
         }
         else
         {
-            TMCController::setTMCCurrent(pinConfig.tmc_rms_current);
+            // get rms current from preferences
+            preferences.begin("TMC", false);
+            TMCController::setTMCCurrent(preferences.getInt("current", pinConfig.tmc_rms_current));
+            preferences.end();
         }
         #endif
 

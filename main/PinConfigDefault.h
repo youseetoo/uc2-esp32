@@ -112,6 +112,21 @@ struct PinConfig
      int8_t MOTOR_A_DIR = disabled;
      // motor a step pin
      int8_t MOTOR_A_STEP = disabled;
+
+     // additional dummy pins 
+     int8_t MOTOR_B_DIR = disabled;
+     int8_t MOTOR_B_STEP = disabled;
+     int8_t MOTOR_C_DIR = disabled;
+     int8_t MOTOR_C_STEP = disabled;
+     int8_t MOTOR_D_DIR = disabled;
+     int8_t MOTOR_D_STEP = disabled;
+     int8_t MOTOR_E_DIR = disabled;
+     int8_t MOTOR_E_STEP = disabled;
+     int8_t MOTOR_F_DIR = disabled;
+     int8_t MOTOR_F_STEP = disabled;
+     int8_t MOTOR_G_DIR = disabled;
+     int8_t MOTOR_G_STEP = disabled;
+     
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted

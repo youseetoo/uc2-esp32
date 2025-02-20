@@ -2,8 +2,8 @@
 
 
 const long MAX_VELOCITY_A = 20000;
-const long MAX_ACCELERATION_A = 50000;
-const long DEFAULT_ACCELERATION = 50000;
+const long MAX_ACCELERATION_A = 20000;
+const long DEFAULT_ACCELERATION = 20000;
 const int MOTOR_AXIS_COUNT = 10;
 
 struct MotorState {

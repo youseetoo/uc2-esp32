@@ -2,6 +2,9 @@
 #include "esp_err.h"
 #include "Arduino.h"
 
+
+#define MOTOR_AXIS_COUNT 4
+
 // default Pin structure
 
 /*
@@ -153,6 +156,7 @@ struct PinConfig
      int8_t MOTOR_Z_1 = disabled;
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
+
 
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;

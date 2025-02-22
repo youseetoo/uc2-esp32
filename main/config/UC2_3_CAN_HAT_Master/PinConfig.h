@@ -16,6 +16,7 @@
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
 
+#define MOTOR_AXIS_COUNT 10   
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*
@@ -29,6 +30,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+
      bool isDualAxisZ = false;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity

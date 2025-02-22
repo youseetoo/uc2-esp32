@@ -45,7 +45,7 @@ namespace FocusMotor
 	MotorData f_dat;
 	MotorData g_dat;
 
-	MotorData *data[MOTOR_AXIS_COUNT];
+	MotorData *data[MOTOR_AXIS_COUNT]; // TODO!!! 
 
 	Preferences preferences;
 	int logcount;
@@ -326,6 +326,12 @@ namespace FocusMotor
 		{
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
+			// only test those motors that are activated
+			if (data[iMotor]->isActivated)
+			{
+				// need to activate the motor's dir pin eventually
+				// This also updates the dial's positions
+				// only test those motors that are activated
 			Stepper s = static_cast<Stepper>(iMotor);
 			data[s]->absolutePosition = false;
 			data[s]->targetPosition = -1;
@@ -336,6 +342,7 @@ namespace FocusMotor
 			startStepper(iMotor, true);
 			delay(10);
 			stopStepper(iMotor);
+			}
 		}
 	}
 #else

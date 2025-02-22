@@ -95,6 +95,7 @@ namespace HomeMotor
 
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ)
 	{
+		Serial.println("HOME");
 		// set the home data and start the motor - mostly used from I2C
 		hdata[axis]->homeTimeout = homeTimeout;
 		hdata[axis]->homeSpeed = homeSpeed;

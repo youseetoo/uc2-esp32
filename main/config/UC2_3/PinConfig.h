@@ -11,8 +11,6 @@
 #define HOME_MOTOR
 #define LASER_CONTROLLER
 #define DIGITAL_IN_CONTROLLER
-#define ENCODER_CONTROLLER
-#define DIAL_CONTROLLER
 #define LED_CONTROLLER
 
 struct UC2_3 : PinConfig

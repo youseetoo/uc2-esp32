@@ -1,6 +1,10 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
+
+#undef MOTOR_AXIS_COUNT
+// redfine
+#define MOTOR_AXIS_COUNT 10
 #undef PSXCONTROLLER
 
 #define CORE_DEBUG_LEVEL
@@ -14,6 +18,7 @@
 #define DIGITAL_IN_CONTROLLER
 #define USE_FASTACCEL
 #define TMC_CONTROLLER
+
 
 struct UC2_3_XIAO_Slave_Motor : PinConfig
 {

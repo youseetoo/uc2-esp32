@@ -57,6 +57,8 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             } else {
                 ESP_LOGE(TAG, " OPEN failed!");
                 ESP_LOGE(TAG, "  status: %d", param->open.status);
+                // print the heap memory
+                ESP_LOGE(TAG, "  heap: %d", ESP.getFreeHeap());
             }
             break;
         case ESP_HIDH_BATTERY_EVENT: {

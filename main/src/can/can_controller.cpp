@@ -57,7 +57,7 @@ namespace can_controller
 #ifdef MOTOR_CONTROLLER
 
         // Parse as MotorData
-        log_i("Received MotorData from CAN, size: %i, txID: %i, rxID: %i", size, txID, rxID);
+        // log_i("Received MotorData from CAN, size: %i, txID: %i, rxID: %i", size, txID, rxID);
         if (size == sizeof(MotorData))
         {
             MotorData receivedMotorData;
@@ -84,7 +84,7 @@ namespace can_controller
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
             */
-            log_i("Received MotorData from can, isEnable: %i, targetPosition: %i, absolutePosition: %i, speed: %i, acceleration: %i, isforever: %i, isStop: %i", receivedMotorData.isEnable, receivedMotorData.targetPosition, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration, receivedMotorData.isforever, receivedMotorData.isStop);
+            // log_i("Received MotorData from can, isEnable: %i, targetPosition: %i, absolutePosition: %i, speed: %i, acceleration: %i, isforever: %i, isStop: %i", receivedMotorData.isEnable, receivedMotorData.targetPosition, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration, receivedMotorData.isforever, receivedMotorData.isStop);
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
         }
         else if (size == sizeof(MotorDataReduced))
@@ -100,7 +100,7 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
-            log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
+            // log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
         else if (size == sizeof(HomeData))
         {
@@ -114,16 +114,16 @@ namespace can_controller
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
-            log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            // log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
         }
         else if (size == sizeof(TMCData))
         {
             // parse incoming TMC Data and apply that to the TMC driver
-            log_i("Received TMCData from CAN, size: %i, txID: %i", size, txID);
+            // log_i("Received TMCData from CAN, size: %i, txID: %i", size, txID);
             TMCData receivedTMCData;
             memcpy(&receivedTMCData, data, sizeof(TMCData));
-            log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
+            // log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
             TMCController::setTMCData(receivedTMCData);
         }
         else
@@ -157,7 +157,7 @@ namespace can_controller
             MotorState receivedMotorState;
             memcpy(&receivedMotorState, data, sizeof(MotorState));
 
-            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
+            // log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
             int mStepper = receivedMotorState.axis;
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
@@ -170,7 +170,7 @@ namespace can_controller
             HomeState receivedHomeState;
             memcpy(&receivedHomeState, data, sizeof(HomeState));
             int mStepper = receivedHomeState.axis;
-            log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
+            // log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
             // check if mStepper is inside the range of the motors
             if (mStepper < 0 || mStepper > 3)
             {
@@ -199,7 +199,7 @@ namespace can_controller
         {
             memcpy(&laser, data, sizeof(laser));
             // Do something with laser data
-            log_i("Laser intensity: %d", laser.LASERval);
+            // log_i("Laser intensity: %d", laser.LASERval);
             // assign PWM channesl to the laserid
             if (laser.LASERid == 0)
             {
@@ -232,7 +232,7 @@ namespace can_controller
         uint32_t txID = pdu.txId; // ID to which the message was sent
         uint8_t *data = pdu.data; // Data buffer
         size_t size = pdu.len;    // Data size
-        log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
+        // log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
 
         // this is coming from the central node, so slaves should react
         /*
@@ -289,7 +289,7 @@ namespace can_controller
             log_e("Error: Cannot set CAN address to the central node");
             address = pinConfig.CAN_ID_CENTRAL_NODE;
         }
-        log_i("Setting CAN address to %u", address);
+        // log_i("Setting CAN address to %u", address);
         Preferences preferences;
         preferences.begin("CAN", false);
         preferences.putUInt("address", address);
@@ -317,7 +317,7 @@ void canSendTask(void *pvParameters) {
                 log_e("Error sending CAN message to %u", pdu.txId);
             }
             else{
-                log_i("Sent CAN message to %u", pdu.txId);
+                // log_i("Sent CAN message to %u", pdu.txId);
             }
             if (pdu.data != nullptr) {  // Ensure it's valid before deleting
                 //delete[] pdu.data;
@@ -344,7 +344,6 @@ void canSendTask(void *pvParameters) {
         if (isIDInAvailableCANDevices(receiverID))
         {
             log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
-            return -1;
         }
 
         if (xSemaphoreTake(canMutex, portMAX_DELAY) == pdTRUE)
@@ -414,7 +413,7 @@ void canSendTask(void *pvParameters) {
                     // check if ID is in nonAvailableCANids
                     if (nonAvailableCANids[i] == rxID)
                     {
-                        log_i("Removing %u from the list of non-working motors", rxID);
+                        // log_i("Removing %u from the list of non-working motors", rxID);
                         nonAvailableCANids[i] = 0; // Address found
                     }
                 }
@@ -445,7 +444,7 @@ void canSendTask(void *pvParameters) {
             return;
         }
 
-        log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
+        // log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         uint8_t mCurrentAddress = getCANAddress();
@@ -489,7 +488,7 @@ void canSendTask(void *pvParameters) {
         }
 
         else
-            log_i("Motor json is null");
+            // log_i("Motor json is null");
         return 0;
     }
 
@@ -508,7 +507,7 @@ void canSendTask(void *pvParameters) {
         if (getData()[axis] != nullptr)
         {
             // positionsPushedToDial = false;
-            log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
+            // log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
             getData()[axis]->isStop = false; // ensure isStop is false
             getData()[axis]->stopped = false;
             int err = sendMotorDataToCANDriver(*getData()[axis], axis, reduced);
@@ -532,7 +531,7 @@ void canSendTask(void *pvParameters) {
     {
 // stop the motor
 #ifdef MOTOR_CONTROLLER
-        log_i("Stopping motor on axis %i", axis);
+        // log_i("Stopping motor on axis %i", axis);
         getData()[axis]->isStop = true;
         getData()[axis]->stopped = true;
         int err = sendMotorDataToCANDriver(*getData()[axis], axis, true);
@@ -561,7 +560,7 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("MotorState to master at address %i, currentPosition: %i, isRunning: %i, size %i", slave_addr, motorState.currentPosition, motorState.isRunning, dataSize);
+            // log_i("MotorState to master at address %i, currentPosition: %i, isRunning: %i, size %i", slave_addr, motorState.currentPosition, motorState.isRunning, dataSize);
         }
     }
 
@@ -591,7 +590,7 @@ void canSendTask(void *pvParameters) {
         int dataSize = 0;
         if (reduced)
         {
-            log_i("Reducing MotorData to axis: %i at address: %u", axis, slave_addr);
+            // log_i("Reducing MotorData to axis: %i at address: %u", axis, slave_addr);
             MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
             reducedData.isforever = motorData.isforever;
@@ -605,7 +604,7 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("Sending MotorData to axis: %i", axis);
+            // log_i("Sending MotorData to axis: %i", axis);
             // Cast the structure to a byte array
             uint8_t *dataPtr = (uint8_t *)&motorData;
             dataSize = sizeof(MotorData);
@@ -617,7 +616,7 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
+            // log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
         return err;
     }
@@ -626,7 +625,7 @@ void canSendTask(void *pvParameters) {
     {
         // send home data to slave via
         uint32_t slave_addr = axis2id(axis);
-        log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
+        // log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
         uint8_t *dataPtr = (uint8_t *)&homeData;
         int dataSize = sizeof(HomeData);
         int err = sendCanMessage(slave_addr, dataPtr, dataSize);
@@ -636,7 +635,7 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("Home data sent to CAN slave at address %i", slave_addr);
+            // log_i("Home data sent to CAN slave at address %i", slave_addr);
         }
     }
 
@@ -655,12 +654,13 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("HomeState to master at address %i, isHoming: %i, homeInEndposReleaseMode: %i, size %i, axis: %i",
+            /* log_i("HomeState to master at address %i, isHoming: %i, homeInEndposReleaseMode: %i, size %i, axis: %i",
                   receiverID,
                   homeState.isHoming,
                   homeState.homeInEndposReleaseMode,
                   dataSize,
                   homeState.axis);
+                  */
         }
     }
 
@@ -668,7 +668,7 @@ void canSendTask(void *pvParameters) {
     {
         // send TMC Data to remote Motor
         uint32_t slave_addr = axis2id(axis);
-        log_i("Sending TMCData to axis: %i", axis);
+        // log_i("Sending TMCData to axis: %i", axis);
         uint8_t *dataPtr = (uint8_t *)&tmcData;
         int dataSize = sizeof(TMCData);
         int err = sendCanMessage(slave_addr, dataPtr, dataSize);
@@ -678,7 +678,7 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
+            // log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
         }
     }
 
@@ -703,7 +703,7 @@ void canSendTask(void *pvParameters) {
         }
         else
         {
-            log_i("LaserData to master at address %i, laser intensity: %i, size %i", receiverID, laserData.LASERval, dataSize);
+            // log_i("LaserData to master at address %i, laser intensity: %i, size %i", receiverID, laserData.LASERval, dataSize);
         }
     }
 

@@ -93,8 +93,9 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      
 
      // Endstops should be the same for all - depending on the motor
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
-
+     uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
+     uint8_t objectivePositionX1 = 10000;
+     uint8_t objectivePositionX2 = 80000;
 };
   
 const UC2_3_XIAO_Slave_Motor pinConfig;

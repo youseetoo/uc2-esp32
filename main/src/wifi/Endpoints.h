@@ -29,6 +29,11 @@ __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
 __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
 #endif
 
+#ifdef OBJECTIVE_CONTROLLER
+__attribute__ ((unused)) static const  char* objective_act_endpoint = "/objective_act";
+__attribute__ ((unused)) static const  char* objective_get_endpoint = "/objective_get";
+#endif
+
 #ifdef I2C_MASTER
 __attribute__ ((unused)) static const  char* i2c_act_endpoint = "/i2c_act";
 __attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";

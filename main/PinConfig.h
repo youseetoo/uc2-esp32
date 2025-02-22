@@ -2,99 +2,106 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#undef MOTOR_AXIS_COUNT
-// redfine
-#define MOTOR_AXIS_COUNT 10
-#undef PSXCONTROLLER
+#define CORE_DEBUG_LEVEL=5
+#define LASER_CONTROLLER=1
+#define DIGITAL_IN_CONTROLLER=1
+#define MESSAGE_CONTROLLER=1
+#define ENCODER_CONTROLLER=1
+#define LINEAR_ENCODER_CONTROLLER=1
+#define CAN_CONTROLLER=1
+#define DIAL_CONTROLLER=1
+#define MOTOR_CONTROLLER=1
+#define HOME_MOTOR=1
+#define BTHID=1 
+#define BLUETOOTH=1	
+#define TMC_CONTROLLER=1
+#define OBJECTIVE_CONTROLLER=1
 
-#define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
-#define DIGITAL_IN_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_SLAVE_MOTOR
-#define CAN_CONTROLLER
-#define MOTOR_CONTROLLER
-#define HOME_MOTOR
-#define DIGITAL_IN_CONTROLLER
-#define USE_FASTACCEL
-#define TMC_CONTROLLER
-
-
-struct UC2_3_XIAO_Slave_Motor : PinConfig
+#define MOTOR_AXIS_COUNT 10   
+struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*
-     D0: 1
-     D1: 2
-     D2: 3
-     D3: 4
-     D4: 5
-     D5: 6
-     D6: 43
-     D7: 44
-     D8: 7
-     D9: 8
-     D10: 9
-
-     #define STALL_VALUE     100  // StallGuard sensitivity [0..255]
-     #define EN_PIN           D10   // PA4_A1_D1 (Pin 2) Enable pin for motor driver
-     #define DIR_PIN          D8   // PA02_A0_D0 (Pin 1) Direction pin
-     #define STEP_PIN         D9   // PA10_A2_D2 (Pin 3) Step pin
-     #define SW_RX            D7   // PB09_D7_RX (Pin 8) UART RX pin for TMC2209
-     #define SW_TX            D6   // PB08_A6_TX (Pin 7) UART TX pin for TMC2209
-     #define SERIAL_PORT Serial1  // UART Serial port for TMC2209
-     #define I2C_SCL_ext      D5   // PB07_A5_D5 (Pin 6) I2C SCL pin
-     #define I2C_SDA_ext      D4   // PB06_A4_D4 (Pin 5) I2C SDA pin
-     #define I2C_SCL_int     D2   // PA14_A3_D3 (Pin 4) I2C SCL pin
-     #define I2C_SDA_int     D3   // PA13_A10_D10 (Pin 9) I2C SDA pin
-
-    This is a test to work with the UC2_3 board which acts as a I2C slave
+     This is the newest electronics where direction/enable are on a seperate port extender
      */
-     
-     const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
+  
+     const char * pindefName = "UC2_3_CAN_HAT_Master";
      const unsigned long BAUDRATE = 115200;
 
-     int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
-     int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7
-     int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
+     int8_t MOTOR_A_STEP = GPIO_NUM_0;
+     int8_t MOTOR_X_STEP = GPIO_NUM_0;
+     int8_t MOTOR_Y_STEP = GPIO_NUM_0;
+     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+
+     bool isDualAxisZ = false;
+     
+     bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_encoderDirection = true; 
+     bool ENC_Y_encoderDirection = true; 
+     bool ENC_Z_encoderDirection = true; 
+     bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
+     bool ENC_X_motorDirection = true;
+     bool ENC_Y_motorDirection = true;
+     bool ENC_Z_motorDirection = true;
+
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = false;
+     bool MOTOR_AUTOENABLE = true;
      int8_t AccelStepperMotorType = 1;
 
-     // I2c - as slave
-     const char *I2C_NAME = "MOTX";
-     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
-     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2 
-     int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
-     
-     // I2C  - as controller 
-     int8_t I2C_SCL_ext = GPIO_NUM_5; // D5 -> GPIO5
-     int8_t I2C_SDA_ext = GPIO_NUM_4; // D4 -> GPIO4
+     int8_t LASER_1 = disabled;
+     int8_t LASER_2 = disabled;
+     int8_t LASER_3 = disabled;
 
-     // TMC UART 
-     int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
-     int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
-     int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
-     
-     int tmc_microsteps = 16;
-     int tmc_rms_current = 500;
-     int tmc_stall_value = 100;
-     int tmc_sgthrs = 100;
-     int tmc_semin = 5;
-     int tmc_semax = 2;
-     int tmc_sedn = 0b01;
-     int tmc_tcoolthrs = 0xFFFFF;
-     int tmc_blank_time = 24;
-     int tmc_toff = 4;
+     int8_t LED_PIN = GPIO_NUM_19;
+     int8_t LED_COUNT = 1;
 
+     // FIXME: Is this redudant?!
+     int8_t DIGITAL_IN_1 = disabled;
+     int8_t DIGITAL_IN_2 = disabled;
+     int8_t DIGITAL_IN_3 = disabled;
+     
+     int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
+
+     // const char * PSX_MAC = "1a:2b:3c:01:01:04";
+     // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
+     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
+     
+     // for caliper
+     int8_t ENC_X_A = disabled;
+     int8_t ENC_Y_A = disabled;
+     int8_t ENC_Z_A = disabled;
+     int8_t ENC_X_B = disabled;
+     int8_t ENC_Y_B = disabled;
+     int8_t ENC_Z_B = disabled;
+
+     // I2c
+     int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
+     int8_t I2C_SDA = GPIO_NUM_21;
+
+
+
+     // WIFI - specific to SEEED microscope
+     const char *mSSID = "UC2x-CAN-HAT";
+     const char *mPWD =  "";
+     bool mAP = true; // false;
+     const char *mSSIDAP = "UC2";            
+     const char *hostname = "youseetoo";     
+
+     
      // CAN
-     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
-     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
-     uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
-     
+     int8_t CAN_TX = GPIO_NUM_17;
+     int8_t CAN_RX = GPIO_NUM_18;
 
-     // Endstops should be the same for all - depending on the motor
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
+     uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
 
+     // Objective
+     uint8_t objectiveMotorAxis = 0; // 0=A, 1=X, 2=Y, 3=Z
+     uint32_t objectivePositionX1 = 10000;
+     uint32_t objectivePositionX2 = 70000;
+     int8_t objectiveHomeDirection = -1;
+     int8_t objectiveHomeEndStopPolarity = 0;
+			
 };
-  
-const UC2_3_XIAO_Slave_Motor pinConfig;
+const UC2_3_CAN_HAT_Master pinConfig;

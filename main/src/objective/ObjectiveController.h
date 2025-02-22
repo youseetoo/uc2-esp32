@@ -18,4 +18,6 @@ namespace ObjectiveController
     cJSON* get(cJSON *doc);
     void setup();
     void loop();
+    void setIsHomed(bool isHomed);
+
 }

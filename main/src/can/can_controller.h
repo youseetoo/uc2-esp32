@@ -40,10 +40,6 @@ typedef struct
 
 namespace can_controller
 {
-
-    // allocate memory for the generic data pointer 
-    static uint8_t *genericDataPtr = nullptr;
-
     static unsigned long lastSend = 0;
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
@@ -52,7 +48,7 @@ namespace can_controller
 
     // general CAN-related functions
     uint32_t axis2id(int axis);
-    int receiveCanMessage(uint32_t senderID, uint8_t *data);
+    int receiveCanMessage(uint32_t senderID);
     int sendCanMessage(uint32_t receiverID, const uint8_t *data);
     void setCANAddress(uint32_t address);
     uint32_t getCANAddress();

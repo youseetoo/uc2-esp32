@@ -238,16 +238,16 @@ namespace can_controller
         */
         // if the message was sent from the central node, we need to parse the data and perform an action (e.g. _act , _get) on the slave side
         // assuming the slave is a motor, we can parse the data and send it to the motor
-        int canid = getCANAddress();
-        if (rxID == canid && (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X || rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
+        
+        if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X || rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
         {
             parseMotorAndHomeData(data, size, rxID, rxID);
         }
-        else if (rxID == canid && (rxID == pinConfig.CAN_ID_LASER_0 || rxID == pinConfig.CAN_ID_LASER_1 || rxID == pinConfig.CAN_ID_LASER_2) || rxID == pinConfig.CAN_ID_LASER_3)
+        else if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_LASER_0 || rxID == pinConfig.CAN_ID_LASER_1 || rxID == pinConfig.CAN_ID_LASER_2) || rxID == pinConfig.CAN_ID_LASER_3)
         {
             parseLaserData(data, size, rxID);
         }
-        else if (rxID == canid && (size == sizeof(MotorState) or size == sizeof(HomeState))) // this is coming from the X motor
+        else if (rxID == device_can_id && (size == sizeof(MotorState) or size == sizeof(HomeState))) // this is coming from the X motor
         {
             /*
             FROM THE DEVICES => update the state

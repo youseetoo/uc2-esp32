@@ -23,6 +23,7 @@ namespace can_controller
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
     static QueueHandle_t canQueue;
+    QueueHandle_t recieveQueue;
     uint8_t device_can_id;
 
     // for A,X,Y,Z intialize the I2C addresses
@@ -238,7 +239,7 @@ namespace can_controller
         */
         // if the message was sent from the central node, we need to parse the data and perform an action (e.g. _act , _get) on the slave side
         // assuming the slave is a motor, we can parse the data and send it to the motor
-        
+
         if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X || rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
         {
             parseMotorAndHomeData(data, size, rxID, rxID);
@@ -324,7 +325,7 @@ namespace can_controller
                     // log_i("Sent CAN message to %u", pdu.txId);
                 }
             }
-            vTaskDelay(1);//give other tasks cputime
+            vTaskDelay(1); // give other tasks cputime
         }
     }
 
@@ -348,7 +349,7 @@ namespace can_controller
         }
 
         pdu_t txPdu;
-        memcpy(txPdu.data, data,size);
+        memcpy(txPdu.data, data, size);
         txPdu.len = size;
         txPdu.txId = receiverID;      // the target ID
         txPdu.rxId = getCANAddress(); // the current ID
@@ -394,9 +395,9 @@ namespace can_controller
         int ret;
         // receive data from any node
         pdu_t rxPdu;
-        //get filled on recieve
-        //rxPdu.data = genericDataPtr;
-        //rxPdu.len = sizeof(genericDataPtr);
+        // get filled on recieve
+        // rxPdu.data = genericDataPtr;
+        // rxPdu.len = sizeof(genericDataPtr);
         rxPdu.rxId = rxID; // broadcast => 0 - listen to all ids
         rxPdu.txId = 0;    // it really (!!!) doesn't matter when receiving frames, could use anything - but we use the current id
         ret = isoTpSender.receive(&rxPdu, 50);
@@ -416,11 +417,42 @@ namespace can_controller
         }
         if (ret == 0)
         {
+            if (xQueueSend(recieveQueue, &rxPdu, 0) != pdPASS)
+            {
+                log_w("Queue full! Dropping CAN message to %u", receiverID);
+                return -1;
+            }
             // this has txPdu => 0
             // this has rxPdu => frame.identifier (which is the ID from the current device)
-            dispatchIsoTpData(rxPdu);
+            
         }
         return ret;
+    }
+    void processCanMsgTask(void *p)
+    {
+        pdu_t rxPdu;
+        while (true)
+        {
+            if (xQueueReceive(recieveQueue, &rxPdu, portMAX_DELAY) == pdTRUE)
+            {
+                dispatchIsoTpData(rxPdu);
+            }
+            vTaskDelay(1); // give other tasks cputime
+        }
+    }
+
+    void recieveTask(void *p)
+    {
+        // Check if there's a new message
+        // pdu->txId = <other node's ID>
+        // pdu->rxId = <my ID>
+        // receive only messages that are sent to the current address
+        //     int receiveCanMessage(uint32_t rxID, uint8_t *data)
+        while (true)
+        {
+            int mError = receiveCanMessage(device_can_id);
+            vTaskDelay(1);
+        }
     }
 
     void setup()
@@ -429,7 +461,10 @@ namespace can_controller
         device_can_id = getCANAddress();
         int CAN_QUEUE_SIZE = 5;
         canQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
+        recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
+        xTaskCreate(recieveTask, "CAN_RecieveTask", 4096, NULL, 1, NULL);
+        xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 4096, NULL, 1, NULL);
 
         if (canQueue == nullptr)
         {
@@ -594,7 +629,7 @@ namespace can_controller
             reducedData.speed = motorData.speed;
             reducedData.isStop = motorData.isStop;
 
-            err = sendCanMessage(slave_addr, (uint8_t*)&reducedData,  sizeof(MotorDataReduced));
+            err = sendCanMessage(slave_addr, (uint8_t *)&reducedData, sizeof(MotorDataReduced));
         }
         else
         {
@@ -716,17 +751,4 @@ namespace can_controller
         return doc;
     }
 
-    void loop()
-    {
-        // Check if there's a new message
-        if (millis() - lastSend >= 10)
-        {
-            // pdu->txId = <other node's ID>
-            // pdu->rxId = <my ID>
-            // receive only messages that are sent to the current address
-            //     int receiveCanMessage(uint32_t rxID, uint8_t *data)
-            int mError = receiveCanMessage(device_can_id);
-            // parse the data depending on the ID's strucutre and size
-        }
-    }
 }

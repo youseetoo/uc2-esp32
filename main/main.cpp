@@ -184,10 +184,6 @@ extern "C" void looper(void *p)
 		i2c_master::loop();
 		vTaskDelay(1);
 #endif
-#ifdef CAN_CONTROLLER
-		can_controller::loop();
-		vTaskDelay(1);
-#endif
 #ifdef PID_CONTROLLER
 		PidController::loop();
 		vTaskDelay(1);

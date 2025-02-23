@@ -44,7 +44,6 @@ namespace can_controller
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
     void setup();
-    void loop();
 
     // general CAN-related functions
     uint32_t axis2id(int axis);

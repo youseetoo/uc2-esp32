@@ -2,6 +2,9 @@
 #include "esp_err.h"
 #include "Arduino.h"
 
+
+#define MOTOR_AXIS_COUNT 4
+
 // default Pin structure
 
 /*
@@ -112,6 +115,21 @@ struct PinConfig
      int8_t MOTOR_A_DIR = disabled;
      // motor a step pin
      int8_t MOTOR_A_STEP = disabled;
+
+     // additional dummy pins 
+     int8_t MOTOR_B_DIR = disabled;
+     int8_t MOTOR_B_STEP = disabled;
+     int8_t MOTOR_C_DIR = disabled;
+     int8_t MOTOR_C_STEP = disabled;
+     int8_t MOTOR_D_DIR = disabled;
+     int8_t MOTOR_D_STEP = disabled;
+     int8_t MOTOR_E_DIR = disabled;
+     int8_t MOTOR_E_STEP = disabled;
+     int8_t MOTOR_F_DIR = disabled;
+     int8_t MOTOR_F_STEP = disabled;
+     int8_t MOTOR_G_DIR = disabled;
+     int8_t MOTOR_G_STEP = disabled;
+     
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted
@@ -138,6 +156,7 @@ struct PinConfig
      int8_t MOTOR_Z_1 = disabled;
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
+
 
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
@@ -283,6 +302,12 @@ struct PinConfig
     uint32_t CAN_ID_MOT_X = 0x111;
     uint32_t CAN_ID_MOT_Y = 0x112;
     uint32_t CAN_ID_MOT_Z = 0x113;
+    uint32_t CAN_ID_MOT_B = 0x114;
+    uint32_t CAN_ID_MOT_C = 0x115;
+     uint32_t CAN_ID_MOT_D = 0x116;
+     uint32_t CAN_ID_MOT_E = 0x117;
+     uint32_t CAN_ID_MOT_F = 0x118;
+     uint32_t CAN_ID_MOT_G = 0x119;
 
     uint32_t CAN_ID_LASER_0 = 0x220;
     uint32_t CAN_ID_LASER_1 = 0x221;

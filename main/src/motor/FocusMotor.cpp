@@ -38,7 +38,14 @@ namespace FocusMotor
 	MotorData x_dat;
 	MotorData y_dat;
 	MotorData z_dat;
-	MotorData *data[4];
+	MotorData b_dat; 
+	MotorData c_dat; 
+	MotorData d_dat;
+	MotorData e_dat;
+	MotorData f_dat;
+	MotorData g_dat;
+
+	MotorData *data[MOTOR_AXIS_COUNT]; // TODO!!! 
 
 	Preferences preferences;
 	int logcount;
@@ -61,7 +68,7 @@ namespace FocusMotor
 			return data;
 		else
 		{
-			MotorData *mData[4];
+			MotorData *mData[MOTOR_AXIS_COUNT];
 			return mData;
 		}
 	}
@@ -71,54 +78,6 @@ namespace FocusMotor
 		memcpy(data[axis], mData, sizeof(MotorData));
 		// getData()[axis] = mData;
 	}
-
-	// method is unused
-	/*
-	#ifdef WIFI
-		void sendUpdateToClients(void *p)
-		{
-			for (;;)
-			{
-				cJSON *root = cJSON_CreateObject();
-				cJSON *stprs = cJSON_CreateArray();
-				cJSON_AddItemToObject(root, key_steppers, stprs);
-				int added = 0;
-				for (int i = 0; i < 4; i++)
-				{
-					if (!data[i]->stopped)
-					{
-						updateData(i);
-						cJSON *item = cJSON_CreateObject();
-						cJSON_AddItemToArray(stprs, item);
-						cJSON_AddNumberToObject(item, key_stepperid, i);
-						cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
-						cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
-						added++;
-					}
-				}
-				if (added > 0)
-				{
-	#ifdef WIFI
-					WifiController::sendJsonWebSocketMsg(root);
-	#endif
-					// print result - will that work in the case of an xTask?
-					Serial.println("++");
-					char *s = cJSON_PrintUnformatted(root);
-					Serial.println(s);
-					free(s);
-					Serial.println("--");
-				}
-	#ifdef I2C_MASTER and defined DIAL_CONTROLLER
-				i2c_master::pushMotorPosToDial();
-	#endif
-	#ifdef CAN_SLAVE_MOTOR
-	#endif
-				cJSON_Delete(root);
-				vTaskDelay(1000 / portTICK_PERIOD_MS);
-			}
-		}
-	#endif
-	*/
 
 	void startStepper(int axis, bool reduced = false)
 	{
@@ -233,10 +192,18 @@ namespace FocusMotor
 
 	void setup_data()
 	{
+
 		data[Stepper::A] = &a_dat;
 		data[Stepper::X] = &x_dat;
 		data[Stepper::Y] = &y_dat;
 		data[Stepper::Z] = &z_dat;
+		data[Stepper::B] = &b_dat;
+		data[Stepper::C] = &c_dat;
+		data[Stepper::D] = &d_dat;
+		data[Stepper::E] = &e_dat;
+		data[Stepper::F] = &f_dat;
+		data[Stepper::G] = &g_dat;
+
 		if (data[Stepper::A] == nullptr)
 			log_e("Stepper A data NULL");
 		if (data[Stepper::X] == nullptr)
@@ -245,6 +212,19 @@ namespace FocusMotor
 			log_e("Stepper Y data NULL");
 		if (data[Stepper::Z] == nullptr)
 			log_e("Stepper Z data NULL");
+		if (data[Stepper::B] == nullptr)
+			log_e("Stepper B data NULL");
+		if (data[Stepper::C] == nullptr)
+			log_e("Stepper C data NULL");
+		if (data[Stepper::D] == nullptr)
+			log_e("Stepper D data NULL");
+		if (data[Stepper::E] == nullptr)
+			log_e("Stepper E data NULL");
+		if (data[Stepper::F] == nullptr)
+			log_e("Stepper F data NULL");
+		if (data[Stepper::G] == nullptr)
+			log_e("Stepper G data NULL");
+
 
 		// Read dual axis from preferences if available
 		const char *prefNamespace = "UC2";
@@ -285,6 +265,48 @@ namespace FocusMotor
 			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
+		if (pinConfig.MOTOR_B_STEP >= 0)
+		{
+			data[Stepper::B]->dirPin = pinConfig.MOTOR_B_DIR;
+			data[Stepper::B]->stpPin = pinConfig.MOTOR_B_STEP;
+			data[Stepper::B]->currentPosition = preferences.getLong(("motor" + String(Stepper::B)).c_str());
+			log_i("Motor B position: %i", data[Stepper::B]->currentPosition);
+		}
+		if (pinConfig.MOTOR_C_STEP >= 0)
+		{
+			data[Stepper::C]->dirPin = pinConfig.MOTOR_C_DIR;
+			data[Stepper::C]->stpPin = pinConfig.MOTOR_C_STEP;
+			data[Stepper::C]->currentPosition = preferences.getLong(("motor" + String(Stepper::C)).c_str());
+			log_i("Motor C position: %i", data[Stepper::C]->currentPosition);
+		}
+		if (pinConfig.MOTOR_D_STEP >= 0)
+		{
+			data[Stepper::D]->dirPin = pinConfig.MOTOR_D_DIR;
+			data[Stepper::D]->stpPin = pinConfig.MOTOR_D_STEP;
+			data[Stepper::D]->currentPosition = preferences.getLong(("motor" + String(Stepper::D)).c_str());
+			log_i("Motor D position: %i", data[Stepper::D]->currentPosition);
+		}
+		if (pinConfig.MOTOR_E_STEP >= 0)
+		{
+			data[Stepper::E]->dirPin = pinConfig.MOTOR_E_DIR;
+			data[Stepper::E]->stpPin = pinConfig.MOTOR_E_STEP;
+			data[Stepper::E]->currentPosition = preferences.getLong(("motor" + String(Stepper::E)).c_str());
+			log_i("Motor E position: %i", data[Stepper::E]->currentPosition);
+		}
+		if (pinConfig.MOTOR_F_STEP >= 0)
+		{
+			data[Stepper::F]->dirPin = pinConfig.MOTOR_F_DIR;
+			data[Stepper::F]->stpPin = pinConfig.MOTOR_F_STEP;
+			data[Stepper::F]->currentPosition = preferences.getLong(("motor" + String(Stepper::F)).c_str());
+			log_i("Motor F position: %i", data[Stepper::F]->currentPosition);
+		}
+		if (pinConfig.MOTOR_G_STEP >= 0)
+		{
+			data[Stepper::G]->dirPin = pinConfig.MOTOR_G_DIR;
+			data[Stepper::G]->stpPin = pinConfig.MOTOR_G_STEP;
+			data[Stepper::G]->currentPosition = preferences.getLong(("motor" + String(Stepper::G)).c_str());
+			log_i("Motor G position: %i", data[Stepper::G]->currentPosition);
+		}
 		preferences.end();
 
 		// setup trigger pins
@@ -300,10 +322,16 @@ namespace FocusMotor
 	void testTca()
 	{
 
-		for (int iMotor = 0; iMotor < 4; iMotor++)
+		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
+			// only test those motors that are activated
+			if (data[iMotor]->isActivated)
+			{
+				// need to activate the motor's dir pin eventually
+				// This also updates the dial's positions
+				// only test those motors that are activated
 			Stepper s = static_cast<Stepper>(iMotor);
 			data[s]->absolutePosition = false;
 			data[s]->targetPosition = -1;
@@ -314,13 +342,14 @@ namespace FocusMotor
 			startStepper(iMotor, true);
 			delay(10);
 			stopStepper(iMotor);
+			}
 		}
 	}
 #else
 	void sendMotorPosition()
 	{
 		// send motor positions
-		for (int iMotor = 0; iMotor < 4; iMotor++)
+		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			if (data[iMotor]->isActivated)
 			{
@@ -335,7 +364,7 @@ namespace FocusMotor
 	{
 #ifdef I2C_MOTOR
 		// send stop signal to all motors and update motor positions
-		for (int iMotor = 0; iMotor < 4; iMotor++)
+		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			moveMotor(1, iMotor, true); // wake up motor
 			data[iMotor]->isActivated = true;
@@ -363,7 +392,7 @@ namespace FocusMotor
 
 #if (defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR))
 // stop all motors on startup
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 			stopStepper(i);
 		}
@@ -405,7 +434,7 @@ namespace FocusMotor
 	{
 #if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
 		// checks if a stepper is still running
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 #ifdef I2C_MASTER
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)

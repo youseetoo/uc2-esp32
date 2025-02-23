@@ -15,7 +15,9 @@
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
+#define OBJECTIVE_CONTROLLER=1
 
+#define MOTOR_AXIS_COUNT 10   
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*
@@ -29,6 +31,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
+
      bool isDualAxisZ = false;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
@@ -93,5 +96,12 @@ struct UC2_3_CAN_HAT_Master : PinConfig
 
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
 
+     // Objective
+     uint8_t objectiveMotorAxis = 0; // 0=A, 1=X, 2=Y, 3=Z
+     uint32_t objectivePositionX1 = 10000;
+     uint32_t objectivePositionX2 = 70000;
+     int8_t objectiveHomeDirection = -1;
+     int8_t objectiveHomeEndStopPolarity = 0;
+			
 };
 const UC2_3_CAN_HAT_Master pinConfig;

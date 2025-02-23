@@ -98,6 +98,11 @@ namespace RestApi
     esp_err_t HomeMotor_getESP(httpd_req_t *req);
 #endif
 
+#ifdef OBJECTIVE_CONTROLLER
+    esp_err_t Objective_setESP(httpd_req_t *req);
+    esp_err_t Objective_getESP(httpd_req_t *req);
+#endif
+
 #ifdef ENCODER_CONTROLLER
     esp_err_t EncoderMotor_setESP(httpd_req_t *req);
     esp_err_t EncoderMotor_getESP(httpd_req_t *req);

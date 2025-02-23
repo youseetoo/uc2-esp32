@@ -11,7 +11,7 @@ namespace FAccelStep
     static FastAccelStepperEngine engine = FastAccelStepperEngine();
     static std::array<FastAccelStepper *, 4> faststeppers;
     static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
-    
+    static Preferences preferences;
     void startFastAccelStepper(int i);
     void stopFastAccelStepper(int i);
     void setupFastAccelStepper();

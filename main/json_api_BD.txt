@@ -142,7 +142,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 
 # set parameters on TMC stepper driver 
-{"task":"/tmc_act", "msteps":8, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":8, "rms_current":100, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 {"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":2}
 {"task":"/tmc_act", "msteps":32, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
 

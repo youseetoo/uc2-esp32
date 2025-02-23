@@ -79,6 +79,9 @@ Preferences preferences;
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
 #endif
+#ifdef OBJECTIVE_CONTROLLER
+#include "src/objective/ObjectiveController.h"
+#endif
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
@@ -147,6 +150,10 @@ extern "C" void looper(void *p)
 #endif
 #ifdef HOME_MOTOR
 		HomeMotor::loop();
+		vTaskDelay(1);
+#endif
+#ifdef OBJECTIVE_CONTROLLER
+		ObjectiveController::loop();
 		vTaskDelay(1);
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
@@ -296,6 +303,9 @@ extern "C" void setupApp(void)
 #endif
 #ifdef HOME_MOTOR
 	HomeMotor::setup();
+#endif
+#ifdef OBJECTIVE_CONTROLLER
+	ObjectiveController::setup();
 #endif
 #ifdef LASER_CONTROLLER
 	LaserController::setup();

@@ -156,10 +156,10 @@ namespace State
 		// and start an OTA server
 		// This is a blocking function
 
-		#ifdef I2C_MASTER
+		#ifdef I2C_MASTER or defined(CAN_MASTER)
 		// send OTA Trigger to device
 		i2c_master::startOTA();
-		#elif defined(I2C_SLAVE_MOTOR)
+		#else
 
 		// close any ongoing wifi connection
 		WiFi.disconnect(true);
@@ -228,7 +228,6 @@ namespace State
 				break;
 			}
 		}
-		#else
 		log_i("No OTA for this device");
 		#endif
 	}

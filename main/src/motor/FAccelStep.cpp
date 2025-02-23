@@ -17,6 +17,7 @@ using namespace FocusMotor;
 #ifdef TMC_CONTROLLER
 using namespace TMCController;
 #endif 
+
 namespace FAccelStep
 {
     void startFastAccelStepper(int i)
@@ -51,7 +52,10 @@ namespace FAccelStep
         }
         else
         {
-            TMCController::setTMCCurrent(pinConfig.tmc_rms_current);
+            // get rms current from preferences
+            preferences.begin("TMC", false);
+            TMCController::setTMCCurrent(preferences.getInt("current", pinConfig.tmc_rms_current));
+            preferences.end();
         }
         #endif
 
@@ -65,17 +69,17 @@ namespace FAccelStep
                 {
                     // run clockwise
                     faststeppers[i]->runForward();
-                    log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    //log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
                 }
                 else if (getData()[i]->speed < 0)
                 {
                     // run counterclockwise
                     faststeppers[i]->runBackward();
-                    log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    //log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
                 }
                 if (isRunning(i))
                 {
-                    log_i("We need %i starts to get the motor running", iStart);
+                    //log_i("We need %i starts to get the motor running", iStart);
                     break;
                 }
             }
@@ -96,6 +100,7 @@ namespace FAccelStep
             }
         }
 
+        /*
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -107,6 +112,7 @@ namespace FAccelStep
               getData()[i]->acceleration,
               getData()[i]->stopped,
               isRunning(i));
+              */
     }
 
     void setupFastAccelStepper()
@@ -120,7 +126,6 @@ namespace FAccelStep
         if (getData()[Stepper::Z] == nullptr)
             log_e("Stepper Z getData() NULL");
         engine.init();
-        log_i("FastAccelStepper engine initialized");
 #ifdef USE_TCA9535
         engine.setExternalCallForPin(_externalCallForPin);
 #endif
@@ -133,7 +138,6 @@ namespace FAccelStep
         // setup the stepper A
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
-            log_i("setupFastAccelStepper A");
             setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
             getData()[Stepper::A]->isActivated = true;
         }
@@ -141,7 +145,6 @@ namespace FAccelStep
         // setup the stepper X
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
-            log_i("setupFastAccelStepper X");
             setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
             getData()[Stepper::X]->isActivated = true;
         }
@@ -149,7 +152,6 @@ namespace FAccelStep
         // setup the stepper Y
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
-            log_i("setupFastAccelStepper Y");
             setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
             getData()[Stepper::Y]->isActivated = true;
         }
@@ -157,7 +159,6 @@ namespace FAccelStep
         // setup the stepper Z
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-            log_i("setupFastAccelStepper Z");
             setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
             getData()[Stepper::Z]->isActivated = true;
         }
@@ -165,8 +166,8 @@ namespace FAccelStep
 
     void setupFastAccelStepper(Stepper stepper, int motoren, int motordir, int motorstp)
     {
-        log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
-        log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
+        //log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
+        //log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, false);
@@ -187,7 +188,8 @@ namespace FAccelStep
             return;
         faststeppers[i]->forceStop();
         faststeppers[i]->stopMove();
-        log_i("stop stepper %i", i);
+        //log_i("stop stepper %i", i);
+        Serial.println("stop stepper");
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();

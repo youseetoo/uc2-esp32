@@ -34,7 +34,7 @@ namespace MotorJsonParser
 		cJSON *stprs = cJSON_CreateArray();
 		cJSON_AddItemToObject(mot, key_steppers, stprs);
 
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 			if (i == 0 and pinConfig.MOTOR_A_STEP < 0)
 				continue;

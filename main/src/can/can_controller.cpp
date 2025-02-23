@@ -25,6 +25,7 @@ namespace can_controller
     static QueueHandle_t canQueue;
     QueueHandle_t recieveQueue;
     uint8_t device_can_id;
+    int CAN_QUEUE_SIZE = 5;
 
     // for A,X,Y,Z intialize the I2C addresses
     uint32_t CAN_MOTOR_IDs[] = {
@@ -362,7 +363,10 @@ namespace can_controller
         newPdu.txId = receiverID;
         newPdu.rxId = getCANAddress();
         */
-
+        if (uxQueueMessagesWaiting(canQueue) == CAN_QUEUE_SIZE - 1)
+        {
+            xQueueReceive(canQueue, nullptr, portMAX_DELAY);
+        }
         if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
         {
             log_w("Queue full! Dropping CAN message to %u", receiverID);
@@ -417,6 +421,10 @@ namespace can_controller
         }
         if (ret == 0)
         {
+            if (uxQueueMessagesWaiting(recieveQueue) == CAN_QUEUE_SIZE - 1)
+            {
+                xQueueReceive(recieveQueue, nullptr, portMAX_DELAY);
+            }
             if (xQueueSend(recieveQueue, &rxPdu, 0) != pdPASS)
             {
                 log_w("Queue full! Dropping CAN message to %u", receiverID);
@@ -424,7 +432,6 @@ namespace can_controller
             }
             // this has txPdu => 0
             // this has rxPdu => frame.identifier (which is the ID from the current device)
-            
         }
         return ret;
     }
@@ -459,7 +466,7 @@ namespace can_controller
     {
         // Create a mutex for the CAN bus
         device_can_id = getCANAddress();
-        int CAN_QUEUE_SIZE = 5;
+
         canQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);

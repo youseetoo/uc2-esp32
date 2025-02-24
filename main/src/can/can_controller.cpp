@@ -24,7 +24,7 @@ namespace can_controller
     MessageData txData, rxData;
     static QueueHandle_t canQueue;
     QueueHandle_t recieveQueue;
-    uint8_t device_can_id;
+    uint8_t device_can_id = 0;
     int CAN_QUEUE_SIZE = 5;
 
     // for A,X,Y,Z intialize the I2C addresses
@@ -331,7 +331,7 @@ namespace can_controller
     }
 
     // generic sender function
-    int sendCanMessage(uint32_t receiverID, const uint8_t *data, size_t size)
+    int sendCanMessage(uint32_t receiverID, uint8_t *data, size_t size)
     {
         /*
         This sends a message to the CAN bus via ISO-TP
@@ -350,10 +350,11 @@ namespace can_controller
         }
 
         pdu_t txPdu;
-        memcpy(txPdu.data, data, size);
+        txPdu.data = data;
+        //memcpy(txPdu.data, data, size);
         txPdu.len = size;
         txPdu.txId = receiverID;      // the target ID
-        txPdu.rxId = getCANAddress(); // the current ID
+        txPdu.rxId = device_can_id; // the current ID
         // int ret = isoTpSender.send(&txPdu);
 
         /*
@@ -365,7 +366,8 @@ namespace can_controller
         */
         if (uxQueueMessagesWaiting(canQueue) == CAN_QUEUE_SIZE - 1)
         {
-            xQueueReceive(canQueue, nullptr, portMAX_DELAY);
+            pdu_t newPdu;
+            xQueueReceive(canQueue, &newPdu, portMAX_DELAY);
         }
         if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
         {
@@ -423,11 +425,12 @@ namespace can_controller
         {
             if (uxQueueMessagesWaiting(recieveQueue) == CAN_QUEUE_SIZE - 1)
             {
-                xQueueReceive(recieveQueue, nullptr, portMAX_DELAY);
+                pdu_t newPdu;
+                xQueueReceive(recieveQueue, &newPdu, portMAX_DELAY);
             }
             if (xQueueSend(recieveQueue, &rxPdu, 0) != pdPASS)
             {
-                log_w("Queue full! Dropping CAN message to %u", receiverID);
+                //log_w("Queue full! Dropping CAN message to %u", receiverID);
                 return -1;
             }
             // this has txPdu => 0
@@ -674,7 +677,7 @@ namespace can_controller
     void sendHomeStateToMaster(HomeState homeState)
     {
         // send home state to master via I2C
-        uint32_t slave_addr = getCANAddress();
+        uint32_t slave_addr = device_can_id;
         homeState.axis = CANid2axis(slave_addr);
         uint32_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
         int err = sendCanMessage(receiverID, (uint8_t *)&homeState, sizeof(HomeState));

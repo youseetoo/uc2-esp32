@@ -18,6 +18,7 @@
 #define DIGITAL_IN_CONTROLLER
 #define USE_FASTACCEL
 #define TMC_CONTROLLER
+//#define OTA_ON_STARTUP
 
 
 struct UC2_3_XIAO_Slave_Motor : PinConfig
@@ -96,6 +97,9 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
      uint8_t objectivePositionX1 = 10000;
      uint8_t objectivePositionX2 = 80000;
+
+     // OTA settings
+     const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
 };
   
 const UC2_3_XIAO_Slave_Motor pinConfig;

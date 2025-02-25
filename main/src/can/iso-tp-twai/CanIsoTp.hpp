@@ -40,8 +40,8 @@ enum IsoTpState {
 
 // ISO-TP PDU Structure (PDU = Protocol Data Unit)
 typedef struct {
-    uint32_t txId;        /**< Transmit CAN ID */
-    uint32_t rxId;        /**< Receive CAN ID */
+    uint8_t txId;        /**< Transmit CAN ID */
+    uint8_t rxId;        /**< Receive CAN ID */
     uint8_t *data;        /**< Pointer to data buffer */
     uint16_t len;         /**< Data length */
     uint8_t seqId;        /**< Sequence ID for Consecutive Frames */

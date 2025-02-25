@@ -288,7 +288,7 @@ struct PinConfig
      // Source ID Assignment Scheme
      // Device Type          Starting ID  Range       Total Devices
      // Gateway (Master)     0x00         0x00        1
-     // Lasers               0x10         0x10 - 0x19 10
+     // Lasers               0         0 - 9 10
      // Motors               0x20         0x20 - 0x29 10
      // LEDs                 0x30         0x30 - 0x39 10
      // Sensors              0x40         0x40 - 0x49 10
@@ -296,23 +296,23 @@ struct PinConfig
 
      // Variables for different IDs
     // addresses
-    uint32_t CAN_ID_CENTRAL_NODE = 0x100; // this is similar to the master address
+    uint8_t CAN_ID_CENTRAL_NODE = 1; // this is similar to the master address
     
-    uint32_t CAN_ID_MOT_A = 0x110;
-    uint32_t CAN_ID_MOT_X = 0x111;
-    uint32_t CAN_ID_MOT_Y = 0x112;
-    uint32_t CAN_ID_MOT_Z = 0x113;
-    uint32_t CAN_ID_MOT_B = 0x114;
-    uint32_t CAN_ID_MOT_C = 0x115;
-     uint32_t CAN_ID_MOT_D = 0x116;
-     uint32_t CAN_ID_MOT_E = 0x117;
-     uint32_t CAN_ID_MOT_F = 0x118;
-     uint32_t CAN_ID_MOT_G = 0x119;
+    uint8_t CAN_ID_MOT_A = 10;
+    uint8_t CAN_ID_MOT_X = 11;
+    uint8_t CAN_ID_MOT_Y = 12;
+    uint8_t CAN_ID_MOT_Z = 13;
+    uint8_t CAN_ID_MOT_B = 14;
+    uint8_t CAN_ID_MOT_C = 15;
+     uint8_t CAN_ID_MOT_D = 16;
+     uint8_t CAN_ID_MOT_E = 17;
+     uint8_t CAN_ID_MOT_F = 18;
+     uint8_t CAN_ID_MOT_G = 19;
 
-    uint32_t CAN_ID_LASER_0 = 0x220;
-    uint32_t CAN_ID_LASER_1 = 0x221;
-    uint32_t CAN_ID_LASER_2 = 0x222;
-    uint32_t CAN_ID_LASER_3 = 0x223;
+    uint8_t CAN_ID_LASER_0 = 20;
+    uint8_t CAN_ID_LASER_1 = 21;
+    uint8_t CAN_ID_LASER_2 = 22;
+    uint8_t CAN_ID_LASER_3 = 23;
 
 
 

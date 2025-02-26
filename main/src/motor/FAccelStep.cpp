@@ -189,7 +189,6 @@ namespace FAccelStep
         faststeppers[i]->forceStop();
         faststeppers[i]->stopMove();
         //log_i("stop stepper %i", i);
-        Serial.println("stop stepper");
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();

@@ -49,7 +49,7 @@ namespace PidController
 			}
 
 			analoginValueAvg = (float)analoginValueAvg / (float)N_analogin_avg;
-			long motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
+			int32_t motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
 #ifdef MOTOR_CONTROLLER
 			FocusMotor::getData()[Stepper::X]->isforever = 1; // run motor at certain speed
 			FocusMotor::getData()[Stepper::X]->speed = motorValue;
@@ -59,7 +59,7 @@ namespace PidController
 		}
 	}
 
-	long returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd)
+	int32_t returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd)
 	{
 		float analoginOffset = 0.;
 		float maxError = 1.;
@@ -68,7 +68,7 @@ namespace PidController
 		float cI = Ki * errorRunSum;
 		float cD = Kd * (error - previousError);
 		float PID = cP + cI + cD;
-		long stepperOut = (long)PID;
+		int32_t stepperOut = (int32_t)PID;
 
 		if (stepperOut > stepperMaxValue)
 		{

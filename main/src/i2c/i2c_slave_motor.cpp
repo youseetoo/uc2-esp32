@@ -50,10 +50,10 @@ namespace i2c_slave_motor
             // You can process `receivedMotorData` as needed
             // bool isStop = receivedMotorData.isStop;
         }
-        else if (numBytes == sizeof(long))
+        else if (numBytes == sizeof(uint32_t))
         {
             // we forcefully set the position on the slave
-            long motorPosition;
+            uint32_t motorPosition;
             uint8_t *dataPtr = (uint8_t *)&motorPosition;
             for (int i = 0; i < numBytes; i++)
             {
@@ -175,7 +175,7 @@ namespace i2c_slave_motor
             // The master request data from the slave
             MotorState motorState;
             bool isRunning = !FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->stopped;
-            long currentPosition = FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->currentPosition;
+            uint32_t currentPosition = FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->currentPosition;
             bool isForever = FocusMotor::getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]->isforever;
             motorState.currentPosition = currentPosition;
             motorState.isRunning = isRunning;

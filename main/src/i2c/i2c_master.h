@@ -43,9 +43,9 @@ namespace i2c_master
     MotorState pullMotorDataReducedDriver(int axis);
     HomeState pullHomeStateFromI2CDriver(int axis);
     void updateMotorData(int i);    
-    long getMotorPosition(int i);
+    uint32_t getMotorPosition(int i);
     void setPosition(Stepper s, int pos);
-    void setPositionI2CDriver(Stepper s, long pos);
+    void setPositionI2CDriver(Stepper s, uint32_t pos);
     void startOTA(int axis=-1);
     void reboot();
 

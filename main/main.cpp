@@ -107,12 +107,11 @@ Preferences preferences;
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
 #endif
-#ifdef ESPNOW_MASTER
-#include "src/espnow/espnow_master.h"
-#endif
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"
 #endif
+#include "./src/state/State.h"
+
 
 long lastHeapUpdateTime = 0;
 bool state_led = false;
@@ -127,6 +126,15 @@ extern "C" void looper(void *p)
 
 	for (;;)
 	{
+
+		// measure time since boot and turn off OTA on startup 
+		#ifdef OTA_ON_STARTUP
+		if (esp_timer_get_time()>pinConfig.OTA_TIME_FROM_STARTUP and State::OTArunning)
+		{
+			State::stopOTA();
+		}
+		#endif
+
 		esp_task_wdt_reset(); // Reset (feed) the watchdog timer
 		// receive and process serial messages
 		#ifdef ESP32S3_MODEL_XIAO
@@ -336,6 +344,10 @@ extern "C" void setupApp(void)
 #endif
 #ifdef ESPNOW_SLAVE_MOTOR
 	espnow_slave_motor::setup();
+#endif
+
+#ifdef OTA_ON_STARTUP
+State::startOTA();
 #endif
 
 	Serial.println("{'setup':'done'}");

@@ -19,6 +19,7 @@ namespace State
 	static unsigned long currentMillis;
 	static bool isBusy = false; // TODO this is not working!!!
 
+	static bool OTArunning = false;
 	int act(cJSON * ob);
 	cJSON *  get(cJSON *  ob);
 	cJSON *getModules();
@@ -30,4 +31,5 @@ namespace State
 	bool getBusy();
 
 	void startOTA();
+	void stopOTA();
 };

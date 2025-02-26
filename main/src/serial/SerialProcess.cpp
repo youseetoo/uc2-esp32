@@ -176,7 +176,7 @@ namespace SerialProcess
 			char *s = cJSON_PrintUnformatted(doc);
 			if (s != NULL)
 			{
-				Serial.println(s);
+				Serial.print(s);
 				free(s); // Free the string created by cJSON_Print
 			}
 			cJSON_Delete(doc); // Free the cJSON object

@@ -22,18 +22,18 @@
 
 typedef struct
 {
-    uint32_t counter;
-    uint32_t counter1;
-    uint32_t counter2;
-    uint32_t counter3;
-    uint32_t counter4;
-    uint32_t counter5;
-    uint32_t counter6;
-    uint32_t counter7;
-    uint32_t counter8;
-    uint32_t counter9;
-    uint32_t counter10;
-    uint32_t counter11;
+    uint8_t counter;
+    uint8_t counter1;
+    uint8_t counter2;
+    uint8_t counter3;
+    uint8_t counter4;
+    uint8_t counter5;
+    uint8_t counter6;
+    uint8_t counter7;
+    uint8_t counter8;
+    uint8_t counter9;
+    uint8_t counter10;
+    uint8_t counter11;
 
 } MessageData;
 
@@ -46,11 +46,11 @@ namespace can_controller
     void setup();
 
     // general CAN-related functions
-    uint32_t axis2id(int axis);
-    int receiveCanMessage(uint32_t senderID);
-    int sendCanMessage(uint32_t receiverID, const uint8_t *data);
-    void setCANAddress(uint32_t address);
-    uint32_t getCANAddress();
+    uint8_t axis2id(int axis);
+    int receiveCanMessage(uint8_t senderID);
+    int sendCanMessage(uint8_t receiverID, const uint8_t *data);
+    void setCANAddress(uint8_t address);
+    uint8_t getCANAddress();
     void dispatchIsoTpData(pdu_t&);
     
     // motor functions

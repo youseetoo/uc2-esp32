@@ -76,22 +76,42 @@ int CanIsoTp::send(pdu_t *pdu)
                 break;
 
             case CANTP_WAIT_FIRST_FC: // 2
-                // Check for timeout in Frame Control
-                if ((millis() - _timerFCWait) >= TIMEOUT_FC)
-                {
-                    pdu->cantpState = CANTP_IDLE;
-                    ret = 1; // Timeout
-                    log_i("Timeout waiting for First FC");
-                }
-                break;
-
-            case CANTP_WAIT_FC: // 3
+            case CANTP_WAIT_FC:       // 3
                 // Check for timeout
                 if ((millis() - _timerFCWait) >= TIMEOUT_FC)
                 {
                     pdu->cantpState = CANTP_IDLE;
                     ret = 1; // Timeout
                     log_i("Timeout waiting for FC");
+                }
+                CanFrame frame;
+
+                // Try reading a frame from TWAI
+                if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
+                {
+                    log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
+                    if (frame.identifier == pdu->txId && frame.data_length_code > 0)
+                    {
+                        log_i("Data length: %d", frame.data_length_code);
+                        // Check if it's a Flow Control frame
+                        if ((frame.data[0] & 0xF0) == N_PCItypeFC)
+                        {
+                            log_i("FC frame received");
+                            if (receive_FlowControlFrame(pdu, &frame) == 0)
+                            {
+                                log_i("FC received successfully");
+                                // Received FC successfully, now we can continue sending CF
+                                pdu->cantpState = CANTP_SEND_CF;
+                            }
+                            else
+                            {
+                                log_i("Error in FC frame");
+                                // Error in FC frame
+                                pdu->cantpState = CANTP_IDLE;
+                                ret = 1;
+                            }
+                        }
+                    }
                 }
                 break;
 
@@ -160,45 +180,6 @@ int CanIsoTp::send(pdu_t *pdu)
                 // Do nothing, just exit
                 log_i("Idle");
                 break;
-            }
-
-            // If waiting for flow control, check for incoming frames
-            if (pdu->cantpState == CANTP_WAIT_FIRST_FC || pdu->cantpState == CANTP_WAIT_FC)
-            {
-                CanFrame frame;
-
-                // Try reading a frame from TWAI
-                if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
-                {
-                    log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
-                    if (frame.identifier == pdu->txId && frame.data_length_code > 0)
-                    {
-                        log_i("Data length: %d", frame.data_length_code);
-                        // Check if it's a Flow Control frame
-                        if ((frame.data[0] & 0xF0) == N_PCItypeFC)
-                        {
-                            log_i("FC frame received");
-                            if (receive_FlowControlFrame(pdu, &frame) == 0)
-                            {
-                                log_i("FC received successfully");
-                                // Received FC successfully, now we can continue sending CF
-                                pdu->cantpState = CANTP_SEND_CF;
-                            }
-                            else
-                            {
-                                log_i("Error in FC frame");
-                                // Error in FC frame
-                                pdu->cantpState = CANTP_IDLE;
-                                ret = 1;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    //log_i("No frame received");
-                }
-                // If no frame is received this iteration, loop continues until timeout or receive FC
             }
         }
 
@@ -283,7 +264,6 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                     break;
                 else
                     log_i("No frame received and not idling");
-
             }
         }
         // log_i("Return: %d", ret);
@@ -382,7 +362,7 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
         pdu->cantpState = CANTP_ERROR;
         return 1;
     }
-    
+
     memcpy(pdu->data, &frame->data[1], pdu->len);
     pdu->cantpState = IsoTpState::CANTP_END; // Transmission complete
     return 0;
@@ -447,14 +427,14 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
         log_i("Sequence mismatch");
         return 1; // Sequence mismatch
     }
-    
+
     // Determine how many bytes to copy
     // Copy up to 7 bytes (or fewer if _rxRestBytes < 7)
     uint8_t sizeToCopy = (_rxRestBytes > 7) ? 7 : _rxRestBytes;
     // Original offset logic: 6 + (seqId - 1)*7
     uint16_t offset = 6 + 7 * (pdu->seqId - 1);
     memcpy(pdu->data + offset, &frame->data[1], sizeToCopy);
-    
+
     // Decrease the remaining bytes count
     _rxRestBytes -= sizeToCopy;
     log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d with size %d, Rest bytes: %d", pdu->cantpState, pdu->seqId, seqId, frame->data_length_code - 1, _rxRestBytes);

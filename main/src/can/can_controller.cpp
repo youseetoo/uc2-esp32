@@ -48,16 +48,16 @@ namespace can_controller
         pinConfig.CAN_ID_LASER_3};
 
     // create an array of available CAN IDs that will be scanned later
-    const int MAX_CAN_DEVICES = 20;                     // Maximum number of expected devices
+    const int MAX_CAN_DEVICES = 20;                    // Maximum number of expected devices
     uint8_t nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store found I2C addresses
-    int currentCANidListEntry = 0;                      // Variable to keep track of number of devices found
+    int currentCANidListEntry = 0;                     // Variable to keep track of number of devices found
 
-    void parseMotorAndHomeData(uint8_t *data, size_t size, uint8_t txID, uint8_t rxID)
+    void parseMotorAndHomeData(uint8_t *data, size_t size, uint8_t txID)
     {
 #ifdef MOTOR_CONTROLLER
 
         // Parse as MotorData
-        log_i("Received MotorData from CAN, size: %i, txID: %i, rxID: %i", size, txID, rxID);
+        log_i("Received MotorData from CAN, size: %i, txID: %i: %i", size, txID);
         if (size == sizeof(MotorData))
         {
             MotorData receivedMotorData;
@@ -84,16 +84,15 @@ namespace can_controller
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
             */
-           log_i(
-            "Received MotorData from CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
-            static_cast<int>(receivedMotorData.isEnable),
-            receivedMotorData.targetPosition,
-            receivedMotorData.absolutePosition,
-            receivedMotorData.speed,
-            receivedMotorData.acceleration,
-            static_cast<int>(receivedMotorData.isforever),
-            static_cast<int>(receivedMotorData.isStop)
-        );
+            log_i(
+                "Received MotorData from CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
+                static_cast<int>(receivedMotorData.isEnable),  // bool
+                receivedMotorData.targetPosition,              // long
+                receivedMotorData.absolutePosition,            // bool
+                receivedMotorData.speed,                       // long
+                receivedMotorData.acceleration,                // long
+                static_cast<int>(receivedMotorData.isforever), // bool
+                static_cast<int>(receivedMotorData.isStop));   // bool
 
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
         }
@@ -170,7 +169,7 @@ namespace can_controller
             log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
             int mStepper = receivedMotorState.axis;
             // check within bounds
-            if (mStepper <0 or mStepper > pinConfig.MOTOR_AXIS_COUNT)
+            if (mStepper < 0 || mStepper > MOTOR_AXIS_COUNT)
             {
                 log_e("Error: Received MotorState from CAN with invalid axis %i", mStepper);
                 return;
@@ -244,8 +243,8 @@ namespace can_controller
     void dispatchIsoTpData(pdu_t &pdu)
     {
         // Parse the received data
-        uint8_t rxID = pdu.rxId; // ID from which the message was sent
-        uint8_t txID = pdu.txId; // ID to which the message was sent
+        uint8_t rxID = pdu.rxId;  // ID from which the message was sent
+        uint8_t txID = pdu.txId;  // ID to which the message was sent
         uint8_t *data = pdu.data; // Data buffer
         size_t size = pdu.len;    // Data size
         log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
@@ -259,7 +258,7 @@ namespace can_controller
 
         if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X || rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
         {
-            parseMotorAndHomeData(data, size, rxID, rxID);
+            parseMotorAndHomeData(data, size, rxID);
         }
         else if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_LASER_0 || rxID == pinConfig.CAN_ID_LASER_1 || rxID == pinConfig.CAN_ID_LASER_2) || rxID == pinConfig.CAN_ID_LASER_3)
         {
@@ -288,7 +287,7 @@ namespace can_controller
             preferences.putUInt("address", pinConfig.CAN_ID_CURRENT);
         }
         // TODO: double check if the master really has the correct address
-        
+
         uint8_t address = preferences.getUInt("address", pinConfig.CAN_ID_CURRENT);
         preferences.end();
         return address;
@@ -308,7 +307,8 @@ namespace can_controller
             log_e("Error: Cannot set CAN address to the central node");
             address = pinConfig.CAN_ID_CENTRAL_NODE;
         }
-        else{
+        else
+        {
             log_i("Setting CAN address to %u", address);
         }
         log_i("Setting CAN address to %u", address);
@@ -352,7 +352,7 @@ namespace can_controller
     }
 
     // generic sender function
-    int sendCanMessage(uint8_t receiverID, uint8_t *data, size_t size)
+    int sendCanMessage(uint8_t receiverID, const uint8_t *data, size_t size)
     {
         /*
         This sends a message to the CAN bus via ISO-TP
@@ -371,10 +371,12 @@ namespace can_controller
         }
 
         pdu_t txPdu;
-        txPdu.data = data;
-        //memcpy(txPdu.data, data, size);
+        txPdu.data = (uint8_t *)malloc(size);
+        memcpy(txPdu.data, data, size);
+        // txPdu.data = (uint8_t *)data;
+        // txPdu.data = data;
         txPdu.len = size;
-        txPdu.txId = receiverID;      // the target ID
+        txPdu.txId = receiverID;    // the target ID
         txPdu.rxId = device_can_id; // the current ID
         // int ret = isoTpSender.send(&txPdu);
 
@@ -384,16 +386,33 @@ namespace can_controller
         newPdu.len = size;
         newPdu.txId = receiverID;
         newPdu.rxId = getCANAddress();
-        */
         if (uxQueueMessagesWaiting(canQueue) == CAN_QUEUE_SIZE - 1)
         {
             pdu_t newPdu;
             xQueueReceive(canQueue, &newPdu, portMAX_DELAY);
         }
+        */
         if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
         {
             log_w("Queue full! Dropping CAN message to %u", receiverID);
             return -1;
+        }
+        else
+        {
+            log_i("Sending CAN message to %u", receiverID);
+            // cast the structure to a byte array from the motor array
+            // Print the data as MotorData
+            /*
+            MotorData *motorData = (MotorData *)txPdu.data;
+            log_i("Sending MotorData to CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
+                  static_cast<int>(motorData->isEnable),
+                  motorData->targetPosition,
+                  motorData->absolutePosition,
+                  motorData->speed,
+                  motorData->acceleration,
+                  static_cast<int>(motorData->isforever),
+                  static_cast<int>(motorData->isStop));
+                  */
         }
 
         return 0;
@@ -460,6 +479,7 @@ namespace can_controller
         }
         return ret;
     }
+
     void processCanMsgTask(void *p)
     {
         pdu_t rxPdu;
@@ -467,9 +487,26 @@ namespace can_controller
         {
             if (xQueueReceive(recieveQueue, &rxPdu, portMAX_DELAY) == pdTRUE)
             {
-                dispatchIsoTpData(rxPdu);
+                // Make a local copy of rxPdu
+                pdu_t copy = rxPdu;
+                if (copy.len > 0 && copy.data != nullptr)
+                {
+                    // Allocate space and copy the payload
+                    copy.data = (uint8_t *)malloc(copy.len);
+                    if (copy.data)
+                    {
+                        memcpy(copy.data, rxPdu.data, copy.len);
+                        // Now dispatch using the copy
+                        dispatchIsoTpData(copy);
+                        free(copy.data);
+                    }
+                }
+                else
+                {
+                    dispatchIsoTpData(copy);
+                }
             }
-            vTaskDelay(1); // give other tasks cputime
+            vTaskDelay(1);
         }
     }
 
@@ -556,7 +593,7 @@ namespace can_controller
 
         else
             log_i("Motor json is null");
-            return 0;
+        return 0;
     }
 
     uint8_t axis2id(int axis)
@@ -772,16 +809,16 @@ namespace can_controller
         // add the current CAN address
         int addr = device_can_id;
         cJSON_AddNumberToObject(doc, "address", addr);
-        // retreive address from prerfereces 
+        // retreive address from prerfereces
         Preferences preferences;
         preferences.begin("CAN", false);
         int addr_pref = preferences.getUInt("address", device_can_id);
         preferences.end();
         cJSON_AddNumberToObject(doc, "addresspref", addr_pref);
-        
+
         int addr_getcan = getCANAddress();
         cJSON_AddNumberToObject(doc, "addressgetcan", addr_getcan);
-        
+
         // add the list of non-working CAN IDs
         cJSON *nonworkingArray = cJSON_CreateIntArray((const int *)nonAvailableCANids, MAX_CAN_DEVICES);
         cJSON_AddItemToObject(doc, "nonworking", nonworkingArray);

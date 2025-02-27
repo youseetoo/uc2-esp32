@@ -1,35 +1,42 @@
 #pragma once
 
 
-const long MAX_VELOCITY_A = 20000;
-const long MAX_ACCELERATION_A = 40000;
-const long DEFAULT_ACCELERATION = 20000;
+const int32_t MAX_VELOCITY_A = 20000;
+const int32_t MAX_ACCELERATION_A = 40000;
+const int32_t DEFAULT_ACCELERATION = 20000;
 
+#pragma pack(push,1)
 struct MotorState {
-	long currentPosition = 0;
+	int32_t currentPosition = 0;
 	bool isRunning = 0;
 	uint8_t axis = 0;
 	//bool isForever = 0;
 };
+#pragma pack(pop)
 
+
+#pragma pack(push,1)
 struct MotorDataReduced
 {
 	// a stripped down version of MotorData to be sent over I2C
-	long targetPosition = 0;
-	long speed = 0;
+	int32_t targetPosition = 0;
+	int32_t speed = 0;
 	bool isforever = false;
 	bool absolutePosition = false;
 	bool isStop = false;
 }__attribute__((packed));
+#pragma pack(pop)
 
+
+#pragma pack(push,1)
 struct MotorData
 {
 	bool directionPinInverted = false;
-	long speed = 0;
-	long maxspeed = 200000;
-	long acceleration = 0;
-	long targetPosition = 0;
-	long currentPosition = 0;
+	int32_t speed = 0;
+	int32_t maxspeed = 200000;
+	int32_t acceleration = 0;
+	int32_t targetPosition = 0;
+	int32_t currentPosition = 0;
 	int isforever = false;
 	bool isaccelerated = false;
 	// running relative or aboslute position! gets ignored when isforever is true
@@ -48,13 +55,14 @@ struct MotorData
 
 	// for triggering frame or lineclock
 	bool isTriggered = false; // state if we send a pulse
-	long offsetTrigger = 0;	// offset in steps
-	long triggerPeriod = -1; // give a pulse every n steps
+	int32_t offsetTrigger = 0;	// offset in steps
+	int32_t triggerPeriod = -1; // give a pulse every n steps
 	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
 	int dirPin = -1;
 	int stpPin = -1;
 	
 }__attribute__((packed));
+#pragma pack(pop)
 
 
 

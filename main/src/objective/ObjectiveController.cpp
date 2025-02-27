@@ -13,7 +13,7 @@ namespace ObjectiveController
 	static ObjectiveData data;
 	Preferences preferences;
 	// Helper to move the Z stepper
-	static void moveToPosition(long pos, int speed, int accel, int qid)
+	static void moveToPosition(int32_t pos, int speed, int accel, int qid)
 	{
 		// Set up the motor data
 		FocusMotor::getData()[sObjective]->targetPosition = pos;
@@ -60,7 +60,7 @@ namespace ObjectiveController
 		// {"task":"/objective_act","x1": -1, "x2": 2000}
 		if (cJSON_HasObjectItem(doc, "x1"))
 		{
-			long val = cJsonTool::getJsonInt(doc, "x1");
+			int32_t val = cJsonTool::getJsonInt(doc, "x1");
 			if (val == -1)
 			{
 				log_i("Objective x1 is -1, setting to current position: %i", FocusMotor::getData()[sObjective]->currentPosition);
@@ -77,7 +77,7 @@ namespace ObjectiveController
 		// Set Positions for X2 via JSON Input
 		if (cJSON_HasObjectItem(doc, "x2"))
 		{
-			long val = cJsonTool::getJsonInt(doc, "x2");
+			int32_t val = cJsonTool::getJsonInt(doc, "x2");
 			if (val == -1)
 			{
 				log_i("Objective x2 is -1, setting to current position: %i", FocusMotor::getData()[sObjective]->currentPosition);

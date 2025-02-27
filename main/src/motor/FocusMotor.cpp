@@ -132,7 +132,7 @@ namespace FocusMotor
 		}
 	}
 
-	void moveMotor(long pos, int s, bool isRelative)
+	void moveMotor(int32_t pos, int s, bool isRelative)
 	{
 		// move motor
 		// blocking = true => wait until motor is done
@@ -241,70 +241,70 @@ namespace FocusMotor
 		{
 			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
 			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
-			data[Stepper::A]->currentPosition = preferences.getLong(("motor" + String(Stepper::A)).c_str());
+			data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
 		if (pinConfig.MOTOR_X_STEP >= 0)
 		{
 			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
 			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
-			data[Stepper::X]->currentPosition = preferences.getLong(("motor" + String(Stepper::X)).c_str());
+			data[Stepper::X]->currentPosition = preferences.getInt(("motor" + String(Stepper::X)).c_str());
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Y_STEP >= 0)
 		{
 			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
 			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
-			data[Stepper::Y]->currentPosition = preferences.getLong(("motor" + String(Stepper::Y)).c_str());
+			data[Stepper::Y]->currentPosition = preferences.getInt(("motor" + String(Stepper::Y)).c_str());
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Z_STEP >= 0)
 		{
 			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
-			data[Stepper::Z]->currentPosition = preferences.getLong(("motor" + String(Stepper::Z)).c_str());
+			data[Stepper::Z]->currentPosition = preferences.getInt(("motor" + String(Stepper::Z)).c_str());
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
 		if (pinConfig.MOTOR_B_STEP >= 0)
 		{
 			data[Stepper::B]->dirPin = pinConfig.MOTOR_B_DIR;
 			data[Stepper::B]->stpPin = pinConfig.MOTOR_B_STEP;
-			data[Stepper::B]->currentPosition = preferences.getLong(("motor" + String(Stepper::B)).c_str());
+			data[Stepper::B]->currentPosition = preferences.getInt(("motor" + String(Stepper::B)).c_str());
 			log_i("Motor B position: %i", data[Stepper::B]->currentPosition);
 		}
 		if (pinConfig.MOTOR_C_STEP >= 0)
 		{
 			data[Stepper::C]->dirPin = pinConfig.MOTOR_C_DIR;
 			data[Stepper::C]->stpPin = pinConfig.MOTOR_C_STEP;
-			data[Stepper::C]->currentPosition = preferences.getLong(("motor" + String(Stepper::C)).c_str());
+			data[Stepper::C]->currentPosition = preferences.getInt(("motor" + String(Stepper::C)).c_str());
 			log_i("Motor C position: %i", data[Stepper::C]->currentPosition);
 		}
 		if (pinConfig.MOTOR_D_STEP >= 0)
 		{
 			data[Stepper::D]->dirPin = pinConfig.MOTOR_D_DIR;
 			data[Stepper::D]->stpPin = pinConfig.MOTOR_D_STEP;
-			data[Stepper::D]->currentPosition = preferences.getLong(("motor" + String(Stepper::D)).c_str());
+			data[Stepper::D]->currentPosition = preferences.getInt(("motor" + String(Stepper::D)).c_str());
 			log_i("Motor D position: %i", data[Stepper::D]->currentPosition);
 		}
 		if (pinConfig.MOTOR_E_STEP >= 0)
 		{
 			data[Stepper::E]->dirPin = pinConfig.MOTOR_E_DIR;
 			data[Stepper::E]->stpPin = pinConfig.MOTOR_E_STEP;
-			data[Stepper::E]->currentPosition = preferences.getLong(("motor" + String(Stepper::E)).c_str());
+			data[Stepper::E]->currentPosition = preferences.getInt(("motor" + String(Stepper::E)).c_str());
 			log_i("Motor E position: %i", data[Stepper::E]->currentPosition);
 		}
 		if (pinConfig.MOTOR_F_STEP >= 0)
 		{
 			data[Stepper::F]->dirPin = pinConfig.MOTOR_F_DIR;
 			data[Stepper::F]->stpPin = pinConfig.MOTOR_F_STEP;
-			data[Stepper::F]->currentPosition = preferences.getLong(("motor" + String(Stepper::F)).c_str());
+			data[Stepper::F]->currentPosition = preferences.getInt(("motor" + String(Stepper::F)).c_str());
 			log_i("Motor F position: %i", data[Stepper::F]->currentPosition);
 		}
 		if (pinConfig.MOTOR_G_STEP >= 0)
 		{
 			data[Stepper::G]->dirPin = pinConfig.MOTOR_G_DIR;
 			data[Stepper::G]->stpPin = pinConfig.MOTOR_G_STEP;
-			data[Stepper::G]->currentPosition = preferences.getLong(("motor" + String(Stepper::G)).c_str());
+			data[Stepper::G]->currentPosition = preferences.getInt(("motor" + String(Stepper::G)).c_str());
 			log_i("Motor G position: %i", data[Stepper::G]->currentPosition);
 		}
 		preferences.end();
@@ -460,7 +460,7 @@ namespace FocusMotor
 				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
-				preferences.putLong(("motor" + String(i)).c_str(), data[i]->currentPosition);
+				preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
 		}
@@ -581,7 +581,7 @@ namespace FocusMotor
 #endif
 	}
 
-	long getPosition(Stepper s)
+	uint32_t getPosition(Stepper s)
 	{
 		log_i("Getting motor %i position", s);
 		updateData(s);

@@ -376,7 +376,7 @@ namespace can_controller
         {
             log_e("Error: Unable to allocate memory for txPdu.data");
             return -1;
-        }        
+        }
         memcpy(txPdu.data, data, size);
         // txPdu.data = (uint8_t *)data;
         // txPdu.data = data;
@@ -385,18 +385,17 @@ namespace can_controller
         txPdu.rxId = device_can_id; // the current ID
         // int ret = isoTpSender.send(&txPdu);
 
-        /*
-        pdu_t newPdu;
-        newPdu.data = (uint8_t *)data;
-        newPdu.len = size;
-        newPdu.txId = receiverID;
-        newPdu.rxId = getCANAddress();
         if (uxQueueMessagesWaiting(canQueue) == CAN_QUEUE_SIZE - 1)
         {
             pdu_t newPdu;
             xQueueReceive(canQueue, &newPdu, portMAX_DELAY);
+            if (newPdu.data != nullptr)
+            {
+                free(newPdu.data);
+                newPdu.data = nullptr;
+            }
         }
-        */
+
         if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
         {
             log_w("Queue full! Dropping CAN message to %u", receiverID);
@@ -474,6 +473,11 @@ namespace can_controller
                 log_i("adding to recieveQueue");
                 pdu_t newPdu;
                 xQueueReceive(recieveQueue, &newPdu, portMAX_DELAY);
+                if (newPdu.data != nullptr)
+                {
+                    free(newPdu.data);
+                    newPdu.data = nullptr;
+                }
             }
             if (xQueueSend(recieveQueue, &rxPdu, 0) != pdPASS)
             {
@@ -494,22 +498,11 @@ namespace can_controller
             if (xQueueReceive(recieveQueue, &rxPdu, portMAX_DELAY) == pdTRUE)
             {
                 // Make a local copy of rxPdu
-                pdu_t copy = rxPdu;
-                if (copy.len > 0 && copy.data != nullptr)
+                dispatchIsoTpData(rxPdu);
+                if(rxPdu.data != nullptr)
                 {
-                    // Allocate space and copy the payload
-                    copy.data = (uint8_t *)malloc(copy.len);
-                    if (copy.data)
-                    {
-                        memcpy(copy.data, rxPdu.data, copy.len);
-                        // Now dispatch using the copy
-                        dispatchIsoTpData(copy);
-                        free(copy.data);
-                    }
-                }
-                else
-                {
-                    dispatchIsoTpData(copy);
+                    free(rxPdu.data);
+                    rxPdu.data = nullptr;
                 }
             }
             vTaskDelay(1);

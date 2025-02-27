@@ -34,13 +34,16 @@ namespace ObjectiveController
 	{
 		// From Home:  [ 33497][I][HomeMotor.cpp:129] startHome(): Start home for axis 0 with timeout 20000, speed 15000, maxspeed 0, direction -1, endstop polarity 0
 		// From here: [ 60522][I][HomeMotor.cpp:129] startHome(): Start home for axis 0 with timeout 10000, speed 20000, maxspeed 20000, direction 1, endstop polarity -1
-		// {"task":"/objective_act","calibrate":1}
-		// {"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} // calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
-		// {"task":"/objective_act","toggle":1, "speed": 20000, "accel": 20000} 			// toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
-		// {"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			// explictely move to slot x1 or x2
-		// {"task":"/objective_act","x1": 1000, "x2": 2000} // set explicit positions (in steps )
-		// {"task":"/objective_act","x1": -1, "x2": 2000}	// set current position as x1 and explicit position for x2
-
+/*
+		{"task":"/objective_act","calibrate":1}
+		{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
+		{"task":"/objective_act","toggle":1, "speed": 26000, "accel": 400000} 			toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
+		{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
+		{"task":"/objective_act","x1":  5000, "x2": 35000} set explicit positions (in steps )
+		{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
+		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
+		{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+*/
 		preferences.begin("obj", false);
 		log_i("objective_Act_fct");
 		// print the json

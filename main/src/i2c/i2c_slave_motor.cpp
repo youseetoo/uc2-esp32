@@ -117,7 +117,7 @@ namespace i2c_slave_motor
                 dataPtr[i] = Wire.read();
             }
             // assign the received data to the motor to MotorData *data[4];
-            TMCController::setTMCData(receivedTMCData);
+            TMCController::applyParamsToDriver(receivedTMCData, true);
         }
         else
         {

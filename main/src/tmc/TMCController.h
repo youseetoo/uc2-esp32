@@ -28,6 +28,7 @@ struct TMCData
     int blank_time;
     int toff;
 };
+
 namespace TMCController
 {
     static Preferences preferences;
@@ -37,6 +38,6 @@ namespace TMCController
     void setTMCCurrent(int current);
     void loop();
     void callibrateStallguard(int speed);
-    void setTMCData(TMCData tmcData);
+    void applyParamsToDriver(const TMCData &p, bool saveToPrefs);
 };
 

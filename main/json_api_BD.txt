@@ -121,8 +121,9 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 # drive home on axis Y
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":0, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":-1}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
 
@@ -142,7 +143,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 
 # set parameters on TMC stepper driver 
-{"task":"/tmc_act", "msteps":8, "rms_current":100, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 {"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":2}
 {"task":"/tmc_act", "msteps":32, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
 

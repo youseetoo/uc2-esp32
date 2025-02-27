@@ -133,7 +133,7 @@ namespace can_controller
             TMCData receivedTMCData;
             memcpy(&receivedTMCData, data, sizeof(TMCData));
             log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
-            TMCController::setTMCData(receivedTMCData);
+            TMCController::applyParamsToDriver(receivedTMCData, true);
         }
         else
         {
@@ -372,6 +372,11 @@ namespace can_controller
 
         pdu_t txPdu;
         txPdu.data = (uint8_t *)malloc(size);
+        if (txPdu.data == nullptr)
+        {
+            log_e("Error: Unable to allocate memory for txPdu.data");
+            return -1;
+        }        
         memcpy(txPdu.data, data, size);
         // txPdu.data = (uint8_t *)data;
         // txPdu.data = data;
@@ -395,6 +400,7 @@ namespace can_controller
         if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
         {
             log_w("Queue full! Dropping CAN message to %u", receiverID);
+            free(txPdu.data);
             return -1;
         }
         else

@@ -94,6 +94,9 @@ namespace BtController
         setupHidController();
 #endif
         xTaskCreate(&btControllerLoop, "btController_task", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+
+        // initialize update limit 
+        lastUpdate = millis();
     }
 
 #ifdef PSXCONTROLLER
@@ -130,7 +133,7 @@ namespace BtController
     void loop()
     {
         //log_i("hid connected:%i", hidIsConnected);
-        if (hidIsConnected)
+        if (hidIsConnected and (millis()-updateRateMS)>lastUpdate)
         {
             //log_i("cross_changed_event nullptr %i", cross_changed_event == nullptr);
             checkdata(lastData.cross, gamePadData.cross, cross_changed_event);
@@ -166,6 +169,9 @@ namespace BtController
             bool l2 = gamePadData.l2;
             if (analogcontroller_event != nullptr)
                 analogcontroller_event(left, right, r1, r2, l1, l2);
+
+            lastUpdate = millis();
+
         }
     }
 #endif

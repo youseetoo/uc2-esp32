@@ -375,6 +375,14 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
         }
     }
     pdu->len = frame->data[0] & 0x0F; // Extract data length
+
+    if (pdu->len > (frame->data_length_code - 1))
+    {
+        log_e("Error: Data length exceeds frame length");
+        pdu->cantpState = CANTP_ERROR;
+        return 1;
+    }
+    
     memcpy(pdu->data, &frame->data[1], pdu->len);
     pdu->cantpState = IsoTpState::CANTP_END; // Transmission complete
     return 0;

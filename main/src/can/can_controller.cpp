@@ -372,6 +372,11 @@ namespace can_controller
 
         pdu_t txPdu;
         txPdu.data = (uint8_t *)malloc(size);
+        if (txPdu.data == nullptr)
+        {
+            log_e("Error: Unable to allocate memory for txPdu.data");
+            return -1;
+        }        
         memcpy(txPdu.data, data, size);
         // txPdu.data = (uint8_t *)data;
         // txPdu.data = data;
@@ -395,6 +400,7 @@ namespace can_controller
         if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
         {
             log_w("Queue full! Dropping CAN message to %u", receiverID);
+            free(txPdu.data);
             return -1;
         }
         else

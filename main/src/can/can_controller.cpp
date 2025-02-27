@@ -133,7 +133,7 @@ namespace can_controller
             TMCData receivedTMCData;
             memcpy(&receivedTMCData, data, sizeof(TMCData));
             log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
-            TMCController::setTMCData(receivedTMCData);
+            TMCController::applyParamsToDriver(receivedTMCData, true);
         }
         else
         {

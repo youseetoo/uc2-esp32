@@ -160,7 +160,7 @@ namespace SerialProcess
 				if (error_ptr != NULL)
 					log_i("Error while parsing:%s", error_ptr);
 				log_i("Serial input is null");
-				Serial.println("{\"error\":\"Serial input is null\"}");
+				Serial.println("++{\"error\":\"Serial input is null\"}--");
 			}
 			c.clear();
 		}
@@ -176,7 +176,7 @@ namespace SerialProcess
 			char *s = cJSON_PrintUnformatted(doc);
 			if (s != NULL)
 			{
-				Serial.print(s);
+				Serial.println(s);
 				free(s); // Free the string created by cJSON_Print
 			}
 			cJSON_Delete(doc); // Free the cJSON object
@@ -215,7 +215,7 @@ namespace SerialProcess
 
 		cJSON_Delete(doc); // Free the cJSON object
 
-		Serial.println();
+		//Serial.println();
 		Serial.println("--");
 	}
 

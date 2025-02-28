@@ -77,7 +77,7 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      
      int tmc_microsteps = 16;
-     int tmc_rms_current = 500;
+     int tmc_rms_current = 600;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
      int tmc_semin = 5;

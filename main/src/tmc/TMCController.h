@@ -36,6 +36,7 @@ namespace TMCController
     cJSON * get(cJSON *  ob);
     void setup();
     void setTMCCurrent(uint16_t current);
+    uint16_t getTMCCurrent();
     void loop();
     void callibrateStallguard(int speed);
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs);

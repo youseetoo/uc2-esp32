@@ -45,18 +45,17 @@ namespace FAccelStep
 
         // if the motor speed is above threshold, maximise motor current to avoid stalling
         #ifdef TMC_CONTROLLER // TODO: This is only working on TMC2209-enabled sattelite boards since we have only one TMC Controller for one motor
+        // read value from preferences 
+        Preferences preferences;
+        preferences.begin("TMC", false);
+        uint16_t rmsCurrFromPref = preferences.getInt("current", pinConfig.tmc_rms_current);
+        preferences.end();
         if (speed > 10000)
         {
-            TMCController::loop();
-            TMCController::setTMCCurrent((int)((float)pinConfig.tmc_rms_current*1.5));
+            rmsCurrFromPref = (int)((float)rmsCurrFromPref*1.5);
+            log_i("Overdrive current for motor %i: %i", i, rmsCurrFromPref);
         }
-        else
-        {
-            // get rms current from preferences
-            preferences.begin("TMC", false);
-            TMCController::setTMCCurrent(preferences.getInt("current", pinConfig.tmc_rms_current));
-            preferences.end();
-        }
+        TMCController::setTMCCurrent(rmsCurrFromPref);
         #endif
 
         getData()[i]->stopped = false;

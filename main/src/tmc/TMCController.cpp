@@ -52,6 +52,7 @@ namespace TMCController
 
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
     {
+        #if not defined(CAN_MASTER)
         driver.microsteps(p.msteps);
         driver.rms_current(p.rms_current);
         driver.SGTHRS(p.sgthrs);
@@ -70,6 +71,7 @@ namespace TMCController
         */
         log_i("Apply Motor Settings: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i",
               p.msteps, driver.microsteps(), p.rms_current, driver.rms_current(), p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff);
+        #endif
     }
 
     static void parseTMCDataFromJSON(cJSON *jsonDocument, TMCData &p)
@@ -124,7 +126,7 @@ namespace TMCController
         // send TMC data via I2C
         i2c_master::sendTMCDataI2C(p, axis);
         return 0;
-#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+#elif defined(CAN_MASTER)
         can_controller::sendTMCDataToCANDriver(p, axis);
         return 0;
 #else
@@ -175,7 +177,7 @@ namespace TMCController
         {
             return jsonDocument;
         }
-#ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
         TMCData p = readParamsFromPreferences();
         cJSON *monitor_json = cJSON_CreateObject();
         cJSON_AddNumberToObject(monitor_json, "msteps", p.msteps);
@@ -198,6 +200,22 @@ namespace TMCController
 #endif
     }
 
+    uint16_t getTMCCurrent()
+    {
+        if (pinConfig.tmc_SW_RX == disabled)
+        {
+            log_e("TMC2209 not enabled in this configuration");
+            return 0;
+        }
+#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+        return driver.rms_current();
+#else
+        return 0;
+#endif
+    }
+
+
+
     void setTMCCurrent(uint16_t current)
     {
         // This will change the driver's current but will not save it to preferences (e.g. won't survive boot)
@@ -206,7 +224,7 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration");
             return;
         }
-#ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
         driver.rms_current(current);
         log_i("TMC2209 Current set to %i", current);
 #endif
@@ -214,7 +232,7 @@ namespace TMCController
 
     void callibrateStallguard(int speed = 10000)
     {
-#ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
@@ -289,7 +307,7 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
             return;
         }
-#ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
         log_i("Setting up TMC2209");
 
         preferences.begin("tmc", false);

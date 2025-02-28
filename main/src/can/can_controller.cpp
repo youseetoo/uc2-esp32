@@ -503,7 +503,7 @@ namespace can_controller
                 if (copy.len > 0 && copy.data != nullptr)
                 {
                     // Allocate space and copy the payload
-                    Serial.printf("About to malloc: %u bytes\n", (unsigned)copy.len);
+                    // Serial.printf("About to malloc: %u bytes\n", (unsigned)copy.len);
                     copy.data = (uint8_t *)malloc(copy.len);
                     if (copy.data)
                     {

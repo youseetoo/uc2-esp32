@@ -391,8 +391,6 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     }
 
     // introduce a special case where we don't know the datatype to cast on default, so we create the array and cast it later
-    if (pdu->data == nullptr)
-    {
         // Free existing buffer if needed
         if (pdu->data)
         {
@@ -402,6 +400,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
         }
 
         // Allocate enough space for the entire payload and cast it later
+        log_i("Allocating memory for pdu->data");
         pdu->data = (uint8_t *)malloc(totalLen);
         if (!pdu->data)
         {
@@ -410,7 +409,6 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
             pdu->cantpState = CANTP_ERROR;
             return 1;
         }
-    }
     // Copy the first 6 bytes
     memcpy(pdu->data, &frame->data[2], 6); // Copy first 6 bytes
     _rxRestBytes -= 6;

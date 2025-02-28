@@ -57,7 +57,7 @@ namespace can_controller
 #ifdef MOTOR_CONTROLLER
 
         // Parse as MotorData
-        log_i("Received MotorData from CAN, size: %i, txID: %i: %i", size, txID);
+        log_i("Received MotorData from CAN %i, size: %i, txID: %i: %i", size, txID);
         if (size == sizeof(MotorData))
         {
             MotorData receivedMotorData;
@@ -169,7 +169,7 @@ namespace can_controller
             log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
             int mStepper = receivedMotorState.axis;
             // check within bounds
-            if (mStepper < 0 || mStepper > MOTOR_AXIS_COUNT)
+            if (mStepper < 0 || mStepper >= MOTOR_AXIS_COUNT)
             {
                 log_e("Error: Received MotorState from CAN with invalid axis %i", mStepper);
                 return;
@@ -260,7 +260,8 @@ namespace can_controller
         {
             parseMotorAndHomeData(data, size, rxID);
         }
-        else if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_LASER_0 || rxID == pinConfig.CAN_ID_LASER_1 || rxID == pinConfig.CAN_ID_LASER_2) || rxID == pinConfig.CAN_ID_LASER_3)
+        else if (rxID == device_can_id &&
+            (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_3))   
         {
             parseLaserData(data, size, rxID);
         }
@@ -498,11 +499,24 @@ namespace can_controller
             if (xQueueReceive(recieveQueue, &rxPdu, portMAX_DELAY) == pdTRUE)
             {
                 // Make a local copy of rxPdu
-                dispatchIsoTpData(rxPdu);
-                if(rxPdu.data != nullptr)
+                pdu_t copy = rxPdu;
+                if (copy.len > 0 && copy.data != nullptr)
                 {
-                    free(rxPdu.data);
-                    rxPdu.data = nullptr;
+                    // Allocate space and copy the payload
+                    Serial.printf("About to malloc: %u bytes\n", (unsigned)copy.len);
+                    copy.data = (uint8_t *)malloc(copy.len);
+                    if (copy.data)
+                    {
+                        memcpy(copy.data, rxPdu.data, copy.len);
+                        // Now dispatch using the copy
+                        dispatchIsoTpData(copy);
+                        free(copy.data);
+                    }
+                }
+                else
+                {
+                    dispatchIsoTpData(copy);
+
                 }
             }
             vTaskDelay(1);

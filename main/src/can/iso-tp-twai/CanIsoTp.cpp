@@ -370,12 +370,25 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 
 int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
 {
-    log_i("First Frame received, txID %d, rxID %d", pdu->txId, pdu->rxId);
-
+    
+    // check for invalid data length code - has to be at least 8?
+    if (frame->data_length_code < 8) {
+        log_e("Invalid First Frame length code: %d", frame->data_length_code);
+        pdu->cantpState = CANTP_ERROR;
+        return 1;
+    }
     // Determine total length from FF
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1]; // len is 16bits: 0000 XXXX. 0000 0000.
     pdu->len = totalLen;
     _rxRestBytes = pdu->len;
+    log_i("First Frame received, txID %d, rxID %d, size: %i, totalLen: %i", pdu->txId, pdu->rxId, frame->data_length_code, totalLen);
+
+    // If totalLen < 6, we cannot safely copy 6 bytes.
+    if (totalLen < 6) {
+        log_e("Invalid totalLen < 6 in First Frame: %d", totalLen);
+        pdu->cantpState = CANTP_ERROR;
+        return 1;
+    }
 
     // introduce a special case where we don't know the datatype to cast on default, so we create the array and cast it later
     if (pdu->data == nullptr)
@@ -385,6 +398,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
         {
             free(pdu->data);
             pdu->data = nullptr;
+            log_i("Freeing existing buffer");
         }
 
         // Allocate enough space for the entire payload and cast it later

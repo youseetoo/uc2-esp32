@@ -489,6 +489,7 @@ namespace FocusMotor
 	void sendMotorPos(int i, int arraypos)
 	{
 		// update current position of the motor depending on the interface
+		Serial.println("Motor index: " + String(i));
 		updateData(i);
 
 		cJSON *root = cJSON_CreateObject();

@@ -139,7 +139,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5039, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
 
 {"task":"/objective_act","calibrate":1}
 		{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)

@@ -63,10 +63,13 @@ namespace TMCController
         driver.toff(p.toff);
         if (saveToPrefs)
             writeParamsToPreferences(p);
+        /*
         digitalWrite(pinConfig.MOTOR_ENABLE, HIGH);
         delay(10);
         digitalWrite(pinConfig.MOTOR_ENABLE, LOW);
-        log_i("Enabled Motor again");
+        */
+        log_i("Apply Motor Settings: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i",
+              p.msteps, driver.microsteps(), p.rms_current, driver.rms_current(), p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff);
     }
 
     static void parseTMCDataFromJSON(cJSON *jsonDocument, TMCData &p)
@@ -75,7 +78,7 @@ namespace TMCController
         val = cJsonTool::getJsonInt(jsonDocument, "msteps");
         if (val > 0)
             p.msteps = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "rmscurr");
+        val = cJsonTool::getJsonInt(jsonDocument, "rms_current");
         if (val > 0)
             p.rms_current = val;
         val = cJsonTool::getJsonInt(jsonDocument, "stall_value");
@@ -134,15 +137,16 @@ namespace TMCController
         if (tmc_calibrate)
         { // {"task":"/tmc_act", "calibrate": 10000}
             // callibrateStallguard(...)
+            log_i("Calibrating TMC2209 Stallguard");
             int speed = cJsonTool::getJsonInt(jsonDocument, "calibrate");
             callibrateStallguard(speed);
-            return 0;
             return 0;
         }
 
         bool tmc_reset = (cJsonTool::getJsonInt(jsonDocument, "reset") == 1);
         if (tmc_reset)
         {
+            log_i("Resetting TMC2209 settings to default");
             preferences.begin("tmc", false);
             preferences.putInt("msteps", pinConfig.tmc_microsteps);
             preferences.putInt("current", pinConfig.tmc_rms_current);
@@ -194,7 +198,7 @@ namespace TMCController
 #endif
     }
 
-    void setTMCCurrent(int current)
+    void setTMCCurrent(uint16_t current)
     {
         // This will change the driver's current but will not save it to preferences (e.g. won't survive boot)
         if (pinConfig.tmc_SW_RX == disabled)
@@ -291,12 +295,17 @@ namespace TMCController
         preferences.begin("tmc", false);
         Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
         driver.begin();
+        //https://github.com/teemuatlut/TMCStepper/issues/35#issuecomment-498605125
+        // Use PDN/UART pin for communication
+        driver.pdn_disable(true);
+        // Necessary for TMC2208 to set microstep register with UART
+        driver.mstep_reg_select(1);
 
         TMCData p = readParamsFromPreferences();
         applyParamsToDriver(p, false);
-
+        // Set the stallguard threshold
         pinMode(pinConfig.tmc_pin_diag, INPUT);
-        preferences.end();
+       preferences.end();
 
         log_i("TMC2209 setup done");
 #endif

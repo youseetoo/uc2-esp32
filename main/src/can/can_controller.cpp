@@ -736,15 +736,26 @@ namespace can_controller
         // send home data to slave via
         uint8_t slave_addr = axis2id(axis);
         log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
+        // TODO: if we do homing on that axis the first time it mysteriously fails so we send it twice..
+        // check if axis was homed already in axisHomed - array
         int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
-        if (err != 0)
+        if (axisHomed[axis] == false)
         {
-            log_e("Error sending home data to CAN slave at address %i", slave_addr);
+            int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
+            if (err != 0)
+            {
+                log_e("Error sending home data to CAN slave at address %i", slave_addr);
+            }
+            else
+            {
+                log_i("Home data sent to CAN slave at address %i", slave_addr);
+            }
         }
         else
         {
-            log_i("Home data sent to CAN slave at address %i", slave_addr);
+            log_i("Axis %i was already homed, not sending home data again", axis);
         }
+        axisHomed[axis] = true;
     }
 
     void sendHomeStateToMaster(HomeState homeState)

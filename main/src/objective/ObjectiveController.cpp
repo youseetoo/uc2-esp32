@@ -99,6 +99,8 @@ namespace ObjectiveController
 		{
 			log_i("Objective move, to position: %i", obj);
 			//{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}
+			// move to position X1: {"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}
+			// move to position X2: {"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":2}
 
 			if (obj == 0)
 			{

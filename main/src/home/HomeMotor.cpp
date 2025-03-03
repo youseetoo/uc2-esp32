@@ -132,6 +132,9 @@ namespace HomeMotor
 		hdata[axis]->homeIsActive = true;
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 		runStepper(axis);
+#elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
+		// send the home data to the slave
+		can_controller::sendHomeDataToCANDriver(*hdata[axis], axis);
 #endif
 	}
 

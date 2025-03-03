@@ -64,6 +64,8 @@ namespace can_controller
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);
     void sendHomeStateToMaster(HomeState homeState);
+    // axis homed array stores the homed state of each axis
+    static bool axisHomed[4] = {false, false, false, false};
 
     // laser functions
     void sendLaserDataToCANDriver(LaserData laserData);

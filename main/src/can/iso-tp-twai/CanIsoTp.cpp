@@ -343,6 +343,7 @@ int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 {
     log_i("Single Frame received");
+    uint8_t dataLength = frame->data[0] & 0x0F;
     // if data is empty, allocate memory
     if (pdu->data == nullptr)
     {
@@ -363,6 +364,17 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
         return 1;
     }
 
+    // we have to perform a malloc here, as we don't know the datatype to cast on default
+    // Allocate enough space for the entire payload and cast it later
+    log_i("Allocating memory for pdu->data");
+    pdu->data = (uint8_t *)malloc(pdu->len);
+    if (!pdu->data)
+    {
+        // Could not allocate; set an error
+        log_e("Could not allocate memory for data");
+        pdu->cantpState = CANTP_ERROR;
+        return 1;
+    }
     memcpy(pdu->data, &frame->data[1], pdu->len);
     pdu->cantpState = IsoTpState::CANTP_END; // Transmission complete
     return 0;

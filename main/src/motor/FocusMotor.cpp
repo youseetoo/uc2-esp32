@@ -394,7 +394,8 @@ namespace FocusMotor
 // stop all motors on startup
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-			stopStepper(i);
+			stopStepper(i);delay(10);
+			stopStepper(i);// do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
 		}
 #endif
 

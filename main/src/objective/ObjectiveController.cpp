@@ -179,6 +179,7 @@ namespace ObjectiveController
 		// {"objective":{"x1":1000,"x2":2000,"pos":1000,"isHomed":1,"state":1,"isRunning":0}}
 		cJSON *root = cJSON_CreateObject();
 		cJSON *obj = cJSON_CreateObject();
+		int qid = cJsonTool::getJsonInt(doc, "qid");
 		cJSON_AddItemToObject(root, "objective", obj);
 		cJsonTool::setJsonInt(obj, "x1", (int)data.x1);
 		cJsonTool::setJsonInt(obj, "x2", (int)data.x2);
@@ -186,6 +187,7 @@ namespace ObjectiveController
 		cJsonTool::setJsonInt(obj, "isHomed", data.isHomed);
 		cJsonTool::setJsonInt(obj, "state", data.currentState);
 		cJsonTool::setJsonInt(obj, "isRunning", FocusMotor::isRunning(sObjective));
+		cJsonTool::setJsonInt(obj, "qid", qid);
 
 		return root;
 	}

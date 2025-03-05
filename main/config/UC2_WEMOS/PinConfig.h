@@ -36,6 +36,11 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
      int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 3;
 
+         // Additional Digital Input Pins
+    int8_t DIGITAL_IN_1 = GPIO_NUM_13;  // Disabled
+    int8_t DIGITAL_IN_2 = GPIO_NUM_5;  // VP on ESP32
+    int8_t DIGITAL_IN_3 = GPIO_NUM_23;  // VN on ESP32
+
      const char *mSSID = "Blynk";
      const char *mPWD = "12345678";
      bool mAP = false;

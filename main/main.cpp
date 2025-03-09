@@ -112,7 +112,6 @@ Preferences preferences;
 #endif
 #include "./src/state/State.h"
 
-
 long lastHeapUpdateTime = 0;
 bool state_led = false;
 long time_led = 0;

@@ -5,14 +5,14 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-#include "soc/rtc_io_reg.h"
-#include "soc/rtc_cntl_reg.h"
-#include "soc/sens_reg.h"
-#include "soc/rtc.h"
 
 #ifndef ESP32S3_MODEL_XIAO
 #if !defined(M5DIAL)
 #include "driver/dac.h"
+#include "soc/rtc_io_reg.h"
+#include "soc/rtc_cntl_reg.h"
+#include "soc/sens_reg.h"
+#include "soc/rtc.h"
 #endif
 #endif
 

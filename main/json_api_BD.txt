@@ -136,8 +136,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 # set the i2c address based on the motor axis (e.g. stepperaxis 1 = x, 2 = y, 3 = z; stepperid is always 1 since the remote motor driver runs on a single axis only), motor will restart 
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 2}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5039, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
 
@@ -169,7 +168,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/can_get"}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0, "red":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}

@@ -1,4 +1,5 @@
 #include "i2c_master.h"
+#include <cstdlib> // für std::abs
 #include <PinConfig.h>
 #include "Wire.h"
 #include "esp_log.h"
@@ -112,6 +113,7 @@ namespace i2c_master
         // TODO: Is this still true? >= if TCA is active wire doesn't work
         Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
         i2c_scan();
+        pinConfig.isI2Cinitiated = true;
     }
 
     /**************************************
@@ -573,8 +575,8 @@ namespace i2c_master
                 // check if current position and position2go are within a reasonable range
                 // if not we don't want to move the motor
                 // log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
-                if (abs(mCurrentPosition - position2go) > 20000)
-                {
+                if (std::abs(static_cast<int32_t>(mCurrentPosition - position2go)) > 20000)
+                                {
                     log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
                     continue;
                 }

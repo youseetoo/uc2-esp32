@@ -250,6 +250,7 @@ struct PinConfig
      int tmc_toff = 4;
 
      // I2c
+     bool isI2Cinitiated = false;
      int8_t I2C_SCL = disabled; // This is the poart that connects to all other slaves
      int8_t I2C_SDA = disabled;
 

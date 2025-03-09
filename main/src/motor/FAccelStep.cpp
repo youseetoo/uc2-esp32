@@ -34,7 +34,7 @@ namespace FAccelStep
         }
 
         faststeppers[i]->setSpeedInHz(speed);
-        if (getData()[i]->acceleration <= 0)
+        if (getData()[i]->acceleration >= 0)
         {
             faststeppers[i]->setAcceleration(getData()[i]->acceleration);
         }
@@ -50,7 +50,7 @@ namespace FAccelStep
         preferences.begin("TMC", false);
         uint16_t rmsCurrFromPref = preferences.getInt("current", pinConfig.tmc_rms_current);
         preferences.end();
-        if (speed > 10000)
+        if (abs(speed) > 10000)
         {
             rmsCurrFromPref = (int)((float)rmsCurrFromPref*1.5);
             log_i("Overdrive current for motor %i: %i", i, rmsCurrFromPref);
@@ -99,7 +99,7 @@ namespace FAccelStep
             }
         }
 
-        /*
+        
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -111,7 +111,7 @@ namespace FAccelStep
               getData()[i]->acceleration,
               getData()[i]->stopped,
               isRunning(i));
-              */
+        
     }
 
     void setupFastAccelStepper()
@@ -126,6 +126,7 @@ namespace FAccelStep
             log_e("Stepper Z getData() NULL");
         engine.init();
 #ifdef USE_TCA9535
+        log_i("Using TCA9535");
         engine.setExternalCallForPin(_externalCallForPin);
 #endif
 

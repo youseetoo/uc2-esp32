@@ -98,6 +98,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
 
      // Objective
      uint8_t objectiveMotorAxis = 0; // 0=A, 1=X, 2=Y, 3=Z
+     uint8_t focusMotorAxis = 3;
      uint32_t objectivePositionX1 = 5000;
      uint32_t objectivePositionX2 = 35000;
      int8_t objectiveHomeDirection = -1;

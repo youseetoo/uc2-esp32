@@ -6,11 +6,11 @@
 #define USE_TCA9535
 #define BLUETOOTH
 #define BTHID
-#define WIFI
+//#define WIFI
 #define LED_CONTROLLER
 #define HOME_MOTOR
 #define LASER_CONTROLLER
-#define DIGITAL_IN_CONTROLLER
+#define DIGITAL_IN_CONTROLLER 
 #define LED_CONTROLLER
 
 struct UC2_3 : PinConfig

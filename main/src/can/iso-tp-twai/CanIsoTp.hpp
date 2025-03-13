@@ -40,8 +40,8 @@
 
 // General Timeouts
 #define PACKET_SIZE       8
-#define TIMEOUT_SESSION   1000 // Timeout for receiving complete message (ms)
-#define TIMEOUT_FC        500  // Timeout for Flow Control (ms)
+#define TIMEOUT_SESSION   400 //1000 // Timeout for receiving complete message (ms)
+#define TIMEOUT_FC        50 //500  // Timeout for Flow Control (ms)
 
 // ISO-TP State Definitions
 enum IsoTpState {

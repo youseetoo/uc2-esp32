@@ -22,3 +22,6 @@ build/firmware.bin
 
 THID*
 /.conda/*
+/main/PinConfig.h
+/builds3/*
+/build/*

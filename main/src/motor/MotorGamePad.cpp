@@ -55,20 +55,24 @@ namespace MotorGamePad
 			if (s == Stepper::X and joystick_drive_X)
 			{
 				FocusMotor::stopStepper(s);
+				FocusMotor::stopStepper(s);
 				joystick_drive_X = false;
 			}
 			if (s == Stepper::Y and joystick_drive_Y)
 			{
+				FocusMotor::stopStepper(s);
 				FocusMotor::stopStepper(s);
 				joystick_drive_Y = false;
 			}
 			if (s == Stepper::Z and joystick_drive_Z)
 			{
 				FocusMotor::stopStepper(s);
+				FocusMotor::stopStepper(s);
 				joystick_drive_Z = false;
 			}
 			if (s == Stepper::A and joystick_drive_A)
 			{
+				FocusMotor::stopStepper(s);
 				FocusMotor::stopStepper(s);
 				joystick_drive_A = false;
 			}

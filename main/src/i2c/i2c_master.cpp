@@ -1,4 +1,5 @@
 #include "i2c_master.h"
+#include <cstdlib> // für std::abs
 #include <PinConfig.h>
 #include "Wire.h"
 #include "esp_log.h"
@@ -112,6 +113,7 @@ namespace i2c_master
         // TODO: Is this still true? >= if TCA is active wire doesn't work
         Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
         i2c_scan();
+        pinConfig.isI2Cinitiated = true;
     }
 
     /**************************************
@@ -203,13 +205,13 @@ namespace i2c_master
         setPositionI2CDriver(s, 0);
     }
 
-    void setPositionI2CDriver(Stepper s, long pos)
+    void setPositionI2CDriver(Stepper s, uint32_t pos)
     {
         // send the position to the slave via I2C
         uint8_t slave_addr = axis2address(s);
         log_i("Setting position on I2C driver to %i on axis %i", pos, s);
         Wire.beginTransmission(slave_addr);
-        Wire.write((uint8_t *)&pos, sizeof(long));
+        Wire.write((uint8_t *)&pos, sizeof(uint32_t));
         int err = Wire.endTransmission();
         if (err != 0)
         {
@@ -539,7 +541,7 @@ namespace i2c_master
             {
                 // compare old dial data; if same value, don't move the motor
                 // This is zero-cost so we do it first!
-                long position2go = 0;
+                uint32_t position2go = 0;
                 if (iMotor == 0)
                     position2go = mDialData.pos_a;
                 if (iMotor == 1)
@@ -568,13 +570,13 @@ namespace i2c_master
 
                 // eventually we need to pull the position from the motor depending on the motor type
                 FocusMotor::updateData(iMotor);
-                long mCurrentPosition = FocusMotor::getData()[iMotor]->currentPosition;
+                uint32_t mCurrentPosition = FocusMotor::getData()[iMotor]->currentPosition;
 
                 // check if current position and position2go are within a reasonable range
                 // if not we don't want to move the motor
                 // log_i("Motor %i: Current position: %i, Dial position: %i", iMotor, FocusMotor::getData()[iMotor]->currentPosition, position2go);
-                if (abs(mCurrentPosition - position2go) > 20000)
-                {
+                if (std::abs(static_cast<int32_t>(mCurrentPosition - position2go)) > 20000)
+                                {
                     log_e("Error: Motor %i is too far away from dial position %i", iMotor, position2go);
                     continue;
                 }

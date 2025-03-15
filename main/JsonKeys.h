@@ -66,11 +66,9 @@ __attribute__ ((unused)) static const PROGMEM char * keyIdentifier = "identifier
 __attribute__ ((unused)) static const PROGMEM char * key_return = "return";
 
 __attribute__ ((unused)) static const PROGMEM char * keyIsBooting  = "isBooting";
-#ifdef WIFI
 __attribute__ ((unused)) static const PROGMEM char * keyWifiSSID = "ssid";
 __attribute__ ((unused)) static const PROGMEM char * keyWifiPW = "PW";
 __attribute__ ((unused)) static const PROGMEM char * keyWifiAP = "AP";
-#endif
 __attribute__ ((unused)) static const PROGMEM char * key_config = "config";
 __attribute__ ((unused)) static const PROGMEM char * keyQueueID = "qid";
 

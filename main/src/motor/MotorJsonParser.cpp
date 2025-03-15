@@ -34,7 +34,7 @@ namespace MotorJsonParser
 		cJSON *stprs = cJSON_CreateArray();
 		cJSON_AddItemToObject(mot, key_steppers, stprs);
 
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 			if (i == 0 and pinConfig.MOTOR_A_STEP < 0)
 				continue;
@@ -74,6 +74,8 @@ namespace MotorJsonParser
 				cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 				cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 				cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
+				cJsonTool::setJsonInt(aritem, "isStop", FocusMotor::getData()[i]->isStop);
+
 				cJsonTool::setJsonInt(aritem, "isDualAxisZ", FocusMotor::getDualAxisZ());
 
 #ifdef I2C_SLAVE_MOTOR

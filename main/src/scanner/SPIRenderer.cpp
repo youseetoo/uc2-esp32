@@ -7,6 +7,7 @@
 #include "esp_err.h"
 #include "esp_log.h"{"task":"/state_get", "heap":1}
 #include <esp32-hal-log.h>
+#include "PinConfig.h"
 
 
 static const char *TAG = "Renderer";
@@ -131,9 +132,9 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
   // setup SPI output
   esp_err_t ret;
   spi_bus_config_t buscfg = {
-      .mosi_io_num = PIN_NUM_MOSI,
-      .miso_io_num = PIN_NUM_MISO,
-      .sclk_io_num = PIN_NUM_CLK,
+      .mosi_io_num = pinConfig.galvo_mosi,
+      .miso_io_num = pinConfig.galvo_miso,
+      .sclk_io_num = pinConfig.galvo_sclk,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
       .max_transfer_sz = 0};
@@ -143,7 +144,7 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
       .dummy_bits = 0,
       .mode = 0,
       .clock_speed_hz = 80000000,
-      .spics_io_num = PIN_NUM_CS, // CS pin
+      .spics_io_num = pinConfig.galvo_cs, // CS pin
       .flags = SPI_DEVICE_NO_DUMMY,
       .queue_size = 2,
   };

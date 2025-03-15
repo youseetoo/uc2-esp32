@@ -6,12 +6,9 @@
 // ATTENTION: THIS IS ONLY FOR LINTING!
 #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
-#define LASER_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_SLAVE_MOTOR
-#define CAN_CONTROLLER
+#define LED_CONTROLLER
 
-struct UC2_3_Xiao_Slave_Laser : PinConfig
+struct waveshare_esp32s3_ledarray : PinConfig
 {
      /*
      D0: 1
@@ -41,23 +38,13 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-     const char * pindefName = "UC2_3_I2CSlaveLaser";
+     const char * pindefName = "waveshare_esp32s3_ledarray";
      const unsigned long BAUDRATE = 115200;
 
-     // Laser control pins (using updated GPIO values)
-     int8_t LASER_1 = GPIO_NUM_8; // D9
-     int8_t LASER_2 = GPIO_NUM_9; // D10
+     int8_t LED_PIN = GPIO_NUM_14;
+     int8_t LED_COUNT = 64;
 
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL = disabled; // D5 -> GPIO6
-     int8_t I2C_SDA = disabled; // D4 -> GPIO5
-
-     // CAN
-     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
-     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
-     uint32_t CAN_ID_CURRENT = CAN_ID_LASER_0; // TODO: This is a "broadcasting" address, where multiple lasers (PWM) are connected to one device
-
-
+     bool dumpHeap = true; 
 };
   
-const UC2_3_Xiao_Slave_Laser pinConfig;
+const waveshare_esp32s3_ledarray pinConfig;

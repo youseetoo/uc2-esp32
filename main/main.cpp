@@ -79,6 +79,9 @@ Preferences preferences;
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
 #endif
+#ifdef OBJECTIVE_CONTROLLER
+#include "src/objective/ObjectiveController.h"
+#endif
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
@@ -104,12 +107,10 @@ Preferences preferences;
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
 #endif
-#ifdef ESPNOW_MASTER
-#include "src/espnow/espnow_master.h"
-#endif
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"
 #endif
+#include "./src/state/State.h"
 
 long lastHeapUpdateTime = 0;
 bool state_led = false;
@@ -124,6 +125,15 @@ extern "C" void looper(void *p)
 
 	for (;;)
 	{
+
+		// measure time since boot and turn off OTA on startup 
+		#ifdef OTA_ON_STARTUP
+		if (esp_timer_get_time()>pinConfig.OTA_TIME_FROM_STARTUP and State::OTArunning)
+		{
+			State::stopOTA();
+		}
+		#endif
+
 		esp_task_wdt_reset(); // Reset (feed) the watchdog timer
 		// receive and process serial messages
 		#ifdef ESP32S3_MODEL_XIAO
@@ -147,6 +157,10 @@ extern "C" void looper(void *p)
 #endif
 #ifdef HOME_MOTOR
 		HomeMotor::loop();
+		vTaskDelay(1);
+#endif
+#ifdef OBJECTIVE_CONTROLLER
+		ObjectiveController::loop();
 		vTaskDelay(1);
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
@@ -177,10 +191,6 @@ extern "C" void looper(void *p)
 		i2c_master::loop();
 		vTaskDelay(1);
 #endif
-#ifdef CAN_CONTROLLER
-		can_controller::loop();
-		vTaskDelay(1);
-#endif
 #ifdef PID_CONTROLLER
 		PidController::loop();
 		vTaskDelay(1);
@@ -197,14 +207,7 @@ extern "C" void looper(void *p)
 		HeatController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef ESPNOW_MASTER
-		espnow_master::loop();
-		vTaskDelay(1);
-#endif
-#ifdef ESPNOW_SLAVE_MOTOR
-		espnow_slave_motor::loop();
-		vTaskDelay(1);
-#endif
+
 
 		// process all commands in their modules
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time())
@@ -304,6 +307,9 @@ extern "C" void setupApp(void)
 #ifdef HOME_MOTOR
 	HomeMotor::setup();
 #endif
+#ifdef OBJECTIVE_CONTROLLER
+	ObjectiveController::setup();
+#endif
 #ifdef LASER_CONTROLLER
 	LaserController::setup();
 #endif
@@ -337,6 +343,10 @@ extern "C" void setupApp(void)
 #endif
 #ifdef ESPNOW_SLAVE_MOTOR
 	espnow_slave_motor::setup();
+#endif
+
+#ifdef OTA_ON_STARTUP
+State::startOTA();
 #endif
 
 	Serial.println("{'setup':'done'}");

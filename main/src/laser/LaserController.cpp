@@ -33,7 +33,7 @@ namespace LaserController
 			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_3;
 		}
 		// add random number to current value to let it oscliate
-		long laserwiggle = random(-LASERdespeckle, LASERdespeckle);
+		int32_t laserwiggle = random(-LASERdespeckle, LASERdespeckle);
 		LASER_val_wiggle += laserwiggle;
 		if (LASER_val_wiggle > pwm_max)
 			LASER_val_wiggle -= (2 * abs(laserwiggle));

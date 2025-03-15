@@ -17,26 +17,28 @@
 
 struct TMCData
 {
-    int msteps;
-    int rms_current;
-    int stall_value;
-    int sgthrs;
-    int semin;
-    int semax;
-    int sedn;
-    int tcoolthrs;
-    int blank_time;
-    int toff;
+    uint16_t msteps;
+    uint16_t rms_current;
+    uint16_t stall_value;
+    uint16_t sgthrs;
+    uint8_t semin;
+    uint8_t semax;
+    uint8_t sedn;
+    uint32_t tcoolthrs;
+    uint8_t blank_time;
+    uint8_t toff;
 };
+
 namespace TMCController
 {
     static Preferences preferences;
-    void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(cJSON * ob);
     cJSON * get(cJSON *  ob);
     void setup();
+    void setTMCCurrent(uint16_t current);
+    uint16_t getTMCCurrent();
     void loop();
     void callibrateStallguard(int speed);
-    void setTMCData(TMCData tmcData);
+    void applyParamsToDriver(const TMCData &p, bool saveToPrefs);
 };
 

@@ -22,6 +22,9 @@ namespace BtController
     #define PAIR_MAX_DEVICES 20
     static char bda_str[18];
 
+    static uint32_t updateRateMS = 100; // update every 100ms
+    static uint32_t lastUpdate = 0;    // last update time
+    
 
     void setup();
     void loop();

@@ -1,16 +1,27 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
+
+#undef MOTOR_AXIS_COUNT
+// redfine
+#define MOTOR_AXIS_COUNT 10
 #undef PSXCONTROLLER
-#define DIGITAL_IN_CONTROLLER=1
-#define HOME_MOTOR=1
-#define MOTOR_CONTROLLER=1
-#define I2C_SLAVE_MOTOR=1
-#define USE_FASTACCEL=1
-#define MESSAGE_CONTROLLER=1
-#define TMC_CONTROLLER=1
-#define ESP32S3_MODEL_XIAO=1
-struct UC2_3_Xiao_Slave : PinConfig
+
+#define CORE_DEBUG_LEVEL
+#define ESP32S3_MODEL_XIAO 
+#define DIGITAL_IN_CONTROLLER
+#define MESSAGE_CONTROLLER
+#define CAN_SLAVE_MOTOR
+#define CAN_CONTROLLER
+#define MOTOR_CONTROLLER
+#define HOME_MOTOR
+#define DIGITAL_IN_CONTROLLER
+#define USE_FASTACCEL
+#define TMC_CONTROLLER
+//#define OTA_ON_STARTUP
+
+
+struct seeed_xiao_esp32c3_can_slave_motor : PinConfig
 {
      /*
      D0: 1
@@ -40,7 +51,7 @@ struct UC2_3_Xiao_Slave : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-     const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
+     const char * pindefName = "seeed_xiao_esp32c3_can_slave_motor";
      const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
@@ -50,17 +61,15 @@ struct UC2_3_Xiao_Slave : PinConfig
      bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
-     // I2c
+     // I2c - as slave
      const char *I2C_NAME = "MOTX";
-     I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mMOTOR;
-     int8_t REMOTE_MOTOR_AXIS_ID = 1;   // On the slave we have one motor axis per slave
      int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
-     int8_t I2C_SCL = GPIO_NUM_2; // D1 -> GPIO2 
-     int8_t I2C_SDA = GPIO_NUM_3; // D2 -> GPIO3
+     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2 
+     int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
      
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL_ext = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA_ext = GPIO_NUM_5; // D4 -> GPIO5
+     // I2C  - as controller 
+     int8_t I2C_SCL_ext = GPIO_NUM_5; // D5 -> GPIO5
+     int8_t I2C_SDA_ext = GPIO_NUM_4; // D4 -> GPIO4
 
      // TMC UART 
      int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
@@ -68,7 +77,7 @@ struct UC2_3_Xiao_Slave : PinConfig
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      
      int tmc_microsteps = 16;
-     int tmc_rms_current = 500;
+     int tmc_rms_current = 600;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
      int tmc_semin = 5;
@@ -78,8 +87,19 @@ struct UC2_3_Xiao_Slave : PinConfig
      int tmc_blank_time = 24;
      int tmc_toff = 4;
 
-     // TEmporarily for endstop
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
+     // CAN
+     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+     uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
+     
+
+     // Endstops should be the same for all - depending on the motor
+     uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
+     uint8_t objectivePositionX1 = 10000;
+     uint8_t objectivePositionX2 = 80000;
+
+     // OTA settings
+     const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
 };
   
-const UC2_3_Xiao_Slave pinConfig;
+const seeed_xiao_esp32c3_can_slave_motor pinConfig;

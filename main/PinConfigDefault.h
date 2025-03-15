@@ -2,6 +2,9 @@
 #include "esp_err.h"
 #include "Arduino.h"
 
+
+#define MOTOR_AXIS_COUNT 4
+
 // default Pin structure
 
 /*
@@ -112,6 +115,21 @@ struct PinConfig
      int8_t MOTOR_A_DIR = disabled;
      // motor a step pin
      int8_t MOTOR_A_STEP = disabled;
+
+     // additional dummy pins 
+     int8_t MOTOR_B_DIR = disabled;
+     int8_t MOTOR_B_STEP = disabled;
+     int8_t MOTOR_C_DIR = disabled;
+     int8_t MOTOR_C_STEP = disabled;
+     int8_t MOTOR_D_DIR = disabled;
+     int8_t MOTOR_D_STEP = disabled;
+     int8_t MOTOR_E_DIR = disabled;
+     int8_t MOTOR_E_STEP = disabled;
+     int8_t MOTOR_F_DIR = disabled;
+     int8_t MOTOR_F_STEP = disabled;
+     int8_t MOTOR_G_DIR = disabled;
+     int8_t MOTOR_G_STEP = disabled;
+     
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted
@@ -138,6 +156,7 @@ struct PinConfig
      int8_t MOTOR_Z_1 = disabled;
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
+
 
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
@@ -231,6 +250,7 @@ struct PinConfig
      int tmc_toff = 4;
 
      // I2c
+     bool isI2Cinitiated = false;
      int8_t I2C_SCL = disabled; // This is the poart that connects to all other slaves
      int8_t I2C_SDA = disabled;
 
@@ -269,7 +289,7 @@ struct PinConfig
      // Source ID Assignment Scheme
      // Device Type          Starting ID  Range       Total Devices
      // Gateway (Master)     0x00         0x00        1
-     // Lasers               0x10         0x10 - 0x19 10
+     // Lasers               0         0 - 9 10
      // Motors               0x20         0x20 - 0x29 10
      // LEDs                 0x30         0x30 - 0x39 10
      // Sensors              0x40         0x40 - 0x49 10
@@ -277,17 +297,23 @@ struct PinConfig
 
      // Variables for different IDs
     // addresses
-    uint32_t CAN_ID_CENTRAL_NODE = 0x100; // this is similar to the master address
+    uint8_t CAN_ID_CENTRAL_NODE = 1; // this is similar to the master address
     
-    uint32_t CAN_ID_MOT_A = 0x110;
-    uint32_t CAN_ID_MOT_X = 0x111;
-    uint32_t CAN_ID_MOT_Y = 0x112;
-    uint32_t CAN_ID_MOT_Z = 0x113;
+    uint8_t CAN_ID_MOT_A = 10;
+    uint8_t CAN_ID_MOT_X = 11;
+    uint8_t CAN_ID_MOT_Y = 12;
+    uint8_t CAN_ID_MOT_Z = 13;
+    uint8_t CAN_ID_MOT_B = 14;
+    uint8_t CAN_ID_MOT_C = 15;
+     uint8_t CAN_ID_MOT_D = 16;
+     uint8_t CAN_ID_MOT_E = 17;
+     uint8_t CAN_ID_MOT_F = 18;
+     uint8_t CAN_ID_MOT_G = 19;
 
-    uint32_t CAN_ID_LASER_0 = 0x220;
-    uint32_t CAN_ID_LASER_1 = 0x221;
-    uint32_t CAN_ID_LASER_2 = 0x222;
-    uint32_t CAN_ID_LASER_3 = 0x223;
+    uint8_t CAN_ID_LASER_0 = 20;
+    uint8_t CAN_ID_LASER_1 = 21;
+    uint8_t CAN_ID_LASER_2 = 22;
+    uint8_t CAN_ID_LASER_3 = 23;
 
 
 

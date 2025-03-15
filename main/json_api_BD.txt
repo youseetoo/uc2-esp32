@@ -120,10 +120,11 @@ mm-per-step XY: 0.00635 -> 200 steps/rev 1.27mm/revolution 5.039,3700787402
 mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 # drive home on axis Y
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":0}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -50000, "speed": 20000, "isabs": 0, "isaccel":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":-1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
 
 {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 1, "posval": 100}]}}
@@ -135,30 +136,56 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 # set the i2c address based on the motor axis (e.g. stepperaxis 1 = x, 2 = y, 3 = z; stepperid is always 1 since the remote motor driver runs on a single axis only), motor will restart 
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 2}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5039, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+
+{"task":"/objective_act","calibrate":1}
+		{"task":"/objective_act","calibrate":1, "homeDirection": -1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
+		{"task":"/objective_act","toggle":1, "speed": 26000, "accel": 400000} 			toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
+		{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
+		{"task":"/objective_act","x1":  5000, "x2": 35000} set explicit positions (in steps )
+		{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
+		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
+		{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+
+
+		{"task":"/home_act", "home": {"steppers": [{"stepperid": 3 , "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
+
 
 # set parameters on TMC stepper driver 
-{"task":"/tmc_act", "msteps":8, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 {"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":2}
-{"task":"/tmc_act", "msteps":32, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
+{"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
 
-{"task":"/can_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 2000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
+{"task":"/can_act", "address": 1} // MASTER
+{"task":"/can_act", "address": 11} // X
+{"task":"/can_act", "address": 12} // Y 
+{"task":"/can_act", "address": 13} // Z 
+{"task":"/can_act", "address": 10} // A
+{"task":"/can_get", "address": 1}
+{"task":"/can_get"}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0, "red":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 2, "speed": 1000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 13}
+
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":1}]}}
 
 {"task": "/laser_act", "LASERid":1, "LASERval": 0}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1023}
-
+{"task": "/laser_act", "LASERid":1, "LASERval": 1023}
 
 
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
-
+{"task": "/laser_act", "LASERid":1, "LASERval": 100} 
 
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
 

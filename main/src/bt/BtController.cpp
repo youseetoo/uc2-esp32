@@ -94,6 +94,9 @@ namespace BtController
         setupHidController();
 #endif
         xTaskCreate(&btControllerLoop, "btController_task", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+
+        // initialize update limit 
+        lastUpdate = millis();
     }
 
 #ifdef PSXCONTROLLER
@@ -130,7 +133,7 @@ namespace BtController
     void loop()
     {
         //log_i("hid connected:%i", hidIsConnected);
-        if (hidIsConnected)
+        if (hidIsConnected and (millis()-updateRateMS)>lastUpdate)
         {
             //log_i("cross_changed_event nullptr %i", cross_changed_event == nullptr);
             checkdata(lastData.cross, gamePadData.cross, cross_changed_event);
@@ -151,8 +154,8 @@ namespace BtController
                 avalue = gamePadData.LeftX;
             */
             //log_i("xyza_changed_event nullptr %i", xyza_changed_event == nullptr);
-            if (xyza_changed_event != nullptr)
-                xyza_changed_event(gamePadData.LeftY, gamePadData.RightX, gamePadData.RightY, gamePadData.LeftX);
+            if (xyza_changed_event != nullptr) // x,y,z,a
+                xyza_changed_event(gamePadData.RightX, gamePadData.RightY, gamePadData.LeftY, gamePadData.LeftX);
             lastData.LeftX = gamePadData.LeftY;
             lastData.RightX = gamePadData.RightX;
             lastData.RightY = gamePadData.RightY;
@@ -166,6 +169,9 @@ namespace BtController
             bool l2 = gamePadData.l2;
             if (analogcontroller_event != nullptr)
                 analogcontroller_event(left, right, r1, r2, l1, l2);
+
+            lastUpdate = millis();
+
         }
     }
 #endif
@@ -196,8 +202,8 @@ namespace BtController
                     dpad_changed_event(dir);
             }
 
-            if (xyza_changed_event != nullptr)
-                xyza_changed_event(psx->state.analog.stick.ly, psx->state.analog.stick.rx, psx->state.analog.stick.ry, psx->state.analog.stick.lx);
+            if (xyza_changed_event != nullptr) // x,y,z,a
+                xyza_changed_event(psx->state.analog.stick.rx, psx->state.analog.stick.ry, psx->state.analog.stick.ly, psx->state.analog.stick.lx);
             lastData.LeftX = psx->state.analog.stick.ly;
             lastData.RightX = psx->state.analog.stick.rx;
             lastData.RightY = psx->state.analog.stick.ry;

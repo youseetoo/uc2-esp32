@@ -10,6 +10,23 @@
 #endif
 #include "driver/twai.h"
 
+#define N_PCItypeSF 0x00 // Single Frame
+#define N_PCItypeFF 0x10 // First Frame
+#define N_PCItypeCF 0x20 // Consecutive Frame
+#define N_PCItypeFC 0x30 // Flow Control Frame
+
+#define WFTmax 3 // Maximum number of wait frames
+
+#define CANTP_FLOWSTATUS_CTS 0x00  // Continue to send
+#define CANTP_FLOWSTATUS_WT 0x01   // Wait
+#define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
+
+#define PACKET_SIZE 8
+#define TIMEOUT_SESSION 1000
+#define TIMEOUT_FC 300
+#define TIMEOUT_READ 300
+
+
 // PCI Types
 #define N_PCItypeSF 0x00  // Single Frame
 #define N_PCItypeFF 0x10  // First Frame
@@ -23,8 +40,8 @@
 
 // General Timeouts
 #define PACKET_SIZE       8
-#define TIMEOUT_SESSION   1000 // Timeout for receiving complete message (ms)
-#define TIMEOUT_FC        500  // Timeout for Flow Control (ms)
+#define TIMEOUT_SESSION   400 //1000 // Timeout for receiving complete message (ms)
+#define TIMEOUT_FC        50 //500  // Timeout for Flow Control (ms)
 
 // ISO-TP State Definitions
 enum IsoTpState {
@@ -40,14 +57,14 @@ enum IsoTpState {
 
 // ISO-TP PDU Structure (PDU = Protocol Data Unit)
 typedef struct {
-    uint32_t txId;        /**< Transmit CAN ID */
-    uint32_t rxId;        /**< Receive CAN ID */
+    uint8_t txId;        /**< Transmit CAN ID */
+    uint8_t rxId;        /**< Receive CAN ID */
     uint8_t *data;        /**< Pointer to data buffer */
     uint16_t len;         /**< Data length */
     uint8_t seqId;        /**< Sequence ID for Consecutive Frames */
     uint8_t fcStatus;     /**< Flow Control status */
     uint8_t blockSize;    /**< Block size for Flow Control */
-    uint8_t separationTimeMin; /**< Separation time between consecutive frames */
+    uint8_t separationTimeMin = 10; /**< Separation time between consecutive frames */
     IsoTpState cantpState; /**< ISO-TP State */
 } pdu_t;
 

@@ -31,6 +31,9 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
+#ifdef OBJECTIVE_CONTROLLER
+#include "../objective/ObjectiveController.h"
+#endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
@@ -157,7 +160,7 @@ namespace SerialProcess
 				if (error_ptr != NULL)
 					log_i("Error while parsing:%s", error_ptr);
 				log_i("Serial input is null");
-				Serial.println("{\"error\":\"Serial input is null\"}");
+				Serial.println("++{\"error\":\"Serial input is null\"}--");
 			}
 			c.clear();
 		}
@@ -212,7 +215,7 @@ namespace SerialProcess
 
 		cJSON_Delete(doc); // Free the cJSON object
 
-		Serial.println();
+		//Serial.println();
 		Serial.println("--");
 	}
 
@@ -297,6 +300,12 @@ namespace SerialProcess
 			serialize(HomeMotor::get(jsonDocument));
 		else if (strcmp(task, home_act_endpoint) == 0)
 			serialize(HomeMotor::act(jsonDocument));
+#endif
+#ifdef OBJECTIVE_CONTROLLER
+		else if (strcmp(task, objective_get_endpoint) == 0)
+			serialize(ObjectiveController::get(jsonDocument));
+		else if (strcmp(task, objective_act_endpoint) == 0)
+			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
 else  if (strcmp(task, i2c_get_endpoint) == 0)

@@ -12,6 +12,9 @@
 #include <ArduinoOTA.h>
 #include "../i2c/i2c_master.h"
 
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 namespace State
 {
 
@@ -121,6 +124,9 @@ namespace State
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
 			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
+			#ifdef GIT_COMMIT_HASH
+				cJSON_AddItemToObject(st, "git_commit", cJSON_CreateString(GIT_COMMIT_HASH));
+			#endif
 			// cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
 		}
 		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
@@ -147,25 +153,39 @@ namespace State
 		// log_i("A first try can be: \{\"task\": \"/state_get\"");
 	}
 
+	void stopOTA()
+	{
+		ArduinoOTA.end();
+		// turn off the wifi hotspot
+		WiFi.softAPdisconnect(true);
+		OTArunning = false;
+
+	}
+
 	void startOTA()
 	{
 		// Start a wifi hotspot using an SSID based on the ESPs MAC address with now password
 		// and start an OTA server
 		// This is a blocking function
 
-		#ifdef I2C_MASTER
+		#ifdef I2C_MASTER or defined(CAN_MASTER)
 		// send OTA Trigger to device
 		i2c_master::startOTA();
-		#elif defined(I2C_SLAVE_MOTOR)
+		#else
 
 		// close any ongoing wifi connection
 		WiFi.disconnect(true);
 
 		// Generate SSID based on ESP32's MAC address
+		#ifdef CAN_CONTROLLER
+		String ssid = "UC2-" + String(can_controller::getCANAddress(), HEX);
+		ssid.toUpperCase();
+		#else
 		uint8_t mac[6];
 		esp_read_mac(mac, ESP_MAC_WIFI_STA);
 		String ssid = "ESP32-" + String(mac[3], HEX) + String(mac[4], HEX) + String(mac[5], HEX);
 		ssid.toUpperCase();
+		#endif
 
 		// Start the Wi-Fi access point
 		WiFi.softAP(ssid.c_str());
@@ -225,9 +245,9 @@ namespace State
 				break;
 			}
 		}
-		#else
 		log_i("No OTA for this device");
 		#endif
+		OTArunning = true;
 	}
 
 	cJSON *getModules()

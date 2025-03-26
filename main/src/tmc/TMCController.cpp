@@ -321,6 +321,7 @@ namespace TMCController
 
         TMCData p = readParamsFromPreferences();
         applyParamsToDriver(p, false);
+        applyParamsToDriver(p, false);
         // Set the stallguard threshold
         pinMode(pinConfig.tmc_pin_diag, INPUT);
        preferences.end();

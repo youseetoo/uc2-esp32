@@ -10,6 +10,7 @@
 #include "Wire.h"
 #include <Preferences.h>
 #include "nvs_flash.h"
+#include "hal/usb_hal.h"
 
 Preferences preferences;
 
@@ -389,7 +390,17 @@ extern "C" void app_main(void)
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// delay(500);
-	Serial.setTimeout(50);
+	Serial.setTimeout(pinConfig.serialTimeout);
+	#ifdef ESP32S3_MODEL_XIAO
+	
+	
+	// Weitere USB-CDC-Konfiguration
+	Serial.setTxTimeoutMs(0);
+	Serial.setRxBufferSize(2048);
+	Serial.setTxBufferSize(2048);
+
+	delay(500); // Kurze Pause für USB-Initialisierung
+	#endif
 
 	// initialize the pin/settings configurator
 	log_i("Config::setup");

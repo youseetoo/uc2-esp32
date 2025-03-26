@@ -45,7 +45,13 @@ namespace DigitalInController
 			#if defined USE_TCA9535
 				return tca_controller::tca_read_endstop(pinConfig.DIGITAL_IN_1);
 			#else
-				return digitalRead(pinConfig.DIGITAL_IN_1);
+				// mostly only for the ESP32 CAN HAT
+				if(pinConfig.pinEmergencyExit>0){
+					return digitalRead(pinConfig.pinEmergencyExit);
+				}			
+				else{
+					return digitalRead(pinConfig.DIGITAL_IN_1);
+				}
 			#endif 
 		}
 		else if (digitalinid == 2)
@@ -73,14 +79,23 @@ namespace DigitalInController
 			log_i("Setting Up TCA9535 for digitalin");
 		#else
 			log_i("Setting Up digitalin");
-			/* setup the output nodes and reset them to 0*/
-			log_i("DigitalIn 1: %i", pinConfig.DIGITAL_IN_1);
-			pinMode(pinConfig.DIGITAL_IN_1, INPUT_PULLDOWN);
+
+			// mostly only for the ESP32 CAN HAT
+			if(pinConfig.pinEmergencyExit>0){
+				log_i("Emergency Exit: %i", pinConfig.pinEmergencyExit);
+				pinMode(pinConfig.pinEmergencyExit, INPUT_PULLDOWN);
+			}			
+			else{
+				/* setup the output nodes and reset them to 0*/
+				log_i("DigitalIn 1: %i", pinConfig.DIGITAL_IN_1);
+				pinMode(pinConfig.DIGITAL_IN_1, INPUT_PULLDOWN);
+			}
 			log_i("DigitalIn 2: %i", pinConfig.DIGITAL_IN_2);
 			pinMode(pinConfig.DIGITAL_IN_2, INPUT_PULLDOWN);
 			log_i("DigitalIn 3: %i", pinConfig.DIGITAL_IN_3);
 			pinMode(pinConfig.DIGITAL_IN_3, INPUT_PULLDOWN);
 			
+
 		#endif
 	}
 
@@ -88,9 +103,26 @@ namespace DigitalInController
 	{
 
 		// FIXME: Never reaches this position..
-		if (pinConfig.DIGITAL_IN_1 >=0) digitalin_val_1 = getDigitalVal(1);
-		if (pinConfig.DIGITAL_IN_2 >=0) digitalin_val_2 = getDigitalVal(2);
-		if (pinConfig.DIGITAL_IN_3 >=0) digitalin_val_3 = getDigitalVal(3);
+		if (pinConfig.DIGITAL_IN_1 >=0) 
+			digitalin_val_1 = getDigitalVal(1);
+		if (pinConfig.DIGITAL_IN_2 >=0) 
+			digitalin_val_2 = getDigitalVal(2);
+		if (pinConfig.DIGITAL_IN_3 >=0) 
+			digitalin_val_3 = getDigitalVal(3);
+
+		if (pinConfig.pinEmergencyExit){
+			if (pinEmergencyExitState != digitalin_val_1){
+				if (pinEmergencyExitState == 1){
+					log_i("Emergency Exit released after press - reboot!");
+					//esp_restart(); //TODO: NOT WORKING!
+				}
+				pinEmergencyExitState = digitalin_val_1;
+			}
+			// check if the emergency exit is pressed
+			// if it's released => reboot the system
+			// TODO: We should do that in a more gentle way
+
+		}
 		//log_i("digitalin_val_1: %i, digitalin_val_2: %i, digitalin_val_3: %i", digitalin_val_1, digitalin_val_2, digitalin_val_3);
 	}
 } // namespace DigitalInController

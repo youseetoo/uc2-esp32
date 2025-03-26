@@ -82,7 +82,7 @@ struct PinConfig
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; // 8096;
      const unsigned long BAUDRATE = 115200;
-
+     const uint16_t serialTimeout = 50;
      const char *pindefName = "pindef";
 
      // see AccelStepper.h MotorInterfaceType
@@ -315,7 +315,12 @@ struct PinConfig
     uint8_t CAN_ID_LASER_2 = 22;
     uint8_t CAN_ID_LASER_3 = 23;
 
+    uint8_t CAN_ID_LED_0 = 30;
+
+    uint8_t CAN_ID_GALVO_0 = 40;
 
 
+     // Emergency stop
+     uint8_t pinEmergencyExit = disabled;
 
 };

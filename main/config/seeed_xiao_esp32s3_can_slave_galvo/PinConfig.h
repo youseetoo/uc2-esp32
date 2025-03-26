@@ -2,6 +2,7 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
+#define ESP32S3_MODEL_XIAO
 struct UC2_ESP32S3_XIAO_GALVO : PinConfig
 {
      /*
@@ -40,7 +41,9 @@ struct UC2_ESP32S3_XIAO_GALVO : PinConfig
      uint8_t galvo_trig_pixel = GPIO_NUM_2;
      uint8_t galvo_trig_line = GPIO_NUM_3;
      uint8_t galvo_trig_frame = GPIO_NUM_4;
+     
+     uint32_t CAN_ID_CURRENT = CAN_ID_GALVO_0;
 
      
 };
-const UC2_ESP32S3_XIAO_LEDSERVO pinConfig;
+const UC2_ESP32S3_XIAO_GALVO pinConfig;

@@ -77,7 +77,7 @@ struct seeed_xiao_esp32c3_can_slave_motor : PinConfig
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      
      int tmc_microsteps = 16;
-     int tmc_rms_current = 600;
+     int tmc_rms_current = 850;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
      int tmc_semin = 5;
@@ -100,6 +100,9 @@ struct seeed_xiao_esp32c3_can_slave_motor : PinConfig
 
      // OTA settings
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
+
+     const uint16_t serialTimeout = 100;
+
 };
   
 const seeed_xiao_esp32c3_can_slave_motor pinConfig;

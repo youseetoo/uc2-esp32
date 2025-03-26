@@ -52,6 +52,8 @@ namespace GalvoController
         renderer->setParameters(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         renderer->start();
 
+        log_i("GalvoController act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
+
         /*
             Wire.beginTransmission(SLAVE_ADDR);
             writeInt(X_MIN);
@@ -98,9 +100,19 @@ namespace GalvoController
 
     void setup()
     {
+
+
+
         log_d("Setup GalvoController");
         Serial.println("Setup GalvoController");
-        renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
+        renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, 
+        pinConfig.galvo_sdi, pinConfig.galvo_miso, pinConfig.galvo_sck, pinConfig.galvo_cs,
+        pinConfig.galvo_ldac, pinConfig.galvo_trig_pixel, pinConfig.galvo_trig_line, pinConfig.galvo_trig_frame);
+        /*
+          SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int tPixelDwelltime, int nFramesI, 
+            uint8_t galvo_sdi, uint8_t galvo_miso, uint8_t galvo_sck, uint8_t galvo_cs, 
+            uint8_t galvo_ldac, uint8_t galvo_trig_pixel, uint8_t galvo_trig_line, uint8_t galvo_trig_frame);
+            */
         //Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Start I2C as master
     }
 

@@ -86,6 +86,25 @@ struct UC2_3 : PinConfig
      int8_t MOTOR_A_DIR = 4;
 
      
+     /*
+     WARNING PLEASE HANDLE WITH CARE
+     */
+    const bool dumpHeap = false;
+    const uint16_t DEFAULT_TASK_PRIORITY = 0;
+    const uint16_t MAIN_TASK_STACKSIZE = 8128;
+    const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 0;
+    const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 4* 2048; // Don't go below 2048
+    const uint16_t HTTP_MAX_URI_HANDLERS = 35;
+    const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 2048; // TODO check if this is ending in stackoverflow
+    const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
+    const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 0;
+    const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 0;
+    const uint16_t TCA_TASK_STACKSIZE = 1024;
+    const uint16_t SCANNER_TASK_STACKSIZE = 0;
+    const uint16_t TEMPERATURE_TASK_STACKSIZE = 0; // 8096;
+
+
+
      bool isDualAxisZ = false;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity

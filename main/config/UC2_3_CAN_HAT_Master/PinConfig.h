@@ -104,5 +104,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t objectiveHomeDirection = -1;
      int8_t objectiveHomeEndStopPolarity = 0;
 			
+     // Emergency stop
+     uint8_t pinEmergencyExit = GPIO_NUM_34;
 };
 const UC2_3_CAN_HAT_Master pinConfig;

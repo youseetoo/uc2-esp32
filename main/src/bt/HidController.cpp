@@ -53,6 +53,8 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
                 const uint8_t *bda = esp_hidh_dev_bda_get(param->open.dev);
                 ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->open.dev));
                 esp_hidh_dev_dump(param->open.dev, stdout);
+                // print heap
+                ESP_LOGI(TAG, "  heap: %d", ESP.getFreeHeap());
                 hidIsConnected = true;
             } else {
                 ESP_LOGE(TAG, " OPEN failed!");

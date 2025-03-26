@@ -19,14 +19,8 @@ namespace LedController
 		matrix->begin();
 		matrix->setBrightness(255);
 		// test led array
-		set_all(100, 100, 100);
-		delay(1);
+		set_all(5, 5, 5);
 		set_all(0, 0, 0);
-
-		if (!isOn)
-			set_all(0, 0, 0);
-		else
-			set_all(255, 255, 255);
 		matrix->show(); //  Update strip to match
 	}
 

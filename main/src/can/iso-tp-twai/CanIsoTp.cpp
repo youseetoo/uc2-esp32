@@ -402,15 +402,17 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
         return 1;
     }
 
-    // introduce a special case where we don't know the datatype to cast on default, so we create the array and cast it later
+        // introduce a special case where we don't know the datatype to cast on default, so we create the array and cast it later
         // Free existing buffer if needed
-        if (pdu->data)
+        /*
+        if (pdu->data) 
         {
-            free(pdu->data);
+            free(pdu->data); // => assert failed: heap_caps_free heap_caps.c:381 (heap != NULL && "free() target pointer is outside heap areas")
             pdu->data = nullptr;
             log_i("Freeing existing buffer");
         }
-
+        */
+       
         // Allocate enough space for the entire payload and cast it later
         log_i("Allocating memory for pdu->data");
         pdu->data = (uint8_t *)malloc(totalLen);

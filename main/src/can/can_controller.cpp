@@ -781,6 +781,7 @@ namespace can_controller
         }
     }
 
+    #ifdef TMC_CONTROLLER
     void sendTMCDataToCANDriver(TMCData tmcData, int axis)
     {
         // send TMC Data to remote Motor
@@ -796,6 +797,7 @@ namespace can_controller
             // log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
         }
     }
+    #endif
 
     void sendLaserDataToCANDriver(LaserData laserData)
     {

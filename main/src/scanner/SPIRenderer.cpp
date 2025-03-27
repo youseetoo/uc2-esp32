@@ -95,9 +95,7 @@ void SPIRenderer::draw()
   // Set the initial position
   for (int iFrame = 0; iFrame <= nFrames; iFrame++)
   {
-    log_d("Drawing %d\n out of %d", iFrame, nFrames);
-    log_d("X_MIN %d\n, X_MAX %d\n, Y_MIN %d\n, Y_MAX %d\n, STEP %d\n", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP);
-
+    
     // set all trigger high at the same time
     set_gpio_pins(1, 1, 1);
     // Loop over X
@@ -108,6 +106,8 @@ void SPIRenderer::draw()
       {
         // Perform the scanning by setting x and y positions
         set_gpio_pins(0, 0, 0);
+        printf("X: %d, Y: %d\n", dacX, dacY);
+
 
         // SPI transaction for channel A (X-axis)
         spi_transaction_t t1 = {};
@@ -128,7 +128,9 @@ void SPIRenderer::draw()
         spi_device_polling_transmit(spi, &t1);       // Send X value
         spi_device_polling_transmit(spi, &t2);       // Send Y value
         gpio_set_level((gpio_num_t)_galvo_ldac, 1); // Latch both channels
-
+        // Latch the DAC // TODO: Necessary?
+        gpio_set_level((gpio_num_t)PIN_NUM_LDAC, 0);
+        gpio_set_level((gpio_num_t)PIN_NUM_LDAC, 1);
 
         set_gpio_pins(1, 0, 0);
       }
@@ -236,7 +238,6 @@ void SPIRenderer::setParameters(int xmin, int xmax, int ymin, int ymax, int step
   Y_MAX = ymax;
   STEP = step;
   nFrames = nFramesI;
-  printf("Setting up renderer with parameters: %d %d %d %d %d %d %d\n", xmin, xmax, ymin, ymax, step, tPixelDwelltime, nFrames);
 }
 
 void SPIRenderer::start()

@@ -197,12 +197,14 @@ namespace FocusMotor
 		data[Stepper::X] = &x_dat;
 		data[Stepper::Y] = &y_dat;
 		data[Stepper::Z] = &z_dat;
+		#if MOTOR_AXIS_COUNT > 4
 		data[Stepper::B] = &b_dat;
 		data[Stepper::C] = &c_dat;
 		data[Stepper::D] = &d_dat;
 		data[Stepper::E] = &e_dat;
 		data[Stepper::F] = &f_dat;
 		data[Stepper::G] = &g_dat;
+		#endif 
 
 		if (data[Stepper::A] == nullptr)
 			log_e("Stepper A data NULL");

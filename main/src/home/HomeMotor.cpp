@@ -89,6 +89,8 @@ namespace HomeMotor
 			}
 		}
 #endif // MOTOR_CONTROLLER
+#else 
+int axis = 0;
 #endif // HOME_CONTROLLER
 		return axis;
 	}

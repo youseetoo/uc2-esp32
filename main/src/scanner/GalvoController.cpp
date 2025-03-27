@@ -26,7 +26,7 @@ namespace GalvoController
     int act(cJSON *ob)
 
     {   // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":30000, "Y_MIN":0, "Y_MAX":30000, "STEP":1000, "tPixelDwelltime":1, "nFrames":1}
-        // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":30000, "Y_MIN":0, "Y_MAX":30000, "STEP":1000, "tPixelDwelltime":0, "nFrames":100}
+        // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
         // here you can do something
         int qid = cJsonTool::getJsonInt(ob, "qid");
         /*
@@ -46,12 +46,8 @@ namespace GalvoController
         STEP = cJsonTool::getJsonInt(ob, "STEP", STEP);
         tPixelDwelltime = cJsonTool::getJsonInt(ob, "tPixelDwelltime", tPixelDwelltime);
         nFrames = cJsonTool::getJsonInt(ob, "nFrames", nFrames);
-
-
-        tPixelDwelltime += 1;
         renderer->setParameters(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         renderer->start();
-
         log_i("GalvoController act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
 
         /*

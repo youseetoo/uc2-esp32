@@ -153,7 +153,17 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
   _galvo_trig_line = galvo_trig_line;
   _galvo_trig_frame = galvo_trig_frame;
   _galvo_ldac = galvo_ldac;
-  log_i("Setting up renderer with parameters: %d %d %d %d %d %d %d\n", xmin, xmax, ymin, ymax, step, tPixelDwelltime, nFramesI);
+  // pins: 7 255 8 9 6 2 3 4
+  /*
+       uint8_t galvo_sck = GPIO_NUM_8;
+     uint8_t galvo_sdi = GPIO_NUM_7;
+     uint8_t galvo_cs = GPIO_NUM_9;
+     uint8_t galvo_ldac = GPIO_NUM_6;
+     uint8_t galvo_laser = GPIO_NUM_43;
+     uint8_t galvo_trig_pixel = GPIO_NUM_2;
+     uint8_t galvo_trig_line = GPIO_NUM_3;
+     uint8_t galvo_trig_frame = GPIO_NUM_4;*/
+  log_i("Setting up renderer with pins: %d %d %d %d %d %d %d %d\n", galvo_sdi, galvo_miso, galvo_sck, galvo_cs, galvo_ldac, galvo_trig_pixel, galvo_trig_line, galvo_trig_frame);
 
   nX = (xmax - xmin) / step;
   nY = (ymax - ymin) / step;
@@ -164,7 +174,7 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
   Y_MAX = ymax;
   STEP = step;
   nFrames = nFramesI;
-  printf("Setting up renderer with parameters: %d %d %d %d %d %d %d\n", xmin, xmax, ymin, ymax, step, tPixelDwelltime, nFrames);
+  log_i("Setting up renderer with parameters: %d %d %d %d %d %d %d\n", xmin, xmax, ymin, ymax, step, tPixelDwelltime, nFrames);
 
   // setup the laser
   gpio_set_direction((gpio_num_t)_galvo_trig_frame, GPIO_MODE_OUTPUT);
@@ -178,17 +188,17 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
   esp_err_t ret;
   spi_bus_config_t buscfg = {
       .mosi_io_num = _galvo_sdi,  // galvo_mosi,
-      .miso_io_num = _galvo_miso, // galvo_miso,
-      .sclk_io_num = _galvo_sdi,  // galvo_sclk,
+      .miso_io_num = -1, // galvo_miso,
+      .sclk_io_num = _galvo_sck,  // galvo_sclk,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = 0};
+      .max_transfer_sz = 4096};
   spi_device_interface_config_t devcfg = {
       .command_bits = 0,
       .address_bits = 0,
       .dummy_bits = 0,
       .mode = 0,
-      .clock_speed_hz = 80000000,
+      .clock_speed_hz = 20 * 1000 * 1000, // 20 MHz
       .spics_io_num = _galvo_cs, // CS pin
       .flags = SPI_DEVICE_NO_DUMMY,
       .queue_size = 2,

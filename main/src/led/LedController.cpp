@@ -6,6 +6,7 @@
 #include <PinConfig.h>
 #include "JsonKeys.h"
 
+
 namespace LedController
 {
 	const char *TAG = "LedController";
@@ -14,10 +15,16 @@ namespace LedController
 
 		log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
 		// LED Matrix
+		#ifdef DOTSTAR
+		matrix = new Adafruit_DotStar(pinConfig.LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
+		#else
 		matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+		#endif
 		// log_i("setup matrix is null:%s", matrix == nullptr);
 		matrix->begin();
+		#ifndef DOTSTAR
 		matrix->setBrightness(255);
+		#endif
 		// test led array
 		set_all(5, 5, 5);
 		set_all(0, 0, 0);

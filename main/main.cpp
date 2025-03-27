@@ -359,21 +359,26 @@ extern "C" void app_main(void)
 	// WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 	// esp_log_level_set("*", ESP_LOG_NONE);
 	log_i("Start setup");
-
+	// Start Serial
+	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	// Initialisieren Sie den NVS-Speicher
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
 	{
 		// NVS-Partition ist beschädigt oder eine neue Version wurde gefunden
+		log_e("NVS flash error, erasing and retrying");
 		ESP_ERROR_CHECK(nvs_flash_erase());
 		ret = nvs_flash_init();
 	}
+	else{
+		log_i("NVS flash initialized");
+	}
 	ESP_ERROR_CHECK(ret);
-
+	delay(2000); // wait for the serial to be ready
 	// read if boot went well from preferences // TODO: Some ESPs have this problem apparently... not sure why
+	log_i("Reading boot preferences");
 	preferences.begin("boot_prefs", false);
 	bool hasBooted = preferences.getBool("hasBooted", false); // Check if the ESP32 has already booted successfully before
-
 	// If this is the first boot, set the flag and restart
 	if (false and !hasBooted)
 	{ // some ESPs are freaking out on start, but this is not a good solution
@@ -383,24 +388,20 @@ extern "C" void app_main(void)
 		preferences.end();
 		ESP.restart(); // Restart the ESP32 immediately
 	}
-
 	preferences.putBool("hasBooted", false); // reset boot flag so that the ESP32 will restart on the next boot
 	preferences.end();
 
-	// Start Serial
-	Serial.begin(pinConfig.BAUDRATE); // default is 115200
-	// delay(500);
+	log_i("Setting up serial for XIAO");
 	Serial.setTimeout(pinConfig.serialTimeout);
+	
+	/*
 	#ifdef ESP32S3_MODEL_XIAO
-	
-	
-	// Weitere USB-CDC-Konfiguration
+	// additional serial settings for the ESP32S3
 	Serial.setTxTimeoutMs(0);
 	Serial.setRxBufferSize(2048);
 	Serial.setTxBufferSize(2048);
-
-	delay(500); // Kurze Pause für USB-Initialisierung
 	#endif
+	*/
 
 	// initialize the pin/settings configurator
 	log_i("Config::setup");

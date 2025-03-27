@@ -13,8 +13,10 @@
 #define CAN_CONTROLLER
 #define LED_CONTROLLER
 
+#define DOTSTAR // outcomment if neopixel
 
-struct UC2_3_Xiao_Slave_Laser : PinConfig
+
+struct UC2_3_Xiao_Slave_LED : PinConfig
 {
      /*
      D0: 1
@@ -36,11 +38,6 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
     const char *pindefName = "seeed_xiao_esp32s3_can_slave_laser";
     const unsigned long BAUDRATE = 115200;
 
-    // Laser control pins (PWM for lasers)
-    int8_t LASER_0 = GPIO_NUM_2; // D1 (signal_1, Laser 0)
-    int8_t LASER_1 = GPIO_NUM_3; // D2 (signal_2, Laser 1)
-    int8_t LASER_2 = GPIO_NUM_5; // D4 (signal_3, Laser 2)
-    int8_t LASER_3 = GPIO_NUM_6; // D5 (signal_4, Laser 3)
 
     // Interlock status
     int8_t digita_in_1= GPIO_NUM_8; // D9 (LO when interlock has power) // INTERLOCK_STATUS
@@ -61,6 +58,13 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
     int8_t UNUSED_3 = GPIO_NUM_7; // D8
 
 
+    // LED Configuration for DOTSTAR
+    uint8_t LED_CLK = GPIO_NUM_2; // D1 (CLK)
+    uint8_t LED_PIN = GPIO_NUM_3; // D2 (MOSI)
+    uint8_t LED_COUNT = 64; // Number of LEDs in the strip
+    
+    // LED Configuration for NEOPIXEL
+    
 };
   
-const UC2_3_Xiao_Slave_Laser pinConfig;
+const UC2_3_Xiao_Slave_LED pinConfig;

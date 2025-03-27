@@ -7,7 +7,6 @@
 #define BLUETOOTH
 #define BTHID
 //#define WIFI
-#define LED_CONTROLLER
 #define HOME_MOTOR
 #define LASER_CONTROLLER
 #define DIGITAL_IN_CONTROLLER 

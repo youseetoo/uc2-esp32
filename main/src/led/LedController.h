@@ -1,6 +1,10 @@
 #include <PinConfig.h>
 #pragma once
-#include "Adafruit_NeoPixel.h"
+#ifdef DOTSTAR
+#include <Adafruit_DotStar.h>
+#else
+#include <Adafruit_NeoPixel.h>
+#endif
 #include "cJSON.h"
 
 
@@ -22,7 +26,12 @@ enum LedModes
 namespace LedController
 {
     // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
-    static Adafruit_NeoPixel *matrix;
+    #ifdef  DOTSTAR
+    static Adafruit_DotStar *matrix;
+    #else
+     Adafruit_NeoPixel *matrix;
+    #endif
+
     static bool isDEBUG = false;
     static bool isOn = false;
 

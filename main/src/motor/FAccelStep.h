@@ -24,6 +24,7 @@ namespace FAccelStep
     void setPosition(Stepper s, int val);
     bool isRunning(int i);
     void move(Stepper s, int steps, bool blocking);
+    void setSoftLimits(int axis, int32_t minPos, int32_t maxPos);
 
     // store old motor current for each motor
     static int oldMotorCurrent[4] = {0, 0, 0, 0};

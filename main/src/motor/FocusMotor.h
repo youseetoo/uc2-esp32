@@ -37,7 +37,8 @@ namespace FocusMotor
 	void setEnable(bool enable);
 	void setDualAxisZ(bool dual);
 	bool getDualAxisZ();
-	
+	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos);
+
 	void updateData(int axis); // pull motor data to the data-array
 	MotorData **getData();
 	void setData(int axis, MotorData *data);

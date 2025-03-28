@@ -433,6 +433,16 @@ namespace FocusMotor
 
 	}
 
+	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos)
+    {
+#ifdef USE_FASTACCEL
+        FAccelStep::setSoftLimits(axis, minPos, maxPos);
+        log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
+#endif
+    }
+
+
+
 	void loop()
 	{
 #if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously

@@ -29,7 +29,7 @@ namespace LedController
     #ifdef  DOTSTAR
     static Adafruit_DotStar *matrix;
     #else
-     Adafruit_NeoPixel *matrix;
+    static Adafruit_NeoPixel *matrix;
     #endif
 
     static bool isDEBUG = false;

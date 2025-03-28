@@ -65,6 +65,14 @@ struct MotorData
 #pragma pack(pop)
 
 
+// Common minimal struct
+#pragma pack(push,1)
+struct MotorDataValueUpdate {
+  uint16_t offset;   // e.g. offsetof(MotorData, isforever)
+  int32_t  value;    // We'll interpret as bool on the other side
+};
+#pragma pack(pop)
+
 
 
 enum Stepper

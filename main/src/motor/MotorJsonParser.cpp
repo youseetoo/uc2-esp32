@@ -188,45 +188,6 @@ namespace MotorJsonParser
 #endif
     }
 
-	static void parseSetSoftLimits(cJSON *doc)
-    {
-        
-		/*
-		{
-           "task": "/motor_act",
-           "softlimits": {
-               "steppers": [
-                   { "stepperid": 0, "min": -10000, "max": 10000 },
-                   { "stepperid": 1, "min": 0, "max": 5000    }
-               ]
-           }
-         }
-		*/
-        cJSON *softObj = cJSON_GetObjectItemCaseSensitive(doc, "softlimits");
-        if (!softObj) {
-            return; // no "softlimits" key => nothing to do
-        }
-        cJSON *stprs = cJSON_GetObjectItemCaseSensitive(softObj, key_steppers);
-        if (!stprs) {
-            return; // no "steppers" array => nothing to do
-        }
-        cJSON *stp = nullptr;
-        cJSON_ArrayForEach(stp, stprs)
-        {
-            cJSON *idItem  = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
-            cJSON *minItem = cJSON_GetObjectItemCaseSensitive(stp, "min");
-            cJSON *maxItem = cJSON_GetObjectItemCaseSensitive(stp, "max");
-            if (!cJSON_IsNumber(idItem) || !cJSON_IsNumber(minItem) || !cJSON_IsNumber(maxItem)) {
-                continue; // skip invalid
-            }
-            int axis  = idItem->valueint;
-            int32_t mn = minItem->valueint;
-            int32_t mx = maxItem->valueint;
-            FocusMotor::setSoftLimits(axis, mn, mx);
-        }
-    }
-
-
     bool parseSetPosition(cJSON *doc)
 	{
 		// set position
@@ -328,10 +289,6 @@ namespace MotorJsonParser
         // move motor drive
         // {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
         parseMotorDriveJson(doc);
-
-		// set soft limits
-		parseSetSoftLimits(doc);
-
 
 #ifdef STAGE_SCAN
         parseStageScan(doc);

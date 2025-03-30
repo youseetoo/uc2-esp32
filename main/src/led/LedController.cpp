@@ -126,6 +126,7 @@ namespace LedController
 		// log_d("setting led %i, color %i, %i, %i", iLed, R, G, B);
 		matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
 		matrix->show();
+		log_i("LED %i: %i, %i, %i", iLed, R, G, B);
 	}
 
 	void set_all(u_int8_t R, u_int8_t G, u_int8_t B)
@@ -135,6 +136,7 @@ namespace LedController
 			set_led_RGB(i, R, G, B);
 		}
 		matrix->show(); //  Update strip to match
+		log_i("LED: all %i, %i, %i", R, G, B);
 	}
 
 	void set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)

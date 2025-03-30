@@ -1,6 +1,10 @@
 #include "MotorGamePad.h"
 #include "FocusMotor.h"
 #include "MotorTypes.h"
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
+
 
 namespace MotorGamePad
 {
@@ -38,7 +42,14 @@ namespace MotorGamePad
 			FocusMotor::getData()[s]->isforever = true;
 			FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
 			//log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
+			#ifdef CAN_CONTROLLER 
+			can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), value);
+            can_controller::sendMotorSingleValue(s, offsetof(MotorData, isforever), true);
+			can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), false);
+            #else
 			FocusMotor::startStepper(s, true);
+			#endif
+
 			if (s == Stepper::X)
 				joystick_drive_X = true;
 			if (s == Stepper::Y)
@@ -54,26 +65,47 @@ namespace MotorGamePad
 			FocusMotor::getData()[s]->isforever = false;
 			if (s == Stepper::X and joystick_drive_X)
 			{
+				#ifdef CAN_CONTROLLER 
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
+				#else
 				FocusMotor::stopStepper(s);
 				FocusMotor::stopStepper(s);
+				#endif
+
 				joystick_drive_X = false;
 			}
 			if (s == Stepper::Y and joystick_drive_Y)
 			{
+				#ifdef CAN_CONTROLLER 
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
+				#else
 				FocusMotor::stopStepper(s);
 				FocusMotor::stopStepper(s);
+				#endif
 				joystick_drive_Y = false;
 			}
 			if (s == Stepper::Z and joystick_drive_Z)
 			{
+				#ifdef CAN_CONTROLLER 
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
+				#else
 				FocusMotor::stopStepper(s);
 				FocusMotor::stopStepper(s);
+				#endif
 				joystick_drive_Z = false;
 			}
 			if (s == Stepper::A and joystick_drive_A)
 			{
+				#ifdef CAN_CONTROLLER 
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
+				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
+				#else
 				FocusMotor::stopStepper(s);
 				FocusMotor::stopStepper(s);
+				#endif
 				joystick_drive_A = false;
 			}
 		}

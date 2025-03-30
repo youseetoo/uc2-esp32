@@ -60,6 +60,9 @@ struct MotorData
 	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
 	int dirPin = -1;
 	int stpPin = -1;
+	uint32_t maxPos = 0; // max position in steps
+	uint32_t minPos = 0; // min position in steps
+	bool softLimitEnabled = false; // soft limit enabled
 	
 }__attribute__((packed));
 #pragma pack(pop)

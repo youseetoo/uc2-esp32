@@ -193,7 +193,7 @@ namespace TMCController
         cJSON_AddNumberToObject(monitor_json, "blank_time", p.blank_time);
         cJSON_AddNumberToObject(monitor_json, "toff", p.toff);
         cJSON_AddNumberToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());
-        cJSON_AddNumberToObject(monitor_json, "Current", driver.cs2rms(driver.cs_actual()));
+        cJSON_AddNumberToObject(monitor_json, "current", driver.cs2rms(driver.cs_actual()));
         return monitor_json;
 #else
         return nullptr;
@@ -322,6 +322,7 @@ namespace TMCController
         TMCData p = readParamsFromPreferences();
         applyParamsToDriver(p, false);
         applyParamsToDriver(p, false);
+        writeParamsToPreferences(p);
         // Set the stallguard threshold
         pinMode(pinConfig.tmc_pin_diag, INPUT);
        preferences.end();

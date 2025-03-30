@@ -62,6 +62,8 @@ namespace can_controller
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);
+    int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed);
+    int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
 
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);

@@ -376,7 +376,6 @@ extern "C" void app_main(void)
 		log_i("NVS flash initialized");
 	}
 	ESP_ERROR_CHECK(ret);
-	delay(2000); // wait for the serial to be ready
 	// read if boot went well from preferences // TODO: Some ESPs have this problem apparently... not sure why
 	log_i("Reading boot preferences");
 	preferences.begin("boot_prefs", false);

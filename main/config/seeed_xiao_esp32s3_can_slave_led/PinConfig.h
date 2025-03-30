@@ -35,7 +35,7 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-    const char *pindefName = "seeed_xiao_esp32s3_can_slave_laser";
+    const char *pindefName = "seeed_xiao_esp32s3_can_slave_led";
     const unsigned long BAUDRATE = 115200;
 
 

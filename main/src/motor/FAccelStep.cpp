@@ -47,7 +47,7 @@ namespace FAccelStep
         #ifdef TMC_CONTROLLER // TODO: This is only working on TMC2209-enabled sattelite boards since we have only one TMC Controller for one motor
         // read value from preferences 
         Preferences preferences;
-        preferences.begin("TMC", false);
+        preferences.begin("tmc", false);
         uint16_t rmsCurrFromPref = preferences.getInt("current", pinConfig.tmc_rms_current);
         preferences.end();
         if (abs(speed) > 10000)
@@ -113,6 +113,7 @@ namespace FAccelStep
               isRunning(i));
         
     }
+
 
     void setupFastAccelStepper()
     {

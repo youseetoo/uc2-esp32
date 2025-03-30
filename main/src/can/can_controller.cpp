@@ -135,6 +135,23 @@ namespace can_controller
             log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
             TMCController::applyParamsToDriver(receivedTMCData, true);
         }
+        if (size == sizeof(MotorDataValueUpdate))
+        {
+            // Minimal single-value update for every part from the MotorData struct
+            // This is used to update the motor data from the CAN bus - fast?
+            MotorDataValueUpdate upd;
+            memcpy(&upd, data, sizeof(upd));
+    
+            // Which motor? e.g. remote axis:
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+    
+            // Write the new value directly:
+            uint8_t* base = reinterpret_cast<uint8_t*>( FocusMotor::getData()[mStepper] );
+            *reinterpret_cast<int32_t*>( base + upd.offset ) = upd.value;
+            
+            log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+        }
         else
         {
             log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
@@ -604,6 +621,42 @@ namespace can_controller
             return 1;
         }
 
+        // test partial update on the motor data (sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed))
+        cJSON *motor = cJSON_GetObjectItem(doc, "motor");
+        if (motor != NULL)
+        {
+            // {"task":"/can_act", "motor": {"axis": 1, "speed": 1000, "position": 1000, "acceleration": 1000, "direction": 1, "isforever": 1}}
+            // get the axis, speed, position, acceleration, direction and isforever from the json object
+            int axis = cJSON_GetObjectItem(motor, "axis")->valueint;
+            int32_t newSpeed = cJSON_GetObjectItem(motor, "speed")->valueint;
+            int32_t newPos = cJSON_GetObjectItem(motor, "position")->valueint;
+            int32_t newAcc = cJSON_GetObjectItem(motor, "acceleration")->valueint;
+            int32_t newDir = cJSON_GetObjectItem(motor, "direction")->valueint;
+            int32_t newIsforever = cJSON_GetObjectItem(motor, "isforever")->valueint;
+
+            // check if the axis is in the range of the motors
+            if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            {
+                log_e("Error: Axis %i is out of range", axis);
+                return -1;
+            }
+            // check if the motor is available
+            if (isIDInAvailableCANDevices(CAN_MOTOR_IDs[axis]))
+            {
+                log_e("Error: Motor %i is not available", CAN_MOTOR_IDs[axis]);
+                return -1;
+            }
+            // send the data to the motor
+            sendMotorSingleValue(axis, offsetof(MotorData, speed), newSpeed);
+            sendMotorSingleValue(axis, offsetof(MotorData, isforever), newIsforever);
+            /*
+            sendMotorSingleValue(axis, offsetof(MotorData, targetPosition), newPos);
+            sendMotorSingleValue(axis, offsetof(MotorData, acceleration), newAcc);
+            sendMotorSingleValue(axis, offsetof(MotorData, isforever), newIsforever);
+            */
+        }
+
+
         else
             log_i("Motor json is null");
         return 0;
@@ -730,6 +783,27 @@ namespace can_controller
         }
         return err;
     }
+
+    int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal)
+    {
+        // Fill the update struct
+        MotorDataValueUpdate update;
+        update.offset = offset;
+        update.value  = newVal;
+
+        log_i("Sending MotorDataValueUpdate to axis: %i with offset: %i, value: %i", axis, offset, newVal);
+        // Call your existing CAN function
+        uint8_t receiverID = axis2id(axis);
+        return sendCanMessage(receiverID, reinterpret_cast<uint8_t*>(&update), sizeof(update));
+    }
+
+    int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed)
+    {
+        // send motor speed to slave via I2C
+        log_i("Sending MotorData to axis: %i with speed: %i", axis, newSpeed);
+        return sendMotorSingleValue(axis, offsetof(MotorData, speed), newSpeed);
+    }
+
 
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis)
     {

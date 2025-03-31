@@ -120,8 +120,12 @@ mm-per-step XY: 0.00635 -> 200 steps/rev 1.27mm/revolution 5.039,3700787402
 mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 # drive home on axis Y
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":-1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 15000, "direction":-1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 20000, "direction":-1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":-1}]}}
+
+
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "maxspeed":1000000, "isen":1, "accel":40000}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 20000, "isabs": 0, "accel":100000, "isaccel":0}]}}
@@ -138,7 +142,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -9999, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -9999, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
 {"task":"/motor_get"}
 {"task":"/can_act", "motor": {"axis": 1, "speed": 1000, "position": 1000, "acceleration": 1000, "direction": 1, "isforever": 1}} //  single update
 
@@ -181,7 +185,9 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":1}]}}
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":1}]}}
 
 {"task": "/laser_act", "LASERid":1, "LASERval": 0}

@@ -27,12 +27,12 @@ namespace FocusMotor
 	void setup();
 	void loop();
 	void stopStepper(int i);
-	void startStepper(int i, bool reduced);
+	void startStepper(int i, int reduced);
 	void sendMotorPos(int i, int arraypos);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);
-	void toggleStepper(Stepper s, bool isStop, bool reduced);
+	void toggleStepper(Stepper s, bool isStop, int reduced); // reduced=> 0: full values MotorData, 1: reduced MotorDataReduced, 2: single VAlue for CAN
 	void setAutoEnable(bool enable);
 	void setEnable(bool enable);
 	void setDualAxisZ(bool dual);

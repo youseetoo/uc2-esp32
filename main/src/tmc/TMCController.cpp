@@ -252,7 +252,7 @@ namespace TMCController
         getData()[mStepper]->speed = speed;
         getData()[mStepper]->isEnable = 1;
         getData()[mStepper]->isaccelerated = 0;
-        FocusMotor::startStepper(mStepper, false);
+        FocusMotor::startStepper(mStepper, 0);
         delay(200);
 
         int START_SGTHRS = 0;

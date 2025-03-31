@@ -16,7 +16,7 @@ namespace LinearEncoderController
     //function pointer to motordata from different possible targets
     MotorData **(*getData)();
     //function pointer to start a stepper
-    void (*startStepper)(int, bool);
+    void (*startStepper)(int, int);
 
     std::array<LinearEncoderData *, 4> edata;
     // std::array<AS5311 *, 4> encoders;

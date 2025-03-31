@@ -26,7 +26,7 @@ namespace ObjectiveController
 		FocusMotor::getData()[axis]->stopped = false;
 		FocusMotor::getData()[axis]->absolutePosition = 1;
 		FocusMotor::getData()[axis]->qid = qid;
-		FocusMotor::startStepper(axis, true);
+		FocusMotor::startStepper(axis, 1);
 		data.lastTarget = pos;
 	}
 

@@ -60,7 +60,7 @@ namespace EncoderController
 					getData()[s]->targetPosition = calibsteps;
 					getData()[s]->absolutePosition = false;
 					getData()[s]->speed = speed;
-					FocusMotor::startStepper(s, true);
+					FocusMotor::startStepper(s, 1);
 #endif
 					edata[s]->requestCalibration = true;
 					log_d("pre calib %f", edata[s]->valuePreCalib);

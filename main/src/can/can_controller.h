@@ -57,8 +57,8 @@ namespace can_controller
     void dispatchIsoTpData(pdu_t&);
     
     // motor functions
-    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced = false);
-    int startStepper(MotorData *data, int axis, bool reduced);
+    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, int reduced = 0);
+    int startStepper(MotorData *data, int axis, int reduced);
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);

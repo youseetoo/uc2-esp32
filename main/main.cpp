@@ -282,6 +282,8 @@ extern "C" void setupApp(void)
 		BtController::setSquareChangedEvent(MessageController ::square_changed_event);
 	#endif
 	#ifdef LASER_CONTROLLER
+		//BtController::setCircleChangedEvent(LaserController::triangle_changed_event);
+		//BtController::setCrossChangedEvent(LaserController::square_changed_event);
 		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
 	#endif
 	#ifdef MOTOR_CONTROLLER

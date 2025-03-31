@@ -321,6 +321,6 @@ struct PinConfig
 
 
      // Emergency stop
-     uint8_t pinEmergencyExit = disabled;
+     int8_t pinEmergencyExit = disabled;
 
 };

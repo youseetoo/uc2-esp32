@@ -110,7 +110,8 @@ namespace DigitalInController
 		if (pinConfig.DIGITAL_IN_3 >=0) 
 			digitalin_val_3 = getDigitalVal(3);
 
-		if (pinConfig.pinEmergencyExit){
+		if (pinConfig.pinEmergencyExit > 0){
+			//log_i("pinEmergencyExit: %i", pinConfig.pinEmergencyExit);
 			if (pinEmergencyExitState != digitalin_val_1){
 				if (pinEmergencyExitState == 1){
 					log_i("Emergency Exit released after press - reboot!");

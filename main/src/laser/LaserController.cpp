@@ -347,14 +347,14 @@ namespace LaserController
 	bool laser2_on = false;
 	void dpad_changed_event(Dpad::Direction pressed)
 	{
-		if (pressed == Dpad::Direction::up && !laser_on) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
+		if (pressed == Dpad::Direction::up) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
 		{
 			// Switch laser 2 on/off on up/down button press
 			log_d("Turning on LAser 10000");
 			LaserController::setLaserVal(1, 10000);
 			laser_on = true;
 		}
-		if (pressed == Dpad::Direction::down && laser_on)
+		if (pressed == Dpad::Direction::down)
 		{
 			log_d("Turning off LAser ");
 			LaserController::setLaserVal(1, 0);
@@ -363,13 +363,13 @@ namespace LaserController
 
 		// LASER 2
 		// switch laser 2 on/off on triangle/square button press
-		if (pressed == Dpad::Direction::right && !laser2_on)
+		if (pressed == Dpad::Direction::right)
 		{
 			log_d("Turning on LAser 2 10000");
 			LaserController::setLaserVal(2, 10000);
 			laser2_on = true;
 		}
-		if (pressed == Dpad::Direction::left && laser2_on)
+		if (pressed == Dpad::Direction::left)
 		{
 			log_d("Turning off LAser ");
 			Serial.println("Turning off LAser ");
@@ -377,6 +377,7 @@ namespace LaserController
 			laser2_on = false;
 		}
 	}
+	
 	void moveServo(int ledChannel, int angle, int frequency, int resolution)
 	{
 		// Map the angle to the corresponding pulse width

@@ -30,7 +30,7 @@ namespace i2c_master
     cJSON *get(cJSON *ob);
     void setup();
     void loop();
-    void startStepper(MotorData *data, int axis, bool reduced = false);
+    void startStepper(MotorData *data, int axis, int reduced = false);
     void stopStepper(MotorData *data, int axis);
     int axis2address(int axis);
     void sendMotorDataToI2CDriver(MotorData motorData, uint8_t axis, bool reduced);

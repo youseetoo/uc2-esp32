@@ -79,8 +79,14 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
-	void startStepper(int axis, bool reduced = false)
+	void startStepper(int axis, int reduced = 0)
 	{
+		/*
+		reduced organizes the ammount of data that is being transmitted (E.g. via CAN Bus)
+		reduced: 0 => All data transfered MotorData
+		reduced: 1 => MotorDataReduced is transfered
+		reducsed: 2 => single Value udpates  
+		*/
 		if (1) // xSemaphoreTake(xMutex, portMAX_DELAY))
 		{
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
@@ -120,8 +126,14 @@ namespace FocusMotor
 		}
 	}
 
-	void toggleStepper(Stepper s, bool isStop, bool reduced)
+	void toggleStepper(Stepper s, bool isStop, int reduced)
 	{
+		/*
+		reduced:
+			0 => Full MotorDAta
+			1 => MotorDataReduced
+			2 => Single Value Updates
+		*/
 		if (isStop)
 		{
 			stopStepper(s);
@@ -145,7 +157,7 @@ namespace FocusMotor
 		data[s]->speed = 2000;
 		data[s]->acceleration = 1000;
 		data[s]->isaccelerated = 1;
-		startStepper(s, false);
+		startStepper(s, 0);
 	}
 
 	void setAutoEnable(bool enable)
@@ -366,11 +378,11 @@ namespace FocusMotor
 				Stepper s = static_cast<Stepper>(iMotor);
 				data[s]->absolutePosition = false;
 				data[s]->targetPosition = -1;
-				startStepper(iMotor, true);
+				startStepper(iMotor, 0);
 				delay(10);
 				stopStepper(iMotor);
 				data[s]->targetPosition = 1;
-				startStepper(iMotor, true);
+				startStepper(iMotor, 0);
 				delay(10);
 				stopStepper(iMotor);
 			}

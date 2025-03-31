@@ -125,6 +125,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_position = "position";
 __attribute__ ((unused)) static const PROGMEM char * key_stopped = "isbusy";
 __attribute__ ((unused)) static const PROGMEM char * key_isabs = "isabs";
 __attribute__ ((unused)) static const PROGMEM char * key_isstop = "isstop";
+__attribute__ ((unused)) static const PROGMEM char * key_singleValue = "sv";
 __attribute__ ((unused)) static const PROGMEM char * key_isaccel = "isaccel";
 __attribute__ ((unused)) static const PROGMEM char * key_acceleration = "accel";
 __attribute__ ((unused)) static const PROGMEM char * key_reduced = "red";

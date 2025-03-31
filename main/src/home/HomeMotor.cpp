@@ -151,7 +151,7 @@ int axis = 0;
 		FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
 		FocusMotor::getData()[s]->isStop = 0;
 		FocusMotor::getData()[s]->stopped = false;
-		FocusMotor::startStepper(s, false);
+		FocusMotor::startStepper(s, 0);
 		if (s == Stepper::Z and FocusMotor::getDualAxisZ())
 		{
 			// we may have a dual axis so we would need to start A too
@@ -164,7 +164,7 @@ int axis = 0;
 			FocusMotor::getData()[Stepper::A]->isStop = 0;
 			FocusMotor::getData()[Stepper::A]->stopped = false;
 			FocusMotor::getData()[Stepper::A]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::startStepper(Stepper::A, false);
+			FocusMotor::startStepper(Stepper::A, 0);
 		}
 		delay(50); // give the motor some time to start
 		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, hdata[s]->homeDirection);
@@ -282,7 +282,7 @@ int axis = 0;
 			getData()[s]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 			getData()[s]->isforever = true;
 			getData()[s]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::startStepper(s, false);
+			FocusMotor::startStepper(s, 0);
 			if (s == Stepper::Z and (HomeMotor::isDualAxisZ))
 			{
 				// we may have a dual axis so we would need to start A too
@@ -290,7 +290,7 @@ int axis = 0;
 				getData()[Stepper::A]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 				getData()[Stepper::A]->isforever = true;
 				getData()[Stepper::A]->acceleration = MAX_ACCELERATION_A;
-				FocusMotor::startStepper(Stepper::A, false);
+				FocusMotor::startStepper(Stepper::A, 0);
 
 			}
 			delay(20);

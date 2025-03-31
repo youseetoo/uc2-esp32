@@ -94,7 +94,7 @@ namespace can_controller
                 static_cast<int>(receivedMotorData.isforever), // bool
                 static_cast<int>(receivedMotorData.isStop));   // bool
 
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
         }
         else if (size == sizeof(MotorDataReduced))
         {
@@ -108,7 +108,7 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
             // log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
         else if (size == sizeof(HomeData))
@@ -141,16 +141,16 @@ namespace can_controller
             // This is used to update the motor data from the CAN bus - fast?
             MotorDataValueUpdate upd;
             memcpy(&upd, data, sizeof(upd));
-    
+
             // Which motor? e.g. remote axis:
             Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-    
+
             // Write the new value directly:
-            uint8_t* base = reinterpret_cast<uint8_t*>( FocusMotor::getData()[mStepper] );
-            *reinterpret_cast<int32_t*>( base + upd.offset ) = upd.value;
-            
+            uint8_t *base = reinterpret_cast<uint8_t *>(FocusMotor::getData()[mStepper]);
+            *reinterpret_cast<int32_t *>(base + upd.offset) = upd.value;
+
             log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
         }
         else
         {
@@ -278,7 +278,7 @@ namespace can_controller
             parseMotorAndHomeData(data, size, rxID);
         }
         else if (rxID == device_can_id &&
-            (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_3))   
+                 (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_3))
         {
             parseLaserData(data, size, rxID);
         }
@@ -533,7 +533,6 @@ namespace can_controller
                 else
                 {
                     dispatchIsoTpData(copy);
-
                 }
             }
             vTaskDelay(1);
@@ -656,7 +655,6 @@ namespace can_controller
             */
         }
 
-
         else
             log_i("Motor json is null");
         return 0;
@@ -671,7 +669,7 @@ namespace can_controller
         return 0;
     }
 
-    int startStepper(MotorData *data, int axis, bool reduced)
+    int startStepper(MotorData *data, int axis, int reduced)
     {
 #ifdef MOTOR_CONTROLLER
         if (getData()[axis] != nullptr)
@@ -749,14 +747,28 @@ namespace can_controller
 #endif
     }
 
-    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced)
+    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, int reduced)
     {
+        /*
+        reduced:
+            0 => Full MotorData
+            1 => MotorDataReduced
+            2 => Single Value Updates
+        */
         // send motor data to slave via I2C
         uint8_t slave_addr = axis2id(axis);
 
         int err = 0;
-        if (reduced)
+        if (reduced == 0)
         {
+            // Fully MotorData
+            log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
+            // Cast the structure to a byte array
+            err = sendCanMessage(slave_addr, (uint8_t *)&motorData, sizeof(MotorData));
+        }
+        else if(reduced == 1)
+        {
+            // Reduced MotorData
             log_i("Reducing MotorData to axis: %i at address: %u, isStop: %i", axis, slave_addr, motorData.isStop);
             MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
@@ -767,11 +779,23 @@ namespace can_controller
 
             err = sendCanMessage(slave_addr, (uint8_t *)&reducedData, sizeof(MotorDataReduced));
         }
-        else
+        else if (reduced == 2)
         {
-            log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
-            // Cast the structure to a byte array
-            err = sendCanMessage(slave_addr, (uint8_t *)&motorData, sizeof(MotorData));
+            // Single Value Updates
+            log_i("Sending MotorDataValueUpdate to axis: %i", axis);
+            // We treat only the speed, stop and targetPosition as single value updates
+            if (motorData.targetPosition != 0 and !motorData.absolutePosition)
+            {
+                log_i("Sending MotorDataValueUpdate to axis: %i with targetPosition: %i", axis, motorData.targetPosition);
+                err = sendMotorSingleValue(axis, offsetof(MotorData, targetPosition), motorData.targetPosition);
+            }
+            if (motorData.speed != 0)
+            {
+                log_i("Sending MotorDataValueUpdate to axis: %i with speed: %i", axis, motorData.speed);
+                err = sendMotorSingleValue(axis, offsetof(MotorData, speed), motorData.speed) + err;
+            }
+            log_i("Sending MotorDataValueUpdate to axis: %i with isStop: %i", axis, motorData.isStop);
+            err = sendMotorSingleValue(axis, offsetof(MotorData, isStop), motorData.isStop) + err;
         }
         if (err != 0)
         {
@@ -789,12 +813,12 @@ namespace can_controller
         // Fill the update struct
         MotorDataValueUpdate update;
         update.offset = offset;
-        update.value  = newVal;
+        update.value = newVal;
 
         log_i("Sending MotorDataValueUpdate to axis: %i with offset: %i, value: %i", axis, offset, newVal);
         // Call your existing CAN function
         uint8_t receiverID = axis2id(axis);
-        return sendCanMessage(receiverID, reinterpret_cast<uint8_t*>(&update), sizeof(update));
+        return sendCanMessage(receiverID, reinterpret_cast<uint8_t *>(&update), sizeof(update));
     }
 
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed)
@@ -803,7 +827,6 @@ namespace can_controller
         log_i("Sending MotorData to axis: %i with speed: %i", axis, newSpeed);
         return sendMotorSingleValue(axis, offsetof(MotorData, speed), newSpeed);
     }
-
 
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis)
     {
@@ -855,7 +878,7 @@ namespace can_controller
         }
     }
 
-    #ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER
     void sendTMCDataToCANDriver(TMCData tmcData, int axis)
     {
         // send TMC Data to remote Motor
@@ -871,7 +894,7 @@ namespace can_controller
             // log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
         }
     }
-    #endif
+#endif
 
     void sendLaserDataToCANDriver(LaserData laserData)
     {

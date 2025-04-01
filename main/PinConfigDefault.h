@@ -163,6 +163,9 @@ struct PinConfig
      // LED_PINcount from the strip
      int8_t LED_COUNT = disabled;
 
+     const uint8_t  MATRIX_W   = 8;    // width
+     const uint8_t  MATRIX_H   = 8;    // height
+ 
      // anlog joystick x pin
      int8_t ANLOG_JOYSTICK_X = disabled;
      // analog joystick y pin

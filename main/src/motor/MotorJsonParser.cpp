@@ -308,6 +308,10 @@ namespace MotorJsonParser
 		We receive a JSON string e.g. in the form:
 		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		And assign it to the different motors by sending the converted MotorData to the corresponding motor driver via I2C
+		// for single value
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed": 10000, "redu":2}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "redu":2}]}, "qid": 5}
+		
 		*/
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
@@ -347,7 +351,7 @@ namespace MotorJsonParser
 					FocusMotor::getData()[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					FocusMotor::getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
-					bool isReduced = cJsonTool::getJsonInt(stp, key_singleValue);
+					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 
 					// check if soft limits are enabled and if the target position is within the limits
 					if (FocusMotor::getData()[s]->softLimitEnabled)

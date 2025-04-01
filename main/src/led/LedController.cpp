@@ -1,227 +1,442 @@
-#include <PinConfig.h>
-
+#pragma once
 #include "LedController.h"
-#include "cJsonTool.h"
-#include "Arduino.h"
-#include <PinConfig.h>
 #include "JsonKeys.h"
+#include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
+#include "cJSON.h"
+#include "PinConfig.h" // user-provided config, if needed
 
 
+
+
+// --------------------------------------------------------------------------------
+// 3) The LedController namespace
+// --------------------------------------------------------------------------------
 namespace LedController
 {
+
 	const char *TAG = "LedController";
+
+	// ------------------------------------------------
+	// HELPER: Convert (x, y) -> single index
+	// ------------------------------------------------
+	uint16_t xyToIndex(int x, int y)
+	{
+		// For top-left → bottom-right wiring
+		return y * pinConfig.MATRIX_W + x;
+	}
+
+	// ------------------------------------------------
+	// HELPER: Set one pixel in x/y coords
+	// ------------------------------------------------
+	void setPixelXY(int x, int y, uint8_t r, uint8_t g, uint8_t b)
+	{
+		if (x < 0 || x >= pinConfig.MATRIX_W)
+			return;
+		if (y < 0 || y >= pinConfig.MATRIX_H)
+			return;
+		uint16_t idx = xyToIndex(x, y);
+		matrix->setPixelColor(idx, matrix->Color(r, g, b));
+	}
+
+	// ------------------------------------------------
+	// 4) Setup: Initialize the matrix
+	// ------------------------------------------------
 	void setup()
 	{
 
-		log_i("LED_ARRAY_PIN: %i", pinConfig.LED_PIN);
-		// LED Matrix
 		#ifdef DOTSTAR
-		matrix = new Adafruit_DotStar(pinConfig.LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
+		matrix = new Adafruit_DotStar(LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
 		#else
-		matrix = new Adafruit_NeoPixel(pinConfig.LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+		matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
 		#endif
-		// log_i("setup matrix is null:%s", matrix == nullptr);
 		matrix->begin();
-		#ifndef DOTSTAR
-		matrix->setBrightness(255);
-		#endif
-		// test led array
-		set_all(5, 5, 5);
-		set_all(0, 0, 0);
-		matrix->show(); //  Update strip to match
-	}
-
-	bool TurnedOn()
-	{
-		return isOn;
-	}
-
-	// Custom function accessible by the API
-	int act(cJSON *ob)
-	{
-		int qid = cJsonTool::getJsonInt(ob, "qid");
-		// serializeJsonPretty(ob, Serial);
-		cJSON *led = cJSON_GetObjectItemCaseSensitive(ob, keyLed);
-		if (led != NULL)
-		{
-			LedModes LEDArrMode = static_cast<LedModes>(cJSON_GetObjectItemCaseSensitive(led, keyLEDArrMode)->valueint);
-			cJSON *ledarr = cJSON_GetObjectItemCaseSensitive(led, key_led_array);
-			if (LEDArrMode == LedModes::array || LEDArrMode == LedModes::multi)
-			{
-
-				cJSON *arri = NULL;
-				cJSON_ArrayForEach(arri, ledarr)
-				{
-					set_led_RGB(
-						cJSON_GetObjectItemCaseSensitive(arri, keyid)->valueint,
-						cJSON_GetObjectItemCaseSensitive(arri, keyRed)->valueint,
-						cJSON_GetObjectItemCaseSensitive(arri, keyGreen)->valueint,
-						cJSON_GetObjectItemCaseSensitive(arri, keyBlue)->valueint);
-				}
-				matrix->show(); //  Update strip to match
-			}
-			else if (LEDArrMode == LedModes::full || LEDArrMode == LedModes::single || LEDArrMode == LedModes::left || LEDArrMode == ::right || LEDArrMode == ::top || LEDArrMode == LedModes::bottom)
-			{
-				cJSON *item = cJSON_GetArrayItem(ledarr, 0);
-				u_int8_t id = cJSON_GetObjectItemCaseSensitive(item, keyid)->valueint;
-				u_int8_t r = cJSON_GetObjectItemCaseSensitive(item, keyRed)->valueint;
-				u_int8_t g = cJSON_GetObjectItemCaseSensitive(item, keyGreen)->valueint;
-				u_int8_t b = cJSON_GetObjectItemCaseSensitive(item, keyBlue)->valueint;
-				isOn = r == 0 && g == 0 && b == 0 ? false : true;
-				if (LEDArrMode == LedModes::full)
-					set_all(r, g, b);
-				else if (LEDArrMode == LedModes::single)
-					set_led_RGB(id, r, g, b);
-				else if (LEDArrMode == LedModes::left)
-					set_left(pinConfig.LED_COUNT, r, g, b);
-				else if (LEDArrMode == LedModes::right)
-					set_right(pinConfig.LED_COUNT, r, g, b);
-				else if (LEDArrMode == LedModes::top)
-					set_top(pinConfig.LED_COUNT, r, g, b);
-				else if (LEDArrMode == LedModes::bottom)
-					set_bottom(pinConfig.LED_COUNT, r, g, b);
-			}
-			else if (LEDArrMode == LedModes::off)
-			{
-				ESP_LOGI(TAG, "LED: all off");
-				matrix->clear();
-				matrix->show(); //  Update strip to match
-			}
-		}
-		return qid;
-	}
-
-	// Custom function accessible by the API
-	// returns json {"led":{..}}  as qid
-	cJSON *get(cJSON *ob)
-	{
-		cJSON *j = cJSON_CreateObject();
-#ifdef LED_CONTROLLER
-		cJSON *ld = cJSON_CreateObject();
-		cJSON_AddItemToObject(j, keyLed, ld);
-		cJsonTool::setJsonInt(ld, keyLEDCount, pinConfig.LED_COUNT);
-		cJsonTool::setJsonInt(ld, keyLEDPin, pinConfig.LED_PIN);
-		cJsonTool::setJsonInt(ld, key_led_isOn, isOn);
-
-		cJSON *arr = cJSON_CreateArray();
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(0));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(1));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(2));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(3));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(4));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(5));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(6));
-		cJSON_AddItemToArray(arr, cJSON_CreateNumber(7));
-		cJSON_AddItemToObject(ld, keyLEDArrMode, arr);
-#endif
-		return j;
-	}
-
-	/***************************************************************************************************/
-	/*******************************************  LED Array  *******************************************/
-	/***************************************************************************************************/
-
-	void set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t B)
-	{
-		// log_d("setting led %i, color %i, %i, %i", iLed, R, G, B);
-		matrix->setPixelColor(iLed, matrix->Color(R, G, B)); //  Set pixel's color (in RAM)
+		matrix->setBrightness(40); // moderate brightness
+		matrix->clear();
 		matrix->show();
-		log_i("LED %i: %i, %i, %i", iLed, R, G, B);
-	}
 
-	void set_all(u_int8_t R, u_int8_t G, u_int8_t B)
-	{
-		for (int i = 0; i < matrix->numPixels(); i++)
-		{
-			set_led_RGB(i, R, G, B);
-		}
+		// test led array
+		fillAll(10,10,10);
+		delay(10);
+		fillAll(0,0,0);
 		matrix->show(); //  Update strip to match
-		log_i("LED: all %i, %i, %i", R, G, B);
+
+		isOn = false;
 	}
 
-	void set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
+	// ------------------------------------------------
+	// 5) "Off" all LEDs
+	// ------------------------------------------------
+	void turnOff()
 	{
-		if (NLed == NLED4x4)
-		{
-			for (int i = 0; i < (NLED4x4); i++)
-			{
-				set_led_RGB(i, LED_PATTERN_DPC_LEFT_4x4[i] * R, LED_PATTERN_DPC_LEFT_4x4[i] * G, LED_PATTERN_DPC_LEFT_4x4[i] * B);
-			}
-		}
-		if (NLed == NLED8x8)
-		{
-			for (int i = 0; i < (NLED8x8); i++)
-			{
-				set_led_RGB(i, LED_PATTERN_DPC_LEFT_8x8[i] * R, LED_PATTERN_DPC_LEFT_8x8[i] * G, LED_PATTERN_DPC_LEFT_8x8[i] * B);
-			}
-		}
-		matrix->show(); //  Update strip to match
+		matrix->clear();
+		matrix->show();
+		isOn = false;
 	}
 
-	void set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
+	// ------------------------------------------------
+	// 6) Fill entire matrix with a single color
+	// ------------------------------------------------
+	void fillAll(uint8_t r, uint8_t g, uint8_t b)
 	{
-		if (NLed == NLED4x4)
+		for (uint16_t i = 0; i < LED_COUNT; i++)
 		{
-			for (int i = 0; i < (NLED4x4); i++)
-			{
-				set_led_RGB(i, (1 - LED_PATTERN_DPC_LEFT_4x4[i]) * R, (1 - LED_PATTERN_DPC_LEFT_4x4[i]) * G, (1 - LED_PATTERN_DPC_LEFT_4x4[i]) * B);
-			}
+			matrix->setPixelColor(i, matrix->Color(r, g, b));
 		}
-		if (NLed == NLED8x8)
-		{
-			for (int i = 0; i < (NLED8x8); i++)
-			{
-				set_led_RGB(i, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * R, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * G, (1 - LED_PATTERN_DPC_LEFT_8x8[i]) * B);
-			}
-		}
-		matrix->show(); //  Update strip to match
+		matrix->show();
+		isOn = (r || g || b);
 	}
 
-	void set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
+	// ------------------------------------------------
+	// 7) Light a SINGLE LED by index
+	// ------------------------------------------------
+	void setSingle(uint16_t index, uint8_t r, uint8_t g, uint8_t b)
 	{
-		if (NLed == NLED4x4)
+		if (index < LED_COUNT)
 		{
-			for (int i = 0; i < (NLED4x4); i++)
-			{
-				set_led_RGB(i, (LED_PATTERN_DPC_TOP_4x4[i]) * R, (LED_PATTERN_DPC_TOP_4x4[i]) * G, (LED_PATTERN_DPC_TOP_4x4[i]) * B);
-			}
+			matrix->clear();
+			matrix->setPixelColor(index, matrix->Color(r, g, b));
+			matrix->show();
+			isOn = (r || g || b);
 		}
-		if (NLed == NLED8x8)
-		{
-			for (int i = 0; i < (NLED8x8); i++)
-			{
-				set_led_RGB(i, (LED_PATTERN_DPC_TOP_8x8[i]) * R, (LED_PATTERN_DPC_TOP_8x8[i]) * G, (LED_PATTERN_DPC_TOP_8x8[i]) * B);
-			}
-		}
-		matrix->show(); //  Update strip to match
 	}
 
-	void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B)
+	// ------------------------------------------------
+	// 8) Halves: fill left/right/top/bottom with color, rest dark
+	// ------------------------------------------------
+	void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b)
 	{
-		if (NLed == NLED4x4)
+		matrix->clear();
+
+		if (strcasecmp(region, "left") == 0)
 		{
-			for (int i = 0; i < (NLED4x4); i++)
+			for (int y = 0; y < pinConfig.MATRIX_H; y++)
 			{
-				set_led_RGB(i, (1 - LED_PATTERN_DPC_TOP_4x4[i]) * R, (1 - LED_PATTERN_DPC_TOP_4x4[i]) * G, (1 - LED_PATTERN_DPC_TOP_4x4[i]) * B);
+				for (int x = 0; x < pinConfig.MATRIX_W / 2; x++)
+				{
+					setPixelXY(x, y, r, g, b);
+				}
 			}
 		}
-		if (NLed == NLED8x8)
+		else if (strcasecmp(region, "right") == 0)
 		{
-			for (int i = 0; i < (NLED8x8); i++)
+			for (int y = 0; y < pinConfig.MATRIX_H; y++)
 			{
-				set_led_RGB(i, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * R, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * G, (1 - LED_PATTERN_DPC_TOP_8x8[i]) * B);
+				for (int x = pinConfig.MATRIX_W / 2; x < pinConfig.MATRIX_W; x++)
+				{
+					setPixelXY(x, y, r, g, b);
+				}
 			}
 		}
-		matrix->show(); //  Update strip to match
+		else if (strcasecmp(region, "top") == 0)
+		{
+			for (int y = 0; y < pinConfig.MATRIX_H / 2; y++)
+			{
+				for (int x = 0; x < pinConfig.MATRIX_W; x++)
+				{
+					setPixelXY(x, y, r, g, b);
+				}
+			}
+		}
+		else if (strcasecmp(region, "bottom") == 0)
+		{
+			for (int y = pinConfig.MATRIX_H / 2; y < pinConfig.MATRIX_H; y++)
+			{
+				for (int x = 0; x < pinConfig.MATRIX_W; x++)
+				{
+					setPixelXY(x, y, r, g, b);
+				}
+			}
+		}
+		// else unknown => remain dark
+
+		matrix->show();
+		isOn = (r || g || b);
 	}
 
-	void set_center(u_int8_t R, u_int8_t G, u_int8_t B)
+	// ------------------------------------------------
+	// 9) RINGS: for demonstration, fill a big circle,
+	//           then carve out the interior to simulate a ring
+	//           or you can do multiple concentric rings, etc.
+	// ------------------------------------------------
+	void drawRings(uint8_t radius, uint8_t r, uint8_t g, uint8_t b)
 	{
-		/*
-		matrix.fillScreen(matrix.Color(0, 0, 0));
-		matrix.drawPixel(4, 4, matrix.Color(R,   G,   B));
-		matrix.show();
-		*/
+		// The simplest approach to get a ring:
+		// 1) Fill circle of radius
+		// 2) Fill circle of radius-1 in black
+		// => That leaves a 1-pixel wide ring
+		matrix->clear();
+
+		// fill circle
+		float cx = (pinConfig.MATRIX_W - 1) / 2.0;
+		float cy = (pinConfig.MATRIX_H - 1) / 2.0;
+		for (int y = 0; y < pinConfig.MATRIX_H; y++)
+		{
+			for (int x = 0; x < pinConfig.MATRIX_W; x++)
+			{
+				float dx = x - cx;
+				float dy = y - cy;
+				float dist = sqrtf(dx * dx + dy * dy);
+				if (dist <= radius)
+				{
+					setPixelXY(x, y, r, g, b);
+				}
+			}
+		}
+
+		// carve out inside => smaller circle in black
+		if (radius > 0)
+		{
+			for (int y = 0; y < pinConfig.MATRIX_H; y++)
+			{
+				for (int x = 0; x < pinConfig.MATRIX_W; x++)
+				{
+					float dx = x - cx;
+					float dy = y - cy;
+					float dist = sqrtf(dx * dx + dy * dy);
+					if (dist <= (radius - 1))
+					{
+						setPixelXY(x, y, 0, 0, 0);
+					}
+				}
+			}
+		}
+
+		matrix->show();
+		isOn = (r || g || b);
+	}
+
+	// ------------------------------------------------
+	// 10) Filled circle
+	// ------------------------------------------------
+	void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal)
+	{
+		matrix->clear();
+
+		float cx = (pinConfig.MATRIX_W - 1) / 2.0;
+		float cy = (pinConfig.MATRIX_H - 1) / 2.0;
+		for (int y = 0; y < pinConfig.MATRIX_H; y++)
+		{
+			for (int x = 0; x < pinConfig.MATRIX_W; x++)
+			{
+				float dx = x - cx;
+				float dy = y - cy;
+				float dist = sqrtf(dx * dx + dy * dy);
+				if (dist <= radius)
+				{
+					setPixelXY(x, y, rVal, gVal, bVal);
+				}
+			}
+		}
+
+		matrix->show();
+		isOn = (rVal || gVal || bVal);
+	}
+
+	// ------------------------------------------------
+	// 11) Parse cJSON into LedCommand struct
+	// ------------------------------------------------
+	bool parseLedCommand(cJSON *root, LedCommand &cmd)
+	{
+		// Expect a top-level "task" == "/ledarr_act" plus "qid",
+		// then a nested "led" object with the actual LED parameters.
+		// E.g.:
+		// { "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+		
+	
+		// 1) Check for "task"
+		cJSON *task = cJSON_GetObjectItem(root, "task");
+		if (!task || strcmp(task->valuestring, "/ledarr_act") != 0)
+		{
+			log_e("parseLedCommand: Invalid task: %s", task ? task->valuestring : "NULL");
+			// Not our command structure
+			return false;
+		}
+	
+		// 2) Extract qid (if present)
+		cmd.qid = 0;
+		cJSON *jqid = cJSON_GetObjectItem(root, "qid");
+		if (jqid && cJSON_IsNumber(jqid))
+		{
+			cmd.qid = jqid->valueint;
+		}
+	
+		// 3) Look for the "led" object
+		cJSON *ledObj = cJSON_GetObjectItem(root, "led");
+		if (!ledObj || !cJSON_IsObject(ledObj))
+		{
+			log_e( "parseLedCommand: No 'led' object found");
+			// If there's no "led" object, we can’t parse further
+			return false;
+		}
+	
+		// 4) Read LEDArrMode from "led" if needed
+		//    (Might map to an internal mode or just store it.)
+		cJSON *jMode = cJSON_GetObjectItem(ledObj, "LEDArrMode");
+		if (jMode && cJSON_IsNumber(jMode))
+		{
+			int modeVal = jMode->valueint;
+			log_i("parseLedCommand: LEDArrMode: %d", modeVal);
+			// If you want to store it somewhere:
+			// cmd.ledArrMode = modeVal;
+		}
+	
+		// 5) Decide the LedMode from "action"
+		cmd.mode = LedMode::UNKNOWN;
+		cJSON *jaction = cJSON_GetObjectItem(ledObj, "action");
+		if (jaction && jaction->valuestring)
+		{
+			log_i( "ParseLedCommand: action: %s", jaction->valuestring);
+			String actStr = jaction->valuestring;
+			actStr.toLowerCase();
+			if (actStr == "rings")         { cmd.mode = LedMode::RINGS; }
+			else if (actStr == "circles")  { cmd.mode = LedMode::CIRCLE; }
+			else if (actStr == "halves")   { cmd.mode = LedMode::HALVES; }
+			else if (actStr == "fill")     { cmd.mode = LedMode::FILL; }
+			else if (actStr == "single")   { cmd.mode = LedMode::SINGLE; }
+			else if (actStr == "off")      { cmd.mode = LedMode::OFF; }
+			else if (actStr == "array")    { cmd.mode = LedMode::ARRAY; }
+			// else remains UNKNOWN
+		}
+	
+		// 6) Parse color (r, g, b)
+		cmd.r = 0;
+		cmd.g = 0;
+		cmd.b = 0;
+		cJSON *jr = cJSON_GetObjectItem(ledObj, "r");
+		cJSON *jg = cJSON_GetObjectItem(ledObj, "g");
+		cJSON *jb = cJSON_GetObjectItem(ledObj, "b");
+		if (jr && cJSON_IsNumber(jr)) { cmd.r = jr->valueint; }
+		if (jg && cJSON_IsNumber(jg)) { cmd.g = jg->valueint; }
+		if (jb && cJSON_IsNumber(jb)) { cmd.b = jb->valueint; }
+	
+		// 7) Parse radius (for circles/rings)
+		cmd.radius = 0;
+		cJSON *jradius = cJSON_GetObjectItem(ledObj, "radius");
+		if (jradius && cJSON_IsNumber(jradius))
+		{
+			log_i( "parseLedCommand: radius: %d", jradius->valueint);
+			cmd.radius = jradius->valueint;
+		}
+	
+		// 8) Parse region ("left", "right", "top", "bottom")
+		memset(cmd.region, 0, sizeof(cmd.region));
+		cJSON *jregion = cJSON_GetObjectItem(ledObj, "region");
+		if (jregion && jregion->valuestring)
+		{
+			strncpy(cmd.region, jregion->valuestring, sizeof(cmd.region) - 1);
+		}
+	
+		// 9) Parse single LED index
+		cmd.ledIndex = 0;
+		cJSON *jledIndex = cJSON_GetObjectItem(ledObj, "ledIndex");
+		if (jledIndex && cJSON_IsNumber(jledIndex))
+		{
+			log_i( "parseLedCommand: ledIndex: %d", jledIndex->valueint);
+			cmd.ledIndex = jledIndex->valueint;
+		}
+	
+		// 10) If mode == ARRAY, parse "led_array"
+		//     (not fully implemented here, just an example)
+		cJSON *ledarr = cJSON_GetObjectItem(ledObj, "led_array");
+		if (ledarr && cJSON_IsArray(ledarr))
+		{
+			// You can iterate over each item in the array:
+			// cJSON *item = NULL;
+			// cJSON_ArrayForEach(item, ledarr)
+			// {
+			//   int id   = cJSON_GetObjectItem(item, "id")->valueint;
+			//   int rr   = cJSON_GetObjectItem(item, "r")->valueint;
+			//   int gg   = cJSON_GetObjectItem(item, "g")->valueint;
+			//   int bb   = cJSON_GetObjectItem(item, "b")->valueint;
+			//   ... 
+			// }
+		}
+	
+		return true; // Successfully parsed
+	}
+	
+	// ------------------------------------------------
+	// 12) Execute a LedCommand
+	// ------------------------------------------------
+	void execLedCommand(const LedCommand &cmd)
+	{
+		switch (cmd.mode)
+		{
+		case LedMode::OFF:
+			turnOff();
+			break;
+		case LedMode::FILL:
+			fillAll(cmd.r, cmd.g, cmd.b);
+			break;
+		case LedMode::SINGLE:
+			setSingle(cmd.ledIndex, cmd.r, cmd.g, cmd.b);
+			break;
+		case LedMode::HALVES:
+			fillHalves(cmd.region, cmd.r, cmd.g, cmd.b);
+			break;
+		case LedMode::RINGS:
+			drawRings(cmd.radius, cmd.r, cmd.g, cmd.b);
+			break;
+		case LedMode::CIRCLE:
+			drawCircle(cmd.radius, cmd.r, cmd.g, cmd.b);
+			break;
+		case LedMode::ARRAY:
+			// Here you could parse an array of LED changes.
+			// For brevity, not implemented in detail.
+			// e.g. cJSON_GetObjectItem(root,"led_array")...
+			// Then set each LED individually
+			// matrix->show();
+			break;
+		default:
+			// Unknown => do nothing or turn off
+			break;
+		}
+	}
+
+	// ------------------------------------------------
+	// 13) The main 'act' function that the user calls
+	//     to pass cJSON with LED commands
+	// ------------------------------------------------
+	int act(cJSON *root)
+	{
+		LedCommand cmd;
+		if (!parseLedCommand(root, cmd))
+		{
+			// Invalid or missing "task": "/led_arr"
+			return -1;
+		}
+		execLedCommand(cmd);
+		return cmd.qid; // return the same QID
+	}
+
+	// ------------------------------------------------
+	// 14) Optional 'get' function
+	//     e.g. returns current state in JSON
+	// ------------------------------------------------
+	cJSON *get(cJSON *root)
+	{
+		// Example:
+		// {
+		//   "led": {
+		//      "isOn": true,
+		//      "count": LED_COUNT
+		//   }
+		// }
+		cJSON *j = cJSON_CreateObject();
+		cJSON *ld = cJSON_CreateObject();
+		cJSON_AddItemToObject(j, "led", ld);
+
+		cJSON_AddBoolToObject(ld, "isOn", isOn);
+		cJSON_AddNumberToObject(ld, "count", LED_COUNT);
+
+		// Could add more info about the last command etc.
+		return j;
 	}
 
 	void cross_changed_event(int pressed)
@@ -229,7 +444,7 @@ namespace LedController
 		if (pressed && isOn)
 			return;
 		log_i("Turn on LED ");
-		LedController::set_all(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
+		LedController::fillAll(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
 		isOn = true;
 	}
 
@@ -238,12 +453,12 @@ namespace LedController
 		if (pressed && !isOn)
 			return;
 		log_i("Turn off LED ");
-		LedController::set_all(0, 0, 0);
+		LedController::fillAll(0, 0, 0);
 		isOn = false;
 	}
 
 	void loop()
 	{
-		// log_i("LED loop");
+
 	}
-}
+};

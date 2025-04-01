@@ -14,7 +14,7 @@ namespace MotorGamePad
 	bool joystick_drive_Z = false;
 	bool joystick_drive_A = false;
 	
-	int offset_val = 125;
+	int offset_val = 1025; // offset value for joystick
 
 	void handleAxis(int value, int s)
 	{
@@ -24,11 +24,11 @@ namespace MotorGamePad
 			// we want to treat the value non-linearly such that for small values it behaves linear but for larger values it behaves non-linear (e.g. quadratic)
 
 			// 1) Normalise value
-			float maxVal = pow(2, 15);		 // oder Ihr Joystick-Maximum
-			float x = (float)value / maxVal; // nun ist x ∈ [-1, +1]
+			float maxVal = pow(2, 15);		  // 32768
+			float x = (float)(value-offset_val) / maxVal;
 
 			// 2) Piecewise-Function: linear until ±alpha, then quadratic
-			float alpha = 0.3f; // up to ±alpha linear, then quadratic
+			float alpha = 0.4f; // up to ±alpha linear, then quadratic
 			float signX = (x >= 0.0f) ? 1.0f : -1.0f;
 			float absX = fabs(x);
 

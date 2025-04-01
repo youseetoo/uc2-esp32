@@ -21,6 +21,32 @@ enum LedModes
     multi
 };
 
+enum class LedMode : uint8_t
+{
+	OFF = 0,
+	FILL,
+	SINGLE,
+	HALVES,
+	RINGS,
+	CIRCLE,
+	ARRAY, // for multiple arbitrary pixels
+	UNKNOWN
+};
+
+struct LedCommand
+{
+	uint16_t qid;	// user-assigned ID
+	LedMode mode;	// see enum above
+	uint8_t r;		// color R
+	uint8_t g;		// color G
+	uint8_t b;		// color B
+	uint8_t radius; // used for RINGS or CIRCLE
+	char region[8]; // "left","right","top","bottom" (for HALVES)
+	// For SINGLE pixel
+	uint16_t ledIndex;
+	// For an 'ARRAY' of pixel updates, your code can parse them from cJSON if desired
+};
+
 
 
 namespace LedController
@@ -35,43 +61,23 @@ namespace LedController
     static bool isDEBUG = false;
     static bool isOn = false;
 
-    static int NLED4x4 = 16;
-    static int NLED8x8 = 64;
+    // Adjust for your NeoPixel matrix:
+    static const uint16_t LED_COUNT = pinConfig.MATRIX_W * pinConfig.MATRIX_H;
 
-    static int LED_PATTERN_DPC_TOP_8x8[64] = {1, 1, 1, 1, 1, 1, 1, 1,
-                                       1, 1, 1, 1, 1, 1, 1, 1,
-                                       1, 1, 1, 1, 1, 1, 1, 1,
-                                       1, 1, 1, 1, 1, 1, 1, 1,
-                                       0, 0, 0, 0, 0, 0, 0, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0,
-                                       0, 0, 0, 0, 0, 0, 0, 0};
+    void setPixelXY(int x, int y, uint8_t r, uint8_t g, uint8_t b);
+    uint16_t xyToIndex(int x, int y);
+    void turnOff();
+    void fillAll(uint8_t r, uint8_t g, uint8_t b);
+    void setSingle(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
+    void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b);
+    void drawRings(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
+    void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
+    bool parseLedCommand(cJSON *root, LedCommand &cmd);
+    void execLedCommand(const LedCommand &cmd);
+    void cross_changed_event(int pressed);
+    void circle_changed_event(int pressed);
 
-    static int LED_PATTERN_DPC_LEFT_8x8[64] = {1, 1, 1, 1, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 1, 1, 1, 1,
-                                        1, 1, 1, 1, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 1, 1, 1, 1,
-                                        1, 1, 1, 1, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 1, 1, 1, 1,
-                                        1, 1, 1, 1, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 1, 1, 1, 1};
 
-    static int LED_PATTERN_DPC_TOP_4x4[16] = {1, 1, 1, 1,
-                                       1, 1, 1, 1,
-                                       0, 0, 0, 0,
-                                       0, 0, 0, 0};
-
-    static int LED_PATTERN_DPC_LEFT_4x4[16] = {1, 1, 0, 0,
-                                        0, 0, 1, 1,
-                                        1, 1, 0, 0,
-                                        0, 0, 1, 1};
-    void set_led_RGB(u_int8_t iLed, u_int8_t R, u_int8_t G, u_int8_t B);
-    void set_left(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
-    void set_right(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
-    void set_top(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
-    void set_bottom(u_int8_t NLed, u_int8_t R, u_int8_t G, u_int8_t B);
-
-    bool TurnedOn();
     void setup();
     /*
     {
@@ -98,8 +104,5 @@ namespace LedController
     */
     cJSON * get(cJSON *  ob);
     void loop();
-    void set_all(u_int8_t R, u_int8_t G, u_int8_t B);
-    void set_center(u_int8_t R, u_int8_t G, u_int8_t B);
-    void cross_changed_event(int pressed);
-    void circle_changed_event(int pressed);
+
 };

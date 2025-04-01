@@ -13,7 +13,7 @@
 #define CAN_CONTROLLER
 #define LED_CONTROLLER
 
-#define DOTSTAR // outcomment if neopixel
+//#define DOTSTAR // outcomment if neopixel
 
 
 struct UC2_3_Xiao_Slave_LED : PinConfig
@@ -59,10 +59,22 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
 
 
     // LED Configuration for DOTSTAR
+    #ifdef DOTSTAR
     uint8_t LED_CLK = GPIO_NUM_2; // D1 (CLK)
     uint8_t LED_PIN = GPIO_NUM_3; // D2 (MOSI)
     uint8_t LED_COUNT = 64; // Number of LEDs in the strip
-    
+    #else
+    uint8_t LED_PIN = GPIO_NUM_43; // D6
+    const uint8_t  MATRIX_W   = 8;    // width
+    const uint8_t  MATRIX_H   = 8;    // height
+    #endif
+
+    /*
+    int8_t LASER_0 = GPIO_NUM_2; // D1 (signal_1, Laser 0)
+    int8_t LASER_1 = GPIO_NUM_3; // D2 (signal_2, Laser 1)
+    int8_t LASER_2 = GPIO_NUM_5; // D4 (signal_3, Laser 2)
+    int8_t LASER_3 = GPIO_NUM_6; // D5 (signal_4, Laser 3)
+    */
     // LED Configuration for NEOPIXEL
     
 };

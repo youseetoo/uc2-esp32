@@ -782,7 +782,7 @@ namespace can_controller
         else if (reduced == 2)
         {
             // Single Value Updates
-            log_i("Sending MotorDataValueUpdate to axis: %i", axis);
+            log_i("Sending SignleMotorDataValueUpdate to axis: %i", axis);
             // We treat only the speed, stop and targetPosition as single value updates
             if (motorData.targetPosition != 0 and !motorData.absolutePosition)
             {
@@ -793,6 +793,7 @@ namespace can_controller
             {
                 log_i("Sending MotorDataValueUpdate to axis: %i with speed: %i", axis, motorData.speed);
                 err = sendMotorSingleValue(axis, offsetof(MotorData, speed), motorData.speed) + err;
+                err = sendMotorSingleValue(axis, offsetof(MotorData, isforever), motorData.isforever) + err;
             }
             log_i("Sending MotorDataValueUpdate to axis: %i with isStop: %i", axis, motorData.isStop);
             err = sendMotorSingleValue(axis, offsetof(MotorData, isStop), motorData.isStop) + err;

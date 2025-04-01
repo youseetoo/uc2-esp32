@@ -15,6 +15,9 @@
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
+#ifdef LED_CONTROLLER
+using namespace LedController;
+#endif
 using namespace FocusMotor;
 
 namespace can_controller
@@ -22,7 +25,7 @@ namespace can_controller
 
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
-    static QueueHandle_t canQueue;
+    static QueueHandle_t sendQueue;
     QueueHandle_t recieveQueue;
     uint8_t device_can_id = 0;
     int CAN_QUEUE_SIZE = 5;
@@ -52,12 +55,36 @@ namespace can_controller
     uint8_t nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store found I2C addresses
     int currentCANidListEntry = 0;                     // Variable to keep track of number of devices found
 
+    void parseLEDData(uint8_t *data, size_t size, uint8_t txID)
+    {
+        #ifdef LED_CONTROLLER
+        if (size == sizeof(LedCommand))
+        {
+            LedCommand ledCmd;
+            memcpy(&ledCmd, data, sizeof(ledCmd));
+
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received LEDCommand from CAN: qid=%u, mode=%u, color=(%u,%u,%u), radius=%u, region=%s, ledIndex=%u",
+                  ledCmd.qid, ledCmd.mode, ledCmd.r, ledCmd.g, ledCmd.b,
+                  ledCmd.radius, ledCmd.region, ledCmd.ledIndex);
+
+            // TODO: handle or apply the LED command on this device, e.g. call your LED code here
+            // For example, if this node actually controls the LED array, you'd convert ledCmd.mode
+            // back to your internal LedMode, then call your local 'LedController::execLedCommand(...)'.
+            LedController::execLedCommand(ledCmd);
+        }
+        else
+        {
+            log_e("Error: Received LED data with invalid size=%u from ID=%u", size, txID);
+        }
+        #endif
+    }
+
     void parseMotorAndHomeData(uint8_t *data, size_t size, uint8_t txID)
     {
 #ifdef MOTOR_CONTROLLER
 
         // Parse as MotorData
-        log_i("Received MotorData from CAN %i, size: %i, txID: %i: %i", size, txID);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received MotorData from CAN %i, size: %i, txID: %i: %i", size, txID);
         if (size == sizeof(MotorData))
         {
             MotorData receivedMotorData;
@@ -84,7 +111,7 @@ namespace can_controller
                 FocusMotor::getData()[mStepper]->speed = 1000;
             }
             */
-            log_i(
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i(
                 "Received MotorData from CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
                 static_cast<int>(receivedMotorData.isEnable),  // bool
                 receivedMotorData.targetPosition,              // long
@@ -109,7 +136,7 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
-            // log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
+            // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
         else if (size == sizeof(HomeData))
         {
@@ -123,16 +150,16 @@ namespace can_controller
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
-            log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
         }
         else if (size == sizeof(TMCData))
         {
             // parse incoming TMC Data and apply that to the TMC driver
-            log_i("Received TMCData from CAN, size: %i, txID: %i", size, txID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received TMCData from CAN, size: %i, txID: %i", size, txID);
             TMCData receivedTMCData;
             memcpy(&receivedTMCData, data, sizeof(TMCData));
-            log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
             TMCController::applyParamsToDriver(receivedTMCData, true);
         }
         if (size == sizeof(MotorDataValueUpdate))
@@ -149,12 +176,12 @@ namespace can_controller
             uint8_t *base = reinterpret_cast<uint8_t *>(FocusMotor::getData()[mStepper]);
             *reinterpret_cast<int32_t *>(base + upd.offset) = upd.value;
 
-            log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
         }
-        else
+        else 
         {
-            log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
 #endif
     }
@@ -183,17 +210,18 @@ namespace can_controller
             MotorState receivedMotorState;
             memcpy(&receivedMotorState, data, sizeof(MotorState));
 
-            log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
             int mStepper = receivedMotorState.axis;
             // check within bounds
             if (mStepper < 0 || mStepper >= MOTOR_AXIS_COUNT)
             {
-                log_e("Error: Received MotorState from CAN with invalid axis %i", mStepper);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Received MotorState from CAN with invalid axis %i", mStepper);
                 return;
             }
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
             FocusMotor::sendMotorPos(mStepper, 0);
+            log_i("Motor %i: Received MotorState from CAN, currentPosition: %i, isRunning: %i", mStepper, receivedMotorState.currentPosition, receivedMotorState.isRunning);
         }
         else if (size == sizeof(HomeState))
         {
@@ -202,11 +230,11 @@ namespace can_controller
             HomeState receivedHomeState;
             memcpy(&receivedHomeState, data, sizeof(HomeState));
             int mStepper = receivedHomeState.axis;
-            log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
             // check if mStepper is inside the range of the motors
             if (mStepper < 0 || mStepper > 3)
             {
-                log_e("Error: Received HomeState from CAN with invalid axis %i", mStepper);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Received HomeState from CAN with invalid axis %i", mStepper);
                 return;
             }
             HomeMotor::getHomeData()[mStepper]->homeIsActive = receivedHomeState.isHoming;
@@ -217,7 +245,7 @@ namespace can_controller
         }
         else
         {
-            log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
 #endif
     }
@@ -231,7 +259,7 @@ namespace can_controller
         {
             memcpy(&laser, data, sizeof(laser));
             // Do something with laser data
-            log_i("Laser intensity: %d", laser.LASERval);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Laser intensity: %d", laser.LASERval);
             // assign PWM channesl to the laserid
             if (laser.LASERid == 0)
             {
@@ -252,7 +280,7 @@ namespace can_controller
         }
         else
         {
-            log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
 #endif
     }
@@ -264,7 +292,7 @@ namespace can_controller
         uint8_t txID = pdu.txId;  // ID to which the message was sent
         uint8_t *data = pdu.data; // Data buffer
         size_t size = pdu.len;    // Data size
-        log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
 
         // this is coming from the central node, so slaves should react
         /*
@@ -289,9 +317,15 @@ namespace can_controller
             */
             parseMotorAndHomeState(data, size, rxID);
         }
+        #ifdef LED_CONTROLLER
+        else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_LED_0 && size == sizeof(LedCommand))
+        {
+            parseLEDData(data, size, rxID);
+        }
+        #endif
         else
         {
-            log_e("Error: Received data from unknown CAN address %u", rxID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Received data from unknown CAN address %u", rxID);
         }
     }
 
@@ -322,14 +356,14 @@ namespace can_controller
         // TODO: Decide if we want to disable changing the can address if it'S a master
         if (address == pinConfig.CAN_ID_CENTRAL_NODE)
         {
-            log_e("Error: Cannot set CAN address to the central node");
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Cannot set CAN address to the central node");
             address = pinConfig.CAN_ID_CENTRAL_NODE;
         }
         else
         {
-            log_i("Setting CAN address to %u", address);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Setting CAN address to %u", address);
         }
-        log_i("Setting CAN address to %u", address);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Setting CAN address to %u", address);
         Preferences preferences;
         preferences.begin("CAN", false);
         preferences.putUInt("address", address);
@@ -354,15 +388,15 @@ namespace can_controller
         pdu_t pdu;
         while (true)
         {
-            if (xQueueReceive(canQueue, &pdu, portMAX_DELAY) == pdTRUE)
+            if (xQueueReceive(sendQueue, &pdu, portMAX_DELAY) == pdTRUE)
             {
                 if (isoTpSender.send(&pdu) != 0)
                 {
-                    log_e("Error sending CAN message to %u", pdu.txId);
+                    if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending CAN message to %u", pdu.txId);
                 }
                 else
                 {
-                    log_i("Sent CAN message to %u", pdu.txId);
+                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sent CAN message to %u", pdu.txId);
                 }
             }
             vTaskDelay(1); // give other tasks cputime
@@ -385,14 +419,14 @@ namespace can_controller
 
         if (isIDInAvailableCANDevices(receiverID))
         {
-            log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
         }
 
         pdu_t txPdu;
         txPdu.data = (uint8_t *)malloc(size);
         if (txPdu.data == nullptr)
         {
-            log_e("Error: Unable to allocate memory for txPdu.data");
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Unable to allocate memory for txPdu.data");
             return -1;
         }
         memcpy(txPdu.data, data, size);
@@ -400,13 +434,13 @@ namespace can_controller
         // txPdu.data = data;
         txPdu.len = size;
         txPdu.txId = receiverID;    // the target ID
-        txPdu.rxId = device_can_id; // the current ID
+        txPdu.rxId = device_can_id; // the current ID  
         // int ret = isoTpSender.send(&txPdu);
 
-        if (uxQueueMessagesWaiting(canQueue) == CAN_QUEUE_SIZE - 1)
+        if (uxQueueMessagesWaiting(sendQueue) == CAN_QUEUE_SIZE - 1)
         {
             pdu_t newPdu;
-            xQueueReceive(canQueue, &newPdu, portMAX_DELAY);
+            xQueueReceive(sendQueue, &newPdu, portMAX_DELAY);
             if (newPdu.data != nullptr)
             {
                 free(newPdu.data);
@@ -414,20 +448,20 @@ namespace can_controller
             }
         }
 
-        if (xQueueSend(canQueue, &txPdu, 0) != pdPASS)
+        if (xQueueSend(sendQueue, &txPdu, 0) != pdPASS)
         {
-            log_w("Queue full! Dropping CAN message to %u", receiverID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_w("Queue full! Dropping CAN message to %u", receiverID);
             free(txPdu.data);
             return -1;
         }
         else
         {
-            log_i("Sending CAN message to %u", receiverID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending CAN message to %u", receiverID);
             // cast the structure to a byte array from the motor array
             // Print the data as MotorData
             /*
             MotorData *motorData = (MotorData *)txPdu.data;
-            log_i("Sending MotorData to CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorData to CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
                   static_cast<int>(motorData->isEnable),
                   motorData->targetPosition,
                   motorData->absolutePosition,
@@ -479,7 +513,7 @@ namespace can_controller
                 // check if ID is in nonAvailableCANids
                 if (nonAvailableCANids[i] == rxID)
                 {
-                    log_i("Removing %u from the list of non-working motors", rxID);
+                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Removing %u from the list of non-working motors", rxID);
                     nonAvailableCANids[i] = 0; // Address found
                 }
             }
@@ -488,7 +522,7 @@ namespace can_controller
         {
             if (uxQueueMessagesWaiting(recieveQueue) == CAN_QUEUE_SIZE - 1)
             {
-                log_i("adding to recieveQueue");
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("adding to recieveQueue");
                 pdu_t newPdu;
                 xQueueReceive(recieveQueue, &newPdu, portMAX_DELAY);
                 if (newPdu.data != nullptr)
@@ -499,7 +533,7 @@ namespace can_controller
             }
             if (xQueueSend(recieveQueue, &rxPdu, 0) != pdPASS)
             {
-                log_w("Queue full! Dropping CAN message to %u", rxID);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_w("Queue full! Dropping CAN message to %u", rxID);
                 return -1;
             }
             // this has txPdu => 0
@@ -558,25 +592,25 @@ namespace can_controller
         // Create a mutex for the CAN bus
         device_can_id = getCANAddress();
 
-        canQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
+        sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
         xTaskCreate(recieveTask, "CAN_RecieveTask", 4096, NULL, 1, NULL);
         xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 4096, NULL, 1, NULL);
 
-        if (canQueue == nullptr)
+        if (sendQueue == nullptr)
         {
-            log_e("Failed to create CAN mutex or queue!");
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Failed to create CAN mutex or queue!");
             ESP.restart();
         }
         // Initialize CAN bus
         if (!isoTpSender.begin(500, pinConfig.CAN_TX, pinConfig.CAN_RX))
         {
-            log_e("Failed to initialize CAN bus");
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Failed to initialize CAN bus");
             return;
         }
 
-        log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
@@ -606,7 +640,7 @@ namespace can_controller
         {
             setCANAddress(address->valueint);
             device_can_id = address->valueint;
-            log_i("Set CAN address to %u", address->valueint);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Set CAN address to %u", address->valueint);
             return 1;
         }
 
@@ -636,13 +670,13 @@ namespace can_controller
             // check if the axis is in the range of the motors
             if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
             {
-                log_e("Error: Axis %i is out of range", axis);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Axis %i is out of range", axis);
                 return -1;
             }
             // check if the motor is available
             if (isIDInAvailableCANDevices(CAN_MOTOR_IDs[axis]))
             {
-                log_e("Error: Motor %i is not available", CAN_MOTOR_IDs[axis]);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Motor %i is not available", CAN_MOTOR_IDs[axis]);
                 return -1;
             }
             // send the data to the motor
@@ -656,7 +690,7 @@ namespace can_controller
         }
 
         else
-            log_i("Motor json is null");
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Motor json is null");
         return 0;
     }
 
@@ -675,19 +709,19 @@ namespace can_controller
         if (getData()[axis] != nullptr)
         {
             // positionsPushedToDial = false;
-            log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
             getData()[axis]->isStop = false; // ensure isStop is false
             getData()[axis]->stopped = false;
             int err = sendMotorDataToCANDriver(*getData()[axis], axis, reduced);
             if (err != 0)
             {
-                log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
             }
             return err;
         }
         else
         {
-            log_e("Error: MotorData is null for axis %i", axis);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: MotorData is null for axis %i", axis);
             return -1;
         }
 #else
@@ -699,13 +733,13 @@ namespace can_controller
     {
 // stop the motor
 #ifdef MOTOR_CONTROLLER
-        log_i("Stopping motor on axis %i", axis);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Stopping motor on axis %i", axis);
         getData()[axis]->isStop = true;
         getData()[axis]->stopped = true;
         int err = sendMotorDataToCANDriver(*getData()[axis], axis, true);
         if (err != 0)
         {
-            log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error starting motor on axis %i, we have to add this to the list of non-working motors", axis);
         }
 #endif
     }
@@ -714,7 +748,7 @@ namespace can_controller
     {
         // send motor state to master via I2C
         uint8_t slave_addr = device_can_id;
-        uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
+        uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE; // mixed?
         MotorState motorState;
         motorState.currentPosition = motorData.currentPosition;
         motorState.isRunning = !motorData.stopped;
@@ -722,11 +756,11 @@ namespace can_controller
         int err = sendCanMessage(receiverID, (uint8_t *)&motorState, sizeof(MotorState));
         if (err != 0)
         {
-            log_e("Error sending motor state to CAN master at address %i", slave_addr);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending motor state to CAN master at address %i", slave_addr);
         }
         else
         {
-            // log_i("MotorState to master at address %i, currentPosition: %i, isRunning: %i, size %i", slave_addr, motorState.currentPosition, motorState.isRunning, dataSize);
+            // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("MotorState to master at address %i, currentPosition: %i, isRunning: %i, size %i", slave_addr, motorState.currentPosition, motorState.isRunning, dataSize);
         }
     }
 
@@ -741,7 +775,9 @@ namespace can_controller
     bool isMotorRunning(int axis)
     {
 #ifdef MOTOR_CONTROLLER
-        return !getData()[axis]->stopped;
+        bool mIsRunning = getData()[axis]->isStop;
+        log_i("Motor %i is running: %i", axis, !mIsRunning);
+        return !mIsRunning;
 #else
         return false;
 #endif
@@ -762,14 +798,14 @@ namespace can_controller
         if (reduced == 0)
         {
             // Fully MotorData
-            log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
             // Cast the structure to a byte array
             err = sendCanMessage(slave_addr, (uint8_t *)&motorData, sizeof(MotorData));
         }
-        else if(reduced == 1)
+        else if (reduced == 1)
         {
             // Reduced MotorData
-            log_i("Reducing MotorData to axis: %i at address: %u, isStop: %i", axis, slave_addr, motorData.isStop);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Reducing MotorData to axis: %i at address: %u, isStop: %i", axis, slave_addr, motorData.isStop);
             MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
             reducedData.isforever = motorData.isforever;
@@ -782,29 +818,31 @@ namespace can_controller
         else if (reduced == 2)
         {
             // Single Value Updates
-            log_i("Sending SignleMotorDataValueUpdate to axis: %i", axis);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending SignleMotorDataValueUpdate to axis: %i", axis);
             // We treat only the speed, stop and targetPosition as single value updates
-            if (motorData.targetPosition != 0 and !motorData.absolutePosition)
-            {
-                log_i("Sending MotorDataValueUpdate to axis: %i with targetPosition: %i", axis, motorData.targetPosition);
-                err = sendMotorSingleValue(axis, offsetof(MotorData, targetPosition), motorData.targetPosition);
-            }
             if (motorData.speed != 0)
             {
-                log_i("Sending MotorDataValueUpdate to axis: %i with speed: %i", axis, motorData.speed);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorDataValueUpdate to axis: %i with speed: %i", axis, motorData.speed);
                 err = sendMotorSingleValue(axis, offsetof(MotorData, speed), motorData.speed) + err;
                 err = sendMotorSingleValue(axis, offsetof(MotorData, isforever), motorData.isforever) + err;
             }
-            log_i("Sending MotorDataValueUpdate to axis: %i with isStop: %i", axis, motorData.isStop);
-            err = sendMotorSingleValue(axis, offsetof(MotorData, isStop), motorData.isStop) + err;
+            if (motorData.targetPosition != 0 and !motorData.absolutePosition)
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorDataValueUpdate to axis: %i with targetPosition: %i", axis, motorData.targetPosition);
+                err = sendMotorSingleValue(axis, offsetof(MotorData, targetPosition), motorData.targetPosition);
+                err = sendMotorSingleValue(axis, offsetof(MotorData, absolutePosition), motorData.absolutePosition) + err;
+                err = sendMotorSingleValue(axis, offsetof(MotorData, isforever), false) + err;
+            }
+            //if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorDataValueUpdate to axis: %i with isStop: %i", axis, motorData.isStop);
+            //err = sendMotorSingleValue(axis, offsetof(MotorData, isStop), motorData.isStop) + err;
         }
         if (err != 0)
         {
-            log_e("Error sending motor data to CAN slave at address %i", slave_addr);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending motor data to CAN slave at address %i", slave_addr);
         }
         else
         {
-            // log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
+            // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
         return err;
     }
@@ -816,7 +854,7 @@ namespace can_controller
         update.offset = offset;
         update.value = newVal;
 
-        log_i("Sending MotorDataValueUpdate to axis: %i with offset: %i, value: %i", axis, offset, newVal);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorDataValueUpdate to axis: %i with offset: %i, value: %i", axis, offset, newVal);
         // Call your existing CAN function
         uint8_t receiverID = axis2id(axis);
         return sendCanMessage(receiverID, reinterpret_cast<uint8_t *>(&update), sizeof(update));
@@ -825,7 +863,7 @@ namespace can_controller
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed)
     {
         // send motor speed to slave via I2C
-        log_i("Sending MotorData to axis: %i with speed: %i", axis, newSpeed);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending MotorData to axis: %i with speed: %i", axis, newSpeed);
         return sendMotorSingleValue(axis, offsetof(MotorData, speed), newSpeed);
     }
 
@@ -833,7 +871,7 @@ namespace can_controller
     {
         // send home data to slave via
         uint8_t slave_addr = axis2id(axis);
-        log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
         // TODO: if we do homing on that axis the first time it mysteriously fails so we send it twice..
         // check if axis was homed already in axisHomed - array
         int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
@@ -842,16 +880,16 @@ namespace can_controller
             int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
             if (err != 0)
             {
-                log_e("Error sending home data to CAN slave at address %i", slave_addr);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending home data to CAN slave at address %i", slave_addr);
             }
             else
             {
-                log_i("Home data sent to CAN slave at address %i", slave_addr);
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Home data sent to CAN slave at address %i", slave_addr);
             }
         }
         else
         {
-            log_i("Axis %i was already homed, not sending home data again", axis);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Axis %i was already homed, not sending home data again", axis);
         }
         axisHomed[axis] = true;
     }
@@ -865,11 +903,11 @@ namespace can_controller
         int err = sendCanMessage(receiverID, (uint8_t *)&homeState, sizeof(HomeState));
         if (err != 0)
         {
-            log_e("Error sending home state to CAN master at address %i", receiverID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending home state to CAN master at address %i", receiverID);
         }
         else
         {
-            /* log_i("HomeState to master at address %i, isHoming: %i, homeInEndposReleaseMode: %i, size %i, axis: %i",
+            /* if (pinConfig.DEBUG_CAN_ISO_TP) log_i("HomeState to master at address %i, isHoming: %i, homeInEndposReleaseMode: %i, size %i, axis: %i",
                   receiverID,
                   homeState.isHoming,
                   homeState.homeInEndposReleaseMode,
@@ -879,20 +917,52 @@ namespace can_controller
         }
     }
 
+#ifdef LED_CONTROLLER
+    int sendLedCommandToCANDriver(LedCommand cmd, uint8_t targetID)
+    {
+        /*
+            uint16_t qid;	// user-assigned ID
+    LedMode mode;	// see enum above
+    uint8_t r;		// color R
+    uint8_t g;		// color G
+    uint8_t b;		// color B
+    uint8_t radius; // used for RINGS or CIRCLE
+    char region[8]; // "left","right","top","bottom" (for HALVES)
+    // For SINGLE pixel
+    uint16_t ledIndex;
+    // For an 'ARRAY' of pix
+    */
+        LedCommand canCmd;
+        canCmd.qid = cmd.qid;
+        canCmd.mode = static_cast<LedMode>(cmd.mode);
+        canCmd.r = cmd.r;
+        canCmd.g = cmd.g;
+        canCmd.b = cmd.b;
+        canCmd.radius = cmd.radius;
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending LED command to CAN driver, targetID: %u, mode: %u, r: %u, g: %u, b: %u, radius: %u", targetID, cmd.mode, cmd.r, cmd.g, cmd.b, cmd.radius);
+        strncpy(canCmd.region, cmd.region, sizeof(canCmd.region) - 1);
+        canCmd.region[sizeof(canCmd.region) - 1] = '\0';
+        canCmd.ledIndex = cmd.ledIndex;
+
+        // Then use your existing sendCanMessage(...)
+        return sendCanMessage(targetID, reinterpret_cast<uint8_t *>(&canCmd), sizeof(canCmd));
+    }
+#endif
+
 #ifdef TMC_CONTROLLER
     void sendTMCDataToCANDriver(TMCData tmcData, int axis)
     {
         // send TMC Data to remote Motor
         uint8_t slave_addr = axis2id(axis);
-        log_i("Sending TMCData to axis: %i", axis);
+        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending TMCData to axis: %i", axis);
         int err = sendCanMessage(slave_addr, (uint8_t *)&tmcData, sizeof(TMCData));
         if (err != 0)
         {
-            log_e("Error sending TMC data to CAN slave at address %i", slave_addr);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending TMC data to CAN slave at address %i", slave_addr);
         }
         else
         {
-            // log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
+            // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("TMCData to axis: %i, at address %i, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, size %i", axis, slave_addr, tmcData.msteps, tmcData.rms_current, tmcData.stall_value, tmcData.sgthrs, tmcData.semin, tmcData.semax, dataSize);
         }
     }
 #endif
@@ -914,11 +984,11 @@ namespace can_controller
         int err = sendCanMessage(receiverID, dataPtr, dataSize);
         if (err != 0)
         {
-            log_e("Error sending laser data to CAN master at address %i", receiverID);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error sending laser data to CAN master at address %i", receiverID);
         }
         else
         {
-            log_i("LaserData to master at address %i, laser intensity: %i, size %i", receiverID, laserData.LASERval, dataSize);
+            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("LaserData to master at address %i, laser intensity: %i, size %i", receiverID, laserData.LASERval, dataSize);
         }
     }
 

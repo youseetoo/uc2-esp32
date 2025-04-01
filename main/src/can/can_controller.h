@@ -21,6 +21,9 @@
 #define CAN_RX_TASK_STACK 4096
 #define CAN_QUEUE_LENGTH 10
 
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
+#endif
 
 typedef struct
 {
@@ -55,7 +58,6 @@ namespace can_controller
     void setCANAddress(uint8_t address);
     uint8_t getCANAddress();
     void dispatchIsoTpData(pdu_t&);
-    
     // motor functions
     int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, int reduced = 0);
     int startStepper(MotorData *data, int axis, int reduced);
@@ -78,6 +80,13 @@ namespace can_controller
     #ifdef TMC_CONTROLLER
     void sendTMCDataToCANDriver(TMCData tmcData, int axis);
     #endif
+
+    // LED 
+    #ifdef LED_CONTROLLER
+    int sendLedCommandToCANDriver(LedCommand cmd, uint8_t targetID);
+    #endif
+    
+
 
 
 

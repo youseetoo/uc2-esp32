@@ -6,7 +6,9 @@
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 
-
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 
 
 // --------------------------------------------------------------------------------
@@ -247,7 +249,7 @@ namespace LedController
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 4, "r": 255, "g": 255, "b": 255 } }
-		
+
 	
 		// 1) Check for "task"
 		cJSON *task = cJSON_GetObjectItem(root, "task");
@@ -411,7 +413,12 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
+		#ifdef CAN_CONTROLLER and defined(CAN_MASTER)
+		// Send the command to the CAN driver
+		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+		#else
 		execLedCommand(cmd);
+		#endif
 		return cmd.qid; // return the same QID
 	}
 

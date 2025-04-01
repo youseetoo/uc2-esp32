@@ -85,13 +85,13 @@ namespace FAccelStep
         }
         else
         {
-            if (getData()[i]->absolutePosition == 1)
+            if (getData()[i]->absolutePosition)
             {
                 // absolute position coordinates
                 // log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
-            else if (getData()[i]->absolutePosition == 0)
+            else 
             {
                 // relative position coordinates
                 // log_i("move %i", getData()[i]->targetPosition);

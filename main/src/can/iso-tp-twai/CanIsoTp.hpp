@@ -9,6 +9,7 @@
 #include "inttypes.h"
 #endif
 #include "driver/twai.h"
+#include <PinConfig.h>
 
 #define N_PCItypeSF 0x00 // Single Frame
 #define N_PCItypeFF 0x10 // First Frame

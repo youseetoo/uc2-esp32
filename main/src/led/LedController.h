@@ -33,6 +33,7 @@ enum class LedMode : uint8_t
 	UNKNOWN
 };
 
+#pragma pack(push, 1)
 struct LedCommand
 {
 	uint16_t qid;	// user-assigned ID
@@ -46,6 +47,8 @@ struct LedCommand
 	uint16_t ledIndex;
 	// For an 'ARRAY' of pixel updates, your code can parse them from cJSON if desired
 };
+#pragma pack(pop)
+
 
 
 

@@ -85,6 +85,7 @@ struct PinConfig
      const uint16_t serialTimeout = 50;
      const char *pindefName = "pindef";
 
+     bool DEBUG_CAN_ISO_TP = 0;
      // see AccelStepper.h MotorInterfaceType
      /*
      typedef enum

@@ -309,8 +309,8 @@ namespace MotorJsonParser
 		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 		And assign it to the different motors by sending the converted MotorData to the corresponding motor driver via I2C
 		// for single value
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed": 10000, "redu":2}]}, "qid": 5}
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "redu":2}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 10000, "redu":2}]}, "qid": 5}
 		
 		*/
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);

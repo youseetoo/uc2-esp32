@@ -14,7 +14,6 @@ namespace MotorJsonParser
 				"ste:   [{
 								"stepperid":    0,
 								"position":     -157500,
-								"isActivated":  1,
 								"trigOff":      0,
 								"trigPer"                               "isDualAxisZ":  0,
 								"motorAddress": 67
@@ -81,13 +80,15 @@ namespace MotorJsonParser
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
-				cJsonTool::setJsonInt(aritem, "isActivated", FocusMotor::getData()[i]->isActivated);
 				cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 				cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 				cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
 				cJsonTool::setJsonInt(aritem, "isStop", FocusMotor::getData()[i]->isStop);
-
-				cJsonTool::setJsonInt(aritem, "isDualAxisZ", FocusMotor::getDualAxisZ());
+				cJsonTool::setJsonInt(aritem, "isRunning", FocusMotor::isRunning(i));
+				cJsonTool::setJsonInt(aritem, "isDualAxisZ", FocusMotor::isRunning(i));
+				cJsonTool::setJsonInt(aritem, "isforever", FocusMotor::getData()[i]->isforever);
+				cJsonTool::setJsonInt(aritem, "isen", FocusMotor::getData()[i]->softLimitEnabled);
+				cJsonTool::setJsonInt(aritem, "stopped", FocusMotor::getData()[i]->stopped);
 
 #ifdef I2C_SLAVE_MOTOR
 				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
@@ -350,7 +351,7 @@ namespace MotorJsonParser
 					FocusMotor::getData()[s]->absolutePosition = cJsonTool::getJsonInt(stp, key_isabs);
 					FocusMotor::getData()[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					FocusMotor::getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
-					FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
+					//FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 
 					// check if soft limits are enabled and if the target position is within the limits

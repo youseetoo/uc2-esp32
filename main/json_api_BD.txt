@@ -171,14 +171,17 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 10000, "isabs": 1, "isaccel": 1, "isen": 1, "accel": 500000, "redu":1}]}, "qid": 23}
 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "isabs":0, "speed":10000, "redu":0}]}, "qid": 23}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "isabs":0, "speed":10000}]}, "qid": 23}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":1}]}, "qid": 23}
 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":1}]}, "qid": 23}
 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":2}]}, "qid": 23}
 {"task":"/motor_get"}
 
 # set parameters on TMC stepper driver 
-{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+{"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
 {"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 {"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":2}
 {"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
@@ -200,7 +203,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 12000, "direction":-1, "endstoppolarity":1}]}}
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":1}]}}

@@ -58,7 +58,6 @@ namespace FAccelStep
         TMCController::setTMCCurrent(rmsCurrFromPref);
         #endif
 
-        getData()[i]->stopped = false;
         if (getData()[i]->isforever)
         {
             // run forver (e.g. PSx or initaited via Serial)
@@ -68,17 +67,17 @@ namespace FAccelStep
                 {
                     // run clockwise
                     faststeppers[i]->runForward();
-                    //log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
                 }
                 else if (getData()[i]->speed < 0)
                 {
                     // run counterclockwise
                     faststeppers[i]->runBackward();
-                    //log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
                 }
                 if (isRunning(i))
                 {
-                    //log_i("We need %i starts to get the motor running", iStart);
+                    log_i("We need %i starts to get the motor running", iStart);
                     break;
                 }
             }
@@ -88,18 +87,18 @@ namespace FAccelStep
             if (getData()[i]->absolutePosition)
             {
                 // absolute position coordinates
-                // log_i("moveTo %i", getData()[i]->targetPosition);
+                log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
             else 
             {
                 // relative position coordinates
-                // log_i("move %i", getData()[i]->targetPosition);
+                log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
             }
         }
-
-        
+        // "unstop" the motor after it has actually started?
+        getData()[i]->stopped = false;
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -140,28 +139,24 @@ namespace FAccelStep
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
             setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
-            getData()[Stepper::A]->isActivated = true;
         }
 
         // setup the stepper X
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
             setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
-            getData()[Stepper::X]->isActivated = true;
         }
 
         // setup the stepper Y
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
             setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
-            getData()[Stepper::Y]->isActivated = true;
         }
 
         // setup the stepper Z
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
             setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
-            getData()[Stepper::Z]->isActivated = true;
         }
     }
 
@@ -189,7 +184,7 @@ namespace FAccelStep
             return;
         faststeppers[i]->forceStop();
         faststeppers[i]->stopMove();
-        //log_i("stop stepper %i", i);
+        log_i("stop stepper in FAccelStep %i", i);
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();

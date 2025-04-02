@@ -68,13 +68,13 @@ namespace MotorGamePad
 			FocusMotor::getData()[s]->isforever = true;
 			FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
 // log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
-#ifdef CAN_CONTROLLER
+/*#ifdef CAN_CONTROLLER
 			can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), (int)motorSpeed);
 			can_controller::sendMotorSingleValue(s, offsetof(MotorData, isforever), true);
 			can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), false);
-#else
-			FocusMotor::startStepper(s, true);
-#endif
+#else*/
+//#endif
+			FocusMotor::startStepper(s, 1);
 
 			if (s == Stepper::X)
 				joystick_drive_X = true;

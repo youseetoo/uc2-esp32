@@ -53,6 +53,9 @@ namespace FocusMotor
 	bool isDualAxisZ = false;
 	bool waitForFirstRun[] = {false, false, false, false};
 
+	// array of MOTOR_AXIS_COUNT to keep track which motor is activated depending on the size of MOTOR_AXIS_COUNT
+	bool isActivated[MOTOR_AXIS_COUNT] = {false};
+
 	xSemaphoreHandle xMutex = xSemaphoreCreateMutex();
 
 	// for A,X,Y,Z intialize the I2C addresses
@@ -118,6 +121,7 @@ namespace FocusMotor
 			}
 
 #elif defined USE_FASTACCEL
+			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(axis);
@@ -258,6 +262,7 @@ namespace FocusMotor
 			data[Stepper::A]->minPos = preferences.getInt(("min" + String(Stepper::A)).c_str());
 			data[Stepper::A]->maxPos = preferences.getInt(("max" + String(Stepper::A)).c_str());
 			data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str());
+			isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
 		if (pinConfig.MOTOR_X_STEP >= 0)
@@ -268,6 +273,7 @@ namespace FocusMotor
 			data[Stepper::X]->minPos = preferences.getInt(("min" + String(Stepper::X)).c_str());
 			data[Stepper::X]->maxPos = preferences.getInt(("max" + String(Stepper::X)).c_str());
 			data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str());
+			isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Y_STEP >= 0)
@@ -278,6 +284,7 @@ namespace FocusMotor
 			data[Stepper::Y]->minPos = preferences.getInt(("min" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->maxPos = preferences.getInt(("max" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str());
+			isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Z_STEP >= 0)
@@ -288,6 +295,7 @@ namespace FocusMotor
 			data[Stepper::Z]->minPos = preferences.getInt(("min" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->maxPos = preferences.getInt(("max" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str());
+			isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
 		if (pinConfig.MOTOR_B_STEP >= 0)
@@ -370,7 +378,7 @@ namespace FocusMotor
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
 			// only test those motors that are activated
-			if (data[iMotor]->isActivated)
+			if (isActivated[iMotor])
 			{
 				// need to activate the motor's dir pin eventually
 				// This also updates the dial's positions
@@ -394,7 +402,7 @@ namespace FocusMotor
 		// send motor positions
 		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
-			if (data[iMotor]->isActivated)
+			if (isActivated[iMotor])
 			{
 				sendMotorPos(iMotor, 0);
 			}
@@ -410,7 +418,7 @@ namespace FocusMotor
 		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			moveMotor(1, iMotor, true); // wake up motor
-			data[iMotor]->isActivated = true;
+			isActivated[iMotor] = true;
 			stopStepper(iMotor);
 			MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(iMotor);
 			data[iMotor]->currentPosition = mMotorState.currentPosition;
@@ -488,24 +496,16 @@ namespace FocusMotor
 		// checks if a stepper is still running
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-#ifdef I2C_MASTER
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{
 				waitForFirstRun[i] = 0;
 				continue;
 			}
-#endif
-			bool mIsRunning = false;
-			// we check if the motor was defined
-			if (getData()[i]->isActivated)
-			{
-				mIsRunning = isRunning(i);
-			}
-
 			// If soft limits are enabled, decide whether to stop
 			if (getData()[i]->softLimitEnabled)
 			{
+				log_i("Soft limits enabled for motor %d", i);
 				int32_t pos = getData()[i]->currentPosition;
 				int32_t minPos = getData()[i]->minPos;
 				int32_t maxPos = getData()[i]->maxPos;
@@ -543,19 +543,21 @@ namespace FocusMotor
 					// else if speed < 0 => let it keep running to move back inside the range
 				}
 			}
-			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (!mIsRunning && !data[i]->stopped && !data[i]->isforever)
+			if (isActivated[i] and false)
+				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning(i), data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C
 				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
+				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
 				preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
 		}
+		
 #endif
 	}
 

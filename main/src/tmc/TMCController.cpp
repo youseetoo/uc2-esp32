@@ -318,6 +318,7 @@ namespace TMCController
         driver.pdn_disable(true);
         // Necessary for TMC2208 to set microstep register with UART
         driver.mstep_reg_select(1);
+        driver.intpol(true);
 
         TMCData p = readParamsFromPreferences();
         applyParamsToDriver(p, false);

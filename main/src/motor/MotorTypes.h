@@ -28,6 +28,7 @@ struct MotorDataReduced
 #pragma pack(pop)
 
 
+
 #pragma pack(push,1)
 struct MotorData
 {
@@ -45,10 +46,6 @@ struct MotorData
 	int qid = -1;
 	bool isStop = false; // stop motor or not
 
-	//flag that indicate if a motor is realy availible and not just a motor wiht no function.
-	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
-	//and its needed to show only true initialized motors inside webui and android app.
-	bool isActivated = 0;
 	//internal state used by fast/accel stepper, maybe it shoulde get renamed to isRunning^^ but that need also to invert all true false values
 	bool stopped = true;
 	bool endstop_hit = false;
@@ -66,6 +63,7 @@ struct MotorData
 	
 }__attribute__((packed));
 #pragma pack(pop)
+
 
 
 // Common minimal struct

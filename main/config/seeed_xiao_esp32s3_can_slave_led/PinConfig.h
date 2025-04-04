@@ -10,7 +10,6 @@
 #define MESSAGE_CONTROLLER
 #define CAN_CONTROLLER
 #define CAN_SLAVE_LED
-#define CAN_CONTROLLER
 #define LED_CONTROLLER
 
 //#define DOTSTAR // outcomment if neopixel
@@ -38,6 +37,8 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
     const char *pindefName = "seeed_xiao_esp32s3_can_slave_led";
     const unsigned long BAUDRATE = 115200;
 
+    // prints all the ISO TP Stuff - better don't use it to avoid session timeout! 
+    bool DEBUG_CAN_ISO_TP = 0;
 
     // Interlock status
     int8_t digita_in_1= GPIO_NUM_8; // D9 (LO when interlock has power) // INTERLOCK_STATUS
@@ -46,7 +47,7 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
     // CAN communication
     int8_t CAN_TX = GPIO_NUM_4; // D3 (CAN-SEND)
     int8_t CAN_RX = GPIO_NUM_9; // D10 (CAN-RECV)
-    uint32_t CAN_ID_CURRENT = CAN_ID_LASER_0; // Broadcasting address for laser PWM control
+    uint32_t CAN_ID_CURRENT = CAN_ID_LED_0; // Broadcasting address for laser PWM control
 
     // I2C Configuration (Disabled in this setup)
     int8_t I2C_SCL = -1; // Disabled

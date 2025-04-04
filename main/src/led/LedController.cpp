@@ -58,7 +58,8 @@ namespace LedController
 		matrix->show();
 
 		// test led array
-		fillAll(10,10,10);
+		int initIntensity = 100;
+		fillAll(initIntensity,initIntensity,initIntensity);
 		delay(10);
 		fillAll(0,0,0);
 		matrix->show(); //  Update strip to match
@@ -242,13 +243,14 @@ namespace LedController
 	{
 		// Expect a top-level "task" == "/ledarr_act" plus "qid",
 		// then a nested "led" object with the actual LED parameters.
-		// E.g.:
+		// E.g.: 
 		// { "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 
 	
 		// 1) Check for "task"
@@ -413,7 +415,7 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
-		#ifdef CAN_CONTROLLER and defined(CAN_MASTER)
+		#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
 		// Send the command to the CAN driver
 		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
 		#else

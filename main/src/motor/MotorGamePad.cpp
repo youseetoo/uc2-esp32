@@ -174,4 +174,49 @@ namespace MotorGamePad
 		// Y-direction
 		handleAxis(y, Stepper::Y);
 	}
+
+
+
+	void singlestep_event(int left, int right, bool r1, bool r2, bool l1, bool l2)
+	{
+		// log_i("singlestep_event left:%d right:%i r1:%i r2:%i l1:%i l2:%i", left,right,r1,r2,l1,l2);
+		// for r1/l1 move z-axis by 10 steps
+		// for r2/l2 move z-axis by 100 steps
+		if (r1)
+		{
+			FocusMotor::getData()[Stepper::Z]->isforever = false;
+			FocusMotor::getData()[Stepper::Z]->speed = 20000;
+			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
+			FocusMotor::getData()[Stepper::Z]->targetPosition = 1;
+			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
+			FocusMotor::startStepper(Stepper::Z, 1);
+		}
+		if (r2)
+		{
+			FocusMotor::getData()[Stepper::Z]->isforever = false;
+			FocusMotor::getData()[Stepper::Z]->speed = 20000;
+			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
+			FocusMotor::getData()[Stepper::Z]->targetPosition = 10;
+			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
+			FocusMotor::startStepper(Stepper::Z, 1);
+		}
+		if (l1)
+		{
+			FocusMotor::getData()[Stepper::Z]->isforever = false;
+			FocusMotor::getData()[Stepper::Z]->speed = 20000;
+			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
+			FocusMotor::getData()[Stepper::Z]->targetPosition = -1;
+			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
+			FocusMotor::startStepper(Stepper::Z, 1);
+		}	
+		if (l2)
+		{
+			FocusMotor::getData()[Stepper::Z]->isforever = false;
+			FocusMotor::getData()[Stepper::Z]->speed = 20000;
+			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
+			FocusMotor::getData()[Stepper::Z]->targetPosition = -10;
+			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
+			FocusMotor::startStepper(Stepper::Z, 1);
+		}
+	}
 }

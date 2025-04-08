@@ -251,6 +251,7 @@ namespace LedController
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
 
 	
 		// 1) Check for "task"
@@ -305,6 +306,13 @@ namespace LedController
 			else if (actStr == "single")   { cmd.mode = LedMode::SINGLE; }
 			else if (actStr == "off")      { cmd.mode = LedMode::OFF; }
 			else if (actStr == "array")    { cmd.mode = LedMode::ARRAY; }
+			else if (actStr == "status")  { cmd.mode = LedMode::STATUS; }
+			else if (actStr == "unknown")  { cmd.mode = LedMode::UNKNOWN; }
+			else
+			{
+				log_e( "parseLedCommand: Unknown action: %s", actStr.c_str());
+				return false; // Invalid action
+			}
 			// else remains UNKNOWN
 		}
 	
@@ -360,6 +368,35 @@ namespace LedController
 			//   int bb   = cJSON_GetObjectItem(item, "b")->valueint;
 			//   ... 
 			// }
+		}
+
+		// 11) If mode == STATUS, you can add more status info here
+		//     (e.g. we want to address e.g. red, green, blue, rainbow for status on the FRAME )
+		if (cmd.mode == LedMode::STATUS)
+		{
+			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
+			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"error" } }
+			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"rainbow" } }
+			// we parse the incoming status to LedForStatus
+			// and then we can set the color of the LED in the loop to e.g. rainbow, red/green/blue glowing
+			cJSON *jstatus = cJSON_GetObjectItem(ledObj, "status");
+			if (jstatus && jstatus->valuestring)
+			{
+				String statusStr = jstatus->valuestring;
+				statusStr.toLowerCase();
+				if (statusStr == "warn")         { currentLedForStatus = LedForStatus::warn; }
+				else if (statusStr == "error")   { currentLedForStatus = LedForStatus::error; }
+				else if (statusStr == "idle")    { currentLedForStatus = LedForStatus::idle; }
+				else if (statusStr == "success") { currentLedForStatus = LedForStatus::success; }
+				else if (statusStr == "busy")    { currentLedForStatus = LedForStatus::busy; }
+				else if (statusStr == "rainbow") { currentLedForStatus = LedForStatus::rainbow; }
+				else
+				{
+					log_e( "parseLedCommand: Unknown status: %s", statusStr.c_str());
+					currentLedForStatus = LedForStatus::unknown; 
+					return false; // Invalid status
+				}
+			}
 		}
 	
 		return true; // Successfully parsed
@@ -469,5 +506,56 @@ namespace LedController
 	void loop()
 	{
 
+		#ifdef CAN_CONTROLLER && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
+		
+		// Determine color based on currentLedForStatus
+		uint32_t color = 0;
+		// Fade the brightnessLoop up/down
+		brightnessLoop += (fadeDirection*5);
+		if (brightnessLoop == 0 || brightnessLoop == 255) {
+			fadeDirection = -fadeDirection;
+		}
+		switch (currentLedForStatus)
+		{
+			case LedForStatus::busy:
+				// Busy => Yellow
+				color = matrix->Color(brightnessLoop, brightnessLoop, 0);
+				break;
+			case LedForStatus::error:
+				// Error => Red
+				color = matrix->Color(brightnessLoop, 0, 0);
+				break;
+			case LedForStatus::idle:
+				// Idle => Green
+				color = matrix->Color(0, brightnessLoop, 0);
+				break;
+			case LedForStatus::rainbow:
+			{
+				// Rainbow => show a color gradient across the strip
+				for (uint16_t i = 0; i < LED_COUNT; i++) {
+					// Create a hue offset for each pixel, adding brightnessLoop helps shift the pattern
+					uint8_t hue = (brightnessLoop + i * 256 / LED_COUNT) & 0xFF;
+					// Convert HSV to RGB, apply gamma correction
+					uint32_t c = matrix->gamma32(matrix->ColorHSV((uint16_t)hue << 8, 255, 255));
+					matrix->setPixelColor(i, c);
+				}
+				matrix->show();
+				return; // skip the rest
+			}
+			default:
+				// Unknown => do nothing
+				return;
+		}
+	
+		// Fill all pixels with the chosen color
+		if (currentLedForStatus != LedForStatus::unknown){
+			for (uint16_t i = 0; i < LED_COUNT; i++) {
+				matrix->setPixelColor(i, color);
+			}
+			matrix->show();
+		}
+	
+		#endif // CAN_CONTROLLER && CAN_MASTER && !CAN_SLAVE_LED
+	
 	}
 };

@@ -7,10 +7,20 @@
 #endif
 #include "cJSON.h"
 
-
-enum LedModes
+enum LedForStatus : uint8_t
 {
-    array,
+    warn=0,
+    error, // red = 1
+    idle,
+    success,
+    busy,
+    rainbow,
+    unknown
+};
+
+enum LedModes : uint8_t
+{
+    array = 0,
     full,
     single,
     off,
@@ -30,6 +40,7 @@ enum class LedMode : uint8_t
 	RINGS,
 	CIRCLE,
 	ARRAY, // for multiple arbitrary pixels
+    STATUS,
 	UNKNOWN
 };
 
@@ -46,6 +57,7 @@ struct LedCommand
 	// For SINGLE pixel
 	uint16_t ledIndex;
 	// For an 'ARRAY' of pixel updates, your code can parse them from cJSON if desired
+
 };
 #pragma pack(pop)
 
@@ -64,6 +76,11 @@ namespace LedController
     static bool isDEBUG = false;
     static bool isOn = false;
 
+    // for in-loop interaction 
+    static int currentLedForStatus = LedForStatus::idle;
+	static uint8_t brightnessLoop = 0;    // Tracks current fade brightnessLoop
+    static int fadeDirection = 1;     // Fade up (+1) or down (-1)
+	
     // Adjust for your NeoPixel matrix:
     static const uint16_t LED_COUNT = pinConfig.MATRIX_W * pinConfig.MATRIX_H;
 

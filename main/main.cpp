@@ -288,10 +288,8 @@ extern "C" void setupApp(void)
 	#endif
 	#ifdef MOTOR_CONTROLLER
 		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
+		BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
 		//log_i("BtController xyza_changed_event nullptr %d", BtController::xyza_changed_event == nullptr);
-	#endif
-	#ifdef ANALOG_OUT_CONTROLLER
-		BtController::setAnalogControllerChangedEvent(AnalogOutController::btcontroller_event);
 	#endif
 #endif
 #ifdef DAC_CONTROLLER

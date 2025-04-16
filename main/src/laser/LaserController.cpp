@@ -65,7 +65,7 @@ namespace LaserController
 		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
 		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
 		bool hasLASERval = cJSON_HasObjectItem(ob, "LASERval"); // check if ob contains the key "LASERval"
-		bool isServo = cJSON_HasObjectItem(ob, "servo");		// check if ob contains the key "LASERRes"
+		bool isServo = cJSON_HasObjectItem(ob, "servo"); // check if ob contains the key "servo"
 
 		// assign values
 		int LASERid = 0;
@@ -179,7 +179,7 @@ namespace LaserController
 				pwm_frequency = 50;
 				pwm_resolution = 16;
 
-				configurePWM(pinConfig.LASER_2, pwm_frequency, PWM_CHANNEL_LASER_2, pwm_frequency);
+				configurePWM(pinConfig.LASER_2, pwm_resolution, PWM_CHANNEL_LASER_2, pwm_frequency);
 				moveServo(PWM_CHANNEL_LASER_2, LASERval, pwm_frequency, pwm_resolution);
 			}
 			else
@@ -203,7 +203,7 @@ namespace LaserController
 				pwm_frequency = 50;
 				pwm_resolution = 16;
 
-				configurePWM(pinConfig.LASER_3, pwm_frequency, PWM_CHANNEL_LASER_3, pwm_frequency);
+				configurePWM(pinConfig.LASER_3, pwm_resolution, PWM_CHANNEL_LASER_3, pwm_frequency);
 				moveServo(PWM_CHANNEL_LASER_3, LASERval, pwm_frequency, pwm_resolution);
 			}
 			else
@@ -380,12 +380,15 @@ namespace LaserController
 	
 	void moveServo(int ledChannel, int angle, int frequency, int resolution)
 	{
+		// { "task": "/laser_act", "LASERid": 1, "LASERval": 170, "servo": 1, "qid": 1 }
+
 		// Map the angle to the corresponding pulse width
 		int pulseWidth = map(angle, 0, 180, minPulseWidth, maxPulseWidth);
 		// Convert the pulse width to a duty cycle value
 		int dutyCycle = map(pulseWidth, 0, 1000000 / frequency, 0, (1 << resolution) - 1);
 		// Write the duty cycle to the LEDC channel
 		ledcWrite(ledChannel, dutyCycle);
+		delay(100); // Wait for the servo to reach the position
 	}
 
 	void configurePWM(int servoPin, int resolution, int ledChannel, int frequency)

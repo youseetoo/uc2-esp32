@@ -7,7 +7,7 @@ struct UC2_ESP32S3_XIAO_GALVO : PinConfig
 {
      /*
      D0: 1
-     D1: 3
+     D1: 2
      D2: 3
      D3: 4
      D4: 5
@@ -38,9 +38,9 @@ struct UC2_ESP32S3_XIAO_GALVO : PinConfig
      uint8_t galvo_cs = GPIO_NUM_9;
      uint8_t galvo_ldac = GPIO_NUM_6;
      uint8_t galvo_laser = GPIO_NUM_43;
-     uint8_t galvo_trig_pixel = GPIO_NUM_2;
-     uint8_t galvo_trig_line = GPIO_NUM_3;
-     uint8_t galvo_trig_frame = GPIO_NUM_4;
+     uint8_t galvo_trig_pixel = GPIO_NUM_2;  // D1
+     uint8_t galvo_trig_line = GPIO_NUM_3;   // D2
+     uint8_t galvo_trig_frame = GPIO_NUM_4;  // D3
      
      uint32_t CAN_ID_CURRENT = CAN_ID_GALVO_0;
 

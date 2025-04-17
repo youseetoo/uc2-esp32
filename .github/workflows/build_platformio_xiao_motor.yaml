@@ -18,12 +18,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: betaBD  # Checkout the betaBD branch
-        #submodules: recursive
-        #submodules: true  # Ensure submodules are checked out
-    
-    - name: Checkout submodules
-      run: git submodule update --init --recursive
+        ref: betaBD
+        submodules: recursive
 
     - name: Set up Python
       uses: actions/setup-python@v5

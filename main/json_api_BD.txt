@@ -129,7 +129,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "maxspeed":1000000, "isen":1, "accel":40000}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 20000, "isabs": 0, "accel":100000, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 2000, "isabs": 0, "accel":100000, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
 
 {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 1, "posval": 100}]}}

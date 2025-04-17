@@ -36,13 +36,6 @@ jobs:
     - name: Install platformIO libraries
       run: pio lib install
 
-    - name: Find and Replace (LOG LEVEL)
-      uses: jacobtomlinson/gha-find-replace@v2
-      with:
-        find: "-DCORE_DEBUG_LEVEL=5"
-        replace: "-DCORE_DEBUG_LEVEL=0"
-        regex: false
-
     - name: Run PlatformIO
       run: pio run --environment seeed_xiao_esp32s3_can_slave_motor -v  # Run the specific environment
     

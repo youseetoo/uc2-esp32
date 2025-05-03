@@ -97,9 +97,11 @@ void handleHidInputEvent(esp_hidh_event_data_t *param)
 {
     //ESP_LOGI(TAG,"packet size:%d", param->input.length);
     if (param->input.length == 15) {
+        //log_i("HID input event (updateGamePadDataHyperX): %d", param->input.length);
         const HyperXClutchData *d = (HyperXClutchData*)param->input.data;
         updateGamePadDataHyperX(d);
     } else if (param->input.length == 9) {
+        //log_i("HID input event (updateGamePadDataDS4): %d", param->input.length);
         const DS4Data *d = (DS4Data*)param->input.data;
         updateGamePadDataDS4(d);
     } else {
@@ -113,6 +115,8 @@ void updateGamePadDataHyperX(const HyperXClutchData *d)
     gamePadData.cross = d->Buttons.A;
     gamePadData.triangle = d->Buttons.Y;
     gamePadData.square = d->Buttons.X;
+    gamePadData.options = d->Buttons.Select;
+    gamePadData.share = d->Buttons.Home;
     gamePadData.l1 = d->Buttons.L1;
     gamePadData.l2 = d->Buttons.L2;
     gamePadData.r1 = d->Buttons.R1;
@@ -130,6 +134,8 @@ void updateGamePadDataDS4(const DS4Data *d)
 {
     gamePadData.circle = d->Buttons.circle;
     gamePadData.cross = d->Buttons.cross;
+    gamePadData.options = d->Buttons.options;
+    gamePadData.share = d->Buttons.share;
     gamePadData.triangle = d->Buttons.triangle;
     gamePadData.square = d->Buttons.square;
     gamePadData.l1 = d->Buttons.l1;

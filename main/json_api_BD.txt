@@ -120,16 +120,17 @@ mm-per-step XY: 0.00635 -> 200 steps/rev 1.27mm/revolution 5.039,3700787402
 mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 # drive home on axis Y
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 15000, "direction":-1, "endstoppolarity":-1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 20000, "direction":-1, "endstoppolarity":-1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":-1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isstop": 1}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "maxspeed":1000000, "isen":1, "accel":40000}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 2000, "isabs": 0, "accel":100000, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 3200, "speed": 10000, "isabs": 0, "accel":100000, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -3200, "speed": 10000, "isabs": 0, "accel":100000, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
 
 {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 1, "posval": 100}]}}
@@ -174,6 +175,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "isabs":0, "speed":10000, "redu":0}]}, "qid": 23}
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":1}]}, "qid": 23}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -3200, "speed": 10000, "isabs": 0, "accel":100000, "isaccel":0}]}}
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":1}]}, "qid": 23}
 
@@ -237,7 +239,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 
 
-{"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
+{"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":255, "b":255}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":0}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":0, "led_array":[{"id":0, "r":0, "g":5, "b":0}]}}
 
@@ -319,14 +321,14 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 256, "dStepsLine": 25, "nStepsPixel": 256, "dStepsPixel": 25, "delayTimeStep": 25, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
-
+    {"task":"/ledarr_get"}
 		// { "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 5, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 
 	
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}

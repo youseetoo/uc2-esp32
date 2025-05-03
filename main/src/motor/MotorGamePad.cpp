@@ -144,35 +144,20 @@ namespace MotorGamePad
 		bool zIsRunning = FocusMotor::getData()[Stepper::Z]->isforever;
 		bool aIsRunning = FocusMotor::getData()[Stepper::A]->isforever;
 
-		if (!aIsRunning || FocusMotor::getDualAxisZ())
-		{ // Z-direction
-			handleAxis(z, Stepper::Z);
-			if (FocusMotor::getDualAxisZ())
-			{ // Z-Direction
-				handleAxis(z, Stepper::A);
-			}
-		}
-		if (abs(z) < offset_val)
-		{
-			// force stop in case it's trapped
-			handleAxis(0, Stepper::Z);
-		}
-		if (abs(z) < offset_val && FocusMotor::getDualAxisZ())
-		{
-			// force stop in case it's trapped
-			handleAxis(0, Stepper::A);
-		}
-
-		if (!zIsRunning && !FocusMotor::getDualAxisZ())
-		{ // A-direction
-			handleAxis(a, Stepper::A);
-		}
-
 		// X-Direction
 		handleAxis(x, Stepper::X);
 
 		// Y-direction
 		handleAxis(y, Stepper::Y);
+
+		// Z-direction
+		if (!aIsRunning)
+			handleAxis(z, Stepper::Z);
+
+		// A-direction
+		if (!zIsRunning)
+			handleAxis(a, Stepper::A);
+		
 	}
 
 

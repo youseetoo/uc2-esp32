@@ -279,12 +279,16 @@ extern "C" void setupApp(void)
 	#endif
 	#ifdef MESSAGE_CONTROLLER
 		BtController::setTriangleChangedEvent(MessageController::triangle_changed_event);
-		BtController::setSquareChangedEvent(MessageController ::square_changed_event);
+		BtController::setSquareChangedEvent(MessageController::square_changed_event);
 	#endif
 	#ifdef LASER_CONTROLLER
 		//BtController::setCircleChangedEvent(LaserController::triangle_changed_event);
 		//BtController::setCrossChangedEvent(LaserController::square_changed_event);
 		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
+	#endif
+	#ifdef OBJECTIVE_CONTROLLER
+		BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
+		BtController::setOptionsChangedEvent(ObjectiveController::options_changed_event);
 	#endif
 	#ifdef MOTOR_CONTROLLER
 		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);

@@ -141,8 +141,8 @@ struct UC2_3 : PinConfig
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
-     int8_t JOYSTICK_MAX_ILLU = 100;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
+     int8_t JOYSTICK_MAX_ILLU = 255;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
      
      // for caliper
      int8_t ENC_X_A = GPIO_NUM_32;

@@ -1,11 +1,16 @@
 #include <PinConfig.h>
-#pragma once
-#ifdef DOTSTAR
-#include <Adafruit_DotStar.h>
-#else
-#include <Adafruit_NeoPixel.h>
-#endif
 #include "cJSON.h"
+#pragma once
+#ifdef HUB75
+  #include <Adafruit_Protomatter.h>
+#else
+  #ifdef DOTSTAR
+    #include <Adafruit_DotStar.h>
+  #else
+    #include <Adafruit_NeoPixel.h>
+  #endif
+#endif
+
 
 enum LedForStatus : uint8_t
 {
@@ -56,7 +61,6 @@ struct LedCommand
 	char region[8]; // "left","right","top","bottom" (for HALVES)
 	// For SINGLE pixel
 	uint16_t ledIndex;
-	// For an 'ARRAY' of pixel updates, your code can parse them from cJSON if desired
 
 };
 #pragma pack(pop)
@@ -69,6 +73,8 @@ namespace LedController
     // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
     #ifdef  DOTSTAR
     static Adafruit_DotStar *matrix;
+    #elif defined(HUB75)
+    static Adafruit_Protomatter *matrix;
     #else
     static Adafruit_NeoPixel *matrix;
     #endif
@@ -96,6 +102,7 @@ namespace LedController
     void execLedCommand(const LedCommand &cmd);
     void cross_changed_event(int pressed);
     void circle_changed_event(int pressed);
+    uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
 
 
     void setup();

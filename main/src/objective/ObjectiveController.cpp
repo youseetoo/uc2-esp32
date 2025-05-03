@@ -247,6 +247,44 @@ namespace ObjectiveController
 		return root;
 	}
 
+	void share_changed_event(int pressed)
+	{
+		log_i("Objective move to x1 at position: %i", data.x1);
+		if (pressed)
+		{
+			// Move to X1
+			int speed = 20000;
+			int accel = 20000;
+			int qid = 0;
+			moveToPosition(data.x1, sObjective, speed, accel, qid);
+			if (data.z1!=0){
+				log_i("Objective move to z1 at position: %i", data.z1);
+				moveToPosition(data.z1, sFocus, speed, accel, qid);
+			}
+			data.currentState = 1;
+		}
+	}
+
+	void options_changed_event(int pressed)
+	{
+		log_i("Objective move to x2 at position: %i", data.x2);
+		if (pressed)
+		{
+			// Move to X2
+			int speed = 20000;
+			int accel = 20000;
+			int qid = 0;			
+			moveToPosition(data.x2, sObjective, speed, accel, qid);
+			if (data.z2!=0){
+				log_i("Objective move to z2 at position: %i", data.z2);
+				moveToPosition(data.z2, sFocus, speed, accel, qid);
+			}
+			data.currentState = 1;
+		}
+	}
+
+
+
 	void setup()
 	{
 		// Initialize data if needed

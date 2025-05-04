@@ -1,5 +1,8 @@
 #include <PinConfig.h>
 #include "cJSON.h"
+#include "driver/gpio.h"
+#include "soc/gpio_sig_map.h"  // Provides signal definitions
+#include "soc/io_mux_reg.h"
 #pragma once
 #ifdef HUB75
   #include <Adafruit_Protomatter.h>
@@ -10,6 +13,8 @@
     #include <Adafruit_NeoPixel.h>
   #endif
 #endif
+
+
 
 
 enum LedForStatus : uint8_t

@@ -86,6 +86,15 @@ namespace LedController
 		matrix->show(); //  Update strip to match
 
 		isOn = false;
+
+		#ifdef WAVESHARE_ESP32S3_LEDARRAY
+		// This will enable the masterboard to take over control of the LED array, too (alongside the firmware)
+		Serial.println("WAVESHARE_ESP32S3_LEDARRAY");
+		pinMode(14, OUTPUT);
+		pinMode(6, INPUT);
+		gpio_matrix_in(6, SIG_IN_FUNC212_IDX, false);
+		gpio_matrix_out(14, SIG_IN_FUNC212_IDX, false, false);
+		#endif		
 	}
 
 	// ------------------------------------------------

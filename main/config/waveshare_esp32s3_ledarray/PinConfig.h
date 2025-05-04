@@ -1,12 +1,14 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
+
 #undef PSXCONTROLLER
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
 #define LED_CONTROLLER
+#define WAVESHARE_ESP32S3_LEDARRAY
 struct waveshare_esp32s3_ledarray : PinConfig
 {
      /*

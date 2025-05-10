@@ -171,7 +171,11 @@ if(HEAT_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/heat/HeatController.cpp)
 endif()
 
-idf_component_register(SRCS ${srcs})
+#idf_component_register(SRCS ${srcs})
+idf_component_register(
+    SRCS ${srcs}
+    REQUIRES driver  # or driver_pcnt ?
+)
 
 if(WIFI EQUAL 1)
     target_add_binary_data(${COMPONENT_TARGET} "certs/prvtkey.pem" TEXT)

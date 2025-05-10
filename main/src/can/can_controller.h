@@ -66,6 +66,7 @@ namespace can_controller
     bool isMotorRunning(int axis);
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed);
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
+    int sendCANRestartByID(uint8_t canID);
 
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);

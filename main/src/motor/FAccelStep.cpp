@@ -57,12 +57,17 @@ namespace FAccelStep
         }
         TMCController::setTMCCurrent(rmsCurrFromPref);
         #endif
+        // prolong the time the enable pin goes to high again
+        faststeppers[i]->setDelayToDisable(500);
+        
+        // Whenever we enqueue another move check the queue first:
+        while (faststeppers[i]->isQueueFull()) { delayMicroseconds(50); }
 
         if (getData()[i]->isforever)
         {
             // run forver (e.g. PSx or initaited via Serial)
             for (int iStart = 0; iStart < 10; iStart++)
-            { // this is weird, but sometimes necessary for the very first start it seems - timing issue with the QUEUE? // TODO: / FIXME: !!
+            { //TODO: this is weird, but sometimes necessary for the very first start it seems - timing issue with the QUEUE? // TODO: / FIXME: !!
                 if (getData()[i]->speed > 0)
                 {
                     // run clockwise
@@ -95,6 +100,15 @@ namespace FAccelStep
                 // relative position coordinates
                 log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
+            }
+
+            // spin until queue started
+            uint32_t t0 = millis();
+            while (!faststeppers[i]->isRunning() && millis()-t0<20) { }  // 20 ms timeout
+
+            if (!faststeppers[i]->isRunning()) {
+                log_e("motor %d never got going – cancelling", i);
+                return;
             }
         }
         // "unstop" the motor after it has actually started?

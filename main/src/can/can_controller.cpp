@@ -322,6 +322,17 @@ namespace can_controller
         // if the message was sent from the central node, we need to parse the data and perform an action (e.g. _act , _get) on the slave side
         // assuming the slave is a motor, we can parse the data and send it to the motor
 
+        // Check if the message is a restart signal
+        if (size == 0 && rxID == device_can_id) // Assuming an empty message indicates a restart
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Received restart signal from CAN ID: %u", rxID);
+
+            // Perform the restart
+            esp_restart();
+            return;
+        }
+
         if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X || rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
         {
             parseMotorAndHomeData(data, size, rxID);
@@ -673,6 +684,8 @@ namespace can_controller
             uint8_t CAN_ID_LASER_3 = 23
         */
         cJSON *address = cJSON_GetObjectItem(doc, "address");
+        int qid = cJsonTool::getJsonInt(doc, "qid");
+
         if (address != NULL)
         {
             setCANAddress(address->valueint);
@@ -690,6 +703,14 @@ namespace can_controller
             memset(nonAvailableCANids, 0, sizeof(nonAvailableCANids));
             currentCANidListEntry = 0;
             return 1;
+        }
+
+        // sending reboot signal to remote CAN device 
+        // {"task": "/can_act", "restart": 1, "qid":1} // CAN_ADDRESS is the remote CAN ID to which the client listens to
+        cJSON *state = cJSON_GetObjectItem(doc, "restart");
+        if (state != NULL) {
+            int canID = state->valueint; // Access the valueint directly from the "restart" object
+            sendCANRestartByID(canID);   // Send the restart signal to the specified CAN ID
         }
 
         // test partial update on the motor data (sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed))
@@ -731,7 +752,7 @@ namespace can_controller
 
         else if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("Motor json is null");
-        return 0;
+        return qid;
     }
 
     uint8_t axis2id(int axis)
@@ -897,6 +918,15 @@ namespace can_controller
             // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
         return err;
+    }
+
+    int sendCANRestartByID(uint8_t canID)
+    {
+        // send a restart signal to the remote CAN device
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Sending CAN restart signal to ID: %u", canID);
+        uint8_t receiverID = canID;
+        return sendCanMessage(receiverID, nullptr, 0);
     }
 
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal)

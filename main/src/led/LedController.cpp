@@ -87,14 +87,14 @@ namespace LedController
 
 		isOn = false;
 
-		#ifdef WAVESHARE_ESP32S3_LEDARRAY
+#ifdef WAVESHARE_ESP32S3_LEDARRAY
 		// This will enable the masterboard to take over control of the LED array, too (alongside the firmware)
 		Serial.println("WAVESHARE_ESP32S3_LEDARRAY");
 		pinMode(14, OUTPUT);
 		pinMode(6, INPUT);
 		gpio_matrix_in(6, SIG_IN_FUNC212_IDX, false);
 		gpio_matrix_out(14, SIG_IN_FUNC212_IDX, false, false);
-		#endif		
+#endif
 	}
 
 	// ------------------------------------------------
@@ -299,6 +299,7 @@ namespace LedController
 		// E.g.:
 		// { "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "fill", "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
@@ -590,16 +591,32 @@ namespace LedController
 	{
 		if (pressed && isOn)
 		{
-			Serial.println("Cross pressed, but LED is already on");
+			Serial.println("Cross pressed, but LED is on");
 			return;
 		}
 		else
 		{
 			Serial.println("Cross pressed, LED is off");
-			log_i("Turn on LED ");
-			LedController::fillAll(pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU, pinConfig.JOYSTICK_MAX_ILLU);
+			// differentiate between CAN MASTER and CAN SLAVE
+			LedCommand cmd;
+			cmd.mode = LedMode::CIRCLE;
+			cmd.r = pinConfig.JOYSTICK_MAX_ILLU;
+			cmd.g = pinConfig.JOYSTICK_MAX_ILLU;
+			cmd.b = pinConfig.JOYSTICK_MAX_ILLU;
+			cmd.radius = 8;	   // radius of the circle
+			cmd.ledIndex = 0;  // not used
+			cmd.region[0] = 0; // not used
+			cmd.qid = 0;	   // not used
 			isOn = true;
+#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
+			// Send the command to the CAN driver
+			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#else
+			// Execute the command directly
+			execLedCommand(cmd);
+#endif
 		}
+
 	}
 
 	void circle_changed_event(int pressed)
@@ -612,9 +629,24 @@ namespace LedController
 		else
 		{
 			Serial.println("Circle pressed, LED is on");
-			log_i("Turn off LED ");
-			LedController::fillAll(0, 0, 0);
+			// differentiate between CAN MASTER and CAN SLAVE
+			LedCommand cmd;
+			cmd.mode = LedMode::CIRCLE;
+			cmd.r = 0;		   // pinConfig.JOYSTICK_MAX_ILLU;
+			cmd.g = 0;		   // pinConfig.JOYSTICK_MAX_ILLU;
+			cmd.b = 0;		   // pinConfig.JOYSTICK_MAX_ILLU;
+			cmd.radius = 8;	   // radius of the circle
+			cmd.ledIndex = 0;  // not used
+			cmd.region[0] = 0; // not used
+			cmd.qid = 0;	   // not used
 			isOn = false;
+#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
+			// Send the command to the CAN driver
+			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#else
+			// Execute the command directly
+			execLedCommand(cmd);
+#endif
 		}
 	}
 

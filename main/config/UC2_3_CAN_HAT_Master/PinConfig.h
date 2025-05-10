@@ -66,7 +66,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
      int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
-     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
      
      // for caliper

@@ -323,13 +323,36 @@ namespace can_controller
         // assuming the slave is a motor, we can parse the data and send it to the motor
 
         // Check if the message is a restart signal
-        if (size == 0 && rxID == device_can_id) // Assuming an empty message indicates a restart
+        if (size == sizeof(uint8_t) && rxID == device_can_id) // Assuming an empty message indicates a restart
         {
-            if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Received restart signal from CAN ID: %u", rxID);
-
-            // Perform the restart
-            esp_restart();
+            // parse the parameter 
+            // if pdu => 0 => restart
+            uint8_t canCMD;
+            memcpy(&canCMD, data, sizeof(uint8_t));
+            log_i("Received generic command from CAN ID: %u, command: %u", rxID, canCMD);
+            if (canCMD == 0)
+            {
+                // Restart the device
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Received restart signal from CAN ID: %u", rxID);
+                // Perform the restart
+                esp_restart();
+                return;
+            }
+            else if (canCMD == 1)
+            {
+                // Restart the device
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Received restart signal from CAN ID: %u", rxID);
+                // Perform the restart
+                esp_restart();
+                return;
+            }
+            else
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_e("Error: Received invalid restart signal from CAN ID: %u", rxID);
+            }
             return;
         }
 
@@ -706,7 +729,7 @@ namespace can_controller
         }
 
         // sending reboot signal to remote CAN device 
-        // {"task": "/can_act", "restart": 1, "qid":1} // CAN_ADDRESS is the remote CAN ID to which the client listens to
+        // {"task": "/can_act", "restart": 10, "qid":1} // CAN_ADDRESS is the remote CAN ID to which the client listens to
         cJSON *state = cJSON_GetObjectItem(doc, "restart");
         if (state != NULL) {
             int canID = state->valueint; // Access the valueint directly from the "restart" object
@@ -926,7 +949,8 @@ namespace can_controller
         if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("Sending CAN restart signal to ID: %u", canID);
         uint8_t receiverID = canID;
-        return sendCanMessage(receiverID, nullptr, 0);
+        uint8_t data = 0; // empty data; 0 stands for restart
+        return sendCanMessage(receiverID, reinterpret_cast<uint8_t *>(&data), sizeof(data));
     }
 
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal)

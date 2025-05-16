@@ -9,19 +9,15 @@
 
 #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
-#define DIGITAL_IN_CONTROLLER
 #define MESSAGE_CONTROLLER
 #define CAN_SLAVE_MOTOR
 #define CAN_CONTROLLER
 #define MOTOR_CONTROLLER
-#define HOME_MOTOR
-#define DIGITAL_IN_CONTROLLER
 #define USE_FASTACCEL
-#define TMC_CONTROLLER
 //#define OTA_ON_STARTUP
 
 
-struct UC2_3_XIAO_Slave_Motor : PinConfig
+struct waveshare_esp32s3_7inchScreen : PinConfig
 {
      /*
      D0: 1
@@ -56,9 +52,9 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
      const unsigned long BAUDRATE = 115200;
 
-     int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
-     int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7
-     int8_t MOTOR_ENABLE = GPIO_NUM_9;  // D10 -> GPIO9
+     int8_t MOTOR_X_STEP = 0;  // D9 -> GPIO8
+     int8_t MOTOR_X_DIR = 0;   // D8 -> GPIO7
+     int8_t MOTOR_ENABLE = 0;  // D10 -> GPIO9
      bool MOTOR_ENABLE_INVERTED = true;
      bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
@@ -70,13 +66,13 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
      
      // I2C  - as controller 
-     int8_t I2C_SCL_ext = GPIO_NUM_5; // D5 -> GPIO5
-     int8_t I2C_SDA_ext = GPIO_NUM_4; // D4 -> GPIO4
+     int8_t I2C_SCL_ext = disabled; // D5 -> GPIO5
+     int8_t I2C_SDA_ext = disabled; // D4 -> GPIO4
 
      // TMC UART 
-     int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
-     int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
-     int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
+     int8_t tmc_SW_RX = disabled;// GPIO_NUM_44; // D7 -> GPIO44
+     int8_t tmc_SW_TX = disabled;// GPIO_NUM_43; // D6 -> GPIO43
+     int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
      
      int tmc_microsteps = 16;
      int tmc_rms_current = 850;
@@ -90,8 +86,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int tmc_toff = 4;
 
      // CAN
-     int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
-     int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+     int8_t CAN_TX = GPIO_NUM_20; // GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX = GPIO_NUM_19; //GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
      
 
@@ -104,7 +100,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
 
      const uint16_t serialTimeout = 100;
+     const bool dumpHeap = true;
 
 };
   
-const UC2_3_XIAO_Slave_Motor pinConfig;
+const waveshare_esp32s3_7inchScreen pinConfig;

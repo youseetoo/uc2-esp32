@@ -9,140 +9,83 @@
 
 namespace MotorGamePad
 {
-	bool joystick_drive_X = false;
-	bool joystick_drive_Y = false;
-	bool joystick_drive_Z = false;
-	bool joystick_drive_A = false;
-	
-	int offset_val = 1025; // offset value for joystick
+constexpr int   kOffset         = 1025;      // joystick dead-zone
+constexpr float kAlpha          = 0.40f;     // linear range boundary
+constexpr float kMaxSpeed       = 2000.0f;   // base max speed
+constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 
-	void handleAxis(int value, int s)
+
+	static inline void stopAxis(int ax)
 	{
-
-		if (abs(value) > offset_val)
-		{
-			// we want to treat the value non-linearly such that for small values it behaves linear but for larger values it behaves non-linear (e.g. quadratic)
-
-			// 1) Normalise value
-			float maxVal = pow(2, 15);		  // 32768
-			float x = (float)(value-offset_val) / maxVal;
-
-			// 2) Piecewise-Function: linear until ±alpha, then quadratic
-			float alpha = 0.4f; // up to ±alpha linear, then quadratic
-			float signX = (x >= 0.0f) ? 1.0f : -1.0f;
-			float absX = fabs(x);
-
-			float out;
-			if (absX <= alpha)
-			{
-				// linear
-				out = x * alpha; // scaled from 0..alpha
-			}
-			else
-			{
-				// quadratic 
-				float diff = absX - alpha;					// Anteil über alpha
-				float scale = 1.0f - alpha;					// verfügbarer Rest bis 1
-				float quad = diff * diff / (scale * scale); // normalisiertes Quadrat
-				out = alpha + quad * (1.0f - alpha);		// skaliert von alpha..1
-				out = signX * out;
-			}
-
-			// 3) converseion to motor speed
-			float maxSpeed = 2000.0f;
-			float motorSpeed = out * maxSpeed;
-
-			// 4) Auf Z-Achse ggf. anders skalieren
-			if (s == Stepper::Z or (s == Stepper::A && FocusMotor::getDualAxisZ()))
-			{
-				motorSpeed *= pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z;
-			}
-			else
-			{
-				motorSpeed *= pinConfig.JOYSTICK_SPEED_MULTIPLIER;
-			}
-
-			log_i("Motor %i: %i -> %f", s, value, motorSpeed);
-			// move_x
-			FocusMotor::getData()[s]->speed = (int)motorSpeed;
-			FocusMotor::getData()[s]->isforever = true;
-			FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
-// log_i("Start motor from BT %i with speed %i", s, getData()[s]->speed);
-/*#ifdef CAN_CONTROLLER
-			can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), (int)motorSpeed);
-			can_controller::sendMotorSingleValue(s, offsetof(MotorData, isforever), true);
-			can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), false);
-#else*/
-//#endif
-			FocusMotor::startStepper(s, 1);
-
-			if (s == Stepper::X)
-				joystick_drive_X = true;
-			if (s == Stepper::Y)
-				joystick_drive_Y = true;
-			if (s == Stepper::Z)
-				joystick_drive_Z = true;
-			else if (s == Stepper::A)
-				joystick_drive_A = true;
-		}
-		else if (joystick_drive_X || joystick_drive_Y || joystick_drive_Z || joystick_drive_A)
-		{
-			FocusMotor::getData()[s]->speed = 0;
-			FocusMotor::getData()[s]->isforever = false;
-			if (s == Stepper::X and joystick_drive_X)
-			{
 #ifdef CAN_CONTROLLER
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
+		can_controller::sendMotorSingleValue(ax, offsetof(MotorData, speed), 0);
+		can_controller::sendMotorSingleValue(ax, offsetof(MotorData, isStop), true);
 #else
-				FocusMotor::stopStepper(s);
-				FocusMotor::stopStepper(s);
+		FocusMotor::stopStepper(ax);
 #endif
-
-				joystick_drive_X = false;
-			}
-			if (s == Stepper::Y and joystick_drive_Y)
-			{
-#ifdef CAN_CONTROLLER
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
-#else
-				FocusMotor::stopStepper(s);
-				FocusMotor::stopStepper(s);
-#endif
-				joystick_drive_Y = false;
-			}
-			if (s == Stepper::Z and joystick_drive_Z)
-			{
-#ifdef CAN_CONTROLLER
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
-#else
-				FocusMotor::stopStepper(s);
-				FocusMotor::stopStepper(s);
-#endif
-				joystick_drive_Z = false;
-			}
-			if (s == Stepper::A and joystick_drive_A)
-			{
-#ifdef CAN_CONTROLLER
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), 0);
-				can_controller::sendMotorSingleValue(s, offsetof(MotorData, isStop), true);
-#else
-				FocusMotor::stopStepper(s);
-				FocusMotor::stopStepper(s);
-#endif
-				joystick_drive_A = false;
-			}
-		}
+		axisRunning[ax] = false;
 	}
 
+	static inline void startAxis(int ax, int speed)
+	{
+		auto *d = FocusMotor::getData()[ax];
+		d->speed = speed;
+		d->isforever = true;
+		d->acceleration = MAX_ACCELERATION_A;
+
+		FocusMotor::startStepper(ax, 1);
+		axisRunning[ax] = true;
+	}
+
+	static float curve(int16_t raw)
+	{
+		const int16_t centred = raw - (raw >= 0 ? kOffset : -kOffset); // symmetric offset
+		const float x = static_cast<float>(centred) * kOneOver32768f;
+		const float absX = std::fabs(x);
+		const float signX = (x >= 0.f) ? 1.f : -1.f;
+
+		if (absX <= kAlpha)
+			return x; // linear part
+
+		const float diff = absX - kAlpha; // excess over α
+		const float scale = 1.f - kAlpha;
+		const float quad = (diff * diff) / (scale * scale); // 0…1
+		return signX * (kAlpha + quad * (1.f - kAlpha));	// α…1, C1-continuous
+	}
+
+	inline void handleAxis(int16_t value, int ax)
+	{
+		// dead-zone ────────────────────────────────────────────────────────────
+		if (std::abs(value) <= kOffset)
+		{
+			if (axisRunning[ax])
+				stopAxis(ax);
+			return;
+		}
+
+		// Z⇄A mutual exclusion ────────────────────────────────────────────────
+		if (0)
+		{ // TODO: Problem might be that they cancel each other out if there is not return from CAN
+			if (ax == Stepper::Z && axisRunning[Stepper::A])
+				stopAxis(Stepper::A);
+			if (ax == Stepper::A && axisRunning[Stepper::Z])
+				stopAxis(Stepper::Z);
+		}
+		// speed computation ───────────────────────────────────────────────────
+		float speed = curve(value) * kMaxSpeed;
+
+		// per-axis scaling
+		speed *= (ax == Stepper::Z || (ax == Stepper::A && FocusMotor::getDualAxisZ()))
+					 ? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
+					 : pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+
+		startAxis(ax, static_cast<int>(speed));
+
+		log_i("Motor %d: raw=%d  speed=%f", ax, value, speed);
+	}
 	void xyza_changed_event(int x, int y, int z, int a)
 	{
 		// log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
-		//  Only allow motion in one direction at a time
-		bool zIsRunning = FocusMotor::getData()[Stepper::Z]->isforever;
-		bool aIsRunning = FocusMotor::getData()[Stepper::A]->isforever;
 
 		// X-Direction
 		handleAxis(x, Stepper::X);
@@ -151,16 +94,13 @@ namespace MotorGamePad
 		handleAxis(y, Stepper::Y);
 
 		// Z-direction
-		if (!aIsRunning)
-			handleAxis(z, Stepper::Z);
+		//if (!FocusMotor::getData()[Stepper::A]->isforever;)
+		handleAxis(z, Stepper::Z);
 
 		// A-direction
-		if (!zIsRunning)
-			handleAxis(a, Stepper::A);
-		
+		//if (!FocusMotor::getData()[Stepper::Z]->isforever;)
+		handleAxis(a, Stepper::A);
 	}
-
-
 
 	void singlestep_event(int left, int right, bool r1, bool r2, bool l1, bool l2)
 	{
@@ -193,7 +133,7 @@ namespace MotorGamePad
 			FocusMotor::getData()[Stepper::Z]->targetPosition = -1;
 			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
 			FocusMotor::startStepper(Stepper::Z, 1);
-		}	
+		}
 		if (l2)
 		{
 			FocusMotor::getData()[Stepper::Z]->isforever = false;

@@ -137,7 +137,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/motor_get"}
 {"task":"/i2c_get"}
 
-{"task": "/state_act", "restart": 1}
+{"task": "/state_act", "restart": 10}
 
 # set the i2c address based on the motor axis (e.g. stepperaxis 1 = x, 2 = y, 3 = z; stepperid is always 1 since the remote motor driver runs on a single axis only), motor will restart 
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 2}]}}
@@ -330,6 +330,8 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 
+
+{"task": "/can_act", "restart": 10, "qid":1}
 	
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
@@ -359,11 +361,12 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 1000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 100000,  "isabs": 1}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 
-
+{"task": "/can_get"}
 
 {"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -30000, "speed": 20000, "isabs": 0.0, "accel": 1000000, "isen": true}]}, "qid": 8}

@@ -1,10 +1,10 @@
-name: Build and Deploy All PlatformIO Environments
+name: Build and Upload All Firmware Binaries
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-and-publish:
+  build-and-upload:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,40 +27,42 @@ jobs:
       - name: Install libraries
         run: pio lib install
 
-      - name: List Environments
+      - name: Extract environment list
         id: get_envs
         run: |
           echo "envs=$(pio project config | grep 'env:' | cut -d ':' -f 2 | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
-      - name: Build all environments
+      - name: Build and merge all environments
         run: |
           mkdir -p merged_bins
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
           for ENV in "${ENVS[@]}"; do
-            echo ">> Building environment: $ENV"
-            pio run --environment "$ENV"
-            BIN_DIR=".pio/build/$ENV"
-            OUT_BIN="merged_bins/esp32_${ENV}.bin"
-            echo ">> Merging binaries for: $ENV"
-            python -m esptool --chip esp32 merge_bin -o "$OUT_BIN" \
-              --flash_mode dio --flash_freq 40m --flash_size 4MB \
-              0x1000 "$BIN_DIR/bootloader.bin" \
-              0x8000 "$BIN_DIR/partitions.bin" \
-              0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-              0x10000 "$BIN_DIR/firmware.bin"
+            echo "==> Building $ENV"
+            if pio run --environment "$ENV"; then
+              BIN_DIR=".pio/build/$ENV"
+              OUT_BIN="merged_bins/esp32_${ENV}.bin"
+              if [[ -f "$BIN_DIR/firmware.bin" ]]; then
+                echo "==> Merging binaries for $ENV"
+                python -m esptool --chip esp32 merge_bin -o "$OUT_BIN" \
+                  --flash_mode dio --flash_freq 40m --flash_size 4MB \
+                  0x1000 "$BIN_DIR/bootloader.bin" \
+                  0x8000 "$BIN_DIR/partitions.bin" \
+                  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+                  0x10000 "$BIN_DIR/firmware.bin"
+              else
+                echo "⚠️ Skipping merge for $ENV — firmware.bin not found."
+              fi
+            else
+              echo "❌ Build failed for $ENV — continuing with others."
+            fi
           done
 
-      - name: Upload merged binaries to release repo
-        uses: dmnemec/copy_file_to_another_repo_action@main
+      - name: Upload binaries to latest release
+        uses: softprops/action-gh-release@v1
         with:
-          source_file: 'merged_bins'
-          destination_repo: 'youseetoo/youseetoo.github.io'
-          destination_folder: 'static/firmware_build'
-          user_email: 'bene.d@gmx.de'
-          user_name: 'beniroquai'
-          commit_message: 'Pushed all merged firmware binaries to firmware_build'
+          files: merged_bins/*.bin
         env:
-          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

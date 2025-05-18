@@ -14,6 +14,12 @@ jobs:
           ref: betaBD
           submodules: recursive
 
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -56,16 +62,19 @@ jobs:
               echo "❌ Build failed for $ENV — continuing with others."
             fi
           done
-
-      - name: Upload binaries to latest release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: merged_bins/*.bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: all-merged-binaries
           path: merged_bins/
+          
+      - name: Upload binaries to latest release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          files: merged_bins/*.bin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+

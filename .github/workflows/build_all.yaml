@@ -14,12 +14,6 @@ jobs:
           ref: betaBD
           submodules: recursive
 
-      - name: Get latest tag
-        id: get_tag
-        run: |
-          TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -38,9 +32,17 @@ jobs:
         run: |
           echo "envs=$(pio project config | grep 'env:' | cut -d ':' -f 2 | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
+      - name: Determine release tag (or fallback)
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)")
+          echo "tag=$TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
       - name: Build and merge all environments
         run: |
           mkdir -p merged_bins
+          pio boards --json-output > boards.json
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
           for ENV in "${ENVS[@]}"; do
             echo "==> Building $ENV"
@@ -48,10 +50,21 @@ jobs:
               BIN_DIR=".pio/build/$ENV"
               OUT_BIN="merged_bins/esp32_${ENV}.bin"
               if [[ -f "$BIN_DIR/firmware.bin" ]]; then
-                echo "==> Merging binaries for $ENV"
-                python -m esptool --chip esp32 merge_bin -o "$OUT_BIN" \
+                BOARD=$(pio project config --environment "$ENV" --list | grep '^board\s*=' | awk -F= '{print $2}' | xargs)
+                CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
+
+                if [[ "$CHIP" == *"s3"* ]]; then
+                  CHIP_ARG="esp32s3"
+                  BOOT_ADDR="0x0000"
+                else
+                  CHIP_ARG="esp32"
+                  BOOT_ADDR="0x1000"
+                fi
+
+                echo "==> Merging binaries for $ENV (chip: $CHIP_ARG)"
+                python -m esptool --chip "$CHIP_ARG" merge_bin -o "$OUT_BIN" \
                   --flash_mode dio --flash_freq 40m --flash_size 4MB \
-                  0x1000 "$BIN_DIR/bootloader.bin" \
+                  $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
                   0x8000 "$BIN_DIR/partitions.bin" \
                   0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
                   0x10000 "$BIN_DIR/firmware.bin"
@@ -62,14 +75,8 @@ jobs:
               echo "❌ Build failed for $ENV — continuing with others."
             fi
           done
-          
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: all-merged-binaries
-          path: merged_bins/
-          
-      - name: Upload binaries to latest release
+
+      - name: Upload merged binaries to latest release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
@@ -77,4 +84,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
+      - name: Upload all merged binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-merged-binaries
+          path: merged_bins/

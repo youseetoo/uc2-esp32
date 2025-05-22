@@ -55,6 +55,8 @@ constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 
 	inline void handleAxis(int16_t value, int ax)
 	{
+		if (ax == Stepper::A)
+		return;
 		// dead-zone ────────────────────────────────────────────────────────────
 		if (std::abs(value) <= kOffset)
 		{

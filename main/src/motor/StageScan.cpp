@@ -7,7 +7,7 @@ namespace StageScan
 {
     StageScanningData stageScanningData;
 
-    StageScanningData * getStageScanData()
+    StageScanningData *getStageScanData()
     {
         return &stageScanningData;
     }
@@ -19,9 +19,9 @@ namespace StageScan
         //  direction perhaps externally controlled
         if (pinConfig.I2C_SCL > -1)
         {
-            #ifdef USE_TCA
+#ifdef USE_TCA
             tca_controller::setExternalPin(dirPin, direction);
-            #endif
+#endif
         }
         else
         {
@@ -40,16 +40,16 @@ namespace StageScan
     void writeToPin(int digitaloutid, int digitaloutval, int triggerdelay)
     {
         if (digitaloutval == -1)
-		{
-			// perform trigger
-			digitalWrite(digitaloutid, HIGH);
-			delay(triggerdelay);
-			digitalWrite(digitaloutid, LOW);
-		}
-		else
-		{
-			digitalWrite(digitaloutid, digitaloutval);
-		}
+        {
+            // perform trigger
+            digitalWrite(digitaloutid, HIGH);
+            delay(triggerdelay);
+            digitalWrite(digitaloutid, LOW);
+        }
+        else
+        {
+            digitalWrite(digitaloutid, digitaloutval);
+        }
     }
 
     void triggerOutput(int outputPin, int state = -1)
@@ -132,11 +132,7 @@ namespace StageScan
             }
 
             // Reset Position and move back to origin
-            /*
-            getData()[Stepper::X]->currentPosition += stepCounterPixel;
-            getData()[Stepper::Y]->currentPosition += stepCounterLine;
-            moveMotor(pinStpPixel, pinDirPixel, stepCounterPixel, stepCounterLine > 0, delayTimeStep*10);
-            */
+
             triggerOutput(pinTrigFrame, 0);
 
             moveMotor(pinStpLine, pinDirLine, nStepsLine, stepCounterLine > 0, (2 + delayTimeStep) * 10);
@@ -150,12 +146,85 @@ namespace StageScan
     }
 
     void stageScanThread(void *arg)
-    //{"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 5, "stopped": 0, "nFrames": 3000}}}
-    { // {"task": "/motor_act", "stagescan": {"nStepsLine": 50, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 50, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-        // {"task": "/motor_act", "stagescan": {"nStepsLine": 5, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 13, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-        // {"task": "/motor_act", "stagescan": {"nStepsLine": 16, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 16, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 1, "stopped": 0, "nFrames": 50}}}
-        // {"task": "/motor_act", "stagescan": {"stopped": 1"}}
-        // {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
-        stageScan(true);
+    { 
+#if defined(CAN_MASTER)
+            stageScanCAN();
+#else
+            stageScan(true);
+#endif
     }
+
+    // -----------------------------------------------------------------------------
+    // CAN-MASTER implementation – absolute positioning sent to the slaves
+    // -----------------------------------------------------------------------------
+    static inline void moveAbs(Stepper ax, int32_t pos, int speed = 20000)
+    {
+#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+        auto *d = FocusMotor::getData()[ax];
+        d->absolutePosition = 1;
+        d->targetPosition = pos;
+        d->speed = speed;
+        d->isStop = 0;
+        d->stopped = false;
+        FocusMotor::startStepper(ax, 0);
+        
+        // give some time to send the command and wait for the motor to start e.g. 100ms
+        vTaskDelay(pdMS_TO_TICKS(100));
+        while (!d->stopped && FocusMotor::isRunning(ax))
+            vTaskDelay(1);
+#endif
+    }
+
+    void stageScanCAN(bool isThread)
+    {
+#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+        auto &sd = StageScan::stageScanningData;
+        // get current position
+        long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
+        long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
+        int32_t x0 = currentPosX;
+        int32_t y0 = currentPosY;
+
+        // if we don't provide a start position, we take the current position and scan around it
+        if ( sd.xStart != 0)
+            x0 = sd.xStart;
+        if ( sd.yStart != 0)
+            y0 = sd.yStart;
+        // set the stepper to absolute position
+        pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
+        moveAbs(Stepper::X, x0);
+        moveAbs(Stepper::Y, y0);
+        log_i("Moving to start position X: %d, Y: %d", x0, y0);
+        // move to the start position
+        for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
+        {
+            bool rev = (iy & 1);                                   // are we on an even or odd line?
+            for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix) //
+            {
+                log_i("Moving X to %d", x0 + int32_t(ix) * sd.xStep);
+                uint16_t j = rev ? (sd.nX - 1 - ix) : ix; // reverse the order of the motion
+                int32_t tgtX = x0 + int32_t(j) * sd.xStep;
+                log_i("Moving X to %d", tgtX);
+                moveAbs(Stepper::X, tgtX);
+                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
+                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+            }
+            if (iy + 1 == sd.nY || sd.stopped)
+                break;
+
+            // move to the next line
+            log_i("Moving Y to %d", y0 + int32_t(iy + 1) * sd.yStep);
+            moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep);
+            StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
+        }
+
+        // move back to the original position
+        moveAbs(Stepper::X, currentPosX);
+        moveAbs(Stepper::Y, currentPosY);
+        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, 0);
+#endif
+    }
+    // CAN_MASTER
+
 } // namespace FocusMotor

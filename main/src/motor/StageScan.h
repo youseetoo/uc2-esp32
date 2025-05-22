@@ -1,9 +1,13 @@
 #pragma once
 
+// Include header for fixed-width integer types
+#include <cstdint>
+
 namespace StageScan
 {
     struct StageScanningData
     {
+
         int nStepsLine = 100;
         int dStepsLine = 1;
         int nTriggerLine = 1;
@@ -13,10 +17,21 @@ namespace StageScan
         int delayTimeStep = 10;
         int stopped = 0;
         int nFrames = 1;
+#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+        int32_t xStart = 0;
+        int32_t yStart = 0;
+        int32_t xStep = 0;
+        int32_t yStep = 0;
+        uint16_t nX = 0;
+        uint16_t nY = 0;
+        int delayTimePreTrigger = 0;
+        int delayTimePostTrigger = 0;
+#endif
     };
 
-
+    void stageScanThread(void *arg);
     void stageScan(bool isThread = false);
+    void stageScanCAN(bool isThread = false);
+    StageScanningData *getStageScanData();
 
-    StageScanningData * getStageScanData();
 };

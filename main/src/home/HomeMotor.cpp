@@ -97,6 +97,15 @@ int axis = 0;
 
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ)
 	{
+
+		// check if the axis is valid
+		// available axis are 
+		if(!FocusMotor::isActivated[axis])
+		{
+			log_e("Axis %i is not activated", axis);
+			return;
+		}
+		
 		// set the home data and start the motor - mostly used from I2C
 		hdata[axis]->homeTimeout = homeTimeout;
 		hdata[axis]->homeSpeed = homeSpeed;

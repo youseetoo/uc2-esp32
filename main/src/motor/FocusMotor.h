@@ -26,9 +26,12 @@ namespace FocusMotor
 {
 	void setup();
 	void loop();
+	// array of MOTOR_AXIS_COUNT to keep track which motor is activated depending on the size of MOTOR_AXIS_COUNT
+	static bool isActivated[MOTOR_AXIS_COUNT] = {false};
+
 	void stopStepper(int i);
 	void startStepper(int i, int reduced);
-	void sendMotorPos(int i, int arraypos);
+	void sendMotorPos(int i, int arraypos, int qid = -1);
 	void setPosition(Stepper s, int pos);
 	void move(Stepper s, int steps, bool blocking);
 	bool isRunning(int i);

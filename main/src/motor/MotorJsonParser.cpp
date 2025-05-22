@@ -1,5 +1,8 @@
 #include "MotorJsonParser.h"
 #include "FocusMotor.h"
+#ifdef STAGE_SCAN
+#include "StageScan.h"
+#endif
 
 namespace MotorJsonParser
 {
@@ -26,7 +29,7 @@ namespace MotorJsonParser
 		cJSON *doc = cJSON_CreateObject();
 		int qid = cJsonTool::getJsonInt(docin, "qid");
 		cJSON *pos = cJSON_GetObjectItemCaseSensitive(docin, key_position);
-		cJSON *stop = cJSON_GetObjectItemCaseSensitive(docin, key_stopped);
+		cJSON *stop = cJSON_GetObjectItemCaseSensitive(docin, key_stepperstopped);
 		cJSON *mot = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, key_motor, mot);
 		cJSON *stprs = cJSON_CreateArray();
@@ -69,7 +72,7 @@ namespace MotorJsonParser
 			{
 				log_i("stop motor");
 				cJSON *aritem = cJSON_CreateObject();
-				cJsonTool::setJsonInt(aritem, key_stopped, !FocusMotor::getData()[i]->stopped);
+				cJsonTool::setJsonInt(aritem, key_stepperstopped, !FocusMotor::getData()[i]->stopped);
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 			else // return the whole config
@@ -83,12 +86,12 @@ namespace MotorJsonParser
 				cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 				cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 				cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
-				cJsonTool::setJsonInt(aritem, "isStop", FocusMotor::getData()[i]->isStop);
-				cJsonTool::setJsonInt(aritem, "isRunning", FocusMotor::isRunning(i));
-				cJsonTool::setJsonInt(aritem, "isDualAxisZ", FocusMotor::isRunning(i));
-				cJsonTool::setJsonInt(aritem, "isforever", FocusMotor::getData()[i]->isforever);
-				cJsonTool::setJsonInt(aritem, "isen", FocusMotor::getData()[i]->softLimitEnabled);
-				cJsonTool::setJsonInt(aritem, "stopped", FocusMotor::getData()[i]->stopped);
+				cJsonTool::setJsonInt(aritem, key_stepperisstop, FocusMotor::getData()[i]->isStop);
+				cJsonTool::setJsonInt(aritem, key_stepperisrunning, FocusMotor::isRunning(i));
+				cJsonTool::setJsonInt(aritem, key_stepperisDualAxisZ, pinConfig.isDualAxisZ);
+				cJsonTool::setJsonInt(aritem, key_stepperisforever, FocusMotor::getData()[i]->isforever);
+				cJsonTool::setJsonInt(aritem, key_stepperisen, FocusMotor::getData()[i]->softLimitEnabled);
+				cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);
 
 #ifdef I2C_SLAVE_MOTOR
 				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
@@ -142,6 +145,19 @@ namespace MotorJsonParser
 				log_i("stagescan stopped");
 				return;
 			}
+			#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50}}
+			StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
+			StageScan::getStageScanData()->yStart = cJsonTool::getJsonInt(stagescan, "yStart");
+			StageScan::getStageScanData()->xStep = cJsonTool::getJsonInt(stagescan, "xStep");
+			StageScan::getStageScanData()->yStep = cJsonTool::getJsonInt(stagescan, "yStep");
+			StageScan::getStageScanData()->nX = cJsonTool::getJsonInt(stagescan, "nX");
+			StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
+			StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");	
+			StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");	
+			xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
+			//StageScan::stageScanCAN();
+			#else
 			StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
 			StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
 			StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
@@ -152,6 +168,7 @@ namespace MotorJsonParser
 			StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
 			// xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
 			StageScan::stageScan();
+			#endif
 		}
 	}
 #endif
@@ -265,9 +282,9 @@ namespace MotorJsonParser
 			// check if all required items are present and valid
 			Preferences preferences;
 			cJSON *idItem = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
-			cJSON *minItem = cJSON_GetObjectItemCaseSensitive(stp, "min");
-			cJSON *maxItem = cJSON_GetObjectItemCaseSensitive(stp, "max");
-			cJSON *isEnabled = cJSON_GetObjectItemCaseSensitive(stp, "isen");
+			cJSON *minItem = cJSON_GetObjectItemCaseSensitive(stp, key_steppermin);
+			cJSON *maxItem = cJSON_GetObjectItemCaseSensitive(stp, key_steppermax);
+			cJSON *isEnabled = cJSON_GetObjectItemCaseSensitive(stp, key_stepperisen);
 
 			// storing the values in preferences
 			const char *prefNamespace = "motpos";
@@ -301,6 +318,9 @@ namespace MotorJsonParser
 		}
 		return count;
 	}
+
+
+
 	
 
 	void parseMotorDriveJson(cJSON *doc)
@@ -422,6 +442,7 @@ namespace MotorJsonParser
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 20000, "isabs": 1, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
+
 
 #ifdef STAGE_SCAN
 		parseStageScan(doc);

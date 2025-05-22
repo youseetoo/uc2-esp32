@@ -16,7 +16,8 @@
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
 #define OBJECTIVE_CONTROLLER=1
-
+#define STAGE_SCAN=1
+#define CAN_MASTER
 #define MOTOR_AXIS_COUNT 10   
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
@@ -27,7 +28,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      const char * pindefName = "UC2_3_CAN_HAT_Master";
      const unsigned long BAUDRATE = 115200;
 
-     bool DEBUG_CAN_ISO_TP = 1;
+     bool DEBUG_CAN_ISO_TP = 0;
      int8_t MOTOR_A_STEP = GPIO_NUM_0;
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;
@@ -69,6 +70,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
      
+     int8_t CAMERA_TRIGGER_PIN = 27;
      // for caliper
      int8_t ENC_X_A = disabled;
      int8_t ENC_Y_A = disabled;

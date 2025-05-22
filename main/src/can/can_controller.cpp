@@ -865,8 +865,8 @@ namespace can_controller
     bool isMotorRunning(int axis)
     {
 #ifdef MOTOR_CONTROLLER
-        bool mIsRunning = getData()[axis]->isStop;
-        log_i("Motor %i is running: %i", axis, !mIsRunning);
+        bool mIsRunning = !getData()[axis]->isStop;
+        //log_i("Motor %i is running: %i", axis, !mIsRunning);
         return !mIsRunning;
 #else
         return false;

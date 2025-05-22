@@ -58,8 +58,6 @@ namespace FocusMotor
 	bool isDualAxisZ = false;
 	bool waitForFirstRun[] = {false, false, false, false};
 
-	// array of MOTOR_AXIS_COUNT to keep track which motor is activated depending on the size of MOTOR_AXIS_COUNT
-	bool isActivated[MOTOR_AXIS_COUNT] = {false};
 
 	xSemaphoreHandle xMutex = xSemaphoreCreateMutex();
 
@@ -536,12 +534,15 @@ namespace FocusMotor
 		log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
 	}
 
+    static unsigned long lastSendTime = 0; // holds the last time positions were sent
+    const unsigned long interval = 2000;   // 2-second interval
+
 	void loop()
 	{
-#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
-		// checks if a stepper is still running
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
+#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
+		// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{
@@ -573,6 +574,8 @@ namespace FocusMotor
 					// else if speed > 0 => let it keep running to move back inside the range
 				}
 
+				
+
 				// If above maxPos
 				else if (pos > maxPos)
 				{
@@ -602,9 +605,27 @@ namespace FocusMotor
 				preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
+
+			
+			#endif
+			if (false and isActivated[i] && isRunning(i)){ // TODO: This is nice, but maybe not very efficient - only for updating the position in the gui periodically
+				// indicate that the motor is running by sending the position periodically
+				// Check if it's time to send motor positions
+				unsigned long now = millis();
+				if (now - lastSendTime >= interval)
+				{
+					lastSendTime = now;
+					// Send motor positions for all motors
+					for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
+					{
+						if (isActivated[i])
+						{
+							sendMotorPos(i, 0, -2);
+						}
+					}
+				}
+			}
 		}
-		
-#endif
 	}
 
 	bool isRunning(int i)
@@ -626,7 +647,7 @@ namespace FocusMotor
 	}
 
 	// returns json {"steppers":[...]} as qid
-	void sendMotorPos(int i, int arraypos)
+	void sendMotorPos(int i, int arraypos, int qid)
 	{
 		// update current position of the motor depending on the interface
 		updateData(i);
@@ -642,7 +663,9 @@ namespace FocusMotor
 			return; // Handle allocation failure
 		}
 		cJSON_AddItemToObject(root, key_steppers, stprs);
-		cJSON_AddNumberToObject(root, "qid", data[i]->qid);
+		if (qid == -1)
+			qid = data[i]->qid;
+		cJSON_AddNumberToObject(root, "qid", qid);
 
 		cJSON *item = cJSON_CreateObject();
 		if (item == NULL)
@@ -707,10 +730,6 @@ namespace FocusMotor
 		}
 #endif
 
-		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
-		// only send motor data if it was running before
-		if (!data[i]->stopped)
-			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
@@ -730,6 +749,10 @@ namespace FocusMotor
 		Stepper s = static_cast<Stepper>(i);
 		can_controller::stopStepper(s);
 #endif
+log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
+// only send motor data if it was running before
+	sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
+
 	}
 
 	uint32_t getPosition(Stepper s)

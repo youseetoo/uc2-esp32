@@ -332,7 +332,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 
 {"task": "/can_act", "restart": 10, "qid":1}
-	
+{'task': '/can_act', 'restart': 13}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
 
@@ -383,12 +383,15 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -40000, "speed": -10000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
-{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": 2000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": -2000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":1000000, "redu":1}]}}
 {"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": 20000, "speed": 20000, "isabs": 1, "isaccel":1, "accel":10000}]}}
 
 {"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 20000} ]}}
 {"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -40000, "speed": -10000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+
+{"tasks":[{"task":"/state_act", "delay":1000},{"task":"/state_act", "restart":1}], "nTimes":2}
+
 
 {"task":"/motor_act",
     "motor":

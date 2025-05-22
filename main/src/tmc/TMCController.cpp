@@ -53,7 +53,7 @@ namespace TMCController
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
     {
         #if not defined(CAN_MASTER)
-        driver.microsteps(p.msteps);
+        for (int iTrial=0; iTrial<3; iTrial++) driver.microsteps(p.msteps);
         driver.rms_current(p.rms_current);
         driver.SGTHRS(p.sgthrs);
         driver.semin(p.semin);

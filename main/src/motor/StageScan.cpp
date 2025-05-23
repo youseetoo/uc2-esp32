@@ -2,7 +2,15 @@
 #include "Arduino.h"
 #include "FocusMotor.h"
 #include "../i2c/tca_controller.h"
-
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
+#endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
 namespace StageScan
 {
     StageScanningData stageScanningData;
@@ -148,7 +156,7 @@ namespace StageScan
     void stageScanThread(void *arg)
     { 
 #if defined(CAN_MASTER)
-            stageScanCAN();
+            stageScanCAN(true);
 #else
             stageScan(true);
 #endif
@@ -172,6 +180,7 @@ namespace StageScan
         vTaskDelay(pdMS_TO_TICKS(100));
         while (!d->stopped && FocusMotor::isRunning(ax))
             vTaskDelay(1);
+        // Serial.println("Motor stopped"); //TODO: This is not working as expected - I guess status is not correct here 
 #endif
     }
 
@@ -184,6 +193,7 @@ namespace StageScan
         long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
         int32_t x0 = currentPosX;
         int32_t y0 = currentPosY;
+        isRunning = true;
 
         // if we don't provide a start position, we take the current position and scan around it
         if ( sd.xStart != 0)
@@ -206,9 +216,46 @@ namespace StageScan
                 int32_t tgtX = x0 + int32_t(j) * sd.xStep;
                 log_i("Moving X to %d", tgtX);
                 moveAbs(Stepper::X, tgtX);
-                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
-                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                // if we have an illumination array, we need to set the led
+                #ifdef LED_CONTROLLER
+                if (sd.ledarrayIntensity > 0)
+                {
+                    // TODO: We need to generalize this led interface to make the same function for both I2C, CAN and native GPIO
+                    LedController::fillAll(sd.ledarrayIntensity, sd.ledarrayIntensity, sd.ledarrayIntensity);
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                    LedController::fillAll(0, 0, 0);
+                }
+                #endif
+                #ifdef LASER_CONTROLLER
+                for (int j = 0; j < 4; ++j)
+                {
+                    if (sd.lightsourceIntensities[j] > 0)
+                    {
+                        // TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
+                        #if defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
+                        LaserData laserData;
+                        laserData.LASERid = j;
+                        laserData.LASERval = sd.lightsourceIntensities[j];
+                        can_controller::sendLaserDataToCANDriver(laserData);
+                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
+                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                        laserData.LASERval = 0;
+                        can_controller::sendLaserDataToCANDriver(laserData);
+                        #endif
+                    }
+                }
+                #endif
+                // if we have a lightsource array, we still want to trigger the camera
+                if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
+                {
+                    // trigger the camera
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                }
             }
             if (iy + 1 == sd.nY || sd.stopped)
                 break;
@@ -223,7 +270,12 @@ namespace StageScan
         moveAbs(Stepper::X, currentPosX);
         moveAbs(Stepper::Y, currentPosY);
         StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, 0);
+
+        if (isThread)
+            vTaskDelete(NULL);
 #endif
+        isRunning = false;
+
     }
     // CAN_MASTER
 

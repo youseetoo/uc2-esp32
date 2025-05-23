@@ -79,20 +79,15 @@ namespace LaserController
 		LASERdespecklePeriod = cJsonTool::getJsonInt(ob, "LASERdespecklePeriod");
 
 
-		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
 		laserData.LASERdespeckle = LASERdespeckle;
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
+		#ifdef I2C_LASER
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		return qid; 
 		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
-		LaserData laserData;
-		laserData.LASERid = LASERid;
-		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = LASERdespeckle;
-		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		can_controller::sendLaserDataToCANDriver(laserData);
 		return qid;
 		#else
@@ -248,6 +243,32 @@ namespace LaserController
 		}
 		#endif
 	}
+
+		void applyLaserValue(const LaserData& laserData)
+	{
+		#ifdef I2C_LASER
+			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
+		#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_LASER)
+			can_controller::sendLaserDataToCANDriver(laserData);
+		#else
+			int pwmChannel = -1;
+			int value = laserData.LASERval;
+			switch (laserData.LASERid)
+			{
+				case 0: LASER_val_0 = value; pwmChannel = PWM_CHANNEL_LASER_0; break;
+				case 1: LASER_val_1 = value; pwmChannel = PWM_CHANNEL_LASER_1; break;
+				case 2: LASER_val_2 = value; pwmChannel = PWM_CHANNEL_LASER_2; break;
+				case 3: LASER_val_3 = value; pwmChannel = PWM_CHANNEL_LASER_3; break;
+				default: log_w("Invalid LASERid: %d", laserData.LASERid); return;
+			}
+
+			if (pwmChannel != -1)
+			{
+				setPWM(value, pwmChannel);
+			}
+		#endif
+	}
+
 
 	bool setLaserVal(int LASERid, int LASERval)
 	{

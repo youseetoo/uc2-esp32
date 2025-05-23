@@ -145,7 +145,7 @@ namespace MotorJsonParser
 				log_i("stagescan stopped");
 				return;
 			}
-			#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
 			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50}}
 			StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
 			StageScan::getStageScanData()->yStart = cJsonTool::getJsonInt(stagescan, "yStart");
@@ -153,11 +153,56 @@ namespace MotorJsonParser
 			StageScan::getStageScanData()->yStep = cJsonTool::getJsonInt(stagescan, "yStep");
 			StageScan::getStageScanData()->nX = cJsonTool::getJsonInt(stagescan, "nX");
 			StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
-			StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");	
-			StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");	
+			StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
+			StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
+			bool shouldStop = cJsonTool::getJsonInt(stagescan, "stopped");
+			// parse illumination array
+			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
+			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 255, 255, 0], "led": 0}}
+			// {"task": "/motor_act", "stagescan": {"stopped": 1}}
+			// extract the illumination array
+			if (StageScan::isRunning)
+			{
+				log_i("stagescan already running");
+				return;
+			}
+			if (shouldStop)
+			{
+				log_i("stagescan stopped");
+				StageScan::getStageScanData()->stopped = 1;
+				return;
+			}
+			StageScan::getStageScanData()->stopped = 0;
+			cJSON *illumination = cJSON_GetObjectItem(stagescan, "illumination");
+			if (illumination != NULL)
+			{
+				log_i("illumination array found");
+				for (int i = 0; i < 4; i++)
+				{
+					cJSON *item = cJSON_GetArrayItem(illumination, i);
+					if (item != NULL)
+					{
+						StageScan::getStageScanData()->lightsourceIntensities[i] = item->valueint;
+						log_i("illumination %i: %i", i, StageScan::getStageScanData()->lightsourceIntensities[i]);
+					}
+					else
+					{
+						log_i("illumination %i not found", i);
+						StageScan::getStageScanData()->lightsourceIntensities[i] = 0;
+					}
+				}
+			}
+			// parse led array
+			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 0}}
+			// extract the led array
+
+			StageScan::getStageScanData()->ledarrayIntensity = cJsonTool::getJsonInt(stagescan, "led");
+			int lightsourceIntensities[4] = {0, 0, 0, 0};
+			int ledarrayIntensity = 0;
+
 			xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
-			//StageScan::stageScanCAN();
-			#else
+// StageScan::stageScanCAN();
+#else
 			StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
 			StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
 			StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
@@ -168,7 +213,7 @@ namespace MotorJsonParser
 			StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
 			// xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
 			StageScan::stageScan();
-			#endif
+#endif
 		}
 	}
 #endif
@@ -307,21 +352,20 @@ namespace MotorJsonParser
 		}
 	}
 
-	int countKeysExcludingQID(cJSON* obj) {
+	int countKeysExcludingQID(cJSON *obj)
+	{
 		int count = 0;
-		for (cJSON* child = obj->child; child != nullptr; child = child->next) {
+		for (cJSON *child = obj->child; child != nullptr; child = child->next)
+		{
 			// "qid" (oder andere Keys) ausschließen
-			if (strcmp(child->string, "qid") == 0) {
+			if (strcmp(child->string, "qid") == 0)
+			{
 				continue;
 			}
 			count++;
 		}
 		return count;
 	}
-
-
-
-	
 
 	void parseMotorDriveJson(cJSON *doc)
 	{
@@ -332,7 +376,7 @@ namespace MotorJsonParser
 		// for single value
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 10000, "redu":2}]}, "qid": 5}
-		
+
 		*/
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
 		if (mot != NULL)
@@ -362,7 +406,7 @@ namespace MotorJsonParser
 						//can_controller::sendMotorSingleValue(s, offsetof(MotorData, stopped), false);
 						continue; // skip this motor
 					}
-					*/	
+					*/
 					FocusMotor::getData()[s]->qid = cJsonTool::getJsonInt(doc, "qid");
 					FocusMotor::getData()[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
 					FocusMotor::getData()[s]->isEnable = cJsonTool::getJsonInt(stp, key_isen);
@@ -371,7 +415,7 @@ namespace MotorJsonParser
 					FocusMotor::getData()[s]->absolutePosition = cJsonTool::getJsonInt(stp, key_isabs);
 					FocusMotor::getData()[s]->acceleration = cJsonTool::getJsonInt(stp, key_acceleration);
 					FocusMotor::getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
-					//FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
+					// FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 
 					// check if soft limits are enabled and if the target position is within the limits
@@ -442,7 +486,6 @@ namespace MotorJsonParser
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 20000, "isabs": 1, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
 		parseMotorDriveJson(doc);
-
 
 #ifdef STAGE_SCAN
 		parseStageScan(doc);

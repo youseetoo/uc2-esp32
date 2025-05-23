@@ -5,6 +5,7 @@
 
 namespace StageScan
 {
+    static bool isRunning = false;
     struct StageScanningData
     {
 
@@ -17,6 +18,7 @@ namespace StageScan
         int delayTimeStep = 10;
         int stopped = 0;
         int nFrames = 1;
+        
 #if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
         int32_t xStart = 0;
         int32_t yStart = 0;
@@ -26,6 +28,9 @@ namespace StageScan
         uint16_t nY = 0;
         int delayTimePreTrigger = 0;
         int delayTimePostTrigger = 0;
+        // define a boolean array of the lightsource used (e.g. [0,1,0,0])
+        int lightsourceIntensities[4] = {0, 0, 0, 0};
+        int ledarrayIntensity = 0;
 #endif
     };
 

@@ -2,6 +2,7 @@
 #include "FocusMotor.h"
 #ifdef STAGE_SCAN
 #include "StageScan.h"
+#include "FocusScan.h"
 #endif
 
 namespace MotorJsonParser
@@ -165,7 +166,7 @@ namespace MotorJsonParser
 			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
 			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 10, "tPost": 100, "illumination": [0, 255, 255, 0], "led": 0}}
 			{"task": "/motor_act", "stagescan": {"stopped": 1}}
-			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 2500, "yStep": 1500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "tTrig": 20, "illumination": [0, 0, 0, 0], "led": 255, "speed":20000, "acceleration": 1000000}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 1000, "yStep": 1500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "tTrig": 20, "illumination": [0, 0, 0, 0], "led": 255, "speed":20000, "acceleration": 1000000}}
 			
 			*/
 			// extract the illumination array
@@ -233,6 +234,62 @@ namespace MotorJsonParser
 			StageScan::stageScan();
 #endif
 		}
+
+		#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+		// start independent focusScan
+		cJSON *focusscan = cJSON_GetObjectItem(doc, "focusscan");
+		if (focusscan != NULL)
+		{
+			/*
+			{ "task": "/motor_act", "focusscan": { "zStart": 0, "zStep": 50, "nZ": 20, "tPre": 50, "tTrig": 20, "tPost": 50, "led": 255, "illumination": [0, 0, 0, 0], "speed": 20000, "acceleration": 1000000, "qid": 42 }}
+			 { "task": "/motor_act", "focusscan": { "zStart": 0, "zStep": 50, "nZ": 20, "tPre": 80, "tTrig": 20, "tPost": 0, "led": 0, "illumination": [0, 255, 0, 0], "speed": 20000, "acceleration": 1000000, "qid": 42 }}
+			*/ 
+			auto *fsd = FocusScan::getFocusScanData();
+
+			fsd->stopped = cJsonTool::getJsonInt(focusscan, "stopped");
+			if (fsd->stopped)          { log_i("focusscan stopped"); return; }
+			if (FocusScan::isRunning)  { log_i("focusscan already running"); return; }
+
+			fsd->zStart = cJsonTool::getJsonInt(focusscan, "zStart");
+			fsd->zStep  = cJsonTool::getJsonInt(focusscan, "zStep");
+			fsd->nZ     = cJsonTool::getJsonInt(focusscan, "nZ");
+
+			fsd->delayTimePreTrigger  = cJsonTool::getJsonInt(focusscan, "tPre");
+			fsd->delayTimeTrigger     = cJsonTool::getJsonInt(focusscan, "tTrig");
+			fsd->delayTimePostTrigger = cJsonTool::getJsonInt(focusscan, "tPost");
+
+			fsd->speed        = max(cJsonTool::getJsonInt(focusscan, "speed"),        20000);
+			fsd->acceleration = max(cJsonTool::getJsonInt(focusscan, "acceleration"), 1000000);
+			fsd->qid          = cJsonTool::getJsonInt(focusscan, "qid");
+
+			cJSON *illum = cJSON_GetObjectItem(focusscan, "illumination");
+			for (int i = 0; i < 4; ++i)
+			{
+				fsd->lightsourceIntensities[i] = 0;
+				if (illum)
+				{
+					cJSON *item = cJSON_GetArrayItem(illum, i);
+					if (item) fsd->lightsourceIntensities[i] = item->valueint;
+				}
+			}
+			fsd->ledarrayIntensity = cJsonTool::getJsonInt(focusscan, "led");
+			fsd->stopped = 0;
+
+			log_i("FocusScan zStart:%d zStep:%d nZ:%d tPre:%d tTrig:%d tPost:%d speed:%d accel:%d led:%d",
+				fsd->zStart, fsd->zStep, fsd->nZ,
+				fsd->delayTimePreTrigger, fsd->delayTimeTrigger, fsd->delayTimePostTrigger,
+				fsd->speed, fsd->acceleration, fsd->ledarrayIntensity);
+
+			xTaskCreate(FocusScan::focusScanThread,
+						"focusScan",
+						pinConfig.STAGESCAN_TASK_STACKSIZE,
+						nullptr,
+						0,
+						nullptr);
+		}
+		#endif
+
+
 	}
 #endif
 

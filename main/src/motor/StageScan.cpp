@@ -237,6 +237,7 @@ namespace StageScan
 #ifdef LED_CONTROLLER
                 if (sd.ledarrayIntensity > 0)
                 {
+                    // TODO: Generalize this:
                     LedCommand cmd;
                     cmd.mode = LedMode::CIRCLE;
                     cmd.r = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;

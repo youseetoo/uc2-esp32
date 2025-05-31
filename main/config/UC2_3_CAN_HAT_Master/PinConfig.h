@@ -19,6 +19,7 @@
 #define STAGE_SCAN=1
 #define CAN_MASTER
 #define MOTOR_AXIS_COUNT 10   
+#define LED_CONTROLLER
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*
@@ -71,6 +72,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
      
      int8_t CAMERA_TRIGGER_PIN = 27;
+     bool CAMERA_TRIGGER_INVERTED = false; // true = inverted, false = normal
      // for caliper
      int8_t ENC_X_A = disabled;
      int8_t ENC_Y_A = disabled;
@@ -79,6 +81,10 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_B = disabled;
 
+
+     const int32_t MAX_ACCELERATION_A = 600000;
+     const int32_t DEFAULT_ACCELERATION = 100000;
+     
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = GPIO_NUM_21;

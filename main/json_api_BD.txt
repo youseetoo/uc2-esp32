@@ -120,9 +120,9 @@ mm-per-step XY: 0.00635 -> 200 steps/rev 1.27mm/revolution 5.039,3700787402
 mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 # drive home on axis Y
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":0}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":0, "qid":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":0, "qid":2}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":-1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isstop": 1}]}}
@@ -237,6 +237,17 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/wifi/scan"}
 {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 
+		{"task": "/objective_get"}	
+		{"task":"/objective_act","calibrate":1}
+		{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
+		{"task":"/objective_act","toggle":1, "speed": 26000, "accel": 400000} 			toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
+		{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
+		{"task":"/objective_act","x1":  10000, "x2": 80000} set explicit positions (in steps )
+		{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
+		{"task":"/objective_act","z1": 20, "z2": 200}	set current position as z1 and explicit position for z2
+		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
+		{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+
 
 
 {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":255, "b":255}]}}
@@ -335,6 +346,12 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {'task': '/can_act', 'restart': 13}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
+			// parse illumination array
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 10, "tPost": 100, "illumination": [0, 255, 255, 0], "led": 0}}
+			{"task": "/motor_act", "stagescan": {"stopped": 1}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 150, "tPost": 150, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
+			
 
 
 {"task":"/state_get", "heap":1}

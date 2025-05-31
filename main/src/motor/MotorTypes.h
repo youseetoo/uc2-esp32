@@ -2,8 +2,8 @@
 
 
 const int32_t MAX_VELOCITY_A = 20000;
-const int32_t MAX_ACCELERATION_A = 60000;
-const int32_t DEFAULT_ACCELERATION = 40000;
+const int32_t MAX_ACCELERATION_A = 600000;
+const int32_t DEFAULT_ACCELERATION = 100000;
 
 #pragma pack(push,1)
 struct MotorState {

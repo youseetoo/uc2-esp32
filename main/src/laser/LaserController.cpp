@@ -393,7 +393,6 @@ namespace LaserController
 		if (pressed == Dpad::Direction::left)
 		{
 			log_d("Turning off LAser ");
-			Serial.println("Turning off LAser ");
 			LaserController::setLaserVal(2, 0);
 			laser2_on = false;
 		}

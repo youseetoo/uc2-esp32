@@ -888,15 +888,13 @@ namespace can_controller
         if (reduced == 0)
         {
             // Fully MotorData
-            if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
+            log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
             // Cast the structure to a byte array
             err = sendCanMessage(slave_addr, (uint8_t *)&motorData, sizeof(MotorData));
         }
         else if (reduced == 1)
         {
             // Reduced MotorData
-            if (pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Reducing MotorData to axis: %i at address: %u, isStop: %i", axis, slave_addr, motorData.isStop);
             MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
@@ -910,7 +908,6 @@ namespace can_controller
         else if (reduced == 2)
         {
             // Single Value Updates
-            if (pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Sending SignleMotorDataValueUpdate to axis: %i", axis);
             // We treat only the speed, stop and targetPosition as single value updates
             if (motorData.speed != 0)

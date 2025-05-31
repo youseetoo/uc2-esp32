@@ -184,7 +184,7 @@ struct PinConfig
      int8_t DIGITAL_OUT_3 = disabled;
 
      int8_t CAMERA_TRIGGER_PIN = disabled; 
-
+     bool CAMERA_TRIGGER_INVERTED = false;
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;

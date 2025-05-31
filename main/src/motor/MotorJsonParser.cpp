@@ -155,21 +155,29 @@ namespace MotorJsonParser
 			StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
 			StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
 			StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
+			StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig");
+			StageScan::getStageScanData()->speed = max(cJsonTool::getJsonInt(stagescan, "speed"), 20000);				  // ensure speed is at least 20000
+			StageScan::getStageScanData()->acceleration = max(cJsonTool::getJsonInt(stagescan, "acceleration"), 1000000); // ensure acceleration is at least 1000000
+			StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid");
 			bool shouldStop = cJsonTool::getJsonInt(stagescan, "stopped");
+			/*
 			// parse illumination array
-			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
-			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 255, 255, 0], "led": 0}}
-			// {"task": "/motor_act", "stagescan": {"stopped": 1}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 10, "tPost": 100, "illumination": [0, 255, 255, 0], "led": 0}}
+			{"task": "/motor_act", "stagescan": {"stopped": 1}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 2500, "yStep": 1500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "tTrig": 20, "illumination": [0, 0, 0, 0], "led": 255, "speed":20000, "acceleration": 1000000}}
+			
+			*/
 			// extract the illumination array
-			if (StageScan::isRunning)
-			{
-				log_i("stagescan already running");
-				return;
-			}
 			if (shouldStop)
 			{
 				log_i("stagescan stopped");
 				StageScan::getStageScanData()->stopped = 1;
+				return;
+			}
+			if (StageScan::isRunning)
+			{
+				log_i("stagescan already running");
 				return;
 			}
 			StageScan::getStageScanData()->stopped = 0;
@@ -193,12 +201,22 @@ namespace MotorJsonParser
 				}
 			}
 			// parse led array
-			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 0}}
 			// extract the led array
-
 			StageScan::getStageScanData()->ledarrayIntensity = cJsonTool::getJsonInt(stagescan, "led");
-			int lightsourceIntensities[4] = {0, 0, 0, 0};
-			int ledarrayIntensity = 0;
+			log_i("StageScan xStart: %d, yStart: %d, xStep: %d, yStep: %d, nX: %d, nY: %d, tPre: %d, tPost: %d, speed: %d, acceleration: %d, ledarray: %d, stopped: %d, isrunning: %d",
+				  StageScan::getStageScanData()->xStart,
+				  StageScan::getStageScanData()->yStart,
+				  StageScan::getStageScanData()->xStep,
+				  StageScan::getStageScanData()->yStep,
+				  StageScan::getStageScanData()->nX,
+				  StageScan::getStageScanData()->nY,
+				  StageScan::getStageScanData()->delayTimePreTrigger,
+				  StageScan::getStageScanData()->delayTimePostTrigger,
+				  StageScan::getStageScanData()->speed,
+				  StageScan::getStageScanData()->acceleration,
+				  StageScan::getStageScanData()->ledarrayIntensity,
+				  StageScan::getStageScanData()->stopped, 
+				  StageScan::isRunning);
 
 			xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
 // StageScan::stageScanCAN();

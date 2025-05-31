@@ -100,7 +100,7 @@ int axis = 0;
 
 		// check if the axis is valid
 		// available axis are 
-		if(!FocusMotor::isActivated[axis])
+		if(0)//!FocusMotor::isActivated[axis]) // TODO: THis should work but this is true even if activaed for someweird reason - maybe wrong reference?
 		{
 			log_e("Axis %i is not activated", axis);
 			return;

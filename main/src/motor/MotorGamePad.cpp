@@ -55,8 +55,10 @@ constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 
 	inline void handleAxis(int16_t value, int ax)
 	{
+		#ifdef CAN_MASTER 
 		if (ax == Stepper::A)
 		return;
+		#endif
 		// dead-zone ────────────────────────────────────────────────────────────
 		if (std::abs(value) <= kOffset)
 		{
@@ -66,13 +68,14 @@ constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 		}
 
 		// Z⇄A mutual exclusion ────────────────────────────────────────────────
-		if (0)
+		#ifndef CAN_MASTER 
 		{ // TODO: Problem might be that they cancel each other out if there is not return from CAN
 			if (ax == Stepper::Z && axisRunning[Stepper::A])
 				stopAxis(Stepper::A);
 			if (ax == Stepper::A && axisRunning[Stepper::Z])
 				stopAxis(Stepper::Z);
 		}
+		#endif
 		// speed computation ───────────────────────────────────────────────────
 		float speed = curve(value) * kMaxSpeed;
 

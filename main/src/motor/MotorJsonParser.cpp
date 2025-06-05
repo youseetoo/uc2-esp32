@@ -1,6 +1,10 @@
 #include "MotorJsonParser.h"
 #include "FocusMotor.h"
 
+#ifdef STAGE_SCAN
+#include "StageScan.h"
+#endif
+
 namespace MotorJsonParser
 {
 
@@ -138,6 +142,36 @@ namespace MotorJsonParser
             StageScan::getStageScanData()->nTriggerPixel = cJsonTool::getJsonInt(stagescan, "nTriggerPixel");
             StageScan::getStageScanData()->delayTimeStep = cJsonTool::getJsonInt(stagescan, "delayTimeStep");
             StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+            
+            // Check for coordinate-based scanning
+            cJSON *coordinates = cJSON_GetObjectItem(stagescan, "coordinates");
+            if (coordinates != NULL && cJSON_IsArray(coordinates))
+            {
+                int coordinateCount = cJSON_GetArraySize(coordinates);
+                if (coordinateCount > 0)
+                {
+                    StageScan::StagePosition* positions = new StageScan::StagePosition[coordinateCount];
+                    
+                    for (int i = 0; i < coordinateCount; i++)
+                    {
+                        cJSON *coord = cJSON_GetArrayItem(coordinates, i);
+                        if (coord != NULL)
+                        {
+                            positions[i].x = cJsonTool::getJsonInt(coord, "x");
+                            positions[i].y = cJsonTool::getJsonInt(coord, "y");
+                        }
+                    }
+                    
+                    StageScan::setCoordinates(positions, coordinateCount);
+                    delete[] positions; // setCoordinates makes its own copy
+                    log_i("Coordinate-based scanning enabled with %d positions", coordinateCount);
+                }
+            }
+            else
+            {
+                // Clear any existing coordinates to use grid-based scanning
+                StageScan::clearCoordinates();
+            }
             // xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
             StageScan::stageScan();
         }

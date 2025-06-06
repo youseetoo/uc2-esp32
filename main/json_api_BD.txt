@@ -120,25 +120,37 @@ mm-per-step XY: 0.00635 -> 200 steps/rev 1.27mm/revolution 5.039,3700787402
 mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 # drive home on axis Y
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":-1}]}}
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":-1}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":0, "qid":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":0, "qid":2}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":1, "endstoppolarity":-1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isstop": 1}]}}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 20000, "isabs": 0, "isaccel":0, "maxspeed":1000000, "isen":1, "accel":40000}]}}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 3200, "speed": 10000, "isabs": 0, "accel":100000, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -3200, "speed": 10000, "isabs": 0, "accel":100000, "isaccel":0}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 5000, "speed": 2000, "isabs": 0, "isaccel":1, "accel":50000}]}}
 
 {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 1, "posval": 100}]}}
 {"task":"/motor_get"}
 {"task":"/i2c_get"}
 
-{"task": "/state_act", "restart": 1}
+{"task": "/state_act", "restart": 10}
 
 # set the i2c address based on the motor axis (e.g. stepperaxis 1 = x, 2 = y, 3 = z; stepperid is always 1 since the remote motor driver runs on a single axis only), motor will restart 
 {"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 2}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -5039, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":1000000}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -5000, "speed": 20000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": -9999, "speed": 10000, "isabs": 0, "isaccel":0, "isen":1, "accel":40000}]}}
+{"task":"/motor_get"}
+{"task":"/can_act", "motor": {"axis": 1, "speed": 1000, "position": 1000, "acceleration": 1000, "direction": 1, "isforever": 1}} //  single update
+
+{"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -10000, "max": 10000, "isen": 1}]}}
+
+{"task":"/can_act", "motor": {"axis": 1, "speed": 1000, "position": 1000, "acceleration": 1000, "direction": 1, "isforever": 1}}
 
 {"task":"/objective_act","calibrate":1}
 		{"task":"/objective_act","calibrate":1, "homeDirection": -1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
@@ -152,29 +164,54 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 		{"task":"/home_act", "home": {"steppers": [{"stepperid": 3 , "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
 
+# testing reduced motor transfers
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "speed": 10000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 23}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isstop": 1}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed":10000, "redu":2}]}, "qid": 23}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 10000, "isabs": 1, "isaccel": 1, "isen": 1, "accel": 500000, "redu":1}]}, "qid": 23}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "isabs":0, "speed":10000, "redu":0}]}, "qid": 23}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":1}]}, "qid": 23}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": -3200, "speed": 10000, "isabs": 0, "accel":100000, "isaccel":0}]}}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":1}]}, "qid": 23}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 1000, "isabs":0, "speed":10000, "redu":2}]}, "qid": 23}
+{"task":"/motor_get"}
 
 # set parameters on TMC stepper driver 
-{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
-{"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+{"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 {"task":"/tmc_act", "msteps":16, "rms_current":700, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":2}
 {"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
+{"task":"/tmc_get"}
 
 {"task":"/can_act", "address": 1} // MASTER
 {"task":"/can_act", "address": 11} // X
 {"task":"/can_act", "address": 12} // Y 
 {"task":"/can_act", "address": 13} // Z 
 {"task":"/can_act", "address": 10} // A
+{"task":"/can_act", "address": 30} // LED
 {"task":"/can_get", "address": 1}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
 {"task":"/can_get"}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": -15000, "isabs": 0, "isaccel":0}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
+
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 2, "speed": 1000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 13}
 
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 12000, "direction":-1, "endstoppolarity":1}]}}
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 15000, "direction":-1, "endstoppolarity":1}]}}
 
 {"task": "/laser_act", "LASERid":1, "LASERval": 0}
@@ -200,9 +237,20 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/wifi/scan"}
 {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 
+		{"task": "/objective_get"}	
+		{"task":"/objective_act","calibrate":1}
+		{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
+		{"task":"/objective_act","toggle":1, "speed": 26000, "accel": 400000} 			toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
+		{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
+		{"task":"/objective_act","x1":  10000, "x2": 80000} set explicit positions (in steps )
+		{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
+		{"task":"/objective_act","z1": 20, "z2": 200}	set current position as z1 and explicit position for z2
+		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
+		{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
 
 
-{"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
+
+{"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":255, "b":255}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":0}]}}
 {"task":"/ledarr_act", "led":{"LEDArrMode":0, "led_array":[{"id":0, "r":0, "g":5, "b":0}]}}
 
@@ -284,6 +332,29 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 256, "dStepsLine": 25, "nStepsPixel": 256, "dStepsPixel": 25, "delayTimeStep": 25, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
+    			{ "task": "/motor_act", "focusscan": { "zStart": 0, "zStep": 50, "nZ": 20, "tPre": 50, "tTrig": 20, "tPost": 50, "led": 255, "illumination": [0, 0, 0, 0], "speed": 20000, "acceleration": 1000000, "qid": 42 }}
+
+    {"task":"/ledarr_get"}
+		// { "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
+
+
+{"task": "/can_act", "restart": 10, "qid":1}
+{'task': '/can_act', 'restart': 13}
+{"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}
+{"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
+			// parse illumination array
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 10, "tPost": 100, "illumination": [0, 255, 255, 0], "led": 0}}
+			{"task": "/motor_act", "stagescan": {"stopped": 1}}
+			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 150, "tPost": 150, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
+			
+
 
 {"task":"/state_get", "heap":1}
 {"task": "/ledarr_act", "led": {"LEDArrMode": 0, "led_array": [{"id": 28, "r": 18, "g": 6, "b": 28}, {"id": 29, "r": 14, "g": 47, "b": 5}, {"id": 30, "r": 2, "g": 31, "b": 24}, {"id": 31, "r": 53, "g": 8, "b": 50}, {"id": 32, "r": 1, "g": 15, "b": 14}, {"id": 33, "r": 19, "g": 18, "b": 39}, {"id": 34, "r": 44, "g": 22, "b": 29}, {"id": 35, "r": 4, "g": 38, "b": 9}, {"id": 36, "r": 1, "g": 28, "b": 54}, {"id": 37, "r": 37, "g": 43, "b": 22}, {"id": 38, "r": 14, "g": 27, "b": 27}, {"id": 39, "r": 22, "g": 10, "b": 49}, {"id": 40, "r": 32, "g": 29, "b": 39}, {"id": 41, "r": 14, "g": 2, "b": 41}, {"id": 42, "r": 39, "g": 37, "b": 35}, {"id": 43, "r": 26, "g": 44, "b": 32}, {"id": 44, "r": 45, "g": 19, "b": 53}, {"id": 45, "r": 44, "g": 26, "b": 37}, {"id": 46, "r": 40, "g": 28, "b": 11}, {"id": 47, "r": 9, "g": 4, "b": 23}, {"id": 48, "r": 41, "g": 22, "b": 31}, {"id": 49, "r": 10, "g": 5, "b": 46}, {"id": 50, "r": 48, "g": 39, "b": 52}, {"id": 51, "r": 33, "g": 15, "b": 26}, {"id": 52, "r": 50, "g": 19, "b": 44}, {"id": 53, "r": 34, "g": 18, "b": 35}, {"id": 54, "r": 6, "g": 0, "b": 39}, {"id": 55, "r": 6, "g": 26, "b": 43}]}, "qid": 2}
@@ -291,7 +362,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/modules_set", "modules" : {"dac" : 1}}
 {"task": "/laser_act", "LASERid":1, "LASERval": 500}
 {"task": "/laser_act", "LASERid":1, "LASERval": 0}
-{"task": "/laser_act", "LASERid":1, "LASERval": 1023}
+{"task": "/laser_act", "LASERid":1, "LASERval": 123}
 {"task":"/dac_act", "dac_channel":1, "frequency":2}
 {"task":"/motor_act",
     "motor":
@@ -309,11 +380,12 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 1000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 100000,  "isabs": 1}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 
-
+{"task": "/can_get"}
 
 {"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -30000, "speed": 20000, "isabs": 0.0, "accel": 1000000, "isen": true}]}, "qid": 8}
@@ -330,12 +402,15 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -40000, "speed": -10000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 0, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
-{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": 2000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+{"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": -2000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":1000000, "redu":1}]}}
 {"task":"/motor_act","qid":5, "motor":{"steppers": [{ "stepperid": 3, "position": 20000, "speed": 20000, "isabs": 1, "isaccel":1, "accel":10000}]}}
 
 {"task": "/encoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 20000} ]}}
 {"task":"/encoder_get", "encoder": { "posval": 1,    "id": 1  }}
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -40000, "speed": -10000, "isabs": 0, "isaccel":1, "accel":10000}]}}
+
+{"tasks":[{"task":"/state_act", "delay":1000},{"task":"/state_act", "restart":1}], "nTimes":2}
+
 
 {"task":"/motor_act",
     "motor":
@@ -350,7 +425,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 {"task":"/motor_act","qid":4, "motor":{"steppers": [{ "stepperid": 2, "position": -20000, "speed": -20000, "isabs": 0, "isaccel":1, "accel":10000}]}}
 
-{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 3, "position": -100, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}, { "stepperid": 2, "position": -100, "speed": 150, "isabs": 0, "isaccel":0, "isen":1} ] } }
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 3, "position": -1000, "speed": 15000, "isabs": 0, "isaccel":0, "isen":1}, { "stepperid": 2, "position": -100, "speed": 150, "isabs": 0, "isaccel":0, "isen":1} ] } }
 
 			{"task":"/motor_act", "setaxis": {"steppers": [{"stepperid": 1, "stepperaxis": 3}]}}
 
@@ -423,7 +498,7 @@ gives
 	// {"task":"/state_act", "resetPreferences":1}
 	{"task":"/state_act", "debug":4} // 0-5
 
-
+ƒ
 
 
 # XIAO

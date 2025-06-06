@@ -16,8 +16,10 @@
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
 #define OBJECTIVE_CONTROLLER=1
-
+#define STAGE_SCAN=1
+#define CAN_MASTER
 #define MOTOR_AXIS_COUNT 10   
+#define LED_CONTROLLER
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*
@@ -27,6 +29,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      const char * pindefName = "UC2_3_CAN_HAT_Master";
      const unsigned long BAUDRATE = 115200;
 
+     bool DEBUG_CAN_ISO_TP = 0;
      int8_t MOTOR_A_STEP = GPIO_NUM_0;
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;
@@ -64,10 +67,12 @@ struct UC2_3_CAN_HAT_Master : PinConfig
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
-     int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
-     int8_t JOYSTICK_MAX_ILLU = 100;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
+     int8_t JOYSTICK_MAX_ILLU = 255;
+     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
      
+     int8_t CAMERA_TRIGGER_PIN = 27;
+     bool CAMERA_TRIGGER_INVERTED = false; // true = inverted, false = normal
      // for caliper
      int8_t ENC_X_A = disabled;
      int8_t ENC_Y_A = disabled;
@@ -76,6 +81,10 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_B = disabled;
 
+
+     const int32_t MAX_ACCELERATION_A = 600000;
+     const int32_t DEFAULT_ACCELERATION = 100000;
+     
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = GPIO_NUM_21;
@@ -104,5 +113,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t objectiveHomeDirection = -1;
      int8_t objectiveHomeEndStopPolarity = 0;
 			
+     // Emergency stop
+     uint8_t pinEmergencyExit = GPIO_NUM_34;
 };
 const UC2_3_CAN_HAT_Master pinConfig;

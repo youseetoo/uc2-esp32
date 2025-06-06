@@ -65,7 +65,7 @@ namespace LaserController
 		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
 		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
 		bool hasLASERval = cJSON_HasObjectItem(ob, "LASERval"); // check if ob contains the key "LASERval"
-		bool isServo = cJSON_HasObjectItem(ob, "servo");		// check if ob contains the key "LASERRes"
+		bool isServo = cJSON_HasObjectItem(ob, "servo"); // check if ob contains the key "servo"
 
 		// assign values
 		int LASERid = 0;
@@ -79,20 +79,15 @@ namespace LaserController
 		LASERdespecklePeriod = cJsonTool::getJsonInt(ob, "LASERdespecklePeriod");
 
 
-		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
 		laserData.LASERdespeckle = LASERdespeckle;
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
+		#ifdef I2C_LASER
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		return qid; 
 		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
-		LaserData laserData;
-		laserData.LASERid = LASERid;
-		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = LASERdespeckle;
-		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		can_controller::sendLaserDataToCANDriver(laserData);
 		return qid;
 		#else
@@ -179,7 +174,7 @@ namespace LaserController
 				pwm_frequency = 50;
 				pwm_resolution = 16;
 
-				configurePWM(pinConfig.LASER_2, pwm_frequency, PWM_CHANNEL_LASER_2, pwm_frequency);
+				configurePWM(pinConfig.LASER_2, pwm_resolution, PWM_CHANNEL_LASER_2, pwm_frequency);
 				moveServo(PWM_CHANNEL_LASER_2, LASERval, pwm_frequency, pwm_resolution);
 			}
 			else
@@ -203,7 +198,7 @@ namespace LaserController
 				pwm_frequency = 50;
 				pwm_resolution = 16;
 
-				configurePWM(pinConfig.LASER_3, pwm_frequency, PWM_CHANNEL_LASER_3, pwm_frequency);
+				configurePWM(pinConfig.LASER_3, pwm_resolution, PWM_CHANNEL_LASER_3, pwm_frequency);
 				moveServo(PWM_CHANNEL_LASER_3, LASERval, pwm_frequency, pwm_resolution);
 			}
 			else
@@ -248,6 +243,32 @@ namespace LaserController
 		}
 		#endif
 	}
+
+		void applyLaserValue(const LaserData& laserData)
+	{
+		#ifdef I2C_LASER
+			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
+		#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_LASER)
+			can_controller::sendLaserDataToCANDriver(laserData);
+		#else
+			int pwmChannel = -1;
+			int value = laserData.LASERval;
+			switch (laserData.LASERid)
+			{
+				case 0: LASER_val_0 = value; pwmChannel = PWM_CHANNEL_LASER_0; break;
+				case 1: LASER_val_1 = value; pwmChannel = PWM_CHANNEL_LASER_1; break;
+				case 2: LASER_val_2 = value; pwmChannel = PWM_CHANNEL_LASER_2; break;
+				case 3: LASER_val_3 = value; pwmChannel = PWM_CHANNEL_LASER_3; break;
+				default: log_w("Invalid LASERid: %d", laserData.LASERid); return;
+			}
+
+			if (pwmChannel != -1)
+			{
+				setPWM(value, pwmChannel);
+			}
+		#endif
+	}
+
 
 	bool setLaserVal(int LASERid, int LASERval)
 	{
@@ -347,14 +368,14 @@ namespace LaserController
 	bool laser2_on = false;
 	void dpad_changed_event(Dpad::Direction pressed)
 	{
-		if (pressed == Dpad::Direction::up && !laser_on) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
+		if (pressed == Dpad::Direction::up) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
 		{
 			// Switch laser 2 on/off on up/down button press
 			log_d("Turning on LAser 10000");
 			LaserController::setLaserVal(1, 10000);
 			laser_on = true;
 		}
-		if (pressed == Dpad::Direction::down && laser_on)
+		if (pressed == Dpad::Direction::down)
 		{
 			log_d("Turning off LAser ");
 			LaserController::setLaserVal(1, 0);
@@ -363,28 +384,31 @@ namespace LaserController
 
 		// LASER 2
 		// switch laser 2 on/off on triangle/square button press
-		if (pressed == Dpad::Direction::right && !laser2_on)
+		if (pressed == Dpad::Direction::right)
 		{
 			log_d("Turning on LAser 2 10000");
 			LaserController::setLaserVal(2, 10000);
 			laser2_on = true;
 		}
-		if (pressed == Dpad::Direction::left && laser2_on)
+		if (pressed == Dpad::Direction::left)
 		{
 			log_d("Turning off LAser ");
-			Serial.println("Turning off LAser ");
 			LaserController::setLaserVal(2, 0);
 			laser2_on = false;
 		}
 	}
+	
 	void moveServo(int ledChannel, int angle, int frequency, int resolution)
 	{
+		// { "task": "/laser_act", "LASERid": 1, "LASERval": 170, "servo": 1, "qid": 1 }
+
 		// Map the angle to the corresponding pulse width
 		int pulseWidth = map(angle, 0, 180, minPulseWidth, maxPulseWidth);
 		// Convert the pulse width to a duty cycle value
 		int dutyCycle = map(pulseWidth, 0, 1000000 / frequency, 0, (1 << resolution) - 1);
 		// Write the duty cycle to the LEDC channel
 		ledcWrite(ledChannel, dutyCycle);
+		delay(100); // Wait for the servo to reach the position
 	}
 
 	void configurePWM(int servoPin, int resolution, int ledChannel, int frequency)
@@ -424,13 +448,13 @@ namespace LaserController
 	void setup()
 	{
 		log_i("Setting Up LASERs");
-
+		bool testOnBoot = false;
 		// Setting up the differen PWM channels for the laser
 		log_i("Laser ID 1, pin: %i", pinConfig.LASER_1);
 		pinMode(pinConfig.LASER_1, OUTPUT);
 		digitalWrite(pinConfig.LASER_1, LOW);
 		setupLaser(pinConfig.LASER_1, PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-		setLaserVal(1, 10000);
+		if(testOnBoot) setLaserVal(1, 100); // THIS IS ANTI LASERSAFETY!
 		delay(10);
 		setLaserVal(1, 0);
 
@@ -438,7 +462,7 @@ namespace LaserController
 		pinMode(pinConfig.LASER_2, OUTPUT);
 		digitalWrite(pinConfig.LASER_2, LOW);
 		setupLaser(pinConfig.LASER_2, PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-		setLaserVal(2, 10000);
+		if(testOnBoot) setLaserVal(2, 100);
 		delay(10);
 		setLaserVal(2, 0);
 
@@ -446,11 +470,11 @@ namespace LaserController
 		pinMode(pinConfig.LASER_3, OUTPUT);
 		digitalWrite(pinConfig.LASER_3, LOW);
 		setupLaser(pinConfig.LASER_3, PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-		setLaserVal(3, 10000);
+		if(testOnBoot) setLaserVal(3, 100);
 		delay(10);
 		setLaserVal(3, 0);
 
-#ifdef HEAT_CONTROLLER
+
 		// Setting up the differen PWM channels for the heating unit
 		if (pinConfig.LASER_0 > 0)
 		{
@@ -458,12 +482,11 @@ namespace LaserController
 			pinMode(pinConfig.LASER_0, OUTPUT);
 			digitalWrite(pinConfig.LASER_0, LOW);
 			setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
-			setLaserVal(0, 10000);
+			if(testOnBoot) setLaserVal(0, 100);
 			delay(10);
 			setLaserVal(0, 0);
 			
 		}
-#endif
 	}
 
 	void loop()

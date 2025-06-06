@@ -15,7 +15,7 @@
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
-
+#define OBJECTIVE_CONTROLLER=1
 struct UC2_3_CANMaster : PinConfig
 {
      /*

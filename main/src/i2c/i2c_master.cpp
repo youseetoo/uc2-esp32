@@ -176,7 +176,7 @@ namespace i2c_master
         }
     }
 
-    void startStepper(MotorData *data, int axis, bool reduced)
+    void startStepper(MotorData *data, int axis, int reduced)
     {
         if (data != nullptr)
         {
@@ -608,7 +608,7 @@ namespace i2c_master
                 // we want to start a motor no matter if it's connected via I2C or natively
                 log_i("Motor %i: Drive to position %i, at speed %i, stopped %i", mStepper, FocusMotor::getData()[mStepper]->targetPosition, FocusMotor::getData()[mStepper]->speed, FocusMotor::getData()[mStepper]->stopped);
                 // start the motor depending on the motor type
-                FocusMotor::startStepper(mStepper, false);
+                FocusMotor::startStepper(mStepper, 0);
                 // update the old dial data
                 if (iMotor == 0)
                     mDialDataOld.pos_a = position2go;

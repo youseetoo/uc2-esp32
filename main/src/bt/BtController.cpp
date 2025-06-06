@@ -13,6 +13,8 @@ namespace BtController
 {
     GamePadData lastData;
 
+    void (*options_changed_event)(int pressed);
+    void (*share_changed_event)(int pressed);
     void (*cross_changed_event)(int pressed);
     void (*circle_changed_event)(int pressed);
     void (*triangle_changed_event)(int pressed);
@@ -34,6 +36,18 @@ namespace BtController
     void setCrossChangedEvent(void (*cross_changed_event1)(int pressed))
     {
         cross_changed_event = cross_changed_event1;
+    }
+
+    void setShareChangedEvent(void (*share_changed_event1)(int pressed))
+    {
+        log_i("setShareChangedEvent");
+        share_changed_event = share_changed_event1;
+    }
+    
+    void setOptionsChangedEvent(void (*options_changed_event1)(int pressed))
+    {
+        log_i("setOptionsChangedEvent");
+        options_changed_event = options_changed_event1;
     }
 
     void setCircleChangedEvent(void (*circle_changed_event1)(int pressed))
@@ -140,6 +154,8 @@ namespace BtController
             checkdata(lastData.circle, gamePadData.circle, circle_changed_event);
             checkdata(lastData.triangle, gamePadData.triangle, triangle_changed_event);
             checkdata(lastData.square, gamePadData.square, square_changed_event);
+            checkdata(lastData.options, gamePadData.options, options_changed_event);
+            checkdata(lastData.share, gamePadData.share, share_changed_event);
             if(lastData.dpaddirection != gamePadData.dpaddirection)
             {
                 lastData.dpaddirection = gamePadData.dpaddirection;
@@ -186,6 +202,8 @@ namespace BtController
             checkdata(lastData.circle, psx->event.button_down.circle, circle_changed_event);
             checkdata(lastData.triangle, psx->event.button_down.triangle, triangle_changed_event);
             checkdata(lastData.square, psx->event.button_down.square, square_changed_event);
+            checkdata(lastData.options, psx->event.button_down.options, options_changed_event);
+            checkdata(lastData.share, psx->event.button_down.share, share_changed_event);
             Dpad::Direction dir;
             if (psx->event.button_down.up)
                 dir = Dpad::Direction::up;

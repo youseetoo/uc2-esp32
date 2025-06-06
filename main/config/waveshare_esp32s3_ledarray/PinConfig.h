@@ -1,13 +1,14 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
+
 #undef PSXCONTROLLER
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
 #define LED_CONTROLLER
-
+#define WAVESHARE_ESP32S3_LEDARRAY
 struct waveshare_esp32s3_ledarray : PinConfig
 {
      /*
@@ -44,7 +45,9 @@ struct waveshare_esp32s3_ledarray : PinConfig
      int8_t LED_PIN = GPIO_NUM_14;
      int8_t LED_COUNT = 64;
 
-     bool dumpHeap = true; 
+     bool dumpHeap = false; 
+
+     const uint16_t serialTimeout = 100;
 };
   
 const waveshare_esp32s3_ledarray pinConfig;

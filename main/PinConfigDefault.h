@@ -25,6 +25,7 @@ available modules. to enable a module define them inside your config
 #define PID_CONTROLLER
 #define SCANNER_CONTROLLER
 #define WIFI
+
 */
 
 /*
@@ -72,6 +73,7 @@ struct PinConfig
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 1024;
+     const uint16_t STAGESCAN_TASK_STACKSIZE = 4* 2048;
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2* 2048; // Don't go below 2048
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 2048; // TODO check if this is ending in stackoverflow
@@ -82,9 +84,10 @@ struct PinConfig
      const uint16_t SCANNER_TASK_STACKSIZE = 10000;
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; // 8096;
      const unsigned long BAUDRATE = 115200;
-
+     const uint16_t serialTimeout = 50;
      const char *pindefName = "pindef";
 
+     bool DEBUG_CAN_ISO_TP = 0;
      // see AccelStepper.h MotorInterfaceType
      /*
      typedef enum
@@ -163,6 +166,9 @@ struct PinConfig
      // LED_PINcount from the strip
      int8_t LED_COUNT = disabled;
 
+     const uint8_t  MATRIX_W   = 8;    // width
+     const uint8_t  MATRIX_H   = 8;    // height
+ 
      // anlog joystick x pin
      int8_t ANLOG_JOYSTICK_X = disabled;
      // analog joystick y pin
@@ -177,6 +183,8 @@ struct PinConfig
      int8_t DIGITAL_OUT_2 = disabled;
      int8_t DIGITAL_OUT_3 = disabled;
 
+     int8_t CAMERA_TRIGGER_PIN = disabled; 
+     bool CAMERA_TRIGGER_INVERTED = false;
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;
@@ -315,7 +323,12 @@ struct PinConfig
     uint8_t CAN_ID_LASER_2 = 22;
     uint8_t CAN_ID_LASER_3 = 23;
 
+    uint8_t CAN_ID_LED_0 = 30;
+
+    uint8_t CAN_ID_GALVO_0 = 40;
 
 
+     // Emergency stop
+     int8_t pinEmergencyExit = disabled;
 
 };

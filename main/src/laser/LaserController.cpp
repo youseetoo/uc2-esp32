@@ -448,13 +448,13 @@ namespace LaserController
 	void setup()
 	{
 		log_i("Setting Up LASERs");
-
+		bool testOnBoot = false;
 		// Setting up the differen PWM channels for the laser
 		log_i("Laser ID 1, pin: %i", pinConfig.LASER_1);
 		pinMode(pinConfig.LASER_1, OUTPUT);
 		digitalWrite(pinConfig.LASER_1, LOW);
 		setupLaser(pinConfig.LASER_1, PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-		setLaserVal(1, 100);
+		if(testOnBoot) setLaserVal(1, 100); // THIS IS ANTI LASERSAFETY!
 		delay(10);
 		setLaserVal(1, 0);
 
@@ -462,7 +462,7 @@ namespace LaserController
 		pinMode(pinConfig.LASER_2, OUTPUT);
 		digitalWrite(pinConfig.LASER_2, LOW);
 		setupLaser(pinConfig.LASER_2, PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-		setLaserVal(2, 100);
+		if(testOnBoot) setLaserVal(2, 100);
 		delay(10);
 		setLaserVal(2, 0);
 
@@ -470,7 +470,7 @@ namespace LaserController
 		pinMode(pinConfig.LASER_3, OUTPUT);
 		digitalWrite(pinConfig.LASER_3, LOW);
 		setupLaser(pinConfig.LASER_3, PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-		setLaserVal(3, 100);
+		if(testOnBoot) setLaserVal(3, 100);
 		delay(10);
 		setLaserVal(3, 0);
 
@@ -482,7 +482,7 @@ namespace LaserController
 			pinMode(pinConfig.LASER_0, OUTPUT);
 			digitalWrite(pinConfig.LASER_0, LOW);
 			setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
-			setLaserVal(0, 100);
+			if(testOnBoot) setLaserVal(0, 100);
 			delay(10);
 			setLaserVal(0, 0);
 			

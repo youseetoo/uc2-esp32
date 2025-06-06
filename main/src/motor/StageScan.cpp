@@ -305,8 +305,8 @@ namespace StageScan
         }
 
         // move back to the original position
-        moveAbs(Stepper::X, currentPosX, key_speed, key_acceleration, 0); // give it some time to move back
-        moveAbs(Stepper::Y, currentPosY, key_speed, key_acceleration,0);
+        //moveAbs(Stepper::X, currentPosX, key_speed, key_acceleration, 0); // give it some time to move back
+        //moveAbs(Stepper::Y, currentPosY, key_speed, key_acceleration,0);
         // Send a message over serial to indicate we are done
         cJSON *json = cJSON_CreateObject();
         cJSON *stagescan = cJSON_CreateObject();

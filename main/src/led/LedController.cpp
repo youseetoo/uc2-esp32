@@ -333,7 +333,7 @@ namespace LedController
 		// Get ring parameters
 		uint16_t start_idx = 0;
 		uint16_t count = 0;
-
+		log_i("drawIlluminationRingSegment: ring_id=%d, region=%s, r=%d, g=%d, b=%d", ring_id, region, r, g, b);
 		switch (ring_id) {
 			case 0: start_idx = 0; count = 20; break;   // Inner ring
 			case 1: start_idx = 20; count = 28; break;  // Middle ring  
@@ -420,9 +420,10 @@ namespace LedController
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 1, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
+		// { "task": "/ledarr_act", "qid": 17, "led"}
 
 		// 1) Check for "task"
 		cJSON *task = cJSON_GetObjectItem(root, "task");
@@ -781,8 +782,10 @@ namespace LedController
 	{
 
 #ifndef HUB75
-#ifdef CAN_CONTROLLER &&defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
-
+// only on the HAT MAster => Glow or show status
+if( pinConfig.pindefName && 
+	strcmp(pinConfig.pindefName, "UC2_3_CAN_HAT_Master") == 0 )	
+{
 		// Determine color based on currentLedForStatus
 		uint32_t color = 0;
 		// Fade the brightnessLoop up/down
@@ -833,10 +836,9 @@ namespace LedController
 			}
 			matrix->show();
 		}
-
-#endif // CAN_CONTROLLER && CAN_MASTER && !CAN_SLAVE_LED
-#endif // HUB75
 	}
+#endif // HUB75
+}
 
 #ifdef HUB75
 	uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b)

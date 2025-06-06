@@ -115,7 +115,7 @@ namespace StageScan
         // Check if we should use coordinate-based scanning
         if (stageScanningData.useCoordinates && stageScanningData.coordinates != nullptr)
         {
-            // Coordinate-based scanning
+            // Coordinate-based scanning using CAN/I2C motor abstraction
             for (int iFrame = 0; iFrame < nFrames; iFrame++)
             {
                 if (stageScanningData.stopped)
@@ -138,27 +138,30 @@ namespace StageScan
                         break;
                     }
 
-                    // Calculate steps needed to reach target coordinate
+                    // Move to target coordinate using FocusMotor interface (supports CAN/I2C/GPIO)
                     int targetX = stageScanningData.coordinates[i].x;
                     int targetY = stageScanningData.coordinates[i].y;
-                    
-                    int currentX = FocusMotor::getData()[Stepper::X]->currentPosition;
-                    int currentY = FocusMotor::getData()[Stepper::Y]->currentPosition;
-                    
-                    int stepsX = targetX - currentX;
-                    int stepsY = targetY - currentY;
 
-                    // Move to coordinate
-                    if (stepsX != 0)
+                    // Move X axis to target position
+                    if (targetX != FocusMotor::getData()[Stepper::X]->currentPosition)
                     {
-                        moveMotor(pinStpPixel, pinDirPixel, abs(stepsX), stepsX > 0, delayTimeStep);
-                        FocusMotor::getData()[Stepper::X]->currentPosition += stepsX;
+                        FocusMotor::moveMotor(targetX, Stepper::X, false); // absolute positioning
+                        // Wait for X motor to complete movement
+                        while (FocusMotor::isRunning(Stepper::X))
+                        {
+                            delay(1);
+                        }
                     }
                     
-                    if (stepsY != 0)
+                    // Move Y axis to target position
+                    if (targetY != FocusMotor::getData()[Stepper::Y]->currentPosition)
                     {
-                        moveMotor(pinStpLine, pinDirLine, abs(stepsY), stepsY > 0, delayTimeStep);
-                        FocusMotor::getData()[Stepper::Y]->currentPosition += stepsY;
+                        FocusMotor::moveMotor(targetY, Stepper::Y, false); // absolute positioning
+                        // Wait for Y motor to complete movement
+                        while (FocusMotor::isRunning(Stepper::Y))
+                        {
+                            delay(1);
+                        }
                     }
 
                     // Trigger camera at this position
@@ -169,22 +172,22 @@ namespace StageScan
                 }
 
                 // Return to start position
-                int currentX = FocusMotor::getData()[Stepper::X]->currentPosition;
-                int currentY = FocusMotor::getData()[Stepper::Y]->currentPosition;
-                
-                int returnStepsX = startX - currentX;
-                int returnStepsY = startY - currentY;
-                
-                if (returnStepsX != 0)
+                if (startX != FocusMotor::getData()[Stepper::X]->currentPosition)
                 {
-                    moveMotor(pinStpPixel, pinDirPixel, abs(returnStepsX), returnStepsX > 0, delayTimeStep);
-                    FocusMotor::getData()[Stepper::X]->currentPosition += returnStepsX;
+                    FocusMotor::moveMotor(startX, Stepper::X, false); // absolute positioning
+                    while (FocusMotor::isRunning(Stepper::X))
+                    {
+                        delay(1);
+                    }
                 }
                 
-                if (returnStepsY != 0)
+                if (startY != FocusMotor::getData()[Stepper::Y]->currentPosition)
                 {
-                    moveMotor(pinStpLine, pinDirLine, abs(returnStepsY), returnStepsY > 0, delayTimeStep);
-                    FocusMotor::getData()[Stepper::Y]->currentPosition += returnStepsY;
+                    FocusMotor::moveMotor(startY, Stepper::Y, false); // absolute positioning
+                    while (FocusMotor::isRunning(Stepper::Y))
+                    {
+                        delay(1);
+                    }
                 }
 
                 triggerOutput(pinTrigFrame, 0);

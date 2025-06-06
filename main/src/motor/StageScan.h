@@ -6,9 +6,16 @@
 namespace StageScan
 {
     static bool isRunning = false;
+    
+    struct StagePosition
+    {
+        int x;
+        int y;
+    };
+
     struct StageScanningData
     {
-
+        // Grid-based scanning parameters
         int nStepsLine = 100;
         int dStepsLine = 1;
         int nTriggerLine = 1;
@@ -19,6 +26,11 @@ namespace StageScan
         int stopped = 0;
         int nFrames = 1;
         int qid = -1; // query id for the task
+        
+        // Coordinate-based scanning parameters
+        bool useCoordinates = false;
+        StagePosition* coordinates = nullptr;
+        int coordinateCount = 0;
         
 #if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
         int32_t xStart = 0;
@@ -42,5 +54,7 @@ namespace StageScan
     void stageScan(bool isThread = false);
     void stageScanCAN(bool isThread = false);
     StageScanningData *getStageScanData();
-
+    
+    void setCoordinates(StagePosition* coords, int count);
+    void clearCoordinates();
 };

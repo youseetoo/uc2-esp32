@@ -5,6 +5,10 @@
 #include "FocusScan.h"
 #endif
 
+#ifdef STAGE_SCAN
+#include "StageScan.h"
+#endif
+
 namespace MotorJsonParser
 {
 
@@ -105,133 +109,199 @@ namespace MotorJsonParser
 	}
 
 #ifdef STAGE_SCAN
-	void parseStageScan(cJSON *doc)
-	{
-		// set trigger
-		cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
-		// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
-		// {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
-		// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
-		// {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
-		// {"task": "/motor_get"}
-		if (settrigger != NULL)
-		{
-			log_d("settrigger");
-			cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
-			if (stprs != NULL)
-			{
+    void parseStageScan(cJSON *doc)
+    {
+        // set trigger
+        cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
+        // {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
+        // {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
+        // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+        // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
+        // {"task": "/motor_get"}
+        if (settrigger != NULL)
+        {
+            log_d("settrigger");
+            cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
+            if (stprs != NULL)
+            {
 
-				cJSON *stp = NULL;
-				cJSON_ArrayForEach(stp, stprs)
-				{
-					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-					FocusMotor::getData()[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
-					FocusMotor::getData()[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
-					FocusMotor::getData()[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
-					log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
-					log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
-					log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
-				}
-			}
-		}
+                cJSON *stp = NULL;
+                cJSON_ArrayForEach(stp, stprs)
+                {
+                    Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+                    FocusMotor::getData()[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
+                    FocusMotor::getData()[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
+                    FocusMotor::getData()[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
+                    log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
+                    log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
+                    log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
+                }
+            }
+        }
 
-		// start independent stageScan
-		//
-		cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
-		if (stagescan != NULL)
-		{
-			StageScan::getStageScanData()->stopped = cJsonTool::getJsonInt(stagescan, "stopped");
-			if (StageScan::getStageScanData()->stopped)
-			{
-				log_i("stagescan stopped");
-				return;
-			}
+        // start independent stageScan
+        //
+        cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
+        if (stagescan != NULL)
+        {
+            StageScan::getStageScanData()->stopped = cJsonTool::getJsonInt(stagescan, "stopped");
+            if (StageScan::getStageScanData()->stopped)
+            {
+                log_i("stagescan stopped");
+                return;
+            }
 #if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
-			// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50}}
-			StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
-			StageScan::getStageScanData()->yStart = cJsonTool::getJsonInt(stagescan, "yStart");
-			StageScan::getStageScanData()->xStep = cJsonTool::getJsonInt(stagescan, "xStep");
-			StageScan::getStageScanData()->yStep = cJsonTool::getJsonInt(stagescan, "yStep");
-			StageScan::getStageScanData()->nX = cJsonTool::getJsonInt(stagescan, "nX");
-			StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
-			StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
-			StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
-			StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig");
-			StageScan::getStageScanData()->speed = max(cJsonTool::getJsonInt(stagescan, "speed"), 20000);				  // ensure speed is at least 20000
-			StageScan::getStageScanData()->acceleration = max(cJsonTool::getJsonInt(stagescan, "acceleration"), 1000000); // ensure acceleration is at least 1000000
-			StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid");
-			bool shouldStop = cJsonTool::getJsonInt(stagescan, "stopped");
-			/*
-			// parse illumination array
-			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
-			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 10, "tPost": 100, "illumination": [0, 255, 255, 0], "led": 0}}
-			{"task": "/motor_act", "stagescan": {"stopped": 1}}
-			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 1000, "yStep": 1500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "tTrig": 20, "illumination": [0, 0, 0, 0], "led": 255, "speed":20000, "acceleration": 1000000}}
-			
-			*/
-			// extract the illumination array
-			if (shouldStop)
-			{
-				log_i("stagescan stopped");
-				StageScan::getStageScanData()->stopped = 1;
-				return;
-			}
-			if (StageScan::isRunning)
-			{
-				log_i("stagescan already running");
-				return;
-			}
-			StageScan::getStageScanData()->stopped = 0;
-			cJSON *illumination = cJSON_GetObjectItem(stagescan, "illumination");
-			if (illumination != NULL)
-			{
-				log_i("illumination array found");
-				for (int i = 0; i < 4; i++)
-				{
-					cJSON *item = cJSON_GetArrayItem(illumination, i);
-					if (item != NULL)
-					{
-						StageScan::getStageScanData()->lightsourceIntensities[i] = item->valueint;
-						log_i("illumination %i: %i", i, StageScan::getStageScanData()->lightsourceIntensities[i]);
-					}
-					else
-					{
-						log_i("illumination %i not found", i);
-						StageScan::getStageScanData()->lightsourceIntensities[i] = 0;
-					}
+            // CAN-based stage scanning with grid parameters
+            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50}}
+            StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
+            StageScan::getStageScanData()->yStart = cJsonTool::getJsonInt(stagescan, "yStart");
+            StageScan::getStageScanData()->xStep = cJsonTool::getJsonInt(stagescan, "xStep");
+            StageScan::getStageScanData()->yStep = cJsonTool::getJsonInt(stagescan, "yStep");
+            StageScan::getStageScanData()->nX = cJsonTool::getJsonInt(stagescan, "nX");
+            StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
+            StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
+            StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
+            StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig");
+            StageScan::getStageScanData()->speed = max(cJsonTool::getJsonInt(stagescan, "speed"), 20000);
+            StageScan::getStageScanData()->acceleration = max(cJsonTool::getJsonInt(stagescan, "acceleration"), 1000000);
+            StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid");
+            StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+            
+            // Check for coordinate-based scanning
+			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
+            cJSON *coordinates = cJSON_GetObjectItem(stagescan, "coordinates");
+            if (coordinates != NULL && cJSON_IsArray(coordinates))
+            {
+				log_i("coordinates array found");
+                int coordinateCount = cJSON_GetArraySize(coordinates);
+                if (coordinateCount > 0)
+                {
+					log_i("Using coordinate-based scanning with %d positions", coordinateCount);
+                    StageScan::StagePosition* positions = new StageScan::StagePosition[coordinateCount];
+                    
+                    for (int i = 0; i < coordinateCount; i++)
+                    {
+                        cJSON *coord = cJSON_GetArrayItem(coordinates, i);
+						log_i("Coordinate %d: x=%d, y=%d", i, cJsonTool::getJsonInt(coord, "x"), cJsonTool::getJsonInt(coord, "y"));
+                        if (coord != NULL)
+                        {
+                            positions[i].x = cJsonTool::getJsonInt(coord, "x");
+                            positions[i].y = cJsonTool::getJsonInt(coord, "y");
+                        }
+                    }
+                    
+                    StageScan::setCoordinates(positions, coordinateCount);
+                    delete[] positions; // setCoordinates makes its own copy
+                    log_i("Coordinate-based scanning enabled with %d positions", coordinateCount);
+                }
+				else{
+					log_i("No coordinates found, using grid-based scanning");
 				}
 			}
-			// parse led array
-			// extract the led array
-			StageScan::getStageScanData()->ledarrayIntensity = cJsonTool::getJsonInt(stagescan, "led");
-			log_i("StageScan xStart: %d, yStart: %d, xStep: %d, yStep: %d, nX: %d, nY: %d, tPre: %d, tPost: %d, speed: %d, acceleration: %d, ledarray: %d, stopped: %d, isrunning: %d",
-				  StageScan::getStageScanData()->xStart,
-				  StageScan::getStageScanData()->yStart,
-				  StageScan::getStageScanData()->xStep,
-				  StageScan::getStageScanData()->yStep,
-				  StageScan::getStageScanData()->nX,
-				  StageScan::getStageScanData()->nY,
-				  StageScan::getStageScanData()->delayTimePreTrigger,
-				  StageScan::getStageScanData()->delayTimePostTrigger,
-				  StageScan::getStageScanData()->speed,
-				  StageScan::getStageScanData()->acceleration,
-				  StageScan::getStageScanData()->ledarrayIntensity,
-				  StageScan::getStageScanData()->stopped, 
-				  StageScan::isRunning);
+            else
+            {
+                // Clear any existing coordinates to use grid-based scanning
+                StageScan::clearCoordinates();
+				log_i("Using grid-based scanning");
+            }
+            
+            bool shouldStop = cJsonTool::getJsonInt(stagescan, "stopped");
+            if (shouldStop)
+            {
+                log_i("stagescan stopped");
+                StageScan::getStageScanData()->stopped = 1;
+                return;
+            }
+            if (StageScan::isRunning)
+            {
+                log_i("stagescan already running");
+                return;
+            }
+            StageScan::getStageScanData()->stopped = 0;
+            
+            // Parse illumination array
+            cJSON *illumination = cJSON_GetObjectItem(stagescan, "illumination");
+            if (illumination != NULL)
+            {
+                log_i("illumination array found");
+                for (int i = 0; i < 4; i++)
+                {
+                    cJSON *item = cJSON_GetArrayItem(illumination, i);
+                    if (item != NULL)
+                    {
+                        StageScan::getStageScanData()->lightsourceIntensities[i] = item->valueint;
+                        log_i("illumination %i: %i", i, StageScan::getStageScanData()->lightsourceIntensities[i]);
+                    }
+                    else
+                    {
+                        log_i("illumination %i not found", i);
+                        StageScan::getStageScanData()->lightsourceIntensities[i] = 0;
+                    }
+                }
+            }
+            
+            // Parse LED array
+            StageScan::getStageScanData()->ledarrayIntensity = cJsonTool::getJsonInt(stagescan, "led");
+            
+            log_i("StageScan xStart: %d, yStart: %d, xStep: %d, yStep: %d, nX: %d, nY: %d, tPre: %d, tPost: %d, speed: %d, acceleration: %d, ledarray: %d, stopped: %d, isrunning: %d, useCoordinates: %d",
+                  StageScan::getStageScanData()->xStart,
+                  StageScan::getStageScanData()->yStart,
+                  StageScan::getStageScanData()->xStep,
+                  StageScan::getStageScanData()->yStep,
+                  StageScan::getStageScanData()->nX,
+                  StageScan::getStageScanData()->nY,
+                  StageScan::getStageScanData()->delayTimePreTrigger,
+                  StageScan::getStageScanData()->delayTimePostTrigger,
+                  StageScan::getStageScanData()->speed,
+                  StageScan::getStageScanData()->acceleration,
+                  StageScan::getStageScanData()->ledarrayIntensity,
+                  StageScan::getStageScanData()->stopped, 
+                  StageScan::isRunning,
+                  StageScan::getStageScanData()->useCoordinates);
 
-			xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
-// StageScan::stageScanCAN();
+            xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
 #else
-			StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
-			StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
-			StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
-			StageScan::getStageScanData()->nStepsPixel = cJsonTool::getJsonInt(stagescan, "nStepsPixel");
-			StageScan::getStageScanData()->dStepsPixel = cJsonTool::getJsonInt(stagescan, "dStepsPixel");
-			StageScan::getStageScanData()->nTriggerPixel = cJsonTool::getJsonInt(stagescan, "nTriggerPixel");
-			StageScan::getStageScanData()->delayTimeStep = cJsonTool::getJsonInt(stagescan, "delayTimeStep");
-			StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
-			// xTaskCreate(stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, &TaskHandle_stagescan_t);
-			StageScan::stageScan();
+            // Non-CAN stage scanning with traditional grid parameters
+            StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
+            StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
+            StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
+            StageScan::getStageScanData()->nStepsPixel = cJsonTool::getJsonInt(stagescan, "nStepsPixel");
+            StageScan::getStageScanData()->dStepsPixel = cJsonTool::getJsonInt(stagescan, "dStepsPixel");
+            StageScan::getStageScanData()->nTriggerPixel = cJsonTool::getJsonInt(stagescan, "nTriggerPixel");
+            StageScan::getStageScanData()->delayTimeStep = cJsonTool::getJsonInt(stagescan, "delayTimeStep");
+            StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+            
+            // Check for coordinate-based scanning (also supported in non-CAN mode)
+            cJSON *coordinates = cJSON_GetObjectItem(stagescan, "coordinates");
+            if (coordinates != NULL && cJSON_IsArray(coordinates))
+            {
+                int coordinateCount = cJSON_GetArraySize(coordinates);
+                if (coordinateCount > 0)
+                {
+                    StageScan::StagePosition* positions = new StageScan::StagePosition[coordinateCount];
+                    
+                    for (int i = 0; i < coordinateCount; i++)
+                    {
+                        cJSON *coord = cJSON_GetArrayItem(coordinates, i);
+                        if (coord != NULL)
+                        {
+                            positions[i].x = cJsonTool::getJsonInt(coord, "x");
+                            positions[i].y = cJsonTool::getJsonInt(coord, "y");
+                        }
+                    }
+                    
+                    StageScan::setCoordinates(positions, coordinateCount);
+                    delete[] positions; // setCoordinates makes its own copy
+                    log_i("Coordinate-based scanning enabled with %d positions", coordinateCount);
+                }
+            }
+            else
+            {
+                // Clear any existing coordinates to use grid-based scanning
+                StageScan::clearCoordinates();
+            }
+            
+            xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
 #endif
 		}
 
@@ -291,6 +361,7 @@ namespace MotorJsonParser
 
 
 	}
+
 #endif
 
 	void parseEnableMotor(cJSON *doc)

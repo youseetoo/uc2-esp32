@@ -323,6 +323,72 @@ POST
 }
 ```
 
+#### Stage Scanning
+
+The motor_act endpoint also supports stage scanning functionality for automated XY stage movement with camera triggering.
+
+**Grid-based scanning** (original functionality):
+
+```json
+{
+    "task": "/motor_act",
+    "stagescan": {
+        "nStepsLine": 10,
+        "dStepsLine": 1,
+        "nTriggerLine": 1,
+        "nStepsPixel": 10,
+        "dStepsPixel": 1,
+        "nTriggerPixel": 1,
+        "delayTimeStep": 10,
+        "stopped": 0,
+        "nFrames": 1
+    }
+}
+```
+
+**Coordinate-based scanning** (new functionality):
+
+```json
+{
+    "task": "/motor_act",
+    "stagescan": {
+        "delayTimeStep": 10,
+        "stopped": 0,
+        "nFrames": 1,
+        "coordinates": [
+            {"x": 100, "y": 200},
+            {"x": 300, "y": 400},
+            {"x": 500, "y": 600}
+        ]
+    }
+}
+```
+
+Parameters:
+- `nStepsLine`: Number of steps in Y direction (grid mode)
+- `dStepsLine`: Step size in Y direction (grid mode)
+- `nStepsPixel`: Number of steps in X direction (grid mode)
+- `dStepsPixel`: Step size in X direction (grid mode)
+- `delayTimeStep`: Delay between steps in microseconds
+- `nFrames`: Number of complete scans to perform
+- `stopped`: Set to 1 to stop scanning
+- `coordinates`: Array of {x, y} positions for coordinate-based scanning
+- `nTriggerLine`, `nTriggerPixel`: Trigger settings for line and pixel
+
+When `coordinates` array is provided, the system will:
+1. Move to each coordinate position in sequence using absolute positioning
+2. Trigger the camera at each position
+3. Return to the starting position after completing all coordinates
+4. Repeat for the specified number of frames
+
+**CAN/I2C Integration:**
+The coordinate-based scanning uses the same motor control abstraction as regular motor commands, which means it automatically supports:
+- **CAN communication**: When `CAN_CONTROLLER` is defined, motor commands are sent via CAN to distributed motor controllers
+- **I2C communication**: When `I2C_MASTER` is defined, motor commands are sent via I2C to slave controllers
+- **Direct GPIO control**: Falls back to direct stepper control when neither CAN nor I2C is configured
+
+This allows coordinate-based scanning to work seamlessly in distributed UC2 systems where stage and illumination control is handled by separate CAN-connected devices.
+
 ### /motor_get
 
 *SERIAL*:

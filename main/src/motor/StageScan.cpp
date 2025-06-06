@@ -22,24 +22,26 @@ namespace StageScan
     {
         return &stageScanningData;
     }
-    
-    void setCoordinates(StagePosition* coords, int count)
+
+    void setCoordinates(StagePosition *coords, int count)
     {
         // Clear existing coordinates first
         clearCoordinates();
-        
+        log_i("Setting %d coordinates for stage scanning", count);
+
         if (coords != nullptr && count > 0)
         {
             stageScanningData.coordinates = new StagePosition[count];
             for (int i = 0; i < count; i++)
             {
+                log_i("Coordinate %d: x=%d, y=%d", i, coords[i].x, coords[i].y);
                 stageScanningData.coordinates[i] = coords[i];
             }
             stageScanningData.coordinateCount = count;
             stageScanningData.useCoordinates = true;
         }
     }
-    
+
     void clearCoordinates()
     {
         if (stageScanningData.coordinates != nullptr)
@@ -132,11 +134,16 @@ namespace StageScan
         while (1)
         {
             vTaskDelay(1);
-            if (d->stopped or FocusMotor::getData()[ax]->currentPosition == pos or (millis() - timeStart) > timeout)
+            if (d->stopped or FocusMotor::getData()[ax]->currentPosition == pos)
             { // !FocusMotor::isRunning(ax)){
                 // motor is running, we can break the loop
                 // Serial.println("Motor done, took us " + String(millis() - timeStart) + "ms");
                 break;
+            }
+            if (millis() - timeStart > timeout)
+            {
+                log_e("Timeout while moving axis %d to position %d", ax, pos);
+                break; // timeout reached
             }
             // Serial.println("Motor stopped"); //TODO: This is not working as expected - I guess status is not correct here
         }
@@ -146,14 +153,16 @@ namespace StageScan
     void stageScan(bool isThread)
     {
         FocusMotor::setEnable(true);
-        
+
         // Check if we should use coordinate-based scanning
+
         if (stageScanningData.useCoordinates && stageScanningData.coordinates != nullptr)
         {
             // Coordinate-based scanning using only camera trigger pin
             pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
             digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW);
-            
+
+            log_i("Starting coordinate-based stage scanning with %d coordinates", stageScanningData.coordinateCount);
             for (int iFrame = 0; iFrame < stageScanningData.nFrames; iFrame++)
             {
                 if (stageScanningData.stopped)
@@ -175,12 +184,12 @@ namespace StageScan
                     // Move to target coordinate using absolute positioning
                     int targetX = stageScanningData.coordinates[i].x;
                     int targetY = stageScanningData.coordinates[i].y;
-
+                    log_i("Moving to coordinate %d: (%d, %d)", i, targetX, targetY);
 #if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
                     // Use CAN moveAbs for absolute positioning
                     moveAbs(Stepper::X, targetX, stageScanningData.speed, stageScanningData.acceleration);
                     moveAbs(Stepper::Y, targetY, stageScanningData.speed, stageScanningData.acceleration);
-                    
+
                     // Timing for CAN-based systems
                     vTaskDelay(pdMS_TO_TICKS(stageScanningData.delayTimePreTrigger));
                     triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, stageScanningData.delayTimeTrigger);
@@ -192,7 +201,7 @@ namespace StageScan
                     {
                         delay(1);
                     }
-                    
+
                     FocusMotor::moveMotor(targetY, Stepper::Y, false); // absolute positioning
                     while (FocusMotor::isRunning(Stepper::Y))
                     {
@@ -215,7 +224,7 @@ namespace StageScan
                         delay(1);
                     }
                 }
-                
+
                 if (startY != FocusMotor::getData()[Stepper::Y]->currentPosition)
                 {
                     FocusMotor::moveMotor(startY, Stepper::Y, false);
@@ -227,74 +236,6 @@ namespace StageScan
 #endif
             }
         }
-        else
-        {
-            // Original grid-based scanning logic
-            int nStepsLine = stageScanningData.nStepsLine;
-            int dStepsLine = stageScanningData.dStepsLine;
-            int nStepsPixel = stageScanningData.nStepsPixel;
-            int dStepsPixel = stageScanningData.dStepsPixel;
-            int nTriggerPixel = stageScanningData.nTriggerPixel;
-            int delayTimeStep = stageScanningData.delayTimeStep;
-            int nFrames = stageScanningData.nFrames;
-
-            int pinDirPixel = FocusMotor::getData()[Stepper::X]->dirPin;
-            int pinDirLine = FocusMotor::getData()[Stepper::Y]->dirPin;
-            int pinStpPixel = FocusMotor::getData()[Stepper::X]->stpPin;
-            int pinStpLine = FocusMotor::getData()[Stepper::Y]->stpPin;
-            int pinTrigPixel = FocusMotor::getData()[Stepper::X]->triggerPin;
-            int pinTrigLine = FocusMotor::getData()[Stepper::Y]->triggerPin;
-            int pinTrigFrame = FocusMotor::getData()[Stepper::Z]->triggerPin;
-
-            for (int iFrame = 0; iFrame < nFrames; iFrame++)
-            {
-                // frameclock
-                int stepCounterPixel = 0;
-                int stepCounterLine = 0;
-                bool directionX = 0;
-                int iPixel = 0;
-
-                // Set pins high simultaneously at frame start
-                uint32_t mask = (1 << pinConfig.DIGITAL_OUT_1) | (1 << pinConfig.DIGITAL_OUT_2) | (1 << pinConfig.DIGITAL_OUT_3);
-                GPIO.out_w1ts = mask; // all high
-
-                for (int iLine = 0; iLine < nStepsLine; iLine += dStepsLine)
-                {
-                    // pulses the line trigger (or switch off in the first round)
-                    triggerOutput(pinTrigLine);
-
-                    for (iPixel = 0; iPixel < nStepsPixel; iPixel += dStepsPixel)
-                    {
-                        if (stageScanningData.stopped)
-                        {
-                            break;
-                        }
-                        // pulses the pixel trigger (or switch off in the first round)
-                        triggerOutput(pinTrigPixel);
-
-                        // Move X motor forward at even steps, backward at odd steps
-                        // bool directionX = iLine % 2 == 0;
-                        moveMotor(pinStpPixel, pinDirPixel, dStepsPixel, directionX, delayTimeStep);
-                        // stepCounterPixel += (dStepsPixel * (directionX ? 1 : -1));
-                    }
-
-                    // move back x stepper by step counter
-                    moveMotor(pinStpPixel, pinDirPixel, iPixel, !directionX, (2 + delayTimeStep) * 10);
-
-                    // Move Y motor after each line
-                    bool directionY = 0;
-                    moveMotor(pinStpLine, pinDirLine, dStepsLine, directionY, delayTimeStep);
-                }
-
-                // Reset Position and move back to origin
-                triggerOutput(pinTrigFrame, 0);
-
-                moveMotor(pinStpLine, pinDirLine, nStepsLine, stepCounterLine > 0, (2 + delayTimeStep) * 10);
-                FocusMotor::getData()[Stepper::X]->currentPosition -= stepCounterPixel;
-                FocusMotor::getData()[Stepper::Y]->currentPosition -= stepCounterLine;
-                ets_delay_us(10000); // Adjust delay for speed
-            }
-        }
 
         if (isThread)
             vTaskDelete(NULL);
@@ -304,83 +245,80 @@ namespace StageScan
     {
 #if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
         auto &sd = StageScan::stageScanningData;
-        
+
         // Check if we should use coordinate-based scanning
         if (sd.useCoordinates && sd.coordinates != nullptr)
         {
             // Coordinate-based CAN scanning
             isRunning = true;
-            
+
             // Store current position
             long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
             long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
-            
+
             pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
             digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW);
-            
-            for (int iFrame = 0; iFrame < sd.nFrames && !sd.stopped; iFrame++)
+            log_i("Starting coordinate-based CAN stage scanning with %d coordinates and %d frames", sd.coordinateCount, sd.nFrames);
+            for (int i = 0; i < sd.coordinateCount && !sd.stopped; i++)
             {
-                for (int i = 0; i < sd.coordinateCount && !sd.stopped; i++)
-                {
-                    // Move to coordinate position
-                    int32_t targetX = sd.coordinates[i].x;
-                    int32_t targetY = sd.coordinates[i].y;
-                    
-                    log_i("Moving to coordinate X: %d, Y: %d", targetX, targetY);
-                    moveAbs(Stepper::X, targetX, sd.speed, sd.acceleration);
-                    moveAbs(Stepper::Y, targetY, sd.speed, sd.acceleration);
+                // Move to coordinate position
+                int32_t targetX = sd.coordinates[i].x;
+                int32_t targetY = sd.coordinates[i].y;
 
-                    // LED/Laser control and camera triggering
+                log_i("Moving to coordinate X: %d, Y: %d", targetX, targetY);
+                moveAbs(Stepper::X, targetX, sd.speed, sd.acceleration);
+                moveAbs(Stepper::Y, targetY, sd.speed, sd.acceleration);
+
+                // LED/Laser control and camera triggering
 #ifdef LED_CONTROLLER
-                    if (sd.ledarrayIntensity > 0)
-                    {
-                        LedCommand cmd;
-                        cmd.mode = LedMode::CIRCLE;
-                        cmd.r = sd.ledarrayIntensity;
-                        cmd.g = sd.ledarrayIntensity;
-                        cmd.b = sd.ledarrayIntensity;
-                        cmd.radius = 8;
-                        cmd.ledIndex = 0;
-                        cmd.region[0] = 0;
-                        cmd.qid = 0;
-                        can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                if (sd.ledarrayIntensity > 0)
+                {
+                    LedCommand cmd;
+                    cmd.mode = LedMode::CIRCLE;
+                    cmd.r = sd.ledarrayIntensity;
+                    cmd.g = sd.ledarrayIntensity;
+                    cmd.b = sd.ledarrayIntensity;
+                    cmd.radius = 8;
+                    cmd.ledIndex = 0;
+                    cmd.region[0] = 0;
+                    cmd.qid = 0;
+                    can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
 
-                        cmd.r = 0;
-                        cmd.g = 0;
-                        cmd.b = 0; // switch off the LED
-                        can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-                    }
+                    cmd.r = 0;
+                    cmd.g = 0;
+                    cmd.b = 0; // switch off the LED
+                    can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+                }
 #endif
 #ifdef LASER_CONTROLLER
-                    for (int j = 0; j < 4; ++j)
+                for (int j = 0; j < 4; ++j)
+                {
+                    if (sd.lightsourceIntensities[j] > 0)
                     {
-                        if (sd.lightsourceIntensities[j] > 0)
-                        {
 #if defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
-                            LaserData laserData;
-                            laserData.LASERid = j;
-                            laserData.LASERval = sd.lightsourceIntensities[j];
-                            can_controller::sendLaserDataToCANDriver(laserData);
-                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                            StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                            laserData.LASERval = 0;
-                            can_controller::sendLaserDataToCANDriver(laserData);
-#endif
-                        }
-                    }
-#endif
-                    // If no LED/Laser, still trigger camera
-                    if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && 
-                        sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
-                    {
+                        LaserData laserData;
+                        laserData.LASERid = j;
+                        laserData.LASERval = sd.lightsourceIntensities[j];
+                        can_controller::sendLaserDataToCANDriver(laserData);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                         StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                        laserData.LASERval = 0;
+                        can_controller::sendLaserDataToCANDriver(laserData);
+#endif
                     }
+                }
+#endif
+                // If no LED/Laser, still trigger camera
+                if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 &&
+                    sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
+                {
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
+                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
                 }
             }
         }
@@ -417,8 +355,8 @@ namespace StageScan
                     int32_t tgtX = x0 + int32_t(j) * sd.xStep;
                     log_i("Moving X to %d", tgtX);
                     moveAbs(Stepper::X, tgtX, key_speed, key_acceleration);
-    // if we have an illumination array, we need to set the led
-    #ifdef LED_CONTROLLER
+// if we have an illumination array, we need to set the led
+#ifdef LED_CONTROLLER
                     if (sd.ledarrayIntensity > 0)
                     {
                         // TODO: Generalize this:
@@ -449,14 +387,14 @@ namespace StageScan
                         cmd.b = 0; // switch off the LED
                         can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
                     }
-    #endif
-    #ifdef LASER_CONTROLLER
+#endif
+#ifdef LASER_CONTROLLER
                     for (int j = 0; j < 4; ++j)
                     {
                         if (sd.lightsourceIntensities[j] > 0)
                         {
-    // TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
-    #if defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
+// TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
+#if defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
                             LaserData laserData;
                             laserData.LASERid = j;
                             laserData.LASERval = sd.lightsourceIntensities[j];
@@ -466,10 +404,10 @@ namespace StageScan
                             vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
                             laserData.LASERval = 0;
                             can_controller::sendLaserDataToCANDriver(laserData);
-    #endif
+#endif
                         }
                     }
-    #endif
+#endif
                     // if we have a lightsource array, we still want to trigger the camera
                     if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
                     {
@@ -485,7 +423,6 @@ namespace StageScan
                 // move to the next line
                 log_i("Moving Y to %d", y0 + int32_t(iy + 1) * sd.yStep);
                 moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration);
-                
             }
         }
 
@@ -515,10 +452,10 @@ namespace StageScan
     // {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}], "delayTimeStep": 10, "nFrames": 1}}
     //
     // CAN/I2C Integration:
-    // Coordinate-based scanning uses absolute positioning which automatically routes motor commands 
+    // Coordinate-based scanning uses absolute positioning which automatically routes motor commands
     // through the appropriate communication layer:
     // - CAN_CONTROLLER: Commands sent via CAN to distributed motor controllers using moveAbs()
-    // - I2C_MASTER: Commands sent via I2C to slave controllers  
+    // - I2C_MASTER: Commands sent via I2C to slave controllers
     // - Direct GPIO: Falls back to direct stepper control when neither CAN nor I2C is configured
     {
 #if defined(CAN_MASTER)

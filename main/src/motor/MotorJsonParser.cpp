@@ -152,7 +152,7 @@ namespace MotorJsonParser
             }
 #if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
             // CAN-based stage scanning with grid parameters
-            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50}}
+            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50}}
             StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
             StageScan::getStageScanData()->yStart = cJsonTool::getJsonInt(stagescan, "yStart");
             StageScan::getStageScanData()->xStep = cJsonTool::getJsonInt(stagescan, "xStep");
@@ -168,17 +168,21 @@ namespace MotorJsonParser
             StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
             
             // Check for coordinate-based scanning
+			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
             cJSON *coordinates = cJSON_GetObjectItem(stagescan, "coordinates");
             if (coordinates != NULL && cJSON_IsArray(coordinates))
             {
+				log_i("coordinates array found");
                 int coordinateCount = cJSON_GetArraySize(coordinates);
                 if (coordinateCount > 0)
                 {
+					log_i("Using coordinate-based scanning with %d positions", coordinateCount);
                     StageScan::StagePosition* positions = new StageScan::StagePosition[coordinateCount];
                     
                     for (int i = 0; i < coordinateCount; i++)
                     {
                         cJSON *coord = cJSON_GetArrayItem(coordinates, i);
+						log_i("Coordinate %d: x=%d, y=%d", i, cJsonTool::getJsonInt(coord, "x"), cJsonTool::getJsonInt(coord, "y"));
                         if (coord != NULL)
                         {
                             positions[i].x = cJsonTool::getJsonInt(coord, "x");
@@ -190,11 +194,15 @@ namespace MotorJsonParser
                     delete[] positions; // setCoordinates makes its own copy
                     log_i("Coordinate-based scanning enabled with %d positions", coordinateCount);
                 }
-            }
+				else{
+					log_i("No coordinates found, using grid-based scanning");
+				}
+			}
             else
             {
                 // Clear any existing coordinates to use grid-based scanning
                 StageScan::clearCoordinates();
+				log_i("Using grid-based scanning");
             }
             
             bool shouldStop = cJsonTool::getJsonInt(stagescan, "stopped");

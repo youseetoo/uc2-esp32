@@ -219,6 +219,9 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task": "/laser_act", "LASERid":1, "LASERval": 1023}
 
 
+{"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
+
+
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 

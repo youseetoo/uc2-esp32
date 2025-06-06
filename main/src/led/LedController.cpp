@@ -210,10 +210,24 @@ namespace LedController
 	// 9) RINGS: for demonstration, fill a big circle,
 	//           then carve out the interior to simulate a ring
 	//           or you can do multiple concentric rings, etc.
+	//           For illumination board with discrete rings, use direct indexing
 	// ------------------------------------------------
 	void drawRings(uint8_t radius, uint8_t r, uint8_t g, uint8_t b)
 	{
 #ifndef HUB75
+		// Check if this is an illumination board with defined ring structure
+		#ifdef LED_CONTROLLER
+		// Check if we have ring definitions in the pin config (illumination board)
+		if (pinConfig.pindefName && 
+			strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0)
+		{
+			// Use direct ring indexing for illumination board
+			drawIlluminationRings(radius, r, g, b);
+			return;
+		}
+		#endif
+
+		// Default matrix-based ring drawing for other configurations
 		// The simplest approach to get a ring:
 		// 1) Fill circle of radius
 		// 2) Fill circle of radius-1 in black
@@ -261,6 +275,109 @@ namespace LedController
 	}
 
 	// ------------------------------------------------
+	// 9b) ILLUMINATION RINGS: Handle discrete ring addressing
+	//     for the UC2 illumination board with 4 concentric rings
+	// ------------------------------------------------
+	void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b)
+	{
+		// Hard-coded ring mapping for illumination board
+		// Ring mapping: radius 0=inner, 1=middle, 2=biggest, 3=outest
+		uint16_t start_idx = 0;
+		uint16_t count = 0;
+
+		switch (ring_id) {
+			case 0: // Inner ring
+				start_idx = 0;   
+				count = 20;      
+				break;
+			case 1: // Middle ring
+				start_idx = 20;  
+				count = 28;      
+				break;
+			case 2: // Biggest ring
+				start_idx = 48;  
+				count = 40;      
+				break;
+			case 3: // Outest ring
+				start_idx = 88;  
+				count = 48;      
+				break;
+			default:
+				// Invalid ring, light up all rings
+				for (uint16_t i = 0; i < 136; i++) {
+					matrix->setPixelColor(i, matrix->Color(r, g, b));
+				}
+				matrix->show();
+				isOn = (r || g || b);
+				return;
+		}
+
+		// Clear all LEDs first
+		matrix->clear();
+		
+		// Set the specified ring
+		for (uint16_t i = 0; i < count; i++) {
+			matrix->setPixelColor(start_idx + i, matrix->Color(r, g, b));
+		}
+		
+		matrix->show();
+		isOn = (r || g || b);
+	}
+
+	// ------------------------------------------------
+	// 9c) ILLUMINATION RING SEGMENTS: Handle ring segments (left/right/top/bottom)
+	//     for the UC2 illumination board
+	// ------------------------------------------------
+	void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b)
+	{
+		// Get ring parameters
+		uint16_t start_idx = 0;
+		uint16_t count = 0;
+		log_i("drawIlluminationRingSegment: ring_id=%d, region=%s, r=%d, g=%d, b=%d", ring_id, region, r, g, b);
+		switch (ring_id) {
+			case 0: start_idx = 0; count = 20; break;   // Inner ring
+			case 1: start_idx = 20; count = 28; break;  // Middle ring  
+			case 2: start_idx = 48; count = 40; break;  // Biggest ring
+			case 3: start_idx = 88; count = 48; break;  // Outest ring
+			default: return; // Invalid ring
+		}
+
+		// Clear all LEDs first
+		matrix->clear();
+
+		// Calculate segment within the ring (relative to ring start)
+		uint16_t relative_start = 0;
+		uint16_t segment_count = count / 2; // Half ring for each segment
+
+		if (strcasecmp(region, "top") == 0) {
+			relative_start = 0;                 // Start at beginning of ring
+		}
+		else if (strcasecmp(region, "right") == 0) {
+			relative_start = count / 4;         // 25% into the ring
+		}
+		else if (strcasecmp(region, "bottom") == 0) {
+			relative_start = count / 2;         // 50% into the ring
+		}
+		else if (strcasecmp(region, "left") == 0) {
+			relative_start = (3 * count) / 4;   // 75% into the ring
+		}
+		else {
+			// Unknown region, light up whole ring
+			relative_start = 0;
+			segment_count = count;
+		}
+
+		// Set the specified ring segment with proper wraparound
+		for (uint16_t i = 0; i < segment_count; i++) {
+			uint16_t led_idx = start_idx + ((relative_start + i) % count);
+			matrix->setPixelColor(led_idx, matrix->Color(r, g, b));
+		}
+		
+		matrix->show();
+		isOn = (r || g || b);
+	}
+
+	// ------------------------------------------------
 	// 10) Filled circle
 	// ------------------------------------------------
 	void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal)
@@ -303,9 +420,10 @@ namespace LedController
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 1, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
+		// { "task": "/ledarr_act", "qid": 17, "led"}
 
 		// 1) Check for "task"
 		cJSON *task = cJSON_GetObjectItem(root, "task");
@@ -529,7 +647,17 @@ namespace LedController
 			fillHalves(cmd.region, cmd.r, cmd.g, cmd.b);
 			break;
 		case LedMode::RINGS:
-			drawRings(cmd.radius, cmd.r, cmd.g, cmd.b);
+			// For illumination board, check if region is specified for ring segments
+			if (pinConfig.pindefName && 
+				strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 &&
+				strlen(cmd.region) > 0)
+			{
+				drawIlluminationRingSegment(cmd.radius, cmd.region, cmd.r, cmd.g, cmd.b);
+			}
+			else
+			{
+				drawRings(cmd.radius, cmd.r, cmd.g, cmd.b);
+			}
 			break;
 		case LedMode::CIRCLE:
 			drawCircle(cmd.radius, cmd.r, cmd.g, cmd.b);
@@ -654,8 +782,10 @@ namespace LedController
 	{
 
 #ifndef HUB75
-#ifdef CAN_CONTROLLER &&defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
-
+// only on the HAT MAster => Glow or show status
+if( pinConfig.pindefName && 
+	strcmp(pinConfig.pindefName, "UC2_3_CAN_HAT_Master") == 0 )	
+{
 		// Determine color based on currentLedForStatus
 		uint32_t color = 0;
 		// Fade the brightnessLoop up/down
@@ -706,10 +836,9 @@ namespace LedController
 			}
 			matrix->show();
 		}
-
-#endif // CAN_CONTROLLER && CAN_MASTER && !CAN_SLAVE_LED
-#endif // HUB75
 	}
+#endif // HUB75
+}
 
 #ifdef HUB75
 	uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b)

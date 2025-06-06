@@ -378,6 +378,25 @@ namespace can_controller
             parseLEDData(data, size, rxID);
         }
 #endif
+#if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
+        // Support for illumination board that handles both LED and laser commands
+        // The device can receive messages addressed to either LED_0 or LASER_0
+        else if ((rxID == pinConfig.CAN_ID_LED_0 || rxID == pinConfig.CAN_ID_LASER_0))
+        {
+            // Check if this device should handle the message
+            if (device_can_id == pinConfig.CAN_ID_LED_0 || device_can_id == pinConfig.CAN_ID_LASER_0)
+            {
+                if (size == sizeof(LedCommand))
+                {
+                    parseLEDData(data, size, rxID);
+                }
+                else if (size == sizeof(LaserData))
+                {
+                    parseLaserData(data, size, rxID);
+                }
+            }
+        }
+#endif
         else
         {
             if (pinConfig.DEBUG_CAN_ISO_TP)

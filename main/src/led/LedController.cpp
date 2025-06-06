@@ -210,10 +210,24 @@ namespace LedController
 	// 9) RINGS: for demonstration, fill a big circle,
 	//           then carve out the interior to simulate a ring
 	//           or you can do multiple concentric rings, etc.
+	//           For illumination board with discrete rings, use direct indexing
 	// ------------------------------------------------
 	void drawRings(uint8_t radius, uint8_t r, uint8_t g, uint8_t b)
 	{
 #ifndef HUB75
+		// Check if this is an illumination board with defined ring structure
+		#ifdef LED_CONTROLLER
+		// Check if we have ring definitions in the pin config (illumination board)
+		if (pinConfig.pindefName && 
+			strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0)
+		{
+			// Use direct ring indexing for illumination board
+			drawIlluminationRings(radius, r, g, b);
+			return;
+		}
+		#endif
+
+		// Default matrix-based ring drawing for other configurations
 		// The simplest approach to get a ring:
 		// 1) Fill circle of radius
 		// 2) Fill circle of radius-1 in black
@@ -258,6 +272,55 @@ namespace LedController
 		matrix->show();
 		isOn = (r || g || b);
 #endif
+	}
+
+	// ------------------------------------------------
+	// 9b) ILLUMINATION RINGS: Handle discrete ring addressing
+	//     for the UC2 illumination board with 4 concentric rings
+	// ------------------------------------------------
+	void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b)
+	{
+		// Ring mapping: radius 0=inner, 1=middle, 2=biggest, 3=outest
+		uint16_t start_idx = 0;
+		uint16_t count = 0;
+
+		switch (ring_id) {
+			case 0: // Inner ring
+				start_idx = 0;   // RING_INNER_START
+				count = 20;      // RING_INNER_COUNT
+				break;
+			case 1: // Middle ring
+				start_idx = 20;  // RING_MIDDLE_START
+				count = 28;      // RING_MIDDLE_COUNT
+				break;
+			case 2: // Biggest ring
+				start_idx = 48;  // RING_BIGGEST_START
+				count = 40;      // RING_BIGGEST_COUNT
+				break;
+			case 3: // Outest ring
+				start_idx = 88;  // RING_OUTEST_START
+				count = 48;      // RING_OUTEST_COUNT
+				break;
+			default:
+				// Invalid ring, light up all rings
+				for (uint16_t i = 0; i < 136; i++) {
+					matrix->setPixelColor(i, matrix->Color(r, g, b));
+				}
+				matrix->show();
+				isOn = (r || g || b);
+				return;
+		}
+
+		// Clear all LEDs first
+		matrix->clear();
+		
+		// Set the specified ring
+		for (uint16_t i = 0; i < count; i++) {
+			matrix->setPixelColor(start_idx + i, matrix->Color(r, g, b));
+		}
+		
+		matrix->show();
+		isOn = (r || g || b);
 	}
 
 	// ------------------------------------------------

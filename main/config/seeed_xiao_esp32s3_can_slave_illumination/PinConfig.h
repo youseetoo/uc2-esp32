@@ -42,11 +42,13 @@ struct UC2_3_Xiao_Slave_Illumination : PinConfig
 
     // LED Configuration for NeoPixel (4 concentric rings)
     uint8_t LED_PIN = GPIO_NUM_3; // D2 - RGB ring data
-    const uint16_t LED_COUNT = 136; // Total LEDs: 20+28+40+48
-    const uint8_t MATRIX_W = 24; // Rough diameter for ring calculations
-    const uint8_t MATRIX_H = 24; // Rough diameter for ring calculations
     
-    // Ring definitions for LED indexing
+    // For ring LEDs, we set matrix dimensions to get approximately 136 LEDs
+    // 12x12 = 144 LEDs (we'll only use the first 136)
+    const uint8_t MATRIX_W = 12;
+    const uint8_t MATRIX_H = 12;
+    
+    // Ring definitions for LED indexing (total: 136 LEDs)
     const uint16_t RING_INNER_START = 0;      // Inner ring: 20 LEDs (indices 0-19)
     const uint16_t RING_INNER_COUNT = 20;
     const uint16_t RING_MIDDLE_START = 20;    // Middle ring: 28 LEDs (indices 20-47)

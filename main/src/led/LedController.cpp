@@ -280,26 +280,27 @@ namespace LedController
 	// ------------------------------------------------
 	void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b)
 	{
+		// Hard-coded ring mapping for illumination board
 		// Ring mapping: radius 0=inner, 1=middle, 2=biggest, 3=outest
 		uint16_t start_idx = 0;
 		uint16_t count = 0;
 
 		switch (ring_id) {
 			case 0: // Inner ring
-				start_idx = 0;   // RING_INNER_START
-				count = 20;      // RING_INNER_COUNT
+				start_idx = 0;   
+				count = 20;      
 				break;
 			case 1: // Middle ring
-				start_idx = 20;  // RING_MIDDLE_START
-				count = 28;      // RING_MIDDLE_COUNT
+				start_idx = 20;  
+				count = 28;      
 				break;
 			case 2: // Biggest ring
-				start_idx = 48;  // RING_BIGGEST_START
-				count = 40;      // RING_BIGGEST_COUNT
+				start_idx = 48;  
+				count = 40;      
 				break;
 			case 3: // Outest ring
-				start_idx = 88;  // RING_OUTEST_START
-				count = 48;      // RING_OUTEST_COUNT
+				start_idx = 88;  
+				count = 48;      
 				break;
 			default:
 				// Invalid ring, light up all rings
@@ -317,6 +318,59 @@ namespace LedController
 		// Set the specified ring
 		for (uint16_t i = 0; i < count; i++) {
 			matrix->setPixelColor(start_idx + i, matrix->Color(r, g, b));
+		}
+		
+		matrix->show();
+		isOn = (r || g || b);
+	}
+
+	// ------------------------------------------------
+	// 9c) ILLUMINATION RING SEGMENTS: Handle ring segments (left/right/top/bottom)
+	//     for the UC2 illumination board
+	// ------------------------------------------------
+	void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b)
+	{
+		// Get ring parameters
+		uint16_t start_idx = 0;
+		uint16_t count = 0;
+
+		switch (ring_id) {
+			case 0: start_idx = 0; count = 20; break;   // Inner ring
+			case 1: start_idx = 20; count = 28; break;  // Middle ring  
+			case 2: start_idx = 48; count = 40; break;  // Biggest ring
+			case 3: start_idx = 88; count = 48; break;  // Outest ring
+			default: return; // Invalid ring
+		}
+
+		// Clear all LEDs first
+		matrix->clear();
+
+		// Calculate segment within the ring (relative to ring start)
+		uint16_t relative_start = 0;
+		uint16_t segment_count = count / 2; // Half ring for each segment
+
+		if (strcasecmp(region, "top") == 0) {
+			relative_start = 0;                 // Start at beginning of ring
+		}
+		else if (strcasecmp(region, "right") == 0) {
+			relative_start = count / 4;         // 25% into the ring
+		}
+		else if (strcasecmp(region, "bottom") == 0) {
+			relative_start = count / 2;         // 50% into the ring
+		}
+		else if (strcasecmp(region, "left") == 0) {
+			relative_start = (3 * count) / 4;   // 75% into the ring
+		}
+		else {
+			// Unknown region, light up whole ring
+			relative_start = 0;
+			segment_count = count;
+		}
+
+		// Set the specified ring segment with proper wraparound
+		for (uint16_t i = 0; i < segment_count; i++) {
+			uint16_t led_idx = start_idx + ((relative_start + i) % count);
+			matrix->setPixelColor(led_idx, matrix->Color(r, g, b));
 		}
 		
 		matrix->show();
@@ -592,7 +646,17 @@ namespace LedController
 			fillHalves(cmd.region, cmd.r, cmd.g, cmd.b);
 			break;
 		case LedMode::RINGS:
-			drawRings(cmd.radius, cmd.r, cmd.g, cmd.b);
+			// For illumination board, check if region is specified for ring segments
+			if (pinConfig.pindefName && 
+				strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 &&
+				strlen(cmd.region) > 0)
+			{
+				drawIlluminationRingSegment(cmd.radius, cmd.region, cmd.r, cmd.g, cmd.b);
+			}
+			else
+			{
+				drawRings(cmd.radius, cmd.r, cmd.g, cmd.b);
+			}
 			break;
 		case LedMode::CIRCLE:
 			drawCircle(cmd.radius, cmd.r, cmd.g, cmd.b);

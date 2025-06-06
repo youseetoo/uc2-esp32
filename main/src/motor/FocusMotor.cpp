@@ -11,6 +11,11 @@
 #endif
 #ifdef USE_FASTACCEL
 #include "FAccelStep.h"
+// include pulse counter
+/*
+static pcnt_unit_handle_t   pcnt_motor1  = nullptr;
+static pcnt_channel_handle_t pcnt_ch1    = nullptr;
+*/
 #endif
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
@@ -38,20 +43,21 @@ namespace FocusMotor
 	MotorData x_dat;
 	MotorData y_dat;
 	MotorData z_dat;
-	MotorData b_dat; 
-	MotorData c_dat; 
+	MotorData b_dat;
+	MotorData c_dat;
 	MotorData d_dat;
 	MotorData e_dat;
 	MotorData f_dat;
 	MotorData g_dat;
 
-	MotorData *data[MOTOR_AXIS_COUNT]; // TODO!!! 
+	MotorData *data[MOTOR_AXIS_COUNT]; // TODO!!!
 
 	Preferences preferences;
 	int logcount;
 	bool power_enable = false;
 	bool isDualAxisZ = false;
 	bool waitForFirstRun[] = {false, false, false, false};
+
 
 	xSemaphoreHandle xMutex = xSemaphoreCreateMutex();
 
@@ -79,9 +85,49 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
-	void startStepper(int axis, bool reduced = false)
+	
+	#ifdef USE_FASTACCEL
+	static void setup_pcnt_motor1()
+{
+	/*
+    if (pcnt_motor1) { return; }                       // already done
+
+    const int stepPin = pinConfig.MOTOR_X_STEP;        // motor‑1 step pin
+    if (stepPin < 0) { return; }                       // pin undefined
+
+    pcnt_unit_config_t uc = {
+        .high_limit = INT16_MAX,
+        .low_limit  = INT16_MIN
+    };
+    pcnt_new_unit(&uc, &pcnt_motor1);
+
+    pcnt_chan_config_t cc = {
+        .edge_gpio_num   = stepPin,    // count every rising edge
+        .level_gpio_num  = -1          // no level gating
+    };
+    pcnt_new_channel(pcnt_motor1, &cc, &pcnt_ch1);
+
+    pcnt_channel_set_edge_action(
+        pcnt_ch1,
+        PCNT_CHANNEL_EDGE_ACTION_INCREASE,
+        PCNT_CHANNEL_EDGE_ACTION_HOLD);
+
+    pcnt_unit_enable(pcnt_motor1);
+    pcnt_unit_clear_count(pcnt_motor1);
+    pcnt_unit_start(pcnt_motor1);
+	*/
+}
+#endif
+
+	void startStepper(int axis, int reduced = 0)
 	{
-		if (1)//xSemaphoreTake(xMutex, portMAX_DELAY))
+		/*
+		reduced organizes the ammount of data that is being transmitted (E.g. via CAN Bus)
+		reduced: 0 => All data transfered MotorData
+		reduced: 1 => MotorDataReduced is transfered
+		reducsed: 2 => single Value udpates  
+		*/
+		if (xSemaphoreTake(xMutex, portMAX_DELAY)) // TODO: Check if this is causing the issue with the queue
 		{
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 			// Request data from the slave but only if inside i2cAddresses
@@ -101,27 +147,40 @@ namespace FocusMotor
 			}
 #elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR) // sending from master to slave
 			// send the motor data to the slave
-				// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-				MotorData *m = getData()[axis];
-				int err = can_controller::startStepper(m, axis, reduced);
-				if (err != 0)
-				{
-					// we need to return the position right away
-					getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-					sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
-				}
+			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
+			MotorData *m = getData()[axis];
+			int err = can_controller::startStepper(m, axis, reduced);
+			if (err != 0)
+			{
+				// we need to return the position right away
+				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
+				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
+			}
 
 #elif defined USE_FASTACCEL
+			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
+			/*
+			if (axis == Stepper::X && pcnt_motor1) {           
+				pcnt_unit_clear_count(pcnt_motor1);
+			}
+			*/
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(axis);
 #endif
 			getData()[axis]->stopped = false;
+			xSemaphoreGive(xMutex);
 		}
 	}
 
-	void toggleStepper(Stepper s, bool isStop, bool reduced)
+	void toggleStepper(Stepper s, bool isStop, int reduced)
 	{
+		/*
+		reduced:
+			0 => Full MotorDAta
+			1 => MotorDataReduced
+			2 => Single Value Updates
+		*/
 		if (isStop)
 		{
 			stopStepper(s);
@@ -145,7 +204,7 @@ namespace FocusMotor
 		data[s]->speed = 2000;
 		data[s]->acceleration = 1000;
 		data[s]->isaccelerated = 1;
-		startStepper(s, false);
+		startStepper(s, 0);
 	}
 
 	void setAutoEnable(bool enable)
@@ -197,12 +256,14 @@ namespace FocusMotor
 		data[Stepper::X] = &x_dat;
 		data[Stepper::Y] = &y_dat;
 		data[Stepper::Z] = &z_dat;
+#if MOTOR_AXIS_COUNT > 4
 		data[Stepper::B] = &b_dat;
 		data[Stepper::C] = &c_dat;
 		data[Stepper::D] = &d_dat;
 		data[Stepper::E] = &e_dat;
 		data[Stepper::F] = &f_dat;
 		data[Stepper::G] = &g_dat;
+#endif
 
 		if (data[Stepper::A] == nullptr)
 			log_e("Stepper A data NULL");
@@ -225,7 +286,6 @@ namespace FocusMotor
 		if (data[Stepper::G] == nullptr)
 			log_e("Stepper G data NULL");
 
-
 		// Read dual axis from preferences if available
 		const char *prefNamespace = "UC2";
 		preferences.begin(prefNamespace, false);
@@ -242,6 +302,10 @@ namespace FocusMotor
 			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
 			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
 			data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
+			data[Stepper::A]->minPos = preferences.getInt(("min" + String(Stepper::A)).c_str());
+			data[Stepper::A]->maxPos = preferences.getInt(("max" + String(Stepper::A)).c_str());
+			data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(),false);
+			isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
 		if (pinConfig.MOTOR_X_STEP >= 0)
@@ -249,6 +313,10 @@ namespace FocusMotor
 			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
 			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
 			data[Stepper::X]->currentPosition = preferences.getInt(("motor" + String(Stepper::X)).c_str());
+			data[Stepper::X]->minPos = preferences.getInt(("min" + String(Stepper::X)).c_str());
+			data[Stepper::X]->maxPos = preferences.getInt(("max" + String(Stepper::X)).c_str());
+			data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(),false);
+			isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Y_STEP >= 0)
@@ -256,6 +324,10 @@ namespace FocusMotor
 			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
 			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
 			data[Stepper::Y]->currentPosition = preferences.getInt(("motor" + String(Stepper::Y)).c_str());
+			data[Stepper::Y]->minPos = preferences.getInt(("min" + String(Stepper::Y)).c_str());
+			data[Stepper::Y]->maxPos = preferences.getInt(("max" + String(Stepper::Y)).c_str());
+			data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(),false);
+			isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Z_STEP >= 0)
@@ -263,6 +335,10 @@ namespace FocusMotor
 			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
 			data[Stepper::Z]->currentPosition = preferences.getInt(("motor" + String(Stepper::Z)).c_str());
+			data[Stepper::Z]->minPos = preferences.getInt(("min" + String(Stepper::Z)).c_str());
+			data[Stepper::Z]->maxPos = preferences.getInt(("max" + String(Stepper::Z)).c_str());
+			data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(),false);
+			isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
 		if (pinConfig.MOTOR_B_STEP >= 0)
@@ -270,6 +346,9 @@ namespace FocusMotor
 			data[Stepper::B]->dirPin = pinConfig.MOTOR_B_DIR;
 			data[Stepper::B]->stpPin = pinConfig.MOTOR_B_STEP;
 			data[Stepper::B]->currentPosition = preferences.getInt(("motor" + String(Stepper::B)).c_str());
+			data[Stepper::B]->minPos = preferences.getInt(("min" + String(Stepper::B)).c_str());
+			data[Stepper::B]->maxPos = preferences.getInt(("max" + String(Stepper::B)).c_str());
+			data[Stepper::B]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::B)).c_str(),false);
 			log_i("Motor B position: %i", data[Stepper::B]->currentPosition);
 		}
 		if (pinConfig.MOTOR_C_STEP >= 0)
@@ -277,6 +356,9 @@ namespace FocusMotor
 			data[Stepper::C]->dirPin = pinConfig.MOTOR_C_DIR;
 			data[Stepper::C]->stpPin = pinConfig.MOTOR_C_STEP;
 			data[Stepper::C]->currentPosition = preferences.getInt(("motor" + String(Stepper::C)).c_str());
+			data[Stepper::C]->minPos = preferences.getInt(("min" + String(Stepper::C)).c_str());
+			data[Stepper::C]->maxPos = preferences.getInt(("max" + String(Stepper::C)).c_str());
+			data[Stepper::C]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::C)).c_str(),false);
 			log_i("Motor C position: %i", data[Stepper::C]->currentPosition);
 		}
 		if (pinConfig.MOTOR_D_STEP >= 0)
@@ -284,6 +366,9 @@ namespace FocusMotor
 			data[Stepper::D]->dirPin = pinConfig.MOTOR_D_DIR;
 			data[Stepper::D]->stpPin = pinConfig.MOTOR_D_STEP;
 			data[Stepper::D]->currentPosition = preferences.getInt(("motor" + String(Stepper::D)).c_str());
+			data[Stepper::D]->minPos = preferences.getInt(("min" + String(Stepper::D)).c_str());
+			data[Stepper::D]->maxPos = preferences.getInt(("max" + String(Stepper::D)).c_str());
+			data[Stepper::D]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::D)).c_str(),false);
 			log_i("Motor D position: %i", data[Stepper::D]->currentPosition);
 		}
 		if (pinConfig.MOTOR_E_STEP >= 0)
@@ -291,6 +376,9 @@ namespace FocusMotor
 			data[Stepper::E]->dirPin = pinConfig.MOTOR_E_DIR;
 			data[Stepper::E]->stpPin = pinConfig.MOTOR_E_STEP;
 			data[Stepper::E]->currentPosition = preferences.getInt(("motor" + String(Stepper::E)).c_str());
+			data[Stepper::E]->minPos = preferences.getInt(("min" + String(Stepper::E)).c_str());
+			data[Stepper::E]->maxPos = preferences.getInt(("max" + String(Stepper::E)).c_str());
+			data[Stepper::E]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::E)).c_str(),false);
 			log_i("Motor E position: %i", data[Stepper::E]->currentPosition);
 		}
 		if (pinConfig.MOTOR_F_STEP >= 0)
@@ -298,6 +386,9 @@ namespace FocusMotor
 			data[Stepper::F]->dirPin = pinConfig.MOTOR_F_DIR;
 			data[Stepper::F]->stpPin = pinConfig.MOTOR_F_STEP;
 			data[Stepper::F]->currentPosition = preferences.getInt(("motor" + String(Stepper::F)).c_str());
+			data[Stepper::F]->minPos = preferences.getInt(("min" + String(Stepper::F)).c_str());
+			data[Stepper::F]->maxPos = preferences.getInt(("max" + String(Stepper::F)).c_str());
+			data[Stepper::F]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::F)).c_str(),false);
 			log_i("Motor F position: %i", data[Stepper::F]->currentPosition);
 		}
 		if (pinConfig.MOTOR_G_STEP >= 0)
@@ -305,6 +396,9 @@ namespace FocusMotor
 			data[Stepper::G]->dirPin = pinConfig.MOTOR_G_DIR;
 			data[Stepper::G]->stpPin = pinConfig.MOTOR_G_STEP;
 			data[Stepper::G]->currentPosition = preferences.getInt(("motor" + String(Stepper::G)).c_str());
+			data[Stepper::G]->minPos = preferences.getInt(("min" + String(Stepper::G)).c_str());
+			data[Stepper::G]->maxPos = preferences.getInt(("max" + String(Stepper::G)).c_str());
+			data[Stepper::G]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::G)).c_str(),false);
 			log_i("Motor G position: %i", data[Stepper::G]->currentPosition);
 		}
 		preferences.end();
@@ -327,21 +421,21 @@ namespace FocusMotor
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
 			// only test those motors that are activated
-			if (data[iMotor]->isActivated)
+			if (isActivated[iMotor])
 			{
 				// need to activate the motor's dir pin eventually
 				// This also updates the dial's positions
 				// only test those motors that are activated
-			Stepper s = static_cast<Stepper>(iMotor);
-			data[s]->absolutePosition = false;
-			data[s]->targetPosition = -1;
-			startStepper(iMotor, true);
-			delay(10);
-			stopStepper(iMotor);
-			data[s]->targetPosition = 1;
-			startStepper(iMotor, true);
-			delay(10);
-			stopStepper(iMotor);
+				Stepper s = static_cast<Stepper>(iMotor);
+				data[s]->absolutePosition = false;
+				data[s]->targetPosition = -1;
+				startStepper(iMotor, 0);
+				delay(10);
+				stopStepper(iMotor);
+				data[s]->targetPosition = 1;
+				startStepper(iMotor, 0);
+				delay(10);
+				stopStepper(iMotor);
 			}
 		}
 	}
@@ -351,7 +445,7 @@ namespace FocusMotor
 		// send motor positions
 		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
-			if (data[iMotor]->isActivated)
+			if (isActivated[iMotor])
 			{
 				sendMotorPos(iMotor, 0);
 			}
@@ -367,7 +461,7 @@ namespace FocusMotor
 		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
 			moveMotor(1, iMotor, true); // wake up motor
-			data[iMotor]->isActivated = true;
+			isActivated[iMotor] = true;
 			stopStepper(iMotor);
 			MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(iMotor);
 			data[iMotor]->currentPosition = mMotorState.currentPosition;
@@ -385,26 +479,28 @@ namespace FocusMotor
 		setup_data();
 		fill_data();
 
-
 #ifdef I2C_MASTER
 		setup_i2c_motor();
 #endif
 
 #if (defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR))
-// stop all motors on startup
+		// stop all motors on startup
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-			stopStepper(i);delay(10);
-			stopStepper(i);// do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
+			isActivated[i] = true;
+			stopStepper(i);
+			delay(10);
+			stopStepper(i); // do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
 		}
 #endif
 
 #ifdef CAN_SLAVE_MOTOR
-	// send current position to master
-	can_controller::sendMotorStateToMaster();
-#endif 
+		// send current position to master
+		can_controller::sendMotorStateToMaster();
+#endif
 
 #ifdef USE_FASTACCEL
+		setup_pcnt_motor1();
 #ifdef USE_TCA9535
 		log_i("Setting external pin for FastAccelStepper");
 		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
@@ -428,44 +524,109 @@ namespace FocusMotor
 		sendMotorPosition();
 #endif
 #endif
-
 	}
+
+	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos, bool isEnabled)
+	{
+		// set soft limits
+		getData()[axis]->softLimitEnabled = isEnabled;
+		getData()[axis]->minPos = minPos;
+		getData()[axis]->maxPos = maxPos;
+		log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
+	}
+
+    static unsigned long lastSendTime = 0; // holds the last time positions were sent
+    const unsigned long interval = 2000;   // 2-second interval
 
 	void loop()
 	{
-#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
-		// checks if a stepper is still running
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-#ifdef I2C_MASTER
+#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
+		// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{
 				waitForFirstRun[i] = 0;
 				continue;
 			}
-#endif
-			bool mIsRunning = false;
-			// we check if the motor was defined
-			if (getData()[i]->isActivated)
+			// If soft limits are enabled, decide whether to stop
+			if (getData()[i]->softLimitEnabled)
 			{
-				mIsRunning = isRunning(i);
-			}
+				log_i("Soft limits enabled for motor %d", i);
+				int32_t pos = getData()[i]->currentPosition;
+				int32_t minPos = getData()[i]->minPos;
+				int32_t maxPos = getData()[i]->maxPos;
+				int32_t spd = getData()[i]->speed; // can be negative or positive
 
-			// log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, mIsRunning, data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (!mIsRunning && !data[i]->stopped && !data[i]->isforever)
+				// If below minPos
+				if (pos < minPos)
+				{
+					// Only stop if continuing further negative
+					// i.e. speed < 0 => going more negative
+					if (spd < 0)
+					{
+						log_i("Motor %d outside min limit & moving further negative => STOP", i);
+						stopStepper(i);
+						preferences.begin("motpos", false);
+						preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
+						preferences.end();
+					}
+					// else if speed > 0 => let it keep running to move back inside the range
+				}
+
+				
+
+				// If above maxPos
+				else if (pos > maxPos)
+				{
+					// Only stop if continuing further positive
+					// i.e. speed > 0 => going more positive
+					if (spd > 0)
+					{
+						log_i("Motor %d outside max limit & moving further positive => STOP", i);
+						stopStepper(i);
+						preferences.begin("motpos", false);
+						preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
+						preferences.end();
+					}
+					// else if speed < 0 => let it keep running to move back inside the range
+				}
+			}
+			if (isActivated[i] and false)
+				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning(i), data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
+			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
-				// This is the ordinary case if the motor is not connected via I2C
+				// This is the ordinary case if the motor is not connected via I2C/CAN
 				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, mIsRunning, data[i]->stopped);
+				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
 				preferences.begin("motpos", false);
 				preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}
+
+			
+			#endif
+			if (false and isActivated[i] && isRunning(i)){ // TODO: This is nice, but maybe not very efficient - only for updating the position in the gui periodically
+				// indicate that the motor is running by sending the position periodically
+				// Check if it's time to send motor positions
+				unsigned long now = millis();
+				if (now - lastSendTime >= interval)
+				{
+					lastSendTime = now;
+					// Send motor positions for all motors
+					for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
+					{
+						if (isActivated[i])
+						{
+							sendMotorPos(i, 0, -2);
+						}
+					}
+				}
+			}
 		}
-#endif
 	}
 
 	bool isRunning(int i)
@@ -487,7 +648,7 @@ namespace FocusMotor
 	}
 
 	// returns json {"steppers":[...]} as qid
-	void sendMotorPos(int i, int arraypos)
+	void sendMotorPos(int i, int arraypos, int qid)
 	{
 		// update current position of the motor depending on the interface
 		updateData(i);
@@ -503,7 +664,9 @@ namespace FocusMotor
 			return; // Handle allocation failure
 		}
 		cJSON_AddItemToObject(root, key_steppers, stprs);
-		cJSON_AddNumberToObject(root, "qid", data[i]->qid);
+		if (qid == -1)
+			qid = data[i]->qid;
+		cJSON_AddNumberToObject(root, "qid", qid);
 
 		cJSON *item = cJSON_CreateObject();
 		if (item == NULL)
@@ -515,6 +678,17 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, key_stepperid, i);
 		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
+
+		#ifdef FASTACCEL
+		/*
+		if (i == Stepper::X && pcnt_motor1) {
+			int16_t cnt = 0;
+			pcnt_unit_get_count(pcnt_motor1, &cnt);
+			cJSON_AddNumberToObject(item, "pcnt", cnt);
+		}
+			*/
+		#endif
+
 		arraypos++;
 
 #ifdef WIFI
@@ -557,10 +731,6 @@ namespace FocusMotor
 		}
 #endif
 
-		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
-		// only send motor data if it was running before
-		if (!data[i]->stopped)
-			sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
 #elif defined USE_ACCELSTEP
@@ -580,6 +750,10 @@ namespace FocusMotor
 		Stepper s = static_cast<Stepper>(i);
 		can_controller::stopStepper(s);
 #endif
+log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
+// only send motor data if it was running before
+	sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
+
 	}
 
 	uint32_t getPosition(Stepper s)

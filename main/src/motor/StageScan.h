@@ -1,5 +1,8 @@
 #pragma once
 
+// Include header for fixed-width integer types
+#include <cstdint>
+
 namespace StageScan
 {
     struct StagePosition
@@ -28,6 +31,9 @@ namespace StageScan
     };
 
     void stageScan(bool isThread = false);
+    void stageScanCAN(bool isThread = false);
+    StageScanningData *getStageScanData();
+
 
     StageScanningData * getStageScanData();
     

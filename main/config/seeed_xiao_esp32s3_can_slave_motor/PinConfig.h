@@ -51,6 +51,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
+     bool DEBUG_CAN_ISO_TP = 1; // 1 = debug CAN communication, 0 = no debug
+
      const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
      const unsigned long BAUDRATE = 115200;
 
@@ -77,7 +79,7 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      
      int tmc_microsteps = 16;
-     int tmc_rms_current = 600;
+     int tmc_rms_current = 850;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
      int tmc_semin = 5;
@@ -88,8 +90,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int tmc_toff = 4;
 
      // CAN
-     int8_t CAN_TX = GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
-     int8_t CAN_RX = GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+     int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
      
 
@@ -100,6 +102,9 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
 
      // OTA settings
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
+
+     const uint16_t serialTimeout = 100;
+
 };
   
 const UC2_3_XIAO_Slave_Motor pinConfig;

@@ -53,7 +53,7 @@ namespace TMCController
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
     {
         #if not defined(CAN_MASTER)
-        driver.microsteps(p.msteps);
+        for (int iTrial=0; iTrial<3; iTrial++) driver.microsteps(p.msteps);
         driver.rms_current(p.rms_current);
         driver.SGTHRS(p.sgthrs);
         driver.semin(p.semin);
@@ -193,7 +193,7 @@ namespace TMCController
         cJSON_AddNumberToObject(monitor_json, "blank_time", p.blank_time);
         cJSON_AddNumberToObject(monitor_json, "toff", p.toff);
         cJSON_AddNumberToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());
-        cJSON_AddNumberToObject(monitor_json, "Current", driver.cs2rms(driver.cs_actual()));
+        cJSON_AddNumberToObject(monitor_json, "current", driver.cs2rms(driver.cs_actual()));
         return monitor_json;
 #else
         return nullptr;
@@ -252,7 +252,7 @@ namespace TMCController
         getData()[mStepper]->speed = speed;
         getData()[mStepper]->isEnable = 1;
         getData()[mStepper]->isaccelerated = 0;
-        FocusMotor::startStepper(mStepper, false);
+        FocusMotor::startStepper(mStepper, 0);
         delay(200);
 
         int START_SGTHRS = 0;
@@ -318,9 +318,12 @@ namespace TMCController
         driver.pdn_disable(true);
         // Necessary for TMC2208 to set microstep register with UART
         driver.mstep_reg_select(1);
+        driver.intpol(true);
 
         TMCData p = readParamsFromPreferences();
         applyParamsToDriver(p, false);
+        applyParamsToDriver(p, false);
+        writeParamsToPreferences(p);
         // Set the stallguard threshold
         pinMode(pinConfig.tmc_pin_diag, INPUT);
        preferences.end();

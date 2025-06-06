@@ -2,8 +2,8 @@
 
 
 const int32_t MAX_VELOCITY_A = 20000;
-const int32_t MAX_ACCELERATION_A = 60000;
-const int32_t DEFAULT_ACCELERATION = 40000;
+const int32_t MAX_ACCELERATION_A = 600000;
+const int32_t DEFAULT_ACCELERATION = 100000;
 
 #pragma pack(push,1)
 struct MotorState {
@@ -28,6 +28,7 @@ struct MotorDataReduced
 #pragma pack(pop)
 
 
+
 #pragma pack(push,1)
 struct MotorData
 {
@@ -45,10 +46,6 @@ struct MotorData
 	int qid = -1;
 	bool isStop = false; // stop motor or not
 
-	//flag that indicate if a motor is realy availible and not just a motor wiht no function.
-	//on earlier implementation, motors with no pin where nullptrs but now all motors gets initialized
-	//and its needed to show only true initialized motors inside webui and android app.
-	bool isActivated = 0;
 	//internal state used by fast/accel stepper, maybe it shoulde get renamed to isRunning^^ but that need also to invert all true false values
 	bool stopped = true;
 	bool endstop_hit = false;
@@ -60,10 +57,22 @@ struct MotorData
 	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
 	int dirPin = -1;
 	int stpPin = -1;
+	uint32_t maxPos = 0; // max position in steps
+	uint32_t minPos = 0; // min position in steps
+	bool softLimitEnabled = false; // soft limit enabled
 	
 }__attribute__((packed));
 #pragma pack(pop)
 
+
+
+// Common minimal struct
+#pragma pack(push,1)
+struct MotorDataValueUpdate {
+  uint16_t offset;   // e.g. offsetof(MotorData, isforever)
+  int32_t  value;    // We'll interpret as bool on the other side
+};
+#pragma pack(pop)
 
 
 

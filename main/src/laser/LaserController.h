@@ -6,10 +6,10 @@
 
 struct LaserData
 {
-    int LASERid;
-    int LASERval;
-    int LASERdespeckle;
-    int LASERdespecklePeriod;
+    int LASERid=0;
+    int LASERval=0;
+    int LASERdespeckle=0;
+    int LASERdespecklePeriod=0;
 };
 
 namespace LaserController
@@ -65,6 +65,7 @@ namespace LaserController
     void loop();
     void setPWM(int pwmValue, int pwmChannel);
     void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res);
+    void applyLaserValue(const LaserData& laserData);
 
     LaserData getLaserData();
 

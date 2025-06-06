@@ -89,7 +89,6 @@ namespace AccelStep
                 steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
             }
 #endif
-            getData()[Stepper::A]->isActivated = true;
         }
         if (pinConfig.MOTOR_X_STEP > -1)
         {
@@ -107,7 +106,6 @@ namespace AccelStep
                 steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
             }
 #endif
-            getData()[Stepper::X]->isActivated = true;
         }
         if (pinConfig.MOTOR_Y_STEP > -1)
         {
@@ -123,7 +121,6 @@ namespace AccelStep
                 steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
             }
 #endif
-            getData()[Stepper::Y]->isActivated = true;
         }
         if (pinConfig.MOTOR_Z_STEP > -1)
         {
@@ -139,7 +136,6 @@ namespace AccelStep
                 steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
             }
 #endif
-            getData()[Stepper::Z]->isActivated = true;
         }
 
         // setting default values

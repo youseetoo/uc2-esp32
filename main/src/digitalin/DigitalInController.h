@@ -10,6 +10,7 @@ namespace DigitalInController
     static int digitalin_val_1 = 0;
     static int digitalin_val_2 = 0;
     static int digitalin_val_3 = 0;
+    static bool pinEmergencyExitState = true;
 
     
     int act(cJSON* jsonDocument);

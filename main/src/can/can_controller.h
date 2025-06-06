@@ -14,11 +14,16 @@
 #include "../home/HomeMotor.h"
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
+#ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
+#endif
 #define CAN_RX_TASK_PRIORITY 5
 #define CAN_RX_TASK_STACK 4096
 #define CAN_QUEUE_LENGTH 10
 
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
+#endif
 
 typedef struct
 {
@@ -53,13 +58,15 @@ namespace can_controller
     void setCANAddress(uint8_t address);
     uint8_t getCANAddress();
     void dispatchIsoTpData(pdu_t&);
-    
     // motor functions
-    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, bool reduced = false);
-    int startStepper(MotorData *data, int axis, bool reduced);
+    int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, int reduced = 0);
+    int startStepper(MotorData *data, int axis, int reduced);
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);
+    int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed);
+    int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
+    int sendCANRestartByID(uint8_t canID);
 
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);
@@ -71,7 +78,17 @@ namespace can_controller
     void sendLaserDataToCANDriver(LaserData laserData);
 
     // TMC 
+    #ifdef TMC_CONTROLLER
     void sendTMCDataToCANDriver(TMCData tmcData, int axis);
+    #endif
+
+    // LED 
+    #ifdef LED_CONTROLLER
+    int sendLedCommandToCANDriver(LedCommand cmd, uint8_t targetID);
+    #endif
+    
+
+
 
 
 

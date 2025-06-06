@@ -45,7 +45,7 @@ namespace i2c_slave_motor
             }
             */
             log_i("Received MotorData from I2C, isEnable: %i, targetPosition: %i, absolutePosition: %i, speed: %i, acceleration: %i, isforever: %i, isStop: %i", receivedMotorData.isEnable, receivedMotorData.targetPosition, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration, receivedMotorData.isforever, receivedMotorData.isStop);
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
             // Now `receivedMotorData` contains the deserialized data
             // You can process `receivedMotorData` as needed
             // bool isStop = receivedMotorData.isStop;
@@ -80,7 +80,7 @@ namespace i2c_slave_motor
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
             FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, false);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
         }
         else if (numBytes == sizeof(HomeData))
         {

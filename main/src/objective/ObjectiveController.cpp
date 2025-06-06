@@ -16,6 +16,18 @@ namespace ObjectiveController
 	static void moveToPosition(int32_t pos, Stepper axis, int speed, int accel, int qid)
 	{
 		// Set up the motor data
+		uint32_t lowerLimit = 0;
+		uint32_t upperLimit = 90000;
+		if (pos < lowerLimit)
+		{
+			log_i("Position %i is below lower limit %i, setting to lower limit", pos, lowerLimit);
+			pos = lowerLimit;
+		}
+		else if (pos > upperLimit)
+		{
+			log_i("Position %i is above upper limit %i, setting to upper limit", pos, upperLimit);
+			pos = upperLimit;
+		}
 		FocusMotor::getData()[axis]->targetPosition = pos;
 		FocusMotor::getData()[axis]->speed = speed;
 		FocusMotor::getData()[axis]->maxspeed = speed;
@@ -26,7 +38,8 @@ namespace ObjectiveController
 		FocusMotor::getData()[axis]->stopped = false;
 		FocusMotor::getData()[axis]->absolutePosition = 1;
 		FocusMotor::getData()[axis]->qid = qid;
-		FocusMotor::startStepper(axis, true);
+		FocusMotor::getData()[axis]->isforever = false; // not forever, just move to position
+		FocusMotor::startStepper(axis, 1);
 		data.lastTarget = pos;
 	}
 
@@ -40,7 +53,7 @@ namespace ObjectiveController
 		{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
 		{"task":"/objective_act","toggle":1, "speed": 26000, "accel": 400000} 			toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
 		{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
-		{"task":"/objective_act","x1":  5000, "x2": 35000} set explicit positions (in steps )
+		{"task":"/objective_act","x1":  10000, "x2": 80000} set explicit positions (in steps )
 		{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
 		{"task":"/objective_act","z1": 20, "z2": 200}	set current position as z1 and explicit position for z2
 		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
@@ -246,6 +259,44 @@ namespace ObjectiveController
 
 		return root;
 	}
+
+	void share_changed_event(int pressed)
+	{
+		log_i("Objective move to x1 at position: %i", data.x1);
+		if (pressed)
+		{
+			// Move to X1
+			int speed = 20000;
+			int accel = 20000;
+			int qid = 0;
+			moveToPosition(data.x1, sObjective, speed, accel, qid);
+			if (data.z1!=0){
+				log_i("Objective move to z1 at position: %i", data.z1);
+				moveToPosition(data.z1, sFocus, speed, accel, qid);
+			}
+			data.currentState = 1;
+		}
+	}
+
+	void options_changed_event(int pressed)
+	{
+		log_i("Objective move to x2 at position: %i", data.x2);
+		if (pressed)
+		{
+			// Move to X2
+			int speed = 20000;
+			int accel = 20000;
+			int qid = 0;			
+			moveToPosition(data.x2, sObjective, speed, accel, qid);
+			if (data.z2!=0){
+				log_i("Objective move to z2 at position: %i", data.z2);
+				moveToPosition(data.z2, sFocus, speed, accel, qid);
+			}
+			data.currentState = 1;
+		}
+	}
+
+
 
 	void setup()
 	{

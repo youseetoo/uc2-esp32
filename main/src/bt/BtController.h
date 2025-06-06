@@ -39,6 +39,8 @@ namespace BtController
     void btControllerLoop(void *p);
     void setCrossChangedEvent(void (*cross_changed_event)(int pressed));
     void setCircleChangedEvent(void(*circle_changed_event)(int pressed));
+    void setShareChangedEvent(void (*share_changed_event)(int pressed));
+    void setOptionsChangedEvent(void (*options_changed_event)(int pressed));
     void setTriangleChangedEvent(void (*triangle_changed_event)(int pressed));
     void setSquareChangedEvent(void (*square_changed_event)(int pressed));
     void setDpadChangedEvent(void (*dpad_changed_event)(Dpad::Direction pressed));

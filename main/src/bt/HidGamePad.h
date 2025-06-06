@@ -11,6 +11,8 @@ struct GamePadData
   uint8_t cross;
   uint8_t circle;
   uint8_t triangle;
+  uint8_t share;
+  uint8_t options;
   uint8_t l1;
   uint8_t r1;
   uint8_t l2;

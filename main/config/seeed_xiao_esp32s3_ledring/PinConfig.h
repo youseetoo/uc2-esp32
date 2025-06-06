@@ -2,51 +2,57 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
-struct UC2_ESP32S3_XIAO_LEDRING : PinConfig
+
+// ATTENTION: THIS IS ONLY FOR LINTING!
+#define CORE_DEBUG_LEVEL
+#define ESP32S3_MODEL_XIAO 
+#define LASER_CONTROLLER
+#define MESSAGE_CONTROLLER
+#define CAN_CONTROLLER
+#define CAN_SLAVE_LASER
+struct UC2_3_Xiao_Slave_Laser : PinConfig
 {
-     /*
-     D0: 1
-     D1: 3
-     D2: 3
-     D3: 4
-     D4: 5
-     D5: 6
-     D6: 43
-     D7: 44
-     D8: 7
-     D9: 8
-     D10: 9
+    /*
+    XIAO Pin to GPIO Mapping:
+    D0: GPIO_01
+    D1: GPIO_02
+    D2: GPIO_03
+    D3: GPIO_04
+    D4: GPIO_05
+    D5: GPIO_06
+    D6: GPIO_43 (Unused, available on J1101)
+    D7: GPIO_44 (Unused, available on J1101)
+    D8: GPIO_07 (Unused, available on J1101)
+    D9: GPIO_08 (Interlock power detection)
+    D10: GPIO_09 (CAN RX)
+    */
 
-     # XIAO
+    const char *pindefName = "UC2_3_I2CSlaveLaser";
+    const unsigned long BAUDRATE = 115200;
 
-     {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":255, "g":255, "b":255}]}}
-     {"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":255}]}}
+    // Laser control pins (PWM for lasers)
+    int8_t LASER_1 = GPIO_NUM_2; // D1 (signal_1, Laser 0)
+    int8_t LASER_2 = GPIO_NUM_3; // D2 (signal_2, Laser 1)
+    int8_t LASER_3 = GPIO_NUM_5; // D4 (signal_3, Laser 2)
+    int8_t LASER_4 = GPIO_NUM_6; // D5 (signal_4, Laser 3)
 
-     {"task": "/laser_act", "LASERid":1, "LASERval": 500, "LASERdespeckle": 500,  "LASERdespecklePeriod": 100}
-     {"task": "/laser_act", "LASERid":2, "LASERval": 0}
-     {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
-     {"task": "/laser_act", "LASERid":1, "LASERval": 0}
-     {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
-     */
-     const char *pindefName = "UC2_ESP32S3_XIAO_LEDRING";
-     const unsigned long BAUDRATE = 115200;
+    // Interlock status
+    int8_t digita_in_1= GPIO_NUM_8; // D9 (LO when interlock has power) // INTERLOCK_STATUS
+    int8_t digita_in_2 = GPIO_NUM_1; // D0 (LO when interlock tripped, enable pullup) // INTERLOCK_LED
 
-     uint8_t I2C_CONTROLLER_TYPE = I2CControllerType::mLASER;
-     uint8_t I2C_ADD_SLAVE = I2C_ADD_LEX_PWM1; // I2C address of the ESP32 if it's a slave
+    // CAN communication
+    int8_t CAN_TX = GPIO_NUM_4; // D3 (CAN-SEND)
+    int8_t CAN_RX = GPIO_NUM_9; // D10 (CAN-RECV)
+    uint32_t CAN_ID_CURRENT = CAN_ID_LASER_0; // Broadcasting address for laser PWM control
 
-     // Laser control pins (using updated GPIO values)
-     int8_t LASER_1 = GPIO_NUM_3; // D2
-     int8_t LASER_2 = GPIO_NUM_4; // D3 => Motor 1/1
-     
-     int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 // Touch 1 
-     int8_t DIGITAL_IN_2 = GPIO_NUM_3; // D1 // Touch 2
-     
-     // I2C configuration (using updated GPIO values)
-     int8_t I2C_SCL = GPIO_NUM_6; // D5 -> GPIO6
-     int8_t I2C_SDA = GPIO_NUM_5; // D4 -> GPIO5
+    // I2C Configuration (Disabled in this setup)
+    int8_t I2C_SCL = -1; // Disabled
+    int8_t I2C_SDA = -1; // Disabled
 
-     int8_t CAN_TX = 5;
-     int8_t CAN_RX = 44;
-
+    // Unused Pins (Available on J1101 for future expansion)
+    int8_t UNUSED_1 = GPIO_NUM_43; // D6
+    int8_t UNUSED_2 = GPIO_NUM_44; // D7
+    int8_t UNUSED_3 = GPIO_NUM_7; // D8
 };
-const UC2_ESP32S3_XIAO_LEDRING pinConfig;
+
+const UC2_3_Xiao_Slave_Laser pinConfig;

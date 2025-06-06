@@ -269,6 +269,13 @@ namespace StageScan
     // {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 100, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 5, "stopped": 0, "nFrames": 3000}}
     // Coordinate-based scanning examples:
     // {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}], "delayTimeStep": 10, "nFrames": 1}}
+    //
+    // CAN/I2C Integration:
+    // Coordinate-based scanning uses FocusMotor::moveMotor() for absolute positioning, which automatically
+    // routes motor commands through the appropriate communication layer:
+    // - CAN_CONTROLLER: Commands sent via CAN to distributed motor controllers
+    // - I2C_MASTER: Commands sent via I2C to slave controllers  
+    // - Direct GPIO: Falls back to direct stepper control when neither CAN nor I2C is configured
     {
         stageScan(true);
     }

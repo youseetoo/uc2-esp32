@@ -313,7 +313,7 @@ namespace can_controller
         uint8_t *data = pdu.data; // Data buffer
         size_t size = pdu.len;    // Data size
         if (pinConfig.DEBUG_CAN_ISO_TP)
-            log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
+            log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, device_can_id);
 
         // this is coming from the central node, so slaves should react
         /*

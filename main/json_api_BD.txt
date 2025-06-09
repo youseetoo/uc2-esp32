@@ -225,7 +225,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -500, "speed": -1500, "isabs": 0, "isaccel":0}]}}
 
-{"task": "/laser_act", "LASERid":1, "LASERval": 100} 
+{"task": "/laser_act", "LASERid":1, "LASERval": 1000, "qid":1} 
 
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
 

@@ -50,6 +50,7 @@ namespace LaserController
 	void setPWM(int pwmValue, int pwmChannel)
 	{
 		// sets the PWM value for the given channel
+		log_i("Setting PWM value %i on channel %i", pwmValue, pwmChannel);
 		ledcWrite(pwmChannel, pwmValue);
 	}
 

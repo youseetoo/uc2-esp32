@@ -313,7 +313,7 @@ namespace can_controller
         uint8_t *data = pdu.data; // Data buffer
         size_t size = pdu.len;    // Data size
         if (pinConfig.DEBUG_CAN_ISO_TP)
-            log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, getCANAddress());
+            log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, device_can_id);
 
         // this is coming from the central node, so slaves should react
         /*
@@ -380,20 +380,17 @@ namespace can_controller
 #endif
 #if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
         // Support for illumination board that handles both LED and laser commands
-        // The device can receive messages addressed to either LED_0 or LASER_0
-        else if ((rxID == pinConfig.CAN_ID_LED_0 || rxID == pinConfig.CAN_ID_LASER_0))
+        // The device can receive messages addressed to either primary or secondary CAN ID
+        else if ((rxID == device_can_id) || 
+                 (pinConfig.CAN_ID_SECONDARY != 0 && rxID == pinConfig.CAN_ID_SECONDARY))
         {
-            // Check if this device should handle the message
-            if (device_can_id == pinConfig.CAN_ID_LED_0 || device_can_id == pinConfig.CAN_ID_LASER_0)
+            if (size == sizeof(LedCommand))
             {
-                if (size == sizeof(LedCommand))
-                {
-                    parseLEDData(data, size, rxID);
-                }
-                else if (size == sizeof(LaserData))
-                {
-                    parseLaserData(data, size, rxID);
-                }
+                parseLEDData(data, size, rxID);
+            }
+            else if (size == sizeof(LaserData))
+            {
+                parseLaserData(data, size, rxID);
             }
         }
 #endif
@@ -669,7 +666,15 @@ namespace can_controller
         //     int receiveCanMessage(uint8_t rxID, uint8_t *data)
         while (true)
         {
+            // Listen to primary CAN address
             int mError = receiveCanMessage(device_can_id);
+            
+            // If secondary CAN address is configured and different from primary, listen to it too
+            if (pinConfig.CAN_ID_SECONDARY != 0 && pinConfig.CAN_ID_SECONDARY != device_can_id)
+            {
+                int mErrorSecondary = receiveCanMessage(pinConfig.CAN_ID_SECONDARY);
+            }
+            
             vTaskDelay(1);
         }
     }

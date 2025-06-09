@@ -327,6 +327,9 @@ struct PinConfig
 
     uint8_t CAN_ID_GALVO_0 = 40;
 
+    // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
+    // Set to 0 to disable secondary address listening
+    uint32_t CAN_ID_SECONDARY = 0;
 
      // Emergency stop
      int8_t pinEmergencyExit = disabled;

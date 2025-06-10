@@ -53,6 +53,7 @@ namespace can_controller
     // general CAN-related functions
     uint8_t axis2id(int axis);
     int receiveCanMessage(uint8_t senderID);
+    int receiveCanMessage(uint8_t *rxIDs, uint8_t numIDs);
     int sendCanMessage(uint8_t receiverID, const uint8_t *data, size_t size);
     //int sendCanMessage(uint8_t receiverID, const uint8_t *data);
     void setCANAddress(uint8_t address);

@@ -84,6 +84,7 @@ public:
 
     int send(pdu_t *pdu);     // Send ISO-TP message
     int receive(pdu_t *pdu, uint32_t timeout);  // Receive ISO-TP message
+    int receive(pdu_t *pdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t timeout);  // Receive ISO-TP message with multiple addresses
 
 private:
     uint32_t _timerSession;

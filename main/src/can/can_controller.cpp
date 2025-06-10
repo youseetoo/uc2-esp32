@@ -629,6 +629,64 @@ namespace can_controller
         return ret;
     }
 
+    // Multi-address receive function
+    int receiveCanMessage(uint8_t *rxIDs, uint8_t numIDs)
+    {
+        int ret;
+        // receive data from any node
+        pdu_t rxPdu;
+        // No need to set rxPdu.rxId since we're passing multiple IDs to the receive function
+        rxPdu.txId = 0;    // it really (!!!) doesn't matter when receiving frames, could use anything
+        ret = isoTpSender.receive(&rxPdu, rxIDs, numIDs, 50);
+        
+        // check if remote ID is in the list of non-working motors - if yes and we received data, we should remove it from the list
+        if (ret == 0)
+        {
+            // The actual received ID is now in rxPdu.rxId (set by the multi-address receive function)
+            if (isIDInAvailableCANDevices(rxPdu.rxId))
+            {
+                // remove the senderID from the list of non-working motors
+                for (int i = 0; i < MAX_CAN_DEVICES; i++) // Iterate through the array
+                {
+                    // check if ID is in nonAvailableCANids
+                    if (nonAvailableCANids[i] == rxPdu.rxId)
+                    {
+                        if (pinConfig.DEBUG_CAN_ISO_TP)
+                            log_i("Removing %u from the list of non-working motors", rxPdu.rxId);
+                        nonAvailableCANids[i] = 0; // Address found
+                    }
+                }
+            }
+            
+            if (uxQueueMessagesWaiting(recieveQueue) == CAN_QUEUE_SIZE - 1)
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("adding to recieveQueue");
+                pdu_t newPdu;
+                xQueueReceive(recieveQueue, &newPdu, portMAX_DELAY);
+                if (newPdu.data != nullptr)
+                {
+                    free(newPdu.data);
+                    newPdu.data = nullptr;
+                }
+            }
+            if (xQueueSend(recieveQueue, &rxPdu, 0) != pdPASS)
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Failed to send to recieveQueue");
+                // free memory if not added to queue
+                if (rxPdu.data != nullptr)
+                {
+                    free(rxPdu.data);
+                    rxPdu.data = nullptr;
+                }
+            }
+            // this has txPdu => 0
+            // this has rxPdu => frame.identifier (which is the ID from the current device)
+        }
+        return ret;
+    }
+
     void processCanMsgTask(void *p)
     {
         pdu_t rxPdu;
@@ -669,14 +727,20 @@ namespace can_controller
         //     int receiveCanMessage(uint8_t rxID, uint8_t *data)
         while (true)
         {
-            // Listen to primary CAN address
-            int mError = receiveCanMessage(device_can_id);
+            // Prepare list of CAN IDs to listen to
+            uint8_t rxIDs[2];
+            uint8_t numIDs = 1;
+            rxIDs[0] = device_can_id;
             
-            // If secondary CAN address is configured and different from primary, listen to it too
+            // If secondary CAN address is configured and different from primary, add it to the list
             if (pinConfig.CAN_ID_SECONDARY != 0 && pinConfig.CAN_ID_SECONDARY != device_can_id)
             {
-                int mErrorSecondary = receiveCanMessage(pinConfig.CAN_ID_SECONDARY);
+                rxIDs[1] = pinConfig.CAN_ID_SECONDARY;
+                numIDs = 2;
             }
+            
+            // Listen to all configured CAN addresses in one call
+            int mError = receiveCanMessage(rxIDs, numIDs);
             
             vTaskDelay(1);
         }

@@ -58,6 +58,9 @@ struct UC2_3_Xiao_Slave_Illumination : PinConfig
     const uint16_t RING_OUTEST_START = 88;    // Outest ring: 48 LEDs (indices 88-135)
     const uint16_t RING_OUTEST_COUNT = 48;
 
+    // Calculate total LED count from ring definitions
+    const int8_t LED_COUNT = RING_OUTEST_START + RING_OUTEST_COUNT; // 88 + 48 = 136
+
     // Laser control pin (PWM for high-power white LED)
     int8_t LASER_0 = GPIO_NUM_4; // D3 - White LED PWM (only one channel available)
 

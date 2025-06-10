@@ -304,7 +304,8 @@ namespace LedController
 				break;
 			default:
 				// Invalid ring, light up all rings
-				for (uint16_t i = 0; i < 136; i++) {
+				uint16_t total_leds = pinConfig.RING_OUTEST_START + pinConfig.RING_OUTEST_COUNT;
+				for (uint16_t i = 0; i < total_leds; i++) {
 					matrix->setPixelColor(i, matrix->Color(r, g, b));
 				}
 				matrix->show();

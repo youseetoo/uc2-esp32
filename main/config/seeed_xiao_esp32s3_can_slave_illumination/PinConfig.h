@@ -81,7 +81,7 @@ struct UC2_3_Xiao_Slave_Illumination : PinConfig
     int8_t SPARE_1 = GPIO_NUM_44; // D7 - Spare digital I/O
 
     // Debug flag for CAN communication
-    bool DEBUG_CAN_ISO_TP = 0;
+    bool DEBUG_CAN_ISO_TP = 1;
 };
   
 const UC2_3_Xiao_Slave_Illumination pinConfig;

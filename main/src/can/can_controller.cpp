@@ -277,8 +277,8 @@ namespace can_controller
         {
             memcpy(&laser, data, sizeof(laser));
             // Do something with laser data
-            if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Laser intensity: %d", laser.LASERval);
+            if (1) //pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Laser intensity: %d, Laserid: %d", laser.LASERval, laser.LASERid);
             // assign PWM channesl to the laserid
             if (laser.LASERid == 0)
             {
@@ -299,7 +299,7 @@ namespace can_controller
         }
         else
         {
-            if (pinConfig.DEBUG_CAN_ISO_TP)
+            if (1)//pinConfig.DEBUG_CAN_ISO_TP)
                 log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
 #endif

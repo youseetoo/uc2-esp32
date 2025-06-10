@@ -273,6 +273,7 @@ namespace LaserController
 
 	bool setLaserVal(int LASERid, int LASERval)
 	{
+		log_i("Setting Laser Value: LASERid %i, LASERval %i", LASERid, LASERval);
 		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
@@ -290,28 +291,28 @@ namespace LaserController
 		can_controller::sendLaserDataToCANDriver(laserData);
 		return true;
 		#else
-		if (LASERid == 0 && LASERval >= 0)
+		if (LASERid == LaserController::PWM_CHANNEL_LASER_0 && pinConfig.LASER_0 != 0)
 		{
 			LASER_val_0 = LASERval;
 			setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == 1 && pinConfig.LASER_1 != 0)
+		else if (LASERid == LaserController::PWM_CHANNEL_LASER_1 && pinConfig.LASER_1 != 0)
 		{
 			LASER_val_1 = LASERval;
 			setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
+		else if (LASERid == LaserController::PWM_CHANNEL_LASER_2 && pinConfig.LASER_2 != 0)
 		{
 			LASER_val_2 = LASERval;
 			setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
+		else if (LASERid == LaserController::PWM_CHANNEL_LASER_3 && pinConfig.LASER_3 != 0)
 		{
 			LASER_val_3 = LASERval;
 			setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);

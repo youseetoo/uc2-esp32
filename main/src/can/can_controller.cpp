@@ -360,11 +360,14 @@ namespace can_controller
         {
             parseMotorAndHomeData(data, size, rxID);
         }
+#if defined(LASER_CONTROLLER) && !defined(LED_CONTROLLER)
+        // Support for laser-only controllers
         else if (rxID == device_can_id &&
                  (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_3))
         {
             parseLaserData(data, size, rxID);
         }
+#endif
         else if (rxID == device_can_id && (size == sizeof(MotorState) or size == sizeof(HomeState))) // this is coming from the X motor
         {
             /*
@@ -372,12 +375,6 @@ namespace can_controller
             */
             parseMotorAndHomeState(data, size, rxID);
         }
-#ifdef LED_CONTROLLER
-        else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_LED_0 && size == sizeof(LedCommand))
-        {
-            parseLEDData(data, size, rxID);
-        }
-#endif
 #if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
         // Support for illumination board that handles both LED and laser commands
         // The device can receive messages addressed to either primary or secondary CAN ID
@@ -392,6 +389,12 @@ namespace can_controller
             {
                 parseLaserData(data, size, rxID);
             }
+        }
+#elif defined(LED_CONTROLLER)
+        // Support for LED-only controllers
+        else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_LED_0 && size == sizeof(LedCommand))
+        {
+            parseLEDData(data, size, rxID);
         }
 #endif
         else

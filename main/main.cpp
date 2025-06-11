@@ -224,6 +224,30 @@ extern "C" void looper(void *p)
 	vTaskDelete(NULL);
 }
 
+#ifdef BLUETOOTH
+static void handleSquareLongPress(bool pressed)
+{
+    // Store the press time in milliseconds
+    static unsigned long pressStart = 0;
+
+    if (pressed)
+    {
+        // Button pressed: record the time
+        pressStart = millis();
+    }
+    else
+    {
+        // Button released: check duration
+        unsigned long pressDuration = millis() - pressStart;
+        if (pressDuration > 3000) // 3 seconds
+        {
+            Serial.println("Square button long-press detected, rebooting...");
+            ESP.restart();
+        }
+    }
+}
+#endif
+
 extern "C" void setupApp(void)
 {
 
@@ -280,6 +304,7 @@ extern "C" void setupApp(void)
 	#ifdef MESSAGE_CONTROLLER
 		BtController::setTriangleChangedEvent(MessageController::triangle_changed_event);
 		BtController::setSquareChangedEvent(MessageController::square_changed_event);
+		BtController::setSquareChangedEvent(handleSquareLongPress);
 	#endif
 	#ifdef LASER_CONTROLLER
 		//BtController::setCircleChangedEvent(LaserController::triangle_changed_event);

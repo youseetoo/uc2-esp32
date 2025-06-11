@@ -520,3 +520,83 @@ gives
 {"task": "/laser_act", "LASERid":1, "LASERval": 1024}
 {"task": "/laser_act", "LASERid":1, "LASERval": 0}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
+
+
+
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 17}
+
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": -1}]}, "qid": 16}
+
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": -1}]}, "qid": 15}
+
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": 1}]}, "qid": 14}
+
+{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 3, "nY": 3, "tPre": 50, "tPost": 50, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
+
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 10000, "speed": 20000, "isabs": 1, "isaccel":1, "accel":50000, "qid":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 10000, "speed": 20000, "isabs": 1, "isaccel":1, "accel":50000, "qid":1}]}}
+
+
+{"task":"/motor_get"}
+
+
+{
+   "motor":{
+      "steppers":[
+         {
+            "stepperid":0,
+            "position":0,
+            "trigOff":0,
+            "trigPer":-1,
+            "trigPin":-1,
+            "isStop":1,
+            "isRunning":1,
+            "isDualAxisZ":0,
+            "isforever":0,
+            "isen":0,
+            "stopped":1
+         },
+         {
+            "stepperid":1,
+            "position":3613,
+            "trigOff":0,
+            "trigPer":-1,
+            "trigPin":-1,
+            "isStop":0,
+            "isRunning":0,
+            "isDualAxisZ":0,
+            "isforever":1,
+            "isen":0,
+            "stopped":1
+         },
+         {
+            "stepperid":2,
+            "position":23994,
+            "trigOff":0,
+            "trigPer":-1,
+            "trigPin":-1,
+            "isStop":0,
+            "isRunning":0,
+            "isDualAxisZ":0,
+            "isforever":1,
+            "isen":0,
+            "stopped":1
+         },
+         {
+            "stepperid":3,
+            "position":0,
+            "trigOff":0,
+            "trigPer":-1,
+            "trigPin":-1,
+            "isStop":1,
+            "isRunning":1,
+            "isDualAxisZ":0,
+            "isforever":0,
+            "isen":0,
+            "stopped":1
+         }
+      ]
+   },
+   "qid":0
+}

@@ -394,6 +394,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1]; // len is 16bits: 0000 XXXX. 0000 0000.
     pdu->len = totalLen;
     _rxRestBytes = pdu->len;
+
     if (pinConfig.DEBUG_CAN_ISO_TP) log_i("First Frame received, txID %d, rxID %d, size: %i, totalLen: %i", pdu->txId, pdu->rxId, frame->data_length_code, totalLen);
 
     // If totalLen < 6, we cannot safely copy 6 bytes.
@@ -576,18 +577,21 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
                 
                 if (frameMatches)
                 {
+                    
                     // Extract N_PCItype
                     if (frame.data_length_code > 0)
                     {
                         N_PCItype = (frame.data[0] & 0xF0);
                         switch (N_PCItype)
                         {
-                        case N_PCItypeSF: // 0x00
+                            case N_PCItypeSF: // 0x00
                             if (pinConfig.DEBUG_CAN_ISO_TP) log_i("SF received");
                             ret = receive_SingleFrame(rxpdu, &frame);
                             break;
-                        case N_PCItypeFF: // 0x10
+                            case N_PCItypeFF: // 0x10
                             ret = receive_FirstFrame(rxpdu, &frame);
+                            // resetting session timer
+                            _timerSession = millis(); // TODO: check if this is needed here, as we are not sending anything yet
                             break;
                         case N_PCItypeFC: // 0x30
                             if (pinConfig.DEBUG_CAN_ISO_TP) log_i("FC received - but it doesn't make sense!");

@@ -18,7 +18,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: betaBD  # Checkout the betaBD branch
+        ref: main  # Checkout the main branch
         #submodules: recursive
         #submodules: true  # Ensure submodules are checked out
     

@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: betaBD
+          ref: main
           submodules: recursive
 
       - name: Set up Python

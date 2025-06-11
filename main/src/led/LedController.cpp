@@ -287,24 +287,25 @@ namespace LedController
 
 		switch (ring_id) {
 			case 0: // Inner ring
-				start_idx = 0;   
-				count = 20;      
+				start_idx = pinConfig.RING_INNER_START;   
+				count = pinConfig.RING_INNER_COUNT;      
 				break;
 			case 1: // Middle ring
-				start_idx = 20;  
-				count = 28;      
+				start_idx = pinConfig.RING_MIDDLE_START;  
+				count = pinConfig.RING_MIDDLE_COUNT;      
 				break;
 			case 2: // Biggest ring
-				start_idx = 48;  
-				count = 40;      
+				start_idx = pinConfig.RING_BIGGEST_START;  
+				count = pinConfig.RING_BIGGEST_COUNT;      
 				break;
 			case 3: // Outest ring
-				start_idx = 88;  
-				count = 48;      
+				start_idx = pinConfig.RING_OUTEST_START;  
+				count = pinConfig.RING_OUTEST_COUNT;      
 				break;
 			default:
 				// Invalid ring, light up all rings
-				for (uint16_t i = 0; i < 136; i++) {
+				uint16_t total_leds = pinConfig.RING_OUTEST_START + pinConfig.RING_OUTEST_COUNT;
+				for (uint16_t i = 0; i < total_leds; i++) {
 					matrix->setPixelColor(i, matrix->Color(r, g, b));
 				}
 				matrix->show();
@@ -335,10 +336,10 @@ namespace LedController
 		uint16_t count = 0;
 		log_i("drawIlluminationRingSegment: ring_id=%d, region=%s, r=%d, g=%d, b=%d", ring_id, region, r, g, b);
 		switch (ring_id) {
-			case 0: start_idx = 0; count = 20; break;   // Inner ring
-			case 1: start_idx = 20; count = 28; break;  // Middle ring  
-			case 2: start_idx = 48; count = 40; break;  // Biggest ring
-			case 3: start_idx = 88; count = 48; break;  // Outest ring
+			case 0: start_idx = pinConfig.RING_INNER_START; count = pinConfig.RING_INNER_COUNT; break;   // Inner ring
+			case 1: start_idx = pinConfig.RING_MIDDLE_START; count = pinConfig.RING_MIDDLE_COUNT; break;  // Middle ring  
+			case 2: start_idx = pinConfig.RING_BIGGEST_START; count = pinConfig.RING_BIGGEST_COUNT; break;  // Biggest ring
+			case 3: start_idx = pinConfig.RING_OUTEST_START; count = pinConfig.RING_OUTEST_COUNT; break;  // Outest ring
 			default: return; // Invalid ring
 		}
 

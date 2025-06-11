@@ -394,6 +394,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     uint16_t totalLen = ((frame->data[0] & 0x0F) << 8) | frame->data[1]; // len is 16bits: 0000 XXXX. 0000 0000.
     pdu->len = totalLen;
     _rxRestBytes = pdu->len;
+
     if (pinConfig.DEBUG_CAN_ISO_TP) log_i("First Frame received, txID %d, rxID %d, size: %i, totalLen: %i", pdu->txId, pdu->rxId, frame->data_length_code, totalLen);
 
     // If totalLen < 6, we cannot safely copy 6 bytes.
@@ -534,5 +535,85 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
         break;
     }
 
+    return ret;
+}
+
+// Multi-address receive function
+int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t timeout)
+{
+    uint8_t ret = 1;
+    uint8_t N_PCItype = 0;
+    uint32_t _timerSession = millis();
+    if (xSemaphoreTake(canIsoTpSemaphore, portMAX_DELAY) == pdTRUE)
+    {
+        rxpdu->cantpState = CANTP_IDLE;
+
+        while (rxpdu->cantpState != CANTP_END && rxpdu->cantpState != CANTP_ERROR)
+        {
+            if (millis() - _timerSession >= TIMEOUT_SESSION)
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Session timeout");
+                ret = 1; // Session timeout
+                break;
+            }
+            CanFrame frame;
+
+            if (ESP32CanTwai.readFrame(&frame, timeout))
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame.identifier: %d, checking against %d addresses", frame.identifier, numIDs);
+                
+                // Check if frame matches any of the target IDs
+                bool frameMatches = false;
+                for (uint8_t i = 0; i < numIDs; i++)
+                {
+                    if (frame.identifier == rxIDs[i])
+                    {
+                        frameMatches = true;
+                        rxpdu->rxId = frame.identifier; // Set the actual received ID
+                        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame matches ID %d", rxIDs[i]);
+                        break;
+                    }
+                }
+                
+                if (frameMatches)
+                {
+                    
+                    // Extract N_PCItype
+                    if (frame.data_length_code > 0)
+                    {
+                        N_PCItype = (frame.data[0] & 0xF0);
+                        switch (N_PCItype)
+                        {
+                            case N_PCItypeSF: // 0x00
+                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("SF received");
+                            ret = receive_SingleFrame(rxpdu, &frame);
+                            break;
+                            case N_PCItypeFF: // 0x10
+                            ret = receive_FirstFrame(rxpdu, &frame);
+                            // resetting session timer
+                            _timerSession = millis(); // TODO: check if this is needed here, as we are not sending anything yet
+                            break;
+                        case N_PCItypeFC: // 0x30
+                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("FC received - but it doesn't make sense!");
+                            break;
+                        case N_PCItypeCF: // 0x20
+                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("CF received");
+                            ret = receive_ConsecutiveFrame(rxpdu, &frame);
+                            break;
+                        default:
+                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Unrecognized PCI");
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame ID %d doesn't match any target IDs, ignoring", frame.identifier);
+                }
+            }
+        }
+
+        xSemaphoreGive(canIsoTpSemaphore);
+    }
     return ret;
 }

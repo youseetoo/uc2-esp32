@@ -4,7 +4,7 @@
 #include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
-#include "../state/State.h"
+#include "../state/State.h" // ensure access to IsSyncReturnBehaviourFlag
 #include "esp_debug_helpers.h"
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
@@ -650,6 +650,12 @@ namespace FocusMotor
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos, int qid)
 	{
+		// Check if suppress flag is set
+		if (State::IsSyncReturnBehaviourFlag) {
+			log_i("Suppressing motor position message for axis %d", i);
+			return;
+		}
+
 		// update current position of the motor depending on the interface
 		updateData(i);
 

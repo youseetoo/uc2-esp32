@@ -8,6 +8,7 @@
 #include "../../JsonKeys.h"
 #include "../motor/MotorTypes.h"
 #include "../motor/FocusMotor.h"
+#include "../state/State.h" // for IsSyncReturnBehaviourFlag
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
@@ -216,35 +217,39 @@ int axis = 0;
 	void sendHomeDone(int axis)
 	{
 #ifdef MOTOR_CONTROLLER
-		// send home done to client
-		cJSON *json = cJSON_CreateObject();
-		cJSON *home = cJSON_CreateObject();
-		cJSON_AddItemToObject(json, key_home, home);
-		cJSON *steppers = cJSON_CreateObject();
-		cJSON_AddItemToObject(home, key_steppers, steppers);
-		cJSON *axs = cJSON_CreateNumber(axis);
-		cJSON *done = cJSON_CreateNumber(true);
-		cJSON *pos = cJSON_CreateNumber(FocusMotor::getData()[axis]->currentPosition);
-		cJSON_AddItemToObject(steppers, "axis", axs);
-		cJSON_AddItemToObject(steppers, "pos", pos);
-		cJSON_AddItemToObject(steppers, "isDone", done);
-		cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
-		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
-		Serial.println("++");
-		char *ret = cJSON_PrintUnformatted(json);
-		cJSON_Delete(json);
-		Serial.println(ret);
-		free(ret);
-		Serial.println("--");
+    // send home done to client
+    if (State::IsSyncReturnBehaviourFlag) {
+        log_i("Suppressing home position message for axis %d", axis);
+        return;
+    }
+    cJSON *json = cJSON_CreateObject();
+    cJSON *home = cJSON_CreateObject();
+    cJSON_AddItemToObject(json, key_home, home);
+    cJSON *steppers = cJSON_CreateObject();
+    cJSON_AddItemToObject(home, key_steppers, steppers);
+    cJSON *axs = cJSON_CreateNumber(axis);
+    cJSON *done = cJSON_CreateNumber(true);
+    cJSON *pos = cJSON_CreateNumber(FocusMotor::getData()[axis]->currentPosition);
+    cJSON_AddItemToObject(steppers, "axis", axs);
+    cJSON_AddItemToObject(steppers, "pos", pos);
+    cJSON_AddItemToObject(steppers, "isDone", done);
+    cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
+    cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
+    Serial.println("++");
+    char *ret = cJSON_PrintUnformatted(json);
+    cJSON_Delete(json);
+    Serial.println(ret);
+    free(ret);
+    Serial.println("--");
 #endif
 #if defined(CAN_CONTROLLER) && defined(CAN_SLAVE_MOTOR)
-		// send home state to master
-		HomeState homeState;
-		homeState.isHoming = false;
-		homeState.isHomed = true;
-		homeState.homeInEndposReleaseMode = 0;
-		homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
-		can_controller::sendHomeStateToMaster(homeState);
+    // send home state to master
+    HomeState homeState;
+    homeState.isHoming = false;
+    homeState.isHomed = true;
+    homeState.homeInEndposReleaseMode = 0;
+    homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
+    can_controller::sendHomeStateToMaster(homeState);
 #endif
 	}
 

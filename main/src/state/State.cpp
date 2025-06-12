@@ -21,6 +21,7 @@ namespace State
 	void setup()
 	{
 		log_d("Setup State");
+		IsSyncReturnBehaviourFlag = loadIsSyncReturnBehaviour();
 	}
 
 	// {"task":"/state_act", "restart":1}
@@ -87,7 +88,38 @@ namespace State
 			ESP.restart();
 			return true;
 		}
+		//This will switch the return message behaviour such that there is no asynchronous/event-based message sent to the client
+		cJSON *suppress = cJSON_GetObjectItemCaseSensitive(doc, "syncom");
+		if (suppress != NULL) {
+			bool value = suppress->valueint;
+			saveIsSyncReturnBehaviour(value);
+			log_i("IsSyncReturnBehaviourFlag set to %d", value);
+		}
 		return 1;
+	}
+
+	bool saveIsSyncReturnBehaviour(bool value)
+	{
+		// Save the IsSyncReturnBehaviourFlag to preferences
+		Preferences preferences;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, false);
+		preferences.putBool("syncret", value);
+		preferences.end();
+		IsSyncReturnBehaviourFlag = value;
+		return true;
+	}
+
+	bool loadIsSyncReturnBehaviour()
+	{
+		// Load the IsSyncReturnBehaviourFlag from preferences
+		Preferences preferences;
+		const char *prefNamespace = "UC2";
+		preferences.begin(prefNamespace, true);
+		IsSyncReturnBehaviourFlag = preferences.getBool("syncret", false);
+		preferences.end();
+		log_i("IsSyncReturnBehaviourFlag loaded: %d", IsSyncReturnBehaviourFlag);
+		return IsSyncReturnBehaviourFlag;
 	}
 
 	cJSON *get(cJSON *docin)
@@ -130,6 +162,11 @@ namespace State
 			// cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
 		}
 		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
+
+		cJSON *SUPPRESS = cJSON_GetObjectItemCaseSensitive(docin, "IsSyncReturnBehaviourFlag");
+		if (SUPPRESS != NULL) {
+			cJSON_AddItemToObject(st, "IsSyncReturnBehaviourFlag", cJSON_CreateNumber((int)IsSyncReturnBehaviourFlag));
+		}
 
 		return doc;
 	}

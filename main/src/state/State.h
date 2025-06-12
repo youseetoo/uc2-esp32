@@ -13,6 +13,7 @@ namespace State
 	static const char *identifier_author = "BD";
 	static const char *IDENTIFIER_NAME = "uc2-esp";
 	static bool config_set = false;
+	static bool IsSyncReturnBehaviourFlag = false; // this is used to switch the return message behaviour such that there is no asynchronous/event-based message sent to the client
 
 	// timing variables
 	static unsigned long startMillis;
@@ -26,6 +27,8 @@ namespace State
 
 	void setup();
 	void printInfo();
+	bool saveIsSyncReturnBehaviour(bool value);
+	bool loadIsSyncReturnBehaviour();
 
 	void setBusy(bool busy);
 	bool getBusy();

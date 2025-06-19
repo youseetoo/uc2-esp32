@@ -39,4 +39,29 @@ namespace cJsonTool
             return val->valuedouble;
         return 0;
     };
+    
+    static bool getJsonBool(cJSON *job, const char *key, bool defaultVal = false)
+    {
+        if (job == NULL)
+        {
+            return defaultVal;
+        }
+        cJSON *val = cJSON_GetObjectItemCaseSensitive(job, key);
+        if (val == NULL)
+        {
+            return defaultVal;
+        }
+        if (cJSON_IsBool(val))
+            return cJSON_IsTrue(val);
+        // Also handle integer values (0 = false, non-zero = true)
+        if (cJSON_IsNumber(val))
+            return cJSON_GetNumberValue(val) != 0;
+        return defaultVal;
+    };
+    
+    static void setJsonBool(cJSON *job, const char *key, bool valToSet)
+    {
+        cJSON *v = cJSON_CreateBool(valToSet);
+        cJSON_AddItemToObject(job, key, v);
+    };
 }

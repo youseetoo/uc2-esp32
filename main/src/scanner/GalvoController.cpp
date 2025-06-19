@@ -27,6 +27,7 @@ namespace GalvoController
 
     {   // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":30000, "Y_MIN":0, "Y_MAX":30000, "STEP":1000, "tPixelDwelltime":1, "nFrames":1}
         // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
+        // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1, "fastMode":true}
         // here you can do something
         int qid = cJsonTool::getJsonInt(ob, "qid");
         /*
@@ -46,9 +47,19 @@ namespace GalvoController
         STEP = cJsonTool::getJsonInt(ob, "STEP", STEP);
         tPixelDwelltime = cJsonTool::getJsonInt(ob, "tPixelDwelltime", tPixelDwelltime);
         nFrames = cJsonTool::getJsonInt(ob, "nFrames", nFrames);
+        
+        // Check for fast mode parameter
+        bool requestedFastMode = cJsonTool::getJsonBool(ob, "fastMode", fastMode);
+        if (requestedFastMode != fastMode) {
+            fastMode = requestedFastMode;
+            renderer->setFastMode(fastMode);
+            log_i("Fast mode %s", fastMode ? "enabled" : "disabled");
+        }
+        
         renderer->setParameters(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         renderer->start();
-        log_i("GalvoController act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
+        log_i("GalvoController act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i, fastMode: %s", 
+              X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
 
         /*
             Wire.beginTransmission(SLAVE_ADDR);
@@ -97,8 +108,6 @@ namespace GalvoController
     void setup()
     {
 
-
-
         log_d("Setup GalvoController");
         Serial.println("Setup GalvoController");
         renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, 
@@ -109,7 +118,21 @@ namespace GalvoController
             uint8_t galvo_sdi, uint8_t galvo_miso, uint8_t galvo_sck, uint8_t galvo_cs, 
             uint8_t galvo_ldac, uint8_t galvo_trig_pixel, uint8_t galvo_trig_line, uint8_t galvo_trig_frame);
             */
+        
+        // Enable fast mode by default for galvo scanning
+        renderer->setFastMode(fastMode);
+        log_i("GalvoController setup complete, fast mode: %s", fastMode ? "enabled" : "disabled");
+        
         //Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Start I2C as master
+    }
+
+    void setFastMode(bool enabled)
+    {
+        fastMode = enabled;
+        if (renderer != nullptr) {
+            renderer->setFastMode(enabled);
+        }
+        log_i("GalvoController fast mode %s", enabled ? "enabled" : "disabled");
     }
 
 }

@@ -17,6 +17,7 @@ namespace  GalvoController
     static int STEP = 1000;
     static int tPixelDwelltime = 1;
     static int nFrames = 10;
+    static bool fastMode = true; // Enable fast mode by default
 
     static SPIRenderer *renderer; 
 
@@ -25,4 +26,5 @@ namespace  GalvoController
     void setup();
     void loop();
     void writeInt(int);
+    void setFastMode(bool enabled);
   };

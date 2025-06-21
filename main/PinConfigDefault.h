@@ -166,6 +166,16 @@ struct PinConfig
      // LED_PINcount from the strip
      int8_t LED_COUNT = disabled;
 
+         // Ring definitions for LED indexing (total: 136 LEDs)
+    const uint16_t RING_INNER_START = 0;      // Inner ring: 20 LEDs (indices 0-19)
+    const uint16_t RING_INNER_COUNT = 20;
+    const uint16_t RING_MIDDLE_START = 20;    // Middle ring: 28 LEDs (indices 20-47)
+    const uint16_t RING_MIDDLE_COUNT = 28;
+    const uint16_t RING_BIGGEST_START = 48;   // Biggest ring: 40 LEDs (indices 48-87)
+    const uint16_t RING_BIGGEST_COUNT = 40;
+    const uint16_t RING_OUTEST_START = 88;    // Outest ring: 48 LEDs (indices 88-135)
+    const uint16_t RING_OUTEST_COUNT = 48;
+
      const uint8_t  MATRIX_W   = 8;    // width
      const uint8_t  MATRIX_H   = 8;    // height
  
@@ -210,8 +220,8 @@ struct PinConfig
      const char *PSX_MAC = "";
      int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
 
-     int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
-     int8_t JOYSTICK_MAX_ILLU = 100;
+     int8_t JOYSTICK_SPEED_MULTIPLIER = 50;
+     int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
 
      // WIFI

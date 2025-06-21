@@ -16,6 +16,10 @@
 
 #include "SPIRenderer.h"
 
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
+
 namespace GalvoController
 {
     void loop()
@@ -56,10 +60,30 @@ namespace GalvoController
             log_i("Fast mode %s", fastMode ? "enabled" : "disabled");
         }
         
+#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_GALVO)
+        // Send galvo command over CAN bus (master mode)
+        GalvoData galvoData;
+        galvoData.qid = qid;
+        galvoData.X_MIN = X_MIN;
+        galvoData.X_MAX = X_MAX;
+        galvoData.Y_MIN = Y_MIN;
+        galvoData.Y_MAX = Y_MAX;
+        galvoData.STEP = STEP;
+        galvoData.tPixelDwelltime = tPixelDwelltime;
+        galvoData.nFrames = nFrames;
+        galvoData.fastMode = fastMode;
+        galvoData.isRunning = false; // Will be set to true when slave starts scanning
+        
+        can_controller::sendGalvoDataToCANDriver(galvoData);
+        log_i("GalvoController CAN command sent: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i, fastMode: %s", 
+              X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
+#else
+        // Local galvo control (slave mode or direct control)
         renderer->setParameters(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         renderer->start();
-        log_i("GalvoController act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i, fastMode: %s", 
+        log_i("GalvoController local act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i, fastMode: %s", 
               X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
+#endif
 
         /*
             Wire.beginTransmission(SLAVE_ADDR);
@@ -133,6 +157,48 @@ namespace GalvoController
             renderer->setFastMode(enabled);
         }
         log_i("GalvoController fast mode %s", enabled ? "enabled" : "disabled");
+    }
+
+    GalvoData getCurrentGalvoData()
+    {
+        GalvoData data;
+        data.X_MIN = X_MIN;
+        data.X_MAX = X_MAX;
+        data.Y_MIN = Y_MIN;
+        data.Y_MAX = Y_MAX;
+        data.STEP = STEP;
+        data.tPixelDwelltime = tPixelDwelltime;
+        data.nFrames = nFrames;
+        data.fastMode = fastMode;
+        data.isRunning = isGalvoScanRunning;
+        data.qid = -1; // Will be set by caller if needed
+        return data;
+    }
+
+    void setFromGalvoData(const GalvoData& data)
+    {
+        X_MIN = data.X_MIN;
+        X_MAX = data.X_MAX;
+        Y_MIN = data.Y_MIN;
+        Y_MAX = data.Y_MAX;
+        STEP = data.STEP;
+        tPixelDwelltime = data.tPixelDwelltime;
+        nFrames = data.nFrames;
+        
+        if (data.fastMode != fastMode) {
+            setFastMode(data.fastMode);
+        }
+        
+        log_i("GalvoController updated from CAN data: X=[%d,%d], Y=[%d,%d], STEP=%d, dwell=%d, frames=%d, fast=%s",
+              X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
+    }
+
+    void sendCurrentStateToMaster()
+    {
+#ifdef CAN_CONTROLLER
+        GalvoData currentState = getCurrentGalvoData();
+        can_controller::sendGalvoStateToMaster(currentState);
+#endif
     }
 
 }

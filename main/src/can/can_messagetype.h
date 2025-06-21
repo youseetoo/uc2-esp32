@@ -31,6 +31,10 @@
  *   SENSOR_GET       : 0x40  - Request sensor data
  *   SENSOR_STATE     : 0x41  - Response with sensor data
  *
+ * - Galvo Control Messages
+ *   GALVO_ACT        : 0x50  - Set galvo scanning parameters
+ *   GALVO_STATE      : 0x51  - Response with galvo state
+ *
  * - Broadcast Messages
  *   BROADCAST        : 0xF0  - General broadcast messages (errors, updates)
  */
@@ -56,6 +60,9 @@ enum CANMessageTypeID {
 
     SENSOR_GET       = 0x40, // Sensor Messages
     SENSOR_STATE     = 0x41,
+
+    GALVO_ACT        = 0x50, // Galvo Messages
+    GALVO_STATE      = 0x51,
 
     BROADCAST        = 0xF0  // Broadcast Message (240)
 };

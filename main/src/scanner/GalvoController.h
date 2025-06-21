@@ -5,6 +5,23 @@
 #include "cJSON.h"
 #include "Arduino.h"
 
+// Data structure for CAN bus galvo communication
+#pragma pack(push,1)
+struct GalvoData
+{
+    int32_t X_MIN = 0;
+    int32_t X_MAX = 30000;
+    int32_t Y_MIN = 0;
+    int32_t Y_MAX = 30000;
+    int32_t STEP = 1000;
+    int32_t tPixelDwelltime = 1;
+    int32_t nFrames = 10;
+    bool fastMode = true;
+    bool isRunning = false;
+    int qid = -1;
+}__attribute__((packed));
+#pragma pack(pop)
+
 // TODO: need to update this function to match the new framework
 namespace  GalvoController  
 {
@@ -27,4 +44,9 @@ namespace  GalvoController
     void loop();
     void writeInt(int);
     void setFastMode(bool enabled);
+    
+    // CAN bus helper functions
+    GalvoData getCurrentGalvoData();
+    void setFromGalvoData(const GalvoData& data);
+    void sendCurrentStateToMaster();
   };

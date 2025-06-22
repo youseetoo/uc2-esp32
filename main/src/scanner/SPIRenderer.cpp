@@ -18,7 +18,8 @@ void SPIRenderer::set_gpio_pins(int pixelTrigVal, int lineTrigVal, int frameTrig
 {
   // Configure GPIO pins on first call
   static bool gpio_configured = false;
-  if (!gpio_configured) {
+  if (!gpio_configured)
+  {
     uint32_t gpio_mask = ((1ULL << _galvo_trig_pixel) |
                           (1ULL << _galvo_trig_line) |
                           (1ULL << _galvo_trig_frame));
@@ -117,7 +118,7 @@ void SPIRenderer::draw_fast()
   for (int iFrame = 0; iFrame < nFrames; iFrame++)
   {
     log_d("Drawing frame %d of %d (fast mode)", iFrame + 1, nFrames);
-    
+
 #ifdef ESP32S3_MODEL_XIAO
     // Use gpio_set_level for XIAO compatibility
     // Set all triggers high at frame start
@@ -168,14 +169,14 @@ void SPIRenderer::draw_fast()
         // Optimized SPI transmission with fewer LDAC toggles
 #ifdef ESP32S3_MODEL_XIAO
         gpio_set_level(static_cast<gpio_num_t>(_galvo_ldac), 0); // Hold LDAC low
-        spi_device_polling_transmit(spi, &t1); // Send X
-        spi_device_polling_transmit(spi, &t2); // Send Y
+        spi_device_polling_transmit(spi, &t1);                   // Send X
+        spi_device_polling_transmit(spi, &t2);                   // Send Y
         gpio_set_level(static_cast<gpio_num_t>(_galvo_ldac), 1); // Latch both channels
 #else
-        GPIO.out_w1tc = (1U << _galvo_ldac);  // Hold LDAC low
+        GPIO.out_w1tc = (1U << _galvo_ldac);   // Hold LDAC low
         spi_device_polling_transmit(spi, &t1); // Send X
         spi_device_polling_transmit(spi, &t2); // Send Y
-        GPIO.out_w1ts = (1U << _galvo_ldac);  // Latch both channels
+        GPIO.out_w1ts = (1U << _galvo_ldac);   // Latch both channels
 #endif
 
         // Set pixel trigger and dwell
@@ -189,7 +190,7 @@ void SPIRenderer::draw_fast()
         GPIO.out_w1tc = (1U << _galvo_trig_pixel);
 #endif
       }
-      
+
       // Line end trigger
 #ifdef ESP32S3_MODEL_XIAO
       gpio_set_level(static_cast<gpio_num_t>(_galvo_trig_line), 1);
@@ -199,7 +200,7 @@ void SPIRenderer::draw_fast()
       GPIO.out_w1tc = (1U << _galvo_trig_line);
 #endif
     }
-    
+
     // Frame end - clear all triggers
 #ifdef ESP32S3_MODEL_XIAO
     gpio_set_level(static_cast<gpio_num_t>(_galvo_trig_pixel), 0);
@@ -215,6 +216,7 @@ void SPIRenderer::draw_fast()
 ////////////////////////////////////////////////////////////////
 void SPIRenderer::trigger_camera(int tPixelDwelltime, int triggerPin)
 {
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
 #ifdef ESP32S3_MODEL_XIAO
   gpio_set_level((gpio_num_t)triggerPin, 1);
   esp_rom_delay_us(tPixelDwelltime);
@@ -225,6 +227,7 @@ void SPIRenderer::trigger_camera(int tPixelDwelltime, int triggerPin)
   esp_rom_delay_us(tPixelDwelltime);
   GPIO.out_w1tc.val = (1U << triggerPin); // clear bit
 #endif
+#endif
 }
 
 // void IRAM_ATTR SPIRenderer::draw() {
@@ -233,14 +236,17 @@ void SPIRenderer::draw()
   // Set the initial position
   for (int iFrame = 0; iFrame <= nFrames; iFrame++)
   {
-    
+
     // set all trigger high at the same time
-    if (fastMode) {
+    if (fastMode)
+    {
       set_gpio_pins_fast(1, 1, 1);
-    } else {
+    }
+    else
+    {
       set_gpio_pins(1, 1, 1);
     }
-    
+
     // Loop over X
     for (int dacX = X_MIN; dacX <= X_MAX; dacX += STEP)
     {
@@ -248,13 +254,15 @@ void SPIRenderer::draw()
       for (int dacY = Y_MIN; dacY <= Y_MAX; dacY += STEP)
       {
         // Perform the scanning by setting x and y positions
-        if (fastMode) {
+        if (fastMode)
+        {
           set_gpio_pins_fast(0, 0, 0);
-        } else {
+        }
+        else
+        {
           set_gpio_pins(0, 0, 0);
         }
         printf("X: %d, Y: %d\n", dacX, dacY);
-
 
         // SPI transaction for channel A (X-axis)
         spi_transaction_t t1 = {};
@@ -272,30 +280,39 @@ void SPIRenderer::draw()
 
         // Latch the DAC
         gpio_set_level((gpio_num_t)_galvo_ldac, 0); // Hold LDAC low
-        spi_device_polling_transmit(spi, &t1);       // Send X value
-        spi_device_polling_transmit(spi, &t2);       // Send Y value
+        spi_device_polling_transmit(spi, &t1);      // Send X value
+        spi_device_polling_transmit(spi, &t2);      // Send Y value
         gpio_set_level((gpio_num_t)_galvo_ldac, 1); // Latch both channels
         // Latch the DAC // TODO: Necessary?
         gpio_set_level((gpio_num_t)_galvo_ldac, 0);
         gpio_set_level((gpio_num_t)_galvo_ldac, 1);
 
-        if (fastMode) {
+        if (fastMode)
+        {
           set_gpio_pins_fast(1, 0, 0);
-        } else {
+        }
+        else
+        {
           set_gpio_pins(1, 0, 0);
         }
       }
       // Possibly clear certain triggers
-      if (fastMode) {
+      if (fastMode)
+      {
         set_gpio_pins_fast(1, 1, 0);
-      } else {
+      }
+      else
+      {
         set_gpio_pins(1, 1, 0);
       }
     }
     // End of frame
-    if (fastMode) {
+    if (fastMode)
+    {
       set_gpio_pins_fast(0, 0, 0);
-    } else {
+    }
+    else
+    {
       set_gpio_pins(0, 0, 0);
     }
   }
@@ -349,9 +366,9 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
   // setup SPI output
   esp_err_t ret;
   spi_bus_config_t buscfg = {
-      .mosi_io_num = _galvo_sdi,  // galvo_mosi,
-      .miso_io_num = -1, // galvo_miso,
-      .sclk_io_num = _galvo_sck,  // galvo_sclk,
+      .mosi_io_num = _galvo_sdi, // galvo_mosi,
+      .miso_io_num = -1,         // galvo_miso,
+      .sclk_io_num = _galvo_sck, // galvo_sclk,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
       .max_transfer_sz = 4096};
@@ -361,7 +378,7 @@ SPIRenderer::SPIRenderer(int xmin, int xmax, int ymin, int ymax, int step, int t
       .dummy_bits = 0,
       .mode = 0,
       .clock_speed_hz = 20 * 1000 * 1000, // 20 MHz
-      .spics_io_num = _galvo_cs, // CS pin
+      .spics_io_num = _galvo_cs,          // CS pin
       .flags = SPI_DEVICE_NO_DUMMY,
       .queue_size = 2,
   };
@@ -404,12 +421,15 @@ void SPIRenderer::start()
 {
   // start the SPI renderer
   log_d("Starting to draw %d frames in %s mode", nFrames, fastMode ? "fast" : "normal");
-  
-  if (fastMode) {
+
+  if (fastMode)
+  {
     draw_fast(); // Use optimized drawing function
-  } else {
+  }
+  else
+  {
     draw(); // Use original drawing function
   }
-  
+
   log_d("Done with drawing");
 }

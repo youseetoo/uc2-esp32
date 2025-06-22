@@ -132,8 +132,10 @@ namespace GalvoController
     void setup()
     {
 
-        log_d("Setup GalvoController");
-        Serial.println("Setup GalvoController");
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
+        log_d("Setup GalvoController as master");
+        #else
+        log_d("Setup GalvoController as slave");
         renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, 
         pinConfig.galvo_sdi, pinConfig.galvo_miso, pinConfig.galvo_sck, pinConfig.galvo_cs,
         pinConfig.galvo_ldac, pinConfig.galvo_trig_pixel, pinConfig.galvo_trig_line, pinConfig.galvo_trig_frame);
@@ -146,8 +148,8 @@ namespace GalvoController
         // Enable fast mode by default for galvo scanning
         renderer->setFastMode(fastMode);
         log_i("GalvoController setup complete, fast mode: %s", fastMode ? "enabled" : "disabled");
-        
-        //Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Start I2C as master
+        #endif
+
     }
 
     void setFastMode(bool enabled)
@@ -195,7 +197,7 @@ namespace GalvoController
 
     void sendCurrentStateToMaster()
     {
-#ifdef CAN_CONTROLLER
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
         GalvoData currentState = getCurrentGalvoData();
         can_controller::sendGalvoStateToMaster(currentState);
 #endif

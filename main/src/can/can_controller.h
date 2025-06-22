@@ -25,7 +25,7 @@
 #include "../led/LedController.h"
 #endif
 
-#ifdef SCANNER_CONTROLLER
+#ifdef GALVO_CONTROLLER
 #include "../scanner/GalvoController.h"
 #endif
 
@@ -83,7 +83,7 @@ namespace can_controller
     void sendLaserDataToCANDriver(LaserData laserData);
 
     // galvo functions
-    #ifdef SCANNER_CONTROLLER
+    #ifdef GALVO_CONTROLLER
     void sendGalvoDataToCANDriver(GalvoData galvoData);
     void sendGalvoStateToMaster(GalvoData galvoData);
     #endif

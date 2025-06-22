@@ -225,7 +225,7 @@ extern "C" void looper(void *p)
 }
 
 #ifdef BLUETOOTH
-static void handleSquareLongPress(bool pressed)
+static void handleSquareLongPress(int pressed)
 {
     // Store the press time in milliseconds
     static unsigned long pressStart = 0;

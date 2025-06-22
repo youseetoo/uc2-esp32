@@ -311,7 +311,7 @@ namespace can_controller
 
     void parseGalvoData(uint8_t *data, size_t size, uint8_t txID)
     {
-#ifdef SCANNER_CONTROLLER
+#ifdef GALVO_CONTROLLER
         // Parse as GalvoData
         GalvoData galvo;
         if (size >= sizeof(galvo))
@@ -403,7 +403,7 @@ namespace can_controller
         {
             parseMotorAndHomeData(data, size, rxID);
         }
-#ifdef SCANNER_CONTROLLER
+#ifdef GALVO_CONTROLLER
         // Support for galvo controllers
         else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_GALVO_0)
         {
@@ -1280,7 +1280,7 @@ namespace can_controller
         return doc;
     }
 
-#ifdef SCANNER_CONTROLLER
+#ifdef GALVO_CONTROLLER
     void sendGalvoDataToCANDriver(GalvoData galvoData)
     {
         // send galvo data to slave via CAN

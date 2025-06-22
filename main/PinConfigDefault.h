@@ -2,7 +2,6 @@
 #include "esp_err.h"
 #include "Arduino.h"
 
-
 #define MOTOR_AXIS_COUNT 4
 
 // default Pin structure
@@ -73,8 +72,8 @@ struct PinConfig
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 1024;
-     const uint16_t STAGESCAN_TASK_STACKSIZE = 4* 2048;
-     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2* 2048; // Don't go below 2048
+     const uint16_t STAGESCAN_TASK_STACKSIZE = 4 * 2048;
+     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2 * 2048; // Don't go below 2048
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 2048; // TODO check if this is ending in stackoverflow
      const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
@@ -119,7 +118,7 @@ struct PinConfig
      // motor a step pin
      int8_t MOTOR_A_STEP = disabled;
 
-     // additional dummy pins 
+     // additional dummy pins
      int8_t MOTOR_B_DIR = disabled;
      int8_t MOTOR_B_STEP = disabled;
      int8_t MOTOR_C_DIR = disabled;
@@ -132,7 +131,7 @@ struct PinConfig
      int8_t MOTOR_F_STEP = disabled;
      int8_t MOTOR_G_DIR = disabled;
      int8_t MOTOR_G_STEP = disabled;
-     
+
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted
@@ -160,15 +159,24 @@ struct PinConfig
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
 
-
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
      // LED_PINcount from the strip
      int8_t LED_COUNT = disabled;
 
-     const uint8_t  MATRIX_W   = 8;    // width
-     const uint8_t  MATRIX_H   = 8;    // height
- 
+     const uint8_t MATRIX_W = 8; // width
+     const uint8_t MATRIX_H = 8; // height
+
+     // Ring definitions for LED indexing (total: 136 LEDs)
+     const uint16_t RING_INNER_START = 0; // Inner ring: 20 LEDs (indices 0-19)
+     const uint16_t RING_INNER_COUNT = 20;
+     const uint16_t RING_MIDDLE_START = 20; // Middle ring: 28 LEDs (indices 20-47)
+     const uint16_t RING_MIDDLE_COUNT = 28;
+     const uint16_t RING_BIGGEST_START = 48; // Biggest ring: 40 LEDs (indices 48-87)
+     const uint16_t RING_BIGGEST_COUNT = 40;
+     const uint16_t RING_OUTEST_START = 88; // Outest ring: 48 LEDs (indices 88-135)
+     const uint16_t RING_OUTEST_COUNT = 48;
+
      // anlog joystick x pin
      int8_t ANLOG_JOYSTICK_X = disabled;
      // analog joystick y pin
@@ -183,7 +191,7 @@ struct PinConfig
      int8_t DIGITAL_OUT_2 = disabled;
      int8_t DIGITAL_OUT_3 = disabled;
 
-     int8_t CAMERA_TRIGGER_PIN = disabled; 
+     int8_t CAMERA_TRIGGER_PIN = disabled;
      bool CAMERA_TRIGGER_INVERTED = false;
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
@@ -265,9 +273,9 @@ struct PinConfig
      // Auxilarry I2C devices
      int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
-     uint8_t I2C_ADD_SLAVE = -1; // I2C address of the ESP32 if it's a slave
+     uint8_t I2C_ADD_SLAVE = -1;       // I2C address of the ESP32 if it's a slave
      uint8_t REMOTE_MOTOR_AXIS_ID = 1; // On the slave we have one motor axis per slave
-     uint8_t REMOTE_LASER_ID = 0; // On the slave we have one laser axis per slave
+     uint8_t REMOTE_LASER_ID = 0;      // On the slave we have one laser axis per slave
      uint8_t I2C_ADD_MOT_X = 0x40;
      uint8_t I2C_ADD_MOT_Y = 0x41;
      uint8_t I2C_ADD_MOT_Z = 0x42;
@@ -304,34 +312,33 @@ struct PinConfig
      // Reserved             0xF0         0xF0 - 0xFF Management, Heartbeats
 
      // Variables for different IDs
-    // addresses
-    uint8_t CAN_ID_CENTRAL_NODE = 1; // this is similar to the master address
-    
-    uint8_t CAN_ID_MOT_A = 10;
-    uint8_t CAN_ID_MOT_X = 11;
-    uint8_t CAN_ID_MOT_Y = 12;
-    uint8_t CAN_ID_MOT_Z = 13;
-    uint8_t CAN_ID_MOT_B = 14;
-    uint8_t CAN_ID_MOT_C = 15;
+     // addresses
+     uint8_t CAN_ID_CENTRAL_NODE = 1; // this is similar to the master address
+
+     uint8_t CAN_ID_MOT_A = 10;
+     uint8_t CAN_ID_MOT_X = 11;
+     uint8_t CAN_ID_MOT_Y = 12;
+     uint8_t CAN_ID_MOT_Z = 13;
+     uint8_t CAN_ID_MOT_B = 14;
+     uint8_t CAN_ID_MOT_C = 15;
      uint8_t CAN_ID_MOT_D = 16;
      uint8_t CAN_ID_MOT_E = 17;
      uint8_t CAN_ID_MOT_F = 18;
      uint8_t CAN_ID_MOT_G = 19;
 
-    uint8_t CAN_ID_LASER_0 = 20;
-    uint8_t CAN_ID_LASER_1 = 21;
-    uint8_t CAN_ID_LASER_2 = 22;
-    uint8_t CAN_ID_LASER_3 = 23;
+     uint8_t CAN_ID_LASER_0 = 20;
+     uint8_t CAN_ID_LASER_1 = 21;
+     uint8_t CAN_ID_LASER_2 = 22;
+     uint8_t CAN_ID_LASER_3 = 23;
 
-    uint8_t CAN_ID_LED_0 = 30;
+     uint8_t CAN_ID_LED_0 = 30;
 
-    uint8_t CAN_ID_GALVO_0 = 40;
+     uint8_t CAN_ID_GALVO_0 = 40;
 
-    // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
-    // Set to 0 to disable secondary address listening
-    uint32_t CAN_ID_SECONDARY = 0;
+     // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
+     // Set to 0 to disable secondary address listening
+     uint32_t CAN_ID_SECONDARY = 0;
 
      // Emergency stop
      int8_t pinEmergencyExit = disabled;
-
 };

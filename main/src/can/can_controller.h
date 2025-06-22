@@ -25,6 +25,10 @@
 #include "../led/LedController.h"
 #endif
 
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
+
 typedef struct
 {
     uint8_t counter;
@@ -77,6 +81,12 @@ namespace can_controller
 
     // laser functions
     void sendLaserDataToCANDriver(LaserData laserData);
+
+    // galvo functions
+    #ifdef GALVO_CONTROLLER
+    void sendGalvoDataToCANDriver(GalvoData galvoData);
+    void sendGalvoStateToMaster(GalvoData galvoData);
+    #endif
 
     // TMC 
     #ifdef TMC_CONTROLLER

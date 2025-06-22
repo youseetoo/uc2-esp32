@@ -11,6 +11,7 @@ class SPIRenderer
 private:
   spi_device_handle_t spi;
   void  draw();
+  void  draw_fast(); // Optimized drawing function for maximum speed
   int nX;
   int nY;
   int tPixelDwelltime;
@@ -20,6 +21,7 @@ private:
   int Y_MAX = 2048;
   int STEP = 64; // Adjust based on your desired resolution
   int nFrames = 1;
+  bool fastMode = true; // Use fast GPIO operations by default
   
   // pin assignment 
   uint8_t _galvo_sdi = 0;
@@ -39,6 +41,8 @@ public:
     uint8_t galvo_ldac, uint8_t galvo_trig_pixel, uint8_t galvo_trig_line, uint8_t galvo_trig_frame);
   void start();
   void setParameters(int xmin, int xmax, int ymin, int ymax, int step, int tPixelDwelltime, int nFramesI);
+  void setFastMode(bool enabled); // Enable/disable fast GPIO operations
   void trigger_camera(int tPixelDwelltime, int triggerPin);
   void set_gpio_pins(int pixel, int line, int frame);
+  void set_gpio_pins_fast(int pixel, int line, int frame); // Fast GPIO version
 };

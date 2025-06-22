@@ -50,6 +50,10 @@ namespace can_controller
         pinConfig.CAN_ID_LASER_2,
         pinConfig.CAN_ID_LASER_3};
 
+    // for galvo devices - currently only one
+    uint8_t CAN_GALVO_IDs[] = {
+        pinConfig.CAN_ID_GALVO_0};
+
     // create an array of available CAN IDs that will be scanned later
     const int MAX_CAN_DEVICES = 20;                    // Maximum number of expected devices
     uint8_t nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store found I2C addresses
@@ -305,6 +309,45 @@ namespace can_controller
 #endif
     }
 
+    void parseGalvoData(uint8_t *data, size_t size, uint8_t txID)
+    {
+#ifdef GALVO_CONTROLLER
+        // Parse as GalvoData
+        GalvoData galvo;
+        if (size >= sizeof(galvo))
+        {
+            memcpy(&galvo, data, sizeof(galvo));
+            // Apply galvo settings
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Received galvo data: X_MIN=%d, X_MAX=%d, Y_MIN=%d, Y_MAX=%d, STEP=%d, tPixelDwelltime=%d, nFrames=%d, fastMode=%s", 
+                      galvo.X_MIN, galvo.X_MAX, galvo.Y_MIN, galvo.Y_MAX, galvo.STEP, galvo.tPixelDwelltime, galvo.nFrames, 
+                      galvo.fastMode ? "true" : "false");
+            
+            // Create JSON object and call galvo controller
+            cJSON *galvoJson = cJSON_CreateObject();
+            cJSON_AddNumberToObject(galvoJson, "qid", galvo.qid);
+            cJSON_AddNumberToObject(galvoJson, "X_MIN", galvo.X_MIN);
+            cJSON_AddNumberToObject(galvoJson, "X_MAX", galvo.X_MAX);
+            cJSON_AddNumberToObject(galvoJson, "Y_MIN", galvo.Y_MIN);
+            cJSON_AddNumberToObject(galvoJson, "Y_MAX", galvo.Y_MAX);
+            cJSON_AddNumberToObject(galvoJson, "STEP", galvo.STEP);
+            cJSON_AddNumberToObject(galvoJson, "tPixelDwelltime", galvo.tPixelDwelltime);
+            cJSON_AddNumberToObject(galvoJson, "nFrames", galvo.nFrames);
+            cJSON_AddBoolToObject(galvoJson, "fastMode", galvo.fastMode);
+            
+            // Execute galvo action
+            GalvoController::act(galvoJson);
+            
+            cJSON_Delete(galvoJson);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error: Incorrect galvo data size received in CAN from address %u. Expected %u, got %u", txID, sizeof(galvo), size);
+        }
+#endif
+    }
+
     void dispatchIsoTpData(pdu_t &pdu)
     {
         // Parse the received data
@@ -360,6 +403,13 @@ namespace can_controller
         {
             parseMotorAndHomeData(data, size, rxID);
         }
+#ifdef GALVO_CONTROLLER
+        // Support for galvo controllers
+        else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_GALVO_0)
+        {
+            parseGalvoData(data, size, rxID);
+        }
+#endif
 #if defined(LASER_CONTROLLER) && !defined(LED_CONTROLLER)
         // Support for laser-only controllers
         else if (rxID == device_can_id &&
@@ -1229,5 +1279,47 @@ namespace can_controller
 
         return doc;
     }
+
+#ifdef GALVO_CONTROLLER
+    void sendGalvoDataToCANDriver(GalvoData galvoData)
+    {
+        // send galvo data to slave via CAN
+        uint8_t receiverID = CAN_GALVO_IDs[0]; // Currently only one galvo device supported
+        
+        uint8_t *dataPtr = (uint8_t *)&galvoData;
+        int dataSize = sizeof(GalvoData);
+        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        if (err != 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending galvo data to CAN address %u: %d", receiverID, err);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Galvo data sent to CAN address %u successfully", receiverID);
+        }
+    }
+
+    void sendGalvoStateToMaster(GalvoData galvoData)
+    {
+        // send galvo state back to master (from slave)
+        uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE; // Send to master
+        
+        uint8_t *dataPtr = (uint8_t *)&galvoData;
+        int dataSize = sizeof(GalvoData);
+        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        if (err != 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending galvo state to master CAN address %u: %d", receiverID, err);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Galvo state sent to master CAN address %u successfully", receiverID);
+        }
+    }
+#endif
 
 }

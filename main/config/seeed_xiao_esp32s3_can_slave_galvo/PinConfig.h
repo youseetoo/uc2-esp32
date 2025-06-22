@@ -3,6 +3,10 @@
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
 #define ESP32S3_MODEL_XIAO
+#define GALVO_CONTROLLER
+#define CAN_SLAVE_GALVO
+#define CAN_CONTROLLER
+
 struct UC2_ESP32S3_XIAO_GALVO : PinConfig
 {
      /*

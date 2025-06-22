@@ -16,6 +16,10 @@
 
 #include "SPIRenderer.h"
 
+#ifdef CAN_CONTROLLER
+#include "../can/can_controller.h"
+#endif
+
 namespace GalvoController
 {
     void loop()
@@ -27,6 +31,7 @@ namespace GalvoController
 
     {   // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":30000, "Y_MIN":0, "Y_MAX":30000, "STEP":1000, "tPixelDwelltime":1, "nFrames":1}
         // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
+        // {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1, "fastMode":true}
         // here you can do something
         int qid = cJsonTool::getJsonInt(ob, "qid");
         /*
@@ -46,9 +51,39 @@ namespace GalvoController
         STEP = cJsonTool::getJsonInt(ob, "STEP", STEP);
         tPixelDwelltime = cJsonTool::getJsonInt(ob, "tPixelDwelltime", tPixelDwelltime);
         nFrames = cJsonTool::getJsonInt(ob, "nFrames", nFrames);
+        
+        // Check for fast mode parameter
+        bool requestedFastMode = cJsonTool::getJsonBool(ob, "fastMode", fastMode);
+        if (requestedFastMode != fastMode) {
+            fastMode = requestedFastMode;
+            renderer->setFastMode(fastMode);
+            log_i("Fast mode %s", fastMode ? "enabled" : "disabled");
+        }
+        
+#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_GALVO)
+        // Send galvo command over CAN bus (master mode)
+        GalvoData galvoData;
+        galvoData.qid = qid;
+        galvoData.X_MIN = X_MIN;
+        galvoData.X_MAX = X_MAX;
+        galvoData.Y_MIN = Y_MIN;
+        galvoData.Y_MAX = Y_MAX;
+        galvoData.STEP = STEP;
+        galvoData.tPixelDwelltime = tPixelDwelltime;
+        galvoData.nFrames = nFrames;
+        galvoData.fastMode = fastMode;
+        galvoData.isRunning = false; // Will be set to true when slave starts scanning
+        
+        can_controller::sendGalvoDataToCANDriver(galvoData);
+        log_i("GalvoController CAN command sent: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i, fastMode: %s", 
+              X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
+#else
+        // Local galvo control (slave mode or direct control)
         renderer->setParameters(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
         renderer->start();
-        log_i("GalvoController act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i", X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames);
+        log_i("GalvoController local act: X_MIN: %i, X_MAX: %i, Y_MIN: %i, Y_MAX: %i, STEP: %i, tPixelDwelltime: %i, nFrames: %i, fastMode: %s", 
+              X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
+#endif
 
         /*
             Wire.beginTransmission(SLAVE_ADDR);
@@ -97,10 +132,10 @@ namespace GalvoController
     void setup()
     {
 
-
-
-        log_d("Setup GalvoController");
-        Serial.println("Setup GalvoController");
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
+        log_d("Setup GalvoController as master");
+        #else
+        log_d("Setup GalvoController as slave");
         renderer = new SPIRenderer(X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, 
         pinConfig.galvo_sdi, pinConfig.galvo_miso, pinConfig.galvo_sck, pinConfig.galvo_cs,
         pinConfig.galvo_ldac, pinConfig.galvo_trig_pixel, pinConfig.galvo_trig_line, pinConfig.galvo_trig_frame);
@@ -109,7 +144,63 @@ namespace GalvoController
             uint8_t galvo_sdi, uint8_t galvo_miso, uint8_t galvo_sck, uint8_t galvo_cs, 
             uint8_t galvo_ldac, uint8_t galvo_trig_pixel, uint8_t galvo_trig_line, uint8_t galvo_trig_frame);
             */
-        //Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL); // Start I2C as master
+        
+        // Enable fast mode by default for galvo scanning
+        renderer->setFastMode(fastMode);
+        log_i("GalvoController setup complete, fast mode: %s", fastMode ? "enabled" : "disabled");
+        #endif
+
+    }
+
+    void setFastMode(bool enabled)
+    {
+        fastMode = enabled;
+        if (renderer != nullptr) {
+            renderer->setFastMode(enabled);
+        }
+        log_i("GalvoController fast mode %s", enabled ? "enabled" : "disabled");
+    }
+
+    GalvoData getCurrentGalvoData()
+    {
+        GalvoData data;
+        data.X_MIN = X_MIN;
+        data.X_MAX = X_MAX;
+        data.Y_MIN = Y_MIN;
+        data.Y_MAX = Y_MAX;
+        data.STEP = STEP;
+        data.tPixelDwelltime = tPixelDwelltime;
+        data.nFrames = nFrames;
+        data.fastMode = fastMode;
+        data.isRunning = isGalvoScanRunning;
+        data.qid = -1; // Will be set by caller if needed
+        return data;
+    }
+
+    void setFromGalvoData(const GalvoData& data)
+    {
+        X_MIN = data.X_MIN;
+        X_MAX = data.X_MAX;
+        Y_MIN = data.Y_MIN;
+        Y_MAX = data.Y_MAX;
+        STEP = data.STEP;
+        tPixelDwelltime = data.tPixelDwelltime;
+        nFrames = data.nFrames;
+        
+        if (data.fastMode != fastMode) {
+            setFastMode(data.fastMode);
+        }
+        
+        log_i("GalvoController updated from CAN data: X=[%d,%d], Y=[%d,%d], STEP=%d, dwell=%d, frames=%d, fast=%s",
+              X_MIN, X_MAX, Y_MIN, Y_MAX, STEP, tPixelDwelltime, nFrames, fastMode ? "true" : "false");
+    }
+
+    void sendCurrentStateToMaster()
+    {
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
+        GalvoData currentState = getCurrentGalvoData();
+        can_controller::sendGalvoStateToMaster(currentState);
+#endif
     }
 
 }

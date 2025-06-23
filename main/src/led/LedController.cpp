@@ -823,20 +823,20 @@ if( pinConfig.pindefName &&
 			matrix->show();
 			return; // skip the rest
 		}
+		case LedForStatus::on:
+			// On => White
+			color = matrix->Color(255, 255, 255);
+			break;
+		case LedForStatus::off:
+			// Off => Black
+			color = matrix->Color(0, 0, 0);
+			break;
 		default:
 			// Unknown => do nothing
 			return;
 		}
 
-		// Fill all pixels with the chosen color
-		if (currentLedForStatus != LedForStatus::unknown)
-		{
-			for (uint16_t i = 0; i < LED_COUNT; i++)
-			{
-				matrix->setPixelColor(i, color);
-			}
-			matrix->show();
-		}
+
 	}
 #endif // HUB75
 }

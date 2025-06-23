@@ -379,7 +379,7 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
 
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 2000, "direction":1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
 

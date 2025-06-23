@@ -137,10 +137,33 @@ int axis = 0;
 			hdata[axis]->homeEndStopPolarity = 0;
 		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+		
 		// grab current time AFTER we start
-		hdata[axis]->homeInEndposReleaseMode = 0;
 		hdata[axis]->homeTimeStarted = millis();
 		hdata[axis]->homeIsActive = true;
+
+		// Check initial endstop state to determine starting mode
+		// If endstop is already pressed, start directly in release mode
+#if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
+		int currentEndstopState = 0;
+		if (axis == Stepper::X) currentEndstopState = DigitalInController::getDigitalVal(1);
+		else if (axis == Stepper::Y) currentEndstopState = DigitalInController::getDigitalVal(2);
+		else if (axis == Stepper::Z) currentEndstopState = DigitalInController::getDigitalVal(3);
+		
+		// If endstop is already active, start in release mode
+		if (abs(hdata[axis]->homeEndStopPolarity - currentEndstopState))
+		{
+			log_i("Axis %i endstop already active, starting in release mode", axis);
+			hdata[axis]->homeInEndposReleaseMode = 1;
+		}
+		else
+		{
+			hdata[axis]->homeInEndposReleaseMode = 0;
+		}
+#else
+		hdata[axis]->homeInEndposReleaseMode = 0;
+#endif
+
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 		runStepper(axis);
 #elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
@@ -151,23 +174,42 @@ int axis = 0;
 
 	void runStepper(int s)
 	{
-		// trigger go home by starting the motor in the right direction
+		// Determine motor direction based on homing mode
+		int motorSpeed, motorDirection;
+		
+		if (hdata[s]->homeInEndposReleaseMode == 1)
+		{
+			// If starting in release mode, move opposite to home direction to release endstop
+			motorDirection = -hdata[s]->homeDirection;
+			motorSpeed = motorDirection * abs(hdata[s]->homeSpeed);
+			log_i("Starting motor %i in release mode, direction: %i", s, motorDirection);
+		}
+		else
+		{
+			// Normal homing mode - move toward endstop
+			motorDirection = hdata[s]->homeDirection;
+			motorSpeed = motorDirection * abs(hdata[s]->homeSpeed);
+			log_i("Starting motor %i in normal homing mode, direction: %i", s, motorDirection);
+		}
+
+		// Configure and start the motor
 		FocusMotor::getData()[s]->isforever = true;
-		FocusMotor::getData()[s]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-		FocusMotor::getData()[s]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
+		FocusMotor::getData()[s]->speed = motorSpeed;
+		FocusMotor::getData()[s]->maxspeed = motorSpeed;
 		FocusMotor::getData()[s]->isEnable = 1;
 		FocusMotor::getData()[s]->isaccelerated = 0;
 		FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
 		FocusMotor::getData()[s]->isStop = 0;
 		FocusMotor::getData()[s]->stopped = false;
 		FocusMotor::startStepper(s, 0);
+		
 		if (s == Stepper::Z and FocusMotor::getDualAxisZ())
 		{
 			// we may have a dual axis so we would need to start A too
-			log_i("Starting A too");
+			log_i("Starting A too with same parameters");
 			FocusMotor::getData()[Stepper::A]->isforever = true;
-			FocusMotor::getData()[Stepper::A]->speed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-			FocusMotor::getData()[Stepper::A]->maxspeed = hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
+			FocusMotor::getData()[Stepper::A]->speed = motorSpeed;
+			FocusMotor::getData()[Stepper::A]->maxspeed = motorSpeed;
 			FocusMotor::getData()[Stepper::A]->isEnable = 1;
 			FocusMotor::getData()[Stepper::A]->isaccelerated = 0;
 			FocusMotor::getData()[Stepper::A]->isStop = 0;
@@ -176,7 +218,7 @@ int axis = 0;
 			FocusMotor::startStepper(Stepper::A, 0);
 		}
 		delay(50); // give the motor some time to start
-		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, hdata[s]->homeDirection);
+		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i, release mode: %i", s, getData()[s]->speed, getData()[s]->maxspeed, motorDirection, hdata[s]->homeInEndposReleaseMode);
 		log_i("Start stepper based on home data: Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosReleaseMode %i, endstop polarity %i",
 			  s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed,
 			  hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeInEndposReleaseMode, hdata[s]->homeEndStopPolarity);
@@ -277,16 +319,19 @@ int axis = 0;
 		}
 #else
 		// log_i("Current STepper %i and digitalin_val %i", s, digitalin_val);
-		//  if we hit the endstop or timeout => stop motor and oanch reverse direction mode
+		// State machine for homing:
+		// Mode 0: Normal homing - move toward endstop
+		// Mode 1: Transition state - prepare for endstop release
+		// Mode 2: Release mode - move away from endstop until it's released
+		// Mode 3: Final state - homing complete
+		
+		//  if we hit the endstop or timeout => stop motor and launch reverse direction mode
 		if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) &&
 			hdata[s]->homeInEndposReleaseMode == 0)
 		{ // RELEASE MODE 0
-			// homeInEndposReleaseMode = 0 means we are not in endpos release mode
-			// homeInEndposReleaseMode = 1 means we are in endpos release mode
-			// homeInEndposReleaseMode = 2 means we are done
 			// reverse direction to release endstops
 			FocusMotor::stopStepper(s);
-			log_i("Home Motor %i in endpos release mode  %i", s, hdata[s]->homeInEndposReleaseMode);
+			log_i("Home Motor %i hit endstop, entering release mode %i", s, hdata[s]->homeInEndposReleaseMode);
 			log_i("Motor speed was %i and will be %i", getData()[s]->speed, -getData()[s]->speed);
 			getData()[s]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
 			getData()[s]->isforever = true;
@@ -307,8 +352,8 @@ int axis = 0;
 		}
 		else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode == 1)
 		{ // RELEASE MODE 1
-			// if we are in reverse-direction mode, start motor
-			log_i("Home Motor %i in endpos release mode  %i", s, hdata[s]->homeInEndposReleaseMode);
+			// if we are in reverse-direction mode, transition to monitoring endstop release
+			log_i("Home Motor %i transitioning to endstop release monitoring, mode %i", s, hdata[s]->homeInEndposReleaseMode);
 			hdata[s]->homeInEndposReleaseMode = 2;
 			hdata[s]->homeTimeStarted = millis();
 		}

@@ -801,6 +801,8 @@ namespace can_controller
         // Create a mutex for the CAN bus
         device_can_id = getCANAddress();
 
+        // only if  DGALVO_CONTROLLER is defined and we are not can master 
+        #ifdef GALVO_CONTROLLER && !defined(CAN_MASTER)
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
@@ -826,6 +828,7 @@ namespace can_controller
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
+        #endif // GALVO_CONTROLLER && !defined(CAN_MASTER)
     }
 
     int act(cJSON *doc)

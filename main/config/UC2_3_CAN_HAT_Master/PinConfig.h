@@ -20,7 +20,7 @@
 #define CAN_MASTER
 #define MOTOR_AXIS_COUNT 10   
 #define LED_CONTROLLER
-#define 	GALVO_CONTROLLER=1
+#define GALVO_CONTROLLER
 
 struct UC2_3_CAN_HAT_Master : PinConfig
 {

@@ -26,8 +26,8 @@ enum LedForStatus : uint8_t
     busy,
     rainbow,
     unknown, 
-    on, // white = 6
-    off, // black = 7
+    on_, // white = 6
+    off_, // black = 7
 };
 
 enum LedModes : uint8_t

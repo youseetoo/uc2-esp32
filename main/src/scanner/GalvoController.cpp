@@ -132,7 +132,7 @@ namespace GalvoController
     void setup()
     {
 
-#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
+#if defined(GALVO_CONTROLLER) &&  !defined(CAN_SLAVE_GALVO) && defined(CAN_MASTER)
         log_d("Setup GalvoController as master");
         #else
         log_d("Setup GalvoController as slave");

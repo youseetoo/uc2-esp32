@@ -823,11 +823,11 @@ if( pinConfig.pindefName &&
 			matrix->show();
 			return; // skip the rest
 		}
-		case LedForStatus::on:
+		case LedForStatus::on_:
 			// On => White
 			color = matrix->Color(255, 255, 255);
 			break;
-		case LedForStatus::off:
+		case LedForStatus::off_:
 			// Off => Black
 			color = matrix->Color(0, 0, 0);
 			break;

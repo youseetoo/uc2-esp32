@@ -295,6 +295,20 @@ struct PinConfig
      int8_t SPI_SCK = disabled;
      int8_t SPI_CS = disabled;
 
+     // Galvo
+
+     uint8_t galvo_miso = disabled;
+     uint8_t galvo_sck = disabled;
+     uint8_t galvo_sdi = disabled;
+     uint8_t galvo_cs = disabled;
+     uint8_t galvo_ldac = disabled;
+     uint8_t galvo_laser = disabled;
+     uint8_t galvo_trig_pixel = disabled;  // D1
+     uint8_t galvo_trig_line = disabled;   // D2
+     uint8_t galvo_trig_frame = disabled;  // D3
+     
+
+
      // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
 

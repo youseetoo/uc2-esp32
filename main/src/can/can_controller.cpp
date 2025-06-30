@@ -1273,7 +1273,7 @@ namespace can_controller
         cJSON_AddNumberToObject(doc, "addressgetcan", addr_getcan);
 
         // add the list of non-working CAN IDs
-        cJSON *nonworkingArray = cJSON_CreateIntArray((const int *)nonAvailableCANids, MAX_CAN_DEVICES);
+        cJSON *nonworkingArray = cJSON_CreateIntArray((const uint8_t *)nonAvailableCANids, MAX_CAN_DEVICES);
         cJSON_AddItemToObject(doc, "nonworking", nonworkingArray);
 
         // add the pins for RX/TX to the CAN bus

@@ -12,6 +12,7 @@
 #define CAN_SLAVE_LASER
 #define CAN_SLAVE_LED
 #define CAN_CONTROLLER
+#define CAN_MULTIADDRESS
 
 struct UC2_3_Xiao_Slave_Illumination : PinConfig
 {
@@ -62,7 +63,7 @@ struct UC2_3_Xiao_Slave_Illumination : PinConfig
     const uint16_t LED_COUNT = RING_OUTEST_START + RING_OUTEST_COUNT; // 88 + 48 = 136
 
     // Laser control pin (PWM for high-power white LED)
-    int8_t LASER_0 = GPIO_NUM_4; // D3 - White LED PWM (only one channel available)
+    int8_t LASER_4 = GPIO_NUM_4; // D3 - White LED PWM (only one channel available)
 
     // CAN communication
     int8_t CAN_TX = GPIO_NUM_5; // D4 - CAN Tx

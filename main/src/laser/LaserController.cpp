@@ -211,6 +211,27 @@ namespace LaserController
 			State::setBusy(false);
 			return qid;
 		}
+		// action LASER 4
+		else if (LASERid == 4 && pinConfig.LASER_4 >= 0 && hasLASERval)
+		{
+			LASER_val_4 = LASERval;
+			LASER_despeckle_4 = LASERdespeckle;
+			LASER_despeckle_period_4 = LASERdespecklePeriod;
+			if (isServo)
+			{
+				pwm_frequency = 50;
+				pwm_resolution = 16;
+				configurePWM(pinConfig.LASER_4, pwm_resolution, PWM_CHANNEL_LASER_4, pwm_frequency);
+				moveServo(PWM_CHANNEL_LASER_4, LASERval, pwm_frequency, pwm_resolution);
+			}
+			else
+			{
+				setPWM(LASER_val_4, PWM_CHANNEL_LASER_4);
+			}
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			State::setBusy(false);
+			return qid;
+		}
 		// action LASER 0
 		else if (LASERid == 0 && pinConfig.LASER_0 >= 0 && hasLASERval)
 		{
@@ -260,6 +281,7 @@ namespace LaserController
 				case 1: LASER_val_1 = value; pwmChannel = PWM_CHANNEL_LASER_1; break;
 				case 2: LASER_val_2 = value; pwmChannel = PWM_CHANNEL_LASER_2; break;
 				case 3: LASER_val_3 = value; pwmChannel = PWM_CHANNEL_LASER_3; break;
+				case 4: LASER_val_4 = value; pwmChannel = PWM_CHANNEL_LASER_4; break;
 				default: log_w("Invalid LASERid: %d", laserData.LASERid); return;
 			}
 
@@ -319,6 +341,13 @@ namespace LaserController
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
+		else if (LASERid == LaserController::PWM_CHANNEL_LASER_4 && pinConfig.LASER_4 != 0)
+		{
+			LASER_val_4 = LASERval;
+			setPWM(LASER_val_4, PWM_CHANNEL_LASER_4);
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			return true;
+		}
 		else
 		{
 			return false;
@@ -340,6 +369,10 @@ namespace LaserController
 		else if (LASERid == 3)
 		{
 			laserVal = LASER_val_3;
+		}
+		else if (LASERid == 4)
+		{
+			laserVal = LASER_val_4;
 		}
 		else
 		{

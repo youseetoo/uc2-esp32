@@ -185,6 +185,7 @@ struct PinConfig
      int8_t LASER_1 = disabled;
      int8_t LASER_2 = disabled;
      int8_t LASER_3 = disabled; // GPIO_NUM_21
+     int8_t LASER_4 = disabled; // GPIO_NUM_22
      int8_t LASER_0 = disabled;
 
      int8_t DIGITAL_OUT_1 = disabled;
@@ -344,6 +345,7 @@ struct PinConfig
      uint8_t CAN_ID_LASER_1 = 21;
      uint8_t CAN_ID_LASER_2 = 22;
      uint8_t CAN_ID_LASER_3 = 23;
+     uint8_t CAN_ID_LASER_4 = 24;
 
      uint8_t CAN_ID_LED_0 = 30;
 

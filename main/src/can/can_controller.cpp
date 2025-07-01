@@ -48,7 +48,8 @@ namespace can_controller
         pinConfig.CAN_ID_LASER_0,
         pinConfig.CAN_ID_LASER_1,
         pinConfig.CAN_ID_LASER_2,
-        pinConfig.CAN_ID_LASER_3};
+        pinConfig.CAN_ID_LASER_3, 
+        pinConfig.CAN_ID_LASER_4};
 
     // for galvo devices - currently only one
     uint8_t CAN_GALVO_IDs[] = {
@@ -413,7 +414,7 @@ namespace can_controller
 #if defined(LASER_CONTROLLER) && !defined(LED_CONTROLLER)
         // Support for laser-only controllers
         else if (rxID == device_can_id &&
-                 (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_3))
+                 (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_4))
         {
             parseLaserData(data, size, rxID);
         }
@@ -542,7 +543,7 @@ namespace can_controller
         - The Broadcast receiverID is 0 -> TODO: Not implemented yet
         - The Master receiverID is CAN_ID_CENTRAL_NODE 0x100 => 256
         - The Motor receiverIDs are CAN_ID_MOT_A, CAN_ID_MOT_X, CAN_ID_MOT_Y, CAN_ID_MOT_Z
-        - The Laser receiverIDs are CAN_ID_LASER_0, CAN_ID_LASER_1, CAN_ID_LASER_2, CAN_ID_LASER_3
+        - The Laser receiverIDs are CAN_ID_LASER_0, CAN_ID_LASER_1, CAN_ID_LASER_2, CAN_ID_LASER_3, CAN_ID_LASER_4
         */
         lastSend = millis();
         // check if the receiverID is in the list of non-working motors
@@ -618,7 +619,7 @@ namespace can_controller
         - The Broadcast senderID is 0 -> TODO: Not implemented yet
         - The Master senderID is CAN_ID_CENTRAL_NODE 0x100 => 256
         - The Motor senderIDs are CAN_ID_MOT_A, CAN_ID_MOT_X, CAN_ID_MOT_Y, CAN_ID_MOT_Z
-        - The Laser senderIDs are CAN_ID_LASER_0, CAN_ID_LASER_1, CAN_ID_LASER_2, CAN_ID_LASER_3
+        - The Laser senderIDs are CAN_ID_LASER_0, CAN_ID_LASER_1, CAN_ID_LASER_2, CAN_ID_LASER_3, CAN_ID_LASER_4
 
         We are checcking against the rxID
 
@@ -790,7 +791,11 @@ namespace can_controller
             }
 
             // Listen to all configured CAN addresses in one call
+            #ifdef CAN_MULTIADDRESS
             int mError = receiveCanMessage(rxIDs, numIDs);
+            #else
+            int mError = receiveCanMessage(device_can_id);
+            #endif
 
             vTaskDelay(1);
         }
@@ -846,6 +851,7 @@ namespace can_controller
             uint8_t CAN_ID_LASER_1 = 21
             uint8_t CAN_ID_LASER_2 = 22
             uint8_t CAN_ID_LASER_3 = 23
+            uint8_t CAN_ID_LASER_4 = 24
         */
         cJSON *address = cJSON_GetObjectItem(doc, "address");
         int qid = cJsonTool::getJsonInt(doc, "qid");
@@ -1230,7 +1236,7 @@ namespace can_controller
         uint8_t receiverID = CAN_LASER_IDs[pinConfig.REMOTE_LASER_ID];
         if (0)
         {
-            // this is only if we wanted to spread the lasers over different CAN addresses // TODO: check if this is necessary at one point
+            // TODO: this is only if we wanted to spread the lasers over different CAN addresses // TODO: check if this is necessary at one point
             receiverID = CAN_LASER_IDs[laserID];
         }
 

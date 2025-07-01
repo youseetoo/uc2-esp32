@@ -19,6 +19,7 @@ namespace LaserController
     static int LASER_val_1 = 0;
     static int LASER_val_2 = 0;
     static int LASER_val_3 = 0;
+    static int LASER_val_4 = 0;
 
     // PWM Stuff - ESP only
 
@@ -38,17 +39,20 @@ namespace LaserController
     static int PWM_CHANNEL_LASER_1 = 1;
     static int PWM_CHANNEL_LASER_2 = 2;
     static int PWM_CHANNEL_LASER_3 = 3;
+    static int PWM_CHANNEL_LASER_4 = 5;
 
     // temperature dependent despeckeling?
     static int LASER_despeckle_0 = 0;
     static int LASER_despeckle_1 = 0;
     static int LASER_despeckle_2 = 0;
     static int LASER_despeckle_3 = 0;
+    static int LASER_despeckle_4 = 0;
 
     static int LASER_despeckle_period_0 = 20;
     static int LASER_despeckle_period_1 = 20;
     static int LASER_despeckle_period_2 = 20;
     static int LASER_despeckle_period_3 = 20;
+    static int LASER_despeckle_period_4 = 20;
 
     static int minPulseWidth = 500;
     static int maxPulseWidth = 2500;

@@ -31,7 +31,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      const char * pindefName = "UC2_3_CAN_HAT_Master";
      const unsigned long BAUDRATE = 115200;
 
-     bool DEBUG_CAN_ISO_TP = 0;
+     bool DEBUG_CAN_ISO_TP = 1;
      int8_t MOTOR_A_STEP = GPIO_NUM_0;
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;

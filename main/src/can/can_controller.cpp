@@ -187,7 +187,7 @@ namespace can_controller
             *reinterpret_cast<int32_t *>(base + upd.offset) = upd.value;
 
             if (pinConfig.DEBUG_CAN_ISO_TP)
-            log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
+                log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
             // Only toggle the motor if offset corresponds to 'isStop' otherwise the motor will run multiple times with the same instructions
             if (upd.offset == offsetof(MotorData, isStop))
             {
@@ -281,7 +281,7 @@ namespace can_controller
         {
             memcpy(&laser, data, sizeof(laser));
             // Do something with laser data
-            if (1) //pinConfig.DEBUG_CAN_ISO_TP)
+            if (1) // pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Laser intensity: %d, Laserid: %d", laser.LASERval, laser.LASERid);
             // assign PWM channesl to the laserid
             if (laser.LASERid == 0)
@@ -303,7 +303,7 @@ namespace can_controller
         }
         else
         {
-            if (1)//pinConfig.DEBUG_CAN_ISO_TP)
+            if (1) // pinConfig.DEBUG_CAN_ISO_TP)
                 log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
         }
 #endif
@@ -319,10 +319,10 @@ namespace can_controller
             memcpy(&galvo, data, sizeof(galvo));
             // Apply galvo settings
             if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Received galvo data: X_MIN=%d, X_MAX=%d, Y_MIN=%d, Y_MAX=%d, STEP=%d, tPixelDwelltime=%d, nFrames=%d, fastMode=%s", 
-                      galvo.X_MIN, galvo.X_MAX, galvo.Y_MIN, galvo.Y_MAX, galvo.STEP, galvo.tPixelDwelltime, galvo.nFrames, 
+                log_i("Received galvo data: X_MIN=%d, X_MAX=%d, Y_MIN=%d, Y_MAX=%d, STEP=%d, tPixelDwelltime=%d, nFrames=%d, fastMode=%s",
+                      galvo.X_MIN, galvo.X_MAX, galvo.Y_MIN, galvo.Y_MAX, galvo.STEP, galvo.tPixelDwelltime, galvo.nFrames,
                       galvo.fastMode ? "true" : "false");
-            
+
             // Create JSON object and call galvo controller
             cJSON *galvoJson = cJSON_CreateObject();
             cJSON_AddNumberToObject(galvoJson, "qid", galvo.qid);
@@ -334,10 +334,10 @@ namespace can_controller
             cJSON_AddNumberToObject(galvoJson, "tPixelDwelltime", galvo.tPixelDwelltime);
             cJSON_AddNumberToObject(galvoJson, "nFrames", galvo.nFrames);
             cJSON_AddBoolToObject(galvoJson, "fastMode", galvo.fastMode);
-            
+
             // Execute galvo action
             GalvoController::act(galvoJson);
-            
+
             cJSON_Delete(galvoJson);
         }
         else
@@ -368,7 +368,7 @@ namespace can_controller
         // Check if the message is a restart signal
         if (size == sizeof(uint8_t) && rxID == device_can_id) // Assuming an empty message indicates a restart
         {
-            // parse the parameter 
+            // parse the parameter
             // if pdu => 0 => restart
             uint8_t canCMD;
             memcpy(&canCMD, data, sizeof(uint8_t));
@@ -428,7 +428,7 @@ namespace can_controller
 #if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
         // Support for illumination board that handles both LED and laser commands
         // The device can receive messages addressed to either primary or secondary CAN ID
-        else if ((rxID == device_can_id) || 
+        else if ((rxID == device_can_id) ||
                  (pinConfig.CAN_ID_SECONDARY != 0 && rxID == pinConfig.CAN_ID_SECONDARY))
         {
             if (size == sizeof(LedCommand))
@@ -686,9 +686,9 @@ namespace can_controller
         // receive data from any node
         pdu_t rxPdu;
         // No need to set rxPdu.rxId since we're passing multiple IDs to the receive function
-        rxPdu.txId = 0;    // it really (!!!) doesn't matter when receiving frames, could use anything
+        rxPdu.txId = 0; // it really (!!!) doesn't matter when receiving frames, could use anything
         ret = isoTpSender.receive(&rxPdu, rxIDs, numIDs, 50);
-        
+
         // check if remote ID is in the list of non-working motors - if yes and we received data, we should remove it from the list
         if (ret == 0)
         {
@@ -707,7 +707,7 @@ namespace can_controller
                     }
                 }
             }
-            
+
             if (uxQueueMessagesWaiting(recieveQueue) == CAN_QUEUE_SIZE - 1)
             {
                 if (pinConfig.DEBUG_CAN_ISO_TP)
@@ -781,17 +781,17 @@ namespace can_controller
             uint8_t rxIDs[2];
             uint8_t numIDs = 1;
             rxIDs[0] = device_can_id;
-            
+
             // If secondary CAN address is configured and different from primary, add it to the list
             if (pinConfig.CAN_ID_SECONDARY != 0 && pinConfig.CAN_ID_SECONDARY != device_can_id)
             {
                 rxIDs[1] = pinConfig.CAN_ID_SECONDARY;
                 numIDs = 2;
             }
-            
+
             // Listen to all configured CAN addresses in one call
             int mError = receiveCanMessage(rxIDs, numIDs);
-            
+
             vTaskDelay(1);
         }
     }
@@ -801,8 +801,8 @@ namespace can_controller
         // Create a mutex for the CAN bus
         device_can_id = getCANAddress();
 
-        // only if  DGALVO_CONTROLLER is defined and we are not can master 
-        #ifdef GALVO_CONTROLLER && !defined(CAN_MASTER)
+// only if  DGALVO_CONTROLLER is defined and we are not can master
+#ifdef GALVO_CONTROLLER && !defined(CAN_MASTER)
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
@@ -828,7 +828,7 @@ namespace can_controller
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
-        #endif // GALVO_CONTROLLER && !defined(CAN_MASTER)
+#endif // GALVO_CONTROLLER && !defined(CAN_MASTER)
     }
 
     int act(cJSON *doc)
@@ -872,10 +872,11 @@ namespace can_controller
             return 1;
         }
 
-        // sending reboot signal to remote CAN device 
+        // sending reboot signal to remote CAN device
         // {"task": "/can_act", "restart": 10, "qid":1} // CAN_ADDRESS is the remote CAN ID to which the client listens to
         cJSON *state = cJSON_GetObjectItem(doc, "restart");
-        if (state != NULL) {
+        if (state != NULL)
+        {
             int canID = state->valueint; // Access the valueint directly from the "restart" object
             sendCANRestartByID(canID);   // Send the restart signal to the specified CAN ID
         }
@@ -1010,7 +1011,7 @@ namespace can_controller
     {
 #ifdef MOTOR_CONTROLLER
         bool mIsRunning = !getData()[axis]->isStop;
-        //log_i("Motor %i is running: %i", axis, !mIsRunning);
+        // log_i("Motor %i is running: %i", axis, !mIsRunning);
         return !mIsRunning;
 #else
         return false;
@@ -1039,7 +1040,7 @@ namespace can_controller
         else if (reduced == 1)
         {
             // Reduced MotorData
-                log_i("Reducing MotorData to axis: %i at address: %u, isStop: %i", axis, slave_addr, motorData.isStop);
+            log_i("Reducing MotorData to axis: %i at address: %u, isStop: %i", axis, slave_addr, motorData.isStop);
             MotorDataReduced reducedData;
             reducedData.targetPosition = motorData.targetPosition;
             reducedData.isforever = motorData.isforever;
@@ -1052,7 +1053,7 @@ namespace can_controller
         else if (reduced == 2)
         {
             // Single Value Updates
-                log_i("Sending SignleMotorDataValueUpdate to axis: %i", axis);
+            log_i("Sending SignleMotorDataValueUpdate to axis: %i", axis);
             // We treat only the speed, stop and targetPosition as single value updates
             if (motorData.speed != 0)
             {
@@ -1273,7 +1274,13 @@ namespace can_controller
         cJSON_AddNumberToObject(doc, "addressgetcan", addr_getcan);
 
         // add the list of non-working CAN IDs
-        cJSON *nonworkingArray = cJSON_CreateIntArray((const uint8_t *)nonAvailableCANids, MAX_CAN_DEVICES);
+        // Convert uint8_t array to int array for cJSON_CreateIntArray
+        int nonworkingIntArray[MAX_CAN_DEVICES];
+        for (int i = 0; i < MAX_CAN_DEVICES; ++i)
+        {
+            nonworkingIntArray[i] = static_cast<int>(nonAvailableCANids[i]);
+        }
+        cJSON *nonworkingArray = cJSON_CreateIntArray(nonworkingIntArray, MAX_CAN_DEVICES);
         cJSON_AddItemToObject(doc, "nonworking", nonworkingArray);
 
         // add the pins for RX/TX to the CAN bus
@@ -1288,7 +1295,7 @@ namespace can_controller
     {
         // send galvo data to slave via CAN
         uint8_t receiverID = CAN_GALVO_IDs[0]; // Currently only one galvo device supported
-        
+
         uint8_t *dataPtr = (uint8_t *)&galvoData;
         int dataSize = sizeof(GalvoData);
         int err = sendCanMessage(receiverID, dataPtr, dataSize);
@@ -1308,7 +1315,7 @@ namespace can_controller
     {
         // send galvo state back to master (from slave)
         uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE; // Send to master
-        
+
         uint8_t *dataPtr = (uint8_t *)&galvoData;
         int dataSize = sizeof(GalvoData);
         int err = sendCanMessage(receiverID, dataPtr, dataSize);

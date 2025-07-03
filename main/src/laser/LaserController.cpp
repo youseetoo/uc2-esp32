@@ -313,35 +313,35 @@ namespace LaserController
 		can_controller::sendLaserDataToCANDriver(laserData);
 		return true;
 		#else
-		if (LASERid == LaserController::PWM_CHANNEL_LASER_0 && pinConfig.LASER_0 != 0)
+		if (LASERid == 0 && pinConfig.LASER_0 != 0)
 		{
 			LASER_val_0 = LASERval;
 			setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == LaserController::PWM_CHANNEL_LASER_1 && pinConfig.LASER_1 != 0)
+		else if (LASERid == 1 && pinConfig.LASER_1 != 0)
 		{
 			LASER_val_1 = LASERval;
 			setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == LaserController::PWM_CHANNEL_LASER_2 && pinConfig.LASER_2 != 0)
+		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
 		{
 			LASER_val_2 = LASERval;
 			setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == LaserController::PWM_CHANNEL_LASER_3 && pinConfig.LASER_3 != 0)
+		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
 		{
 			LASER_val_3 = LASERval;
 			setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			return true;
 		}
-		else if (LASERid == LaserController::PWM_CHANNEL_LASER_4 && pinConfig.LASER_4 != 0)
+		else if (LASERid == 4 && pinConfig.LASER_4 != 0)
 		{
 			LASER_val_4 = LASERval;
 			setPWM(LASER_val_4, PWM_CHANNEL_LASER_4);
@@ -521,6 +521,17 @@ namespace LaserController
 			delay(10);
 			setLaserVal(0, 0);
 			
+		}
+
+		if (pinConfig.LASER_4 > 0)
+		{
+			log_i("Laser ID 4, pin: %i", pinConfig.LASER_4);
+			pinMode(pinConfig.LASER_4, OUTPUT);
+			digitalWrite(pinConfig.LASER_4, LOW);
+			setupLaser(pinConfig.LASER_4, PWM_CHANNEL_LASER_4, pwm_frequency, pwm_resolution);
+			if(testOnBoot) setLaserVal(4, 100);
+			delay(10);
+			setLaserVal(4, 0);
 		}
 	}
 

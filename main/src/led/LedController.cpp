@@ -424,7 +424,7 @@ namespace LedController
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 1, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
-		// { "task": "/ledarr_act", "qid": 17, "led"}
+		// { "task": "/ledarr_act", "qid": 17, "led"} 
 
 		// 1) Check for "task"
 		cJSON *task = cJSON_GetObjectItem(root, "task");

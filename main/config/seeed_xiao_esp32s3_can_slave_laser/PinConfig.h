@@ -8,8 +8,8 @@
 #define ESP32S3_MODEL_XIAO 
 #define LASER_CONTROLLER
 #define MESSAGE_CONTROLLER
-#define CAN_SLAVE_MOTOR
 #define CAN_CONTROLLER
+#define CAN_SLAVE_LASER
 
 struct UC2_3_Xiao_Slave_Laser : PinConfig
 {

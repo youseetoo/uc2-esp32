@@ -285,22 +285,7 @@ namespace can_controller
             if (1) // pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Laser intensity: %d, Laserid: %d", laser.LASERval, laser.LASERid);
             // assign PWM channesl to the laserid
-            if (laser.LASERid == 0)
-            {
-                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_0, laser.LASERval);
-            }
-            else if (laser.LASERid == 1)
-            {
-                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, laser.LASERval);
-            }
-            else if (laser.LASERid == 2)
-            {
-                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_2, laser.LASERval);
-            }
-            else if (laser.LASERid == 3)
-            {
-                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_3, laser.LASERval);
-            }
+            LaserController::setLaserVal(laser.LASERid, laser.LASERval);
         }
         else
         {
@@ -849,7 +834,7 @@ namespace can_controller
 
             uint8_t CAN_ID_LASER_0 = 20
             uint8_t CAN_ID_LASER_1 = 21
-            uint8_t CAN_ID_LASER_2 = 22
+            uint8_t CAN_ID_LASER_2 = 22 
             uint8_t CAN_ID_LASER_3 = 23
             uint8_t CAN_ID_LASER_4 = 24
         */

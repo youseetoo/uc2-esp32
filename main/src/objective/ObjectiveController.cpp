@@ -43,7 +43,7 @@ namespace ObjectiveController
 	{
 		// Set up the motor data
 		uint32_t lowerLimit = -2000; // TODO: should probably not be hardcoded?
-		uint32_t upperLimit = 100000;
+		uint32_t upperLimit = 110000;
 		if (pos < lowerLimit)
 		{
 			log_i("Position %i is below lower limit %i, setting to lower limit", pos, lowerLimit);

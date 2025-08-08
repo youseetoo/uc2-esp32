@@ -495,7 +495,9 @@ namespace FocusMotor
 			isActivated[i] = true;
 			stopStepper(i);
 			delay(10);
-			stopStepper(i); // do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
+			stopStepper(i); // TODO: do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
+			// move motor by 0 to wake it up and get the current position
+			moveMotor(0, i, true); // wake up motor
 		}
 #endif
 
@@ -754,6 +756,7 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		Stepper s = static_cast<Stepper>(i);
 		can_controller::stopStepper(s);
+		can_controller::
 #endif
 log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 // only send motor data if it was running before

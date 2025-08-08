@@ -83,6 +83,8 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             hidIsConnected = false;
             const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
             ESP_LOGI(TAG, ESP_BD_ADDR_STR " CLOSE: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->close.dev));
+            // TODO: We need to stop all motors 
+            
             break;
             }
         default: { 

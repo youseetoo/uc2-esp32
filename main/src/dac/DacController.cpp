@@ -12,16 +12,16 @@ namespace DacController
 		if (pinConfig.dac_fake_1 < 0 || pinConfig.dac_fake_2 < 0)
 		{
 			log_i("No DAC pins defined");
-			return;
+			//return;
 		}
 		log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
+
+		
 		// TODO: need to update this function to match the new framework
 		dacm = new DAC_Module();
 		// void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int scale, int phase, int invert) {
 		dacm->Setup(DAC_CHANNEL_1, 1, 50, 0, 0, 2);
 		dacm->Setup(DAC_CHANNEL_2, 1, 50, 0, 0, 2);
-		pinMode(pinConfig.dac_fake_1, OUTPUT);
-		pinMode(pinConfig.dac_fake_2, OUTPUT);
 		frequency = 1;
 
 		// make short high/low pulses on the dac channels
@@ -161,6 +161,8 @@ namespace DacController
 			dacm->Setup(dac_channel, clk_div, frequency, scale, phase, invert);
 			dacm->dac_offset_set(dac_channel, offset);
 		}
+
+		log_i("DAC Channel %i, Frequency %i, Offset %i, Amplitude %i, Divider %i, Phase %i, Invert %i", dac_channel, frequency, offset, amplitude, clk_div, phase, invert);
 
 		return qid;
 	}

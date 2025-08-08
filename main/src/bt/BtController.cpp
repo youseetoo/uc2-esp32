@@ -189,6 +189,11 @@ namespace BtController
             lastUpdate = millis();
 
         }
+        if (millis() - lastUpdate > updateRateMS and !hidIsConnected){
+            // ensure all values are zero and we stop motors
+            xyza_changed_event(0, 0, 0, 0);
+        }
+
     }
 #endif
 

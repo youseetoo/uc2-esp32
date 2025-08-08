@@ -218,8 +218,10 @@ namespace LinearEncoderController
                         edata[s]->maxSpeed = abs(cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint);
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                         edata[s]->encoderDirection = abs(cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint);
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL){
                         getData()[s]->directionPinInverted = abs(cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint);
+                        // TODO: We need to store this permanently in the preferences for this very motor
+                    }
                     if (cJSON_GetObjectItemCaseSensitive(stp, "res") != NULL)
                         edata[s]->correctResidualOnly = abs(cJSON_GetObjectItemCaseSensitive(stp, "res")->valueint);
                     else

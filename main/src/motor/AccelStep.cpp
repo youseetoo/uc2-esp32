@@ -168,6 +168,14 @@ namespace AccelStep
               getData()[i]->absolutePosition,
               getData()[i]->isaccelerated,
               getData()[i]->acceleration);
+
+        // adjust direction pin if necessary
+        if (getData()[i]->directionPinInverted)
+        {
+            steppers[i]->setDirectionPinInverted(true);
+            log_i("Inverting direction pin for motor %i", i);
+        }
+
         if (!getData()[i]->isforever)
         {
             // accelstepper wants in relative mode that targetpostion and speed point into same direction

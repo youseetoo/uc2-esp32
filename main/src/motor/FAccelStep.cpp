@@ -60,6 +60,12 @@ namespace FAccelStep
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
         
+        // adjust direction pin if necessary
+        if (getData()[i]->directionPinInverted)
+        {
+            faststeppers[i]->setDirectionPinInverted(true);
+            log_i("Inverting direction pin for motor %i", i);
+        }
         // Whenever we enqueue another move check the queue first:
         while (faststeppers[i]->isQueueFull()) { delayMicroseconds(50); }
 

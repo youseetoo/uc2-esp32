@@ -6,9 +6,35 @@
 #include "../../JsonKeys.h"
 #include "ObjectiveController.h"
 #include "Preferences.h"
+#include "../laser/LaserController.h"
 
 namespace ObjectiveController
 {
+
+	// Store previous laser values for all lasers 0...4
+	static int prevLaserVals[5] = {0, 0, 0, 0, 0};
+
+	void beforeObjectiveSwitch()
+	{
+		// Save current laser values and turn off all lasers
+		for (int i = 0; i <= 4; ++i)
+		{
+			prevLaserVals[i] = LaserController::getLaserVal(i);
+			//LaserController::setLaserVal(i, 0); // turn off //TODO: Not really working yet
+		}
+	}
+
+	void afterObjectiveSwitch()
+	{
+		// Restore previous laser values
+		for (int i = 0; i <= 4; ++i)
+		{
+			if (prevLaserVals[i] > 0)
+			{
+				// LaserController::setLaserVal(i, prevLaserVals[i]); //TODO: Not really working yet
+			}
+		}
+	}
 
 	static ObjectiveData data;
 	Preferences preferences;
@@ -16,8 +42,8 @@ namespace ObjectiveController
 	static void moveToPosition(int32_t pos, Stepper axis, int speed, int accel, int qid)
 	{
 		// Set up the motor data
-		uint32_t lowerLimit = 0;
-		uint32_t upperLimit = 90000;
+		uint32_t lowerLimit = -2000; // TODO: should probably not be hardcoded?
+		uint32_t upperLimit = 100000;
 		if (pos < lowerLimit)
 		{
 			log_i("Position %i is below lower limit %i, setting to lower limit", pos, lowerLimit);
@@ -47,18 +73,19 @@ namespace ObjectiveController
 	{
 		// From Home:  [ 33497][I][HomeMotor.cpp:129] startHome(): Start home for axis 0 with timeout 20000, speed 15000, maxspeed 0, direction -1, endstop polarity 0
 		// From here: [ 60522][I][HomeMotor.cpp:129] startHome(): Start home for axis 0 with timeout 10000, speed 20000, maxspeed 20000, direction 1, endstop polarity -1
-/*
-		{"task": "/objective_get"}	
-		{"task":"/objective_act","calibrate":1}
-		{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
-		{"task":"/objective_act","toggle":1, "speed": 26000, "accel": 400000} 			toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2)
-		{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
-		{"task":"/objective_act","x1":  10000, "x2": 80000} set explicit positions (in steps )
-		{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
-		{"task":"/objective_act","z1": 20, "z2": 200}	set current position as z1 and explicit position for z2
-		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
-		{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
-*/
+		/*
+				{"task": "/objective_get"}
+				{"task":"/objective_act","calibrate":1}
+				{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
+				toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2 - toggle has to stay 1)
+				{"task":"/objective_act","toggle":1, "speed": 20000, "accel": 400000} 			
+				{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
+				{"task":"/objective_act","x1":  000, "x2": 80000} set explicit positions (in steps )
+				{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
+				{"task":"/objective_act","z1": 20, "z2": 200}	set current position as z1 and explicit position for z2
+				{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
+				{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
+		*/
 		preferences.begin("obj", false);
 		log_i("objective_Act_fct");
 		// print the json
@@ -66,12 +93,12 @@ namespace ObjectiveController
 		log_i("Objective act %s", out);
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 
-		// get default parameters for speed etc. 
+		// get default parameters for speed etc.
 		int speed = cJsonTool::getJsonInt(doc, "speed", 20000);
 		int accel = cJsonTool::getJsonInt(doc, "accel", 20000);
-		int obj  = cJsonTool::getJsonInt(doc, "obj");
+		int obj = cJsonTool::getJsonInt(doc, "obj");
 
-		// Set Positions for X1 and X2 via JSON Input 
+		// Set Positions for X1 and X2 via JSON Input
 		// {"task":"/objective_act","x1": 1000, "x2": 2000}
 		// if x1 or x2 is -1, set the current position as the objective calibration position
 		// {"task":"/objective_act","x1": -1, "x2": 2000}
@@ -107,7 +134,6 @@ namespace ObjectiveController
 				log_i("Objective x2 is %i", val);
 				data.x2 = val;
 				preferences.putInt("x2", data.x2);
-
 			}
 		}
 
@@ -141,12 +167,13 @@ namespace ObjectiveController
 			{
 				log_i("Objective z2 is %i", val);
 				data.z2 = val;
-				preferences.putInt("z2", data.z2);				
+				preferences.putInt("z2", data.z2);
 			}
 		}
 		// Handle move => explictely move to x1 or x2
 		if (cJSON_HasObjectItem(doc, "move"))
 		{
+			beforeObjectiveSwitch();
 			log_i("Objective move, to position: %i", obj);
 			//{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}
 			// move to position X1: {"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}
@@ -163,7 +190,8 @@ namespace ObjectiveController
 				// Move to X1
 				log_i("Objective move to x1 at position: %i", data.x1);
 				moveToPosition(data.x1, sObjective, speed, accel, qid);
-				if (data.z1!=0){
+				if (data.z1 != 0)
+				{
 					log_i("Objective move to z1 at position: %i", data.z1);
 					moveToPosition(data.z1, sFocus, speed, accel, qid);
 				}
@@ -173,11 +201,13 @@ namespace ObjectiveController
 				// Move to X2
 				log_i("Objective move to x2 at position: %i", data.x2);
 				moveToPosition(data.x2, sObjective, speed, accel, qid);
-				if (data.z2!=0){
+				if (data.z2 != 0)
+				{
 					log_i("Objective move to z2 at position: %i", data.z2);
 					moveToPosition(data.z2, sFocus, speed, accel, qid);
 				}
 			}
+			afterObjectiveSwitch();
 			data.currentState = 1;
 		}
 
@@ -187,23 +217,29 @@ namespace ObjectiveController
 			int toggleVal = cJsonTool::getJsonInt(doc, "toggle");
 			if (toggleVal == 1)
 			{
+				beforeObjectiveSwitch();
 				// Decide which position to move to based on the last target
-				if (data.currentState == 1){
+				if (data.currentState == 1)
+				{
 					moveToPosition(data.x2, sObjective, speed, accel, qid);
 					data.currentState = 2;
-					if (data.z2!=0){
+					if (data.z2 != 0)
+					{
 						log_i("Objective move to z2 at position: %i", data.z2);
 						moveToPosition(data.z2, sFocus, speed, accel, qid);
 					}
 				}
-				else{
+				else
+				{
 					moveToPosition(data.x1, sObjective, speed, accel, qid);
 					data.currentState = 1;
-					if (data.z1!=0){
+					if (data.z1 != 0)
+					{
 						log_i("Objective move to z1 at position: %i", data.z1);
 						moveToPosition(data.z1, sFocus, speed, accel, qid);
 					}
 				}
+				afterObjectiveSwitch();
 			}
 		}
 
@@ -270,7 +306,8 @@ namespace ObjectiveController
 			int accel = 20000;
 			int qid = 0;
 			moveToPosition(data.x1, sObjective, speed, accel, qid);
-			if (data.z1!=0){
+			if (data.z1 != 0)
+			{
 				log_i("Objective move to z1 at position: %i", data.z1);
 				moveToPosition(data.z1, sFocus, speed, accel, qid);
 			}
@@ -286,17 +323,16 @@ namespace ObjectiveController
 			// Move to X2
 			int speed = 20000;
 			int accel = 20000;
-			int qid = 0;			
+			int qid = 0;
 			moveToPosition(data.x2, sObjective, speed, accel, qid);
-			if (data.z2!=0){
+			if (data.z2 != 0)
+			{
 				log_i("Objective move to z2 at position: %i", data.z2);
 				moveToPosition(data.z2, sFocus, speed, accel, qid);
 			}
 			data.currentState = 1;
 		}
 	}
-
-
 
 	void setup()
 	{
@@ -317,4 +353,6 @@ namespace ObjectiveController
 	void loop()
 	{
 	}
+
+
 }

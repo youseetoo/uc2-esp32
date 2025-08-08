@@ -117,6 +117,7 @@ namespace LedController
 	// ------------------------------------------------
 	void fillAll(uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("Filling all LEDs with color: R=%d, G=%d, B=%d", r, g, b);
 #ifdef HUB75
 		uint16_t c = rgb565(r, g, b);
 		matrix->fillScreen(c);

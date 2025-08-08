@@ -121,6 +121,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_message = "message";
 
 __attribute__ ((unused)) static const PROGMEM char * key_motor = "motor";
 __attribute__ ((unused)) static const PROGMEM char * key_steppers = "steppers";
+__attribute__ ((unused)) static const PROGMEM char * key_setdir = "setdir";
 __attribute__ ((unused)) static const PROGMEM char * key_setposition = "setpos";
 __attribute__ ((unused)) static const PROGMEM char * key_currentpos = "posval";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperid = "stepperid";

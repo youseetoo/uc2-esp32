@@ -373,6 +373,51 @@ namespace MotorJsonParser
 		}
 	}
 
+	void parseMotorPinDirection(cJSON *doc)
+	{
+		// {"task": "/motor_act", "setdir": {"steppers": [{"stepperid": 0, "dir": 1}]}}
+		cJSON *setdir = cJSON_GetObjectItem(doc, key_setdir);
+		if (setdir != NULL)
+		{
+			cJSON *stprs = cJSON_GetObjectItem(setdir, key_steppers);
+			if (stprs != NULL)
+			{
+				cJSON *stp = NULL;
+				cJSON_ArrayForEach(stp, stprs)
+				{
+					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					int dir = cJSON_GetObjectItemCaseSensitive(stp, key_setdir)->valueint;
+					log_i("Setting motor %i direction to %i", s, dir);
+					FocusMotor::getData()[s]->directionPinInverted = dir;
+
+					// TODO: Store this permanently in pref for each motor axis 
+					Preferences preferences;
+					preferences.begin("UC2", false);
+					switch (s)
+					{
+					case Stepper::A:
+						preferences.putBool("motainv", dir);
+						break;
+					case Stepper::X:
+						preferences.putBool("motxinv", dir);			
+						break;
+					case Stepper::Y:
+						preferences.putBool("motyinv", dir);
+						break;
+					case Stepper::Z:
+						preferences.putBool("motzinv", dir);
+						break;
+					default:
+						log_w("Unknown motor axis %i, not storing direction in preferences", s);
+						break;
+					}
+					log_i("Stored motor %i direction %i in preferences", s, dir);
+					preferences.end();
+				}
+			}
+		}
+	}
+
 	void parseSetAxis(cJSON *doc)
 	{
 #ifdef I2C_SLAVE_MOTOR
@@ -621,6 +666,10 @@ namespace MotorJsonParser
 		// set position of motors in eeprom
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
 		parseSetPosition(doc);
+
+		// set motor pin direction (either 0 or 1)
+		// {"task": "/motor_act", "setdir": {"steppers": [{"stepperid": 0, "dir": 1}]}, "qid": 37}
+		parseMotorPinDirection(doc);
 
 		// set axis of motors
 		parseSetAxis(doc);

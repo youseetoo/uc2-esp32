@@ -380,7 +380,7 @@ public:
 
     static void disconnect_ind_cback(uint16_t l2cap_cid, bool ack_needed)
     {
-        // Serial.println("disconnect_ind_cback");
+        log_i("disconnect_ind_cback");
         if (ack_needed)
         {
             /* send L2CAP disconnect response */
@@ -985,6 +985,7 @@ bool PSController::stopListening()
 
 void PSController::disconnect()
 {
+    log_i("PSController::disconnect");
     if (fHIDC != 0)
     {
         priv::disconnect_cfm_cback(fHIDC, 0);

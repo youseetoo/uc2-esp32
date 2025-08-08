@@ -21,6 +21,7 @@
 #define MOTOR_AXIS_COUNT 10   
 #define LED_CONTROLLER
 #define GALVO_CONTROLLER
+#define DAC_CONTROLLER
 
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
@@ -64,8 +65,8 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;
      
-     int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
-     int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
+     int8_t dac_fake_1 = GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
+     int8_t dac_fake_2 = GPIO_NUM_26; // Coolant
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4

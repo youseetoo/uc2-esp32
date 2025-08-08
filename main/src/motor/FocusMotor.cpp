@@ -290,13 +290,14 @@ namespace FocusMotor
 		const char *prefNamespace = "UC2";
 		preferences.begin(prefNamespace, false);
 		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
+
 		preferences.end();
 	}
 
 	void fill_data()
 	{
 		// setup motor pins
-		preferences.begin("motpos", false);
+		preferences.begin("UC2", false);
 		if (pinConfig.MOTOR_A_STEP >= 0)
 		{
 			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
@@ -305,6 +306,7 @@ namespace FocusMotor
 			data[Stepper::A]->minPos = preferences.getInt(("min" + String(Stepper::A)).c_str());
 			data[Stepper::A]->maxPos = preferences.getInt(("max" + String(Stepper::A)).c_str());
 			data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(),false);
+			data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
 			isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
@@ -316,6 +318,7 @@ namespace FocusMotor
 			data[Stepper::X]->minPos = preferences.getInt(("min" + String(Stepper::X)).c_str());
 			data[Stepper::X]->maxPos = preferences.getInt(("max" + String(Stepper::X)).c_str());
 			data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(),false);
+			data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
 			isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
@@ -327,6 +330,7 @@ namespace FocusMotor
 			data[Stepper::Y]->minPos = preferences.getInt(("min" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->maxPos = preferences.getInt(("max" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(),false);
+			data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
 			isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
@@ -338,6 +342,7 @@ namespace FocusMotor
 			data[Stepper::Z]->minPos = preferences.getInt(("min" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->maxPos = preferences.getInt(("max" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(),false);
+			data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
 			isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
@@ -568,7 +573,7 @@ namespace FocusMotor
 					{
 						log_i("Motor %d outside min limit & moving further negative => STOP", i);
 						stopStepper(i);
-						preferences.begin("motpos", false);
+						preferences.begin("UC2", false);
 						preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 						preferences.end();
 					}
@@ -586,7 +591,7 @@ namespace FocusMotor
 					{
 						log_i("Motor %d outside max limit & moving further positive => STOP", i);
 						stopStepper(i);
-						preferences.begin("motpos", false);
+						preferences.begin("UC2", false);
 						preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 						preferences.end();
 					}
@@ -602,7 +607,7 @@ namespace FocusMotor
 				// log_d("Sending motor pos %i", i);
 				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
-				preferences.begin("motpos", false);
+				preferences.begin("UC2", false);
 				preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 				preferences.end();
 			}

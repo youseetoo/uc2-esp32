@@ -133,6 +133,10 @@ namespace SerialProcess
 			serialMSGQueue = xQueueCreate(2, sizeof(cJSON *)); // Queue for cJSON pointers
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+			
+#ifdef ENABLE_BINARY_PROTOCOL
+		BinaryProtocol::setup();
+#endif
 	}
 
 	void addJsonToQueue(cJSON *doc)
@@ -148,6 +152,31 @@ namespace SerialProcess
 			String c = Serial.readString();
 			const char *s = c.c_str();
 			Serial.flush();
+			
+#ifdef ENABLE_BINARY_PROTOCOL
+			// Check if this might be a binary message
+			if (BinaryProtocol::isEnabled() && c.length() > 0) {
+				uint8_t firstByte = (uint8_t)c[0];
+				
+				// Detect binary protocol by magic byte
+				if (firstByte == BINARY_PROTOCOL_MAGIC_START) {
+					log_i("Detected binary protocol message");
+					BinaryProtocol::processBinaryMessage((const uint8_t*)s, c.length());
+					c.clear();
+					return;
+				}
+				
+				// If in binary-only mode, reject JSON messages
+				if (BinaryProtocol::getMode() == PROTOCOL_BINARY_ONLY) {
+					log_w("JSON message received in binary-only mode");
+					BinaryProtocol::sendBinaryResponse(CMD_UNKNOWN, 1, nullptr, 0);
+					c.clear();
+					return;
+				}
+			}
+#endif
+			
+			// Process as JSON message (existing logic)
 			//log_i("String s:%s , char:%s", c.c_str(), s);
 			cJSON *root = cJSON_Parse(s);
 			if (root != NULL)
@@ -383,6 +412,31 @@ else  if (strcmp(task, i2c_get_endpoint) == 0)
 		{
 			serialize(State::getModules());
 		}
+#ifdef ENABLE_BINARY_PROTOCOL
+		else if (strcmp(task, "/protocol_set") == 0)
+		{
+			// Set binary protocol mode: {"task":"/protocol_set", "mode": 0/1/2}
+			cJSON *mode = cJSON_GetObjectItemCaseSensitive(jsonDocument, "mode");
+			if (mode != NULL && cJSON_IsNumber(mode)) {
+				BinaryProtocol::setMode((BinaryProtocolMode)mode->valueint);
+				serialize(1); // Success
+			} else {
+				serialize(-1); // Error
+			}
+		}
+		else if (strcmp(task, "/protocol_get") == 0)
+		{
+			// Get protocol information
+			cJSON *doc = cJSON_CreateObject();
+			if (doc != NULL) {
+				cJSON_AddStringToObject(doc, "protocol", "hybrid");
+				cJSON_AddNumberToObject(doc, "binary_enabled", BinaryProtocol::isEnabled() ? 1 : 0);
+				cJSON_AddNumberToObject(doc, "mode", BinaryProtocol::getMode());
+				cJSON_AddNumberToObject(doc, "version", BINARY_PROTOCOL_VERSION);
+			}
+			serialize(doc);
+		}
+#endif
 #ifdef WIFI
 		else if (strcmp(task, scanwifi_endpoint) == 0)
 		{

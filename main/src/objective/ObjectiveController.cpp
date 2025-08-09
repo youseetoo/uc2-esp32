@@ -42,8 +42,8 @@ namespace ObjectiveController
 	static void moveToPosition(int32_t pos, Stepper axis, int speed, int accel, int qid)
 	{
 		// Set up the motor data
-		uint32_t lowerLimit = -2000; // TODO: should probably not be hardcoded?
-		uint32_t upperLimit = 110000;
+		int32_t lowerLimit = -5000; // TODO: should probably not be hardcoded?
+		int32_t upperLimit = 120000;
 		if (pos < lowerLimit)
 		{
 			log_i("Position %i is below lower limit %i, setting to lower limit", pos, lowerLimit);
@@ -79,8 +79,12 @@ namespace ObjectiveController
 				{"task":"/objective_act","calibrate":1, "homeDirection": 1, "homeEndStopPolarity": -1} calibrate with direction and polarity (e.g. homing to set 0 position, objective positions are aboslute)
 				toggle between x1 and x2 objective positions (i.e. slot 1 or slot 2 - toggle has to stay 1)
 				{"task":"/objective_act","toggle":1, "speed": 20000, "accel": 400000} 			
-				{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":1}			explictely move to slot x1 or x2
-				{"task":"/objective_act","x1":  000, "x2": 80000} set explicit positions (in steps )
+				explictely move to slot x1 or x2
+				{"task":"/objective_act","move":1,"speed":24000,"accel":20000,"obj":1}
+				{"task":"/objective_act","move":1,"speed":20000,"accel":20000,"obj":2}
+
+				set explicit positions (in steps )
+				{"task":"/objective_act","x1":  -1000, "x2": 90000, "qid":1} 
 				{"task":"/objective_act","x1": -1, "x2": 2000}	set current position as x1 and explicit position for x2
 				{"task":"/objective_act","z1": 20, "z2": 200}	set current position as z1 and explicit position for z2
 				{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}

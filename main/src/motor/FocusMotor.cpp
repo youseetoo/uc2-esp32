@@ -156,6 +156,7 @@ namespace FocusMotor
 				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
 				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
 			}
+			
 
 #elif defined USE_FASTACCEL
 			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
@@ -191,7 +192,7 @@ namespace FocusMotor
 		}
 	}
 
-	void moveMotor(int32_t pos, int s, bool isRelative)
+	void moveMotor(int32_t pos, int32_t speed, int s, bool isRelative)
 	{
 		// move motor
 		// blocking = true => wait until motor is done
@@ -201,10 +202,11 @@ namespace FocusMotor
 		data[s]->absolutePosition = !isRelative;
 		data[s]->isStop = false;
 		data[s]->stopped = false;
-		data[s]->speed = 2000;
+		data[s]->speed = speed;
 		data[s]->acceleration = 1000;
 		data[s]->isaccelerated = 1;
-		startStepper(s, 0);
+		log_i("Moving motor %i to position %i with speed %i, isRelative: %i", s, pos, speed, isRelative);
+		startStepper(s, 1); // reduced = 1 means that we only send the motor data reduced to the slave, so that it can handle it faster
 	}
 
 	void setAutoEnable(bool enable)
@@ -465,7 +467,7 @@ namespace FocusMotor
 		// send stop signal to all motors and update motor positions
 		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
 		{
-			moveMotor(1, iMotor, true); // wake up motor
+			moveMotor(1, 1000, iMotor, true); // wake up motor
 			isActivated[iMotor] = true;
 			stopStepper(iMotor);
 			MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(iMotor);
@@ -493,11 +495,10 @@ namespace FocusMotor
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 			isActivated[i] = true;
-			stopStepper(i);
-			delay(10);
 			stopStepper(i); // TODO: do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
+			delay(40);
+			// TODO: This apparently does not suffice to wake up the motor and get the current position from CAN satellites
 			// move motor by 0 to wake it up and get the current position
-			moveMotor(0, i, true); // wake up motor
 		}
 #endif
 
@@ -575,9 +576,6 @@ namespace FocusMotor
 					{
 						log_i("Motor %d outside min limit & moving further negative => STOP", i);
 						stopStepper(i);
-						preferences.begin("UC2", false);
-						preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
-						preferences.end();
 					}
 					// else if speed > 0 => let it keep running to move back inside the range
 				}
@@ -593,9 +591,6 @@ namespace FocusMotor
 					{
 						log_i("Motor %d outside max limit & moving further positive => STOP", i);
 						stopStepper(i);
-						preferences.begin("UC2", false);
-						preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
-						preferences.end();
 					}
 					// else if speed < 0 => let it keep running to move back inside the range
 				}
@@ -609,9 +604,6 @@ namespace FocusMotor
 				// log_d("Sending motor pos %i", i);
 				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
-				preferences.begin("UC2", false);
-				preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
-				preferences.end();
 			}
 
 			
@@ -686,6 +678,10 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 
+		// also save in preferences
+		preferences.begin("UC2", false);
+		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
+		preferences.end();
 		#ifdef FASTACCEL
 		/*
 		if (i == Stepper::X && pcnt_motor1) {
@@ -756,7 +752,7 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		Stepper s = static_cast<Stepper>(i);
 		can_controller::stopStepper(s);
-		can_controller::
+		
 #endif
 log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 // only send motor data if it was running before

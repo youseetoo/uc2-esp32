@@ -61,7 +61,7 @@ jobs:
           echo "Merged firmware binary not found!"
           exit 1
         fi
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: merged-firmware
         path: .pio/build/seeed_xiao_esp32s3_ledservo/seeed_xiao_esp32s3_ledservo.bin

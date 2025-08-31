@@ -7,6 +7,7 @@
 #endif
 
 #include "InterruptController.h"
+#include "PCNTEncoderController.h"
 #include "JsonKeys.h"
 
 using namespace FocusMotor;
@@ -303,12 +304,28 @@ namespace LinearEncoderController
 
     void setCurrentPosition(int encoderIndex, float offsetPos)
     {
-        edata[encoderIndex]->posval = offsetPos;
+        if (encoderIndex < 0 || encoderIndex >= 4) return;
+        
+        // Use selected encoder interface
+        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable()) {
+            PCNTEncoderController::setCurrentPosition(encoderIndex, offsetPos);
+        } else {
+            // Fallback to interrupt-based
+            edata[encoderIndex]->posval = offsetPos;
+        }
     }
 
     float getCurrentPosition(int encoderIndex)
     {
-        return edata[encoderIndex]->posval;
+        if (encoderIndex < 0 || encoderIndex >= 4) return 0.0f;
+        
+        // Use selected encoder interface
+        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable()) {
+            return PCNTEncoderController::getCurrentPosition(encoderIndex);
+        } else {
+            // Fallback to interrupt-based
+            return edata[encoderIndex]->posval;
+        }
     }
 
     cJSON *get(cJSON *docin)
@@ -520,6 +537,14 @@ namespace LinearEncoderController
             edata[i]->linearencoderID = i;
         }
 
+        // Initialize PCNT if available
+        if (PCNTEncoderController::isPCNTAvailable()) {
+            log_i("PCNT interface available, setting up PCNT encoder controller");
+            PCNTEncoderController::setup();
+        } else {
+            log_i("PCNT interface not available, using interrupt-based encoder only");
+        }
+
         if (pinConfig.ENC_X_A >= 0)
         {
             log_i("Adding X LinearEncoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
@@ -529,7 +554,7 @@ namespace LinearEncoderController
             InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
             InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
         }
-        if (pinConfig.ENC_X_A >= 0)
+        if (pinConfig.ENC_Y_A >= 0)  // Fixed: was checking ENC_X_A instead of ENC_Y_A
         {
             log_i("Adding Y LinearEncoder: %i, %i", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
             pinMode(pinConfig.ENC_Y_A, INPUT_PULLUP);
@@ -563,6 +588,31 @@ namespace LinearEncoderController
         insertIndex = (insertIndex + 1) % 5;
 
         return sum / 5.0;
+    }
+
+    void setEncoderInterface(int encoderIndex, EncoderInterface interface)
+    {
+        if (encoderIndex < 0 || encoderIndex >= 4) return;
+        
+        if (interface == ENCODER_PCNT_BASED && !PCNTEncoderController::isPCNTAvailable()) {
+            log_w("PCNT not available, keeping interrupt-based interface for encoder %d", encoderIndex);
+            return;
+        }
+        
+        edata[encoderIndex]->encoderInterface = interface;
+        log_i("Encoder %d interface set to %s", encoderIndex, 
+              (interface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
+    }
+
+    EncoderInterface getEncoderInterface(int encoderIndex)
+    {
+        if (encoderIndex < 0 || encoderIndex >= 4) return ENCODER_INTERRUPT_BASED;
+        return edata[encoderIndex]->encoderInterface;
+    }
+
+    bool isPCNTEncoderSupported()
+    {
+        return PCNTEncoderController::isPCNTAvailable();
     }
 
 } // namespace name

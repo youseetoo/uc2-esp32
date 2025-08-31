@@ -100,6 +100,19 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      uint8_t objectivePositionX1 = 10000;
      uint8_t objectivePositionX2 = 80000;
 
+     // Linear encoder pins (optional, for AS5311 interface)
+     // For future encoder-based motion control
+     // Currently disabled - can be enabled for testing PCNT vs interrupt performance
+     int8_t ENC_X_A = disabled; // GPIO_NUM_21; // Example: could use available GPIO pins
+     int8_t ENC_X_B = disabled; // GPIO_NUM_20;
+     int8_t ENC_Y_A = disabled; 
+     int8_t ENC_Y_B = disabled;
+     int8_t ENC_Z_A = disabled; 
+     int8_t ENC_Z_B = disabled;
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
+
      // OTA settings
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
 

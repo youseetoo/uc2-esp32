@@ -1105,6 +1105,14 @@ namespace can_controller
         return sendMotorSingleValue(axis, offsetof(MotorData, speed), newSpeed);
     }
 
+    int sendEncoderBasedMotionToCanDriver(uint8_t axis, bool encoderBasedMotion)
+    {
+        // send encoder-based motion flag to slave via CAN
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Sending encoderBasedMotion to axis: %i with value: %i", axis, encoderBasedMotion);
+        return sendMotorSingleValue(axis, offsetof(MotorData, encoderBasedMotion), encoderBasedMotion ? 1 : 0);
+    }
+
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis)
     {
         // send home data to slave via

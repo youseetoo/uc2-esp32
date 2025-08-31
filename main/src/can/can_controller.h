@@ -70,6 +70,7 @@ namespace can_controller
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed);
+    int sendEncoderBasedMotionToCanDriver(uint8_t axis, bool encoderBasedMotion);
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
     int sendCANRestartByID(uint8_t canID);
 

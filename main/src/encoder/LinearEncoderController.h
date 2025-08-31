@@ -3,6 +3,7 @@
 #include "PIDController.h"
 #include "cJSON.h"
 #include "../motor/FocusMotor.h"
+#include "PCNTEncoderController.h"
 
 struct LinearEncoderData
 {	
@@ -34,6 +35,8 @@ struct LinearEncoderData
 	float c_d = 0.1;
 	float mumPerStep = 1.95f; // dividided by 2048 steps
 	PIDController pid = PIDController(c_p, c_i, c_d);
+	// Encoder interface selection
+	EncoderInterface encoderInterface = ENCODER_INTERRUPT_BASED; // Default to interrupt-based
 };
 
 void processHomeLoop(void * p);
@@ -49,4 +52,9 @@ namespace LinearEncoderController
 	void loop();
 
 	float calculateRollingAverage(float newValue);
+	
+	// Encoder interface selection functions
+	void setEncoderInterface(int encoderIndex, EncoderInterface interface);
+	EncoderInterface getEncoderInterface(int encoderIndex);
+	bool isPCNTEncoderSupported();
 };

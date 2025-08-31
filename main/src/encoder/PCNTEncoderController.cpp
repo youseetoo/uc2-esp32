@@ -1,4 +1,5 @@
 #include "PCNTEncoderController.h"
+#include "LinearEncoderController.h"  // For EncoderInterface enum
 #include "esp_log.h"
 
 #ifdef ESP_IDF_VERSION_MAJOR

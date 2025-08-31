@@ -3,7 +3,22 @@
 #include "PIDController.h"
 #include "cJSON.h"
 #include "../motor/FocusMotor.h"
-#include "PCNTEncoderController.h"
+
+// Encoder interface selection enum
+enum EncoderInterface {
+    ENCODER_INTERRUPT_BASED = 0,  // Default interrupt-based implementation
+    ENCODER_PCNT_BASED = 1        // PCNT hardware-based implementation
+};
+
+// Forward declare to avoid circular dependency
+namespace PCNTEncoderController {
+    void setup();
+    float getCurrentPosition(int encoderIndex);
+    void setCurrentPosition(int encoderIndex, float offsetPos);
+    int16_t getPCNTCount(int encoderIndex);
+    void resetPCNTCount(int encoderIndex);
+    bool isPCNTAvailable();
+}
 
 struct LinearEncoderData
 {	

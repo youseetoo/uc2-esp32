@@ -2,7 +2,6 @@
 
 #include <unity.h>
 #include "../main/src/encoder/LinearEncoderController.h"
-#include "../main/src/encoder/PCNTEncoderController.h"
 #include "../main/src/motor/MotorTypes.h"
 
 void test_encoder_interface_selection()

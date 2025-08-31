@@ -543,6 +543,24 @@ namespace FocusMotor
 		log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
 	}
 
+	bool isEncoderBasedMotionEnabled(int axis)
+	{
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return false;
+		return getData()[axis]->encoderBasedMotion;
+	}
+
+	void setEncoderBasedMotion(int axis, bool enabled)
+	{
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return;
+		getData()[axis]->encoderBasedMotion = enabled;
+		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
+		
+#ifdef CAN_CONTROLLER
+		// Notify CAN slaves if we are a CAN master
+		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
+#endif
+	}
+
     static unsigned long lastSendTime = 0; // holds the last time positions were sent
     const unsigned long interval = 2000;   // 2-second interval
 

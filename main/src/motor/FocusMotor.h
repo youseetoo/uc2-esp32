@@ -44,4 +44,8 @@ namespace FocusMotor
 	void updateData(int axis); // pull motor data to the data-array
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
+	
+	// Encoder-based motion control functions
+	bool isEncoderBasedMotionEnabled(int axis);
+	void setEncoderBasedMotion(int axis, bool enabled);
 };

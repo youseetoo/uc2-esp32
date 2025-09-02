@@ -70,8 +70,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
      
      // I2C  - as controller 
-     int8_t I2C_SCL_ext = GPIO_NUM_5; // D5 -> GPIO5
-     int8_t I2C_SDA_ext = GPIO_NUM_4; // D4 -> GPIO4
+     int8_t I2C_SCL_ext = disabled; //  GPIO_NUM_5; // D5 -> GPIO5
+     int8_t I2C_SDA_ext = disabled; // GPIO_NUM_4; // D4 -> GPIO4
 
      // TMC UART 
      int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
@@ -103,8 +103,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      // Linear encoder pins (optional, for AS5311 interface)
      // For future encoder-based motion control
      // Currently disabled - can be enabled for testing PCNT vs interrupt performance
-     int8_t ENC_X_A = disabled; // GPIO_NUM_21; // Example: could use available GPIO pins
-     int8_t ENC_X_B = disabled; // GPIO_NUM_20;
+     int8_t ENC_X_A = GPIO_NUM_5; // GPIO_NUM_21; // Example: could use available GPIO pins
+     int8_t ENC_X_B = GPIO_NUM_6; // GPIO_NUM_20;
      int8_t ENC_Y_A = disabled; 
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_A = disabled; 

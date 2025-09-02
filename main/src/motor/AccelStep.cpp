@@ -172,7 +172,7 @@ namespace AccelStep
         // adjust direction pin if necessary
         if (getData()[i]->directionPinInverted)
         {
-            steppers[i]->setDirectionPinInverted(true);
+            steppers[i]->setPinsInverted (true, false, false);
             log_i("Inverting direction pin for motor %i", i);
         }
 

@@ -60,12 +60,7 @@ namespace FAccelStep
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
         
-        // adjust direction pin if necessary
-        if (getData()[i]->directionPinInverted)
-        {
-            faststeppers[i]->setDirectionPinInverted(true);
-            log_i("Inverting direction pin for motor %i", i);
-        }
+
         // Whenever we enqueue another move check the queue first:
         while (faststeppers[i]->isQueueFull()) { delayMicroseconds(50); }
 
@@ -186,7 +181,8 @@ namespace FAccelStep
         //log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
-        faststeppers[stepper]->setDirectionPin(motordir, false);
+        faststeppers[stepper]->setDirectionPin (motordir, getData()[stepper]->directionPinInverted);
+
         if (pinConfig.MOTOR_AUTOENABLE)
             faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
         else

@@ -98,6 +98,7 @@ namespace LinearEncoderController
         cJSON *calibrate = cJSON_GetObjectItem(j, key_linearencoder_calibrate);
         cJSON *setup = cJSON_GetObjectItem(j, key_linearencoder_setup);
         cJSON *home = cJSON_GetObjectItem(j, key_linearencoder_home);
+        cJSON *plot = cJSON_GetObjectItem(j, key_linearencoder_plot);
 
         /******
          * CALIBRATE THE STEP-TO-MM VALUE
@@ -131,6 +132,16 @@ namespace LinearEncoderController
                     edata[s]->requestCalibration = true;
                 }
             }
+        }
+        else if (plot != NULL)
+        {
+            /*******
+             * PLOT THE ENCODER VALUES in the loop -> set flag true/false 
+             *******/
+            // {"task": "/linearencoder_act", "plot": 1}
+
+            // get plot true/false
+            isPlot = (plot->valueint == 1);
         }
         else if (home != NULL)
         /*******
@@ -399,6 +410,10 @@ namespace LinearEncoderController
         // print current position of the linearencoder
         // log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
 
+        if (isPlot){
+            // plot current encoder value for motor 1 only
+            log_i("plot: %f", getCurrentPosition(1));
+        }
 #ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors
         for (int i = 0; i < 4; i++)

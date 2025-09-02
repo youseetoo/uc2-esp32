@@ -6,8 +6,8 @@
 
 // Encoder interface selection enum
 enum EncoderInterface {
-    ENCODER_INTERRUPT_BASED = 0,  // Default interrupt-based implementation
-    ENCODER_PCNT_BASED = 1        // PCNT hardware-based implementation
+    ENCODER_INTERRUPT_BASED = 1,  // Default interrupt-based implementation
+    ENCODER_PCNT_BASED = 0       // PCNT hardware-based implementation
 };
 
 // Forward declare to avoid circular dependency
@@ -44,6 +44,7 @@ struct LinearEncoderData
 	float maxSpeed = 10000.0f;
 	bool correctResidualOnly = false; // correct for residual error after open-loop steps only
 	float stp2phys = 1.0f; // conversion factor from steps to physical units
+	
 	// PID controller variablexs
 	float c_p = 2.;
 	float c_i = 0.1;
@@ -65,6 +66,8 @@ namespace LinearEncoderController
 	cJSON * get(cJSON * ob);
 	void setup();
 	void loop();
+
+	static bool isPlot = 0; // plot position values 
 
 	float calculateRollingAverage(float newValue);
 	

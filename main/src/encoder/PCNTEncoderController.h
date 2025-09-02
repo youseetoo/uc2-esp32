@@ -1,6 +1,7 @@
 #pragma once
 #include "Arduino.h"
 
+#include "LinearEncoderController.h"
 #ifdef ESP_IDF_VERSION_MAJOR
 #if ESP_IDF_VERSION_MAJOR >= 4
 #include "driver/pcnt.h"

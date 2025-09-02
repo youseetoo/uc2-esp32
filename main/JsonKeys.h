@@ -106,6 +106,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibrate
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_setup = "setup";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_home = "home";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_moveprecise = "moveP";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_plot = "plot";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos = "calibsteps";

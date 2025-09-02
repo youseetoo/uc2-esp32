@@ -11,9 +11,11 @@
 {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
 {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 2  }}
 # Encoder
-{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 3, "position": -100 , "isabs":0, "speed": 10000, "cp":100.0, "ci":1.0, "cd":1.0} ]}}
+
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": -100 , "isabs":0, "speed": 10000, "cp":100.0, "ci":1.0, "cd":1.0} ]}}
 {"task": "/linearencoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 10000} ]}}
 {"task": "/linearencoder_act", "setup": {"steppers": [ { "stepperid": 1, "position": 0}]}}
+{"task": "/linearencoder_act", "plot":1}
 {"task":"/linearencoder_get", "linencoder": { "posval": 3,    "id": 1  }}
 
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000} ]}}       

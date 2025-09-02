@@ -52,6 +52,7 @@ set(srcs    ${mainsrc}main.cpp
             ${mainsrc}src/state/State.cpp
             ${mainsrc}src/config/ConfigController.cpp
             ${mainsrc}src/encoder/InterruptController.cpp
+            ${mainsrc}src/serial/BinaryProtocol.cpp
          )
 
 if(ANALOG_IN_CONTROLLER EQUAL 1)

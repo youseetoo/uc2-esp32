@@ -38,6 +38,7 @@ motor defines
 #define USE_TCA9535
 */
 
+//#define USE_PCNT_COUNTER 
 const int8_t disabled = -1;
 
 #define LED_BUILTIN 0 // for Xiao ESP32S3

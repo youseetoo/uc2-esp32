@@ -6,8 +6,8 @@
 
 // Encoder interface selection enum
 enum EncoderInterface {
-    ENCODER_INTERRUPT_BASED = 1,  // Default interrupt-based implementation
-    ENCODER_PCNT_BASED = 0       // PCNT hardware-based implementation
+    ENCODER_INTERRUPT_BASED = 0,  // Default interrupt-based implementation
+    ENCODER_PCNT_BASED = 1       // PCNT hardware-based implementation
 };
 
 // Forward declare to avoid circular dependency

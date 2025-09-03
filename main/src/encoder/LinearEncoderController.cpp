@@ -83,6 +83,8 @@ namespace LinearEncoderController
             else
                 edata[3]->posval -= edata[3]->mumPerStep;
         }
+
+        
     }
 
     /*
@@ -380,6 +382,7 @@ namespace LinearEncoderController
             cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
             cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
             cJSON_AddItemToObject(doc, "linearencoder_edata", aritem);
+            
             Serial.println("linearencoder_edata for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
         }
         else
@@ -396,6 +399,8 @@ namespace LinearEncoderController
                 cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
                 cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
                 cJSON_AddItemToObject(doc, "linearencoder_edata", aritem);
+                // getEncoderInterface
+                cJSON_AddNumberToObject(aritem, "encoderInterface", getEncoderInterface(i));
                 Serial.println("linearencoder_edata for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
             }
         }
@@ -560,6 +565,8 @@ namespace LinearEncoderController
             log_i("PCNT interface not available, using interrupt-based encoder only");
         }
 
+
+
         if (pinConfig.ENC_X_A >= 0)
         {
             log_i("Adding X LinearEncoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
@@ -568,6 +575,7 @@ namespace LinearEncoderController
             edata[1]->encoderDirection = pinConfig.ENC_X_encoderDirection;
             InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
             InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            setEncoderInterface(1, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
         }
         if (pinConfig.ENC_Y_A >= 0)  // Fixed: was checking ENC_X_A instead of ENC_Y_A
         {
@@ -577,6 +585,7 @@ namespace LinearEncoderController
             edata[2]->encoderDirection = pinConfig.ENC_Y_encoderDirection;
             InterruptController::addInterruptListner(pinConfig.ENC_Y_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
             InterruptController::addInterruptListner(pinConfig.ENC_Y_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            setEncoderInterface(2, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
         }
         if (pinConfig.ENC_Z_A >= 0)
         {
@@ -586,6 +595,7 @@ namespace LinearEncoderController
             edata[3]->encoderDirection = pinConfig.ENC_Z_encoderDirection;
             InterruptController::addInterruptListner(pinConfig.ENC_Z_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
             InterruptController::addInterruptListner(pinConfig.ENC_Z_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            setEncoderInterface(3, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
         }
     }
 
@@ -607,6 +617,7 @@ namespace LinearEncoderController
 
     void setEncoderInterface(int encoderIndex, EncoderInterface interface)
     {
+        log_i("Set Encoder Available Interface: %d, with interface %d", encoderIndex, interface);
         if (encoderIndex < 0 || encoderIndex >= 4) return;
         
         if (interface == ENCODER_PCNT_BASED && !PCNTEncoderController::isPCNTAvailable()) {

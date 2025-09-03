@@ -251,6 +251,7 @@ static void handleSquareLongPress(int pressed)
 extern "C" void setupApp(void)
 {
 
+	delay(5000);
 	log_i("SetupApp");
 	// setup debugging level
 	//esp_log_level_set("*", ESP_LOG_isDEBUG);

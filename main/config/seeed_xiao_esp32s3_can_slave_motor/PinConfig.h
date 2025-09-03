@@ -19,6 +19,7 @@
 #define USE_FASTACCEL
 #define TMC_CONTROLLER
 //#define OTA_ON_STARTUP
+#define USE_PCNT_COUNTER
 
 
 struct UC2_3_XIAO_Slave_Motor : PinConfig

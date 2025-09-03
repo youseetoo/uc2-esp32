@@ -1,17 +1,23 @@
 #pragma once
 #include "Arduino.h"
 
-#include "LinearEncoderController.h"
+#ifdef USE_PCNT_COUNTER
+#define PCNT_AVAILABLE
+enum EncoderInterface;
+#endif 
+
 #ifdef ESP_IDF_VERSION_MAJOR
 #if ESP_IDF_VERSION_MAJOR >= 4
 #include "driver/pcnt.h"
 #include "driver/gpio.h"
-#define PCNT_AVAILABLE
+#else
+#undef PCNT_AVAILABLE
 #endif
 #endif
 
+
 // Forward declaration to avoid circular dependency
-enum EncoderInterface;
+#include "LinearEncoderController.h"
 
 namespace PCNTEncoderController
 {

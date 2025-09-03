@@ -1,16 +1,21 @@
 #include "PCNTEncoderController.h"
 #include "LinearEncoderController.h"  // For EncoderInterface enum
 #include "esp_log.h"
+#include <PinConfig.h>
+
+#ifdef USE_PCNT_COUNTER
+#define PCNT_AVAILABLE
+#endif 
 
 #ifdef ESP_IDF_VERSION_MAJOR
 #if ESP_IDF_VERSION_MAJOR >= 4
 #include "driver/pcnt.h"
 #include "driver/gpio.h"
-#define PCNT_AVAILABLE
+#else
+#undef PCNT_AVAILABLE
 #endif
 #endif
 
-#include <PinConfig.h>
 
 static const char *TAG = "PCNTEncoder";
 

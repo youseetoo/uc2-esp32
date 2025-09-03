@@ -7,18 +7,16 @@
 #ifdef ESP_IDF_VERSION_MAJOR
 #if ESP_IDF_VERSION_MAJOR >= 4
     #include <soc/soc_caps.h>
-    #if SOC_PCNT_SUPPORTED
-        #define ESP32_ENCODER_AVAILABLE
-        #include "ESP32Encoder.h"
+    #include "ESP32Encoder.h"
     #endif
 #endif
-#endif
+
 
 static const char *TAG = "PCNTEncoder";
 
 namespace PCNTEncoderController
 {
-#ifdef ESP32_ENCODER_AVAILABLE
+
     // ESP32Encoder instances for each axis (index 1=X, 2=Y, 3=Z)
     static ESP32Encoder* encoders[4] = {nullptr, nullptr, nullptr, nullptr};
     
@@ -27,13 +25,12 @@ namespace PCNTEncoderController
     
     // Steps per mm from LinearEncoderData  
     static float mumPerStep[4] = {1.95f, 1.95f, 1.95f, 1.95f};
-#endif
     
     void setup()
     {
         ESP_LOGI(TAG, "Setting up ESP32Encoder interface");
         
-#ifdef ESP32_ENCODER_AVAILABLE
+#ifdef USE_PCNT_COUNTER
         // Configure encoder for X axis if pins are defined
         if (pinConfig.ENC_X_A >= 0 && pinConfig.ENC_X_B >= 0) {
             encoders[1] = new ESP32Encoder();
@@ -68,7 +65,7 @@ namespace PCNTEncoderController
             return 0;
         }
         
-#ifdef ESP32_ENCODER_AVAILABLE
+#ifdef USE_PCNT_COUNTER
         if (encoders[encoderIndex] != nullptr && encoders[encoderIndex]->isAttached()) {
             int64_t count = encoders[encoderIndex]->getCount();
             // Apply direction based on configuration
@@ -91,7 +88,7 @@ namespace PCNTEncoderController
             return;
         }
         
-#ifdef ESP32_ENCODER_AVAILABLE
+#ifdef USE_PCNT_COUNTER
         if (encoders[encoderIndex] != nullptr && encoders[encoderIndex]->isAttached()) {
             encoders[encoderIndex]->setCount(0);
             positionOffsets[encoderIndex] = 0.0f;
@@ -121,7 +118,7 @@ namespace PCNTEncoderController
     
     bool isESP32EncoderAvailable()
     {
-#ifdef ESP32_ENCODER_AVAILABLE
+#ifdef USE_PCNT_COUNTER
         return true;
 #else
         return false;

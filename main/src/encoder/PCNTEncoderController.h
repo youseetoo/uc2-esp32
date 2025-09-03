@@ -1,41 +1,26 @@
 #pragma once
 #include "Arduino.h"
 
-#ifdef USE_PCNT_COUNTER
-#define PCNT_AVAILABLE
-enum EncoderInterface;
-#endif 
-
-#ifdef ESP_IDF_VERSION_MAJOR
-#if ESP_IDF_VERSION_MAJOR >= 4
-#include "driver/pcnt.h"
-#include "driver/gpio.h"
-#else
-#undef PCNT_AVAILABLE
-#endif
-#endif
-
-
 // Forward declaration to avoid circular dependency
 #include "LinearEncoderController.h"
 
 namespace PCNTEncoderController
 {
-    // Initialize PCNT for encoder channels
+    // Initialize ESP32Encoder for encoder channels
     void setup();
     
-    // Read current position from PCNT
+    // Read current position from encoder
     float getCurrentPosition(int encoderIndex);
     
-    // Set current position offset for PCNT
+    // Set current position offset for encoder
     void setCurrentPosition(int encoderIndex, float offsetPos);
     
-    // Get current encoder count from PCNT unit
-    int16_t getPCNTCount(int encoderIndex);
+    // Get current encoder count
+    int64_t getEncoderCount(int encoderIndex);
     
-    // Reset PCNT counter
-    void resetPCNTCount(int encoderIndex);
+    // Reset encoder counter
+    void resetEncoderCount(int encoderIndex);
     
-    // Check if PCNT is available and configured
-    bool isPCNTAvailable();
+    // Check if ESP32Encoder is available and configured
+    bool isESP32EncoderAvailable();
 };

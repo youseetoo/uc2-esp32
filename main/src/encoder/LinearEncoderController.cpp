@@ -641,4 +641,20 @@ namespace LinearEncoderController
         return PCNTEncoderController::isPCNTAvailable();
     }
 
+    // Backward compatibility bridge functions
+    int16_t getPCNTCount(int encoderIndex)
+    {
+        return PCNTEncoderController::getPCNTCount(encoderIndex);
+    }
+
+    void resetPCNTCount(int encoderIndex)
+    {
+        PCNTEncoderController::resetPCNTCount(encoderIndex);
+    }
+
+    bool isPCNTAvailable()
+    {
+        return PCNTEncoderController::isPCNTAvailable();
+    }
+
 } // namespace name

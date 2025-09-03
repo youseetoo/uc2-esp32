@@ -1,23 +1,23 @@
-# AS5311 PCNT Encoder Interface for ESP32S3 CAN Motor Controller
+# AS5311 ESP32Encoder Interface for ESP32S3 CAN Motor Controller
 
-This implementation adds PCNT (Pulse Counter) hardware-based encoder interface as an alternative to the existing interrupt-based approach for AS5311 linear encoders in ESP32S3 CAN motor controllers.
+This implementation adds ESP32Encoder library-based encoder interface as an alternative to the existing interrupt-based approach for AS5311 linear encoders in ESP32S3 CAN motor controllers.
 
 ## Features
 
 ### Dual Interface Support
 - **Interrupt-based**: Original implementation using GPIO interrupts and manual quadrature decoding
-- **PCNT-based**: New hardware implementation using ESP-IDF PCNT peripheral for quadrature decoding
+- **ESP32Encoder-based**: New hardware implementation using ESP32Encoder library for robust quadrature decoding
 
 ### Runtime Interface Selection
 ```cpp
-// Switch to PCNT interface for encoder 1 (X-axis)
+// Switch to ESP32Encoder interface for encoder 1 (X-axis)
 LinearEncoderController::setEncoderInterface(1, ENCODER_PCNT_BASED);
 
 // Check current interface
 EncoderInterface current = LinearEncoderController::getEncoderInterface(1);
 
-// Check if PCNT is supported
-bool pcntSupported = LinearEncoderController::isPCNTEncoderSupported();
+// Check if ESP32Encoder is supported
+bool encoderSupported = LinearEncoderController::isPCNTEncoderSupported();
 ```
 
 ### Encoder-Based Motion Control
@@ -53,7 +53,7 @@ bool ENC_X_encoderDirection = true;  // Set direction
 ```
 
 ### Build Configuration
-PCNT is automatically detected if ESP-IDF version 4.0+ is available. No additional build flags needed.
+ESP32Encoder library is automatically included when ESP-IDF version 4.0+ is available and PCNT is supported. The library is added as a dependency in platformio.ini.
 
 ## Usage Example
 
@@ -63,10 +63,10 @@ void setup() {
     // Initialize encoder controller (sets up both interfaces)
     LinearEncoderController::setup();
     
-    // Switch X-axis to PCNT if available
+    // Switch X-axis to ESP32Encoder if available
     if (LinearEncoderController::isPCNTEncoderSupported()) {
         LinearEncoderController::setEncoderInterface(1, ENCODER_PCNT_BASED);
-        log_i("X-axis using PCNT interface");
+        log_i("X-axis using ESP32Encoder interface");
     }
 }
 
@@ -85,7 +85,7 @@ void compareEncoderInterfaces() {
     LinearEncoderController::setEncoderInterface(1, ENCODER_INTERRUPT_BASED);
     // ... measure performance ...
     
-    // Test PCNT-based interface  
+    // Test ESP32Encoder-based interface  
     LinearEncoderController::setEncoderInterface(1, ENCODER_PCNT_BASED);
     // ... measure performance ...
 }
@@ -93,21 +93,22 @@ void compareEncoderInterfaces() {
 
 ## Benefits
 
-### PCNT Interface Advantages
-- **Lower CPU overhead**: Hardware quadrature decoding vs software interrupts
-- **Higher precision**: Hardware counters with less jitter
+### ESP32Encoder Interface Advantages
+- **Lower CPU overhead**: Hardware quadrature decoding with optimized library vs software interrupts
+- **Higher precision**: Robust encoder counting with built-in error handling
 - **Better real-time performance**: No interrupt latency issues
+- **Proven reliability**: Well-tested library used in many ESP32 projects
 
 ### Backward Compatibility
 - Existing interrupt-based code continues to work unchanged
-- Automatic fallback to interrupt-based if PCNT unavailable
+- Automatic fallback to interrupt-based if ESP32Encoder unavailable
 - No breaking changes to existing motor control API
 
 ## Technical Details
 
-### PCNT Configuration
-- Uses PCNT units 0-2 for X, Y, Z axes respectively
-- Configures dual-channel quadrature decoding
+### ESP32Encoder Library Configuration
+- Uses ESP32Encoder library for hardware-accelerated quadrature decoding
+- Configures full quadrature mode for maximum precision
 - 16-bit hardware counters with overflow handling
 - Configurable encoder direction support
 

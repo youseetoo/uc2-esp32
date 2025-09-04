@@ -8,6 +8,9 @@
 #include "../../JsonKeys.h"
 #include "../motor/MotorTypes.h"
 #include "../motor/FocusMotor.h"
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
@@ -82,9 +85,41 @@ namespace HomeMotor
 					int homeEndStopPolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
 					bool isDualAxisZ = cJsonTool::getJsonInt(stp, key_home_isDualAxis);
 					int qid = cJsonTool::getJsonInt(doc, "qid");
-
-					// assign to home data and start stepper if they are wired to that board
-					startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
+					
+					// Check for encoder-based homing (enc=1)
+					bool useEncoderHoming = cJsonTool::getJsonInt(stp, key_encoder_precision) == 1;
+					
+					if (useEncoderHoming) {
+						log_i("Starting encoder-based homing for axis %d", axis);
+						#ifdef LINEAR_ENCODER_CONTROLLER
+						// Use LinearEncoderController for encoder-based homing
+						// Create JSON for LinearEncoderController home command
+						cJSON* homeJson = cJSON_CreateObject();
+						cJSON* homeSteppers = cJSON_CreateArray();
+						cJSON* homeStepper = cJSON_CreateObject();
+						
+						cJSON_AddNumberToObject(homeStepper, "stepperid", axis);
+						cJSON_AddNumberToObject(homeStepper, "speed", homeSpeed * homeDirection);
+						
+						cJSON_AddItemToArray(homeSteppers, homeStepper);
+						cJSON_AddItemToObject(homeJson, "steppers", homeSteppers);
+						cJSON_AddItemToObject(homeJson, "home", cJSON_CreateObject());
+						
+						log_i("Starting encoder-based homing for axis %d with speed %d", axis, homeSpeed * homeDirection);
+						
+						// Call LinearEncoderController act function with home command
+						LinearEncoderController::act(homeJson);
+						
+						cJSON_Delete(homeJson);
+						#else
+						log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
+						// Fall back to regular homing
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
+						#endif
+					} else {
+						// assign to home data and start stepper if they are wired to that board
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
+					}
 				}
 			}
 		}

@@ -2,6 +2,7 @@
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
 #include "HardwareSerial.h"
+#include <Preferences.h>
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
@@ -312,6 +313,90 @@ namespace LinearEncoderController
                 log_e("unknown command");
             }
         }
+        
+        // Handle encoder configuration settings
+        // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0, "stp2phys": 2.0} ]}}
+        cJSON *config = cJSON_GetObjectItem(j, "config");
+        if (config != NULL)
+        {
+            cJSON *stprs = cJSON_GetObjectItem(config, key_steppers);
+            if (stprs != NULL)
+            {
+                cJSON *stp = NULL;
+                cJSON_ArrayForEach(stp, stprs)
+                {
+                    int s = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint;
+                    
+                    // Set encoder direction permanently
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
+                    {
+                        bool encDir = cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint;
+                        edata[s]->encoderDirection = encDir;
+                        log_i("Set encoder direction for axis %d: %s", s, encDir ? "forward" : "reverse");
+                        
+                        // Store in preferences
+                        Preferences preferences;
+                        preferences.begin("UC2_ENC", false);
+                        preferences.putBool(("encdir" + String(s)).c_str(), encDir);
+                        preferences.end();
+                    }
+                    
+                    // Set motor direction permanently
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
+                    {
+                        bool motDir = cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint;
+                        getData()[s]->directionPinInverted = motDir;
+                        log_i("Set motor direction for axis %d: %s", s, motDir ? "inverted" : "normal");
+                        
+                        // Store in preferences
+                        Preferences preferences;
+                        preferences.begin("UC2", false);
+                        String motdirKey = "";
+                        switch(s) {
+                            case 0: motdirKey = "motainv"; break;  // A axis
+                            case 1: motdirKey = "motxinv"; break;  // X axis
+                            case 2: motdirKey = "motyinv"; break;  // Y axis
+                            case 3: motdirKey = "motzinv"; break;  // Z axis
+                            default: break;
+                        }
+                        if (motdirKey != "") {
+                            preferences.putBool(motdirKey.c_str(), motDir);
+                        }
+                        preferences.end();
+                    }
+                    
+                    // Set step-to-physical ratio permanently
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "stp2phys") != NULL)
+                    {
+                        float stp2phys = cJSON_GetObjectItemCaseSensitive(stp, "stp2phys")->valuedouble;
+                        edata[s]->stp2phys = stp2phys;
+                        log_i("Set step-to-physical ratio for axis %d: %f", s, stp2phys);
+                        
+                        // Store in preferences
+                        Preferences preferences;
+                        preferences.begin("UC2_ENC", false);
+                        preferences.putFloat(("stp2phys" + String(s)).c_str(), stp2phys);
+                        preferences.end();
+                    }
+                    
+                    // Set micrometer per step (encoder resolution) permanently
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "mumPerStep") != NULL)
+                    {
+                        float mumPerStep = cJSON_GetObjectItemCaseSensitive(stp, "mumPerStep")->valuedouble;
+                        edata[s]->mumPerStep = mumPerStep;
+                        log_i("Set micrometer per step for axis %d: %f", s, mumPerStep);
+                        
+                        // Store in preferences
+                        Preferences preferences;
+                        preferences.begin("UC2_ENC", false);
+                        preferences.putFloat(("mumPerStep" + String(s)).c_str(), mumPerStep);
+                        preferences.end();
+                    }
+                    
+                    log_i("Encoder configuration updated for axis %d", s);
+                }
+            }
+        }
         return qid;
     }
 
@@ -556,6 +641,25 @@ namespace LinearEncoderController
             edata[i] = new LinearEncoderData();
             edata[i]->linearencoderID = i;
         }
+
+        // Load encoder configuration from preferences
+        Preferences preferences;
+        preferences.begin("UC2_ENC", false);
+        for (int i = 0; i < 4; i++)
+        {
+            // Load encoder direction
+            edata[i]->encoderDirection = preferences.getBool(("encdir" + String(i)).c_str(), edata[i]->encoderDirection);
+            
+            // Load step-to-physical ratio
+            edata[i]->stp2phys = preferences.getFloat(("stp2phys" + String(i)).c_str(), edata[i]->stp2phys);
+            
+            // Load micrometer per step
+            edata[i]->mumPerStep = preferences.getFloat(("mumPerStep" + String(i)).c_str(), edata[i]->mumPerStep);
+            
+            log_i("Loaded encoder config for axis %d: encdir=%d, stp2phys=%f, mumPerStep=%f", 
+                  i, edata[i]->encoderDirection, edata[i]->stp2phys, edata[i]->mumPerStep);
+        }
+        preferences.end();
 
         // Initialize PCNT if available
         if (PCNTEncoderController::isPCNTAvailable()) {

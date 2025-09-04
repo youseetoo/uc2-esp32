@@ -48,4 +48,5 @@ namespace FocusMotor
 	// Encoder-based motion control functions
 	bool isEncoderBasedMotionEnabled(int axis);
 	void setEncoderBasedMotion(int axis, bool enabled);
+	void startEncoderBasedMotion(int axis);
 };

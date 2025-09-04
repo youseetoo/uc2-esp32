@@ -608,6 +608,16 @@ namespace MotorJsonParser
 					FocusMotor::getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					// FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
+					
+					// Check for encoder-based precision motion (enc=1)
+					bool useEncoderPrecision = cJsonTool::getJsonInt(stp, key_encoder_precision) == 1;
+					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
+					
+					if (useEncoderPrecision) {
+						log_i("Motor %d: Encoder-based precision motion enabled (enc=1)", s);
+						// For encoder-based motion, position is in encoder units
+						// The LinearEncoderController will handle the precise positioning
+					}
 
 					// check if soft limits are enabled and if the target position is within the limits
 					if (FocusMotor::getData()[s]->softLimitEnabled)

@@ -6,6 +6,9 @@
 #include "../../cJsonTool.h"
 #include "../state/State.h"
 #include "esp_debug_helpers.h"
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -146,7 +149,19 @@ namespace FocusMotor
 		}
 		else
 		{
-			startStepper(s, reduced); // TODO: Need dual axis?
+			// Check if encoder-based motion is enabled for this stepper
+			if (getData()[s]->encoderBasedMotion) {
+				log_i("Starting encoder-based precise motion for stepper %d", s);
+				#ifdef LINEAR_ENCODER_CONTROLLER
+				// Use LinearEncoderController for precise motion
+				startEncoderBasedMotion(s);
+				#else
+				log_w("Encoder-based motion requested but LINEAR_ENCODER_CONTROLLER not defined");
+				startStepper(s, reduced);
+				#endif
+			} else {
+				startStepper(s, reduced); // TODO: Need dual axis?
+			}
 		}
 	}
 
@@ -516,6 +531,44 @@ namespace FocusMotor
 		// Notify CAN slaves if we are a CAN master
 		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
 #endif
+	}
+
+	void startEncoderBasedMotion(int axis)
+	{
+		#ifdef LINEAR_ENCODER_CONTROLLER
+		// Create a JSON object to call LinearEncoderController moveP function
+		// Convert motor parameters to encoder-based motion parameters
+		MotorData* motorData = getData()[axis];
+		
+		// Create JSON for LinearEncoderController moveP command
+		cJSON* movePreciseJson = cJSON_CreateObject();
+		cJSON* steppers = cJSON_CreateArray();
+		cJSON* stepper = cJSON_CreateObject();
+		
+		cJSON_AddNumberToObject(stepper, "stepperid", axis);
+		cJSON_AddNumberToObject(stepper, "position", motorData->targetPosition);
+		cJSON_AddNumberToObject(stepper, "isabs", motorData->absolutePosition ? 1 : 0);
+		cJSON_AddNumberToObject(stepper, "speed", abs(motorData->speed));
+		
+		// Set default PID values if not already configured
+		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain
+		cJSON_AddNumberToObject(stepper, "ci", 1.0);   // Integral gain  
+		cJSON_AddNumberToObject(stepper, "cd", 5.0);   // Derivative gain
+		
+		cJSON_AddItemToArray(steppers, stepper);
+		cJSON_AddItemToObject(movePreciseJson, "steppers", steppers);
+		cJSON_AddItemToObject(movePreciseJson, "moveP", cJSON_CreateObject());
+		
+		log_i("Starting encoder-based motion for axis %d: position=%ld, isabs=%d, speed=%ld", 
+		      axis, (long)motorData->targetPosition, motorData->absolutePosition, (long)motorData->speed);
+		
+		// Call LinearEncoderController act function with moveP command
+		LinearEncoderController::act(movePreciseJson);
+		
+		cJSON_Delete(movePreciseJson);
+		#else
+		log_w("LINEAR_ENCODER_CONTROLLER not available for encoder-based motion");
+		#endif
 	}
 
     static unsigned long lastSendTime = 0; // holds the last time positions were sent

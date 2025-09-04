@@ -155,6 +155,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_settrigger = "setTrig";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerpin = "trigPin";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerperiod = "trigPer";
 __attribute__ ((unused)) static const PROGMEM char * key_triggeroffset = "trigOff";
+__attribute__ ((unused)) static const PROGMEM char * key_encoder_precision = "enc";
 __attribute__ ((unused)) static const PROGMEM char *dateKey = "date";
 __attribute__ ((unused)) static const PROGMEM char *key_modules = "modules";
 __attribute__ ((unused)) static const PROGMEM char *key_analogin = "analogin";

@@ -2,6 +2,7 @@
 #include "HomeMotor.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
+#include "../motor/MotorEncoderConfig.h"
 #include "HardwareSerial.h"
 #include "../../cJsonTool.h"
 #include "Arduino.h"
@@ -92,6 +93,12 @@ namespace HomeMotor
 					if (useEncoderHoming) {
 						log_i("Starting encoder-based homing for axis %d", axis);
 						#ifdef LINEAR_ENCODER_CONTROLLER
+						// Use global conversion factor for step-to-encoder units
+						float conversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
+						
+						// Convert step speed to encoder units (micrometers)
+						float encoderSpeed = (homeSpeed * homeDirection) * conversionFactor;
+						
 						// Use LinearEncoderController for encoder-based homing
 						// Create JSON for LinearEncoderController home command
 						cJSON* homeJson = cJSON_CreateObject();
@@ -99,13 +106,14 @@ namespace HomeMotor
 						cJSON* homeStepper = cJSON_CreateObject();
 						
 						cJSON_AddNumberToObject(homeStepper, "stepperid", axis);
-						cJSON_AddNumberToObject(homeStepper, "speed", homeSpeed * homeDirection);
+						cJSON_AddNumberToObject(homeStepper, "speed", (int)encoderSpeed);
 						
 						cJSON_AddItemToArray(homeSteppers, homeStepper);
 						cJSON_AddItemToObject(homeJson, "steppers", homeSteppers);
 						cJSON_AddItemToObject(homeJson, "home", cJSON_CreateObject());
 						
-						log_i("Starting encoder-based homing for axis %d with speed %d", axis, homeSpeed * homeDirection);
+						log_i("Starting encoder-based homing for axis %d: step_speed=%d -> encoder_speed=%f µm/s (factor=%f)", 
+						      axis, homeSpeed * homeDirection, encoderSpeed, conversionFactor);
 						
 						// Call LinearEncoderController act function with home command
 						LinearEncoderController::act(homeJson);

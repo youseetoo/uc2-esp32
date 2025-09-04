@@ -1,6 +1,7 @@
 #include "LinearEncoderController.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
+#include "../motor/MotorEncoderConfig.h"
 #include "HardwareSerial.h"
 #include <Preferences.h>
 #ifdef MOTOR_CONTROLLER
@@ -395,6 +396,16 @@ namespace LinearEncoderController
                     
                     log_i("Encoder configuration updated for axis %d", s);
                 }
+            }
+            
+            // Handle global motor-encoder conversion factor configuration  
+            // {"task": "/linearencoder_act", "config": {"stepsToEncoderUnits": 0.3125}}
+            cJSON *stepsToEncUnits = cJSON_GetObjectItem(config, "stepsToEncoderUnits");
+            if (stepsToEncUnits != NULL && cJSON_IsNumber(stepsToEncUnits)) {
+                float conversionFactor = (float)stepsToEncUnits->valuedouble;
+                MotorEncoderConfig::setStepsToEncoderUnits(conversionFactor);
+                MotorEncoderConfig::saveToPreferences();
+                log_i("Global motor-encoder conversion factor set to: %f µm per step", conversionFactor);
             }
         }
         return qid;

@@ -1,6 +1,7 @@
 #include <PinConfig.h>
 #include "../../config.h"
 #include "FocusMotor.h"
+#include "MotorEncoderConfig.h"
 #include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
@@ -458,6 +459,9 @@ namespace FocusMotor
 		// Common setup for all
 		setup_data();
 		fill_data();
+		
+		// Initialize motor-encoder conversion configuration
+		MotorEncoderConfig::setup();
 
 #ifdef I2C_MASTER
 		setup_i2c_motor();
@@ -540,15 +544,23 @@ namespace FocusMotor
 		// Convert motor parameters to encoder-based motion parameters
 		MotorData* motorData = getData()[axis];
 		
+		// Use global conversion factor for step-to-encoder units
+		float conversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
+		
+		// Convert step position to encoder units (micrometers)
+		float encoderPosition = motorData->targetPosition * conversionFactor;
+		// Convert step speed to encoder units  
+		float encoderSpeed = abs(motorData->speed) * conversionFactor;
+		
 		// Create JSON for LinearEncoderController moveP command
 		cJSON* movePreciseJson = cJSON_CreateObject();
 		cJSON* steppers = cJSON_CreateArray();
 		cJSON* stepper = cJSON_CreateObject();
 		
 		cJSON_AddNumberToObject(stepper, "stepperid", axis);
-		cJSON_AddNumberToObject(stepper, "position", motorData->targetPosition);
+		cJSON_AddNumberToObject(stepper, "position", (int)encoderPosition);
 		cJSON_AddNumberToObject(stepper, "isabs", motorData->absolutePosition ? 1 : 0);
-		cJSON_AddNumberToObject(stepper, "speed", abs(motorData->speed));
+		cJSON_AddNumberToObject(stepper, "speed", (int)encoderSpeed);
 		
 		// Set default PID values if not already configured
 		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain
@@ -559,8 +571,10 @@ namespace FocusMotor
 		cJSON_AddItemToObject(movePreciseJson, "steppers", steppers);
 		cJSON_AddItemToObject(movePreciseJson, "moveP", cJSON_CreateObject());
 		
-		log_i("Starting encoder-based motion for axis %d: position=%ld, isabs=%d, speed=%ld", 
-		      axis, (long)motorData->targetPosition, motorData->absolutePosition, (long)motorData->speed);
+		log_i("Starting encoder-based motion for axis %d: step_pos=%ld -> encoder_pos=%f µm (factor=%f)", 
+		      axis, (long)motorData->targetPosition, encoderPosition, conversionFactor);
+		log_i("Motor speed: step_speed=%ld -> encoder_speed=%f µm/s", 
+		      (long)motorData->speed, encoderSpeed);
 		
 		// Call LinearEncoderController act function with moveP command
 		LinearEncoderController::act(movePreciseJson);

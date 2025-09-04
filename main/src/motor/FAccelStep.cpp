@@ -140,13 +140,10 @@ namespace FAccelStep
         if (getData()[Stepper::Z] == nullptr)
             log_e("Stepper Z getData() NULL");
         
-        // Initialize engine and disable PCNT globally to avoid conflicts with ESP32Encoder
+        // Initialize engine - RMT drivers will be used instead of PCNT to avoid conflicts
         engine.init();
         
-        // Disable PCNT usage in FastAccelStepper engine to avoid conflicts
-        #ifdef CONFIG_PCNT_ENABLE
-        log_i("Disabling PCNT in FastAccelStepper to avoid conflicts with ESP32Encoder");
-        #endif
+        log_i("FastAccelStepper using RMT drivers to avoid PCNT conflicts with ESP32Encoder");
         
 #ifdef USE_TCA9535
         log_i("Using TCA9535");
@@ -187,16 +184,19 @@ namespace FAccelStep
     {
         //log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
         //log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
-        faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
+        
+        // Use RMT driver instead of PCNT to avoid conflicts with ESP32Encoder
+        // This completely avoids PCNT resource conflicts
+        faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+        if (faststeppers[stepper] == nullptr) {
+            log_e("Failed to create RMT stepper for motor %d, falling back to PCNT", stepper);
+            faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
+        } else {
+            log_i("Successfully created RMT stepper for motor %d (avoiding PCNT conflicts)", stepper);
+        }
+        
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin (motordir, getData()[stepper]->directionPinInverted);
-
-        // Disable PCNT usage in FastAccelStepper to avoid conflicts with ESP32Encoder
-        // This forces software-only position tracking
-        #ifdef USE_ESP32_PCNT_COUNTER
-        faststeppers[stepper]->disablePcnt();
-        log_i("Disabled PCNT for FastAccelStepper motor %d to avoid conflicts with ESP32Encoder", stepper);
-        #endif
 
         if (pinConfig.MOTOR_AUTOENABLE)
             faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);

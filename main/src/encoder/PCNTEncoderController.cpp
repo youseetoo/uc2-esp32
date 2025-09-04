@@ -28,47 +28,65 @@ namespace PCNTEncoderController
     // Steps per mm from LinearEncoderData  
     static float mumPerStep[4] = {1.95f, 1.95f, 1.95f, 1.95f};
     
+
     void setup()
     {
+        
+        
+        // Since FastAccelStepper now uses RMT instead of PCNT, we shouldn't need the dummy encoder workaround
+        // But let's be safe and explicitly clear any counters first
+        #ifdef USE_PCNT_COUNTER
+
         ESP_LOGI(TAG, "Setting up ESP32Encoder interface");
         ESP32Encoder::useInternalWeakPullResistors = puType::none;
+        ESP_LOGI(TAG, "FastAccelStepper uses RMT - no PCNT conflict expected");
         
-        // Reserve specific PCNT units for encoders to avoid FastAccelStepper conflicts
-        // FastAccelStepper typically uses PCNT units 0-3, so we use 4-7
-        
-#ifdef USE_PCNT_COUNTER
         // Configure encoder for X axis if pins are defined
         if (pinConfig.ENC_X_A >= 0 && pinConfig.ENC_X_B >= 0) {
             encoders[1] = new ESP32Encoder();
+            
+            // Clear any existing state first
+            encoders[1]->clearCount();
+            
             encoders[1]->attachFullQuad(pinConfig.ENC_X_A, pinConfig.ENC_X_B);
             encoders[1]->setCount(0);
-            // Optimize filter for high-speed motor compatibility
-            encoders[1]->setFilter(25);  // Reduced filter for better high-speed performance
-
-            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d with filter=25", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
+            
+            // Start with no filter and see if it works
+            encoders[1]->setFilter(0);  // No filtering for maximum sensitivity
+            
+            // Get initial count to verify it's working
+            int64_t initialCount = encoders[1]->getCount();
+            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d, initial count=%lld", 
+                     pinConfig.ENC_X_A, pinConfig.ENC_X_B, initialCount);
         }
         
         // Configure encoder for Y axis if pins are defined  
         if (pinConfig.ENC_Y_A >= 0 && pinConfig.ENC_Y_B >= 0) {
             encoders[2] = new ESP32Encoder();
+            encoders[2]->clearCount();
             encoders[2]->attachFullQuad(pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
             encoders[2]->setCount(0);
-            encoders[2]->setFilter(25);  // Optimized filter
+            encoders[2]->setFilter(0);
             
-            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d with filter=25", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
+            int64_t initialCount = encoders[2]->getCount();
+            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d, initial count=%lld", 
+                     pinConfig.ENC_Y_A, pinConfig.ENC_Y_B, initialCount);
         }
         
         // Configure encoder for Z axis if pins are defined
         if (pinConfig.ENC_Z_A >= 0 && pinConfig.ENC_Z_B >= 0) {
             encoders[3] = new ESP32Encoder();
+            encoders[3]->clearCount();
             encoders[3]->attachFullQuad(pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
             encoders[3]->setCount(0);
-            encoders[3]->setFilter(25);  // Optimized filter
+            encoders[3]->setFilter(0);
             
-            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d with filter=25", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
+            int64_t initialCount = encoders[3]->getCount();
+            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d, initial count=%lld", 
+                     pinConfig.ENC_Z_A, pinConfig.ENC_Z_B, initialCount);
         }
         
-        ESP_LOGI(TAG, "ESP32Encoder setup complete - using software position tracking to avoid PCNT conflicts");
+        ESP_LOGI(TAG, "ESP32Encoder setup complete - using dedicated PCNT units");
 #else
         ESP_LOGW(TAG, "ESP32Encoder not available, encoder interface disabled");
 #endif
@@ -84,6 +102,13 @@ namespace PCNTEncoderController
         if (encoders[encoderIndex] != nullptr && encoders[encoderIndex]->isAttached()) {
             // Direct read without critical section for better performance
             int64_t count = encoders[encoderIndex]->getCount();
+            
+            // Debug logging for troubleshooting
+            static int debugCounter = 0;
+            if (++debugCounter % 1000 == 0) {  // Log every 1000 calls
+                ESP_LOGI(TAG, "Encoder %d raw count: %lld, attached: %s", 
+                         encoderIndex, count, encoders[encoderIndex]->isAttached() ? "YES" : "NO");
+            }
             
             // Apply direction based on configuration
             if (encoderIndex == 1 && !pinConfig.ENC_X_encoderDirection) {

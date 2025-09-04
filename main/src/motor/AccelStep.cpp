@@ -206,18 +206,18 @@ namespace AccelStep
         getData()[i]->stopped = false;
 
         if (i == 0 && !taskRunning[i])
-            xTaskCreate(&driveMotorALoop, "motor_task_A", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+            xTaskCreatePinnedToCore(&driveMotorALoop, "motor_task_A", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
         if (i == 1 && !taskRunning[i])
         {
-            xTaskCreate(&driveMotorXLoop, "motor_task_X", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+            xTaskCreatePinnedToCore(&driveMotorXLoop, "motor_task_X", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
             log_i("started x task");
         }
         // else
         //     log_i("x wont start");
         if (i == 2 && !taskRunning[i])
-            xTaskCreate(&driveMotorYLoop, "motor_task_Y", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+            xTaskCreatePinnedToCore(&driveMotorYLoop, "motor_task_Y", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
         if (i == 3 && !taskRunning[i])
-            xTaskCreate(&driveMotorZLoop, "motor_task_Z", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL);
+            xTaskCreatePinnedToCore(&driveMotorZLoop, "motor_task_Z", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
     }
 
 

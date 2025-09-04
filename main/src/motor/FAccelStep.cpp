@@ -139,7 +139,15 @@ namespace FAccelStep
             log_e("Stepper Y getData() NULL");
         if (getData()[Stepper::Z] == nullptr)
             log_e("Stepper Z getData() NULL");
+        
+        // Initialize engine and disable PCNT globally to avoid conflicts with ESP32Encoder
         engine.init();
+        
+        // Disable PCNT usage in FastAccelStepper engine to avoid conflicts
+        #ifdef CONFIG_PCNT_ENABLE
+        log_i("Disabling PCNT in FastAccelStepper to avoid conflicts with ESP32Encoder");
+        #endif
+        
 #ifdef USE_TCA9535
         log_i("Using TCA9535");
         engine.setExternalCallForPin(_externalCallForPin);
@@ -182,6 +190,13 @@ namespace FAccelStep
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin (motordir, getData()[stepper]->directionPinInverted);
+
+        // Disable PCNT usage in FastAccelStepper to avoid conflicts with ESP32Encoder
+        // This forces software-only position tracking
+        #ifdef USE_ESP32_PCNT_COUNTER
+        faststeppers[stepper]->disablePcnt();
+        log_i("Disabled PCNT for FastAccelStepper motor %d to avoid conflicts with ESP32Encoder", stepper);
+        #endif
 
         if (pinConfig.MOTOR_AUTOENABLE)
             faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);

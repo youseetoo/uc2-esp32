@@ -441,6 +441,7 @@ extern "C" void app_main(void)
 	// initialize the module controller
 	setupApp();
 
+	// Run main loop on Core 1, let motor tasks use Core 0 for separation
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
 }

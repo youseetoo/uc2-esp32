@@ -19,9 +19,9 @@
 {"task":"/linearencoder_get", "linencoder": { "posval": 3,    "id": 1  }}
 
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000} ]}}       
-{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": -10000 , "speed": 0, "cp":10, "ci":10.0, "cd":1.0} ]}}
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": -10000 , "speed": 1000, "cp":10, "ci":10.0, "cd":1.0} ]}}
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": -40000 , "speed": 10000, "cp":10.0, "ci":5.0, "cd":0.0} ]}}
-{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 # MOTOR
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 480, "speed": 1000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 # X,Y,Z,A => 1,2,3,0

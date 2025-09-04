@@ -11,11 +11,6 @@
 #endif
 #ifdef USE_FASTACCEL
 #include "FAccelStep.h"
-// include pulse counter
-/*
-static pcnt_unit_handle_t   pcnt_motor1  = nullptr;
-static pcnt_channel_handle_t pcnt_ch1    = nullptr;
-*/
 #endif
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
@@ -85,39 +80,7 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
-	
-	#ifdef USE_FASTACCEL
-	static void setup_pcnt_motor1()
-{
-	/*
-    if (pcnt_motor1) { return; }                       // already done
 
-    const int stepPin = pinConfig.MOTOR_X_STEP;        // motor‑1 step pin
-    if (stepPin < 0) { return; }                       // pin undefined
-
-    pcnt_unit_config_t uc = {
-        .high_limit = INT16_MAX,
-        .low_limit  = INT16_MIN
-    };
-    pcnt_new_unit(&uc, &pcnt_motor1);
-
-    pcnt_chan_config_t cc = {
-        .edge_gpio_num   = stepPin,    // count every rising edge
-        .level_gpio_num  = -1          // no level gating
-    };
-    pcnt_new_channel(pcnt_motor1, &cc, &pcnt_ch1);
-
-    pcnt_channel_set_edge_action(
-        pcnt_ch1,
-        PCNT_CHANNEL_EDGE_ACTION_INCREASE,
-        PCNT_CHANNEL_EDGE_ACTION_HOLD);
-
-    pcnt_unit_enable(pcnt_motor1);
-    pcnt_unit_clear_count(pcnt_motor1);
-    pcnt_unit_start(pcnt_motor1);
-	*/
-}
-#endif
 
 	void startStepper(int axis, int reduced = 0)
 	{
@@ -160,11 +123,6 @@ namespace FocusMotor
 
 #elif defined USE_FASTACCEL
 			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
-			/*
-			if (axis == Stepper::X && pcnt_motor1) {           
-				pcnt_unit_clear_count(pcnt_motor1);
-			}
-			*/
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(axis);
@@ -508,7 +466,6 @@ namespace FocusMotor
 #endif
 
 #ifdef USE_FASTACCEL
-		setup_pcnt_motor1();
 #ifdef USE_TCA9535
 		log_i("Setting external pin for FastAccelStepper");
 		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
@@ -700,15 +657,7 @@ namespace FocusMotor
 		preferences.begin("UC2", false);
 		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 		preferences.end();
-		#ifdef FASTACCEL
-		/*
-		if (i == Stepper::X && pcnt_motor1) {
-			int16_t cnt = 0;
-			pcnt_unit_get_count(pcnt_motor1, &cnt);
-			cJSON_AddNumberToObject(item, "pcnt", cnt);
-		}
-			*/
-		#endif
+
 
 		arraypos++;
 

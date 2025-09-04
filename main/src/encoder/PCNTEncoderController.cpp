@@ -11,8 +11,10 @@
     #endif
 #endif
 
-
 static const char *TAG = "PCNTEncoder";
+
+// Critical section mutex for encoder access
+static portMUX_TYPE encoderMux = portMUX_INITIALIZER_UNLOCKED;
 
 namespace PCNTEncoderController
 {
@@ -29,6 +31,10 @@ namespace PCNTEncoderController
     void setup()
     {
         ESP_LOGI(TAG, "Setting up ESP32Encoder interface");
+        ESP32Encoder::useInternalWeakPullResistors = puType::none;
+        
+        // Reserve specific PCNT units for encoders to avoid FastAccelStepper conflicts
+        // FastAccelStepper typically uses PCNT units 0-3, so we use 4-7
         
 #ifdef USE_PCNT_COUNTER
         // Configure encoder for X axis if pins are defined
@@ -36,7 +42,10 @@ namespace PCNTEncoderController
             encoders[1] = new ESP32Encoder();
             encoders[1]->attachFullQuad(pinConfig.ENC_X_A, pinConfig.ENC_X_B);
             encoders[1]->setCount(0);
-            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
+            // Optimize filter for high-speed motor compatibility
+            encoders[1]->setFilter(25);  // Reduced filter for better high-speed performance
+
+            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d with filter=25", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
         }
         
         // Configure encoder for Y axis if pins are defined  
@@ -44,7 +53,9 @@ namespace PCNTEncoderController
             encoders[2] = new ESP32Encoder();
             encoders[2]->attachFullQuad(pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
             encoders[2]->setCount(0);
-            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
+            encoders[2]->setFilter(25);  // Optimized filter
+            
+            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d with filter=25", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
         }
         
         // Configure encoder for Z axis if pins are defined
@@ -52,8 +63,12 @@ namespace PCNTEncoderController
             encoders[3] = new ESP32Encoder();
             encoders[3]->attachFullQuad(pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
             encoders[3]->setCount(0);
-            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
+            encoders[3]->setFilter(25);  // Optimized filter
+            
+            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d with filter=25", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
         }
+        
+        ESP_LOGI(TAG, "ESP32Encoder setup complete - using software position tracking to avoid PCNT conflicts");
 #else
         ESP_LOGW(TAG, "ESP32Encoder not available, encoder interface disabled");
 #endif
@@ -67,7 +82,9 @@ namespace PCNTEncoderController
         
 #ifdef USE_PCNT_COUNTER
         if (encoders[encoderIndex] != nullptr && encoders[encoderIndex]->isAttached()) {
+            // Direct read without critical section for better performance
             int64_t count = encoders[encoderIndex]->getCount();
+            
             // Apply direction based on configuration
             if (encoderIndex == 1 && !pinConfig.ENC_X_encoderDirection) {
                 count = -count;

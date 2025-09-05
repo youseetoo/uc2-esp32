@@ -18,16 +18,16 @@ namespace MotorEncoderConfig {
     
     void loadFromPreferences() {
         Preferences preferences;
-        preferences.begin("UC2_MOTOR_ENC", false);
-        stepsToEncoderUnits = preferences.getFloat("stepsToEncUnits", 0.3125f);
+        preferences.begin("enc", false);
+        stepsToEncoderUnits = preferences.getFloat("encFac", 0.3125f);
         preferences.end();
         log_i("Loaded motor-encoder conversion factor: %f µm per step", stepsToEncoderUnits);
     }
     
     void saveToPreferences() {
         Preferences preferences;
-        preferences.begin("UC2_MOTOR_ENC", false);
-        preferences.putFloat("stepsToEncUnits", stepsToEncoderUnits);
+        preferences.begin("enc", false);
+        preferences.putFloat("encFac", stepsToEncoderUnits);
         preferences.end();
         log_i("Saved motor-encoder conversion factor: %f µm per step", stepsToEncoderUnits);
     }

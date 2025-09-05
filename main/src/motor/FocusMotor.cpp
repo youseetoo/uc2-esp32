@@ -155,7 +155,7 @@ namespace FocusMotor
 				log_i("Starting encoder-based precise motion for stepper %d", s);
 				#ifdef LINEAR_ENCODER_CONTROLLER
 				// Use LinearEncoderController for precise motion
-				startEncoderBasedMotion(s);
+				startEncoderBasedMotion(s); 
 				#else
 				log_w("Encoder-based motion requested but LINEAR_ENCODER_CONTROLLER not defined");
 				startStepper(s, reduced);
@@ -553,33 +553,46 @@ namespace FocusMotor
 		float encoderSpeed = abs(motorData->speed) * conversionFactor;
 		
 		// Create JSON for LinearEncoderController moveP command
+		// Structure: {"task": "/linearencoder_act", "moveP": {"steppers": [...]}}
 		cJSON* movePreciseJson = cJSON_CreateObject();
+		cJSON* moveP = cJSON_CreateObject();
 		cJSON* steppers = cJSON_CreateArray();
 		cJSON* stepper = cJSON_CreateObject();
 		
+		// Add task identifier
+		cJSON_AddStringToObject(movePreciseJson, "task", "/linearencoder_act");
+		
+		// Build stepper object
 		cJSON_AddNumberToObject(stepper, "stepperid", axis);
 		cJSON_AddNumberToObject(stepper, "position", (int)encoderPosition);
 		cJSON_AddNumberToObject(stepper, "isabs", motorData->absolutePosition ? 1 : 0);
 		cJSON_AddNumberToObject(stepper, "speed", (int)encoderSpeed);
 		
 		// Set default PID values if not already configured
-		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain
+		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain // TODO: Maybe we should store / read these values from preferences and make them setable via act()
 		cJSON_AddNumberToObject(stepper, "ci", 1.0);   // Integral gain  
 		cJSON_AddNumberToObject(stepper, "cd", 5.0);   // Derivative gain
 		
+		// Nest properly: steppers array -> moveP object -> root object
 		cJSON_AddItemToArray(steppers, stepper);
-		cJSON_AddItemToObject(movePreciseJson, "steppers", steppers);
-		cJSON_AddItemToObject(movePreciseJson, "moveP", cJSON_CreateObject());
+		cJSON_AddItemToObject(moveP, "steppers", steppers);
+		cJSON_AddItemToObject(movePreciseJson, "moveP", moveP);
 		
 		log_i("Starting encoder-based motion for axis %d: step_pos=%ld -> encoder_pos=%f µm (factor=%f)", 
 		      axis, (long)motorData->targetPosition, encoderPosition, conversionFactor);
 		log_i("Motor speed: step_speed=%ld -> encoder_speed=%f µm/s", 
 		      (long)motorData->speed, encoderSpeed);
 		
+			  // print the json for debugging
+			  char* jsonString = cJSON_Print(movePreciseJson);
+			  if (jsonString) {
+				  log_d("Encoder-based motion JSON: %s", jsonString);
+				  cJSON_free(jsonString);
+				}
+				// Clean up JSON object
 		// Call LinearEncoderController act function with moveP command
 		LinearEncoderController::act(movePreciseJson);
-		
-		cJSON_Delete(movePreciseJson);
+				cJSON_Delete(movePreciseJson);
 		#else
 		log_w("LINEAR_ENCODER_CONTROLLER not available for encoder-based motion");
 		#endif

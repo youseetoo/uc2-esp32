@@ -26,7 +26,7 @@ namespace PCNTEncoderController
     static float positionOffsets[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     
     // Steps per mm from LinearEncoderData  
-    static float mumPerStep[4] = {1.95f, 1.95f, 1.95f, 1.95f};
+    static float mumPerStep[4] = {12.8f, 12.8f, 12.8f, 12.8f}; // TODO: unknown what happens; We have 4µm stepsize though I thought 2µm => so 3200steps/250 counts per mm => 12.8 steps per µm
     
 
     void setup()
@@ -48,15 +48,16 @@ namespace PCNTEncoderController
             // Clear any existing state first
             encoders[1]->clearCount();
             
+            // Use attachFullQuad for maximum resolution (4x encoding)
             encoders[1]->attachFullQuad(pinConfig.ENC_X_A, pinConfig.ENC_X_B);
             encoders[1]->setCount(0);
             
-            // Start with no filter and see if it works
-            encoders[1]->setFilter(0);  // No filtering for maximum sensitivity
+            // Minimize filter for maximum resolution - start with 0 for no filtering
+            encoders[1]->setFilter(0);  // No filtering for maximum sensitivity and resolution
             
             // Get initial count to verify it's working
             int64_t initialCount = encoders[1]->getCount();
-            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d, initial count=%lld", 
+            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d, filter=0 (max resolution), initial count=%lld", 
                      pinConfig.ENC_X_A, pinConfig.ENC_X_B, initialCount);
         }
         
@@ -66,10 +67,10 @@ namespace PCNTEncoderController
             encoders[2]->clearCount();
             encoders[2]->attachFullQuad(pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
             encoders[2]->setCount(0);
-            encoders[2]->setFilter(0);
+            encoders[2]->setFilter(0);  // No filtering for maximum resolution
             
             int64_t initialCount = encoders[2]->getCount();
-            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d, initial count=%lld", 
+            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d, filter=0 (max resolution), initial count=%lld", 
                      pinConfig.ENC_Y_A, pinConfig.ENC_Y_B, initialCount);
         }
         
@@ -79,10 +80,10 @@ namespace PCNTEncoderController
             encoders[3]->clearCount();
             encoders[3]->attachFullQuad(pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
             encoders[3]->setCount(0);
-            encoders[3]->setFilter(0);
+            encoders[3]->setFilter(0);  // No filtering for maximum resolution
             
             int64_t initialCount = encoders[3]->getCount();
-            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d, initial count=%lld", 
+            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d, filter=0 (max resolution), initial count=%lld", 
                      pinConfig.ENC_Z_A, pinConfig.ENC_Z_B, initialCount);
         }
         
@@ -103,11 +104,15 @@ namespace PCNTEncoderController
             // Direct read without critical section for better performance
             int64_t count = encoders[encoderIndex]->getCount();
             
-            // Debug logging for troubleshooting
+            // Debug logging for troubleshooting resolution issues
             static int debugCounter = 0;
-            if (++debugCounter % 1000 == 0) {  // Log every 1000 calls
-                ESP_LOGI(TAG, "Encoder %d raw count: %lld, attached: %s", 
-                         encoderIndex, count, encoders[encoderIndex]->isAttached() ? "YES" : "NO");
+            static int64_t lastCount = 0;
+            if (++debugCounter % 500 == 0) {  // Log every 500 calls
+                int64_t countDiff = count - lastCount;
+                ESP_LOGI(TAG, "Encoder %d: raw_count=%lld, count_diff=%lld, attached=%s", 
+                         encoderIndex, count, countDiff,
+                         encoders[encoderIndex]->isAttached() ? "YES" : "NO");
+                lastCount = count;
             }
             
             // Apply direction based on configuration

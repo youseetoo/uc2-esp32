@@ -49,7 +49,7 @@ struct LinearEncoderData
 	float c_p = 2.;
 	float c_i = 0.1;
 	float c_d = 0.1;
-	float mumPerStep = 1.95f; // dividided by 2048 steps
+	float mumPerStep = 1.f; // default to one
 	PIDController pid = PIDController(c_p, c_i, c_d);
 	// Encoder interface selection
 	EncoderInterface encoderInterface = ENCODER_INTERRUPT_BASED; // Default to interrupt-based

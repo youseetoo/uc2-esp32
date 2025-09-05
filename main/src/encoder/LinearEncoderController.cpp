@@ -32,7 +32,7 @@ namespace LinearEncoderController
             bool pinA = digitalRead(pinConfig.ENC_X_A);
             bool pinB = digitalRead(pinConfig.ENC_X_B);
             if ((pinA == pinB) ^ edata[1]->encoderDirection)
-                edata[1]->posval += edata[1]->mumPerStep;
+                edata[1]->posval += edata[1]->mumPerStep; // TODO: We should update single steps (e.g. int) and then multiple later when retrieving the position somewhere else with the gloval conversion factor 
             else
                 edata[1]->posval -= edata[1]->mumPerStep;
         }
@@ -381,16 +381,16 @@ namespace LinearEncoderController
                     }
                     
                     // Set micrometer per step (encoder resolution) permanently
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "mumPerStep") != NULL)
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "mumpstp") != NULL)
                     {
-                        float mumPerStep = cJSON_GetObjectItemCaseSensitive(stp, "mumPerStep")->valuedouble;
+                        float mumPerStep = cJSON_GetObjectItemCaseSensitive(stp, "mumpstp")->valuedouble;
                         edata[s]->mumPerStep = mumPerStep;
                         log_i("Set micrometer per step for axis %d: %f", s, mumPerStep);
                         
                         // Store in preferences
                         Preferences preferences;
                         preferences.begin("UC2_ENC", false);
-                        preferences.putFloat(("mumPerStep" + String(s)).c_str(), mumPerStep);
+                        preferences.putFloat(("mumpstp" + String(s)).c_str(), mumPerStep);
                         preferences.end();
                     }
                     
@@ -665,7 +665,7 @@ namespace LinearEncoderController
             edata[i]->stp2phys = preferences.getFloat(("stp2phys" + String(i)).c_str(), edata[i]->stp2phys);
             
             // Load micrometer per step
-            edata[i]->mumPerStep = preferences.getFloat(("mumPerStep" + String(i)).c_str(), edata[i]->mumPerStep);
+            edata[i]->mumPerStep = preferences.getFloat(("mumpstp" + String(i)).c_str(), edata[i]->mumPerStep);
             
             log_i("Loaded encoder config for axis %d: encdir=%d, stp2phys=%f, mumPerStep=%f", 
                   i, edata[i]->encoderDirection, edata[i]->stp2phys, edata[i]->mumPerStep);

@@ -1,0 +1,177 @@
+[1168651][I][MotorJsonParser.cpp:665] act(): motor act
+[1168657][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1168669][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1168686][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1168694][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1168700][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1168902][I][LinearEncoderController.cpp:518] loop(): plot: -12121.600586
+[1168918][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1168927][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1168936][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+:0}
+--
+[1168954][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1169001][I][CanIsoTp.cpp:58] send(): State: 1
+[1169005][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1169011][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1169016][I][CanIsoTp.cpp:188] send(): Return: 1
+[1169021][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1170354][I][LinearEncoderController.cpp:518] loop(): plot: -12121.600586
+[1171008][I][MotorJsonParser.cpp:665] act(): motor act
+[1171014][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1171026][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1171043][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1171051][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1171057][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1171267][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1171277][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1171285][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"steppers":[{"stepp
+[1171303][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1171314][I][CanIsoTp.cpp:58] send(): State: 1
+[1171318][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1171324][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1171329][I][CanIsoTp.cpp:188] send(): Return: 1
+[1171334][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1171905][I][LinearEncoderController.cpp:518] loop(): plot: -12544.000000
+[1173313][I][LinearEncoderController.cpp:518] loop(): plot: -12544.000000
+[1173862][I][MotorJsonParser.cpp:665] act(): motor act
+[1173868][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1173880][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1173897][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1173905][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1173911][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1174121][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1174131][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1174139][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"s22482,"isDone":1}],"qid":0}
+--
+[1174157][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1174188][I][CanIsoTp.cpp:58] send(): State: 1
+[1174192][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1174198][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1174203][I][CanIsoTp.cpp:188] send(): Return: 1
+[1174208][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1174871][I][LinearEncoderController.cpp:518] loop(): plot: -13132.799805
+[1176279][I][LinearEncoderController.cpp:518] loop(): plot: -13120.000000
+[1176880][I][MotorJsonParser.cpp:665] act(): motor act
+[1176886][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1176898][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1176915][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1176923][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1176929][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1177139][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1177149][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1177157][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"steppers":[{"stepperid":1,"position":0}
+--
+[1177175][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1177215][I][CanIsoTp.cpp:58] send(): State: 1
+[1177219][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1177225][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1177230][I][CanIsoTp.cpp:188] send(): Return: 1
+[1177235][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1177833][I][LinearEncoderController.cpp:518] loop(): plot: -14348.799805
+[1179013][I][MotorJsonParser.cpp:665] act(): motor act
+[1179019][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1179031][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1179048][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1179056][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1179062][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1179272][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1179282][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1179290][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"steppers":[{"stepp
+[1179308][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1179324][I][CanIsoTp.cpp:58] send(): State: 1
+[1179328][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1179334][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1179339][I][CanIsoTp.cpp:188] send(): Return: 1
+[1179344][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1179392][I][LinearEncoderController.cpp:518] loop(): plot: -16537.599609
+[1180852][I][MotorJsonParser.cpp:665] act(): motor act
+[1180858][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1180870][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1180887][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1180895][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1180901][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isS[118090topped 0, is7R]u[nIn]i[Lineang 1
+rEncoderController.cpp:518] loop(): plot: -16524.800781
+++
+{"qid":0,"success":0}
+--
+[1181103][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1181113][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1181121][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"steppers":[{"stepperid":1,:0}
+--
+[1181139][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1181178][I][CanIsoTp.cpp:58] send(): State: 1
+[1181182][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1181188][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1181193][I][CanIsoTp.cpp:188] send(): Return: 1
+[1181198][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1182371][I][LinearEncoderController.cpp:518] loop(): plot: -17792.000000
+[1183347][I][MotorJsonParser.cpp:665] act(): motor act
+[1183353][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1183365][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1183382][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1183390][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1183396][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1183606][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1183616][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1183624][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"ste:0}
+--
+[1183642][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1183644][I][CanIsoTp.cpp:58] send(): State: 1
+[1183654][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1183660][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1183665][I][CanIsoTp.cpp:188] send(): Return: 1
+[1183670][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1183932][I][LinearEncoderController.cpp:518] loop(): plot: -18393.599609
+[1184820][I][MotorJsonParser.cpp:665] act(): motor act
+[1184826][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[1184838][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
+[1184855][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
+[1184863][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
+[1184869][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[1185079][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[1185089][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[1185097][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"steppers":
+[1185115][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
+[1185147][I][CanIsoTp.cpp:58] send(): State: 1
+[1185151][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
+[1185157][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
+[1185162][I][CanIsoTp.cpp:188] send(): Return: 1
+[1185167][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
+[1185493][I][LinearEncoderController.cpp:518] loop(): plot: -18841.599609

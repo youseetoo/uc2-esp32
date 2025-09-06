@@ -28,6 +28,9 @@ namespace PCNTEncoderController
     // Steps per mm from LinearEncoderData  
     static float mumPerStep[4] = {12.8f, 12.8f, 12.8f, 12.8f}; // TODO: unknown what happens; We have 4µm stepsize though I thought 2µm => so 3200steps/250 counts per mm => 12.8 steps per µm
     
+    // Double-buffered count storage for consistency checks
+    static volatile int64_t lastValidCount[4] = {0, 0, 0, 0};
+    
 
     void setup()
     {
@@ -39,6 +42,12 @@ namespace PCNTEncoderController
 
         ESP_LOGI(TAG, "Setting up ESP32Encoder interface");
         ESP32Encoder::useInternalWeakPullResistors = puType::none;
+        
+        // Set ISR service to Core 0 and give it HIGH priority to avoid interference from serial/main tasks
+        // Main loop (including Serial) runs on Core 1, so Core 0 should be cleaner for encoder ISRs
+        ESP32Encoder::isrServiceCpuCore = 0;  // Core 0 for encoder ISR (away from main loop)
+        ESP_LOGI(TAG, "ESP32Encoder ISR service set to Core 0 with high priority to avoid serial interference");
+        
         ESP_LOGI(TAG, "FastAccelStepper uses RMT - no PCNT conflict expected");
         
         // Configure encoder for X axis if pins are defined
@@ -101,18 +110,20 @@ namespace PCNTEncoderController
         
 #ifdef USE_PCNT_COUNTER
         if (encoders[encoderIndex] != nullptr && encoders[encoderIndex]->isAttached()) {
-            // Direct read without critical section for better performance
+            // Use critical section to ensure atomic read of count
+            // This prevents race conditions between ISR updates and main thread reads
+            portENTER_CRITICAL(&encoderMux);
             int64_t count = encoders[encoderIndex]->getCount();
+            portEXIT_CRITICAL(&encoderMux);
             
             // Debug logging for troubleshooting resolution issues
             static int debugCounter = 0;
-            static int64_t lastCount = 0;
-            if (++debugCounter % 500 == 0) {  // Log every 500 calls
-                int64_t countDiff = count - lastCount;
-                ESP_LOGI(TAG, "Encoder %d: raw_count=%lld, count_diff=%lld, attached=%s", 
-                         encoderIndex, count, countDiff,
-                         encoders[encoderIndex]->isAttached() ? "YES" : "NO");
-                lastCount = count;
+            static int64_t lastCount[4] = {0, 0, 0, 0};
+            if (++debugCounter % 2000 == 0) {  // Reduced frequency: Log every 2000 calls to minimize serial interference
+                int64_t countDiff = count - lastCount[encoderIndex];
+                ESP_LOGI(TAG, "Enc%d: cnt=%lld, diff=%lld, ISR_core=%d", 
+                         encoderIndex, count, countDiff, ESP32Encoder::isrServiceCpuCore);
+                lastCount[encoderIndex] = count;
             }
             
             // Apply direction based on configuration

@@ -19,7 +19,7 @@
 {"task": "/linearencoder_act", "plot":0}
 {"task":"/linearencoder_get", "linencoder": { "posval": 3,    "id": 1  }}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -1000, "speed": 2000, "enc":0}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -1000, "speed": 20000, "enc":0}]}}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -32000, "speed": 20000, "enc":0}]}}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "enc":1}]}}
 

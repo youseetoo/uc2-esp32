@@ -512,8 +512,11 @@ namespace LinearEncoderController
         // log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
 
         if (isPlot){
-            // plot current encoder value for motor 1 only
-            log_i("plot: %f", getCurrentPosition(1));
+            // plot current encoder value for motor 1 only - reduced frequency to avoid serial interference
+            static int plotCounter = 0;
+            if (++plotCounter % 5 == 0) {  // Only plot every 100 loops to reduce serial load
+                log_i("plot: %f", getCurrentPosition(1));
+            }
         }
 #ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors

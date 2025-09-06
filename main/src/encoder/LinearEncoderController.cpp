@@ -439,6 +439,37 @@ namespace LinearEncoderController
                 log_i("Global motor-encoder conversion factor set to: %f µm per step", conversionFactor);
             }
         }
+        
+        // Handle diagnostic commands for encoder health checks
+        // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
+        cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
+        if (diagnostic != NULL)
+        {
+            cJSON *stepperidItem = cJSON_GetObjectItem(diagnostic, key_stepperid);
+            if (stepperidItem != NULL && cJSON_IsNumber(stepperidItem))
+            {
+                int stepperid = stepperidItem->valueint;
+                log_i("Running encoder diagnostic for axis %d", stepperid);
+                
+                if (stepperid >= 1 && stepperid <= 3)
+                {
+                    // Run encoder accuracy test
+                    if (PCNTEncoderController::isPCNTAvailable())
+                    {
+                        PCNTEncoderController::testEncoderAccuracy(stepperid);
+                        log_i("Encoder diagnostic completed for axis %d", stepperid);
+                    }
+                    else
+                    {
+                        log_w("Encoder diagnostic not available - ESP32Encoder interface not active");
+                    }
+                }
+                else
+                {
+                    log_e("Invalid stepperid %d for diagnostic (valid range: 1-3)", stepperid);
+                }
+            }
+        }
         return qid;
     }
 
@@ -547,8 +578,9 @@ namespace LinearEncoderController
             // Very reduced frequency to minimize impact on encoder accuracy
             static int plotCounter = 0;
             if (++plotCounter % 20 == 0) {  // Only plot every 20 loops to reduce serial interference
+                // Use log_i only (not Serial.println) to prevent direct serial interference
                 log_i("plot: %f", getCurrentPosition(1));
-                Serial.println("[][][] loop(): plot: " + String(getCurrentPosition(1)));
+                // Serial.println("[][][] loop(): plot: " + String(getCurrentPosition(1))); // Removed to prevent encoder interference
             }
         }
 #ifdef MOTOR_CONTROLLER

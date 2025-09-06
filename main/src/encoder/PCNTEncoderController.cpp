@@ -149,7 +149,7 @@ namespace PCNTEncoderController
             
             // Run accuracy test
             delay(100); // Let system settle
-            // testEncoderAccuracy(1);
+            testEncoderAccuracy(1); // Enable accuracy test to validate encoder performance
         } else {
             ESP_LOGW(TAG, "X-axis encoder pins not defined, encoder disabled");
         }
@@ -268,5 +268,72 @@ namespace PCNTEncoderController
     bool isPCNTAvailable()
     {
         return isESP32EncoderAvailable();
+    }
+    
+    void testEncoderAccuracy(int encoderIndex)
+    {
+        if (encoderIndex < 1 || encoderIndex > 3) {
+            ESP_LOGE(TAG, "Invalid encoder index %d for accuracy test", encoderIndex);
+            return;
+        }
+        
+#ifdef USE_PCNT_COUNTER
+        if (encoders[encoderIndex] == nullptr || !encoders[encoderIndex]->isAttached()) {
+            ESP_LOGW(TAG, "Encoder %d not available for accuracy test", encoderIndex);
+            return;
+        }
+        
+        ESP_LOGI(TAG, "Starting encoder accuracy test for encoder %d", encoderIndex);
+        
+        // Take multiple rapid readings to test consistency
+        const int numReadings = 10;
+        int64_t readings[numReadings];
+        uint32_t startTime = millis();
+        
+        for (int i = 0; i < numReadings; i++) {
+            readings[i] = getEncoderCount(encoderIndex);
+            delay(1); // Very short delay between readings
+        }
+        
+        uint32_t testDuration = millis() - startTime;
+        
+        // Calculate statistics
+        int64_t minCount = readings[0];
+        int64_t maxCount = readings[0];
+        int64_t lastCount = readings[0];
+        int changeCount = 0;
+        
+        for (int i = 1; i < numReadings; i++) {
+            if (readings[i] != lastCount) {
+                changeCount++;
+                lastCount = readings[i];
+            }
+            if (readings[i] < minCount) minCount = readings[i];
+            if (readings[i] > maxCount) maxCount = readings[i];
+        }
+        
+        int64_t totalVariation = maxCount - minCount;
+        float consistencyPercent = ((float)(numReadings - changeCount) / numReadings) * 100.0f;
+        
+        ESP_LOGI(TAG, "Encoder %d accuracy test results:", encoderIndex);
+        ESP_LOGI(TAG, "  Duration: %d ms, Readings: %d", testDuration, numReadings);
+        ESP_LOGI(TAG, "  Count range: %lld to %lld (variation: %lld)", minCount, maxCount, totalVariation);
+        ESP_LOGI(TAG, "  Changes detected: %d/%d (%.1f%% consistent)", changeCount, numReadings, consistencyPercent);
+        
+        // Assessment based on results
+        if (totalVariation == 0) {
+            ESP_LOGI(TAG, "  Assessment: EXCELLENT - Perfect consistency");
+        } else if (totalVariation <= 2) {
+            ESP_LOGI(TAG, "  Assessment: GOOD - Minimal variation (±%lld counts)", totalVariation/2);
+        } else {
+            ESP_LOGW(TAG, "  Assessment: POOR - High variation (±%lld counts)", totalVariation/2);
+        }
+        
+        // Store for tracking
+        lastValidCount[encoderIndex] = readings[numReadings-1];
+        countReadCounter[encoderIndex]++;
+#else
+        ESP_LOGW(TAG, "ESP32Encoder not available, accuracy test skipped");
+#endif
     }
 }

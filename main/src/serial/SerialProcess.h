@@ -7,14 +7,15 @@
 
 namespace SerialProcess
 {
-    //QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
-	//xTaskHandle xHandle;			// Task handle for the serial task
+    // Disabled queue-based processing to fix ESP32S3 serial corruption
+    // QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
+	// xTaskHandle xHandle;			// Task handle for the serial task
 
     void jsonProcessor(char * task,cJSON * jsonDocument);
     void serialize(cJSON * doc);
     void serialize(int success);
     void setup();
     void loop();
-    void addJsonToQueue(cJSON * doc);   // Add a cJSON object to the processing queue
+    void addJsonToQueue(cJSON * doc);   // Add a cJSON object to the processing queue (now processes immediately)
 };
 

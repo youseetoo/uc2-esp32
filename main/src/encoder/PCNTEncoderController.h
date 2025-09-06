@@ -24,6 +24,10 @@ namespace PCNTEncoderController
     // Test encoder accuracy and consistency
     void testEncoderAccuracy(int encoderIndex);
     
+    // Track encoder accuracy during motor moves
+    void startEncoderTracking(int encoderIndex, int32_t commandedSteps);
+    void stopEncoderTracking(int encoderIndex);
+    
     // Check if ESP32Encoder is available and configured
     bool isESP32EncoderAvailable();
 };

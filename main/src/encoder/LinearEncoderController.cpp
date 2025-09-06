@@ -315,6 +315,35 @@ namespace LinearEncoderController
             }
         }
         
+        // Handle encoder diagnostics
+        // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
+        cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
+        if (diagnostic != NULL)
+        {
+            int stepperid = cJsonTool::getJsonInt(diagnostic, key_stepperid);
+            if (stepperid >= 1 && stepperid <= 3) {
+                log_i("Running encoder diagnostic for axis %d", stepperid);
+                
+                // Test encoder accuracy using PCNT controller
+                if (PCNTEncoderController::isPCNTAvailable()) {
+                    PCNTEncoderController::testEncoderAccuracy(stepperid);
+                }
+                
+                // Report current encoder state
+                float currentPos = getCurrentPosition(stepperid);
+                int64_t currentCount = 0;
+                if (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) {
+                    currentCount = PCNTEncoderController::getEncoderCount(stepperid);
+                } else {
+                    currentCount = (int64_t)(edata[stepperid]->posval / edata[stepperid]->mumPerStep);
+                }
+                
+                log_i("Encoder %d diagnostic: pos=%.3f, count=%lld, interface=%s", 
+                      stepperid, currentPos, currentCount,
+                      (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
+            }
+        }
+        
         // Handle encoder configuration settings
         // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0, "stp2phys": 2.0} ]}}
         cJSON *config = cJSON_GetObjectItem(j, "config");
@@ -614,6 +643,11 @@ namespace LinearEncoderController
                     getData()[i]->isforever = false;
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
+                    
+                    // Stop encoder accuracy tracking and report results
+                    #ifdef ENCODER_CONTROLLER  
+                    PCNTEncoderController::stopEncoderTracking(i);
+                    #endif
                 }
 
                 // in case the motor position does not move for 5 cycles, we stop the motor
@@ -633,6 +667,11 @@ namespace LinearEncoderController
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
                     log_i("Final Position %f", getCurrentPosition(i));
+                    
+                    // Stop encoder accuracy tracking and report results  
+                    #ifdef ENCODER_CONTROLLER
+                    PCNTEncoderController::stopEncoderTracking(i);
+                    #endif
                 }
             }
         }

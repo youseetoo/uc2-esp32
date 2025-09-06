@@ -10,6 +10,9 @@
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
+#ifdef ENCODER_CONTROLLER
+#include "../encoder/PCNTEncoderController.h"
+#endif
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -582,6 +585,11 @@ namespace FocusMotor
 		      axis, (long)motorData->targetPosition, encoderPosition, conversionFactor);
 		log_i("Motor speed: step_speed=%ld -> encoder_speed=%f µm/s", 
 		      (long)motorData->speed, encoderSpeed);
+		
+		// Start encoder accuracy tracking for this move
+		#ifdef ENCODER_CONTROLLER
+		PCNTEncoderController::startEncoderTracking(axis, motorData->targetPosition);
+		#endif
 		
 			  // print the json for debugging
 			  char* jsonString = cJSON_Print(movePreciseJson);

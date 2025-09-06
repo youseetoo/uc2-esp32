@@ -32,8 +32,47 @@ namespace PCNTEncoderController
     static volatile int64_t lastValidCount[4] = {0, 0, 0, 0};
     static volatile uint32_t countReadCounter[4] = {0, 0, 0, 0};
     
-    // Encoder accuracy test function
-    void testEncoderAccuracy(int encoderIndex = 1) {
+    // Encoder count tracking for accuracy validation
+    static int64_t encoderCountBeforeMove[4] = {0, 0, 0, 0};
+    static int32_t motorStepsCommanded[4] = {0, 0, 0, 0};
+    static bool trackingMove[4] = {false, false, false, false};
+    
+    void startEncoderTracking(int encoderIndex, int32_t commandedSteps) {
+        if (encoderIndex < 1 || encoderIndex > 3) return;
+        
+        encoderCountBeforeMove[encoderIndex] = getEncoderCount(encoderIndex);
+        motorStepsCommanded[encoderIndex] = commandedSteps;
+        trackingMove[encoderIndex] = true;
+        
+        ESP_LOGI(TAG, "Started tracking encoder %d: initial_count=%lld, commanded_steps=%d", 
+                 encoderIndex, encoderCountBeforeMove[encoderIndex], commandedSteps);
+    }
+    
+    void stopEncoderTracking(int encoderIndex) {
+        if (encoderIndex < 1 || encoderIndex > 3 || !trackingMove[encoderIndex]) return;
+        
+        int64_t finalCount = getEncoderCount(encoderIndex);
+        int64_t actualCountChange = finalCount - encoderCountBeforeMove[encoderIndex];
+        
+        // Calculate expected count change based on step-to-encoder ratio
+        // For 2µm encoder step and default settings: 1 step = 0.3125µm encoder units
+        float expectedCountChange = motorStepsCommanded[encoderIndex] * 0.3125f;
+        float accuracy = (actualCountChange > 0) ? 
+            (expectedCountChange / actualCountChange * 100.0f) : 0.0f;
+        
+        ESP_LOGI(TAG, "Encoder %d tracking complete: commanded=%d steps, count_change=%lld, expected=%.1f, accuracy=%.1f%%", 
+                 encoderIndex, motorStepsCommanded[encoderIndex], actualCountChange, expectedCountChange, accuracy);
+        
+        if (abs(actualCountChange - (int64_t)expectedCountChange) <= 2) {
+            ESP_LOGI(TAG, "Encoder %d: EXCELLENT accuracy (within 2 counts)", encoderIndex);
+        } else if (abs(actualCountChange - (int64_t)expectedCountChange) <= 5) {
+            ESP_LOGI(TAG, "Encoder %d: GOOD accuracy (within 5 counts)", encoderIndex);
+        } else {
+            ESP_LOGW(TAG, "Encoder %d: POOR accuracy (error > 5 counts) - check for count loss", encoderIndex);
+        }
+        
+        trackingMove[encoderIndex] = false;
+    }
         if (encoderIndex < 1 || encoderIndex > 3 || encoders[encoderIndex] == nullptr) {
             ESP_LOGW(TAG, "Cannot test encoder %d - not available", encoderIndex);
             return;

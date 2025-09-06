@@ -21,6 +21,9 @@ namespace PCNTEncoderController
     // Reset encoder counter
     void resetEncoderCount(int encoderIndex);
     
+    // Test encoder accuracy and consistency
+    void testEncoderAccuracy(int encoderIndex);
+    
     // Check if ESP32Encoder is available and configured
     bool isESP32EncoderAvailable();
 };

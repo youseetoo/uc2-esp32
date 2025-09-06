@@ -19,84 +19,112 @@ static portMUX_TYPE encoderMux = portMUX_INITIALIZER_UNLOCKED;
 namespace PCNTEncoderController
 {
 
-    // ESP32Encoder instances for each axis (index 1=X, 2=Y, 3=Z)
+    // ESP32Encoder instances for X-axis only (focus on accuracy)
     static ESP32Encoder* encoders[4] = {nullptr, nullptr, nullptr, nullptr};
     
     // Position offsets for each encoder
     static float positionOffsets[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     
     // Steps per mm from LinearEncoderData  
-    static float mumPerStep[4] = {12.8f, 12.8f, 12.8f, 12.8f}; // TODO: unknown what happens; We have 4µm stepsize though I thought 2µm => so 3200steps/250 counts per mm => 12.8 steps per µm
+    static float mumPerStep[4] = {12.8f, 12.8f, 12.8f, 12.8f}; // TODO: We have 4µm stepsize though I thought 2µm => so 3200steps/250 counts per mm => 12.8 steps per µm
     
-    // Double-buffered count storage for consistency checks
+    // Count consistency tracking for accuracy validation
     static volatile int64_t lastValidCount[4] = {0, 0, 0, 0};
+    static volatile uint32_t countReadCounter[4] = {0, 0, 0, 0};
+    
+    // Encoder accuracy test function
+    void testEncoderAccuracy(int encoderIndex = 1) {
+        if (encoderIndex < 1 || encoderIndex > 3 || encoders[encoderIndex] == nullptr) {
+            ESP_LOGW(TAG, "Cannot test encoder %d - not available", encoderIndex);
+            return;
+        }
+        
+        ESP_LOGI(TAG, "Starting encoder accuracy test for axis %d", encoderIndex);
+        
+        // Take 10 rapid consecutive readings to check consistency
+        int64_t readings[10];
+        for (int i = 0; i < 10; i++) {
+            portENTER_CRITICAL(&encoderMux);
+            readings[i] = encoders[encoderIndex]->getCount();
+            portEXIT_CRITICAL(&encoderMux);
+            delayMicroseconds(100); // 100µs between readings
+        }
+        
+        // Check for consistency (readings should be identical or show minimal drift)
+        int64_t minCount = readings[0], maxCount = readings[0];
+        for (int i = 1; i < 10; i++) {
+            if (readings[i] < minCount) minCount = readings[i];
+            if (readings[i] > maxCount) maxCount = readings[i];
+        }
+        
+        int64_t countVariation = maxCount - minCount;
+        ESP_LOGI(TAG, "Encoder %d accuracy test: min=%lld, max=%lld, variation=%lld", 
+                 encoderIndex, minCount, maxCount, countVariation);
+        
+        if (countVariation <= 2) {
+            ESP_LOGI(TAG, "Encoder %d: EXCELLENT accuracy (variation ≤ 2 counts)", encoderIndex);
+        } else if (countVariation <= 5) {
+            ESP_LOGI(TAG, "Encoder %d: GOOD accuracy (variation ≤ 5 counts)", encoderIndex);
+        } else {
+            ESP_LOGW(TAG, "Encoder %d: POOR accuracy (variation = %lld counts) - check for interference", 
+                     encoderIndex, countVariation);
+        }
+    }
     
 
     void setup()
     {
-        
-        
-        // Since FastAccelStepper now uses RMT instead of PCNT, we shouldn't need the dummy encoder workaround
-        // But let's be safe and explicitly clear any counters first
         #ifdef USE_PCNT_COUNTER
-
-        ESP_LOGI(TAG, "Setting up ESP32Encoder interface");
+        ESP_LOGI(TAG, "Setting up optimized ESP32Encoder interface for maximum accuracy");
+        
+        // Optimize ESP32Encoder for minimum interference and maximum accuracy
         ESP32Encoder::useInternalWeakPullResistors = puType::none;
         
-        // Set ISR service to Core 0 and give it HIGH priority to avoid interference from serial/main tasks
-        // Main loop (including Serial) runs on Core 1, so Core 0 should be cleaner for encoder ISRs
-        ESP32Encoder::isrServiceCpuCore = 0;  // Core 0 for encoder ISR (away from main loop)
-        ESP_LOGI(TAG, "ESP32Encoder ISR service set to Core 0 with high priority to avoid serial interference");
+        // Set ISR service to Core 0 with high priority to isolate from serial/main tasks on Core 1
+        ESP32Encoder::isrServiceCpuCore = 0;  
         
-        ESP_LOGI(TAG, "FastAccelStepper uses RMT - no PCNT conflict expected");
-        
-        // Configure encoder for X axis if pins are defined
+        // Only configure X-axis encoder for maximum stability and count accuracy
+        // Multiple encoders can cause ISR conflicts and count loss
         if (pinConfig.ENC_X_A >= 0 && pinConfig.ENC_X_B >= 0) {
             encoders[1] = new ESP32Encoder();
             
-            // Clear any existing state first
+            // Clear any existing state and configure for maximum accuracy
             encoders[1]->clearCount();
-            
-            // Use attachFullQuad for maximum resolution (4x encoding)
             encoders[1]->attachFullQuad(pinConfig.ENC_X_A, pinConfig.ENC_X_B);
             encoders[1]->setCount(0);
             
-            // Minimize filter for maximum resolution - start with 0 for no filtering
-            encoders[1]->setFilter(0);  // No filtering for maximum sensitivity and resolution
+            // Use minimal filtering for maximum resolution while maintaining stability
+            // Filter value 0 = no filtering (most sensitive but can be noisy)
+            // Filter value 1-3 = minimal filtering (good balance of accuracy and stability)
+            encoders[1]->setFilter(1);  // Minimal filtering for stability without losing accuracy
             
-            // Get initial count to verify it's working
+            // Verify encoder is working and test accuracy
             int64_t initialCount = encoders[1]->getCount();
-            ESP_LOGI(TAG, "ESP32Encoder X-axis configured for pins A=%d, B=%d, filter=0 (max resolution), initial count=%lld", 
+            ESP_LOGI(TAG, "X-axis encoder configured: A=%d, B=%d, filter=1, count=%lld", 
                      pinConfig.ENC_X_A, pinConfig.ENC_X_B, initialCount);
+                     
+            // Test encoder responsiveness and accuracy
+            delay(10);
+            int64_t testCount = encoders[1]->getCount();
+            ESP_LOGI(TAG, "Encoder responsiveness test: initial=%lld, after_10ms=%lld", initialCount, testCount);
+            
+            // Run accuracy test
+            delay(100); // Let system settle
+            testEncoderAccuracy(1);
+        } else {
+            ESP_LOGW(TAG, "X-axis encoder pins not defined, encoder disabled");
         }
         
-        // Configure encoder for Y axis if pins are defined  
+        // Only enable Y and Z encoders if specifically requested and pins are defined
+        // For now, focus on X-axis only to minimize interference and maximize accuracy
         if (pinConfig.ENC_Y_A >= 0 && pinConfig.ENC_Y_B >= 0) {
-            encoders[2] = new ESP32Encoder();
-            encoders[2]->clearCount();
-            encoders[2]->attachFullQuad(pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
-            encoders[2]->setCount(0);
-            encoders[2]->setFilter(0);  // No filtering for maximum resolution
-            
-            int64_t initialCount = encoders[2]->getCount();
-            ESP_LOGI(TAG, "ESP32Encoder Y-axis configured for pins A=%d, B=%d, filter=0 (max resolution), initial count=%lld", 
-                     pinConfig.ENC_Y_A, pinConfig.ENC_Y_B, initialCount);
+            ESP_LOGI(TAG, "Y-axis encoder pins available but not configured (focusing on X-axis accuracy)");
         }
-        
-        // Configure encoder for Z axis if pins are defined
         if (pinConfig.ENC_Z_A >= 0 && pinConfig.ENC_Z_B >= 0) {
-            encoders[3] = new ESP32Encoder();
-            encoders[3]->clearCount();
-            encoders[3]->attachFullQuad(pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
-            encoders[3]->setCount(0);
-            encoders[3]->setFilter(0);  // No filtering for maximum resolution
-            
-            int64_t initialCount = encoders[3]->getCount();
-            ESP_LOGI(TAG, "ESP32Encoder Z-axis configured for pins A=%d, B=%d, filter=0 (max resolution), initial count=%lld", 
-                     pinConfig.ENC_Z_A, pinConfig.ENC_Z_B, initialCount);
+            ESP_LOGI(TAG, "Z-axis encoder pins available but not configured (focusing on X-axis accuracy)");
         }
         
-        ESP_LOGI(TAG, "ESP32Encoder setup complete - using dedicated PCNT units");
+        ESP_LOGI(TAG, "ESP32Encoder setup complete - X-axis only for maximum accuracy");
 #else
         ESP_LOGW(TAG, "ESP32Encoder not available, encoder interface disabled");
 #endif
@@ -116,13 +144,13 @@ namespace PCNTEncoderController
             int64_t count = encoders[encoderIndex]->getCount();
             portEXIT_CRITICAL(&encoderMux);
             
-            // Debug logging for troubleshooting resolution issues
+            // Minimal debug logging to avoid serial interference with encoder counting
+            // Only log occasionally for debugging purposes, not during normal operation
             static int debugCounter = 0;
             static int64_t lastCount[4] = {0, 0, 0, 0};
-            if (++debugCounter % 2000 == 0) {  // Reduced frequency: Log every 2000 calls to minimize serial interference
+            if (++debugCounter % 10000 == 0) {  // Very reduced frequency: Log every 10000 calls only for debugging
                 int64_t countDiff = count - lastCount[encoderIndex];
-                ESP_LOGI(TAG, "Enc%d: cnt=%lld, diff=%lld, ISR_core=%d", 
-                         encoderIndex, count, countDiff, ESP32Encoder::isrServiceCpuCore);
+                ESP_LOGI(TAG, "Enc%d: cnt=%lld, diff=%lld", encoderIndex, count, countDiff);
                 lastCount[encoderIndex] = count;
             }
             

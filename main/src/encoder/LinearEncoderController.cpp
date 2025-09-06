@@ -512,9 +512,10 @@ namespace LinearEncoderController
         // log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
 
         if (isPlot){
-            // plot current encoder value for motor 1 only - reduced frequency to avoid serial interference
+            // Minimal encoder plotting to avoid serial interference with counting
+            // Very reduced frequency to minimize impact on encoder accuracy
             static int plotCounter = 0;
-            if (++plotCounter % 5 == 0) {  // Only plot every 100 loops to reduce serial load
+            if (++plotCounter % 20 == 0) {  // Only plot every 20 loops to reduce serial interference
                 log_i("plot: %f", getCurrentPosition(1));
             }
         }
@@ -675,45 +676,42 @@ namespace LinearEncoderController
         }
         preferences.end();
 
-        // Initialize PCNT if available
+        // Initialize PCNT encoder controller first for maximum accuracy
         if (PCNTEncoderController::isPCNTAvailable()) {
-            log_i("PCNT interface available, setting up PCNT encoder controller");
+            log_i("Initializing ESP32Encoder PCNT interface for high accuracy");
             PCNTEncoderController::setup();
         } else {
-            log_i("PCNT interface not available, using interrupt-based encoder only");
+            log_w("ESP32Encoder PCNT interface not available");
         }
 
-
-
+        // Configure only X-axis encoder for maximum stability and count accuracy
+        // Multiple interrupt-based encoders can interfere with ESP32Encoder ISR handling
         if (pinConfig.ENC_X_A >= 0)
         {
-            log_i("Adding X LinearEncoder: %i, %i", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
+            log_i("Configuring X-axis encoder: A=%d, B=%d", pinConfig.ENC_X_A, pinConfig.ENC_X_B);
             pinMode(pinConfig.ENC_X_A, INPUT_PULLUP);
             pinMode(pinConfig.ENC_X_B, INPUT_PULLUP);
             edata[1]->encoderDirection = pinConfig.ENC_X_encoderDirection;
-            InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            
+            // Only add interrupt listeners if PCNT is not available to avoid conflicts
+            if (!PCNTEncoderController::isPCNTAvailable()) {
+                InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+                InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+                log_i("X-axis encoder: using interrupt-based interface (PCNT not available)");
+            } else {
+                log_i("X-axis encoder: using PCNT interface for maximum accuracy");
+            }
+            
             setEncoderInterface(1, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
         }
-        if (pinConfig.ENC_Y_A >= 0)  // Fixed: was checking ENC_X_A instead of ENC_Y_A
-        {
-            log_i("Adding Y LinearEncoder: %i, %i", pinConfig.ENC_Y_A, pinConfig.ENC_Y_B);
-            pinMode(pinConfig.ENC_Y_A, INPUT_PULLUP);
-            pinMode(pinConfig.ENC_Y_B, INPUT_PULLUP);
-            edata[2]->encoderDirection = pinConfig.ENC_Y_encoderDirection;
-            InterruptController::addInterruptListner(pinConfig.ENC_Y_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            InterruptController::addInterruptListner(pinConfig.ENC_Y_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            setEncoderInterface(2, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
+        
+        // Disable Y and Z axis encoders for now to focus on X-axis accuracy
+        // They can be re-enabled later once X-axis counting is proven stable
+        if (pinConfig.ENC_Y_A >= 0) {
+            log_i("Y-axis encoder pins available but disabled (focusing on X-axis accuracy)");
         }
-        if (pinConfig.ENC_Z_A >= 0)
-        {
-            log_i("Adding Z LinearEncoder: %i, %i", pinConfig.ENC_Z_A, pinConfig.ENC_Z_B);
-            pinMode(pinConfig.ENC_Z_A, INPUT_PULLUP);
-            pinMode(pinConfig.ENC_Z_B, INPUT_PULLUP);
-            edata[3]->encoderDirection = pinConfig.ENC_Z_encoderDirection;
-            InterruptController::addInterruptListner(pinConfig.ENC_Z_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            InterruptController::addInterruptListner(pinConfig.ENC_Z_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-            setEncoderInterface(3, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
+        if (pinConfig.ENC_Z_A >= 0) {
+            log_i("Z-axis encoder pins available but disabled (focusing on X-axis accuracy)");
         }
     }
 

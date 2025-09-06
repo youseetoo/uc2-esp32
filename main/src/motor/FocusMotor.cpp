@@ -741,6 +741,19 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 
+		// Add encoder position if encoder-based motion is enabled
+#ifdef LINEAR_ENCODER_CONTROLLER
+		if (i==1) {
+			// Get current encoder position in micrometers
+			float encoderPos = PCNTEncoderController::getCurrentPosition(i);
+			cJSON_AddNumberToObject(item, "encoderPosition", encoderPos);
+			
+			// Also add raw encoder count for debugging
+			int64_t encoderCount = PCNTEncoderController::getEncoderCount(i);
+			cJSON_AddNumberToObject(item, "encoderCount", (int)encoderCount);
+		}
+#endif
+
 		// also save in preferences
 		preferences.begin("UC2", false);
 		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
@@ -788,6 +801,8 @@ namespace FocusMotor
 			sendMotorPos(i, 0);			  // this is an exception. We first get the position, then the success
 		}
 #endif
+
+
 
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);

@@ -53,12 +53,13 @@ namespace FAccelStep
         if (abs(speed) > 10000)
         {
             rmsCurrFromPref = (int)((float)rmsCurrFromPref*1.5);
+            rmsCurrFromPref = 400;
             log_i("Overdrive current for motor %i: %i", i, rmsCurrFromPref);
         }
-        TMCController::setTMCCurrent(rmsCurrFromPref);
+        //TMCController::setTMCCurrent(rmsCurrFromPref);
         #endif
         // prolong the time the enable pin goes to high again
-        faststeppers[i]->setDelayToDisable(500);
+        //faststeppers[i]->setDelayToDisable(500);
         
 
         // Whenever we enqueue another move check the queue first:

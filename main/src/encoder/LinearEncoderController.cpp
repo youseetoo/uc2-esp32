@@ -192,7 +192,7 @@ namespace LinearEncoderController
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1, "stp2phys":0.3125} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
-
+                // TODO: We need to retreive the PCNT value here as well to have a better starting point
             cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
             if (stprs != NULL)
             {
@@ -325,10 +325,12 @@ namespace LinearEncoderController
                 log_i("Running encoder diagnostic for axis %d", stepperid);
                 
                 // Test encoder accuracy using PCNT controller
+                /*
                 if (PCNTEncoderController::isPCNTAvailable()) {
                     PCNTEncoderController::testEncoderAccuracy(stepperid);
                 }
-                
+                */
+               
                 // Report current encoder state
                 float currentPos = getCurrentPosition(stepperid);
                 int64_t currentCount = 0;
@@ -546,6 +548,7 @@ namespace LinearEncoderController
             static int plotCounter = 0;
             if (++plotCounter % 20 == 0) {  // Only plot every 20 loops to reduce serial interference
                 log_i("plot: %f", getCurrentPosition(1));
+                Serial.println("[][][] loop(): plot: " + String(getCurrentPosition(1)));
             }
         }
 #ifdef MOTOR_CONTROLLER
@@ -644,10 +647,7 @@ namespace LinearEncoderController
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
                     
-                    // Stop encoder accuracy tracking and report results
-                    #ifdef ENCODER_CONTROLLER  
-                    PCNTEncoderController::stopEncoderTracking(i);
-                    #endif
+
                 }
 
                 // in case the motor position does not move for 5 cycles, we stop the motor
@@ -668,10 +668,7 @@ namespace LinearEncoderController
                     edata[i]->movePrecise = false;
                     log_i("Final Position %f", getCurrentPosition(i));
                     
-                    // Stop encoder accuracy tracking and report results  
-                    #ifdef ENCODER_CONTROLLER
-                    PCNTEncoderController::stopEncoderTracking(i);
-                    #endif
+
                 }
             }
         }

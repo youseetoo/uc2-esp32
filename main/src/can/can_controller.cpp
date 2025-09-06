@@ -522,6 +522,7 @@ namespace can_controller
     // generic sender function
     int sendCanMessage(uint8_t receiverID, const uint8_t *data, size_t size)
     {
+        return 0;
         /*
         This sends a message to the CAN bus via ISO-TP
         - If the receiverID is in the list of non-working motors, the message will not be sent
@@ -788,6 +789,7 @@ namespace can_controller
 
     void setup()
     {
+        return; // disable CAN for now
         // Create a mutex for the CAN bus
         device_can_id = getCANAddress();
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));

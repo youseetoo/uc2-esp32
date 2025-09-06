@@ -1,177 +1,745 @@
-[1168651][I][MotorJsonParser.cpp:665] act(): motor act
-[1168657][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1168669][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1168686][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1168694][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1168700][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+ *  Task wird ausgeführt: platformio device monitor --port /dev/cu.usbmodem1301 
+
+Warning! Ignore unknown configuration option `monitor_speed` in section [platformio]
+Esp32ExceptionDecoder: disabling, exception while looking for addr2line: Warning! Ignore unknown configuration option `monitor_speed` in section [platformio]
+Processing esp32_framework (platform: https://github.com/platformio/platform-espressif32.git#v6.3.2; framework: espidf, arduino)
+---------------------------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+esp32_framework
+Executing pre-build script...
+esp32_framework
+Error, not copied
+[Errno 2] No such file or directory: 'main/config/esp32_framework/PinConfig.h'
+Error: BoardConfig: Board is not defined
+=================================== [FAILED] Took 0.34 seconds ===================================
+
+Environment      Status    Duration
+---------------  --------  ------------
+esp32_framework  FAILED    00:00:00.344
+============================== 1 failed, 0 succeeded in 00:00:00.344 ==============================
+
+
+Please build project in debug configuration to get more details about an exception.
+See https://docs.platformio.org/page/projectconf/build_configurations.html
+
+
+--- Terminal on /dev/cu.usbmodem1301 | 9600 8-N-1
+--- Available filters and text transformations: colorize, debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+Disconnected (read failed: [Errno 6] Device not configured)
+Reconnecting to /dev/cu.usbmodem1301 .Esp32ExceptionDecoder: disabling, exception while looking for addr2line: Warning! Ignore unknown configuration option `monitor_speed` in section [platformio]
+Processing esp32_framework (platform: https://github.com/platformio/platform-espressif32.git#v6.3.2; framework: espidf, arduino)
+---------------------------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+esp32_framework
+Executing pre-build script...
+esp32_framework
+Error, not copied
+[Errno 2] No such file or directory: 'main/config/esp32_framework/PinConfig.h'
+Error: BoardConfig: Board is not defined
+=================================== [FAILED] Took 0.30 seconds ===================================
+
+Environment      Status    Duration
+---------------  --------  ------------
+esp32_framework  FAILED    00:00:00.304
+============================== 1 failed, 0 succeeded in 00:00:00.304 ==============================
+
+
+Please build project in debug configuration to get more details about an exception.
+See https://docs.platformio.org/page/projectconf/build_configurations.html
+
+
+         Connected!
+[  6431][I][LinearEncoderController.cpp:97] act(): linearencoder_act_fct
 ++
 {"qid":0,"success":0}
 --
-[1168902][I][LinearEncoderController.cpp:518] loop(): plot: -12121.600586
-[1168918][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1168927][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1168936][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[  6715][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7001][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7287][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7573][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7859][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  8145][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  8431][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  8717][I][LinearEncoderController.cpp:550] loop(): plot: -89.599998
+[  9002][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[  9288][I][LinearEncoderController.cpp:550] loop(): plot: -25.600000
+[  9574][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[  9860][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 10146][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 10432][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 10718][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 11004][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 11290][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 11576][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 11862][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 12148][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 12434][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 12720][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 13006][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 13292][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 13578][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 13864][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 14150][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 14436][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 14722][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 15008][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 15294][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 15580][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 15866][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 16152][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 16438][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 16724][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 17010][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 17296][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 17582][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 17868][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 18154][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 18440][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 18726][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 19012][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 19298][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 19584][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 19870][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 20156][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 20442][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 20728][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 21014][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 21300][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 21586][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 21872][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 22158][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 22444][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 22730][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 23016][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 23302][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 23588][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 23874][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 24160][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 24446][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 24732][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 25018][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 25304][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 25590][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 25876][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 26162][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 26448][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 26734][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 27020][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 27306][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 27592][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 27878][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 28164][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 28450][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 28736][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 29022][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 29308][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 29594][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 29880][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 30166][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 30452][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 30738][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 31024][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 31310][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 31596][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 31882][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 32168][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 32454][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 32740][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 33026][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 33312][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 33598][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 33884][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 34170][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 34456][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 34742][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 35028][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 35314][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 35600][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 35886][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 36172][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 36458][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 36744][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 37030][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 37316][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 37602][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 37888][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 38174][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 38460][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 38746][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 39032][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 39318][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 39604][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 39890][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 40176][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 40462][I][LinearEncoderController.cpp:550] loop(): plot: -25.600000
+[ 40748][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 41034][I][LinearEncoderController.cpp:550] loop(): plot: -51.200001
+[ 41320][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 41606][I][LinearEncoderController.cpp:550] loop(): plot: -12.800000
+[ 41892][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 42178][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 42464][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 42750][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 43036][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 43322][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 43608][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 43894][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 44180][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 44466][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 44752][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 45038][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 45324][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 45610][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 45896][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 46182][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 46468][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 46754][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 47040][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 47326][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 47612][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 47898][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 48184][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 48470][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 48756][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 49042][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 49328][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 49614][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 49900][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 50186][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 50472][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 50758][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 51044][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 51330][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 51616][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 51902][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 52188][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 52474][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 52760][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 53046][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 53332][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 53618][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 53904][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 54190][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 54476][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 54762][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 55048][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 55334][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 55620][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 55906][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[ 56229][I][LinearEncoderController.cpp:97] act(): linearencoder_act_fct
+[ 56236][D][LinearEncoderController.cpp:283] act(): Move precise from 0.000000 to -1000.000000 at motor speed 0.239434, computed speed -10000.000000, encoderDirection 0.239429
+[ 56263][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56271][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 56280][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56289][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56310][D][LinearEncoderController.cpp:657] loop(): current pos 0.000000, current pos avg 0.000000, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1000.000000
+[ 56326][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56334][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 56343][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56352][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[ 56385][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56393][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 56402][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56411][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56431][D][LinearEncoderController.cpp:657] loop(): current pos -486.399994, current pos avg -97.279999, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -513.599976
+[ 56473][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56481][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 56489][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56499][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56519][D][LinearEncoderController.cpp:657] loop(): current pos -2854.400146, current pos avg -668.160034, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1854.400146
+[ 56561][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56569][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 56577][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56587][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56607][D][LinearEncoderController.cpp:657] loop(): current pos -3596.800049, current pos avg -1387.520020, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2596.800049
+[ 56638][I][LinearEncoderController.cpp:550] loop(): plot: -3712.000000
+[ 56656][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56664][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 56672][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56682][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56702][D][LinearEncoderController.cpp:657] loop(): current pos -3699.199951, current pos avg -2127.359863, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2699.199951
+[ 56745][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56753][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 56761][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56771][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56791][D][LinearEncoderController.cpp:657] loop(): current pos -3046.400146, current pos avg -2736.640137, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2046.400146
+[ 56833][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56841][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 56849][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56859][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56879][D][LinearEncoderController.cpp:657] loop(): current pos -1420.800049, current pos avg -2923.520020, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 420.800049
+[ 56921][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 56929][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 56938][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 56947][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 56967][D][LinearEncoderController.cpp:657] loop(): current pos 422.399994, current pos avg -2268.159668, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1422.400024
+[ 57009][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57017][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57026][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57035][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57055][D][LinearEncoderController.cpp:657] loop(): current pos 1228.800049, current pos avg -1303.039795, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2228.800049
+[ 57097][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57105][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57114][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57123][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57143][D][LinearEncoderController.cpp:657] loop(): current pos 1356.800049, current pos avg -291.839844, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2356.800049
+[ 57185][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57193][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57202][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57211][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57231][D][LinearEncoderController.cpp:657] loop(): current pos 755.200012, current pos avg 468.480164, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1755.199951
+[ 57273][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57281][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57290][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57299][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57319][D][LinearEncoderController.cpp:657] loop(): current pos -819.200012, current pos avg 588.800171, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -180.799988
+[ 57361][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57369][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 57377][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57387][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57407][D][LinearEncoderController.cpp:657] loop(): current pos -2688.000000, current pos avg -33.279785, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1688.000000
+[ 57449][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57457][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 57465][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57475][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57495][D][LinearEncoderController.cpp:657] loop(): current pos -3532.800049, current pos avg -985.599792, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2532.800049
+[ 57537][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57545][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 57553][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57563][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57583][D][LinearEncoderController.cpp:657] loop(): current pos -3648.000000, current pos avg -1986.559814, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2648.000000
+[ 57625][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57633][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 57641][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57651][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57671][D][LinearEncoderController.cpp:657] loop(): current pos -3033.600098, current pos avg -2744.319824, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2033.600098
+[ 57713][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57721][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 57729][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57739][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57759][D][LinearEncoderController.cpp:657] loop(): current pos -1382.400024, current pos avg -2856.959961, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 382.400024
+[ 57801][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57809][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57818][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57827][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57847][D][LinearEncoderController.cpp:657] loop(): current pos 435.200012, current pos avg -2232.319824, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1435.199951
+[ 57889][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57897][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57906][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 57915][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 57935][D][LinearEncoderController.cpp:657] loop(): current pos 1241.599976, current pos avg -1277.439941, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2241.600098
+[ 57978][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 57986][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 57995][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58004][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58024][D][LinearEncoderController.cpp:657] loop(): current pos 1356.800049, current pos avg -276.479919, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2356.800049
+[ 58066][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58074][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 58083][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58092][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58112][D][LinearEncoderController.cpp:657] loop(): current pos 729.600037, current pos avg 476.160095, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1729.600098
+[ 58154][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58162][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 58171][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58180][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58200][D][LinearEncoderController.cpp:657] loop(): current pos -870.400024, current pos avg 578.560181, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -129.599976
+[ 58242][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58250][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 58258][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58268][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58288][D][LinearEncoderController.cpp:657] loop(): current pos -2726.400146, current pos avg -53.759865, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1726.400146
+[ 58330][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58338][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 58346][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58356][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58376][D][LinearEncoderController.cpp:657] loop(): current pos -3545.600098, current pos avg -1011.199890, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2545.600098
+[ 58407][I][LinearEncoderController.cpp:550] loop(): plot: -3660.800049
+[ 58425][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58433][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 58441][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58451][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58471][D][LinearEncoderController.cpp:657] loop(): current pos -3648.000000, current pos avg -2012.159912, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2648.000000
+[ 58513][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58521][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 58529][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58539][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58559][D][LinearEncoderController.cpp:657] loop(): current pos -2956.800049, current pos avg -2749.439941, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1956.800049
+[ 58601][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58609][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 58617][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58627][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58647][D][LinearEncoderController.cpp:657] loop(): current pos -1254.400024, current pos avg -2826.239746, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 254.400024
+[ 58689][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58697][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 58706][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58715][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58735][D][LinearEncoderController.cpp:657] loop(): current pos 512.000000, current pos avg -2178.559814, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1512.000000
+[ 58777][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58785][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 58794][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58803][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58823][D][LinearEncoderController.cpp:657] loop(): current pos 1280.000000, current pos avg -1213.439697, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2280.000000
+[ 58866][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58874][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 58883][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58892][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 58912][D][LinearEncoderController.cpp:657] loop(): current pos 1395.200073, current pos avg -204.799728, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2395.200195
+[ 58954][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 58962][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 58971][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 58980][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59000][D][LinearEncoderController.cpp:657] loop(): current pos 806.400024, current pos avg 547.840271, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1806.400024
+[ 59042][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59050][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 59059][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59068][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59088][D][LinearEncoderController.cpp:657] loop(): current pos -716.799988, current pos avg 655.360291, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -283.200012
+[ 59130][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59138][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 59146][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59156][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59176][D][LinearEncoderController.cpp:657] loop(): current pos -2624.000000, current pos avg 28.160303, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1624.000000
+[ 59218][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59226][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 59234][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59244][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59264][D][LinearEncoderController.cpp:657] loop(): current pos -3494.400146, current pos avg -926.719727, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2494.400146
+[ 59306][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59314][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 59322][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59332][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59352][D][LinearEncoderController.cpp:657] loop(): current pos -3596.800049, current pos avg -1925.119751, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2596.800049
+[ 59394][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59402][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 59410][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59420][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59440][D][LinearEncoderController.cpp:657] loop(): current pos -2931.199951, current pos avg -2672.639893, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1931.199951
+[ 59482][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59490][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 59498][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59508][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59528][D][LinearEncoderController.cpp:657] loop(): current pos -1190.400024, current pos avg -2767.359863, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 190.400024
+[ 59570][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59578][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 59587][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59596][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59616][D][LinearEncoderController.cpp:657] loop(): current pos 550.400024, current pos avg -2132.479980, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1550.400024
+[ 59658][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59666][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 59675][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59684][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59704][D][LinearEncoderController.cpp:657] loop(): current pos 1292.800049, current pos avg -1175.039795, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2292.800049
+[ 59746][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59754][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 59763][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59772][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59792][D][LinearEncoderController.cpp:657] loop(): current pos 1408.000000, current pos avg -174.079834, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2408.000000
+[ 59834][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59842][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 59851][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59860][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59880][D][LinearEncoderController.cpp:657] loop(): current pos 832.000000, current pos avg 578.560181, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1832.000000
+[ 59922][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 59930][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 59939][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 59948][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 59968][D][LinearEncoderController.cpp:657] loop(): current pos -640.000000, current pos avg 688.640137, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -360.000000
+[ 60010][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60018][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 60026][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60036][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60056][D][LinearEncoderController.cpp:657] loop(): current pos -2585.600098, current pos avg 61.440136, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1585.600098
+[ 60098][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60106][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 60114][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60124][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60144][D][LinearEncoderController.cpp:657] loop(): current pos -3468.800049, current pos avg -890.879883, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2468.800049
+[ 60175][I][LinearEncoderController.cpp:550] loop(): plot: -3584.000000
+[ 60193][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60201][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 60209][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60219][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60239][D][LinearEncoderController.cpp:657] loop(): current pos -3571.199951, current pos avg -1886.719971, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2571.199951
+[ 60281][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60289][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 60297][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60307][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60327][D][LinearEncoderController.cpp:657] loop(): current pos -2816.000000, current pos avg -2616.319824, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1816.000000
+[ 60369][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60377][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 6956, isRunning 1
+[ 60385][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60395][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 6956, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60415][D][LinearEncoderController.cpp:657] loop(): current pos -985.600037, current pos avg -2685.439941, need to go to: -1000.000000 at speed 6956.804199, distanceToGo -14.399963
+[ 60457][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60465][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 60474][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60483][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60503][D][LinearEncoderController.cpp:657] loop(): current pos 537.600037, current pos avg -2060.800049, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1537.600098
+[ 60545][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60553][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 60562][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60571][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60591][D][LinearEncoderController.cpp:657] loop(): current pos 1088.000000, current pos avg -1149.440063, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -2088.000000
+[ 60634][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60642][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 60651][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60660][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60680][D][LinearEncoderController.cpp:657] loop(): current pos 985.600037, current pos avg -238.080032, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -1985.600098
+[ 60722][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60730][I][FAccelStep.cpp:83] startFastAccelStepper(): runBackward, speed: -10000, isRunning 1
+[ 60739][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60748][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: -10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60768][D][LinearEncoderController.cpp:657] loop(): current pos -204.800003, current pos avg 284.159973, need to go to: -1000.000000 at speed -10000.000000, distanceToGo -795.200012
+[ 60810][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60818][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 60826][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60836][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60856][D][LinearEncoderController.cpp:657] loop(): current pos -2214.400146, current pos avg 38.399952, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 1214.400146
+[ 60898][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60906][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 60914][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 60924][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 60944][D][LinearEncoderController.cpp:657] loop(): current pos -3302.400146, current pos avg -729.600098, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2302.400146
+[ 60986][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 60994][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 61002][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+[ 61012][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:1, speed: 10000, maxSpeed: 200000, target pos: 0, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 61032][D][LinearEncoderController.cpp:657] loop(): current pos -3430.400146, current pos avg -1633.280029, need to go to: -1000.000000 at speed 10000.000000, distanceToGo 2430.400146
+[ 61074][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 850
+[ 61082][I][FAccelStep.cpp:77] startFastAccelStepper(): runForward, speed: 10000, isRunning 1
+[ 61090][I][FAccelStep.cpp:87] startFastAccelStepper(): We need 0 starts to get the motor running
+Disconnected (read failed: [Errno 6] Device not configured)
+Reconnecting to /dev/cu.usbmodem1301 .Esp32ExceptionDecoder: disabling, exception while looking for addr2line: Warning! Ignore unknown configuration option `monitor_speed` in section [platformio]
+Processing esp32_framework (platform: https://github.com/platformio/platform-espressif32.git#v6.3.2; framework: espidf, arduino)
+---------------------------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+esp32_framework
+Executing pre-build script...
+esp32_framework
+Error, not copied
+[Errno 2] No such file or directory: 'main/config/esp32_framework/PinConfig.h'
+Error: BoardConfig: Board is not defined
+=================================== [FAILED] Took 0.51 seconds ===================================
+
+Environment      Status    Duration
+---------------  --------  ------------
+esp32_framework  FAILED    00:00:00.506
+============================== 1 failed, 0 succeeded in 00:00:00.506 ==============================
+
+
+Please build project in debug configuration to get more details about an exception.
+See https://docs.platformio.org/page/projectconf/build_configurations.html
+
+
+         Connected!
+[  5990][I][LinearEncoderController.cpp:97] act(): linearencoder_act_fct
+++
+{"qid":0,"success":0}
+--
+[  6274][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  6560][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  6846][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7132][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7418][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7704][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  7990][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  8276][I][LinearEncoderController.cpp:550] loop(): plot: 0.000000
+[  8507][I][MotorJsonParser.cpp:665] act(): motor act
+[  8512][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[  8522][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[  8540][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[  8548][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[  8554][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+++
+{"qid":0,"success":0}
+--
+[  8668][I][LinearEncoderController.cpp:550] loop(): plot: 1510.400024
+[  8753][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[  8762][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[  8770][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+++
+{"steppers":[{"stepperi:0}
+--
+[  8990][I][LinearEncoderController.cpp:550] loop(): plot: 2214.400146
+[  9277][I][LinearEncoderController.cpp:550] loop(): plot: 2214.400146
+[  9564][I][LinearEncoderController.cpp:550] loop(): plot: 2214.400146
+[  9899][I][MotorJsonParser.cpp:665] act(): motor act
+[  9905][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[  9917][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[  9934][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[  9942][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[  9948][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStoppe[  9954d 0, isRunnin][gI ][1Linear
+EncoderController.cpp:550] loop(): plot: 2214.400146
+++
+{"qid":0,"success":0}
+--
+[ 10150][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 10159][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 10168][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
 :0}
 --
-[1168954][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1169001][I][CanIsoTp.cpp:58] send(): State: 1
-[1169005][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1169011][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1169016][I][CanIsoTp.cpp:188] send(): Return: 1
-[1169021][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1170354][I][LinearEncoderController.cpp:518] loop(): plot: -12121.600586
-[1171008][I][MotorJsonParser.cpp:665] act(): motor act
-[1171014][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1171026][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1171043][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1171051][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1171057][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 10290][I][LinearEncoderController.cpp:550] loop(): plot: 3276.800049
+[ 10577][I][LinearEncoderController.cpp:550] loop(): plot: 3276.800049
+[ 10862][I][LinearEncoderController.cpp:550] loop(): plot: 3289.600098
+[ 11241][I][MotorJsonParser.cpp:665] act(): motor act
+[ 11247][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 11255][I][LinearEncoderController.cpp:550] loop(): plot: 3289.600098
+[ 11259][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 11280][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 11288][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 11294][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1171267][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1171277][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1171285][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[ 11502][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 11511][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 11520][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
-{"steppers":[{"stepp
-[1171303][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1171314][I][CanIsoTp.cpp:58] send(): State: 1
-[1171318][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1171324][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1171329][I][CanIsoTp.cpp:188] send(): Return: 1
-[1171334][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1171905][I][LinearEncoderController.cpp:518] loop(): plot: -12544.000000
-[1173313][I][LinearEncoderController.cpp:518] loop(): plot: -12544.000000
-[1173862][I][MotorJsonParser.cpp:665] act(): motor act
-[1173868][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1173880][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1173897][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1173905][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1173911][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+{"st:0}
+--
+[ 11586][I][LinearEncoderController.cpp:550] loop(): plot: 3852.800049
+[ 11873][I][LinearEncoderController.cpp:550] loop(): plot: 3852.800049
+[ 12160][I][LinearEncoderController.cpp:550] loop(): plot: 3852.800049
+[ 12446][I][LinearEncoderController.cpp:550] loop(): plot: 3852.800049
+[ 12658][I][MotorJsonParser.cpp:665] act(): motor act
+[ 12664][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 12676][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 12693][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 12701][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 12707][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1174121][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1174131][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1174139][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[ 12839][I][LinearEncoderController.cpp:550] loop(): plot: 4198.399902
+[ 12910][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 12919][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 12926][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
-{"s22482,"isDone":1}],"qid":0}
---
-[1174157][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1174188][I][CanIsoTp.cpp:58] send(): State: 1
-[1174192][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1174198][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1174203][I][CanIsoTp.cpp:188] send(): Return: 1
-[1174208][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1174871][I][LinearEncoderController.cpp:518] loop(): plot: -13132.799805
-[1176279][I][LinearEncoderController.cpp:518] loop(): plot: -13120.000000
-[1176880][I][MotorJsonParser.cpp:665] act(): motor act
-[1176886][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1176898][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1176915][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1176923][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1176929][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+{"steppers":[{"stepperid":1,"position":301482,"isDone":1}],
+[ 13160][I][LinearEncoderController.cpp:550] loop(): plot: 4313.600098
+[ 13447][I][LinearEncoderController.cpp:550] loop(): plot: 4313.600098
+[ 13732][I][LinearEncoderController.cpp:550] loop(): plot: 4313.600098
+[ 14018][I][LinearEncoderController.cpp:550] loop(): plot: 4313.600098
+[ 14272][I][MotorJsonParser.cpp:665] act(): motor act
+[ 14278][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 14290][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 14307][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 14315][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 14321][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1177139][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1177149][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1177157][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[ 14411][I][LinearEncoderController.cpp:550] loop(): plot: 4492.800293
+[ 14524][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 14533][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 14540][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
-{"steppers":[{"stepperid":1,"position":0}
+{"steppers":[{"stepperid":1,"position":302482,"isDone":1}],"qid":0}
 --
-[1177175][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1177215][I][CanIsoTp.cpp:58] send(): State: 1
-[1177219][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1177225][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1177230][I][CanIsoTp.cpp:188] send(): Return: 1
-[1177235][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1177833][I][LinearEncoderController.cpp:518] loop(): plot: -14348.799805
-[1179013][I][MotorJsonParser.cpp:665] act(): motor act
-[1179019][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1179031][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1179048][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1179056][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1179062][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 14732][I][LinearEncoderController.cpp:550] loop(): plot: 4838.399902
+[ 15019][I][LinearEncoderController.cpp:550] loop(): plot: 4838.399902
+[ 15306][I][LinearEncoderController.cpp:550] loop(): plot: 4838.399902
+[ 15670][I][MotorJsonParser.cpp:665] act(): motor act
+[ 15676][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 15688][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 15697][I][LinearEncoderController.cpp:550] loop(): plot: 4838.399902
+[ 15705][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 15713][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 15719][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1179272][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1179282][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1179290][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[ 15922][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 15931][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 15940][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
-{"steppers":[{"stepp
-[1179308][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1179324][I][CanIsoTp.cpp:58] send(): State: 1
-[1179328][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1179334][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1179339][I][CanIsoTp.cpp:188] send(): Return: 1
-[1179344][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1179392][I][LinearEncoderController.cpp:518] loop(): plot: -16537.599609
-[1180852][I][MotorJsonParser.cpp:665] act(): motor act
-[1180858][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1180870][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1180887][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1180895][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1180901][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isS[118090topped 0, is7R]u[nIn]i[Lineang 1
-rEncoderController.cpp:518] loop(): plot: -16524.800781
+{"steppers":[{"stepperid"}
+--
+[ 16020][I][LinearEncoderController.cpp:550] loop(): plot: 5849.600098
+[ 16307][I][LinearEncoderController.cpp:550] loop(): plot: 5849.600098
+[ 16594][I][LinearEncoderController.cpp:550] loop(): plot: 5849.600098
+[ 16881][I][LinearEncoderController.cpp:550] loop(): plot: 5849.600098
+[ 17035][I][MotorJsonParser.cpp:665] act(): motor act
+[ 17041][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 17053][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 17070][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 17078][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 17084][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1181103][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1181113][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1181121][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[ 17272][I][LinearEncoderController.cpp:550] loop(): plot: 8025.600098
+[ 17287][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 17296][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 17303][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
-{"steppers":[{"stepperid":1,:0}
+{"steppers":[{"stepp:0}
 --
-[1181139][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1181178][I][CanIsoTp.cpp:58] send(): State: 1
-[1181182][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1181188][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1181193][I][CanIsoTp.cpp:188] send(): Return: 1
-[1181198][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1182371][I][LinearEncoderController.cpp:518] loop(): plot: -17792.000000
-[1183347][I][MotorJsonParser.cpp:665] act(): motor act
-[1183353][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1183365][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1183382][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1183390][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1183396][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 17593][I][LinearEncoderController.cpp:550] loop(): plot: 8051.200195
+[ 17880][I][LinearEncoderController.cpp:550] loop(): plot: 8051.200195
+[ 18166][I][LinearEncoderController.cpp:550] loop(): plot: 8051.200195
+[ 18452][I][LinearEncoderController.cpp:550] loop(): plot: 8051.200195
+[ 18738][I][LinearEncoderController.cpp:550] loop(): plot: 8051.200195
+[ 18936][I][MotorJsonParser.cpp:665] act(): motor act
+[ 18942][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 18954][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 18971][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 18979][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 18985][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1183606][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1183616][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1183624][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
+[ 19131][I][LinearEncoderController.cpp:550] loop(): plot: 9369.600586
+[ 19188][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 19197][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 19204][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
 ++
-{"ste:0}
+{"steppers":[{"stepp:0}
 --
-[1183642][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1183644][I][CanIsoTp.cpp:58] send(): State: 1
-[1183654][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1183660][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1183665][I][CanIsoTp.cpp:188] send(): Return: 1
-[1183670][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1183932][I][LinearEncoderController.cpp:518] loop(): plot: -18393.599609
-[1184820][I][MotorJsonParser.cpp:665] act(): motor act
-[1184826][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[1184838][I][FAccelStep.cpp:56] startFastAccelStepper(): Overdrive current for motor 1: 1275
-[1184855][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 1275
-[1184863][I][FAccelStep.cpp:102] startFastAccelStepper(): move -1000
-[1184869][I][FAccelStep.cpp:127] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: -1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
+[ 19452][I][LinearEncoderController.cpp:550] loop(): plot: 9523.200195
+[ 19739][I][LinearEncoderController.cpp:550] loop(): plot: 9523.200195
+[ 20026][I][LinearEncoderController.cpp:550] loop(): plot: 9523.200195
+[ 20311][I][LinearEncoderController.cpp:550] loop(): plot: 9523.200195
+[ 20596][I][LinearEncoderController.cpp:550] loop(): plot: 9523.200195
+[ 20881][I][LinearEncoderController.cpp:550] loop(): plot: 9536.000000
+[ 21168][I][LinearEncoderController.cpp:550] loop(): plot: 9536.000000
+[ 21453][I][LinearEncoderController.cpp:550] loop(): plot: 9536.000000
+[ 21620][I][MotorJsonParser.cpp:665] act(): motor act
+[ 21626][I][MotorJsonParser.cpp:581] parseMotorDriveJson(): start stepper from parseMotorDriveJson
+[ 21638][I][FAccelStep.cpp:57] startFastAccelStepper(): Overdrive current for motor 1: 400
+[ 21655][I][TMCController.cpp:229] setTMCCurrent(): TMC2209 Current set to 400
+[ 21663][I][FAccelStep.cpp:103] startFastAccelStepper(): move 1000
+[ 21669][I][FAccelStep.cpp:128] startFastAccelStepper(): start stepper (act): motor:1 isforver:0, speed: 20000, maxSpeed: 200000, target pos: 1000, isabsolute: 0, isacceleration: 0, acceleration: 0, isStopped 0, isRunning 1
 ++
 {"qid":0,"success":0}
 --
-[1185079][I][FocusMotor.cpp:660] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
-[1185089][I][FAccelStep.cpp:218] stopFastAccelStepper(): stop stepper in FAccelStep 1
-[1185097][I][FocusMotor.cpp:804] stopStepper(): stopStepper Focus Motor 1, stopped: 1
-++
-{"steppers":
-[1185115][I][can_controller.cpp:579] sendCanMessage(): Sending CAN message to 1
-[1185147][I][CanIsoTp.cpp:58] send(): State: 1
-[1185151][I][CanIsoTp.cpp:278] send_SingleFrame(): Sending SF
-[1185157][I][CanIsoTp.cpp:68] send(): Single Frame sent: 1
-[1185162][I][CanIsoTp.cpp:188] send(): Return: 1
-[1185167][E][can_controller.cpp:510] canSendTask(): Error sending CAN message to 1
-[1185493][I][LinearEncoderController.cpp:518] loop(): plot: -18841.599609
+[ 21843][I][LinearEncoderController.cpp:550] loop(): plot: 10188.799805
+[ 21873][I][FocusMotor.cpp:668] loop(): Stop Motor (2) 1 in loop, mIsRunning 0, data[i]->stopped 1
+[ 21882][I][FAccelStep.cpp:219] stopFastAccelStepper(): stop stepper in FAccelStep 1
+[ 21889][I][FocusMotor.cpp:812] stopStepper(): stopStepper Focus Motor 1, stopped: 1
++
+{"steppers":[{"stepperid:0}
+--
+[ 22165][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 22452][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 22739][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 23026][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 23313][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 23600][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 23887][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 24174][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 24461][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 24748][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 25035][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 25322][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 25609][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 25896][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 26183][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 26470][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391
+[ 26757][I][LinearEncoderController.cpp:550] loop(): plot: 10214.400391

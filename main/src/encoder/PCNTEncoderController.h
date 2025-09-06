@@ -22,7 +22,7 @@ namespace PCNTEncoderController
     void resetEncoderCount(int encoderIndex);
     
     // Test encoder accuracy and consistency
-    void testEncoderAccuracy(int encoderIndex);
+    void testEncoderAccuracy(int encoderIndex); // TODO: Not implemented yet
     
     // Track encoder accuracy during motor moves
     void startEncoderTracking(int encoderIndex, int32_t commandedSteps);

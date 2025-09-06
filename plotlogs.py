@@ -1,6 +1,6 @@
 import re
 import matplotlib.pyplot as plt
-
+import numpy as np
 def plot_values(log_text):
     """
     Extracts all 'plot:' values from log_text and plots them.

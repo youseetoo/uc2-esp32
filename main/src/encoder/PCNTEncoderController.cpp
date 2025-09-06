@@ -72,7 +72,7 @@ namespace PCNTEncoderController
         }
         
         trackingMove[encoderIndex] = false;
-    }
+    
         if (encoderIndex < 1 || encoderIndex > 3 || encoders[encoderIndex] == nullptr) {
             ESP_LOGW(TAG, "Cannot test encoder %d - not available", encoderIndex);
             return;
@@ -149,7 +149,7 @@ namespace PCNTEncoderController
             
             // Run accuracy test
             delay(100); // Let system settle
-            testEncoderAccuracy(1);
+            // testEncoderAccuracy(1);
         } else {
             ESP_LOGW(TAG, "X-axis encoder pins not defined, encoder disabled");
         }

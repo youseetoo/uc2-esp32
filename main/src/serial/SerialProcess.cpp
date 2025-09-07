@@ -133,6 +133,10 @@ namespace SerialProcess
 		//	serialMSGQueue = xQueueCreate(2, sizeof(cJSON *)); // Queue for cJSON pointers
 		// if (xHandle == nullptr)
 		//	xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+		Serial.setTimeout(100);
+		Serial.setTxBufferSize(1024);
+		esp_log_level_set("*", ESP_LOG_NONE);
+		Serial.setDebugOutput(false);
 	}
 
 	void addJsonToQueue(cJSON *doc)
@@ -149,7 +153,7 @@ namespace SerialProcess
 			String c = Serial.readString();
 			const char *s = c.c_str();
 			Serial.flush();
-			//log_i("String s:%s , char:%s", c.c_str(), s);
+			// log_i("String s:%s , char:%s", c.c_str(), s);
 			cJSON *root = cJSON_Parse(s);
 			if (root != NULL)
 			{
@@ -165,6 +169,7 @@ namespace SerialProcess
 				// Use critical section for error output to prevent interruption
 				portENTER_CRITICAL_ISR(&mux);
 				Serial.println("++{\"error\":\"Serial input is null\"}--");
+				Serial.flush();
 				portEXIT_CRITICAL_ISR(&mux);
 			}
 			c.clear();
@@ -189,6 +194,7 @@ namespace SerialProcess
 			cJSON_Delete(doc); // Free the cJSON object
 		}
 		Serial.println("--");
+		Serial.flush();
 		portEXIT_CRITICAL_ISR(&mux);
 	}
 
@@ -226,8 +232,9 @@ namespace SerialProcess
 
 		cJSON_Delete(doc); // Free the cJSON object
 
-		//Serial.println();
+		// Serial.println();
 		Serial.println("--");
+		Serial.flush();
 		portEXIT_CRITICAL_ISR(&mux);
 	}
 
@@ -270,8 +277,8 @@ namespace SerialProcess
 #ifdef DAC_CONTROLLER
 		else if (strcmp(task, dac_act_endpoint) == 0)
 			serialize(DacController::act(jsonDocument));
-			// else  if (strcmp(task, dac_get_endpoint) == 0)
-			//	serialize(DacController::get(jsonDocument));
+		// else  if (strcmp(task, dac_get_endpoint) == 0)
+		//	serialize(DacController::get(jsonDocument));
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
@@ -320,9 +327,9 @@ namespace SerialProcess
 			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
-else  if (strcmp(task, i2c_get_endpoint) == 0)
+		else if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_master::get(jsonDocument));
-		else  if (strcmp(task, i2c_act_endpoint) == 0)
+		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
 #ifdef CAN_CONTROLLER

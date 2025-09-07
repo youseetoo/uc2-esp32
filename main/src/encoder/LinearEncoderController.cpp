@@ -315,36 +315,7 @@ namespace LinearEncoderController
             }
         }
         
-        // Handle encoder diagnostics
-        // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
-        cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
-        if (diagnostic != NULL)
-        {
-            int stepperid = cJsonTool::getJsonInt(diagnostic, key_stepperid);
-            if (stepperid >= 1 && stepperid <= 3) {
-                log_i("Running encoder diagnostic for axis %d", stepperid);
-                
-                // Test encoder accuracy using PCNT controller
-                /*
-                if (PCNTEncoderController::isPCNTAvailable()) {
-                    PCNTEncoderController::testEncoderAccuracy(stepperid);
-                }
-                */
-               
-                // Report current encoder state
-                float currentPos = getCurrentPosition(stepperid);
-                int64_t currentCount = 0;
-                if (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) {
-                    currentCount = PCNTEncoderController::getEncoderCount(stepperid);
-                } else {
-                    currentCount = (int64_t)(edata[stepperid]->posval / edata[stepperid]->mumPerStep);
-                }
-                
-                log_i("Encoder %d diagnostic: pos=%.3f, count=%lld, interface=%s", 
-                      stepperid, currentPos, currentCount,
-                      (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
-            }
-        }
+
         
         // Handle encoder configuration settings
         // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0, "stp2phys": 2.0} ]}}
@@ -470,6 +441,38 @@ namespace LinearEncoderController
                 }
             }
         }
+        /*
+                // Handle encoder diagnostics
+        // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
+        cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
+        if (diagnostic != NULL)
+        {
+            int stepperid = cJsonTool::getJsonInt(diagnostic, key_stepperid);
+            if (stepperid >= 1 && stepperid <= 3) {
+                log_i("Running encoder diagnostic for axis %d", stepperid);
+                
+                // Test encoder accuracy using PCNT controller
+                
+                if (PCNTEncoderController::isPCNTAvailable()) {
+                    PCNTEncoderController::testEncoderAccuracy(stepperid);
+                }
+                
+               
+                // Report current encoder state
+                float currentPos = getCurrentPosition(stepperid);
+                int64_t currentCount = 0;
+                if (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) {
+                    currentCount = PCNTEncoderController::getEncoderCount(stepperid);
+                } else {
+                    currentCount = (int64_t)(edata[stepperid]->posval / edata[stepperid]->mumPerStep);
+                }
+                
+                log_i("Encoder %d diagnostic: pos=%.3f, count=%lld, interface=%s", 
+                      stepperid, currentPos, currentCount,
+                      (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
+            }
+        }
+        */
         return qid;
     }
 
@@ -579,8 +582,10 @@ namespace LinearEncoderController
             static int plotCounter = 0;
             if (++plotCounter % 20 == 0) {  // Only plot every 20 loops to reduce serial interference
                 // Use log_i only (not Serial.println) to prevent direct serial interference
-                log_i("plot: %f", getCurrentPosition(1));
-                // Serial.println("[][][] loop(): plot: " + String(getCurrentPosition(1))); // Removed to prevent encoder interference
+                //log_i("plot: %f", getCurrentPosition(1));
+                 Serial.println("[][][] loop(): plot: " + String(getCurrentPosition(1))); // Removed to prevent encoder interference
+                 Serial.flush();
+                
             }
         }
 #ifdef MOTOR_CONTROLLER

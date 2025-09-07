@@ -42,7 +42,7 @@ namespace ObjectiveController
 	static void moveToPosition(int32_t pos, Stepper axis, int speed, int accel, int qid)
 	{
 		// Set up the motor data
-		int32_t lowerLimit = -5000; // TODO: should probably not be hardcoded?
+		int32_t lowerLimit = -10000; // TODO: should probably not be hardcoded?
 		int32_t upperLimit = 120000;
 		if (pos < lowerLimit)
 		{

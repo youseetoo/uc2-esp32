@@ -26,7 +26,7 @@ namespace PCNTEncoderController
     static float positionOffsets[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     
     // Steps per mm from LinearEncoderData  
-    static float mumPerStep[4] = {12.8f, 12.8f, 12.8f, 12.8f}; // TODO: We have 4µm stepsize though I thought 2µm => so 3200steps/250 counts per mm => 12.8 steps per µm
+    static float mumPerStep[4] = {1.f, 1.f, 1.f, 1.f}; // TODO: We have 4µm stepsize though I thought 2µm => so 3200steps/250 counts per mm => 12.8 steps per µm
     
     // Count consistency tracking for accuracy validation
     static volatile int64_t lastValidCount[4] = {0, 0, 0, 0};

@@ -26,7 +26,7 @@
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 200000, "speed": 25000, "enc":0}]}}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -32000, "speed": 20000, "enc":0}]}}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "enc":1}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -1000, "isabs":1, "speed": 1000, "enc":1}]}}
 
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000} ]}}       
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": -10000 , "speed": 1000, "cp":10, "ci":10.0, "cd":1.0} ]}}

@@ -99,44 +99,10 @@ namespace LinearEncoderController
 
         // calibrate the step-to-mm value
         cJSON *movePrecise = cJSON_GetObjectItem(j, key_linearencoder_moveprecise);
-        cJSON *calibrate = cJSON_GetObjectItem(j, key_linearencoder_calibrate);
         cJSON *setup = cJSON_GetObjectItem(j, key_linearencoder_setup);
         cJSON *home = cJSON_GetObjectItem(j, key_linearencoder_home);
         cJSON *plot = cJSON_GetObjectItem(j, key_linearencoder_plot);
 
-        /******
-         * CALIBRATE THE STEP-TO-MM VALUE
-         ******/
-        if (calibrate != NULL)
-        {
-            // {"task": "/linearencoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": 32000 , "speed": 10000} ]}}
-            // depending on the axis, move for 1000 steps forward and measure the distance using the linearencoder in mm
-            // do the same for the way back and calculate the steps per mm
-            // print calibrate cjson
-            cJSON *stprs = cJSON_GetObjectItem(calibrate, key_steppers);
-            if (stprs != NULL)
-            {
-                // CALIBRATE THE STEP-TO-MM VALUE
-                cJSON *stp = NULL;
-                cJSON_ArrayForEach(stp, stprs)
-                {
-                    Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-                    // measure current value
-                    edata[s]->positionPreMove = getCurrentPosition(s);
-                    log_i("pre calib %f", edata[s]->positionPreMove);
-                    int calibsteps = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_calibpos)->valueint;
-                    int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
-                    // get the motor object and chang the values so that it will move 1000 steps forward
-                    getData()[s]->isforever = false;
-                    getData()[s]->targetPosition = calibsteps;
-                    getData()[s]->absolutePosition = false;
-                    getData()[s]->speed = speed;
-                    startStepper(s, true);
-                    edata[s]->calibsteps = calibsteps;
-                    edata[s]->requestCalibration = true;
-                }
-            }
-        }
         else if (plot != NULL)
         {
             /*******
@@ -252,12 +218,13 @@ namespace LinearEncoderController
                     }
 
                     edata[s]->pid = PIDController(edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
+                    // Set output limits based on maximum speed
+                    edata[s]->pid.setOutputLimits(-edata[s]->maxSpeed, edata[s]->maxSpeed);
+                    
                     float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
-                    int sign = speed > 0 ? 1 : -1;
-                    if (abs(speed) > abs(edata[s]->maxSpeed))
-                    {
-                        speed = (float)(sign * edata[s]->maxSpeed);
-                    }
+                    
+                    // Speed is already limited by PID controller output limits
+                    // No need for additional clamping unless we want stricter limits
 
                     // get the motor object and chang the values so that it will move 1000 steps forward
                     if (edata[s]->correctResidualOnly)
@@ -592,17 +559,6 @@ namespace LinearEncoderController
         // check if we need to read the linearencoder for all motors
         for (int i = 0; i < 4; i++)
         {
-
-            if (edata[i]->requestCalibration and getData()[i]->stopped)
-            {
-                edata[i]->requestCalibration = false;
-                delay(1000); // wait until slide settles
-                // read linearencoder value for given axis
-                edata[i]->valuePostCalib = getCurrentPosition(i);
-                log_i("post calib %f", edata[i]->valuePostCalib);
-                edata[i]->stepsPerMM = edata[i]->calibsteps / (edata[i]->valuePostCalib - edata[i]->positionPreMove);
-                log_d("calibrated linearencoder %i with %f steps per mm", i, edata[i]->stepsPerMM);
-            }
             if (edata[i]->homeAxis)
             {
                 // we track the position and if there is no to little change we will stop the motor and set the position to zero
@@ -623,9 +579,20 @@ namespace LinearEncoderController
                     // blocks until stepper reached new position wich would be optimal outside of the endstep
                     getData()[i]->absolutePosition = false;
                     startStepper(i, true);
-                    // wait until stepper reached new position
-                    while (FocusMotor::isRunning(i))
-                        delay(1);
+                    // wait until stepper reached new position - non-blocking check
+                    int waitStart = millis();
+                    while (FocusMotor::isRunning(i)) {
+                        // Feed the watchdog and yield to other tasks to prevent watchdog panic
+                        yield();
+                        delay(10); // Reduced delay to prevent watchdog timeout
+                        
+                        // Add timeout protection to prevent infinite loop
+                        if (millis() - waitStart > 10000) { // 10 second timeout
+                            log_w("Homing timeout - motor %d may be stuck", i);
+                            FocusMotor::stopStepper(i);
+                            break;
+                        }
+                    }
                     // FocusMotor::setPosition(i, 0);
                     FocusMotor::stopStepper(i);
                     getData()[i]->isforever = false;
@@ -634,6 +601,10 @@ namespace LinearEncoderController
                     getData()[i]->speed = 0;
                     // set the current position to zero
                     edata[i]->posval = 0;
+                    
+                    // Save the homed position (zero) to persistent storage
+                    saveEncoderPosition(i);
+                    log_i("Homing completed for encoder %d, zero position saved", i);
                 }
                 edata[i]->lastPosition = currentPos;
             }
@@ -658,14 +629,9 @@ namespace LinearEncoderController
                 float currentPos = getCurrentPosition(i);
                 float currentPosAvg = calculateRollingAverage(currentPos);
 
-                // PID Controller
+                // PID Controller - speed is already limited by PID output limits
                 float speed = edata[i]->pid.compute(edata[i]->positionToGo, currentPos);
-                int sign = speed > 0 ? 1 : -1;
-                // if speed is too high, limit it to the maximum of motor
-                if (abs(speed) > abs(edata[i]->maxSpeed))
-                {
-                    speed = (float)(sign * edata[i]->maxSpeed);
-                }
+                // The PID controller already handles output limits, no need for additional clamping
                 // initiate a motion with updated speed
                 // log_i("Current position %f, position to go %f, speed %f\n",
                 //      edata[i]->posval, edata[i]->positionToGo, speed);
@@ -684,6 +650,9 @@ namespace LinearEncoderController
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
                     
+                    // Save encoder position when motion completes successfully
+                    saveEncoderPosition(i);
+                    log_i("Precision motion completed for encoder %d, position saved", i);
 
                 }
 
@@ -705,6 +674,9 @@ namespace LinearEncoderController
                     edata[i]->movePrecise = false;
                     log_i("Final Position %f", getCurrentPosition(i));
                     
+                    // Save encoder position when motion stops due to obstruction
+                    saveEncoderPosition(i);
+                    log_i("Motion stopped for encoder %d, position saved", i);
 
                 }
             }
@@ -786,6 +758,9 @@ namespace LinearEncoderController
         if (pinConfig.ENC_Z_A >= 0) {
             log_i("Z-axis encoder pins available but disabled (focusing on X-axis accuracy)");
         }
+        
+        // Restore encoder positions from persistent storage
+        loadAllEncoderPositions();
     }
 
     float calculateRollingAverage(float newVal)
@@ -844,6 +819,36 @@ namespace LinearEncoderController
     bool isPCNTAvailable()
     {
         return PCNTEncoderController::isPCNTAvailable();
+    }
+
+    void saveEncoderPosition(int encoderIndex) {
+        if (encoderIndex < 0 || encoderIndex >= 4 || !edata[encoderIndex]) return;
+        MotorEncoderConfig::saveEncoderPosition(encoderIndex, edata[encoderIndex]->posval);
+    }
+    
+    void loadEncoderPosition(int encoderIndex) {
+        if (encoderIndex < 0 || encoderIndex >= 4 || !edata[encoderIndex]) return;
+        float savedPosition = MotorEncoderConfig::loadEncoderPosition(encoderIndex);
+        edata[encoderIndex]->posval = savedPosition;
+        log_i("Restored encoder %d position to: %f µm", encoderIndex, savedPosition);
+    }
+    
+    void saveAllEncoderPositions() {
+        log_i("Saving all encoder positions to persistent storage");
+        for (int i = 0; i < 4; i++) {
+            if (edata[i]) {
+                saveEncoderPosition(i);
+            }
+        }
+    }
+    
+    void loadAllEncoderPositions() {
+        log_i("Loading all encoder positions from persistent storage");
+        for (int i = 0; i < 4; i++) {
+            if (edata[i]) {
+                loadEncoderPosition(i);
+            }
+        }
     }
 
 } // namespace name

@@ -28,16 +28,13 @@ struct LinearEncoderData
 	float posval = 0.0f;
 	bool requestPosition = false;
 	int linearencoderID = -1;
-	bool requestCalibration = false;
 	bool homeAxis = false;
 	bool movePrecise = false;
 	bool isAbsolute = true;
-	int calibsteps = 0;
 	int dataPin = -1;
 	int clkPin = -1;
 	float positionPreMove = 0.0f;
 	float positionToGo = 0.0f;
-	float valuePostCalib = 0.0f;
 	float stepsPerMM = 0.0f;
 	long timeSinceMotorStart = 0;
 	float lastPosition = -1000000.0f;
@@ -75,4 +72,10 @@ namespace LinearEncoderController
 	void setEncoderInterface(int encoderIndex, EncoderInterface interface);
 	EncoderInterface getEncoderInterface(int encoderIndex);
 	bool isPCNTEncoderSupported();
+	
+	// Encoder position persistence functions
+	void saveEncoderPosition(int encoderIndex);
+	void loadEncoderPosition(int encoderIndex);
+	void saveAllEncoderPositions();
+	void loadAllEncoderPositions();
 };

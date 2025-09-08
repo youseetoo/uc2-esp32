@@ -22,6 +22,12 @@ namespace MotorEncoderConfig {
     // Function to save conversion factor to preferences
     void saveToPreferences();
     
+    // Functions for encoder position persistence
+    void saveEncoderPosition(int encoderIndex, float position);
+    float loadEncoderPosition(int encoderIndex);
+    void saveAllEncoderPositions();
+    void loadAllEncoderPositions();
+    
     // Initialize with default values and load from preferences
     void setup();
 }

@@ -27,23 +27,7 @@ Move motors using standard step counting:
 Move motors using encoder feedback for high precision positioning:
 
 ```json
-{
-  "task": "/motor_act",
-  "motor": {
-    "steppers": [{
-      "stepperid": 0,
-      "position": 10000,
-      "speed": 20000,
-      "isabs": 1,
-      "isaccel": 0,
-      "accel": 10000,
-      "enc": 1,
-      "cp": 100.0,
-      "ci": 0.5,
-      "cd": 10.0
-    }]
-  }
-}
+{   "task": "/motor_act",   "motor": {     "steppers": [{       "stepperid": 1,       "position": 1000,       "speed": 20000,       "isabs": 0,       "isaccel": 0,       "accel": 10000,       "enc": 1,       "cp": 10.0,       "ci": 0.,       "cd": 0.0     }]   } }
 ```
 
 **Parameters:**

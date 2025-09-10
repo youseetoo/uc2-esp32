@@ -274,4 +274,14 @@ namespace FAccelStep
         // move the motor by the given steps
         faststeppers[s]->move(steps, blocking);
     }
+
+    long getCurrentPosition(Stepper s)
+    {
+        if (faststeppers[s] == nullptr)
+        {
+            log_e("FastAccelStepper for axis %d is null", s);
+            return 0;
+        }
+        return faststeppers[s]->getCurrentPosition();
+    }
 }

@@ -24,12 +24,14 @@
 {"task": "/linearencoder_act", "plot":0}
 {"task":"/linearencoder_get", "linencoder": { "posval": 3,    "id": 1  }}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 200000, "speed": 25000, "enc":0}]}}
+{"task": "/motor_act","motor": {  "steppers": [{ "stepperid": 1, "position": 1000, "speed": 20000, "isabs": 0, "isaccel": 0, "accel": 10000, "enc": 1, "cp": 1.0, "ci": 0., "cd": 0.0}]} }
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 100000, "speed": 500, "enc":0}]}}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -32000, "speed": 20000, "enc":0}]}}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -1000, "isabs":1, "speed": 1000, "enc":1}]}}
 
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000} ]}}       
-{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": -10000 , "speed": 1000, "cp":10, "ci":10.0, "cd":1.0} ]}}
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": 30000 , "speed": 10000, "cp":2, "ci":0.0, "cd":0.0} ]}}
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": -40000 , "speed": 10000, "cp":10.0, "ci":5.0, "cd":0.0} ]}}
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 # MOTOR

@@ -135,8 +135,8 @@ namespace SerialProcess
 		//	xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
 		Serial.setTimeout(100);
 		Serial.setTxBufferSize(1024);
-		esp_log_level_set("*", ESP_LOG_NONE);
-		Serial.setDebugOutput(false);
+		//esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
+		//Serial.setDebugOutput(false);
 	}
 
 	void addJsonToQueue(cJSON *doc)

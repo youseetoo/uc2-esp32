@@ -228,6 +228,25 @@ namespace FocusMotor
 #endif
 	}
 
+	long getCurrentMotorPosition(int axis)
+	{
+		// Get real-time motor position directly from stepper library
+#ifdef USE_FASTACCEL
+		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
+#elif defined USE_ACCELSTEP
+		// For AccelStep, we need to rely on cached position
+		return data[axis]->currentPosition;
+#elif defined I2C_MASTER
+		// For I2C, we need to rely on cached position
+		return data[axis]->currentPosition;
+#elif defined CAN_CONTROLLER
+		// For CAN, we need to rely on cached position
+		return data[axis]->currentPosition;
+#else
+		return data[axis]->currentPosition;
+#endif
+	}
+
 	void setup_data()
 	{
 

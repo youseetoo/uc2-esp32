@@ -16,9 +16,9 @@ using namespace FocusMotor;
 namespace LinearEncoderController
 {
 
-    //function pointer to motordata from different possible targets
+    // function pointer to motordata from different possible targets
     MotorData **(*getData)();
-    //function pointer to start a stepper
+    // function pointer to start a stepper
     void (*startStepper)(int, int);
 
     std::array<LinearEncoderData *, 4> edata;
@@ -32,7 +32,7 @@ namespace LinearEncoderController
             bool pinA = digitalRead(pinConfig.ENC_X_A);
             bool pinB = digitalRead(pinConfig.ENC_X_B);
             if ((pinA == pinB) ^ edata[1]->encoderDirection)
-                edata[1]->posval += edata[1]->mumPerStep; // TODO: We should update single steps (e.g. int) and then multiple later when retrieving the position somewhere else with the gloval conversion factor 
+                edata[1]->posval += edata[1]->mumPerStep; // TODO: We should update single steps (e.g. int) and then multiple later when retrieving the position somewhere else with the gloval conversion factor
             else
                 edata[1]->posval -= edata[1]->mumPerStep;
         }
@@ -85,8 +85,6 @@ namespace LinearEncoderController
             else
                 edata[3]->posval -= edata[3]->mumPerStep;
         }
-
-        
     }
 
     /*
@@ -103,10 +101,10 @@ namespace LinearEncoderController
         cJSON *home = cJSON_GetObjectItem(j, key_linearencoder_home);
         cJSON *plot = cJSON_GetObjectItem(j, key_linearencoder_plot);
 
-        else if (plot != NULL)
+        if (plot != NULL)
         {
             /*******
-             * PLOT THE ENCODER VALUES in the loop -> set flag true/false 
+             * PLOT THE ENCODER VALUES in the loop -> set flag true/false
              *******/
             // {"task": "/linearencoder_act", "plot": 1}
 
@@ -155,15 +153,15 @@ namespace LinearEncoderController
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
             //{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1} ]}}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1, "stp2phys":0.3125} ]}}
+            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
             //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
-                // TODO: We need to retreive the PCNT value here as well to have a better starting point
+            // TODO: We need to retreive the PCNT value here as well to have a better starting point
             cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
             if (stprs != NULL)
             {
                 cJSON *stp = NULL;
-                cJSON_ArrayForEach(stp, stprs)
+                cJSON_ArrayForEach(stp, stprs) // TODO: We only want to do that for one axis (i.e. x == 1)
                 {
                     int s = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint;
                     // measure current value
@@ -183,13 +181,13 @@ namespace LinearEncoderController
                     // calculate the position to go
                     float distanceToGo = posToGo;
                     if (!edata[s]->isAbsolute)
-                        distanceToGo += edata[s]->positionPreMove;
+                        distanceToGo += edata[s]->positionPreMove; // TODO: Check if this is in correct units?
                     edata[s]->positionToGo = distanceToGo;
 
                     // PID Controller
-                    edata[s]->c_p = 100.;
+                    edata[s]->c_p = 10.;
                     edata[s]->c_i = 0.5;
-                    edata[s]->c_d = 10.;
+                    edata[s]->c_d = .0;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL)
                         edata[s]->c_p = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci) != NULL)
@@ -200,56 +198,27 @@ namespace LinearEncoderController
                         edata[s]->maxSpeed = abs(cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint);
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                         edata[s]->encoderDirection = abs(cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint);
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL){
+                    if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
+                    {
                         getData()[s]->directionPinInverted = abs(cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint);
                         // TODO: We need to store this permanently in the preferences for this very motor
-                    }
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "res") != NULL)
-                        edata[s]->correctResidualOnly = abs(cJSON_GetObjectItemCaseSensitive(stp, "res")->valueint);
-                    else
-                        edata[s]->correctResidualOnly = false;
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "stp2phys") != NULL)
-                    {
-                        edata[s]->stp2phys = abs(cJSON_GetObjectItemCaseSensitive(stp, "stp2phys")->valuedouble);
-                    }
-                    else
-                    {
-                        edata[s]->stp2phys = 1.0;
                     }
 
                     edata[s]->pid = PIDController(edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
                     // Set output limits based on maximum speed
                     edata[s]->pid.setOutputLimits(-edata[s]->maxSpeed, edata[s]->maxSpeed);
-                    
+
                     float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
-                    
+
                     // Speed is already limited by PID controller output limits
                     // No need for additional clamping unless we want stricter limits
 
-                    // get the motor object and chang the values so that it will move 1000 steps forward
-                    if (edata[s]->correctResidualOnly)
-                    {
-                        getData()[s]->isforever = false;
-                        getData()[s]->speed = speed;
-                        edata[s]->timeSinceMotorStart = millis();
-                        edata[s]->movePrecise = true;
-
-                        if (edata[s]->isAbsolute)
-                            getData()[s]->targetPosition = (float)posToGo / edata[s]->stp2phys;
-                        else
-                            getData()[s]->targetPosition = (float)(posToGo + edata[s]->positionPreMove) / edata[s]->stp2phys;
-                        log_d("Move precise from (residual only) %f to %f at motor speed %f, computed speed %f, encoderDirection %f with PID %f, %f, %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection, edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
-                        startStepper(s, true);
-                    }
-                    else
-                    {
                         getData()[s]->isforever = true;
                         getData()[s]->speed = speed;
                         edata[s]->timeSinceMotorStart = millis();
                         edata[s]->movePrecise = true;
                         log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
                         startStepper(s, true);
-                    }
                 }
             }
             else if (setup != NULL)
@@ -281,11 +250,9 @@ namespace LinearEncoderController
                 log_e("unknown command");
             }
         }
-        
 
-        
         // Handle encoder configuration settings
-        // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0, "stp2phys": 2.0} ]}}
+        // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0} ]}}
         cJSON *config = cJSON_GetObjectItem(j, "config");
         if (config != NULL)
         {
@@ -296,88 +263,86 @@ namespace LinearEncoderController
                 cJSON_ArrayForEach(stp, stprs)
                 {
                     int s = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint;
-                    
+
                     // Set encoder direction permanently
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                     {
                         bool encDir = cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint;
                         edata[s]->encoderDirection = encDir;
                         log_i("Set encoder direction for axis %d: %s", s, encDir ? "forward" : "reverse");
-                        
+
                         // Store in preferences
                         Preferences preferences;
                         preferences.begin("UC2_ENC", false);
                         preferences.putBool(("encdir" + String(s)).c_str(), encDir);
                         preferences.end();
                     }
-                    
+
                     // Set motor direction permanently
                     if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
                     {
                         bool motDir = cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint;
                         getData()[s]->directionPinInverted = motDir;
                         log_i("Set motor direction for axis %d: %s", s, motDir ? "inverted" : "normal");
-                        
+
                         // Store in preferences
                         Preferences preferences;
                         preferences.begin("UC2", false);
                         String motdirKey = "";
-                        switch(s) {
-                            case 0: motdirKey = "motainv"; break;  // A axis
-                            case 1: motdirKey = "motxinv"; break;  // X axis
-                            case 2: motdirKey = "motyinv"; break;  // Y axis
-                            case 3: motdirKey = "motzinv"; break;  // Z axis
-                            default: break;
+                        switch (s)
+                        {
+                        case 0:
+                            motdirKey = "motainv";
+                            break; // A axis
+                        case 1:
+                            motdirKey = "motxinv";
+                            break; // X axis
+                        case 2:
+                            motdirKey = "motyinv";
+                            break; // Y axis
+                        case 3:
+                            motdirKey = "motzinv";
+                            break; // Z axis
+                        default:
+                            break;
                         }
-                        if (motdirKey != "") {
+                        if (motdirKey != "")
+                        {
                             preferences.putBool(motdirKey.c_str(), motDir);
                         }
                         preferences.end();
                     }
-                    
-                    // Set step-to-physical ratio permanently
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "stp2phys") != NULL)
-                    {
-                        float stp2phys = cJSON_GetObjectItemCaseSensitive(stp, "stp2phys")->valuedouble;
-                        edata[s]->stp2phys = stp2phys;
-                        log_i("Set step-to-physical ratio for axis %d: %f", s, stp2phys);
-                        
-                        // Store in preferences
-                        Preferences preferences;
-                        preferences.begin("UC2_ENC", false);
-                        preferences.putFloat(("stp2phys" + String(s)).c_str(), stp2phys);
-                        preferences.end();
-                    }
-                    
+
                     // Set micrometer per step (encoder resolution) permanently
                     if (cJSON_GetObjectItemCaseSensitive(stp, "mumpstp") != NULL)
                     {
                         float mumPerStep = cJSON_GetObjectItemCaseSensitive(stp, "mumpstp")->valuedouble;
                         edata[s]->mumPerStep = mumPerStep;
                         log_i("Set micrometer per step for axis %d: %f", s, mumPerStep);
-                        
+
                         // Store in preferences
                         Preferences preferences;
                         preferences.begin("UC2_ENC", false);
                         preferences.putFloat(("mumpstp" + String(s)).c_str(), mumPerStep);
                         preferences.end();
                     }
-                    
+
                     log_i("Encoder configuration updated for axis %d", s);
                 }
             }
-            
-            // Handle global motor-encoder conversion factor configuration  
+
+            // Handle global motor-encoder conversion factor configuration
             // {"task": "/linearencoder_act", "config": {"stepsToEncoderUnits": 0.3125}}
             cJSON *stepsToEncUnits = cJSON_GetObjectItem(config, "stepsToEncoderUnits");
-            if (stepsToEncUnits != NULL && cJSON_IsNumber(stepsToEncUnits)) {
+            if (stepsToEncUnits != NULL && cJSON_IsNumber(stepsToEncUnits))
+            {
                 float conversionFactor = (float)stepsToEncUnits->valuedouble;
                 MotorEncoderConfig::setStepsToEncoderUnits(conversionFactor);
                 MotorEncoderConfig::saveToPreferences();
                 log_i("Global motor-encoder conversion factor set to: %f µm per step", conversionFactor);
             }
         }
-        
+
         // Handle diagnostic commands for encoder health checks
         // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
         cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
@@ -388,7 +353,7 @@ namespace LinearEncoderController
             {
                 int stepperid = stepperidItem->valueint;
                 log_i("Running encoder diagnostic for axis %d", stepperid);
-                
+
                 if (stepperid >= 1 && stepperid <= 3)
                 {
                     // Run encoder accuracy test
@@ -417,14 +382,14 @@ namespace LinearEncoderController
             int stepperid = cJsonTool::getJsonInt(diagnostic, key_stepperid);
             if (stepperid >= 1 && stepperid <= 3) {
                 log_i("Running encoder diagnostic for axis %d", stepperid);
-                
+
                 // Test encoder accuracy using PCNT controller
-                
+
                 if (PCNTEncoderController::isPCNTAvailable()) {
                     PCNTEncoderController::testEncoderAccuracy(stepperid);
                 }
-                
-               
+
+
                 // Report current encoder state
                 float currentPos = getCurrentPosition(stepperid);
                 int64_t currentCount = 0;
@@ -433,8 +398,8 @@ namespace LinearEncoderController
                 } else {
                     currentCount = (int64_t)(edata[stepperid]->posval / edata[stepperid]->mumPerStep);
                 }
-                
-                log_i("Encoder %d diagnostic: pos=%.3f, count=%lld, interface=%s", 
+
+                log_i("Encoder %d diagnostic: pos=%.3f, count=%lld, interface=%s",
                       stepperid, currentPos, currentCount,
                       (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
             }
@@ -445,12 +410,16 @@ namespace LinearEncoderController
 
     void setCurrentPosition(int encoderIndex, float offsetPos)
     {
-        if (encoderIndex < 0 || encoderIndex >= 4) return;
-        
+        if (encoderIndex < 0 || encoderIndex >= 4)
+            return;
+
         // Use selected encoder interface
-        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable()) {
+        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable())
+        {
             PCNTEncoderController::setCurrentPosition(encoderIndex, offsetPos);
-        } else {
+        }
+        else
+        {
             // Fallback to interrupt-based
             edata[encoderIndex]->posval = offsetPos;
         }
@@ -458,12 +427,16 @@ namespace LinearEncoderController
 
     float getCurrentPosition(int encoderIndex)
     {
-        if (encoderIndex < 0 || encoderIndex >= 4) return 0.0f;
-        
+        if (encoderIndex < 0 || encoderIndex >= 4)
+            return 0.0f;
+
         // Use selected encoder interface
-        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable()) {
+        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable())
+        {
             return PCNTEncoderController::getCurrentPosition(encoderIndex);
-        } else {
+        }
+        else
+        {
             // Fallback to interrupt-based
             return edata[encoderIndex]->posval;
         }
@@ -510,7 +483,7 @@ namespace LinearEncoderController
             cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
             cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
             cJSON_AddItemToObject(doc, "linearencoder_edata", aritem);
-            
+
             Serial.println("linearencoder_edata for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
         }
         else
@@ -543,21 +516,29 @@ namespace LinearEncoderController
         // print current position of the linearencoder
         // log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
 
-        if (isPlot){
+        if (isPlot)
+        {
             // Minimal encoder plotting to avoid serial interference with counting
             // Very reduced frequency to minimize impact on encoder accuracy
             static int plotCounter = 0;
-            if (++plotCounter % 20 == 0) {  // Only plot every 20 loops to reduce serial interference
-                // Use log_i only (not Serial.println) to prevent direct serial interference
-                //log_i("plot: %f", getCurrentPosition(1));
-                 Serial.println("[][][] loop(): plot: " + String(getCurrentPosition(1))); // Removed to prevent encoder interference
-                 Serial.flush();
-                
+            if (++plotCounter % 20 == 0)
+        {                                                                            
+            // Only plot every 20 loops to reduce serial interference
+            // Use log_i only (not Serial.println) to prevent direct serial interference
+            // log_i("plot: %f", getCurrentPosition(1));
+            // get current motor position for motor x / axis 1
+            // get current motor position for motor x / axis 1 - improved direct access
+            long currentMotorPos = getCurrentMotorPosition(1); // Updated by FAccelStep::updateData()
+            Serial.print(currentMotorPos);
+            Serial.print("; ");
+            Serial.print(getCurrentPosition(1));
+            Serial.println("; ");
+            Serial.flush();
             }
         }
 #ifdef MOTOR_CONTROLLER
         // check if we need to read the linearencoder for all motors
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 4; i++) // TODO: Only use 1 motor (i.e. X)
         {
             if (edata[i]->homeAxis)
             {
@@ -581,13 +562,15 @@ namespace LinearEncoderController
                     startStepper(i, true);
                     // wait until stepper reached new position - non-blocking check
                     int waitStart = millis();
-                    while (FocusMotor::isRunning(i)) {
+                    while (FocusMotor::isRunning(i))
+                    {
                         // Feed the watchdog and yield to other tasks to prevent watchdog panic
                         yield();
                         delay(10); // Reduced delay to prevent watchdog timeout
-                        
+
                         // Add timeout protection to prevent infinite loop
-                        if (millis() - waitStart > 10000) { // 10 second timeout
+                        if (millis() - waitStart > 10000)
+                        { // 10 second timeout
                             log_w("Homing timeout - motor %d may be stuck", i);
                             FocusMotor::stopStepper(i);
                             break;
@@ -601,29 +584,16 @@ namespace LinearEncoderController
                     getData()[i]->speed = 0;
                     // set the current position to zero
                     edata[i]->posval = 0;
-                    
+
                     // Save the homed position (zero) to persistent storage
                     saveEncoderPosition(i);
                     log_i("Homing completed for encoder %d, zero position saved", i);
                 }
                 edata[i]->lastPosition = currentPos;
             }
-            if (edata[i]->correctResidualOnly and getData()[i]->stopped)
+            if (edata[i]->movePrecise)
             {
-                // if we went a concrete number of step we have to move the motor to the correct position based on the encoder
-                edata[i]->correctResidualOnly = false;
-                getData()[i]->isforever = true;
-                // read current encoder position
-                float currentPos = getCurrentPosition(i);
-                edata[i]->positionToGo -= currentPos;
-                edata[i]->timeSinceMotorStart = millis();
-                edata[i]->movePrecise = true;
-                log_d("Move precise from %f to %f at motor speed %f, encoderDirection %f", edata[i]->positionPreMove, edata[i]->positionToGo, getData()[i]->speed, edata[i]->encoderDirection);
-                startStepper(i, true);
-            }
-
-            if (edata[i]->movePrecise and not edata[i]->correctResidualOnly)
-            {
+                // TODO: maybe we have to convert this into a blocking action to readout position faster and react faster
 
                 // read current encoder position
                 float currentPos = getCurrentPosition(i);
@@ -649,11 +619,10 @@ namespace LinearEncoderController
                     getData()[i]->isforever = false;
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
-                    
+
                     // Save encoder position when motion completes successfully
                     saveEncoderPosition(i);
                     log_i("Precision motion completed for encoder %d, position saved", i);
-
                 }
 
                 // in case the motor position does not move for 5 cycles, we stop the motor
@@ -673,11 +642,10 @@ namespace LinearEncoderController
                     FocusMotor::stopStepper(i);
                     edata[i]->movePrecise = false;
                     log_i("Final Position %f", getCurrentPosition(i));
-                    
+
                     // Save encoder position when motion stops due to obstruction
                     saveEncoderPosition(i);
                     log_i("Motion stopped for encoder %d, position saved", i);
-
                 }
             }
         }
@@ -709,23 +677,23 @@ namespace LinearEncoderController
         {
             // Load encoder direction
             edata[i]->encoderDirection = preferences.getBool(("encdir" + String(i)).c_str(), edata[i]->encoderDirection);
-            
-            // Load step-to-physical ratio
-            edata[i]->stp2phys = preferences.getFloat(("stp2phys" + String(i)).c_str(), edata[i]->stp2phys);
-            
+
             // Load micrometer per step
             edata[i]->mumPerStep = preferences.getFloat(("mumpstp" + String(i)).c_str(), edata[i]->mumPerStep);
-            
-            log_i("Loaded encoder config for axis %d: encdir=%d, stp2phys=%f, mumPerStep=%f", 
-                  i, edata[i]->encoderDirection, edata[i]->stp2phys, edata[i]->mumPerStep);
+
+            log_i("Loaded encoder config for axis %d: encdir=%d, mumPerStep=%f",
+                  i, edata[i]->encoderDirection, edata[i]->mumPerStep);
         }
         preferences.end();
 
         // Initialize PCNT encoder controller first for maximum accuracy
-        if (PCNTEncoderController::isPCNTAvailable()) {
+        if (PCNTEncoderController::isPCNTAvailable())
+        {
             log_i("Initializing ESP32Encoder PCNT interface for high accuracy");
             PCNTEncoderController::setup();
-        } else {
+        }
+        else
+        {
             log_w("ESP32Encoder PCNT interface not available");
         }
 
@@ -737,28 +705,33 @@ namespace LinearEncoderController
             pinMode(pinConfig.ENC_X_A, INPUT_PULLUP);
             pinMode(pinConfig.ENC_X_B, INPUT_PULLUP);
             edata[1]->encoderDirection = pinConfig.ENC_X_encoderDirection;
-            
+
             // Only add interrupt listeners if PCNT is not available to avoid conflicts
-            if (!PCNTEncoderController::isPCNTAvailable()) {
-                InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-                InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t)) & processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+            if (!PCNTEncoderController::isPCNTAvailable())
+            {
+                InterruptController::addInterruptListner(pinConfig.ENC_X_A, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+                InterruptController::addInterruptListner(pinConfig.ENC_X_B, (void (*)(uint8_t))&processEncoderEvent, gpio_int_type_t::GPIO_INTR_ANYEDGE);
                 log_i("X-axis encoder: using interrupt-based interface (PCNT not available)");
-            } else {
+            }
+            else
+            {
                 log_i("X-axis encoder: using PCNT interface for maximum accuracy");
             }
-            
+
             setEncoderInterface(1, (EncoderInterface)PCNTEncoderController::isPCNTAvailable());
         }
-        
+
         // Disable Y and Z axis encoders for now to focus on X-axis accuracy
         // They can be re-enabled later once X-axis counting is proven stable
-        if (pinConfig.ENC_Y_A >= 0) {
+        if (pinConfig.ENC_Y_A >= 0)
+        {
             log_i("Y-axis encoder pins available but disabled (focusing on X-axis accuracy)");
         }
-        if (pinConfig.ENC_Z_A >= 0) {
+        if (pinConfig.ENC_Z_A >= 0)
+        {
             log_i("Z-axis encoder pins available but disabled (focusing on X-axis accuracy)");
         }
-        
+
         // Restore encoder positions from persistent storage
         loadAllEncoderPositions();
     }
@@ -782,21 +755,24 @@ namespace LinearEncoderController
     void setEncoderInterface(int encoderIndex, EncoderInterface interface)
     {
         log_i("Set Encoder Available Interface: %d, with interface %d", encoderIndex, interface);
-        if (encoderIndex < 0 || encoderIndex >= 4) return;
-        
-        if (interface == ENCODER_PCNT_BASED && !PCNTEncoderController::isPCNTAvailable()) {
+        if (encoderIndex < 0 || encoderIndex >= 4)
+            return;
+
+        if (interface == ENCODER_PCNT_BASED && !PCNTEncoderController::isPCNTAvailable())
+        {
             log_w("PCNT not available, keeping interrupt-based interface for encoder %d", encoderIndex);
             return;
         }
-        
+
         edata[encoderIndex]->encoderInterface = interface;
-        log_i("Encoder %d interface set to %s", encoderIndex, 
+        log_i("Encoder %d interface set to %s", encoderIndex,
               (interface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
     }
 
     EncoderInterface getEncoderInterface(int encoderIndex)
     {
-        if (encoderIndex < 0 || encoderIndex >= 4) return ENCODER_INTERRUPT_BASED;
+        if (encoderIndex < 0 || encoderIndex >= 4)
+            return ENCODER_INTERRUPT_BASED;
         return edata[encoderIndex]->encoderInterface;
     }
 
@@ -821,31 +797,41 @@ namespace LinearEncoderController
         return PCNTEncoderController::isPCNTAvailable();
     }
 
-    void saveEncoderPosition(int encoderIndex) {
-        if (encoderIndex < 0 || encoderIndex >= 4 || !edata[encoderIndex]) return;
+    void saveEncoderPosition(int encoderIndex)
+    {
+        if (encoderIndex < 0 || encoderIndex >= 4 || !edata[encoderIndex])
+            return;
         MotorEncoderConfig::saveEncoderPosition(encoderIndex, edata[encoderIndex]->posval);
     }
-    
-    void loadEncoderPosition(int encoderIndex) {
-        if (encoderIndex < 0 || encoderIndex >= 4 || !edata[encoderIndex]) return;
+
+    void loadEncoderPosition(int encoderIndex)
+    {
+        if (encoderIndex < 0 || encoderIndex >= 4 || !edata[encoderIndex])
+            return;
         float savedPosition = MotorEncoderConfig::loadEncoderPosition(encoderIndex);
         edata[encoderIndex]->posval = savedPosition;
         log_i("Restored encoder %d position to: %f µm", encoderIndex, savedPosition);
     }
-    
-    void saveAllEncoderPositions() {
+
+    void saveAllEncoderPositions()
+    {
         log_i("Saving all encoder positions to persistent storage");
-        for (int i = 0; i < 4; i++) {
-            if (edata[i]) {
+        for (int i = 0; i < 4; i++)
+        {
+            if (edata[i])
+            {
                 saveEncoderPosition(i);
             }
         }
     }
-    
-    void loadAllEncoderPositions() {
+
+    void loadAllEncoderPositions()
+    {
         log_i("Loading all encoder positions from persistent storage");
-        for (int i = 0; i < 4; i++) {
-            if (edata[i]) {
+        for (int i = 0; i < 4; i++)
+        {
+            if (edata[i])
+            {
                 loadEncoderPosition(i);
             }
         }

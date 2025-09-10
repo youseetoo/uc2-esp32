@@ -709,22 +709,6 @@ namespace LinearEncoderController
         loadAllEncoderPositions();
     }
 
-    float calculateRollingAverage(float newVal)
-    {
-
-        static float values[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-        static int insertIndex = 0;
-        static float sum = 0.0;
-
-        sum -= values[insertIndex];
-        values[insertIndex] = newVal;
-        sum += newVal;
-
-        insertIndex = (insertIndex + 1) % 5;
-
-        return sum / 5.0;
-    }
-
     void setEncoderInterface(int encoderIndex, EncoderInterface interface)
     {
         log_i("Set Encoder Available Interface: %d, with interface %d", encoderIndex, interface);

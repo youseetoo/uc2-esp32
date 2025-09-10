@@ -22,37 +22,28 @@ namespace PCNTEncoderController {
 
 struct LinearEncoderData
 {	
-	float conversionFactor = 2.0 / 1024.0; // 2mm per 1024 steps from AS5311
 	bool encoderDirection = false;
 	bool motorDirection = false;
 	float posval = 0.0f; // Calculated position in µm (derived from stepCount * globalConversionFactor)
 	long stepCount = 0; // Raw integer step count for accuracy
-	bool requestPosition = false;
 	int linearencoderID = -1;
 	bool homeAxis = false;
 	bool movePrecise = false;
 	bool isAbsolute = true;
-	int dataPin = -1;
-	int clkPin = -1;
 	float positionPreMove = 0.0f;
 	float positionToGo = 0.0f;
-	float stepsPerMM = 0.0f;
 	long timeSinceMotorStart = 0;
 	float lastPosition = -1000000.0f;
 	float maxSpeed = 10000.0f;
-	float stp2phys = 1.0f; // conversion factor from steps to physical units
 	
-	// PID controller variablexs
+	// PID controller variables
 	float c_p = 2.;
 	float c_i = 0.1;
 	float c_d = 0.1;
-	float mumPerStep = 1.f; // default to one - DEPRECATED: Use global conversion factor
 	PIDController pid = PIDController(c_p, c_i, c_d);
 	// Encoder interface selection
 	EncoderInterface encoderInterface = ENCODER_INTERRUPT_BASED; // Default to interrupt-based
 };
-
-void processHomeLoop(void * p);
 
 namespace LinearEncoderController
 {
@@ -64,9 +55,7 @@ namespace LinearEncoderController
 	void setup();
 	void loop();
 
-	static bool isPlot = 0; // plot position values 
-
-	float calculateRollingAverage(float newValue);
+	static bool isPlot = 0; // plot position values
 	
 	// Encoder interface selection functions
 	void setEncoderInterface(int encoderIndex, EncoderInterface interface);

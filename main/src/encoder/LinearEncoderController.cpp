@@ -32,9 +32,9 @@ namespace LinearEncoderController
             bool pinA = digitalRead(pinConfig.ENC_X_A);
             bool pinB = digitalRead(pinConfig.ENC_X_B);
             if ((pinA == pinB) ^ edata[1]->encoderDirection)
-                edata[1]->posval += edata[1]->mumPerStep; // TODO: We should update single steps (e.g. int) and then multiple later when retrieving the position somewhere else with the gloval conversion factor
+                edata[1]->stepCount++; // Update integer steps first for accuracy
             else
-                edata[1]->posval -= edata[1]->mumPerStep;
+                edata[1]->stepCount--;
         }
         else if (pin == pinConfig.ENC_X_A)
         { // X-B changed
@@ -42,9 +42,9 @@ namespace LinearEncoderController
             bool pinB = digitalRead(pinConfig.ENC_X_B);
 
             if ((pinA != pinB) ^ edata[1]->encoderDirection)
-                edata[1]->posval += edata[1]->mumPerStep;
+                edata[1]->stepCount++;
             else
-                edata[1]->posval -= edata[1]->mumPerStep;
+                edata[1]->stepCount--;
         }
         else if (pin == pinConfig.ENC_Y_A)
         { // Y-A changed
@@ -52,9 +52,9 @@ namespace LinearEncoderController
             bool pinB = digitalRead(pinConfig.ENC_Y_B);
 
             if ((pinA == pinB) ^ edata[2]->encoderDirection)
-                edata[2]->posval += edata[2]->mumPerStep;
+                edata[2]->stepCount++;
             else
-                edata[2]->posval -= edata[2]->mumPerStep;
+                edata[2]->stepCount--;
         }
         else if (pin == pinConfig.ENC_Y_B)
         { // Y-B changed
@@ -62,18 +62,18 @@ namespace LinearEncoderController
             bool pinB = digitalRead(pinConfig.ENC_Y_B);
 
             if ((pinA != pinB) ^ edata[2]->encoderDirection)
-                edata[2]->posval += edata[2]->mumPerStep;
+                edata[2]->stepCount++;
             else
-                edata[2]->posval -= edata[2]->mumPerStep;
+                edata[2]->stepCount--;
         }
         else if (pin == pinConfig.ENC_Z_A)
         { // Z-A changed
             bool pinA = digitalRead(pinConfig.ENC_Z_A);
             bool pinB = digitalRead(pinConfig.ENC_Z_B);
             if ((pinA == pinB) ^ edata[3]->encoderDirection)
-                edata[3]->posval += edata[3]->mumPerStep;
+                edata[3]->stepCount++;
             else
-                edata[3]->posval -= edata[3]->mumPerStep;
+                edata[3]->stepCount--;
         }
         else if (pin == pinConfig.ENC_Z_B)
         { // Z-B changed
@@ -81,9 +81,9 @@ namespace LinearEncoderController
             bool pinB = digitalRead(pinConfig.ENC_Z_B);
 
             if ((pinA != pinB) ^ edata[3]->encoderDirection)
-                edata[3]->posval += edata[3]->mumPerStep;
+                edata[3]->stepCount++;
             else
-                edata[3]->posval -= edata[3]->mumPerStep;
+                edata[3]->stepCount--;
         }
     }
 
@@ -131,12 +131,9 @@ namespace LinearEncoderController
                     edata[s]->positionPreMove = getCurrentPosition(s);
                     log_i("pre home %f", edata[s]->positionPreMove);
                     int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
-                    // get the motor object and let it run forever int he specfied direction
-                    edata[s]->timeSinceMotorStart = millis();
-                    getData()[s]->isforever = true;
-                    getData()[s]->speed = speed;
-                    startStepper(s, true);
-                    edata[s]->homeAxis = true;
+                    
+                    // Execute homing immediately for fast response times
+                    executeHomingBlocking(s, speed);
                 }
             }
 #endif
@@ -213,14 +210,11 @@ namespace LinearEncoderController
                     // Speed is already limited by PID controller output limits
                     // No need for additional clamping unless we want stricter limits
 
-                    getData()[s]->isforever = true;
-                    getData()[s]->speed = speed;
-                    edata[s]->timeSinceMotorStart = millis();
-                    edata[s]->movePrecise = true;
                     log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
-                    startStepper(s, true);
-
-                    // TODO: I think instead of triggering the motor and run through a series of loop() calls fro the different controllers, we should be as fast as possible and do the control (e.g. polling counter, compute speed, set speed) right away in this function or in a function that is initialized from here - not running inside the loop() fuunction as this might be too slow
+                    
+                    // Execute precision motion control immediately for fast response times
+                    // This replaces the slow loop-based polling with immediate execution
+                    executePrecisionMotionBlocking(s);
                 }
             }
             else
@@ -229,15 +223,23 @@ namespace LinearEncoderController
             }
         }
 
-        // Handle encoder configuration settings
-        // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0} ]}}
+        // Handle encoder configuration settings - simplified to essential parameters only
+        // {"task": "/linearencoder_act", "config": {"stepsToEncoderUnits": 0.3125}}
+        // {"task": "/linearencoder_act", "config": {"steppers": [{"stepperid": 1, "encdir": 1, "motdir": 0}]}}
         cJSON *config = cJSON_GetObjectItem(j, "config");
         if (config != NULL)
-        // TODO: I think we need to be specific on the configuration commands. The only two paramters we need to set is the conversion factor for counts to step and the direction - which could actually be combined in one parameter if the sign of the conversion factor indicates the direction
-        // TODO: The paramerter should be stored in the preferences permanently and read on setup()/startup
-        // TODO: Remaining parameters below that re not needed should go away - cleaned up
-        // TODO: we want to stick to one encoder only for now
         {
+            // Handle global motor-encoder conversion factor configuration (primary parameter)
+            cJSON *stepsToEncUnits = cJSON_GetObjectItem(config, "stepsToEncoderUnits");
+            if (stepsToEncUnits != NULL && cJSON_IsNumber(stepsToEncUnits))
+            {
+                float conversionFactor = (float)stepsToEncUnits->valuedouble;
+                MotorEncoderConfig::setStepsToEncoderUnits(conversionFactor);
+                MotorEncoderConfig::saveToPreferences();
+                log_i("Global conversion factor set to: %f µm per step", conversionFactor);
+            }
+
+            // Handle per-axis direction configuration (simplified)
             cJSON *stprs = cJSON_GetObjectItem(config, key_steppers);
             if (stprs != NULL)
             {
@@ -246,7 +248,7 @@ namespace LinearEncoderController
                 {
                     int s = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint;
 
-                    // Set encoder direction permanently
+                    // Set encoder direction (simplified - sign can be incorporated into global conversion factor)
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                     {
                         bool encDir = cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint;
@@ -260,7 +262,7 @@ namespace LinearEncoderController
                         preferences.end();
                     }
 
-                    // Set motor direction permanently
+                    // Set motor direction 
                     if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
                     {
                         bool motDir = cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint;
@@ -273,20 +275,11 @@ namespace LinearEncoderController
                         String motdirKey = "";
                         switch (s)
                         {
-                        case 0:
-                            motdirKey = "motainv";
-                            break; // A axis
-                        case 1:
-                            motdirKey = "motxinv";
-                            break; // X axis
-                        case 2:
-                            motdirKey = "motyinv";
-                            break; // Y axis
-                        case 3:
-                            motdirKey = "motzinv";
-                            break; // Z axis
-                        default:
-                            break;
+                        case 0: motdirKey = "motainv"; break; // A axis
+                        case 1: motdirKey = "motxinv"; break; // X axis
+                        case 2: motdirKey = "motyinv"; break; // Y axis
+                        case 3: motdirKey = "motzinv"; break; // Z axis
+                        default: break;
                         }
                         if (motdirKey != "")
                         {
@@ -295,34 +288,8 @@ namespace LinearEncoderController
                         preferences.end();
                     }
 
-                    // Set micrometer per step (encoder resolution) permanently
-                    if (cJSON_GetObjectItemCaseSensitive(stp, "mumpstp") != NULL)
-                    {
-                        float mumPerStep = cJSON_GetObjectItemCaseSensitive(stp, "mumpstp")->valuedouble;
-                        edata[s]->mumPerStep = mumPerStep;
-                        log_i("Set micrometer per step for axis %d: %f", s, mumPerStep);
-
-                        // Store in preferences
-                        Preferences preferences;
-                        preferences.begin("UC2_ENC", false);
-                        preferences.putFloat(("mumpstp" + String(s)).c_str(), mumPerStep);
-                        preferences.end();
-                    }
-
                     log_i("Encoder configuration updated for axis %d", s);
                 }
-            }
-
-            // Handle global motor-encoder conversion factor configuration
-            // {"task": "/linearencoder_act", "config": {"stepsToEncoderUnits": 0.3125}}
-            // TODO: We should be more specific and use only one parameter for the conversion factor, all others should go away!
-            cJSON *stepsToEncUnits = cJSON_GetObjectItem(config, "stepsToEncoderUnits");
-            if (stepsToEncUnits != NULL && cJSON_IsNumber(stepsToEncUnits))
-            {
-                float conversionFactor = (float)stepsToEncUnits->valuedouble;
-                MotorEncoderConfig::setStepsToEncoderUnits(conversionFactor);
-                MotorEncoderConfig::saveToPreferences();
-                log_i("Global motor-encoder conversion factor set to: %f µm per step", conversionFactor);
             }
         }
 
@@ -341,7 +308,10 @@ namespace LinearEncoderController
         }
         else
         {
-            // Fallback to interrupt-based
+            // Convert position back to step counts using global conversion factor
+            float globalConversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
+            edata[encoderIndex]->stepCount = (long)(offsetPos / globalConversionFactor);
+            // Update posval for compatibility
             edata[encoderIndex]->posval = offsetPos;
         }
     }
@@ -358,8 +328,12 @@ namespace LinearEncoderController
         }
         else
         {
-            // Fallback to interrupt-based
-            return edata[encoderIndex]->posval;
+            // Apply global conversion factor to step counts for accurate position
+            float globalConversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
+            float position = edata[encoderIndex]->stepCount * globalConversionFactor;
+            // Update posval for compatibility with existing code
+            edata[encoderIndex]->posval = position;
+            return position;
         }
     }
 
@@ -458,121 +432,201 @@ namespace LinearEncoderController
             }
         }
 #ifdef MOTOR_CONTROLLER
-        // check if we need to read the linearencoder for all motors
-        for (int i = 0; i < 4; i++) // TODO: Only use 1 motor (i.e. X)
+        // Encoder control moved to immediate execution for fast response times
+        // - Precision motion: executePrecisionMotionBlocking() provides 1kHz PID updates  
+        // - Homing: executeHomingBlocking() provides fast mechanical limit detection
+        // - Focus on X-axis only for maximum accuracy and performance
+#endif
+    }
+
+    /*
+    Execute precision motion control with immediate PID updates for fast response times.
+    This replaces the slow loop-based polling with blocking execution for optimal performance.
+    */
+    void executePrecisionMotionBlocking(int stepperIndex)
+    {
+        if (stepperIndex < 0 || stepperIndex >= 4 || !edata[stepperIndex])
+            return;
+
+        int s = stepperIndex;
+        
+        // Initialize the initial PID speed and start the motor
+        float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
+        getData()[s]->isforever = true;
+        getData()[s]->speed = speed;
+        edata[s]->timeSinceMotorStart = millis();
+        edata[s]->movePrecise = true;
+        startStepper(s, true);
+
+        log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
+
+        // Fast precision control loop with immediate PID updates
+        const unsigned long maxMotionTime = 30000; // 30 second safety timeout
+        const float positionTolerance = 1.0f; // µm tolerance for completion
+        const float stuckThreshold = 0.01f; // µm threshold for detecting stuck motor
+        const unsigned long stuckTimeout = 1000; // ms before considering motor stuck
+        
+        unsigned long motionStartTime = millis();
+        float previousPosition = getCurrentPosition(s);
+        unsigned long lastPositionChangeTime = millis();
+
+        while (edata[s]->movePrecise && (millis() - motionStartTime) < maxMotionTime)
         {
-            if (edata[i]->homeAxis)
+            // Read current encoder position with high frequency
+            float currentPos = getCurrentPosition(s);
+            float distanceToGo = edata[s]->positionToGo - currentPos;
+
+            // Check if we've reached the target position
+            if (abs(distanceToGo) < positionTolerance)
             {
-                // TODO: Instead of doing that in the global loop, we should have a dedicated function that is called from the act() function right after starting the motor - this would allow much faster reaction times - this would be blocking, so we need to print the acknoledgement before starting the homing/ moving precise
-                // we track the position and if there is no to little change we will stop the motor and set the position to zero
-                float currentPos = getCurrentPosition(i);
-                float currentPosAvg = calculateRollingAverage(currentPos);
-                log_d("current pos %f, current pos avg %f, need to go to: %f", currentPos, currentPosAvg, edata[i]->positionToGo);
-                float thresholdPositionChange = 0.1f;
-                int startupTimout = 2000; // time to track if there is no movement which could mean the motion is blocked
-
-                if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
-                    (millis() - edata[i]->timeSinceMotorStart) > startupTimout)
-                {
-                    log_i("Stopping motor  %i because there might be something in the way", i);
-                    getData()[i]->isforever = false;
-                    FocusMotor::stopStepper(i);
-                    // move opposite direction to get the motor away from the endstop
-                    // FocusMotor::setPosition(i, 0);
-                    // blocks until stepper reached new position wich would be optimal outside of the endstep
-                    getData()[i]->absolutePosition = false;
-                    startStepper(i, true);
-                    // wait until stepper reached new position - non-blocking check
-                    int waitStart = millis();
-                    while (FocusMotor::isRunning(i))
-                    {
-                        // Feed the watchdog and yield to other tasks to prevent watchdog panic
-                        yield();
-                        delay(10); // Reduced delay to prevent watchdog timeout
-
-                        // Add timeout protection to prevent infinite loop
-                        if (millis() - waitStart > 10000)
-                        { // 10 second timeout
-                            log_w("Homing timeout - motor %d may be stuck", i);
-                            FocusMotor::stopStepper(i);
-                            break;
-                        }
-                    }
-                    // FocusMotor::setPosition(i, 0);
-                    FocusMotor::stopStepper(i);
-                    getData()[i]->isforever = false;
-                    edata[i]->homeAxis = false;
-                    edata[i]->lastPosition = -1000000.0f;
-                    getData()[i]->speed = 0;
-                    // set the current position to zero
-                    edata[i]->posval = 0;
-
-                    // Save the homed position (zero) to persistent storage
-                    saveEncoderPosition(i);
-                    log_i("Homing completed for encoder %d, zero position saved", i);
-                }
-                edata[i]->lastPosition = currentPos;
+                log_i("Precision motion completed for axis %d: final_pos=%f, target=%f, error=%f", 
+                      s, currentPos, edata[s]->positionToGo, distanceToGo);
+                break;
             }
-            if (edata[i]->movePrecise)
+
+            // Compute new PID speed based on current position
+            speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
+            
+            // Update motor speed immediately for fast response
+            getData()[s]->speed = speed;
+            getData()[s]->isforever = true;
+            startStepper(s, true);
+
+            // Check for stuck motor condition
+            if (abs(currentPos - previousPosition) > stuckThreshold)
             {
-                // TODO: maybe we have to convert this into a blocking action to readout position faster and react faster
-                // TODO: We should be as fast as possible in reading the encoder position and setting the motor speed accordingly - maybe we should have a dedicated function that is called right after starting the motor
-                // TODO: Instead of doing that in the global loop, we should have a dedicated function that is called from the act() function right after starting the motor - this would allow much faster reaction times - this would be blocking, so we need to print the acknoledgement before starting the homing/ moving precise
-                // read current encoder position
-                float currentPos = getCurrentPosition(i);
-                float currentPosAvg = calculateRollingAverage(currentPos);
+                lastPositionChangeTime = millis();
+                previousPosition = currentPos;
+            }
+            else if ((millis() - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
+            {
+                log_w("Motor %d appears stuck at position %f (target %f), stopping motion", 
+                      s, currentPos, edata[s]->positionToGo);
+                break;
+            }
 
-                // PID Controller - speed is already limited by PID output limits
-                float speed = edata[i]->pid.compute(edata[i]->positionToGo, currentPos);
-                // The PID controller already handles output limits, no need for additional clamping
-                // initiate a motion with updated speed
-                // log_i("Current position %f, position to go %f, speed %f\n",
-                //      edata[i]->posval, edata[i]->positionToGo, speed);
-                getData()[i]->speed = speed;
-                getData()[i]->isforever = true;
-                startStepper(i, true);
+            // Small delay to prevent watchdog timeout while maintaining fast response
+            vTaskDelay(1); // 1ms delay for 1kHz update rate
+        }
 
-                // when should we end the motion?!
-                float distanceToGo = edata[i]->positionToGo - currentPos;
+        // Stop the motor and cleanup
+        getData()[s]->speed = 0;
+        getData()[s]->isforever = false;
+        FocusMotor::stopStepper(s);
+        edata[s]->movePrecise = false;
 
-                if (abs(distanceToGo) < 1) // TODO: adaptive threshold ?
-                {
-                    log_i("Stopping motor %i, distance to go: %f", i, distanceToGo);
-                    getData()[i]->speed = 0;
-                    getData()[i]->isforever = false;
-                    FocusMotor::stopStepper(i);
-                    edata[i]->movePrecise = false;
+        // Save encoder position when motion completes
+        saveEncoderPosition(s);
+        
+        float finalPosition = getCurrentPosition(s);
+        float finalError = edata[s]->positionToGo - finalPosition;
+        log_i("Precision motion finished for axis %d: final_pos=%f, final_error=%f", s, finalPosition, finalError);
+    }
 
-                    // Save encoder position when motion completes successfully
-                    saveEncoderPosition(i);
-                    log_i("Precision motion completed for encoder %d, position saved", i);
+    /*
+    Execute encoder-based homing with immediate response for fast detection of mechanical constraints.
+    This replaces the slow loop-based polling with blocking execution for optimal homing performance.
+    */
+    void executeHomingBlocking(int stepperIndex, int speed)
+    {
+        if (stepperIndex < 0 || stepperIndex >= 4 || !edata[stepperIndex])
+            return;
+
+        int s = stepperIndex;
+        
+        log_i("Starting encoder-based homing for axis %d at speed %d", s, speed);
+
+        // Initialize homing motion
+        edata[s]->timeSinceMotorStart = millis();
+        getData()[s]->isforever = true;
+        getData()[s]->speed = speed;
+        edata[s]->homeAxis = true;
+        startStepper(s, true);
+
+        // Fast homing control loop with immediate position monitoring
+        const unsigned long maxHomingTime = 30000; // 30 second safety timeout
+        const float positionChangeThreshold = 0.1f; // µm threshold for detecting no movement
+        const unsigned long startupTimeout = 2000; // ms before monitoring for stuck condition
+        const unsigned long sampleInterval = 50; // ms between position samples for averaging
+        
+        unsigned long homingStartTime = millis();
+        float previousPositions[5] = {0, 0, 0, 0, 0}; // Rolling average buffer
+        int positionIndex = 0;
+        unsigned long lastSampleTime = millis();
+
+        while (edata[s]->homeAxis && (millis() - homingStartTime) < maxHomingTime)
+        {
+            float currentPos = getCurrentPosition(s);
+            
+            // Update rolling average every sample interval
+            if (millis() - lastSampleTime >= sampleInterval)
+            {
+                previousPositions[positionIndex] = currentPos;
+                positionIndex = (positionIndex + 1) % 5;
+                lastSampleTime = millis();
+                
+                // Calculate rolling average
+                float avgPos = 0;
+                for (int i = 0; i < 5; i++) {
+                    avgPos += previousPositions[i];
                 }
-
-                // in case the motor position does not move for 5 cycles, we stop the motor
-                // {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1000 , "isabs":0, "speed": 10000, "cp":20, "ci":0, "cd":10} ]}}
-                log_d("current pos %f, current pos avg %f, need to go to: %f at speed %f, distanceToGo %f", currentPos, currentPosAvg, edata[i]->positionToGo, speed, distanceToGo);
-                float thresholdPositionChange = 0.01f;
-                int startupTimout = 1000;
-
-                // Stopping motor if there is no movement => something is blocking the motor and we are beyond the startup timeout and we are within the threshold of 5 µm
-                if (abs(currentPosAvg - currentPos) < thresholdPositionChange and
-                    (millis() - edata[i]->timeSinceMotorStart) > startupTimout and
-                    abs(distanceToGo) > 5)
+                avgPos /= 5.0f;
+                
+                // Check if motor appears stuck after startup timeout
+                if ((millis() - homingStartTime) > startupTimeout)
                 {
-                    log_i("Stopping motor  %i because there might be something in the way", i);
-                    getData()[i]->speed = 0;
-                    getData()[i]->isforever = false;
-                    FocusMotor::stopStepper(i);
-                    edata[i]->movePrecise = false;
-                    log_i("Final Position %f", getCurrentPosition(i));
-
-                    // Save encoder position when motion stops due to obstruction
-                    saveEncoderPosition(i);
-                    log_i("Motion stopped for encoder %d, position saved", i);
+                    float positionChange = abs(avgPos - currentPos);
+                    if (positionChange < positionChangeThreshold)
+                    {
+                        log_i("Homing complete for axis %d - no position change detected (stuck at mechanical limit)", s);
+                        break;
+                    }
                 }
+                
+                log_d("Homing axis %d: pos=%f, avg=%f, change=%f", s, currentPos, avgPos, abs(avgPos - currentPos));
+            }
+
+            // Small delay to prevent watchdog timeout while maintaining fast response
+            vTaskDelay(1); // 1ms delay for high frequency monitoring
+        }
+
+        // Stop the motor and set position to zero
+        getData()[s]->speed = 0;
+        getData()[s]->isforever = false;
+        FocusMotor::stopStepper(s);
+        edata[s]->homeAxis = false;
+
+        // Move slightly away from endstop
+        getData()[s]->absolutePosition = false;
+        startStepper(s, true);
+        
+        // Wait for motor to finish moving away from endstop - non-blocking check
+        unsigned long waitStart = millis();
+        while (FocusMotor::isRunning(s))
+        {
+            vTaskDelay(1); // Non-blocking delay to prevent watchdog timeout
+            
+            // Add timeout protection to prevent infinite loop
+            if (millis() - waitStart > 10000) { // 10 second timeout
+                log_w("Homing timeout - motor %d may be stuck", s);
+                FocusMotor::stopStepper(s);
+                break;
             }
         }
-#endif
+
+        // Final cleanup and set zero position
+        FocusMotor::stopStepper(s);
+        getData()[s]->isforever = false;
+        edata[s]->lastPosition = -1000000.0f;
+        getData()[s]->speed = 0;
+        
+        // Set current position to zero using both methods for compatibility
+        edata[s]->stepCount = 0;
+        edata[s]->posval = 0;
+
+        // Save the homed position (zero) to persistent storage
+        saveEncoderPosition(s);
+        log_i("Homing completed for encoder %d, zero position saved", s);
     }
 
     /*
@@ -601,11 +655,7 @@ namespace LinearEncoderController
             // Load encoder direction
             edata[i]->encoderDirection = preferences.getBool(("encdir" + String(i)).c_str(), edata[i]->encoderDirection);
 
-            // Load micrometer per step
-            edata[i]->mumPerStep = preferences.getFloat(("mumpstp" + String(i)).c_str(), edata[i]->mumPerStep);
-
-            log_i("Loaded encoder config for axis %d: encdir=%d, mumPerStep=%f",
-                  i, edata[i]->encoderDirection, edata[i]->mumPerStep);
+            log_i("Loaded encoder config for axis %d: encdir=%d", i, edata[i]->encoderDirection);
         }
         preferences.end();
 

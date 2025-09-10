@@ -25,7 +25,8 @@ struct LinearEncoderData
 	float conversionFactor = 2.0 / 1024.0; // 2mm per 1024 steps from AS5311
 	bool encoderDirection = false;
 	bool motorDirection = false;
-	float posval = 0.0f;
+	float posval = 0.0f; // Calculated position in µm (derived from stepCount * globalConversionFactor)
+	long stepCount = 0; // Raw integer step count for accuracy
 	bool requestPosition = false;
 	int linearencoderID = -1;
 	bool homeAxis = false;
@@ -45,7 +46,7 @@ struct LinearEncoderData
 	float c_p = 2.;
 	float c_i = 0.1;
 	float c_d = 0.1;
-	float mumPerStep = 1.f; // default to one
+	float mumPerStep = 1.f; // default to one - DEPRECATED: Use global conversion factor
 	PIDController pid = PIDController(c_p, c_i, c_d);
 	// Encoder interface selection
 	EncoderInterface encoderInterface = ENCODER_INTERRUPT_BASED; // Default to interrupt-based
@@ -77,4 +78,8 @@ namespace LinearEncoderController
 	void loadEncoderPosition(int encoderIndex);
 	void saveAllEncoderPositions();
 	void loadAllEncoderPositions();
+	
+	// Fast precision motion control
+	void executePrecisionMotionBlocking(int stepperIndex);
+	void executeHomingBlocking(int stepperIndex, int speed);
 };

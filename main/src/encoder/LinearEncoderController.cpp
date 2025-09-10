@@ -213,36 +213,14 @@ namespace LinearEncoderController
                     // Speed is already limited by PID controller output limits
                     // No need for additional clamping unless we want stricter limits
 
-                        getData()[s]->isforever = true;
-                        getData()[s]->speed = speed;
-                        edata[s]->timeSinceMotorStart = millis();
-                        edata[s]->movePrecise = true;
-                        log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
-                        startStepper(s, true);
-                }
-            }
-            else if (setup != NULL)
-            {
-                // {"task": "/linearencoder_act", "setup": {"steppers": [ { "stepperid": 1, "position": 0}]}}
-                // setup the linearencoder
-                // print setup cjson
-                cJSON *stprs = cJSON_GetObjectItem(setup, key_steppers);
-                if (stprs != NULL)
-                {
-                    // print stprs
+                    getData()[s]->isforever = true;
+                    getData()[s]->speed = speed;
+                    edata[s]->timeSinceMotorStart = millis();
+                    edata[s]->movePrecise = true;
+                    log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
+                    startStepper(s, true);
 
-                    cJSON *stp = NULL;
-                    cJSON_ArrayForEach(stp, stprs)
-                    {
-                        Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-                        // set the current position of the encoder to the given value
-                        float newPosition = (float)cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
-
-                        /*
-                        encoders[s]->setOffset(newPosition - encoders[s]->readPosition());
-                        log_i("set position %f", getCurrentPosition(s));
-                        */
-                    }
+                    // TODO: I think instead of triggering the motor and run through a series of loop() calls fro the different controllers, we should be as fast as possible and do the control (e.g. polling counter, compute speed, set speed) right away in this function or in a function that is initialized from here - not running inside the loop() fuunction as this might be too slow
                 }
             }
             else
@@ -255,6 +233,10 @@ namespace LinearEncoderController
         // {"task": "/linearencoder_act", "config": {"steppers": [ { "stepperid": 1, "encdir": 1, "motdir": 0} ]}}
         cJSON *config = cJSON_GetObjectItem(j, "config");
         if (config != NULL)
+        // TODO: I think we need to be specific on the configuration commands. The only two paramters we need to set is the conversion factor for counts to step and the direction - which could actually be combined in one parameter if the sign of the conversion factor indicates the direction
+        // TODO: The paramerter should be stored in the preferences permanently and read on setup()/startup
+        // TODO: Remaining parameters below that re not needed should go away - cleaned up
+        // TODO: we want to stick to one encoder only for now
         {
             cJSON *stprs = cJSON_GetObjectItem(config, key_steppers);
             if (stprs != NULL)
@@ -333,6 +315,7 @@ namespace LinearEncoderController
 
             // Handle global motor-encoder conversion factor configuration
             // {"task": "/linearencoder_act", "config": {"stepsToEncoderUnits": 0.3125}}
+            // TODO: We should be more specific and use only one parameter for the conversion factor, all others should go away!
             cJSON *stepsToEncUnits = cJSON_GetObjectItem(config, "stepsToEncoderUnits");
             if (stepsToEncUnits != NULL && cJSON_IsNumber(stepsToEncUnits))
             {
@@ -343,68 +326,6 @@ namespace LinearEncoderController
             }
         }
 
-        // Handle diagnostic commands for encoder health checks
-        // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
-        cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
-        if (diagnostic != NULL)
-        {
-            cJSON *stepperidItem = cJSON_GetObjectItem(diagnostic, key_stepperid);
-            if (stepperidItem != NULL && cJSON_IsNumber(stepperidItem))
-            {
-                int stepperid = stepperidItem->valueint;
-                log_i("Running encoder diagnostic for axis %d", stepperid);
-
-                if (stepperid >= 1 && stepperid <= 3)
-                {
-                    // Run encoder accuracy test
-                    if (PCNTEncoderController::isPCNTAvailable())
-                    {
-                        PCNTEncoderController::testEncoderAccuracy(stepperid);
-                        log_i("Encoder diagnostic completed for axis %d", stepperid);
-                    }
-                    else
-                    {
-                        log_w("Encoder diagnostic not available - ESP32Encoder interface not active");
-                    }
-                }
-                else
-                {
-                    log_e("Invalid stepperid %d for diagnostic (valid range: 1-3)", stepperid);
-                }
-            }
-        }
-        /*
-                // Handle encoder diagnostics
-        // {"task": "/linearencoder_act", "diagnostic": {"stepperid": 1}}
-        cJSON *diagnostic = cJSON_GetObjectItem(j, "diagnostic");
-        if (diagnostic != NULL)
-        {
-            int stepperid = cJsonTool::getJsonInt(diagnostic, key_stepperid);
-            if (stepperid >= 1 && stepperid <= 3) {
-                log_i("Running encoder diagnostic for axis %d", stepperid);
-
-                // Test encoder accuracy using PCNT controller
-
-                if (PCNTEncoderController::isPCNTAvailable()) {
-                    PCNTEncoderController::testEncoderAccuracy(stepperid);
-                }
-
-
-                // Report current encoder state
-                float currentPos = getCurrentPosition(stepperid);
-                int64_t currentCount = 0;
-                if (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) {
-                    currentCount = PCNTEncoderController::getEncoderCount(stepperid);
-                } else {
-                    currentCount = (int64_t)(edata[stepperid]->posval / edata[stepperid]->mumPerStep);
-                }
-
-                log_i("Encoder %d diagnostic: pos=%.3f, count=%lld, interface=%s",
-                      stepperid, currentPos, currentCount,
-                      (edata[stepperid]->encoderInterface == ENCODER_PCNT_BASED) ? "PCNT" : "Interrupt");
-            }
-        }
-        */
         return qid;
     }
 
@@ -522,18 +443,18 @@ namespace LinearEncoderController
             // Very reduced frequency to minimize impact on encoder accuracy
             static int plotCounter = 0;
             if (++plotCounter % 20 == 0)
-        {                                                                            
-            // Only plot every 20 loops to reduce serial interference
-            // Use log_i only (not Serial.println) to prevent direct serial interference
-            // log_i("plot: %f", getCurrentPosition(1));
-            // get current motor position for motor x / axis 1
-            // get current motor position for motor x / axis 1 - improved direct access
-            long currentMotorPos = getCurrentMotorPosition(1); // Updated by FAccelStep::updateData()
-            Serial.print(currentMotorPos);
-            Serial.print("; ");
-            Serial.print(getCurrentPosition(1));
-            Serial.println("; ");
-            Serial.flush();
+            {
+                // Only plot every 20 loops to reduce serial interference
+                // Use log_i only (not Serial.println) to prevent direct serial interference
+                // log_i("plot: %f", getCurrentPosition(1));
+                // get current motor position for motor x / axis 1
+                // get current motor position for motor x / axis 1 - improved direct access
+                long currentMotorPos = getCurrentMotorPosition(1); // Updated by FAccelStep::updateData()
+                Serial.print(currentMotorPos);
+                Serial.print("; ");
+                Serial.print(getCurrentPosition(1));
+                Serial.println("; ");
+                Serial.flush();
             }
         }
 #ifdef MOTOR_CONTROLLER
@@ -542,6 +463,7 @@ namespace LinearEncoderController
         {
             if (edata[i]->homeAxis)
             {
+                // TODO: Instead of doing that in the global loop, we should have a dedicated function that is called from the act() function right after starting the motor - this would allow much faster reaction times - this would be blocking, so we need to print the acknoledgement before starting the homing/ moving precise
                 // we track the position and if there is no to little change we will stop the motor and set the position to zero
                 float currentPos = getCurrentPosition(i);
                 float currentPosAvg = calculateRollingAverage(currentPos);
@@ -594,7 +516,8 @@ namespace LinearEncoderController
             if (edata[i]->movePrecise)
             {
                 // TODO: maybe we have to convert this into a blocking action to readout position faster and react faster
-
+                // TODO: We should be as fast as possible in reading the encoder position and setting the motor speed accordingly - maybe we should have a dedicated function that is called right after starting the motor
+                // TODO: Instead of doing that in the global loop, we should have a dedicated function that is called from the act() function right after starting the motor - this would allow much faster reaction times - this would be blocking, so we need to print the acknoledgement before starting the homing/ moving precise
                 // read current encoder position
                 float currentPos = getCurrentPosition(i);
                 float currentPosAvg = calculateRollingAverage(currentPos);

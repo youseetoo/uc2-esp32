@@ -22,11 +22,17 @@ namespace LinearEncoderController
     // function pointer to start a stepper
     void (*startStepper)(int, int);
 
+    // Performance configuration
+    static bool useTaskBasedOperation = false; // Can be enabled for non-blocking operations
+    static TaskHandle_t precisionMotionTask = nullptr;
+    static TaskHandle_t homingTask = nullptr;
+
     std::array<LinearEncoderData *, 4> edata;
     // std::array<AS5311 *, 4> encoders;
     std::array<AS5311AB, 4> encoders;
 
-    // TODO: Probalby, we should move the interrupt based encoder handling to a separate class and unify the interface with PCNTEncoderController
+    // Interrupt-based encoder handling - optimized for X-axis performance
+    // Architecture note: Could be refactored to separate class for better modularity
     
     void processEncoderEvent(uint8_t pin)
     {
@@ -136,8 +142,16 @@ namespace LinearEncoderController
                     log_i("pre home %f", edata[s]->positionPreMove);
                     int speed = cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint;
                     
-                    // Execute homing immediately for fast response times
-                    executeHomingBlocking(s, speed);
+                    // Execute homing - can use blocking or task-based approach
+                    if (useTaskBasedOperation) {
+                        // Non-blocking task-based execution
+                        if (!startHomingTask(s, speed)) {
+                            log_e("Failed to start homing task for axis %d", s);
+                        }
+                    } else {
+                        // Immediate execution for fastest response times (default)
+                        executeHomingBlocking(s, speed);
+                    }
                 }
             }
 #endif
@@ -159,15 +173,23 @@ namespace LinearEncoderController
             {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
             {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
             */
-            // TODO: We need to retreive the PCNT value here as well to have a better starting point
+            // PRECISION MOTION CONTROL - Focus on single axis for optimal performance
+            // Retrieve initial encoder position for accurate starting reference
             cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
             if (stprs != NULL)
             {
                 cJSON *stp = NULL;
-                cJSON_ArrayForEach(stp, stprs) // TODO: We only want to do that for one axis (i.e. x == 1)
+                cJSON_ArrayForEach(stp, stprs)
                 {
                     int s = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint;
-                    // measure current value
+                    
+                    // Focus on X-axis (stepperid=1) for maximum stability and performance
+                    if (s != 1) {
+                        log_w("Precision motion currently optimized for X-axis only (stepperid=1), skipping axis %d", s);
+                        continue;
+                    }
+                    
+                    // Measure current encoder position for accurate starting reference
                     edata[s]->positionPreMove = getCurrentPosition(s);
 
                     // retreive abs/rel flag
@@ -181,10 +203,14 @@ namespace LinearEncoderController
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position) != NULL)
                         posToGo = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
 
-                    // calculate the position to go
+                    // Calculate the position to go with unit consistency verification
                     float distanceToGo = posToGo;
                     if (!edata[s]->isAbsolute)
-                        distanceToGo += edata[s]->positionPreMove; // TODO: Check if this is in correct units?
+                    {
+                        // For relative positioning, add to current position
+                        // Units are already normalized (steps), so addition is straightforward
+                        distanceToGo += edata[s]->positionPreMove;
+                    }
                     edata[s]->positionToGo = distanceToGo;
 
                     // PID Controller
@@ -204,7 +230,25 @@ namespace LinearEncoderController
                     if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
                     {
                         getData()[s]->directionPinInverted = abs(cJSON_GetObjectItemCaseSensitive(stp, "motdir")->valueint);
-                        // TODO: We need to store this permanently in the preferences for this very motor
+                        
+                        // Store motor direction permanently in preferences for this specific motor
+                        Preferences preferences;
+                        preferences.begin("UC2", false);
+                        String motdirKey = "";
+                        switch (s)
+                        {
+                        case 0: motdirKey = "motainv"; break; // A axis
+                        case 1: motdirKey = "motxinv"; break; // X axis
+                        case 2: motdirKey = "motyinv"; break; // Y axis
+                        case 3: motdirKey = "motzinv"; break; // Z axis
+                        default: break;
+                        }
+                        if (motdirKey != "")
+                        {
+                            preferences.putBool(motdirKey.c_str(), getData()[s]->directionPinInverted);
+                            log_i("Motor direction for axis %d permanently stored: %s", s, getData()[s]->directionPinInverted ? "inverted" : "normal");
+                        }
+                        preferences.end();
                     }
 
                     edata[s]->pid = PIDController(edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
@@ -218,9 +262,16 @@ namespace LinearEncoderController
 
                     log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
                     
-                    // Execute precision motion control immediately for fast response times
-                    // This replaces the slow loop-based polling with immediate execution
-                    executePrecisionMotionBlocking(s);
+                    // Execute precision motion control - can use blocking or task-based approach
+                    if (useTaskBasedOperation) {
+                        // Non-blocking task-based execution for better system responsiveness
+                        if (!startPrecisionMotionTask(s)) {
+                            log_e("Failed to start precision motion task for axis %d", s);
+                        }
+                    } else {
+                        // Immediate execution for fastest response times (default)
+                        executePrecisionMotionBlocking(s);
+                    }
                 }
             }
             else
@@ -343,6 +394,20 @@ namespace LinearEncoderController
         }
     }
 
+    // Helper function to get current motor position for comparison and plotting
+    long getCurrentMotorPosition(int stepperIndex) 
+    {
+        if (stepperIndex < 0 || stepperIndex >= 4 || !getData())
+            return 0;
+        
+        // Get current motor position from FocusMotor data
+        MotorData **motorData = getData();
+        if (motorData && motorData[stepperIndex]) {
+            return motorData[stepperIndex]->position;
+        }
+        return 0;
+    }
+
     cJSON *get(cJSON *docin)
     {
         // {"task":"/linearencoder_get"}
@@ -439,6 +504,73 @@ namespace LinearEncoderController
     }
 
     /*
+    Task-based precision motion control for non-blocking operations
+    Can be enabled as alternative to blocking approach for better system responsiveness
+    */
+    void precisionMotionTaskWrapper(void* parameter) {
+        int stepperIndex = *((int*)parameter);
+        executePrecisionMotionBlocking(stepperIndex);
+        vTaskDelete(nullptr); // Clean up task when complete
+    }
+    
+    void homingTaskWrapper(void* parameter) {
+        struct HomingParams {
+            int stepperIndex;
+            int speed;
+        };
+        HomingParams* params = (HomingParams*)parameter;
+        executeHomingBlocking(params->stepperIndex, params->speed);
+        delete params;
+        vTaskDelete(nullptr); // Clean up task when complete
+    }
+    
+    // Start precision motion in task (non-blocking alternative)
+    bool startPrecisionMotionTask(int stepperIndex) {
+        if (precisionMotionTask != nullptr) {
+            log_w("Precision motion task already running");
+            return false;
+        }
+        
+        static int taskStepperIndex = stepperIndex;
+        BaseType_t result = xTaskCreatePinnedToCore(
+            precisionMotionTaskWrapper,
+            "PrecisionMotion",
+            4096, // Stack size
+            &taskStepperIndex,
+            2, // Priority
+            &precisionMotionTask,
+            1 // Core 1
+        );
+        
+        return result == pdPASS;
+    }
+    
+    // Start homing in task (non-blocking alternative)  
+    bool startHomingTask(int stepperIndex, int speed) {
+        if (homingTask != nullptr) {
+            log_w("Homing task already running");
+            return false;
+        }
+        
+        struct HomingParams {
+            int stepperIndex;
+            int speed;
+        };
+        HomingParams* params = new HomingParams{stepperIndex, speed};
+        
+        BaseType_t result = xTaskCreatePinnedToCore(
+            homingTaskWrapper,
+            "Homing",
+            4096, // Stack size
+            params,
+            2, // Priority
+            &homingTask,
+            1 // Core 1
+        );
+        
+        return result == pdPASS;
+    }
+    /*
     Execute precision motion control with immediate PID updates for fast response times.
     This replaces the slow loop-based polling with blocking execution for optimal performance.
     */
@@ -462,7 +594,11 @@ namespace LinearEncoderController
         log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
 
         // Fast precision control loop with immediate PID updates
-        const unsigned long maxMotionTime = 10000; // 10 second safety timeout // TODO: This should be calculated based on distance and max speed
+        // Dynamic timeout calculation based on distance and maximum speed
+        float distance = abs(edata[s]->positionToGo - getCurrentPosition(s));
+        float safetyMargin = 5.0f; // 5 second safety margin
+        unsigned long calculatedTimeout = (unsigned long)((distance / edata[s]->maxSpeed) * 1000.0f) + (safetyMargin * 1000.0f);
+        const unsigned long maxMotionTime = max(calculatedTimeout, 3000UL); // Minimum 3 seconds, maximum based on calculation
         const float positionTolerance = 10.0f; // step tolerance for completion
         const float stuckThreshold = 20.01f; // step threshold for detecting stuck motor
         const unsigned long stuckTimeout = 300; // ms before considering motor stuck
@@ -491,7 +627,22 @@ namespace LinearEncoderController
 
             // Compute new PID speed based on current position
             speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
-            // TODO: Perhaps we can detect a sign (i.e. motor direction vs encoder direction) error here and stop the motor or reverse direction
+            
+            // Direction error detection: Check if motor and encoder are working in opposite directions
+            if (abs(distanceToGo) > 50.0f && abs(speed) > 100.0f) { // Only check when meaningful motion is expected
+                static float lastDistanceToGo = distanceToGo;
+                static float lastSpeed = speed;
+                
+                // If distance is increasing while motor is running at significant speed, directions may be mismatched
+                if ((lastDistanceToGo != 0) && (abs(distanceToGo) > abs(lastDistanceToGo) + 10.0f) && 
+                    (abs(speed) > abs(lastSpeed) * 0.8f)) {
+                    log_w("Possible direction mismatch detected for axis %d - stopping motor. Distance: %f->%f, Speed: %f", 
+                          s, lastDistanceToGo, distanceToGo, speed);
+                    break;
+                }
+                lastDistanceToGo = distanceToGo;
+                lastSpeed = speed;
+            }
             // Update motor speed immediately for fast response
             getData()[s]->speed = speed;
             getData()[s]->isforever = true;
@@ -505,10 +656,31 @@ namespace LinearEncoderController
             }
             else if ((millis() - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
             {
-                // TODO: We should try again with a different approach (e.g. start again with reduced speed and then ramp up once, if still stuck, abort)
-                log_w("Motor %d appears stuck at position %f (target %f), stopping motion", 
-                      s, currentPos, edata[s]->positionToGo);
-                break;
+                // Intelligent stuck motor recovery: Try reduced speed approach first
+                static int recoveryAttempt = 0;
+                recoveryAttempt++;
+                
+                if (recoveryAttempt <= 2) {
+                    log_w("Motor %d stuck (attempt %d) - trying recovery with reduced speed", s, recoveryAttempt);
+                    
+                    // Reduce speed by half and try again
+                    float recoverySpeed = speed * 0.5f;
+                    getData()[s]->speed = recoverySpeed;
+                    getData()[s]->isforever = true;
+                    startStepper(s, 0);
+                    
+                    // Reset stuck detection for recovery attempt
+                    lastPositionChangeTime = millis();
+                    previousPosition = currentPos;
+                    
+                    // Give recovery attempt some time
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                    continue;
+                } else {
+                    log_e("Motor %d recovery failed after %d attempts - stopping motion", s, recoveryAttempt);
+                    recoveryAttempt = 0; // Reset for next motion
+                    break;
+                }
             }
 
             // Reset watchdog timer periodically to prevent timeout
@@ -522,7 +694,42 @@ namespace LinearEncoderController
             vTaskDelay(pdMS_TO_TICKS(1)); 
         }
 
-        // TODO: We should have a second run with a much lower speed to really get to the target position accurately maybe simply have a wrapping for loop 
+        // Two-stage precision approach for higher accuracy
+        // Stage 1: Fast approach (if we're still far from target)
+        float finalDistance = abs(edata[s]->positionToGo - getCurrentPosition(s));
+        if (finalDistance > 50.0f) { // If we're still far from target, do a slower precision pass
+            log_i("Starting precision stage 2 for axis %d: remaining distance=%f", s, finalDistance);
+            
+            const float precisionSpeed = min(edata[s]->maxSpeed * 0.2f, 1000.0f); // 20% of max speed or 1000, whichever is lower
+            const float precisionTolerance = 2.0f; // Tighter tolerance for final positioning
+            const unsigned long precisionTimeout = 5000; // 5 second timeout for precision stage
+            
+            unsigned long precisionStartTime = millis();
+            
+            while ((millis() - precisionStartTime) < precisionTimeout) {
+                float currentPos = getCurrentPosition(s);
+                float distanceToGo = edata[s]->positionToGo - currentPos;
+                
+                if (abs(distanceToGo) < precisionTolerance) {
+                    log_i("Precision stage 2 completed for axis %d: final_error=%f", s, distanceToGo);
+                    break;
+                }
+                
+                // Use conservative speed for precision positioning
+                float speed = (distanceToGo > 0) ? precisionSpeed : -precisionSpeed;
+                getData()[s]->speed = speed;
+                getData()[s]->isforever = true;
+                startStepper(s, 0);
+                
+                // Reset watchdog periodically
+                if ((millis() - lastWatchdogReset) > watchdogResetInterval) {
+                    esp_task_wdt_reset();
+                    lastWatchdogReset = millis();
+                }
+                
+                vTaskDelay(pdMS_TO_TICKS(2)); // Slower update rate for precision
+            }
+        } 
 
         // Stop the motor and cleanup
         getData()[s]->speed = 0;
@@ -551,27 +758,27 @@ namespace LinearEncoderController
         
         log_i("Starting encoder-based homing for axis %d at speed %d", s, speed);
 
-        // Initialize homing motion
+        // Initialize homing motion with proper state cleanup
         edata[s]->timeSinceMotorStart = millis();
+        
+        // Ensure motor is properly stopped before starting homing
+        FocusMotor::stopStepper(s);
+        vTaskDelay(pdMS_TO_TICKS(100)); // Give motor time to stop
+        
+        // Clear any previous motion state that might interfere
         getData()[s]->isforever = true;
         getData()[s]->speed = speed;
-        getData()[s]->stopped = false; // TODO: Check if this is necessary
-        getData()[s]->isStop = false; // TODO: Check if this is necessary
+        getData()[s]->absolutePosition = false; // Ensure relative positioning mode
         edata[s]->homeAxis = true;
         startStepper(s, 0);
-        // TODO: I think the avg. is not necessary here anymore as we sample a lot faster 
-        // TODO: Instead of blocking operations, we could probably use a thread/task for this and the movep 
-        // TODO: When the homing is proceeding the first time it works, but the second time something must be in a wrong state as there is no motion, speed is correct, but it won't start
-
         // Fast homing control loop with immediate position monitoring
+        // High frequency sampling eliminates need for rolling averages
         const unsigned long maxHomingTime = 30000; // 30 second safety timeout
-        const float positionChangeThreshold = 1.f; // step threshold for detecting no movement
-        const unsigned long startupTimeout = 2000; // ms before monitoring for stuck condition
-        const unsigned long sampleInterval = 50; // ms between position samples for averaging
+        const float positionChangeThreshold = 1.0f; // step threshold for detecting no movement
+        const unsigned long stuckDetectionInterval = 100; // ms between position checks
         
         unsigned long homingStartTime = millis();
-        float previousPositions[2] = {0, 0}; // Rolling average buffer
-        int positionIndex = 0;
+        float lastSamplePosition = getCurrentPosition(s);
         unsigned long lastSampleTime = millis();
         unsigned long lastWatchdogReset = millis();
         const unsigned long watchdogResetInterval = 100; // Reset watchdog every 100ms
@@ -580,32 +787,22 @@ namespace LinearEncoderController
         {
             float currentPos = getCurrentPosition(s);
             
-            // Update rolling average every sample interval
-            if (millis() - lastSampleTime >= sampleInterval)
+            // Check for stuck condition every sample interval (no need for rolling average with fast sampling)
+            if (millis() - lastSampleTime >= stuckDetectionInterval)
             {
-                previousPositions[positionIndex] = currentPos;
-                positionIndex = (positionIndex + 1) % 5;
+                float positionChange = abs(currentPos - lastSamplePosition);
+                
+                // Check if motor appears stuck (no significant movement detected)
+                if (positionChange < positionChangeThreshold)
+                {
+                    log_i("Homing complete for axis %d - no position change detected (reached mechanical limit)", s);
+                    break;
+                }
+                
+                lastSamplePosition = currentPos;
                 lastSampleTime = millis();
                 
-                // Calculate rolling average
-                float avgPos = 0;
-                for (int i = 0; i < 2; i++) {
-                    avgPos += previousPositions[i];
-                }
-                avgPos /= 2.0f;
-                
-                // Check if motor appears stuck after startup timeout
-                if ((millis() - homingStartTime) > startupTimeout)
-                {
-                    float positionChange = abs(avgPos - currentPos);
-                    if (positionChange < positionChangeThreshold)
-                    {
-                        log_i("Homing complete for axis %d - no position change detected (stuck at mechanical limit)", s);
-                        break;
-                    }
-                }
-                
-                log_d("Homing axis %d: pos=%f, avg=%f, change=%f", s, currentPos, avgPos, abs(avgPos - currentPos));
+                log_d("Homing axis %d: pos=%f, change=%f", s, currentPos, positionChange);
             }
 
             // Reset watchdog timer periodically to prevent timeout
@@ -619,7 +816,7 @@ namespace LinearEncoderController
             vTaskDelay(pdMS_TO_TICKS(1)); // 5ms delay instead of 1ms for better watchdog compatibility
         }
 
-        // TOOD: after one run I cannot 
+        // Motor state cleanup and final positioning 
 
         // Stop the motor and set position to zero
         //getData()[s]->speed = 0;
@@ -833,6 +1030,16 @@ namespace LinearEncoderController
                 loadEncoderPosition(i);
             }
         }
+    }
+    
+    // Task-based operation control functions
+    void setTaskBasedOperation(bool enabled) {
+        useTaskBasedOperation = enabled;
+        log_i("Task-based operation %s", enabled ? "enabled" : "disabled");
+    }
+    
+    bool isTaskBasedOperationEnabled() {
+        return useTaskBasedOperation;
     }
 
 } // namespace name

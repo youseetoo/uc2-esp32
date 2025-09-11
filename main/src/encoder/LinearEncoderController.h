@@ -49,6 +49,9 @@ namespace LinearEncoderController
 {
 	void setCurrentPosition(int encoderIndex, float offsetPos);
 	float getCurrentPosition(int encoderIndex);
+	
+	// Helper function for motor position tracking
+	long getCurrentMotorPosition(int stepperIndex);
 
 	int act(cJSON * ob);
 	cJSON * get(cJSON * ob);
@@ -71,4 +74,10 @@ namespace LinearEncoderController
 	// Fast precision motion control
 	void executePrecisionMotionBlocking(int stepperIndex);
 	void executeHomingBlocking(int stepperIndex, int speed);
+	
+	// Task-based non-blocking alternatives (optional)
+	bool startPrecisionMotionTask(int stepperIndex);
+	bool startHomingTask(int stepperIndex, int speed);
+	void setTaskBasedOperation(bool enabled);
+	bool isTaskBasedOperationEnabled();
 };

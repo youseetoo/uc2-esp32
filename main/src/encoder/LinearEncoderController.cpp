@@ -4,6 +4,7 @@
 #include "../motor/MotorEncoderConfig.h"
 #include "HardwareSerial.h"
 #include <Preferences.h>
+#include "esp_task_wdt.h"
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
@@ -119,7 +120,9 @@ namespace LinearEncoderController
         {
 #ifdef HOME_MOTOR
             // we want to start a motor until the linear encoder does not track any position change
-            //{"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": -40000} ]}}
+            /*
+            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": 20000} ]}}
+            */
             cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
             if (stprs != NULL)
             {
@@ -147,7 +150,7 @@ namespace LinearEncoderController
             // initiate a motor start and let the motor run until it reaches the position
             /*
              {"task": "/linearencoder_get", "stepperid": 1}
-            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 20000, "isabs":1,  "cp":10, "ci":0., "cd":0, "speed":20000} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": -20000, "isabs":0,  "cp":10, "ci":0., "cd":0, "speed":25000} ]}}
             {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
             {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
             {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
@@ -454,7 +457,7 @@ namespace LinearEncoderController
         getData()[s]->speed = speed;
         edata[s]->timeSinceMotorStart = millis();
         edata[s]->movePrecise = true;
-        startStepper(s, true);
+        startStepper(s, 0);
 
         log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
 
@@ -469,6 +472,9 @@ namespace LinearEncoderController
         float previousPosition = getCurrentPosition(s);
         unsigned long lastPositionChangeTime = millis();
 
+        unsigned long lastWatchdogReset = millis();
+        const unsigned long watchdogResetInterval = 100; // Reset watchdog every 100ms
+        
         while (edata[s]->movePrecise && (millis() - motionStartTime) < maxMotionTime)
         {
             // Read current encoder position with high frequency
@@ -489,7 +495,7 @@ namespace LinearEncoderController
             // Update motor speed immediately for fast response
             getData()[s]->speed = speed;
             getData()[s]->isforever = true;
-            startStepper(s, true);
+            startStepper(s, 0);
 
             // Check for stuck motor condition
             if (abs(currentPos - previousPosition) > stuckThreshold)
@@ -505,8 +511,15 @@ namespace LinearEncoderController
                 break;
             }
 
-            // Small delay to prevent watchdog timeout while maintaining fast response
-            vTaskDelay(1); // 1ms delay for 1kHz update rate
+            // Reset watchdog timer periodically to prevent timeout
+            if ((millis() - lastWatchdogReset) > watchdogResetInterval)
+            {
+                esp_task_wdt_reset();
+                lastWatchdogReset = millis();
+            }
+
+            // Delay to prevent watchdog timeout while maintaining reasonable response time
+            vTaskDelay(pdMS_TO_TICKS(1)); 
         }
 
         // TODO: We should have a second run with a much lower speed to really get to the target position accurately maybe simply have a wrapping for loop 
@@ -542,8 +555,13 @@ namespace LinearEncoderController
         edata[s]->timeSinceMotorStart = millis();
         getData()[s]->isforever = true;
         getData()[s]->speed = speed;
+        getData()[s]->stopped = false; // TODO: Check if this is necessary
+        getData()[s]->isStop = false; // TODO: Check if this is necessary
         edata[s]->homeAxis = true;
-        startStepper(s, true);
+        startStepper(s, 0);
+        // TODO: I think the avg. is not necessary here anymore as we sample a lot faster 
+        // TODO: Instead of blocking operations, we could probably use a thread/task for this and the movep 
+        // TODO: When the homing is proceeding the first time it works, but the second time something must be in a wrong state as there is no motion, speed is correct, but it won't start
 
         // Fast homing control loop with immediate position monitoring
         const unsigned long maxHomingTime = 30000; // 30 second safety timeout
@@ -552,9 +570,11 @@ namespace LinearEncoderController
         const unsigned long sampleInterval = 50; // ms between position samples for averaging
         
         unsigned long homingStartTime = millis();
-        float previousPositions[5] = {0, 0, 0, 0, 0}; // Rolling average buffer
+        float previousPositions[2] = {0, 0}; // Rolling average buffer
         int positionIndex = 0;
         unsigned long lastSampleTime = millis();
+        unsigned long lastWatchdogReset = millis();
+        const unsigned long watchdogResetInterval = 100; // Reset watchdog every 100ms
 
         while (edata[s]->homeAxis && (millis() - homingStartTime) < maxHomingTime)
         {
@@ -569,10 +589,10 @@ namespace LinearEncoderController
                 
                 // Calculate rolling average
                 float avgPos = 0;
-                for (int i = 0; i < 5; i++) {
+                for (int i = 0; i < 2; i++) {
                     avgPos += previousPositions[i];
                 }
-                avgPos /= 5.0f;
+                avgPos /= 2.0f;
                 
                 // Check if motor appears stuck after startup timeout
                 if ((millis() - homingStartTime) > startupTimeout)
@@ -588,25 +608,44 @@ namespace LinearEncoderController
                 log_d("Homing axis %d: pos=%f, avg=%f, change=%f", s, currentPos, avgPos, abs(avgPos - currentPos));
             }
 
-            // Small delay to prevent watchdog timeout while maintaining fast response
-            vTaskDelay(1); // 1ms delay for high frequency monitoring
+            // Reset watchdog timer periodically to prevent timeout
+            if ((millis() - lastWatchdogReset) > watchdogResetInterval)
+            {
+                esp_task_wdt_reset();
+                lastWatchdogReset = millis();
+            }
+
+            // Delay to prevent watchdog timeout while maintaining reasonable response time
+            vTaskDelay(pdMS_TO_TICKS(1)); // 5ms delay instead of 1ms for better watchdog compatibility
         }
 
+        // TOOD: after one run I cannot 
+
         // Stop the motor and set position to zero
-        getData()[s]->speed = 0;
+        //getData()[s]->speed = 0;
         getData()[s]->isforever = false;
         FocusMotor::stopStepper(s);
         edata[s]->homeAxis = false;
 
         // Move slightly away from endstop
         getData()[s]->absolutePosition = false;
-        startStepper(s, true);
+        startStepper(s, 0);
         
         // Wait for motor to finish moving away from endstop - non-blocking check
         unsigned long waitStart = millis();
+        unsigned long lastWatchdogResetWait = millis();
+        const unsigned long watchdogResetIntervalWait = 100; // Reset watchdog every 100ms
+        
         while (FocusMotor::isRunning(s))
         {
-            vTaskDelay(1); // Non-blocking delay to prevent watchdog timeout
+            // Reset watchdog timer periodically to prevent timeout
+            if ((millis() - lastWatchdogResetWait) > watchdogResetIntervalWait)
+            {
+                esp_task_wdt_reset();
+                lastWatchdogResetWait = millis();
+            }
+            
+            vTaskDelay(pdMS_TO_TICKS(5)); // 5ms delay to prevent watchdog timeout
             
             // Add timeout protection to prevent infinite loop
             if (millis() - waitStart > 10000) { // 10 second timeout

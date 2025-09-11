@@ -25,6 +25,8 @@ namespace LinearEncoderController
     // std::array<AS5311 *, 4> encoders;
     std::array<AS5311AB, 4> encoders;
 
+    // TODO: Probalby, we should move the interrupt based encoder handling to a separate class and unify the interface with PCNTEncoderController
+    
     void processEncoderEvent(uint8_t pin)
     {
         if ((pin == pinConfig.ENC_X_B))
@@ -97,7 +99,6 @@ namespace LinearEncoderController
 
         // calibrate the step-to-mm value
         cJSON *movePrecise = cJSON_GetObjectItem(j, key_linearencoder_moveprecise);
-        cJSON *setup = cJSON_GetObjectItem(j, key_linearencoder_setup);
         cJSON *home = cJSON_GetObjectItem(j, key_linearencoder_home);
         cJSON *plot = cJSON_GetObjectItem(j, key_linearencoder_plot);
 
@@ -144,15 +145,17 @@ namespace LinearEncoderController
              * MOVE THE LINEARENCODER TO A PRECISE POSITION
              *******/
             // initiate a motor start and let the motor run until it reaches the position
-            // {"task": "/linearencoder_get", "stepperid": 1}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1000, "isabs":1,  "cp":100, "ci":0., "cd":10, "speed":1000} ]}}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
-            //{"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1} ]}}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1} ]}}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
-            //{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
+            /*
+             {"task": "/linearencoder_get", "stepperid": 1}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 20000, "isabs":1,  "cp":10, "ci":0., "cd":0, "speed":20000} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
+            {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 5000 , "isabs":0, "speed": 2000, "cp":20, "ci":10, "cd":5, "encdir":1, "motdir":0, "res":1} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 0 , "isabs":1, "speed": -10000, "cp":10, "ci":10, "cd":10} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 10000 , "cp":40, "ci":1, "cd":10} ]}}
+            */
             // TODO: We need to retreive the PCNT value here as well to have a better starting point
             cJSON *stprs = cJSON_GetObjectItem(movePrecise, key_steppers);
             if (stprs != NULL)
@@ -236,7 +239,7 @@ namespace LinearEncoderController
                 float conversionFactor = (float)stepsToEncUnits->valuedouble;
                 MotorEncoderConfig::setStepsToEncoderUnits(conversionFactor);
                 MotorEncoderConfig::saveToPreferences();
-                log_i("Global conversion factor set to: %f µm per step", conversionFactor);
+                log_i("Global conversion factor set to: %f step per step", conversionFactor);
             }
 
             // Handle per-axis direction configuration (simplified)
@@ -365,14 +368,10 @@ namespace LinearEncoderController
             }
         }
 
-        float pwmVal = 0.0f;
-        int edgeCounter = 0;
         if (isPos > 0 and linearencoderID >= 0)
         {
 
             cJSON *aritem = cJSON_CreateObject();
-            pwmVal = 0;      // encoders[linearencoderID]->readPWM();
-            edgeCounter = 0; // encoders[linearencoderID]->readEdgeCounter();
             posVal = encoders[linearencoderID].getPosition();
 
             cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
@@ -384,12 +383,9 @@ namespace LinearEncoderController
         else
         {
             // return all linearencoder edata
-            cJSON *aritem = cJSON_CreateObject();
             for (int i = 0; i < 4; i++)
             {
                 cJSON *aritem = cJSON_CreateObject();
-                pwmVal = 0;      // encoders[linearencoderID]->readPWM();
-                edgeCounter = 0; // encoders[linearencoderID]->readEdgeCounter();
                 posVal = encoders[linearencoderID].getPosition();
 
                 cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
@@ -445,8 +441,10 @@ namespace LinearEncoderController
     */
     void executePrecisionMotionBlocking(int stepperIndex)
     {
-        if (stepperIndex < 0 || stepperIndex >= 4 || !edata[stepperIndex])
+        if (stepperIndex < 0 || stepperIndex >= 4 || !edata[stepperIndex]){
+            log_e("Invalid stepper index %d for precision motion", stepperIndex);
             return;
+        }
 
         int s = stepperIndex;
         
@@ -461,10 +459,11 @@ namespace LinearEncoderController
         log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
 
         // Fast precision control loop with immediate PID updates
-        const unsigned long maxMotionTime = 30000; // 30 second safety timeout
-        const float positionTolerance = 1.0f; // µm tolerance for completion
-        const float stuckThreshold = 0.01f; // µm threshold for detecting stuck motor
-        const unsigned long stuckTimeout = 1000; // ms before considering motor stuck
+        const unsigned long maxMotionTime = 10000; // 10 second safety timeout // TODO: This should be calculated based on distance and max speed
+        const float positionTolerance = 10.0f; // step tolerance for completion
+        const float stuckThreshold = 20.01f; // step threshold for detecting stuck motor
+        const unsigned long stuckTimeout = 300; // ms before considering motor stuck
+
         
         unsigned long motionStartTime = millis();
         float previousPosition = getCurrentPosition(s);
@@ -473,7 +472,7 @@ namespace LinearEncoderController
         while (edata[s]->movePrecise && (millis() - motionStartTime) < maxMotionTime)
         {
             // Read current encoder position with high frequency
-            float currentPos = getCurrentPosition(s);
+            float currentPos = getCurrentPosition(s); // this returns the encoder position in counts which relates to steps from the motor to be consistent 
             float distanceToGo = edata[s]->positionToGo - currentPos;
 
             // Check if we've reached the target position
@@ -486,7 +485,7 @@ namespace LinearEncoderController
 
             // Compute new PID speed based on current position
             speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
-            
+            // TODO: Perhaps we can detect a sign (i.e. motor direction vs encoder direction) error here and stop the motor or reverse direction
             // Update motor speed immediately for fast response
             getData()[s]->speed = speed;
             getData()[s]->isforever = true;
@@ -500,6 +499,7 @@ namespace LinearEncoderController
             }
             else if ((millis() - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
             {
+                // TODO: We should try again with a different approach (e.g. start again with reduced speed and then ramp up once, if still stuck, abort)
                 log_w("Motor %d appears stuck at position %f (target %f), stopping motion", 
                       s, currentPos, edata[s]->positionToGo);
                 break;
@@ -508,6 +508,8 @@ namespace LinearEncoderController
             // Small delay to prevent watchdog timeout while maintaining fast response
             vTaskDelay(1); // 1ms delay for 1kHz update rate
         }
+
+        // TODO: We should have a second run with a much lower speed to really get to the target position accurately maybe simply have a wrapping for loop 
 
         // Stop the motor and cleanup
         getData()[s]->speed = 0;
@@ -545,7 +547,7 @@ namespace LinearEncoderController
 
         // Fast homing control loop with immediate position monitoring
         const unsigned long maxHomingTime = 30000; // 30 second safety timeout
-        const float positionChangeThreshold = 0.1f; // µm threshold for detecting no movement
+        const float positionChangeThreshold = 1.f; // step threshold for detecting no movement
         const unsigned long startupTimeout = 2000; // ms before monitoring for stuck condition
         const unsigned long sampleInterval = 50; // ms between position samples for averaging
         
@@ -767,7 +769,7 @@ namespace LinearEncoderController
             return;
         float savedPosition = MotorEncoderConfig::loadEncoderPosition(encoderIndex);
         edata[encoderIndex]->posval = savedPosition;
-        log_i("Restored encoder %d position to: %f µm", encoderIndex, savedPosition);
+        log_i("Restored encoder %d position to: %f step", encoderIndex, savedPosition);
     }
 
     void saveAllEncoderPositions()

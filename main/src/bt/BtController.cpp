@@ -7,6 +7,7 @@
 #endif
 #include "Arduino.h"
 #include "JsonKeys.h"
+#include <cmath>
 
 
 namespace BtController
@@ -22,6 +23,18 @@ namespace BtController
     void (*dpad_changed_event)(Dpad::Direction pressed);
     void (*xyza_changed_event)(int x, int y,int z, int a);
     void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2);
+    
+    // PS4 Trackpad event handlers
+    void (*trackpad_swipe_event)(SwipeDirection direction);
+    void (*trackpad_touch_event)(TouchData touch1, TouchData touch2);
+    
+    // Trackpad swipe detection variables
+    static TrackpadData lastTrackpadData;
+    static TouchData swipeStartTouch;
+    static bool swipeInProgress = false;
+    static const uint16_t SWIPE_THRESHOLD = 50; // Minimum distance for swipe detection
+    static const uint32_t SWIPE_TIMEOUT = 500; // Maximum time for swipe (ms)
+    static uint32_t swipeStartTime = 0;
 
 
     void btControllerLoop(void *p)
@@ -78,6 +91,18 @@ namespace BtController
     void setAnalogControllerChangedEvent(void (*analogcontroller_event1)(int left, int right, bool r1, bool r2, bool l1, bool l2))
     {
         analogcontroller_event = analogcontroller_event1;
+    }
+
+    void setTrackpadSwipeEvent(void (*trackpad_swipe_event1)(SwipeDirection direction))
+    {
+        log_i("setTrackpadSwipeEvent");
+        trackpad_swipe_event = trackpad_swipe_event1;
+    }
+
+    void setTrackpadTouchEvent(void (*trackpad_touch_event1)(TouchData touch1, TouchData touch2))
+    {
+        log_i("setTrackpadTouchEvent");
+        trackpad_touch_event = trackpad_touch_event1;
     }
 
     void setup()
@@ -140,6 +165,74 @@ namespace BtController
             if (event != nullptr)
                 event(first);
         }
+    }
+
+    // Process trackpad data and detect swipes
+    void processTrackpadData(TrackpadData& currentData)
+    {
+        // Call touch event handler if registered
+        if (trackpad_touch_event != nullptr)
+        {
+            trackpad_touch_event(currentData.touch1, currentData.touch2);
+        }
+
+        // Swipe detection logic
+        if (trackpad_swipe_event != nullptr)
+        {
+            // Check for new touch (start of potential swipe)
+            if (!swipeInProgress && currentData.touch1.isActive && !lastTrackpadData.touch1.isActive)
+            {
+                swipeStartTouch = currentData.touch1;
+                swipeInProgress = true;
+                swipeStartTime = millis();
+                log_d("Swipe started at (%d, %d)", swipeStartTouch.x, swipeStartTouch.y);
+            }
+            // Check for end of touch (end of potential swipe)
+            else if (swipeInProgress && !currentData.touch1.isActive && lastTrackpadData.touch1.isActive)
+            {
+                uint32_t swipeDuration = millis() - swipeStartTime;
+                
+                if (swipeDuration < SWIPE_TIMEOUT)
+                {
+                    // Calculate swipe distance and direction
+                    int16_t deltaX = lastTrackpadData.touch1.x - swipeStartTouch.x;
+                    int16_t deltaY = lastTrackpadData.touch1.y - swipeStartTouch.y;
+                    uint16_t distance = sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    if (distance > SWIPE_THRESHOLD)
+                    {
+                        SwipeDirection direction = SWIPE_NONE;
+                        
+                        // Determine primary swipe direction
+                        if (abs(deltaX) > abs(deltaY))
+                        {
+                            // Horizontal swipe
+                            direction = (deltaX > 0) ? SWIPE_RIGHT : SWIPE_LEFT;
+                        }
+                        else
+                        {
+                            // Vertical swipe
+                            direction = (deltaY > 0) ? SWIPE_DOWN : SWIPE_UP;
+                        }
+                        
+                        log_i("Swipe detected: direction=%d, distance=%d, duration=%d ms", 
+                              direction, distance, swipeDuration);
+                        trackpad_swipe_event(direction);
+                    }
+                }
+                
+                swipeInProgress = false;
+            }
+            // Check for swipe timeout
+            else if (swipeInProgress && (millis() - swipeStartTime) > SWIPE_TIMEOUT)
+            {
+                log_d("Swipe timeout");
+                swipeInProgress = false;
+            }
+        }
+
+        // Update last trackpad data
+        lastTrackpadData = currentData;
     }
 
 #ifdef BTHID
@@ -250,7 +343,14 @@ namespace BtController
         log_i("scanForDevices - Also ensure that we have enough Heap memory. 39300 seems to be the minimum below which it doesn't work anymore");
 // scan for bluetooth devices and return the list of devices
 #ifdef BTHID
-        hid_demo_task(nullptr);
+        // Create a task for BT scanning to prevent watchdog timeout
+        // Increase stack size and priority to prevent memory issues
+        xTaskCreate(hid_demo_task, "hid_demo_task", 8192, NULL, 6, NULL);
+        
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "status", "scan_started");
+        cJSON_AddStringToObject(root, "message", "Bluetooth device scan started in background");
+        return root;
 #endif
         return NULL;
     }

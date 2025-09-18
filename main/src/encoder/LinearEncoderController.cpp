@@ -23,9 +23,13 @@ namespace LinearEncoderController
     void (*startStepper)(int, int);
 
     // Performance configuration
-    static bool useTaskBasedOperation = false; // Can be enabled for non-blocking operations
+    static bool useTaskBasedOperation = true; // Can be enabled for non-blocking operations
     static TaskHandle_t precisionMotionTask = nullptr;
     static TaskHandle_t homingTask = nullptr;
+    
+    // Add task status tracking for better cleanup
+    static volatile bool precisionMotionTaskRunning = false;
+    static volatile bool homingTaskRunning = false;
 
     std::array<LinearEncoderData *, 4> edata;
     // std::array<AS5311 *, 4> encoders;
@@ -164,7 +168,7 @@ namespace LinearEncoderController
             // initiate a motor start and let the motor run until it reaches the position
             /*
              {"task": "/linearencoder_get", "stepperid": 1}
-            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": -20000, "isabs":0,  "cp":10, "ci":0., "cd":0, "speed":25000} ]}}
+            {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 20000, "isabs":0,  "cp":5, "ci":0., "cd":0, "speed":25000} ]}}
             {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 500, "isabs":0,  "cp":100, "ci":0., "cd":10} ]}}
             {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": 1500 , "isabs":0, "cp":20, "ci":1, "cd":0.5} ]}}
             {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
@@ -256,9 +260,6 @@ namespace LinearEncoderController
                     edata[s]->pid.setOutputLimits(-edata[s]->maxSpeed, edata[s]->maxSpeed);
 
                     float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
-
-                    // Speed is already limited by PID controller output limits
-                    // No need for additional clamping unless we want stricter limits
 
                     log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
                     
@@ -394,19 +395,7 @@ namespace LinearEncoderController
         }
     }
 
-    // Helper function to get current motor position for comparison and plotting
-    long getCurrentMotorPosition(int stepperIndex) 
-    {
-        if (stepperIndex < 0 || stepperIndex >= 4 || !getData())
-            return 0;
-        
-        // Get current motor position from FocusMotor data
-        MotorData **motorData = getData();
-        if (motorData && motorData[stepperIndex]) {
-            return motorData[stepperIndex]->position;
-        }
-        return 0;
-    }
+
 
     cJSON *get(cJSON *docin)
     {
@@ -487,9 +476,6 @@ namespace LinearEncoderController
                 // log_i("plot: %f", getCurrentPosition(1));
                 // get current motor position for motor x / axis 1
                 // get current motor position for motor x / axis 1 - improved direct access
-                long currentMotorPos = getCurrentMotorPosition(1); // Updated by FAccelStep::updateData()
-                Serial.print(currentMotorPos);
-                Serial.print("; ");
                 Serial.print(getCurrentPosition(1));
                 Serial.println("; ");
                 Serial.flush();
@@ -508,12 +494,17 @@ namespace LinearEncoderController
     Can be enabled as alternative to blocking approach for better system responsiveness
     */
     void precisionMotionTaskWrapper(void* parameter) {
+        precisionMotionTaskRunning = true;
         int stepperIndex = *((int*)parameter);
         executePrecisionMotionBlocking(stepperIndex);
+        // Clean up task handle and status before deleting task to avoid race condition
+        precisionMotionTaskRunning = false;
+        precisionMotionTask = nullptr;
         vTaskDelete(nullptr); // Clean up task when complete
     }
     
     void homingTaskWrapper(void* parameter) {
+        homingTaskRunning = true;
         struct HomingParams {
             int stepperIndex;
             int speed;
@@ -521,14 +512,32 @@ namespace LinearEncoderController
         HomingParams* params = (HomingParams*)parameter;
         executeHomingBlocking(params->stepperIndex, params->speed);
         delete params;
+        // Clean up task handle and status before deleting task to avoid race condition
+        homingTaskRunning = false;
+        homingTask = nullptr;
         vTaskDelete(nullptr); // Clean up task when complete
     }
     
     // Start precision motion in task (non-blocking alternative)
     bool startPrecisionMotionTask(int stepperIndex) {
-        if (precisionMotionTask != nullptr) {
-            log_w("Precision motion task already running");
-            return false;
+        // Check if task is still running using both handle and status flag
+        if (precisionMotionTaskRunning || precisionMotionTask != nullptr) {
+            // Double-check task state if handle exists
+            if (precisionMotionTask != nullptr) {
+                eTaskState taskState = eTaskGetState(precisionMotionTask);
+                if (taskState == eDeleted || taskState == eInvalid) {
+                    // Task has finished, clean up the handle and flag
+                    precisionMotionTask = nullptr;
+                    precisionMotionTaskRunning = false;
+                    log_i("Cleaned up finished precision motion task");
+                } else {
+                    log_w("Precision motion task already running (state: %d)", taskState);
+                    return false;
+                }
+            } else {
+                log_w("Precision motion task status flag indicates running but no handle");
+                return false;
+            }
         }
         
         static int taskStepperIndex = stepperIndex;
@@ -542,14 +551,36 @@ namespace LinearEncoderController
             1 // Core 1
         );
         
+        if (result == pdPASS) {
+            log_i("Started precision motion task for axis %d", stepperIndex);
+        } else {
+            // Reset handle if task creation failed
+            precisionMotionTask = nullptr;
+        }
+        
         return result == pdPASS;
     }
     
     // Start homing in task (non-blocking alternative)  
     bool startHomingTask(int stepperIndex, int speed) {
-        if (homingTask != nullptr) {
-            log_w("Homing task already running");
-            return false;
+        // Check if task is still running using both handle and status flag
+        if (homingTaskRunning || homingTask != nullptr) {
+            // Double-check task state if handle exists
+            if (homingTask != nullptr) {
+                eTaskState taskState = eTaskGetState(homingTask);
+                if (taskState == eDeleted || taskState == eInvalid) {
+                    // Task has finished, clean up the handle and flag
+                    homingTask = nullptr;
+                    homingTaskRunning = false;
+                    log_i("Cleaned up finished homing task");
+                } else {
+                    log_w("Homing task already running (state: %d)", taskState);
+                    return false;
+                }
+            } else {
+                log_w("Homing task status flag indicates running but no handle");
+                return false;
+            }
         }
         
         struct HomingParams {
@@ -567,6 +598,13 @@ namespace LinearEncoderController
             &homingTask,
             1 // Core 1
         );
+        
+        if (result == pdPASS) {
+            log_i("Started homing task for axis %d at speed %d", stepperIndex, speed);
+        } else {
+            delete params; // Clean up params if task creation failed
+            homingTask = nullptr; // Reset handle if task creation failed
+        }
         
         return result == pdPASS;
     }
@@ -600,7 +638,7 @@ namespace LinearEncoderController
         unsigned long calculatedTimeout = (unsigned long)((distance / edata[s]->maxSpeed) * 1000.0f) + (safetyMargin * 1000.0f);
         const unsigned long maxMotionTime = max(calculatedTimeout, 3000UL); // Minimum 3 seconds, maximum based on calculation
         const float positionTolerance = 10.0f; // step tolerance for completion
-        const float stuckThreshold = 20.01f; // step threshold for detecting stuck motor
+        const float stuckThreshold = 10.01f; // step threshold for detecting stuck motor
         const unsigned long stuckTimeout = 300; // ms before considering motor stuck
 
         
@@ -611,7 +649,7 @@ namespace LinearEncoderController
         unsigned long lastWatchdogReset = millis();
         const unsigned long watchdogResetInterval = 100; // Reset watchdog every 100ms
         
-        while (edata[s]->movePrecise && (millis() - motionStartTime) < maxMotionTime)
+        while (edata[s]->movePrecise )
         {
             // Read current encoder position with high frequency
             float currentPos = getCurrentPosition(s); // this returns the encoder position in counts which relates to steps from the motor to be consistent 
@@ -625,11 +663,17 @@ namespace LinearEncoderController
                 break;
             }
 
+            if (!(millis() - motionStartTime < maxMotionTime)){
+                log_w("Precision motion timeout for axis %d after %lu ms: current_pos=%f, target=%f, error=%f", 
+                      s, millis() - motionStartTime, currentPos, edata[s]->positionToGo, distanceToGo);
+                break;
+            }
+
             // Compute new PID speed based on current position
             speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
             
             // Direction error detection: Check if motor and encoder are working in opposite directions
-            if (abs(distanceToGo) > 50.0f && abs(speed) > 100.0f) { // Only check when meaningful motion is expected
+            if (false && (abs(distanceToGo) > 50.0f && abs(speed) > 100.0f)) { // Only check when meaningful motion is expected (//TODO: This is currently not working robustly)
                 static float lastDistanceToGo = distanceToGo;
                 static float lastSpeed = speed;
                 
@@ -697,7 +741,10 @@ namespace LinearEncoderController
         // Two-stage precision approach for higher accuracy
         // Stage 1: Fast approach (if we're still far from target)
         float finalDistance = abs(edata[s]->positionToGo - getCurrentPosition(s));
-        if (finalDistance > 50.0f) { // If we're still far from target, do a slower precision pass
+        edata[s]->pid.kp= edata[s]->c_p * .25f; // Decrease P gain for final approach
+        edata[s]->pid.ki= edata[s]->c_i * .25f; // Decrease I gain for final approach
+        edata[s]->pid.kd= edata[s]->c_d * .25f; // Decrease D gain for final approach
+        if (finalDistance > 5.0f) { // If we're still far from target, do a slower precision pass
             log_i("Starting precision stage 2 for axis %d: remaining distance=%f", s, finalDistance);
             
             const float precisionSpeed = min(edata[s]->maxSpeed * 0.2f, 1000.0f); // 20% of max speed or 1000, whichever is lower
@@ -716,6 +763,8 @@ namespace LinearEncoderController
                 }
                 
                 // Use conservative speed for precision positioning
+                speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
+
                 float speed = (distanceToGo > 0) ? precisionSpeed : -precisionSpeed;
                 getData()[s]->speed = speed;
                 getData()[s]->isforever = true;
@@ -775,7 +824,7 @@ namespace LinearEncoderController
         // High frequency sampling eliminates need for rolling averages
         const unsigned long maxHomingTime = 30000; // 30 second safety timeout
         const float positionChangeThreshold = 1.0f; // step threshold for detecting no movement
-        const unsigned long stuckDetectionInterval = 100; // ms between position checks
+        const unsigned long stuckDetectionInterval = 1000; // ms between position checks
         
         unsigned long homingStartTime = millis();
         float lastSamplePosition = getCurrentPosition(s);

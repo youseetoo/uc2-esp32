@@ -1,6 +1,7 @@
 #include "MotorGamePad.h"
 #include "FocusMotor.h"
 #include "MotorTypes.h"
+#include "../objective/ObjectiveController.h"
 #ifdef CAN_CONTROLLER
 #include "../can/can_controller.h"
 #endif
@@ -13,6 +14,13 @@ constexpr int   kOffset         = 1025;      // joystick dead-zone
 constexpr float kAlpha          = 0.40f;     // linear range boundary
 constexpr float kMaxSpeed       = 2000.0f;   // base max speed
 constexpr float kOneOver32768f  = 1.0f / 32768.0f;
+
+// State variables for fine/coarse mode and button edge detection
+static bool isFineMode = false;
+static float joystickScaleFactor = 1.0f;
+static unsigned long lastOptionsButtonTime = 0; // Track last button press time
+static bool optionsButtonWasPressed = false; // Track if button was recently pressed
+static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to wait between toggles
 
 
 	static inline void stopAxis(int ax)
@@ -84,9 +92,14 @@ constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 					 ? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
 					 : pinConfig.JOYSTICK_SPEED_MULTIPLIER;
 
+		// Apply fine/coarse mode scaling from MotorGamePad
+		speed *= getJoystickScaleFactor();
+
 		startAxis(ax, static_cast<int>(speed));
 
-		log_i("Motor %d: raw=%d  speed=%f", ax, value, speed);
+		log_i("Motor %d: raw=%d  speed=%f  scale=%.1f  mode=%s", 
+			  ax, value, speed, getJoystickScaleFactor(),
+			  isInFineMode() ? "FINE" : "COARSE");
 	}
 	void xyza_changed_event(int x, int y, int z, int a)
 	{
@@ -106,6 +119,35 @@ constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 		//if (!FocusMotor::getData()[Stepper::Z]->isforever;)
 		handleAxis(a, Stepper::A);
 	}
+
+	void options_changed_event(int pressed)
+	{
+		// Convert to boolean for clearer logic
+		bool isPressed = (pressed != 0);
+		unsigned long currentTime = millis();
+		
+		log_i("options_changed_event: pressed=%d, isPressed=%s, time=%lu", 
+			  pressed, isPressed ? "true" : "false", currentTime);
+		
+		// Only trigger toggle if button is pressed AND enough time has passed since last toggle
+		if (isPressed && (currentTime - lastOptionsButtonTime > BUTTON_DEBOUNCE_TIME))
+		{
+			// Toggle between fine and coarse mode
+			isFineMode = !isFineMode;
+			joystickScaleFactor = isFineMode ? 0.1f : 1.0f;
+			
+			log_i("Joystick mode switched to %s (scale factor: %.1f)", 
+				  isFineMode ? "FINE" : "COARSE", joystickScaleFactor);
+			
+			// Update the time of last toggle
+			lastOptionsButtonTime = currentTime;
+		}
+		else if (isPressed)
+		{
+			log_d("Button press ignored - too soon after last toggle (debounce)");
+		}
+	}
+
 
 	void singlestep_event(int left, int right, bool r1, bool r2, bool l1, bool l2)
 	{
@@ -149,4 +191,15 @@ constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 			FocusMotor::startStepper(Stepper::Z, 1);
 		}
 	}
+
+		float getJoystickScaleFactor()
+	{
+		return joystickScaleFactor;
+	}
+
+	bool isInFineMode()
+	{
+		return isFineMode;
+	}
+
 }

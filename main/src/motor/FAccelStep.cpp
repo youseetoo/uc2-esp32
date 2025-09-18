@@ -122,6 +122,7 @@ namespace FAccelStep
         // "unstop" the motor after it has actually started?
         getData()[i]->stopped = false;
         
+        if(0)
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -194,7 +195,9 @@ namespace FAccelStep
 
         // Use RMT driver instead of PCNT to avoid conflicts with ESP32Encoder
         // This completely avoids PCNT resource conflicts
+        #ifdef LINEAR_ENCODER_CONTROLLER
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+        #endif
         if (faststeppers[stepper] == nullptr)
         {
             log_e("Failed to create RMT stepper for motor %d, falling back to PCNT", stepper);

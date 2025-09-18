@@ -106,8 +106,10 @@ namespace HomeMotor
 						cJSON* homeStepper = cJSON_CreateObject();
 						
 						cJSON_AddNumberToObject(homeStepper, "stepperid", axis);
+						#ifdef LINEAR_ENCODER_CONTROLLER
 						cJSON_AddNumberToObject(homeStepper, "speed", (int)encoderSpeed);
-						
+						#endif
+
 						cJSON_AddItemToArray(homeSteppers, homeStepper);
 						cJSON_AddItemToObject(homeJson, "steppers", homeSteppers);
 						cJSON_AddItemToObject(homeJson, "home", cJSON_CreateObject());

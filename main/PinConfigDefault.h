@@ -160,6 +160,10 @@ struct PinConfig
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
 
+     // Objective related 
+     uint8_t objectiveMotorAxis = disabled;
+     uint8_t focusMotorAxis = disabled;
+     
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
      // LED_PINcount from the strip

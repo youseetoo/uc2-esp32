@@ -1,5 +1,6 @@
 #include <PinConfig.h>
 #include "HidController.h"
+#include "esp_task_wdt.h"
 #if defined(PSXCONTROLLER) && defined(BTHID)
 #error "PSXCONTROLLER und BTHID dürfen nicht gleichzeitig definiert werden!"
 #endif
@@ -174,9 +175,48 @@ void hid_demo_task(void *pvParameters)
 {
     size_t results_len = 0;
     esp_hid_scan_result_t *results = NULL;
+    
+    // Check available heap memory before scanning
+    size_t free_heap = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "Free heap before BT scan: %d bytes", free_heap);
+    
+    if (free_heap < 40000) {
+        ESP_LOGE(TAG, "Insufficient heap memory for BT scan: %d bytes (minimum 40000)", free_heap);
+        vTaskDelete(NULL);
+        return;
+    }
+    
     ESP_LOGI(TAG, "SCAN...");
-    // Start scan for HID devices
-    esp_hid_scan(SCAN_DURATION_SECONDS, &results_len, &results);
+    
+    // Try alternative approach: multiple short scans instead of one long scan
+    int max_attempts = 3;
+    bool scan_successful = false;
+    
+    for (int attempt = 1; attempt <= max_attempts && !scan_successful; attempt++) {
+        ESP_LOGI(TAG, "BT scan attempt %d/%d (%d second scan)...", attempt, max_attempts, SCAN_DURATION_SECONDS);
+        
+        // Remove from watchdog before each scan attempt
+        esp_task_wdt_delete(NULL);
+        
+        // Start scan for HID devices - this is a blocking operation
+        esp_err_t scan_result = esp_hid_scan(SCAN_DURATION_SECONDS, &results_len, &results);
+        
+        if (scan_result == ESP_OK) {
+            ESP_LOGI(TAG, "BT scan successful on attempt %d", attempt);
+            scan_successful = true;
+        } else {
+            ESP_LOGE(TAG, "BT scan attempt %d failed: %s", attempt, esp_err_to_name(scan_result));
+            // Short delay between attempts
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+    }
+    
+    if (!scan_successful) {
+        ESP_LOGE(TAG, "All BT scan attempts failed");
+        vTaskDelete(NULL);
+        return;
+    }
+    
     ESP_LOGI(TAG, "SCAN: %u results", results_len);
 
     if (results_len) {
@@ -225,6 +265,9 @@ void hid_demo_task(void *pvParameters)
         esp_hid_scan_results_free(results);
     }
 
-    ESP_LOGI(TAG, "vtaskdelete hid_demo_task");
-    // vTaskDelete(NULL);
+    ESP_LOGI(TAG, "BT scan task completed successfully");
+    
+    // Task was already removed from watchdog at the beginning
+    // Delete the task when finished
+    vTaskDelete(NULL);
 }

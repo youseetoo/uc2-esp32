@@ -153,9 +153,18 @@ Each improvement should include:
 - `PCNTEncoderController.cpp`
 - `FocusMotor.cpp`
 - `MotorEncoderConfig.cpp`
+- `BtController.cpp` (for PS4 trackpad integration)
+
+## Future Enhancements
+
+### PS4 Trackpad Integration
+- **Touch-based positioning**: Use PS4 controller trackpad for intuitive X/Y positioning
+- **Swipe gestures**: Left/right swipes for motor movement, up/down for focus control
+- **Multi-touch support**: Two-finger gestures for zoom/rotation control
+- **Implementation**: See `PS4_TRACKPAD_README.md` for detailed implementation guide
 
 ---
 
-**Labels:** `enhancement`, `technical-debt`, `motion-control`, `encoder`  
+**Labels:** `enhancement`, `technical-debt`, `motion-control`, `encoder`, `ps4-controller`  
 **Milestone:** v2.1  
 **Estimated Effort:** 2-3 sprint cycles

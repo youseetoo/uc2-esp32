@@ -1,6 +1,8 @@
 #include <PinConfig.h>
 #include "HidController.h"
 #include "esp_task_wdt.h"
+// include logging
+#include "esp_log.h"
 #if defined(PSXCONTROLLER) && defined(BTHID)
 #error "PSXCONTROLLER und BTHID dürfen nicht gleichzeitig definiert werden!"
 #endif
@@ -18,6 +20,16 @@ void setupHidController()
         return;
     #endif
 
+    // Print configuration details
+    log_i("HID Configuration:");
+    log_i("  HID_HOST_MODE: %d", HID_HOST_MODE);
+    log_i("  HIDH_IDLE_MODE: %d", HIDH_IDLE_MODE);
+    log_i("  HIDH_BLE_MODE: %d", HIDH_BLE_MODE); 
+    log_i("  HIDH_BT_MODE: %d", HIDH_BT_MODE);
+    log_i("  HIDH_BTDM_MODE: %d", HIDH_BTDM_MODE);
+    log_i("  CONFIG_BT_HID_HOST_ENABLED: %d", CONFIG_BT_HID_HOST_ENABLED);
+    log_i("  CONFIG_BT_BLE_ENABLED: %d", CONFIG_BT_BLE_ENABLED);
+
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -25,7 +37,9 @@ void setupHidController()
     }
     ESP_ERROR_CHECK(ret);
 
-    ESP_LOGI(TAG, "setting hid gap, mode:%d", HID_HOST_MODE);
+    log_i("setting hid gap, mode:%d", HID_HOST_MODE);
+    log_i("HID_HOST_MODE details - BT_HID_HOST: %d, BT_BLE: %d", 
+          CONFIG_BT_HID_HOST_ENABLED, CONFIG_BT_BLE_ENABLED);
     ESP_ERROR_CHECK(esp_hid_gap_init(HID_HOST_MODE));
 
     #if CONFIG_BT_BLE_ENABLED
@@ -178,7 +192,7 @@ void hid_demo_task(void *pvParameters)
     
     // Check available heap memory before scanning
     size_t free_heap = esp_get_free_heap_size();
-    ESP_LOGI(TAG, "Free heap before BT scan: %d bytes", free_heap);
+    log_i( "Free heap before BT scan: %d bytes", free_heap);
     
     if (free_heap < 40000) {
         ESP_LOGE(TAG, "Insufficient heap memory for BT scan: %d bytes (minimum 40000)", free_heap);
@@ -186,14 +200,14 @@ void hid_demo_task(void *pvParameters)
         return;
     }
     
-    ESP_LOGI(TAG, "SCAN...");
+    log_i( "SCAN...");
     
     // Try alternative approach: multiple short scans instead of one long scan
-    int max_attempts = 3;
+    int max_attempts = 10;
     bool scan_successful = false;
     
     for (int attempt = 1; attempt <= max_attempts && !scan_successful; attempt++) {
-        ESP_LOGI(TAG, "BT scan attempt %d/%d (%d second scan)...", attempt, max_attempts, SCAN_DURATION_SECONDS);
+        log_i( "BT scan attempt %d/%d (%d second scan)...", attempt, max_attempts, SCAN_DURATION_SECONDS);
         
         // Remove from watchdog before each scan attempt
         esp_task_wdt_delete(NULL);
@@ -202,26 +216,28 @@ void hid_demo_task(void *pvParameters)
         esp_err_t scan_result = esp_hid_scan(SCAN_DURATION_SECONDS, &results_len, &results);
         
         if (scan_result == ESP_OK) {
-            ESP_LOGI(TAG, "BT scan successful on attempt %d", attempt);
+            log_i("BT scan successful on attempt %d", attempt);
             scan_successful = true;
         } else {
-            ESP_LOGE(TAG, "BT scan attempt %d failed: %s", attempt, esp_err_to_name(scan_result));
+            log_e( "BT scan attempt %d failed: %s", attempt, esp_err_to_name(scan_result));
             // Short delay between attempts
             vTaskDelay(pdMS_TO_TICKS(500));
         }
     }
     
     if (!scan_successful) {
-        ESP_LOGE(TAG, "All BT scan attempts failed");
+        log_e("All BT scan attempts failed");
         vTaskDelete(NULL);
         return;
     }
     
-    ESP_LOGI(TAG, "SCAN: %u results", results_len);
+    log_i("SCAN: %u results", results_len);
 
     if (results_len) {
         esp_hid_scan_result_t *r = results;
         esp_hid_scan_result_t *cr = NULL;
+        
+        log_i("Found %d devices in scan", results_len);
 
         while (r) {
             printf("  %s: " ESP_BD_ADDR_STR ", ", (r->transport == ESP_HID_TRANSPORT_BLE) ? "BLE" : "BT ", ESP_BD_ADDR_HEX(r->bda));
@@ -249,23 +265,33 @@ void hid_demo_task(void *pvParameters)
 
             printf("NAME: %s ", r->name ? r->name : "");
             printf("\n");
+            
+            // Check if this is a PS4 controller
+            if (r->name && (strstr(r->name, "Wireless Controller") || strstr(r->name, "DUALSHOCK"))) {
+                log_i("Found potential PS4 controller: %s", r->name);
+                cr = r; // Prefer PS4 controller if found
+            }
+            
             r = r->next;
         }
 
         if (cr) {
             // Open the last result
-            ESP_LOGI(TAG, "connect...");
+            log_i("connect...");
             esp_hidh_dev_t *dev = esp_hidh_dev_open(cr->bda, cr->transport, cr->ble.addr_type);
 
-            ESP_LOGI(TAG, "connected...");
+            log_i("connected...");
             // printf("esp_hidh_dev_open returned %d\n", dev);
+        }
+        else{
+            log_e("No valid HID devices found to connect");
         }
 
         // Free the results
         esp_hid_scan_results_free(results);
     }
 
-    ESP_LOGI(TAG, "BT scan task completed successfully");
+    log_i("BT scan task completed successfully");
     
     // Task was already removed from watchdog at the beginning
     // Delete the task when finished

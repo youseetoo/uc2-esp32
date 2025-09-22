@@ -50,6 +50,8 @@ typedef struct
 namespace can_controller
 {
     static unsigned long lastSend = 0;
+    static uint8_t device_can_id = 0;
+    
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
     void setup();

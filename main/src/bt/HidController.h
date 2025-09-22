@@ -32,7 +32,7 @@ void setupHidController();
 
 void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *event_data);
 
-#define SCAN_DURATION_SECONDS 1  // Reduced to 1 second to prevent watchdog timeout
+#define SCAN_DURATION_SECONDS 3  // Reduced to 1 second to prevent watchdog timeout
 
 void hid_demo_task(void *pvParameters);
 

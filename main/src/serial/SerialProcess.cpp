@@ -179,23 +179,64 @@ namespace SerialProcess
 	void serialize(cJSON *doc)
 	{
 		// e.g. used for state_get or sendMotorPos()
-		// Use critical section to prevent serial output interruption on ESP32S3
+		if (doc == NULL)
+		{
+			Serial.println("{\"error\":\"NULL JSON document\"}");
+			return;
+		}
+
+		// Print the JSON document to a string
+		char *s = cJSON_PrintUnformatted(doc);
+		if (s == NULL)
+		{
+			cJSON_Delete(doc);
+			Serial.println("{\"error\":\"Failed to serialize JSON\"}");
+			return;
+		}
+
+		// Check string length to prevent buffer overflow
+		size_t len = strlen(s);
+		if (len == 0 || len > 8192) // Reasonable limit for serial output
+		{
+			free(s);
+			cJSON_Delete(doc);
+			Serial.println("{\"error\":\"Response too large or empty\"}");
+			return;
+		}
+
+		// Use critical section only for the actual serial output, not JSON processing
 		portENTER_CRITICAL_ISR(&mux);
 		Serial.println("++");
-		if (doc != NULL)
+		
+		// Try to write in chunks if too large to prevent UART buffer overflow
+		if (len > 1024)
 		{
-			// Print the JSON document to a string
-			char *s = cJSON_PrintUnformatted(doc);
-			if (s != NULL)
+			// Exit critical section temporarily for large outputs
+			portEXIT_CRITICAL_ISR(&mux);
+			
+			// Write in 512 byte chunks to prevent UART buffer overflow
+			for (size_t i = 0; i < len; i += 512)
 			{
-				Serial.println(s);
-				free(s); // Free the string created by cJSON_Print
+				size_t chunk_size = (len - i > 512) ? 512 : (len - i);
+				Serial.write((uint8_t*)(s + i), chunk_size);
+				vTaskDelay(pdMS_TO_TICKS(1)); // Small delay between chunks
 			}
-			cJSON_Delete(doc); // Free the cJSON object
+			Serial.println(); // Add final newline
+			
+			// Re-enter critical section for closing
+			portENTER_CRITICAL_ISR(&mux);
 		}
+		else
+		{
+			Serial.println(s);
+		}
+		
 		Serial.println("--");
 		Serial.flush();
 		portEXIT_CRITICAL_ISR(&mux);
+
+		free(s); // Free the string created by cJSON_Print
+		cJSON_Delete(doc); // Free the cJSON object
 	}
 
 	void serialize(int qid)

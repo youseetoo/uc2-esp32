@@ -27,7 +27,6 @@ namespace can_controller
     MessageData txData, rxData;
     static QueueHandle_t sendQueue;
     QueueHandle_t recieveQueue;
-    uint8_t device_can_id = 0;
     int CAN_QUEUE_SIZE = 5;
 
     // for A,X,Y,Z intialize the I2C addresses

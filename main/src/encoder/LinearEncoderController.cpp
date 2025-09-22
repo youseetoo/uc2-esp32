@@ -28,7 +28,8 @@ namespace LinearEncoderController
     static TaskHandle_t homingTask = nullptr;
     
     // Add task status tracking for better cleanup
-    static volatile bool precisionMotionTaskRunning = false;
+    static volatile bool 
+    d = false;
     static volatile bool homingTaskRunning = false;
 
     std::array<LinearEncoderData *, 4> edata;

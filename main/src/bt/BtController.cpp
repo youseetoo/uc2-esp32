@@ -345,8 +345,9 @@ namespace BtController
 #ifdef BTHID
         // Create a task for BT scanning to prevent watchdog timeout
         // Increase stack size and priority to prevent memory issues
-        xTaskCreate(hid_demo_task, "hid_demo_task", 8192, NULL, 6, NULL);
-        
+        // xTaskCreate(hid_demo_task, "hid_demo_task", 8192, NULL, 6, NULL);
+        hid_demo_task(nullptr);
+
         cJSON *root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "status", "scan_started");
         cJSON_AddStringToObject(root, "message", "Bluetooth device scan started in background");

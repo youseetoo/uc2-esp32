@@ -22,6 +22,6 @@ namespace ObjectiveController
     void setup();
     void loop();
     void setIsHomed(bool isHomed);
-	void options_changed_event(int pressed);
     void share_changed_event(int pressed);
+
 }

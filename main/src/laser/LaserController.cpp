@@ -401,35 +401,202 @@ namespace LaserController
 
 	bool laser_on = false;
 	bool laser2_on = false;
+	
+	// Variables for hold/release detection
+	static unsigned long pressStartTime[4] = {0, 0, 0, 0}; // UP, DOWN, RIGHT, LEFT
+	static bool isPressed[4] = {false, false, false, false};
+	static bool isHolding[4] = {false, false, false, false};
+	static unsigned long lastHoldAction[4] = {0, 0, 0, 0};
+	static const unsigned long HOLD_THRESHOLD = 500; // ms to detect hold
+	static const unsigned long HOLD_INCREMENT_INTERVAL = 200; // ms between increments
+	
+	// Cross button toggle for Laser 4
+	static unsigned long crossLastEventTime = 0;
+	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
+	static bool laser4ToggleState = false; // false = off/min, true = on/max
+	
 	void dpad_changed_event(Dpad::Direction pressed)
 	{
-		if (pressed == Dpad::Direction::up) // FIXME: THE LASER TURNS ALWAYS ON CONNECT - WHY?
+		/*
+		Enhanced behavior:
+		- Short click RIGHT => toggle laser 2 on/off (10000/0)
+		- Long hold RIGHT => increment laser 2 in steps of 500
+		- Short click LEFT => toggle laser 2 on/off (10000/0) 
+		- Long hold LEFT => decrement laser 2 in steps of 500
+		- Short click UP => toggle laser 1 on/off (10000/0)
+		- Long hold UP => increment laser 1 in steps of 500
+		- Short click DOWN => toggle laser 1 on/off (10000/0)
+		- Long hold DOWN => decrement laser 1 in steps of 500
+		*/
+		
+		unsigned long currentTime = millis();
+		
+		if (pressed == Dpad::Direction::up)
 		{
-			// Switch laser 2 on/off on up/down button press
-			log_d("Turning on LAser 10000");
-			LaserController::setLaserVal(1, 10000);
-			laser_on = true;
+			if (!isPressed[0]) // Button press started
+			{
+				isPressed[0] = true;
+				pressStartTime[0] = currentTime;
+				isHolding[0] = false;
+			}
 		}
-		if (pressed == Dpad::Direction::down)
+		else if (pressed == Dpad::Direction::down)
 		{
-			log_d("Turning off LAser ");
-			LaserController::setLaserVal(1, 0);
-			laser_on = false;
+			if (!isPressed[1]) // Button press started
+			{
+				isPressed[1] = true;
+				pressStartTime[1] = currentTime;
+				isHolding[1] = false;
+			}
 		}
-
-		// LASER 2
-		// switch laser 2 on/off on triangle/square button press
-		if (pressed == Dpad::Direction::right)
+		else if (pressed == Dpad::Direction::right)
 		{
-			log_d("Turning on LAser 2 10000");
-			LaserController::setLaserVal(2, 10000);
-			laser2_on = true;
+			if (!isPressed[2]) // Button press started
+			{
+				isPressed[2] = true;
+				pressStartTime[2] = currentTime;
+				isHolding[2] = false;
+			}
 		}
-		if (pressed == Dpad::Direction::left)
+		else if (pressed == Dpad::Direction::left)
 		{
-			log_d("Turning off LAser ");
-			LaserController::setLaserVal(2, 0);
-			laser2_on = false;
+			if (!isPressed[3]) // Button press started
+			{
+				isPressed[3] = true;
+				pressStartTime[3] = currentTime;
+				isHolding[3] = false;
+			}
+		}
+		else if (pressed == Dpad::Direction::none)
+		{
+			// Handle button releases
+			for (int i = 0; i < 4; i++)
+			{
+				if (isPressed[i])
+				{
+					isPressed[i] = false;
+					unsigned long pressDuration = currentTime - pressStartTime[i];
+					
+					if (!isHolding[i] && pressDuration < HOLD_THRESHOLD)
+					{
+						// Short click detected
+						handleShortClick(i);
+					}
+					isHolding[i] = false;
+				}
+			}
+		}
+	}
+	
+	void handleShortClick(int direction)
+	{
+		// 0=UP, 1=DOWN, 2=RIGHT, 3=LEFT
+		if (direction == 0 || direction == 1) // UP or DOWN - Laser 1
+		{
+			if (laser_on)
+			{
+				log_i("Short click - Laser 1 OFF");
+				LaserController::setLaserVal(1, 0);
+				laser_on = false;
+			}
+			else
+			{
+				log_i("Short click - Laser 1 ON");
+				LaserController::setLaserVal(1, 10000);
+				laser_on = true;
+			}
+		}
+		else if (direction == 2 || direction == 3) // RIGHT or LEFT - Laser 2
+		{
+			if (laser2_on)
+			{
+				log_i("Short click - Laser 2 OFF");
+				LaserController::setLaserVal(2, 0);
+				laser2_on = false;
+			}
+			else
+			{
+				log_i("Short click - Laser 2 ON");
+				LaserController::setLaserVal(2, 10000);
+				laser2_on = true;
+			}
+		}
+	}
+	
+	// Call this from loop() to handle hold actions
+	void processHoldActions()
+	{
+		unsigned long currentTime = millis();
+		
+		for (int i = 0; i < 4; i++)
+		{
+			if (isPressed[i] && !isHolding[i] && 
+				(currentTime - pressStartTime[i]) >= HOLD_THRESHOLD)
+			{
+				// Start hold action
+				isHolding[i] = true;
+				lastHoldAction[i] = currentTime;
+				log_i("Hold started for direction %d", i);
+			}
+			
+			if (isHolding[i] && 
+				(currentTime - lastHoldAction[i]) >= HOLD_INCREMENT_INTERVAL)
+			{
+				// Execute hold action
+				executeHoldAction(i);
+				lastHoldAction[i] = currentTime;
+			}
+		}
+	}
+	
+	void executeHoldAction(int direction)
+	{
+		// 0=UP, 1=DOWN, 2=RIGHT, 3=LEFT
+		int incrementValue = 100;
+		int maxValue = 20000;
+		if (direction == 0) // UP - increment Laser 1
+		{
+			int currentVal = getLaserVal(1);
+			int newVal = std::min(currentVal + incrementValue, maxValue);
+			if (newVal != currentVal)
+			{
+				log_i("Hold UP - incrementing Laser 1: %d -> %d", currentVal, newVal);
+				setLaserVal(1, newVal);
+				laser_on = (newVal > 0);
+			}
+		}
+		else if (direction == 1) // DOWN - decrement Laser 1
+		{
+			int currentVal = getLaserVal(1);
+			int newVal = std::max(currentVal - incrementValue, 0);
+			if (newVal != currentVal)
+			{
+				log_i("Hold DOWN - decrementing Laser 1: %d -> %d", currentVal, newVal);
+				setLaserVal(1, newVal);
+				laser_on = (newVal > 0);
+			}
+		}
+		else if (direction == 2) // RIGHT - increment Laser 2
+		{
+			int currentVal = getLaserVal(2);
+			int newVal = std::min(currentVal + incrementValue, maxValue);
+			if (newVal != currentVal)
+			{
+				log_i("Hold RIGHT - incrementing Laser 2: %d -> %d", currentVal, newVal);
+				setLaserVal(2, newVal);
+				laser2_on = (newVal > 0);
+			}
+		}
+		else if (direction == 3) // LEFT - decrement Laser 2
+		{
+			int currentVal = getLaserVal(2);
+			int newVal = std::max(currentVal - incrementValue, 0);
+			if (newVal != currentVal)
+			{
+				log_i("Hold LEFT - decrementing Laser 2: %d -> %d", currentVal, newVal);
+				setLaserVal(2, newVal);
+				laser2_on = (newVal > 0);
+			}
 		}
 	}
 	
@@ -537,6 +704,8 @@ namespace LaserController
 
 	void loop()
 	{
+		// Process hold actions for continuous laser adjustment
+		processHoldActions();
 
 		// attempting to despeckle by wiggeling the temperature-dependent modes of the laser?
 		if (LASER_despeckle_1 > 0 && LASER_val_1 > 0 && pinConfig.LASER_1 != 0)
@@ -545,5 +714,39 @@ namespace LaserController
 			LASER_despeckle(LASER_despeckle_2, 2, LASER_despeckle_period_2);
 		if (LASER_despeckle_3 > 0 && LASER_val_3 > 0 && pinConfig.LASER_3 != 0)
 			LASER_despeckle(LASER_despeckle_3, 3, LASER_despeckle_period_3);
+	}
+
+	void cross_changed_event(int pressed)
+	{
+		if (pressed)
+		{
+			unsigned long currentTime = millis();
+			
+			// Debounce check - ignore if too soon after last event
+			if (currentTime - crossLastEventTime < BUTTON_DEBOUNCE_TIME)
+			{
+				return;
+			}
+			
+			crossLastEventTime = currentTime;
+			
+			// Toggle Laser 4 state
+			laser4ToggleState = !laser4ToggleState;
+			
+			log_i("Cross pressed - Laser 4 toggle to %s", laser4ToggleState ? "MAX (10000)" : "MIN (0)");
+			
+			if (laser4ToggleState)
+			{
+				// Turn Laser 4 to MAX
+				Serial.println("Cross pressed - Laser 4 MAX");
+				setLaserVal(4, 10000);
+			}
+			else
+			{
+				// Turn Laser 4 to MIN
+				Serial.println("Cross pressed - Laser 4 MIN");
+				setLaserVal(4, 0);
+			}
+		}
 	}
 }

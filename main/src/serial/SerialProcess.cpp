@@ -75,70 +75,139 @@
 
 namespace SerialProcess
 {
-	QueueHandle_t serialMSGQueue; // Queue that buffers incoming messages and delegates them to the appropriate task
-	xTaskHandle xHandle;		  // Task handle for the serial task
+	// Removed queue-based processing to fix ESP32S3 serial corruption
+	// Process JSON commands immediately in main loop instead of separate task
+	// QueueHandle_t serialMSGQueue; // Queue that buffers incoming messages and delegates them to the appropriate task
+	// xTaskHandle xHandle;		  // Task handle for the serial task
 
-	void serialTask(void *p)
+	// Critical section mutex to prevent serial output interruption
+	portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
+	// Thread-safe JSON serial output function
+	void safeSerializeJson(cJSON *doc)
 	{
-		for (;;)
+		if (doc == NULL)
 		{
-			cJSON *root = NULL;
-			xQueueReceive(serialMSGQueue, &root, portMAX_DELAY);
-			if (root == NULL)
-				continue; // Handle NULL case
+			// Use mutex for thread-safe output
+			portENTER_CRITICAL(&mux);
+			Serial.println("{\"error\":\"NULL JSON document\"}");
+			portEXIT_CRITICAL(&mux);
+			return;
+		}
 
-			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
-			if (tasks != NULL)
+		// Print the JSON document to a string
+		char *s = cJSON_PrintUnformatted(doc);
+		if (s == NULL)
+		{
+			// Don't delete doc here - caller is responsible
+			portENTER_CRITICAL(&mux);
+			Serial.println("{\"error\":\"Failed to serialize JSON\"}");
+			portEXIT_CRITICAL(&mux);
+			return;
+		}
+
+		// Check string length
+		size_t len = strlen(s);
+		if (len == 0 || len > 8192)
+		{
+			free(s);
+			// Don't delete doc here - caller is responsible
+			portENTER_CRITICAL(&mux);
+			Serial.println("{\"error\":\"Response too large or empty\"}");
+			portEXIT_CRITICAL(&mux);
+			return;
+		}
+
+		// Thread-safe serial output with mutex
+		portENTER_CRITICAL(&mux);
+		
+		Serial.println("++");
+		
+		// For large outputs, write in small chunks
+		if (len > 512)
+		{
+			for (size_t i = 0; i < len; i += 256)
 			{
-				int nTimes = 1;
-				cJSON *nTimesItem = cJSON_GetObjectItemCaseSensitive(root, "nTimes");
-				if (nTimesItem != NULL)
-					nTimes = nTimesItem->valueint;
+				size_t chunk_size = (len - i > 256) ? 256 : (len - i);
+				Serial.write((uint8_t*)(s + i), chunk_size);
+			}
+			Serial.println();
+		}
+		else
+		{
+			Serial.println(s);
+		}
+		
+		Serial.println("--");
+		Serial.flush();
+		
+		portEXIT_CRITICAL(&mux);
 
-				for (int i = 0; i < nTimes; i++)
+		free(s);
+		// Note: We don't delete doc here - caller is responsible for memory management
+	}
+
+	void processJsonDocument(cJSON *root)
+	{
+		if (root == NULL)
+			return; // Handle NULL case
+
+		cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
+		if (tasks != NULL)
+		{
+			int nTimes = 1;
+			cJSON *nTimesItem = cJSON_GetObjectItemCaseSensitive(root, "nTimes");
+			if (nTimesItem != NULL)
+				nTimes = nTimesItem->valueint;
+
+			for (int i = 0; i < nTimes; i++)
+			{
+				log_i("Process tasks");
+				cJSON *t = NULL;
+				cJSON_ArrayForEach(t, tasks)
 				{
-					log_i("Process tasks");
-					cJSON *t = NULL;
-					cJSON_ArrayForEach(t, tasks)
+					cJSON *ta = cJSON_GetObjectItemCaseSensitive(t, "task");
+					if (ta != NULL)
 					{
-						cJSON *ta = cJSON_GetObjectItemCaseSensitive(t, "task");
-						if (ta != NULL)
-						{
-							char *string = cJSON_GetStringValue(ta);
-							if (string != NULL)
-								jsonProcessor(string, t);
-						}
+						char *string = cJSON_GetStringValue(ta);
+						if (string != NULL)
+							jsonProcessor(string, t);
 					}
 				}
 			}
-			else
-			{
-				cJSON *string = cJSON_GetObjectItemCaseSensitive(root, "task");
-				if (string != NULL)
-				{
-					char *ss = cJSON_GetStringValue(string);
-					if (ss != NULL)
-						jsonProcessor(ss, root);
-				}
-			}
-
-			cJSON_Delete(root); // Delete root after processing
 		}
-		vTaskDelete(NULL);
+		else
+		{
+			cJSON *string = cJSON_GetObjectItemCaseSensitive(root, "task");
+			if (string != NULL)
+			{
+				char *ss = cJSON_GetStringValue(string);
+				if (ss != NULL)
+					jsonProcessor(ss, root);
+			}
+		}
+
+		cJSON_Delete(root); // Delete root after processing
 	}
 
 	void setup()
 	{
-		if (serialMSGQueue == nullptr)
-			serialMSGQueue = xQueueCreate(2, sizeof(cJSON *)); // Queue for cJSON pointers
-		if (xHandle == nullptr)
-			xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+		// No longer creating queue or separate task - processing happens in main loop
+		// if (serialMSGQueue == nullptr)
+		//	serialMSGQueue = xQueueCreate(2, sizeof(cJSON *)); // Queue for cJSON pointers
+		// if (xHandle == nullptr)
+		//	xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+		Serial.setTimeout(100);
+		Serial.setTxBufferSize(1024);
+		//esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
+		//Serial.setDebugOutput(false);
 	}
 
 	void addJsonToQueue(cJSON *doc)
 	{
-		// This bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
-		xQueueSend(serialMSGQueue, &doc, 0);
+		// This bypasses the serial input and directly processes cJSON object (e.g. via I2C)
+		// No longer using queue - process immediately to prevent serial corruption
+		processJsonDocument(doc);
 	}
 
 	void loop()
@@ -148,11 +217,12 @@ namespace SerialProcess
 			String c = Serial.readString();
 			const char *s = c.c_str();
 			Serial.flush();
-			//log_i("String s:%s , char:%s", c.c_str(), s);
+			// log_i("String s:%s , char:%s", c.c_str(), s);
 			cJSON *root = cJSON_Parse(s);
 			if (root != NULL)
 			{
-				xQueueSend(serialMSGQueue, &root, 0); // Send pointer to queue
+				// Process immediately instead of adding to queue to prevent serial corruption
+				processJsonDocument(root);
 			}
 			else
 			{
@@ -160,7 +230,11 @@ namespace SerialProcess
 				if (error_ptr != NULL)
 					log_i("Error while parsing:%s", error_ptr);
 				log_i("Serial input is null");
+				// Use critical section for error output to prevent interruption
+				portENTER_CRITICAL_ISR(&mux);
 				Serial.println("++{\"error\":\"Serial input is null\"}--");
+				Serial.flush();
+				portEXIT_CRITICAL_ISR(&mux);
 			}
 			c.clear();
 		}
@@ -168,20 +242,12 @@ namespace SerialProcess
 
 	void serialize(cJSON *doc)
 	{
-		// e.g. used for state_get or sendMotorPos()
-		Serial.println("++");
-		if (doc != NULL)
-		{
-			// Print the JSON document to a string
-			char *s = cJSON_PrintUnformatted(doc);
-			if (s != NULL)
-			{
-				Serial.println(s);
-				free(s); // Free the string created by cJSON_Print
-			}
-			cJSON_Delete(doc); // Free the cJSON object
+		// Use the new thread-safe function
+		safeSerializeJson(doc);
+		// Original serialize function is responsible for deleting the doc
+		if (doc != NULL) {
+			cJSON_Delete(doc);
 		}
-		Serial.println("--");
 	}
 
 	void serialize(int qid)
@@ -203,6 +269,9 @@ namespace SerialProcess
 			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(-1));
 		else
 			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(0));
+
+		// Use critical section to prevent serial output interruption on ESP32S3
+		portENTER_CRITICAL_ISR(&mux);
 		Serial.println("++");
 
 		// Print the JSON document to a string
@@ -215,8 +284,10 @@ namespace SerialProcess
 
 		cJSON_Delete(doc); // Free the cJSON object
 
-		//Serial.println();
+		// Serial.println();
 		Serial.println("--");
+		Serial.flush();
+		portEXIT_CRITICAL_ISR(&mux);
 	}
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
@@ -258,8 +329,8 @@ namespace SerialProcess
 #ifdef DAC_CONTROLLER
 		else if (strcmp(task, dac_act_endpoint) == 0)
 			serialize(DacController::act(jsonDocument));
-			// else  if (strcmp(task, dac_get_endpoint) == 0)
-			//	serialize(DacController::get(jsonDocument));
+		// else  if (strcmp(task, dac_get_endpoint) == 0)
+		//	serialize(DacController::get(jsonDocument));
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
@@ -308,9 +379,9 @@ namespace SerialProcess
 			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
-else  if (strcmp(task, i2c_get_endpoint) == 0)
+		else if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_master::get(jsonDocument));
-		else  if (strcmp(task, i2c_act_endpoint) == 0)
+		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
 #ifdef CAN_CONTROLLER
@@ -375,9 +446,12 @@ else  if (strcmp(task, i2c_get_endpoint) == 0)
 		else if (strcmp(task, state_busy_endpoint) == 0)
 		{
 			// super fast check if the system is busy {"task":"/b"}
+			// Use critical section to prevent serial output interruption
+			portENTER_CRITICAL_ISR(&mux);
 			Serial.print("++{'b':");
 			Serial.print(State::getBusy());
 			Serial.println("}--");
+			portEXIT_CRITICAL_ISR(&mux);
 		}
 		else if (strcmp(task, modules_get_endpoint) == 0)
 		{

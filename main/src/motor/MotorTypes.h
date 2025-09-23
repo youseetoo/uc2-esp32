@@ -60,6 +60,7 @@ struct MotorData
 	uint32_t maxPos = 0; // max position in steps
 	uint32_t minPos = 0; // min position in steps
 	bool softLimitEnabled = false; // soft limit enabled
+	bool encoderBasedMotion = false; // use encoder feedback for precise motion control
 	
 }__attribute__((packed));
 #pragma pack(pop)

@@ -46,4 +46,29 @@ namespace BtController
     void setDpadChangedEvent(void (*dpad_changed_event)(Dpad::Direction pressed));
     void setXYZAChangedEvent(void (*xyza_changed_event)(int x, int y,int z, int a));
     void setAnalogControllerChangedEvent(void (*analogcontroller_event)(int left, int right, bool r1, bool r2, bool l1, bool l2));
+    
+    // PS4 Trackpad support
+    enum SwipeDirection {
+        SWIPE_NONE = 0,
+        SWIPE_LEFT = 1,
+        SWIPE_RIGHT = 2,
+        SWIPE_UP = 3,
+        SWIPE_DOWN = 4
+    };
+    
+    struct TouchData {
+        bool isActive;
+        uint16_t x;
+        uint16_t y;
+        uint8_t id;
+    };
+    
+    struct TrackpadData {
+        uint8_t reportCounter;
+        TouchData touch1;
+        TouchData touch2;
+    };
+    
+    void setTrackpadSwipeEvent(void (*trackpad_swipe_event)(SwipeDirection direction));
+    void setTrackpadTouchEvent(void (*trackpad_touch_event)(TouchData touch1, TouchData touch2));
 };

@@ -9,6 +9,10 @@
 #include "StageScan.h"
 #endif
 
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
+
 namespace MotorJsonParser
 {
 
@@ -574,6 +578,10 @@ namespace MotorJsonParser
 		{
 			cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
 			cJSON *stp = NULL;
+
+			// TODO: Check if motor is in available motors and skip if not
+			// e.g. if we have only 4 motors (A, X, Y, Z) and get a command for motor E, we should skip it
+			// This is especially important for CAN bus, where we might have multiple motor controllers with
 			if (stprs != NULL)
 			{
 				cJSON_ArrayForEach(stp, stprs)
@@ -608,6 +616,61 @@ namespace MotorJsonParser
 					FocusMotor::getData()[s]->isaccelerated = cJsonTool::getJsonInt(stp, key_isaccel);
 					// FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
+					
+					// Check for encoder-based precision motion (enc=1)
+					bool useEncoderPrecision = cJsonTool::getJsonInt(stp, key_encoder_precision) == 1;
+					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
+					
+					if (useEncoderPrecision) {
+						log_i("Motor %d: Encoder-based precision motion enabled (enc=1)", s);
+						// For encoder-based motion, position is in encoder units
+						// Create LinearEncoderController command with PID parameters
+						#ifdef LINEAR_ENCODER_CONTROLLER
+						
+						// Build precision motion command for LinearEncoderController
+						cJSON* precisionJson = cJSON_CreateObject();
+						cJSON* movePrecise = cJSON_CreateObject();
+						cJSON* steppers = cJSON_CreateArray();
+						cJSON* stepper = cJSON_CreateObject();
+						
+						// Basic parameters
+						cJSON_AddNumberToObject(stepper, key_stepperid, s);
+						cJSON_AddNumberToObject(stepper, key_linearencoder_position, FocusMotor::getData()[s]->targetPosition);
+						cJSON_AddNumberToObject(stepper, key_speed, FocusMotor::getData()[s]->speed);
+						cJSON_AddNumberToObject(stepper, key_isabs, FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
+						
+						// Extract and pass PID parameters if provided
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL) {
+							float cp = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_cp, cp);
+						}
+						#ifdef LINEAR_ENCODER_CONTROLLER
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci) != NULL) {
+							float ci = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci)->valuedouble;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_ci, ci);
+						}
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd) != NULL) {
+							float cd = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_cd, cd);
+						}
+						#endif
+						// Add stepper to array and build command
+						cJSON_AddItemToArray(steppers, stepper);
+						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);
+						cJSON_AddItemToObject(precisionJson, key_linearencoder_moveprecise, movePrecise);
+						
+						// Delegate to LinearEncoderController
+						log_i("Delegating motor %d to LinearEncoderController for precision motion", s);
+						LinearEncoderController::act(precisionJson);
+						
+						cJSON_Delete(precisionJson);
+						
+						// Skip regular motor processing for this stepper
+						continue;
+						#else
+						log_w("Encoder precision requested but LINEAR_ENCODER_CONTROLLER not available");
+						#endif
+					}
 
 					// check if soft limits are enabled and if the target position is within the limits
 					if (FocusMotor::getData()[s]->softLimitEnabled)

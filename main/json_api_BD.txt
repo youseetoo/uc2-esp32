@@ -414,7 +414,7 @@ A,X,Y,Z ...
 
 {"task": "/can_get"}
 
-{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
+{"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -30000, "speed": 20000, "isabs": 0.0, "accel": 1000000, "isen": true}]}, "qid": 8}
 {"task":"/motor_act", "isen":1, "isenauto":0}
 
@@ -547,14 +547,25 @@ gives
 {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
 
 
-
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 17}
-
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": -1}]}, "qid": 16}
-
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": -1}]}, "qid": 15}
-
+###################################################
+ON ESP32 Side  for FRAME #3
+###################################################
+-> move to home position 
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 17}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": 1}]}, "qid": 14}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 15}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 16}
+
+-> move in positive direction 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # probably wrong wiring
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # probably wrong wiring 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # 
+
+
+
+############################################################################################################################################################################################################
+
 
 {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 3, "nY": 3, "tPre": 50, "tPost": 50, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
 

@@ -83,6 +83,70 @@ namespace SerialProcess
 	// Critical section mutex to prevent serial output interruption
 	portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
+	// Thread-safe JSON serial output function
+	void safeSerializeJson(cJSON *doc)
+	{
+		if (doc == NULL)
+		{
+			// Use mutex for thread-safe output
+			portENTER_CRITICAL(&mux);
+			Serial.println("{\"error\":\"NULL JSON document\"}");
+			portEXIT_CRITICAL(&mux);
+			return;
+		}
+
+		// Print the JSON document to a string
+		char *s = cJSON_PrintUnformatted(doc);
+		if (s == NULL)
+		{
+			// Don't delete doc here - caller is responsible
+			portENTER_CRITICAL(&mux);
+			Serial.println("{\"error\":\"Failed to serialize JSON\"}");
+			portEXIT_CRITICAL(&mux);
+			return;
+		}
+
+		// Check string length
+		size_t len = strlen(s);
+		if (len == 0 || len > 8192)
+		{
+			free(s);
+			// Don't delete doc here - caller is responsible
+			portENTER_CRITICAL(&mux);
+			Serial.println("{\"error\":\"Response too large or empty\"}");
+			portEXIT_CRITICAL(&mux);
+			return;
+		}
+
+		// Thread-safe serial output with mutex
+		portENTER_CRITICAL(&mux);
+		
+		Serial.println("++");
+		
+		// For large outputs, write in small chunks
+		if (len > 512)
+		{
+			for (size_t i = 0; i < len; i += 256)
+			{
+				size_t chunk_size = (len - i > 256) ? 256 : (len - i);
+				Serial.write((uint8_t*)(s + i), chunk_size);
+			}
+			Serial.println();
+		}
+		else
+		{
+			Serial.println(s);
+		}
+		
+		Serial.println("--");
+		Serial.flush();
+		
+		portEXIT_CRITICAL(&mux);
+
+		free(s);
+		// Note: We don't delete doc here - caller is responsible for memory management
+	}
+
 	void processJsonDocument(cJSON *root)
 	{
 		if (root == NULL)
@@ -178,65 +242,12 @@ namespace SerialProcess
 
 	void serialize(cJSON *doc)
 	{
-		// e.g. used for state_get or sendMotorPos()
-		if (doc == NULL)
-		{
-			Serial.println("{\"error\":\"NULL JSON document\"}");
-			return;
-		}
-
-		// Print the JSON document to a string
-		char *s = cJSON_PrintUnformatted(doc);
-		if (s == NULL)
-		{
+		// Use the new thread-safe function
+		safeSerializeJson(doc);
+		// Original serialize function is responsible for deleting the doc
+		if (doc != NULL) {
 			cJSON_Delete(doc);
-			Serial.println("{\"error\":\"Failed to serialize JSON\"}");
-			return;
 		}
-
-		// Check string length to prevent buffer overflow
-		size_t len = strlen(s);
-		if (len == 0 || len > 8192) // Reasonable limit for serial output
-		{
-			free(s);
-			cJSON_Delete(doc);
-			Serial.println("{\"error\":\"Response too large or empty\"}");
-			return;
-		}
-
-		// Use critical section only for the actual serial output, not JSON processing
-		portENTER_CRITICAL_ISR(&mux);
-		Serial.println("++");
-		
-		// Try to write in chunks if too large to prevent UART buffer overflow
-		if (len > 1024)
-		{
-			// Exit critical section temporarily for large outputs
-			portEXIT_CRITICAL_ISR(&mux);
-			
-			// Write in 512 byte chunks to prevent UART buffer overflow
-			for (size_t i = 0; i < len; i += 512)
-			{
-				size_t chunk_size = (len - i > 512) ? 512 : (len - i);
-				Serial.write((uint8_t*)(s + i), chunk_size);
-				vTaskDelay(pdMS_TO_TICKS(1)); // Small delay between chunks
-			}
-			Serial.println(); // Add final newline
-			
-			// Re-enter critical section for closing
-			portENTER_CRITICAL_ISR(&mux);
-		}
-		else
-		{
-			Serial.println(s);
-		}
-		
-		Serial.println("--");
-		Serial.flush();
-		portEXIT_CRITICAL_ISR(&mux);
-
-		free(s); // Free the string created by cJSON_Print
-		cJSON_Delete(doc); // Free the cJSON object
 	}
 
 	void serialize(int qid)

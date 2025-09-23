@@ -6,6 +6,7 @@
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
 #include "../state/State.h"
+#include "../serial/SerialProcess.h"
 #include "esp_debug_helpers.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
@@ -788,15 +789,8 @@ namespace FocusMotor
 		i2c_master::pushMotorPosToDial();
 #endif
 
-		// Print result - will that work in the case of an xTask?
-		Serial.println("++");
-		char *s = cJSON_PrintUnformatted(root);
-		if (s != NULL)
-		{
-			Serial.println(s);
-			free(s);
-		}
-		Serial.println("--");
+		// Use thread-safe JSON serialization to prevent UART conflicts
+		SerialProcess::safeSerializeJson(root);
 
 		cJSON_Delete(root); // Free the root object, which also frees all nested objects
 #ifdef CAN_SLAVE_MOTOR

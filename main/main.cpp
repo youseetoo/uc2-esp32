@@ -14,7 +14,7 @@
 
 Preferences preferences;
 
-#define WDTIMEOUT 5 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
+#define WDTIMEOUT 10 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
 #ifdef ESP32S3_MODEL_XIAO
@@ -214,8 +214,9 @@ extern "C" void looper(void *p)
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time())
 		{ //
 			/* code */
-			Serial.print("free heap:");
-			Serial.println(ESP.getFreeHeap());
+			char buffer[64];
+			snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
+			SerialProcess::safePrintln(buffer);
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 		// Allow other tasks to run and reset the WDT
@@ -241,7 +242,7 @@ static void handleSquareLongPress(int pressed)
         unsigned long pressDuration = millis() - pressStart;
         if (pressDuration > 3000) // 3 seconds
         {
-            Serial.println("Square button long-press detected, rebooting...");
+            SerialProcess::safePrintln("Square button long-press detected, rebooting...");
             ESP.restart();
         }
     }
@@ -382,7 +383,7 @@ extern "C" void setupApp(void)
 State::startOTA();
 #endif
 
-	Serial.println("{'setup':'done'}");
+	SerialProcess::safePrintln("{'setup':'done'}");
 }
 
 extern "C" void app_main(void)
@@ -414,7 +415,7 @@ extern "C" void app_main(void)
 	if (false and !hasBooted)
 	{ // some ESPs are freaking out on start, but this is not a good solution
 		// Set the flag to indicate that the ESP32 has booted once
-		Serial.println("First boot");
+		SerialProcess::safePrintln("First boot");
 		preferences.putBool("hasBooted", true);
 		preferences.end();
 		ESP.restart(); // Restart the ESP32 immediately

@@ -117,7 +117,7 @@
 # HOME
 {"task": "/home_get"}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 3000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":1}]}}
 
 
@@ -563,6 +563,8 @@ ON ESP32 Side  for FRAME #3
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # 
 
 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "redu":0, "accel":500000, "qid":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{"stepperid": 1, "position": 1000, "isabs":0, "speed":10000, "redu":0}]}, "qid": 23}
 
 ############################################################################################################################################################################################################
 

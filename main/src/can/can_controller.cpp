@@ -47,7 +47,7 @@ namespace can_controller
         pinConfig.CAN_ID_LASER_0,
         pinConfig.CAN_ID_LASER_1,
         pinConfig.CAN_ID_LASER_2,
-        pinConfig.CAN_ID_LASER_3, 
+        pinConfig.CAN_ID_LASER_3,
         pinConfig.CAN_ID_LASER_4};
 
     // for galvo devices - currently only one
@@ -774,12 +774,12 @@ namespace can_controller
                 numIDs = 2;
             }
 
-            // Listen to all configured CAN addresses in one call
-            #ifdef CAN_MULTIADDRESS
+// Listen to all configured CAN addresses in one call
+#ifdef CAN_MULTIADDRESS
             int mError = receiveCanMessage(rxIDs, numIDs);
-            #else
+#else
             int mError = receiveCanMessage(device_can_id);
-            #endif
+#endif
 
             vTaskDelay(1);
         }
@@ -814,7 +814,6 @@ namespace can_controller
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
-
     }
 
     int act(cJSON *doc)
@@ -833,7 +832,7 @@ namespace can_controller
 
             uint8_t CAN_ID_LASER_0 = 20
             uint8_t CAN_ID_LASER_1 = 21
-            uint8_t CAN_ID_LASER_2 = 22 
+            uint8_t CAN_ID_LASER_2 = 22
             uint8_t CAN_ID_LASER_3 = 23
             uint8_t CAN_ID_LASER_4 = 24
         */
@@ -1119,28 +1118,17 @@ namespace can_controller
         if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
         // TODO: if we do homing on that axis the first time it mysteriously fails so we send it twice..
-        // check if axis was homed already in axisHomed - array
         int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
-        if (axisHomed[axis] == false)
+        if (err != 0)
         {
-            int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
-            if (err != 0)
-            {
-                if (pinConfig.DEBUG_CAN_ISO_TP)
-                    log_e("Error sending home data to CAN slave at address %i", slave_addr);
-            }
-            else
-            {
-                if (pinConfig.DEBUG_CAN_ISO_TP)
-                    log_i("Home data sent to CAN slave at address %i", slave_addr);
-            }
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending home data to CAN slave at address %i", slave_addr);
         }
         else
         {
             if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Axis %i was already homed, not sending home data again", axis);
+                log_i("Home data sent to CAN slave at address %i", slave_addr);
         }
-        axisHomed[axis] = true;
     }
 
     void sendHomeStateToMaster(HomeState homeState)

@@ -552,7 +552,7 @@ ON ESP32 Side  for FRAME #3
 ###################################################
 -> move to home position 
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 17}
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": 1}]}, "qid": 14}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 14}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 15}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 16}
 

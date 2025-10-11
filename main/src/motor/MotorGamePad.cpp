@@ -22,6 +22,15 @@ static unsigned long lastOptionsButtonTime = 0; // Track last button press time
 static bool optionsButtonWasPressed = false; // Track if button was recently pressed
 static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to wait between toggles
 
+// Joystick offset calibration on startup
+static bool isCalibrated = false;
+static int16_t joystickOffsets[4] = {0, 0, 0, 0}; // X, Y, Z, A
+
+// Auto-stop on inactivity
+static const unsigned long INACTIVITY_TIMEOUT = 10000; // ms of no change before stopping motor
+static int16_t lastAxisValues[4] = {0, 0, 0, 0}; // Track last values for each axis
+static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change time for each axis
+
 
 	static inline void stopAxis(int ax)
 	{
@@ -67,6 +76,28 @@ static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to wait between tog
 		if (ax == Stepper::A)
 		return;
 		#endif
+		
+		// Apply offset calibration
+		value -= joystickOffsets[ax];
+		
+		// Check for inactivity - if value hasn't changed, check timeout
+		unsigned long currentTime = millis();
+		if (value == lastAxisValues[ax])
+		{
+			// Value unchanged - check if timeout exceeded
+			if (axisRunning[ax] && (currentTime - lastAxisChangeTime[ax] > INACTIVITY_TIMEOUT))
+			{
+				stopAxis(ax);
+				log_d("Motor %d auto-stopped due to inactivity", ax);
+			}
+		}
+		else
+		{
+			// Value changed - update tracking
+			lastAxisValues[ax] = value;
+			lastAxisChangeTime[ax] = currentTime;
+		}
+		
 		// dead-zone ────────────────────────────────────────────────────────────
 		if (std::abs(value) <= kOffset)
 		{
@@ -101,9 +132,23 @@ static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to wait between tog
 			  ax, value, speed, getJoystickScaleFactor(),
 			  isInFineMode() ? "FINE" : "COARSE");
 	}
+
 	void xyza_changed_event(int x, int y, int z, int a)
 	{
 		// log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
+
+		// Calibrate on first call - capture initial joystick position as offset
+		if (!isCalibrated)
+		{
+			joystickOffsets[Stepper::X] = x;
+			joystickOffsets[Stepper::Y] = y;
+			joystickOffsets[Stepper::Z] = z;
+			joystickOffsets[Stepper::A] = a;
+			isCalibrated = true;
+			
+			log_i("Joystick calibrated with offsets: X=%d, Y=%d, Z=%d, A=%d", x, y, z, a);
+			return; // Skip first iteration to avoid initial movement
+		}
 
 		// X-Direction
 		handleAxis(x, Stepper::X);
@@ -200,6 +245,13 @@ static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to wait between tog
 	bool isInFineMode()
 	{
 		return isFineMode;
+	}
+
+	void resetCalibration()
+	{
+		isCalibrated = false;
+		joystickOffsets[0] = joystickOffsets[1] = joystickOffsets[2] = joystickOffsets[3] = 0;
+		log_i("Joystick calibration reset - will recalibrate on next input");
 	}
 
 }

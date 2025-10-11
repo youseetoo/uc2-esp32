@@ -6,6 +6,7 @@ namespace MotorGamePad
 
     float getJoystickScaleFactor(); // Get current joystick scaling factor (0.1 fine, 1.0 coarse)
     bool isInFineMode(); // Check if currently in fine mode
+    void resetCalibration(); // Reset joystick offset calibration
     static bool axisRunning[MOTOR_AXIS_COUNT] { false };   // assumes Stepper::X..A == 0..3
 	void options_changed_event(int pressed);
     void xyza_changed_event(int x, int y, int z, int a);

@@ -208,7 +208,8 @@ namespace SerialProcess
 			return;
 		}
 
-		// Print the JSON document to a string
+		// CRITICAL: Serialize JSON to string immediately
+		// The caller must ensure the cJSON object remains valid during this call
 		char *s = cJSON_PrintUnformatted(doc);
 		if (s == NULL)
 		{
@@ -216,44 +217,55 @@ namespace SerialProcess
 			return;
 		}
 
-		// Check string length
-		size_t len = strlen(s);
-		if (len == 0 || len > 8192)
+		// Send the serialized string and free it
+		safeSendJsonString(s);
+		free(s);
+	}
+
+	// Send a pre-serialized JSON string with protocol delimiters
+	// This is useful when JSON serialization needs to happen in a protected context
+	// The caller is responsible for freeing jsonString after calling this function
+	void safeSendJsonString(char* jsonString)
+	{
+		if (jsonString == NULL)
 		{
-			free(s);
-			safePrintln("{\"error\":\"Response too large or empty\"}");
+			safePrintln("{\"error\":\"NULL JSON string\"}");
 			return;
 		}
 
 		// Build complete message with delimiters
-		size_t totalLen = len + 6; // ++ \n <json> \n -- \n
+		size_t len = strlen(jsonString);
+		if (len == 0 || len > 8192)
+		{
+			safePrintln("{\"error\":\"JSON string too large or empty\"}");
+			return;
+		}
+
+		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--" (3) + null terminator (1)
+		size_t totalLen = len + 7; // 3 + len + 3 + 1 for null terminator
 		char* buffer = (char*)malloc(totalLen);
 		if (buffer == nullptr)
 		{
-			free(s);
 			safePrintln("{\"error\":\"Out of memory\"}");
 			return;
 		}
 
 		// Construct message: "++\n<json>\n--\n"
 		strcpy(buffer, "++\n");
-		strcat(buffer, s);
+		strcat(buffer, jsonString);
 		strcat(buffer, "\n--");
-		
-		free(s);
 
-		// Send through queue (safePrintln will add final newline)
+		// Send through output queue
 		if (serialOutputQueue != nullptr)
 		{
 			SerialMessage msg;
 			msg.message = buffer;
-			msg.length = strlen(buffer) + 1; // Include newline that safePrintln adds
-			
-			// Directly queue the message
+			msg.length = strlen(buffer) + 1; // Include newline
+
 			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
 			{
 				free(buffer);
-				log_w("Serial output queue full - dropping JSON message");
+				log_w("Serial output queue full - dropping JSON string");
 			}
 		}
 		else
@@ -395,7 +407,8 @@ namespace SerialProcess
 
 		// Build complete message with delimiters
 		size_t len = strlen(s);
-		size_t totalLen = len + 6; // ++ \n <json> \n -- \n
+		// Calculate buffer size: "++\n" (3) + s (len) + "\n--" (3) + null terminator (1)
+		size_t totalLen = len + 7; // 3 + len + 3 + 1 for null terminator
 		char* buffer = (char*)malloc(totalLen);
 		if (buffer == nullptr)
 		{

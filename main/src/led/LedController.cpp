@@ -749,9 +749,9 @@ namespace LedController
 				// Turn LED ON
 				Serial.println("Circle pressed - LED ON");
 				cmd.mode = LedMode::CIRCLE;
-				cmd.r = 255;
+				cmd.r = 0;
 				cmd.g = 255;
-				cmd.b = 255;
+				cmd.b = 0;
 				cmd.radius = 8;
 				cmd.ledIndex = 0;
 				cmd.region[0] = 0;

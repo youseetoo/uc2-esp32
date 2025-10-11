@@ -62,7 +62,8 @@ namespace FocusMotor
 	bool waitForFirstRun[] = {false, false, false, false};
 
 
-	xSemaphoreHandle xMutex = xSemaphoreCreateMutex();
+	xSemaphoreHandle xMutex = NULL;
+	xSemaphoreHandle xSerialMutex = NULL;  // Mutex for serial JSON output
 
 	// for A,X,Y,Z intialize the I2C addresses
 	uint8_t i2c_addresses[] = {
@@ -479,6 +480,12 @@ namespace FocusMotor
 #endif
 	void setup()
 	{
+		// Initialize mutexes FIRST, before any other operations
+		if (xMutex == NULL)
+			xMutex = xSemaphoreCreateMutex();
+		if (xSerialMutex == NULL)
+			xSerialMutex = xSemaphoreCreateMutex();
+		
 		// Common setup for all
 		setup_data();
 		fill_data();
@@ -732,17 +739,36 @@ namespace FocusMotor
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos, int qid)
 	{
+		// Safety check: ensure mutex is initialized
+		if (xSerialMutex == NULL)
+		{
+			log_e("Serial mutex not initialized - cannot send motor position");
+			return;
+		}
+		
+		// Protect entire function to prevent concurrent access to cJSON objects and serial output
+		// This prevents heap corruption when multiple threads try to send motor positions simultaneously
+		if (!xSemaphoreTake(xSerialMutex, pdMS_TO_TICKS(1000)))
+		{
+			log_w("Failed to acquire serial mutex for sendMotorPos");
+			return;
+		}
+
 		// update current position of the motor depending on the interface
 		updateData(i);
 
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
+		{
+			xSemaphoreGive(xSerialMutex);
 			return; // Handle allocation failure
+		}
 
 		cJSON *stprs = cJSON_CreateArray();
 		if (stprs == NULL)
 		{
 			cJSON_Delete(root);
+			xSemaphoreGive(xSerialMutex);
 			return; // Handle allocation failure
 		}
 		cJSON_AddItemToObject(root, key_steppers, stprs);
@@ -754,6 +780,7 @@ namespace FocusMotor
 		if (item == NULL)
 		{
 			cJSON_Delete(root);
+			xSemaphoreGive(xSerialMutex);
 			return; // Handle allocation failure
 		}
 		cJSON_AddItemToArray(stprs, item);
@@ -789,10 +816,33 @@ namespace FocusMotor
 		i2c_master::pushMotorPosToDial();
 #endif
 
-		// Use thread-safe JSON serialization to prevent UART conflicts
-		SerialProcess::safeSerializeJson(root);
+		// CRITICAL: Serialize to string BEFORE releasing mutex to prevent doc from being freed
+		// This ensures atomic operation: create JSON -> serialize -> delete
+		char *jsonString = cJSON_PrintUnformatted(root);
+		
+		// Check if serialization was successful before proceeding
+		if (jsonString == NULL)
+		{
+			log_e("Failed to serialize motor position JSON for motor %d", i);
+			cJSON_Delete(root);
+			xSemaphoreGive(xSerialMutex);
+			return;
+		}
+		
+		// Delete cJSON object immediately after serialization
+		cJSON_Delete(root);
+		root = NULL;
+		
+		// Release mutex AFTER JSON operations are complete
+		xSemaphoreGive(xSerialMutex);
+		
+		// Now send the pre-serialized string through the safe output queue
+		SerialProcess::safeSendJsonString(jsonString);
+		
+		// Free the serialized string - cJSON_PrintUnformatted allocates with malloc
+		free(jsonString);
+		jsonString = NULL;
 
-		cJSON_Delete(root); // Free the root object, which also frees all nested objects
 #ifdef CAN_SLAVE_MOTOR
 		// We push the current state to the master to inform it that we are running and about the current position
 		can_controller::sendMotorStateToMaster();

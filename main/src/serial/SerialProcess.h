@@ -17,6 +17,7 @@ namespace SerialProcess
     void serialize(cJSON * doc);
     void serialize(int success);
     void safeSerializeJson(cJSON * doc);  // Thread-safe JSON serialization
+    void safeSendJsonString(char* jsonString); // Send pre-serialized JSON string with delimiters
     void serialTask(void *p);             // Serial processing task
     void serialOutputTask(void *p);       // Serial output task
     void safePrintln(const char* message); // Thread-safe Serial.println replacement

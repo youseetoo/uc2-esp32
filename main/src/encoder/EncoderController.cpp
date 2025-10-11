@@ -171,12 +171,12 @@ namespace EncoderController
 		log_i("Encoder setup");
 
 		// initialize the encoder pins as inputs
-		pinMode(pinConfig.X_CAL_CLK, INPUT);
-		pinMode(pinConfig.X_CAL_DATA, INPUT);
-		pinMode(pinConfig.Y_CAL_CLK, INPUT);
-		pinMode(pinConfig.Y_CAL_DATA, INPUT);
-		pinMode(pinConfig.Z_CAL_CLK, INPUT);
-		pinMode(pinConfig.Z_CAL_DATA, INPUT);
+		if(pinConfig.X_CAL_CLK>=0)pinMode(pinConfig.X_CAL_CLK, INPUT);
+		if(pinConfig.X_CAL_DATA>=0)pinMode(pinConfig.X_CAL_DATA, INPUT);
+		if(pinConfig.Y_CAL_CLK>=0)pinMode(pinConfig.Y_CAL_CLK, INPUT);
+		if(pinConfig.Y_CAL_DATA>=0)pinMode(pinConfig.Y_CAL_DATA, INPUT);
+		if(pinConfig.Z_CAL_CLK>=0)pinMode(pinConfig.Z_CAL_CLK, INPUT);
+		if(pinConfig.Z_CAL_DATA>=0)pinMode(pinConfig.Z_CAL_DATA, INPUT);
 
 		for (int i = 0; i < 4; i++)
 		{

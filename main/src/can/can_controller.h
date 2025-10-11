@@ -50,6 +50,8 @@ typedef struct
 namespace can_controller
 {
     static unsigned long lastSend = 0;
+    static uint8_t device_can_id = 0;
+    
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
     void setup();
@@ -70,6 +72,7 @@ namespace can_controller
     void sendMotorStateToMaster();	
     bool isMotorRunning(int axis);
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed);
+    int sendEncoderBasedMotionToCanDriver(uint8_t axis, bool encoderBasedMotion);
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
     int sendCANRestartByID(uint8_t canID);
 

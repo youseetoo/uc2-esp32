@@ -1,21 +1,24 @@
 #include <PinConfig.h>
 #include "../../config.h"
 #include "FocusMotor.h"
+#include "MotorEncoderConfig.h"
 #include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
 #include "../state/State.h"
+#include "../serial/SerialProcess.h"
 #include "esp_debug_helpers.h"
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
+#ifdef ENCODER_CONTROLLER
+#include "../encoder/PCNTEncoderController.h"
+#endif
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
 #ifdef USE_FASTACCEL
 #include "FAccelStep.h"
-// include pulse counter
-/*
-static pcnt_unit_handle_t   pcnt_motor1  = nullptr;
-static pcnt_channel_handle_t pcnt_ch1    = nullptr;
-*/
 #endif
 #ifdef USE_ACCELSTEP
 #include "AccelStep.h"
@@ -59,7 +62,8 @@ namespace FocusMotor
 	bool waitForFirstRun[] = {false, false, false, false};
 
 
-	xSemaphoreHandle xMutex = xSemaphoreCreateMutex();
+	xSemaphoreHandle xMutex = NULL;
+	xSemaphoreHandle xSerialMutex = NULL;  // Mutex for serial JSON output
 
 	// for A,X,Y,Z intialize the I2C addresses
 	uint8_t i2c_addresses[] = {
@@ -85,39 +89,7 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
-	
-	#ifdef USE_FASTACCEL
-	static void setup_pcnt_motor1()
-{
-	/*
-    if (pcnt_motor1) { return; }                       // already done
 
-    const int stepPin = pinConfig.MOTOR_X_STEP;        // motor‑1 step pin
-    if (stepPin < 0) { return; }                       // pin undefined
-
-    pcnt_unit_config_t uc = {
-        .high_limit = INT16_MAX,
-        .low_limit  = INT16_MIN
-    };
-    pcnt_new_unit(&uc, &pcnt_motor1);
-
-    pcnt_chan_config_t cc = {
-        .edge_gpio_num   = stepPin,    // count every rising edge
-        .level_gpio_num  = -1          // no level gating
-    };
-    pcnt_new_channel(pcnt_motor1, &cc, &pcnt_ch1);
-
-    pcnt_channel_set_edge_action(
-        pcnt_ch1,
-        PCNT_CHANNEL_EDGE_ACTION_INCREASE,
-        PCNT_CHANNEL_EDGE_ACTION_HOLD);
-
-    pcnt_unit_enable(pcnt_motor1);
-    pcnt_unit_clear_count(pcnt_motor1);
-    pcnt_unit_start(pcnt_motor1);
-	*/
-}
-#endif
 
 	void startStepper(int axis, int reduced = 0)
 	{
@@ -160,11 +132,6 @@ namespace FocusMotor
 
 #elif defined USE_FASTACCEL
 			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
-			/*
-			if (axis == Stepper::X && pcnt_motor1) {           
-				pcnt_unit_clear_count(pcnt_motor1);
-			}
-			*/
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
 			AccelStep::startAccelStepper(axis);
@@ -188,7 +155,19 @@ namespace FocusMotor
 		}
 		else
 		{
-			startStepper(s, reduced); // TODO: Need dual axis?
+			// Check if encoder-based motion is enabled for this stepper
+			if (getData()[s]->encoderBasedMotion) {
+				log_i("Starting encoder-based precise motion for stepper %d", s);
+				#ifdef LINEAR_ENCODER_CONTROLLER
+				// Use LinearEncoderController for precise motion
+				startEncoderBasedMotion(s); 
+				#else
+				log_w("Encoder-based motion requested but LINEAR_ENCODER_CONTROLLER not defined");
+				startStepper(s, reduced);
+				#endif
+			} else {
+				startStepper(s, reduced); // TODO: Need dual axis?
+			}
 		}
 	}
 
@@ -248,6 +227,25 @@ namespace FocusMotor
 		// data[axis]->isforever = mMotorState.isforever;
 #elif defined CAN_CONTROLLER
 		// FIXME: nothing to do here since the position is assigned externally?
+#endif
+	}
+
+	long getCurrentMotorPosition(int axis)
+	{
+		// Get real-time motor position directly from stepper library
+#ifdef USE_FASTACCEL
+		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
+#elif defined USE_ACCELSTEP
+		// For AccelStep, we need to rely on cached position
+		return data[axis]->currentPosition;
+#elif defined I2C_MASTER
+		// For I2C, we need to rely on cached position
+		return data[axis]->currentPosition;
+#elif defined CAN_CONTROLLER
+		// For CAN, we need to rely on cached position
+		return data[axis]->currentPosition;
+#else
+		return data[axis]->currentPosition;
 #endif
 	}
 
@@ -482,9 +480,18 @@ namespace FocusMotor
 #endif
 	void setup()
 	{
+		// Initialize mutexes FIRST, before any other operations
+		if (xMutex == NULL)
+			xMutex = xSemaphoreCreateMutex();
+		if (xSerialMutex == NULL)
+			xSerialMutex = xSemaphoreCreateMutex();
+		
 		// Common setup for all
 		setup_data();
 		fill_data();
+		
+		// Initialize motor-encoder conversion configuration
+		MotorEncoderConfig::setup();
 
 #ifdef I2C_MASTER
 		setup_i2c_motor();
@@ -508,7 +515,6 @@ namespace FocusMotor
 #endif
 
 #ifdef USE_FASTACCEL
-		setup_pcnt_motor1();
 #ifdef USE_TCA9535
 		log_i("Setting external pin for FastAccelStepper");
 		FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
@@ -541,6 +547,90 @@ namespace FocusMotor
 		getData()[axis]->minPos = minPos;
 		getData()[axis]->maxPos = maxPos;
 		log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
+	}
+
+	bool isEncoderBasedMotionEnabled(int axis)
+	{
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return false;
+		return getData()[axis]->encoderBasedMotion;
+	}
+
+	void setEncoderBasedMotion(int axis, bool enabled)
+	{
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return;
+		getData()[axis]->encoderBasedMotion = enabled;
+		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
+		
+#ifdef CAN_CONTROLLER
+		// Notify CAN slaves if we are a CAN master
+		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
+#endif
+	}
+
+	void startEncoderBasedMotion(int axis)
+	{
+		#ifdef LINEAR_ENCODER_CONTROLLER
+		// Create a JSON object to call LinearEncoderController moveP function
+		// Convert motor parameters to encoder-based motion parameters
+		MotorData* motorData = getData()[axis];
+		
+		// Use global conversion factor for step-to-encoder units
+		float conversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
+		
+		// Convert step position to encoder units (micrometers)
+		float encoderPosition = motorData->targetPosition * conversionFactor;
+		// Convert step speed to encoder units  
+		float encoderSpeed = abs(motorData->speed) * conversionFactor;
+		
+		// Create JSON for LinearEncoderController moveP command
+		// Structure: {"task": "/linearencoder_act", "moveP": {"steppers": [...]}}
+		cJSON* movePreciseJson = cJSON_CreateObject();
+		cJSON* moveP = cJSON_CreateObject();
+		cJSON* steppers = cJSON_CreateArray();
+		cJSON* stepper = cJSON_CreateObject();
+		
+		// Add task identifier
+		cJSON_AddStringToObject(movePreciseJson, "task", "/linearencoder_act");
+		
+		// Build stepper object
+		cJSON_AddNumberToObject(stepper, "stepperid", axis);
+		cJSON_AddNumberToObject(stepper, "position", (int)encoderPosition);
+		cJSON_AddNumberToObject(stepper, "isabs", motorData->absolutePosition ? 1 : 0);
+		cJSON_AddNumberToObject(stepper, "speed", (int)encoderSpeed);
+		
+		// Set default PID values if not already configured
+		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain // TODO: Maybe we should store / read these values from preferences and make them setable via act()
+		cJSON_AddNumberToObject(stepper, "ci", 1.0);   // Integral gain  
+		cJSON_AddNumberToObject(stepper, "cd", 5.0);   // Derivative gain
+		
+		// Nest properly: steppers array -> moveP object -> root object
+		cJSON_AddItemToArray(steppers, stepper);
+		cJSON_AddItemToObject(moveP, "steppers", steppers);
+		cJSON_AddItemToObject(movePreciseJson, "moveP", moveP);
+		
+		log_i("Starting encoder-based motion for axis %d: step_pos=%ld -> encoder_pos=%f µm (factor=%f)", 
+		      axis, (long)motorData->targetPosition, encoderPosition, conversionFactor);
+		log_i("Motor speed: step_speed=%ld -> encoder_speed=%f µm/s", 
+		      (long)motorData->speed, encoderSpeed);
+		
+		// Start encoder accuracy tracking for this move
+		#ifdef ENCODER_CONTROLLER
+		PCNTEncoderController::startEncoderTracking(axis, motorData->targetPosition);
+		#endif
+		
+			  // print the json for debugging
+			  char* jsonString = cJSON_Print(movePreciseJson);
+			  if (jsonString) {
+				  log_d("Encoder-based motion JSON: %s", jsonString);
+				  cJSON_free(jsonString);
+				}
+				// Clean up JSON object
+		// Call LinearEncoderController act function with moveP command
+		LinearEncoderController::act(movePreciseJson);
+				cJSON_Delete(movePreciseJson);
+		#else
+		log_w("LINEAR_ENCODER_CONTROLLER not available for encoder-based motion");
+		#endif
 	}
 
     static unsigned long lastSendTime = 0; // holds the last time positions were sent
@@ -649,17 +739,36 @@ namespace FocusMotor
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos, int qid)
 	{
+		// Safety check: ensure mutex is initialized
+		if (xSerialMutex == NULL)
+		{
+			log_e("Serial mutex not initialized - cannot send motor position");
+			return;
+		}
+		
+		// Protect entire function to prevent concurrent access to cJSON objects and serial output
+		// This prevents heap corruption when multiple threads try to send motor positions simultaneously
+		if (!xSemaphoreTake(xSerialMutex, pdMS_TO_TICKS(1000)))
+		{
+			log_w("Failed to acquire serial mutex for sendMotorPos");
+			return;
+		}
+
 		// update current position of the motor depending on the interface
 		updateData(i);
 
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
+		{
+			xSemaphoreGive(xSerialMutex);
 			return; // Handle allocation failure
+		}
 
 		cJSON *stprs = cJSON_CreateArray();
 		if (stprs == NULL)
 		{
 			cJSON_Delete(root);
+			xSemaphoreGive(xSerialMutex);
 			return; // Handle allocation failure
 		}
 		cJSON_AddItemToObject(root, key_steppers, stprs);
@@ -671,6 +780,7 @@ namespace FocusMotor
 		if (item == NULL)
 		{
 			cJSON_Delete(root);
+			xSemaphoreGive(xSerialMutex);
 			return; // Handle allocation failure
 		}
 		cJSON_AddItemToArray(stprs, item);
@@ -678,19 +788,24 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 
+		// Add encoder position if encoder-based motion is enabled
+#ifdef LINEAR_ENCODER_CONTROLLER
+		if (i==1) {
+			// Get current encoder position in micrometers
+			float encoderPos = PCNTEncoderController::getCurrentPosition(i);
+			cJSON_AddNumberToObject(item, "encoderPosition", encoderPos);
+			
+			// Also add raw encoder count for debugging
+			int64_t encoderCount = PCNTEncoderController::getEncoderCount(i);
+			cJSON_AddNumberToObject(item, "encoderCount", (int)encoderCount);
+		}
+#endif
+
 		// also save in preferences
 		preferences.begin("UC2", false);
 		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
 		preferences.end();
-		#ifdef FASTACCEL
-		/*
-		if (i == Stepper::X && pcnt_motor1) {
-			int16_t cnt = 0;
-			pcnt_unit_get_count(pcnt_motor1, &cnt);
-			cJSON_AddNumberToObject(item, "pcnt", cnt);
-		}
-			*/
-		#endif
+
 
 		arraypos++;
 
@@ -701,17 +816,33 @@ namespace FocusMotor
 		i2c_master::pushMotorPosToDial();
 #endif
 
-		// Print result - will that work in the case of an xTask?
-		Serial.println("++");
-		char *s = cJSON_PrintUnformatted(root);
-		if (s != NULL)
+		// CRITICAL: Serialize to string BEFORE releasing mutex to prevent doc from being freed
+		// This ensures atomic operation: create JSON -> serialize -> delete
+		char *jsonString = cJSON_PrintUnformatted(root);
+		
+		// Check if serialization was successful before proceeding
+		if (jsonString == NULL)
 		{
-			Serial.println(s);
-			free(s);
+			log_e("Failed to serialize motor position JSON for motor %d", i);
+			cJSON_Delete(root);
+			xSemaphoreGive(xSerialMutex);
+			return;
 		}
-		Serial.println("--");
+		
+		// Delete cJSON object immediately after serialization
+		cJSON_Delete(root);
+		root = NULL;
+		
+		// Release mutex AFTER JSON operations are complete
+		xSemaphoreGive(xSerialMutex);
+		
+		// Now send the pre-serialized string through the safe output queue
+		SerialProcess::safeSendJsonString(jsonString);
+		
+		// Free the serialized string - cJSON_PrintUnformatted allocates with malloc
+		free(jsonString);
+		jsonString = NULL;
 
-		cJSON_Delete(root); // Free the root object, which also frees all nested objects
 #ifdef CAN_SLAVE_MOTOR
 		// We push the current state to the master to inform it that we are running and about the current position
 		can_controller::sendMotorStateToMaster();
@@ -733,6 +864,8 @@ namespace FocusMotor
 			sendMotorPos(i, 0);			  // this is an exception. We first get the position, then the success
 		}
 #endif
+
+
 
 #ifdef USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);

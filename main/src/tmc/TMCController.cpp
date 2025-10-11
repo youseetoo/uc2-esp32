@@ -225,7 +225,17 @@ namespace TMCController
             return;
         }
 #ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
-        driver.rms_current(current);
+        bool isZAxis = false ;
+        #ifdef CAN_SLAVE_MOTOR
+            // retreive the current ID
+            isZAxis = can_controller::device_can_id == pinConfig.CAN_ID_MOT_Z;
+        #endif
+        if (isZAxis){
+            driver.rms_current(current*1.5); // we double the current for the Z axis as it needs more power
+        }
+        else{
+            driver.rms_current(current);
+        }
         log_i("TMC2209 Current set to %i", current);
 #endif
     }

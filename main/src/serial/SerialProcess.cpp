@@ -75,8 +75,80 @@
 
 namespace SerialProcess
 {
-	QueueHandle_t serialMSGQueue; // Queue that buffers incoming messages and delegates them to the appropriate task
-	xTaskHandle xHandle;		  // Task handle for the serial task
+	// Queue-based processing to handle serial load without blocking main thread
+	QueueHandle_t serialMSGQueue = nullptr; // Queue that buffers incoming messages and delegates them to the appropriate task
+	xTaskHandle xHandle = nullptr;		  // Task handle for the serial task
+	
+	// Serial output queue to prevent race conditions
+	QueueHandle_t serialOutputQueue = nullptr; // Queue for serial output strings
+	xTaskHandle xOutputHandle = nullptr;       // Task handle for serial output task
+	
+	// Structure to hold serial output messages
+	struct SerialMessage {
+		char* message;
+		size_t length;
+	};
+
+	// Critical section mutex to prevent serial output interruption
+	portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
+	// Serial output task - processes queued output to prevent race conditions
+	void serialOutputTask(void *p)
+	{
+		for (;;)
+		{
+			SerialMessage msg;
+			if (xQueueReceive(serialOutputQueue, &msg, portMAX_DELAY) == pdTRUE)
+			{
+				if (msg.message != nullptr)
+				{
+					// Direct serial write without critical section - this task has exclusive access
+					Serial.write((uint8_t*)msg.message, msg.length);
+					Serial.flush();
+					
+					// Free the allocated message
+					free(msg.message);
+				}
+			}
+		}
+		vTaskDelete(NULL);
+	}
+
+	// Thread-safe Serial.println replacement
+	void safePrintln(const char* message)
+	{
+		if (message == nullptr || serialOutputQueue == nullptr)
+			return;
+
+		size_t len = strlen(message);
+		if (len == 0 || len > 8192)
+			return;
+
+		// Allocate buffer for message + newline
+		char* buffer = (char*)malloc(len + 2);
+		if (buffer == nullptr)
+		{
+			log_e("Failed to allocate serial output buffer");
+			return;
+		}
+
+		// Copy message and add newline
+		memcpy(buffer, message, len);
+		buffer[len] = '\n';
+		buffer[len + 1] = '\0';
+
+		SerialMessage msg;
+		msg.message = buffer;
+		msg.length = len + 1;
+
+		// Try to send to queue with timeout
+		if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
+		{
+			// Queue full - free buffer and drop message
+			free(buffer);
+			log_w("Serial output queue full - dropping message");
+		}
+	}
 
 	void serialTask(void *p)
 	{
@@ -127,61 +199,183 @@ namespace SerialProcess
 		vTaskDelete(NULL);
 	}
 
+	// Thread-safe JSON serial output function
+	void safeSerializeJson(cJSON *doc)
+	{
+		if (doc == NULL)
+		{
+			safePrintln("{\"error\":\"NULL JSON document\"}");
+			return;
+		}
+
+		// CRITICAL: Serialize JSON to string immediately
+		// The caller must ensure the cJSON object remains valid during this call
+		char *s = cJSON_PrintUnformatted(doc);
+		if (s == NULL)
+		{
+			safePrintln("{\"error\":\"Failed to serialize JSON\"}");
+			return;
+		}
+
+		// Send the serialized string and free it
+		safeSendJsonString(s);
+		free(s);
+	}
+
+	// Send a pre-serialized JSON string with protocol delimiters
+	// This is useful when JSON serialization needs to happen in a protected context
+	// The caller is responsible for freeing jsonString after calling this function
+	void safeSendJsonString(char* jsonString)
+	{
+		if (jsonString == NULL)
+		{
+			safePrintln("{\"error\":\"NULL JSON string\"}");
+			return;
+		}
+
+		// Build complete message with delimiters
+		size_t len = strlen(jsonString);
+		if (len == 0 || len > 8192)
+		{
+			safePrintln("{\"error\":\"JSON string too large or empty\"}");
+			return;
+		}
+
+		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--" (3) + null terminator (1)
+		size_t totalLen = len + 7; // 3 + len + 3 + 1 for null terminator
+		char* buffer = (char*)malloc(totalLen);
+		if (buffer == nullptr)
+		{
+			safePrintln("{\"error\":\"Out of memory\"}");
+			return;
+		}
+
+		// Construct message: "++\n<json>\n--\n"
+		strcpy(buffer, "++\n");
+		strcat(buffer, jsonString);
+		strcat(buffer, "\n--");
+
+		// Send through output queue
+		if (serialOutputQueue != nullptr)
+		{
+			SerialMessage msg;
+			msg.message = buffer;
+			msg.length = strlen(buffer) + 1; // Include newline
+
+			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
+			{
+				free(buffer);
+				log_w("Serial output queue full - dropping JSON string");
+			}
+		}
+		else
+		{
+			free(buffer);
+		}
+	}
+
+	void processJsonDocument(cJSON *root)
+	{
+		if (root == NULL)
+			return; // Handle NULL case
+
+		cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
+		if (tasks != NULL)
+		{
+			int nTimes = 1;
+			cJSON *nTimesItem = cJSON_GetObjectItemCaseSensitive(root, "nTimes");
+			if (nTimesItem != NULL)
+				nTimes = nTimesItem->valueint;
+
+			for (int i = 0; i < nTimes; i++)
+			{
+				log_i("Process tasks");
+				cJSON *t = NULL;
+				cJSON_ArrayForEach(t, tasks)
+				{
+					cJSON *ta = cJSON_GetObjectItemCaseSensitive(t, "task");
+					if (ta != NULL)
+					{
+						char *string = cJSON_GetStringValue(ta);
+						if (string != NULL)
+							jsonProcessor(string, t);
+					}
+				}
+			}
+		}
+		else
+		{
+			cJSON *string = cJSON_GetObjectItemCaseSensitive(root, "task");
+			if (string != NULL)
+			{
+				char *ss = cJSON_GetStringValue(string);
+				if (ss != NULL)
+					jsonProcessor(ss, root);
+			}
+		}
+
+		cJSON_Delete(root); // Delete root after processing
+	}
+
 	void setup()
 	{
+		// Create queue and separate task for serial processing
 		if (serialMSGQueue == nullptr)
-			serialMSGQueue = xQueueCreate(2, sizeof(cJSON *)); // Queue for cJSON pointers
+			serialMSGQueue = xQueueCreate(5, sizeof(cJSON *)); // Queue for cJSON pointers (increased size)
 		if (xHandle == nullptr)
-			xTaskCreate(serialTask, "sendsocketmsg", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+			xTaskCreate(serialTask, "serialtask", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
+		
+		// Create queue and task for serial output to prevent race conditions
+		if (serialOutputQueue == nullptr)
+			serialOutputQueue = xQueueCreate(10, sizeof(SerialMessage)); // Queue for serial output
+		if (xOutputHandle == nullptr)
+			xTaskCreate(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle); // Higher priority
+		
+		Serial.setTimeout(100);
+		Serial.setTxBufferSize(1024);
+		//esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
+		//Serial.setDebugOutput(false);
 	}
 
 	void addJsonToQueue(cJSON *doc)
 	{
 		// This bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
-		xQueueSend(serialMSGQueue, &doc, 0);
+		if (serialMSGQueue != nullptr) {
+			if (xQueueSend(serialMSGQueue, &doc, 0) != pdTRUE) {
+				// Queue full - delete doc to prevent memory leak
+				cJSON_Delete(doc);
+				log_w("Serial queue full - dropping message");
+			}
+		}
 	}
 
 	void loop()
 	{
-		if (Serial.available())
-		{
-			String c = Serial.readString();
-			const char *s = c.c_str();
-			Serial.flush();
-			//log_i("String s:%s , char:%s", c.c_str(), s);
-			cJSON *root = cJSON_Parse(s);
-			if (root != NULL)
-			{
-				xQueueSend(serialMSGQueue, &root, 0); // Send pointer to queue
+		// Try to read and queue serial data if available
+		if (Serial.available()) {
+			String command = Serial.readString();  // Keep String alive during parsing
+			cJSON *doc = cJSON_Parse(command.c_str());
+			if (doc) {
+				addJsonToQueue(doc);
+			} else {
+				log_w("Failed to parse serial JSON");
 			}
-			else
-			{
-				const char *error_ptr = cJSON_GetErrorPtr();
-				if (error_ptr != NULL)
-					log_i("Error while parsing:%s", error_ptr);
-				log_i("Serial input is null");
-				Serial.println("++{\"error\":\"Serial input is null\"}--");
-			}
-			c.clear();
 		}
+
+		// Let other tasks run
+		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 
 	void serialize(cJSON *doc)
 	{
-		// e.g. used for state_get or sendMotorPos()
-		Serial.println("++");
-		if (doc != NULL)
-		{
-			// Print the JSON document to a string
-			char *s = cJSON_PrintUnformatted(doc);
-			if (s != NULL)
-			{
-				Serial.println(s);
-				free(s); // Free the string created by cJSON_Print
-			}
-			cJSON_Delete(doc); // Free the cJSON object
+		// Use the new thread-safe function
+		safeSerializeJson(doc);
+		// IMPORTANT: Only delete the doc if it's a new object created by a controller
+		// The serialTask is responsible for deleting the root request object
+		// This function is called with RESPONSE objects created by controllers (get/act functions)
+		if (doc != NULL) {
+			cJSON_Delete(doc);
 		}
-		Serial.println("--");
 	}
 
 	void serialize(int qid)
@@ -203,20 +397,48 @@ namespace SerialProcess
 			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(-1));
 		else
 			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(0));
-		Serial.println("++");
 
 		// Print the JSON document to a string
 		char *s = cJSON_PrintUnformatted(doc);
-		if (s != NULL)
+		cJSON_Delete(doc); // Free the cJSON object
+		
+		if (s == NULL)
+			return;
+
+		// Build complete message with delimiters
+		size_t len = strlen(s);
+		// Calculate buffer size: "++\n" (3) + s (len) + "\n--" (3) + null terminator (1)
+		size_t totalLen = len + 7; // 3 + len + 3 + 1 for null terminator
+		char* buffer = (char*)malloc(totalLen);
+		if (buffer == nullptr)
 		{
-			Serial.println(s);
-			free(s); // Free the string created by cJSON_Print
+			free(s);
+			return;
 		}
 
-		cJSON_Delete(doc); // Free the cJSON object
+		// Construct message: "++\n<json>\n--\n"
+		strcpy(buffer, "++\n");
+		strcat(buffer, s);
+		strcat(buffer, "\n--");
+		free(s);
 
-		//Serial.println();
-		Serial.println("--");
+		// Send through output queue
+		if (serialOutputQueue != nullptr)
+		{
+			SerialMessage msg;
+			msg.message = buffer;
+			msg.length = strlen(buffer) + 1; // Include newline
+			
+			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
+			{
+				free(buffer);
+				log_w("Serial output queue full - dropping qid message");
+			}
+		}
+		else
+		{
+			free(buffer);
+		}
 	}
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
@@ -258,8 +480,8 @@ namespace SerialProcess
 #ifdef DAC_CONTROLLER
 		else if (strcmp(task, dac_act_endpoint) == 0)
 			serialize(DacController::act(jsonDocument));
-			// else  if (strcmp(task, dac_get_endpoint) == 0)
-			//	serialize(DacController::get(jsonDocument));
+		// else  if (strcmp(task, dac_get_endpoint) == 0)
+		//	serialize(DacController::get(jsonDocument));
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
@@ -308,9 +530,9 @@ namespace SerialProcess
 			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
-else  if (strcmp(task, i2c_get_endpoint) == 0)
+		else if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_master::get(jsonDocument));
-		else  if (strcmp(task, i2c_act_endpoint) == 0)
+		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
 #ifdef CAN_CONTROLLER
@@ -375,9 +597,10 @@ else  if (strcmp(task, i2c_get_endpoint) == 0)
 		else if (strcmp(task, state_busy_endpoint) == 0)
 		{
 			// super fast check if the system is busy {"task":"/b"}
-			Serial.print("++{'b':");
-			Serial.print(State::getBusy());
-			Serial.println("}--");
+			// Build message and send through queue
+			char buffer[32];
+			snprintf(buffer, sizeof(buffer), "++{'b':%d}--", State::getBusy());
+			safePrintln(buffer);
 		}
 		else if (strcmp(task, modules_get_endpoint) == 0)
 		{

@@ -74,6 +74,10 @@ namespace LaserController
     LaserData getLaserData();
 
     void dpad_changed_event(Dpad::Direction pressed);
+    void processHoldActions(); // Process hold actions for continuous laser adjustment
+    void handleShortClick(int direction); // Handle short click actions
+    void executeHoldAction(int direction); // Execute hold increment/decrement actions
+    void cross_changed_event(int pressed); // Handle Cross button for Laser 4 toggle
 
 };
 

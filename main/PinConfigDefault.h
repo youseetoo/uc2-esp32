@@ -38,6 +38,7 @@ motor defines
 #define USE_TCA9535
 */
 
+//#define USE_PCNT_COUNTER 
 const int8_t disabled = -1;
 
 #define LED_BUILTIN 0 // for Xiao ESP32S3
@@ -159,6 +160,10 @@ struct PinConfig
      int8_t MOTOR_A_0 = disabled;
      int8_t MOTOR_A_1 = disabled;
 
+     // Objective related 
+     uint8_t objectiveMotorAxis = disabled;
+     uint8_t focusMotorAxis = disabled;
+     
      // LED_PINcontrol pin
      int8_t LED_PIN = disabled;
      // LED_PINcount from the strip

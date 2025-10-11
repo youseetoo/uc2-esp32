@@ -14,7 +14,7 @@
 
 Preferences preferences;
 
-#define WDTIMEOUT 5 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
+#define WDTIMEOUT 10 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
 // TODO: Just for testing
 #ifdef ESP32S3_MODEL_XIAO
@@ -214,8 +214,9 @@ extern "C" void looper(void *p)
 		if (pinConfig.dumpHeap && lastHeapUpdateTime + 500000 < esp_timer_get_time())
 		{ //
 			/* code */
-			Serial.print("free heap:");
-			Serial.println(ESP.getFreeHeap());
+			char buffer[64];
+			snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
+			SerialProcess::safePrintln(buffer);
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 		// Allow other tasks to run and reset the WDT
@@ -241,7 +242,7 @@ static void handleSquareLongPress(int pressed)
         unsigned long pressDuration = millis() - pressStart;
         if (pressDuration > 3000) // 3 seconds
         {
-            Serial.println("Square button long-press detected, rebooting...");
+            SerialProcess::safePrintln("Square button long-press detected, rebooting...");
             ESP.restart();
         }
     }
@@ -299,25 +300,26 @@ extern "C" void setupApp(void)
 	BtController::setup();
 	#ifdef LED_CONTROLLER
 		BtController::setCircleChangedEvent(LedController::circle_changed_event);
-		BtController::setCrossChangedEvent(LedController::cross_changed_event);
-	#endif
-	#ifdef MESSAGE_CONTROLLER
+		#endif
+		#ifdef MESSAGE_CONTROLLER
 		BtController::setTriangleChangedEvent(MessageController::triangle_changed_event);
 		BtController::setSquareChangedEvent(MessageController::square_changed_event);
 		BtController::setSquareChangedEvent(handleSquareLongPress);
-	#endif
-	#ifdef LASER_CONTROLLER
+		#endif
+		#ifdef LASER_CONTROLLER
 		//BtController::setCircleChangedEvent(LaserController::triangle_changed_event);
 		//BtController::setCrossChangedEvent(LaserController::square_changed_event);
+		BtController::setCrossChangedEvent(LaserController::cross_changed_event);
 		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
 	#endif
 	#ifdef OBJECTIVE_CONTROLLER
-		BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
-		BtController::setOptionsChangedEvent(ObjectiveController::options_changed_event);
-	#endif
-	#ifdef MOTOR_CONTROLLER
+		BtController::setShareChangedEvent(ObjectiveController::share_changed_event); // TODO: toggle objective lens 
+		#endif
+		#ifdef MOTOR_CONTROLLER
 		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
 		BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
+		BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event); //TODO: toggle between fine/coarse mode (e.g. factor of 10) in the joystick magnitude for the moros 
+
 		//log_i("BtController xyza_changed_event nullptr %d", BtController::xyza_changed_event == nullptr);
 	#endif
 #endif
@@ -381,7 +383,7 @@ extern "C" void setupApp(void)
 State::startOTA();
 #endif
 
-	Serial.println("{'setup':'done'}");
+	SerialProcess::safePrintln("{'setup':'done'}");
 }
 
 extern "C" void app_main(void)
@@ -413,7 +415,7 @@ extern "C" void app_main(void)
 	if (false and !hasBooted)
 	{ // some ESPs are freaking out on start, but this is not a good solution
 		// Set the flag to indicate that the ESP32 has booted once
-		Serial.println("First boot");
+		SerialProcess::safePrintln("First boot");
 		preferences.putBool("hasBooted", true);
 		preferences.end();
 		ESP.restart(); // Restart the ESP32 immediately
@@ -440,6 +442,7 @@ extern "C" void app_main(void)
 	// initialize the module controller
 	setupApp();
 
+	// Run main loop on Core 1, let motor tasks use Core 0 for separation
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);
 }

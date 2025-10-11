@@ -10,20 +10,35 @@
 
 {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
 {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 2  }}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 20000, "enc":0}]}}
+
+
+
 # Encoder
-{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 3, "position": -100 , "isabs":0, "speed": 10000, "cp":100.0, "ci":1.0, "cd":1.0} ]}}
+
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "position": -1000 , "isabs":0, "speed": 10000, "cp":100.0, "ci":1.0, "cd":1.0} ]}}
 {"task": "/linearencoder_act", "calpos": {"steppers": [ { "stepperid": 1, "calibsteps": -32000 , "speed": 10000} ]}}
 {"task": "/linearencoder_act", "setup": {"steppers": [ { "stepperid": 1, "position": 0}]}}
+{"task": "/linearencoder_act", "plot":1, "qid":1} 
+{"task": "/linearencoder_act", "plot":0}
 {"task":"/linearencoder_get", "linencoder": { "posval": 3,    "id": 1  }}
 
+{"task": "/motor_act","motor": {  "steppers": [{ "stepperid": 1, "position": 1000, "speed": 20000, "isabs": 0, "isaccel": 0, "accel": 10000, "enc": 1, "cp": 1.0, "ci": 0., "cd": 0.0}]} }
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 100000, "speed": 500, "enc":0}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -32000, "speed": 20000, "enc":0}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -1000, "isabs":1, "speed": 1000, "enc":1}]}}
+
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": 500 , "speed": 10000} ]}}       
-{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": -10000 , "speed": 0, "cp":10, "ci":10.0, "cd":1.0} ]}}
+{"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 1, "isabs":1, "position": 30000 , "speed": 10000, "cp":2, "ci":0.0, "cd":0.0} ]}}
 {"task": "/linearencoder_act", "moveP": {"steppers": [ { "stepperid": 2, "position": -40000 , "speed": 10000, "cp":10.0, "ci":5.0, "cd":0.0} ]}}
-{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 20000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 # MOTOR
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 480, "speed": 10000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 # X,Y,Z,A => 1,2,3,0
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 0, "position": 10000, "speed": 20000, "isabs": 0, "isaccel":0, "accel":10000} ] } }
-{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": 4800, "speed": 3000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
+{"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4000, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 2, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act", "motor": { "steppers": [ { "stepperid": 1, "position": -4800, "speed": 30000, "isabs": 0, "isaccel":0, "accel":100000} ] } }
 {"task":"/motor_act",
@@ -102,7 +117,7 @@
 # HOME
 {"task": "/home_get"}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 3000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":1}]}}
 
 
@@ -202,9 +217,9 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task":"/can_get", "address": 1}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
 {"task":"/can_get"}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": -15000, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
 
@@ -358,6 +373,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 			
 
 
+{"task":"/state_get"}
 {"task":"/state_get", "heap":1}
 {"task": "/ledarr_act", "led": {"LEDArrMode": 0, "led_array": [{"id": 28, "r": 18, "g": 6, "b": 28}, {"id": 29, "r": 14, "g": 47, "b": 5}, {"id": 30, "r": 2, "g": 31, "b": 24}, {"id": 31, "r": 53, "g": 8, "b": 50}, {"id": 32, "r": 1, "g": 15, "b": 14}, {"id": 33, "r": 19, "g": 18, "b": 39}, {"id": 34, "r": 44, "g": 22, "b": 29}, {"id": 35, "r": 4, "g": 38, "b": 9}, {"id": 36, "r": 1, "g": 28, "b": 54}, {"id": 37, "r": 37, "g": 43, "b": 22}, {"id": 38, "r": 14, "g": 27, "b": 27}, {"id": 39, "r": 22, "g": 10, "b": 49}, {"id": 40, "r": 32, "g": 29, "b": 39}, {"id": 41, "r": 14, "g": 2, "b": 41}, {"id": 42, "r": 39, "g": 37, "b": 35}, {"id": 43, "r": 26, "g": 44, "b": 32}, {"id": 44, "r": 45, "g": 19, "b": 53}, {"id": 45, "r": 44, "g": 26, "b": 37}, {"id": 46, "r": 40, "g": 28, "b": 11}, {"id": 47, "r": 9, "g": 4, "b": 23}, {"id": 48, "r": 41, "g": 22, "b": 31}, {"id": 49, "r": 10, "g": 5, "b": 46}, {"id": 50, "r": 48, "g": 39, "b": 52}, {"id": 51, "r": 33, "g": 15, "b": 26}, {"id": 52, "r": 50, "g": 19, "b": 44}, {"id": 53, "r": 34, "g": 18, "b": 35}, {"id": 54, "r": 6, "g": 0, "b": 39}, {"id": 55, "r": 6, "g": 26, "b": 43}]}, "qid": 2}
 # HOLISHEET
@@ -387,6 +403,10 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 20000, "direction":-1, "endstoppolarity":0}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":3, "timeout": 20000, "speed": 10000, "direction":-1,  "endstoppolarity":1}]}}
 
+
+0,1,2,3
+A,X,Y,Z ... 
+
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
@@ -394,12 +414,12 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 
 {"task": "/can_get"}
 
-{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
+{"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -30000, "speed": 20000, "isabs": 0.0, "accel": 1000000, "isen": true}]}, "qid": 8}
 {"task":"/motor_act", "isen":1, "isenauto":0}
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 100, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -10000, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": 10000, "speed": 10000, "isabs": 0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 7}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 1000, "speed": 1000, "isabs": 0.0, "isaccel": 1, "isen": true}]}, "qid": 8}
 
@@ -527,14 +547,27 @@ gives
 {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
 
 
+###################################################
+ON ESP32 Side  for FRAME #3
+###################################################
+-> move to home position 
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 17}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 14}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 15}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 16}
 
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 17}
+-> move in positive direction 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # probably wrong wiring
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # probably wrong wiring 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "accel":500000, "qid":1}]}} # 
 
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": -1}]}, "qid": 16}
 
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": -1}]}, "qid": 15}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 1000, "speed": 20000, "isabs": 0, "isaccel":1, "redu":0, "accel":500000, "qid":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{"stepperid": 1, "position": 1000, "isabs":0, "speed":10000, "redu":0}]}, "qid": 23}
 
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": 1}]}, "qid": 14}
+############################################################################################################################################################################################################
+
 
 {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 3, "nY": 3, "tPre": 50, "tPost": 50, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
 

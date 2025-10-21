@@ -13,6 +13,7 @@ namespace ObjectiveController
 
 	// Store previous laser values for all lasers 0...4
 	static int prevLaserVals[5] = {0, 0, 0, 0, 0};
+	
 
 	void beforeObjectiveSwitch()
 	{
@@ -42,7 +43,7 @@ namespace ObjectiveController
 	static void moveToPosition(int32_t pos, Stepper axis, int speed, int accel, int qid)
 	{
 		// Set up the motor data
-		int32_t lowerLimit = -5000; // TODO: should probably not be hardcoded?
+		int32_t lowerLimit = -10000; // TODO: should probably not be hardcoded?
 		int32_t upperLimit = 120000;
 		if (pos < lowerLimit)
 		{
@@ -302,41 +303,42 @@ namespace ObjectiveController
 
 	void share_changed_event(int pressed)
 	{
-		log_i("Objective move to x1 at position: %i", data.x1);
 		if (pressed)
 		{
-			// Move to X1
-			int speed = 20000;
-			int accel = 20000;
-			int qid = 0;
-			moveToPosition(data.x1, sObjective, speed, accel, qid);
-			if (data.z1 != 0)
+			// Toggle between objective 1 and 2
+			if (data.currentState == 1)
 			{
-				log_i("Objective move to z1 at position: %i", data.z1);
-				moveToPosition(data.z1, sFocus, speed, accel, qid);
+				// Currently at objective 1, move to objective 2
+				log_i("Switching from objective 1 to objective 2 at position: %i", data.x2);
+				int speed = 20000;
+				int accel = 20000;
+				int qid = 0;
+				moveToPosition(data.x2, sObjective, speed, accel, qid);
+				if (data.z2 != 0)
+				{
+					log_i("Moving focus to z2 position: %i", data.z2);
+					moveToPosition(data.z2, sFocus, speed, accel, qid);
+				}
+				data.currentState = 2;
 			}
-			data.currentState = 1;
+			else
+			{
+				// Currently at objective 2 or undefined, move to objective 1
+				log_i("Switching to objective 1 at position: %i", data.x1);
+				int speed = 20000;
+				int accel = 20000;
+				int qid = 0;
+				moveToPosition(data.x1, sObjective, speed, accel, qid);
+				if (data.z1 != 0)
+				{
+					log_i("Moving focus to z1 position: %i", data.z1);
+					moveToPosition(data.z1, sFocus, speed, accel, qid);
+				}
+				data.currentState = 1;
+			}
 		}
 	}
 
-	void options_changed_event(int pressed)
-	{
-		log_i("Objective move to x2 at position: %i", data.x2);
-		if (pressed)
-		{
-			// Move to X2
-			int speed = 20000;
-			int accel = 20000;
-			int qid = 0;
-			moveToPosition(data.x2, sObjective, speed, accel, qid);
-			if (data.z2 != 0)
-			{
-				log_i("Objective move to z2 at position: %i", data.z2);
-				moveToPosition(data.z2, sFocus, speed, accel, qid);
-			}
-			data.currentState = 1;
-		}
-	}
 
 	void setup()
 	{
@@ -357,6 +359,7 @@ namespace ObjectiveController
 	void loop()
 	{
 	}
+
 
 
 }

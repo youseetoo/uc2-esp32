@@ -17,6 +17,11 @@ namespace LedController
 {
 
 	const char *TAG = "LedController";
+	
+	// Toggle functionality for Circle button
+	static unsigned long circleLastEventTime = 0;
+	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
+	static bool ledToggleState = false; // false = off, true = on
 
 	// ------------------------------------------------
 	// HELPER: Convert (x, y) -> single index
@@ -717,59 +722,57 @@ namespace LedController
 		return j;
 	}
 
-	void cross_changed_event(int pressed)
-	{
-		if (pressed && isOn)
-		{
-			Serial.println("Cross pressed, but LED is on");
-			return;
-		}
-		else
-		{
-			Serial.println("Cross pressed, LED is off");
-			// differentiate between CAN MASTER and CAN SLAVE
-			LedCommand cmd;
-			cmd.mode = LedMode::CIRCLE;
-			cmd.r = pinConfig.JOYSTICK_MAX_ILLU;
-			cmd.g = pinConfig.JOYSTICK_MAX_ILLU;
-			cmd.b = pinConfig.JOYSTICK_MAX_ILLU;
-			cmd.radius = 8;	   // radius of the circle
-			cmd.ledIndex = 0;  // not used
-			cmd.region[0] = 0; // not used
-			cmd.qid = 0;	   // not used
-			isOn = true;
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
-			// Send the command to the CAN driver
-			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-#else
-			// Execute the command directly
-			execLedCommand(cmd);
-#endif
-		}
 
-	}
 
 	void circle_changed_event(int pressed)
 	{
-		if (pressed && !isOn)
+		if (pressed)
 		{
-			Serial.println("Circle pressed, but LED is off");
-			return;
-		}
-		else
-		{
-			Serial.println("Circle pressed, LED is on");
-			// differentiate between CAN MASTER and CAN SLAVE
+			unsigned long currentTime = millis();
+			
+			// Debounce check - ignore if too soon after last event
+			if (currentTime - circleLastEventTime < BUTTON_DEBOUNCE_TIME)
+			{
+				return;
+			}
+			
+			circleLastEventTime = currentTime;
+			
+			// Toggle LED state
+			ledToggleState = !ledToggleState;
+			
+			log_i("Circle pressed - LED toggle to %s", ledToggleState ? "ON" : "OFF");
+			
 			LedCommand cmd;
-			cmd.mode = LedMode::CIRCLE;
-			cmd.r = 0;		   // pinConfig.JOYSTICK_MAX_ILLU;
-			cmd.g = 0;		   // pinConfig.JOYSTICK_MAX_ILLU;
-			cmd.b = 0;		   // pinConfig.JOYSTICK_MAX_ILLU;
-			cmd.radius = 8;	   // radius of the circle
-			cmd.ledIndex = 0;  // not used
-			cmd.region[0] = 0; // not used
-			cmd.qid = 0;	   // not used
-			isOn = false;
+			if (ledToggleState)
+			{
+				// Turn LED ON
+				Serial.println("Circle pressed - LED ON");
+				cmd.mode = LedMode::CIRCLE;
+				cmd.r = 0;
+				cmd.g = 255;
+				cmd.b = 0;
+				cmd.radius = 8;
+				cmd.ledIndex = 0;
+				cmd.region[0] = 0;
+				cmd.qid = 0;
+				isOn = true;
+			}
+			else
+			{
+				// Turn LED OFF
+				Serial.println("Circle pressed - LED OFF");
+				cmd.mode = LedMode::CIRCLE;
+				cmd.r = 0;
+				cmd.g = 0;
+				cmd.b = 0;
+				cmd.radius = 8;
+				cmd.ledIndex = 0;
+				cmd.region[0] = 0;
+				cmd.qid = 0;
+				isOn = false;
+			}
+			
 #if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
 			// Send the command to the CAN driver
 			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);

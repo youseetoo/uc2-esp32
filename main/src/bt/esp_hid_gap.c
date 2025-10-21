@@ -111,6 +111,7 @@ const char *esp_ble_key_type_str(esp_ble_key_type_t key_type)
 
 void esp_hid_scan_results_free(esp_hid_scan_result_t *results)
 {
+    //log_i(TAG, "Freeing scan results");
     esp_hid_scan_result_t *r = NULL;
     while (results) {
         r = results;

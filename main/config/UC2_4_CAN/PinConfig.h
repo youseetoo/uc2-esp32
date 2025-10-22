@@ -11,27 +11,29 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
+// only for linting
 #define CORE_DEBUG_LEVEL=5
 #define LASER_CONTROLLER=1
 #define DIGITAL_IN_CONTROLLER=1
 #define MESSAGE_CONTROLLER=1
 #define ENCODER_CONTROLLER=1
 #define LINEAR_ENCODER_CONTROLLER=1
-#define CAN_CONTROLLER=1
-#define DIAL_CONTROLLER=1
+//#define CAN_CONTROLLER=1
+//#define DIAL_CONTROLLER=1
 #define MOTOR_CONTROLLER=1
 #define HOME_MOTOR=1
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
 #define OBJECTIVE_CONTROLLER=1
-struct UC2_3_CANMaster : PinConfig
+#define USE_FASTACCEL=1
+struct UC2_4 : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
      */
   
-     const char * pindefName = "UC2_3_I2C_Master";
+     const char * pindefName = "UC2_4";
      const unsigned long BAUDRATE = 115200;
 
      int8_t MOTOR_A_STEP = GPIO_NUM_15;
@@ -159,4 +161,4 @@ struct UC2_3_CANMaster : PinConfig
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
 
 };
-const UC2_3_CANMaster pinConfig;
+const UC2_4 pinConfig;

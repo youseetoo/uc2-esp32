@@ -34,7 +34,7 @@ namespace LaserController
     static long pwm_max = (int)pow(2, pwm_resolution);
 
     int getLaserVal(int LASERid);
-    bool setLaserVal(int LASERid, int LASERval);
+    bool setLaserVal(int LASERid, int LASERval, int qid = 0);
     static int PWM_CHANNEL_LASER_0 = 4; // This is used for the Heating Unit 
     static int PWM_CHANNEL_LASER_1 = 1;
     static int PWM_CHANNEL_LASER_2 = 2;
@@ -78,6 +78,9 @@ namespace LaserController
     void handleShortClick(int direction); // Handle short click actions
     void executeHoldAction(int direction); // Execute hold increment/decrement actions
     void cross_changed_event(int pressed); // Handle Cross button for Laser 4 toggle
+    
+    // Send laser value update after setting new value (similar to sendMotorPos)
+    void sendLaserValue(int LASERid, int qid = 0);
 
 };
 

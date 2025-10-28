@@ -3,6 +3,10 @@
 #include "cJsonTool.h"
 #include "JsonKeys.h"
 #include "../state/State.h"
+#include "../serial/SerialProcess.h"
+#ifdef WIFI
+#include "../wifi/WifiController.h"
+#endif
 #ifdef I2C_LASER 
 #include "../i2c/i2c_master.h"
 #endif
@@ -11,6 +15,9 @@
 #endif
 namespace LaserController
 {
+	// Flags to track pending laser value updates that need to be sent
+	static bool laserValuePending[5] = {false, false, false, false, false}; // For LASER IDs 0-4
+	static int pendingQid[5] = {0, 0, 0, 0, 0}; // Store qid for each pending update
 
 	void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod)
 	{
@@ -156,7 +163,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
+				setLaserVal(LASERid, LASER_val_1, qid);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			State::setBusy(false);
@@ -180,7 +187,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
+				setLaserVal(LASERid, LASER_val_2, qid);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			State::setBusy(false);
@@ -204,7 +211,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
+				setLaserVal(LASERid, LASER_val_3, qid);
 			}
 
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
@@ -226,7 +233,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASER_val_4, PWM_CHANNEL_LASER_4);
+				setLaserVal(LASERid, LASER_val_4, qid);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			State::setBusy(false);
@@ -252,7 +259,7 @@ namespace LaserController
 			}
 			else
 			{
-				setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
+				setLaserVal(LASERid, LASER_val_0, qid);
 			}
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
 			State::setBusy(false);
@@ -293,9 +300,15 @@ namespace LaserController
 	}
 
 
-	bool setLaserVal(int LASERid, int LASERval)
+	bool setLaserVal(int LASERid, int LASERval, int qid)
 	{
-		log_i("Setting Laser Value: LASERid %i, LASERval %i", LASERid, LASERval);
+		log_i("Setting Laser Value: LASERid %i, LASERval %i, qid %i", LASERid, LASERval, qid);
+		
+		// Store qid for this laser
+		if (LASERid >= 0 && LASERid <= 4) {
+			pendingQid[LASERid] = qid;
+		}
+		
 		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
@@ -303,6 +316,11 @@ namespace LaserController
 		laserData.LASERdespeckle = 0;
 		laserData.LASERdespecklePeriod = 0;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
+		
+		// Set flag to send update in next loop cycle
+		if (LASERid >= 0 && LASERid <= 4) {
+			laserValuePending[LASERid] = true;
+		}
 		return true;
 		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
 		LaserData laserData;
@@ -311,6 +329,11 @@ namespace LaserController
 		laserData.LASERdespeckle = 0;
 		laserData.LASERdespecklePeriod = 0;
 		can_controller::sendLaserDataToCANDriver(laserData);
+		
+		// Set flag to send update in next loop cycle
+		if (LASERid >= 0 && LASERid <= 4) {
+			laserValuePending[LASERid] = true;
+		}
 		return true;
 		#else
 		if (LASERid == 0 && pinConfig.LASER_0 != 0)
@@ -318,6 +341,9 @@ namespace LaserController
 			LASER_val_0 = LASERval;
 			setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			
+			// Set flag to send update in next loop cycle
+			laserValuePending[0] = true;
 			return true;
 		}
 		else if (LASERid == 1 && pinConfig.LASER_1 != 0)
@@ -325,6 +351,9 @@ namespace LaserController
 			LASER_val_1 = LASERval;
 			setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			
+			// Set flag to send update in next loop cycle
+			laserValuePending[1] = true;
 			return true;
 		}
 		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
@@ -332,6 +361,9 @@ namespace LaserController
 			LASER_val_2 = LASERval;
 			setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			
+			// Set flag to send update in next loop cycle
+			laserValuePending[2] = true;
 			return true;
 		}
 		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
@@ -339,6 +371,9 @@ namespace LaserController
 			LASER_val_3 = LASERval;
 			setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			
+			// Set flag to send update in next loop cycle
+			laserValuePending[3] = true;
 			return true;
 		}
 		else if (LASERid == 4 && pinConfig.LASER_4 != 0)
@@ -346,6 +381,9 @@ namespace LaserController
 			LASER_val_4 = LASERval;
 			setPWM(LASER_val_4, PWM_CHANNEL_LASER_4);
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			
+			// Set flag to send update in next loop cycle
+			laserValuePending[4] = true;
 			return true;
 		}
 		else
@@ -358,7 +396,11 @@ namespace LaserController
 	int getLaserVal(int LASERid)
 	{
 		int laserVal = 0;
-		if (LASERid == 1)
+		if (LASERid == 0)
+		{
+			laserVal = LASER_val_0;
+		}
+		else if (LASERid == 1)
 		{
 			laserVal = LASER_val_1;
 		}
@@ -380,6 +422,68 @@ namespace LaserController
 		}
 		log_i("LASERid %i, LASERval %i", LASERid, laserVal);
 		return laserVal;
+	}
+
+	void sendLaserValue(int LASERid, int qid)
+	{
+		// Send laser value update similar to sendMotorPos pattern
+		// JSON format: {"laser": {"LASERid": X, "LASERval": Y}, "qid": Z}
+		
+		log_i("Sending laser value update: LASERid %i, LASERval %i, qid %i", 
+		      LASERid, getLaserVal(LASERid), qid);
+		
+		cJSON *root = cJSON_CreateObject();
+		if (root == NULL)
+		{
+			log_e("Failed to create JSON object for laser update");
+			return;
+		}
+
+		cJSON *laserObj = cJSON_CreateObject();
+		if (laserObj == NULL)
+		{
+			cJSON_Delete(root);
+			log_e("Failed to create laser object");
+			return;
+		}
+		
+		cJSON_AddItemToObject(root, "laser", laserObj);
+		cJSON_AddNumberToObject(laserObj, "LASERid", LASERid);
+		cJSON_AddNumberToObject(laserObj, "LASERval", getLaserVal(LASERid));
+		cJSON_AddNumberToObject(laserObj, "isDone", true); // Laser is immediately done after setting
+		
+		if (qid != 0)
+		{
+			cJSON_AddNumberToObject(root, "qid", qid);
+		}
+
+#ifdef WIFI
+		WifiController::sendJsonWebSocketMsg(root);
+#endif
+
+		// Serialize to string BEFORE deleting the cJSON object
+		char *jsonString = cJSON_PrintUnformatted(root);
+		
+		// Check if serialization was successful
+		if (jsonString == NULL)
+		{
+			log_e("Failed to serialize laser value JSON for LASERid %d", LASERid);
+			cJSON_Delete(root);
+			return;
+		}
+		
+		// Delete cJSON object immediately after serialization
+		cJSON_Delete(root);
+		root = NULL;
+		
+		// Send the pre-serialized string through the safe output queue
+		SerialProcess::safeSendJsonString(jsonString);
+		
+		// Free the serialized string
+		free(jsonString);
+		jsonString = NULL;
+		
+		log_d("Laser value update sent successfully for LASERid %i", LASERid);
 	}
 
 	void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res)
@@ -704,6 +808,17 @@ namespace LaserController
 
 	void loop()
 	{
+		// Check for pending laser value updates and send them
+		for (int i = 0; i <= 4; i++)
+		{
+			if (laserValuePending[i])
+			{
+				sendLaserValue(i, pendingQid[i]);
+				laserValuePending[i] = false; // Clear the flag after sending
+				pendingQid[i] = 0; // Reset qid
+			}
+		}
+		
 		// Process hold actions for continuous laser adjustment
 		processHoldActions();
 

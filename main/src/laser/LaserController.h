@@ -38,6 +38,7 @@ namespace LaserController
     // Main API functions
     int getLaserVal(int LASERid);
     bool setLaserVal(int LASERid, int LASERval, int qid = 0);
+    bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid = 0);
     
     // Backward compatibility - keep old defines for external code
     static int& PWM_CHANNEL_LASER_0 = PWM_CHANNEL_LASER[0];

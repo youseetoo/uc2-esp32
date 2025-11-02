@@ -106,19 +106,6 @@ namespace LaserController
 		LASERdespecklePeriod = cJsonTool::getJsonInt(ob, "LASERdespecklePeriod");
 
 
-		LaserData laserData;
-		laserData.LASERid = LASERid;
-		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = LASERdespeckle;
-		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-		#ifdef I2C_LASER
-		i2c_master::sendLaserDataI2C(laserData, LASERid);
-		return qid; 
-		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
-		can_controller::sendLaserDataToCANDriver(laserData);
-		return qid;
-		#else
-
 		// debugging
 		log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
@@ -166,11 +153,6 @@ namespace LaserController
 		// Handle laser value setting
 		if (hasLASERval)
 		{
-			// Update laser values
-			LASER_val_arr[LASERid] = LASERval;
-			LASER_despeckle_arr[LASERid] = LASERdespeckle;
-			LASER_despeckle_period_arr[LASERid] = LASERdespecklePeriod;
-			
 			if (isServo)
 			{
 				// Servo mode
@@ -183,8 +165,8 @@ namespace LaserController
 			}
 			else
 			{
-				// Normal laser mode
-				setLaserVal(LASERid, LASERval, qid);
+				// Normal laser mode - use overloaded setLaserVal with despeckle parameters
+				setLaserVal(LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod, qid);
 			}
 			
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
@@ -194,7 +176,6 @@ namespace LaserController
 		
 		State::setBusy(false);
 		return qid;
-		#endif
 	}
 
 		void applyLaserValue(const LaserData& laserData)
@@ -228,7 +209,14 @@ namespace LaserController
 
 	bool setLaserVal(int LASERid, int LASERval, int qid)
 	{
-		log_i("Setting Laser Value: LASERid %i, LASERval %i, qid %i", LASERid, LASERval, qid);
+		// Use current despeckle values from arrays
+		return setLaserVal(LASERid, LASERval, LASER_despeckle_arr[LASERid], LASER_despeckle_period_arr[LASERid], qid);
+	}
+
+	bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid)
+	{
+		log_i("Setting Laser Value: LASERid %i, LASERval %i, despeckle %i, period %i, qid %i", 
+		      LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod, qid);
 		
 		// Validate LASERid
 		if (LASERid < 0 || LASERid >= MAX_LASERS)
@@ -240,12 +228,17 @@ namespace LaserController
 		// Store qid for this laser
 		pendingQid[LASERid] = qid;
 		
+		// Update arrays with new values
+		LASER_val_arr[LASERid] = LASERval;
+		LASER_despeckle_arr[LASERid] = LASERdespeckle;
+		LASER_despeckle_period_arr[LASERid] = LASERdespecklePeriod;
+		
 		#ifdef I2C_LASER
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = 0;
-		laserData.LASERdespecklePeriod = 0;
+		laserData.LASERdespeckle = LASERdespeckle;
+		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		
 		// Set flag to send update in next loop cycle
@@ -256,8 +249,8 @@ namespace LaserController
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = 0;
-		laserData.LASERdespecklePeriod = 0;
+		laserData.LASERdespeckle = LASERdespeckle;
+		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		can_controller::sendLaserDataToCANDriver(laserData);
 		
 		// Set flag to send update in next loop cycle
@@ -272,9 +265,6 @@ namespace LaserController
 			log_w("Laser pin not configured for LASERid %d", LASERid);
 			return false;
 		}
-		
-		// Set value in array
-		LASER_val_arr[LASERid] = LASERval;
 		
 		// Apply PWM
 		int pwmChannel = getPWMChannel(LASERid);

@@ -92,6 +92,7 @@ __attribute__ ((unused)) static const  char* scanwifi_endpoint = "/wifi/scan";
 __attribute__ ((unused)) static const  char* connectwifi_endpoint = "/wifi/connect";
 __attribute__ ((unused)) static const  char* reset_nv_flash_endpoint = "/resetnv";
 #ifdef BLUETOOTH
+__attribute__ ((unused)) static const  char* bt_disconnect_endpoint = "/bt_disconnect";
 __attribute__ ((unused)) static const  char* bt_scan_endpoint = "/bt_scan";
 __attribute__ ((unused)) static const  char* bt_connect_endpoint = "/bt_connect";
 __attribute__ ((unused)) static const  char* bt_remove_endpoint = "/bt_remove";

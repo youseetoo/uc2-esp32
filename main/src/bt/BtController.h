@@ -31,7 +31,8 @@ namespace BtController
     cJSON * scanForDevices(cJSON *  doc);
     void removeAllPairedDevices();
     void setMacAndConnect(char* m);
-    
+    void disconnect();
+
     void removePairedDevice(char* pairedmac);
     cJSON * getPairedDevices(cJSON * doc);
     char * bda2str(const uint8_t *bda, char *str, size_t size);

@@ -475,6 +475,10 @@ namespace SerialProcess
 		{
 			BtController::scanForDevices(jsonDocument);
 		}
+		else if (strcmp(task, bt_disconnect_endpoint) == 0)
+		{
+			BtController::disconnect();
+		}
 #endif
 
 #ifdef DAC_CONTROLLER

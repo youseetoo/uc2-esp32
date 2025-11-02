@@ -14,45 +14,55 @@ struct LaserData
 
 namespace LaserController
 {
+    // Configuration constants
+    static const int MAX_LASERS = 5; // Support for LASER IDs 0-4
 
-    static int LASER_val_0 = 0;
-    static int LASER_val_1 = 0;
-    static int LASER_val_2 = 0;
-    static int LASER_val_3 = 0;
-    static int LASER_val_4 = 0;
+    // Arrays to store laser values and settings (indexed by LASERid)
+    // Note: Using _arr suffix to avoid naming conflict with LASER_despeckle() function
+    static int LASER_val_arr[MAX_LASERS] = {0, 0, 0, 0, 0};
+    static int LASER_despeckle_arr[MAX_LASERS] = {0, 0, 0, 0, 0};
+    static int LASER_despeckle_period_arr[MAX_LASERS] = {20, 20, 20, 20, 20};
+    
+    // PWM channel mapping (indexed by LASERid)
+    static int PWM_CHANNEL_LASER[MAX_LASERS] = {4, 1, 2, 3, 5}; // 0=Heating, 1-4=Lasers
 
-    // PWM Stuff - ESP only
-
-    /*
-    int pwm_resolution = 15; 
-    int pwm_frequency = 800000;  //19000; // 12000;
-    int pwm_max = (int)pow(2,pwm_resolution);
-    */
-
-    static int pwm_resolution = 10; //8bit 256, 10bit  1024, 12bit 4096;
-    static int pwm_frequency =  5000;//19000; //12000
+    // PWM configuration
+    static int pwm_resolution = 10; //8bit 256, 10bit 1024, 12bit 4096;
+    static int pwm_frequency = 5000; //19000; //12000
     static long pwm_max = (int)pow(2, pwm_resolution);
 
+    // Helper functions to get pin and channel for a given LASERid
+    int getLaserPin(int LASERid);
+    int getPWMChannel(int LASERid);
+    
+    // Main API functions
     int getLaserVal(int LASERid);
     bool setLaserVal(int LASERid, int LASERval, int qid = 0);
-    static int PWM_CHANNEL_LASER_0 = 4; // This is used for the Heating Unit 
-    static int PWM_CHANNEL_LASER_1 = 1;
-    static int PWM_CHANNEL_LASER_2 = 2;
-    static int PWM_CHANNEL_LASER_3 = 3;
-    static int PWM_CHANNEL_LASER_4 = 5;
-
-    // temperature dependent despeckeling?
-    static int LASER_despeckle_0 = 0;
-    static int LASER_despeckle_1 = 0;
-    static int LASER_despeckle_2 = 0;
-    static int LASER_despeckle_3 = 0;
-    static int LASER_despeckle_4 = 0;
-
-    static int LASER_despeckle_period_0 = 20;
-    static int LASER_despeckle_period_1 = 20;
-    static int LASER_despeckle_period_2 = 20;
-    static int LASER_despeckle_period_3 = 20;
-    static int LASER_despeckle_period_4 = 20;
+    
+    // Backward compatibility - keep old defines for external code
+    static int& PWM_CHANNEL_LASER_0 = PWM_CHANNEL_LASER[0];
+    static int& PWM_CHANNEL_LASER_1 = PWM_CHANNEL_LASER[1];
+    static int& PWM_CHANNEL_LASER_2 = PWM_CHANNEL_LASER[2];
+    static int& PWM_CHANNEL_LASER_3 = PWM_CHANNEL_LASER[3];
+    static int& PWM_CHANNEL_LASER_4 = PWM_CHANNEL_LASER[4];
+    
+    static int& LASER_val_0 = LASER_val_arr[0];
+    static int& LASER_val_1 = LASER_val_arr[1];
+    static int& LASER_val_2 = LASER_val_arr[2];
+    static int& LASER_val_3 = LASER_val_arr[3];
+    static int& LASER_val_4 = LASER_val_arr[4];
+    
+    static int& LASER_despeckle_0 = LASER_despeckle_arr[0];
+    static int& LASER_despeckle_1 = LASER_despeckle_arr[1];
+    static int& LASER_despeckle_2 = LASER_despeckle_arr[2];
+    static int& LASER_despeckle_3 = LASER_despeckle_arr[3];
+    static int& LASER_despeckle_4 = LASER_despeckle_arr[4];
+    
+    static int& LASER_despeckle_period_0 = LASER_despeckle_period_arr[0];
+    static int& LASER_despeckle_period_1 = LASER_despeckle_period_arr[1];
+    static int& LASER_despeckle_period_2 = LASER_despeckle_period_arr[2];
+    static int& LASER_despeckle_period_3 = LASER_despeckle_period_arr[3];
+    static int& LASER_despeckle_period_4 = LASER_despeckle_period_arr[4];
 
     static int minPulseWidth = 500;
     static int maxPulseWidth = 2500;

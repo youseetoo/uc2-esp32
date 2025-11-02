@@ -404,6 +404,25 @@ namespace BtController
         return doc;
     }
 
+    // disconnect from current controller
+    void disconnect()
+    {
+#ifdef BTHID
+        // HID controllers don't have a simple disconnect function
+        // Set the connection flag to false to indicate disconnection intent
+        hidIsConnected = false;
+        log_i("HID controller disconnect requested");
+#endif
+#ifdef PSXCONTROLLER
+        if (psx != nullptr && psx->isConnected())
+        {
+            delete psx;
+            psx = nullptr;
+            log_i("PSX controller disconnected");
+        }
+#endif
+    }
+
     void setMacAndConnect(char *m)
     {
     }

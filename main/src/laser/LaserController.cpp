@@ -13,35 +13,54 @@
 #ifdef CAN_CONTROLLER
 #include "../can/can_controller.h"
 #endif
+
 namespace LaserController
 {
 	// Flags to track pending laser value updates that need to be sent
-	static bool laserValuePending[5] = {false, false, false, false, false}; // For LASER IDs 0-4
-	static int pendingQid[5] = {0, 0, 0, 0, 0}; // Store qid for each pending update
+	static bool laserValuePending[MAX_LASERS] = {false, false, false, false, false};
+	static int pendingQid[MAX_LASERS] = {0, 0, 0, 0, 0};
+
+	// Helper function to get laser pin by ID
+	int getLaserPin(int LASERid)
+	{
+		switch (LASERid)
+		{
+			case 0: return pinConfig.LASER_0;
+			case 1: return pinConfig.LASER_1;
+			case 2: return pinConfig.LASER_2;
+			case 3: return pinConfig.LASER_3;
+			case 4: return pinConfig.LASER_4;
+			default: return -1;
+		}
+	}
+	
+	// Helper function to get PWM channel by ID
+	int getPWMChannel(int LASERid)
+	{
+		if (LASERid >= 0 && LASERid < MAX_LASERS)
+		{
+			return PWM_CHANNEL_LASER[LASERid];
+		}
+		return -1;
+	}
 
 	void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod)
 	{
+		if (LASERid < 0 || LASERid >= MAX_LASERS)
+		{
+			log_w("Invalid LASERid %i for despeckle", LASERid);
+			return;
+		}
+		
 		log_e("LASERdespeckle %i, LASERid %i, LASERperiod %i", LASERdespeckle, LASERid, LASERperiod);
-		int LASER_val_wiggle = 0;
-		int PWM_CHANNEL_LASER = 0;
-		if (LASERid == 1)
-		{
-			LASER_val_wiggle = LASER_val_1;
-			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_1;
-		}
-		else if (LASERid == 2)
-		{
-			LASER_val_wiggle = LASER_val_2;
-			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_2;
-		}
-		else if (LASERid == 3)
-		{
-			LASER_val_wiggle = LASER_val_3;
-			PWM_CHANNEL_LASER = PWM_CHANNEL_LASER_3;
-		}
-		// add random number to current value to let it oscliate
+		
+		int LASER_val_wiggle = LASER_val_arr[LASERid];
+		int PWM_CHANNEL = getPWMChannel(LASERid);
+		
+		// Add random number to current value to let it oscillate
 		int32_t laserwiggle = random(-LASERdespeckle, LASERdespeckle);
 		LASER_val_wiggle += laserwiggle;
+		
 		if (LASER_val_wiggle > pwm_max)
 			LASER_val_wiggle -= (2 * abs(laserwiggle));
 		if (LASER_val_wiggle < 0)
@@ -50,7 +69,7 @@ namespace LaserController
 		log_d("%i", LASERid);
 		log_d("%i", LASER_val_wiggle);
 
-		setPWM(LASER_val_wiggle, PWM_CHANNEL_LASER);
+		setPWM(LASER_val_wiggle, PWM_CHANNEL);
 		delay(LASERperiod);
 	}
 
@@ -103,173 +122,78 @@ namespace LaserController
 		// debugging
 		log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
-		/*
-		Set Laser PWM Frequency
-		*/
-		if (setPWMFreq != NULL and isServo == false)
-		{ // {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50, "LASERval":1000, "qid":1}
-			pwm_frequency = setPWMFreq->valueint;
-			log_i("Setting PWM frequency to %i", pwm_frequency);
-			if (LASERid == 1 && pinConfig.LASER_1 != 0)
-			{
-				setupLaser(pinConfig.LASER_1, PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-			}
-			if (LASERid == 2 && pinConfig.LASER_2 != 0)
-			{
-				setupLaser(pinConfig.LASER_2, PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-			}
-			if (LASERid == 3 && pinConfig.LASER_3 != 0)
-			{
-				setupLaser(pinConfig.LASER_3, PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-			}
-		}
-
-		/*
-		Set Laser PWM REsolution
-		*/
-		if (setPWMRes != NULL and isServo == false)
-		{ // {"task":"/laser_act", "LASERid":2 ,"LASERRes":16} // for servo
-			log_i("Setting PWM frequency to %i", pwm_frequency);
-			if (LASERid == 1 && pinConfig.LASER_1 != 0)
-			{
-				setupLaser(pinConfig.LASER_1, PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-			}
-			if (LASERid == 2 && pinConfig.LASER_2 != 0)
-			{
-				setupLaser(pinConfig.LASER_2, PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-			}
-			if (LASERid == 3 && pinConfig.LASER_3 != 0)
-			{
-				setupLaser(pinConfig.LASER_3, PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-			}
-		}
-
-		// action LASER 1
-		if (LASERid == 1 && pinConfig.LASER_1 >= 0 && hasLASERval)
+		// Validate LASERid
+		if (LASERid < 0 || LASERid >= MAX_LASERS)
 		{
-			LASER_val_1 = LASERval;
-			LASER_despeckle_1 = LASERdespeckle;
-			LASER_despeckle_period_1 = LASERdespecklePeriod;
-			if (isServo)
-			{
-				// for servo
-				// {"task":"/laser_act", "LASERid":1 ,"LASERval":99, "servo":1, "qid":1}
-				// {"task":"/laser_act", "LASERid":2 ,"LASERval":90, "servo":1, "qid":1}
-				pwm_frequency = 50;
-				pwm_resolution = 16;
-
-				configurePWM(pinConfig.LASER_1, pwm_resolution, PWM_CHANNEL_LASER_1, pwm_frequency);
-				moveServo(PWM_CHANNEL_LASER_1, LASERval, pwm_frequency, pwm_resolution);
-			}
-			else
-			{
-				setLaserVal(LASERid, LASER_val_1, qid);
-			}
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
-		}
-		// action LASER 2
-		else if (LASERid == 2 && pinConfig.LASER_2 >= 0 && hasLASERval)
-		{
-			LASER_val_2 = LASERval;
-			LASER_despeckle_2 = LASERdespeckle;
-			LASER_despeckle_period_2 = LASERdespecklePeriod;
-			if (isServo)
-			{
-				// for servo
-				// {"task":"/laser_act", "LASERid":2 ,"LASERval":50, "servo":1, "qid":1}
-				pwm_frequency = 50;
-				pwm_resolution = 16;
-
-				configurePWM(pinConfig.LASER_2, pwm_resolution, PWM_CHANNEL_LASER_2, pwm_frequency);
-				moveServo(PWM_CHANNEL_LASER_2, LASERval, pwm_frequency, pwm_resolution);
-			}
-			else
-			{
-				setLaserVal(LASERid, LASER_val_2, qid);
-			}
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
-		}
-		// action LASER 3
-		else if (LASERid == 3 && pinConfig.LASER_3 >= 0 && hasLASERval)
-		{
-			LASER_val_3 = LASERval;
-			LASER_despeckle_3 = LASERdespeckle;
-			LASER_despeckle_period_3 = LASERdespecklePeriod;
-			if (isServo)
-			{
-				// for servo
-				// {"task":"/laser_act", "LASERid":3 ,"LASERval":50, "servo":1, "qid":1}
-				pwm_frequency = 50;
-				pwm_resolution = 16;
-
-				configurePWM(pinConfig.LASER_3, pwm_resolution, PWM_CHANNEL_LASER_3, pwm_frequency);
-				moveServo(PWM_CHANNEL_LASER_3, LASERval, pwm_frequency, pwm_resolution);
-			}
-			else
-			{
-				setLaserVal(LASERid, LASER_val_3, qid);
-			}
-
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
-		}
-		// action LASER 4
-		else if (LASERid == 4 && pinConfig.LASER_4 >= 0 && hasLASERval)
-		{
-			LASER_val_4 = LASERval;
-			LASER_despeckle_4 = LASERdespeckle;
-			LASER_despeckle_period_4 = LASERdespecklePeriod;
-			if (isServo)
-			{
-				pwm_frequency = 50;
-				pwm_resolution = 16;
-				configurePWM(pinConfig.LASER_4, pwm_resolution, PWM_CHANNEL_LASER_4, pwm_frequency);
-				moveServo(PWM_CHANNEL_LASER_4, LASERval, pwm_frequency, pwm_resolution);
-			}
-			else
-			{
-				setLaserVal(LASERid, LASER_val_4, qid);
-			}
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
-		}
-		// action LASER 0
-		else if (LASERid == 0 && pinConfig.LASER_0 >= 0 && hasLASERval)
-		{
-			// action LASER 0
-			// {"task":"/laser_act", "LASERid":0 ,"LASERval":50, "qid":1}
-			LASER_val_0 = LASERval;
-			LASER_despeckle_0 = LASERdespeckle;
-			LASER_despeckle_period_0 = LASERdespecklePeriod;
-			if (isServo)
-			{
-				// for servo
-				// {"task":"/laser_act", "LASERid":0 ,"LASERval":50, "servo":1, "qid":1}
-				pwm_frequency = 50;
-				pwm_resolution = 16;
-
-				configurePWM(pinConfig.LASER_0, pwm_frequency, PWM_CHANNEL_LASER_0, pwm_frequency);
-				moveServo(PWM_CHANNEL_LASER_0, LASERval, pwm_frequency, pwm_resolution);
-			}
-			else
-			{
-				setLaserVal(LASERid, LASER_val_0, qid);
-			}
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
-		}
-		else
-		{
+			log_w("Invalid LASERid: %d", LASERid);
 			State::setBusy(false);
 			return 0;
 		}
+		
+		int laserPin = getLaserPin(LASERid);
+		int pwmChannel = getPWMChannel(LASERid);
+		
+		// Check if laser pin is configured
+		if (laserPin < 0)
+		{
+			log_w("Laser pin not configured for LASERid %d", LASERid);
+			State::setBusy(false);
+			return 0;
+		}
+
+		/*
+		Set Laser PWM Frequency
+		*/
+		if (setPWMFreq != NULL && !isServo)
+		{ 
+			// {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50, "LASERval":1000, "qid":1}
+			pwm_frequency = setPWMFreq->valueint;
+			log_i("Setting PWM frequency to %i for LASERid %i", pwm_frequency, LASERid);
+			setupLaser(laserPin, pwmChannel, pwm_frequency, pwm_resolution);
+		}
+
+		/*
+		Set Laser PWM Resolution
+		*/
+		if (setPWMRes != NULL && !isServo)
+		{ 
+			// {"task":"/laser_act", "LASERid":2 ,"LASERRes":16}
+			pwm_resolution = setPWMRes->valueint;
+			log_i("Setting PWM resolution to %i for LASERid %i", pwm_resolution, LASERid);
+			setupLaser(laserPin, pwmChannel, pwm_frequency, pwm_resolution);
+		}
+
+		// Handle laser value setting
+		if (hasLASERval)
+		{
+			// Update laser values
+			LASER_val_arr[LASERid] = LASERval;
+			LASER_despeckle_arr[LASERid] = LASERdespeckle;
+			LASER_despeckle_period_arr[LASERid] = LASERdespecklePeriod;
+			
+			if (isServo)
+			{
+				// Servo mode
+				// {"task":"/laser_act", "LASERid":1 ,"LASERval":99, "servo":1, "qid":1}
+				pwm_frequency = 50;
+				pwm_resolution = 16;
+
+				configurePWM(laserPin, pwm_resolution, pwmChannel, pwm_frequency);
+				moveServo(pwmChannel, LASERval, pwm_frequency, pwm_resolution);
+			}
+			else
+			{
+				// Normal laser mode
+				setLaserVal(LASERid, LASERval, qid);
+			}
+			
+			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+			State::setBusy(false);
+			return qid;
+		}
+		
+		State::setBusy(false);
+		return qid;
 		#endif
 	}
 
@@ -280,21 +204,23 @@ namespace LaserController
 		#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_LASER)
 			can_controller::sendLaserDataToCANDriver(laserData);
 		#else
-			int pwmChannel = -1;
-			int value = laserData.LASERval;
-			switch (laserData.LASERid)
+			int LASERid = laserData.LASERid;
+			
+			// Validate LASERid
+			if (LASERid < 0 || LASERid >= MAX_LASERS)
 			{
-				case 0: LASER_val_0 = value; pwmChannel = PWM_CHANNEL_LASER_0; break;
-				case 1: LASER_val_1 = value; pwmChannel = PWM_CHANNEL_LASER_1; break;
-				case 2: LASER_val_2 = value; pwmChannel = PWM_CHANNEL_LASER_2; break;
-				case 3: LASER_val_3 = value; pwmChannel = PWM_CHANNEL_LASER_3; break;
-				case 4: LASER_val_4 = value; pwmChannel = PWM_CHANNEL_LASER_4; break;
-				default: log_w("Invalid LASERid: %d", laserData.LASERid); return;
+				log_w("Invalid LASERid: %d", LASERid);
+				return;
 			}
-
+			
+			// Set value in array
+			LASER_val_arr[LASERid] = laserData.LASERval;
+			
+			// Get PWM channel and apply
+			int pwmChannel = getPWMChannel(LASERid);
 			if (pwmChannel != -1)
 			{
-				setPWM(value, pwmChannel);
+				setPWM(laserData.LASERval, pwmChannel);
 			}
 		#endif
 	}
@@ -304,10 +230,15 @@ namespace LaserController
 	{
 		log_i("Setting Laser Value: LASERid %i, LASERval %i, qid %i", LASERid, LASERval, qid);
 		
-		// Store qid for this laser
-		if (LASERid >= 0 && LASERid <= 4) {
-			pendingQid[LASERid] = qid;
+		// Validate LASERid
+		if (LASERid < 0 || LASERid >= MAX_LASERS)
+		{
+			log_w("Invalid LASERid: %d", LASERid);
+			return false;
 		}
+		
+		// Store qid for this laser
+		pendingQid[LASERid] = qid;
 		
 		#ifdef I2C_LASER
 		LaserData laserData;
@@ -318,10 +249,9 @@ namespace LaserController
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
 		
 		// Set flag to send update in next loop cycle
-		if (LASERid >= 0 && LASERid <= 4) {
-			laserValuePending[LASERid] = true;
-		}
+		laserValuePending[LASERid] = true;
 		return true;
+		
 		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
@@ -331,95 +261,43 @@ namespace LaserController
 		can_controller::sendLaserDataToCANDriver(laserData);
 		
 		// Set flag to send update in next loop cycle
-		if (LASERid >= 0 && LASERid <= 4) {
-			laserValuePending[LASERid] = true;
-		}
+		laserValuePending[LASERid] = true;
 		return true;
+		
 		#else
-		if (LASERid == 0 && pinConfig.LASER_0 != 0)
+		// Check if pin is configured
+		int laserPin = getLaserPin(LASERid);
+		if (laserPin <= 0)
 		{
-			LASER_val_0 = LASERval;
-			setPWM(LASER_val_0, PWM_CHANNEL_LASER_0);
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			
-			// Set flag to send update in next loop cycle
-			laserValuePending[0] = true;
-			return true;
-		}
-		else if (LASERid == 1 && pinConfig.LASER_1 != 0)
-		{
-			LASER_val_1 = LASERval;
-			setPWM(LASER_val_1, PWM_CHANNEL_LASER_1);
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			
-			// Set flag to send update in next loop cycle
-			laserValuePending[1] = true;
-			return true;
-		}
-		else if (LASERid == 2 && pinConfig.LASER_2 != 0)
-		{
-			LASER_val_2 = LASERval;
-			setPWM(LASER_val_2, PWM_CHANNEL_LASER_2);
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			
-			// Set flag to send update in next loop cycle
-			laserValuePending[2] = true;
-			return true;
-		}
-		else if (LASERid == 3 && pinConfig.LASER_3 != 0)
-		{
-			LASER_val_3 = LASERval;
-			setPWM(LASER_val_3, PWM_CHANNEL_LASER_3);
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			
-			// Set flag to send update in next loop cycle
-			laserValuePending[3] = true;
-			return true;
-		}
-		else if (LASERid == 4 && pinConfig.LASER_4 != 0)
-		{
-			LASER_val_4 = LASERval;
-			setPWM(LASER_val_4, PWM_CHANNEL_LASER_4);
-			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			
-			// Set flag to send update in next loop cycle
-			laserValuePending[4] = true;
-			return true;
-		}
-		else
-		{
+			log_w("Laser pin not configured for LASERid %d", LASERid);
 			return false;
 		}
+		
+		// Set value in array
+		LASER_val_arr[LASERid] = LASERval;
+		
+		// Apply PWM
+		int pwmChannel = getPWMChannel(LASERid);
+		setPWM(LASERval, pwmChannel);
+		
+		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
+		
+		// Set flag to send update in next loop cycle
+		laserValuePending[LASERid] = true;
+		return true;
 		#endif
 	}
 
 	int getLaserVal(int LASERid)
 	{
-		int laserVal = 0;
-		if (LASERid == 0)
+		// Validate LASERid
+		if (LASERid < 0 || LASERid >= MAX_LASERS)
 		{
-			laserVal = LASER_val_0;
+			log_w("Invalid LASERid: %d", LASERid);
+			return 0;
 		}
-		else if (LASERid == 1)
-		{
-			laserVal = LASER_val_1;
-		}
-		else if (LASERid == 2)
-		{
-			laserVal = LASER_val_2;
-		}
-		else if (LASERid == 3)
-		{
-			laserVal = LASER_val_3;
-		}
-		else if (LASERid == 4)
-		{
-			laserVal = LASER_val_4;
-		}
-		else
-		{
-			laserVal = 0;
-		}
+		
+		int laserVal = LASER_val_arr[LASERid];
 		log_i("LASERid %i, LASERval %i", LASERid, laserVal);
 		return laserVal;
 	}
@@ -755,61 +633,34 @@ namespace LaserController
 	{
 		log_i("Setting Up LASERs");
 		bool testOnBoot = false;
-		// Setting up the differen PWM channels for the laser
-		log_i("Laser ID 1, pin: %i", pinConfig.LASER_1);
-		pinMode(pinConfig.LASER_1, OUTPUT);
-		digitalWrite(pinConfig.LASER_1, LOW);
-		setupLaser(pinConfig.LASER_1, PWM_CHANNEL_LASER_1, pwm_frequency, pwm_resolution);
-		if(testOnBoot) setLaserVal(1, 100); // THIS IS ANTI LASERSAFETY!
-		delay(10);
-		setLaserVal(1, 0);
-
-		log_i("Laser ID 2, pin: %i", pinConfig.LASER_2);
-		pinMode(pinConfig.LASER_2, OUTPUT);
-		digitalWrite(pinConfig.LASER_2, LOW);
-		setupLaser(pinConfig.LASER_2, PWM_CHANNEL_LASER_2, pwm_frequency, pwm_resolution);
-		if(testOnBoot) setLaserVal(2, 100);
-		delay(10);
-		setLaserVal(2, 0);
-
-		log_i("Laser ID 3, pin: %i", pinConfig.LASER_3);
-		pinMode(pinConfig.LASER_3, OUTPUT);
-		digitalWrite(pinConfig.LASER_3, LOW);
-		setupLaser(pinConfig.LASER_3, PWM_CHANNEL_LASER_3, pwm_frequency, pwm_resolution);
-		if(testOnBoot) setLaserVal(3, 100);
-		delay(10);
-		setLaserVal(3, 0);
-
-
-		// Setting up the differen PWM channels for the heating unit
-		if (pinConfig.LASER_0 > 0)
+		
+		// Setup all lasers using array iteration
+		for (int i = 0; i < MAX_LASERS; i++)
 		{
-			log_i("Heating Unit, pin: %i", pinConfig.LASER_0);
-			pinMode(pinConfig.LASER_0, OUTPUT);
-			digitalWrite(pinConfig.LASER_0, LOW);
-			setupLaser(pinConfig.LASER_0, PWM_CHANNEL_LASER_0, pwm_frequency, pwm_resolution);
-			if(testOnBoot) setLaserVal(0, 100);
-			delay(10);
-			setLaserVal(0, 0);
+			int laserPin = getLaserPin(i);
 			
-		}
-
-		if (pinConfig.LASER_4 > 0)
-		{
-			log_i("Laser ID 4, pin: %i", pinConfig.LASER_4);
-			pinMode(pinConfig.LASER_4, OUTPUT);
-			digitalWrite(pinConfig.LASER_4, LOW);
-			setupLaser(pinConfig.LASER_4, PWM_CHANNEL_LASER_4, pwm_frequency, pwm_resolution);
-			if(testOnBoot) setLaserVal(4, 100);
+			// Skip if pin is not configured
+			if (laserPin <= 0)
+				continue;
+			
+			const char* laserName = (i == 0) ? "Heating Unit" : "Laser";
+			log_i("%s ID %i, pin: %i", laserName, i, laserPin);
+			
+			pinMode(laserPin, OUTPUT);
+			digitalWrite(laserPin, LOW);
+			setupLaser(laserPin, getPWMChannel(i), pwm_frequency, pwm_resolution);
+			
+			if (testOnBoot)
+				setLaserVal(i, 100); // THIS IS ANTI LASERSAFETY!
 			delay(10);
-			setLaserVal(4, 0);
+			setLaserVal(i, 0);
 		}
 	}
 
 	void loop()
 	{
 		// Check for pending laser value updates and send them
-		for (int i = 0; i <= 4; i++)
+		for (int i = 0; i < MAX_LASERS; i++)
 		{
 			if (laserValuePending[i])
 			{
@@ -822,13 +673,15 @@ namespace LaserController
 		// Process hold actions for continuous laser adjustment
 		processHoldActions();
 
-		// attempting to despeckle by wiggeling the temperature-dependent modes of the laser?
-		if (LASER_despeckle_1 > 0 && LASER_val_1 > 0 && pinConfig.LASER_1 != 0)
-			LASER_despeckle(LASER_despeckle_1, 1, LASER_despeckle_period_1);
-		if (LASER_despeckle_2 > 0 && LASER_val_2 > 0 && pinConfig.LASER_2 != 0)
-			LASER_despeckle(LASER_despeckle_2, 2, LASER_despeckle_period_2);
-		if (LASER_despeckle_3 > 0 && LASER_val_3 > 0 && pinConfig.LASER_3 != 0)
-			LASER_despeckle(LASER_despeckle_3, 3, LASER_despeckle_period_3);
+		// Despeckle loop - iterate through all lasers
+		for (int i = 0; i < MAX_LASERS; i++)
+		{
+			int laserPin = getLaserPin(i);
+			if (LASER_despeckle_arr[i] > 0 && LASER_val_arr[i] > 0 && laserPin > 0)
+			{
+				LASER_despeckle(LASER_despeckle_arr[i], i, LASER_despeckle_period_arr[i]);
+			}
+		}
 	}
 
 	void cross_changed_event(int pressed)

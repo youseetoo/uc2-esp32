@@ -10,6 +10,7 @@
 
 #include "../can/can_messagetype.h"
 #include "../can/iso-tp-twai/CanIsoTp.hpp"
+#include "../can/OtaTypes.h"
 #include "../laser/LaserController.h"
 #include "../home/HomeMotor.h"
 #include "../motor/FocusMotor.h"
@@ -100,10 +101,10 @@ namespace can_controller
     #ifdef LED_CONTROLLER
     int sendLedCommandToCANDriver(LedCommand cmd, uint8_t targetID);
     #endif
-    
 
-
-
-
+    // OTA functions
+    int sendOtaStartCommandToSlave(uint8_t slaveID, const char* ssid, const char* password, uint32_t timeout_ms = 300000);
+    void handleOtaCommand(OtaWifiCredentials* otaCreds);
+    void sendOtaAck(uint8_t status);
 
 } // namespace can_controller

@@ -5,6 +5,10 @@
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <WiFi.h>
+#include <WiFiAP.h>
+#include <ESPmDNS.h>
+#include <ArduinoOTA.h>
 
 #include "esp_log.h"
 #include "esp_debug_helpers.h"
@@ -12,6 +16,7 @@
 
 #include "JsonKeys.h"
 #include <Preferences.h>
+#include "../serial/SerialProcess.h"
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
@@ -342,6 +347,77 @@ namespace can_controller
         size_t size = pdu.len;    // Data size
         if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, device_can_id);
+
+        // Check for message type identifier at the beginning
+        if (size > 0)
+        {
+            CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
+            
+            // Handle OTA start command
+            if (msgType == CANMessageTypeID::OTA_START && size >= (sizeof(CANMessageTypeID) + sizeof(OtaWifiCredentials)))
+            {
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Received OTA_START command from master");
+                
+                OtaWifiCredentials otaCreds;
+                memcpy(&otaCreds, &data[1], sizeof(OtaWifiCredentials));
+                handleOtaCommand(&otaCreds);
+                return; // Function will restart device, so we return here
+            }
+            
+            // Handle OTA acknowledgment (master side)
+            #ifdef CAN_MASTER
+            if (msgType == CANMessageTypeID::OTA_ACK && size >= (sizeof(CANMessageTypeID) + sizeof(OtaAck)))
+            {
+                OtaAck ack;
+                memcpy(&ack, &data[1], sizeof(OtaAck));
+                
+                const char* statusMsg[] = {"Success", "WiFi connection failed", "OTA start failed"};
+                log_i("Received OTA_ACK from CAN ID %u: %s (IP: %u.%u.%u.%u)", 
+                      ack.canId, statusMsg[ack.status], 
+                      ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
+                
+                // Send JSON response via serial
+                cJSON *root = cJSON_CreateObject();
+                if (root != NULL)
+                {
+                    cJSON *otaObj = cJSON_CreateObject();
+                    if (otaObj != NULL)
+                    {
+                        cJSON_AddItemToObject(root, "ota", otaObj);
+                        cJSON_AddNumberToObject(otaObj, "canId", ack.canId);
+                        cJSON_AddNumberToObject(otaObj, "status", ack.status);
+                        cJSON_AddStringToObject(otaObj, "statusMsg", statusMsg[ack.status]);
+                        
+                        // Add IP address as string
+                        char ipStr[16];
+                        snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u", 
+                                ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
+                        cJSON_AddStringToObject(otaObj, "ip", ipStr);
+                        
+                        // Add hostname
+                        char hostname[32];
+                        snprintf(hostname, sizeof(hostname), "UC2-CAN-%X.local", ack.canId);
+                        cJSON_AddStringToObject(otaObj, "hostname", hostname);
+                        
+                        // Serialize and send
+                        char *jsonString = cJSON_PrintUnformatted(root);
+                        if (jsonString != NULL)
+                        {
+                            SerialProcess::safeSendJsonString(jsonString);
+                            free(jsonString);
+                        }
+                        cJSON_Delete(root);
+                    }
+                    else
+                    {
+                        cJSON_Delete(root);
+                    }
+                }
+                return;
+            }
+            #endif
+        }
 
         // this is coming from the central node, so slaves should react
         /*
@@ -867,6 +943,48 @@ namespace can_controller
             sendCANRestartByID(canID);   // Send the restart signal to the specified CAN ID
         }
 
+        // OTA update command to remote CAN device
+        // {"task": "/can_act", "ota": {"canid": 11, "ssid": "MyWiFi", "password": "MyPassword", "timeout": 300000}}
+        cJSON *ota = cJSON_GetObjectItem(doc, "ota");
+        if (ota != NULL)
+        {
+            #ifdef CAN_MASTER
+            // Extract parameters
+            cJSON *canIdObj = cJSON_GetObjectItem(ota, "canid");
+            cJSON *ssidObj = cJSON_GetObjectItem(ota, "ssid");
+            cJSON *passwordObj = cJSON_GetObjectItem(ota, "password");
+            cJSON *timeoutObj = cJSON_GetObjectItem(ota, "timeout");
+
+            if (canIdObj == NULL || ssidObj == NULL || passwordObj == NULL)
+            {
+                log_e("OTA command missing required parameters (canid, ssid, password)");
+                return -1;
+            }
+
+            uint8_t targetCanId = canIdObj->valueint;
+            const char* ssid = cJSON_GetStringValue(ssidObj);
+            const char* password = cJSON_GetStringValue(passwordObj);
+            uint32_t timeout = (timeoutObj != NULL) ? timeoutObj->valueint : 300000; // Default 5 minutes
+
+            log_i("Sending OTA command to CAN ID %u (SSID: %s, timeout: %lu ms)", 
+                  targetCanId, ssid, timeout);
+
+            int result = sendOtaStartCommandToSlave(targetCanId, ssid, password, timeout);
+            if (result == 0)
+            {
+                log_i("OTA command sent successfully to CAN ID %u", targetCanId);
+            }
+            else
+            {
+                log_e("Failed to send OTA command to CAN ID %u", targetCanId);
+            }
+            return result;
+            #else
+            log_w("OTA command received but CAN_MASTER not defined");
+            return -1;
+            #endif
+        }
+
         // test partial update on the motor data (sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed))
         cJSON *motor = cJSON_GetObjectItem(doc, "motor");
         if (motor != NULL)
@@ -1315,4 +1433,228 @@ namespace can_controller
     }
 #endif
 
-}
+
+    // ========================================================================
+    // OTA Functions
+    // ========================================================================
+
+    /**
+     * @brief Send OTA start command to a specific CAN slave
+     * @param slaveID CAN ID of the target slave device
+     * @param ssid WiFi SSID to connect to
+     * @param password WiFi password
+     * @param timeout_ms OTA server timeout in milliseconds (default 5 minutes)
+     * @return 0 on success, -1 on error
+     */
+    int sendOtaStartCommandToSlave(uint8_t slaveID, const char* ssid, const char* password, uint32_t timeout_ms)
+    {
+        OtaWifiCredentials otaCreds;
+        memset(&otaCreds, 0, sizeof(OtaWifiCredentials));
+        
+        // Copy SSID and password, ensuring null termination
+        strncpy(otaCreds.ssid, ssid, MAX_SSID_LENGTH - 1);
+        otaCreds.ssid[MAX_SSID_LENGTH - 1] = '\0';
+        
+        strncpy(otaCreds.password, password, MAX_PASSWORD_LENGTH - 1);
+        otaCreds.password[MAX_PASSWORD_LENGTH - 1] = '\0';
+        
+        otaCreds.timeout_ms = timeout_ms;
+        
+        // Prepare message with OTA_START message type
+        uint8_t buffer[sizeof(CANMessageTypeID) + sizeof(OtaWifiCredentials)];
+        buffer[0] = static_cast<uint8_t>(CANMessageTypeID::OTA_START);
+        memcpy(&buffer[1], &otaCreds, sizeof(OtaWifiCredentials));
+        
+        int err = sendCanMessage(slaveID, buffer, sizeof(buffer));
+        if (err != 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending OTA command to CAN slave %u", slaveID);
+            return -1;
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("OTA start command sent to CAN slave %u (SSID: %s, timeout: %lu ms)", 
+                      slaveID, ssid, timeout_ms);
+            return 0;
+        }
+    }
+
+    /**
+     * @brief Handle incoming OTA command on slave device
+     * @param otaCreds Pointer to OTA WiFi credentials structure
+     */
+    void handleOtaCommand(OtaWifiCredentials* otaCreds)
+    {
+        if (otaCreds == nullptr)
+        {
+            log_e("OTA credentials are null");
+            sendOtaAck(2); // OTA start failed
+            return;
+        }
+
+        log_i("Received OTA command - SSID: %s, timeout: %lu ms", 
+              otaCreds->ssid, otaCreds->timeout_ms);
+
+
+        // Close any ongoing WiFi connection
+        WiFi.disconnect(true);
+        delay(100);
+
+        // Connect to WiFi with provided credentials
+        log_i("Connecting to WiFi: %s", otaCreds->ssid);
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(otaCreds->ssid, otaCreds->password);
+
+        // Wait for connection (max 30 seconds)
+        int connectTimeout = 30000;
+        unsigned long startTime = millis();
+        while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < connectTimeout)
+        {
+            delay(500);
+            log_i("Connecting to WiFi...");
+        }
+
+        if (WiFi.status() != WL_CONNECTED)
+        {
+            log_e("Failed to connect to WiFi: %s", otaCreds->ssid);
+            sendOtaAck(1); // WiFi connection failed
+            return;
+        }
+
+        log_i("Connected to WiFi! IP: %s", WiFi.localIP().toString().c_str());
+        sendOtaAck(0); // Success
+
+        // Generate hostname based on CAN address
+        String hostname = "UC2-CAN-" + String(device_can_id, HEX);
+        hostname.toUpperCase();
+
+        // Set up mDNS responder
+        if (MDNS.begin(hostname.c_str()))
+        {
+            log_i("mDNS responder started: %s.local", hostname.c_str());
+        }
+        else
+        {
+            log_e("Error starting mDNS");
+        }
+
+        // Configure ArduinoOTA
+        ArduinoOTA.setHostname(hostname.c_str());
+        
+        ArduinoOTA.onStart([]() {
+            String type;
+            if (ArduinoOTA.getCommand() == U_FLASH)
+                type = "sketch";
+            else
+                type = "filesystem";
+            log_i("Start updating %s", type.c_str());
+        });
+
+        ArduinoOTA.onEnd([]() {
+            log_i("\nOTA Update completed");
+        });
+
+        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+            static unsigned long lastPrint = 0;
+            if (millis() - lastPrint > 1000) {
+                log_i("OTA Progress: %u%%", (progress / (total / 100)));
+                lastPrint = millis();
+            }
+        });
+
+        ArduinoOTA.onError([](ota_error_t error) {
+            log_e("OTA Error[%u]: ", error);
+            if (error == OTA_AUTH_ERROR)
+                log_e("Auth Failed");
+            else if (error == OTA_BEGIN_ERROR)
+                log_e("Begin Failed");
+            else if (error == OTA_CONNECT_ERROR)
+                log_e("Connect Failed");
+            else if (error == OTA_RECEIVE_ERROR)
+                log_e("Receive Failed");
+            else if (error == OTA_END_ERROR)
+                log_e("End Failed");
+        });
+
+        ArduinoOTA.begin();
+        log_i("OTA server started on %s.local (%s)", hostname.c_str(), WiFi.localIP().toString().c_str());
+
+        // Handle OTA updates in a loop with timeout
+        uint32_t timeout = otaCreds->timeout_ms;
+        if (timeout == 0) {
+            timeout = 300000; // Default 5 minutes
+        }
+
+        unsigned long startOtaTime = millis();
+        while (true)
+        {
+            ArduinoOTA.handle();
+            delay(10);
+            
+            // Check for timeout
+            if (millis() - startOtaTime > timeout)
+            {
+                log_i("OTA timeout reached, restarting...");
+                break;
+            }
+        }
+
+        // Clean up
+        ArduinoOTA.end();
+        WiFi.disconnect(true);
+        
+        // Restart the device to apply updates or return to normal operation
+        log_i("Restarting device...");
+        delay(1000);
+        esp_restart();
+    }
+
+    /**
+     * @brief Send OTA acknowledgment back to master
+     * @param status 0 = success, 1 = WiFi failed, 2 = OTA start failed
+     */
+    void sendOtaAck(uint8_t status)
+    {
+        OtaAck ack;
+        ack.status = status;
+        ack.canId = device_can_id;
+        
+        // Get IP address if connected to WiFi
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            IPAddress ip = WiFi.localIP();
+            ack.ipAddress[0] = ip[0];
+            ack.ipAddress[1] = ip[1];
+            ack.ipAddress[2] = ip[2];
+            ack.ipAddress[3] = ip[3];
+        }
+        else
+        {
+            // If not connected, set IP to 0.0.0.0
+            ack.ipAddress[0] = 0;
+            ack.ipAddress[1] = 0;
+            ack.ipAddress[2] = 0;
+            ack.ipAddress[3] = 0;
+        }
+
+        uint8_t buffer[sizeof(CANMessageTypeID) + sizeof(OtaAck)];
+        buffer[0] = static_cast<uint8_t>(CANMessageTypeID::OTA_ACK);
+        memcpy(&buffer[1], &ack, sizeof(OtaAck));
+
+        int err = sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, buffer, sizeof(buffer));
+        if (err == 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("OTA ACK sent to master (status: %u, IP: %u.%u.%u.%u)", 
+                      status, ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Failed to send OTA ACK to master");
+        }
+    }
+
+} // namespace can_controller

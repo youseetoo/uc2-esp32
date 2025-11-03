@@ -638,3 +638,41 @@ ON ESP32 Side  for FRAME #3
    },
    "qid":0
 }
+# OTA Update via CAN
+
+# Send OTA command to a specific CAN slave device
+# This tells the slave to connect to WiFi and start an OTA server
+{"task": "/can_act", "ota": {"canid": 20, "ssid": "Blynk", "password": "12345678", "timeout": 300000}}
+
+# Examples for different devices:
+
+# Motor X (CAN ID 11)
+{"task": "/can_act", "ota": {"canid": 11, "ssid": "WiFi", "password": "pass123"}}
+
+# Motor Y (CAN ID 12)
+{"task": "/can_act", "ota": {"canid": 12, "ssid": "WiFi", "password": "pass123"}}
+
+# Motor Z (CAN ID 13)
+{"task": "/can_act", "ota": {"canid": 13, "ssid": "WiFi", "password": "pass123"}}
+
+# LED Controller (CAN ID 30)
+{"task": "/can_act", "ota": {"canid": 30, "ssid": "WiFi", "password": "pass123"}}
+
+# Laser 0 (CAN ID 20)
+{"task": "/can_act", "ota": {"canid": 20, "ssid": "WiFi", "password": "pass123"}}
+
+# With custom timeout (10 minutes = 600000 ms)
+{"task": "/can_act", "ota": {"canid": 11, "ssid": "WiFi", "password": "pass123", "timeout": 600000}}
+
+# After sending this command:
+# 1. The slave will connect to the specified WiFi network
+# 2. The slave will start an ArduinoOTA server
+# 3. The slave will send back a JSON acknowledgment over serial with its IP address and CAN ID:
+#    ++
+#    {"ota":{"canId":20,"status":0,"statusMsg":"Success","ip":"192.168.2.137","hostname":"UC2-CAN-14.local"}}
+#    --
+#    Status codes: 0 = Success, 1 = WiFi connection failed, 2 = OTA start failed
+# 4. The slave will be available as UC2-CAN-<HEXID>.local (e.g., UC2-CAN-14.local for CAN ID 20)
+# 5. You can upload firmware using:
+#    platformio run -t upload --upload-port UC2-CAN-14.local
+

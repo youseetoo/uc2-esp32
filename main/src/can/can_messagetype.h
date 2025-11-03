@@ -64,5 +64,8 @@ enum CANMessageTypeID {
     GALVO_ACT        = 0x50, // Galvo Messages
     GALVO_STATE      = 0x51,
 
+    OTA_START        = 0x60, // OTA Update Messages
+    OTA_ACK          = 0x61,
+
     BROADCAST        = 0xF0  // Broadcast Message (240)
 };

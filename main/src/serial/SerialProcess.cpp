@@ -241,8 +241,8 @@ namespace SerialProcess
 			return;
 		}
 
-		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--" (3) + null terminator (1)
-		size_t totalLen = len + 7; // 3 + len + 3 + 1 for null terminator
+		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--\n" (4) + null terminator (1)
+		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
 		char* buffer = (char*)malloc(totalLen);
 		if (buffer == nullptr)
 		{
@@ -253,7 +253,7 @@ namespace SerialProcess
 		// Construct message: "++\n<json>\n--\n"
 		strcpy(buffer, "++\n");
 		strcat(buffer, jsonString);
-		strcat(buffer, "\n--");
+		strcat(buffer, "\n--\n");
 
 		// Send through output queue
 		if (serialOutputQueue != nullptr)
@@ -407,8 +407,8 @@ namespace SerialProcess
 
 		// Build complete message with delimiters
 		size_t len = strlen(s);
-		// Calculate buffer size: "++\n" (3) + s (len) + "\n--" (3) + null terminator (1)
-		size_t totalLen = len + 7; // 3 + len + 3 + 1 for null terminator
+		// Calculate buffer size: "++\n" (3) + s (len) + "\n--\n" (4) + null terminator (1)
+		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
 		char* buffer = (char*)malloc(totalLen);
 		if (buffer == nullptr)
 		{
@@ -419,7 +419,7 @@ namespace SerialProcess
 		// Construct message: "++\n<json>\n--\n"
 		strcpy(buffer, "++\n");
 		strcat(buffer, s);
-		strcat(buffer, "\n--");
+		strcat(buffer, "\n--\n");
 		free(s);
 
 		// Send through output queue

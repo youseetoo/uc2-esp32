@@ -121,6 +121,8 @@ namespace LaserController
 		int pwmChannel = getPWMChannel(LASERid);
 		
 		// Check if laser pin is configured
+		#if not defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER) && not defined(I2C_LASER)
+
 		if (laserPin < 0)
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
@@ -149,6 +151,9 @@ namespace LaserController
 			log_i("Setting PWM resolution to %i for LASERid %i", pwm_resolution, LASERid);
 			setupLaser(laserPin, pwmChannel, pwm_frequency, pwm_resolution);
 		}
+		#else 
+		isServo = false;
+		#endif
 
 		// Handle laser value setting
 		if (hasLASERval)

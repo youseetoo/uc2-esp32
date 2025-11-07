@@ -106,5 +106,6 @@ namespace can_controller
     int sendOtaStartCommandToSlave(uint8_t slaveID, const char* ssid, const char* password, uint32_t timeout_ms = 300000);
     void handleOtaCommand(OtaWifiCredentials* otaCreds);
     void sendOtaAck(uint8_t status);
+    void handleOtaLoop(); // Non-blocking OTA handler to be called in main loop
 
 } // namespace can_controller

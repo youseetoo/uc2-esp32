@@ -9,6 +9,8 @@
 #include <WiFiAP.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
+#include <Update.h>
+#include <esp_task_wdt.h>
 
 #include "esp_log.h"
 #include "esp_debug_helpers.h"
@@ -33,6 +35,13 @@ namespace can_controller
     static QueueHandle_t sendQueue;
     QueueHandle_t recieveQueue;
     int CAN_QUEUE_SIZE = 5;
+    
+    // OTA status tracking
+    static bool isOtaActive = false;
+    static bool otaServerStarted = false;
+    static unsigned long otaStartTime = 0;
+    static uint32_t otaTimeout = 0;
+    static char currentOtaSsid[MAX_SSID_LENGTH] = {0};
 
     // for A,X,Y,Z intialize the I2C addresses
     uint8_t CAN_MOTOR_IDs[] = {
@@ -1497,6 +1506,31 @@ namespace can_controller
         log_i("Received OTA command - SSID: %s, timeout: %lu ms", 
               otaCreds->ssid, otaCreds->timeout_ms);
 
+        // Check if OTA is already active with the same SSID
+        if (isOtaActive && WiFi.status() == WL_CONNECTED && otaServerStarted)
+        {
+            // Check if it's the same SSID
+            if (strcmp(currentOtaSsid, otaCreds->ssid) == 0)
+            {
+                log_i("OTA already active with same SSID, WiFi connected, and OTA server running - sending success ACK");
+                sendOtaAck(0); // Success - already in OTA mode
+                return; // Don't restart the OTA process
+            }
+            else
+            {
+                log_i("OTA active but different SSID requested - stopping OTA server and reconnecting");
+                // Stop existing OTA server
+                ArduinoOTA.end();
+                otaServerStarted = false;
+                // Continue to reconnect with new credentials
+            }
+        }
+
+        // Mark OTA as active and save SSID
+        isOtaActive = true;
+        // Note: otaStartTime will be set after OTA server is successfully started
+        strncpy(currentOtaSsid, otaCreds->ssid, MAX_SSID_LENGTH - 1);
+        currentOtaSsid[MAX_SSID_LENGTH - 1] = '\0';
 
         // Close any ongoing WiFi connection
         WiFi.disconnect(true);
@@ -1519,12 +1553,16 @@ namespace can_controller
         if (WiFi.status() != WL_CONNECTED)
         {
             log_e("Failed to connect to WiFi: %s", otaCreds->ssid);
+            isOtaActive = false; // Reset OTA status on failure
+            currentOtaSsid[0] = '\0'; // Clear SSID
             sendOtaAck(1); // WiFi connection failed
             return;
         }
 
         log_i("Connected to WiFi! IP: %s", WiFi.localIP().toString().c_str());
         sendOtaAck(0); // Success
+        
+        // Only setup OTA server if not already running
 
         // Generate hostname based on CAN address
         String hostname = "UC2-CAN-" + String(device_can_id, HEX);
@@ -1542,13 +1580,24 @@ namespace can_controller
 
         // Configure ArduinoOTA
         ArduinoOTA.setHostname(hostname.c_str());
+        ArduinoOTA.setMdnsEnabled(true);
+        
+        // Set MD5 hash to verify firmware integrity (optional but recommended)
+        // Note: This will be checked against the MD5 sent in the OTA invitation
         
         ArduinoOTA.onStart([]() {
             String type;
             if (ArduinoOTA.getCommand() == U_FLASH)
+            {
                 type = "sketch";
-            else
+                // Stop all running tasks to free up resources
+                // and prevent conflicts during OTA update
+            }
+            else // U_SPIFFS
+            {
                 type = "filesystem";
+                // Unmount SPIFFS if mounted
+            }
             log_i("Start updating %s", type.c_str());
         });
 
@@ -1557,9 +1606,16 @@ namespace can_controller
         });
 
         ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+            // Feed the task watchdog during long OTA writes to avoid WDT aborts
+            esp_task_wdt_reset();
+
+            // Compute percent safely
+            int percent = 0;
+            if (total != 0) percent = (int)((uint32_t)progress * 100 / (uint32_t)total);
+
             static unsigned long lastPrint = 0;
             if (millis() - lastPrint > 1000) {
-                log_i("OTA Progress: %u%%", (progress / (total / 100)));
+                log_i("OTA Progress: %d%%", percent);
                 lastPrint = millis();
             }
         });
@@ -1569,46 +1625,31 @@ namespace can_controller
             if (error == OTA_AUTH_ERROR)
                 log_e("Auth Failed");
             else if (error == OTA_BEGIN_ERROR)
-                log_e("Begin Failed");
+                log_e("Begin Failed - Check if partition table has OTA partitions");
             else if (error == OTA_CONNECT_ERROR)
                 log_e("Connect Failed");
             else if (error == OTA_RECEIVE_ERROR)
                 log_e("Receive Failed");
             else if (error == OTA_END_ERROR)
-                log_e("End Failed");
+                log_e("End Failed - Firmware validation failed or incomplete");
         });
 
         ArduinoOTA.begin();
-        log_i("OTA server started on %s.local (%s)", hostname.c_str(), WiFi.localIP().toString().c_str());
-
-        // Handle OTA updates in a loop with timeout
-        uint32_t timeout = otaCreds->timeout_ms;
-        if (timeout == 0) {
-            timeout = 300000; // Default 5 minutes
-        }
-
-        unsigned long startOtaTime = millis();
-        while (true)
-        {
-            ArduinoOTA.handle();
-            delay(10);
-            
-            // Check for timeout
-            if (millis() - startOtaTime > timeout)
-            {
-                log_i("OTA timeout reached, restarting...");
-                break;
-            }
-        }
-
-        // Clean up
-        ArduinoOTA.end();
-        WiFi.disconnect(true);
         
-        // Restart the device to apply updates or return to normal operation
-        log_i("Restarting device...");
-        delay(1000);
-        esp_restart();
+        // Store timeout for later checking (non-blocking)
+        // IMPORTANT: Set these BEFORE marking OTA as started to avoid race condition
+        otaTimeout = otaCreds->timeout_ms;
+        if (otaTimeout == 0) {
+            otaTimeout = 300000; // Default 5 minutes
+        }
+        otaStartTime = millis();
+        
+        // Mark OTA server as started AFTER all variables are set
+        otaServerStarted = true;
+        log_i("OTA server started on %s.local (%s)", hostname.c_str(), WiFi.localIP().toString().c_str());
+        
+        // Don't block here - return so CAN communication can continue
+        // OTA will be handled in a separate loop function
     }
 
     /**
@@ -1654,6 +1695,40 @@ namespace can_controller
         {
             if (pinConfig.DEBUG_CAN_ISO_TP)
                 log_e("Failed to send OTA ACK to master");
+        }
+    }
+
+    /**
+     * @brief Non-blocking OTA handler - call this in main loop
+     * Handles ArduinoOTA and checks for timeout
+     */
+    void handleOtaLoop()
+    {
+        if (!isOtaActive || !otaServerStarted)
+        {
+            return; // OTA not active, nothing to do
+        }
+
+        // Handle OTA updates
+        ArduinoOTA.handle();
+
+        // Check for timeout
+        if (millis() - otaStartTime > otaTimeout)
+        {
+            log_i("OTA timeout reached after %lu ms, restarting...", otaTimeout);
+            
+            // Clean up
+            ArduinoOTA.end();
+            WiFi.disconnect(true);
+            
+            // Reset OTA status
+            isOtaActive = false;
+            otaServerStarted = false;
+            currentOtaSsid[0] = '\0';
+            
+            // Restart the device
+            delay(1000);
+            esp_restart();
         }
     }
 

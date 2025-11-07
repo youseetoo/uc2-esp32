@@ -208,6 +208,11 @@ extern "C" void looper(void *p)
 		HeatController::loop();
 		vTaskDelay(1);
 #endif
+#ifdef CAN_CONTROLLER
+		// Handle OTA updates in non-blocking mode
+		can_controller::handleOtaLoop();
+		vTaskDelay(1);
+#endif
 
 
 		// process all commands in their modules

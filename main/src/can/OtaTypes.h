@@ -26,3 +26,15 @@ typedef struct {
     uint8_t canId;   // CAN ID of the responding device
     uint8_t ipAddress[4]; // IP address of the device (e.g., 192.168.2.137 -> {192, 168, 2, 137})
 } OtaAck;
+
+/**
+ * @brief CAN device scan response structure
+ * 
+ * This structure is sent back from a slave device when it receives a SCAN_REQUEST.
+ * It provides basic device information for network discovery.
+ */
+typedef struct {
+    uint8_t canId;        // CAN ID of the responding device
+    uint8_t deviceType;   // Device type: 0=motor, 1=laser, 2=LED, 3=galvo, 4=master, 0xFF=unknown
+    uint8_t status;       // Device status: 0=idle, 1=busy, 0xFF=error
+} ScanResponse;

@@ -36,6 +36,7 @@ struct LinearEncoderData
 	float lastPosition = -1000000.0f;
 	float maxSpeed = 10000.0f;
 	
+	
 	// PID controller variables
 	float c_p = 2.;
 	float c_i = 0.1;
@@ -80,4 +81,5 @@ namespace LinearEncoderController
 	bool startHomingTask(int stepperIndex, int speed);
 	void setTaskBasedOperation(bool enabled);
 	bool isTaskBasedOperationEnabled();
+
 };

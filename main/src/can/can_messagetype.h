@@ -67,5 +67,8 @@ enum CANMessageTypeID {
     OTA_START        = 0x60, // OTA Update Messages
     OTA_ACK          = 0x61,
 
+    SCAN_REQUEST     = 0x70, // Network Scan Messages
+    SCAN_RESPONSE    = 0x71,
+
     BROADCAST        = 0xF0  // Broadcast Message (240)
 };

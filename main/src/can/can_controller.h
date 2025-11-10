@@ -77,6 +77,9 @@ namespace can_controller
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
     int sendCANRestartByID(uint8_t canID);
 
+    // scan functions
+    cJSON* scanCanDevices();
+
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);
     void sendHomeStateToMaster(HomeState homeState);

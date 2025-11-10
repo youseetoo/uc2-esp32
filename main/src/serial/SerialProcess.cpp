@@ -359,24 +359,28 @@ namespace SerialProcess
 		// Try to read and queue serial data if available
 		if (Serial.available()) {
 			int bytesAvailable = Serial.available();
-			log_i("Serial RX: %d bytes available", bytesAvailable);
+			//log_i("Serial RX: %d bytes available", bytesAvailable);
 			
 			String command = Serial.readString();  // Keep String alive during parsing
 			command.trim(); // Remove any whitespace/newlines
 			
-			log_i("Serial RX: Read %d chars: %s", command.length(), command.c_str());
+			//log_i("Serial RX: Read %d chars: %s", command.length(), command.c_str());
 			
 			if (command.length() > 0) {
 				cJSON *doc = cJSON_Parse(command.c_str());
 				if (doc) {
-					log_i("Serial RX: JSON parsed successfully");
+					//log_i("Serial RX: JSON parsed successfully");
 					addJsonToQueue(doc);
 				} else {
-					log_w("Failed to parse serial JSON: %s", command.c_str());
+					// send {"error":"Failed to parse JSON"} back
+					cJSON *errorResponse = cJSON_CreateObject();
+					if (errorResponse != NULL) {
+						cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
+						serialize(errorResponse);
+					}
+					// log_w("Failed to parse serial JSON: %s", command.c_str());
 				}
-			} else {
-				log_w("Serial RX: Empty string after read");
-			}
+			} 
 		}
 
 		// Let other tasks run

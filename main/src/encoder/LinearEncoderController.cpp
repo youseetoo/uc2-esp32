@@ -26,7 +26,7 @@ namespace LinearEncoderController
     static bool useTaskBasedOperation = true; // Can be enabled for non-blocking operations
     static TaskHandle_t precisionMotionTask = nullptr;
     static TaskHandle_t homingTask = nullptr;
-    
+    static bool precisionMotionTaskRunning = false;
     // Add task status tracking for better cleanup
     static volatile bool 
     d = false;

@@ -399,6 +399,10 @@ extern "C" void app_main(void)
 	log_i("Start setup");
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
+	delay(100); // Give serial time to initialize
+	Serial.println("DEBUG: Serial initialized");
+	Serial.printf("DEBUG: Baudrate=%lu, RX buffer size will be set\n", pinConfig.BAUDRATE);
+	
 	// Initialisieren Sie den NVS-Speicher
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -431,14 +435,21 @@ extern "C" void app_main(void)
 	log_i("Setting up serial for XIAO");
 	Serial.setTimeout(pinConfig.serialTimeout);
 	
-	/*
+	// Set larger RX/TX buffers for reliable serial communication
+	#ifndef ESP32S3_MODEL_XIAO
+	// For ESP32 classic boards, set buffer sizes
+	Serial.setRxBufferSize(2048);
+	Serial.setTxBufferSize(1024);
+	Serial.println("DEBUG: RX/TX buffers configured for ESP32");
+	#endif
+	
 	#ifdef ESP32S3_MODEL_XIAO
 	// additional serial settings for the ESP32S3
 	Serial.setTxTimeoutMs(0);
 	Serial.setRxBufferSize(2048);
 	Serial.setTxBufferSize(2048);
+	Serial.println("DEBUG: RX/TX buffers configured for ESP32S3");
 	#endif
-	*/
 
 	// initialize the pin/settings configurator
 	log_i("Config::setup");

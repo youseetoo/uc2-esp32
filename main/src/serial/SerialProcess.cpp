@@ -319,6 +319,8 @@ namespace SerialProcess
 
 	void setup()
 	{
+		log_i("SerialProcess::setup() starting");
+		
 		// Create queue and separate task for serial processing
 		if (serialMSGQueue == nullptr)
 			serialMSGQueue = xQueueCreate(5, sizeof(cJSON *)); // Queue for cJSON pointers (increased size)
@@ -333,6 +335,9 @@ namespace SerialProcess
 		
 		Serial.setTimeout(100);
 		Serial.setTxBufferSize(1024);
+		
+		log_i("SerialProcess::setup() completed - Ready to receive serial data");
+		Serial.println("DEBUG: SerialProcess ready");
 		//esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
 		//Serial.setDebugOutput(false);
 	}
@@ -353,12 +358,24 @@ namespace SerialProcess
 	{
 		// Try to read and queue serial data if available
 		if (Serial.available()) {
+			int bytesAvailable = Serial.available();
+			log_i("Serial RX: %d bytes available", bytesAvailable);
+			
 			String command = Serial.readString();  // Keep String alive during parsing
-			cJSON *doc = cJSON_Parse(command.c_str());
-			if (doc) {
-				addJsonToQueue(doc);
+			command.trim(); // Remove any whitespace/newlines
+			
+			log_i("Serial RX: Read %d chars: %s", command.length(), command.c_str());
+			
+			if (command.length() > 0) {
+				cJSON *doc = cJSON_Parse(command.c_str());
+				if (doc) {
+					log_i("Serial RX: JSON parsed successfully");
+					addJsonToQueue(doc);
+				} else {
+					log_w("Failed to parse serial JSON: %s", command.c_str());
+				}
 			} else {
-				log_w("Failed to parse serial JSON");
+				log_w("Serial RX: Empty string after read");
 			}
 		}
 

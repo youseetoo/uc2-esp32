@@ -56,6 +56,7 @@ namespace can_controller
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
     void setup();
+    void loop();
 
     // general CAN-related functions
     uint8_t axis2id(int axis);
@@ -79,6 +80,9 @@ namespace can_controller
 
     // scan functions
     cJSON* scanCanDevices();
+    bool isCANDeviceOnline(uint8_t canId);
+    void addCANDeviceToAvailableList(uint8_t canId);
+    void removeCANDeviceFromAvailableList(uint8_t canId);
 
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);

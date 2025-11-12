@@ -211,6 +211,8 @@ extern "C" void looper(void *p)
 #ifdef CAN_CONTROLLER
 		// Handle OTA updates in non-blocking mode
 		can_controller::handleOtaLoop();
+		// Handle pending scan results
+		can_controller::loop();
 		vTaskDelay(1);
 #endif
 

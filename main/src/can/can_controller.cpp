@@ -78,6 +78,10 @@ namespace can_controller
     static ScanResponse scanResponses[MAX_CAN_DEVICES];
     static int scanResponseCount = 0;
     static bool scanInProgress = false;
+    
+    // Scan result pending flag (similar to laser controller pattern)
+    static bool scanResultPending = false;
+    static int scanPendingQid = 0;
 
     void parseLEDData(uint8_t *data, size_t size, uint8_t txID)
     {
@@ -434,6 +438,66 @@ namespace can_controller
             #endif
         }
 
+        // Handle SCAN_RESPONSE (master side) - collect device info
+        #ifdef CAN_MASTER
+        if (size > 0)
+        {
+            CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
+            if (msgType == CANMessageTypeID::SCAN_RESPONSE && 
+                size >= (sizeof(CANMessageTypeID) + sizeof(ScanResponse)))
+            {
+                if (scanInProgress)
+                {
+                    ScanResponse scanResp;
+                    memcpy(&scanResp, &data[1], sizeof(ScanResponse));
+                    
+                    if (pinConfig.DEBUG_CAN_ISO_TP)
+                        log_i("Received SCAN_RESPONSE from CAN ID %u (type: %u, status: %u)", 
+                              scanResp.canId, scanResp.deviceType, scanResp.status);
+                    
+                    // Add to scan responses if not already present
+                    bool alreadyExists = false;
+                    for (int i = 0; i < scanResponseCount; i++)
+                    {
+                        if (scanResponses[i].canId == scanResp.canId)
+                        {
+                            alreadyExists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!alreadyExists && scanResponseCount < MAX_CAN_DEVICES)
+                    {
+                        scanResponses[scanResponseCount++] = scanResp;
+                        
+                        // Also add to availableCANids list
+                        bool inAvailableList = false;
+                        for (int i = 0; i < MAX_CAN_DEVICES; i++)
+                        {
+                            if (availableCANids[i] == scanResp.canId)
+                            {
+                                inAvailableList = true;
+                                break;
+                            }
+                        }
+                        if (!inAvailableList)
+                        {
+                            for (int i = 0; i < MAX_CAN_DEVICES; i++)
+                            {
+                                if (availableCANids[i] == 0)
+                                {
+                                    availableCANids[i] = scanResp.canId;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    return; // Don't process further
+                }
+            }
+        }
+        #endif
+
         // Handle SCAN_REQUEST (slave side) - respond with device info
         if (size > 0 && rxID == device_can_id)
         {
@@ -442,6 +506,10 @@ namespace can_controller
             {
                 if (pinConfig.DEBUG_CAN_ISO_TP)
                     log_i("Received SCAN_REQUEST from master, responding...");
+                
+                // Add random delay (0-50ms) to prevent all devices responding at once
+                uint32_t randomDelay = esp_random() % 50;
+                vTaskDelay(randomDelay / portTICK_PERIOD_MS);
                 
                 ScanResponse scanResp;
                 scanResp.canId = device_can_id;
@@ -632,10 +700,55 @@ namespace can_controller
             // check if ID is in nonAvailableCANids
             if (nonAvailableCANids[i] == idToCheck)
             {
-                return true; // Address found
+                return true; // Address found in unavailable list
             }
         }
-        return false; // Address not found
+        return false; // Address not found in unavailable list
+    }
+    
+    bool isCANDeviceOnline(uint8_t canId)
+    {
+        for (int i = 0; i < MAX_CAN_DEVICES; i++)
+        {
+            if (availableCANids[i] == canId)
+            {
+                return true; // Device is online
+            }
+        }
+        return false; // Device not found in available list
+    }
+    
+    void addCANDeviceToAvailableList(uint8_t canId)
+    {
+        // Check if already in list
+        if (isCANDeviceOnline(canId))
+            return;
+            
+        // Add to first empty slot
+        for (int i = 0; i < MAX_CAN_DEVICES; i++)
+        {
+            if (availableCANids[i] == 0)
+            {
+                availableCANids[i] = canId;
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Added CAN ID %u to available devices list", canId);
+                break;
+            }
+        }
+    }
+    
+    void removeCANDeviceFromAvailableList(uint8_t canId)
+    {
+        for (int i = 0; i < MAX_CAN_DEVICES; i++)
+        {
+            if (availableCANids[i] == canId)
+            {
+                availableCANids[i] = 0;
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Removed CAN ID %u from available devices list", canId);
+                break;
+            }
+        }
     }
 
     void canSendTask(void *pvParameters)
@@ -1058,36 +1171,12 @@ namespace can_controller
         {
             #ifdef CAN_MASTER
             log_i("Starting CAN network scan...");
-            cJSON *devicesArray = scanCanDevices();
             
-            if (devicesArray != NULL)
-            {
-                // Create response JSON
-                cJSON *response = cJSON_CreateObject();
-                if (response != NULL)
-                {
-                    cJSON_AddItemToObject(response, "scan", devicesArray);
-                    cJSON_AddNumberToObject(response, "qid", qid);
-                    cJSON_AddNumberToObject(response, "count", cJSON_GetArraySize(devicesArray));
-                    
-                    // Send response via serial
-                    char *jsonString = cJSON_PrintUnformatted(response);
-                    if (jsonString != NULL)
-                    {
-                        SerialProcess::safeSendJsonString(jsonString);
-                        free(jsonString);
-                    }
-                    cJSON_Delete(response);
-                }
-                else
-                {
-                    cJSON_Delete(devicesArray);
-                }
-            }
-            else
-            {
-                log_e("Failed to perform CAN scan");
-            }
+            // Set flag to perform scan in loop() and send results
+            scanResultPending = true;
+            scanPendingQid = qid;
+            
+            // Return qid to trigger acknowledgment immediately
             return qid;
             #else
             log_w("CAN scan command received but CAN_MASTER not defined");
@@ -1494,6 +1583,15 @@ namespace can_controller
         cJSON *nonworkingArray = cJSON_CreateIntArray(nonworkingIntArray, MAX_CAN_DEVICES);
         cJSON_AddItemToObject(doc, "nonworking", nonworkingArray);
 
+        // add the list of available (online) CAN IDs
+        int availableIntArray[MAX_CAN_DEVICES];
+        for (int i = 0; i < MAX_CAN_DEVICES; ++i)
+        {
+            availableIntArray[i] = static_cast<int>(availableCANids[i]);
+        }
+        cJSON *availableArray = cJSON_CreateIntArray(availableIntArray, MAX_CAN_DEVICES);
+        cJSON_AddItemToObject(doc, "available", availableArray);
+
         // add the pins for RX/TX to the CAN bus
         cJSON_AddNumberToObject(doc, "rx", pinConfig.CAN_RX);
         cJSON_AddNumberToObject(doc, "tx", pinConfig.CAN_TX);
@@ -1837,8 +1935,10 @@ namespace can_controller
      * @brief Scan for available CAN devices on the network
      * @return cJSON array containing discovered devices with their CAN IDs, types, and status
      * 
-     * Scans CAN ID ranges: 10-15 (motors), 20-25 (lasers), 30-35 (LEDs/galvos)
-     * Timeout per device: 100ms
+     * Uses broadcast approach: sends SCAN_REQUEST to multiple CAN IDs in ranges:
+     * 10-15 (motors), 20-25 (lasers), 30-35 (LEDs/galvos)
+     * All devices respond with random delays to prevent collisions
+     * Total scan time: ~500ms for all ranges
      */
     cJSON* scanCanDevices()
     {
@@ -1848,7 +1948,7 @@ namespace can_controller
             {30, 35}   // LED/Galvo controllers
         };
         const int numRanges = 3;
-        const int timeout_ms = 100;
+        const int scanDuration_ms = 500; // Total time to wait for all responses
         
         cJSON *devicesArray = cJSON_CreateArray();
         if (devicesArray == NULL)
@@ -1857,13 +1957,18 @@ namespace can_controller
             return NULL;
         }
         
-        log_i("Starting CAN device scan...");
+        log_i("Starting CAN device scan (broadcast mode)...");
+        
+        // Clear previous scan results
+        scanResponseCount = 0;
+        memset(scanResponses, 0, sizeof(scanResponses));
+        scanInProgress = true;
         
         // Prepare scan request message
         uint8_t scanRequest[1];
         scanRequest[0] = static_cast<uint8_t>(CANMessageTypeID::SCAN_REQUEST);
         
-        // Iterate through all scan ranges
+        // Send broadcast to all CAN IDs in ranges
         for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++)
         {
             uint8_t startId = scanRanges[rangeIdx][0];
@@ -1873,110 +1978,118 @@ namespace can_controller
             {
                 // Skip if this is our own ID
                 if (canId == device_can_id)
-                {
-                    if (pinConfig.DEBUG_CAN_ISO_TP)
-                        log_i("Skipping own CAN ID: %u", canId);
                     continue;
-                }
                 
-                // Send scan request to this CAN ID
+                // Send scan request to this CAN ID (broadcast)
                 if (pinConfig.DEBUG_CAN_ISO_TP)
-                    log_i("Pinging CAN ID: %u", canId);
+                    log_i("Broadcasting SCAN_REQUEST to CAN ID: %u", canId);
                 
-                int sendErr = sendCanMessage(canId, scanRequest, sizeof(scanRequest));
-                if (sendErr != 0)
+                sendCanMessage(canId, scanRequest, sizeof(scanRequest));
+                
+                // Small delay between broadcasts to avoid overwhelming the bus
+                vTaskDelay(50 / portTICK_PERIOD_MS); // TODO: adjust delay as needed to not overflow the queue
+            }
+        }
+        
+        // Wait for responses to arrive (they will be collected by dispatchIsoTpData)
+        log_i("Waiting %d ms for scan responses...", scanDuration_ms);
+        unsigned long startTime = millis();
+        while ((millis() - startTime) < scanDuration_ms)
+        {
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+            // Responses are being collected in the background by dispatchIsoTpData
+        }
+        
+        scanInProgress = false;
+        
+        // Build JSON response from collected scan responses
+        log_i("Scan completed. Processing %d responses...", scanResponseCount);
+        for (int i = 0; i < scanResponseCount; i++)
+        {
+            ScanResponse *resp = &scanResponses[i];
+            
+            cJSON *deviceObj = cJSON_CreateObject();
+            if (deviceObj != NULL)
+            {
+                cJSON_AddNumberToObject(deviceObj, "canId", resp->canId);
+                cJSON_AddNumberToObject(deviceObj, "deviceType", resp->deviceType);
+                cJSON_AddNumberToObject(deviceObj, "status", resp->status);
+                
+                // Add human-readable device type string
+                const char* deviceTypeStr = "unknown";
+                switch (resp->deviceType)
                 {
-                    if (pinConfig.DEBUG_CAN_ISO_TP)
-                        log_w("Failed to send scan request to CAN ID %u", canId);
-                    continue;
+                    case 0: deviceTypeStr = "motor"; break;
+                    case 1: deviceTypeStr = "laser"; break;
+                    case 2: deviceTypeStr = "led"; break;
+                    case 3: deviceTypeStr = "galvo"; break;
+                    case 4: deviceTypeStr = "master"; break;
                 }
+                cJSON_AddStringToObject(deviceObj, "deviceTypeStr", deviceTypeStr);
                 
-                // Wait for response with timeout
-                unsigned long startTime = millis();
-                bool responseReceived = false;
+                // Add human-readable status string
+                const char* statusStr = "unknown";
+                if (resp->status == 0) statusStr = "idle";
+                else if (resp->status == 1) statusStr = "busy";
+                else if (resp->status == 0xFF) statusStr = "error";
+                cJSON_AddStringToObject(deviceObj, "statusStr", statusStr);
                 
-                while ((millis() - startTime) < timeout_ms)
-                {
-                    pdu_t rxPdu;
-                    rxPdu.rxId = pinConfig.CAN_ID_CENTRAL_NODE; // We are the master receiving responses
-                    rxPdu.txId = 0;
-                    
-                    int ret = isoTpSender.receive(&rxPdu, 10); // Short timeout for polling
-                    
-                    if (ret == 0 && rxPdu.len > 0)
-                    {
-                        CANMessageTypeID msgType = static_cast<CANMessageTypeID>(rxPdu.data[0]);
-                        
-                        if (msgType == CANMessageTypeID::SCAN_RESPONSE && 
-                            rxPdu.len >= (sizeof(CANMessageTypeID) + sizeof(ScanResponse)))
-                        {
-                            ScanResponse scanResp;
-                            memcpy(&scanResp, &rxPdu.data[1], sizeof(ScanResponse));
-                            
-                            // Verify this response is from the device we pinged
-                            if (scanResp.canId == canId)
-                            {
-                                responseReceived = true;
-                                
-                                // Create JSON object for this device
-                                cJSON *deviceObj = cJSON_CreateObject();
-                                if (deviceObj != NULL)
-                                {
-                                    cJSON_AddNumberToObject(deviceObj, "canId", scanResp.canId);
-                                    cJSON_AddNumberToObject(deviceObj, "deviceType", scanResp.deviceType);
-                                    cJSON_AddNumberToObject(deviceObj, "status", scanResp.status);
-                                    
-                                    // Add human-readable device type string
-                                    const char* deviceTypeStr = "unknown";
-                                    switch (scanResp.deviceType)
-                                    {
-                                        case 0: deviceTypeStr = "motor"; break;
-                                        case 1: deviceTypeStr = "laser"; break;
-                                        case 2: deviceTypeStr = "led"; break;
-                                        case 3: deviceTypeStr = "galvo"; break;
-                                        case 4: deviceTypeStr = "master"; break;
-                                    }
-                                    cJSON_AddStringToObject(deviceObj, "deviceTypeStr", deviceTypeStr);
-                                    
-                                    // Add human-readable status string
-                                    const char* statusStr = "unknown";
-                                    if (scanResp.status == 0) statusStr = "idle";
-                                    else if (scanResp.status == 1) statusStr = "busy";
-                                    else if (scanResp.status == 0xFF) statusStr = "error";
-                                    cJSON_AddStringToObject(deviceObj, "statusStr", statusStr);
-                                    
-                                    cJSON_AddItemToArray(devicesArray, deviceObj);
-                                    
-                                    log_i("Found device: CAN ID %u, Type: %s, Status: %s", 
-                                          scanResp.canId, deviceTypeStr, statusStr);
-                                }
-                                
-                                free(rxPdu.data);
-                                break; // Got response, move to next device
-                            }
-                            free(rxPdu.data);
-                        }
-                        else if (rxPdu.data != NULL)
-                        {
-                            free(rxPdu.data);
-                        }
-                    }
-                    
-                    vTaskDelay(1); // Small delay to prevent tight loop
-                }
+                cJSON_AddItemToArray(devicesArray, deviceObj);
                 
-                if (!responseReceived && pinConfig.DEBUG_CAN_ISO_TP)
-                {
-                    log_i("No response from CAN ID %u (timeout)", canId);
-                }
-                
-                // Small delay between pings to avoid overwhelming the bus
-                vTaskDelay(10 / portTICK_PERIOD_MS);
+                log_i("Found device: CAN ID %u, Type: %s, Status: %s", 
+                      resp->canId, deviceTypeStr, statusStr);
             }
         }
         
         log_i("CAN device scan completed. Found %d devices.", cJSON_GetArraySize(devicesArray));
         return devicesArray;
+    }
+    
+    void sendScanResults(int qid)
+    {
+        // Perform the scan
+        cJSON *devicesArray = scanCanDevices();
+        
+        if (devicesArray != NULL)
+        {
+            // Create response JSON
+            cJSON *response = cJSON_CreateObject();
+            if (response != NULL)
+            {
+                cJSON_AddItemToObject(response, "scan", devicesArray);
+                cJSON_AddNumberToObject(response, "qid", qid);
+                cJSON_AddNumberToObject(response, "count", cJSON_GetArraySize(devicesArray));
+                
+                // Serialize to string
+                char *jsonString = cJSON_PrintUnformatted(response);
+                if (jsonString != NULL)
+                {
+                    // Send scan results via serial
+                    SerialProcess::safeSendJsonString(jsonString);
+                    free(jsonString);
+                }
+                cJSON_Delete(response);
+            }
+            else
+            {
+                cJSON_Delete(devicesArray);
+            }
+        }
+        else
+        {
+            log_e("Failed to perform CAN scan");
+        }
+    }
+    
+    void loop()
+    {
+        // Check for pending scan results and send them
+        if (scanResultPending)
+        {
+            sendScanResults(scanPendingQid);
+            scanResultPending = false; // Clear the flag after sending
+            scanPendingQid = 0; // Reset qid
+        }
     }
 
 } // namespace can_controller

@@ -237,6 +237,18 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task": "/laser_act", "LASERid":2, "LASERval": 1023}
 {"task": "/laser_act", "LASERid":1, "LASERval": 1023}
 
+# CAN
+{"task": "/can_act", "scan": true, "qid": 1}
+# Returns acknowledgment first:
+++
+{"qid":1,"success":1}
+--
+# Then scan results in loop():
+++
+{"scan":[{"canId":20,"deviceType":1,"status":0,"deviceTypeStr":"laser","statusStr":"idle"}],"qid":1,"count":1}
+--
+
+{"task": "/can_get"}
 
 {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
 

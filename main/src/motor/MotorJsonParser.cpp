@@ -92,17 +92,17 @@ namespace MotorJsonParser
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
-				cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
-				cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
-				cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
-				cJsonTool::setJsonInt(aritem, key_stepperisstop, FocusMotor::getData()[i]->isStop);
-				cJsonTool::setJsonInt(aritem, key_stepperisrunning, FocusMotor::isRunning(i));
-				cJsonTool::setJsonInt(aritem, key_stepperisDualAxisZ, pinConfig.isDualAxisZ);
-				cJsonTool::setJsonInt(aritem, key_stepperisforever, FocusMotor::getData()[i]->isforever);
-				cJsonTool::setJsonInt(aritem, key_stepperisen, FocusMotor::getData()[i]->softLimitEnabled);
-				cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);
-
-#ifdef I2C_SLAVE_MOTOR
+			cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
+			cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
+			cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
+			cJsonTool::setJsonInt(aritem, key_stepperisstop, FocusMotor::getData()[i]->isStop);
+			cJsonTool::setJsonInt(aritem, key_stepperisrunning, FocusMotor::isRunning(i));
+			cJsonTool::setJsonInt(aritem, key_stepperisDualAxisZ, pinConfig.isDualAxisZ);
+			cJsonTool::setJsonInt(aritem, key_stepperisforever, FocusMotor::getData()[i]->isforever);
+			cJsonTool::setJsonInt(aritem, key_stepperisen, FocusMotor::getData()[i]->softLimitEnabled);
+			cJsonTool::setJsonInt(aritem, key_steppermin, FocusMotor::getData()[i]->minPos);
+			cJsonTool::setJsonInt(aritem, key_steppermax, FocusMotor::getData()[i]->maxPos);
+			cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);#ifdef I2C_SLAVE_MOTOR
 				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
 #endif
 				cJSON_AddItemToArray(stprs, aritem);
@@ -526,13 +526,6 @@ namespace MotorJsonParser
 			cJSON *maxItem = cJSON_GetObjectItemCaseSensitive(stp, key_steppermax);
 			cJSON *isEnabled = cJSON_GetObjectItemCaseSensitive(stp, key_stepperisen);
 
-			// storing the values in preferences
-			const char *prefNamespace = "motpos";
-			preferences.begin(prefNamespace, false);
-			preferences.putInt(("min" + String(idItem->valueint)).c_str(), idItem->valueint);
-			preferences.putInt(("max" + String(idItem->valueint)).c_str(), idItem->valueint);
-			preferences.putInt(("isen" + String(idItem->valueint)).c_str(), idItem->valueint);
-			preferences.end();
 			if (!cJSON_IsNumber(idItem) || !cJSON_IsNumber(minItem) || !cJSON_IsNumber(maxItem))
 			{
 				continue; // skip invalid
@@ -541,9 +534,24 @@ namespace MotorJsonParser
 			int32_t mn = minItem->valueint;
 			int32_t mx = maxItem->valueint;
 			bool isEnabledVal = isEnabled ? isEnabled->valueint : false;
+
+			// storing the values in preferences
+			const char *prefNamespace = "UC2";
+			preferences.begin(prefNamespace, false);
+			preferences.putInt(("min" + String(axis)).c_str(), mn);
+			preferences.putInt(("max" + String(axis)).c_str(), mx);
+			preferences.putBool(("isen" + String(axis)).c_str(), isEnabledVal);
+			preferences.end();
 			log_i("Set softlimits: stepperid %i, min %i, max %i, isEnabled %i", axis, mn, mx, isEnabledVal);
 
+			// Apply soft limits locally or via CAN
+#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+			// Send soft limits to CAN slave
+			can_controller::sendSoftLimitsToCANDriver(mn, mx, isEnabledVal, axis);
+#else
+			// Apply locally to motor data
 			FocusMotor::setSoftLimits(axis, mn, mx, isEnabledVal);
+#endif
 		}
 	}
 

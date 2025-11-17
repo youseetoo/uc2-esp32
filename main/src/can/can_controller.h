@@ -86,6 +86,7 @@ namespace can_controller
 
     // home functions
     void sendHomeDataToCANDriver(HomeData homeData, uint8_t axis);
+    int sendSoftLimitsToCANDriver(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis);
     void sendHomeStateToMaster(HomeState homeState);
     // axis homed array stores the homed state of each axis
     static bool axisHomed[4] = {false, false, false, false};

@@ -183,6 +183,9 @@ int axis = 0;
 		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		
+		// Set isHoming flag to bypass soft limits during homing
+		getData()[axis]->isHoming = true;
+		
 		// grab current time AFTER we start
 		hdata[axis]->homeTimeStarted = millis();
 		hdata[axis]->homeIsActive = true;
@@ -350,6 +353,7 @@ int axis = 0;
 				log_i("Home Motor %i is done", s);
 				sendHomeDone(s);
 				hdata[s]->homeIsActive = false;
+				getData()[s]->isHoming = false;  // Clear homing flag
 				FocusMotor::sendMotorPos(s, 0);
 			}
 		}
@@ -360,6 +364,7 @@ int axis = 0;
 			log_i("Home Motor %i is done", s);
 			sendHomeDone(s);
 			hdata[s]->homeIsActive = false;
+			getData()[s]->isHoming = false;  // Clear homing flag
 			// FocusMotor::sendMotorPos(s, 0);
 		}
 #else
@@ -428,6 +433,7 @@ int axis = 0;
 			FocusMotor::sendMotorPos(s, 0);
 			sendHomeDone(s);
 			hdata[s]->homeIsActive = false;
+			getData()[s]->isHoming = false;  // Clear homing flag
 			hdata[s]->homeInEndposReleaseMode = 0;
 		}
 #endif

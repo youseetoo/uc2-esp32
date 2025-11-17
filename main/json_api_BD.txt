@@ -163,7 +163,15 @@ mm-per-step Z: 0.005 -> 200 steps/rev 1mm/revolution
 {"task":"/motor_get"}
 {"task":"/can_act", "motor": {"axis": 1, "speed": 1000, "position": 1000, "acceleration": 1000, "direction": 1, "isforever": 1}} //  single update
 
+# Soft Limits Configuration
+# Set soft limits for a motor axis (min/max positions in steps, isen=enabled)
 {"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -10000, "max": 10000, "isen": 1}]}}
+# Disable soft limits for an axis
+{"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": 0, "max": 0, "isen": 0}]}}
+# Get current soft limits configuration (returns min, max, isen for each axis)
+{"task":"/motor_get"}
+# Returns: {"motor":{"steppers":[{"stepperid":1,"position":0,"min":-10000,"max":10000,"isen":1,...}]}}
+# Note: Soft limits are automatically ignored during homing operations
 
 {"task":"/can_act", "motor": {"axis": 1, "speed": 1000, "position": 1000, "acceleration": 1000, "direction": 1, "isforever": 1}}
 

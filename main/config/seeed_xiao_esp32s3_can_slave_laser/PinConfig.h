@@ -33,7 +33,7 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
     const char *pindefName = "seeed_xiao_esp32s3_can_slave_laser";
     const unsigned long BAUDRATE = 115200;
 
-    bool DEBUG_CAN_ISO_TP = 1;
+    bool DEBUG_CAN_ISO_TP = 0;
 
     // Laser control pins (PWM for lasers)
     int8_t LASER_0 = GPIO_NUM_2; // D1 (signal_1, Laser 0)

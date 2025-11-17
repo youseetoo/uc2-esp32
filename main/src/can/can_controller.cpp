@@ -219,6 +219,33 @@ namespace can_controller
                 FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
             }
         }
+        else if (size == sizeof(SoftLimitData))
+        {
+            // Parse as SoftLimitData
+            SoftLimitData receivedSoftLimit;
+            memcpy(&receivedSoftLimit, data, sizeof(SoftLimitData));
+            
+            // The axis in SoftLimitData is the logical axis from master's perspective,
+            // but we apply it to our local REMOTE_MOTOR_AXIS_ID
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Received SoftLimitData from CAN for axis %i: min=%ld, max=%ld, enabled=%u", 
+                      receivedSoftLimit.axis, (long)receivedSoftLimit.minPos, 
+                      (long)receivedSoftLimit.maxPos, receivedSoftLimit.enabled);
+            
+            // Apply soft limits to local motor
+            FocusMotor::setSoftLimits(mStepper, receivedSoftLimit.minPos, 
+                                     receivedSoftLimit.maxPos, receivedSoftLimit.enabled != 0);
+            
+            // Store in preferences for persistence
+            Preferences preferences;
+            preferences.begin("UC2", false);
+            preferences.putInt(("min" + String(mStepper)).c_str(), receivedSoftLimit.minPos);
+            preferences.putInt(("max" + String(mStepper)).c_str(), receivedSoftLimit.maxPos);
+            preferences.putBool(("isen" + String(mStepper)).c_str(), receivedSoftLimit.enabled != 0);
+            preferences.end();
+        }
         else
         {
             if (pinConfig.DEBUG_CAN_ISO_TP)
@@ -1446,6 +1473,35 @@ namespace can_controller
             if (pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Home data sent to CAN slave at address %i", slave_addr);
         }
+    }
+
+    int sendSoftLimitsToCANDriver(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis)
+    {
+        // send soft limits configuration to slave via CAN
+        uint8_t slave_addr = axis2id(axis);
+        
+        SoftLimitData softLimitData;
+        softLimitData.axis = axis;
+        softLimitData.minPos = minPos;
+        softLimitData.maxPos = maxPos;
+        softLimitData.enabled = enabled ? 1 : 0;
+        
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Sending SoftLimitData to axis: %i (CAN ID: %u), min: %ld, max: %ld, enabled: %u", 
+                  axis, slave_addr, (long)minPos, (long)maxPos, softLimitData.enabled);
+        
+        int err = sendCanMessage(slave_addr, (uint8_t *)&softLimitData, sizeof(SoftLimitData));
+        if (err != 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending soft limits to CAN slave at address %i", slave_addr);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Soft limits sent to CAN slave at address %i", slave_addr);
+        }
+        return err;
     }
 
     void sendHomeStateToMaster(HomeState homeState)

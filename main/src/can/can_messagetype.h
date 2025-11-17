@@ -51,6 +51,7 @@ enum CANMessageTypeID {
     HOME_ACT         = 0x13,
     HOME_STATE       = 0x14,
     MOTOR_ACT_REDUCED= 0x15,
+    SOFT_LIMIT_SET   = 0x16, // Soft limits configuration
 
     LASER_ACT        = 0x20, // Laser Messages
     LASER_STATE      = 0x21,

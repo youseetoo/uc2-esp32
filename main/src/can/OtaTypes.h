@@ -38,3 +38,16 @@ typedef struct {
     uint8_t deviceType;   // Device type: 0=motor, 1=laser, 2=LED, 3=galvo, 4=master, 0xFF=unknown
     uint8_t status;       // Device status: 0=idle, 1=busy, 0xFF=error
 } ScanResponse;
+
+/**
+ * @brief Soft limit configuration structure
+ * 
+ * This structure is sent from master to slave to configure motor soft limits.
+ * Soft limits prevent the motor from moving beyond specified boundaries.
+ */
+typedef struct {
+    uint8_t axis;              // Motor axis (0=A, 1=X, 2=Y, 3=Z, etc.)
+    int32_t minPos;            // Minimum allowed position in steps
+    int32_t maxPos;            // Maximum allowed position in steps
+    uint8_t enabled;           // 1=enabled, 0=disabled
+} SoftLimitData;

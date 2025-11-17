@@ -43,6 +43,22 @@ namespace FAccelStep
             faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
         }
 
+        // Check soft limits before allowing movement (unless homing is active)
+        if (getData()[i]->softLimitEnabled && !getData()[i]->isforever && !getData()[i]->isHoming)
+        {
+            int32_t targetPos = getData()[i]->absolutePosition 
+                ? getData()[i]->targetPosition 
+                : faststeppers[i]->getCurrentPosition() + getData()[i]->targetPosition;
+            
+            if (targetPos < getData()[i]->minPos || targetPos > getData()[i]->maxPos)
+            {
+                log_e("Motor %i: Soft limit violation! Target=%ld, Limits=[%ld, %ld]", 
+                      i, (long)targetPos, (long)getData()[i]->minPos, (long)getData()[i]->maxPos);
+                getData()[i]->stopped = true;
+                return;
+            }
+        }
+
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
 

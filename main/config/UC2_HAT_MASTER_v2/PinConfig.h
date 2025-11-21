@@ -21,12 +21,12 @@
 #define GALVO_CONTROLLER
 #define DAC_CONTROLLER
 
-struct UC2_3_CAN_HAT_Master : PinConfig
+struct UC2_3_CAN_HAT_Master_v2 : PinConfig
 {
     // ---------------------------------------------------------------------
     // Board identity
     // ---------------------------------------------------------------------
-    const char* pindefName = "UC2_3_CAN_HAT_Master";
+    const char* pindefName = "UC2_3_CAN_HAT_Master_v2";
     const unsigned long BAUDRATE = 115200;
 
     // ---------------------------------------------------------------------
@@ -169,4 +169,4 @@ struct UC2_3_CAN_HAT_Master : PinConfig
     int8_t LASER_3 = disabled;
 };
 
-const UC2_3_CAN_HAT_Master pinConfig;
+const UC2_3_CAN_HAT_Master_v2 pinConfig;

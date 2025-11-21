@@ -593,6 +593,7 @@ namespace LedController
 			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"rainbow" } }
 			// we parse the incoming status to LedForStatus
 			// and then we can set the color of the LED in the loop to e.g. rainbow, red/green/blue glowing
+			log_i("parseLedCommand: Parsing status for STATUS mode");
 			cJSON *jstatus = cJSON_GetObjectItem(ledObj, "status");
 			if (jstatus && jstatus->valuestring)
 			{
@@ -628,6 +629,7 @@ namespace LedController
 					currentLedForStatus = LedForStatus::unknown;
 					return false; // Invalid status
 				}
+				log_i("parseLedCommand: Set currentLedForStatus to %d", static_cast<int>(currentLedForStatus));
 			}
 		}
 
@@ -639,6 +641,7 @@ namespace LedController
 	// ------------------------------------------------
 	void execLedCommand(const LedCommand &cmd)
 	{
+		log_i("execLedCommand: Executing command with mode %d", static_cast<int>(cmd.mode));
 		switch (cmd.mode)
 		{
 		case LedMode::OFF:
@@ -676,6 +679,11 @@ namespace LedController
 			// Then set each LED individually
 			// matrix->show();
 			break;
+		case LedMode::STATUS:
+			// Status handling is done in the loop() for dynamic effects
+			// Just log here
+			log_i("execLedCommand: Set status to %d", static_cast<int>(currentLedForStatus));
+			break;
 		default:
 			// Unknown => do nothing or turn off
 			break;
@@ -697,9 +705,17 @@ namespace LedController
 #if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
 		// Send the command to the CAN driver
 		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+		if (pinConfig.IS_STATUS_LED)	
+		{
+			execLedCommand(cmd);
+		}
 #else
-		execLedCommand(cmd);
+			execLedCommand(cmd);
+		
 #endif
+
+
+
 		return cmd.qid; // return the same QID
 	}
 
@@ -786,15 +802,17 @@ namespace LedController
 	void loop()
 	{
 
-#ifndef HUB75
+
 // only on the HAT MAster => Glow or show status
-if( pinConfig.pindefName && 
-	strcmp(pinConfig.pindefName, "UC2_3_CAN_HAT_Master") == 0 )	
+if( pinConfig.IS_STATUS_LED)	
 {
+	// log_i("LedController loop: Updating status LED effect for status %d", static_cast<int>(currentLedForStatus));
+
 		// Determine color based on currentLedForStatus
 		uint32_t color = 0;
 		// Fade the brightnessLoop up/down
 		brightnessLoop += (fadeDirection * 5);
+		//log_i("LedController loop: brightnessLoop=%d, fadeDirection=%d", brightnessLoop, fadeDirection);
 		if (brightnessLoop == 0 || brightnessLoop == 255)
 		{
 			fadeDirection = -fadeDirection;
@@ -839,10 +857,15 @@ if( pinConfig.pindefName &&
 			// Unknown => do nothing
 			return;
 		}
-
-
+		
+		// Apply the color to all LEDs
+		for (uint16_t i = 0; i < LED_COUNT; i++)
+		{
+			matrix->setPixelColor(i, color);
+		}
+		matrix->show();
 	}
-#endif // HUB75
+
 }
 
 #ifdef HUB75

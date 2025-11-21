@@ -52,7 +52,7 @@ enum class LedMode : uint8_t
 	RINGS,
 	CIRCLE,
 	ARRAY, // for multiple arbitrary pixels
-    STATUS,
+  STATUS,
 	UNKNOWN
 };
 

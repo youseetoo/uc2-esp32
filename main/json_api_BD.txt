@@ -225,14 +225,14 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task":"/can_get", "address": 1}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
 {"task":"/can_get"}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 15000, "speed": 15000, "isabs": 0, "isaccel":0, "accel":30000}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 15000, "isabs": 0, "isaccel":0, "red":1}]}}
 
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 2, "speed": 1000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 13}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "speed": 1000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 13}
 
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
@@ -428,7 +428,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 A,X,Y,Z ... 
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":2000, "position": 10000,  "isabs": 0}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 

@@ -33,6 +33,7 @@ struct MotorDataReduced
 struct MotorData
 {
 	bool directionPinInverted = false;
+	bool joystickDirectionInverted = false; // invert joystick direction for this axis (0/1)
 	int32_t speed = 0;
 	int32_t maxspeed = 200000;
 	int32_t acceleration = 0;

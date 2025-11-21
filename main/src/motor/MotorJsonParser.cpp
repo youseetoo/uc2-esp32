@@ -102,8 +102,10 @@ namespace MotorJsonParser
 			cJsonTool::setJsonInt(aritem, key_stepperisen, FocusMotor::getData()[i]->softLimitEnabled);
 			cJsonTool::setJsonInt(aritem, key_steppermin, FocusMotor::getData()[i]->minPos);
 			cJsonTool::setJsonInt(aritem, key_steppermax, FocusMotor::getData()[i]->maxPos);
-			cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);#ifdef I2C_SLAVE_MOTOR
+			cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);
+#ifdef I2C_SLAVE_MOTOR
 				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
+				
 #endif
 				cJSON_AddItemToArray(stprs, aritem);
 			}
@@ -498,6 +500,51 @@ namespace MotorJsonParser
 		return false;
 	}
 
+	static void parseSetJoystickDirection(cJSON *doc)
+	{
+		/*
+		{"task": "/motor_act", "joystickdir": {"steppers": [{"stepperid": 1, "inverted": 1}]}}
+		*/
+		cJSON *joyDirObj = cJSON_GetObjectItemCaseSensitive(doc, "joystickdir");
+		if (!joyDirObj)
+		{
+			return;
+		}
+		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(joyDirObj, key_steppers);
+		if (!stprs)
+		{
+			return;
+		}
+		cJSON *stp = nullptr;
+		cJSON_ArrayForEach(stp, stprs)
+		{
+			Preferences preferences;
+			cJSON *idItem = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
+			cJSON *invertedItem = cJSON_GetObjectItemCaseSensitive(stp, "inverted");
+
+			if (!cJSON_IsNumber(idItem) || !cJSON_IsNumber(invertedItem))
+			{
+				continue;
+			}
+			int axis = idItem->valueint;
+			bool inverted = invertedItem->valueint;
+
+			// Store in preferences
+			const char *prefNamespace = "UC2";
+			preferences.begin(prefNamespace, false);
+			preferences.putBool(("joyDir" + String(axis)).c_str(), inverted);
+			preferences.end();
+			log_i("Set joystick direction: stepperid %i, inverted %i", axis, inverted);
+
+			// Apply locally or via CAN
+#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+			can_controller::sendMotorSingleValue(axis, offsetof(MotorData, joystickDirectionInverted), inverted);
+#else
+			FocusMotor::getData()[axis]->joystickDirectionInverted = inverted;
+#endif
+		}
+	}
+
 	static void parseSetSoftLimits(cJSON *doc)
 	{
 
@@ -748,6 +795,10 @@ namespace MotorJsonParser
 		// set soft limits of motors
 		// {"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -100000, "max": 10000, "isen": 1}]}}
 		parseSetSoftLimits(doc);
+
+		// set joystick direction inversion
+		// {"task": "/motor_act", "joystickdir": {"steppers": [{"stepperid": 1, "inverted": 1}]}}
+		parseSetJoystickDirection(doc);
 
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 20000, "isabs": 1, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}

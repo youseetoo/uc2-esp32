@@ -23,7 +23,7 @@
 #define USE_PCNT_COUNTER
 
 
-struct UC2_3_XIAO_Slave_Motor : PinConfig
+struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
 {
      /*
      D0: 1
@@ -80,8 +80,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      
-     int tmc_microsteps = 16;
-     int tmc_rms_current = 850;
+     int tmc_microsteps =  16; //TODO: Verify if we can drive faster 
+     int tmc_rms_current = 1050;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
      int tmc_semin = 5;
@@ -99,8 +99,8 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
 
      // Endstops should be the same for all - depending on the motor
      uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
-     uint8_t objectivePositionX1 = 10000;
-     uint8_t objectivePositionX2 = 80000;
+     uint32_t objectivePositionX1 = 10000;
+     uint32_t objectivePositionX2 = 80000;
 
      // Linear encoder pins (optional, for AS5311 interface)
      // For future encoder-based motion control
@@ -122,4 +122,4 @@ struct UC2_3_XIAO_Slave_Motor : PinConfig
 
 };
   
-const UC2_3_XIAO_Slave_Motor pinConfig;
+const seeed_xiao_esp32s3_can_slave_motor pinConfig;

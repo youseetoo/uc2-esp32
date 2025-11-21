@@ -80,6 +80,11 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		// Apply offset calibration
 		value -= joystickOffsets[ax];
 		
+		// Apply direction inversion if configured
+		if (FocusMotor::getData()[ax]->joystickDirectionInverted) {
+			value = -value;
+		}
+		
 		// Check for inactivity - if value hasn't changed, check timeout
 		unsigned long currentTime = millis();
 		if (value == lastAxisValues[ax])

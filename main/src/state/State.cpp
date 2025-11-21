@@ -40,6 +40,14 @@ namespace State
 		// assign default values to thhe variables
 		if (restart != NULL)
 		{
+			// pull emergency stop up 
+			if(pinConfig.ESTOP_PIN >= 0)
+			{
+				log_i("Pulling emergency stop pin HIGH before restart");
+				pinMode(pinConfig.ESTOP_PIN, OUTPUT);
+				digitalWrite(pinConfig.ESTOP_PIN, HIGH);
+			}
+
 			// {"task": "/state_act", "restart": 1}
 			#ifdef I2C_MASTER
 			i2c_master::reboot();
@@ -124,6 +132,7 @@ namespace State
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
 			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
+			cJSON_AddItemToObject(st, "CAN_SLAVE", cJSON_CreateNumber(pinConfig.CAN_ID_CURRENT));
 			#ifdef GIT_COMMIT_HASH
 				cJSON_AddItemToObject(st, "git_commit", cJSON_CreateString(GIT_COMMIT_HASH));
 			#endif

@@ -57,6 +57,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
 
      int8_t LED_PIN = GPIO_NUM_19;
      int8_t LED_COUNT = 1;
+     bool IS_STATUS_LED = true;
 
      // FIXME: Is this redudant?!
      int8_t DIGITAL_IN_1 = disabled;
@@ -116,5 +117,6 @@ struct UC2_3_CAN_HAT_Master : PinConfig
 			
      // Emergency stop
      uint8_t pinEmergencyExit = GPIO_NUM_34;
+     uint8_t ESTOP_PIN = GPIO_NUM_4;
 };
 const UC2_3_CAN_HAT_Master pinConfig;

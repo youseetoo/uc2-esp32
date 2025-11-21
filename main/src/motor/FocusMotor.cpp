@@ -300,14 +300,15 @@ namespace FocusMotor
 		preferences.begin("UC2", false);
 		if (pinConfig.MOTOR_A_STEP >= 0)
 		{
-			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
-			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
-			data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
-			data[Stepper::A]->minPos = preferences.getInt(("min" + String(Stepper::A)).c_str());
-			data[Stepper::A]->maxPos = preferences.getInt(("max" + String(Stepper::A)).c_str());
-			data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(),false);
-			data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
-			isActivated[Stepper::A] = true;
+		data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
+		data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
+		data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
+		data[Stepper::A]->minPos = preferences.getInt(("min" + String(Stepper::A)).c_str());
+		data[Stepper::A]->maxPos = preferences.getInt(("max" + String(Stepper::A)).c_str());
+		data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(),false);
+		data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
+		data[Stepper::A]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::A)).c_str(), false);
+		isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
 		if (pinConfig.MOTOR_X_STEP >= 0)
@@ -316,10 +317,11 @@ namespace FocusMotor
 			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
 			data[Stepper::X]->currentPosition = preferences.getInt(("motor" + String(Stepper::X)).c_str());
 			data[Stepper::X]->minPos = preferences.getInt(("min" + String(Stepper::X)).c_str());
-			data[Stepper::X]->maxPos = preferences.getInt(("max" + String(Stepper::X)).c_str());
-			data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(),false);
-			data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
-			isActivated[Stepper::X] = true;
+		data[Stepper::X]->maxPos = preferences.getInt(("max" + String(Stepper::X)).c_str());
+		data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(),false);
+		data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
+		data[Stepper::X]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::X)).c_str(), false);
+		isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Y_STEP >= 0)
@@ -328,10 +330,11 @@ namespace FocusMotor
 			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
 			data[Stepper::Y]->currentPosition = preferences.getInt(("motor" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->minPos = preferences.getInt(("min" + String(Stepper::Y)).c_str());
-			data[Stepper::Y]->maxPos = preferences.getInt(("max" + String(Stepper::Y)).c_str());
-			data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(),false);
-			data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
-			isActivated[Stepper::Y] = true;
+		data[Stepper::Y]->maxPos = preferences.getInt(("max" + String(Stepper::Y)).c_str());
+		data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(),false);
+		data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
+		data[Stepper::Y]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Y)).c_str(), false);
+		isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
 		if (pinConfig.MOTOR_Z_STEP >= 0)
@@ -340,10 +343,11 @@ namespace FocusMotor
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
 			data[Stepper::Z]->currentPosition = preferences.getInt(("motor" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->minPos = preferences.getInt(("min" + String(Stepper::Z)).c_str());
-			data[Stepper::Z]->maxPos = preferences.getInt(("max" + String(Stepper::Z)).c_str());
-			data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(),false);
-			data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
-			isActivated[Stepper::Z] = true;
+		data[Stepper::Z]->maxPos = preferences.getInt(("max" + String(Stepper::Z)).c_str());
+		data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(),false);
+		data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
+		data[Stepper::Z]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Z)).c_str(), false);
+		isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
 		if (pinConfig.MOTOR_B_STEP >= 0)

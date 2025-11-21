@@ -75,7 +75,7 @@ namespace ObjectiveController
 		int32_t targetPos = FocusMotor::getData()[axis]->currentPosition + distance;
 		moveToPosition(targetPos, axis, speed, accel, qid);
 	}
-
+	
 	int act(cJSON *doc)
 	{
 		// From Home:  [ 33497][I][HomeMotor.cpp:129] startHome(): Start home for axis 0 with timeout 20000, speed 15000, maxspeed 0, direction -1, endstop polarity 0
@@ -198,49 +198,29 @@ namespace ObjectiveController
 			}
 			else if (obj == 1)
 			{
-				// Move to X1 (absolute position)
+				// Move to X1
 				log_i("Objective move to x1 at position: %i", data.x1);
 				moveToPosition(data.x1, sObjective, speed, accel, qid);
-				
-				// Move Z axis by relative delta (z1 - current offset)
-				// If coming from obj2, move by (z1 - z2), otherwise move to z1 offset
 				if (data.z1 != 0)
 				{
-					int32_t zDelta = data.z1;
-					if (data.currentState == 2 && data.z2 != 0)
-					{
-						// Coming from objective 2, move by difference
-						zDelta = data.z1 - data.z2;
-					}
-					log_i("Objective move Z by delta: %i (z1=%i, current state=%i)", zDelta, data.z1, data.currentState);
-					moveByDistance(zDelta, sFocus, speed, accel, qid);
+					log_i("Objective move to z1 at position: %i", data.z1);
+					moveToPosition(data.z1, sFocus, speed, accel, qid);
 				}
 			}
 			else if (obj == 2)
 			{
-				// Move to X2 (absolute position)
+				// Move to X2
 				log_i("Objective move to x2 at position: %i", data.x2);
 				moveToPosition(data.x2, sObjective, speed, accel, qid);
-				
-				// Move Z axis by relative delta (z2 - current offset)
-				// If coming from obj1, move by (z2 - z1), otherwise move to z2 offset
 				if (data.z2 != 0)
 				{
-					int32_t zDelta = data.z2;
-					if (data.currentState == 1 && data.z1 != 0)
-					{
-						// Coming from objective 1, move by difference
-						zDelta = data.z2 - data.z1;
-					}
-					log_i("Objective move Z by delta: %i (z2=%i, current state=%i)", zDelta, data.z2, data.currentState);
-					moveByDistance(zDelta, sFocus, speed, accel, qid);
+					log_i("Objective move to z2 at position: %i", data.z2);
+					moveToPosition(data.z2, sFocus, speed, accel, qid);
 				}
 			}
 			afterObjectiveSwitch();
 			data.currentState = 1;
 		}
-					
-		
 
 		// Handle toggle
 		if (cJSON_HasObjectItem(doc, "toggle"))
@@ -252,30 +232,22 @@ namespace ObjectiveController
 				// Decide which position to move to based on the last target
 				if (data.currentState == 1)
 				{
-					// Currently at objective 1, move to objective 2
 					moveToPosition(data.x2, sObjective, speed, accel, qid);
 					data.currentState = 2;
-					
-					// Move Z by relative delta (z2 - z1)
-					if (data.z2 != 0 || data.z1 != 0)
+					if (data.z2 != 0)
 					{
-						int32_t zDelta = data.z2 - data.z1;
-						log_i("Toggle to obj2: Move Z by delta: %i (z2=%i - z1=%i)", zDelta, data.z2, data.z1);
-						moveByDistance(zDelta, sFocus, speed, accel, qid);
+						log_i("Objective move to z2 at position: %i", data.z2);
+						moveToPosition(data.z2, sFocus, speed, accel, qid);
 					}
 				}
 				else
 				{
-					// Currently at objective 2 or undefined, move to objective 1
 					moveToPosition(data.x1, sObjective, speed, accel, qid);
 					data.currentState = 1;
-					
-					// Move Z by relative delta (z1 - z2)
-					if (data.z1 != 0 || data.z2 != 0)
+					if (data.z1 != 0)
 					{
-						int32_t zDelta = data.z1 - data.z2;
-						log_i("Toggle to obj1: Move Z by delta: %i (z1=%i - z2=%i)", zDelta, data.z1, data.z2);
-						moveByDistance(zDelta, sFocus, speed, accel, qid);
+						log_i("Objective move to z1 at position: %i", data.z1);
+						moveToPosition(data.z1, sFocus, speed, accel, qid);
 					}
 				}
 				afterObjectiveSwitch();
@@ -348,13 +320,10 @@ namespace ObjectiveController
 				int accel = 20000;
 				int qid = 0;
 				moveToPosition(data.x2, sObjective, speed, accel, qid);
-				
-				// Move Z by relative delta (z2 - z1)
-				if (data.z2 != 0 || data.z1 != 0)
+				if (data.z2 != 0)
 				{
-					int32_t zDelta = data.z2 - data.z1;
-					log_i("Button: Move Z by delta: %i (z2=%i - z1=%i)", zDelta, data.z2, data.z1);
-					moveByDistance(zDelta, sFocus, speed, accel, qid);
+					log_i("Moving focus to z2 position: %i", data.z2);
+					moveToPosition(data.z2, sFocus, speed, accel, qid);
 				}
 				data.currentState = 2;
 			}
@@ -366,13 +335,10 @@ namespace ObjectiveController
 				int accel = 20000;
 				int qid = 0;
 				moveToPosition(data.x1, sObjective, speed, accel, qid);
-				
-				// Move Z by relative delta (z1 - z2)
-				if (data.z1 != 0 || data.z2 != 0)
+				if (data.z1 != 0)
 				{
-					int32_t zDelta = data.z1 - data.z2;
-					log_i("Button: Move Z by delta: %i (z1=%i - z2=%i)", zDelta, data.z1, data.z2);
-					moveByDistance(zDelta, sFocus, speed, accel, qid);
+					log_i("Moving focus to z1 position: %i", data.z1);
+					moveToPosition(data.z1, sFocus, speed, accel, qid);
 				}
 				data.currentState = 1;
 			}

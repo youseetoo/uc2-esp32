@@ -168,6 +168,8 @@ struct PinConfig
      int8_t LED_PIN = disabled;
      // LED_PINcount from the strip
      int8_t LED_COUNT = disabled;
+     // status led 
+     bool IS_STATUS_LED = false;
 
          // Ring definitions for LED indexing (total: 136 LEDs)
     const uint16_t RING_INNER_START = 0;      // Inner ring: 20 LEDs (indices 0-19)
@@ -362,4 +364,6 @@ struct PinConfig
 
      // Emergency stop
      int8_t pinEmergencyExit = disabled;
+
+     uint8_t ESTOP_PIN = disabled;
 };

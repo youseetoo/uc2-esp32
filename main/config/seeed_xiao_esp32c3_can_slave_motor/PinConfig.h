@@ -95,8 +95,8 @@ struct seeed_xiao_esp32c3_can_slave_motor : PinConfig
 
      // Endstops should be the same for all - depending on the motor
      uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
-     uint8_t objectivePositionX1 = 10000;
-     uint8_t objectivePositionX2 = 80000;
+     uint32_t objectivePositionX1 = 10000;
+     uint32_t objectivePositionX2 = 80000;
 
      // OTA settings
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds

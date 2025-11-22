@@ -153,6 +153,51 @@ Standard CANopen messages for better interoperability:
 - **Laser errors**: Safety interlocks, over-power
 - **LED errors**: Over-current, controller faults
 
+## Building for Master vs Satellite
+
+The firmware automatically selects CANopen master or slave mode based on the `CAN_MASTER` preprocessor macro:
+
+### Master Configuration
+
+Define `CAN_MASTER` in your build flags or `platformio.ini`:
+
+```ini
+[env:UC2_3_CANMaster]
+build_flags = 
+    ${env:esp32dev.build_flags}
+    -DCAN_MASTER=1
+    -DMOTOR_CONTROLLER=1
+    -DLASER_CONTROLLER=1
+```
+
+This enables:
+- CANopen master implementation
+- Network management commands
+- SDO client for remote configuration
+- Device scanning and monitoring
+- Serial-to-CAN gateway functionality
+
+### Satellite/Slave Configuration
+
+Do NOT define `CAN_MASTER` in slave devices:
+
+```ini
+[env:seeed_xiao_esp32s3_can_slave_motor]
+build_flags = 
+    ${env:esp32dev.build_flags}
+    -DMOTOR_CONTROLLER=1
+    # Note: CAN_MASTER is NOT defined
+```
+
+This enables:
+- CANopen slave implementation
+- NMT state machine
+- SDO server for Object Dictionary access
+- Heartbeat generation
+- Device-specific PDO handling
+
+The device type (motor, laser, LED, galvo) is automatically detected from controller defines (`MOTOR_CONTROLLER`, `LASER_CONTROLLER`, `LED_CONTROLLER`, `GALVO_CONTROLLER`).
+
 ## Usage Examples
 
 ### Master Node Setup

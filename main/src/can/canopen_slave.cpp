@@ -123,8 +123,17 @@ namespace CANopen_Slave
         od_producerHeartbeat = heartbeatInterval_ms;
         od_productCode = (deviceType & 0xFFFF);
         
-        // Generate serial number from chip ID
+        // Generate serial number from ESP32 MAC address
+        #ifdef ARDUINO
         uint64_t chipId = ESP.getEfuseMac();
+        #else
+        uint8_t mac[6];
+        esp_efuse_mac_get_default(mac);
+        uint64_t chipId = 0;
+        for (int i = 0; i < 6; i++) {
+            chipId |= ((uint64_t)mac[i]) << (i * 8);
+        }
+        #endif
         od_serialNumber = (uint32_t)(chipId & 0xFFFFFFFF);
         
         log_i("CANopen Slave initialized: Node ID=%u, Device Type=0x%08X", nodeId, deviceType);
@@ -548,7 +557,15 @@ namespace CANopen_Slave
     {
         // Forward to existing motor controller
         using namespace FocusMotor;
-        Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+        
+        // Validate motor axis ID is within bounds
+        int axisId = pinConfig.REMOTE_MOTOR_AXIS_ID;
+        if (axisId < 0 || axisId >= MOTOR_AXIS_COUNT) {
+            log_e("Invalid motor axis ID: %d (max: %d)", axisId, MOTOR_AXIS_COUNT - 1);
+            return;
+        }
+        
+        Stepper mStepper = static_cast<Stepper>(axisId);
         
         getData()[mStepper]->targetPosition = targetPos;
         getData()[mStepper]->speed = speed;

@@ -20,8 +20,10 @@
 // ============================================================================
 
 #define CANOPEN_FUNC_NMT        0x000  // Network management (broadcast)
-#define CANOPEN_FUNC_SYNC       0x080  // Synchronization object
-#define CANOPEN_FUNC_EMCY       0x080  // Emergency (+ Node-ID)
+#define CANOPEN_FUNC_SYNC       0x080  // Synchronization object (fixed COB-ID)
+#define CANOPEN_FUNC_EMCY       0x080  // Emergency (0x080 + Node-ID, range: 0x081-0x0FF)
+                                       // Note: EMCY and SYNC share base 0x080, but SYNC is fixed
+                                       // while EMCY uses Node-ID offset (0x080 + 1 to 127)
 #define CANOPEN_FUNC_TPDO1      0x180  // Transmit PDO 1 (+ Node-ID)
 #define CANOPEN_FUNC_RPDO1      0x200  // Receive PDO 1 (+ Node-ID)
 #define CANOPEN_FUNC_TPDO2      0x280  // Transmit PDO 2 (+ Node-ID)
@@ -359,13 +361,13 @@ typedef struct __attribute__((packed)) {
 #define CANOPEN_DEVICE_TYPE_MOTOR       0x00020192  // CiA 402 (Drives and motion control)
 #define CANOPEN_DEVICE_TYPE_IO          0x00000401  // Generic I/O module
 
-// UC2-specific device types (manufacturer-specific)
-#define UC2_DEVICE_TYPE_MASTER          0x00002E9C0000  // UC2 Gateway/Master
-#define UC2_DEVICE_TYPE_MOTOR           0x00002E9C0001  // UC2 Motor controller
-#define UC2_DEVICE_TYPE_LASER           0x00002E9C0002  // UC2 Laser controller
-#define UC2_DEVICE_TYPE_LED             0x00002E9C0003  // UC2 LED controller
-#define UC2_DEVICE_TYPE_GALVO           0x00002E9C0004  // UC2 Galvo controller
-#define UC2_DEVICE_TYPE_SENSOR          0x00002E9C0005  // UC2 Sensor node
+// UC2-specific device types (manufacturer-specific, 32-bit compliant)
+#define UC2_DEVICE_TYPE_MASTER          0x00002E00  // UC2 Gateway/Master
+#define UC2_DEVICE_TYPE_MOTOR           0x00002E01  // UC2 Motor controller
+#define UC2_DEVICE_TYPE_LASER           0x00002E02  // UC2 Laser controller
+#define UC2_DEVICE_TYPE_LED             0x00002E03  // UC2 LED controller
+#define UC2_DEVICE_TYPE_GALVO           0x00002E04  // UC2 Galvo controller
+#define UC2_DEVICE_TYPE_SENSOR          0x00002E05  // UC2 Sensor node
 
 // ============================================================================
 // Helper Functions (Inline)

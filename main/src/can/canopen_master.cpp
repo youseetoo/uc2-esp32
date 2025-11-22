@@ -207,9 +207,12 @@ namespace CANopen_Master
         
         stats.sdoRequestsSent++;
         
-        // In a real implementation, we would wait for the response here
-        // For now, this is a placeholder for the synchronous SDO transfer
-        // The actual response handling would be in processSdoResponse()
+        // TODO: Implement synchronous SDO transfer with response handling
+        // This is a placeholder implementation. For full functionality:
+        // 1. Add response queue and wait for SDO_TX message
+        // 2. Implement timeout handling
+        // 3. Parse response and extract data
+        // Current implementation sends request but doesn't wait for response
         
         log_i("SDO read request sent to node %u: index=0x%04X, subIndex=%u", 
               nodeId, index, subIndex);

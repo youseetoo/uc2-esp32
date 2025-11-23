@@ -82,6 +82,39 @@ namespace i2c_slave_motor
             FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
         }
+        else if (numBytes == sizeof(MotorSettings))
+        {
+            // Receive motor configuration settings
+            MotorSettings receivedMotorSettings;
+            uint8_t *dataPtr = (uint8_t *)&receivedMotorSettings;
+            for (int i = 0; i < numBytes; i++)
+            {
+                dataPtr[i] = Wire.read();
+            }
+            
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            
+            // Apply settings to the motor
+            FocusMotor::getData()[mStepper]->directionPinInverted = receivedMotorSettings.directionPinInverted;
+            FocusMotor::getData()[mStepper]->joystickDirectionInverted = receivedMotorSettings.joystickDirectionInverted;
+            FocusMotor::getData()[mStepper]->isaccelerated = receivedMotorSettings.isaccelerated;
+            FocusMotor::getData()[mStepper]->isEnable = receivedMotorSettings.isEnable;
+            FocusMotor::getData()[mStepper]->maxspeed = receivedMotorSettings.maxspeed;
+            FocusMotor::getData()[mStepper]->acceleration = receivedMotorSettings.acceleration;
+            FocusMotor::getData()[mStepper]->isTriggered = receivedMotorSettings.isTriggered;
+            FocusMotor::getData()[mStepper]->offsetTrigger = receivedMotorSettings.offsetTrigger;
+            FocusMotor::getData()[mStepper]->triggerPeriod = receivedMotorSettings.triggerPeriod;
+            FocusMotor::getData()[mStepper]->triggerPin = receivedMotorSettings.triggerPin;
+            FocusMotor::getData()[mStepper]->dirPin = receivedMotorSettings.dirPin;
+            FocusMotor::getData()[mStepper]->stpPin = receivedMotorSettings.stpPin;
+            FocusMotor::getData()[mStepper]->maxPos = receivedMotorSettings.maxPos;
+            FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
+            FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
+            FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
+            
+            log_i("Received MotorSettings from I2C, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+                  receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration, receivedMotorSettings.softLimitEnabled);
+        }
         else if (numBytes == sizeof(HomeData))
         {
             // parse a possible home event

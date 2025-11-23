@@ -176,6 +176,30 @@ namespace i2c_master
         }
     }
 
+    void sendMotorSettingsToI2CDriver(MotorSettings motorSettings, uint8_t axis)
+    {
+        // Send motor configuration settings to slave via I2C
+        // This should be called once during initialization or when settings change
+        uint8_t slave_addr = axis2address(axis);
+        Wire.beginTransmission(slave_addr);
+        
+        uint8_t *dataPtr = (uint8_t *)&motorSettings;
+        int dataSize = sizeof(MotorSettings);
+        Wire.write(dataPtr, dataSize);
+        
+        int err = Wire.endTransmission();
+        
+        if (err != 0)
+        {
+            log_e("Error sending motor settings to I2C slave at address %i", slave_addr);
+        }
+        else
+        {
+            log_i("MotorSettings sent to axis: %i, at address %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+                  axis, slave_addr, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+        }
+    }
+
     void startStepper(MotorData *data, int axis, int reduced)
     {
         if (data != nullptr)

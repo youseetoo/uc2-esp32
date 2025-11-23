@@ -34,6 +34,7 @@ namespace i2c_master
     void stopStepper(MotorData *data, int axis);
     int axis2address(int axis);
     void sendMotorDataToI2CDriver(MotorData motorData, uint8_t axis, bool reduced);
+    void sendMotorSettingsToI2CDriver(MotorSettings motorSettings, uint8_t axis);
     void sendHomeDataI2C(HomeData homeData, uint8_t axis);
     bool isAddressInI2CDevices(byte addressToCheck);
     void sendLaserDataI2C(LaserData laserData, uint8_t id);

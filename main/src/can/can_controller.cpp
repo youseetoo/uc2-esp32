@@ -169,6 +169,35 @@ namespace can_controller
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
             // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
+        else if (size == sizeof(MotorSettings))
+        {
+            // Receive motor configuration settings
+            MotorSettings receivedMotorSettings;
+            memcpy(&receivedMotorSettings, data, sizeof(MotorSettings));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            
+            // Apply settings to the motor
+            FocusMotor::getData()[mStepper]->directionPinInverted = receivedMotorSettings.directionPinInverted;
+            FocusMotor::getData()[mStepper]->joystickDirectionInverted = receivedMotorSettings.joystickDirectionInverted;
+            FocusMotor::getData()[mStepper]->isaccelerated = receivedMotorSettings.isaccelerated;
+            FocusMotor::getData()[mStepper]->isEnable = receivedMotorSettings.isEnable;
+            FocusMotor::getData()[mStepper]->maxspeed = receivedMotorSettings.maxspeed;
+            FocusMotor::getData()[mStepper]->acceleration = receivedMotorSettings.acceleration;
+            FocusMotor::getData()[mStepper]->isTriggered = receivedMotorSettings.isTriggered;
+            FocusMotor::getData()[mStepper]->offsetTrigger = receivedMotorSettings.offsetTrigger;
+            FocusMotor::getData()[mStepper]->triggerPeriod = receivedMotorSettings.triggerPeriod;
+            FocusMotor::getData()[mStepper]->triggerPin = receivedMotorSettings.triggerPin;
+            FocusMotor::getData()[mStepper]->dirPin = receivedMotorSettings.dirPin;
+            FocusMotor::getData()[mStepper]->stpPin = receivedMotorSettings.stpPin;
+            FocusMotor::getData()[mStepper]->maxPos = receivedMotorSettings.maxPos;
+            FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
+            FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
+            FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
+            
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Received MotorSettings from CAN, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+                      receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration, receivedMotorSettings.softLimitEnabled);
+        }
         else if (size == sizeof(HomeData))
         {
             // Parse as HomeData
@@ -1412,6 +1441,32 @@ namespace can_controller
         {
             // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("MotorData to axis: %i, at address %i, isStop: %i, speed: %i, targetPosition:%i, reduced %i, stopped %i, isaccel: %i, accel: %i, isEnable: %i, isForever %i, size %i", axis, slave_addr, motorData.isStop, motorData.speed, motorData.targetPosition, reduced, motorData.stopped, motorData.isaccelerated, motorData.acceleration, motorData.isEnable, motorData.isforever, dataSize);
         }
+        return err;
+    }
+
+    int sendMotorSettingsToCANDriver(MotorSettings motorSettings, uint8_t axis)
+    {
+        // Send motor configuration settings to slave via CAN
+        // This should be called once during initialization or when settings change
+        uint8_t slave_addr = axis2id(axis);
+        
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Sending MotorSettings to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+                  axis, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+        
+        int err = sendCanMessage(slave_addr, (uint8_t *)&motorSettings, sizeof(MotorSettings));
+        
+        if (err != 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending motor settings to CAN slave at address %i", slave_addr);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("MotorSettings sent to CAN slave at address %i", slave_addr);
+        }
+        
         return err;
     }
 

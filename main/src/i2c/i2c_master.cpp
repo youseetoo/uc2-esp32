@@ -197,13 +197,44 @@ namespace i2c_master
         {
             log_i("MotorSettings sent to axis: %i, at address %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
                   axis, slave_addr, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+            // Mark settings as sent for this axis
+            if (axis < 4)
+                motorSettingsSent[axis] = true;
         }
+    }
+    
+    void resetMotorSettingsFlag(uint8_t axis)
+    {
+        // Reset flag to force settings resend on next motor start
+        if (axis < 4)
+        {
+            motorSettingsSent[axis] = false;
+            log_i("Reset motor settings flag for I2C axis %i - will resend on next start", axis);
+        }
+    }
+    
+    void resetAllMotorSettingsFlags()
+    {
+        // Reset all flags - useful after system-wide events
+        for (int i = 0; i < 4; i++)
+        {
+            motorSettingsSent[i] = false;
+        }
+        log_i("Reset all I2C motor settings flags - will resend on next start");
     }
 
     void startStepper(MotorData *data, int axis, int reduced)
     {
         if (data != nullptr)
         {
+            // Send motor settings on first motor start if not already sent
+            if (!motorSettingsSent[axis] && axis < 4)
+            {
+                MotorSettings settings = extractMotorSettings(*data);
+                sendMotorSettingsToI2CDriver(settings, axis);
+                // Note: motorSettingsSent[axis] is set to true inside sendMotorSettingsToI2CDriver
+            }
+            
             positionsPushedToDial = false;
             data->isStop = false; // ensure isStop is false
             data->stopped = false;

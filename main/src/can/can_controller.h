@@ -69,7 +69,10 @@ namespace can_controller
     void dispatchIsoTpData(pdu_t&);
     // motor functions
     int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, int reduced = 0);
+    MotorSettings extractMotorSettings(const MotorData& motorData);
     int sendMotorSettingsToCANDriver(MotorSettings motorSettings, uint8_t axis);
+    void resetMotorSettingsFlag(uint8_t axis); // Reset flag to force settings resend
+    void resetAllMotorSettingsFlags(); // Reset all flags
     int startStepper(MotorData *data, int axis, int reduced);
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();	

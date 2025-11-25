@@ -595,7 +595,7 @@ namespace CANopen_Slave
         // Forward to existing LED controller
         using namespace LedController;
         LedCommand cmd;
-        cmd.mode = mode;
+        cmd.mode = (LedMode) mode;
         cmd.r = r;
         cmd.g = g;
         cmd.b = b;

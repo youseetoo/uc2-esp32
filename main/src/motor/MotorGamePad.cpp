@@ -35,8 +35,8 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 	static inline void stopAxis(int ax)
 	{
 #ifdef CAN_CONTROLLER
-		can_controller::sendMotorSingleValue(ax, offsetof(MotorData, speed), 0);
-		can_controller::sendMotorSingleValue(ax, offsetof(MotorData, isStop), true);
+		// TODO: we should implement to send the full MotorData struct instead of single values to sync all states from master to slave
+		can_controller::stopStepper(static_cast<Stepper>(ax));	
 #else
 		FocusMotor::stopStepper(ax);
 #endif

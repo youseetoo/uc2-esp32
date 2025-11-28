@@ -511,6 +511,15 @@ namespace FocusMotor
 			// TODO: This apparently does not suffice to wake up the motor and get the current position from CAN satellites
 			// move motor by 0 to wake it up and get the current position
 		}
+		
+		// Send motor settings (soft limits, acceleration, etc.) to all CAN slaves
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
+		{
+			MotorSettings settings = can_controller::extractMotorSettings(*getData()[i]);
+			can_controller::sendMotorSettingsToCANDriver(settings, i);
+			delay(20); // Allow time for CAN transmission
+		}
+		log_i("Motor settings sent to all CAN slaves during setup");
 #endif
 
 #ifdef CAN_SLAVE_MOTOR

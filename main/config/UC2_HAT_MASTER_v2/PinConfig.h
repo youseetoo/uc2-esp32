@@ -53,7 +53,18 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
 
     // Emergency STOP sense (input-only pin; HIGH = normal, LOW = E-STOP asserted)
-    uint8_t pinEmergencyExit = GPIO_NUM_34;
+    uint8_t pinEmergencyExit = GPIO_NUM_34; // TODO: Implement 
+    uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured 
+
+    // TEMPERATURE : TMP102AIDRLR
+    // I2C  ADDR:
+    // GND = 0x48
+    // V+ = 0x49
+    // SDA = 0x4A
+    // SCL = 0x4B
+    // PCB: I2C addr: 0x4A
+    // Ambient: I2C addr: 0x4B
+    // FAN Control Pin I2C controllable 
 
     // Momentary local kill button exists on HAT; no pin here (handled in hardware gate)
 
@@ -76,11 +87,11 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // ---------------------------------------------------------------------
     // Camera I/O lines from schematic block
     int8_t CAM_IO0_IN  = GPIO_NUM_27; // “Cam In Line 0”
-    int8_t CAM_IO1_OUT = GPIO_NUM_32; // “Cam Out Line 1”
-    int8_t CAM_IO2_IO  = GPIO_NUM_33; // “Cam In/Out Line 2”
+    int8_t CAM_IO1_OUT = disabled; // “Cam Out Line 1”
+    int8_t CAM_IO2_IO  = disabled; // “Cam In/Out Line 2”
 
     // Use the dedicated OUT line as the default external camera trigger
-    int8_t CAMERA_TRIGGER_PIN = GPIO_NUM_32;
+    int8_t CAMERA_TRIGGER_PIN = CAM_IO0_IN;
     bool   CAMERA_TRIGGER_INVERTED = false;
 
     // Panelboard fan tachometer (available on connector; route to ESP if populated)

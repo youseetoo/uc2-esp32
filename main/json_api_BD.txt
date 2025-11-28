@@ -194,10 +194,10 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 # testing reduced motor transfers
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": 10000, "speed": 10000, "isabs": 1, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 23}
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "isstop": 1}]}}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed":10000, "redu":2}]}, "qid": 23}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "isstop": 1}]}}
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 10000, "isabs": 1, "isaccel": 1, "isen": 1, "accel": 500000, "redu":1}]}, "qid": 23}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "speed": 10000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000, "redu":1}]}, "qid": 23}
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 1000, "isabs":0, "speed":10000, "redu":0}]}, "qid": 23}
 

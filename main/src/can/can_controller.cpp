@@ -196,10 +196,13 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
             FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
             FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
+            FocusMotor::getData()[mStepper]->hardLimitEnabled = receivedMotorSettings.hardLimitEnabled;
+            FocusMotor::getData()[mStepper]->hardLimitPolarity = receivedMotorSettings.hardLimitPolarity;
             
             if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Received MotorSettings from CAN, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
-                      receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration, receivedMotorSettings.softLimitEnabled);
+                log_i("Received MotorSettings from CAN, maxspeed: %i, acceleration: %i, softLimitEnabled: %i, hardLimitEnabled: %i, hardLimitPolarity: %i", 
+                      receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration, receivedMotorSettings.softLimitEnabled,
+                      receivedMotorSettings.hardLimitEnabled, receivedMotorSettings.hardLimitPolarity);
         }
         else if (size == sizeof(HomeData))
         {
@@ -1489,6 +1492,8 @@ namespace can_controller
         settings.minPos = motorData.minPos;
         settings.softLimitEnabled = motorData.softLimitEnabled;
         settings.encoderBasedMotion = motorData.encoderBasedMotion;
+        settings.hardLimitEnabled = motorData.hardLimitEnabled;
+        settings.hardLimitPolarity = motorData.hardLimitPolarity;
         return settings;
     }
 

@@ -354,6 +354,7 @@ int axis = 0;
 				sendHomeDone(s);
 				hdata[s]->homeIsActive = false;
 				getData()[s]->isHoming = false;  // Clear homing flag
+				getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing
 				FocusMotor::sendMotorPos(s, 0);
 			}
 		}
@@ -365,6 +366,7 @@ int axis = 0;
 			sendHomeDone(s);
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag
+			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing
 			// FocusMotor::sendMotorPos(s, 0);
 		}
 #else
@@ -434,6 +436,7 @@ int axis = 0;
 			sendHomeDone(s);
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag
+			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing
 			hdata[s]->homeInEndposReleaseMode = 0;
 		}
 #endif

@@ -79,7 +79,7 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
      int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
-     
+     bool TMC_DEBUG = false;
      int tmc_microsteps =  16; //TODO: Verify if we can drive faster 
      int tmc_rms_current = 1050;
      int tmc_stall_value = 100;

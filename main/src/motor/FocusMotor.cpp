@@ -38,6 +38,9 @@
 #ifdef CAN_CONTROLLER
 #include "../can/can_controller.h"
 #endif
+#ifdef DIGITAL_IN_CONTROLLER
+#include "../digitalin/DigitalInController.h"
+#endif
 
 namespace FocusMotor
 {
@@ -99,6 +102,16 @@ namespace FocusMotor
 		reduced: 1 => MotorDataReduced is transfered
 		reducsed: 2 => single Value udpates  
 		*/
+		
+		// Check if hard limit is triggered - don't start motor until homing clears it
+		if (getData()[axis]->hardLimitTriggered)
+		{
+			log_w("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
+			getData()[axis]->stopped = true;
+			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
+			return;
+		}
+		
 		if (xSemaphoreTake(xMutex, portMAX_DELAY)) // TODO: Check if this is causing the issue with the queue
 		{
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
@@ -308,6 +321,8 @@ namespace FocusMotor
 		data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(),false);
 		data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
 		data[Stepper::A]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::A)).c_str(), false);
+		data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), true); // Enabled by default
+		data[Stepper::A]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::A)).c_str(), false); // NO by default
 		isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
@@ -321,6 +336,8 @@ namespace FocusMotor
 		data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(),false);
 		data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
 		data[Stepper::X]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::X)).c_str(), false);
+		data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), true); // Enabled by default
+		data[Stepper::X]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::X)).c_str(), false); // NO by default
 		isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
@@ -334,6 +351,8 @@ namespace FocusMotor
 		data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(),false);
 		data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
 		data[Stepper::Y]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Y)).c_str(), false);
+		data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), true); // Enabled by default
+		data[Stepper::Y]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Y)).c_str(), false); // NO by default
 		isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
@@ -347,6 +366,8 @@ namespace FocusMotor
 		data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(),false);
 		data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
 		data[Stepper::Z]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Z)).c_str(), false);
+		data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), true); // Enabled by default
+		data[Stepper::Z]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Z)).c_str(), false); // NO by default
 		isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
@@ -562,6 +583,139 @@ namespace FocusMotor
 		log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
 	}
 
+	void setHardLimit(int axis, bool enabled, bool polarity)
+	{
+		// Set hard limit configuration for a motor axis
+		// enabled: if true, motor will emergency stop when endstop is hit during normal operation
+		// polarity: 0 = normally open (NO), 1 = normally closed (NC)
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return;
+		
+		getData()[axis]->hardLimitEnabled = enabled;
+		getData()[axis]->hardLimitPolarity = polarity;
+		log_i("Set hard limit on axis %d: enabled=%d, polarity=%d (0=NO, 1=NC)", axis, enabled, polarity);
+		
+		// Save to preferences
+		preferences.begin("UC2", false);
+		preferences.putBool(("hlEn" + String(axis)).c_str(), enabled);
+		preferences.putBool(("hlPol" + String(axis)).c_str(), polarity);
+		preferences.end();
+		
+#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+		// Master: Notify CAN slaves about the hard limit settings
+		MotorSettings settings = can_controller::extractMotorSettings(*getData()[axis]);
+		can_controller::sendMotorSettingsToCANDriver(settings, axis);
+#endif
+	}
+
+	void clearHardLimitTriggered(int axis)
+	{
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return;
+		getData()[axis]->hardLimitTriggered = false;
+		log_i("Cleared hard limit triggered flag for axis %d", axis);
+	}
+
+	void checkHardLimits()
+	{
+#if defined(CAN_SLAVE_MOTOR) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
+		// Hard limit checks are ONLY performed on CAN slave/satellite motor controllers
+		// The slave has direct access to the endstop and controls the motor directly
+		// Master controllers receive motor state updates from slaves via CAN
+		
+		// On CAN slaves, we only have one motor (REMOTE_MOTOR_AXIS_ID) connected to DIGITAL_IN_1
+		Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+		
+		if (isActivated[mStepper] && getData()[mStepper]->hardLimitEnabled && 
+		    !getData()[mStepper]->isHoming)// && !getData()[mStepper]->hardLimitTriggered)
+		{
+			bool endstopState = DigitalInController::getDigitalVal(1); // Slaves use DIGITAL_IN_1
+			bool hardLimitPolarity = getData()[mStepper]->hardLimitPolarity;
+			
+			// Trigger if endstop state indicates limit is hit
+			// For NO (polarity=0): trigger when endstopState=1 (pressed)
+			// For NC (polarity=1): trigger when endstopState=0 (opened)
+			if (endstopState != hardLimitPolarity && isRunning(mStepper))
+			{
+				if (!getData()[mStepper]->hardLimitTriggered){
+					log_e("HARD LIMIT TRIGGERED on slave motor! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
+					setPosition(mStepper, 999999); // Set to special value to indicate error state
+					sendMotorPos(mStepper, 0, -3); // Send with special qid to indicate error
+				}
+				stopStepper(mStepper);
+				getData()[mStepper]->hardLimitTriggered = true;
+			}
+		}
+#elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_CONTROLLER)
+		// Non-CAN configurations (local motor drivers with direct endstop access)
+		// Check hard limits for X, Y, Z axes (digital inputs 1, 2, 3)
+		// Only check if motor is running and not in homing mode
+		
+		// Axis X uses digital input 1
+		if (isActivated[Stepper::X] && getData()[Stepper::X]->hardLimitEnabled && 
+		    !getData()[Stepper::X]->isHoming && !getData()[Stepper::X]->hardLimitTriggered)
+		{
+			bool endstopState = DigitalInController::getDigitalVal(1);
+			bool hardLimitPolarity = getData()[Stepper::X]->hardLimitPolarity;
+			
+			// Trigger if endstop state matches the polarity
+			// For NO (polarity=0): trigger when endstopState=1 (pressed)
+			// For NC (polarity=1): trigger when endstopState=0 (opened)
+			if (endstopState != hardLimitPolarity && isRunning(Stepper::X))
+			{
+				log_e("HARD LIMIT TRIGGERED on axis X! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
+				stopStepper(Stepper::X);
+				getData()[Stepper::X]->hardLimitTriggered = true;
+				setPosition(Stepper::X, 999999); // Set to special value to indicate error state
+				sendMotorPos(Stepper::X, 0, -3); // Send with special qid to indicate error
+			}
+		}
+		
+		// Axis Y uses digital input 2
+		if (isActivated[Stepper::Y] && getData()[Stepper::Y]->hardLimitEnabled && 
+		    !getData()[Stepper::Y]->isHoming && !getData()[Stepper::Y]->hardLimitTriggered)
+		{
+			bool endstopState = DigitalInController::getDigitalVal(2);
+			bool hardLimitPolarity = getData()[Stepper::Y]->hardLimitPolarity;
+			
+			if (endstopState != hardLimitPolarity && isRunning(Stepper::Y))
+			{
+				log_e("HARD LIMIT TRIGGERED on axis Y! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
+				stopStepper(Stepper::Y);
+				getData()[Stepper::Y]->hardLimitTriggered = true;
+				setPosition(Stepper::Y, 999999);
+				sendMotorPos(Stepper::Y, 0, -3);
+			}
+		}
+		
+		// Axis Z uses digital input 3
+		if (isActivated[Stepper::Z] && getData()[Stepper::Z]->hardLimitEnabled && 
+		    !getData()[Stepper::Z]->isHoming && !getData()[Stepper::Z]->hardLimitTriggered)
+		{
+			bool endstopState = DigitalInController::getDigitalVal(3);
+			bool hardLimitPolarity = getData()[Stepper::Z]->hardLimitPolarity;
+			
+			if (endstopState != hardLimitPolarity && isRunning(Stepper::Z))
+			{
+				log_e("HARD LIMIT TRIGGERED on axis Z! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
+				stopStepper(Stepper::Z);
+				getData()[Stepper::Z]->hardLimitTriggered = true;
+				setPosition(Stepper::Z, 999999);
+				sendMotorPos(Stepper::Z, 0, -3);
+				
+				// If dual axis Z is enabled, also stop A
+				if (isDualAxisZ)
+				{
+					stopStepper(Stepper::A);
+					getData()[Stepper::A]->hardLimitTriggered = true;
+					setPosition(Stepper::A, 999999);
+					sendMotorPos(Stepper::A, 0, -3);
+				}
+			}
+		}
+#endif
+		// CAN_CONTROLLER masters don't check hard limits locally - slaves handle this
+		// and report back via CAN when a hard limit is triggered
+	}
+
 	bool isEncoderBasedMotionEnabled(int axis)
 	{
 		if (axis < 0 || axis >= MOTOR_AXIS_COUNT) return false;
@@ -651,10 +805,16 @@ namespace FocusMotor
 
 	void loop()
 	{
+		// Check hard limits ONCE per loop iteration (not per motor)
+		// Hard limits are only checked on slaves or non-CAN configurations
+		#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR))
+		checkHardLimits();
+		#endif
+		
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
-		// checks if a stepper is still running
+			#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
+			// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{

@@ -59,6 +59,10 @@ struct MotorSettings
 	
 	// Advanced features
 	bool encoderBasedMotion = false;
+	
+	// Hard limit settings (emergency stop on endstop hit)
+	bool hardLimitEnabled = true;  // Enabled by default
+	bool hardLimitPolarity = 0;    // 0 = normally open (NO), 1 = normally closed (NC)
 }__attribute__((packed));
 #pragma pack(pop)
 
@@ -98,6 +102,11 @@ struct MotorData
 	uint32_t minPos = 0;
 	bool softLimitEnabled = false;
 	bool encoderBasedMotion = false;
+	
+	// Hard limit runtime state (settings are in MotorSettings, sent via CAN to slaves)
+	bool hardLimitEnabled = true;   // Runtime copy from MotorSettings
+	bool hardLimitPolarity = 0;     // Runtime copy from MotorSettings (0=NO, 1=NC)
+	bool hardLimitTriggered = false; // Flag indicating hard limit was triggered (position set to 999999)
 	
 }__attribute__((packed));
 #pragma pack(pop)

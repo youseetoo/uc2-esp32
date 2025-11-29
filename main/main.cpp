@@ -258,6 +258,11 @@ static void handleSquareLongPress(int pressed)
 
 extern "C" void setupApp(void)
 {
+	// Short delay to allow USB CDC to stabilize before setup
+	// This helps prevent upload issues on ESP32-S3 with native USB
+	#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+	delay(500);
+	#endif
 
 	log_i("SetupApp");
 	// setup debugging level

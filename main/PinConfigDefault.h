@@ -261,7 +261,7 @@ struct PinConfig
      int8_t tmc_SW_RX = disabled;    // GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = disabled;    // GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
-
+     bool TMC_DEBUG = false;
      int tmc_microsteps = 16;
      int tmc_rms_current = 500;
      int tmc_stall_value = 100;

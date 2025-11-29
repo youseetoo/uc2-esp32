@@ -342,6 +342,15 @@ namespace TMCController
 #endif
     }
 
-    void loop() {};
+    void loop() {
+
+        if (pinConfig.TMC_DEBUG)
+        {
+#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+// print stallguard and current in every cycle
+            log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
+            #endif
+    };
+}
 
 }

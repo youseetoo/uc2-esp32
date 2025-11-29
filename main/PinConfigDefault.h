@@ -362,6 +362,36 @@ struct PinConfig
      // Set to 0 to disable secondary address listening
      uint32_t CAN_ID_SECONDARY = 0;
 
+     // ========================================================================
+     // HYBRID MODE CONFIGURATION
+     // ========================================================================
+     // When HYBRID_MODE is enabled, the device can control both:
+     // - Native motors (directly attached via FastAccelStepper) for axes 0-3
+     // - CAN-connected motors (via CAN bus satellite boards) for axes 4-7+
+     //
+     // Motor ID assignment in hybrid mode:
+     // - Axes 0-3 (A, X, Y, Z): Native on-board drivers
+     // - Axes 4-7 (B, C, D, E...): External CAN satellite boards
+     //
+     // Similarly for lasers:
+     // - Laser IDs 0-3: Native on-board drivers
+     // - Laser IDs 4+: External CAN satellite boards
+     //
+     // LED arrays are addressed both natively AND via CAN simultaneously
+     // when in hybrid mode.
+     // ========================================================================
+     
+     // Threshold axis ID where CAN routing begins (axes >= this use CAN)
+     // Default: 4 means axes A(0), X(1), Y(2), Z(3) are native; B(4), C(5), etc. use CAN
+     uint8_t HYBRID_MOTOR_CAN_THRESHOLD = 4;
+     
+     // Threshold laser ID where CAN routing begins
+     // Default: 4 means lasers 0-3 are native; laser 4+ use CAN
+     uint8_t HYBRID_LASER_CAN_THRESHOLD = 4;
+     
+     // When true, LED commands are sent to BOTH native LED array AND CAN LED devices
+     bool HYBRID_LED_DUAL_OUTPUT = false;
+
      // Emergency stop
      int8_t pinEmergencyExit = disabled;
 

@@ -703,10 +703,18 @@ namespace LedController
 			return -1;
 		}
 #if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
-		// Send the command to the CAN driver
+		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
+		// When HYBRID_LED_DUAL_OUTPUT is enabled, commands go to both local and remote LEDs
+		
+		// Always send to CAN (for remote LED arrays)
 		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-		if (pinConfig.IS_STATUS_LED)	
+		
+		// Execute locally if:
+		// 1. This is a status LED display, OR
+		// 2. Hybrid dual output mode is enabled (LED_PIN is configured for local LED array)
+		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
 		{
+			log_i("Hybrid LED mode: Executing on local LED array");
 			execLedCommand(cmd);
 		}
 #else

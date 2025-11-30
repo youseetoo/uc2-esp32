@@ -160,7 +160,7 @@ namespace MotorJsonParser
                 log_i("stagescan stopped");
                 return;
             }
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
             // CAN-based stage scanning with grid parameters
             // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50}}
             StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
@@ -315,7 +315,7 @@ namespace MotorJsonParser
 #endif
 		}
 
-		#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+		#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
 		// start independent focusScan
 		cJSON *focusscan = cJSON_GetObjectItem(doc, "focusscan");
 		if (focusscan != NULL)
@@ -541,7 +541,7 @@ namespace MotorJsonParser
 			log_i("Set joystick direction: stepperid %i, inverted %i", axis, inverted);
 
 			// Apply locally or via CAN
-#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
 			can_controller::sendMotorSingleValue(axis, offsetof(MotorData, joystickDirectionInverted), inverted);
 #else
 			FocusMotor::getData()[axis]->joystickDirectionInverted = inverted;
@@ -596,7 +596,7 @@ namespace MotorJsonParser
 			log_i("Set softlimits: stepperid %i, min %i, max %i, isEnabled %i", axis, mn, mx, isEnabledVal);
 
 			// Apply soft limits locally or via CAN
-#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
 			// Send soft limits to CAN slave
 			can_controller::sendSoftLimitsToCANDriver(mn, mx, isEnabledVal, axis);
 #else
@@ -714,7 +714,7 @@ namespace MotorJsonParser
 					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
 
 					/*
-					#ifdef CAN_CONTROLLER
+					#ifdef CAN_BUS_ENABLED
 					// CORE IDEA: if we have a single value, only send thos value to the CAN bus
 					// compute the number of keys - if we have a single element (excluding qid), we can use can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), (int)motorSpeed);
 					int nKeyse = countKeysExcludingQID(stp);

@@ -10,7 +10,7 @@
 #ifdef I2C_LASER 
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -121,7 +121,7 @@ namespace LaserController
 		int pwmChannel = getPWMChannel(LASERid);
 		
 		// Check if laser pin is configured
-		#if not defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER) && not defined(I2C_LASER)
+		#if not defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER) && not defined(I2C_LASER)
 
 		if (laserPin < 0)
 		{
@@ -187,7 +187,7 @@ namespace LaserController
 	{
 		#ifdef I2C_LASER
 			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
-		#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
 			can_controller::sendLaserDataToCANDriver(laserData);
 		#else
 			int LASERid = laserData.LASERid;
@@ -221,7 +221,7 @@ namespace LaserController
 	// Helper function to determine if a laser should use CAN in hybrid mode
 	bool shouldUseCANForLaser(int LASERid)
 	{
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
 		// In hybrid mode: lasers >= threshold use CAN, lasers < threshold use native drivers
 		// Check if this laser has a native driver configured
 		int laserPin = getLaserPin(LASERid);
@@ -268,7 +268,7 @@ namespace LaserController
 		laserValuePending[LASERid] = true;
 		return true;
 		
-		#elif defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LASER)
 		// HYBRID MODE SUPPORT: Check if this laser should use CAN or native driver
 		if (shouldUseCANForLaser(LASERid))
 		{
@@ -301,7 +301,7 @@ namespace LaserController
 		laserValuePending[LASERid] = true;
 		return true;
 		
-		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
+		#elif defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;

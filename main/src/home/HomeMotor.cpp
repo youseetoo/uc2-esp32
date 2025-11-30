@@ -15,7 +15,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -49,7 +49,7 @@ namespace HomeMotor
 		// send the home data to the slave
 		i2c_master::sendHomeDataI2C(*hdata[axis], axis);
 		getData()[axis]->stopped = true; // overwrite current state - otherwise it'll trigger a force-stop  in the motor loop()
-#elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && not defined(CAN_RECEIVE_MOTOR)
 		// send the home data to the slave
 		can_controller::sendHomeDataToCANDriver(*hdata[axis], axis);
 #else
@@ -214,7 +214,7 @@ int axis = 0;
 
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 		runStepper(axis);
-#elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && not defined(CAN_RECEIVE_MOTOR)
 		// send the home data to the slave
 		can_controller::sendHomeDataToCANDriver(*hdata[axis], axis);
 #endif
@@ -327,7 +327,7 @@ int axis = 0;
 		free(ret);
 		Serial.println("--");
 #endif
-#if defined(CAN_CONTROLLER) && defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_RECEIVE_MOTOR)
 		// send home state to master
 		HomeState homeState;
 		homeState.isHoming = false;
@@ -358,7 +358,7 @@ int axis = 0;
 				FocusMotor::sendMotorPos(s, 0);
 			}
 		}
-#elif defined(CAN_CONTROLLER) && not defined(CAN_SLAVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && not defined(CAN_RECEIVE_MOTOR)
 		// do nothing as we will receive it as a push message - only keep track of the timeout
 		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
 		{

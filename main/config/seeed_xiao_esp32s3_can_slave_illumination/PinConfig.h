@@ -9,9 +9,9 @@
 #define LASER_CONTROLLER
 #define LED_CONTROLLER
 #define MESSAGE_CONTROLLER
-#define CAN_SLAVE_LASER
-#define CAN_SLAVE_LED
-#define CAN_CONTROLLER
+#define CAN_RECEIVE_LASER
+#define CAN_RECEIVE_LED
+#define CAN_BUS_ENABLED
 #define CAN_MULTIADDRESS
 
 struct UC2_3_Xiao_Slave_Illumination : PinConfig

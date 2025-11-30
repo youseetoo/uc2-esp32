@@ -35,7 +35,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
@@ -97,7 +97,7 @@ namespace FocusMotor
 	// Helper function to determine if an axis should use CAN in hybrid mode
 	bool shouldUseCANForAxis(int axis)
 	{
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
 		// In hybrid mode: axes >= threshold use CAN, axes < threshold use native drivers
 		// Check if this axis has a native driver configured
 		bool hasNativeDriver = false;
@@ -164,7 +164,7 @@ namespace FocusMotor
 				i2c_master::startStepper(m, axis, reduced);
 				waitForFirstRun[axis] = 1;
 			}
-#elif defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
 			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 			if (shouldUseCANForAxis(axis))
 			{
@@ -193,7 +193,7 @@ namespace FocusMotor
 				sendMotorPos(axis, 0);
 #endif
 			}
-#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
 			// Pure CAN master mode (non-hybrid) - all motors via CAN
 			MotorData *m = getData()[axis];
 			int err = can_controller::startStepper(m, axis, reduced);
@@ -290,7 +290,7 @@ namespace FocusMotor
 	void updateData(int axis)
 	{
 // Request the current position from the slave motors depending on the interface
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(axis))
 		{
@@ -314,7 +314,7 @@ namespace FocusMotor
 		MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
 		// data[axis]->isforever = mMotorState.isforever;
-#elif defined CAN_CONTROLLER
+#elif defined CAN_BUS_ENABLED
 		// FIXME: nothing to do here since the position is assigned externally?
 #endif
 	}
@@ -322,7 +322,7 @@ namespace FocusMotor
 	long getCurrentMotorPosition(int axis)
 	{
 		// Get real-time motor position directly from stepper library
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(axis))
 		{
@@ -348,7 +348,7 @@ namespace FocusMotor
 #elif defined I2C_MASTER
 		// For I2C, we need to rely on cached position
 		return data[axis]->currentPosition;
-#elif defined CAN_CONTROLLER
+#elif defined CAN_BUS_ENABLED
 		// For CAN, we need to rely on cached position
 		return data[axis]->currentPosition;
 #else
@@ -616,7 +616,7 @@ namespace FocusMotor
 		setup_i2c_motor();
 #endif
 
-#if (defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR))
+#if (defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR))
 		// stop all motors on startup
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
@@ -637,7 +637,7 @@ namespace FocusMotor
 		log_i("Motor settings sent to all CAN slaves during setup");
 #endif
 
-#ifdef CAN_SLAVE_MOTOR
+#ifdef CAN_RECEIVE_MOTOR
 		// send current position to master
 		can_controller::sendMotorStateToMaster();
 #endif
@@ -694,7 +694,7 @@ namespace FocusMotor
 		preferences.putBool(("hlPol" + String(axis)).c_str(), polarity);
 		preferences.end();
 		
-#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
 		// Master: Notify CAN slaves about the hard limit settings
 		MotorSettings settings = can_controller::extractMotorSettings(*getData()[axis]);
 		can_controller::sendMotorSettingsToCANDriver(settings, axis);
@@ -710,7 +710,7 @@ namespace FocusMotor
 
 	void checkHardLimits()
 	{
-#if defined(CAN_SLAVE_MOTOR) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
+#if defined(CAN_RECEIVE_MOTOR) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
 		// Hard limit checks are ONLY performed on CAN slave/satellite motor controllers
 		// The slave has direct access to the endstop and controls the motor directly
 		// Master controllers receive motor state updates from slaves via CAN
@@ -738,7 +738,7 @@ namespace FocusMotor
 				getData()[mStepper]->hardLimitTriggered = true;
 			}
 		}
-#elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_CONTROLLER)
+#elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_BUS_ENABLED)
 		// Non-CAN configurations (local motor drivers with direct endstop access)
 		// Check hard limits for X, Y, Z axes (digital inputs 1, 2, 3)
 		// Only check if motor is running and not in homing mode
@@ -806,7 +806,7 @@ namespace FocusMotor
 			}
 		}
 #endif
-		// CAN_CONTROLLER masters don't check hard limits locally - slaves handle this
+		// CAN_BUS_ENABLED masters don't check hard limits locally - slaves handle this
 		// and report back via CAN when a hard limit is triggered
 	}
 
@@ -822,7 +822,7 @@ namespace FocusMotor
 		getData()[axis]->encoderBasedMotion = enabled;
 		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
 		
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 		// Notify CAN slaves if we are a CAN master
 		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
 #endif
@@ -901,13 +901,13 @@ namespace FocusMotor
 	{
 		// Check hard limits ONCE per loop iteration (not per motor)
 		// Hard limits are only checked on slaves or non-CAN configurations
-		#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR))
+		#if (!defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR))
 		checkHardLimits();
 		#endif
 		
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-			#if (!defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
+			#if (!defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR)) // if we are the master, we don't check this in the loop as the slave will push it asynchronously
 			// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
@@ -988,7 +988,7 @@ namespace FocusMotor
 	bool isRunning(int i)
 	{
 		bool mIsRunning = false;
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(i))
 		{
@@ -1012,7 +1012,7 @@ namespace FocusMotor
 		// Request data from the slave but only if inside i2cAddresses
 		MotorState mData = i2c_master::getMotorState(i);
 		mIsRunning = mData.isRunning;
-#elif defined CAN_CONTROLLER
+#elif defined CAN_BUS_ENABLED
 		// Slave will push this information to the master via CAN asynchrously
 		mIsRunning = can_controller::isMotorRunning(i);
 #endif
@@ -1126,7 +1126,7 @@ namespace FocusMotor
 		free(jsonString);
 		jsonString = NULL;
 
-#ifdef CAN_SLAVE_MOTOR
+#ifdef CAN_RECEIVE_MOTOR
 		// We push the current state to the master to inform it that we are running and about the current position
 		can_controller::sendMotorStateToMaster();
 #endif
@@ -1148,7 +1148,7 @@ namespace FocusMotor
 		}
 #endif
 
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 		if (shouldUseCANForAxis(i))
 		{
@@ -1184,7 +1184,7 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		MotorData *m = getData()[i];
 		i2c_master::stopStepper(m, i);
-#elif defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#elif defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
 		getData()[i]->isforever = false;
 		getData()[i]->speed = 0;
 		getData()[i]->stopped = true;

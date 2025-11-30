@@ -6,7 +6,7 @@
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -702,7 +702,7 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
 		// When HYBRID_LED_DUAL_OUTPUT is enabled, commands go to both local and remote LEDs
 		
@@ -797,7 +797,7 @@ namespace LedController
 				isOn = false;
 			}
 			
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 			// Send the command to the CAN driver
 			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
 #else

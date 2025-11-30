@@ -89,7 +89,7 @@ Preferences preferences;
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "src/can/can_controller.h"
 #endif
 #ifdef I2C_MASTER
@@ -208,7 +208,7 @@ extern "C" void looper(void *p)
 		HeatController::loop();
 		vTaskDelay(1);
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 		// Handle OTA updates in non-blocking mode
 		can_controller::handleOtaLoop();
 		// Handle pending scan results
@@ -280,7 +280,7 @@ extern "C" void setupApp(void)
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 	can_controller::setup();
 #endif
 #ifdef I2C_SLAVE_MOTOR

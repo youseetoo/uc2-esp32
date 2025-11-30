@@ -447,7 +447,7 @@ namespace can_controller
             }
             
             // Handle OTA acknowledgment (master side)
-            #ifdef CAN_MASTER
+            #ifdef CAN_SEND_COMMANDS
             if (msgType == CANMessageTypeID::OTA_ACK && size >= (sizeof(CANMessageTypeID) + sizeof(OtaAck)))
             {
                 OtaAck ack;
@@ -501,7 +501,7 @@ namespace can_controller
         }
 
         // Handle SCAN_RESPONSE (master side) - collect device info
-        #ifdef CAN_MASTER
+        #ifdef CAN_SEND_COMMANDS
         if (size > 0)
         {
             CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
@@ -1199,7 +1199,7 @@ namespace can_controller
         cJSON *ota = cJSON_GetObjectItem(doc, "ota");
         if (ota != NULL)
         {
-            #ifdef CAN_MASTER
+            #ifdef CAN_SEND_COMMANDS
             // Extract parameters
             cJSON *canIdObj = cJSON_GetObjectItem(ota, "canid");
             cJSON *ssidObj = cJSON_GetObjectItem(ota, "ssid");
@@ -1231,7 +1231,7 @@ namespace can_controller
             }
             return result;
             #else
-            log_w("OTA command received but CAN_MASTER not defined");
+            log_w("OTA command received but CAN_SEND_COMMANDS not defined");
             return -1;
             #endif
         }
@@ -1241,7 +1241,7 @@ namespace can_controller
         cJSON *scan = cJSON_GetObjectItem(doc, "scan");
         if (scan != NULL && cJSON_IsTrue(scan))
         {
-            #ifdef CAN_MASTER
+            #ifdef CAN_SEND_COMMANDS
             log_i("Starting CAN network scan...");
             
             // Reset all motor settings flags before scan
@@ -1255,7 +1255,7 @@ namespace can_controller
             // Return qid to trigger acknowledgment immediately
             return qid;
             #else
-            log_w("CAN scan command received but CAN_MASTER not defined");
+            log_w("CAN scan command received but CAN_SEND_COMMANDS not defined");
             return -1;
             #endif
         }

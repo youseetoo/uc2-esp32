@@ -218,6 +218,24 @@ namespace LaserController
 		return setLaserVal(LASERid, LASERval, LASER_despeckle_arr[LASERid], LASER_despeckle_period_arr[LASERid], qid);
 	}
 
+	// Helper function to determine if a laser should use CAN in hybrid mode
+	bool shouldUseCANForLaser(int LASERid)
+	{
+#if defined(CAN_CONTROLLER) && defined(CAN_MASTER)
+		// In hybrid mode: lasers >= threshold use CAN, lasers < threshold use native drivers
+		// Check if this laser has a native driver configured
+		int laserPin = getLaserPin(LASERid);
+		if (laserPin > 0)
+		{
+			return false; // Has native driver, use it
+		}
+		// No native driver - use CAN if laser ID >= threshold
+		return (LASERid >= pinConfig.HYBRID_LASER_CAN_THRESHOLD);
+#else
+		return false; // CAN not available or this is a slave
+#endif
+	}
+
 	bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid)
 	{
 		log_i("Setting Laser Value: LASERid %i, LASERval %i, despeckle %i, period %i, qid %i", 
@@ -245,6 +263,39 @@ namespace LaserController
 		laserData.LASERdespeckle = LASERdespeckle;
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		i2c_master::sendLaserDataI2C(laserData, LASERid);
+		
+		// Set flag to send update in next loop cycle
+		laserValuePending[LASERid] = true;
+		return true;
+		
+		#elif defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LASER)
+		// HYBRID MODE SUPPORT: Check if this laser should use CAN or native driver
+		if (shouldUseCANForLaser(LASERid))
+		{
+			// Route to CAN
+			log_i("Hybrid mode: Routing laser %d to CAN", LASERid);
+			LaserData laserData;
+			laserData.LASERid = LASERid;
+			laserData.LASERval = LASERval;
+			laserData.LASERdespeckle = LASERdespeckle;
+			laserData.LASERdespecklePeriod = LASERdespecklePeriod;
+			can_controller::sendLaserDataToCANDriver(laserData);
+		}
+		else
+		{
+			// Use native driver
+			log_i("Hybrid mode: Routing laser %d to native driver", LASERid);
+			int laserPin = getLaserPin(LASERid);
+			if (laserPin > 0)
+			{
+				int pwmChannel = getPWMChannel(LASERid);
+				setPWM(LASERval, pwmChannel);
+			}
+			else
+			{
+				log_w("No native laser pin configured for LASERid %d", LASERid);
+			}
+		}
 		
 		// Set flag to send update in next loop cycle
 		laserValuePending[LASERid] = true;

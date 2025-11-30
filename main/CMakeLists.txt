@@ -124,8 +124,8 @@ list(APPEND srcs ${mainsrc}src/i2c/i2c_slave_laser.cpp)
 if(I2C_SLAVE_DIAL EQUAL 1)
     list(APPEND srcs ${mainsrc}src/i2c/i2c_slave_dial.cpp)
 endif()
-# CAN bus source files - check both new and legacy option names
-if(CAN_BUS_ENABLED EQUAL 1 OR CAN_BUS_ENABLED EQUAL 1)
+# CAN bus source files
+if(CAN_BUS_ENABLED EQUAL 1)
     list(APPEND srcs ${mainsrc}src/can/can_controller.cpp)
     list(APPEND srcs ${mainsrc}src/can/iso-tp-twai/CanIsoTp.cpp)
 endif()

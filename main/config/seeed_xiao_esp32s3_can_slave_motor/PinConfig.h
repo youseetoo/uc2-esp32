@@ -53,7 +53,7 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-     bool DEBUG_CAN_ISO_TP = 1; // 1 = debug CAN communication, 0 = no debug
+     bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
      const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
      const unsigned long BAUDRATE = 115200;

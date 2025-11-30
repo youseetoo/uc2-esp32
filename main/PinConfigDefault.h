@@ -180,6 +180,29 @@ struct PinConfig
     const uint16_t RING_BIGGEST_COUNT = 40;
     const uint16_t RING_OUTEST_START = 88;    // Outest ring: 48 LEDs (indices 88-135)
     const uint16_t RING_OUTEST_COUNT = 48;
+    
+    // Segment definitions for directional illumination (default values for non-ring LEDs)
+    // These are overridden in illumination board configs with actual ring segment values
+    static constexpr uint16_t SEGMENT_INNER_RIGHT_START = 0;
+    static constexpr uint16_t SEGMENT_INNER_BOTTOM_START = 0;
+    static constexpr uint16_t SEGMENT_INNER_LEFT_START = 0;
+    static constexpr uint16_t SEGMENT_INNER_TOP_START = 0;
+    static constexpr uint16_t SEGMENT_INNER_COUNT = 0;
+    static constexpr uint16_t SEGMENT_MIDDLE_RIGHT_START = 0;
+    static constexpr uint16_t SEGMENT_MIDDLE_BOTTOM_START = 0;
+    static constexpr uint16_t SEGMENT_MIDDLE_LEFT_START = 0;
+    static constexpr uint16_t SEGMENT_MIDDLE_TOP_START = 0;
+    static constexpr uint16_t SEGMENT_MIDDLE_COUNT = 0;
+    static constexpr uint16_t SEGMENT_BIGGEST_RIGHT_START = 0;
+    static constexpr uint16_t SEGMENT_BIGGEST_BOTTOM_START = 0;
+    static constexpr uint16_t SEGMENT_BIGGEST_LEFT_START = 0;
+    static constexpr uint16_t SEGMENT_BIGGEST_TOP_START = 0;
+    static constexpr uint16_t SEGMENT_BIGGEST_COUNT = 0;
+    static constexpr uint16_t SEGMENT_OUTEST_RIGHT_START = 0;
+    static constexpr uint16_t SEGMENT_OUTEST_BOTTOM_START = 0;
+    static constexpr uint16_t SEGMENT_OUTEST_LEFT_START = 0;
+    static constexpr uint16_t SEGMENT_OUTEST_TOP_START = 0;
+    static constexpr uint16_t SEGMENT_OUTEST_COUNT = 0;
 
      const uint8_t  MATRIX_W   = 8;    // width
      const uint8_t  MATRIX_H   = 8;    // height
@@ -198,6 +221,8 @@ struct PinConfig
      int8_t DIGITAL_OUT_1 = disabled;
      int8_t DIGITAL_OUT_2 = disabled;
      int8_t DIGITAL_OUT_3 = disabled;
+
+     bool testLaserPinOnBoot = false;
 
      int8_t CAMERA_TRIGGER_PIN = disabled;
      bool CAMERA_TRIGGER_INVERTED = false;

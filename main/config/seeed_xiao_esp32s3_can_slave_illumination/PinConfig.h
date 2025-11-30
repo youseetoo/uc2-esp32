@@ -14,7 +14,7 @@
 #define CAN_CONTROLLER
 #define CAN_MULTIADDRESS
 
-struct UC2_3_Xiao_Slave_Illumination : PinConfig
+struct seeed_xiao_esp32s3_can_slave_illumination : PinConfig
 {
      /*
      UC2 Illumination Board Pin Mapping:
@@ -62,9 +62,49 @@ struct UC2_3_Xiao_Slave_Illumination : PinConfig
     // Calculate total LED count from ring definitions
     const uint16_t LED_COUNT = RING_OUTEST_START + RING_OUTEST_COUNT; // 88 + 48 = 136
 
+    // =============================================================================
+    // Segment definitions for directional illumination (DPC, etc.)
+    // LED 0 is on the RIGHT segment of the inner ring.
+    // Each ring is divided into 4 quadrants: right(0°), bottom(90°), left(180°), top(270°)
+    // Segment offset defines where each segment starts within a ring (as fraction of ring)
+    // =============================================================================
+    
+    // Segment start offsets within each ring (as LED index offset from ring start)
+    // Ring layout: LED 0 = right, then clockwise: right -> bottom -> left -> top
+    // Each segment spans 1/4 of the ring (quarter)
+    
+    // Inner ring (20 LEDs): 5 LEDs per segment
+    static constexpr uint16_t SEGMENT_INNER_RIGHT_START = 0;    // LEDs 0-4
+    static constexpr uint16_t SEGMENT_INNER_BOTTOM_START = 5;   // LEDs 5-9
+    static constexpr uint16_t SEGMENT_INNER_LEFT_START = 10;    // LEDs 10-14
+    static constexpr uint16_t SEGMENT_INNER_TOP_START = 15;     // LEDs 15-19
+    static constexpr uint16_t SEGMENT_INNER_COUNT = 5;
+    
+    // Middle ring (28 LEDs): 7 LEDs per segment
+    static constexpr uint16_t SEGMENT_MIDDLE_RIGHT_START = 0;   // LEDs 20-26
+    static constexpr uint16_t SEGMENT_MIDDLE_BOTTOM_START = 7;  // LEDs 27-33
+    static constexpr uint16_t SEGMENT_MIDDLE_LEFT_START = 14;   // LEDs 34-40
+    static constexpr uint16_t SEGMENT_MIDDLE_TOP_START = 21;    // LEDs 41-47
+    static constexpr uint16_t SEGMENT_MIDDLE_COUNT = 7;
+    
+    // Biggest ring (40 LEDs): 10 LEDs per segment
+    static constexpr uint16_t SEGMENT_BIGGEST_RIGHT_START = 0;  // LEDs 48-57
+    static constexpr uint16_t SEGMENT_BIGGEST_BOTTOM_START = 10;// LEDs 58-67
+    static constexpr uint16_t SEGMENT_BIGGEST_LEFT_START = 20;  // LEDs 68-77
+    static constexpr uint16_t SEGMENT_BIGGEST_TOP_START = 30;   // LEDs 78-87
+    static constexpr uint16_t SEGMENT_BIGGEST_COUNT = 10;
+    
+    // Outest ring (48 LEDs): 12 LEDs per segment
+    static constexpr uint16_t SEGMENT_OUTEST_RIGHT_START = 0;   // LEDs 88-99
+    static constexpr uint16_t SEGMENT_OUTEST_BOTTOM_START = 12; // LEDs 100-111
+    static constexpr uint16_t SEGMENT_OUTEST_LEFT_START = 24;   // LEDs 112-123
+    static constexpr uint16_t SEGMENT_OUTEST_TOP_START = 36;    // LEDs 124-135
+    static constexpr uint16_t SEGMENT_OUTEST_COUNT = 12;
+
     // Laser control pin (PWM for high-power white LED)
     int8_t LASER_4 = GPIO_NUM_4; // D3 - White LED PWM (only one channel available)
-
+    bool testLaserPinOnBoot = true;
+    
     // CAN communication
     int8_t CAN_TX = GPIO_NUM_5; // D4 - CAN Tx
     int8_t CAN_RX = GPIO_NUM_6; // D5 - CAN Rx
@@ -88,4 +128,4 @@ struct UC2_3_Xiao_Slave_Illumination : PinConfig
     bool DEBUG_CAN_ISO_TP = 1;
 };
   
-const UC2_3_Xiao_Slave_Illumination pinConfig;
+const seeed_xiao_esp32s3_can_slave_illumination pinConfig;

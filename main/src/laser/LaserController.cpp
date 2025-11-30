@@ -627,7 +627,6 @@ namespace LaserController
 	void setup()
 	{
 		log_i("Setting Up LASERs");
-		bool testOnBoot = false;
 		
 		// Setup all lasers using array iteration
 		for (int i = 0; i < MAX_LASERS; i++)
@@ -640,12 +639,12 @@ namespace LaserController
 			
 			const char* laserName = (i == 0) ? "Heating Unit" : "Laser";
 			log_i("%s ID %i, pin: %i", laserName, i, laserPin);
-			
+			// BEWARE: THE LED ON THE ILLU BOARD NEEDS 12V TO LIGHT UP!
 			pinMode(laserPin, OUTPUT);
 			digitalWrite(laserPin, LOW);
 			setupLaser(laserPin, getPWMChannel(i), pwm_frequency, pwm_resolution);
 			
-			if (testOnBoot)
+			if (pinConfig.testLaserPinOnBoot)
 				setLaserVal(i, 100); // THIS IS ANTI LASERSAFETY!
 			delay(10);
 			setLaserVal(i, 0);

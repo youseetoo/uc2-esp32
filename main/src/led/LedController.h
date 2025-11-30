@@ -103,6 +103,7 @@ namespace LedController
     void fillAll(uint8_t r, uint8_t g, uint8_t b);
     void setSingle(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
     void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b);
+    void fillHalvesRingSegments(const char *region, uint8_t r, uint8_t g, uint8_t b);
     void drawRings(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
     void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b);
     void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b);

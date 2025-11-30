@@ -224,7 +224,8 @@ int axis = 0;
 	{
 		// Determine motor direction based on homing mode
 		int motorSpeed, motorDirection;
-		
+		FocusMotor::clearHardLimitTriggered(s);
+
 		if (hdata[s]->homeInEndposReleaseMode == 1)
 		{
 			// If starting in release mode, move opposite to home direction to release endstop

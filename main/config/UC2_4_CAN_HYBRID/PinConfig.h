@@ -16,10 +16,10 @@ DIP Switch Configuration:
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-// Enable hybrid CAN master mode with native motor drivers
+// Enable hybrid CAN mode with native motor drivers
 #define MOTOR_CONTROLLER
-#define CAN_CONTROLLER
-#define CAN_MASTER
+#define CAN_BUS_ENABLED      // Enable CAN hardware
+#define CAN_SEND_COMMANDS    // This device sends commands to CAN slaves
 #define USE_FASTACCEL
 #define USE_TCA9535
 #define BLUETOOTH

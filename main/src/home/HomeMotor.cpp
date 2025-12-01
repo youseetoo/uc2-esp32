@@ -37,6 +37,7 @@ namespace HomeMotor
 	*/
 	int act(cJSON *doc)
 	{
+		// {"task": "/home_act", "home": {"steppers": [{"stepperid":0, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "home_e"}]}, "qid":1234}
 		log_i("home_act_fct");
 		// print the json
 		char *out = cJSON_PrintUnformatted(doc);
@@ -449,16 +450,17 @@ int axis = 0;
 			sendHomeDone(s);
 			// if configured, move to safe zone after homing
 			if (abs(hdata[s]->homeEndposRelease) > 0){
-				// we move to that position relatively using runStepper
+				// Move to safe zone position relative to home (0)
 				log_i("Home Motor %i moving to safe zone position %i after homing", s, hdata[s]->homeEndposRelease);
 				FocusMotor::getData()[s]->isforever = false;
-				FocusMotor::getData()[s]->speed = (hdata[s]->homeEndposRelease > 0 ? abs(hdata[s]->homeSpeed) : -abs(hdata[s]->homeSpeed));
+				FocusMotor::getData()[s]->speed = abs(hdata[s]->homeSpeed);
 				FocusMotor::getData()[s]->isEnable = 1;
 				FocusMotor::getData()[s]->isaccelerated = 0;
 				FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
 				FocusMotor::getData()[s]->isStop = 0;
 				FocusMotor::getData()[s]->stopped = false;
-				FocusMotor::startStepper(s, 0);
+				// Pass the actual distance to move, not 0
+				FocusMotor::startStepper(s, hdata[s]->homeEndposRelease);
 			}
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag

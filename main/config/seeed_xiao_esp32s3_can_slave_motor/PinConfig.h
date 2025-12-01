@@ -99,8 +99,8 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
 
      // Endstops should be the same for all - depending on the motor
      uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
-     uint32_t objectivePositionX1 = 10000;
-     uint32_t objectivePositionX2 = 80000;
+     uint32_t objectivePositionX0 = 10000;
+     uint32_t objectivePositionX1 = 80000;
 
      // Linear encoder pins (optional, for AS5311 interface)
      // For future encoder-based motion control

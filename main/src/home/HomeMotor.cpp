@@ -18,11 +18,12 @@
 #ifdef CAN_CONTROLLER
 #include "../can/can_controller.h"
 #endif
-
 using namespace FocusMotor;
+
 
 namespace HomeMotor
 {
+
 
 	HomeData *hdata[4] = {nullptr, nullptr, nullptr, nullptr};
 
@@ -85,6 +86,7 @@ namespace HomeMotor
 					int homeDirection = cJsonTool::getJsonInt(stp, key_home_direction);
 					int homeEndStopPolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
 					bool isDualAxisZ = cJsonTool::getJsonInt(stp, key_home_isDualAxis);
+					int homeEndposRelease = cJsonTool::getJsonInt(stp, key_home_endstoprelease, 0); // TODO: This will add a last move after homing is completed to "clear" the endstop - we will keep the position in the counter (no resetting - eg when moving the objective lens in safe zone )
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
 					// Check for encoder-based homing (enc=1)
@@ -124,11 +126,11 @@ namespace HomeMotor
 						#else
 						log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
 						// Fall back to regular homing
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ, homeEndposRelease);
 						#endif
 					} else {
 						// assign to home data and start stepper if they are wired to that board
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ, homeEndposRelease);
 					}
 				}
 			}
@@ -140,7 +142,7 @@ int axis = 0;
 		return axis;
 	}
 
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ)
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ, int homeEndposRelease)
 	{
 
 		// check if the axis is valid
@@ -150,12 +152,22 @@ int axis = 0;
 			log_e("Axis %i is not activated", axis);
 			return;
 		}
-		
+		// Store variables in preferences for later use  per axis 
+		preferences.begin("home", false);
+		preferences.putInt(("to_" + String(axis)).c_str(), homeTimeout);
+		preferences.putInt(("hs_" + String(axis)).c_str(), homeSpeed);
+		preferences.putInt(("hms_" + String(axis)).c_str(), homeMaxspeed);
+		preferences.putInt(("hd_" + String(axis)).c_str(), homeDirection);
+		preferences.putInt(("hep_" + String(axis)).c_str(), homeEndStopPolarity);
+		preferences.putInt(("her_" + String(axis)).c_str(), homeEndposRelease);
+		preferences.end();
+
 		// set the home data and start the motor - mostly used from I2C
 		hdata[axis]->homeTimeout = homeTimeout;
 		hdata[axis]->homeSpeed = homeSpeed;
 		hdata[axis]->homeMaxspeed = homeMaxspeed;
 		hdata[axis]->homeEndStopPolarity = homeEndStopPolarity;
+		hdata[axis]->homeEndposRelease = homeEndposRelease;
 		hdata[axis]->qid = 0;
 
 		// assign qid/dualaxisz
@@ -181,7 +193,7 @@ int axis = 0;
 		{
 			hdata[axis]->homeEndStopPolarity = 0;
 		}
-		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i, endpos release %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndposRelease);
 		
 		// Set isHoming flag to bypass soft limits during homing
 		getData()[axis]->isHoming = true;
@@ -376,7 +388,7 @@ int axis = 0;
 		// Mode 0: Normal homing - move toward endstop
 		// Mode 1: Transition state - prepare for endstop release
 		// Mode 2: Release mode - move away from endstop until it's released
-		// Mode 3: Final state - homing complete
+		// Mode 3: Final state - homing complete and optinoally move to save zone if configured
 		
 		//  if we hit the endstop or timeout => stop motor and launch reverse direction mode
 		if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) &&
@@ -435,6 +447,19 @@ int axis = 0;
 			FocusMotor::setPosition(s, 0);
 			FocusMotor::sendMotorPos(s, 0);
 			sendHomeDone(s);
+			// if configured, move to safe zone after homing
+			if (abs(hdata[s]->homeEndposRelease) > 0){
+				// we move to that position relatively using runStepper
+				log_i("Home Motor %i moving to safe zone position %i after homing", s, hdata[s]->homeEndposRelease);
+				FocusMotor::getData()[s]->isforever = false;
+				FocusMotor::getData()[s]->speed = (hdata[s]->homeEndposRelease > 0 ? abs(hdata[s]->homeSpeed) : -abs(hdata[s]->homeSpeed));
+				FocusMotor::getData()[s]->isEnable = 1;
+				FocusMotor::getData()[s]->isaccelerated = 0;
+				FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
+				FocusMotor::getData()[s]->isStop = 0;
+				FocusMotor::getData()[s]->stopped = false;
+				FocusMotor::startStepper(s, 0);
+			}
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag
 			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing

@@ -3,6 +3,9 @@
 #include "../motor/FocusMotor.h"
 #include "cJSON.h"
 
+#include "Preferences.h"
+
+
 #pragma pack(push,1)
 struct HomeData
 {
@@ -38,8 +41,11 @@ void processHomeLoop(void * p);
 namespace HomeMotor
 {
 
+	// define preferences
+	static Preferences preferences;
+
 	static bool isDEBUG = true;
-	static int homeEndposRelease = 2000;
+	static int homeEndposRelease = 0;
 	static bool isHoming = false;
 	static bool isDualAxisZ = false;
 
@@ -50,7 +56,7 @@ namespace HomeMotor
     void checkAndProcessHome(Stepper s, int digitalin_val);
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ, int homeEndposRelease);
 	HomeData** getHomeData();
 	void sendHomeDone(int axis);
 };

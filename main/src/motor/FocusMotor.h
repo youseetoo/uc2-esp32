@@ -48,6 +48,12 @@ namespace FocusMotor
 	// Motor position functions
 	long getCurrentMotorPosition(int axis); // Get real-time position from FastAccelStepper
 	
+	// Hard limit functions (emergency stop on endstop hit during normal operation)
+	// Only relevant on CAN slave/satellite motor controllers
+	void setHardLimit(int axis, bool enabled, bool polarity);
+	void checkHardLimits(); // Called in loop to check endstops and emergency stop if triggered (only on slaves)
+	void clearHardLimitTriggered(int axis); // Called after successful homing
+	
 	// Encoder-based motion control functions
 	bool isEncoderBasedMotionEnabled(int axis);
 	void setEncoderBasedMotion(int axis, bool enabled);

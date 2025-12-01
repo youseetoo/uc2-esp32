@@ -4,23 +4,136 @@
 #include "cJsonTool.h"
 #include "Arduino.h"
 #include "JsonKeys.h"
+#include <Preferences.h>
+#ifdef MOTOR_CONTROLLER
+#include "../motor/FocusMotor.h"
+#include "../motor/MotorTypes.h"
+#endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
 
 namespace MessageController
 {
 	const char * TAG = "MessageController";
+	
+	// Preferences for reading stored home parameters
+	static Preferences homePrefs;
+
 	void setup()
 	{
 		log_d("Setup MessageController");
 	}
 
+	// Helper function to start homing with stored preferences
+	void startHomingWithStoredParams(int axis)
+	{
+		#ifdef HOME_MOTOR
+		// Read stored homing parameters from preferences
+		homePrefs.begin("home", true); // read-only mode
+		int homeTimeout = homePrefs.getInt(("to_" + String(axis)).c_str(), 20000); // default 20s timeout
+		int homeSpeed = homePrefs.getInt(("hs_" + String(axis)).c_str(), 5000);    // default speed
+		int homeMaxspeed = homePrefs.getInt(("hms_" + String(axis)).c_str(), 5000); // default maxspeed
+		int homeDirection = homePrefs.getInt(("hd_" + String(axis)).c_str(), 1);    // default direction
+		int homeEndStopPolarity = homePrefs.getInt(("hep_" + String(axis)).c_str(), 0); // default polarity
+		homePrefs.end();
+		
+		log_i("Starting homing for axis %d with stored params: timeout=%d, speed=%d, maxspeed=%d, dir=%d, polarity=%d",
+			  axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+		
+		// Start homing with the stored parameters
+		HomeMotor::startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, -99, false, 0);
+		
+		// Send feedback message (key=100+axis indicates homing started)
+		sendMesageSerial(100 + axis, 1);
+		#else
+		log_w("HOME_MOTOR not defined, cannot perform homing for axis %d", axis);
+		#endif
+	}
+	
+	// Loop function - currently not used as long-press is handled in main.cpp
+	void loop()
+	{
+		// Long-press handling is done in main.cpp checkBtButtonLongPress()
+	}
+
     void triangle_changed_event(int pressed)
     {
-		sendMesageSerial(1, 1);
+		// Triangle button: Short press = Emergency release of hard-limit blocked motors
+		// Long press handling is done in main.cpp
+		
+		if (pressed)
+		{
+			// Perform emergency release of hard-limit blocked motors
+			#ifdef MOTOR_CONTROLLER
+			log_i("Triangle pressed - Releasing all hard-limit blocked motors");
+			int releasedCount = 0;
+			
+			// Check all motor axes and release any that are blocked
+			for (int axis = 0; axis < MOTOR_AXIS_COUNT; axis++)
+			{
+				if (FocusMotor::getData()[axis]->hardLimitTriggered)
+				{
+					log_i("Releasing hard-limit on axis %d via homing reset", axis);
+					
+					#ifdef HOME_MOTOR
+					// Use homing event with timeout=0 to clear hard limit
+					HomeMotor::startHome(axis, 1, 0, 0, 1, 0, -99, false, 0);
+					HomeMotor::getHomeData()[axis]->homeIsActive = false;
+					FocusMotor::getData()[axis]->isHoming = false;
+					#endif
+					
+					// Clear local state
+					FocusMotor::clearHardLimitTriggered(axis);
+					FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
+					FocusMotor::sendMotorPos(axis, 0);
+					releasedCount++;
+				}
+			}
+			
+			if (releasedCount > 0)
+			{
+				sendMesageSerial(99, releasedCount);
+				log_i("Released %d blocked motor(s)", releasedCount);
+			}
+			#endif
+			
+			// Send message for backwards compatibility
+			sendMesageSerial(1, 1);
+		}
+    }
+
+	void cross_changed_event(int pressed)
+    {
+		// Cross button: Short press action
+		// Long press handling is done in main.cpp
+		if (pressed)
+		{
+			log_i("Cross short press");
+			sendMesageSerial(2, 1);
+		}
+    }
+
+	void circle_changed_event(int pressed)
+    {
+		// Circle button: Short press action
+		// Long press handling is done in main.cpp
+		if (pressed)
+		{
+			log_i("Circle short press");
+			sendMesageSerial(3, 1);
+		}
     }
 
 	void square_changed_event(int pressed)
     {
-		sendMesageSerial(1, 0);
+		// Square button: Short press action
+		// Long press handling is done in main.cpp
+		if (pressed)
+		{
+			log_i("Square short press");
+			sendMesageSerial(4, 1);
+		}
     }
 
     // Custom function accessible by the API

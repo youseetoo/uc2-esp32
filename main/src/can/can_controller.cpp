@@ -43,6 +43,9 @@ namespace can_controller
     static uint32_t otaTimeout = 0;
     static char currentOtaSsid[MAX_SSID_LENGTH] = {0};
 
+    // Motor Set status ( motorSettingsSent[axis] = true if sent )
+    static bool motorSettingsSent[MOTOR_AXIS_COUNT] = {false};
+
     // for A,X,Y,Z intialize the I2C addresses
     uint8_t CAN_MOTOR_IDs[] = {
         pinConfig.CAN_ID_MOT_A,
@@ -169,6 +172,38 @@ namespace can_controller
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
             // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
+        else if (size == sizeof(MotorSettings))
+        {
+            // Receive motor configuration settings
+            MotorSettings receivedMotorSettings;
+            memcpy(&receivedMotorSettings, data, sizeof(MotorSettings));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            
+            // Apply settings to the motor
+            FocusMotor::getData()[mStepper]->directionPinInverted = receivedMotorSettings.directionPinInverted;
+            FocusMotor::getData()[mStepper]->joystickDirectionInverted = receivedMotorSettings.joystickDirectionInverted;
+            FocusMotor::getData()[mStepper]->isaccelerated = receivedMotorSettings.isaccelerated;
+            FocusMotor::getData()[mStepper]->isEnable = receivedMotorSettings.isEnable;
+            FocusMotor::getData()[mStepper]->maxspeed = receivedMotorSettings.maxspeed;
+            FocusMotor::getData()[mStepper]->acceleration = receivedMotorSettings.acceleration;
+            FocusMotor::getData()[mStepper]->isTriggered = receivedMotorSettings.isTriggered;
+            FocusMotor::getData()[mStepper]->offsetTrigger = receivedMotorSettings.offsetTrigger;
+            FocusMotor::getData()[mStepper]->triggerPeriod = receivedMotorSettings.triggerPeriod;
+            FocusMotor::getData()[mStepper]->triggerPin = receivedMotorSettings.triggerPin;
+            FocusMotor::getData()[mStepper]->dirPin = receivedMotorSettings.dirPin;
+            FocusMotor::getData()[mStepper]->stpPin = receivedMotorSettings.stpPin;
+            FocusMotor::getData()[mStepper]->maxPos = receivedMotorSettings.maxPos;
+            FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
+            FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
+            FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
+            FocusMotor::getData()[mStepper]->hardLimitEnabled = receivedMotorSettings.hardLimitEnabled;
+            FocusMotor::getData()[mStepper]->hardLimitPolarity = receivedMotorSettings.hardLimitPolarity;
+            
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Received MotorSettings from CAN, maxspeed: %i, acceleration: %i, softLimitEnabled: %i, hardLimitEnabled: %i, hardLimitPolarity: %i", 
+                      receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration, receivedMotorSettings.softLimitEnabled,
+                      receivedMotorSettings.hardLimitEnabled, receivedMotorSettings.hardLimitPolarity);
+        }
         else if (size == sizeof(HomeData))
         {
             // Parse as HomeData
@@ -181,9 +216,10 @@ namespace can_controller
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
+            int homeEndposRelease = receivedHomeData.homeEndposRelease;
             if (pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
-            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
+            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
         }
         else if (size == sizeof(TMCData))
         {
@@ -1147,6 +1183,16 @@ namespace can_controller
         {
             int canID = state->valueint; // Access the valueint directly from the "restart" object
             sendCANRestartByID(canID);   // Send the restart signal to the specified CAN ID
+            
+            // Reset motor settings flag for the restarted device
+            // The device will need to receive settings again after restart
+            int axis = CANid2axis(canID);
+            if (axis >= 0 && axis < MOTOR_AXIS_COUNT)
+            {
+                resetMotorSettingsFlag(axis);
+                if (pinConfig.DEBUG_CAN_ISO_TP)
+                    log_i("Reset settings flag for axis %i after restart command", axis);
+            }
         }
 
         // OTA update command to remote CAN device
@@ -1198,6 +1244,10 @@ namespace can_controller
         {
             #ifdef CAN_MASTER
             log_i("Starting CAN network scan...");
+            
+            // Reset all motor settings flags before scan
+            // New or restarted devices will need settings
+            resetAllMotorSettingsFlags();
             
             // Set flag to perform scan in loop() and send results
             scanResultPending = true;
@@ -1267,6 +1317,14 @@ namespace can_controller
 #ifdef MOTOR_CONTROLLER
         if (getData()[axis] != nullptr)
         {
+            // Send motor settings on first motor start if not already sent
+            if (!motorSettingsSent[axis] && axis < MOTOR_AXIS_COUNT)
+            {
+                MotorSettings settings = extractMotorSettings(*getData()[axis]);
+                sendMotorSettingsToCANDriver(settings, axis);
+                // Note: motorSettingsSent[axis] is set to true inside sendMotorSettingsToCANDriver
+            }
+            
             // positionsPushedToDial = false;
             if (pinConfig.DEBUG_CAN_ISO_TP)
                 log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
@@ -1415,6 +1473,82 @@ namespace can_controller
         return err;
     }
 
+    MotorSettings extractMotorSettings(const MotorData& motorData)
+    {
+        // Extract settings from MotorData struct
+        MotorSettings settings;
+        settings.directionPinInverted = motorData.directionPinInverted;
+        settings.joystickDirectionInverted = motorData.joystickDirectionInverted;
+        settings.isaccelerated = motorData.isaccelerated;
+        settings.isEnable = motorData.isEnable;
+        settings.maxspeed = motorData.maxspeed;
+        settings.acceleration = motorData.acceleration;
+        settings.isTriggered = motorData.isTriggered;
+        settings.offsetTrigger = motorData.offsetTrigger;
+        settings.triggerPeriod = motorData.triggerPeriod;
+        settings.triggerPin = motorData.triggerPin;
+        settings.dirPin = motorData.dirPin;
+        settings.stpPin = motorData.stpPin;
+        settings.maxPos = motorData.maxPos;
+        settings.minPos = motorData.minPos;
+        settings.softLimitEnabled = motorData.softLimitEnabled;
+        settings.encoderBasedMotion = motorData.encoderBasedMotion;
+        settings.hardLimitEnabled = motorData.hardLimitEnabled;
+        settings.hardLimitPolarity = motorData.hardLimitPolarity;
+        return settings;
+    }
+
+    int sendMotorSettingsToCANDriver(MotorSettings motorSettings, uint8_t axis)
+    {
+        // Send motor configuration settings to slave via CAN
+        // This should be called once during initialization or when settings change
+        uint8_t slave_addr = axis2id(axis);
+        
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Sending MotorSettings to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+                  axis, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+        
+        int err = sendCanMessage(slave_addr, (uint8_t *)&motorSettings, sizeof(MotorSettings));
+        
+        if (err != 0)
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_e("Error sending motor settings to CAN slave at address %i", slave_addr);
+        }
+        else
+        {
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("MotorSettings sent to CAN slave at address %i", slave_addr);
+            // Mark settings as sent for this axis
+            if (axis < MOTOR_AXIS_COUNT)
+                motorSettingsSent[axis] = true;
+        }
+        
+        return err;
+    }
+    
+    void resetMotorSettingsFlag(uint8_t axis)
+    {
+        // Reset flag to force settings resend on next motor start
+        if (axis < MOTOR_AXIS_COUNT)
+        {
+            motorSettingsSent[axis] = false;
+            if (pinConfig.DEBUG_CAN_ISO_TP)
+                log_i("Reset motor settings flag for axis %i - will resend on next start", axis);
+        }
+    }
+    
+    void resetAllMotorSettingsFlags()
+    {
+        // Reset all flags - useful after system-wide events like CAN bus reset
+        for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
+        {
+            motorSettingsSent[i] = false;
+        }
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Reset all motor settings flags - will resend on next start");
+    }
+
     int sendCANRestartByID(uint8_t canID)
     {
         // send a restart signal to the remote CAN device
@@ -1477,7 +1611,23 @@ namespace can_controller
 
     int sendSoftLimitsToCANDriver(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis)
     {
-        // send soft limits configuration to slave via CAN
+        // Send soft limits configuration to slave via CAN
+        // Use MotorSettings struct for this instead of individual values
+        MotorSettings settings = extractMotorSettings(*FocusMotor::getData()[axis]);
+        settings.minPos = minPos;
+        settings.maxPos = maxPos;
+        settings.softLimitEnabled = enabled;
+        
+        if (pinConfig.DEBUG_CAN_ISO_TP)
+            log_i("Updating soft limits for axis %i: min=%ld, max=%ld, enabled=%u", 
+                  axis, (long)minPos, (long)maxPos, enabled);
+        
+        return sendMotorSettingsToCANDriver(settings, axis);
+    }
+    
+    int sendSoftLimitsToCANDriver_LEGACY(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis)
+    {
+        // LEGACY: send soft limits configuration to slave via CAN using old method
         uint8_t slave_addr = axis2id(axis);
         
         SoftLimitData softLimitData;

@@ -132,7 +132,7 @@ namespace LinearEncoderController
 #ifdef HOME_MOTOR
             // we want to start a motor until the linear encoder does not track any position change
             /*
-            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": 20000} ]}}
+            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": 20000 } ]}}
             */
             cJSON *stprs = cJSON_GetObjectItem(home, key_steppers);
             if (stprs != NULL)
@@ -812,15 +812,16 @@ namespace LinearEncoderController
         edata[s]->timeSinceMotorStart = millis();
         
         // Ensure motor is properly stopped before starting homing
-        FocusMotor::stopStepper(s);
-        vTaskDelay(pdMS_TO_TICKS(100)); // Give motor time to stop
+        // FocusMotor::stopStepper(s);
+        // vTaskDelay(pdMS_TO_TICKS(100)); // Give motor time to stop
         
         // Clear any previous motion state that might interfere
         getData()[s]->isforever = true;
         getData()[s]->speed = speed;
         getData()[s]->absolutePosition = false; // Ensure relative positioning mode
         edata[s]->homeAxis = true;
-        startStepper(s, 0);
+        log_i("Starting motor for homing on axis %d", s);
+        FocusMotor::startStepper(s, 0);
         // Fast homing control loop with immediate position monitoring
         // High frequency sampling eliminates need for rolling averages
         const unsigned long maxHomingTime = 30000; // 30 second safety timeout

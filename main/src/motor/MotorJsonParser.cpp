@@ -103,6 +103,10 @@ namespace MotorJsonParser
 			cJsonTool::setJsonInt(aritem, key_steppermin, FocusMotor::getData()[i]->minPos);
 			cJsonTool::setJsonInt(aritem, key_steppermax, FocusMotor::getData()[i]->maxPos);
 			cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);
+			// Hard limit settings
+			cJsonTool::setJsonInt(aritem, "hardLimitEnabled", FocusMotor::getData()[i]->hardLimitEnabled);
+			cJsonTool::setJsonInt(aritem, "hardLimitPolarity", FocusMotor::getData()[i]->hardLimitPolarity);
+			cJsonTool::setJsonInt(aritem, "hardLimitTriggered", FocusMotor::getData()[i]->hardLimitTriggered);
 #ifdef I2C_SLAVE_MOTOR
 				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
 				
@@ -602,6 +606,71 @@ namespace MotorJsonParser
 		}
 	}
 
+	static void parseSetHardLimits(cJSON *doc)
+	{
+		/*
+		Configure hard limits (emergency stop on endstop hit during normal operation, not during homing)
+		{"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "enabled": 1, "polarity": 0}]}}
+		
+		Parameters:
+		- enabled: 1 = hard limit protection enabled (default), 0 = disabled
+		- polarity: 0 = normally open (NO, endstop is LOW when not pressed), 
+		            1 = normally closed (NC, endstop is HIGH when not pressed)
+		
+		When hard limit is triggered:
+		- Motor stops immediately
+		- Position is set to 999999 (error state indicator)
+		- User must perform homing to clear the error state
+		
+		Clear hard limit triggered flag:
+		{"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
+		*/
+
+		cJSON *hardObj = cJSON_GetObjectItemCaseSensitive(doc, "hardlimits");
+		if (!hardObj)
+		{
+			return; // no "hardlimits" key => nothing to do
+		}
+		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(hardObj, key_steppers);
+		if (!stprs)
+		{
+			return; // no "steppers" array => nothing to do
+		}
+		cJSON *stp = nullptr;
+		cJSON_ArrayForEach(stp, stprs)
+		{
+			cJSON *idItem = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
+			if (!cJSON_IsNumber(idItem))
+			{
+				continue; // skip invalid
+			}
+			int axis = idItem->valueint;
+			log_i("Processing hardlimits for stepperid %i", axis);
+			
+			// Check for clear flag (to clear the hardLimitTriggered state after homing)
+			cJSON *clearItem = cJSON_GetObjectItemCaseSensitive(stp, "clear");
+			if (clearItem && cJSON_IsNumber(clearItem) && clearItem->valueint)
+			{
+				FocusMotor::clearHardLimitTriggered(axis);
+				log_i("Cleared hard limit triggered flag for axis %i", axis);
+				continue;
+			}
+			
+			// Parse enabled and polarity settings
+			cJSON *enabledItem = cJSON_GetObjectItemCaseSensitive(stp, "enabled");
+			cJSON *polarityItem = cJSON_GetObjectItemCaseSensitive(stp, "polarity");
+			
+			// Default values: enabled = true, polarity = 0 (normally open)
+			bool enabled = enabledItem ? enabledItem->valueint : true;
+			bool polarity = polarityItem ? polarityItem->valueint : false;
+			
+			log_i("Set hardlimits: stepperid %i, enabled %i, polarity %i (0=NO, 1=NC)", axis, enabled, polarity);
+
+			// Apply hard limits - this also saves to preferences and notifies CAN slaves
+			FocusMotor::setHardLimit(axis, enabled, polarity);
+		}
+	}
+
 	int countKeysExcludingQID(cJSON *obj)
 	{
 		int count = 0;
@@ -758,7 +827,9 @@ namespace MotorJsonParser
 
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					bool isStop = (cstop != NULL) ? cstop->valueint : false;
+					FocusMotor::clearHardLimitTriggered(s);// TODO: Is this a good spot to clear the hard limit flag here? Otherwise the motor won't recognize the stop event 
 					FocusMotor::toggleStepper(s, isStop, isReduced); // not reduced
+
 				}
 			}
 			else
@@ -795,6 +866,11 @@ namespace MotorJsonParser
 		// set soft limits of motors
 		// {"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -100000, "max": 10000, "isen": 1}]}}
 		parseSetSoftLimits(doc);
+
+		// set hard limits (emergency stop on endstop hit during normal operation)
+		// {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 2, "enabled": 0, "polarity": 0}]}}
+		// Clear hard limit triggered flag: {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
+		parseSetHardLimits(doc);
 
 		// set joystick direction inversion
 		// {"task": "/motor_act", "joystickdir": {"steppers": [{"stepperid": 1, "inverted": 1}]}}

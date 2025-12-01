@@ -82,6 +82,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_direction = "direc
 __attribute__ ((unused)) static const PROGMEM char * key_home_timestarted = "timestarted";
 __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isactive";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
+__attribute__ ((unused)) static const PROGMEM char * key_home_endstoprelease = "endstoprelease";
 #endif 
 __attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";
 

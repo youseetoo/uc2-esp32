@@ -68,6 +68,8 @@ Preferences preferences;
 #include "src/motor/FocusMotor.h"
 #include "src/motor/MotorGamePad.h"
 #endif
+// Include MotorTypes for Stepper enum used in BT button handlers
+#include "src/motor/MotorTypes.h"
 #ifdef PID_CONTROLLER
 #include "src/pid/PidController.h"
 #endif
@@ -117,6 +119,12 @@ long lastHeapUpdateTime = 0;
 bool state_led = false;
 long time_led = 0;
 long period_led = 1000;
+
+// Forward declaration for BT button long-press check
+#ifdef BLUETOOTH
+static void checkBtButtonLongPress();
+#endif
+
 extern "C" void looper(void *p)
 {
 	log_i("Starting loop");
@@ -184,6 +192,15 @@ extern "C" void looper(void *p)
 		LedController::loop();
 		vTaskDelay(1);
 #endif
+#ifdef MESSAGE_CONTROLLER
+		MessageController::loop();
+		vTaskDelay(1);
+#endif
+#ifdef BLUETOOTH
+		// Check for long-press homing on PS4/PS5 controller buttons
+		checkBtButtonLongPress();
+		vTaskDelay(1);
+#endif
 #ifdef MOTOR_CONTROLLER
 		FocusMotor::loop();
 		vTaskDelay(1);
@@ -233,31 +250,191 @@ extern "C" void looper(void *p)
 }
 
 #ifdef BLUETOOTH
-static void handleSquareLongPress(int pressed)
-{
-    // Store the press time in milliseconds
-    static unsigned long pressStart = 0;
+// Long-press duration for homing (5 seconds)
+static const uint32_t HOMING_LONG_PRESS_MS = 5000;
 
+// Button state tracking for long-press detection
+struct BtButtonState {
+    bool isPressed;
+    uint32_t pressStartTime;
+    bool longPressTriggered;
+};
+
+static BtButtonState btTriangleState = {false, 0, false};  // Axis A
+static BtButtonState btCrossState = {false, 0, false};     // Axis X
+static BtButtonState btCircleState = {false, 0, false};    // Axis Y
+static BtButtonState btSquareState = {false, 0, false};    // Axis Z
+
+// Combined Triangle handler: short press = hard limit release, long press = home axis A
+static void handleTriangleCombined(int pressed)
+{
     if (pressed)
     {
-        // Button pressed: record the time
-        pressStart = millis();
+        btTriangleState.isPressed = true;
+        btTriangleState.pressStartTime = millis();
+        btTriangleState.longPressTriggered = false;
     }
     else
     {
-        // Button released: check duration
-        unsigned long pressDuration = millis() - pressStart;
-        if (pressDuration > 3000) // 3 seconds
+        if (btTriangleState.isPressed && !btTriangleState.longPressTriggered)
         {
-            SerialProcess::safePrintln("Square button long-press detected, rebooting...");
-            ESP.restart();
+            // Short press - call MessageController for hard limit release
+            #ifdef MESSAGE_CONTROLLER
+            MessageController::triangle_changed_event(1); // pressed
+            MessageController::triangle_changed_event(0); // released
+            #endif
+        }
+        btTriangleState.isPressed = false;
+    }
+}
+
+// Combined Cross handler: short press = laser toggle, long press = home axis X
+static void handleCrossCombined(int pressed)
+{
+    if (pressed)
+    {
+        btCrossState.isPressed = true;
+        btCrossState.pressStartTime = millis();
+        btCrossState.longPressTriggered = false;
+        // Don't trigger action on press - wait for release to determine short/long press
+    }
+    else
+    {
+        if (btCrossState.isPressed && !btCrossState.longPressTriggered)
+        {
+            // Short press - trigger laser toggle only on release
+            #ifdef LASER_CONTROLLER
+            LaserController::cross_changed_event(1); // simulate press
+            LaserController::cross_changed_event(0); // simulate release
+            #endif
+        }
+        btCrossState.isPressed = false;
+    }
+}
+
+// Combined Circle handler: short press = LED toggle, long press = home axis Y
+static void handleCircleCombined(int pressed)
+{
+    if (pressed)
+    {
+        btCircleState.isPressed = true;
+        btCircleState.pressStartTime = millis();
+        btCircleState.longPressTriggered = false;
+        // Don't trigger action on press - wait for release to determine short/long press
+    }
+    else
+    {
+        if (btCircleState.isPressed && !btCircleState.longPressTriggered)
+        {
+            // Short press - trigger LED toggle only on release
+            #ifdef LED_CONTROLLER
+            LedController::circle_changed_event(1); // simulate press
+            LedController::circle_changed_event(0); // simulate release
+            #endif
+        }
+        btCircleState.isPressed = false;
+    }
+}
+
+// Combined Square handler: short press = normal, 3s = reboot, 5s = home axis Z
+static void handleSquareCombined(int pressed)
+{
+    if (pressed)
+    {
+        btSquareState.isPressed = true;
+        btSquareState.pressStartTime = millis();
+        btSquareState.longPressTriggered = false;
+        // Don't trigger action on press - wait for release to determine short/long press
+    }
+    else
+    {
+        if (btSquareState.isPressed && !btSquareState.longPressTriggered)
+        {
+            // Check for medium long press (3s) for reboot
+            uint32_t pressDuration = millis() - btSquareState.pressStartTime;
+            if (pressDuration > 3000)
+            {
+                SerialProcess::safePrintln("Square button long-press detected, rebooting...");
+                ESP.restart();
+            }
+            else
+            {
+                // Short press - trigger message only on release
+                #ifdef MESSAGE_CONTROLLER
+                MessageController::square_changed_event(1); // simulate press
+                MessageController::square_changed_event(0); // simulate release
+                #endif
+            }
+        }
+        btSquareState.isPressed = false;
+    }
+}
+
+// Check for long-press homing on all buttons - called from main loop
+static void checkBtButtonLongPress()
+{
+    uint32_t currentTime = millis();
+    
+    #ifdef HOME_MOTOR
+    // Triangle - Axis A
+    if (btTriangleState.isPressed && !btTriangleState.longPressTriggered)
+    {
+        if (currentTime - btTriangleState.pressStartTime >= HOMING_LONG_PRESS_MS)
+        {
+            btTriangleState.longPressTriggered = true;
+            log_i("Triangle long press - starting homing for axis A");
+            MessageController::startHomingWithStoredParams(Stepper::A);  // TODO: Not sure if this is the right controller - rather HomeMotor??
+			MessageController::startHomingWithStoredParams(Stepper::A);  // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
         }
     }
+    
+    // Cross - Axis X
+    if (btCrossState.isPressed && !btCrossState.longPressTriggered)
+    {
+        if (currentTime - btCrossState.pressStartTime >= HOMING_LONG_PRESS_MS)
+        {
+            btCrossState.longPressTriggered = true;
+            log_i("Cross long press - starting homing for axis X");
+            MessageController::startHomingWithStoredParams(Stepper::X);  // TODO: Not sure if this is the right controller - rather HomeMotor??
+			MessageController::startHomingWithStoredParams(Stepper::X);  // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
+        }
+    }
+    
+    // Circle - Axis Y
+    if (btCircleState.isPressed && !btCircleState.longPressTriggered)
+    {
+        if (currentTime - btCircleState.pressStartTime >= HOMING_LONG_PRESS_MS)
+        {
+            btCircleState.longPressTriggered = true;
+            log_i("Circle long press - starting homing for axis Y");
+            MessageController::startHomingWithStoredParams(Stepper::Y); // TODO: Not sure if this is the right controller - rather HomeMotor??
+			MessageController::startHomingWithStoredParams(Stepper::Y); // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
+
+        }
+    }
+    
+    // Square - Axis Z
+    if (btSquareState.isPressed && !btSquareState.longPressTriggered)
+    {
+        if (currentTime - btSquareState.pressStartTime >= HOMING_LONG_PRESS_MS)
+        {
+            btSquareState.longPressTriggered = true;
+            log_i("Square long press - starting homing for axis Z");
+            MessageController::startHomingWithStoredParams(Stepper::Z);  // TODO: Not sure if this is the right controller - rather HomeMotor??
+			MessageController::startHomingWithStoredParams(Stepper::Z);  // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
+        }
+    }
+    #endif
 }
 #endif
 
 extern "C" void setupApp(void)
 {
+	// Short delay to allow USB CDC to stabilize before setup
+	// This helps prevent upload issues on ESP32-S3 with native USB
+	#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+	delay(500);
+	#endif
 
 	log_i("SetupApp");
 	// setup debugging level
@@ -305,29 +482,30 @@ extern "C" void setupApp(void)
 #ifdef BLUETOOTH
 	log_i("BtController setup");
 	BtController::setup();
-	#ifdef LED_CONTROLLER
-		BtController::setCircleChangedEvent(LedController::circle_changed_event);
-		#endif
-		#ifdef MESSAGE_CONTROLLER
-		BtController::setTriangleChangedEvent(MessageController::triangle_changed_event);
-		BtController::setSquareChangedEvent(MessageController::square_changed_event);
-		BtController::setSquareChangedEvent(handleSquareLongPress);
-		#endif
-		#ifdef LASER_CONTROLLER
-		//BtController::setCircleChangedEvent(LaserController::triangle_changed_event);
-		//BtController::setCrossChangedEvent(LaserController::square_changed_event);
-		BtController::setCrossChangedEvent(LaserController::cross_changed_event);
+	
+	// Register combined button handlers that support both short and long press
+	// Triangle: short = hard limit release, long (5s) = home axis A
+	BtController::setTriangleChangedEvent(handleTriangleCombined);
+	
+	// Cross: short = laser toggle, long (5s) = home axis X
+	BtController::setCrossChangedEvent(handleCrossCombined);
+	
+	// Circle: short = LED toggle, long (5s) = home axis Y  
+	BtController::setCircleChangedEvent(handleCircleCombined);
+	
+	// Square: short = normal, 3s = reboot, 5s = home axis Z
+	BtController::setSquareChangedEvent(handleSquareCombined);
+	
+	#ifdef LASER_CONTROLLER
 		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
 	#endif
 	#ifdef OBJECTIVE_CONTROLLER
-		BtController::setShareChangedEvent(ObjectiveController::share_changed_event); // TODO: toggle objective lens 
-		#endif
-		#ifdef MOTOR_CONTROLLER
+		BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
+	#endif
+	#ifdef MOTOR_CONTROLLER
 		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
 		BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
-		BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event); //TODO: toggle between fine/coarse mode (e.g. factor of 10) in the joystick magnitude for the moros 
-
-		//log_i("BtController xyza_changed_event nullptr %d", BtController::xyza_changed_event == nullptr);
+		BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event);
 	#endif
 #endif
 #ifdef DAC_CONTROLLER

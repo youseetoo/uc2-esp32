@@ -16,9 +16,9 @@ struct MotorState {
 
 
 #pragma pack(push,1)
-struct MotorDataReduced
+struct MotorAction
 {
-	// a stripped down version of MotorData to be sent over I2C
+	// Runtime motor commands - sent frequently via CAN/I2C
 	int32_t targetPosition = 0;
 	int32_t speed = 0;
 	bool isforever = false;
@@ -27,42 +27,86 @@ struct MotorDataReduced
 }__attribute__((packed));
 #pragma pack(pop)
 
+// Legacy alias for backwards compatibility
+typedef MotorAction MotorDataReduced;
+
+
+#pragma pack(push,1)
+struct MotorSettings
+{
+	// Motor configuration settings - sent once or rarely
+	bool directionPinInverted = false;
+	bool joystickDirectionInverted = false;
+	bool isaccelerated = false;
+	bool isEnable = true;
+	int32_t maxspeed = 200000;
+	int32_t acceleration = 0;
+	
+	// Trigger settings
+	bool isTriggered = false;
+	int32_t offsetTrigger = 0;
+	int32_t triggerPeriod = -1;
+	int triggerPin = -1;
+	
+	// Pin configuration (can be removed if handled via PinConfig)
+	int dirPin = -1;
+	int stpPin = -1;
+	
+	// Soft limits
+	uint32_t maxPos = 0;
+	uint32_t minPos = 0;
+	bool softLimitEnabled = false;
+	
+	// Advanced features
+	bool encoderBasedMotion = false;
+	
+	// Hard limit settings (emergency stop on endstop hit)
+	bool hardLimitEnabled = true;  // Enabled by default
+	bool hardLimitPolarity = 0;    // 0 = normally open (NO), 1 = normally closed (NC)
+}__attribute__((packed));
+#pragma pack(pop)
+
 
 
 #pragma pack(push,1)
 struct MotorData
 {
-	bool directionPinInverted = false;
-	bool joystickDirectionInverted = false; // invert joystick direction for this axis (0/1)
+	// Runtime action fields
 	int32_t speed = 0;
-	int32_t maxspeed = 200000;
-	int32_t acceleration = 0;
 	int32_t targetPosition = 0;
 	int32_t currentPosition = 0;
 	int isforever = false;
-	bool isaccelerated = false;
-	// running relative or aboslute position! gets ignored when isforever is true
-	bool absolutePosition = false; 	
-	bool isEnable = true; // keeping motor on after job is completed?
+	bool absolutePosition = false;
+	bool isStop = false;
 	int qid = -1;
-	bool isStop = false; // stop motor or not
-
-	//internal state used by fast/accel stepper, maybe it shoulde get renamed to isRunning^^ but that need also to invert all true false values
+	
+	// Internal state
 	bool stopped = true;
 	bool endstop_hit = false;
-
-	// for triggering frame or lineclock
-	bool isTriggered = false; // state if we send a pulse
-	int32_t offsetTrigger = 0;	// offset in steps
-	int32_t triggerPeriod = -1; // give a pulse every n steps
-	int triggerPin = -1;	 // pin to trigger (0,1,2 - depends on pinConfig)
+	bool isHoming = false; // homing in progress - ignore soft limits
+	
+	// Settings - these should eventually be moved to MotorSettings
+	bool directionPinInverted = false;
+	bool joystickDirectionInverted = false;
+	bool isaccelerated = false;
+	bool isEnable = true;
+	int32_t maxspeed = 200000;
+	int32_t acceleration = 0;
+	bool isTriggered = false;
+	int32_t offsetTrigger = 0;
+	int32_t triggerPeriod = -1;
+	int triggerPin = -1;
 	int dirPin = -1;
 	int stpPin = -1;
-	uint32_t maxPos = 0; // max position in steps
-	uint32_t minPos = 0; // min position in steps
-	bool softLimitEnabled = false; // soft limit enabled
-	bool encoderBasedMotion = false; // use encoder feedback for precise motion control
-	bool isHoming = false; // homing in progress - ignore soft limits
+	uint32_t maxPos = 0;
+	uint32_t minPos = 0;
+	bool softLimitEnabled = false;
+	bool encoderBasedMotion = false;
+	
+	// Hard limit runtime state (settings are in MotorSettings, sent via CAN to slaves)
+	bool hardLimitEnabled = true;   // Runtime copy from MotorSettings
+	bool hardLimitPolarity = 0;     // Runtime copy from MotorSettings (0=NO, 1=NC)
+	bool hardLimitTriggered = false; // Flag indicating hard limit was triggered (position set to 999999)
 	
 }__attribute__((packed));
 #pragma pack(pop)

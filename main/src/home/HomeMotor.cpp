@@ -453,14 +453,15 @@ int axis = 0;
 				// Move to safe zone position relative to home (0)
 				log_i("Home Motor %i moving to safe zone position %i after homing", s, hdata[s]->homeEndposRelease);
 				FocusMotor::getData()[s]->isforever = false;
+				FocusMotor::getData()[s]->targetPosition = hdata[s]->homeEndposRelease;  // Set the target position
+				FocusMotor::getData()[s]->absolutePosition = false;  // Relative movement
 				FocusMotor::getData()[s]->speed = abs(hdata[s]->homeSpeed);
 				FocusMotor::getData()[s]->isEnable = 1;
 				FocusMotor::getData()[s]->isaccelerated = 0;
 				FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
 				FocusMotor::getData()[s]->isStop = 0;
 				FocusMotor::getData()[s]->stopped = false;
-				// Pass the actual distance to move, not 0
-				FocusMotor::startStepper(s, hdata[s]->homeEndposRelease);
+				FocusMotor::startStepper(s, 0);  // reduced=0 for full MotorData transfer
 			}
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag

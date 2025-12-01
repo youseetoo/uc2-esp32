@@ -157,16 +157,6 @@ namespace BtController
     }
 #endif
 
-    void checkdata(int first, int sec, void (*event)(int t))
-    {
-        if (first != sec)
-        {
-            first = sec;
-            if (event != nullptr)
-                event(first);
-        }
-    }
-
     // Process trackpad data and detect swipes
     void processTrackpadData(TrackpadData& currentData)
     {
@@ -242,13 +232,44 @@ namespace BtController
         //log_i("hid connected:%i", hidIsConnected);
         if (hidIsConnected and (millis()-updateRateMS)>lastUpdate)
         {
-            //log_i("cross_changed_event nullptr %i", cross_changed_event == nullptr);
-            checkdata(lastData.cross, gamePadData.cross, cross_changed_event);
-            checkdata(lastData.circle, gamePadData.circle, circle_changed_event);
-            checkdata(lastData.triangle, gamePadData.triangle, triangle_changed_event);
-            checkdata(lastData.square, gamePadData.square, square_changed_event);
-            checkdata(lastData.options, gamePadData.options, options_changed_event);
-            checkdata(lastData.share, gamePadData.share, share_changed_event);
+            // Check each button for state change and call event handler
+            // Only trigger event when state actually changes
+            if (lastData.cross != gamePadData.cross)
+            {
+                lastData.cross = gamePadData.cross;
+                if (cross_changed_event != nullptr)
+                    cross_changed_event(gamePadData.cross);
+            }
+            if (lastData.circle != gamePadData.circle)
+            {
+                lastData.circle = gamePadData.circle;
+                if (circle_changed_event != nullptr)
+                    circle_changed_event(gamePadData.circle);
+            }
+            if (lastData.triangle != gamePadData.triangle)
+            {
+                lastData.triangle = gamePadData.triangle;
+                if (triangle_changed_event != nullptr)
+                    triangle_changed_event(gamePadData.triangle);
+            }
+            if (lastData.square != gamePadData.square)
+            {
+                lastData.square = gamePadData.square;
+                if (square_changed_event != nullptr)
+                    square_changed_event(gamePadData.square);
+            }
+            if (lastData.options != gamePadData.options)
+            {
+                lastData.options = gamePadData.options;
+                if (options_changed_event != nullptr)
+                    options_changed_event(gamePadData.options);
+            }
+            if (lastData.share != gamePadData.share)
+            {
+                lastData.share = gamePadData.share;
+                if (share_changed_event != nullptr)
+                    share_changed_event(gamePadData.share);
+            }
             if(lastData.dpaddirection != gamePadData.dpaddirection)
             {
                 lastData.dpaddirection = gamePadData.dpaddirection;
@@ -296,13 +317,46 @@ namespace BtController
     {
         if (psx != nullptr && psx->isConnected())
         {
-            checkdata(lastData.cross, psx->event.button_down.cross, cross_changed_event);
-            checkdata(lastData.circle, psx->event.button_down.circle, circle_changed_event);
-            checkdata(lastData.triangle, psx->event.button_down.triangle, triangle_changed_event);
-            checkdata(lastData.square, psx->event.button_down.square, square_changed_event);
-            checkdata(lastData.options, psx->event.button_down.options, options_changed_event);
-            checkdata(lastData.share, psx->event.button_down.share, share_changed_event);
-            Dpad::Direction dir;
+            // Check each button for state change and call event handler
+            // Only trigger event when state actually changes
+            if (lastData.cross != psx->event.button_down.cross)
+            {
+                lastData.cross = psx->event.button_down.cross;
+                if (cross_changed_event != nullptr)
+                    cross_changed_event(psx->event.button_down.cross);
+            }
+            if (lastData.circle != psx->event.button_down.circle)
+            {
+                lastData.circle = psx->event.button_down.circle;
+                if (circle_changed_event != nullptr)
+                    circle_changed_event(psx->event.button_down.circle);
+            }
+            if (lastData.triangle != psx->event.button_down.triangle)
+            {
+                lastData.triangle = psx->event.button_down.triangle;
+                if (triangle_changed_event != nullptr)
+                    triangle_changed_event(psx->event.button_down.triangle);
+            }
+            if (lastData.square != psx->event.button_down.square)
+            {
+                lastData.square = psx->event.button_down.square;
+                if (square_changed_event != nullptr)
+                    square_changed_event(psx->event.button_down.square);
+            }
+            if (lastData.options != psx->event.button_down.options)
+            {
+                lastData.options = psx->event.button_down.options;
+                if (options_changed_event != nullptr)
+                    options_changed_event(psx->event.button_down.options);
+            }
+            if (lastData.share != psx->event.button_down.share)
+            {
+                lastData.share = psx->event.button_down.share;
+                if (share_changed_event != nullptr)
+                    share_changed_event(psx->event.button_down.share);
+            }
+            
+            Dpad::Direction dir = Dpad::Direction::none;
             if (psx->event.button_down.up)
                 dir = Dpad::Direction::up;
             if (psx->event.button_down.down)

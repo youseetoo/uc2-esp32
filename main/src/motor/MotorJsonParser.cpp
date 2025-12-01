@@ -868,7 +868,7 @@ namespace MotorJsonParser
 		parseSetSoftLimits(doc);
 
 		// set hard limits (emergency stop on endstop hit during normal operation)
-		// {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "enabled": 1, "polarity": 0}]}}
+		// {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 2, "enabled": 0, "polarity": 0}]}}
 		// Clear hard limit triggered flag: {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
 		parseSetHardLimits(doc);
 

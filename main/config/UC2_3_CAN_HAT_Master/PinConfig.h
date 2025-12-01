@@ -30,7 +30,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      const char * pindefName = "UC2_3_CAN_HAT_Master";
      const unsigned long BAUDRATE = 115200;
 
-     bool DEBUG_CAN_ISO_TP = 1;
+     bool DEBUG_CAN_ISO_TP = 0;
      int8_t MOTOR_A_STEP = GPIO_NUM_0;
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;
@@ -110,8 +110,8 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      // Objective
      uint8_t objectiveMotorAxis = 0; // 0=A, 1=X, 2=Y, 3=Z
      uint8_t focusMotorAxis = 3;
-     uint32_t objectivePositionX1 = 5000;
-     uint32_t objectivePositionX2 = 35000;
+     uint32_t objectivePositionX0 = 5000;
+     uint32_t objectivePositionX1 = 35000;
      int8_t objectiveHomeDirection = -1;
      int8_t objectiveHomeEndStopPolarity = 0;
 			

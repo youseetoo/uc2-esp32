@@ -158,6 +158,7 @@ namespace LedController
 
 	// ------------------------------------------------
 	// 8) Halves: fill left/right/top/bottom with color, rest dark
+	//    For illumination board with concentric rings, uses segment indices from PinConfig
 	// ------------------------------------------------
 	void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b)
 	{
@@ -165,6 +166,17 @@ namespace LedController
 
 		matrix->clear();
 
+		// Check if this is an illumination board with ring segments defined
+		#ifdef LED_CONTROLLER
+		if (pinConfig.SEGMENT_INNER_COUNT > 0)
+		{
+			// Use ring segment addressing for illumination board
+			fillHalvesRingSegments(region, r, g, b);
+			return;
+		}
+		#endif
+
+		// Default matrix-based halves for other configurations
 		if (strcasecmp(region, "left") == 0)
 		{
 			for (int y = 0; y < pinConfig.MATRIX_H; y++)
@@ -210,6 +222,110 @@ namespace LedController
 		matrix->show();
 		isOn = (r || g || b);
 #endif
+	}
+
+	// ------------------------------------------------
+	// 8b) Ring segment halves: fill segment across all rings using pinConfig indices
+	//     For illumination board with 4 concentric rings
+	//     Quadrant layout (viewing from front):
+	//       Q1 (top-left)  | Q3 (top-right)
+	//       ---------------+---------------
+	//       Q2 (bottom-left)| Q4 (bottom-right)
+	//     
+	//     Halves:
+	//       left = Q1 + Q2, right = Q3 + Q4
+	//       top = Q1 + Q3,  bottom = Q2 + Q4
+	// ------------------------------------------------
+	void fillHalvesRingSegments(const char *region, uint8_t r, uint8_t g, uint8_t b)
+	{
+		log_i("fillHalvesRingSegments: region=%s, r=%d, g=%d, b=%d", region, r, g, b);
+		
+		// Helper lambda to set LEDs for a segment in one ring
+		auto setRingSegment = [&](uint16_t ringStart, uint16_t segmentOffset, uint16_t count) {
+			for (uint16_t i = 0; i < count; i++) {
+				matrix->setPixelColor(ringStart + segmentOffset + i, matrix->Color(r, g, b));
+			}
+		};
+
+		// Helper to set Q1 (top-left) across all rings - uses LEFT and TOP quadrants overlap
+		auto setQ1 = [&]() {
+			// Q1 is the TOP segment (top-left in our coordinate system)
+			setRingSegment(pinConfig.RING_INNER_START, pinConfig.SEGMENT_INNER_TOP_START, pinConfig.SEGMENT_INNER_COUNT);
+			setRingSegment(pinConfig.RING_MIDDLE_START, pinConfig.SEGMENT_MIDDLE_TOP_START, pinConfig.SEGMENT_MIDDLE_COUNT);
+			setRingSegment(pinConfig.RING_BIGGEST_START, pinConfig.SEGMENT_BIGGEST_TOP_START, pinConfig.SEGMENT_BIGGEST_COUNT);
+			setRingSegment(pinConfig.RING_OUTEST_START, pinConfig.SEGMENT_OUTEST_TOP_START, pinConfig.SEGMENT_OUTEST_COUNT);
+		};
+
+		// Helper to set Q2 (bottom-left) across all rings - uses LEFT segment
+		auto setQ2 = [&]() {
+			setRingSegment(pinConfig.RING_INNER_START, pinConfig.SEGMENT_INNER_LEFT_START, pinConfig.SEGMENT_INNER_COUNT);
+			setRingSegment(pinConfig.RING_MIDDLE_START, pinConfig.SEGMENT_MIDDLE_LEFT_START, pinConfig.SEGMENT_MIDDLE_COUNT);
+			setRingSegment(pinConfig.RING_BIGGEST_START, pinConfig.SEGMENT_BIGGEST_LEFT_START, pinConfig.SEGMENT_BIGGEST_COUNT);
+			setRingSegment(pinConfig.RING_OUTEST_START, pinConfig.SEGMENT_OUTEST_LEFT_START, pinConfig.SEGMENT_OUTEST_COUNT);
+		};
+
+		// Helper to set Q3 (top-right) across all rings - uses RIGHT segment
+		auto setQ3 = [&]() {
+			setRingSegment(pinConfig.RING_INNER_START, pinConfig.SEGMENT_INNER_RIGHT_START, pinConfig.SEGMENT_INNER_COUNT);
+			setRingSegment(pinConfig.RING_MIDDLE_START, pinConfig.SEGMENT_MIDDLE_RIGHT_START, pinConfig.SEGMENT_MIDDLE_COUNT);
+			setRingSegment(pinConfig.RING_BIGGEST_START, pinConfig.SEGMENT_BIGGEST_RIGHT_START, pinConfig.SEGMENT_BIGGEST_COUNT);
+			setRingSegment(pinConfig.RING_OUTEST_START, pinConfig.SEGMENT_OUTEST_RIGHT_START, pinConfig.SEGMENT_OUTEST_COUNT);
+		};
+
+		// Helper to set Q4 (bottom-right) across all rings - uses BOTTOM segment
+		auto setQ4 = [&]() {
+			setRingSegment(pinConfig.RING_INNER_START, pinConfig.SEGMENT_INNER_BOTTOM_START, pinConfig.SEGMENT_INNER_COUNT);
+			setRingSegment(pinConfig.RING_MIDDLE_START, pinConfig.SEGMENT_MIDDLE_BOTTOM_START, pinConfig.SEGMENT_MIDDLE_COUNT);
+			setRingSegment(pinConfig.RING_BIGGEST_START, pinConfig.SEGMENT_BIGGEST_BOTTOM_START, pinConfig.SEGMENT_BIGGEST_COUNT);
+			setRingSegment(pinConfig.RING_OUTEST_START, pinConfig.SEGMENT_OUTEST_BOTTOM_START, pinConfig.SEGMENT_OUTEST_COUNT);
+		};
+
+		// Individual quadrants
+		if (strcasecmp(region, "q1") == 0)
+		{
+			setQ1();
+		}
+		else if (strcasecmp(region, "q2") == 0)
+		{
+			setQ2();
+		}
+		else if (strcasecmp(region, "q3") == 0)
+		{
+			setQ3();
+		}
+		else if (strcasecmp(region, "q4") == 0)
+		{
+			setQ4();
+		}
+		// Halves (combinations of quadrants)
+		else if (strcasecmp(region, "left") == 0)
+		{
+			// left = Q1 + Q2
+			setQ1();
+			setQ2();
+		}
+		else if (strcasecmp(region, "right") == 0)
+		{
+			// right = Q3 + Q4
+			setQ3();
+			setQ4();
+		}
+		else if (strcasecmp(region, "top") == 0)
+		{
+			// top = Q1 + Q3
+			setQ1();
+			setQ3();
+		}
+		else if (strcasecmp(region, "bottom") == 0)
+		{
+			// bottom = Q2 + Q4
+			setQ2();
+			setQ4();
+		}
+		// else unknown => remain dark
+
+		matrix->show();
+		isOn = (r || g || b);
 	}
 
 	// ------------------------------------------------
@@ -418,20 +534,29 @@ namespace LedController
 	// ------------------------------------------------
 	bool parseLedCommand(cJSON *root, LedCommand &cmd)
 	{
-		// Expect a top-level "task" == "/ledarr_act" plus "qid",
-		// then a nested "led" object with the actual LED parameters.
-		// E.g.:
-		// { "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "fill", "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 1, "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
-		// { "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
-		// { "task": "/ledarr_act", "qid": 17, "led"} 
+		/*
+		Expect a top-level "task" == "/ledarr_act" plus "qid",
+		then a nested "led" object with the actual LED parameters.
+		E.g.:
+		{ "task": "/ledarr_act", "qid": 17, "led": { "LEDArrMode": 1, "action": "rings", "region": "left", "radius": 4, "r": 255, "g": 255, "b": 255, "ledIndex": 12, "led_array": [ { "id": 0, "r": 255, "g": 255, "b": 0 }, { "id": 5, "r": 128, "g": 0,   "b": 128 } ] } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "fill", "r": 255, "g": 255, "b": 255 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 12, "r": 255, "g": 0, "b": 0 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "top", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "bottom", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q1", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q2", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q3", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q4", "r": 15, "g": 15, "b": 15} }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 0, "r": 255, "g": 255, "b": 255 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
+		{ "task": "/ledarr_act", "qid": 17, "led"} 
+		{"task": "/laser_act", "LASERid":3, "LASERval": 1000, "LASERdespeckle": 0,  "LASERdespecklePeriod": 30}
 
+		*/
 		// 1) Check for "task"
 		cJSON *task = cJSON_GetObjectItem(root, "task");
 		if (!task || strcmp(task->valuestring, "/ledarr_act") != 0)

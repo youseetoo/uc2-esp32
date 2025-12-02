@@ -110,6 +110,7 @@
 {"task": "/laser_act", "LASERid":3, "LASERval": 200}
 {"task": "/laser_act", "LASERid":1, "LASERval": 1000, "LASERdespeckle": 0,  "LASERdespecklePeriod": 30}
 {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo
+{"task": "/laser_act", "LASERid":0, "LASERval": 100}
 {"task": "/laser_act", "LASERid":1, "LASERval": 100}
 {"task": "/laser_act", "LASERid":2, "LASERval": 100}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1023}
@@ -290,11 +291,8 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 		{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 20000, "speed": 10000, "direction":-1, "endstoppolarity":1}]}}
 		{"task":"/tmc_act", "msteps":16, "rms_current":600, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":0}
 
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "bottom", "r": 15, "g": 15, "b": 15} }
 
-
-{"task":"/ledarr_act", "qid":1, "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":255, "b":255}]}}
-{"task":"/ledarr_act", "led":{"LEDArrMode":1, "led_array":[{"id":0, "r":0, "g":0, "b":0}]}}
-{"task":"/ledarr_act", "led":{"LEDArrMode":0, "led_array":[{"id":0, "r":0, "g":5, "b":0}]}}
 
 
 

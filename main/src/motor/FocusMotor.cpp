@@ -169,9 +169,9 @@ namespace FocusMotor
 			if (shouldUseCANForAxis(axis))
 			{
 				// Route to CAN satellite
-				log_i("Hybrid mode: Routing axis %d to CAN", axis);
-				MotorData *m = getData()[axis];
-				int err = can_controller::startStepper(m, axis, reduced);
+				log_i("Hybrid mode: Routing axis %d to CAN at address %d", axis, can_controller::axis2id(axis-4));
+				MotorData *m = getData()[axis-4];
+				int err = can_controller::startStepper(m, axis-4, reduced);
 				if (err != 0)
 				{
 					getData()[axis]->stopped = true;

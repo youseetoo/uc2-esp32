@@ -46,7 +46,7 @@ struct UC2_4_CAN_HYBRID : PinConfig
   
      const char * pindefName = "UC2_4_CAN_HYBRID";
      const unsigned long BAUDRATE = 115200;
-     bool DEBUG_CAN_ISO_TP = 0;
+     bool DEBUG_CAN_ISO_TP = 1;
 
      // Native motor drivers (on-board via TCA9535)
      int8_t MOTOR_A_STEP = GPIO_NUM_15;

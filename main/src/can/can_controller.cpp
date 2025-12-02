@@ -27,6 +27,10 @@ using namespace LedController;
 #endif
 using namespace FocusMotor;
 
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
 namespace can_controller
 {
 
@@ -221,6 +225,7 @@ namespace can_controller
                 log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
         }
+        #ifdef TMC_CONTROLLER
         else if (size == sizeof(TMCData))
         {
             // parse incoming TMC Data and apply that to the TMC driver
@@ -232,6 +237,7 @@ namespace can_controller
                 log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
             TMCController::applyParamsToDriver(receivedTMCData, true);
         }
+        #endif
         else if (size == sizeof(MotorDataValueUpdate))
         {
             // Minimal single-value update for every part from the MotorData struct

@@ -751,13 +751,11 @@ namespace LaserController
 			if (laser4ToggleState)
 			{
 				// Turn Laser 4 to MAX
-				Serial.println("Cross pressed - Laser 4 MAX");
 				setLaserVal(4, 10000);
 			}
 			else
 			{
 				// Turn Laser 4 to MIN
-				Serial.println("Cross pressed - Laser 4 MIN");
 				setLaserVal(4, 0);
 			}
 		}

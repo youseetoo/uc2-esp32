@@ -550,11 +550,11 @@ namespace LedController
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q2", "r": 15, "g": 15, "b": 15} }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q3", "r": 15, "g": 15, "b": 15} }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q4", "r": 15, "g": 15, "b": 15} }
-		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 0, "r": 255, "g": 255, "b": 255 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 3, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
 		{ "task": "/ledarr_act", "qid": 17, "led"} 
-		{"task": "/laser_act", "LASERid":3, "LASERval": 1000, "LASERdespeckle": 0,  "LASERdespecklePeriod": 30}
+		{"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":5}
 
 		*/
 		// 1) Check for "task"

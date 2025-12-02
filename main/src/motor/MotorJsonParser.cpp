@@ -13,6 +13,10 @@
 #include "../encoder/LinearEncoderController.h"
 #endif
 
+#ifdef CAN_BUS_ENABLED
+#include "../can/can_controller.h"
+#endif
+
 namespace MotorJsonParser
 {
 

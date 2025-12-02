@@ -128,6 +128,19 @@ namespace FocusMotor
 #endif
 	}
 
+	// Helper function to convert hybrid internal axis (4,5,6,7...) to CAN axis (0,1,2,3...)
+	// In hybrid mode: internal axis 4 -> CAN axis 0 -> CAN address 10 (CAN_ID_MOT_A)
+	int getCANAxisForHybrid(int axis)
+	{
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+		if (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD)
+		{
+			return axis - pinConfig.HYBRID_MOTOR_CAN_THRESHOLD;
+		}
+#endif
+		return axis;
+	}
+
 	void startStepper(int axis, int reduced = 0)
 	{
 		/*
@@ -169,11 +182,27 @@ namespace FocusMotor
 			if (shouldUseCANForAxis(axis))
 			{
 				// Route to CAN satellite
-				log_i("Hybrid mode: Routing axis %d to CAN at address %d", axis, can_controller::axis2id(axis-4));
-				MotorData *m = getData()[axis-4];
-				int err = can_controller::startStepper(m, axis-4, reduced);
-				if (err != 0)
+				// Convert hybrid axis (4,5,6,7) to CAN axis (0,1,2,3) for addressing
+				int canAxis = getCANAxisForHybrid(axis);
+				log_i("Hybrid mode: Routing axis %d to CAN axis %d (address %d)", axis, canAxis, can_controller::axis2id(canAxis));
+				
+				// Copy motor data from internal axis to CAN axis position for can_controller to use
+				MotorData *srcData = getData()[axis];
+				MotorData *canData = getData()[canAxis];
+				if (srcData != nullptr && canData != nullptr)
 				{
+					// Copy motor settings to CAN axis
+					*canData = *srcData;
+					int err = can_controller::startStepper(canData, canAxis, reduced);
+					if (err != 0)
+					{
+						getData()[axis]->stopped = true;
+						sendMotorPos(axis, 0);
+					}
+				}
+				else
+				{
+					log_e("Hybrid mode: Invalid motor data for axis %d or CAN axis %d", axis, canAxis);
 					getData()[axis]->stopped = true;
 					sendMotorPos(axis, 0);
 				}
@@ -992,8 +1021,9 @@ namespace FocusMotor
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(i))
 		{
-			// CAN axes: get status from CAN controller
-			mIsRunning = can_controller::isMotorRunning(i);
+			// CAN axes: get status from CAN controller using converted CAN axis
+			int canAxis = getCANAxisForHybrid(i);
+			mIsRunning = can_controller::isMotorRunning(canAxis);
 		}
 		else
 		{
@@ -1152,13 +1182,23 @@ namespace FocusMotor
 		// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 		if (shouldUseCANForAxis(i))
 		{
-			// Stop via CAN
-			log_i("Hybrid mode: Stopping axis %d via CAN", i);
+			// Stop via CAN - convert to CAN axis for addressing
+			int canAxis = getCANAxisForHybrid(i);
+			log_i("Hybrid mode: Stopping axis %d via CAN axis %d", i, canAxis);
 			getData()[i]->isforever = false;
 			getData()[i]->speed = 0;
 			getData()[i]->stopped = true;
 			getData()[i]->isStop = true;
-			Stepper s = static_cast<Stepper>(i);
+			// Copy stop state to CAN axis position
+			MotorData *canData = getData()[canAxis];
+			if (canData != nullptr)
+			{
+				canData->isforever = false;
+				canData->speed = 0;
+				canData->stopped = true;
+				canData->isStop = true;
+			}
+			Stepper s = static_cast<Stepper>(canAxis);
 			can_controller::stopStepper(s);
 		}
 		else

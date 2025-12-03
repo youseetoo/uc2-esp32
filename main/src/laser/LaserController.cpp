@@ -10,7 +10,7 @@
 #ifdef I2C_LASER 
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -121,7 +121,7 @@ namespace LaserController
 		int pwmChannel = getPWMChannel(LASERid);
 		
 		// Check if laser pin is configured
-		#if not defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER) && not defined(I2C_LASER)
+		#if not defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER) && not defined(I2C_LASER)
 
 		if (laserPin < 0)
 		{
@@ -187,7 +187,7 @@ namespace LaserController
 	{
 		#ifdef I2C_LASER
 			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
-		#elif defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
 			can_controller::sendLaserDataToCANDriver(laserData);
 		#else
 			int LASERid = laserData.LASERid;
@@ -216,6 +216,37 @@ namespace LaserController
 	{
 		// Use current despeckle values from arrays
 		return setLaserVal(LASERid, LASERval, LASER_despeckle_arr[LASERid], LASER_despeckle_period_arr[LASERid], qid);
+	}
+
+	// Helper function to determine if a laser should use CAN in hybrid mode
+	bool shouldUseCANForLaser(int LASERid)
+	{
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+		// In hybrid mode: lasers >= threshold use CAN, lasers < threshold use native drivers
+		// Check if this laser has a native driver configured
+		int laserPin = getLaserPin(LASERid);
+		if (laserPin > 0)
+		{
+			return false; // Has native driver, use it
+		}
+		// No native driver - use CAN if laser ID >= threshold
+		return (LASERid >= pinConfig.HYBRID_LASER_CAN_THRESHOLD);
+#else
+		return false; // CAN not available or this is a slave
+#endif
+	}
+
+	// Helper function to convert hybrid laser ID (4,5,6,7) to CAN laser ID (0,1,2,3)
+	// In hybrid mode: internal laser 4 -> CAN laser 0 -> CAN address for first remote laser
+	int getCANLaserIdForHybrid(int LASERid)
+	{
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+		if (LASERid >= pinConfig.HYBRID_LASER_CAN_THRESHOLD)
+		{
+			return LASERid - pinConfig.HYBRID_LASER_CAN_THRESHOLD;
+		}
+#endif
+		return LASERid;
 	}
 
 	bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid)
@@ -250,7 +281,41 @@ namespace LaserController
 		laserValuePending[LASERid] = true;
 		return true;
 		
-		#elif defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LASER)
+		// HYBRID MODE SUPPORT: Check if this laser should use CAN or native driver
+		if (shouldUseCANForLaser(LASERid))
+		{
+			// Route to CAN - convert hybrid laser ID to CAN laser ID
+			int canLaserId = getCANLaserIdForHybrid(LASERid);
+			log_i("Hybrid mode: Routing laser %d to CAN laser %d", LASERid, canLaserId);
+			LaserData laserData;
+			laserData.LASERid = canLaserId;  // Use converted CAN laser ID
+			laserData.LASERval = LASERval;
+			laserData.LASERdespeckle = LASERdespeckle;
+			laserData.LASERdespecklePeriod = LASERdespecklePeriod;
+			can_controller::sendLaserDataToCANDriver(laserData);
+		}
+		else
+		{
+			// Use native driver
+			log_i("Hybrid mode: Routing laser %d to native driver", LASERid);
+			int laserPin = getLaserPin(LASERid);
+			if (laserPin > 0)
+			{
+				int pwmChannel = getPWMChannel(LASERid);
+				setPWM(LASERval, pwmChannel);
+			}
+			else
+			{
+				log_w("No native laser pin configured for LASERid %d", LASERid);
+			}
+		}
+		
+		// Set flag to send update in next loop cycle
+		laserValuePending[LASERid] = true;
+		return true;
+		
+		#elif defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
@@ -700,13 +765,11 @@ namespace LaserController
 			if (laser4ToggleState)
 			{
 				// Turn Laser 4 to MAX
-				Serial.println("Cross pressed - Laser 4 MAX");
 				setLaserVal(4, 10000);
 			}
 			else
 			{
 				// Turn Laser 4 to MIN
-				Serial.println("Cross pressed - Laser 4 MIN");
 				setLaserVal(4, 0);
 			}
 		}

@@ -2,7 +2,7 @@
 #include "FocusMotor.h"
 #include "MotorTypes.h"
 #include "../objective/ObjectiveController.h"
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -34,7 +34,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	static inline void stopAxis(int ax)
 	{
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 		// TODO: we should implement to send the full MotorData struct instead of single values to sync all states from master to slave
 		can_controller::stopStepper(static_cast<Stepper>(ax));	
 #else
@@ -72,7 +72,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	inline void handleAxis(int16_t value, int ax)
 	{
-		#ifdef CAN_MASTER 
+		#ifdef CAN_SEND_COMMANDS 
 		if (ax == Stepper::A)
 		return;
 		#endif
@@ -112,7 +112,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		}
 
 		// Z⇄A mutual exclusion ────────────────────────────────────────────────
-		#ifndef CAN_MASTER 
+		#ifndef CAN_SEND_COMMANDS 
 		{ // TODO: Problem might be that they cancel each other out if there is not return from CAN
 			if (ax == Stepper::Z && axisRunning[Stepper::A])
 				stopAxis(Stepper::A);

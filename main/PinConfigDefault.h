@@ -38,6 +38,23 @@ motor defines
 #define USE_TCA9535
 */
 
+/*
+CAN Bus Configuration Flags:
+=============================
+CAN_BUS_ENABLED       - Enables CAN bus hardware (required for any CAN communication)
+CAN_SEND_COMMANDS     - Device can SEND commands to CAN slaves (e.g., serial→CAN gateway)
+CAN_RECEIVE_MOTOR     - Device receives and executes motor commands via CAN
+CAN_RECEIVE_LASER     - Device receives and executes laser commands via CAN
+CAN_RECEIVE_LED       - Device receives and executes LED commands via CAN
+CAN_RECEIVE_GALVO     - Device receives and executes galvo commands via CAN
+
+Common Configurations:
+- Master/Gateway:     CAN_BUS_ENABLED + CAN_SEND_COMMANDS
+- Motor Slave:        CAN_BUS_ENABLED + CAN_RECEIVE_MOTOR
+- Hybrid (UC2 v4):    CAN_BUS_ENABLED + CAN_SEND_COMMANDS (uses native for axes 0-3, CAN for 4+)
+- Illumination Slave: CAN_BUS_ENABLED + CAN_RECEIVE_LASER + CAN_RECEIVE_LED
+*/
+
 //#define USE_PCNT_COUNTER 
 const int8_t disabled = -1;
 
@@ -386,6 +403,45 @@ struct PinConfig
      // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
      // Set to 0 to disable secondary address listening
      uint32_t CAN_ID_SECONDARY = 0;
+
+     // ========================================================================
+     // HYBRID MODE CONFIGURATION
+     // ========================================================================
+     // When HYBRID_MODE is enabled, the device can control both:
+     // - Native motors (directly attached via FastAccelStepper) for axes 0-3
+     // - CAN-connected motors (via CAN bus satellite boards) for axes 4-7+
+     //
+     // Motor ID assignment in hybrid mode:
+     // - Axes 0-3 (A, X, Y, Z): Native on-board drivers
+     // - Axes 4-7 (B, C, D, E...): External CAN satellite boards
+     //
+     // Similarly for lasers:
+     // - Laser IDs 0-3: Native on-board drivers
+     // - Laser IDs 4+: External CAN satellite boards
+     //
+     // LED arrays are addressed both natively AND via CAN simultaneously
+     // when in hybrid mode.
+     // ========================================================================
+     
+     // Threshold axis ID where CAN routing begins (axes >= this use CAN)
+     // Default: 4 means axes A(0), X(1), Y(2), Z(3) are native; B(4), C(5), etc. use CAN
+     uint8_t HYBRID_MOTOR_CAN_THRESHOLD = 4;
+     
+     // Threshold laser ID where CAN routing begins
+     // Default: 4 means lasers 0-3 are native; laser 4+ use CAN
+     uint8_t HYBRID_LASER_CAN_THRESHOLD = 4;
+     
+     // When true, LED commands are sent to BOTH native LED array AND CAN LED devices
+     bool HYBRID_LED_DUAL_OUTPUT = false;
+
+     // LED auto-off safety: time in milliseconds before high-intensity LEDs auto-shut off to prevent overheating
+     // Applies to waveshare_esp32s3_ledarray and seeed_xiao_esp32s3_can_slave_illumination builds
+     // Default: 60000ms (60 seconds) - auto-off when sum of RGB channels exceeds threshold
+     uint32_t LED_AUTO_OFF_TIME_MS = 60000;
+     
+     // LED intensity threshold for triggering auto-off (sum of R+G+B, range 0-765)
+     // Default: 150 (equivalent to all channels at ~50 intensity each)
+     uint16_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 150;
 
      // Emergency stop
      int8_t pinEmergencyExit = disabled;

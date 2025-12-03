@@ -22,7 +22,7 @@ namespace FocusScan
                                int32_t acceleration = 1000000,
                                int32_t timeout = 2000)
     {
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto *d = FocusMotor::getData()[ax];
         d->absolutePosition = 1;
         d->targetPosition = pos;
@@ -44,7 +44,7 @@ namespace FocusScan
 
     void focusScanCAN(bool isThread)
     {
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto &sd = focusScanningData;
         isRunning = true;
 
@@ -91,7 +91,7 @@ namespace FocusScan
 #ifdef LASER_CONTROLLER
             for (uint8_t i = 0; i < 4; ++i)
             {
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_LASER
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_LASER
                 if (sd.lightsourceIntensities[i])
                 {
                     LaserData l;

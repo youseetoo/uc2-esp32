@@ -8,7 +8,7 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 

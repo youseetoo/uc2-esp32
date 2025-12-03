@@ -13,7 +13,7 @@
 #include "MotorTypes.h"
 
 #ifdef MOTOR_CONTROLLER
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined I2C_MOTOR && !defined DIAL_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined I2C_MOTOR && !defined DIAL_CONTROLLER && !defined CAN_RECEIVE_MOTOR && !defined CAN_SEND_COMMANDS
 #error Pls set USE_FASTACCEL or USE_ACCELSTEP
 #endif
 #endif
@@ -58,4 +58,12 @@ namespace FocusMotor
 	bool isEncoderBasedMotionEnabled(int axis);
 	void setEncoderBasedMotion(int axis, bool enabled);
 	void startEncoderBasedMotion(int axis);
+	
+	// Hybrid mode support: determines if an axis should use CAN or native driver
+	// Returns true if axis should be routed to CAN bus, false for native driver
+	bool shouldUseCANForAxis(int axis);
+	
+	// Hybrid mode support: converts internal hybrid axis (4,5,6,7) to CAN axis (0,1,2,3)
+	// Used when sending commands to CAN satellites in hybrid mode
+	int getCANAxisForHybrid(int axis);
 };

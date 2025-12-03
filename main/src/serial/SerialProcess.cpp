@@ -40,7 +40,7 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 #ifdef LASER_CONTROLLER
@@ -560,7 +560,7 @@ namespace SerialProcess
 		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(can_controller::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)

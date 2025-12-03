@@ -434,6 +434,14 @@ struct PinConfig
      // When true, LED commands are sent to BOTH native LED array AND CAN LED devices
      bool HYBRID_LED_DUAL_OUTPUT = false;
 
+     // LED auto-off safety: time in milliseconds before high-intensity LEDs auto-shut off to prevent overheating
+     // Applies to waveshare_esp32s3_ledarray and seeed_xiao_esp32s3_can_slave_illumination builds
+     // Default: 60000ms (60 seconds) - auto-off when any RGB channel > 50 intensity
+     uint32_t LED_AUTO_OFF_TIME_MS = 60000;
+     
+     // LED intensity threshold for triggering auto-off (0-255)
+     uint8_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 50;
+
      // Emergency stop
      int8_t pinEmergencyExit = disabled;
 

@@ -22,6 +22,8 @@ namespace LedController
 	static unsigned long circleLastEventTime = 0;
 	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
 	static bool ledToggleState = false; // false = off, true = on
+	
+
 
 	// ------------------------------------------------
 	// HELPER: Convert (x, y) -> single index
@@ -767,10 +769,55 @@ namespace LedController
 	void execLedCommand(const LedCommand &cmd)
 	{
 		log_i("execLedCommand: Executing command with mode %d", static_cast<int>(cmd.mode));
+		
+		// Track intensity for auto-off safety (only for LED arrays that need thermal protection)
+		// Check if this is a device that requires thermal protection
+		bool needsThermalProtection = (pinConfig.pindefName && 
+			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
+		
+		if (needsThermalProtection)
+		{
+			uint8_t maxIntensity = max(max(cmd.r, cmd.g), cmd.b);
+			currentMaxIntensity = maxIntensity;
+			
+			if (maxIntensity > pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD)
+			{
+				if (highIntensityStartTime == 0)
+				{
+					// First time exceeding threshold
+					highIntensityStartTime = millis();
+					highIntensityWarningShown = false;
+					ledAutoOffTriggered = false;
+					log_w("LED intensity %d exceeds threshold %d - auto-off timer started", 
+						  maxIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD);
+				}
+			}
+			else
+			{
+				// Intensity dropped below threshold, reset timer
+				if (highIntensityStartTime != 0)
+				{
+					log_i("LED intensity dropped to %d - auto-off timer reset", maxIntensity);
+				}
+				highIntensityStartTime = 0;
+				highIntensityWarningShown = false;
+				ledAutoOffTriggered = false;
+			}
+		}
+		
 		switch (cmd.mode)
 		{
 		case LedMode::OFF:
 			turnOff();
+			// Reset auto-off tracking when LEDs are turned off
+			if (needsThermalProtection)
+			{
+				highIntensityStartTime = 0;
+				highIntensityWarningShown = false;
+				ledAutoOffTriggered = false;
+				currentMaxIntensity = 0;
+			}
 			break;
 		case LedMode::FILL:
 			fillAll(cmd.r, cmd.g, cmd.b);
@@ -934,11 +981,51 @@ namespace LedController
 
 	void loop()
 	{
+		// LED auto-off safety: Monitor high intensity LEDs and auto-shut off to prevent overheating
+		// Check if this is a device that requires thermal protection
+		bool needsThermalProtection = (pinConfig.pindefName && 
+			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
+		
+		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
+		{
+			unsigned long elapsedTime = millis() - highIntensityStartTime;
+			
+			// Show warning at 75% of auto-off time
+			if (!highIntensityWarningShown && elapsedTime >= (pinConfig.LED_AUTO_OFF_TIME_MS * 3 / 4))
+			{
+				highIntensityWarningShown = true;
+				log_w("WARNING: LED intensity %d has been high for %lu ms. Auto-off in %lu ms to prevent overheating!",
+					  currentMaxIntensity, elapsedTime, pinConfig.LED_AUTO_OFF_TIME_MS - elapsedTime);
+				Serial.println("++");
+				Serial.println("{\"led\":{\"warning\":\"High intensity detected - hardware can overheat and be destroyed!\"}}");
+				Serial.println("--");
+			}
+			
+			// Auto-off when time limit exceeded
+			if (elapsedTime >= pinConfig.LED_AUTO_OFF_TIME_MS)
+			{
+				ledAutoOffTriggered = true;
+				log_e("LED AUTO-OFF TRIGGERED! Intensity %d exceeded %d threshold for %lu ms - shutting down LEDs to prevent damage",
+					  currentMaxIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD, elapsedTime);
+				
+				// Turn off LEDs for safety
+				turnOff();
+				
+				// Send warning message to user
+				Serial.println("++");
+				Serial.println("{\"led\":{\"error\":\"AUTO-OFF: LEDs too hot! Hardware protection activated. Reduce intensity or wait before restarting.\"}}");
+				Serial.println("--");
+				
+				// Reset tracking (user must send new command to restart)
+				highIntensityStartTime = 0;
+				currentMaxIntensity = 0;
+			}
+		}
 
-
-// only on the HAT MAster => Glow or show status
-if( pinConfig.IS_STATUS_LED)	
-{
+		// only on the HAT Master => Glow or show status
+		if( pinConfig.IS_STATUS_LED)	
+		{
 	// log_i("LedController loop: Updating status LED effect for status %d", static_cast<int>(currentLedForStatus));
 
 		// Determine color based on currentLedForStatus

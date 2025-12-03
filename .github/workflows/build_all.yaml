@@ -1,4 +1,4 @@
-name: Build and Upload All Firmware Binaries
+name: Build FRAME images
 
 on:
   push:
@@ -63,17 +63,15 @@ jobs:
       - name: Extract environment list
         id: get_envs
         run: |
+          set -eux
           envs="$(pio project config | grep 'env:' | cut -d ':' -f 2 | sort -u)"
-          envs="$(echo $envs | grep -v -e '_debug$' -e '_default$')"
-          envs="$(echo $envs | grep '^${{ matrix.prefix }}')"
+          envs="$(grep -v -e '_debug$' -e '_default$' <<<$envs | grep '^${{ matrix.prefix }}')"
           echo "Environments:"
           echo "$envs"
-          echo "envs=$(echo $envs | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
+          echo "envs=$(echo "$envs" | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
       - name: Build and merge all environments
-        # FIXME: this step is unacceptably slow! Maybe we could parallelize it (e.g. by running
-        # parallel jobs for building debug images vs. normal images?). And/or could we do some build
-        # caching?
+        # TODO: Could we do some build caching and/or dependency caching?
         run: |
           mkdir -p build/fw-images
           pio boards --json-output > boards.json

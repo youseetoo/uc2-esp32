@@ -47,7 +47,8 @@ jobs:
           ref: main
           submodules: recursive
 
-      - uses: actions/cache@v4
+      - name: Cache dependencies
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
@@ -63,9 +64,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install platformio esptool
-
-      - name: Install libraries
-        run: pio lib install
 
       - name: Extract environment list
         id: get_envs

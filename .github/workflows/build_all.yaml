@@ -1,10 +1,30 @@
 name: Build and Upload All Firmware Binaries
 
 on:
+  push:
+    branches:
+      - 'master'
+      - 'main'
+    tags:
+      - '*'
+  pull_request:
+  merge_group:
+  release:
   workflow_dispatch:
+    inputs:
+      git-ref:
+        description: 'Git ref (optional)'
+        required: false
+
+env:
+  CTR_IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  CTR_IMAGE_NAME: 'firmware-image-server'
+  PUSH_CTR_IMAGE: ${{ github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) || github.event_name == 'push' }}
+  MAIN_BRANCH: 'main' # pushing to this branch will update the "edge" tag on the container image
+  MAKE_RELEASE: ${{ (github.event_name == 'push' && github.ref_type == 'tag' }}
 
 jobs:
-  build-and-upload:
+  build-merged-fw-images:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,60 +52,236 @@ jobs:
         run: |
           echo "envs=$(pio project config | grep 'env:' | cut -d ':' -f 2 | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
-      - name: Determine release tag (or fallback)
-        id: get_tag
-        run: |
-          TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)")
-          echo "tag=$TAG"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-
       - name: Build and merge all environments
         run: |
-          mkdir -p merged_bins
+          mkdir -p build/fw-images
           pio boards --json-output > boards.json
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
           for ENV in "${ENVS[@]}"; do
             echo "==> Building $ENV"
-            if pio run --environment "$ENV"; then
-              BIN_DIR=".pio/build/$ENV"
-              OUT_BIN="merged_bins/esp32_${ENV}.bin"
-              if [[ -f "$BIN_DIR/firmware.bin" ]]; then
-                BOARD=$(pio project config --environment "$ENV" --list | grep '^board\s*=' | awk -F= '{print $2}' | xargs)
-                CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
-
-                if [[ "$CHIP" == *"s3"* ]]; then
-                  CHIP_ARG="esp32s3"
-                  BOOT_ADDR="0x0000"
-                else
-                  CHIP_ARG="esp32"
-                  BOOT_ADDR="0x1000"
-                fi
-
-                echo "==> Merging binaries for $ENV (chip: $CHIP_ARG)"
-                python -m esptool --chip "$CHIP_ARG" merge_bin -o "$OUT_BIN" \
-                  --flash_mode dio --flash_freq 40m --flash_size 4MB \
-                  $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
-                  0x8000 "$BIN_DIR/partitions.bin" \
-                  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-                  0x10000 "$BIN_DIR/firmware.bin"
-              else
-                echo "⚠️ Skipping merge for $ENV — firmware.bin not found."
-              fi
-            else
+            if ! pio run --environment "$ENV"; then
               echo "❌ Build failed for $ENV — continuing with others."
+              continue
             fi
-          done
 
-      - name: Upload merged binaries to latest release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_tag.outputs.tag }}
-          files: merged_bins/*.bin
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            BIN_DIR=".pio/build/$ENV"
+            if [[ ! -f "$BIN_DIR/firmware.bin" ]]; then
+              echo "⚠️ Skipping merge for $ENV — firmware.bin not found."
+              continue
+            fi
+
+            BOARD=$(pio project config --environment "$ENV" --list | grep '^board\s*=' | awk -F= '{print $2}' | xargs)
+            CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
+
+            if [[ "$CHIP" == *"s3"* ]]; then
+              CHIP_ARG="esp32s3"
+              BOOT_ADDR="0x0000"
+            else
+              CHIP_ARG="esp32"
+              BOOT_ADDR="0x1000"
+            fi
+
+            echo "==> Merging binaries for $ENV (chip: $CHIP_ARG)"
+            OUT_BIN="build/fw-images/esp32_${ENV}.bin"
+            python -m esptool \
+              --chip "$CHIP_ARG" \
+              merge_bin \
+              -o "$OUT_BIN" \
+              --flash_mode dio \
+              --flash_freq 40m \
+              --flash_size 4MB \
+              $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
+              0x8000 "$BIN_DIR/partitions.bin" \
+              0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+              0x10000 "$BIN_DIR/firmware.bin"
+          done
 
       - name: Upload all merged binaries as artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: all-merged-binaries
-          path: merged_bins/
+          name: firmware-images
+          path: build/fw-images/
+
+  build-server-ctr-image:
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker-platform: linux/amd64
+            gha-runner: ubuntu-24.04
+          - docker-platform: linux/arm64
+            gha-runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.gha-runner }}
+    needs:
+      - build-merged-fw-images
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download firmware images
+        uses: actions/download-artifact@v4
+        with:
+          path: build/fw-images
+          pattern: firmware-images
+          merge-multiple: true
+
+      # Work around a bug where capital letters in the GitHub username (e.g. "PlanktoScope") make it
+      # impossible to push to GHCR. See https://github.com/macbre/push-to-ghcr/issues/12
+      - name: Lowercase image registry and owner
+        id: image_registry_case
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ env.CTR_IMAGE_REGISTRY }}/${{ env.CTR_IMAGE_NAME }}
+
+      # Build and publish Docker container image
+      - name: Get Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image_registry_case.outputs.lowercase }}
+          tags: |
+            type=sha # this sha doesn't appear to correspond to the git sha
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: env.PUSH_CTR_IMAGE == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          pull: true
+          platforms: ${{ matrix.docker-platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=fw-server-build-${{ matrix.docker-platform }}
+          cache-to: type=gha,mode=max,scope=fw-server-build-${{ matrix.docker-platform }}
+          outputs: type=image,name=${{ steps.image_registry_case.outputs.lowercase }},push-by-digest=true,name-canonical=true,push=${{ env.PUSH_CTR_IMAGE }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/ctr-img-digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/ctr-img-digests/${digest#sha256:}"
+
+      - name: Determine digest name
+        run: |
+          platform=${{ matrix.docker-platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctr-image-digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/ctr-img-digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-ctr-images:
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    needs:
+      - build-server-ctr-image
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/ctr-img-digests
+          pattern: ctr-image-digests-*
+          merge-multiple: true
+
+      # Work around a bug where capital letters in the GitHub username (e.g. "PlanktoScope") make it
+      # impossible to push to GHCR. See https://github.com/macbre/push-to-ghcr/issues/12
+      - name: Lowercase image registry and owner
+        id: image_registry_case
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ env.CTR_IMAGE_REGISTRY }}/${{ env.CTR_IMAGE_NAME }}
+
+      - name: Get actual commit SHA
+        # Get the SHA of the actual commit (not the fake merge commit) on PR-triggered runs
+        # (refer to https://stackoverflow.com/a/68068674/23202949):
+        run: |
+          if [[ -n "${{ github.event.pull_request.head.sha }}" ]]; then
+            printf "ACTUAL_SHA=%.7s" "${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+          elif [[ ${{ env.PUSH_CTR_IMAGE }} = "true" ]]; then
+            printf "ACTUAL_SHA=%.7s" "${{ github.sha }}" >> $GITHUB_ENV
+          fi
+
+      # Build and publish Docker container image
+      - name: Get Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        env:
+          IS_MAIN_BRANCH: ${{ github.ref == format('refs/heads/{0}', env.MAIN_BRANCH) }}
+        with:
+          images: ${{ steps.image_registry_case.outputs.lowercase }}
+          tags: |
+            type=match,pattern=${{ env.TAG_PREFIX }}(.*),group=1 # this implicitly updates latest
+            type=edge,branch=${{ env.MAIN_BRANCH }}
+            type=ref,event=pr
+            type=raw,value=sha-${{ env.ACTUAL_SHA }},enable=${{ env.ACTUAL_SHA != '' }},priority=100
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: env.PUSH_CTR_IMAGE == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        if: env.PUSH_CTR_IMAGE == 'true'
+        working-directory: /tmp/ctr-img-digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ steps.image_registry_case.outputs.lowercase }}@sha256:%s ' *)
+
+      - name: Inspect image
+        if: env.PUSH_CTR_IMAGE == 'true'
+        run: |
+          docker buildx imagetools inspect \
+            ${{ steps.image_registry_case.outputs.lowercase }}:${{ steps.meta.outputs.version }}
+
+  release:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    needs: build-merged
+    if: ${{ env.MAKE_RELEASE }} == 'true'
+    steps:
+      - name: Download firmware images
+        uses: actions/download-artifact@v4
+        with:
+          path: build/fw-images
+          pattern: firmware-images
+          merge-multiple: true
+
+      - name: Determine release tag (or fallback)
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "sha-$(git rev-parse --short HEAD)")
+          echo "tag=$TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Make new release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          files: build/fw-images/*.bin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

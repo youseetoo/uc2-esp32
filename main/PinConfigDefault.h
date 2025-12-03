@@ -436,11 +436,12 @@ struct PinConfig
 
      // LED auto-off safety: time in milliseconds before high-intensity LEDs auto-shut off to prevent overheating
      // Applies to waveshare_esp32s3_ledarray and seeed_xiao_esp32s3_can_slave_illumination builds
-     // Default: 60000ms (60 seconds) - auto-off when any RGB channel > 50 intensity
+     // Default: 60000ms (60 seconds) - auto-off when sum of RGB channels exceeds threshold
      uint32_t LED_AUTO_OFF_TIME_MS = 60000;
      
-     // LED intensity threshold for triggering auto-off (0-255)
-     uint8_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 50;
+     // LED intensity threshold for triggering auto-off (sum of R+G+B, range 0-765)
+     // Default: 150 (equivalent to all channels at ~50 intensity each)
+     uint16_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 150;
 
      // Emergency stop
      int8_t pinEmergencyExit = disabled;

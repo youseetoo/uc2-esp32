@@ -94,6 +94,12 @@ namespace LedController
 	static uint8_t brightnessLoop = 0;    // Tracks current fade brightnessLoop
     static int fadeDirection = 1;     // Fade up (+1) or down (-1)
 	
+	// LED safety auto-off tracking
+	static uint16_t currentTotalIntensity = 0;  // Sum of R + G + B channels (0-765)
+	static unsigned long highIntensityStartTime = 0;  // When high intensity was first detected
+	static bool highIntensityWarningShown = false;  // Track if warning has been shown
+	static bool ledAutoOffTriggered = false;  // Track if auto-off has been triggered
+	
     // Adjust for your NeoPixel matrix:
     static const uint16_t LED_COUNT = pinConfig.MATRIX_W * pinConfig.MATRIX_H;
 

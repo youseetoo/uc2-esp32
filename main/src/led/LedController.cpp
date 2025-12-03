@@ -778,10 +778,12 @@ namespace LedController
 		
 		if (needsThermalProtection)
 		{
-			uint8_t maxIntensity = max(max(cmd.r, cmd.g), cmd.b);
-			currentMaxIntensity = maxIntensity;
+			// Calculate total intensity as sum of all RGB channels for accurate thermal calculation
+			// This better represents actual power/heat than just the max channel
+			uint16_t totalIntensity = (uint16_t)cmd.r + (uint16_t)cmd.g + (uint16_t)cmd.b;
+			currentTotalIntensity = totalIntensity;
 			
-			if (maxIntensity > pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD)
+			if (totalIntensity > pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD)
 			{
 				if (highIntensityStartTime == 0)
 				{
@@ -789,8 +791,8 @@ namespace LedController
 					highIntensityStartTime = millis();
 					highIntensityWarningShown = false;
 					ledAutoOffTriggered = false;
-					log_w("LED intensity %d exceeds threshold %d - auto-off timer started", 
-						  maxIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD);
+					log_w("LED total intensity %d (R:%d+G:%d+B:%d) exceeds threshold %d - auto-off timer started", 
+						  totalIntensity, cmd.r, cmd.g, cmd.b, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD);
 				}
 			}
 			else
@@ -798,7 +800,7 @@ namespace LedController
 				// Intensity dropped below threshold, reset timer
 				if (highIntensityStartTime != 0)
 				{
-					log_i("LED intensity dropped to %d - auto-off timer reset", maxIntensity);
+					log_i("LED total intensity dropped to %d - auto-off timer reset", totalIntensity);
 				}
 				highIntensityStartTime = 0;
 				highIntensityWarningShown = false;
@@ -816,7 +818,7 @@ namespace LedController
 				highIntensityStartTime = 0;
 				highIntensityWarningShown = false;
 				ledAutoOffTriggered = false;
-				currentMaxIntensity = 0;
+				currentTotalIntensity = 0;
 			}
 			break;
 		case LedMode::FILL:
@@ -995,9 +997,9 @@ namespace LedController
 			if (!highIntensityWarningShown && elapsedTime >= (pinConfig.LED_AUTO_OFF_TIME_MS * 3 / 4))
 			{
 				highIntensityWarningShown = true;
-				log_w("WARNING: LED intensity %d has been high for %lu ms. Auto-off in %lu ms to prevent overheating!",
-					  currentMaxIntensity, elapsedTime, pinConfig.LED_AUTO_OFF_TIME_MS - elapsedTime);
-				Serial.println("++");
+				log_w("WARNING: LED total intensity %d has been high for %lu ms. Auto-off in %lu ms to prevent overheating!",
+					  currentTotalIntensity, elapsedTime, pinConfig.LED_AUTO_OFF_TIME_MS - elapsedTime);
+				Serial.println("+|");
 				Serial.println("{\"led\":{\"warning\":\"High intensity detected - hardware can overheat and be destroyed!\"}}");
 				Serial.println("--");
 			}
@@ -1006,8 +1008,8 @@ namespace LedController
 			if (elapsedTime >= pinConfig.LED_AUTO_OFF_TIME_MS)
 			{
 				ledAutoOffTriggered = true;
-				log_e("LED AUTO-OFF TRIGGERED! Intensity %d exceeded %d threshold for %lu ms - shutting down LEDs to prevent damage",
-					  currentMaxIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD, elapsedTime);
+				log_e("LED AUTO-OFF TRIGGERED! Total intensity %d exceeded %d threshold for %lu ms - shutting down LEDs to prevent damage",
+					  currentTotalIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD, elapsedTime);
 				
 				// Turn off LEDs for safety
 				turnOff();
@@ -1019,7 +1021,7 @@ namespace LedController
 				
 				// Reset tracking (user must send new command to restart)
 				highIntensityStartTime = 0;
-				currentMaxIntensity = 0;
+				currentTotalIntensity = 0;
 			}
 		}
 

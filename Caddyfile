@@ -1,0 +1,10 @@
+{
+  auto_https off
+}
+
+:80 {
+  handle_path /firmware/* {
+    root * /srv
+    file_server browse
+  }
+}

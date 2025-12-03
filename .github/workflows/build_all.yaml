@@ -21,7 +21,6 @@ env:
   CTR_IMAGE_NAME: 'firmware-image-server'
   PUSH_CTR_IMAGE: ${{ github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork || github.event_name == 'push' }}
   MAIN_BRANCH: 'main' # pushing to this branch will update the "edge" tag on the container image
-  MAKE_RELEASE: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
 
 jobs:
   build-merged-fw-images:
@@ -262,7 +261,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     needs: build-merged
-    if: ${{ env.MAKE_RELEASE }} == 'true'
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }} == 'true'
     steps:
       - name: Download firmware images
         uses: actions/download-artifact@v4

@@ -260,7 +260,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    needs: build-merged
+    needs: build-merged-fw-images
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }} == 'true'
     steps:
       - name: Download firmware images

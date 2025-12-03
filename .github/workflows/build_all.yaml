@@ -25,6 +25,20 @@ env:
 jobs:
   build-merged-fw-images:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        prefix:
+          # - UC2_2
+          - UC2_3
+          # - UC2_4
+          # - UC2_WEMOS
+          - seeed_xiao_esp32s3
+          # - seeed_xiao_esp32c3
+          # - waveshare_
+          # - esp32
+          # - m5stack-
+          # - uc2lasercover
 
     steps:
       - name: Checkout repository
@@ -49,9 +63,17 @@ jobs:
       - name: Extract environment list
         id: get_envs
         run: |
-          echo "envs=$(pio project config | grep 'env:' | cut -d ':' -f 2 | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
+          envs="$(pio project config | grep 'env:' | cut -d ':' -f 2 | sort -u)"
+          envs="$(echo $envs | grep -v -e '_debug$' -e '_default$')"
+          envs="$(echo $envs | grep '^${{ matrix.prefix }}')"
+          echo "Environments:"
+          echo "$envs"
+          echo "envs=$(echo $envs | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
       - name: Build and merge all environments
+        # FIXME: this step is unacceptably slow! Maybe we could parallelize it (e.g. by running
+        # parallel jobs for building debug images vs. normal images?). And/or could we do some build
+        # caching?
         run: |
           mkdir -p build/fw-images
           pio boards --json-output > boards.json
@@ -123,7 +145,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: build/fw-images
-          pattern: firmware-images
+          pattern: firmware-images-*
           merge-multiple: true
 
       # Work around a bug where capital letters in the GitHub username (e.g. "PlanktoScope") make it
@@ -158,6 +180,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
+          context: .
           pull: true
           platforms: ${{ matrix.docker-platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -261,7 +284,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     needs: build-merged-fw-images
-    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }} == 'true'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     steps:
       - name: Download firmware images
         uses: actions/download-artifact@v4

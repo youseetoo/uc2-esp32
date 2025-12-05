@@ -221,7 +221,7 @@ namespace LaserController
 	// Helper function to determine if a laser should use CAN in hybrid mode
 	bool shouldUseCANForLaser(int LASERid)
 	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
 		// In hybrid mode: lasers >= threshold use CAN, lasers < threshold use native drivers
 		// Check if this laser has a native driver configured
 		int laserPin = getLaserPin(LASERid);
@@ -240,7 +240,7 @@ namespace LaserController
 	// In hybrid mode: internal laser 4 -> CAN laser 0 -> CAN address for first remote laser
 	int getCANLaserIdForHybrid(int LASERid)
 	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
 		if (LASERid >= pinConfig.HYBRID_LASER_CAN_THRESHOLD)
 		{
 			return LASERid - pinConfig.HYBRID_LASER_CAN_THRESHOLD;
@@ -281,7 +281,7 @@ namespace LaserController
 		laserValuePending[LASERid] = true;
 		return true;
 		
-		#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_LASER)
 		// HYBRID MODE SUPPORT: Check if this laser should use CAN or native driver
 		if (shouldUseCANForLaser(LASERid))
 		{

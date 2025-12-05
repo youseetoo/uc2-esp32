@@ -24,6 +24,7 @@ DIP Switch Configuration:
 #define USE_TCA9535
 #define BLUETOOTH
 #define BTHID
+#define CAN_HYBRID
 //#define WIFI
 #define HOME_MOTOR
 #define LASER_CONTROLLER

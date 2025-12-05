@@ -2,9 +2,7 @@
 #include "FocusMotor.h"
 #include "MotorTypes.h"
 #include "../objective/ObjectiveController.h"
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
-#endif
+
 
 // sample pio project e.g. https://github.com/inventonater/flashbike-matrix/blob/master/scratch/tetris/tetris-matrix-s3.cpp
 
@@ -34,12 +32,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	static inline void stopAxis(int ax)
 	{
-#ifdef CAN_BUS_ENABLED
-		// TODO: we should implement to send the full MotorData struct instead of single values to sync all states from master to slave
-		can_controller::stopStepper(static_cast<Stepper>(ax));	
-#else
 		FocusMotor::stopStepper(ax);
-#endif
 		axisRunning[ax] = false;
 	}
 

@@ -97,7 +97,7 @@ namespace FocusMotor
 	// Helper function to determine if an axis should use CAN in hybrid mode
 	bool shouldUseCANForAxis(int axis)
 	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
 		// In hybrid mode: axes >= threshold use CAN, axes < threshold use native drivers
 		// Check if this axis has a native driver configured
 		bool hasNativeDriver = false;
@@ -132,7 +132,7 @@ namespace FocusMotor
 	// In hybrid mode: internal axis 4 -> CAN axis 0 -> CAN address 10 (CAN_ID_MOT_A)
 	int getCANAxisForHybrid(int axis)
 	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
 		if (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD)
 		{
 			return axis - pinConfig.HYBRID_MOTOR_CAN_THRESHOLD;
@@ -177,7 +177,7 @@ namespace FocusMotor
 				i2c_master::startStepper(m, axis, reduced);
 				waitForFirstRun[axis] = 1;
 			}
-#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 			if (shouldUseCANForAxis(axis))
 			{
@@ -319,7 +319,7 @@ namespace FocusMotor
 	void updateData(int axis)
 	{
 // Request the current position from the slave motors depending on the interface
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(axis))
 		{
@@ -351,7 +351,7 @@ namespace FocusMotor
 	long getCurrentMotorPosition(int axis)
 	{
 		// Get real-time motor position directly from stepper library
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(axis))
 		{
@@ -1017,7 +1017,7 @@ namespace FocusMotor
 	bool isRunning(int i)
 	{
 		bool mIsRunning = false;
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(i))
 		{
@@ -1178,7 +1178,7 @@ namespace FocusMotor
 		}
 #endif
 
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 		if (shouldUseCANForAxis(i))
 		{

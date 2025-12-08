@@ -90,7 +90,7 @@ struct UC2_4_CAN_HYBRID : PinConfig
      int8_t LASER_2 = GPIO_NUM_4;
      int8_t LASER_3 = GPIO_NUM_2;
      int8_t LASER_4 = GPIO_NUM_17;
-
+     int MAX_LASERS = 5+5; // Support for LASER IDs 0-4
      // Native LED array
      int8_t LED_PIN = GPIO_NUM_13;
      int8_t LED_COUNT = 64;

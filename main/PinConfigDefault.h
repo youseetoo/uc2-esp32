@@ -42,17 +42,32 @@ motor defines
 CAN Bus Configuration Flags:
 =============================
 CAN_BUS_ENABLED       - Enables CAN bus hardware (required for any CAN communication)
-CAN_SEND_COMMANDS     - Device can SEND commands to CAN slaves (e.g., serial→CAN gateway)
-CAN_RECEIVE_MOTOR     - Device receives and executes motor commands via CAN
-CAN_RECEIVE_LASER     - Device receives and executes laser commands via CAN
-CAN_RECEIVE_LED       - Device receives and executes LED commands via CAN
-CAN_RECEIVE_GALVO     - Device receives and executes galvo commands via CAN
+CAN_SEND_COMMANDS     - Device can SEND commands to CAN slaves (master/gateway role)
+CAN_RECEIVE_MOTOR     - Device receives and executes motor commands via CAN (slave role)
+CAN_RECEIVE_LASER     - Device receives and executes laser commands via CAN (slave role)
+CAN_RECEIVE_LED       - Device receives and executes LED commands via CAN (slave role)
+CAN_RECEIVE_GALVO     - Device receives and executes galvo commands via CAN (slave role)
+CAN_HYBRID            - Enables hybrid mode: native drivers for local hardware + CAN for remote
 
-Common Configurations:
-- Master/Gateway:     CAN_BUS_ENABLED + CAN_SEND_COMMANDS
-- Motor Slave:        CAN_BUS_ENABLED + CAN_RECEIVE_MOTOR
-- Hybrid (UC2 v4):    CAN_BUS_ENABLED + CAN_SEND_COMMANDS (uses native for axes 0-3, CAN for 4+)
-- Illumination Slave: CAN_BUS_ENABLED + CAN_RECEIVE_LASER + CAN_RECEIVE_LED
+Board Type Configurations:
+--------------------------
+1. CAN Master/Gateway (no local motors, just routes serial→CAN):
+   CAN_BUS_ENABLED + CAN_SEND_COMMANDS
+   
+2. CAN Slave - Motor (Seeed Xiao satellite, executes motor commands):
+   CAN_BUS_ENABLED + CAN_RECEIVE_MOTOR
+   
+3. CAN Slave - Illumination (Seeed Xiao satellite, executes laser+LED commands):
+   CAN_BUS_ENABLED + CAN_RECEIVE_LASER + CAN_RECEIVE_LED
+   
+4. CAN Hybrid Master (UC2 v4 with native motors A,X,Y,Z + CAN satellites B,C,D...):
+   CAN_BUS_ENABLED + CAN_SEND_COMMANDS + CAN_HYBRID
+   - Uses native FastAccelStepper for axes with configured STEP pins (>= 0)
+   - Routes axes without native pins to CAN when axis >= HYBRID_MOTOR_CAN_THRESHOLD
+   - Same logic applies to lasers via HYBRID_LASER_CAN_THRESHOLD
+
+IMPORTANT: GPIO_NUM_0 (=0) IS a valid pin! Use >= 0 to check for configured pins.
+           disabled = -1 means the pin is not configured.
 */
 
 //#define USE_PCNT_COUNTER 

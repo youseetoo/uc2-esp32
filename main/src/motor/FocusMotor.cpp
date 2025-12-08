@@ -95,23 +95,26 @@ namespace FocusMotor
 
 
 	// Helper function to determine if an axis should use CAN in hybrid mode
+	// IMPORTANT: Pin check must match FAccelStep::setupFastAccelStepper() which uses >= 0
+	// A pin value of 'disabled' (-1) means no native driver, GPIO_NUM_0 (=0) IS a valid pin!
 	bool shouldUseCANForAxis(int axis)
 	{
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
 		// In hybrid mode: axes >= threshold use CAN, axes < threshold use native drivers
 		// Check if this axis has a native driver configured
+		// NOTE: Use >= 0 because GPIO_NUM_0 is a valid pin, -1 (disabled) means no driver
 		bool hasNativeDriver = false;
 		switch(axis) {
-			case Stepper::A: hasNativeDriver = (pinConfig.MOTOR_A_STEP > 0); break;
-			case Stepper::X: hasNativeDriver = (pinConfig.MOTOR_X_STEP > 0); break;
-			case Stepper::Y: hasNativeDriver = (pinConfig.MOTOR_Y_STEP > 0); break;
-			case Stepper::Z: hasNativeDriver = (pinConfig.MOTOR_Z_STEP > 0); break;
-			case Stepper::B: hasNativeDriver = (pinConfig.MOTOR_B_STEP > 0); break;
-			case Stepper::C: hasNativeDriver = (pinConfig.MOTOR_C_STEP > 0); break;
-			case Stepper::D: hasNativeDriver = (pinConfig.MOTOR_D_STEP > 0); break;
-			case Stepper::E: hasNativeDriver = (pinConfig.MOTOR_E_STEP > 0); break;
-			case Stepper::F: hasNativeDriver = (pinConfig.MOTOR_F_STEP > 0); break;
-			case Stepper::G: hasNativeDriver = (pinConfig.MOTOR_G_STEP > 0); break;
+			case Stepper::A: hasNativeDriver = (pinConfig.MOTOR_A_STEP >= 0); break;
+			case Stepper::X: hasNativeDriver = (pinConfig.MOTOR_X_STEP >= 0); break;
+			case Stepper::Y: hasNativeDriver = (pinConfig.MOTOR_Y_STEP >= 0); break;
+			case Stepper::Z: hasNativeDriver = (pinConfig.MOTOR_Z_STEP >= 0); break;
+			case Stepper::B: hasNativeDriver = (pinConfig.MOTOR_B_STEP >= 0); break;
+			case Stepper::C: hasNativeDriver = (pinConfig.MOTOR_C_STEP >= 0); break;
+			case Stepper::D: hasNativeDriver = (pinConfig.MOTOR_D_STEP >= 0); break;
+			case Stepper::E: hasNativeDriver = (pinConfig.MOTOR_E_STEP >= 0); break;
+			case Stepper::F: hasNativeDriver = (pinConfig.MOTOR_F_STEP >= 0); break;
+			case Stepper::G: hasNativeDriver = (pinConfig.MOTOR_G_STEP >= 0); break;
 			default: hasNativeDriver = false; break;
 		}
 		

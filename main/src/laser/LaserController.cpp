@@ -120,15 +120,28 @@ namespace LaserController
 		int laserPin = getLaserPin(LASERid);
 		int pwmChannel = getPWMChannel(LASERid);
 		
-		// Check if laser pin is configured
-		#if not defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER) && not defined(I2C_LASER)
+		// Check if laser pin is configured for native laser control
+		// This applies to: standalone boards without CAN, and CAN_HYBRID boards (which have native + CAN lasers)
+		// Skip this check if: pure CAN master (no native lasers), CAN slave (receives commands), or I2C laser
+		#if (!defined(CAN_BUS_ENABLED) && !defined(I2C_LASER)) || defined(CAN_HYBRID)
 
+		// For CAN_HYBRID: only validate pin if this laser uses native driver
+		#if defined(CAN_HYBRID)
+		if (!shouldUseCANForLaser(LASERid) && laserPin < 0)
+		{
+			log_w("Laser pin not configured for native LASERid %d", LASERid);
+			State::setBusy(false);
+			return 0;
+		}
+		#else
+		// For standalone (non-CAN) boards: all lasers must have valid pins
 		if (laserPin < 0)
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
 			State::setBusy(false);
 			return 0;
 		}
+		#endif
 
 		/*
 		Set Laser PWM Frequency
@@ -219,13 +232,15 @@ namespace LaserController
 	}
 
 	// Helper function to determine if a laser should use CAN in hybrid mode
+	// IMPORTANT: Pin check must use >= 0 because GPIO_NUM_0 (=0) IS a valid pin!
+	// A pin value of -1 (disabled) means no native driver
 	bool shouldUseCANForLaser(int LASERid)
 	{
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
 		// In hybrid mode: lasers >= threshold use CAN, lasers < threshold use native drivers
 		// Check if this laser has a native driver configured
 		int laserPin = getLaserPin(LASERid);
-		if (laserPin > 0)
+		if (laserPin >= 0)  // >= 0 because GPIO_NUM_0 is valid!
 		{
 			return false; // Has native driver, use it
 		}
@@ -300,7 +315,7 @@ namespace LaserController
 			// Use native driver
 			log_i("Hybrid mode: Routing laser %d to native driver", LASERid);
 			int laserPin = getLaserPin(LASERid);
-			if (laserPin > 0)
+			if (laserPin >= 0)  // >= 0 because GPIO_NUM_0 is valid!
 			{
 				int pwmChannel = getPWMChannel(LASERid);
 				setPWM(LASERval, pwmChannel);

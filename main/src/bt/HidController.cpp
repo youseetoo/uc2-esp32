@@ -187,6 +187,9 @@ void updateGamePadDataDS4(const DS4Data *d)
 
 void hid_demo_task(void *pvParameters)
 {
+    // pvParameters is used to indicate if this was called as a task (non-null) or directly (null)
+    bool calledAsTask = (pvParameters != nullptr);
+    
     size_t results_len = 0;
     esp_hid_scan_result_t *results = NULL;
     
@@ -196,7 +199,9 @@ void hid_demo_task(void *pvParameters)
     
     if (free_heap < 40000) {
         ESP_LOGE(TAG, "Insufficient heap memory for BT scan: %d bytes (minimum 40000)", free_heap);
-        vTaskDelete(NULL);
+        if (calledAsTask) {
+            vTaskDelete(NULL);
+        }
         return;
     }
     
@@ -227,7 +232,9 @@ void hid_demo_task(void *pvParameters)
     
     if (!scan_successful) {
         log_e("All BT scan attempts failed");
-        vTaskDelete(NULL);
+        if (calledAsTask) {
+            vTaskDelete(NULL);
+        }
         return;
     }
     
@@ -293,7 +300,10 @@ void hid_demo_task(void *pvParameters)
 
     log_i("BT scan task completed successfully");
     
-    // Task was already removed from watchdog at the beginning
-    // Delete the task when finished
-    vTaskDelete(NULL);
+    // Only delete the task if it was created as a separate task
+    // If called directly (not as a task), do NOT call vTaskDelete as it would
+    // delete the calling task (e.g., serialTask) causing the serial queue to stop processing!
+    if (calledAsTask) {
+        vTaskDelete(NULL);
+    }
 }

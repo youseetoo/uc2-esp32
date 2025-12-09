@@ -132,7 +132,9 @@ namespace State
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
 			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
+			#ifdef CAN_CONTROLLER
 			cJSON_AddItemToObject(st, "CAN_SLAVE", cJSON_CreateNumber(pinConfig.CAN_ID_CURRENT));
+			#endif
 			#ifdef GIT_COMMIT_HASH
 				cJSON_AddItemToObject(st, "git_commit", cJSON_CreateString(GIT_COMMIT_HASH));
 			#endif

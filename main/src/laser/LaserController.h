@@ -15,16 +15,16 @@ struct LaserData
 namespace LaserController
 {
     // Configuration constants
-    static const int MAX_LASERS = 5; // Support for LASER IDs 0-4
+    static const int MAX_LASERS = 5+5; // Support for LASER IDs 0-4 // the upper 5 lasers are used for hybrid CAN mode
 
     // Arrays to store laser values and settings (indexed by LASERid)
     // Note: Using _arr suffix to avoid naming conflict with LASER_despeckle() function
-    static int LASER_val_arr[MAX_LASERS] = {0, 0, 0, 0, 0};
-    static int LASER_despeckle_arr[MAX_LASERS] = {0, 0, 0, 0, 0};
-    static int LASER_despeckle_period_arr[MAX_LASERS] = {20, 20, 20, 20, 20};
+    static int LASER_val_arr[MAX_LASERS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static int LASER_despeckle_arr[MAX_LASERS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    static int LASER_despeckle_period_arr[MAX_LASERS] = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20};
     
     // PWM channel mapping (indexed by LASERid)
-    static int PWM_CHANNEL_LASER[MAX_LASERS] = {4, 1, 2, 3, 5}; // 0=Heating, 1-4=Lasers
+    static int PWM_CHANNEL_LASER[MAX_LASERS] = {4, 1, 2, 3, 5, 0, 0, 0, 0, 0}; // 0=Heating, 1-4=Lasers
 
     // PWM configuration
     static int pwm_resolution = 10; //8bit 256, 10bit 1024, 12bit 4096;
@@ -34,6 +34,14 @@ namespace LaserController
     // Helper functions to get pin and channel for a given LASERid
     int getLaserPin(int LASERid);
     int getPWMChannel(int LASERid);
+    
+    // Hybrid mode support: determines if a laser should use CAN or native driver
+    // Returns true if laser should be routed to CAN bus, false for native driver
+    bool shouldUseCANForLaser(int LASERid);
+    
+    // Hybrid mode support: converts internal hybrid laser ID (4,5,6,7) to CAN laser ID (0,1,2,3)
+    // Used when sending commands to CAN satellites in hybrid mode
+    int getCANLaserIdForHybrid(int LASERid);
     
     // Main API functions
     int getLaserVal(int LASERid);

@@ -10,7 +10,7 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -116,7 +116,7 @@ namespace StageScan
     // -----------------------------------------------------------------------------
     static inline void moveAbs(Stepper ax, int32_t pos, int speed = 20000, int acceleration = 1000000, int32_t timeout = 2000)
     {
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto *d = FocusMotor::getData()[ax];
         d->absolutePosition = 1;
         d->targetPosition = pos;
@@ -185,7 +185,7 @@ namespace StageScan
                     int targetX = stageScanningData.coordinates[i].x;
                     int targetY = stageScanningData.coordinates[i].y;
                     log_i("Moving to coordinate %d: (%d, %d)", i, targetX, targetY);
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
                     // Use CAN moveAbs for absolute positioning
                     moveAbs(Stepper::X, targetX, stageScanningData.speed, stageScanningData.acceleration);
                     moveAbs(Stepper::Y, targetY, stageScanningData.speed, stageScanningData.acceleration);
@@ -215,7 +215,7 @@ namespace StageScan
                 }
 
                 // Return to start position if not CAN-based (CAN systems handle this automatically)
-#if !defined(CAN_CONTROLLER) || defined(CAN_SLAVE_MOTOR)
+#if !defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR)
                 if (startX != FocusMotor::getData()[Stepper::X]->currentPosition)
                 {
                     FocusMotor::moveMotor(startX, Stepper::X, false);
@@ -243,7 +243,7 @@ namespace StageScan
 
     void stageScanCAN(bool isThread)
     {
-#if defined CAN_CONTROLLER && !defined CAN_SLAVE_MOTOR
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto &sd = StageScan::stageScanningData;
 
         // Check if we should use coordinate-based scanning
@@ -298,7 +298,7 @@ namespace StageScan
                 {
                     if (sd.lightsourceIntensities[j] > 0)
                     {
-#if defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
+#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
                         LaserData laserData;
                         laserData.LASERid = j;
                         laserData.LASERval = sd.lightsourceIntensities[j];
@@ -394,7 +394,7 @@ namespace StageScan
                         if (sd.lightsourceIntensities[j] > 0)
                         {
 // TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
-#if defined CAN_CONTROLLER && not defined(CAN_SLAVE_LASER)
+#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
                             LaserData laserData;
                             laserData.LASERid = j;
                             laserData.LASERval = sd.lightsourceIntensities[j];
@@ -454,11 +454,11 @@ namespace StageScan
     // CAN/I2C Integration:
     // Coordinate-based scanning uses absolute positioning which automatically routes motor commands
     // through the appropriate communication layer:
-    // - CAN_CONTROLLER: Commands sent via CAN to distributed motor controllers using moveAbs()
+    // - CAN_BUS_ENABLED: Commands sent via CAN to distributed motor controllers using moveAbs()
     // - I2C_MASTER: Commands sent via I2C to slave controllers
     // - Direct GPIO: Falls back to direct stepper control when neither CAN nor I2C is configured
     {
-#if defined(CAN_MASTER)
+#if defined(CAN_SEND_COMMANDS)
         stageScanCAN(true);
 #else
         stageScan(true);

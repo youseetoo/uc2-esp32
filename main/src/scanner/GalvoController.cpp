@@ -16,7 +16,7 @@
 
 #include "SPIRenderer.h"
 
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -60,7 +60,7 @@ namespace GalvoController
             log_i("Fast mode %s", fastMode ? "enabled" : "disabled");
         }
         
-#if defined(CAN_CONTROLLER) && !defined(CAN_SLAVE_GALVO)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_GALVO)
         // Send galvo command over CAN bus (master mode)
         GalvoData galvoData;
         galvoData.qid = qid;
@@ -132,7 +132,7 @@ namespace GalvoController
     void setup()
     {
 
-#if defined(GALVO_CONTROLLER) &&  !defined(CAN_SLAVE_GALVO) && defined(CAN_MASTER)
+#if defined(GALVO_CONTROLLER) &&  !defined(CAN_RECEIVE_GALVO) && defined(CAN_SEND_COMMANDS)
         log_d("Setup GalvoController as master");
         #else
         log_d("Setup GalvoController as slave");
@@ -197,7 +197,7 @@ namespace GalvoController
 
     void sendCurrentStateToMaster()
     {
-#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_RECEIVE_GALVO)
         GalvoData currentState = getCurrentGalvoData();
         can_controller::sendGalvoStateToMaster(currentState);
 #endif

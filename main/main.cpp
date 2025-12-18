@@ -235,7 +235,7 @@ extern "C" void looper(void *p)
 
 
 		// process all commands in their modules
-		if ((pinConfig.dumpHeap|| true)  && lastHeapUpdateTime + 500000 < esp_timer_get_time())
+		if ((pinConfig.dumpHeap|| false)  && lastHeapUpdateTime + 500000 < esp_timer_get_time())
 		{ //
 			/* code */
 			char buffer[64];

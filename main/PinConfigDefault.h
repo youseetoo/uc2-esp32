@@ -120,6 +120,7 @@ struct PinConfig
      const char *pindefName = "pindef";
 
      bool DEBUG_CAN_ISO_TP = 0;
+     uint32_t CAN_ID_CURRENT = disabled;
      // see AccelStepper.h MotorInterfaceType
      /*
      typedef enum

@@ -216,7 +216,7 @@ void SPIRenderer::draw_fast()
 ////////////////////////////////////////////////////////////////
 void SPIRenderer::trigger_camera(int tPixelDwelltime, int triggerPin)
 {
-#if defined(GALVO_CONTROLLER) &&  defined(CAN_SLAVE_GALVO)
+#if defined(GALVO_CONTROLLER) &&  defined(CAN_RECEIVE_GALVO)
 #ifdef ESP32S3_MODEL_XIAO
   gpio_set_level((gpio_num_t)triggerPin, 1);
   esp_rom_delay_us(tPixelDwelltime);

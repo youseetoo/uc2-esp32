@@ -259,6 +259,11 @@ namespace FAccelStep
 
     void updateData(int i)
     {
+        if (faststeppers[i] == nullptr)
+        {
+            log_e("FastAccelStepper for axis %d is null in updateData", i);
+            return;
+        }
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
     }
 
@@ -266,7 +271,10 @@ namespace FAccelStep
     {
         for (int i = 0; i < faststeppers.size(); i++)
         {
-            faststeppers[i]->setAutoEnable(enable);
+            if (faststeppers[i] != nullptr)
+            {
+                faststeppers[i]->setAutoEnable(enable);
+            }
         }
     }
 
@@ -274,7 +282,10 @@ namespace FAccelStep
     {
         for (int i = 0; i < faststeppers.size(); i++)
         {
-
+            if (faststeppers[i] == nullptr)
+            {
+                continue;
+            }
             if (enable)
             {
                 faststeppers[i]->enableOutputs();
@@ -290,16 +301,30 @@ namespace FAccelStep
 
     void setPosition(Stepper s, int val)
     {
+        if (faststeppers[s] == nullptr)
+        {
+            log_e("FastAccelStepper for axis %d is null in setPosition", s);
+            return;
+        }
         faststeppers[s]->setCurrentPosition(val);
     }
 
     bool isRunning(int i)
     {
+        if (faststeppers[i] == nullptr)
+        {
+            return false;
+        }
         return faststeppers[i]->isRunning();
     }
 
     void move(Stepper s, int steps, bool blocking)
     {
+        if (faststeppers[s] == nullptr)
+        {
+            log_e("FastAccelStepper for axis %d is null in move", s);
+            return;
+        }
         // move the motor by the given steps
         faststeppers[s]->move(steps, blocking);
     }

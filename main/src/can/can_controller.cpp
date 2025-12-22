@@ -27,6 +27,10 @@ using namespace LedController;
 #endif
 using namespace FocusMotor;
 
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
 namespace can_controller
 {
 
@@ -221,6 +225,7 @@ namespace can_controller
                 log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
             HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
         }
+        #ifdef TMC_CONTROLLER
         else if (size == sizeof(TMCData))
         {
             // parse incoming TMC Data and apply that to the TMC driver
@@ -232,6 +237,7 @@ namespace can_controller
                 log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
             TMCController::applyParamsToDriver(receivedTMCData, true);
         }
+        #endif
         else if (size == sizeof(MotorDataValueUpdate))
         {
             // Minimal single-value update for every part from the MotorData struct
@@ -448,7 +454,7 @@ namespace can_controller
             }
             
             // Handle OTA acknowledgment (master side)
-            #ifdef CAN_MASTER
+            #ifdef CAN_SEND_COMMANDS
             if (msgType == CANMessageTypeID::OTA_ACK && size >= (sizeof(CANMessageTypeID) + sizeof(OtaAck)))
             {
                 OtaAck ack;
@@ -502,7 +508,7 @@ namespace can_controller
         }
 
         // Handle SCAN_RESPONSE (master side) - collect device info
-        #ifdef CAN_MASTER
+        #ifdef CAN_SEND_COMMANDS
         if (size > 0)
         {
             CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
@@ -1200,7 +1206,7 @@ namespace can_controller
         cJSON *ota = cJSON_GetObjectItem(doc, "ota");
         if (ota != NULL)
         {
-            #ifdef CAN_MASTER
+            #ifdef CAN_SEND_COMMANDS
             // Extract parameters
             cJSON *canIdObj = cJSON_GetObjectItem(ota, "canid");
             cJSON *ssidObj = cJSON_GetObjectItem(ota, "ssid");
@@ -1232,7 +1238,7 @@ namespace can_controller
             }
             return result;
             #else
-            log_w("OTA command received but CAN_MASTER not defined");
+            log_w("OTA command received but CAN_SEND_COMMANDS not defined");
             return -1;
             #endif
         }
@@ -1242,7 +1248,7 @@ namespace can_controller
         cJSON *scan = cJSON_GetObjectItem(doc, "scan");
         if (scan != NULL && cJSON_IsTrue(scan))
         {
-            #ifdef CAN_MASTER
+            #ifdef CAN_SEND_COMMANDS
             log_i("Starting CAN network scan...");
             
             // Reset all motor settings flags before scan
@@ -1256,7 +1262,7 @@ namespace can_controller
             // Return qid to trigger acknowledgment immediately
             return qid;
             #else
-            log_w("CAN scan command received but CAN_MASTER not defined");
+            log_w("CAN scan command received but CAN_SEND_COMMANDS not defined");
             return -1;
             #endif
         }

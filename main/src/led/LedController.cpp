@@ -6,7 +6,7 @@
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -22,6 +22,8 @@ namespace LedController
 	static unsigned long circleLastEventTime = 0;
 	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
 	static bool ledToggleState = false; // false = off, true = on
+	
+
 
 	// ------------------------------------------------
 	// HELPER: Convert (x, y) -> single index
@@ -550,11 +552,11 @@ namespace LedController
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q2", "r": 15, "g": 15, "b": 15} }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q3", "r": 15, "g": 15, "b": 15} }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "q4", "r": 15, "g": 15, "b": 15} }
-		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 0, "r": 255, "g": 255, "b": 255 } }
+		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 3, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
 		{ "task": "/ledarr_act", "qid": 17, "led"} 
-		{"task": "/laser_act", "LASERid":3, "LASERval": 1000, "LASERdespeckle": 0,  "LASERdespecklePeriod": 30}
+		{"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":5}
 
 		*/
 		// 1) Check for "task"
@@ -767,10 +769,57 @@ namespace LedController
 	void execLedCommand(const LedCommand &cmd)
 	{
 		log_i("execLedCommand: Executing command with mode %d", static_cast<int>(cmd.mode));
+		
+		// Track intensity for auto-off safety (only for LED arrays that need thermal protection)
+		// Check if this is a device that requires thermal protection
+		bool needsThermalProtection = (pinConfig.pindefName && 
+			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
+		
+		if (needsThermalProtection)
+		{
+			// Calculate total intensity as sum of all RGB channels for accurate thermal calculation
+			// This better represents actual power/heat than just the max channel
+			uint16_t totalIntensity = (uint16_t)cmd.r + (uint16_t)cmd.g + (uint16_t)cmd.b;
+			currentTotalIntensity = totalIntensity;
+			
+			if (totalIntensity > pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD)
+			{
+				if (highIntensityStartTime == 0)
+				{
+					// First time exceeding threshold
+					highIntensityStartTime = millis();
+					highIntensityWarningShown = false;
+					ledAutoOffTriggered = false;
+					log_w("LED total intensity %d (R:%d+G:%d+B:%d) exceeds threshold %d - auto-off timer started", 
+						  totalIntensity, cmd.r, cmd.g, cmd.b, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD);
+				}
+			}
+			else
+			{
+				// Intensity dropped below threshold, reset timer
+				if (highIntensityStartTime != 0)
+				{
+					log_i("LED total intensity dropped to %d - auto-off timer reset", totalIntensity);
+				}
+				highIntensityStartTime = 0;
+				highIntensityWarningShown = false;
+				ledAutoOffTriggered = false;
+			}
+		}
+		
 		switch (cmd.mode)
 		{
 		case LedMode::OFF:
 			turnOff();
+			// Reset auto-off tracking when LEDs are turned off
+			if (needsThermalProtection)
+			{
+				highIntensityStartTime = 0;
+				highIntensityWarningShown = false;
+				ledAutoOffTriggered = false;
+				currentTotalIntensity = 0;
+			}
 			break;
 		case LedMode::FILL:
 			fillAll(cmd.r, cmd.g, cmd.b);
@@ -827,11 +876,19 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
-		// Send the command to the CAN driver
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
+		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
+		// When HYBRID_LED_DUAL_OUTPUT is enabled, commands go to both local and remote LEDs
+		
+		// Always send to CAN (for remote LED arrays)
 		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-		if (pinConfig.IS_STATUS_LED)	
+		
+		// Execute locally if:
+		// 1. This is a status LED display, OR
+		// 2. Hybrid dual output mode is enabled (LED_PIN is configured for local LED array)
+		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
 		{
+			log_i("Hybrid LED mode: Executing on local LED array");
 			execLedCommand(cmd);
 		}
 #else
@@ -914,7 +971,7 @@ namespace LedController
 				isOn = false;
 			}
 			
-#if defined(CAN_CONTROLLER) && defined(CAN_MASTER) && !defined(CAN_SLAVE_LED)
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 			// Send the command to the CAN driver
 			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
 #else
@@ -926,11 +983,51 @@ namespace LedController
 
 	void loop()
 	{
+		// LED auto-off safety: Monitor high intensity LEDs and auto-shut off to prevent overheating
+		// Check if this is a device that requires thermal protection
+		bool needsThermalProtection = (pinConfig.pindefName && 
+			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
+		
+		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
+		{
+			unsigned long elapsedTime = millis() - highIntensityStartTime;
+			
+			// Show warning at 75% of auto-off time
+			if (!highIntensityWarningShown && elapsedTime >= (pinConfig.LED_AUTO_OFF_TIME_MS * 3 / 4))
+			{
+				highIntensityWarningShown = true;
+				log_w("WARNING: LED total intensity %d has been high for %lu ms. Auto-off in %lu ms to prevent overheating!",
+					  currentTotalIntensity, elapsedTime, pinConfig.LED_AUTO_OFF_TIME_MS - elapsedTime);
+				Serial.println("+|");
+				Serial.println("{\"led\":{\"warning\":\"High intensity detected - hardware can overheat and be destroyed!\"}}");
+				Serial.println("--");
+			}
+			
+			// Auto-off when time limit exceeded
+			if (elapsedTime >= pinConfig.LED_AUTO_OFF_TIME_MS)
+			{
+				ledAutoOffTriggered = true;
+				log_e("LED AUTO-OFF TRIGGERED! Total intensity %d exceeded %d threshold for %lu ms - shutting down LEDs to prevent damage",
+					  currentTotalIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD, elapsedTime);
+				
+				// Turn off LEDs for safety
+				turnOff();
+				
+				// Send warning message to user
+				Serial.println("++");
+				Serial.println("{\"led\":{\"error\":\"AUTO-OFF: LEDs too hot! Hardware protection activated. Reduce intensity or wait before restarting.\"}}");
+				Serial.println("--");
+				
+				// Reset tracking (user must send new command to restart)
+				highIntensityStartTime = 0;
+				currentTotalIntensity = 0;
+			}
+		}
 
-
-// only on the HAT MAster => Glow or show status
-if( pinConfig.IS_STATUS_LED)	
-{
+		// only on the HAT Master => Glow or show status
+		if( pinConfig.IS_STATUS_LED)	
+		{
 	// log_i("LedController loop: Updating status LED effect for status %d", static_cast<int>(currentLedForStatus));
 
 		// Determine color based on currentLedForStatus

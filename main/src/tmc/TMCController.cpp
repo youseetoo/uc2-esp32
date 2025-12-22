@@ -2,7 +2,7 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_CONTROLLER
+#ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
 
@@ -52,7 +52,7 @@ namespace TMCController
 
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
     {
-        #if not defined(CAN_MASTER)
+        #if not defined(CAN_SEND_COMMANDS)
         for (int iTrial=0; iTrial<3; iTrial++) driver.microsteps(p.msteps);
         driver.rms_current(p.rms_current);
         driver.SGTHRS(p.sgthrs);
@@ -126,7 +126,7 @@ namespace TMCController
         // send TMC data via I2C
         i2c_master::sendTMCDataI2C(p, axis);
         return 0;
-#elif defined(CAN_MASTER)
+#elif defined(CAN_SEND_COMMANDS)
         can_controller::sendTMCDataToCANDriver(p, axis);
         return 0;
 #else
@@ -177,7 +177,7 @@ namespace TMCController
         {
             return jsonDocument;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
         TMCData p = readParamsFromPreferences();
         cJSON *monitor_json = cJSON_CreateObject();
         cJSON_AddNumberToObject(monitor_json, "msteps", p.msteps);
@@ -207,7 +207,7 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration");
             return 0;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
         return driver.rms_current();
 #else
         return 0;
@@ -224,9 +224,9 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration");
             return;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
         bool isZAxis = false ;
-        #ifdef CAN_SLAVE_MOTOR
+        #ifdef CAN_RECEIVE_MOTOR
             // retreive the current ID
             isZAxis = can_controller::device_can_id == pinConfig.CAN_ID_MOT_Z;
         #endif
@@ -242,7 +242,7 @@ namespace TMCController
 
     void callibrateStallguard(int speed = 10000)
     {
-#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
@@ -317,7 +317,7 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
             return;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
         log_i("Setting up TMC2209");
 
         preferences.begin("tmc", false);
@@ -346,7 +346,7 @@ namespace TMCController
 
         if (pinConfig.TMC_DEBUG)
         {
-#ifdef TMC_CONTROLLER and not defined(CAN_MASTER)
+#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
 // print stallguard and current in every cycle
             log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
             #endif

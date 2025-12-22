@@ -397,10 +397,11 @@ namespace BtController
         log_i("scanForDevices - Also ensure that we have enough Heap memory. 39300 seems to be the minimum below which it doesn't work anymore");
 // scan for bluetooth devices and return the list of devices
 #ifdef BTHID
-        // Create a task for BT scanning to prevent watchdog timeout
-        // Increase stack size and priority to prevent memory issues
-        // xTaskCreate(hid_demo_task, "hid_demo_task", 8192, NULL, 6, NULL);
-        hid_demo_task(nullptr);
+        // Create a task for BT scanning to prevent blocking the serial task
+        // IMPORTANT: Pass non-null parameter (1) to indicate it's running as a task
+        // This prevents vTaskDelete from being skipped and ensures proper task cleanup
+        // Stack size 8192 is needed for BT scanning operations
+        xTaskCreate(hid_demo_task, "hid_demo_task", 8192, (void*)1, 6, NULL);
 
         cJSON *root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "status", "scan_started");

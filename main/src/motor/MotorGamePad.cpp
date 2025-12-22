@@ -65,7 +65,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	inline void handleAxis(int16_t value, int ax)
 	{
-		if (pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master") || pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2"))
+		if (pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master") || pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2"))
 		{
 			// In UC2_4_CAN_HYBRID, Axis A is not native - ignore direct joystick control
 			return;

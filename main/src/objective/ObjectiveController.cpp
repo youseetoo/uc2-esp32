@@ -294,9 +294,9 @@ namespace ObjectiveController
 		int qid = cJsonTool::getJsonInt(doc, "qid");
 		cJSON_AddItemToObject(root, "objective", obj);
 		cJsonTool::setJsonInt(obj, "x0", (int)data.x0);
-		cJsonTool::setJsonInt(obj, "x0", (int)data.x1);
+		cJsonTool::setJsonInt(obj, "x1", (int)data.x1);
 		cJsonTool::setJsonInt(obj, "z0", (int)data.z0);
-		cJsonTool::setJsonInt(obj, "z0", (int)data.z1);
+		cJsonTool::setJsonInt(obj, "z1", (int)data.z1);
 		cJsonTool::setJsonInt(obj, "pos", FocusMotor::getData()[sObjective]->currentPosition);
 		cJsonTool::setJsonInt(obj, "isHomed", data.isHomed);
 		cJsonTool::setJsonInt(obj, "state", data.currentState);

@@ -65,10 +65,11 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	inline void handleAxis(int16_t value, int ax)
 	{
-		#ifdef CAN_SEND_COMMANDS 
-		if (ax == Stepper::A)
-		return;
-		#endif
+		if (pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master") || pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2"))
+		{
+			// In UC2_4_CAN_HYBRID, Axis A is not native - ignore direct joystick control
+			return;
+		}
 		
 		// Apply offset calibration
 		value -= joystickOffsets[ax];
@@ -136,7 +137,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		// log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
 
 		// Calibrate on first call - capture initial joystick position as offset
-		if (!isCalibrated)
+		if (!isCalibrated and false)
 		{
 			joystickOffsets[Stepper::X] = x;
 			joystickOffsets[Stepper::Y] = y;

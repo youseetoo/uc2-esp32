@@ -162,7 +162,10 @@ namespace FocusMotor
 			return;
 		}
 		
-		if (xSemaphoreTake(xMutex, portMAX_DELAY)) // TODO: Check if this is causing the issue with the queue
+		// Use timeout instead of portMAX_DELAY to prevent PS4 controller from blocking indefinitely
+		// when serial commands are being processed. 50ms is enough for most operations while
+		// allowing gamepad to retry quickly if mutex is busy.
+		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
 		{
 #if defined(I2C_MASTER) && defined(I2C_MOTOR)
 			// Request data from the slave but only if inside i2cAddresses

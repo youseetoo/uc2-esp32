@@ -48,6 +48,8 @@ struct waveshare_esp32s3_ledarray : PinConfig
      bool dumpHeap = false; 
 
      const uint16_t serialTimeout = 100;
+
+     uint32_t CAN_ID_CURRENT = disabled;
 };
   
 const waveshare_esp32s3_ledarray pinConfig;

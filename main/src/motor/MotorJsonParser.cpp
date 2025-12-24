@@ -791,38 +791,18 @@ namespace MotorJsonParser
 						cJSON_AddNumberToObject(stepper, key_isabs, FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
 						
 						// Extract and pass PID parameters if provided
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL) {
-							float cp = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_cp, cp);
-						}
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci) != NULL) {
-							float ci = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_ci, ci);
-						}
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd) != NULL) {
-							float cd = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_cd, cd);
-						}
+						addJsonFloatIfPresent(stp, stepper, key_linearencoder_cp);
+						addJsonFloatIfPresent(stp, stepper, key_linearencoder_ci);
+						addJsonFloatIfPresent(stp, stepper, key_linearencoder_cd);
 						
 						// Pass stalling detection parameters if provided
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold) != NULL) {
-							float stallThreshold = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_stall_threshold, stallThreshold);
-						}
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout) != NULL) {
-							int stallTimeout = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout)->valueint;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_stall_timeout, stallTimeout);
-						}
+						addJsonFloatIfPresent(stp, stepper, key_linearencoder_stall_threshold);
+						addJsonIntIfPresent(stp, stepper, key_linearencoder_stall_timeout);
 						
 						// Pass debug flag if provided
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug) != NULL) {
-							int debug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_debug, debug);
-						}
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval) != NULL) {
-							int debugInterval = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval)->valueint;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_debug_interval, debugInterval);
-						}
+						addJsonIntIfPresent(stp, stepper, key_linearencoder_debug);
+						addJsonIntIfPresent(stp, stepper, key_linearencoder_debug_interval);
+						
 						// Add stepper to array and build command
 						cJSON_AddItemToArray(steppers, stepper);
 						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);

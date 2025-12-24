@@ -731,7 +731,7 @@ namespace LinearEncoderController
                 lastPositionChangeTime = currentTime;
                 previousPosition = currentPos;
             }
-            else if ((currentTime - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
+            else if ((currentTime - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > edata[s]->minDistanceForStallCheck)
             {
                 // Intelligent stuck motor recovery: Try reduced speed approach first
                 static int recoveryAttempt = 0;

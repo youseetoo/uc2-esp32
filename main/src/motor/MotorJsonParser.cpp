@@ -78,7 +78,19 @@ namespace MotorJsonParser
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				FocusMotor::updateData(i);
+				
+				// If encoder-based motion is enabled, return encoder position instead of motor position
+#ifdef LINEAR_ENCODER_CONTROLLER
+				if (FocusMotor::getData()[i]->encoderBasedMotion) {
+					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
+					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
+					log_i("Returning encoder position %ld for motor %d (encoder-based motion)", encoderPosition, i);
+				} else {
+					cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+				}
+#else
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+#endif
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 			else if (stop != NULL)
@@ -95,7 +107,18 @@ namespace MotorJsonParser
 				FocusMotor::updateData(i);
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
+				
+				// If encoder-based motion is enabled, return encoder position instead of motor position
+#ifdef LINEAR_ENCODER_CONTROLLER
+				if (FocusMotor::getData()[i]->encoderBasedMotion) {
+					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
+					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
+				} else {
+					cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+				}
+#else
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+#endif
 			cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 			cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 			cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
@@ -745,12 +768,13 @@ namespace MotorJsonParser
 					// FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 					
-					// Check for encoder-based precision motion (enc=1)
-					bool useEncoderPrecision = cJsonTool::getJsonInt(stp, key_encoder_precision) == 1;
+					// Check for encoder-based precision motion (precise=1 or enc=1 for backward compatibility)
+					bool useEncoderPrecision = (cJsonTool::getJsonInt(stp, key_precise) == 1) || 
+					                           (cJsonTool::getJsonInt(stp, key_encoder_precision) == 1);
 					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
 					
 					if (useEncoderPrecision) {
-						log_i("Motor %d: Encoder-based precision motion enabled (enc=1)", s);
+						log_i("Motor %d: Encoder-based precision motion enabled (precise=1 or enc=1)", s);
 						// For encoder-based motion, position is in encoder units
 						// Create LinearEncoderController command with PID parameters
 						#ifdef LINEAR_ENCODER_CONTROLLER
@@ -780,6 +804,22 @@ namespace MotorJsonParser
 						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd) != NULL) {
 							float cd = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
 							cJSON_AddNumberToObject(stepper, key_linearencoder_cd, cd);
+						}
+						
+						// Pass stalling detection parameters if provided
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold) != NULL) {
+							float stallThreshold = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold)->valuedouble;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_stall_threshold, stallThreshold);
+						}
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout) != NULL) {
+							int stallTimeout = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout)->valueint;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_stall_timeout, stallTimeout);
+						}
+						
+						// Pass debug flag if provided
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug) != NULL) {
+							int debug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_debug, debug);
 						}
 						#endif
 						// Add stepper to array and build command

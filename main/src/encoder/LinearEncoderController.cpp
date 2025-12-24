@@ -230,6 +230,17 @@ namespace LinearEncoderController
                         edata[s]->c_d = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_speed) != NULL)
                         edata[s]->maxSpeed = abs(cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint);
+                    
+                    // Parse stalling detection parameters
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold) != NULL)
+                        edata[s]->stallThreshold = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold)->valuedouble;
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout) != NULL)
+                        edata[s]->stallTimeout = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout)->valueint;
+                    
+                    // Parse debug message control
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug) != NULL)
+                        edata[s]->enableDebug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
+                    
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                         edata[s]->encoderDirection = abs(cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint);
                     if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
@@ -631,6 +642,11 @@ namespace LinearEncoderController
         startStepper(s, 0);
 
         log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
+        
+        if (edata[s]->enableDebug) {
+            log_i("DEBUG: PID parameters - Kp=%f, Ki=%f, Kd=%f", edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
+            log_i("DEBUG: Stall detection - threshold=%f, timeout=%lu ms", edata[s]->stallThreshold, edata[s]->stallTimeout);
+        }
 
         // Fast precision control loop with immediate PID updates
         // Dynamic timeout calculation based on distance and maximum speed
@@ -639,8 +655,10 @@ namespace LinearEncoderController
         unsigned long calculatedTimeout = (unsigned long)((distance / edata[s]->maxSpeed) * 1000.0f) + (safetyMargin * 1000.0f);
         const unsigned long maxMotionTime = max(calculatedTimeout, 3000UL); // Minimum 3 seconds, maximum based on calculation
         const float positionTolerance = 10.0f; // step tolerance for completion
-        const float stuckThreshold = 10.01f; // step threshold for detecting stuck motor
-        const unsigned long stuckTimeout = 300; // ms before considering motor stuck
+        
+        // Use configurable stalling detection parameters
+        const float stuckThreshold = edata[s]->stallThreshold;
+        const unsigned long stuckTimeout = edata[s]->stallTimeout;
 
         
         unsigned long motionStartTime = millis();
@@ -672,6 +690,16 @@ namespace LinearEncoderController
 
             // Compute new PID speed based on current position
             speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
+            
+            // Debug output for motion tracking
+            if (edata[s]->enableDebug) {
+                static unsigned long lastDebugTime = 0;
+                if (millis() - lastDebugTime > 100) { // Print every 100ms to avoid spam
+                    log_i("DEBUG: pos=%f, target=%f, error=%f, speed=%f", 
+                          currentPos, edata[s]->positionToGo, distanceToGo, speed);
+                    lastDebugTime = millis();
+                }
+            }
             
             // Direction error detection: Check if motor and encoder are working in opposite directions
             if (false && (abs(distanceToGo) > 50.0f && abs(speed) > 100.0f)) { // Only check when meaningful motion is expected (//TODO: This is currently not working robustly)

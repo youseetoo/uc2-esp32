@@ -90,8 +90,9 @@ namespace HomeMotor
 					int homeEndposRelease = cJsonTool::getJsonInt(stp, key_home_endstoprelease, 0); // TODO: This will add a last move after homing is completed to "clear" the endstop - we will keep the position in the counter (no resetting - eg when moving the objective lens in safe zone )
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
-					// Check for encoder-based homing (enc=1)
-					bool useEncoderHoming = cJsonTool::getJsonInt(stp, key_encoder_precision) == 1;
+					// Check for encoder-based homing (precise=1 or enc=1 for backward compatibility)
+					bool useEncoderHoming = (cJsonTool::getJsonInt(stp, key_precise) == 1) || 
+					                        (cJsonTool::getJsonInt(stp, key_encoder_precision) == 1);
 					
 					if (useEncoderHoming) {
 						log_i("Starting encoder-based homing for axis %d", axis);

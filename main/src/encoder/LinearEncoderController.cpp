@@ -240,6 +240,8 @@ namespace LinearEncoderController
                     // Parse debug message control
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug) != NULL)
                         edata[s]->enableDebug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval) != NULL)
+                        edata[s]->debugInterval = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval)->valueint;
                     
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                         edata[s]->encoderDirection = abs(cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint);
@@ -693,7 +695,7 @@ namespace LinearEncoderController
             
             // Debug output for motion tracking
             if (edata[s]->enableDebug) {
-                if (millis() - edata[s]->lastDebugTime > 100) { // Print every 100ms to avoid spam
+                if (millis() - edata[s]->lastDebugTime > edata[s]->debugInterval) {
                     log_i("DEBUG: pos=%f, target=%f, error=%f, speed=%f", 
                           currentPos, edata[s]->positionToGo, distanceToGo, speed);
                     edata[s]->lastDebugTime = millis();

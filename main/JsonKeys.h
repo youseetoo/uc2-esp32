@@ -109,6 +109,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_home = "h
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_moveprecise = "moveP";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_plot = "plot";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_debug = "debug";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_debug_interval = "debug_interval";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_timeout = "stall_timeout";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_threshold = "stall_threshold";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";

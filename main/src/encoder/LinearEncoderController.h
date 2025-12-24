@@ -43,6 +43,7 @@ struct LinearEncoderData
 	// Debug message control
 	bool enableDebug = false; // Enable detailed debug output during motion
 	unsigned long lastDebugTime = 0; // Last time debug message was printed (per-instance)
+	unsigned long debugInterval = 100; // Debug message interval in milliseconds
 	
 	
 	// PID controller variables

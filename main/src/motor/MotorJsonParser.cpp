@@ -820,6 +820,10 @@ namespace MotorJsonParser
 							int debug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
 							cJSON_AddNumberToObject(stepper, key_linearencoder_debug, debug);
 						}
+						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval) != NULL) {
+							int debugInterval = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval)->valueint;
+							cJSON_AddNumberToObject(stepper, key_linearencoder_debug_interval, debugInterval);
+						}
 						// Add stepper to array and build command
 						cJSON_AddItemToArray(steppers, stepper);
 						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);

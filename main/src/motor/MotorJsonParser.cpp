@@ -796,7 +796,6 @@ namespace MotorJsonParser
 							float cp = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;
 							cJSON_AddNumberToObject(stepper, key_linearencoder_cp, cp);
 						}
-						#ifdef LINEAR_ENCODER_CONTROLLER
 						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci) != NULL) {
 							float ci = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci)->valuedouble;
 							cJSON_AddNumberToObject(stepper, key_linearencoder_ci, ci);
@@ -821,7 +820,6 @@ namespace MotorJsonParser
 							int debug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
 							cJSON_AddNumberToObject(stepper, key_linearencoder_debug, debug);
 						}
-						#endif
 						// Add stepper to array and build command
 						cJSON_AddItemToArray(steppers, stepper);
 						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);

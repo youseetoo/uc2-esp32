@@ -695,10 +695,11 @@ namespace LinearEncoderController
             
             // Debug output for motion tracking
             if (edata[s]->enableDebug) {
-                if (millis() - edata[s]->lastDebugTime > edata[s]->debugInterval) {
+                unsigned long currentTime = millis();
+                if (currentTime - edata[s]->lastDebugTime > edata[s]->debugInterval) {
                     log_i("DEBUG: pos=%f, target=%f, error=%f, speed=%f", 
                           currentPos, edata[s]->positionToGo, distanceToGo, speed);
-                    edata[s]->lastDebugTime = millis();
+                    edata[s]->lastDebugTime = currentTime;
                 }
             }
             

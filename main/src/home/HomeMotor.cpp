@@ -9,6 +9,7 @@
 #include "../../JsonKeys.h"
 #include "../motor/MotorTypes.h"
 #include "../motor/FocusMotor.h"
+#include "../motor/MotorJsonParser.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
@@ -91,8 +92,7 @@ namespace HomeMotor
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
 					// Check for encoder-based homing (precise=1 or enc=1 for backward compatibility)
-					bool useEncoderHoming = (cJsonTool::getJsonInt(stp, key_precise) == 1) || 
-					                        (cJsonTool::getJsonInt(stp, key_encoder_precision) == 1);
+					bool useEncoderHoming = MotorJsonParser::isEncoderPrecisionRequested(stp);
 					
 					if (useEncoderHoming) {
 						log_i("Starting encoder-based homing for axis %d", axis);

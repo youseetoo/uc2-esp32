@@ -230,6 +230,19 @@ namespace LinearEncoderController
                         edata[s]->c_d = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_speed) != NULL)
                         edata[s]->maxSpeed = abs(cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint);
+                    
+                    // Parse stalling detection parameters
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold) != NULL)
+                        edata[s]->stallThreshold = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold)->valuedouble;
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout) != NULL)
+                        edata[s]->stallTimeout = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout)->valueint;
+                    
+                    // Parse debug message control
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug) != NULL)
+                        edata[s]->enableDebug = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug)->valueint;
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval) != NULL)
+                        edata[s]->debugInterval = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug_interval)->valueint;
+                    
                     if (cJSON_GetObjectItemCaseSensitive(stp, "encdir") != NULL)
                         edata[s]->encoderDirection = abs(cJSON_GetObjectItemCaseSensitive(stp, "encdir")->valueint);
                     if (cJSON_GetObjectItemCaseSensitive(stp, "motdir") != NULL)
@@ -631,6 +644,11 @@ namespace LinearEncoderController
         startStepper(s, 0);
 
         log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
+        
+        if (edata[s]->enableDebug) {
+            log_i("DEBUG: PID parameters - Kp=%f, Ki=%f, Kd=%f", edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
+            log_i("DEBUG: Stall detection - threshold=%f, timeout=%lu ms", edata[s]->stallThreshold, edata[s]->stallTimeout);
+        }
 
         // Fast precision control loop with immediate PID updates
         // Dynamic timeout calculation based on distance and maximum speed
@@ -639,8 +657,10 @@ namespace LinearEncoderController
         unsigned long calculatedTimeout = (unsigned long)((distance / edata[s]->maxSpeed) * 1000.0f) + (safetyMargin * 1000.0f);
         const unsigned long maxMotionTime = max(calculatedTimeout, 3000UL); // Minimum 3 seconds, maximum based on calculation
         const float positionTolerance = 10.0f; // step tolerance for completion
-        const float stuckThreshold = 10.01f; // step threshold for detecting stuck motor
-        const unsigned long stuckTimeout = 300; // ms before considering motor stuck
+        
+        // Use configurable stalling detection parameters
+        const float stuckThreshold = edata[s]->stallThreshold;
+        const unsigned long stuckTimeout = edata[s]->stallTimeout;
 
         
         unsigned long motionStartTime = millis();
@@ -652,6 +672,9 @@ namespace LinearEncoderController
         
         while (edata[s]->movePrecise )
         {
+            // Cache current time at start of loop to avoid multiple system calls
+            unsigned long currentTime = millis();
+            
             // Read current encoder position with high frequency
             float currentPos = getCurrentPosition(s); // this returns the encoder position in counts which relates to steps from the motor to be consistent 
             float distanceToGo = edata[s]->positionToGo - currentPos;
@@ -664,14 +687,23 @@ namespace LinearEncoderController
                 break;
             }
 
-            if (!(millis() - motionStartTime < maxMotionTime)){
+            if (!(currentTime - motionStartTime < maxMotionTime)){
                 log_w("Precision motion timeout for axis %d after %lu ms: current_pos=%f, target=%f, error=%f", 
-                      s, millis() - motionStartTime, currentPos, edata[s]->positionToGo, distanceToGo);
+                      s, currentTime - motionStartTime, currentPos, edata[s]->positionToGo, distanceToGo);
                 break;
             }
 
             // Compute new PID speed based on current position
             speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
+            
+            // Debug output for motion tracking
+            if (edata[s]->enableDebug) {
+                if (currentTime - edata[s]->lastDebugTime > edata[s]->debugInterval) {
+                    log_i("DEBUG: pos=%f, target=%f, error=%f, speed=%f", 
+                          currentPos, edata[s]->positionToGo, distanceToGo, speed);
+                    edata[s]->lastDebugTime = currentTime;
+                }
+            }
             
             // Direction error detection: Check if motor and encoder are working in opposite directions
             if (false && (abs(distanceToGo) > 50.0f && abs(speed) > 100.0f)) { // Only check when meaningful motion is expected (//TODO: This is currently not working robustly)
@@ -696,10 +728,10 @@ namespace LinearEncoderController
             // Check for stuck motor condition
             if (abs(currentPos - previousPosition) > stuckThreshold)
             {
-                lastPositionChangeTime = millis();
+                lastPositionChangeTime = currentTime;
                 previousPosition = currentPos;
             }
-            else if ((millis() - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
+            else if ((currentTime - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > edata[s]->minDistanceForStallCheck)
             {
                 // Intelligent stuck motor recovery: Try reduced speed approach first
                 static int recoveryAttempt = 0;
@@ -729,10 +761,10 @@ namespace LinearEncoderController
             }
 
             // Reset watchdog timer periodically to prevent timeout
-            if ((millis() - lastWatchdogReset) > watchdogResetInterval)
+            if ((currentTime - lastWatchdogReset) > watchdogResetInterval)
             {
                 esp_task_wdt_reset();
-                lastWatchdogReset = millis();
+                lastWatchdogReset = currentTime;
             }
 
             // Delay to prevent watchdog timeout while maintaining reasonable response time

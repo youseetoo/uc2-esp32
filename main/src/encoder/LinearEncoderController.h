@@ -36,6 +36,16 @@ struct LinearEncoderData
 	float lastPosition = -1000000.0f;
 	float maxSpeed = 10000.0f;
 	
+	// Stalling detection parameters
+	float stallThreshold = 10.0f; // steps - threshold for detecting no movement
+	unsigned long stallTimeout = 300; // ms before considering motor stuck
+	float minDistanceForStallCheck = 5.0f; // steps - minimum distance to enable stall detection
+	
+	// Debug message control
+	bool enableDebug = false; // Enable detailed debug output during motion
+	unsigned long lastDebugTime = 0; // Last time debug message was printed (per-instance)
+	unsigned long debugInterval = 100; // Debug message interval in milliseconds
+	
 	
 	// PID controller variables
 	float c_p = 2.;

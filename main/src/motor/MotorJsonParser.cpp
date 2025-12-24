@@ -790,7 +790,6 @@ namespace MotorJsonParser
 						cJSON_AddNumberToObject(stepper, key_speed, FocusMotor::getData()[s]->speed);
 						cJSON_AddNumberToObject(stepper, key_isabs, FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
 						
-						#ifdef LINEAR_ENCODER_CONTROLLER
 						// Extract and pass PID parameters if provided
 						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL) {
 							float cp = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;

@@ -2,6 +2,10 @@
 
 #include "cJSON.h"
 
+// Forward declarations for JSON keys
+extern const char *key_precise;
+extern const char *key_encoder_precision;
+
 namespace MotorJsonParser
 {
     int act(cJSON *doc);
@@ -9,8 +13,6 @@ namespace MotorJsonParser
     
     // Helper function to check if encoder-based precision motion is requested
     inline bool isEncoderPrecisionRequested(cJSON *stepper) {
-        extern const char *key_precise;
-        extern const char *key_encoder_precision;
         return (cJSON_GetObjectItemCaseSensitive(stepper, key_precise) != NULL && 
                 cJSON_GetObjectItemCaseSensitive(stepper, key_precise)->valueint == 1) ||
                (cJSON_GetObjectItemCaseSensitive(stepper, key_encoder_precision) != NULL && 

@@ -672,6 +672,9 @@ namespace LinearEncoderController
         
         while (edata[s]->movePrecise )
         {
+            // Cache current time at start of loop to avoid multiple system calls
+            unsigned long currentTime = millis();
+            
             // Read current encoder position with high frequency
             float currentPos = getCurrentPosition(s); // this returns the encoder position in counts which relates to steps from the motor to be consistent 
             float distanceToGo = edata[s]->positionToGo - currentPos;
@@ -684,9 +687,9 @@ namespace LinearEncoderController
                 break;
             }
 
-            if (!(millis() - motionStartTime < maxMotionTime)){
+            if (!(currentTime - motionStartTime < maxMotionTime)){
                 log_w("Precision motion timeout for axis %d after %lu ms: current_pos=%f, target=%f, error=%f", 
-                      s, millis() - motionStartTime, currentPos, edata[s]->positionToGo, distanceToGo);
+                      s, currentTime - motionStartTime, currentPos, edata[s]->positionToGo, distanceToGo);
                 break;
             }
 
@@ -695,7 +698,6 @@ namespace LinearEncoderController
             
             // Debug output for motion tracking
             if (edata[s]->enableDebug) {
-                unsigned long currentTime = millis();
                 if (currentTime - edata[s]->lastDebugTime > edata[s]->debugInterval) {
                     log_i("DEBUG: pos=%f, target=%f, error=%f, speed=%f", 
                           currentPos, edata[s]->positionToGo, distanceToGo, speed);
@@ -726,10 +728,10 @@ namespace LinearEncoderController
             // Check for stuck motor condition
             if (abs(currentPos - previousPosition) > stuckThreshold)
             {
-                lastPositionChangeTime = millis();
+                lastPositionChangeTime = currentTime;
                 previousPosition = currentPos;
             }
-            else if ((millis() - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
+            else if ((currentTime - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > 5.0f)
             {
                 // Intelligent stuck motor recovery: Try reduced speed approach first
                 static int recoveryAttempt = 0;
@@ -759,10 +761,10 @@ namespace LinearEncoderController
             }
 
             // Reset watchdog timer periodically to prevent timeout
-            if ((millis() - lastWatchdogReset) > watchdogResetInterval)
+            if ((currentTime - lastWatchdogReset) > watchdogResetInterval)
             {
                 esp_task_wdt_reset();
-                lastWatchdogReset = millis();
+                lastWatchdogReset = currentTime;
             }
 
             // Delay to prevent watchdog timeout while maintaining reasonable response time

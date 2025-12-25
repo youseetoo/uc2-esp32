@@ -10,8 +10,6 @@
 #include "esp_debug_helpers.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
-#endif
-#ifdef ENCODER_CONTROLLER
 #include "../encoder/PCNTEncoderController.h"
 #endif
 #ifdef USE_TCA9535
@@ -910,7 +908,7 @@ namespace FocusMotor
 		      (long)motorData->speed, encoderSpeed);
 		
 		// Start encoder accuracy tracking for this move
-		#ifdef ENCODER_CONTROLLER
+		#ifdef LINEAR_ENCODER_CONTROLLER
 		PCNTEncoderController::startEncoderTracking(axis, motorData->targetPosition);
 		#endif
 		

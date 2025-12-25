@@ -46,9 +46,6 @@ Preferences preferences;
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "src/digitalout/DigitalOutController.h"
 #endif
-#ifdef ENCODER_CONTROLLER
-#include "src/encoder/EncoderController.h"
-#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "src/encoder/LinearEncoderController.h"
 #endif
@@ -155,10 +152,7 @@ extern "C" void looper(void *p)
 		}
 		#endif
 		SerialProcess::loop();
-#ifdef ENCODER_CONTROLLER
-		EncoderController::loop();
-		vTaskDelay(1);
-#endif
+
 
 #ifdef LINEAR_ENCODER_CONTROLLER
 		LinearEncoderController::loop();
@@ -516,9 +510,6 @@ extern "C" void setupApp(void)
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 	DigitalOutController::setup();
-#endif
-#ifdef ENCODER_CONTROLLER
-	EncoderController::setup();
 #endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 	LinearEncoderController::setup();

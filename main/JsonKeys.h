@@ -1,4 +1,7 @@
 #pragma once
+
+#include <pgmspace.h>
+
 //using a key for preferences allows only a length of 15 chars
 
 #ifdef LED_CONTROLLER
@@ -84,18 +87,9 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isacti
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoprelease = "endstoprelease";
 #endif 
+
+
 __attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";
-
-#ifdef ENCODER_CONTROLLER
-__attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_timeout = "timeout";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_getpos = "posval";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "calpos";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direction";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
-#endif
-
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder = "linencoder";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cp = "cp";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_ci = "ci";

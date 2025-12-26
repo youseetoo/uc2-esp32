@@ -10,6 +10,7 @@
 #define MESSAGE_CONTROLLER
 #define CAN_BUS_ENABLED
 #define CAN_RECEIVE_LASER
+#define LINEAR_ENCODER_CONTROLLER
 
 struct UC2_3_Xiao_Slave_Laser : PinConfig
 {

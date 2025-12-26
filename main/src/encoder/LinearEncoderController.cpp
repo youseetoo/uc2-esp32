@@ -38,7 +38,7 @@ namespace LinearEncoderController
 
     // Interrupt-based encoder handling - optimized for X-axis performance
     // Architecture note: Could be refactored to separate class for better modularity
-    
+    // Alternative to PCNT-based encoder handling using the ESP32Encoder library
     void processEncoderEvent(uint8_t pin)
     {
         if ((pin == pinConfig.ENC_X_B))
@@ -106,6 +106,7 @@ namespace LinearEncoderController
     */
     int act(cJSON *j)
     {
+        // {"task": "/linearencoder_act", "qid": 1, "moveP": {"steppers": [ { "stepperid": 1, "position": 20000, "isabs":0,  "cp":5, "ci":0., "cd":0, "speed":25000} ]}}
         log_i("linearencoder_act_fct");
         int qid = cJsonTool::getJsonInt(j, "qid");
 
@@ -231,11 +232,15 @@ namespace LinearEncoderController
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_speed) != NULL)
                         edata[s]->maxSpeed = abs(cJSON_GetObjectItemCaseSensitive(stp, key_speed)->valueint);
                     
-                    // Parse stalling detection parameters
-                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold) != NULL)
+                    // Parse stalling detection parameters - map to SimplePIDController
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold) != NULL) {
                         edata[s]->stallThreshold = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_threshold)->valuedouble;
-                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout) != NULL)
+                        edata[s]->pid.stallNoiseThreshold = (int32_t)edata[s]->stallThreshold;
+                    }
+                    if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout) != NULL) {
                         edata[s]->stallTimeout = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_stall_timeout)->valueint;
+                        edata[s]->pid.stallTimeMs = edata[s]->stallTimeout;
+                    }
                     
                     // Parse debug message control
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_debug) != NULL)
@@ -254,7 +259,7 @@ namespace LinearEncoderController
                         preferences.begin("UC2", false);
                         String motdirKey = "";
                         switch (s)
-                        {
+                        { // TODO: review this 
                         case 0: motdirKey = "motainv"; break; // A axis
                         case 1: motdirKey = "motxinv"; break; // X axis
                         case 2: motdirKey = "motyinv"; break; // Y axis
@@ -269,13 +274,18 @@ namespace LinearEncoderController
                         preferences.end();
                     }
 
-                    edata[s]->pid = PIDController(edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
-                    // Set output limits based on maximum speed
-                    edata[s]->pid.setOutputLimits(-edata[s]->maxSpeed, edata[s]->maxSpeed);
+                    // Configure SimplePIDController with two-stage gains
+                    edata[s]->pid.kpFar = edata[s]->c_p;
+                    edata[s]->pid.kpNear = edata[s]->c_p * 1.25f; // TODO: Use same as in standalone project 
+                    edata[s]->pid.kiFar = 0.0f;
+                    edata[s]->pid.kiNear = edata[s]->c_i;
+                    edata[s]->pid.kdFar = edata[s]->c_d;
+                    edata[s]->pid.kdNear = edata[s]->c_d;
+                    edata[s]->pid.maxVelocity = edata[s]->maxSpeed;
 
-                    float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
-
-                    log_d("Move precise from %f to %f at motor speed %f, computed speed %f, encoderDirection %f", edata[s]->positionPreMove, edata[s]->positionToGo, getData()[s]->speed, speed, edata[s]->encoderDirection);
+                    log_d("Move precise from %d to %d, PID kpFar=%.1f, maxSpeed=%.1f", 
+                          edata[s]->positionPreMove, edata[s]->positionToGo, 
+                          edata[s]->pid.kpFar, edata[s]->pid.maxVelocity);
                     
                     // Execute precision motion control - can use blocking or task-based approach
                     if (useTaskBasedOperation) {
@@ -299,7 +309,7 @@ namespace LinearEncoderController
         // {"task": "/linearencoder_act", "config": {"stepsToEncoderUnits": 0.3125}}
         // {"task": "/linearencoder_act", "config": {"steppers": [{"stepperid": 1, "encdir": 1, "motdir": 0}]}}
         cJSON *config = cJSON_GetObjectItem(j, "config");
-        if (config != NULL)
+        if (config != NULL) // TODO: Not used anymore since we don't want to have multiple encoder controllers? 
         {
             // Handle global motor-encoder conversion factor configuration (primary parameter)
             cJSON *stepsToEncUnits = cJSON_GetObjectItem(config, "stepsToEncoderUnits");
@@ -368,6 +378,40 @@ namespace LinearEncoderController
         return qid;
     }
 
+    // ============= New Simplified Interface =============
+    
+    int32_t getEncoderPosition(int encoderIndex)
+    {
+        if (encoderIndex < 0 || encoderIndex >= 4)
+            return 0;
+        
+        // Use PCNT if available, otherwise interrupt-based count
+        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable())
+        {
+            return (int32_t)PCNTEncoderController::getPCNTCount(encoderIndex);
+        }
+        return edata[encoderIndex]->stepCount;
+    }
+    
+    void setEncoderPosition(int encoderIndex, int32_t position)
+    {
+        if (encoderIndex < 0 || encoderIndex >= 4)
+            return;
+        
+        if (edata[encoderIndex]->encoderInterface == ENCODER_PCNT_BASED && PCNTEncoderController::isPCNTAvailable())
+        {
+            PCNTEncoderController::setCurrentPosition(encoderIndex, (float)position);
+        }
+        edata[encoderIndex]->stepCount = position;
+        edata[encoderIndex]->posval = (float)position;
+    }
+    
+    void zeroEncoder(int encoderIndex)
+    {
+        setEncoderPosition(encoderIndex, 0);
+    }
+
+    // Legacy float interface for compatibility
     void setCurrentPosition(int encoderIndex, float offsetPos)
     {
         if (encoderIndex < 0 || encoderIndex >= 4)
@@ -378,14 +422,8 @@ namespace LinearEncoderController
         {
             PCNTEncoderController::setCurrentPosition(encoderIndex, offsetPos);
         }
-        else
-        {
-            // Convert position back to step counts using global conversion factor
-            float globalConversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
-            edata[encoderIndex]->stepCount = (long)(offsetPos / globalConversionFactor);
-            // Update posval for compatibility
-            edata[encoderIndex]->posval = offsetPos;
-        }
+        edata[encoderIndex]->stepCount = (int32_t)offsetPos;
+        edata[encoderIndex]->posval = offsetPos;
     }
 
     float getCurrentPosition(int encoderIndex)
@@ -398,75 +436,142 @@ namespace LinearEncoderController
         {
             return PCNTEncoderController::getCurrentPosition(encoderIndex);
         }
-        else
-        {
-            // Apply global conversion factor to step counts for accurate position
-            float globalConversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
-            float position = edata[encoderIndex]->stepCount * globalConversionFactor;
-            // Update posval for compatibility with existing code
-            edata[encoderIndex]->posval = position;
-            return position;
+        // Return raw encoder count (no conversion - counts are the unit now)
+        return (float)edata[encoderIndex]->stepCount;
+    }
+    
+    // ============= Motion Control Wrappers =============
+    
+    void movePrecise(int32_t targetPosition, bool isAbsolute, int axisIndex)
+    {
+        if (axisIndex < 0 || axisIndex >= 4 || !edata[axisIndex])
+            return;
+        
+        int32_t target = targetPosition;
+        if (!isAbsolute) {
+            target = getEncoderPosition(axisIndex) + targetPosition;
+        }
+        
+        edata[axisIndex]->positionToGo = target;
+        edata[axisIndex]->isAbsolute = isAbsolute;
+        executePrecisionMotionBlocking(axisIndex);
+    }
+    
+    void homeAxis(int speed, int axisIndex)
+    {
+        if (axisIndex < 0 || axisIndex >= 4)
+            return;
+        executeHomingBlocking(axisIndex, speed);
+    }
+    
+    void stopMotion(int axisIndex)
+    {
+        if (axisIndex < 0 || axisIndex >= 4 || !edata[axisIndex])
+            return;
+        
+        edata[axisIndex]->movePrecise = false;
+        edata[axisIndex]->homeAxis = false;
+        edata[axisIndex]->pid.stop();
+        
+        if (getData) {
+            getData()[axisIndex]->speed = 0;
+            getData()[axisIndex]->isforever = false;
+            FocusMotor::stopStepper(axisIndex);
         }
     }
-
+    
+    bool isMotionActive(int axisIndex)
+    {
+        if (axisIndex < 0 || axisIndex >= 4 || !edata[axisIndex])
+            return false;
+        return edata[axisIndex]->movePrecise || edata[axisIndex]->homeAxis;
+    }
+    
+    LinearEncoderData* getEncoderData(int axisIndex)
+    {
+        if (axisIndex < 0 || axisIndex >= 4)
+            return nullptr;
+        return edata[axisIndex];
+    }
+    
+    void configurePID(int axisIndex, float kpFar, float kpNear, float ki, float kd, int32_t nearThreshold)
+    {
+        if (axisIndex < 0 || axisIndex >= 4 || !edata[axisIndex])
+            return;
+        
+        edata[axisIndex]->pid.kpFar = kpFar;
+        edata[axisIndex]->pid.kpNear = kpNear;
+        edata[axisIndex]->pid.kiFar = 0.0f;
+        edata[axisIndex]->pid.kiNear = ki;
+        edata[axisIndex]->pid.kdFar = kd;
+        edata[axisIndex]->pid.kdNear = kd;
+        edata[axisIndex]->pid.nearThreshold = nearThreshold;
+        
+        // Update legacy values too
+        edata[axisIndex]->c_p = kpFar;
+        edata[axisIndex]->c_i = ki;
+        edata[axisIndex]->c_d = kd;
+    }
 
 
     cJSON *get(cJSON *docin)
     {
+        // Simplified response: return encoder position in counts
         // {"task":"/linearencoder_get"}
-        // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 2  }}
-        // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 1  }}
-        // {"task":"/linearencoder_get", "linencoder": { "posval": 1,    "id": 3  }}
+        // Returns: {"position": 1234, "isMoving": false, "config": {...}}
+        
         log_i("linearencoder_get_fct");
-        int isPos = -1;
-        int linearencoderID = -1;
-        float posVal = 0.0f;
-
+        
         cJSON *doc = cJSON_CreateObject();
+        
+        // Default to X-axis (1) for simplified interface
+        int encoderIndex = 1;
+        
+        // Check if specific encoder requested
         cJSON *linearencoder = cJSON_GetObjectItemCaseSensitive(docin, key_linearencoder);
-        if (cJSON_IsObject(linearencoder))
-        {
-            cJSON *posval = cJSON_GetObjectItemCaseSensitive(linearencoder, key_linearencoder_getpos);
-            if (cJSON_IsNumber(posval))
-            {
-                isPos = posval->valueint;
-            }
-
+        if (cJSON_IsObject(linearencoder)) {
             cJSON *id = cJSON_GetObjectItemCaseSensitive(linearencoder, key_linearencoder_id);
-            if (cJSON_IsNumber(id))
-            {
-                linearencoderID = id->valueint;
+            if (cJSON_IsNumber(id)) {
+                encoderIndex = id->valueint;
             }
         }
-
-        if (isPos > 0 and linearencoderID >= 0)
-        {
-
-            cJSON *aritem = cJSON_CreateObject();
-            posVal = encoders[linearencoderID].getPosition();
-
-            cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
-            cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
-            cJSON_AddItemToObject(doc, "linearencoder_edata", aritem);
-
-            Serial.println("linearencoder_edata for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
+        
+        // Current position in encoder counts
+        int32_t pos = getEncoderPosition(encoderIndex);
+        cJSON_AddNumberToObject(doc, "position", pos);
+        
+        // Motion state
+        cJSON_AddBoolToObject(doc, "isMoving", isMotionActive(encoderIndex));
+        cJSON_AddBoolToObject(doc, "isHoming", edata[encoderIndex] ? edata[encoderIndex]->homeAxis : false);
+        
+        // Target if moving
+        if (edata[encoderIndex] && edata[encoderIndex]->movePrecise) {
+            cJSON_AddNumberToObject(doc, "target", edata[encoderIndex]->positionToGo);
         }
-        else
-        {
-            // return all linearencoder edata
-            for (int i = 0; i < 4; i++)
-            {
-                cJSON *aritem = cJSON_CreateObject();
-                posVal = encoders[linearencoderID].getPosition();
-
-                cJSON_AddNumberToObject(aritem, "linearencoderID", linearencoderID);
-                cJSON_AddNumberToObject(aritem, "absolutePos", edata[linearencoderID]->posval);
-                cJSON_AddItemToObject(doc, "linearencoder_edata", aritem);
-                // getEncoderInterface
-                cJSON_AddNumberToObject(aritem, "encoderInterface", getEncoderInterface(i));
-                Serial.println("linearencoder_edata for axis " + String(linearencoderID) + " is " + String(edata[linearencoderID]->posval) + " mm");
-            }
+        
+        // Stall state from SimplePIDController
+        if (edata[encoderIndex]) {
+            cJSON_AddBoolToObject(doc, "stallError", edata[encoderIndex]->pid.isStallError());
+            cJSON_AddNumberToObject(doc, "stallRetries", edata[encoderIndex]->pid.getStallRetryCount());
         }
+        
+        // PCNT availability
+        cJSON_AddBoolToObject(doc, "pcntAvailable", PCNTEncoderController::isPCNTAvailable());
+        
+        // Configuration (two-stage PID)
+        if (edata[encoderIndex]) {
+            cJSON *config = cJSON_CreateObject();
+            cJSON_AddNumberToObject(config, "kpFar", edata[encoderIndex]->pid.kpFar);
+            cJSON_AddNumberToObject(config, "kpNear", edata[encoderIndex]->pid.kpNear);
+            cJSON_AddNumberToObject(config, "kiNear", edata[encoderIndex]->pid.kiNear);
+            cJSON_AddNumberToObject(config, "kdNear", edata[encoderIndex]->pid.kdNear);
+            cJSON_AddNumberToObject(config, "nearThreshold", edata[encoderIndex]->pid.nearThreshold);
+            cJSON_AddNumberToObject(config, "maxVelocity", edata[encoderIndex]->pid.maxVelocity);
+            cJSON_AddNumberToObject(config, "positionTolerance", edata[encoderIndex]->pid.positionTolerance);
+            cJSON_AddBoolToObject(config, "encdir", edata[encoderIndex]->encoderDirection);
+            cJSON_AddItemToObject(doc, "config", config);
+        }
+        
         return doc;
     }
 
@@ -622,209 +727,116 @@ namespace LinearEncoderController
         
         return result == pdPASS;
     }
-    /*
-    Execute precision motion control with immediate PID updates for fast response times.
-    This replaces the slow loop-based polling with blocking execution for optimal performance.
-    */
+    
+    /**
+     * Execute precision motion with two-stage PID control.
+     * Ported from testFeedbackStepper - uses SimplePIDController with:
+     * - FAR mode: aggressive approach (high P, no I)
+     * - NEAR mode: precise positioning (high P, with I for steady-state)
+     * - Built-in stall detection and retry logic
+     * - 1kHz control loop
+     */
     void executePrecisionMotionBlocking(int stepperIndex)
     {
-        if (stepperIndex < 0 || stepperIndex >= 4 || !edata[stepperIndex]){
+        if (stepperIndex < 0 || stepperIndex >= 4 || !edata[stepperIndex]) {
             log_e("Invalid stepper index %d for precision motion", stepperIndex);
             return;
         }
 
         int s = stepperIndex;
+        int32_t startPos = getEncoderPosition(s);
+        int32_t target = edata[s]->positionToGo;
         
-        // Initialize the initial PID speed and start the motor
-        float speed = edata[s]->pid.compute(edata[s]->positionToGo, getCurrentPosition(s));
-        getData()[s]->isforever = true;
-        getData()[s]->speed = speed;
-        edata[s]->timeSinceMotorStart = millis();
+        log_i("Precision motion: start=%d, target=%d, distance=%d", startPos, target, target - startPos);
+        
+        // Configure SimplePID from legacy parameters
+        edata[s]->pid.kpFar = edata[s]->c_p;
+        edata[s]->pid.kpNear = edata[s]->c_p * 1.25f;  // Slightly higher for precision
+        edata[s]->pid.kiFar = 0.0f;                     // No integral in far mode
+        edata[s]->pid.kiNear = edata[s]->c_i;
+        edata[s]->pid.kdFar = edata[s]->c_d;
+        edata[s]->pid.kdNear = edata[s]->c_d;
+        edata[s]->pid.maxVelocity = edata[s]->maxSpeed;
+        
+        // Initialize two-stage PID controller
+        edata[s]->pid.setTargetPosition(target, startPos);
         edata[s]->movePrecise = true;
+        
+        // Start motor in continuous mode
+        getData()[s]->isforever = true;
+        getData()[s]->speed = 0;
         startStepper(s, 0);
-
-        log_i("Starting precision motion for axis %d: target=%f, initial_speed=%f", s, edata[s]->positionToGo, speed);
         
         if (edata[s]->enableDebug) {
-            log_i("DEBUG: PID parameters - Kp=%f, Ki=%f, Kd=%f", edata[s]->c_p, edata[s]->c_i, edata[s]->c_d);
-            log_i("DEBUG: Stall detection - threshold=%f, timeout=%lu ms", edata[s]->stallThreshold, edata[s]->stallTimeout);
+            log_i("PID: kpFar=%.1f, kpNear=%.1f, ki=%.1f, kd=%.1f, nearThresh=%d",
+                  edata[s]->pid.kpFar, edata[s]->pid.kpNear, 
+                  edata[s]->pid.kiNear, edata[s]->pid.kdNear, 
+                  edata[s]->pid.nearThreshold);
         }
-
-        // Fast precision control loop with immediate PID updates
-        // Dynamic timeout calculation based on distance and maximum speed
-        float distance = abs(edata[s]->positionToGo - getCurrentPosition(s));
-        float safetyMargin = 5.0f; // 5 second safety margin
-        unsigned long calculatedTimeout = (unsigned long)((distance / edata[s]->maxSpeed) * 1000.0f) + (safetyMargin * 1000.0f);
-        const unsigned long maxMotionTime = max(calculatedTimeout, 3000UL); // Minimum 3 seconds, maximum based on calculation
-        const float positionTolerance = 10.0f; // step tolerance for completion
         
-        // Use configurable stalling detection parameters
-        const float stuckThreshold = edata[s]->stallThreshold;
-        const unsigned long stuckTimeout = edata[s]->stallTimeout;
-
+        // Motion timeout
+        int32_t distance = abs(target - startPos);
+        float safetyMargin = 5.0f;
+        unsigned long maxTime = (unsigned long)((distance / edata[s]->pid.maxVelocity) * 1000.0f) + (safetyMargin * 1000.0f);
+        maxTime = max(maxTime, 3000UL);
         
-        unsigned long motionStartTime = millis();
-        float previousPosition = getCurrentPosition(s);
-        unsigned long lastPositionChangeTime = millis();
-
+        unsigned long startTime = millis();
         unsigned long lastWatchdogReset = millis();
-        const unsigned long watchdogResetInterval = 100; // Reset watchdog every 100ms
         
-        while (edata[s]->movePrecise )
+        // Main control loop - 1kHz updates
+        while (edata[s]->movePrecise && (millis() - startTime) < maxTime)
         {
-            // Cache current time at start of loop to avoid multiple system calls
-            unsigned long currentTime = millis();
+            // Read encoder position
+            int32_t currentPos = getEncoderPosition(s);
             
-            // Read current encoder position with high frequency
-            float currentPos = getCurrentPosition(s); // this returns the encoder position in counts which relates to steps from the motor to be consistent 
-            float distanceToGo = edata[s]->positionToGo - currentPos;
-
-            // Check if we've reached the target position
-            if (abs(distanceToGo) < positionTolerance)
-            {
-                log_i("Precision motion completed for axis %d: final_pos=%f, target=%f, error=%f", 
-                      s, currentPos, edata[s]->positionToGo, distanceToGo);
+            // Compute velocity using two-stage PID
+            float velocityCmd = edata[s]->pid.compute(currentPos);
+            
+            // Check completion
+            if (edata[s]->pid.isComplete()) {
+                log_i("Motion complete: pos=%d, target=%d, error=%d", currentPos, target, target - currentPos);
                 break;
             }
-
-            if (!(currentTime - motionStartTime < maxMotionTime)){
-                log_w("Precision motion timeout for axis %d after %lu ms: current_pos=%f, target=%f, error=%f", 
-                      s, currentTime - motionStartTime, currentPos, edata[s]->positionToGo, distanceToGo);
+            
+            // Check stall error
+            if (edata[s]->pid.isStallError()) {
+                log_e("Stall error at pos=%d, retries=%d", currentPos, edata[s]->pid.getStallRetryCount());
                 break;
             }
-
-            // Compute new PID speed based on current position
-            speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
             
-            // Debug output for motion tracking
-            if (edata[s]->enableDebug) {
-                if (currentTime - edata[s]->lastDebugTime > edata[s]->debugInterval) {
-                    log_i("DEBUG: pos=%f, target=%f, error=%f, speed=%f", 
-                          currentPos, edata[s]->positionToGo, distanceToGo, speed);
-                    edata[s]->lastDebugTime = currentTime;
-                }
+            // Debug output
+            if (edata[s]->enableDebug && (millis() - edata[s]->lastDebugTime > edata[s]->debugInterval)) {
+                log_i("pos=%d, err=%d, vel=%.1f", currentPos, target - currentPos, velocityCmd);
+                edata[s]->lastDebugTime = millis();
             }
             
-            // Direction error detection: Check if motor and encoder are working in opposite directions
-            if (false && (abs(distanceToGo) > 50.0f && abs(speed) > 100.0f)) { // Only check when meaningful motion is expected (//TODO: This is currently not working robustly)
-                static float lastDistanceToGo = distanceToGo;
-                static float lastSpeed = speed;
-                
-                // If distance is increasing while motor is running at significant speed, directions may be mismatched
-                if ((lastDistanceToGo != 0) && (abs(distanceToGo) > abs(lastDistanceToGo) + 10.0f) && 
-                    (abs(speed) > abs(lastSpeed) * 0.8f)) {
-                    log_w("Possible direction mismatch detected for axis %d - stopping motor. Distance: %f->%f, Speed: %f", 
-                          s, lastDistanceToGo, distanceToGo, speed);
-                    break;
-                }
-                lastDistanceToGo = distanceToGo;
-                lastSpeed = speed;
-            }
-            // Update motor speed immediately for fast response
-            getData()[s]->speed = speed;
+            // Update motor
+            getData()[s]->speed = (int)velocityCmd;
             getData()[s]->isforever = true;
             startStepper(s, 0);
-
-            // Check for stuck motor condition
-            if (abs(currentPos - previousPosition) > stuckThreshold)
-            {
-                lastPositionChangeTime = currentTime;
-                previousPosition = currentPos;
-            }
-            else if ((currentTime - lastPositionChangeTime) > stuckTimeout && abs(distanceToGo) > edata[s]->minDistanceForStallCheck)
-            {
-                // Intelligent stuck motor recovery: Try reduced speed approach first
-                static int recoveryAttempt = 0;
-                recoveryAttempt++;
-                
-                if (recoveryAttempt <= 2) {
-                    log_w("Motor %d stuck (attempt %d) - trying recovery with reduced speed", s, recoveryAttempt);
-                    
-                    // Reduce speed by half and try again
-                    float recoverySpeed = speed * 0.5f;
-                    getData()[s]->speed = recoverySpeed;
-                    getData()[s]->isforever = true;
-                    startStepper(s, 0);
-                    
-                    // Reset stuck detection for recovery attempt
-                    lastPositionChangeTime = millis();
-                    previousPosition = currentPos;
-                    
-                    // Give recovery attempt some time
-                    vTaskDelay(pdMS_TO_TICKS(100));
-                    continue;
-                } else {
-                    log_e("Motor %d recovery failed after %d attempts - stopping motion", s, recoveryAttempt);
-                    recoveryAttempt = 0; // Reset for next motion
-                    break;
-                }
-            }
-
-            // Reset watchdog timer periodically to prevent timeout
-            if ((currentTime - lastWatchdogReset) > watchdogResetInterval)
-            {
+            
+            // Watchdog reset
+            if ((millis() - lastWatchdogReset) > 100) {
                 esp_task_wdt_reset();
-                lastWatchdogReset = currentTime;
+                lastWatchdogReset = millis();
             }
-
-            // Delay to prevent watchdog timeout while maintaining reasonable response time
-            vTaskDelay(pdMS_TO_TICKS(1)); 
+            
+            // 1kHz control loop
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
-
-        // Two-stage precision approach for higher accuracy
-        // Stage 1: Fast approach (if we're still far from target)
-        float finalDistance = abs(edata[s]->positionToGo - getCurrentPosition(s));
-        edata[s]->pid.kp= edata[s]->c_p * .25f; // Decrease P gain for final approach
-        edata[s]->pid.ki= edata[s]->c_i * .25f; // Decrease I gain for final approach
-        edata[s]->pid.kd= edata[s]->c_d * .25f; // Decrease D gain for final approach
-        if (finalDistance > 5.0f) { // If we're still far from target, do a slower precision pass
-            log_i("Starting precision stage 2 for axis %d: remaining distance=%f", s, finalDistance);
-            
-            const float precisionSpeed = min(edata[s]->maxSpeed * 0.2f, 1000.0f); // 20% of max speed or 1000, whichever is lower
-            const float precisionTolerance = 2.0f; // Tighter tolerance for final positioning
-            const unsigned long precisionTimeout = 5000; // 5 second timeout for precision stage
-            
-            unsigned long precisionStartTime = millis();
-            
-            while ((millis() - precisionStartTime) < precisionTimeout) {
-                float currentPos = getCurrentPosition(s);
-                float distanceToGo = edata[s]->positionToGo - currentPos;
-                
-                if (abs(distanceToGo) < precisionTolerance) {
-                    log_i("Precision stage 2 completed for axis %d: final_error=%f", s, distanceToGo);
-                    break;
-                }
-                
-                // Use conservative speed for precision positioning
-                speed = edata[s]->pid.compute(edata[s]->positionToGo, currentPos);
-
-                float speed = (distanceToGo > 0) ? precisionSpeed : -precisionSpeed;
-                getData()[s]->speed = speed;
-                getData()[s]->isforever = true;
-                startStepper(s, 0);
-                
-                // Reset watchdog periodically
-                if ((millis() - lastWatchdogReset) > watchdogResetInterval) {
-                    esp_task_wdt_reset();
-                    lastWatchdogReset = millis();
-                }
-                
-                vTaskDelay(pdMS_TO_TICKS(2)); // Slower update rate for precision
-            }
-        } 
-
-        // Stop the motor and cleanup
+        
+        // Stop motor
         getData()[s]->speed = 0;
         getData()[s]->isforever = false;
         FocusMotor::stopStepper(s);
         edata[s]->movePrecise = false;
-
-        // Save encoder position when motion completes
+        edata[s]->pid.stop();
+        
+        // Save position
         saveEncoderPosition(s);
         
-        float finalPosition = getCurrentPosition(s);
-        float finalError = edata[s]->positionToGo - finalPosition;
-        log_i("Precision motion finished for axis %d: final_pos=%f, final_error=%f", s, finalPosition, finalError);
+        int32_t finalPos = getEncoderPosition(s);
+        log_i("Motion finished: final=%d, target=%d, error=%d", finalPos, target, target - finalPos);
     }
 
     /*

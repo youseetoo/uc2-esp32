@@ -109,6 +109,11 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_thr
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos = "calibsteps";
+// Two-stage PID keys for simplified encoder control
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_kpfar = "kpFar";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_kpnear = "kpNear";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_noise = "stallNoiseThreshold";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_time = "stallTimeMs";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisstop = "isStop";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisrunning = "isRunning";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisDualAxisZ = "isDualAxisZ";

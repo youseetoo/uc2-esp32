@@ -203,6 +203,7 @@ namespace MotorJsonParser
             StageScan::getStageScanData()->acceleration = max(cJsonTool::getJsonInt(stagescan, "acceleration"), 1000000);
             StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid");
             StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+            StageScan::getStageScanData()->nonstop = cJsonTool::getJsonInt(stagescan, "nonstop");
             
             // Check for coordinate-based scanning
 			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
@@ -769,52 +770,61 @@ namespace MotorJsonParser
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 					
 					// Check for encoder-based precision motion (precise=1 or enc=1 for backward compatibility)
+					#ifdef LINEAR_ENCODER_CONTROLLER
 					bool useEncoderPrecision = isEncoderPrecisionRequested(stp);
 					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
-					
+					#else
+					bool useEncoderPrecision = false;
+					#endif
+
 					if (useEncoderPrecision) {
-						log_i("Motor %d: Encoder-based precision motion enabled (precise=1 or enc=1)", s);
-						// For encoder-based motion, position is in encoder units
-						// Create LinearEncoderController command with PID parameters
+						log_i("Motor %d: Encoder-based precision motion (precise=1)", s);
 						#ifdef LINEAR_ENCODER_CONTROLLER
 						
-						// Build precision motion command for LinearEncoderController
+						// Simplified interface: position is in encoder counts
+						// Build minimal command for LinearEncoderController
 						cJSON* precisionJson = cJSON_CreateObject();
 						cJSON* movePrecise = cJSON_CreateObject();
-						cJSON* steppers = cJSON_CreateArray();
-						cJSON* stepper = cJSON_CreateObject();
 						
-						// Basic parameters
-						cJSON_AddNumberToObject(stepper, key_stepperid, s);
-						cJSON_AddNumberToObject(stepper, key_linearencoder_position, FocusMotor::getData()[s]->targetPosition);
-						cJSON_AddNumberToObject(stepper, key_speed, FocusMotor::getData()[s]->speed);
-						cJSON_AddNumberToObject(stepper, key_isabs, FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
+						// Position in encoder counts (computed on host)
+						cJSON_AddNumberToObject(movePrecise, key_linearencoder_position, 
+							FocusMotor::getData()[s]->targetPosition);
+						cJSON_AddNumberToObject(movePrecise, key_isabs, 
+							FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
 						
-						// Extract and pass PID parameters if provided
-						addJsonFloatIfPresent(stp, stepper, key_linearencoder_cp);
-						addJsonFloatIfPresent(stp, stepper, key_linearencoder_ci);
-						addJsonFloatIfPresent(stp, stepper, key_linearencoder_cd);
+						// max velocity
+						if (FocusMotor::getData()[s]->speed != 0) {
+							cJSON_AddNumberToObject(movePrecise, key_speed, 
+								FocusMotor::getData()[s]->speed);
+						}
 						
-						// Pass stalling detection parameters if provided
-						addJsonFloatIfPresent(stp, stepper, key_linearencoder_stall_threshold);
-						addJsonIntIfPresent(stp, stepper, key_linearencoder_stall_timeout);
+						// two-stage PID parameters (simplified from testFeedbackStepper)
+						// kpFar: P gain for far distance (default 80)
+						// kpNear: P gain for near distance (default 100)
+						// ki: I gain for near mode only (default 5)
+						// kd: D gain for both modes (default 8)
+						addJsonFloatIfPresent(stp, movePrecise, "kpFar");
+						addJsonFloatIfPresent(stp, movePrecise, "kpNear");
+						addJsonFloatIfPresent(stp, movePrecise, key_linearencoder_ci); // ki
+						addJsonFloatIfPresent(stp, movePrecise, key_linearencoder_cd); // kd
 						
-						// Pass debug flag if provided
-						addJsonIntIfPresent(stp, stepper, key_linearencoder_debug);
-						addJsonIntIfPresent(stp, stepper, key_linearencoder_debug_interval);
+						// Optional stall detection tuning
+						addJsonIntIfPresent(stp, movePrecise, "stallTimeMs");
+						addJsonIntIfPresent(stp, movePrecise, "stallNoiseThreshold");
 						
-						// Add stepper to array and build command
-						cJSON_AddItemToArray(steppers, stepper);
-						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);
+						// Debug output
+						addJsonIntIfPresent(stp, movePrecise, key_linearencoder_debug);
+	
 						cJSON_AddItemToObject(precisionJson, key_linearencoder_moveprecise, movePrecise);
 						
-						// Delegate to LinearEncoderController
-						log_i("Delegating motor %d to LinearEncoderController for precision motion", s);
-						LinearEncoderController::act(precisionJson);
+						log_i("Precision motion: pos=%d, abs=%d (encoder counts)", 
+							FocusMotor::getData()[s]->targetPosition,
+							FocusMotor::getData()[s]->absolutePosition);
 						
+						LinearEncoderController::act(precisionJson);
 						cJSON_Delete(precisionJson);
 						
-						// Skip regular motor processing for this stepper
+						// Skip regular motor processing
 						continue;
 						#else
 						log_w("Encoder precision requested but LINEAR_ENCODER_CONTROLLER not available");

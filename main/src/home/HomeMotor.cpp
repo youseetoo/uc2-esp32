@@ -88,7 +88,7 @@ namespace HomeMotor
 					int homeDirection = cJsonTool::getJsonInt(stp, key_home_direction);
 					int homeEndStopPolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
 					bool isDualAxisZ = cJsonTool::getJsonInt(stp, key_home_isDualAxis);
-					int homeEndposRelease = cJsonTool::getJsonInt(stp, key_home_endstoprelease, 0); // TODO: This will add a last move after homing is completed to "clear" the endstop - we will keep the position in the counter (no resetting - eg when moving the objective lens in safe zone )
+					int homeEndposRelease = cJsonTool::getJsonInt(stp, key_home_endstoprelease, 0);
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
 					// Check for encoder-based homing (precise=1 or enc=1 for backward compatibility)
@@ -97,41 +97,21 @@ namespace HomeMotor
 					if (useEncoderHoming) {
 						log_i("Starting encoder-based homing for axis %d", axis);
 						#ifdef LINEAR_ENCODER_CONTROLLER
-						// Use global conversion factor for step-to-encoder units
-						float conversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
+						// Use stall-based homing with encoder feedback
+						// Speed sign determines direction
+						int homingSpeed = homeSpeed * homeDirection;
 						
-						// Convert step speed to encoder units (micrometers)
-						float encoderSpeed = (homeSpeed * homeDirection) * conversionFactor;
+						log_i("Starting encoder-based homing for axis %d: speed=%d", axis, homingSpeed);
 						
-						// Use LinearEncoderController for encoder-based homing
-						// Create JSON for LinearEncoderController home command
-						cJSON* homeJson = cJSON_CreateObject();
-						cJSON* homeSteppers = cJSON_CreateArray();
-						cJSON* homeStepper = cJSON_CreateObject();
-						
-						cJSON_AddNumberToObject(homeStepper, "stepperid", axis);
-						#ifdef LINEAR_ENCODER_CONTROLLER
-						cJSON_AddNumberToObject(homeStepper, "speed", (int)encoderSpeed);
-						#endif
-
-						cJSON_AddItemToArray(homeSteppers, homeStepper);
-						cJSON_AddItemToObject(homeJson, "steppers", homeSteppers);
-						cJSON_AddItemToObject(homeJson, "home", cJSON_CreateObject());
-						
-						log_i("Starting encoder-based homing for axis %d: step_speed=%d -> encoder_speed=%f µm/s (factor=%f)", 
-						      axis, homeSpeed * homeDirection, encoderSpeed, conversionFactor);
-						
-						// Call LinearEncoderController act function with home command
-						LinearEncoderController::act(homeJson);
-						
-						cJSON_Delete(homeJson);
+						// Call simplified homeAxis function directly
+						LinearEncoderController::homeAxis(homingSpeed, axis);
 						#else
 						log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
 						// Fall back to regular homing
 						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ, homeEndposRelease);
 						#endif
 					} else {
-						// assign to home data and start stepper if they are wired to that board
+						// Standard endstop-based homing
 						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ, homeEndposRelease);
 					}
 				}

@@ -23,13 +23,11 @@ namespace LinearEncoderController
     void (*startStepper)(int, int);
 
     // Performance configuration
-    static bool useTaskBasedOperation = true; // Can be enabled for non-blocking operations
+    // Set to true for non-blocking task-based operation, false for blocking (immediate) operation
+    static bool useTaskBasedOperation = true; 
     static TaskHandle_t precisionMotionTask = nullptr;
     static TaskHandle_t homingTask = nullptr;
-    static bool precisionMotionTaskRunning = false;
-    // Add task status tracking for better cleanup
-    static volatile bool 
-    d = false;
+    static volatile bool precisionMotionTaskRunning = false;
     static volatile bool homingTaskRunning = false;
 
     std::array<LinearEncoderData *, 4> edata;
@@ -106,7 +104,17 @@ namespace LinearEncoderController
     */
     int act(cJSON *j)
     {
-        // {"task": "/linearencoder_act", "qid": 1, "moveP": {"steppers": [ { "stepperid": 1, "position": 20000, "isabs":0,  "cp":5, "ci":0., "cd":0, "speed":25000} ]}}
+        /*
+        All the commands:
+        {"task": "/linearencoder_act", "qid": 1, "moveP": {"steppers": [ { "stepperid": 1, "position": -200, "isabs":0} ]}}
+        {"task": "/linearencoder_act", "qid": 1, "home": {"steppers": [ { "stepperid": 1,  "speed": 20000 } ]}}
+        {"task": "/linearencoder_act", "stop": 1}
+        {"task": "/linearencoder_act", "zero": {"stepperid": 1}}
+        // plot
+        {"task": "/linearencoder_act", "plot": 1}
+
+        */
+        // {"task": "/linearencoder_act", "qid": 1, "moveP": {"steppers": [ { "stepperid": 1, "position": -2000, "isabs":0,  "speed":25000} ]}}
         log_i("linearencoder_act_fct");
         int qid = cJsonTool::getJsonInt(j, "qid");
 
@@ -114,6 +122,32 @@ namespace LinearEncoderController
         cJSON *movePrecise = cJSON_GetObjectItem(j, key_linearencoder_moveprecise);
         cJSON *home = cJSON_GetObjectItem(j, key_linearencoder_home);
         cJSON *plot = cJSON_GetObjectItem(j, key_linearencoder_plot);
+        cJSON *stop = cJSON_GetObjectItem(j, "stop");
+        cJSON *zero = cJSON_GetObjectItem(j, "zero");
+
+        // Stop any ongoing motion
+        // {"task": "/linearencoder_act", "stop": 1}
+        if (stop != NULL && stop->valueint) {
+            for (int i = 0; i < 4; i++) {
+                stopMotion(i);
+            }
+            log_i("All motion stopped via command");
+            return qid;
+        }
+        
+        // Zero encoder position
+        // {"task": "/linearencoder_act", "zero": {"stepperid": 1}}
+        if (zero != NULL) {
+            int axisIndex = 1; // Default to X-axis
+            if (cJSON_IsObject(zero)) {
+                cJSON *sid = cJSON_GetObjectItem(zero, key_stepperid);
+                if (sid) axisIndex = sid->valueint;
+            }
+            zeroEncoder(axisIndex);
+            saveEncoderPosition(axisIndex);
+            log_i("Encoder %d zeroed", axisIndex);
+            return qid;
+        }
 
         if (plot != NULL)
         {
@@ -220,9 +254,6 @@ namespace LinearEncoderController
                     edata[s]->positionToGo = distanceToGo;
 
                     // PID Controller
-                    edata[s]->c_p = 10.;
-                    edata[s]->c_i = 0.5;
-                    edata[s]->c_d = .0;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL)
                         edata[s]->c_p = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci) != NULL)
@@ -454,14 +485,30 @@ namespace LinearEncoderController
         
         edata[axisIndex]->positionToGo = target;
         edata[axisIndex]->isAbsolute = isAbsolute;
-        executePrecisionMotionBlocking(axisIndex);
+        
+        // Use task-based operation if enabled for non-blocking
+        if (useTaskBasedOperation) {
+            if (!startPrecisionMotionTask(axisIndex)) {
+                log_e("Failed to start precision motion task for axis %d", axisIndex);
+            }
+        } else {
+            executePrecisionMotionBlocking(axisIndex);
+        }
     }
     
     void homeAxis(int speed, int axisIndex)
     {
         if (axisIndex < 0 || axisIndex >= 4)
             return;
-        executeHomingBlocking(axisIndex, speed);
+        
+        // Use task-based operation if enabled for non-blocking
+        if (useTaskBasedOperation) {
+            if (!startHomingTask(axisIndex, speed)) {
+                log_e("Failed to start homing task for axis %d", axisIndex);
+            }
+        } else {
+            executeHomingBlocking(axisIndex, speed);
+        }
     }
     
     void stopMotion(int axisIndex)
@@ -469,15 +516,29 @@ namespace LinearEncoderController
         if (axisIndex < 0 || axisIndex >= 4 || !edata[axisIndex])
             return;
         
+        // Stop motion state flags first
         edata[axisIndex]->movePrecise = false;
         edata[axisIndex]->homeAxis = false;
         edata[axisIndex]->pid.stop();
         
+        // Stop motor immediately
         if (getData) {
             getData()[axisIndex]->speed = 0;
             getData()[axisIndex]->isforever = false;
             FocusMotor::stopStepper(axisIndex);
         }
+        
+        // Clean up any running tasks
+        if (precisionMotionTask != nullptr && precisionMotionTaskRunning) {
+            // Task will detect movePrecise=false and exit on next iteration
+            log_i("Signaling precision motion task to stop");
+        }
+        if (homingTask != nullptr && homingTaskRunning) {
+            // Task will detect homeAxis=false and exit on next iteration
+            log_i("Signaling homing task to stop");
+        }
+        
+        log_i("Motion stopped for axis %d", axisIndex);
     }
     
     bool isMotionActive(int axisIndex)
@@ -580,24 +641,15 @@ namespace LinearEncoderController
     */
     void loop()
     {
-        // print current position of the linearencoder
-        // log_i("edata:  %f  %f  %f  %f", edata[0]->posval, edata[1]->posval, edata[2]->posval, edata[3]->posval);
-
-        if (isPlot)
+        // Encoder plotting only when not in motion (to avoid conflict with control loop plotting)
+        if (isPlot && !isMotionActive(1))
         {
-            // Minimal encoder plotting to avoid serial interference with counting
-            // Very reduced frequency to minimize impact on encoder accuracy
-            static int plotCounter = 0;
-            if (++plotCounter % 20 == 0)
-            {
-                // Only plot every 20 loops to reduce serial interference
-                // Use log_i only (not Serial.println) to prevent direct serial interference
-                // log_i("plot: %f", getCurrentPosition(1));
-                // get current motor position for motor x / axis 1
-                // get current motor position for motor x / axis 1 - improved direct access
-                Serial.print(getCurrentPosition(1));
-                Serial.println("; ");
-                Serial.flush();
+            static unsigned long lastPlotTime = 0;
+            if (millis() - lastPlotTime > 50) { // 20Hz plotting when idle
+                // CSV format: position,target,velocity,error (target=position when idle)
+                int32_t pos = getEncoderPosition(1);
+                Serial.printf("%d,%d,0,0\n", pos, pos);
+                lastPlotTime = millis();
             }
         }
 #ifdef MOTOR_CONTROLLER
@@ -744,10 +796,12 @@ namespace LinearEncoderController
         }
 
         int s = stepperIndex;
-        int32_t startPos = getEncoderPosition(s);
+        int32_t rawStartPos = getEncoderPosition(s);
+        int32_t startPos = edata[s]->encoderDirection ? -rawStartPos : rawStartPos;
         int32_t target = edata[s]->positionToGo;
         
-        log_i("Precision motion: start=%d, target=%d, distance=%d", startPos, target, target - startPos);
+        log_i("Precision motion: start=%d, target=%d, distance=%d (rawEncoder=%d, encdir=%d)", 
+              startPos, target, target - startPos, rawStartPos, edata[s]->encoderDirection ? 1 : 0);
         
         // Configure SimplePID from legacy parameters
         edata[s]->pid.kpFar = edata[s]->c_p;
@@ -786,8 +840,9 @@ namespace LinearEncoderController
         // Main control loop - 1kHz updates
         while (edata[s]->movePrecise && (millis() - startTime) < maxTime)
         {
-            // Read encoder position
-            int32_t currentPos = getEncoderPosition(s);
+            // Read encoder position (apply direction inversion here for correct feedback)
+            int32_t rawPos = getEncoderPosition(s);
+            int32_t currentPos = edata[s]->encoderDirection ? -rawPos : rawPos;
             
             // Compute velocity using two-stage PID
             float velocityCmd = edata[s]->pid.compute(currentPos);
@@ -806,11 +861,17 @@ namespace LinearEncoderController
             
             // Debug output
             if (edata[s]->enableDebug && (millis() - edata[s]->lastDebugTime > edata[s]->debugInterval)) {
-                log_i("pos=%d, err=%d, vel=%.1f", currentPos, target - currentPos, velocityCmd);
+                log_i("pos=%d, err=%d, vel=%.1f, mode=%s", currentPos, target - currentPos, velocityCmd, 
+                      edata[s]->pid.isNearMode() ? "NEAR" : "FAR");
                 edata[s]->lastDebugTime = millis();
             }
             
-            // Update motor
+            // Plot output for serial plotter (CSV format: position,target,velocity,error)
+            if (isPlot) {
+                Serial.printf("CurPos,TargetPos,Velocity,Error,%d,%d,%.0f,%d\n", currentPos, target, velocityCmd, target - currentPos);
+            }
+            
+            // Update motor speed - velocity direction is already correct from PID
             getData()[s]->speed = (int)velocityCmd;
             getData()[s]->isforever = true;
             startStepper(s, 0);
@@ -835,8 +896,9 @@ namespace LinearEncoderController
         // Save position
         saveEncoderPosition(s);
         
-        int32_t finalPos = getEncoderPosition(s);
-        log_i("Motion finished: final=%d, target=%d, error=%d", finalPos, target, target - finalPos);
+        int32_t rawFinalPos = getEncoderPosition(s);
+        int32_t finalPos = edata[s]->encoderDirection ? -rawFinalPos : rawFinalPos;
+        log_i("Motion finished: final=%d, target=%d, error=%d (rawEncoder=%d)", finalPos, target, target - finalPos, rawFinalPos);
     }
 
     /*

@@ -31,6 +31,10 @@ using namespace FocusMotor;
 #include "../tmc/TMCController.h"
 #endif
 
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
+
 namespace can_controller
 {
 
@@ -221,9 +225,25 @@ namespace can_controller
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
             int homeEndposRelease = receivedHomeData.homeEndposRelease;
+            bool usePreciseHoming = receivedHomeData.precise;
+            
             if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
-            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i, precise: %i", 
+                      homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, usePreciseHoming);
+            
+            if (usePreciseHoming) {
+                #ifdef LINEAR_ENCODER_CONTROLLER
+                // Use encoder-based stall detection for homing
+                int homingSpeed = homeSpeed * homeDirection;
+                log_i("Starting encoder-based homing via CAN for axis %d: speed=%d", mStepper, homingSpeed);
+                LinearEncoderController::homeAxis(homingSpeed, mStepper);
+                #else
+                log_w("Encoder-based homing requested via CAN but LINEAR_ENCODER_CONTROLLER not available");
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+                #endif
+            } else {
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+            }
         }
         #ifdef TMC_CONTROLLER
         else if (size == sizeof(TMCData))

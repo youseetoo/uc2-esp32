@@ -241,4 +241,14 @@ public:
      * Get current setpoint
      */
     int32_t getSetpoint() const { return setpoint; }
+    
+    /**
+     * Check if PID is in NEAR mode (precise positioning)
+     */
+    bool isNearMode() const { return abs(lastError) <= nearThreshold; }
+    
+    /**
+     * Get current error value
+     */
+    int32_t getError() const { return lastError; }
 };

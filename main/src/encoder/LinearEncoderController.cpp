@@ -229,8 +229,10 @@ namespace LinearEncoderController
                         continue;
                     }
                     
-                    // Measure current encoder position for accurate starting reference
-                    edata[s]->positionPreMove = getCurrentPosition(s);
+                    // Get raw encoder position (pure counts, direction-corrected)
+                    int32_t rawPos = getEncoderPosition(s);
+                    int32_t currentEncoderPos = edata[s]->encoderDirection ? -rawPos : rawPos;
+                    edata[s]->positionPreMove = currentEncoderPos;
 
                     // retreive abs/rel flag
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_isabs) != NULL)
@@ -238,20 +240,19 @@ namespace LinearEncoderController
                     else
                         edata[s]->isAbsolute = true;
 
-                    // retreive position to go
+                    // retreive position to go (in encoder counts!)
                     int posToGo = 0;
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position) != NULL)
                         posToGo = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_position)->valueint;
 
-                    // Calculate the position to go with unit consistency verification
-                    float distanceToGo = posToGo;
+                    // Calculate target position - pure encoder counts
+                    int32_t targetPos = posToGo;
                     if (!edata[s]->isAbsolute)
                     {
-                        // For relative positioning, add to current position
-                        // Units are already normalized (steps), so addition is straightforward
-                        distanceToGo += edata[s]->positionPreMove;
+                        // Relative: add to current encoder position
+                        targetPos = currentEncoderPos + posToGo;
                     }
-                    edata[s]->positionToGo = distanceToGo;
+                    edata[s]->positionToGo = targetPos;
 
                     // PID Controller
                     if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL)
@@ -645,10 +646,11 @@ namespace LinearEncoderController
         if (isPlot && !isMotionActive(1))
         {
             static unsigned long lastPlotTime = 0;
-            if (millis() - lastPlotTime > 50) { // 20Hz plotting when idle
+            if (millis() - lastPlotTime > 200) { // 5Hz plotting when idle
                 // CSV format: position,target,velocity,error (target=position when idle)
-                int32_t pos = getEncoderPosition(1);
-                Serial.printf("%d,%d,0,0\n", pos, pos);
+                int32_t rawPos = getEncoderPosition(1);
+                int32_t currentPos = edata[1]->encoderDirection ? -rawPos : rawPos;
+                Serial.printf("CurPos, %d, TargetPos, %d, Velocity, %.0f, Error, %d\n", currentPos, currentPos, 0.0, 0);
                 lastPlotTime = millis();
             }
         }
@@ -868,7 +870,7 @@ namespace LinearEncoderController
             
             // Plot output for serial plotter (CSV format: position,target,velocity,error)
             if (isPlot) {
-                Serial.printf("CurPos,TargetPos,Velocity,Error,%d,%d,%.0f,%d\n", currentPos, target, velocityCmd, target - currentPos);
+                Serial.printf("CurPos, %d, TargetPos, %d, Velocity, %.0f, Error, %d\n", currentPos, target, velocityCmd, target - currentPos);
             }
             
             // Update motor speed - velocity direction is already correct from PID

@@ -865,16 +865,13 @@ namespace FocusMotor
 	{
 		#ifdef LINEAR_ENCODER_CONTROLLER
 		// Create a JSON object to call LinearEncoderController moveP function
-		// Convert motor parameters to encoder-based motion parameters
+		// All values are in pure encoder counts now - no conversion!
 		MotorData* motorData = getData()[axis];
 		
-		// Use global conversion factor for step-to-encoder units
-		float conversionFactor = MotorEncoderConfig::getStepsToEncoderUnits();
-		
-		// Convert step position to encoder units (micrometers)
-		float encoderPosition = motorData->targetPosition * conversionFactor;
-		// Convert step speed to encoder units  
-		float encoderSpeed = abs(motorData->speed) * conversionFactor;
+		// Position and speed are passed directly in encoder counts
+		// No conversion factor needed - host computes encoder counts directly
+		int32_t encoderPosition = motorData->targetPosition;
+		int32_t encoderSpeed = abs(motorData->speed);
 		
 		// Create JSON for LinearEncoderController moveP command
 		// Structure: {"task": "/linearencoder_act", "moveP": {"steppers": [...]}}
@@ -886,14 +883,14 @@ namespace FocusMotor
 		// Add task identifier
 		cJSON_AddStringToObject(movePreciseJson, "task", "/linearencoder_act");
 		
-		// Build stepper object
+		// Build stepper object - pure encoder counts
 		cJSON_AddNumberToObject(stepper, "stepperid", axis);
-		cJSON_AddNumberToObject(stepper, "position", (int)encoderPosition);
+		cJSON_AddNumberToObject(stepper, "position", encoderPosition);
 		cJSON_AddNumberToObject(stepper, "isabs", motorData->absolutePosition ? 1 : 0);
-		cJSON_AddNumberToObject(stepper, "speed", (int)encoderSpeed);
+		cJSON_AddNumberToObject(stepper, "speed", encoderSpeed);
 		
 		// Set default PID values if not already configured
-		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain // TODO: Maybe we should store / read these values from preferences and make them setable via act()
+		cJSON_AddNumberToObject(stepper, "cp", 20.0);  // Proportional gain
 		cJSON_AddNumberToObject(stepper, "ci", 1.0);   // Integral gain  
 		cJSON_AddNumberToObject(stepper, "cd", 5.0);   // Derivative gain
 		
@@ -902,10 +899,8 @@ namespace FocusMotor
 		cJSON_AddItemToObject(moveP, "steppers", steppers);
 		cJSON_AddItemToObject(movePreciseJson, "moveP", moveP);
 		
-		log_i("Starting encoder-based motion for axis %d: step_pos=%ld -> encoder_pos=%f µm (factor=%f)", 
-		      axis, (long)motorData->targetPosition, encoderPosition, conversionFactor);
-		log_i("Motor speed: step_speed=%ld -> encoder_speed=%f µm/s", 
-		      (long)motorData->speed, encoderSpeed);
+		log_i("Starting encoder-based motion for axis %d: position=%d counts (abs=%d)", 
+		      axis, encoderPosition, motorData->absolutePosition ? 1 : 0);
 		
 		// Start encoder accuracy tracking for this move
 		#ifdef LINEAR_ENCODER_CONTROLLER
@@ -1108,13 +1103,13 @@ namespace FocusMotor
 		// Add encoder position if encoder-based motion is enabled
 #ifdef LINEAR_ENCODER_CONTROLLER
 		if (i==1) {
-			// Get current encoder position in micrometers
-			float encoderPos = PCNTEncoderController::getCurrentPosition(i);
-			cJSON_AddNumberToObject(item, "encoderPosition", encoderPos);
-			
-			// Also add raw encoder count for debugging
+			// Get current encoder position (raw counts - no conversion!)
+			bool encoderDirection = LinearEncoderController::getEncoderData(i)->encoderDirection;
 			int64_t encoderCount = PCNTEncoderController::getEncoderCount(i);
-			cJSON_AddNumberToObject(item, "encoderCount", (int)encoderCount);
+			// int32_t currentPos = edata[s]->encoderDirection ? -rawPos : rawPos;
+			// get encoderDirection
+
+			cJSON_AddNumberToObject(item, "encoderCount", encoderCount ? (int)encoderCount : -(int)encoderCount);
 		}
 #endif
 

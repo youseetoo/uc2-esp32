@@ -39,6 +39,7 @@ namespace HomeMotor
 	int act(cJSON *doc)
 	{
 		// {"task": "/home_act", "home": {"steppers": [{"stepperid":0, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "home_e"}]}, "qid":1234}
+		// {"task": "/home_act", "home": {"steppers": [{"stepperid":1, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "precise":1}]}, "qid":1234}
 		log_i("home_act_fct");
 		// print the json
 		char *out = cJSON_PrintUnformatted(doc);

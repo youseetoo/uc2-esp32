@@ -1168,6 +1168,7 @@ namespace can_controller
         should be decimal
         {"task":"/can_act", "address": 10}
         {"task":"/can_get", "address": 1}
+        {"task":"/can_act", "scan": true}
         List of CAN Addresses is in the PinConfig.h
             uint8_t CAN_ID_MOT_A = 10
             uint8_t CAN_ID_MOT_X = 11

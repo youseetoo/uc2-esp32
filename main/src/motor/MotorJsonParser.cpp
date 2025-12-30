@@ -920,7 +920,7 @@ namespace MotorJsonParser
 
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 20000, "isabs": 1, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -1000, "speed": 24000, "isabs": 0, "isaccel": 1, "accel":20000, "isen": true, "precise": 1, "kpFar": 80.0, "kpNear": 100.0, "ki": 5.0, "kd": 8.0}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -500, "speed": 20000, "accel":120000, "isabs": 0, "isen": true, "precise": 1, "kpFar": 80.0}]}, "qid": 5}
 		parseMotorDriveJson(doc);
 
 #ifdef STAGE_SCAN

@@ -1935,6 +1935,12 @@ namespace can_controller
             return;
         }
 
+        if (otaCreds->timeout_ms < 300000)
+        {
+            log_w("OTA timeout too low (%lu ms), setting to minimum 30000 ms", otaCreds->timeout_ms);
+            otaCreds->timeout_ms = 300000; // Minimum 30 seconds
+        }
+
         log_i("Received OTA command - SSID: %s, timeout: %lu ms", 
               otaCreds->ssid, otaCreds->timeout_ms);
 
@@ -2072,7 +2078,7 @@ namespace can_controller
         // IMPORTANT: Set these BEFORE marking OTA as started to avoid race condition
         otaTimeout = otaCreds->timeout_ms;
         if (otaTimeout == 0) {
-            otaTimeout = 300000; // Default 5 minutes
+            otaTimeout = 3000000; // Default 5 minutes
         }
         otaStartTime = millis();
         

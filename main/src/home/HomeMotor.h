@@ -20,6 +20,7 @@ struct HomeData
 	int homeInEndposReleaseMode = 0;
 	bool homeEndStopPolarity = 0; // normally open
 	int qid = -1;
+	bool precise = false; // Use encoder-based stall detection for homing
 };
 #pragma pack(pop)
 

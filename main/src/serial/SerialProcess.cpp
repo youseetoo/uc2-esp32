@@ -22,9 +22,6 @@
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
 #endif
-#ifdef ENCODER_CONTROLLER
-#include "../encoder/EncoderController.h"
-#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
@@ -522,12 +519,6 @@ namespace SerialProcess
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
 
-#ifdef ENCODER_CONTROLLER
-		else if (strcmp(task, encoder_act_endpoint) == 0)
-			serialize(EncoderController::act(jsonDocument));
-		else if (strcmp(task, encoder_get_endpoint) == 0)
-			serialize(EncoderController::get(jsonDocument));
-#endif
 
 /*
 	  LinearEncoders

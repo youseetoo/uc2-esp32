@@ -25,9 +25,6 @@
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
 #endif
-#ifdef ENCODER_CONTROLLER
-#include "../encoder/EncoderController.h"
-#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
@@ -336,18 +333,6 @@ namespace RestApi
     esp_err_t Objective_getESP(httpd_req_t *req)
     {
         serializeESP(ObjectiveController::get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-#endif
-#ifdef ENCODER_CONTROLLER
-    esp_err_t EncoderMotor_setESP(httpd_req_t *req)
-    {
-        serializeESP(EncoderController::act(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-    esp_err_t EncoderMotor_getESP(httpd_req_t *req)
-    {
-        serializeESP(EncoderController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

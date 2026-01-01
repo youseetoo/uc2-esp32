@@ -105,8 +105,8 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
      // Linear encoder pins (optional, for AS5311 interface)
      // For future encoder-based motion control
      // Currently disabled - can be enabled for testing PCNT vs interrupt performance
-     int8_t ENC_X_A = GPIO_NUM_6; // GPIO_NUM_21; // Example: could use available GPIO pins
-     int8_t ENC_X_B = GPIO_NUM_5; // GPIO_NUM_20;
+     int8_t ENC_X_A = GPIO_NUM_5; // GPIO_NUM_21; // Example: could use available GPIO pins
+     int8_t ENC_X_B = GPIO_NUM_6; // GPIO_NUM_20;
      int8_t ENC_Y_A = disabled; 
      int8_t ENC_Y_B = disabled;
      int8_t ENC_Z_A = disabled; 

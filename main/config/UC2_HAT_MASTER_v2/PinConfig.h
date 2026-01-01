@@ -37,9 +37,9 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     int8_t I2C_SDA = GPIO_NUM_21;     // ESP32 I2C-1 SDA
 
     // On-board I2C device addresses (for convenience)
-    static constexpr uint8_t I2C_ADDR_INA226  = 0x46; // current sensor
-    static constexpr uint8_t I2C_ADDR_TMP102_1 = 0x4A; // temperature sensor #1
-    static constexpr uint8_t I2C_ADDR_TMP102_2 = 0x4B; // temperature sensor #2
+    static constexpr uint8_t I2C_ADDR_INA226  = 0x46; // current sensor //TODO: implement via a temp_get (1,2,3...) command (via sensor_act/sensor_get)
+    static constexpr uint8_t I2C_ADDR_TMP102_1 = 0x4A; // temperature sensor #1 //TODO: implement via a  sensor_act/sensor_get)
+    static constexpr uint8_t I2C_ADDR_TMP102_2 = 0x4B; // temperature sensor #2 //TODO: implement via a  sensor_act/sensor_get)
 
     // Optional ALERT lines (open-drain on board) — leave disabled unless wired
     int8_t INA226_ALERT_PIN   = disabled;
@@ -50,10 +50,10 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // Power / safety integration
     // ---------------------------------------------------------------------
     // Drives the high-current bus power MOSFET gate logic (HIGH = turn OFF)
-    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
+    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4; // TODO: implement power control via status_act ((text "ESP pin\nHI turns device off")
 
     // Emergency STOP sense (input-only pin; HIGH = normal, LOW = E-STOP asserted)
-    uint8_t pinEmergencyExit = GPIO_NUM_34; // TODO: Implement 
+    uint8_t pinEmergencyExit = GPIO_NUM_34; // TODO: Implement such that if we sense that the emergency button was pressed that we immediately stop all motors and switch off all lights and heaters, etc. we should print out a message to the log as well {"Emergency stop activated! Shutting down all systems."}
     uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured 
 
     // TEMPERATURE : TMP102AIDRLR
@@ -127,8 +127,11 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     int8_t DIGITAL_IN_3 = disabled;
 
     // DAC placeholders (legacy)
-    int8_t dac_fake_1 = GPIO_NUM_25; // RESET-ABORT stub
-    int8_t dac_fake_2 = GPIO_NUM_26; // Coolant stub
+    int8_t dac_fake_1 = disabled; // RESET-ABORT stub
+    int8_t dac_fake_2 = disabled; // Coolant stub
+
+    // BUZZER (the HAT v2 has a buzzer on the board that can be turned on via GPIO25)
+    int8_t BUZZER_PIN = GPIO_NUM_25; // active HIGH // TODO: implement buzzer control via new buzzer controller interface (buzzer_act)
 
     // ---------------------------------------------------------------------
     // Encoders (external calipers etc.)

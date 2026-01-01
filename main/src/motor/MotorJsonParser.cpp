@@ -78,7 +78,19 @@ namespace MotorJsonParser
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				FocusMotor::updateData(i);
+				
+				// If encoder-based motion is enabled, return encoder position instead of motor position
+#ifdef LINEAR_ENCODER_CONTROLLER
+				if (FocusMotor::getData()[i]->encoderBasedMotion) {
+					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
+					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
+					log_i("Returning encoder position %ld for motor %d (encoder-based motion)", encoderPosition, i);
+				} else {
+					cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+				}
+#else
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+#endif
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 			else if (stop != NULL)
@@ -95,7 +107,18 @@ namespace MotorJsonParser
 				FocusMotor::updateData(i);
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
+				
+				// If encoder-based motion is enabled, return encoder position instead of motor position
+#ifdef LINEAR_ENCODER_CONTROLLER
+				if (FocusMotor::getData()[i]->encoderBasedMotion) {
+					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
+					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
+				} else {
+					cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+				}
+#else
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
+#endif
 			cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 			cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 			cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
@@ -180,6 +203,7 @@ namespace MotorJsonParser
             StageScan::getStageScanData()->acceleration = max(cJsonTool::getJsonInt(stagescan, "acceleration"), 1000000);
             StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid");
             StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
+            StageScan::getStageScanData()->nonstop = cJsonTool::getJsonInt(stagescan, "nonstop");
             
             // Check for coordinate-based scanning
 			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
@@ -699,6 +723,8 @@ namespace MotorJsonParser
 		// for single value
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 10000, "redu":2}]}, "qid": 5}
+		// precise motion with encoder feedback
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 5000, "isabs": 1, "precise": 1, "kpFar": 80.0, "kpNear": 100.0, "ki": 5.0, "kd": 8.0}]}, "qid": 6}
 
 		*/
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);
@@ -745,55 +771,67 @@ namespace MotorJsonParser
 					// FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 					
-					// Check for encoder-based precision motion (enc=1)
-					bool useEncoderPrecision = cJsonTool::getJsonInt(stp, key_encoder_precision) == 1;
+					// Check for encoder-based precision motion (precise=1 or enc=1 for backward compatibility)
+					#ifdef LINEAR_ENCODER_CONTROLLER
+					bool useEncoderPrecision = isEncoderPrecisionRequested(stp);
 					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
-					
+					#else
+					bool useEncoderPrecision = false;
+					#endif
+
 					if (useEncoderPrecision) {
-						log_i("Motor %d: Encoder-based precision motion enabled (enc=1)", s);
-						// For encoder-based motion, position is in encoder units
-						// Create LinearEncoderController command with PID parameters
+						log_i("Motor %d: Encoder-based precision motion (precise=1)", s);
 						#ifdef LINEAR_ENCODER_CONTROLLER
 						
-						// Build precision motion command for LinearEncoderController
+						// Build JSON for LinearEncoderController with correct structure
+						// Format: {"moveP": {"steppers": [{"stepperid":1, "position":X, ...}]}}
 						cJSON* precisionJson = cJSON_CreateObject();
 						cJSON* movePrecise = cJSON_CreateObject();
 						cJSON* steppers = cJSON_CreateArray();
 						cJSON* stepper = cJSON_CreateObject();
 						
-						// Basic parameters
+						// Stepper ID
 						cJSON_AddNumberToObject(stepper, key_stepperid, s);
-						cJSON_AddNumberToObject(stepper, key_linearencoder_position, FocusMotor::getData()[s]->targetPosition);
-						cJSON_AddNumberToObject(stepper, key_speed, FocusMotor::getData()[s]->speed);
-						cJSON_AddNumberToObject(stepper, key_isabs, FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
 						
-						// Extract and pass PID parameters if provided
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp) != NULL) {
-							float cp = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cp)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_cp, cp);
+						// Position in encoder counts (computed on host)
+						cJSON_AddNumberToObject(stepper, key_linearencoder_position, 
+							FocusMotor::getData()[s]->targetPosition);
+						cJSON_AddNumberToObject(stepper, key_isabs, 
+							FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
+						
+						// max velocity
+						if (FocusMotor::getData()[s]->speed != 0) {
+							cJSON_AddNumberToObject(stepper, key_speed, 
+								abs(FocusMotor::getData()[s]->speed));
 						}
-						#ifdef LINEAR_ENCODER_CONTROLLER
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci) != NULL) {
-							float ci = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_ci)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_ci, ci);
-						}
-						if (cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd) != NULL) {
-							float cd = cJSON_GetObjectItemCaseSensitive(stp, key_linearencoder_cd)->valuedouble;
-							cJSON_AddNumberToObject(stepper, key_linearencoder_cd, cd);
-						}
-						#endif
-						// Add stepper to array and build command
+						
+						// two-stage PID parameters (from testFeedbackStepper)
+						addJsonFloatIfPresent(stp, stepper, "kpFar");
+						addJsonFloatIfPresent(stp, stepper, "kpNear");
+						addJsonFloatIfPresent(stp, stepper, key_linearencoder_ci); // ki
+						addJsonFloatIfPresent(stp, stepper, key_linearencoder_cd); // kd
+						
+						// Optional stall detection tuning
+						addJsonIntIfPresent(stp, stepper, "stallTimeMs");
+						addJsonIntIfPresent(stp, stepper, "stallNoiseThreshold");
+						
+						// Debug output
+						addJsonIntIfPresent(stp, stepper, key_linearencoder_debug);
+						
+						// Build the correct structure
 						cJSON_AddItemToArray(steppers, stepper);
 						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);
 						cJSON_AddItemToObject(precisionJson, key_linearencoder_moveprecise, movePrecise);
 						
-						// Delegate to LinearEncoderController
-						log_i("Delegating motor %d to LinearEncoderController for precision motion", s);
-						LinearEncoderController::act(precisionJson);
+						// Debug: print the JSON we're sending
+						char* jsonStr = cJSON_PrintUnformatted(precisionJson);
+						log_i("Precision motion JSON: %s", jsonStr);
+						free(jsonStr);
 						
+						LinearEncoderController::act(precisionJson);
 						cJSON_Delete(precisionJson);
 						
-						// Skip regular motor processing for this stepper
+						// Skip regular motor processing
 						continue;
 						#else
 						log_w("Encoder precision requested but LINEAR_ENCODER_CONTROLLER not available");
@@ -857,7 +895,7 @@ namespace MotorJsonParser
 		parseAutoEnableMotor(doc);
 
 		// set position of motors in eeprom
-		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 1000}]}, "qid": 37}
+		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 1, "posval": 1000}]}, "qid": 37}
 		parseSetPosition(doc);
 
 		// set motor pin direction (either 0 or 1)
@@ -882,6 +920,7 @@ namespace MotorJsonParser
 
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 20000, "isabs": 1, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -500, "speed": 20000, "accel":120000, "isabs": 0, "isen": true, "precise": 1, "kpFar": 80.0}]}, "qid": 5}
 		parseMotorDriveJson(doc);
 
 #ifdef STAGE_SCAN

@@ -227,8 +227,10 @@ namespace PCNTEncoderController
             return 0.0f;
         }
         
+        // Return raw encoder count - no conversion!
+        // All position values are in pure encoder counts now
         int64_t count = getEncoderCount(encoderIndex);
-        return positionOffsets[encoderIndex] + (count * mumPerStep[encoderIndex]);
+        return (float)count + positionOffsets[encoderIndex];
     }
     
     void setCurrentPosition(int encoderIndex, float offsetPos)
@@ -237,8 +239,10 @@ namespace PCNTEncoderController
             return;
         }
         
+        // Set offset so that current position appears as offsetPos
+        // Pure encoder counts - no conversion!
         int64_t count = getEncoderCount(encoderIndex);
-        positionOffsets[encoderIndex] = offsetPos - (count * mumPerStep[encoderIndex]);
+        positionOffsets[encoderIndex] = offsetPos - (float)count;
     }
     
     bool isESP32EncoderAvailable()

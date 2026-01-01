@@ -31,6 +31,10 @@ using namespace FocusMotor;
 #include "../tmc/TMCController.h"
 #endif
 
+#ifdef LINEAR_ENCODER_CONTROLLER
+#include "../encoder/LinearEncoderController.h"
+#endif
+
 namespace can_controller
 {
 
@@ -221,9 +225,25 @@ namespace can_controller
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
             int homeEndposRelease = receivedHomeData.homeEndposRelease;
+            bool usePreciseHoming = receivedHomeData.precise;
+            
             if (pinConfig.DEBUG_CAN_ISO_TP)
-                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i", homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
-            HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i, precise: %i", 
+                      homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, usePreciseHoming);
+            
+            if (usePreciseHoming) {
+                #ifdef LINEAR_ENCODER_CONTROLLER
+                // Use encoder-based stall detection for homing
+                int homingSpeed = homeSpeed * homeDirection;
+                log_i("Starting encoder-based homing via CAN for axis %d: speed=%d", mStepper, homingSpeed);
+                LinearEncoderController::homeAxis(homingSpeed, mStepper);
+                #else
+                log_w("Encoder-based homing requested via CAN but LINEAR_ENCODER_CONTROLLER not available");
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+                #endif
+            } else {
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+            }
         }
         #ifdef TMC_CONTROLLER
         else if (size == sizeof(TMCData))
@@ -1148,6 +1168,7 @@ namespace can_controller
         should be decimal
         {"task":"/can_act", "address": 10}
         {"task":"/can_get", "address": 1}
+        {"task":"/can_act", "scan": true}
         List of CAN Addresses is in the PinConfig.h
             uint8_t CAN_ID_MOT_A = 10
             uint8_t CAN_ID_MOT_X = 11
@@ -1914,6 +1935,12 @@ namespace can_controller
             return;
         }
 
+        if (otaCreds->timeout_ms < 300000)
+        {
+            log_w("OTA timeout too low (%lu ms), setting to minimum 30000 ms", otaCreds->timeout_ms);
+            otaCreds->timeout_ms = 300000; // Minimum 30 seconds
+        }
+
         log_i("Received OTA command - SSID: %s, timeout: %lu ms", 
               otaCreds->ssid, otaCreds->timeout_ms);
 
@@ -2051,7 +2078,7 @@ namespace can_controller
         // IMPORTANT: Set these BEFORE marking OTA as started to avoid race condition
         otaTimeout = otaCreds->timeout_ms;
         if (otaTimeout == 0) {
-            otaTimeout = 300000; // Default 5 minutes
+            otaTimeout = 3000000; // Default 5 minutes
         }
         otaStartTime = millis();
         

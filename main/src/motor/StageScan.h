@@ -47,6 +47,7 @@ namespace StageScan
         int speed = 20000;
         int acceleration = 1000000;
         int delayTimeTrigger = 20; // delay time for the trigger
+        bool nonstop = false; // continuous movement without stopping at each position
 #endif
     };
 

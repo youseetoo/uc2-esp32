@@ -10,7 +10,12 @@
 #include "Wire.h"
 #include <Preferences.h>
 #include "nvs_flash.h"
+#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+// hal/usb_hal.h is only available for certain ESP32-S3 USB configurations
+#if __has_include("hal/usb_hal.h")
 #include "hal/usb_hal.h"
+#endif
+#endif
 
 Preferences preferences;
 
@@ -439,15 +444,16 @@ extern "C" void setupApp(void)
   pinMode(LED_BUILTIN, OUTPUT);
 #endif	
 	SerialProcess::setup();
-#ifdef DIAL_CONTROLLER
-	// need to initialize the dial controller before the i2c controller
-	DialController::setup();
-#endif
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
 #ifdef CAN_BUS_ENABLED
+	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	can_controller::setup();
+#endif
+#ifdef DIAL_CONTROLLER
+	// Dial controller needs CAN bus to be ready when in CAN master mode
+	DialController::setup();
 #endif
 #ifdef I2C_SLAVE_MOTOR
 	i2c_slave_motor::setup();

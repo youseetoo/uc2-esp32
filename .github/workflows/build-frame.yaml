@@ -23,7 +23,7 @@ env:
   MAIN_BRANCH: 'main' # pushing to this branch will update the "edge" tag on the container image
 
 jobs:
-  build-merged-fw-images:
+  build-fw-images:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -75,7 +75,7 @@ jobs:
           echo "$envs"
           echo "envs=$(echo "$envs" | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
-      - name: Build and merge all environments
+      - name: Build all environments
         # TODO: Could we do some build caching and/or dependency caching?
         run: |
           mkdir -p build/fw-images
@@ -105,19 +105,23 @@ jobs:
               BOOT_ADDR="0x1000"
             fi
 
-            echo "==> Merging binaries for $ENV (chip: $CHIP_ARG)"
+            # Merge binaries is not needed when uploading it via espota, alternatively simply rename and copy the bin files 
+            # "$BIN_DIR/firmware.bin"
+            echo "==> Copying binaries for $ENV (chip: $CHIP_ARG)"
             OUT_BIN="build/fw-images/esp32_${ENV}.bin"
-            python -m esptool \
-              --chip "$CHIP_ARG" \
-              merge_bin \
-              -o "$OUT_BIN" \
-              --flash_mode dio \
-              --flash_freq 40m \
-              --flash_size 4MB \
-              $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
-              0x8000 "$BIN_DIR/partitions.bin" \
-              0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-              0x10000 "$BIN_DIR/firmware.bin"
+            # copy the bin files to the output folder
+            cp "$BIN_DIR/firmware.bin" "$OUT_BIN"
+            #python -m esptool \
+            #  --chip "$CHIP_ARG" \
+            #  merge_bin \
+            #  -o "$OUT_BIN" \
+            # --flash_mode dio \
+            # --flash_freq 40m \
+            # --flash_size 4MB \
+            # $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
+            # 0x8000 "$BIN_DIR/partitions.bin" \
+            # 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+            #  0x10000 "$BIN_DIR/firmware.bin"
           done
 
       - name: Upload all merged binaries as artifacts
@@ -140,7 +144,7 @@ jobs:
             gha-runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.gha-runner }}
     needs:
-      - build-merged-fw-images
+      - build-fw-images
     steps:
       - uses: actions/checkout@v4
 
@@ -286,7 +290,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    needs: build-merged-fw-images
+    needs: build-fw-images
     if: github.event_name == 'push' && github.ref_type == 'tag'
     steps:
       - name: Download firmware images

@@ -118,7 +118,7 @@
 # HOME
 {"task": "/home_get"}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 2000, "speed": 25000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 2000, "speed": 25000, "direction":-1, "endstoppolarity":0, "precise":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 1000, "direction":-1,  "endstoppolarity":1}]}}
 
 
@@ -390,7 +390,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 150, "tPost": 150, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
 			
 
-
+{'task': '/can_act', 'ota': {'canid': 11, 'ssid': 'openUC2', 'password': 'Wifi So You Can See Too', 'timeout': '300000'}}
 {"task":"/state_get"}
 {"task":"/state_get", "heap":1}
 {"task": "/ledarr_act", "led": {"LEDArrMode": 0, "led_array": [{"id": 28, "r": 18, "g": 6, "b": 28}, {"id": 29, "r": 14, "g": 47, "b": 5}, {"id": 30, "r": 2, "g": 31, "b": 24}, {"id": 31, "r": 53, "g": 8, "b": 50}, {"id": 32, "r": 1, "g": 15, "b": 14}, {"id": 33, "r": 19, "g": 18, "b": 39}, {"id": 34, "r": 44, "g": 22, "b": 29}, {"id": 35, "r": 4, "g": 38, "b": 9}, {"id": 36, "r": 1, "g": 28, "b": 54}, {"id": 37, "r": 37, "g": 43, "b": 22}, {"id": 38, "r": 14, "g": 27, "b": 27}, {"id": 39, "r": 22, "g": 10, "b": 49}, {"id": 40, "r": 32, "g": 29, "b": 39}, {"id": 41, "r": 14, "g": 2, "b": 41}, {"id": 42, "r": 39, "g": 37, "b": 35}, {"id": 43, "r": 26, "g": 44, "b": 32}, {"id": 44, "r": 45, "g": 19, "b": 53}, {"id": 45, "r": 44, "g": 26, "b": 37}, {"id": 46, "r": 40, "g": 28, "b": 11}, {"id": 47, "r": 9, "g": 4, "b": 23}, {"id": 48, "r": 41, "g": 22, "b": 31}, {"id": 49, "r": 10, "g": 5, "b": 46}, {"id": 50, "r": 48, "g": 39, "b": 52}, {"id": 51, "r": 33, "g": 15, "b": 26}, {"id": 52, "r": 50, "g": 19, "b": 44}, {"id": 53, "r": 34, "g": 18, "b": 35}, {"id": 54, "r": 6, "g": 0, "b": 39}, {"id": 55, "r": 6, "g": 26, "b": 43}]}, "qid": 2}
@@ -699,3 +699,4 @@ ON ESP32 Side  for FRAME #3
 # 5. You can upload firmware using:
 #    platformio run -t upload --environment seeed_xiao_esp32s3_can_slave_laser_debug  --upload-port UC2-CAN-14.local
 
+pio run -t upload --environment seeed_xiao_esp32s3_can_slave_motor_debug --upload-port 192.168.178.28 # UC2-CAN-14.local

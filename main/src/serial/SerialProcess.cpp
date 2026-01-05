@@ -22,9 +22,6 @@
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
 #endif
-#ifdef ENCODER_CONTROLLER
-#include "../encoder/EncoderController.h"
-#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
@@ -77,11 +74,11 @@ namespace SerialProcess
 {
 	// Queue-based processing to handle serial load without blocking main thread
 	QueueHandle_t serialMSGQueue = nullptr; // Queue that buffers incoming messages and delegates them to the appropriate task
-	xTaskHandle xHandle = nullptr;		  // Task handle for the serial task
+	TaskHandle_t xHandle = nullptr;		  // Task handle for the serial task
 	
 	// Serial output queue to prevent race conditions
 	QueueHandle_t serialOutputQueue = nullptr; // Queue for serial output strings
-	xTaskHandle xOutputHandle = nullptr;       // Task handle for serial output task
+	TaskHandle_t xOutputHandle = nullptr;       // Task handle for serial output task
 	
 	// Structure to hold serial output messages
 	struct SerialMessage {
@@ -522,12 +519,6 @@ namespace SerialProcess
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
 
-#ifdef ENCODER_CONTROLLER
-		else if (strcmp(task, encoder_act_endpoint) == 0)
-			serialize(EncoderController::act(jsonDocument));
-		else if (strcmp(task, encoder_get_endpoint) == 0)
-			serialize(EncoderController::get(jsonDocument));
-#endif
 
 /*
 	  LinearEncoders

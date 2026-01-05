@@ -1,4 +1,7 @@
 #pragma once
+
+#include <pgmspace.h>
+
 //using a key for preferences allows only a length of 15 chars
 
 #ifdef LED_CONTROLLER
@@ -84,18 +87,9 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isacti
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoprelease = "endstoprelease";
 #endif 
+
+
 __attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";
-
-#ifdef ENCODER_CONTROLLER
-__attribute__ ((unused)) static const PROGMEM char * key_encoder = "encoder";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_timeout = "timeout";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_getpos = "posval";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibrate = "calpos";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_runto = "direction";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_encoderid = "id";
-__attribute__ ((unused)) static const PROGMEM char * key_encoder_calibpos = "calibsteps";
-#endif
-
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder = "linencoder";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cp = "cp";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_ci = "ci";
@@ -108,9 +102,18 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_setup = "
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_home = "home";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_moveprecise = "moveP";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_plot = "plot";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_debug = "debug";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_debug_interval = "debug_interval";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_timeout = "stall_timeout";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_threshold = "stall_threshold";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_runto = "direction";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_id = "id";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_calibpos = "calibsteps";
+// Two-stage PID keys for simplified encoder control
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_kpfar = "kpFar";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_kpnear = "kpNear";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_noise = "stallNoiseThreshold";
+__attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_time = "stallTimeMs";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisstop = "isStop";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisrunning = "isRunning";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisDualAxisZ = "isDualAxisZ";
@@ -157,6 +160,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_triggerpin = "trigPin";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerperiod = "trigPer";
 __attribute__ ((unused)) static const PROGMEM char * key_triggeroffset = "trigOff";
 __attribute__ ((unused)) static const PROGMEM char * key_encoder_precision = "enc";
+__attribute__ ((unused)) static const PROGMEM char * key_precise = "precise";
 __attribute__ ((unused)) static const PROGMEM char *dateKey = "date";
 __attribute__ ((unused)) static const PROGMEM char *key_modules = "modules";
 __attribute__ ((unused)) static const PROGMEM char *key_analogin = "analogin";

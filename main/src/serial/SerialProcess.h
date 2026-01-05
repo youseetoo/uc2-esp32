@@ -9,9 +9,9 @@ namespace SerialProcess
 {
     // Queue-based processing to handle serial load without blocking main thread
     extern QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
-	extern xTaskHandle xHandle;			// Task handle for the serial task
+	extern TaskHandle_t xHandle;			// Task handle for the serial task
 	extern QueueHandle_t serialOutputQueue;	// Queue for thread-safe serial output
-	extern xTaskHandle xOutputHandle;		// Task handle for serial output task
+	extern TaskHandle_t xOutputHandle;		// Task handle for serial output task
 
     void jsonProcessor(char * task,cJSON * jsonDocument);
     void serialize(cJSON * doc);

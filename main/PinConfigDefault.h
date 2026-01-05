@@ -16,7 +16,6 @@ available modules. to enable a module define them inside your config
 #define DAC_CONTROLLER
 #define DIGITAL_IN_CONTROLLER
 #define DIGITAL_OUT_CONTROLLER
-#define ENCODER_CONTROLLER
 #define HOME_MOTOR
 #define LASER_CONTROLLER
 #define LED_CONTROLLER

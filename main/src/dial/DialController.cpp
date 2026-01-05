@@ -535,8 +535,10 @@ namespace DialController
 #ifdef M5DIAL
         log_i("Initializing Dial Controller (CAN Master Mode)");
         
-        // Initialize M5Dial
+        // Initialize M5Dial - disable external I2C to free up Grove pins for CAN
         auto cfg = M5.config();
+        cfg.external_spk = false;  // Disable external speaker I2C
+        cfg.external_rtc = false;  // Disable external RTC I2C
         M5Dial.begin(cfg, true, false);
         
         // Configure display
@@ -552,6 +554,8 @@ namespace DialController
         config.canIdMotorZ = pinConfig.CAN_ID_MOT_Z;
         config.canIdMotorA = pinConfig.CAN_ID_MOT_A;
         config.canIdLaser = pinConfig.CAN_ID_LASER_0;
+		// send some info to the master
+
 #endif
         
         // Initialize encoder position

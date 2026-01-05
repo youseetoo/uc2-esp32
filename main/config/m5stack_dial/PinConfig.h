@@ -43,7 +43,8 @@ struct UC2_M5StackDial : PinConfig
      Configured as CAN Master for direct motor/laser control
      
      M5Dial (ESP32-S3) GPIO Pinout:
-     - Built-in: Display, Encoder (G13/G15), Speaker (G14), Touch screen
+     - Built-in: Display, Encoder (G40/G41), Speaker (G14), Touch screen
+     - Internal I2C: G13 (SDA), G15 (SCL)
      - Grove Port: G1 (Yellow/TX), G2 (White/RX)
      - Battery management and charging circuit
      
@@ -55,9 +56,10 @@ struct UC2_M5StackDial : PinConfig
      const char * pindefName = "UC2_M5StackDial_CAN";
      const unsigned long BAUDRATE = 115200;
 
-     // CAN Bus Pins (via Grove connector - requires CAN transceiver like SN65HVD230)
-     int8_t CAN_TX = GPIO_NUM_1;   // Grove Yellow wire - TWAI TX
-     int8_t CAN_RX = GPIO_NUM_2;   // Grove White wire - TWAI RX
+     // CAN Bus Pins (via Grove PORT.B - requires CAN transceiver like SN65HVD230)
+     // NOTE: Cannot use PORT.A (G13/G15) as M5Dial reserves those for internal I2C
+     int8_t CAN_TX = GPIO_NUM_2;   // Grove PORT.B Yellow wire - TWAI TX
+     int8_t CAN_RX = GPIO_NUM_1;   // Grove PORT.B White wire - TWAI RX
      
      // CAN Configuration
      uint8_t CAN_ID_CENTRAL_NODE = 1;  // This dial acts as central node/master
@@ -101,8 +103,9 @@ struct UC2_M5StackDial : PinConfig
      int8_t LED_COUNT = 0;
      
      // Debug settings
-     bool DEBUG_CAN_ISO_TP = false;
-     
+     bool DEBUG_CAN_ISO_TP = true;
+     uint32_t CAN_ID_CURRENT = 100; // Default temporary ID before set by master
+
      // WiFi (optional, can be enabled for OTA updates)
      const char *mSSID = "UC2-M5Dial";
      const char *mPWD = "";

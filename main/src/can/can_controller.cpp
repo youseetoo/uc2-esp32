@@ -1132,6 +1132,7 @@ namespace can_controller
     void setup()
     {
         // Create a mutex for the CAN bus
+        log_i("Setting up CAN controller...");
         device_can_id = getCANAddress();
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
@@ -1145,6 +1146,10 @@ namespace can_controller
                 log_e("Failed to create CAN mutex or queue!");
             ESP.restart();
         }
+
+        // Indicate if pins are actually working by toggling them on/off 
+        
+
         // Initialize CAN bus
         if (!isoTpSender.begin(500, pinConfig.CAN_TX, pinConfig.CAN_RX))
         {
@@ -1152,6 +1157,11 @@ namespace can_controller
                 log_e("Failed to initialize CAN bus");
             return;
         }
+        // Get and log CAN bus status info and print twai_get_status_info()
+        twai_status_info_t status_info;
+        twai_get_status_info(&status_info);
+        log_i("CAN Controller Task Name:");
+        log_i("  State: %d", status_info.state);
 
         if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);

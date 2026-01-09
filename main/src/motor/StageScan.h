@@ -35,14 +35,17 @@ namespace StageScan
 #if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         int32_t xStart = 0;
         int32_t yStart = 0;
+        int32_t zStart = 0;
         int32_t xStep = 0;
         int32_t yStep = 0;
+        int32_t zStep = 0;
         uint16_t nX = 0;
         uint16_t nY = 0;
+        uint16_t nZ = 0;
         int delayTimePreTrigger = 0;
         int delayTimePostTrigger = 0;
-        // define a boolean array of the lightsource used (e.g. [0,1,0,0])
-        int lightsourceIntensities[4] = {0, 0, 0, 0};
+        // define a boolean array of the lightsource used (e.g. [0,1,0,0,0])
+        int lightsourceIntensities[5] = {0, 0, 0, 0, 0};
         int ledarrayIntensity = 0;
         int speed = 20000;
         int acceleration = 1000000;

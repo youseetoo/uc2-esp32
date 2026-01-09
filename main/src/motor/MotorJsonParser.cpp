@@ -156,7 +156,7 @@ namespace MotorJsonParser
         // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
         // {"task": "/motor_get"}
         if (settrigger != NULL)
-        {
+        { // NOT ACTIVELY USED 
             log_d("settrigger");
             cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
             if (stprs != NULL)
@@ -180,7 +180,7 @@ namespace MotorJsonParser
         //
         cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
         if (stagescan != NULL)
-        {
+        { // ACTIVELY USED
             StageScan::getStageScanData()->stopped = cJsonTool::getJsonInt(stagescan, "stopped");
             if (StageScan::getStageScanData()->stopped)
             {
@@ -190,12 +190,17 @@ namespace MotorJsonParser
 #if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
             // CAN-based stage scanning with grid parameters
             // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50}}
+			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
+			// With XYZ scanning: {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":100, "nX": 5, "nY": 5, "nZ":3, "tPre": 50, "tPost": 50}}
             StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
             StageScan::getStageScanData()->yStart = cJsonTool::getJsonInt(stagescan, "yStart");
             StageScan::getStageScanData()->xStep = cJsonTool::getJsonInt(stagescan, "xStep");
             StageScan::getStageScanData()->yStep = cJsonTool::getJsonInt(stagescan, "yStep");
+			StageScan::getStageScanData()->zStart = cJsonTool::getJsonInt(stagescan, "zStart");
+			StageScan::getStageScanData()->zStep = cJsonTool::getJsonInt(stagescan, "zStep");
             StageScan::getStageScanData()->nX = cJsonTool::getJsonInt(stagescan, "nX");
             StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
+			StageScan::getStageScanData()->nZ = cJsonTool::getJsonInt(stagescan, "nZ");
             StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
             StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
             StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig");
@@ -281,13 +286,16 @@ namespace MotorJsonParser
             // Parse LED array
             StageScan::getStageScanData()->ledarrayIntensity = cJsonTool::getJsonInt(stagescan, "led");
             
-            log_i("StageScan xStart: %d, yStart: %d, xStep: %d, yStep: %d, nX: %d, nY: %d, tPre: %d, tPost: %d, speed: %d, acceleration: %d, ledarray: %d, stopped: %d, isrunning: %d, useCoordinates: %d",
+            log_i("StageScan xStart: %d, yStart: %d,  zStart: %d, xStep: %d, yStep: %d, zStep: %d, nX: %d, nY: %d, nZ: %d, tPre: %d, tPost: %d, speed: %d, acceleration: %d, ledarray: %d, stopped: %d, isrunning: %d, useCoordinates: %d",
                   StageScan::getStageScanData()->xStart,
                   StageScan::getStageScanData()->yStart,
+				  StageScan::getStageScanData()->zStart,
                   StageScan::getStageScanData()->xStep,
                   StageScan::getStageScanData()->yStep,
+				  StageScan::getStageScanData()->zStep,
                   StageScan::getStageScanData()->nX,
                   StageScan::getStageScanData()->nY,
+				  StageScan::getStageScanData()->nZ,
                   StageScan::getStageScanData()->delayTimePreTrigger,
                   StageScan::getStageScanData()->delayTimePostTrigger,
                   StageScan::getStageScanData()->speed,
@@ -718,13 +726,27 @@ namespace MotorJsonParser
 	{
 		/*
 		We receive a JSON string e.g. in the form:
-		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": -10000, "speed": 20000, "isabs": 0.0, "isaccel": 1, "accel":10000, "isen": true}]}, "qid": 5}
+		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "speed": 20000, "isabs": 0, "isaccel": 1, "accel":100000, "isen": true}]}, "qid": 5}
 		And assign it to the different motors by sending the converted MotorData to the corresponding motor driver via I2C
 		// for single value
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed": 10000, "redu":2}]}, "qid": 5}
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "position": 10000, "redu":2}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed": 10000, "redu":2}]}, "qid": 5}
+		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "redu":2}]}, "qid": 5}
 		// precise motion with encoder feedback
-		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 5000, "isabs": 1, "precise": 1, "kpFar": 80.0, "kpNear": 100.0, "ki": 5.0, "kd": 8.0}]}, "qid": 6}
+		
+		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 5000, "speed":30000, "isabs": 1, "precise": 1, "kpFar": 80.0, "kpNear": 100.0, "ki": 5.0, "kd": 8.0}]}, "qid": 6}
+		{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 000, "speed":25000, "isabs": 1, "precise": 1, "kpFar": 80.0, "kpNear": 100.0, "ki": 5.0, "kd": 8.0}]}, "qid": 6}
+		1558 == 10000 steps == 3,125mm => 0,002005776637 mm per count => 2µm per count => fits for 2µm precision as noted in datasheet of AS5311
+		{"task":"/motor_get"}
+		TODO: 
+		- 2nd Return of stepper when doing precise 
+		- check if works with can 
+		- ratio steps vs encoder counts
+		- Homing works with same interface?
+		- {"task":"/motor_get"} should return also the encoder position if available = > should output both actually position and posprecise
+		- if motor stalls it will count more steps than encoder counts => need to resync at some point?
+		- either precise OR normal motion per motor controller, not both?
+
+
 
 		*/
 		cJSON *mot = cJSON_GetObjectItemCaseSensitive(doc, key_motor);

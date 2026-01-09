@@ -65,7 +65,14 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	inline void handleAxis(int16_t value, int ax)
 	{
-		if (pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master") || pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2"))
+		if (ax==0 &&
+			 (pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master") || 
+				pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2") ||
+				pinConfig.pindefName == std::string("UC2_4_CAN_HYBRID") || 
+				pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2_debug") || 
+				pinConfig.pindefName == std::string("UC2_4_CAN_HYBRID_debug") ||
+				pinConfig.pindefName == std::string("UC2_4_CAN_HYBRID_Master")
+		))
 		{
 			// In UC2_4_CAN_HYBRID, Axis A is not native - ignore direct joystick control
 			return;
@@ -134,7 +141,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	void xyza_changed_event(int x, int y, int z, int a)
 	{
-		// log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
+		//log_i("xyza_changed_event x:%d y:%i z:%i a:%i", x,y,z,a);
 
 		// Calibrate on first call - capture initial joystick position as offset
 		if (!isCalibrated and false)

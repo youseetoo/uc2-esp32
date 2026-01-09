@@ -20,7 +20,7 @@
 #define LED_CONTROLLER
 #define GALVO_CONTROLLER
 #define DAC_CONTROLLER
-
+#define CAN_BUS_ENABLED 
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*

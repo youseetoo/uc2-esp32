@@ -255,47 +255,53 @@ namespace StageScan
             // Store current position
             long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
             long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
+            long currentPosZ = FocusMotor::getData()[Stepper::Z]->currentPosition;
 
             pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
             digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW);
             log_i("Starting coordinate-based CAN stage scanning with %d coordinates and %d frames, nonstop=%d", sd.coordinateCount, sd.nFrames, sd.nonstop);
-            
+
             if (sd.nonstop)
             {
                 // Continuous movement mode: start moving to final position and trigger at intermediate positions
                 log_i("Using continuous movement mode");
-                
+
                 // Helper function to calculate time to reach a position with trapezoidal motion profile
-                auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t {
+                auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t
+                {
                     int32_t distance = abs(targetPos - startPos);
-                    if (distance == 0) return 0;
-                    
+                    if (distance == 0)
+                        return 0;
+
                     // Trapezoidal motion profile calculation
                     // Time to accelerate to max speed
                     float accelTime = (float)speed / (float)accel;
                     // Distance covered during acceleration
                     int32_t accelDist = (speed * speed) / (2 * accel);
-                    
+
                     uint32_t totalTime;
-                    if (distance < 2 * accelDist) {
+                    if (distance < 2 * accelDist)
+                    {
                         // Triangular profile (never reaches max speed)
                         float peakSpeed = sqrt(distance * accel);
                         totalTime = (uint32_t)(2.0f * peakSpeed / accel * 1000.0f); // Convert to ms
-                    } else {
+                    }
+                    else
+                    {
                         // Trapezoidal profile
                         float constTime = (float)(distance - 2 * accelDist) / (float)speed;
                         totalTime = (uint32_t)((2.0f * accelTime + constTime) * 1000.0f); // Convert to ms
                     }
-                    
+
                     return totalTime;
                 };
-                
+
                 // Start both motors moving to the final coordinate
                 int32_t finalX = sd.coordinates[sd.coordinateCount - 1].x;
                 int32_t finalY = sd.coordinates[sd.coordinateCount - 1].y;
                 int32_t startX = currentPosX;
                 int32_t startY = currentPosY;
-                
+
                 auto *dataX = FocusMotor::getData()[Stepper::X];
                 auto *dataY = FocusMotor::getData()[Stepper::Y];
                 dataX->absolutePosition = 1;
@@ -305,7 +311,7 @@ namespace StageScan
                 dataX->stopped = false;
                 dataX->acceleration = sd.acceleration;
                 dataX->isforever = false;
-                
+
                 dataY->absolutePosition = 1;
                 dataY->targetPosition = finalY;
                 dataY->speed = sd.speed;
@@ -313,41 +319,45 @@ namespace StageScan
                 dataY->stopped = false;
                 dataY->acceleration = sd.acceleration;
                 dataY->isforever = false;
-                
+
                 uint32_t startTime = millis();
                 FocusMotor::startStepper(Stepper::X, 1);
                 FocusMotor::startStepper(Stepper::Y, 1);
-                
+
                 log_i("Starting continuous movement from (%d, %d) to (%d, %d)", startX, startY, finalX, finalY);
-                
+
                 // Trigger at each coordinate position based on calculated timing
                 for (int i = 0; i < sd.coordinateCount && !sd.stopped; i++)
                 {
                     int32_t targetX = sd.coordinates[i].x;
                     int32_t targetY = sd.coordinates[i].y;
-                    
+
                     // Calculate expected time to reach this position from start
                     uint32_t timeX = calculateTimeToPosition(startX, targetX, sd.speed, sd.acceleration);
                     uint32_t timeY = calculateTimeToPosition(startY, targetY, sd.speed, sd.acceleration);
                     // Use the maximum time (limiting axis)
                     uint32_t expectedTime = max(timeX, timeY);
-                    
+
                     // Wait until the expected time has elapsed
                     uint32_t currentTime = millis();
                     uint32_t elapsedTime = currentTime - startTime;
-                    
-                    if (expectedTime > elapsedTime) {
+
+                    if (expectedTime > elapsedTime)
+                    {
                         uint32_t waitTime = expectedTime - elapsedTime;
-                        log_i("Position %d (%d, %d): waiting %u ms (expected %u ms, elapsed %u ms)", 
+                        log_i("Position %d (%d, %d): waiting %u ms (expected %u ms, elapsed %u ms)",
                               i, targetX, targetY, waitTime, expectedTime, elapsedTime);
                         vTaskDelay(pdMS_TO_TICKS(waitTime));
-                    } else {
-                        log_i("Position %d (%d, %d): already reached (expected %u ms, elapsed %u ms)", 
+                    }
+                    else
+                    {
+                        log_i("Position %d (%d, %d): already reached (expected %u ms, elapsed %u ms)",
                               i, targetX, targetY, expectedTime, elapsedTime);
                     }
-                    
-                    if (sd.stopped) break;
-                    
+
+                    if (sd.stopped)
+                        break;
+
                     // Trigger camera at this position
                     vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                     StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
@@ -367,48 +377,48 @@ namespace StageScan
                     moveAbs(Stepper::X, targetX, sd.speed, sd.acceleration);
                     moveAbs(Stepper::Y, targetY, sd.speed, sd.acceleration);
 
-                // LED/Laser control and camera triggering
+                    // LED/Laser control and camera triggering
 #ifdef LED_CONTROLLER
-                if (sd.ledarrayIntensity > 0)
-                {
-                    LedCommand cmd;
-                    cmd.mode = LedMode::CIRCLE;
-                    cmd.r = sd.ledarrayIntensity;
-                    cmd.g = sd.ledarrayIntensity;
-                    cmd.b = sd.ledarrayIntensity;
-                    cmd.radius = 8;
-                    cmd.ledIndex = 0;
-                    cmd.region[0] = 0;
-                    cmd.qid = 0;
-                    can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-
-                    cmd.r = 0;
-                    cmd.g = 0;
-                    cmd.b = 0; // switch off the LED
-                    can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-                }
-#endif
-#ifdef LASER_CONTROLLER
-                for (int j = 0; j < 4; ++j)
-                {
-                    if (sd.lightsourceIntensities[j] > 0)
+                    if (sd.ledarrayIntensity > 0)
                     {
-#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
-                        LaserData laserData;
-                        laserData.LASERid = j;
-                        laserData.LASERval = sd.lightsourceIntensities[j];
-                        can_controller::sendLaserDataToCANDriver(laserData);
+                        LedCommand cmd;
+                        cmd.mode = LedMode::CIRCLE;
+                        cmd.r = sd.ledarrayIntensity;
+                        cmd.g = sd.ledarrayIntensity;
+                        cmd.b = sd.ledarrayIntensity;
+                        cmd.radius = 8;
+                        cmd.ledIndex = 0;
+                        cmd.region[0] = 0;
+                        cmd.qid = 0;
+                        can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                         StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                        laserData.LASERval = 0;
-                        can_controller::sendLaserDataToCANDriver(laserData);
-#endif
+
+                        cmd.r = 0;
+                        cmd.g = 0;
+                        cmd.b = 0; // switch off the LED
+                        can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
                     }
-                }
+#endif
+#ifdef LASER_CONTROLLER
+                    for (int j = 0; j < 4; ++j)
+                    {
+                        if (sd.lightsourceIntensities[j] > 0)
+                        {
+#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
+                            LaserData laserData;
+                            laserData.LASERid = j;
+                            laserData.LASERval = sd.lightsourceIntensities[j];
+                            can_controller::sendLaserDataToCANDriver(laserData);
+                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                            StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
+                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                            laserData.LASERval = 0;
+                            can_controller::sendLaserDataToCANDriver(laserData);
+#endif
+                        }
+                    }
 #endif
                     // If no LED/Laser, still trigger camera
                     if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 &&
@@ -426,8 +436,10 @@ namespace StageScan
             // Original grid-based CAN scanning
             long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
             long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
+            long currentPosZ = FocusMotor::getData()[Stepper::Z]->currentPosition;
             int32_t x0 = currentPosX;
             int32_t y0 = currentPosY;
+            int32_t z0 = currentPosZ;
             int32_t key_speed = sd.speed;
             int32_t key_acceleration = sd.acceleration;
             isRunning = true;
@@ -437,56 +449,64 @@ namespace StageScan
                 x0 = sd.xStart;
             if (sd.yStart != 0)
                 y0 = sd.yStart;
+            if (sd.zStart != 0)
+                z0 = sd.zStart;
             // set the stepper to absolute position
             pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
             digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW); // set the trigger pin to high
-            log_i("Moving to start position X: %d, Y: %d, currentposition X: %d, Y: %d, nonstop=%d", x0, y0, currentPosX, currentPosY, sd.nonstop);
+            log_i("Moving to start position X: %d, Y: %d, Z: %d, currentposition X: %d, Y: %d, Z: %d, nonstop=%d", x0, y0, z0, currentPosX, currentPosY, currentPosZ, sd.nonstop);
             moveAbs(Stepper::X, x0, key_speed, key_acceleration);
             moveAbs(Stepper::Y, y0, key_speed, key_acceleration);
-            
+            moveAbs(Stepper::Z, z0, key_speed, key_acceleration);
+
             if (sd.nonstop)
             {
                 // Continuous movement mode for grid-based scanning
                 log_i("Using continuous movement mode for grid scanning");
-                
+
                 // Helper function to calculate time to reach a position with trapezoidal motion profile
-                auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t {
+                auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t
+                {
                     int32_t distance = abs(targetPos - startPos);
-                    if (distance == 0) return 0;
-                    
+                    if (distance == 0)
+                        return 0;
+
                     // Trapezoidal motion profile calculation
                     float accelTime = (float)speed / (float)accel;
                     int32_t accelDist = (speed * speed) / (2 * accel);
-                    
+
                     uint32_t totalTime;
-                    if (distance < 2 * accelDist) {
+                    if (distance < 2 * accelDist)
+                    {
                         // Triangular profile
                         float peakSpeed = sqrt(distance * accel);
                         totalTime = (uint32_t)(2.0f * peakSpeed / accel * 1000.0f);
-                    } else {
+                    }
+                    else
+                    {
                         // Trapezoidal profile
                         float constTime = (float)(distance - 2 * accelDist) / (float)speed;
                         totalTime = (uint32_t)((2.0f * accelTime + constTime) * 1000.0f);
                     }
-                    
+
                     return totalTime;
                 };
-                
+
                 auto *dataX = FocusMotor::getData()[Stepper::X];
                 auto *dataY = FocusMotor::getData()[Stepper::Y];
-                
+
                 for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
                 {
                     bool rev = (iy & 1);
                     int32_t targetY = y0 + int32_t(iy) * sd.yStep;
                     int32_t currentY = y0 + int32_t(iy > 0 ? iy - 1 : 0) * sd.yStep;
-                    
+
                     // Calculate Y movement time
                     uint32_t yMoveTime = 0;
                     if (iy > 0)
                     {
                         yMoveTime = calculateTimeToPosition(currentY, targetY, key_speed, key_acceleration);
-                        
+
                         dataY->absolutePosition = 1;
                         dataY->targetPosition = targetY;
                         dataY->speed = key_speed;
@@ -495,16 +515,16 @@ namespace StageScan
                         dataY->acceleration = key_acceleration;
                         dataY->isforever = false;
                         FocusMotor::startStepper(Stepper::Y, 1);
-                        
+
                         log_i("Y movement to line %d: %u ms", iy, yMoveTime);
                         // Wait for Y movement to complete
                         vTaskDelay(pdMS_TO_TICKS(yMoveTime + 50)); // Add 50ms buffer
                     }
-                    
+
                     // Start continuous X movement for entire line
                     int32_t startXLine = rev ? (x0 + int32_t(sd.nX - 1) * sd.xStep) : x0;
                     int32_t endXLine = rev ? x0 : (x0 + int32_t(sd.nX - 1) * sd.xStep);
-                    
+
                     dataX->absolutePosition = 1;
                     dataX->targetPosition = endXLine;
                     dataX->speed = key_speed;
@@ -512,38 +532,41 @@ namespace StageScan
                     dataX->stopped = false;
                     dataX->acceleration = key_acceleration;
                     dataX->isforever = false;
-                    
+
                     uint32_t lineStartTime = millis();
                     FocusMotor::startStepper(Stepper::X, 1);
-                    
+
                     log_i("Starting X line scan from %d to %d", startXLine, endXLine);
-                    
+
                     // Trigger at each position along the line based on timing
                     for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix)
                     {
                         uint16_t j = rev ? (sd.nX - 1 - ix) : ix;
                         int32_t tgtX = x0 + int32_t(j) * sd.xStep;
-                        
+
                         // Calculate expected time to reach this X position from start of line
                         uint32_t expectedTime = calculateTimeToPosition(startXLine, tgtX, key_speed, key_acceleration);
                         uint32_t currentTime = millis();
                         uint32_t elapsedTime = currentTime - lineStartTime;
-                        
-                        if (expectedTime > elapsedTime) {
+
+                        if (expectedTime > elapsedTime)
+                        {
                             uint32_t waitTime = expectedTime - elapsedTime;
                             vTaskDelay(pdMS_TO_TICKS(waitTime));
                         }
-                        
-                        if (sd.stopped) break;
-                        
+
+                        if (sd.stopped)
+                            break;
+
                         // Trigger camera
                         log_i("Triggering at grid position (%d,%d): X=%d", ix, iy, tgtX);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                         StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
                     }
-                    
-                    if (sd.stopped) break;
+
+                    if (sd.stopped)
+                        break;
                 }
             }
             else
@@ -551,84 +574,95 @@ namespace StageScan
                 // Original mode: stop at each position
                 // move to the start position
                 for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
-            {
-                bool rev = (iy & 1);                                   // are we on an even or odd line?
-                for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix) //
                 {
-                    log_i("Moving X to %d", x0 + int32_t(ix) * sd.xStep);
-                    uint16_t j = rev ? (sd.nX - 1 - ix) : ix; // reverse the order of the motion
-                    int32_t tgtX = x0 + int32_t(j) * sd.xStep;
-                    log_i("Moving X to %d", tgtX);
-                    moveAbs(Stepper::X, tgtX, key_speed, key_acceleration);
+                    bool rev = (iy & 1);                                   // are we on an even or odd line?
+                    for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix) //
+                    {
+                        log_i("Moving X to %d", x0 + int32_t(ix) * sd.xStep);
+                        uint16_t j = rev ? (sd.nX - 1 - ix) : ix; // reverse the order of the motion
+                        int32_t tgtX = x0 + int32_t(j) * sd.xStep;
+                        log_i("Moving X to %d", tgtX);
+                        moveAbs(Stepper::X, tgtX, key_speed, key_acceleration);
+
+                        // Iterate over Z positions if needed
+                        for (uint16_t iz = 0; iz < sd.nZ && !sd.stopped; ++iz)
+                        {
+                            int32_t tgtZ = z0 + int32_t(iz) * sd.zStep;
+                            log_i("Moving Z to %d", tgtZ);
+                            moveAbs(Stepper::Z, tgtZ, key_speed, key_acceleration);
+
+// Iterate over all illumination settings                            
 // if we have an illumination array, we need to set the led
 #ifdef LED_CONTROLLER
-                    if (sd.ledarrayIntensity > 0)
-                    {
-                        // TODO: Generalize this:
-                        LedCommand cmd;
-                        cmd.mode = LedMode::CIRCLE;
-                        cmd.r = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
-                        cmd.g = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
-                        cmd.b = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
-                        cmd.radius = 8;               // radius of the circle
-                        cmd.ledIndex = 0;             // not used
-                        cmd.region[0] = 0;            // not used
-                        cmd.qid = 0;                  // not used
-                        can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                            if (sd.ledarrayIntensity > 0)
+                            {
+                                // TODO: Generalize this:
+                                LedCommand cmd;
+                                cmd.mode = LedMode::CIRCLE;
+                                cmd.r = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
+                                cmd.g = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
+                                cmd.b = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
+                                cmd.radius = 8;               // radius of the circle
+                                cmd.ledIndex = 0;             // not used
+                                cmd.region[0] = 0;            // not used
+                                cmd.qid = 0;                  // not used
+                                can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                                StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
+                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
 
-                        // TODO: We need to generalize this led interface to make the same function for both I2C, CAN and native GPIO
-                        // trigger LED on board so that we indicate we take images
-                        if (0)
-                        {
-                            // this is probably expensive, so we only do it if we have a camera trigger
-                            LedController::fillAll(sd.ledarrayIntensity, sd.ledarrayIntensity, sd.ledarrayIntensity);
-                            LedController::fillAll(0, 0, 0);
-                        }
-                        cmd.r = 0;
-                        cmd.g = 0;
-                        cmd.b = 0; // switch off the LED
-                        can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-                    }
+                                // TODO: We need to generalize this led interface to make the same function for both I2C, CAN and native GPIO
+                                // trigger LED on board so that we indicate we take images
+                                if (0)
+                                {
+                                    // this is probably expensive, so we only do it if we have a camera trigger
+                                    LedController::fillAll(sd.ledarrayIntensity, sd.ledarrayIntensity, sd.ledarrayIntensity);
+                                    LedController::fillAll(0, 0, 0);
+                                }
+                                cmd.r = 0;
+                                cmd.g = 0;
+                                cmd.b = 0; // switch off the LED
+                                can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+                            }
 #endif
 #ifdef LASER_CONTROLLER
-                    for (int j = 0; j < 4; ++j)
-                    {
-                        if (sd.lightsourceIntensities[j] > 0)
-                        {
+                            for (int j = 0; j < 5; ++j)
+                            {
+                                if (sd.lightsourceIntensities[j] > 0)
+                                {
 // TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
 #if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
-                            LaserData laserData;
-                            laserData.LASERid = j;
-                            laserData.LASERval = sd.lightsourceIntensities[j];
-                            can_controller::sendLaserDataToCANDriver(laserData);
-                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                            StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                            laserData.LASERval = 0;
-                            can_controller::sendLaserDataToCANDriver(laserData);
+                                    LaserData laserData;
+                                    laserData.LASERid = j;
+                                    laserData.LASERval = sd.lightsourceIntensities[j];
+                                    can_controller::sendLaserDataToCANDriver(laserData);
+                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
+                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                                    laserData.LASERval = 0;
+                                    can_controller::sendLaserDataToCANDriver(laserData);
 #endif
+                                }
+                            }
+#endif
+                            // if we have a lightsource array, we still want to trigger the camera
+                            if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
+                            {
+                                // trigger the camera
+                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                                StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
+                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                            }
                         }
                     }
-#endif
-                    // if we have a lightsource array, we still want to trigger the camera
-                    if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
-                    {
-                        // trigger the camera
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                    }
-                }
-                if (iy + 1 == sd.nY || sd.stopped)
-                    break;
 
-                // move to the next line
-                log_i("Moving Y to %d", y0 + int32_t(iy + 1) * sd.yStep);
-                moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration);
-            }
+                    if (iy + 1 == sd.nY || sd.stopped)
+                        break;
+
+                    // move to the next line
+                    log_i("Moving Y to %d", y0 + int32_t(iy + 1) * sd.yStep);
+                    moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration);
+                }
             }
         }
 

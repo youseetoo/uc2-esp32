@@ -945,7 +945,7 @@ namespace LedController
 			if (ledToggleState)
 			{
 				// Turn LED ON
-				Serial.println("Circle pressed - LED ON");
+				// Serial.println("Circle pressed - LED ON");
 				cmd.mode = LedMode::CIRCLE;
 				cmd.r = 0;
 				cmd.g = 255;
@@ -959,7 +959,7 @@ namespace LedController
 			else
 			{
 				// Turn LED OFF
-				Serial.println("Circle pressed - LED OFF");
+				// Serial.println("Circle pressed - LED OFF");
 				cmd.mode = LedMode::CIRCLE;
 				cmd.r = 0;
 				cmd.g = 0;

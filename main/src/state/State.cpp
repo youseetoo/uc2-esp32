@@ -39,13 +39,15 @@ namespace State
 		cJSON *restart = cJSON_GetObjectItemCaseSensitive(doc, "restart");
 		// assign default values to thhe variables
 		if (restart != NULL)
-		{
+		{ // {"task":"/state_act", "restart":1}
 			// pull emergency stop up 
 			if(pinConfig.ESTOP_PIN >= 0)
 			{
 				log_i("Pulling emergency stop pin HIGH before restart");
 				pinMode(pinConfig.ESTOP_PIN, OUTPUT);
 				digitalWrite(pinConfig.ESTOP_PIN, HIGH);
+				log_i("Pulling emergency stop pin LOW again before restart");
+				digitalWrite(pinConfig.ESTOP_PIN, LOW);
 			}
 
 			// {"task": "/state_act", "restart": 1}

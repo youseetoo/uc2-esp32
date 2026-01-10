@@ -11,6 +11,7 @@ namespace StageScan
     {
         int x;
         int y;
+        int z;
     };
 
     struct StageScanningData

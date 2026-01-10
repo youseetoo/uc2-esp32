@@ -102,7 +102,9 @@ namespace StageScan
         if (state == -1)
         {
             writeToPin(outputPin, 1, 0);
-            ets_delay_us(triggerTime); // Adjust delay for speed
+            // print "++{"cam":1}--" to serial to indicate a software trigger 
+            ets_delay_us(4); // Adjust delay for speed
+            Serial.println("++{\"cam\":1}--");
             writeToPin(outputPin, 0, 0);
         }
         else
@@ -173,7 +175,7 @@ namespace StageScan
                 // Store current position to return to later
                 int startX = FocusMotor::getData()[Stepper::X]->currentPosition;
                 int startY = FocusMotor::getData()[Stepper::Y]->currentPosition;
-
+                int startZ = FocusMotor::getData()[Stepper::Z]->currentPosition;    
                 for (int i = 0; i < stageScanningData.coordinateCount; i++)
                 {
                     if (stageScanningData.stopped)
@@ -184,11 +186,14 @@ namespace StageScan
                     // Move to target coordinate using absolute positioning
                     int targetX = stageScanningData.coordinates[i].x;
                     int targetY = stageScanningData.coordinates[i].y;
-                    log_i("Moving to coordinate %d: (%d, %d)", i, targetX, targetY);
+                    int targetZ = stageScanningData.coordinates[i].z;
+                    log_i("Moving to coordinate %d: (%d, %d, %d)", i, targetX, targetY, targetZ);
 #if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
                     // Use CAN moveAbs for absolute positioning
+                    // TODO: drive to all three axes simultaneously
                     moveAbs(Stepper::X, targetX, stageScanningData.speed, stageScanningData.acceleration);
                     moveAbs(Stepper::Y, targetY, stageScanningData.speed, stageScanningData.acceleration);
+                    moveAbs(Stepper::Z, targetZ, stageScanningData.speed, stageScanningData.acceleration);
 
                     // Timing for CAN-based systems
                     vTaskDelay(pdMS_TO_TICKS(stageScanningData.delayTimePreTrigger));
@@ -208,6 +213,11 @@ namespace StageScan
                         delay(1);
                     }
 
+                    FocusMotor::moveMotor(targetZ, Stepper::Z, false); // absolute positioning
+                    while (FocusMotor::isRunning(Stepper::Z))
+                    {
+                        delay(1);
+                    }
                     // Trigger camera at this position
                     triggerOutput(pinConfig.CAMERA_TRIGGER_PIN);
                     ets_delay_us(stageScanningData.delayTimeStep * 1000);
@@ -233,6 +243,14 @@ namespace StageScan
                         delay(1);
                     }
                 }
+                if (startZ != FocusMotor::getData()[Stepper::Z]->currentPosition)
+                {
+                    FocusMotor::moveMotor(startZ, Stepper::Z, false);
+                    while (FocusMotor::isRunning(Stepper::Z))
+                    {
+                        delay(1);
+                    }
+                }   
 #endif
             }
         }
@@ -243,8 +261,40 @@ namespace StageScan
 
     void stageScanCAN(bool isThread)
     {
+        if (isRunning)
+            return; // already running
 #if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto &sd = StageScan::stageScanningData;
+
+        // Helper function to calculate time to reach a position with trapezoidal motion profile
+        auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t
+        {
+            int32_t distance = abs(targetPos - startPos);
+            if (distance == 0)
+                return 0;
+
+            // Trapezoidal motion profile calculation
+            // Time to accelerate to max speed
+            float accelTime = (float)speed / (float)accel;
+            // Distance covered during acceleration
+            int32_t accelDist = (speed * speed) / (2 * accel);
+
+            uint32_t totalTime;
+            if (distance < 2 * accelDist)
+            {
+                // Triangular profile (never reaches max speed)
+                float peakSpeed = sqrt(distance * accel);
+                totalTime = (uint32_t)(2.0f * peakSpeed / accel * 1000.0f); // Convert to ms
+            }
+            else
+            {
+                // Trapezoidal profile
+                float constTime = (float)(distance - 2 * accelDist) / (float)speed;
+                totalTime = (uint32_t)((2.0f * accelTime + constTime) * 1000.0f); // Convert to ms
+            }
+
+            return totalTime;
+        };
 
         // Check if we should use coordinate-based scanning
         if (sd.useCoordinates && sd.coordinates != nullptr)
@@ -266,41 +316,12 @@ namespace StageScan
                 // Continuous movement mode: start moving to final position and trigger at intermediate positions
                 log_i("Using continuous movement mode");
 
-                // Helper function to calculate time to reach a position with trapezoidal motion profile
-                auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t
-                {
-                    int32_t distance = abs(targetPos - startPos);
-                    if (distance == 0)
-                        return 0;
-
-                    // Trapezoidal motion profile calculation
-                    // Time to accelerate to max speed
-                    float accelTime = (float)speed / (float)accel;
-                    // Distance covered during acceleration
-                    int32_t accelDist = (speed * speed) / (2 * accel);
-
-                    uint32_t totalTime;
-                    if (distance < 2 * accelDist)
-                    {
-                        // Triangular profile (never reaches max speed)
-                        float peakSpeed = sqrt(distance * accel);
-                        totalTime = (uint32_t)(2.0f * peakSpeed / accel * 1000.0f); // Convert to ms
-                    }
-                    else
-                    {
-                        // Trapezoidal profile
-                        float constTime = (float)(distance - 2 * accelDist) / (float)speed;
-                        totalTime = (uint32_t)((2.0f * accelTime + constTime) * 1000.0f); // Convert to ms
-                    }
-
-                    return totalTime;
-                };
-
                 // Start both motors moving to the final coordinate
                 int32_t finalX = sd.coordinates[sd.coordinateCount - 1].x;
                 int32_t finalY = sd.coordinates[sd.coordinateCount - 1].y;
                 int32_t startX = currentPosX;
                 int32_t startY = currentPosY;
+                int32_t startZ = currentPosZ;
 
                 auto *dataX = FocusMotor::getData()[Stepper::X];
                 auto *dataY = FocusMotor::getData()[Stepper::Y];
@@ -331,12 +352,14 @@ namespace StageScan
                 {
                     int32_t targetX = sd.coordinates[i].x;
                     int32_t targetY = sd.coordinates[i].y;
+                    int32_t targetZ = sd.coordinates[i].z;
 
                     // Calculate expected time to reach this position from start
                     uint32_t timeX = calculateTimeToPosition(startX, targetX, sd.speed, sd.acceleration);
                     uint32_t timeY = calculateTimeToPosition(startY, targetY, sd.speed, sd.acceleration);
+                    uint32_t timeZ = calculateTimeToPosition(startZ, targetZ, sd.speed, sd.acceleration);
                     // Use the maximum time (limiting axis)
-                    uint32_t expectedTime = max(timeX, timeY);
+                    uint32_t expectedTime = max(timeX, max(timeY, timeZ));
 
                     // Wait until the expected time has elapsed
                     uint32_t currentTime = millis();
@@ -372,10 +395,12 @@ namespace StageScan
                     // Move to coordinate position
                     int32_t targetX = sd.coordinates[i].x;
                     int32_t targetY = sd.coordinates[i].y;
+                    int32_t targetZ = sd.coordinates[i].z;
 
-                    log_i("Moving to coordinate X: %d, Y: %d", targetX, targetY);
+                    log_i("Moving to coordinate X: %d, Y: %d, Z: %d", targetX, targetY, targetZ);
                     moveAbs(Stepper::X, targetX, sd.speed, sd.acceleration);
                     moveAbs(Stepper::Y, targetY, sd.speed, sd.acceleration);
+                    moveAbs(Stepper::Z, targetZ, sd.speed, sd.acceleration);
 
                     // LED/Laser control and camera triggering
 #ifdef LED_CONTROLLER
@@ -571,6 +596,7 @@ namespace StageScan
             }
             else
             {
+
                 // Original mode: stop at each position
                 // move to the start position
                 for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
@@ -582,15 +608,17 @@ namespace StageScan
                         uint16_t j = rev ? (sd.nX - 1 - ix) : ix; // reverse the order of the motion
                         int32_t tgtX = x0 + int32_t(j) * sd.xStep;
                         log_i("Moving X to %d", tgtX);
-                        moveAbs(Stepper::X, tgtX, key_speed, key_acceleration);
-
+                        uint32_t timeX = calculateTimeToPosition(x0 + int32_t(j) * sd.xStep, x0 + int32_t(j + 1) * sd.xStep, sd.speed, sd.acceleration);
+                        moveAbs(Stepper::X, tgtX, key_speed, key_acceleration, timeX + 200); // add 500ms buffer
+            
                         // Iterate over Z positions if needed
                         for (uint16_t iz = 0; iz < sd.nZ && !sd.stopped; ++iz)
                         {
                             int32_t tgtZ = z0 + int32_t(iz) * sd.zStep;
                             log_i("Moving Z to %d", tgtZ);
-                            moveAbs(Stepper::Z, tgtZ, key_speed, key_acceleration);
-
+                            uint32_t timeZ = calculateTimeToPosition(z0 + int32_t(iz) * sd.zStep, z0 + int32_t(iz + 1) * sd.zStep, key_speed, key_acceleration);
+                            moveAbs(Stepper::Z, tgtZ, key_speed, key_acceleration, timeZ + 200);
+                
 // Iterate over all illumination settings                            
 // if we have an illumination array, we need to set the led
 #ifdef LED_CONTROLLER
@@ -610,7 +638,7 @@ namespace StageScan
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                                 StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-
+                                log_i("LED triggered at intensity %d", sd.ledarrayIntensity);
                                 // TODO: We need to generalize this led interface to make the same function for both I2C, CAN and native GPIO
                                 // trigger LED on board so that we indicate we take images
                                 if (0)
@@ -632,6 +660,7 @@ namespace StageScan
                                 {
 // TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
 #if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
+                                    log_i("Triggering laser %d at intensity %d", j, sd.lightsourceIntensities[j]);
                                     LaserData laserData;
                                     laserData.LASERid = j;
                                     laserData.LASERval = sd.lightsourceIntensities[j];
@@ -643,6 +672,9 @@ namespace StageScan
                                     can_controller::sendLaserDataToCANDriver(laserData);
 #endif
                                 }
+                                else{
+                                    log_i("Laser %d intensity is 0, skipping trigger", j);
+                                }
                             }
 #endif
                             // if we have a lightsource array, we still want to trigger the camera
@@ -652,6 +684,7 @@ namespace StageScan
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                                 StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                                log_i("Camera triggered at position X:%d Y:%d Z:%d", tgtX, y0 + int32_t(iy) * sd.yStep, tgtZ);
                             }
                         }
                     }
@@ -661,7 +694,8 @@ namespace StageScan
 
                     // move to the next line
                     log_i("Moving Y to %d", y0 + int32_t(iy + 1) * sd.yStep);
-                    moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration);
+                    uint32_t timeY = calculateTimeToPosition(y0 + int32_t(iy) * sd.yStep, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration);
+                    moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration, timeY + 200);
                 }
             }
         }

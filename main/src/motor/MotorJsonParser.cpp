@@ -267,7 +267,7 @@ namespace MotorJsonParser
             if (illumination != NULL)
             {
                 log_i("illumination array found");
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     cJSON *item = cJSON_GetArrayItem(illumination, i);
                     if (item != NULL)

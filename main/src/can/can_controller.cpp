@@ -1132,8 +1132,8 @@ namespace can_controller
     void setup()
     {
         // Create a mutex for the CAN bus
-        log_i("Setting up CAN controller...");
         device_can_id = getCANAddress();
+        log_i("Setting up CAN controller on port TX: %d, RX: %d using address: %u", pinConfig.CAN_TX, pinConfig.CAN_RX, device_can_id);
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);

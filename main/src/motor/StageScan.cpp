@@ -104,7 +104,7 @@ namespace StageScan
             writeToPin(outputPin, 1, 0);
             // print "++{"cam":1}--" to serial to indicate a software trigger 
             ets_delay_us(4); // Adjust delay for speed
-            Serial.println("++{\"cam\":1}--");
+            Serial.println("++\n{\"cam\":1}\n--");
             writeToPin(outputPin, 0, 0);
         }
         else
@@ -596,7 +596,7 @@ namespace StageScan
             }
             else
             {
-
+                // @CHATGPT USE THIS CASE
                 // Original mode: stop at each position
                 // move to the start position
                 for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
@@ -678,7 +678,7 @@ namespace StageScan
                             }
 #endif
                             // if we have a lightsource array, we still want to trigger the camera
-                            if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
+                            if (sd.ledarrayIntensity == 0 && sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 && sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0 && sd.lightsourceIntensities[4] == 0)
                             {
                                 // trigger the camera
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
@@ -702,8 +702,7 @@ namespace StageScan
 
         // Send completion message (for both coordinate and grid modes)
         cJSON *json = cJSON_CreateObject();
-        cJSON *stagescan = cJSON_CreateObject();
-        cJSON_AddItemToObject(json, "stagescan", stagescan);
+        cJsonTool::setJsonBool(json, "stagescan", 1);
         cJsonTool::setJsonInt(json, keyQueueID, sd.qid);
         cJsonTool::setJsonInt(json, "success", 1);
         Serial.println("++");
@@ -713,10 +712,11 @@ namespace StageScan
         free(ret);
         Serial.println("--");
 
+        isRunning = false;
+        
         if (isThread)
             vTaskDelete(NULL);
 #endif
-        isRunning = false;
     }
 
     void stageScanThread(void *arg)

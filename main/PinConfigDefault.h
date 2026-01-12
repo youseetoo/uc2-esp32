@@ -371,7 +371,9 @@ struct PinConfig
      uint8_t galvo_trig_pixel = disabled;  // D1
      uint8_t galvo_trig_line = disabled;   // D2
      uint8_t galvo_trig_frame = disabled;  // D3
-     
+
+      // Buzzer
+    int8_t BUZZER_PIN = disabled; // active HIGH // TODO: implement buzzer control via new buzzer controller interface (buzzer_act)
 
 
      // Temperature Sensor

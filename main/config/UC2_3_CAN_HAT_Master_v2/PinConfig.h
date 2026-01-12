@@ -2,24 +2,25 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#define CORE_DEBUG_LEVEL 5
-#define LASER_CONTROLLER 1
-#define DIGITAL_IN_CONTROLLER 1
-#define MESSAGE_CONTROLLER 1
-#define CAN_BUS_ENABLED 1
-#define DIAL_CONTROLLER 1
-#define MOTOR_CONTROLLER 1
-#define HOME_MOTOR 1
-#define BTHID 1 
-#define BLUETOOTH 1	
-#define TMC_CONTROLLER 1
-#define OBJECTIVE_CONTROLLER 1
-#define STAGE_SCAN 1
+#define CORE_DEBUG_LEVEL=5
+#define LASER_CONTROLLER=1
+#define DIGITAL_IN_CONTROLLER=1
+#define MESSAGE_CONTROLLER=1
+#define CAN_BUS_ENABLED=1
+#define DIAL_CONTROLLER=1
+#define MOTOR_CONTROLLER=1
+#define HOME_MOTOR=1
+#define BTHID=1 
+#define BLUETOOTH=1	
+#define TMC_CONTROLLER=1
+#define OBJECTIVE_CONTROLLER=1
+#define STAGE_SCAN=1
 #define CAN_SEND_COMMANDS
 #define MOTOR_AXIS_COUNT 10   
 #define LED_CONTROLLER
 #define GALVO_CONTROLLER
 #define DAC_CONTROLLER
+#define CAN_BUS_ENABLED 
 
 struct UC2_3_CAN_HAT_Master_v2 : PinConfig
 {
@@ -71,16 +72,18 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // ---------------------------------------------------------------------
     // CAN (ESP32 TWAI on-board; Pi-side MCP2515 is separate)
     // ---------------------------------------------------------------------
-    int8_t CAN_TX = GPIO_NUM_18; // TWAI TX
-    int8_t CAN_RX = GPIO_NUM_17; // TWAI RX
-    uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
-    bool DEBUG_CAN_ISO_TP = true;
+     // CAN
+     int8_t CAN_TX = GPIO_NUM_17;
+     int8_t CAN_RX = GPIO_NUM_18;
+     uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
+    bool DEBUG_CAN_ISO_TP = false;
 
     // ---------------------------------------------------------------------
     // Lighting / status
     // ---------------------------------------------------------------------
     int8_t LED_PIN   = GPIO_NUM_19; // on-board WS2812 data
     int16_t LED_COUNT = 1;
+    bool IS_STATUS_LED = true; // on-board LED is used for status indication
 
     // ---------------------------------------------------------------------
     // Camera / trigger / panelboard IO

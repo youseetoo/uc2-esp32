@@ -21,6 +21,13 @@ namespace State
 	void setup()
 	{
 		log_d("Setup State");
+
+		// ensure BUZZER_PIN is set low if configured
+		if (pinConfig.BUZZER_PIN >= 0)
+		{
+			pinMode(pinConfig.BUZZER_PIN, OUTPUT);
+			digitalWrite(pinConfig.BUZZER_PIN, LOW);
+		}
 	}
 
 	// {"task":"/state_act", "restart":1}
@@ -28,6 +35,7 @@ namespace State
 	// {"task":"/state_act", "isBusy":1}
 	// {"task":"/state_act", "resetPreferences":1}
 	// {"task":"/state_act", "isDEBUG":0} // 0-5
+	// {"task": "/state_act", "buzzer": 1}
 
 	// Custom function accessible by the API
 	int act(cJSON *doc)
@@ -36,6 +44,23 @@ namespace State
 		if (isDEBUG)
 			log_i("state_act_fct");
 
+		// add buzzer control here:
+		cJSON *buzzer = cJSON_GetObjectItemCaseSensitive(doc, "buzzer");
+		if (buzzer != NULL)
+		{
+			int buzzerVal = buzzer->valueint;
+			if (pinConfig.BUZZER_PIN >= 0)
+			{
+				if (buzzerVal > 0)
+				{
+					digitalWrite(pinConfig.BUZZER_PIN, HIGH);
+				}
+				else
+				{
+					digitalWrite(pinConfig.BUZZER_PIN, LOW);
+				}
+			}
+		}
 		cJSON *restart = cJSON_GetObjectItemCaseSensitive(doc, "restart");
 		// assign default values to thhe variables
 		if (restart != NULL)

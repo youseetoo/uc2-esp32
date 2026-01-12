@@ -390,7 +390,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 			{"task": "/motor_act", "stagescan": {"stopped": 1}}
 			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 150, "tPost": 150, "illumination": [0, 0, 0, 0], "led": 0, "speed":20000, "acceleration": 1000000}}
             {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":20, "nX": 10, "nY": 10, "nZ":10, "tPre": 150, "tPost": 150, "illumination": [0, 0, 0, 0, 1023], "led": 0, "speed":20000, "acceleration": 1000000}}
-            {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 5000, "yStep": 5000, "zStep":500, "nX": 4, "nY": 4, "nZ":3, "tPre": 50, "tPost": 50, "illumination": [1023, 1023, 1023, 1023, 1023], "led": 0, "speed":20000, "acceleration": 1000000}}
+            {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 5000, "yStep": 5000, "zStep":500, "nX": 2, "nY": 2, "nZ":2, "tPre": 50, "tPost": 50, "illumination": [1023, 1023, 1023, 1023, 1023], "led": 0, "speed":20000, "acceleration": 1000000}}
 
 
 {'task': '/can_act', 'ota': {'canid': 11, 'ssid': 'openUC2', 'password': 'Wifi So You Can See Too', 'timeout': '300000'}}

@@ -53,7 +53,26 @@ namespace TMCController
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
     {
         #if not defined(CAN_SEND_COMMANDS)
-        for (int iTrial=0; iTrial<3; iTrial++) driver.microsteps(p.msteps);
+        // Temporarily disable motor to allow microstep changes
+        digitalWrite(pinConfig.MOTOR_ENABLE, HIGH);
+        delay(10);
+        
+        // Set microsteps with proper timing
+        driver.microsteps(p.msteps);
+        delay(10); // Give UART time to process
+        
+        // Verify and retry if needed
+        for (int iTrial = 0; iTrial < 3 && driver.microsteps() != p.msteps; iTrial++) {
+            log_w("Microstep setting mismatch, retrying... (attempt %d)", iTrial + 1);
+            driver.microsteps(p.msteps);
+            delay(10);
+        }
+        
+        // Re-enable motor
+        digitalWrite(pinConfig.MOTOR_ENABLE, LOW);
+        delay(10);
+        
+        // Set other parameters
         driver.rms_current(p.rms_current);
         driver.SGTHRS(p.sgthrs);
         driver.semin(p.semin);
@@ -62,13 +81,10 @@ namespace TMCController
         driver.TCOOLTHRS(p.tcoolthrs);
         driver.blank_time(p.blank_time);
         driver.toff(p.toff);
+        
         if (saveToPrefs)
             writeParamsToPreferences(p);
-        /*
-        digitalWrite(pinConfig.MOTOR_ENABLE, HIGH);
-        delay(10);
-        digitalWrite(pinConfig.MOTOR_ENABLE, LOW);
-        */
+        
         log_i("Apply Motor Settings: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i",
               p.msteps, driver.microsteps(), p.rms_current, driver.rms_current(), p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff);
         #endif

@@ -429,14 +429,14 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 A,X,Y,Z ... 
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":2000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":30000, "position": -30000,  "isabs": 0}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 
 {"task": "/can_get"}
 
 {"task":"/tmc_get"}
-{"task":"/tmc_act", "msteps":16, "rms_current":500, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
+{"task":"/tmc_act", "msteps":1, "rms_current":1200, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "position": -30000, "speed": 20000, "isabs": 0.0, "accel": 1000000, "isen": true}]}, "qid": 8}
 {"task":"/motor_act", "isen":1, "isenauto":0}
 

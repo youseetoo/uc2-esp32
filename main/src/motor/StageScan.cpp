@@ -596,7 +596,6 @@ namespace StageScan
             }
             else
             {
-                // @CHATGPT USE THIS CASE
                 // Original mode: stop at each position
                 // move to the start position
                 for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
@@ -664,10 +663,10 @@ namespace StageScan
                                     LaserData laserData;
                                     laserData.LASERid = j;
                                     laserData.LASERval = sd.lightsourceIntensities[j];
-                                    can_controller::sendLaserDataToCANDriver(laserData);
-                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                                    can_controller::sendLaserDataToCANDriver(laserData); // This will take whatever time since we don't check if it's on. So maybe 50ms 
+                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger)); // wait before trigger to allow laser to stabilize/settle stage
                                     StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger)); // corresponds to exposure time
                                     laserData.LASERval = 0;
                                     can_controller::sendLaserDataToCANDriver(laserData);
 #endif

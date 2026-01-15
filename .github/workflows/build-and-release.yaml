@@ -331,3 +331,88 @@ jobs:
           git add LATEST_VERSION
           git commit -m "Update LATEST_VERSION to $TAG" || true
           git push || true
+
+  # Deploy manifests to youseetoo.github.io to avoid CORS issues
+  deploy-to-website:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: firmware
+          pattern: firmware-*
+          merge-multiple: true
+
+      - name: Get release info
+        id: release_info
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+      - name: Checkout youseetoo.github.io
+        uses: actions/checkout@v4
+        with:
+          repository: youseetoo/youseetoo.github.io
+          path: website
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+          
+      - name: Deploy manifests and binaries
+        shell: bash
+        run: |
+          TAG="${{ steps.release_info.outputs.tag }}"
+          
+          # Create version-specific directory
+          mkdir -p "website/static/firmware/${TAG}"
+          mkdir -p "website/static/firmware/latest"
+          
+          # Copy all manifests and binaries to version directory
+          cp firmware/*.json "website/static/firmware/${TAG}/"
+          cp firmware/*.bin "website/static/firmware/${TAG}/"
+          
+          # Update manifests to use relative paths (same directory)
+          cd "website/static/firmware/${TAG}"
+          for manifest in *-manifest.json; do
+            if [ -f "$manifest" ]; then
+              # Extract board ID
+              board_id="${manifest%-manifest.json}"
+              # Update path in manifest to be relative
+              jq --arg board "$board_id" '.builds[0].parts[0].path = ($board + ".bin")' "$manifest" > "${manifest}.tmp"
+              mv "${manifest}.tmp" "$manifest"
+            fi
+          done
+          
+          # For non-beta/alpha releases, also update 'latest'
+          if [[ ! "$TAG" =~ (beta|alpha) ]]; then
+            cp *.json "../../latest/"
+            cp *.bin "../../latest/"
+          fi
+          
+      - name: Commit and push
+        shell: bash
+        run: |
+          cd website
+          git config user.email 'bene.d@gmx.de'
+          git config user.name 'beniroquai'
+          
+          if git status --porcelain | grep -q '^??\|^ M'; then
+            git add static/firmware
+            git commit -m "Deploy firmware ${{ steps.release_info.outputs.tag }} => https://github.com/youseetoo/uc2-esp32"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+
+        uses: actions/checkout@v4
+        
+      - name: Update latest version file
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "$TAG" > LATEST_VERSION
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add LATEST_VERSION
+          git commit -m "Update LATEST_VERSION to $TAG" || true
+          git push || true

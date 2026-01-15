@@ -16,7 +16,7 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #define LASER_CONTROLLER=1
 #define DIGITAL_IN_CONTROLLER=1
 #define MESSAGE_CONTROLLER=1
-#define LINEAR_ENCODER_CONTROLLER=1
+//#define LINEAR_ENCODER_CONTROLLER=1
 //#define CAN_BUS_ENABLED=1
 //#define DIAL_CONTROLLER=1
 #define MOTOR_CONTROLLER=1

@@ -40,9 +40,9 @@ namespace StageScan
         int32_t xStep = 0;
         int32_t yStep = 0;
         int32_t zStep = 0;
-        uint16_t nX = 0;
-        uint16_t nY = 0;
-        uint16_t nZ = 0;
+        uint16_t nX = 1;
+        uint16_t nY = 1;
+        uint16_t nZ = 1;
         int delayTimePreTrigger = 0;
         int delayTimePostTrigger = 0;
         // define a boolean array of the lightsource used (e.g. [0,1,0,0,0])

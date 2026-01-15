@@ -189,7 +189,7 @@ namespace MotorJsonParser
             }
 #if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
             // CAN-based stage scanning with grid parameters
-            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50}}
+            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125]}}
 			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
 			// With XYZ scanning: {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":100, "nX": 5, "nY": 5, "nZ":3, "tPre": 50, "tPost": 50}}
             StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
@@ -198,9 +198,9 @@ namespace MotorJsonParser
             StageScan::getStageScanData()->yStep = cJsonTool::getJsonInt(stagescan, "yStep");
 			StageScan::getStageScanData()->zStart = cJsonTool::getJsonInt(stagescan, "zStart");
 			StageScan::getStageScanData()->zStep = cJsonTool::getJsonInt(stagescan, "zStep");
-            StageScan::getStageScanData()->nX = cJsonTool::getJsonInt(stagescan, "nX");
-            StageScan::getStageScanData()->nY = cJsonTool::getJsonInt(stagescan, "nY");
-			StageScan::getStageScanData()->nZ = cJsonTool::getJsonInt(stagescan, "nZ");
+            StageScan::getStageScanData()->nX = max(cJsonTool::getJsonInt(stagescan, "nX"), 1);
+            StageScan::getStageScanData()->nY = max(cJsonTool::getJsonInt(stagescan, "nY"), 1);
+			StageScan::getStageScanData()->nZ = max(cJsonTool::getJsonInt(stagescan, "nZ"), 1)
             StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
             StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
             StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig");

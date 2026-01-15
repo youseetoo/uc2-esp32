@@ -295,6 +295,7 @@ namespace StageScan
 
             return totalTime;
         };
+        bool zicZac = sd.zicZac;
 
         // Check if we should use coordinate-based scanning
         if (sd.useCoordinates && sd.coordinates != nullptr)
@@ -306,7 +307,6 @@ namespace StageScan
             long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
             long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
             long currentPosZ = FocusMotor::getData()[Stepper::Z]->currentPosition;
-
             pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
             digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW);
             log_i("Starting coordinate-based CAN stage scanning with %d coordinates and %d frames, nonstop=%d", sd.coordinateCount, sd.nFrames, sd.nonstop);
@@ -604,7 +604,10 @@ namespace StageScan
                     for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix) //
                     {
                         log_i("Moving X to %d", x0 + int32_t(ix) * sd.xStep);
-                        uint16_t j = rev ? (sd.nX - 1 - ix) : ix; // reverse the order of the motion
+                        uint16_t j = ix;
+                        if (zicZac){
+                            j = rev ? (sd.nX - 1 - ix) : ix; // reverse the order of the motion
+                        }
                         int32_t tgtX = x0 + int32_t(j) * sd.xStep;
                         log_i("Moving X to %d", tgtX);
                         uint32_t timeX = calculateTimeToPosition(x0 + int32_t(j) * sd.xStep, x0 + int32_t(j + 1) * sd.xStep, sd.speed, sd.acceleration);

@@ -27,6 +27,7 @@ namespace StageScan
         int stopped = 0;
         int nFrames = 1;
         int qid = -1; // query id for the task
+        bool zicZac = true;
         
         // Coordinate-based scanning parameters
         bool useCoordinates = false;

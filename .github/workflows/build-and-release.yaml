@@ -74,6 +74,18 @@ jobs:
             display_name: "Xiao CAN Slave Motor"
             board_id: "xiao-can-slave-motor"
             chip_family: "ESP32-S3"
+          - env_name: seeed_xiao_esp32s3_can_slave_galvo
+            display_name: "Xiao CAN Slave Galvo"
+            board_id: "xiao-can-slave-galvo"
+            chip_family: "ESP32-S3"
+          - env_name: seeed_xiao_esp32s3_can_slave_laser
+            display_name: "Xiao CAN Slave Laser"
+            board_id: "xiao-can-slave-laser"
+            chip_family: "ESP32-S3"
+          - env_name: seeed_xiao_esp32s3_can_slave_led
+            display_name: "Xiao CAN Slave LED"
+            board_id: "xiao-can-slave-led"
+            chip_family: "ESP32-S3"
           - env_name: seeed_xiao_esp32s3_can_slave_illumination
             display_name: "Xiao CAN Slave Illumination"
             board_id: "xiao-can-slave-illumination"

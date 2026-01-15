@@ -405,7 +405,7 @@ jobs:
             echo "No changes to commit"
           fi
 
-        uses: actions/checkout@v4
+        
         
       - name: Update latest version file
         run: |

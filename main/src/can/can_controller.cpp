@@ -1,4 +1,5 @@
 #include "can_controller.h"
+#include "CanOtaHandler.h"
 #include <PinConfig.h>
 #include "Wire.h"
 #include "esp_log.h"
@@ -37,6 +38,8 @@ using namespace FocusMotor;
 
 namespace can_controller
 {
+    // Device CAN ID - defined here, declared extern in header
+    uint8_t device_can_id = 0;
 
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
@@ -525,6 +528,17 @@ namespace can_controller
                 return;
             }
             #endif
+            
+            // Handle CAN-based OTA messages (firmware transfer over CAN)
+            // OTA_CAN_* message types: 0x62-0x69
+            if (msgType >= OTA_CAN_START && msgType <= OTA_CAN_STATUS)
+            {
+                // Route to CAN OTA handler
+                // For slave devices: handle START, DATA, VERIFY, FINISH, ABORT, STATUS
+                // For master: handle ACK, NAK responses from slaves
+                can_ota::handleCanOtaMessage(static_cast<uint8_t>(msgType), data + 1, size - 1, txID);
+                return;
+            }
         }
 
         // Handle SCAN_RESPONSE (master side) - collect device info
@@ -936,6 +950,12 @@ namespace can_controller
         }
 
         return 0;
+    }
+
+    // Alias for sendCanMessage - used by CanOtaHandler for ISO-TP transmission
+    int sendIsoTpData(uint8_t receiverID, const uint8_t *data, size_t size)
+    {
+        return sendCanMessage(receiverID, data, size);
     }
 
     // generic receiver function
@@ -2330,6 +2350,44 @@ namespace can_controller
         }
     }
     
+    /**
+     * @brief Handle CAN OTA commands from serial interface
+     * 
+     * JSON format:
+     * {"task":"/can_ota", "cmd":"start|data|verify|finish|abort|status", "slaveId":X, ...}
+     * 
+     * Commands:
+     * - start: {"cmd":"start", "slaveId":X, "size":N, "chunks":N, "chunkSize":N, "md5":"..."}
+     * - data:  {"cmd":"data", "slaveId":X, "chunk":N, "crc":N, "data":[...]}
+     * - verify: {"cmd":"verify", "slaveId":X, "md5":"..."}
+     * - finish: {"cmd":"finish", "slaveId":X}
+     * - abort: {"cmd":"abort", "slaveId":X}
+     * - status: {"cmd":"status", "slaveId":X}
+     * 
+     * @param doc JSON document containing the command
+     * @return cJSON* Response object with status
+     */
+    cJSON* actCanOta(cJSON* doc)
+    {
+        cJSON* response = cJSON_CreateObject();
+        if (response == NULL) {
+            return NULL;
+        }
+        
+        int result = can_ota::actFromJson(doc);
+        
+        if (result >= 0) {
+            cJSON_AddBoolToObject(response, "success", true);
+            cJSON_AddNumberToObject(response, "qid", result);
+        } else {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddNumberToObject(response, "error", result);
+            cJSON_AddStringToObject(response, "message", "CAN OTA command failed");
+        }
+        
+        return response;
+    }
+    
     void loop()
     {
         // Check for pending scan results and send them
@@ -2339,6 +2397,9 @@ namespace can_controller
             scanResultPending = false; // Clear the flag after sending
             scanPendingQid = 0; // Reset qid
         }
+        
+        // Handle CAN OTA timeout checking
+        can_ota::loop();
     }
 
 } // namespace can_controller

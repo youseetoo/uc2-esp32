@@ -15,6 +15,7 @@
 #include <esp_ota_ops.h>
 #include <MD5Builder.h>
 #include <rom/crc.h>  // For crc32_le
+#include <mbedtls/base64.h>  // For base64 decode
 #include "cJSON.h"
 #include "can_controller.h"
 #include "can_messagetype.h"  // For OTA_CAN_* enum values
@@ -453,16 +454,26 @@ int relayStartToSlave(uint8_t slaveId, uint32_t firmwareSize, uint32_t totalChun
     
     log_i("Sending OTA START to slave 0x%02X: size=%lu, chunks=%lu", 
           slaveId, firmwareSize, totalChunks);
-    return sendCanMessage(slaveId, buffer, sizeof(buffer));
+    
+    int result = sendCanMessage(slaveId, buffer, sizeof(buffer));
+    
+    // Give slave time to initialize OTA and send ACK
+    if (result >= 0) {
+        delay(100);  // 100ms delay to allow slave to initialize
+    }
+    
+    return result;
 }
 
 int relayDataToSlave(uint8_t slaveId, uint16_t chunkIndex, uint16_t chunkSize, 
                      uint32_t crc32, const uint8_t* data) {
-    // Allocate buffer for header + data
+    // Use static buffer to avoid heap fragmentation from repeated malloc/free
+    // Buffer size: 1 (cmd) + sizeof(CanOtaDataHeader) + CAN_OTA_CHUNK_SIZE
+    static uint8_t buffer[1 + sizeof(CanOtaDataHeader) + CAN_OTA_CHUNK_SIZE + 16];
+    
     size_t totalSize = 1 + sizeof(CanOtaDataHeader) + chunkSize;
-    uint8_t* buffer = (uint8_t*)malloc(totalSize);
-    if (!buffer) {
-        log_e("Failed to allocate buffer for data relay");
+    if (totalSize > sizeof(buffer)) {
+        log_e("Data relay buffer overflow: %d > %d", totalSize, sizeof(buffer));
         return -1;
     }
     
@@ -476,7 +487,12 @@ int relayDataToSlave(uint8_t slaveId, uint16_t chunkIndex, uint16_t chunkSize,
     memcpy(&buffer[1 + sizeof(CanOtaDataHeader)], data, chunkSize);
     
     int result = sendCanMessage(slaveId, buffer, totalSize);
-    free(buffer);
+    
+    // Small delay to prevent CAN bus congestion
+    // This allows the slave to process the chunk and send ACK
+    if (result >= 0) {
+        delay(5);  // 5ms delay between chunks - reduced from 10ms
+    }
     
     return result;
 }
@@ -587,38 +603,104 @@ int actFromJson(cJSON* doc) {
         return relayStartToSlave(slaveId, firmwareSize, totalChunks, chunkSize, md5Hash);
         
     } else if (strcmp(cmd, "data") == 0) {
-        // DATA command: {"cmd":"data", "slaveId":X, "chunk":N, "crc":N, "data":"base64..."}
-        cJSON* chunkItem = cJSON_GetObjectItem(doc, "chunk");
-        cJSON* crcItem = cJSON_GetObjectItem(doc, "crc");
+        // DATA command: Multiple formats supported:
+        // - {"action":"data", "canid":X, "chunk_index":N, "chunk_crc":N, "data":"base64..."}
+        // - {"action":"data", "canid":X, "chunk_index":N, "chunk_crc":N, "hex":"hexstring..."}
+        // - {"action":"data", "canid":X, "chunk_index":N, "chunk_crc":N, "chunk_size":N, "data":[...]}
+        // Also accept legacy names: "chunk", "crc"
+        cJSON* chunkItem = cJSON_GetObjectItem(doc, "chunk_index");
+        if (!chunkItem) chunkItem = cJSON_GetObjectItem(doc, "chunk");
+        
+        cJSON* crcItem = cJSON_GetObjectItem(doc, "chunk_crc");
+        if (!crcItem) crcItem = cJSON_GetObjectItem(doc, "crc");
+        
+        // Check for hex format first (preferred - more efficient than base64)
+        cJSON* hexItem = cJSON_GetObjectItem(doc, "hex");
         cJSON* dataItem = cJSON_GetObjectItem(doc, "data");
         
-        if (!chunkItem || !crcItem || !dataItem) {
-            log_e("Missing required fields for 'data' command");
+        if (!chunkItem || !crcItem || (!dataItem && !hexItem)) {
+            log_e("Missing required fields for 'data' command (need chunk_index/chunk, chunk_crc/crc, data/hex)");
             return -1;
         }
         
         uint16_t chunkIndex = (uint16_t)chunkItem->valueint;
         uint32_t crc32 = (uint32_t)crcItem->valuedouble;
         
-        // Data is expected as raw bytes array in JSON (will need base64 decode in practice)
-        // For now, assume data is passed as byte array
-        size_t dataLen = cJSON_GetArraySize(dataItem);
-        if (dataLen > CAN_OTA_CHUNK_SIZE) {
-            log_e("Data chunk too large: %d", dataLen);
+        // Log only first and every 100th chunk to avoid spam
+        if (chunkIndex == 0 || (chunkIndex % 100 == 0)) {
+            log_d("Relaying DATA chunk %u to slave 0x%02X", chunkIndex, slaveId);
+        }
+        
+        // Use static buffer to avoid heap fragmentation
+        static uint8_t dataBytes[CAN_OTA_CHUNK_SIZE + 16];
+        size_t dataLen = 0;
+        
+        if (hexItem && cJSON_IsString(hexItem)) {
+            // HEX encoded string - more efficient than base64
+            const char* hexData = hexItem->valuestring;
+            size_t hexLen = strlen(hexData);
+            dataLen = hexLen / 2;
+            
+            if (dataLen > CAN_OTA_CHUNK_SIZE) {
+                log_e("Hex data too large: %d > %d", dataLen, CAN_OTA_CHUNK_SIZE);
+                return -1;
+            }
+            
+            // Decode hex string to bytes
+            for (size_t i = 0; i < dataLen; i++) {
+                unsigned int byte;
+                if (sscanf(&hexData[i * 2], "%2x", &byte) != 1) {
+                    log_e("Invalid hex at position %d", i * 2);
+                    return -1;
+                }
+                dataBytes[i] = (uint8_t)byte;
+            }
+            
+            if (chunkIndex == 0) {
+                log_d("Decoded hex: %d bytes from %d chars", dataLen, hexLen);
+            }
+            
+        } else if (dataItem && cJSON_IsString(dataItem)) {
+            // Base64 encoded string - decode it
+            const char* base64Data = dataItem->valuestring;
+            size_t base64Len = strlen(base64Data);
+            
+            // Base64 decode using mbedtls into static buffer
+            int ret = mbedtls_base64_decode(dataBytes, CAN_OTA_CHUNK_SIZE + 16, &dataLen, 
+                                            (const unsigned char*)base64Data, base64Len);
+            if (ret != 0) {
+                log_e("Base64 decode failed: %d", ret);
+                return -1;
+            }
+            
+            if (chunkIndex == 0) {
+                log_d("Decoded base64: %d bytes from %d chars", dataLen, base64Len);
+            }
+            
+        } else if (dataItem && cJSON_IsArray(dataItem)) {
+            // Byte array format (legacy)
+            dataLen = cJSON_GetArraySize(dataItem);
+            if (dataLen > CAN_OTA_CHUNK_SIZE) {
+                log_e("Data chunk too large: %d", dataLen);
+                return -1;
+            }
+            
+            for (size_t i = 0; i < dataLen; i++) {
+                cJSON* byteItem = cJSON_GetArrayItem(dataItem, i);
+                dataBytes[i] = (uint8_t)(byteItem ? byteItem->valueint : 0);
+            }
+        } else {
+            log_e("Invalid data format - expected 'hex' string, 'data' base64 string, or byte array");
             return -1;
         }
         
-        uint8_t* dataBytes = (uint8_t*)malloc(dataLen);
-        if (!dataBytes) return -1;
-        
-        for (size_t i = 0; i < dataLen; i++) {
-            cJSON* byteItem = cJSON_GetArrayItem(dataItem, i);
-            dataBytes[i] = (uint8_t)(byteItem ? byteItem->valueint : 0);
+        if (dataLen > CAN_OTA_CHUNK_SIZE) {
+            log_e("Decoded data too large: %d > %d", dataLen, CAN_OTA_CHUNK_SIZE);
+            return -1;
         }
         
-        int result = relayDataToSlave(slaveId, chunkIndex, dataLen, crc32, dataBytes);
-        free(dataBytes);
-        return result;
+        // Use static buffer in relayDataToSlave - no malloc/free needed
+        return relayDataToSlave(slaveId, chunkIndex, dataLen, crc32, dataBytes);
         
     } else if (strcmp(cmd, "verify") == 0) {
         // VERIFY command: {"cmd":"verify", "slaveId":X, "md5":"..."}
@@ -636,7 +718,8 @@ int actFromJson(cJSON* doc) {
         
         return relayVerifyToSlave(slaveId, md5Hash);
         
-    } else if (strcmp(cmd, "finish") == 0) {
+    } else if (strcmp(cmd, "finish") == 0 || strcmp(cmd, "end") == 0) {
+        // Accept both "finish" and "end" commands for compatibility
         return relayFinishToSlave(slaveId);
         
     } else if (strcmp(cmd, "abort") == 0) {

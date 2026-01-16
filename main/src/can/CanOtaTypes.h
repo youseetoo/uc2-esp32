@@ -24,12 +24,16 @@
 /**
  * @brief Default chunk size for OTA data transfer
  * 
- * 2KB is chosen as a balance between:
+ * 1KB is chosen as a balance between:
  * - ISO-TP efficiency (larger chunks = less overhead)
  * - Memory usage on ESP32 (must fit in RAM)
+ * - Serial/JSON reliability (smaller = less buffer issues)
  * - Error recovery granularity (smaller chunks = faster retry)
+ * 
+ * Note: With hex encoding, 1KB data = 2KB hex string = ~2.3KB JSON
+ * This is within safe limits for serial and JSON parsing.
  */
-#define CAN_OTA_CHUNK_SIZE          2048
+#define CAN_OTA_CHUNK_SIZE          1024
 
 /**
  * @brief Maximum firmware size supported

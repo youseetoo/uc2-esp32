@@ -351,37 +351,77 @@ namespace SerialProcess
 		}
 	}
 
+	// Static buffer for serial reading to avoid heap fragmentation
+	static char serialInputBuffer[8192];  // 8KB buffer for large JSON strings
+	static size_t serialInputPos = 0;
+	static bool inJsonObject = false;
+	static int braceCount = 0;
+
 	void loop()
 	{
-		// Try to read and queue serial data if available
-		if (Serial.available()) {
-			int bytesAvailable = Serial.available();
-			//log_i("Serial RX: %d bytes available", bytesAvailable);
+		// Read serial data byte-by-byte to handle large JSON strings reliably
+		while (Serial.available() > 0) {
+			char c = Serial.read();
 			
-			String command = Serial.readString();  // Keep String alive during parsing
-			command.trim(); // Remove any whitespace/newlines
+			// Track JSON object boundaries
+			if (c == '{') {
+				if (!inJsonObject) {
+					inJsonObject = true;
+					serialInputPos = 0;
+					braceCount = 0;
+				}
+				braceCount++;
+			}
 			
-			//log_i("Serial RX: Read %d chars: %s", command.length(), command.c_str());
-			
-			if (command.length() > 0) {
-				cJSON *doc = cJSON_Parse(command.c_str());
-				if (doc) {
-					//log_i("Serial RX: JSON parsed successfully");
-					addJsonToQueue(doc);
+			// Only store if we're inside a JSON object
+			if (inJsonObject) {
+				// Prevent buffer overflow
+				if (serialInputPos < sizeof(serialInputBuffer) - 1) {
+					serialInputBuffer[serialInputPos++] = c;
 				} else {
-					// send {"error":"Failed to parse JSON"} back
+					// Buffer overflow - reset and report error
+					log_e("Serial input buffer overflow");
+					inJsonObject = false;
+					serialInputPos = 0;
+					braceCount = 0;
+					
 					cJSON *errorResponse = cJSON_CreateObject();
 					if (errorResponse != NULL) {
-						cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
+						cJSON_AddStringToObject(errorResponse, "error", "Input buffer overflow");
 						serialize(errorResponse);
 					}
-					// log_w("Failed to parse serial JSON: %s", command.c_str());
+					continue;
 				}
-			} 
+				
+				if (c == '}') {
+					braceCount--;
+					
+					// Complete JSON object received
+					if (braceCount == 0) {
+						serialInputBuffer[serialInputPos] = '\0';
+						
+						cJSON *doc = cJSON_Parse(serialInputBuffer);
+						if (doc) {
+							addJsonToQueue(doc);
+						} else {
+							// Parse error - send error response
+							cJSON *errorResponse = cJSON_CreateObject();
+							if (errorResponse != NULL) {
+								cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
+								serialize(errorResponse);
+							}
+						}
+						
+						// Reset for next message
+						inJsonObject = false;
+						serialInputPos = 0;
+					}
+				}
+			}
 		}
 
 		// Let other tasks run
-		vTaskDelay(pdMS_TO_TICKS(10));
+		vTaskDelay(pdMS_TO_TICKS(5));  // Reduced from 10ms for faster processing
 	}
 
 	void serialize(cJSON *doc)

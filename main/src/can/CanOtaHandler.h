@@ -15,7 +15,10 @@
 
 #include <Arduino.h>
 #include "CanOtaTypes.h"
-#include "can_messagetype.h"
+#include "cJSON.h"
+
+// Use enum values from can_messagetype.h (included in can_controller.h)
+// OTA_CAN_START = 0x62, OTA_CAN_DATA = 0x63, etc.
 
 namespace can_ota {
 

@@ -18,9 +18,8 @@
 #pragma once
 #include <stdint.h>
 
-// ============================================================================
-// Configuration Constants
-// ============================================================================
+// Forward declare enum from can_messagetype.h to avoid circular includes
+// OTA_CAN_START = 0x62, OTA_CAN_DATA = 0x63, etc.
 
 /**
  * @brief Default chunk size for OTA data transfer
@@ -53,24 +52,10 @@
  */
 #define CAN_OTA_MD5_LENGTH          16
 
-// ============================================================================
-// Message Types (add to CANMessageTypeID enum in can_messagetype.h)
-// ============================================================================
-
-/**
- * @brief CAN OTA specific message type IDs
- * These should be added to the CANMessageTypeID enum
- */
-enum CANOtaMessageType {
-    OTA_CAN_START    = 0x62,  ///< Start CAN-based OTA update
-    OTA_CAN_DATA     = 0x63,  ///< Firmware data chunk
-    OTA_CAN_VERIFY   = 0x64,  ///< Request MD5 verification
-    OTA_CAN_FINISH   = 0x65,  ///< Finalize and reboot
-    OTA_CAN_ABORT    = 0x66,  ///< Abort OTA process
-    OTA_CAN_ACK      = 0x67,  ///< Positive acknowledgment
-    OTA_CAN_NAK      = 0x68,  ///< Negative acknowledgment (error)
-    OTA_CAN_STATUS   = 0x69,  ///< Status query/response
-};
+// Message types are defined in can_messagetype.h as CANMessageTypeID enum values:
+// OTA_CAN_START = 0x62, OTA_CAN_DATA = 0x63, OTA_CAN_VERIFY = 0x64,
+// OTA_CAN_FINISH = 0x65, OTA_CAN_ABORT = 0x66, OTA_CAN_ACK = 0x67,
+// OTA_CAN_NAK = 0x68, OTA_CAN_STATUS = 0x69
 
 // ============================================================================
 // Status Codes
@@ -101,124 +86,122 @@ enum CANOtaStatus {
 // ============================================================================
 
 /**
- * @brief OTA Start command structure
- * Sent from master to slave to initiate CAN OTA process
+ * @brief OTA start command structure
+ * 
+ * Sent to initiate OTA process. Contains firmware metadata.
  */
-typedef struct __attribute__((packed)) {
+struct CanOtaStartCommand {
     uint32_t firmwareSize;              ///< Total firmware size in bytes
     uint32_t totalChunks;               ///< Total number of chunks
-    uint16_t chunkSize;                 ///< Size of each chunk (default 2048)
-    uint8_t md5Hash[CAN_OTA_MD5_LENGTH]; ///< MD5 hash of entire firmware
-} CanOtaStartCommand;
+    uint16_t chunkSize;                 ///< Size of each chunk (except last)
+    uint8_t  md5Hash[CAN_OTA_MD5_LENGTH]; ///< MD5 hash of complete firmware
+} __attribute__((packed));
 
 /**
- * @brief OTA Data chunk header
- * Precedes the actual chunk data in OTA_CAN_DATA messages
+ * @brief OTA data chunk header
+ * 
+ * Precedes the actual firmware data in OTA_CAN_DATA messages.
  */
-typedef struct __attribute__((packed)) {
-    uint16_t chunkIndex;                ///< Chunk index (0-based)
-    uint16_t chunkSize;                 ///< Actual size of this chunk's data
-    uint32_t crc32;                     ///< CRC32 of the chunk data
-    // uint8_t data[] follows this header (variable length)
-} CanOtaDataHeader;
+struct CanOtaDataHeader {
+    uint16_t chunkIndex;                ///< Sequential chunk index (0-based)
+    uint16_t chunkSize;                 ///< Size of data following this header
+    uint32_t crc32;                     ///< CRC32 of chunk data
+} __attribute__((packed));
 
 /**
- * @brief OTA Acknowledgment structure
- * Sent from slave to master after receiving a command/chunk
+ * @brief OTA verification command
+ * 
+ * Requests slave to verify the complete received firmware.
  */
-typedef struct __attribute__((packed)) {
-    uint8_t status;                     ///< CANOtaStatus code
-    uint8_t canId;                      ///< Responding device's CAN ID
-    uint16_t expectedChunk;             ///< Next expected chunk index
+struct CanOtaVerifyCommand {
+    uint8_t md5Hash[CAN_OTA_MD5_LENGTH]; ///< Expected MD5 hash
+} __attribute__((packed));
+
+/**
+ * @brief OTA acknowledgment response (positive)
+ * 
+ * Sent by slave to confirm successful operation.
+ */
+struct CanOtaAck {
+    uint8_t  status;                    ///< Status code (CAN_OTA_OK = success)
+    uint8_t  canId;                     ///< Sender's CAN ID
+    uint32_t expectedChunk;             ///< Next expected chunk index
     uint32_t bytesReceived;             ///< Total bytes received so far
-    uint32_t crc32Received;             ///< CRC32 of last received chunk (for debugging)
-} CanOtaAck;
+    uint32_t crc32Received;             ///< CRC32 of last received chunk
+} __attribute__((packed));
 
 /**
- * @brief OTA Negative Acknowledgment structure
- * Sent when an error occurs during OTA
+ * @brief OTA negative acknowledgment (error response)
+ * 
+ * Sent by slave to report an error condition.
  */
-typedef struct __attribute__((packed)) {
-    uint8_t status;                     ///< CANOtaStatus error code
-    uint8_t canId;                      ///< Responding device's CAN ID
-    uint16_t errorChunk;                ///< Chunk index that caused error (if applicable)
-    uint32_t expectedCrc;               ///< Expected CRC (for CRC errors)
-    uint32_t receivedCrc;               ///< Received CRC (for CRC errors)
-} CanOtaNak;
+struct CanOtaNak {
+    uint8_t  status;                    ///< Error code (see CANOtaStatus)
+    uint8_t  canId;                     ///< Sender's CAN ID
+    uint16_t errorChunk;                ///< Chunk index where error occurred
+    uint32_t expectedCrc;               ///< Expected CRC32 value
+    uint32_t receivedCrc;               ///< Actually received CRC32 value
+} __attribute__((packed));
 
 /**
- * @brief OTA Status response structure
- * Response to OTA_CAN_STATUS query
+ * @brief OTA status response
+ * 
+ * Provides current status of OTA operation.
  */
-typedef struct __attribute__((packed)) {
-    uint8_t isActive;                   ///< 1 if OTA in progress, 0 otherwise
-    uint8_t canId;                      ///< Device CAN ID
-    uint16_t currentChunk;              ///< Current chunk being processed
-    uint16_t totalChunks;               ///< Total chunks expected
+struct CanOtaStatusResponse {
+    uint8_t  isActive;                  ///< 1 if OTA in progress, 0 if idle
+    uint8_t  canId;                     ///< Sender's CAN ID
+    uint32_t currentChunk;              ///< Current chunk being processed
+    uint32_t totalChunks;               ///< Total chunks expected
     uint32_t bytesReceived;             ///< Bytes received so far
     uint32_t bytesTotal;                ///< Total bytes expected
-    uint8_t progressPercent;            ///< Progress 0-100%
-} CanOtaStatusResponse;
-
-/**
- * @brief OTA Verify command structure
- * Sent to request final MD5 verification
- */
-typedef struct __attribute__((packed)) {
-    uint8_t md5Hash[CAN_OTA_MD5_LENGTH]; ///< Expected MD5 hash
-} CanOtaVerifyCommand;
+    uint8_t  progressPercent;           ///< Progress percentage (0-100)
+} __attribute__((packed));
 
 // ============================================================================
-// State Machine
+// State Management
 // ============================================================================
 
 /**
- * @brief CAN OTA state machine states
+ * @brief OTA state machine states
  */
 enum CanOtaState {
-    CAN_OTA_STATE_IDLE,         ///< No OTA in progress
-    CAN_OTA_STATE_STARTED,      ///< OTA started, waiting for first chunk
-    CAN_OTA_STATE_RECEIVING,    ///< Receiving chunks
-    CAN_OTA_STATE_VERIFYING,    ///< All chunks received, verifying MD5
-    CAN_OTA_STATE_FINISHING,    ///< Verification passed, finalizing
-    CAN_OTA_STATE_ERROR,        ///< Error state
+    CAN_OTA_STATE_IDLE       = 0,       ///< No OTA in progress
+    CAN_OTA_STATE_STARTED    = 1,       ///< OTA started, waiting for data
+    CAN_OTA_STATE_RECEIVING  = 2,       ///< Receiving data chunks
+    CAN_OTA_STATE_VERIFYING  = 3,       ///< All data received, verifying
+    CAN_OTA_STATE_FINISHING  = 4,       ///< Verification passed, ready to reboot
+    CAN_OTA_STATE_ERROR      = 5,       ///< Error occurred, need to abort
 };
 
 /**
- * @brief CAN OTA context structure
- * Holds all state information for an ongoing OTA update
+ * @brief OTA context structure
+ * 
+ * Maintains state during OTA operation.
  */
-typedef struct {
-    CanOtaState state;                      ///< Current state
-    uint32_t firmwareSize;                  ///< Expected firmware size
-    uint32_t totalChunks;                   ///< Total expected chunks
-    uint16_t chunkSize;                     ///< Chunk size
-    uint32_t nextExpectedChunk;             ///< Next chunk index expected
-    uint32_t bytesReceived;                 ///< Bytes written to flash
-    uint8_t expectedMd5[CAN_OTA_MD5_LENGTH]; ///< Expected MD5 hash
-    uint32_t startTime;                     ///< Timestamp when OTA started
-    uint32_t lastChunkTime;                 ///< Timestamp of last chunk received
-    uint8_t retryCount;                     ///< Current retry count
-} CanOtaContext;
+struct CanOtaContext {
+    CanOtaState state;                  ///< Current state
+    uint32_t firmwareSize;              ///< Total firmware size
+    uint32_t totalChunks;               ///< Expected number of chunks
+    uint16_t chunkSize;                 ///< Size of each chunk
+    uint32_t nextExpectedChunk;         ///< Next chunk index to receive
+    uint32_t bytesReceived;             ///< Bytes received so far
+    uint8_t  expectedMd5[CAN_OTA_MD5_LENGTH]; ///< Expected MD5 hash
+    uint32_t startTime;                 ///< Timestamp when OTA started
+    uint32_t lastChunkTime;             ///< Timestamp of last received chunk
+    uint8_t  retryCount;                ///< Number of retries for current chunk
+};
 
 // ============================================================================
 // Helper Macros
 // ============================================================================
 
 /**
- * @brief Calculate number of chunks needed for a firmware size
+ * @brief Calculate number of chunks needed
  */
-#define CAN_OTA_CALC_CHUNKS(size, chunk_size) \
-    (((size) + (chunk_size) - 1) / (chunk_size))
-
-/**
- * @brief Check if chunk index is valid
- */
-#define CAN_OTA_VALID_CHUNK(index, total) \
-    ((index) < (total))
+#define CAN_OTA_CALC_CHUNKS(size, chunkSize) (((size) + (chunkSize) - 1) / (chunkSize))
 
 /**
  * @brief Calculate progress percentage
  */
-#define CAN_OTA_PROGRESS(received, total) \
-    ((total) > 0 ? ((received) * 100 / (total)) : 0)
+#define CAN_OTA_PROGRESS(received, total) ((uint8_t)(((received) * 100) / (total)))

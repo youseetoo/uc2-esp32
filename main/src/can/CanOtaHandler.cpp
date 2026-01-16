@@ -17,6 +17,7 @@
 #include <rom/crc.h>  // For crc32_le
 #include "cJSON.h"
 #include "can_controller.h"
+#include "can_messagetype.h"  // For OTA_CAN_* enum values
 
 namespace can_ota {
 
@@ -252,7 +253,7 @@ void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
     }
     
     // Write to flash
-    size_t written = Update.write(chunkData, header->chunkSize);
+    size_t written = Update.write(const_cast<uint8_t*>(chunkData), header->chunkSize);
     if (written != header->chunkSize) {
         log_e("Flash write error: expected=%u, written=%d", header->chunkSize, written);
         abortOta(CAN_OTA_ERR_WRITE);
@@ -261,7 +262,7 @@ void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
     }
     
     // Update MD5
-    md5Builder.add(chunkData, header->chunkSize);
+    md5Builder.add(const_cast<uint8_t*>(chunkData), header->chunkSize);
     
     // Update context
     otaContext.state = CAN_OTA_STATE_RECEIVING;
@@ -531,27 +532,40 @@ void handleSlaveResponse(uint8_t messageType, const uint8_t* data, size_t len) {
 
 int actFromJson(cJSON* doc) {
 #ifdef CAN_SEND_COMMANDS
-    // Parse command type
+    // Parse command type - accept both "cmd" and "action" for compatibility
     cJSON* cmdItem = cJSON_GetObjectItem(doc, "cmd");
     if (!cmdItem || !cJSON_IsString(cmdItem)) {
-        log_e("Missing or invalid 'cmd' field");
-        return -1;
+        cmdItem = cJSON_GetObjectItem(doc, "action");
+        if (!cmdItem || !cJSON_IsString(cmdItem)) {
+            log_e("Missing or invalid 'cmd' or 'action' field");
+            return -1;
+        }
     }
     const char* cmd = cmdItem->valuestring;
     
-    // Parse slave ID
+    // Parse slave ID - accept both "slaveId" and "canid" for compatibility
     cJSON* slaveIdItem = cJSON_GetObjectItem(doc, "slaveId");
     if (!slaveIdItem || !cJSON_IsNumber(slaveIdItem)) {
-        log_e("Missing or invalid 'slaveId' field");
-        return -1;
+        slaveIdItem = cJSON_GetObjectItem(doc, "canid");
+        if (!slaveIdItem || !cJSON_IsNumber(slaveIdItem)) {
+            log_e("Missing or invalid 'slaveId' or 'canid' field");
+            return -1;
+        }
     }
     uint8_t slaveId = (uint8_t)slaveIdItem->valueint;
     
     if (strcmp(cmd, "start") == 0) {
-        // START command: {"cmd":"start", "slaveId":X, "size":N, "chunks":N, "chunkSize":N, "md5":"..."}
+        // START command: {"action":"start", "canid":X, "firmware_size":N, "total_chunks":N, "chunk_size":N, "md5":"..."}
+        // Also accepts: {"cmd":"start", "slaveId":X, "size":N, "chunks":N, "chunkSize":N, "md5":"..."}
         cJSON* sizeItem = cJSON_GetObjectItem(doc, "size");
+        if (!sizeItem) sizeItem = cJSON_GetObjectItem(doc, "firmware_size");
+        
         cJSON* chunksItem = cJSON_GetObjectItem(doc, "chunks");
+        if (!chunksItem) chunksItem = cJSON_GetObjectItem(doc, "total_chunks");
+        
         cJSON* chunkSizeItem = cJSON_GetObjectItem(doc, "chunkSize");
+        if (!chunkSizeItem) chunkSizeItem = cJSON_GetObjectItem(doc, "chunk_size");
+        
         cJSON* md5Item = cJSON_GetObjectItem(doc, "md5");
         
         if (!sizeItem || !chunksItem || !chunkSizeItem || !md5Item) {

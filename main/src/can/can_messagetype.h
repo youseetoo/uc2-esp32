@@ -38,6 +38,9 @@
  * - Broadcast Messages
  *   BROADCAST        : 0xF0  - General broadcast messages (errors, updates)
  */
+
+#ifndef CAN_MESSAGETYPE_H
+#define CAN_MESSAGETYPE_H
  
 // Enum to define all MessageType IDs
 enum CANMessageTypeID {
@@ -83,3 +86,5 @@ enum CANMessageTypeID {
 
     BROADCAST        = 0xF0  // Broadcast Message (240)
 };
+
+#endif // CAN_MESSAGETYPE_H

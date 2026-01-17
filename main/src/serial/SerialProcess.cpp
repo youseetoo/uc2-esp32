@@ -39,6 +39,7 @@
 #endif
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
+#include "../can/BinaryOtaProtocol.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -359,6 +360,15 @@ namespace SerialProcess
 
 	void loop()
 	{
+		// Check if we're in binary OTA mode
+		#ifdef CAN_BUS_ENABLED
+		if (binary_ota::isInBinaryMode()) {
+			// Process binary packets instead of JSON
+			binary_ota::processBinaryPacket();
+			return;  // Don't process JSON in binary mode
+		}
+		#endif
+		
 		// Read serial data byte-by-byte to handle large JSON strings reliably
 		while (Serial.available() > 0) {
 			char c = Serial.read();

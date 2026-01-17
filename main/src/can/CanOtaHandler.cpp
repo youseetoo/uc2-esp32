@@ -8,7 +8,6 @@
 
 #include "CanOtaHandler.h"
 
-#ifdef CAN_BUS_ENABLED
 
 #include <Arduino.h>
 #include <Update.h>
@@ -19,6 +18,7 @@
 #include "cJSON.h"
 #include "can_controller.h"
 #include "can_messagetype.h"  // For OTA_CAN_* enum values
+#include "BinaryOtaProtocol.h"  // For binary OTA mode
 
 namespace can_ota {
 
@@ -328,7 +328,7 @@ void handleFinishCommand(uint8_t sourceCanId) {
         sendNak(CAN_OTA_ERR_END, 0, 0, 0, sourceCanId);
         return;
     }
-    
+    // TODO: I guess here is the firmware magically copied to the boot partition?
     uint32_t elapsed = millis() - otaContext.startTime;
     float kbps = (otaContext.bytesReceived * 1000.0f) / (elapsed * 1024.0f);
     log_i("OTA complete! %lu bytes in %lu ms (%.1f KB/s)", 
@@ -600,7 +600,30 @@ int actFromJson(cJSON* doc) {
             sscanf(&md5Str[i * 2], "%2hhx", &md5Hash[i]);
         }
         
-        return relayStartToSlave(slaveId, firmwareSize, totalChunks, chunkSize, md5Hash);
+        // Check if binary mode is requested
+        cJSON* binaryModeItem = cJSON_GetObjectItem(doc, "binary_mode");
+        bool useBinaryMode = (binaryModeItem && cJSON_IsTrue(binaryModeItem));
+        
+        int result = relayStartToSlave(slaveId, firmwareSize, totalChunks, chunkSize, md5Hash);
+        
+        if (result >= 0 && useBinaryMode) {
+            // Return special response indicating binary mode will be activated
+            // The caller should read this response and then switch baudrate
+            log_i("Binary OTA mode requested - will switch to 2Mbaud after response");
+            // Note: actual mode switch happens after this function returns
+            // so the JSON response can be sent first
+            return 2;  // Special return value for binary mode
+        }
+        
+        return result;
+        
+    } else if (strcmp(cmd, "binary_start") == 0) {
+        // Binary mode start command - switches to high-speed binary protocol
+        // {"action":"binary_start", "canid":X}
+        if (binary_ota::enterBinaryMode(slaveId)) {
+            return 1;  // Success - but response already sent in binary mode
+        }
+        return -1;
         
     } else if (strcmp(cmd, "data") == 0) {
         // DATA command: Multiple formats supported:
@@ -740,4 +763,3 @@ int actFromJson(cJSON* doc) {
 
 } // namespace can_ota
 
-#endif // CAN_BUS_ENABLED

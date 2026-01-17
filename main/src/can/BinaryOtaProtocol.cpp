@@ -83,7 +83,7 @@ bool enterBinaryMode(uint8_t canId) {
     packetsRelayed = 0;
     errors = 0;
     
-    // Flush serial buffers
+    // Flush serial buffers - make sure all pending data is sent
     Serial.flush();
     delay(10);
     while (Serial.available()) Serial.read();
@@ -93,7 +93,14 @@ bool enterBinaryMode(uint8_t canId) {
     delay(50);
     Serial.begin(BINARY_OTA_HIGH_BAUDRATE);
     Serial.setTimeout(BINARY_OTA_PACKET_TIMEOUT_MS);
-    delay(50);
+    
+    // CRITICAL: Wait for Python to also switch baudrate
+    // Python needs time to close port, open at new baudrate
+    // This delay allows for synchronization
+    delay(500);  // 500ms should be enough for Python to switch
+    
+    // Clear any garbage that might have accumulated
+    while (Serial.available()) Serial.read();
     
     // Clear state
     rxPos = 0;
@@ -102,7 +109,14 @@ bool enterBinaryMode(uint8_t canId) {
     lastPacketTime = millis();
     
     // Send ready signal (simple ACK with status OK and chunk 0)
+    // Now Python should be listening at 2Mbaud
     sendAck(BINARY_OTA_OK, 0);
+    log_i("Sent initial ACK");
+    
+    // Send it again after a short delay for reliability
+    delay(100);
+    sendAck(BINARY_OTA_OK, 0);
+    log_i("Sent second ACK for reliability");
     
     log_i("Binary OTA mode active at %d baud", BINARY_OTA_HIGH_BAUDRATE);
     return true;

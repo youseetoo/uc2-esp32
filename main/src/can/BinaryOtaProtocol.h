@@ -48,7 +48,7 @@
 #define BINARY_OTA_CMD_SWITCH_BAUD  0x11  // Command to switch baudrate
 
 // Baudrates
-#define BINARY_OTA_HIGH_BAUDRATE    2000000  // 2 Mbaud for data transfer
+#define BINARY_OTA_HIGH_BAUDRATE    921600  // 2 Mbaud for data transfer
 #define BINARY_OTA_NORMAL_BAUDRATE  115200   // Normal baudrate
 
 // Timeouts

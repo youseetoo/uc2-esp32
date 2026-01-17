@@ -19,6 +19,14 @@
 #include "JsonKeys.h"
 #include <Preferences.h>
 #include "../serial/SerialProcess.h"
+
+// CANopen integration
+#include "canopen_types.h"
+#ifdef CAN_MASTER
+#include "canopen_master.h"
+#else
+#include "canopen_slave.h"
+#endif
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
@@ -456,6 +464,89 @@ namespace can_controller
         if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, device_can_id);
 
+        // ====================================================================
+        // CANopen Message Handling (Standard CAN 11-bit identifiers)
+        // ====================================================================
+        // CANopen uses txID as the COB-ID (Communication Object Identifier)
+        // Check if this is a CANopen message based on COB-ID ranges
+        
+        #ifdef CAN_MASTER
+        // Master-side CANopen message handling
+        
+        // Heartbeat messages (0x700 + Node-ID)
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_HEARTBEAT) && size == 1) {
+            uint8_t nodeId = canopen_getNodeId(txID, CANOPEN_FUNC_HEARTBEAT);
+            CANopen_Heartbeat* heartbeat = (CANopen_Heartbeat*)data;
+            CANopen_Master::updateNodeHeartbeat(nodeId, (CANopen_NMT_State)heartbeat->state);
+            return;
+        }
+        
+        // SDO responses (0x580 + Node-ID)
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_SDO_TX) && size == 8) {
+            uint8_t nodeId = canopen_getNodeId(txID, CANOPEN_FUNC_SDO_TX);
+            CANopen_SDO_Message* sdo = (CANopen_SDO_Message*)data;
+            CANopen_Master::processSdoResponse(nodeId, sdo);
+            return;
+        }
+        
+        // TPDO messages (transmit from slave)
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_TPDO1)) {
+            uint8_t nodeId = canopen_getNodeId(txID, CANOPEN_FUNC_TPDO1);
+            CANopen_Master::processTpdo(nodeId, 1, data, size);
+            return;
+        }
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_TPDO2)) {
+            uint8_t nodeId = canopen_getNodeId(txID, CANOPEN_FUNC_TPDO2);
+            CANopen_Master::processTpdo(nodeId, 2, data, size);
+            return;
+        }
+        
+        // Emergency messages (0x080 + Node-ID)
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_EMCY) && size == 8) {
+            uint8_t nodeId = canopen_getNodeId(txID, CANOPEN_FUNC_EMCY);
+            CANopen_EMCY_Message* emcy = (CANopen_EMCY_Message*)data;
+            CANopen_Master::processEmergency(nodeId, emcy);
+            return;
+        }
+        
+        #else
+        // Slave-side CANopen message handling
+        
+        // NMT commands (0x000, broadcast)
+        if (txID == CANOPEN_FUNC_NMT && size == 2) {
+            CANopen_NMT_Message* nmt = (CANopen_NMT_Message*)data;
+            if (CANopen_Slave::processNmtCommand(nmt)) {
+                return;
+            }
+        }
+        
+        // SDO requests (0x600 + Node-ID)
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_SDO_RX) && size == 8) {
+            uint8_t targetNodeId = canopen_getNodeId(txID, CANOPEN_FUNC_SDO_RX);
+            if (targetNodeId == device_can_id) {
+                CANopen_SDO_Message* sdo = (CANopen_SDO_Message*)data;
+                if (CANopen_Slave::processSdoRequest(sdo)) {
+                    return;
+                }
+            }
+        }
+        
+        // RPDO messages (receive PDO from master)
+        if (canopen_isCobIdFunction(txID, CANOPEN_FUNC_RPDO1)) {
+            uint8_t targetNodeId = canopen_getNodeId(txID, CANOPEN_FUNC_RPDO1);
+            if (targetNodeId == device_can_id) {
+                if (CANopen_Slave::processRpdo(txID, data, size)) {
+                    return;
+                }
+            }
+        }
+        
+        #endif
+        
+        // ====================================================================
+        // Legacy UC2 Message Handling (Custom protocol)
+        // ====================================================================
+        
         // Check for message type identifier at the beginning
         if (size > 0)
         {
@@ -1165,6 +1256,31 @@ namespace can_controller
 
         if (pinConfig.DEBUG_CAN_ISO_TP)
             log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
+
+        // Initialize CANopen layer
+        #ifdef CAN_MASTER
+        CANopen_Master::init();
+        log_i("CANopen Master layer initialized");
+        #else
+        // Determine device type based on configuration
+        uint32_t deviceType = UC2_DEVICE_TYPE_MASTER;  // Default
+        #ifdef MOTOR_CONTROLLER
+        deviceType = UC2_DEVICE_TYPE_MOTOR;
+        #elif defined(LASER_CONTROLLER)
+        deviceType = UC2_DEVICE_TYPE_LASER;
+        #elif defined(LED_CONTROLLER)
+        deviceType = UC2_DEVICE_TYPE_LED;
+        #elif defined(GALVO_CONTROLLER)
+        deviceType = UC2_DEVICE_TYPE_GALVO;
+        #endif
+        
+        CANopen_Slave::init(device_can_id, deviceType, 1000);  // 1000ms heartbeat
+        log_i("CANopen Slave layer initialized: Node ID=%u, Device Type=0x%08X", device_can_id, deviceType);
+        
+        // Send boot-up message
+        vTaskDelay(pdMS_TO_TICKS(100));  // Small delay for CAN bus to stabilize
+        CANopen_Slave::sendBootup();
+        #endif
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
@@ -2332,6 +2448,13 @@ namespace can_controller
     
     void loop()
     {
+        // CANopen layer periodic tasks
+        #ifdef CAN_MASTER
+        CANopen_Master::loop();
+        #else
+        CANopen_Slave::loop();
+        #endif
+        
         // Check for pending scan results and send them
         if (scanResultPending)
         {

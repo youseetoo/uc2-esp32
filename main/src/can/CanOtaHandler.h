@@ -30,7 +30,7 @@ namespace can_ota {
  * @brief Timeout for receiving next chunk (milliseconds)
  * If no chunk received within this time, OTA is aborted
  */
-constexpr uint32_t CHUNK_TIMEOUT_MS = 30000;
+constexpr uint32_t CHUNK_TIMEOUT_MS = 120000;  // 120s timeout for debugging
 
 // ============================================================================
 // Function Declarations

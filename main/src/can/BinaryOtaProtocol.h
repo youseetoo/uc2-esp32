@@ -53,7 +53,7 @@
 
 // Timeouts
 #define BINARY_OTA_PACKET_TIMEOUT_MS  100   // Timeout for receiving complete packet
-#define BINARY_OTA_SYNC_TIMEOUT_MS    5000  // Timeout waiting for first sync byte
+#define BINARY_OTA_SYNC_TIMEOUT_MS    30000  // Timeout waiting for first sync byte (30s for debugging)
 
 // Buffer sizes
 #define BINARY_OTA_MAX_CHUNK_SIZE     1024  // Max chunk size

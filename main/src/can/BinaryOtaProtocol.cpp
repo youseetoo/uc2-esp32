@@ -84,23 +84,24 @@ bool enterBinaryMode(uint8_t canId) {
     errors = 0;
     
     // Flush serial buffers - make sure all pending data is sent
+    /*
     Serial.flush();
     delay(10);
     while (Serial.available()) Serial.read();
-    
+
     // Switch to high baudrate
     Serial.end();
     delay(50);
     Serial.begin(BINARY_OTA_HIGH_BAUDRATE);
     Serial.setTimeout(BINARY_OTA_PACKET_TIMEOUT_MS);
-    
+    Serial.println("I'm in high baudrate now");
     // CRITICAL: Wait for Python to also switch baudrate
     // Python needs time to close port, open at new baudrate
     // This delay allows for synchronization
     delay(500);  // 500ms should be enough for Python to switch
-    
     // Clear any garbage that might have accumulated
     while (Serial.available()) Serial.read();
+    */
     
     // Clear state
     rxPos = 0;
@@ -130,6 +131,7 @@ void exitBinaryMode() {
     log_i("Exiting binary OTA mode. Stats: received=%lu, relayed=%lu, errors=%lu",
           packetsReceived, packetsRelayed, errors);
     
+    /*
     // Flush and switch back to normal baudrate
     Serial.flush();
     delay(10);
@@ -140,6 +142,7 @@ void exitBinaryMode() {
     Serial.begin(BINARY_OTA_NORMAL_BAUDRATE);
     Serial.setTimeout(100);
     delay(50);
+    */
     
     binaryModeActive = false;
     targetCanId = 0;
@@ -159,6 +162,7 @@ uint8_t getTargetCanId() {
  */
 static bool processCompletePacket() {
     // Validate minimum size
+    log_i("Processing complete packet of size %d", rxPos);
     if (rxPos < BINARY_OTA_HEADER_SIZE + 1) {  // +1 for checksum
         log_e("Packet too small: %d bytes", rxPos);
         errors++;
@@ -298,21 +302,29 @@ bool processBinaryPacket() {
     while (Serial.available() > 0) {
         uint8_t byte = Serial.read();
         lastPacketTime = millis();
-        
+        // log_i("Received byte: 0x%02X", byte);
         // Look for sync sequence
+        // log_i("RX pos: %d, header size: %d, synced: %d, byte: 0x%02X", rxPos, BINARY_OTA_HEADER_SIZE, synced, byte);
         if (!synced) {
             if (rxPos == 0) {
                 if (byte == BINARY_OTA_SYNC_1) {
                     rxBuffer[rxPos++] = byte;
+                    log_i("Sync byte 1 detected");
+                }
+                else{
+                    log_i("Waiting for sync byte 1, got 0x%02X", byte);
                 }
             } else if (rxPos == 1) {
                 if (byte == BINARY_OTA_SYNC_2) {
                     rxBuffer[rxPos++] = byte;
                     synced = true;
+                    // log_i("Sync byte 2 detected, synchronized");
                 } else if (byte == BINARY_OTA_SYNC_1) {
                     // Stay at position 1
+                    // log_i("Received sync byte 1 again at position 1");
                 } else {
                     rxPos = 0;  // Reset
+                    // log_i("Sync byte 2 mismatch, resetting sync");
                 }
             }
             continue;
@@ -332,6 +344,7 @@ bool processBinaryPacket() {
         
         // Check if we have the header
         if (rxPos >= BINARY_OTA_HEADER_SIZE) {
+            log_i("Header received, checking for complete packet");
             BinaryOtaHeader* header = (BinaryOtaHeader*)rxBuffer;
             uint16_t dataSize = __builtin_bswap16(header->dataSize);
             size_t expectedSize = BINARY_OTA_HEADER_SIZE + dataSize + 1;  // +1 for checksum
@@ -339,6 +352,7 @@ bool processBinaryPacket() {
             // Check if packet is complete
             if (rxPos >= expectedSize) {
                 bool result = processCompletePacket();
+                log_i("Complete packet received of size %d, result: %d", rxPos, result);
                 
                 // Reset for next packet
                 rxPos = 0;

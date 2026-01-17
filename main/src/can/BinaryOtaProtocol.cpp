@@ -10,6 +10,7 @@
 #include "CanOtaHandler.h"
 #include "CanOtaTypes.h"
 #include <esp_crc.h>
+#include <esp_log.h>
 #include <Arduino.h>
 
 namespace binary_ota {
@@ -67,6 +68,9 @@ bool isInBinaryMode() {
     return binaryModeActive;
 }
 
+// Store original log level to restore later
+static esp_log_level_t originalLogLevel = ESP_LOG_INFO;
+
 bool enterBinaryMode(uint8_t canId) {
     if (binaryModeActive) {
         log_w("Already in binary OTA mode");
@@ -75,6 +79,13 @@ bool enterBinaryMode(uint8_t canId) {
     
     log_i("Entering binary OTA mode for CAN ID 0x%02X", canId);
     log_i("Switching to %d baud", BINARY_OTA_HIGH_BAUDRATE);
+    
+    // CRITICAL: Disable Serial logging during binary mode!
+    // Log messages would interfere with binary protocol
+    Serial.flush();
+    delay(10);
+    originalLogLevel = esp_log_level_get("*");
+    esp_log_level_set("*", ESP_LOG_NONE);  // Disable all logging
     
     // Store target
     targetCanId = canId;
@@ -127,6 +138,9 @@ void exitBinaryMode() {
     if (!binaryModeActive) {
         return;
     }
+    
+    // Restore logging before printing stats
+    esp_log_level_set("*", originalLogLevel);
     
     log_i("Exiting binary OTA mode. Stats: received=%lu, relayed=%lu, errors=%lu",
           packetsReceived, packetsRelayed, errors);
@@ -309,10 +323,11 @@ bool processBinaryPacket() {
             if (rxPos == 0) {
                 if (byte == BINARY_OTA_SYNC_1) {
                     rxBuffer[rxPos++] = byte;
-                    log_i("Sync byte 1 detected");
+                    //log_i("Sync byte 1 detected");
                 }
                 else{
-                    log_i("Waiting for sync byte 1, got 0x%02X", byte);
+                    
+                    //log_i("Waiting for sync byte 1, got 0x%02X", byte);
                 }
             } else if (rxPos == 1) {
                 if (byte == BINARY_OTA_SYNC_2) {
@@ -344,7 +359,7 @@ bool processBinaryPacket() {
         
         // Check if we have the header
         if (rxPos >= BINARY_OTA_HEADER_SIZE) {
-            log_i("Header received, checking for complete packet");
+            //log_i("Header received, checking for complete packet");
             BinaryOtaHeader* header = (BinaryOtaHeader*)rxBuffer;
             uint16_t dataSize = __builtin_bswap16(header->dataSize);
             size_t expectedSize = BINARY_OTA_HEADER_SIZE + dataSize + 1;  // +1 for checksum
@@ -352,7 +367,7 @@ bool processBinaryPacket() {
             // Check if packet is complete
             if (rxPos >= expectedSize) {
                 bool result = processCompletePacket();
-                log_i("Complete packet received of size %d, result: %d", rxPos, result);
+                //log_i("Complete packet received of size %d, result: %d", rxPos, result);
                 
                 // Reset for next packet
                 rxPos = 0;

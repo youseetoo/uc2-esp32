@@ -365,7 +365,8 @@ class CANOTAUploader:
             
             self.ser.reset_input_buffer()
             self.ser.write(packet)
-            print(f"    Sent chunk {chunk_index}, waiting for ACK...: ", packet, ";")
+            # Only show first 20 bytes of packet to avoid huge output
+            print(f"    Sent chunk {chunk_index} ({len(packet)} bytes), waiting for ACK...")
             self.ser.flush()
             
             success, status, resp_chunk = self.wait_for_binary_ack()

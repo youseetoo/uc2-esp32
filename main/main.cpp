@@ -574,6 +574,12 @@ extern "C" void app_main(void)
 	// WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 	// esp_log_level_set("*", ESP_LOG_NONE);
 	log_i("Start setup");
+	
+	// IMPORTANT: Set RX buffer size BEFORE Serial.begin()!
+	// This is needed for binary OTA which sends 1036-byte packets
+	Serial.setRxBufferSize(4096);  // Large enough for 1024-byte chunks + header
+	Serial.setTxBufferSize(2048);
+	
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	delay(100); // Give serial time to initialize
@@ -612,20 +618,17 @@ extern "C" void app_main(void)
 	log_i("Setting up serial for XIAO");
 	Serial.setTimeout(pinConfig.serialTimeout);
 	
-	// Set larger RX/TX buffers for reliable serial communication
+	// Note: RX/TX buffer sizes are set BEFORE Serial.begin() above
+	// The calls below are no longer needed and are kept for reference only
 	#ifndef ESP32S3_MODEL_XIAO
-	// For ESP32 classic boards, set buffer sizes
-	Serial.setRxBufferSize(2048);
-	Serial.setTxBufferSize(1024);
-	Serial.println("DEBUG: RX/TX buffers configured for ESP32");
+	// For ESP32 classic boards
+	Serial.println("DEBUG: Using ESP32 classic configuration");
 	#endif
 	
 	#ifdef ESP32S3_MODEL_XIAO
 	// additional serial settings for the ESP32S3
 	Serial.setTxTimeoutMs(0);
-	Serial.setRxBufferSize(2048);
-	Serial.setTxBufferSize(2048);
-	Serial.println("DEBUG: RX/TX buffers configured for ESP32S3");
+	Serial.println("DEBUG: Using ESP32S3 XIAO configuration");
 	#endif
 
 	// initialize the pin/settings configurator

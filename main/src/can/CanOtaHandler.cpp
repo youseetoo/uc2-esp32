@@ -30,6 +30,15 @@ static CanOtaContext otaContext;
 static MD5Builder md5Builder;
 static bool isInitialized = false;
 
+// Master-side: Variables for tracking slave responses
+#ifdef CAN_SEND_COMMANDS
+static volatile bool slaveResponseReceived = false;
+static volatile bool slaveResponseIsAck = false;
+static volatile uint8_t slaveResponseStatus = 0;
+static volatile uint16_t slaveResponseChunk = 0;
+static const uint32_t SLAVE_ACK_TIMEOUT_MS = 2000;  // 2 second timeout for slave ACK
+#endif
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -455,14 +464,67 @@ int relayStartToSlave(uint8_t slaveId, uint32_t firmwareSize, uint32_t totalChun
     log_i("Sending OTA START to slave 0x%02X: size=%lu, chunks=%lu", 
           slaveId, firmwareSize, totalChunks);
     
-    int result = sendCanMessage(slaveId, buffer, sizeof(buffer));
+    // Clear slave response flags before sending
+    slaveResponseReceived = false;
     
-    // Give slave time to initialize OTA and send ACK
-    if (result >= 0) {
-        delay(100);  // 100ms delay to allow slave to initialize
+    int result = sendCanMessage(slaveId, buffer, sizeof(buffer));
+    if (result < 0) {
+        log_e("Failed to send START to CAN bus");
+        return result;
     }
     
-    return result;
+    // Wait for slave to acknowledge the START command
+    // Slave needs more time to initialize OTA (partition, Update.begin, etc.)
+    uint32_t startTimeout = 3000;  // 3 seconds for START command
+    uint32_t startTime = millis();
+    
+    while (!slaveResponseReceived && (millis() - startTime) < startTimeout) {
+        delay(10);  // Let CAN controller process incoming messages
+    }
+    
+    if (!slaveResponseReceived) {
+        log_e("Slave did not respond to START command");
+        return -1;
+    }
+    
+    if (!slaveResponseIsAck) {
+        log_e("Slave NAK'd START command: status=%d", slaveResponseStatus);
+        return -2;
+    }
+    
+    log_i("Slave ACKed START command");
+    return 0;
+}
+
+/**
+ * @brief Wait for slave ACK/NAK response after sending a chunk
+ * @param timeoutMs Timeout in milliseconds
+ * @return 0 on ACK, negative on NAK or timeout
+ */
+static int waitForSlaveAck(uint32_t timeoutMs = SLAVE_ACK_TIMEOUT_MS) {
+    // Clear previous response
+    slaveResponseReceived = false;
+    slaveResponseIsAck = false;
+    
+    uint32_t startTime = millis();
+    
+    while (!slaveResponseReceived && (millis() - startTime) < timeoutMs) {
+        // Let the CAN controller process incoming messages
+        // The handleSlaveResponse callback will set slaveResponseReceived
+        delay(1);  // Small delay to allow CAN processing
+    }
+    
+    if (!slaveResponseReceived) {
+        log_w("Slave ACK timeout after %lu ms", timeoutMs);
+        return -1;  // Timeout
+    }
+    
+    if (!slaveResponseIsAck) {
+        log_w("Slave NAK received: status=%d, chunk=%d", slaveResponseStatus, slaveResponseChunk);
+        return -2;  // NAK received
+    }
+    
+    return 0;  // ACK received
 }
 
 int relayDataToSlave(uint8_t slaveId, uint16_t chunkIndex, uint16_t chunkSize, 
@@ -486,15 +548,29 @@ int relayDataToSlave(uint8_t slaveId, uint16_t chunkIndex, uint16_t chunkSize,
     memcpy(&buffer[1], &header, sizeof(CanOtaDataHeader));
     memcpy(&buffer[1 + sizeof(CanOtaDataHeader)], data, chunkSize);
     
-    int result = sendCanMessage(slaveId, buffer, totalSize);
+    // Clear slave response flags before sending
+    slaveResponseReceived = false;
     
-    // Small delay to prevent CAN bus congestion
-    // This allows the slave to process the chunk and send ACK
-    if (result >= 0) {
-        delay(5);  // 5ms delay between chunks - reduced from 10ms
+    int result = sendCanMessage(slaveId, buffer, totalSize);
+    if (result < 0) {
+        log_e("Failed to send chunk %d to CAN bus", chunkIndex);
+        return result;
     }
     
-    return result;
+    // Wait for slave ACK/NAK - this ensures we don't overrun the CAN bus
+    // and allows proper error handling
+    int ackResult = waitForSlaveAck(SLAVE_ACK_TIMEOUT_MS);
+    if (ackResult < 0) {
+        log_e("Chunk %d: slave did not ACK (result=%d)", chunkIndex, ackResult);
+        return ackResult;
+    }
+    
+    // Log progress every 50 chunks
+    if (chunkIndex % 50 == 0) {
+        log_i("Chunk %d relayed and ACKed by slave", chunkIndex);
+    }
+    
+    return 0;
 }
 
 int relayVerifyToSlave(uint8_t slaveId, const uint8_t* md5Hash) {
@@ -533,10 +609,22 @@ void handleSlaveResponse(uint8_t messageType, const uint8_t* data, size_t len) {
         const CanOtaAck* ack = reinterpret_cast<const CanOtaAck*>(data);
         log_i("Slave ACK: status=%d, canId=0x%02X, nextChunk=%lu, bytes=%lu",
               ack->status, ack->canId, ack->expectedChunk, ack->bytesReceived);
+        
+        // Set response flags for synchronization
+        slaveResponseStatus = ack->status;
+        slaveResponseChunk = ack->expectedChunk;
+        slaveResponseIsAck = true;
+        slaveResponseReceived = true;
     } else if (messageType == OTA_CAN_NAK && len >= sizeof(CanOtaNak)) {
         const CanOtaNak* nak = reinterpret_cast<const CanOtaNak*>(data);
         log_w("Slave NAK: status=%d, canId=0x%02X, errorChunk=%u",
               nak->status, nak->canId, nak->errorChunk);
+        
+        // Set response flags for synchronization
+        slaveResponseStatus = nak->status;
+        slaveResponseChunk = nak->errorChunk;
+        slaveResponseIsAck = false;
+        slaveResponseReceived = true;
     }
 }
 

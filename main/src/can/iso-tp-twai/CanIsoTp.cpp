@@ -1,5 +1,8 @@
 #include "CanIsoTp.hpp"
+#include "../can_controller.h"
 
+// use can_controller namespace for debugState
+using namespace can_controller;
 
 static SemaphoreHandle_t canIsoTpSemaphore = nullptr;
 
@@ -49,13 +52,15 @@ int CanIsoTp::send(pdu_t *pdu)
     uint8_t bs = false;
     uint32_t _timerFCWait = 0;
     uint16_t _bsCounter = 0;
-
+    can_controller::debugState = true;
+    if (can_controller::debugState) log_i("Acquiring ISO-TP semaphore for send");
     if (xSemaphoreTake(canIsoTpSemaphore, portMAX_DELAY) == pdTRUE)
     {
+        if (can_controller::debugState) log_i("Starting ISO-TP send, len: %d to ID: %d, with rxId %d", pdu->len, pdu->txId, pdu->rxId);
         pdu->cantpState = CANTP_SEND;
         while (pdu->cantpState != CANTP_IDLE && pdu->cantpState != CANTP_ERROR)
         {
-            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("State: %d", pdu->cantpState);
+            if (can_controller::debugState) log_i("State: %d", pdu->cantpState);
             bs = false;
             switch (pdu->cantpState)
             {
@@ -65,48 +70,49 @@ int CanIsoTp::send(pdu_t *pdu)
                 {
                     ret = send_SingleFrame(pdu);
                     pdu->cantpState = CANTP_IDLE;
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Single Frame sent: %d", ret);
+                    if (can_controller::debugState) log_i("Single Frame sent: %d", ret);
                 }
                 else
                 {
                     ret = send_FirstFrame(pdu);
                     pdu->cantpState = CANTP_WAIT_FIRST_FC;
                     _timerFCWait = millis();
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("First Frame sent: %d", ret);
+                    if (can_controller::debugState) log_i("First Frame sent: %d", ret);
                 }
                 break;
 
             case CANTP_WAIT_FIRST_FC: // 2
+                if (can_controller::debugState) log_i("Waiting for first FC");
             case CANTP_WAIT_FC:       // 3
                 // Check for timeout
                 if ((millis() - _timerFCWait) >= TIMEOUT_FC)
                 {
                     pdu->cantpState = CANTP_IDLE;
                     ret = 1; // Timeout
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Timeout waiting for FC");
+                    if (can_controller::debugState) log_i("Timeout waiting for FC");
                 }
                 CanFrame frame;
 
                 // Try reading a frame from TWAI
                 if (ESP32CanTwai.readFrame(&frame, TIMEOUT_READ))
                 {
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
+                    if (can_controller::debugState) log_i("Frame received: %d, rxId %d, len %d", frame.identifier, pdu->rxId, frame.data_length_code);
                     if (frame.identifier == pdu->txId && frame.data_length_code > 0)
                     {
-                        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Data length: %d", frame.data_length_code);
+                        if (can_controller::debugState) log_i("Data length: %d", frame.data_length_code);
                         // Check if it's a Flow Control frame
                         if ((frame.data[0] & 0xF0) == N_PCItypeFC)
                         {
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("FC frame received");
+                            if (can_controller::debugState) log_i("FC frame received");
                             if (receive_FlowControlFrame(pdu, &frame) == 0)
                             {
-                                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("FC received successfully");
+                                if (can_controller::debugState) log_i("FC received successfully");
                                 // Received FC successfully, now we can continue sending CF
                                 pdu->cantpState = CANTP_SEND_CF;
                             }
                             else
                             {
-                                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Error in FC frame");
+                                if (can_controller::debugState) log_i("Error in FC frame");
                                 // Error in FC frame
                                 pdu->cantpState = CANTP_IDLE;
                                 ret = 1;
@@ -118,6 +124,7 @@ int CanIsoTp::send(pdu_t *pdu)
 
             case CANTP_SEND_CF: // 4 Send consecutive frames
                 // BS = 0 send everything.
+                if (can_controller::debugState) log_i("Sending Consecutive Frames");
                 if (pdu->blockSize == 0)
                 {
                     _bsCounter = 4095;
@@ -135,7 +142,7 @@ int CanIsoTp::send(pdu_t *pdu)
                     } // End while
                     if (pdu->len <= 7 && _bsCounter > 0 && pdu->cantpState == CANTP_SEND_CF) // Last block. /!\ bsCounter can be 0.
                     {
-                        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending Last block");
+                        if (can_controller::debugState) log_i("Sending Last block");
                         delay(pdu->separationTimeMin);
                         ret = send_ConsecutiveFrame(pdu);
                         pdu->cantpState = CANTP_IDLE;
@@ -145,7 +152,7 @@ int CanIsoTp::send(pdu_t *pdu)
                 // BS != 0, send by blocks.
                 else
                 {
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Block size: %d", pdu->blockSize);
+                    if (can_controller::debugState) log_i("Block size: %d", pdu->blockSize);
                     bs = false;
                     _bsCounter = pdu->blockSize;
                     while (pdu->len > 7 && !bs)
@@ -168,7 +175,7 @@ int CanIsoTp::send(pdu_t *pdu)
                     } // End while
                     if (pdu->len <= 7 && !bs) // Last block.
                     {
-                        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Last block");
+                        if (can_controller::debugState) log_i("Last block");
                         delay(pdu->separationTimeMin);
                         ret = send_ConsecutiveFrame(pdu);
                         pdu->cantpState = CANTP_IDLE;
@@ -177,16 +184,22 @@ int CanIsoTp::send(pdu_t *pdu)
                 break;
 
             case CANTP_IDLE:
+                // Should not be here, but just in case
+                if (can_controller::debugState) log_i("Already idle");
+                break;
             default:
                 // Do nothing, just exit
-                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Idle");
+                if (can_controller::debugState) log_i("Idle");
                 break;
             }
         }
 
         pdu->cantpState = CANTP_IDLE;
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Return: %d", ret);
+        if (can_controller::debugState) log_i("Return: %d", ret);
         xSemaphoreGive(canIsoTpSemaphore);
+    }
+    else{
+        if (can_controller::debugState) log_i("Could not take semaphore");
     }
     return ret;
 }
@@ -202,10 +215,10 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 
         while (rxpdu->cantpState != CANTP_END && rxpdu->cantpState != CANTP_ERROR)
         {
-            // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("State in receive: %d", rxpdu->cantpState);
+            // if (can_controller::debugState) log_i("State in receive: %d", rxpdu->cantpState);
             if (millis() - _timerSession >= TIMEOUT_SESSION)
             {
-                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Session timeout");
+                if (can_controller::debugState) log_i("Session timeout");
                 ret = 1; // Session timeout
                 break;
             }
@@ -213,12 +226,12 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 
             if (ESP32CanTwai.readFrame(&frame, timeout)) // TODO: As far as I understand, this pulls messages from the internal queue, so we should not need to wait for the timeout here too long
             {
-                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame.identifier: %d, rxId: %d, txId: %d", frame.identifier, rxpdu->rxId, rxpdu->txId);
+                if (can_controller::debugState) log_i("Frame.identifier: %d, rxId: %d, txId: %d", frame.identifier, rxpdu->rxId, rxpdu->txId);
                 // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
                 // frame.identifier is the ID to which the message was sent
                 if (rxpdu->rxId == 0) // Broadcast: accept all frames // TODO: not implemented yet
                 {
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Broadcasting");
+                    if (can_controller::debugState) log_i("Broadcasting");
                     rxpdu->rxId = frame.identifier; // frame.identifier is the ID to which the message was sent
                 }
                 if (frame.identifier == rxpdu->rxId) // we are listening to frame ids with the device's current ID
@@ -230,24 +243,24 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                         switch (N_PCItype)
                         {
                         case N_PCItypeSF: // 0x00
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("SF received");
+                            if (can_controller::debugState) log_i("SF received");
                             ret = receive_SingleFrame(rxpdu, &frame);
                             break;
                         case N_PCItypeFF: // 0x10
                             ret = receive_FirstFrame(rxpdu, &frame);
                             break;
                         case N_PCItypeFC: // 0x30
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("FC received - but it doesn'T make sense!");
+                            if (can_controller::debugState) log_i("FC received - but it doesn'T make sense!");
                             // TODO: This does not make any sense as the receiver won'T receive a flow control frame
                             // in case this case is activated, maybe the last frame from the receiver is still in the buffer, we can ignore it anyway
                             // ret = receive_FlowControlFrame(rxpdu, &frame);
                             break;
                         case N_PCItypeCF: // 0x20
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("CF received");
+                            if (can_controller::debugState) log_i("CF received");
                             ret = receive_ConsecutiveFrame(rxpdu, &frame);
                             break;
                         default:
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Unrecognized PCI");
+                            if (can_controller::debugState) log_i("Unrecognized PCI");
                             // Unrecognized PCI, do nothing or set error
                             break;
                         }
@@ -255,7 +268,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                 }
                 else
                 {
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame ID mismatch");
+                    if (can_controller::debugState) log_i("Frame ID mismatch");
                 }
             }
             else
@@ -264,10 +277,10 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                 if (rxpdu->cantpState == CANTP_IDLE)
                     break;
                 else
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("No frame received and not idling");
+                    if (can_controller::debugState) log_i("No frame received and not idling");
             }
         }
-        // if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Return: %d", ret);
+        // if (can_controller::debugState) log_i("Return: %d", ret);
         xSemaphoreGive(canIsoTpSemaphore);
     }
     return ret;
@@ -275,7 +288,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 
 int CanIsoTp::send_SingleFrame(pdu_t *pdu)
 {
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending SF");
+    if (can_controller::debugState) log_i("Sending SF");
     CanFrame frame = {0};
     frame.identifier = pdu->txId; //
     frame.extd = 0;
@@ -291,7 +304,7 @@ int CanIsoTp::send_SingleFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FirstFrame(pdu_t *pdu)
 {
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending FF");
+    if (can_controller::debugState) log_i("Sending FF");
     CanFrame frame = {0};
     frame.identifier = pdu->txId;
     frame.extd = 0;
@@ -315,7 +328,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
     frame.extd = 0;
     frame.data_length_code = 8;
 
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending CF: (seqId): %d", pdu->seqId);
+    if (can_controller::debugState) log_i("Sending CF: (seqId): %d", pdu->seqId);
     frame.data[0] = N_PCItypeCF | (pdu->seqId & 0x0F); // PCI: Consecutive Frame with sequence number
     uint8_t sizeToSend = (pdu->len > 7) ? 7 : pdu->len;
 
@@ -328,7 +341,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 {
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending FC: frame.identifier = pdu->txId (%u); we are listening on pdu->rxId (%u)", pdu->txId, pdu->rxId);
+    if (can_controller::debugState) log_i("Sending FC: frame.identifier = pdu->txId (%u); we are listening on pdu->rxId (%u)", pdu->txId, pdu->rxId);
     CanFrame frame = {0};
     frame.identifier = pdu->rxId;
     frame.extd = 0;
@@ -343,7 +356,7 @@ int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 
 int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 {
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Single Frame received");
+    if (can_controller::debugState) log_i("Single Frame received");
     uint8_t dataLength = frame->data[0] & 0x0F;
     // if data is empty, allocate memory
     if (pdu->data == nullptr)
@@ -360,19 +373,19 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 
     if (pdu->len > (frame->data_length_code - 1))
     {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Error: Data length exceeds frame length");
+        if (can_controller::debugState) log_e("Error: Data length exceeds frame length");
         pdu->cantpState = CANTP_ERROR;
         return 1;
     }
 
     // we have to perform a malloc here, as we don't know the datatype to cast on default
     // Allocate enough space for the entire payload and cast it later
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Allocating memory for pdu->data");
+    if (can_controller::debugState) log_i("Allocating memory for pdu->data");
     pdu->data = (uint8_t *)malloc(pdu->len);
     if (!pdu->data)
     {
         // Could not allocate; set an error
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Could not allocate memory for data");
+        if (can_controller::debugState) log_e("Could not allocate memory for data");
         pdu->cantpState = CANTP_ERROR;
         return 1;
     }
@@ -386,7 +399,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     
     // check for invalid data length code - has to be at least 8?
     if (frame->data_length_code < 8) {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Invalid First Frame length code: %d", frame->data_length_code);
+        if (can_controller::debugState) log_e("Invalid First Frame length code: %d", frame->data_length_code);
         pdu->cantpState = CANTP_ERROR;
         return 1;
     }
@@ -395,11 +408,11 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     pdu->len = totalLen;
     _rxRestBytes = pdu->len;
 
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("First Frame received, txID %d, rxID %d, size: %i, totalLen: %i", pdu->txId, pdu->rxId, frame->data_length_code, totalLen);
+    if (can_controller::debugState) log_i("First Frame received, txID %d, rxID %d, size: %i, totalLen: %i", pdu->txId, pdu->rxId, frame->data_length_code, totalLen);
 
     // If totalLen < 6, we cannot safely copy 6 bytes.
     if (totalLen < 6) {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Invalid totalLen < 6 in First Frame: %d", totalLen);
+        if (can_controller::debugState) log_e("Invalid totalLen < 6 in First Frame: %d", totalLen);
         pdu->cantpState = CANTP_ERROR;
         return 1;
     }
@@ -411,17 +424,17 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
         {
             free(pdu->data); // => assert failed: heap_caps_free heap_caps.c:381 (heap != NULL && "free() target pointer is outside heap areas")
             pdu->data = nullptr;
-            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Freeing existing buffer");
+            if (can_controller::debugState) log_i("Freeing existing buffer");
         }
         */
        
         // Allocate enough space for the entire payload and cast it later
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Allocating memory for pdu->data");
+        if (can_controller::debugState) log_i("Allocating memory for pdu->data");
         pdu->data = (uint8_t *)malloc(totalLen);
         if (!pdu->data)
         {
             // Could not allocate; set an error
-            if (pinConfig.DEBUG_CAN_ISO_TP) log_e("Could not allocate memory for data");
+            if (can_controller::debugState) log_e("Could not allocate memory for data");
             pdu->cantpState = CANTP_ERROR;
             return 1;
         }
@@ -430,7 +443,7 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
     _rxRestBytes -= 6;
     pdu->seqId = 1;                                // Start sequence ID
     pdu->cantpState = IsoTpState::CANTP_WAIT_DATA; // Awaiting consecutive frames
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sending Flow Control FC");
+    if (can_controller::debugState) log_i("Sending Flow Control FC");
 
     return send_FlowControlFrame(pdu);
 }
@@ -444,7 +457,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     // The original code checks if we are waiting for data
     if (pdu->cantpState != CANTP_WAIT_DATA)
     {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("receive_ConsecutiveFrame: Invalid state: %d", pdu->cantpState);
+        if (can_controller::debugState) log_i("receive_ConsecutiveFrame: Invalid state: %d", pdu->cantpState);
         return 0;
     }
 
@@ -452,7 +465,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     uint8_t seqId = frame->data[0] & 0x0F;
     if (seqId != pdu->seqId)
     {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Sequence mismatch");
+        if (can_controller::debugState) log_i("Sequence mismatch");
         return 1; // Sequence mismatch
     }
 
@@ -465,12 +478,12 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
 
     // Decrease the remaining bytes count
     _rxRestBytes -= sizeToCopy;
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d with size %d, Rest bytes: %d", pdu->cantpState, pdu->seqId, seqId, frame->data_length_code - 1, _rxRestBytes);
+    if (can_controller::debugState) log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d with size %d, Rest bytes: %d", pdu->cantpState, pdu->seqId, seqId, frame->data_length_code - 1, _rxRestBytes);
 
     // If we've received all data, update state to CANTP_END
     if (_rxRestBytes <= 0)
     {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("All data received");
+        if (can_controller::debugState) log_i("All data received");
         pdu->cantpState = CANTP_END;
     }
 
@@ -481,13 +494,13 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
 
 int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
 {
-    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Flow Control Frame received");
+    if (can_controller::debugState) log_i("Flow Control Frame received");
     uint8_t flowStatus = frame->data[0] & 0x0F;
     int ret = 0;
 
     if (pdu->cantpState != CANTP_WAIT_DATA && pdu->cantpState != CANTP_WAIT_FIRST_FC && pdu->cantpState != CANTP_WAIT_FC)
     {
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_e("receive_FlowControlFrame: Invalid state: %d", pdu->cantpState);
+        if (can_controller::debugState) log_e("receive_FlowControlFrame: Invalid state: %d", pdu->cantpState);
         return 0;
     }
 
@@ -496,11 +509,11 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     {
         pdu->blockSize = frame->data[1];
         pdu->separationTimeMin = frame->data[2]; // 0x7F, by defaul 127ms
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Updating BS and STmin to: %d, %d", pdu->blockSize, pdu->separationTimeMin);
+        if (can_controller::debugState) log_i("Updating BS and STmin to: %d, %d", pdu->blockSize, pdu->separationTimeMin);
         // Ensure STmin is within allowed range
         if ((pdu->separationTimeMin > 127 && pdu->separationTimeMin < 241) || (pdu->separationTimeMin > 249))
         {
-            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("STmin out of range, setting to 127ms");
+            if (can_controller::debugState) log_i("STmin out of range, setting to 127ms");
             pdu->separationTimeMin = 10; // Default to max 127ms if out-of-range
         }
     }
@@ -508,20 +521,20 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     switch (flowStatus)
     {
     case CANTP_FLOWSTATUS_CTS: // Continue to send
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("CTS (Continue to send) frame received");
+        if (can_controller::debugState) log_i("CTS (Continue to send) frame received");
         pdu->cantpState = CANTP_SEND_CF;
         break;
 
     case CANTP_FLOWSTATUS_WT: // Wait
         _receivedFCWaits++;
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("WT (Wait) frame received, count: %d", _receivedFCWaits);
+        if (can_controller::debugState) log_i("WT (Wait) frame received, count: %d", _receivedFCWaits);
         if (_receivedFCWaits >= WFTmax)
         {
             // Too many waits, abort transmission
             _receivedFCWaits = 0;
             pdu->cantpState = CANTP_IDLE;
             ret = 1;
-            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("WFTmax exceeded, aborting transmission.");
+            if (can_controller::debugState) log_i("WFTmax exceeded, aborting transmission.");
         }
         // If WFTmax not reached, remain in current waiting state
         break;
@@ -531,7 +544,7 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
         // Any unrecognized flow status leads to abort
         pdu->cantpState = CANTP_IDLE;
         ret = 1;
-        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Overflow or unknown flow status, aborting.");
+        if (can_controller::debugState) log_i("Overflow or unknown flow status, aborting.");
         break;
     }
 
@@ -552,7 +565,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
         {
             if (millis() - _timerSession >= TIMEOUT_SESSION)
             {
-                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Session timeout");
+                if (can_controller::debugState) log_i("Session timeout");
                 ret = 1; // Session timeout
                 break;
             }
@@ -560,7 +573,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
 
             if (ESP32CanTwai.readFrame(&frame, timeout))
             {
-                if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame.identifier: %d, checking against %d addresses", frame.identifier, numIDs);
+                if (can_controller::debugState) log_i("Frame.identifier: %d, checking against %d addresses", frame.identifier, numIDs);
                 
                 // Check if frame matches any of the target IDs
                 bool frameMatches = false;
@@ -570,7 +583,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
                     {
                         frameMatches = true;
                         rxpdu->rxId = frame.identifier; // Set the actual received ID
-                        if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame matches ID %d", rxIDs[i]);
+                        if (can_controller::debugState) log_i("Frame matches ID %d", rxIDs[i]);
                         break;
                     }
                 }
@@ -585,7 +598,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
                         switch (N_PCItype)
                         {
                             case N_PCItypeSF: // 0x00
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("SF received");
+                            if (can_controller::debugState) log_i("SF received");
                             ret = receive_SingleFrame(rxpdu, &frame);
                             break;
                             case N_PCItypeFF: // 0x10
@@ -594,21 +607,21 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
                             _timerSession = millis(); // TODO: check if this is needed here, as we are not sending anything yet
                             break;
                         case N_PCItypeFC: // 0x30
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("FC received - but it doesn't make sense!");
+                            if (can_controller::debugState) log_i("FC received - but it doesn't make sense!");
                             break;
                         case N_PCItypeCF: // 0x20
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("CF received");
+                            if (can_controller::debugState) log_i("CF received");
                             ret = receive_ConsecutiveFrame(rxpdu, &frame);
                             break;
                         default:
-                            if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Unrecognized PCI");
+                            if (can_controller::debugState) log_i("Unrecognized PCI");
                             break;
                         }
                     }
                 }
                 else
                 {
-                    if (pinConfig.DEBUG_CAN_ISO_TP) log_i("Frame ID %d doesn't match any target IDs, ignoring", frame.identifier);
+                    if (can_controller::debugState) log_i("Frame ID %d doesn't match any target IDs, ignoring", frame.identifier);
                 }
             }
         }

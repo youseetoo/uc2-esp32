@@ -54,7 +54,7 @@ static uint8_t getDeviceCanId() {
  * @brief Send CAN message via ISO-TP
  */
 static int sendCanMessage(uint8_t receiverID, const uint8_t* data, size_t size) {
-    return can_controller::sendIsoTpData(receiverID, data, size);
+    return can_controller::sendIsoTpData(receiverID, data, size); // TODO: We should probably have a similar pattern to how the motor data is sent
 }
 
 // ============================================================================
@@ -209,7 +209,7 @@ void handleStartCommand(const CanOtaStartCommand* cmd, uint8_t sourceCanId) {
     otaContext.lastChunkTime = millis();
     otaContext.retryCount = 0;
     
-    log_i("OTA started successfully, waiting for chunks...");
+    log_i("OTA started successfully, waiting for chunks, sending ACK to sourceID: %u", sourceCanId);
     sendAck(CAN_OTA_OK, sourceCanId);
 }
 

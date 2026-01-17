@@ -52,7 +52,7 @@ int CanIsoTp::send(pdu_t *pdu)
     uint8_t bs = false;
     uint32_t _timerFCWait = 0;
     uint16_t _bsCounter = 0;
-    can_controller::debugState = true;
+    // can_controller::debugState = true;
     if (can_controller::debugState) log_i("Acquiring ISO-TP semaphore for send");
     if (xSemaphoreTake(canIsoTpSemaphore, portMAX_DELAY) == pdTRUE)
     {

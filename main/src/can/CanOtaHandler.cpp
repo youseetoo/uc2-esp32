@@ -19,6 +19,7 @@
 #include "can_controller.h"
 #include "can_messagetype.h"  // For OTA_CAN_* enum values
 #include "BinaryOtaProtocol.h"  // For binary OTA mode
+#include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE
 
 namespace can_ota {
 
@@ -64,8 +65,9 @@ static int sendCanMessage(uint8_t receiverID, const uint8_t* data, size_t size) 
 void init() {
     memset(&otaContext, 0, sizeof(CanOtaContext));
     otaContext.state = CAN_OTA_STATE_IDLE;
+    otaContext.masterCanId = pinConfig.CAN_ID_CENTRAL_NODE;  // Default to central node
     isInitialized = true;
-    log_i("CAN OTA handler initialized");
+    log_i("CAN OTA handler initialized, default master CAN ID: %u", otaContext.masterCanId);
 }
 
 // ============================================================================
@@ -148,17 +150,22 @@ void handleStartCommand(const CanOtaStartCommand* cmd, uint8_t sourceCanId) {
     log_i("OTA START: size=%lu, chunks=%lu, chunkSize=%u", 
           cmd->firmwareSize, cmd->totalChunks, cmd->chunkSize);
     
+    // Use the known master CAN ID for responses since ISO-TP doesn't provide source ID
+    // The sourceCanId parameter from PDU is unreliable (set to 0)
+    uint8_t masterCanId = pinConfig.CAN_ID_CENTRAL_NODE;
+    log_i("OTA using master CAN ID %u for responses (sourceCanId param was %u)", masterCanId, sourceCanId);
+    
     // Check if OTA already in progress
     if (otaContext.state != CAN_OTA_STATE_IDLE) {
         log_w("OTA already in progress, state=%d", otaContext.state);
-        sendNak(CAN_OTA_ERR_BUSY, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_BUSY, 0, 0, 0, masterCanId);
         return;
     }
     
     // Validate firmware size
     if (cmd->firmwareSize == 0 || cmd->firmwareSize > CAN_OTA_MAX_FIRMWARE_SIZE) {
         log_e("Invalid firmware size: %lu (max=%lu)", cmd->firmwareSize, CAN_OTA_MAX_FIRMWARE_SIZE);
-        sendNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0, 0, masterCanId);
         return;
     }
     
@@ -166,7 +173,7 @@ void handleStartCommand(const CanOtaStartCommand* cmd, uint8_t sourceCanId) {
     uint32_t expectedChunks = CAN_OTA_CALC_CHUNKS(cmd->firmwareSize, cmd->chunkSize);
     if (cmd->totalChunks != expectedChunks) {
         log_e("Chunk count mismatch: received=%lu, expected=%lu", cmd->totalChunks, expectedChunks);
-        sendNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0, 0, masterCanId);
         return;
     }
     
@@ -174,7 +181,7 @@ void handleStartCommand(const CanOtaStartCommand* cmd, uint8_t sourceCanId) {
     const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
     if (partition == NULL) {
         log_e("No OTA partition available");
-        sendNak(CAN_OTA_ERR_PARTITION, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_PARTITION, 0, 0, 0, masterCanId);
         return;
     }
     
@@ -183,21 +190,21 @@ void handleStartCommand(const CanOtaStartCommand* cmd, uint8_t sourceCanId) {
     // Check partition size
     if (cmd->firmwareSize > partition->size) {
         log_e("Firmware too large for partition: %lu > %lu", cmd->firmwareSize, partition->size);
-        sendNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0, 0, masterCanId);
         return;
     }
     
     // Begin update
     if (!Update.begin(cmd->firmwareSize, U_FLASH)) {
         log_e("Update.begin() failed: %s", Update.errorString());
-        sendNak(CAN_OTA_ERR_BEGIN, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_BEGIN, 0, 0, 0, masterCanId);
         return;
     }
     
     // Initialize MD5 builder
     md5Builder.begin();
     
-    // Store context
+    // Store context - including master CAN ID for future responses
     otaContext.state = CAN_OTA_STATE_STARTED;
     otaContext.firmwareSize = cmd->firmwareSize;
     otaContext.totalChunks = cmd->totalChunks;
@@ -208,24 +215,28 @@ void handleStartCommand(const CanOtaStartCommand* cmd, uint8_t sourceCanId) {
     otaContext.startTime = millis();
     otaContext.lastChunkTime = millis();
     otaContext.retryCount = 0;
+    otaContext.masterCanId = masterCanId;  // Store master CAN ID for all future responses
     
-    log_i("OTA started successfully, waiting for chunks, sending ACK to sourceID: %u", sourceCanId);
-    sendAck(CAN_OTA_OK, sourceCanId);
+    log_i("OTA started successfully, waiting for chunks, sending ACK to master CAN ID: %u", masterCanId);
+    sendAck(CAN_OTA_OK, masterCanId);
 }
 
 void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
+    // Use stored master CAN ID from context for responses (sourceCanId from PDU is unreliable)
+    uint8_t responseCanId = otaContext.masterCanId;
+    
     // Validate state
     if (otaContext.state != CAN_OTA_STATE_STARTED && 
         otaContext.state != CAN_OTA_STATE_RECEIVING) {
         log_e("Unexpected DATA in state %d", otaContext.state);
-        sendNak(CAN_OTA_ERR_NOT_STARTED, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_NOT_STARTED, 0, 0, 0, responseCanId);
         return;
     }
     
     // Parse header
     if (len < sizeof(CanOtaDataHeader)) {
         log_e("Data too small: %d (need >= %d)", len, sizeof(CanOtaDataHeader));
-        sendNak(CAN_OTA_ERR_INVALID_SIZE, otaContext.nextExpectedChunk, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_INVALID_SIZE, otaContext.nextExpectedChunk, 0, 0, responseCanId);
         return;
     }
     
@@ -242,14 +253,14 @@ void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
     // Verify sequence
     if (header->chunkIndex != otaContext.nextExpectedChunk) {
         log_e("Sequence error: expected=%lu, got=%u", otaContext.nextExpectedChunk, header->chunkIndex);
-        sendNak(CAN_OTA_ERR_SEQUENCE, otaContext.nextExpectedChunk, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_SEQUENCE, otaContext.nextExpectedChunk, 0, 0, responseCanId);
         return;
     }
     
     // Verify chunk size in header matches actual payload
     if (header->chunkSize != chunkDataLen) {
         log_e("Chunk size mismatch: header=%u, actual=%d", header->chunkSize, chunkDataLen);
-        sendNak(CAN_OTA_ERR_INVALID_SIZE, header->chunkIndex, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_INVALID_SIZE, header->chunkIndex, 0, 0, responseCanId);
         return;
     }
     
@@ -258,7 +269,7 @@ void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
     if (calculatedCrc != header->crc32) {
         log_e("CRC mismatch at chunk %u: expected=0x%08lX, calc=0x%08lX", 
               header->chunkIndex, header->crc32, calculatedCrc);
-        sendNak(CAN_OTA_ERR_CRC, header->chunkIndex, header->crc32, calculatedCrc, sourceCanId);
+        sendNak(CAN_OTA_ERR_CRC, header->chunkIndex, header->crc32, calculatedCrc, responseCanId);
         return;
     }
     
@@ -267,7 +278,7 @@ void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
     if (written != header->chunkSize) {
         log_e("Flash write error: expected=%u, written=%d", header->chunkSize, written);
         abortOta(CAN_OTA_ERR_WRITE);
-        sendNak(CAN_OTA_ERR_WRITE, header->chunkIndex, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_WRITE, header->chunkIndex, 0, 0, responseCanId);
         return;
     }
     
@@ -287,13 +298,16 @@ void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId) {
               otaContext.totalChunks, otaContext.bytesReceived);
     }
     
-    sendAck(CAN_OTA_OK, sourceCanId);
+    sendAck(CAN_OTA_OK, responseCanId);
 }
 
 void handleVerifyCommand(const CanOtaVerifyCommand* cmd, uint8_t sourceCanId) {
+    // Use stored master CAN ID from context for responses
+    uint8_t responseCanId = otaContext.masterCanId;
+    
     if (otaContext.state != CAN_OTA_STATE_VERIFYING) {
         log_e("Unexpected VERIFY in state %d", otaContext.state);
-        sendNak(CAN_OTA_ERR_NOT_STARTED, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_NOT_STARTED, 0, 0, 0, responseCanId);
         return;
     }
     
@@ -315,18 +329,21 @@ void handleVerifyCommand(const CanOtaVerifyCommand* cmd, uint8_t sourceCanId) {
     if (calculatedMd5.equalsIgnoreCase(expectedMd5Str)) {
         log_i("MD5 verification PASSED");
         otaContext.state = CAN_OTA_STATE_FINISHING;
-        sendAck(CAN_OTA_OK, sourceCanId);
+        sendAck(CAN_OTA_OK, responseCanId);
     } else {
         log_e("MD5 verification FAILED!");
         abortOta(CAN_OTA_ERR_MD5);
-        sendNak(CAN_OTA_ERR_MD5, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_MD5, 0, 0, 0, responseCanId);
     }
 }
 
 void handleFinishCommand(uint8_t sourceCanId) {
+    // Use stored master CAN ID from context for responses
+    uint8_t responseCanId = otaContext.masterCanId;
+    
     if (otaContext.state != CAN_OTA_STATE_FINISHING) {
         log_e("Unexpected FINISH in state %d", otaContext.state);
-        sendNak(CAN_OTA_ERR_NOT_STARTED, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_NOT_STARTED, 0, 0, 0, responseCanId);
         return;
     }
     
@@ -334,7 +351,7 @@ void handleFinishCommand(uint8_t sourceCanId) {
     if (!Update.end(true)) {
         log_e("Update.end() failed: %s", Update.errorString());
         abortOta(CAN_OTA_ERR_END);
-        sendNak(CAN_OTA_ERR_END, 0, 0, 0, sourceCanId);
+        sendNak(CAN_OTA_ERR_END, 0, 0, 0, responseCanId);
         return;
     }
     // TODO: I guess here is the firmware magically copied to the boot partition?
@@ -343,7 +360,7 @@ void handleFinishCommand(uint8_t sourceCanId) {
     log_i("OTA complete! %lu bytes in %lu ms (%.1f KB/s)", 
           otaContext.bytesReceived, elapsed, kbps);
     
-    sendAck(CAN_OTA_OK, sourceCanId);
+    sendAck(CAN_OTA_OK, responseCanId);
     
     log_i("Rebooting in 1 second...");
     delay(1000);
@@ -351,14 +368,20 @@ void handleFinishCommand(uint8_t sourceCanId) {
 }
 
 void handleAbortCommand(uint8_t sourceCanId) {
-    log_i("OTA abort requested by 0x%02X", sourceCanId);
+    // Use stored master CAN ID or default to central node if not in OTA
+    uint8_t responseCanId = (otaContext.state != CAN_OTA_STATE_IDLE) ? 
+                            otaContext.masterCanId : pinConfig.CAN_ID_CENTRAL_NODE;
+    log_i("OTA abort requested, responding to CAN ID %u", responseCanId);
     abortOta(CAN_OTA_ERR_ABORTED);
-    sendAck(CAN_OTA_OK, sourceCanId);
+    sendAck(CAN_OTA_OK, responseCanId);
 }
 
 void handleStatusQuery(uint8_t sourceCanId) {
-    log_d("Status query from 0x%02X", sourceCanId);
-    sendStatusResponse(sourceCanId);
+    // Use stored master CAN ID or default to central node if not in OTA
+    uint8_t responseCanId = (otaContext.state != CAN_OTA_STATE_IDLE) ? 
+                            otaContext.masterCanId : pinConfig.CAN_ID_CENTRAL_NODE;
+    log_d("Status query, responding to CAN ID %u", responseCanId);
+    sendStatusResponse(responseCanId);
 }
 
 // ============================================================================

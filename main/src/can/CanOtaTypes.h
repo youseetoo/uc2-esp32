@@ -194,6 +194,7 @@ struct CanOtaContext {
     uint32_t startTime;                 ///< Timestamp when OTA started
     uint32_t lastChunkTime;             ///< Timestamp of last received chunk
     uint8_t  retryCount;                ///< Number of retries for current chunk
+    uint8_t  masterCanId;               ///< CAN ID of the master to send responses to
 };
 
 // ============================================================================

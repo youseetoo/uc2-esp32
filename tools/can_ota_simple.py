@@ -42,7 +42,7 @@ CMD_END = 0x0F
 CMD_ABORT = 0x10
 
 # Timeouts - increased because master now waits for slave ACK over CAN
-ACK_TIMEOUT = 10.0  # seconds - master waits up to 2s for slave ACK
+ACK_TIMEOUT = 20.0  # seconds - master waits up to 2s for slave ACK
 
 # ============================================================================
 # HELPER FUNCTIONS

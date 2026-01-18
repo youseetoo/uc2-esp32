@@ -37,7 +37,7 @@ static volatile bool slaveResponseReceived = false;
 static volatile bool slaveResponseIsAck = false;
 static volatile uint8_t slaveResponseStatus = 0;
 static volatile uint16_t slaveResponseChunk = 0;
-static const uint32_t SLAVE_ACK_TIMEOUT_MS = 2000;  // 2 second timeout for slave ACK
+static const uint32_t SLAVE_ACK_TIMEOUT_MS = 5000;  // 5 second timeout for slave ACK
 #endif
 
 // ============================================================================

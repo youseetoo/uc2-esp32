@@ -132,7 +132,7 @@ int CanIsoTp::send(pdu_t *pdu)
                     bs = false;
                     while (pdu->len > 7 && _bsCounter > 0)
                     {
-                        delay(pdu->separationTimeMin);
+                        delay(30); //pdu->separationTimeMin);
 
                         if (!(ret = send_ConsecutiveFrame(pdu)))
                         {
@@ -226,7 +226,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
 
             if (ESP32CanTwai.readFrame(&frame, timeout)) // TODO: As far as I understand, this pulls messages from the internal queue, so we should not need to wait for the timeout here too long
             {
-                if (can_controller::debugState) log_i("Frame.identifier: %d, rxId: %d, txId: %d", frame.identifier, rxpdu->rxId, rxpdu->txId);
+                //if (can_controller::debugState) log_i("Frame.identifier: %d, rxId: %d, txId: %d", frame.identifier, rxpdu->rxId, rxpdu->txId);
                 // if 0 we accept all frames (i.e. broadcasting) - this we do by overwriting the rxId
                 // frame.identifier is the ID to which the message was sent
                 if (rxpdu->rxId == 0) // Broadcast: accept all frames // TODO: not implemented yet
@@ -245,9 +245,11 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                         case N_PCItypeSF: // 0x00
                             if (can_controller::debugState) log_i("SF received");
                             ret = receive_SingleFrame(rxpdu, &frame);
+                            _timerSession = millis(); // Reset session timer
                             break;
                         case N_PCItypeFF: // 0x10
                             ret = receive_FirstFrame(rxpdu, &frame);
+                            _timerSession = millis(); // Reset session timer
                             break;
                         case N_PCItypeFC: // 0x30
                             if (can_controller::debugState) log_i("FC received - but it doesn'T make sense!");
@@ -256,8 +258,9 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint32_t timeout)
                             // ret = receive_FlowControlFrame(rxpdu, &frame);
                             break;
                         case N_PCItypeCF: // 0x20
-                            if (can_controller::debugState) log_i("CF received");
+                            //if (can_controller::debugState) log_i("CF received");
                             ret = receive_ConsecutiveFrame(rxpdu, &frame);
+                            _timerSession = millis(); // Reset session timer // TODO: Check if this is correct
                             break;
                         default:
                             if (can_controller::debugState) log_i("Unrecognized PCI");
@@ -516,8 +519,8 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
         // Ensure STmin is within allowed range
         if ((pdu->separationTimeMin > 127 && pdu->separationTimeMin < 241) || (pdu->separationTimeMin > 249))
         {
-            if (can_controller::debugState) log_i("STmin out of range, setting to 127ms");
-            pdu->separationTimeMin = 10; // Default to max 127ms if out-of-range
+            if (can_controller::debugState) log_i("STmin out of range, setting to 30ms");
+            pdu->separationTimeMin = 30; // Default to 30ms if out-of-range
         }
     }
 
@@ -554,6 +557,9 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     return ret;
 }
 
+void setSeparationTimeMin(uint8_t stMin){
+    //TODO: Implement this function to make it adaptable to debugging messages (i.e. it has to be longer in case of debugging)
+}
 // Multi-address receive function
 int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t timeout)
 {
@@ -615,6 +621,7 @@ int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t tim
                         case N_PCItypeCF: // 0x20
                             if (can_controller::debugState) log_i("CF received");
                             ret = receive_ConsecutiveFrame(rxpdu, &frame);
+                            _timerSession = millis(); // TODO: check if needed as we continously receive frames and should reset the timer anyway
                             break;
                         default:
                             if (can_controller::debugState) log_i("Unrecognized PCI");

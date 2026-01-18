@@ -65,7 +65,7 @@ typedef struct {
     uint8_t seqId;        /**< Sequence ID for Consecutive Frames */
     uint8_t fcStatus;     /**< Flow Control status */
     uint8_t blockSize;    /**< Block size for Flow Control */
-    uint8_t separationTimeMin = 10; /**< Separation time between consecutive frames */
+    uint8_t separationTimeMin = 30; /**< Separation time between consecutive frames (ms). Increased from 10 to handle debug logging overhead */
     IsoTpState cantpState; /**< ISO-TP State */
 } pdu_t;
 
@@ -86,6 +86,7 @@ public:
     int receive(pdu_t *pdu, uint32_t timeout);  // Receive ISO-TP message
     int receive(pdu_t *pdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t timeout);  // Receive ISO-TP message with multiple addresses
 
+    void setSeparationTimeMin(uint8_t stMin);
 private:
     uint32_t _timerSession;
     uint32_t _timerFCWait;

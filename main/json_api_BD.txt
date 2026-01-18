@@ -775,7 +775,7 @@ platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":2,"position":20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}, {"stepperid":1,"position":-20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}]}}
 
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid":3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid":1, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
 
 
 

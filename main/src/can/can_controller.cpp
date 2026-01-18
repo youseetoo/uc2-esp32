@@ -1247,6 +1247,14 @@ namespace can_controller
         if (debug != NULL)
         {
             debugState = cJSON_IsTrue(debug);
+            if (debugState){
+                // set separationTimeMin to 30ms for debugging
+                // isoTpSender.setSeparationTimeMin(30); // TODO: Implement this function!
+            }
+            else{
+                // set separationTimeMin back to 10ms for normal operation
+                // isoTpSender.setSeparationTimeMin(10);
+            }
             log_i("Set DEBUG_CAN_ISO_TP to %s", debugState ? "true" : "false");
             return 1;
         }

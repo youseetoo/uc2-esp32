@@ -386,10 +386,11 @@ jobs:
           
           # For non-beta/alpha releases, also update 'latest'
           if [[ ! "$TAG" =~ (beta|alpha) ]]; then
-            cp *.json "../../latest/"
-            cp *.bin "../../latest/"
+            mkdir -p "../latest"
+            cp -f *.json "../latest/"
+            cp -f *.bin "../latest/"
           fi
-          
+                    
       - name: Commit and push
         shell: bash
         run: |

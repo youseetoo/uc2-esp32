@@ -416,3 +416,93 @@ jobs:
           git add LATEST_VERSION
           git commit -m "Update LATEST_VERSION to $TAG" || true
           git push || true
+
+
+  publish-binaries-repo:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: firmware
+          pattern: firmware-*
+          merge-multiple: true
+
+      - name: Get tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Checkout binaries repo
+        uses: actions/checkout@v4
+        with:
+          repository: youseetoo/uc2-esp32-binaries
+          path: binaries
+          token: ${{ secrets.API_TOKEN_GITHUB }} # needs push access
+
+      - name: Create clean branch for this version
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd binaries
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          # One branch per version, clean history
+          git checkout --orphan "$TAG"
+          git rm -rf . || true
+
+          # Copy artifacts into repo root (or change to a subdir if you want)
+          cp -v ../firmware/*.bin .
+          cp -v ../firmware/*-manifest.json .
+          cp -v ../firmware/firmware-index.json .
+
+      - name: Rewrite manifest paths to jsDelivr URLs
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd binaries
+
+          # jsDelivr base for this tag-branch
+          BASE="https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${TAG}"
+
+          for manifest in *-manifest.json; do
+            [ -f "$manifest" ] || continue
+            board_id="${manifest%-manifest.json}"
+
+            # Update parts[].path to absolute URL
+            jq --arg url "${BASE}/${board_id}.bin" '
+              .builds |= map(
+                .parts |= map(.path = $url)
+              )
+            ' "$manifest" > "${manifest}.tmp"
+            mv "${manifest}.tmp" "$manifest"
+          done
+
+          # Update firmware-index.json URLs too (optional but useful)
+          jq --arg base "$BASE" '
+            .firmware |= map(
+              .manifest = ($base + "/" + .manifest) |
+              .binary   = ($base + "/" + .binary)
+            )
+          ' firmware-index.json > firmware-index.json.tmp
+          mv firmware-index.json.tmp firmware-index.json
+
+      - name: Commit & push
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd binaries
+
+          git add .
+          git commit -m "Firmware artifacts for ${TAG}"
+          git push -f origin "$TAG"

@@ -127,6 +127,7 @@ def wait_for_ack(ser, timeout=ACK_TIMEOUT):
     while time.time() - start < timeout:
         if ser.in_waiting:
             new_data = ser.read(ser.in_waiting)
+            print(new_data)
             buffer.extend(new_data)
             
             # Search for sync bytes in buffer

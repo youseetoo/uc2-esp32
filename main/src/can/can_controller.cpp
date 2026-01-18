@@ -41,6 +41,9 @@ namespace can_controller
     // Device CAN ID - defined here, declared extern in header
     uint8_t device_can_id = 0;
 
+    // debug state - defined once here (declared extern in header)
+    bool debugState = false;
+
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
     static QueueHandle_t sendQueue;
@@ -799,7 +802,7 @@ namespace can_controller
 
     bool isIDInAvailableCANDevices(uint8_t idToCheck)
     {
-        return false;  // TODO: this is reverse logic anyway?
+        return true;  // TODO: this is reverse logic anyway?
         /* // TODO: not sure if this is actually needed 
         for (int i = 0; i < MAX_CAN_DEVICES; i++) // Iterate through the array
         {

@@ -59,8 +59,8 @@ namespace can_controller
     void loop();
 
     // debug state
-    static bool debugState = false;
-    
+    extern bool debugState;
+
     // general CAN-related functions
     uint8_t axis2id(int axis);
     int receiveCanMessage(uint8_t senderID);

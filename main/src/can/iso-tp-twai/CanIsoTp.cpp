@@ -462,23 +462,26 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
     }
 
     // Check sequence number to ensure correct order
-    uint8_t seqId = frame->data[0] & 0x0F;
-    if (seqId != pdu->seqId)
+    // ISO-TP sequence ID is 4 bits (0-15), wraps around after 15
+    uint8_t frameSeqId = frame->data[0] & 0x0F;
+    uint8_t expectedSeqId = pdu->seqId & 0x0F;  // Modulo 16 for comparison
+    if (frameSeqId != expectedSeqId)
     {
-        if (can_controller::debugState) log_i("Sequence mismatch");
+        if (can_controller::debugState) log_i("Sequence mismatch: expected %d (frame %d), got %d", expectedSeqId, pdu->seqId, frameSeqId);
         return 1; // Sequence mismatch
     }
 
     // Determine how many bytes to copy
     // Copy up to 7 bytes (or fewer if _rxRestBytes < 7)
     uint8_t sizeToCopy = (_rxRestBytes > 7) ? 7 : _rxRestBytes;
-    // Original offset logic: 6 + (seqId - 1)*7
+    // Calculate offset based on frame number (not seqId which wraps)
+    // First CF (seqId=1) goes at offset 6, second CF (seqId=2) at offset 13, etc.
     uint16_t offset = 6 + 7 * (pdu->seqId - 1);
     memcpy(pdu->data + offset, &frame->data[1], sizeToCopy);
 
     // Decrease the remaining bytes count
     _rxRestBytes -= sizeToCopy;
-    if (can_controller::debugState) log_i("Consecutive Frame received, state: %d and seqID (pdu) %d, seqID incoming: %d with size %d, Rest bytes: %d", pdu->cantpState, pdu->seqId, seqId, frame->data_length_code - 1, _rxRestBytes);
+    if (can_controller::debugState) log_i("Consecutive Frame received, state: %d, frameNum: %d, seqID incoming: %d with size %d, Rest bytes: %d", pdu->cantpState, pdu->seqId, frameSeqId, frame->data_length_code - 1, _rxRestBytes);
 
     // If we've received all data, update state to CANTP_END
     if (_rxRestBytes <= 0)
@@ -487,7 +490,7 @@ int CanIsoTp::receive_ConsecutiveFrame(pdu_t *pdu, CanFrame *frame)
         pdu->cantpState = CANTP_END;
     }
 
-    // Increment sequence ID as original code does (no modulo)
+    // Increment frame counter (not modulo - we need to track total frames for offset calculation)
     pdu->seqId++;
     return 0;
 }

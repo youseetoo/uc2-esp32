@@ -91,7 +91,7 @@ private:
     uint32_t _timerFCWait;
     uint32_t _timerCFWait;
     uint8_t _rxPacketData[PACKET_SIZE];
-    uint8_t _rxRestBytes;
+    uint16_t _rxRestBytes;  // Must be uint16_t to support ISO-TP payloads up to 4095 bytes
     uint8_t _receivedFCWaits = 0; // Reset this when starting a new transmission
 
     int send_SingleFrame(pdu_t *pdu);

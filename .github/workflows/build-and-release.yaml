@@ -1,28 +1,21 @@
-# Unified workflow to build all firmware variants and upload to GitHub Releases
-# This workflow builds firmware for all UC2 board variants and creates releases
-
+# Build + Release in youseetoo/uc2-esp32, and mirror artifacts to youseetoo/uc2-esp32-binaries
+# One branch per tag in the binaries repo (branch name == tag)
 name: Build and Release All Firmware
 
 on:
   push:
-    branches:
-      - 'main'
-    tags:
-      - 'v*'  # Trigger on version tags like v1.0, v1.9, etc.
+    branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
-    branches:
-      - 'main'
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       git-ref:
-        description: 'Git ref (optional)'
-        required: false
-      release-tag:
-        description: 'Release tag (e.g., v1.9)'
+        description: "Git ref (optional)"
         required: false
 
 env:
-  GITHUB_REPO: 'youseetoo/uc2-esp32'
+  GITHUB_REPO: "youseetoo/uc2-esp32"
 
 jobs:
   build-all-firmware:
@@ -31,7 +24,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # UC2 Standalone boards
           - env_name: UC2_2
             display_name: "UC2 Standalone V2"
             board_id: "esp32-uc2-standalone-2"
@@ -56,7 +48,7 @@ jobs:
             display_name: "UC2 WEMOS D1 R32"
             board_id: "esp32-uc2-wemos"
             chip_family: "ESP32"
-          # Seeed Xiao boards
+
           - env_name: seeed_xiao_esp32s3
             display_name: "Xiao ESP32S3 ODMR"
             board_id: "seeed_xiao_esp32s3"
@@ -69,7 +61,7 @@ jobs:
             display_name: "Xiao LED Ring"
             board_id: "seeed_xiao_esp32s3_ledring"
             chip_family: "ESP32-S3"
-          # CAN Slave boards
+
           - env_name: seeed_xiao_esp32s3_can_slave_motor
             display_name: "Xiao CAN Slave Motor"
             board_id: "xiao-can-slave-motor"
@@ -90,12 +82,12 @@ jobs:
             display_name: "Xiao CAN Slave Illumination"
             board_id: "xiao-can-slave-illumination"
             chip_family: "ESP32-S3"
-          # HAT boards
+
           - env_name: UC2_3_CAN_HAT_Master_v2
             display_name: "CAN HAT Master V2"
             board_id: "can-hat-master-v2"
             chip_family: "ESP32"
-          # Waveshare
+
           - env_name: waveshare_esp32s3_ledarray
             display_name: "Waveshare ESP32S3 Matrix"
             board_id: "waveshare_esp32s3_ledarray"
@@ -123,7 +115,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install PlatformIO and tools
         run: |
@@ -135,31 +127,28 @@ jobs:
         run: |
           set -e
           echo "==> Building ${{ matrix.env_name }}"
-          
-          # Try to build, skip if environment doesn't exist
+
           if ! pio run --environment "${{ matrix.env_name }}"; then
             echo "::warning::Build failed or environment not found for ${{ matrix.env_name }}"
             echo "build_success=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "build_success=true" >> $GITHUB_OUTPUT
-          
+
           BIN_DIR=".pio/build/${{ matrix.env_name }}"
           mkdir -p build/fw-images
-          
-          # Get version from tag or commit
+
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
           else
             VERSION="dev-$(git rev-parse --short HEAD)"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Determine chip type and merge binaries appropriately
+
           CHIP="${{ matrix.chip_family }}"
           BOARD_ID="${{ matrix.board_id }}"
-          
+
           if [[ "$CHIP" == "ESP32-S3" ]]; then
             CHIP_ARG="esp32s3"
             BOOT_ADDR="0x0"
@@ -167,14 +156,11 @@ jobs:
             CHIP_ARG="esp32"
             BOOT_ADDR="0x1000"
           fi
-          
-          # Merge all binaries into a single flashable file
+
           if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" && -f "$BIN_DIR/firmware.bin" ]]; then
             echo "==> Merging binaries for ${{ matrix.env_name }}"
-            
-            # Find boot_app0.bin
             BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -1)
-            
+
             python -m esptool \
               --chip "$CHIP_ARG" \
               merge_bin \
@@ -187,11 +173,9 @@ jobs:
               0xe000 "$BOOT_APP0" \
               0x10000 "$BIN_DIR/firmware.bin"
           else
-            # Fallback: just copy firmware.bin
             cp "$BIN_DIR/firmware.bin" "build/fw-images/${BOARD_ID}.bin"
           fi
-          
-          # Create manifest.json for ESP Web Tools
+
           cat > "build/fw-images/${BOARD_ID}-manifest.json" << EOF
           {
             "name": "${{ matrix.display_name }}",
@@ -215,14 +199,13 @@ jobs:
           path: build/fw-images/
           retention-days: 30
 
-  # Collect all firmware and create release
   create-release:
     needs: build-all-firmware
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-    
+
     steps:
       - name: Download all firmware artifacts
         uses: actions/download-artifact@v4
@@ -231,42 +214,35 @@ jobs:
           pattern: firmware-*
           merge-multiple: true
 
-      - name: List downloaded files
-        run: |
-          echo "Downloaded firmware files:"
-          ls -la firmware/
-
       - name: Get release info
         id: release_info
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Release tag: $TAG"
 
       - name: Create firmware index JSON
         run: |
+          set -e
           cd firmware
-          cat > firmware-index.json << 'INDEXEOF'
+          cat > firmware-index.json << INDEXEOF
           {
             "version": "${{ steps.release_info.outputs.tag }}",
             "generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "repository": "${{ env.GITHUB_REPO }}",
             "firmware": [
           INDEXEOF
-          
-          # Generate firmware entries
+
           first=true
           for manifest in *-manifest.json; do
-            if [ -f "$manifest" ]; then
-              board_id="${manifest%-manifest.json}"
-              if [ "$first" = true ]; then
-                first=false
-              else
-                echo "," >> firmware-index.json
-              fi
-              name=$(jq -r '.name' "$manifest")
-              chip=$(jq -r '.builds[0].chipFamily' "$manifest")
-              cat >> firmware-index.json << EOF
+            [ -f "$manifest" ] || continue
+            board_id="${manifest%-manifest.json}"
+
+            if [ "$first" = true ]; then first=false; else echo "," >> firmware-index.json; fi
+
+            name=$(jq -r '.name' "$manifest")
+            chip=$(jq -r '.builds[0].chipFamily' "$manifest")
+
+            cat >> firmware-index.json << EOF
               {
                 "id": "$board_id",
                 "name": "$name",
@@ -275,9 +251,8 @@ jobs:
                 "binary": "${board_id}.bin"
               }
           EOF
-            fi
           done
-          
+
           echo "]}" >> firmware-index.json
 
       - name: Create GitHub Release
@@ -287,20 +262,12 @@ jobs:
           name: "Firmware Release ${{ steps.release_info.outputs.tag }}"
           body: |
             ## UC2 Firmware Release ${{ steps.release_info.outputs.tag }}
-            
-            ### Available Firmware
-            Download the firmware for your board and flash it using the [UC2 Web Flasher](https://youseetoo.github.io).
-            
-            ### Firmware Files
-            - `*.bin` - Merged firmware binaries ready for flashing
-            - `*-manifest.json` - ESP Web Tools manifest files
-            - `firmware-index.json` - Index of all available firmware
-            
-            ### Flash Instructions
-            1. Go to https://youseetoo.github.io
-            2. Select your board
-            3. Select this release version
-            4. Click "Install"
+
+            Firmware binaries and manifests are mirrored to **youseetoo/uc2-esp32-binaries**
+            on a branch named exactly: `${{ steps.release_info.outputs.tag }}`
+
+            jsDelivr base:
+            https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${{ steps.release_info.outputs.tag }}/
           files: |
             firmware/*.bin
             firmware/*-manifest.json
@@ -310,26 +277,81 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Update latest release pointer for the web flasher
-  update-latest:
+  publish-binaries-repo:
     needs: create-release
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'beta') && !contains(github.ref, 'alpha')
-    permissions:
-      contents: write
-    
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Update latest version file
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: firmware
+          pattern: firmware-*
+          merge-multiple: true
+
+      - name: Get tag
+        id: tag
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          echo "$TAG" > LATEST_VERSION
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Checkout binaries repo
+        uses: actions/checkout@v4
+        with:
+          repository: youseetoo/uc2-esp32-binaries
+          path: binaries
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
+      - name: Create branch and copy artifacts
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd binaries
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add LATEST_VERSION
-          git commit -m "Update LATEST_VERSION to $TAG" || true
-          git push || true
 
+          # create a clean branch per tag
+          git checkout --orphan "$TAG"
+          git rm -rf . || true
 
+          cp -v ../firmware/*.bin .
+          cp -v ../firmware/*-manifest.json .
+          cp -v ../firmware/firmware-index.json .
+
+      - name: Rewrite manifests to absolute jsDelivr .bin URLs
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd binaries
+          BASE="https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${TAG}"
+
+          for manifest in *-manifest.json; do
+            [ -f "$manifest" ] || continue
+            board_id="${manifest%-manifest.json}"
+
+            jq --arg url "${BASE}/${board_id}.bin" '
+              .builds |= map(.parts |= map(.path = $url))
+            ' "$manifest" > "${manifest}.tmp"
+            mv "${manifest}.tmp" "$manifest"
+          done
+
+          jq --arg base "$BASE" '
+            .firmware |= map(
+              .manifest = ($base + "/" + (.manifest | split("/") | last)) |
+              .binary   = ($base + "/" + (.binary   | split("/") | last))
+            )
+          ' firmware-index.json > firmware-index.json.tmp
+          mv firmware-index.json.tmp firmware-index.json
+
+      - name: Commit & push branch
+        shell: bash
+        run: |
+          set -e
+          TAG="${{ steps.tag.outputs.tag }}"
+          cd binaries
+          git add .
+          git commit -m "Firmware artifacts for ${TAG}"
+          git push -f origin "$TAG"

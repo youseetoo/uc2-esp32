@@ -231,7 +231,7 @@ jobs:
             "version": "$TAG",
             "generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "repository": "${{ env.GITHUB_REPO }}",
-            "cdn_base": "https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${TAG}",
+            "cdn_base": "https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}",
             "firmware": [
           INDEXEOF
 
@@ -374,7 +374,7 @@ jobs:
             # Replace placeholders
             sed -i "s|TAG_PLACEHOLDER|$TAG|g" firmware-index.json
             sed -i "s|DATE_PLACEHOLDER|$(date -u +%Y-%m-%dT%H:%M:%SZ)|g" firmware-index.json
-            sed -i "s|CDN_PLACEHOLDER|https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${TAG}|g" firmware-index.json
+            sed -i "s|CDN_PLACEHOLDER|https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}|g" firmware-index.json
           else
             cp -v ../firmware/firmware-index.json .
           fi
@@ -388,7 +388,9 @@ jobs:
           set -e
           TAG="${{ steps.tag.outputs.tag }}"
           cd binaries
-          BASE="https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${TAG}"
+          BASE="https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}"
+
+          echo "==> Rewriting manifests to use: $BASE"
 
           for manifest in *-manifest.json; do
             [ -f "$manifest" ] || continue
@@ -398,6 +400,8 @@ jobs:
               .builds |= map(.parts |= map(.path = $url))
             ' "$manifest" > "${manifest}.tmp"
             mv "${manifest}.tmp" "$manifest"
+            
+            echo "  Updated: $manifest -> ${BASE}/${board_id}.bin"
           done
 
           jq --arg base "$BASE" '
@@ -407,6 +411,8 @@ jobs:
             )
           ' firmware-index.json > firmware-index.json.tmp
           mv firmware-index.json.tmp firmware-index.json
+          
+          echo "  Updated firmware-index.json to use raw.githubusercontent.com"
 
       - name: Commit & push branch
         shell: bash

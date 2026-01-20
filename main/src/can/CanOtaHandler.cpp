@@ -20,6 +20,8 @@
 #include "can_messagetype.h"  // For OTA_CAN_* enum values
 #include "BinaryOtaProtocol.h"  // For binary OTA mode
 #include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 namespace can_ota {
 
@@ -534,7 +536,9 @@ static int waitForSlaveAck(uint32_t timeoutMs = SLAVE_ACK_TIMEOUT_MS) {
     while (!slaveResponseReceived && (millis() - startTime) < timeoutMs) {
         // Let the CAN controller process incoming messages
         // The handleSlaveResponse callback will set slaveResponseReceived
-        delay(1);  // Small delay to allow CAN processing
+        // CRITICAL: Use vTaskDelay instead of delay() to properly yield to other tasks
+        // This allows the CAN receive task to process incoming ACK messages
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
     
     if (!slaveResponseReceived) {

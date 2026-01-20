@@ -131,5 +131,6 @@ namespace can_controller
     
     // CAN-based OTA (firmware over CAN via ISO-TP)
     cJSON* actCanOta(cJSON* doc);
-
+    cJSON* actCanOtaStream(cJSON* doc);
+    
 } // namespace can_controller

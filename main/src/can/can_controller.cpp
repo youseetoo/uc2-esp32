@@ -1,5 +1,6 @@
 #include "can_controller.h"
 #include "CanOtaHandler.h"
+#include "CanOtaStreaming.h"
 #include <PinConfig.h>
 #include "Wire.h"
 #include "esp_log.h"
@@ -547,6 +548,14 @@ namespace can_controller
                 // For slave devices: handle START, DATA, VERIFY, FINISH, ABORT, STATUS
                 // For master: handle ACK, NAK responses from slaves
                 can_ota::handleCanOtaMessage(static_cast<uint8_t>(msgType), data + 1, size - 1, txID);
+                return;
+            }
+            
+            // Handle CAN OTA STREAMING messages (high-speed mode)
+            // STREAM_* message types: 0x70-0x76
+            if (static_cast<uint8_t>(msgType) >= 0x70 && static_cast<uint8_t>(msgType) <= 0x76)
+            {
+                can_ota_stream::handleStreamMessage(static_cast<uint8_t>(msgType), data + 1, size - 1, txID);
                 return;
             }
         }
@@ -1210,6 +1219,9 @@ namespace can_controller
 
         if (debugState)
             log_i("CAN bus initialized with address %u on pins RX: %u, TX: %u", getCANAddress(), pinConfig.CAN_RX, pinConfig.CAN_TX);
+
+        // Initialize streaming OTA subsystem
+        can_ota_stream::init();
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
@@ -2429,6 +2441,27 @@ namespace can_controller
         
         return response;
     }
+
+    cJSON *actCanOtaStream(cJSON* doc)
+    {
+        cJSON* response = cJSON_CreateObject();
+        if (response == NULL) {
+            return NULL;
+        }
+        
+        int result = can_ota_stream::actFromJsonStreaming(doc);
+        
+        if (result >= 0) {
+            cJSON_AddBoolToObject(response, "success", true);
+            cJSON_AddNumberToObject(response, "qid", result);
+        } else {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddNumberToObject(response, "error", result);
+            cJSON_AddStringToObject(response, "message", "CAN OTA Stream command failed");
+        }
+        
+        return response;
+    }
     
     void loop()
     {
@@ -2442,6 +2475,9 @@ namespace can_controller
         
         // Handle CAN OTA timeout checking
         can_ota::loop();
+        
+        // Handle streaming OTA timeout checking
+        can_ota_stream::loop();
     }
 
 } // namespace can_controller

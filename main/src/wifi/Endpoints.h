@@ -43,6 +43,7 @@ __attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
 __attribute__ ((unused)) static const  char* can_act_endpoint = "/can_act";
 __attribute__ ((unused)) static const  char* can_get_endpoint = "/can_get";
 __attribute__ ((unused)) static const  char* can_ota_endpoint = "/can_ota";
+__attribute__ ((unused)) static const  char* can_ota_stream_endpoint = "/can_ota_stream";
 #endif
 
 #ifdef ENCODER_CONTROLLER

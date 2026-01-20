@@ -608,6 +608,8 @@ namespace SerialProcess
 			serialize(can_controller::act(jsonDocument));
 		else if (strcmp(task, can_ota_endpoint) == 0)
 			serialize(can_controller::actCanOta(jsonDocument));
+		else if (strcmp(task, can_ota_stream_endpoint) == 0)
+			serialize(can_controller::actCanOtaStream(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		else if (strcmp(task, laser_get_endpoint) == 0)

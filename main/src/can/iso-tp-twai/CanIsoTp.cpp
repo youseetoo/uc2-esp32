@@ -132,7 +132,9 @@ int CanIsoTp::send(pdu_t *pdu)
                     bs = false;
                     while (pdu->len > 7 && _bsCounter > 0)
                     {
-                        delay(30); //pdu->separationTimeMin);
+                        // Use adaptive separation time from can_controller namespace
+                        // In FreeRTOS tasks, use vTaskDelay to yield to other tasks
+                        vTaskDelay(pdMS_TO_TICKS(can_controller::separationTimeMin));
 
                         if (!(ret = send_ConsecutiveFrame(pdu)))
                         {
@@ -143,7 +145,7 @@ int CanIsoTp::send(pdu_t *pdu)
                     if (pdu->len <= 7 && _bsCounter > 0 && pdu->cantpState == CANTP_SEND_CF) // Last block. /!\ bsCounter can be 0.
                     {
                         if (can_controller::debugState) log_i("Sending Last block");
-                        delay(pdu->separationTimeMin);
+                        vTaskDelay(pdMS_TO_TICKS(can_controller::separationTimeMin));
                         ret = send_ConsecutiveFrame(pdu);
                         pdu->cantpState = CANTP_IDLE;
                     } // End if
@@ -157,7 +159,7 @@ int CanIsoTp::send(pdu_t *pdu)
                     _bsCounter = pdu->blockSize;
                     while (pdu->len > 7 && !bs)
                     {
-                        delay(pdu->separationTimeMin);
+                        vTaskDelay(pdMS_TO_TICKS(can_controller::separationTimeMin));
                         if (!(ret = send_ConsecutiveFrame(pdu)))
                         {
                             if (_bsCounter == 0 && pdu->len > 0)
@@ -176,7 +178,7 @@ int CanIsoTp::send(pdu_t *pdu)
                     if (pdu->len <= 7 && !bs) // Last block.
                     {
                         if (can_controller::debugState) log_i("Last block");
-                        delay(pdu->separationTimeMin);
+                        vTaskDelay(pdMS_TO_TICKS(can_controller::separationTimeMin));
                         ret = send_ConsecutiveFrame(pdu);
                         pdu->cantpState = CANTP_IDLE;
                     } // End if
@@ -331,7 +333,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
     frame.extd = 0;
     frame.data_length_code = 8;
 
-    if (can_controller::debugState) log_i("Sending CF: (seqId): %d", pdu->seqId);
+    //if (can_controller::debugState) log_i("Sending CF: (seqId): %d", pdu->seqId);
     frame.data[0] = N_PCItypeCF | (pdu->seqId & 0x0F); // PCI: Consecutive Frame with sequence number
     uint8_t sizeToSend = (pdu->len > 7) ? 7 : pdu->len;
 
@@ -344,7 +346,7 @@ int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
 
 int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 {
-    if (can_controller::debugState) log_i("Sending FC: frame.identifier = pdu->txId (%u); we are listening on pdu->rxId (%u)", pdu->txId, pdu->rxId);
+    if (can_controller::debugState) log_i("Sending FC: frame.identifier = pdu->txId (%u); we are listening on pdu->rxId (%u), STmin=%dms", pdu->txId, pdu->rxId, can_controller::separationTimeMin);
     CanFrame frame = {0};
     frame.identifier = pdu->rxId;
     frame.extd = 0;
@@ -352,7 +354,7 @@ int CanIsoTp::send_FlowControlFrame(pdu_t *pdu)
 
     frame.data[0] = N_PCItypeFC | CANTP_FLOWSTATUS_CTS; // PCI: Flow Control + CTS
     frame.data[1] = pdu->blockSize;                     // Block Size
-    frame.data[2] = pdu->separationTimeMin;             // Separation Time
+    frame.data[2] = can_controller::separationTimeMin;  // Use global adaptive separation time
 
     return ESP32CanTwai.writeFrame(&frame) ? 0 : 1;
 }
@@ -557,8 +559,11 @@ int CanIsoTp::receive_FlowControlFrame(pdu_t *pdu, CanFrame *frame)
     return ret;
 }
 
-void setSeparationTimeMin(uint8_t stMin){
-    //TODO: Implement this function to make it adaptable to debugging messages (i.e. it has to be longer in case of debugging)
+void CanIsoTp::setSeparationTimeMin(uint8_t stMin){
+    // Update the global separation time in can_controller namespace
+    // This affects all ISO-TP transmissions
+    can_controller::separationTimeMin = stMin;
+    if (can_controller::debugState) log_i("Set separationTimeMin to %dms", stMin);
 }
 // Multi-address receive function
 int CanIsoTp::receive(pdu_t *rxpdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t timeout)

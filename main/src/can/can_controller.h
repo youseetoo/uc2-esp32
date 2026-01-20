@@ -60,6 +60,11 @@ namespace can_controller
 
     // debug state
     extern bool debugState;
+    
+    // ISO-TP separation time (ms) - adaptive based on debug mode
+    // Debug mode: 30ms (to handle log_i overhead)
+    // Production mode: 2-5ms (fast transfer)
+    extern uint8_t separationTimeMin;
 
     // general CAN-related functions
     uint8_t axis2id(int axis);

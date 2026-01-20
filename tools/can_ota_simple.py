@@ -238,7 +238,7 @@ def upload_firmware(firmware_path: str, test_mode: bool = False):
         # {"task": "/can_act", "debug": true}
         send_json(ser, {
             "task": "/can_act",
-            "debug": True
+            "debug": False
         }, wait_response=False)
         # Wait for ESP32 to switch to binary mode
         time.sleep(1.0)

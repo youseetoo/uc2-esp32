@@ -43,12 +43,19 @@ namespace can_controller
 
     // debug state - defined once here (declared extern in header)
     bool debugState = false;
+    
+    // ISO-TP separation time (ms) - adaptive based on debug mode
+    // Debug mode: 30ms (to handle log_i overhead)
+    // Production mode: 2ms (fast transfer, ~5 min for 1MB)
+    uint8_t separationTimeMin = 2;  // Default to fast mode
 
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
     static QueueHandle_t sendQueue;
     QueueHandle_t recieveQueue;
-    int CAN_QUEUE_SIZE = 5;
+    // Queue size for CAN messages - increased for OTA transfers
+    // Each ISO-TP chunk can generate multiple queue entries
+    int CAN_QUEUE_SIZE = 10;
     
     // OTA status tracking
     static bool isOtaActive = false;
@@ -868,6 +875,10 @@ namespace can_controller
         {
             if (xQueueReceive(sendQueue, &pdu, portMAX_DELAY) == pdTRUE)
             {
+                // IMPORTANT: Save original data pointer before send() modifies it
+                // The ISO-TP send() increments pdu.data as it sends consecutive frames
+                uint8_t* originalDataPtr = pdu.data;
+                
                 int ret = isoTpSender.send(&pdu);
                 if (ret != 0)
                 {
@@ -879,6 +890,11 @@ namespace can_controller
                 {
                     if (debugState)
                         log_i("Sent CAN message to %u", pdu.txId);
+                }
+                // CRITICAL: Free the ORIGINAL data buffer pointer (not the modified one)
+                if (originalDataPtr != nullptr)
+                {
+                    free(originalDataPtr);
                 }
             }
             vTaskDelay(1); // give other tasks cputime
@@ -1248,14 +1264,14 @@ namespace can_controller
         {
             debugState = cJSON_IsTrue(debug);
             if (debugState){
-                // set separationTimeMin to 30ms for debugging
-                // isoTpSender.setSeparationTimeMin(30); // TODO: Implement this function!
+                // Debug mode: 30ms separation time to handle log_i overhead
+                separationTimeMin = 30;
             }
             else{
-                // set separationTimeMin back to 10ms for normal operation
-                // isoTpSender.setSeparationTimeMin(10);
+                // Production mode: 2ms for fast transfer (~5 min for 1MB)
+                separationTimeMin = 2;
             }
-            log_i("Set DEBUG_CAN_ISO_TP to %s", debugState ? "true" : "false");
+            log_i("Set DEBUG_CAN_ISO_TP to %s, separationTimeMin=%dms", debugState ? "true" : "false", separationTimeMin);
             return 1;
         }
 

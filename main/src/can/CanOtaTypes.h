@@ -83,6 +83,9 @@ enum CANOtaStatus {
     CAN_OTA_ERR_ABORTED         = 0x0B,  ///< OTA was aborted
     CAN_OTA_ERR_MEMORY          = 0x0C,  ///< Memory allocation failed
     CAN_OTA_ERR_NOT_STARTED     = 0x0D,  ///< OTA not started
+    CAN_OTA_ERR_SEND            = 0x0E,  ///< CAN send failed
+    CAN_OTA_ERR_NAK             = 0x0F,  ///< Slave NAK'd the request
+    CAN_OTA_ERR_VERIFY          = 0x10,  ///< Verification failed
 };
 
 // ============================================================================

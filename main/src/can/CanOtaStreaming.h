@@ -194,11 +194,52 @@ void abort(uint8_t status);
 void loop();
 
 int actFromJsonStreaming(cJSON* doc);
+
 // ============================================================================
-// Master-side functions
+// Binary Serial Protocol (Master-side)
 // ============================================================================
 
+// Binary protocol constants (always defined for protocol compatibility)
+constexpr uint8_t STREAM_SYNC_1 = 0xAA;
+constexpr uint8_t STREAM_SYNC_2 = 0x55;
+constexpr uint32_t STREAM_BINARY_TIMEOUT_MS = 30000;
+
+/**
+ * @brief Check if binary streaming mode is active
+ * On slave devices, always returns false.
+ */
+bool isStreamingModeActive();
+
+/**
+ * @brief Process incoming binary stream packets from Serial
+ * On slave devices, this is a no-op.
+ * @return true if a packet was processed
+ */
+bool processBinaryStreamPacket();
+
 #ifdef CAN_SEND_COMMANDS
+
+/**
+ * @brief Enter binary streaming mode (called after JSON start succeeds)
+ * @param slaveId Target CAN slave ID
+ * @param firmwareSize Total firmware size
+ * @param md5Hash MD5 hash (16 bytes)
+ */
+bool enterStreamingBinaryMode(uint8_t slaveId, uint32_t firmwareSize, const uint8_t* md5Hash);
+
+/**
+ * @brief Exit binary streaming mode
+ */
+void exitStreamingBinaryMode();
+
+/**
+ * @brief Get target CAN ID for current streaming session
+ */
+uint8_t getStreamingTargetCanId();
+
+// ============================================================================
+// Master-side CAN functions
+// ============================================================================
 
 /**
  * @brief Start streaming session to slave

@@ -274,6 +274,8 @@ def upload_firmware(firmware_path: str, test_mode: bool = False):
             chunk_sent = False
             
             for retry in range(max_retries):
+                if retry > 0:
+                    pass
                 # Clear input buffer before sending
                 ser.reset_input_buffer()
                 

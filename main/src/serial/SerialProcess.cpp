@@ -40,6 +40,7 @@
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #include "../can/BinaryOtaProtocol.h"
+#include "../can/CanOtaStreaming.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -366,6 +367,13 @@ namespace SerialProcess
 			// Process binary packets instead of JSON
 			binary_ota::processBinaryPacket();
 			return;  // Don't process JSON in binary mode
+		}
+		
+		// Check if we're in streaming binary mode (for CAN OTA streaming)
+		if (can_ota_stream::isStreamingModeActive()) {
+			// Process binary stream packets from Serial
+			can_ota_stream::processBinaryStreamPacket();
+			return;  // Don't process JSON in streaming binary mode
 		}
 		#endif
 		

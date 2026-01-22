@@ -465,6 +465,12 @@ int actFromJsonStreaming(cJSON* doc) {
             // Relay to remote slave over CAN
             log_i("Relaying STREAM_START to slave 0x%02X", targetCanId);
             result = startStreamToSlave(targetCanId, firmwareSize, md5Hash);
+            
+            // If successful, enter binary streaming mode to receive data packets from Serial
+            if (result >= 0) {
+                log_i("Entering binary streaming mode for data transfer");
+                enterStreamingBinaryMode(targetCanId, firmwareSize, md5Hash);
+            }
         } else 
 #endif
         {
@@ -612,10 +618,34 @@ void loop() {
 }
 
 // ============================================================================
+// Stub implementations for Slave devices (when CAN_SEND_COMMANDS is not defined)
+// ============================================================================
+
+#ifndef CAN_SEND_COMMANDS
+
+bool isStreamingModeActive() {
+    // Slaves don't receive binary data from Serial - they receive CAN messages
+    return false;
+}
+
+bool processBinaryStreamPacket() {
+    // No-op on slave devices
+    return false;
+}
+
+#endif // !CAN_SEND_COMMANDS
+
+// ============================================================================
 // Master-side Implementation
 // ============================================================================
 
 #ifdef CAN_SEND_COMMANDS
+
+// Forward declarations for binary streaming mode functions
+static void sendSerialStreamAck(const StreamAck* ack);
+static void sendSerialStreamNak(uint8_t status, uint16_t pageIndex, uint16_t missingOffset);
+void forwardSlaveAckToSerial();
+bool isStreamingModeActive();
 
 void handleSlaveStreamResponse(uint8_t msgType, const uint8_t* data, size_t len) {
     if (msgType == STREAM_ACK && len >= sizeof(StreamAck)) {
@@ -626,6 +656,11 @@ void handleSlaveStreamResponse(uint8_t msgType, const uint8_t* data, size_t len)
         slaveAckBytes = ack->bytesReceived;
         slaveAckReceived = true;
         slaveNakReceived = false;
+        
+        // If in binary streaming mode, forward ACK to Python client
+        if (isStreamingModeActive()) {
+            forwardSlaveAckToSerial();
+        }
     } else if (msgType == STREAM_NAK && len >= sizeof(StreamNak)) {
         const StreamNak* nak = reinterpret_cast<const StreamNak*>(data);
         log_w("Slave STREAM_NAK: status=%d, page=%u, offset=%u",
@@ -633,6 +668,11 @@ void handleSlaveStreamResponse(uint8_t msgType, const uint8_t* data, size_t len)
         slaveNakOffset = nak->missingOffset;
         slaveNakReceived = true;
         slaveAckReceived = false;
+        
+        // If in binary streaming mode, forward NAK to Python client  
+        if (isStreamingModeActive()) {
+            forwardSlaveAckToSerial();
+        }
     }
 }
 
@@ -747,6 +787,379 @@ int finishStream(uint8_t slaveId, const uint8_t* md5Hash) {
     
     log_i("Slave ACK'd STREAM_FINISH - OTA complete!");
     return 0;
+}
+
+// ============================================================================
+// Binary Serial Protocol Implementation (Master-side)
+// ============================================================================
+
+// Binary streaming mode state
+static bool streamingBinaryModeActive = false;
+static uint8_t streamingTargetSlaveId = 0;
+static uint32_t streamingFirmwareSize = 0;
+static uint8_t streamingMd5Hash[16] = {0};
+static uint32_t streamingLastActivityTime = 0;
+
+// RX buffer and state machine
+static constexpr size_t STREAM_RX_BUFFER_SIZE = 1024;  // Max packet: header + 512 data + checksum
+static uint8_t streamRxBuffer[STREAM_RX_BUFFER_SIZE];
+static size_t streamRxPos = 0;
+static bool streamSynced = false;
+static uint8_t streamSyncState = 0;  // 0 = looking for SYNC_1, 1 = got SYNC_1
+
+// Expected packet size based on command type
+static size_t streamExpectedSize = 0;
+
+bool isStreamingModeActive() {
+    return streamingBinaryModeActive;
+}
+
+uint8_t getStreamingTargetCanId() {
+    return streamingTargetSlaveId;
+}
+
+bool enterStreamingBinaryMode(uint8_t slaveId, uint32_t firmwareSize, const uint8_t* md5Hash) {
+    if (streamingBinaryModeActive) {
+        log_w("Already in binary streaming mode - exiting first");
+        exitStreamingBinaryMode();
+    }
+    
+    streamingTargetSlaveId = slaveId;
+    streamingFirmwareSize = firmwareSize;
+    if (md5Hash) {
+        memcpy(streamingMd5Hash, md5Hash, 16);
+    }
+    
+    // Reset RX state
+    streamRxPos = 0;
+    streamSynced = false;
+    streamSyncState = 0;
+    streamExpectedSize = 0;
+    streamingLastActivityTime = millis();
+    
+    streamingBinaryModeActive = true;
+    
+    log_i("Entered binary streaming mode: slaveId=0x%02X, size=%lu", slaveId, firmwareSize);
+    return true;
+}
+
+void exitStreamingBinaryMode() {
+    if (streamingBinaryModeActive) {
+        log_i("Exiting binary streaming mode");
+    }
+    
+    streamingBinaryModeActive = false;
+    streamingTargetSlaveId = 0;
+    streamingFirmwareSize = 0;
+    streamRxPos = 0;
+    streamSynced = false;
+    streamSyncState = 0;
+}
+
+/**
+ * @brief Send binary ACK to Python client via Serial
+ */
+static void sendSerialStreamAck(const StreamAck* ack) {
+    // Format: [SYNC_1][SYNC_2][STREAM_ACK][ack_data...][checksum]
+    uint8_t packet[3 + sizeof(StreamAck) + 1];
+    packet[0] = STREAM_SYNC_1;
+    packet[1] = STREAM_SYNC_2;
+    packet[2] = STREAM_ACK;
+    memcpy(packet + 3, ack, sizeof(StreamAck));
+    
+    // Calculate XOR checksum
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < 3 + sizeof(StreamAck); i++) {
+        checksum ^= packet[i];
+    }
+    packet[3 + sizeof(StreamAck)] = checksum;
+    
+    Serial.write(packet, sizeof(packet));
+    Serial.flush();
+}
+
+/**
+ * @brief Send binary NAK to Python client via Serial  
+ */
+static void sendSerialStreamNak(uint8_t status, uint16_t pageIndex, uint16_t missingOffset) {
+    StreamNak nak;
+    nak.status = status;
+    nak.canId = can_controller::device_can_id;
+    nak.pageIndex = pageIndex;
+    nak.missingOffset = missingOffset;
+    nak.missingSeq = 0;
+    
+    uint8_t packet[3 + sizeof(StreamNak) + 1];
+    packet[0] = STREAM_SYNC_1;
+    packet[1] = STREAM_SYNC_2;
+    packet[2] = STREAM_NAK;
+    memcpy(packet + 3, &nak, sizeof(StreamNak));
+    
+    // Calculate XOR checksum
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < 3 + sizeof(StreamNak); i++) {
+        checksum ^= packet[i];
+    }
+    packet[3 + sizeof(StreamNak)] = checksum;
+    
+    Serial.write(packet, sizeof(packet));
+    Serial.flush();
+}
+
+/**
+ * @brief Process a complete binary packet from Serial
+ * 
+ * Packet format from Python:
+ * [SYNC_1][SYNC_2][CMD][page_H][page_L][offset_H][offset_L][size_H][size_L][seq_H][seq_L][DATA...][CHECKSUM]
+ *  
+ * All multi-byte fields are BIG ENDIAN from Python!
+ */
+static void processCompleteBinaryPacket() {
+    // Minimum packet: [SYNC][CMD][CHECKSUM] = 4 bytes
+    if (streamRxPos < 4) {
+        log_w("Binary packet too short: %d bytes", streamRxPos);
+        return;
+    }
+    
+    // Validate checksum (XOR of all bytes except last)
+    uint8_t calcChecksum = 0;
+    for (size_t i = 0; i < streamRxPos - 1; i++) {
+        calcChecksum ^= streamRxBuffer[i];
+    }
+    uint8_t recvChecksum = streamRxBuffer[streamRxPos - 1];
+    
+    if (calcChecksum != recvChecksum) {
+        log_e("Binary checksum mismatch: calc=0x%02X, recv=0x%02X", calcChecksum, recvChecksum);
+        sendSerialStreamNak(CAN_OTA_ERR_CRC, 0, 0);
+        return;
+    }
+    
+    // Parse command (at position 2 after sync bytes)
+    uint8_t cmd = streamRxBuffer[2];
+    streamingLastActivityTime = millis();
+    
+    switch (cmd) {
+        case STREAM_DATA: {
+            // Header format (Big Endian from Python):
+            // [3-4]:  pageIndex (16-bit BE)
+            // [5-6]:  offset (16-bit BE)
+            // [7-8]:  dataSize (16-bit BE)
+            // [9-10]: seq (16-bit BE)
+            // [11..]: data
+            if (streamRxPos < 11 + 1) {  // Header + at least checksum
+                log_e("STREAM_DATA packet too short");
+                sendSerialStreamNak(CAN_OTA_ERR_INVALID_SIZE, 0, 0);
+                return;
+            }
+            
+            uint16_t pageIndex = (streamRxBuffer[3] << 8) | streamRxBuffer[4];
+            uint16_t offset = (streamRxBuffer[5] << 8) | streamRxBuffer[6];
+            uint16_t dataSize = (streamRxBuffer[7] << 8) | streamRxBuffer[8];
+            uint16_t seq = (streamRxBuffer[9] << 8) | streamRxBuffer[10];
+            
+            // Validate data size
+            size_t expectedTotal = 11 + dataSize + 1;  // Header + data + checksum
+            if (streamRxPos != expectedTotal) {
+                log_e("Data size mismatch: expected %d, got %d", expectedTotal, streamRxPos);
+                sendSerialStreamNak(CAN_OTA_ERR_INVALID_SIZE, pageIndex, offset);
+                return;
+            }
+            
+            const uint8_t* data = streamRxBuffer + 11;
+            
+            // Forward to slave via CAN
+            int result = sendStreamData(streamingTargetSlaveId, pageIndex, offset, data, dataSize, seq);
+            
+            if (result < 0) {
+                log_e("Failed to send data to slave: result=%d", result);
+                sendSerialStreamNak(CAN_OTA_ERR_SEND, pageIndex, offset);
+            }
+            // Note: ACK comes from slave via handleSlaveStreamResponse()
+            break;
+        }
+        
+        case STREAM_FINISH: {
+            // Format: [SYNC][CMD][MD5(16)][CHECKSUM]
+            if (streamRxPos != 3 + 16 + 1) {
+                log_e("STREAM_FINISH wrong size: %d (expected 20)", streamRxPos);
+                sendSerialStreamNak(CAN_OTA_ERR_INVALID_SIZE, 0xFFFF, 0);
+                return;
+            }
+            
+            const uint8_t* md5 = streamRxBuffer + 3;
+            
+            log_i("Binary STREAM_FINISH received - forwarding to slave");
+            int result = finishStream(streamingTargetSlaveId, md5);
+            
+            if (result == 0) {
+                // Success - slave verified MD5
+                StreamAck ack;
+                ack.status = CAN_OTA_OK;
+                ack.canId = can_controller::device_can_id;
+                ack.lastCompletePage = 0xFFFF;  // Indicates completion
+                ack.bytesReceived = streamingFirmwareSize;
+                ack.nextExpectedSeq = 0;
+                ack.reserved = 0;
+                sendSerialStreamAck(&ack);
+                
+                exitStreamingBinaryMode();
+            } else {
+                sendSerialStreamNak(CAN_OTA_ERR_CRC, 0xFFFF, 0);
+                exitStreamingBinaryMode();
+            }
+            break;
+        }
+        
+        case STREAM_ABORT: {
+            log_w("Binary STREAM_ABORT received");
+            // Forward abort to slave
+            uint8_t buf[2] = {STREAM_ABORT, 0};
+            can_controller::sendCanMessage(streamingTargetSlaveId, buf, sizeof(buf));
+            exitStreamingBinaryMode();
+            break;
+        }
+        
+        default:
+            log_w("Unknown binary stream command: 0x%02X", cmd);
+            break;
+    }
+}
+
+bool processBinaryStreamPacket() {
+    if (!streamingBinaryModeActive) {
+        return false;
+    }
+    
+    // Check for timeout
+    if ((millis() - streamingLastActivityTime) > STREAM_BINARY_TIMEOUT_MS) {
+        log_e("Binary streaming timeout - no activity for %lu ms", millis() - streamingLastActivityTime);
+        sendSerialStreamNak(CAN_OTA_ERR_TIMEOUT, 0, 0);
+        exitStreamingBinaryMode();
+        return false;
+    }
+    
+    bool packetProcessed = false;
+    
+    // Read available bytes from Serial
+    while (Serial.available() > 0) {
+        uint8_t byte = Serial.read();
+        
+        if (!streamSynced) {
+            // Looking for sync sequence 0xAA 0x55
+            if (streamSyncState == 0) {
+                if (byte == STREAM_SYNC_1) {
+                    streamSyncState = 1;
+                }
+            } else {  // streamSyncState == 1
+                if (byte == STREAM_SYNC_2) {
+                    // Sync found! Start collecting packet
+                    streamSynced = true;
+                    streamRxPos = 0;
+                    streamRxBuffer[streamRxPos++] = STREAM_SYNC_1;
+                    streamRxBuffer[streamRxPos++] = STREAM_SYNC_2;
+                    streamExpectedSize = 0;  // Will be determined from command
+                } else if (byte == STREAM_SYNC_1) {
+                    // Still looking for 0x55
+                    streamSyncState = 1;
+                } else {
+                    // Reset
+                    streamSyncState = 0;
+                }
+            }
+        } else {
+            // Collecting packet data
+            if (streamRxPos < STREAM_RX_BUFFER_SIZE) {
+                streamRxBuffer[streamRxPos++] = byte;
+            } else {
+                // Buffer overflow - abort
+                log_e("Binary RX buffer overflow");
+                streamSynced = false;
+                streamSyncState = 0;
+                streamRxPos = 0;
+                continue;
+            }
+            
+            // Determine expected size after receiving command byte
+            if (streamRxPos == 3 && streamExpectedSize == 0) {
+                uint8_t cmd = streamRxBuffer[2];
+                switch (cmd) {
+                    case STREAM_DATA:
+                        // Need to read header first to know data size
+                        // Header: [SYNC(2)][CMD(1)][page(2)][offset(2)][size(2)][seq(2)] = 11 bytes
+                        streamExpectedSize = 0;  // Will be updated after header
+                        break;
+                    case STREAM_FINISH:
+                        // [SYNC(2)][CMD(1)][MD5(16)][CHECKSUM(1)] = 20 bytes
+                        streamExpectedSize = 20;
+                        break;
+                    case STREAM_ABORT:
+                        // [SYNC(2)][CMD(1)][CHECKSUM(1)] = 4 bytes
+                        streamExpectedSize = 4;
+                        break;
+                    default:
+                        // Unknown command - try to recover
+                        log_w("Unknown binary cmd 0x%02X - resetting sync", cmd);
+                        streamSynced = false;
+                        streamSyncState = 0;
+                        streamRxPos = 0;
+                        continue;
+                }
+            }
+            
+            // For STREAM_DATA, determine size after receiving header
+            if (streamRxBuffer[2] == STREAM_DATA && streamRxPos == 11 && streamExpectedSize == 0) {
+                uint16_t dataSize = (streamRxBuffer[7] << 8) | streamRxBuffer[8];
+                streamExpectedSize = 11 + dataSize + 1;  // Header + data + checksum
+                
+                if (streamExpectedSize > STREAM_RX_BUFFER_SIZE) {
+                    log_e("Data packet too large: %d bytes", streamExpectedSize);
+                    streamSynced = false;
+                    streamSyncState = 0;
+                    streamRxPos = 0;
+                    continue;
+                }
+            }
+            
+            // Check if packet complete
+            if (streamExpectedSize > 0 && streamRxPos >= streamExpectedSize) {
+                processCompleteBinaryPacket();
+                
+                // Reset for next packet
+                streamSynced = false;
+                streamSyncState = 0;
+                streamRxPos = 0;
+                streamExpectedSize = 0;
+                packetProcessed = true;
+            }
+        }
+    }
+    
+    return packetProcessed;
+}
+
+/**
+ * @brief Called when slave sends ACK/NAK - forward to Python via Serial
+ */
+void forwardSlaveAckToSerial() {
+    if (!streamingBinaryModeActive) return;
+    
+    if (slaveAckReceived) {
+        StreamAck ack;
+        ack.status = CAN_OTA_OK;
+        ack.canId = can_controller::device_can_id;
+        ack.lastCompletePage = slaveAckPage;
+        ack.bytesReceived = slaveAckBytes;
+        ack.nextExpectedSeq = 0;
+        ack.reserved = 0;
+        
+        sendSerialStreamAck(&ack);
+        slaveAckReceived = false;  // Clear flag after forwarding
+    }
+    
+    if (slaveNakReceived) {
+        sendSerialStreamNak(CAN_OTA_ERR_NAK, slaveNakOffset, 0);
+        slaveNakReceived = false;  // Clear flag after forwarding
+    }
 }
 
 #endif // CAN_SEND_COMMANDS

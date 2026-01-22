@@ -1900,6 +1900,45 @@ namespace can_controller
         cJSON *nonworkingArray = cJSON_CreateIntArray(nonworkingIntArray, MAX_CAN_DEVICES);
         cJSON_AddItemToObject(doc, "nonworking", nonworkingArray);
 
+        // CAN Bus Health Diagnostics - read TWAI driver status
+        // This helps diagnose bus issues like devices bombarding the bus
+        twai_status_info_t status;
+        if (twai_get_status_info(&status) == ESP_OK) {
+            cJSON *busHealth = cJSON_CreateObject();
+            
+            // State: 0=STOPPED, 1=RUNNING, 2=BUS_OFF, 3=RECOVERING
+            const char* stateStr = "unknown";
+            switch (status.state) {
+                case TWAI_STATE_STOPPED: stateStr = "stopped"; break;
+                case TWAI_STATE_RUNNING: stateStr = "running"; break;
+                case TWAI_STATE_BUS_OFF: stateStr = "bus_off"; break;
+                case TWAI_STATE_RECOVERING: stateStr = "recovering"; break;
+            }
+            cJSON_AddStringToObject(busHealth, "state", stateStr);
+            
+            // Error counters - high values indicate bus problems
+            cJSON_AddNumberToObject(busHealth, "tx_error_counter", status.tx_error_counter);
+            cJSON_AddNumberToObject(busHealth, "rx_error_counter", status.rx_error_counter);
+            
+            // Queue status - high values may indicate congestion
+            cJSON_AddNumberToObject(busHealth, "msgs_to_tx", status.msgs_to_tx);
+            cJSON_AddNumberToObject(busHealth, "msgs_to_rx", status.msgs_to_rx);
+            
+            // Missed messages - indicates buffer overflow / bus flooding
+            cJSON_AddNumberToObject(busHealth, "tx_failed_count", status.tx_failed_count);
+            cJSON_AddNumberToObject(busHealth, "rx_missed_count", status.rx_missed_count);
+            cJSON_AddNumberToObject(busHealth, "rx_overrun_count", status.rx_overrun_count);
+            cJSON_AddNumberToObject(busHealth, "arb_lost_count", status.arb_lost_count);
+            cJSON_AddNumberToObject(busHealth, "bus_error_count", status.bus_error_count);
+            
+            cJSON_AddItemToObject(doc, "bus_health", busHealth);
+            
+            // Also print to serial for immediate diagnostics
+            Serial.printf("++\n{\"can_bus_health\": {\"state\": \"%s\", \"tx_err\": %u, \"rx_err\": %u, \"rx_missed\": %u, \"bus_err\": %u}}\n--\n",
+                          stateStr, status.tx_error_counter, status.rx_error_counter, 
+                          status.rx_missed_count, status.bus_error_count);
+        }
+
         // add the list of available (online) CAN IDs
         int availableIntArray[MAX_CAN_DEVICES];
         for (int i = 0; i < MAX_CAN_DEVICES; ++i)

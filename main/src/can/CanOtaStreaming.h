@@ -51,7 +51,7 @@ constexpr size_t STREAM_CHUNKS_PER_PAGE = STREAM_PAGE_SIZE / STREAM_CHUNK_SIZE;
 constexpr size_t STREAM_ACK_INTERVAL = STREAM_PAGE_SIZE;
 
 // Timeouts
-constexpr uint32_t STREAM_PAGE_TIMEOUT_MS = 10000;  // 10s per page
+constexpr uint32_t STREAM_PAGE_TIMEOUT_MS = 30000;  // 30s per page
 constexpr uint32_t STREAM_TOTAL_TIMEOUT_MS = 300000; // 5 min total
 
 // Message types (using unused range 0x70-0x7F)
@@ -65,6 +65,7 @@ enum StreamMessageType : uint8_t {
     STREAM_STATUS   = 0x76,  // Query status
 };
 
+static int CAN_OTA_ERROR_ABORTED = 0xFF;
 // ============================================================================
 // Data Structures
 // ============================================================================

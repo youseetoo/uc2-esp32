@@ -218,12 +218,14 @@ def upload_firmware_streaming(firmware_path: str):
     estimated_time = num_pages * 0.5  # ~0.5 seconds per page
     print(f"Estimated time: {estimated_time:.0f} seconds ({estimated_time/60:.1f} minutes)")
     print("=" * 70)
-    
+
     # Open serial
     print(f"\n[1] Opening serial port...")
     ser = serial.Serial(PORT, BAUD, timeout=0.1)
     time.sleep(0.3)
     drain_serial(ser, "initial")
+    send_json(ser, {"task": "/can_act", "debug": 1})
+
     
     start_time = time.time()
     
@@ -249,7 +251,7 @@ def upload_firmware_streaming(firmware_path: str):
             print(f"  Response: {response}")
             return False
         print("  ✓ Streaming session started")
-        
+        '''b\'[326584][I][CanOtaStreaming.cpp:427] actFromJsonStreaming(): Target CAN ID: 11\\r\\n[326586][I][CanOtaStreaming.cpp:456] actFromJsonStreaming(): Stream OTA START to CAN ID 11: size=876784, page_size=4096, chunk_size=512\\r\\n[326588][I][CanOtaStreaming.cpp:464] actFromJsonStreaming(): Relaying STREAM_START to slave 0x0B\\r\\n[326590][I][CanOtaStreaming.cpp:653] startStreamToSlave(): Starting stream to slave 0x0B: 876784 bytes, 215 pages\\r\\n[326968][I][CanOtaStreaming.cpp:622] handleSlaveStreamResponse(): Slave STREAM_ACK: page=65535, bytes=0, nextSeq=0\\r\\n++\\n{"success":true,"qid":1}\\n--\\n\\x00\''''
         # Wait for slave to initialize
         time.sleep(0.5)
         

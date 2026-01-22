@@ -106,7 +106,13 @@ class TwaiCAN {
     bool recover(void);
 
     bool restart(void);
-    
+
+    /*
+    bool enableHealthAlerts();
+    void logBusHealth(uint32_t observe_ms, uint32_t alert_wait_ms);
+    bool readHealthSnapshot(TwaiHealthSnapshot& out, uint32_t alert_wait_ms);
+    void logBusHealth(uint32_t observe_ms, uint32_t alert_wait_ms);
+    */
     // Pass frame either by reference or pointer; timeout in ms, you can pass 0 for non blocking
     inline bool IRAM_ATTR readFrame(CanFrame& frame, uint32_t timeout = 1000) { return readFrame(&frame, timeout); }
     inline bool IRAM_ATTR readFrame(CanFrame* frame, uint32_t timeout = 1000) {

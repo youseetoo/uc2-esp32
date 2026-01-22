@@ -11,6 +11,7 @@
 
 #include "CanOtaStreaming.h"
 #include "can_controller.h"
+#include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE
 #include <Update.h>
 #include <MD5Builder.h>
 #include <esp_crc.h>
@@ -46,11 +47,12 @@ static volatile bool slaveNakReceived = false;
 
 static void flashWriterTask(void* param) {
     PageEntry entry;
-    
+    log_i("Flash writer task started");
     while (true) {
         // Wait for a page to be ready
         if (xQueueReceive(ctx.pageQueue, &entry, portMAX_DELAY) == pdTRUE) {
             // Verify CRC before writing
+            log_i("Flash writer received page %d for writing", entry.pageIndex);
             uint32_t calcCrc = esp_crc32_le(0, entry.data, STREAM_PAGE_SIZE);
             if (calcCrc != entry.crc32) {
                 log_e("Page %d CRC mismatch: expected 0x%08lX, got 0x%08lX", 
@@ -120,13 +122,18 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     log_i("STREAM_START: size=%lu, pages=%lu, pageSize=%u, chunkSize=%u",
           cmd->firmwareSize, cmd->totalPages, cmd->pageSize, cmd->chunkSize);
     
+    // Use the known master CAN ID for responses since ISO-TP doesn't provide source ID
+    // The sourceCanId parameter from PDU is unreliable (may be 0 or our own ID) // TODO: We should change that so that we have the source id instead of 0! 
+    uint8_t masterCanId = pinConfig.CAN_ID_CENTRAL_NODE;
+    log_i("Using master CAN ID %u for responses (sourceCanId param was %u)", masterCanId, sourceCanId);
+    
     // Validate
     if (cmd->firmwareSize > CAN_OTA_MAX_FIRMWARE_SIZE) {
         log_e("Firmware too large: %lu > %d", cmd->firmwareSize, CAN_OTA_MAX_FIRMWARE_SIZE);
         StreamNak nak = {CAN_OTA_ERR_INVALID_SIZE, can_controller::device_can_id, 0, 0, 0};
         uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
         memcpy(buf + 1, &nak, sizeof(nak));
-        can_controller::sendCanMessage(sourceCanId, buf, sizeof(buf));
+        can_controller::sendCanMessage(masterCanId, buf, sizeof(buf));
         return;
     }
     
@@ -141,7 +148,7 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
         StreamNak nak = {CAN_OTA_ERR_BEGIN, can_controller::device_can_id, 0, 0, 0};
         uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
         memcpy(buf + 1, &nak, sizeof(nak));
-        can_controller::sendCanMessage(sourceCanId, buf, sizeof(buf));
+        can_controller::sendCanMessage(masterCanId, buf, sizeof(buf));
         return;
     }
     
@@ -161,7 +168,7 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     ctx.nextExpectedSeq = 0;
     ctx.startTime = millis();
     ctx.lastDataTime = millis();
-    ctx.masterCanId = sourceCanId;
+    ctx.masterCanId = masterCanId;  // Use reliable central node ID, not sourceCanId
     
     // Reset page buffer
     memset(pageBuffer, 0xFF, STREAM_PAGE_SIZE);  // 0xFF = erased flash
@@ -170,10 +177,11 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     
     // Create flash writer task if not exists
     if (!ctx.flashWriterTask) {
+        log_i("Creating flash writer task");
         xTaskCreatePinnedToCore(
             flashWriterTask,
             "OTA_Flash",
-            4096,           // Stack size
+            16384,          // Stack size (16KB - Update.write needs deep stack)
             NULL,
             2,              // Priority (lower than CAN RX)
             &ctx.flashWriterTask,
@@ -181,7 +189,7 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
         );
     }
     
-    // Send ACK
+    // Send ACK back to master
     StreamAck ack = {
         CAN_OTA_OK,
         can_controller::device_can_id,
@@ -192,7 +200,8 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     };
     uint8_t buf[1 + sizeof(StreamAck)] = {STREAM_ACK};
     memcpy(buf + 1, &ack, sizeof(ack));
-    can_controller::sendCanMessage(sourceCanId, buf, sizeof(buf));
+    log_i("Sending STREAM_ACK to master CAN ID %u", masterCanId);
+    can_controller::sendCanMessage(masterCanId, buf, sizeof(buf));
     
     log_i("Streaming session started, expecting %lu pages", ctx.totalPages);
 }
@@ -399,15 +408,29 @@ static void handleFinishCmd(const uint8_t* data, size_t len, uint8_t sourceCanId
 }
 
 int actFromJsonStreaming(cJSON* doc) {
-    const cJSON* taskItem = cJSON_GetObjectItemCaseSensitive(doc, "task");
-    if (!cJSON_IsString(taskItem) || (taskItem->valuestring == NULL)) {
-        log_e("Invalid JSON: missing 'task' string");
-        return -1;
+    // Parse action field - accept both "cmd" and "action" for compatibility
+    cJSON* actionItem = cJSON_GetObjectItem(doc, "action");
+    if (!actionItem || !cJSON_IsString(actionItem)) {
+        actionItem = cJSON_GetObjectItem(doc, "cmd");
+        if (!actionItem || !cJSON_IsString(actionItem)) {
+            log_e("Invalid JSON: missing 'action' or 'cmd' string");
+            return -1;
+        }
+    }
+    const char* action = actionItem->valuestring;
+    
+    // Parse slave/target CAN ID - accept both "slaveId" and "canid" for compatibility
+    cJSON* canidItem = cJSON_GetObjectItem(doc, "canid");
+    if (!canidItem) canidItem = cJSON_GetObjectItem(doc, "slaveId");
+    
+    uint8_t targetCanId = can_controller::device_can_id;  // Default to self
+    if (canidItem && cJSON_IsNumber(canidItem)) {
+        targetCanId = (uint8_t)canidItem->valueint;
+        log_i("Target CAN ID: %u", targetCanId);
     }
     
-    const char* task = taskItem->valuestring;
     // {"task": "/can_ota_stream", "canid": 11, "action": "start", "firmware_size": 876784, "page_size": 4096, "chunk_size": 512, "md5": "43ba96b4d18c010201762b840476bf83", "qid": 1}
-    if (strcmp(task, "start") == 0) {
+    if (strcmp(action, "start") == 0) {
         // Start streaming session
         const cJSON* firmwareSizeItem = cJSON_GetObjectItemCaseSensitive(doc, "firmware_size");
         const cJSON* pageSizeItem = cJSON_GetObjectItemCaseSensitive(doc, "page_size");
@@ -420,24 +443,75 @@ int actFromJsonStreaming(cJSON* doc) {
             return -1;
         }
         
-        StreamStartCmd cmd;
-        cmd.firmwareSize = (uint32_t)firmwareSizeItem->valuedouble;
-        cmd.totalPages = (cmd.firmwareSize + STREAM_PAGE_SIZE - 1) / STREAM_PAGE_SIZE;
-        cmd.pageSize = (uint16_t)pageSizeItem->valuedouble;
-        cmd.chunkSize = (uint16_t)chunkSizeItem->valuedouble;
+        uint32_t firmwareSize = (uint32_t)firmwareSizeItem->valuedouble;
+        uint16_t pageSize = (uint16_t)pageSizeItem->valuedouble;
+        uint16_t chunkSize = (uint16_t)chunkSizeItem->valuedouble;
         
         // Parse MD5 hex string
+        uint8_t md5Hash[16];
         const char* md5Str = md5Item->valuestring;
         for (int i = 0; i < 16; i++) {
-            sscanf(&md5Str[i*2], "%2hhx", &cmd.md5Hash[i]);
+            sscanf(&md5Str[i*2], "%2hhx", &md5Hash[i]);
         }
         
-        handleStartCmd(reinterpret_cast<const uint8_t*>(&cmd), sizeof(cmd), can_controller::device_can_id);
+        log_i("Stream OTA START to CAN ID %u: size=%lu, page_size=%u, chunk_size=%u",
+              targetCanId, firmwareSize, pageSize, chunkSize);
         
+        int result;
+        
+#ifdef CAN_SEND_COMMANDS
+        // Master mode: Check if target is self or a remote slave
+        if (targetCanId != can_controller::device_can_id) {
+            // Relay to remote slave over CAN
+            log_i("Relaying STREAM_START to slave 0x%02X", targetCanId);
+            result = startStreamToSlave(targetCanId, firmwareSize, md5Hash);
+        } else 
+#endif
+        {
+            // Local mode: Handle OTA on this device
+            log_i("Starting local streaming OTA");
+            StreamStartCmd cmd;
+            cmd.firmwareSize = firmwareSize;
+            cmd.totalPages = (firmwareSize + STREAM_PAGE_SIZE - 1) / STREAM_PAGE_SIZE;
+            cmd.pageSize = pageSize;
+            cmd.chunkSize = chunkSize;
+            memcpy(cmd.md5Hash, md5Hash, 16);
+            handleStartCmd(reinterpret_cast<const uint8_t*>(&cmd), sizeof(cmd), can_controller::device_can_id);
+            result = 0;
+        }
+        
+        // Extract qid if present
+        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+        if (qidItem && cJSON_IsNumber(qidItem)) {
+            return (result >= 0) ? qidItem->valueint : result;
+        }
+        return result;
+    }
+    else if (strcmp(action, "status") == 0) {
+        // Status query
+        log_i("Stream OTA status query");
+        // TODO: implement status response
+        return 0;
+    }
+    else if (strcmp(action, "abort") == 0) {
+        // Abort streaming session
+        log_i("Stream OTA abort to CAN ID %u", targetCanId);
+        
+#ifdef CAN_SEND_COMMANDS
+        if (targetCanId != can_controller::device_can_id) {
+            // Send abort to remote slave
+            uint8_t buf[2] = {STREAM_ABORT, CAN_OTA_ERROR_ABORTED};
+            can_controller::sendCanMessage(targetCanId, buf, sizeof(buf));
+        } else
+#endif
+        {
+            // Local abort
+            abort(CAN_OTA_ERROR_ABORTED);
+        }
         return 0;
     }
     
-    log_e("Unknown task: %s", task);
+    log_e("Unknown action: %s", action);
     return -1;
 
 }

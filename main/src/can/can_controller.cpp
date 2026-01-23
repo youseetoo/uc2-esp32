@@ -1191,8 +1191,9 @@ namespace can_controller
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
-        xTaskCreate(recieveTask, "CAN_RecieveTask", 4096, NULL, 1, NULL);
-        xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 4096, NULL, 1, NULL);
+        // Increased stack sizes for OTA handling which uses Update.write(), logging, etc.
+        xTaskCreate(recieveTask, "CAN_RecieveTask", 6144, NULL, 1, NULL);
+        xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 8192, NULL, 1, NULL);
 
         if (sendQueue == nullptr)
         {

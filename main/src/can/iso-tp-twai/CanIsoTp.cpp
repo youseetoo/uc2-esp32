@@ -1,5 +1,6 @@
 #include "CanIsoTp.hpp"
 #include "../can_controller.h"
+#include <ESP.h>  // For ESP.getFreeHeap() and ESP.getMaxAllocHeap()
 
 // use can_controller namespace for debugState
 using namespace can_controller;
@@ -385,12 +386,16 @@ int CanIsoTp::receive_SingleFrame(pdu_t *pdu, CanFrame *frame)
 
     // we have to perform a malloc here, as we don't know the datatype to cast on default
     // Allocate enough space for the entire payload and cast it later
-    if (can_controller::debugState) log_i("Allocating memory for pdu->data");
+    if (can_controller::debugState) {
+        log_i("Allocating memory for pdu->data (single frame), size=%u, heap free=%lu, largest block=%lu", 
+              pdu->len, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
+    }
     pdu->data = (uint8_t *)malloc(pdu->len);
     if (!pdu->data)
     {
-        // Could not allocate; set an error
-        if (can_controller::debugState) log_e("Could not allocate memory for data");
+        // Could not allocate; set an error - log heap state for debugging
+        log_e("Could not allocate memory for data: requested=%u, heap free=%lu, largest block=%lu", 
+              pdu->len, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
         pdu->cantpState = CANTP_ERROR;
         return 1;
     }
@@ -434,12 +439,16 @@ int CanIsoTp::receive_FirstFrame(pdu_t *pdu, CanFrame *frame)
         */
        
         // Allocate enough space for the entire payload and cast it later
-        if (can_controller::debugState) log_i("Allocating memory for pdu->data");
+        if (can_controller::debugState) {
+            log_i("Allocating memory for pdu->data, size=%u, heap free=%lu, largest block=%lu", 
+                  totalLen, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
+        }
         pdu->data = (uint8_t *)malloc(totalLen);
         if (!pdu->data)
         {
-            // Could not allocate; set an error
-            if (can_controller::debugState) log_e("Could not allocate memory for data");
+            // Could not allocate; set an error - log heap state for debugging
+            log_e("Could not allocate memory for data: requested=%u, heap free=%lu, largest block=%lu", 
+                  totalLen, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
             pdu->cantpState = CANTP_ERROR;
             return 1;
         }

@@ -224,11 +224,14 @@ jobs:
         run: |
           set -e
           cd firmware
+          TAG="${{ steps.release_info.outputs.tag }}"
+          
           cat > firmware-index.json << INDEXEOF
           {
-            "version": "${{ steps.release_info.outputs.tag }}",
+            "version": "$TAG",
             "generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "repository": "${{ env.GITHUB_REPO }}",
+            "cdn_base": "https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}",
             "firmware": [
           INDEXEOF
 
@@ -254,6 +257,10 @@ jobs:
           done
 
           echo "]}" >> firmware-index.json
+          
+          # Show the index for debugging
+          echo "==> firmware-index.json created:"
+          cat firmware-index.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -263,11 +270,20 @@ jobs:
           body: |
             ## UC2 Firmware Release ${{ steps.release_info.outputs.tag }}
 
-            Firmware binaries and manifests are mirrored to **youseetoo/uc2-esp32-binaries**
-            on a branch named exactly: `${{ steps.release_info.outputs.tag }}`
-
-            jsDelivr base:
+            ### Download via jsDelivr CDN
+            All firmware binaries and manifests are available via jsDelivr:
+            ```
             https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${{ steps.release_info.outputs.tag }}/
+            ```
+
+            ### Flash with Web Flasher
+            Use the [UC2 Web Flasher](https://youseetoo.github.io/flasher.html) to install firmware directly in your browser.
+
+            ### Firmware Index
+            - [firmware-index.json](https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${{ steps.release_info.outputs.tag }}/firmware-index.json)
+
+            ### Available Boards
+            See the firmware index or web flasher for a complete list of supported boards.
           files: |
             firmware/*.bin
             firmware/*-manifest.json
@@ -312,13 +328,59 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-          # create a clean branch per tag
+          # Create a clean orphan branch per tag (no history)
           git checkout --orphan "$TAG"
-          git rm -rf . || true
+          git rm -rf . 2>/dev/null || true
 
-          cp -v ../firmware/*.bin .
-          cp -v ../firmware/*-manifest.json .
-          cp -v ../firmware/firmware-index.json .
+          # Copy all firmware files
+          cp -v ../firmware/*.bin . || echo "No .bin files found"
+          cp -v ../firmware/*-manifest.json . || echo "No manifest files found"
+          
+          # Create firmware-index.json if it doesn't exist
+          if [ ! -f ../firmware/firmware-index.json ]; then
+            echo "==> Creating firmware-index.json from manifests"
+            cat > firmware-index.json << 'INDEXEOF'
+          {
+            "version": "TAG_PLACEHOLDER",
+            "generated": "DATE_PLACEHOLDER",
+            "repository": "youseetoo/uc2-esp32",
+            "cdn_base": "CDN_PLACEHOLDER",
+            "firmware": [
+          INDEXEOF
+            
+            first=true
+            for manifest in *-manifest.json; do
+              [ -f "$manifest" ] || continue
+              board_id="${manifest%-manifest.json}"
+              
+              if [ "$first" = true ]; then first=false; else echo "," >> firmware-index.json; fi
+              
+              name=$(jq -r '.name' "$manifest" 2>/dev/null || echo "Unknown")
+              chip=$(jq -r '.builds[0].chipFamily' "$manifest" 2>/dev/null || echo "ESP32")
+              
+              cat >> firmware-index.json << EOF
+              {
+                "id": "$board_id",
+                "name": "$name",
+                "chipFamily": "$chip",
+                "manifest": "${board_id}-manifest.json",
+                "binary": "${board_id}.bin"
+              }
+          EOF
+            done
+            
+            echo "]}" >> firmware-index.json
+            
+            # Replace placeholders
+            sed -i "s|TAG_PLACEHOLDER|$TAG|g" firmware-index.json
+            sed -i "s|DATE_PLACEHOLDER|$(date -u +%Y-%m-%dT%H:%M:%SZ)|g" firmware-index.json
+            sed -i "s|CDN_PLACEHOLDER|https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}|g" firmware-index.json
+          else
+            cp -v ../firmware/firmware-index.json .
+          fi
+          
+          echo "==> Files in binaries directory:"
+          ls -lh
 
       - name: Rewrite manifests to absolute jsDelivr .bin URLs
         shell: bash
@@ -326,7 +388,9 @@ jobs:
           set -e
           TAG="${{ steps.tag.outputs.tag }}"
           cd binaries
-          BASE="https://cdn.jsdelivr.net/gh/youseetoo/uc2-esp32-binaries@${TAG}"
+          BASE="https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}"
+
+          echo "==> Rewriting manifests to use: $BASE"
 
           for manifest in *-manifest.json; do
             [ -f "$manifest" ] || continue
@@ -336,6 +400,8 @@ jobs:
               .builds |= map(.parts |= map(.path = $url))
             ' "$manifest" > "${manifest}.tmp"
             mv "${manifest}.tmp" "$manifest"
+            
+            echo "  Updated: $manifest -> ${BASE}/${board_id}.bin"
           done
 
           jq --arg base "$BASE" '
@@ -345,6 +411,8 @@ jobs:
             )
           ' firmware-index.json > firmware-index.json.tmp
           mv firmware-index.json.tmp firmware-index.json
+          
+          echo "  Updated firmware-index.json to use raw.githubusercontent.com"
 
       - name: Commit & push branch
         shell: bash

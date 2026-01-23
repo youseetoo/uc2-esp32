@@ -365,4 +365,4 @@ if __name__ == "__main__":
     CAN_ID = args.canid
     
     success = upload_firmware_streaming(args.firmware)
-    sys.exit(0 if success else 1)
+sys.exit(0 if success else 1)

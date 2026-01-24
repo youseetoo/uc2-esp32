@@ -68,20 +68,26 @@ static void flashWriterTask(void* param) {
                 continue;
             }
             
+            // Determine actual bytes for this page (last page may be partial)
+            size_t bytesToWrite = entry.actualBytes > 0 ? entry.actualBytes : STREAM_PAGE_SIZE;
+            
             // Write to flash (this blocks, but we're on a separate task)
-            size_t written = Update.write(pageData, STREAM_PAGE_SIZE);
-            if (written != STREAM_PAGE_SIZE) {
+            size_t written = Update.write(pageData, bytesToWrite);
+            if (written != bytesToWrite) {
                 log_e("Flash write error at page %d: wrote %d/%d bytes",
-                      entry.pageIndex, written, STREAM_PAGE_SIZE);
+                      entry.pageIndex, written, bytesToWrite);
                 abort(CAN_OTA_ERR_WRITE);
                 continue;
             }
             
-            // Update MD5
-            md5Builder.add(pageData, STREAM_PAGE_SIZE);
+            // Update MD5 with actual bytes only (important for last page)
+            md5Builder.add(pageData, bytesToWrite);
             
-            log_i("Page %d written to flash (%lu bytes total, heap free=%lu)", 
-                  entry.pageIndex, (entry.pageIndex + 1) * STREAM_PAGE_SIZE,
+            // Calculate cumulative bytes correctly
+            size_t cumulativeBytes = (size_t)entry.pageIndex * STREAM_PAGE_SIZE + bytesToWrite;
+            
+            log_i("Page %d written to flash (%lu bytes, %lu cumulative, heap=%lu)", 
+                  entry.pageIndex, bytesToWrite, cumulativeBytes,
                   (unsigned long)ESP.getFreeHeap());
         }
     }
@@ -315,11 +321,19 @@ static void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId
         uint8_t bufferToUse = currentBufferIndex;
         memcpy(pageDataBuffers[bufferToUse], pageBuffer, STREAM_PAGE_SIZE);
         
-        // Queue page entry (only ~7 bytes, not 4KB!)
+        // Calculate actual bytes for this page (last page may be partial)
+        size_t pageStartByte = (size_t)currentPageIndex * STREAM_PAGE_SIZE;
+        size_t actualBytesInPage = STREAM_PAGE_SIZE;
+        if (pageStartByte + STREAM_PAGE_SIZE > ctx.firmwareSize) {
+            actualBytesInPage = ctx.firmwareSize - pageStartByte;
+        }
+        
+        // Queue page entry (only ~9 bytes, not 4KB!)
         PageEntry entry;
         entry.pageIndex = currentPageIndex;
         entry.bufferIndex = bufferToUse;
         entry.crc32 = currentPageCrc;
+        entry.actualBytes = (uint16_t)actualBytesInPage;
         
         if (xQueueSend(ctx.pageQueue, &entry, 0) != pdTRUE) {
             log_e("Page queue full! Flash writer too slow");

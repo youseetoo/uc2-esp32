@@ -160,6 +160,7 @@ struct PageEntry {
     uint16_t pageIndex;
     uint8_t  bufferIndex;   // Index into static buffer (0 or 1)
     uint32_t crc32;
+    uint16_t actualBytes;   // Actual bytes in page (for MD5 - last page may be partial)
 };
 
 // Declare external static buffers (defined in .cpp)

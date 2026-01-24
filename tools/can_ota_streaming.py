@@ -55,6 +55,10 @@ STREAM_STATUS = 0x76
 PAGE_ACK_TIMEOUT = 10.0  # 10 seconds per page ACK
 TOTAL_TIMEOUT = 300.0    # 5 minutes total
 
+# Retry configuration
+MAX_PAGE_RETRIES = 3     # Maximum retries per page
+MAX_SESSION_RETRIES = 2  # Maximum full session restart attempts
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -175,17 +179,62 @@ def wait_for_stream_ack(ser, expected_page: int, timeout: float = PAGE_ACK_TIMEO
     return (False, -1, 0, bytes(buffer))
 
 def send_abort(ser):
-    """Send abort command"""
+    """Send abort command and wait for confirmation"""
     print("\n  Sending ABORT...")
     send_json(ser, {"task": "/can_ota_stream", "canid": CAN_ID, "action": "abort"}, wait_response=False)
-    time.sleep(0.5)
+    time.sleep(1.0)  # Give slave time to abort
     drain_serial(ser, "abort")
+    time.sleep(0.5)  # Additional settle time
+
+def reset_slave_state(ser):
+    """Reset slave OTA state by sending abort and waiting"""
+    print("  Resetting slave state...")
+    send_abort(ser)
+    # Send another abort to be sure
+    time.sleep(0.5)
+    send_json(ser, {"task": "/can_ota_stream", "canid": CAN_ID, "action": "abort"}, wait_response=False)
+    time.sleep(1.0)
+    drain_serial(ser, "reset")
+
+def send_page_with_retry(ser, page_idx, page_data, seq_start, max_retries=MAX_PAGE_RETRIES):
+    """
+    Send a page with retry logic.
+    Returns: (success, new_seq, acked_page, acked_bytes)
+    """
+    for retry in range(max_retries):
+        seq = seq_start
+        
+        # Send all chunks for this page
+        for chunk_idx in range(CHUNKS_PER_PAGE):
+            chunk_start = chunk_idx * CHUNK_SIZE
+            chunk_end = chunk_start + CHUNK_SIZE
+            chunk_data = page_data[chunk_start:chunk_end]
+            offset = chunk_idx * CHUNK_SIZE
+            
+            packet = build_stream_data_packet(page_idx, offset, seq, chunk_data)
+            ser.write(packet)
+            seq += 1
+        
+        ser.flush()
+        
+        # Wait for ACK
+        success, acked_page, acked_bytes, raw = wait_for_stream_ack(ser, page_idx)
+        
+        if success:
+            return (True, seq, acked_page, acked_bytes)
+        
+        if retry < max_retries - 1:
+            print(f" [RETRY {retry+1}/{max_retries}]", end="")
+            time.sleep(0.5)  # Small delay before retry
+            drain_serial(ser, "retry", verbose=False)
+    
+    return (False, seq, -1, 0)
 
 # ============================================================================
 # MAIN UPLOAD FUNCTION
 # ============================================================================
 
-def upload_firmware_streaming(firmware_path: str):
+def upload_firmware_streaming(firmware_path: str, session_retry: int = 0):
     """Upload firmware using streaming protocol (4KB page-based)"""
     
     # Load firmware
@@ -202,28 +251,38 @@ def upload_firmware_streaming(firmware_path: str):
     # Calculate pages
     num_pages = (firmware_size + PAGE_SIZE - 1) // PAGE_SIZE
     
-    print("=" * 70)
-    print("CAN OTA STREAMING Upload")
-    print("=" * 70)
-    print(f"Port:       {PORT}")
-    print(f"Baud:       {BAUD}")
-    print(f"CAN ID:     {CAN_ID}")
-    print(f"Firmware:   {firmware_path.name}")
-    print(f"Size:       {firmware_size:,} bytes")
-    print(f"Pages:      {num_pages} (of {PAGE_SIZE} bytes each)")
-    print(f"Chunks/pg:  {CHUNKS_PER_PAGE} (of {CHUNK_SIZE} bytes each)")
-    print(f"MD5:        {md5_hex}")
-    print("=" * 70)
-    
-    estimated_time = num_pages * 0.5  # ~0.5 seconds per page
-    print(f"Estimated time: {estimated_time:.0f} seconds ({estimated_time/60:.1f} minutes)")
-    print("=" * 70)
+    if session_retry == 0:
+        print("=" * 70)
+        print("CAN OTA STREAMING Upload")
+        print("=" * 70)
+        print(f"Port:       {PORT}")
+        print(f"Baud:       {BAUD}")
+        print(f"CAN ID:     {CAN_ID}")
+        print(f"Firmware:   {firmware_path.name}")
+        print(f"Size:       {firmware_size:,} bytes")
+        print(f"Pages:      {num_pages} (of {PAGE_SIZE} bytes each)")
+        print(f"Chunks/pg:  {CHUNKS_PER_PAGE} (of {CHUNK_SIZE} bytes each)")
+        print(f"MD5:        {md5_hex}")
+        print("=" * 70)
+        
+        estimated_time = num_pages * 0.5  # ~0.5 seconds per page
+        print(f"Estimated time: {estimated_time:.0f} seconds ({estimated_time/60:.1f} minutes)")
+        print("=" * 70)
+    else:
+        print(f"\n{'='*70}")
+        print(f"SESSION RETRY {session_retry}/{MAX_SESSION_RETRIES}")
+        print(f"{'='*70}")
 
     # Open serial
     print(f"\n[1] Opening serial port...")
     ser = serial.Serial(PORT, BAUD, timeout=0.1)
     time.sleep(0.3)
     drain_serial(ser, "initial")
+    
+    # Reset slave state before starting (especially important on retry)
+    if session_retry > 0:
+        reset_slave_state(ser)
+    
     send_json(ser, {"task": "/can_act", "debug": 1})
 
     
@@ -260,6 +319,7 @@ def upload_firmware_streaming(firmware_path: str):
         
         seq = 0  # Global sequence counter
         bytes_sent = 0
+        failed_pages = 0
         
         for page_idx in range(num_pages):
             page_start = page_idx * PAGE_SIZE
@@ -270,41 +330,33 @@ def upload_firmware_streaming(firmware_path: str):
             if len(page_data) < PAGE_SIZE:
                 page_data = page_data + bytes(PAGE_SIZE - len(page_data))
             
-            # Send all chunks for this page (no waiting between chunks)
-            for chunk_idx in range(CHUNKS_PER_PAGE):
-                chunk_start = chunk_idx * CHUNK_SIZE
-                chunk_end = chunk_start + CHUNK_SIZE
-                chunk_data = page_data[chunk_start:chunk_end]
-                offset = chunk_idx * CHUNK_SIZE
-                
-                # Build and send packet
-                packet = build_stream_data_packet(page_idx, offset, seq, chunk_data)
-                ser.write(packet)
-                seq += 1
-                bytes_sent += len(chunk_data)
-            
-            ser.flush()
-            
-            # Progress
+            # Progress display
             progress = (page_idx + 1) / num_pages * 100
             elapsed = time.time() - start_time
             speed = bytes_sent / elapsed / 1024 if elapsed > 0 else 0
             print(f"\r  Page {page_idx+1}/{num_pages} ({progress:.1f}%) - {speed:.1f} KB/s ", end="")
             
-            # Wait for ACK after each page
-            success, acked_page, acked_bytes, raw = wait_for_stream_ack(ser, page_idx)
+            # Send page with retry logic
+            success, seq, acked_page, acked_bytes = send_page_with_retry(
+                ser, page_idx, page_data, seq
+            )
+            
+            bytes_sent += PAGE_SIZE
             
             if not success:
-                print(f"\n  ERROR: Page {page_idx} ACK failed!")
-                if raw:
-                    # Check for log messages
-                    try:
-                        text = raw.decode('utf-8', errors='replace')
-                        print(f"  Debug: {text[:200]}")
-                    except:
-                        pass
-                send_abort(ser)
-                return False
+                failed_pages += 1
+                print(f"\n  ERROR: Page {page_idx} failed after {MAX_PAGE_RETRIES} retries!")
+                
+                # Check if we should retry the whole session
+                if session_retry < MAX_SESSION_RETRIES:
+                    print(f"  Attempting session restart...")
+                    send_abort(ser)
+                    ser.close()
+                    time.sleep(2.0)  # Give slave time to recover
+                    return upload_firmware_streaming(firmware_path, session_retry + 1)
+                else:
+                    send_abort(ser)
+                    return False
             
             if page_idx % 10 == 0:
                 print(f"✓ ACK (page={acked_page}, bytes={acked_bytes})")

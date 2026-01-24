@@ -1125,24 +1125,19 @@ namespace can_controller
         {
             if (xQueueReceive(recieveQueue, &rxPdu, portMAX_DELAY) == pdTRUE)
             {
-                // Make a local copy of rxPdu
-                pdu_t copy = rxPdu;
-                if (copy.len > 0 && copy.data != nullptr)
+                // Process directly using rxPdu - no need to copy
+                if (rxPdu.len > 0 && rxPdu.data != nullptr)
                 {
-                    // Allocate space and copy the payload
-                    // Serial.printf("About to malloc: %u bytes\n", (unsigned)copy.len);
-                    copy.data = (uint8_t *)malloc(copy.len);
-                    if (copy.data)
-                    {
-                        memcpy(copy.data, rxPdu.data, copy.len);
-                        // Now dispatch using the copy
-                        dispatchIsoTpData(copy);
-                        free(copy.data);
-                    }
+                    // Dispatch directly with the original data
+                    dispatchIsoTpData(rxPdu);
+                    
+                    // CRITICAL: Free the ISO-TP allocated buffer after processing
+                    free(rxPdu.data);
+                    rxPdu.data = nullptr;
                 }
                 else
                 {
-                    dispatchIsoTpData(copy);
+                    dispatchIsoTpData(rxPdu);
                 }
             }
             vTaskDelay(1);

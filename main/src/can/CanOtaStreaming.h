@@ -52,7 +52,7 @@ constexpr size_t STREAM_ACK_INTERVAL = STREAM_PAGE_SIZE;
 
 // Timeouts
 constexpr uint32_t STREAM_PAGE_TIMEOUT_MS = 30000;  // 30s per page
-constexpr uint32_t STREAM_TOTAL_TIMEOUT_MS = 300000; // 5 min total
+constexpr uint32_t STREAM_TOTAL_TIMEOUT_MS = 600000; // 10 min total
 
 // Message types (using unused range 0x70-0x7F)
 enum StreamMessageType : uint8_t {
@@ -150,14 +150,20 @@ struct StreamContext {
 };
 
 // ============================================================================
-// Page Queue Entry
+// Page Queue Entry - uses index-based approach to avoid copying 4KB structs
 // ============================================================================
+
+// Static double-buffer for page data (avoids heap fragmentation)
+constexpr size_t PAGE_BUFFER_COUNT = 2;
 
 struct PageEntry {
     uint16_t pageIndex;
-    uint8_t  data[STREAM_PAGE_SIZE];
+    uint8_t  bufferIndex;   // Index into static buffer (0 or 1)
     uint32_t crc32;
 };
+
+// Declare external static buffers (defined in .cpp)
+extern uint8_t pageDataBuffers[PAGE_BUFFER_COUNT][STREAM_PAGE_SIZE];
 
 // ============================================================================
 // Function Declarations

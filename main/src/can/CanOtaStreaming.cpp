@@ -32,6 +32,10 @@ static size_t pageBufferOffset = 0;
 static uint16_t currentPageIndex = 0;
 static uint32_t currentPageCrc = 0;
 
+// Static double-buffer for page data (avoids heap fragmentation and 4KB copies)
+uint8_t pageDataBuffers[PAGE_BUFFER_COUNT][STREAM_PAGE_SIZE];
+static uint8_t currentBufferIndex = 0;  // Which buffer is currently being filled
+
 // Master-side state
 #ifdef CAN_SEND_COMMANDS
 static volatile bool slaveAckReceived = false;
@@ -51,9 +55,12 @@ static void flashWriterTask(void* param) {
     while (true) {
         // Wait for a page to be ready
         if (xQueueReceive(ctx.pageQueue, &entry, portMAX_DELAY) == pdTRUE) {
+            // Get pointer to the actual page data from static buffer
+            uint8_t* pageData = pageDataBuffers[entry.bufferIndex];
+            
             // Verify CRC before writing
-            log_i("Flash writer received page %d for writing", entry.pageIndex);
-            uint32_t calcCrc = esp_crc32_le(0, entry.data, STREAM_PAGE_SIZE);
+            log_i("Flash writer received page %d for writing (buffer %d)", entry.pageIndex, entry.bufferIndex);
+            uint32_t calcCrc = esp_crc32_le(0, pageData, STREAM_PAGE_SIZE);
             if (calcCrc != entry.crc32) {
                 log_e("Page %d CRC mismatch: expected 0x%08lX, got 0x%08lX", 
                       entry.pageIndex, entry.crc32, calcCrc);
@@ -62,7 +69,7 @@ static void flashWriterTask(void* param) {
             }
             
             // Write to flash (this blocks, but we're on a separate task)
-            size_t written = Update.write(entry.data, STREAM_PAGE_SIZE);
+            size_t written = Update.write(pageData, STREAM_PAGE_SIZE);
             if (written != STREAM_PAGE_SIZE) {
                 log_e("Flash write error at page %d: wrote %d/%d bytes",
                       entry.pageIndex, written, STREAM_PAGE_SIZE);
@@ -71,10 +78,11 @@ static void flashWriterTask(void* param) {
             }
             
             // Update MD5
-            md5Builder.add(entry.data, STREAM_PAGE_SIZE);
+            md5Builder.add(pageData, STREAM_PAGE_SIZE);
             
-            log_i("Page %d written to flash (%lu bytes total)", 
-                  entry.pageIndex, (entry.pageIndex + 1) * STREAM_PAGE_SIZE);
+            log_i("Page %d written to flash (%lu bytes total, heap free=%lu)", 
+                  entry.pageIndex, (entry.pageIndex + 1) * STREAM_PAGE_SIZE,
+                  (unsigned long)ESP.getFreeHeap());
         }
     }
 }
@@ -88,12 +96,17 @@ void init() {
     
     memset(&ctx, 0, sizeof(ctx));
     
-    // Create page queue (holds 2 pages max)
-    ctx.pageQueue = xQueueCreate(2, sizeof(PageEntry));
+    // Create page queue - now only holds small PageEntry structs (7 bytes each)
+    // The actual page data is in static pageDataBuffers[]
+    ctx.pageQueue = xQueueCreate(PAGE_BUFFER_COUNT, sizeof(PageEntry));
     if (!ctx.pageQueue) {
         log_e("Failed to create page queue");
         return;
     }
+    
+    // Initialize static buffers
+    memset(pageDataBuffers, 0xFF, sizeof(pageDataBuffers));
+    currentBufferIndex = 0;
     
     // Create mutex for buffer access
     ctx.bufferMutex = xSemaphoreCreateMutex();
@@ -174,6 +187,10 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     memset(pageBuffer, 0xFF, STREAM_PAGE_SIZE);  // 0xFF = erased flash
     pageBufferOffset = 0;
     currentPageIndex = 0;
+    currentBufferIndex = 0;  // Reset buffer index
+    
+    // Clear static buffers
+    memset(pageDataBuffers, 0xFF, sizeof(pageDataBuffers));
     
     // Create flash writer task if not exists
     if (!ctx.flashWriterTask) {
@@ -188,6 +205,10 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
             1               // Run on Core 1 (CAN is on Core 0)
         );
     }
+    
+    // Log heap status for debugging
+    log_i("Heap at OTA start: free=%lu, largest=%lu", 
+          (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
     
     // Send ACK back to master
     StreamAck ack = {
@@ -289,15 +310,23 @@ static void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId
         // Calculate CRC of page
         currentPageCrc = esp_crc32_le(0, pageBuffer, STREAM_PAGE_SIZE);
         
-        // Queue page for flash writing
+        // Copy page data to static buffer and queue index reference
+        // This avoids copying 4KB through the FreeRTOS queue
+        uint8_t bufferToUse = currentBufferIndex;
+        memcpy(pageDataBuffers[bufferToUse], pageBuffer, STREAM_PAGE_SIZE);
+        
+        // Queue page entry (only ~7 bytes, not 4KB!)
         PageEntry entry;
         entry.pageIndex = currentPageIndex;
-        memcpy(entry.data, pageBuffer, STREAM_PAGE_SIZE);
+        entry.bufferIndex = bufferToUse;
         entry.crc32 = currentPageCrc;
         
         if (xQueueSend(ctx.pageQueue, &entry, 0) != pdTRUE) {
             log_e("Page queue full! Flash writer too slow");
             // Don't abort - just wait for it to catch up
+        } else {
+            // Switch to next buffer for the next page
+            currentBufferIndex = (currentBufferIndex + 1) % PAGE_BUFFER_COUNT;
         }
         
         // Send cumulative ACK
@@ -599,6 +628,10 @@ void abort(uint8_t status) {
     ctx.active = false;
     pageBufferOffset = 0;
     currentPageIndex = 0;
+    currentBufferIndex = 0;  // Reset buffer index
+    
+    // Clear static buffers
+    memset(pageDataBuffers, 0xFF, sizeof(pageDataBuffers));
 }
 
 void loop() {

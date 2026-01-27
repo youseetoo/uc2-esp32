@@ -143,6 +143,14 @@ def wait_for_stream_ack(ser, expected_page: int, timeout: float = PAGE_ACK_TIMEO
             new_data = ser.read(ser.in_waiting)
             buffer.extend(new_data)
             
+            # Check for log messages indicating success (for final ACK)
+            try:
+                text = bytes(buffer).decode('utf-8', errors='replace')
+                if "OTA COMPLETE" in text or "Rebooting" in text:
+                    return (True, expected_page, 0, bytes(buffer))
+            except:
+                pass
+            
             # Search for STREAM_ACK response
             # Format: [SYNC][CMD][status][canId][lastPage_L][lastPage_H][bytes(4)][nextSeq(2)][reserved(2)]
             i = 0
@@ -372,6 +380,17 @@ def upload_firmware_streaming(firmware_path: str, session_retry: int = 0):
         # Wait for final ACK (MD5 verification takes time)
         print("  Waiting for MD5 verification...")
         success, _, _, raw = wait_for_stream_ack(ser, num_pages - 1, timeout=30.0)
+        
+        # Check for success OR reboot message (device may reboot before sending final ACK)
+        if not success:
+            # Check if raw response contains reboot indicator
+            try:
+                raw_text = raw.decode('utf-8', errors='replace') if raw else ""
+                if "Rebooting" in raw_text or "OTA COMPLETE" in raw_text:
+                    print("  Device is rebooting - OTA successful!")
+                    success = True
+            except:
+                pass
         
         if not success:
             print("  ERROR: Final verification failed!")

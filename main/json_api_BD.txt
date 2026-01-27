@@ -359,6 +359,9 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task":"/motor_get"}
 {"task":"/bt_scan"}
 {"task":"/state_act", "restart":1}
+{"task": "/laser_act", "LASERid":4, "LASERval": 512, "qid":1}
+{"task": "/can_get", "LASERid":4, "LASERval": 512, "qid":1}
+
 
 // Stage scan
 {"task": "/motor_act", "isDualAxisZ": 1, "qid":1}

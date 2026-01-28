@@ -1,4 +1,4 @@
-#define CORE_isDEBUG_LEVEL 0
+//#define CORE_isDEBUG_LEVEL 0
 #include "esp_log.h"
 #include "PinConfig.h"
 #include "src/config/ConfigController.h"
@@ -437,9 +437,9 @@ extern "C" void setupApp(void)
 
 	log_i("SetupApp");
 	// setup debugging level
-	//esp_log_level_set("*", ESP_LOG_isDEBUG);
+	esp_log_level_set("*", ESP_LOG_DEBUG); // set all components to INFO level
 	// switch off debug messages 
-	esp_log_level_set("*", ESP_LOG_NONE);
+	//esp_log_level_set("*", ESP_LOG_NONE);
 #ifdef DESP32S3_MODEL_XIAO
   pinMode(LED_BUILTIN, OUTPUT);
 #endif	

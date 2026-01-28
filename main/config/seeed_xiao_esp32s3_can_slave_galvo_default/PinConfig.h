@@ -7,7 +7,7 @@
 #define CAN_RECEIVE_GALVO
 #define CAN_BUS_ENABLED
 
-struct UC2_ESP32S3_XIAO_GALVO : PinConfig
+struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
 {
      /*
      D0: 1
@@ -33,7 +33,7 @@ struct UC2_ESP32S3_XIAO_GALVO : PinConfig
      {"task": "/laser_act", "LASERid":1, "LASERval": 0}
      {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
      */
-     const char *pindefName = "UC2_esp32s3_xiao_galvo";
+     const char *pindefName = "seeed_xiao_esp32s3_can_slave_galvo";
      const unsigned long BAUDRATE = 115200;
 
      uint8_t galvo_miso = -1;
@@ -50,4 +50,4 @@ struct UC2_ESP32S3_XIAO_GALVO : PinConfig
 
      
 };
-const UC2_ESP32S3_XIAO_GALVO pinConfig;
+const seeed_xiao_esp32s3_can_slave_galvo pinConfig;

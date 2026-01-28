@@ -51,18 +51,27 @@ typedef struct
 namespace can_controller
 {
     static unsigned long lastSend = 0;
-    static uint8_t device_can_id = 0;
+    extern uint8_t device_can_id;  // Device CAN address, accessible externally
     
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
     void setup();
     void loop();
 
+    // debug state
+    extern bool debugState;
+    
+    // ISO-TP separation time (ms) - adaptive based on debug mode
+    // Debug mode: 30ms (to handle log_i overhead)
+    // Production mode: 2-5ms (fast transfer)
+    extern uint8_t separationTimeMin;
+
     // general CAN-related functions
     uint8_t axis2id(int axis);
     int receiveCanMessage(uint8_t senderID);
     int receiveCanMessage(uint8_t *rxIDs, uint8_t numIDs);
     int sendCanMessage(uint8_t receiverID, const uint8_t *data, size_t size);
+    int sendIsoTpData(uint8_t receiverID, const uint8_t *data, size_t size);  // ISO-TP transmission
     //int sendCanMessage(uint8_t receiverID, const uint8_t *data);
     void setCANAddress(uint8_t address);
     uint8_t getCANAddress();
@@ -119,5 +128,9 @@ namespace can_controller
     void handleOtaCommand(OtaWifiCredentials* otaCreds);
     void sendOtaAck(uint8_t status);
     void handleOtaLoop(); // Non-blocking OTA handler to be called in main loop
-
+    
+    // CAN-based OTA (firmware over CAN via ISO-TP)
+    cJSON* actCanOta(cJSON* doc);
+    cJSON* actCanOtaStream(cJSON* doc);
+    
 } // namespace can_controller

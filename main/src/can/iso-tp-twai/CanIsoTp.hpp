@@ -11,24 +11,7 @@
 #include "driver/twai.h"
 #include <PinConfig.h>
 
-#define N_PCItypeSF 0x00 // Single Frame
-#define N_PCItypeFF 0x10 // First Frame
-#define N_PCItypeCF 0x20 // Consecutive Frame
-#define N_PCItypeFC 0x30 // Flow Control Frame
-
-#define WFTmax 3 // Maximum number of wait frames
-
-#define CANTP_FLOWSTATUS_CTS 0x00  // Continue to send
-#define CANTP_FLOWSTATUS_WT 0x01   // Wait
-#define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
-
-#define PACKET_SIZE 8
-#define TIMEOUT_SESSION 1000
-#define TIMEOUT_FC 300
-#define TIMEOUT_READ 300
-
-
-// PCI Types
+// PCI Types (Protocol Control Information)
 #define N_PCItypeSF 0x00  // Single Frame
 #define N_PCItypeFF 0x10  // First Frame
 #define N_PCItypeCF 0x20  // Consecutive Frame
@@ -39,10 +22,25 @@
 #define CANTP_FLOWSTATUS_WT  0x01 // Wait
 #define CANTP_FLOWSTATUS_OVFL 0x02 // Overflow
 
-// General Timeouts
-#define PACKET_SIZE       8
-#define TIMEOUT_SESSION   400 //1000 // Timeout for receiving complete message (ms)
-#define TIMEOUT_FC        50 //500  // Timeout for Flow Control (ms)
+// Maximum number of Wait Flow Control frames before aborting
+#define WFTmax 3
+
+// General Constants
+#define PACKET_SIZE       8     // CAN frame data length (standard CAN = 8 bytes)
+
+// ISO-TP Timeouts (in milliseconds)
+// TIMEOUT_SESSION: Maximum time to wait for complete message transfer
+//   - Should be long enough to handle OTA chunks (~148 CFs at 2ms = 300ms minimum)
+//   - Set to 1000ms for safety margin during large transfers
+#define TIMEOUT_SESSION   1000
+
+// TIMEOUT_FC: Maximum time to wait for Flow Control response
+//   - After sending First Frame, receiver should respond with FC quickly
+//   - 100ms is generous for CAN bus latency
+#define TIMEOUT_FC        100
+
+// TIMEOUT_READ: General read timeout for receiving frames
+#define TIMEOUT_READ      300
 
 // ISO-TP State Definitions
 enum IsoTpState {
@@ -65,7 +63,7 @@ typedef struct {
     uint8_t seqId;        /**< Sequence ID for Consecutive Frames */
     uint8_t fcStatus;     /**< Flow Control status */
     uint8_t blockSize;    /**< Block size for Flow Control */
-    uint8_t separationTimeMin = 10; /**< Separation time between consecutive frames */
+    uint8_t separationTimeMin = 30; /**< Separation time between consecutive frames (ms). Increased from 10 to handle debug logging overhead */
     IsoTpState cantpState; /**< ISO-TP State */
 } pdu_t;
 
@@ -86,12 +84,13 @@ public:
     int receive(pdu_t *pdu, uint32_t timeout);  // Receive ISO-TP message
     int receive(pdu_t *pdu, uint8_t *rxIDs, uint8_t numIDs, uint32_t timeout);  // Receive ISO-TP message with multiple addresses
 
+    void setSeparationTimeMin(uint8_t stMin);
 private:
     uint32_t _timerSession;
     uint32_t _timerFCWait;
     uint32_t _timerCFWait;
     uint8_t _rxPacketData[PACKET_SIZE];
-    uint8_t _rxRestBytes;
+    uint16_t _rxRestBytes;  // Must be uint16_t to support ISO-TP payloads up to 4095 bytes
     uint8_t _receivedFCWaits = 0; // Reset this when starting a new transmission
 
     int send_SingleFrame(pdu_t *pdu);

@@ -1,0 +1,581 @@
+[ 13949][I][can_controller.cpp:1250] act(): Set DEBUG_CAN_ISO_TP to true
+++
+{"qid":1,"success":1}
+--
+[ 22094][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 22101][I][CanIsoTp.cpp:411] receive_FirstFrame(): First Frame received, txID 0, rxID 11, size: 8, totalLen: 27
+[ 22111][I][CanIsoTp.cpp:432] receive_FirstFrame(): Allocating memory for pdu->data
+[ 22119][I][CanIsoTp.cpp:446] receive_FirstFrame(): Sending Flow Control FC
+[ 22126][I][CanIsoTp.cpp:344] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (11)
+[ 22148][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 22155][I][CanIsoTp.cpp:259] receive(): CF received
+[ 22160][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 14
+[ 22174][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 22181][I][CanIsoTp.cpp:259] receive(): CF received
+[ 22186][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 2, seqID incoming: 2 with size 7, Rest bytes: 7
+[ 22199][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 22206][I][CanIsoTp.cpp:259] receive(): CF received
+[ 22211][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 3, seqID incoming: 3 with size 7, Rest bytes: 0
+[ 22225][I][CanIsoTp.cpp:489] receive_ConsecutiveFrame(): All data received
+[ 22231][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 27, own id: 11
+[ 22240][I][CanOtaHandler.cpp:70] init(): CAN OTA handler initialized, default master CAN ID: 1
+[ 22249][I][CanOtaHandler.cpp:95] handleCanOtaMessage(): CAN OTA message: type=0x62, len=26, from=0x00
+[ 22258][I][CanOtaHandler.cpp:151] handleStartCommand(): OTA START: size=876784, chunks=857, chunkSize=1024
+[ 22268][I][CanOtaHandler.cpp:156] handleStartCommand(): OTA using master CAN ID 1 for responses (sourceCanId param was 0)
+[ 22279][I][CanOtaHandler.cpp:188] handleStartCommand(): Target partition: app1 (size=1310720)
+[ 22287][D][Updater.cpp:139] begin(): OTA Partition: app1
+[ 22293][I][CanOtaHandler.cpp:220] handleStartCommand(): OTA started successfully, waiting for chunks, sending ACK to master CAN ID: 1
+[ 22305][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore[ 22305][I][can_controller.cpp:943] sendCanMessage(): Sending enN message  tfoo r 1s
+d
+[ 22333][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: 15 to ID: 1, with rxId 11
+[ 22341][I][CanIsoTp.cpp:63] send(): State: 1
+[ 22345][I][CanIsoTp.cpp:307] send_FirstFrame(): Sending FF
+[ 22351][I][CanIsoTp.cpp:80] send(): First Frame sent: 0
+[ 22356][I][CanIsoTp.cpp:63] send(): State: 2
+[ 22360][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[ 22365][I][CanIsoTp.cpp:99] send(): Frame received: 1, rxId 11, len 3
+[ 22371][I][CanIsoTp.cpp:102] send(): Data length: 3
+[ 22376][I][CanIsoTp.cpp:106] send(): FC frame received
+[ 22381][I][CanIsoTp.cpp:500] receive_FlowControlFrame(): Flow Control Frame received
+[ 22389][I][CanIsoTp.cpp:515] receive_FlowControlFrame(): Updating BS and STmin to: 0, 10
+[ 22397][I][CanIsoTp.cpp:527] receive_FlowControlFrame(): CTS (Continue to send) frame received
+[ 22405][I][CanIsoTp.cpp:109] send(): FC received successfully
+[ 22411][I][CanIsoTp.cpp:63] send(): State: 4
+[ 22415][I][CanIsoTp.cpp:127] send(): Sending Consecutive Frames
+[ 22431][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1
+[ 22438][I][CanIsoTp.cpp:145] send(): Sending Last block
+[ 22453][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2
+[ 22460][I][CanIsoTp.cpp:198] send(): Return: 0
+[ 22464][I][can_controller.cpp:881] canSendTask(): Sent CAN message to 1
+
+
+
+
+
+then the first chunk is sent from master to node
+
+
+[ 34554][I][CanIsoTp.cpp:411] receive_FirstFrame(): First Frame received, txID 0, rxID 11, size: 8, totalLen: 1033
+[ 34565][I][CanIsoTp.cpp:432] receive_FirstFrame(): Allocating memory for pdu->data
+[ 34572][I][CanIsoTp.cpp:446] receive_FirstFrame(): Sending Flow Control FC
+[ 34579][I][CanIsoTp.cpp:344] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (11)
+[ 34601][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34608][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34613][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 0
+[ 34627][I][CanIsoTp.cpp:489] receive_ConsecutiveFrame(): All data received
+[ 34634][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 1033, own id: 11
+[ 34635][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+a 34650][I][CanIsoTp.cpp:259] receive([ 34650][I][Ca)n:O tCaFH aencdelievre.dcpp:95] h
+ndleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[ 34664][I][CanIsoTp.cpp:460] rec[ 34e6i6v4e]_[CIo]n[sCeacnuOttiavHeaFnrdalmeer(.)c:p pr:e2c5e0i]v handleDataeC_hCuonnks(e)c:u tCihvuenkF ra0/m8e5:7 :I nvsialzied= 1s02ta4,t CeR: C=00
+x8A92F23E
+] 34679][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 1[1 ,3 4r6x7I9d]:[ E][CanOtaHan1dl1e,r .tcxpIpd::2 701
+ handleDataChunk(): CRC mismatch at chunk 0: expected=0x8A92F23E, calc=0xDC44C2A0
+[ 34696][I][CanIsoTp.cpp:259][  r3e4c6e9i6v]e[(I)]:[ cCaFn _rceoceived
+c 34696][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for senntrollerd.
+pp:943] sendCanMessage(): Sending CAN message to 1
+[ 34714][I][Ca[n I3s4o7T1p4.]c[pWp]:[4C6a0n]O traeHcaenidvlee_rC.ocnpspe:c4u1t9i]v esFernadmNea(k)(:) :r eSceenitv eN_ACKo:n ssetcauttius=6, veFramec:h unIkn=v0
+alid state: 0
+[ 34729][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34736][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34741][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34750][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34757][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34762][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34771][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34778][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34783][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34792][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34799][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34804][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34813][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34820][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34825][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34834][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34841][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34846][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34855][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34862][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34867][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34876][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34883][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34888][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34896][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34904][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34908][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34917][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34925][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34929][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34938][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34946][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34950][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34959][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34967][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34971][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 34980][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 34988][I][CanIsoTp.cpp:259] receive(): CF received
+[ 34992][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35001][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35008][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35013][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35022][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35029][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35034][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35043][I][CanIsoTp.cpp:221] receive(): Session timeout
+[ 35048][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: 13 to ID: 1, with rxId 11
+[ 35056][I][CanIsoTp.cpp:63] send(): State: 1
+[ 35060][I][CanIsoTp.cpp:307] send_FirstFrame(): Sending FF
+[ 35066][I][CanIsoTp.cpp:80] send(): First Frame sent: 0
+[ 35071][I][CanIsoTp.cpp:63] send(): State: 2
+[ 35075][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[ 35080][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 11, len 8
+[ 35087][I][CanIsoTp.cpp:63] send(): State: 2
+[ 35091][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[ 35096][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 11, len 8
+[ 35103][I][CanIsoTp.cpp:63] send(): State: 2
+[ 35107][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[ 35112][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 11, len 8
+[ 35118][I][CanIsoTp.cpp:63] send(): State: 2
+[ 35122][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[ 35128][I][CanIsoTp.cpp:92] send(): Timeout waiting for FC
+[ 35133][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 11, len 8
+[ 35139][I][CanIsoTp.cpp:198] send(): Return: 1
+[ 35144][E][can_controller.cpp:875] canSendTask(): Error sending[ 35144][I][CanIsoTp.cpp:229] rec CeANi vmee(s)s:a gFer atmoe .1 dweintthi ficoenrt:e n1t1: , 1r0x7I0d56:2 6181,2,  trxIedt::  0
+
+[ 35158][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35163][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35172][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35179][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35184][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35193][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35200][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35205][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35214][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35221][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35226][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35235][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35242][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35247][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35256][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35263][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35268][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35277][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35284][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35289][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35298][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35305][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35310][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35319][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35326][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35331][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35340][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35347][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35352][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35361][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35368][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35373][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35382][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35389][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35394][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35403][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35410][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35415][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35424][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35431][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35436][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35445][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35452][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35457][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35466][I][CanIsoTp.cpp:221] receive(): Session timeout
+[ 35471][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35478][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35483][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35492][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35499][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35504][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35513][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35520][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35525][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35534][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35541][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35546][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35555][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35562][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35567][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35576][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35583][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35588][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35597][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35604][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35609][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35618][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35625][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35630][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35639][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35646][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35651][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35660][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35667][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35672][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35681][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35688][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35693][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35702][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35709][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35714][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35723][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35730][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35735][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35744][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35751][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35756][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35765][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35772][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35777][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35786][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35793][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35798][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35807][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35814][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35819][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35828][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35835][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35840][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35849][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35856][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35861][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35870][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35877][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35882][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35891][I][CanIsoTp.cpp:221] receive(): Session timeout
+[ 35896][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35903][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35908][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35917][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35924][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35929][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35938][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35945][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35950][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35959][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35966][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35971][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 35980][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 35987][I][CanIsoTp.cpp:259] receive(): CF received
+[ 35992][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36001][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36008][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36013][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36022][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36029][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36034][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36043][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36050][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36055][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36064][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36071][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36076][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36085][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36092][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36097][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36106][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36113][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36118][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36127][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36134][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36139][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36148][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 36155][I][CanIsoTp.cpp:259] receive(): CF received
+[ 36160][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 36218][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 0, own id: 11
+[ 36227][I][can_controller.cpp:134] parseMotorAndHomeData(): Received MotorData from CAN 0, size: 11, txID: 4: 4
+[ 36237][E][can_controller.cpp:320] parseMotorAndHomeData(): Error: Incorrect data size received in CAN from address 11. Data size is 0
+
+
+
+This is what I see on the host side with all debugging turned on:
+
+on the host side I get this:
+r 64561 -- /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/tools/can_ota_simple.py 
+======================================================================
+CAN OTA Simple Binary Upload
+======================================================================
+Port:      /dev/cu.SLAB_USBtoUART
+Baud:      921600
+CAN ID:    11
+Firmware:  esp32_seeed_xiao_esp32s3_can_slave_motor.bin
+Size:      876,784 bytes
+Chunks:    857 (of 1024 bytes each)
+MD5:       43ba96b4d18c010201762b840476bf83
+Test mode: False
+======================================================================
+
+[1] Opening serial port...
+
+[2] Sending START command...
+  TX: {"task":"/can_ota","canid":11,"action":"start","firmware_size":876784,"total_chu...
+  RX: 3485 bytes
+  ✓ Slave initialized
+
+[3] Entering binary mode...
+  TX: {"task":"/can_ota","canid":11,"action":"binary_start"}
+  Waiting for binary mode ACK...
+b'[ 61050][I][BinaryOtaProtocol.cpp:80] enterBinaryMode(): Entering binary OTA mode for CAN ID 0x0B\r\n[ 61052][I][BinaryOtaProtocol.cpp:81] enterBinaryMode(): Switching to 921600 baud\r\n\xaaU\x06\x00\x00\x00\xf9[ 61064][I][BinaryOtaProtocol.cpp:126] enterBinaryMode(): Sent initial ACK\r\n\xaaU\x06\x00\x00\x00\xf9[ 61166][I][BinaryOtaProtocol.cpp:131] enterBinaryMode(): Sent second ACK for reliability\r\n[ 61167][I][BinaryOtaProtocol.cpp:133] enterBinaryMode(): Binary OTA mode active at 921600 baud\r\n++\n{"success":true,"qid":1}\n--\n\x00'
+  ✓ Binary mode active (status=0)
+
+[4] Uploading 857 chunks...
+  Chunk 0/856 (0.1%) b'[ 71912][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n[ 71914][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore '
+b'for send\r\n'
+b'[ 71916][I][can_controller.cpp:943] sendCanMessage(): Sending CAN message to 11\r\n'
+b'[ 71936][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: 1033 to ID: 11, with rxId 1\r\n[ 71937][I][CanIsoTp.cpp:63] send()'
+b': State: 1\r\n[ 71938][I][CanIsoTp.cpp:307] send_FirstFrame(): Sending FF\r\n[ 71938][I][CanIsoTp.cpp:80] send(): First Frame sent: 0\r\n'
+b'[ 71939][I][CanIsoTp.cpp:63] send(): State: 2\r\n'
+b'[ 71940][I][CanIsoTp.cpp:85] send(): Waiting for first FC\r\n'
+b'[ 71983][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 1,'
+b' len 3\r\n[ 71984][I][CanIsoTp.cpp:102] send(): Data length: 3\r\n[ 71984][I][CanIsoTp.cpp:106] send(): FC frame received\r\n'
+b'[ 71985][I][CanIsoTp.cpp:500] receive_FlowControlFrame(): Flow C'
+b'ontrol Frame received\r\n[ 71986][I][CanIsoTp.cpp:515] receive_FlowControlFrame(): Updating BS and STmin to: 255, 10\r\n[ 71987][I][CanIsoTp.cpp:527] receive_FlowControlFrame(): CTS (C'
+b'ontinue to send) frame received\r\n'
+b'[ 71988][I][CanIsoTp.cpp:109] send(): FC received successfully\r\n[ 71989][I][CanIsoTp.cpp:63] send(): State: 4\r\n'
+b'[ 71990][I][CanIsoTp.cpp:127] send(): Sending Consecutive Frames\r\n[ 71990][I][CanIsoTp.cpp:155] send(): Block size: 255\r\n'
+b'[ 72001][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 72011][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 72021][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72031][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 72041][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 5\r\n'
+b'[ 72051][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 72061][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 72071][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 72081][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 72091][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 72101][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 72111][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 72121][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 72131][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 72141][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 72151][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 72161][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 72171][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 72181][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72191][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 4\r\n'
+b'[ 72201][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[ 72211][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 72221][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 72231][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 72241][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 72251][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 72261][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 11\r\n'
+b'[ 72271][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 12\r\n'
+b'[ 72281][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 72291][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 72301][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 15\r\n'
+b'[ 72311][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 72321][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 72331][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 72341][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72351][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 4\r\n'
+b'[ 72361][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[ 72371][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 72381][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 72391][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 72401][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 72411][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 72421][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 72431][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n[ 72441][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 72451][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 72461][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 72471][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 72481][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 72491][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 72501][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72511][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 72521][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[ 72531][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 72541][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 72551][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 72561][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 72571][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 72581][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 72591][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 72601][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 72611][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 72621][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 72631][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 72641][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 72651][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 2\r\n'
+b'[ 72661][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72671][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 72681][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[ 72691][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 72701][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 72711][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 72721][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 72731][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 72741][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 72751][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 72761][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 72771][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 72781][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 72791][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 72801][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 1\r\n'
+b'[ 72811][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 72821][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72831][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 72841][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[ 72851][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 72861][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n[ 72871][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 72881][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 72891][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 72901][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 72911][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 72921][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 72931][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 72941][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 72951][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 72961][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 72971][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 72981][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 72991][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 73001][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 5\r\n'
+b'[ 73011][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 73021][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 73031][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 73041][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 73051][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 73061][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 73071][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 73081][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 73091][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 73101][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 73111][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 73121][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 73131][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 73141][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 73151][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 73161][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 5\r\n'
+b'[ 73171][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[ 73181][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[ 73191][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[ 73201][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 73211][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[ 73221][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 73231][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 73241][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 73251][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 73261][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 73271][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 0\r\n'
+b'[ 73281][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 73291][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[ 73301][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[ 73311][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[ 73321][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 5\r\n'
+b'[ 73331][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n[ 73341][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n[ 73351][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n[ 73361][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[ 73371][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n[ 73381][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[ 73391][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[ 73401][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[ 73411][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[ 73421][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[ 73431][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[ 73441][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[ 73451][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 2\r\n[ 73452][I][CanIsoTp.cpp:178] send(): Last block\r\n'
+b'[ 73462][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n[ 73463][I][CanIsoTp.cpp:198] send(): Return: 0\r\n'
+b'[ 73463][I][CanIsoTp.cpp:221] receive(): Session timeout\r\n[ 73464][I][can_controller.cpp:881] canSendTask(): Sent CAN message to 11\r\n'
+COMMENT: It seems that the full first chunk (1036 bytes) has been sent properly from the HOST side to the SLAVE side. Now we would epxect the SLAVE to send an acknowledgement back to the HOST. 
+b'[ 73466][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 1, rxId: 1, txId: 0\r\n[ 73467][I][CanIsoTp.cpp:411] receive_FirstFrame(): First Frame received, txID 0, rxID 1, size: 8, totalLen: 13\r\n[ 73468][I][CanIsoTp.cpp:432] receive_FirstFrame(): Allocating '
+COMMENT: I think the slave has tried sending the acknowledgement but it is not received properly on the host side or perhaps interpreted correctly? 
+b'memory for pdu->data\r\n[ 73469][I][CanIsoTp.cpp:446] receive_FirstFrame(): Sending Flow Control FC\r\n[ 73470][I][CanIsoTp.cpp:344] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (1)\r\n'
+COMMENT: Not sure what's happening here - maybe the slave is not to interpret the FC frame properly which has been sent by the HOST? 
+b'[ 73521][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73571][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73621][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73671][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73721][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73771][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73821][I][CanIsoTp.cpp:280] receive(): No frame received and not idling\r\n'
+b'[ 73871][I][CanIsoTp.cpp:280] receive(): No frame received and n'
+b'ot idling\r\n[ 73872][I][CanIsoTp.cpp:221] receive(): Session timeout\r\n'
+b'[ 73918][W][CanOtaHandler.cpp:541] waitForSlaveAck(): Slave ACK timeout after 2000 ms\r\n'
+b'[ 73920][E][CanOtaHandler.cpp:587] relayDataToSlave(): Chunk 0: slave did not ACK (result=-1)\r\n[ 73922][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): Failed to relay chunk 0 to CAN slave\r\n'
+b'\xaaU\x07\x07\x00\x00\xff'
+✗ RELAY_ERR (retry 1/5)
+    Debug: [ 71912][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+(imswitch311) Blynk:uc2-ESP bene$ 
+
+it looks like, the acknoledgement from the node/slave is not received properly or something else goes wrong after the first chunk is sent.
+
+
+
+in detail:
+
+it seems the HOST is trying to send the first chunk (1036 bytes) in ISO-TP frames properly, and the SLAVE seems to receive the first frame properly, but it stops after the first block of consecutive frames. The SLAVE log shows that it keeps receiving CF frames but is in an invalid state (state 0) to process them:
+
+ON HOST:
+
+[4] Uploading 857 chunks...
+  Chunk 0/856 (0.1%) b'[591630][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[591632][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for send\r\n'
+b'[591634][I][can_controller.cpp:943] sendCanMessage(): Sending CAN message to 11\r\n'
+b'[591675][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: '
+b'1033 to ID: 11, with rxId 1\r\n[591676][I][CanIsoTp.cpp:63] send(): State: 1\r\n[591676][I][CanIsoTp.cpp:307] send_FirstFrame(): Sen'
+b'ding FF\r\n[591677][I][CanIsoTp.cpp:80] send(): First Frame sent: 0\r\n[591678][I][CanIsoTp.cpp:63] send(): State: 2\r\n[591678][I][CanIsoTp.cpp:85] send(): Waiting for first FC\r\n'
+b'[591721][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 1, len 3\r\n[591722][I][CanIsoTp.cpp:102] send(): Data length: 3\r\n'
+b'[591723][I][CanIsoTp.cpp:106] send(): FC frame received\r\n[591724][I][CanIsoTp.cpp:500] receive_FlowControlFrame(): Flow C'
+b'ontrol Frame received\r\n[591725][I][CanIsoTp.cpp:515] receive_FlowControlFrame(): Updating BS and STmin to: 255, 10\r\n'
+b'[591726][I][CanIsoTp.cpp:527] receive_FlowControlFrame(): CTS (Continue to send) frame received\r\n[591727][I][CanIsoTp.cpp:109] s'
+b'end(): FC received successfully\r\n[591728][I][CanIsoTp.cpp:63] send(): State: 4\r\n[591728][I][CanIsoTp.cpp:127] send(): Sending Co'
+b'nsecutive Frames\r\n[591729][I][CanIsoTp.cpp:155] send(): Block size: 255\r\n'
+b'[591739][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 1\r\n'
+b'[591749][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[591759][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[591769][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[591779][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[591789][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+...it keeps sending CF frames up to seqId 255...
+
+But then the SLAVE log shows:
+
+[ 50918][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 50926][I][CanIsoTp.cpp:411] receive_FirstFrame(): First Frame received, txID 0, rxID 11, size: 8, totalLen: 1033
+[ 50936][I][CanIsoTp.cpp:432] receive_FirstFrame(): Allocating memory for pdu->data
+COMMENT: This indicates that the SLAVE has received the First Frame properly and is allocating memory for the incoming data.
+[ 50943][I][CanIsoTp.cpp:446] receive_FirstFrame(): Sending Flow Control FC
+[ 50950][I][CanIsoTp.cpp:344] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (11)
+COMMENT: Here I'm not sure if the txId 0 is properly sent to the Host as it is on ID 1 - this stems from a previous error we tried to solve, maybe it has been resolved now 
+[ 50981][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 50988][I][CanIsoTp.cpp:259] receive(): CF received
+[ 50993][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 0
+[ 51006][I][CanIsoTp.cpp:489] receive_ConsecutiveFrame(): All data received
+COMMENT: This is obviously wrong! We expect more data to be received here, not "all data received" after just one CF frame! So something is wrong in the state management of the SLAVE ISO-TP implementation. We expect 255 CF frames to be received before all data is received.
+[ 51013][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 1033, own id: 11
+[ 51015][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 51029][I][CanIsoTp.cpp:259] receive(): CF r[e c5e1i0v2e9d]
+I][CanOtaHandler.cpp:95] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[[  5511004433]][[II]][[CCaannOItsaoHTapn.dclpepr:.4c6p0p]: 2r5e0c]e ihvaen_dCloenDsaetcauCthiuvnekF(r)a:m eC(h)u:n kr e0c/e8i5v7e:_ Csoinszeec=1u0t24iv, eFCrRaCm=0e:x8 IA9nv2Fa2l3iEd 
+tate: 0
+COMMENT: The HOST continously sends CF frames, but the SLAVE is in state 0 (idle) and cannot process them anymore 
+[ 51058][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, tx[I d5:1 0058
+[E][CanOtaHandler.cpp:271] handleDataChunk(): CRC mismatch at chunk 0: expected=0x8A92F23E, calc=0x30207868
+COMMENT: Obviously, the CRC is wrong because the SLAVE has not received the full chunk data properly!
+_ 51076][I][CanIsoTp.cpp:259] receive([) :5 1C0F7 6r]e[cIe]i[vceadn
+COMMENT: The slave tries to send a NAK back to the HOST because it is in an invalid state to receive CF frames, but the HOST is still busy sending continuous CF frames.
+[ 51076][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for send
+controller.cpp:943] sendCanMessage(): Sending CAN message to 1
+[ 51[0 9541]0[9I4]][[CWa]n[ICsaonTOpt.acHpapn:d4l6e0r]. crpepc:e419] sendNak(): Sent NAK: status=6, chunk=0
+ive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 51109][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 51116][I][CanIsoTp.cpp:259] receive(): CF received
+

@@ -43,7 +43,7 @@ void GalvoController::setup()
     initialized_ = true;
     return;
 #else
-    delay(2000); // Wait for CAN bus to stabilize
+    // delay(2000); // Wait for CAN bus to stabilize
     // Satellite/Slave mode - initialize actual hardware
     GALVO_LOG("Running in SLAVE mode (local hardware)");
 

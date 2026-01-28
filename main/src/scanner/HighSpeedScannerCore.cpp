@@ -375,7 +375,7 @@ void HighSpeedScannerCore::scannerTask()
                 // Get X position
                 uint16_t x12 = line_x_[i];
                 if (do_lut) x12 = applyXMap(x12);
-                    SCANNER_LOG("Position X=%d Y=%d", x12, y12);
+                    // SCANNER_LOG("Position X=%d Y=%d", x12, y12);
 
                 // Update X position via DAC
                 dac_->setX(x12);

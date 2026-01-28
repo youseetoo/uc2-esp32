@@ -127,9 +127,10 @@ bool HighSpeedScannerCore::setConfig(const ScanConfig& config)
     xSemaphoreTake(config_mutex_, portMAX_DELAY);
     config_ = config;
     buildLineProfile();
+    config_changed_ = true;  // Signal task to restart with new config
     xSemaphoreGive(config_mutex_);
 
-    SCANNER_LOG("Config applied successfully, line_len=%d", line_len_);
+    SCANNER_LOG("Config applied successfully, line_len=%d, bidirectional=%d", line_len_, config.bidirectional);
     return true;
 }
 
@@ -153,6 +154,7 @@ void HighSpeedScannerCore::start()
     frame_idx_ = 0;
     line_idx_ = 0;
     overruns_ = 0;
+    config_changed_ = false;  // Clear any pending config change
     running_ = true;
     SCANNER_LOG("Scanning STARTED (frame_count=%d, 0=infinite)", config_.frame_count);
 }
@@ -161,6 +163,7 @@ void HighSpeedScannerCore::stop()
 {
     SCANNER_LOG("stop() called");
     running_ = false;
+    config_changed_ = false;  // Clear config change flag
     SCANNER_LOG("Scanning STOPPED");
 }
 
@@ -311,12 +314,25 @@ void HighSpeedScannerCore::scannerTask()
     
     // Unsubscribe from task watchdog (tight timing loop)
     esp_task_wdt_delete(NULL);
-    SCANNER_LOG("Task watchdog disabled");
+    SCANNER_LOG("Task watchdog disabled for scanner task");
 
     while (true) {
         if (!running_) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
+        }
+
+        // Check if config changed - restart frame with new config
+        xSemaphoreTake(config_mutex_, portMAX_DELAY);
+        bool cfg_changed = config_changed_;
+        config_changed_ = false;
+        xSemaphoreGive(config_mutex_);
+        
+        if (cfg_changed) {
+            SCANNER_LOG("Config changed - restarting scan");
+            frame_idx_ = 0;
+            line_idx_ = 0;
+            overruns_ = 0;
         }
 
         // Snapshot configuration for this frame
@@ -334,11 +350,12 @@ void HighSpeedScannerCore::scannerTask()
 
         // Log frame start (only every 100 frames to avoid spam)
         if (frame_idx_ % 100 == 0) {
-            SCANNER_LOG("Frame %lu starting, running=%d", (unsigned long)frame_idx_, running_);
+            SCANNER_LOG("Frame %lu starting, bidirectional=%d", (unsigned long)frame_idx_, cfg.bidirectional);
         }
 
         const uint32_t img_start = cfg.pre_samples;
         const uint32_t img_end = cfg.pre_samples + cfg.nx;
+        const bool bidir = (cfg.bidirectional != 0);
 
         // FRAME TRIGGER
         if (cfg.enable_trigger) {
@@ -346,7 +363,7 @@ void HighSpeedScannerCore::scannerTask()
         }
 
         // Scan all lines (Y steps)
-        for (uint16_t ly = 0; ly < cfg.ny && running_; ++ly) {
+        for (uint16_t ly = 0; ly < cfg.ny && running_ && !config_changed_; ++ly) {
             line_idx_ = ly;
 
             // LINE TRIGGER
@@ -354,7 +371,10 @@ void HighSpeedScannerCore::scannerTask()
                 triggerPulseLine();
             }
 
-            // Compute Y position
+            // Determine if this line is reversed (bidirectional: odd lines go backwards)
+            bool reverse_line = bidir && (ly & 1);
+
+            // Compute Y position - lock only for the computation
             xSemaphoreTake(config_mutex_, portMAX_DELAY);
             uint16_t y12 = computeY(ly);
             bool do_lut = (config_.apply_x_lut != 0) && x_map_valid_;
@@ -369,20 +389,22 @@ void HighSpeedScannerCore::scannerTask()
             int64_t next_t = esp_timer_get_time();
 
             // Scan one line
-            for (uint32_t i = 0; i < line_len && running_; ++i) {
+            for (uint32_t i = 0; i < line_len && running_ && !config_changed_; ++i) {
                 next_t += sp_us;
 
-                // Get X position
-                uint16_t x12 = line_x_[i];
+                // Get X position - reverse index for bidirectional odd lines
+                uint32_t idx = reverse_line ? (line_len - 1 - i) : i;
+                uint16_t x12 = line_x_[idx];
                 if (do_lut) x12 = applyXMap(x12);
-                    // SCANNER_LOG("Position X=%d Y=%d", x12, y12);
 
                 // Update X position via DAC
                 dac_->setX(x12);
                 dac_->ldacPulse();
 
                 // PIXEL TRIGGER (only during imaging region)
-                if (do_trig && (i >= img_start) && (i < img_end)) {
+                // For reverse lines, adjust the trigger region accordingly
+                uint32_t effective_i = reverse_line ? (line_len - 1 - i) : i;
+                if (do_trig && (effective_i >= img_start) && (effective_i < img_end)) {
                     if (cfg.trig_delay_us > 0) {
                         esp_rom_delay_us(cfg.trig_delay_us);
                     }
@@ -404,6 +426,12 @@ void HighSpeedScannerCore::scannerTask()
             }
         }
 
+        // If config changed mid-frame, restart immediately
+        if (config_changed_) {
+            SCANNER_LOG("Config changed mid-frame, restarting");
+            continue;
+        }
+
         frame_idx_++;
 
         // Check frame count (0 = infinite)
@@ -415,6 +443,9 @@ void HighSpeedScannerCore::scannerTask()
             SCANNER_LOG("Completed %lu frames, stopping", (unsigned long)frame_idx_);
             running_ = false;
         }
-        // If fc == 0, continue infinitely
+        
+        // Yield to IDLE task between frames to prevent watchdog timeout
+        // This allows other tasks to run briefly without impacting scan timing
+        taskYIELD();
     }
 }

@@ -36,6 +36,7 @@ struct GalvoData {
     int32_t nFrames = 0;           // Number of frames (0=infinite)
     bool fastMode = false;         // Fast mode flag (unused, kept for compatibility)
     bool isRunning = false;        // Running state
+    bool bidirectional = false;    // Bidirectional scan mode
     int qid = 0;                   // Queue ID
     
     // Convert to ScanConfig
@@ -50,6 +51,7 @@ struct GalvoData {
         cfg.sample_period_us = (uint16_t)tPixelDwelltime;
         cfg.frame_count = (uint16_t)nFrames;
         cfg.enable_trigger = 1;
+        cfg.bidirectional = bidirectional ? 1 : 0;
         return cfg;
     }
     
@@ -64,6 +66,7 @@ struct GalvoData {
         data.tPixelDwelltime = cfg.sample_period_us;
         data.nFrames = cfg.frame_count;
         data.isRunning = running;
+        data.bidirectional = (cfg.bidirectional != 0);
         return data;
     }
 };

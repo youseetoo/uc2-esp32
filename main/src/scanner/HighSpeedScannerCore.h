@@ -47,6 +47,7 @@ struct ScanConfig {
     uint8_t  enable_trigger;        // Enable pixel trigger output
     uint8_t  apply_x_lut;           // Apply X lookup table
     uint16_t frame_count;           // Number of frames (0 = infinite/continuous)
+    uint8_t  bidirectional;         // Bidirectional scan: even lines min->max, odd lines max->min
     
     // Default constructor
     ScanConfig() :
@@ -64,7 +65,8 @@ struct ScanConfig {
         line_settle_samples(0),
         enable_trigger(1),
         apply_x_lut(0),
-        frame_count(0)  // Default: infinite scanning
+        frame_count(0),  // Default: infinite scanning
+        bidirectional(0) // Default: unidirectional
     {}
 } __attribute__((packed));
 #pragma pack(pop)
@@ -148,6 +150,7 @@ private:
 
     volatile bool running_ = false;
     volatile bool task_created_ = false;
+    volatile bool config_changed_ = false;  // Signal to restart scan with new config
     volatile uint32_t frame_idx_ = 0;
     volatile uint16_t line_idx_ = 0;
     volatile int32_t overruns_ = 0;

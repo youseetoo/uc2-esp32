@@ -55,7 +55,7 @@ public:
      */
     bool init(int pin_mosi, int pin_sclk, int pin_cs, int pin_ldac, 
               int clock_speed_hz = 20000000) {
-        return init(SPI3_HOST, pin_mosi, pin_sclk, pin_cs, pin_ldac, clock_speed_hz);
+        return init(SPI2_HOST, pin_mosi, pin_sclk, pin_cs, pin_ldac, clock_speed_hz);
     }
 
     /**

@@ -1,6 +1,10 @@
 /**
  * @file GalvoController.cpp
  * @brief Galvo scanner controller implementation
+ *
+ * Static class - no instance/singleton pattern needed.
+ * Master mode: forwards commands via CAN
+ * Slave mode: controls local galvo hardware
  */
 
 #include "GalvoController.h"
@@ -9,52 +13,40 @@
 #include <stdio.h>
 #include "PinConfig.h"
 
+#ifdef CAN_BUS_ENABLED
+#include "../can/can_controller.h"
+#endif
 
-
-static const char* TAG = "GalvoCtrl";
+static const char *TAG = "GalvoCtrl";
 
 // Use printf for guaranteed output
 #define GALVO_LOG(fmt, ...) printf("[%s] " fmt "\n", TAG, ##__VA_ARGS__)
 
-// Global singleton instance
-static GalvoController* g_galvo_instance = nullptr;
-
-GalvoController& GalvoController::getInstance()
-{
-    if (!g_galvo_instance) {
-        g_galvo_instance = new GalvoController();
-    }
-    return *g_galvo_instance;
-}
+// Static member definitions
+DAC_MCP4822 GalvoController::dac_;
+HighSpeedScannerCore GalvoController::scanner_;
+Preferences GalvoController::prefs_;
+bool GalvoController::initialized_ = false;
+bool GalvoController::auto_start_enabled_ = true; // Enable auto-start by default
+unsigned long GalvoController::last_status_print_ = 0;
 
 void GalvoController::setup()
-{
-    GALVO_LOG("setup() static called");
-    g_galvo_instance = new GalvoController();
-}
-
-void GalvoController::loop()
-{
-    getInstance().doLoop();
-    g_galvo_instance.loop();
-}
-
-cJSON* GalvoController::get(cJSON* doc)
-{
-    return getInstance().getStatus();
-}
-
-cJSON* GalvoController::act(cJSON* doc)
-{
-    return getInstance().processCommand(doc);
-}
-
-bool GalvoController::doSetup()
 {
     GALVO_LOG("====================================");
     GALVO_LOG("GalvoController::setup() starting");
     GALVO_LOG("====================================");
-    
+
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
+    // Host/Master mode - only forward commands via CAN, no local hardware
+    GALVO_LOG("Running in MASTER mode (CAN_SEND_COMMANDS)");
+    GALVO_LOG("No local galvo hardware - commands forwarded via CAN");
+    initialized_ = true;
+    return;
+#else
+    delay(2000); // Wait for CAN bus to stabilize
+    // Satellite/Slave mode - initialize actual hardware
+    GALVO_LOG("Running in SLAVE mode (local hardware)");
+
     // Get pin configuration from global pinConfig
     int sdi_pin = pinConfig.galvo_sdi;
     int sck_pin = pinConfig.galvo_sck;
@@ -63,90 +55,103 @@ bool GalvoController::doSetup()
     int trig_pixel = pinConfig.galvo_trig_pixel;
     int trig_line = pinConfig.galvo_trig_line;
     int trig_frame = pinConfig.galvo_trig_frame;
-    
-    GALVO_LOG("Pin configuration from PinConfig:");
-    GALVO_LOG("  SPI pins: SDI=%d, SCK=%d, CS=%d, LDAC=%d", 
+
+    GALVO_LOG("Pin configuration:");
+    GALVO_LOG("  SPI: SDI=%d, SCK=%d, CS=%d, LDAC=%d",
               sdi_pin, sck_pin, cs_pin, ldac_pin);
-    GALVO_LOG("  Trigger pins: Pixel=%d, Line=%d, Frame=%d",
+    GALVO_LOG("  Triggers: Pixel=%d, Line=%d, Frame=%d",
               trig_pixel, trig_line, trig_frame);
-    
+
     // Initialize DAC
     GALVO_LOG("Initializing MCP4822 DAC...");
-    if (!dac_.init(sdi_pin, sck_pin, cs_pin, ldac_pin)) {
+    if (!dac_.init(sdi_pin, sck_pin, cs_pin, ldac_pin))
+    {
         GALVO_LOG("ERROR: DAC initialization failed!");
-        return false;
+        return;
     }
     GALVO_LOG("DAC initialized successfully");
 
-    // Test DAC output
-    GALVO_LOG("Testing DAC - setting X=2048, Y=2048 (center position)");
+    // Test DAC output - park at center
+    GALVO_LOG("Testing DAC - parking at center (2048, 2048)");
     dac_.setX(2048);
     dac_.setY(2048);
     dac_.ldacPulse();
-    GALVO_LOG("DAC test output sent");
-    
+
     // Initialize scanner
     GALVO_LOG("Initializing scanner core...");
-    if (!scanner_.init(&dac_, trig_pixel, trig_line, trig_frame)) {
+    if (!scanner_.init(&dac_, trig_pixel, trig_line, trig_frame))
+    {
         GALVO_LOG("ERROR: Scanner initialization failed!");
-        return false;
+        return;
     }
-    GALVO_LOG("Scanner initialized successfully");
-    
-    // Create scanner task
-    GALVO_LOG("Creating scanner task on Core 1...");
-    if (!scanner_.createTask(1, configMAX_PRIORITIES - 1)) {
+    GALVO_LOG("Scanner core initialized");
+
+    // Create scanner task on Core 0 (not Core 1 where main loop runs!)
+    // This prevents the watchdog issue - main loop runs on Core 1
+    GALVO_LOG("Creating scanner task on Core 0...");
+    if (!scanner_.createTask(0, configMAX_PRIORITIES - 2))
+    {
         GALVO_LOG("ERROR: Failed to create scanner task!");
-        return false;
+        return;
     }
-    GALVO_LOG("Scanner task created successfully");
-    
+    GALVO_LOG("Scanner task created on Core 0");
+
     // Load saved configuration from preferences
     GALVO_LOG("Loading configuration from preferences...");
-    if (loadConfig()) {
+    if (loadConfig())
+    {
         GALVO_LOG("Configuration loaded from preferences");
-        
-        // Check if auto-start is enabled in preferences
-        prefs_.begin(GALVO_PREFS_NAMESPACE, true);
-        auto_start_enabled_ = prefs_.getBool("auto_start", false);
-        prefs_.end();
-        
-        if (auto_start_enabled_) {
-            GALVO_LOG("Auto-start enabled, starting scanner...");
-            scanner_.start();
-        } else {
-            GALVO_LOG("Auto-start disabled, scanner idle");
-        }
-    } else {
-        GALVO_LOG("No saved configuration found, using defaults");
-        // Set default config
-        ScanConfig cfg;  // Uses default values from struct
+    }
+    else
+    {
+        GALVO_LOG("No saved config - using defaults");
+        ScanConfig cfg; // Uses default values
         scanner_.setConfig(cfg);
     }
-    
+
+    // Check auto-start preference
+    prefs_.begin(GALVO_PREFS_NAMESPACE, true);
+    auto_start_enabled_ = prefs_.getBool("auto_start", true); // Default true
+    prefs_.end();
+
+#endif
     initialized_ = true;
+
+    // Auto-start scanning if enabled
+    if (auto_start_enabled_)
+    {
+        GALVO_LOG("Auto-start enabled - starting scanner...");
+        scanner_.start();
+    }
+    else
+    {
+        GALVO_LOG("Auto-start disabled - scanner idle");
+    }
+
     GALVO_LOG("====================================");
     GALVO_LOG("GalvoController setup complete!");
     GALVO_LOG("====================================");
-    return true;
-    
-#else
-    GALVO_LOG("ERROR: Not running on ESP32");
-    return false;
-#endif
 }
 
-void GalvoController::doLoop()
+void GalvoController::loop()
 {
-    if (!initialized_) return;
-    
+    if (!initialized_)
+        return;
+
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
+    // Master mode - nothing to do in loop
+    return;
+#endif
+
     // Print status every 5 seconds when running
     unsigned long now = millis();
-    if (now - last_status_print_ >= 5000) {
+    if (now - last_status_print_ >= 5000)
+    {
         last_status_print_ = now;
-        
+
         ScannerStatus status = scanner_.getStatus();
-        if (status.running) {
+        if (status.running)
+        {
             GALVO_LOG("Status: frame=%lu, line=%d, overruns=%lu",
                       (unsigned long)status.current_frame,
                       status.current_line,
@@ -155,108 +160,252 @@ void GalvoController::doLoop()
     }
 }
 
-cJSON* GalvoController::processCommand(cJSON* doc)
+cJSON *GalvoController::get(cJSON *doc)
+{
+    return getStatus();
+}
+
+cJSON *GalvoController::act(cJSON *doc)
+{
+    return processCommand(doc);
+}
+
+cJSON *GalvoController::processCommand(cJSON *doc)
 {
     GALVO_LOG("processCommand() called");
-    
-    cJSON* response = cJSON_CreateObject();
-    
+
+    cJSON *response = cJSON_CreateObject();
+
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
+    // Master mode - forward command via CAN
+    GALVO_LOG("Master mode - forwarding via CAN");
+
     // Check for stop command
-    cJSON* stop_cmd = cJSON_GetObjectItem(doc, "stop");
-    if (stop_cmd && cJSON_IsTrue(stop_cmd)) {
+    cJSON *stop_cmd = cJSON_GetObjectItem(doc, "stop");
+    if (stop_cmd && cJSON_IsTrue(stop_cmd))
+    {
+        GALVO_LOG("Forwarding STOP via CAN");
+        GalvoData galvoData;
+        galvoData.isRunning = false;
+        galvoData.nFrames = 0;
+#ifdef CAN_BUS_ENABLED
+        can_controller::sendGalvoDataToCANDriver(galvoData);
+#endif
+        cJSON_AddBoolToObject(response, "success", true);
+        cJSON_AddStringToObject(response, "message", "Stop sent via CAN");
+        return response;
+    }
+
+    // Extract config and create GalvoData for CAN transmission
+    cJSON *config_obj = cJSON_GetObjectItem(doc, "config");
+    if (config_obj)
+    {
+        GalvoData galvoData;
+
+        cJSON *item;
+        if ((item = cJSON_GetObjectItem(config_obj, "x_min")))
+            galvoData.X_MIN = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "x_max")))
+            galvoData.X_MAX = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "y_min")))
+            galvoData.Y_MIN = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "y_max")))
+            galvoData.Y_MAX = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "nx")))
+            galvoData.STEP = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "sample_period_us")))
+            galvoData.tPixelDwelltime = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "frame_count")))
+            galvoData.nFrames = (int32_t)cJSON_GetNumberValue(item);
+
+        // Get qid from doc
+        if ((item = cJSON_GetObjectItem(doc, "qid")))
+            galvoData.qid = (int)cJSON_GetNumberValue(item);
+
+        galvoData.isRunning = true; // Start scanning
+
+#ifdef CAN_BUS_ENABLED
+        can_controller::sendGalvoDataToCANDriver(galvoData);
+#endif
+
+        cJSON_AddBoolToObject(response, "success", true);
+        cJSON_AddStringToObject(response, "message", "Config sent via CAN");
+        return response;
+    }
+
+    cJSON_AddBoolToObject(response, "success", false);
+    cJSON_AddStringToObject(response, "error", "Master mode - provide config to forward");
+    return response;
+
+#else
+
+    // Slave mode - handle locally
+
+    // Check for stop command
+    cJSON *stop_cmd = cJSON_GetObjectItem(doc, "stop");
+    if (stop_cmd && cJSON_IsTrue(stop_cmd))
+    {
         GALVO_LOG("STOP command received");
         scanner_.stop();
         cJSON_AddBoolToObject(response, "success", true);
         cJSON_AddStringToObject(response, "message", "Scanning stopped");
         return response;
     }
-    
+
     // Check for save command
-    cJSON* save_cmd = cJSON_GetObjectItem(doc, "save");
-    if (save_cmd && cJSON_IsTrue(save_cmd)) {
+    cJSON *save_cmd = cJSON_GetObjectItem(doc, "save");
+    if (save_cmd && cJSON_IsTrue(save_cmd))
+    {
         GALVO_LOG("SAVE command received");
         bool saved = saveConfig();
         cJSON_AddBoolToObject(response, "success", saved);
         cJSON_AddStringToObject(response, "message", saved ? "Config saved" : "Save failed");
         return response;
     }
-    
+
     // Check for auto_start setting
-    cJSON* auto_start_cmd = cJSON_GetObjectItem(doc, "auto_start");
-    if (auto_start_cmd) {
+    cJSON *auto_start_cmd = cJSON_GetObjectItem(doc, "auto_start");
+    if (auto_start_cmd)
+    {
         bool enable = cJSON_IsTrue(auto_start_cmd);
         GALVO_LOG("AUTO_START set to %s", enable ? "true" : "false");
-        
+
         prefs_.begin(GALVO_PREFS_NAMESPACE, false);
         prefs_.putBool("auto_start", enable);
         prefs_.end();
-        
+
         auto_start_enabled_ = enable;
         cJSON_AddBoolToObject(response, "success", true);
         cJSON_AddStringToObject(response, "message", enable ? "Auto-start enabled" : "Auto-start disabled");
         return response;
     }
-    
-    // Check for config object
-    cJSON* config_obj = cJSON_GetObjectItem(doc, "config");
-    if (config_obj) {
+
+    // Check for config object (from JSON API)
+    cJSON *config_obj = cJSON_GetObjectItem(doc, "config");
+    if (config_obj)
+    {
         GALVO_LOG("CONFIG command received");
-        
-        ScanConfig config = scanner_.getConfig();  // Start with current config
-        
-        if (parseJsonConfig(config_obj, config)) {
-            if (scanner_.setConfig(config)) {
+
+        ScanConfig config = scanner_.getConfig(); // Start with current config
+
+        if (parseJsonConfig(config_obj, config))
+        {
+            if (scanner_.setConfig(config))
+            {
                 GALVO_LOG("Config applied, starting scanner...");
                 scanner_.start();
-                
+
                 cJSON_AddBoolToObject(response, "success", true);
                 cJSON_AddStringToObject(response, "message", "Config applied, scanning started");
                 cJSON_AddItemToObject(response, "config", configToJson(config));
-            } else {
+            }
+            else
+            {
                 GALVO_LOG("ERROR: Invalid configuration");
                 cJSON_AddBoolToObject(response, "success", false);
                 cJSON_AddStringToObject(response, "error", "Invalid configuration values");
             }
-        } else {
+        }
+        else
+        {
             GALVO_LOG("ERROR: Failed to parse config JSON");
             cJSON_AddBoolToObject(response, "success", false);
             cJSON_AddStringToObject(response, "error", "Failed to parse config");
         }
         return response;
     }
-    
+#endif
+
+    // Check for legacy CAN format (X_MIN, X_MAX, etc. - received from CAN)
+    cJSON *x_min_item = cJSON_GetObjectItem(doc, "X_MIN");
+    if (x_min_item)
+    {
+        GALVO_LOG("Legacy CAN format detected");
+
+        ScanConfig config = scanner_.getConfig();
+
+        cJSON *item;
+        if ((item = cJSON_GetObjectItem(doc, "X_MIN")))
+            config.x_min = (uint16_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(doc, "X_MAX")))
+            config.x_max = (uint16_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(doc, "Y_MIN")))
+            config.y_min = (uint16_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(doc, "Y_MAX")))
+            config.y_max = (uint16_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(doc, "STEP")))
+        {
+            config.nx = (uint16_t)cJSON_GetNumberValue(item);
+            config.ny = config.nx; // Square scan
+        }
+        if ((item = cJSON_GetObjectItem(doc, "tPixelDwelltime")))
+            config.sample_period_us = (uint16_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(doc, "nFrames")))
+            config.frame_count = (uint16_t)cJSON_GetNumberValue(item);
+
+        if (scanner_.setConfig(config))
+        {
+            GALVO_LOG("Legacy config applied, starting scanner...");
+            scanner_.start();
+
+            // Also save to preferences for auto-start
+            saveConfig();
+
+            cJSON_AddBoolToObject(response, "success", true);
+            cJSON_AddStringToObject(response, "message", "Legacy config applied");
+        }
+        else
+        {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddStringToObject(response, "error", "Invalid legacy config");
+        }
+        return response;
+    }
+
     // Check for X LUT
-    cJSON* x_lut = cJSON_GetObjectItem(doc, "x_lut");
-    if (x_lut && cJSON_IsArray(x_lut)) {
+    cJSON *x_lut = cJSON_GetObjectItem(doc, "x_lut");
+    if (x_lut && cJSON_IsArray(x_lut))
+    {
         int size = cJSON_GetArraySize(x_lut);
         GALVO_LOG("X_LUT received with %d entries", size);
-        
-        if (size == SCANNER_X_LUT_N) {
+
+        if (size == SCANNER_X_LUT_N)
+        {
             uint16_t lut[SCANNER_X_LUT_N];
-            for (int i = 0; i < size; ++i) {
-                cJSON* item = cJSON_GetArrayItem(x_lut, i);
+            for (int i = 0; i < size; ++i)
+            {
+                cJSON *item = cJSON_GetArrayItem(x_lut, i);
                 lut[i] = (uint16_t)cJSON_GetNumberValue(item);
             }
             scanner_.setXLUT(lut);
             cJSON_AddBoolToObject(response, "success", true);
             cJSON_AddStringToObject(response, "message", "X LUT applied");
-        } else {
+        }
+        else
+        {
             cJSON_AddBoolToObject(response, "success", false);
             cJSON_AddStringToObject(response, "error", "X LUT must have 256 entries");
         }
         return response;
     }
-    
+
     // Default: return status
     GALVO_LOG("No specific command, returning status");
     cJSON_Delete(response);
     return getStatus();
 }
 
-cJSON* GalvoController::getStatus()
+cJSON *GalvoController::getStatus()
 {
-    cJSON* status = cJSON_CreateObject();
-    
+    cJSON *status = cJSON_CreateObject();
+
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
+    // Master mode
+    cJSON_AddBoolToObject(status, "master_mode", true);
+    cJSON_AddBoolToObject(status, "initialized", initialized_);
+    return status;
+#endif
+
     ScannerStatus s = scanner_.getStatus();
     cJSON_AddBoolToObject(status, "running", s.running);
     cJSON_AddNumberToObject(status, "current_frame", s.current_frame);
@@ -264,14 +413,14 @@ cJSON* GalvoController::getStatus()
     cJSON_AddNumberToObject(status, "timing_overruns", s.timing_overruns);
     cJSON_AddBoolToObject(status, "auto_start", auto_start_enabled_);
     cJSON_AddBoolToObject(status, "initialized", initialized_);
-    
+
     // Add current config
     cJSON_AddItemToObject(status, "config", configToJson(scanner_.getConfig()));
-    
+
     return status;
 }
 
-cJSON* GalvoController::getConfig()
+cJSON *GalvoController::getConfig()
 {
     return configToJson(scanner_.getConfig());
 }
@@ -279,11 +428,11 @@ cJSON* GalvoController::getConfig()
 bool GalvoController::saveConfig()
 {
     GALVO_LOG("Saving configuration to preferences...");
-    
+
     ScanConfig cfg = scanner_.getConfig();
-    
+
     prefs_.begin(GALVO_PREFS_NAMESPACE, false);
-    
+
     prefs_.putUShort("nx", cfg.nx);
     prefs_.putUShort("ny", cfg.ny);
     prefs_.putUShort("x_min", cfg.x_min);
@@ -300,9 +449,9 @@ bool GalvoController::saveConfig()
     prefs_.putUChar("x_lut", cfg.apply_x_lut);
     prefs_.putUShort("frames", cfg.frame_count);
     prefs_.putBool("saved", true);
-    
+
     prefs_.end();
-    
+
     GALVO_LOG("Configuration saved to preferences");
     return true;
 }
@@ -310,16 +459,17 @@ bool GalvoController::saveConfig()
 bool GalvoController::loadConfig()
 {
     GALVO_LOG("Loading configuration from preferences...");
-    
+
     prefs_.begin(GALVO_PREFS_NAMESPACE, true);
-    
+
     bool has_saved = prefs_.getBool("saved", false);
-    if (!has_saved) {
+    if (!has_saved)
+    {
         prefs_.end();
         GALVO_LOG("No saved configuration found");
         return false;
     }
-    
+
     ScanConfig cfg;
     cfg.nx = prefs_.getUShort("nx", 256);
     cfg.ny = prefs_.getUShort("ny", 256);
@@ -336,48 +486,63 @@ bool GalvoController::loadConfig()
     cfg.enable_trigger = prefs_.getUChar("en_trig", 1);
     cfg.apply_x_lut = prefs_.getUChar("x_lut", 0);
     cfg.frame_count = prefs_.getUShort("frames", 0);
-    
+
     prefs_.end();
-    
+
     GALVO_LOG("Loaded config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d",
               cfg.nx, cfg.ny, cfg.x_min, cfg.x_max, cfg.y_min, cfg.y_max, cfg.frame_count);
-    
+
     return scanner_.setConfig(cfg);
 }
 
-bool GalvoController::parseJsonConfig(cJSON* json, ScanConfig& cfg)
+bool GalvoController::parseJsonConfig(cJSON *json, ScanConfig &cfg)
 {
-    if (!json) return false;
-    
-    // Parse all config fields (keep existing values if not specified)
-    cJSON* item;
-    
-    if ((item = cJSON_GetObjectItem(json, "nx"))) cfg.nx = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "ny"))) cfg.ny = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "x_min"))) cfg.x_min = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "x_max"))) cfg.x_max = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "y_min"))) cfg.y_min = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "y_max"))) cfg.y_max = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "pre_samples"))) cfg.pre_samples = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "fly_samples"))) cfg.fly_samples = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "sample_period_us"))) cfg.sample_period_us = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "trig_delay_us"))) cfg.trig_delay_us = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "trig_width_us"))) cfg.trig_width_us = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "line_settle_samples"))) cfg.line_settle_samples = (uint16_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "enable_trigger"))) cfg.enable_trigger = (uint8_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "apply_x_lut"))) cfg.apply_x_lut = (uint8_t)cJSON_GetNumberValue(item);
-    if ((item = cJSON_GetObjectItem(json, "frame_count"))) cfg.frame_count = (uint16_t)cJSON_GetNumberValue(item);
-    
+    if (!json)
+        return false;
+
+    cJSON *item;
+
+    if ((item = cJSON_GetObjectItem(json, "nx")))
+        cfg.nx = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "ny")))
+        cfg.ny = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "x_min")))
+        cfg.x_min = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "x_max")))
+        cfg.x_max = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "y_min")))
+        cfg.y_min = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "y_max")))
+        cfg.y_max = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "pre_samples")))
+        cfg.pre_samples = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "fly_samples")))
+        cfg.fly_samples = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "sample_period_us")))
+        cfg.sample_period_us = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "trig_delay_us")))
+        cfg.trig_delay_us = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "trig_width_us")))
+        cfg.trig_width_us = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "line_settle_samples")))
+        cfg.line_settle_samples = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "enable_trigger")))
+        cfg.enable_trigger = (uint8_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "apply_x_lut")))
+        cfg.apply_x_lut = (uint8_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "frame_count")))
+        cfg.frame_count = (uint16_t)cJSON_GetNumberValue(item);
+
     GALVO_LOG("Parsed config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d",
               cfg.nx, cfg.ny, cfg.x_min, cfg.x_max, cfg.y_min, cfg.y_max, cfg.frame_count);
-    
+
     return true;
 }
 
-cJSON* GalvoController::configToJson(const ScanConfig& cfg)
+cJSON *GalvoController::configToJson(const ScanConfig &cfg)
 {
-    cJSON* json = cJSON_CreateObject();
-    
+    cJSON *json = cJSON_CreateObject();
+
     cJSON_AddNumberToObject(json, "nx", cfg.nx);
     cJSON_AddNumberToObject(json, "ny", cfg.ny);
     cJSON_AddNumberToObject(json, "x_min", cfg.x_min);
@@ -393,6 +558,6 @@ cJSON* GalvoController::configToJson(const ScanConfig& cfg)
     cJSON_AddNumberToObject(json, "enable_trigger", cfg.enable_trigger);
     cJSON_AddNumberToObject(json, "apply_x_lut", cfg.apply_x_lut);
     cJSON_AddNumberToObject(json, "frame_count", cfg.frame_count);
-    
+
     return json;
 }

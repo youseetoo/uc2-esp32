@@ -1,13 +1,13 @@
 /**
  * @file GalvoController.h
- * @brief Galvo scanner controller with JSON API and preferences storage
+ * @brief Galvo scanner controller with JSON API, CAN support, and preferences storage
  * 
  * Features:
  * - JSON API for configuration and control
+ * - CAN bus integration (master sends to slave, slave executes)
  * - Preferences storage for persistent config
  * - Auto-start with saved config on boot
  * - Infinite scanning mode (frame_count = 0)
- * - CAN bus integration
  */
 
 #pragma once
@@ -21,13 +21,12 @@
 #define GALVO_PREFS_NAMESPACE "galvo"
 
 /**
- * @brief Legacy GalvoData structure for CAN bus compatibility
+ * @brief GalvoData structure for CAN bus communication
  * 
- * Uses legacy field names for CAN protocol backward compatibility.
- * This structure is used for CAN communication between master and slave.
+ * Uses legacy field names for CAN protocol compatibility.
+ * This structure is transmitted over CAN between master and slave.
  */
 struct GalvoData {
-    // Legacy CAN field names (keep for backward compatibility)
     int32_t X_MIN = 500;           // Min X position (0-4095)
     int32_t X_MAX = 3500;          // Max X position (0-4095)
     int32_t Y_MIN = 500;           // Min Y position (0-4095)
@@ -35,7 +34,7 @@ struct GalvoData {
     int32_t STEP = 256;            // Step size (used as nx/ny)
     int32_t tPixelDwelltime = 1;   // Dwell time in µs (sample_period_us)
     int32_t nFrames = 0;           // Number of frames (0=infinite)
-    bool fastMode = false;         // Fast mode flag
+    bool fastMode = false;         // Fast mode flag (unused, kept for compatibility)
     bool isRunning = false;        // Running state
     int qid = 0;                   // Queue ID
     
@@ -61,7 +60,7 @@ struct GalvoData {
         data.X_MAX = cfg.x_max;
         data.Y_MIN = cfg.y_min;
         data.Y_MAX = cfg.y_max;
-        data.STEP = cfg.nx;  // Use nx as STEP
+        data.STEP = cfg.nx;
         data.tPixelDwelltime = cfg.sample_period_us;
         data.nFrames = cfg.frame_count;
         data.isRunning = running;
@@ -70,127 +69,47 @@ struct GalvoData {
 };
 
 /**
- * @brief Galvo scanner controller
+ * @brief Galvo scanner controller (static class)
  * 
- * Integrates HighSpeedScannerCore with JSON API, preferences storage,
- * and optional CAN bus commands.
+ * All methods are static - no instance needed.
+ * On master: forwards commands via CAN
+ * On slave: controls local galvo hardware
  */
 class GalvoController
 {
 public:
-    GalvoController() = default;
-    ~GalvoController() = default;
-    
-    /**
-     * @brief Static API for SerialProcess and RestApi compatibility
-     * 
-     * These static methods use the global singleton instance.
-     */
+    // Static API (called from main.cpp, SerialProcess, RestApi)
+    static void setup();
+    static void loop();
     static cJSON* get(cJSON* doc);
     static cJSON* act(cJSON* doc);
     
-    /**
-     * @brief Get singleton instance
-     */
-    static GalvoController& getInstance();
+    // Command processing
+    static cJSON* processCommand(cJSON* doc);
+    static cJSON* getStatus();
+    static cJSON* getConfig();
     
-    /**
-     * @brief Static setup (call from main.cpp)
-     */
-    static void setup();
+    // Configuration persistence
+    static bool saveConfig();
+    static bool loadConfig();
     
-    /**
-     * @brief Static loop (call from main.cpp)
-     */
-    static void loop();
-
-    /**
-     * @brief Process JSON command
-     * 
-     * JSON API:
-     * - Set config and start: {"task":"/galvo_act", "config":{...}}
-     * - Stop scanning: {"task":"/galvo_act", "stop":true}
-     * - Save config: {"task":"/galvo_act", "save":true}
-     * - Get status: {"task":"/galvo_get"}
-     * 
-     * Config parameters:
-     * - nx, ny: scan resolution (default 256x256)
-     * - x_min, x_max: X range (0-4095)
-     * - y_min, y_max: Y range (0-4095)
-     * - pre_samples: blanking samples before line (default 10)
-     * - fly_samples: flyback samples (default 64)
-     * - sample_period_us: microseconds per sample (default 1)
-     * - trig_delay_us: trigger delay (default 0)
-     * - trig_width_us: trigger pulse width (default 2)
-     * - line_settle_samples: settle samples after flyback (default 4)
-     * - enable_trigger: 1 to enable triggers (default 1)
-     * - apply_x_lut: 1 to apply X lookup table (default 0)
-     * - frame_count: frames to scan, 0=infinite (default 0)
-     * 
-     * @param doc JSON document
-     * @return Response JSON (caller must free)
-     */
-    cJSON* processCommand(cJSON* doc);
-
-    /**
-     * @brief Get scan status as JSON
-     * @return JSON object with status (caller must free)
-     */
-    cJSON* getStatus();
-
-    /**
-     * @brief Get current configuration as JSON
-     * @return JSON object with config (caller must free)
-     */
-    cJSON* getConfig();
-
-    /**
-     * @brief Save current configuration to preferences
-     * @return true if saved successfully
-     */
-    bool saveConfig();
-
-    /**
-     * @brief Load configuration from preferences
-     * @return true if loaded successfully
-     */
-    bool loadConfig();
-
-    /**
-     * @brief Check if scanner is running
-     */
-    bool isRunning() const { return scanner_.getStatus().running; }
-
-    /**
-     * @brief Start scanning
-     */
-    void start() { scanner_.start(); }
-
-    /**
-     * @brief Stop scanning
-     */
-    void stop() { scanner_.stop(); }
-
-    /**
-     * @brief Get internal scanner reference (for advanced use)
-     */
-    HighSpeedScannerCore& getScanner() { return scanner_; }
-
+    // Direct control (for CAN receiver)
+    static void start() { scanner_.start(); }
+    static void stop() { scanner_.stop(); }
+    static bool isRunning() { return scanner_.getStatus().running; }
+    static bool setConfig(const ScanConfig& cfg) { return scanner_.setConfig(cfg); }
+    static ScanConfig getCurrentConfig() { return scanner_.getConfig(); }
+    
 private:
-    DAC_MCP4822 dac_;
-    HighSpeedScannerCore scanner_;
-    Preferences prefs_;
-    bool initialized_ = false;
-    bool auto_start_enabled_ = false;  // Set to true to auto-start after boot
-    unsigned long last_status_print_ = 0;
+    // Hardware (only used on slave)
+    static DAC_MCP4822 dac_;
+    static HighSpeedScannerCore scanner_;
+    static Preferences prefs_;
+    static bool initialized_;
+    static bool auto_start_enabled_;
+    static unsigned long last_status_print_;
     
-    // Internal instance methods
-    bool doSetup();
-    void doLoop();
-    
-    // Parse JSON config into ScanConfig
-    bool parseJsonConfig(cJSON* json, ScanConfig& config);
-    
-    // Create JSON from ScanConfig
-    cJSON* configToJson(const ScanConfig& config);
+    // Helpers
+    static bool parseJsonConfig(cJSON* json, ScanConfig& config);
+    static cJSON* configToJson(const ScanConfig& config);
 };

@@ -37,9 +37,9 @@ struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
      const unsigned long BAUDRATE = 115200;
 
      uint8_t galvo_miso = -1;
-     uint8_t galvo_sck = GPIO_NUM_8;
-     uint8_t galvo_sdi = GPIO_NUM_7;
-     uint8_t galvo_cs = GPIO_NUM_9;
+     uint8_t galvo_sck = GPIO_NUM_7;
+     uint8_t galvo_sdi = GPIO_NUM_9;
+     uint8_t galvo_cs = GPIO_NUM_8;
      uint8_t galvo_ldac = GPIO_NUM_6;
      uint8_t galvo_laser = GPIO_NUM_43;
      uint8_t galvo_trig_pixel = GPIO_NUM_2;  // D1

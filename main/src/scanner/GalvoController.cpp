@@ -30,12 +30,13 @@ GalvoController& GalvoController::getInstance()
 void GalvoController::setup()
 {
     GALVO_LOG("setup() static called");
-    getInstance().doSetup();
+    g_galvo_instance = new GalvoController();
 }
 
 void GalvoController::loop()
 {
     getInstance().doLoop();
+    g_galvo_instance.loop();
 }
 
 cJSON* GalvoController::get(cJSON* doc)
@@ -54,7 +55,6 @@ bool GalvoController::doSetup()
     GALVO_LOG("GalvoController::setup() starting");
     GALVO_LOG("====================================");
     
-#ifdef ESP32
     // Get pin configuration from global pinConfig
     int sdi_pin = pinConfig.galvo_sdi;
     int sck_pin = pinConfig.galvo_sck;

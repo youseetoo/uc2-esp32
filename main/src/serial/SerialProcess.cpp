@@ -378,6 +378,7 @@ namespace SerialProcess
 		#endif
 		
 		// Read serial data byte-by-byte to handle large JSON strings reliably
+		// TODO: These could be optimized further if needed - the input could hang potentially
 		while (Serial.available() > 0) {
 			char c = Serial.read();
 			

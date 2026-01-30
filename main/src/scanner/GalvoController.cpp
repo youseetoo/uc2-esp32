@@ -172,7 +172,7 @@ cJSON *GalvoController::get(cJSON *doc)
 }
 
 cJSON *GalvoController::act(cJSON *doc)
-{
+{// {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1, "frame_count": 10, "bidirectional": 1}}
     return processCommand(doc);
 }
 

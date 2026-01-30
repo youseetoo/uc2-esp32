@@ -312,11 +312,20 @@ void HighSpeedScannerCore::scannerTask()
 {
     SCANNER_LOG("Scanner task started on core %d", xPortGetCoreID());
     
-    // Unsubscribe from task watchdog (tight timing loop)
-    esp_task_wdt_delete(NULL);
-    SCANNER_LOG("Task watchdog disabled for scanner task");
+    // Subscribe this task to the watchdog - we'll reset it periodically
+    // Note: IDLE0 watchdog is disabled in sdkconfig for galvo builds
+    // but we keep the scanner task watched for safety
+    esp_err_t wdt_err = esp_task_wdt_add(NULL);
+    if (wdt_err == ESP_OK) {
+        SCANNER_LOG("Scanner task added to watchdog");
+    } else {
+        SCANNER_LOG("Watchdog add returned %d (may already be added or not initialized)", wdt_err);
+    }
 
     while (true) {
+        // Reset watchdog at start of each iteration
+        esp_task_wdt_reset();
+
         if (!running_) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
@@ -423,6 +432,15 @@ void HighSpeedScannerCore::scannerTask()
                         }
                     }
                 }
+                // Note: At max speed (sp_us=0), we rely on the per-line watchdog reset
+                // No delay needed per-pixel since IDLE0 watchdog is disabled for galvo builds
+            }
+            
+            // Reset watchdog and yield after each line to prevent timeout
+            // This is critical for long scans (e.g., 256x256 at max speed)
+            esp_task_wdt_reset();
+            if (sp_us == 0) {
+                taskYIELD();  // Brief yield at max speed - not vTaskDelay to maintain speed
             }
         }
 

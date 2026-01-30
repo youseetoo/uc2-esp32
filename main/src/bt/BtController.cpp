@@ -402,7 +402,7 @@ namespace BtController
         // This prevents vTaskDelete from being skipped and ensures proper task cleanup
         // Stack size 8192 is needed for BT scanning operations
         xTaskCreate(hid_demo_task, "hid_demo_task", 8192, (void*)1, 6, NULL);
-
+        
         cJSON *root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "status", "scan_started");
         cJSON_AddStringToObject(root, "message", "Bluetooth device scan started in background");

@@ -1185,11 +1185,20 @@ namespace can_controller
         log_i("Setting up CAN controller on port TX: %d, RX: %d using address: %u", pinConfig.CAN_TX, pinConfig.CAN_RX, device_can_id);
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
+        if(0)
+        {
         xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
-        // Increased stack sizes for OTA handling which uses Update.write(), logging, etc.
+        // Increased stack sizes for OTA handling which uses Update.write(), logging, etc. // TODO: PROBLEMATIC: WE SHOULD DO THAT ONCE WE START OTA!
         xTaskCreate(recieveTask, "CAN_RecieveTask", 6144, NULL, 1, NULL);
         xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 8192, NULL, 1, NULL);
-
+        }
+        else{
+        
+        xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
+        xTaskCreate(recieveTask, "CAN_RecieveTask", 4096, NULL, 1, NULL);
+        xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 4096, NULL, 1, NULL);
+        
+       }
         if (sendQueue == nullptr)
         {
             if (debugState)
@@ -2317,7 +2326,7 @@ namespace can_controller
         
         log_i("Starting CAN device scan (broadcast mode)...");
         
-        // Clear previous scan results
+        // Clear previous scan results // TODO: Not working anymore - fix it
         scanResponseCount = 0;
         memset(scanResponses, 0, sizeof(scanResponses));
         scanInProgress = true;

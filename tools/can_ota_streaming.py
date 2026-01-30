@@ -142,7 +142,7 @@ def wait_for_stream_ack(ser, expected_page: int, timeout: float = PAGE_ACK_TIMEO
         if ser.in_waiting:
             new_data = ser.read(ser.in_waiting)
             buffer.extend(new_data)
-            
+            print("Buffer: ", buffer)
             # Check for log messages indicating success (for final ACK)
             try:
                 text = bytes(buffer).decode('utf-8', errors='replace')
@@ -306,8 +306,7 @@ def upload_firmware_streaming(firmware_path: str, session_retry: int = 0):
             "firmware_size": firmware_size,
             "page_size": PAGE_SIZE,
             "chunk_size": CHUNK_SIZE,
-            "md5": md5_hex,
-            "qid": 1
+            "md5": md5_hex#,"qid": 1
         }
         response = send_json(ser, stream_start_cmd)
         print(stream_start_cmd)

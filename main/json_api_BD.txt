@@ -236,7 +236,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "speed": 1000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 13}
 
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 12000, "direction":-1, "endstoppolarity":1}]}}
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 400, "speed": 15000, "direction":-1, "endstoppolarity":1},{"stepperid":1, "timeout": 200, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
@@ -432,10 +432,11 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 A,X,Y,Z ... 
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -30000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":2000, "position": 0,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": -10000,  "isabs": 0}]}, "qid": 5}
 {"task": "/can_get"}
 
 {"task":"/tmc_get"}
@@ -577,7 +578,7 @@ ON ESP32 Side  for FRAME #3
 ###################################################
 -> move to home position 
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 17}
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 14}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 14}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 15}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 16}
 
@@ -771,7 +772,7 @@ platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
 {"task":"/can_get", "address": 1}
 
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":50000}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -40000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":1000000, "redu":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -4000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":1000000, "redu":1}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -4000, "speed": 31000, "isabs": 0, "isaccel":0, "accel":100000}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -40000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":100000}]}}

@@ -1,0 +1,207 @@
+# Build ODMR Firmware and add to main UC2-ESP32 Releases
+# This workflow clones and builds the ODMR firmware from TechnicalDocs-openUC2-QBox
+# and creates a unified release with all UC2 firmware
+
+name: Build ODMR Firmware (Integrated)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run weekly on Monday at 2 AM UTC to check for updates
+    - cron: '0 2 * * 1'
+
+env:
+  ODMR_REPO: 'openUC2/TechnicalDocs-openUC2-QBox'
+
+jobs:
+  # ==============================================================
+  # BUILD — compile each ODMR environment in matrix
+  # ==============================================================
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---------- ESP32‑S3 ----------
+          - env_name: seeed_xiao_esp32s3
+            chip: esp32s3
+            flash_size: 4MB
+            partition_csv: custom_partition_esp32s3.csv
+            display_name: "ODMR Xiao ESP32S3"
+            board_id: "odmr-xiao-esp32s3"
+          # ---------- ESP32‑C3 ----------
+          - env_name: seeed_xiao_esp32c3
+            chip: esp32c3
+            flash_size: 4MB
+            partition_csv: custom_partition_esp32c3.csv
+            display_name: "ODMR Xiao ESP32C3"
+            board_id: "odmr-xiao-esp32c3"
+
+    steps:
+      # ---------------- CHECKOUT ODMR SOURCE ----------------
+      - name: Checkout ODMR firmware source (+submodules)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.ODMR_REPO }}
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
+      # ---------------- PYTHON TOOLCHAIN ---------------
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install PlatformIO & helpers
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio esptool
+
+      # ---------------- SET PROJECT PATH ----------------
+      - name: Navigate to PIO project
+        run: |
+          PROJECT_DIR="${GITHUB_WORKSPACE}/Production_Files/Software/ODMR_Server"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "==> PIO project at: $PROJECT_DIR"
+          ls -la "$PROJECT_DIR"
+
+      - name: Install PlatformIO libs
+        run: pio lib install
+        working-directory: ${{ env.PROJECT_DIR }}
+
+      # ---------------- COMPILE APP --------------------
+      - name: Build firmware – ${{ matrix.env_name }}
+        run: pio run -v --environment ${{ matrix.env_name }}
+        working-directory: ${{ env.PROJECT_DIR }}
+
+      # ---------------- MERGE BINARIES ------------------
+      - name: Merge binaries
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          BUILD_DIR=".pio/build/${{ matrix.env_name }}"
+          mkdir -p "${GITHUB_WORKSPACE}/build/fw-images"
+
+          cd "$BUILD_DIR"
+
+          # Determine bootloader address based on chip
+          if [[ "${{ matrix.chip }}" == "esp32s3" ]]; then
+            BOOT_ADDR="0x0"
+          else
+            BOOT_ADDR="0x1000"
+          fi
+
+          # Find boot_app0.bin
+          BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -1)
+
+          # Merge all binaries
+          python -m esptool --chip ${{ matrix.chip }} merge_bin \
+            -o "${GITHUB_WORKSPACE}/build/fw-images/${{ matrix.board_id }}.bin" \
+            --flash_mode dio --flash_freq 40m --flash_size ${{ matrix.flash_size }} \
+            $BOOT_ADDR bootloader.bin \
+            0x8000 partitions.bin \
+            0xe000 "$BOOT_APP0" \
+            0x10000 firmware.bin
+
+          echo "==> Merged binary created: ${{ matrix.board_id }}.bin"
+
+      # ---------------- CREATE MANIFEST -----------------
+      - name: Create ESP Web Tools manifest
+        run: |
+          # Get version from ODMR repo
+          cd "${{ env.PROJECT_DIR }}"
+          ODMR_VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)")
+          echo "ODMR Version: $ODMR_VERSION"
+
+          # Determine chip family
+          if [[ "${{ matrix.chip }}" == "esp32s3" ]]; then
+            CHIP_FAMILY="ESP32-S3"
+          elif [[ "${{ matrix.chip }}" == "esp32c3" ]]; then
+            CHIP_FAMILY="ESP32-C3"
+          else
+            CHIP_FAMILY="ESP32"
+          fi
+
+          # Create manifest for ESP Web Tools
+          cat > "${GITHUB_WORKSPACE}/build/fw-images/${{ matrix.board_id }}-manifest.json" << EOF
+          {
+            "name": "${{ matrix.display_name }}",
+            "version": "$ODMR_VERSION",
+            "home_assistant_domain": "ODMR-ESP32",
+            "funding_url": "https://github.com/${{ env.ODMR_REPO }}",
+            "builds": [
+              {
+                "chipFamily": "$CHIP_FAMILY",
+                "parts": [{ "path": "${{ matrix.board_id }}.bin", "offset": 0 }]
+              }
+            ]
+          }
+          EOF
+
+      # ---------------- UPLOAD ARTIFACT ----------------
+      - name: Publish merged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.board_id }}
+          path: build/fw-images/
+
+  # ==============================================================
+  # CREATE ODMR RELEASE — Add to UC2-ESP32 releases
+  # ==============================================================
+  create-odmr-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Download all ODMR firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: firmware
+          pattern: firmware-odmr-*
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: |
+          echo "==> Downloaded ODMR firmware:"
+          ls -la firmware/
+
+      - name: Get ODMR version
+        id: odmr_version
+        run: |
+          # Create version tag based on date
+          TAG="odmr-$(date -u +%Y.%m.%d)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "ODMR Release tag: $TAG"
+
+      - name: Create or Update Release in UC2-ESP32
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: youseetoo/uc2-esp32
+          tag_name: ${{ steps.odmr_version.outputs.tag }}
+          name: "ODMR Firmware ${{ steps.odmr_version.outputs.tag }}"
+          body: |
+            ## ODMR Quantum Spectroscopy Firmware
+            
+            This release contains firmware for ODMR (Optically Detected Magnetic Resonance) applications.
+            
+            **Source**: [TechnicalDocs-openUC2-QBox](https://github.com/${{ env.ODMR_REPO }})
+            
+            ### Boards
+            - ODMR Xiao ESP32-S3
+            - ODMR Xiao ESP32-C3
+            
+            ### Flash Instructions
+            1. Go to [UC2 Web Flasher](https://youseetoo.github.io/flasher.html)
+            2. Select ODMR board
+            3. Select this release version
+            4. Click "Install"
+          files: |
+            firmware/*.bin
+            firmware/*-manifest.json
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.API_TOKEN_GITHUB }}

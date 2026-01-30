@@ -12,7 +12,7 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #include "PinConfigDefault.h"
 
 // only for linting
-#define CORE_DEBUG_LEVEL=5
+// #define CORE_DEBUG_LEVEL=5
 #define LASER_CONTROLLER=1
 #define DIGITAL_IN_CONTROLLER=1
 #define MESSAGE_CONTROLLER=1

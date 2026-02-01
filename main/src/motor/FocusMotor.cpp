@@ -448,7 +448,7 @@ namespace FocusMotor
 		data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(),false);
 		data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
 		data[Stepper::A]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::A)).c_str(), false);
-		data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), true); // Enabled by default
+		data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), false); // Disabled by default
 		data[Stepper::A]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::A)).c_str(), false); // NO by default
 		isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
@@ -463,7 +463,7 @@ namespace FocusMotor
 		data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(),false);
 		data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
 		data[Stepper::X]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::X)).c_str(), false);
-		data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), true); // Enabled by default
+		data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), false); // Disabled by default
 		data[Stepper::X]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::X)).c_str(), false); // NO by default
 		isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
@@ -478,7 +478,7 @@ namespace FocusMotor
 		data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(),false);
 		data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
 		data[Stepper::Y]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Y)).c_str(), false);
-		data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), true); // Enabled by default
+		data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), false); // Disabled by default
 		data[Stepper::Y]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Y)).c_str(), false); // NO by default
 		isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
@@ -493,7 +493,7 @@ namespace FocusMotor
 		data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(),false);
 		data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
 		data[Stepper::Z]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Z)).c_str(), false);
-		data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), true); // Enabled by default
+		data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), false); // Disabled by default
 		data[Stepper::Z]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Z)).c_str(), false); // NO by default
 		isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);

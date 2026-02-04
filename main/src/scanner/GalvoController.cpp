@@ -170,6 +170,7 @@ cJSON *GalvoController::act(cJSON *doc)
     {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1, "frame_count": 10, "bidirectional": true}}
     full:
     {"task": "/galvo_act", "config": {"nx":512,"ny":512,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"trig_delay_us":0,"trig_width_us":0,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":true}}
+    */
     return processCommand(doc);
 }
 

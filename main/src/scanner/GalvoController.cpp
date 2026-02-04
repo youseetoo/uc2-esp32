@@ -107,18 +107,12 @@ void GalvoController::setup()
         GALVO_LOG("No saved config - using defaults");
         ScanConfig cfg; // Uses default values
         scanner_.setConfig(cfg);
-        // Save defaults to create NVS namespace
-        saveConfig();
     }
 
-    // Check auto-start preference (use read-write to create namespace if missing)
-    if (prefs_.begin(GALVO_PREFS_NAMESPACE, false)) {
-        auto_start_enabled_ = prefs_.getBool("auto_start", true); // Default true
-        prefs_.end();
-    } else {
-        auto_start_enabled_ = true;  // Default to true if NVS fails
-        GALVO_LOG("Warning: Could not open preferences for auto_start");
-    }
+    // Check auto-start preference
+    prefs_.begin(GALVO_PREFS_NAMESPACE, true);
+    auto_start_enabled_ = prefs_.getBool("auto_start", true); // Default true
+    prefs_.end();
 
 #endif
     initialized_ = true;
@@ -172,7 +166,10 @@ cJSON *GalvoController::get(cJSON *doc)
 }
 
 cJSON *GalvoController::act(cJSON *doc)
-{// {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1, "frame_count": 10, "bidirectional": 1}}
+{/*
+    {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1, "frame_count": 10, "bidirectional": true}}
+    full:
+    {"task": "/galvo_act", "config": {"nx":512,"ny":512,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"trig_delay_us":0,"trig_width_us":0,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":true}}
     return processCommand(doc);
 }
 
@@ -183,7 +180,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
     cJSON *response = cJSON_CreateObject();
 
 #if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
-    // Master mode - forward command via CAN
+    // ========== MASTER MODE - Forward commands via CAN ==========
     GALVO_LOG("Master mode - forwarding via CAN");
 
     // Check for stop command
@@ -224,7 +221,19 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         if ((item = cJSON_GetObjectItem(config_obj, "frame_count")))
             galvoData.nFrames = (int32_t)cJSON_GetNumberValue(item);
         if ((item = cJSON_GetObjectItem(config_obj, "bidirectional")))
-            galvoData.bidirectional = cJSON_IsTrue(item) || (cJSON_IsNumber(item) && cJSON_GetNumberValue(item) != 0);
+            galvoData.bidirectional = cJSON_IsTrue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "pre_samples")))
+            galvoData.pre_samples = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "fly_samples")))
+            galvoData.fly_samples = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "line_settle_samples")))
+            galvoData.line_settle_samples = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "trig_delay_us")))
+            galvoData.trig_delay_us = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "trig_width_us")))
+            galvoData.trig_width_us = (int32_t)cJSON_GetNumberValue(item);
+        if ((item = cJSON_GetObjectItem(config_obj, "enable_trigger")))
+            galvoData.enable_trigger = cJSON_IsTrue(item) ? 1 : 0;
 
         // Get qid from doc
         if ((item = cJSON_GetObjectItem(doc, "qid")))
@@ -246,8 +255,8 @@ cJSON *GalvoController::processCommand(cJSON *doc)
     return response;
 
 #else
-
-    // Slave mode - handle locally
+    // ========== SLAVE MODE - Execute commands locally ==========
+    GALVO_LOG("Slave mode - executing locally");
 
     // Check for stop command
     cJSON *stop_cmd = cJSON_GetObjectItem(doc, "stop");
@@ -322,55 +331,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         }
         return response;
     }
-#endif
 
-    // Check for legacy CAN format (X_MIN, X_MAX, etc. - received from CAN)
-    cJSON *x_min_item = cJSON_GetObjectItem(doc, "X_MIN");
-    if (x_min_item)
-    {
-        GALVO_LOG("Legacy CAN format detected");
-
-        ScanConfig config = scanner_.getConfig();
-
-        cJSON *item;
-        if ((item = cJSON_GetObjectItem(doc, "X_MIN")))
-            config.x_min = (uint16_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(doc, "X_MAX")))
-            config.x_max = (uint16_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(doc, "Y_MIN")))
-            config.y_min = (uint16_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(doc, "Y_MAX")))
-            config.y_max = (uint16_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(doc, "STEP")))
-        {
-            config.nx = (uint16_t)cJSON_GetNumberValue(item);
-            config.ny = config.nx; // Square scan
-        }
-        if ((item = cJSON_GetObjectItem(doc, "tPixelDwelltime")))
-            config.sample_period_us = (uint16_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(doc, "nFrames")))
-            config.frame_count = (uint16_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(doc, "bidirectional")))
-            config.bidirectional = cJSON_IsTrue(item) || (cJSON_IsNumber(item) && cJSON_GetNumberValue(item) != 0) ? 1 : 0;
-
-        if (scanner_.setConfig(config))
-        {
-            GALVO_LOG("Legacy config applied, starting scanner...");
-            scanner_.start();
-
-            // Also save to preferences for auto-start
-            saveConfig();
-
-            cJSON_AddBoolToObject(response, "success", true);
-            cJSON_AddStringToObject(response, "message", "Legacy config applied");
-        }
-        else
-        {
-            cJSON_AddBoolToObject(response, "success", false);
-            cJSON_AddStringToObject(response, "error", "Invalid legacy config");
-        }
-        return response;
-    }
 
     // Check for X LUT
     cJSON *x_lut = cJSON_GetObjectItem(doc, "x_lut");
@@ -403,6 +364,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
     GALVO_LOG("No specific command, returning status");
     cJSON_Delete(response);
     return getStatus();
+#endif // Master/Slave mode selection
 }
 
 cJSON *GalvoController::getStatus()
@@ -458,7 +420,6 @@ bool GalvoController::saveConfig()
     prefs_.putUChar("en_trig", cfg.enable_trigger);
     prefs_.putUChar("x_lut", cfg.apply_x_lut);
     prefs_.putUShort("frames", cfg.frame_count);
-    prefs_.putUChar("bidir", cfg.bidirectional);
     prefs_.putBool("saved", true);
 
     prefs_.end();
@@ -471,11 +432,7 @@ bool GalvoController::loadConfig()
 {
     GALVO_LOG("Loading configuration from preferences...");
 
-    // Use read-write mode to create namespace if it doesn't exist
-    if (!prefs_.begin(GALVO_PREFS_NAMESPACE, false)) {
-        GALVO_LOG("Could not open preferences namespace");
-        return false;
-    }
+    prefs_.begin(GALVO_PREFS_NAMESPACE, true);
 
     bool has_saved = prefs_.getBool("saved", false);
     if (!has_saved)
@@ -501,12 +458,12 @@ bool GalvoController::loadConfig()
     cfg.enable_trigger = prefs_.getUChar("en_trig", 1);
     cfg.apply_x_lut = prefs_.getUChar("x_lut", 0);
     cfg.frame_count = prefs_.getUShort("frames", 0);
-    cfg.bidirectional = prefs_.getUChar("bidir", 0);
+    cfg.bidirectional = prefs_.getBool("bidirectional", false) ? 1 : 0;
 
     prefs_.end();
 
-    GALVO_LOG("Loaded config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d bidir=%d",
-              cfg.nx, cfg.ny, cfg.x_min, cfg.x_max, cfg.y_min, cfg.y_max, cfg.frame_count, cfg.bidirectional);
+    GALVO_LOG("Loaded config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d",
+              cfg.nx, cfg.ny, cfg.x_min, cfg.x_max, cfg.y_min, cfg.y_max, cfg.frame_count);
 
     return scanner_.setConfig(cfg);
 }
@@ -549,9 +506,9 @@ bool GalvoController::parseJsonConfig(cJSON *json, ScanConfig &cfg)
     if ((item = cJSON_GetObjectItem(json, "frame_count")))
         cfg.frame_count = (uint16_t)cJSON_GetNumberValue(item);
     if ((item = cJSON_GetObjectItem(json, "bidirectional")))
-        cfg.bidirectional = (uint8_t)cJSON_GetNumberValue(item);
+        cfg.bidirectional = cJSON_IsTrue(item) ? 1 : 0;
 
-    GALVO_LOG("Parsed config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d bidir=%d",
+    GALVO_LOG("Parsed config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d, bidirectional=%d",
               cfg.nx, cfg.ny, cfg.x_min, cfg.x_max, cfg.y_min, cfg.y_max, cfg.frame_count, cfg.bidirectional);
 
     return true;
@@ -577,6 +534,5 @@ cJSON *GalvoController::configToJson(const ScanConfig &cfg)
     cJSON_AddNumberToObject(json, "apply_x_lut", cfg.apply_x_lut);
     cJSON_AddNumberToObject(json, "frame_count", cfg.frame_count);
     cJSON_AddNumberToObject(json, "bidirectional", cfg.bidirectional);
-
     return json;
 }

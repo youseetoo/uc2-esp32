@@ -34,6 +34,12 @@ struct GalvoData {
     int32_t STEP = 256;            // Step size (used as nx/ny)
     int32_t tPixelDwelltime = 1;   // Dwell time in µs (sample_period_us)
     int32_t nFrames = 0;           // Number of frames (0=infinite)
+    int32_t pre_samples = 4;       // Blanking samples before imaging
+    int32_t fly_samples = 16;      // Flyback samples (cosine ease)
+    int32_t line_settle_samples = 0; // Settling samples after flyback
+    int32_t trig_delay_us = 0;     // Trigger delay after position update
+    int32_t trig_width_us = 1;     // Trigger pulse width
+    int32_t enable_trigger = 1;    // Enable pixel trigger output
     bool fastMode = false;         // Fast mode flag (unused, kept for compatibility)
     bool isRunning = false;        // Running state
     bool bidirectional = false;    // Bidirectional scan mode
@@ -50,7 +56,12 @@ struct GalvoData {
         cfg.ny = (uint16_t)STEP;
         cfg.sample_period_us = (uint16_t)tPixelDwelltime;
         cfg.frame_count = (uint16_t)nFrames;
-        cfg.enable_trigger = 1;
+        cfg.pre_samples = (uint16_t)pre_samples;
+        cfg.fly_samples = (uint16_t)fly_samples;
+        cfg.line_settle_samples = (uint16_t)line_settle_samples;
+        cfg.trig_delay_us = (uint16_t)trig_delay_us;
+        cfg.trig_width_us = (uint16_t)trig_width_us;
+        cfg.enable_trigger = (uint8_t)enable_trigger;
         cfg.bidirectional = bidirectional ? 1 : 0;
         return cfg;
     }
@@ -65,6 +76,12 @@ struct GalvoData {
         data.STEP = cfg.nx;
         data.tPixelDwelltime = cfg.sample_period_us;
         data.nFrames = cfg.frame_count;
+        data.pre_samples = cfg.pre_samples;
+        data.fly_samples = cfg.fly_samples;
+        data.line_settle_samples = cfg.line_settle_samples;
+        data.trig_delay_us = cfg.trig_delay_us;
+        data.trig_width_us = cfg.trig_width_us;
+        data.enable_trigger = cfg.enable_trigger;
         data.isRunning = running;
         data.bidirectional = (cfg.bidirectional != 0);
         return data;

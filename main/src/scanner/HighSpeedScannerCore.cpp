@@ -243,15 +243,12 @@ uint16_t HighSpeedScannerCore::applyXMap(uint16_t x) const
     return x_map_[x & 0x0FFF];
 }
 
-void HighSpeedScannerCore::triggerPulsePixel(uint16_t dwell_us)
+void HighSpeedScannerCore::triggerPulsePixel()
 {
     if (trigger_pin_pixel_ < 0) return;
     
     // Fast GPIO register access
     GPIO.out_w1ts = (1U << trigger_pin_pixel_);
-    if (dwell_us > 0) {
-        esp_rom_delay_us(dwell_us);
-    }
     GPIO.out_w1tc = (1U << trigger_pin_pixel_);
 }
 
@@ -417,7 +414,7 @@ void HighSpeedScannerCore::scannerTask()
                     if (cfg.trig_delay_us > 0) {
                         esp_rom_delay_us(cfg.trig_delay_us);
                     }
-                    triggerPulsePixel(cfg.trig_width_us);
+                    triggerPulsePixel();
                 }
 
                 // Timing control

@@ -165,7 +165,7 @@ private:
     void buildLineProfile();
     uint16_t computeY(uint16_t line) const;
     uint16_t applyXMap(uint16_t x) const;
-    void triggerPulsePixel(uint16_t dwell_us);
+    void triggerPulsePixel();
     void triggerPulseLine();
     void triggerPulseFrame();
     

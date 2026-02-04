@@ -465,5 +465,6 @@ void HighSpeedScannerCore::scannerTask()
         // Yield to IDLE task between frames to prevent watchdog timeout
         // This allows other tasks to run briefly without impacting scan timing
         taskYIELD();
+        vTaskDelay(1); // 1 tick delay between frames to keep watchdog happy
     }
 }

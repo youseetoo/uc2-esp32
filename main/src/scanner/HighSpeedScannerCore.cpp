@@ -359,23 +359,28 @@ void HighSpeedScannerCore::scannerTask()
             SCANNER_LOG("Frame %lu starting, bidirectional=%d", (unsigned long)frame_idx_, cfg.bidirectional);
         }
 
+        const bool bidir = (cfg.bidirectional != 0);
+        
         const uint32_t img_start = cfg.pre_samples;
         const uint32_t img_end = cfg.pre_samples + cfg.nx;
-        const bool bidir = (cfg.bidirectional != 0);
 
         // FRAME TRIGGER
-        if (cfg.enable_trigger) {
+        /*
+        if (1) { // TODO : ensure it's always true ; cfg.enable_trigger) {
             triggerPulseFrame();
         }
+            */
 
         // Scan all lines (Y steps)
         for (uint16_t ly = 0; ly < cfg.ny && running_ && !config_changed_; ++ly) {
             line_idx_ = ly;
 
             // LINE TRIGGER
+            /*
             if (cfg.enable_trigger) {
-                triggerPulseLine();
+                // triggerPulseLine();
             }
+            */
 
             // Determine if this line is reversed (bidirectional: odd lines go backwards)
             bool reverse_line = bidir && (ly & 1);
@@ -384,7 +389,7 @@ void HighSpeedScannerCore::scannerTask()
             xSemaphoreTake(config_mutex_, portMAX_DELAY);
             uint16_t y12 = computeY(ly);
             bool do_lut = (config_.apply_x_lut != 0) && x_map_valid_;
-            bool do_trig = (config_.enable_trigger != 0);
+            bool do_trig = 1; //(config_.enable_trigger != 0);
             uint16_t sp_us = config_.sample_period_us;
             xSemaphoreGive(config_mutex_);
 
@@ -398,7 +403,64 @@ void HighSpeedScannerCore::scannerTask()
             for (uint32_t i = 0; i < line_len && running_ && !config_changed_; ++i) {
                 next_t += sp_us;
 
-                // Get X position - reverse index for bidirectional odd lines
+                // TIMING CONTROL: Wait until exact time for periodic trigger
+                // This ensures precise timing regardless of processing variations
+                int64_t now;
+                while (true) {
+                    now = esp_timer_get_time();
+                    if (now >= next_t) {
+                        break;
+                    }
+                }
+
+                // Check for timing overrun (loop too slow)
+                int64_t overrun_us = now - next_t;
+                if (overrun_us > (int64_t)sp_us) {
+                    overruns_++;
+                    // Log critical overruns (>10% of period)
+                    if (overruns_ % 100 == 1) {
+                        //SCANNER_LOG("Timing overrun: %lld µs (period: %d µs)", overrun_us, sp_us);
+                    }
+                }
+
+                // PIXEL TRIGGER - Fire at exact periodic interval
+                // Frame, Line, and first Pixel trigger happen simultaneously
+                // Only during imaging region, minimal pulse width
+                if (do_trig && (i >= img_start) && (i < img_end)) {
+                    bool is_first_pixel = (i == img_start);
+                    bool is_first_line = (ly == 0);
+                    
+                    // Synchronize all triggers on first pixel of first line
+                    if (is_first_line && is_first_pixel) {
+                        // All three triggers fire simultaneously
+                        uint32_t trigger_mask = 0;
+                        if (trigger_pin_frame_ >= 0) trigger_mask |= (1U << trigger_pin_frame_);
+                        if (trigger_pin_line_ >= 0) trigger_mask |= (1U << trigger_pin_line_);
+                        if (trigger_pin_pixel_ >= 0) trigger_mask |= (1U << trigger_pin_pixel_);
+                        
+                        GPIO.out_w1ts = trigger_mask;  // Set all at once
+                        GPIO.out_w1tc = trigger_mask;  // Clear all at once
+                    }
+                    else if (is_first_pixel) {
+                        // First pixel of subsequent lines: Line + Pixel trigger
+                        uint32_t trigger_mask = 0;
+                        if (trigger_pin_line_ >= 0) trigger_mask |= (1U << trigger_pin_line_);
+                        if (trigger_pin_pixel_ >= 0) trigger_mask |= (1U << trigger_pin_pixel_);
+                        
+                        GPIO.out_w1ts = trigger_mask;
+                        GPIO.out_w1tc = trigger_mask;
+                    }
+                    else {
+                        // Subsequent pixels: Only pixel trigger
+                        if (trigger_pin_pixel_ >= 0) {
+                            GPIO.out_w1ts = (1U << trigger_pin_pixel_);
+                            GPIO.out_w1tc = (1U << trigger_pin_pixel_);
+                        }
+                    }
+                }
+
+                // DAC UPDATE: Now we have remaining time budget for processing
+                // Get X position and apply LUT if enabled
                 uint32_t idx = reverse_line ? (line_len - 1 - i) : i;
                 uint16_t x12 = line_x_[idx];
                 if (do_lut) x12 = applyXMap(x12);
@@ -406,31 +468,6 @@ void HighSpeedScannerCore::scannerTask()
                 // Update X position via DAC
                 dac_->setX(x12);
                 dac_->ldacPulse();
-
-                // PIXEL TRIGGER (only during imaging region)
-                // For reverse lines, adjust the trigger region accordingly
-                uint32_t effective_i = reverse_line ? (line_len - 1 - i) : i;
-                if (do_trig && (effective_i >= img_start) && (effective_i < img_end)) {
-                    if (cfg.trig_delay_us > 0) {
-                        esp_rom_delay_us(cfg.trig_delay_us);
-                    }
-                    triggerPulsePixel();
-                }
-
-                // Timing control
-                if (sp_us > 0) {
-                    while (true) {
-                        int64_t now = esp_timer_get_time();
-                        if (now >= next_t) {
-                            if (now - next_t > (int64_t)sp_us) {
-                                overruns_++;
-                            }
-                            break;
-                        }
-                    }
-                }
-                // Note: At max speed (sp_us=0), we rely on the per-line watchdog reset
-                // No delay needed per-pixel since IDLE0 watchdog is disabled for galvo builds
             }
             
             // Reset watchdog and yield after each line to prevent timeout

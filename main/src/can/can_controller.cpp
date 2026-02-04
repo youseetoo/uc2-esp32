@@ -431,21 +431,48 @@ namespace can_controller
             memcpy(&galvo, data, sizeof(galvo));
             // Apply galvo settings
             if (debugState)
-                log_i("Received galvo data: X_MIN=%d, X_MAX=%d, Y_MIN=%d, Y_MAX=%d, STEP=%d, tPixelDwelltime=%d, nFrames=%d, fastMode=%s",
+                log_i("Received galvo data: X_MIN=%d, X_MAX=%d, Y_MIN=%d, Y_MAX=%d, nx=%d, sample_period_us=%d, nFrames=%d, isRunning=%s",
                       galvo.X_MIN, galvo.X_MAX, galvo.Y_MIN, galvo.Y_MAX, galvo.STEP, galvo.tPixelDwelltime, galvo.nFrames,
-                      galvo.fastMode ? "true" : "false");
+                      galvo.isRunning ? "true" : "false");
 
-            // Create JSON object and call galvo controller
+            // Create JSON object in the format that processCommand() expects
+            // {"task": "/galvo_act", "config": {...}, "qid": 123}
             cJSON *galvoJson = cJSON_CreateObject();
+            cJSON_AddStringToObject(galvoJson, "task", "/galvo_act");
             cJSON_AddNumberToObject(galvoJson, "qid", galvo.qid);
-            cJSON_AddNumberToObject(galvoJson, "X_MIN", galvo.X_MIN);
-            cJSON_AddNumberToObject(galvoJson, "X_MAX", galvo.X_MAX);
-            cJSON_AddNumberToObject(galvoJson, "Y_MIN", galvo.Y_MIN);
-            cJSON_AddNumberToObject(galvoJson, "Y_MAX", galvo.Y_MAX);
-            cJSON_AddNumberToObject(galvoJson, "STEP", galvo.STEP);
-            cJSON_AddNumberToObject(galvoJson, "tPixelDwelltime", galvo.tPixelDwelltime);
-            cJSON_AddNumberToObject(galvoJson, "nFrames", galvo.nFrames);
-            cJSON_AddBoolToObject(galvoJson, "fastMode", galvo.fastMode);
+            
+            // Add config object with the new field names
+            cJSON *config = cJSON_CreateObject();
+            cJSON_AddNumberToObject(config, "x_min", galvo.X_MIN);
+            cJSON_AddNumberToObject(config, "x_max", galvo.X_MAX);
+            cJSON_AddNumberToObject(config, "y_min", galvo.Y_MIN);
+            cJSON_AddNumberToObject(config, "y_max", galvo.Y_MAX);
+            cJSON_AddNumberToObject(config, "nx", galvo.STEP);
+            cJSON_AddNumberToObject(config, "ny", galvo.STEP);  // ny = nx (square scan)
+            cJSON_AddNumberToObject(config, "sample_period_us", galvo.tPixelDwelltime);
+            cJSON_AddNumberToObject(config, "frame_count", galvo.nFrames);
+            cJSON_AddBoolToObject(config, "bidirectional", galvo.bidirectional);
+            
+            // Add new timing parameters
+            cJSON_AddNumberToObject(config, "pre_samples", galvo.pre_samples);
+            cJSON_AddNumberToObject(config, "fly_samples", galvo.fly_samples);
+            cJSON_AddNumberToObject(config, "line_settle_samples", galvo.line_settle_samples);
+            cJSON_AddNumberToObject(config, "trig_delay_us", galvo.trig_delay_us);
+            cJSON_AddNumberToObject(config, "trig_width_us", galvo.trig_width_us);
+            cJSON_AddNumberToObject(config, "enable_trigger", galvo.enable_trigger);
+            cJSON_AddNumberToObject(config, "apply_x_lut", 0);  // Default: no LUT
+            
+            cJSON_AddItemToObject(galvoJson, "config", config);
+            
+            // Check if we should stop instead
+            if (!galvo.isRunning)
+            {
+                // Send stop command instead
+                cJSON_Delete(galvoJson);
+                galvoJson = cJSON_CreateObject();
+                cJSON_AddStringToObject(galvoJson, "task", "/galvo_act");
+                cJSON_AddBoolToObject(galvoJson, "stop", true);
+            }
 
             // Execute galvo action
             GalvoController::act(galvoJson);

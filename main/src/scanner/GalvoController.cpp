@@ -167,22 +167,25 @@ cJSON *GalvoController::get(cJSON *doc)
 
 cJSON *GalvoController::act(cJSON *doc)
 {/*
-    {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1, "frame_count": 10, "bidirectional": true}}
+    {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1000, "frame_count": 10, "bidirectional": false}}
     full:
-    {"task": "/galvo_act", "config": {"nx":512,"ny":512,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"trig_delay_us":0,"trig_width_us":0,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":true}}
+    {"task":"/state_get"}
+    {"task": "/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"enable_trigger":true,"apply_x_lut":0,"frame_count":0,"bidirectional":false}}
+    {"task": "/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"trig_delay_us":0,"trig_width_us":20,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":false}}
+    {"task": "/galvo_act", "config": {"nx":100,"ny":100,"x_min":500,"x_max":1500,"y_min":500,"y_max":1500,"pre_samples":16,"fly_samples":16,"sample_period_us":20,"trig_delay_us":0,"trig_width_us":20,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":true}}
+
     */
     return processCommand(doc);
 }
 
 cJSON *GalvoController::processCommand(cJSON *doc)
 {
-    GALVO_LOG("processCommand() called");
-
+    
     cJSON *response = cJSON_CreateObject();
 
 #if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
     // ========== MASTER MODE - Forward commands via CAN ==========
-    GALVO_LOG("Master mode - forwarding via CAN");
+    // GALVO_LOG("Master mode - forwarding via CAN");
 
     // Check for stop command
     cJSON *stop_cmd = cJSON_GetObjectItem(doc, "stop");
@@ -242,6 +245,21 @@ cJSON *GalvoController::processCommand(cJSON *doc)
 
         galvoData.isRunning = true; // Start scanning
 
+        // Log all parameters being sent
+        if (0){
+        GALVO_LOG("Sending config via CAN: nx=%d, ny=%d, x=[%d,%d], y=[%d,%d]",
+                  galvoData.STEP, galvoData.STEP, galvoData.X_MIN, galvoData.X_MAX, 
+                  galvoData.Y_MIN, galvoData.Y_MAX);
+        GALVO_LOG("  timing: period=%dµs, pre=%d, fly=%d, settle=%d",
+                  galvoData.tPixelDwelltime, galvoData.pre_samples, 
+                  galvoData.fly_samples, galvoData.line_settle_samples);
+        GALVO_LOG("  trigger: enable=%d, delay=%dµs, width=%dµs",
+                  galvoData.enable_trigger, galvoData.trig_delay_us, galvoData.trig_width_us);
+        GALVO_LOG("  frames=%d, bidir=%d, isRunning=%d",
+                  galvoData.nFrames, galvoData.bidirectional, galvoData.isRunning);
+}
+
+        // Send via CAN
 #ifdef CAN_BUS_ENABLED
         can_controller::sendGalvoDataToCANDriver(galvoData);
 #endif
@@ -257,7 +275,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
 
 #else
     // ========== SLAVE MODE - Execute commands locally ==========
-    GALVO_LOG("Slave mode - executing locally");
+    GALVO_LOG("Slave mode - processing command");
 
     // Check for stop command
     cJSON *stop_cmd = cJSON_GetObjectItem(doc, "stop");
@@ -306,6 +324,14 @@ cJSON *GalvoController::processCommand(cJSON *doc)
 
         ScanConfig config = scanner_.getConfig(); // Start with current config
 
+        // in case of bidreciontal scanning, we don't need pre_samples and fly_samples for timing
+        if (config.bidirectional) {
+            // log
+            GALVO_LOG("Bidirectional scan: ignoring pre_samples and fly_samples for timing");
+            config.pre_samples = 0;
+            config.fly_samples = 0;
+        }
+        
         if (parseJsonConfig(config_obj, config))
         {
             if (scanner_.setConfig(config))

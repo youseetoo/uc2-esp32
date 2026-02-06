@@ -139,6 +139,12 @@ public:
      */
     bool createTask(int core_id = 1, int priority = configMAX_PRIORITIES - 1);
 
+    /**
+     * @brief stop and delete the scanner FreeRTOS task
+     * 
+     */
+    void stopTask();
+    
 private:
     DAC_MCP4822* dac_ = nullptr;
     int trigger_pin_pixel_ = -1;

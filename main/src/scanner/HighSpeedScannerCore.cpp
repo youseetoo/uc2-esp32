@@ -305,6 +305,16 @@ bool HighSpeedScannerCore::createTask(int core_id, int priority)
     }
 }
 
+void HighSpeedScannerCore::stopTask()
+{
+    if (task_handle_) {
+        vTaskDelete(task_handle_);
+        task_handle_ = nullptr;
+        task_created_ = false;
+        SCANNER_LOG("Scanner task stopped and deleted");
+    }
+}
+
 void HighSpeedScannerCore::scannerTask()
 {
     SCANNER_LOG("Scanner task started on core %d", xPortGetCoreID());

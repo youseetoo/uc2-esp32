@@ -582,6 +582,7 @@ namespace can_controller
             // STREAM_* message types: 0x70-0x76
             if (static_cast<uint8_t>(msgType) >= 0x70 && static_cast<uint8_t>(msgType) <= 0x76)
             {
+                log_i("Received CAN OTA streaming message type %u from CAN ID %u, size: %u", static_cast<uint8_t>(msgType), txID, size);
                 can_ota_stream::handleStreamMessage(static_cast<uint8_t>(msgType), data + 1, size - 1, txID);
                 return;
             }
@@ -1309,10 +1310,12 @@ namespace can_controller
             debugState = cJSON_IsTrue(debug);
             if (debugState){
                 // Debug mode: 30ms separation time to handle log_i overhead
+                log_d("Enabling debug mode with extended separation time for ISO-TP frames");
                 separationTimeMin = 30;
             }
             else{
                 // Production mode: 2ms for fast transfer (~5 min for 1MB)
+                log_d("Disabling debug mode, setting separation time to minimum for fast ISO-TP transfer");
                 separationTimeMin = 2;
             }
             log_i("Set DEBUG_CAN_ISO_TP to %s, separationTimeMin=%dms", debugState ? "true" : "false", separationTimeMin);

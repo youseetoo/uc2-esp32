@@ -28,6 +28,7 @@
 #include <freertos/semphr.h>
 #include "CanOtaTypes.h"
 #include "cJSON.h"
+#include "can_messagetype.h"
 
 namespace can_ota_stream {
 
@@ -56,13 +57,13 @@ constexpr uint32_t STREAM_TOTAL_TIMEOUT_MS = 600000; // 10 min total
 
 // Message types (using unused range 0x70-0x7F)
 enum StreamMessageType : uint8_t {
-    STREAM_START    = 0x70,  // Initialize streaming session
-    STREAM_DATA     = 0x71,  // Data frame with sequence number
-    STREAM_ACK      = 0x72,  // Cumulative acknowledgment
-    STREAM_NAK      = 0x73,  // Request retransmit from offset
-    STREAM_FINISH   = 0x74,  // End session, verify, commit
-    STREAM_ABORT    = 0x75,  // Abort session
-    STREAM_STATUS   = 0x76,  // Query status
+    STREAM_START    = OTA_STREAM_START,  // Initialize streaming session
+    STREAM_DATA     = OTA_STREAM_DATA,  // Data frame with sequence number
+    STREAM_ACK      = OTA_STREAM_ACK,  // Cumulative acknowledgment
+    STREAM_NAK      = OTA_STREAM_NAK,  // Request retransmit from offset
+    STREAM_FINISH   = OTA_STREAM_FINISH,  // End session, verify, commit
+    STREAM_ABORT    = OTA_STREAM_ABORT,  // Abort session
+    STREAM_STATUS   = OTA_STREAM_STATUS,  // Query status
 };
 
 static int CAN_OTA_ERROR_ABORTED = 0xFF;

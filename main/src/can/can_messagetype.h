@@ -81,10 +81,19 @@ enum CANMessageTypeID {
     OTA_CAN_NAK      = 0x68, // Negative acknowledgment
     OTA_CAN_STATUS   = 0x69, // Status query/response
 
-    SCAN_REQUEST     = 0x70, // Network Scan Messages
-    SCAN_RESPONSE    = 0x71,
+    SCAN_REQUEST     = 0x80, // Network Scan Messages
+    SCAN_RESPONSE    = 0x81,
 
-    BROADCAST        = 0xF0  // Broadcast Message (240)
+    BROADCAST        = 0xF0,  // Broadcast Message (240)
+
+    OTA_STREAM_START = 0x70, // Start OTA streaming session (defined in CanOtaStreaming.h)
+    OTA_STREAM_DATA  = 0x71, // Data chunk in OTA streaming mode
+    OTA_STREAM_ACK   = 0x72, // ACK for OTA streaming
+    OTA_STREAM_NAK   = 0x73, // NAK for OTA streaming
+    OTA_STREAM_FINISH= 0x74, // Finish OTA streaming session
+    OTA_STREAM_ABORT = 0x75, // Abort OTA streaming session
+    OTA_STREAM_STATUS= 0x76  // Status query for OTA streaming session
+
 };
 
 #endif // CAN_MESSAGETYPE_H

@@ -32,14 +32,9 @@ unsigned long GalvoController::last_status_print_ = 0;
 
 void GalvoController::setup()
 {
-    GALVO_LOG("====================================");
-    GALVO_LOG("GalvoController::setup() starting");
-    GALVO_LOG("====================================");
-
+ 
 #if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
     // Host/Master mode - only forward commands via CAN, no local hardware
-    GALVO_LOG("Running in MASTER mode (CAN_SEND_COMMANDS)");
-    GALVO_LOG("No local galvo hardware - commands forwarded via CAN");
     initialized_ = true;
     return;
 #else

@@ -16,6 +16,10 @@
 #include <MD5Builder.h>
 #include <esp_crc.h>
 
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#include "../scanner/HighSpeedScannerCore.h"
+#endif
 namespace can_ota_stream {
 
 // ============================================================================
@@ -146,6 +150,11 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     uint8_t masterCanId = pinConfig.CAN_ID_CENTRAL_NODE;
     log_i("Using master CAN ID %u for responses (sourceCanId param was %u)", masterCanId, sourceCanId);
     
+    // TODO: In case of the e.g. tha galvo scanner, we need to stop any other tasks, potentially also 
+    #ifdef GALVO_CONTROLLER
+    // HighSpeedScannerCore::stopTask(); // main/src/can/CanOtaStreaming.cpp:155:36: error: cannot call member function 'void HighSpeedScannerCore::stopTask()' without object
+    #endif 
+        
     // Validate
     if (cmd->firmwareSize > CAN_OTA_MAX_FIRMWARE_SIZE) {
         log_e("Firmware too large: %lu > %d", cmd->firmwareSize, CAN_OTA_MAX_FIRMWARE_SIZE);
@@ -567,6 +576,7 @@ int actFromJsonStreaming(cJSON* doc) {
 
 void handleStreamMessage(uint8_t msgType, const uint8_t* data, size_t len, uint8_t sourceCanId) {
     switch (msgType) {
+        log_d("Received stream message type 0x%02X from CAN ID %u", msgType, sourceCanId);  
         case STREAM_START:
             handleStartCmd(data, len, sourceCanId);
             break;

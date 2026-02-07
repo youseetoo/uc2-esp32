@@ -197,8 +197,8 @@ void hid_demo_task(void *pvParameters)
     size_t free_heap = esp_get_free_heap_size();
     log_i( "Free heap before BT scan: %d bytes", free_heap);
     
-    if (free_heap < 40000) {
-        ESP_LOGE(TAG, "Insufficient heap memory for BT scan: %d bytes (minimum 40000)", free_heap);
+    if (free_heap < 4000) {
+        log_e("Insufficient heap memory for BT scan: %d bytes (minimum 40000)", free_heap);
         if (calledAsTask) {
             vTaskDelete(NULL);
         }

@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#define CORE_DEBUG_LEVEL=5
+// #define CORE_DEBUG_LEVEL=5
 #define LASER_CONTROLLER=1
 #define DIGITAL_IN_CONTROLLER=1
 #define MESSAGE_CONTROLLER=1
@@ -28,7 +28,7 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // Board identity
     // ---------------------------------------------------------------------
     const char* pindefName = "UC2_3_CAN_HAT_Master_v2";
-    const unsigned long BAUDRATE = 115200;
+    const unsigned long BAUDRATE = 921600; //15200;
 
     // ---------------------------------------------------------------------
     // Core buses and addresses (per HAT design)

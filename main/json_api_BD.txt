@@ -236,7 +236,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 10000, "speed": 1000, "isabs": 0, "isaccel": 1, "isen": 1, "accel": 500000}]}, "qid": 13}
 
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -5000, "speed": -15000, "isabs": 0, "isaccel":0}]}} 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 20000, "speed": 12000, "direction":-1, "endstoppolarity":1}]}}
 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 400, "speed": 15000, "direction":-1, "endstoppolarity":1},{"stepperid":1, "timeout": 200, "speed": 15000, "direction":1, "endstoppolarity":1}]}}
@@ -269,7 +269,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 
 {"stepperid":2, "timeout": 20000, "speed": 15000, "direction":1, "endposrelease":3000}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 3000, "direction":-1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 20000, "direction":1, "endstoppolarity":-1}]}}
 # Heating
  {"task": "/heat_act", "active":1, "Kp":100, "Ki":0.1, "Kd":0.1, "target":30, "updaterate":1000, "qid":1}
   {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":22, "timeout":600000, "updaterate":1000, "qid":1}
@@ -359,6 +359,9 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task":"/motor_get"}
 {"task":"/bt_scan"}
 {"task":"/state_act", "restart":1}
+{"task": "/laser_act", "LASERid":4, "LASERval": 512, "qid":1}
+{"task": "/can_get", "LASERid":4, "LASERval": 512, "qid":1}
+
 
 // Stage scan
 {"task": "/motor_act", "isDualAxisZ": 1, "qid":1}
@@ -429,10 +432,11 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 A,X,Y,Z ... 
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -30000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":2000, "position": 0,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 10000,  "isabs": 1}]}, "qid": 5}
 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": -10000,  "isabs": 0}]}, "qid": 5}
 {"task": "/can_get"}
 
 {"task":"/tmc_get"}
@@ -574,7 +578,7 @@ ON ESP32 Side  for FRAME #3
 ###################################################
 -> move to home position 
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 0, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 17}
-{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 14}
+{"task": "/home_act", "home": {"steppers": [{"stepperid": 1, "timeout": 20000, "speed": 10000, "direction": 1, "endstoppolarity": 1}]}, "qid": 14}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": 1, "endstoppolarity": 1}]}, "qid": 15}
 {"task": "/home_act", "home": {"steppers": [{"stepperid": 3, "timeout": 20000, "speed": 10000, "direction": -1, "endstoppolarity": 1}]}, "qid": 16}
 
@@ -704,3 +708,228 @@ ON ESP32 Side  for FRAME #3
 #    platformio run -t upload --environment seeed_xiao_esp32s3_can_slave_laser_debug  --upload-port UC2-CAN-14.local
 
 pio run -t upload --environment seeed_xiao_esp32s3_can_slave_motor_debug --upload-port 192.168.178.28 # UC2-CAN-14.local
+
+
+
+
+####################################
+####################################
+####################################
+####################################
+####################################
+Wifi OTA related
+
+platformio run --target upload --environment UC2_3_CAN_HAT_Master_debug --upload-port /dev/cu.SLAB_USBtoUART 
+platformio run --target upload --environment UC2_3_CAN_HAT_Master --upload-port /dev/cu.SLAB_USBtoUART 
+
+platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 115200
+
+platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
+platformio run -t upload --environment seeed_xiao_esp32s3_can_slave_laser_debug --upload-port /dev/cu.usbmodem101 
+
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_laser_debug --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_motor --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_motor_debug --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_illumination_debug --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_illumination --upload-port /dev/cu.usbmodem101 
+
+
+{"task":"/objective_get","qid":1}}
+
+// V4 
+
+platformio run --target upload --environment UC2_4_CAN_HYBRID_debug --upload-port /dev/cu.SLAB_USBtoUART 
+platformio run --target upload --environment UC2_4_CAN_HYBRID --upload-port /dev/cu.SLAB_USBtoUART 
+
+            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": 20000 } ]}}
+
+
+platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
+
+
+            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 0,  "speed": 20000 } ]}}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 6, "position": 3000, "speed": 20000, "redu":0}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 3000, "speed": 20000}]}}
+
+
+
+
+{"task": "/laser_act", "LASERid":0, "LASERval": 100}
+
+platformio run --target upload --environment UC2_4 --upload-port /dev/cu.wchusbserial10 
+platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
+
+{"task":"/state_get"}
+{"task":"/bt_scan"}
+{"task": "/can_act", "scan": true, "qid": 1}
+{"task":"/can_act", "address": 1} // MASTER
+{"task":"/can_act", "address": 11} // X
+{"task":"/can_act", "address": 12} // Y 
+{"task":"/can_act", "address": 13} // Z 
+{"task":"/can_act", "address": 10} // A
+{"task":"/can_act", "address": 30} // LED
+{"task":"/can_get", "address": 1}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -4000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":1000000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -4000, "speed": 31000, "isabs": 0, "isaccel":0, "accel":100000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000, "redu":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -40000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":100000}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":2,"position":20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}, {"stepperid":1,"position":-20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}]}}
+
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid":1, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+
+
+
+// HOME on device
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 40000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
+
+
+// HOME on master 
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
+
+
+{"task":"/state_act", "restart":1}
+{"task":"/state_get", "restart":1}
+{"task":"/tmc_get"}
+{"task":"/bt_scan"}
+{"task":"/bt_connect","address":"XX:XX:XX:XX:XX:XX"}
+
+platformio run --target upload --environment UC2_4 --upload-port /dev/cu.wchusbserial10 
+
+
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 5, "r": 4, "g": 4, "b": 4 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 5, "r": 0, "g": 0, "b": 0 } }
+
+{"task": "/laser_act", "LASERid":8, "LASERval": 500, "qid":5}
+{"task": "/laser_act", "LASERid":8, "LASERval": 0, "qid":5}
+
+
+{"task": "/laser_act", "LASERid":1, "LASERval": 1023, "qid":5}
+
+
+
+
+{"task":"/can_ota", "canid": 11, "action": "start", "firmware_size": 865056, "total_chunks": 845, "chunk_size": 1024, "md5": "dde1cd1477ca4f2461c2b1fe0dd621c9", "binary_mode": 1, "qid":1}
+{"task":"/can_ota","canid":11,"action":"binary_start"}
+\xaaU\x01\x00\x00\x04\x00>\xf2\x92\x8a\xe9\x05\x02/\x1cf7@\xee\x00\x00\x00\t\x00\x00\x00\x00\xff\xff\x00\x00\x00\x00\x01 \x00\n<\x84:\x02\x002T\xcd\xab\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00v2026.01.15-6-g60244ea-dirty\x00\x00\x00\x00uc2esp32\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0013:41:01\x00\x00\x00\x00\x00\x00\x00\x00Jan 17 2026\x00\x00\x00\x00\x004.4.7\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00L\xf6\xd7i\xa7\xa6\x19\xaf\xbc\xb4G\x9f\x8c\xa6\xd0\xd8\xd7\xa4\xd3\xc35\x82\xbeu\xa8C\x0fQ\xa2\xa3\x17Z\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00main/main.cpp\x00[%6u][I][%s:%u] %s(): Starting loop\r\n\x00[%6u][I][%s:%u] %s(): SetupApp\r\n\x00*\x00{'setup':'done'}\x00[%6u][I][%s:%u] %s(): Start setup\r\n\x00DEBUG: Serial initialized\x00DEBUG: Baudrate=%lu, RX buffer size will be set\n\x00[%6u][E][%s:%u] %s(): NVS flash error, erasing and retrying\r\n\x00nvs_flash_erase()\x00[%6u][I][%s:%u] %s(): NVS flash initialized\r\n\x00ret\x00[%6u][I][%s:%u] %s(): Reading boot preferences\r\n\x00boot_prefs\x00hasBooted\x00[%6u][I][%s:%u] %s(): Setting up serial for XIAO\r\n\x00DEBUG: RX/TX buffers configured for ESP32S3\x00[%6u][I][%s:%u] %s(): Config::setup\r\n\x00void app_main()\x00app_main\x00setupApp\x00looper\x00main/src/serial/SerialProcess.cpp\x00[%6u][E][%s:%u] %s(): Failed to allocate serial output buffer\r\n\x00[%6u][W][%s:%u] %s(): Serial output queue full - 9
+{"task": "/can_act", "debug": true}
+{"task":"/can_act","scan":1}
+{"task": "/can_act", "debug": false}
+{"task":"/state_get"}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 3000, "speed": 20000}]}}
+
+
+{"task":"/can_ota", "canid": 11, "action": "start", "firmware_size": 865056, "total_chunks": 845, "chunk_size": 1024, "md5": "dde1cd1477ca4f2461c2b1fe0dd621c9", "binary_mode": 1, "qid":1}
+
+# streaming
+{"task":"/can_act", "debug": true}
+{"task": "/can_ota_stream", "canid": 11, "action": "start", "firmware_size": 876784, "page_size": 4096, "chunk_size": 512, "md5": "43ba96b4d18c010201762b840476bf83", "qid": 1}
+{"task":"/can_ota","canid":11,"action":"binary_start"}
+\xaaUq\x00\x00\x00\x00\x02\x00\x00\x00\xe9\x05\x02/\x1cf7@\xee\x00\x00\x00\t\x00\x00\x00\x00\xff\xff\x00\x00\x00\x00\x01 \x00\n<\x84:\x02\x002T\xcd\xab\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00v2026.01.15-6-g60244ea-dirty\x00\x00\x00\x00uc2esp32\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0013:41:01\x00\x00\x00\x00\x00\x00\x00\x00Jan 17 2026\x00\x00\x00\x00\x004.4.7\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00L\xf6\xd7i\xa7\xa6\x19\xaf\xbc\xb4G\x9f\x8c\xa6\xd0\xd8\xd7\xa4\xd3\xc35\x82\xbeu\xa8C\x0fQ\xa2\xa3\x17Z\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00main/main.cpp\x00[%6u][I][%s:%u] %s(): Starting loop\r\n\x00[%6u][I][%s:%u] %s(): SetupApp\r\n\x00*\x00{'setup':'done'}\x00[%6u][I][%s:%u] %s(): Start setup\r\n\x00DEBUG: Serial initialized\x00DEBUG: Baudrate=%lu, RX buffer size will be set\n\x00[%6u][E][\xd1
+
+
+{"task":"/can_get"}
+
+
+
+
+platformio run --target upload --environment UC2_3_CAN_HAT_Master_debug --upload-port /dev/cu.SLAB_USBtoUART 
+Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_3_CAN_HAT_Master_v2_debug --upload-port /dev/cu.SLAB_USBtoUART 
+
+platformio run --target upload --environment UC2_3_CAN_HAT_Master --upload-port /dev/cu.SLAB_USBtoUART 
+
+platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 115200
+
+platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
+platformio run -t upload --environment seeed_xiao_esp32s3_can_slave_laser_debug --upload-port /dev/cu.usbmodem101 
+
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_laser_debug --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_motor --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_motor_debug --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_illumination_debug --upload-port /dev/cu.usbmodem101 
+platformio run --target upload --environment seeed_xiao_esp32s3_can_slave_illumination --upload-port /dev/cu.usbmodem101 
+
+
+{"task":"/objective_get","qid":1}}
+
+// V4 
+
+platformio run --target upload --environment UC2_4_CAN_HYBRID_debug --upload-port /dev/cu.SLAB_USBtoUART 
+platformio run --target upload --environment UC2_4_CAN_HYBRID --upload-port /dev/cu.SLAB_USBtoUART 
+
+            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 1,  "speed": 20000 } ]}}
+
+
+platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
+
+
+            {"task": "/linearencoder_act", "home": {"steppers": [ { "stepperid": 0,  "speed": 20000 } ]}}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 6, "position": 3000, "speed": 20000, "redu":0}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 3000, "speed": 20000}]}}
+
+
+
+
+{"task": "/laser_act", "LASERid":0, "LASERval": 100}
+
+platformio run --target upload --environment UC2_4 --upload-port /dev/cu.wchusbserial10 
+platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
+
+{"task":"/state_get"}
+{"task":"/bt_scan"}
+{"task": "/can_act", "scan": true, "qid": 1}
+{"task":"/can_act", "address": 1} // MASTER
+{"task":"/can_act", "address": 11} // X
+{"task":"/can_act", "address": 12} // Y 
+{"task":"/can_act", "address": 13} // Z 
+{"task":"/can_act", "address": 10} // A
+{"task":"/can_act", "address": 30} // LED
+{"task":"/can_get", "address": 1}
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 0, "position": 40000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -40000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":1000000, "redu":1}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -4000, "speed": 31000, "isabs": 0, "isaccel":0, "accel":100000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -40000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":100000}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":2,"position":20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}, {"stepperid":1,"position":-20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}]}}
+
+
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid":3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+
+
+
+// HOME on device
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 40000, "speed": 5000, "direction":-1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
+{"task":"/motor_get", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
+
+// HOME on master 
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
+
+
+{"task":"/state_act", "restart":1}
+{"task":"/state_get", "restart":1}
+{"task":"/tmc_get"}
+{"task":"/bt_scan"}
+{"task":"/bt_connect","address":"XX:XX:XX:XX:XX:XX"}
+
+platformio run --target upload --environment UC2_4 --upload-port /dev/cu.wchusbserial10 
+
+
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 5, "r": 4, "g": 4, "b": 4 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 5, "r": 0, "g": 0, "b": 0 } }
+
+{"task": "/laser_act", "LASERid":8, "LASERval": 500, "qid":5}
+{"task": "/laser_act", "LASERid":8, "LASERval": 0, "qid":5}
+
+
+{"task": "/laser_act", "LASERid":1, "LASERval": 1023, "qid":5}

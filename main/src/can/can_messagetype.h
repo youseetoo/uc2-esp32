@@ -38,6 +38,9 @@
  * - Broadcast Messages
  *   BROADCAST        : 0xF0  - General broadcast messages (errors, updates)
  */
+
+#ifndef CAN_MESSAGETYPE_H
+#define CAN_MESSAGETYPE_H
  
 // Enum to define all MessageType IDs
 enum CANMessageTypeID {
@@ -65,11 +68,32 @@ enum CANMessageTypeID {
     GALVO_ACT        = 0x50, // Galvo Messages
     GALVO_STATE      = 0x51,
 
-    OTA_START        = 0x60, // OTA Update Messages
+    OTA_START        = 0x60, // OTA Update Messages (WiFi-based)
     OTA_ACK          = 0x61,
 
-    SCAN_REQUEST     = 0x70, // Network Scan Messages
-    SCAN_RESPONSE    = 0x71,
+    // CAN OTA Direct Update Messages (no WiFi required)
+    OTA_CAN_START    = 0x62, // Start CAN-based OTA update
+    OTA_CAN_DATA     = 0x63, // Firmware data chunk
+    OTA_CAN_VERIFY   = 0x64, // Request MD5 verification
+    OTA_CAN_FINISH   = 0x65, // Finalize and reboot
+    OTA_CAN_ABORT    = 0x66, // Abort OTA process
+    OTA_CAN_ACK      = 0x67, // Positive acknowledgment
+    OTA_CAN_NAK      = 0x68, // Negative acknowledgment
+    OTA_CAN_STATUS   = 0x69, // Status query/response
 
-    BROADCAST        = 0xF0  // Broadcast Message (240)
+    SCAN_REQUEST     = 0x80, // Network Scan Messages
+    SCAN_RESPONSE    = 0x81,
+
+    BROADCAST        = 0xF0,  // Broadcast Message (240)
+
+    OTA_STREAM_START = 0x70, // Start OTA streaming session (defined in CanOtaStreaming.h)
+    OTA_STREAM_DATA  = 0x71, // Data chunk in OTA streaming mode
+    OTA_STREAM_ACK   = 0x72, // ACK for OTA streaming
+    OTA_STREAM_NAK   = 0x73, // NAK for OTA streaming
+    OTA_STREAM_FINISH= 0x74, // Finish OTA streaming session
+    OTA_STREAM_ABORT = 0x75, // Abort OTA streaming session
+    OTA_STREAM_STATUS= 0x76  // Status query for OTA streaming session
+
 };
+
+#endif // CAN_MESSAGETYPE_H

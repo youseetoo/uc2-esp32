@@ -1,0 +1,196 @@
+now, on the slave side it works for a certain time until we fall out of sync
+
+Frame received, state: 5, frameNum: 3, seqID incoming: 3 with size 7, Rest bytes: 1006
+[ 24883][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 24890][I][CanIsoTp.cpp:259] receive(): CF received
+[ 24895][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 4, seqID incoming: 4 with size 7, Rest bytes: 999
+[ 24909][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 24916][I][CanIsoTp.cpp:259] receive(): CF received
+[ 24921][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 5, seqID incoming: 5 with size 7, Rest bytes: 992
+[ 24935][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 24942][I][CanIsoTp.cpp:259] receive(): CF received
+[ 24947][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 6, seqID incoming: 6 with size 7, Rest bytes: 985
+[ 24961][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 24968][I][CanIsoTp.cpp:259] receive(): CF received
+[ 24973][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 7, seqID incoming: 7 with size 7, Rest bytes: 978
+[ 24986][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 24994][I][CanIsoTp.cpp:259] receive(): CF received
+[ 24998][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 8, seqID incoming: 8 with size 7, Rest bytes: 971
+[ 25012][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 25019][I][CanIsoTp.cpp:259] receive(): CF received
+[ 25024][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 9, seqID incoming: 9 with size 7, Rest bytes: 964
+[ 25038][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 25045][I][CanIsoTp.cpp:259] receive(): CF received
+COMMENT: Why is this happening on the slave side - why do we get more than 
+[ 25050][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 12
+[ 25059][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 25067][I][CanIsoTp.cpp:259] receive(): CF received
+[ 25071][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 14
+[ 25081][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 25088][I][CanIsoTp.cpp:259] receive(): CF received
+[ 25093][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 1
+[ 25102][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 25110][I][CanIsoTp.cpp:259] receive(): CF received
+[ 25114][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 4
+[ 25124][I][CanIsoTp.cpp:221] receive(): Session timeout
+[ 25130][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+
+we get a session timeout because the expected sequence ID never arrives.
+The Host keeps on sending 
+
+ecutiveFrame: Invalid state: 0
+[ 26336][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 26343][I][CanIsoTp.cpp:259] receive(): CF received
+[ 26348][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 26357][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 26364][I][CanIsoTp.cpp:259] receive(): CF received
+[ 26369][I][CanIsoTp.cpp:460] receive_ConsecutiveFrame(): receive_ConsecutiveFrame: Invalid state: 0
+[ 26427][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 0, own id: 11
+[ 26436][I][can_controller.cpp:134] parseMotorAndHomeData(): Received MotorData from CAN 0, size: 11, txID: 4: 4
+[ 26446][E][can_controller.cpp:320] parseMotorAndHomeData(): Error: Incorrect data size received in CAN from address 11. Data size is 0
+[130458][E][CanOtaHandler.cpp:463] loop(): OTA timeout: no data for 120002 ms
+[130466][W][CanOtaHandler.cpp:445] abortOta(): Aborting OTA with status 10 (state was 1)
+
+
+until we abort OTA due to timeout.
+
+Is there a maximum sequence ID number that we cannot exceed? Are we perhaps hitting that limit and the sequence ID wraps around, causing the mismatch?
+
+
+The host sends the seq ids in the right order: 
+
+======================================================================
+CAN OTA Simple Binary Upload
+======================================================================
+Port:      /dev/cu.SLAB_USBtoUART
+Baud:      921600
+CAN ID:    11
+Firmware:  esp32_seeed_xiao_esp32s3_can_slave_motor.bin
+Size:      876,784 bytes
+Chunks:    857 (of 1024 bytes each)
+MD5:       43ba96b4d18c010201762b840476bf83
+Test mode: False
+======================================================================
+
+[1] Opening serial port...
+
+[2] Sending START command...
+  TX: {"task":"/can_ota","canid":11,"action":"start","firmware_size":876784,"total_chu...
+  RX: 3388 bytes
+  ✓ Slave initialized
+
+[3] Entering binary mode...
+  TX: {"task":"/can_ota","canid":11,"action":"binary_start"}
+  Waiting for binary mode ACK...
+b'[639301][I][BinaryOtaProtocol.cpp:80] enterBinaryMode(): Entering binary OTA mode for CAN ID 0x0B\r\n[639303][I][BinaryOtaProtocol.cpp:81] enterBinaryMode(): Switching to 921600 baud\r\n\xaaU\x06\x00\x00\x00\xf9[639315][I][BinaryOtaProtocol.cpp:126] enterBinaryMode(): Sent initial ACK\r\n\xaaU\x06\x00\x00\x00\xf9[639417][I][BinaryOtaProtocol.cpp:131] enterBinaryMode(): Sent second ACK for reliability\r\n[639418][I][BinaryOtaProtocol.cpp:133] enterBinaryMode(): Binary OTA mode active at 921600 baud\r\n++\n{"success":true,"qid":1}\n--\n\x00'
+  ✓ Binary mode active (status=0)
+
+[4] Uploading 857 chunks...
+  Chunk 0/856 (0.1%) b'[643087][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[643089][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for send\r\n'
+b'[643091][I][can_controller.cpp:943] sendCanMessage(): Sending CAN message to 11\r\n'
+b'[643105][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: '
+b'1033 to ID: 11, with rxId 1\r\n[643106][I][CanIsoTp.cpp:63] send(): State: 1\r\n[643107][I][CanIsoTp.cpp:307] send_FirstFrame(): Sen'
+b'ding FF\r\n[643107][I][CanIsoTp.cpp:80] send(): First Frame sent: 0\r\n[643108][I][CanIsoTp.cpp:63] send(): State: 2\r\n[643109][I][CanIsoTp.cpp:85] send(): Waiting for first FC\r\n'
+b'[643152][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 1, len 3\r\n[643152][I][CanIsoTp.cpp:102] send(): Data length: 3\r\n'
+b'[643153][I][CanIsoTp.cpp:106] send(): FC frame received\r\n'
+b'[643154][I][CanIsoTp.cpp:500] receive_FlowControlFrame(): Flow C'
+b'ontrol Frame received\r\n[643155][I][CanIsoTp.cpp:515] receive_FlowControlFrame(): Updating BS and STmin to: 255, 10\r\n'
+b'[643156][I][CanIsoTp.cpp:527] receive_FlowControlFrame(): CTS (Continue to send) frame received\r\n[643157][I][CanIsoTp.cpp:109] s'
+b'end(): FC received successfully\r\n[643158][I][CanIsoTp.cpp:63] se'
+b'nd(): State: 4\r\n[643158][I][CanIsoTp.cpp:127] send(): Sending Consecutive Frames\r\n[643159][I][CanIsoTp.cpp:155] send(): Block size: 255\r\n'
+b'[643170][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[643180][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[643190][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[643200][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[643210][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[643220][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[643230][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[643240][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[643250][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[643260][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[643270][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[643280][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[643290][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[643300][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[643310][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[643320][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[643330][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[643340][I][CanIsoTp.cpp:331] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+
+
+but the host always (!) has a mismatch after 10 received frames
+
+[ 32376][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32383][I][CanIsoTp.cpp:411] receive_FirstFrame(): First Frame received, txID 0, rxID 11, size: 8, totalLen: 1033
+[ 32393][I][CanIsoTp.cpp:432] receive_FirstFrame(): Allocating memory for pdu->data
+[ 32401][I][CanIsoTp.cpp:446] receive_FirstFrame(): Sending Flow Control FC
+[ 32407][I][CanIsoTp.cpp:344] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (11)
+[ 32439][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32446][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32451][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 1020
+[ 32465][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32472][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32477][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 2, seqID incoming: 2 with size 7, Rest bytes: 1013
+[ 32491][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32498][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32503][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 3, seqID incoming: 3 with size 7, Rest bytes: 1006
+[ 32517][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32524][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32529][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 4, seqID incoming: 4 with size 7, Rest bytes: 999
+[ 32542][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32550][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32554][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 5, seqID incoming: 5 with size 7, Rest bytes: 992
+[ 32568][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32575][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32580][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 6, seqID incoming: 6 with size 7, Rest bytes: 985
+[ 32594][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32601][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32606][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 7, seqID incoming: 7 with size 7, Rest bytes: 978
+[ 32620][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32627][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32632][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 8, seqID incoming: 8 with size 7, Rest bytes: 971
+[ 32645][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32653][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32657][I][CanIsoTp.cpp:484] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 9, seqID incoming: 9 with size 7, Rest bytes: 964
+[ 32671][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32678][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32683][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 12
+[ 32693][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32700][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32705][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 14
+[ 32714][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32722][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32726][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 1
+[ 32736][I][CanIsoTp.cpp:229] receive(): Frame.identifier: 11, rxId: 11, txId: 0
+[ 32743][I][CanIsoTp.cpp:259] receive(): CF received
+[ 32748][I][CanIsoTp.cpp:470] receive_ConsecutiveFrame(): Sequence mismatch: expected 10 (frame 10), got 4
+
+
+Is the sequence ID properly "packed" on the Host side? It looks weird since the number go from 0,1,2,...9, but then 12,14,1,4,6....
+
+In CanIstoTo.cpp I have this     pdu->seqId = (pdu->seqId + 1) % 16; // Sequence number wraps after 15
+
+which looks good.
+
+Is this the right order?
+
+int CanIsoTp::send_ConsecutiveFrame(pdu_t *pdu)
+{
+    CanFrame frame = {0};
+    frame.identifier = pdu->txId;
+    frame.extd = 0;
+    frame.data_length_code = 8;
+
+    if (can_controller::debugState) log_i("Sending CF: (seqId): %d", pdu->seqId);
+    frame.data[0] = N_PCItypeCF | (pdu->seqId & 0x0F); // PCI: Consecutive Frame with sequence number
+    uint8_t sizeToSend = (pdu->len > 7) ? 7 : pdu->len;
+
+    memcpy(&frame.data[1], pdu->data, sizeToSend);
+    pdu->data += sizeToSend;
+    pdu->len -= sizeToSend;
+    pdu->seqId = (pdu->seqId + 1) % 16; // Sequence number wraps after 15
+    return ESP32CanTwai.writeFrame(&frame) ? 0 : 1;
+}
+
+probably as this indicates the next seequence id?

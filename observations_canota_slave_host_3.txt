@@ -1,0 +1,488 @@
+Can you carefully (!!!) review the timing scheme please between slave and master? we have solved an issue when  Eventhough we send consecutive frames the session times out at one point, also the delay is fixed to 30ms and not adaptively anymore :                         delay(30); //pdu->separationTimeMin);
+Also, I think if we take minimum 10ms per byte it takes really long to transfer 1MB - is there a way to speed this up adaptively (in case of deactivated debugging mode we save time!)
+
+
+Question regarding the delay(30) : is this good anyway since we are in a thread?
+
+also I started an attempt to prolong the timing if we are in debugging mode, can you fix that? In case of debugging activated, it should be 30ms separation time, otherwise <<10ms:
+
+        if (debug != NULL)
+        {
+            debugState = cJSON_IsTrue(debug);
+            if (debugState){
+                // set separationTimeMin to 30ms for debugging
+                // isoTpSender.setSeparationTimeMin(30); // TODO: Implement this function!
+            }
+            else{
+                // set separationTimeMin back to 10ms for normal operation
+                // isoTpSender.setSeparationTimeMin(10);
+            }
+            log_i("Set DEBUG_CAN_ISO_TP to %s", debugState ? "true" : "false");
+            return 1;
+        }
+        has to be done in setup() and act() I guess should have an effect on IsoTp - hence extern variable use? 
+it has to be faster (especially in non-debugging mode )
+
+I think the overall procedure starts to work now, but we need to work on it more: 
+
+this is on master side:
+
+  
+  b'[708394][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[708424][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[708454][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n[708455][I][CanIsoTp.cpp:178] send(): Last block\r\n'
+b'[708485][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 3\r\n[708486][I][CanIsoTp.cpp:198] send(): Return: 0\r\n[708486][I][CanIsoTp.cpp:221] receive(): Session timeout\r\n[708487][I][can_controller.cpp:881] canSendTask(): Sent CAN message to 11\r\n'
+b'[708576][I][CanIsoTp.cpp:414] receive_FirstFrame(): First Frame received, txID 0, rxID 1, size: 8, totalLen: 15\r\n[708577][I][CanIsoTp.cpp:435] receive_FirstFrame(): Allocating memory for pdu->'
+b'data\r\n[708578][I][CanIsoTp.cpp:449] receive_FirstFrame(): Sending Flow Control FC\r\n[708579][I][CanIsoTp.cpp:347] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (1)\r\n'
+b'[708631][I][CanIsoTp.cpp:283] receive(): No frame received and not idling\r\n'
+b'[708681][I][CanIsoTp.cpp:283] receive(): No frame received and not idling\r\n'
+b'[708684][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 2\r\n'
+b'[708726][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 2, seqID incoming: 2 w'
+b'ith size 7, Rest bytes: 0\r\n[708728][I][CanIsoTp.cpp:492] receive_ConsecutiveFrame(): All data received\r\n[708729][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 1, TXID: 0, size: 15, own id: 1\r\n[708730][I][Can'
+b'OtaHandler.cpp:95] handleCanOtaMessage(): CAN OTA message: type=0x67, len=14, from=0x00\r\n[708731][I][CanOtaHandler.cpp:634] handleSlaveResponse(): Slave ACK: status=0, canId=0x0B, nextChunk=49, bytes=50176\r\n'
+b'\xaaU\x06\x00\x000\xc9'
+  Chunk 49/856 (5.8%) b'[708801][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[708803][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for send\r\n'
+b'[708805][I][can_controller.cpp:943] sendCanMessage(): Sending CAN message to 11\r\n'
+b'[708832][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: 1033 to ID: 11, with rxId 1\r\n[708833][I][CanIsoTp.cpp:63] send()'
+b': State: 1\r\n[708833][I][CanIsoTp.cpp:310] send_FirstFrame(): Sending FF\r\n[708834][I][CanIsoTp.cpp:80] send(): First Frame sent: '
+b'0\r\n[708835][I][CanIsoTp.cpp:63] send(): State: 2\r\n[708835][I][CanIsoTp.cpp:85] send(): Waiting for first FC\r\n'
+b'[708871][I][CanIsoTp.cpp:99] send(): Frame received: 11, rxId 1, len 3\r\n[708872][I][CanIsoTp.cpp:102] send(): Data length: 3\r\n'
+b'[708873][I][CanIsoTp.cpp:106] send(): FC frame received\r\n[708874][I][CanIsoTp.cpp:503] receive_FlowControlFrame(): Flow Control Frame received\r\n'
+b'[708875][I][CanIsoTp.cpp:518] receive_FlowControlFrame(): Updati'
+b'ng BS and STmin to: 255, 30\r\n[708876][I][CanIsoTp.cpp:530] receive_FlowControlFrame(): CTS (Continue to send) frame received\r\n'
+b'[708877][I][CanIsoTp.cpp:109] send(): FC received successfully\r\n'
+b'[708878][I][CanIsoTp.cpp:63] send(): State: 4\r\n'
+b'[708878][I][CanIsoTp.cpp:127] send(): Sending Consecutive Frames\r\n[708879][I][CanIsoTp.cpp:155] send(): Block size: 255\r\n'
+b'[708910][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[708940][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[708970][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[709000][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[709030][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[709060][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[709090][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[709120][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 8\r\n'
+b'[709150][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[709180][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 10\r\n'
+b'[709210][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[709240][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[709270][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[709300][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[709330][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[709360][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[709390][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[709420][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[709450][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[709480][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[709510][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[709540][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[709570][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[709600][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[709630][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[709660][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[709690][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[709720][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[709750][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[709780][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[709810][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[709840][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[709870][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[709900][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 2\r\n'
+b'[709930][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[709960][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[709990][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[710020][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[710050][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[710080][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[710110][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[710140][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[710170][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[710200][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[710230][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[710260][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[710290][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[710320][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[710350][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[710380][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[710410][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[710440][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[710470][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[710500][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[710530][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[710560][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[710590][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[710620][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[710650][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[710680][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[710710][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[710740][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[710770][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 15\r\n'
+b'[710800][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[710830][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[710860][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[710890][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[710920][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[710950][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[710980][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[711010][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[711040][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[711070][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[711100][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[711130][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[711160][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[711190][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[711220][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[711250][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[711280][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[711310][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[711340][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[711370][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[711400][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[711430][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[711460][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[711490][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[711520][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[711550][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[711580][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[711610][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[711640][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[711670][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[711700][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[711730][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[711760][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[711790][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[711820][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[711850][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[711880][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[711910][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[711940][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[711970][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[712000][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[712030][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[712060][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[712090][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[712120][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[712150][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[712180][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[712210][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[712240][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[712270][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[712300][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[712330][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[712360][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 4\r\n'
+b'[712390][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[712420][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[712450][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 7\r\n'
+b'[712480][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[712510][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[712540][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 10\r\n'
+b'[712570][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 11\r\n'
+b'[712600][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[712630][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 13\r\n'
+b'[712660][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[712690][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[712720][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 0\r\n'
+b'[712750][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[712780][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n'
+b'[712810][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 3\r\n'
+b'[712840][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 4\r\n'
+b'[712870][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 5\r\n'
+b'[712900][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 6\r\n'
+b'[712930][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 7\r\n'
+b'[712960][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 8\r\n'
+b'[712990][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 9\r\n'
+b'[713020][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 10\r\n'
+b'[713050][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 11\r\n'
+b'[713080][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 12\r\n'
+b'[713110][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 13\r\n'
+b'[713140][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 14\r\n'
+b'[713170][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 15\r\n'
+b'[713200][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 0\r\n'
+b'[713230][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1\r\n'
+b'[713260][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2\r\n[713261][I][CanIsoTp.cpp:178] send(): Last block\r\n'
+b'[713291][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending C'
+b'F: (seqId): 3\r\n[713292][I][CanIsoTp.cpp:198] send(): Return: 0\r\n[713292][I][CanIsoTp.cpp:221] receive(): Session timeout\r\n[713293][I][can_controller.cpp:881] canSendTask(): Sent CAN message to 11\r\n'
+b'[713382][I][CanIsoTp.cpp:414] receive_FirstFrame(): First Frame received, txID 0, rxID 1, size: 8, totalLen: 15\r\n[713383][I][Can'
+b'IsoTp.cpp:435] receive_FirstFrame(): Allocating memory for pdu->data\r\n[713384][I][CanIsoTp.cpp:449] receive_FirstFrame(): Sending Flow Control FC\r\n[713385][I][CanIsoTp.cpp:347] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (1)\r\n'
+b'[713436][I][CanIsoTp.cpp:283] receive(): No frame received and not idling\r\n'
+b'[713486][I][CanIsoTp.cpp:283] receive(): No frame received and not idling\r\n'
+b'[713490][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 2\r\n'
+b'[713532][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 2, seqID incoming: 2 with size 7, Rest bytes: 0\r\n[713534][I][CanIsoTp.cpp:492] receive_ConsecutiveFrame(): All data received\r\n'
+b'[713535][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 1, TXID: 0, size: 15, own id: 1\r\n[713536][I][CanOtaHandler.cpp:95] handleCanOtaMessage(): CAN OTA message: type=0x67, len=14, from=0x00\r\n[713537][I][CanOtaHandler.cpp:634] handleSlaveRespon'
+b'se(): Slave ACK: status=0, canId=0x0B, nextChunk=50, bytes=51200\r\n\xaaU\x06\x00\x001\xc8'
+  Chunk 50/856 (6.0%) b'[713606][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+  COMMENT: I think the client had sent something but there seems to be a hick-up? I  would have expected an ACK from the slave here.
+b'[713608][E][can_controller.cpp:911] sendCanMessage(): Error: Unable to allocate memory for txPdu.data\r\n'
+b'[713610][E][CanOtaHandler.cpp:579] relayDataToSlave(): Failed to send chunk 50 to CAN bus\r\n'
+b'[713612][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): Failed to relay chunk 50 to CAN slave\r\n\xaaU\x07\x07\x002\xcd'
+COMMENT: I thinK it is receiving and sending at the same time - timing issue. Perhaps a Python issue because it didn'T wait for the acknolede from the master?
+✗ RELAY_ERR (retry 1/5)
+    Debug: [713606][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+  Chunk 50/856 (6.0%) b'[713768][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[713770][E][can_controller.cpp:911] sendCanMessage(): Error: Unable to allocate memory for txPdu.data\r\n'
+b'[713772][E][CanOtaHandler.cpp:579] relayDataToSlave(): Failed to send chunk 50 to CAN bus\r\n'
+b'[713774][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): Failed to relay chunk 50 to CAN slave\r\n\xaaU\x07\x07\x002\xcd'
+✗ RELAY_ERR (retry 2/5)
+    Debug: [713768][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+  Chunk 50/856 (6.0%) b'[714046][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[714048][E][can_controller.cpp:911] sendCanMessage(): Error: Unable to allocate memory for txPdu.data\r\n'
+b'[714050][E][CanOtaHandler.cpp:579] relayDataToSlave(): Failed to send chunk 50 to CAN bus\r\n'
+b'[714052][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): Failed to relay chunk 50 to CAN slave\r\n'
+b'\xaaU\x07\x07\x002\xcd'
+✗ RELAY_ERR (retry 3/5)
+    Debug: [714046][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+  Chunk 50/856 (6.0%) b'[714411][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n[714413][E][can_controller.cpp:911] sendCanMessage(): Error: Una'
+b'ble to allocate memory for txPdu.data\r\n'
+b'[714415][E][CanOtaHandler.cpp:579] relayDataToSlave(): Failed to send chunk 50 to CAN bus\r\n'
+b'[714417][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): '
+b'Failed to relay chunk 50 to CAN slave\r\n'
+b'\xaaU\x07\x07\x002\xcd'
+✗ RELAY_ERR (retry 4/5)
+    Debug: [714411][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+  Chunk 50/856 (6.0%) b'[714892][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[714894][E][can_controller.cpp:911] sendCanMessage(): Error: Unable to allocate memory for txPdu.data\r\n'
+b'[714896][E][CanOtaHandler.cpp:579] relayDataToSlave(): Failed to send chunk 50 to CAN bus\r\n'
+b'[714898][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): Failed to relay chunk 50 to CAN slave\r\n\xaaU\x07\x07\x002\xcd'
+✗ RELAY_ERR (retry 5/5)
+    Debug: [714892][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+
+  ERROR: Failed to send chunk 50 after 5 retries
+
+  Sending ABORT...
+  TX: {"task":"/can_ota","canid":11,"action":"abort"}
+  Serial closed
+  
+  
+  
+  
+  on the client:
+      
+      
+      [1153293][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 143, seqID incoming: 15 with size 7, Rest bytes: 26
+[1153323][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 144, seqID incoming: 0 with size 7, Rest bytes: 19
+[1153353][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 145, seqID incoming: 1 with size 7, Rest bytes: 12
+[1153383][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 146, seqID incoming: 2 with size 7, Rest bytes: 5
+[1153414][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 147, seqID incoming: 3 with size 7, Rest bytes: 0
+[1153428][I][CanIsoTp.cpp:492] receive_ConsecutiveFrame(): All data received
+[1153435][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 1033, own id: 11
+[1153444][I][CanOtaHandler.cpp:95] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[1153464][I][can_controller.cpp:943] sendCanMessage(): Sending CAN message to 1
+[1153464][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for send
+[1153486][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: 15 to ID: 1, with rxId 11
+[1153494][I][CanIsoTp.cpp:63] send(): State: 1
+[1153498][I][CanIsoTp.cpp:310] send_FirstFrame(): Sending FF
+[1153504][I][CanIsoTp.cpp:80] send(): First Frame sent: 0
+[1153509][I][CanIsoTp.cpp:63] send(): State: 2
+[1153513][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[1153519][I][CanIsoTp.cpp:99] send(): Frame received: 1, rxId 11, len 3
+[1153525][I][CanIsoTp.cpp:102] send(): Data length: 3
+[1153530][I][CanIsoTp.cpp:106] send(): FC frame received
+[1153535][I][CanIsoTp.cpp:503] receive_FlowControlFrame(): Flow Control Frame received
+[1153543][I][CanIsoTp.cpp:518] receive_FlowControlFrame(): Updating BS and STmin to: 0, 30
+[1153551][I][CanIsoTp.cpp:530] receive_FlowControlFrame(): CTS (Continue to send) frame received
+[1153559][I][CanIsoTp.cpp:109] send(): FC received successfully
+[1153565][I][CanIsoTp.cpp:63] send(): State: 4
+[1153569][I][CanIsoTp.cpp:127] send(): Sending Consecutive Frames
+[1153605][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1
+[1153612][I][CanIsoTp.cpp:145] send(): Sending Last block
+[1153647][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2
+[1153654][I][CanIsoTp.cpp:198] send(): Return: 0
+[1153658][I][can_controller.cpp:881] canSendTask(): Sent CAN message to 1
+[1153763][I][CanIsoTp.cpp:414] receive_FirstFrame(): First Frame received, txID 0, rxID 11, size: 8, totalLen: 1033
+[1153773][I][CanIsoTp.cpp:435] receive_FirstFrame(): Allocating memory for pdu->data
+[1153780][I][CanIsoTp.cpp:449] receive_FirstFrame(): Sending Flow Control FC
+[1153787][I][CanIsoTp.cpp:347] send_FlowControlFrame(): Sending FC: frame.identifier = pdu->txId (0); we are listening on pdu->rxId (11)
+[1153839][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 1, seqID incoming: 1 with size 7, Rest bytes: 1020
+[1153869][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 2, seqID incoming: 2 with size 7, Rest bytes: 1013
+[1153899][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 3, seqID incoming: 3 with size 7, Rest bytes: 1006
+[1153929][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 4, seqID incoming: 4 with size 7, Rest bytes: 999
+[1153959][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 5, seqID incoming: 5 with size 7, Rest bytes: 992
+[1153989][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 6, seqID incoming: 6 with size 7, Rest bytes: 985
+[1154019][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 7, seqID incoming: 7 with size 7, Rest bytes: 978
+[1154049][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 8, seqID incoming: 8 with size 7, Rest bytes: 971
+[1154079][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 9, seqID incoming: 9 with size 7, Rest bytes: 964
+[1154109][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 10, seqID incoming: 10 with size 7, Rest bytes: 957
+[1154139][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 11, seqID incoming: 11 with size 7, Rest bytes: 950
+[1154169][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 12, seqID incoming: 12 with size 7, Rest bytes: 943
+[1154199][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 13, seqID incoming: 13 with size 7, Rest bytes: 936
+[1154229][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 14, seqID incoming: 14 with size 7, Rest bytes: 929
+[1154259][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 15, seqID incoming: 15 with size 7, Rest bytes: 922
+[1154289][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 16, seqID incoming: 0 with size 7, Rest bytes: 915
+[1154319][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 17, seqID incoming: 1 with size 7, Rest bytes: 908
+[1154349][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 18, seqID incoming: 2 with size 7, Rest bytes: 901
+[1154379][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 19, seqID incoming: 3 with size 7, Rest bytes: 894
+[1154409][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 20, seqID incoming: 4 with size 7, Rest bytes: 887
+[1154439][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 21, seqID incoming: 5 with size 7, Rest bytes: 880
+[1154469][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 22, seqID incoming: 6 with size 7, Rest bytes: 873
+[1154499][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 23, seqID incoming: 7 with size 7, Rest bytes: 866
+[1154529][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 24, seqID incoming: 8 with size 7, Rest bytes: 859
+[1154559][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 25, seqID incoming: 9 with size 7, Rest bytes: 852
+[1154589][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 26, seqID incoming: 10 with size 7, Rest bytes: 845
+[1154619][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 27, seqID incoming: 11 with size 7, Rest bytes: 838
+[1154649][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 28, seqID incoming: 12 with size 7, Rest bytes: 831
+[1154679][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 29, seqID incoming: 13 with size 7, Rest bytes: 824
+[1154709][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 30, seqID incoming: 14 with size 7, Rest bytes: 817
+[1154739][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 31, seqID incoming: 15 with size 7, Rest bytes: 810
+[1154769][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 32, seqID incoming: 0 with size 7, Rest bytes: 803
+[1154799][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 33, seqID incoming: 1 with size 7, Rest bytes: 796
+[1154829][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 34, seqID incoming: 2 with size 7, Rest bytes: 789
+[1154859][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 35, seqID incoming: 3 with size 7, Rest bytes: 782
+[1154889][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 36, seqID incoming: 4 with size 7, Rest bytes: 775
+[1154919][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 37, seqID incoming: 5 with size 7, Rest bytes: 768
+[1154949][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 38, seqID incoming: 6 with size 7, Rest bytes: 761
+[1154979][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 39, seqID incoming: 7 with size 7, Rest bytes: 754
+[1155009][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 40, seqID incoming: 8 with size 7, Rest bytes: 747
+[1155039][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 41, seqID incoming: 9 with size 7, Rest bytes: 740
+[1155069][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 42, seqID incoming: 10 with size 7, Rest bytes: 733
+[1155099][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 43, seqID incoming: 11 with size 7, Rest bytes: 726
+[1155129][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 44, seqID incoming: 12 with size 7, Rest bytes: 719
+[1155159][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 45, seqID incoming: 13 with size 7, Rest bytes: 712
+[1155189][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 46, seqID incoming: 14 with size 7, Rest bytes: 705
+[1155219][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 47, seqID incoming: 15 with size 7, Rest bytes: 698
+[1155249][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 48, seqID incoming: 0 with size 7, Rest bytes: 691
+[1155279][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 49, seqID incoming: 1 with size 7, Rest bytes: 684
+[1155309][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 50, seqID incoming: 2 with size 7, Rest bytes: 677
+[1155339][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 51, seqID incoming: 3 with size 7, Rest bytes: 670
+[1155369][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 52, seqID incoming: 4 with size 7, Rest bytes: 663
+[1155399][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 53, seqID incoming: 5 with size 7, Rest bytes: 656
+[1155429][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 54, seqID incoming: 6 with size 7, Rest bytes: 649
+[1155459][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 55, seqID incoming: 7 with size 7, Rest bytes: 642
+[1155489][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 56, seqID incoming: 8 with size 7, Rest bytes: 635
+[1155519][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 57, seqID incoming: 9 with size 7, Rest bytes: 628
+[1155549][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 58, seqID incoming: 10 with size 7, Rest bytes: 621
+[1155579][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 59, seqID incoming: 11 with size 7, Rest bytes: 614
+[1155609][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 60, seqID incoming: 12 with size 7, Rest bytes: 607
+[1155639][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 61, seqID incoming: 13 with size 7, Rest bytes: 600
+[1155669][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 62, seqID incoming: 14 with size 7, Rest bytes: 593
+[1155699][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 63, seqID incoming: 15 with size 7, Rest bytes: 586
+[1155729][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 64, seqID incoming: 0 with size 7, Rest bytes: 579
+[1155759][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 65, seqID incoming: 1 with size 7, Rest bytes: 572
+[1155789][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 66, seqID incoming: 2 with size 7, Rest bytes: 565
+[1155819][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 67, seqID incoming: 3 with size 7, Rest bytes: 558
+[1155849][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 68, seqID incoming: 4 with size 7, Rest bytes: 551
+[1155879][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 69, seqID incoming: 5 with size 7, Rest bytes: 544
+[1155909][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 70, seqID incoming: 6 with size 7, Rest bytes: 537
+[1155939][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 71, seqID incoming: 7 with size 7, Rest bytes: 530
+[1155969][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 72, seqID incoming: 8 with size 7, Rest bytes: 523
+[1155999][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 73, seqID incoming: 9 with size 7, Rest bytes: 516
+[1156029][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 74, seqID incoming: 10 with size 7, Rest bytes: 509
+[1156059][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 75, seqID incoming: 11 with size 7, Rest bytes: 502
+[1156089][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 76, seqID incoming: 12 with size 7, Rest bytes: 495
+[1156119][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 77, seqID incoming: 13 with size 7, Rest bytes: 488
+[1156149][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 78, seqID incoming: 14 with size 7, Rest bytes: 481
+[1156179][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 79, seqID incoming: 15 with size 7, Rest bytes: 474
+[1156209][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 80, seqID incoming: 0 with size 7, Rest bytes: 467
+[1156239][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 81, seqID incoming: 1 with size 7, Rest bytes: 460
+[1156269][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 82, seqID incoming: 2 with size 7, Rest bytes: 453
+[1156299][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 83, seqID incoming: 3 with size 7, Rest bytes: 446
+[1156329][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 84, seqID incoming: 4 with size 7, Rest bytes: 439
+[1156359][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 85, seqID incoming: 5 with size 7, Rest bytes: 432
+[1156389][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 86, seqID incoming: 6 with size 7, Rest bytes: 425
+[1156419][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 87, seqID incoming: 7 with size 7, Rest bytes: 418
+[1156449][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 88, seqID incoming: 8 with size 7, Rest bytes: 411
+[1156479][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 89, seqID incoming: 9 with size 7, Rest bytes: 404
+[1156509][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 90, seqID incoming: 10 with size 7, Rest bytes: 397
+[1156539][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 91, seqID incoming: 11 with size 7, Rest bytes: 390
+[1156569][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 92, seqID incoming: 12 with size 7, Rest bytes: 383
+[1156599][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 93, seqID incoming: 13 with size 7, Rest bytes: 376
+[1156629][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 94, seqID incoming: 14 with size 7, Rest bytes: 369
+[1156659][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 95, seqID incoming: 15 with size 7, Rest bytes: 362
+[1156689][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 96, seqID incoming: 0 with size 7, Rest bytes: 355
+[1156719][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 97, seqID incoming: 1 with size 7, Rest bytes: 348
+[1156749][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 98, seqID incoming: 2 with size 7, Rest bytes: 341
+[1156779][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 99, seqID incoming: 3 with size 7, Rest bytes: 334
+[1156809][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 100, seqID incoming: 4 with size 7, Rest bytes: 327
+[1156839][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 101, seqID incoming: 5 with size 7, Rest bytes: 320
+[1156869][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 102, seqID incoming: 6 with size 7, Rest bytes: 313
+[1156899][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 103, seqID incoming: 7 with size 7, Rest bytes: 306
+[1156929][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 104, seqID incoming: 8 with size 7, Rest bytes: 299
+[1156959][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 105, seqID incoming: 9 with size 7, Rest bytes: 292
+[1156989][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 106, seqID incoming: 10 with size 7, Rest bytes: 285
+[1157019][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 107, seqID incoming: 11 with size 7, Rest bytes: 278
+[1157049][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 108, seqID incoming: 12 with size 7, Rest bytes: 271
+[1157079][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 109, seqID incoming: 13 with size 7, Rest bytes: 264
+[1157109][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 110, seqID incoming: 14 with size 7, Rest bytes: 257
+[1157139][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 111, seqID incoming: 15 with size 7, Rest bytes: 250
+[1157169][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 112, seqID incoming: 0 with size 7, Rest bytes: 243
+[1157199][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 113, seqID incoming: 1 with size 7, Rest bytes: 236
+[1157229][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 114, seqID incoming: 2 with size 7, Rest bytes: 229
+[1157259][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 115, seqID incoming: 3 with size 7, Rest bytes: 222
+[1157289][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 116, seqID incoming: 4 with size 7, Rest bytes: 215
+[1157319][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 117, seqID incoming: 5 with size 7, Rest bytes: 208
+[1157349][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 118, seqID incoming: 6 with size 7, Rest bytes: 201
+[1157379][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 119, seqID incoming: 7 with size 7, Rest bytes: 194
+[1157409][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 120, seqID incoming: 8 with size 7, Rest bytes: 187
+[1157439][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 121, seqID incoming: 9 with size 7, Rest bytes: 180
+[1157469][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 122, seqID incoming: 10 with size 7, Rest bytes: 173
+[1157499][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 123, seqID incoming: 11 with size 7, Rest bytes: 166
+[1157529][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 124, seqID incoming: 12 with size 7, Rest bytes: 159
+[1157559][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 125, seqID incoming: 13 with size 7, Rest bytes: 152
+[1157589][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 126, seqID incoming: 14 with size 7, Rest bytes: 145
+[1157619][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 127, seqID incoming: 15 with size 7, Rest bytes: 138
+[1157649][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 128, seqID incoming: 0 with size 7, Rest bytes: 131
+[1157679][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 129, seqID incoming: 1 with size 7, Rest bytes: 124
+[1157709][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 130, seqID incoming: 2 with size 7, Rest bytes: 117
+[1157739][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 131, seqID incoming: 3 with size 7, Rest bytes: 110
+[1157769][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 132, seqID incoming: 4 with size 7, Rest bytes: 103
+[1157799][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 133, seqID incoming: 5 with size 7, Rest bytes: 96
+[1157829][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 134, seqID incoming: 6 with size 7, Rest bytes: 89
+[1157859][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 135, seqID incoming: 7 with size 7, Rest bytes: 82
+[1157889][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 136, seqID incoming: 8 with size 7, Rest bytes: 75
+[1157919][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 137, seqID incoming: 9 with size 7, Rest bytes: 68
+[1157949][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 138, seqID incoming: 10 with size 7, Rest bytes: 61
+[1157979][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 139, seqID incoming: 11 with size 7, Rest bytes: 54
+[1158009][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 140, seqID incoming: 12 with size 7, Rest bytes: 47
+[1158039][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 141, seqID incoming: 13 with size 7, Rest bytes: 40
+[1158069][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 142, seqID incoming: 14 with size 7, Rest bytes: 33
+[1158099][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 143, seqID incoming: 15 with size 7, Rest bytes: 26
+[1158129][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 144, seqID incoming: 0 with size 7, Rest bytes: 19
+[1158159][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 145, seqID incoming: 1 with size 7, Rest bytes: 12
+[1158189][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 146, seqID incoming: 2 with size 7, Rest bytes: 5
+[1158220][I][CanIsoTp.cpp:487] receive_ConsecutiveFrame(): Consecutive Frame received, state: 5, frameNum: 147, seqID incoming: 3 with size 7, Rest bytes: 0
+[1158234][I][CanIsoTp.cpp:492] receive_ConsecutiveFrame(): All data received
+[1158241][I][can_controller.cpp:463] dispatchIsoTpData(): CAN RXID: 11, TXID: 0, size: 1033, own id: 11
+[1158250][I][CanOtaHandler.cpp:95] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+COMMENT: This is a DATA message sent from host to slave, but non of the functions in void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId)  are called  based on the logs - we need better debugginng bessages  (?)
+[1158260][I][CanIsoTp.cpp:56] send(): Acquiring ISO-TP semaphore for send
+[1158260][I][can_controller.cpp:943] sendCanMessage(): Sending CAN message to 1
+COMMENT: What is send from client to master? Is it an acknoledegemtn ?
+s
+[1158292][I][CanIsoTp.cpp:59] send(): Starting ISO-TP send, len: 15 to ID: 1, with rxId 11
+[1158300][I][CanIsoTp.cpp:63] send(): State: 1
+[1158304][I][CanIsoTp.cpp:310] send_FirstFrame(): Sending FF
+[1158310][I][CanIsoTp.cpp:80] send(): First Frame sent: 0
+[1158315][I][CanIsoTp.cpp:63] send(): State: 2
+[1158319][I][CanIsoTp.cpp:85] send(): Waiting for first FC
+[1158325][I][CanIsoTp.cpp:99] send(): Frame received: 1, rxId 11, len 3
+[1158331][I][CanIsoTp.cpp:102] send(): Data length: 3
+[1158336][I][CanIsoTp.cpp:106] send(): FC frame received
+[1158341][I][CanIsoTp.cpp:503] receive_FlowControlFrame(): Flow Control Frame received
+[1158349][I][CanIsoTp.cpp:518] receive_FlowControlFrame(): Updating BS and STmin to: 0, 30
+[1158357][I][CanIsoTp.cpp:530] receive_FlowControlFrame(): CTS (Continue to send) frame received
+[1158365][I][CanIsoTp.cpp:109] send(): FC received successfully
+[1158371][I][CanIsoTp.cpp:63] send(): State: 4
+[1158375][I][CanIsoTp.cpp:127] send(): Sending Consecutive Frames
+[1158411][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 1
+[1158418][I][CanIsoTp.cpp:145] send(): Sending Last block
+[1158453][I][CanIsoTp.cpp:334] send_ConsecutiveFrame(): Sending CF: (seqId): 2
+[1158460][I][CanIsoTp.cpp:198] send(): Return: 0
+[1158464][I][can_controller.cpp:881] canSendTask(): Sent CAN message to 1
+
+# COMMENT: I think we have to continiously reset the timeout counter on the master and slave side to avoid timeout during OTA? Not really, the ticks of the debugging are 1158464 and then 1278255 so quiet some time in between 
+
+[1278255][I][CanOtaHandler.cpp:455] loop(): OTA in progress, checking for timeout...
+[1278267][E][CanOtaHandler.cpp:463] loop(): OTA timeout: no data for 120007 ms
+[1278275][W][CanOtaHandler.cpp:445] abortOta(): Aborting OTA with status 10 (state was 2)
+
+

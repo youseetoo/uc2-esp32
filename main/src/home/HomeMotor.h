@@ -9,18 +9,23 @@
 #pragma pack(push,1)
 struct HomeData
 {
-	int homeEndposPin = 0;
+	uint8_t homeEndposPin = 0;
 	uint32_t homeTimeout = 10000; // ms
-	int homeSpeed = 10000;
-	int homeMaxspeed = 20000;
-	int homeDirection = 1;
+	int32_t homeSpeed = 10000;
+	uint32_t homeMaxspeed = 20000;
+	int8_t homeDirection = 1;
 	uint32_t homeTimeStarted = 0;
 	bool homeIsActive = false;
-	int homeEndposRelease = 1000;
-	int homeInEndposReleaseMode = 0;
+	uint8_t homeInEndposReleaseMode = 0;  // Legacy field, kept for compatibility
 	bool homeEndStopPolarity = 0; // normally open
-	int qid = -1;
+	uint16_t qid = -1;
 	bool precise = false; // Use encoder-based stall detection for homing
+	
+	// New CNC-style homing fields
+	uint homingPhase = 0;  // 0=idle, 1=fast to endstop, 2=retract, 3=slow to endstop, 4=done
+	uint16_t homeRetractDistance = 2000;  // Steps to retract after hitting endstop
+	int32_t homeFirstHitPosition = 0;  // Position where endstop was first triggered
+	TaskHandle_t homingTaskHandle = nullptr;  // FreeRTOS task handle
 };
 #pragma pack(pop)
 
@@ -37,6 +42,7 @@ struct HomeState
 #pragma pack(pop)
 
 void processHomeLoop(void * p);
+void homingTaskFunction(void *parameter);
 
 #pragma pack(push,1)
 namespace HomeMotor
@@ -46,9 +52,11 @@ namespace HomeMotor
 	static Preferences preferences;
 
 	static bool isDEBUG = true;
-	static int homeEndposRelease = 0;
 	static bool isHoming = false;
 	static bool isDualAxisZ = false;
+	
+	// Task handles for each axis homing operation
+	static TaskHandle_t homingTaskHandles[4] = {nullptr, nullptr, nullptr, nullptr};
 
 	int act(cJSON * ob);
 	cJSON * get(cJSON * ob);
@@ -57,7 +65,7 @@ namespace HomeMotor
     void checkAndProcessHome(Stepper s, int digitalin_val);
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ, int homeEndposRelease);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
 	HomeData** getHomeData();
 	void sendHomeDone(int axis);
 };

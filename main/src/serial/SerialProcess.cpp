@@ -39,6 +39,8 @@
 #endif
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
+#include "../can/BinaryOtaProtocol.h"
+#include "../can/CanOtaStreaming.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -351,37 +353,94 @@ namespace SerialProcess
 		}
 	}
 
+	// Static buffer for serial reading to avoid heap fragmentation
+	static char serialInputBuffer[8192];  // 8KB buffer for large JSON strings
+	static size_t serialInputPos = 0;
+	static bool inJsonObject = false;
+	static int braceCount = 0;
+
 	void loop()
 	{
-		// Try to read and queue serial data if available
-		if (Serial.available()) {
-			int bytesAvailable = Serial.available();
-			//log_i("Serial RX: %d bytes available", bytesAvailable);
+		// Check if we're in binary OTA mode
+		#ifdef CAN_BUS_ENABLED
+		if (binary_ota::isInBinaryMode()) {
+			// Process binary packets instead of JSON
+			binary_ota::processBinaryPacket();
+			return;  // Don't process JSON in binary mode
+		}
+		
+		// Check if we're in streaming binary mode (for CAN OTA streaming)
+		if (can_ota_stream::isStreamingModeActive()) {
+			// Process binary stream packets from Serial
+			can_ota_stream::processBinaryStreamPacket();
+			return;  // Don't process JSON in streaming binary mode
+		}
+		#endif
+		
+		// Read serial data byte-by-byte to handle large JSON strings reliably
+		// TODO: These could be optimized further if needed - the input could hang potentially
+		while (Serial.available() > 0) {
+			char c = Serial.read();
 			
-			String command = Serial.readString();  // Keep String alive during parsing
-			command.trim(); // Remove any whitespace/newlines
+			// Track JSON object boundaries
+			if (c == '{') {
+				if (!inJsonObject) {
+					inJsonObject = true;
+					serialInputPos = 0;
+					braceCount = 0;
+				}
+				braceCount++;
+			}
 			
-			//log_i("Serial RX: Read %d chars: %s", command.length(), command.c_str());
-			
-			if (command.length() > 0) {
-				cJSON *doc = cJSON_Parse(command.c_str());
-				if (doc) {
-					//log_i("Serial RX: JSON parsed successfully");
-					addJsonToQueue(doc);
+			// Only store if we're inside a JSON object
+			if (inJsonObject) {
+				// Prevent buffer overflow
+				if (serialInputPos < sizeof(serialInputBuffer) - 1) {
+					serialInputBuffer[serialInputPos++] = c;
 				} else {
-					// send {"error":"Failed to parse JSON"} back
+					// Buffer overflow - reset and report error
+					log_e("Serial input buffer overflow");
+					inJsonObject = false;
+					serialInputPos = 0;
+					braceCount = 0;
+					
 					cJSON *errorResponse = cJSON_CreateObject();
 					if (errorResponse != NULL) {
-						cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
+						cJSON_AddStringToObject(errorResponse, "error", "Input buffer overflow");
 						serialize(errorResponse);
 					}
-					// log_w("Failed to parse serial JSON: %s", command.c_str());
+					continue;
 				}
-			} 
+				
+				if (c == '}') {
+					braceCount--;
+					
+					// Complete JSON object received
+					if (braceCount == 0) {
+						serialInputBuffer[serialInputPos] = '\0';
+						
+						cJSON *doc = cJSON_Parse(serialInputBuffer);
+						if (doc) {
+							addJsonToQueue(doc);
+						} else {
+							// Parse error - send error response
+							cJSON *errorResponse = cJSON_CreateObject();
+							if (errorResponse != NULL) {
+								cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
+								serialize(errorResponse);
+							}
+						}
+						
+						// Reset for next message
+						inJsonObject = false;
+						serialInputPos = 0;
+					}
+				}
+			}
 		}
 
 		// Let other tasks run
-		vTaskDelay(pdMS_TO_TICKS(10));
+		vTaskDelay(pdMS_TO_TICKS(5));  // Reduced from 10ms for faster processing
 	}
 
 	void serialize(cJSON *doc)
@@ -556,6 +615,10 @@ namespace SerialProcess
 			serialize(can_controller::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)
 			serialize(can_controller::act(jsonDocument));
+		else if (strcmp(task, can_ota_endpoint) == 0)
+			serialize(can_controller::actCanOta(jsonDocument));
+		else if (strcmp(task, can_ota_stream_endpoint) == 0)
+			serialize(can_controller::actCanOtaStream(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		else if (strcmp(task, laser_get_endpoint) == 0)

@@ -1,0 +1,65 @@
+
+if we use the can_ota_simple.py 
+
+We go to something like 32% on the host and then it gets stuck 
+
+extChunk=267, bytes=273408\r\n'
+b'\xaaU\x06\x00\x01\n\xf2'
+  Chunk 267/856 (31.3%) b'[440253][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[440632][I][CanOtaHandler.cpp:97] handleCanOtaMessage(): CAN OTA message: type=0x67, len=14, from=0x00\r\n'
+b'[440633][I][CanOtaHandler.cpp:638] handleSlaveResponse(): Slave ACK: status=0, canId=0x0B, nextChunk=268, bytes=274432\r\n'
+b'\xaaU\x06\x00\x01\x0b\xf3'
+  Chunk 268/856 (31.4%) b'[440703][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1036\r\n'
+b'[445706][W][CanOtaHandler.cpp:545] waitForSlaveAck(): Slave ACK timeout after 5000 ms\r\n'
+b'[445708][E][CanOtaHandler.cpp:591] relayDataToSlave(): Chunk 268: slave did not ACK (result=-1)\r\n'
+b'[445710][E][BinaryOtaProtocol.cpp:249] processCompletePacket(): Failed to relay chunk 268 to CAN slave\r\n'
+b'\xaaU\x07\x07\x01\x0c\xf2'
+✗ RELAY_ERR (retry 1/5)
+    Debug: [440703][I][BinaryOtaProtocol.cpp:179] processCompletePacket(): Processing complete packet of size 1
+
+
+on client side: 
+
+essage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[259231][I][CanOtaHandler.cpp:97] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[259681][I][CanOtaHandler.cpp:97] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[260131][I][CanOtaHandler.cpp:97] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[260581][I][CanOtaHandler.cpp:97] handleCanOtaMessage(): CAN OTA message: type=0x63, len=1032, from=0x00
+[275365][I][can_controller.cpp:1286] act(): Set DEBUG_CAN_ISO_TP to true, separationTimeMin=30ms
+++
+{"qid":1,"success":1}
+--
+[283216][I][CanIsoTp.cpp:416] receive_FirstFrame(): First Frame received, txID 0, rxID 11, size: 8, totalLen: 1033
+[283227][I][CanIsoTp.cpp:437] receive_FirstFrame(): Allocating memory for pdu->data
+[283234][E][CanIsoTp.cpp:442] receive_FirstFrame(): Could not allocate memory for data
+
+I think something went wront with the previous or memory is full? not sure what could not allocate memory for data means 
+
+
+------------------
+On the streaming side I get on the client side: 
+Paste your stack trace here handleDataChunk(): STREAM_DATA but no active session
+
+***ERROR*** A stack overflow in task CAN_RecieveProc has been detected.
+
+
+Backtrace: 0x40376efa:0x3fcf6730 0x4037bc45:0x3fcf6750 0x4037ef06:0x3fcf6770 0x4037d944:0x3fcf67f0 0x4037bcfc:0x3fcf6820 0x4037bcf2:0xa5a5a5a5 |<-CORRUPTED
+
+
+
+
+ELF file SHA256: 2432445374ba5eed
+
+Rebooting...
+
+decoded to:
+
+
+
+Decoding stack results
+0x40376efa: panic_abort at /Users/bene/.platformio/packages/framework-espidf@3.40407.240606/components/esp_system/panic.c line 408
+0x4037bc45: esp_system_abort at /Users/bene/.platformio/packages/framework-espidf@3.40407.240606/components/esp_system/esp_system.c line 137
+0x4037ef06: vApplicationStackOverflowHook at /Users/bene/.platformio/packages/framework-espidf@3.40407.240606/components/freertos/port/xtensa/port.c line 407
+0x4037d944: vTaskSwitchContext at /Users/bene/.platformio/packages/framework-espidf@3.40407.240606/components/hal/esp32s3/include/hal/cpu_ll.h line 38
+
+Also do you think it is good to keep the isotp instead of anotherstreaming can protocol w.r.t. to overhead and performance??

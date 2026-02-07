@@ -22,6 +22,7 @@ namespace FAccelStep
 {
     void startFastAccelStepper(int i)
     {
+        log_i("Starting FastAccelStepper for motor %i", i);
         if (faststeppers[i] == nullptr)
         {
             log_e("stepper %i is null", i);
@@ -77,17 +78,17 @@ namespace FAccelStep
                 {
                     // run clockwise
                     faststeppers[i]->runForward();
-                    //log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
                 }
                 else if (getData()[i]->speed < 0)
                 {
                     // run counterclockwise
                     faststeppers[i]->runBackward();
-                    //log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
                 }
                 if (isRunning(i))
                 {
-                    //log_i("We need %i starts to get the motor running", iStart);
+                    log_i("We need %i starts to get the motor running", iStart);
                     break;
                 }
             }
@@ -138,7 +139,6 @@ namespace FAccelStep
         // "unstop" the motor after it has actually started?
         getData()[i]->stopped = false;
         
-        if(0)
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,

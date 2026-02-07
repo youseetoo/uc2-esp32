@@ -7,7 +7,7 @@
 #define MOTOR_AXIS_COUNT 10
 #undef PSXCONTROLLER
 
-#define CORE_DEBUG_LEVEL
+// #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
 #define DIGITAL_IN_CONTROLLER
 #define MESSAGE_CONTROLLER
@@ -56,7 +56,7 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
      bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
      const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
-     const unsigned long BAUDRATE = 115200;
+     const unsigned long BAUDRATE = 921600; // 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
      int8_t MOTOR_X_DIR = GPIO_NUM_7;   // D8 -> GPIO7

@@ -699,7 +699,7 @@ namespace MotorJsonParser
 			cJSON *polarityItem = cJSON_GetObjectItemCaseSensitive(stp, "polarity");
 			
 			// Default values: enabled = true, polarity = 0 (normally open)
-			bool enabled = enabledItem ? enabledItem->valueint : true;
+			bool enabled = enabledItem ? enabledItem->valueint : false;
 			bool polarity = polarityItem ? polarityItem->valueint : false;
 			
 			log_i("Set hardlimits: stepperid %i, enabled %i, polarity %i (0=NO, 1=NC)", axis, enabled, polarity);

@@ -908,8 +908,9 @@ platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
 // HOME on device
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
-
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 40000, "speed": 5000, "direction":-1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
+{"task":"/motor_get", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
 
 // HOME on master 
 {"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}

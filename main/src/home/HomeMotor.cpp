@@ -201,6 +201,26 @@ int axis = 0;
 			bool endstopTriggered = (endstopState == hd->homeEndStopPolarity);
 			
 			switch (hd->homingPhase) {
+				case 0: {  // Phase 0: Release endstop (if already triggered at start)
+					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction)", axis);
+					
+					// Move away from endstop in opposite direction
+					FocusMotor::clearHardLimitTriggered(axis);
+					md->isforever = true;
+					md->speed = -hd->homeDirection * abs(hd->homeSpeed);  // Opposite direction
+					md->maxspeed = abs(hd->homeSpeed);
+					md->isEnable = 1;
+					md->isaccelerated = 0;
+					md->acceleration = MAX_ACCELERATION_A;
+					md->isStop = 0;
+					md->stopped = false;
+					FocusMotor::startStepper(axis, 0);
+
+					hd->homingPhase = 8;  // Move to Phase 8: wait for endstop release
+					phaseStartTime = millis();
+					break;
+				}
+				
 				case 1: {  // Phase 1: Fast approach to endstop
 					
 					// Start motor moving toward endstop at fast speed
@@ -275,7 +295,7 @@ int axis = 0;
 					// Move slowly back toward endstop
 					md->isforever = true;
 					md->speed = hd->homeDirection * abs(hd->homeSpeed/4);
-					md->maxspeed = md->speed;
+					md->maxspeed = abs(hd->homeSpeed/4);  // maxspeed must always be positive
 					md->isEnable = 1;
 					md->isaccelerated = 0;
 					md->acceleration = MAX_ACCELERATION_A;
@@ -327,7 +347,54 @@ int axis = 0;
 					break;
 				}
 				
-				default:
+case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
+						if (!endstopTriggered) {
+							log_i("[Homing Task] Axis %d endstop released, moving safety distance", axis);
+							
+							// Stop motor
+							FocusMotor::stopStepper(axis);
+							vTaskDelay(pdMS_TO_TICKS(100));
+							
+							hd->homingPhase = 9;  // Move to safety distance phase
+							phaseStartTime = millis();
+						}
+						// Keep moving until endstop is released
+						break;
+					}
+					
+					case 9: {  // Phase 9: Move additional safety distance after endstop release
+						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (500 steps)", axis);
+						
+						// Move additional 500 steps away for safety
+						md->isforever = false;
+						md->targetPosition = 500;  // Additional safety distance
+						md->absolutePosition = false;  // Relative move
+						md->speed = abs(hd->homeSpeed);
+						md->maxspeed = abs(hd->homeSpeed);
+						md->isEnable = 1;
+						md->isaccelerated = 1;
+						md->acceleration = MAX_ACCELERATION_A;
+						md->isStop = 0;
+						md->stopped = false;
+						FocusMotor::startStepper(axis, 0);
+
+						
+						hd->homingPhase = 10;  // Wait for safety move completion
+						phaseStartTime = millis();
+						break;
+					}
+					
+					case 10: {  // Phase 10: Wait for safety distance move to complete
+						if (!FocusMotor::isRunning(axis)) {
+							log_i("[Homing Task] Axis %d safety distance complete, starting normal homing", axis);
+							vTaskDelay(pdMS_TO_TICKS(100));
+							hd->homingPhase = 1;  // Now start normal homing sequence
+							phaseStartTime = millis();
+						}
+						break;
+					}
+					
+					default:
 					log_e("[Homing Task] Axis %d unknown phase %d", axis, hd->homingPhase);
 					hd->homeIsActive = false;
 					md->isHoming = false;
@@ -396,9 +463,24 @@ int axis = 0;
 		hdata[axis]->homeIsActive = true;
 
 		// Check initial endstop state to determine starting mode
-		// If endstop is already pressed, start directly in release mode
-		// Initialize homing phase and parameters
+		// If endstop is already pressed, start in release phase (Phase 0)
+#if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
+		int currentEndstopState = 0;
+		if (axis == Stepper::X) currentEndstopState = DigitalInController::getDigitalVal(1);
+		else if (axis == Stepper::Y) currentEndstopState = DigitalInController::getDigitalVal(2);
+		else if (axis == Stepper::Z) currentEndstopState = DigitalInController::getDigitalVal(3);
+		
+		// Check if endstop is already triggered
+		bool endstopAlreadyTriggered = (currentEndstopState == hdata[axis]->homeEndStopPolarity);
+		if (endstopAlreadyTriggered) {
+			log_i("Axis %i endstop already active, starting with release phase", axis);
+			hdata[axis]->homingPhase = 0;  // Phase 0: Release endstop first
+		} else {
+			hdata[axis]->homingPhase = 1;  // Phase 1: Normal fast to endstop
+		}
+#else
 		hdata[axis]->homingPhase = 1;  // Start with phase 1: fast to endstop
+#endif
 		
 		// Determine whether to use native driver or CAN based on hybrid mode
 		bool useCANForHoming = shouldUseCANForAxis(axis);
@@ -470,7 +552,7 @@ int axis = 0;
 		// Configure and start the motor
 		FocusMotor::getData()[s]->isforever = true;
 		FocusMotor::getData()[s]->speed = motorSpeed;
-		FocusMotor::getData()[s]->maxspeed = motorSpeed;
+		FocusMotor::getData()[s]->maxspeed = abs(motorSpeed);  // maxspeed must always be positive
 		FocusMotor::getData()[s]->isEnable = 1;
 		FocusMotor::getData()[s]->isaccelerated = 0;
 		FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
@@ -484,7 +566,7 @@ int axis = 0;
 			log_i("Starting A too with same parameters");
 			FocusMotor::getData()[Stepper::A]->isforever = true;
 			FocusMotor::getData()[Stepper::A]->speed = motorSpeed;
-			FocusMotor::getData()[Stepper::A]->maxspeed = motorSpeed;
+			FocusMotor::getData()[Stepper::A]->maxspeed = abs(motorSpeed);  // maxspeed must always be positive
 			FocusMotor::getData()[Stepper::A]->isEnable = 1;
 			FocusMotor::getData()[Stepper::A]->isaccelerated = 0;
 			FocusMotor::getData()[Stepper::A]->isStop = 0;

@@ -183,7 +183,7 @@ namespace ObjectiveController
 			{
 				// Home the objective (A axis)
 				log_i("Objective calibrate");
-				HomeMotor::startHome(sObjective, 10000, 20000, 20000, -1, 0, qid, false, 0);
+				HomeMotor::startHome(sObjective, 10000, 20000, 20000, -1, 0, qid, false);
 				data.currentState = 2;
 			}
 			else if (obj == 0)
@@ -264,7 +264,7 @@ namespace ObjectiveController
 			int homeMaxspeed = cJsonTool::getJsonInt(doc, "homeMaxspeed", 20000);
 			int homeDirection = cJsonTool::getJsonInt(doc, "homeDirection", pinConfig.objectiveHomeDirection);
 			int homeEndStopPolarity = cJsonTool::getJsonInt(doc, "homeEndStopPolarity", pinConfig.objectiveHomeEndStopPolarity);
-			HomeMotor::startHome(sObjective, homeTimeout, speed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, false, 0);
+			HomeMotor::startHome(sObjective, homeTimeout, speed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, false);
 			data.currentState = 2;
 			data.isHomed = true;
 		}

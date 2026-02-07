@@ -13,9 +13,6 @@
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
-#ifdef I2C_MASTER
-#include "../i2c/i2c_master.h"
-#endif
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
@@ -98,11 +95,7 @@ namespace HomeMotor
 		// parse the home data
 		uint8_t axis = parseHomeData(doc);
 
-#ifdef I2C_MASTER
-		// send the home data to the slave
-		i2c_master::sendHomeDataI2C(*hdata[axis], axis);
-		getData()[axis]->stopped = true; // overwrite current state - otherwise it'll trigger a force-stop  in the motor loop()
-#elif defined(CAN_BUS_ENABLED) && not defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && not defined(CAN_RECEIVE_MOTOR)
 		// send the home data to the slave
 		can_controller::sendHomeDataToCANDriver(*hdata[axis], axis);
 #else
@@ -138,7 +131,6 @@ namespace HomeMotor
 					int homeDirection = cJsonTool::getJsonInt(stp, key_home_direction);
 					int homeEndStopPolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
 					bool isDualAxisZ = cJsonTool::getJsonInt(stp, key_home_isDualAxis);
-					int homeEndposRelease = cJsonTool::getJsonInt(stp, key_home_endstoprelease, 0);
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
 					// Check for encoder-based homing (precise=1 or enc=1 for backward compatibility)
@@ -158,11 +150,11 @@ namespace HomeMotor
 						#else
 						log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
 						// Fall back to regular homing
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ, homeEndposRelease);
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
 						#endif
 					} else {
 						// Standard endstop-based homing
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ, homeEndposRelease);
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid, isDualAxisZ);
 					}
 				}
 			}
@@ -174,16 +166,187 @@ int axis = 0;
 		return axis;
 	}
 
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ, int homeEndposRelease)
+	// CNC-style homing task that runs in background
+	// Phase 1: Fast to endstop
+	// Phase 2: Retract fixed distance
+	// Phase 3: Slow approach to endstop for precision
+	void homingTaskFunction(void *parameter) {
+		int axis = (int)(intptr_t)parameter;
+		log_i("[Homing Task] Started for axis %d", axis);
+		
+		HomeData *hd = hdata[axis];
+		MotorData *md = FocusMotor::getData()[axis];
+		
+		// Get endstop input mapping
+		int endstopInput = 0;
+		if (axis == Stepper::X) endstopInput = 1;
+		else if (axis == Stepper::Y) endstopInput = 2;
+		else if (axis == Stepper::Z) endstopInput = 3;
+		else if (axis == Stepper::A) endstopInput = 4; // Dual Z uses same endstop as Z
+		
+		uint32_t phaseStartTime = millis();
+		
+		while (hd->homeIsActive) {
+			// Check for timeout
+			if (millis() - hd->homeTimeStarted > hd->homeTimeout) {
+				log_e("[Homing Task] Axis %d timeout in phase %d", axis, hd->homingPhase);
+				FocusMotor::stopStepper(axis);
+				hd->homeIsActive = false;
+				md->isHoming = false;
+				sendHomeDone(axis);
+				break;
+			}
+			
+			int endstopState = DigitalInController::getDigitalVal(endstopInput);
+			bool endstopTriggered = (endstopState == hd->homeEndStopPolarity);
+			
+			switch (hd->homingPhase) {
+				case 1: {  // Phase 1: Fast approach to endstop
+					
+					// Start motor moving toward endstop at fast speed
+					FocusMotor::clearHardLimitTriggered(axis);
+					md->isforever = true;
+					md->speed = hd->homeDirection * abs(hd->homeSpeed);
+					md->maxspeed = abs(hd->homeSpeed);
+					md->isEnable = 1;
+					md->isaccelerated = 0;
+					md->acceleration = MAX_ACCELERATION_A;
+					md->isStop = 0;
+					md->stopped = false;
+					FocusMotor::startStepper(axis, 0);
+					log_i("[Homing Task] Axis %d Phase 1: Fast to endstop (speed=%d)", axis, md->speed);
+					
+					hd->homingPhase = 2;  // Move to waiting for endstop
+					phaseStartTime = millis();
+					break;
+				}
+				
+				case 2: {  // Phase 2: Wait for endstop trigger
+					if (endstopTriggered) {
+						// Record position where endstop was hit
+						hd->homeFirstHitPosition = md->currentPosition;
+						log_i("[Homing Task] Phase 2: Axis %d endstop triggered at position %d", axis, hd->homeFirstHitPosition);
+						
+						// Stop motor
+						FocusMotor::stopStepper(axis);
+						vTaskDelay(pdMS_TO_TICKS(100));  // Let motor settle
+						
+						hd->homingPhase = 3;  // Move to retract phase
+						phaseStartTime = millis();
+					}
+					// Continue waiting for endstop
+					break;
+				}
+				
+				case 3: {  // Phase 3: Retract fixed distance
+					
+					// Move away from endstop by fixed distance
+					md->isforever = false;
+					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;  // Opposite direction // TODO: This does not switch direction it seems 
+					md->absolutePosition = false;  // Relative move
+					md->speed = abs(hd->homeSpeed);
+					md->maxspeed = abs(hd->homeSpeed);
+					md->isEnable = 1;
+					md->isaccelerated = 1;
+					md->acceleration = MAX_ACCELERATION_A;
+					md->isStop = 0;
+					md->stopped = false;
+					FocusMotor::startStepper(axis, 0);
+					log_i("[Homing Task] Axis %d Phase 3: Retracting %d steps", axis, md->targetPosition);
+					
+					
+					hd->homingPhase = 4;  // Move to waiting for retract completion
+					phaseStartTime = millis();
+					break;
+				}
+				
+				case 4: {  // Phase 4: Wait for retract to complete
+					if (!FocusMotor::isRunning(axis)) {
+						log_i("[Homing Task] Phase 4: Axis %d retract complete, starting slow approach", axis);
+						vTaskDelay(pdMS_TO_TICKS(100));  // Brief pause
+						hd->homingPhase = 5;
+						phaseStartTime = millis();
+					}
+					break;
+				}
+				
+				case 5: {  // Phase 5: Slow approach to endstop
+					
+					// Move slowly back toward endstop
+					md->isforever = true;
+					md->speed = hd->homeDirection * abs(hd->homeSpeed/4);
+					md->maxspeed = md->speed;
+					md->isEnable = 1;
+					md->isaccelerated = 0;
+					md->acceleration = MAX_ACCELERATION_A;
+					md->isStop = 0;
+					md->stopped = false;
+					FocusMotor::startStepper(axis, 0);
+					log_i("[Homing Task] Axis %d Phase 5: Slow approach (speed=%d)", axis, md->speed);
+					
+					hd->homingPhase = 6;  // Move to waiting for final trigger
+					phaseStartTime = millis();
+					break;
+				}
+				
+				case 6: {  // Phase 6: Wait for final endstop trigger
+					if (endstopTriggered) {
+						
+						// Stop motor
+						FocusMotor::stopStepper(axis);
+						vTaskDelay(pdMS_TO_TICKS(200));  // Let motor settle
+						
+						// Set position to zero at home
+						FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
+						
+						md->isforever = false;
+						
+						hd->homingPhase = 7;  // Move to completion
+						phaseStartTime = millis();
+						log_i("[Homing Task] Phase 6: Axis %d final position reached, stopping", axis);
+					}
+					break;
+				}
+				
+				case 7: {  // Phase 7: Complete
+					log_i("[Homing Task] Phase 7: Axis %d homing complete", axis);
+					
+					// Send position update
+					FocusMotor::sendMotorPos(axis, 0);
+					
+					// Send completion message
+					sendHomeDone(axis);
+					
+					// Clean up
+					hd->homeIsActive = false;
+					md->isHoming = false;
+					md->hardLimitTriggered = false;
+					hd->homingPhase = 0;
+					
+					log_i("[Homing Task] Phase 7: Axis %d task exiting", axis);
+					break;
+				}
+				
+				default:
+					log_e("[Homing Task] Axis %d unknown phase %d", axis, hd->homingPhase);
+					hd->homeIsActive = false;
+					md->isHoming = false;
+					break;
+			}
+			
+			// Small delay to prevent task hogging CPU
+			vTaskDelay(pdMS_TO_TICKS(10));
+		}
+		
+		// Task cleanup
+		homingTaskHandles[axis] = nullptr;
+		log_i("[Homing Task] Axis %d task deleted", axis);
+		vTaskDelete(nullptr);  // Delete self
+	}
+
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ)
 	{
 
-		// check if the axis is valid
-		// available axis are 
-		if(0)//!FocusMotor::isActivated[axis]) // TODO: THis should work but this is true even if activaed for someweird reason - maybe wrong reference?
-		{
-			log_e("Axis %i is not activated", axis);
-			return;
-		}
 		// Store variables in preferences for later use  per axis 
 		preferences.begin("home", false);
 		preferences.putInt(("to_" + String(axis)).c_str(), homeTimeout);
@@ -191,15 +354,13 @@ int axis = 0;
 		preferences.putInt(("hms_" + String(axis)).c_str(), homeMaxspeed);
 		preferences.putInt(("hd_" + String(axis)).c_str(), homeDirection);
 		preferences.putInt(("hep_" + String(axis)).c_str(), homeEndStopPolarity);
-		preferences.putInt(("her_" + String(axis)).c_str(), homeEndposRelease);
 		preferences.end();
 
-		// set the home data and start the motor - mostly used from I2C
+		// set the home data and start the motor
 		hdata[axis]->homeTimeout = homeTimeout;
 		hdata[axis]->homeSpeed = homeSpeed;
 		hdata[axis]->homeMaxspeed = homeMaxspeed;
 		hdata[axis]->homeEndStopPolarity = homeEndStopPolarity;
-		hdata[axis]->homeEndposRelease = homeEndposRelease;
 		hdata[axis]->qid = 0;
 
 		// assign qid/dualaxisz
@@ -225,9 +386,9 @@ int axis = 0;
 		{
 			hdata[axis]->homeEndStopPolarity = 0;
 		}
-		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i, endpos release %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndposRelease);
+		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		
-		// Set isHoming flag to bypass soft limits during homing
+		// Set isHoming flag to bypass soft and hard limits during homing
 		getData()[axis]->isHoming = true;
 		
 		// grab current time AFTER we start
@@ -236,26 +397,9 @@ int axis = 0;
 
 		// Check initial endstop state to determine starting mode
 		// If endstop is already pressed, start directly in release mode
-#if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
-		int currentEndstopState = 0;
-		if (axis == Stepper::X) currentEndstopState = DigitalInController::getDigitalVal(1);
-		else if (axis == Stepper::Y) currentEndstopState = DigitalInController::getDigitalVal(2);
-		else if (axis == Stepper::Z) currentEndstopState = DigitalInController::getDigitalVal(3);
+		// Initialize homing phase and parameters
+		hdata[axis]->homingPhase = 1;  // Start with phase 1: fast to endstop
 		
-		// If endstop is already active, start in release mode
-		if (abs(hdata[axis]->homeEndStopPolarity - currentEndstopState))
-		{
-			log_i("Axis %i endstop already active, starting in release mode", axis);
-			hdata[axis]->homeInEndposReleaseMode = 1;
-		}
-		else
-		{
-			hdata[axis]->homeInEndposReleaseMode = 0;
-		}
-#else
-		hdata[axis]->homeInEndposReleaseMode = 0;
-#endif
-
 		// Determine whether to use native driver or CAN based on hybrid mode
 		bool useCANForHoming = shouldUseCANForAxis(axis);
 		
@@ -271,9 +415,33 @@ int axis = 0;
 		else
 		{
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
-			// Use native driver for homing
-			log_i("Homing axis %d via native driver", axis);
-			runStepper(axis);
+			// Use native driver with new CNC-style task-based homing
+			log_i("Starting homing task for axis %d", axis);
+			
+			// Stop any existing homing task for this axis
+			if (homingTaskHandles[axis] != nullptr) {
+				log_w("Stopping existing homing task for axis %d", axis);
+				vTaskDelete(homingTaskHandles[axis]);
+				homingTaskHandles[axis] = nullptr;
+			}
+			
+			// Create FreeRTOS task for homing (runs in background)
+			char taskName[32];
+			snprintf(taskName, sizeof(taskName), "Homing_Axis_%d", axis);
+			xTaskCreate(
+				homingTaskFunction,      // Task function
+				taskName,                  // Task name
+				4096,                      // Stack size (bytes)
+				(void*)(intptr_t)axis,    // Parameter: axis number
+				5,                         // Priority (medium)
+				&homingTaskHandles[axis]  // Task handle
+			);
+			
+			if (homingTaskHandles[axis] == nullptr) {
+				log_e("Failed to create homing task for axis %d", axis);
+				hdata[axis]->homeIsActive = false;
+				getData()[axis]->isHoming = false;
+			}
 #endif
 		}
 	}
@@ -400,119 +568,20 @@ int axis = 0;
 	void checkAndProcessHome(Stepper s, int digitalin_val)
 	{
 #ifdef MOTOR_CONTROLLER
-#ifdef I2C_MASTER
-
-		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + 500 < millis()) // give some time to settle
-		{
-			HomeState homeState = i2c_master::pullHomeStateFromI2CDriver(s);
-			log_i("Home State is : %i", homeState.isHoming);
-			bool isHoming = homeState.isHoming;
-			if (!isHoming)
-			{
-				log_i("Home Motor %i is done", s);
-				sendHomeDone(s);
-				hdata[s]->homeIsActive = false;
-				getData()[s]->isHoming = false;  // Clear homing flag
-				getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing
-				FocusMotor::sendMotorPos(s, 0);
-			}
-		}
-#elif defined(CAN_BUS_ENABLED) && not defined(CAN_RECEIVE_MOTOR)
-		// do nothing as we will receive it as a push message - only keep track of the timeout
+#ifdef CAN_BUS_ENABLED && not defined(CAN_RECEIVE_MOTOR)
+		// For CAN, we receive push messages, only monitor timeout
 		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
 		{
-			log_i("Home Motor %i is done", s);
+			log_i("Home Motor %i timeout", s);
 			sendHomeDone(s);
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag
 			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing
-			// FocusMotor::sendMotorPos(s, 0);
 		}
 #else
-		// log_i("Current STepper %i and digitalin_val %i", s, digitalin_val);
-		// State machine for homing:
-		// Mode 0: Normal homing - move toward endstop
-		// Mode 1: Transition state - prepare for endstop release
-		// Mode 2: Release mode - move away from endstop until it's released
-		// Mode 3: Final state - homing complete and optinoally move to save zone if configured
-		
-		//  if we hit the endstop or timeout => stop motor and launch reverse direction mode
-		if (hdata[s]->homeIsActive && (abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis()) &&
-			hdata[s]->homeInEndposReleaseMode == 0)
-		{ // RELEASE MODE 0
-			// reverse direction to release endstops
-			FocusMotor::stopStepper(s);
-			log_i("Home Motor %i hit endstop, entering release mode %i", s, hdata[s]->homeInEndposReleaseMode);
-			log_i("Motor speed was %i and will be %i", getData()[s]->speed, -getData()[s]->speed);
-			getData()[s]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-			getData()[s]->isforever = true;
-			getData()[s]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::startStepper(s, 0);
-			if (s == Stepper::Z and (HomeMotor::isDualAxisZ))
-			{
-				// we may have a dual axis so we would need to start A too
-				FocusMotor::stopStepper(Stepper::A);
-				getData()[Stepper::A]->speed = -hdata[s]->homeDirection * abs(hdata[s]->homeSpeed);
-				getData()[Stepper::A]->isforever = true;
-				getData()[Stepper::A]->acceleration = MAX_ACCELERATION_A;
-				FocusMotor::startStepper(Stepper::A, 0);
-
-			}
-			delay(20);
-			hdata[s]->homeInEndposReleaseMode = 1;
-		}
-		else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode == 1)
-		{ // RELEASE MODE 1
-			// if we are in reverse-direction mode, transition to monitoring endstop release
-			log_i("Home Motor %i transitioning to endstop release monitoring, mode %i", s, hdata[s]->homeInEndposReleaseMode);
-			hdata[s]->homeInEndposReleaseMode = 2;
-			hdata[s]->homeTimeStarted = millis();
-		}
-		// if we are in endpos release mode and the endstop is released, stop the motor - or if timeout is reached (1s)
-		else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode == 2 &&
-				 (!abs(hdata[s]->homeEndStopPolarity - digitalin_val) || hdata[s]->homeTimeStarted + 5000 < millis()))
-		{ // RELEASE MODE 2
-			log_i("Home Motor %i in endpos release mode %i", s, hdata[s]->homeInEndposReleaseMode);
-			FocusMotor::stopStepper(s);
-			delay(200);
-			FocusMotor::setPosition(s, 0);
-			if (s == Stepper::Z and (HomeMotor::isDualAxisZ))
-			{
-				// we may have a dual axis so we would need to start A too
-				FocusMotor::stopStepper(Stepper::A);
-				delay(200);
-				FocusMotor::setPosition(Stepper::A, 0);
-				getData()[Stepper::A]->isforever = false;
-			}
-			getData()[s]->isforever = false;
-			hdata[s]->homeInEndposReleaseMode = 3;
-		}
-		else if (hdata[s]->homeIsActive && hdata[s]->homeInEndposReleaseMode == 3)
-		{
-			// updating clients
-			FocusMotor::setPosition(s, 0);
-			FocusMotor::sendMotorPos(s, 0);
-			sendHomeDone(s);
-			// if configured, move to safe zone after homing
-			if (abs(hdata[s]->homeEndposRelease) > 0){
-				// Move to safe zone position relative to home (0)
-				log_i("Home Motor %i moving to safe zone position %i after homing", s, hdata[s]->homeEndposRelease);
-				FocusMotor::getData()[s]->isforever = false;
-				FocusMotor::getData()[s]->targetPosition = hdata[s]->homeEndposRelease;  // Set the target position
-				FocusMotor::getData()[s]->absolutePosition = false;  // Relative movement
-				FocusMotor::getData()[s]->speed = abs(hdata[s]->homeSpeed);
-				FocusMotor::getData()[s]->isEnable = 1;
-				FocusMotor::getData()[s]->isaccelerated = 0;
-				FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
-				FocusMotor::getData()[s]->isStop = 0;
-				FocusMotor::getData()[s]->stopped = false;
-				FocusMotor::startStepper(s, 0);  // reduced=0 for full MotorData transfer
-			}
-			hdata[s]->homeIsActive = false;
-			getData()[s]->isHoming = false;  // Clear homing flag
-			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing
-			hdata[s]->homeInEndposReleaseMode = 0;
-		}
+		// For native drivers with USE_ACCELSTEP/USE_FASTACCEL, homing now runs in FreeRTOS task
+		// This function is no longer needed for native drivers - task handles everything
+		// Keep this empty block for compatibility
 #endif
 #endif
 	}
@@ -527,12 +596,6 @@ int axis = 0;
 
 // expecting digitalin1 handling endstep for stepper X, digital2 stepper Y, digital3 stepper Z
 //  0=A , 1=X, 2=Y , 3=Z
-#ifdef I2C_MASTER &&defined I2C_MOTOR
-		// checking remotely
-		checkAndProcessHome(Stepper::X, 0);
-		checkAndProcessHome(Stepper::Y, 0);
-		checkAndProcessHome(Stepper::Z, 0);
-#endif
 #if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
 		checkAndProcessHome(Stepper::X, DigitalInController::getDigitalVal(1));
 		checkAndProcessHome(Stepper::Y, DigitalInController::getDigitalVal(2));

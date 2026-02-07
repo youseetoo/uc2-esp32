@@ -238,7 +238,6 @@ namespace can_controller
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
-            int homeEndposRelease = receivedHomeData.homeEndposRelease;
             bool usePreciseHoming = receivedHomeData.precise;
             
             if (debugState)
@@ -253,10 +252,10 @@ namespace can_controller
                 LinearEncoderController::homeAxis(homingSpeed, mStepper);
                 #else
                 log_w("Encoder-based homing requested via CAN but LINEAR_ENCODER_CONTROLLER not available");
-                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
                 #endif
             } else {
-                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false, homeEndposRelease);
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, false);
             }
         }
         #ifdef TMC_CONTROLLER

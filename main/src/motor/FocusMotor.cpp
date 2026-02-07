@@ -175,7 +175,7 @@ namespace FocusMotor
 		// Check if hard limit is triggered - don't start motor until homing clears it
 		if (getData()[axis]->hardLimitTriggered)
 		{
-			log_w("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
+			log_i("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
 			getData()[axis]->stopped = true;
 			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
 			return;
@@ -186,23 +186,7 @@ namespace FocusMotor
 		// allowing gamepad to retry quickly if mutex is busy.
 		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
 		{
-#if defined(I2C_MASTER) && defined(I2C_MOTOR)
-			// Request data from the slave but only if inside i2cAddresses
-			getData()[axis]->isStop = false;
-			uint8_t slave_addr = i2c_master::axis2address(axis);
-			if (!i2c_master::isAddressInI2CDevices(slave_addr))
-			{
-				getData()[axis]->stopped = true; // stop immediately, so that the return of serial gives the current position
-				sendMotorPos(axis, 0);			 // this is an exception. We first get the position, then the success
-			}
-			else
-			{
-				// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-				MotorData *m = getData()[axis];
-				i2c_master::startStepper(m, axis, reduced);
-				waitForFirstRun[axis] = 1;
-			}
-#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
+#ifdef CAN_BUS_ENABLED && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 			if (shouldUseCANForAxis(axis))
 			{

@@ -897,18 +897,20 @@ platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": -40000, "speed": 25000, "isabs": 0, "isaccel":0, "accel":1000000, "redu":1}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -4000, "speed": 31000, "isabs": 0, "isaccel":0, "accel":100000}]}}
 {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": -40000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":100000}]}}
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 40000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":100000}]}}
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":2,"position":20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}, {"stepperid":1,"position":-20000,"speed":15000,"isabs":1,"isaccel":0, "redu":0}]}}
 
 
-{"task":"/motor_act","motor":{"steppers": [{ "stepperid":3, "position": 4000, "speed": 11000, "isabs": 0, "isaccel":0, "accel":50000}]}}
+{"task":"/tmc_act", "msteps":16, "rms_current":1200, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 
+{"task":"/motor_act","motor":{"steppers": [{ "stepperid":1, "position": 40000, "speed": -25000, "isabs": 0, "isaccel":0, "accel":5000}]}}
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 40000, "speed": 2000, "direction":1, "endstoppolarity":1}]}}
 
 
 // HOME on device
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 40000, "speed": 5000, "direction":-1, "endstoppolarity":1}]}}
 {"task":"/home_act", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
 {"task":"/motor_get", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
 

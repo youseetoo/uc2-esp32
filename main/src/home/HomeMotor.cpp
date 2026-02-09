@@ -202,7 +202,6 @@ int axis = 0;
 			
 			switch (hd->homingPhase) {
 				case 0: {  // Phase 0: Release endstop (if already triggered at start)
-					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction)", axis);
 					
 					// Move away from endstop in opposite direction
 					FocusMotor::clearHardLimitTriggered(axis);
@@ -215,6 +214,7 @@ int axis = 0;
 					md->isStop = 0;
 					md->stopped = false;
 					FocusMotor::startStepper(axis, 0);
+					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction), with speed %d", axis, md->speed);
 
 					hd->homingPhase = 8;  // Move to Phase 8: wait for endstop release
 					phaseStartTime = millis();
@@ -363,11 +363,12 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 					}
 					
 					case 9: {  // Phase 9: Move additional safety distance after endstop release
-						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (500 steps)", axis);
+						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (2000 steps)", axis);
 						
-						// Move additional 500 steps away for safety
+						// Move additional 2000 steps away for safety
 						md->isforever = false;
-						md->targetPosition = 500;  // Additional safety distance
+						// Additional safety distance in the opposite direction of homing (same direction as retract)
+						md->targetPosition = 2000;  
 						md->absolutePosition = false;  // Relative move
 						md->speed = abs(hd->homeSpeed);
 						md->maxspeed = abs(hd->homeSpeed);
@@ -531,28 +532,12 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 	void runStepper(int s)
 	{
 		// Determine motor direction based on homing mode
-		int motorSpeed, motorDirection;
 		FocusMotor::clearHardLimitTriggered(s);
-
-		if (hdata[s]->homeInEndposReleaseMode == 1)
-		{
-			// If starting in release mode, move opposite to home direction to release endstop
-			motorDirection = -hdata[s]->homeDirection;
-			motorSpeed = motorDirection * abs(hdata[s]->homeSpeed);
-			log_i("Starting motor %i in release mode, direction: %i", s, motorDirection);
-		}
-		else
-		{
-			// Normal homing mode - move toward endstop
-			motorDirection = hdata[s]->homeDirection;
-			motorSpeed = motorDirection * abs(hdata[s]->homeSpeed);
-			log_i("Starting motor %i in normal homing mode, direction: %i", s, motorDirection);
-		}
 
 		// Configure and start the motor
 		FocusMotor::getData()[s]->isforever = true;
-		FocusMotor::getData()[s]->speed = motorSpeed;
-		FocusMotor::getData()[s]->maxspeed = abs(motorSpeed);  // maxspeed must always be positive
+		FocusMotor::getData()[s]->speed = hdata[s]->homeSpeed;
+		FocusMotor::getData()[s]->maxspeed = abs(hdata[s]->homeSpeed);  // maxspeed must always be positive
 		FocusMotor::getData()[s]->isEnable = 1;
 		FocusMotor::getData()[s]->isaccelerated = 0;
 		FocusMotor::getData()[s]->acceleration = MAX_ACCELERATION_A;
@@ -560,25 +545,11 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		FocusMotor::getData()[s]->stopped = false;
 		FocusMotor::startStepper(s, 0);
 		
-		if (s == Stepper::Z and FocusMotor::getDualAxisZ())
-		{
-			// we may have a dual axis so we would need to start A too
-			log_i("Starting A too with same parameters");
-			FocusMotor::getData()[Stepper::A]->isforever = true;
-			FocusMotor::getData()[Stepper::A]->speed = motorSpeed;
-			FocusMotor::getData()[Stepper::A]->maxspeed = abs(motorSpeed);  // maxspeed must always be positive
-			FocusMotor::getData()[Stepper::A]->isEnable = 1;
-			FocusMotor::getData()[Stepper::A]->isaccelerated = 0;
-			FocusMotor::getData()[Stepper::A]->isStop = 0;
-			FocusMotor::getData()[Stepper::A]->stopped = false;
-			FocusMotor::getData()[Stepper::A]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::startStepper(Stepper::A, 0);
-		}
 		delay(50); // give the motor some time to start
-		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i, release mode: %i", s, getData()[s]->speed, getData()[s]->maxspeed, motorDirection, hdata[s]->homeInEndposReleaseMode);
-		log_i("Start stepper based on home data: Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndosReleaseMode %i, endstop polarity %i",
+		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, getData()[s]->speed > 0 ? 1 : -1);
+		log_i("Start stepper based on home data: Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndStopPolarity %i",
 			  s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed,
-			  hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeInEndposReleaseMode, hdata[s]->homeEndStopPolarity);
+			  hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndStopPolarity);
 	}
 
 	cJSON *get(cJSON *ob)
@@ -641,7 +612,6 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		HomeState homeState;
 		homeState.isHoming = false;
 		homeState.isHomed = true;
-		homeState.homeInEndposReleaseMode = 0;
 		homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
 		can_controller::sendHomeStateToMaster(homeState);
 #endif

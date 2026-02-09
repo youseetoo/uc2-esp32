@@ -990,13 +990,11 @@ namespace FocusMotor
 			}
 			if (isActivated[i] and false)
 				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning(i), data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever)
-			{
-				// If the motor is not running, we stop it, report the position and save the position
-				// This is the ordinary case if the motor is not connected via I2C/CAN
-				// log_d("Sending motor pos %i", i);
-				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
-				stopStepper(i);
+		if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever && !data[i]->isHoming)
+		{
+			// If the motor is not running, we stop it, report the position and save the position
+			// This is the ordinary case if the motor is not connected via I2C/CAN
+			// Skip this if homing is active to avoid interfering with homing task
 			}
 
 #endif

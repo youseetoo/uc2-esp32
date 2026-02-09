@@ -368,7 +368,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						// Move additional 2000 steps away for safety
 						md->isforever = false;
 						// Additional safety distance in the opposite direction of homing (same direction as retract)
-						md->targetPosition = 2000;  
+						md->targetPosition = -hd->homeDirection * 2000;  
 						md->absolutePosition = false;  // Relative move
 						md->speed = abs(hd->homeSpeed);
 						md->maxspeed = abs(hd->homeSpeed);

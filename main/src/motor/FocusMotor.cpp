@@ -59,7 +59,6 @@ namespace FocusMotor
 	Preferences preferences;
 	int logcount;
 	bool power_enable = false;
-	bool isDualAxisZ = false;
 	bool waitForFirstRun[] = {false, false, false, false};
 
 	xSemaphoreHandle xMutex = NULL;
@@ -145,6 +144,9 @@ namespace FocusMotor
 		}
 		// No native driver - use CAN if axis >= threshold
 		return (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD);
+#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
+		// Pure CAN master (non-hybrid): all axes use CAN
+		return true;
 #else
 		return false; // CAN not available or this is a slave
 #endif
@@ -184,7 +186,7 @@ namespace FocusMotor
 		// Use timeout instead of portMAX_DELAY to prevent PS4 controller from blocking indefinitely
 		// when serial commands are being processed. 50ms is enough for most operations while
 		// allowing gamepad to retry quickly if mutex is busy.
-		if (1) // xSemaphoreTake(xMutex, pdMS_TO_TICKS(50))) // TODO: This is not good, we can get trapped here if the motor is actually running and we try to start it again, because then we never give the mutex back - we should check if the motor is already running before trying to take the mutex
+		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
 		{
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
@@ -285,7 +287,7 @@ namespace FocusMotor
 			}
 			else
 			{
-				startStepper(s, reduced); // TODO: Need dual axis?
+				startStepper(s, reduced); 
 			}
 		}
 	}
@@ -323,15 +325,7 @@ namespace FocusMotor
 #endif
 	}
 
-	void setDualAxisZ(bool dual)
-	{
-		isDualAxisZ = dual;
-	}
 
-	bool getDualAxisZ()
-	{
-		return isDualAxisZ;
-	}
 
 	void updateData(int axis)
 	{
@@ -439,12 +433,7 @@ namespace FocusMotor
 		if (data[Stepper::G] == nullptr)
 			log_e("Stepper G data NULL");
 
-		// Read dual axis from preferences if available
-		const char *prefNamespace = "UC2";
-		preferences.begin(prefNamespace, false);
-		isDualAxisZ = preferences.getBool("dualAxZ", pinConfig.isDualAxisZ);
 
-		preferences.end();
 	}
 
 	void fill_data()
@@ -840,14 +829,6 @@ namespace FocusMotor
 				setPosition(Stepper::Z, 999999);
 				sendMotorPos(Stepper::Z, 0, -3);
 
-				// If dual axis Z is enabled, also stop A
-				if (isDualAxisZ)
-				{
-					stopStepper(Stepper::A);
-					getData()[Stepper::A]->hardLimitTriggered = true;
-					setPosition(Stepper::A, 999999);
-					sendMotorPos(Stepper::A, 0, -3);
-				}
 			}
 		}
 #endif
@@ -995,11 +976,11 @@ namespace FocusMotor
 			}
 			if (isActivated[i] and false)
 				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning(i), data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever)
+			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever && !data[i]->isHoming)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C/CAN
-				// log_d("Sending motor pos %i", i);
+				// Skip during homing - the homing task manages motor lifecycle
 				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
 			}

@@ -125,7 +125,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		float speed = curve(value) * kMaxSpeed;
 
 		// per-axis scaling
-		speed *= (ax == Stepper::Z || (ax == Stepper::A && FocusMotor::getDualAxisZ()))
+		speed *= (ax == Stepper::Z )
 					 ? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
 					 : pinConfig.JOYSTICK_SPEED_MULTIPLIER;
 

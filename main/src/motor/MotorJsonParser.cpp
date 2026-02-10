@@ -31,7 +31,7 @@ namespace MotorJsonParser
 								"stepperid":    0,
 								"position":     -157500,
 								"trigOff":      0,
-								"trigPer"                               "isDualAxisZ":  0,
+								"trigPer"                            
 								"motorAddress": 67
 						}]
 		},
@@ -124,7 +124,6 @@ namespace MotorJsonParser
 			cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
 			cJsonTool::setJsonInt(aritem, key_stepperisstop, FocusMotor::getData()[i]->isStop);
 			cJsonTool::setJsonInt(aritem, key_stepperisrunning, FocusMotor::isRunning(i));
-			cJsonTool::setJsonInt(aritem, key_stepperisDualAxisZ, pinConfig.isDualAxisZ);
 			cJsonTool::setJsonInt(aritem, key_stepperisforever, FocusMotor::getData()[i]->isforever);
 			cJsonTool::setJsonInt(aritem, key_stepperisen, FocusMotor::getData()[i]->softLimitEnabled);
 			cJsonTool::setJsonInt(aritem, key_steppermin, FocusMotor::getData()[i]->minPos);
@@ -507,21 +506,6 @@ namespace MotorJsonParser
 		cJSON *setpos = cJSON_GetObjectItem(doc, key_setposition);
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 
-		// set dual axis if necessary
-		cJSON *dualaxisZ = cJSON_GetObjectItemCaseSensitive(doc, key_home_isDualAxis);
-		if (dualaxisZ != NULL)
-		{
-			// {"task": "/motor_act", "isDualAxisZ": 1}
-			// store this in the preferences
-			Preferences preferences;
-			FocusMotor::setDualAxisZ(dualaxisZ->valueint);
-			;
-			const char *prefNamespace = "UC2";
-			preferences.begin(prefNamespace, false);
-			preferences.putBool("dualAxZ", dualaxisZ->valueint);
-			log_i("isDualAxisZ is set to: %i", dualaxisZ->valueint);
-			preferences.end();
-		}
 		// {"task": "/motor_act", "setpos": {"steppers": [{"stepperid": 0, "posval": 100}, {"stepperid": 1, "posval": 0}, {"stepperid": 2, "posval": 0}, {"stepperid": 3, "posval": 0}]}}
 		if (setpos != NULL)
 		{

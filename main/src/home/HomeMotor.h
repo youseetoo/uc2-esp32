@@ -53,7 +53,6 @@ namespace HomeMotor
 
 	static bool isDEBUG = true;
 	static bool isHoming = false;
-	static bool isDualAxisZ = false;
 	
 	// Task handles for each axis homing operation
 	static TaskHandle_t homingTaskHandles[4] = {nullptr, nullptr, nullptr, nullptr};
@@ -65,7 +64,7 @@ namespace HomeMotor
     void checkAndProcessHome(Stepper s, int digitalin_val);
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid, bool isDualAxisZ);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid);
 	HomeData** getHomeData();
 	void sendHomeDone(int axis);
 };

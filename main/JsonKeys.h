@@ -89,7 +89,6 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_endstoprelease = "
 #endif 
 
 
-__attribute__ ((unused)) static const PROGMEM char * key_home_isDualAxis = "dualAxis";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder = "linencoder";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_cp = "cp";
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_ci = "ci";
@@ -116,7 +115,6 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_noi
 __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_time = "stallTimeMs";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisstop = "isStop";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisrunning = "isRunning";
-__attribute__ ((unused)) static const PROGMEM char * key_stepperisDualAxisZ = "isDualAxisZ";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisforever = "isforever";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisen = "isen";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperstopped = "stopped";

@@ -38,8 +38,6 @@ namespace FocusMotor
 	void toggleStepper(Stepper s, bool isStop, int reduced); // reduced=> 0: full values MotorData, 1: reduced MotorDataReduced, 2: single VAlue for CAN
 	void setAutoEnable(bool enable);
 	void setEnable(bool enable);
-	void setDualAxisZ(bool dual);
-	bool getDualAxisZ();
 	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos, bool isEnabled);
 	void updateData(int axis); // pull motor data to the data-array
 	MotorData **getData();

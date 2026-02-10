@@ -184,12 +184,12 @@ namespace FocusMotor
 		// Use timeout instead of portMAX_DELAY to prevent PS4 controller from blocking indefinitely
 		// when serial commands are being processed. 50ms is enough for most operations while
 		// allowing gamepad to retry quickly if mutex is busy.
-		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
+		if (1) // xSemaphoreTake(xMutex, pdMS_TO_TICKS(50))) // TODO: This is not good, we can get trapped here if the motor is actually running and we try to start it again, because then we never give the mutex back - we should check if the motor is already running before trying to take the mutex
 		{
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
 			if (shouldUseCANForAxis(axis))
-			{
+			{ //TODO: This is really odd, let's update this at some point 
 				// Route to CAN satellite
 				// Convert hybrid axis (4,5,6,7) to CAN axis (0,1,2,3) for addressing
 				int canAxis = getCANAxisForHybrid(axis);
@@ -249,6 +249,11 @@ namespace FocusMotor
 #endif
 			getData()[axis]->stopped = false;
 			xSemaphoreGive(xMutex);
+		}
+		else
+		{
+			log_w("startStepper: Could not obtain mutex to start motor on axis %d", axis);
+			// Optionally, set an error state or retry logic here
 		}
 	}
 
@@ -990,11 +995,13 @@ namespace FocusMotor
 			}
 			if (isActivated[i] and false)
 				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning(i), data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
-		if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever && !data[i]->isHoming)
-		{
-			// If the motor is not running, we stop it, report the position and save the position
-			// This is the ordinary case if the motor is not connected via I2C/CAN
-			// Skip this if homing is active to avoid interfering with homing task
+			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever)
+			{
+				// If the motor is not running, we stop it, report the position and save the position
+				// This is the ordinary case if the motor is not connected via I2C/CAN
+				// log_d("Sending motor pos %i", i);
+				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
+				stopStepper(i);
 			}
 
 #endif

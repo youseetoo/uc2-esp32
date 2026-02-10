@@ -504,12 +504,31 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 			// Stop any existing homing task for this axis
 			if (homingTaskHandles[axis] != nullptr) {
 				log_w("Stopping existing homing task for axis %d", axis);
-				vTaskDelete(homingTaskHandles[axis]);
-				homingTaskHandles[axis] = nullptr;
+			
+			// First, mark homing as inactive so task will exit gracefully
+			hdata[axis]->homeIsActive = false;
+			
+			// Stop the motor immediately
+			FocusMotor::stopStepper(axis);
+			if (axis == Stepper::Z && FocusMotor::getDualAxisZ()) {
+				FocusMotor::stopStepper(Stepper::A);
 			}
 			
-			// Create FreeRTOS task for homing (runs in background)
-			char taskName[32];
+			// Delete the task
+			vTaskDelete(homingTaskHandles[axis]);
+			homingTaskHandles[axis] = nullptr;
+			
+			// Give task time to clean up
+			vTaskDelay(pdMS_TO_TICKS(50));
+			
+			// Reset homing state
+			getData()[axis]->isHoming = false;
+			getData()[axis]->hardLimitTriggered = false;
+		}
+		
+		// Reset homeIsActive flag for new homing process
+		char taskName[32];
+		hdata[axis]->homeIsActive = true;
 			snprintf(taskName, sizeof(taskName), "Homing_Axis_%d", axis);
 			xTaskCreate(
 				homingTaskFunction,      // Task function
@@ -546,7 +565,6 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		FocusMotor::startStepper(s, 0);
 		
 		delay(50); // give the motor some time to start
-		log_i("Start STepper %i with speed %i, maxspeed %i, direction %i", s, getData()[s]->speed, getData()[s]->maxspeed, getData()[s]->speed > 0 ? 1 : -1);
 		log_i("Start stepper based on home data: Axis: %i, homeTimeout: %i, homeSpeed: %i, homeMaxSpeed: %i, homeDirection:%i, homeTimeStarted:%i, homeEndStopPolarity %i",
 			  s, hdata[s]->homeTimeout, hdata[s]->homeDirection * hdata[s]->homeSpeed, hdata[s]->homeDirection * hdata[s]->homeSpeed,
 			  hdata[s]->homeDirection, hdata[s]->homeTimeStarted, hdata[s]->homeEndStopPolarity);

@@ -174,8 +174,9 @@ namespace FocusMotor
 		reducsed: 2 => single Value udpates
 		*/
 
-		// Check if hard limit is triggered - don't start motor until homing clears it
-		if (getData()[axis]->hardLimitTriggered)
+		// Check if hard limit is triggered - don't start motor unless we're homing
+		// During homing (especially Phase 0), we MUST be able to move away from active endstop
+		if (getData()[axis]->hardLimitTriggered && !getData()[axis]->isHoming)
 		{
 			log_i("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
 			getData()[axis]->stopped = true;
@@ -778,8 +779,11 @@ namespace FocusMotor
 		// Only check if motor is running and not in homing mode
 
 		// Axis X uses digital input 1
+		// CRITICAL: Skip ALL hard limit checking during homing (removed !hardLimitTriggered check)
+		// During Phase 0, endstop may be active and hardLimitTriggered gets cleared - we must
+		// not re-trigger it while the homing task is trying to move away from the endstop
 		if (isActivated[Stepper::X] && getData()[Stepper::X]->hardLimitEnabled &&
-			!getData()[Stepper::X]->isHoming && !getData()[Stepper::X]->hardLimitTriggered)
+			!getData()[Stepper::X]->isHoming)
 		{
 			bool endstopState = DigitalInController::getDigitalVal(1);
 			bool hardLimitPolarity = getData()[Stepper::X]->hardLimitPolarity;
@@ -787,7 +791,7 @@ namespace FocusMotor
 			// Trigger if endstop state matches the polarity
 			// For NO (polarity=0): trigger when endstopState=1 (pressed)
 			// For NC (polarity=1): trigger when endstopState=0 (opened)
-			if (endstopState != hardLimitPolarity && isRunning(Stepper::X))
+			if (endstopState != hardLimitPolarity && isRunning(Stepper::X) && !getData()[Stepper::X]->hardLimitTriggered)
 			{
 				log_e("HARD LIMIT TRIGGERED on axis X! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
 				stopStepper(Stepper::X);
@@ -798,13 +802,14 @@ namespace FocusMotor
 		}
 
 		// Axis Y uses digital input 2
+		// CRITICAL: Skip ALL hard limit checking during homing
 		if (isActivated[Stepper::Y] && getData()[Stepper::Y]->hardLimitEnabled &&
-			!getData()[Stepper::Y]->isHoming && !getData()[Stepper::Y]->hardLimitTriggered)
+			!getData()[Stepper::Y]->isHoming)
 		{
 			bool endstopState = DigitalInController::getDigitalVal(2);
 			bool hardLimitPolarity = getData()[Stepper::Y]->hardLimitPolarity;
 
-			if (endstopState != hardLimitPolarity && isRunning(Stepper::Y))
+			if (endstopState != hardLimitPolarity && isRunning(Stepper::Y) && !getData()[Stepper::Y]->hardLimitTriggered)
 			{
 				log_e("HARD LIMIT TRIGGERED on axis Y! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
 				stopStepper(Stepper::Y);
@@ -815,13 +820,14 @@ namespace FocusMotor
 		}
 
 		// Axis Z uses digital input 3
+		// CRITICAL: Skip ALL hard limit checking during homing
 		if (isActivated[Stepper::Z] && getData()[Stepper::Z]->hardLimitEnabled &&
-			!getData()[Stepper::Z]->isHoming && !getData()[Stepper::Z]->hardLimitTriggered)
+			!getData()[Stepper::Z]->isHoming)
 		{
 			bool endstopState = DigitalInController::getDigitalVal(3);
 			bool hardLimitPolarity = getData()[Stepper::Z]->hardLimitPolarity;
 
-			if (endstopState != hardLimitPolarity && isRunning(Stepper::Z))
+			if (endstopState != hardLimitPolarity && isRunning(Stepper::Z) && !getData()[Stepper::Z]->hardLimitTriggered)
 			{
 				log_e("HARD LIMIT TRIGGERED on axis Z! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
 				stopStepper(Stepper::Z);
@@ -829,6 +835,14 @@ namespace FocusMotor
 				setPosition(Stepper::Z, 999999);
 				sendMotorPos(Stepper::Z, 0, -3);
 
+				// If dual axis Z is enabled, also stop A
+				if (isDualAxisZ)
+				{
+					stopStepper(Stepper::A);
+					getData()[Stepper::A]->hardLimitTriggered = true;
+					setPosition(Stepper::A, 999999);
+					sendMotorPos(Stepper::A, 0, -3);
+				}
 			}
 		}
 #endif

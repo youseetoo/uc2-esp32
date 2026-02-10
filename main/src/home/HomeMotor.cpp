@@ -203,10 +203,16 @@ int axis = 0;
 			
 			switch (hd->homingPhase) {
 				case 0: {  // Phase 0: Release endstop (if already triggered at start)
+					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction)", axis);
+					Serial.println("0");
+					// CRITICAL: Clear hard limit first to allow motor start
+					FocusMotor::clearHardLimitTriggered(axis);
 					
 					// Move away from endstop in opposite direction
-					FocusMotor::clearHardLimitTriggered(axis);
+					// Must use positive speed for FastAccelStepper when homeDirection is negative
 					md->isforever = true;
+					md->targetPosition = 0;  // Not used in isforever mode, but set for consistency
+					md->absolutePosition = false;
 					md->speed = -hd->homeDirection * abs(hd->homeSpeed);  // Opposite direction
 					md->maxspeed = abs(hd->homeSpeed);
 					md->isEnable = 1;
@@ -214,15 +220,35 @@ int axis = 0;
 					md->acceleration = MAX_ACCELERATION_A;
 					md->isStop = 0;
 					md->stopped = false;
+					
+					log_i("[Homing Task] Axis %d Phase 0: Starting motor with speed %d, maxspeed %d", axis, md->speed, md->maxspeed);
 					FocusMotor::startStepper(axis, 0);
-					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction), with speed %d", axis, md->speed);
+					
+					// Wait a bit for motor to actually start before checking
+					vTaskDelay(pdMS_TO_TICKS(50));
+					
+					// Verify motor is running
+					if (!FocusMotor::isRunning(axis)) {
+						log_e("[Homing Task] Axis %d Phase 0: Motor failed to start! Speed=%d, maxspeed=%d", axis, md->speed, md->maxspeed);
+						// Retry once
+						vTaskDelay(pdMS_TO_TICKS(50));
+						FocusMotor::startStepper(axis, 0);
+						vTaskDelay(pdMS_TO_TICKS(50));
+						if (!FocusMotor::isRunning(axis)) {
+							log_e("[Homing Task] Axis %d Phase 0: Motor start failed after retry, aborting homing", axis);
+							hd->homeIsActive = false;
+							break;
+						}
+					}
+					
+					log_i("[Homing Task] Axis %d Phase 0: Motor confirmed running, waiting for endstop release", axis);
 					hd->homingPhase = 8;  // Move to Phase 8: wait for endstop release
 					phaseStartTime = millis();
 					break;
 				}
 				
 				case 1: {  // Phase 1: Fast approach to endstop
-					
+					Serial.println("1");
 					// Start motor moving toward endstop at fast speed
 					FocusMotor::clearHardLimitTriggered(axis);
 					md->isforever = true;
@@ -242,6 +268,7 @@ int axis = 0;
 				}
 				
 				case 2: {  // Phase 2: Wait for endstop trigger
+					Serial.println("2");
 					if (endstopTriggered) {
 						// Record position where endstop was hit
 						hd->homeFirstHitPosition = md->currentPosition;
@@ -259,7 +286,7 @@ int axis = 0;
 				}
 				
 				case 3: {  // Phase 3: Retract fixed distance
-					
+					Serial.println("3");
 					// Move away from endstop by fixed distance
 					md->isforever = false;
 					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;  // Opposite direction // TODO: This does not switch direction it seems 
@@ -281,6 +308,7 @@ int axis = 0;
 				}
 				
 				case 4: {  // Phase 4: Wait for retract to complete
+					Serial.println("4");
 					// Wait at least 100ms before accepting !isRunning as "completed"
 					// Prevents race where isRunning() returns false before motor actually starts
 					if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
@@ -293,7 +321,7 @@ int axis = 0;
 				}
 				
 				case 5: {  // Phase 5: Slow approach to endstop
-					
+					Serial.println("5");
 					// Move slowly back toward endstop
 					md->isforever = true;
 					md->speed = hd->homeDirection * abs(hd->homeSpeed/4);
@@ -312,6 +340,7 @@ int axis = 0;
 				}
 				
 				case 6: {  // Phase 6: Wait for final endstop trigger
+					Serial.println("6");
 					if (endstopTriggered) {
 						
 						// Stop motor
@@ -331,6 +360,7 @@ int axis = 0;
 				}
 				
 				case 7: {  // Phase 7: Complete
+					Serial.println("7");
 					log_i("[Homing Task] Phase 7: Axis %d homing complete", axis);
 					
 					// Send position update
@@ -350,6 +380,7 @@ int axis = 0;
 				}
 				
 case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
+					Serial.println("8");
 						if (!endstopTriggered) {
 							log_i("[Homing Task] Axis %d endstop released, moving safety distance", axis);
 							
@@ -365,8 +396,8 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 					}
 					
 					case 9: {  // Phase 9: Move additional safety distance after endstop release
+						Serial.println("9");
 						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (2000 steps)", axis);
-						
 						// Move additional 2000 steps away for safety
 						md->isforever = false;
 						// Additional safety distance in the opposite direction of homing (same direction as retract)

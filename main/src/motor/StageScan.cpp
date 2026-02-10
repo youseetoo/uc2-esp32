@@ -615,7 +615,7 @@ namespace StageScan
             
                         // Iterate over Z positions if needed
                         for (uint16_t iz = 0; iz < sd.nZ && !sd.stopped; ++iz)
-                        { // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":0, "nX": 5, "nY": 5, "nZ":1,  "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125]}}
+                        { // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":0, "nX": 2, "nY": 2, "nZ":1,  "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125]}}
                             int32_t tgtZ = z0 + int32_t(iz) * sd.zStep;
                             log_i("Moving Z to %d", tgtZ);
                             uint32_t timeZ = calculateTimeToPosition(z0 + int32_t(iz) * sd.zStep, z0 + int32_t(iz + 1) * sd.zStep, key_speed, key_acceleration);

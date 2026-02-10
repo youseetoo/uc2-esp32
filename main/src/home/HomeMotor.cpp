@@ -204,7 +204,7 @@ int axis = 0;
 			switch (hd->homingPhase) {
 				case 0: {  // Phase 0: Release endstop (if already triggered at start)
 					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction)", axis);
-					Serial.println("0");
+					//Serial.println("0");
 					// CRITICAL: Clear hard limit first to allow motor start
 					FocusMotor::clearHardLimitTriggered(axis);
 					
@@ -227,30 +227,29 @@ int axis = 0;
 					// Wait a bit for motor to actually start before checking
 					vTaskDelay(pdMS_TO_TICKS(50));
 					
-					// Verify motor is running
-					if (!FocusMotor::isRunning(axis)) {
-						log_e("[Homing Task] Axis %d Phase 0: Motor failed to start! Speed=%d, maxspeed=%d", axis, md->speed, md->maxspeed);
-						// Retry once
-						vTaskDelay(pdMS_TO_TICKS(50));
-						FocusMotor::startStepper(axis, 0);
-						vTaskDelay(pdMS_TO_TICKS(50));
-						if (!FocusMotor::isRunning(axis)) {
-							log_e("[Homing Task] Axis %d Phase 0: Motor start failed after retry, aborting homing", axis);
-							hd->homeIsActive = false;
+					// Verify motor is running // TODO: This is really odd why is this necessary?!?!?!
+					for (int i = 0; i < 5; i++) { // Check multiple times with delay to allow isRunning() to update // TODO: Here is some concurrency issue where isRunning() does not return true immediately after startStepper() - this causes the homing task to falsely detect a failure and abort homing. Adding retries with delay seems to mitigate this, but the root cause should be investigated.
+						if (FocusMotor::isRunning(axis)) {
+							log_i("[Homing Task] Axis %d Phase 0: Motor confirmed running, waiting for endstop release", axis);
+							hd->homingPhase = 8;  // Move to Phase 8: wait for endstop release
+							phaseStartTime = millis();
 							break;
 						}
+						log_w("[Homing Task] Axis %d Phase 0: Motor not running yet, retrying check (%d/5)", axis, i+1);
+						vTaskDelay(pdMS_TO_TICKS(50));
+						// Force start again in case it didn't take the first time (critical for DEBUG=0 where timing is tighter)
+						FocusMotor::startStepper(axis, 0);
+						vTaskDelay(pdMS_TO_TICKS(50));
 					}
-					
-					log_i("[Homing Task] Axis %d Phase 0: Motor confirmed running, waiting for endstop release", axis);
-					hd->homingPhase = 8;  // Move to Phase 8: wait for endstop release
-					phaseStartTime = millis();
+					log_e("[Homing Task] Axis %d Phase 0: Motor start failed after retry, aborting homing", axis);
+					hd->homeIsActive = false;
 					break;
 				}
 				
 				case 1: {  // Phase 1: Fast approach to endstop
-					Serial.println("1");
-					// Start motor moving toward endstop at fast speed
-					FocusMotor::clearHardLimitTriggered(axis);
+					//Serial.println("1");
+					
+					// Set motor parameters for fast approach
 					md->isforever = true;
 					md->speed = hd->homeDirection * abs(hd->homeSpeed);
 					md->maxspeed = abs(hd->homeSpeed);
@@ -258,17 +257,42 @@ int axis = 0;
 					md->isaccelerated = 0;
 					md->acceleration = MAX_ACCELERATION_A;
 					md->isStop = 0;
-					md->stopped = false;
-					FocusMotor::startStepper(axis, 0);
-					log_i("[Homing Task] Axis %d Phase 1: Fast to endstop (speed=%d)", axis, md->speed);
+					md->stopped = false;  // CRITICAL: Ensure stopped flag is cleared
+					md->isHoming = true;
+					FocusMotor::clearHardLimitTriggered(axis);
 					
-					hd->homingPhase = 2;  // Move to waiting for endstop
+					//Serial.println(md->speed);
+					log_i("[Homing Task] Axis %d Phase 1: Starting motor speed=%d, maxspeed=%d", axis, md->speed, md->maxspeed);
+					FocusMotor::startStepper(axis, 0);
+					
+					// Give motor more time to start before checking (critical for DEBUG=0)
+					vTaskDelay(pdMS_TO_TICKS(100));
+					
+					// Verify motor is running
+					if (!FocusMotor::isRunning(axis)) {
+						log_e("[Homing Task] Axis %d Phase 1: Motor failed to start!", axis);
+						//Serial.println("RETRY");
+						// Force clear stopped flag and retry
+						md->stopped = false;
+						vTaskDelay(pdMS_TO_TICKS(50));
+						FocusMotor::startStepper(axis, 0);
+						vTaskDelay(pdMS_TO_TICKS(100));
+						if (!FocusMotor::isRunning(axis)) {
+							//Serial.println("FAILED");
+							log_e("[Homing Task] Axis %d Phase 1: Motor start failed after retry, aborting", axis);
+							hd->homeIsActive = false;
+							break;
+						}
+					}
+
+					log_i("[Homing Task] Axis %d Phase 1: Motor running, waiting for endstop", axis);
+					hd->homingPhase = 2;
 					phaseStartTime = millis();
 					break;
 				}
 				
 				case 2: {  // Phase 2: Wait for endstop trigger
-					Serial.println("2");
+					//Serial.println("2");
 					if (endstopTriggered) {
 						// Record position where endstop was hit
 						hd->homeFirstHitPosition = md->currentPosition;
@@ -286,7 +310,7 @@ int axis = 0;
 				}
 				
 				case 3: {  // Phase 3: Retract fixed distance
-					Serial.println("3");
+					//Serial.println("3");
 					// Move away from endstop by fixed distance
 					md->isforever = false;
 					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;  // Opposite direction // TODO: This does not switch direction it seems 
@@ -308,7 +332,7 @@ int axis = 0;
 				}
 				
 				case 4: {  // Phase 4: Wait for retract to complete
-					Serial.println("4");
+					//Serial.println("4");
 					// Wait at least 100ms before accepting !isRunning as "completed"
 					// Prevents race where isRunning() returns false before motor actually starts
 					if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
@@ -321,7 +345,7 @@ int axis = 0;
 				}
 				
 				case 5: {  // Phase 5: Slow approach to endstop
-					Serial.println("5");
+					//Serial.println("5");
 					// Move slowly back toward endstop
 					md->isforever = true;
 					md->speed = hd->homeDirection * abs(hd->homeSpeed/4);
@@ -340,7 +364,7 @@ int axis = 0;
 				}
 				
 				case 6: {  // Phase 6: Wait for final endstop trigger
-					Serial.println("6");
+					//Serial.println("6");
 					if (endstopTriggered) {
 						
 						// Stop motor
@@ -360,7 +384,7 @@ int axis = 0;
 				}
 				
 				case 7: {  // Phase 7: Complete
-					Serial.println("7");
+					//Serial.println("7");
 					log_i("[Homing Task] Phase 7: Axis %d homing complete", axis);
 					
 					// Send position update
@@ -380,7 +404,7 @@ int axis = 0;
 				}
 				
 case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
-					Serial.println("8");
+					//Serial.println("8");
 						if (!endstopTriggered) {
 							log_i("[Homing Task] Axis %d endstop released, moving safety distance", axis);
 							
@@ -396,7 +420,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 					}
 					
 					case 9: {  // Phase 9: Move additional safety distance after endstop release
-						Serial.println("9");
+						//Serial.println("9");
 						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (2000 steps)", axis);
 						// Move additional 2000 steps away for safety
 						md->isforever = false;
@@ -420,6 +444,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 					
 					case 10: {  // Phase 10: Wait for safety distance move to complete
 						// Wait at least 100ms before accepting !isRunning as "completed"
+						//Serial.println("10");
 						if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
 							log_i("[Homing Task] Axis %d safety distance complete, starting normal homing", axis);
 							vTaskDelay(pdMS_TO_TICKS(100));
@@ -663,12 +688,12 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		cJSON_AddItemToObject(steppers, "isDone", done);
 		cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
 		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
-		Serial.println("++");
+		//Serial.println("++");
 		char *ret = cJSON_PrintUnformatted(json);
 		cJSON_Delete(json);
-		Serial.println(ret);
+		//Serial.println(ret);
 		free(ret);
-		Serial.println("--");
+		//Serial.println("--");
 #endif
 #if defined(CAN_BUS_ENABLED) && defined(CAN_RECEIVE_MOTOR)
 		// send home state to master

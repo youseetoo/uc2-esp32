@@ -988,8 +988,6 @@ namespace FocusMotor
 					// else if speed < 0 => let it keep running to move back inside the range
 				}
 			}
-			if (isActivated[i] and false)
-				log_i("Stop Motor %i in loop, isRunning %i, data[i]->stopped %i, data[i]-speed %i, position %i", i, isRunning(i), data[i]->stopped, getData()[i]->speed, getData()[i]->currentPosition);
 			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever && !data[i]->isHoming)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
@@ -1000,24 +998,6 @@ namespace FocusMotor
 			}
 
 #endif
-			if (false and isActivated[i] && isRunning(i))
-			{ // TODO: This is nice, but maybe not very efficient - only for updating the position in the gui periodically
-				// indicate that the motor is running by sending the position periodically
-				// Check if it's time to send motor positions
-				unsigned long now = millis();
-				if (now - lastSendTime >= interval)
-				{
-					lastSendTime = now;
-					// Send motor positions for all motors
-					for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
-					{
-						if (isActivated[i])
-						{
-							sendMotorPos(i, 0, -2);
-						}
-					}
-				}
-			}
 		}
 	}
 

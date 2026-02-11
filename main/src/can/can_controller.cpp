@@ -536,6 +536,28 @@ namespace can_controller
         if (debugState)
             log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, device_can_id);
 
+        // CRITICAL: Route motor data by struct size BEFORE checking message type IDs.
+        // Motor data (MotorData, MotorDataReduced, MotorSettings, HomeData, StopHomeCommand)
+        // is sent as raw structs WITHOUT message type headers. The first bytes are data fields
+        // (e.g., targetPosition in MotorDataReduced) that can coincidentally equal message type
+        // IDs. Example: targetPosition=3200 -> LSB=0x80=SCAN_REQUEST, causing motor commands
+        // to be misrouted as scan requests! Also affects OTA_CAN(0x62-69), OTA_STREAM(0x70-76).
+        // By routing known motor struct sizes first, we prevent ALL such false matches.
+        if (rxID == device_can_id &&
+            (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X ||
+             rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
+        {
+            if (size == sizeof(MotorData) || size == sizeof(MotorDataReduced) ||
+                size == sizeof(MotorSettings) || size == sizeof(HomeData) ||
+                size == sizeof(StopHomeCommand))
+            {
+                parseMotorAndHomeData(data, size, rxID);
+                return;
+            }
+            // For other sizes (e.g., 1-byte restart, typed messages like OTA/SCAN),
+            // fall through to message type ID checks below.
+        }
+
         // Check for message type identifier at the beginning
         if (size > 0)
         {
@@ -688,7 +710,11 @@ namespace can_controller
         #endif
 
         // Handle SCAN_REQUEST (slave side) - respond with device info
-        if (size > 0 && rxID == device_can_id)
+        // CRITICAL: size == 1 check prevents false matches with motor data.
+        // SCAN_REQUEST from master is always exactly 1 byte (0x80).
+        // Without size check, MotorDataReduced with targetPosition=3200 (LSB=0x80)
+        // would be misrouted as SCAN_REQUEST.
+        if (size == 1 && rxID == device_can_id)
         {
             CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
             if (msgType == CANMessageTypeID::SCAN_REQUEST)

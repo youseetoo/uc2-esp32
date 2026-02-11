@@ -45,7 +45,10 @@ struct HomeState
 #pragma pack(push,1)
 struct StopHomeCommand
 {
-	uint8_t axis = 0;  // Axis to stop homing on
+	uint8_t axis = 0;       // Axis to stop homing on
+	uint8_t reserved = 0xFF; // Padding byte - ensures sizeof(StopHomeCommand) == 2
+	                         // to prevent collision with 1-byte restart handler in CAN dispatch.
+	                         // Without this, StopHomeCommand(axis=0) triggers esp_restart()!
 };
 #pragma pack(pop)
 

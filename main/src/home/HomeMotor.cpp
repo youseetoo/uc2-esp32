@@ -524,10 +524,12 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		// CRITICAL: Check if homing is already running BEFORE touching any state
 		// Use getData()[axis]->isHoming as the single source of truth
 		// This prevents race conditions when multiple homing commands arrive quickly
+		#if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 		if (getData()[axis]->isHoming) {
 			log_w("Homing already active for axis %d, ignoring new command", axis);
 			return;
 		}
+		#endif
 
 		// Store variables in preferences for later use per axis 
 		preferences.begin("home", false);

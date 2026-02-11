@@ -25,6 +25,7 @@ struct HomeData
 	uint homingPhase = 0;  // 0=idle, 1=fast to endstop, 2=retract, 3=slow to endstop, 4=done
 	uint16_t homeRetractDistance = 2000;  // Steps to retract after hitting endstop
 	int32_t homeFirstHitPosition = 0;  // Position where endstop was first triggered
+	int32_t homeEndOffset = 0;  // Final position offset from home (can be positive or negative)
 	TaskHandle_t homingTaskHandle = nullptr;  // FreeRTOS task handle
 };
 #pragma pack(pop)
@@ -38,6 +39,13 @@ struct HomeState
 	int homeInEndposReleaseMode = 0;
 	uint32_t currentPosition = 0;
 	int axis = 0;
+};
+#pragma pack(pop)
+
+#pragma pack(push,1)
+struct StopHomeCommand
+{
+	uint8_t axis = 0;  // Axis to stop homing on
 };
 #pragma pack(pop)
 
@@ -64,7 +72,8 @@ namespace HomeMotor
     void checkAndProcessHome(Stepper s, int digitalin_val);
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid);
+	void stopHome(int axis);
 	HomeData** getHomeData();
 	void sendHomeDone(int axis);
 };

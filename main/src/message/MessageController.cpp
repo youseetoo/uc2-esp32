@@ -42,7 +42,7 @@ namespace MessageController
 			  axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		
 		// Start homing with the stored parameters
-		HomeMotor::startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, -99);
+		HomeMotor::startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, 0);
 		
 		// Send feedback message (key=100+axis indicates homing started)
 		sendMesageSerial(100 + axis, 1);
@@ -78,7 +78,7 @@ namespace MessageController
 					
 					#ifdef HOME_MOTOR
 					// Use homing event with timeout=0 to clear hard limit
-					HomeMotor::startHome(axis, 1, 0, 0, 1, 0, -99);
+					HomeMotor::startHome(axis, 1, 0, 0, 1, 0, 0, -99);
 					HomeMotor::getHomeData()[axis]->homeIsActive = false;
 					FocusMotor::getData()[axis]->isHoming = false;
 					#endif

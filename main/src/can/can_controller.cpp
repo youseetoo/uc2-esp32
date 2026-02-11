@@ -155,17 +155,22 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
             FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-            // prevent the motor from getting stuck
+            // Prevent the motor from getting stuck with zero acceleration
             if (FocusMotor::getData()[mStepper]->acceleration <= 0)
             {
                 FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
             }
-            /*
-            if (FocusMotor::getData()[mStepper]->speed == 0) // in case
+
+            // CRITICAL: Clear stale state flags that can block motor start.
+            // These flags are NOT included in the field-by-field copy from the master.
+            // After homing or hard-limit events on the slave, they may prevent motor start.
+            if (!receivedMotorData.isStop)
             {
-                FocusMotor::getData()[mStepper]->speed = 1000;
+                FocusMotor::getData()[mStepper]->stopped = false;
+                FocusMotor::getData()[mStepper]->isHoming = false;
+                FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
             }
-            */
+
             if (debugState)
                 log_i(
                     "Received MotorData from CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
@@ -191,8 +196,30 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
             FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
             FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+
+            // CRITICAL: MotorDataReduced does NOT include state flags that can block motor start.
+            // After homing or hard-limit events, these flags may be stale and prevent the motor
+            // from starting. Clear them when we receive a start command (isStop=false).
+            if (!receivedMotorData.isStop)
+            {
+                FocusMotor::getData()[mStepper]->stopped = false;
+                FocusMotor::getData()[mStepper]->isHoming = false;
+                FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
+            }
+
+            // Ensure acceleration is valid (not included in reduced data, could be 0 after boot)
+            if (FocusMotor::getData()[mStepper]->acceleration <= 0)
+            {
+                FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+            }
+
+            if (debugState)
+                log_i("Received MotorDataReduced from CAN, targetPos: %i, isforever: %i, absPos: %i, speed: %i, isStop: %i, accel: %i",
+                      receivedMotorData.targetPosition, receivedMotorData.isforever,
+                      receivedMotorData.absolutePosition, receivedMotorData.speed,
+                      receivedMotorData.isStop, FocusMotor::getData()[mStepper]->acceleration);
+
             FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
-            // if (debugState) log_i("Received MotorData reduced from CAN, targetPosition: %i, isforever: %i, absolutePosition: %i, speed: %i, isStop: %i", receivedMotorData.targetPosition, receivedMotorData.isforever, receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.isStop);
         }
         else if (size == sizeof(MotorSettings))
         {
@@ -238,11 +265,12 @@ namespace can_controller
             int homeMaxspeed = receivedHomeData.homeMaxspeed;
             int homeDirection = receivedHomeData.homeDirection;
             int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
+            int homeEndOffset = receivedHomeData.homeEndOffset;
             bool usePreciseHoming = receivedHomeData.precise;
             
             if (debugState)
-                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i, precise: %i", 
-                      homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, usePreciseHoming);
+                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i, homeEndOffset: %i, precise: %i", 
+                      homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, usePreciseHoming);
             
             if (usePreciseHoming) {
                 #ifdef LINEAR_ENCODER_CONTROLLER
@@ -252,11 +280,23 @@ namespace can_controller
                 LinearEncoderController::homeAxis(homingSpeed, mStepper);
                 #else
                 log_w("Encoder-based homing requested via CAN but LINEAR_ENCODER_CONTROLLER not available");
-                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0);
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, 0);
                 #endif
             } else {
-                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0);
+                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, 0);
             }
+        }
+        else if (size == sizeof(StopHomeCommand))
+        {
+            // Parse as StopHomeCommand
+            StopHomeCommand receivedStopCmd;
+            memcpy(&receivedStopCmd, data, sizeof(StopHomeCommand));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            
+            if (debugState)
+                log_i("Received StopHomeCommand from CAN for axis: %i", mStepper);
+            
+            HomeMotor::stopHome(mStepper);
         }
         #ifdef TMC_CONTROLLER
         else if (size == sizeof(TMCData))
@@ -1739,7 +1779,7 @@ namespace can_controller
         // send home data to slave via
         uint8_t slave_addr = axis2id(axis);
         if (debugState)
-            log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity);
+            log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i, endoffset %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity, homeData.homeEndOffset);
         // TODO: if we do homing on that axis the first time it mysteriously fails so we send it twice..
         int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
         if (err != 0)
@@ -1751,6 +1791,29 @@ namespace can_controller
         {
             if (debugState)
                 log_i("Home data sent to CAN slave at address %i", slave_addr);
+        }
+    }
+
+    void sendStopHomeToCANDriver(uint8_t axis)
+    {
+        // Send stop home command to slave via CAN
+        uint8_t slave_addr = axis2id(axis);
+        StopHomeCommand stopCmd;
+        stopCmd.axis = axis;
+        
+        if (debugState)
+            log_i("Sending StopHomeCommand to axis: %i", axis);
+        
+        int err = sendCanMessage(slave_addr, (uint8_t *)&stopCmd, sizeof(StopHomeCommand));
+        if (err != 0)
+        {
+            if (debugState)
+                log_e("Error sending stop home command to CAN slave at address %i", slave_addr);
+        }
+        else
+        {
+            if (debugState)
+                log_i("Stop home command sent to CAN slave at address %i", slave_addr);
         }
     }
 

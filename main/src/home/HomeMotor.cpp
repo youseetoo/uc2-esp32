@@ -132,6 +132,7 @@ namespace HomeMotor
 					int homeMaxspeed = cJsonTool::getJsonInt(stp, key_home_maxspeed);
 					int homeDirection = cJsonTool::getJsonInt(stp, key_home_direction);
 					int homeEndStopPolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
+					int homeEndOffset = cJsonTool::getJsonInt(stp, key_home_endoffset);
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
 					// Check for encoder-based homing (precise=1 or enc=1 for backward compatibility)
@@ -151,11 +152,11 @@ namespace HomeMotor
 						#else
 						log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
 						// Fall back to regular homing
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid);
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, qid);
 						#endif
 					} else {
 						// Standard endstop-based homing
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, qid);
+						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, qid);
 					}
 				}
 			}
@@ -204,16 +205,14 @@ int axis = 0;
 			switch (hd->homingPhase) {
 				case 0: {  // Phase 0: Release endstop (if already triggered at start)
 					log_i("[Homing Task] Axis %d Phase 0: Releasing endstop (moving opposite direction)", axis);
-					//Serial.println("0");
 					// CRITICAL: Clear hard limit first to allow motor start
 					FocusMotor::clearHardLimitTriggered(axis);
 					
 					// Move away from endstop in opposite direction
-					// Must use positive speed for FastAccelStepper when homeDirection is negative
 					md->isforever = true;
-					md->targetPosition = 0;  // Not used in isforever mode, but set for consistency
+					md->targetPosition = 0;
 					md->absolutePosition = false;
-					md->speed = -hd->homeDirection * abs(hd->homeSpeed);  // Opposite direction
+					md->speed = -hd->homeDirection * abs(hd->homeSpeed);
 					md->maxspeed = abs(hd->homeSpeed);
 					md->isEnable = 1;
 					md->isaccelerated = 0;
@@ -221,33 +220,35 @@ int axis = 0;
 					md->isStop = 0;
 					md->stopped = false;
 					
-					log_i("[Homing Task] Axis %d Phase 0: Starting motor with speed %d, maxspeed %d", axis, md->speed, md->maxspeed);
+					log_i("[Homing Task] Axis %d Phase 0: Starting motor speed=%d", axis, md->speed);
 					FocusMotor::startStepper(axis, 0);
 					
-					// Wait a bit for motor to actually start before checking
-					vTaskDelay(pdMS_TO_TICKS(50));
-					
-					// Verify motor is running // TODO: This is really odd why is this necessary?!?!?!
-					for (int i = 0; i < 5; i++) { // Check multiple times with delay to allow isRunning() to update // TODO: Here is some concurrency issue where isRunning() does not return true immediately after startStepper() - this causes the homing task to falsely detect a failure and abort homing. Adding retries with delay seems to mitigate this, but the root cause should be investigated.
+					// Retry loop: wait for motor to start, retry if needed
+					bool phase0Started = false;
+					for (int i = 0; i < 5; i++) {
+						vTaskDelay(pdMS_TO_TICKS(50));
 						if (FocusMotor::isRunning(axis)) {
-							log_i("[Homing Task] Axis %d Phase 0: Motor confirmed running, waiting for endstop release", axis);
-							hd->homingPhase = 8;  // Move to Phase 8: wait for endstop release
-							phaseStartTime = millis();
+							log_i("[Homing Task] Axis %d Phase 0: Motor running (attempt %d)", axis, i+1);
+							phase0Started = true;
 							break;
 						}
-						log_w("[Homing Task] Axis %d Phase 0: Motor not running yet, retrying check (%d/5)", axis, i+1);
-						vTaskDelay(pdMS_TO_TICKS(50));
-						// Force start again in case it didn't take the first time (critical for DEBUG=0 where timing is tighter)
+						log_w("[Homing Task] Axis %d Phase 0: Motor not running, retry %d/5", axis, i+1);
+						md->stopped = false;
 						FocusMotor::startStepper(axis, 0);
-						vTaskDelay(pdMS_TO_TICKS(50));
 					}
-					log_e("[Homing Task] Axis %d Phase 0: Motor start failed after retry, aborting homing", axis);
-					hd->homeIsActive = false;
+					
+					if (phase0Started) {
+						hd->homingPhase = 8;  // Wait for endstop release
+						phaseStartTime = millis();
+					} else {
+						log_e("[Homing Task] Axis %d Phase 0: Motor start failed, aborting", axis);
+						hd->homeIsActive = false;
+					}
 					break;
 				}
 				
 				case 1: {  // Phase 1: Fast approach to endstop
-					//Serial.println("1");
+					log_i("[Homing Task] Axis %d Phase 1: Fast approach", axis);
 					
 					// Set motor parameters for fast approach
 					md->isforever = true;
@@ -257,37 +258,34 @@ int axis = 0;
 					md->isaccelerated = 0;
 					md->acceleration = MAX_ACCELERATION_A;
 					md->isStop = 0;
-					md->stopped = false;  // CRITICAL: Ensure stopped flag is cleared
+					md->stopped = false;
 					md->isHoming = true;
 					FocusMotor::clearHardLimitTriggered(axis);
 					
-					//Serial.println(md->speed);
-					log_i("[Homing Task] Axis %d Phase 1: Starting motor speed=%d, maxspeed=%d", axis, md->speed, md->maxspeed);
+					log_i("[Homing Task] Axis %d Phase 1: Starting motor speed=%d", axis, md->speed);
 					FocusMotor::startStepper(axis, 0);
 					
-					// Give motor more time to start before checking (critical for DEBUG=0)
-					vTaskDelay(pdMS_TO_TICKS(100));
-					
-					// Verify motor is running
-					if (!FocusMotor::isRunning(axis)) {
-						log_e("[Homing Task] Axis %d Phase 1: Motor failed to start!", axis);
-						//Serial.println("RETRY");
-						// Force clear stopped flag and retry
-						md->stopped = false;
+					// Retry loop: same robust pattern as Phase 0
+					bool phase1Started = false;
+					for (int i = 0; i < 5; i++) {
 						vTaskDelay(pdMS_TO_TICKS(50));
-						FocusMotor::startStepper(axis, 0);
-						vTaskDelay(pdMS_TO_TICKS(100));
-						if (!FocusMotor::isRunning(axis)) {
-							//Serial.println("FAILED");
-							log_e("[Homing Task] Axis %d Phase 1: Motor start failed after retry, aborting", axis);
-							hd->homeIsActive = false;
+						if (FocusMotor::isRunning(axis)) {
+							log_i("[Homing Task] Axis %d Phase 1: Motor running (attempt %d)", axis, i+1);
+							phase1Started = true;
 							break;
 						}
+						log_w("[Homing Task] Axis %d Phase 1: Motor not running, retry %d/5", axis, i+1);
+						md->stopped = false;
+						FocusMotor::startStepper(axis, 0);
 					}
-
-					log_i("[Homing Task] Axis %d Phase 1: Motor running, waiting for endstop", axis);
-					hd->homingPhase = 2;
-					phaseStartTime = millis();
+					
+					if (phase1Started) {
+						hd->homingPhase = 2;  // Wait for endstop
+						phaseStartTime = millis();
+					} else {
+						log_e("[Homing Task] Axis %d Phase 1: Motor start failed, aborting", axis);
+						hd->homeIsActive = false;
+					}
 					break;
 				}
 				
@@ -383,23 +381,70 @@ int axis = 0;
 					break;
 				}
 				
-				case 7: {  // Phase 7: Complete
-					//Serial.println("7");
+				case 7: {  // Phase 7: Check if final offset move is needed
 					log_i("[Homing Task] Phase 7: Axis %d homing complete", axis);
 					
-					// Send position update
-					FocusMotor::sendMotorPos(axis, 0);
+					// Check if we need to move to final position with offset
+					if (hd->homeEndOffset != 0) {
+						log_i("[Homing Task] Phase 7: Axis %d moving to final offset %d", axis, hd->homeEndOffset);
+						hd->homingPhase = 11;  // Move to Phase 11: final positioning
+						phaseStartTime = millis();
+					} else {
+						// No offset, complete immediately
+						log_i("[Homing Task] Phase 7: Axis %d no offset, completing", axis);
+						hd->homingPhase = 12;  // Move to final completion phase
+						phaseStartTime = millis();
+					}
+					break;
+				}
+				
+				case 11: {  // Phase 11: Move to final position with offset
+					log_i("[Homing Task] Phase 11: Axis %d moving %d steps from home", axis, hd->homeEndOffset);
 					
-					// Send completion message
-					sendHomeDone(axis);
+					// Move to final position relative to home (0)
+					md->isforever = false;
+					md->targetPosition = hd->homeEndOffset;
+					md->absolutePosition = false;  // Relative move from current position (0)
+					md->speed = abs(hd->homeSpeed);
+					md->maxspeed = abs(hd->homeSpeed);
+					md->isEnable = 1;
+					md->isaccelerated = 1;
+					md->acceleration = MAX_ACCELERATION_A;
+					md->isStop = 0;
+					md->stopped = false;
+					FocusMotor::startStepper(axis, 0);
 					
-					// Clean up
-					hd->homeIsActive = false;
-					md->isHoming = false;
-					md->hardLimitTriggered = false;
-					hd->homingPhase = 0;
-					
-					log_i("[Homing Task] Phase 7: Axis %d task exiting", axis);
+					hd->homingPhase = 12;  // Wait for final move completion
+					phaseStartTime = millis();
+					break;
+				}
+				
+				case 12: {  // Phase 12: Wait for final offset move to complete
+					// Wait at least 100ms before accepting !isRunning as completed
+					if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
+						log_i("[Homing Task] Phase 12: Axis %d final position reached", axis);
+						
+						// Send position update
+						FocusMotor::sendMotorPos(axis, 0);
+						
+						// Send completion message
+						sendHomeDone(axis);
+						
+						// COMPREHENSIVE cleanup: reset ALL motor state flags that homing modified.
+						// This is critical because subsequent motor commands (especially via
+						// MotorDataReduced/CAN) may not set these fields, and stale values
+						// from homing will block motor start.
+						hd->homeIsActive = false;
+						hd->homingPhase = 0;
+						md->isHoming = false;
+						md->hardLimitTriggered = false;
+						md->isforever = false;
+						md->isStop = false;
+						md->stopped = true;  // Motor is stopped after homing
+						md->isEnable = true;
+						
+						log_i("[Homing Task] Phase 12: Axis %d cleanup done", axis);
+					}
 					break;
 				}
 				
@@ -474,7 +519,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		vTaskDelete(nullptr);  // Delete self
 	}
 
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int qid)
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid)
 	{
 		// CRITICAL: Check if homing is already running BEFORE touching any state
 		// Use getData()[axis]->isHoming as the single source of truth
@@ -491,6 +536,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		preferences.putInt(("hms_" + String(axis)).c_str(), homeMaxspeed);
 		preferences.putInt(("hd_" + String(axis)).c_str(), homeDirection);
 		preferences.putInt(("hep_" + String(axis)).c_str(), homeEndStopPolarity);
+		preferences.putInt(("heo_" + String(axis)).c_str(), homeEndOffset);
 		preferences.end();
 
 		// Set the home data
@@ -498,6 +544,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		hdata[axis]->homeSpeed = homeSpeed;
 		hdata[axis]->homeMaxspeed = homeMaxspeed;
 		hdata[axis]->homeEndStopPolarity = homeEndStopPolarity;
+		hdata[axis]->homeEndOffset = homeEndOffset;
 		hdata[axis]->qid = qid;
 
 		// Normalize direction to 1 or -1
@@ -616,6 +663,41 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 			}
 #endif
 		}
+	}
+
+	void stopHome(int axis)
+	{
+		// Stop homing process for specified axis
+		log_i("[stopHome] Stopping homing for axis %d", axis);
+		
+		if (axis < 0 || axis >= 4) {
+			log_e("[stopHome] Invalid axis %d", axis);
+			return;
+		}
+		
+		if (!getData()[axis]->isHoming && !hdata[axis]->homeIsActive) {
+			log_w("[stopHome] Axis %d not currently homing", axis);
+			return;
+		}
+		
+		// Signal the homing task to stop by clearing homeIsActive
+		hdata[axis]->homeIsActive = false;
+		
+		// Stop motor immediately
+		FocusMotor::stopStepper(axis);
+		
+		// Clear homing flags
+		getData()[axis]->isHoming = false;
+		getData()[axis]->hardLimitTriggered = false;
+		hdata[axis]->homingPhase = 0;
+		
+		// Wait for task to terminate (max 200ms)
+		unsigned long waitStart = millis();
+		while (homingTaskHandles[axis] != nullptr && (millis() - waitStart < 200)) {
+			vTaskDelay(pdMS_TO_TICKS(10));
+		}
+		
+		log_i("[stopHome] Axis %d homing stopped", axis);
 	}
 
 	void runStepper(int s)

@@ -48,13 +48,19 @@ enum CANMessageTypeID {
     ERROR            = 0xF1,
     SYNC             = 0xF2,
 
-    MOTOR_ACT        = 0x10, // Motor Messages
-    MOTOR_GET        = 0x11,
-    MOTOR_STATE      = 0x12,
-    HOME_ACT         = 0x13,
-    HOME_STATE       = 0x14,
-    MOTOR_ACT_REDUCED= 0x15,
+    RESTART_CMD      = 0x01, // System restart command
+
+    MOTOR_ACT        = 0x10, // Motor Messages - Full MotorData struct
+    MOTOR_GET        = 0x11, // Request motor position/state
+    MOTOR_STATE      = 0x12, // Response with motor position/state
+    HOME_ACT         = 0x13, // Initiate homing process
+    HOME_STATE       = 0x14, // Response with homing state
+    MOTOR_ACT_REDUCED= 0x15, // MotorDataReduced (compact motor command)
     SOFT_LIMIT_SET   = 0x16, // Soft limits configuration
+    MOTOR_SETTINGS   = 0x17, // Motor configuration settings (MotorSettings struct)
+    MOTOR_SINGLE_VAL = 0x18, // Single value motor data update (MotorDataValueUpdate)
+    TMC_ACT          = 0x19, // TMC driver configuration (TMCData struct)
+    STOP_HOME        = 0x1A, // Stop homing command (StopHomeCommand struct)
 
     LASER_ACT        = 0x20, // Laser Messages
     LASER_STATE      = 0x21,

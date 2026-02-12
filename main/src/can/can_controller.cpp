@@ -108,266 +108,10 @@ namespace can_controller
     static bool scanResultPending = false;
     static int scanPendingQid = 0;
 
-    void parseLEDData(uint8_t *data, size_t size, uint8_t txID)
-    {
-#ifdef LED_CONTROLLER
-        if (size == sizeof(LedCommand))
-        {
-            LedCommand ledCmd;
-            memcpy(&ledCmd, data, sizeof(ledCmd));
-
-            if (debugState)
-                log_i("Received LEDCommand from CAN: qid=%u, mode=%u, color=(%u,%u,%u), radius=%u, region=%s, ledIndex=%u",
-                      ledCmd.qid, ledCmd.mode, ledCmd.r, ledCmd.g, ledCmd.b,
-                      ledCmd.radius, ledCmd.region, ledCmd.ledIndex);
-
-            // TODO: handle or apply the LED command on this device, e.g. call your LED code here
-            // For example, if this node actually controls the LED array, you'd convert ledCmd.mode
-            // back to your internal LedMode, then call your local 'LedController::execLedCommand(...)'.
-            LedController::execLedCommand(ledCmd);
-        }
-        else
-        {
-            log_e("Error: Received LED data with invalid size=%u from ID=%u", size, txID);
-        }
-#endif
-    }
-
-    void parseMotorAndHomeData(uint8_t *data, size_t size, uint8_t txID)
-    {
-#ifdef MOTOR_CONTROLLER
-
-        // Parse as MotorData
-        if (debugState)
-            log_i("Received MotorData from CAN %i, size: %i, txID: %i: %i", size, txID);
-        if (size == sizeof(MotorData))
-        {
-            MotorData receivedMotorData;
-            memcpy(&receivedMotorData, data, sizeof(MotorData));
-            // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID); // default axis as motor driver is running its motor on (1)
-            // FocusMotor::setData(pinConfig.REMOTE_MOTOR_AXIS_ID, &receivedMotorData);
-            FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
-            FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
-            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
-            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
-            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
-            FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
-            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
-            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-            // Prevent the motor from getting stuck with zero acceleration
-            if (FocusMotor::getData()[mStepper]->acceleration <= 0)
-            {
-                FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
-            }
-
-            // CRITICAL: Clear stale state flags that can block motor start.
-            // These flags are NOT included in the field-by-field copy from the master.
-            // After homing or hard-limit events on the slave, they may prevent motor start.
-            if (!receivedMotorData.isStop)
-            {
-                FocusMotor::getData()[mStepper]->stopped = false;
-                FocusMotor::getData()[mStepper]->isHoming = false;
-                FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
-            }
-
-            if (debugState)
-                log_i(
-                    "Received MotorData from CAN, isEnable: %d, targetPosition: %d, absolutePosition: %d, speed: %d, acceleration: %d, isforever: %d, isStop: %d",
-                    static_cast<int>(receivedMotorData.isEnable),  // bool
-                    receivedMotorData.targetPosition,              // long
-                    receivedMotorData.absolutePosition,            // bool
-                    receivedMotorData.speed,                       // long
-                    receivedMotorData.acceleration,                // long
-                    static_cast<int>(receivedMotorData.isforever), // bool
-                    static_cast<int>(receivedMotorData.isStop));   // bool
-
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
-        }
-        else if (size == sizeof(MotorDataReduced))
-        {
-            // use only the reduced data
-            MotorDataReduced receivedMotorData;
-            memcpy(&receivedMotorData, data, sizeof(MotorDataReduced));
-            // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
-            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
-            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
-            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
-            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
-
-            // CRITICAL: MotorDataReduced does NOT include state flags that can block motor start.
-            // After homing or hard-limit events, these flags may be stale and prevent the motor
-            // from starting. Clear them when we receive a start command (isStop=false).
-            if (!receivedMotorData.isStop)
-            {
-                FocusMotor::getData()[mStepper]->stopped = false;
-                FocusMotor::getData()[mStepper]->isHoming = false;
-                FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
-            }
-
-            // Ensure acceleration is valid (not included in reduced data, could be 0 after boot)
-            if (FocusMotor::getData()[mStepper]->acceleration <= 0)
-            {
-                FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
-            }
-
-            if (debugState)
-                log_i("Received MotorDataReduced from CAN, targetPos: %i, isforever: %i, absPos: %i, speed: %i, isStop: %i, accel: %i",
-                      receivedMotorData.targetPosition, receivedMotorData.isforever,
-                      receivedMotorData.absolutePosition, receivedMotorData.speed,
-                      receivedMotorData.isStop, FocusMotor::getData()[mStepper]->acceleration);
-
-            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
-        }
-        else if (size == sizeof(MotorSettings))
-        {
-            // Receive motor configuration settings
-            MotorSettings receivedMotorSettings;
-            memcpy(&receivedMotorSettings, data, sizeof(MotorSettings));
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-            
-            // Apply settings to the motor
-            FocusMotor::getData()[mStepper]->directionPinInverted = receivedMotorSettings.directionPinInverted;
-            FocusMotor::getData()[mStepper]->joystickDirectionInverted = receivedMotorSettings.joystickDirectionInverted;
-            FocusMotor::getData()[mStepper]->isaccelerated = receivedMotorSettings.isaccelerated;
-            FocusMotor::getData()[mStepper]->isEnable = receivedMotorSettings.isEnable;
-            FocusMotor::getData()[mStepper]->maxspeed = receivedMotorSettings.maxspeed;
-            FocusMotor::getData()[mStepper]->acceleration = receivedMotorSettings.acceleration;
-            FocusMotor::getData()[mStepper]->isTriggered = receivedMotorSettings.isTriggered;
-            FocusMotor::getData()[mStepper]->offsetTrigger = receivedMotorSettings.offsetTrigger;
-            FocusMotor::getData()[mStepper]->triggerPeriod = receivedMotorSettings.triggerPeriod;
-            FocusMotor::getData()[mStepper]->triggerPin = receivedMotorSettings.triggerPin;
-            FocusMotor::getData()[mStepper]->dirPin = receivedMotorSettings.dirPin;
-            FocusMotor::getData()[mStepper]->stpPin = receivedMotorSettings.stpPin;
-            FocusMotor::getData()[mStepper]->maxPos = receivedMotorSettings.maxPos;
-            FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
-            FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
-            FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
-            FocusMotor::getData()[mStepper]->hardLimitEnabled = receivedMotorSettings.hardLimitEnabled;
-            FocusMotor::getData()[mStepper]->hardLimitPolarity = receivedMotorSettings.hardLimitPolarity;
-            
-            if (debugState)
-                log_i("Received MotorSettings from CAN, maxspeed: %i, acceleration: %i, softLimitEnabled: %i, hardLimitEnabled: %i, hardLimitPolarity: %i", 
-                      receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration, receivedMotorSettings.softLimitEnabled,
-                      receivedMotorSettings.hardLimitEnabled, receivedMotorSettings.hardLimitPolarity);
-        }
-        else if (size == sizeof(HomeData))
-        {
-            // Parse as HomeData
-            HomeData receivedHomeData;
-            memcpy(&receivedHomeData, data, sizeof(HomeData));
-            // assign the received data to the motor to MotorData *data[4];
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-            int homeTimeout = receivedHomeData.homeTimeout;
-            int homeSpeed = receivedHomeData.homeSpeed;
-            int homeMaxspeed = receivedHomeData.homeMaxspeed;
-            int homeDirection = receivedHomeData.homeDirection;
-            int homeEndStopPolarity = receivedHomeData.homeEndStopPolarity;
-            int homeEndOffset = receivedHomeData.homeEndOffset;
-            bool usePreciseHoming = receivedHomeData.precise;
-            
-            if (debugState)
-                log_i("Received HomeData from CAN, homeTimeout: %i, homeSpeed: %i, homeMaxspeed: %i, homeDirection: %i, homeEndStopPolarity: %i, homeEndOffset: %i, precise: %i", 
-                      homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, usePreciseHoming);
-            
-            if (usePreciseHoming) {
-                #ifdef LINEAR_ENCODER_CONTROLLER
-                // Use encoder-based stall detection for homing
-                int homingSpeed = homeSpeed * homeDirection;
-                log_i("Starting encoder-based homing via CAN for axis %d: speed=%d", mStepper, homingSpeed);
-                LinearEncoderController::homeAxis(homingSpeed, mStepper);
-                #else
-                log_w("Encoder-based homing requested via CAN but LINEAR_ENCODER_CONTROLLER not available");
-                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, 0);
-                #endif
-            } else {
-                HomeMotor::startHome(mStepper, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, 0);
-            }
-        }
-        else if (size == sizeof(StopHomeCommand))
-        {
-            // Parse as StopHomeCommand
-            StopHomeCommand receivedStopCmd;
-            memcpy(&receivedStopCmd, data, sizeof(StopHomeCommand));
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-            
-            if (debugState)
-                log_i("Received StopHomeCommand from CAN for axis: %i", mStepper);
-            
-            HomeMotor::stopHome(mStepper);
-        }
-        #ifdef TMC_CONTROLLER
-        else if (size == sizeof(TMCData))
-        {
-            // parse incoming TMC Data and apply that to the TMC driver
-            if (debugState)
-                log_i("Received TMCData from CAN, size: %i, txID: %i", size, txID);
-            TMCData receivedTMCData;
-            memcpy(&receivedTMCData, data, sizeof(TMCData));
-            if (debugState)
-                log_i("Received TMCData from CAN, msteps: %i, rms_current: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i", receivedTMCData.msteps, receivedTMCData.rms_current, receivedTMCData.stall_value, receivedTMCData.sgthrs, receivedTMCData.semin, receivedTMCData.semax, receivedTMCData.sedn, receivedTMCData.tcoolthrs, receivedTMCData.blank_time, receivedTMCData.toff);
-            TMCController::applyParamsToDriver(receivedTMCData, true);
-        }
-        #endif
-        else if (size == sizeof(MotorDataValueUpdate))
-        {
-            // Minimal single-value update for every part from the MotorData struct
-            // This is used to update the motor data from the CAN bus - fast?
-            MotorDataValueUpdate upd;
-            memcpy(&upd, data, sizeof(upd));
-
-            // Which motor? e.g. remote axis:
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-
-            // Write the new value directly:
-            uint8_t *base = reinterpret_cast<uint8_t *>(FocusMotor::getData()[mStepper]);
-            *reinterpret_cast<int32_t *>(base + upd.offset) = upd.value;
-
-            if (debugState)
-                log_i("Received MotorDataValueUpdate from CAN, offset: %i, value: %i", upd.offset, upd.value);
-            // Only toggle the motor if offset corresponds to 'isStop' otherwise the motor will run multiple times with the same instructions
-            if (upd.offset == offsetof(MotorData, isStop))
-            {
-                log_i("Received MotorDataValueUpdate from CAN, isStop: %i", upd.value);
-                FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
-            }
-        }
-        else if (size == sizeof(SoftLimitData))
-        {
-            // Parse as SoftLimitData
-            SoftLimitData receivedSoftLimit;
-            memcpy(&receivedSoftLimit, data, sizeof(SoftLimitData));
-            
-            // The axis in SoftLimitData is the logical axis from master's perspective,
-            // but we apply it to our local REMOTE_MOTOR_AXIS_ID
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-            
-            if (debugState)
-                log_i("Received SoftLimitData from CAN for axis %i: min=%ld, max=%ld, enabled=%u", 
-                      receivedSoftLimit.axis, (long)receivedSoftLimit.minPos, 
-                      (long)receivedSoftLimit.maxPos, receivedSoftLimit.enabled);
-            
-            // Apply soft limits to local motor
-            FocusMotor::setSoftLimits(mStepper, receivedSoftLimit.minPos, 
-                                     receivedSoftLimit.maxPos, receivedSoftLimit.enabled != 0);
-            
-            // Store in preferences for persistence
-            Preferences preferences;
-            preferences.begin("UC2", false);
-            preferences.putInt(("min" + String(mStepper)).c_str(), receivedSoftLimit.minPos);
-            preferences.putInt(("max" + String(mStepper)).c_str(), receivedSoftLimit.maxPos);
-            preferences.putBool(("isen" + String(mStepper)).c_str(), receivedSoftLimit.enabled != 0);
-            preferences.end();
-        }
-        else
-        {
-            if (debugState)
-                log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
-        }
-#endif
-    }
+    // NOTE: The old size-based parse functions (parseLEDData, parseMotorAndHomeData,
+    // parseMotorAndHomeState, parseLaserData) have been removed.
+    // All dispatch is now message-type-based in dispatchIsoTpData() using the
+    // 1-byte CANMessageTypeID header. Each message type has its own case block.
 
     int CANid2axis(uint8_t id)
     {
@@ -380,84 +124,6 @@ namespace can_controller
             }
         }
         return -1;
-    }
-
-    void parseMotorAndHomeState(uint8_t *data, size_t size, uint8_t txID)
-    {
-#ifdef MOTOR_CONTROLLER
-        // Parse as MotorState
-        if (size == sizeof(MotorState))
-        {
-            // this is: The remote motor driver sends a MotorState to the central node which has to update the internal state
-            // update position and is running-state
-            MotorState receivedMotorState;
-            memcpy(&receivedMotorState, data, sizeof(MotorState));
-
-            if (debugState)
-                log_i("Received MotorState from CAN, currentPosition: %i, isRunning: %i from axis: %i", receivedMotorState.currentPosition, receivedMotorState.isRunning, receivedMotorState.axis);
-            int mStepper = receivedMotorState.axis;
-            // check within bounds
-            if (mStepper < 0 || mStepper >= MOTOR_AXIS_COUNT)
-            {
-                if (debugState)
-                    log_e("Error: Received MotorState from CAN with invalid axis %i", mStepper);
-                return;
-            }
-            FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
-            FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
-            FocusMotor::sendMotorPos(mStepper, 0);
-            log_i("Motor %i: Received MotorState from CAN, currentPosition: %i, isRunning: %i", mStepper, receivedMotorState.currentPosition, receivedMotorState.isRunning);
-        }
-        else if (size == sizeof(HomeState))
-        {
-#ifdef HOME_MOTOR
-            // Parse as HomeState
-            HomeState receivedHomeState;
-            memcpy(&receivedHomeState, data, sizeof(HomeState));
-            int mStepper = receivedHomeState.axis;
-            if (debugState)
-                log_i("Received HomeState from CAN, isHoming: %i, homeInEndposReleaseMode: %i from axis: %i", receivedHomeState.isHoming, receivedHomeState.homeInEndposReleaseMode, mStepper);
-            // check if mStepper is inside the range of the motors
-            if (mStepper < 0 || mStepper > 3)
-            {
-                if (debugState)
-                    log_e("Error: Received HomeState from CAN with invalid axis %i", mStepper);
-                return;
-            }
-            HomeMotor::getHomeData()[mStepper]->homeIsActive = receivedHomeState.isHoming;
-            HomeMotor::getHomeData()[mStepper]->homeInEndposReleaseMode = receivedHomeState.homeInEndposReleaseMode;
-            FocusMotor::getData()[mStepper]->currentPosition = receivedHomeState.currentPosition;
-            HomeMotor::sendHomeDone(mStepper);
-#endif
-        }
-        else
-        {
-            if (debugState)
-                log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
-        }
-#endif
-    }
-
-    void parseLaserData(uint8_t *data, size_t size, uint8_t txID)
-    {
-#ifdef LASER_CONTROLLER
-        // Parse as LaserData
-        LaserData laser;
-        if (size >= sizeof(laser))
-        {
-            memcpy(&laser, data, sizeof(laser));
-            // Do something with laser data
-            if (1) // debugState)
-                log_i("Laser intensity: %d, Laserid: %d", laser.LASERval, laser.LASERid);
-            // assign PWM channesl to the laserid
-            LaserController::setLaserVal(laser.LASERid, laser.LASERval);
-        }
-        else
-        {
-            if (1) // debugState)
-                log_e("Error: Incorrect data size received in CAN from address %u. Data size is %u", txID, size);
-        }
-#endif
     }
 
     void parseGalvoData(uint8_t *data, size_t size, uint8_t txID)
@@ -528,66 +194,471 @@ namespace can_controller
 
     void dispatchIsoTpData(pdu_t &pdu)
     {
-        // Parse the received data
-        uint8_t rxID = pdu.rxId;  // ID from which the message was sent
-        uint8_t txID = pdu.txId;  // ID to which the message was sent
-        uint8_t *data = pdu.data; // Data buffer
-        size_t size = pdu.len;    // Data size
+        // ====================================================================
+        // CANopen-inspired message dispatch: All messages carry a 1-byte
+        // message type ID as data[0], followed by the payload.
+        // Wire format: [CANMessageTypeID (1 byte)] [Payload (N bytes)]
+        // This eliminates all size-based routing ambiguities.
+        // ====================================================================
+        uint8_t rxID = pdu.rxId;  // CAN address this message was sent TO
+        uint8_t txID = pdu.txId;  // CAN address this message was sent FROM
+        uint8_t *data = pdu.data; // Raw data buffer (header + payload)
+        size_t size = pdu.len;    // Total data size including header
+
         if (debugState)
             log_i("CAN RXID: %u, TXID: %u, size: %u, own id: %u", rxID, txID, size, device_can_id);
 
-        // CRITICAL: Route motor data by struct size BEFORE checking message type IDs.
-        // Motor data (MotorData, MotorDataReduced, MotorSettings, HomeData, StopHomeCommand)
-        // is sent as raw structs WITHOUT message type headers. The first bytes are data fields
-        // (e.g., targetPosition in MotorDataReduced) that can coincidentally equal message type
-        // IDs. Example: targetPosition=3200 -> LSB=0x80=SCAN_REQUEST, causing motor commands
-        // to be misrouted as scan requests! Also affects OTA_CAN(0x62-69), OTA_STREAM(0x70-76).
-        // By routing known motor struct sizes first, we prevent ALL such false matches.
-        if (rxID == device_can_id &&
-            (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X ||
-             rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
+        if (size == 0)
         {
-            if (size == sizeof(MotorData) || size == sizeof(MotorDataReduced) ||
-                size == sizeof(MotorSettings) || size == sizeof(HomeData) ||
-                size == sizeof(StopHomeCommand))
-            {
-                parseMotorAndHomeData(data, size, rxID);
-                return;
-            }
-            // For other sizes (e.g., 1-byte restart, typed messages like OTA/SCAN),
-            // fall through to message type ID checks below.
+            log_e("Empty CAN message from txID %u", txID);
+            return;
         }
 
-        // Check for message type identifier at the beginning
-        if (size > 0)
+        // Verify the message is addressed to this device (primary or secondary CAN ID)
+        bool addressedToUs = (rxID == device_can_id); // TODO: Add support for group/broadcast messages if needed
+#if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
+        // Illumination boards can listen on a secondary CAN address e.g. if they have a neopixel and pwm/laser connected 
+        if (!addressedToUs && pinConfig.CAN_ID_SECONDARY != 0 && rxID == pinConfig.CAN_ID_SECONDARY)
+            addressedToUs = true;
+#endif
+        if (!addressedToUs)
         {
-            CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
-            
-            // Handle OTA start command
-            if (msgType == CANMessageTypeID::OTA_START && size >= (sizeof(CANMessageTypeID) + sizeof(OtaWifiCredentials)))
+            if (debugState)
+                log_w("CAN message not for us: rxID=%u, own=%u", rxID, device_can_id);
+            return;
+        }
+
+        // Extract message type header and payload
+        CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
+        uint8_t *payload = data + 1;
+        size_t payloadSize = size - 1;
+
+        if (debugState)
+            log_i("CAN dispatch: msgType=0x%02X (%u), payloadSize=%u from txID=%u",
+                  static_cast<uint8_t>(msgType), static_cast<uint8_t>(msgType), payloadSize, txID);
+
+        switch (msgType)
+        {
+        // ============================================================
+        // System Commands
+        // ============================================================
+        case RESTART_CMD:
+        {
+            log_i("Received RESTART_CMD from txID %u - restarting device", txID);
+            esp_restart();
+            return; // Never reached
+        }
+
+        // ============================================================
+        // Motor Commands (Master → Slave)
+        // ============================================================
+        case MOTOR_ACT:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(MotorData))
+            {
+                log_e("MOTOR_ACT: Invalid payload size %u, expected %u", payloadSize, sizeof(MotorData));
+                break;
+            }
+            MotorData receivedMotorData;
+            memcpy(&receivedMotorData, payload, sizeof(MotorData));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            FocusMotor::getData()[mStepper]->qid = receivedMotorData.qid;
+            FocusMotor::getData()[mStepper]->isEnable = receivedMotorData.isEnable;
+            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+            FocusMotor::getData()[mStepper]->acceleration = receivedMotorData.acceleration;
+            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+            if (FocusMotor::getData()[mStepper]->acceleration <= 0)
+                FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+            // Clear stale state flags that block motor start after homing/hard-limit events
+            if (!receivedMotorData.isStop)
+            {
+                FocusMotor::getData()[mStepper]->stopped = false;
+                FocusMotor::getData()[mStepper]->isHoming = false;
+                FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
+            }
+            if (debugState)
+                log_i("MOTOR_ACT: enable=%d, targetPos=%d, absPos=%d, speed=%d, accel=%d, forever=%d, stop=%d",
+                      static_cast<int>(receivedMotorData.isEnable), receivedMotorData.targetPosition,
+                      receivedMotorData.absolutePosition, receivedMotorData.speed, receivedMotorData.acceleration,
+                      static_cast<int>(receivedMotorData.isforever), static_cast<int>(receivedMotorData.isStop));
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
+#endif
+            break;
+        }
+
+        case MOTOR_ACT_REDUCED:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(MotorDataReduced))
+            {
+                log_e("MOTOR_ACT_REDUCED: Invalid payload size %u, expected %u", payloadSize, sizeof(MotorDataReduced));
+                break;
+            }
+            MotorDataReduced receivedMotorData;
+            memcpy(&receivedMotorData, payload, sizeof(MotorDataReduced));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            FocusMotor::getData()[mStepper]->targetPosition = receivedMotorData.targetPosition;
+            FocusMotor::getData()[mStepper]->isforever = receivedMotorData.isforever;
+            FocusMotor::getData()[mStepper]->absolutePosition = receivedMotorData.absolutePosition;
+            FocusMotor::getData()[mStepper]->speed = receivedMotorData.speed;
+            FocusMotor::getData()[mStepper]->isStop = receivedMotorData.isStop;
+            // Clear stale state flags (not included in reduced data)
+            if (!receivedMotorData.isStop)
+            {
+                FocusMotor::getData()[mStepper]->stopped = false;
+                FocusMotor::getData()[mStepper]->isHoming = false;
+                FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
+            } // TODO: Do we need the else case to set stopped=true when isStop=true? 
+            if (FocusMotor::getData()[mStepper]->acceleration <= 0)
+                FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
+            if (debugState)
+                log_i("MOTOR_ACT_REDUCED: targetPos=%d, forever=%d, absPos=%d, speed=%d, stop=%d, accel=%d",
+                      receivedMotorData.targetPosition, receivedMotorData.isforever,
+                      receivedMotorData.absolutePosition, receivedMotorData.speed,
+                      receivedMotorData.isStop, FocusMotor::getData()[mStepper]->acceleration);
+            FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
+#endif
+            break;
+        }
+
+        case MOTOR_SETTINGS:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(MotorSettings))
+            {
+                log_e("MOTOR_SETTINGS: Invalid payload size %u, expected %u", payloadSize, sizeof(MotorSettings));
+                break;
+            }
+            MotorSettings receivedMotorSettings;
+            memcpy(&receivedMotorSettings, payload, sizeof(MotorSettings));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            FocusMotor::getData()[mStepper]->directionPinInverted = receivedMotorSettings.directionPinInverted;
+            FocusMotor::getData()[mStepper]->joystickDirectionInverted = receivedMotorSettings.joystickDirectionInverted;
+            FocusMotor::getData()[mStepper]->isaccelerated = receivedMotorSettings.isaccelerated;
+            FocusMotor::getData()[mStepper]->isEnable = receivedMotorSettings.isEnable;
+            FocusMotor::getData()[mStepper]->maxspeed = receivedMotorSettings.maxspeed;
+            FocusMotor::getData()[mStepper]->acceleration = receivedMotorSettings.acceleration;
+            FocusMotor::getData()[mStepper]->isTriggered = receivedMotorSettings.isTriggered;
+            FocusMotor::getData()[mStepper]->offsetTrigger = receivedMotorSettings.offsetTrigger;
+            FocusMotor::getData()[mStepper]->triggerPeriod = receivedMotorSettings.triggerPeriod;
+            FocusMotor::getData()[mStepper]->triggerPin = receivedMotorSettings.triggerPin;
+            FocusMotor::getData()[mStepper]->dirPin = receivedMotorSettings.dirPin;
+            FocusMotor::getData()[mStepper]->stpPin = receivedMotorSettings.stpPin;
+            FocusMotor::getData()[mStepper]->maxPos = receivedMotorSettings.maxPos;
+            FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
+            FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
+            FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
+            FocusMotor::getData()[mStepper]->hardLimitEnabled = receivedMotorSettings.hardLimitEnabled;
+            FocusMotor::getData()[mStepper]->hardLimitPolarity = receivedMotorSettings.hardLimitPolarity;
+            if (debugState)
+                log_i("MOTOR_SETTINGS: maxspeed=%d, accel=%d, softLimit=%d, hardLimit=%d",
+                      receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration,
+                      receivedMotorSettings.softLimitEnabled, receivedMotorSettings.hardLimitEnabled);
+#endif
+            break;
+        }
+
+        case MOTOR_SINGLE_VAL:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(MotorDataValueUpdate))
+            {
+                log_e("MOTOR_SINGLE_VAL: Invalid payload size %u, expected %u", payloadSize, sizeof(MotorDataValueUpdate));
+                break;
+            }
+            MotorDataValueUpdate upd;
+            memcpy(&upd, payload, sizeof(upd));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            uint8_t *base = reinterpret_cast<uint8_t *>(FocusMotor::getData()[mStepper]);
+            *reinterpret_cast<int32_t *>(base + upd.offset) = upd.value;
+            if (debugState)
+                log_i("MOTOR_SINGLE_VAL: offset=%d, value=%d", upd.offset, upd.value);
+            // Only toggle the motor when the isStop field is updated
+            if (upd.offset == offsetof(MotorData, isStop))
+            {
+                log_i("MOTOR_SINGLE_VAL: isStop=%d - toggling stepper", upd.value);
+                FocusMotor::toggleStepper(mStepper, FocusMotor::getData()[mStepper]->isStop, 0);
+            }
+#endif
+            break;
+        }
+
+        // ============================================================
+        // Motor State Responses (Slave → Master)
+        // ============================================================
+        case MOTOR_STATE:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(MotorState))
+            {
+                log_e("MOTOR_STATE: Invalid payload size %u, expected %u", payloadSize, sizeof(MotorState));
+                break;
+            }
+            MotorState receivedMotorState;
+            memcpy(&receivedMotorState, payload, sizeof(MotorState));
+            int mStepper = receivedMotorState.axis;
+            if (mStepper < 0 || mStepper >= MOTOR_AXIS_COUNT)
+            {
+                log_e("MOTOR_STATE: Invalid axis %d", mStepper);
+                break;
+            }
+            FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
+            FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
+            FocusMotor::sendMotorPos(mStepper, 0);
+            if (debugState)
+                log_i("MOTOR_STATE: axis=%d, pos=%d, running=%d",
+                      mStepper, receivedMotorState.currentPosition, receivedMotorState.isRunning);
+#endif
+            break;
+        }
+
+        // ============================================================
+        // Home Commands & State
+        // ============================================================
+        case HOME_ACT:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(HomeData))
+            {
+                log_e("HOME_ACT: Invalid payload size %u, expected %u", payloadSize, sizeof(HomeData));
+                break;
+            }
+            HomeData receivedHomeData;
+            memcpy(&receivedHomeData, payload, sizeof(HomeData));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            if (debugState)
+                log_i("HOME_ACT: timeout=%d, speed=%d, maxspeed=%d, dir=%d, polarity=%d, endoffset=%d, precise=%d",
+                      receivedHomeData.homeTimeout, receivedHomeData.homeSpeed, receivedHomeData.homeMaxspeed,
+                      receivedHomeData.homeDirection, receivedHomeData.homeEndStopPolarity,
+                      receivedHomeData.homeEndOffset, receivedHomeData.precise);
+            if (receivedHomeData.precise)
+            {
+#ifdef LINEAR_ENCODER_CONTROLLER
+                int homingSpeed = receivedHomeData.homeSpeed * receivedHomeData.homeDirection;
+                log_i("Starting encoder-based homing via CAN for axis %d: speed=%d", mStepper, homingSpeed);
+                LinearEncoderController::homeAxis(homingSpeed, mStepper);
+#else
+                log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
+                HomeMotor::startHome(mStepper, receivedHomeData.homeTimeout, receivedHomeData.homeSpeed,
+                                     receivedHomeData.homeMaxspeed, receivedHomeData.homeDirection,
+                                     receivedHomeData.homeEndStopPolarity, receivedHomeData.homeEndOffset, 0);
+#endif
+            }
+            else
+            {
+                HomeMotor::startHome(mStepper, receivedHomeData.homeTimeout, receivedHomeData.homeSpeed,
+                                     receivedHomeData.homeMaxspeed, receivedHomeData.homeDirection,
+                                     receivedHomeData.homeEndStopPolarity, receivedHomeData.homeEndOffset, 0);
+            }
+#endif
+            break;
+        }
+
+        case HOME_STATE:
+        {
+#ifdef HOME_MOTOR
+            if (payloadSize != sizeof(HomeState))
+            {
+                log_e("HOME_STATE: Invalid payload size %u, expected %u", payloadSize, sizeof(HomeState));
+                break;
+            }
+            HomeState receivedHomeState;
+            memcpy(&receivedHomeState, payload, sizeof(HomeState));
+            int mStepper = receivedHomeState.axis;
+            if (mStepper < 0 || mStepper > 3)
+            {
+                log_e("HOME_STATE: Invalid axis %d", mStepper);
+                break;
+            }
+            HomeMotor::getHomeData()[mStepper]->homeIsActive = receivedHomeState.isHoming;
+            HomeMotor::getHomeData()[mStepper]->homeInEndposReleaseMode = receivedHomeState.homeInEndposReleaseMode;
+            FocusMotor::getData()[mStepper]->currentPosition = receivedHomeState.currentPosition;
+            HomeMotor::sendHomeDone(mStepper);
+            if (debugState)
+                log_i("HOME_STATE: axis=%d, isHoming=%d, pos=%u",
+                      mStepper, receivedHomeState.isHoming, receivedHomeState.currentPosition);
+#endif
+            break;
+        }
+
+        case STOP_HOME:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(StopHomeCommand))
+            {
+                log_e("STOP_HOME: Invalid payload size %u, expected %u", payloadSize, sizeof(StopHomeCommand));
+                break;
+            }
+            StopHomeCommand receivedStopCmd;
+            memcpy(&receivedStopCmd, payload, sizeof(StopHomeCommand));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            if (debugState)
+                log_i("STOP_HOME: Stopping homing for axis %d", mStepper);
+            HomeMotor::stopHome(mStepper);
+#endif
+            break;
+        }
+
+        case SOFT_LIMIT_SET:
+        {
+#ifdef MOTOR_CONTROLLER
+            if (payloadSize != sizeof(SoftLimitData))
+            {
+                log_e("SOFT_LIMIT_SET: Invalid payload size %u, expected %u", payloadSize, sizeof(SoftLimitData));
+                break;
+            }
+            SoftLimitData receivedSoftLimit;
+            memcpy(&receivedSoftLimit, payload, sizeof(SoftLimitData));
+            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
+            if (debugState)
+                log_i("SOFT_LIMIT_SET: axis=%d, min=%ld, max=%ld, enabled=%u",
+                      receivedSoftLimit.axis, (long)receivedSoftLimit.minPos,
+                      (long)receivedSoftLimit.maxPos, receivedSoftLimit.enabled);
+            FocusMotor::setSoftLimits(mStepper, receivedSoftLimit.minPos,
+                                     receivedSoftLimit.maxPos, receivedSoftLimit.enabled != 0);
+            Preferences preferences;
+            preferences.begin("UC2", false);
+            preferences.putInt(("min" + String(mStepper)).c_str(), receivedSoftLimit.minPos);
+            preferences.putInt(("max" + String(mStepper)).c_str(), receivedSoftLimit.maxPos);
+            preferences.putBool(("isen" + String(mStepper)).c_str(), receivedSoftLimit.enabled != 0);
+            preferences.end();
+#endif
+            break;
+        }
+
+        // ============================================================
+        // TMC Driver Configuration
+        // ============================================================
+        case TMC_ACT:
+        {
+#ifdef TMC_CONTROLLER
+            if (payloadSize != sizeof(TMCData))
+            {
+                log_e("TMC_ACT: Invalid payload size %u, expected %u", payloadSize, sizeof(TMCData));
+                break;
+            }
+            TMCData receivedTMCData;
+            memcpy(&receivedTMCData, payload, sizeof(TMCData));
+            if (debugState)
+                log_i("TMC_ACT: msteps=%d, rms_current=%d, stall=%d, sgthrs=%d",
+                      receivedTMCData.msteps, receivedTMCData.rms_current,
+                      receivedTMCData.stall_value, receivedTMCData.sgthrs);
+            TMCController::applyParamsToDriver(receivedTMCData, true);
+#endif
+            break;
+        }
+
+        // ============================================================
+        // Laser Commands
+        // ============================================================
+        case LASER_ACT:
+        {
+#ifdef LASER_CONTROLLER
+            if (payloadSize < sizeof(LaserData))
+            {
+                log_e("LASER_ACT: Invalid payload size %u, expected %u", payloadSize, sizeof(LaserData));
+                break;
+            }
+            LaserData laser;
+            memcpy(&laser, payload, sizeof(laser));
+            if (debugState)
+                log_i("LASER_ACT: id=%d, val=%d", laser.LASERid, laser.LASERval);
+            LaserController::setLaserVal(laser.LASERid, laser.LASERval);
+#endif
+            break;
+        }
+
+        // ============================================================
+        // LED Commands
+        // ============================================================
+        case LED_ACT:
+        {
+#ifdef LED_CONTROLLER
+            if (payloadSize != sizeof(LedCommand))
+            {
+                log_e("LED_ACT: Invalid payload size %u, expected %u", payloadSize, sizeof(LedCommand));
+                break;
+            }
+            LedCommand ledCmd;
+            memcpy(&ledCmd, payload, sizeof(ledCmd));
+            if (debugState)
+                log_i("LED_ACT: qid=%u, mode=%u, color=(%u,%u,%u), radius=%u, ledIndex=%u",
+                      ledCmd.qid, ledCmd.mode, ledCmd.r, ledCmd.g, ledCmd.b,
+                      ledCmd.radius, ledCmd.ledIndex);
+            LedController::execLedCommand(ledCmd);
+#endif
+            break;
+        }
+
+        // ============================================================
+        // Galvo Commands & State
+        // ============================================================
+        case GALVO_ACT:
+        {
+#ifdef GALVO_CONTROLLER // TODO: We need to merge this into the same message type as the state update, since the slave needs to receive the full config to run, and the master needs to receive the full state to update the UI. We can just have a "command" field in the JSON to indicate whether it's an action or state update, and then parse accordingly on each side.
+            if (payloadSize < sizeof(GalvoData))
+            {
+                log_e("GALVO_ACT: Invalid payload size %u, expected %u", payloadSize, sizeof(GalvoData));
+                break;
+            }
+            parseGalvoData(payload, payloadSize, rxID);
+#endif
+            break;
+        }
+
+        case GALVO_STATE:
+        {
+#ifdef GALVO_CONTROLLER
+            if (payloadSize < sizeof(GalvoData))
+            {
+                log_e("GALVO_STATE: Invalid payload size %u, expected %u", payloadSize, sizeof(GalvoData));
+                break;
+            }
+            // Master side: receive galvo state from slave
+            GalvoData galvo;
+            memcpy(&galvo, payload, sizeof(galvo));
+            if (debugState)
+                log_i("GALVO_STATE: X_MIN=%d, X_MAX=%d, running=%s",
+                      galvo.X_MIN, galvo.X_MAX, galvo.isRunning ? "true" : "false");
+#endif
+            break;
+        }
+
+        // ============================================================
+        // OTA Update Messages
+        // ============================================================
+        case OTA_START:
+        {
+            if (payloadSize >= sizeof(OtaWifiCredentials))
             {
                 if (debugState)
-                    log_i("Received OTA_START command from master");
-                
+                    log_i("Received OTA_START command");
                 OtaWifiCredentials otaCreds;
-                memcpy(&otaCreds, &data[1], sizeof(OtaWifiCredentials));
+                memcpy(&otaCreds, payload, sizeof(OtaWifiCredentials));
                 handleOtaCommand(&otaCreds);
-                return; // Function will restart device, so we return here
             }
-            
-            // Handle OTA acknowledgment (master side)
-            #ifdef CAN_SEND_COMMANDS
-            if (msgType == CANMessageTypeID::OTA_ACK && size >= (sizeof(CANMessageTypeID) + sizeof(OtaAck)))
+            else
+            {
+                log_e("OTA_START: Invalid payload size %u, expected >= %u", payloadSize, sizeof(OtaWifiCredentials));
+            }
+            break;
+        }
+
+        case OTA_ACK:
+        {
+#ifdef CAN_SEND_COMMANDS
+            if (payloadSize >= sizeof(OtaAck)) 
             {
                 OtaAck ack;
-                memcpy(&ack, &data[1], sizeof(OtaAck));
-                
-                const char* statusMsg[] = {"Success", "WiFi connection failed", "OTA start failed"};
-                log_i("Received OTA_ACK from CAN ID %u: %s (IP: %u.%u.%u.%u)", 
-                      ack.canId, statusMsg[ack.status], 
+                memcpy(&ack, payload, sizeof(OtaAck));
+                const char *statusMsg[] = {"Success", "WiFi connection failed", "OTA start failed"};
+                log_i("OTA_ACK from CAN ID %u: %s (IP: %u.%u.%u.%u)",
+                      ack.canId, statusMsg[ack.status],
                       ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
-                
-                // Send JSON response via serial
                 cJSON *root = cJSON_CreateObject();
                 if (root != NULL)
                 {
@@ -598,270 +669,163 @@ namespace can_controller
                         cJSON_AddNumberToObject(otaObj, "canId", ack.canId);
                         cJSON_AddNumberToObject(otaObj, "status", ack.status);
                         cJSON_AddStringToObject(otaObj, "statusMsg", statusMsg[ack.status]);
-                        
-                        // Add IP address as string
                         char ipStr[16];
-                        snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u", 
-                                ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
+                        snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u",
+                                 ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
                         cJSON_AddStringToObject(otaObj, "ip", ipStr);
-                        
-                        // Add hostname
                         char hostname[32];
                         snprintf(hostname, sizeof(hostname), "UC2-CAN-%X.local", ack.canId);
                         cJSON_AddStringToObject(otaObj, "hostname", hostname);
-                        
-                        // Serialize and send
                         char *jsonString = cJSON_PrintUnformatted(root);
                         if (jsonString != NULL)
                         {
                             SerialProcess::safeSendJsonString(jsonString);
                             free(jsonString);
                         }
-                        cJSON_Delete(root);
                     }
-                    else
-                    {
-                        cJSON_Delete(root);
-                    }
+                    cJSON_Delete(root);
                 }
-                return;
-            }
-            #endif
-            
-            // Handle CAN-based OTA messages (firmware transfer over CAN)
-            // OTA_CAN_* message types: 0x62-0x69
-            if (msgType >= OTA_CAN_START && msgType <= OTA_CAN_STATUS)
-            {
-                // Route to CAN OTA handler
-                // For slave devices: handle START, DATA, VERIFY, FINISH, ABORT, STATUS
-                // For master: handle ACK, NAK responses from slaves
-                can_ota::handleCanOtaMessage(static_cast<uint8_t>(msgType), data + 1, size - 1, txID);
-                return;
-            }
-            
-            // Handle CAN OTA STREAMING messages (high-speed mode)
-            // STREAM_* message types: 0x70-0x76
-            if (static_cast<uint8_t>(msgType) >= 0x70 && static_cast<uint8_t>(msgType) <= 0x76)
-            {
-                log_i("Received CAN OTA streaming message type %u from CAN ID %u, size: %u", static_cast<uint8_t>(msgType), txID, size);
-                can_ota_stream::handleStreamMessage(static_cast<uint8_t>(msgType), data + 1, size - 1, txID);
-                return;
-            }
-        }
-
-        // Handle SCAN_RESPONSE (master side) - collect device info
-        #ifdef CAN_SEND_COMMANDS
-        if (size > 0)
-        {
-            CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
-            if (msgType == CANMessageTypeID::SCAN_RESPONSE && 
-                size >= (sizeof(CANMessageTypeID) + sizeof(ScanResponse)))
-            {
-                if (scanInProgress)
-                {
-                    ScanResponse scanResp;
-                    memcpy(&scanResp, &data[1], sizeof(ScanResponse));
-                    
-                    if (debugState)
-                        log_i("Received SCAN_RESPONSE from CAN ID %u (type: %u, status: %u)", 
-                              scanResp.canId, scanResp.deviceType, scanResp.status);
-                    
-                    // Add to scan responses if not already present
-                    bool alreadyExists = false;
-                    for (int i = 0; i < scanResponseCount; i++)
-                    {
-                        if (scanResponses[i].canId == scanResp.canId)
-                        {
-                            alreadyExists = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!alreadyExists && scanResponseCount < MAX_CAN_DEVICES)
-                    {
-                        scanResponses[scanResponseCount++] = scanResp;
-                        
-                        // Also add to availableCANids list
-                        bool inAvailableList = false;
-                        for (int i = 0; i < MAX_CAN_DEVICES; i++)
-                        {
-                            if (availableCANids[i] == scanResp.canId)
-                            {
-                                inAvailableList = true;
-                                break;
-                            }
-                        }
-                        if (!inAvailableList)
-                        {
-                            for (int i = 0; i < MAX_CAN_DEVICES; i++)
-                            {
-                                if (availableCANids[i] == 0)
-                                {
-                                    availableCANids[i] = scanResp.canId;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    return; // Don't process further
-                }
-            }
-        }
-        #endif
-
-        // Handle SCAN_REQUEST (slave side) - respond with device info
-        // CRITICAL: size == 1 check prevents false matches with motor data.
-        // SCAN_REQUEST from master is always exactly 1 byte (0x80).
-        // Without size check, MotorDataReduced with targetPosition=3200 (LSB=0x80)
-        // would be misrouted as SCAN_REQUEST.
-        if (size == 1 && rxID == device_can_id)
-        {
-            CANMessageTypeID msgType = static_cast<CANMessageTypeID>(data[0]);
-            if (msgType == CANMessageTypeID::SCAN_REQUEST)
-            {
-                if (debugState)
-                    log_i("Received SCAN_REQUEST from master, responding...");
-                
-                // Add random delay (0-50ms) to prevent all devices responding at once
-                uint32_t randomDelay = esp_random() % 50;
-                vTaskDelay(randomDelay / portTICK_PERIOD_MS);
-                
-                ScanResponse scanResp;
-                scanResp.canId = device_can_id;
-                
-                // Determine device type based on CAN ID ranges
-                if (device_can_id >= 10 && device_can_id <= 15)
-                    scanResp.deviceType = 0; // Motor
-                else if (device_can_id >= 20 && device_can_id <= 25)
-                    scanResp.deviceType = 1; // Laser
-                else if (device_can_id >= 30 && device_can_id <= 35)
-                    scanResp.deviceType = 2; // LED or Galvo
-                else if (device_can_id == pinConfig.CAN_ID_CENTRAL_NODE)
-                    scanResp.deviceType = 4; // Master
-                else
-                    scanResp.deviceType = 0xFF; // Unknown
-                
-                // Set status (0=idle, 1=busy, 0xFF=error)
-                #ifdef MOTOR_CONTROLLER
-                bool anyMotorRunning = false;
-                for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
-                {
-                    if (isMotorRunning(i))
-                    {
-                        anyMotorRunning = true;
-                        break;
-                    }
-                }
-                scanResp.status = anyMotorRunning ? 1 : 0;
-                #else
-                scanResp.status = 0; // Default to idle
-                #endif
-                
-                // Prepare message with SCAN_RESPONSE message type
-                uint8_t buffer[sizeof(CANMessageTypeID) + sizeof(ScanResponse)];
-                buffer[0] = static_cast<uint8_t>(CANMessageTypeID::SCAN_RESPONSE);
-                memcpy(&buffer[1], &scanResp, sizeof(ScanResponse));
-                
-                // Send response back to master
-                sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, buffer, sizeof(buffer));
-                return;
-            }
-        }
-
-        // this is coming from the central node, so slaves should react
-        /*
-        FROM MASTER SENDER => perform an action remotly
-        */
-        // if the message was sent from the central node, we need to parse the data and perform an action (e.g. _act , _get) on the slave side
-        // assuming the slave is a motor, we can parse the data and send it to the motor
-
-        // Check if the message is a restart signal
-        if (size == sizeof(uint8_t) && rxID == device_can_id) // Assuming an empty message indicates a restart
-        {
-            // parse the parameter
-            // if pdu => 0 => restart
-            uint8_t canCMD;
-            memcpy(&canCMD, data, sizeof(uint8_t));
-            log_i("Received generic command from CAN ID: %u, command: %u", rxID, canCMD);
-            if (canCMD == 0)
-            {
-                // Restart the device
-                if (debugState)
-                    log_i("Received restart signal from CAN ID: %u", rxID);
-                // Perform the restart
-                esp_restart();
-                return;
-            }
-            else if (canCMD == 1)
-            {
-                // Restart the device
-                if (debugState)
-                    log_i("Received restart signal from CAN ID: %u", rxID);
-                // Perform the restart
-                esp_restart();
-                return;
             }
             else
             {
-                if (debugState)
-                    log_e("Error: Received invalid restart signal from CAN ID: %u", rxID);
+                log_e("OTA_ACK: Invalid payload size %u, expected >= %u", payloadSize, sizeof(OtaAck));
             }
-            return;
+#endif
+            break;
         }
 
-        if (rxID == device_can_id && (rxID == pinConfig.CAN_ID_MOT_A || rxID == pinConfig.CAN_ID_MOT_X || rxID == pinConfig.CAN_ID_MOT_Y || rxID == pinConfig.CAN_ID_MOT_Z))
+        // CAN-based OTA: firmware transfer over CAN (0x62-0x69)
+        case OTA_CAN_START:
+        case OTA_CAN_DATA:
+        case OTA_CAN_VERIFY:
+        case OTA_CAN_FINISH:
+        case OTA_CAN_ABORT:
+        case OTA_CAN_ACK:
+        case OTA_CAN_NAK:
+        case OTA_CAN_STATUS:
         {
-            parseMotorAndHomeData(data, size, rxID);
+            can_ota::handleCanOtaMessage(static_cast<uint8_t>(msgType), payload, payloadSize, txID);
+            break;
         }
-#ifdef GALVO_CONTROLLER
-        // Support for galvo controllers
-        else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_GALVO_0)
+
+        // CAN OTA streaming: high-speed firmware mode (0x70-0x76)
+        case OTA_STREAM_START:
+        case OTA_STREAM_DATA:
+        case OTA_STREAM_ACK:
+        case OTA_STREAM_NAK:
+        case OTA_STREAM_FINISH:
+        case OTA_STREAM_ABORT:
+        case OTA_STREAM_STATUS:
         {
-            parseGalvoData(data, size, rxID);
+            log_i("CAN OTA stream message type 0x%02X from txID %u, size %u",
+                  static_cast<uint8_t>(msgType), txID, payloadSize);
+            can_ota_stream::handleStreamMessage(static_cast<uint8_t>(msgType), payload, payloadSize, txID);
+            break;
         }
-#endif
-#if defined(LASER_CONTROLLER) && !defined(LED_CONTROLLER)
-        // Support for laser-only controllers
-        else if (rxID == device_can_id &&
-                 (rxID >= pinConfig.CAN_ID_LASER_0 && rxID <= pinConfig.CAN_ID_LASER_4))
-        {
-            parseLaserData(data, size, rxID);
-        }
-#endif
-        else if (rxID == device_can_id && (size == sizeof(MotorState) or size == sizeof(HomeState))) // this is coming from the X motor
-        {
-            /*
-            FROM THE DEVICES => update the state
-            */
-            parseMotorAndHomeState(data, size, rxID);
-        }
-#if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
-        // Support for illumination board that handles both LED and laser commands
-        // The device can receive messages addressed to either primary or secondary CAN ID
-        else if ((rxID == device_can_id) ||
-                 (pinConfig.CAN_ID_SECONDARY != 0 && rxID == pinConfig.CAN_ID_SECONDARY))
-        {
-            if (size == sizeof(LedCommand))
-            {
-                parseLEDData(data, size, rxID);
-            }
-            else if (size == sizeof(LaserData))
-            {
-                parseLaserData(data, size, rxID);
-            }
-        }
-#elif defined(LED_CONTROLLER)
-        // Support for LED-only controllers
-        else if (rxID == device_can_id && rxID == pinConfig.CAN_ID_LED_0 && size == sizeof(LedCommand))
-        {
-            parseLEDData(data, size, rxID);
-        }
-#endif
-        else
+
+        // ============================================================
+        // Network Scan
+        // ============================================================
+        case SCAN_REQUEST:
         {
             if (debugState)
-                log_e("Error: Received data from unknown CAN address %u", rxID);
+                log_i("Received SCAN_REQUEST from master, responding...");
+            // Add random delay to prevent collision
+            uint32_t randomDelay = esp_random() % 50;
+            vTaskDelay(randomDelay / portTICK_PERIOD_MS);
+
+            ScanResponse scanResp;
+            scanResp.canId = device_can_id;
+            // Determine device type from CAN ID ranges
+            if (device_can_id >= 10 && device_can_id <= 15)
+                scanResp.deviceType = 0; // Motor
+            else if (device_can_id >= 20 && device_can_id <= 25)
+                scanResp.deviceType = 1; // Laser
+            else if (device_can_id >= 30 && device_can_id <= 35)
+                scanResp.deviceType = 2; // LED or Galvo
+            else if (device_can_id == pinConfig.CAN_ID_CENTRAL_NODE)
+                scanResp.deviceType = 4; // Master
+            else
+                scanResp.deviceType = 0xFF; // Unknown
+#ifdef MOTOR_CONTROLLER
+            bool anyMotorRunning = false;
+            for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
+            {
+                if (isMotorRunning(i))
+                {
+                    anyMotorRunning = true;
+                    break;
+                }
+            }
+            scanResp.status = anyMotorRunning ? 1 : 0;
+#else
+            scanResp.status = 0;
+#endif
+            sendTypedCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, SCAN_RESPONSE,
+                                (uint8_t *)&scanResp, sizeof(ScanResponse));
+            break;
         }
+
+        case SCAN_RESPONSE:
+        {
+#ifdef CAN_SEND_COMMANDS // TODO: Who should be able to scan the network? Only the master, or also slaves? If slaves can also scan, we need to make sure they don't add themselves to their own availableCANids list, and we need to decide how to handle the case where multiple devices respond at the same time (e.g. add random delay before responding, and/or implement some kind of retry mechanism if no response received after a certain time)
+            if (scanInProgress && payloadSize >= sizeof(ScanResponse))
+            {
+                ScanResponse scanResp;
+                memcpy(&scanResp, payload, sizeof(ScanResponse));
+                if (debugState)
+                    log_i("SCAN_RESPONSE from CAN ID %u (type: %u, status: %u)",
+                          scanResp.canId, scanResp.deviceType, scanResp.status);
+                // Add to scan responses if not already present
+                bool alreadyExists = false;
+                for (int i = 0; i < scanResponseCount; i++)
+                {
+                    if (scanResponses[i].canId == scanResp.canId)
+                    {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+                if (!alreadyExists && scanResponseCount < MAX_CAN_DEVICES)
+                {
+                    scanResponses[scanResponseCount++] = scanResp;
+                    // Also add to availableCANids list
+                    bool inAvailableList = false;
+                    for (int i = 0; i < MAX_CAN_DEVICES; i++)
+                    {
+                        if (availableCANids[i] == scanResp.canId)
+                        {
+                            inAvailableList = true;
+                            break;
+                        }
+                    }
+                    if (!inAvailableList)
+                    {
+                        for (int i = 0; i < MAX_CAN_DEVICES; i++)
+                        {
+                            if (availableCANids[i] == 0)
+                            {
+                                availableCANids[i] = scanResp.canId;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+#endif
+            break;
+        }
+
+        // ============================================================
+        // Default: Unknown message type
+        // ============================================================
+        default:
+        {
+            log_e("Unknown CAN message type 0x%02X from txID=%u, rxID=%u, payloadSize=%u",
+                  static_cast<uint8_t>(msgType), txID, rxID, payloadSize);
+            break;
+        }
+        } // end switch
     }
 
     uint8_t getCANAddressPreferences()
@@ -1080,7 +1044,40 @@ namespace can_controller
     // Alias for sendCanMessage - used by CanOtaHandler for ISO-TP transmission
     int sendIsoTpData(uint8_t receiverID, const uint8_t *data, size_t size)
     {
-        return sendCanMessage(receiverID, data, size);
+        return sendCanMessage(receiverID, data, size); 
+    }
+
+    /**
+     * @brief Send a CAN message with a message type header (CANopen-inspired protocol).
+     * 
+     * All CAN messages in the UC2 protocol carry a 1-byte message type ID as the first byte,
+     * followed by the payload. This ensures unambiguous dispatch on the receiver side,
+     * regardless of struct sizes or data values.
+     * 
+     * Wire format: [MessageTypeID (1 byte)] [Payload (N bytes)]
+     * 
+     * @param receiverID  CAN address of the target device
+     * @param msgType     Message type identifier from CANMessageTypeID enum
+     * @param payload     Pointer to the payload data (struct bytes), or nullptr if no payload
+     * @param payloadSize Size of the payload in bytes
+     * @return 0 on success, non-zero on error
+     */
+    int sendTypedCanMessage(uint8_t receiverID, CANMessageTypeID msgType, const uint8_t *payload, size_t payloadSize)
+    {
+        // Stack buffer - max CAN ISO-TP payload is ~4095 bytes, but typical messages are < 256 bytes
+        uint8_t buffer[256];
+        if (1 + payloadSize > sizeof(buffer))
+        {
+            log_e("sendTypedCanMessage: payload too large (%u bytes) for msgType 0x%02X",
+                  payloadSize, static_cast<uint8_t>(msgType));
+            return -1;
+        }
+        buffer[0] = static_cast<uint8_t>(msgType);
+        if (payloadSize > 0 && payload != nullptr)
+        {
+            memcpy(&buffer[1], payload, payloadSize);
+        }
+        return sendCanMessage(receiverID, buffer, 1 + payloadSize);
     }
 
     // generic receiver function
@@ -1322,7 +1319,7 @@ namespace can_controller
         can_ota_stream::init();
 
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
-        sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id));
+        sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id)); // TODO: Switch to sendTypedCanMessage with a specific message type for announcing presence/address?
     }
 
     int act(cJSON *doc)
@@ -1586,7 +1583,7 @@ namespace can_controller
         motorState.currentPosition = motorData.currentPosition;
         motorState.isRunning = !motorData.stopped;
         motorState.axis = CANid2axis(slave_addr);
-        int err = sendCanMessage(receiverID, (uint8_t *)&motorState, sizeof(MotorState));
+        int err = sendTypedCanMessage(receiverID, MOTOR_STATE, (uint8_t *)&motorState, sizeof(MotorState));
         if (err != 0)
         {
             if (debugState)
@@ -1631,10 +1628,9 @@ namespace can_controller
         int err = 0;
         if (reduced == 0)
         {
-            // Fully MotorData
-            log_i("Sending MotorData to axis: %i, isStop: %i", axis, motorData.isStop);
-            // Cast the structure to a byte array
-            err = sendCanMessage(slave_addr, (uint8_t *)&motorData, sizeof(MotorData));
+            // Full MotorData with MOTOR_ACT message type header
+            log_i("Sending MOTOR_ACT to axis: %i, isStop: %i", axis, motorData.isStop);
+            err = sendTypedCanMessage(slave_addr, MOTOR_ACT, (uint8_t *)&motorData, sizeof(MotorData));
         }
         else if (reduced == 1)
         {
@@ -1647,7 +1643,7 @@ namespace can_controller
             reducedData.speed = motorData.speed;
             reducedData.isStop = motorData.isStop;
 
-            err = sendCanMessage(slave_addr, (uint8_t *)&reducedData, sizeof(MotorDataReduced));
+            err = sendTypedCanMessage(slave_addr, MOTOR_ACT_REDUCED, (uint8_t *)&reducedData, sizeof(MotorDataReduced));
         }
         else if (reduced == 2)
         {
@@ -1716,10 +1712,10 @@ namespace can_controller
         uint8_t slave_addr = axis2id(axis);
         
         if (debugState)
-            log_i("Sending MotorSettings to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+            log_i("Sending MOTOR_SETTINGS to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
                   axis, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
         
-        int err = sendCanMessage(slave_addr, (uint8_t *)&motorSettings, sizeof(MotorSettings));
+        int err = sendTypedCanMessage(slave_addr, MOTOR_SETTINGS, (uint8_t *)&motorSettings, sizeof(MotorSettings));
         
         if (err != 0)
         {
@@ -1762,12 +1758,10 @@ namespace can_controller
 
     int sendCANRestartByID(uint8_t canID)
     {
-        // send a restart signal to the remote CAN device
+        // Send restart command with RESTART_CMD message type
         if (debugState)
-            log_i("Sending CAN restart signal to ID: %u", canID);
-        uint8_t receiverID = canID;
-        uint8_t data = 0; // empty data; 0 stands for restart
-        return sendCanMessage(receiverID, reinterpret_cast<uint8_t *>(&data), sizeof(data));
+            log_i("Sending RESTART_CMD to CAN ID: %u", canID);
+        return sendTypedCanMessage(canID, RESTART_CMD, nullptr, 0);
     }
 
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal)
@@ -1778,10 +1772,9 @@ namespace can_controller
         update.value = newVal;
 
         if (debugState)
-            log_i("Sending MotorDataValueUpdate to axis: %i with offset: %i, value: %i", axis, offset, newVal);
-        // Call your existing CAN function
+            log_i("Sending MOTOR_SINGLE_VAL to axis: %i with offset: %i, value: %i", axis, offset, newVal);
         uint8_t receiverID = axis2id(axis);
-        return sendCanMessage(receiverID, reinterpret_cast<uint8_t *>(&update), sizeof(update));
+        return sendTypedCanMessage(receiverID, MOTOR_SINGLE_VAL, reinterpret_cast<uint8_t *>(&update), sizeof(update));
     }
 
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed)
@@ -1805,9 +1798,8 @@ namespace can_controller
         // send home data to slave via
         uint8_t slave_addr = axis2id(axis);
         if (debugState)
-            log_i("Sending HomeData to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i, endoffset %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity, homeData.homeEndOffset);
-        // TODO: if we do homing on that axis the first time it mysteriously fails so we send it twice..
-        int err = sendCanMessage(slave_addr, (uint8_t *)&homeData, sizeof(HomeData));
+            log_i("Sending HOME_ACT to axis: %i with parameters: speed %i, maxspeed %i, direction %i, endstop polarity %i, endoffset %i", axis, homeData.homeSpeed, homeData.homeMaxspeed, homeData.homeDirection, homeData.homeEndStopPolarity, homeData.homeEndOffset);
+        int err = sendTypedCanMessage(slave_addr, HOME_ACT, (uint8_t *)&homeData, sizeof(HomeData));
         if (err != 0)
         {
             if (debugState)
@@ -1828,9 +1820,9 @@ namespace can_controller
         stopCmd.axis = axis;
         
         if (debugState)
-            log_i("Sending StopHomeCommand to axis: %i", axis);
+            log_i("Sending STOP_HOME to axis: %i", axis);
         
-        int err = sendCanMessage(slave_addr, (uint8_t *)&stopCmd, sizeof(StopHomeCommand));
+        int err = sendTypedCanMessage(slave_addr, STOP_HOME, (uint8_t *)&stopCmd, sizeof(StopHomeCommand));
         if (err != 0)
         {
             if (debugState)
@@ -1874,7 +1866,7 @@ namespace can_controller
             log_i("Sending SoftLimitData to axis: %i (CAN ID: %u), min: %ld, max: %ld, enabled: %u", 
                   axis, slave_addr, (long)minPos, (long)maxPos, softLimitData.enabled);
         
-        int err = sendCanMessage(slave_addr, (uint8_t *)&softLimitData, sizeof(SoftLimitData));
+        int err = sendTypedCanMessage(slave_addr, SOFT_LIMIT_SET, (uint8_t *)&softLimitData, sizeof(SoftLimitData));
         if (err != 0)
         {
             if (debugState)
@@ -1890,11 +1882,11 @@ namespace can_controller
 
     void sendHomeStateToMaster(HomeState homeState)
     {
-        // send home state to master via I2C
+        // Send home state to master with HOME_STATE message type
         uint8_t slave_addr = device_can_id;
         homeState.axis = CANid2axis(slave_addr);
         uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
-        int err = sendCanMessage(receiverID, (uint8_t *)&homeState, sizeof(HomeState));
+        int err = sendTypedCanMessage(receiverID, HOME_STATE, (uint8_t *)&homeState, sizeof(HomeState));
         if (err != 0)
         {
             if (debugState)
@@ -1940,8 +1932,8 @@ namespace can_controller
         canCmd.region[sizeof(canCmd.region) - 1] = '\0';
         canCmd.ledIndex = cmd.ledIndex;
 
-        // Then use your existing sendCanMessage(...)
-        return sendCanMessage(targetID, reinterpret_cast<uint8_t *>(&canCmd), sizeof(canCmd));
+        // Send with LED_ACT message type header
+        return sendTypedCanMessage(targetID, LED_ACT, reinterpret_cast<uint8_t *>(&canCmd), sizeof(canCmd));
     }
 #endif
 
@@ -1951,8 +1943,8 @@ namespace can_controller
         // send TMC Data to remote Motor
         uint8_t slave_addr = axis2id(axis);
         if (debugState)
-            log_i("Sending TMCData to axis: %i", axis);
-        int err = sendCanMessage(slave_addr, (uint8_t *)&tmcData, sizeof(TMCData));
+            log_i("Sending TMC_ACT to axis: %i", axis);
+        int err = sendTypedCanMessage(slave_addr, TMC_ACT, (uint8_t *)&tmcData, sizeof(TMCData));
         if (err != 0)
         {
             if (debugState)
@@ -1977,9 +1969,7 @@ namespace can_controller
             receiverID = CAN_LASER_IDs[laserID];
         }
 
-        uint8_t *dataPtr = (uint8_t *)&laserData;
-        int dataSize = sizeof(LaserData);
-        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        int err = sendTypedCanMessage(receiverID, LASER_ACT, (uint8_t *)&laserData, sizeof(LaserData));
         if (err != 0)
         {
             if (debugState)
@@ -1988,7 +1978,7 @@ namespace can_controller
         else
         {
             if (debugState)
-                log_i("LaserData to master at address %i, laser intensity: %i, size %i", receiverID, laserData.LASERval, dataSize);
+                log_i("LaserData to master at address %i, laser intensity: %i, receiverID, laserData.LASERval: %i, size %i", receiverID, laserData.LASERval, sizeof(laserData));
         }
     }
 
@@ -2081,12 +2071,9 @@ namespace can_controller
 #ifdef GALVO_CONTROLLER
     void sendGalvoDataToCANDriver(GalvoData galvoData)
     {
-        // send galvo data to slave via CAN
-        uint8_t receiverID = CAN_GALVO_IDs[0]; // Currently only one galvo device supported
-
-        uint8_t *dataPtr = (uint8_t *)&galvoData;
-        int dataSize = sizeof(GalvoData);
-        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        // Send galvo data to slave with GALVO_ACT message type
+        uint8_t receiverID = CAN_GALVO_IDs[0];
+        int err = sendTypedCanMessage(receiverID, GALVO_ACT, (uint8_t *)&galvoData, sizeof(GalvoData));
         if (err != 0)
         {
             if (debugState)
@@ -2101,12 +2088,9 @@ namespace can_controller
 
     void sendGalvoStateToMaster(GalvoData galvoData)
     {
-        // send galvo state back to master (from slave)
-        uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE; // Send to master
-
-        uint8_t *dataPtr = (uint8_t *)&galvoData;
-        int dataSize = sizeof(GalvoData);
-        int err = sendCanMessage(receiverID, dataPtr, dataSize);
+        // Send galvo state to master with GALVO_STATE message type
+        uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
+        int err = sendTypedCanMessage(receiverID, GALVO_STATE, (uint8_t *)&galvoData, sizeof(GalvoData));
         if (err != 0)
         {
             if (debugState)
@@ -2147,12 +2131,7 @@ namespace can_controller
         
         otaCreds.timeout_ms = timeout_ms;
         
-        // Prepare message with OTA_START message type
-        uint8_t buffer[sizeof(CANMessageTypeID) + sizeof(OtaWifiCredentials)];
-        buffer[0] = static_cast<uint8_t>(CANMessageTypeID::OTA_START);
-        memcpy(&buffer[1], &otaCreds, sizeof(OtaWifiCredentials));
-        
-        int err = sendCanMessage(slaveID, buffer, sizeof(buffer));
+        int err = sendTypedCanMessage(slaveID, OTA_START, (uint8_t *)&otaCreds, sizeof(OtaWifiCredentials));
         if (err != 0)
         {
             if (debugState)
@@ -2364,11 +2343,7 @@ namespace can_controller
             ack.ipAddress[3] = 0;
         }
 
-        uint8_t buffer[sizeof(CANMessageTypeID) + sizeof(OtaAck)];
-        buffer[0] = static_cast<uint8_t>(CANMessageTypeID::OTA_ACK);
-        memcpy(&buffer[1], &ack, sizeof(OtaAck));
-
-        int err = sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, buffer, sizeof(buffer));
+        int err = sendTypedCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, OTA_ACK, (uint8_t *)&ack, sizeof(OtaAck));
         if (err == 0)
         {
             if (debugState)
@@ -2469,7 +2444,7 @@ namespace can_controller
                 if (debugState)
                     log_i("Broadcasting SCAN_REQUEST to CAN ID: %u", canId);
                 
-                sendCanMessage(canId, scanRequest, sizeof(scanRequest));
+                sendCanMessage(canId, scanRequest, sizeof(scanRequest)); // TODO: consider using sendTypedCanMessage with a specific message type for better handling on the slave side
                 
                 // Small delay between broadcasts to avoid overwhelming the bus
                 vTaskDelay(50 / portTICK_PERIOD_MS); // TODO: adjust delay as needed to not overflow the queue

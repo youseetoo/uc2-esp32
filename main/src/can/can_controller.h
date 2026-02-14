@@ -72,6 +72,7 @@ namespace can_controller
     int receiveCanMessage(uint8_t *rxIDs, uint8_t numIDs);
     int sendCanMessage(uint8_t receiverID, const uint8_t *data, size_t size);
     int sendIsoTpData(uint8_t receiverID, const uint8_t *data, size_t size);  // ISO-TP transmission
+    int sendTypedCanMessage(uint8_t receiverID, CANMessageTypeID msgType, const uint8_t *payload, size_t payloadSize);
     //int sendCanMessage(uint8_t receiverID, const uint8_t *data);
     void setCANAddress(uint8_t address);
     uint8_t getCANAddress();

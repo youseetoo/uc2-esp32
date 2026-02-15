@@ -628,6 +628,68 @@ namespace can_controller
             break;
         }
 
+        case GALVO_POINTS:
+        {
+#ifdef GALVO_CONTROLLER
+            // Receive arbitrary point list from master
+            size_t header_size = sizeof(GalvoPointsHeader);
+            if (payloadSize < header_size) {
+                log_e("GALVO_POINTS: Payload too small for header (%u < %u)", payloadSize, header_size);
+                break;
+            }
+            
+            GalvoPointsHeader header;
+            memcpy(&header, payload, header_size);
+            
+            if (header.point_count == 0 || header.point_count > SCANNER_MAX_ARBITRARY_POINTS) {
+                log_e("GALVO_POINTS: Invalid point count %u", header.point_count);
+                break;
+            }
+            
+            size_t expected_size = header_size + header.point_count * sizeof(ArbitraryScanPoint);
+            if (payloadSize < expected_size) {
+                log_e("GALVO_POINTS: Payload too small (%u < %u)", payloadSize, expected_size);
+                break;
+            }
+            
+            ArbitraryScanPoint* points = (ArbitraryScanPoint*)(payload + header_size);
+            
+            if (debugState)
+                log_i("GALVO_POINTS: Received %u points, trigger_mode=%u", header.point_count, header.trigger_mode);
+            
+            // Build JSON command for processCommand
+            cJSON* galvoJson = cJSON_CreateObject();
+            cJSON_AddStringToObject(galvoJson, "task", "/galvo_act");
+            
+            // Add trigger mode
+            const char* trig_str = "AUTO";
+            switch ((TriggerMode)header.trigger_mode) {
+                case TRIGGER_HIGH: trig_str = "HIGH"; break;
+                case TRIGGER_LOW: trig_str = "LOW"; break;
+                case TRIGGER_CONTINUOUS: trig_str = "CONTINUOUS"; break;
+                default: break;
+            }
+            cJSON_AddStringToObject(galvoJson, "laser_trigger", trig_str);
+            
+            // Add points array
+            cJSON* pointsArr = cJSON_CreateArray();
+            for (uint16_t i = 0; i < header.point_count; ++i) {
+                cJSON* pt = cJSON_CreateObject();
+                cJSON_AddNumberToObject(pt, "x", points[i].x);
+                cJSON_AddNumberToObject(pt, "y", points[i].y);
+                cJSON_AddNumberToObject(pt, "dwell_us", points[i].dwell_us);
+                cJSON_AddItemToArray(pointsArr, pt);
+            }
+            cJSON_AddItemToObject(galvoJson, "points", pointsArr);
+            
+            // Execute
+            cJSON* result = GalvoController::act(galvoJson);
+            if (result) cJSON_Delete(result);
+            cJSON_Delete(galvoJson);
+#endif
+            break;
+        }
+
         // ============================================================
         // OTA Update Messages
         // ============================================================
@@ -1812,7 +1874,7 @@ namespace can_controller
         }
     }
 
-    void sendStopHomeToCANDriver(uint8_t axis)
+    void sendStopHomeToCANDriver(uint8_t axis) // TODO: never used? we could just send a MOTOR_ACT with isStop=true and maybe a specific flag for "isHomeStop" to indicate that it's a stop command related to homing, so that the
     {
         // Send stop home command to slave via CAN
         uint8_t slave_addr = axis2id(axis);
@@ -2101,6 +2163,45 @@ namespace can_controller
             if (debugState)
                 log_i("Galvo state sent to master CAN address %u successfully", receiverID);
         }
+    }
+
+    void sendGalvoPointsToCANDriver(const ArbitraryScanPoint* points, uint16_t count, TriggerMode triggerMode)
+    {
+        if (!points || count == 0 || count > SCANNER_MAX_ARBITRARY_POINTS) {
+            log_e("Invalid point data for CAN transmission");
+            return;
+        }
+
+        // Build payload: header + points
+        size_t header_size = sizeof(GalvoPointsHeader);
+        size_t points_size = count * sizeof(ArbitraryScanPoint);
+        size_t total_size = header_size + points_size;
+        
+        uint8_t* buffer = (uint8_t*)malloc(total_size);
+        if (!buffer) {
+            log_e("Failed to allocate CAN buffer for galvo points");
+            return;
+        }
+
+        // Fill header
+        GalvoPointsHeader header;
+        header.trigger_mode = (uint8_t)triggerMode;
+        header.point_count = count;
+        memcpy(buffer, &header, header_size);
+        
+        // Fill points
+        memcpy(buffer + header_size, points, points_size);
+
+        uint8_t receiverID = CAN_GALVO_IDs[0];
+        int err = sendTypedCanMessage(receiverID, GALVO_POINTS, buffer, total_size);
+        
+        if (err != 0) {
+            log_e("Error sending galvo points to CAN address %u: %d", receiverID, err);
+        } else {
+            log_i("Galvo points (%d) sent to CAN address %u", count, receiverID);
+        }
+        
+        free(buffer);
     }
 #endif
 

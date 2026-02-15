@@ -123,10 +123,10 @@
 {"task": "/laser_act", "LASERid":1, "LASERval": 1000, "LASERdespeckle": 0,  "LASERdespecklePeriod": 30}
 {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50} // for servo
 {"task": "/laser_act", "LASERid":0, "LASERval": 100}
-{"task": "/laser_act", "LASERid":1, "LASERval": 100}
-{"task": "/laser_act", "LASERid":2, "LASERval": 100}
+{"task": "/laser_act", "LASERid":1, "LASERval": 1023}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1023}
-{"task": "/laser_act", "LASERid":3, "LASERval": 1000}
+{"task": "/laser_act", "LASERid":2, "LASERval": 1023}
+{"task": "/laser_act", "LASERid":3, "LASERval": 1023}
 # HOME
 {"task": "/home_get"}
 
@@ -400,6 +400,13 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {'task': '/can_act', 'restart': 13}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}
 {"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
+{"task":"/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"frame_count":0,"bidirectional":false}}
+{"task":"/galvo_act", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":1500,"y":2100,"dwell_us":1000},{"x":2000,"y":2500,"dwell_us":250}]}
+{"task":"/galvo_act", "laser_trigger":"CONTINUOUS", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":2000,"y":2500,"dwell_us":500}]}
+{"task":"/galvo_act", "laser_trigger":"HIGH"}
+{"task":"/galvo_act", "laser_trigger":"LOW"}
+{"task":"/galvo_act", "laser_trigger":"AUTO"}
+{"task":"/galvo_act", "stop":true}
 			// parse illumination array
 			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 50, "tPost": 50, "illumination": [0, 1, 0, 0], "led": 255}}
 			{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 10, "nY": 10, "tPre": 10, "tPost": 100, "illumination": [0, 255, 255, 0], "led": 0}}
@@ -928,7 +935,7 @@ platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
 {"task":"/motor_get", "home": {"steppers": [{"stepperid":0, "timeout": 40000, "speed": 5000, "direction":1, "endstoppolarity":1}]}}
 
 // HOME on master 
-{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 15000, "direction":1, "endstoppolarity":0, "endstoprelease":1000}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 20000, "speed": 25000, "direction":-1, "endstoppolarity":1, "endstoprelease":1000}]}}
 
 
 {"task":"/state_act", "restart":1}
@@ -968,7 +975,8 @@ platformio run --target upload --environment UC2_4 --upload-port /dev/cu.wchusbs
 
 {"task": "/home_act", "qid": 6,  "home": {"steppers": [{"stepperid": 2, "timeout": 20000, "speed": 20000, "direction": -1, "endstoppolarity": 1}]}}
 
-{"task":"/can_act", "address": 11}
+{"task":"/can_act", "address": 10}
+{"task":"/can_get", "address": 12}
 {"task":"/state_act", "restart":1}
 
 
@@ -980,110 +988,23 @@ platformio run --target upload --environment UC2_4 --upload-port /dev/cu.wchusbs
 {"home":{"steppers":{"axis":0,"pos":0,"isDone":1}},"qid":9,"qid":9}
 --
 
-assert failed: tlsf_free heap_tlsf.c:964 (!block_is_free(block) && "block already marked as free")
-
-
-Backtrace: 0x40083032:0x3ffe3360 0x40090a1d:0x3ffe3380 0x40095d4d:0x3ffe33a0 0x400951e5:0x3ffe34c0 0x400959c4:0x3ffe34e0 0x40083e79:0x3ffe3500 0x40095d7d:0x3ffe3520 0x400d7fe5:0x3ffe3540
-
-ELF file SHA256: 369d4191a7f8d916
-
-Rebooting...
-
-
-
-Decoding stack results
-0x40083032: panic_abort at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/esp_system/panic.c line 408
-0x40090a1d: esp_system_abort at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/esp_system/esp_system.c line 137
-0x40095d4d: __assert_func at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/newlib/assert.c line 85
-0x400951e5: tlsf_free at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/heap/heap_tlsf.c line 343
-0x400959c4: multi_heap_free_impl at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/heap/multi_heap.c line 225
-0x40083e79: heap_caps_free at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/heap/heap_caps.c line 361
-0x40095d7d: free at /Users/bene/.platformio/packages/framework-espidf@3.40404.0/components/newlib/heap.c line 39
-0x400d7fe5: can_controller::handleOtaLoop() at main/src/can/can_controller.cpp line 2302
-
-
 Via CAN BUS  Ih ave the following behavior:]
 
 does not work:
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "position": -3200, "speed": 20000, "isabs": 0, "isaccel": 1, "isen": 1, "redu": 0, "accel": 1000000}]}, "qid": 154}
-
-gives:
-[180812][I][MotorJsonParser.cpp:894] act(): motor act
-[180814][I][MotorJsonParser.cpp:751] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[180815][I][FocusMotor.cpp:742] clearHardLimitTriggered(): Cleared hard limit triggered flag for axis 1
-[180817][I][can_controller.cpp:1515] startStepper(): Starting motor on axis 1 with speed 20000, targetPosition 3200, reduced: 1
-[180818][I][can_controller.cpp:1616] sendMotorDataToCANDriver(): Reducing MotorData to axis: 1 at address: 11, isStop: 0
-[180820][I][CanIsoTp.cpp:57] send(): Acquiring ISO-TP semaphore for send
-[180821][I][can_controller.cpp:1035] sendCanMessage(): Sending CAN message to 11
-++
-{"qid":154,"success":1}
---
-[180841][I][CanIsoTp.cpp:60] send(): Starting ISO-TP send, len: 11 to ID: 11, with rxId 1
-[180842][I][CanIsoTp.cpp:64] send(): State: 1
-[180842][I][CanIsoTp.cpp:313] send_FirstFrame(): Sending FF
-[180843][I][CanIsoTp.cpp:81] send(): First Frame sent: 0
-[180844][I][CanIsoTp.cpp:64] send(): State: 2
-[180844][I][CanIsoTp.cpp:86] send(): Waiting for first FC
-[180845][I][CanIsoTp.cpp:100] send(): Frame received: 11, rxId 1, len 3
-[180846][I][CanIsoTp.cpp:103] send(): Data length: 3
-[180847][I][CanIsoTp.cpp:107] send(): FC frame received
-[180847][I][CanIsoTp.cpp:514] receive_FlowControlFrame(): Flow Control Frame received
-[180848][I][CanIsoTp.cpp:529] receive_FlowControlFrame(): Updating BS and STmin to: 0, 2
-[180849][I][CanIsoTp.cpp:541] receive_FlowControlFrame(): CTS (Continue to send) frame received
-[180851][I][CanIsoTp.cpp:110] send(): FC received successfully
-[180851][I][CanIsoTp.cpp:64] send(): State: 4
-[180852][I][CanIsoTp.cpp:128] send(): Sending Consecutive Frames
-[180853][I][CanIsoTp.cpp:148] send(): Sending Last block
-[180883][I][CanIsoTp.cpp:201] send(): Return: 0
-[180883][I][can_controller.cpp:968] canSendTask(): Sent CAN message to 11
-[180934][I][CanIsoTp.cpp:249] receive(): SF received
-[180934][I][CanIsoTp.cpp:365] receive_SingleFrame(): Single Frame received
-[180935][I][CanIsoTp.cpp:391] receive_SingleFrame(): Allocating memory for pdu->data (single frame), size=7, heap free=65376, largest block=32768
-[180937][I][can_controller.cpp:537] dispatchIsoTpData(): CAN RXID: 1, TXID: 0, size: 7, own id: 1
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 3200, "speed": 20000, "isabs": 0, "isaccel": 1, "isen": 1, "redu": 0, "accel": 1000000}]}, "qid": 154}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 300, "speed": 20000, "isabs": 0, "isaccel": 1, "isen": 1, "redu": 0, "accel": 1000000}]}, "qid": 154}
+{"task": "/can_act", "debug": true}
 
 
-works: 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 3202, "speed": 20000, "isabs": 0, "isaccel": 1, "isen": 1, "redu": 0, "accel": 1000000}]}, "qid": 154}
-gives:
-[192684][I][MotorJsonParser.cpp:894] act(): motor act
-[192686][I][MotorJsonParser.cpp:751] parseMotorDriveJson(): start stepper from parseMotorDriveJson
-[192687][I][FocusMotor.cpp:742] clearHardLimitTriggered(): Cleared hard limit triggered flag for axis 1
-[192689][I][can_controller.cpp:1515] startStepper(): Starting motor on axis 1 with speed 20000, targetPosition 3202, reduced: 0
-[192690][I][can_controller.cpp:1609] sendMotorDataToCANDriver(): Sending MotorData to axis: 1, isStop: 0
-[192692][I][CanIsoTp.cpp:57] send(): Acquiring ISO-TP semaphore for send
-[192693][I][can_controller.cpp:1035] sendCanMessage(): Sending CAN message to 11
-++
-{"qid":154,"success":1}
---
-[192719][I][CanIsoTp.cpp:60] send(): Starting ISO-TP send, len: 71 to ID: 11, with rxId 1
-[192720][I][CanIsoTp.cpp:64] send(): State: 1
-[192720][I][CanIsoTp.cpp:313] send_FirstFrame(): Sending FF
-[192721][I][CanIsoTp.cpp:81] send(): First Frame sent: 0
-[192722][I][CanIsoTp.cpp:64] send(): State: 2
-[192722][I][CanIsoTp.cpp:86] send(): Waiting for first FC
-[192723][I][CanIsoTp.cpp:100] send(): Frame received: 11, rxId 1, len 3
-[192724][I][CanIsoTp.cpp:103] send(): Data length: 3
-[192725][I][CanIsoTp.cpp:107] send(): FC frame received
-[192725][I][CanIsoTp.cpp:514] receive_FlowControlFrame(): Flow Control Frame received
-[192726][I][CanIsoTp.cpp:529] receive_FlowControlFrame(): Updating BS and STmin to: 0, 2
-[192727][I][CanIsoTp.cpp:541] receive_FlowControlFrame(): CTS (Continue to send) frame received
-[192729][I][CanIsoTp.cpp:110] send(): FC received successfully
-[192729][I][CanIsoTp.cpp:64] send(): State: 4
-[192730][I][CanIsoTp.cpp:128] send(): Sending Consecutive Frames
-[193000][I][CanIsoTp.cpp:148] send(): Sending Last block
-[193030][I][CanIsoTp.cpp:201] send(): Return: 0
-[193030][I][can_controller.cpp:968] canSendTask(): Sent CAN message to 11
-[193234][I][CanIsoTp.cpp:249] receive(): SF received
-[193235][I][CanIsoTp.cpp:365] receive_SingleFrame(): Single Frame received
-[193236][I][CanIsoTp.cpp:391] receive_SingleFrame(): Allocating memory for pdu->data (single frame), size=6, heap free=65780, largest block=32768
-[193238][I][can_controller.cpp:537] dispatchIsoTpData(): CAN RXID: 1, TXID: 0, size: 6, own id: 1
-[193239][I][can_controller.cpp:397] parseMotorAndHomeState(): Received MotorState from CAN, currentPosition: 41608, isRunning: 0 from axis: 1
-++
-{"steppers":[{"stepperid":1,"position":41608,"isDone":1}],"qid":154}
---
-[193244][I][can_controller.cpp:409] parseMotorAndHomeState(): Motor 1: Received MotorState from CAN, currentPosition: 41608, isRunning: 0
+// Arbitrary point scan
+{"task":"/galvo_act", "points":[{"x":150,"y":1500,"dwell_us":25000},{"x":1500,"y":1500,"dwell_us":25000},{"x":1500,"y":150,"dwell_us":25000},{"x":150,"y":150,"dwell_us":25000}]}
+{"task":"/galvo_act", "points":[{"x":150,"y":1500,"dwell_us":250},{"x":1500,"y":1500,"dwell_us":250},{"x":1500,"y":150,"dwell_us":250},{"x":150,"y":150,"dwell_us":250}]}
 
+// With trigger mode
+{"task":"/galvo_act", "laser_trigger":"CONTINUOUS", "points":[...]}
 
-both work if I have redu=0, so there is still a state problem somehow. Not sure what the 3200 vs 3202 means - maybe even another issue. 
-Likewise, the joystick still has issues. Sometimes it works, sometimes not. There seems to be an issue between states from host to client (satelite motor). This seems to be properly set in csae of redu=0 since we send the full motor data, but not proeprly set in case of the reduced
-Do a deep investigation to find the issue and fix it. It seems to be related to the reduced motor data, but I am not sure yet. It could also be an issue with the CAN driver or the motor controller firmware. I will need to check the code in more detail and maybe add some debug statements to find out where the issue is.
+// Trigger override only
+{"task":"/galvo_act", "laser_trigger":"HIGH"}
+
+// Back to raster (existing API unchanged)
+{"task":"/galvo_act", "config":{"nx":256,"ny":256,...}}

@@ -162,6 +162,7 @@ cJSON *GalvoController::get(cJSON *doc)
 
 cJSON *GalvoController::act(cJSON *doc)
 {/*
+    === RASTER SCAN (existing) ===
     {"task": "/galvo_act", "config": {"nx": 256, "ny": 256, "x_min": 500, "x_max": 3500, "y_min": 500, "y_max": 3500, "sample_period_us": 1000, "frame_count": 10, "bidirectional": false}}
     full:
     {"task":"/state_get"}
@@ -169,6 +170,18 @@ cJSON *GalvoController::act(cJSON *doc)
     {"task": "/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"trig_delay_us":0,"trig_width_us":20,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":false}}
     {"task": "/galvo_act", "config": {"nx":100,"ny":100,"x_min":500,"x_max":1500,"y_min":500,"y_max":1500,"pre_samples":16,"fly_samples":16,"sample_period_us":20,"trig_delay_us":0,"trig_width_us":20,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":true}}
 
+    === ARBITRARY POINT SCAN (new) ===
+    {"task":"/galvo_act", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":1500,"y":2100,"dwell_us":1000},{"x":2000,"y":2500,"dwell_us":250}]}
+    With trigger mode:
+    {"task":"/galvo_act", "laser_trigger":"CONTINUOUS", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":2000,"y":2500,"dwell_us":500}]}
+
+    === TRIGGER OVERRIDE ===
+    {"task":"/galvo_act", "laser_trigger":"HIGH"}
+    {"task":"/galvo_act", "laser_trigger":"LOW"}
+    {"task":"/galvo_act", "laser_trigger":"AUTO"}
+
+    === STOP ===
+    {"task":"/galvo_act", "stop":true}
     */
     return processCommand(doc);
 }
@@ -264,6 +277,61 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         return response;
     }
 
+    // Check for arbitrary points array (forward to slave via CAN)
+    cJSON *points_array = cJSON_GetObjectItem(doc, "points");
+    if (points_array && cJSON_IsArray(points_array))
+    {
+        int point_count = cJSON_GetArraySize(points_array);
+        GALVO_LOG("Forwarding %d arbitrary points via CAN", point_count);
+        
+        if (point_count == 0 || point_count > SCANNER_MAX_ARBITRARY_POINTS) {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddStringToObject(response, "error", "Invalid point count (1-256)");
+            return response;
+        }
+        
+        ArbitraryScanPoint points[SCANNER_MAX_ARBITRARY_POINTS];
+        for (int i = 0; i < point_count; ++i) {
+            cJSON *point = cJSON_GetArrayItem(points_array, i);
+            if (!point || !cJSON_IsObject(point)) {
+                cJSON_AddBoolToObject(response, "success", false);
+                cJSON_AddStringToObject(response, "error", "Invalid point format");
+                return response;
+            }
+            cJSON *x_item = cJSON_GetObjectItem(point, "x");
+            cJSON *y_item = cJSON_GetObjectItem(point, "y");
+            cJSON *dwell_item = cJSON_GetObjectItem(point, "dwell_us");
+            
+            if (!x_item || !y_item || !dwell_item) {
+                cJSON_AddBoolToObject(response, "success", false);
+                cJSON_AddStringToObject(response, "error", "Missing x, y, or dwell_us");
+                return response;
+            }
+            
+            points[i].x = (uint16_t)cJSON_GetNumberValue(x_item);
+            points[i].y = (uint16_t)cJSON_GetNumberValue(y_item);
+            points[i].dwell_us = (uint32_t)cJSON_GetNumberValue(dwell_item);
+        }
+        
+        // Determine trigger mode
+        TriggerMode trigMode = TRIGGER_AUTO;
+        cJSON *laser_trigger = cJSON_GetObjectItem(doc, "laser_trigger");
+        if (laser_trigger && cJSON_IsString(laser_trigger)) {
+            const char* ts = cJSON_GetStringValue(laser_trigger);
+            if (strcmp(ts, "HIGH") == 0) trigMode = TRIGGER_HIGH;
+            else if (strcmp(ts, "LOW") == 0) trigMode = TRIGGER_LOW;
+            else if (strcmp(ts, "CONTINUOUS") == 0) trigMode = TRIGGER_CONTINUOUS;
+        }
+        
+#ifdef CAN_BUS_ENABLED
+        can_controller::sendGalvoPointsToCANDriver(points, point_count, trigMode);
+#endif
+        cJSON_AddBoolToObject(response, "success", true);
+        cJSON_AddStringToObject(response, "message", "Points sent via CAN");
+        cJSON_AddNumberToObject(response, "point_count", point_count);
+        return response;
+    }
+
     cJSON_AddBoolToObject(response, "success", false);
     cJSON_AddStringToObject(response, "error", "Master mode - provide config to forward");
     return response;
@@ -282,7 +350,108 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         cJSON_AddStringToObject(response, "message", "Scanning stopped");
         return response;
     }
+    // Check for laser_trigger manual override
+    cJSON *laser_trigger = cJSON_GetObjectItem(doc, "laser_trigger");
+    if (laser_trigger && cJSON_IsString(laser_trigger))
+    {
+        const char* trigger_str = cJSON_GetStringValue(laser_trigger);
+        GALVO_LOG("LASER_TRIGGER command: %s", trigger_str);
+        
+        TriggerMode mode = TRIGGER_AUTO;
+        if (strcmp(trigger_str, "HIGH") == 0) {
+            mode = TRIGGER_HIGH;
+        } else if (strcmp(trigger_str, "LOW") == 0) {
+            mode = TRIGGER_LOW;
+        } else if (strcmp(trigger_str, "AUTO") == 0) {
+            mode = TRIGGER_AUTO;
+        } else if (strcmp(trigger_str, "CONTINUOUS") == 0) {
+            mode = TRIGGER_CONTINUOUS;
+        } else {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddStringToObject(response, "error", "Invalid trigger mode (use AUTO, HIGH, LOW, or CONTINUOUS)");
+            return response;
+        }
+        
+        scanner_.setTriggerMode(mode);
+        cJSON_AddBoolToObject(response, "success", true);
+        cJSON_AddStringToObject(response, "message", "Trigger mode set");
+        return response;
+    }
 
+    // Check for arbitrary points array
+    cJSON *points_array = cJSON_GetObjectItem(doc, "points");
+    if (points_array && cJSON_IsArray(points_array))
+    {
+        int point_count = cJSON_GetArraySize(points_array);
+        GALVO_LOG("POINTS command received: %d points", point_count);
+        
+        if (point_count == 0 || point_count > SCANNER_MAX_ARBITRARY_POINTS) {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddStringToObject(response, "error", "Invalid point count (1-256)");
+            return response;
+        }
+        
+        ArbitraryScanPoint points[SCANNER_MAX_ARBITRARY_POINTS];
+        
+        for (int i = 0; i < point_count; ++i) {
+            cJSON *point = cJSON_GetArrayItem(points_array, i);
+            if (!point || !cJSON_IsObject(point)) {
+                cJSON_AddBoolToObject(response, "success", false);
+                cJSON_AddStringToObject(response, "error", "Invalid point format");
+                return response;
+            }
+            
+            cJSON *x_item = cJSON_GetObjectItem(point, "x");
+            cJSON *y_item = cJSON_GetObjectItem(point, "y");
+            cJSON *dwell_item = cJSON_GetObjectItem(point, "dwell_us");
+            
+            if (!x_item || !y_item || !dwell_item) {
+                cJSON_AddBoolToObject(response, "success", false);
+                cJSON_AddStringToObject(response, "error", "Missing x, y, or dwell_us in point");
+                return response;
+            }
+            
+            points[i].x = (uint16_t)cJSON_GetNumberValue(x_item);
+            points[i].y = (uint16_t)cJSON_GetNumberValue(y_item);
+            points[i].dwell_us = (uint32_t)cJSON_GetNumberValue(dwell_item);
+            
+            // Validate coordinates
+            if (points[i].x > 4095 || points[i].y > 4095) {
+                cJSON_AddBoolToObject(response, "success", false);
+                cJSON_AddStringToObject(response, "error", "Coordinate out of range (0-4095)");
+                return response;
+            }
+        }
+        
+        // Set points
+        if (!scanner_.setArbitraryPoints(points, point_count)) {
+            cJSON_AddBoolToObject(response, "success", false);
+            cJSON_AddStringToObject(response, "error", "Failed to set points");
+            return response;
+        }
+        
+        // Switch to arbitrary scan mode
+        scanner_.setScanMode(SCAN_MODE_ARBITRARY);
+        
+        // Check for optional trigger mode
+        if (laser_trigger && cJSON_IsString(laser_trigger)) {
+            const char* trigger_str = cJSON_GetStringValue(laser_trigger);
+            TriggerMode mode = TRIGGER_AUTO;
+            if (strcmp(trigger_str, "HIGH") == 0) mode = TRIGGER_HIGH;
+            else if (strcmp(trigger_str, "LOW") == 0) mode = TRIGGER_LOW;
+            else if (strcmp(trigger_str, "CONTINUOUS") == 0) mode = TRIGGER_CONTINUOUS;
+            scanner_.setTriggerMode(mode);
+        }
+        
+        // Start scanning
+        GALVO_LOG("Starting arbitrary point scan with %d points", point_count);
+        scanner_.start();
+        
+        cJSON_AddBoolToObject(response, "success", true);
+        cJSON_AddStringToObject(response, "message", "Arbitrary point scan started");
+        cJSON_AddNumberToObject(response, "point_count", point_count);
+        return response;
+    }
     // Check for save command
     cJSON *save_cmd = cJSON_GetObjectItem(doc, "save");
     if (save_cmd && cJSON_IsTrue(save_cmd))
@@ -315,7 +484,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
     cJSON *config_obj = cJSON_GetObjectItem(doc, "config");
     if (config_obj)
     {
-        GALVO_LOG("CONFIG command received");
+        GALVO_LOG("CONFIG command received - switching to RASTER mode");
 
         ScanConfig config = scanner_.getConfig(); // Start with current config
 
@@ -331,6 +500,9 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         {
             if (scanner_.setConfig(config))
             {
+                // Switch to raster mode when config is provided
+                scanner_.setScanMode(SCAN_MODE_RASTER);
+                
                 GALVO_LOG("Config applied, starting scanner...");
                 scanner_.start();
 
@@ -407,6 +579,21 @@ cJSON *GalvoController::getStatus()
     cJSON_AddNumberToObject(status, "timing_overruns", s.timing_overruns);
     cJSON_AddBoolToObject(status, "auto_start", auto_start_enabled_);
     cJSON_AddBoolToObject(status, "initialized", initialized_);
+
+    // Add scan mode information
+    ScanMode mode = scanner_.getScanMode();
+    cJSON_AddStringToObject(status, "scan_mode", (mode == SCAN_MODE_RASTER) ? "RASTER" : "ARBITRARY");
+    
+    // Add trigger mode information
+    TriggerMode trig_mode = scanner_.getTriggerMode();
+    const char* trig_str = "AUTO";
+    switch (trig_mode) {
+        case TRIGGER_HIGH: trig_str = "HIGH"; break;
+        case TRIGGER_LOW: trig_str = "LOW"; break;
+        case TRIGGER_CONTINUOUS: trig_str = "CONTINUOUS"; break;
+        default: break;
+    }
+    cJSON_AddStringToObject(status, "trigger_mode", trig_str);
 
     // Add current config
     cJSON_AddItemToObject(status, "config", configToJson(scanner_.getConfig()));

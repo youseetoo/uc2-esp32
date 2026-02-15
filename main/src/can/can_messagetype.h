@@ -73,6 +73,7 @@ enum CANMessageTypeID {
 
     GALVO_ACT        = 0x50, // Galvo Messages
     GALVO_STATE      = 0x51,
+    GALVO_POINTS     = 0x52, // Galvo arbitrary point list
 
     OTA_START        = 0x60, // OTA Update Messages (WiFi-based)
     OTA_ACK          = 0x61,

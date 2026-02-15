@@ -21,6 +21,18 @@
 #define GALVO_PREFS_NAMESPACE "galvo"
 
 /**
+ * @brief CAN wire format header for arbitrary point transmission
+ * 
+ * Wire format: [TriggerMode (1 byte)] [PointCount (2 bytes)] [Points (8 bytes each)]
+ */
+#pragma pack(push, 1)
+struct GalvoPointsHeader {
+    uint8_t trigger_mode;    // TriggerMode enum value
+    uint16_t point_count;    // Number of points
+} __attribute__((packed));
+#pragma pack(pop)
+
+/**
  * @brief GalvoData structure for CAN bus communication
  * 
  * Uses legacy field names for CAN protocol compatibility.
@@ -119,6 +131,15 @@ public:
     static bool isRunning() { return scanner_.getStatus().running; }
     static bool setConfig(const ScanConfig& cfg) { return scanner_.setConfig(cfg); }
     static ScanConfig getCurrentConfig() { return scanner_.getConfig(); }
+    
+    // Arbitrary point scan control
+    static bool setArbitraryPoints(const ArbitraryScanPoint* points, uint16_t count) { 
+        return scanner_.setArbitraryPoints(points, count); 
+    }
+    static void setScanMode(ScanMode mode) { scanner_.setScanMode(mode); }
+    static ScanMode getScanMode() { return scanner_.getScanMode(); }
+    static void setTriggerMode(TriggerMode mode) { scanner_.setTriggerMode(mode); }
+    static TriggerMode getTriggerMode() { return scanner_.getTriggerMode(); }
     
 private:
     // Hardware (only used on slave)

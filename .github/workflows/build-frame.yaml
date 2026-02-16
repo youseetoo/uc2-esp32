@@ -78,6 +78,7 @@ jobs:
       - name: Build all environments
         # TODO: Could we do some build caching and/or dependency caching?
         run: |
+          failed=""
           mkdir -p build/fw-images
           pio boards --json-output > boards.json
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
@@ -85,12 +86,14 @@ jobs:
             echo "==> Building $ENV"
             if ! pio run --environment "$ENV"; then
               echo "❌ Build failed for $ENV — continuing with others."
+              failed=true
               continue
             fi
 
             BIN_DIR=".pio/build/$ENV"
             if [[ ! -f "$BIN_DIR/firmware.bin" ]]; then
               echo "⚠️ Skipping merge for $ENV — firmware.bin not found."
+              failed=true
               continue
             fi
 
@@ -123,6 +126,10 @@ jobs:
             # 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
             #  0x10000 "$BIN_DIR/firmware.bin"
           done
+          if [ $failed == true ]; then
+            echo "❌ One or more builds failed!"
+            exit 1
+          fi
 
       - name: Upload all merged binaries as artifacts
         uses: actions/upload-artifact@v4

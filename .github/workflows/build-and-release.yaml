@@ -130,11 +130,10 @@ jobs:
 
           if ! pio run --environment "${{ matrix.env_name }}"; then
             echo "::warning::Build failed or environment not found for ${{ matrix.env_name }}"
-            echo "build_success=false" >> $GITHUB_OUTPUT
-            exit 0
+            echo "build_failed=true" >> $GITHUB_OUTPUT
+            exit 1
           fi
 
-          echo "build_success=true" >> $GITHUB_OUTPUT
 
           BIN_DIR=".pio/build/${{ matrix.env_name }}"
           mkdir -p build/fw-images
@@ -192,7 +191,7 @@ jobs:
           EOF
 
       - name: Upload firmware artifact
-        if: steps.build.outputs.build_success == 'true'
+        if: steps.build.outputs.build_failed != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ matrix.board_id }}

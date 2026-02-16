@@ -126,7 +126,7 @@ jobs:
             # 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
             #  0x10000 "$BIN_DIR/firmware.bin"
           done
-          if [ failed == true ]; then
+          if [ $failed == true ]; then
             echo "❌ One or more builds failed!"
             exit 1
           fi

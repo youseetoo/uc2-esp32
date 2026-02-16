@@ -15,6 +15,7 @@
 #define HIGH_SPEED_SCANNER_CORE_H
 
 #include <stdint.h>
+#include <cmath>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -25,6 +26,74 @@ constexpr int SCANNER_MAX_LINE_SAMPLES = 4096;
 
 // X LUT size for upload (256 entries interpolated to 4096)
 constexpr int SCANNER_X_LUT_N = 256;
+
+// Maximum number of arbitrary scan points
+constexpr int SCANNER_MAX_ARBITRARY_POINTS = 256;
+
+/**
+ * @brief Scan mode enumeration
+ */
+enum ScanMode {
+    SCAN_MODE_RASTER = 0,     // Traditional raster scanning
+    SCAN_MODE_ARBITRARY = 1   // Arbitrary point list scanning
+};
+
+/**
+ * @brief Trigger control mode enumeration
+ */
+enum TriggerMode {
+    TRIGGER_AUTO = 0,         // Auto: HIGH during dwell, LOW during movement
+    TRIGGER_HIGH = 1,         // Force trigger HIGH (manual override)
+    TRIGGER_LOW = 2,          // Force trigger LOW (manual override)
+    TRIGGER_CONTINUOUS = 3    // Continuous: HIGH during entire scan
+};
+
+/**
+ * @brief Single arbitrary scan point with dwell time
+ */
+#pragma pack(push, 1)
+struct ArbitraryScanPoint {
+    uint16_t x;               // X coordinate (0-4095 for 12-bit DAC)
+    uint16_t y;               // Y coordinate (0-4095 for 12-bit DAC)
+    uint32_t dwell_us;        // Dwell time in microseconds
+    
+    ArbitraryScanPoint() : x(2048), y(2048), dwell_us(1000) {}
+    ArbitraryScanPoint(uint16_t x_, uint16_t y_, uint32_t dwell_us_) 
+        : x(x_), y(y_), dwell_us(dwell_us_) {}
+} __attribute__((packed));
+#pragma pack(pop)
+
+/**
+ * @brief Nonlinear 8-bit dwell time encoding (1 µs to 1 second)
+ * 
+ * Uses exponential mapping: dwell_us = 10^(value / 42.5)
+ * Value 0   -> ~1 µs
+ * Value 127 -> ~1000 µs (1 ms)
+ * Value 255 -> ~1000000 µs (1 s)
+ * 
+ * Useful for compact CAN transmission of dwell times.
+ */
+namespace DwellEncoding {
+    // Encode microseconds to 8-bit nonlinear value
+    inline uint8_t encode(uint32_t dwell_us) {
+        if (dwell_us <= 1) return 0;
+        if (dwell_us >= 1000000) return 255;
+        // log10(dwell_us) * 42.5
+        float log_val = log10f((float)dwell_us) * 42.5f;
+        if (log_val < 0) return 0;
+        if (log_val > 255) return 255;
+        return (uint8_t)(log_val + 0.5f);
+    }
+    
+    // Decode 8-bit nonlinear value back to microseconds
+    inline uint32_t decode(uint8_t encoded) {
+        // 10^(encoded / 42.5)
+        float dwell = powf(10.0f, (float)encoded / 42.5f);
+        if (dwell < 1) return 1;
+        if (dwell > 1000000) return 1000000;
+        return (uint32_t)(dwell + 0.5f);
+    }
+}
 
 /**
  * @brief Scan configuration structure
@@ -105,6 +174,36 @@ public:
     const ScanConfig& getConfig() const { return config_; }
 
     /**
+     * @brief Set arbitrary point list for point-based scanning
+     * @param points Array of scan points
+     * @param count Number of points (max SCANNER_MAX_ARBITRARY_POINTS)
+     * @return true if successful, false if count exceeds maximum
+     */
+    bool setArbitraryPoints(const ArbitraryScanPoint* points, uint16_t count);
+
+    /**
+     * @brief Set scan mode (RASTER or ARBITRARY)
+     * @param mode Scan mode
+     */
+    void setScanMode(ScanMode mode);
+
+    /**
+     * @brief Get current scan mode
+     */
+    ScanMode getScanMode() const { return scan_mode_; }
+
+    /**
+     * @brief Set trigger control mode
+     * @param mode Trigger mode (AUTO, HIGH, LOW, CONTINUOUS)
+     */
+    void setTriggerMode(TriggerMode mode);
+
+    /**
+     * @brief Get current trigger mode
+     */
+    TriggerMode getTriggerMode() const { return trigger_mode_; }
+
+    /**
      * @brief Upload X-axis correction LUT (256 entries)
      */
     void setXLUT(const uint16_t* lut256);
@@ -162,8 +261,17 @@ private:
     volatile int32_t overruns_ = 0;
     TaskHandle_t task_handle_ = nullptr;
 
+    // Raster scan buffers
     uint16_t line_x_[SCANNER_MAX_LINE_SAMPLES];
     uint16_t line_len_ = 0;
+
+    // Arbitrary point scan buffers
+    ArbitraryScanPoint arbitrary_points_[SCANNER_MAX_ARBITRARY_POINTS];
+    uint16_t arbitrary_point_count_ = 0;
+    
+    // Scan mode and trigger control
+    ScanMode scan_mode_ = SCAN_MODE_RASTER;
+    TriggerMode trigger_mode_ = TRIGGER_AUTO;
 
     uint16_t x_map_[4096];
     bool x_map_valid_ = false;
@@ -174,6 +282,10 @@ private:
     void triggerPulsePixel();
     void triggerPulseLine();
     void triggerPulseFrame();
+    void setTriggerState(bool high);  // Set trigger pin state based on mode
+    
+    // Arbitrary point scanning helpers
+    void executeArbitraryPointScan();
     
     static inline uint16_t clamp12(int v) {
         if (v < 0) return 0;

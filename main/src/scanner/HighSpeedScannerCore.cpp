@@ -26,6 +26,10 @@ HighSpeedScannerCore::HighSpeedScannerCore()
 {
     config_mutex_ = xSemaphoreCreateMutex();
     buildLineProfile();
+    
+    // Initialize arbitrary point buffer with default center point
+    arbitrary_points_[0] = ArbitraryScanPoint(2048, 2048, 1000);
+    arbitrary_point_count_ = 0;  // Start with no points (disabled)
 }
 
 HighSpeedScannerCore::~HighSpeedScannerCore()
@@ -132,6 +136,59 @@ bool HighSpeedScannerCore::setConfig(const ScanConfig& config)
 
     SCANNER_LOG("Config applied successfully, line_len=%d, bidirectional=%d", line_len_, config.bidirectional);
     return true;
+}
+
+bool HighSpeedScannerCore::setArbitraryPoints(const ArbitraryScanPoint* points, uint16_t count)
+{
+    if (!points || count == 0 || count > SCANNER_MAX_ARBITRARY_POINTS) {
+        SCANNER_LOG("ERROR: Invalid point count %d (max %d)", count, SCANNER_MAX_ARBITRARY_POINTS);
+        return false;
+    }
+
+    xSemaphoreTake(config_mutex_, portMAX_DELAY);
+    
+    // Copy points to internal buffer
+    for (uint16_t i = 0; i < count; ++i) {
+        arbitrary_points_[i] = points[i];
+        
+        // Clamp coordinates to 12-bit range
+        if (arbitrary_points_[i].x > 4095) arbitrary_points_[i].x = 4095;
+        if (arbitrary_points_[i].y > 4095) arbitrary_points_[i].y = 4095;
+    }
+    
+    arbitrary_point_count_ = count;
+    config_changed_ = true;  // Signal task to restart with new config
+    
+    xSemaphoreGive(config_mutex_);
+
+    SCANNER_LOG("Arbitrary points loaded: %d points", count);
+    return true;
+}
+
+void HighSpeedScannerCore::setScanMode(ScanMode mode)
+{
+    xSemaphoreTake(config_mutex_, portMAX_DELAY);
+    scan_mode_ = mode;
+    config_changed_ = true;
+    xSemaphoreGive(config_mutex_);
+    
+    SCANNER_LOG("Scan mode set to %s", (mode == SCAN_MODE_RASTER) ? "RASTER" : "ARBITRARY");
+}
+
+void HighSpeedScannerCore::setTriggerMode(TriggerMode mode)
+{
+    xSemaphoreTake(config_mutex_, portMAX_DELAY);
+    trigger_mode_ = mode;
+    xSemaphoreGive(config_mutex_);
+    
+    const char* mode_str = "UNKNOWN";
+    switch (mode) {
+        case TRIGGER_AUTO: mode_str = "AUTO"; break;
+        case TRIGGER_HIGH: mode_str = "HIGH"; break;
+        case TRIGGER_LOW: mode_str = "LOW"; break;
+        case TRIGGER_CONTINUOUS: mode_str = "CONTINUOUS"; break;
+    }
+    SCANNER_LOG("Trigger mode set to %s", mode_str);
 }
 
 void HighSpeedScannerCore::setXLUT(const uint16_t* lut256)
@@ -270,6 +327,40 @@ void HighSpeedScannerCore::triggerPulseFrame()
     GPIO.out_w1tc = (1U << trigger_pin_frame_);
 }
 
+void HighSpeedScannerCore::setTriggerState(bool high)
+{
+    if (trigger_pin_pixel_ < 0) return;
+    
+    // Check trigger mode priority
+    TriggerMode mode;
+    xSemaphoreTake(config_mutex_, portMAX_DELAY);
+    mode = trigger_mode_;
+    xSemaphoreGive(config_mutex_);
+    
+    // Manual override has highest priority
+    if (mode == TRIGGER_HIGH) {
+        GPIO.out_w1ts = (1U << trigger_pin_pixel_);
+        return;
+    }
+    if (mode == TRIGGER_LOW) {
+        GPIO.out_w1tc = (1U << trigger_pin_pixel_);
+        return;
+    }
+    
+    // Continuous mode: always HIGH during scan
+    if (mode == TRIGGER_CONTINUOUS) {
+        GPIO.out_w1ts = (1U << trigger_pin_pixel_);
+        return;
+    }
+    
+    // Auto mode: respect requested state
+    if (high) {
+        GPIO.out_w1ts = (1U << trigger_pin_pixel_);
+    } else {
+        GPIO.out_w1tc = (1U << trigger_pin_pixel_);
+    }
+}
+
 void HighSpeedScannerCore::taskWrapper(void* param)
 {
     HighSpeedScannerCore* scanner = static_cast<HighSpeedScannerCore*>(param);
@@ -288,7 +379,7 @@ bool HighSpeedScannerCore::createTask(int core_id, int priority)
     BaseType_t ret = xTaskCreatePinnedToCore(
         taskWrapper,
         "galvo_scanner",
-        4096,
+        8192,  // Increased from 4096 to prevent stack overflow with arbitrary point arrays
         this,
         priority,
         &task_handle_,
@@ -342,6 +433,7 @@ void HighSpeedScannerCore::scannerTask()
         xSemaphoreTake(config_mutex_, portMAX_DELAY);
         bool cfg_changed = config_changed_;
         config_changed_ = false;
+        ScanMode current_mode = scan_mode_;
         xSemaphoreGive(config_mutex_);
         
         if (cfg_changed) {
@@ -351,6 +443,28 @@ void HighSpeedScannerCore::scannerTask()
             overruns_ = 0;
         }
 
+        // Route to appropriate scan implementation based on mode
+        if (current_mode == SCAN_MODE_ARBITRARY) {
+            executeArbitraryPointScan();
+            
+            // Check if we should continue looping
+            frame_idx_++;
+            xSemaphoreTake(config_mutex_, portMAX_DELAY);
+            uint16_t fc = config_.frame_count;
+            xSemaphoreGive(config_mutex_);
+            
+            if (fc != 0 && frame_idx_ >= fc) {
+                running_ = false;
+                SCANNER_LOG("Arbitrary point scan completed %d frames", fc);
+            }
+            
+            taskYIELD();
+            vTaskDelay(1);
+            continue;
+        }
+        else if (current_mode == SCAN_MODE_RASTER)
+        {       
+        // RASTER SCAN MODE (existing implementation)
         // Snapshot configuration for this frame
         ScanConfig cfg;
         xSemaphoreTake(config_mutex_, portMAX_DELAY);
@@ -510,5 +624,105 @@ void HighSpeedScannerCore::scannerTask()
         // This allows other tasks to run briefly without impacting scan timing
         taskYIELD();
         vTaskDelay(1); // 1 tick delay between frames to keep watchdog happy
+    }
+}
+}
+
+void HighSpeedScannerCore::executeArbitraryPointScan()
+{
+    // Snapshot point buffer - only allocate space for actual points to save stack
+    xSemaphoreTake(config_mutex_, portMAX_DELAY);
+    uint16_t point_count = arbitrary_point_count_;
+    if (point_count > SCANNER_MAX_ARBITRARY_POINTS) point_count = SCANNER_MAX_ARBITRARY_POINTS;
+    
+    // Allocate only needed points on stack instead of full 256-point array
+    ArbitraryScanPoint* points = (ArbitraryScanPoint*)alloca(point_count * sizeof(ArbitraryScanPoint));
+    for (uint16_t i = 0; i < point_count; ++i) {
+        points[i] = arbitrary_points_[i];
+    }
+    xSemaphoreGive(config_mutex_);
+
+    if (point_count == 0) {
+        SCANNER_LOG("No arbitrary points configured, skipping");
+        vTaskDelay(pdMS_TO_TICKS(100));
+        return;
+    }
+
+    // Log start (only every 100 frames)
+    if (frame_idx_ % 100 == 0) {
+        SCANNER_LOG("Arbitrary point scan frame %lu: %d points", (unsigned long)frame_idx_, point_count);
+    }
+
+    // Initialize trigger state based on mode
+    xSemaphoreTake(config_mutex_, portMAX_DELAY);
+    TriggerMode trig_mode = trigger_mode_;
+    xSemaphoreGive(config_mutex_);
+
+    // Set initial trigger state for continuous mode
+    if (trig_mode == TRIGGER_CONTINUOUS || trig_mode == TRIGGER_HIGH) {
+        setTriggerState(true);
+    } else {
+        setTriggerState(false);
+    }
+
+    // Scan all points in sequence
+    for (uint16_t pt_idx = 0; pt_idx < point_count && running_ && !config_changed_; ++pt_idx) {
+        const ArbitraryScanPoint& pt = points[pt_idx];
+        
+        // Apply X correction LUT if enabled
+        uint16_t x12 = pt.x;
+        xSemaphoreTake(config_mutex_, portMAX_DELAY);
+        bool do_lut = (config_.apply_x_lut != 0) && x_map_valid_;
+        xSemaphoreGive(config_mutex_);
+        
+        if (do_lut) {
+            x12 = applyXMap(x12);
+        }
+        
+        uint16_t y12 = pt.y;
+        
+        // Trigger LOW during movement (unless continuous/manual override)
+        if (trig_mode == TRIGGER_AUTO) {
+            setTriggerState(false);
+        }
+        
+        // Move to position
+        dac_->setX(x12);
+        dac_->setY(y12);
+        dac_->ldacPulse();
+        
+        // Short settling time after movement (allow galvos to reach position)
+        // Use minimal delay to not waste time
+        esp_rom_delay_us(1);
+        
+        // Trigger HIGH during dwell (unless manual override to LOW)
+        if (trig_mode == TRIGGER_AUTO || trig_mode == TRIGGER_CONTINUOUS) {
+            setTriggerState(true);
+        }
+        
+        // Dwell at position
+        if (pt.dwell_us > 0) {
+            // Use precise timing
+            int64_t dwell_start = esp_timer_get_time();
+            int64_t dwell_end = dwell_start + pt.dwell_us;
+            
+            while (esp_timer_get_time() < dwell_end && running_ && !config_changed_) {
+                // Busy wait for precise timing
+                // For very long dwells, could add periodic yields
+                if (pt.dwell_us > 10000) {  // > 10ms
+                    taskYIELD();
+                }
+            }
+        }
+        
+        // Reset watchdog periodically
+        if (pt_idx % 10 == 0) {
+            esp_task_wdt_reset();
+        }
+    }
+
+    // Trigger LOW at end of scan (unless continuous/manual override)
+    if (trig_mode == TRIGGER_AUTO) {
+        setTriggerState(false);
     }
 }

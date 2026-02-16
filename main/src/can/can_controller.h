@@ -113,6 +113,7 @@ namespace can_controller
     #ifdef GALVO_CONTROLLER
     void sendGalvoDataToCANDriver(GalvoData galvoData);
     void sendGalvoStateToMaster(GalvoData galvoData);
+    void sendGalvoPointsToCANDriver(const ArbitraryScanPoint* points, uint16_t count, TriggerMode triggerMode = TRIGGER_AUTO);
     #endif
 
     // TMC 

@@ -88,8 +88,6 @@ struct UC2_3 : PinConfig
      int8_t MOTOR_A_DIR = 4;
 
      
-     bool isDualAxisZ = true;
-     
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_encoderDirection = true; 
      bool ENC_Y_encoderDirection = true; 

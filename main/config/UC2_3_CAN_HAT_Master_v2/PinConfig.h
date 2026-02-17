@@ -108,8 +108,6 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     int8_t MOTOR_Y_STEP = GPIO_NUM_0;
     int8_t MOTOR_Z_STEP = GPIO_NUM_0;
 
-    bool isDualAxisZ = false;
-
     bool ENC_A_encoderDirection = true;
     bool ENC_X_encoderDirection = true;
     bool ENC_Y_encoderDirection = true;

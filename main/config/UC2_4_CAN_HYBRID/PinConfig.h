@@ -54,7 +54,6 @@ struct UC2_4_CAN_HYBRID : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     bool isDualAxisZ = false;
 
      // Direction pins live on TCA9535
      int8_t MOTOR_ENABLE = 0; 

@@ -73,7 +73,6 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_15;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     bool isDualAxisZ = true;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_encoderDirection = true; 

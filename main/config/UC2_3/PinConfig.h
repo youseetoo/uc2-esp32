@@ -102,9 +102,6 @@ struct UC2_3 : PinConfig
     const uint16_t SCANNER_TASK_STACKSIZE = 0;
     const uint16_t TEMPERATURE_TASK_STACKSIZE = 0; // 8096;
 
-
-
-     bool isDualAxisZ = false;
      
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_encoderDirection = true; 

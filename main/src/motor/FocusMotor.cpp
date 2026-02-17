@@ -835,14 +835,6 @@ namespace FocusMotor
 				setPosition(Stepper::Z, 999999);
 				sendMotorPos(Stepper::Z, 0, -3);
 
-				// If dual axis Z is enabled, also stop A
-				if (isDualAxisZ)
-				{
-					stopStepper(Stepper::A);
-					getData()[Stepper::A]->hardLimitTriggered = true;
-					setPosition(Stepper::A, 999999);
-					sendMotorPos(Stepper::A, 0, -3);
-				}
 			}
 		}
 #endif

@@ -15,6 +15,8 @@
 #include <Update.h>
 #include <MD5Builder.h>
 #include <esp_crc.h>
+#include <esp_system.h>      // For esp_get_free_heap_size()
+#include <esp_heap_caps.h>   // For heap_caps_get_largest_free_block()
 
 #ifdef GALVO_CONTROLLER
 #include "../scanner/GalvoController.h"
@@ -92,7 +94,7 @@ static void flashWriterTask(void* param) {
             
             log_i("Page %d written to flash (%lu bytes, %lu cumulative, heap=%lu)", 
                   entry.pageIndex, bytesToWrite, cumulativeBytes,
-                  (unsigned long)ESP.getFreeHeap());
+                  (unsigned long)esp_get_free_heap_size());
         }
     }
 }
@@ -223,7 +225,7 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     
     // Log heap status for debugging
     log_i("Heap at OTA start: free=%lu, largest=%lu", 
-          (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
+          (unsigned long)esp_get_free_heap_size(), (unsigned long)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     
     // Send ACK back to master
     StreamAck ack = {

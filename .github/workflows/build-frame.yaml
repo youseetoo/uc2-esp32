@@ -96,7 +96,7 @@ jobs:
               continue
             fi
 
-            BOARD=$(pio project config --environment "$ENV" --list | grep '^board\s*=' | awk -F= '{print $2}' | xargs)
+            BOARD=$(pio project config -e "$ENV" | grep '^board\s*=' | awk -F= '{print $2}' | xargs)
             CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
 
             if [[ "$CHIP" == *"s3"* ]]; then

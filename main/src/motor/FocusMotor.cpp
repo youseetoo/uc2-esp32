@@ -418,6 +418,7 @@ namespace FocusMotor
 			log_e("Stepper Y data NULL");
 		if (data[Stepper::Z] == nullptr)
 			log_e("Stepper Z data NULL");
+#if MOTOR_AXIS_COUNT > 4
 		if (data[Stepper::B] == nullptr)
 			log_e("Stepper B data NULL");
 		if (data[Stepper::C] == nullptr)
@@ -430,6 +431,7 @@ namespace FocusMotor
 			log_e("Stepper F data NULL");
 		if (data[Stepper::G] == nullptr)
 			log_e("Stepper G data NULL");
+#endif
 
 
 	}

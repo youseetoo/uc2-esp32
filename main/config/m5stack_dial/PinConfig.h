@@ -54,10 +54,9 @@ struct UC2_M5StackDial : PinConfig
      const char * pindefName = "UC2_M5StackDial_CAN";
      const unsigned long BAUDRATE = 115200;
 
-     // CAN Bus Pins (via Grove PORT.B - requires CAN transceiver like SN65HVD230)
-     // NOTE: Cannot use PORT.A (G13/G15) as M5Dial reserves those for internal I2C
-     int8_t CAN_TX = GPIO_NUM_2;   // Grove PORT.B Yellow wire - TWAI TX
-     int8_t CAN_RX = GPIO_NUM_1;   // Grove PORT.B White wire - TWAI RX
+     // CAN Bus Pins (via Grove connector - requires CAN transceiver like SN65HVD230)
+     int8_t CAN_TX = 2;//13;   // Grove Yellow wire - TWAI TX
+     int8_t CAN_RX = 1;//15;   // Grove White wire - TWAI RX
      
      // CAN Configuration
      uint8_t CAN_ID_CENTRAL_NODE = 1;  // This dial acts as central node/master

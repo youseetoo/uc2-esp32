@@ -133,11 +133,7 @@ namespace MotorJsonParser
 			cJsonTool::setJsonInt(aritem, "hardLimitEnabled", FocusMotor::getData()[i]->hardLimitEnabled);
 			cJsonTool::setJsonInt(aritem, "hardLimitPolarity", FocusMotor::getData()[i]->hardLimitPolarity);
 			cJsonTool::setJsonInt(aritem, "hardLimitTriggered", FocusMotor::getData()[i]->hardLimitTriggered);
-#ifdef I2C_SLAVE_MOTOR
-				cJsonTool::setJsonInt(aritem, "motorAddress", i2c_slave_motor::getI2CAddress());
-				
-#endif
-				cJSON_AddItemToArray(stprs, aritem);
+			cJSON_AddItemToArray(stprs, aritem);
 			}
 		}
 		cJSON_AddItemToObject(doc, "qid", cJSON_CreateNumber(qid));
@@ -465,29 +461,7 @@ namespace MotorJsonParser
 		}
 	}
 
-	void parseSetAxis(cJSON *doc)
-	{
-#ifdef I2C_SLAVE_MOTOR
-		cJSON *setaxis = cJSON_GetObjectItem(doc, key_setaxis);
-		if (setaxis != NULL)
-		{
-			cJSON *stprs = cJSON_GetObjectItem(setaxis, key_steppers);
-			if (stprs != NULL)
-			{
-				cJSON *stp = NULL;
-				cJSON_ArrayForEach(stp, stprs)
-				{
-					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-					int axis = cJSON_GetObjectItemCaseSensitive(stp, key_stepperaxis)->valueint;
-					int motorAddress = i2c_addresses[axis];
-					// set the I2C address of the motor
-					log_i("Setting motor axis %i to %i, address:", s, axis, i2c_slave_motor::getI2CAddress());
-					i2c_slave_motor::setI2CAddress(motorAddress);
-				}
-			}
-		}
-#endif
-	}
+
 
 	void parseAutoEnableMotor(cJSON *doc)
 	{
@@ -910,8 +884,7 @@ namespace MotorJsonParser
 		// {"task": "/motor_act", "setdir": {"steppers": [{"stepperid": 0, "dir": 1}]}, "qid": 37}
 		parseMotorPinDirection(doc);
 
-		// set axis of motors
-		parseSetAxis(doc);
+
 
 		// set soft limits of motors
 		// {"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -100000, "max": 10000, "isen": 1}]}}

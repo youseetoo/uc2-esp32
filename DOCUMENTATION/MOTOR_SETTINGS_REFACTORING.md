@@ -145,11 +145,6 @@ i2c_master::resetAllMotorSettingsFlags();
 - **Soft limits update**: `can_controller::sendSoftLimitsToCANDriver()` (now uses MotorSettings)
 - **Receiver**: `can_controller::dispatchIsoTpData()` - handles `sizeof(MotorSettings)`
 
-### I2C Communication
-- **Auto-send on first start**: `i2c_master::startStepper()`
-- **Explicit settings**: `i2c_master::sendMotorSettingsToI2CDriver()`
-- **Receiver**: `i2c_slave_motor::receiveEvent()` - handles `sizeof(MotorSettings)`
-
 ### Message Size Detection
 Both CAN and I2C receivers use `sizeof()` to detect which struct was sent:
 - `sizeof(MotorAction)` = 13 bytes → Runtime command

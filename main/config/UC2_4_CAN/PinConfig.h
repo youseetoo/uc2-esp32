@@ -23,7 +23,6 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #define HOME_MOTOR=1
 #define BTHID=1 
 #define BLUETOOTH=1	
-#define TMC_CONTROLLER=1
 #define OBJECTIVE_CONTROLLER=1
 #define USE_FASTACCEL=1
 struct UC2_4 : PinConfig

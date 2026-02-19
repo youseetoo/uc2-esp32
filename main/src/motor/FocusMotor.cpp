@@ -27,9 +27,6 @@
 #ifdef DIAL_CONTROLLER
 #include "../dial/DialController.h"
 #endif
-#ifdef I2C_SLAVE_MOTOR
-#include "../i2c/i2c_slave_motor.h"
-#endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif

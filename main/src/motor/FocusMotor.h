@@ -42,6 +42,7 @@ namespace FocusMotor
 	void updateData(int axis); // pull motor data to the data-array
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
+	void moveMotor(int32_t pos, int32_t speed, int s, bool isRelative);
 	
 	// Motor position functions
 	long getCurrentMotorPosition(int axis); // Get real-time position from FastAccelStepper

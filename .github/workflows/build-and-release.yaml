@@ -125,7 +125,7 @@ jobs:
       - name: Build firmware
         id: build
         run: |
-          set -e
+          # set -e
           echo "==> Building ${{ matrix.env_name }}"
 
           if ! pio run --environment "${{ matrix.env_name }}"; then
@@ -221,7 +221,7 @@ jobs:
 
       - name: Create firmware index JSON
         run: |
-          set -e
+          # set -e
           cd firmware
           TAG="${{ steps.release_info.outputs.tag }}"
           
@@ -321,7 +321,7 @@ jobs:
       - name: Create branch and copy artifacts
         shell: bash
         run: |
-          set -e
+          # set -e
           TAG="${{ steps.tag.outputs.tag }}"
           cd binaries
           git config user.name "GitHub Actions"
@@ -384,7 +384,7 @@ jobs:
       - name: Rewrite manifests to absolute jsDelivr .bin URLs
         shell: bash
         run: |
-          set -e
+          # set -e
           TAG="${{ steps.tag.outputs.tag }}"
           cd binaries
           BASE="https://raw.githubusercontent.com/youseetoo/uc2-esp32-binaries/refs/heads/${TAG}"
@@ -416,7 +416,7 @@ jobs:
       - name: Commit & push branch
         shell: bash
         run: |
-          set -e
+          # set -e
           TAG="${{ steps.tag.outputs.tag }}"
           cd binaries
           git add .

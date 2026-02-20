@@ -201,19 +201,19 @@ namespace StageScan
                     vTaskDelay(pdMS_TO_TICKS(stageScanningData.delayTimePostTrigger));
 #else
                     // Use direct motor control for non-CAN systems
-                    FocusMotor::moveMotor(targetX, Stepper::X, false); // absolute positioning
+                    FocusMotor::moveMotor(targetX, stageScanningData.speed, Stepper::X, false); // absolute positioning
                     while (FocusMotor::isRunning(Stepper::X))
                     {
                         delay(1);
                     }
 
-                    FocusMotor::moveMotor(targetY, Stepper::Y, false); // absolute positioning
+                    FocusMotor::moveMotor(targetY, stageScanningData.speed, Stepper::Y, false); // absolute positioning
                     while (FocusMotor::isRunning(Stepper::Y))
                     {
                         delay(1);
                     }
 
-                    FocusMotor::moveMotor(targetZ, Stepper::Z, false); // absolute positioning
+                    FocusMotor::moveMotor(targetZ, stageScanningData.speed, Stepper::Z, false); // absolute positioning
                     while (FocusMotor::isRunning(Stepper::Z))
                     {
                         delay(1);
@@ -228,7 +228,7 @@ namespace StageScan
 #if !defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR)
                 if (startX != FocusMotor::getData()[Stepper::X]->currentPosition)
                 {
-                    FocusMotor::moveMotor(startX, Stepper::X, false);
+                    FocusMotor::moveMotor(startX, stageScanningData.speed, Stepper::X, false);
                     while (FocusMotor::isRunning(Stepper::X))
                     {
                         delay(1);
@@ -237,7 +237,7 @@ namespace StageScan
 
                 if (startY != FocusMotor::getData()[Stepper::Y]->currentPosition)
                 {
-                    FocusMotor::moveMotor(startY, Stepper::Y, false);
+                    FocusMotor::moveMotor(startY, stageScanningData.speed, Stepper::Y, false);
                     while (FocusMotor::isRunning(Stepper::Y))
                     {
                         delay(1);
@@ -245,7 +245,7 @@ namespace StageScan
                 }
                 if (startZ != FocusMotor::getData()[Stepper::Z]->currentPosition)
                 {
-                    FocusMotor::moveMotor(startZ, Stepper::Z, false);
+                    FocusMotor::moveMotor(startZ, stageScanningData.speed, Stepper::Z, false);
                     while (FocusMotor::isRunning(Stepper::Z))
                     {
                         delay(1);

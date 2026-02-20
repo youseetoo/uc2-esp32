@@ -55,7 +55,6 @@ namespace FocusMotor
 
 	Preferences preferences;
 	int logcount;
-	bool power_enable = false;
 	bool waitForFirstRun[] = {false, false, false, false};
 
 	xSemaphoreHandle xMutex = NULL;
@@ -612,26 +611,6 @@ namespace FocusMotor
 	}
 #endif // TCA9535
 
-#ifdef I2C_MASTER
-	void setup_i2c_motor()
-	{
-#ifdef I2C_MOTOR
-		// send stop signal to all motors and update motor positions
-		for (int iMotor = 0; iMotor < MOTOR_AXIS_COUNT; iMotor++)
-		{
-			moveMotor(1, 1000, iMotor, true); // wake up motor
-			isActivated[iMotor] = true;
-			stopStepper(iMotor);
-			MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(iMotor);
-			data[iMotor]->currentPosition = mMotorState.currentPosition;
-		}
-#endif
-#if defined DIAL_CONTROLLER
-		// send motor positions to dial
-		i2c_master::pushMotorPosToDial();
-#endif
-	}
-#endif
 	void setup()
 	{
 		// Initialize mutexes FIRST, before any other operations
@@ -1143,18 +1122,6 @@ namespace FocusMotor
 	void stopStepper(int i)
 	{
 
-#if defined(I2C_MASTER) && defined(I2C_MOTOR)
-		// Request data from the slave but only if inside i2cAddresses
-		// esp_backtrace_print(10);
-		log_i("stopStepper I2C_MASTER Focus Motor %i", i);
-		uint8_t slave_addr = i2c_master::axis2address(i);
-		if (!i2c_master::isAddressInI2CDevices(slave_addr))
-		{
-			// we need to wait for the response from the slave to be sure that the motor is running (e.g. motor needs to run before checking if it is stopped)
-			getData()[i]->stopped = true; // stop immediately, so that the return of serial gives the current position
-			sendMotorPos(i, 0);			  // this is an exception. We first get the position, then the success
-		}
-#endif
 
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver

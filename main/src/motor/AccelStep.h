@@ -12,6 +12,7 @@ namespace AccelStep
     static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
     static std::array<AccelStepper *, 4> steppers;
     static std::array<bool ,4> taskRunning;
+    static bool power_enable = false;
 
     void setupAccelStepper();
     void startAccelStepper(int i);

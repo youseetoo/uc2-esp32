@@ -707,6 +707,12 @@ namespace LaserController
 	void setup()
 	{
 		log_i("Setting Up LASERs");
+
+		// Initialize PWM parameters from PinConfig (allows per-board overrides)
+		pwm_frequency = pinConfig.LASER_PWM_FREQUENCY;
+		pwm_resolution = pinConfig.LASER_PWM_RESOLUTION;
+		pwm_max = (long)pow(2, pwm_resolution);
+		log_i("Laser PWM: %d Hz, %d-bit resolution (%ld steps)", pwm_frequency, pwm_resolution, pwm_max);
 		
 		// Setup all lasers using array iteration
 		for (int i = 0; i < MAX_LASERS; i++)

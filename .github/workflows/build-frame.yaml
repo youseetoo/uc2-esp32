@@ -107,23 +107,31 @@ jobs:
               BOOT_ADDR="0x1000"
             fi
 
-            # Merge binaries is not needed when uploading it via espota, alternatively simply rename and copy the bin files 
-            # "$BIN_DIR/firmware.bin"
             echo "==> Copying binaries for $ENV (chip: $CHIP_ARG)"
             OUT_BIN="build/fw-images/esp32_${ENV}.bin"
-            # copy the bin files to the output folder
+            # Copy the single firmware.bin to the output folder
             cp "$BIN_DIR/firmware.bin" "$OUT_BIN"
-            #python -m esptool \
-            #  --chip "$CHIP_ARG" \
-            #  merge_bin \
-            #  -o "$OUT_BIN" \
-            # --flash_mode dio \
-            # --flash_freq 40m \
-            # --flash_size 4MB \
-            # $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
-            # 0x8000 "$BIN_DIR/partitions.bin" \
-            # 0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-            #  0x10000 "$BIN_DIR/firmware.bin"
+
+            # Also produce a merged binary (bootloader + partitions + app in one file)
+            # that can be flashed directly via esptool without specifying offsets.
+            OUT_MERGED="build/fw-images/esp32_${ENV}_merged.bin"
+            BOOT_APP0="$(find ~/.platformio -name "boot_app0.bin" | head -1)"
+            if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" && -n "$BOOT_APP0" ]]; then
+              echo "==> Merging binaries for $ENV -> $OUT_MERGED"
+              python -m esptool \
+                --chip "$CHIP_ARG" \
+                merge_bin \
+                -o "$OUT_MERGED" \
+                --flash_mode dio \
+                --flash_freq 40m \
+                --flash_size 4MB \
+                $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
+                0x8000 "$BIN_DIR/partitions.bin" \
+                0xe000 "$BOOT_APP0" \
+                0x10000 "$BIN_DIR/firmware.bin"
+            else
+              echo "⚠️ Skipping merged binary for $ENV — required files not found."
+            fi
           done
           if [ $failed == true ]; then
             echo "❌ One or more builds failed!"

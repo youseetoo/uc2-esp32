@@ -256,6 +256,14 @@ struct PinConfig
 
      bool testLaserPinOnBoot = false;
 
+     // PWM configuration for laser/LED drivers.
+     // Minimum 10 kHz required for LED drivers to avoid flicker at low dimming levels.
+     // ESP32 LEDC constraint: f_max = 80 MHz / 2^resolution
+     //   10-bit (1024 steps) -> f_max = 78 kHz
+     //   12-bit (4096 steps) -> f_max = 19.5 kHz  (use this for LED drivers >= 10 kHz)
+     int LASER_PWM_FREQUENCY = 5000;  // Hz, default for laser diodes
+     int LASER_PWM_RESOLUTION = 10;   // bits (1024 steps)
+
      int8_t CAMERA_TRIGGER_PIN = disabled;
      bool CAMERA_TRIGGER_INVERTED = false;
      int8_t DIGITAL_IN_1 = disabled;

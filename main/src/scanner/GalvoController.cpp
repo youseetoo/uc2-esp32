@@ -171,10 +171,10 @@ cJSON *GalvoController::act(cJSON *doc)
     {"task": "/galvo_act", "config": {"nx":100,"ny":100,"x_min":500,"x_max":1500,"y_min":500,"y_max":1500,"pre_samples":16,"fly_samples":16,"sample_period_us":20,"trig_delay_us":0,"trig_width_us":20,"line_settle_samples":0,"enable_trigger":1,"apply_x_lut":0,"frame_count":0,"bidirectional":true}}
 
     === ARBITRARY POINT SCAN (new) ===
-    {"task":"/galvo_act", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":1500,"y":2100,"dwell_us":1000},{"x":2000,"y":2500,"dwell_us":250}]}
-    With trigger mode:
+    {"task":"/galvo_act", "points":[{"x":1024,"y":2048,"dwell_us":1000},{"x":1500,"y":2100,"dwell_us":1000},{"x":2000,"y":2500,"dwell_us":1000}]}
+    With trigger mode: # TODO: Check if this is actually working, right now it produces weird issues
     {"task":"/galvo_act", "laser_trigger":"CONTINUOUS", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":2000,"y":2500,"dwell_us":500}]}
-
+    {"task":"/galvo_act", "laser_trigger": "AUTO", "points": [{"x": 299, "y": 199, "dwell_us": 500, "laser_intensity": 128}, {"x": 440, "y": 270, "dwell_us": 500, "laser_intensity": 128}]}'
     === TRIGGER OVERRIDE ===
     {"task":"/galvo_act", "laser_trigger":"HIGH"}
     {"task":"/galvo_act", "laser_trigger":"LOW"}

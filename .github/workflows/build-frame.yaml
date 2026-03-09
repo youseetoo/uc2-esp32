@@ -98,9 +98,16 @@ jobs:
 
             BOARD=$(pio project config | grep "\[env:$ENV\]" -A 20 | grep '^board\s*=' | head -1 | awk -F= '{print $2}' | xargs)
             CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
+            # Normalise to lowercase so the pattern match is case-insensitive
+            # (pio boards may return "ESP32S3", "esp32s3", etc.)
+            CHIP_LOWER="${CHIP,,}"
+            echo "==> Board: $BOARD  MCU (raw): $CHIP  MCU (lower): $CHIP_LOWER"
 
-            if [[ "$CHIP" == *"s3"* ]]; then
+            if [[ "$CHIP_LOWER" == *"s3"* ]]; then
               CHIP_ARG="esp32s3"
+              BOOT_ADDR="0x0000"
+            elif [[ "$CHIP_LOWER" == *"c3"* ]]; then
+              CHIP_ARG="esp32c3"
               BOOT_ADDR="0x0000"
             else
               CHIP_ARG="esp32"

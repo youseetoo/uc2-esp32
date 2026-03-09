@@ -36,10 +36,6 @@ jobs:
             display_name: "UC2 Standalone V4"
             board_id: "esp32-uc2-standalone-4"
             chip_family: "ESP32"
-          - env_name: UC2_4_CAN
-            display_name: "UC2 V4 CAN Master"
-            board_id: "esp32-uc2-v4-can"
-            chip_family: "ESP32"
           - env_name: UC2_4_CAN_HYBRID
             display_name: "UC2 V4 CAN Hybrid"
             board_id: "esp32-uc2-v4-can-hybrid"

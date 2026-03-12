@@ -127,8 +127,12 @@ namespace DialController
         
         log_d("Dial sending motor command: axis=%d, canId=%d, steps=%d", axis, canId, steps);
         
-        // Send via CAN using reduced motor data format
-        int err = can_controller::sendCanMessage(canId, (uint8_t*)&motorCmd, sizeof(MotorDataReduced));
+        // Send via CAN using typed message format (MOTOR_ACT_REDUCED 0x15 prefix).
+        // This matches what can_controller::startStepper() sends and what the slave
+        // dispatch table expects. Using raw sendCanMessage() would omit the type
+        // prefix, causing the slave to misinterpret the first byte of targetPosition
+        // as an unknown message type and silently drop the payload.
+        int err = can_controller::sendTypedCanMessage(canId, MOTOR_ACT_REDUCED, (uint8_t*)&motorCmd, sizeof(MotorDataReduced));
         if (err != 0)
         {
             log_e("Failed to send motor command via CAN");

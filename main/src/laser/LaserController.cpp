@@ -4,6 +4,7 @@
 #include "JsonKeys.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
+#include "../qid/QidRegistry.h"
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
@@ -188,11 +189,22 @@ namespace LaserController
 			}
 			
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
+		// Laser is synchronous: register and immediately report done
+		if (qid > 0)
+		{
+			QidRegistry::registerQid(qid, 1);
+			QidRegistry::reportActionDone(qid);
 		}
-		
 		State::setBusy(false);
+		return qid;
+	}
+	
+	// No LASERval provided - still report QID done if set
+	if (qid > 0)
+	{
+		QidRegistry::registerQid(qid, 1);
+		QidRegistry::reportActionDone(qid);
+	}
 		return qid;
 	}
 

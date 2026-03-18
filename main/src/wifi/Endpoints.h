@@ -103,6 +103,11 @@ __attribute__ ((unused)) static const  char* bt_paireddevices_endpoint = "/bt_pa
 
 __attribute__ ((unused)) static const  char* modules_get_endpoint = "/modules_get";
 
+// QID tracking endpoints
+__attribute__ ((unused)) static const  char* qid_state_endpoint = "/qid_state";
+__attribute__ ((unused)) static const  char* qid_pause_endpoint = "/qid_pause";
+__attribute__ ((unused)) static const  char* qid_resume_endpoint = "/qid_resume";
+
 #ifdef HEAT_CONTROLLER
 __attribute__ ((unused)) static const  char* heat_act_endpoint = "/heat_act";
 __attribute__ ((unused)) static const  char* heat_get_endpoint = "/heat_get";

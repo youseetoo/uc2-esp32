@@ -10,7 +10,7 @@ struct MotorState {
 	int32_t currentPosition = 0;
 	bool isRunning = 0;
 	uint8_t axis = 0;
-	//bool isForever = 0;
+	int16_t qid = -1;  // QID for tracking command completion across CAN
 };
 #pragma pack(pop)
 

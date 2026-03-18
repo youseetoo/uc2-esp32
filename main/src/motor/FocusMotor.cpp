@@ -7,6 +7,7 @@
 #include "../../cJsonTool.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
+#include "../qid/QidRegistry.h"
 #include "esp_debug_helpers.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
@@ -177,6 +178,7 @@ namespace FocusMotor
 			log_i("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
 			getData()[axis]->stopped = true;
 			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
+			QidRegistry::reportActionError(getData()[axis]->qid);
 			return;
 		}
 
@@ -907,6 +909,9 @@ namespace FocusMotor
 
 	void loop()
 	{
+		// Check for QID timeouts
+		QidRegistry::tickTimeout();
+
 // Check hard limits ONCE per loop iteration (not per motor)
 // Hard limits are only checked on slaves or non-CAN configurations
 #if (!defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR))
@@ -1181,6 +1186,8 @@ namespace FocusMotor
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
 		sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
+		// Report to QID registry that this axis is done
+		QidRegistry::reportActionDone(data[i]->qid);
 	}
 
 	uint32_t getPosition(Stepper s)

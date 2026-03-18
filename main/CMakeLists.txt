@@ -55,6 +55,7 @@ set(srcs    ${mainsrc}main.cpp
             ${mainsrc}cJSON/cJSON.h
             ${mainsrc}cJSON/cJSON_Utils.h
             ${mainsrc}src/serial/SerialProcess.cpp
+            ${mainsrc}src/qid/QidRegistry.cpp
             ${mainsrc}src/state/State.cpp
             ${mainsrc}src/config/ConfigController.cpp
             ${mainsrc}src/encoder/InterruptController.cpp

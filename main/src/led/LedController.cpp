@@ -5,6 +5,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
+#include "../qid/QidRegistry.h"
 
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
@@ -897,6 +898,12 @@ namespace LedController
 #endif
 
 
+		// LED is synchronous: register and immediately report done
+		if (cmd.qid > 0)
+		{
+			QidRegistry::registerQid(cmd.qid, 1);
+			QidRegistry::reportActionDone(cmd.qid);
+		}
 
 		return cmd.qid; // return the same QID
 	}

@@ -13,6 +13,7 @@
 #include <ArduinoOTA.h>
 #include <Update.h>
 #include <esp_task_wdt.h>
+#include "../qid/QidRegistry.h"
 
 #include "esp_log.h"
 #include "esp_debug_helpers.h"
@@ -408,7 +409,15 @@ namespace can_controller
             }
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
+            // Update QID from CAN slave response
+            if (receivedMotorState.qid > 0)
+                FocusMotor::getData()[mStepper]->qid = receivedMotorState.qid;
             FocusMotor::sendMotorPos(mStepper, 0);
+            // Report to QID registry if motor stopped
+            if (!receivedMotorState.isRunning && receivedMotorState.qid > 0)
+            {
+                QidRegistry::reportActionDone(receivedMotorState.qid);
+            }
             if (debugState)
                 log_i("MOTOR_STATE: axis=%d, pos=%d, running=%d",
                       mStepper, receivedMotorState.currentPosition, receivedMotorState.isRunning);
@@ -1645,6 +1654,7 @@ namespace can_controller
         motorState.currentPosition = motorData.currentPosition;
         motorState.isRunning = !motorData.stopped;
         motorState.axis = CANid2axis(slave_addr);
+        motorState.qid = motorData.qid;
         int err = sendTypedCanMessage(receiverID, MOTOR_STATE, (uint8_t *)&motorState, sizeof(MotorState));
         if (err != 0)
         {

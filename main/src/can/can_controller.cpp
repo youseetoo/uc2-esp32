@@ -409,19 +409,34 @@ namespace can_controller
             }
             FocusMotor::getData()[mStepper]->currentPosition = receivedMotorState.currentPosition;
             FocusMotor::getData()[mStepper]->stopped = !receivedMotorState.isRunning;
-            // Update QID from CAN slave response
-            if (receivedMotorState.qid > 0)
-                FocusMotor::getData()[mStepper]->qid = receivedMotorState.qid;
             FocusMotor::sendMotorPos(mStepper, 0);
-            // Report to QID registry if motor stopped
-            if (!receivedMotorState.isRunning && receivedMotorState.qid > 0)
-            {
-                QidRegistry::reportActionDone(receivedMotorState.qid);
-            }
             if (debugState)
                 log_i("MOTOR_STATE: axis=%d, pos=%d, running=%d",
                       mStepper, receivedMotorState.currentPosition, receivedMotorState.isRunning);
 #endif
+            break;
+        }
+
+        // ============================================================
+        // QID Completion Reports (Slave -> Master)
+        // ============================================================
+        case QID_REPORT:
+        {
+            if (payloadSize != sizeof(QidReport))
+            {
+                log_e("QID_REPORT: Invalid payload size %u, expected %u", payloadSize, sizeof(QidReport));
+                break;
+            }
+            QidReport report;
+            memcpy(&report, payload, sizeof(QidReport));
+            log_i("QID_REPORT: qid=%d, state=%d from txID=%u", report.qid, report.state, txID);
+            if (report.qid > 0)
+            {
+                if (report.state == 0)
+                    QidRegistry::reportActionDone(report.qid);
+                else
+                    QidRegistry::reportActionError(report.qid);
+            }
             break;
         }
 
@@ -1654,7 +1669,6 @@ namespace can_controller
         motorState.currentPosition = motorData.currentPosition;
         motorState.isRunning = !motorData.stopped;
         motorState.axis = CANid2axis(slave_addr);
-        motorState.qid = motorData.qid;
         int err = sendTypedCanMessage(receiverID, MOTOR_STATE, (uint8_t *)&motorState, sizeof(MotorState));
         if (err != 0)
         {
@@ -1673,6 +1687,19 @@ namespace can_controller
 #ifdef MOTOR_CONTROLLER
         sendMotorStateToCANMaster(*getData()[pinConfig.REMOTE_MOTOR_AXIS_ID]);
 #endif
+    }
+
+    void sendQidReportToMaster(int16_t qid, uint8_t state)
+    {
+        QidReport report;
+        report.qid = qid;
+        report.state = state;
+        uint8_t receiverID = pinConfig.CAN_ID_CENTRAL_NODE;
+        int err = sendTypedCanMessage(receiverID, QID_REPORT, (uint8_t *)&report, sizeof(QidReport));
+        if (err != 0)
+            log_e("Error sending QID_REPORT qid=%d to master", qid);
+        else
+            log_i("Sent QID_REPORT qid=%d state=%d to master", qid, state);
     }
 
     bool isMotorRunning(int axis)

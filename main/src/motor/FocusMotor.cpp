@@ -178,7 +178,12 @@ namespace FocusMotor
 			log_i("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
 			getData()[axis]->stopped = true;
 			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
+#ifdef CAN_RECEIVE_MOTOR
+			if (getData()[axis]->qid > 0)
+				can_controller::sendQidReportToMaster(getData()[axis]->qid, 1);
+#else
 			QidRegistry::reportActionError(getData()[axis]->qid);
+#endif
 			return;
 		}
 
@@ -1186,8 +1191,14 @@ namespace FocusMotor
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
 		sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
-		// Report to QID registry that this axis is done
+		// Report QID completion
+#ifdef CAN_RECEIVE_MOTOR
+		// On CAN slave: send QID report to master via dedicated CAN message
+		if (data[i]->qid > 0)
+			can_controller::sendQidReportToMaster(data[i]->qid, 0);
+#else
 		QidRegistry::reportActionDone(data[i]->qid);
+#endif
 	}
 
 	uint32_t getPosition(Stepper s)

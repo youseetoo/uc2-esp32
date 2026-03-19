@@ -1358,6 +1358,11 @@ namespace can_controller
         debugState = pinConfig.DEBUG_CAN_ISO_TP;
             
         device_can_id = getCANAddress();
+#ifdef CAN_SEND_COMMANDS
+        // Master must always listen on the central node address,
+        // regardless of what may have been stored in preferences
+        device_can_id = pinConfig.CAN_ID_CENTRAL_NODE;
+#endif
         log_i("Setting up CAN controller on port TX: %d, RX: %d using address: %u", pinConfig.CAN_TX, pinConfig.CAN_RX, device_can_id);
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
@@ -1434,10 +1439,15 @@ namespace can_controller
 
         if (address != NULL)
         {
+#ifdef CAN_SEND_COMMANDS
+            // Master must always keep CAN_ID_CENTRAL_NODE as its receive address
+            log_w("Master CAN address cannot be changed via /can_act (always CAN_ID_CENTRAL_NODE=%u)", pinConfig.CAN_ID_CENTRAL_NODE);
+#else
             setCANAddress(address->valueint);
             device_can_id = address->valueint;
             if (debugState)
                 log_i("Set CAN address to %u", address->valueint);
+#endif
             return 1;
         }
 

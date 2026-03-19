@@ -20,6 +20,7 @@ namespace QidRegistry
         xQidMutex = xSemaphoreCreateMutex();
         for (int i = 0; i < QID_REGISTRY_SIZE; i++)
         {
+            // Initialize all entries as free
             entries[i].state = QID_FREE;
             entries[i].qid = -1;
         }

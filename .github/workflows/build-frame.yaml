@@ -96,78 +96,27 @@ jobs:
             fi
 
             # ------------------------------------------------------------------
-            # Resolve the board id for this environment, following 'extends'
-            # chains in platformio.ini.  A simple grep -A 20 fails when the
-            # target env uses 'extends' and has no 'board =' of its own
-            # (e.g. seeed_xiao_esp32s3 → UC2_3_Xiao → board = seeed_xiao_esp32s3).
-            # We walk the chain with Python so every inherited board is found.
+            # Determine chip type directly from the environment name.
+            #
+            # A board lookup via 'pio project config | grep board' silently
+            # fails for envs that inherit 'board' through 'extends' (e.g.
+            # seeed_xiao_esp32s3 -> UC2_3_Xiao -> board = seeed_xiao_esp32s3).
+            # When BOARD comes back empty the jq lookup returns nothing, CHIP
+            # is empty, and the else branch fires -> wrong BOOT_ADDR / flash
+            # params -> binary built for classic ESP32 -> boot-loop on S3.
+            #
+            # Matching on the ENV name is reliable for this project because
+            # every environment name encodes the target chip:
+            #   seeed_*  /  *esp32s3*  ->  ESP32-S3  (qio, 80m, boot @ 0x0)
+            #   *esp32c3*              ->  ESP32-C3  (qio, 80m, boot @ 0x0)
+            #   everything else        ->  classic ESP32 (dio, 40m, boot @ 0x1000)
             # ------------------------------------------------------------------
-            BOARD=$(python3 - "$ENV" <<'PYEOF'
-import sys, re, configparser
-
-env_name = sys.argv[1]
-
-# configparser handles [env:X] sections natively
-cfg = configparser.RawConfigParser()
-cfg.read("platformio.ini")
-
-def get_with_extends(section, key):
-    """Walk the extends chain to find 'key' in 'section' or any parent."""
-    visited = set()
-    queue = [section]
-    while queue:
-        sec = queue.pop(0)
-        if sec in visited:
-            continue
-        visited.add(sec)
-        if cfg.has_section(sec) and cfg.has_option(sec, key):
-            return cfg.get(sec, key).strip()
-        # Follow extends
-        if cfg.has_section(sec) and cfg.has_option(sec, "extends"):
-            parents = [p.strip() for p in cfg.get(sec, "extends").split(",")]
-            queue.extend(parents)
-    return ""
-
-section = f"env:{env_name}"
-board = get_with_extends(section, "board")
-print(board)
-PYEOF
-)
-            CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
-            # Normalise to lowercase so the pattern match is case-insensitive
-            # (pio boards may return "ESP32S3", "esp32s3", etc.)
-            CHIP_LOWER="${CHIP,,}"
-            echo "==> Board: $BOARD  MCU (raw): $CHIP  MCU (lower): $CHIP_LOWER"
-
-            # ---------------------------------------------------------------
-            # Set chip-specific flash parameters.
-            #
-            # ESP32-S3 / ESP32-C3 (RISC-V / LX7):
-            #   - Bootloader lives at 0x0 (not 0x1000 like classic ESP32)
-            #   - Flash mode must be qio  (platformio.ini: board_build.flash_mode = qio)
-            #   - Flash freq 80m is the correct default for these chips
-            #
-            # Classic ESP32:
-            #   - Bootloader at 0x1000
-            #   - Flash mode dio, freq 40m are safe defaults
-            #
-            # Using the wrong flash_mode in merge_bin will overwrite the
-            # binary header and produce "invalid header" / boot-loop errors.
-            #
-            # IMPORTANT: the chip detection MUST succeed before reaching the
-            # merge step.  If CHIP_LOWER is empty (board not resolved) the else
-            # branch fires and produces a broken classic-ESP32 binary.
-            # ---------------------------------------------------------------
-            if [[ -z "$CHIP_LOWER" ]]; then
-              echo "❌ Could not determine chip type for $ENV (board='$BOARD') — skipping merge."
-              failed=true
-              continue
-            elif [[ "$CHIP_LOWER" == *"s3"* ]]; then
+            if [[ "$ENV" == seeed_* ]] || [[ "$ENV" == *"esp32s3"* ]]; then
               CHIP_ARG="esp32s3"
               BOOT_ADDR="0x0000"
               FLASH_MODE="qio"
               FLASH_FREQ="80m"
-            elif [[ "$CHIP_LOWER" == *"c3"* ]]; then
+            elif [[ "$ENV" == *"esp32c3"* ]]; then
               CHIP_ARG="esp32c3"
               BOOT_ADDR="0x0000"
               FLASH_MODE="qio"

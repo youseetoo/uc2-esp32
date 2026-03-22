@@ -74,57 +74,103 @@ jobs:
           echo "$envs"
           echo "envs=$(echo "$envs" | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
-      - name: Build and Merge Environments
+      - name: Build all environments
         run: |
           failed=""
           mkdir -p build/fw-images
           pio boards --json-output > boards.json
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
-          
           for ENV in "${ENVS[@]}"; do
             echo "==> Building $ENV"
             if ! pio run --environment "$ENV"; then
-              failed=true; continue
+              echo "❌ Build failed for $ENV — continuing with others."
+              failed=true
+              continue
             fi
 
             BIN_DIR=".pio/build/$ENV"
-            
-            # Identify Chip and Flash Mode from PlatformIO
+            if [[ ! -f "$BIN_DIR/firmware.bin" ]]; then
+              echo "⚠️ Skipping merge for $ENV — firmware.bin not found."
+              failed=true
+              continue
+            fi
+
             BOARD=$(pio project config | grep "\[env:$ENV\]" -A 20 | grep '^board\s*=' | head -1 | awk -F= '{print $2}' | xargs)
-            CHIP_RAW=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
-            CHIP_LOWER="${CHIP_RAW,,}"
-            
-            # Extract flash mode from ini, default to dio if not found
-            FLASH_MODE=$(pio project config | grep "\[env:$ENV\]" -A 20 | grep '^board_build.flash_mode' | awk -F= '{print $2}' | xargs || echo "dio")
-            
+            CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
+            # Normalise to lowercase so the pattern match is case-insensitive
+            # (pio boards may return "ESP32S3", "esp32s3", etc.)
+            CHIP_LOWER="${CHIP,,}"
+            echo "==> Board: $BOARD  MCU (raw): $CHIP  MCU (lower): $CHIP_LOWER"
+
+            # ---------------------------------------------------------------
+            # Set chip-specific flash parameters.
+            #
+            # ESP32-S3 / ESP32-C3 (RISC-V / LX7):
+            #   - Bootloader lives at 0x0 (not 0x1000 like classic ESP32)
+            #   - Flash mode must be qio  (platformio.ini: board_build.flash_mode = qio)
+            #   - Flash freq 80m is the correct default for these chips
+            #
+            # Classic ESP32:
+            #   - Bootloader at 0x1000
+            #   - Flash mode dio, freq 40m are safe defaults
+            #
+            # Using the wrong flash_mode in merge_bin will overwrite the
+            # binary header and produce "invalid header" / boot-loop errors.
+            # ---------------------------------------------------------------
             if [[ "$CHIP_LOWER" == *"s3"* ]]; then
               CHIP_ARG="esp32s3"
-              BOOT_ADDR="0x0"
+              BOOT_ADDR="0x0000"
+              FLASH_MODE="qio"
+              FLASH_FREQ="80m"
             elif [[ "$CHIP_LOWER" == *"c3"* ]]; then
               CHIP_ARG="esp32c3"
-              BOOT_ADDR="0x0"
+              BOOT_ADDR="0x0000"
+              FLASH_MODE="qio"
+              FLASH_FREQ="80m"
             else
               CHIP_ARG="esp32"
               BOOT_ADDR="0x1000"
+              FLASH_MODE="dio"
+              FLASH_FREQ="40m"
             fi
 
-            OUT_MERGED="build/fw-images/esp32_${ENV}_merged.bin"
-            BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -1)
+            echo "==> Copying binaries for $ENV (chip: $CHIP_ARG, flash_mode: $FLASH_MODE, flash_freq: $FLASH_FREQ)"
+            OUT_BIN="build/fw-images/esp32_${ENV}.bin"
+            cp "$BIN_DIR/firmware.bin" "$OUT_BIN"
 
-            if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" ]]; then
-              echo "==> Merging for $CHIP_ARG using mode: $FLASH_MODE"
-              python -m esptool --chip "$CHIP_ARG" merge_bin \
+            # Also produce a merged binary (bootloader + partitions + app in one file)
+            # that can be flashed directly via esptool without specifying offsets:
+            #
+            #   esptool.py --chip <chip> write_flash 0x0 esp32_<ENV>_merged.bin
+            #
+            # Note: --target-offset is intentionally omitted so the merged image
+            # starts at the lowest address present (the bootloader address).
+            OUT_MERGED="build/fw-images/esp32_${ENV}_merged.bin"
+            BOOT_APP0="$(find ~/.platformio -name "boot_app0.bin" | head -1)"
+            if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" && -n "$BOOT_APP0" ]]; then
+              echo "==> Merging binaries for $ENV -> $OUT_MERGED"
+              python -m esptool \
+                --chip "$CHIP_ARG" \
+                merge_bin \
                 -o "$OUT_MERGED" \
                 --flash_mode "$FLASH_MODE" \
-                --flash_freq 40m \
+                --flash_freq "$FLASH_FREQ" \
                 --flash_size 4MB \
-                $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
-                0x8000 "$BIN_DIR/partitions.bin" \
-                0xe000 "$BOOT_APP0" \
-                0x10000 "$BIN_DIR/firmware.bin"
+                "$BOOT_ADDR" "$BIN_DIR/bootloader.bin" \
+                0x8000      "$BIN_DIR/partitions.bin" \
+                0xe000      "$BOOT_APP0" \
+                0x10000     "$BIN_DIR/firmware.bin"
+            else
+              echo "⚠️ Skipping merged binary for $ENV — required files not found."
+              echo "   bootloader.bin : $(ls $BIN_DIR/bootloader.bin 2>/dev/null || echo MISSING)"
+              echo "   partitions.bin : $(ls $BIN_DIR/partitions.bin 2>/dev/null || echo MISSING)"
+              echo "   boot_app0.bin  : ${BOOT_APP0:-MISSING}"
             fi
           done
-          [[ $failed == true ]] && exit 1 || exit 0
+          if [ $failed == true ]; then
+            echo "❌ One or more builds failed!"
+            exit 1
+          fi
 
       - name: Upload all merged binaries as artifacts
         uses: actions/upload-artifact@v4
@@ -165,14 +211,13 @@ jobs:
         with:
           string: ${{ env.CTR_IMAGE_REGISTRY }}/${{ env.CTR_IMAGE_NAME }}
 
-      # Build and publish Docker container image
       - name: Get Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.image_registry_case.outputs.lowercase }}
           tags: |
-            type=sha # this sha doesn't appear to correspond to the git sha
+            type=sha
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -231,8 +276,6 @@ jobs:
           pattern: ctr-image-digests-*
           merge-multiple: true
 
-      # Work around a bug where capital letters in the GitHub username (e.g. "PlanktoScope") make it
-      # impossible to push to GHCR. See https://github.com/macbre/push-to-ghcr/issues/12
       - name: Lowercase image registry and owner
         id: image_registry_case
         uses: ASzc/change-string-case-action@v6
@@ -240,8 +283,6 @@ jobs:
           string: ${{ env.CTR_IMAGE_REGISTRY }}/${{ env.CTR_IMAGE_NAME }}
 
       - name: Get actual commit SHA
-        # Get the SHA of the actual commit (not the fake merge commit) on PR-triggered runs
-        # (refer to https://stackoverflow.com/a/68068674/23202949):
         run: |
           if [[ -n "${{ github.event.pull_request.head.sha }}" ]]; then
             printf "ACTUAL_SHA=%.7s" "${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
@@ -249,7 +290,6 @@ jobs:
             printf "ACTUAL_SHA=%.7s" "${{ github.sha }}" >> $GITHUB_ENV
           fi
 
-      # Build and publish Docker container image
       - name: Get Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -258,7 +298,7 @@ jobs:
         with:
           images: ${{ steps.image_registry_case.outputs.lowercase }}
           tags: |
-            type=match,pattern=${{ env.TAG_PREFIX }}(.*),group=1 # this implicitly updates latest
+            type=match,pattern=${{ env.TAG_PREFIX }}(.*),group=1
             type=edge,branch=${{ env.MAIN_BRANCH }}
             type=ref,event=pr
             type=raw,value=sha-${{ env.ACTUAL_SHA }},enable=${{ env.ACTUAL_SHA != '' }},priority=100

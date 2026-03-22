@@ -95,7 +95,44 @@ jobs:
               continue
             fi
 
-            BOARD=$(pio project config | grep "\[env:$ENV\]" -A 20 | grep '^board\s*=' | head -1 | awk -F= '{print $2}' | xargs)
+            # ------------------------------------------------------------------
+            # Resolve the board id for this environment, following 'extends'
+            # chains in platformio.ini.  A simple grep -A 20 fails when the
+            # target env uses 'extends' and has no 'board =' of its own
+            # (e.g. seeed_xiao_esp32s3 → UC2_3_Xiao → board = seeed_xiao_esp32s3).
+            # We walk the chain with Python so every inherited board is found.
+            # ------------------------------------------------------------------
+            BOARD=$(python3 - "$ENV" <<'PYEOF'
+import sys, re, configparser
+
+env_name = sys.argv[1]
+
+# configparser handles [env:X] sections natively
+cfg = configparser.RawConfigParser()
+cfg.read("platformio.ini")
+
+def get_with_extends(section, key):
+    """Walk the extends chain to find 'key' in 'section' or any parent."""
+    visited = set()
+    queue = [section]
+    while queue:
+        sec = queue.pop(0)
+        if sec in visited:
+            continue
+        visited.add(sec)
+        if cfg.has_section(sec) and cfg.has_option(sec, key):
+            return cfg.get(sec, key).strip()
+        # Follow extends
+        if cfg.has_section(sec) and cfg.has_option(sec, "extends"):
+            parents = [p.strip() for p in cfg.get(sec, "extends").split(",")]
+            queue.extend(parents)
+    return ""
+
+section = f"env:{env_name}"
+board = get_with_extends(section, "board")
+print(board)
+PYEOF
+)
             CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
             # Normalise to lowercase so the pattern match is case-insensitive
             # (pio boards may return "ESP32S3", "esp32s3", etc.)
@@ -116,8 +153,16 @@ jobs:
             #
             # Using the wrong flash_mode in merge_bin will overwrite the
             # binary header and produce "invalid header" / boot-loop errors.
+            #
+            # IMPORTANT: the chip detection MUST succeed before reaching the
+            # merge step.  If CHIP_LOWER is empty (board not resolved) the else
+            # branch fires and produces a broken classic-ESP32 binary.
             # ---------------------------------------------------------------
-            if [[ "$CHIP_LOWER" == *"s3"* ]]; then
+            if [[ -z "$CHIP_LOWER" ]]; then
+              echo "❌ Could not determine chip type for $ENV (board='$BOARD') — skipping merge."
+              failed=true
+              continue
+            elif [[ "$CHIP_LOWER" == *"s3"* ]]; then
               CHIP_ARG="esp32s3"
               BOOT_ADDR="0x0000"
               FLASH_MODE="qio"

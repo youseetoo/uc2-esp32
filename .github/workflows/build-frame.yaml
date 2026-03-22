@@ -74,77 +74,57 @@ jobs:
           echo "$envs"
           echo "envs=$(echo "$envs" | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
 
-      - name: Build all environments
-        # TODO: Could we do some build caching and/or dependency caching?
+      - name: Build and Merge Environments
         run: |
           failed=""
           mkdir -p build/fw-images
           pio boards --json-output > boards.json
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
+          
           for ENV in "${ENVS[@]}"; do
             echo "==> Building $ENV"
             if ! pio run --environment "$ENV"; then
-              echo "❌ Build failed for $ENV — continuing with others."
-              failed=true
-              continue
+              failed=true; continue
             fi
 
             BIN_DIR=".pio/build/$ENV"
-            if [[ ! -f "$BIN_DIR/firmware.bin" ]]; then
-              echo "⚠️ Skipping merge for $ENV — firmware.bin not found."
-              failed=true
-              continue
-            fi
-
+            
+            # Identify Chip and Flash Mode from PlatformIO
             BOARD=$(pio project config | grep "\[env:$ENV\]" -A 20 | grep '^board\s*=' | head -1 | awk -F= '{print $2}' | xargs)
-            CHIP=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
-            # Normalise to lowercase so the pattern match is case-insensitive
-            # (pio boards may return "ESP32S3", "esp32s3", etc.)
-            CHIP_LOWER="${CHIP,,}"
-            echo "==> Board: $BOARD  MCU (raw): $CHIP  MCU (lower): $CHIP_LOWER"
-
+            CHIP_RAW=$(jq -r ".[] | select(.id==\"$BOARD\") | .mcu" boards.json)
+            CHIP_LOWER="${CHIP_RAW,,}"
+            
+            # Extract flash mode from ini, default to dio if not found
+            FLASH_MODE=$(pio project config | grep "\[env:$ENV\]" -A 20 | grep '^board_build.flash_mode' | awk -F= '{print $2}' | xargs || echo "dio")
+            
             if [[ "$CHIP_LOWER" == *"s3"* ]]; then
               CHIP_ARG="esp32s3"
-              BOOT_ADDR="0x0000"
+              BOOT_ADDR="0x0"
             elif [[ "$CHIP_LOWER" == *"c3"* ]]; then
               CHIP_ARG="esp32c3"
-              BOOT_ADDR="0x0000"
+              BOOT_ADDR="0x0"
             else
               CHIP_ARG="esp32"
               BOOT_ADDR="0x1000"
             fi
 
-            echo "==> Copying binaries for $ENV (chip: $CHIP_ARG)"
-            OUT_BIN="build/fw-images/esp32_${ENV}.bin"
-            # Copy the single firmware.bin to the output folder
-            cp "$BIN_DIR/firmware.bin" "$OUT_BIN"
-
-            # Also produce a merged binary (bootloader + partitions + app in one file)
-            # that can be flashed directly via esptool without specifying offsets.
             OUT_MERGED="build/fw-images/esp32_${ENV}_merged.bin"
-            BOOT_APP0="$(find ~/.platformio -name "boot_app0.bin" | head -1)"
-            if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" && -n "$BOOT_APP0" ]]; then
-              echo "==> Merging binaries for $ENV -> $OUT_MERGED"
-              python -m esptool \
-                --chip "$CHIP_ARG" \
-                merge_bin \
+            BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -1)
+
+            if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" ]]; then
+              echo "==> Merging for $CHIP_ARG using mode: $FLASH_MODE"
+              python -m esptool --chip "$CHIP_ARG" merge_bin \
                 -o "$OUT_MERGED" \
-                --target-offset 0x0 \
-                --flash_mode dio \
+                --flash_mode "$FLASH_MODE" \
                 --flash_freq 40m \
                 --flash_size 4MB \
                 $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
                 0x8000 "$BIN_DIR/partitions.bin" \
                 0xe000 "$BOOT_APP0" \
                 0x10000 "$BIN_DIR/firmware.bin"
-            else
-              echo "⚠️ Skipping merged binary for $ENV — required files not found."
             fi
           done
-          if [ $failed == true ]; then
-            echo "❌ One or more builds failed!"
-            exit 1
-          fi
+          [[ $failed == true ]] && exit 1 || exit 0
 
       - name: Upload all merged binaries as artifacts
         uses: actions/upload-artifact@v4

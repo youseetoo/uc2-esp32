@@ -141,7 +141,41 @@ jobs:
             # starts at the lowest address present (the bootloader address).
             OUT_MERGED="build/fw-images/esp32_${ENV}_merged.bin"
             BOOT_APP0="$(find ~/.platformio -name "boot_app0.bin" | head -1)"
-            if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" && -n "$BOOT_APP0" ]]; then
+
+            # ------------------------------------------------------------------
+            # Bootloader selection for merged binary
+            #
+            # The compiled bootloader.bin (from $BIN_DIR) for seeed_* / esp32s3
+            # environments may be built WITHOUT Octal PSRAM support because the
+            # CAN slave sdkconfigs do not set CONFIG_SPIRAM.  The Seeed XIAO
+            # ESP32-S3 has 8 MB Octal PSRAM hardwired; a PSRAM-unaware bootloader
+            # corrupts the flash bus during init → TG0WDT boot-loop.
+            #
+            # The pre-built bootloader shipped with the arduino-esp32 framework
+            # package IS compiled with PSRAM support (it is the same one that
+            # `pio run --target upload` uses locally and that boots correctly).
+            # We use it here so the merged binary behaves identically to a local
+            # PlatformIO flash.
+            #
+            # For classic ESP32 environments the compiled bootloader is fine.
+            # ------------------------------------------------------------------
+            if [[ "$CHIP_ARG" == "esp32s3" || "$CHIP_ARG" == "esp32c3" ]]; then
+              PREBUILT_BOOT="$(find ~/.platformio/packages/framework-arduinoespressif32* \
+                -path "*/tools/sdk/${CHIP_ARG}/bin/bootloader_${FLASH_MODE}_${FLASH_FREQ}.bin" \
+                2>/dev/null | head -1)"
+              if [[ -n "$PREBUILT_BOOT" && -f "$PREBUILT_BOOT" ]]; then
+                echo "==> Using pre-built framework bootloader (PSRAM-aware): $PREBUILT_BOOT"
+                BOOT_BIN="$PREBUILT_BOOT"
+              else
+                echo "⚠️  Pre-built bootloader not found, falling back to compiled bootloader."
+                echo "   Searched: ~/.platformio/packages/framework-arduinoespressif32*/tools/sdk/${CHIP_ARG}/bin/bootloader_${FLASH_MODE}_${FLASH_FREQ}.bin"
+                BOOT_BIN="$BIN_DIR/bootloader.bin"
+              fi
+            else
+              BOOT_BIN="$BIN_DIR/bootloader.bin"
+            fi
+
+            if [[ -f "$BOOT_BIN" && -f "$BIN_DIR/partitions.bin" && -n "$BOOT_APP0" ]]; then
               echo "==> Merging binaries for $ENV -> $OUT_MERGED"
               python -m esptool \
                 --chip "$CHIP_ARG" \
@@ -150,13 +184,13 @@ jobs:
                 --flash_mode "$FLASH_MODE" \
                 --flash_freq "$FLASH_FREQ" \
                 --flash_size 4MB \
-                "$BOOT_ADDR" "$BIN_DIR/bootloader.bin" \
+                "$BOOT_ADDR" "$BOOT_BIN" \
                 0x8000      "$BIN_DIR/partitions.bin" \
                 0xe000      "$BOOT_APP0" \
                 0x10000     "$BIN_DIR/firmware.bin"
             else
               echo "⚠️ Skipping merged binary for $ENV — required files not found."
-              echo "   bootloader.bin : $(ls $BIN_DIR/bootloader.bin 2>/dev/null || echo MISSING)"
+              echo "   BOOT_BIN       : ${BOOT_BIN:-MISSING}"
               echo "   partitions.bin : $(ls $BIN_DIR/partitions.bin 2>/dev/null || echo MISSING)"
               echo "   boot_app0.bin  : ${BOOT_APP0:-MISSING}"
             fi

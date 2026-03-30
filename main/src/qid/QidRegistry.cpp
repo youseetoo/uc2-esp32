@@ -221,12 +221,15 @@ namespace QidRegistry
 
         // Suppress done reports during pause stop
         entries[idx].suppressDoneReport = true;
-
+        #ifdef MOTOR_CONTROLLER
         // Stop all motors that belong to this QID and save their remaining steps
         for (int i = 0; i < MOTOR_AXIS_COUNT && i < QID_MAX_PAUSED_AXES; i++)
         {
             if (FocusMotor::getData()[i]->qid == qid && !FocusMotor::getData()[i]->stopped)
             {
+                xSemaphoreGive(xQidMutex);
+
+                #if defined(CAN_BUS_ENABLED) 
                 // Save remaining distance before stopping
                 int32_t currentPos = FocusMotor::getData()[i]->currentPosition;
                 int32_t targetPos = FocusMotor::getData()[i]->targetPosition;
@@ -237,12 +240,9 @@ namespace QidRegistry
                 entries[idx].pausedAxes[i].originalTarget = targetPos;
                 entries[idx].pausedAxes[i].paused = true;
 
-                xSemaphoreGive(xQidMutex);
-
                 // Stop the motor (this may trigger CAN stop for remote motors)
                 FocusMotor::stopStepper(i);
 
-#ifdef CAN_BUS_ENABLED
                 // For CAN motors: wait up to 500ms for position update from slave
                 if (FocusMotor::shouldUseCANForAxis(i))
                 {
@@ -271,7 +271,8 @@ namespace QidRegistry
                 }
             }
         }
-
+        
+        #endif
         entries[idx].state = QID_PAUSED;
         entries[idx].suppressDoneReport = false;
         xSemaphoreGive(xQidMutex);
@@ -297,6 +298,7 @@ namespace QidRegistry
         uint8_t resumedAxes = 0;
         entries[idx].state = QID_BUSY;
 
+        #ifdef MOTOR_CONTROLLER
         for (int i = 0; i < MOTOR_AXIS_COUNT && i < QID_MAX_PAUSED_AXES; i++)
         {
             if (entries[idx].pausedAxes[i].paused)
@@ -314,6 +316,7 @@ namespace QidRegistry
                 entries[idx].pausedAxes[i].paused = false;
             }
         }
+        #endif
 
         // Update total/done counters for resumed movement
         entries[idx].totalActions = resumedAxes;
@@ -322,7 +325,7 @@ namespace QidRegistry
         entries[idx].suppressDoneReport = false;
 
         xSemaphoreGive(xQidMutex);
-
+        #ifdef MOTOR_CONTROLLER
         // Start the motors (outside mutex)
         for (int i = 0; i < MOTOR_AXIS_COUNT && i < QID_MAX_PAUSED_AXES; i++)
         {
@@ -331,6 +334,7 @@ namespace QidRegistry
                 FocusMotor::startStepper(i, 0);
             }
         }
+        #endif
 
         log_i("QidRegistry: qid=%d resumed with %d axes", qid, resumedAxes);
         return true;

@@ -719,6 +719,8 @@ namespace LedController
 			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
 			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"error" } }
 			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"rainbow" } }
+			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"on" } }
+			// {"task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"off" } }
 			// we parse the incoming status to LedForStatus
 			// and then we can set the color of the LED in the loop to e.g. rainbow, red/green/blue glowing
 			log_i("parseLedCommand: Parsing status for STATUS mode");
@@ -750,6 +752,14 @@ namespace LedController
 				else if (statusStr == "rainbow")
 				{
 					currentLedForStatus = LedForStatus::rainbow;
+				}
+				else if (statusStr == "off")
+				{
+					currentLedForStatus = LedForStatus::off_;
+				}
+				else if (statusStr == "on")
+				{
+					currentLedForStatus = LedForStatus::on_;
 				}
 				else
 				{

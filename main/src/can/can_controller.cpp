@@ -245,8 +245,11 @@ namespace can_controller
         // ============================================================
         case RESTART_CMD:
         {
+            
             log_i("Received RESTART_CMD from txID %u - restarting device", txID);
+            #ifndef DIAL_CONTROLLER
             esp_restart();
+            #endif
             return; // Never reached
         }
 

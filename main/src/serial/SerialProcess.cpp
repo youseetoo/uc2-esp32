@@ -3,6 +3,10 @@
 #include "../wifi/Endpoints.h"
 #include "Arduino.h"
 #include "../wifi/RestApiCallbacks.h"
+#include "../config/NVSConfig.h"
+#include "../config/RuntimeConfig.h"
+#include "SerialTransport.h"
+#include "CommandTracker.h"
 #ifdef ANALOG_IN_CONTROLLER
 #include "../analogin/AnalogInController.h"
 #endif
@@ -75,6 +79,9 @@
 
 namespace SerialProcess
 {
+	// Current transport format for the command being processed
+	TransportFormat currentFormat = TransportFormat::LEGACY_JSON;
+
 	// Queue-based processing to handle serial load without blocking main thread
 	QueueHandle_t serialMSGQueue = nullptr; // Queue that buffers incoming messages and delegates them to the appropriate task
 	TaskHandle_t xHandle = nullptr;		  // Task handle for the serial task
@@ -223,7 +230,7 @@ namespace SerialProcess
 	}
 
 	// Send a pre-serialized JSON string with protocol delimiters
-	// This is useful when JSON serialization needs to happen in a protected context
+	// Routes through SerialTransport to support both legacy and COBS framing
 	// The caller is responsible for freeing jsonString after calling this function
 	void safeSendJsonString(char* jsonString)
 	{
@@ -233,7 +240,6 @@ namespace SerialProcess
 			return;
 		}
 
-		// Build complete message with delimiters
 		size_t len = strlen(jsonString);
 		if (len == 0 || len > 8192)
 		{
@@ -241,36 +247,44 @@ namespace SerialProcess
 			return;
 		}
 
-		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--\n" (4) + null terminator (1)
-		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char* buffer = (char*)malloc(totalLen);
-		if (buffer == nullptr)
+		// Use SerialTransport which handles both legacy (++/--) and COBS framing
+		// For thread safety, we still route through the output queue
+		if (currentFormat == TransportFormat::LEGACY_JSON)
 		{
-			safePrintln("{\"error\":\"Out of memory\"}");
-			return;
-		}
+			// Legacy format: "++\n<json>\n--\n" via output queue
+			size_t totalLen = len + 8;
+			char* buffer = (char*)malloc(totalLen);
+			if (buffer == nullptr)
+			{
+				safePrintln("{\"error\":\"Out of memory\"}");
+				return;
+			}
 
-		// Construct message: "++\n<json>\n--\n"
-		strcpy(buffer, "++\n");
-		strcat(buffer, jsonString);
-		strcat(buffer, "\n--\n");
+			strcpy(buffer, "++\n");
+			strcat(buffer, jsonString);
+			strcat(buffer, "\n--\n");
 
-		// Send through output queue
-		if (serialOutputQueue != nullptr)
-		{
-			SerialMessage msg;
-			msg.message = buffer;
-			msg.length = strlen(buffer) + 1; // Include newline
+			if (serialOutputQueue != nullptr)
+			{
+				SerialMessage msg;
+				msg.message = buffer;
+				msg.length = strlen(buffer) + 1;
 
-			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
+				if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
+				{
+					free(buffer);
+					log_w("Serial output queue full - dropping JSON string");
+				}
+			}
+			else
 			{
 				free(buffer);
-				log_w("Serial output queue full - dropping JSON string");
 			}
 		}
 		else
 		{
-			free(buffer);
+			// COBS framed: use SerialTransport directly (already handles framing)
+			SerialTransport::sendJSONString(jsonString, currentFormat);
 		}
 	}
 
@@ -335,6 +349,7 @@ namespace SerialProcess
 		
 		Serial.setTimeout(100);
 		Serial.setTxBufferSize(1024);
+		SerialTransport::setup();
 		QidRegistry::setup();
 		
 		log_i("SerialProcess::setup() completed - Ready to receive serial data");
@@ -355,94 +370,38 @@ namespace SerialProcess
 		}
 	}
 
-	// Static buffer for serial reading to avoid heap fragmentation
-	static char serialInputBuffer[8192];  // 8KB buffer for large JSON strings
-	static size_t serialInputPos = 0;
-	static bool inJsonObject = false;
-	static int braceCount = 0;
-
 	void loop()
 	{
 		// Check if we're in binary OTA mode
-		#ifdef CAN_BUS_ENABLED
-		if (binary_ota::isInBinaryMode()) {
-			// Process binary packets instead of JSON
-			binary_ota::processBinaryPacket();
-			return;  // Don't process JSON in binary mode
-		}
-		
-		// Check if we're in streaming binary mode (for CAN OTA streaming)
-		if (can_ota_stream::isStreamingModeActive()) {
-			// Process binary stream packets from Serial
-			can_ota_stream::processBinaryStreamPacket();
-			return;  // Don't process JSON in streaming binary mode
-		}
-		#endif
-		
-		// Read serial data byte-by-byte to handle large JSON strings reliably
-		// TODO: These could be optimized further if needed - the input could hang potentially
-		while (Serial.available() > 0) {
-			char c = Serial.read();
-			
-			// Track JSON object boundaries
-			if (c == '{') {
-				if (!inJsonObject) {
-					inJsonObject = true;
-					serialInputPos = 0;
-					braceCount = 0;
-				}
-				braceCount++;
+		if (SerialTransport::isInBinaryMode())
+		{
+#ifdef CAN_BUS_ENABLED
+			if (binary_ota::isInBinaryMode())
+			{
+				binary_ota::processBinaryPacket();
+				return;
 			}
-			
-			// Only store if we're inside a JSON object
-			if (inJsonObject) {
-				// Prevent buffer overflow
-				if (serialInputPos < sizeof(serialInputBuffer) - 1) {
-					serialInputBuffer[serialInputPos++] = c;
-				} else {
-					// Buffer overflow - reset and report error
-					log_e("Serial input buffer overflow");
-					inJsonObject = false;
-					serialInputPos = 0;
-					braceCount = 0;
-					
-					cJSON *errorResponse = cJSON_CreateObject();
-					if (errorResponse != NULL) {
-						cJSON_AddStringToObject(errorResponse, "error", "Input buffer overflow");
-						serialize(errorResponse);
-					}
-					continue;
-				}
-				
-				if (c == '}') {
-					braceCount--;
-					
-					// Complete JSON object received
-					if (braceCount == 0) {
-						serialInputBuffer[serialInputPos] = '\0';
-						
-						cJSON *doc = cJSON_Parse(serialInputBuffer);
-						if (doc) {
-							addJsonToQueue(doc);
-						} else {
-							// Parse error - send error response
-							cJSON *errorResponse = cJSON_CreateObject();
-							if (errorResponse != NULL) {
-								cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
-								serialize(errorResponse);
-							}
-						}
-						
-						// Reset for next message
-						inJsonObject = false;
-						serialInputPos = 0;
-					}
-				}
+			if (can_ota_stream::isStreamingModeActive())
+			{
+				can_ota_stream::processBinaryStreamPacket();
+				return;
 			}
+#endif
+			return;
+		}
+
+		// Use SerialTransport to read and parse incoming data
+		// Supports both legacy JSON (brace-counting) and COBS-framed protocol
+		TransportFormat fmt;
+		cJSON *doc = SerialTransport::readNext(fmt);
+		if (doc != NULL)
+		{
+			currentFormat = fmt;
+			addJsonToQueue(doc);
 		}
 
 		// Let other tasks run
-		vTaskDelay(pdMS_TO_TICKS(5));  // Reduced from 10ms for faster processing
+		vTaskDelay(pdMS_TO_TICKS(5));
 	}
 
 	void serialize(cJSON *doc)
@@ -477,47 +436,15 @@ namespace SerialProcess
 		else
 			cJSON_AddItemToObject(doc, "success", cJSON_CreateNumber(0));
 
-		// Print the JSON document to a string
+		// Serialize and send via the current transport format
 		char *s = cJSON_PrintUnformatted(doc);
-		cJSON_Delete(doc); // Free the cJSON object
+		cJSON_Delete(doc);
 		
 		if (s == NULL)
 			return;
 
-		// Build complete message with delimiters
-		size_t len = strlen(s);
-		// Calculate buffer size: "++\n" (3) + s (len) + "\n--\n" (4) + null terminator (1)
-		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char* buffer = (char*)malloc(totalLen);
-		if (buffer == nullptr)
-		{
-			free(s);
-			return;
-		}
-
-		// Construct message: "++\n<json>\n--\n"
-		strcpy(buffer, "++\n");
-		strcat(buffer, s);
-		strcat(buffer, "\n--\n");
+		safeSendJsonString(s);
 		free(s);
-
-		// Send through output queue
-		if (serialOutputQueue != nullptr)
-		{
-			SerialMessage msg;
-			msg.message = buffer;
-			msg.length = strlen(buffer) + 1; // Include newline
-			
-			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
-			{
-				free(buffer);
-				log_w("Serial output queue full - dropping qid message");
-			}
-		}
-		else
-		{
-			free(buffer);
-		}
 	}
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
@@ -714,6 +641,34 @@ namespace SerialProcess
 			serialize(QidRegistry::handleQidPause(jsonDocument));
 		else if (strcmp(task, qid_resume_endpoint) == 0)
 			serialize(QidRegistry::handleQidResume(jsonDocument));
+		// Runtime configuration endpoints (NVS-backed)
+		else if (strcmp(task, rtconfig_get_endpoint) == 0)
+		{
+			cJSON *cfg = NVSConfig::toJSON();
+			if (cfg != NULL)
+				serialize(cfg);
+			else
+				serialize(-1);
+		}
+		else if (strcmp(task, rtconfig_set_endpoint) == 0)
+		{
+			cJSON *config = cJSON_GetObjectItemCaseSensitive(jsonDocument, "config");
+			if (config != NULL && NVSConfig::fromJSON(config))
+			{
+				NVSConfig::save();
+				cJSON *resp = cJSON_CreateObject();
+				cJSON_AddBoolToObject(resp, "config_saved", true);
+				serialize(resp);
+			}
+			else
+			{
+				serialize(-1);
+			}
+		}
+		else if (strcmp(task, rtconfig_reset_endpoint) == 0)
+		{
+			NVSConfig::reset(); // This reboots the ESP
+		}
 		else
 		{
 			// Unknown task

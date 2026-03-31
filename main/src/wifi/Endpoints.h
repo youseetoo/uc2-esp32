@@ -108,6 +108,11 @@ __attribute__ ((unused)) static const  char* qid_state_endpoint = "/qid_state";
 __attribute__ ((unused)) static const  char* qid_pause_endpoint = "/qid_pause";
 __attribute__ ((unused)) static const  char* qid_resume_endpoint = "/qid_resume";
 
+// Runtime configuration endpoints (NVS-backed)
+__attribute__ ((unused)) static const  char* rtconfig_get_endpoint = "/config_get";
+__attribute__ ((unused)) static const  char* rtconfig_set_endpoint = "/config_set";
+__attribute__ ((unused)) static const  char* rtconfig_reset_endpoint = "/config_reset";
+
 #ifdef HEAT_CONTROLLER
 __attribute__ ((unused)) static const  char* heat_act_endpoint = "/heat_act";
 __attribute__ ((unused)) static const  char* heat_get_endpoint = "/heat_get";

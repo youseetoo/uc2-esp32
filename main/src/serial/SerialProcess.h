@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "Arduino.h"
+#include "SerialTransport.h"
 
 namespace SerialProcess
 {
@@ -12,6 +13,9 @@ namespace SerialProcess
 	extern TaskHandle_t xHandle;			// Task handle for the serial task
 	extern QueueHandle_t serialOutputQueue;	// Queue for thread-safe serial output
 	extern TaskHandle_t xOutputHandle;		// Task handle for serial output task
+
+    // Current transport format of the command being processed (set by loop / serialTask)
+    extern TransportFormat currentFormat;
 
     void jsonProcessor(char * task,cJSON * jsonDocument);
     void serialize(cJSON * doc);
@@ -24,5 +28,6 @@ namespace SerialProcess
     void setup();
     void loop();
     void addJsonToQueue(cJSON * doc);   // Add a cJSON object to the processing queue
+    void processJsonDocument(cJSON *root); // Process a complete JSON document
 };
 

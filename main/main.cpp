@@ -98,6 +98,14 @@ Preferences preferences;
 #ifdef CAN_BUS_ENABLED
 #include "src/can/can_controller.h"
 #endif
+#ifdef UC2_CANOPEN_ENABLED
+#  ifdef UC2_CANOPEN_MASTER
+#    include "src/CANopen/CanOpenMaster.h"
+#  endif
+#  ifdef UC2_CANOPEN_SLAVE
+#    include "src/CANopen/CanOpenSlave.h"
+#  endif
+#endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
 #endif
@@ -211,6 +219,16 @@ extern "C" void looper(void *p)
 			can_controller::loop();
 			vTaskDelay(1);
 		}
+#endif
+#ifdef UC2_CANOPEN_ENABLED
+#  ifdef UC2_CANOPEN_MASTER
+		CanOpenMaster::loop();
+		vTaskDelay(1);
+#  endif
+#  ifdef UC2_CANOPEN_SLAVE
+		CanOpenSlave::loop();
+		vTaskDelay(1);
+#  endif
 #endif
 
 
@@ -432,6 +450,14 @@ extern "C" void setupApp(void)
 	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	if (runtimeConfig.can_enabled)
 		can_controller::setup();
+#endif
+#ifdef UC2_CANOPEN_ENABLED
+#  ifdef UC2_CANOPEN_MASTER
+	CanOpenMaster::setup();
+#  endif
+#  ifdef UC2_CANOPEN_SLAVE
+	CanOpenSlave::setup();
+#  endif
 #endif
 #ifdef DIAL_CONTROLLER
 	// Dial controller needs CAN bus to be ready when in CAN master mode

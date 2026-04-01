@@ -2,7 +2,7 @@
 
 > **Status:** Implemented (2026-03-31)  
 > **Firmware branch:** `rewrite-canopen`  
-> **Source directories:** `main/src/CANopen/`, `main/src/DeviceRouter.h/.cpp`, `slave/`
+> **Source directories:** `main/src/CANopen/`, `main/src/DeviceRouter.h/.cpp`
 
 ---
 
@@ -29,8 +29,12 @@
    - 6.4 [Motor Move Completion (Slave → Master)](#64-motor-move-completion-slave--master)
    - 6.5 [Heartbeat & Offline Detection](#65-heartbeat--offline-detection)
    - 6.6 [Slave NMT State Machine](#66-slave-nmt-state-machine)
-7. [PlatformIO Environments](#7-platformio-environments)
-8. [Integration Checklist](#8-integration-checklist)
+7. [Build System Integration](#7-build-system-integration)
+   - 7.1 [Source Files](#71-source-files)
+   - 7.2 [CMakeLists.txt](#72-cmakeliststxt)
+   - 7.3 [main.cpp Wiring](#73-maincpp-wiring)
+8. [PlatformIO Environments](#8-platformio-environments)
+9. [Integration Checklist](#9-integration-checklist)
 
 ---
 
@@ -56,6 +60,8 @@ The UC2 CANopen-Lite stack replaces the legacy `CanController` (which forwarded 
 │                    │ LaserController │               │              │
 │                    │ LedController   │               │              │
 │                    └─────────────────┘               │              │
+│                                                      │              │
+│  Entry: main.cpp → CanOpenMaster::setup() / loop()   │              │
 └─────────────────────────────────────────────────────┼──────────────┘
                                                        │ ISO 11898
                                                        │ TWAI / CAN 2.0B
@@ -65,9 +71,11 @@ The UC2 CANopen-Lite stack replaces the legacy `CanController` (which forwarded 
                           ┌─────────────────┐          │   ┌───────────┐
                           │  SLAVE 0x10     │◀─────────┘   │ SLAVE 0x14│
                           │  (Xiao, motor)  │              │ (motor+   │
-                          │  slave/main.cpp │              │  laser+   │
+                          │  CanOpenSlave   │              │  laser+   │
                           │  SlaveController│              │  LED)     │
                           └─────────────────┘              └───────────┘
+
+Entry: main.cpp → CanOpenSlave::setup() / loop()
 ```
 
 **Key design decisions:**
@@ -564,38 +572,62 @@ DeviceRouter::getRouteTableJSON();      // returns cJSON*
 
 ## 5. WP5 — Slave Firmware
 
+All slave code lives in `main/src/CANopen/` alongside the protocol engine.
+There is **no separate `slave/` directory** — master and slave are the same
+firmware, differentiated by compile flags `UC2_CANOPEN_MASTER` or
+`UC2_CANOPEN_SLAVE`. The entry point is always `main/main.cpp`.
+
 ### 5.1 Slave Boot Sequence
 
 ```
-slave/main.cpp
+main/main.cpp  (built with -DUC2_CANOPEN_ENABLED=1 -DUC2_CANOPEN_SLAVE=1)
    │
-   ├── nvs_flash_init()
+   ├── setup()
+   │     ├── SerialProcess::setup()
+   │     ├── FocusMotor::setup()       (if MOTOR_CONTROLLER)
+   │     ├── LaserController::setup()  (if LASER_CONTROLLER)
+   │     ├── LedController::setup()    (if LED_CONTROLLER)
+   │     │
+   │     └── CanOpenSlave::setup()     ← #ifdef UC2_CANOPEN_SLAVE
+   │           ├── SlaveController::init(caps, nodeId, numMotors, numLasers, hasLED)
+   │           │     └── Clears runtime state tables
+   │           ├── CanOpenStack::setSdoODCallbacks(sdoRead, sdoWrite, nullptr)
+   │           ├── CanOpenStack::setRPDOCallback(onRPDO)
+   │           └── CanOpenStack::init(TX_PIN, RX_PIN, nodeId, UC2_CAN_500K, HB_PERIOD_MS)
+   │                 ├── Installs TWAI driver
+   │                 ├── Sends boot-up heartbeat (data=0x00 at 0x700+nodeId)
+   │                 ├── Slave enters PRE-OPERATIONAL
+   │                 └── Starts FreeRTOS RX task on core 1
    │
-   ├── initDeviceControllers()
-   │     ├── FocusMotor::setup()      (if MOTOR_CONTROLLER)
-   │     ├── LaserController::setup() (if LASER_CONTROLLER)
-   │     └── LedController::setup()   (if LED_CONTROLLER)
-   │
-   ├── SlaveController::init(caps, nodeId, numMotors, numLasers, hasLED)
-   │     └── Clears runtime state tables
-   │
-   ├── CanOpenStack::setSdoODCallbacks(sdoRead, sdoWrite, nullptr)
-   ├── CanOpenStack::setRPDOCallback(onRPDO)
-   │
-   └── CanOpenStack::init(TX_PIN, RX_PIN, nodeId, UC2_CAN_500K, HB_PERIOD_MS)
-         ├── Installs TWAI driver
-         ├── Sends boot-up heartbeat (data=0x00 at 0x700+nodeId)
-         ├── Slave enters PRE-OPERATIONAL
-         └── Starts FreeRTOS RX task on core 1
+   └── loop()
+         ├── ... other controllers ...
+         │
+         └── CanOpenSlave::loop()      ← #ifdef UC2_CANOPEN_SLAVE
+               ├── CanOpenStack::loop()    ← HeartbeatManager::tick() + NMTManager::update()
+               └── (if OPERATIONAL) SlaveController::loop()
+                     ├── Update actualPos from FocusMotor (if running)
+                     ├── Detect motor stop → publishMotorStatus() → TPDO1
+                     └── Every 1 s → publishNodeStatus() → TPDO2
+```
 
-   loop()
+### 5.1b Master Boot Sequence
+
+```
+main/main.cpp  (built with -DUC2_CANOPEN_ENABLED=1 -DUC2_CANOPEN_MASTER=1)
    │
-   ├── CanOpenStack::loop()        ← HeartbeatManager::tick() + NMTManager::update()
+   ├── setup()
+   │     ├── ... local controllers ...
+   │     │
+   │     └── CanOpenMaster::setup()    ← #ifdef UC2_CANOPEN_MASTER
+   │           ├── DeviceRouter::init(localMotors, localLasers, localLED)
+   │           ├── CanOpenStack::setTPDOCallback(onTPDO)
+   │           ├── CanOpenStack::setNodeStatusCallback(onNodeStatus)
+   │           ├── CanOpenStack::init(TX_PIN, RX_PIN, MASTER_NODE_ID, ...)
+   │           └── CanOpenStack::startAll()
    │
-   └── (if OPERATIONAL) SlaveController::loop()
-         ├── Update actualPos from FocusMotor (if running)
-         ├── Detect motor stop → publishMotorStatus() → TPDO1
-         └── Every 1 s → publishNodeStatus() → TPDO2
+   └── loop()
+         └── CanOpenMaster::loop()     ← #ifdef UC2_CANOPEN_MASTER
+               └── CanOpenStack::loop()
 ```
 
 ### 5.2 SlaveController OD Adapter
@@ -670,11 +702,13 @@ SlaveController::onRPDO(rp1, rp2, rp3)
 MASTER                                    SLAVE 0x10
    │                                          │
    │  setup()                                 │  setup()
-   │  ├─ initDeviceControllers()              │  ├─ FocusMotor::setup()
+   │  CanOpenMaster::setup()                  │  CanOpenSlave::setup()
    │  ├─ DeviceRouter::init(4, 4, true)       │  ├─ SlaveController::init(...)
-   │  ├─ CanOpenStack::setSdoODCallbacks(…)   │  └─ CanOpenStack::init()
-   │  ├─ CanOpenStack::setNodeStatusCb(…)     │       │
-   │  └─ CanOpenStack::init(…)                │       ├─ TWAI driver installed
+   │  ├─ CanOpenStack::setTPDOCallback(…)     │  ├─ CanOpenStack::setSdoODCallbacks(…)
+   │  ├─ CanOpenStack::setNodeStatusCb(…)     │  ├─ CanOpenStack::setRPDOCallback(…)
+   │  └─ CanOpenStack::init(…)                │  └─ CanOpenStack::init()
+   │       │                                  │       │
+   │       │                                  │       ├─ TWAI driver installed
    │       │                                  │       └─ Boot-up HB sent ──────────────────────────▶
    │       │                                  │                         HB frame (0x710, data=0x00)
    │       │◀────────────────────────────────────────────────────────────────────────
@@ -866,18 +900,133 @@ SLAVE 0x10                            MASTER                    HOST
 
 ---
 
-## 7. PlatformIO Environments
+## 7. Build System Integration
 
-New environments added at the end of `platformio.ini`. All existing environments are unchanged.
+### 7.1 Source Files
+
+All CANopen code lives inside `main/src/CANopen/` (protocol engine + slave + wrappers)
+and `main/src/DeviceRouter.h/.cpp` (master route table). There is **no separate
+`slave/` source directory** — the same `main/main.cpp` entry point is used for both
+master and slave builds, controlled by compile flags.
+
+```
+main/
+├── main.cpp                          ← #ifdef UC2_CANOPEN_ENABLED blocks
+├── src/
+│   ├── CANopen/
+│   │   ├── ObjectDictionary.h        ← OD indices, PDO structs, capability bits
+│   │   ├── PDOEngine.h / .cpp        ← encode/decode all 6 PDO types
+│   │   ├── SDOHandler.h / .cpp       ← expedited SDO client + server
+│   │   ├── NMTManager.h / .cpp       ← NMT state machine, node table
+│   │   ├── HeartbeatManager.h / .cpp ← producer + consumer
+│   │   ├── CanOpenStack.h / .cpp     ← TWAI init, RX task, frame dispatch
+│   │   ├── CanOpenMaster.h / .cpp    ← master setup()/loop() wrapper  [WP4]
+│   │   ├── CanOpenSlave.h / .cpp     ← slave setup()/loop() wrapper   [WP5]
+│   │   └── SlaveController.h / .cpp  ← OD adapter + device callbacks  [WP5]
+│   └── DeviceRouter.h / .cpp         ← global ID → local/CAN routing  [WP4]
+└── CMakeLists.txt                    ← conditional source includes
+```
+
+### 7.2 CMakeLists.txt
+
+Three CMake `OPTION()` flags control compilation (set via `-D` build flags in
+`platformio.ini`, forwarded through `board_build.cmake_extra_args`):
+
+```cmake
+# In main/CMakeLists.txt — options section
+OPTION(UC2_CANOPEN_ENABLED "UC2 CANopen-Lite protocol stack" OFF)
+OPTION(UC2_CANOPEN_MASTER "CANopen master role (DeviceRouter)" OFF)
+OPTION(UC2_CANOPEN_SLAVE "CANopen slave role (SlaveController)" OFF)
+```
+
+```cmake
+# In main/CMakeLists.txt — conditional source includes
+if(UC2_CANOPEN_ENABLED EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/CANopen/CanOpenStack.cpp)
+    list(APPEND srcs ${mainsrc}src/CANopen/PDOEngine.cpp)
+    list(APPEND srcs ${mainsrc}src/CANopen/SDOHandler.cpp)
+    list(APPEND srcs ${mainsrc}src/CANopen/NMTManager.cpp)
+    list(APPEND srcs ${mainsrc}src/CANopen/HeartbeatManager.cpp)
+    if(UC2_CANOPEN_MASTER EQUAL 1)
+        list(APPEND srcs ${mainsrc}src/DeviceRouter.cpp)
+        list(APPEND srcs ${mainsrc}src/CANopen/CanOpenMaster.cpp)
+    endif()
+    if(UC2_CANOPEN_SLAVE EQUAL 1)
+        list(APPEND srcs ${mainsrc}src/CANopen/SlaveController.cpp)
+        list(APPEND srcs ${mainsrc}src/CANopen/CanOpenSlave.cpp)
+    endif()
+endif()
+```
+
+### 7.3 main.cpp Wiring
+
+CANopen is wired into `main/main.cpp` with `#ifdef` guards, following the same
+pattern as `CAN_BUS_ENABLED`. Both stacks can coexist — the build flags
+determine which is compiled.
+
+```cpp
+// Includes (after CAN_BUS_ENABLED include)
+#ifdef UC2_CANOPEN_ENABLED
+#  ifdef UC2_CANOPEN_MASTER
+#    include "src/CANopen/CanOpenMaster.h"
+#  endif
+#  ifdef UC2_CANOPEN_SLAVE
+#    include "src/CANopen/CanOpenSlave.h"
+#  endif
+#endif
+
+// In setup() — after CAN_BUS_ENABLED setup
+#ifdef UC2_CANOPEN_ENABLED
+#  ifdef UC2_CANOPEN_MASTER
+    CanOpenMaster::setup();
+#  endif
+#  ifdef UC2_CANOPEN_SLAVE
+    CanOpenSlave::setup();
+#  endif
+#endif
+
+// In loop() — after CAN_BUS_ENABLED loop
+#ifdef UC2_CANOPEN_ENABLED
+#  ifdef UC2_CANOPEN_MASTER
+    CanOpenMaster::loop();
+    vTaskDelay(1);
+#  endif
+#  ifdef UC2_CANOPEN_SLAVE
+    CanOpenSlave::loop();
+    vTaskDelay(1);
+#  endif
+#endif
+```
+
+---
+
+## 8. PlatformIO Environments
+
+### Dedicated CANopen Environments
 
 | Environment | Board | Role | Node-ID | Devices |
 |---|---|---|---|---|
-| `UC2_4_CANopen_Master` | ESP32-DevKit | Master | — | Motor+Laser+LED (local+remote) |
-| `UC2_4_CANopen_Master_debug` | ESP32-DevKit | Master (CORE_DEBUG_LEVEL=5) | — | same |
+| `UC2_4_CANopen_Master` | ESP32-DevKit | Master | `0x01` | Motor+Laser+LED (local+remote) |
+| `UC2_4_CANopen_Master_debug` | ESP32-DevKit | Master (debug) | `0x01` | same |
 | `UC2_CANopen_Slave_motor` | Seeed XIAO S3 | Slave | `0x10` | 1 motor axis |
 | `UC2_CANopen_Slave_motor_debug` | Seeed XIAO S3 | Slave (debug) | `0x10` | 1 motor axis |
 | `UC2_CANopen_Slave_multi` | Seeed XIAO S3 | Slave | `0x14` | 1 motor + 2 laser + LED |
 | `UC2_CANopen_Slave_multi_debug` | Seeed XIAO S3 | Slave (debug) | `0x14` | 1 motor + 2 laser + LED |
+
+### Existing Environments with CANopen Enabled
+
+The CANopen stack can also be activated in existing CAN bus environments by
+adding the appropriate build flags. The following environment now includes
+CANopen master support **alongside** the legacy `can_controller`:
+
+| Environment | Added Flags |
+|---|---|
+| `UC2_3_CAN_HAT_Master_v2` | `-DUC2_CANOPEN_ENABLED=1 -DUC2_CANOPEN_MASTER=1 -DUC2_CAN_TX_PIN=17 -DUC2_CAN_RX_PIN=18 -DUC2_HB_PERIOD_MS=1000` |
+
+> **Note:** Both `CAN_BUS_ENABLED` (legacy ISO-TP/JSON) and `UC2_CANOPEN_ENABLED`
+> (CANopen-Lite) can coexist in the same build. They use separate `#ifdef` blocks
+> in `main.cpp`. The legacy stack handles OTA and JSON command forwarding; the
+> CANopen stack handles PDO/SDO device control.
 
 #### Key build flags
 
@@ -886,20 +1035,24 @@ New environments added at the end of `platformio.ini`. All existing environments
 | `-DUC2_CANOPEN_ENABLED=1` | Activates CanOpenStack in the firmware |
 | `-DUC2_CANOPEN_MASTER=1` | Master role — manages route table, queries slaves |
 | `-DUC2_CANOPEN_SLAVE=1` | Slave role — responds to NMT/SDO/PDO from master |
-| `-DUC2_NODE_ID=0x10` | Own CAN node-ID |
+| `-DUC2_NODE_ID=0x10` | Own CAN node-ID (slave only) |
 | `-DUC2_CAN_TX_PIN=3` | TWAI TX GPIO |
 | `-DUC2_CAN_RX_PIN=2` | TWAI RX GPIO |
 | `-DUC2_HB_PERIOD_MS=1000` | Heartbeat interval |
-| `-DSLAVE_NUM_MOTORS=1` | Number of motor axes compiled in |
-| `-DSLAVE_NUM_LASERS=2` | Number of laser channels |
-| `-DSLAVE_HAS_LED=1` | LED strip present |
+| `-DSLAVE_NUM_MOTORS=1` | Number of motor axes compiled in (slave only) |
+| `-DSLAVE_NUM_LASERS=2` | Number of laser channels (slave only) |
+| `-DSLAVE_HAS_LED=1` | LED strip present (slave only) |
 
 #### Build commands
 
 ```bash
-# Master
+# Master (dedicated CANopen env)
 pio run -e UC2_4_CANopen_Master
 pio run -e UC2_4_CANopen_Master -t upload
+
+# Master (existing CAN HAT env, now with CANopen)
+pio run -e UC2_3_CAN_HAT_Master_v2
+pio run -e UC2_3_CAN_HAT_Master_v2 -t upload
 
 # Slave — single motor
 pio run -e UC2_CANopen_Slave_motor
@@ -911,41 +1064,52 @@ pio run -e UC2_CANopen_Slave_multi -t upload
 
 ---
 
-## 8. Integration Checklist
+## 9. Integration Checklist
 
-When integrating the new CAN stack into the master firmware main loop:
+The wrapper modules `CanOpenMaster` and `CanOpenSlave` handle all wiring
+internally. To add CANopen support to an existing environment:
+
+### For a Master Environment
+
+1. Add build flags to `platformio.ini`:
+   ```
+   -DUC2_CANOPEN_ENABLED=1
+   -DUC2_CANOPEN_MASTER=1
+   -DUC2_CAN_TX_PIN=<tx_gpio>
+   -DUC2_CAN_RX_PIN=<rx_gpio>
+   -DUC2_HB_PERIOD_MS=1000
+   ```
+2. Create a PinConfig directory under `main/config/<ENV_NAME>/` (copy from
+   an existing CAN environment if needed).
+3. The `#ifdef UC2_CANOPEN_MASTER` block in `main.cpp` will call
+   `CanOpenMaster::setup()` and `CanOpenMaster::loop()` automatically.
+4. To use the DeviceRouter for command dispatch, replace direct
+   `FocusMotor::startStepper()` calls with `DeviceRouter::motorMove()`.
+
+### For a Slave Environment
+
+1. Add build flags to `platformio.ini`:
+   ```
+   -DUC2_CANOPEN_ENABLED=1
+   -DUC2_CANOPEN_SLAVE=1
+   -DUC2_NODE_ID=0x10
+   -DUC2_CAN_TX_PIN=<tx_gpio>
+   -DUC2_CAN_RX_PIN=<rx_gpio>
+   -DUC2_HB_PERIOD_MS=1000
+   -DSLAVE_NUM_MOTORS=1
+   -DSLAVE_NUM_LASERS=0
+   -DSLAVE_HAS_LED=0
+   ```
+2. Include the appropriate device controller flags (`-DMOTOR_CONTROLLER=1`, etc.)
+3. Create a PinConfig directory under `main/config/<ENV_NAME>/`.
+4. `CanOpenSlave::setup()` and `CanOpenSlave::loop()` are called automatically.
+
+### JsonParser Integration (future)
 
 ```cpp
-// In setup():
-DeviceRouter::init(localMotors, localLasers, hasLocalLED);
-CanOpenStack::setNodeStatusCallback(
-    [](uint8_t nodeId, UC2_NMT_State state, bool online) {
-        if (online) {
-            uint8_t caps = 0;
-            uint8_t motors = 0, lasers = 0;
-            SDOHandler::nodeGetCaps(nodeId, &caps);
-            // Read motor / laser count via SDO ...
-            DeviceRouter::onSlaveOnline(nodeId, caps, motors, lasers);
-        } else {
-            DeviceRouter::onSlaveOffline(nodeId);
-        }
-    }
-);
-CanOpenStack::setTPDOCallback(
-    [](uint8_t nodeId, const UC2_TPDO1_MotorStatus* t1,
-       const UC2_TPDO2_NodeStatus* t2, const UC2_TPDO3_SensorData* t3) {
-        if (t1) { /* forward motor status to Host */ }
-        if (t2) { /* update NMT state, temperature in route table */ }
-    }
-);
-CanOpenStack::init(UC2_CAN_TX_PIN, UC2_CAN_RX_PIN, MASTER_NODE_ID, UC2_CAN_500K);
-
 // In JsonParser (for /motor_act):
 // Replace direct FocusMotor call with:
 DeviceRouter::motorMove(globalId, pos, speed, isAbsolute, qid);
-
-// In loop():
-CanOpenStack::loop();
 ```
 
 **Wiring (500 kbit/s, up to ~20 m bus length):**

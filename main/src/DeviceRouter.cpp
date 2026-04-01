@@ -327,7 +327,7 @@ bool ledSet(uint8_t globalLedId, uint8_t mode,
         cmd.b        = b;
         cmd.ledIndex = ledIndex;
         cmd.qid      = (int16_t)qid;
-        LedController::act(&cmd);
+        LedController::execLedCommand(cmd);
         return true;
 #else
         return false;

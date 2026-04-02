@@ -21,6 +21,11 @@
 
 #pragma once
 
+// Auto-derive CAN_OTA_MASTER from legacy CAN_SEND_COMMANDS for backward compat
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_OTA_MASTER)
+#define CAN_OTA_MASTER 1
+#endif
+
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -225,7 +230,7 @@ bool isStreamingModeActive();
  */
 bool processBinaryStreamPacket();
 
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
 
 /**
  * @brief Enter binary streaming mode (called after JSON start succeeds)
@@ -277,6 +282,6 @@ int finishStream(uint8_t slaveId, const uint8_t* md5Hash);
  */
 void handleSlaveStreamResponse(uint8_t msgType, const uint8_t* data, size_t len);
 
-#endif // CAN_SEND_COMMANDS
+#endif // CAN_OTA_MASTER
 
 } // namespace can_ota_stream

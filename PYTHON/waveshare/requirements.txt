@@ -1,0 +1,8 @@
+# UC2 CANopen Python Tool — Requirements
+#
+# Install with:
+#   pip install -r requirements.txt
+
+pyserial>=3.5
+python-can>=4.3.0
+canopen>=2.2.0

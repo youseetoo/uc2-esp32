@@ -43,7 +43,7 @@ uint8_t pageDataBuffers[PAGE_BUFFER_COUNT][STREAM_PAGE_SIZE];
 static uint8_t currentBufferIndex = 0;  // Which buffer is currently being filled
 
 // Master-side state
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
 static volatile bool slaveAckReceived = false;
 static volatile uint16_t slaveAckPage = 0;
 static volatile uint32_t slaveAckBytes = 0;
@@ -513,7 +513,7 @@ int actFromJsonStreaming(cJSON* doc) {
         
         int result;
         
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
         // Master mode: Check if target is self or a remote slave
         if (targetCanId != can_controller::device_can_id) {
             // Relay to remote slave over CAN
@@ -557,7 +557,7 @@ int actFromJsonStreaming(cJSON* doc) {
         // Abort streaming session
         log_i("Stream OTA abort to CAN ID %u", targetCanId);
         
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
         if (targetCanId != can_controller::device_can_id) {
             // Send abort to remote slave
             uint8_t buf[2] = {STREAM_ABORT, CAN_OTA_ERROR_ABORTED};
@@ -611,7 +611,7 @@ void handleStreamMessage(uint8_t msgType, const uint8_t* data, size_t len, uint8
             break;
         }
         
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
         case STREAM_ACK:
             handleSlaveStreamResponse(msgType, data, len);
             break;
@@ -677,10 +677,10 @@ void loop() {
 }
 
 // ============================================================================
-// Stub implementations for Slave devices (when CAN_SEND_COMMANDS is not defined)
+// Stub implementations for Slave devices (when CAN_OTA_MASTER is not defined)
 // ============================================================================
 
-#ifndef CAN_SEND_COMMANDS
+#ifndef CAN_OTA_MASTER
 
 bool isStreamingModeActive() {
     // Slaves don't receive binary data from Serial - they receive CAN messages
@@ -692,13 +692,13 @@ bool processBinaryStreamPacket() {
     return false;
 }
 
-#endif // !CAN_SEND_COMMANDS
+#endif // !CAN_OTA_MASTER
 
 // ============================================================================
 // Master-side Implementation
 // ============================================================================
 
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
 
 // Forward declarations for binary streaming mode functions
 static void sendSerialStreamAck(const StreamAck* ack);
@@ -1221,6 +1221,6 @@ void forwardSlaveAckToSerial() {
     }
 }
 
-#endif // CAN_SEND_COMMANDS
+#endif // CAN_OTA_MASTER
 
 } // namespace can_ota_stream

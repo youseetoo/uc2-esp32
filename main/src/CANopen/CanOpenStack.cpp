@@ -5,7 +5,6 @@
  * Manages the TWAI driver and a FreeRTOS RX task that dispatches frames
  * to PDOEngine, SDOHandler, NMTManager, and HeartbeatManager.
  *
- * Adapted from the uc2_canopen_mwe trainer (skpang) CAN task structure.
  */
 #include "CanOpenStack.h"
 #include "PDOEngine.h"

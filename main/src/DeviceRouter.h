@@ -5,7 +5,7 @@
  *   a) Local GPIO controllers (FocusMotor, LaserController, LedController)
  *   b) Remote CAN slaves (via CanOpenStack PDO/SDO)
  *
- * Enumeration scheme (from the firmware upgrade plan §7):
+ * Enumeration scheme:
  *   Motor IDs  0-9    → local GPIO (from RuntimeConfig)
  *   Motor IDs  10-19  → CAN node 0x10, local axis ID-10
  *   Motor IDs  20-29  → CAN node 0x14, local axis ID-20

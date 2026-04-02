@@ -1,6 +1,12 @@
 #include "can_controller.h"
 #include "CanOtaHandler.h"
 #include "CanOtaStreaming.h"
+
+// Auto-derive CAN_OTA_MASTER from legacy CAN_SEND_COMMANDS for backward compat
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_OTA_MASTER)
+#define CAN_OTA_MASTER 1
+#endif
+
 #include <PinConfig.h>
 #include "Wire.h"
 #include "esp_log.h"
@@ -739,7 +745,7 @@ namespace can_controller
 
         case OTA_ACK:
         {
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
             if (payloadSize >= sizeof(OtaAck)) 
             {
                 OtaAck ack;
@@ -1361,7 +1367,7 @@ namespace can_controller
         debugState = pinConfig.DEBUG_CAN_ISO_TP;
             
         device_can_id = getCANAddress();
-#ifdef CAN_SEND_COMMANDS
+#if defined(CAN_SEND_COMMANDS) || defined(CAN_OTA_MASTER)
         // Master must always listen on the central node address,
         // regardless of what may have been stored in preferences
         device_can_id = pinConfig.CAN_ID_CENTRAL_NODE;
@@ -1507,7 +1513,7 @@ namespace can_controller
         cJSON *ota = cJSON_GetObjectItem(doc, "ota");
         if (ota != NULL)
         {
-            #ifdef CAN_SEND_COMMANDS
+            #ifdef CAN_OTA_MASTER
             // Extract parameters
             cJSON *canIdObj = cJSON_GetObjectItem(ota, "canid");
             cJSON *ssidObj = cJSON_GetObjectItem(ota, "ssid");
@@ -1539,7 +1545,7 @@ namespace can_controller
             }
             return result;
             #else
-            log_w("OTA command received but CAN_SEND_COMMANDS not defined");
+            log_w("OTA command received but CAN_OTA_MASTER not defined");
             return -1;
             #endif
         }

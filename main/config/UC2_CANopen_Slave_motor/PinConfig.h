@@ -55,7 +55,7 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
      
      bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
-     const char * pindefName = "UC2_CANopen_Slave_motor";
+     const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
      const unsigned long BAUDRATE = 921600; // 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8

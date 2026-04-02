@@ -9,7 +9,7 @@ def before_build():
     scf = scf.replace("_debug","")
     print(scf)
     try:
-        source_file = "main/config/"+ scf +"/PinConfig.h"
+        source_file = "main/config/"+ scf.split("_default")[0] +"/PinConfig.h"
         destination_file = "main/PinConfig.h"
         shutil.copy(source_file, destination_file)
         print(f"Copied {source_file} to {destination_file}")

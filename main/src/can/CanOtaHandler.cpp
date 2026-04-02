@@ -34,7 +34,7 @@ static MD5Builder md5Builder;
 static bool isInitialized = false;
 
 // Master-side: Variables for tracking slave responses
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
 static volatile bool slaveResponseReceived = false;
 static volatile bool slaveResponseIsAck = false;
 static volatile uint8_t slaveResponseStatus = 0;
@@ -130,7 +130,7 @@ void handleCanOtaMessage(uint8_t messageType, const uint8_t* data, size_t len, u
             handleStatusQuery(sourceCanId);
             break;
             
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
         // Master receives these from slaves
         case OTA_CAN_ACK:
         case OTA_CAN_NAK:
@@ -472,7 +472,7 @@ void loop() {
 // Master-side Relay Functions
 // ============================================================================
 
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
 
 int relayStartToSlave(uint8_t slaveId, uint32_t firmwareSize, uint32_t totalChunks, 
                       uint16_t chunkSize, const uint8_t* md5Hash) {
@@ -655,14 +655,14 @@ void handleSlaveResponse(uint8_t messageType, const uint8_t* data, size_t len) {
     }
 }
 
-#endif // CAN_SEND_COMMANDS
+#endif // CAN_OTA_MASTER
 
 // ============================================================================
 // JSON Command Interface (Master-side, from SerialProcess)
 // ============================================================================
 
 int actFromJson(cJSON* doc) {
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
     // Parse command type - accept both "cmd" and "action" for compatibility
     cJSON* cmdItem = cJSON_GetObjectItem(doc, "cmd");
     if (!cmdItem || !cJSON_IsString(cmdItem)) {
@@ -871,7 +871,7 @@ int actFromJson(cJSON* doc) {
         return -1;
     }
 #else
-    log_w("CAN_SEND_COMMANDS not enabled, cannot relay OTA");
+    log_w("CAN_OTA_MASTER not enabled, cannot relay OTA");
     return -1;
 #endif
 }

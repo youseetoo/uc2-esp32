@@ -13,6 +13,11 @@
 
 #pragma once
 
+// Auto-derive CAN_OTA_MASTER from legacy CAN_SEND_COMMANDS for backward compat
+#if defined(CAN_SEND_COMMANDS) && !defined(CAN_OTA_MASTER)
+#define CAN_OTA_MASTER 1
+#endif
+
 #include <Arduino.h>
 #include "CanOtaTypes.h"
 #include "cJSON.h"
@@ -123,7 +128,7 @@ uint8_t getProgress();
 // Master-side relay functions
 // ============================================================================
 
-#ifdef CAN_SEND_COMMANDS
+#ifdef CAN_OTA_MASTER
 /**
  * @brief Relay OTA start command from serial to CAN slave (master side)
  */

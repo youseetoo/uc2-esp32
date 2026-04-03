@@ -418,7 +418,9 @@ namespace StageScan
                         cmd.ledIndex = 0;
                         cmd.region[0] = 0;
                         cmd.qid = 0;
+#if !defined(UC2_CANOPEN_ENABLED)
                         can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#endif
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                         StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                         vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
@@ -426,7 +428,9 @@ namespace StageScan
                         cmd.r = 0;
                         cmd.g = 0;
                         cmd.b = 0; // switch off the LED
+#if !defined(UC2_CANOPEN_ENABLED)
                         can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#endif
                     }
 #endif
 #ifdef LASER_CONTROLLER
@@ -434,7 +438,7 @@ namespace StageScan
                     {
                         if (sd.lightsourceIntensities[j] > 0)
                         {
-#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
+#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER) && !defined(UC2_CANOPEN_ENABLED)
                             LaserData laserData;
                             laserData.LASERid = j;
                             laserData.LASERval = sd.lightsourceIntensities[j];
@@ -639,7 +643,9 @@ namespace StageScan
                                 cmd.ledIndex = 0;             // not used
                                 cmd.region[0] = 0;            // not used
                                 cmd.qid = 0;                  // not used
+#if !defined(UC2_CANOPEN_ENABLED)
                                 can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#endif
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                                 StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
@@ -655,7 +661,9 @@ namespace StageScan
                                 cmd.r = 0;
                                 cmd.g = 0;
                                 cmd.b = 0; // switch off the LED
+#if !defined(UC2_CANOPEN_ENABLED)
                                 can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#endif
                             }
 #endif
 #ifdef LASER_CONTROLLER
@@ -664,7 +672,7 @@ namespace StageScan
                                 if (sd.lightsourceIntensities[j] > 0)
                                 {
 // TODO: We need to generalize this laser interface to make the same function for both I2C, CAN and native GPIO
-#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
+#if defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER) && !defined(UC2_CANOPEN_ENABLED)
                                     log_i("Triggering laser %d at intensity %d", j, sd.lightsourceIntensities[j]);
                                     LaserData laserData;
                                     laserData.LASERid = j;

@@ -54,6 +54,7 @@
 #define UC2_OD_MOTOR_SUB_ACTUAL   0x04u  //   sub4: actual_position (int32)
 #define UC2_OD_MOTOR_SUB_RUNNING  0x05u  //   sub5: is_running flag (uint8)
 #define UC2_OD_MOTOR_SUB_QID      0x06u  //   sub6: qid             (int16)
+#define UC2_OD_MOTOR_SUB_ACCEL    0x07u  //   sub7: acceleration    (int32, steps/s²)
 
 // Laser channels 0-9
 #define UC2_OD_LASER_COUNT      0x2200u  // sub0: number of laser channels (uint8)
@@ -99,6 +100,31 @@
 #define UC2_OD_CAP_TABLE        0x2F00u  // sub0: same as UC2_OD_NODE_CAPS (uint8)
 #define UC2_OD_SELF_TEST        0x2FF0u  // sub0: trigger (uint8, write 1 to start)
 
+// Homing parameters per axis (0x2800 + axis)
+#define UC2_OD_HOME_BASE          0x2800u  // 0x2800+axis: homing config object
+#define UC2_OD_HOME_SUB_DIR         0x01u  //   sub1: direction       (int8)
+#define UC2_OD_HOME_SUB_SPEED       0x02u  //   sub2: speed           (int32, steps/s)
+#define UC2_OD_HOME_SUB_MAXSPEED    0x03u  //   sub3: max speed       (uint32, steps/s)
+#define UC2_OD_HOME_SUB_POLARITY    0x04u  //   sub4: endstop polarity (uint8, 0=NO 1=NC)
+#define UC2_OD_HOME_SUB_RETRACT     0x05u  //   sub5: retract distance (uint16, steps)
+#define UC2_OD_HOME_SUB_OFFSET      0x06u  //   sub6: end offset       (int32, steps)
+#define UC2_OD_HOME_SUB_TIMEOUT     0x07u  //   sub7: timeout          (uint32, ms)
+
+// Galvo scanner control
+#define UC2_OD_GALVO_CTRL       0x2900u  // galvo control object
+#define UC2_OD_GALVO_SUB_TRIGGER  0x01u  //   sub1: trigger_mode  (uint8)
+#define UC2_OD_GALVO_SUB_NPOINTS  0x02u  //   sub2: point count   (uint16)
+// sub3+ reserved for segmented SDO point array download
+
+// TMC stepper driver config per axis (0x2A00 + axis)
+#define UC2_OD_TMC_BASE           0x2A00u  // 0x2A00+axis: TMC config object
+#define UC2_OD_TMC_SUB_MSTEPS      0x01u  //   sub1: microsteps     (uint16)
+#define UC2_OD_TMC_SUB_RMS_CUR     0x02u  //   sub2: rms_current    (uint16, mA)
+#define UC2_OD_TMC_SUB_STALL       0x03u  //   sub3: stall_value    (uint16)
+#define UC2_OD_TMC_SUB_SGTHRS      0x04u  //   sub4: stall guard thr (uint16)
+#define UC2_OD_TMC_SUB_BLANK       0x05u  //   sub5: blank_time     (uint8)
+#define UC2_OD_TMC_SUB_TOFF        0x06u  //   sub6: toff           (uint8)
+
 // ============================================================================
 // Node capability bitmask (for UC2_OD_NODE_CAPS)
 // ============================================================================
@@ -106,7 +132,7 @@
 #define UC2_CAP_LASER   (1u << 1)
 #define UC2_CAP_LED     (1u << 2)
 #define UC2_CAP_ENCODER (1u << 3)
-#define UC2_CAP_HEATER  (1u << 4)
+#define UC2_CAP_GALVO   (1u << 4)  // replaces former UC2_CAP_HEATER (no CANopen heater device)
 #define UC2_CAP_DAC     (1u << 5)
 #define UC2_CAP_DOUT    (1u << 6)
 #define UC2_CAP_DIN     (1u << 7)

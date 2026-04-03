@@ -538,7 +538,7 @@ namespace MotorJsonParser
 			log_i("Set joystick direction: stepperid %i, inverted %i", axis, inverted);
 
 			// Apply locally or via CAN
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 			can_controller::sendMotorSingleValue(axis, offsetof(MotorData, joystickDirectionInverted), inverted);
 #else
 			FocusMotor::getData()[axis]->joystickDirectionInverted = inverted;
@@ -593,7 +593,7 @@ namespace MotorJsonParser
 			log_i("Set softlimits: stepperid %i, min %i, max %i, isEnabled %i", axis, mn, mx, isEnabledVal);
 
 			// Apply soft limits locally or via CAN
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 			// Send soft limits to CAN slave
 			can_controller::sendSoftLimitsToCANDriver(mn, mx, isEnabledVal, axis);
 #else

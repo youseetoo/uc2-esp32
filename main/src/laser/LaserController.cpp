@@ -212,7 +212,7 @@ namespace LaserController
 	{
 		#ifdef I2C_LASER
 			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
-		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER) && !defined(UC2_CANOPEN_ENABLED)
 			can_controller::sendLaserDataToCANDriver(laserData);
 		#else
 			int LASERid = laserData.LASERid;
@@ -330,7 +330,7 @@ namespace LaserController
 		laserValuePending[LASERid] = true;
 		return true;
 		
-		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER) && !defined(UC2_CANOPEN_ENABLED)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;

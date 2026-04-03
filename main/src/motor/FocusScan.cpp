@@ -85,13 +85,15 @@ namespace FocusScan
                 cmd.r = 0;
                 cmd.g = 0;
                 cmd.b = 0; // switch off the LED
+#if !defined(UC2_CANOPEN_ENABLED)
                 can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#endif
             }
 #endif
 #ifdef LASER_CONTROLLER
             for (uint8_t i = 0; i < 4; ++i)
             {
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_LASER
+#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_LASER && !defined(UC2_CANOPEN_ENABLED)
                 if (sd.lightsourceIntensities[i])
                 {
                     LaserData l;

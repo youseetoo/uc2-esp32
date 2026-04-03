@@ -20,6 +20,12 @@
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
 #endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
@@ -48,6 +54,11 @@ static LEDState    s_led                      = {};
 // Track whether motor was running last loop to detect stop events
 static bool        s_wasRunning[SLAVE_MAX_MOTORS] = {};
 static uint32_t    s_lastStatusMs = 0;
+
+#ifdef TMC_CONTROLLER
+// Local TMC config state (single driver, not per-axis)
+static TMCData     s_tmcData = {};
+#endif
 
 // ---------------------------------------------------------------------------
 // init
@@ -139,6 +150,14 @@ bool sdoRead(uint16_t index, uint8_t subIndex,
             buf[0] = s_motors[axis].isRunning ? 1u : 0u; *lenOut = 1; return true;
         case UC2_OD_MOTOR_SUB_QID:
             memcpy(buf, &s_motors[axis].qid, 2);       *lenOut = 2; return true;
+        case UC2_OD_MOTOR_SUB_ACCEL: {
+            int32_t accel = 0;
+#ifdef MOTOR_CONTROLLER
+            MotorData* md = FocusMotor::getData()[axis];
+            if (md) accel = md->acceleration;
+#endif
+            memcpy(buf, &accel, 4); *lenOut = 4; return true;
+        }
         default: return false;
         }
     }
@@ -167,6 +186,57 @@ bool sdoRead(uint16_t index, uint8_t subIndex,
         default: return false;
         }
     }
+
+    // Homing parameters per axis (0x2800 + axis)
+#ifdef HOME_MOTOR
+    if (index >= UC2_OD_HOME_BASE &&
+        index <  UC2_OD_HOME_BASE + SLAVE_MAX_MOTORS) {
+        uint8_t axis = (uint8_t)(index - UC2_OD_HOME_BASE);
+        if (axis >= s_numMotors) return false;
+        HomeData* hd = HomeMotor::getHomeData()[axis];
+        if (!hd) return false;
+        switch (subIndex) {
+        case UC2_OD_HOME_SUB_DIR:
+            buf[0] = (uint8_t)hd->homeDirection; *lenOut = 1; return true;
+        case UC2_OD_HOME_SUB_SPEED:
+            memcpy(buf, &hd->homeSpeed, 4); *lenOut = 4; return true;
+        case UC2_OD_HOME_SUB_MAXSPEED:
+            memcpy(buf, &hd->homeMaxspeed, 4); *lenOut = 4; return true;
+        case UC2_OD_HOME_SUB_POLARITY:
+            buf[0] = hd->homeEndStopPolarity ? 1u : 0u; *lenOut = 1; return true;
+        case UC2_OD_HOME_SUB_RETRACT:
+            memcpy(buf, &hd->homeRetractDistance, 2); *lenOut = 2; return true;
+        case UC2_OD_HOME_SUB_OFFSET:
+            memcpy(buf, &hd->homeEndOffset, 4); *lenOut = 4; return true;
+        case UC2_OD_HOME_SUB_TIMEOUT:
+            memcpy(buf, &hd->homeTimeout, 4); *lenOut = 4; return true;
+        default: return false;
+        }
+    }
+#endif
+
+    // TMC stepper driver config (0x2A00 + axis; single driver, axis ignored for now)
+#ifdef TMC_CONTROLLER
+    if (index >= UC2_OD_TMC_BASE &&
+        index <  UC2_OD_TMC_BASE + SLAVE_MAX_MOTORS) {
+        const TMCData* td = &s_tmcData;
+        switch (subIndex) {
+        case UC2_OD_TMC_SUB_MSTEPS:
+            memcpy(buf, &td->msteps, 2); *lenOut = 2; return true;
+        case UC2_OD_TMC_SUB_RMS_CUR:
+            memcpy(buf, &td->rms_current, 2); *lenOut = 2; return true;
+        case UC2_OD_TMC_SUB_STALL:
+            memcpy(buf, &td->stall_value, 2); *lenOut = 2; return true;
+        case UC2_OD_TMC_SUB_SGTHRS:
+            memcpy(buf, &td->sgthrs, 2); *lenOut = 2; return true;
+        case UC2_OD_TMC_SUB_BLANK:
+            buf[0] = td->blank_time; *lenOut = 1; return true;
+        case UC2_OD_TMC_SUB_TOFF:
+            buf[0] = td->toff; *lenOut = 1; return true;
+        default: return false;
+        }
+    }
+#endif
 
     return false;
 }
@@ -228,6 +298,17 @@ bool sdoWrite(uint16_t index, uint8_t subIndex,
             if (dataLen < 2) return false;
             memcpy(&s_motors[axis].qid, data, 2);
             return true;
+        case UC2_OD_MOTOR_SUB_ACCEL:
+            if (dataLen < 4) return false;
+            {
+                int32_t accel = 0;
+                memcpy(&accel, data, 4);
+#ifdef MOTOR_CONTROLLER
+                MotorData* md = FocusMotor::getData()[axis];
+                if (md) md->acceleration = accel;
+#endif
+            }
+            return true;
         default:
             return false;
         }
@@ -279,11 +360,77 @@ bool sdoWrite(uint16_t index, uint8_t subIndex,
             cmd.g        = s_led.g;
             cmd.b        = s_led.b;
             cmd.ledIndex = s_led.ledIndex;
-            LedController::act(&cmd);
+            LedController::execLedCommand(cmd);
 #endif
         }
         return true;
     }
+
+    // Homing parameters per axis (0x2800 + axis)
+#ifdef HOME_MOTOR
+    if (index >= UC2_OD_HOME_BASE &&
+        index <  UC2_OD_HOME_BASE + SLAVE_MAX_MOTORS) {
+        uint8_t axis = (uint8_t)(index - UC2_OD_HOME_BASE);
+        if (axis >= s_numMotors || dataLen == 0) return false;
+        HomeData* hd = HomeMotor::getHomeData()[axis];
+        if (!hd) return false;
+        switch (subIndex) {
+        case UC2_OD_HOME_SUB_DIR:
+            hd->homeDirection = (int8_t)data[0]; return true;
+        case UC2_OD_HOME_SUB_SPEED:
+            if (dataLen < 4) return false;
+            memcpy(&hd->homeSpeed, data, 4); return true;
+        case UC2_OD_HOME_SUB_MAXSPEED:
+            if (dataLen < 4) return false;
+            memcpy(&hd->homeMaxspeed, data, 4); return true;
+        case UC2_OD_HOME_SUB_POLARITY:
+            hd->homeEndStopPolarity = (data[0] != 0); return true;
+        case UC2_OD_HOME_SUB_RETRACT:
+            if (dataLen < 2) return false;
+            memcpy(&hd->homeRetractDistance, data, 2); return true;
+        case UC2_OD_HOME_SUB_OFFSET:
+            if (dataLen < 4) return false;
+            memcpy(&hd->homeEndOffset, data, 4); return true;
+        case UC2_OD_HOME_SUB_TIMEOUT:
+            if (dataLen < 4) return false;
+            memcpy(&hd->homeTimeout, data, 4); return true;
+        default: return false;
+        }
+    }
+#endif
+
+    // TMC stepper driver config (0x2A00 + axis; single driver, axis ignored for now)
+#ifdef TMC_CONTROLLER
+    if (index >= UC2_OD_TMC_BASE &&
+        index <  UC2_OD_TMC_BASE + SLAVE_MAX_MOTORS) {
+        if (dataLen == 0) return false;
+        TMCData* td = &s_tmcData;
+        bool ok = false;
+        switch (subIndex) {
+        case UC2_OD_TMC_SUB_MSTEPS:
+            if (dataLen < 2) return false;
+            memcpy(&td->msteps, data, 2); ok = true; break;
+        case UC2_OD_TMC_SUB_RMS_CUR:
+            if (dataLen < 2) return false;
+            memcpy(&td->rms_current, data, 2); ok = true; break;
+        case UC2_OD_TMC_SUB_STALL:
+            if (dataLen < 2) return false;
+            memcpy(&td->stall_value, data, 2); ok = true; break;
+        case UC2_OD_TMC_SUB_SGTHRS:
+            if (dataLen < 2) return false;
+            memcpy(&td->sgthrs, data, 2); ok = true; break;
+        case UC2_OD_TMC_SUB_BLANK:
+            td->blank_time = data[0]; ok = true; break;
+        case UC2_OD_TMC_SUB_TOFF:
+            td->toff = data[0]; ok = true; break;
+        default: return false;
+        }
+        if (ok) {
+            TMCController::applyParamsToDriver(s_tmcData, true);
+        }
+        return ok;
+    }
+#endif
 
     return false;
 }
@@ -363,7 +510,7 @@ void onRPDO(const UC2_RPDO1_MotorPos* rp1,
 
     // RPDO3: LED blue + led_index + qid
     if (rp3 && s_hasLED) {
-        int16_t qid = (int16_t)((uint16_t)rp3->qid_lo | ((uint16_t)rp3->qid_hi << 8u));
+        int16_t qid = rp3->qid;
         s_led.b        = rp3->b;
         s_led.ledIndex = rp3->led_index;
 
@@ -376,7 +523,7 @@ void onRPDO(const UC2_RPDO1_MotorPos* rp1,
         cmd.b        = s_led.b;
         cmd.ledIndex = s_led.ledIndex;
         cmd.qid      = qid;
-        LedController::act(&cmd);
+        LedController::execLedCommand(cmd);
 #endif
         ESP_LOGD(TAG_SC, "RPDO: LED mode=%d rgb=(%d,%d,%d) idx=%d",
                  s_led.mode, s_led.r, s_led.g, s_led.b, s_led.ledIndex);

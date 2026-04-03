@@ -19,12 +19,10 @@ DIP Switch Configuration:
 // Enable hybrid CAN mode with native motor drivers
 #define MOTOR_CONTROLLER
 #define CAN_BUS_ENABLED      // Enable CAN hardware
-#define CAN_SEND_COMMANDS    // This device sends commands to CAN slaves
 #define USE_FASTACCEL
 #define USE_TCA9535
 #define BLUETOOTH
 #define BTHID
-#define CAN_HYBRID
 //#define WIFI
 #define HOME_MOTOR
 #define LASER_CONTROLLER

@@ -95,16 +95,21 @@ Preferences preferences;
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
+// Legacy CAN controller — only used when CANopen is NOT active
+#include "src/can/can_controller.h"
+#endif
+#if defined(CAN_OTA_MASTER) && defined(UC2_CANOPEN_ENABLED)
+// OTA via can_controller transport, but CAN stack is managed by CanOpenStack
 #include "src/can/can_controller.h"
 #endif
 #ifdef UC2_CANOPEN_ENABLED
-#  ifdef UC2_CANOPEN_MASTER
-#    include "src/CANopen/CanOpenMaster.h"
-#  endif
-#  ifdef UC2_CANOPEN_SLAVE
-#    include "src/CANopen/CanOpenSlave.h"
-#  endif
+#ifdef UC2_CANOPEN_MASTER
+#include "src/CANopen/CanOpenMaster.h"
+#endif
+#ifdef UC2_CANOPEN_SLAVE
+#include "src/CANopen/CanOpenSlave.h"
+#endif
 #endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
@@ -212,7 +217,8 @@ extern "C" void looper(void *p)
 #ifdef HEAT_CONTROLLER
 		if (runtimeConfig.heat_enabled) { HeatController::loop(); vTaskDelay(1); }
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
+		// Legacy CAN device-control loop (motor/laser/LED/galvo dispatch)
 		if (runtimeConfig.can_enabled)
 		{
 			can_controller::handleOtaLoop();
@@ -221,14 +227,18 @@ extern "C" void looper(void *p)
 		}
 #endif
 #ifdef UC2_CANOPEN_ENABLED
-#  ifdef UC2_CANOPEN_MASTER
+#ifdef UC2_CANOPEN_MASTER
 		CanOpenMaster::loop();
 		vTaskDelay(1);
-#  endif
-#  ifdef UC2_CANOPEN_SLAVE
+#endif
+#ifdef UC2_CANOPEN_SLAVE
 		CanOpenSlave::loop();
 		vTaskDelay(1);
-#  endif
+#endif
+#ifdef CAN_OTA_MASTER
+		// OTA handler runs alongside CANopen stack
+		can_controller::handleOtaLoop();
+#endif
 #endif
 
 
@@ -446,18 +456,18 @@ extern "C" void setupApp(void)
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
-#ifdef CAN_BUS_ENABLED
-	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
+	// Legacy CAN bus — only when CANopen is NOT active
 	if (runtimeConfig.can_enabled)
 		can_controller::setup();
 #endif
 #ifdef UC2_CANOPEN_ENABLED
-#  ifdef UC2_CANOPEN_MASTER
+#ifdef UC2_CANOPEN_MASTER
 	CanOpenMaster::setup();
-#  endif
-#  ifdef UC2_CANOPEN_SLAVE
+#endif
+#ifdef UC2_CANOPEN_SLAVE
 	CanOpenSlave::setup();
-#  endif
+#endif
 #endif
 #ifdef DIAL_CONTROLLER
 	// Dial controller needs CAN bus to be ready when in CAN master mode

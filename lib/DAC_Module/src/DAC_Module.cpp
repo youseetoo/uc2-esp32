@@ -1,8 +1,8 @@
 // Based on https://github.com/krzychb/dac-cosine/blob/master/main/dac-cosine.c
-
-#ifndef ESP32S3_MODEL_XIAO
-#if !defined(M5DIAL)
 #include "DAC_Module.h"
+
+// ESP32-S3 / M5Dial: entire implementation is compiled out — the header provides inline stubs.
+#if !defined(ESP32S3_MODEL_XIAO) && !defined(M5DIAL)
 
 DAC_Module DAC_Module;
 
@@ -161,5 +161,4 @@ void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int sc
     dac_output_enable(channel);
     #endif
 }
-#endif
-#endif
+#endif // !ESP32S3_MODEL_XIAO && !M5DIAL

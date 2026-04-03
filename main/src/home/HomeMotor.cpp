@@ -599,7 +599,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		
 		if (useCANForHoming)
 		{
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 			// In hybrid mode, send home data to CAN slave
 			int canAxis = getCANAxisForHybrid(axis);
 			log_i("Homing axis %d via CAN (CAN axis: %d)", axis, canAxis);

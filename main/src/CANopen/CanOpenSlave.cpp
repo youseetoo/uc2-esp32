@@ -47,6 +47,18 @@ static constexpr uint8_t OWN_CAPS =
 #if SLAVE_HAS_LED
     UC2_CAP_LED |
 #endif
+#ifdef ENCODER_CONTROLLER
+    UC2_CAP_ENCODER |
+#endif
+#ifdef GALVO_CONTROLLER
+    UC2_CAP_GALVO |
+#endif
+#ifdef DAC_CONTROLLER
+    UC2_CAP_DAC |
+#endif
+#ifdef DIGITAL_IN_CONTROLLER
+    UC2_CAP_DIN |
+#endif
     0u;
 
 #define TAG_CS "UC2_CO_SLAVE"

@@ -237,7 +237,7 @@ namespace FocusMotor
 				sendMotorPos(axis, 0);
 #endif
 			}
-#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
+#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 			// Pure CAN master mode (non-hybrid) - all motors via CAN
 			MotorData *m = getData()[axis];
 			int err = can_controller::startStepper(m, axis, reduced);
@@ -633,7 +633,7 @@ namespace FocusMotor
 		// Initialize motor-encoder conversion configuration
 		MotorEncoderConfig::setup();
 
-#if (defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR))
+#if (defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED))
 		// stop all motors on startup
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
@@ -712,7 +712,7 @@ namespace FocusMotor
 		preferences.putBool(("hlPol" + String(axis)).c_str(), polarity);
 		preferences.end();
 
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 		// Master: Notify CAN slaves about the hard limit settings
 		MotorSettings settings = can_controller::extractMotorSettings(*getData()[axis]);
 		can_controller::sendMotorSettingsToCANDriver(settings, axis);
@@ -841,7 +841,7 @@ namespace FocusMotor
 		getData()[axis]->encoderBasedMotion = enabled;
 		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
 
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 		// Notify CAN slaves if we are a CAN master
 		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
 #endif
@@ -1009,7 +1009,7 @@ namespace FocusMotor
 		// Request data from the slave but only if inside i2cAddresses
 		MotorState mData = i2c_master::getMotorState(i);
 		mIsRunning = mData.isRunning;
-#elif defined CAN_BUS_ENABLED
+#elif defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 		// Slave will push this information to the master via CAN asynchrously
 		mIsRunning = can_controller::isMotorRunning(i);
 #endif
@@ -1179,7 +1179,7 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		MotorData *m = getData()[i];
 		i2c_master::stopStepper(m, i);
-#elif defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
+#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 		getData()[i]->isforever = false;
 		getData()[i]->speed = 0;
 		getData()[i]->stopped = true;

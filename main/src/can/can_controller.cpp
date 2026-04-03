@@ -120,6 +120,7 @@ namespace can_controller
     // All dispatch is now message-type-based in dispatchIsoTpData() using the
     // 1-byte CANMessageTypeID header. Each message type has its own case block.
 
+#if !defined(UC2_CANOPEN_ENABLED)
     int CANid2axis(uint8_t id)
     {
         // function that goes from CAN IDs to motor axis
@@ -198,6 +199,7 @@ namespace can_controller
         }
 #endif
     }
+#endif // !UC2_CANOPEN_ENABLED
 
     void dispatchIsoTpData(pdu_t &pdu)
     {
@@ -259,8 +261,9 @@ namespace can_controller
             return; // Never reached
         }
 
+#if !defined(UC2_CANOPEN_ENABLED)
         // ============================================================
-        // Motor Commands (Master → Slave)
+        // Motor Commands (Master → Slave) — legacy only
         // ============================================================
         case MOTOR_ACT:
         {
@@ -722,6 +725,7 @@ namespace can_controller
 #endif
             break;
         }
+#endif // !UC2_CANOPEN_ENABLED
 
         // ============================================================
         // OTA Update Messages
@@ -846,7 +850,7 @@ namespace can_controller
             bool anyMotorRunning = false;
             for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
             {
-                if (isMotorRunning(i))
+                if (FocusMotor::isRunning(i))
                 {
                     anyMotorRunning = true;
                     break;
@@ -1494,6 +1498,7 @@ namespace can_controller
         cJSON *state = cJSON_GetObjectItem(doc, "restart");
         if (state != NULL)
         {
+#if !defined(UC2_CANOPEN_ENABLED)
             int canID = state->valueint; // Access the valueint directly from the "restart" object
             sendCANRestartByID(canID);   // Send the restart signal to the specified CAN ID
             
@@ -1506,6 +1511,10 @@ namespace can_controller
                 if (debugState)
                     log_i("Reset settings flag for axis %i after restart command", axis);
             }
+#else
+            // Under CANopen, use NMT reset node command instead
+            log_w("restart via legacy CAN not available under CANopen");
+#endif
         }
 
         // OTA update command to remote CAN device
@@ -1560,7 +1569,9 @@ namespace can_controller
             
             // Reset all motor settings flags before scan
             // New or restarted devices will need settings
+#if !defined(UC2_CANOPEN_ENABLED)
             resetAllMotorSettingsFlags();
+#endif
             
             // Set flag to perform scan in loop() and send results
             scanResultPending = true;
@@ -1575,6 +1586,7 @@ namespace can_controller
         }
 
         // test partial update on the motor data (sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed))
+#if !defined(UC2_CANOPEN_ENABLED)
         cJSON *motor = cJSON_GetObjectItem(doc, "motor");
         if (motor != NULL)
         {
@@ -1613,9 +1625,11 @@ namespace can_controller
 
         else if (debugState)
             log_i("Motor json is null");
+#endif // !UC2_CANOPEN_ENABLED
         return qid;
     }
 
+#if !defined(UC2_CANOPEN_ENABLED)
     uint8_t axis2id(int axis)
     {
         if (axis >= 0 && axis < MOTOR_AXIS_COUNT)
@@ -2099,6 +2113,7 @@ namespace can_controller
                 log_i("LaserData to master at address %i, laser intensity: %i, receiverID, laserData.LASERval: %i, size %i", receiverID, laserData.LASERval, sizeof(laserData));
         }
     }
+#endif // !UC2_CANOPEN_ENABLED (device-control senders)
 
     cJSON *get(cJSON *ob)
     {
@@ -2186,6 +2201,7 @@ namespace can_controller
         return doc;
     }
 
+#if !defined(UC2_CANOPEN_ENABLED)
 #ifdef GALVO_CONTROLLER
     void sendGalvoDataToCANDriver(GalvoData galvoData)
     {
@@ -2260,6 +2276,7 @@ namespace can_controller
         free(buffer);
     }
 #endif
+#endif // !UC2_CANOPEN_ENABLED
 
 
     // ========================================================================

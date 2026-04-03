@@ -8,11 +8,6 @@
 #define ESP32S3_MODEL_XIAO 
 #define LASER_CONTROLLER
 #define LED_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_RECEIVE_LASER
-#define CAN_RECEIVE_LED
-#define CAN_BUS_ENABLED
-#define CAN_MULTIADDRESS
 
 struct seeed_xiao_esp32s3_can_slave_illumination : PinConfig
 {

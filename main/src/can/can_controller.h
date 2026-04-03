@@ -77,12 +77,13 @@ namespace can_controller
     void setCANAddress(uint8_t address);
     uint8_t getCANAddress();
     void dispatchIsoTpData(pdu_t&);
-    // motor functions
+#if !defined(UC2_CANOPEN_ENABLED)
+    // motor functions (legacy CAN device control — disabled under CANopen)
     int sendMotorDataToCANDriver(MotorData motorData, uint8_t axis, int reduced = 0);
     MotorSettings extractMotorSettings(const MotorData& motorData);
     int sendMotorSettingsToCANDriver(MotorSettings motorSettings, uint8_t axis);
-    void resetMotorSettingsFlag(uint8_t axis); // Reset flag to force settings resend
-    void resetAllMotorSettingsFlags(); // Reset all flags
+    void resetMotorSettingsFlag(uint8_t axis);
+    void resetAllMotorSettingsFlags();
     int startStepper(MotorData *data, int axis, int reduced);
     void stopStepper(Stepper s);
     void sendMotorStateToMaster();
@@ -92,6 +93,7 @@ namespace can_controller
     int sendEncoderBasedMotionToCanDriver(uint8_t axis, bool encoderBasedMotion);
     int sendMotorSingleValue(uint8_t axis, uint16_t offset, int32_t newVal);
     int sendCANRestartByID(uint8_t canID);
+    uint8_t axis2id(int axis);
 
     // scan functions
     cJSON* scanCanDevices();
@@ -104,7 +106,6 @@ namespace can_controller
     int sendSoftLimitsToCANDriver(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis);
     void sendHomeStateToMaster(HomeState homeState);
     void sendStopHomeToCANDriver(uint8_t axis);
-    // axis homed array stores the homed state of each axis
     static bool axisHomed[4] = {false, false, false, false};
 
     // laser functions
@@ -117,15 +118,16 @@ namespace can_controller
     void sendGalvoPointsToCANDriver(const ArbitraryScanPoint* points, uint16_t count, TriggerMode triggerMode = TRIGGER_AUTO);
     #endif
 
-    // TMC 
+    // TMC
     #ifdef TMC_CONTROLLER
     void sendTMCDataToCANDriver(TMCData tmcData, int axis);
     #endif
 
-    // LED 
+    // LED
     #ifdef LED_CONTROLLER
     int sendLedCommandToCANDriver(LedCommand cmd, uint8_t targetID);
     #endif
+#endif // !UC2_CANOPEN_ENABLED
 
     // OTA functions
     int sendOtaStartCommandToSlave(uint8_t slaveID, const char* ssid, const char* password, uint32_t timeout_ms = 300000);

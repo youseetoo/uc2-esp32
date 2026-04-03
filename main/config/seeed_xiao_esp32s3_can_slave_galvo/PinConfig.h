@@ -4,8 +4,6 @@
 #undef PSXCONTROLLER
 #define ESP32S3_MODEL_XIAO
 #define GALVO_CONTROLLER
-#define CAN_RECEIVE_GALVO
-#define CAN_BUS_ENABLED
 
 struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
 {

@@ -7,9 +7,6 @@
 // #define CORE_DEBUG_LEVEL
 #define ESP32S3_MODEL_XIAO 
 
-#define MESSAGE_CONTROLLER
-#define CAN_BUS_ENABLED
-#define CAN_RECEIVE_LED
 #define LED_CONTROLLER
 
 //#define DOTSTAR // outcomment if neopixel

@@ -10,7 +10,7 @@
  */
 
 #include "CanOtaStreaming.h"
-#include "can_controller.h"
+#include "can_transport.h"
 #include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE
 #include <Update.h>
 #include <MD5Builder.h>
@@ -160,10 +160,10 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     // Validate
     if (cmd->firmwareSize > CAN_OTA_MAX_FIRMWARE_SIZE) {
         log_e("Firmware too large: %lu > %d", cmd->firmwareSize, CAN_OTA_MAX_FIRMWARE_SIZE);
-        StreamNak nak = {CAN_OTA_ERR_INVALID_SIZE, can_controller::device_can_id, 0, 0, 0};
+        StreamNak nak = {CAN_OTA_ERR_INVALID_SIZE, can_transport::device_can_id, 0, 0, 0};
         uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
         memcpy(buf + 1, &nak, sizeof(nak));
-        can_controller::sendCanMessage(masterCanId, buf, sizeof(buf));
+        can_transport::sendCanMessage(masterCanId, buf, sizeof(buf));
         return;
     }
     
@@ -175,10 +175,10 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     // Start OTA partition
     if (!Update.begin(cmd->firmwareSize)) {
         log_e("Update.begin() failed");
-        StreamNak nak = {CAN_OTA_ERR_BEGIN, can_controller::device_can_id, 0, 0, 0};
+        StreamNak nak = {CAN_OTA_ERR_BEGIN, can_transport::device_can_id, 0, 0, 0};
         uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
         memcpy(buf + 1, &nak, sizeof(nak));
-        can_controller::sendCanMessage(masterCanId, buf, sizeof(buf));
+        can_transport::sendCanMessage(masterCanId, buf, sizeof(buf));
         return;
     }
     
@@ -230,7 +230,7 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     // Send ACK back to master
     StreamAck ack = {
         CAN_OTA_OK,
-        can_controller::device_can_id,
+        can_transport::device_can_id,
         0xFFFF,  // No pages complete yet
         0,
         0,
@@ -239,7 +239,7 @@ static void handleStartCmd(const uint8_t* data, size_t len, uint8_t sourceCanId)
     uint8_t buf[1 + sizeof(StreamAck)] = {STREAM_ACK};
     memcpy(buf + 1, &ack, sizeof(ack));
     log_i("Sending STREAM_ACK to master CAN ID %u", masterCanId);
-    can_controller::sendCanMessage(masterCanId, buf, sizeof(buf));
+    can_transport::sendCanMessage(masterCanId, buf, sizeof(buf));
     
     log_i("Streaming session started, expecting %lu pages", ctx.totalPages);
 }
@@ -276,14 +276,14 @@ static void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId
             log_w("Page %u too far ahead (current=%u)", hdr->pageIndex, currentPageIndex);
             StreamNak nak = {
                 CAN_OTA_ERR_SEQUENCE,
-                can_controller::device_can_id,
+                can_transport::device_can_id,
                 currentPageIndex,
                 (uint16_t)pageBufferOffset,
                 ctx.nextExpectedSeq
             };
             uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
             memcpy(buf + 1, &nak, sizeof(nak));
-            can_controller::sendCanMessage(ctx.masterCanId, buf, sizeof(buf));
+            can_transport::sendCanMessage(ctx.masterCanId, buf, sizeof(buf));
             return;
         }
         // Next page started - current page must be incomplete
@@ -301,14 +301,14 @@ static void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId
             log_w("Gap at offset %u (expected=%u)", hdr->offsetInPage, pageBufferOffset);
             StreamNak nak = {
                 CAN_OTA_ERR_SEQUENCE,
-                can_controller::device_can_id,
+                can_transport::device_can_id,
                 currentPageIndex,
                 (uint16_t)pageBufferOffset,
                 ctx.nextExpectedSeq
             };
             uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
             memcpy(buf + 1, &nak, sizeof(nak));
-            can_controller::sendCanMessage(ctx.masterCanId, buf, sizeof(buf));
+            can_transport::sendCanMessage(ctx.masterCanId, buf, sizeof(buf));
             return;
         }
     }
@@ -357,7 +357,7 @@ static void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId
         // Send cumulative ACK
         StreamAck ack = {
             CAN_OTA_OK,
-            can_controller::device_can_id,
+            can_transport::device_can_id,
             currentPageIndex,
             ctx.bytesReceived,
             ctx.nextExpectedSeq,
@@ -365,7 +365,7 @@ static void handleDataChunk(const uint8_t* data, size_t len, uint8_t sourceCanId
         };
         uint8_t buf[1 + sizeof(StreamAck)] = {STREAM_ACK};
         memcpy(buf + 1, &ack, sizeof(ack));
-        can_controller::sendCanMessage(ctx.masterCanId, buf, sizeof(buf));
+        can_transport::sendCanMessage(ctx.masterCanId, buf, sizeof(buf));
         
         log_i("Page %u complete, ACK sent (%lu bytes total)", currentPageIndex, ctx.bytesReceived);
         
@@ -421,10 +421,10 @@ static void handleFinishCmd(const uint8_t* data, size_t len, uint8_t sourceCanId
     if (!calcMd5.equalsIgnoreCase(expectedMd5)) {
         log_e("MD5 mismatch!");
         abort(CAN_OTA_ERR_MD5);
-        StreamNak nak = {CAN_OTA_ERR_MD5, can_controller::device_can_id, 0, 0, 0};
+        StreamNak nak = {CAN_OTA_ERR_MD5, can_transport::device_can_id, 0, 0, 0};
         uint8_t buf[1 + sizeof(StreamNak)] = {STREAM_NAK};
         memcpy(buf + 1, &nak, sizeof(nak));
-        can_controller::sendCanMessage(sourceCanId, buf, sizeof(buf));
+        can_transport::sendCanMessage(sourceCanId, buf, sizeof(buf));
         return;
     }
     
@@ -438,7 +438,7 @@ static void handleFinishCmd(const uint8_t* data, size_t len, uint8_t sourceCanId
     // Send final ACK
     StreamAck ack = {
         CAN_OTA_OK,
-        can_controller::device_can_id,
+        can_transport::device_can_id,
         currentPageIndex,
         ctx.bytesReceived,
         ctx.nextExpectedSeq,
@@ -446,7 +446,7 @@ static void handleFinishCmd(const uint8_t* data, size_t len, uint8_t sourceCanId
     };
     uint8_t buf[1 + sizeof(StreamAck)] = {STREAM_ACK};
     memcpy(buf + 1, &ack, sizeof(ack));
-    can_controller::sendCanMessage(sourceCanId, buf, sizeof(buf));
+    can_transport::sendCanMessage(sourceCanId, buf, sizeof(buf));
     
     uint32_t duration = (millis() - ctx.startTime) / 1000;
     log_i("OTA COMPLETE! %lu bytes in %lu seconds (%.1f KB/s)",
@@ -477,7 +477,7 @@ int actFromJsonStreaming(cJSON* doc) {
     cJSON* canidItem = cJSON_GetObjectItem(doc, "canid");
     if (!canidItem) canidItem = cJSON_GetObjectItem(doc, "slaveId");
     
-    uint8_t targetCanId = can_controller::device_can_id;  // Default to self
+    uint8_t targetCanId = can_transport::device_can_id;  // Default to self
     if (canidItem && cJSON_IsNumber(canidItem)) {
         targetCanId = (uint8_t)canidItem->valueint;
         log_i("Target CAN ID: %u", targetCanId);
@@ -515,7 +515,7 @@ int actFromJsonStreaming(cJSON* doc) {
         
 #ifdef CAN_OTA_MASTER
         // Master mode: Check if target is self or a remote slave
-        if (targetCanId != can_controller::device_can_id) {
+        if (targetCanId != can_transport::device_can_id) {
             // Relay to remote slave over CAN
             log_i("Relaying STREAM_START to slave 0x%02X", targetCanId);
             result = startStreamToSlave(targetCanId, firmwareSize, md5Hash);
@@ -536,7 +536,7 @@ int actFromJsonStreaming(cJSON* doc) {
             cmd.pageSize = pageSize;
             cmd.chunkSize = chunkSize;
             memcpy(cmd.md5Hash, md5Hash, 16);
-            handleStartCmd(reinterpret_cast<const uint8_t*>(&cmd), sizeof(cmd), can_controller::device_can_id);
+            handleStartCmd(reinterpret_cast<const uint8_t*>(&cmd), sizeof(cmd), can_transport::device_can_id);
             result = 0;
         }
         
@@ -558,10 +558,10 @@ int actFromJsonStreaming(cJSON* doc) {
         log_i("Stream OTA abort to CAN ID %u", targetCanId);
         
 #ifdef CAN_OTA_MASTER
-        if (targetCanId != can_controller::device_can_id) {
+        if (targetCanId != can_transport::device_can_id) {
             // Send abort to remote slave
             uint8_t buf[2] = {STREAM_ABORT, CAN_OTA_ERROR_ABORTED};
-            can_controller::sendCanMessage(targetCanId, buf, sizeof(buf));
+            can_transport::sendCanMessage(targetCanId, buf, sizeof(buf));
         } else
 #endif
         {
@@ -599,7 +599,7 @@ void handleStreamMessage(uint8_t msgType, const uint8_t* data, size_t len, uint8
         case STREAM_STATUS: {
             StreamAck status = {
                 ctx.active ? CAN_OTA_OK : CAN_OTA_ERR_NOT_STARTED,
-                can_controller::device_can_id,
+                can_transport::device_can_id,
                 currentPageIndex,
                 ctx.bytesReceived,
                 ctx.nextExpectedSeq,
@@ -607,7 +607,7 @@ void handleStreamMessage(uint8_t msgType, const uint8_t* data, size_t len, uint8
             };
             uint8_t buf[1 + sizeof(StreamAck)] = {STREAM_ACK};
             memcpy(buf + 1, &status, sizeof(status));
-            can_controller::sendCanMessage(sourceCanId, buf, sizeof(buf));
+            can_transport::sendCanMessage(sourceCanId, buf, sizeof(buf));
             break;
         }
         
@@ -753,7 +753,7 @@ int startStreamToSlave(uint8_t slaveId, uint32_t firmwareSize, const uint8_t* md
     log_i("Starting stream to slave 0x%02X: %lu bytes, %lu pages",
           slaveId, firmwareSize, cmd.totalPages);
     
-    int result = can_controller::sendCanMessage(slaveId, buf, sizeof(buf));
+    int result = can_transport::sendCanMessage(slaveId, buf, sizeof(buf));
     if (result < 0) {
         log_e("Failed to send STREAM_START");
         return result;
@@ -799,7 +799,7 @@ int sendStreamData(uint8_t slaveId, uint16_t pageIndex, uint16_t offset,
     memcpy(buf + 1, &hdr, sizeof(hdr));
     memcpy(buf + 1 + sizeof(hdr), data, len);
     
-    int result = can_controller::sendCanMessage(slaveId, buf, totalSize);
+    int result = can_transport::sendCanMessage(slaveId, buf, totalSize);
     free(buf);
     
     return (result >= 0) ? (int)len : result;
@@ -825,7 +825,7 @@ int finishStream(uint8_t slaveId, const uint8_t* md5Hash) {
     
     log_i("Sending STREAM_FINISH to slave 0x%02X", slaveId);
     
-    int result = can_controller::sendCanMessage(slaveId, buf, sizeof(buf));
+    int result = can_transport::sendCanMessage(slaveId, buf, sizeof(buf));
     if (result < 0) return result;
     
     // Wait for final ACK (longer timeout for verification)
@@ -943,7 +943,7 @@ static void sendSerialStreamAck(const StreamAck* ack) {
 static void sendSerialStreamNak(uint8_t status, uint16_t pageIndex, uint16_t missingOffset) {
     StreamNak nak;
     nak.status = status;
-    nak.canId = can_controller::device_can_id;
+    nak.canId = can_transport::device_can_id;
     nak.pageIndex = pageIndex;
     nak.missingOffset = missingOffset;
     nak.missingSeq = 0;
@@ -1054,7 +1054,7 @@ static void processCompleteBinaryPacket() {
                 // Success - slave verified MD5
                 StreamAck ack;
                 ack.status = CAN_OTA_OK;
-                ack.canId = can_controller::device_can_id;
+                ack.canId = can_transport::device_can_id;
                 ack.lastCompletePage = 0xFFFF;  // Indicates completion
                 ack.bytesReceived = streamingFirmwareSize;
                 ack.nextExpectedSeq = 0;
@@ -1073,7 +1073,7 @@ static void processCompleteBinaryPacket() {
             log_w("Binary STREAM_ABORT received");
             // Forward abort to slave
             uint8_t buf[2] = {STREAM_ABORT, 0};
-            can_controller::sendCanMessage(streamingTargetSlaveId, buf, sizeof(buf));
+            can_transport::sendCanMessage(streamingTargetSlaveId, buf, sizeof(buf));
             exitStreamingBinaryMode();
             break;
         }
@@ -1205,7 +1205,7 @@ void forwardSlaveAckToSerial() {
     if (slaveAckReceived) {
         StreamAck ack;
         ack.status = CAN_OTA_OK;
-        ack.canId = can_controller::device_can_id;
+        ack.canId = can_transport::device_can_id;
         ack.lastCompletePage = slaveAckPage;
         ack.bytesReceived = slaveAckBytes;
         ack.nextExpectedSeq = 0;

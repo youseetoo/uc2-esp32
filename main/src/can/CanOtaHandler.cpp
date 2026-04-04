@@ -3,7 +3,7 @@
  * @brief Implementation of CAN-based OTA firmware update handler
  * 
  * This module receives firmware updates over CAN bus using ISO-TP protocol.
- * Works in conjunction with can_controller.cpp for message routing.
+ * Works in conjunction with can_transport.cpp for message routing.
  */
 
 #include "CanOtaHandler.h"
@@ -16,7 +16,7 @@
 #include <rom/crc.h>  // For crc32_le
 #include <mbedtls/base64.h>  // For base64 decode
 #include "cJSON.h"
-#include "can_controller.h"
+#include "can_transport.h"
 #include "can_messagetype.h"  // For OTA_CAN_* enum values
 #include "BinaryOtaProtocol.h"  // For binary OTA mode
 #include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE
@@ -50,14 +50,14 @@ static const uint32_t SLAVE_ACK_TIMEOUT_MS = 5000;  // 5 second timeout for slav
  * @brief Get device CAN ID from controller
  */
 static uint8_t getDeviceCanId() {
-    return can_controller::device_can_id;
+    return can_transport::device_can_id;
 }
 
 /**
  * @brief Send CAN message via ISO-TP
  */
 static int sendCanMessage(uint8_t receiverID, const uint8_t* data, size_t size) {
-    return can_controller::sendIsoTpData(receiverID, data, size); // TODO: We should probably have a similar pattern to how the motor data is sent
+    return can_transport::sendIsoTpData(receiverID, data, size); // TODO: We should probably have a similar pattern to how the motor data is sent
 }
 
 // ============================================================================

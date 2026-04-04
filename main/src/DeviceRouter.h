@@ -5,19 +5,16 @@
  *   a) Local GPIO controllers (FocusMotor, LaserController, LedController)
  *   b) Remote CAN slaves (via CanOpenStack PDO/SDO)
  *
- * Enumeration scheme:
- *   Motor IDs  0-9    → local GPIO (from RuntimeConfig)
- *   Motor IDs  10-19  → CAN node 0x10, local axis ID-10
- *   Motor IDs  20-29  → CAN node 0x14, local axis ID-20
- *   Motor IDs  30-39  → CAN node 0x18, local axis ID-30
+ * Enumeration scheme (dynamic, based on local device count):
+ *   Motor/Laser IDs 0..N-1  → local GPIO (N = actually configured axes with
+ *                               a native driver, e.g. USE_FASTACCEL)
+ *   Motor/Laser IDs N..     → CAN slaves, appended in order of discovery
  *
- *   Laser IDs  0-9    → local GPIO
- *   Laser IDs  10-19  → CAN node 0x10, local laser ID-10
- *   Laser IDs  20-29  → CAN node 0x14, local laser ID-20
+ *   CAN-only master (N=0):  IDs 0,1,2,3… all map to CAN slaves
+ *   Hybrid (N>0):           IDs 0..N-1 local, N.. CAN slaves
  *
- *   LED ID     0      → local controller
- *   LED ID     1      → CAN node 0x10
- *   LED ID     2      → CAN node 0x14
+ *   LED ID 0               → local controller (if present)
+ *   LED IDs 1..             → CAN slaves
  *
  * The route table is built at boot from:
  *   1. PinConfig / RuntimeConfig  → LOCAL_GPIO entries

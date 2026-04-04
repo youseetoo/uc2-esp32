@@ -36,6 +36,14 @@ static UC2_MotorRoute s_motorRoutes[UC2_ROUTER_GLOBAL_MAX_MOTOR];
 static UC2_LaserRoute s_laserRoutes[UC2_ROUTER_GLOBAL_MAX_LASER];
 static UC2_LEDRoute   s_ledRoutes[UC2_ROUTER_GLOBAL_MAX_LED];
 
+// Dynamic CAN slot assignment — CAN devices start right after local ones
+static uint8_t s_localMotorCount = 0;
+static uint8_t s_localLaserCount = 0;
+static bool    s_hasLocalLED     = false;
+static uint8_t s_nextCanMotorGid = 0;
+static uint8_t s_nextCanLaserGid = 0;
+static uint8_t s_nextCanLedGid   = 0;
+
 // ---------------------------------------------------------------------------
 // Global-ID → CAN node / local axis mapping helpers
 // ---------------------------------------------------------------------------
@@ -66,28 +74,43 @@ static inline uint8_t canLocalIdForGlobalId(uint8_t globalId)
 // ---------------------------------------------------------------------------
 void init(uint8_t localMotorCount, uint8_t localLaserCount, bool hasLocalLED)
 {
+    s_localMotorCount = localMotorCount;
+    s_localLaserCount = localLaserCount;
+    s_hasLocalLED     = hasLocalLED;
+
     // Mark everything unavailable first
     for (auto& r : s_motorRoutes) r = { UC2_RouteType::UNAVAILABLE, 0, 0, 0 };
     for (auto& r : s_laserRoutes) r = { UC2_RouteType::UNAVAILABLE, 0, 0, 0 };
     for (auto& r : s_ledRoutes)   r = { UC2_RouteType::UNAVAILABLE, 0 };
 
     // Register local motor axes
-    for (uint8_t i = 0; i < localMotorCount && i < UC2_ROUTER_LOCAL_MAX; i++) {
+    for (uint8_t i = 0; i < localMotorCount && i < UC2_ROUTER_GLOBAL_MAX_MOTOR; i++) {
         s_motorRoutes[i] = { UC2_RouteType::LOCAL_GPIO, i, 0, 0 };
+        log_i(TAG_DR, "Registered local motor route: globalId=%d → localAxis=%d",
+              i, s_motorRoutes[i].localAxisId);
     }
 
     // Register local laser channels
-    for (uint8_t i = 0; i < localLaserCount && i < UC2_ROUTER_LOCAL_MAX; i++) {
+    for (uint8_t i = 0; i < localLaserCount && i < UC2_ROUTER_GLOBAL_MAX_LASER; i++) {
         s_laserRoutes[i] = { UC2_RouteType::LOCAL_GPIO, i, 0, 0 };
+        log_i(TAG_DR, "Registered local laser route: globalId=%d → localAxis=%d",
+              i, s_laserRoutes[i].localAxisId);
     }
 
     // Register local LED (index 0 = local)
     if (hasLocalLED) {
         s_ledRoutes[0] = { UC2_RouteType::LOCAL_GPIO, 0 };
+        log_i(TAG_DR, "Registered local LED route: globalId=0 → localAxis=0");
     }
 
-    ESP_LOGI(TAG_DR, "DeviceRouter init: %d local motors, %d local lasers, LED=%d",
-             localMotorCount, localLaserCount, (int)hasLocalLED);
+    // CAN devices start right after local ones
+    s_nextCanMotorGid = localMotorCount;
+    s_nextCanLaserGid = localLaserCount;
+    s_nextCanLedGid   = hasLocalLED ? 1 : 0;
+
+    ESP_LOGI(TAG_DR, "DeviceRouter init: %d local motors, %d local lasers, LED=%d, CAN base motor=%d laser=%d led=%d",
+             localMotorCount, localLaserCount, (int)hasLocalLED,
+             s_nextCanMotorGid, s_nextCanLaserGid, s_nextCanLedGid);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,38 +122,59 @@ void onSlaveOnline(uint8_t canNodeId, uint8_t caps,
     ESP_LOGI(TAG_DR, "Slave 0x%02X online: caps=0x%02X motors=%d lasers=%d",
              canNodeId, caps, motorCount, laserCount);
 
-    // Compute global ID base for this CAN node
-    // node 0x10 → base 10, node 0x14 → base 20, node 0x18 → base 30 ...
-    uint8_t slot = (canNodeId >= 0x10u) ? ((canNodeId - 0x10u) / 4u) : 0u;
-    uint8_t motorBase = (uint8_t)(UC2_ROUTER_LOCAL_MAX + slot * UC2_ROUTER_CAN_NODE_STRIDE);
-    uint8_t laserBase = motorBase;  // Same scheme; separate per device type
+    // Check if this node already has routes (reconnect after going offline)
+    bool reactivated = false;
+    for (auto& r : s_motorRoutes) {
+        if (r.canNodeId == canNodeId && r.type == UC2_RouteType::UNAVAILABLE) {
+            r.type = UC2_RouteType::CAN_REMOTE;
+            reactivated = true;
+        }
+    }
+    for (auto& r : s_laserRoutes) {
+        if (r.canNodeId == canNodeId && r.type == UC2_RouteType::UNAVAILABLE) {
+            r.type = UC2_RouteType::CAN_REMOTE;
+            reactivated = true;
+        }
+    }
+    for (auto& r : s_ledRoutes) {
+        if (r.canNodeId == canNodeId && r.type == UC2_RouteType::UNAVAILABLE) {
+            r.type = UC2_RouteType::CAN_REMOTE;
+            reactivated = true;
+        }
+    }
+    if (reactivated) {
+        ESP_LOGI(TAG_DR, "Slave 0x%02X re-activated existing routes", canNodeId);
+        return;
+    }
 
+    // Brand new node — assign CAN devices right after existing entries
     if (caps & UC2_CAP_MOTOR) {
         for (uint8_t a = 0; a < motorCount; a++) {
-            uint8_t gid = motorBase + a;
-            if (gid < UC2_ROUTER_GLOBAL_MAX_MOTOR) {
-                s_motorRoutes[gid] = { UC2_RouteType::CAN_REMOTE, a, canNodeId, a };
-                ESP_LOGD(TAG_DR, "  motor[%d] → CAN 0x%02X axis %d", gid, canNodeId, a);
+            if (s_nextCanMotorGid < UC2_ROUTER_GLOBAL_MAX_MOTOR) {
+                s_motorRoutes[s_nextCanMotorGid] = { UC2_RouteType::CAN_REMOTE, a, canNodeId, a };
+                ESP_LOGI(TAG_DR, "  motor[%d] → CAN 0x%02X axis %d",
+                         s_nextCanMotorGid, canNodeId, a);
+                s_nextCanMotorGid++;
             }
         }
     }
 
     if (caps & UC2_CAP_LASER) {
         for (uint8_t a = 0; a < laserCount; a++) {
-            uint8_t gid = laserBase + a;
-            if (gid < UC2_ROUTER_GLOBAL_MAX_LASER) {
-                s_laserRoutes[gid] = { UC2_RouteType::CAN_REMOTE, a, canNodeId, a };
-                ESP_LOGD(TAG_DR, "  laser[%d] → CAN 0x%02X ch %d", gid, canNodeId, a);
+            if (s_nextCanLaserGid < UC2_ROUTER_GLOBAL_MAX_LASER) {
+                s_laserRoutes[s_nextCanLaserGid] = { UC2_RouteType::CAN_REMOTE, a, canNodeId, a };
+                ESP_LOGI(TAG_DR, "  laser[%d] → CAN 0x%02X ch %d",
+                         s_nextCanLaserGid, canNodeId, a);
+                s_nextCanLaserGid++;
             }
         }
     }
 
     if (caps & UC2_CAP_LED) {
-        // LED slot 0 = local, 1 = CAN 0x10, 2 = CAN 0x14 ...
-        uint8_t ledSlot = slot + 1u;
-        if (ledSlot < UC2_ROUTER_GLOBAL_MAX_LED) {
-            s_ledRoutes[ledSlot] = { UC2_RouteType::CAN_REMOTE, canNodeId };
-            ESP_LOGD(TAG_DR, "  LED[%d] → CAN 0x%02X", ledSlot, canNodeId);
+        if (s_nextCanLedGid < UC2_ROUTER_GLOBAL_MAX_LED) {
+            s_ledRoutes[s_nextCanLedGid] = { UC2_RouteType::CAN_REMOTE, canNodeId };
+            ESP_LOGI(TAG_DR, "  LED[%d] → CAN 0x%02X", s_nextCanLedGid, canNodeId);
+            s_nextCanLedGid++;
         }
     }
 }
@@ -161,16 +205,15 @@ void onSlaveOffline(uint8_t canNodeId)
 
 const UC2_MotorRoute* getMotorRoute(uint8_t globalMotorId)
 {
-    UC2_MotorRoute motorRoute = { UC2_RouteType::UNAVAILABLE, 0, 0, 0 };
     if (globalMotorId >= UC2_ROUTER_GLOBAL_MAX_MOTOR) {
         log_w("getMotorRoute: globalMotorId %d out of range", globalMotorId);
         return nullptr;
     }
-    motorRoute = s_motorRoutes[globalMotorId];
-    log_i("getMotorRoute: globalMotorId=%d type=%d localAxisId=%d canNodeId=%d canAxisId=%d",
-          globalMotorId, (int)motorRoute.type, motorRoute.localAxisId,
-          motorRoute.canNodeId, motorRoute.canAxisId);
-    return &motorRoute;
+    const UC2_MotorRoute* r = &s_motorRoutes[globalMotorId];
+    log_i("getMotorRoute: globalMotorId=%d type=%d localAxisId=%d canNodeId=0x%02X canAxisId=%d",
+          globalMotorId, (int)r->type, r->localAxisId,
+          r->canNodeId, r->canAxisId);
+    return r;
 }
 
 const UC2_LaserRoute* getLaserRoute(uint8_t globalLaserId)

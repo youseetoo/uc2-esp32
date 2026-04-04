@@ -3,7 +3,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 
 using namespace FocusMotor;
@@ -143,7 +143,7 @@ namespace TMCController
         i2c_master::sendTMCDataI2C(p, axis);
         return 0;
 #elif defined(CAN_SEND_COMMANDS)
-        can_controller::sendTMCDataToCANDriver(p, axis);
+        can_transport::sendTMCDataToCANDriver(p, axis);
         return 0;
 #else
         if (pinConfig.tmc_SW_RX == disabled)
@@ -244,7 +244,7 @@ namespace TMCController
         bool isZAxis = false ;
         #ifdef CAN_RECEIVE_MOTOR
             // retreive the current ID
-            isZAxis = can_controller::device_can_id == pinConfig.CAN_ID_MOT_Z;
+            isZAxis = can_transport::device_can_id == pinConfig.CAN_ID_MOT_Z;
         #endif
         if (isZAxis){
             driver.rms_current(current*1.5); // we double the current for the Z axis as it needs more power

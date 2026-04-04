@@ -32,7 +32,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 #if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 #include "../DeviceRouter.h"
@@ -185,7 +185,7 @@ namespace FocusMotor
 			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
 #ifdef CAN_RECEIVE_MOTOR
 			if (getData()[axis]->qid > 0)
-				can_controller::sendQidReportToMaster(getData()[axis]->qid, 1);
+				can_transport::sendQidReportToMaster(getData()[axis]->qid, 1);
 #else
 			QidRegistry::reportActionError(getData()[axis]->qid);
 #endif
@@ -204,16 +204,16 @@ namespace FocusMotor
 				// Route to CAN satellite
 				// Convert hybrid axis (4,5,6,7) to CAN axis (0,1,2,3) for addressing
 				int canAxis = getCANAxisForHybrid(axis);
-				log_i("Hybrid mode: Routing axis %d to CAN axis %d (address %d)", axis, canAxis, can_controller::axis2id(canAxis));
+				log_i("Hybrid mode: Routing axis %d to CAN axis %d (address %d)", axis, canAxis, can_transport::axis2id(canAxis));
 
-				// Copy motor data from internal axis to CAN axis position for can_controller to use
+				// Copy motor data from internal axis to CAN axis position for can_transport to use
 				MotorData *srcData = getData()[axis];
 				MotorData *canData = getData()[canAxis];
 				if (srcData != nullptr && canData != nullptr)
 				{
 					// Copy motor settings to CAN axis
 					*canData = *srcData;
-					int err = can_controller::startStepper(canData, canAxis, reduced);
+					int err = can_transport::startStepper(canData, canAxis, reduced);
 					if (err != 0)
 					{
 						getData()[axis]->stopped = true;
@@ -245,7 +245,7 @@ namespace FocusMotor
 #elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 			// Pure CAN master mode (non-hybrid) - all motors via CAN
 			MotorData *m = getData()[axis];
-			int err = can_controller::startStepper(m, axis, reduced);
+			int err = can_transport::startStepper(m, axis, reduced);
 			if (err != 0)
 			{
 				getData()[axis]->stopped = true;
@@ -699,8 +699,8 @@ namespace FocusMotor
 		// Send motor settings (soft limits, acceleration, etc.) to all CAN slaves
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
-			MotorSettings settings = can_controller::extractMotorSettings(*getData()[i]);
-			can_controller::sendMotorSettingsToCANDriver(settings, i);
+			MotorSettings settings = can_transport::extractMotorSettings(*getData()[i]);
+			can_transport::sendMotorSettingsToCANDriver(settings, i);
 			delay(20); // Allow time for CAN transmission
 		}
 		log_i("Motor settings sent to all CAN slaves during setup");
@@ -708,7 +708,7 @@ namespace FocusMotor
 
 #ifdef CAN_RECEIVE_MOTOR
 		// send current position to master
-		can_controller::sendMotorStateToMaster();
+		can_transport::sendMotorStateToMaster();
 #endif
 
 #ifdef USE_FASTACCEL
@@ -766,8 +766,8 @@ namespace FocusMotor
 
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 		// Master: Notify CAN slaves about the hard limit settings
-		MotorSettings settings = can_controller::extractMotorSettings(*getData()[axis]);
-		can_controller::sendMotorSettingsToCANDriver(settings, axis);
+		MotorSettings settings = can_transport::extractMotorSettings(*getData()[axis]);
+		can_transport::sendMotorSettingsToCANDriver(settings, axis);
 #endif
 	}
 
@@ -895,7 +895,7 @@ namespace FocusMotor
 
 #if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 		// Notify CAN slaves if we are a CAN master
-		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
+		can_transport::sendEncoderBasedMotionToCanDriver(axis, enabled);
 #endif
 	}
 
@@ -1042,7 +1042,7 @@ namespace FocusMotor
 		{
 			// CAN axes: get status from CAN controller using converted CAN axis
 			int canAxis = getCANAxisForHybrid(i);
-			mIsRunning = can_controller::isMotorRunning(canAxis);
+			mIsRunning = can_transport::isMotorRunning(canAxis);
 		}
 		else
 		{
@@ -1063,7 +1063,7 @@ namespace FocusMotor
 		mIsRunning = mData.isRunning;
 #elif defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 		// Slave will push this information to the master via CAN asynchrously
-		mIsRunning = can_controller::isMotorRunning(i);
+		mIsRunning = can_transport::isMotorRunning(i);
 #elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 		{
 			const UC2_MotorRoute* route = DeviceRouter::getMotorRoute(i);
@@ -1192,7 +1192,7 @@ namespace FocusMotor
 
 #ifdef CAN_RECEIVE_MOTOR
 		// We push the current state to the master to inform it that we are running and about the current position
-		can_controller::sendMotorStateToMaster();
+		can_transport::sendMotorStateToMaster();
 #endif
 	}
 
@@ -1221,7 +1221,7 @@ namespace FocusMotor
 				canData->isStop = true;
 			}
 			Stepper s = static_cast<Stepper>(canAxis);
-			can_controller::stopStepper(s);
+			can_transport::stopStepper(s);
 		}
 		else
 		{
@@ -1252,7 +1252,7 @@ namespace FocusMotor
 		getData()[i]->stopped = true;
 		getData()[i]->isStop = true;
 		Stepper s = static_cast<Stepper>(i);
-		can_controller::stopStepper(s);
+		can_transport::stopStepper(s);
 
 #elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 		{
@@ -1281,7 +1281,7 @@ namespace FocusMotor
 #ifdef CAN_RECEIVE_MOTOR
 		// On CAN slave: send QID report to master via dedicated CAN message
 		if (data[i]->qid > 0)
-			can_controller::sendQidReportToMaster(data[i]->qid, 0);
+			can_transport::sendQidReportToMaster(data[i]->qid, 0);
 #else
 		QidRegistry::reportActionDone(data[i]->qid);
 #endif

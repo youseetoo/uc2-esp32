@@ -13,7 +13,7 @@
 #include "../i2c/i2c_master.h"
 
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 namespace State
 {
@@ -216,7 +216,7 @@ namespace State
 
 		// Generate SSID based on ESP32's MAC address
 		#ifdef CAN_BUS_ENABLED
-		String ssid = "UC2-" + String(can_controller::getCANAddress(), HEX);
+		String ssid = "UC2-" + String(can_transport::getCANAddress(), HEX);
 		ssid.toUpperCase();
 		#else
 		uint8_t mac[6];

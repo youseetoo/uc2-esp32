@@ -42,7 +42,7 @@
 #include "../tmc/TMCController.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
 #endif
@@ -541,13 +541,13 @@ namespace SerialProcess
 #endif
 #ifdef CAN_BUS_ENABLED
 		else if (strcmp(task, can_get_endpoint) == 0)
-			serialize(can_controller::get(jsonDocument));
+			serialize(can_transport::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)
-			serialize(can_controller::act(jsonDocument));
+			serialize(can_transport::act(jsonDocument));
 		else if (strcmp(task, can_ota_endpoint) == 0)
-			serialize(can_controller::actCanOta(jsonDocument));
+			serialize(can_transport::actCanOta(jsonDocument));
 		else if (strcmp(task, can_ota_stream_endpoint) == 0)
-			serialize(can_controller::actCanOtaStream(jsonDocument));
+			serialize(can_transport::actCanOtaStream(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		else if (strcmp(task, laser_get_endpoint) == 0)

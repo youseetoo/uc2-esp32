@@ -107,10 +107,13 @@ void setup()
     uint8_t localLasers = 0;
     bool    localLED    = false;
 #ifdef MOTOR_CONTROLLER
+#if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
+    // Only count local motors when a native stepper driver is compiled in
     if (pinConfig.MOTOR_A_STEP >= 0) localMotors++;
     if (pinConfig.MOTOR_X_STEP >= 0) localMotors++;
     if (pinConfig.MOTOR_Y_STEP >= 0) localMotors++;
     if (pinConfig.MOTOR_Z_STEP >= 0) localMotors++;
+#endif
 #endif
 #ifdef LASER_CONTROLLER
     // Count configured laser channels (GPIO pin >= 0 means active)

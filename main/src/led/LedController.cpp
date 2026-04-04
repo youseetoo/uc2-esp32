@@ -8,7 +8,7 @@
 #include "../qid/QidRegistry.h"
 
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 #if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 #include "../DeviceRouter.h"
@@ -886,7 +886,7 @@ namespace LedController
 	void routeLedCmd(const LedCommand &cmd)
 	{
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
-		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+		can_transport::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
 		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
 			execLedCommand(cmd);
 #elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
@@ -918,7 +918,7 @@ namespace LedController
 		}
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
-		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+		can_transport::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
 		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
 		{
 			log_i("Hybrid LED mode: Executing on local LED array");
@@ -1023,7 +1023,7 @@ namespace LedController
 			
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 			// Send the command to the CAN driver
-			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+			can_transport::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
 #elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 			{
 				const UC2_LEDRoute* route = DeviceRouter::getLEDRoute(0);

@@ -14,7 +14,7 @@
 #include "PinConfig.h"
 
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 
 static const char *TAG = "GalvoCtrl";
@@ -204,7 +204,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         galvoData.isRunning = false;
         galvoData.nFrames = 0;
 #ifdef CAN_BUS_ENABLED
-        can_controller::sendGalvoDataToCANDriver(galvoData);
+        can_transport::sendGalvoDataToCANDriver(galvoData);
 #endif
         cJSON_AddBoolToObject(response, "success", true);
         cJSON_AddStringToObject(response, "message", "Stop sent via CAN");
@@ -269,7 +269,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
 
         // Send via CAN
 #ifdef CAN_BUS_ENABLED
-        can_controller::sendGalvoDataToCANDriver(galvoData);
+        can_transport::sendGalvoDataToCANDriver(galvoData);
 #endif
 
         cJSON_AddBoolToObject(response, "success", true);
@@ -324,7 +324,7 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         }
         
 #ifdef CAN_BUS_ENABLED
-        can_controller::sendGalvoPointsToCANDriver(points, point_count, trigMode);
+        can_transport::sendGalvoPointsToCANDriver(points, point_count, trigMode);
 #endif
         cJSON_AddBoolToObject(response, "success", true);
         cJSON_AddStringToObject(response, "message", "Points sent via CAN");

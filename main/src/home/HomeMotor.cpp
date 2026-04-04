@@ -14,7 +14,7 @@
 #include "../encoder/LinearEncoderController.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 #if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 #include "../DeviceRouter.h"
@@ -609,7 +609,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 			// In hybrid mode, send home data to CAN slave
 			int canAxis = getCANAxisForHybrid(axis);
 			log_i("Homing axis %d via CAN (CAN axis: %d)", axis, canAxis);
-			can_controller::sendHomeDataToCANDriver(*hdata[axis], canAxis);
+			can_transport::sendHomeDataToCANDriver(*hdata[axis], canAxis);
 			// Clear isHoming on master - the slave manages its own homing state.
 			// Without this, isHoming stays true forever on the master (no local
 			// homing task to clear it), blocking all future homing commands.
@@ -824,7 +824,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		homeState.isHoming = false;
 		homeState.isHomed = true;
 		homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
-		can_controller::sendHomeStateToMaster(homeState);
+		can_transport::sendHomeStateToMaster(homeState);
 #endif
 	}
 

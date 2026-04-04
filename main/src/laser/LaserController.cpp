@@ -12,7 +12,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 #if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 #include "../DeviceRouter.h"
@@ -217,7 +217,7 @@ namespace LaserController
 		#ifdef I2C_LASER
 			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
 		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER) && !defined(UC2_CANOPEN_ENABLED)
-			can_controller::sendLaserDataToCANDriver(laserData);
+			can_transport::sendLaserDataToCANDriver(laserData);
 		#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
 			{
 				const UC2_LaserRoute* route = DeviceRouter::getLaserRoute(laserData.LASERid);
@@ -328,7 +328,7 @@ namespace LaserController
 			laserData.LASERval = LASERval;
 			laserData.LASERdespeckle = LASERdespeckle;
 			laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-			can_controller::sendLaserDataToCANDriver(laserData);
+			can_transport::sendLaserDataToCANDriver(laserData);
 		}
 		else
 		{
@@ -356,7 +356,7 @@ namespace LaserController
 		laserData.LASERval = LASERval;
 		laserData.LASERdespeckle = LASERdespeckle;
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-		can_controller::sendLaserDataToCANDriver(laserData);
+		can_transport::sendLaserDataToCANDriver(laserData);
 		laserValuePending[LASERid] = true;
 		return true;
 

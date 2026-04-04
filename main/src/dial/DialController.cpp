@@ -5,7 +5,7 @@
 #include "cJsonTool.h"
 
 #ifdef CAN_SEND_COMMANDS
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
 #endif
@@ -128,11 +128,11 @@ namespace DialController
         log_d("Dial sending motor command: axis=%d, canId=%d, steps=%d", axis, canId, steps);
         
         // Send via CAN using typed message format (MOTOR_ACT_REDUCED 0x15 prefix).
-        // This matches what can_controller::startStepper() sends and what the slave
+        // This matches what can_transport::startStepper() sends and what the slave
         // dispatch table expects. Using raw sendCanMessage() would omit the type
         // prefix, causing the slave to misinterpret the first byte of targetPosition
         // as an unknown message type and silently drop the payload.
-        int err = can_controller::sendTypedCanMessage(canId, MOTOR_ACT_REDUCED, (uint8_t*)&motorCmd, sizeof(MotorDataReduced));
+        int err = can_transport::sendTypedCanMessage(canId, MOTOR_ACT_REDUCED, (uint8_t*)&motorCmd, sizeof(MotorDataReduced));
         if (err != 0)
         {
             log_e("Failed to send motor command via CAN");
@@ -151,7 +151,7 @@ namespace DialController
         
         log_d("Dial sending laser command: id=%d, intensity=%d", laserId, intensity);
         
-        can_controller::sendLaserDataToCANDriver(laserCmd);
+        can_transport::sendLaserDataToCANDriver(laserCmd);
 #endif
     }
 

@@ -94,6 +94,10 @@ void loop()
     // Update actual motor positions and detect move completions
     for (uint8_t a = 0; a < s_numMotors; a++) {
 #ifdef MOTOR_CONTROLLER
+        // check if motor is nullptr
+        if (FocusMotor::getData()[a] == nullptr) {
+            continue;
+        }
         s_motors[a].actualPos  = FocusMotor::getCurrentMotorPosition(a);
         s_motors[a].isRunning  = FocusMotor::isRunning(a);
 #endif
@@ -120,6 +124,7 @@ void loop()
 bool sdoRead(uint16_t index, uint8_t subIndex,
              uint8_t* buf, uint8_t* lenOut, void* /*ctx*/)
 {
+    log_i("SDO read request: index=0x%04X subIndex=0x%02X", index, subIndex);
     // Node capabilities
     if (index == UC2_OD_NODE_CAPS && subIndex == 0x00) {
         buf[0] = s_caps;

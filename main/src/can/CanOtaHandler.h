@@ -6,7 +6,7 @@
  * It receives firmware chunks from the master, verifies integrity, and writes to flash.
  * 
  * Integration:
- * - Include in can_controller.cpp
+ * - Include in can_transport.cpp
  * - Call handleCanOtaMessage() in dispatchIsoTpData()
  * - Call canOtaLoop() in main loop for timeout handling
  */
@@ -22,7 +22,7 @@
 #include "CanOtaTypes.h"
 #include "cJSON.h"
 
-// Use enum values from can_messagetype.h (included in can_controller.h)
+// Use enum values from can_messagetype.h (included in can_transport.h)
 // OTA_CAN_START = 0x62, OTA_CAN_DATA = 0x63, etc.
 
 namespace can_ota {

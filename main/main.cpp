@@ -97,11 +97,11 @@ Preferences preferences;
 #endif
 #if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 // Legacy CAN controller — only used when CANopen is NOT active
-#include "src/can/can_controller.h"
+#include "src/can/can_transport.h"
 #endif
 #if defined(CAN_OTA_MASTER) && defined(UC2_CANOPEN_ENABLED)
-// OTA via can_controller transport, but CAN stack is managed by CanOpenStack
-#include "src/can/can_controller.h"
+// OTA via can_transport transport, but CAN stack is managed by CanOpenStack
+#include "src/can/can_transport.h"
 #endif
 #ifdef UC2_CANOPEN_ENABLED
 #ifdef UC2_CANOPEN_MASTER
@@ -221,8 +221,8 @@ extern "C" void looper(void *p)
 		// Legacy CAN device-control loop (motor/laser/LED/galvo dispatch)
 		if (runtimeConfig.can_enabled)
 		{
-			can_controller::handleOtaLoop();
-			can_controller::loop();
+			can_transport::handleOtaLoop();
+			can_transport::loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -237,7 +237,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef CAN_OTA_MASTER
 		// OTA handler runs alongside CANopen stack
-		can_controller::handleOtaLoop();
+		can_transport::handleOtaLoop();
 #endif
 #endif
 
@@ -459,7 +459,7 @@ extern "C" void setupApp(void)
 #if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 	// Legacy CAN bus — only when CANopen is NOT active
 	if (runtimeConfig.can_enabled)
-		can_controller::setup();
+		can_transport::setup();
 #endif
 #ifdef UC2_CANOPEN_ENABLED
 #ifdef UC2_CANOPEN_MASTER

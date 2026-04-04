@@ -48,15 +48,17 @@ typedef struct
 } MessageData;
 
 
-namespace can_controller
+namespace can_transport
 {
     static unsigned long lastSend = 0;
     extern uint8_t device_can_id;  // Device CAN address, accessible externally
     
     int act(cJSON *doc);
     cJSON *get(cJSON *ob);
+#if !defined(UC2_CANOPEN_ENABLED)
     void setup();
     void loop();
+#endif
 
     // debug state
     extern bool debugState;
@@ -139,4 +141,4 @@ namespace can_controller
     cJSON* actCanOta(cJSON* doc);
     cJSON* actCanOtaStream(cJSON* doc);
     
-} // namespace can_controller
+} // namespace can_transport

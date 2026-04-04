@@ -15,7 +15,7 @@
 #endif
 
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 
 namespace MotorJsonParser
@@ -539,7 +539,7 @@ namespace MotorJsonParser
 
 			// Apply locally or via CAN
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
-			can_controller::sendMotorSingleValue(axis, offsetof(MotorData, joystickDirectionInverted), inverted);
+			can_transport::sendMotorSingleValue(axis, offsetof(MotorData, joystickDirectionInverted), inverted);
 #else
 			FocusMotor::getData()[axis]->joystickDirectionInverted = inverted;
 #endif
@@ -595,7 +595,7 @@ namespace MotorJsonParser
 			// Apply soft limits locally or via CAN
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR) && !defined(UC2_CANOPEN_ENABLED)
 			// Send soft limits to CAN slave
-			can_controller::sendSoftLimitsToCANDriver(mn, mx, isEnabledVal, axis);
+			can_transport::sendSoftLimitsToCANDriver(mn, mx, isEnabledVal, axis);
 #else
 			// Apply locally to motor data
 			FocusMotor::setSoftLimits(axis, mn, mx, isEnabledVal);
@@ -737,7 +737,7 @@ namespace MotorJsonParser
 					/*
 					#ifdef CAN_BUS_ENABLED
 					// CORE IDEA: if we have a single value, only send thos value to the CAN bus
-					// compute the number of keys - if we have a single element (excluding qid), we can use can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), (int)motorSpeed);
+					// compute the number of keys - if we have a single element (excluding qid), we can use can_transport::sendMotorSingleValue(s, offsetof(MotorData, speed), (int)motorSpeed);
 					int nKeyse = countKeysExcludingQID(stp);
 					if (nKeyse == 1)
 					{
@@ -745,9 +745,9 @@ namespace MotorJsonParser
 						log_i("Only one key in the JSON object, using single value function");
 						log_i("position: %d", cJSON_GetJsonInt(stp, key_position));
 						// send value to CAN
-						//can_controller::sendMotorSingleValue(s, offsetof(MotorData, targetPosition), cJSON_GetJsonInt(stp, key_position));
+						//can_transport::sendMotorSingleValue(s, offsetof(MotorData, targetPosition), cJSON_GetJsonInt(stp, key_position));
 						// start the motor
-						//can_controller::sendMotorSingleValue(s, offsetof(MotorData, stopped), false);
+						//can_transport::sendMotorSingleValue(s, offsetof(MotorData, stopped), false);
 						continue; // skip this motor
 					}
 					*/

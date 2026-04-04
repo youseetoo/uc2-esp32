@@ -1,4 +1,4 @@
-#include "can_controller.h"
+#include "can_transport.h"
 #include "CanOtaHandler.h"
 #include "CanOtaStreaming.h"
 
@@ -44,7 +44,7 @@ using namespace FocusMotor;
 #include "../encoder/LinearEncoderController.h"
 #endif
 
-namespace can_controller
+namespace can_transport
 {
     // Device CAN ID - defined here, declared extern in header
     uint8_t device_can_id = 0;
@@ -1365,6 +1365,9 @@ namespace can_controller
         }
     }
 
+#if !defined(UC2_CANOPEN_ENABLED)
+    // setup/loop only for legacy CAN mode — under CANopen the bus is managed
+    // by CanOpenStack and these must NOT run.
     void setup()
     {
         // Create a mutex for the CAN bus
@@ -1425,6 +1428,7 @@ namespace can_controller
         // now we should announce that we are ready to receive data to the master (e.g. send the current address)
         sendCanMessage(pinConfig.CAN_ID_CENTRAL_NODE, &device_can_id, sizeof(device_can_id)); // TODO: Switch to sendTypedCanMessage with a specific message type for announcing presence/address?
     }
+#endif // !UC2_CANOPEN_ENABLED
 
     int act(cJSON *doc)
     {
@@ -2774,6 +2778,7 @@ namespace can_controller
         return response;
     }
     
+#if !defined(UC2_CANOPEN_ENABLED)
     void loop()
     {
         // Check for pending scan results and send them
@@ -2790,5 +2795,6 @@ namespace can_controller
         // Handle streaming OTA timeout checking
         can_ota_stream::loop();
     }
+#endif // !UC2_CANOPEN_ENABLED
 
-} // namespace can_controller
+} // namespace can_transport

@@ -12,8 +12,11 @@
 #include <ArduinoOTA.h>
 #include "../i2c/i2c_master.h"
 
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 #include "../can/can_transport.h"
+#endif
+#if defined(CAN_BUS_ENABLED) && defined(UC2_CANOPEN_ENABLED)
+#include "../CANopen/CanOpenCommands.h"
 #endif
 namespace State
 {
@@ -215,7 +218,10 @@ namespace State
 		WiFi.disconnect(true);
 
 		// Generate SSID based on ESP32's MAC address
-		#ifdef CAN_BUS_ENABLED
+		#if defined(CAN_BUS_ENABLED) && defined(UC2_CANOPEN_ENABLED)
+		String ssid = "UC2-" + String(CanOpenCommands::getNodeId(), HEX);
+		ssid.toUpperCase();
+		#elif defined(CAN_BUS_ENABLED)
 		String ssid = "UC2-" + String(can_transport::getCANAddress(), HEX);
 		ssid.toUpperCase();
 		#else

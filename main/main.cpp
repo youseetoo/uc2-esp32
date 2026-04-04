@@ -99,9 +99,8 @@ Preferences preferences;
 // Legacy CAN controller — only used when CANopen is NOT active
 #include "src/can/can_transport.h"
 #endif
-#if defined(CAN_OTA_MASTER) && defined(UC2_CANOPEN_ENABLED)
-// OTA via can_transport transport, but CAN stack is managed by CanOpenStack
-#include "src/can/can_transport.h"
+#if defined(UC2_CANOPEN_ENABLED)
+#include "src/CANopen/CanOpenCommands.h"
 #endif
 #ifdef UC2_CANOPEN_ENABLED
 #ifdef UC2_CANOPEN_MASTER
@@ -237,7 +236,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef CAN_OTA_MASTER
 		// OTA handler runs alongside CANopen stack
-		can_transport::handleOtaLoop();
+		CanOpenCommands::handleOtaLoop();
 #endif
 #endif
 

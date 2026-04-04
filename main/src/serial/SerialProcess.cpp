@@ -41,10 +41,13 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 #include "../can/can_transport.h"
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
+#endif
+#if defined(CAN_BUS_ENABLED) && defined(UC2_CANOPEN_ENABLED)
+#include "../CANopen/CanOpenCommands.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -375,7 +378,7 @@ namespace SerialProcess
 		// Check if we're in binary OTA mode
 		if (SerialTransport::isInBinaryMode())
 		{
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 			if (binary_ota::isInBinaryMode())
 			{
 				binary_ota::processBinaryPacket();
@@ -539,7 +542,16 @@ namespace SerialProcess
 		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && defined(UC2_CANOPEN_ENABLED)
+		else if (strcmp(task, can_get_endpoint) == 0)
+			serialize(CanOpenCommands::get(jsonDocument));
+		else if (strcmp(task, can_act_endpoint) == 0)
+			serialize(CanOpenCommands::act(jsonDocument));
+		else if (strcmp(task, can_ota_endpoint) == 0)
+			serialize(CanOpenCommands::actCanOta(jsonDocument));
+		else if (strcmp(task, can_ota_stream_endpoint) == 0)
+			serialize(CanOpenCommands::actCanOtaStream(jsonDocument));
+#elif defined(CAN_BUS_ENABLED)
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(can_transport::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)

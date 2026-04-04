@@ -4,7 +4,7 @@
 #include "esp_log.h"
 #include "../config/RuntimeConfig.h"
 
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
 #endif
@@ -56,7 +56,7 @@ namespace SerialTransport
 
     bool isInBinaryMode()
     {
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
         if (binary_ota::isInBinaryMode())
             return true;
         if (can_ota_stream::isStreamingModeActive())

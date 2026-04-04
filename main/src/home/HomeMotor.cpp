@@ -13,7 +13,7 @@
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 #include "../can/can_transport.h"
 #endif
 #if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)

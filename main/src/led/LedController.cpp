@@ -10,6 +10,10 @@
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
+#if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+#include "../DeviceRouter.h"
+#include "../CANopen/CanOpenStack.h"
+#endif
 
 // --------------------------------------------------------------------------------
 // 3) The LedController namespace
@@ -876,6 +880,31 @@ namespace LedController
 	}
 
 	// ------------------------------------------------
+	// 13a) Route an already-parsed LedCommand through
+	//      the same CAN/CANopen/local dispatch as act()
+	// ------------------------------------------------
+	void routeLedCmd(const LedCommand &cmd)
+	{
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
+		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
+			execLedCommand(cmd);
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+		{
+			const UC2_LEDRoute *route = DeviceRouter::getLEDRoute(0);
+			if (route && route->type == UC2_RouteType::CAN_REMOTE)
+				CanOpenStack::sendLEDSet(route->canNodeId,
+				    (uint8_t)cmd.mode, cmd.r, cmd.g, cmd.b,
+				    cmd.ledIndex, cmd.qid);
+			else
+				execLedCommand(cmd);
+		}
+#else
+		execLedCommand(cmd);
+#endif
+	}
+
+	// ------------------------------------------------
 	// 13) The main 'act' function that the user calls
 	//     to pass cJSON with LED commands
 	// ------------------------------------------------
@@ -889,18 +918,22 @@ namespace LedController
 		}
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
-		// When HYBRID_LED_DUAL_OUTPUT is enabled, commands go to both local and remote LEDs
-		
-		// Always send to CAN (for remote LED arrays)
 		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-		
-		// Execute locally if:
-		// 1. This is a status LED display, OR
-		// 2. Hybrid dual output mode is enabled (LED_PIN is configured for local LED array)
 		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
 		{
 			log_i("Hybrid LED mode: Executing on local LED array");
 			execLedCommand(cmd);
+		}
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+		{
+			const UC2_LEDRoute* route = DeviceRouter::getLEDRoute(0);
+			if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+				CanOpenStack::sendLEDSet(route->canNodeId,
+				    (uint8_t)cmd.mode, cmd.r, cmd.g, cmd.b,
+				    cmd.ledIndex, cmd.qid);
+			} else {
+				execLedCommand(cmd);
+			}
 		}
 #else
 			execLedCommand(cmd);
@@ -991,6 +1024,17 @@ namespace LedController
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
 			// Send the command to the CAN driver
 			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+			{
+				const UC2_LEDRoute* route = DeviceRouter::getLEDRoute(0);
+				if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+					CanOpenStack::sendLEDSet(route->canNodeId,
+					    (uint8_t)cmd.mode, cmd.r, cmd.g, cmd.b,
+					    cmd.ledIndex, 0);
+				} else {
+					execLedCommand(cmd);
+				}
+			}
 #else
 			// Execute the command directly
 			execLedCommand(cmd);

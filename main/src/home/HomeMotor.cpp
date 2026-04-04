@@ -16,6 +16,12 @@
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
+#if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+#include "../DeviceRouter.h"
+#include "../CANopen/CanOpenStack.h"
+#include "../CANopen/SDOHandler.h"
+#include "../CANopen/ObjectDictionary.h"
+#endif
 using namespace FocusMotor;
 
 
@@ -608,6 +614,35 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 			// Without this, isHoming stays true forever on the master (no local
 			// homing task to clear it), blocking all future homing commands.
 			getData()[axis]->isHoming = false;
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+			{
+				// Send homing parameters via SDO, then trigger HOME command via PDO
+				const UC2_MotorRoute* route = DeviceRouter::getMotorRoute(axis);
+				if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+					uint8_t nid = route->canNodeId;
+					uint8_t ax  = route->canAxisId;
+					// Write homing params via SDO
+					SDOHandler::writeI32(nid, UC2_OD_HOME_BASE + ax, UC2_OD_HOME_SUB_DIR,
+					                     hdata[axis]->homeDirection);
+					SDOHandler::writeI32(nid, UC2_OD_HOME_BASE + ax, UC2_OD_HOME_SUB_SPEED,
+					                     hdata[axis]->homeSpeed);
+					SDOHandler::writeI32(nid, UC2_OD_HOME_BASE + ax, UC2_OD_HOME_SUB_MAXSPEED,
+					                     hdata[axis]->homeMaxspeed);
+					SDOHandler::writeU8(nid,  UC2_OD_HOME_BASE + ax, UC2_OD_HOME_SUB_POLARITY,
+					                    (uint8_t)hdata[axis]->homeEndStopPolarity);
+					SDOHandler::writeI32(nid, UC2_OD_HOME_BASE + ax, UC2_OD_HOME_SUB_OFFSET,
+					                     hdata[axis]->homeEndOffset);
+					SDOHandler::writeI32(nid, UC2_OD_HOME_BASE + ax, UC2_OD_HOME_SUB_TIMEOUT,
+					                     hdata[axis]->homeTimeout);
+					// Trigger homing via motor PDO with HOME command
+					CanOpenStack::sendMotorMove(nid, ax, 0, hdata[axis]->homeSpeed,
+					                            UC2_MOTOR_CMD_HOME, hdata[axis]->qid);
+					getData()[axis]->isHoming = false; // slave manages its own state
+				} else {
+					log_w("HomeMotor: no CAN route for axis %d, homing skipped", axis);
+					getData()[axis]->isHoming = false;
+				}
+			}
 #endif
 		}
 		else

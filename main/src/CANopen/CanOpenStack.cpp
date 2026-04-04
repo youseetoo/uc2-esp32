@@ -296,6 +296,8 @@ static bool transmit(const twai_message_t& f)
 bool sendMotorMove(uint8_t nodeId, uint8_t axis,
                    int32_t targetPos, int32_t speed, uint8_t cmd, int16_t qid)
 {
+    log_i("sendMotorMove: nodeId=%d axis=%d pos=%d speed=%d cmd=%d qid=%d",
+          nodeId, axis, targetPos, speed, cmd, qid);
     // RPDO1: position + speed
     bool ok = transmit(PDOEngine::encodeMotorPosPDO(nodeId, targetPos, speed));
     // RPDO2: axis + command (laser/LED fields unused — axis != 0xFF/0xFE)

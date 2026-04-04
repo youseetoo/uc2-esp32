@@ -34,6 +34,11 @@
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
+#if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+#include "../DeviceRouter.h"
+#include "../CANopen/CanOpenStack.h"
+#include "../CANopen/ObjectDictionary.h"
+#endif
 #ifdef DIGITAL_IN_CONTROLLER
 #include "../digitalin/DigitalInController.h"
 #endif
@@ -247,6 +252,37 @@ namespace FocusMotor
 				sendMotorPos(axis, 0);
 			}
 
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+			// CANopen master — route to CAN slave or local driver
+				
+				const UC2_MotorRoute* route = DeviceRouter::getMotorRoute(axis);
+				log_i("CANopen master: Routing axis %d using route type %d", axis, route ? (int)route->type : -1);
+				if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+					// This axis is routed to a CAN slave - send motor command via CANopen
+					MotorData *m = getData()[axis];
+					uint8_t cmd = m->absolutePosition ? UC2_MOTOR_CMD_MOVE_ABS
+					                                  : UC2_MOTOR_CMD_MOVE_REL;
+					if (!CanOpenStack::sendMotorMove(route->canNodeId, route->canAxisId,
+							m->targetPosition, m->speed, cmd, m->qid)) {
+								log_e("Failed to send motor command for axis %d to CAN node %d", axis, route->canNodeId);
+						getData()[axis]->stopped = true;
+						sendMotorPos(axis, 0);
+					}
+				} else {
+					// Local motor: use native driver
+#if defined(USE_FASTACCEL)
+					waitForFirstRun[axis] = 1;
+					FAccelStep::startFastAccelStepper(axis);
+#elif defined(USE_ACCELSTEP)
+					AccelStep::startAccelStepper(axis);
+#else
+					log_w("No native driver for local motor axis %d", axis);
+					getData()[axis]->stopped = true;
+					sendMotorPos(axis, 0);
+#endif
+				}
+			
+
 #elif defined USE_FASTACCEL
 			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
 			FAccelStep::startFastAccelStepper(axis);
@@ -384,6 +420,22 @@ namespace FocusMotor
 			return data[axis]->currentPosition;
 #endif
 		}
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+		{
+			const UC2_MotorRoute* route = DeviceRouter::getMotorRoute(axis);
+			if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+				int32_t pos = 0;
+				SDOHandler::motorGetPos(route->canNodeId, route->canAxisId, &pos);
+				data[axis]->currentPosition = pos;
+				return pos;
+			}
+			// Local motor: fall through to native driver
+		}
+#if defined(USE_FASTACCEL)
+		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
+#else
+		return data[axis]->currentPosition;
+#endif
 #elif defined USE_FASTACCEL
 		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
 #elif defined USE_ACCELSTEP
@@ -1012,6 +1064,21 @@ namespace FocusMotor
 #elif defined(CAN_BUS_ENABLED) && !defined(UC2_CANOPEN_ENABLED)
 		// Slave will push this information to the master via CAN asynchrously
 		mIsRunning = can_controller::isMotorRunning(i);
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+		{
+			const UC2_MotorRoute* route = DeviceRouter::getMotorRoute(i);
+			if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+				bool running = false;
+				SDOHandler::motorIsRunning(route->canNodeId, route->canAxisId, &running);
+				mIsRunning = running;
+			} else {
+#if defined(USE_FASTACCEL)
+				mIsRunning = FAccelStep::isRunning(i);
+#elif defined(USE_ACCELSTEP)
+				mIsRunning = AccelStep::isRunning(i);
+#endif
+			}
+		}
 #endif
 		return mIsRunning;
 	}
@@ -1186,6 +1253,25 @@ namespace FocusMotor
 		getData()[i]->isStop = true;
 		Stepper s = static_cast<Stepper>(i);
 		can_controller::stopStepper(s);
+
+#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+		{
+			const UC2_MotorRoute* route = DeviceRouter::getMotorRoute(i);
+			if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+				getData()[i]->isforever = false;
+				getData()[i]->speed = 0;
+				getData()[i]->stopped = true;
+				getData()[i]->isStop = true;
+				CanOpenStack::sendMotorStop(route->canNodeId, route->canAxisId,
+				                            getData()[i]->qid);
+			} else {
+#if defined(USE_FASTACCEL)
+				FAccelStep::stopFastAccelStepper(i);
+#elif defined(USE_ACCELSTEP)
+				AccelStep::stopAccelStepper(i);
+#endif
+			}
+		}
 
 #endif
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);

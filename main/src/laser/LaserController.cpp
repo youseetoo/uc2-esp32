@@ -14,6 +14,10 @@
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_controller.h"
 #endif
+#if defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+#include "../DeviceRouter.h"
+#include "../CANopen/CanOpenStack.h"
+#endif
 
 namespace LaserController
 {
@@ -214,6 +218,22 @@ namespace LaserController
 			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
 		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER) && !defined(UC2_CANOPEN_ENABLED)
 			can_controller::sendLaserDataToCANDriver(laserData);
+		#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+			{
+				const UC2_LaserRoute* route = DeviceRouter::getLaserRoute(laserData.LASERid);
+				if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+					CanOpenStack::sendLaserSet(route->canNodeId, route->canChannelId,
+					                          (uint16_t)laserData.LASERval, -1);
+				} else {
+					// Local laser: apply directly
+					int lid = laserData.LASERid;
+					if (lid >= 0 && lid < MAX_LASERS) {
+						LASER_val_arr[lid] = laserData.LASERval;
+						int pwmCh = getPWMChannel(lid);
+						if (pwmCh != -1) setPWM(laserData.LASERval, pwmCh);
+					}
+				}
+			}
 		#else
 			int LASERid = laserData.LASERid;
 			
@@ -337,11 +357,27 @@ namespace LaserController
 		laserData.LASERdespeckle = LASERdespeckle;
 		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
 		can_controller::sendLaserDataToCANDriver(laserData);
-		
-		// Set flag to send update in next loop cycle
 		laserValuePending[LASERid] = true;
 		return true;
-		
+
+		#elif defined(UC2_CANOPEN_ENABLED) && defined(UC2_CANOPEN_MASTER)
+		{
+			const UC2_LaserRoute* route = DeviceRouter::getLaserRoute(LASERid);
+			if (route && route->type == UC2_RouteType::CAN_REMOTE) {
+				CanOpenStack::sendLaserSet(route->canNodeId, route->canChannelId,
+				                          (uint16_t)LASERval, qid);
+			} else {
+				// Local laser
+				int laserPin = getLaserPin(LASERid);
+				if (laserPin >= 0) {
+					int pwmChannel = getPWMChannel(LASERid);
+					setPWM(LASERval, pwmChannel);
+				}
+			}
+			laserValuePending[LASERid] = true;
+			return true;
+		}
+
 		#else
 		// Check if pin is configured
 		int laserPin = getLaserPin(LASERid);

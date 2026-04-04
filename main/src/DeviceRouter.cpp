@@ -161,13 +161,22 @@ void onSlaveOffline(uint8_t canNodeId)
 
 const UC2_MotorRoute* getMotorRoute(uint8_t globalMotorId)
 {
-    if (globalMotorId >= UC2_ROUTER_GLOBAL_MAX_MOTOR) return nullptr;
-    return &s_motorRoutes[globalMotorId];
+    UC2_MotorRoute motorRoute = { UC2_RouteType::UNAVAILABLE, 0, 0, 0 };
+    if (globalMotorId >= UC2_ROUTER_GLOBAL_MAX_MOTOR) {
+        log_w("getMotorRoute: globalMotorId %d out of range", globalMotorId);
+        return nullptr;
+    }
+    motorRoute = s_motorRoutes[globalMotorId];
+    log_i("getMotorRoute: globalMotorId=%d type=%d localAxisId=%d canNodeId=%d canAxisId=%d",
+          globalMotorId, (int)motorRoute.type, motorRoute.localAxisId,
+          motorRoute.canNodeId, motorRoute.canAxisId);
+    return &motorRoute;
 }
 
 const UC2_LaserRoute* getLaserRoute(uint8_t globalLaserId)
 {
-    if (globalLaserId >= UC2_ROUTER_GLOBAL_MAX_LASER) return nullptr;
+    if (globalLaserId >= UC2_ROUTER_GLOBAL_MAX_LASER) 
+        return nullptr;
     return &s_laserRoutes[globalLaserId];
 }
 

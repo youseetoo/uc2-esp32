@@ -85,33 +85,20 @@ namespace FocusScan
                 cmd.r = 0;
                 cmd.g = 0;
                 cmd.b = 0; // switch off the LED
-#if !defined(UC2_CANOPEN_ENABLED)
-                can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-#endif
+                LedController::routeLedCmd(cmd);
             }
 #endif
 #ifdef LASER_CONTROLLER
             for (uint8_t i = 0; i < 4; ++i)
             {
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_LASER && !defined(UC2_CANOPEN_ENABLED)
                 if (sd.lightsourceIntensities[i])
                 {
-                    LaserData l;
-                    l.LASERid = i;
-                    l.LASERval = sd.lightsourceIntensities[i];
-                    can_controller::sendLaserDataToCANDriver(l);
+                    LaserController::setLaserVal(i, sd.lightsourceIntensities[i], 0);
                     vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                     triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                     vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                    if (sd.lightsourceIntensities[i])
-                    {
-                        LaserData l;
-                        l.LASERid = i;
-                        l.LASERval = 0;
-                        can_controller::sendLaserDataToCANDriver(l);
-                    }
+                    LaserController::setLaserVal(i, 0, 0);
                 }
-#endif
             }
 #endif
         }

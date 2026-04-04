@@ -116,6 +116,7 @@ namespace LedController
     void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
     bool parseLedCommand(cJSON *root, LedCommand &cmd);
     void execLedCommand(const LedCommand &cmd);
+    void routeLedCmd(const LedCommand &cmd);
     void cross_changed_event(int pressed);
     void circle_changed_event(int pressed);
     uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);

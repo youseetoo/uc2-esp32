@@ -13,6 +13,7 @@
 #include "ObjectDictionary.h"
 #include "../DeviceRouter.h"
 #include "esp_log.h"
+#include <PinConfig.h>
 
 #ifndef UC2_CAN_TX_PIN
 #  define UC2_CAN_TX_PIN  17
@@ -30,6 +31,8 @@
 #endif
 
 #define TAG_CM "UC2_CO_MASTER"
+
+#include "SDOHandler.h"
 
 namespace CanOpenMaster {
 
@@ -61,10 +64,26 @@ static void onNodeStatus(uint8_t nodeId, UC2_NMT_State state, bool online)
              nodeId, (int)state, (int)online);
 
     if (online && state == UC2_NMT_State::INITIALIZING) {
-        // New slave appeared — query caps via SDO, then register routes.
-        // For now assume 1 motor + 1 laser per node (will be refined via SDO later).
-        uint8_t caps = UC2_CAP_MOTOR; // default assumption
-        DeviceRouter::onSlaveOnline(nodeId, caps, 1, 0);
+        // Query capabilities and motor/laser count from slave via SDO
+        uint8_t caps = 0;
+        uint8_t motorCount = 1;
+        uint8_t laserCount = 0;
+        if (!SDOHandler::nodeGetCaps(nodeId, &caps)) {
+            caps = UC2_CAP_MOTOR; // Fallback assumption
+        }
+        if (caps & UC2_CAP_MOTOR) {
+            uint8_t mc = 0;
+            if (SDOHandler::readU8(nodeId, UC2_OD_MOTOR_COUNT, 0, &mc) && mc > 0) {
+                motorCount = mc;
+            }
+        }
+        if (caps & UC2_CAP_LASER) {
+            uint8_t lc = 0;
+            if (SDOHandler::readU8(nodeId, UC2_OD_LASER_COUNT, 0, &lc) && lc > 0) {
+                laserCount = lc;
+            }
+        }
+        DeviceRouter::onSlaveOnline(nodeId, caps, motorCount, laserCount);
 
         // Send NMT start so the slave transitions to OPERATIONAL
         NMTManager::sendStart(nodeId);
@@ -83,18 +102,24 @@ void setup()
     ESP_LOGI(TAG_CM, "CANopen master setup: TX=%d RX=%d HB=%dms",
              UC2_CAN_TX_PIN, UC2_CAN_RX_PIN, UC2_HB_PERIOD_MS);
 
-    // Build local route table entries
+    // Build local route table entries — count only axes with valid (>=0) step pins
     uint8_t localMotors = 0;
     uint8_t localLasers = 0;
     bool    localLED    = false;
 #ifdef MOTOR_CONTROLLER
-    localMotors = 4; // sensible default; DeviceRouter clamps to LOCAL_MAX
+    if (pinConfig.MOTOR_A_STEP >= 0) localMotors++;
+    if (pinConfig.MOTOR_X_STEP >= 0) localMotors++;
+    if (pinConfig.MOTOR_Y_STEP >= 0) localMotors++;
+    if (pinConfig.MOTOR_Z_STEP >= 0) localMotors++;
 #endif
 #ifdef LASER_CONTROLLER
-    localLasers = 4;
+    // Count configured laser channels (GPIO pin >= 0 means active)
+    if (pinConfig.LASER_1 >= 0) localLasers++;
+    if (pinConfig.LASER_2 >= 0) localLasers++;
+    if (pinConfig.LASER_3 >= 0) localLasers++;;
 #endif
 #ifdef LED_CONTROLLER
-    localLED = true;
+    localLED = (pinConfig.LED_PIN >= 0);
 #endif
     DeviceRouter::init(localMotors, localLasers, localLED);
 

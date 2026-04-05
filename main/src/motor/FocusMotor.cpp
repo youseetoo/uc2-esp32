@@ -32,7 +32,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
 #include "../digitalin/DigitalInController.h"

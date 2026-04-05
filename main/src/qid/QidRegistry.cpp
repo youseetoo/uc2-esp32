@@ -5,7 +5,7 @@
 #include "esp_log.h"
 
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 
 static const char *TAG = "QidRegistry";

@@ -118,7 +118,7 @@ if(I2C_SLAVE_DIAL EQUAL 1)
 endif()
 # CAN bus source files
 if(CAN_BUS_ENABLED EQUAL 1)
-    list(APPEND srcs ${mainsrc}src/can/can_controller.cpp)
+    list(APPEND srcs ${mainsrc}src/can/can_transport.cpp)
     list(APPEND srcs ${mainsrc}src/can/iso-tp-twai/CanIsoTp.cpp)
     list(APPEND srcs ${mainsrc}src/can/CanOtaHandler.cpp)
     list(APPEND srcs ${mainsrc}src/can/BinaryOtaProtocol.cpp)

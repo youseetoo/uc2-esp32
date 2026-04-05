@@ -40,7 +40,7 @@
 #include "../tmc/TMCController.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
 #endif

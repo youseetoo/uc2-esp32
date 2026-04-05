@@ -96,7 +96,7 @@ Preferences preferences;
 #include "src/i2c/tca_controller.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "src/can/can_controller.h"
+#include "src/can/can_transport.h"
 #endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"

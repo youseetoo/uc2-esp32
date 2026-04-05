@@ -5,7 +5,7 @@
 #include "cJsonTool.h"
 
 #ifdef CAN_SEND_COMMANDS
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
 #endif

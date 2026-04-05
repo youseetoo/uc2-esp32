@@ -1,0 +1,24 @@
+{
+  "name": "CANopenNode",
+  "version": "4.0.0",
+  "description": "CANopenNode V4 protocol stack adapted for ESP32 TWAI",
+  "keywords": "CAN, CANopen, ESP32",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thaanstad/ESP32_CanOpenNode"
+  },
+  "authors": [
+    {"name": "Janez Paternoster"},
+    {"name": "thaanstad"}
+  ],
+  "license": "Apache-2.0",
+  "frameworks": "*",
+  "platforms": "*",
+  "headers": "CANopen.h",
+  "build": {
+    "srcDir": "src",
+    "srcFilter": [
+      "+<*>"
+    ]
+  }
+}

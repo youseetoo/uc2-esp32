@@ -23,6 +23,8 @@ __attribute__ ((unused)) static const  char* galvo_get_endpoint = "/galvo_get";
 
 __attribute__ ((unused)) static const  char* config_act_endpoint = "/config_act";
 __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get";
+__attribute__ ((unused)) static const  char* config_set_endpoint = "/config_set";
+__attribute__ ((unused)) static const  char* config_reset_endpoint = "/config_reset";
 
 #ifdef HOME_MOTOR
 __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";

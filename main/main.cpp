@@ -2,6 +2,8 @@
 #include "esp_log.h"
 #include "PinConfig.h"
 #include "src/config/ConfigController.h"
+#include "src/config/RuntimeConfig.h"
+#include "src/config/NVSConfig.h"
 #include "src/serial/SerialProcess.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -154,69 +156,99 @@ extern "C" void looper(void *p)
 
 
 #ifdef LINEAR_ENCODER_CONTROLLER
-		LinearEncoderController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.encoder) {
+			LinearEncoderController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef HOME_MOTOR
-		HomeMotor::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.home) {
+			HomeMotor::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef OBJECTIVE_CONTROLLER
-		ObjectiveController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.objective) {
+			ObjectiveController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
-		DigitalInController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.digitalIn) {
+			DigitalInController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef DIAL_CONTROLLER
-		DialController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.dial) {
+			DialController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef TMC_CONTROLLER
-		TMCController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.tmc) {
+			TMCController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef LASER_CONTROLLER
-		LaserController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.laser) {
+			LaserController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef LED_CONTROLLER
-		LedController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.led) {
+			LedController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef MESSAGE_CONTROLLER
-		MessageController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.message) {
+			MessageController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef BLUETOOTH
-		// Check for long-press homing on PS4/PS5 controller buttons
-		checkBtButtonLongPress();
-		vTaskDelay(1);
+		if (runtimeConfig.bluetooth) {
+			// Check for long-press homing on PS4/PS5 controller buttons
+			checkBtButtonLongPress();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef MOTOR_CONTROLLER
-		FocusMotor::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.motor) {
+			FocusMotor::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef I2C_MASTER
 		i2c_master::loop();
 		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
-		PidController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.pid) {
+			PidController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef SCANNER_CONTROLLER
-		ScannerController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.scanner) {
+			ScannerController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef GALVO_CONTROLLER
-		GalvoController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.galvo) {
+			GalvoController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef HEAT_CONTROLLER
-		HeatController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.heat) {
+			HeatController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef CAN_BUS_ENABLED
 		// Handle OTA updates in non-blocking mode
@@ -446,8 +478,10 @@ extern "C" void setupApp(void)
 	can_controller::setup();
 #endif
 #ifdef DIAL_CONTROLLER
-	// Dial controller needs CAN bus to be ready when in CAN master mode
-	DialController::setup();
+	if (runtimeConfig.dial) {
+		// Dial controller needs CAN bus to be ready when in CAN master mode
+		DialController::setup();
+	}
 #endif
 #ifdef I2C_SLAVE_DIAL
 	i2c_slave_dial::setup();
@@ -456,91 +490,137 @@ extern "C" void setupApp(void)
 	tca_controller::init_tca();
 #endif
 #ifdef MOTOR_CONTROLLER
-	FocusMotor::setup();
+	if (runtimeConfig.motor) {
+		FocusMotor::setup();
+	}
 #endif
 #ifdef ANALOG_IN_CONTROLLER
-	AnalogInController::setup();
+	if (runtimeConfig.analogIn) {
+		AnalogInController::setup();
+	}
 #endif
 #ifdef ANALOG_JOYSTICK
-	AnalogJoystick::setup();
+	if (runtimeConfig.joystick) {
+		AnalogJoystick::setup();
+	}
 #endif 
 #ifdef ANALOG_OUT_CONTROLLER
-	AnalogOutController::setup();
+	if (runtimeConfig.analogOut) {
+		AnalogOutController::setup();
+	}
 #endif
 #ifdef BLUETOOTH
-	log_i("BtController setup");
-	BtController::setup();
-	
-	// Register combined button handlers that support both short and long press
-	// Triangle: short = hard limit release, long (5s) = home axis A
-	BtController::setTriangleChangedEvent(handleTriangleCombined);
-	
-	// Cross: short = laser toggle, long (5s) = home axis X
-	BtController::setCrossChangedEvent(handleCrossCombined);
-	
-	// Circle: short = LED toggle, long (5s) = home axis Y  
-	BtController::setCircleChangedEvent(handleCircleCombined);
-	
-	// Square: short = normal, 3s = reboot, 5s = home axis Z
-	BtController::setSquareChangedEvent(handleSquareCombined);
-	
-	#ifdef LASER_CONTROLLER
-		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
-	#endif
-	#ifdef OBJECTIVE_CONTROLLER
-		BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
-	#endif
-	#ifdef MOTOR_CONTROLLER
-		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
-		BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
-		BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event);
-	#endif
+	if (runtimeConfig.bluetooth) {
+		log_i("BtController setup");
+		BtController::setup();
+		
+		// Register combined button handlers that support both short and long press
+		// Triangle: short = hard limit release, long (5s) = home axis A
+		BtController::setTriangleChangedEvent(handleTriangleCombined);
+		
+		// Cross: short = laser toggle, long (5s) = home axis X
+		BtController::setCrossChangedEvent(handleCrossCombined);
+		
+		// Circle: short = LED toggle, long (5s) = home axis Y  
+		BtController::setCircleChangedEvent(handleCircleCombined);
+		
+		// Square: short = normal, 3s = reboot, 5s = home axis Z
+		BtController::setSquareChangedEvent(handleSquareCombined);
+		
+		#ifdef LASER_CONTROLLER
+		if (runtimeConfig.laser) {
+			BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
+		}
+		#endif
+		#ifdef OBJECTIVE_CONTROLLER
+		if (runtimeConfig.objective) {
+			BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
+		}
+		#endif
+		#ifdef MOTOR_CONTROLLER
+		if (runtimeConfig.motor) {
+			BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
+			BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
+			BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event);
+		}
+		#endif
+	}
 #endif
 #ifdef DAC_CONTROLLER
-	DacController::setup();
+	if (runtimeConfig.dac) {
+		DacController::setup();
+	}
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
-	DigitalInController::setup();
+	if (runtimeConfig.digitalIn) {
+		DigitalInController::setup();
+	}
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-	DigitalOutController::setup();
+	if (runtimeConfig.digitalOut) {
+		DigitalOutController::setup();
+	}
 #endif
 #ifdef LINEAR_ENCODER_CONTROLLER
-	LinearEncoderController::setup();
+	if (runtimeConfig.encoder) {
+		LinearEncoderController::setup();
+	}
 #endif
 #ifdef HOME_MOTOR
-	HomeMotor::setup();
+	if (runtimeConfig.home) {
+		HomeMotor::setup();
+	}
 #endif
 #ifdef OBJECTIVE_CONTROLLER
-	ObjectiveController::setup();
+	if (runtimeConfig.objective) {
+		ObjectiveController::setup();
+	}
 #endif
 #ifdef LASER_CONTROLLER
-	LaserController::setup();
+	if (runtimeConfig.laser) {
+		LaserController::setup();
+	}
 #endif
 #ifdef TMC_CONTROLLER
-	TMCController::setup();
+	if (runtimeConfig.tmc) {
+		TMCController::setup();
+	}
 #endif
 #ifdef LED_CONTROLLER
-	LedController::setup();
+	if (runtimeConfig.led) {
+		LedController::setup();
+	}
 #endif
 #ifdef MESSAGE_CONTROLLER
-	MessageController::setup();
+	if (runtimeConfig.message) {
+		MessageController::setup();
+	}
 #endif
 #ifdef PID_CONTROLLER
-	PidController::setup();
+	if (runtimeConfig.pid) {
+		PidController::setup();
+	}
 #endif
 #ifdef SCANNER_CONTROLLER
-	ScannerController::setup();
+	if (runtimeConfig.scanner) {
+		ScannerController::setup();
+	}
 #endif
 #ifdef WIFI
-	WifiController::setup();
+	if (runtimeConfig.wifi) {
+		WifiController::setup();
+	}
 #endif
 #ifdef HEAT_CONTROLLER
-	DS18b20Controller::setup();
-	HeatController::setup();
+	if (runtimeConfig.heat) {
+		DS18b20Controller::setup();
+		HeatController::setup();
+	}
 #endif
 #ifdef GALVO_CONTROLLER
-	GalvoController::setup();
+	if (runtimeConfig.galvo) {
+		GalvoController::setup();
+	}
 #endif
 #ifdef ESPNOW_MASTER
 	espnow_master::setup();
@@ -622,6 +702,9 @@ extern "C" void app_main(void)
 	// initialize the pin/settings configurator
 	log_i("Config::setup");
 	Config::setup();
+
+	// Load runtime module configuration from NVS (overrides compile-time defaults)
+	NVSConfig::loadConfig();
 
 	// initialize the module controller
 	setupApp();

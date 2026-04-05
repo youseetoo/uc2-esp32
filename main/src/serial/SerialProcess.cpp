@@ -13,6 +13,8 @@
 #include "../bt/BtController.h"
 #endif
 #include "../config/ConfigController.h"
+#include "../config/RuntimeConfig.h"
+#include "../config/NVSConfig.h"
 #ifdef DAC_CONTROLLER
 #include "../dac/DacController.h"
 #endif
@@ -531,14 +533,14 @@ namespace SerialProcess
 		if (false) // keep all other else ifs happy
 			return;
 #ifdef ANALOG_OUT_CONTROLLER
-		else if (strcmp(task, analogout_act_endpoint) == 0)
+		else if (runtimeConfig.analogOut && strcmp(task, analogout_act_endpoint) == 0)
 			serialize(AnalogOutController::act(jsonDocument));
-		else if (strcmp(task, analogout_get_endpoint) == 0)
+		else if (runtimeConfig.analogOut && strcmp(task, analogout_get_endpoint) == 0)
 			serialize(AnalogOutController::get(jsonDocument));
 #endif
 
 #ifdef BLUETOOTH
-		else if (strcmp(task, bt_connect_endpoint) == 0)
+		else if (runtimeConfig.bluetooth && strcmp(task, bt_connect_endpoint) == 0)
 		{
 			// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 			char *mac = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "mac")); // jsonDocument["mac"];
@@ -550,33 +552,33 @@ namespace SerialProcess
 			BtController::connectPsxController(mac, ps);
 #endif
 		}
-		else if (strcmp(task, bt_scan_endpoint) == 0)
+		else if (runtimeConfig.bluetooth && strcmp(task, bt_scan_endpoint) == 0)
 		{
 			BtController::scanForDevices(jsonDocument);
 		}
-		else if (strcmp(task, bt_disconnect_endpoint) == 0)
+		else if (runtimeConfig.bluetooth && strcmp(task, bt_disconnect_endpoint) == 0)
 		{
 			BtController::disconnect();
 		}
 #endif
 
 #ifdef DAC_CONTROLLER
-		else if (strcmp(task, dac_act_endpoint) == 0)
+		else if (runtimeConfig.dac && strcmp(task, dac_act_endpoint) == 0)
 			serialize(DacController::act(jsonDocument));
 		// else  if (strcmp(task, dac_get_endpoint) == 0)
 		//	serialize(DacController::get(jsonDocument));
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
-		else if (strcmp(task, digitalin_act_endpoint) == 0)
+		else if (runtimeConfig.digitalIn && strcmp(task, digitalin_act_endpoint) == 0)
 			serialize(DigitalInController::act(jsonDocument));
-		else if (strcmp(task, digitalin_get_endpoint) == 0)
+		else if (runtimeConfig.digitalIn && strcmp(task, digitalin_get_endpoint) == 0)
 			serialize(DigitalInController::get(jsonDocument));
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-		else if (strcmp(task, digitalout_act_endpoint) == 0)
+		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_act_endpoint) == 0)
 			serialize(DigitalOutController::act(jsonDocument));
-		else if (strcmp(task, digitalout_get_endpoint) == 0)
+		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_get_endpoint) == 0)
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
 
@@ -585,25 +587,25 @@ namespace SerialProcess
 	  LinearEncoders
 	*/
 #ifdef LINEAR_ENCODER_CONTROLLER
-		else if (strcmp(task, linearencoder_act_endpoint) == 0)
+		else if (runtimeConfig.encoder && strcmp(task, linearencoder_act_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::act(jsonDocument));
 		}
-		else if (strcmp(task, linearencoder_get_endpoint) == 0)
+		else if (runtimeConfig.encoder && strcmp(task, linearencoder_get_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::get(jsonDocument));
 		}
 #endif
 #ifdef HOME_MOTOR
-		else if (strcmp(task, home_get_endpoint) == 0)
+		else if (runtimeConfig.home && strcmp(task, home_get_endpoint) == 0)
 			serialize(HomeMotor::get(jsonDocument));
-		else if (strcmp(task, home_act_endpoint) == 0)
+		else if (runtimeConfig.home && strcmp(task, home_act_endpoint) == 0)
 			serialize(HomeMotor::act(jsonDocument));
 #endif
 #ifdef OBJECTIVE_CONTROLLER
-		else if (strcmp(task, objective_get_endpoint) == 0)
+		else if (runtimeConfig.objective && strcmp(task, objective_get_endpoint) == 0)
 			serialize(ObjectiveController::get(jsonDocument));
-		else if (strcmp(task, objective_act_endpoint) == 0)
+		else if (runtimeConfig.objective && strcmp(task, objective_act_endpoint) == 0)
 			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
@@ -623,51 +625,51 @@ namespace SerialProcess
 			serialize(can_controller::actCanOtaStream(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
-		else if (strcmp(task, laser_get_endpoint) == 0)
+		else if (runtimeConfig.laser && strcmp(task, laser_get_endpoint) == 0)
 			serialize(LaserController::get(jsonDocument));
-		else if (strcmp(task, laser_act_endpoint) == 0)
+		else if (runtimeConfig.laser && strcmp(task, laser_act_endpoint) == 0)
 			serialize(LaserController::act(jsonDocument));
 #endif
 #ifdef TMC_CONTROLLER
-		else if (strcmp(task, tmc_get_endpoint) == 0)
+		else if (runtimeConfig.tmc && strcmp(task, tmc_get_endpoint) == 0)
 			serialize(TMCController::get(jsonDocument));
-		else if (strcmp(task, tmc_act_endpoint) == 0)
+		else if (runtimeConfig.tmc && strcmp(task, tmc_act_endpoint) == 0)
 			serialize(TMCController::act(jsonDocument));
 #endif
 #ifdef LED_CONTROLLER
-		else if (strcmp(task, ledarr_get_endpoint) == 0)
+		else if (runtimeConfig.led && strcmp(task, ledarr_get_endpoint) == 0)
 			serialize(LedController::get(jsonDocument));
-		else if (strcmp(task, ledarr_act_endpoint) == 0)
+		else if (runtimeConfig.led && strcmp(task, ledarr_act_endpoint) == 0)
 			serialize(LedController::act(jsonDocument));
 #endif
 #ifdef MESSAGE_CONTROLLER
-		else if (strcmp(task, message_get_endpoint) == 0)
+		else if (runtimeConfig.message && strcmp(task, message_get_endpoint) == 0)
 			serialize(MessageController::get(jsonDocument));
-		else if (strcmp(task, message_act_endpoint) == 0)
+		else if (runtimeConfig.message && strcmp(task, message_act_endpoint) == 0)
 			serialize(MessageController::act(jsonDocument));
 #endif
 #ifdef MOTOR_CONTROLLER
-		else if (strcmp(task, motor_get_endpoint) == 0)
+		else if (runtimeConfig.motor && strcmp(task, motor_get_endpoint) == 0)
 			serialize(MotorJsonParser::get(jsonDocument));
-		else if (strcmp(task, motor_act_endpoint) == 0)
+		else if (runtimeConfig.motor && strcmp(task, motor_act_endpoint) == 0)
 			serialize(MotorJsonParser::act(jsonDocument));
 #endif
 #ifdef SCANNER_CONTROLLER
-		else if (strcmp(task, scanner_get_endpoint) == 0)
+		else if (runtimeConfig.scanner && strcmp(task, scanner_get_endpoint) == 0)
 			serialize(ScannerController::get(jsonDocument));
-		else if (strcmp(task, scanner_act_endpoint) == 0)
+		else if (runtimeConfig.scanner && strcmp(task, scanner_act_endpoint) == 0)
 			serialize(ScannerController::act(jsonDocument));
 #endif
 #ifdef GALVO_CONTROLLER
-		else if (strcmp(task, galvo_get_endpoint) == 0)
+		else if (runtimeConfig.galvo && strcmp(task, galvo_get_endpoint) == 0)
 			serialize(GalvoController::get(jsonDocument));
-		else if (strcmp(task, galvo_act_endpoint) == 0)
+		else if (runtimeConfig.galvo && strcmp(task, galvo_act_endpoint) == 0)
 			serialize(GalvoController::act(jsonDocument));
 #endif
 #ifdef PID_CONTROLLER
-		else if (strcmp(task, PID_get_endpoint) == 0)
+		else if (runtimeConfig.pid && strcmp(task, PID_get_endpoint) == 0)
 			serialize(PidController::get(jsonDocument));
-		else if (strcmp(task, PID_act_endpoint) == 0)
+		else if (runtimeConfig.pid && strcmp(task, PID_act_endpoint) == 0)
 			serialize(PidController::act(jsonDocument));
 #endif
 
@@ -688,24 +690,24 @@ namespace SerialProcess
 			serialize(State::getModules());
 		}
 #ifdef WIFI
-		else if (strcmp(task, scanwifi_endpoint) == 0)
+		else if (runtimeConfig.wifi && strcmp(task, scanwifi_endpoint) == 0)
 		{
 			serialize(WifiController::scan());
 		}
 		// {"task":"/wifi/scan"}
-		else if (strcmp(task, connectwifi_endpoint) == 0)
+		else if (runtimeConfig.wifi && strcmp(task, connectwifi_endpoint) == 0)
 		{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 			WifiController::connect(jsonDocument);
 		}
 #endif
 #ifdef HEAT_CONTROLLER
-		else if (strcmp(task, heat_get_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, heat_get_endpoint) == 0)
 			serialize(HeatController::get(jsonDocument));
-		else if (strcmp(task, heat_act_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, heat_act_endpoint) == 0)
 			serialize(HeatController::act(jsonDocument));
-		else if (strcmp(task, ds18b20_get_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, ds18b20_get_endpoint) == 0)
 			serialize(DS18b20Controller::get(jsonDocument));
-		else if (strcmp(task, ds18b20_act_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, ds18b20_act_endpoint) == 0)
 			serialize(DS18b20Controller::act(jsonDocument));
 #endif
 		else if (strcmp(task, qid_state_endpoint) == 0)
@@ -714,6 +716,34 @@ namespace SerialProcess
 			serialize(QidRegistry::handleQidPause(jsonDocument));
 		else if (strcmp(task, qid_resume_endpoint) == 0)
 			serialize(QidRegistry::handleQidResume(jsonDocument));
+		// ── RuntimeConfig endpoints ─────────────────────────────────
+		else if (strcmp(task, config_get_endpoint) == 0)
+		{
+			// Return current runtime configuration as JSON
+			cJSON* cfg = NVSConfig::toJson();
+			serialize(cfg);
+		}
+		else if (strcmp(task, config_set_endpoint) == 0)
+		{
+			// Merge partial JSON into runtimeConfig and persist to NVS
+			NVSConfig::fromJson(jsonDocument);
+			NVSConfig::saveConfig();
+			cJSON* resp = cJSON_CreateObject();
+			cJSON_AddNumberToObject(resp, "success", 1);
+			cJSON_AddStringToObject(resp, "msg", "config saved, reboot to apply");
+			serialize(resp);
+		}
+		else if (strcmp(task, config_reset_endpoint) == 0)
+		{
+			// Clear NVS config namespace and reboot
+			NVSConfig::resetConfig();
+			cJSON* resp = cJSON_CreateObject();
+			cJSON_AddNumberToObject(resp, "success", 1);
+			cJSON_AddStringToObject(resp, "msg", "config reset, rebooting");
+			serialize(resp);
+			delay(500);
+			ESP.restart();
+		}
 		else
 		{
 			// Unknown task

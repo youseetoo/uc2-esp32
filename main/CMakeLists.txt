@@ -58,6 +58,7 @@ set(srcs    ${mainsrc}main.cpp
             ${mainsrc}src/qid/QidRegistry.cpp
             ${mainsrc}src/state/State.cpp
             ${mainsrc}src/config/ConfigController.cpp
+            ${mainsrc}src/config/NVSConfig.cpp
             ${mainsrc}src/encoder/InterruptController.cpp
          )
 

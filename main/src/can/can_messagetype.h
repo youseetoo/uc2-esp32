@@ -61,6 +61,7 @@ enum CANMessageTypeID {
     MOTOR_SINGLE_VAL = 0x18, // Single value motor data update (MotorDataValueUpdate)
     TMC_ACT          = 0x19, // TMC driver configuration (TMCData struct)
     STOP_HOME        = 0x1A, // Stop homing command (StopHomeCommand struct)
+    QID_REPORT       = 0x1B, // QID completion report (Slave -> Master)
 
     LASER_ACT        = 0x20, // Laser Messages
     LASER_STATE      = 0x21,

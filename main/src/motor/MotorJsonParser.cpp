@@ -1,5 +1,6 @@
 #include "MotorJsonParser.h"
 #include "FocusMotor.h"
+#include "../qid/QidRegistry.h"
 #ifdef STAGE_SCAN
 #include "StageScan.h"
 #include "FocusScan.h"
@@ -714,6 +715,14 @@ namespace MotorJsonParser
 		{
 			cJSON *stprs = cJSON_GetObjectItemCaseSensitive(mot, key_steppers);
 			cJSON *stp = NULL;
+
+			// Register QID with number of steppers for completion tracking
+			int motorQid = cJsonTool::getJsonInt(doc, "qid");
+			if (motorQid > 0 && stprs != NULL)
+			{
+				int numSteppers = cJSON_GetArraySize(stprs);
+				QidRegistry::registerQid(motorQid, numSteppers);
+			}
 
 			// TODO: Check if motor is in available motors and skip if not
 			// e.g. if we have only 4 motors (A, X, Y, Z) and get a command for motor E, we should skip it

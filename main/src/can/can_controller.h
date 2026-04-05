@@ -85,7 +85,8 @@ namespace can_controller
     void resetAllMotorSettingsFlags(); // Reset all flags
     int startStepper(MotorData *data, int axis, int reduced);
     void stopStepper(Stepper s);
-    void sendMotorStateToMaster();	
+    void sendMotorStateToMaster();
+    void sendQidReportToMaster(int16_t qid, uint8_t state);
     bool isMotorRunning(int axis);
     int sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed);
     int sendEncoderBasedMotionToCanDriver(uint8_t axis, bool encoderBasedMotion);

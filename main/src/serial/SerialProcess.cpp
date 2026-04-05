@@ -54,6 +54,7 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/MotorJsonParser.h"
 #endif
+#include "../qid/QidRegistry.h"
 #ifdef PID_CONTROLLER
 #include "../pid/PidController.h"
 #endif
@@ -334,6 +335,7 @@ namespace SerialProcess
 		
 		Serial.setTimeout(100);
 		Serial.setTxBufferSize(1024);
+		QidRegistry::setup();
 		
 		log_i("SerialProcess::setup() completed - Ready to receive serial data");
 		Serial.println("DEBUG: SerialProcess ready");
@@ -706,6 +708,12 @@ namespace SerialProcess
 		else if (strcmp(task, ds18b20_act_endpoint) == 0)
 			serialize(DS18b20Controller::act(jsonDocument));
 #endif
+		else if (strcmp(task, qid_state_endpoint) == 0)
+			serialize(QidRegistry::handleQidStateQuery(jsonDocument));
+		else if (strcmp(task, qid_pause_endpoint) == 0)
+			serialize(QidRegistry::handleQidPause(jsonDocument));
+		else if (strcmp(task, qid_resume_endpoint) == 0)
+			serialize(QidRegistry::handleQidResume(jsonDocument));
 		else
 		{
 			// Unknown task

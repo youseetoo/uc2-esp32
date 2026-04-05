@@ -10,7 +10,14 @@ struct MotorState {
 	int32_t currentPosition = 0;
 	bool isRunning = 0;
 	uint8_t axis = 0;
-	//bool isForever = 0;
+};
+#pragma pack(pop)
+
+// Dedicated QID report for CAN (kept small to fit single CAN frame)
+#pragma pack(push,1)
+struct QidReport {
+	int16_t qid = -1;
+	uint8_t state = 0; // 0=done, 1=error
 };
 #pragma pack(pop)
 

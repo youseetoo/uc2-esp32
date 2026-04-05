@@ -4,6 +4,7 @@
 #include "JsonKeys.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
+#include "../qid/QidRegistry.h"
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
@@ -188,11 +189,22 @@ namespace LaserController
 			}
 			
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
+		// Laser is synchronous: register and immediately report done
+		if (qid > 0)
+		{
+			QidRegistry::registerQid(qid, 1);
+			QidRegistry::reportActionDone(qid);
 		}
-		
 		State::setBusy(false);
+		return qid;
+	}
+	
+	// No LASERval provided - still report QID done if set
+	if (qid > 0)
+	{
+		QidRegistry::registerQid(qid, 1);
+		QidRegistry::reportActionDone(qid);
+	}
 		return qid;
 	}
 
@@ -284,19 +296,7 @@ namespace LaserController
 		LASER_despeckle_arr[LASERid] = LASERdespeckle;
 		LASER_despeckle_period_arr[LASERid] = LASERdespecklePeriod;
 		
-		#ifdef I2C_LASER
-		LaserData laserData;
-		laserData.LASERid = LASERid;
-		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = LASERdespeckle;
-		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-		i2c_master::sendLaserDataI2C(laserData, LASERid);
-		
-		// Set flag to send update in next loop cycle
-		laserValuePending[LASERid] = true;
-		return true;
-		
-		#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_LASER)
+		#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_LASER)
 		// HYBRID MODE SUPPORT: Check if this laser should use CAN or native driver
 		if (shouldUseCANForLaser(LASERid))
 		{
@@ -330,7 +330,7 @@ namespace LaserController
 		laserValuePending[LASERid] = true;
 		return true;
 		
-		#elif defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
+		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
 		LaserData laserData;
 		laserData.LASERid = LASERid;
 		laserData.LASERval = LASERval;
@@ -715,6 +715,7 @@ namespace LaserController
 		log_i("Laser PWM: %d Hz, %d-bit resolution (%ld steps)", pwm_frequency, pwm_resolution, pwm_max);
 		
 		// Setup all lasers using array iteration
+		//delay(5000);
 		for (int i = 0; i < MAX_LASERS; i++)
 		{
 			int laserPin = getLaserPin(i);
@@ -729,10 +730,19 @@ namespace LaserController
 			pinMode(laserPin, OUTPUT);
 			digitalWrite(laserPin, LOW);
 			setupLaser(laserPin, getPWMChannel(i), pwm_frequency, pwm_resolution);
+			setLaserVal(i, 0);
+		}
+		for (int i = 0; i < MAX_LASERS; i++)
+		{
+			// Skip if pin is not configured
+			int laserPin = getLaserPin(i);
+
+			if (laserPin <= 0)
+				continue;
 			
 			if (pinConfig.testLaserPinOnBoot)
-				setLaserVal(i, 100); // THIS IS ANTI LASERSAFETY!
-			delay(10);
+				setLaserVal(i, 100); // TODO THIS IS ANTI LASERSAFETY!
+			//delay(1000);
 			setLaserVal(i, 0);
 		}
 	}

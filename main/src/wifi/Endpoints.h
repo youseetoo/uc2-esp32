@@ -23,6 +23,8 @@ __attribute__ ((unused)) static const  char* galvo_get_endpoint = "/galvo_get";
 
 __attribute__ ((unused)) static const  char* config_act_endpoint = "/config_act";
 __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get";
+__attribute__ ((unused)) static const  char* config_set_endpoint = "/config_set";
+__attribute__ ((unused)) static const  char* config_reset_endpoint = "/config_reset";
 
 #ifdef HOME_MOTOR
 __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
@@ -102,6 +104,11 @@ __attribute__ ((unused)) static const  char* bt_paireddevices_endpoint = "/bt_pa
 #endif
 
 __attribute__ ((unused)) static const  char* modules_get_endpoint = "/modules_get";
+
+// QID tracking endpoints
+__attribute__ ((unused)) static const  char* qid_state_endpoint = "/qid_state";
+__attribute__ ((unused)) static const  char* qid_pause_endpoint = "/qid_pause";
+__attribute__ ((unused)) static const  char* qid_resume_endpoint = "/qid_resume";
 
 #ifdef HEAT_CONTROLLER
 __attribute__ ((unused)) static const  char* heat_act_endpoint = "/heat_act";

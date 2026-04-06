@@ -44,6 +44,10 @@
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
 #endif
+#ifdef CAN_CONTROLLER_CANOPEN
+#include "../canopen/DeviceRouter.h"
+#endif
+
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
@@ -532,6 +536,17 @@ namespace SerialProcess
 		function for the different controllers*/
 		if (false) // keep all other else ifs happy
 			return;
+#if defined(CAN_CONTROLLER_CANOPEN) && defined(CAN_SEND_COMMANDS)
+		// CANopen master mode — route commands to slave nodes via SDO
+		// before local dispatch, so the Pi JSON API stays unchanged.
+		if (runtimeConfig.isMaster()) {
+			cJSON* canResponse = DeviceRouter::routeCommand(task, jsonDocument);
+			if (canResponse) {
+				serialize(canResponse);
+				return;
+			}
+		}
+#endif
 #ifdef ANALOG_OUT_CONTROLLER
 		else if (runtimeConfig.analogOut && strcmp(task, analogout_act_endpoint) == 0)
 			serialize(AnalogOutController::act(jsonDocument));

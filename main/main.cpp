@@ -98,6 +98,10 @@ Preferences preferences;
 #ifdef CAN_BUS_ENABLED
 #include "src/can/can_transport.h"
 #endif
+#ifdef CAN_CONTROLLER_CANOPEN
+#include "src/canopen/CANopenModule.h"
+CANopenModule canopenModule;
+#endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
 #endif
@@ -256,6 +260,9 @@ extern "C" void looper(void *p)
 		// Handle pending scan results
 		can_controller::loop();
 		vTaskDelay(1);
+#endif
+#ifdef CAN_CONTROLLER_CANOPEN
+		canopenModule.loop();
 #endif
 
 
@@ -476,6 +483,9 @@ extern "C" void setupApp(void)
 #ifdef CAN_BUS_ENABLED
 	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	can_controller::setup();
+#endif
+#ifdef CAN_CONTROLLER_CANOPEN
+	canopenModule.setup();
 #endif
 #ifdef DIAL_CONTROLLER
 	if (runtimeConfig.dial) {

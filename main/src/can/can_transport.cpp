@@ -45,11 +45,11 @@ namespace can_controller
 
     // debug state - defined once here (declared extern in header)
     bool debugState = false;
-    
+
     // ISO-TP separation time (ms) - adaptive based on debug mode
     // Debug mode: 30ms (to handle log_i overhead)
     // Production mode: 2ms (fast transfer, ~5 min for 1MB)
-    uint8_t separationTimeMin = 2;  // Default to fast mode
+    uint8_t separationTimeMin = 2; // Default to fast mode
 
     CanIsoTp isoTpSender;
     MessageData txData, rxData;
@@ -58,7 +58,7 @@ namespace can_controller
     // Queue size for CAN messages - increased for OTA transfers
     // Each ISO-TP chunk can generate multiple queue entries
     int CAN_QUEUE_SIZE = 10;
-    
+
     // OTA status tracking
     static bool isOtaActive = false;
     static bool otaServerStarted = false;
@@ -99,12 +99,12 @@ namespace can_controller
     uint8_t availableCANids[MAX_CAN_DEVICES] = {0};    // Array to store available (online) CAN IDs
     uint8_t nonAvailableCANids[MAX_CAN_DEVICES] = {0}; // Array to store non-working CAN IDs
     int currentCANidListEntry = 0;                     // Variable to keep track of number of devices found
-    
+
     // Scan response tracking
     static ScanResponse scanResponses[MAX_CAN_DEVICES];
     static int scanResponseCount = 0;
     static bool scanInProgress = false;
-    
+
     // Scan result pending flag (similar to laser controller pattern)
     static bool scanResultPending = false;
     static int scanPendingQid = 0;
@@ -146,7 +146,7 @@ namespace can_controller
             cJSON *galvoJson = cJSON_CreateObject();
             cJSON_AddStringToObject(galvoJson, "task", "/galvo_act");
             cJSON_AddNumberToObject(galvoJson, "qid", galvo.qid);
-            
+
             // Add config object with the new field names
             cJSON *config = cJSON_CreateObject();
             cJSON_AddNumberToObject(config, "x_min", galvo.X_MIN);
@@ -154,11 +154,11 @@ namespace can_controller
             cJSON_AddNumberToObject(config, "y_min", galvo.Y_MIN);
             cJSON_AddNumberToObject(config, "y_max", galvo.Y_MAX);
             cJSON_AddNumberToObject(config, "nx", galvo.STEP);
-            cJSON_AddNumberToObject(config, "ny", galvo.STEP);  // ny = nx (square scan)
+            cJSON_AddNumberToObject(config, "ny", galvo.STEP); // ny = nx (square scan)
             cJSON_AddNumberToObject(config, "sample_period_us", galvo.tPixelDwelltime);
             cJSON_AddNumberToObject(config, "frame_count", galvo.nFrames);
             cJSON_AddBoolToObject(config, "bidirectional", galvo.bidirectional);
-            
+
             // Add new timing parameters
             cJSON_AddNumberToObject(config, "pre_samples", galvo.pre_samples);
             cJSON_AddNumberToObject(config, "fly_samples", galvo.fly_samples);
@@ -166,10 +166,10 @@ namespace can_controller
             cJSON_AddNumberToObject(config, "trig_delay_us", galvo.trig_delay_us);
             cJSON_AddNumberToObject(config, "trig_width_us", galvo.trig_width_us);
             cJSON_AddNumberToObject(config, "enable_trigger", galvo.enable_trigger);
-            cJSON_AddNumberToObject(config, "apply_x_lut", 0);  // Default: no LUT
-            
+            cJSON_AddNumberToObject(config, "apply_x_lut", 0); // Default: no LUT
+
             cJSON_AddItemToObject(galvoJson, "config", config);
-            
+
             // Check if we should stop instead
             if (!galvo.isRunning)
             {
@@ -218,7 +218,7 @@ namespace can_controller
         // Verify the message is addressed to this device (primary or secondary CAN ID)
         bool addressedToUs = (rxID == device_can_id); // TODO: Add support for group/broadcast messages if needed
 #if defined(LED_CONTROLLER) && defined(LASER_CONTROLLER)
-        // Illumination boards can listen on a secondary CAN address e.g. if they have a neopixel and pwm/laser connected 
+        // Illumination boards can listen on a secondary CAN address e.g. if they have a neopixel and pwm/laser connected
         if (!addressedToUs && pinConfig.CAN_ID_SECONDARY != 0 && rxID == pinConfig.CAN_ID_SECONDARY)
             addressedToUs = true;
 #endif
@@ -245,11 +245,11 @@ namespace can_controller
         // ============================================================
         case RESTART_CMD:
         {
-            
+
             log_i("Received RESTART_CMD from txID %u - restarting device", txID);
-            #ifndef DIAL_CONTROLLER
+#ifndef DIAL_CONTROLLER
             esp_restart();
-            #endif
+#endif
             return; // Never reached
         }
 
@@ -316,7 +316,7 @@ namespace can_controller
                 FocusMotor::getData()[mStepper]->stopped = false;
                 FocusMotor::getData()[mStepper]->isHoming = false;
                 FocusMotor::getData()[mStepper]->hardLimitTriggered = false;
-            } // TODO: Do we need the else case to set stopped=true when isStop=true? 
+            } // TODO: Do we need the else case to set stopped=true when isStop=true?
             if (FocusMotor::getData()[mStepper]->acceleration <= 0)
                 FocusMotor::getData()[mStepper]->acceleration = MAX_ACCELERATION_A;
             if (debugState)
@@ -546,7 +546,7 @@ namespace can_controller
                       receivedSoftLimit.axis, (long)receivedSoftLimit.minPos,
                       (long)receivedSoftLimit.maxPos, receivedSoftLimit.enabled);
             FocusMotor::setSoftLimits(mStepper, receivedSoftLimit.minPos,
-                                     receivedSoftLimit.maxPos, receivedSoftLimit.enabled != 0);
+                                      receivedSoftLimit.maxPos, receivedSoftLimit.enabled != 0);
             Preferences preferences;
             preferences.begin("UC2", false);
             preferences.putInt(("min" + String(mStepper)).c_str(), receivedSoftLimit.minPos);
@@ -660,58 +660,71 @@ namespace can_controller
 #ifdef GALVO_CONTROLLER
             // Receive arbitrary point list from master
             size_t header_size = sizeof(GalvoPointsHeader);
-            if (payloadSize < header_size) {
+            if (payloadSize < header_size)
+            {
                 log_e("GALVO_POINTS: Payload too small for header (%u < %u)", payloadSize, header_size);
                 break;
             }
-            
+
             GalvoPointsHeader header;
             memcpy(&header, payload, header_size);
-            
-            if (header.point_count == 0 || header.point_count > SCANNER_MAX_ARBITRARY_POINTS) {
+
+            if (header.point_count == 0 || header.point_count > SCANNER_MAX_ARBITRARY_POINTS)
+            {
                 log_e("GALVO_POINTS: Invalid point count %u", header.point_count);
                 break;
             }
-            
+
             size_t expected_size = header_size + header.point_count * sizeof(ArbitraryScanPoint);
-            if (payloadSize < expected_size) {
+            if (payloadSize < expected_size)
+            {
                 log_e("GALVO_POINTS: Payload too small (%u < %u)", payloadSize, expected_size);
                 break;
             }
-            
-            ArbitraryScanPoint* points = (ArbitraryScanPoint*)(payload + header_size);
-            
+
+            ArbitraryScanPoint *points = (ArbitraryScanPoint *)(payload + header_size);
+
             if (debugState)
                 log_i("GALVO_POINTS: Received %u points, trigger_mode=%u", header.point_count, header.trigger_mode);
-            
+
             // Build JSON command for processCommand
-            cJSON* galvoJson = cJSON_CreateObject();
+            cJSON *galvoJson = cJSON_CreateObject();
             cJSON_AddStringToObject(galvoJson, "task", "/galvo_act");
-            
+
             // Add trigger mode
-            const char* trig_str = "AUTO";
-            switch ((TriggerMode)header.trigger_mode) {
-                case TRIGGER_HIGH: trig_str = "HIGH"; break;
-                case TRIGGER_LOW: trig_str = "LOW"; break;
-                case TRIGGER_CONTINUOUS: trig_str = "CONTINUOUS"; break;
-                default: break;
+            const char *trig_str = "AUTO";
+            switch ((TriggerMode)header.trigger_mode)
+            {
+            case TRIGGER_HIGH:
+                trig_str = "HIGH";
+                break;
+            case TRIGGER_LOW:
+                trig_str = "LOW";
+                break;
+            case TRIGGER_CONTINUOUS:
+                trig_str = "CONTINUOUS";
+                break;
+            default:
+                break;
             }
             cJSON_AddStringToObject(galvoJson, "laser_trigger", trig_str);
-            
+
             // Add points array
-            cJSON* pointsArr = cJSON_CreateArray();
-            for (uint16_t i = 0; i < header.point_count; ++i) {
-                cJSON* pt = cJSON_CreateObject();
+            cJSON *pointsArr = cJSON_CreateArray();
+            for (uint16_t i = 0; i < header.point_count; ++i)
+            {
+                cJSON *pt = cJSON_CreateObject();
                 cJSON_AddNumberToObject(pt, "x", points[i].x);
                 cJSON_AddNumberToObject(pt, "y", points[i].y);
                 cJSON_AddNumberToObject(pt, "dwell_us", points[i].dwell_us);
                 cJSON_AddItemToArray(pointsArr, pt);
             }
             cJSON_AddItemToObject(galvoJson, "points", pointsArr);
-            
+
             // Execute
-            cJSON* result = GalvoController::act(galvoJson);
-            if (result) cJSON_Delete(result);
+            cJSON *result = GalvoController::act(galvoJson);
+            if (result)
+                cJSON_Delete(result);
             cJSON_Delete(galvoJson);
 #endif
             break;
@@ -740,7 +753,7 @@ namespace can_controller
         case OTA_ACK:
         {
 #ifdef CAN_SEND_COMMANDS
-            if (payloadSize >= sizeof(OtaAck)) 
+            if (payloadSize >= sizeof(OtaAck))
             {
                 OtaAck ack;
                 memcpy(&ack, payload, sizeof(OtaAck));
@@ -964,8 +977,8 @@ namespace can_controller
 
     bool isIDInAvailableCANDevices(uint8_t idToCheck)
     {
-        return true;  // TODO: this is reverse logic anyway?
-        /* // TODO: not sure if this is actually needed 
+        return true; // TODO: this is reverse logic anyway?
+        /* // TODO: not sure if this is actually needed
         for (int i = 0; i < MAX_CAN_DEVICES; i++) // Iterate through the array
         {
             // check if ID is in nonAvailableCANids
@@ -977,7 +990,7 @@ namespace can_controller
         return false; // Address not found in unavailable list
         */
     }
-    
+
     bool isCANDeviceOnline(uint8_t canId)
     {
         for (int i = 0; i < MAX_CAN_DEVICES; i++)
@@ -989,13 +1002,13 @@ namespace can_controller
         }
         return false; // Device not found in available list
     }
-    
+
     void addCANDeviceToAvailableList(uint8_t canId)
     {
         // Check if already in list
         if (isCANDeviceOnline(canId))
             return;
-            
+
         // Add to first empty slot
         for (int i = 0; i < MAX_CAN_DEVICES; i++)
         {
@@ -1008,7 +1021,7 @@ namespace can_controller
             }
         }
     }
-    
+
     void removeCANDeviceFromAvailableList(uint8_t canId)
     {
         for (int i = 0; i < MAX_CAN_DEVICES; i++)
@@ -1032,12 +1045,13 @@ namespace can_controller
             {
                 // IMPORTANT: Save original data pointer before send() modifies it
                 // The ISO-TP send() increments pdu.data as it sends consecutive frames
-                uint8_t* originalDataPtr = pdu.data;
-                
+                uint8_t *originalDataPtr = pdu.data;
+
                 int ret = isoTpSender.send(&pdu);
                 if (ret != 0)
                 {
-                    if (debugState){
+                    if (debugState)
+                    {
                         log_e("Error sending CAN message to %u with content: %u, ret: %d", pdu.txId, pdu.data, ret);
                     }
                 }
@@ -1072,14 +1086,16 @@ namespace can_controller
 
         if (!isIDInAvailableCANDevices(receiverID))
         {
-            if (debugState) log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
+            if (debugState)
+                log_e("Error: ReceiverID %u is in the list of non-working motors", receiverID);
         }
 
         pdu_t txPdu;
         txPdu.data = (uint8_t *)malloc(size);
         if (txPdu.data == nullptr)
         {
-            if (debugState) log_e("Error: Unable to allocate memory for txPdu.data");
+            if (debugState)
+                log_e("Error: Unable to allocate memory for txPdu.data");
             return -1;
         }
         memcpy(txPdu.data, data, size);
@@ -1105,13 +1121,15 @@ namespace can_controller
         // enqueue the message
         if (xQueueSend(sendQueue, &txPdu, 0) != pdPASS)
         {
-            if (debugState)  log_w("Queue full! Dropping CAN message to %u", receiverID);
+            if (debugState)
+                log_w("Queue full! Dropping CAN message to %u", receiverID);
             free(txPdu.data);
             return -1;
         }
         else
         {
-            if (debugState) log_i("Sending CAN message to %u", receiverID);
+            if (debugState)
+                log_i("Sending CAN message to %u", receiverID);
             // cast the structure to a byte array from the motor array
             // Print the data as MotorData
             /*
@@ -1133,18 +1151,18 @@ namespace can_controller
     // Alias for sendCanMessage - used by CanOtaHandler for ISO-TP transmission
     int sendIsoTpData(uint8_t receiverID, const uint8_t *data, size_t size)
     {
-        return sendCanMessage(receiverID, data, size); 
+        return sendCanMessage(receiverID, data, size);
     }
 
     /**
      * @brief Send a CAN message with a message type header (CANopen-inspired protocol).
-     * 
+     *
      * All CAN messages in the UC2 protocol carry a 1-byte message type ID as the first byte,
      * followed by the payload. This ensures unambiguous dispatch on the receiver side,
      * regardless of struct sizes or data values.
-     * 
+     *
      * Wire format: [MessageTypeID (1 byte)] [Payload (N bytes)]
-     * 
+     *
      * @param receiverID  CAN address of the target device
      * @param msgType     Message type identifier from CANMessageTypeID enum
      * @param payload     Pointer to the payload data (struct bytes), or nullptr if no payload
@@ -1309,7 +1327,7 @@ namespace can_controller
                 {
                     // Dispatch directly with the original data
                     dispatchIsoTpData(rxPdu);
-                    
+
                     // CRITICAL: Free the ISO-TP allocated buffer after processing
                     free(rxPdu.data);
                     rxPdu.data = nullptr;
@@ -1359,7 +1377,7 @@ namespace can_controller
     {
         // Create a mutex for the CAN bus
         debugState = pinConfig.DEBUG_CAN_ISO_TP;
-            
+
         device_can_id = getCANAddress();
 #ifdef CAN_SEND_COMMANDS
         // Master must always listen on the central node address,
@@ -1369,20 +1387,20 @@ namespace can_controller
         log_i("Setting up CAN controller on port TX: %d, RX: %d using address: %u", pinConfig.CAN_TX, pinConfig.CAN_RX, device_can_id);
         sendQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
         recieveQueue = xQueueCreate(CAN_QUEUE_SIZE, sizeof(pdu_t));
-        if(0)
+        if (0)
         {
-        xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
-        // Increased stack sizes for OTA handling which uses Update.write(), logging, etc. // TODO: PROBLEMATIC: WE SHOULD DO THAT ONCE WE START OTA!
-        xTaskCreate(recieveTask, "CAN_RecieveTask", 6144, NULL, 1, NULL);
-        xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 8192, NULL, 1, NULL);
+            xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
+            // Increased stack sizes for OTA handling which uses Update.write(), logging, etc. // TODO: PROBLEMATIC: WE SHOULD DO THAT ONCE WE START OTA!
+            xTaskCreate(recieveTask, "CAN_RecieveTask", 6144, NULL, 1, NULL);
+            xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 8192, NULL, 1, NULL);
         }
-        else{
-        
-        xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
-        xTaskCreate(recieveTask, "CAN_RecieveTask", 4096, NULL, 1, NULL);
-        xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 4096, NULL, 1, NULL);
-        
-       }
+        else
+        {
+
+            xTaskCreate(canSendTask, "CAN_SendTask", 4096, NULL, 1, NULL);
+            xTaskCreate(recieveTask, "CAN_RecieveTask", 4096, NULL, 1, NULL);
+            xTaskCreate(processCanMsgTask, "CAN_RecieveProcessTask", 4096, NULL, 1, NULL);
+        }
         if (sendQueue == nullptr)
         {
             if (debugState)
@@ -1390,8 +1408,7 @@ namespace can_controller
             ESP.restart();
         }
 
-        // Indicate if pins are actually working by toggling them on/off 
-        
+        // Indicate if pins are actually working by toggling them on/off
 
         // Initialize CAN bus
         if (!isoTpSender.begin(500, pinConfig.CAN_TX, pinConfig.CAN_RX))
@@ -1469,12 +1486,14 @@ namespace can_controller
         if (debug != NULL)
         {
             debugState = cJSON_IsTrue(debug);
-            if (debugState){
+            if (debugState)
+            {
                 // Debug mode: 30ms separation time to handle log_i overhead
                 log_d("Enabling debug mode with extended separation time for ISO-TP frames");
                 separationTimeMin = 30;
             }
-            else{
+            else
+            {
                 // Production mode: 2ms for fast transfer (~5 min for 1MB)
                 log_d("Disabling debug mode, setting separation time to minimum for fast ISO-TP transfer");
                 separationTimeMin = 2;
@@ -1490,7 +1509,7 @@ namespace can_controller
         {
             int canID = state->valueint; // Access the valueint directly from the "restart" object
             sendCANRestartByID(canID);   // Send the restart signal to the specified CAN ID
-            
+
             // Reset motor settings flag for the restarted device
             // The device will need to receive settings again after restart
             int axis = CANid2axis(canID);
@@ -1507,7 +1526,7 @@ namespace can_controller
         cJSON *ota = cJSON_GetObjectItem(doc, "ota");
         if (ota != NULL)
         {
-            #ifdef CAN_SEND_COMMANDS
+#ifdef CAN_SEND_COMMANDS
             // Extract parameters
             cJSON *canIdObj = cJSON_GetObjectItem(ota, "canid");
             cJSON *ssidObj = cJSON_GetObjectItem(ota, "ssid");
@@ -1521,11 +1540,11 @@ namespace can_controller
             }
 
             uint8_t targetCanId = canIdObj->valueint;
-            const char* ssid = cJSON_GetStringValue(ssidObj);
-            const char* password = cJSON_GetStringValue(passwordObj);
+            const char *ssid = cJSON_GetStringValue(ssidObj);
+            const char *password = cJSON_GetStringValue(passwordObj);
             uint32_t timeout = (timeoutObj != NULL) ? timeoutObj->valueint : 300000; // Default 5 minutes
 
-            log_i("Sending OTA command to CAN ID %u (SSID: %s, timeout: %lu ms)", 
+            log_i("Sending OTA command to CAN ID %u (SSID: %s, timeout: %lu ms)",
                   targetCanId, ssid, timeout);
 
             int result = sendOtaStartCommandToSlave(targetCanId, ssid, password, timeout);
@@ -1538,10 +1557,10 @@ namespace can_controller
                 log_e("Failed to send OTA command to CAN ID %u", targetCanId);
             }
             return result;
-            #else
+#else
             log_w("OTA command received but CAN_SEND_COMMANDS not defined");
             return -1;
-            #endif
+#endif
         }
 
         // CAN device scan command
@@ -1549,23 +1568,23 @@ namespace can_controller
         cJSON *scan = cJSON_GetObjectItem(doc, "scan");
         if (scan != NULL && cJSON_IsTrue(scan))
         {
-            #ifdef CAN_SEND_COMMANDS
+#ifdef CAN_SEND_COMMANDS
             log_i("Starting CAN network scan...");
-            
+
             // Reset all motor settings flags before scan
             // New or restarted devices will need settings
             resetAllMotorSettingsFlags();
-            
+
             // Set flag to perform scan in loop() and send results
             scanResultPending = true;
             scanPendingQid = qid;
-            
+
             // Return qid to trigger acknowledgment immediately
             return qid;
-            #else
+#else
             log_w("CAN scan command received but CAN_SEND_COMMANDS not defined");
             return -1;
-            #endif
+#endif
         }
 
         // test partial update on the motor data (sendMotorSpeedToCanDriver(uint8_t axis, int32_t newSpeed))
@@ -1631,7 +1650,7 @@ namespace can_controller
                 sendMotorSettingsToCANDriver(settings, axis);
                 // Note: motorSettingsSent[axis] is set to true inside sendMotorSettingsToCANDriver
             }
-            
+
             // positionsPushedToDial = false;
             if (debugState)
                 log_i("Starting motor on axis %i with speed %i, targetPosition %i, reduced: %i", axis, getData()[axis]->speed, getData()[axis]->targetPosition, reduced);
@@ -1792,7 +1811,7 @@ namespace can_controller
         return err;
     }
 
-    MotorSettings extractMotorSettings(const MotorData& motorData)
+    MotorSettings extractMotorSettings(const MotorData &motorData)
     {
         // Extract settings from MotorData struct
         MotorSettings settings;
@@ -1822,13 +1841,13 @@ namespace can_controller
         // Send motor configuration settings to slave via CAN
         // This should be called once during initialization or when settings change
         uint8_t slave_addr = axis2id(axis);
-        
+
         if (debugState)
-            log_i("Sending MOTOR_SETTINGS to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
+            log_i("Sending MOTOR_SETTINGS to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i",
                   axis, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
-        
+
         int err = sendTypedCanMessage(slave_addr, MOTOR_SETTINGS, (uint8_t *)&motorSettings, sizeof(MotorSettings));
-        
+
         if (err != 0)
         {
             if (debugState)
@@ -1842,10 +1861,10 @@ namespace can_controller
             if (axis < MOTOR_AXIS_COUNT)
                 motorSettingsSent[axis] = true;
         }
-        
+
         return err;
     }
-    
+
     void resetMotorSettingsFlag(uint8_t axis)
     {
         // Reset flag to force settings resend on next motor start
@@ -1856,7 +1875,7 @@ namespace can_controller
                 log_i("Reset motor settings flag for axis %i - will resend on next start", axis);
         }
     }
-    
+
     void resetAllMotorSettingsFlags()
     {
         // Reset all flags - useful after system-wide events like CAN bus reset
@@ -1930,10 +1949,10 @@ namespace can_controller
         uint8_t slave_addr = axis2id(axis);
         StopHomeCommand stopCmd;
         stopCmd.axis = axis;
-        
+
         if (debugState)
             log_i("Sending STOP_HOME to axis: %i", axis);
-        
+
         int err = sendTypedCanMessage(slave_addr, STOP_HOME, (uint8_t *)&stopCmd, sizeof(StopHomeCommand));
         if (err != 0)
         {
@@ -1955,29 +1974,29 @@ namespace can_controller
         settings.minPos = minPos;
         settings.maxPos = maxPos;
         settings.softLimitEnabled = enabled;
-        
+
         if (debugState)
-            log_i("Updating soft limits for axis %i: min=%ld, max=%ld, enabled=%u", 
+            log_i("Updating soft limits for axis %i: min=%ld, max=%ld, enabled=%u",
                   axis, (long)minPos, (long)maxPos, enabled);
-        
+
         return sendMotorSettingsToCANDriver(settings, axis);
     }
-    
+
     int sendSoftLimitsToCANDriver_LEGACY(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis)
     {
         // LEGACY: send soft limits configuration to slave via CAN using old method
         uint8_t slave_addr = axis2id(axis);
-        
+
         SoftLimitData softLimitData;
         softLimitData.axis = axis;
         softLimitData.minPos = minPos;
         softLimitData.maxPos = maxPos;
         softLimitData.enabled = enabled ? 1 : 0;
-        
+
         if (debugState)
-            log_i("Sending SoftLimitData to axis: %i (CAN ID: %u), min: %ld, max: %ld, enabled: %u", 
+            log_i("Sending SoftLimitData to axis: %i (CAN ID: %u), min: %ld, max: %ld, enabled: %u",
                   axis, slave_addr, (long)minPos, (long)maxPos, softLimitData.enabled);
-        
+
         int err = sendTypedCanMessage(slave_addr, SOFT_LIMIT_SET, (uint8_t *)&softLimitData, sizeof(SoftLimitData));
         if (err != 0)
         {
@@ -2128,39 +2147,49 @@ namespace can_controller
         // CAN Bus Health Diagnostics - read TWAI driver status
         // This helps diagnose bus issues like devices bombarding the bus
         twai_status_info_t status;
-        if (twai_get_status_info(&status) == ESP_OK) {
+        if (twai_get_status_info(&status) == ESP_OK)
+        {
             cJSON *busHealth = cJSON_CreateObject();
-            
+
             // State: 0=STOPPED, 1=RUNNING, 2=BUS_OFF, 3=RECOVERING
-            const char* stateStr = "unknown";
-            switch (status.state) {
-                case TWAI_STATE_STOPPED: stateStr = "stopped"; break;
-                case TWAI_STATE_RUNNING: stateStr = "running"; break;
-                case TWAI_STATE_BUS_OFF: stateStr = "bus_off"; break;
-                case TWAI_STATE_RECOVERING: stateStr = "recovering"; break;
+            const char *stateStr = "unknown";
+            switch (status.state)
+            {
+            case TWAI_STATE_STOPPED:
+                stateStr = "stopped";
+                break;
+            case TWAI_STATE_RUNNING:
+                stateStr = "running";
+                break;
+            case TWAI_STATE_BUS_OFF:
+                stateStr = "bus_off";
+                break;
+            case TWAI_STATE_RECOVERING:
+                stateStr = "recovering";
+                break;
             }
             cJSON_AddStringToObject(busHealth, "state", stateStr);
-            
+
             // Error counters - high values indicate bus problems
             cJSON_AddNumberToObject(busHealth, "tx_error_counter", status.tx_error_counter);
             cJSON_AddNumberToObject(busHealth, "rx_error_counter", status.rx_error_counter);
-            
+
             // Queue status - high values may indicate congestion
             cJSON_AddNumberToObject(busHealth, "msgs_to_tx", status.msgs_to_tx);
             cJSON_AddNumberToObject(busHealth, "msgs_to_rx", status.msgs_to_rx);
-            
+
             // Missed messages - indicates buffer overflow / bus flooding
             cJSON_AddNumberToObject(busHealth, "tx_failed_count", status.tx_failed_count);
             cJSON_AddNumberToObject(busHealth, "rx_missed_count", status.rx_missed_count);
             cJSON_AddNumberToObject(busHealth, "rx_overrun_count", status.rx_overrun_count);
             cJSON_AddNumberToObject(busHealth, "arb_lost_count", status.arb_lost_count);
             cJSON_AddNumberToObject(busHealth, "bus_error_count", status.bus_error_count);
-            
+
             cJSON_AddItemToObject(doc, "bus_health", busHealth);
-            
+
             // Also print to serial for immediate diagnostics
             Serial.printf("++\n{\"can_bus_health\": {\"state\": \"%s\", \"tx_err\": %u, \"rx_err\": %u, \"rx_missed\": %u, \"bus_err\": %u}}\n--\n",
-                          stateStr, status.tx_error_counter, status.rx_error_counter, 
+                          stateStr, status.tx_error_counter, status.rx_error_counter,
                           status.rx_missed_count, status.bus_error_count);
         }
 
@@ -2215,9 +2244,10 @@ namespace can_controller
         }
     }
 
-    void sendGalvoPointsToCANDriver(const ArbitraryScanPoint* points, uint16_t count, TriggerMode triggerMode)
+    void sendGalvoPointsToCANDriver(const ArbitraryScanPoint *points, uint16_t count, TriggerMode triggerMode)
     {
-        if (!points || count == 0 || count > SCANNER_MAX_ARBITRARY_POINTS) {
+        if (!points || count == 0 || count > SCANNER_MAX_ARBITRARY_POINTS)
+        {
             log_e("Invalid point data for CAN transmission");
             return;
         }
@@ -2226,9 +2256,10 @@ namespace can_controller
         size_t header_size = sizeof(GalvoPointsHeader);
         size_t points_size = count * sizeof(ArbitraryScanPoint);
         size_t total_size = header_size + points_size;
-        
-        uint8_t* buffer = (uint8_t*)malloc(total_size);
-        if (!buffer) {
+
+        uint8_t *buffer = (uint8_t *)malloc(total_size);
+        if (!buffer)
+        {
             log_e("Failed to allocate CAN buffer for galvo points");
             return;
         }
@@ -2238,23 +2269,25 @@ namespace can_controller
         header.trigger_mode = (uint8_t)triggerMode;
         header.point_count = count;
         memcpy(buffer, &header, header_size);
-        
+
         // Fill points
         memcpy(buffer + header_size, points, points_size);
 
         uint8_t receiverID = CAN_GALVO_IDs[0];
         int err = sendTypedCanMessage(receiverID, GALVO_POINTS, buffer, total_size);
-        
-        if (err != 0) {
+
+        if (err != 0)
+        {
             log_e("Error sending galvo points to CAN address %u: %d", receiverID, err);
-        } else {
+        }
+        else
+        {
             log_i("Galvo points (%d) sent to CAN address %u", count, receiverID);
         }
-        
+
         free(buffer);
     }
 #endif
-
 
     // ========================================================================
     // OTA Functions
@@ -2268,20 +2301,20 @@ namespace can_controller
      * @param timeout_ms OTA server timeout in milliseconds (default 5 minutes)
      * @return 0 on success, -1 on error
      */
-    int sendOtaStartCommandToSlave(uint8_t slaveID, const char* ssid, const char* password, uint32_t timeout_ms)
+    int sendOtaStartCommandToSlave(uint8_t slaveID, const char *ssid, const char *password, uint32_t timeout_ms)
     {
         OtaWifiCredentials otaCreds;
         memset(&otaCreds, 0, sizeof(OtaWifiCredentials));
-        
+
         // Copy SSID and password, ensuring null termination
         strncpy(otaCreds.ssid, ssid, MAX_SSID_LENGTH - 1);
         otaCreds.ssid[MAX_SSID_LENGTH - 1] = '\0';
-        
+
         strncpy(otaCreds.password, password, MAX_PASSWORD_LENGTH - 1);
         otaCreds.password[MAX_PASSWORD_LENGTH - 1] = '\0';
-        
+
         otaCreds.timeout_ms = timeout_ms;
-        
+
         int err = sendTypedCanMessage(slaveID, OTA_START, (uint8_t *)&otaCreds, sizeof(OtaWifiCredentials));
         if (err != 0)
         {
@@ -2292,7 +2325,7 @@ namespace can_controller
         else
         {
             if (debugState)
-                log_i("OTA start command sent to CAN slave %u (SSID: %s, timeout: %lu ms)", 
+                log_i("OTA start command sent to CAN slave %u (SSID: %s, timeout: %lu ms)",
                       slaveID, ssid, timeout_ms);
             return 0;
         }
@@ -2302,7 +2335,7 @@ namespace can_controller
      * @brief Handle incoming OTA command on slave device
      * @param otaCreds Pointer to OTA WiFi credentials structure
      */
-    void handleOtaCommand(OtaWifiCredentials* otaCreds)
+    void handleOtaCommand(OtaWifiCredentials *otaCreds)
     {
         if (otaCreds == nullptr)
         {
@@ -2317,7 +2350,7 @@ namespace can_controller
             otaCreds->timeout_ms = 300000; // Minimum 30 seconds
         }
 
-        log_i("Received OTA command - SSID: %s, timeout: %lu ms", 
+        log_i("Received OTA command - SSID: %s, timeout: %lu ms",
               otaCreds->ssid, otaCreds->timeout_ms);
 
         // Check if OTA is already active with the same SSID
@@ -2328,7 +2361,7 @@ namespace can_controller
             {
                 log_i("OTA already active with same SSID, WiFi connected, and OTA server running - sending success ACK");
                 sendOtaAck(0); // Success - already in OTA mode
-                return; // Don't restart the OTA process
+                return;        // Don't restart the OTA process
             }
             else
             {
@@ -2367,15 +2400,15 @@ namespace can_controller
         if (WiFi.status() != WL_CONNECTED)
         {
             log_e("Failed to connect to WiFi: %s", otaCreds->ssid);
-            isOtaActive = false; // Reset OTA status on failure
+            isOtaActive = false;      // Reset OTA status on failure
             currentOtaSsid[0] = '\0'; // Clear SSID
-            sendOtaAck(1); // WiFi connection failed
+            sendOtaAck(1);            // WiFi connection failed
             return;
         }
 
         log_i("Connected to WiFi! IP: %s", WiFi.localIP().toString().c_str());
         sendOtaAck(0); // Success
-        
+
         // Only setup OTA server if not already running
 
         // Generate hostname based on CAN address
@@ -2395,11 +2428,12 @@ namespace can_controller
         // Configure ArduinoOTA
         ArduinoOTA.setHostname(hostname.c_str());
         ArduinoOTA.setMdnsEnabled(true);
-        
+
         // Set MD5 hash to verify firmware integrity (optional but recommended)
         // Note: This will be checked against the MD5 sent in the OTA invitation
-        
-        ArduinoOTA.onStart([]() {
+
+        ArduinoOTA.onStart([]()
+                           {
             String type;
             if (ArduinoOTA.getCommand() == U_FLASH)
             {
@@ -2412,14 +2446,13 @@ namespace can_controller
                 type = "filesystem";
                 // Unmount SPIFFS if mounted
             }
-            log_i("Start updating %s", type.c_str());
-        });
+            log_i("Start updating %s", type.c_str()); });
 
-        ArduinoOTA.onEnd([]() {
-            log_i("\nOTA Update completed");
-        });
+        ArduinoOTA.onEnd([]()
+                         { log_i("\nOTA Update completed"); });
 
-        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                              {
             // Feed the task watchdog during long OTA writes to avoid WDT aborts
             esp_task_wdt_reset();
 
@@ -2431,10 +2464,10 @@ namespace can_controller
             if (millis() - lastPrint > 1000) {
                 log_i("OTA Progress: %d%%", percent);
                 lastPrint = millis();
-            }
-        });
+            } });
 
-        ArduinoOTA.onError([](ota_error_t error) {
+        ArduinoOTA.onError([](ota_error_t error)
+                           {
             log_e("OTA Error[%u]: ", error);
             if (error == OTA_AUTH_ERROR)
                 log_e("Auth Failed");
@@ -2445,23 +2478,23 @@ namespace can_controller
             else if (error == OTA_RECEIVE_ERROR)
                 log_e("Receive Failed");
             else if (error == OTA_END_ERROR)
-                log_e("End Failed - Firmware validation failed or incomplete");
-        });
+                log_e("End Failed - Firmware validation failed or incomplete"); });
 
         ArduinoOTA.begin();
-        
+
         // Store timeout for later checking (non-blocking)
         // IMPORTANT: Set these BEFORE marking OTA as started to avoid race condition
         otaTimeout = otaCreds->timeout_ms;
-        if (otaTimeout == 0) {
+        if (otaTimeout == 0)
+        {
             otaTimeout = 3000000; // Default 5 minutes
         }
         otaStartTime = millis();
-        
+
         // Mark OTA server as started AFTER all variables are set
         otaServerStarted = true;
         log_i("OTA server started on %s.local (%s)", hostname.c_str(), WiFi.localIP().toString().c_str());
-        
+
         // Don't block here - return so CAN communication can continue
         // OTA will be handled in a separate loop function
     }
@@ -2475,7 +2508,7 @@ namespace can_controller
         OtaAck ack;
         ack.status = status;
         ack.canId = device_can_id;
-        
+
         // Get IP address if connected to WiFi
         if (WiFi.status() == WL_CONNECTED)
         {
@@ -2498,7 +2531,7 @@ namespace can_controller
         if (err == 0)
         {
             if (debugState)
-                log_i("OTA ACK sent to master (status: %u, IP: %u.%u.%u.%u)", 
+                log_i("OTA ACK sent to master (status: %u, IP: %u.%u.%u.%u)",
                       status, ack.ipAddress[0], ack.ipAddress[1], ack.ipAddress[2], ack.ipAddress[3]);
         }
         else
@@ -2526,16 +2559,16 @@ namespace can_controller
         if (millis() - otaStartTime > otaTimeout)
         {
             log_i("OTA timeout reached after %lu ms, restarting...", otaTimeout);
-            
+
             // Clean up
             ArduinoOTA.end();
             WiFi.disconnect(true);
-            
+
             // Reset OTA status
             isOtaActive = false;
             otaServerStarted = false;
             currentOtaSsid[0] = '\0';
-            
+
             // Restart the device
             delay(1000);
             esp_restart();
@@ -2545,63 +2578,63 @@ namespace can_controller
     /**
      * @brief Scan for available CAN devices on the network
      * @return cJSON array containing discovered devices with their CAN IDs, types, and status
-     * 
+     *
      * Uses broadcast approach: sends SCAN_REQUEST to multiple CAN IDs in ranges:
      * 10-15 (motors), 20-25 (lasers), 30-35 (LEDs/galvos)
      * All devices respond with random delays to prevent collisions
      * Total scan time: ~500ms for all ranges
      */
-    cJSON* scanCanDevices()
+    cJSON *scanCanDevices()
     {
         const uint8_t scanRanges[][2] = {
-            {10, 15},  // Motor controllers
-            {20, 25},  // Laser controllers
-            {30, 35}   // LED/Galvo controllers
+            {10, 15}, // Motor controllers
+            {20, 25}, // Laser controllers
+            {30, 35}  // LED/Galvo controllers
         };
         const int numRanges = 3;
         const int scanDuration_ms = 500; // Total time to wait for all responses
-        
+
         cJSON *devicesArray = cJSON_CreateArray();
         if (devicesArray == NULL)
         {
             log_e("Failed to create JSON array for scan results");
             return NULL;
         }
-        
+
         log_i("Starting CAN device scan (broadcast mode)...");
-        
+
         // Clear previous scan results // TODO: Not working anymore - fix it
         scanResponseCount = 0;
         memset(scanResponses, 0, sizeof(scanResponses));
         scanInProgress = true;
-        
+
         // Prepare scan request message
         uint8_t scanRequest[1];
         scanRequest[0] = static_cast<uint8_t>(CANMessageTypeID::SCAN_REQUEST);
-        
+
         // Send broadcast to all CAN IDs in ranges
         for (int rangeIdx = 0; rangeIdx < numRanges; rangeIdx++)
         {
             uint8_t startId = scanRanges[rangeIdx][0];
             uint8_t endId = scanRanges[rangeIdx][1];
-            
+
             for (uint8_t canId = startId; canId <= endId; canId++)
             {
                 // Skip if this is our own ID
                 if (canId == device_can_id)
                     continue;
-                
+
                 // Send scan request to this CAN ID (broadcast)
                 if (debugState)
                     log_i("Broadcasting SCAN_REQUEST to CAN ID: %u", canId);
-                
+
                 sendCanMessage(canId, scanRequest, sizeof(scanRequest)); // TODO: consider using sendTypedCanMessage with a specific message type for better handling on the slave side
-                
+
                 // Small delay between broadcasts to avoid overwhelming the bus
                 vTaskDelay(50 / portTICK_PERIOD_MS); // TODO: adjust delay as needed to not overflow the queue
             }
         }
-        
+
         // Wait for responses to arrive (they will be collected by dispatchIsoTpData)
         log_i("Waiting %d ms for scan responses...", scanDuration_ms);
         unsigned long startTime = millis();
@@ -2610,57 +2643,70 @@ namespace can_controller
             vTaskDelay(10 / portTICK_PERIOD_MS);
             // Responses are being collected in the background by dispatchIsoTpData
         }
-        
+
         scanInProgress = false;
-        
+
         // Build JSON response from collected scan responses
         log_i("Scan completed. Processing %d responses...", scanResponseCount);
         for (int i = 0; i < scanResponseCount; i++)
         {
             ScanResponse *resp = &scanResponses[i];
-            
+
             cJSON *deviceObj = cJSON_CreateObject();
             if (deviceObj != NULL)
             {
                 cJSON_AddNumberToObject(deviceObj, "canId", resp->canId);
                 cJSON_AddNumberToObject(deviceObj, "deviceType", resp->deviceType);
                 cJSON_AddNumberToObject(deviceObj, "status", resp->status);
-                
+
                 // Add human-readable device type string
-                const char* deviceTypeStr = "unknown";
+                const char *deviceTypeStr = "unknown";
                 switch (resp->deviceType)
                 {
-                    case 0: deviceTypeStr = "motor"; break;
-                    case 1: deviceTypeStr = "laser"; break;
-                    case 2: deviceTypeStr = "led"; break;
-                    case 3: deviceTypeStr = "galvo"; break;
-                    case 4: deviceTypeStr = "master"; break;
+                case 0:
+                    deviceTypeStr = "motor";
+                    break;
+                case 1:
+                    deviceTypeStr = "laser";
+                    break;
+                case 2:
+                    deviceTypeStr = "led";
+                    break;
+                case 3:
+                    deviceTypeStr = "galvo";
+                    break;
+                case 4:
+                    deviceTypeStr = "master";
+                    break;
                 }
                 cJSON_AddStringToObject(deviceObj, "deviceTypeStr", deviceTypeStr);
-                
+
                 // Add human-readable status string
-                const char* statusStr = "unknown";
-                if (resp->status == 0) statusStr = "idle";
-                else if (resp->status == 1) statusStr = "busy";
-                else if (resp->status == 0xFF) statusStr = "error";
+                const char *statusStr = "unknown";
+                if (resp->status == 0)
+                    statusStr = "idle";
+                else if (resp->status == 1)
+                    statusStr = "busy";
+                else if (resp->status == 0xFF)
+                    statusStr = "error";
                 cJSON_AddStringToObject(deviceObj, "statusStr", statusStr);
-                
+
                 cJSON_AddItemToArray(devicesArray, deviceObj);
-                
-                log_i("Found device: CAN ID %u, Type: %s, Status: %s", 
+
+                log_i("Found device: CAN ID %u, Type: %s, Status: %s",
                       resp->canId, deviceTypeStr, statusStr);
             }
         }
-        
+
         log_i("CAN device scan completed. Found %d devices.", cJSON_GetArraySize(devicesArray));
         return devicesArray;
     }
-    
+
     void sendScanResults(int qid)
     {
         // Perform the scan
         cJSON *devicesArray = scanCanDevices();
-        
+
         if (devicesArray != NULL)
         {
             // Create response JSON
@@ -2670,7 +2716,7 @@ namespace can_controller
                 cJSON_AddItemToObject(response, "scan", devicesArray);
                 cJSON_AddNumberToObject(response, "qid", qid);
                 cJSON_AddNumberToObject(response, "count", cJSON_GetArraySize(devicesArray));
-                
+
                 // Serialize to string
                 char *jsonString = cJSON_PrintUnformatted(response);
                 if (jsonString != NULL)
@@ -2691,13 +2737,13 @@ namespace can_controller
             log_e("Failed to perform CAN scan");
         }
     }
-    
+
     /**
      * @brief Handle CAN OTA commands from serial interface
-     * 
+     *
      * JSON format:
      * {"task":"/can_ota", "cmd":"start|data|verify|finish|abort|status", "slaveId":X, ...}
-     * 
+     *
      * Commands:
      * - start: {"cmd":"start", "slaveId":X, "size":N, "chunks":N, "chunkSize":N, "md5":"..."}
      * - data:  {"cmd":"data", "slaveId":X, "chunk":N, "crc":N, "data":[...]}
@@ -2705,52 +2751,60 @@ namespace can_controller
      * - finish: {"cmd":"finish", "slaveId":X}
      * - abort: {"cmd":"abort", "slaveId":X}
      * - status: {"cmd":"status", "slaveId":X}
-     * 
+     *
      * @param doc JSON document containing the command
      * @return cJSON* Response object with status
      */
-    cJSON* actCanOta(cJSON* doc)
+    cJSON *actCanOta(cJSON *doc)
     {
-        cJSON* response = cJSON_CreateObject();
-        if (response == NULL) {
+        cJSON *response = cJSON_CreateObject();
+        if (response == NULL)
+        {
             return NULL;
         }
-        
+
         int result = can_ota::actFromJson(doc);
-        
-        if (result >= 0) {
+
+        if (result >= 0)
+        {
             cJSON_AddBoolToObject(response, "success", true);
             cJSON_AddNumberToObject(response, "qid", result);
-        } else {
+        }
+        else
+        {
             cJSON_AddBoolToObject(response, "success", false);
             cJSON_AddNumberToObject(response, "error", result);
             cJSON_AddStringToObject(response, "message", "CAN OTA command failed");
         }
-        
+
         return response;
     }
 
-    cJSON *actCanOtaStream(cJSON* doc)
+    cJSON *actCanOtaStream(cJSON *doc)
     {
-        cJSON* response = cJSON_CreateObject();
-        if (response == NULL) {
+        cJSON *response = cJSON_CreateObject();
+        if (response == NULL)
+        {
             return NULL;
         }
-        
+
         int result = can_ota_stream::actFromJsonStreaming(doc);
-        
-        if (result >= 0) {
+
+        if (result >= 0)
+        {
             cJSON_AddBoolToObject(response, "success", true);
             cJSON_AddNumberToObject(response, "qid", result);
-        } else {
+        }
+        else
+        {
             cJSON_AddBoolToObject(response, "success", false);
             cJSON_AddNumberToObject(response, "error", result);
             cJSON_AddStringToObject(response, "message", "CAN OTA Stream command failed");
         }
-        
+
         return response;
     }
-    
+
     void loop()
     {
         // Check for pending scan results and send them
@@ -2758,12 +2812,12 @@ namespace can_controller
         {
             sendScanResults(scanPendingQid);
             scanResultPending = false; // Clear the flag after sending
-            scanPendingQid = 0; // Reset qid
+            scanPendingQid = 0;        // Reset qid
         }
-        
+
         // Handle CAN OTA timeout checking
         can_ota::loop();
-        
+
         // Handle streaming OTA timeout checking
         can_ota_stream::loop();
     }

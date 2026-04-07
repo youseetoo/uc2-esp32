@@ -95,7 +95,7 @@ Preferences preferences;
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 #include "src/can/can_transport.h"
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
@@ -254,7 +254,7 @@ extern "C" void looper(void *p)
 			vTaskDelay(1);
 		}
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 		// Handle OTA updates in non-blocking mode
 		can_controller::handleOtaLoop();
 		// Handle pending scan results
@@ -480,7 +480,7 @@ extern "C" void setupApp(void)
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	can_controller::setup();
 #endif
@@ -489,7 +489,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef DIAL_CONTROLLER
 	if (runtimeConfig.dial) {
-		// Dial controller needs CAN bus to be ready when in CAN master mode
+		// Dial controller needs CAN bus to be ready when in CAN master mode //TODO: This has to move over to canopen too
 		DialController::setup();
 	}
 #endif

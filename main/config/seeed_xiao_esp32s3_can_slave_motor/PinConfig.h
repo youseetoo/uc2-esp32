@@ -22,7 +22,6 @@
 //#define OTA_ON_STARTUP
 #define USE_PCNT_COUNTER
 
-
 struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
 {
      /*

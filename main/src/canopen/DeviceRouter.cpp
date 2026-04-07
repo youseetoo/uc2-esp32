@@ -65,11 +65,14 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         uint8_t nodeId = stepperIdToNodeId(stepperid);
 
         // Write target position via SDO to OD 0x6200:01
+        // TODO: relative or absolute? 
+        // TODO: Do we actually provide all the information needed? e.g. acceleration etc.?
         cJSON* pos = cJSON_GetObjectItem(stepper, "position");
         if (pos) {
             int32_t posVal = pos->valueint;
             uint8_t data[4];
             memcpy(data, &posVal, 4);  // little-endian, matches ESP32
+            log_i("Writing position %d to node 0x%02X", posVal, nodeId);
             bool ok = CANopenModule::writeSDO(nodeId, 0x6200, 0x01, data, 4);
             if (!ok) {
                 ESP_LOGW(TAG, "SDO write failed: node=0x%02X pos=%ld", nodeId, (long)posVal);
@@ -82,6 +85,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
             int32_t speedVal = speed->valueint;
             uint8_t data[4];
             memcpy(data, &speedVal, 4);
+            log_i("Writing speed %d to node 0x%02X", speedVal, nodeId);
             CANopenModule::writeSDO(nodeId, 0x6200, 0x02, data, 4);
         }
 

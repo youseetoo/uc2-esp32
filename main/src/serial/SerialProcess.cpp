@@ -39,7 +39,7 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 #include "../can/can_transport.h"
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
@@ -195,6 +195,7 @@ namespace SerialProcess
 				if (string != NULL)
 				{
 					char *ss = cJSON_GetStringValue(string);
+					log_i("Process single task: %s", ss);
 					if (ss != NULL)
 						jsonProcessor(ss, root);
 				}
@@ -359,6 +360,10 @@ namespace SerialProcess
 				log_w("Serial queue full - dropping message");
 			}
 		}
+		else{
+			log_e("SerialMSGQueue not initialized - cannot add message");
+			cJSON_Delete(doc);
+		}
 	}
 
 	// Static buffer for serial reading to avoid heap fragmentation
@@ -370,7 +375,7 @@ namespace SerialProcess
 	void loop()
 	{
 		// Check if we're in binary OTA mode
-		#ifdef CAN_BUS_ENABLED
+		#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: This should work through the canopen layer as well once implemented there
 		if (binary_ota::isInBinaryMode()) {
 			// Process binary packets instead of JSON
 			binary_ota::processBinaryPacket();
@@ -428,7 +433,11 @@ namespace SerialProcess
 						serialInputBuffer[serialInputPos] = '\0';
 						
 						cJSON *doc = cJSON_Parse(serialInputBuffer);
+						// print in case we are in debug mode - this is useful to see the incoming JSON in the serial monitor without the need of a separate tool
+						log_i("Received JSON: %s", serialInputBuffer);
+						
 						if (doc) {
+							log_i("Parsed JSON successfully");
 							addJsonToQueue(doc);
 						} else {
 							// Parse error - send error response
@@ -528,20 +537,19 @@ namespace SerialProcess
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
 	{
+		log_i("Processing task: %s", task);
 
-		/*
-		This function takes in the task (e.g. /state_get)
-		and a JSON object that holds the information for the
-		task that needs to be processed. It calls the get/act
-		function for the different controllers*/
-		if (false) // keep all other else ifs happy
-			return;
+
 #if defined(CAN_CONTROLLER_CANOPEN) && defined(CAN_SEND_COMMANDS)
-		// CANopen master mode — route commands to slave nodes via SDO
+		// TODO: Not sure if this is the best way to switch between different serial command handlers - maybe the CANopen routing should be integrated more deeply into the command processing instead of as a separate layer? But for now this keeps the existing serial command structure intact and allows routing to CANopen slaves without changing the Pi JSON API.
+		// TODO: Maybe it's worth merging this into a global command router that checks all controllers in a defined order, instead of hardcoding the CANopen routing here? This would allow more flexible routing and cleaner separation of concerns. For now, this is a quick way to route certain commands to CANopen slaves while keeping the existing structure.
+		// CANopen master mode — route commands to slave nodes via SDO 
 		// before local dispatch, so the Pi JSON API stays unchanged.
 		if (runtimeConfig.isMaster()) {
+			log_i("Routing command through CANopen DeviceRouter");
 			cJSON* canResponse = DeviceRouter::routeCommand(task, jsonDocument);
 			if (canResponse) {
+				log_i("Received response from CANopen device, sending back to serial");
 				serialize(canResponse);
 				return;
 			}
@@ -553,7 +561,13 @@ namespace SerialProcess
 		else if (runtimeConfig.analogOut && strcmp(task, analogout_get_endpoint) == 0)
 			serialize(AnalogOutController::get(jsonDocument));
 #endif
-
+		/*
+		This function takes in the task (e.g. /state_get)
+		and a JSON object that holds the information for the
+		task that needs to be processed. It calls the get/act
+		function for the different controllers*/
+		if (false) // keep all other else ifs happy
+			return;
 #ifdef BLUETOOTH
 		else if (runtimeConfig.bluetooth && strcmp(task, bt_connect_endpoint) == 0)
 		{
@@ -629,7 +643,7 @@ namespace SerialProcess
 		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: Do we want a more generic router here?
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(can_controller::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)

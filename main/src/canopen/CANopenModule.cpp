@@ -143,17 +143,28 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             }
         }
 
-        // Error recovery
-        if (alerts & (TWAI_ALERT_BUS_OFF | TWAI_ALERT_BUS_ERROR)) {
-            ESP_LOGW(TAG_CAN, "Bus error — recovering...");
+        // Bus-off: trigger hardware recovery — wait for 128 x 11 recessive bits.
+        // Do NOT uninstall/reinstall here: repeated twai_driver_install() calls cause
+        // ESP_ERR_NOT_FOUND in esp_intr_alloc on ESP32-S3 (interrupt already allocated).
+        if (alerts & TWAI_ALERT_BUS_OFF) {
+            ESP_LOGW(TAG_CAN, "Bus-off — initiating recovery...");
             twai_initiate_recovery();
-            twai_stop();
-            twai_driver_uninstall();
-            vTaskDelay(pdMS_TO_TICKS(100));
-            twai_driver_install(&g_config, &t_config, &f_config);
+        }
+
+        // Recovery completed — the driver is now stopped; restart it.
+        if (alerts & TWAI_ALERT_BUS_RECOVERED) {
+            ESP_LOGI(TAG_CAN, "Bus recovered");
             twai_start();
             twai_reconfigure_alerts(TWAI_ALERT_ALL, NULL);
-            ESP_LOGI(TAG_CAN, "Bus recovered");
+        }
+
+        // Transient bus frame errors (e.g. no ACK when master absent) — hardware
+        // handles these automatically; just count quietly to avoid log spam.
+        if (alerts & TWAI_ALERT_BUS_ERROR) {
+            static uint32_t busErrCount = 0;
+            if ((++busErrCount % 100) == 1) {
+                ESP_LOGW(TAG_CAN, "CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
+            }
         }
 
         vTaskDelay(1);
@@ -279,6 +290,15 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                              uint8_t* data, size_t dataSize)
 {
+    /*
+    This function is a helper for writing SDOs from outside the CANopen stack (e.g. from the master's serial->CAN bridge).
+    It uses the global CO->SDOclient object to perform a blocking SDO write.
+    nodeId: target node ID
+    index: SDO index => CANopen Object Dictionary entry (e.g. 0x2000 for motor position)
+    subIndex: SDO subindex => specific parameter within the OD entry (e.g. 0x01 for current position)
+    data: pointer to the data buffer to write (e.g. 4 bytes for int32 position)
+    dataSize: size of the data buffer in bytes
+    */
     if (CO == NULL || CO->SDOclient == NULL) return false;
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize);
@@ -288,6 +308,16 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
 bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                             uint8_t* buf, size_t bufSize, size_t* readSize)
 {
+    /*
+    This function is a helper for reading SDOs from outside the CANopen stack (e.g. from the master's serial->CAN bridge).
+    It uses the global CO->SDOclient object to perform a blocking SDO read.
+    nodeId: target node ID
+    index: SDO index => CANopen Object Dictionary entry (e.g. 0x2000 for motor position)
+    subIndex: SDO subindex => specific parameter within the OD entry (e.g. 0x01 for current position)
+    buf: pointer to the buffer to store the read data
+    bufSize: size of the buffer in bytes
+    readSize: pointer to a variable to store the number of bytes actually read
+    */
     if (CO == NULL || CO->SDOclient == NULL) return false;
     CO_SDO_abortCode_t ret = _read_SDO(CO->SDOclient, nodeId,
         index, subIndex, buf, bufSize, readSize);
@@ -450,16 +480,35 @@ cJSON* CANopenModule::get(cJSON* /*doc*/)
 cJSON* CANopenModule::act(cJSON* doc)
 {
     cJSON* resp = cJSON_CreateObject();
+    bool changed = false;
+
     cJSON* nodeIdItem = cJSON_GetObjectItem(doc, "nodeId");
-    if (nodeIdItem && nodeIdItem->valueint >= 1 && nodeIdItem->valueint <= 127) {
+    if (nodeIdItem && cJSON_IsNumber(nodeIdItem) &&
+        nodeIdItem->valueint >= 1 && nodeIdItem->valueint <= 127)
+    {
         runtimeConfig.canNodeId = (uint8_t)nodeIdItem->valueint;
+        changed = true;
+    }
+
+    // canMotorAxis: which FocusMotor index the slave dispatches CANopen commands to.
+    // The slave's physical stepper is typically at index 1, not 0.
+    // Example: {"task":"/can_act","canMotorAxis":1}
+    cJSON* axisItem = cJSON_GetObjectItem(doc, "canMotorAxis");
+    if (axisItem && cJSON_IsNumber(axisItem) &&
+        axisItem->valueint >= 0 && axisItem->valueint <= 3)
+    {
+        runtimeConfig.canMotorAxis = (uint8_t)axisItem->valueint;
+        changed = true;
+    }
+
+    if (changed) {
         NVSConfig::saveConfig();
-        cJSON_AddNumberToObject(resp, "nodeId", runtimeConfig.canNodeId);
-        cJSON_AddStringToObject(resp, "status", "saved — reboot to apply");
+        cJSON_AddStringToObject(resp, "status", "saved");
     } else {
-        cJSON_AddNumberToObject(resp, "nodeId", runtimeConfig.canNodeId);
         cJSON_AddStringToObject(resp, "status", "ok");
     }
+    cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);
+    cJSON_AddNumberToObject(resp, "canMotorAxis", runtimeConfig.canMotorAxis);
     return resp;
 }
 
@@ -495,9 +544,10 @@ void CANopenModule::syncRpdoToModules()
             bool isAbs         = (ctrl & 0x01) != 0;
             bool isStop        = (ctrl & 0x02) != 0;
 
-            // Derive axis from node ID: A=10→0, X=11→1, Y=12→2, Z=13→3
-            int axis = (int)runtimeConfig.canNodeId - 10;
-            if (axis < 0 || axis > 3) axis = 0;
+            // Use the configured local motor axis (canMotorAxis, default 1).
+            // This is the FocusMotor array index of the physically connected stepper.
+            // Set via: {"task":"/can_act","canMotorAxis":1}
+            int axis = (int)runtimeConfig.canMotorAxis;
 
             ESP_LOGI(TAG_CO, "Motor cmd: axis=%d pos=%ld speed=%u isAbs=%d isStop=%d",
                      axis, (long)targetPos, speedVal, isAbs ? 1 : 0, isStop ? 1 : 0);
@@ -532,7 +582,7 @@ void CANopenModule::syncModulesToTpdo()
     OD_RAM.x6001_counter = counter++;
 
 #ifdef MOTOR_CONTROLLER
-    int axis = (int)runtimeConfig.canNodeId - 10;
+    int axis = (int)runtimeConfig.canMotorAxis;
     if (axis >= 0 && axis <= 3) {
         // check for nullptr just in case
         if (FocusMotor::getData()[axis] == nullptr) {

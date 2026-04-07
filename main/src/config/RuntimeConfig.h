@@ -33,7 +33,8 @@ struct RuntimeConfig {
 
     // CAN role
     NodeRole canRole = NodeRole::STANDALONE;
-    uint8_t  canNodeId = 10;  // CANopen node-id (1-127), stored in NVS
+    uint8_t  canNodeId = 10;     // CANopen node-id (1-127), stored in NVS
+    uint8_t  canMotorAxis = 1;  // Local FocusMotor index dispatched on slave (0-3), stored in NVS
 
     // Convenience
     bool isMaster() const { return canRole == NodeRole::CAN_MASTER; }

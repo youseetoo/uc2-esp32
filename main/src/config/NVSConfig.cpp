@@ -178,8 +178,9 @@ void NVSConfig::loadConfig()
     runtimeConfig.objective  = prefs.getBool("objective",  DEFAULT_OBJECTIVE);
     runtimeConfig.heat       = prefs.getBool("heat",       DEFAULT_HEAT);
 
-    runtimeConfig.canRole    = (NodeRole)prefs.getUChar("canRole",   DEFAULT_CAN_ROLE);
-    runtimeConfig.canNodeId  = prefs.getUChar("canNodeId", 10);
+    runtimeConfig.canRole      = (NodeRole)prefs.getUChar("canRole",   DEFAULT_CAN_ROLE);
+    runtimeConfig.canNodeId    = prefs.getUChar("canNodeId",  10);
+    runtimeConfig.canMotorAxis = prefs.getUChar("canMotAxis", 1);
 
     prefs.end();
 
@@ -217,7 +218,8 @@ void NVSConfig::saveConfig()
     prefs.putBool("heat",       runtimeConfig.heat);
 
     prefs.putUChar("canRole",   (uint8_t)runtimeConfig.canRole);
-    prefs.putUChar("canNodeId", runtimeConfig.canNodeId);
+    prefs.putUChar("canNodeId",  runtimeConfig.canNodeId);
+    prefs.putUChar("canMotAxis", runtimeConfig.canMotorAxis);
 
     prefs.end();
     ESP_LOGI(TAG, "Config saved to NVS");
@@ -260,8 +262,9 @@ cJSON* NVSConfig::toJson()
     cJSON_AddBoolToObject(json, "objective",  runtimeConfig.objective);
     cJSON_AddBoolToObject(json, "heat",       runtimeConfig.heat);
 
-    cJSON_AddNumberToObject(json, "canRole",   (int)runtimeConfig.canRole);
-    cJSON_AddNumberToObject(json, "canNodeId", runtimeConfig.canNodeId);
+    cJSON_AddNumberToObject(json, "canRole",      (int)runtimeConfig.canRole);
+    cJSON_AddNumberToObject(json, "canNodeId",    runtimeConfig.canNodeId);
+    cJSON_AddNumberToObject(json, "canMotorAxis", runtimeConfig.canMotorAxis);
 
     return json;
 }
@@ -345,5 +348,11 @@ void NVSConfig::fromJson(cJSON* json)
     if (item && cJSON_IsNumber(item)) {
         int val = item->valueint;
         if (val >= 1 && val <= 127) runtimeConfig.canNodeId = (uint8_t)val;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(json, "canMotorAxis");
+    if (item && cJSON_IsNumber(item)) {
+        int val = item->valueint;
+        if (val >= 0 && val <= 3) runtimeConfig.canMotorAxis = (uint8_t)val;
     }
 }

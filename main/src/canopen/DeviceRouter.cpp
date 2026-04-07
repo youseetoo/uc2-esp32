@@ -4,7 +4,7 @@
 #include "DeviceRouter.h"
 
 #if defined(CAN_CONTROLLER_CANOPEN) && defined(CAN_SEND_COMMANDS)
-
+#include <PinConfig.h>
 #include "CANopenModule.h"
 #include "../wifi/Endpoints.h"
 #include "esp_log.h"
@@ -19,11 +19,11 @@ static const char* TAG = "UC2_DR";
 // ============================================================================
 uint8_t DeviceRouter::stepperIdToNodeId(int stepperid) {
     switch (stepperid) {
-        case 0: return 10;  // A axis (CAN_ID_MOT_A)
-        case 1: return 11;  // X axis (CAN_ID_MOT_X)
-        case 2: return 12;  // Y axis (CAN_ID_MOT_Y)
-        case 3: return 13;  // Z axis (CAN_ID_MOT_Z)
-        default: return 10;
+        case 0: return pinConfig.CAN_ID_MOT_A;  // A axis (CAN_ID_MOT_A) // TODO: This should be read from the pinconfig.CAN_ID_MOT_A value at runtime, but for now we hardcode it to match the default NVS value in the slave's runtimeConfig.canNodeId
+        case 1: return pinConfig.CAN_ID_MOT_X;  // X axis (CAN_ID_MOT_X)
+        case 2: return pinConfig.CAN_ID_MOT_Y;  // Y axis (CAN_ID_MOT_Y)
+        case 3: return pinConfig.CAN_ID_MOT_Z;  // Z axis (CAN_ID_MOT_Z)
+        default: return pinConfig.CAN_ID_MOT_X;
     }
 }
 

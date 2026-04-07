@@ -1119,3 +1119,161 @@ lib/ESP32_CanOpenNode/    (~8000 lines — third-party, unmodified, battle-teste
 
 Total UC2-authored CAN code: ~860 lines (down from ~2500+ in can_transport.cpp + ISO-TP)
 ```
+
+---
+
+## Current integration status (as of 2025-06)
+
+All three environments build cleanly:
+- `UC2_canopen_master` (ESP32, CAN_CONTROLLER_CANOPEN + CAN_SEND_COMMANDS)
+- `UC2_canopen_slave` (ESP32-S3, CAN_CONTROLLER_CANOPEN + CAN_RECEIVE_MOTOR)
+- `UC2_3_CAN_HAT_Master_v2` (ESP32, old ISO-TP transport — no CANopen)
+
+The following bugs have been fixed in this session:
+
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| `motor_act` SDO sent but slave motor didn't move | DeviceRouter mapped `stepperid=0` → `nodeId=14`, slave defaults to `nodeId=10` | Fixed `stepperIdToNodeId()`: 0→10, 1→11, 2→12, 3→13 |
+| SDO write aborted on slave (OD type mismatch) | DeviceRouter wrote int32 to `0x6200:01` which is `uint8` in OD | Rewrote to use `uint16` OD entries at `0x6401:01..04` (MWE pattern) |
+| Slave `syncRpdoToModules()` never moved motor | Function only logged, never called `FocusMotor::startStepper()` | Implemented: decode trigger/position/speed/ctrl from OD, dispatch to FocusMotor |
+| `/can_get` returned nothing in CANopen builds | Endpoint guarded by `!defined(CAN_CONTROLLER_CANOPEN)` | Added `#elif defined(CAN_CONTROLLER_CANOPEN)` branch in `SerialProcess.cpp` |
+
+### Motor command encoding (temporary workaround)
+
+The current trainer OD (`lib/ESP32_CanOpenNode/src/OD.h`) has no native `int32` entry for motor position. The workaround encodes a 32-bit position as two `uint16` words:
+
+```
+0x6401:01  posHi = (position >> 16) & 0xFFFF
+0x6401:02  posLo = (position      ) & 0xFFFF
+0x6401:03  speed (clamped to uint16)
+0x6401:04  ctrl  (bit0=isAbs, bit1=isStop)
+0x6200:01  trigger byte = 0x01  ← last write, starts motion on slave
+```
+
+Both `DeviceRouter.cpp` (master write) and `CANopenModule.cpp::syncRpdoToModules()` (slave decode) use the same encoding. This is explicitly a stopgap until PR-6 (full UC2 OD).
+
+---
+
+## Known TODOs and near-term work items
+
+### TODO-1 — Full UC2 OD (replaces split-uint16 workaround)  **[Blocks PR-6]**
+
+**Problem:** The trainer OD (`OD.h/OD.c`) has `uint8_t x6200[1]` and `uint16_t x6401[4]`. Motor position is int32 but must be split into two uint16 words. This is fragile and limits the number of motor parameters that can be sent.
+
+**Required:** Generate a proper UC2 OD from `openUC2_satellite.eds` using CANopenEditor that includes:
+- `0x6000:01` — uint8 digital inputs (isRunning flag)
+- `0x6200:01` — uint8 digital outputs (trigger byte)
+- `0x6401:01` — int32 motor position (native, no split)
+- `0x6401:02` — uint16 motor speed
+- `0x6401:03` — uint16 motor acceleration
+- `0x6401:04` — uint8 motor control flags (isAbs, isStop)
+- `0x6402:01..04` — laser/LED values (per axis)
+
+**Impact:** Once done, remove the `posHi`/`posLo` split from `DeviceRouter.cpp` and `syncRpdoToModules()`. Replace with single int32 SDO write.
+
+**Files to touch:** `lib/ESP32_CanOpenNode/src/OD.h`, `OD.c` (regenerate), `DeviceRouter.cpp`, `CANopenModule.cpp`.
+
+---
+
+### TODO-2 — Acceleration parameter not sent to slave  **[Blocks full motor control]**
+
+**Location:** `DeviceRouter.cpp` `handleMotorAct()` — comment: *"relative or absolute? Do we provide all info? e.g. acceleration?"*
+
+**Problem:** `MotorData` has an `acceleration` field but `DeviceRouter` does not encode or send it. The slave runs with default acceleration profile.
+
+**Required:** Add `0x6401:03` (uint16 acceleration) to the OD, write it from `DeviceRouter`, read it in `syncRpdoToModules()` and set `motorData->acceleration` before calling `startStepper()`.
+
+**Prerequisite:** TODO-1 (full UC2 OD needs an acceleration entry).
+
+---
+
+### TODO-3 — CAN OTA not implemented for CANopen builds  **[Blocks PR-8]**
+
+**Location:** `SerialProcess.cpp` — `/can_ota` and `/can_ota_stream` are inside `#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)` → completely absent from CANopen builds.
+
+**Comment in code:** `// TODO: binary OTA should work through CANopen layer as well once implemented there`
+
+**Required:** Implement `CanOpenOTA.cpp` (planned in PR-8 spec):
+- Master: receive OTA binary from serial, chunk into SDO block transfer writes to `0x1F50:01` (standard CiA 302 firmware download OD index)
+- Slave: `OD_write_1F50()` custom handler triggers `esp_ota_begin/write/end`, then NMT reset
+
+**Estimated size:** ~150 lines (as estimated in PR-8 spec).
+
+---
+
+### TODO-4 — Binary OTA via serial absent in CANopen builds
+
+**Location:** `SerialProcess.cpp` `loop()` — the `canOtaStream` binary receive path is inside `#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)`.
+
+**Problem:** Even local OTA (master updating itself via serial binary) is guarded out in CANopen builds.
+
+**Required:** Either remove the `!defined(CAN_CONTROLLER_CANOPEN)` guard (if the local OTA path doesn't use TWAI), or duplicate the binary receive into the CANopen branch and forward chunks via SDO block transfer.
+
+---
+
+### TODO-5 — Dial controller not adapted for CANopen master mode
+
+**Location:** `main.cpp` line ~492 — comment: *"Dial controller needs CAN bus to be ready when in CAN master mode — has to move over to canopen too"*
+
+**Problem:** `DialController` uses direct CAN frame construction (`can_controller::sendFrame()`). In CANopen builds `can_controller` is stubbed out (no-ops), so Dial controller over CAN silently does nothing.
+
+**Required:** Adapt `DialController.cpp` to use `DeviceRouter::handleMotorAct()` (or a direct SDO write) when `CAN_CONTROLLER_CANOPEN` is defined. Alternative: route Dial controller commands through the same JSON serial path that `SerialProcess` uses, so `DeviceRouter` handles the routing automatically.
+
+---
+
+### TODO-6 — Laser/LED routing on slave not wired
+
+**Location:** `DeviceRouter.cpp` has `handleLaserAct()` wired on master side. But `CANopenModule.cpp::syncRpdoToModules()` on the slave has no handler for laser OD entries.
+
+**Problem:** Laser SDO writes reach the slave but `syncRpdoToModules()` only checks `x6200_writeOutput8Bit[0]` for the motor trigger. No laser value is extracted or dispatched.
+
+**Required:**
+1. Add laser OD entries (e.g., `0x6402:01` uint16 laser intensity) to the UC2 OD (see TODO-1).
+2. In `DeviceRouter.cpp`: add SDO write for laser intensity to `0x6402:01` + trigger via `0x6200:01` bit 1.
+3. In `CANopenModule.cpp::syncRpdoToModules()`: detect laser trigger bit, read `x6402[0]`, call `LaserController::setLaser(axis, value)`.
+
+---
+
+### TODO-7 — Remove `can_controller_stubs.cpp` after full migration  **[PR-9]**
+
+**Location:** `main/src/can/can_controller_stubs.cpp`
+
+**Problem:** This file provides no-op stubs for `can_controller::sendFrame()`, `::init()`, `::deinit()` so that controller files (FocusMotor, LaserController, etc.) that call `can_controller::` still compile. The stubs silence linker errors but mean any controller file that calls these functions silently does nothing at runtime.
+
+**Required (PR-9):** For each controller file that calls `can_controller::*`:
+1. Wrap the call in `#ifndef CAN_CONTROLLER_CANOPEN` / `#endif`
+2. Once all controllers are wrapped, delete `can_controller_stubs.cpp` and remove it from `CMakeLists.txt`
+
+**Files to audit:** `FocusMotor.cpp`, `LaserController.cpp`, `LEDController.cpp`, `main.cpp` (any direct `can_controller::` calls).
+
+---
+
+### TODO-8 — Consolidate `#ifdef CAN_SEND_COMMANDS` / `CAN_RECEIVE_MOTOR` flags
+
+**Problem:** The codebase has ~10 separate `CAN_RECEIVE_*` / `CAN_SEND_*` flags used to enable features per environment. Once CANopen is fully integrated, all of these should be derivable from a single `CAN_ROLE_MASTER` / `CAN_ROLE_SLAVE` flag plus the OD role.
+
+**Required (PR-9):** After all modules are wired to CANopen:
+- Replace `CAN_SEND_COMMANDS + CAN_RECEIVE_MOTOR + CAN_RECEIVE_LASER + ...` with a single `CAN_ROLE=MASTER` or `CAN_ROLE=SLAVE` `platformio.ini` flag.
+- Update `platformio.ini` environments accordingly.
+- Verify with `grep -r "CAN_RECEIVE\|CAN_SEND_COMMANDS" main/` that no stale flags remain.
+
+---
+
+## Quick-start test script (post-fix)
+
+After flashing master + slave, verify `motor_act` end-to-end:
+
+```bash
+# On master serial (115200 baud)
+# 1. Check slave is visible on CAN bus
+{"task":"/can_get"}
+# Expected: {"nodeId":10,"canRole":"master","nmtState":"OPERATIONAL","txErrors":0,...}
+
+# 2. Send motor_act to slave (axis A = node 10)
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":0,"position":1000,"speed":1000,"isabs":true,"isaccel":false}]}}
+# Expected: no error, slave LED blinks, motor moves 1000 steps
+
+# 3. Read back position
+{"task":"/motor_get"}
+# Expected: {"motor":{"steppers":[{"stepperid":0,"position":1000,...}]}}
+```

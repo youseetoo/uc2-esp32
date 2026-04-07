@@ -46,6 +46,7 @@
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "../canopen/DeviceRouter.h"
+#include "../canopen/CANopenModule.h"
 #endif
 
 #ifdef LASER_CONTROLLER
@@ -643,7 +644,7 @@ namespace SerialProcess
 		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: Do we want a more generic router here?
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // legacy ISO-TP transport
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(can_controller::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)
@@ -652,6 +653,11 @@ namespace SerialProcess
 			serialize(can_controller::actCanOta(jsonDocument));
 		else if (strcmp(task, can_ota_stream_endpoint) == 0)
 			serialize(can_controller::actCanOtaStream(jsonDocument));
+#elif defined(CAN_CONTROLLER_CANOPEN) // CANopen transport — node ID management //
+		else if (strcmp(task, can_get_endpoint) == 0)
+			serialize(CANopenModule::get(jsonDocument));
+		else if (strcmp(task, can_act_endpoint) == 0)
+			serialize(CANopenModule::act(jsonDocument));
 #endif
 #ifdef LASER_CONTROLLER
 		else if (runtimeConfig.laser && strcmp(task, laser_get_endpoint) == 0)

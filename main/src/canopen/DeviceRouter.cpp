@@ -9,19 +9,21 @@
 #include "../wifi/Endpoints.h"
 #include "esp_log.h"
 #include <cstring>
+#include <algorithm>  // std::min
 
 static const char* TAG = "UC2_DR";
 
 // ============================================================================
-// Node-ID mapping (matches existing CAN address scheme)
+// Node-ID mapping — must match the slave's runtimeConfig.canNodeId (default=10)
+// Mirrors old CAN address scheme: A=10, X=11, Y=12, Z=13
 // ============================================================================
 uint8_t DeviceRouter::stepperIdToNodeId(int stepperid) {
     switch (stepperid) {
-        case 0: return 14;  // A axis (was CAN addr 272)
-        case 1: return 11;  // X axis (was CAN addr 273)
-        case 2: return 12;  // Y axis (was CAN addr 274)
-        case 3: return 13;  // Z axis (was CAN addr 275)
-        default: return 10; // fallback
+        case 0: return 10;  // A axis (CAN_ID_MOT_A)
+        case 1: return 11;  // X axis (CAN_ID_MOT_X)
+        case 2: return 12;  // Y axis (CAN_ID_MOT_Y)
+        case 3: return 13;  // Z axis (CAN_ID_MOT_Z)
+        default: return 10;
     }
 }
 
@@ -44,8 +46,19 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
 }
 
 // ============================================================================
-// Motor act — write target position via SDO to slave OD 0x6200:01
-// (Using trainer OD indices for now; will change to 0x2000 with full UC2 OD)
+// Motor act — send motor command to slave using trainer OD entries:
+//
+//   0x6401:01  = target position high word (bits 31-16)  uint16
+//   0x6401:02  = target position low  word (bits 15-0)   uint16
+//   0x6401:03  = speed (clamped to uint16, 0-65535)      uint16
+//   0x6401:04  = control flags (bit0=isAbs, bit1=isStop) uint16
+//   0x6200:01  = trigger byte   (bit0=1 to start move)   uint8
+//
+// Slave's syncRpdoToModules() detects the trigger, reassembles position,
+// calls FocusMotor::startStepper(), then clears bit0.
+//
+// Note: This uses the MWE trainer OD (uint16 split encoding). The full UC2 OD
+// will use native int32 entries at 0x2000+ — remove split encoding at that point.
 // ============================================================================
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
@@ -64,50 +77,39 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         int stepperid = idItem->valueint;
         uint8_t nodeId = stepperIdToNodeId(stepperid);
 
-        // Write target position via SDO to OD 0x6200:01
-        // TODO: relative or absolute? 
-        // TODO: Do we actually provide all the information needed? e.g. acceleration etc.?
+        // --- Write position (int32 split into two uint16 words) ---
         cJSON* pos = cJSON_GetObjectItem(stepper, "position");
-        if (pos) {
-            int32_t posVal = pos->valueint;
-            uint8_t data[4];
-            memcpy(data, &posVal, 4);  // little-endian, matches ESP32
-            log_i("Writing position %d to node 0x%02X", posVal, nodeId);
-            bool ok = CANopenModule::writeSDO(nodeId, 0x6200, 0x01, data, 4);
-            if (!ok) {
-                ESP_LOGW(TAG, "SDO write failed: node=0x%02X pos=%ld", nodeId, (long)posVal);
-            }
-        }
+        int32_t posVal = pos ? pos->valueint : 0;
+        uint16_t posHi = (uint16_t)((uint32_t)posVal >> 16);
+        uint16_t posLo = (uint16_t)((uint32_t)posVal & 0xFFFF);
+        CANopenModule::writeSDO(nodeId, 0x6401, 0x01, (uint8_t*)&posHi, 2);
+        CANopenModule::writeSDO(nodeId, 0x6401, 0x02, (uint8_t*)&posLo, 2);
 
-        // Write speed if provided
+        // --- Write speed (clamped to uint16) ---
         cJSON* speed = cJSON_GetObjectItem(stepper, "speed");
-        if (speed) {
-            int32_t speedVal = speed->valueint;
-            uint8_t data[4];
-            memcpy(data, &speedVal, 4);
-            log_i("Writing speed %d to node 0x%02X", speedVal, nodeId);
-            CANopenModule::writeSDO(nodeId, 0x6200, 0x02, data, 4);
-        }
+        uint16_t speedVal = speed ? (uint16_t)std::min(std::abs(speed->valueint), 65535) : 1000;
+        CANopenModule::writeSDO(nodeId, 0x6401, 0x03, (uint8_t*)&speedVal, 2);
 
-        // Write isEnable if provided
-        cJSON* isEnable = cJSON_GetObjectItem(stepper, "isEnable");
-        if (isEnable) {
-            uint8_t en = cJSON_IsTrue(isEnable) ? 1 : 0;
-            CANopenModule::writeSDO(nodeId, 0x6200, 0x03, &en, 1);
-        }
+        // --- Write control flags ---
+        cJSON* isAbsItem = cJSON_GetObjectItem(stepper, "isabs");
+        cJSON* isStopItem = cJSON_GetObjectItem(stepper, "isStop");
+        uint16_t ctrl = 0;
+        if (isAbsItem && isAbsItem->valueint) ctrl |= 0x01;  // bit0 = absolute
+        if (isStopItem && cJSON_IsTrue(isStopItem)) ctrl |= 0x02; // bit1 = stop
+        CANopenModule::writeSDO(nodeId, 0x6401, 0x04, (uint8_t*)&ctrl, 2);
 
-        // Build per-stepper response
+        // --- Trigger the move ---
+        uint8_t trigger = 0x01;
+        bool ok = CANopenModule::writeSDO(nodeId, 0x6200, 0x01, &trigger, 1);
+        if (!ok) {
+            ESP_LOGW(TAG, "Trigger SDO failed: node=0x%02X", nodeId);
+        }
+        log_i("Motor cmd → node 0x%02X: pos=%ld speed=%u isAbs=%d",
+              nodeId, (long)posVal, speedVal, (ctrl & 0x01) ? 1 : 0);
+
+        // Build response
         cJSON* respStepper = cJSON_CreateObject();
         cJSON_AddNumberToObject(respStepper, "stepperid", stepperid);
-
-        // Read back current position to confirm the node is alive
-        uint8_t buf[4];
-        size_t readSize = 0;
-        if (CANopenModule::readSDO(nodeId, 0x6001, 0x00, buf, sizeof(buf), &readSize)) {
-            int32_t currentPos;
-            memcpy(&currentPos, buf, 4);
-            cJSON_AddNumberToObject(respStepper, "position", currentPos);
-        }
         cJSON_AddNumberToObject(respStepper, "isDone", 0);
         cJSON_AddItemToArray(respSteppers, respStepper);
     }
@@ -140,18 +142,26 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
         cJSON* respStepper = cJSON_CreateObject();
         cJSON_AddNumberToObject(respStepper, "stepperid", stepperid);
 
-        // Read current position from OD 0x6001:00
-        uint8_t buf[4];
+        // Read position: two uint16 words at 0x6401:01 and 0x6401:02
+        uint8_t buf[4] = {};
         size_t readSize = 0;
-        if (CANopenModule::readSDO(nodeId, 0x6001, 0x00, buf, sizeof(buf), &readSize)) {
-            int32_t currentPos;
-            memcpy(&currentPos, buf, 4);
+        uint16_t hiWord = 0, loWord = 0;
+        bool ok = true;
+        ok &= CANopenModule::readSDO(nodeId, 0x6401, 0x01, (uint8_t*)&hiWord, 2, &readSize);
+        ok &= CANopenModule::readSDO(nodeId, 0x6401, 0x02, (uint8_t*)&loWord, 2, &readSize);
+        int32_t currentPos = (int32_t)(((uint32_t)hiWord << 16) | (uint32_t)loWord);
+
+        // Read isRunning from 0x6000:01
+        uint8_t isRunning = 0;
+        CANopenModule::readSDO(nodeId, 0x6000, 0x01, &isRunning, 1, &readSize);
+
+        if (ok) {
             cJSON_AddNumberToObject(respStepper, "position", currentPos);
-            cJSON_AddNumberToObject(respStepper, "isDone", 1);
+            cJSON_AddNumberToObject(respStepper, "isRunning", isRunning);
+            cJSON_AddNumberToObject(respStepper, "isDone", isRunning ? 0 : 1);
         } else {
-            cJSON_AddNumberToObject(respStepper, "position", 0);
-            cJSON_AddNumberToObject(respStepper, "isDone", -1); // error
             ESP_LOGW(TAG, "SDO read failed: node=0x%02X", nodeId);
+            cJSON_AddNumberToObject(respStepper, "isDone", -1);
         }
         cJSON_AddItemToArray(respSteppers, respStepper);
     }

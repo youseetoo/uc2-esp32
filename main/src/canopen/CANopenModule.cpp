@@ -17,6 +17,11 @@
 
 #include "PinConfig.h"
 #include "../config/RuntimeConfig.h"
+#include "../config/NVSConfig.h"
+
+#ifdef MOTOR_CONTROLLER
+#include "../motor/FocusMotor.h"
+#endif
 
 extern "C" {
 #include <CANopen.h>
@@ -396,38 +401,155 @@ void CANopenModule::CO_main_task(void* arg)
 }
 
 // ============================================================================
-// OD <-> Module sync stubs
-// Using trainer OD entries (0x6000, 0x6001, 0x6200) to prove the stack works.
-// Full UC2 OD integration comes later.
+// /can_get — returns node ID, NMT state, TWAI health
+// ============================================================================
+cJSON* CANopenModule::get(cJSON* /*doc*/)
+{
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "nodeId", runtimeConfig.canNodeId);
+    cJSON_AddNumberToObject(resp, "canRole", (int)runtimeConfig.canRole);
+
+    if (CO != nullptr && CO->NMT != nullptr) {
+        uint8_t nmtState = CO->NMT->operatingState;
+        cJSON_AddNumberToObject(resp, "nmtState", nmtState);
+        const char* stateStr = "unknown";
+        switch (nmtState) {
+            case CO_NMT_INITIALIZING:    stateStr = "INITIALIZING"; break;
+            case CO_NMT_PRE_OPERATIONAL: stateStr = "PRE-OPERATIONAL"; break;
+            case CO_NMT_OPERATIONAL:     stateStr = "OPERATIONAL"; break;
+            case CO_NMT_STOPPED:         stateStr = "STOPPED"; break;
+        }
+        cJSON_AddStringToObject(resp, "nmtStateStr", stateStr);
+    }
+
+    // TWAI bus health
+    twai_status_info_t status;
+    if (twai_get_status_info(&status) == ESP_OK) {
+        cJSON* bus = cJSON_CreateObject();
+        cJSON_AddNumberToObject(bus, "txErr", status.tx_error_counter);
+        cJSON_AddNumberToObject(bus, "rxErr", status.rx_error_counter);
+        cJSON_AddNumberToObject(bus, "txFailed", status.tx_failed_count);
+        cJSON_AddNumberToObject(bus, "busOffCount", status.bus_error_count);
+        const char* stateStr = "unknown";
+        switch (status.state) {
+            case TWAI_STATE_STOPPED:   stateStr = "stopped"; break;
+            case TWAI_STATE_RUNNING:   stateStr = "running"; break;
+            case TWAI_STATE_BUS_OFF:   stateStr = "bus_off"; break;
+            case TWAI_STATE_RECOVERING: stateStr = "recovering"; break;
+        }
+        cJSON_AddStringToObject(bus, "state", stateStr);
+        cJSON_AddItemToObject(resp, "bus", bus);
+    }
+    return resp;
+}
+
+// ============================================================================
+// /can_act — set node ID, persists to NVS
+// {"task":"/can_act", "nodeId": 10}
+// ============================================================================
+cJSON* CANopenModule::act(cJSON* doc)
+{
+    cJSON* resp = cJSON_CreateObject();
+    cJSON* nodeIdItem = cJSON_GetObjectItem(doc, "nodeId");
+    if (nodeIdItem && nodeIdItem->valueint >= 1 && nodeIdItem->valueint <= 127) {
+        runtimeConfig.canNodeId = (uint8_t)nodeIdItem->valueint;
+        NVSConfig::saveConfig();
+        cJSON_AddNumberToObject(resp, "nodeId", runtimeConfig.canNodeId);
+        cJSON_AddStringToObject(resp, "status", "saved — reboot to apply");
+    } else {
+        cJSON_AddNumberToObject(resp, "nodeId", runtimeConfig.canNodeId);
+        cJSON_AddStringToObject(resp, "status", "ok");
+    }
+    return resp;
+}
+
+// ============================================================================
+// OD <-> Module sync (called from CO_tmr_task)
+// Using trainer OD entries (0x6000, 0x6001, 0x6200, 0x6401)
 // ============================================================================
 void CANopenModule::syncRpdoToModules()
 {
-    // Called every 1ms from CO_tmr_task AFTER CO_process_RPDO()
-    // Read values that RPDOs have written into OD_RAM and dispatch to modules
+    // Called every 1ms from CO_tmr_task AFTER CO_process_RPDO().
+    // Protocol (matches DeviceRouter on master side):
+    //   0x6401:01 = position high word (bits 31-16)
+    //   0x6401:02 = position low  word (bits 15-0)
+    //   0x6401:03 = speed (uint16)
+    //   0x6401:04 = control flags (bit0=isAbs, bit1=isStop)
+    //   0x6200:01 = trigger byte (bit0=1 starts move, cleared here after dispatch)
 
-    // Exercise trainer OD entry as proof-of-concept:
-    // OD_RAM.x6200_writeOutput8Bit[0] -> motor command placeholder
-    static uint8_t prevOutput = 0xFF;
-    uint8_t output = OD_RAM.x6200_writeOutput8Bit[0];
-    if (output != prevOutput) {
-        prevOutput = output;
-        ESP_LOGI(TAG_CO, "RPDO received output byte: 0x%02X", output);
-        // TODO: When we have the full UC2 OD, this becomes:
-        // int32_t targetPos = OD_RAM.x2000_motorTargetPos[0];
-        // motorController->act(targetPos, speed, isabs);
+    static uint8_t prevTrigger = 0xFF;
+    uint8_t trigger = OD_RAM.x6200_writeOutput8Bit[0];
+
+    if (trigger != prevTrigger) {
+        prevTrigger = trigger;
+        ESP_LOGI(TAG_CO, "RPDO trigger byte: 0x%02X", trigger);
+
+        if (trigger & 0x01) {
+#ifdef MOTOR_CONTROLLER
+            // Reassemble int32 position from two uint16 words
+            uint32_t hi = OD_RAM.x6401_readAnalogueInput16Bit[0];
+            uint32_t lo = OD_RAM.x6401_readAnalogueInput16Bit[1];
+            int32_t targetPos = (int32_t)((hi << 16) | lo);
+            uint16_t speedVal  = OD_RAM.x6401_readAnalogueInput16Bit[2];
+            uint16_t ctrl      = OD_RAM.x6401_readAnalogueInput16Bit[3];
+            bool isAbs         = (ctrl & 0x01) != 0;
+            bool isStop        = (ctrl & 0x02) != 0;
+
+            // Derive axis from node ID: A=10→0, X=11→1, Y=12→2, Z=13→3
+            int axis = (int)runtimeConfig.canNodeId - 10;
+            if (axis < 0 || axis > 3) axis = 0;
+
+            ESP_LOGI(TAG_CO, "Motor cmd: axis=%d pos=%ld speed=%u isAbs=%d isStop=%d",
+                     axis, (long)targetPos, speedVal, isAbs ? 1 : 0, isStop ? 1 : 0);
+
+            if (isStop) {
+                FocusMotor::getData()[axis]->isStop = true;
+                FocusMotor::startStepper(axis, 0);
+            } else {
+                MotorData* m = FocusMotor::getData()[axis];
+                m->targetPosition  = targetPos;
+                m->speed           = (int32_t)speedVal;
+                m->absolutePosition = isAbs;
+                m->isforever       = false;
+                m->isStop          = false;
+                m->stopped         = false;
+                FocusMotor::startStepper(axis, 0);
+            }
+#endif
+            // Clear trigger bit so we don't re-fire, preserve other bits
+            OD_RAM.x6200_writeOutput8Bit[0] &= ~0x01;
+            prevTrigger = OD_RAM.x6200_writeOutput8Bit[0];
+        }
     }
 }
 
 void CANopenModule::syncModulesToTpdo()
 {
-    // Called every 1ms from CO_tmr_task BEFORE CO_process_TPDO()
-    // Write module state into OD_RAM so TPDOs broadcast it
+    // Called every 1ms from CO_tmr_task BEFORE CO_process_TPDO().
+    // Write module state into OD_RAM so TPDOs broadcast it and master can SDO-read it.
 
     static uint32_t counter = 0;
     OD_RAM.x6001_counter = counter++;
-    // TODO: When we have the full UC2 OD:
-    // OD_RAM.x2001_motorActualPos[0] = motorController->getPosition(0);
-    // OD_RAM.x2004_motorStatusWord = motorController->getStatusBits();
+
+#ifdef MOTOR_CONTROLLER
+    int axis = (int)runtimeConfig.canNodeId - 10;
+    if (axis >= 0 && axis <= 3) {
+        // check for nullptr just in case
+        if (FocusMotor::getData()[axis] == nullptr) {
+            ESP_LOGW(TAG_CO, "Motor data for axis %d is null", axis);
+            return;
+        }
+        int32_t pos = FocusMotor::getData()[axis]->currentPosition;
+        bool running = FocusMotor::isRunning(axis);
+
+        // Store actual position split into two uint16 words (mirrors DeviceRouter decode)
+        OD_RAM.x6401_readAnalogueInput16Bit[0] = (uint16_t)((uint32_t)pos >> 16);
+        OD_RAM.x6401_readAnalogueInput16Bit[1] = (uint16_t)((uint32_t)pos & 0xFFFF);
+
+        // Store isRunning in x6000 input byte
+        OD_RAM.x6000_readInput8Bit[0] = running ? 1 : 0;
+    }
+#endif
 }
 
 // ============================================================================

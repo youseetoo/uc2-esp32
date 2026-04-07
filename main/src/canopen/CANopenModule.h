@@ -10,6 +10,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include "cJSON.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
 
@@ -28,6 +29,12 @@ public:
                          uint8_t* data, size_t dataSize);
     static bool readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,   // CANopen Service Data Object (SDO) read helper
                         uint8_t* buf, size_t bufSize, size_t* readSize);
+
+    // /can_get and /can_act endpoints for CANopen builds
+    // {"task":"/can_get"} → returns node ID, NMT state, TWAI status
+    // {"task":"/can_act", "nodeId": 10} → sets this node's ID (persisted to NVS)
+    static cJSON* get(cJSON* doc);
+    static cJSON* act(cJSON* doc);
 
     // Check if CANopen stack is running
     static bool isOperational();                // Useful for slaves to check if they can trust the OD state, and for master to check if we can send commands

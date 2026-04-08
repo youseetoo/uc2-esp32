@@ -1,0 +1,1165 @@
+# openUC2 CANopen Parameter Registry
+#
+# This file is the SINGLE SOURCE OF TRUTH for all CANopen Object Dictionary entries
+# used by openUC2 satellite nodes.
+#
+# It is consumed by:
+#   - tools/generate_eds.py     → produces openUC2_satellite.eds (for CANopenEditor)
+#   - tools/generate_od.py      → produces lib/uc2_od/OD.h + OD.c (for CANopenNode)
+#   - tools/generate_indices.py → produces main/src/canopen/UC2_OD_Indices.h (C++ constants)
+#   - tools/generate_python.py  → produces PYTHON/uc2_canopen/uc2_indices.py (Python constants)
+#   - tools/generate_docs.py    → produces DOCUMENTATION/UC2_CANopen_Parameters.md
+#
+# WHEN YOU ADD A NEW HARDWARE FEATURE:
+#   1. Add the entry here (one place)
+#   2. Run: python tools/regenerate_all.py
+#   3. The EDS, OD.h/OD.c, C++ headers, Python constants, and docs all update together
+#
+# DESIGN RULES:
+#   - Indices follow the layout in section "OD index map" below
+#   - Every parameter that crosses the CAN bus must be here
+#   - If two modules need the same value, give it ONE entry — read it twice
+#   - Use semantic names: x2000_motor_target_position, NOT generic "x6401_word1"
+#   - Mark high-frequency entries with `pdo_mappable: true`
+#   - Mark slow/configuration entries with `sdo_only: true`
+
+device:
+  vendor_name: "openUC2 GmbH"
+  vendor_id: 0x000055C2     # 'UC2' in ASCII as last bytes
+  product_name: "UC2 ESP32-S3 Satellite Node"
+  product_code: 0x00010001
+  revision: 0x00000001
+  hw_version: "v1.0"
+  sw_version: "v2.0.0"
+  baudrates: [125, 250, 500, 1000]   # supported in kbit/s
+  default_baudrate: 500
+
+# ============================================================================
+# OD INDEX MAP — manufacturer-specific area (0x2000–0x5FFF)
+# ============================================================================
+# 0x2000–0x20FF  Motor / motion control
+# 0x2100–0x21FF  Laser / illumination
+# 0x2200–0x22FF  LED matrix / NeoPixel
+# 0x2300–0x23FF  Digital I/O + endstops
+# 0x2400–0x24FF  Joystick / input devices
+# 0x2500–0x25FF  System / state / heartbeat extras
+# 0x2600–0x26FF  Galvo / scanner
+# 0x2700–0x27FF  PID / control loops
+# 0x2800–0x28FF  SLM / spatial light modulator (future)
+# 0x2900–0x29FF  Custom sensors (DS18B20, BME280, etc.)
+# 0x2A00–0x2EFF  Reserved for future modules
+# 0x2F00–0x2FFF  Firmware update / OTA
+#
+# CiA 401 standard I/O area (0x6000–0x6FFF) is RESERVED — we don't use it
+# for our manufacturer-specific data. The trainer OD's 0x6000/0x6200/0x6401
+# entries become unused once this registry's OD is generated.
+
+modules:
+
+  # ==========================================================================
+  # MOTOR — 4 axes per node, supports multi-axis boards
+  # ==========================================================================
+  motor:
+    base_index: 0x2000
+    description: "Stepper motor control with TMC2209 driver, up to 4 axes per node"
+    json_endpoint: "/motor_act, /motor_get, /motor_set"
+    cpp_class: "FocusMotor"
+    entries:
+
+      - index: 0x2000
+        name: motor_target_position
+        type: I32
+        access: rw
+        sub_indices: 4              # one per axis (A, X, Y, Z)
+        default: 0
+        unit: steps
+        description: "Target position in steps. Triggers a move when command word is set."
+        pdo: rpdo1
+        cpp_field: "data[axis]->targetPosition"
+
+      - index: 0x2001
+        name: motor_actual_position
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        unit: steps
+        description: "Current encoder/step counter position. Updated by syncModulesToTpdo every cycle."
+        pdo: tpdo1
+        cpp_field: "focusMotor->getCurrentPosition(axis)"
+
+      - index: 0x2002
+        name: motor_speed
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 15000
+        unit: "steps/s"
+        description: "Maximum speed for the next move. Persists across moves."
+        pdo: rpdo1
+        cpp_field: "data[axis]->speed"
+
+      - index: 0x2003
+        name: motor_command_word
+        type: U8
+        access: rw
+        sub_indices: 0              # scalar — applies to last-addressed axis bitmask
+        default: 0
+        bitfield:
+          bit0: "axis_a_trigger"
+          bit1: "axis_x_trigger"
+          bit2: "axis_y_trigger"
+          bit3: "axis_z_trigger"
+          bit4: "stop_flag"          # stops instead of moves when set
+        description: "Per-axis trigger bitmask. Slave reads, executes, clears."
+        pdo: rpdo1
+        cpp_field: "synthetic — see syncRpdoToModules"
+
+      - index: 0x2004
+        name: motor_status_word
+        type: U8
+        access: ro
+        sub_indices: 4
+        default: 0
+        bitfield:
+          bit0: "is_running"
+          bit1: "is_homed"
+          bit2: "endstop_active"
+          bit3: "stall_detected"
+          bit4: "error"
+        description: "Per-axis status. TPDO-broadcast on change."
+        pdo: tpdo1
+        cpp_field: "focusMotor->getStatusBits(axis)"
+
+      - index: 0x2005
+        name: motor_enable
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "1=driver enabled, 0=disabled (released). Maps to /motor_set isen."
+        pdo: rpdo2
+        cpp_field: "focusMotor->setEnable(axis, value)"
+
+      - index: 0x2006
+        name: motor_acceleration
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 100000
+        unit: "steps/s²"
+        description: "Acceleration profile. SDO-only — set once, used for all moves."
+        sdo_only: true
+        cpp_field: "data[axis]->acceleration"
+
+      - index: 0x2007
+        name: motor_is_absolute
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "0=relative move, 1=absolute move. Per-axis."
+        pdo: rpdo2
+        cpp_field: "data[axis]->isabs"
+
+      - index: 0x2008
+        name: motor_min_position
+        type: I32
+        access: rw
+        sub_indices: 4
+        default: -2147483648
+        unit: steps
+        description: "Soft limit minimum. Slave clips target to this range."
+        sdo_only: true
+
+      - index: 0x2009
+        name: motor_max_position
+        type: I32
+        access: rw
+        sub_indices: 4
+        default: 2147483647
+        unit: steps
+        description: "Soft limit maximum."
+        sdo_only: true
+
+      - index: 0x200A
+        name: motor_jerk
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "S-curve jerk (0=trapezoidal). Optional; 0 disables S-curve."
+        sdo_only: true
+
+  # ==========================================================================
+  # HOMING — 0x2010-0x201F
+  # ==========================================================================
+  homing:
+    base_index: 0x2010
+    description: "Sensorless or endstop-based homing"
+    json_endpoint: "/home_act"
+    cpp_class: "HomeMotor"
+    entries:
+
+      - index: 0x2010
+        name: homing_command
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "0=idle, 1=start homing on this axis"
+        pdo: rpdo2
+
+      - index: 0x2011
+        name: homing_speed
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 15000
+        unit: "steps/s"
+        sdo_only: true
+
+      - index: 0x2012
+        name: homing_direction
+        type: I8
+        access: rw
+        sub_indices: 4
+        default: 1
+        description: "-1 or +1"
+        sdo_only: true
+
+      - index: 0x2013
+        name: homing_timeout
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 20000
+        unit: ms
+        sdo_only: true
+
+      - index: 0x2014
+        name: homing_endstop_release
+        type: I32
+        access: rw
+        sub_indices: 4
+        default: 3000
+        unit: steps
+        description: "Distance to back off after touching endstop"
+        sdo_only: true
+
+      - index: 0x2015
+        name: homing_endstop_polarity
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "0=normally low, 1=normally high"
+        sdo_only: true
+
+  # ==========================================================================
+  # TMC2209 STEPPER DRIVER CONFIG — 0x2020-0x202F
+  # ==========================================================================
+  tmc:
+    base_index: 0x2020
+    description: "TMC2209 silent stepper driver configuration"
+    json_endpoint: "/tmc_act"
+    cpp_class: "TMCController"
+    entries:
+
+      - index: 0x2020
+        name: tmc_microsteps
+        type: U16
+        access: rw
+        sub_indices: 4
+        default: 16
+        description: "1, 2, 4, 8, 16, 32, 64, 128, 256"
+        sdo_only: true
+
+      - index: 0x2021
+        name: tmc_rms_current
+        type: U16
+        access: rw
+        sub_indices: 4
+        default: 700
+        unit: mA
+        sdo_only: true
+
+      - index: 0x2022
+        name: tmc_stallguard_threshold
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 15
+        description: "StallGuard4 sensitivity (0-255)"
+        sdo_only: true
+
+      - index: 0x2023
+        name: tmc_coolstep_semin
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 5
+        sdo_only: true
+
+      - index: 0x2024
+        name: tmc_coolstep_semax
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 2
+        sdo_only: true
+
+      - index: 0x2025
+        name: tmc_blank_time
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 24
+        sdo_only: true
+
+      - index: 0x2026
+        name: tmc_toff
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 4
+        sdo_only: true
+
+      - index: 0x2027
+        name: tmc_stall_count
+        type: U32
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "Cumulative stall events since boot"
+        sdo_only: true
+
+  # ==========================================================================
+  # LASER — 0x2100-0x21FF
+  # ==========================================================================
+  laser:
+    base_index: 0x2100
+    description: "Laser intensity control via PWM, up to 4 channels per node"
+    json_endpoint: "/laser_act, /laser_set"
+    cpp_class: "LaserController"
+    entries:
+
+      - index: 0x2100
+        name: laser_pwm_value
+        type: U16
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "PWM duty 0..maxValue (where maxValue = 2^resolution - 1)"
+        pdo: rpdo3
+        cpp_field: "laserController->setLaserVal(channel, value)"
+
+      - index: 0x2101
+        name: laser_max_value
+        type: U16
+        access: ro
+        sub_indices: 4
+        default: 1023
+        description: "Read-only — full scale value (depends on PWM resolution)"
+        sdo_only: true
+
+      - index: 0x2102
+        name: laser_pwm_frequency
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 5000
+        unit: Hz
+        sdo_only: true
+
+      - index: 0x2103
+        name: laser_pwm_resolution
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 10
+        description: "Bits of PWM resolution. Frequency * 2^resolution must be <= APB clock."
+        sdo_only: true
+
+      - index: 0x2104
+        name: laser_despeckle_period
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 0
+        unit: us
+        description: "Despeckle modulation period; 0 = off"
+        sdo_only: true
+
+      - index: 0x2105
+        name: laser_despeckle_amplitude
+        type: U16
+        access: rw
+        sub_indices: 4
+        default: 0
+        sdo_only: true
+
+      - index: 0x2106
+        name: laser_safety_state
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        bitfield:
+          bit0: "interlock_ok"
+          bit1: "thermal_ok"
+          bit2: "enabled"
+        description: "Safety status — TPDO broadcast on change"
+        pdo: tpdo3
+
+  # ==========================================================================
+  # LED MATRIX (NeoPixel/WS2812) — 0x2200-0x22FF
+  # Full pattern support: per-pixel colour for arrays up to ~256 pixels
+  # ==========================================================================
+  led:
+    base_index: 0x2200
+    description: "Addressable LED array (NeoPixel) with pattern support"
+    json_endpoint: "/led_act"
+    cpp_class: "LedController"
+    entries:
+
+      - index: 0x2200
+        name: led_array_mode
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: |
+          0 = off
+          1 = on (uniform colour from 0x2202)
+          2 = left half
+          3 = right half
+          4 = top half
+          5 = bottom half
+          6 = inner ring
+          7 = outer ring
+          8 = custom (use 0x2210 array data)
+          9 = pattern (use 0x2220 pattern selector)
+        pdo: rpdo3
+
+      - index: 0x2201
+        name: led_brightness
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 128
+        description: "Global brightness 0..255"
+        pdo: rpdo3
+
+      - index: 0x2202
+        name: led_uniform_colour
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 0x00FFFFFF
+        description: "0x00RRGGBB packed colour for uniform fill modes"
+        pdo: rpdo3
+
+      - index: 0x2203
+        name: led_pixel_count
+        type: U16
+        access: ro
+        sub_indices: 0
+        default: 64
+        description: "Number of physical LEDs on this node"
+        sdo_only: true
+
+      - index: 0x2204
+        name: led_layout_width
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 8
+        sdo_only: true
+
+      - index: 0x2205
+        name: led_layout_height
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 8
+        sdo_only: true
+
+      - index: 0x2210
+        name: led_pixel_data
+        type: DOMAIN
+        access: rw
+        sub_indices: 0
+        description: |
+          Bulk pixel data via SDO segmented/block transfer.
+          Format: tightly-packed N x {r:U8, g:U8, b:U8}.
+          N = led_pixel_count (0x2203). Total bytes = 3*N.
+          Master writes the entire array, slave applies on completion.
+        sdo_only: true
+        cpp_field: "ledController->setPixels(buffer, count)"
+
+      - index: 0x2220
+        name: led_pattern_id
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: |
+          Built-in pattern: 0=none, 1=rainbow, 2=breathe, 3=chase,
+          4=fire, 5=sparkle, 6=heatmap, 7=spiral
+        pdo: rpdo3
+
+      - index: 0x2221
+        name: led_pattern_speed
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 50
+        description: "Animation speed (frames per second)"
+        sdo_only: true
+
+  # ==========================================================================
+  # DIGITAL I/O — 0x2300-0x230F
+  # ==========================================================================
+  digital_io:
+    base_index: 0x2300
+    description: "Endstops, triggers, generic GPIOs"
+    json_endpoint: "/digitalin_get, /digitalout_act"
+    cpp_class: "DigitalInController, DigitalOutController"
+    entries:
+
+      - index: 0x2300
+        name: digital_input_state
+        type: U8
+        access: ro
+        sub_indices: 8
+        default: 0
+        description: "Per-channel digital input state (0/1)"
+        pdo: tpdo2
+
+      - index: 0x2301
+        name: digital_output_command
+        type: U8
+        access: rw
+        sub_indices: 8
+        default: 0
+        pdo: rpdo4
+
+      - index: 0x2302
+        name: digital_input_change_mask
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: "Bit set if corresponding input changed since last TPDO. Slave clears after TPDO send."
+        pdo: tpdo2
+
+  # ==========================================================================
+  # ANALOG I/O — 0x2310-0x232F
+  # ==========================================================================
+  analog_io:
+    base_index: 0x2310
+    description: "ADC inputs, DAC outputs"
+    json_endpoint: "/analogin_get, /dac_act"
+    entries:
+
+      - index: 0x2310
+        name: analog_input_value
+        type: U16
+        access: ro
+        sub_indices: 8
+        default: 0
+        unit: "ADC counts"
+        pdo: tpdo2
+
+      - index: 0x2311
+        name: analog_input_filtered
+        type: U16
+        access: ro
+        sub_indices: 8
+        default: 0
+        description: "EWMA-filtered ADC reading"
+        sdo_only: true
+
+      - index: 0x2320
+        name: dac_output_value
+        type: U16
+        access: rw
+        sub_indices: 4
+        default: 0
+        unit: "DAC counts"
+        sdo_only: true
+
+  # ==========================================================================
+  # ENCODER — 0x2340-0x234F
+  # ==========================================================================
+  encoder:
+    base_index: 0x2340
+    description: "Quadrature or magnetic (AS5600) encoder feedback"
+    cpp_class: "EncoderController"
+    entries:
+
+      - index: 0x2340
+        name: encoder_position
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        unit: counts
+        pdo: tpdo3
+
+      - index: 0x2341
+        name: encoder_velocity
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        unit: "counts/s"
+        pdo: tpdo3
+
+      - index: 0x2342
+        name: encoder_zero_offset
+        type: I32
+        access: rw
+        sub_indices: 4
+        default: 0
+        sdo_only: true
+
+  # ==========================================================================
+  # JOYSTICK / GAMEPAD — 0x2400-0x240F
+  # ==========================================================================
+  joystick:
+    base_index: 0x2400
+    description: "Analog joystick or PSX gamepad bridge"
+    cpp_class: "JoystickController"
+    entries:
+
+      - index: 0x2400
+        name: joystick_axis
+        type: I16
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "X, Y, Z, R axes (-32768..32767)"
+        pdo: tpdo4
+
+      - index: 0x2401
+        name: joystick_buttons
+        type: U16
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: "Button bitmask"
+        pdo: tpdo4
+
+      - index: 0x2402
+        name: joystick_speed_multiplier
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 2
+        sdo_only: true
+
+      - index: 0x2403
+        name: joystick_deadzone
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 100
+        sdo_only: true
+
+  # ==========================================================================
+  # SYSTEM / STATE — 0x2500-0x25FF
+  # ==========================================================================
+  system:
+    base_index: 0x2500
+    description: "Firmware version, board info, runtime stats"
+    json_endpoint: "/state_get, /modules_get"
+    entries:
+
+      - index: 0x2500
+        name: firmware_version_string
+        type: STRING
+        access: ro
+        max_length: 32
+        default: "v0.0.0"
+        sdo_only: true
+
+      - index: 0x2501
+        name: board_name
+        type: STRING
+        access: ro
+        max_length: 32
+        default: "unknown"
+        sdo_only: true
+
+      - index: 0x2502
+        name: enabled_modules_bitmask
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: |
+          Bit 0  = motor
+          Bit 1  = laser
+          Bit 2  = led
+          Bit 3  = digitalIn
+          Bit 4  = digitalOut
+          Bit 5  = analogIn
+          Bit 6  = dac
+          Bit 7  = encoder
+          Bit 8  = joystick
+          Bit 9  = galvo
+          Bit 10 = tmc
+          Bit 11 = home
+          Bit 12 = pid
+        sdo_only: true
+
+      - index: 0x2503
+        name: uptime_seconds
+        type: U32
+        access: ro
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x2504
+        name: free_heap_bytes
+        type: U32
+        access: ro
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x2505
+        name: can_error_counter
+        type: U32
+        access: ro
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x2506
+        name: cpu_temperature
+        type: I16
+        access: ro
+        sub_indices: 0
+        default: 0
+        unit: "0.01 °C"
+        sdo_only: true
+
+      - index: 0x2507
+        name: reboot_command
+        type: U8
+        access: wo
+        sub_indices: 0
+        default: 0
+        description: "Write 1 to soft-reboot the node"
+        sdo_only: true
+
+  # ==========================================================================
+  # GALVO / SCANNER — 0x2600-0x26FF
+  # ==========================================================================
+  galvo:
+    base_index: 0x2600
+    description: "Galvo mirrors with raster/line scanning"
+    json_endpoint: "/galvo_act, stage_scan"
+    cpp_class: "GalvoController"
+    entries:
+
+      - index: 0x2600
+        name: galvo_target_position
+        type: I32
+        access: rw
+        sub_indices: 2
+        default: 0
+        description: "Target X (sub1) and Y (sub2) galvo position in DAC counts"
+        pdo: rpdo4
+        cpp_field: "galvoController->setTarget(axis, value)"
+
+      - index: 0x2601
+        name: galvo_actual_position
+        type: I32
+        access: ro
+        sub_indices: 2
+        default: 0
+        pdo: tpdo4
+
+      - index: 0x2602
+        name: galvo_command_word
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: |
+          0 = idle
+          1 = goto (single point)
+          2 = line scan (X axis sweep)
+          3 = raster scan (full XY)
+          4 = free run (continuous pattern)
+          5 = stop
+        pdo: rpdo4
+
+      - index: 0x2603
+        name: galvo_status_word
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        bitfield:
+          bit0: "moving"
+          bit1: "scan_active"
+          bit2: "scan_complete"
+          bit3: "error"
+        pdo: tpdo4
+
+      - index: 0x2604
+        name: galvo_scan_speed
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 1000
+        unit: "points/s"
+        sdo_only: true
+
+      - index: 0x2605
+        name: galvo_n_steps_line
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 100
+        sdo_only: true
+
+      - index: 0x2606
+        name: galvo_n_steps_pixel
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 100
+        sdo_only: true
+
+      - index: 0x2607
+        name: galvo_d_steps_line
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 1
+        sdo_only: true
+
+      - index: 0x2608
+        name: galvo_d_steps_pixel
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 1
+        sdo_only: true
+
+      - index: 0x2609
+        name: galvo_t_pre_us
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 100
+        description: "Pre-trigger settle time"
+        sdo_only: true
+
+      - index: 0x260A
+        name: galvo_t_post_us
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 100
+        description: "Post-trigger hold time"
+        sdo_only: true
+
+      - index: 0x260B
+        name: galvo_x_start
+        type: I32
+        access: rw
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x260C
+        name: galvo_y_start
+        type: I32
+        access: rw
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x260D
+        name: galvo_x_step
+        type: I32
+        access: rw
+        sub_indices: 0
+        default: 500
+        sdo_only: true
+
+      - index: 0x260E
+        name: galvo_y_step
+        type: I32
+        access: rw
+        sub_indices: 0
+        default: 500
+        sdo_only: true
+
+      - index: 0x260F
+        name: galvo_camera_trigger_mode
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: "0=off, 1=per-pixel, 2=per-line, 3=per-frame"
+        sdo_only: true
+
+  # ==========================================================================
+  # PID CONTROL LOOP — 0x2700-0x27FF
+  # ==========================================================================
+  pid:
+    base_index: 0x2700
+    description: "Generic PID controller (e.g. for focus stabilization)"
+    cpp_class: "PIDController"
+    entries:
+
+      - index: 0x2700
+        name: pid_setpoint
+        type: I32
+        access: rw
+        sub_indices: 0
+        default: 0
+        pdo: rpdo4
+
+      - index: 0x2701
+        name: pid_actual_value
+        type: I32
+        access: ro
+        sub_indices: 0
+        default: 0
+        pdo: tpdo4
+
+      - index: 0x2702
+        name: pid_kp
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 1000
+        description: "Proportional gain (x1000 fixed point)"
+        sdo_only: true
+
+      - index: 0x2703
+        name: pid_ki
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x2704
+        name: pid_kd
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+      - index: 0x2705
+        name: pid_enable
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        sdo_only: true
+
+  # ==========================================================================
+  # OTA FIRMWARE UPDATE — 0x2F00-0x2FFF
+  # ==========================================================================
+  ota:
+    base_index: 0x2F00
+    description: "Firmware update via SDO block transfer"
+    cpp_class: "CanOpenOTA"
+    entries:
+
+      - index: 0x2F00
+        name: ota_firmware_data
+        type: DOMAIN
+        access: wo
+        sub_indices: 0
+        description: |
+          Write firmware binary via SDO block transfer.
+          Each chunk streams to esp_ota_write() — no full-buffer copy.
+        sdo_only: true
+
+      - index: 0x2F01
+        name: ota_firmware_size
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: "Total firmware size in bytes. Set BEFORE starting transfer."
+        sdo_only: true
+
+      - index: 0x2F02
+        name: ota_firmware_crc32
+        type: U32
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: "Expected CRC32. Verified after transfer completes."
+        sdo_only: true
+
+      - index: 0x2F03
+        name: ota_status
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: |
+          0 = idle
+          1 = receiving
+          2 = verifying
+          3 = success (rebooting in 1s)
+          4 = error
+        pdo: tpdo3
+
+      - index: 0x2F04
+        name: ota_bytes_received
+        type: U32
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: "Progress indicator — bytes written to flash so far"
+        sdo_only: true
+
+      - index: 0x2F05
+        name: ota_error_code
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: |
+          0 = no error
+          1 = no OTA partition
+          2 = esp_ota_begin failed
+          3 = esp_ota_write failed
+          4 = esp_ota_end failed
+          5 = CRC mismatch
+          6 = size mismatch
+        sdo_only: true
+
+# ============================================================================
+# PDO MAPPING — defines which entries get auto-broadcast on the bus
+# ============================================================================
+# Each PDO is a single CAN frame (max 8 bytes payload).
+# Master → Slave = RPDO (master writes, slave receives)
+# Slave → Master = TPDO (slave writes, master receives)
+
+pdo_mapping:
+
+  # --- RPDOs (Master → Slave) ---
+
+  rpdo1:
+    cob_id: "0x200 + node_id"
+    direction: m2s
+    transmission_type: 254          # event-driven
+    description: "Hot-path motor command — single frame triggers a move"
+    mappings:
+      - {index: 0x2000, sub: 1, bits: 32}    # target position axis 1
+      - {index: 0x2002, sub: 1, bits: 32}    # speed axis 1
+
+  rpdo2:
+    cob_id: "0x300 + node_id"
+    direction: m2s
+    transmission_type: 254
+    description: "Motor control flags + enable"
+    mappings:
+      - {index: 0x2003, sub: 0, bits: 8}     # command word
+      - {index: 0x2007, sub: 1, bits: 8}     # is_absolute axis 1
+      - {index: 0x2005, sub: 1, bits: 8}     # enable axis 1
+      - {index: 0x2010, sub: 1, bits: 8}     # homing command axis 1
+
+  rpdo3:
+    cob_id: "0x400 + node_id"
+    direction: m2s
+    transmission_type: 254
+    description: "Laser + LED control (illumination node)"
+    mappings:
+      - {index: 0x2100, sub: 1, bits: 16}    # laser channel 1
+      - {index: 0x2200, sub: 0, bits: 8}     # LED mode
+      - {index: 0x2201, sub: 0, bits: 8}     # LED brightness
+      - {index: 0x2202, sub: 0, bits: 32}    # LED uniform colour
+
+  rpdo4:
+    cob_id: "0x500 + node_id"
+    direction: m2s
+    transmission_type: 254
+    description: "Galvo target position (XY in one frame)"
+    mappings:
+      - {index: 0x2600, sub: 1, bits: 32}    # galvo X
+      - {index: 0x2600, sub: 2, bits: 32}    # galvo Y
+
+  # --- TPDOs (Slave → Master, async push) ---
+
+  tpdo1:
+    cob_id: "0x180 + node_id"
+    direction: s2m
+    transmission_type: 254
+    event_timer_ms: 100             # max stale time — slave pushes at least every 100ms
+    inhibit_time_ms: 5              # min gap between pushes (5ms)
+    description: "Motor actual position + status — slave PUSHES on change"
+    mappings:
+      - {index: 0x2001, sub: 1, bits: 32}    # actual position axis 1
+      - {index: 0x2004, sub: 1, bits: 8}     # status word axis 1
+
+  tpdo2:
+    cob_id: "0x280 + node_id"
+    direction: s2m
+    transmission_type: 254
+    event_timer_ms: 200
+    inhibit_time_ms: 10
+    description: "Digital + analog input state"
+    mappings:
+      - {index: 0x2300, sub: 1, bits: 8}     # digital in 1
+      - {index: 0x2300, sub: 2, bits: 8}     # digital in 2
+      - {index: 0x2310, sub: 1, bits: 16}    # analog in 1
+      - {index: 0x2310, sub: 2, bits: 16}    # analog in 2
+
+  tpdo3:
+    cob_id: "0x380 + node_id"
+    direction: s2m
+    transmission_type: 254
+    event_timer_ms: 50
+    inhibit_time_ms: 5
+    description: "Encoder feedback + safety status"
+    mappings:
+      - {index: 0x2340, sub: 1, bits: 32}    # encoder pos 1
+      - {index: 0x2106, sub: 0, bits: 8}     # laser safety
+      - {index: 0x2F03, sub: 0, bits: 8}     # OTA status
+
+  tpdo4:
+    cob_id: "0x480 + node_id"
+    direction: s2m
+    transmission_type: 254
+    event_timer_ms: 50
+    description: "Joystick / galvo status / PID feedback"
+    mappings:
+      - {index: 0x2400, sub: 1, bits: 16}    # joystick X
+      - {index: 0x2400, sub: 2, bits: 16}    # joystick Y
+      - {index: 0x2601, sub: 1, bits: 32}    # galvo actual X (overlaps with joystick on multi-role nodes — disable per-node)
+
+# ============================================================================
+# NODE-ID ASSIGNMENT
+# ============================================================================
+node_ids:
+  master: 1
+  motor_a: 14         # was CAN address 272
+  motor_x: 11         # was CAN address 273
+  motor_y: 12         # was CAN address 274
+  motor_z: 13         # was CAN address 275
+  led: 20
+  laser: 21           # may be combined with led on node 20
+  joystick: 22
+  galvo: 30
+  galvo_2: 31
+  encoder: 40
+  pid: 50

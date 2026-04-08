@@ -513,6 +513,22 @@ cJSON* CANopenModule::act(cJSON* doc)
 }
 
 // ============================================================================
+// Pending motor command — posted by CO_tmr_task, consumed by loop() (main context).
+// This avoids a race condition where FocusMotor::loop() calls stopFastAccelStepper()
+// concurrently with the CO timer task calling startStepper(), which would overwrite
+// m->speed=0 mid-start and issue a concurrent forceStop().
+// ============================================================================
+struct PendingMotorCmd {
+    volatile bool pending = false;
+    int  axis      = 0;
+    int32_t pos    = 0;
+    int32_t speed  = 0;
+    bool isAbs     = false;
+    bool isStop    = false;
+};
+static PendingMotorCmd s_motorCmd;
+
+// ============================================================================
 // OD <-> Module sync (called from CO_tmr_task)
 // Using trainer OD entries (0x6000, 0x6001, 0x6200, 0x6401)
 // ============================================================================
@@ -552,19 +568,14 @@ void CANopenModule::syncRpdoToModules()
             ESP_LOGI(TAG_CO, "Motor cmd: axis=%d pos=%ld speed=%u isAbs=%d isStop=%d",
                      axis, (long)targetPos, speedVal, isAbs ? 1 : 0, isStop ? 1 : 0);
 
-            if (isStop) {
-                FocusMotor::getData()[axis]->isStop = true;
-                FocusMotor::startStepper(axis, 0);
-            } else {
-                MotorData* m = FocusMotor::getData()[axis];
-                m->targetPosition  = targetPos;
-                m->speed           = (int32_t)speedVal;
-                m->absolutePosition = isAbs;
-                m->isforever       = false;
-                m->isStop          = false;
-                m->stopped         = false;
-                FocusMotor::startStepper(axis, 0);
-            }
+            // Post to pending — consumed by loop() from the main-loop context to avoid
+            // a race with FocusMotor::loop() calling stopFastAccelStepper() concurrently.
+            s_motorCmd.axis   = axis;
+            s_motorCmd.pos    = targetPos;
+            s_motorCmd.speed  = (int32_t)speedVal;
+            s_motorCmd.isAbs  = isAbs;
+            s_motorCmd.isStop = isStop;
+            s_motorCmd.pending = true;  // written last — acts as the commit flag
 #endif
             // Clear trigger bit so we don't re-fire, preserve other bits
             OD_RAM.x6200_writeOutput8Bit[0] &= ~0x01;
@@ -610,6 +621,11 @@ void CANopenModule::setup()
     ESP_LOGI(TAG_CO, "Starting CANopen stack (node-id=%d, TX=%d, RX=%d)...",
              runtimeConfig.canNodeId, pinConfig.CAN_TX, pinConfig.CAN_RX);
 
+    // The CANopenNode library logs every CAN frame at INFO level under these tags.
+    // Reduce to WARN to prevent serial interleaving with FocusMotor/Arduino logs.
+    esp_log_level_set("CO_INT",         ESP_LOG_WARN);
+    esp_log_level_set("CO_INT_PROCESS", ESP_LOG_WARN);
+
     CAN_ctrl_task_sem = xSemaphoreCreateBinary();
     CAN_TX_queue = xQueueCreate(10, sizeof(CANMessages));
     CAN_RX_queue = xQueueCreate(10, sizeof(CANMessages));
@@ -644,6 +660,40 @@ void CANopenModule::loop()
             ESP_LOGI(TAG_CO, "NMT state changed -> %s (%d)", stateStr, curState);
         }
     }
+
+#ifdef MOTOR_CONTROLLER
+    // Dispatch any pending motor command posted by syncRpdoToModules().
+    // Running here (main loop context) avoids a race with FocusMotor::loop(),
+    // which also accesses MotorData and calls stopFastAccelStepper().
+    if (s_motorCmd.pending) {
+        s_motorCmd.pending = false;   // clear before consuming so a new cmd can queue up
+
+        int axis = s_motorCmd.axis;
+        if (axis >= 0 && axis <= 3 && FocusMotor::getData()[axis] != nullptr) {
+            MotorData* m = FocusMotor::getData()[axis];
+
+            if (s_motorCmd.isStop) {
+                m->isStop = true;
+                FocusMotor::startStepper(axis, 0);
+            } else {
+                m->targetPosition   = s_motorCmd.pos;
+                m->speed            = s_motorCmd.speed;
+                m->absolutePosition = s_motorCmd.isAbs;
+                m->isforever        = false;
+                m->isStop           = false;
+                m->stopped          = false;
+                // Provide a reasonable acceleration default; FastAccelStepper with
+                // acceleration=0 tries instant speed change which can miss steps.
+                if (m->acceleration <= 0) {
+                    m->acceleration  = 40000;  // steps/s^2 — adjust per motor/driver
+                }
+                ESP_LOGI(TAG_CO, "Dispatching motor %d: pos=%ld spd=%ld abs=%d",
+                         axis, (long)m->targetPosition, (long)m->speed, m->absolutePosition);
+                FocusMotor::startStepper(axis, 0);
+            }
+        }
+    }
+#endif
 }
 
 #endif // CAN_CONTROLLER_CANOPEN

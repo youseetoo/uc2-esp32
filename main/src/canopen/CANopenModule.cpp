@@ -18,6 +18,9 @@
 #include "PinConfig.h"
 #include "../config/RuntimeConfig.h"
 #include "../config/NVSConfig.h"
+// Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
+// Constants are declared here for compile-time verification; not yet used in logic.
+#include "UC2_OD_Indices.h"
 
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"

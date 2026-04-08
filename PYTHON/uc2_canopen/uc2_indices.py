@@ -1,6 +1,6 @@
 """
 AUTO-GENERATED from uc2_canopen_registry.yaml — DO NOT EDIT
-Regenerate with: python tools/canopen/regenerate_all.py
+Regenerate with: python tools/regenerate_all.py
 
 Use these constants when writing CANopen scripts via python-canopen
 or the Waveshare USB-CAN adapter.

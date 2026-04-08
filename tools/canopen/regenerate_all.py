@@ -712,7 +712,7 @@ def main():
     else:
         # Default: relative to this script
         script_dir = Path(__file__).parent
-        registry_path = script_dir.parent / "uc2_canopen_registry.yaml"
+        registry_path = script_dir / "uc2_canopen_registry.yaml"
 
     print(f"Reading registry: {registry_path}")
     registry = load_registry(registry_path)
@@ -723,7 +723,7 @@ def main():
     print()
     print("Generating artifacts:")
 
-    base = Path(registry_path).parent
+    base = Path(script_dir).parent.parent
 
     generate_eds(registry,            base / "DOCUMENTATION/openUC2_satellite.eds")
     generate_cpp_indices(registry,    base / "main/src/canopen/UC2_OD_Indices.h")

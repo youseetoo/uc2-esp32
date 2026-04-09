@@ -13,9 +13,10 @@
  */
 #include "CANopenModule.h"
 
-#ifdef CAN_CONTROLLER_CANOPEN
 
 #include "PinConfig.h"
+#ifdef CAN_CONTROLLER_CANOPEN
+
 #include "../config/RuntimeConfig.h"
 #include "../config/NVSConfig.h"
 // Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
@@ -24,6 +25,15 @@
 
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
 #endif
 
 extern "C" {
@@ -36,6 +46,7 @@ extern "C" {
 #include "freertos/semphr.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "driver/gpio.h"
 #include "driver/twai.h"
 
@@ -211,6 +222,9 @@ void CANopenModule::CO_tmr_task(void* arg)
 // ============================================================================
 void CANopenModule::CO_interrupt_task(void* arg)
 {
+    /*
+    This function handles CANopen interrupts by polling the CAN_RX_queue for incoming CANopen frames and processing them accordingly.
+    */
     for (;;) {
         if (CO != NULL) {
             // Drain all pending RX messages each tick for responsive SDO
@@ -229,6 +243,11 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     uint16_t index, uint8_t subIndex,
     uint8_t* buf, size_t bufSize, size_t* readSize)
 {
+    /*
+    This function handles SDO (Service Data Object) read operations by setting 
+    up the SDO client, initiating the upload, and reading the data into the 
+    provided buffer.
+    */
     CO_SDO_return_t SDO_ret;
 
     SDO_ret = CO_SDOclient_setup(SDO_C,
@@ -260,6 +279,11 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     uint16_t index, uint8_t subIndex,
     uint8_t* data, size_t dataSize)
 {
+    /*
+    This function handles SDO (Service Data Object) write operations by setting 
+    up the SDO client, initiating the download, and writing the data from the 
+    provided buffer.
+    */
     CO_SDO_return_t SDO_ret;
 
     SDO_ret = CO_SDOclient_setup(SDO_C,
@@ -280,6 +304,13 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
             ESP_LOGE("SDO", "Write abort: %d", SDO_ret);
             return abortCode;
         }
+        // SDO_ret constants:
+        // >0: in progress (waiting for response)
+        // 0: completed successfully
+        // <0: error
+        // We Download the information about the SDO transfer in a loop until 
+        // it's complete, with a small delay to allow the CANopen stack to 
+        // process incoming messages (e.g. SDO responses).
         vTaskDelay(pdMS_TO_TICKS(1));
     } while (SDO_ret > 0);
 
@@ -516,75 +547,109 @@ cJSON* CANopenModule::act(cJSON* doc)
 }
 
 // ============================================================================
-// Pending motor command — posted by CO_tmr_task, consumed by loop() (main context).
-// This avoids a race condition where FocusMotor::loop() calls stopFastAccelStepper()
-// concurrently with the CO timer task calling startStepper(), which would overwrite
-// m->speed=0 mid-start and issue a concurrent forceStop().
+// Pending commands — posted by CO_tmr_task, consumed by loop() (main context).
+// Per-axis arrays for motors; separate structs for homing and lasers.
+// Writing 'pending = true' last acts as a commit flag (single-byte assignment is
+// atomic on Xtensa, so no dedicated mutex is needed for this simple producer-
+// consumer pattern).
 // ============================================================================
-struct PendingMotorCmd {
+struct PendingAxisCmd {
     volatile bool pending = false;
-    int  axis      = 0;
-    int32_t pos    = 0;
-    int32_t speed  = 0;
-    bool isAbs     = false;
-    bool isStop    = false;
+    int32_t pos   = 0;
+    int32_t speed = 0;
+    int32_t accel = 0;
+    bool    isAbs  = false;
+    bool    isStop = false;
 };
-static PendingMotorCmd s_motorCmd;
+static PendingAxisCmd s_axisCmds[4];
+
+struct PendingHomingCmd {
+    volatile bool pending  = false;
+    int32_t speed          = 0;
+    int8_t  direction      = 1;
+    int32_t timeout        = 5000;
+    int32_t endstopRelease = 0;
+    uint8_t polarity       = 0;
+};
+static PendingHomingCmd s_homingCmds[4];
+
+struct PendingLaserCmd {
+    volatile bool pending = false;
+    uint16_t      value   = 0;
+};
+static PendingLaserCmd s_laserCmds[4];
 
 // ============================================================================
 // OD <-> Module sync (called from CO_tmr_task)
-// Using trainer OD entries (0x6000, 0x6001, 0x6200, 0x6401)
+// Using native UC2 OD entries (0x2000+)
+// We poll this every 1ms from the timer task for simplicity and responsiveness; 
+// no interrupts or mutexes needed for this one-way communication from OD to Module.
 // ============================================================================
 void CANopenModule::syncRpdoToModules()
 {
     // Called every 1ms from CO_tmr_task AFTER CO_process_RPDO().
-    // Protocol (matches DeviceRouter on master side):
-    //   0x6401:01 = position high word (bits 31-16)
-    //   0x6401:02 = position low  word (bits 15-0)
-    //   0x6401:03 = speed (uint16)
-    //   0x6401:04 = control flags (bit0=isAbs, bit1=isStop)
-    //   0x6200:01 = trigger byte (bit0=1 starts move, cleared here after dispatch)
+    //
+    // Motor command protocol (UC2 native):
+    //   x2003_motor_command_word  — bitmask: bit i=start axis i, bit(4+i)=stop axis i
+    //   x2000_motor_target_position[i] — int32 target steps
+    //   x2002_motor_speed[i]          — uint32 steps/s
+    //   x2006_motor_acceleration[i]   — uint32 steps/s^2
+    //   x2007_motor_is_absolute[i]    — uint8 0=relative, 1=absolute
+    //
+    // Homing protocol:
+    //   x2010_homing_command[i] != 0  — start homing for axis i (cleared after dispatch)
+    //
+    // Laser protocol:
+    //   x2100_laser_pwm_value[ch] — direct PWM value; posted on every change
 
-    static uint8_t prevTrigger = 0xFF;
-    uint8_t trigger = OD_RAM.x6200_writeOutput8Bit[0];
-
-    if (trigger != prevTrigger) {
-        prevTrigger = trigger;
-        ESP_LOGI(TAG_CO, "RPDO trigger byte: 0x%02X", trigger);
-
-        if (trigger & 0x01) {
 #ifdef MOTOR_CONTROLLER
-            // Reassemble int32 position from two uint16 words
-            uint32_t hi = OD_RAM.x6401_readAnalogueInput16Bit[0];
-            uint32_t lo = OD_RAM.x6401_readAnalogueInput16Bit[1];
-            int32_t targetPos = (int32_t)((hi << 16) | lo);
-            uint16_t speedVal  = OD_RAM.x6401_readAnalogueInput16Bit[2];
-            uint16_t ctrl      = OD_RAM.x6401_readAnalogueInput16Bit[3];
-            bool isAbs         = (ctrl & 0x01) != 0;
-            bool isStop        = (ctrl & 0x02) != 0;
-
-            // Use the configured local motor axis (canMotorAxis, default 1).
-            // This is the FocusMotor array index of the physically connected stepper.
-            // Set via: {"task":"/can_act","canMotorAxis":1}
-            int axis = (int)runtimeConfig.canMotorAxis;
-
-            ESP_LOGI(TAG_CO, "Motor cmd: axis=%d pos=%ld speed=%u isAbs=%d isStop=%d",
-                     axis, (long)targetPos, speedVal, isAbs ? 1 : 0, isStop ? 1 : 0);
-
-            // Post to pending — consumed by loop() from the main-loop context to avoid
-            // a race with FocusMotor::loop() calling stopFastAccelStepper() concurrently.
-            s_motorCmd.axis   = axis;
-            s_motorCmd.pos    = targetPos;
-            s_motorCmd.speed  = (int32_t)speedVal;
-            s_motorCmd.isAbs  = isAbs;
-            s_motorCmd.isStop = isStop;
-            s_motorCmd.pending = true;  // written last — acts as the commit flag
+    uint8_t cmdWord = OD_RAM.x2003_motor_command_word;
+    if (cmdWord) {
+        for (int ax = 0; ax < 4; ax++) {
+            if (cmdWord & (1u << ax)) {
+                // Move command for axis ax
+                s_axisCmds[ax].pos   = OD_RAM.x2000_motor_target_position[ax];
+                s_axisCmds[ax].speed = (int32_t)OD_RAM.x2002_motor_speed[ax];
+                s_axisCmds[ax].accel = (int32_t)OD_RAM.x2006_motor_acceleration[ax];
+                s_axisCmds[ax].isAbs = OD_RAM.x2007_motor_is_absolute[ax] != 0;
+                s_axisCmds[ax].isStop = false;
+                s_axisCmds[ax].pending = true;  // commit last
+            }
+            if (cmdWord & (1u << (ax + 4))) {
+                // Stop command for axis ax
+                s_axisCmds[ax].isStop  = true;
+                s_axisCmds[ax].pending = true;
+            }
+        }
+        OD_RAM.x2003_motor_command_word = 0;
+    }
 #endif
-            // Clear trigger bit so we don't re-fire, preserve other bits
-            OD_RAM.x6200_writeOutput8Bit[0] &= ~0x01;
-            prevTrigger = OD_RAM.x6200_writeOutput8Bit[0];
+
+#ifdef HOME_MOTOR
+    for (int ax = 0; ax < 4; ax++) {
+        if (OD_RAM.x2010_homing_command[ax]) {
+            s_homingCmds[ax].speed          = (int32_t)OD_RAM.x2011_homing_speed[ax];
+            s_homingCmds[ax].direction      = OD_RAM.x2012_homing_direction[ax];
+            s_homingCmds[ax].timeout        = (int32_t)OD_RAM.x2013_homing_timeout[ax];
+            s_homingCmds[ax].endstopRelease = OD_RAM.x2014_homing_endstop_release[ax];
+            s_homingCmds[ax].polarity       = OD_RAM.x2015_homing_endstop_polarity[ax];
+            s_homingCmds[ax].pending        = true;
+            OD_RAM.x2010_homing_command[ax] = 0;
         }
     }
+#endif
+
+#ifdef LASER_CONTROLLER
+    for (int ch = 0; ch < 4; ch++) {
+        uint16_t v = OD_RAM.x2100_laser_pwm_value[ch];
+        if (!s_laserCmds[ch].pending || s_laserCmds[ch].value != v) {
+            s_laserCmds[ch].value   = v;
+            log_i(TAG_CO, "Laser channel %d: new PWM value %d", ch, (int)v);
+            // TODO: There is a race condition here - pending is not set to false and hence it's always polling (probably only in case the device is not connected? )
+            s_laserCmds[ch].pending = true; //TODO: This causes an infinite loop - we should rather go through the setlaservalue function instead of writing directly to the OD entry
+        }
+    }
+#endif
 }
 
 void CANopenModule::syncModulesToTpdo()
@@ -592,26 +657,15 @@ void CANopenModule::syncModulesToTpdo()
     // Called every 1ms from CO_tmr_task BEFORE CO_process_TPDO().
     // Write module state into OD_RAM so TPDOs broadcast it and master can SDO-read it.
 
-    static uint32_t counter = 0;
-    OD_RAM.x6001_counter = counter++;
+    // Always update system stats
+    OD_RAM.x2503_uptime_seconds = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
+    OD_RAM.x2504_free_heap_bytes = (uint32_t)esp_get_free_heap_size();
 
 #ifdef MOTOR_CONTROLLER
-    int axis = (int)runtimeConfig.canMotorAxis;
-    if (axis >= 0 && axis <= 3) {
-        // check for nullptr just in case
-        if (FocusMotor::getData()[axis] == nullptr) {
-            ESP_LOGW(TAG_CO, "Motor data for axis %d is null", axis);
-            return;
-        }
-        int32_t pos = FocusMotor::getData()[axis]->currentPosition;
-        bool running = FocusMotor::isRunning(axis);
-
-        // Store actual position split into two uint16 words (mirrors DeviceRouter decode)
-        OD_RAM.x6401_readAnalogueInput16Bit[0] = (uint16_t)((uint32_t)pos >> 16);
-        OD_RAM.x6401_readAnalogueInput16Bit[1] = (uint16_t)((uint32_t)pos & 0xFFFF);
-
-        // Store isRunning in x6000 input byte
-        OD_RAM.x6000_readInput8Bit[0] = running ? 1 : 0;
+    for (int ax = 0; ax < 4; ax++) {
+        if (FocusMotor::getData()[ax] == nullptr) continue;
+        OD_RAM.x2001_motor_actual_position[ax] = FocusMotor::getData()[ax]->currentPosition;
+        OD_RAM.x2004_motor_status_word[ax]     = FocusMotor::isRunning(ax) ? 0x01u : 0x00u;
     }
 #endif
 }
@@ -665,36 +719,56 @@ void CANopenModule::loop()
     }
 
 #ifdef MOTOR_CONTROLLER
-    // Dispatch any pending motor command posted by syncRpdoToModules().
-    // Running here (main loop context) avoids a race with FocusMotor::loop(),
-    // which also accesses MotorData and calls stopFastAccelStepper().
-    if (s_motorCmd.pending) {
-        s_motorCmd.pending = false;   // clear before consuming so a new cmd can queue up
-
-        int axis = s_motorCmd.axis;
-        if (axis >= 0 && axis <= 3 && FocusMotor::getData()[axis] != nullptr) {
-            MotorData* m = FocusMotor::getData()[axis];
-
-            if (s_motorCmd.isStop) {
-                m->isStop = true;
-                FocusMotor::startStepper(axis, 0);
-            } else {
-                m->targetPosition   = s_motorCmd.pos;
-                m->speed            = s_motorCmd.speed;
-                m->absolutePosition = s_motorCmd.isAbs;
-                m->isforever        = false;
-                m->isStop           = false;
-                m->stopped          = false;
-                // Provide a reasonable acceleration default; FastAccelStepper with
-                // acceleration=0 tries instant speed change which can miss steps.
-                if (m->acceleration <= 0) {
-                    m->acceleration  = 40000;  // steps/s^2 — adjust per motor/driver
-                }
-                ESP_LOGI(TAG_CO, "Dispatching motor %d: pos=%ld spd=%ld abs=%d",
-                         axis, (long)m->targetPosition, (long)m->speed, m->absolutePosition);
-                FocusMotor::startStepper(axis, 0);
-            }
+    // Dispatch pending motor move/stop commands (per axis)
+    for (int ax = 0; ax < 4; ax++) {
+        if (!s_axisCmds[ax].pending) continue;
+        s_axisCmds[ax].pending = false;
+        if (FocusMotor::getData()[ax] == nullptr) continue;
+        MotorData* m = FocusMotor::getData()[ax];
+        if (s_axisCmds[ax].isStop) {
+            m->isStop = true;
+            FocusMotor::startStepper(ax, 0);
+        } else {
+            m->targetPosition   = s_axisCmds[ax].pos;
+            m->speed            = s_axisCmds[ax].speed;
+            m->absolutePosition = s_axisCmds[ax].isAbs;
+            m->isforever        = false; //TODO: we need to provide acceleration, isforever, etc. too
+            m->isStop           = false;
+            m->stopped          = false;
+            if (s_axisCmds[ax].accel > 0) m->acceleration = s_axisCmds[ax].accel;
+            else if (m->acceleration <= 0) m->acceleration = 40000;
+            ESP_LOGI(TAG_CO, "Dispatch motor %d: pos=%ld spd=%ld abs=%d",
+                     ax, (long)m->targetPosition, (long)m->speed, m->absolutePosition);
+            FocusMotor::startStepper(ax, 0);
         }
+    } // TODO: How about stopStepper?
+#endif
+
+#ifdef HOME_MOTOR
+    // Dispatch pending homing commands
+    for (int ax = 0; ax < 4; ax++) {
+        if (!s_homingCmds[ax].pending) continue;
+        s_homingCmds[ax].pending = false;
+        int maxSpeed = s_homingCmds[ax].speed > 0 ? s_homingCmds[ax].speed * 2 : 1000;
+        HomeMotor::startHome(ax,
+            (int)s_homingCmds[ax].timeout,
+            (int)s_homingCmds[ax].speed,
+            maxSpeed,
+            (int)s_homingCmds[ax].direction,
+            (int)s_homingCmds[ax].polarity,
+            (int)s_homingCmds[ax].endstopRelease,
+            0  /* qid */); // TODO: we need to keep track of the qid to now if its still alive/busy
+            // TODO: How about the stop command? We currently ignore it and just let the homing run until completion or timeout. We could add a "isStop" flag to PendingHomingCmd and check it here to allow stopping an ongoing homing operation.
+    }
+#endif
+
+#ifdef LASER_CONTROLLER
+    // Dispatch pending laser value updates
+    for (int ch = 0; ch < 4; ch++) {
+        if (!s_laserCmds[ch].pending) continue;
+        s_laserCmds[ch].pending = false; // tODO: There is some race condition in case the laser is not connected 
+        log_i(TAG_CO, "Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
+        LaserController::setLaserVal(ch, (int)s_laserCmds[ch].value);
     }
 #endif
 }

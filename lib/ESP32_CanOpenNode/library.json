@@ -18,7 +18,8 @@
   "build": {
     "srcDir": "src",
     "srcFilter": [
-      "+<*>"
+      "+<*>",
+      "-<OD.c>"
     ]
   }
 }

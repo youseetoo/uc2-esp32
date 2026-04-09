@@ -1,0 +1,14 @@
+{
+  "name": "uc2_od",
+  "version": "1.0.0",
+  "description": "UC2 native CANopen Object Dictionary (replaces trainer CiA 401 OD)",
+  "keywords": "CAN, CANopen, UC2",
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": ".",
+    "srcFilter": ["+<*.c>"],
+    "includeDir": "."
+  }
+}

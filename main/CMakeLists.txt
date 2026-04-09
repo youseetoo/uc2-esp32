@@ -118,7 +118,7 @@ if(I2C_SLAVE_DIAL EQUAL 1)
     list(APPEND srcs ${mainsrc}src/i2c/i2c_slave_dial.cpp)
 endif()
 # CAN bus source files (old ISO-TP transport — excluded when CANopen is used)
-if(CAN_BUS_ENABLED EQUAL 1 AND NOT CAN_CONTROLLER_CANOPEN EQUAL 1) // TODO: CANOTA has to be part of the new CANopen stack as well, so maybe we should just exclude the old CAN transport sources when CANopen is enabled, and integrate the OTA functionality into the CANopen stack instead of keeping it separate. For now, this is a quick way to switch between the old CAN transport and the new CANopen stack without changing the existing structure too much.
+if(CAN_BUS_ENABLED EQUAL 1 AND NOT CAN_CONTROLLER_CANOPEN EQUAL 1) # TODO: CANOTA has to be part of the new CANopen stack as well, so maybe we should just exclude the old CAN transport sources when CANopen is enabled, and integrate the OTA functionality into the CANopen stack instead of keeping it separate. For now, this is a quick way to switch between the old CAN transport and the new CANopen stack without changing the existing structure too much.
     list(APPEND srcs ${mainsrc}src/can/can_transport.cpp)
     list(APPEND srcs ${mainsrc}src/can/iso-tp-twai/CanIsoTp.cpp)
     list(APPEND srcs ${mainsrc}src/can/CanOtaHandler.cpp)

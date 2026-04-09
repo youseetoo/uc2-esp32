@@ -18,6 +18,9 @@ private:
     // Map stepperid to CANopen node-id
     // stepperid 0=A->node14, 1=X->node11, 2=Y->node12, 3=Z->node13
     static uint8_t stepperIdToNodeId(int stepperid);
+    // Map stepperid to axis index on its node (0-3)
+    // Currently always 0 since each node has one motor driver
+    static uint8_t stepperIdToAxisOnNode(int stepperid);
 
     // Command handlers
     static cJSON* handleMotorAct(cJSON* doc);

@@ -1,240 +1,250 @@
-// AUTO-GENERATED from uc2_canopen_registry.yaml
+// AUTO-GENERATED/MAINTAINED for UC2 CANopen native OD (0x2000+ entries).
 // Regenerate with: python tools/regenerate_all.py
+// OR manually from DOCUMENTATION/openUC2_satellite.eds via CANopenEditor.
 //
-// This file is the CANopenNode v4 Object Dictionary header.
-// It declares OD_RAM (the runtime data) and OD (the descriptor table).
+// Replaces the MWE trainer OD (0x6000/0x6200/0x6401).
+// This header is consumed by both the application (CANopenModule.cpp)
+// and the library (CANopen.c) for OD_CNT_* feature selection.
 
 #ifndef OD_H
 #define OD_H
 
 #include "301/CO_ODinterface.h"
+#include <stdint.h>
 
+// ---------------------------------------------------------------------------
+// Feature counts — consumed by CANopen.c to size internal objects
+// ---------------------------------------------------------------------------
 #define OD_CNT_NMT                 1
 #define OD_CNT_EM                  1
 #define OD_CNT_SYNC                1
 #define OD_CNT_HB_PROD             1
 #define OD_CNT_HB_CONS             1
+#define OD_CNT_SDO_SRV             1  // 1 SDO server (always-on, slave)
+#define OD_CNT_SDO_CLI             1  // 1 SDO client (master role)
 #define OD_CNT_RPDO                4
 #define OD_CNT_TPDO                4
 
-// Runtime variables for OD entries
+// Array sizes
+#define OD_CNT_ARR_1003           16  // pre-defined error field
+#define OD_CNT_ARR_1010            4  // store parameters
+#define OD_CNT_ARR_1011            4  // restore default parameters
+#define OD_CNT_ARR_1016            8  // consumer heartbeat time
+
+// ---------------------------------------------------------------------------
+// Non-volatile communication area (CiA 301 standard + PDO configuration)
+// ---------------------------------------------------------------------------
 typedef struct {
-    // --- CiA 301 communication area ---
-    uint8_t  x1001_errorRegister;
+    uint32_t x1000_deviceType;
+    uint32_t x1005_COB_ID_SYNCMessage;
+    uint32_t x1006_communicationCyclePeriod;
+    uint32_t x1007_synchronousWindowLength;
+    uint32_t x1012_COB_IDTimeStampObject;
+    uint32_t x1014_COB_ID_EMCY;
+    uint16_t x1015_inhibitTimeEMCY;
+    uint8_t  x1016_consumerHeartbeatTime_sub0;
+    uint32_t x1016_consumerHeartbeatTime[OD_CNT_ARR_1016];
     uint16_t x1017_producerHeartbeatTime;
+    struct {
+        uint8_t  highestSub_indexSupported;
+        uint32_t vendor_ID;
+        uint32_t productCode;
+        uint32_t revisionNumber;
+        uint32_t serialNumber;
+    } x1018_identity;
+    uint8_t  x1019_synchronousCounterOverflowValue;
+    struct {
+        uint8_t  highestSub_indexSupported;
+        uint32_t COB_IDClientToServerTx;
+        uint32_t COB_IDServerToClientRx;
+        uint8_t  node_IDOfTheSDOServer;
+    } x1280_SDOClientParameter;
+    // RPDO communication parameters (0x1400-0x1403)
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByRPDO; uint8_t transmissionType; uint16_t eventTimer; } x1400_RPDOCommunicationParameter;
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByRPDO; uint8_t transmissionType; uint16_t eventTimer; } x1401_RPDOCommunicationParameter;
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByRPDO; uint8_t transmissionType; uint16_t eventTimer; } x1402_RPDOCommunicationParameter;
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByRPDO; uint8_t transmissionType; uint16_t eventTimer; } x1403_RPDOCommunicationParameter;
+    // RPDO mapping parameters (0x1600-0x1603)
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1600_RPDOMappingParameter;
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1601_RPDOMappingParameter;
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1602_RPDOMappingParameter;
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1603_RPDOMappingParameter;
+    // TPDO communication parameters (0x1800-0x1803)
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByTPDO; uint8_t transmissionType; uint16_t inhibitTime; uint16_t eventTimer; uint8_t SYNCStartValue; } x1800_TPDOCommunicationParameter;
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByTPDO; uint8_t transmissionType; uint16_t inhibitTime; uint16_t eventTimer; uint8_t SYNCStartValue; } x1801_TPDOCommunicationParameter;
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByTPDO; uint8_t transmissionType; uint16_t inhibitTime; uint16_t eventTimer; uint8_t SYNCStartValue; } x1802_TPDOCommunicationParameter;
+    struct { uint8_t highestSub_indexSupported; uint32_t COB_IDUsedByTPDO; uint8_t transmissionType; uint16_t inhibitTime; uint16_t eventTimer; uint8_t SYNCStartValue; } x1803_TPDOCommunicationParameter;
+    // TPDO mapping parameters (0x1A00-0x1A03)
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1A00_TPDOMappingParameter;
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1A01_TPDOMappingParameter;
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1A02_TPDOMappingParameter;
+    struct { uint8_t n; uint32_t o1,o2,o3,o4,o5,o6,o7,o8; } x1A03_TPDOMappingParameter;
+} OD_PERSIST_COMM_t;
 
-    // --- Manufacturer-specific area ---
+// ---------------------------------------------------------------------------
+// Volatile runtime area — written by module code and the CANopenNode stack
+// ---------------------------------------------------------------------------
+typedef struct {
+    // CiA 301 volatile entries
+    uint8_t  x1001_errorRegister;
+    uint8_t  x1003_pre_definedErrorField_sub0;
+    uint32_t x1003_pre_definedErrorField[OD_CNT_ARR_1003];
+    uint8_t  x1010_storeParameters_sub0;
+    uint32_t x1010_storeParameters[OD_CNT_ARR_1010];
+    uint8_t  x1011_restoreDefaultParameters_sub0;
+    uint32_t x1011_restoreDefaultParameters[OD_CNT_ARR_1011];
+    struct {
+        uint8_t  highestSub_indexSupported;
+        uint32_t COB_IDClientToServerRx;
+        uint32_t COB_IDServerToClientTx;
+    } x1200_SDOServerParameter;
+
+    // --- UC2 Manufacturer area (0x2000+) ---
     // motor
-    int32_t x2000_motor_target_position[4];
-    int32_t x2001_motor_actual_position[4];
+    int32_t  x2000_motor_target_position[4];
+    int32_t  x2001_motor_actual_position[4];
     uint32_t x2002_motor_speed[4];
-    uint8_t x2003_motor_command_word;
-    uint8_t x2004_motor_status_word[4];
-    uint8_t x2005_motor_enable[4];
+    uint8_t  x2003_motor_command_word;
+    uint8_t  x2004_motor_status_word[4];
+    uint8_t  x2005_motor_enable[4];
     uint32_t x2006_motor_acceleration[4];
-    uint8_t x2007_motor_is_absolute[4];
-    int32_t x2008_motor_min_position[4];
-    int32_t x2009_motor_max_position[4];
+    uint8_t  x2007_motor_is_absolute[4];
+    int32_t  x2008_motor_min_position[4];
+    int32_t  x2009_motor_max_position[4];
     uint32_t x200A_motor_jerk[4];
-
     // homing
-    uint8_t x2010_homing_command[4];
+    uint8_t  x2010_homing_command[4];
     uint32_t x2011_homing_speed[4];
-    int8_t x2012_homing_direction[4];
+    int8_t   x2012_homing_direction[4];
     uint32_t x2013_homing_timeout[4];
-    int32_t x2014_homing_endstop_release[4];
-    uint8_t x2015_homing_endstop_polarity[4];
-
+    int32_t  x2014_homing_endstop_release[4];
+    uint8_t  x2015_homing_endstop_polarity[4];
     // tmc
     uint16_t x2020_tmc_microsteps[4];
     uint16_t x2021_tmc_rms_current[4];
-    uint8_t x2022_tmc_stallguard_threshold[4];
-    uint8_t x2023_tmc_coolstep_semin[4];
-    uint8_t x2024_tmc_coolstep_semax[4];
-    uint8_t x2025_tmc_blank_time[4];
-    uint8_t x2026_tmc_toff[4];
+    uint8_t  x2022_tmc_stallguard_threshold[4];
+    uint8_t  x2023_tmc_coolstep_semin[4];
+    uint8_t  x2024_tmc_coolstep_semax[4];
+    uint8_t  x2025_tmc_blank_time[4];
+    uint8_t  x2026_tmc_toff[4];
     uint32_t x2027_tmc_stall_count[4];
-
     // laser
     uint16_t x2100_laser_pwm_value[4];
     uint16_t x2101_laser_max_value[4];
     uint32_t x2102_laser_pwm_frequency[4];
-    uint8_t x2103_laser_pwm_resolution[4];
-    uint32_t x2104_laser_despeckle_period[4];
-    uint16_t x2105_laser_despeckle_amplitude[4];
-    uint8_t x2106_laser_safety_state;
-
+    uint8_t  x2103_laser_pwm_resolution[4];
+    uint8_t  x2106_laser_safety_state;
     // led
-    uint8_t x2200_led_array_mode;
-    uint8_t x2201_led_brightness;
+    uint8_t  x2200_led_array_mode;
+    uint8_t  x2201_led_brightness;
     uint32_t x2202_led_uniform_colour;
     uint16_t x2203_led_pixel_count;
-    uint8_t x2204_led_layout_width;
-    uint8_t x2205_led_layout_height;
-    uint8_t* x2210_led_pixel_data;  // DOMAIN — pointer set at runtime
-    uint8_t x2220_led_pattern_id;
-    uint16_t x2221_led_pattern_speed;
-
     // digital_io
-    uint8_t x2300_digital_input_state[8];
-    uint8_t x2301_digital_output_command[8];
-    uint8_t x2302_digital_input_change_mask;
-
+    uint8_t  x2300_digital_input_state[8];
+    uint8_t  x2301_digital_output_command[8];
     // analog_io
     uint16_t x2310_analog_input_value[8];
-    uint16_t x2311_analog_input_filtered[8];
-    uint16_t x2320_dac_output_value[4];
-
     // encoder
-    int32_t x2340_encoder_position[4];
-    int32_t x2341_encoder_velocity[4];
-    int32_t x2342_encoder_zero_offset[4];
-
-    // joystick
-    int16_t x2400_joystick_axis[4];
-    uint16_t x2401_joystick_buttons;
-    uint8_t x2402_joystick_speed_multiplier;
-    uint16_t x2403_joystick_deadzone;
-
+    int32_t  x2340_encoder_position[4];
     // system
-    char x2500_firmware_version_string[32];
-    char x2501_board_name[32];
+    char     x2500_firmware_version_string[32];
+    char     x2501_board_name[32];
     uint32_t x2502_enabled_modules_bitmask;
     uint32_t x2503_uptime_seconds;
     uint32_t x2504_free_heap_bytes;
     uint32_t x2505_can_error_counter;
-    int16_t x2506_cpu_temperature;
-    uint8_t x2507_reboot_command;
-
-    // galvo
-    int32_t x2600_galvo_target_position[2];
-    int32_t x2601_galvo_actual_position[2];
-    uint8_t x2602_galvo_command_word;
-    uint8_t x2603_galvo_status_word;
-    uint32_t x2604_galvo_scan_speed;
-    uint16_t x2605_galvo_n_steps_line;
-    uint16_t x2606_galvo_n_steps_pixel;
-    uint16_t x2607_galvo_d_steps_line;
-    uint16_t x2608_galvo_d_steps_pixel;
-    uint32_t x2609_galvo_t_pre_us;
-    uint32_t x260A_galvo_t_post_us;
-    int32_t x260B_galvo_x_start;
-    int32_t x260C_galvo_y_start;
-    int32_t x260D_galvo_x_step;
-    int32_t x260E_galvo_y_step;
-    uint8_t x260F_galvo_camera_trigger_mode;
-
-    // pid
-    int32_t x2700_pid_setpoint;
-    int32_t x2701_pid_actual_value;
-    uint32_t x2702_pid_kp;
-    uint32_t x2703_pid_ki;
-    uint32_t x2704_pid_kd;
-    uint8_t x2705_pid_enable;
-
-    // ota
-    uint8_t* x2F00_ota_firmware_data;  // DOMAIN — pointer set at runtime
-    uint32_t x2F01_ota_firmware_size;
-    uint32_t x2F02_ota_firmware_crc32;
-    uint8_t x2F03_ota_status;
-    uint32_t x2F04_ota_bytes_received;
-    uint8_t x2F05_ota_error_code;
-
+    uint8_t  x2507_reboot_command;
 } OD_RAM_t;
 
-extern OD_RAM_t OD_RAM;
-extern OD_t *OD;
+// ---------------------------------------------------------------------------
+// Attribute macros (default to empty — override for memory placement)
+// ---------------------------------------------------------------------------
+#ifndef OD_ATTR_PERSIST_COMM
+#define OD_ATTR_PERSIST_COMM
+#endif
+#ifndef OD_ATTR_RAM
+#define OD_ATTR_RAM
+#endif
+#ifndef OD_ATTR_OD
+#define OD_ATTR_OD
+#endif
 
-// PDO mapping helper macros (for syncRpdoToModules / syncModulesToTpdo)
-#define OD_MOTOR_TARGET_POSITION                         OD_RAM.x2000_motor_target_position
-#define OD_MOTOR_ACTUAL_POSITION                         OD_RAM.x2001_motor_actual_position
-#define OD_MOTOR_SPEED                                   OD_RAM.x2002_motor_speed
-#define OD_MOTOR_COMMAND_WORD                            OD_RAM.x2003_motor_command_word
-#define OD_MOTOR_STATUS_WORD                             OD_RAM.x2004_motor_status_word
-#define OD_MOTOR_ENABLE                                  OD_RAM.x2005_motor_enable
-#define OD_MOTOR_ACCELERATION                            OD_RAM.x2006_motor_acceleration
-#define OD_MOTOR_IS_ABSOLUTE                             OD_RAM.x2007_motor_is_absolute
-#define OD_MOTOR_MIN_POSITION                            OD_RAM.x2008_motor_min_position
-#define OD_MOTOR_MAX_POSITION                            OD_RAM.x2009_motor_max_position
-#define OD_MOTOR_JERK                                    OD_RAM.x200A_motor_jerk
-#define OD_HOMING_COMMAND                                OD_RAM.x2010_homing_command
-#define OD_HOMING_SPEED                                  OD_RAM.x2011_homing_speed
-#define OD_HOMING_DIRECTION                              OD_RAM.x2012_homing_direction
-#define OD_HOMING_TIMEOUT                                OD_RAM.x2013_homing_timeout
-#define OD_HOMING_ENDSTOP_RELEASE                        OD_RAM.x2014_homing_endstop_release
-#define OD_HOMING_ENDSTOP_POLARITY                       OD_RAM.x2015_homing_endstop_polarity
-#define OD_TMC_MICROSTEPS                                OD_RAM.x2020_tmc_microsteps
-#define OD_TMC_RMS_CURRENT                               OD_RAM.x2021_tmc_rms_current
-#define OD_TMC_STALLGUARD_THRESHOLD                      OD_RAM.x2022_tmc_stallguard_threshold
-#define OD_TMC_COOLSTEP_SEMIN                            OD_RAM.x2023_tmc_coolstep_semin
-#define OD_TMC_COOLSTEP_SEMAX                            OD_RAM.x2024_tmc_coolstep_semax
-#define OD_TMC_BLANK_TIME                                OD_RAM.x2025_tmc_blank_time
-#define OD_TMC_TOFF                                      OD_RAM.x2026_tmc_toff
-#define OD_TMC_STALL_COUNT                               OD_RAM.x2027_tmc_stall_count
-#define OD_LASER_PWM_VALUE                               OD_RAM.x2100_laser_pwm_value
-#define OD_LASER_MAX_VALUE                               OD_RAM.x2101_laser_max_value
-#define OD_LASER_PWM_FREQUENCY                           OD_RAM.x2102_laser_pwm_frequency
-#define OD_LASER_PWM_RESOLUTION                          OD_RAM.x2103_laser_pwm_resolution
-#define OD_LASER_DESPECKLE_PERIOD                        OD_RAM.x2104_laser_despeckle_period
-#define OD_LASER_DESPECKLE_AMPLITUDE                     OD_RAM.x2105_laser_despeckle_amplitude
-#define OD_LASER_SAFETY_STATE                            OD_RAM.x2106_laser_safety_state
-#define OD_LED_ARRAY_MODE                                OD_RAM.x2200_led_array_mode
-#define OD_LED_BRIGHTNESS                                OD_RAM.x2201_led_brightness
-#define OD_LED_UNIFORM_COLOUR                            OD_RAM.x2202_led_uniform_colour
-#define OD_LED_PIXEL_COUNT                               OD_RAM.x2203_led_pixel_count
-#define OD_LED_LAYOUT_WIDTH                              OD_RAM.x2204_led_layout_width
-#define OD_LED_LAYOUT_HEIGHT                             OD_RAM.x2205_led_layout_height
-#define OD_LED_PIXEL_DATA                                OD_RAM.x2210_led_pixel_data
-#define OD_LED_PATTERN_ID                                OD_RAM.x2220_led_pattern_id
-#define OD_LED_PATTERN_SPEED                             OD_RAM.x2221_led_pattern_speed
-#define OD_DIGITAL_INPUT_STATE                           OD_RAM.x2300_digital_input_state
-#define OD_DIGITAL_OUTPUT_COMMAND                        OD_RAM.x2301_digital_output_command
-#define OD_DIGITAL_INPUT_CHANGE_MASK                     OD_RAM.x2302_digital_input_change_mask
-#define OD_ANALOG_INPUT_VALUE                            OD_RAM.x2310_analog_input_value
-#define OD_ANALOG_INPUT_FILTERED                         OD_RAM.x2311_analog_input_filtered
-#define OD_DAC_OUTPUT_VALUE                              OD_RAM.x2320_dac_output_value
-#define OD_ENCODER_POSITION                              OD_RAM.x2340_encoder_position
-#define OD_ENCODER_VELOCITY                              OD_RAM.x2341_encoder_velocity
-#define OD_ENCODER_ZERO_OFFSET                           OD_RAM.x2342_encoder_zero_offset
-#define OD_JOYSTICK_AXIS                                 OD_RAM.x2400_joystick_axis
-#define OD_JOYSTICK_BUTTONS                              OD_RAM.x2401_joystick_buttons
-#define OD_JOYSTICK_SPEED_MULTIPLIER                     OD_RAM.x2402_joystick_speed_multiplier
-#define OD_JOYSTICK_DEADZONE                             OD_RAM.x2403_joystick_deadzone
-#define OD_FIRMWARE_VERSION_STRING                       OD_RAM.x2500_firmware_version_string
-#define OD_BOARD_NAME                                    OD_RAM.x2501_board_name
-#define OD_ENABLED_MODULES_BITMASK                       OD_RAM.x2502_enabled_modules_bitmask
-#define OD_UPTIME_SECONDS                                OD_RAM.x2503_uptime_seconds
-#define OD_FREE_HEAP_BYTES                               OD_RAM.x2504_free_heap_bytes
-#define OD_CAN_ERROR_COUNTER                             OD_RAM.x2505_can_error_counter
-#define OD_CPU_TEMPERATURE                               OD_RAM.x2506_cpu_temperature
-#define OD_REBOOT_COMMAND                                OD_RAM.x2507_reboot_command
-#define OD_GALVO_TARGET_POSITION                         OD_RAM.x2600_galvo_target_position
-#define OD_GALVO_ACTUAL_POSITION                         OD_RAM.x2601_galvo_actual_position
-#define OD_GALVO_COMMAND_WORD                            OD_RAM.x2602_galvo_command_word
-#define OD_GALVO_STATUS_WORD                             OD_RAM.x2603_galvo_status_word
-#define OD_GALVO_SCAN_SPEED                              OD_RAM.x2604_galvo_scan_speed
-#define OD_GALVO_N_STEPS_LINE                            OD_RAM.x2605_galvo_n_steps_line
-#define OD_GALVO_N_STEPS_PIXEL                           OD_RAM.x2606_galvo_n_steps_pixel
-#define OD_GALVO_D_STEPS_LINE                            OD_RAM.x2607_galvo_d_steps_line
-#define OD_GALVO_D_STEPS_PIXEL                           OD_RAM.x2608_galvo_d_steps_pixel
-#define OD_GALVO_T_PRE_US                                OD_RAM.x2609_galvo_t_pre_us
-#define OD_GALVO_T_POST_US                               OD_RAM.x260A_galvo_t_post_us
-#define OD_GALVO_X_START                                 OD_RAM.x260B_galvo_x_start
-#define OD_GALVO_Y_START                                 OD_RAM.x260C_galvo_y_start
-#define OD_GALVO_X_STEP                                  OD_RAM.x260D_galvo_x_step
-#define OD_GALVO_Y_STEP                                  OD_RAM.x260E_galvo_y_step
-#define OD_GALVO_CAMERA_TRIGGER_MODE                     OD_RAM.x260F_galvo_camera_trigger_mode
-#define OD_PID_SETPOINT                                  OD_RAM.x2700_pid_setpoint
-#define OD_PID_ACTUAL_VALUE                              OD_RAM.x2701_pid_actual_value
-#define OD_PID_KP                                        OD_RAM.x2702_pid_kp
-#define OD_PID_KI                                        OD_RAM.x2703_pid_ki
-#define OD_PID_KD                                        OD_RAM.x2704_pid_kd
-#define OD_PID_ENABLE                                    OD_RAM.x2705_pid_enable
-#define OD_OTA_FIRMWARE_DATA                             OD_RAM.x2F00_ota_firmware_data
-#define OD_OTA_FIRMWARE_SIZE                             OD_RAM.x2F01_ota_firmware_size
-#define OD_OTA_FIRMWARE_CRC32                            OD_RAM.x2F02_ota_firmware_crc32
-#define OD_OTA_STATUS                                    OD_RAM.x2F03_ota_status
-#define OD_OTA_BYTES_RECEIVED                            OD_RAM.x2F04_ota_bytes_received
-#define OD_OTA_ERROR_CODE                                OD_RAM.x2F05_ota_error_code
+extern OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM;
+extern OD_ATTR_RAM OD_RAM_t OD_RAM;
+extern OD_ATTR_OD OD_t *OD;
+
+// ---------------------------------------------------------------------------
+// Helper macros for direct OD_RAM access (used by sync functions)
+// ---------------------------------------------------------------------------
+#define OD_MOTOR_TARGET_POSITION    OD_RAM.x2000_motor_target_position
+#define OD_MOTOR_ACTUAL_POSITION    OD_RAM.x2001_motor_actual_position
+#define OD_MOTOR_SPEED              OD_RAM.x2002_motor_speed
+#define OD_MOTOR_COMMAND_WORD       OD_RAM.x2003_motor_command_word
+#define OD_MOTOR_STATUS_WORD        OD_RAM.x2004_motor_status_word
+#define OD_MOTOR_ENABLE             OD_RAM.x2005_motor_enable
+#define OD_MOTOR_ACCELERATION       OD_RAM.x2006_motor_acceleration
+#define OD_MOTOR_IS_ABSOLUTE        OD_RAM.x2007_motor_is_absolute
+#define OD_HOMING_COMMAND           OD_RAM.x2010_homing_command
+#define OD_HOMING_SPEED             OD_RAM.x2011_homing_speed
+#define OD_HOMING_DIRECTION         OD_RAM.x2012_homing_direction
+#define OD_HOMING_TIMEOUT           OD_RAM.x2013_homing_timeout
+#define OD_HOMING_ENDSTOP_RELEASE   OD_RAM.x2014_homing_endstop_release
+#define OD_HOMING_ENDSTOP_POLARITY  OD_RAM.x2015_homing_endstop_polarity
+#define OD_LASER_PWM_VALUE          OD_RAM.x2100_laser_pwm_value
+#define OD_LED_ARRAY_MODE           OD_RAM.x2200_led_array_mode
+#define OD_LED_BRIGHTNESS           OD_RAM.x2201_led_brightness
+#define OD_LED_UNIFORM_COLOUR       OD_RAM.x2202_led_uniform_colour
+#define OD_DIGITAL_INPUT_STATE      OD_RAM.x2300_digital_input_state
+#define OD_DIGITAL_OUTPUT_COMMAND   OD_RAM.x2301_digital_output_command
+#define OD_UPTIME_SECONDS           OD_RAM.x2503_uptime_seconds
+#define OD_FREE_HEAP_BYTES          OD_RAM.x2504_free_heap_bytes
+
+// ---------------------------------------------------------------------------
+// OD_CNT_EM_PROD — required by CANopen.c EM_PRODUCER block
+// ---------------------------------------------------------------------------
+#define OD_CNT_EM_PROD  1
+
+// ---------------------------------------------------------------------------
+// OD_ENTRY_Hxxxx — pointers into ODList[], indexed by slot position.
+// Indices must match the sorted ODList[] declaration in OD.c exactly.
+// [0]=0x1000 [1]=0x1001 [2]=0x1003 [3]=0x1005 [4]=0x1006 [5]=0x1007
+// [6]=0x1010 [7]=0x1011 [8]=0x1012 [9]=0x1014 [10]=0x1015 [11]=0x1016
+// [12]=0x1017 [13]=0x1018 [14]=0x1019 [15]=0x1200 [16]=0x1280
+// [17]=0x1400 ... [20]=0x1403 [21]=0x1600 ... [24]=0x1603
+// [25]=0x1800 ... [28]=0x1803 [29]=0x1A00 ... [32]=0x1A03
+// ---------------------------------------------------------------------------
+#define OD_ENTRY_H1000  (&OD->list[0])
+#define OD_ENTRY_H1001  (&OD->list[1])
+#define OD_ENTRY_H1003  (&OD->list[2])
+#define OD_ENTRY_H1005  (&OD->list[3])
+#define OD_ENTRY_H1006  (&OD->list[4])
+#define OD_ENTRY_H1007  (&OD->list[5])
+#define OD_ENTRY_H1010  (&OD->list[6])
+#define OD_ENTRY_H1011  (&OD->list[7])
+#define OD_ENTRY_H1012  (&OD->list[8])
+#define OD_ENTRY_H1014  (&OD->list[9])
+#define OD_ENTRY_H1015  (&OD->list[10])
+#define OD_ENTRY_H1016  (&OD->list[11])
+#define OD_ENTRY_H1017  (&OD->list[12])
+#define OD_ENTRY_H1018  (&OD->list[13])
+#define OD_ENTRY_H1019  (&OD->list[14])
+#define OD_ENTRY_H1200  (&OD->list[15])
+#define OD_ENTRY_H1280  (&OD->list[16])
+#define OD_ENTRY_H1400  (&OD->list[17])
+#define OD_ENTRY_H1401  (&OD->list[18])
+#define OD_ENTRY_H1402  (&OD->list[19])
+#define OD_ENTRY_H1403  (&OD->list[20])
+#define OD_ENTRY_H1600  (&OD->list[21])
+#define OD_ENTRY_H1601  (&OD->list[22])
+#define OD_ENTRY_H1602  (&OD->list[23])
+#define OD_ENTRY_H1603  (&OD->list[24])
+#define OD_ENTRY_H1800  (&OD->list[25])
+#define OD_ENTRY_H1801  (&OD->list[26])
+#define OD_ENTRY_H1802  (&OD->list[27])
+#define OD_ENTRY_H1803  (&OD->list[28])
+#define OD_ENTRY_H1A00  (&OD->list[29])
+#define OD_ENTRY_H1A01  (&OD->list[30])
+#define OD_ENTRY_H1A02  (&OD->list[31])
+#define OD_ENTRY_H1A03  (&OD->list[32])
 
 #endif // OD_H

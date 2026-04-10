@@ -1570,3 +1570,121 @@ PYTHON/uc2_canopen/
 
 The generator script and the registry YAML are the only places you ever edit when
 adding new hardware. Everything else is downstream and rebuilds automatically.
+
+---
+
+## Conceptual issue: Module controller flags are device-role-agnostic
+
+### The problem
+
+Build flags like `-DLASER_CONTROLLER=1`, `-DMOTOR_CONTROLLER=1`, etc. are currently set
+independently of whether that hardware actually lives on this node or on a remote CAN
+slave. Compare the three representative environments:
+
+| Environment | `LASER_CONTROLLER` | `CAN_BUS_ENABLED` | `CAN_SEND_COMMANDS` | `CAN_HYBRID` |
+|---|---|---|---|---|
+| `UC2_3_default` (standalone) | ✅ | — | — | — |
+| `UC2_3_CAN_HAT_Master_v2_default` (pure CAN master/gateway) | ✅ | ✅ | ✅ | — |
+| `UC2_4_CAN_HYBRID_default` (master with local + remote hardware) | ✅ | ✅ | ✅ | ✅ |
+
+The flag `-DLASER_CONTROLLER=1` means the same compilation unit
+(`LaserController.cpp`) is compiled into all three firmware variants. The routing
+decision ("use local GPIO" vs "send over CAN") is then made inside `setLaserVal()` via
+a chain of `#ifdef` guards:
+
+```cpp
+// CAN_HYBRID path — routes based on pin availability and threshold
+#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_LASER)
+if (shouldUseCANForLaser(LASERid)) { ... route via CAN ... }
+else                               { ... use native GPIO ... }
+
+// All other cases (including pure CAN master!) fall through to native GPIO
+int laserPin = getLaserPin(LASERid);
+if (laserPin >= 0) { setPWM(...); }
+```
+
+**Critical gap for the pure CAN master (`UC2_3_CAN_HAT_Master_v2_default`):**
+`CAN_HYBRID` is NOT defined, so the routing block is never entered. The code falls
+through to the native GPIO path. On a pure master/gateway board there are no laser pins
+wired up, so `getLaserPin()` returns `-1`, the command silently does nothing — or worse,
+the CANopenModule's `loop()` calls `LaserController::setLaserVal()` directly (which made
+sense for a slave), causing spurious local-hardware calls on a master that should be
+routing commands via SDO/PDO to the slave instead.
+
+### Why the CANopenModule `loop()` laser dispatch is wrong on the master
+
+`CANopenModule::loop()` dispatches `s_laserCmds[ch]` by calling
+`LaserController::setLaserVal()`. This was written with the slave execution context in
+mind (the slave reads its OD, then drives its own GPIO). On a master running
+`CAN_CONTROLLER_CANOPEN` the same code path runs, but:
+
+1. The master's OD laser entries are initialised to 0 on boot.
+2. `syncRpdoToModules()` (before the race-condition fix) immediately marked all four
+   laser channels as `pending` because `!pending` was true — triggering a dispatch loop
+   before any real CAN command arrived.
+3. Even after the fix, `loop()` still calls `LaserController::setLaserVal()` on the
+   master. If the master happens to have `LASER_CONTROLLER` compiled in and no local
+   laser pins, this is a no-op with misleading log output.
+
+### The architectural tension
+
+The root issue is that the module controller classes (`LaserController`, `FocusMotor`,
+etc.) conflate two orthogonal concerns:
+
+1. **What hardware is available on this node** — determined at compile time by pin
+   configuration and the `*_CONTROLLER` flags.
+2. **How commands reach the hardware** — local GPIO, old ISO-TP CAN, or CANopen SDO/PDO
+   — determined by a mix of build flags (`CAN_HYBRID`, `CAN_BUS_ENABLED`, …) and
+   increasingly also runtime role (`runtimeConfig.canRole`).
+
+The current approach embeds routing decisions deep inside `act()` / `setLaserVal()` as
+nested `#ifdef` chains. This means:
+
+- Adding a new transport (e.g., I2C expander, Ethernet) requires touching every
+  controller file.
+- A "pure gateway" role (master that owns no local hardware) has no clean expression;
+  it must be impersonated by `CAN_BUS_ENABLED + CAN_SEND_COMMANDS` without `CAN_HYBRID`,
+  relying on graceful silent failure in the GPIO path.
+- `CANopenModule::loop()` must know which controllers are "local" vs "remote" and call
+  them accordingly — but it currently just calls every compiled-in controller blindly.
+
+### Possible rethink (TODO — needs design decision before implementation)
+
+Option A — **Role flag at build time:**
+Add a dedicated `-DCAN_MASTER_ONLY=1` flag (no local hardware, all commands routed to
+CAN slaves). Guard all controller `act()` GPIO paths with
+`#if !defined(CAN_MASTER_ONLY)`. `CANopenModule::loop()` skips local dispatch entirely
+when `CAN_MASTER_ONLY` is set.
+*Cheap to implement, but adds yet another flag to the matrix.*
+
+Option B — **Runtime role check inside each controller:**
+Each controller's `setLaserVal()` / `startStepper()` etc. checks
+`runtimeConfig.canRole == CAN_ROLE_MASTER` at runtime and forwards via `DeviceRouter`
+instead of touching GPIO.
+*Eliminates the flag explosion but couples every controller to `DeviceRouter` /
+`runtimeConfig`.*
+
+Option C — **Backend abstraction (cleanest, most work):**
+Each controller class (e.g., `LaserController`) gets an abstract backend interface:
+```
+class LaserBackend {
+  virtual void setChannel(int ch, int val) = 0;
+};
+class LocalGPIOLaserBackend  : public LaserBackend { ... };
+class CANopenLaserBackend    : public LaserBackend { ... };
+class HybridLaserBackend     : public LaserBackend { ... };
+```
+`LaserController::init()` constructs the right backend based on pinConfig + canRole.
+`act()` always calls `backend->setChannel()`. The routing logic moves entirely out of
+the controller file and into the backend factory.
+`CANopenModule::loop()` no longer needs to call `LaserController::setLaserVal()` at
+all on the master — the CANopen backend is the one doing SDO writes.
+*This is the cleanest long-term architecture but requires non-trivial refactoring of
+every controller class.*
+
+### Immediate workaround (already applied)
+
+The race-condition / infinite-loop bug in `syncRpdoToModules()` (laser pending flag
+always re-armed) has been fixed separately. That alone stops the spurious continuous
+`setLaserVal` calls on boot. The deeper architectural issue above is a **future PR** and
+should be addressed before adding further hardware backends.

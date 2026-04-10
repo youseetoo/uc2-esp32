@@ -642,11 +642,12 @@ void CANopenModule::syncRpdoToModules()
 #ifdef LASER_CONTROLLER
     for (int ch = 0; ch < 4; ch++) {
         uint16_t v = OD_RAM.x2100_laser_pwm_value[ch];
-        if (!s_laserCmds[ch].pending || s_laserCmds[ch].value != v) {
+        // Only arm pending when the OD value actually changed from the last dispatched value.
+        // Using OR (!pending || value!=v) caused an infinite loop: loop() clears pending,
+        // syncRpdoToModules() immediately re-arms it with the same value, ad infinitum.
+        if (s_laserCmds[ch].value != v) {
             s_laserCmds[ch].value   = v;
-            log_i(TAG_CO, "Laser channel %d: new PWM value %d", ch, (int)v);
-            // TODO: There is a race condition here - pending is not set to false and hence it's always polling (probably only in case the device is not connected? )
-            s_laserCmds[ch].pending = true; //TODO: This causes an infinite loop - we should rather go through the setlaservalue function instead of writing directly to the OD entry
+            s_laserCmds[ch].pending = true;
         }
     }
 #endif
@@ -763,11 +764,11 @@ void CANopenModule::loop()
 #endif
 
 #ifdef LASER_CONTROLLER
-    // Dispatch pending laser value updates
+    // Dispatch pending laser value updates (only fires on value change, see syncRpdoToModules)
     for (int ch = 0; ch < 4; ch++) {
         if (!s_laserCmds[ch].pending) continue;
-        s_laserCmds[ch].pending = false; // tODO: There is some race condition in case the laser is not connected 
-        log_i(TAG_CO, "Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
+        s_laserCmds[ch].pending = false;
+        ESP_LOGI(TAG_CO, "Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
         LaserController::setLaserVal(ch, (int)s_laserCmds[ch].value);
     }
 #endif

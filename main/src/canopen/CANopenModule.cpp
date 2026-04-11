@@ -720,29 +720,42 @@ void CANopenModule::loop()
     }
 
 #ifdef MOTOR_CONTROLLER
-    // Dispatch pending motor move/stop commands (per axis)
+    // Dispatch pending motor move/stop commands (per OD axis).
+    // runtimeConfig.canMotorAxis remaps the OD axis index (as written by the master) to
+    // the local FocusMotor axis that has the physical stepper wired up.
+    // Example: master always writes OD-axis 0; slave motor is at FocusMotor index 1 →
+    //          canMotorAxis = 1.
     for (int ax = 0; ax < 4; ax++) {
         if (!s_axisCmds[ax].pending) continue;
         s_axisCmds[ax].pending = false;
-        if (FocusMotor::getData()[ax] == nullptr) continue;
-        MotorData* m = FocusMotor::getData()[ax];
+        int localAxis = (int)runtimeConfig.canMotorAxis;
+        if (FocusMotor::getData()[localAxis] == nullptr) {
+            ESP_LOGW(TAG_CO, "Motor dispatch: OD-ax%d -> local-ax%d is null; check canMotorAxis", ax, localAxis);
+            continue;
+        }
+        MotorData* m = FocusMotor::getData()[localAxis];
         if (s_axisCmds[ax].isStop) {
-            m->isStop = true;
-            FocusMotor::startStepper(ax, 0);
+            m->isStop    = true;
+            m->isforever = false;
+            FocusMotor::startStepper(localAxis, 0);
         } else {
             m->targetPosition   = s_axisCmds[ax].pos;
             m->speed            = s_axisCmds[ax].speed;
             m->absolutePosition = s_axisCmds[ax].isAbs;
-            m->isforever        = false; //TODO: we need to provide acceleration, isforever, etc. too
+            m->isforever        = false; // OD protocol always sends an explicit target position
             m->isStop           = false;
             m->stopped          = false;
-            if (s_axisCmds[ax].accel > 0) m->acceleration = s_axisCmds[ax].accel;
-            else if (m->acceleration <= 0) m->acceleration = 40000;
-            ESP_LOGI(TAG_CO, "Dispatch motor %d: pos=%ld spd=%ld abs=%d",
-                     ax, (long)m->targetPosition, (long)m->speed, m->absolutePosition);
-            FocusMotor::startStepper(ax, 0);
+            // Use received acceleration; keep existing value if non-zero; fall back to 40000
+            if (s_axisCmds[ax].accel > 0)
+                m->acceleration = s_axisCmds[ax].accel;
+            else if (m->acceleration <= 0)
+                m->acceleration = 40000;
+            ESP_LOGI(TAG_CO, "Dispatch motor OD-ax%d -> local-ax%d: pos=%ld spd=%ld accel=%ld abs=%d",
+                     ax, localAxis, (long)m->targetPosition, (long)m->speed,
+                     (long)m->acceleration, m->absolutePosition);
+            FocusMotor::startStepper(localAxis, 0);
         }
-    } // TODO: How about stopStepper?
+    }
 #endif
 
 #ifdef HOME_MOTOR

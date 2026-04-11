@@ -35,7 +35,8 @@ bool CANopenMotorBackend::writeMotorSDO(int axis, MotorData* data, bool isStop)
         return false;
     }
 
-    // Each slave currently hosts one motor; sub-index always 1 (1-based array).
+    // Each slave currently hosts one motor; sub-index always 1 (1-based array). // TODO: MAke this adaptive in case we have multiple motors per node in the future
+    // TODO: We need to provide more motor commands on the slave side, acceleration, isforever, etc. For now we can overload the existing target position, speed, and command word entries for simplicity.
     uint8_t sub = 1;
 
     if (!isStop && data != nullptr) {
@@ -55,11 +56,11 @@ bool CANopenMotorBackend::writeMotorSDO(int axis, MotorData* data, bool isStop)
 
         // Trigger start: bit[0] in command word
         uint8_t cmdWord = 0x01;
-        return CANopenModule::writeSDO(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, &cmdWord, 1);
+        return CANopenModule::writeSDO(nodeId, UC2_OD::MOTOR_COMMAND_WORD, sub, &cmdWord, 1);
     } else {
         // Trigger stop: bit[4] in command word
         uint8_t cmdWord = 0x10;
-        return CANopenModule::writeSDO(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, &cmdWord, 1);
+        return CANopenModule::writeSDO(nodeId, UC2_OD::MOTOR_COMMAND_WORD, sub, &cmdWord, 1);
     }
 }
 

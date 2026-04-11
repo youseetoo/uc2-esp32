@@ -728,9 +728,11 @@ void CANopenModule::loop()
     for (int ax = 0; ax < 4; ax++) {
         if (!s_axisCmds[ax].pending) continue;
         s_axisCmds[ax].pending = false;
-        int localAxis = (int)runtimeConfig.canMotorAxis;
+        // pinConfig.REMOTE_MOTOR_AXIS_ID is the compile-time authoritative axis index for
+        // the physical stepper on this slave board — always correct, no runtime config needed.
+        int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
         if (FocusMotor::getData()[localAxis] == nullptr) {
-            ESP_LOGW(TAG_CO, "Motor dispatch: OD-ax%d -> local-ax%d is null; check canMotorAxis", ax, localAxis);
+            ESP_LOGW(TAG_CO, "Motor dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
         }
         MotorData* m = FocusMotor::getData()[localAxis];

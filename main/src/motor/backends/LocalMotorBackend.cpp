@@ -8,13 +8,25 @@
 #ifdef USE_ACCELSTEP
 #include "../AccelStep.h"
 #endif
+#ifdef USE_TCA9535
+#include "../../i2c/tca_controller.h"
+#endif
 
 void LocalMotorBackend::setup()
 {
-    // The actual FastAccelStepper/AccelStepper init is still done in FocusMotor::setup()
-    // because it depends on TCA9535 wiring and pin config. This backend only wraps
-    // the runtime calls.
-    log_i("LocalMotorBackend::setup()");
+    log_i("LocalMotorBackend::setup(): initialising stepper hardware");
+#ifdef USE_FASTACCEL
+#ifdef USE_TCA9535
+    FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+    FAccelStep::setupFastAccelStepper();
+#endif
+#ifdef USE_ACCELSTEP
+#ifdef USE_TCA9535
+    AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+    AccelStep::setupAccelStepper();
+#endif
 }
 
 void LocalMotorBackend::loop()

@@ -35,7 +35,7 @@ static int getMotorStepPin(int axis)
 
 IMotorBackend* createMotorBackend()
 {
-#ifdef CAN_CONTROLLER_CANOPEN
+#ifdef  
     if (runtimeConfig.canRole == NodeRole::CAN_MASTER && !hasLocalMotorPins()) {
         // Pure master: forward everything via CANopen SDO
         uint8_t nodeIds[4] = {

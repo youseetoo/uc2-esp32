@@ -1130,7 +1130,13 @@ namespace FocusMotor
 			data[i]->speed = 0;
 			log_i("stopStepper Focus Motor %i via backend", i);
 			sendMotorPos(i, 0);
+#ifdef CAN_RECEIVE_MOTOR
+			// On CAN slave: push completion to master via CAN message
+			if (data[i]->qid > 0)
+				can_controller::sendQidReportToMaster(data[i]->qid, 0);
+#else
 			QidRegistry::reportActionDone(data[i]->qid);
+#endif
 			return;
 		}
 

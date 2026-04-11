@@ -11,6 +11,7 @@
 #include "../i2c/tca9535.h"
 #endif
 #include "MotorTypes.h"
+#include "IMotorBackend.h"
 
 #ifdef MOTOR_CONTROLLER
 #if !defined USE_FASTACCEL && !defined USE_ACCELSTEP &&  !defined DIAL_CONTROLLER && !defined CAN_RECEIVE_MOTOR && !defined CAN_SEND_COMMANDS
@@ -24,6 +25,9 @@
 
 namespace FocusMotor
 {
+	// Motor backend — created once at boot by the factory
+	extern IMotorBackend* backend;
+
 	void setup();
 	void loop();
 	// array of MOTOR_AXIS_COUNT to keep track which motor is activated depending on the size of MOTOR_AXIS_COUNT

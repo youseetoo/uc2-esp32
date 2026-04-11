@@ -9,6 +9,7 @@
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "esp_debug_helpers.h"
+#include "MotorBackendFactory.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #include "../encoder/PCNTEncoderController.h"
@@ -40,6 +41,8 @@
 
 namespace FocusMotor
 {
+
+	IMotorBackend* backend = nullptr;
 
 	MotorData a_dat;
 	MotorData x_dat;
@@ -192,67 +195,55 @@ namespace FocusMotor
 		// allowing gamepad to retry quickly if mutex is busy.
 		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
 		{
+			if (backend) {
+				// Backend handles all routing (local, CAN, hybrid)
+#if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
+				waitForFirstRun[axis] = 1;
+#endif
+				backend->startMove(axis, getData()[axis], reduced);
+			} else {
+				// Fallback for legacy CAN builds without CANopen backend
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
-			if (shouldUseCANForAxis(axis))
-			{ //TODO: This is really odd, let's update this at some point 
-				// Route to CAN satellite
-				// Convert hybrid axis (4,5,6,7) to CAN axis (0,1,2,3) for addressing
-				int canAxis = getCANAxisForHybrid(axis);
-				log_i("Hybrid mode: Routing axis %d to CAN axis %d (address %d)", axis, canAxis, can_controller::axis2id(canAxis));
-
-				// Copy motor data from internal axis to CAN axis position for can_controller to use
-				MotorData *srcData = getData()[axis];
-				MotorData *canData = getData()[canAxis];
-				if (srcData != nullptr && canData != nullptr)
+				if (shouldUseCANForAxis(axis))
 				{
-					// Copy motor settings to CAN axis
-					*canData = *srcData;
-					int err = can_controller::startStepper(canData, canAxis, reduced);
-					if (err != 0)
+					int canAxis = getCANAxisForHybrid(axis);
+					MotorData *srcData = getData()[axis];
+					MotorData *canData = getData()[canAxis];
+					if (srcData != nullptr && canData != nullptr)
 					{
-						getData()[axis]->stopped = true;
-						sendMotorPos(axis, 0);
+						*canData = *srcData;
+						int err = can_controller::startStepper(canData, canAxis, reduced);
+						if (err != 0)
+						{
+							getData()[axis]->stopped = true;
+							sendMotorPos(axis, 0);
+						}
 					}
 				}
 				else
 				{
-					log_e("Hybrid mode: Invalid motor data for axis %d or CAN axis %d", axis, canAxis);
+#if defined(USE_FASTACCEL)
+					waitForFirstRun[axis] = 1;
+					FAccelStep::startFastAccelStepper(axis);
+#elif defined(USE_ACCELSTEP)
+					AccelStep::startAccelStepper(axis);
+#endif
+				}
+#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
+				MotorData *m = getData()[axis];
+				int err = can_controller::startStepper(m, axis, reduced);
+				if (err != 0)
+				{
 					getData()[axis]->stopped = true;
 					sendMotorPos(axis, 0);
 				}
-			}
-			else
-			{
-				// Use native driver (FastAccelStepper or AccelStepper)
-				log_i("Hybrid mode: Routing axis %d to native driver", axis);
-#if defined(USE_FASTACCEL)
+#elif defined USE_FASTACCEL
 				waitForFirstRun[axis] = 1;
 				FAccelStep::startFastAccelStepper(axis);
-#elif defined(USE_ACCELSTEP)
-				AccelStep::startAccelStepper(axis);
-#else
-				log_w("No native motor driver available for axis %d in hybrid mode", axis);
-				getData()[axis]->stopped = true;
-				sendMotorPos(axis, 0);
-#endif
-			}
-#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-			// Pure CAN master mode (non-hybrid) - all motors via CAN
-			MotorData *m = getData()[axis];
-			int err = can_controller::startStepper(m, axis, reduced);
-			if (err != 0)
-			{
-				getData()[axis]->stopped = true;
-				sendMotorPos(axis, 0);
-			}
-
-#elif defined USE_FASTACCEL
-			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
-			FAccelStep::startFastAccelStepper(axis);
 #elif defined USE_ACCELSTEP
-			AccelStep::startAccelStepper(axis);
+				AccelStep::startAccelStepper(axis);
 #endif
+			}
 			getData()[axis]->stopped = false;
 			xSemaphoreGive(xMutex);
 		}
@@ -315,6 +306,7 @@ namespace FocusMotor
 
 	void setAutoEnable(bool enable)
 	{
+		if (backend) { backend->setAutoEnable(enable); return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::setAutoEnable(enable);
 #endif
@@ -322,6 +314,7 @@ namespace FocusMotor
 
 	void setEnable(bool enable)
 	{
+		if (backend) { backend->setEnable(enable); return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::Enable(enable);
 #elif defined USE_ACCELSTEP
@@ -333,17 +326,18 @@ namespace FocusMotor
 
 	void updateData(int axis)
 	{
-// Request the current position from the slave motors depending on the interface
+		if (backend) {
+			backend->updateData(axis);
+			return;
+		}
+// Fallback: legacy routing for non-CANopen builds
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(axis))
 		{
 			// CAN axes: position is assigned externally via CAN messages
-			// Nothing to do here as the slave pushes updates
 		}
 		else
 		{
-			// Native axes: update from local driver
 #if defined(USE_FASTACCEL)
 			FAccelStep::updateData(axis);
 #elif defined(USE_ACCELSTEP)
@@ -357,44 +351,30 @@ namespace FocusMotor
 #elif defined I2C_MASTER
 		MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
-		// data[axis]->isforever = mMotorState.isforever;
-#elif defined CAN_BUS_ENABLED
-		// FIXME: nothing to do here since the position is assigned externally?
 #endif
 	}
 
 	long getCurrentMotorPosition(int axis)
 	{
-		// Get real-time motor position directly from stepper library
+		if (backend) {
+			return backend->getPosition(axis);
+		}
+// Fallback: legacy routing for non-CANopen builds
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
 		if (shouldUseCANForAxis(axis))
 		{
-			// CAN axes: use cached position
 			return data[axis]->currentPosition;
 		}
 		else
 		{
-			// Native axes: get from local driver
 #if defined(USE_FASTACCEL)
 			return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
-#elif defined(USE_ACCELSTEP)
-			return data[axis]->currentPosition;
 #else
 			return data[axis]->currentPosition;
 #endif
 		}
 #elif defined USE_FASTACCEL
 		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
-#elif defined USE_ACCELSTEP
-		// For AccelStep, we need to rely on cached position
-		return data[axis]->currentPosition;
-#elif defined I2C_MASTER
-		// For I2C, we need to rely on cached position
-		return data[axis]->currentPosition;
-#elif defined CAN_BUS_ENABLED
-		// For CAN, we need to rely on cached position
-		return data[axis]->currentPosition;
 #else
 		return data[axis]->currentPosition;
 #endif
@@ -632,6 +612,16 @@ namespace FocusMotor
 
 		// Initialize motor-encoder conversion configuration
 		MotorEncoderConfig::setup();
+
+		// Create motor backend (routing decision made once at boot)
+		backend = createMotorBackend();
+		if (backend) {
+			log_i("Motor backend created: %s", backend->name());
+			backend->setup();
+			sendMotorPosition();
+			return; // backend handles all hardware init
+		}
+		log_i("No motor backend created, using legacy init path");
 
 #if (defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR))
 		// stop all motors on startup
@@ -983,6 +973,7 @@ namespace FocusMotor
 
 	bool isRunning(int i)
 	{
+		if (backend) { return backend->isRunning(i); }
 		bool mIsRunning = false;
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
@@ -1131,7 +1122,17 @@ namespace FocusMotor
 
 	void stopStepper(int i)
 	{
-
+		if (backend) {
+			backend->stopMove(i);
+			data[i]->stopped = true;
+			data[i]->isStop = true;
+			data[i]->isforever = false;
+			data[i]->speed = 0;
+			log_i("stopStepper Focus Motor %i via backend", i);
+			sendMotorPos(i, 0);
+			QidRegistry::reportActionDone(data[i]->qid);
+			return;
+		}
 
 #if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
 		// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
@@ -1210,6 +1211,7 @@ namespace FocusMotor
 
 	void setPosition(Stepper s, int pos)
 	{
+		if (backend) { backend->setPosition(static_cast<int>(s), pos); getData()[s]->currentPosition = pos; return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
 #elif defined USE_ACCELSTEP
@@ -1220,6 +1222,7 @@ namespace FocusMotor
 
 	void move(Stepper s, int steps, bool blocking)
 	{
+		if (backend) { backend->startMove(static_cast<int>(s), data[static_cast<int>(s)], 0); return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::move(s, steps, blocking);
 #endif

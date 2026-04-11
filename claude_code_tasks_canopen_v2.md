@@ -1,45 +1,138 @@
-# UC2 CANopen Migration — Work Packages v2 (post PR-119)
+# UC2 CANopen Migration — Work Packages v2 (post PR-119 at cf9d896)
 
 ## Where we are right now
 
-**PR #119** (`feature/runtime-config`) is in flight and contains everything from the
-original PR-1 through PR-5 in one branch:
+**PR #119** (`feature/runtime-config`) at commit `cf9d896` contains everything from the
+original PR-1 through PR-7, the registry + generator, a first pass at OTA, and a design
+note calling out the routing problem that PR-7.5 is going to solve:
 
-| Original PR | What it added | Status in #119 |
-|------------|---------------|----------------|
+| PR | What it added | Status in commit `cf9d896` |
+|----|---------------|----------------------------|
 | PR-1 | RuntimeConfig + NVS | Done |
 | PR-2 | Rename `can_controller` → `can_transport` | Done |
 | PR-3 | CANopenNode library in `lib/ESP32_CanOpenNode/` | Done |
 | PR-4 | `CANopenModule` slave (TWAI + OD↔Module sync) | Done |
 | PR-5 | `DeviceRouter` master (JSON → SDO bridge) | Done |
+| PR-6 | Registry YAML + generator + generated artifacts | Done (in `tools/canopen/`) |
+| PR-7 | Native UC2 OD (replaces trainer OD, removes encoded-uint16 workaround) | Done (in `lib/uc2_od/`) |
+| PR-11 | OTA via CANopen — first pass | Partial — `CanOtaHandler.cpp`, `CanOtaStreaming.cpp`, `tools/ota/*.py` present; needs integration test + cleanup |
+
+### Concretely in the repo at `cf9d896`
+
+Directory layout that has appeared on the branch:
+
+```
+tools/canopen/
+  ├── regenerate_all.py          ← generator
+  ├── uc2_canopen_registry.yaml  ← single source of truth
+  └── canopen_targets.py         ← target paths for generated files
+
+.github/workflows/
+  └── canopen-registry-check.yml ← CI drift guard (runs regenerate_all.py + git diff --exit-code)
+
+lib/uc2_od/
+  ├── OD.c                       ← the native UC2 OD (replaces trainer OD)
+  ├── OD.h
+  └── library.json
+
+lib/ESP32_CanOpenNode/src/
+  ├── OD.c                       ← stub / delegation to lib/uc2_od
+  ├── OD_trainer.h               ← old trainer OD, kept as reference only
+  ├── OD_OLD_C.TXT               ← old OD.c renamed as archive
+  └── OD_OLD_H.TXT               ← old OD.h renamed as archive
+
+main/src/canopen/
+  ├── CANopenModule.cpp / .h     ← TWAI + FreeRTOS tasks + OD↔Module sync
+  ├── DeviceRouter.cpp / .h      ← master-side JSON → SDO bridge
+  └── UC2_OD_Indices.h           ← generated C++ named constants
+
+main/src/can/
+  ├── CanOtaHandler.cpp          ← PR-11 first pass: SDO domain callback
+  ├── CanOtaStreaming.cpp        ← PR-11 first pass: master-side streaming
+  ├── can_transport.cpp          ← OLD, still present, PR-12 will delete
+  ├── can_messagetype.h          ← OLD, PR-12 will delete
+  ├── can_controller_stubs.cpp   ← OLD shim, PR-12 will delete
+  └── iso-tp-twai/               ← OLD, PR-12 will delete
+
+main/config/
+  ├── UC2_canopen_master/        ← NEW build environment config
+  └── UC2_canopen_slave/         ← NEW build environment config
+
+tools/ota/
+  ├── can_ota_simple.py
+  ├── can_ota_streaming.py
+  ├── can_ota_test.py
+  └── test_binary_sync.py
+
+DOCUMENTATION/
+  ├── openUC2_satellite.eds      ← OLD, from create_eds.py (≈53 mfr objects)
+  ├── openUC2_satellite_new.eds  ← NEW, from regenerate_all.py (≈90 mfr objects)
+  ├── create_eds.py              ← OLD standalone generator, SUPERSEDED
+  └── UC2_CANopen_Parameters.md  ← generated reference
+```
 
 **What works end-to-end today:**
 
-- Three build environments compile: `UC2_canopen_master`, `UC2_canopen_slave`, `UC2_3_CAN_HAT_Master_v2`
-- Master receives `motor_act` JSON over serial
-- DeviceRouter writes target position, speed, and ctrl flags via SDO to the slave
-- Slave's `syncRpdoToModules()` decodes the OD entries and calls `FocusMotor::startStepper()`
-- Motor moves
+- `UC2_canopen_master`, `UC2_canopen_slave`, and `UC2_3_CAN_HAT_Master_v2` compile
+- Master receives `motor_act` JSON, `DeviceRouter` writes target position, speed,
+  acceleration, and control word as single SDO writes (no split-uint16)
+- Slave's `syncRpdoToModules()` decodes the UC2 OD entries (`0x2000` range) and calls
+  `FocusMotor::startStepper()` with the full parameter set
 - Slave's `syncModulesToTpdo()` writes actual position back into the OD
-- Master can read it via `motor_get`
+- Master reads it via `motor_get` (still polling — TPDO push lands in PR-8)
+- `canMotorAxis` runtime parameter lets a slave choose which local axis it owns
+- TWAI bus-off recovery works without driver reinstall on ESP32-S3
+- The registry-drift CI check catches any YAML edit that isn't accompanied by
+  regenerated EDS/OD.h/Indices
+- First pass at CANopen OTA exists but is not yet the clean PR-11 described below
 
-**What is still wrong / temporary:**
+### Two EDS files — version drift issue
 
-The motor command currently uses a five-write workaround that splits `int32_t` position
-across two `uint16` OD entries because the trainer OD doesn't have a native `int32` slot:
+**You have two EDS files on the branch and they disagree on content.**
 
-```cpp
-// CURRENT (temporary)
-//   0x6401:01 = posHi  (uint16, bits 31..16)
-//   0x6401:02 = posLo  (uint16, bits 15..0)
-//   0x6401:03 = speed  (uint16, clamped)
-//   0x6401:04 = ctrl   (uint16, bit0=isAbs, bit1=isStop)
-//   0x6200:01 = trigger (uint8, bit0=1 to start move)
-```
+| File | Generator | Approx. size | Source of truth? |
+|------|-----------|--------------|------------------|
+| `DOCUMENTATION/openUC2_satellite.eds` | `DOCUMENTATION/create_eds.py` (old hand-written) | ~2900 lines, 53 manufacturer objects | NO — delete after PR-7.5 |
+| `DOCUMENTATION/openUC2_satellite_new.eds` | `tools/canopen/regenerate_all.py` (registry-driven) | ~3738 lines, 90 manufacturer objects | **YES — this is canonical** |
 
-This is fragile, limits speed to 65535, drops acceleration entirely, and uses CiA 401
-generic-I/O indices instead of UC2-specific ones. Everything from here onwards rebuilds
-on a proper foundation.
+The new file is bigger because it adds motor soft limits (`0x2008`/`0x2009`/`0x200A`
+jerk), endstop polarity (`0x2015`), TMC CoolStep semin/semax/blank/toff
+(`0x2024`-`0x2027`), laser frequency/resolution/despeckle/safety
+(`0x2103`-`0x2106`), LED layout/pattern/pixel-data (`0x2205`/`0x2210`/`0x2220`/`0x2221`),
+digital out (`0x2302`), analog channels (`0x2311`), encoder velocity
+(`0x2341`/`0x2342`), joystick deadzone (`0x2403`), system uptime/heap/board
+(`0x2506`/`0x2507`), galvo extra (`0x2609`-`0x260F`), full PID block
+(`0x2700`-`0x2705`), OTA abort (`0x2F04`/`0x2F05`).
+
+The new file *removes* the old temperature sensor `0x2330` (relocated).
+
+**Resolution:** the registry YAML is the source of truth. The new EDS is correct. The
+old EDS and the old `create_eds.py` are both dead and should be removed as part of
+PR-7.5 cleanup. See the "Cleanup tasks" section under PR-7.5.
+
+**What is still wrong — the architectural issue you called out:**
+
+> **The module controller flags are device-role-agnostic.** A board compiled with
+> `-DLASER_CONTROLLER=1` runs `LaserController.cpp` regardless of whether that hardware
+> actually lives on this node or on a remote CAN slave. The routing decision (local
+> GPIO vs forward over CAN) is buried inside `setLaserVal()` as a chain of `#ifdef`
+> guards. On a pure CAN master/gateway board the routing block is never entered, the
+> code falls through to the GPIO path, `getLaserPin()` returns `-1`, and the command
+> silently no-ops. Worse, `CANopenModule::loop()` calls `LaserController::setLaserVal()`
+> directly on the master with the master's empty OD entries — causing spurious
+> local-hardware calls on a board that should be routing via SDO instead.
+
+This is a **conceptual issue**, not a single-line bug. The design note at the bottom of
+`claude_code_tasks_canopen_v2.md` in the repo spells it out in full. A new work
+package — **PR-7.5: Module backend abstraction** — has been added below to fix it before
+any further controllers are wired into the OD. PR-9 (laser/LED) and PR-10 (galvo)
+**must wait for PR-7.5** because they would otherwise inherit the same broken pattern.
+
+The race-condition / infinite-loop bug where `syncRpdoToModules()` re-armed the laser
+pending flag on every cycle has already been fixed in commit `cf9d896`. That stops the
+spurious continuous `setLaserVal` calls on boot, but it does not address the deeper
+routing problem — the laser can still be commanded twice (once by `laser_act` direct,
+once by the CANopen loop when it sees the OD pending flag).
 
 ## End goal
 
@@ -222,25 +315,69 @@ the OD indices and the destination function call change.
 
 Place these in the repo before starting:
 
-| File | Path | Purpose |
-|------|------|---------|
-| `uc2_canopen_registry.yaml` | `tools/uc2_canopen_registry.yaml` | Single source of truth for all OD entries |
-| `regenerate_all.py` | `tools/regenerate_all.py` | Generates EDS, OD.h, C++ headers, Python constants, docs |
-| `openUC2_satellite.eds` | `DOCUMENTATION/openUC2_satellite.eds` | Generated — load in CANopenEditor for visual review |
+| File | Path on branch | Purpose |
+|------|---------------|---------|
+| `uc2_canopen_registry.yaml` | `tools/canopen/uc2_canopen_registry.yaml` | Single source of truth for all OD entries |
+| `regenerate_all.py` | `tools/canopen/regenerate_all.py` | Generates EDS, OD.h, C++ headers, Python constants, docs |
+| `canopen_targets.py` | `tools/canopen/canopen_targets.py` | Target paths — tells the generator where each output file goes |
+| `openUC2_satellite.eds` | `DOCUMENTATION/openUC2_satellite_new.eds` (currently side-by-side with the old one) | Generated by `regenerate_all.py` from the registry. Canonical EDS. |
+| `UC2_CANopen_Parameters.md` | `DOCUMENTATION/UC2_CANopen_Parameters.md` | Generated human-readable reference |
 | `UC2_OD_Indices.h` | `main/src/canopen/UC2_OD_Indices.h` | Generated — C++ named constants |
 | `uc2_indices.py` | `PYTHON/uc2_canopen/uc2_indices.py` | Generated — Python named constants for Waveshare scripts |
+| `OD.c` / `OD.h` | `lib/uc2_od/OD.c`, `lib/uc2_od/OD.h` | Native UC2 OD replacing the trainer OD |
+| CI drift guard | `.github/workflows/canopen-registry-check.yml` | Ensures YAML + generated files never drift apart |
+
+> **EDS version drift.** PR #119 currently contains TWO EDS files that disagree:
+>
+> | File | Source | Mfr objects | Verdict |
+> |------|--------|-------------|---------|
+> | `openUC2_satellite.eds` | old `DOCUMENTATION/create_eds.py` | ~53 | obsolete, delete |
+> | `openUC2_satellite_new.eds` | `tools/canopen/regenerate_all.py` | ~90 | canonical, rename to `openUC2_satellite.eds` after cleanup |
+>
+> The new file adds soft limits, jerk, additional TMC tuning (CoolStep semin/semax,
+> blank time, toff), laser frequency/resolution/safety state, LED layout/pattern/
+> pixel-data, encoder velocity, joystick deadzone, system uptime/heap/board ID,
+> additional galvo modes, the full PID block (`0x2700`-`0x2705`), and OTA abort flags
+> (`0x2F04`-`0x2F05`). The old file uses CiA 401 indices in a few places
+> (`0x6000`/`0x6200`/`0x6401`) that never belonged there.
+>
+> **Cleanup action (part of PR-7.5):** delete `DOCUMENTATION/create_eds.py` and
+> `DOCUMENTATION/openUC2_satellite.eds`, rename `openUC2_satellite_new.eds` to
+> `openUC2_satellite.eds`, and update any references (including this document and
+> the CI check's path glob).
 
 ---
 
-## PR-6: Generator infrastructure + drop-in registry
+## PR-6: Generator infrastructure + drop-in registry  ✅ DONE
 
-**Branch:** `feature/canopen-registry`
-**Depends on:** PR #119 (current state of `feature/runtime-config`)
-**Estimated scope:** ~5 new files, no firmware behaviour change yet
-**Why first in this batch:** every later PR consumes generated output; we need the
-generator before we can regenerate anything.
+**Branch:** merged into `feature/runtime-config` — see commits `bc55b1b`, `7252962`
+**Status:** Landed in PR #119 at commit `7252962` ("Regenerate CANopen registry and add CI")
 
-### Claude Code prompt
+### What landed
+
+- `tools/canopen/uc2_canopen_registry.yaml` — registry YAML in a `canopen/` subdirectory
+  (the sub-dir is fine; update any docs that reference `tools/uc2_canopen_registry.yaml`)
+- `tools/canopen/regenerate_all.py` — generator
+- `tools/canopen/canopen_targets.py` — target path resolver
+- `.github/workflows/canopen-registry-check.yml` — CI drift guard
+- Generated: `DOCUMENTATION/openUC2_satellite_new.eds` (**note:** `_new` suffix, PR-7.5
+  renames this to remove the suffix)
+- Generated: `DOCUMENTATION/UC2_CANopen_Parameters.md`
+- Generated: `main/src/canopen/UC2_OD_Indices.h`
+- Generated: `PYTHON/uc2_canopen/uc2_indices.py`
+- `tools/README.md` documenting the pipeline
+
+### What still needs cleanup from PR-6 (moved to PR-7.5)
+
+- `DOCUMENTATION/create_eds.py` — still present, obsolete, needs deletion
+- `DOCUMENTATION/openUC2_satellite.eds` — old 53-object version, needs deletion
+- `PYTHON/canopen/create_eds.py` — duplicate obsolete generator, also needs deletion
+- `openUC2_satellite_new.eds` → rename to `openUC2_satellite.eds` after deleting the old
+
+### Original prompt (kept for reference only — do not rerun)
+
+<details>
+<summary>Click to expand</summary>
 
 ```
 Goal: Add the parameter registry + generator scripts as the foundation for all later
@@ -249,31 +386,38 @@ generated files. The motor still moves via the split-uint16 workaround after thi
 
 Steps:
 
-1. Copy these files into the repo:
+1. DELETE the obsolete EDS generator and its output:
+   - DOCUMENTATION/create_eds.py        ← obsolete standalone generator
+   - DOCUMENTATION/openUC2_satellite.eds ← obsolete EDS (53 mfr objects, hand-coded)
+   These are replaced by the registry-driven pipeline below. The registry generator
+   produces a strict superset of the old EDS (90 mfr objects vs 53) and uses different
+   index allocations, so leaving the old file in place would cause confusion.
+
+2. Copy these files into the repo:
    - tools/uc2_canopen_registry.yaml      (provided — single source of truth)
    - tools/regenerate_all.py              (provided — generator)
 
-2. Run the generator once:
+3. Run the generator once:
    cd tools && python regenerate_all.py
 
    This creates:
-   - DOCUMENTATION/openUC2_satellite.eds
+   - DOCUMENTATION/openUC2_satellite.eds  (3738 lines, 90 mfr objects)
    - DOCUMENTATION/UC2_CANopen_Parameters.md
    - main/src/canopen/UC2_OD_Indices.h
    - PYTHON/uc2_canopen/uc2_indices.py
    - lib/uc2_od/OD.h          (skeleton only — full OD.c table comes in PR-7)
    - lib/uc2_od/OD.c          (stub only — replaced in PR-7)
 
-3. Verify the generated UC2_OD_Indices.h compiles by including it in CANopenModule.cpp:
+4. Verify the generated UC2_OD_Indices.h compiles by including it in CANopenModule.cpp:
    #include "UC2_OD_Indices.h"
    But do NOT use any of the constants yet — that's PR-7. Just verify the header compiles.
 
-4. Add a CI check to .github/workflows/ (or extend existing workflow) that runs:
+5. Add a CI check to .github/workflows/ (or extend existing workflow) that runs:
    python tools/regenerate_all.py
    git diff --exit-code
    This catches drift between the registry and the generated files.
 
-5. Add tools/README.md explaining:
+6. Add tools/README.md explaining:
    - The registry is the single source of truth
    - Workflow for adding a new parameter:
      a) Edit uc2_canopen_registry.yaml
@@ -282,7 +426,7 @@ Steps:
    - How to add a new module type (motor, laser, etc.)
    - How CANopenEditor fits in (visual review of the generated EDS, optional re-export)
 
-6. Add a Makefile target or pio script:
+7. Add a Makefile target or pio script:
    pio run -t canopen-regen
    that invokes the generator. Document it in the main README.
 
@@ -298,6 +442,7 @@ Verification:
 - python tools/regenerate_all.py exits 0
 - Generated files are committed
 - DOCUMENTATION/openUC2_satellite.eds opens without errors in CANopenEditor
+- The old DOCUMENTATION/create_eds.py is deleted from the tree
 
 Notes:
 - The registry contains 13 modules with ~90 OD entries covering motor, homing, TMC,
@@ -306,9 +451,19 @@ Notes:
   entries.
 ```
 
+</details>
+
 ---
 
-## PR-7: Replace trainer OD with native UC2 OD
+## PR-7: Replace trainer OD with native UC2 OD  ✅ DONE
+
+> **Status:** Merged into `feature/runtime-config` (PR #119). The encoded-uint16
+> workaround is gone. Motor commands are now native int32 SDO writes against UC2 OD
+> indices (`UC2_OD::MOTOR_TARGET_POSITION` etc.). Acceleration is wired through. The
+> `canMotorAxis` runtime parameter selects which local axis a slave owns.
+>
+> The original task prompt is preserved below for traceability and so future hardware
+> can follow the same pattern. **Skip ahead to PR-7.5 for the next work item.**
 
 **Branch:** `feature/canopen-uc2-od`
 **Depends on:** PR-6
@@ -583,6 +738,315 @@ Verification:
   and observing the move profile).
 - grep -r "posHi\|posLo\|0x6401\|0x6200.*trigger" main/src/canopen/   should return empty
 ```
+
+---
+
+## PR-7.5: Module backend abstraction (fix the routing tangle)
+
+**Branch:** `refactor/module-backends`
+**Depends on:** PR-7 (done)
+**Blocks:** PR-9 (illumination), PR-10 (galvo) — these would otherwise be built on the
+broken routing pattern
+**Estimated scope:** ~600 lines added (backend interfaces + 3 implementations per module),
+~200 lines deleted (`#ifdef` chains inside controllers), no behaviour change for the
+standalone `UC2_3` build
+
+### Why this PR exists
+
+The conceptual issue documented at the bottom of this file: build flags like
+`-DLASER_CONTROLLER=1` are device-role-agnostic. The same compilation unit
+(`LaserController.cpp`) is built for the standalone, pure-CAN-master, and CAN-hybrid
+environments. The decision "drive a local GPIO" vs "send an SDO to a remote slave" lives
+inside `setLaserVal()` as a chain of `#ifdef` guards. On a pure CAN master the routing
+block is never entered, the code falls through to the GPIO path, `getLaserPin()` returns
+`-1`, and the command silently no-ops.
+
+The fix is to split each controller into two halves: a thin **front-end** (parses JSON,
+validates parameters, tracks QIDs) and a swappable **backend** that knows how to actually
+make the hardware move. The backend is selected once at boot time based on the
+combination of `pinConfig` and `runtimeConfig.canRole`. After that, the controller code
+no longer cares whether the hardware is on this board or a CAN slave on the other side
+of the bus — it just calls `backend->setChannel(...)` and the backend does the right
+thing.
+
+This is also the right shape for adding new transports later (I2C expander, Ethernet,
+Pi-direct via Waveshare). The front-end doesn't change. You add a new backend
+implementation and select it in the factory.
+
+### Three options considered, Option C (backend interface) chosen
+
+| Option | What it does | Pros | Cons |
+|--------|-------------|------|------|
+| **A** — `-DCAN_MASTER_ONLY=1` flag | Add another build flag, guard GPIO paths with it | Cheap, ~2 hours of work | Adds yet another flag to the matrix; doesn't help with future transports |
+| **B** — Runtime check inside each controller | Each `act()` checks `runtimeConfig.canRole` and forwards via DeviceRouter | No new flag | Couples every controller to DeviceRouter and runtimeConfig; the routing logic is duplicated in every controller; hard to test |
+| **C** — Backend abstraction (this PR) | `LaserBackend` interface with `LocalGPIOLaserBackend`, `CANopenLaserBackend`, `HybridLaserBackend`. `LaserController::init()` constructs the right backend based on pinConfig + canRole. `act()` always calls `backend->setChannel()`. | Clean separation; easy to test in isolation; drops in new transports without touching front-end code; eliminates 200+ lines of `#ifdef` from controllers | Most refactoring up front (~600 lines net); requires changing every controller class signature |
+
+Option C is the right answer long-term. The other two are stopgaps that will need to be
+ripped out later anyway when the next transport gets added.
+
+### Claude Code prompt
+
+```
+Goal: Eliminate the conflation between "what hardware exists on this node" and "how
+commands reach that hardware" by introducing a backend abstraction for each module
+controller. After this PR, the routing decision is made ONCE at boot in a factory
+function, not on every JSON command via #ifdef chains.
+
+The motor controller is the template — laser, LED, galvo, home, dial follow the same
+shape. Do motor first end-to-end, then mechanically replicate.
+
+PHASE 1 — Motor backend interface
+
+1. Create main/src/motor/IMotorBackend.h:
+
+   #pragma once
+   #include "MotorTypes.h"
+
+   class IMotorBackend {
+   public:
+       virtual ~IMotorBackend() = default;
+
+       // Lifecycle
+       virtual void setup() = 0;
+       virtual void loop()  = 0;
+
+       // Commands
+       virtual void startMove(Stepper axis, int32_t target, uint32_t speed,
+                              uint32_t accel, bool isAbs) = 0;
+       virtual void stopMove(Stepper axis) = 0;
+       virtual void setEnable(Stepper axis, bool en) = 0;
+
+       // State queries
+       virtual int32_t getPosition(Stepper axis) const = 0;
+       virtual bool    isRunning(Stepper axis)  const = 0;
+       virtual bool    isHomed(Stepper axis)    const = 0;
+
+       // Identification (for logging / diagnostics)
+       virtual const char* name() const = 0;
+   };
+
+2. Create main/src/motor/backends/LocalMotorBackend.h + .cpp:
+   - Wraps the existing FastAccelStepper code
+   - This is what runs today on a standalone UC2_3 board or a CAN slave
+   - Move the FastAccelStepper init, the run loop, the position queries from
+     FocusMotor.cpp into this class
+   - FocusMotor.cpp keeps its existing public API but DELEGATES to the backend
+     (see Phase 3)
+   - name() returns "LocalMotor"
+
+3. Create main/src/motor/backends/CANopenMotorBackend.h + .cpp:
+   - For each command, performs SDO writes via CANopenModule::writeSDO
+   - Uses UC2_OD::MOTOR_TARGET_POSITION etc. from the generated header
+   - getPosition() reads from the master's RemoteSlaveCache (PR-8 wires this)
+     Until PR-8 lands, falls back to a polling SDO read (acceptable interim behaviour)
+   - Constructor takes the slave nodeId so it knows where to forward
+   - name() returns "CANopenMotor(node=NN)"
+
+4. (Optional, for CAN_HYBRID boards): create HybridMotorBackend
+   - Holds an array of per-axis backends (some Local, some CANopen)
+   - Each call dispatches to the right per-axis backend based on canMotorAxis or
+     pinConfig
+   - This is the cleanest way to express "axis 0 is local, axes 1-3 are remote"
+
+PHASE 2 — Backend factory
+
+1. Create main/src/motor/MotorBackendFactory.h + .cpp:
+
+   IMotorBackend* createMotorBackend() {
+       // Decision tree based on runtimeConfig + pinConfig
+       if (runtimeConfig.canRole == CAN_MASTER && !hasLocalMotorPins()) {
+           // Pure master: forward everything
+           return new CANopenMotorBackend(/*per-axis nodeId map*/);
+       }
+       if (runtimeConfig.canRole == CAN_MASTER && hasLocalMotorPins()) {
+           // Hybrid master: some local, some remote
+           return new HybridMotorBackend(...);
+       }
+       if (runtimeConfig.canRole == CAN_SLAVE) {
+           // Slave: always local, the CANopenModule sync function calls our backend
+           return new LocalMotorBackend(/*single axis from canMotorAxis*/);
+       }
+       // STANDALONE
+       return new LocalMotorBackend();
+   }
+
+   The factory consults pinConfig.MOTOR_PINS to detect "do I have wiring", and
+   runtimeConfig.canRole to decide the role. This is the SINGLE place where the
+   compile-time-vs-runtime, local-vs-remote decision lives.
+
+PHASE 3 — Wire the backend into FocusMotor
+
+1. FocusMotor::setup() now does:
+
+   void FocusMotor::setup() {
+       backend = createMotorBackend();
+       log_i("FocusMotor using backend: %s", backend->name());
+       backend->setup();
+   }
+
+2. Every public method on FocusMotor delegates:
+
+   void FocusMotor::startStepper(Stepper axis) {
+       MotorData* d = getData()[axis];
+       backend->startMove(axis, d->targetPosition, d->speed, d->acceleration, d->isabs);
+   }
+
+   int32_t FocusMotor::getCurrentPosition(Stepper axis) {
+       return backend->getPosition(axis);
+   }
+
+   ... etc
+
+3. CANopenModule::syncRpdoToModules() KEEPS calling FocusMotor::startStepper() the
+   same way it does today. The difference is that on a master the backend is
+   CANopenMotorBackend, so the call quietly turns into another SDO write. On a slave
+   the backend is LocalMotorBackend, so the call drives the local GPIO. Same code
+   path, different backend.
+
+4. CRITICAL: CANopenModule::loop() must NOT call any module's act() function on a
+   master node. The whole point of the refactor is that the master forwards via the
+   backend, and the slave's CANopenNode stack has already received the SDO write and
+   updated OD_RAM. Add an assert at the top of every syncRpdoToModules / syncTpdoToModules
+   call: if (runtimeConfig.canRole == CAN_MASTER) return; (unless it's a hybrid that
+   genuinely owns local hardware AND has received its own RPDO).
+
+PHASE 4 — Repeat for laser, LED, galvo, home, dial, encoder
+
+For each controller:
+1. Define ILaserBackend / ILedBackend / etc.
+2. Move existing code into LocalXxxBackend
+3. Add CANopenXxxBackend that does SDO writes
+4. Add a factory that constructs the right one based on pinConfig + canRole
+5. Update the front-end controller to delegate to its backend
+
+The pattern is mechanical. Don't try to over-engineer per-module — copy the motor
+shape exactly, just rename the types.
+
+PHASE 5 — Delete the dead routing #ifdefs
+
+After every controller has a backend, search and destroy:
+- LaserController.cpp: remove the entire shouldUseCANForLaser() helper, the CAN_HYBRID
+  branch in setLaserVal(), the fallback to native GPIO. The backend is the only path.
+- FocusMotor.cpp: remove any #ifdef CAN_RECEIVE_MOTOR / CAN_SEND_COMMANDS logic
+- LedController.cpp: same cleanup
+- Verify with: grep -rn "shouldUseCANFor\|CAN_HYBRID\|CAN_RECEIVE_LASER" main/src/
+  Should return zero hits in controller files (only in legacy can_transport.cpp,
+  which PR-12 will delete entirely)
+
+DO NOT in this PR:
+- Touch can_transport.cpp (PR-12 deletes it whole)
+- Add new OD entries (PR-9/10 do that)
+- Change the JSON API
+- Touch the standalone non-CAN build paths beyond delegating through the backend
+
+Verification:
+- All four environments compile: UC2_2 (standalone, no CAN), UC2_3 (standalone),
+  UC2_canopen_master (pure master), UC2_canopen_slave (slave)
+- Standalone UC2_3: motor moves identically to before (regression test)
+- CAN slave: motor moves identically to before (regression test)
+- CAN master with no slave on the bus: /motor_act returns an error explaining "no
+  backend can reach this axis" instead of silently no-opping
+- CAN master with slave attached: /motor_act forwards via SDO and the slave moves
+- grep -rn "LASER_CONTROLLER" main/src/laser/   appears only in #include guards and
+  the constructor — never in routing logic
+- The CANopenModule::loop() spurious-laser-call bug is gone: on a master, no
+  setLaserVal() is ever called locally
+- REGRESSION — laser double-command bug: on a standalone UC2_3 board, send
+  {"task":"/laser_act","laser":{"LASERid":1,"LASERval":1000}} and instrument
+  LaserBackend::setChannel() to count calls. Expected: exactly ONE call. Before
+  PR-7.5, on a hybrid build this produced two calls (once via laser_act direct,
+  once via the CANopen loop's pending-flag dispatch) which created the "laser turns
+  on twice" symptom the user reported.
+- REGRESSION — on a pure CAN master with LASER_CONTROLLER compiled in but no local
+  laser pins wired, /laser_act must route via the CANopen backend and NOT fall
+  through to getLaserPin() == -1 silent no-op.
+```
+
+### Cleanup tasks that ride along in this PR
+
+PR-6 and PR-7 left some housekeeping that's easiest to do in the same branch as the
+routing refactor, because they all touch the EDS / generated-file path and the
+routing refactor needs the generated files in their final locations anyway.
+
+**EDS version-drift cleanup:**
+
+```
+The branch currently has two EDS files that disagree:
+  DOCUMENTATION/openUC2_satellite.eds       ← old, hand-written, ~53 mfr objects
+  DOCUMENTATION/openUC2_satellite_new.eds   ← registry-generated, ~90 mfr objects
+
+1. Delete the obsolete generator and its output:
+   - rm DOCUMENTATION/create_eds.py
+   - rm DOCUMENTATION/openUC2_satellite.eds
+   - rm PYTHON/canopen/create_eds.py        (duplicate hand-written generator)
+
+2. Rename the canonical EDS to drop the _new suffix:
+   - git mv DOCUMENTATION/openUC2_satellite_new.eds DOCUMENTATION/openUC2_satellite.eds
+
+3. Update tools/canopen/canopen_targets.py so the generator writes to
+   DOCUMENTATION/openUC2_satellite.eds (no _new suffix). Run regenerate_all.py
+   once to verify the output path is now correct and git diff --exit-code passes.
+
+4. Update .github/workflows/canopen-registry-check.yml path globs if they
+   referenced the _new filename.
+
+5. grep the repo for any remaining references to create_eds.py or
+   openUC2_satellite_new.eds and remove them (docs, CI configs, README, etc.).
+```
+
+**Dead-code cleanup (preparatory for PR-12):**
+
+```
+These files are leftovers from the pre-CANopen transport and the trainer OD. Flag
+them with // DEPRECATED — PR-12 will delete comments but do NOT delete them in this
+PR (PR-12 is the single commit where everything old goes away at once — keeping the
+cleanup as one reviewable atomic PR is worth the small delay):
+
+- lib/ESP32_CanOpenNode/src/OD_trainer.h   (reference-only trainer OD header)
+- lib/ESP32_CanOpenNode/src/OD_OLD_C.TXT   (archived old OD source)
+- lib/ESP32_CanOpenNode/src/OD_OLD_H.TXT   (archived old OD header)
+- main/src/can/can_controller_stubs.cpp    (no-op stubs for legacy calls)
+- main/src/can/iso-tp-twai/                (entire directory)
+- main/src/can/can_messagetype.h           (custom message-type enum)
+
+Just add header comments. PR-12 does the actual deletions.
+```
+
+**OTA file relocation (preparatory for PR-11 rework):**
+
+```
+PR-11 (OTA via CANopen) was started prematurely and its files landed in the wrong
+directory. Move them to where the clean PR-11 expects them:
+
+- git mv main/src/can/CanOtaHandler.cpp   main/src/canopen/CanOpenOTA.cpp
+- git mv main/src/can/CanOtaStreaming.cpp main/src/canopen/CanOpenOTAStreaming.cpp
+
+After the move, the files are still compiled but live next to CANopenModule and
+DeviceRouter, which is where PR-11 needs them. PR-11 will then rewrite the internals
+to use OD_extension_init() against the registry-generated 0x2F00 DOMAIN entry and
+remove any lingering dependencies on the old can_transport.
+
+If you prefer to leave the OTA files untouched in this PR, that's acceptable —
+PR-11 can do the move as part of its own rework. Just note it in the PR description
+so reviewers aren't surprised.
+```
+
+### Why PR-9 and PR-10 wait for this
+
+Wiring laser/LED/galvo into the registry-driven OD before fixing the routing tangle
+just creates more places that need to be untangled later. PR-7.5 establishes the
+backend pattern with the motor (which already works end-to-end), then PR-9/10 inherit
+the pattern for free.
+
+After PR-7.5 lands, adding a new module is:
+
+1. Define `IXxxBackend` interface
+2. Implement `LocalXxxBackend` (existing code, moved)
+3. Implement `CANopenXxxBackend` (new — just SDO writes against UC2_OD constants)
+4. Add the factory entry
+5. Add the OD entries to the registry YAML
+6. Regenerate
+7. Done — works on standalone, slave, master, hybrid, and Pi-direct simultaneously
 
 ---
 
@@ -1013,12 +1477,39 @@ Verification:
 
 ---
 
-## PR-11: OTA via CANopen SDO block transfer
+## PR-11: OTA via CANopen SDO block transfer  ⚠️ FIRST PASS EXISTS — NEEDS REWORK
 
-**Branch:** `feature/canopen-ota`
-**Depends on:** PR-7 (PR-9 helpful for SDO domain experience)
-**Estimated scope:** ~300 lines, new CanOpenOTA module
-**Safety-critical:** test on a sacrificial board first.
+**Branch:** `feature/canopen-ota` (rework branch off `refactor/module-backends` after PR-7.5)
+**Depends on:** PR-7.5 (backend abstraction) + PR-9 (SDO domain for LED pixel data) helpful
+**Estimated scope:** ~300 lines, rework of existing `CanOtaHandler.cpp` / `CanOtaStreaming.cpp`
+
+### Current state in PR #119
+
+A first pass at OTA landed prematurely and lives in the wrong directory:
+
+- `main/src/can/CanOtaHandler.cpp`     (should be `main/src/canopen/CanOpenOTA.cpp`)
+- `main/src/can/CanOtaStreaming.cpp`   (should be `main/src/canopen/CanOpenOTAStreaming.cpp`)
+- `tools/ota/can_ota_simple.py`        (master-side simple transfer)
+- `tools/ota/can_ota_streaming.py`     (master-side streaming)
+- `tools/ota/can_ota_test.py`          (bench test)
+- `tools/ota/test_binary_sync.py`      (binary sync verification)
+
+**Review-first approach recommended** — before writing the rework prompt, read the
+existing files and identify:
+
+1. Are the SDO writes going through `CO_SDOclientDownload()` or are they bypassing
+   CANopenNode and driving TWAI frames directly? (The latter would be a bad sign.)
+2. Do they use magic indices (`0x2F00` literals) or `UC2_OD::OTA_FIRMWARE_DATA`?
+3. Does the 0x2F00 entry on the slave have an `OD_extension_init()` callback, or is it
+   still a plain RAM entry that would overflow ESP32 memory on a large firmware image?
+4. Are the files still depending on any symbols from the old `can_transport.cpp`?
+
+If the answers are mostly "bad / magic / no / yes", PR-11 is a rewrite rather than a
+refinement. If they're mostly "good / named / yes / no", PR-11 becomes a smaller cleanup
+that renames/moves files and tightens integration.
+
+Either way, PR-11 should end up with files in `main/src/canopen/` and callsites using
+the generated `UC2_OD::OTA_*` constants.
 
 ### Claude Code prompt
 
@@ -1026,31 +1517,73 @@ Verification:
 Goal: Master can flash a slave's firmware over CAN by streaming a binary into the slave's
 OTA partition via SDO segmented or block transfer to UC2_OD::OTA_FIRMWARE_DATA (0x2F00).
 
-[Same content as the existing PR-8 OTA prompt in claude_code_tasks_canopen_integration.md
-with these refinements:]
+Step 0 — AUDIT the existing first-pass OTA implementation. Read these files:
+  main/src/can/CanOtaHandler.cpp
+  main/src/can/CanOtaStreaming.cpp
+  tools/ota/can_ota_simple.py
+  tools/ota/can_ota_streaming.py
 
-1. Use UC2_OD::OTA_FIRMWARE_DATA, UC2_OD::OTA_FIRMWARE_SIZE, UC2_OD::OTA_FIRMWARE_CRC32,
-   UC2_OD::OTA_STATUS, UC2_OD::OTA_BYTES_RECEIVED, UC2_OD::OTA_ERROR_CODE
-   from the generated UC2_OD_Indices.h — NO magic numbers.
+Record findings in a short REVIEW.md at the top of the branch:
+  - What works (can flash a test slave successfully?)
+  - What's wrong (magic numbers, wrong directory, direct TWAI access, etc.)
+  - What needs rewriting vs what needs moving
+Then decide: clean rewrite (discard and start over) or progressive fix (keep the
+working parts, fix the rest).
 
-2. The 0x2F00 entry must be a DOMAIN type with an OD write extension callback that
-   streams to esp_ota_write(). See PR-9 for the LED_PIXEL_DATA pattern — same approach.
+Step 1 — move the C++ files into main/src/canopen/ so they sit next to CANopenModule:
+  git mv main/src/can/CanOtaHandler.cpp    main/src/canopen/CanOpenOTA.cpp
+  git mv main/src/can/CanOtaStreaming.cpp  main/src/canopen/CanOpenOTAStreaming.cpp
+  Update main/CMakeLists.txt source list.
+  Update the #include guards and forward declarations.
 
-3. Master side: read firmware binary from serial (or SD card) in 512-byte chunks, feed
-   to CO_SDOclientDownload() in a loop. CANopenNode handles the segmented or block
-   transfer protocol automatically.
+Step 2 — replace all hardcoded OTA OD indices with generated constants:
+  #include "UC2_OD_Indices.h"
+  Use UC2_OD::OTA_FIRMWARE_DATA, UC2_OD::OTA_FIRMWARE_SIZE, UC2_OD::OTA_FIRMWARE_CRC32,
+  UC2_OD::OTA_STATUS, UC2_OD::OTA_BYTES_RECEIVED, UC2_OD::OTA_ERROR_CODE from the
+  generated UC2_OD_Indices.h — NO magic numbers anywhere.
 
-4. Status reporting: OD_RAM.x2F03_ota_status is TPDO3-mapped, so the master automatically
-   sees progress updates without polling.
+Step 3 — the 0x2F00 entry MUST be a DOMAIN type with an OD write extension callback
+that streams to esp_ota_write() WITHOUT buffering the full binary in RAM:
 
-5. Verify CRC32 against UC2_OD::OTA_FIRMWARE_CRC32 before calling esp_ota_set_boot_partition.
+  OD_entry_t* entry = OD_find(OD, UC2_OD::OTA_FIRMWARE_DATA);
+  static OD_extension_t ext = {
+      .object = nullptr,
+      .read   = nullptr,                       // write-only
+      .write  = CanOpenOTA::onOtaWriteChunk,   // called for each SDO data segment
+  };
+  OD_extension_init(entry, &ext);
 
-6. Add Python CLI tool tools/uc2_ota_can.py that uses python-canopen + Waveshare USB-CAN
-   to flash a slave directly without going through the master ESP32:
+  onOtaWriteChunk() calls esp_ota_write() with the incoming chunk and returns
+  CO_SDO_AB_NONE on success or an SDO abort code on failure.
 
-   python tools/uc2_ota_can.py --node 11 --binary firmware.bin
+Step 4 — master-side streaming uses CO_SDOclientDownloadInitiate /
+CO_SDOclientDownloadBufWrite / CO_SDOclientDownload in a loop, reading the binary
+from serial (or SD card) in 512-byte chunks. CANopenNode handles segmented or block
+transfer automatically based on server capabilities.
 
-   This is incredibly useful for development — you can flash any slave from your laptop.
+Step 5 — status reporting via TPDO, not polling:
+UC2_OD::OTA_STATUS and UC2_OD::OTA_BYTES_RECEIVED are TPDO3-mapped in the registry.
+After PR-8 lands, the master automatically sees progress updates without polling.
+
+Step 6 — verify CRC32 against UC2_OD::OTA_FIRMWARE_CRC32 BEFORE calling
+esp_ota_set_boot_partition(). If mismatch, call esp_ota_abort() and leave the active
+partition untouched.
+
+Step 7 — add Python CLI tool PYTHON/uc2_canopen/uc2_ota_can.py that uses
+python-canopen + Waveshare USB-CAN to flash a slave directly without going through
+the master ESP32:
+
+  python -m uc2_canopen.uc2_ota_can --node 11 --binary firmware.bin
+
+This is incredibly useful for development — you can flash any slave from your laptop.
+
+Step 8 — bench test:
+  - Flash slave with a partition table that has two app partitions
+  - From master serial: {"task":"/ota_start","ota":{"nodeId":11,"size":1048576,"crc32":"..."}}
+  - Monitor slave log for "OTA started", progress every 64KB, "OTA verified. Rebooting"
+  - After reboot, slave should run the new firmware
+  - Verify: power-cycle the slave during the transfer — it should come back on the
+    OLD firmware, not bricked
 
 DO NOT delete the old binary OTA serial path until PR-12.
 ```
@@ -1279,48 +1812,61 @@ Verification:
 ## Merge order
 
 ```
-main (after PR #119 merges)
+main (after PR #119 merges, which includes PR-1 through PR-7)
 │
-├── PR-6:  feature/canopen-registry          ← Generator infrastructure
+├── PR-6:  feature/canopen-registry          ✅ DONE in PR #119
 │   │
-│   ├── PR-7:  feature/canopen-uc2-od         ← Native UC2 OD, motor works without workaround
+│   ├── PR-7:  feature/canopen-uc2-od         ✅ DONE in PR #119
 │   │   │
-│   │   ├── PR-8:  feature/canopen-tpdo-push  ← Slaves push state actively (TPDO)
+│   │   ├── PR-7.5: refactor/module-backends  ← NEXT — fixes routing tangle, gates 9/10
+│   │   │   │
+│   │   │   ├── PR-8:  feature/canopen-tpdo-push     ← Slaves push state (TPDO)
+│   │   │   │
+│   │   │   ├── PR-9:  feature/canopen-illumination  ← Laser + LED (needs PR-7.5)
+│   │   │   │
+│   │   │   ├── PR-10: feature/canopen-galvo         ← Galvo / scanner (needs PR-7.5)
+│   │   │   │
+│   │   │   ├── PR-11: feature/canopen-ota           ← OTA via SDO block
+│   │   │   │
+│   │   │   └── PR-13: feature/waveshare-canopen     ← Pi-direct via USB-CAN (parallel)
 │   │   │
-│   │   ├── PR-9:  feature/canopen-illumination  ← Laser + LED full coverage
-│   │   │
-│   │   ├── PR-10: feature/canopen-galvo      ← Galvo / scanner
-│   │   │
-│   │   ├── PR-11: feature/canopen-ota        ← Firmware update via SDO block
-│   │   │
-│   │   └── PR-13: feature/waveshare-canopen  ← Pi-direct CANopen via USB-CAN (parallel)
-│   │
-│   └── PR-12: cleanup/remove-old-can-transport ← After PR-7..11 merged
+│   │   └── PR-12: cleanup/remove-old-can-transport  ← After PR-7.5..11 merged
 ```
 
-**PR-6 and PR-7 are the gating pair** — until those are merged, every later PR has nothing
-to build on. Get them landed quickly. Then PRs 8-11 can be developed in parallel by
-different people (or by Claude Code in separate sessions). PR-12 is the final cleanup
-and must wait until everything else is verified working.
+**PR-7.5 is now the gating PR.** Its job is to remove the conflation between "what
+hardware exists on this node" and "how commands reach that hardware" before any further
+controllers are wired into the OD. PR-9 and PR-10 explicitly depend on PR-7.5 because
+adding laser/LED/galvo into the registry-driven OD before fixing the routing tangle just
+creates more places that need to be untangled later.
+
+After PR-7.5 lands, PRs 8 / 9 / 10 / 11 / 13 can be developed in parallel by different
+people (or by Claude Code in separate sessions). PR-12 is the final cleanup and must wait
+until everything else is verified working.
 
 ---
 
 ## What about the long term — generating a fully standalone OD?
 
-Today the registry generator emits a stub `OD.c` and you run CANopenEditor manually to
-get the full table. The reason is that CANopenNode v4's OD descriptor format is detailed
-(per-entry pointers into RAM, type codes, attribute flags, sub-index tables) and writing
-a complete generator takes time.
+At commit `cf9d896` the registry generator emits the EDS, the C++ indices header, the
+Python module, and the markdown reference directly from the YAML. The CANopenNode
+`OD.c` / `OD.h` files in `lib/uc2_od/` were generated via CANopenEditor from the
+registry's EDS during PR-7 (one-time manual export step). This works but means the
+round-trip is: edit YAML → regenerate → open EDS in CANopenEditor → export OD.h/OD.c
+→ commit.
 
-The migration path away from CANopenEditor:
+The migration path away from the CANopenEditor round-trip:
 
-1. **Phase 1 (now):** Registry → EDS → CANopenEditor → OD.h / OD.c (semi-automatic)
-2. **Phase 2 (after PR-7):** Extend `regenerate_all.py` to emit a fully working `OD.c`
-   that matches the format CANopenEditor produces. The format is documented in the
-   CANopenNode source headers. Once this works, CANopenEditor becomes optional (used only
-   for visual review of the EDS).
-3. **Phase 3 (long term):** Drop the trainer/CANopenEditor dependency entirely. The
-   generator is the canonical tool. New hardware → edit YAML → run generator → done.
+1. **Phase 1 (now, after PR-7):** Registry → EDS → CANopenEditor → OD.h / OD.c
+   (semi-automatic, works today, what's on the branch)
+2. **Phase 2 (PR-14, post-PR-12):** Extend `tools/canopen/regenerate_all.py` to emit a
+   fully working `OD.c` directly from the YAML, bypassing CANopenEditor entirely. The
+   CANopenNode v4 OD descriptor format is documented in the library source headers;
+   writing a generator for it is ~250 lines of template Python. Once this lands,
+   CANopenEditor becomes optional (useful only for visual review / eyeballing PDO
+   mappings in a GUI).
+3. **Phase 3 (long term):** Drop the CANopenEditor dependency entirely. The registry
+   is the canonical source; the generator is the canonical tool. New hardware → edit
+   YAML → run generator → commit.
 
 The generator script has a `generate_od_c()` function with a TODO marker — that's the
 extension point. When you're ready, the work is roughly 200-300 lines of additional
@@ -1337,8 +1883,8 @@ Yes, and the infrastructure already exists in this output set:
 
 | File | What it is |
 |------|------------|
-| `tools/uc2_canopen_registry.yaml` | Single source of truth — every OD entry, with name, type, default, PDO mapping, sub-indices, C++ field hint |
-| `tools/regenerate_all.py` | Reads the YAML, generates the EDS, OD.h/OD.c, C++ constants header, Python constants, and markdown reference doc |
+| `tools/canopen/uc2_canopen_registry.yaml` | Single source of truth — every OD entry, with name, type, default, PDO mapping, sub-indices, C++ field hint |
+| `tools/canopen/regenerate_all.py` | Reads the YAML, generates the EDS, OD.h/OD.c, C++ constants header, Python constants, and markdown reference doc |
 | `main/src/canopen/UC2_OD_Indices.h` | Generated C++ header — `namespace UC2_OD { constexpr uint16_t MOTOR_TARGET_POSITION = 0x2000; ... }` |
 | `PYTHON/uc2_canopen/uc2_indices.py` | Generated Python module — same names, same indices, used by the Waveshare scripts |
 | `DOCUMENTATION/UC2_CANopen_Parameters.md` | Generated human-readable reference — one table per module |
@@ -1570,121 +2116,3 @@ PYTHON/uc2_canopen/
 
 The generator script and the registry YAML are the only places you ever edit when
 adding new hardware. Everything else is downstream and rebuilds automatically.
-
----
-
-## Conceptual issue: Module controller flags are device-role-agnostic
-
-### The problem
-
-Build flags like `-DLASER_CONTROLLER=1`, `-DMOTOR_CONTROLLER=1`, etc. are currently set
-independently of whether that hardware actually lives on this node or on a remote CAN
-slave. Compare the three representative environments:
-
-| Environment | `LASER_CONTROLLER` | `CAN_BUS_ENABLED` | `CAN_SEND_COMMANDS` | `CAN_HYBRID` |
-|---|---|---|---|---|
-| `UC2_3_default` (standalone) | ✅ | — | — | — |
-| `UC2_3_CAN_HAT_Master_v2_default` (pure CAN master/gateway) | ✅ | ✅ | ✅ | — |
-| `UC2_4_CAN_HYBRID_default` (master with local + remote hardware) | ✅ | ✅ | ✅ | ✅ |
-
-The flag `-DLASER_CONTROLLER=1` means the same compilation unit
-(`LaserController.cpp`) is compiled into all three firmware variants. The routing
-decision ("use local GPIO" vs "send over CAN") is then made inside `setLaserVal()` via
-a chain of `#ifdef` guards:
-
-```cpp
-// CAN_HYBRID path — routes based on pin availability and threshold
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_LASER)
-if (shouldUseCANForLaser(LASERid)) { ... route via CAN ... }
-else                               { ... use native GPIO ... }
-
-// All other cases (including pure CAN master!) fall through to native GPIO
-int laserPin = getLaserPin(LASERid);
-if (laserPin >= 0) { setPWM(...); }
-```
-
-**Critical gap for the pure CAN master (`UC2_3_CAN_HAT_Master_v2_default`):**
-`CAN_HYBRID` is NOT defined, so the routing block is never entered. The code falls
-through to the native GPIO path. On a pure master/gateway board there are no laser pins
-wired up, so `getLaserPin()` returns `-1`, the command silently does nothing — or worse,
-the CANopenModule's `loop()` calls `LaserController::setLaserVal()` directly (which made
-sense for a slave), causing spurious local-hardware calls on a master that should be
-routing commands via SDO/PDO to the slave instead.
-
-### Why the CANopenModule `loop()` laser dispatch is wrong on the master
-
-`CANopenModule::loop()` dispatches `s_laserCmds[ch]` by calling
-`LaserController::setLaserVal()`. This was written with the slave execution context in
-mind (the slave reads its OD, then drives its own GPIO). On a master running
-`CAN_CONTROLLER_CANOPEN` the same code path runs, but:
-
-1. The master's OD laser entries are initialised to 0 on boot.
-2. `syncRpdoToModules()` (before the race-condition fix) immediately marked all four
-   laser channels as `pending` because `!pending` was true — triggering a dispatch loop
-   before any real CAN command arrived.
-3. Even after the fix, `loop()` still calls `LaserController::setLaserVal()` on the
-   master. If the master happens to have `LASER_CONTROLLER` compiled in and no local
-   laser pins, this is a no-op with misleading log output.
-
-### The architectural tension
-
-The root issue is that the module controller classes (`LaserController`, `FocusMotor`,
-etc.) conflate two orthogonal concerns:
-
-1. **What hardware is available on this node** — determined at compile time by pin
-   configuration and the `*_CONTROLLER` flags.
-2. **How commands reach the hardware** — local GPIO, old ISO-TP CAN, or CANopen SDO/PDO
-   — determined by a mix of build flags (`CAN_HYBRID`, `CAN_BUS_ENABLED`, …) and
-   increasingly also runtime role (`runtimeConfig.canRole`).
-
-The current approach embeds routing decisions deep inside `act()` / `setLaserVal()` as
-nested `#ifdef` chains. This means:
-
-- Adding a new transport (e.g., I2C expander, Ethernet) requires touching every
-  controller file.
-- A "pure gateway" role (master that owns no local hardware) has no clean expression;
-  it must be impersonated by `CAN_BUS_ENABLED + CAN_SEND_COMMANDS` without `CAN_HYBRID`,
-  relying on graceful silent failure in the GPIO path.
-- `CANopenModule::loop()` must know which controllers are "local" vs "remote" and call
-  them accordingly — but it currently just calls every compiled-in controller blindly.
-
-### Possible rethink (TODO — needs design decision before implementation)
-
-Option A — **Role flag at build time:**
-Add a dedicated `-DCAN_MASTER_ONLY=1` flag (no local hardware, all commands routed to
-CAN slaves). Guard all controller `act()` GPIO paths with
-`#if !defined(CAN_MASTER_ONLY)`. `CANopenModule::loop()` skips local dispatch entirely
-when `CAN_MASTER_ONLY` is set.
-*Cheap to implement, but adds yet another flag to the matrix.*
-
-Option B — **Runtime role check inside each controller:**
-Each controller's `setLaserVal()` / `startStepper()` etc. checks
-`runtimeConfig.canRole == CAN_ROLE_MASTER` at runtime and forwards via `DeviceRouter`
-instead of touching GPIO.
-*Eliminates the flag explosion but couples every controller to `DeviceRouter` /
-`runtimeConfig`.*
-
-Option C — **Backend abstraction (cleanest, most work):**
-Each controller class (e.g., `LaserController`) gets an abstract backend interface:
-```
-class LaserBackend {
-  virtual void setChannel(int ch, int val) = 0;
-};
-class LocalGPIOLaserBackend  : public LaserBackend { ... };
-class CANopenLaserBackend    : public LaserBackend { ... };
-class HybridLaserBackend     : public LaserBackend { ... };
-```
-`LaserController::init()` constructs the right backend based on pinConfig + canRole.
-`act()` always calls `backend->setChannel()`. The routing logic moves entirely out of
-the controller file and into the backend factory.
-`CANopenModule::loop()` no longer needs to call `LaserController::setLaserVal()` at
-all on the master — the CANopen backend is the one doing SDO writes.
-*This is the cleanest long-term architecture but requires non-trivial refactoring of
-every controller class.*
-
-### Immediate workaround (already applied)
-
-The race-condition / infinite-loop bug in `syncRpdoToModules()` (laser pending flag
-always re-armed) has been fixed separately. That alone stops the spurious continuous
-`setLaserVal` calls on boot. The deeper architectural issue above is a **future PR** and
-should be addressed before adding further hardware backends.

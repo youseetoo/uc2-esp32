@@ -47,6 +47,7 @@
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "../canopen/DeviceRouter.h"
 #include "../canopen/CANopenModule.h"
+#include "../canopen/RoutingTable.h"
 #endif
 
 #ifdef LASER_CONTROLLER
@@ -84,15 +85,16 @@ namespace SerialProcess
 {
 	// Queue-based processing to handle serial load without blocking main thread
 	QueueHandle_t serialMSGQueue = nullptr; // Queue that buffers incoming messages and delegates them to the appropriate task
-	TaskHandle_t xHandle = nullptr;		  // Task handle for the serial task
-	
+	TaskHandle_t xHandle = nullptr;			// Task handle for the serial task
+
 	// Serial output queue to prevent race conditions
 	QueueHandle_t serialOutputQueue = nullptr; // Queue for serial output strings
-	TaskHandle_t xOutputHandle = nullptr;       // Task handle for serial output task
-	
+	TaskHandle_t xOutputHandle = nullptr;	   // Task handle for serial output task
+
 	// Structure to hold serial output messages
-	struct SerialMessage {
-		char* message;
+	struct SerialMessage
+	{
+		char *message;
 		size_t length;
 	};
 
@@ -110,9 +112,9 @@ namespace SerialProcess
 				if (msg.message != nullptr)
 				{
 					// Direct serial write without critical section - this task has exclusive access
-					Serial.write((uint8_t*)msg.message, msg.length);
+					Serial.write((uint8_t *)msg.message, msg.length);
 					Serial.flush();
-					
+
 					// Free the allocated message
 					free(msg.message);
 				}
@@ -122,7 +124,7 @@ namespace SerialProcess
 	}
 
 	// Thread-safe Serial.println replacement
-	void safePrintln(const char* message)
+	void safePrintln(const char *message)
 	{
 		if (message == nullptr || serialOutputQueue == nullptr)
 			return;
@@ -132,7 +134,7 @@ namespace SerialProcess
 			return;
 
 		// Allocate buffer for message + newline
-		char* buffer = (char*)malloc(len + 2);
+		char *buffer = (char *)malloc(len + 2);
 		if (buffer == nullptr)
 		{
 			log_e("Failed to allocate serial output buffer");
@@ -233,7 +235,7 @@ namespace SerialProcess
 	// Send a pre-serialized JSON string with protocol delimiters
 	// This is useful when JSON serialization needs to happen in a protected context
 	// The caller is responsible for freeing jsonString after calling this function
-	void safeSendJsonString(char* jsonString)
+	void safeSendJsonString(char *jsonString)
 	{
 		if (jsonString == NULL)
 		{
@@ -251,7 +253,7 @@ namespace SerialProcess
 
 		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--\n" (4) + null terminator (1)
 		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char* buffer = (char*)malloc(totalLen);
+		char *buffer = (char *)malloc(totalLen);
 		if (buffer == nullptr)
 		{
 			safePrintln("{\"error\":\"Out of memory\"}");
@@ -328,127 +330,146 @@ namespace SerialProcess
 	void setup()
 	{
 		log_i("SerialProcess::setup() starting");
-		
+
 		// Create queue and separate task for serial processing
 		if (serialMSGQueue == nullptr)
 			serialMSGQueue = xQueueCreate(5, sizeof(cJSON *)); // Queue for cJSON pointers (increased size)
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "serialtask", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
-		
+
 		// Create queue and task for serial output to prevent race conditions
 		if (serialOutputQueue == nullptr)
 			serialOutputQueue = xQueueCreate(10, sizeof(SerialMessage)); // Queue for serial output
 		if (xOutputHandle == nullptr)
 			xTaskCreate(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle); // Higher priority
-		
+
 		Serial.setTimeout(100);
 		Serial.setTxBufferSize(1024);
 		QidRegistry::setup();
-		
+
 		log_i("SerialProcess::setup() completed - Ready to receive serial data");
 		Serial.println("DEBUG: SerialProcess ready");
-		//esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
-		//Serial.setDebugOutput(false);
+		// esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
+		// Serial.setDebugOutput(false);
 	}
 
 	void addJsonToQueue(cJSON *doc)
 	{
 		// This bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
-		if (serialMSGQueue != nullptr) {
-			if (xQueueSend(serialMSGQueue, &doc, 0) != pdTRUE) {
+		if (serialMSGQueue != nullptr)
+		{
+			if (xQueueSend(serialMSGQueue, &doc, 0) != pdTRUE)
+			{
 				// Queue full - delete doc to prevent memory leak
 				cJSON_Delete(doc);
 				log_w("Serial queue full - dropping message");
 			}
 		}
-		else{
+		else
+		{
 			log_e("SerialMSGQueue not initialized - cannot add message");
 			cJSON_Delete(doc);
 		}
 	}
 
 	// Static buffer for serial reading to avoid heap fragmentation
-	static char serialInputBuffer[8192];  // 8KB buffer for large JSON strings
+	static char serialInputBuffer[8192]; // 8KB buffer for large JSON strings
 	static size_t serialInputPos = 0;
 	static bool inJsonObject = false;
 	static int braceCount = 0;
 
 	void loop()
 	{
-		// Check if we're in binary OTA mode
-		#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: This should work through the canopen layer as well once implemented there
-		if (binary_ota::isInBinaryMode()) {
+// Check if we're in binary OTA mode
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: This should work through the canopen layer as well once implemented there
+		if (binary_ota::isInBinaryMode())
+		{
 			// Process binary packets instead of JSON
 			binary_ota::processBinaryPacket();
-			return;  // Don't process JSON in binary mode
+			return; // Don't process JSON in binary mode
 		}
-		
+
 		// Check if we're in streaming binary mode (for CAN OTA streaming)
-		if (can_ota_stream::isStreamingModeActive()) {
+		if (can_ota_stream::isStreamingModeActive())
+		{
 			// Process binary stream packets from Serial
 			can_ota_stream::processBinaryStreamPacket();
-			return;  // Don't process JSON in streaming binary mode
+			return; // Don't process JSON in streaming binary mode
 		}
-		#endif
-		
+#endif
+
 		// Read serial data byte-by-byte to handle large JSON strings reliably
 		// TODO: These could be optimized further if needed - the input could hang potentially
-		while (Serial.available() > 0) {
+		while (Serial.available() > 0)
+		{
 			char c = Serial.read();
-			
+
 			// Track JSON object boundaries
-			if (c == '{') {
-				if (!inJsonObject) {
+			if (c == '{')
+			{
+				if (!inJsonObject)
+				{
 					inJsonObject = true;
 					serialInputPos = 0;
 					braceCount = 0;
 				}
 				braceCount++;
 			}
-			
+
 			// Only store if we're inside a JSON object
-			if (inJsonObject) {
+			if (inJsonObject)
+			{
 				// Prevent buffer overflow
-				if (serialInputPos < sizeof(serialInputBuffer) - 1) {
+				if (serialInputPos < sizeof(serialInputBuffer) - 1)
+				{
 					serialInputBuffer[serialInputPos++] = c;
-				} else {
+				}
+				else
+				{
 					// Buffer overflow - reset and report error
 					log_e("Serial input buffer overflow");
 					inJsonObject = false;
 					serialInputPos = 0;
 					braceCount = 0;
-					
+
 					cJSON *errorResponse = cJSON_CreateObject();
-					if (errorResponse != NULL) {
+					if (errorResponse != NULL)
+					{
 						cJSON_AddStringToObject(errorResponse, "error", "Input buffer overflow");
 						serialize(errorResponse);
 					}
 					continue;
 				}
-				
-				if (c == '}') {
+
+				if (c == '}')
+				{
 					braceCount--;
-					
+
 					// Complete JSON object received
-					if (braceCount == 0) {
+					if (braceCount == 0)
+					{
 						serialInputBuffer[serialInputPos] = '\0';
-						
+
 						cJSON *doc = cJSON_Parse(serialInputBuffer);
 						// print in case we are in debug mode - this is useful to see the incoming JSON in the serial monitor without the need of a separate tool
 						log_i("Received JSON: %s", serialInputBuffer);
-						
-						if (doc) {
+
+						if (doc)
+						{
 							log_i("Parsed JSON successfully");
 							addJsonToQueue(doc);
-						} else {
+						}
+						else
+						{
 							// Parse error - send error response
 							cJSON *errorResponse = cJSON_CreateObject();
-							if (errorResponse != NULL) {
+							if (errorResponse != NULL)
+							{
 								cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
 								serialize(errorResponse);
 							}
 						}
-						
+
 						// Reset for next message
 						inJsonObject = false;
 						serialInputPos = 0;
@@ -458,7 +479,7 @@ namespace SerialProcess
 		}
 
 		// Let other tasks run
-		vTaskDelay(pdMS_TO_TICKS(5));  // Reduced from 10ms for faster processing
+		vTaskDelay(pdMS_TO_TICKS(5)); // Reduced from 10ms for faster processing
 	}
 
 	void serialize(cJSON *doc)
@@ -468,7 +489,8 @@ namespace SerialProcess
 		// IMPORTANT: Only delete the doc if it's a new object created by a controller
 		// The serialTask is responsible for deleting the root request object
 		// This function is called with RESPONSE objects created by controllers (get/act functions)
-		if (doc != NULL) {
+		if (doc != NULL)
+		{
 			cJSON_Delete(doc);
 		}
 	}
@@ -496,7 +518,7 @@ namespace SerialProcess
 		// Print the JSON document to a string
 		char *s = cJSON_PrintUnformatted(doc);
 		cJSON_Delete(doc); // Free the cJSON object
-		
+
 		if (s == NULL)
 			return;
 
@@ -504,7 +526,7 @@ namespace SerialProcess
 		size_t len = strlen(s);
 		// Calculate buffer size: "++\n" (3) + s (len) + "\n--\n" (4) + null terminator (1)
 		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char* buffer = (char*)malloc(totalLen);
+		char *buffer = (char *)malloc(totalLen);
 		if (buffer == nullptr)
 		{
 			free(s);
@@ -523,7 +545,7 @@ namespace SerialProcess
 			SerialMessage msg;
 			msg.message = buffer;
 			msg.length = strlen(buffer) + 1; // Include newline
-			
+
 			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
 			{
 				free(buffer);
@@ -540,27 +562,17 @@ namespace SerialProcess
 	{
 		log_i("Processing task: %s", task);
 
-
-#if defined(CAN_CONTROLLER_CANOPEN) && defined(CAN_SEND_COMMANDS)
-		// TODO: Not sure if this is the best way to switch between different serial command handlers - maybe the CANopen routing should be integrated more deeply into the command processing instead of as a separate layer? But for now this keeps the existing serial command structure intact and allows routing to CANopen slaves without changing the Pi JSON API.
-		// TODO: Maybe it's worth merging this into a global command router that checks all controllers in a defined order, instead of hardcoding the CANopen routing here? This would allow more flexible routing and cleaner separation of concerns. For now, this is a quick way to route certain commands to CANopen slaves while keeping the existing structure.
-		// CANopen master mode — route commands to slave nodes via SDO 
-		// before local dispatch, so the Pi JSON API stays unchanged.
-		if (runtimeConfig.isMaster()) {
-			log_i("Routing command through CANopen DeviceRouter");
-			cJSON* canResponse = DeviceRouter::routeCommand(task, jsonDocument);
-			if (canResponse) {
-				log_i("Received response from CANopen device, sending back to serial");
-				serialize(canResponse);
-				return;
-			}
+#ifdef CAN_CONTROLLER_CANOPEN
+		// Route commands through RoutingTable — handles LOCAL, REMOTE, OFF
+		// transparently for all CANopen roles (master, slave, standalone).
+		log_i("Routing task through CANopen DeviceRouter");
+		cJSON *canResponse = DeviceRouter::routeCommand(task, jsonDocument);
+		if (canResponse)
+		{
+			serialize(canResponse);
+			return;
 		}
-#endif
-#ifdef ANALOG_OUT_CONTROLLER
-		else if (runtimeConfig.analogOut && strcmp(task, analogout_act_endpoint) == 0)
-			serialize(AnalogOutController::act(jsonDocument));
-		else if (runtimeConfig.analogOut && strcmp(task, analogout_get_endpoint) == 0)
-			serialize(AnalogOutController::get(jsonDocument));
+
 #endif
 		/*
 		This function takes in the task (e.g. /state_get)
@@ -569,6 +581,12 @@ namespace SerialProcess
 		function for the different controllers*/
 		if (false) // keep all other else ifs happy
 			return;
+#ifdef ANALOG_OUT_CONTROLLER
+		else if (runtimeConfig.analogOut && strcmp(task, analogout_act_endpoint) == 0)
+			serialize(AnalogOutController::act(jsonDocument));
+		else if (runtimeConfig.analogOut && strcmp(task, analogout_get_endpoint) == 0)
+			serialize(AnalogOutController::get(jsonDocument));
+#endif
 #ifdef BLUETOOTH
 		else if (runtimeConfig.bluetooth && strcmp(task, bt_connect_endpoint) == 0)
 		{
@@ -611,7 +629,6 @@ namespace SerialProcess
 		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_get_endpoint) == 0)
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
-
 
 /*
 	  LinearEncoders
@@ -724,6 +741,47 @@ namespace SerialProcess
 		{
 			serialize(State::getModules());
 		}
+#ifdef CAN_CONTROLLER_CANOPEN
+		else if (strcmp(task, route_get_endpoint) == 0)
+		{
+			serialize(UC2::RoutingTable::toJson());
+		}
+		else if (strcmp(task, route_set_endpoint) == 0)
+		{
+			// {"task":"/route_set","type":"MOTOR","id":0,"where":"REMOTE","nodeId":10}
+			cJSON *typeItem = cJSON_GetObjectItem(jsonDocument, "type");
+			const char *typeStr = (typeItem && cJSON_IsString(typeItem)) ? typeItem->valuestring : nullptr;
+			int logicalId = cJsonTool::getJsonInt(jsonDocument, "id");
+			cJSON *whereItem = cJSON_GetObjectItem(jsonDocument, "where");
+			const char *whereStr = (whereItem && cJSON_IsString(whereItem)) ? whereItem->valuestring : nullptr;
+			int nodeId = cJsonTool::getJsonInt(jsonDocument, "nodeId");
+
+			UC2::RouteEntry::Type type = UC2::RouteEntry::MOTOR;
+			if (typeStr)
+			{
+				if (strcmp(typeStr, "LASER") == 0)
+					type = UC2::RouteEntry::LASER;
+				else if (strcmp(typeStr, "LED") == 0)
+					type = UC2::RouteEntry::LED;
+				else if (strcmp(typeStr, "GALVO") == 0)
+					type = UC2::RouteEntry::GALVO;
+				else if (strcmp(typeStr, "HOME") == 0)
+					type = UC2::RouteEntry::HOME;
+				else if (strcmp(typeStr, "TMC") == 0)
+					type = UC2::RouteEntry::TMC;
+			}
+			UC2::RouteEntry::Where where = UC2::RouteEntry::LOCAL;
+			if (whereStr)
+			{
+				if (strcmp(whereStr, "REMOTE") == 0)
+					where = UC2::RouteEntry::REMOTE;
+				else if (strcmp(whereStr, "OFF") == 0)
+					where = UC2::RouteEntry::OFF;
+			}
+			UC2::RoutingTable::set(type, logicalId, where, (uint8_t)nodeId);
+			serialize(UC2::RoutingTable::toJson());
+		}
+#endif
 #ifdef WIFI
 		else if (runtimeConfig.wifi && strcmp(task, scanwifi_endpoint) == 0)
 		{
@@ -755,7 +813,7 @@ namespace SerialProcess
 		else if (strcmp(task, config_get_endpoint) == 0)
 		{
 			// Return current runtime configuration as JSON
-			cJSON* cfg = NVSConfig::toJson();
+			cJSON *cfg = NVSConfig::toJson();
 			serialize(cfg);
 		}
 		else if (strcmp(task, config_set_endpoint) == 0)
@@ -763,7 +821,7 @@ namespace SerialProcess
 			// Merge partial JSON into runtimeConfig and persist to NVS
 			NVSConfig::fromJson(jsonDocument);
 			NVSConfig::saveConfig();
-			cJSON* resp = cJSON_CreateObject();
+			cJSON *resp = cJSON_CreateObject();
 			cJSON_AddNumberToObject(resp, "success", 1);
 			cJSON_AddStringToObject(resp, "msg", "config saved, reboot to apply");
 			serialize(resp);
@@ -772,7 +830,7 @@ namespace SerialProcess
 		{
 			// Clear NVS config namespace and reboot
 			NVSConfig::resetConfig();
-			cJSON* resp = cJSON_CreateObject();
+			cJSON *resp = cJSON_CreateObject();
 			cJSON_AddNumberToObject(resp, "success", 1);
 			cJSON_AddStringToObject(resp, "msg", "config reset, rebooting");
 			serialize(resp);

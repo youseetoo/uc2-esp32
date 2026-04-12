@@ -1,227 +1,293 @@
-// DeviceRouter.cpp — Serial-to-CANopen bridge implementation.
-// Translates JSON commands into SDO writes/reads to CAN slave nodes.
-// Only compiled on master builds (CAN_CONTROLLER_CANOPEN + CAN_SEND_COMMANDS).
+// DeviceRouter.cpp — Routing-table-driven command dispatcher.
+// Consults RoutingTable to decide LOCAL vs REMOTE for each logical device.
+// Active on all CANopen builds (CAN_CONTROLLER_CANOPEN).
 #include "DeviceRouter.h"
-
-#if defined(CAN_CONTROLLER_CANOPEN) && defined(CAN_SEND_COMMANDS)
 #include <PinConfig.h>
+
+#ifdef CAN_CONTROLLER_CANOPEN
 #include "CANopenModule.h"
+#include "RoutingTable.h"
+#include "UC2_OD_Indices.h"
 #include "../wifi/Endpoints.h"
 #include "esp_log.h"
 #include <cstring>
-#include <algorithm>  // std::min
+#include <algorithm>
+
+#ifdef MOTOR_CONTROLLER
+#include "../motor/FocusMotor.h"
+#include "../motor/MotorJsonParser.h"
+#endif
+#ifdef LASER_CONTROLLER
+#include "../laser/LaserController.h"
+#endif
+#ifdef LED_CONTROLLER
+#include "../led/LedController.h"
+#endif
+#ifdef HOME_MOTOR
+#include "../home/HomeMotor.h"
+#endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
 
 static const char* TAG = "UC2_DR";
 
-// ============================================================================
-// Node-ID mapping — must match the slave's runtimeConfig.canNodeId (default=10)
-// Mirrors old CAN address scheme: A=10, X=11, Y=12, Z=13
-// ============================================================================
-uint8_t DeviceRouter::stepperIdToNodeId(int stepperid) {
-    switch (stepperid) {
-        case 0: return pinConfig.CAN_ID_MOT_A;
-        case 1: return pinConfig.CAN_ID_MOT_X;
-        case 2: return pinConfig.CAN_ID_MOT_Y;
-        case 3: return pinConfig.CAN_ID_MOT_Z;
-        default: return pinConfig.CAN_ID_MOT_X;
-    }
-}
-
-// Each node currently has one motor driver; axis index on node is always 0.
-// Extend here if a future node hosts multiple motor drivers.
-uint8_t DeviceRouter::stepperIdToAxisOnNode(int /*stepperid*/) {
-    return 0;
-}
 
 // ============================================================================
-// Route a task to the correct handler
+// Route a task to the correct handler via the routing table
 // ============================================================================
 cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
     if (task == nullptr || doc == nullptr) return nullptr;
-
+    log_i("DeviceRouter received task: %s", task);
+#ifdef MOTOR_CONTROLLER
     if (strcmp(task, motor_act_endpoint) == 0)
         return handleMotorAct(doc);
-    else if (strcmp(task, motor_get_endpoint) == 0)
+    if (strcmp(task, motor_get_endpoint) == 0)
         return handleMotorGet(doc);
-    else if (strcmp(task, laser_act_endpoint) == 0)
+#endif
+#ifdef LASER_CONTROLLER
+    if (strcmp(task, laser_act_endpoint) == 0)
         return handleLaserAct(doc);
-    else if (strcmp(task, home_act_endpoint) == 0)
+#endif
+#ifdef HOME_MOTOR
+    if (strcmp(task, home_act_endpoint) == 0)
         return handleHomeAct(doc);
+#endif
+#ifdef LED_CONTROLLER
+    if (strcmp(task, ledarr_act_endpoint) == 0)
+        return handleLedAct(doc);
+#endif
+#ifdef GALVO_CONTROLLER
+    if (strcmp(task, galvo_act_endpoint) == 0)
+        return handleGalvoAct(doc);
+#endif
+#ifdef TMC_CONTROLLER
+    if (strcmp(task, tmc_act_endpoint) == 0)
+        return handleTmcAct(doc);
+#endif
 
-    return nullptr; // not a CAN-routed command
+    return nullptr; // not a routed command
 }
 
 // ============================================================================
-// Motor act — send motor command to slave using native UC2 OD entries:
-//
-//   0x2000:sub  = target position (int32)
-//   0x2002:sub  = speed (uint32)
-//   0x2006:sub  = acceleration (uint32, optional)
-//   0x2007:sub  = isAbsolute flag (uint8)
-//   0x2003:0x00 = command word (uint8 bitmask: bit[axis]=start, bit[axis+4]=stop)
-//
-// sub = axis + 1 (CANopenNode uses 1-based sub-indexes for arrays).
-// Slave's syncRpdoToModules() detects the command word, starts FocusMotor,
-// then clears the processed bits.
+// Motor act — routing-table dispatch
 // ============================================================================
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
+#ifdef MOTOR_CONTROLLER
+    log_i("Handling motor_act via DeviceRouter");
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
     if (!motor) return nullptr;
     cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
     if (!steppers || !cJSON_IsArray(steppers)) return nullptr;
 
     cJSON* respSteppers = cJSON_CreateArray();
-    int arraySize = cJSON_GetArraySize(steppers);
+    int n = cJSON_GetArraySize(steppers);
 
-    for (int i = 0; i < arraySize; i++) {
-        cJSON* stepper = cJSON_GetArrayItem(steppers, i);
-        cJSON* idItem = cJSON_GetObjectItem(stepper, "stepperid");
+    for (int i = 0; i < n; i++) {
+        cJSON* s = cJSON_GetArrayItem(steppers, i);
+        cJSON* idItem = cJSON_GetObjectItem(s, "stepperid");
         if (!idItem) continue;
 
         int stepperid = idItem->valueint;
-        uint8_t nodeId = stepperIdToNodeId(stepperid);
-        uint8_t axis   = stepperIdToAxisOnNode(stepperid);
-        uint8_t sub    = axis + 1;
+        const auto* route = UC2::RoutingTable::find(
+            UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
 
-        // Write target position (int32)
-        cJSON* posItem = cJSON_GetObjectItem(stepper, "position");
-        int32_t posVal = posItem ? posItem->valueint : 0;
-        CANopenModule::writeSDO(nodeId, 0x2000, sub, (uint8_t*)&posVal, 4);
-
-        // Write speed (uint32)
-        cJSON* speedItem = cJSON_GetObjectItem(stepper, "speed");
-        uint32_t speedVal = speedItem ? (uint32_t)std::abs(speedItem->valueint) : 1000;
-        CANopenModule::writeSDO(nodeId, 0x2002, sub, (uint8_t*)&speedVal, 4);
-
-        // Write acceleration (uint32), if provided
-        cJSON* accelItem = cJSON_GetObjectItem(stepper, "acceleration");
-        if (accelItem) {
-            uint32_t accelVal = (uint32_t)std::abs(accelItem->valueint);
-            CANopenModule::writeSDO(nodeId, 0x2006, sub, (uint8_t*)&accelVal, 4);
+        if (!route || route->where == UC2::RouteEntry::OFF) {
+            ESP_LOGW(TAG, "motor %d has no route", stepperid);
+            continue;
         }
 
-        // Write isAbsolute flag (uint8)
-        cJSON* isAbsItem = cJSON_GetObjectItem(stepper, "isabs");
-        uint8_t isAbs = (isAbsItem && isAbsItem->valueint) ? 1 : 0;
-        CANopenModule::writeSDO(nodeId, 0x2007, sub, &isAbs, 1);
+        cJSON* posItem   = cJSON_GetObjectItem(s, "position");
+        cJSON* speedItem = cJSON_GetObjectItem(s, "speed");
+        cJSON* accelItem = cJSON_GetObjectItem(s, "acceleration");
+        cJSON* isAbsItem = cJSON_GetObjectItem(s, "isabs");
+        cJSON* isStopItem = cJSON_GetObjectItem(s, "isStop");
 
-        // Trigger: set stop bit (axis+4) or start bit (axis) in command word
-        cJSON* isStopItem = cJSON_GetObjectItem(stepper, "isStop");
-        bool isStop = isStopItem && cJSON_IsTrue(isStopItem);
-        uint8_t cmdWord = isStop ? (uint8_t)(1u << (axis + 4)) : (uint8_t)(1u << axis);
-        bool ok = CANopenModule::writeSDO(nodeId, 0x2003, 0x00, &cmdWord, 1);
-        if (!ok) {
-            ESP_LOGW(TAG, "Motor trigger SDO failed: node=0x%02X", nodeId);
+        int32_t  pos   = posItem   ? posItem->valueint   : 0;
+        uint32_t speed = speedItem ? (uint32_t)std::abs(speedItem->valueint) : 1000;
+        uint32_t accel = accelItem ? (uint32_t)std::abs(accelItem->valueint) : 0;
+        bool     isAbs = isAbsItem && cJSON_IsTrue(isAbsItem);
+        bool     isStop = isStopItem && cJSON_IsTrue(isStopItem);
+
+        if (route->where == UC2::RouteEntry::LOCAL) {
+            // Direct call into FocusMotor — no CAN involved
+            if (isStop) {
+                if (FocusMotor::getData()[stepperid]) {
+                    FocusMotor::getData()[stepperid]->isStop = true;
+                    FocusMotor::getData()[stepperid]->isforever = false;
+                    FocusMotor::startStepper(stepperid, 0);
+                }
+            } else {
+                MotorData* d = FocusMotor::getData()[stepperid];
+                if (d) {
+                    d->targetPosition   = pos;
+                    d->speed            = speed;
+                    d->absolutePosition = isAbs;
+                    d->isforever        = false;
+                    d->isStop           = false;
+                    d->stopped          = false;
+                    if (accel > 0) d->acceleration = accel;
+                    else if (d->acceleration <= 0) d->acceleration = 40000;
+                    FocusMotor::startStepper(stepperid, 0);
+                }
+            }
+        } else { // REMOTE
+            uint8_t nodeId = route->nodeId;
+            uint8_t sub    = route->subAxis + 1;
+
+            CANopenModule::writeSDO_i32(nodeId, UC2_OD::MOTOR_TARGET_POSITION, sub, pos);
+            CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_SPEED, sub, speed);
+            if (accel > 0)
+                CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_ACCELERATION, sub, accel);
+            CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0);
+
+            uint8_t cmdWord = isStop
+                ? (uint8_t)(1u << (route->subAxis + 4))
+                : (uint8_t)(1u << route->subAxis);
+            bool ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, cmdWord);
+            if (!ok) ESP_LOGW(TAG, "Motor SDO failed: node 0x%02X", nodeId);
+
+            ESP_LOGI(TAG, "Motor cmd -> node 0x%02X axis %u: pos=%ld speed=%u abs=%d stop=%d",
+                     nodeId, route->subAxis, (long)pos, speed, isAbs, isStop);
         }
-        log_i("Motor cmd → node 0x%02X axis %u: pos=%ld speed=%u isAbs=%d isStop=%d",
-              nodeId, axis, (long)posVal, speedVal, isAbs, isStop ? 1 : 0);
 
-        cJSON* respStepper = cJSON_CreateObject();
-        cJSON_AddNumberToObject(respStepper, "stepperid", stepperid);
-        cJSON_AddNumberToObject(respStepper, "isDone", 0);
-        cJSON_AddItemToArray(respSteppers, respStepper);
+        cJSON* rs = cJSON_CreateObject();
+        cJSON_AddNumberToObject(rs, "stepperid", stepperid);
+        cJSON_AddNumberToObject(rs, "isDone", 0);
+        cJSON_AddItemToArray(respSteppers, rs);
     }
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
     return resp;
+#else
+    return nullptr;
+#endif
 }
 
 // ============================================================================
-// Motor get — read position and running state from slave UC2 OD:
-//
-//   0x2001:sub  = actual position (int32)
-//   0x2004:sub  = status word (uint8, bit0=isRunning)
+// Motor get — routing-table dispatch
 // ============================================================================
 cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
+#ifdef MOTOR_CONTROLLER
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
     if (!motor) return nullptr;
     cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
     if (!steppers || !cJSON_IsArray(steppers)) return nullptr;
 
     cJSON* respSteppers = cJSON_CreateArray();
-    int arraySize = cJSON_GetArraySize(steppers);
+    int n = cJSON_GetArraySize(steppers);
 
-    for (int i = 0; i < arraySize; i++) {
-        cJSON* stepper = cJSON_GetArrayItem(steppers, i);
-        cJSON* idItem = cJSON_GetObjectItem(stepper, "stepperid");
+    for (int i = 0; i < n; i++) {
+        cJSON* s = cJSON_GetArrayItem(steppers, i);
+        cJSON* idItem = cJSON_GetObjectItem(s, "stepperid");
         if (!idItem) continue;
 
         int stepperid = idItem->valueint;
-        uint8_t nodeId = stepperIdToNodeId(stepperid);
-        uint8_t axis   = stepperIdToAxisOnNode(stepperid);
-        uint8_t sub    = axis + 1;
+        const auto* route = UC2::RoutingTable::find(
+            UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
 
-        cJSON* respStepper = cJSON_CreateObject();
-        cJSON_AddNumberToObject(respStepper, "stepperid", stepperid);
+        cJSON* rs = cJSON_CreateObject();
+        cJSON_AddNumberToObject(rs, "stepperid", stepperid);
 
-        // Read actual position (int32)
-        int32_t currentPos = 0;
-        size_t readSize = 0;
-        bool ok = CANopenModule::readSDO(nodeId, 0x2001, sub, (uint8_t*)&currentPos, 4, &readSize);
-
-        // Read status word (uint8, bit0 = isRunning)
-        uint8_t statusWord = 0;
-        CANopenModule::readSDO(nodeId, 0x2004, sub, &statusWord, 1, &readSize);
-
-        if (ok) {
-            cJSON_AddNumberToObject(respStepper, "position",  currentPos);
-            cJSON_AddNumberToObject(respStepper, "isRunning", (statusWord & 0x01) ? 1 : 0);
-            cJSON_AddNumberToObject(respStepper, "isDone",    (statusWord & 0x01) ? 0 : 1);
-        } else {
-            ESP_LOGW(TAG, "SDO read failed: node=0x%02X", nodeId);
-            cJSON_AddNumberToObject(respStepper, "isDone", -1);
+        if (!route || route->where == UC2::RouteEntry::OFF) {
+            cJSON_AddNumberToObject(rs, "isDone", -1);
+            cJSON_AddItemToArray(respSteppers, rs);
+            continue;
         }
-        cJSON_AddItemToArray(respSteppers, respStepper);
+
+        if (route->where == UC2::RouteEntry::LOCAL) {
+            MotorData* d = FocusMotor::getData()[stepperid];
+            if (d) {
+                cJSON_AddNumberToObject(rs, "position", d->currentPosition);
+                cJSON_AddNumberToObject(rs, "isRunning", FocusMotor::isRunning(stepperid) ? 1 : 0);
+                cJSON_AddNumberToObject(rs, "isDone", FocusMotor::isRunning(stepperid) ? 0 : 1);
+            } else {
+                cJSON_AddNumberToObject(rs, "isDone", -1);
+            }
+        } else { // REMOTE
+            uint8_t nodeId = route->nodeId;
+            uint8_t sub    = route->subAxis + 1;
+
+            int32_t currentPos = 0;
+            size_t readSize = 0;
+            bool ok = CANopenModule::readSDO(nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
+                                             (uint8_t*)&currentPos, 4, &readSize);
+            uint8_t statusWord = 0;
+            CANopenModule::readSDO(nodeId, UC2_OD::MOTOR_STATUS_WORD, sub,
+                                   &statusWord, 1, &readSize);
+            if (ok) {
+                cJSON_AddNumberToObject(rs, "position", currentPos);
+                cJSON_AddNumberToObject(rs, "isRunning", (statusWord & 0x01) ? 1 : 0);
+                cJSON_AddNumberToObject(rs, "isDone", (statusWord & 0x01) ? 0 : 1);
+            } else {
+                ESP_LOGW(TAG, "SDO read failed: node 0x%02X", nodeId);
+                cJSON_AddNumberToObject(rs, "isDone", -1);
+            }
+        }
+        cJSON_AddItemToArray(respSteppers, rs);
     }
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
     return resp;
+#else
+    return nullptr;
+#endif
 }
 
 // ============================================================================
-// Laser act — write laser PWM value via UC2 OD:
-//
-//   0x2100:sub  = laser PWM value (uint16)
-//
-// sub = 1 (channel 0 on the laser node, 1-based sub-index).
-// Node mapping: laserid 0 → node 11, 1 → node 12, 2 → node 13.
+// Laser act — routing-table dispatch
 // ============================================================================
 cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
+#ifdef LASER_CONTROLLER
     cJSON* laser = cJSON_GetObjectItem(doc, "laser");
     if (!laser) return nullptr;
 
-    cJSON* laserid_item = cJSON_GetObjectItem(laser, "laserid");
-    cJSON* val_item     = cJSON_GetObjectItem(laser, "val");
+    cJSON* laserid_item = cJSON_GetObjectItem(laser, "LASERid");
+    cJSON* val_item     = cJSON_GetObjectItem(laser, "LASERval");
     if (!laserid_item || !val_item) return nullptr;
 
     int laserid = laserid_item->valueint;
     int rawVal  = val_item->valueint;
-    uint16_t pwmVal = (uint16_t)std::min(std::max(rawVal, 0), 65535);
 
-    // Map laser id to node (laserid 0→node11, 1→node12, 2→node13)
-    uint8_t nodeId = 11 + (uint8_t)laserid;
-    uint8_t sub    = 0x01;  // channel 0 on that node
+    const auto* route = UC2::RoutingTable::find(
+        UC2::RouteEntry::LASER, (uint8_t)laserid);
 
-    bool ok = CANopenModule::writeSDO(nodeId, 0x2100, sub, (uint8_t*)&pwmVal, 2);
+    if (!route || route->where == UC2::RouteEntry::OFF) {
+        ESP_LOGW(TAG, "laser %d has no route", laserid);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+
+    bool ok = true;
+    if (route->where == UC2::RouteEntry::LOCAL) {
+        ok = LaserController::setLaserVal(laserid, rawVal);
+    } else { // REMOTE
+        uint16_t pwmVal = (uint16_t)std::min(std::max(rawVal, 0), 65535);
+        uint8_t sub = route->subAxis + 1;
+        ok = CANopenModule::writeSDO_u16(route->nodeId, UC2_OD::LASER_PWM_VALUE, sub, pwmVal);
+        if (!ok) ESP_LOGW(TAG, "Laser SDO failed: node 0x%02X", route->nodeId);
+    }
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
     return resp;
+#else
+    return nullptr;
+#endif
 }
 
 // ============================================================================
-// Home act — trigger homing on slave via UC2 OD:
-//
-//   0x2011:sub  = homing speed (uint32)
-//   0x2012:sub  = homing direction (int8,  -1 or +1)
-//   0x2013:sub  = homing timeout ms (uint32)
-//   0x2014:sub  = endstop release steps (int32)
-//   0x2015:sub  = endstop polarity (uint8, 0=NC 1=NO)
-//   0x2010:sub  = homing command trigger (uint8, write 1 to arm)
+// Home act — routing-table dispatch
 // ============================================================================
 cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
+#ifdef HOME_MOTOR
     cJSON* home = cJSON_GetObjectItem(doc, "home");
     if (!home) return nullptr;
 
@@ -229,35 +295,128 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
     if (!stepperid_item) return nullptr;
 
     int stepperid = stepperid_item->valueint;
-    uint8_t nodeId = stepperIdToNodeId(stepperid);
-    uint8_t axis   = stepperIdToAxisOnNode(stepperid);
-    uint8_t sub    = axis + 1;
+    const auto* route = UC2::RoutingTable::find(
+        UC2::RouteEntry::HOME, (uint8_t)stepperid);
 
-    // Extract homing parameters with sensible defaults
+    if (!route || route->where == UC2::RouteEntry::OFF) {
+        ESP_LOGW(TAG, "home %d has no route", stepperid);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+
     cJSON* speedItem    = cJSON_GetObjectItem(home, "speed");
     cJSON* dirItem      = cJSON_GetObjectItem(home, "direction");
     cJSON* timeoutItem  = cJSON_GetObjectItem(home, "timeout");
     cJSON* releaseItem  = cJSON_GetObjectItem(home, "endstopRelease");
     cJSON* polarityItem = cJSON_GetObjectItem(home, "endstopPolarity");
 
-    uint32_t speed    = speedItem    ? (uint32_t)std::abs(speedItem->valueint)   : 1000u;
-    int8_t   dir      = dirItem      ? (int8_t)dirItem->valueint                 : -1;
-    uint32_t timeout  = timeoutItem  ? (uint32_t)timeoutItem->valueint           : 10000u;
-    int32_t  release  = releaseItem  ? (int32_t)releaseItem->valueint            : 0;
-    uint8_t  polarity = polarityItem ? (uint8_t)polarityItem->valueint           : 0u;
+    int speed     = speedItem    ? std::abs(speedItem->valueint) : 1000;
+    int dir       = dirItem      ? dirItem->valueint              : -1;
+    int timeout   = timeoutItem  ? timeoutItem->valueint          : 10000;
+    int release   = releaseItem  ? releaseItem->valueint          : 0;
+    int polarity  = polarityItem ? polarityItem->valueint         : 0;
 
-    CANopenModule::writeSDO(nodeId, 0x2011, sub, (uint8_t*)&speed,    4);
-    CANopenModule::writeSDO(nodeId, 0x2012, sub, (uint8_t*)&dir,      1);
-    CANopenModule::writeSDO(nodeId, 0x2013, sub, (uint8_t*)&timeout,  4);
-    CANopenModule::writeSDO(nodeId, 0x2014, sub, (uint8_t*)&release,  4);
-    CANopenModule::writeSDO(nodeId, 0x2015, sub, (uint8_t*)&polarity, 1);
+    bool ok = true;
+    if (route->where == UC2::RouteEntry::LOCAL) {
+        // Call HomeMotor directly — pass the full JSON for maximum compatibility
+        HomeMotor::act(doc);
+    } else { // REMOTE
+        uint8_t sub = route->subAxis + 1;
+        uint32_t spd32 = (uint32_t)speed;
+        int8_t   dir8  = (int8_t)dir;
+        uint32_t tmo32 = (uint32_t)timeout;
+        int32_t  rel32 = (int32_t)release;
+        uint8_t  pol8  = (uint8_t)polarity;
 
-    uint8_t trigger = 1;
-    bool ok = CANopenModule::writeSDO(nodeId, 0x2010, sub, &trigger, 1);
+        CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_SPEED, sub, spd32);
+        CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_DIRECTION, sub, (uint8_t)dir8);
+        CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, tmo32);
+        CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, rel32);
+        CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, pol8);
+        uint8_t trigger = 1;
+        ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, trigger);
+        if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
+    }
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
     return resp;
+#else
+    return nullptr;
+#endif
+}
+
+// ============================================================================
+// LED act — routing-table dispatch
+// ============================================================================
+cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
+#ifdef LED_CONTROLLER
+    const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
+
+    if (!route || route->where == UC2::RouteEntry::OFF) {
+        ESP_LOGW(TAG, "led 0 has no route");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+
+    if (route->where == UC2::RouteEntry::LOCAL) {
+        // Call LedController directly
+        return LedController::get(doc); // act returns int, use get for JSON response
+        // Note: LedController::act returns int but we need cJSON*
+    } else { // REMOTE
+        // TODO: Implement LED SDO forwarding when LED CANopen OD is wired up
+        ESP_LOGW(TAG, "LED remote routing not yet implemented");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+#else
+    return nullptr;
+#endif
+}
+
+// ============================================================================
+// Galvo act — routing-table dispatch
+// ============================================================================
+cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
+#ifdef GALVO_CONTROLLER
+    const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
+
+    if (!route || route->where == UC2::RouteEntry::OFF) {
+        ESP_LOGW(TAG, "galvo 0 has no route");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+
+    if (route->where == UC2::RouteEntry::LOCAL) {
+        return GalvoController::act(doc);
+    } else { // REMOTE
+        // TODO: Implement galvo SDO forwarding
+        ESP_LOGW(TAG, "Galvo remote routing not yet implemented");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+#else
+    return nullptr;
+#endif
+}
+
+// ============================================================================
+// TMC act — routing-table dispatch
+// ============================================================================
+cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
+#ifdef TMC_CONTROLLER
+    // TMC act typically applies to all configured axes;
+    // route the whole command locally or return an error for remote.
+    // For now, treat as LOCAL-only (TMC config is board-specific).
+    return nullptr; // Let SerialProcess handle it via TMCController::act()
+#else
+    return nullptr;
+#endif
 }
 
 // ============================================================================
@@ -268,14 +427,15 @@ cJSON* DeviceRouter::handleStateGet(uint8_t nodeId) {
 
     uint32_t uptime = 0;
     size_t readSize = 0;
-    if (CANopenModule::readSDO(nodeId, 0x2503, 0x00, (uint8_t*)&uptime, 4, &readSize)) {
-        cJSON_AddNumberToObject(resp, "uptime",  uptime);
-        cJSON_AddNumberToObject(resp, "online",  1);
+    if (CANopenModule::readSDO(nodeId, UC2_OD::UPTIME_SECONDS, 0x00,
+                               (uint8_t*)&uptime, 4, &readSize)) {
+        cJSON_AddNumberToObject(resp, "uptime", uptime);
+        cJSON_AddNumberToObject(resp, "online", 1);
     } else {
-        cJSON_AddNumberToObject(resp, "online",  0);
+        cJSON_AddNumberToObject(resp, "online", 0);
     }
 
     return resp;
 }
 
-#endif // CAN_CONTROLLER_CANOPEN && CAN_SEND_COMMANDS
+#endif // CAN_CONTROLLER_CANOPEN

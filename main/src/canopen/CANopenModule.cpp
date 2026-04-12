@@ -19,6 +19,7 @@
 
 #include "../config/RuntimeConfig.h"
 #include "../config/NVSConfig.h"
+#include "RoutingTable.h"
 // Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
 // Constants are declared here for compile-time verification; not yet used in logic.
 #include "UC2_OD_Indices.h"
@@ -364,6 +365,20 @@ bool CANopenModule::isOperational()
             CO->NMT->operatingState == CO_NMT_OPERATIONAL);
 }
 
+// Typed SDO write helpers
+bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v) {
+    return writeSDO(nodeId, idx, sub, &v, sizeof(v));
+}
+bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+}
+bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+}
+bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+}
+
 // ============================================================================
 // CO_main task — CANopenNode init + main processing loop
 // (Preserved structure from MWE, parametrised by runtimeConfig.canNodeId)
@@ -587,6 +602,9 @@ static PendingLaserCmd s_laserCmds[4];
 // ============================================================================
 void CANopenModule::syncRpdoToModules()
 {
+    // Only slaves receive RPDO data from the master
+    if (!runtimeConfig.isSlave()) return;
+
     // Called every 1ms from CO_tmr_task AFTER CO_process_RPDO().
     //
     // Motor command protocol (UC2 native):
@@ -655,12 +673,15 @@ void CANopenModule::syncRpdoToModules()
 
 void CANopenModule::syncModulesToTpdo()
 {
-    // Called every 1ms from CO_tmr_task BEFORE CO_process_TPDO().
-    // Write module state into OD_RAM so TPDOs broadcast it and master can SDO-read it.
-
-    // Always update system stats
+    // Always update system stats (useful for all roles)
     OD_RAM.x2503_uptime_seconds = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
     OD_RAM.x2504_free_heap_bytes = (uint32_t)esp_get_free_heap_size();
+
+    // Only slaves need to push module state into OD for the master to read
+    if (!runtimeConfig.isSlave()) return;
+
+    // Called every 1ms from CO_tmr_task BEFORE CO_process_TPDO().
+    // Write module state into OD_RAM so TPDOs broadcast it and master can SDO-read it.
 
 #ifdef MOTOR_CONTROLLER
     for (int ax = 0; ax < 4; ax++) {
@@ -698,6 +719,10 @@ void CANopenModule::setup()
     xTaskCreatePinnedToCore(CO_main_task, "CO_MAIN", 6000, NULL,
                             CANOPEN_TASK_PRIO, NULL, tskNO_AFFINITY);
     vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Build the routing table from pinConfig + runtimeConfig
+    UC2::RoutingTable::buildDefault();
+    UC2::RoutingTable::logAll();
 }
 
 void CANopenModule::loop()

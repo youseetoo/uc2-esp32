@@ -741,225 +741,458 @@ Verification:
 
 ---
 
-## PR-7.5: Module backend abstraction (fix the routing tangle)
+## PR-7.5: Centralized routing table — single dispatcher, no per-controller backends
 
-**Branch:** `refactor/module-backends`
+**Branch:** `refactor/dispatcher-routing-table`
 **Depends on:** PR-7 (done)
 **Blocks:** PR-9 (illumination), PR-10 (galvo) — these would otherwise be built on the
 broken routing pattern
-**Estimated scope:** ~600 lines added (backend interfaces + 3 implementations per module),
-~200 lines deleted (`#ifdef` chains inside controllers), no behaviour change for the
-standalone `UC2_3` build
+**Estimated scope:** ~250 lines added (routing table + dispatcher), ~150 lines deleted
+(`#ifdef` chains inside controllers + spurious CANopen-loop dispatch), no behaviour
+change for the standalone `UC2_3` build
 
-### Why this PR exists
+### Before vs after — the dispatch path for `/laser_act`
 
-The conceptual issue documented at the bottom of this file: build flags like
-`-DLASER_CONTROLLER=1` are device-role-agnostic. The same compilation unit
-(`LaserController.cpp`) is built for the standalone, pure-CAN-master, and CAN-hybrid
-environments. The decision "drive a local GPIO" vs "send an SDO to a remote slave" lives
-inside `setLaserVal()` as a chain of `#ifdef` guards. On a pure CAN master the routing
-block is never entered, the code falls through to the GPIO path, `getLaserPin()` returns
-`-1`, and the command silently no-ops.
+```
+BEFORE (current state on hybrid build — laser fires twice)
+═══════════════════════════════════════════════════════════
+                      Pi sends /laser_act
+                              │
+                              ▼
+                    SerialProcess parses JSON
+                              │
+                              ▼
+              LaserController::act(json)  ◄── CALL #1
+                              │
+                              ▼
+               setLaserVal(ch, val) → GPIO  ✓ laser on
+                              │
+                              │   meanwhile, on the next CO_tmrTask cycle...
+                              ▼
+                    syncRpdoToModules()
+                              │
+                  detects OD pending flag is set
+                              ▼
+              LaserController::setLaserVal(ch, val) ◄── CALL #2
+                              │
+                              ▼
+                       GPIO again  ✗ laser fired twice
 
-The fix is to split each controller into two halves: a thin **front-end** (parses JSON,
-validates parameters, tracks QIDs) and a swappable **backend** that knows how to actually
-make the hardware move. The backend is selected once at boot time based on the
-combination of `pinConfig` and `runtimeConfig.canRole`. After that, the controller code
-no longer cares whether the hardware is on this board or a CAN slave on the other side
-of the bus — it just calls `backend->setChannel(...)` and the backend does the right
-thing.
 
-This is also the right shape for adding new transports later (I2C expander, Ethernet,
-Pi-direct via Waveshare). The front-end doesn't change. You add a new backend
-implementation and select it in the factory.
+AFTER (PR-7.5 — exactly one fire path per command, decided by routing table)
+══════════════════════════════════════════════════════════════════════════════
+                      Pi sends /laser_act
+                              │
+                              ▼
+                    SerialProcess parses JSON
+                              │
+                              ▼
+              DeviceRouter::handleLaserAct(json)
+                              │
+              ┌───────────────┴───────────────┐
+              │ table.find(LASER, channel)    │
+              │   → {LOCAL}                   │
+              │   → {REMOTE, node 20, axis 1} │
+              │   → {DISABLED}                │
+              └───────────────┬───────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            ▼                 ▼                 ▼
+         LOCAL             REMOTE           DISABLED
+            │                 │                 │
+            ▼                 ▼                 ▼
+   LaserController::    CANopenModule::    return error
+   setLaserVal(...)     writeSDO_u16(      "no route for
+   ✓ exactly once       node 20,           laser N"
+                        UC2_OD::LASER_PWM,
+                        axis+1, val)
+                        ✓ exactly once
 
-### Three options considered, Option C (backend interface) chosen
+                    syncRpdoToModules()
+                              │
+              if (canRole != CAN_SLAVE) return; ◄── early-out gates the
+                              │                     master from ever firing
+                              X  never reached      a local controller call
+                                 on master
+```
 
-| Option | What it does | Pros | Cons |
-|--------|-------------|------|------|
-| **A** — `-DCAN_MASTER_ONLY=1` flag | Add another build flag, guard GPIO paths with it | Cheap, ~2 hours of work | Adds yet another flag to the matrix; doesn't help with future transports |
-| **B** — Runtime check inside each controller | Each `act()` checks `runtimeConfig.canRole` and forwards via DeviceRouter | No new flag | Couples every controller to DeviceRouter and runtimeConfig; the routing logic is duplicated in every controller; hard to test |
-| **C** — Backend abstraction (this PR) | `LaserBackend` interface with `LocalGPIOLaserBackend`, `CANopenLaserBackend`, `HybridLaserBackend`. `LaserController::init()` constructs the right backend based on pinConfig + canRole. `act()` always calls `backend->setChannel()`. | Clean separation; easy to test in isolation; drops in new transports without touching front-end code; eliminates 200+ lines of `#ifdef` from controllers | Most refactoring up front (~600 lines net); requires changing every controller class signature |
+The fix is two structural changes: (1) every controller-bound JSON command goes through
+`DeviceRouter` first, and (2) `syncRpdoToModules()` only ever runs on a slave node.
+Together they make double-dispatch literally unrepresentable.
 
-Option C is the right answer long-term. The other two are stopgaps that will need to be
-ripped out later anyway when the next transport gets added.
+### Why the previous backend-abstraction sketch was wrong
+
+A previous draft of this PR proposed a per-controller backend interface
+(`IMotorBackend`, `ILaserBackend`, …) with `LocalXxxBackend` / `CANopenXxxBackend` /
+`HybridXxxBackend` implementations selected by a factory at boot. After looking at it
+in context of the actual codebase, that design has three concrete problems:
+
+1. **Double initialization.** Every controller would construct its backend, and the
+   backend would re-do the hardware setup the controller already does. `FocusMotor::setup()`
+   instantiates the FastAccelStepper engine; a `LocalMotorBackend` would then have to
+   either own the engine itself (duplicating state) or hold a pointer back to the
+   controller (making the backend a pointless wrapper). Same problem for laser PWM
+   channels, LED pixel buffers, galvo DAC, etc.
+2. **Class explosion.** 7 controllers × 3 backends = 21 new classes for what is really
+   one decision: "is this command for local hardware or for a remote node?" The
+   interface for `IMotorBackend` and `ILaserBackend` would be 90% identical in shape
+   (`route(command, target)`) but with different parameter types — typical OOP
+   bureaucracy without an actual abstraction win.
+3. **Wrong locus of decision.** The routing decision is per-command, not per-controller.
+   It depends on `(command_type, target_id, runtime_role, pin_availability)`. Putting
+   that decision behind a virtual method on a controller-specific interface buries
+   the lookup data in C++ code instead of keeping it in one inspectable table.
+
+### The pattern this PR uses instead: routing table + single dispatcher
+
+Linux IP routing, HTTP middleware, and gRPC all solve the "where does this request go"
+problem with the same structure:
+
+1. **A routing table** — pure data, one row per `(command_type, target_id)` tuple,
+   each row says "local" or "node N". The table lives in RuntimeConfig and is built at
+   boot from `pinConfig` + `runtimeConfig.canRole` + NVS. It is inspectable, dumpable
+   to JSON via `/route_get`, and modifiable at runtime via `/route_set` — useful for
+   commissioning and field service.
+2. **A single dispatcher** — `DeviceRouter` already exists; we extend it. It has one
+   entry point per command type (`handleMotorAct`, `handleLaserAct`, …) that:
+   1. Parses the JSON command
+   2. Looks up each target in the routing table
+   3. Either calls the existing local controller method directly, or issues an SDO
+      write to the remote node, OR fans out to several targets in one command
+4. **Controllers stay exactly as they are** — no interface to implement, no backend to
+   construct, no factory to consult, no double setup. `FocusMotor::startStepper()`,
+   `LaserController::setLaserVal()`, `LedController::setMode()` etc. are unchanged.
+   They are the "local hardware" implementation, period. Whoever calls them is asserting
+   "make this hardware do that thing" and the dispatcher is the gatekeeper that decides
+   whether to call them at all.
+
+This collapses the 21 hypothetical classes into one extended `DeviceRouter` plus a
+~30-line `RoutingTable` struct.
+
+### How the laser double-command bug disappears
+
+Two concrete behavior changes fix the "laser turns on twice" symptom you reported:
+
+1. **`SerialProcess.cpp` always goes through `DeviceRouter` first.** Today, on a hybrid
+   build, the JSON parser calls `LaserController::act(json)` directly AND the CANopen
+   loop's `syncRpdoToModules()` notices the OD pending flag and calls
+   `LaserController::setLaserVal()` again. After PR-7.5, the JSON parser hands every
+   `laser_act` to `DeviceRouter::handleLaserAct()`. The dispatcher consults the routing
+   table once and either (a) calls `LaserController::setLaserVal()` directly (local) or
+   (b) issues an SDO write to the slave (remote). Exactly one call per command.
+2. **`syncRpdoToModules()` is gated on `runtimeConfig.canRole == CAN_SLAVE`.** On a
+   master, the function returns immediately at the top and never iterates the OD
+   pending flags. The OD entries on the master only ever exist as RPDO sources for the
+   master's outgoing commands; they are never consumed by master-side controller calls.
+   The slave is the only role that consumes OD entries → controller calls.
+
+After these two changes the question "who fired this command" always has exactly one
+answer for any given `(node_role, command, target)` combination, and the answer is
+inspectable by reading the routing table.
+
+### Why this is structurally cheaper than per-controller backends
+
+| | Per-controller backends (rejected) | Routing table + dispatcher (this PR) |
+|---|------------------------------------|--------------------------------------|
+| New abstract base classes | 7 (one per controller) | 0 |
+| New concrete implementations | 14-21 (2-3 backends × 7 controllers) | 0 |
+| New factory functions | 7 | 0 |
+| Lines added per new module type | ~200 (interface + 3 backends + factory + wiring) | ~30 (one routing-table row + one DeviceRouter::handleXxxAct method) |
+| Controller files touched | 7 (every act() rewritten to delegate) | 0 (controllers unchanged) |
+| Runtime cost per command | Virtual call + factory-selected branch | One table lookup + direct call |
+| Where does the routing decision live? | Hidden behind 7 different vtables | One inspectable struct array |
+| `/route_get` debug visibility | Have to call into each backend | Print the table |
+| Controllers know about CAN? | Yes — backend factory pulls them in | No — DeviceRouter owns the CAN dependency |
+| Laser double-call bug fix complexity | Refactor all controllers + new factory | Two if-statements |
+
+The dispatcher pattern is also how every other CANopen-based field bus toolkit handles
+this (CANopenSocket's `gateway_ascii`, python-canopen's `RemoteNode`, EtherCAT
+masters). It's the established pattern in the field bus world; the per-device interface
+pattern is more typical of high-level OOP frameworks where each device has a complex
+state machine of its own.
+
+### Concrete file layout after PR-7.5
+
+```
+main/src/canopen/
+├── CANopenModule.cpp / .h    ← unchanged from PR-7
+├── DeviceRouter.cpp / .h     ← EXTENDED (the only file that grows significantly)
+├── RoutingTable.h            ← NEW (~80 lines, single struct + lookup helpers)
+└── UC2_OD_Indices.h          ← unchanged (generated)
+
+main/src/motor/
+├── FocusMotor.cpp / .h       ← unchanged
+├── MotorJsonParser.cpp       ← UNCHANGED (still parses JSON, but sends result
+│                                to DeviceRouter::handleMotorAct instead of
+│                                directly to FocusMotor on master/hybrid builds)
+└── MotorTypes.h              ← unchanged
+
+main/src/laser/
+└── LaserController.cpp / .h  ← unchanged except: delete shouldUseCANForLaser()
+                                  and the #ifdef CAN_HYBRID branch in setLaserVal().
+                                  setLaserVal() is now ALWAYS local-GPIO. The
+                                  routing decision happens upstream in DeviceRouter.
+
+main/src/serial/
+└── SerialProcess.cpp         ← MODIFIED: every controller-bound JSON command
+                                  routes through DeviceRouter::handleXxxAct()
+                                  instead of calling controllers directly.
+                                  When DeviceRouter says "local", the dispatcher
+                                  itself calls the controller. The serial layer
+                                  no longer knows the difference.
+```
+
+That's it — three files modified, one file added, six files unchanged.
 
 ### Claude Code prompt
 
 ```
-Goal: Eliminate the conflation between "what hardware exists on this node" and "how
-commands reach that hardware" by introducing a backend abstraction for each module
-controller. After this PR, the routing decision is made ONCE at boot in a factory
-function, not on every JSON command via #ifdef chains.
+Goal: Replace the broken #ifdef-based routing in module controllers with a single
+routing table consulted by DeviceRouter. After this PR, each command is dispatched
+exactly once, the routing decision is inspectable as data, and adding a new module
+type costs ~30 lines instead of ~200.
 
-The motor controller is the template — laser, LED, galvo, home, dial follow the same
-shape. Do motor first end-to-end, then mechanically replicate.
+Step 1 — Define the routing table
 
-PHASE 1 — Motor backend interface
+Create main/src/canopen/RoutingTable.h:
 
-1. Create main/src/motor/IMotorBackend.h:
+#pragma once
+#include <stdint.h>
+#include "../config/RuntimeConfig.h"
 
-   #pragma once
-   #include "MotorTypes.h"
+namespace UC2 {
 
-   class IMotorBackend {
-   public:
-       virtual ~IMotorBackend() = default;
+// One row per addressable hardware instance: a motor axis, a laser channel,
+// an LED matrix, a galvo, an endstop bank, etc. Built at boot from pinConfig
+// and runtimeConfig.canRole. Mutable at runtime via /route_set for field
+// service. ~64 entries cover the largest envisaged setup.
+struct RouteEntry {
+    enum Type : uint8_t { MOTOR = 1, LASER, LED, GALVO, HOME, TMC, DAC, AIN, DIN };
+    enum Where : uint8_t { LOCAL = 0, REMOTE = 1, DISABLED = 2 };
 
-       // Lifecycle
-       virtual void setup() = 0;
-       virtual void loop()  = 0;
+    Type    type;          // what kind of hardware
+    uint8_t logicalId;     // user-visible id (stepperid, LASERid, ledid, ...)
+    Where   where;         // local GPIO or remote CAN node
+    uint8_t nodeId;        // valid only when where == REMOTE
+    uint8_t subAxis;       // valid only when where == REMOTE; which axis on that node
+};
 
-       // Commands
-       virtual void startMove(Stepper axis, int32_t target, uint32_t speed,
-                              uint32_t accel, bool isAbs) = 0;
-       virtual void stopMove(Stepper axis) = 0;
-       virtual void setEnable(Stepper axis, bool en) = 0;
+class RoutingTable {
+public:
+    // Build from pinConfig + runtimeConfig at boot
+    static void buildDefault();
+    // Apply NVS overrides loaded by NVSConfig
+    static void applyNvsOverrides();
 
-       // State queries
-       virtual int32_t getPosition(Stepper axis) const = 0;
-       virtual bool    isRunning(Stepper axis)  const = 0;
-       virtual bool    isHomed(Stepper axis)    const = 0;
+    // Lookup: returns nullptr if no route exists
+    static const RouteEntry* find(RouteEntry::Type t, uint8_t logicalId);
 
-       // Identification (for logging / diagnostics)
-       virtual const char* name() const = 0;
-   };
+    // Mutation (used by /route_set and during boot construction)
+    static void set(RouteEntry::Type t, uint8_t logicalId,
+                    RouteEntry::Where w, uint8_t nodeId = 0, uint8_t subAxis = 0);
 
-2. Create main/src/motor/backends/LocalMotorBackend.h + .cpp:
-   - Wraps the existing FastAccelStepper code
-   - This is what runs today on a standalone UC2_3 board or a CAN slave
-   - Move the FastAccelStepper init, the run loop, the position queries from
-     FocusMotor.cpp into this class
-   - FocusMotor.cpp keeps its existing public API but DELEGATES to the backend
-     (see Phase 3)
-   - name() returns "LocalMotor"
+    // Inspection — used by /route_get and the boot log
+    static cJSON* toJson();
+    static void   logAll();   // dumps to ESP_LOG for boot diagnostics
 
-3. Create main/src/motor/backends/CANopenMotorBackend.h + .cpp:
-   - For each command, performs SDO writes via CANopenModule::writeSDO
-   - Uses UC2_OD::MOTOR_TARGET_POSITION etc. from the generated header
-   - getPosition() reads from the master's RemoteSlaveCache (PR-8 wires this)
-     Until PR-8 lands, falls back to a polling SDO read (acceptable interim behaviour)
-   - Constructor takes the slave nodeId so it knows where to forward
-   - name() returns "CANopenMotor(node=NN)"
+private:
+    static constexpr uint8_t MAX_ROUTES = 64;
+    static RouteEntry table[MAX_ROUTES];
+    static uint8_t    count;
+};
 
-4. (Optional, for CAN_HYBRID boards): create HybridMotorBackend
-   - Holds an array of per-axis backends (some Local, some CANopen)
-   - Each call dispatches to the right per-axis backend based on canMotorAxis or
-     pinConfig
-   - This is the cleanest way to express "axis 0 is local, axes 1-3 are remote"
+} // namespace UC2
 
-PHASE 2 — Backend factory
+Implementation file RoutingTable.cpp:
 
-1. Create main/src/motor/MotorBackendFactory.h + .cpp:
+- buildDefault() reads pinConfig.MOTOR_AXIS_PINS, pinConfig.LASER_PINS,
+  pinConfig.LED_PIN, pinConfig.GALVO_DAC_PINS, etc. For each entry that has
+  valid pins on this board, add a LOCAL row. For each "logical id" expected
+  by the JSON API that has no local pins on this board, add a REMOTE row
+  pointing at the appropriate slave node-id (from runtimeConfig).
+- The construction logic is one switch on runtimeConfig.canRole:
+    STANDALONE → everything LOCAL (or DISABLED if no pins)
+    CAN_SLAVE  → everything LOCAL on this node, no REMOTEs (slave doesn't route)
+    CAN_MASTER → for each logical id: LOCAL if pinConfig has the pins,
+                 otherwise REMOTE pointing at the canonical slave node-id
+                 (motor X→11, Y→12, Z→13, A→14, laser→20, led→20, galvo→30...).
+                 NodeId comes from a small const map keyed by RouteEntry::Type
+                 + logicalId, defined at the top of RoutingTable.cpp so it's
+                 easy to grep.
 
-   IMotorBackend* createMotorBackend() {
-       // Decision tree based on runtimeConfig + pinConfig
-       if (runtimeConfig.canRole == CAN_MASTER && !hasLocalMotorPins()) {
-           // Pure master: forward everything
-           return new CANopenMotorBackend(/*per-axis nodeId map*/);
-       }
-       if (runtimeConfig.canRole == CAN_MASTER && hasLocalMotorPins()) {
-           // Hybrid master: some local, some remote
-           return new HybridMotorBackend(...);
-       }
-       if (runtimeConfig.canRole == CAN_SLAVE) {
-           // Slave: always local, the CANopenModule sync function calls our backend
-           return new LocalMotorBackend(/*single axis from canMotorAxis*/);
-       }
-       // STANDALONE
-       return new LocalMotorBackend();
-   }
+logAll() emits one line per entry at boot:
+    [routing] motor 0 → LOCAL
+    [routing] motor 1 → REMOTE node 11 axis 0
+    [routing] laser 0 → REMOTE node 20 axis 0
+    [routing] led   0 → LOCAL
+    ...
+This makes routing problems obvious during commissioning.
 
-   The factory consults pinConfig.MOTOR_PINS to detect "do I have wiring", and
-   runtimeConfig.canRole to decide the role. This is the SINGLE place where the
-   compile-time-vs-runtime, local-vs-remote decision lives.
+Step 2 — Extend DeviceRouter to consult the routing table
 
-PHASE 3 — Wire the backend into FocusMotor
+In DeviceRouter.h, add one method per command type. Each follows the same shape:
 
-1. FocusMotor::setup() now does:
+cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
+    cJSON* motor    = cJSON_GetObjectItem(doc, "motor");
+    cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
+    cJSON* resp     = cJSON_CreateObject();
 
-   void FocusMotor::setup() {
-       backend = createMotorBackend();
-       log_i("FocusMotor using backend: %s", backend->name());
-       backend->setup();
-   }
+    int n = cJSON_GetArraySize(steppers);
+    for (int i = 0; i < n; i++) {
+        cJSON* s = cJSON_GetArrayItem(steppers, i);
+        int    stepperid = cJSON_GetObjectItem(s, "stepperid")->valueint;
+        int32_t target   = cJSON_GetObjectItem(s, "position")->valueint;
+        uint32_t speed   = cJSON_GetObjectItem(s, "speed")->valueint;
+        uint32_t accel   = cJSON_GetObjectItem(s, "acceleration") ?
+                              cJSON_GetObjectItem(s, "acceleration")->valueint : 0;
+        bool   isAbs     = cJSON_IsTrue(cJSON_GetObjectItem(s, "isabs"));
 
-2. Every public method on FocusMotor delegates:
+        const auto* route = UC2::RoutingTable::find(
+                                UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
+        if (!route || route->where == UC2::RouteEntry::DISABLED) {
+            log_w("motor %d has no route", stepperid);
+            continue;
+        }
 
-   void FocusMotor::startStepper(Stepper axis) {
-       MotorData* d = getData()[axis];
-       backend->startMove(axis, d->targetPosition, d->speed, d->acceleration, d->isabs);
-   }
+        if (route->where == UC2::RouteEntry::LOCAL) {
+            // Direct call into the existing controller — no change to FocusMotor
+            MotorData* d = focusMotor->getData()[(Stepper)stepperid];
+            d->targetPosition = target;
+            d->speed          = speed;
+            d->acceleration   = accel;
+            d->isabs          = isAbs;
+            focusMotor->startStepper((Stepper)stepperid);
+        } else { // REMOTE
+            // Issue 4 SDO writes against the registry-generated indices
+            CANopenModule::writeSDO_i32(route->nodeId,
+                UC2_OD::MOTOR_TARGET_POSITION, route->subAxis + 1, target);
+            CANopenModule::writeSDO_u32(route->nodeId,
+                UC2_OD::MOTOR_SPEED,           route->subAxis + 1, speed);
+            CANopenModule::writeSDO_u32(route->nodeId,
+                UC2_OD::MOTOR_ACCELERATION,    route->subAxis + 1, accel);
+            CANopenModule::writeSDO_u8 (route->nodeId,
+                UC2_OD::MOTOR_COMMAND_WORD,    0,
+                (1 << route->subAxis) | (isAbs ? 0x10 : 0));
+        }
+    }
 
-   int32_t FocusMotor::getCurrentPosition(Stepper axis) {
-       return backend->getPosition(axis);
-   }
+    cJSON_AddNumberToObject(resp, "return", 1);
+    return resp;
+}
 
-   ... etc
+The same shape applies to handleLaserAct, handleLedAct, handleGalvoAct,
+handleHomeAct, handleTmcAct, handleDigitalOutAct, handleAnalogOutAct.
+Each is ~30 lines and the only thing that changes between them is which
+controller method to call locally and which UC2_OD constants to write
+remotely.
 
-3. CANopenModule::syncRpdoToModules() KEEPS calling FocusMotor::startStepper() the
-   same way it does today. The difference is that on a master the backend is
-   CANopenMotorBackend, so the call quietly turns into another SDO write. On a slave
-   the backend is LocalMotorBackend, so the call drives the local GPIO. Same code
-   path, different backend.
+Add typed SDO write helpers to CANopenModule to avoid the (uint8_t*, size_t)
+boilerplate at every call site:
 
-4. CRITICAL: CANopenModule::loop() must NOT call any module's act() function on a
-   master node. The whole point of the refactor is that the master forwards via the
-   backend, and the slave's CANopenNode stack has already received the SDO write and
-   updated OD_RAM. Add an assert at the top of every syncRpdoToModules / syncTpdoToModules
-   call: if (runtimeConfig.canRole == CAN_MASTER) return; (unless it's a hybrid that
-   genuinely owns local hardware AND has received its own RPDO).
+static bool writeSDO_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v);
+static bool writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v);
+static bool writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v);
+static bool writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v);
 
-PHASE 4 — Repeat for laser, LED, galvo, home, dial, encoder
+Step 3 — SerialProcess routes everything through DeviceRouter
 
-For each controller:
-1. Define ILaserBackend / ILedBackend / etc.
-2. Move existing code into LocalXxxBackend
-3. Add CANopenXxxBackend that does SDO writes
-4. Add a factory that constructs the right one based on pinConfig + canRole
-5. Update the front-end controller to delegate to its backend
+In SerialProcess::jsonProcessor(), the case for /motor_act today calls
+MotorJsonParser::parse(...) directly. After PR-7.5, on any build that
+defines CAN_CONTROLLER_CANOPEN it instead calls
+DeviceRouter::handleMotorAct(jsonDocument). The same applies to /laser_act,
+/led_act, /home_act, /galvo_act, /tmc_act.
 
-The pattern is mechanical. Don't try to over-engineer per-module — copy the motor
-shape exactly, just rename the types.
+For builds that DON'T define CAN_CONTROLLER_CANOPEN (the pure standalone
+WiFi-only boards), the existing direct path stays — DeviceRouter doesn't
+exist on those builds and the routing table is bypassed. This preserves
+the simplest case.
 
-PHASE 5 — Delete the dead routing #ifdefs
+Step 4 — Gate syncRpdoToModules() on slave role
 
-After every controller has a backend, search and destroy:
-- LaserController.cpp: remove the entire shouldUseCANForLaser() helper, the CAN_HYBRID
-  branch in setLaserVal(), the fallback to native GPIO. The backend is the only path.
-- FocusMotor.cpp: remove any #ifdef CAN_RECEIVE_MOTOR / CAN_SEND_COMMANDS logic
-- LedController.cpp: same cleanup
-- Verify with: grep -rn "shouldUseCANFor\|CAN_HYBRID\|CAN_RECEIVE_LASER" main/src/
-  Should return zero hits in controller files (only in legacy can_transport.cpp,
-  which PR-12 will delete entirely)
+In CANopenModule::syncRpdoToModules(), at the very top:
 
-DO NOT in this PR:
-- Touch can_transport.cpp (PR-12 deletes it whole)
-- Add new OD entries (PR-9/10 do that)
-- Change the JSON API
-- Touch the standalone non-CAN build paths beyond delegating through the backend
+void CANopenModule::syncRpdoToModules() {
+    if (runtimeConfig.canRole != CAN_ROLE_SLAVE) return;
+    // ... existing decode-and-dispatch logic stays exactly as it is ...
+}
 
-Verification:
-- All four environments compile: UC2_2 (standalone, no CAN), UC2_3 (standalone),
-  UC2_canopen_master (pure master), UC2_canopen_slave (slave)
-- Standalone UC2_3: motor moves identically to before (regression test)
-- CAN slave: motor moves identically to before (regression test)
-- CAN master with no slave on the bus: /motor_act returns an error explaining "no
-  backend can reach this axis" instead of silently no-opping
-- CAN master with slave attached: /motor_act forwards via SDO and the slave moves
-- grep -rn "LASER_CONTROLLER" main/src/laser/   appears only in #include guards and
-  the constructor — never in routing logic
-- The CANopenModule::loop() spurious-laser-call bug is gone: on a master, no
-  setLaserVal() is ever called locally
-- REGRESSION — laser double-command bug: on a standalone UC2_3 board, send
-  {"task":"/laser_act","laser":{"LASERid":1,"LASERval":1000}} and instrument
-  LaserBackend::setChannel() to count calls. Expected: exactly ONE call. Before
-  PR-7.5, on a hybrid build this produced two calls (once via laser_act direct,
-  once via the CANopen loop's pending-flag dispatch) which created the "laser turns
-  on twice" symptom the user reported.
-- REGRESSION — on a pure CAN master with LASER_CONTROLLER compiled in but no local
-  laser pins wired, /laser_act must route via the CANopen backend and NOT fall
-  through to getLaserPin() == -1 silent no-op.
+Same for syncModulesToTpdo() — it should run on slave role only. Master
+TPDOs are written by DeviceRouter as a side effect of handleXxxAct, not by
+a periodic sync.
+
+This single early-return is what makes the laser double-call bug
+impossible: the master's CANopen loop will never call any controller
+method, because the function returns before it reaches the dispatch logic.
+
+Step 5 — Delete dead routing logic from controllers
+
+In LaserController.cpp:
+- Delete the entire shouldUseCANForLaser() helper
+- Delete the #if defined(CAN_HYBRID) ... #endif block in setLaserVal()
+- setLaserVal() now contains only the local-GPIO path, unconditionally
+  (it's only ever called from a LOCAL route, by the dispatcher)
+
+In FocusMotor.cpp, MotorJsonParser.cpp:
+- Delete any #ifdef CAN_RECEIVE_MOTOR / CAN_SEND_COMMANDS branches that
+  forward to can_transport. The dispatcher handles forwarding.
+- Keep the local code path. Delete the alternative.
+
+In LedController.cpp, GalvoController.cpp, HomeMotor.cpp, TMCController.cpp:
+- Same cleanup. After this step, controllers contain ONLY local-hardware
+  code. They are completely unaware that CANopen exists.
+
+Verify with:
+  grep -rn "CAN_HYBRID\|shouldUseCANFor\|CAN_RECEIVE_LASER\|CAN_SEND_COMMANDS" \
+       main/src/laser main/src/motor main/src/led main/src/scanner main/src/home main/src/tmc
+
+Should return zero hits in controller files (only in legacy can_transport.cpp
+which PR-12 deletes wholesale).
+
+Step 6 — /route_get and /route_set serial endpoints
+
+Add to SerialProcess routing:
+
+  /route_get → returns RoutingTable::toJson() so the host can inspect
+               which axis lives where
+  /route_set → accepts {"type":"motor","logicalId":1,"where":"remote","nodeId":11}
+               and updates the table at runtime, persists to NVS
+
+This gives ImSwitch and field engineers a live view of the routing
+without having to recompile.
+
+Step 7 — DO NOT in this PR
+
+- Do NOT add per-controller interfaces or backend classes
+- Do NOT touch FocusMotor's FastAccelStepper init
+- Do NOT touch LaserController's PWM init
+- Do NOT touch can_transport.cpp (PR-12 deletes it whole)
+- Do NOT change the JSON API the Pi sees — only the internal dispatch path
+
+Step 8 — Verification
+
+- All four environments compile: UC2_2 (standalone, no CAN), UC2_3
+  (standalone), UC2_canopen_master (pure master), UC2_canopen_slave (slave)
+- Standalone UC2_3: motor moves identically to before
+- CAN slave: motor moves identically to before
+- CAN master with no slave on the bus: /motor_act for a remote axis returns
+  an error noting "no node responded" (SDO timeout) instead of silently
+  no-opping. Local axes (if any) still work.
+- CAN master with slave attached: /motor_act forwards via the dispatcher,
+  slave moves, /motor_get reads the slave's reported position
+- The /route_get endpoint returns a JSON dump of the routing table that
+  matches what the boot log printed
+- REGRESSION — laser double-command bug: instrument LaserController::setLaserVal
+  with a static call counter. Send a single /laser_act and verify the counter
+  goes up by exactly 1, not 2. Test on standalone, slave, and hybrid builds.
+- REGRESSION — pure-master no-pins silent no-op: on a master build with
+  LASER_CONTROLLER=1 but no laser pins, /laser_act for laser 0 must either
+  succeed (if a remote route exists) or return an error explaining there's
+  no route. It must NOT silently succeed with zero hardware effect.
+- grep -rn "CAN_HYBRID\|shouldUseCANForLaser" main/src/   → zero hits in
+  controller files
+
+If any verification step fails, the PR is not done. The double-call test
+in particular is what proves the routing tangle is gone.
 ```
 
 ### Cleanup tasks that ride along in this PR
@@ -994,7 +1227,7 @@ The branch currently has two EDS files that disagree:
    openUC2_satellite_new.eds and remove them (docs, CI configs, README, etc.).
 ```
 
-**Dead-code cleanup (preparatory for PR-12):**
+**Dead-code marking (preparatory for PR-12):**
 
 ```
 These files are leftovers from the pre-CANopen transport and the trainer OD. Flag
@@ -1035,18 +1268,24 @@ so reviewers aren't surprised.
 
 Wiring laser/LED/galvo into the registry-driven OD before fixing the routing tangle
 just creates more places that need to be untangled later. PR-7.5 establishes the
-backend pattern with the motor (which already works end-to-end), then PR-9/10 inherit
-the pattern for free.
+routing-table pattern with motor + laser as the templates, then PR-9/10 add their
+respective `handleXxxAct` methods to `DeviceRouter` and their respective rows to the
+routing table — nothing else.
 
-After PR-7.5 lands, adding a new module is:
+After PR-7.5 lands, adding a new module type is exactly:
 
-1. Define `IXxxBackend` interface
-2. Implement `LocalXxxBackend` (existing code, moved)
-3. Implement `CANopenXxxBackend` (new — just SDO writes against UC2_OD constants)
-4. Add the factory entry
-5. Add the OD entries to the registry YAML
-6. Regenerate
-7. Done — works on standalone, slave, master, hybrid, and Pi-direct simultaneously
+1. Add the OD entries to `tools/canopen/uc2_canopen_registry.yaml`
+2. Run `regenerate_all.py` (CI check ensures you don't forget)
+3. Add a new `RouteEntry::Type` enum value in `RoutingTable.h`
+4. Add construction rows in `RoutingTable::buildDefault()` for the new module
+5. Add one `DeviceRouter::handleNewModuleAct()` method (~30 lines, copy the motor one)
+6. Add one routing case in `SerialProcess.cpp`'s task dispatch
+7. Done — works on standalone, slave, master, hybrid, and Pi-direct simultaneously,
+   with zero touches to the controller class itself
+
+Compared to the rejected backend-abstraction approach (which required ~200 lines
+per module and modifications to the controller class), this is roughly an 85% reduction
+in per-module overhead.
 
 ---
 

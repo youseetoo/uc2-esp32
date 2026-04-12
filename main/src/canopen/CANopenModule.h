@@ -30,6 +30,12 @@ public:
     static bool readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,   // CANopen Service Data Object (SDO) read helper
                         uint8_t* buf, size_t bufSize, size_t* readSize);
 
+    // Typed SDO write helpers — avoid (uint8_t*, size_t) boilerplate at call sites
+    static bool writeSDO_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v);
+    static bool writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v);
+    static bool writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v);
+    static bool writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v);
+
     // /can_get and /can_act endpoints for CANopen builds
     // {"task":"/can_get"} → returns node ID, NMT state, TWAI status
     // {"task":"/can_act", "nodeId": 10} → sets this node's ID (persisted to NVS)

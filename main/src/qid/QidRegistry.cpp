@@ -240,26 +240,8 @@ namespace QidRegistry
                 entries[idx].pausedAxes[i].originalTarget = targetPos;
                 entries[idx].pausedAxes[i].paused = true;
 
-                // Stop the motor (this may trigger CAN stop for remote motors)
+                // Stop the motor
                 FocusMotor::stopStepper(i);
-
-                // For CAN motors: wait up to 500ms for position update from slave
-                if (FocusMotor::shouldUseCANForAxis(i))
-                {
-                    vTaskDelay(pdMS_TO_TICKS(500));
-                    // Re-read position after slave responds
-                    FocusMotor::updateData(i);
-                    if (xSemaphoreTake(xQidMutex, pdMS_TO_TICKS(500)))
-                    {
-                        idx = findEntry(qid);
-                        if (idx >= 0)
-                        {
-                            int32_t updatedPos = FocusMotor::getData()[i]->currentPosition;
-                            entries[idx].pausedAxes[i].remainingSteps = entries[idx].pausedAxes[i].originalTarget - updatedPos;
-                        }
-                        xSemaphoreGive(xQidMutex);
-                    }
-                }
 #endif
                 if (!xSemaphoreTake(xQidMutex, pdMS_TO_TICKS(500)))
                     return false;

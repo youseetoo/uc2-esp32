@@ -117,3 +117,7 @@ __attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act
 __attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
 #endif
 
+// Routing table inspection/override (CANopen builds)
+__attribute__ ((unused)) static const  char* route_get_endpoint = "/route_get";
+__attribute__ ((unused)) static const  char* route_set_endpoint = "/route_set";
+

@@ -143,33 +143,7 @@ namespace MotorJsonParser
 #ifdef STAGE_SCAN
     void parseStageScan(cJSON *doc)
     {
-        // set trigger
-        cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
-        // {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
-        // {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
-        // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
-        // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
-        // {"task": "/motor_get"}
-        if (settrigger != NULL)
-        { // NOT ACTIVELY USED 
-            log_d("settrigger");
-            cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
-            if (stprs != NULL)
-            {
 
-                cJSON *stp = NULL;
-                cJSON_ArrayForEach(stp, stprs)
-                {
-                    Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-                    FocusMotor::getData()[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
-                    FocusMotor::getData()[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
-                    FocusMotor::getData()[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
-                    log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
-                    log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
-                    log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
-                }
-            }
-        }
 
         // start independent stageScan
         //
@@ -182,7 +156,7 @@ namespace MotorJsonParser
                 log_i("stagescan stopped");
                 return;
             }
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
+#ifndef  CAN_RECEIVE_MOTOR
             // CAN-based stage scanning with grid parameters
             // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125], "zicZac":0}}
 			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
@@ -303,52 +277,11 @@ namespace MotorJsonParser
                   StageScan::getStageScanData()->useCoordinates);
 
             xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
-#else
-            // Non-CAN stage scanning with traditional grid parameters
-            StageScan::getStageScanData()->nStepsLine = cJsonTool::getJsonInt(stagescan, "nStepsLine");
-            StageScan::getStageScanData()->dStepsLine = cJsonTool::getJsonInt(stagescan, "dStepsLine");
-            StageScan::getStageScanData()->nTriggerLine = cJsonTool::getJsonInt(stagescan, "nTriggerLine");
-            StageScan::getStageScanData()->nStepsPixel = cJsonTool::getJsonInt(stagescan, "nStepsPixel");
-            StageScan::getStageScanData()->dStepsPixel = cJsonTool::getJsonInt(stagescan, "dStepsPixel");
-            StageScan::getStageScanData()->nTriggerPixel = cJsonTool::getJsonInt(stagescan, "nTriggerPixel");
-            StageScan::getStageScanData()->delayTimeStep = cJsonTool::getJsonInt(stagescan, "delayTimeStep");
-            StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
-            
-            // Check for coordinate-based scanning (also supported in non-CAN mode)
-            cJSON *coordinates = cJSON_GetObjectItem(stagescan, "coordinates");
-            if (coordinates != NULL && cJSON_IsArray(coordinates))
-            {
-                int coordinateCount = cJSON_GetArraySize(coordinates);
-                if (coordinateCount > 0)
-                {
-                    StageScan::StagePosition* positions = new StageScan::StagePosition[coordinateCount];
-                    
-                    for (int i = 0; i < coordinateCount; i++)
-                    {
-                        cJSON *coord = cJSON_GetArrayItem(coordinates, i);
-                        if (coord != NULL)
-                        {
-                            positions[i].x = cJsonTool::getJsonInt(coord, "x");
-                            positions[i].y = cJsonTool::getJsonInt(coord, "y");
-                        }
-                    }
-                    
-                    StageScan::setCoordinates(positions, coordinateCount);
-                    delete[] positions; // setCoordinates makes its own copy
-                    log_i("Coordinate-based scanning enabled with %d positions", coordinateCount);
-                }
-            }
-            else
-            {
-                // Clear any existing coordinates to use grid-based scanning
-                StageScan::clearCoordinates();
-            }
-            
-            xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
+
 #endif
 		}
 
-		#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
+		#ifndef  CAN_RECEIVE_MOTOR
 		// start independent focusScan
 		cJSON *focusscan = cJSON_GetObjectItem(doc, "focusscan");
 		if (focusscan != NULL)

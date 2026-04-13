@@ -58,7 +58,6 @@ namespace StageScan
 
     void stageScanThread(void *arg);
     void stageScan(bool isThread = false);
-    void stageScanCAN(bool isThread = false);
     StageScanningData *getStageScanData();
     
     void setCoordinates(StagePosition* coords, int count);

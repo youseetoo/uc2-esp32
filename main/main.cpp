@@ -86,9 +86,6 @@ Preferences preferences;
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-#include "src/objective/ObjectiveController.h"
-#endif
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
@@ -102,6 +99,7 @@ Preferences preferences;
 #include "src/canopen/CANopenModule.h"
 CANopenModule canopenModule;
 #endif
+#include "src/canopen/RoutingTable.h"
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
 #endif
@@ -168,12 +166,6 @@ extern "C" void looper(void *p)
 #ifdef HOME_MOTOR
 		if (runtimeConfig.home) {
 			HomeMotor::loop();
-			vTaskDelay(1);
-		}
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-		if (runtimeConfig.objective) {
-			ObjectiveController::loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -542,11 +534,6 @@ extern "C" void setupApp(void)
 			BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
 		}
 		#endif
-		#ifdef OBJECTIVE_CONTROLLER
-		if (runtimeConfig.objective) {
-			BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
-		}
-		#endif
 		#ifdef MOTOR_CONTROLLER
 		if (runtimeConfig.motor) {
 			BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
@@ -579,11 +566,6 @@ extern "C" void setupApp(void)
 #ifdef HOME_MOTOR
 	if (runtimeConfig.home) {
 		HomeMotor::setup();
-	}
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-	if (runtimeConfig.objective) {
-		ObjectiveController::setup();
 	}
 #endif
 #ifdef LASER_CONTROLLER
@@ -642,6 +624,10 @@ extern "C" void setupApp(void)
 #ifdef OTA_ON_STARTUP
 State::startOTA();
 #endif
+
+	// Build the routing table from pinConfig + runtimeConfig (all builds)
+	UC2::RoutingTable::buildDefault();
+	UC2::RoutingTable::logAll();
 
 	SerialProcess::safePrintln("{'setup':'done'}");
 }

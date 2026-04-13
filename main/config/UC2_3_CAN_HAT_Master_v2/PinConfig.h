@@ -13,21 +13,22 @@
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
-#define OBJECTIVE_CONTROLLER=1
 #define STAGE_SCAN=1
 #define CAN_SEND_COMMANDS
 #define MOTOR_AXIS_COUNT 10   
 #define LED_CONTROLLER
 #define GALVO_CONTROLLER
 #define DAC_CONTROLLER
-#define CAN_BUS_ENABLED
+#define CAN_CONTROLLER_CANOPEN
+#define LASER_CONTROLLER
+#define LED_CONTROLLER
 
-struct UC2_3_CAN_HAT_Master_v2 : PinConfig
+struct UC2_canopen_master : PinConfig
 {
     // ---------------------------------------------------------------------
     // Board identity
     // ---------------------------------------------------------------------
-    const char* pindefName = "UC2_3_CAN_HAT_Master_v2";
+    const char* pindefName = "UC2_canopen_master";
     const unsigned long BAUDRATE = 921600; //15200;
 
     // ---------------------------------------------------------------------
@@ -77,6 +78,14 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
      int8_t CAN_RX = GPIO_NUM_18;
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
     bool DEBUG_CAN_ISO_TP = false;
+
+    // Routing overrides: 0=LOCAL, 1=REMOTE, 2=OFF  (-1=infer)
+    int8_t ROUTE_MOTOR[4] = {1, 1, 1, 1}; // A, X, Y, Z — all remote via CAN slaves
+    int8_t ROUTE_HOME[4]  = {1, 1, 1, 1};
+    int8_t ROUTE_TMC[4]   = {1, 1, 1, 1};
+    int8_t ROUTE_LASER[4] = {1, 1, 1, 1}; // all remote
+    int8_t ROUTE_LED       = 0;            // on-board WS2812 is local
+    int8_t ROUTE_GALVO     = 1;            // remote
 
     // ---------------------------------------------------------------------
     // Lighting / status
@@ -184,4 +193,4 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     int8_t LASER_3 = disabled;
 };
 
-const UC2_3_CAN_HAT_Master_v2 pinConfig;
+const UC2_canopen_master pinConfig;

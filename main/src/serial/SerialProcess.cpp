@@ -30,9 +30,6 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-#include "../objective/ObjectiveController.h"
-#endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
@@ -45,10 +42,10 @@
 #include "../can/CanOtaStreaming.h"
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
-#include "../canopen/DeviceRouter.h"
 #include "../canopen/CANopenModule.h"
-#include "../canopen/RoutingTable.h"
 #endif
+#include "../canopen/DeviceRouter.h"
+#include "../canopen/RoutingTable.h"
 
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -344,7 +341,6 @@ namespace SerialProcess
 			xTaskCreate(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle); // Higher priority
 
 		Serial.setTimeout(100);
-		Serial.setTxBufferSize(1024);
 		QidRegistry::setup();
 
 		log_i("SerialProcess::setup() completed - Ready to receive serial data");
@@ -562,18 +558,16 @@ namespace SerialProcess
 	{
 		log_i("Processing task: %s", task);
 
-#ifdef CAN_CONTROLLER_CANOPEN
 		// Route commands through RoutingTable — handles LOCAL, REMOTE, OFF
-		// transparently for all CANopen roles (master, slave, standalone).
-		log_i("Routing task through CANopen DeviceRouter");
+		// transparently for all roles (master, slave, standalone).
+		log_i("Routing task through DeviceRouter");
 		cJSON *canResponse = DeviceRouter::routeCommand(task, jsonDocument);
 		if (canResponse)
 		{
 			serialize(canResponse);
-			return;
+			return; // If the command was routed, we assume it was handled and return immediately. If the command is not recognized by the router, it returns nullptr and we continue with local processing.
 		}
 
-#endif
 		/*
 		This function takes in the task (e.g. /state_get)
 		and a JSON object that holds the information for the
@@ -643,17 +637,11 @@ namespace SerialProcess
 			serialize(LinearEncoderController::get(jsonDocument));
 		}
 #endif
-#ifdef HOME_MOTOR
+#ifdef HOME_MOTOR //TODO: When will this case actually be reached? probably we will always go through the routing? 
 		else if (runtimeConfig.home && strcmp(task, home_get_endpoint) == 0)
 			serialize(HomeMotor::get(jsonDocument));
 		else if (runtimeConfig.home && strcmp(task, home_act_endpoint) == 0)
 			serialize(HomeMotor::act(jsonDocument));
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-		else if (runtimeConfig.objective && strcmp(task, objective_get_endpoint) == 0)
-			serialize(ObjectiveController::get(jsonDocument));
-		else if (runtimeConfig.objective && strcmp(task, objective_act_endpoint) == 0)
-			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
 		else if (strcmp(task, i2c_get_endpoint) == 0)
@@ -676,19 +664,19 @@ namespace SerialProcess
 		else if (strcmp(task, can_act_endpoint) == 0)
 			serialize(CANopenModule::act(jsonDocument));
 #endif
-#ifdef LASER_CONTROLLER
+#ifdef LASER_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
 		else if (runtimeConfig.laser && strcmp(task, laser_get_endpoint) == 0)
 			serialize(LaserController::get(jsonDocument));
 		else if (runtimeConfig.laser && strcmp(task, laser_act_endpoint) == 0)
 			serialize(LaserController::act(jsonDocument));
 #endif
-#ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
 		else if (runtimeConfig.tmc && strcmp(task, tmc_get_endpoint) == 0)
 			serialize(TMCController::get(jsonDocument));
 		else if (runtimeConfig.tmc && strcmp(task, tmc_act_endpoint) == 0)
 			serialize(TMCController::act(jsonDocument));
 #endif
-#ifdef LED_CONTROLLER
+#ifdef LED_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
 		else if (runtimeConfig.led && strcmp(task, ledarr_get_endpoint) == 0)
 			serialize(LedController::get(jsonDocument));
 		else if (runtimeConfig.led && strcmp(task, ledarr_act_endpoint) == 0)
@@ -700,19 +688,19 @@ namespace SerialProcess
 		else if (runtimeConfig.message && strcmp(task, message_act_endpoint) == 0)
 			serialize(MessageController::act(jsonDocument));
 #endif
-#ifdef MOTOR_CONTROLLER
+#ifdef MOTOR_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
 		else if (runtimeConfig.motor && strcmp(task, motor_get_endpoint) == 0)
 			serialize(MotorJsonParser::get(jsonDocument));
 		else if (runtimeConfig.motor && strcmp(task, motor_act_endpoint) == 0)
 			serialize(MotorJsonParser::act(jsonDocument));
 #endif
-#ifdef SCANNER_CONTROLLER
+#ifdef SCANNER_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 	
 		else if (runtimeConfig.scanner && strcmp(task, scanner_get_endpoint) == 0)
 			serialize(ScannerController::get(jsonDocument));
 		else if (runtimeConfig.scanner && strcmp(task, scanner_act_endpoint) == 0)
 			serialize(ScannerController::act(jsonDocument));
 #endif
-#ifdef GALVO_CONTROLLER
+#ifdef GALVO_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
 		else if (runtimeConfig.galvo && strcmp(task, galvo_get_endpoint) == 0)
 			serialize(GalvoController::get(jsonDocument));
 		else if (runtimeConfig.galvo && strcmp(task, galvo_act_endpoint) == 0)
@@ -741,7 +729,6 @@ namespace SerialProcess
 		{
 			serialize(State::getModules());
 		}
-#ifdef CAN_CONTROLLER_CANOPEN
 		else if (strcmp(task, route_get_endpoint) == 0)
 		{
 			serialize(UC2::RoutingTable::toJson());
@@ -781,7 +768,6 @@ namespace SerialProcess
 			UC2::RoutingTable::set(type, logicalId, where, (uint8_t)nodeId);
 			serialize(UC2::RoutingTable::toJson());
 		}
-#endif
 #ifdef WIFI
 		else if (runtimeConfig.wifi && strcmp(task, scanwifi_endpoint) == 0)
 		{

@@ -3,7 +3,6 @@
 // REMOTE → forward via CANopen SDO, DISABLED → log warning.
 // Active on all CANopen builds (CAN_CONTROLLER_CANOPEN).
 #pragma once
-#ifdef CAN_CONTROLLER_CANOPEN
 
 #include <cJSON.h>
 #include <stdint.h>
@@ -19,13 +18,18 @@ public:
     static cJSON* handleMotorAct(cJSON* doc);
     static cJSON* handleMotorGet(cJSON* doc);
     static cJSON* handleLaserAct(cJSON* doc);
+    static cJSON* handleLaserGet(cJSON* doc);
     static cJSON* handleHomeAct(cJSON* doc);
+    static cJSON* handleHomeGet(cJSON* doc);
     static cJSON* handleLedAct(cJSON* doc);
+    static cJSON* handleLedGet(cJSON* doc);
     static cJSON* handleGalvoAct(cJSON* doc);
+    static cJSON* handleGalvoGet(cJSON* doc);
     static cJSON* handleTmcAct(cJSON* doc);
+    static cJSON* handleTmcGet(cJSON* doc);
 
 private:
+#ifdef CAN_CONTROLLER_CANOPEN
     static cJSON* handleStateGet(uint8_t nodeId);
+#endif
 };
-
-#endif // CAN_CONTROLLER_CANOPEN

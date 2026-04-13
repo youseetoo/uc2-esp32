@@ -1,10 +1,8 @@
 // RoutingTable.cpp — Data-driven routing table, built at boot.
 // See RoutingTable.h for the design rationale.
 #include "RoutingTable.h"
-
-#ifdef CAN_CONTROLLER_CANOPEN
-
 #include <PinConfig.h>
+
 #include "../config/RuntimeConfig.h"
 #include "esp_log.h"
 
@@ -121,87 +119,70 @@ static bool hasLocalGalvoPin() {
 
 // ============================================================================
 // buildDefault() — construct the routing table from pinConfig + runtimeConfig
+//
+// Priority: explicit ROUTE_* override in PinConfig (-1 = infer from canRole + pins)
 // ============================================================================
-void RoutingTable::buildDefault() {
-    count = 0;
 
+// Resolve a single device route: use PinConfig override if >= 0, else infer.
+static void resolveRoute(RouteEntry::Type type, uint8_t logicalId,
+                         int8_t override_val, bool hasLocalPin) {
+    if (override_val >= 0) {
+        // Explicit override from PinConfig
+        RouteEntry::Where w = static_cast<RouteEntry::Where>(override_val);
+        uint8_t nid = (w == RouteEntry::REMOTE) ? resolveDefaultNodeId(type, logicalId) : 0;
+        log_i("Applying explicit route override: type=%s id=%d -> %s (node 0x%02X)",
+              type, logicalId, w, nid);
+        RoutingTable::set(type, logicalId, w, nid, 0);
+        return;
+    }
+
+    // Infer from canRole + pins (legacy behaviour)
     switch (runtimeConfig.canRole) {
+        log_i("Inferring route for type=%s id=%d: canRole=%d hasLocalPin=%d",
+              type, logicalId, runtimeConfig.canRole, hasLocalPin);
     case NodeRole::STANDALONE:
-        // Everything LOCAL if pins exist, OFF otherwise
-        for (uint8_t ax = 0; ax < 4; ax++) {
-            set(RouteEntry::MOTOR, ax,
-                hasLocalMotorPin(ax) ? RouteEntry::LOCAL : RouteEntry::OFF);
-            set(RouteEntry::HOME, ax,
-                hasLocalMotorPin(ax) ? RouteEntry::LOCAL : RouteEntry::OFF);
-            set(RouteEntry::TMC, ax,
-                hasLocalMotorPin(ax) ? RouteEntry::LOCAL : RouteEntry::OFF);
-        }
-        for (uint8_t ch = 0; ch < 4; ch++) {
-            set(RouteEntry::LASER, ch,
-                hasLocalLaserPin(ch) ? RouteEntry::LOCAL : RouteEntry::OFF);
-        }
-        set(RouteEntry::LED, 0,
-            hasLocalLedPin() ? RouteEntry::LOCAL : RouteEntry::OFF);
-        set(RouteEntry::GALVO, 0,
-            hasLocalGalvoPin() ? RouteEntry::LOCAL : RouteEntry::OFF);
-        break;
-
     case NodeRole::CAN_SLAVE:
-        // Slave: everything LOCAL on this node, no REMOTEs
-        for (uint8_t ax = 0; ax < 4; ax++) {
-            set(RouteEntry::MOTOR, ax,
-                hasLocalMotorPin(ax) ? RouteEntry::LOCAL : RouteEntry::OFF);
-            set(RouteEntry::HOME, ax,
-                hasLocalMotorPin(ax) ? RouteEntry::LOCAL : RouteEntry::OFF);
-            set(RouteEntry::TMC, ax,
-                hasLocalMotorPin(ax) ? RouteEntry::LOCAL : RouteEntry::OFF);
-        }
-        for (uint8_t ch = 0; ch < 4; ch++) {
-            set(RouteEntry::LASER, ch,
-                hasLocalLaserPin(ch) ? RouteEntry::LOCAL : RouteEntry::OFF);
-        }
-        set(RouteEntry::LED, 0,
-            hasLocalLedPin() ? RouteEntry::LOCAL : RouteEntry::OFF);
-        set(RouteEntry::GALVO, 0,
-            hasLocalGalvoPin() ? RouteEntry::LOCAL : RouteEntry::OFF);
+        RoutingTable::set(type, logicalId,
+            hasLocalPin ? RouteEntry::LOCAL : RouteEntry::OFF);
         break;
-
     case NodeRole::CAN_MASTER:
-        // Master: LOCAL if pinConfig has the pins, otherwise REMOTE
-        for (uint8_t ax = 0; ax < 4; ax++) {
-            if (hasLocalMotorPin(ax)) {
-                set(RouteEntry::MOTOR, ax, RouteEntry::LOCAL);
-                set(RouteEntry::HOME,  ax, RouteEntry::LOCAL);
-                set(RouteEntry::TMC,   ax, RouteEntry::LOCAL);
-            } else {
-                uint8_t nid = resolveDefaultNodeId(RouteEntry::MOTOR, ax);
-                set(RouteEntry::MOTOR, ax, RouteEntry::REMOTE, nid, 0);
-                set(RouteEntry::HOME,  ax, RouteEntry::REMOTE, nid, 0);
-                set(RouteEntry::TMC,   ax, RouteEntry::REMOTE, nid, 0);
-            }
-        }
-        for (uint8_t ch = 0; ch < 4; ch++) {
-            if (hasLocalLaserPin(ch)) {
-                set(RouteEntry::LASER, ch, RouteEntry::LOCAL);
-            } else {
-                uint8_t nid = resolveDefaultNodeId(RouteEntry::LASER, ch);
-                set(RouteEntry::LASER, ch, RouteEntry::REMOTE, nid, 0);
-            }
-        }
-        if (hasLocalLedPin()) {
-            set(RouteEntry::LED, 0, RouteEntry::LOCAL);
+        if (hasLocalPin) {
+            RoutingTable::set(type, logicalId, RouteEntry::LOCAL);
         } else {
-            set(RouteEntry::LED, 0, RouteEntry::REMOTE,
-                resolveDefaultNodeId(RouteEntry::LED, 0), 0);
-        }
-        if (hasLocalGalvoPin()) {
-            set(RouteEntry::GALVO, 0, RouteEntry::LOCAL);
-        } else {
-            set(RouteEntry::GALVO, 0, RouteEntry::REMOTE,
-                resolveDefaultNodeId(RouteEntry::GALVO, 0), 0);
+            uint8_t nid = resolveDefaultNodeId(type, logicalId);
+            RoutingTable::set(type, logicalId, RouteEntry::REMOTE, nid, 0);
         }
         break;
     }
+}
+
+void RoutingTable::buildDefault() {
+    count = 0;
+
+    // Motors, Home, TMC — per axis
+    for (uint8_t ax = 0; ax < 4; ax++) {
+        bool hasPin = hasLocalMotorPin(ax);
+        resolveRoute(RouteEntry::MOTOR, ax, pinConfig.ROUTE_MOTOR[ax], hasPin);
+        // Home/TMC follow motor override unless they have their own
+        int8_t homeOv = (pinConfig.ROUTE_HOME[ax] >= 0)
+                        ? pinConfig.ROUTE_HOME[ax] : pinConfig.ROUTE_MOTOR[ax];
+        int8_t tmcOv  = (pinConfig.ROUTE_TMC[ax] >= 0)
+                        ? pinConfig.ROUTE_TMC[ax]  : pinConfig.ROUTE_MOTOR[ax];
+        resolveRoute(RouteEntry::HOME, ax, homeOv, hasPin);
+        resolveRoute(RouteEntry::TMC,  ax, tmcOv,  hasPin);
+    }
+
+    // Lasers
+    for (uint8_t ch = 0; ch < 4; ch++) {
+        resolveRoute(RouteEntry::LASER, ch,
+                     pinConfig.ROUTE_LASER[ch], hasLocalLaserPin(ch));
+    }
+
+    // LED
+    resolveRoute(RouteEntry::LED, 0, pinConfig.ROUTE_LED, hasLocalLedPin());
+
+    // Galvo
+    resolveRoute(RouteEntry::GALVO, 0, pinConfig.ROUTE_GALVO, hasLocalGalvoPin());
 }
 
 // ============================================================================
@@ -223,6 +204,10 @@ const RouteEntry* RoutingTable::find(RouteEntry::Type t, uint8_t logicalId) {
     return nullptr;
 }
 
+// Forward declarations for logging helpers
+static const char* typeToStr(RouteEntry::Type t);
+static const char* whereToStr(RouteEntry::Where w);
+
 // ============================================================================
 // set() — insert or update a route entry
 // ============================================================================
@@ -231,6 +216,8 @@ void RoutingTable::set(RouteEntry::Type t, uint8_t logicalId,
     // Try to update existing entry
     for (uint8_t i = 0; i < count; i++) {
         if (table[i].type == t && table[i].logicalId == logicalId) {
+            log_i("Updating route: type=%s id=%d -> %s (node 0x%02X axis %d)",
+                  typeToStr(t), logicalId, whereToStr(w), nodeId, subAxis);
             table[i].where   = w;
             table[i].nodeId  = nodeId;
             table[i].subAxis = subAxis;
@@ -307,5 +294,3 @@ void RoutingTable::logAll() {
 }
 
 } // namespace UC2
-
-#endif // CAN_CONTROLLER_CANOPEN

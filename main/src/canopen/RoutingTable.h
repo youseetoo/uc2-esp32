@@ -3,8 +3,6 @@
 // to decide if a command runs locally or gets forwarded via CANopen SDO.
 #pragma once
 
-#ifdef CAN_CONTROLLER_CANOPEN
-
 #include <stdint.h>
 #include "cJSON.h"
 
@@ -51,5 +49,3 @@ private:
 };
 
 } // namespace UC2
-
-#endif // CAN_CONTROLLER_CANOPEN

@@ -21,8 +21,9 @@
 #define LINEAR_ENCODER_CONTROLLER
 //#define OTA_ON_STARTUP
 #define USE_PCNT_COUNTER
+#define CAN_CONTROLLER_CANOPEN
 
-struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
+struct UC2_canopen_slave : PinConfig
 {
      /*
      D0: 1
@@ -54,7 +55,7 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
      
      bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
-     const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
+     const char * pindefName = "UC2_canopen_slave";
      const unsigned long BAUDRATE = 921600; // 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
@@ -94,6 +95,14 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
      int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
      int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
+
+     // Routing overrides: 0=LOCAL, 1=REMOTE, 2=OFF  (-1=infer)
+     int8_t ROUTE_MOTOR[4] = {2, 0, 2, 2}; // A=OFF, X=LOCAL, Y=OFF, Z=OFF
+     int8_t ROUTE_HOME[4]  = {2, 0, 2, 2};
+     int8_t ROUTE_TMC[4]   = {2, 0, 2, 2};
+     int8_t ROUTE_LASER[4] = {2, 2, 2, 2}; // all OFF on this slave
+     int8_t ROUTE_LED       = 2;            // OFF
+     int8_t ROUTE_GALVO     = 2;            // OFF
      
 
      // Endstops should be the same for all - depending on the motor
@@ -121,4 +130,4 @@ struct seeed_xiao_esp32s3_can_slave_motor : PinConfig
 
 };
   
-const seeed_xiao_esp32s3_can_slave_motor pinConfig;
+const UC2_canopen_slave pinConfig;

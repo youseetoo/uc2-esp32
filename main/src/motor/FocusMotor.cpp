@@ -9,7 +9,6 @@
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "esp_debug_helpers.h"
-#include "MotorBackendFactory.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #include "../encoder/PCNTEncoderController.h"
@@ -42,8 +41,6 @@
 namespace FocusMotor
 {
 
-	IMotorBackend* backend = nullptr;
-
 	MotorData a_dat;
 	MotorData x_dat;
 	MotorData y_dat;
@@ -59,7 +56,10 @@ namespace FocusMotor
 
 	Preferences preferences;
 	int logcount;
-	bool waitForFirstRun[] = {false, false, false, false};
+	// Grace-period counter: skip this many loop iterations after startStepper()
+	// before the stop-condition is allowed to fire.  Gives the stepper time to
+	// start actually running (especially important for CAN-dispatched moves).
+	int waitForFirstRun[] = {0, 0, 0, 0};
 
 	xSemaphoreHandle xMutex = NULL;
 	xSemaphoreHandle xSerialMutex = NULL; // Mutex for serial JSON output
@@ -104,7 +104,7 @@ namespace FocusMotor
 			log_i("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
 			getData()[axis]->stopped = true;
 			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
-#ifdef CAN_RECEIVE_MOTOR
+#ifdef CAN_RECEIVE_MOTOR // Is this still necessary with the current router concept?
 			if (getData()[axis]->qid > 0)
 				can_controller::sendQidReportToMaster(getData()[axis]->qid, 1);
 #else
@@ -118,21 +118,12 @@ namespace FocusMotor
 		// allowing gamepad to retry quickly if mutex is busy.
 		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
 		{
-			if (backend) {
-				// Backend handles all routing (local, CAN, hybrid)
-#if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
-				waitForFirstRun[axis] = 1;
-#endif
-				backend->startMove(axis, getData()[axis], reduced);
-			} else {
-				// Fallback: local stepper only (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
-				waitForFirstRun[axis] = 1;
-				FAccelStep::startFastAccelStepper(axis);
+			waitForFirstRun[axis] = 10;
+			FAccelStep::startFastAccelStepper(axis);
 #elif defined(USE_ACCELSTEP)
-				AccelStep::startAccelStepper(axis);
+			AccelStep::startAccelStepper(axis);
 #endif
-			}
 			getData()[axis]->stopped = false;
 			xSemaphoreGive(xMutex);
 		}
@@ -195,7 +186,6 @@ namespace FocusMotor
 
 	void setAutoEnable(bool enable)
 	{
-		if (backend) { backend->setAutoEnable(enable); return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::setAutoEnable(enable);
 #endif
@@ -203,7 +193,6 @@ namespace FocusMotor
 
 	void setEnable(bool enable)
 	{
-		if (backend) { backend->setEnable(enable); return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::Enable(enable);
 #elif defined USE_ACCELSTEP
@@ -215,11 +204,6 @@ namespace FocusMotor
 
 	void updateData(int axis)
 	{
-		if (backend) {
-			backend->updateData(axis);
-			return;
-		}
-// Fallback: local stepper only (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
 		FAccelStep::updateData(axis);
 #elif defined(USE_ACCELSTEP)
@@ -232,10 +216,6 @@ namespace FocusMotor
 
 	long getCurrentMotorPosition(int axis)
 	{
-		if (backend) {
-			return backend->getPosition(axis);
-		}
-// Fallback: local stepper only (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
 		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
 #else
@@ -475,16 +455,6 @@ namespace FocusMotor
 
 		// Initialize motor-encoder conversion configuration
 		MotorEncoderConfig::setup();
-
-		// Create motor backend (routing decision made once at boot)
-		backend = createMotorBackend();
-		if (backend) {
-			log_i("Motor backend created: %s", backend->name());
-			backend->setup();
-			sendMotorPosition();
-			return; // backend handles all hardware init
-		}
-		log_i("No motor backend created, using legacy init path");
 
 #if (defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR))
 		// stop all motors on startup
@@ -779,11 +749,15 @@ namespace FocusMotor
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 #if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
+			// Skip axes that were never activated (no step pin configured)
+			if (!isActivated[i])
+				continue;
+
 			// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{
-				waitForFirstRun[i] = 0;
+				waitForFirstRun[i]--;
 				continue;
 			}
 			// If soft limits are enabled, decide whether to stop
@@ -826,7 +800,7 @@ namespace FocusMotor
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C/CAN
 				// Skip during homing - the homing task manages motor lifecycle
-				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
+				log_d("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
 			}
 
@@ -836,7 +810,6 @@ namespace FocusMotor
 
 	bool isRunning(int i)
 	{
-		if (backend) { return backend->isRunning(i); }
 		bool mIsRunning = false;
 		// Fallback: local stepper only (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
@@ -965,24 +938,6 @@ namespace FocusMotor
 
 	void stopStepper(int i)
 	{
-		if (backend) {
-			backend->stopMove(i);
-			data[i]->stopped = true;
-			data[i]->isStop = true;
-			data[i]->isforever = false;
-			data[i]->speed = 0;
-			log_i("stopStepper Focus Motor %i via backend", i);
-			sendMotorPos(i, 0);
-#ifdef CAN_RECEIVE_MOTOR
-			// On CAN slave: push completion to master via CAN message
-			if (data[i]->qid > 0)
-				can_controller::sendQidReportToMaster(data[i]->qid, 0);
-#else
-			QidRegistry::reportActionDone(data[i]->qid);
-#endif
-			return;
-		}
-
 		// Stop local stepper (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
 		FAccelStep::stopFastAccelStepper(i);
@@ -1018,7 +973,6 @@ namespace FocusMotor
 
 	void setPosition(Stepper s, int pos)
 	{
-		if (backend) { backend->setPosition(static_cast<int>(s), pos); getData()[s]->currentPosition = pos; return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::setPosition(s, pos);
 #elif defined USE_ACCELSTEP
@@ -1029,7 +983,6 @@ namespace FocusMotor
 
 	void move(Stepper s, int steps, bool blocking)
 	{
-		if (backend) { backend->startMove(static_cast<int>(s), data[static_cast<int>(s)], 0); return; }
 #ifdef USE_FASTACCEL
 		FAccelStep::move(s, steps, blocking);
 #endif

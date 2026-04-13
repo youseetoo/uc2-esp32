@@ -150,11 +150,17 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             }
         }
 
-        // TX: drain queued frames from CANopenNode
-        while (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {
-            if (twai_transmit(&tx_msg.message, 0) != ESP_OK) {
-                ESP_LOGE(TAG_CAN, "TX failed");
-                break;
+        // TX: send at most one queued frame per iteration to avoid
+        // overwhelming the TWAI TX buffer. Draining the queue in a
+        // tight loop can trigger the ESP-IDF tx_msg_count race
+        // (assert twai.c:183 tx_msg_count >= 0).
+        if (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {
+            esp_err_t err = twai_transmit(&tx_msg.message, pdMS_TO_TICKS(5));
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG_CAN, "TX failed (%s) — re-queuing",
+                         esp_err_to_name(err));
+                // Put it back at the front so it retries next cycle
+                xQueueSendToFront(CAN_TX_queue, (void*)&tx_msg, 0);
             }
         }
 
@@ -193,6 +199,7 @@ void CANopenModule::CO_tmr_task(void* arg)
 {
     for (;;) {
         if (CO != NULL && !CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
+            log_i("CANopenNode timer task tick");
             uint32_t timeDifference_us = 1000;
             bool_t syncWas = false;
 
@@ -684,11 +691,23 @@ void CANopenModule::syncModulesToTpdo()
     // Write module state into OD_RAM so TPDOs broadcast it and master can SDO-read it.
 
 #ifdef MOTOR_CONTROLLER
-    for (int ax = 0; ax < 4; ax++) {
-        if (FocusMotor::getData()[ax] == nullptr) continue;
-        OD_RAM.x2001_motor_actual_position[ax] = FocusMotor::getData()[ax]->currentPosition;
-        OD_RAM.x2004_motor_status_word[ax]     = FocusMotor::isRunning(ax) ? 0x01u : 0x00u;
-    }
+    // The slave's physical motor is at local axis REMOTE_MOTOR_AXIS_ID (e.g. 1 = Stepper::X).
+    // The master writes/reads OD axis 0, so we must map the local motor position back into
+    // the correct OD slot.  For a single-motor slave we mirror the local axis to ALL OD slots
+    // so the master always reads the correct value regardless of subAxis.
+    
+        int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        // Refresh currentPosition from the stepper hardware
+        FocusMotor::updateData(localAxis);
+        MotorData* md = FocusMotor::getData()[localAxis];
+        if (md != nullptr) {
+            for (int ax = 0; ax < 4; ax++) {
+                log_i("Sync to OD: local-ax%d pos=%ld -> OD-ax%d", localAxis, (long)md->currentPosition, ax);
+                OD_RAM.x2001_motor_actual_position[ax] = md->currentPosition;
+                OD_RAM.x2004_motor_status_word[ax]     = FocusMotor::isRunning(localAxis) ? 0x01u : 0x00u;
+            }
+        }
+    
 #endif
 }
 
@@ -719,10 +738,6 @@ void CANopenModule::setup()
     xTaskCreatePinnedToCore(CO_main_task, "CO_MAIN", 6000, NULL,
                             CANOPEN_TASK_PRIO, NULL, tskNO_AFFINITY);
     vTaskDelay(pdMS_TO_TICKS(100));
-
-    // Build the routing table from pinConfig + runtimeConfig
-    UC2::RoutingTable::buildDefault();
-    UC2::RoutingTable::logAll();
 }
 
 void CANopenModule::loop()
@@ -764,12 +779,13 @@ void CANopenModule::loop()
         if (s_axisCmds[ax].isStop) {
             m->isStop    = true;
             m->isforever = false;
+            log_i("Dispatch motor STOP OD-ax%d -> local-ax%d", ax, localAxis);
             FocusMotor::startStepper(localAxis, 0);
         } else {
             m->targetPosition   = s_axisCmds[ax].pos;
             m->speed            = s_axisCmds[ax].speed;
             m->absolutePosition = s_axisCmds[ax].isAbs;
-            m->isforever        = false; // OD protocol always sends an explicit target position
+            m->isforever        = false; // OD protocol always sends an explicit target position - but  now we overwrite it here?!?!
             m->isStop           = false;
             m->stopped          = false;
             // Use received acceleration; keep existing value if non-zero; fall back to 40000

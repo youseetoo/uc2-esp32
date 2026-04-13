@@ -114,18 +114,20 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
             continue;
         }
 
-        cJSON* posItem   = cJSON_GetObjectItem(s, "position");
-        cJSON* speedItem = cJSON_GetObjectItem(s, "speed");
-        cJSON* accelItem = cJSON_GetObjectItem(s, "acceleration");
-        cJSON* isAbsItem = cJSON_GetObjectItem(s, "isabs");
-        cJSON* isStopItem = cJSON_GetObjectItem(s, "isStop");
+        cJSON* posItem     = cJSON_GetObjectItem(s, "position");
+        cJSON* speedItem   = cJSON_GetObjectItem(s, "speed");
+        cJSON* accelItem   = cJSON_GetObjectItem(s, "acceleration");
+        cJSON* isAbsItem   = cJSON_GetObjectItem(s, "isabs");
+        cJSON* isStopItem  = cJSON_GetObjectItem(s, "isStop");
+        cJSON* foreverItem = cJSON_GetObjectItem(s, "isforever");
 
         int32_t  pos   = posItem   ? posItem->valueint   : 0;
         uint32_t speed = speedItem ? (uint32_t)std::abs(speedItem->valueint) : 1000;
         uint32_t accel = accelItem ? (uint32_t)std::abs(accelItem->valueint) : 0;
         // cJSON_IsTrue only handles cJSON bool, not numeric 1/0 — handle both
-        bool     isAbs = isAbsItem && (cJSON_IsTrue(isAbsItem) || (cJSON_IsNumber(isAbsItem) && isAbsItem->valueint != 0));
-        bool     isStop = isStopItem && (cJSON_IsTrue(isStopItem) || (cJSON_IsNumber(isStopItem) && isStopItem->valueint != 0));
+        bool     isAbs     = isAbsItem && (cJSON_IsTrue(isAbsItem) || (cJSON_IsNumber(isAbsItem) && isAbsItem->valueint != 0));
+        bool     isStop    = isStopItem && (cJSON_IsTrue(isStopItem) || (cJSON_IsNumber(isStopItem) && isStopItem->valueint != 0));
+        bool     isForever = foreverItem && (cJSON_IsTrue(foreverItem) || (cJSON_IsNumber(foreverItem) && foreverItem->valueint != 0));
 
         if (route->where == UC2::RouteEntry::LOCAL) {
             // Direct call into FocusMotor — no CAN involved
@@ -143,7 +145,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                     d->targetPosition   = pos;
                     d->speed            = speed;
                     d->absolutePosition = isAbs;
-                    d->isforever        = false;
+                    d->isforever        = isForever;
                     d->isStop           = false;
                     d->stopped          = false;
                     if (accel > 0) d->acceleration = accel;
@@ -163,6 +165,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
             if (accel > 0)
                 CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_ACCELERATION, sub, accel);
             CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0);
+            CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_FOREVER, sub, isForever ? 1 : 0);
 
             uint8_t cmdWord = isStop
                 ? (uint8_t)(1u << (route->subAxis + 4))

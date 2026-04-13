@@ -188,6 +188,7 @@ typedef struct {
     OD_obj_array_t  o_2008_motor_min_position;
     OD_obj_array_t  o_2009_motor_max_position;
     OD_obj_array_t  o_200A_motor_jerk;
+    OD_obj_array_t  o_200B_motor_is_forever;
     /* UC2 homing (0x2010-0x2015) */
     OD_obj_array_t  o_2010_homing_command;
     OD_obj_array_t  o_2011_homing_speed;
@@ -476,6 +477,7 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     .o_2008_motor_min_position = _ARR4_I32(x2008_motor_min_position, ODA_SDO_RW),
     .o_2009_motor_max_position = _ARR4_I32(x2009_motor_max_position, ODA_SDO_RW),
     .o_200A_motor_jerk         = _ARR4_U32(x200A_motor_jerk,         ODA_SDO_RW),
+    .o_200B_motor_is_forever   = _ARR4_U8(x200B_motor_is_forever,    ODA_SDO_RW | ODA_RPDO),
     /* -----------------------------------------------------------------------
      * UC2 homing (0x2010-0x2015)
      * ----------------------------------------------------------------------- */
@@ -617,6 +619,7 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2008, 0x05, ODT_ARR, &ODObjs.o_2008_motor_min_position,         NULL},
     {0x2009, 0x05, ODT_ARR, &ODObjs.o_2009_motor_max_position,         NULL},
     {0x200A, 0x05, ODT_ARR, &ODObjs.o_200A_motor_jerk,                 NULL},
+    {0x200B, 0x05, ODT_ARR, &ODObjs.o_200B_motor_is_forever,            NULL},
     /* UC2 homing */
     {0x2010, 0x05, ODT_ARR, &ODObjs.o_2010_homing_command,             NULL},
     {0x2011, 0x05, ODT_ARR, &ODObjs.o_2011_homing_speed,               NULL},

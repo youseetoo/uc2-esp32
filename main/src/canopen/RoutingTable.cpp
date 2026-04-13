@@ -130,16 +130,16 @@ static void resolveRoute(RouteEntry::Type type, uint8_t logicalId,
         // Explicit override from PinConfig
         RouteEntry::Where w = static_cast<RouteEntry::Where>(override_val);
         uint8_t nid = (w == RouteEntry::REMOTE) ? resolveDefaultNodeId(type, logicalId) : 0;
-        log_i("Applying explicit route override: type=%s id=%d -> %s (node 0x%02X)",
-              type, logicalId, w, nid);
+        log_i("Applying explicit route override: type=%d id=%d -> %d (node 0x%02X)",
+              int(type), int(logicalId), int(w), int(nid));
         RoutingTable::set(type, logicalId, w, nid, 0);
         return;
     }
 
     // Infer from canRole + pins (legacy behaviour)
     switch (runtimeConfig.canRole) {
-        log_i("Inferring route for type=%s id=%d: canRole=%d hasLocalPin=%d",
-              type, logicalId, runtimeConfig.canRole, hasLocalPin);
+        log_i("Inferring route for type=%d id=%d: canRole=%d hasLocalPin=%d",
+              int(type), int(logicalId), int(runtimeConfig.canRole), int(hasLocalPin));
     case NodeRole::STANDALONE:
     case NodeRole::CAN_SLAVE:
         RoutingTable::set(type, logicalId,
@@ -216,8 +216,8 @@ void RoutingTable::set(RouteEntry::Type t, uint8_t logicalId,
     // Try to update existing entry
     for (uint8_t i = 0; i < count; i++) {
         if (table[i].type == t && table[i].logicalId == logicalId) {
-            log_i("Updating route: type=%s id=%d -> %s (node 0x%02X axis %d)",
-                  typeToStr(t), logicalId, whereToStr(w), nodeId, subAxis);
+            log_i("Updating route: type=%d id=%d -> %d (node 0x%02X axis %d)",
+                  int(t), int(logicalId), int(w), int(nodeId), int(subAxis));
             table[i].where   = w;
             table[i].nodeId  = nodeId;
             table[i].subAxis = subAxis;

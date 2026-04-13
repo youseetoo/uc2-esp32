@@ -191,6 +191,15 @@ modules:
         description: "S-curve jerk (0=trapezoidal). Optional; 0 disables S-curve."
         sdo_only: true
 
+      - index: 0x200B
+        name: motor_is_forever
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "1=continuous motion (no target position, runs until stopped). 0=finite move."
+        pdo_mappable: rpdo
+
   # ==========================================================================
   # HOMING — 0x2010-0x201F
   # ==========================================================================

@@ -112,6 +112,7 @@ typedef struct {
     int32_t  x2008_motor_min_position[4];
     int32_t  x2009_motor_max_position[4];
     uint32_t x200A_motor_jerk[4];
+    uint8_t  x200B_motor_is_forever[4];
     // homing
     uint8_t  x2010_homing_command[4];
     uint32_t x2011_homing_speed[4];
@@ -184,6 +185,7 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_MOTOR_ENABLE             OD_RAM.x2005_motor_enable
 #define OD_MOTOR_ACCELERATION       OD_RAM.x2006_motor_acceleration
 #define OD_MOTOR_IS_ABSOLUTE        OD_RAM.x2007_motor_is_absolute
+#define OD_MOTOR_IS_FOREVER         OD_RAM.x200B_motor_is_forever
 #define OD_HOMING_COMMAND           OD_RAM.x2010_homing_command
 #define OD_HOMING_SPEED             OD_RAM.x2011_homing_speed
 #define OD_HOMING_DIRECTION         OD_RAM.x2012_homing_direction

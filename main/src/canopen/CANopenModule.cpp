@@ -26,6 +26,7 @@
 
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#include "../serial/SerialProcess.h"
 #endif
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
@@ -108,14 +109,21 @@ void CANopenModule::CAN_ctrl_task(void* arg)
 
     xSemaphoreTake(CAN_ctrl_task_sem, portMAX_DELAY);
 
-    // Build general config at runtime from pinConfig pins
+    // Build general config at runtime from pinConfig pins.
+    // tx_queue_len = 0: disable TWAI driver's internal TX queue entirely.
+    // We use our own CAN_TX_queue and feed twai_transmit() one frame at a
+    // time.  The driver-internal queue causes the tx_msg_count race
+    // (assert twai.c:183 tx_msg_count >= 0) during bus-off / recovery
+    // transitions because the ISR can decrement a counter that was already
+    // cleared.  With tx_queue_len=0 the driver writes directly to the HW
+    // TX buffer and tx_msg_count never exceeds 1.
     twai_general_config_t g_config = {
         .mode           = TWAI_MODE_NORMAL,
         .tx_io          = (gpio_num_t)pinConfig.CAN_TX,
         .rx_io          = (gpio_num_t)pinConfig.CAN_RX,
         .clkout_io      = TWAI_IO_UNUSED,
         .bus_off_io     = TWAI_IO_UNUSED,
-        .tx_queue_len   = 20,
+        .tx_queue_len   = 0,
         .rx_queue_len   = 20,
         .alerts_enabled = TWAI_ALERT_NONE,
         .clkout_divider = 0,
@@ -150,25 +158,32 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             }
         }
 
-        // TX: send at most one queued frame per iteration to avoid
-        // overwhelming the TWAI TX buffer. Draining the queue in a
-        // tight loop can trigger the ESP-IDF tx_msg_count race
-        // (assert twai.c:183 tx_msg_count >= 0).
-        if (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {
-            esp_err_t err = twai_transmit(&tx_msg.message, pdMS_TO_TICKS(5));
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG_CAN, "TX failed (%s) — re-queuing",
-                         esp_err_to_name(err));
-                // Put it back at the front so it retries next cycle
-                xQueueSendToFront(CAN_TX_queue, (void*)&tx_msg, 0);
+        // TX: drain as many queued frames as the HW can accept per iteration.
+        // Only attempt TX when the driver is actually RUNNING and the HW TX
+        // buffer is free (msgs_to_tx == 0).  With tx_queue_len=0 the driver
+        // never queues internally, so twai_transmit returns ESP_FAIL if the
+        // buffer is busy — no risk of the tx_msg_count race.
+        {
+            twai_status_info_t st;
+            while (twai_get_status_info(&st) == ESP_OK &&
+                   st.state == TWAI_STATE_RUNNING &&
+                   st.msgs_to_tx == 0)
+            {
+                if (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) != pdTRUE) break;
+                esp_err_t err = twai_transmit(&tx_msg.message, 0);
+                if (err != ESP_OK) {
+                    // HW buffer unexpectedly busy — put the frame back
+                    xQueueSendToFront(CAN_TX_queue, (void*)&tx_msg, 0);
+                    break;
+                }
             }
         }
 
-        // Bus-off: trigger hardware recovery — wait for 128 x 11 recessive bits.
-        // Do NOT uninstall/reinstall here: repeated twai_driver_install() calls cause
-        // ESP_ERR_NOT_FOUND in esp_intr_alloc on ESP32-S3 (interrupt already allocated).
+        // Bus-off: flush our TX queue (frames are now stale) then
+        // trigger hardware recovery.
         if (alerts & TWAI_ALERT_BUS_OFF) {
-            ESP_LOGW(TAG_CAN, "Bus-off — initiating recovery...");
+            ESP_LOGW(TAG_CAN, "Bus-off — flushing TX queue and initiating recovery...");
+            while (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {}
             twai_initiate_recovery();
         }
 
@@ -199,7 +214,6 @@ void CANopenModule::CO_tmr_task(void* arg)
 {
     for (;;) {
         if (CO != NULL && !CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
-            log_i("CANopenNode timer task tick");
             uint32_t timeDifference_us = 1000;
             bool_t syncWas = false;
 
@@ -580,8 +594,9 @@ struct PendingAxisCmd {
     int32_t pos   = 0;
     int32_t speed = 0;
     int32_t accel = 0;
-    bool    isAbs  = false;
-    bool    isStop = false;
+    bool    isAbs     = false;
+    bool    isStop    = false;
+    bool    isForever = false;
 };
 static PendingAxisCmd s_axisCmds[4];
 
@@ -636,9 +651,10 @@ void CANopenModule::syncRpdoToModules()
                 s_axisCmds[ax].pos   = OD_RAM.x2000_motor_target_position[ax];
                 s_axisCmds[ax].speed = (int32_t)OD_RAM.x2002_motor_speed[ax];
                 s_axisCmds[ax].accel = (int32_t)OD_RAM.x2006_motor_acceleration[ax];
-                s_axisCmds[ax].isAbs = OD_RAM.x2007_motor_is_absolute[ax] != 0;
-                s_axisCmds[ax].isStop = false;
-                s_axisCmds[ax].pending = true;  // commit last
+                s_axisCmds[ax].isAbs     = OD_RAM.x2007_motor_is_absolute[ax] != 0;
+                s_axisCmds[ax].isForever = OD_RAM.x200B_motor_is_forever[ax] != 0;
+                s_axisCmds[ax].isStop    = false;
+                s_axisCmds[ax].pending   = true;  // commit last
             }
             if (cmdWord & (1u << (ax + 4))) {
                 // Stop command for axis ax
@@ -701,13 +717,20 @@ void CANopenModule::syncModulesToTpdo()
         FocusMotor::updateData(localAxis);
         MotorData* md = FocusMotor::getData()[localAxis];
         if (md != nullptr) {
+            bool isRunning = FocusMotor::isRunning(localAxis);
             for (int ax = 0; ax < 4; ax++) {
-                log_i("Sync to OD: local-ax%d pos=%ld -> OD-ax%d", localAxis, (long)md->currentPosition, ax);
                 OD_RAM.x2001_motor_actual_position[ax] = md->currentPosition;
-                OD_RAM.x2004_motor_status_word[ax]     = FocusMotor::isRunning(localAxis) ? 0x01u : 0x00u;
+                OD_RAM.x2004_motor_status_word[ax]     = isRunning ? 0x01u : 0x00u;
             }
-        }
-    
+            // Throttled debug log every 1s so we can confirm OD is being updated
+            static uint32_t s_lastSyncLogMs = 0;
+            uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+            if (nowMs - s_lastSyncLogMs >= 1000) {
+                s_lastSyncLogMs = nowMs;
+                ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> OD[0..3]",
+                         localAxis, (long)md->currentPosition, (int)isRunning);
+            }
+        } 
 #endif
 }
 
@@ -725,8 +748,8 @@ void CANopenModule::setup()
     esp_log_level_set("CO_INT_PROCESS", ESP_LOG_WARN);
 
     CAN_ctrl_task_sem = xSemaphoreCreateBinary();
-    CAN_TX_queue = xQueueCreate(10, sizeof(CANMessages));
-    CAN_RX_queue = xQueueCreate(10, sizeof(CANMessages));
+    CAN_TX_queue = xQueueCreate(32, sizeof(CANMessages));
+    CAN_RX_queue = xQueueCreate(32, sizeof(CANMessages));
 
     // Start TWAI controller task
     xSemaphoreGive(CAN_ctrl_task_sem);
@@ -759,6 +782,78 @@ void CANopenModule::loop()
         }
     }
 
+    // ── Master: periodically poll REMOTE motor position/status via SDO ──
+    // This keeps FocusMotor::getData()[ax]->currentPosition in sync with
+    // the physical position on the slave, so motor_get, serial position
+    // reports, and the QID "isDone" tracking all work correctly.
+#ifdef MOTOR_CONTROLLER
+    if (!runtimeConfig.isSlave() && isOperational()) {
+        static unsigned long lastPollMs = 0;
+        static bool s_wasRunning[4] = {false, false, false, false};
+        unsigned long now = millis();
+        if (now - lastPollMs >= 200) {
+            lastPollMs = now;
+            for (int ax = 0; ax < 4; ax++) {
+                const auto* route = UC2::RoutingTable::find(
+                    UC2::RouteEntry::MOTOR, (uint8_t)ax);
+                if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+                if (!FocusMotor::getData()[ax]) continue;
+
+                uint8_t sub = route->subAxis + 1;
+                int32_t pos = 0;
+                size_t  readSize = 0;
+                bool posOk = readSDO(route->nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
+                            (uint8_t*)&pos, sizeof(pos), &readSize);
+                if (posOk) {
+                    FocusMotor::getData()[ax]->currentPosition = pos;
+                }
+
+                uint8_t statusWord = 0;
+                bool statOk = readSDO(route->nodeId, UC2_OD::MOTOR_STATUS_WORD, sub,
+                            &statusWord, sizeof(statusWord), &readSize);
+                bool isNowRunning = false;
+                if (statOk) {
+                    isNowRunning = (statusWord & 0x01) != 0;
+                    FocusMotor::getData()[ax]->stopped = !isNowRunning;
+                }
+
+                if (!posOk || !statOk) {
+                    log_w("SDO poll failed for nodeId=%d ax=%d (pos=%d stat=%d)",
+                          route->nodeId, ax, posOk, statOk);
+                } else {
+                    ESP_LOGI(TAG_CO, "SDO poll ax=%d nodeId=%d: pos=%ld running=%d",
+                             ax, route->nodeId, (long)pos, (int)isNowRunning);
+                }
+
+                // Detect running -> stopped transition and send async serial notification
+                bool justStopped = s_wasRunning[ax] && !isNowRunning && statOk;
+                s_wasRunning[ax] = isNowRunning;
+                if (justStopped) {
+                    cJSON* root = cJSON_CreateObject();
+                    if (root) {
+                        cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
+                        cJSON* item  = cJSON_CreateObject();
+                        if (stprs && item) {
+                            cJSON_AddNumberToObject(item, "stepperid", ax);
+                            cJSON_AddNumberToObject(item, "position",  pos);
+                            cJSON_AddNumberToObject(item, "isDone",    1);
+                            cJSON_AddItemToArray(stprs, item);
+                        }
+                        cJSON_AddNumberToObject(root, "qid", FocusMotor::getData()[ax]->qid);
+                        char* jsonStr = cJSON_PrintUnformatted(root);
+                        if (jsonStr) {
+                            ESP_LOGI(TAG_CO, "Motor ax=%d done: pos=%ld -> sending async serial", ax, (long)pos);
+                            SerialProcess::safeSendJsonString(jsonStr);
+                            free(jsonStr);
+                        }
+                        cJSON_Delete(root);
+                    }
+                }
+            }
+        }
+    }
+#endif
+
 #ifdef MOTOR_CONTROLLER
     // Dispatch pending motor move/stop commands (per OD axis).
     // runtimeConfig.canMotorAxis remaps the OD axis index (as written by the master) to
@@ -785,7 +880,7 @@ void CANopenModule::loop()
             m->targetPosition   = s_axisCmds[ax].pos;
             m->speed            = s_axisCmds[ax].speed;
             m->absolutePosition = s_axisCmds[ax].isAbs;
-            m->isforever        = false; // OD protocol always sends an explicit target position - but  now we overwrite it here?!?!
+            m->isforever        = s_axisCmds[ax].isForever;
             m->isStop           = false;
             m->stopped          = false;
             // Use received acceleration; keep existing value if non-zero; fall back to 40000

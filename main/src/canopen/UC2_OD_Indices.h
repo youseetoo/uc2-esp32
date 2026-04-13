@@ -28,6 +28,7 @@ constexpr uint16_t MOTOR_IS_ABSOLUTE                        = 0x2007;
 constexpr uint16_t MOTOR_MIN_POSITION                       = 0x2008;
 constexpr uint16_t MOTOR_MAX_POSITION                       = 0x2009;
 constexpr uint16_t MOTOR_JERK                               = 0x200A;
+constexpr uint16_t MOTOR_IS_FOREVER                         = 0x200B;
 
 // ─── HOMING (base 0x2010) ───
 // Sensorless or endstop-based homing

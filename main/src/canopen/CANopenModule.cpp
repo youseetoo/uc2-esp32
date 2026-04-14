@@ -263,7 +263,8 @@ void CANopenModule::CO_interrupt_task(void* arg)
 // ============================================================================
 static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     uint16_t index, uint8_t subIndex,
-    uint8_t* buf, size_t bufSize, size_t* readSize)
+    uint8_t* buf, size_t bufSize, size_t* readSize,
+    uint32_t timeoutMs = 1000)
 {
     /*
     This function handles SDO (Service Data Object) read operations by setting 
@@ -277,7 +278,7 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
         CO_CAN_ID_SDO_SRV + nodeId, nodeId);
     if (SDO_ret != CO_SDO_RT_ok_communicationEnd) return CO_SDO_AB_GENERAL;
 
-    SDO_ret = CO_SDOclientUploadInitiate(SDO_C, index, subIndex, 1000, false);
+    SDO_ret = CO_SDOclientUploadInitiate(SDO_C, index, subIndex, timeoutMs, false);
     if (SDO_ret != CO_SDO_RT_ok_communicationEnd) return CO_SDO_AB_GENERAL;
 
     do {
@@ -783,17 +784,30 @@ void CANopenModule::loop()
     }
 
     // ── Master: periodically poll REMOTE motor position/status via SDO ──
-    // This keeps FocusMotor::getData()[ax]->currentPosition in sync with
-    // the physical position on the slave, so motor_get, serial position
-    // reports, and the QID "isDone" tracking all work correctly.
+    // Round-robin: poll only ONE axis per cycle to keep loop() latency low
+    // and avoid starving the WDT (each SDO read can block up to SDO_POLL_TIMEOUT_MS).
 #ifdef MOTOR_CONTROLLER
-    if (!runtimeConfig.isSlave() && isOperational()) {
+    if (!runtimeConfig.isSlave() && CO != NULL) {
+        static const uint32_t SDO_POLL_TIMEOUT_MS  = 500;   // per-transfer timeout
+        static const unsigned long POLL_INTERVAL_MS = 200;   // how often we try the next axis
+        static const unsigned long BACKOFF_MS       = 10000; // skip unreachable nodes for 10s
+
         static unsigned long lastPollMs = 0;
+        static int  s_nextPollAxis = 0;
         static bool s_wasRunning[4] = {false, false, false, false};
+        static unsigned long s_backoffUntil[4] = {0, 0, 0, 0};
+
         unsigned long now = millis();
-        if (now - lastPollMs >= 200) {
+        if (now - lastPollMs >= POLL_INTERVAL_MS) {
             lastPollMs = now;
-            for (int ax = 0; ax < 4; ax++) {
+
+            // Find the next REMOTE axis (round-robin, max 4 attempts to skip non-remote)
+            for (int attempt = 0; attempt < 4; attempt++) {
+                int ax = s_nextPollAxis;
+                s_nextPollAxis = (s_nextPollAxis + 1) % 4;
+
+                if (now < s_backoffUntil[ax]) continue;  // still in backoff
+
                 const auto* route = UC2::RoutingTable::find(
                     UC2::RouteEntry::MOTOR, (uint8_t)ax);
                 if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
@@ -802,15 +816,31 @@ void CANopenModule::loop()
                 uint8_t sub = route->subAxis + 1;
                 int32_t pos = 0;
                 size_t  readSize = 0;
-                bool posOk = readSDO(route->nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
-                            (uint8_t*)&pos, sizeof(pos), &readSize);
+
+                // Use the short timeout variant for polling
+                CO_SDO_abortCode_t rc;
+                bool posOk = false;
+                if (CO->SDOclient != NULL) {
+                    rc = _read_SDO(CO->SDOclient, route->nodeId,
+                                   UC2_OD::MOTOR_ACTUAL_POSITION, sub,
+                                   (uint8_t*)&pos, sizeof(pos), &readSize,
+                                   SDO_POLL_TIMEOUT_MS);
+                    posOk = (rc == CO_SDO_AB_NONE);
+                }
                 if (posOk) {
                     FocusMotor::getData()[ax]->currentPosition = pos;
                 }
 
                 uint8_t statusWord = 0;
-                bool statOk = readSDO(route->nodeId, UC2_OD::MOTOR_STATUS_WORD, sub,
-                            &statusWord, sizeof(statusWord), &readSize);
+                bool statOk = false;
+                if (CO->SDOclient != NULL) {
+                    rc = _read_SDO(CO->SDOclient, route->nodeId,
+                                   UC2_OD::MOTOR_STATUS_WORD, sub,
+                                   &statusWord, sizeof(statusWord), &readSize,
+                                   SDO_POLL_TIMEOUT_MS);
+                    statOk = (rc == CO_SDO_AB_NONE);
+                }
+
                 bool isNowRunning = false;
                 if (statOk) {
                     isNowRunning = (statusWord & 0x01) != 0;
@@ -818,8 +848,9 @@ void CANopenModule::loop()
                 }
 
                 if (!posOk || !statOk) {
-                    log_w("SDO poll failed for nodeId=%d ax=%d (pos=%d stat=%d)",
-                          route->nodeId, ax, posOk, statOk);
+                    s_backoffUntil[ax] = now + BACKOFF_MS;
+                    log_w("SDO poll failed for nodeId=%d ax=%d (pos=%d stat=%d) — backoff %lums",
+                          route->nodeId, ax, posOk, statOk, BACKOFF_MS);
                 } else {
                     ESP_LOGI(TAG_CO, "SDO poll ax=%d nodeId=%d: pos=%ld running=%d",
                              ax, route->nodeId, (long)pos, (int)isNowRunning);
@@ -849,6 +880,7 @@ void CANopenModule::loop()
                         cJSON_Delete(root);
                     }
                 }
+                break;  // only poll ONE axis per cycle
             }
         }
     }

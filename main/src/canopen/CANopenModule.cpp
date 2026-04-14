@@ -91,6 +91,7 @@ static const twai_timing_config_t  t_config = TWAI_TIMING_CONFIG_500KBITS();
 typedef struct { twai_message_t message; } CANMessages;
 
 static SemaphoreHandle_t CAN_ctrl_task_sem;
+static SemaphoreHandle_t s_sdoMutex = NULL;
 
 // These queues are extern'd by CO_driver_ESP32.c in the library
 QueueHandle_t CAN_TX_queue;
@@ -264,7 +265,7 @@ void CANopenModule::CO_interrupt_task(void* arg)
 static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     uint16_t index, uint8_t subIndex,
     uint8_t* buf, size_t bufSize, size_t* readSize,
-    uint32_t timeoutMs = 1000)
+    uint32_t timeoutMs = 100)
 {
     /*
     This function handles SDO (Service Data Object) read operations by setting 
@@ -300,7 +301,8 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 
 static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     uint16_t index, uint8_t subIndex,
-    uint8_t* data, size_t dataSize)
+    uint8_t* data, size_t dataSize,
+    uint32_t timeoutMs = 100)
 {
     /*
     This function handles SDO (Service Data Object) write operations by setting 
@@ -314,7 +316,7 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
         CO_CAN_ID_SDO_SRV + nodeId, nodeId);
     if (SDO_ret != CO_SDO_RT_ok_communicationEnd) return CO_SDO_AB_NO_DATA;
 
-    SDO_ret = CO_SDOclientDownloadInitiate(SDO_C, index, subIndex, dataSize, 1000, false);
+    SDO_ret = CO_SDOclientDownloadInitiate(SDO_C, index, subIndex, dataSize, timeoutMs, false);
     if (SDO_ret != CO_SDO_RT_ok_communicationEnd) return CO_SDO_AB_NO_DATA;
 
     CO_SDOclientDownloadBufWrite(SDO_C, data, dataSize);
@@ -357,8 +359,10 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
     dataSize: size of the data buffer in bytes
     */
     if (CO == NULL || CO->SDOclient == NULL) return false;
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize);
+    if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
     return (ret == CO_SDO_AB_NONE);
 }
 
@@ -376,8 +380,10 @@ bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
     readSize: pointer to a variable to store the number of bytes actually read
     */
     if (CO == NULL || CO->SDOclient == NULL) return false;
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _read_SDO(CO->SDOclient, nodeId,
         index, subIndex, buf, bufSize, readSize);
+    if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
     return (ret == CO_SDO_AB_NONE);
 }
 
@@ -749,6 +755,7 @@ void CANopenModule::setup()
     esp_log_level_set("CO_INT_PROCESS", ESP_LOG_WARN);
 
     CAN_ctrl_task_sem = xSemaphoreCreateBinary();
+    s_sdoMutex = xSemaphoreCreateMutex();
     CAN_TX_queue = xQueueCreate(32, sizeof(CANMessages));
     CAN_RX_queue = xQueueCreate(32, sizeof(CANMessages));
 
@@ -788,9 +795,9 @@ void CANopenModule::loop()
     // and avoid starving the WDT (each SDO read can block up to SDO_POLL_TIMEOUT_MS).
 #ifdef MOTOR_CONTROLLER
     if (!runtimeConfig.isSlave() && CO != NULL) {
-        static const uint32_t SDO_POLL_TIMEOUT_MS  = 500;   // per-transfer timeout
+        static const uint32_t SDO_POLL_TIMEOUT_MS  = 100;   // per-transfer timeout
         static const unsigned long POLL_INTERVAL_MS = 200;   // how often we try the next axis
-        static const unsigned long BACKOFF_MS       = 10000; // skip unreachable nodes for 10s
+        static const unsigned long BACKOFF_MS       = 2000;  // skip unreachable nodes for 2s
 
         static unsigned long lastPollMs = 0;
         static int  s_nextPollAxis = 0;
@@ -820,25 +827,27 @@ void CANopenModule::loop()
                 // Use the short timeout variant for polling
                 CO_SDO_abortCode_t rc;
                 bool posOk = false;
-                if (CO->SDOclient != NULL) {
+                bool statOk = false;
+                uint8_t statusWord = 0;
+                bool gotMutex = (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(10)) == pdTRUE);
+                if (gotMutex && CO->SDOclient != NULL) {
                     rc = _read_SDO(CO->SDOclient, route->nodeId,
                                    UC2_OD::MOTOR_ACTUAL_POSITION, sub,
                                    (uint8_t*)&pos, sizeof(pos), &readSize,
                                    SDO_POLL_TIMEOUT_MS);
                     posOk = (rc == CO_SDO_AB_NONE);
+
+                    if (posOk) {
+                        rc = _read_SDO(CO->SDOclient, route->nodeId,
+                                       UC2_OD::MOTOR_STATUS_WORD, sub,
+                                       &statusWord, sizeof(statusWord), &readSize,
+                                       SDO_POLL_TIMEOUT_MS);
+                        statOk = (rc == CO_SDO_AB_NONE);
+                    }
                 }
+                if (gotMutex) xSemaphoreGive(s_sdoMutex);
                 if (posOk) {
                     FocusMotor::getData()[ax]->currentPosition = pos;
-                }
-
-                uint8_t statusWord = 0;
-                bool statOk = false;
-                if (CO->SDOclient != NULL) {
-                    rc = _read_SDO(CO->SDOclient, route->nodeId,
-                                   UC2_OD::MOTOR_STATUS_WORD, sub,
-                                   &statusWord, sizeof(statusWord), &readSize,
-                                   SDO_POLL_TIMEOUT_MS);
-                    statOk = (rc == CO_SDO_AB_NONE);
                 }
 
                 bool isNowRunning = false;
@@ -847,7 +856,7 @@ void CANopenModule::loop()
                     FocusMotor::getData()[ax]->stopped = !isNowRunning;
                 }
 
-                if (!posOk || !statOk) {
+                if (!posOk) {
                     s_backoffUntil[ax] = now + BACKOFF_MS;
                     log_w("SDO poll failed for nodeId=%d ax=%d (pos=%d stat=%d) — backoff %lums",
                           route->nodeId, ax, posOk, statOk, BACKOFF_MS);

@@ -796,6 +796,12 @@ void CANopenModule::syncRpdoToModules_master()
 
 void CANopenModule::syncModulesToTpdo()
 {
+    /*
+    This function pushes the current module state into the TPDOs.
+    It is called every 1 ms from the CO_tmr_task, but only updates 
+    the TPDO data when there are changes to report (e.g. motor position/status changes).
+
+    */
     // Always update system stats (useful for all roles)
     OD_RAM.x2503_uptime_seconds = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
     OD_RAM.x2504_free_heap_bytes = (uint32_t)esp_get_free_heap_size();
@@ -816,7 +822,15 @@ void CANopenModule::syncModulesToTpdo()
     static int32_t s_lastPos    = INT32_MIN;
     static uint8_t s_lastStatus = 0xFF;
 
-    if (newPos != s_lastPos || newStatus != s_lastStatus) {
+    bool changed = (newPos != s_lastPos || newStatus != s_lastStatus);
+
+    // Keepalive: re-send even if nothing changed, so the master's
+    // isNodeReachable() timeout (5 s) never expires while the slave is alive.
+    static uint32_t s_lastKeepaliveMs = 0;
+    uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    bool keepalive = (nowMs - s_lastKeepaliveMs) >= 2000;
+
+    if (changed || keepalive) {
         for (int ax = 0; ax < 4; ax++) {
             OD_RAM.x2001_motor_actual_position[ax] = newPos;
             OD_RAM.x2004_motor_status_word[ax]     = newStatus;
@@ -829,9 +843,10 @@ void CANopenModule::syncModulesToTpdo()
             CO_TPDOsendRequest(&CO->TPDO[0]);
         }
 
+        if (keepalive) s_lastKeepaliveMs = nowMs;
+
         static uint32_t s_lastSyncLogMs = 0;
-        uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-        if (nowMs - s_lastSyncLogMs >= 1000) {
+        if (changed && (nowMs - s_lastSyncLogMs >= 1000)) {
             s_lastSyncLogMs = nowMs;
             ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> TPDO1",
                      localAxis, (long)newPos, (int)isRunning);

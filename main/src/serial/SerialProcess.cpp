@@ -162,8 +162,10 @@ namespace SerialProcess
 		{
 			cJSON *root = NULL;
 			xQueueReceive(serialMSGQueue, &root, portMAX_DELAY);
-			if (root == NULL)
+			if (root == NULL){
+				log_w("Received NULL JSON document in serial task");
 				continue; // Handle NULL case
+			}
 
 			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
 			if (tasks != NULL)
@@ -198,6 +200,10 @@ namespace SerialProcess
 					log_i("Process single task: %s", ss);
 					if (ss != NULL)
 						jsonProcessor(ss, root);
+				}
+				else
+				{
+					log_w("No 'task' or 'tasks' field found in JSON document");
 				}
 			}
 
@@ -318,6 +324,10 @@ namespace SerialProcess
 				char *ss = cJSON_GetStringValue(string);
 				if (ss != NULL)
 					jsonProcessor(ss, root);
+			}
+			else
+			{
+				log_w("No 'task' or 'tasks' field found in JSON document");
 			}
 		}
 

@@ -378,17 +378,9 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
         log_e("SDO client not initialized");
         return false;
     }   
-    // Fast-fail when slave hasn't been heard from. Allow one probe per second
-    // so newly-attached slaves can be discovered.
-    if (!isNodeReachable(nodeId)) {
-        static uint32_t s_lastUnreachableTryMs[128] = {};
-        uint32_t now = millis();
-        if (nodeId < 128 && (now - s_lastUnreachableTryMs[nodeId]) < 1000) {
-            log_w("Node 0x%02X unreachable, skipping SDO write", nodeId);
-            return false;
-        }
-        if (nodeId < 128) s_lastUnreachableTryMs[nodeId] = now;
-    }
+    // Fast-fail when slave hasn't been heard from (no recent TPDO).
+    // Discovery happens via the slave's heartbeat toggle in its TPDO.
+    if (!isNodeReachable(nodeId)) return false;
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize);
@@ -400,15 +392,7 @@ bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                             uint8_t* buf, size_t bufSize, size_t* readSize)
 {
     if (CO == NULL || CO->SDOclient == NULL) return false;
-    // Same fast-fail logic as writeSDO
-    if (!isNodeReachable(nodeId)) {
-        static uint32_t s_lastUnreachableTryMs[128] = {};
-        uint32_t now = millis();
-        if (nodeId < 128 && (now - s_lastUnreachableTryMs[nodeId]) < 1000) {
-            return false;
-        }
-        if (nodeId < 128) s_lastUnreachableTryMs[nodeId] = now;
-    }
+    if (!isNodeReachable(nodeId)) return false;
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _read_SDO(CO->SDOclient, nodeId,
         index, subIndex, buf, bufSize, readSize);
@@ -749,8 +733,15 @@ void CANopenModule::syncRpdoToModules_master()
         slave.motorStatus   = newStatus;
         slave.lastUpdateMs  = millis();
         slave.seen          = true;
-        log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
-              slot, (long)newPos, newStatus, (int)nowRunning);
+
+        // Rate-limit log to once per second (keepalive toggles arrive every 2 s)
+        static uint32_t s_lastRpdoLogMs = 0;
+        uint32_t nowLog = millis();
+        if ((nowLog - s_lastRpdoLogMs) >= 1000) {
+            s_lastRpdoLogMs = nowLog;
+            log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
+                  slot, (long)newPos, newStatus, (int)nowRunning);
+        }
 
         // Mirror into FocusMotor data so /motor_get keeps working
         for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) { // TODO: We should consider having more axis 
@@ -819,18 +810,23 @@ void CANopenModule::syncModulesToTpdo()
     int32_t newPos = md->currentPosition;
     uint8_t newStatus = isRunning ? 0x01u : 0x00u;
 
+    // Heartbeat toggle: flip bit 1 of statusWord every 2 s so that the
+    // master's RPDO consumer always sees a data change and refreshes
+    // lastUpdateMs, even when the motor is idle. Bit 0 = running (semantic),
+    // bit 1 = heartbeat toggle (ignored by master when evaluating running).
+    static uint8_t  s_heartbeatToggle = 0;
+    static uint32_t s_lastKeepaliveMs = 0;
+    uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    if ((nowMs - s_lastKeepaliveMs) >= 2000) {
+        s_heartbeatToggle ^= 0x02;  // toggle bit 1
+        s_lastKeepaliveMs  = nowMs;
+    }
+    newStatus |= s_heartbeatToggle;
+
     static int32_t s_lastPos    = INT32_MIN;
     static uint8_t s_lastStatus = 0xFF;
 
-    bool changed = (newPos != s_lastPos || newStatus != s_lastStatus);
-
-    // Keepalive: re-send even if nothing changed, so the master's
-    // isNodeReachable() timeout (5 s) never expires while the slave is alive.
-    static uint32_t s_lastKeepaliveMs = 0;
-    uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-    bool keepalive = (nowMs - s_lastKeepaliveMs) >= 2000;
-
-    if (changed || keepalive) {
+    if (newPos != s_lastPos || newStatus != s_lastStatus) {
         for (int ax = 0; ax < 4; ax++) {
             OD_RAM.x2001_motor_actual_position[ax] = newPos;
             OD_RAM.x2004_motor_status_word[ax]     = newStatus;
@@ -843,10 +839,8 @@ void CANopenModule::syncModulesToTpdo()
             CO_TPDOsendRequest(&CO->TPDO[0]);
         }
 
-        if (keepalive) s_lastKeepaliveMs = nowMs;
-
         static uint32_t s_lastSyncLogMs = 0;
-        if (changed && (nowMs - s_lastSyncLogMs >= 1000)) {
+        if (nowMs - s_lastSyncLogMs >= 1000) {
             s_lastSyncLogMs = nowMs;
             ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> TPDO1",
                      localAxis, (long)newPos, (int)isRunning);

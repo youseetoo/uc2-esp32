@@ -132,7 +132,7 @@ static void resolveRoute(RouteEntry::Type type, uint8_t logicalId,
         uint8_t nid = (w == RouteEntry::REMOTE) ? resolveDefaultNodeId(type, logicalId) : 0;
         log_i("Applying explicit route override: type=%d id=%d -> %d (node 0x%02X)",
               int(type), int(logicalId), int(w), int(nid));
-        RoutingTable::set(type, logicalId, w, nid, 0);
+        RoutingTable::set(type, logicalId, w, nid, logicalId);
         return;
     }
 
@@ -150,7 +150,7 @@ static void resolveRoute(RouteEntry::Type type, uint8_t logicalId,
             RoutingTable::set(type, logicalId, RouteEntry::LOCAL);
         } else {
             uint8_t nid = resolveDefaultNodeId(type, logicalId);
-            RoutingTable::set(type, logicalId, RouteEntry::REMOTE, nid, 0);
+            RoutingTable::set(type, logicalId, RouteEntry::REMOTE, nid, logicalId);
         }
         break;
     }

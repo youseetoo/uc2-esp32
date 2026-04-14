@@ -171,12 +171,12 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                 ? (uint8_t)(1u << (route->subAxis + 4))
                 : (uint8_t)(1u << route->subAxis);
             bool ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, cmdWord);
-            if (!ok) ESP_LOGW(TAG, "Motor SDO failed: node 0x%02X", nodeId);
+            if (!ok) log_w("Motor SDO failed: node 0x%02X", nodeId);
 
-            ESP_LOGI(TAG, "Motor cmd -> node 0x%02X axis %u: pos=%ld speed=%u abs=%d stop=%d",
+            log_i("Motor cmd -> node 0x%02X axis %u: pos=%ld speed=%u abs=%d stop=%d",
                      nodeId, route->subAxis, (long)pos, speed, isAbs, isStop);
 #else
-            ESP_LOGW(TAG, "REMOTE routing requires CANopen — motor %d ignored", stepperid);
+            log_w("REMOTE routing requires CANopen — motor %d ignored", stepperid);
 #endif
         }
 
@@ -234,24 +234,20 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             } else {
                 cJSON_AddNumberToObject(rs, "isDone", -1);
             }
-        } else { // REMOTE
+        } else { // REMOTE — read from TPDO cache (zero-copy, no SDO)
 #ifdef CAN_CONTROLLER_CANOPEN
-            uint8_t nodeId = route->nodeId;
-            uint8_t sub    = route->subAxis + 1;
-
-            int32_t currentPos = 0;
-            size_t readSize = 0;
-            bool ok = CANopenModule::readSDO(nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
-                                             (uint8_t*)&currentPos, 4, &readSize);
-            uint8_t statusWord = 0;
-            CANopenModule::readSDO(nodeId, UC2_OD::MOTOR_STATUS_WORD, sub,
-                                   &statusWord, 1, &readSize);
-            if (ok) {
-                cJSON_AddNumberToObject(rs, "position", currentPos);
-                cJSON_AddNumberToObject(rs, "isRunning", (statusWord & 0x01) ? 1 : 0);
-                cJSON_AddNumberToObject(rs, "isDone", (statusWord & 0x01) ? 0 : 1);
+            uint8_t slot = route->subAxis;
+            if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
+                const auto& slave = CANopenModule::s_remoteSlaves[slot];
+                if (slave.seen) {
+                    cJSON_AddNumberToObject(rs, "position", slave.motorPosition);
+                    bool running = (slave.motorStatus & 0x01) != 0;
+                    cJSON_AddNumberToObject(rs, "isRunning", running ? 1 : 0);
+                    cJSON_AddNumberToObject(rs, "isDone",    running ? 0 : 1);
+                } else {
+                    cJSON_AddNumberToObject(rs, "isDone", -1);
+                }
             } else {
-                ESP_LOGW(TAG, "SDO read failed: node 0x%02X", nodeId);
                 cJSON_AddNumberToObject(rs, "isDone", -1);
             }
 #else

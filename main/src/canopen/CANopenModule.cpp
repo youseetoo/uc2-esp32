@@ -346,19 +346,49 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 // ============================================================================
 // Public SDO API
 // ============================================================================
+
+// Returns true if the slave at nodeId has pushed a TPDO within the last 5 seconds.
+// Used to fast-fail SDO writes against absent slaves, preventing TWAI retransmission
+// storms that could starve the WDT. Allows one probe per second for discovery.
+static bool isNodeReachable(uint8_t nodeId)
+{
+    for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
+        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
+        if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+        if (route->nodeId != nodeId) continue;
+
+        const auto& slave = CANopenModule::s_remoteSlaves[route->subAxis];
+        if (!slave.seen) {
+            log_e("Node 0x%02X not seen, skipping SDO operation", nodeId);
+            return false;
+        }
+        if ((millis() - slave.lastUpdateMs) > 5000) {
+            log_w("Node 0x%02X last update too old, skipping SDO operation", nodeId);
+            return false;
+        }
+        return true;
+    }
+    return false;  // no route to this nodeId
+}
+
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                              uint8_t* data, size_t dataSize)
 {
-    /*
-    This function is a helper for writing SDOs from outside the CANopen stack (e.g. from the master's serial->CAN bridge).
-    It uses the global CO->SDOclient object to perform a blocking SDO write.
-    nodeId: target node ID
-    index: SDO index => CANopen Object Dictionary entry (e.g. 0x2000 for motor position)
-    subIndex: SDO subindex => specific parameter within the OD entry (e.g. 0x01 for current position)
-    data: pointer to the data buffer to write (e.g. 4 bytes for int32 position)
-    dataSize: size of the data buffer in bytes
-    */
-    if (CO == NULL || CO->SDOclient == NULL) return false;
+    if (CO == NULL || CO->SDOclient == NULL) {
+        log_e("SDO client not initialized");
+        return false;
+    }   
+    // Fast-fail when slave hasn't been heard from. Allow one probe per second
+    // so newly-attached slaves can be discovered.
+    if (!isNodeReachable(nodeId)) {
+        static uint32_t s_lastUnreachableTryMs[128] = {};
+        uint32_t now = millis();
+        if (nodeId < 128 && (now - s_lastUnreachableTryMs[nodeId]) < 1000) {
+            log_w("Node 0x%02X unreachable, skipping SDO write", nodeId);
+            return false;
+        }
+        if (nodeId < 128) s_lastUnreachableTryMs[nodeId] = now;
+    }
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize);
@@ -369,17 +399,16 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
 bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                             uint8_t* buf, size_t bufSize, size_t* readSize)
 {
-    /*
-    This function is a helper for reading SDOs from outside the CANopen stack (e.g. from the master's serial->CAN bridge).
-    It uses the global CO->SDOclient object to perform a blocking SDO read.
-    nodeId: target node ID
-    index: SDO index => CANopen Object Dictionary entry (e.g. 0x2000 for motor position)
-    subIndex: SDO subindex => specific parameter within the OD entry (e.g. 0x01 for current position)
-    buf: pointer to the buffer to store the read data
-    bufSize: size of the buffer in bytes
-    readSize: pointer to a variable to store the number of bytes actually read
-    */
     if (CO == NULL || CO->SDOclient == NULL) return false;
+    // Same fast-fail logic as writeSDO
+    if (!isNodeReachable(nodeId)) {
+        static uint32_t s_lastUnreachableTryMs[128] = {};
+        uint32_t now = millis();
+        if (nodeId < 128 && (now - s_lastUnreachableTryMs[nodeId]) < 1000) {
+            return false;
+        }
+        if (nodeId < 128) s_lastUnreachableTryMs[nodeId] = now;
+    }
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _read_SDO(CO->SDOclient, nodeId,
         index, subIndex, buf, bufSize, readSize);
@@ -631,24 +660,16 @@ static PendingLaserCmd s_laserCmds[4];
 // ============================================================================
 void CANopenModule::syncRpdoToModules()
 {
-    // Only slaves receive RPDO data from the master
-    if (!runtimeConfig.isSlave()) return;
+    if (runtimeConfig.isSlave()) {
+        syncRpdoToModules_slave();
+    } else {
+        syncRpdoToModules_master();
+    }
+}
 
-    // Called every 1ms from CO_tmr_task AFTER CO_process_RPDO().
-    //
-    // Motor command protocol (UC2 native):
-    //   x2003_motor_command_word  — bitmask: bit i=start axis i, bit(4+i)=stop axis i
-    //   x2000_motor_target_position[i] — int32 target steps
-    //   x2002_motor_speed[i]          — uint32 steps/s
-    //   x2006_motor_acceleration[i]   — uint32 steps/s^2
-    //   x2007_motor_is_absolute[i]    — uint8 0=relative, 1=absolute
-    //
-    // Homing protocol:
-    //   x2010_homing_command[i] != 0  — start homing for axis i (cleared after dispatch)
-    //
-    // Laser protocol:
-    //   x2100_laser_pwm_value[ch] — direct PWM value; posted on every change
-
+// Slave: consume RPDO data from OD_RAM and dispatch to local modules
+void CANopenModule::syncRpdoToModules_slave()
+{
 #ifdef MOTOR_CONTROLLER
     uint8_t cmdWord = OD_RAM.x2003_motor_command_word;
     if (cmdWord) {
@@ -701,43 +722,121 @@ void CANopenModule::syncRpdoToModules()
 #endif
 }
 
+// Master: drain RPDO-written OD_RAM entries into the remote slave cache.
+// Called every 1 ms from CO_tmr_task. Detects running->stopped transitions
+// and emits async serial notifications.
+RemoteSlaveState CANopenModule::s_remoteSlaves[REMOTE_SLAVE_SLOTS] = {};
+
+void CANopenModule::syncRpdoToModules_master()
+{
+#ifdef MOTOR_CONTROLLER
+    for (uint8_t slot = 0; slot < REMOTE_SLAVE_SLOTS; slot++) {
+        int32_t newPos    = OD_RAM.x2001_motor_actual_position[slot];
+        uint8_t newStatus = OD_RAM.x2004_motor_status_word[slot];
+
+        RemoteSlaveState& slave = s_remoteSlaves[slot];
+
+        // Skip if nothing changed AND we've already initialised
+        if (slave.seen
+            && newPos    == slave.motorPosition
+            && newStatus == slave.motorStatus) continue;
+
+        bool wasRunning = slave.seen && (slave.motorStatus & 0x01) != 0;
+        bool nowRunning = (newStatus & 0x01) != 0;
+        bool firstSeen  = !slave.seen;
+
+        slave.motorPosition = newPos;
+        slave.motorStatus   = newStatus;
+        slave.lastUpdateMs  = millis();
+        slave.seen          = true;
+        log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
+              slot, (long)newPos, newStatus, (int)nowRunning);
+
+        // Mirror into FocusMotor data so /motor_get keeps working
+        for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) { // TODO: We should consider having more axis 
+            const auto* route = UC2::RoutingTable::find(
+                UC2::RouteEntry::MOTOR, logicalAx);
+            if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+            if (route->subAxis != slot) continue;
+
+            MotorData* md = FocusMotor::getData()[logicalAx];
+            if (md) {
+                md->currentPosition = newPos;
+                md->stopped         = !nowRunning;
+            }
+
+            // Detect running -> stopped transition -> emit async serial notification
+            if (wasRunning && !nowRunning) {
+                cJSON* root  = cJSON_CreateObject();
+                cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
+                cJSON* item  = cJSON_CreateObject();
+                cJSON_AddNumberToObject(item, "stepperid", logicalAx);
+                cJSON_AddNumberToObject(item, "position",  newPos);
+                cJSON_AddNumberToObject(item, "isDone",    1);
+                cJSON_AddItemToArray(stprs, item);
+                cJSON_AddNumberToObject(root, "qid", md ? md->qid : -1);
+                char* jsonStr = cJSON_PrintUnformatted(root);
+                if (jsonStr) {
+                    ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) DONE pos=%ld",
+                             slot, logicalAx, (long)newPos);
+                    SerialProcess::safeSendJsonString(jsonStr);
+                    free(jsonStr);
+                }
+                cJSON_Delete(root);
+            }
+
+            if (firstSeen) {
+                ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) FIRST SEEN pos=%ld running=%d",
+                         slot, logicalAx, (long)newPos, (int)nowRunning);
+            }
+        }
+    }
+#endif
+}
+
 void CANopenModule::syncModulesToTpdo()
 {
     // Always update system stats (useful for all roles)
     OD_RAM.x2503_uptime_seconds = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
     OD_RAM.x2504_free_heap_bytes = (uint32_t)esp_get_free_heap_size();
 
-    // Only slaves need to push module state into OD for the master to read
+    // Only slaves need to push module state into OD for TPDOs
     if (!runtimeConfig.isSlave()) return;
 
-    // Called every 1ms from CO_tmr_task BEFORE CO_process_TPDO().
-    // Write module state into OD_RAM so TPDOs broadcast it and master can SDO-read it.
-
 #ifdef MOTOR_CONTROLLER
-    // The slave's physical motor is at local axis REMOTE_MOTOR_AXIS_ID (e.g. 1 = Stepper::X).
-    // The master writes/reads OD axis 0, so we must map the local motor position back into
-    // the correct OD slot.  For a single-motor slave we mirror the local axis to ALL OD slots
-    // so the master always reads the correct value regardless of subAxis.
-    
-        int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        // Refresh currentPosition from the stepper hardware
-        FocusMotor::updateData(localAxis);
-        MotorData* md = FocusMotor::getData()[localAxis];
-        if (md != nullptr) {
-            bool isRunning = FocusMotor::isRunning(localAxis);
-            for (int ax = 0; ax < 4; ax++) {
-                OD_RAM.x2001_motor_actual_position[ax] = md->currentPosition;
-                OD_RAM.x2004_motor_status_word[ax]     = isRunning ? 0x01u : 0x00u;
-            }
-            // Throttled debug log every 1s so we can confirm OD is being updated
-            static uint32_t s_lastSyncLogMs = 0;
-            uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-            if (nowMs - s_lastSyncLogMs >= 1000) {
-                s_lastSyncLogMs = nowMs;
-                ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> OD[0..3]",
-                         localAxis, (long)md->currentPosition, (int)isRunning);
-            }
-        } 
+    int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+    FocusMotor::updateData(localAxis);
+    MotorData* md = FocusMotor::getData()[localAxis];
+    if (md == nullptr) return;
+
+    bool isRunning = FocusMotor::isRunning(localAxis);
+    int32_t newPos = md->currentPosition;
+    uint8_t newStatus = isRunning ? 0x01u : 0x00u;
+
+    static int32_t s_lastPos    = INT32_MIN;
+    static uint8_t s_lastStatus = 0xFF;
+
+    if (newPos != s_lastPos || newStatus != s_lastStatus) {
+        for (int ax = 0; ax < 4; ax++) {
+            OD_RAM.x2001_motor_actual_position[ax] = newPos;
+            OD_RAM.x2004_motor_status_word[ax]     = newStatus;
+        }
+        s_lastPos    = newPos;
+        s_lastStatus = newStatus;
+
+        // Request TPDO1 transmission on next CO_process_TPDO cycle
+        if (CO != NULL && CO->TPDO != NULL) {
+            CO_TPDOsendRequest(&CO->TPDO[0]);
+        }
+
+        static uint32_t s_lastSyncLogMs = 0;
+        uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+        if (nowMs - s_lastSyncLogMs >= 1000) {
+            s_lastSyncLogMs = nowMs;
+            ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> TPDO1",
+                     localAxis, (long)newPos, (int)isRunning);
+        }
+    }
 #endif
 }
 
@@ -790,110 +889,8 @@ void CANopenModule::loop()
         }
     }
 
-    // ── Master: periodically poll REMOTE motor position/status via SDO ──
-    // Round-robin: poll only ONE axis per cycle to keep loop() latency low
-    // and avoid starving the WDT (each SDO read can block up to SDO_POLL_TIMEOUT_MS).
-#ifdef MOTOR_CONTROLLER
-    if (!runtimeConfig.isSlave() && CO != NULL) {
-        static const uint32_t SDO_POLL_TIMEOUT_MS  = 100;   // per-transfer timeout
-        static const unsigned long POLL_INTERVAL_MS = 200;   // how often we try the next axis
-        static const unsigned long BACKOFF_MS       = 2000;  // skip unreachable nodes for 2s
-
-        static unsigned long lastPollMs = 0;
-        static int  s_nextPollAxis = 0;
-        static bool s_wasRunning[4] = {false, false, false, false};
-        static unsigned long s_backoffUntil[4] = {0, 0, 0, 0};
-
-        unsigned long now = millis();
-        if (now - lastPollMs >= POLL_INTERVAL_MS) {
-            lastPollMs = now;
-
-            // Find the next REMOTE axis (round-robin, max 4 attempts to skip non-remote)
-            for (int attempt = 0; attempt < 4; attempt++) {
-                int ax = s_nextPollAxis;
-                s_nextPollAxis = (s_nextPollAxis + 1) % 4;
-
-                if (now < s_backoffUntil[ax]) continue;  // still in backoff
-
-                const auto* route = UC2::RoutingTable::find(
-                    UC2::RouteEntry::MOTOR, (uint8_t)ax);
-                if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
-                if (!FocusMotor::getData()[ax]) continue;
-
-                uint8_t sub = route->subAxis + 1;
-                int32_t pos = 0;
-                size_t  readSize = 0;
-
-                // Use the short timeout variant for polling
-                CO_SDO_abortCode_t rc;
-                bool posOk = false;
-                bool statOk = false;
-                uint8_t statusWord = 0;
-                bool gotMutex = (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(10)) == pdTRUE);
-                if (gotMutex && CO->SDOclient != NULL) {
-                    rc = _read_SDO(CO->SDOclient, route->nodeId,
-                                   UC2_OD::MOTOR_ACTUAL_POSITION, sub,
-                                   (uint8_t*)&pos, sizeof(pos), &readSize,
-                                   SDO_POLL_TIMEOUT_MS);
-                    posOk = (rc == CO_SDO_AB_NONE);
-
-                    if (posOk) {
-                        rc = _read_SDO(CO->SDOclient, route->nodeId,
-                                       UC2_OD::MOTOR_STATUS_WORD, sub,
-                                       &statusWord, sizeof(statusWord), &readSize,
-                                       SDO_POLL_TIMEOUT_MS);
-                        statOk = (rc == CO_SDO_AB_NONE);
-                    }
-                }
-                if (gotMutex) xSemaphoreGive(s_sdoMutex);
-                if (posOk) {
-                    FocusMotor::getData()[ax]->currentPosition = pos;
-                }
-
-                bool isNowRunning = false;
-                if (statOk) {
-                    isNowRunning = (statusWord & 0x01) != 0;
-                    FocusMotor::getData()[ax]->stopped = !isNowRunning;
-                }
-
-                if (!posOk) {
-                    s_backoffUntil[ax] = now + BACKOFF_MS;
-                    log_w("SDO poll failed for nodeId=%d ax=%d (pos=%d stat=%d) — backoff %lums",
-                          route->nodeId, ax, posOk, statOk, BACKOFF_MS);
-                } else {
-                    ESP_LOGI(TAG_CO, "SDO poll ax=%d nodeId=%d: pos=%ld running=%d",
-                             ax, route->nodeId, (long)pos, (int)isNowRunning);
-                }
-
-                // Detect running -> stopped transition and send async serial notification
-                bool justStopped = s_wasRunning[ax] && !isNowRunning && statOk;
-                s_wasRunning[ax] = isNowRunning;
-                if (justStopped) {
-                    cJSON* root = cJSON_CreateObject();
-                    if (root) {
-                        cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
-                        cJSON* item  = cJSON_CreateObject();
-                        if (stprs && item) {
-                            cJSON_AddNumberToObject(item, "stepperid", ax);
-                            cJSON_AddNumberToObject(item, "position",  pos);
-                            cJSON_AddNumberToObject(item, "isDone",    1);
-                            cJSON_AddItemToArray(stprs, item);
-                        }
-                        cJSON_AddNumberToObject(root, "qid", FocusMotor::getData()[ax]->qid);
-                        char* jsonStr = cJSON_PrintUnformatted(root);
-                        if (jsonStr) {
-                            ESP_LOGI(TAG_CO, "Motor ax=%d done: pos=%ld -> sending async serial", ax, (long)pos);
-                            SerialProcess::safeSendJsonString(jsonStr);
-                            free(jsonStr);
-                        }
-                        cJSON_Delete(root);
-                    }
-                }
-                break;  // only poll ONE axis per cycle
-            }
-        }
-    }
-#endif
+    // Master: slave state is pushed via TPDO -> RPDO (see syncRpdoToModules_master).
+    // No SDO polling needed. /motor_get reads from s_remoteSlaves cache.
 
 #ifdef MOTOR_CONTROLLER
     // Dispatch pending motor move/stop commands (per OD axis).

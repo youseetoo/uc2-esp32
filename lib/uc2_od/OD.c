@@ -49,43 +49,52 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
         .COB_IDServerToClientRx = 0x80000000,
         .node_IDOfTheSDOServer  = 0x01
     },
-    /* RPDO comm params (4 RPDOs — 1400..1403) */
+    /* RPDO comm params (4 RPDOs — 1400..1403)
+     * Master uses these to receive TPDO1 from slaves at node-ids 10..13.
+     * COB-ID = 0x180 + slaveNodeId.  Slave's TPDO1 carries motor position+status.
+     * On slaves these RPDOs stay disabled (bit 31 set) unless reconfigured. */
     .x1400_RPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x05,
-        .COB_IDUsedByRPDO = 0x00000200,
+        .COB_IDUsedByRPDO = 0x0000018A,  /* 0x180 + node 10 (slave slot 0) */
         .transmissionType = 0xFE,
         .eventTimer = 0x0000
     },
     .x1401_RPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x05,
-        .COB_IDUsedByRPDO = 0x80000300,
+        .COB_IDUsedByRPDO = 0x0000018B,  /* 0x180 + node 11 (slave slot 1) */
         .transmissionType = 0xFE,
         .eventTimer = 0x0000
     },
     .x1402_RPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x05,
-        .COB_IDUsedByRPDO = 0x80000400,
+        .COB_IDUsedByRPDO = 0x0000018C,  /* 0x180 + node 12 (slave slot 2) */
         .transmissionType = 0xFE,
         .eventTimer = 0x0000
     },
     .x1403_RPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x05,
-        .COB_IDUsedByRPDO = 0x80000500,
+        .COB_IDUsedByRPDO = 0x0000018D,  /* 0x180 + node 13 (slave slot 3) */
         .transmissionType = 0xFE,
         .eventTimer = 0x0000
     },
-    /* RPDO mapping params (all empty — SDO-only for now) */
-    .x1600_RPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1601_RPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1602_RPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1603_RPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    /* TPDO comm params (1800..1803, only TPDO1 enabled) */
+    /* RPDO mapping: each RPDO maps the incoming TPDO payload into a different
+     * OD sub-index so 4 slaves can coexist without overwriting each other.
+     * Layout matches slave TPDO1: i32 pos (0x2001 sub N) + u8 status (0x2004 sub N). */
+    .x1600_RPDOMappingParameter = { .n=2, .o1=0x20010120, .o2=0x20040108, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    .x1601_RPDOMappingParameter = { .n=2, .o1=0x20010220, .o2=0x20040208, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    .x1602_RPDOMappingParameter = { .n=2, .o1=0x20010320, .o2=0x20040308, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    .x1603_RPDOMappingParameter = { .n=2, .o1=0x20010420, .o2=0x20040408, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    /* TPDO comm params (1800..1803)
+     * TPDO1 (0x1800): motor state push — event-driven (type 254).
+     * COB-ID uses dynamic node-id: bit 30 set = stack adds node-id at init.
+     * inhibitTime = 100 (100 * 100 µs = 10 ms min gap between frames).
+     * eventTimer = 500 ms heartbeat fallback so master detects stale slaves. */
     .x1800_TPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x06,
-        .COB_IDUsedByTPDO = 0x00000380,
-        .transmissionType = 0xFE,
-        .inhibitTime = 0x0000,
-        .eventTimer  = 0x03E8,
+        .COB_IDUsedByTPDO = 0x40000180,  /* bit30=1: stack adds node-id */
+        .transmissionType = 0xFE,        /* event-driven */
+        .inhibitTime = 0x0064,           /* 100 * 100us = 10 ms */
+        .eventTimer  = 0x01F4,           /* 500 ms */
         .SYNCStartValue = 0x00
     },
     .x1801_TPDOCommunicationParameter = {
@@ -112,8 +121,10 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
         .eventTimer  = 0x0000,
         .SYNCStartValue = 0x00
     },
-    /* TPDO mapping params (all empty — SDO-only for now) */
-    .x1A00_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    /* TPDO mapping: TPDO1 carries motor actual position (i32) + status word (u8).
+     * Slave writes all 4 sub-indices identically (single-motor slave); the master's
+     * RPDOs pick the correct sub-index per slot.  Total payload = 5 bytes. */
+    .x1A00_TPDOMappingParameter = { .n=2, .o1=0x20010120, .o2=0x20040108, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     .x1A01_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     .x1A02_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     .x1A03_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
@@ -463,14 +474,14 @@ static CO_PROGMEM ODObjs_t ODObjs = {
      * UC2 motor (0x2000-0x200A) — arrays of 4
      * ----------------------------------------------------------------------- */
     .o_2000_motor_target_position = _ARR4_I32(x2000_motor_target_position, ODA_SDO_RW | ODA_RPDO),
-    .o_2001_motor_actual_position = _ARR4_I32(x2001_motor_actual_position, ODA_SDO_RW | ODA_TPDO),
+    .o_2001_motor_actual_position = _ARR4_I32(x2001_motor_actual_position, ODA_SDO_RW | ODA_TRPDO),
     .o_2002_motor_speed           = _ARR4_U32(x2002_motor_speed,           ODA_SDO_RW | ODA_RPDO),
     .o_2003_motor_command_word = {
         .dataOrig = &OD_RAM.x2003_motor_command_word,
         .attribute = ODA_SDO_RW | ODA_RPDO,
         .dataLength = 1
     },
-    .o_2004_motor_status_word  = _ARR4_U8(x2004_motor_status_word,  ODA_SDO_RW | ODA_TPDO),
+    .o_2004_motor_status_word  = _ARR4_U8(x2004_motor_status_word,  ODA_SDO_RW | ODA_TRPDO),
     .o_2005_motor_enable       = _ARR4_U8(x2005_motor_enable,       ODA_SDO_RW | ODA_RPDO),
     .o_2006_motor_acceleration = _ARR4_U32(x2006_motor_acceleration, ODA_SDO_RW | ODA_RPDO),
     .o_2007_motor_is_absolute  = _ARR4_U8(x2007_motor_is_absolute,   ODA_SDO_RW | ODA_RPDO),

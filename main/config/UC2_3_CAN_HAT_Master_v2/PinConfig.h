@@ -21,7 +21,6 @@
 #define DAC_CONTROLLER
 #define CAN_CONTROLLER_CANOPEN
 #define LASER_CONTROLLER
-#define LED_CONTROLLER
 
 struct UC2_canopen_master : PinConfig
 {

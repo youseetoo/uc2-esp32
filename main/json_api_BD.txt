@@ -229,6 +229,9 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task":"/tmc_act", "msteps":16, "rms_current":1000, "sgthrs":15, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
 {"task":"/tmc_get"}
 
+// NEW
+{"task":"/can_act","nodeId":11,"canMotorAxis":1}
+
 {"task":"/can_act", "address": 1} // MASTER
 {"task":"/can_act", "address": 11} // X
 {"task":"/can_act", "address": 12} // Y 

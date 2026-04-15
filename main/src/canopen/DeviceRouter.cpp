@@ -18,6 +18,7 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorJsonParser.h"
+#include "../qid/QidRegistry.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
@@ -100,6 +101,16 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     cJSON* respSteppers = cJSON_CreateArray();
     int n = cJSON_GetArraySize(steppers);
 
+    // Extract QID so TPDO-driven completion (syncRpdoToModules_master) can report it
+#ifdef CAN_CONTROLLER_CANOPEN
+    int motorQid = 0;
+    {
+        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+        if (qidItem && cJSON_IsNumber(qidItem)) motorQid = qidItem->valueint;
+    }
+    int remoteStepperCount = 0;
+#endif
+
     for (int i = 0; i < n; i++) {
         cJSON* s = cJSON_GetArrayItem(steppers, i);
         cJSON* idItem = cJSON_GetObjectItem(s, "stepperid");
@@ -175,6 +186,11 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 
             log_i("Motor cmd -> node 0x%02X axis %u: pos=%ld speed=%u abs=%d stop=%d",
                      nodeId, route->subAxis, (long)pos, speed, isAbs, isStop);
+
+            // Store qid in FocusMotor cache so the TPDO completion callback can report it
+            MotorData* rd = FocusMotor::getData()[stepperid];
+            if (rd) rd->qid = motorQid;
+            remoteStepperCount++;
 #else
             log_w("REMOTE routing requires CANopen — motor %d ignored", stepperid);
 #endif
@@ -185,6 +201,13 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         cJSON_AddNumberToObject(rs, "isDone", 0);
         cJSON_AddItemToArray(respSteppers, rs);
     }
+
+    // Register the QID for all dispatched remote steppers so QidRegistry can
+    // emit {"qid":N,"state":"done"} when their TPDO signals completion.
+#ifdef CAN_CONTROLLER_CANOPEN
+    if (motorQid > 0 && remoteStepperCount > 0)
+        QidRegistry::registerQid(motorQid, (uint8_t)remoteStepperCount);
+#endif
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
@@ -404,11 +427,90 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         cJSON_AddNumberToObject(resp, "return", result);
         return resp;
     } else { // REMOTE
-        // TODO: Implement LED SDO forwarding when LED CANopen OD is wired up
-        ESP_LOGW(TAG, "LED remote routing not yet implemented");
+#ifdef CAN_CONTROLLER_CANOPEN
+        cJSON* led = cJSON_GetObjectItem(doc, "led");
+        if (!led) {
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", 0);
+            return resp;
+        }
+
+        uint8_t nodeId = route->nodeId;
+        bool ok = true;
+
+        // Mode-based fill
+        cJSON* mode = cJSON_GetObjectItem(led, "LEDArrMode");
+        if (mode && cJSON_IsNumber(mode)) {
+            uint8_t m = (uint8_t)mode->valueint;
+            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, m) && ok;
+        }
+
+        // Brightness
+        cJSON* br = cJSON_GetObjectItem(led, "brightness");
+        if (br && cJSON_IsNumber(br)) {
+            uint8_t b = (uint8_t)br->valueint;
+            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b) && ok;
+        }
+
+        // Uniform colour (r, g, b packed into u32)
+        cJSON* jr = cJSON_GetObjectItem(led, "r");
+        cJSON* jg = cJSON_GetObjectItem(led, "g");
+        cJSON* jb = cJSON_GetObjectItem(led, "b");
+        if (jr || jg || jb) {
+            uint8_t rr = (jr && cJSON_IsNumber(jr)) ? (uint8_t)jr->valueint : 0;
+            uint8_t gg = (jg && cJSON_IsNumber(jg)) ? (uint8_t)jg->valueint : 0;
+            uint8_t bb = (jb && cJSON_IsNumber(jb)) ? (uint8_t)jb->valueint : 0;
+            uint32_t colour = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | bb;
+            ok = CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour) && ok;
+        }
+
+        // Pattern
+        cJSON* pat = cJSON_GetObjectItem(led, "patternId");
+        if (pat && cJSON_IsNumber(pat)) {
+            uint8_t p = (uint8_t)pat->valueint;
+            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p) && ok;
+        }
+        cJSON* patSpeed = cJSON_GetObjectItem(led, "patternSpeed");
+        if (patSpeed && cJSON_IsNumber(patSpeed)) {
+            uint16_t s = (uint16_t)patSpeed->valueint;
+            ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s) && ok;
+        }
+
+        // Per-pixel array — SDO domain (segmented) transfer
+        cJSON* arr = cJSON_GetObjectItem(led, "led_array");
+        if (arr && cJSON_IsArray(arr)) {
+            int n = cJSON_GetArraySize(arr);
+            if (n > 0) {
+                uint8_t* buf = (uint8_t*)malloc(n * 3);
+                if (buf) {
+                    for (int i = 0; i < n; i++) {
+                        cJSON* px = cJSON_GetArrayItem(arr, i);
+                        cJSON* pr = cJSON_GetObjectItem(px, "r");
+                        cJSON* pg = cJSON_GetObjectItem(px, "g");
+                        cJSON* pb = cJSON_GetObjectItem(px, "b");
+                        buf[i*3+0] = (pr && cJSON_IsNumber(pr)) ? (uint8_t)pr->valueint : 0;
+                        buf[i*3+1] = (pg && cJSON_IsNumber(pg)) ? (uint8_t)pg->valueint : 0;
+                        buf[i*3+2] = (pb && cJSON_IsNumber(pb)) ? (uint8_t)pb->valueint : 0;
+                    }
+                    ok = CANopenModule::writeSDODomain(nodeId, UC2_OD::LED_PIXEL_DATA, 0,
+                                                       buf, n * 3) && ok;
+                    free(buf);
+                } else {
+                    ESP_LOGE(TAG, "LED pixel array malloc failed (%d pixels)", n);
+                    ok = false;
+                }
+            }
+        }
+
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+        return resp;
+#else
+        ESP_LOGW(TAG, "LED remote routing requires CANopen");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         return resp;
+#endif
     }
 #else
     return nullptr;

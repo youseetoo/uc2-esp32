@@ -222,11 +222,14 @@ typedef struct {
     OD_obj_array_t  o_2102_laser_pwm_frequency;
     OD_obj_array_t  o_2103_laser_pwm_resolution;
     OD_obj_var_t    o_2106_laser_safety_state;
-    /* UC2 LED (0x2200-0x2203) */
+    /* UC2 LED (0x2200-0x2221) */
     OD_obj_var_t    o_2200_led_array_mode;
     OD_obj_var_t    o_2201_led_brightness;
     OD_obj_var_t    o_2202_led_uniform_colour;
     OD_obj_var_t    o_2203_led_pixel_count;
+    OD_obj_var_t    o_2210_led_pixel_data;
+    OD_obj_var_t    o_2220_led_pattern_id;
+    OD_obj_var_t    o_2221_led_pattern_speed;
     /* UC2 digital I/O (0x2300-0x2301) */
     OD_obj_array_t  o_2300_digital_input_state;
     OD_obj_array_t  o_2301_digital_output_command;
@@ -544,6 +547,24 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_RW | ODA_MB,
         .dataLength = 2
     },
+    /* 0x2210 — LED pixel data (DOMAIN — handled by OD extension callback) */
+    .o_2210_led_pixel_data = {
+        .dataOrig = NULL,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 0
+    },
+    /* 0x2220 — LED pattern ID */
+    .o_2220_led_pattern_id = {
+        .dataOrig = &OD_RAM.x2220_led_pattern_id,
+        .attribute = ODA_SDO_RW | ODA_RPDO,
+        .dataLength = 1
+    },
+    /* 0x2221 — LED pattern speed */
+    .o_2221_led_pattern_speed = {
+        .dataOrig = &OD_RAM.x2221_led_pattern_speed,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
     /* -----------------------------------------------------------------------
      * UC2 digital I/O (0x2300-0x2301) — arrays of 8
      * ----------------------------------------------------------------------- */
@@ -658,6 +679,9 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2201, 0x01, ODT_VAR, &ODObjs.o_2201_led_brightness,             NULL},
     {0x2202, 0x01, ODT_VAR, &ODObjs.o_2202_led_uniform_colour,         NULL},
     {0x2203, 0x01, ODT_VAR, &ODObjs.o_2203_led_pixel_count,            NULL},
+    {0x2210, 0x01, ODT_VAR, &ODObjs.o_2210_led_pixel_data,             NULL},
+    {0x2220, 0x01, ODT_VAR, &ODObjs.o_2220_led_pattern_id,             NULL},
+    {0x2221, 0x01, ODT_VAR, &ODObjs.o_2221_led_pattern_speed,          NULL},
     /* UC2 digital I/O */
     {0x2300, 0x09, ODT_ARR, &ODObjs.o_2300_digital_input_state,        NULL},
     {0x2301, 0x09, ODT_ARR, &ODObjs.o_2301_digital_output_command,     NULL},

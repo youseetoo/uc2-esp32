@@ -775,6 +775,65 @@ namespace LedController
 	}
 
 	// ------------------------------------------------
+	// 11b) CANopen: Set LED mode from OD values
+	// ------------------------------------------------
+	void setMode(uint8_t mode, uint8_t brightness, uint32_t colour)
+	{
+		uint8_t r = (colour >> 16) & 0xFF;
+		uint8_t g = (colour >> 8)  & 0xFF;
+		uint8_t b = (colour)       & 0xFF;
+
+		// Disable pattern animation when a mode is explicitly set
+		activePatternId = 0;
+
+		matrix->setBrightness(brightness);
+
+		switch (mode) {
+			case 0: // OFF
+				turnOff();
+				break;
+			case 1: // FILL
+				fillAll(r, g, b);
+				break;
+			default:
+				fillAll(r, g, b);
+				break;
+		}
+	}
+
+	// ------------------------------------------------
+	// 11c) CANopen: Set LED pattern
+	// ------------------------------------------------
+	void setPattern(uint8_t patternId, uint16_t speed)
+	{
+		activePatternId = patternId;
+		activePatternSpeed = (speed > 0) ? speed : 50;
+		patternFrame = 0;
+		lastPatternUpdateMs = 0;
+		log_i("LED pattern set: id=%d speed=%d", patternId, speed);
+	}
+
+	// ------------------------------------------------
+	// 11d) CANopen: Bulk set pixels from RGB buffer
+	// ------------------------------------------------
+	void setPixels(const uint8_t* data, uint16_t pixelCount)
+	{
+		// Disable pattern animation when pixel data is set directly
+		activePatternId = 0;
+
+		uint16_t count = (pixelCount > LED_COUNT) ? LED_COUNT : pixelCount;
+		for (uint16_t i = 0; i < count; i++) {
+			uint8_t r = data[i * 3 + 0];
+			uint8_t g = data[i * 3 + 1];
+			uint8_t b = data[i * 3 + 2];
+			matrix->setPixelColor(i, matrix->Color(r, g, b));
+		}
+		matrix->show();
+		isOn = (count > 0);
+		log_i("setPixels: %d pixels applied", count);
+	}
+
+	// ------------------------------------------------
 	// 12) Execute a LedCommand
 	// ------------------------------------------------
 	void execLedCommand(const LedCommand &cmd)
@@ -1039,6 +1098,85 @@ namespace LedController
 				// Reset tracking (user must send new command to restart)
 				highIntensityStartTime = 0;
 				currentTotalIntensity = 0;
+			}
+		}
+
+		// Pattern animation (CANopen-driven patterns)
+		if (activePatternId > 0)
+		{
+			uint32_t now = millis();
+			if (now - lastPatternUpdateMs >= activePatternSpeed) {
+				lastPatternUpdateMs = now;
+				patternFrame++;
+				switch (activePatternId) {
+					case 1: { // Rainbow
+						for (uint16_t i = 0; i < LED_COUNT; i++) {
+							uint16_t hue = ((uint16_t)patternFrame * 256 + i * 65536 / LED_COUNT) & 0xFFFF;
+							uint32_t c = matrix->gamma32(matrix->ColorHSV(hue, 255, 255));
+							matrix->setPixelColor(i, c);
+						}
+						matrix->show();
+						break;
+					}
+					case 2: { // Breathe (white)
+						uint8_t br = (patternFrame < 128) ? patternFrame * 2 : (255 - patternFrame) * 2;
+						for (uint16_t i = 0; i < LED_COUNT; i++)
+							matrix->setPixelColor(i, matrix->Color(br, br, br));
+						matrix->show();
+						break;
+					}
+					case 3: { // Chase
+						matrix->clear();
+						uint16_t pos = patternFrame % LED_COUNT;
+						for (uint8_t t = 0; t < 3; t++) {
+							uint16_t idx = (pos + t * LED_COUNT / 3) % LED_COUNT;
+							matrix->setPixelColor(idx, matrix->Color(255, 255, 255));
+						}
+						matrix->show();
+						break;
+					}
+					case 4: { // Fire
+						for (uint16_t i = 0; i < LED_COUNT; i++) {
+							uint8_t heat = random(100, 255);
+							matrix->setPixelColor(i, matrix->Color(heat, heat / 3, 0));
+						}
+						matrix->show();
+						break;
+					}
+					case 5: { // Sparkle
+						matrix->clear();
+						for (uint8_t s = 0; s < 3; s++) {
+							uint16_t idx = random(0, LED_COUNT);
+							matrix->setPixelColor(idx, matrix->Color(255, 255, 255));
+						}
+						matrix->show();
+						break;
+					}
+					case 6: { // Heatmap (gradient red->yellow->white)
+						for (uint16_t i = 0; i < LED_COUNT; i++) {
+							uint8_t t = ((uint16_t)patternFrame + i * 4) & 0xFF;
+							uint8_t r = 255;
+							uint8_t g = (t < 128) ? t * 2 : 255;
+							uint8_t b = (t < 128) ? 0 : (t - 128) * 2;
+							matrix->setPixelColor(i, matrix->Color(r, g, b));
+						}
+						matrix->show();
+						break;
+					}
+					case 7: { // Spiral
+						matrix->clear();
+						for (uint8_t t = 0; t < 5; t++) {
+							uint16_t idx = (patternFrame + t * 3) % LED_COUNT;
+							uint16_t hue = (t * 65536 / 5);
+							uint32_t c = matrix->gamma32(matrix->ColorHSV(hue, 255, 255));
+							matrix->setPixelColor(idx, c);
+						}
+						matrix->show();
+						break;
+					}
+					default:
+						break;
+				}
 			}
 		}
 

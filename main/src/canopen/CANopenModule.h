@@ -45,6 +45,10 @@ public:
     static bool writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v);
     static bool writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v);
 
+    // SDO domain write for arbitrary-length data (segmented/block transfer)
+    static bool writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                               const uint8_t* data, size_t dataSize);
+
     static cJSON* get(cJSON* doc);
     static cJSON* act(cJSON* doc);
 

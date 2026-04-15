@@ -27,6 +27,7 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../serial/SerialProcess.h"
+#include "../qid/QidRegistry.h"
 #endif
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
@@ -352,6 +353,7 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 // storms that could starve the WDT. Allows one probe per second for discovery.
 static bool isNodeReachable(uint8_t nodeId)
 {
+    // Check motor routes first — they have TPDO-based liveness tracking
     for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
         if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
@@ -368,6 +370,22 @@ static bool isNodeReachable(uint8_t nodeId)
         }
         return true;
     }
+
+    // Non-motor peripherals (LED, LASER, GALVO, etc.) don't have TPDO feedback
+    // yet.  If there is a remote route to this nodeId, allow the SDO attempt —
+    // the 100 ms SDO timeout handles unresponsive nodes gracefully.
+    static const UC2::RouteEntry::Type nonMotorTypes[] = {
+        UC2::RouteEntry::LASER, UC2::RouteEntry::LED,
+        UC2::RouteEntry::GALVO, UC2::RouteEntry::HOME,
+    };
+    for (auto t : nonMotorTypes) {
+        for (uint8_t id = 0; id < 4; id++) {
+            const auto* route = UC2::RoutingTable::find(t, id);
+            if (route && route->where == UC2::RouteEntry::REMOTE && route->nodeId == nodeId)
+                return true;
+        }
+    }
+
     return false;  // no route to this nodeId
 }
 
@@ -419,6 +437,62 @@ bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint
 bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v) {
     return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
 }
+
+// SDO domain write — handles segmented transfer for arbitrary-length data.
+// Uses the same _write_SDO helper which calls CO_SDOclientDownloadInitiate +
+// CO_SDOclientDownloadBufWrite + CO_SDOclientDownload loop.  CANopenNode v4
+// automatically switches to segmented mode when dataSize > 4 bytes.
+bool CANopenModule::writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                                   const uint8_t* data, size_t dataSize)
+{
+    if (CO == NULL || CO->SDOclient == NULL) {
+        log_e("SDO client not initialized");
+        return false;
+    }
+    if (!isNodeReachable(nodeId)) return false;
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(500)) != pdTRUE) return false;
+
+    log_i("Writing SDO domain: node 0x%02X idx 0x%04X sub 0x%02X size %u",
+          nodeId, index, subIndex, (unsigned)dataSize);
+    CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
+        index, subIndex, (uint8_t*)data, dataSize, /*timeoutMs=*/2000);
+
+    if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+    if (ret != CO_SDO_AB_NONE) {
+        log_e("SDO domain write failed: node 0x%02X idx 0x%04X abort=0x%08lX",
+              nodeId, index, (unsigned long)ret);
+    }
+    return (ret == CO_SDO_AB_NONE);
+}
+
+// ============================================================================
+// LED pixel data — OD extension for SDO segmented/block transfer (slave side)
+// ============================================================================
+#ifdef LED_CONTROLLER
+#define LED_PIXEL_BUF_MAX  (3 * 256)  // 256 pixels max (RGB)
+static OD_extension_t s_ledPixelExt;
+static uint8_t        s_ledPixelBuffer[LED_PIXEL_BUF_MAX];
+static size_t         s_ledPixelBytesReceived = 0;
+
+static ODR_t onLedPixelWrite(OD_stream_t* stream, const void* buf,
+                             OD_size_t count, OD_size_t* countWritten) {
+    if (s_ledPixelBytesReceived + count > sizeof(s_ledPixelBuffer)) {
+        s_ledPixelBytesReceived = 0;
+        return ODR_OUT_OF_MEM;
+    }
+    memcpy(s_ledPixelBuffer + s_ledPixelBytesReceived, buf, count);
+    s_ledPixelBytesReceived += count;
+    *countWritten = count;
+
+    // If this was the last segment, apply to the LED strip
+    if (stream->dataOffset + count >= stream->dataLength) {
+        uint16_t pixelCount = s_ledPixelBytesReceived / 3;
+        LedController::setPixels(s_ledPixelBuffer, pixelCount);
+        s_ledPixelBytesReceived = 0;
+    }
+    return ODR_OK;
+}
+#endif // LED_CONTROLLER
 
 // ============================================================================
 // CO_main task — CANopenNode init + main processing loop
@@ -496,6 +570,20 @@ void CANopenModule::CO_main_task(void* arg)
             return;
         }
 
+        // Register OD extensions for domain entries (slave side)
+#ifdef LED_CONTROLLER
+        {
+            OD_entry_t* entry = OD_find(OD, UC2_OD::LED_PIXEL_DATA);
+            if (entry) {
+                s_ledPixelExt.object = nullptr;
+                s_ledPixelExt.read   = nullptr;
+                s_ledPixelExt.write  = onLedPixelWrite;
+                OD_extension_init(entry, &s_ledPixelExt);
+                ESP_LOGI(TAG_CO, "LED pixel data OD extension registered (0x2210)");
+            }
+        }
+#endif
+
         // Start processing tasks
         xTaskCreatePinnedToCore(CO_tmr_task,       "CO_TMR", 4096, NULL,
                                 CANOPEN_TMR_TASK_PRIO, NULL, tskNO_AFFINITY);
@@ -571,7 +659,7 @@ cJSON* CANopenModule::act(cJSON* doc)
 {
     cJSON* resp = cJSON_CreateObject();
     bool changed = false;
-
+    // {"task":"/can_act","nodeId":11,"canMotorAxis":1}
     cJSON* nodeIdItem = cJSON_GetObjectItem(doc, "nodeId");
     if (nodeIdItem && cJSON_IsNumber(nodeIdItem) &&
         nodeIdItem->valueint >= 1 && nodeIdItem->valueint <= 127)
@@ -704,6 +792,36 @@ void CANopenModule::syncRpdoToModules_slave()
         }
     }
 #endif
+
+#ifdef LED_CONTROLLER
+    // LED mode: detect changes to mode/brightness/colour and dispatch
+    {
+        static uint8_t  lastLedMode   = 0xFF;
+        static uint8_t  lastLedBright = 0xFF;
+        static uint32_t lastLedColour = 0xFFFFFFFF;
+        uint8_t  curMode   = OD_RAM.x2200_led_array_mode;
+        uint8_t  curBright = OD_RAM.x2201_led_brightness;
+        uint32_t curColour = OD_RAM.x2202_led_uniform_colour;
+        if (curMode != lastLedMode || curBright != lastLedBright || curColour != lastLedColour) {
+            lastLedMode   = curMode;
+            lastLedBright = curBright;
+            lastLedColour = curColour;
+            LedController::setMode(curMode, curBright, curColour);
+        }
+    }
+    // LED pattern: detect changes to pattern id/speed
+    {
+        static uint8_t  lastPatternId    = 0xFF;
+        static uint16_t lastPatternSpeed = 0xFFFF;
+        uint8_t  curPat   = OD_RAM.x2220_led_pattern_id;
+        uint16_t curSpeed = OD_RAM.x2221_led_pattern_speed;
+        if (curPat != lastPatternId || curSpeed != lastPatternSpeed) {
+            lastPatternId    = curPat;
+            lastPatternSpeed = curSpeed;
+            LedController::setPattern(curPat, curSpeed);
+        }
+    }
+#endif
 }
 
 // Master: drain RPDO-written OD_RAM entries into the remote slave cache.
@@ -756,24 +874,13 @@ void CANopenModule::syncRpdoToModules_master()
                 md->stopped         = !nowRunning;
             }
 
-            // Detect running -> stopped transition -> emit async serial notification
+            // Detect running -> stopped transition -> report completion via QidRegistry
             if (wasRunning && !nowRunning) {
-                cJSON* root  = cJSON_CreateObject();
-                cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
-                cJSON* item  = cJSON_CreateObject();
-                cJSON_AddNumberToObject(item, "stepperid", logicalAx);
-                cJSON_AddNumberToObject(item, "position",  newPos);
-                cJSON_AddNumberToObject(item, "isDone",    1);
-                cJSON_AddItemToArray(stprs, item);
-                cJSON_AddNumberToObject(root, "qid", md ? md->qid : -1);
-                char* jsonStr = cJSON_PrintUnformatted(root);
-                if (jsonStr) {
-                    ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) DONE pos=%ld",
-                             slot, logicalAx, (long)newPos);
-                    SerialProcess::safeSendJsonString(jsonStr);
-                    free(jsonStr);
+                ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) DONE pos=%ld",
+                         slot, logicalAx, (long)newPos);
+                if (md && md->qid > 0) {
+                    QidRegistry::reportActionDone(md->qid);
                 }
-                cJSON_Delete(root);
             }
 
             if (firstSeen) {
@@ -810,14 +917,14 @@ void CANopenModule::syncModulesToTpdo()
     int32_t newPos = md->currentPosition;
     uint8_t newStatus = isRunning ? 0x01u : 0x00u;
 
-    // Heartbeat toggle: flip bit 1 of statusWord every 2 s so that the
+    // Heartbeat toggle: flip bit 1 of statusWord every 1 s so that the
     // master's RPDO consumer always sees a data change and refreshes
     // lastUpdateMs, even when the motor is idle. Bit 0 = running (semantic),
     // bit 1 = heartbeat toggle (ignored by master when evaluating running).
     static uint8_t  s_heartbeatToggle = 0;
     static uint32_t s_lastKeepaliveMs = 0;
     uint32_t nowMs = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-    if ((nowMs - s_lastKeepaliveMs) >= 2000) {
+    if ((nowMs - s_lastKeepaliveMs) >= 1000) {
         s_heartbeatToggle ^= 0x02;  // toggle bit 1
         s_lastKeepaliveMs  = nowMs;
     }

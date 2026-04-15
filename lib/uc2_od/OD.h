@@ -140,6 +140,8 @@ typedef struct {
     uint8_t  x2201_led_brightness;
     uint32_t x2202_led_uniform_colour;
     uint16_t x2203_led_pixel_count;
+    uint8_t  x2220_led_pattern_id;
+    uint16_t x2221_led_pattern_speed;
     // digital_io
     uint8_t  x2300_digital_input_state[8];
     uint8_t  x2301_digital_output_command[8];
@@ -196,6 +198,8 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_LED_ARRAY_MODE           OD_RAM.x2200_led_array_mode
 #define OD_LED_BRIGHTNESS           OD_RAM.x2201_led_brightness
 #define OD_LED_UNIFORM_COLOUR       OD_RAM.x2202_led_uniform_colour
+#define OD_LED_PATTERN_ID           OD_RAM.x2220_led_pattern_id
+#define OD_LED_PATTERN_SPEED        OD_RAM.x2221_led_pattern_speed
 #define OD_DIGITAL_INPUT_STATE      OD_RAM.x2300_digital_input_state
 #define OD_DIGITAL_OUTPUT_COMMAND   OD_RAM.x2301_digital_output_command
 #define OD_UPTIME_SECONDS           OD_RAM.x2503_uptime_seconds

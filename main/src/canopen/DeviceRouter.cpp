@@ -534,11 +534,96 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
     if (route->where == UC2::RouteEntry::LOCAL) {
         return GalvoController::act(doc);
     } else { // REMOTE
-        // TODO: Implement galvo SDO forwarding
-        ESP_LOGW(TAG, "Galvo remote routing not yet implemented");
+#ifdef CAN_CONTROLLER_CANOPEN
+        uint8_t nodeId = route->nodeId;
+        bool ok = true;
+
+        // Check for stop command
+        cJSON* stop_cmd = cJSON_GetObjectItem(doc, "stop");
+        if (stop_cmd && cJSON_IsTrue(stop_cmd)) {
+            uint8_t cmd = 0;
+            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd);
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+            return resp;
+        }
+
+        // Check for config — push scan parameters via SDO then issue command
+        cJSON* config_obj = cJSON_GetObjectItem(doc, "config");
+        if (config_obj) {
+            cJSON* item;
+            if ((item = cJSON_GetObjectItem(config_obj, "x_min")))
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_START, 0, item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "y_min")))
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_START, 0, item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "nx")))
+                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_N_STEPS_LINE, 0, (uint16_t)item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "ny")))
+                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_N_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "sample_period_us")))
+                ok = CANopenModule::writeSDO_u32(nodeId, UC2_OD::GALVO_SCAN_SPEED, 0, (uint32_t)item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "pre_samples")))
+                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_T_PRE_US, 0, (uint16_t)item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "fly_samples")))
+                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_T_POST_US, 0, (uint16_t)item->valueint) && ok;
+            if ((item = cJSON_GetObjectItem(config_obj, "enable_trigger")))
+                ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_CAMERA_TRIGGER_MODE, 0, (uint8_t)item->valueint) && ok;
+
+            // Compute x_step, y_step from x_min/x_max/nx and y_min/y_max/ny
+            cJSON* xMin = cJSON_GetObjectItem(config_obj, "x_min");
+            cJSON* xMax = cJSON_GetObjectItem(config_obj, "x_max");
+            cJSON* yMin = cJSON_GetObjectItem(config_obj, "y_min");
+            cJSON* yMax = cJSON_GetObjectItem(config_obj, "y_max");
+            cJSON* nx   = cJSON_GetObjectItem(config_obj, "nx");
+            cJSON* ny   = cJSON_GetObjectItem(config_obj, "ny");
+            if (xMin && xMax && nx && nx->valueint > 0) {
+                int32_t xStep = (xMax->valueint - xMin->valueint) / nx->valueint;
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_STEP, 0, xStep) && ok;
+            }
+            if (yMin && yMax && ny && ny->valueint > 0) {
+                int32_t yStep = (yMax->valueint - yMin->valueint) / ny->valueint;
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_STEP, 0, yStep) && ok;
+            }
+
+            // Issue raster scan command (cmd=3)
+            uint8_t cmd = 3;
+            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
+            if (!ok) ESP_LOGW(TAG, "Galvo SDO failed: node 0x%02X", nodeId);
+
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+            return resp;
+        }
+
+        // Direct X/Y positioning
+        cJSON* galvo = cJSON_GetObjectItem(doc, "galvo");
+        if (galvo) {
+            cJSON* tx = cJSON_GetObjectItem(galvo, "x");
+            cJSON* ty = cJSON_GetObjectItem(galvo, "y");
+            if (tx) {
+                int32_t v = tx->valueint;
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 1, v) && ok;
+            }
+            if (ty) {
+                int32_t v = ty->valueint;
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 2, v) && ok;
+            }
+            if (tx || ty) {
+                // Issue goto command (cmd=1)
+                uint8_t cmd = 1;
+                ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
+            }
+        }
+
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+        return resp;
+#else
+        ESP_LOGW(TAG, "Galvo remote routing requires CANopen");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         return resp;
+#endif
     }
 #else
     return nullptr;
@@ -601,7 +686,53 @@ cJSON* DeviceRouter::handleLedGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
 #ifdef GALVO_CONTROLLER
-    return GalvoController::get(doc);
+    const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
+
+    if (!route || route->where == UC2::RouteEntry::OFF) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+    }
+
+    if (route->where == UC2::RouteEntry::LOCAL) {
+        return GalvoController::get(doc);
+    } else { // REMOTE — read galvo status via SDO
+#ifdef CAN_CONTROLLER_CANOPEN
+        uint8_t nodeId = route->nodeId;
+        cJSON* resp = cJSON_CreateObject();
+
+        // Read status word
+        uint8_t statusWord = 0;
+        size_t readSize = 0;
+        if (CANopenModule::readSDO(nodeId, UC2_OD::GALVO_STATUS_WORD, 0,
+                                   &statusWord, sizeof(statusWord), &readSize)) {
+            cJSON_AddBoolToObject(resp, "running", (statusWord & 0x01) != 0);
+            cJSON_AddBoolToObject(resp, "scanActive", (statusWord & 0x02) != 0);
+            cJSON_AddBoolToObject(resp, "scanComplete", (statusWord & 0x04) != 0);
+        } else {
+            cJSON_AddBoolToObject(resp, "running", false);
+        }
+
+        // Read actual position
+        int32_t posX = 0, posY = 0;
+        if (CANopenModule::readSDO(nodeId, UC2_OD::GALVO_ACTUAL_POSITION, 1,
+                                   (uint8_t*)&posX, sizeof(posX), &readSize)) {
+            cJSON_AddNumberToObject(resp, "x", posX);
+        }
+        if (CANopenModule::readSDO(nodeId, UC2_OD::GALVO_ACTUAL_POSITION, 2,
+                                   (uint8_t*)&posY, sizeof(posY), &readSize)) {
+            cJSON_AddNumberToObject(resp, "y", posY);
+        }
+
+        cJSON_AddNumberToObject(resp, "return", 1);
+        return resp;
+#else
+        ESP_LOGW(TAG, "Galvo remote get requires CANopen");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        return resp;
+#endif
+    }
 #else
     return nullptr;
 #endif

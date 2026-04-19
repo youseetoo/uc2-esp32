@@ -46,6 +46,7 @@
 #endif
 #include "../canopen/DeviceRouter.h"
 #include "../canopen/RoutingTable.h"
+#include "cJsonTool.h"
 
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"

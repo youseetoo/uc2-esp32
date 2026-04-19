@@ -38,6 +38,9 @@
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#ifdef GALVO_CONTROLLER
+#include "../scanner/GalvoController.h"
+#endif
 
 extern "C" {
 #include <CANopen.h>
@@ -682,11 +685,17 @@ cJSON* CANopenModule::act(cJSON* doc)
     if (changed) {
         NVSConfig::saveConfig();
         cJSON_AddStringToObject(resp, "status", "saved");
+        cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);
+        cJSON_AddNumberToObject(resp, "canMotorAxis", runtimeConfig.canMotorAxis);
+        cJSON_AddBoolToObject(resp, "rebooting", true);
+        // Delay slightly so the HTTP response can be sent before the reboot.
+        vTaskDelay(pdMS_TO_TICKS(300));
+        esp_restart();
     } else {
         cJSON_AddStringToObject(resp, "status", "ok");
+        cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);
+        cJSON_AddNumberToObject(resp, "canMotorAxis", runtimeConfig.canMotorAxis);
     }
-    cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);
-    cJSON_AddNumberToObject(resp, "canMotorAxis", runtimeConfig.canMotorAxis);
     return resp;
 }
 
@@ -822,6 +831,61 @@ void CANopenModule::syncRpdoToModules_slave()
         }
     }
 #endif
+
+#ifdef GALVO_CONTROLLER
+    // Galvo: detect changes to command word and scan parameters, dispatch to GalvoController
+    {
+        static uint8_t lastGalvoCmd = 0;
+        uint8_t cmd = OD_RAM.x2602_galvo_command_word;
+        if (cmd != lastGalvoCmd) {
+            lastGalvoCmd = cmd;
+            switch (cmd) {
+                case 0: // Stop
+                    GalvoController::stop();
+                    break;
+                case 1: { // Goto XY — set target position via raster config
+                    ScanConfig cfg = GalvoController::getCurrentConfig();
+                    cfg.x_min = (uint16_t)OD_RAM.x2600_galvo_target_position[0];
+                    cfg.x_max = cfg.x_min;
+                    cfg.y_min = (uint16_t)OD_RAM.x2600_galvo_target_position[1];
+                    cfg.y_max = cfg.y_min;
+                    cfg.nx = 1;
+                    cfg.ny = 1;
+                    cfg.frame_count = 1;
+                    GalvoController::setConfig(cfg);
+                    GalvoController::start();
+                    break;
+                }
+                case 2: // Line scan
+                case 3: { // Raster scan
+                    ScanConfig cfg;
+                    cfg.x_min = (uint16_t)OD_RAM.x260B_galvo_x_start;
+                    cfg.y_min = (uint16_t)OD_RAM.x260C_galvo_y_start;
+                    cfg.nx = OD_RAM.x2605_galvo_n_steps_line;
+                    cfg.ny = (cmd == 2) ? 1 : OD_RAM.x2606_galvo_n_steps_pixel;
+                    int32_t xStep = OD_RAM.x260D_galvo_x_step;
+                    int32_t yStep = OD_RAM.x260E_galvo_y_step;
+                    cfg.x_max = (uint16_t)(cfg.x_min + cfg.nx * xStep);
+                    cfg.y_max = (uint16_t)(cfg.y_min + cfg.ny * yStep);
+                    cfg.sample_period_us = (uint16_t)OD_RAM.x2604_galvo_scan_speed;
+                    cfg.pre_samples = OD_RAM.x2609_galvo_t_pre_us;
+                    cfg.fly_samples = OD_RAM.x260A_galvo_t_post_us;
+                    cfg.frame_count = 0; // Infinite until stopped
+                    cfg.enable_trigger = OD_RAM.x260F_galvo_camera_trigger_mode;
+                    GalvoController::setConfig(cfg);
+                    GalvoController::start();
+                    break;
+                }
+                case 5: // Emergency stop
+                    GalvoController::stop();
+                    break;
+                default:
+                    break;
+            }
+            OD_RAM.x2602_galvo_command_word = 0;
+        }
+    }
+#endif
 }
 
 // Master: drain RPDO-written OD_RAM entries into the remote slave cache.
@@ -951,6 +1015,21 @@ void CANopenModule::syncModulesToTpdo()
             s_lastSyncLogMs = nowMs;
             ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> TPDO1",
                      localAxis, (long)newPos, (int)isRunning);
+        }
+    }
+#endif
+
+#ifdef GALVO_CONTROLLER
+    // Galvo state: push status word into OD for TPDO
+    {
+        uint8_t galvoStatus = 0;
+        if (GalvoController::isRunning()) galvoStatus |= 0x01;  // bit 0: moving
+        if (GalvoController::isRunning()) galvoStatus |= 0x02;  // bit 1: scan active
+
+        static uint8_t s_lastGalvoStatus = 0xFF;
+        if (galvoStatus != s_lastGalvoStatus) {
+            OD_RAM.x2603_galvo_status_word = galvoStatus;
+            s_lastGalvoStatus = galvoStatus;
         }
     }
 #endif

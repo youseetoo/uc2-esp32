@@ -153,10 +153,35 @@ typedef struct {
     char     x2500_firmware_version_string[32];
     char     x2501_board_name[32];
     uint32_t x2502_enabled_modules_bitmask;
+    // galvo (0x2600-0x260F)
+    int32_t  x2600_galvo_target_position[2];   // sub 1=X, sub 2=Y
+    int32_t  x2601_galvo_actual_position[2];
+    uint8_t  x2602_galvo_command_word;
+    uint8_t  x2603_galvo_status_word;
+    uint32_t x2604_galvo_scan_speed;
+    uint16_t x2605_galvo_n_steps_line;
+    uint16_t x2606_galvo_n_steps_pixel;
+    uint16_t x2607_galvo_d_steps_line;
+    uint16_t x2608_galvo_d_steps_pixel;
+    uint16_t x2609_galvo_t_pre_us;
+    uint16_t x260A_galvo_t_post_us;
+    int32_t  x260B_galvo_x_start;
+    int32_t  x260C_galvo_y_start;
+    int32_t  x260D_galvo_x_step;
+    int32_t  x260E_galvo_y_step;
+    uint8_t  x260F_galvo_camera_trigger_mode;
+    // system
     uint32_t x2503_uptime_seconds;
     uint32_t x2504_free_heap_bytes;
     uint32_t x2505_can_error_counter;
     uint8_t  x2507_reboot_command;
+    // OTA (0x2F00-0x2F05)
+    // x2F00 is a DOMAIN — no RAM backing; handled by OD_extension_init() callback
+    uint32_t x2F01_ota_firmware_size;
+    uint32_t x2F02_ota_firmware_crc32;
+    uint8_t  x2F03_ota_status;
+    uint32_t x2F04_ota_bytes_received;
+    uint8_t  x2F05_ota_error_code;
 } OD_RAM_t;
 
 // ---------------------------------------------------------------------------
@@ -202,8 +227,18 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_LED_PATTERN_SPEED        OD_RAM.x2221_led_pattern_speed
 #define OD_DIGITAL_INPUT_STATE      OD_RAM.x2300_digital_input_state
 #define OD_DIGITAL_OUTPUT_COMMAND   OD_RAM.x2301_digital_output_command
+#define OD_GALVO_TARGET_POSITION    OD_RAM.x2600_galvo_target_position
+#define OD_GALVO_ACTUAL_POSITION    OD_RAM.x2601_galvo_actual_position
+#define OD_GALVO_COMMAND_WORD       OD_RAM.x2602_galvo_command_word
+#define OD_GALVO_STATUS_WORD        OD_RAM.x2603_galvo_status_word
+#define OD_GALVO_SCAN_SPEED         OD_RAM.x2604_galvo_scan_speed
 #define OD_UPTIME_SECONDS           OD_RAM.x2503_uptime_seconds
 #define OD_FREE_HEAP_BYTES          OD_RAM.x2504_free_heap_bytes
+#define OD_OTA_FIRMWARE_SIZE        OD_RAM.x2F01_ota_firmware_size
+#define OD_OTA_FIRMWARE_CRC32       OD_RAM.x2F02_ota_firmware_crc32
+#define OD_OTA_STATUS               OD_RAM.x2F03_ota_status
+#define OD_OTA_BYTES_RECEIVED       OD_RAM.x2F04_ota_bytes_received
+#define OD_OTA_ERROR_CODE           OD_RAM.x2F05_ota_error_code
 
 // ---------------------------------------------------------------------------
 // OD_CNT_EM_PROD — required by CANopen.c EM_PRODUCER block

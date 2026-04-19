@@ -18,6 +18,7 @@
 #endif
 
 /* Sub-index 0 (array length) constants for UC2 arrays without _sub0 fields */
+static uint8_t sub0_2 = 2;
 static uint8_t sub0_4 = 4;
 static uint8_t sub0_8 = 8;
 
@@ -237,11 +238,35 @@ typedef struct {
     OD_obj_array_t  o_2310_analog_input_value;
     /* UC2 encoder (0x2340) */
     OD_obj_array_t  o_2340_encoder_position;
+    /* UC2 galvo (0x2600-0x260F) */
+    OD_obj_array_t  o_2600_galvo_target_position;
+    OD_obj_array_t  o_2601_galvo_actual_position;
+    OD_obj_var_t    o_2602_galvo_command_word;
+    OD_obj_var_t    o_2603_galvo_status_word;
+    OD_obj_var_t    o_2604_galvo_scan_speed;
+    OD_obj_var_t    o_2605_galvo_n_steps_line;
+    OD_obj_var_t    o_2606_galvo_n_steps_pixel;
+    OD_obj_var_t    o_2607_galvo_d_steps_line;
+    OD_obj_var_t    o_2608_galvo_d_steps_pixel;
+    OD_obj_var_t    o_2609_galvo_t_pre_us;
+    OD_obj_var_t    o_260A_galvo_t_post_us;
+    OD_obj_var_t    o_260B_galvo_x_start;
+    OD_obj_var_t    o_260C_galvo_y_start;
+    OD_obj_var_t    o_260D_galvo_x_step;
+    OD_obj_var_t    o_260E_galvo_y_step;
+    OD_obj_var_t    o_260F_galvo_camera_trigger_mode;
     /* UC2 system (0x2500-0x2507) */
     OD_obj_var_t    o_2503_uptime_seconds;
     OD_obj_var_t    o_2504_free_heap_bytes;
     OD_obj_var_t    o_2505_can_error_counter;
     OD_obj_var_t    o_2507_reboot_command;
+    /* UC2 OTA (0x2F00-0x2F05) */
+    OD_obj_var_t    o_2F00_ota_firmware_data;
+    OD_obj_var_t    o_2F01_ota_firmware_size;
+    OD_obj_var_t    o_2F02_ota_firmware_crc32;
+    OD_obj_var_t    o_2F03_ota_status;
+    OD_obj_var_t    o_2F04_ota_bytes_received;
+    OD_obj_var_t    o_2F05_ota_error_code;
 } ODObjs_t;
 
 /* Helpers — build a standard 4-entry RPDO comm descriptor (sub 0,1,2,5) */
@@ -333,6 +358,16 @@ typedef struct {
     .attribute   = (attr) | ODA_MB, \
     .dataElementLength = 2, \
     .dataElementSizeof = sizeof(uint16_t) \
+}
+
+/* Helper — array of 2 x int32 (multi-byte, for galvo X/Y) */
+#define _ARR2_I32(ramfld, attr) { \
+    .dataOrig0 = &sub0_2, \
+    .dataOrig  = &OD_RAM.ramfld[0], \
+    .attribute0 = ODA_SDO_R, \
+    .attribute   = (attr) | ODA_MB, \
+    .dataElementLength = 4, \
+    .dataElementSizeof = sizeof(int32_t) \
 }
 
 static CO_PROGMEM ODObjs_t ODObjs = {
@@ -575,6 +610,81 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     /* 0x2340 — Encoder position (4 x int32) */
     .o_2340_encoder_position = _ARR4_I32(x2340_encoder_position, ODA_SDO_RW | ODA_TPDO),
     /* -----------------------------------------------------------------------
+     * UC2 galvo (0x2600-0x260F)
+     * ----------------------------------------------------------------------- */
+    .o_2600_galvo_target_position = _ARR2_I32(x2600_galvo_target_position, ODA_SDO_RW | ODA_RPDO),
+    .o_2601_galvo_actual_position = _ARR2_I32(x2601_galvo_actual_position, ODA_SDO_RW | ODA_TPDO),
+    .o_2602_galvo_command_word = {
+        .dataOrig = &OD_RAM.x2602_galvo_command_word,
+        .attribute = ODA_SDO_RW | ODA_RPDO,
+        .dataLength = 1
+    },
+    .o_2603_galvo_status_word = {
+        .dataOrig = &OD_RAM.x2603_galvo_status_word,
+        .attribute = ODA_SDO_RW | ODA_TPDO,
+        .dataLength = 1
+    },
+    .o_2604_galvo_scan_speed = {
+        .dataOrig = &OD_RAM.x2604_galvo_scan_speed,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2605_galvo_n_steps_line = {
+        .dataOrig = &OD_RAM.x2605_galvo_n_steps_line,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2606_galvo_n_steps_pixel = {
+        .dataOrig = &OD_RAM.x2606_galvo_n_steps_pixel,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2607_galvo_d_steps_line = {
+        .dataOrig = &OD_RAM.x2607_galvo_d_steps_line,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2608_galvo_d_steps_pixel = {
+        .dataOrig = &OD_RAM.x2608_galvo_d_steps_pixel,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2609_galvo_t_pre_us = {
+        .dataOrig = &OD_RAM.x2609_galvo_t_pre_us,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_260A_galvo_t_post_us = {
+        .dataOrig = &OD_RAM.x260A_galvo_t_post_us,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 2
+    },
+    .o_260B_galvo_x_start = {
+        .dataOrig = &OD_RAM.x260B_galvo_x_start,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_260C_galvo_y_start = {
+        .dataOrig = &OD_RAM.x260C_galvo_y_start,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_260D_galvo_x_step = {
+        .dataOrig = &OD_RAM.x260D_galvo_x_step,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_260E_galvo_y_step = {
+        .dataOrig = &OD_RAM.x260E_galvo_y_step,
+        .attribute = ODA_SDO_RW | ODA_RPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_260F_galvo_camera_trigger_mode = {
+        .dataOrig = &OD_RAM.x260F_galvo_camera_trigger_mode,
+        .attribute = ODA_SDO_RW | ODA_RPDO,
+        .dataLength = 1
+    },
+    /* -----------------------------------------------------------------------
      * UC2 system (0x2503-0x2507)
      * ----------------------------------------------------------------------- */
     .o_2503_uptime_seconds = {
@@ -596,8 +706,40 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .dataOrig = &OD_RAM.x2507_reboot_command,
         .attribute = ODA_SDO_RW,
         .dataLength = 1
-    }
-};
+    }    /* -----------------------------------------------------------------------
+     * UC2 OTA (0x2F00-0x2F05)
+     * 0x2F00 is a DOMAIN — no RAM backing; OD extension callback streams to flash
+     * ----------------------------------------------------------------------- */
+    .o_2F00_ota_firmware_data = {
+        .dataOrig = NULL,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 0
+    },
+    .o_2F01_ota_firmware_size = {
+        .dataOrig = &OD_RAM.x2F01_ota_firmware_size,
+        .attribute = ODA_SDO_RW | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2F02_ota_firmware_crc32 = {
+        .dataOrig = &OD_RAM.x2F02_ota_firmware_crc32,
+        .attribute = ODA_SDO_RW | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2F03_ota_status = {
+        .dataOrig = &OD_RAM.x2F03_ota_status,
+        .attribute = ODA_SDO_RW | ODA_TPDO,
+        .dataLength = 1
+    },
+    .o_2F04_ota_bytes_received = {
+        .dataOrig = &OD_RAM.x2F04_ota_bytes_received,
+        .attribute = ODA_SDO_RW | ODA_TPDO | ODA_MB,
+        .dataLength = 4
+    },
+    .o_2F05_ota_error_code = {
+        .dataOrig = &OD_RAM.x2F05_ota_error_code,
+        .attribute = ODA_SDO_RW | ODA_TPDO,
+        .dataLength = 1
+    },};
 
 /*******************************************************************************
  * Object Dictionary list — must be sorted by ascending index
@@ -689,11 +831,35 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2310, 0x09, ODT_ARR, &ODObjs.o_2310_analog_input_value,         NULL},
     /* UC2 encoder */
     {0x2340, 0x05, ODT_ARR, &ODObjs.o_2340_encoder_position,           NULL},
+    /* UC2 galvo */
+    {0x2600, 0x03, ODT_ARR, &ODObjs.o_2600_galvo_target_position,      NULL},
+    {0x2601, 0x03, ODT_ARR, &ODObjs.o_2601_galvo_actual_position,      NULL},
+    {0x2602, 0x01, ODT_VAR, &ODObjs.o_2602_galvo_command_word,         NULL},
+    {0x2603, 0x01, ODT_VAR, &ODObjs.o_2603_galvo_status_word,          NULL},
+    {0x2604, 0x01, ODT_VAR, &ODObjs.o_2604_galvo_scan_speed,           NULL},
+    {0x2605, 0x01, ODT_VAR, &ODObjs.o_2605_galvo_n_steps_line,         NULL},
+    {0x2606, 0x01, ODT_VAR, &ODObjs.o_2606_galvo_n_steps_pixel,        NULL},
+    {0x2607, 0x01, ODT_VAR, &ODObjs.o_2607_galvo_d_steps_line,         NULL},
+    {0x2608, 0x01, ODT_VAR, &ODObjs.o_2608_galvo_d_steps_pixel,        NULL},
+    {0x2609, 0x01, ODT_VAR, &ODObjs.o_2609_galvo_t_pre_us,             NULL},
+    {0x260A, 0x01, ODT_VAR, &ODObjs.o_260A_galvo_t_post_us,            NULL},
+    {0x260B, 0x01, ODT_VAR, &ODObjs.o_260B_galvo_x_start,              NULL},
+    {0x260C, 0x01, ODT_VAR, &ODObjs.o_260C_galvo_y_start,              NULL},
+    {0x260D, 0x01, ODT_VAR, &ODObjs.o_260D_galvo_x_step,               NULL},
+    {0x260E, 0x01, ODT_VAR, &ODObjs.o_260E_galvo_y_step,               NULL},
+    {0x260F, 0x01, ODT_VAR, &ODObjs.o_260F_galvo_camera_trigger_mode,  NULL},
     /* UC2 system */
     {0x2503, 0x01, ODT_VAR, &ODObjs.o_2503_uptime_seconds,             NULL},
     {0x2504, 0x01, ODT_VAR, &ODObjs.o_2504_free_heap_bytes,            NULL},
     {0x2505, 0x01, ODT_VAR, &ODObjs.o_2505_can_error_counter,          NULL},
     {0x2507, 0x01, ODT_VAR, &ODObjs.o_2507_reboot_command,             NULL},
+    /* UC2 OTA */
+    {0x2F00, 0x01, ODT_VAR, &ODObjs.o_2F00_ota_firmware_data,           NULL},
+    {0x2F01, 0x01, ODT_VAR, &ODObjs.o_2F01_ota_firmware_size,           NULL},
+    {0x2F02, 0x01, ODT_VAR, &ODObjs.o_2F02_ota_firmware_crc32,          NULL},
+    {0x2F03, 0x01, ODT_VAR, &ODObjs.o_2F03_ota_status,                  NULL},
+    {0x2F04, 0x01, ODT_VAR, &ODObjs.o_2F04_ota_bytes_received,          NULL},
+    {0x2F05, 0x01, ODT_VAR, &ODObjs.o_2F05_ota_error_code,              NULL},
     {0x0000, 0x00, 0,       NULL,                                       NULL}  /* terminator */
 };
 

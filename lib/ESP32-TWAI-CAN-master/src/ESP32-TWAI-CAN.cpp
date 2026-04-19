@@ -208,6 +208,7 @@ bool TwaiCAN::begin(TwaiSpeed twaiSpeed,
                     {
 
     bool ret = false;
+    log_i("Initializing TWAI CAN with speed %d kbps, txPin %d, rxPin %d, txQueue %d, rxQueue %d", getSpeedNumeric(), txPin, rxPin, txQueue, rxQueue);
     if(end()) {
         init = true;
         setSpeed(twaiSpeed);

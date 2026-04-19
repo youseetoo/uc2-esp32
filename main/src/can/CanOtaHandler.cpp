@@ -16,7 +16,7 @@
 #include <rom/crc.h>  // For crc32_le
 #include <mbedtls/base64.h>  // For base64 decode
 #include "cJSON.h"
-#include "can_controller.h"
+#include "can_transport.h"
 #include "can_messagetype.h"  // For OTA_CAN_* enum values
 #include "BinaryOtaProtocol.h"  // For binary OTA mode
 #include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE

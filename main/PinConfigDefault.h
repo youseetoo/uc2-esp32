@@ -424,6 +424,22 @@ struct PinConfig
 
      uint8_t CAN_ID_GALVO_0 = 40;
 
+     // ========================================================================
+     // PER-DEVICE ROUTING OVERRIDES
+     // ========================================================================
+     // Explicit routing for RoutingTable::buildDefault().
+     // Values: -1 = INFER (from pin config + canRole, default behaviour),
+     //          0 = LOCAL (on-board GPIO),
+     //          1 = REMOTE (forward over CAN to the CAN_ID_* node),
+     //          2 = OFF (disabled)
+     // Override these in board-specific PinConfig.h for explicit control.
+     int8_t ROUTE_MOTOR[4]  = {-1, -1, -1, -1}; // A, X, Y, Z
+     int8_t ROUTE_HOME[4]   = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
+     int8_t ROUTE_TMC[4]    = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
+     int8_t ROUTE_LASER[4]  = {-1, -1, -1, -1}; // laser channels 0-3
+     int8_t ROUTE_LED        = -1;               // single LED array
+     int8_t ROUTE_GALVO      = -1;               // single galvo
+
      // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
      // Set to 0 to disable secondary address listening
      uint32_t CAN_ID_SECONDARY = 0;

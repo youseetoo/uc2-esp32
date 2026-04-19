@@ -261,7 +261,7 @@ namespace FAccelStep
     {
         if (faststeppers[i] == nullptr)
         {
-            log_e("FastAccelStepper for axis %d is null in updateData", i);
+            log_d("FastAccelStepper for axis %d is null in updateData", i);
             return;
         }
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();

@@ -10,7 +10,7 @@
  */
 
 #include "CanOtaStreaming.h"
-#include "can_controller.h"
+#include "can_transport.h"
 #include "PinConfig.h"  // For pinConfig.CAN_ID_CENTRAL_NODE
 #include <Update.h>
 #include <MD5Builder.h>

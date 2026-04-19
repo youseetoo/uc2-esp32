@@ -23,15 +23,12 @@ __attribute__ ((unused)) static const  char* galvo_get_endpoint = "/galvo_get";
 
 __attribute__ ((unused)) static const  char* config_act_endpoint = "/config_act";
 __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get";
+__attribute__ ((unused)) static const  char* config_set_endpoint = "/config_set";
+__attribute__ ((unused)) static const  char* config_reset_endpoint = "/config_reset";
 
 #ifdef HOME_MOTOR
 __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
 __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
-#endif
-
-#ifdef OBJECTIVE_CONTROLLER
-__attribute__ ((unused)) static const  char* objective_act_endpoint = "/objective_act";
-__attribute__ ((unused)) static const  char* objective_get_endpoint = "/objective_get";
 #endif
 
 #ifdef I2C_MASTER
@@ -103,10 +100,19 @@ __attribute__ ((unused)) static const  char* bt_paireddevices_endpoint = "/bt_pa
 
 __attribute__ ((unused)) static const  char* modules_get_endpoint = "/modules_get";
 
+// QID tracking endpoints
+__attribute__ ((unused)) static const  char* qid_state_endpoint = "/qid_state";
+__attribute__ ((unused)) static const  char* qid_pause_endpoint = "/qid_pause";
+__attribute__ ((unused)) static const  char* qid_resume_endpoint = "/qid_resume";
+
 #ifdef HEAT_CONTROLLER
 __attribute__ ((unused)) static const  char* heat_act_endpoint = "/heat_act";
 __attribute__ ((unused)) static const  char* heat_get_endpoint = "/heat_get";
 __attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act";
 __attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
 #endif
+
+// Routing table inspection/override (CANopen builds)
+__attribute__ ((unused)) static const  char* route_get_endpoint = "/route_get";
+__attribute__ ((unused)) static const  char* route_set_endpoint = "/route_set";
 

@@ -4,6 +4,7 @@
 #include "JsonKeys.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
+#include "../qid/QidRegistry.h"
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
@@ -11,7 +12,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 
 namespace LaserController
@@ -121,20 +122,8 @@ namespace LaserController
 		int pwmChannel = getPWMChannel(LASERid);
 		
 		// Check if laser pin is configured for native laser control
-		// This applies to: standalone boards without CAN, and CAN_HYBRID boards (which have native + CAN lasers)
-		// Skip this check if: pure CAN master (no native lasers), CAN slave (receives commands), or I2C laser
-		#if (!defined(CAN_BUS_ENABLED) && !defined(I2C_LASER)) || defined(CAN_HYBRID)
-
-		// For CAN_HYBRID: only validate pin if this laser uses native driver
-		#if defined(CAN_HYBRID)
-		if (!shouldUseCANForLaser(LASERid) && laserPin < 0)
-		{
-			log_w("Laser pin not configured for native LASERid %d", LASERid);
-			State::setBusy(false);
-			return 0;
-		}
-		#else
-		// For standalone (non-CAN) boards: all lasers must have valid pins
+		// Skip this check for I2C laser boards
+		#if !defined(I2C_LASER)
 		if (laserPin < 0)
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
@@ -164,9 +153,7 @@ namespace LaserController
 			log_i("Setting PWM resolution to %i for LASERid %i", pwm_resolution, LASERid);
 			setupLaser(laserPin, pwmChannel, pwm_frequency, pwm_resolution);
 		}
-		#else 
-		isServo = false;
-		#endif
+
 
 		// Handle laser value setting
 		if (hasLASERval)
@@ -188,11 +175,22 @@ namespace LaserController
 			}
 			
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-			State::setBusy(false);
-			return qid;
+		// Laser is synchronous: register and immediately report done
+		if (qid > 0)
+		{
+			QidRegistry::registerQid(qid, 1);
+			QidRegistry::reportActionDone(qid);
 		}
-		
 		State::setBusy(false);
+		return qid;
+	}
+	
+	// No LASERval provided - still report QID done if set
+	if (qid > 0)
+	{
+		QidRegistry::registerQid(qid, 1);
+		QidRegistry::reportActionDone(qid);
+	}
 		return qid;
 	}
 
@@ -231,39 +229,6 @@ namespace LaserController
 		return setLaserVal(LASERid, LASERval, LASER_despeckle_arr[LASERid], LASER_despeckle_period_arr[LASERid], qid);
 	}
 
-	// Helper function to determine if a laser should use CAN in hybrid mode
-	// IMPORTANT: Pin check must use >= 0 because GPIO_NUM_0 (=0) IS a valid pin!
-	// A pin value of -1 (disabled) means no native driver
-	bool shouldUseCANForLaser(int LASERid)
-	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		// In hybrid mode: lasers >= threshold use CAN, lasers < threshold use native drivers
-		// Check if this laser has a native driver configured
-		int laserPin = getLaserPin(LASERid);
-		if (laserPin >= 0)  // >= 0 because GPIO_NUM_0 is valid!
-		{
-			return false; // Has native driver, use it
-		}
-		// No native driver - use CAN if laser ID >= threshold
-		return (LASERid >= pinConfig.HYBRID_LASER_CAN_THRESHOLD);
-#else
-		return false; // CAN not available or this is a slave
-#endif
-	}
-
-	// Helper function to convert hybrid laser ID (4,5,6,7) to CAN laser ID (0,1,2,3)
-	// In hybrid mode: internal laser 4 -> CAN laser 0 -> CAN address for first remote laser
-	int getCANLaserIdForHybrid(int LASERid)
-	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		if (LASERid >= pinConfig.HYBRID_LASER_CAN_THRESHOLD)
-		{
-			return LASERid - pinConfig.HYBRID_LASER_CAN_THRESHOLD;
-		}
-#endif
-		return LASERid;
-	}
-
 	bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid)
 	{
 		log_i("Setting Laser Value: LASERid %i, LASERval %i, despeckle %i, period %i, qid %i", 
@@ -284,66 +249,7 @@ namespace LaserController
 		LASER_despeckle_arr[LASERid] = LASERdespeckle;
 		LASER_despeckle_period_arr[LASERid] = LASERdespecklePeriod;
 		
-		#ifdef I2C_LASER
-		LaserData laserData;
-		laserData.LASERid = LASERid;
-		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = LASERdespeckle;
-		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-		i2c_master::sendLaserDataI2C(laserData, LASERid);
-		
-		// Set flag to send update in next loop cycle
-		laserValuePending[LASERid] = true;
-		return true;
-		
-		#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_LASER)
-		// HYBRID MODE SUPPORT: Check if this laser should use CAN or native driver
-		if (shouldUseCANForLaser(LASERid))
-		{
-			// Route to CAN - convert hybrid laser ID to CAN laser ID
-			int canLaserId = getCANLaserIdForHybrid(LASERid);
-			log_i("Hybrid mode: Routing laser %d to CAN laser %d", LASERid, canLaserId);
-			LaserData laserData;
-			laserData.LASERid = canLaserId;  // Use converted CAN laser ID
-			laserData.LASERval = LASERval;
-			laserData.LASERdespeckle = LASERdespeckle;
-			laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-			can_controller::sendLaserDataToCANDriver(laserData);
-		}
-		else
-		{
-			// Use native driver
-			log_i("Hybrid mode: Routing laser %d to native driver", LASERid);
-			int laserPin = getLaserPin(LASERid);
-			if (laserPin >= 0)  // >= 0 because GPIO_NUM_0 is valid!
-			{
-				int pwmChannel = getPWMChannel(LASERid);
-				setPWM(LASERval, pwmChannel);
-			}
-			else
-			{
-				log_w("No native laser pin configured for LASERid %d", LASERid);
-			}
-		}
-		
-		// Set flag to send update in next loop cycle
-		laserValuePending[LASERid] = true;
-		return true;
-		
-		#elif defined CAN_BUS_ENABLED && not defined(CAN_RECEIVE_LASER)
-		LaserData laserData;
-		laserData.LASERid = LASERid;
-		laserData.LASERval = LASERval;
-		laserData.LASERdespeckle = LASERdespeckle;
-		laserData.LASERdespecklePeriod = LASERdespecklePeriod;
-		can_controller::sendLaserDataToCANDriver(laserData);
-		
-		// Set flag to send update in next loop cycle
-		laserValuePending[LASERid] = true;
-		return true;
-		
-		#else
-		// Check if pin is configured
+		// Apply PWM locally (CAN routing is handled by DeviceRouter)
 		int laserPin = getLaserPin(LASERid);
 		if (laserPin <= 0)
 		{
@@ -351,7 +257,6 @@ namespace LaserController
 			return false;
 		}
 		
-		// Apply PWM
 		int pwmChannel = getPWMChannel(LASERid);
 		setPWM(LASERval, pwmChannel);
 		
@@ -360,7 +265,6 @@ namespace LaserController
 		// Set flag to send update in next loop cycle
 		laserValuePending[LASERid] = true;
 		return true;
-		#endif
 	}
 
 	int getLaserVal(int LASERid)
@@ -715,6 +619,7 @@ namespace LaserController
 		log_i("Laser PWM: %d Hz, %d-bit resolution (%ld steps)", pwm_frequency, pwm_resolution, pwm_max);
 		
 		// Setup all lasers using array iteration
+		//delay(5000);
 		for (int i = 0; i < MAX_LASERS; i++)
 		{
 			int laserPin = getLaserPin(i);
@@ -729,10 +634,19 @@ namespace LaserController
 			pinMode(laserPin, OUTPUT);
 			digitalWrite(laserPin, LOW);
 			setupLaser(laserPin, getPWMChannel(i), pwm_frequency, pwm_resolution);
+			setLaserVal(i, 0);
+		}
+		for (int i = 0; i < MAX_LASERS; i++)
+		{
+			// Skip if pin is not configured
+			int laserPin = getLaserPin(i);
+
+			if (laserPin <= 0)
+				continue;
 			
 			if (pinConfig.testLaserPinOnBoot)
-				setLaserVal(i, 100); // THIS IS ANTI LASERSAFETY!
-			delay(10);
+				setLaserVal(i, 100); // TODO THIS IS ANTI LASERSAFETY!
+			//delay(1000);
 			setLaserVal(i, 0);
 		}
 	}

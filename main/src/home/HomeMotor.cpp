@@ -14,66 +14,13 @@
 #include "../encoder/LinearEncoderController.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 using namespace FocusMotor;
 
 
 namespace HomeMotor
 {
-
-	// Helper function to determine if an axis should use CAN in hybrid mode
-	// IMPORTANT: Pin check must match FAccelStep::setupFastAccelStepper() which uses >= 0
-	// A pin value of 'disabled' (-1) means no native driver, GPIO_NUM_0 (=0) IS a valid pin!
-	bool shouldUseCANForAxis(int axis)
-	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		// In hybrid mode: axes >= threshold use CAN, axes < threshold use native drivers
-		// Check if this axis has a native driver configured
-		// NOTE: Use >= 0 because GPIO_NUM_0 is a valid pin, -1 (disabled) means no driver
-		bool hasNativeDriver = false;
-		switch(axis) {
-			case Stepper::A: hasNativeDriver = (pinConfig.MOTOR_A_STEP >= 0); break;
-			case Stepper::X: hasNativeDriver = (pinConfig.MOTOR_X_STEP >= 0); break;
-			case Stepper::Y: hasNativeDriver = (pinConfig.MOTOR_Y_STEP >= 0); break;
-			case Stepper::Z: hasNativeDriver = (pinConfig.MOTOR_Z_STEP >= 0); break;
-			case Stepper::B: hasNativeDriver = (pinConfig.MOTOR_B_STEP >= 0); break;
-			case Stepper::C: hasNativeDriver = (pinConfig.MOTOR_C_STEP >= 0); break;
-			case Stepper::D: hasNativeDriver = (pinConfig.MOTOR_D_STEP >= 0); break;
-			case Stepper::E: hasNativeDriver = (pinConfig.MOTOR_E_STEP >= 0); break;
-			case Stepper::F: hasNativeDriver = (pinConfig.MOTOR_F_STEP >= 0); break;
-			case Stepper::G: hasNativeDriver = (pinConfig.MOTOR_G_STEP >= 0); break;
-			default: hasNativeDriver = false; break;
-		}
-		
-		// If axis >= hybrid threshold AND no native driver, use CAN
-		// If axis < hybrid threshold AND has native driver, use native
-		// If axis >= hybrid threshold but has native driver, use native (hardware override)
-		if (hasNativeDriver) {
-			return false; // Use native driver regardless of axis number
-		}
-		// No native driver - use CAN if axis >= threshold
-		return (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD);
-#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
-		// Pure CAN master (non-hybrid): all axes use CAN
-		return true;
-#else
-		return false; // CAN not available or this is a slave
-#endif
-	}
-
-	// Helper function to convert hybrid internal axis (4,5,6,7...) to CAN axis (0,1,2,3...)
-	// In hybrid mode: internal axis 4 -> CAN axis 0 -> CAN address 10 (CAN_ID_MOT_A)
-	int getCANAxisForHybrid(int axis)
-	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		if (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD)
-		{
-			return axis - pinConfig.HYBRID_MOTOR_CAN_THRESHOLD;
-		}
-#endif
-		return axis;
-	}
 
 	HomeData *hdata[4] = {nullptr, nullptr, nullptr, nullptr};
 
@@ -594,24 +541,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		hdata[axis]->homingPhase = 1;  // Start with phase 1: fast to endstop
 #endif
 		
-		// Determine whether to use native driver or CAN based on hybrid mode
-		bool useCANForHoming = shouldUseCANForAxis(axis);
-		
-		if (useCANForHoming)
-		{
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-			// In hybrid mode, send home data to CAN slave
-			int canAxis = getCANAxisForHybrid(axis);
-			log_i("Homing axis %d via CAN (CAN axis: %d)", axis, canAxis);
-			can_controller::sendHomeDataToCANDriver(*hdata[axis], canAxis);
-			// Clear isHoming on master - the slave manages its own homing state.
-			// Without this, isHoming stays true forever on the master (no local
-			// homing task to clear it), blocking all future homing commands.
-			getData()[axis]->isHoming = false;
-#endif
-		}
-		else
-		{
+		// Start local homing (CAN routing handled by DeviceRouter)
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 			// Use native driver with new CNC-style task-based homing
 			
@@ -668,7 +598,6 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 				getData()[axis]->isHoming = false;  // Release lock on failure
 			}
 #endif
-		}
 	}
 
 	void stopHome(int axis)

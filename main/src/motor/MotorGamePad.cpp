@@ -1,7 +1,6 @@
 #include "MotorGamePad.h"
 #include "FocusMotor.h"
 #include "MotorTypes.h"
-#include "../objective/ObjectiveController.h"
 
 
 // sample pio project e.g. https://github.com/inventonater/flashbike-matrix/blob/master/scratch/tetris/tetris-matrix-s3.cpp

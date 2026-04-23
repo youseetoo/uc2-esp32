@@ -37,8 +37,8 @@ struct UC2_canopen_slave_laser : PinConfig
     bool DEBUG_CAN_ISO_TP = 0;
 
     // Laser control pins (PWM for lasers)
-    int8_t LASER_0 = GPIO_NUM_2; // D1 (signal_1, Laser 0)
-    int8_t LASER_1 = GPIO_NUM_3; // D2 (signal_2, Laser 1)
+    int8_t LASER_0 = GPIO_NUM_7; //GPIO_NUM_2; // D1 (signal_1, Laser 0)
+    int8_t LASER_1 =GPIO_NUM_8 ; //GPIO_NUM_3; // D2 (signal_2, Laser 1)
     int8_t LASER_2 = GPIO_NUM_5; // D4 (signal_3, Laser 2)
     int8_t LASER_3 = GPIO_NUM_6; // D5 (signal_4, Laser 3)
 

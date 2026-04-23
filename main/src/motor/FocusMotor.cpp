@@ -826,6 +826,12 @@ namespace FocusMotor
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos, int qid)
 	{
+		// Always update and persist position first, independent of serial mutex
+		updateData(i);
+		preferences.begin("UC2", false);
+		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
+		preferences.end();
+
 		// Safety check: ensure mutex is initialized
 		if (xSerialMutex == NULL)
 		{
@@ -841,7 +847,7 @@ namespace FocusMotor
 			return;
 		}
 
-		// update current position of the motor depending on the interface
+		// update current position of the motor depending on the interface (already done above, refresh for JSON)
 		updateData(i);
 
 		cJSON *root = cJSON_CreateObject();
@@ -888,11 +894,6 @@ namespace FocusMotor
 			cJSON_AddNumberToObject(item, "encoderCount", encoderCount ? (int)encoderCount : -(int)encoderCount);
 		}
 #endif
-
-		// also save in preferences
-		preferences.begin("UC2", false);
-		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
-		preferences.end();
 
 		arraypos++;
 

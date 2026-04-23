@@ -1,5 +1,6 @@
 #include "NVSConfig.h"
 #include "RuntimeConfig.h"
+#include "PinConfig.h"
 #include <Preferences.h>
 #include "cJSON.h"
 #include "esp_log.h"
@@ -179,15 +180,26 @@ void NVSConfig::loadConfig()
     runtimeConfig.heat       = prefs.getBool("heat",       DEFAULT_HEAT);
 
     runtimeConfig.canRole      = (NodeRole)prefs.getUChar("canRole",   DEFAULT_CAN_ROLE);
-    runtimeConfig.canNodeId    = prefs.getUChar("canNodeId",  10);
+    // Default canNodeId comes from the board's PinConfig (CAN_ID_CURRENT).
+    // On first boot the NVS key is absent → we use the hardware-defined default
+    // (e.g. CAN_ID_LASER_0 for laser slave, CAN_ID_MOT_X for motor slave).
+    // On subsequent boots the stored value is used (may have been changed by
+    // LSS conflict resolution or via configuration command).
+    {
+        uint8_t pinCfgNodeId = (uint8_t)(pinConfig.CAN_ID_CURRENT & 0x7F);
+        if (pinCfgNodeId < 1 || pinCfgNodeId > 127) {
+            pinCfgNodeId = 10; // safe fallback
+        }
+        runtimeConfig.canNodeId = prefs.getUChar("canNodeId", pinCfgNodeId);
+    }
     runtimeConfig.canMotorAxis = prefs.getUChar("canMotAxis", 1);
 
     prefs.end();
 
-    ESP_LOGI(TAG, "Loaded: motor=%d laser=%d led=%d home=%d bt=%d wifi=%d canRole=%d",
+    ESP_LOGI(TAG, "Loaded: motor=%d laser=%d led=%d home=%d bt=%d wifi=%d canRole=%d canNodeId=%u",
              runtimeConfig.motor, runtimeConfig.laser, runtimeConfig.led,
              runtimeConfig.home, runtimeConfig.bluetooth, runtimeConfig.wifi,
-             (int)runtimeConfig.canRole);
+             (int)runtimeConfig.canRole, (unsigned)runtimeConfig.canNodeId);
 }
 
 void NVSConfig::saveConfig()

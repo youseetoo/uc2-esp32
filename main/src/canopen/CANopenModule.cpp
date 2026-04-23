@@ -552,6 +552,14 @@ void CANopenModule::CO_main_task(void* arg)
         }
 
         activeNodeId = pendingNodeId;
+        // If LSS overrode the configured node-id (bus conflict), persist the
+        // new value to runtimeConfig + NVS so subsequent boots keep it.
+        if (activeNodeId != runtimeConfig.canNodeId) {
+            ESP_LOGW(TAG_CO, "LSS reassigned node-id %u -> %u (saved to NVS)",
+                     (unsigned)runtimeConfig.canNodeId, (unsigned)activeNodeId);
+            runtimeConfig.canNodeId = activeNodeId;
+            NVSConfig::saveConfig();
+        }
         uint32_t errInfo = 0;
 
         // Init CANopen

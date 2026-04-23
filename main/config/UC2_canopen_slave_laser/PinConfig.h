@@ -10,8 +10,9 @@
 #define MESSAGE_CONTROLLER
 #define CAN_BUS_ENABLED
 #define CAN_RECEIVE_LASER
+#define CAN_CONTROLLER_CANOPEN
 
-struct UC2_3_Xiao_Slave_Laser : PinConfig
+struct UC2_canopen_slave_laser : PinConfig
 {
      /*
      D0: 1
@@ -30,7 +31,7 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-    const char *pindefName = "seeed_xiao_esp32s3_can_slave_laser";
+    const char *pindefName = "UC2_canopen_slave_laser";
     const unsigned long BAUDRATE = 115200;
 
     bool DEBUG_CAN_ISO_TP = 0;
@@ -46,8 +47,10 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
     int8_t digita_in_2 = GPIO_NUM_1; // D0 (LO when interlock tripped, enable pullup) // INTERLOCK_LED
 
     // CAN communication
-    int8_t CAN_TX = GPIO_NUM_4; // D3 (CAN-SEND)
-    int8_t CAN_RX = GPIO_NUM_9; // D10 (CAN-RECV)
+     int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board    
+    //int8_t CAN_TX = GPIO_NUM_4; // D3 (CAN-SEND)
+    //int8_t CAN_RX = GPIO_NUM_9; // D10 (CAN-RECV)
     uint32_t CAN_ID_CURRENT = CAN_ID_LASER_0; // Broadcasting address for laser PWM control
 
     // I2C Configuration (Disabled in this setup)
@@ -62,4 +65,4 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
 
 };
   
-const UC2_3_Xiao_Slave_Laser pinConfig;
+const UC2_canopen_slave_laser pinConfig;

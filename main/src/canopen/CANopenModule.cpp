@@ -42,6 +42,8 @@
 #include "../scanner/GalvoController.h"
 #endif
 
+#include "CanOpenOTA.h"
+
 extern "C" {
 #include <CANopen.h>
 #include "OD.h"
@@ -506,8 +508,8 @@ void CANopenModule::CO_main_task(void* arg)
     CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
     uint32_t heapMemoryUsed;
     void* CANptr = NULL;
-    uint8_t pendingNodeId = runtimeConfig.canNodeId;
-    uint8_t activeNodeId  = runtimeConfig.canNodeId;
+    uint8_t pendingNodeId = runtimeConfig.canNodeId;    // start with the configured node ID, but allow LSS to override if it's already taken on the bus
+    uint8_t activeNodeId  = runtimeConfig.canNodeId;    // for logging only — reflects the actual node ID in use, which may be overridden by LSS if there is a conflict
     uint16_t pendingBitRate = 500;
 
     // Allocate CANopenNode objects
@@ -586,6 +588,9 @@ void CANopenModule::CO_main_task(void* arg)
             }
         }
 #endif
+
+        // Register OTA OD extensions (all slave builds)
+        CanOpenOTA::registerOdExtensions();
 
         // Start processing tasks
         xTaskCreatePinnedToCore(CO_tmr_task,       "CO_TMR", 4096, NULL,

@@ -135,6 +135,8 @@ list(APPEND srcs ${mainsrc}src/canopen/RoutingTable.cpp)
 # CANopen stack (alternative to CAN_BUS_ENABLED transport)
 if(CAN_CONTROLLER_CANOPEN EQUAL 1)
     list(APPEND srcs ${mainsrc}src/canopen/CANopenModule.cpp)
+    list(APPEND srcs ${mainsrc}src/canopen/CanOpenOTA.cpp)
+    list(APPEND srcs ${mainsrc}src/canopen/CanOpenOTAStreaming.cpp)
     list(APPEND srcs ${mainsrc}src/can/can_controller_stubs.cpp)
 endif()
 

@@ -706,7 +706,8 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .dataOrig = &OD_RAM.x2507_reboot_command,
         .attribute = ODA_SDO_RW,
         .dataLength = 1
-    }    /* -----------------------------------------------------------------------
+    },
+    /* -----------------------------------------------------------------------
      * UC2 OTA (0x2F00-0x2F05)
      * 0x2F00 is a DOMAIN — no RAM backing; OD extension callback streams to flash
      * ----------------------------------------------------------------------- */

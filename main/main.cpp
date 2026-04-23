@@ -463,6 +463,8 @@ extern "C" void setupApp(void)
 	log_i("SetupApp");
 	// setup debugging level
 	esp_log_level_set("*", ESP_LOG_DEBUG); // set all components to INFO level
+
+	delay(10000);
 	// switch off debug messages 
 	//esp_log_level_set("*", ESP_LOG_NONE);
 #ifdef DESP32S3_MODEL_XIAO

@@ -23,7 +23,7 @@
 #define USE_PCNT_COUNTER
 #define CAN_CONTROLLER_CANOPEN
 
-struct UC2_canopen_slave : PinConfig
+struct UC2_canopen_slave_motor : PinConfig
 {
      /*
      D0: 1
@@ -55,7 +55,7 @@ struct UC2_canopen_slave : PinConfig
      
      bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
-     const char * pindefName = "UC2_canopen_slave";
+     const char * pindefName = "UC2_canopen_slave_motor";
      const unsigned long BAUDRATE = 921600; // 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
@@ -130,4 +130,4 @@ struct UC2_canopen_slave : PinConfig
 
 };
   
-const UC2_canopen_slave pinConfig;
+const UC2_canopen_slave_motor pinConfig;

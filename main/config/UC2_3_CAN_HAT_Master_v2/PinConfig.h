@@ -19,15 +19,14 @@
 #define LED_CONTROLLER
 #define GALVO_CONTROLLER
 #define DAC_CONTROLLER
-#define CAN_CONTROLLER_CANOPEN
 #define LASER_CONTROLLER
 
-struct UC2_canopen_master : PinConfig
+struct UC2_3_CAN_HAT_Master_v2 : PinConfig
 {
     // ---------------------------------------------------------------------
     // Board identity
     // ---------------------------------------------------------------------
-    const char* pindefName = "UC2_canopen_master";
+    const char* pindefName = "UC2_3_CAN_HAT_Master_v2";
     const unsigned long BAUDRATE = 921600; //15200;
 
     // ---------------------------------------------------------------------
@@ -192,4 +191,4 @@ struct UC2_canopen_master : PinConfig
     int8_t LASER_3 = disabled;
 };
 
-const UC2_canopen_master pinConfig;
+const UC2_3_CAN_HAT_Master_v2 pinConfig;

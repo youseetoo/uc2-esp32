@@ -68,13 +68,9 @@ static uint8_t resolveDefaultNodeId(RouteEntry::Type type, uint8_t logicalId) {
                 default: return pinConfig.CAN_ID_MOT_X;
             }
         case RouteEntry::LASER:
-            switch (logicalId) {
-                case 0: return pinConfig.CAN_ID_LASER_0;
-                case 1: return pinConfig.CAN_ID_LASER_1;
-                case 2: return pinConfig.CAN_ID_LASER_2;
-                case 3: return pinConfig.CAN_ID_LASER_3;
-                default: return pinConfig.CAN_ID_LASER_0;
-            }
+            // Use the per-channel node ID array — allows multiple channels on the same node.
+            if (logicalId < 4) return pinConfig.CAN_NODE_LASER[logicalId];
+            return pinConfig.CAN_NODE_LASER[0];
         case RouteEntry::LED:
             return pinConfig.CAN_ID_LED_0;
         case RouteEntry::GALVO:
@@ -172,10 +168,42 @@ void RoutingTable::buildDefault() {
         resolveRoute(RouteEntry::TMC,  ax, tmcOv,  hasPin);
     }
 
-    // Lasers
+    // Lasers — node ID and sub-axis can be configured independently per channel
+    // via PinConfig.CAN_NODE_LASER[ch] and PinConfig.CAN_SUBAXIS_LASER[ch].
+    // This allows multiple logical channels to share one CAN node (e.g. all
+    // four channels on node 0x14 with sub-axes 0-3) or to be spread across
+    // multiple nodes (e.g. two nodes each with two channels).
     for (uint8_t ch = 0; ch < 4; ch++) {
-        resolveRoute(RouteEntry::LASER, ch,
-                     pinConfig.ROUTE_LASER[ch], hasLocalLaserPin(ch));
+        int8_t override_val = pinConfig.ROUTE_LASER[ch];
+        bool   hasPin       = hasLocalLaserPin(ch);
+        uint8_t nid         = pinConfig.CAN_NODE_LASER[ch];
+        uint8_t sub         = (uint8_t)pinConfig.CAN_SUBAXIS_LASER[ch];
+
+        if (override_val >= 0) {
+            // Explicit route override from PinConfig
+            RouteEntry::Where w = static_cast<RouteEntry::Where>(override_val);
+            uint8_t resolvedNid = (w == RouteEntry::REMOTE) ? nid : 0;
+            log_i("Laser ch%d: explicit route=%d node=0x%02X subAxis=%d",
+                  ch, int(w), resolvedNid, sub);
+            RoutingTable::set(RouteEntry::LASER, ch, w, resolvedNid, sub);
+        } else {
+            // Infer from canRole + local pin availability
+            switch (runtimeConfig.canRole) {
+            case NodeRole::STANDALONE:
+            case NodeRole::CAN_SLAVE:
+                RoutingTable::set(RouteEntry::LASER, ch,
+                    hasPin ? RouteEntry::LOCAL : RouteEntry::OFF, 0, sub);
+                break;
+            case NodeRole::CAN_MASTER:
+                if (hasPin) {
+                    RoutingTable::set(RouteEntry::LASER, ch, RouteEntry::LOCAL, 0, sub);
+                } else {
+                    log_i("Laser ch%d: inferred REMOTE node=0x%02X subAxis=%d", ch, nid, sub);
+                    RoutingTable::set(RouteEntry::LASER, ch, RouteEntry::REMOTE, nid, sub);
+                }
+                break;
+            }
+        }
     }
 
     // LED

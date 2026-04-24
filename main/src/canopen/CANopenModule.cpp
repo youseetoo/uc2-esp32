@@ -305,10 +305,15 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     return CO_SDO_AB_NONE;
 }
 
+// Default SDO write timeout. Bumped from 100ms because the slave's CO_tmr_task
+// can take >100ms to respond when it is busy dispatching (e.g. JSON parsing,
+// LedController FastLED show, FocusMotor stepping). 100ms produced spurious
+// "Laser SDO failed" logs even though OD_RAM was actually updated and
+// syncRpdoToModules_slave dispatched the value to the local controller.
 static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
     uint16_t index, uint8_t subIndex,
     uint8_t* data, size_t dataSize,
-    uint32_t timeoutMs = 100)
+    uint32_t timeoutMs = 250)
 {
     /*
     This function handles SDO (Service Data Object) write operations by setting 

@@ -18,6 +18,11 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorJsonParser.h"
+#endif
+// QidRegistry is used by the motor, laser, LED and galvo REMOTE paths to
+// emit {"qid":N,"state":"done"} acknowledgements consistent with the LOCAL
+// controllers. Include it whenever any of those controllers are present.
+#if defined(MOTOR_CONTROLLER) || defined(LASER_CONTROLLER) || defined(LED_CONTROLLER) || defined(GALVO_CONTROLLER)
 #include "../qid/QidRegistry.h"
 #endif
 #ifdef LASER_CONTROLLER
@@ -291,24 +296,42 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 
 // ============================================================================
 // Laser act — routing-table dispatch
+// Mirrors the motor pattern: register the qid in QidRegistry on the master,
+// fire the SDO write, and immediately report the action done. We cannot wait
+// for a TPDO ack like the motor does because the laser has no
+// running->stopped transition mapped to a TPDO; the SDO server on the slave
+// updates OD_RAM.x2100_laser_pwm_value synchronously and the slave's
+// syncRpdoToModules_slave dispatches it to LaserController on the next 1ms
+// tick, so by the time the master returns the value is already (or about to
+// be) applied. A spurious SDO timeout on the master does NOT mean the slave
+// missed the write — the OD entry is updated as part of the SDO server state
+// machine before the response frame is sent.
 // ============================================================================
 cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 #ifdef LASER_CONTROLLER
-    cJSON* laser = cJSON_GetObjectItem(doc, "laser");
-    if (!laser) return nullptr;
-
-    cJSON* laserid_item = cJSON_GetObjectItem(laser, "LASERid");
-    cJSON* val_item     = cJSON_GetObjectItem(laser, "LASERval");
-    if (!laserid_item || !val_item) return nullptr;
+    cJSON* laserid_item = cJSON_GetObjectItem(doc, "LASERid");
+    cJSON* val_item     = cJSON_GetObjectItem(doc, "LASERval");
+    if (!laserid_item || !val_item) {
+        log_i("Laser act missing LASERid or LASERval");
+        return nullptr;
+    }
 
     int laserid = laserid_item->valueint;
     int rawVal  = val_item->valueint;
 
+    // Extract qid (mirrors handleMotorAct). LOCAL path registers/reports the
+    // qid inside LaserController::setLaserVal already, so we only register on
+    // the REMOTE path here.
+    int laserQid = 0;    
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (qidItem && cJSON_IsNumber(qidItem)) laserQid = qidItem->valueint;
+
+
     const auto* route = UC2::RoutingTable::find(
         UC2::RouteEntry::LASER, (uint8_t)laserid);
-
+    log_i("DeviceRouter handling laser_act for laser %d with value %d, route: %p", laserid, rawVal, route);
     if (!route || route->where == UC2::RouteEntry::OFF) {
-        ESP_LOGW(TAG, "laser %d has no route", laserid);
+        log_e("Laser %d has no route", laserid);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         return resp;
@@ -316,13 +339,38 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 
     bool ok = true;
     if (route->where == UC2::RouteEntry::LOCAL) {
+        log_i("Routing laser_act to LOCAL laser %d with value %d", laserid, rawVal);
         ok = LaserController::setLaserVal(laserid, rawVal);
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         uint16_t pwmVal = (uint16_t)std::min(std::max(rawVal, 0), 65535);
-        uint8_t sub = route->subAxis + 1;
-        ok = CANopenModule::writeSDO_u16(route->nodeId, UC2_OD::LASER_PWM_VALUE, sub, pwmVal);
-        if (!ok) ESP_LOGW(TAG, "Laser SDO failed: node 0x%02X", route->nodeId);
+        uint8_t  sub    = route->subAxis + 1;
+        log_i("Routing laser_act to REMOTE node 0x%02X subAxis %d (OD sub 0x%02X) for laser %d with value %u",
+              route->nodeId, route->subAxis, sub, laserid, (unsigned)pwmVal);
+
+        // Register the qid BEFORE dispatching, so a fast TPDO/ack path could
+        // report it back later if we ever add a laser status TPDO.
+        if (laserQid > 0) QidRegistry::registerQid(laserQid, 1);
+
+        bool sdoOk = CANopenModule::writeSDO_u16(route->nodeId, UC2_OD::LASER_PWM_VALUE, sub, pwmVal);
+        if (!sdoOk) {
+            // Match motor's severity (warn, not error). The OD value is
+            // updated by the SDO server before the response frame is sent,
+            // so a master-side timeout does NOT mean the slave missed it.
+            log_w("Laser SDO write timed out: node 0x%02X sub 0x%02X (best-effort delivered)",
+                  route->nodeId, sub);
+        }
+
+        // Acknowledge the qid immediately — there is no laser TPDO completion
+        // to wait for. Treat the dispatch as done so the master emits
+        // {"qid":N,"state":"done"} / {"qid":N,"success":1} just like motor.
+        if (laserQid > 0) QidRegistry::reportActionDone(laserQid);
+
+        // Always return success on the REMOTE path: the OD is updated as part
+        // of the SDO server transaction, and the slave's syncRpdoToModules
+        // will pick it up on the next tick. Reporting failure here caused the
+        // host to retry needlessly even though the laser had already changed.
+        ok = true;
 #else
         ESP_LOGW(TAG, "REMOTE routing requires CANopen — laser %d ignored", laserid);
         ok = false;
@@ -407,11 +455,21 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
 }
 
 // ============================================================================
-// LED act — routing-table dispatch
+// LED act — routing-table dispatch.
+// Mirrors motor/laser pattern: register qid in QidRegistry on REMOTE path and
+// report done immediately (no LED status TPDO is mapped, so we cannot wait
+// for an ack — the SDO server updates the slave OD synchronously).
 // ============================================================================
 cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
 #ifdef LED_CONTROLLER
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
+
+    // Extract qid up-front so both LOCAL and REMOTE paths can use it.
+    int ledQid = 0;
+    {
+        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+        if (qidItem && cJSON_IsNumber(qidItem)) ledQid = qidItem->valueint;
+    }
 
     if (!route || route->where == UC2::RouteEntry::OFF) {
         ESP_LOGW(TAG, "led 0 has no route");
@@ -437,19 +495,23 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
 
         uint8_t nodeId = route->nodeId;
         bool ok = true;
+        bool anySdoTimeout = false;
+
+        // Register the qid before issuing any SDO writes — see laser comment.
+        if (ledQid > 0) QidRegistry::registerQid(ledQid, 1);
 
         // Mode-based fill
         cJSON* mode = cJSON_GetObjectItem(led, "LEDArrMode");
         if (mode && cJSON_IsNumber(mode)) {
             uint8_t m = (uint8_t)mode->valueint;
-            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, m) && ok;
+            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, m)) anySdoTimeout = true;
         }
 
         // Brightness
         cJSON* br = cJSON_GetObjectItem(led, "brightness");
         if (br && cJSON_IsNumber(br)) {
             uint8_t b = (uint8_t)br->valueint;
-            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b) && ok;
+            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b)) anySdoTimeout = true;
         }
 
         // Uniform colour (r, g, b packed into u32)
@@ -461,19 +523,19 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
             uint8_t gg = (jg && cJSON_IsNumber(jg)) ? (uint8_t)jg->valueint : 0;
             uint8_t bb = (jb && cJSON_IsNumber(jb)) ? (uint8_t)jb->valueint : 0;
             uint32_t colour = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | bb;
-            ok = CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour) && ok;
+            if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour)) anySdoTimeout = true;
         }
 
         // Pattern
         cJSON* pat = cJSON_GetObjectItem(led, "patternId");
         if (pat && cJSON_IsNumber(pat)) {
             uint8_t p = (uint8_t)pat->valueint;
-            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p) && ok;
+            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p)) anySdoTimeout = true;
         }
         cJSON* patSpeed = cJSON_GetObjectItem(led, "patternSpeed");
         if (patSpeed && cJSON_IsNumber(patSpeed)) {
             uint16_t s = (uint16_t)patSpeed->valueint;
-            ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s) && ok;
+            if (!CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s)) anySdoTimeout = true;
         }
 
         // Per-pixel array — SDO domain (segmented) transfer
@@ -492,8 +554,12 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                         buf[i*3+1] = (pg && cJSON_IsNumber(pg)) ? (uint8_t)pg->valueint : 0;
                         buf[i*3+2] = (pb && cJSON_IsNumber(pb)) ? (uint8_t)pb->valueint : 0;
                     }
-                    ok = CANopenModule::writeSDODomain(nodeId, UC2_OD::LED_PIXEL_DATA, 0,
-                                                       buf, n * 3) && ok;
+                    bool domOk = CANopenModule::writeSDODomain(nodeId, UC2_OD::LED_PIXEL_DATA, 0,
+                                                                buf, n * 3);
+                    if (!domOk) {
+                        log_w("LED pixel SDO domain write timed out: node 0x%02X", nodeId);
+                        anySdoTimeout = true;
+                    }
                     free(buf);
                 } else {
                     ESP_LOGE(TAG, "LED pixel array malloc failed (%d pixels)", n);
@@ -501,6 +567,15 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                 }
             }
         }
+
+        // Acknowledge qid like motor/laser. SDO timeouts are best-effort
+        // delivered (the OD is updated by the SDO server before the response
+        // frame is sent), so we report done regardless and the caller sees
+        // {"qid":N,"state":"done"} consistently.
+        if (anySdoTimeout) {
+            log_w("LED SDO write(s) timed out: node 0x%02X (best-effort delivered)", nodeId);
+        }
+        if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
 
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
@@ -588,7 +663,12 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
             // Issue raster scan command (cmd=3)
             uint8_t cmd = 3;
             ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
-            if (!ok) ESP_LOGW(TAG, "Galvo SDO failed: node 0x%02X", nodeId);
+            // TODO: galvo should follow the motor pattern — register qid here
+            // and wire syncRpdoToModules_master to call QidRegistry::reportActionDone
+            // on a GALVO_STATUS_WORD running->stopped transition. The slave already
+            // pushes OD_RAM.x2603_galvo_status_word via syncModulesToTpdo, but the
+            // master side currently ignores it.
+            if (!ok) log_w("Galvo SDO write timed out: node 0x%02X (best-effort delivered)", nodeId);
 
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);

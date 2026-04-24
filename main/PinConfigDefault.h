@@ -420,6 +420,19 @@ struct PinConfig
      uint8_t CAN_ID_LASER_3 = 23;
      uint8_t CAN_ID_LASER_4 = 24;
 
+     // Per-channel laser routing: node ID and sub-axis per logical laser channel.
+     // CAN_NODE_LASER[ch] — CAN node ID the master addresses for that channel.
+     //   Default mirrors CAN_ID_LASER_N (one node per channel). Override ALL
+     //   four entries to the same value when one slave node serves multiple channels.
+     //   Example (4 channels on node 0x14): {0x14, 0x14, 0x14, 0x14}
+     // CAN_SUBAXIS_LASER[ch] — OD sub-index - 1 written for that channel.
+     //   Default {0, 1, 2, 3} — sub 0x01…0x04 of OD object LASER_PWM_VALUE.
+     //   If two nodes each handle 2 channels:
+     //     CAN_NODE_LASER    = {0x14, 0x14, 0x15, 0x15}
+     //     CAN_SUBAXIS_LASER = {0,    1,    0,    1}
+     uint8_t CAN_NODE_LASER[4]     = {20, 21, 22, 23};  // defaults match CAN_ID_LASER_N
+     int8_t  CAN_SUBAXIS_LASER[4]  = {0, 1, 2, 3};      // 0-based sub-axis (OD sub = ch+1)
+
      uint8_t CAN_ID_LED_0 = 30;
 
      uint8_t CAN_ID_GALVO_0 = 40;

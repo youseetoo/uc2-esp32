@@ -86,6 +86,11 @@ struct UC2_canopen_master : PinConfig
     int8_t ROUTE_LED       = 0;            // on-board WS2812 is local
     int8_t ROUTE_GALVO     = 1;            // remote
 
+    // All four laser channels live on node 0x14 (sub-axes 0-3).
+    // CAN_SUBAXIS_LASER default {0,1,2,3} is correct; only node IDs need overriding.
+    uint8_t CAN_NODE_LASER[4]    = {0x14, 0x14, 0x14, 0x14};
+    int8_t  CAN_SUBAXIS_LASER[4] = {0, 1, 2, 3};
+
     // ---------------------------------------------------------------------
     // Lighting / status
     // ---------------------------------------------------------------------

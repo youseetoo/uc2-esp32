@@ -142,6 +142,7 @@ namespace LedController
 	// ------------------------------------------------
 	void setSingle(uint16_t index, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("Setting single LED at index %d to color: R=%d, G=%d, B=%d", index, r, g, b);
 #ifdef HUB75
 		matrix->fillScreen(0);
 		int x = index % pinConfig.MATRIX_W;
@@ -165,6 +166,7 @@ namespace LedController
 	// ------------------------------------------------
 	void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("fillHalves: region=%s, r=%d, g=%d, b=%d", region, r, g, b);
 #ifndef HUB75
 
 		matrix->clear();
@@ -339,6 +341,7 @@ namespace LedController
 	// ------------------------------------------------
 	void drawRings(uint8_t radius, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("drawRings: radius=%d, r=%d, g=%d, b=%d", radius, r, g, b);
 #ifndef HUB75
 		// Check if this is an illumination board with defined ring structure
 		#ifdef LED_CONTROLLER
@@ -405,6 +408,8 @@ namespace LedController
 	// ------------------------------------------------
 	void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("drawIlluminationRings: ring_id=%d, r=%d, g=%d, b=%d", ring_id, r, g, b);
+
 		// Hard-coded ring mapping for illumination board
 		// Ring mapping: radius 0=inner, 1=middle, 2=biggest, 3=outest
 		uint16_t start_idx = 0;
@@ -456,6 +461,7 @@ namespace LedController
 	// ------------------------------------------------
 	void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b)
 	{
+
 		// Get ring parameters
 		uint16_t start_idx = 0;
 		uint16_t count = 0;
@@ -508,6 +514,7 @@ namespace LedController
 	// ------------------------------------------------
 	void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal)
 	{
+		log_i("drawCircle: radius=%d, r=%d, g=%d, b=%d", radius, rVal, gVal, bVal);
 #ifndef HUB75
 		matrix->clear();
 
@@ -779,6 +786,7 @@ namespace LedController
 	// ------------------------------------------------
 	void setMode(uint8_t mode, uint8_t brightness, uint32_t colour)
 	{
+		log_i("setMode: mode=%d, brightness=%d, colour=0x%06X", mode, brightness, colour);
 		// check if matrix is initialized (most likely when do setup)
 		if (!matrix)		{
 			log_e("setMode: LED matrix not initialized");
@@ -797,8 +805,20 @@ namespace LedController
 			case 0: // OFF
 				turnOff();
 				break;
-			case 1: // FILL
+			case 1: // FILL — uniform colour for the whole strip
 				fillAll(r, g, b);
+				break;
+			case 2: // HALVES left
+				fillHalves("left", r, g, b);
+				break;
+			case 3: // HALVES right
+				fillHalves("right", r, g, b);
+				break;
+			case 4: // HALVES top
+				fillHalves("top", r, g, b);
+				break;
+			case 5: // HALVES bottom
+				fillHalves("bottom", r, g, b);
 				break;
 			default:
 				fillAll(r, g, b);
@@ -811,6 +831,7 @@ namespace LedController
 	// ------------------------------------------------
 	void setPattern(uint8_t patternId, uint16_t speed)
 	{
+		log_i("setPattern: patternId=%d, speed=%d", patternId, speed);
 		// check if matrix is initialized (most likely when do setup)
 		if (!matrix)		{
 			log_e("setMode: LED matrix not initialized");
@@ -830,6 +851,7 @@ namespace LedController
 	// ------------------------------------------------
 	void setPixels(const uint8_t* data, uint16_t pixelCount)
 	{
+		log_i("setPixels: pixelCount=%d", pixelCount);
 		// check if matrix is initialized (most likely when do setup)
 		if (!matrix)		{
 			log_e("setMode: LED matrix not initialized");

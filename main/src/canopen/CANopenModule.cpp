@@ -822,7 +822,11 @@ void CANopenModule::syncRpdoToModules_slave()
 
 #ifdef LED_CONTROLLER
     // LED mode: detect changes to mode/brightness/colour and dispatch
-    {
+        if (0)
+            log_i("LED mode check: mode=%u bright=%u colour=0x%06X",
+                (unsigned)OD_RAM.x2200_led_array_mode,
+                (unsigned)OD_RAM.x2201_led_brightness,
+                (unsigned)OD_RAM.x2202_led_uniform_colour);
         static uint8_t  lastLedMode   = 0xFF;
         static uint8_t  lastLedBright = 0xFF;
         static uint32_t lastLedColour = 0xFFFFFFFF;
@@ -835,9 +839,8 @@ void CANopenModule::syncRpdoToModules_slave()
             lastLedColour = curColour;
             LedController::setMode(curMode, curBright, curColour);
         }
-    }
+    
     // LED pattern: detect changes to pattern id/speed
-    {
         static uint8_t  lastPatternId    = 0xFF;
         static uint16_t lastPatternSpeed = 0xFFFF;
         uint8_t  curPat   = OD_RAM.x2220_led_pattern_id;
@@ -847,7 +850,7 @@ void CANopenModule::syncRpdoToModules_slave()
             lastPatternSpeed = curSpeed;
             LedController::setPattern(curPat, curSpeed);
         }
-    }
+    
 #endif
 
 #ifdef GALVO_CONTROLLER
@@ -859,10 +862,14 @@ void CANopenModule::syncRpdoToModules_slave()
             lastGalvoCmd = cmd;
             switch (cmd) {
                 case 0: // Stop
+                    log_i("Galvo stop command received");
                     GalvoController::stop();
                     break;
                 case 1: { // Goto XY — set target position via raster config
                     ScanConfig cfg = GalvoController::getCurrentConfig();
+                    log_i("Galvo goto command: x=%u y=%u",
+                          (unsigned)OD_RAM.x2600_galvo_target_position[0],
+                          (unsigned)OD_RAM.x2600_galvo_target_position[1]);
                     cfg.x_min = (uint16_t)OD_RAM.x2600_galvo_target_position[0];
                     cfg.x_max = cfg.x_min;
                     cfg.y_min = (uint16_t)OD_RAM.x2600_galvo_target_position[1];
@@ -875,7 +882,20 @@ void CANopenModule::syncRpdoToModules_slave()
                     break;
                 }
                 case 2: // Line scan
+                    // TODO: not implemented yet?
+                    log_i("Galvo line scan command received");
                 case 3: { // Raster scan
+                    log_i("Galvo raster scan command received: x_start=%u y_start=%u x_steps=%u y_steps=%u x_step=%d y_step=%d speed=%u pre_us=%u post_us=%u trigger=%u",
+                          (unsigned)OD_RAM.x260B_galvo_x_start,
+                          (unsigned)OD_RAM.x260C_galvo_y_start,
+                          (unsigned)OD_RAM.x2605_galvo_n_steps_line,
+                          (unsigned)OD_RAM.x2606_galvo_n_steps_pixel,
+                          (int32_t)OD_RAM.x260D_galvo_x_step,
+                          (int32_t)OD_RAM.x260E_galvo_y_step,
+                          (unsigned)OD_RAM.x2604_galvo_scan_speed,
+                          (unsigned)OD_RAM.x2609_galvo_t_pre_us,
+                          (unsigned)OD_RAM.x260A_galvo_t_post_us,
+                          (unsigned)OD_RAM.x260F_galvo_camera_trigger_mode);
                     ScanConfig cfg;
                     cfg.x_min = (uint16_t)OD_RAM.x260B_galvo_x_start;
                     cfg.y_min = (uint16_t)OD_RAM.x260C_galvo_y_start;
@@ -895,6 +915,7 @@ void CANopenModule::syncRpdoToModules_slave()
                     break;
                 }
                 case 5: // Emergency stop
+                    log_i("Galvo emergency stop command received");
                     GalvoController::stop();
                     break;
                 default:

@@ -503,13 +503,35 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         // Register the qid before issuing any SDO writes — see laser comment.
         if (ledQid > 0) QidRegistry::registerQid(ledQid, 1);
 
-        // Mode-based fill
-        cJSON* mode = cJSON_GetObjectItem(led, "LEDArrMode");
-        if (mode && cJSON_IsNumber(mode)) {
-            uint8_t m = (uint8_t)mode->valueint;
-            log_i("Setting LED array mode to %u", m);
-            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, m)) anySdoTimeout = true;
+        // Derive LED array mode from the high-level "action" field so the slave
+        // can reconstruct the intended pattern.  The slave's setMode() maps:
+        //   0 = OFF
+        //   1 = FILL (uniform colour for the whole strip)
+        //   2 = HALVES left    3 = HALVES right
+        //   4 = HALVES top     5 = HALVES bottom
+        // Falls back to any explicit "LEDArrMode" value if present.
+        uint8_t ledMode = 1; // default: on (fill)
+        cJSON* jAction = cJSON_GetObjectItem(led, "action");
+        if (jAction && cJSON_IsString(jAction)) {
+            const char* actStr = jAction->valuestring;
+            if (strcasecmp(actStr, "off") == 0) {
+                ledMode = 0;
+            } else if (strcasecmp(actStr, "halves") == 0) {
+                cJSON* jRegion = cJSON_GetObjectItem(led, "region");
+                const char* region = (jRegion && cJSON_IsString(jRegion)) ? jRegion->valuestring : "left";
+                if      (strcasecmp(region, "right")  == 0) ledMode = 3;
+                else if (strcasecmp(region, "top")    == 0) ledMode = 4;
+                else if (strcasecmp(region, "bottom") == 0) ledMode = 5;
+                else                                         ledMode = 2; // default: left
+            }
+            // fill / uniform / rings / circles → mode 1 (best approximation via uniform colour)
         }
+        // Allow explicit "LEDArrMode" override
+        cJSON* jLedArrMode = cJSON_GetObjectItem(led, "LEDArrMode");
+        if (jLedArrMode && cJSON_IsNumber(jLedArrMode)) ledMode = (uint8_t)jLedArrMode->valueint;
+
+        log_i("Setting LED array mode to %u", ledMode);
+        if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, ledMode)) anySdoTimeout = true;
 
         // Brightness
         cJSON* br = cJSON_GetObjectItem(led, "brightness");
@@ -608,16 +630,18 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
 
     if (!route || route->where == UC2::RouteEntry::OFF) {
-        ESP_LOGW(TAG, "galvo 0 has no route");
+        log_e("galvo 0 has no route");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         return resp;
     }
 
     if (route->where == UC2::RouteEntry::LOCAL) {
+        log_i("Routing galvo_act to LOCAL galvo controller");
         return GalvoController::act(doc);
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
+        log_i("Routing galvo_act to REMOTE node 0x%02X", route->nodeId);
         uint8_t nodeId = route->nodeId;
         bool ok = true;
 
@@ -625,6 +649,7 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
         cJSON* stop_cmd = cJSON_GetObjectItem(doc, "stop");
         if (stop_cmd && cJSON_IsTrue(stop_cmd)) {
             uint8_t cmd = 0;
+            log_i("Issuing galvo stop command to node 0x%02X", nodeId);
             ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd);
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
@@ -635,6 +660,8 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
         cJSON* config_obj = cJSON_GetObjectItem(doc, "config");
         if (config_obj) {
             cJSON* item;
+            // {"task":"/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"frame_count":0,"bidirectional":false}}
+            log_i("Configuring galvo scan parameters for node 0x%02X", nodeId);
             if ((item = cJSON_GetObjectItem(config_obj, "x_min")))
                 ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_START, 0, item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "y_min")))
@@ -660,10 +687,12 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
             cJSON* nx   = cJSON_GetObjectItem(config_obj, "nx");
             cJSON* ny   = cJSON_GetObjectItem(config_obj, "ny");
             if (xMin && xMax && nx && nx->valueint > 0) {
+                log_i("Computed x_step: (x_max %d - x_min %d) / nx %d", xMax->valueint, xMin->valueint, nx->valueint);
                 int32_t xStep = (xMax->valueint - xMin->valueint) / nx->valueint;
                 ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_STEP, 0, xStep) && ok;
             }
             if (yMin && yMax && ny && ny->valueint > 0) {
+                log_i("Computed y_step: (y_max %d - y_min %d) / ny %d", yMax->valueint, yMin->valueint, ny->valueint);
                 int32_t yStep = (yMax->valueint - yMin->valueint) / ny->valueint;
                 ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_STEP, 0, yStep) && ok;
             }

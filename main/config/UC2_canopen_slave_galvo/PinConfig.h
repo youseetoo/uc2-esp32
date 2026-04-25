@@ -6,8 +6,8 @@
 #define GALVO_CONTROLLER
 #define CAN_RECEIVE_GALVO
 #define CAN_BUS_ENABLED
-
-struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
+#define CAN_CONTROLLER_CANOPEN
+struct UC2_canopen_slave_galvo : PinConfig
 {
      /*
      D0: 1
@@ -33,8 +33,13 @@ struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
      {"task": "/laser_act", "LASERid":1, "LASERval": 0}
      {"task": "/laser_act", "LASERid":2, "LASERval": 1024}
      */
-     const char *pindefName = "seeed_xiao_esp32s3_can_slave_galvo";
+     const char *pindefName = "UC2_canopen_slave_galvo";
      const unsigned long BAUDRATE = 115200;
+
+     // CAN communication
+     int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+
 
      uint8_t galvo_miso = -1;
      uint8_t galvo_sck = GPIO_NUM_7;
@@ -42,12 +47,13 @@ struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
      uint8_t galvo_cs = GPIO_NUM_8;
      uint8_t galvo_ldac = GPIO_NUM_6;
      uint8_t galvo_laser = GPIO_NUM_43;
-     uint8_t galvo_trig_pixel = GPIO_NUM_2;  // D1
-     uint8_t galvo_trig_line = GPIO_NUM_3;   // D2
+     uint8_t galvo_trig_pixel = disabled;// GPIO_NUM_2;  // D1
+     uint8_t galvo_trig_line = disabled;// GPIO_NUM_3;   // D2
      uint8_t galvo_trig_frame = GPIO_NUM_4;  // D3
      
      uint32_t CAN_ID_CURRENT = CAN_ID_GALVO_0;
+    int8_t ROUTE_GALVO = 0; // 0=LOCAL, 1=REMOTE, 2=OFF
 
      
 };
-const seeed_xiao_esp32s3_can_slave_galvo pinConfig;
+const UC2_canopen_slave_galvo pinConfig;

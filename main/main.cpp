@@ -645,7 +645,7 @@ extern "C" void app_main(void)
 	// This is needed for binary OTA which sends 1036-byte packets
 	Serial.setRxBufferSize(4096);  // Large enough for 1024-byte chunks + header
 	Serial.setTxBufferSize(2048);
-	
+	//delay(10000);
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	delay(100); // Give serial time to initialize

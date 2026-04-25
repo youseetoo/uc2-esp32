@@ -11,11 +11,12 @@
 #define CAN_BUS_ENABLED
 #define CAN_RECEIVE_LED
 #define LED_CONTROLLER
+#define CAN_CONTROLLER_CANOPEN
 
 //#define DOTSTAR // outcomment if neopixel
 
 
-struct UC2_3_Xiao_Slave_LED : PinConfig
+struct UC2_canopen_slave_led : PinConfig
 {
      /*
      D0: 1
@@ -34,7 +35,7 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
      
-    const char *pindefName = "seeed_xiao_esp32s3_can_slave_led";
+    const char *pindefName = "UC2_canopen_slave_led";
     const unsigned long BAUDRATE = 115200;
 
     // prints all the ISO TP Stuff - better don't use it to avoid session timeout! 
@@ -45,9 +46,15 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
     int8_t digita_in_2 = GPIO_NUM_1; // D0 (LO when interlock tripped, enable pullup) // INTERLOCK_LED
 
     // CAN communication
-    int8_t CAN_TX = GPIO_NUM_4; // D3 (CAN-SEND)
-    int8_t CAN_RX = GPIO_NUM_9; // D10 (CAN-RECV)
+     int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
+     int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+
+//    int8_t CAN_TX = GPIO_NUM_4; // D3 (CAN-SEND)
+    //int8_t CAN_RX = GPIO_NUM_9; // D10 (CAN-RECV)
     uint32_t CAN_ID_CURRENT = CAN_ID_LED_0; // Broadcasting address for laser PWM control
+
+    // Routing overrides: 0=LOCAL, 1=REMOTE, 2=OFF  (-1=infer)
+    int8_t ROUTE_LED = 0; // 0=LOCAL, 1=REMOTE, 2=OFF
 
     // I2C Configuration (Disabled in this setup)
     int8_t I2C_SCL = -1; // Disabled
@@ -80,4 +87,4 @@ struct UC2_3_Xiao_Slave_LED : PinConfig
     
 };
   
-const UC2_3_Xiao_Slave_LED pinConfig;
+const UC2_canopen_slave_led pinConfig;

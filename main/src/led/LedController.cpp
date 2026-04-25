@@ -779,6 +779,11 @@ namespace LedController
 	// ------------------------------------------------
 	void setMode(uint8_t mode, uint8_t brightness, uint32_t colour)
 	{
+		// check if matrix is initialized (most likely when do setup)
+		if (!matrix)		{
+			log_e("setMode: LED matrix not initialized");
+			return;
+		}
 		uint8_t r = (colour >> 16) & 0xFF;
 		uint8_t g = (colour >> 8)  & 0xFF;
 		uint8_t b = (colour)       & 0xFF;
@@ -806,6 +811,13 @@ namespace LedController
 	// ------------------------------------------------
 	void setPattern(uint8_t patternId, uint16_t speed)
 	{
+		// check if matrix is initialized (most likely when do setup)
+		if (!matrix)		{
+			log_e("setMode: LED matrix not initialized");
+			return;
+		}
+
+
 		activePatternId = patternId;
 		activePatternSpeed = (speed > 0) ? speed : 50;
 		patternFrame = 0;
@@ -818,6 +830,12 @@ namespace LedController
 	// ------------------------------------------------
 	void setPixels(const uint8_t* data, uint16_t pixelCount)
 	{
+		// check if matrix is initialized (most likely when do setup)
+		if (!matrix)		{
+			log_e("setMode: LED matrix not initialized");
+			return;
+		}
+
 		// Disable pattern animation when pixel data is set directly
 		activePatternId = 0;
 

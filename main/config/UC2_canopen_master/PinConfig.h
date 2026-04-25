@@ -83,7 +83,7 @@ struct UC2_canopen_master : PinConfig
     int8_t ROUTE_HOME[4]  = {1, 1, 1, 1};
     int8_t ROUTE_TMC[4]   = {1, 1, 1, 1};
     int8_t ROUTE_LASER[4] = {1, 1, 1, 1}; // all remote
-    int8_t ROUTE_LED       = 0;            // on-board WS2812 is local
+    int8_t ROUTE_LED       = 1;            // on-board WS2812 is local
     int8_t ROUTE_GALVO     = 1;            // remote
 
     // All four laser channels live on node 0x14 (sub-axes 0-3).

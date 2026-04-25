@@ -462,17 +462,17 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
 #ifdef LED_CONTROLLER
+    log_i("Handling led_act via DeviceRouter");
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
-
+    log_i("DeviceRouter found route for LED: %p", route);
     // Extract qid up-front so both LOCAL and REMOTE paths can use it.
     int ledQid = 0;
-    {
-        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
-        if (qidItem && cJSON_IsNumber(qidItem)) ledQid = qidItem->valueint;
-    }
-
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (qidItem && cJSON_IsNumber(qidItem)) ledQid = qidItem->valueint;
+    
+    
     if (!route || route->where == UC2::RouteEntry::OFF) {
-        ESP_LOGW(TAG, "led 0 has no route");
+        log_e("led 0 has no route");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         return resp;
@@ -483,11 +483,14 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         int result = LedController::act(doc);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", result);
+        log_i("Routing led_act to LOCAL LED controller, result: %d", result);
         return resp;
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
+        log_i("Routing led_act to REMOTE node 0x%02X", route->nodeId);
         cJSON* led = cJSON_GetObjectItem(doc, "led");
         if (!led) {
+            log_e("led_act missing 'led' object");
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", 0);
             return resp;
@@ -504,6 +507,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         cJSON* mode = cJSON_GetObjectItem(led, "LEDArrMode");
         if (mode && cJSON_IsNumber(mode)) {
             uint8_t m = (uint8_t)mode->valueint;
+            log_i("Setting LED array mode to %u", m);
             if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, m)) anySdoTimeout = true;
         }
 
@@ -511,6 +515,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         cJSON* br = cJSON_GetObjectItem(led, "brightness");
         if (br && cJSON_IsNumber(br)) {
             uint8_t b = (uint8_t)br->valueint;
+            log_i("Setting LED brightness to %u", b);
             if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b)) anySdoTimeout = true;
         }
 
@@ -523,6 +528,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
             uint8_t gg = (jg && cJSON_IsNumber(jg)) ? (uint8_t)jg->valueint : 0;
             uint8_t bb = (jb && cJSON_IsNumber(jb)) ? (uint8_t)jb->valueint : 0;
             uint32_t colour = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | bb;
+            log_i("Setting LED uniform colour to R:%u G:%u B:%u (0x%06X)", rr, gg, bb, colour);
             if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour)) anySdoTimeout = true;
         }
 
@@ -530,11 +536,13 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         cJSON* pat = cJSON_GetObjectItem(led, "patternId");
         if (pat && cJSON_IsNumber(pat)) {
             uint8_t p = (uint8_t)pat->valueint;
+            log_i("Setting LED pattern ID to %u", p);
             if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p)) anySdoTimeout = true;
         }
         cJSON* patSpeed = cJSON_GetObjectItem(led, "patternSpeed");
         if (patSpeed && cJSON_IsNumber(patSpeed)) {
             uint16_t s = (uint16_t)patSpeed->valueint;
+            log_i("Setting LED pattern speed to %u", s);
             if (!CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s)) anySdoTimeout = true;
         }
 
@@ -562,7 +570,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                     }
                     free(buf);
                 } else {
-                    ESP_LOGE(TAG, "LED pixel array malloc failed (%d pixels)", n);
+                    log_e("LED pixel array malloc failed (%d pixels)", n);
                     ok = false;
                 }
             }

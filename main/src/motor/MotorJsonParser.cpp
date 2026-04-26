@@ -126,9 +126,6 @@ namespace MotorJsonParser
 			cJsonTool::setJsonInt(aritem, key_stepperisstop, FocusMotor::getData()[i]->isStop);
 			cJsonTool::setJsonInt(aritem, key_stepperisrunning, FocusMotor::isRunning(i));
 			cJsonTool::setJsonInt(aritem, key_stepperisforever, FocusMotor::getData()[i]->isforever);
-			cJsonTool::setJsonInt(aritem, key_stepperisen, FocusMotor::getData()[i]->softLimitEnabled);
-			cJsonTool::setJsonInt(aritem, key_steppermin, FocusMotor::getData()[i]->minPos);
-			cJsonTool::setJsonInt(aritem, key_steppermax, FocusMotor::getData()[i]->maxPos);
 			cJsonTool::setJsonInt(aritem, key_stepperstopped, FocusMotor::getData()[i]->stopped);
 			// Hard limit settings
 			cJsonTool::setJsonInt(aritem, "hardLimitEnabled", FocusMotor::getData()[i]->hardLimitEnabled);
@@ -546,63 +543,6 @@ namespace MotorJsonParser
 		}
 	}
 
-	static void parseSetSoftLimits(cJSON *doc)
-	{
-
-		/*
-		{"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -100000, "max": 10000, "isen": 1}]}}
-		*/
-
-		cJSON *softObj = cJSON_GetObjectItemCaseSensitive(doc, "softlimits");
-		if (!softObj)
-		{
-			return; // no "softlimits" key => nothing to do
-		}
-		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(softObj, key_steppers);
-		if (!stprs)
-		{
-			return; // no "steppers" array => nothing to do
-		}
-		cJSON *stp = nullptr;
-		cJSON_ArrayForEach(stp, stprs)
-		{
-			log_i("Set softlimits: stepperid %i", cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-			// check if all required items are present and valid
-			Preferences preferences;
-			cJSON *idItem = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
-			cJSON *minItem = cJSON_GetObjectItemCaseSensitive(stp, key_steppermin);
-			cJSON *maxItem = cJSON_GetObjectItemCaseSensitive(stp, key_steppermax);
-			cJSON *isEnabled = cJSON_GetObjectItemCaseSensitive(stp, key_stepperisen);
-
-			if (!cJSON_IsNumber(idItem) || !cJSON_IsNumber(minItem) || !cJSON_IsNumber(maxItem))
-			{
-				continue; // skip invalid
-			}
-			int axis = idItem->valueint;
-			int32_t mn = minItem->valueint;
-			int32_t mx = maxItem->valueint;
-			bool isEnabledVal = isEnabled ? isEnabled->valueint : false;
-
-			// storing the values in preferences
-			const char *prefNamespace = "UC2";
-			preferences.begin(prefNamespace, false);
-			preferences.putInt(("min" + String(axis)).c_str(), mn);
-			preferences.putInt(("max" + String(axis)).c_str(), mx);
-			preferences.putBool(("isen" + String(axis)).c_str(), isEnabledVal);
-			preferences.end();
-			log_i("Set softlimits: stepperid %i, min %i, max %i, isEnabled %i", axis, mn, mx, isEnabledVal);
-
-			// Apply soft limits locally or via CAN
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-			// Send soft limits to CAN slave
-			can_controller::sendSoftLimitsToCANDriver(mn, mx, isEnabledVal, axis);
-#else
-			// Apply locally to motor data
-			FocusMotor::setSoftLimits(axis, mn, mx, isEnabledVal);
-#endif
-		}
-	}
-
 	static void parseSetHardLimits(cJSON *doc)
 	{
 		/*
@@ -829,35 +769,6 @@ namespace MotorJsonParser
 						#endif
 					}
 
-					// check if soft limits are enabled and if the target position is within the limits
-					if (FocusMotor::getData()[s]->softLimitEnabled)
-					{
-						int32_t pos = FocusMotor::getData()[s]->targetPosition;
-						int32_t minPos = FocusMotor::getData()[s]->minPos;
-						int32_t maxPos = FocusMotor::getData()[s]->maxPos;
-
-						// for absolute position, we need to check the absolute value
-						if (FocusMotor::getData()[s]->absolutePosition)
-						{
-							if (pos < minPos || pos > maxPos)
-							{
-								log_i("Motor %d target position %d outside soft limits (%d, %d) => STOP", s, pos, minPos, maxPos);
-								FocusMotor::stopStepper(s);
-								continue; // skip this motor
-							}
-						}
-						else // relative position
-						{
-							// check if the target position is within the limits
-							if (pos + FocusMotor::getData()[s]->currentPosition < minPos || pos + FocusMotor::getData()[s]->currentPosition > maxPos)
-							{
-								log_i("Motor %d target position %d outside soft limits (%d, %d) => STOP", s, pos, minPos, maxPos);
-								FocusMotor::stopStepper(s);
-								continue; // skip this motor
-							}
-						}
-					}
-
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					bool isStop = (cstop != NULL) ? cstop->valueint : false;
 					FocusMotor::clearHardLimitTriggered(s);// TODO: Is this a good spot to clear the hard limit flag here? Otherwise the motor won't recognize the stop event 
@@ -894,10 +805,6 @@ namespace MotorJsonParser
 		parseMotorPinDirection(doc);
 
 
-
-		// set soft limits of motors
-		// {"task": "/motor_act", "softlimits": {"steppers": [{"stepperid": 1, "min": -100000, "max": 10000, "isen": 1}]}}
-		parseSetSoftLimits(doc);
 
 		// set hard limits (emergency stop on endstop hit during normal operation)
 		// {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 2, "enabled": 0, "polarity": 0}]}}

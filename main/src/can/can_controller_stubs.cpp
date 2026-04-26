@@ -64,7 +64,6 @@ namespace can_controller
 
     // -- home --
     void sendHomeDataToCANDriver(HomeData, uint8_t) {}
-    int sendSoftLimitsToCANDriver(int32_t, int32_t, bool, uint8_t) { return 0; }
     void sendHomeStateToMaster(HomeState) {}
     void sendStopHomeToCANDriver(uint8_t) {}
 

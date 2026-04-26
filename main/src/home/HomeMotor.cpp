@@ -385,6 +385,7 @@ int axis = 0;
 						hd->homingPhase = 0;
 						md->isHoming = false;
 						md->hardLimitTriggered = false;
+						md->hardLimitLockoutDir = 0;
 						md->isforever = false;
 						md->isStop = false;
 						md->stopped = true;  // Motor is stopped after homing

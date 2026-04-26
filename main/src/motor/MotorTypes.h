@@ -58,12 +58,7 @@ struct MotorSettings
 	// Pin configuration (can be removed if handled via PinConfig)
 	int dirPin = -1;
 	int stpPin = -1;
-	
-	// Soft limits
-	uint32_t maxPos = 0;
-	uint32_t minPos = 0;
-	bool softLimitEnabled = false;
-	
+
 	// Advanced features
 	bool encoderBasedMotion = false;
 	
@@ -105,16 +100,22 @@ struct MotorData
 	int triggerPin = -1;
 	int dirPin = -1;
 	int stpPin = -1;
-	uint32_t maxPos = 0;
-	uint32_t minPos = 0;
-	bool softLimitEnabled = false;
 	bool encoderBasedMotion = false;
-	
+
 	// Hard limit runtime state (settings are in MotorSettings, sent via CAN to slaves)
 	bool hardLimitEnabled = false;   // Runtime copy from MotorSettings
 	bool hardLimitPolarity = 0;     // Runtime copy from MotorSettings (0=NO, 1=NC)
-	bool hardLimitTriggered = false; // Flag indicating hard limit was triggered (position set to 999999)
-	
+	bool hardLimitTriggered = false; // One-shot rising-edge flag for telemetry; lockout uses hardLimitLockoutDir
+
+	// Directional lockout after a hard-limit hit.
+	//  0 = no lockout active
+	// +1 = endstop hit while moving in positive direction => only negative motion allowed
+	// -1 = endstop hit while moving in negative direction => only positive motion allowed
+	int8_t hardLimitLockoutDir = 0;
+
+	// Last commanded direction (+1, -1, or 0). Updated by startStepper().
+	int8_t lastCommandedDir = 0;
+
 }__attribute__((packed));
 #pragma pack(pop)
 

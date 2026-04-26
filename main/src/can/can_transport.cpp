@@ -352,16 +352,13 @@ namespace can_controller
             FocusMotor::getData()[mStepper]->triggerPin = receivedMotorSettings.triggerPin;
             FocusMotor::getData()[mStepper]->dirPin = receivedMotorSettings.dirPin;
             FocusMotor::getData()[mStepper]->stpPin = receivedMotorSettings.stpPin;
-            FocusMotor::getData()[mStepper]->maxPos = receivedMotorSettings.maxPos;
-            FocusMotor::getData()[mStepper]->minPos = receivedMotorSettings.minPos;
-            FocusMotor::getData()[mStepper]->softLimitEnabled = receivedMotorSettings.softLimitEnabled;
             FocusMotor::getData()[mStepper]->encoderBasedMotion = receivedMotorSettings.encoderBasedMotion;
             FocusMotor::getData()[mStepper]->hardLimitEnabled = receivedMotorSettings.hardLimitEnabled;
             FocusMotor::getData()[mStepper]->hardLimitPolarity = receivedMotorSettings.hardLimitPolarity;
             if (debugState)
-                log_i("MOTOR_SETTINGS: maxspeed=%d, accel=%d, softLimit=%d, hardLimit=%d",
+                log_i("MOTOR_SETTINGS: maxspeed=%d, accel=%d, hardLimit=%d",
                       receivedMotorSettings.maxspeed, receivedMotorSettings.acceleration,
-                      receivedMotorSettings.softLimitEnabled, receivedMotorSettings.hardLimitEnabled);
+                      receivedMotorSettings.hardLimitEnabled);
 #endif
             break;
         }
@@ -532,28 +529,7 @@ namespace can_controller
 
         case SOFT_LIMIT_SET:
         {
-#ifdef MOTOR_CONTROLLER
-            if (payloadSize != sizeof(SoftLimitData))
-            {
-                log_e("SOFT_LIMIT_SET: Invalid payload size %u, expected %u", payloadSize, sizeof(SoftLimitData));
-                break;
-            }
-            SoftLimitData receivedSoftLimit;
-            memcpy(&receivedSoftLimit, payload, sizeof(SoftLimitData));
-            Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-            if (debugState)
-                log_i("SOFT_LIMIT_SET: axis=%d, min=%ld, max=%ld, enabled=%u",
-                      receivedSoftLimit.axis, (long)receivedSoftLimit.minPos,
-                      (long)receivedSoftLimit.maxPos, receivedSoftLimit.enabled);
-            FocusMotor::setSoftLimits(mStepper, receivedSoftLimit.minPos,
-                                      receivedSoftLimit.maxPos, receivedSoftLimit.enabled != 0);
-            Preferences preferences;
-            preferences.begin("UC2", false);
-            preferences.putInt(("min" + String(mStepper)).c_str(), receivedSoftLimit.minPos);
-            preferences.putInt(("max" + String(mStepper)).c_str(), receivedSoftLimit.maxPos);
-            preferences.putBool(("isen" + String(mStepper)).c_str(), receivedSoftLimit.enabled != 0);
-            preferences.end();
-#endif
+            // Soft-limit subsystem removed; ignore legacy SOFT_LIMIT_SET frames.
             break;
         }
 
@@ -1827,9 +1803,6 @@ namespace can_controller
         settings.triggerPin = motorData.triggerPin;
         settings.dirPin = motorData.dirPin;
         settings.stpPin = motorData.stpPin;
-        settings.maxPos = motorData.maxPos;
-        settings.minPos = motorData.minPos;
-        settings.softLimitEnabled = motorData.softLimitEnabled;
         settings.encoderBasedMotion = motorData.encoderBasedMotion;
         settings.hardLimitEnabled = motorData.hardLimitEnabled;
         settings.hardLimitPolarity = motorData.hardLimitPolarity;
@@ -1843,8 +1816,8 @@ namespace can_controller
         uint8_t slave_addr = axis2id(axis);
 
         if (debugState)
-            log_i("Sending MOTOR_SETTINGS to axis: %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i",
-                  axis, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+            log_i("Sending MOTOR_SETTINGS to axis: %i, maxspeed: %i, acceleration: %i",
+                  axis, motorSettings.maxspeed, motorSettings.acceleration);
 
         int err = sendTypedCanMessage(slave_addr, MOTOR_SETTINGS, (uint8_t *)&motorSettings, sizeof(MotorSettings));
 
@@ -1964,51 +1937,6 @@ namespace can_controller
             if (debugState)
                 log_i("Stop home command sent to CAN slave at address %i", slave_addr);
         }
-    }
-
-    int sendSoftLimitsToCANDriver(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis)
-    {
-        // Send soft limits configuration to slave via CAN
-        // Use MotorSettings struct for this instead of individual values
-        MotorSettings settings = extractMotorSettings(*FocusMotor::getData()[axis]);
-        settings.minPos = minPos;
-        settings.maxPos = maxPos;
-        settings.softLimitEnabled = enabled;
-
-        if (debugState)
-            log_i("Updating soft limits for axis %i: min=%ld, max=%ld, enabled=%u",
-                  axis, (long)minPos, (long)maxPos, enabled);
-
-        return sendMotorSettingsToCANDriver(settings, axis);
-    }
-
-    int sendSoftLimitsToCANDriver_LEGACY(int32_t minPos, int32_t maxPos, bool enabled, uint8_t axis)
-    {
-        // LEGACY: send soft limits configuration to slave via CAN using old method
-        uint8_t slave_addr = axis2id(axis);
-
-        SoftLimitData softLimitData;
-        softLimitData.axis = axis;
-        softLimitData.minPos = minPos;
-        softLimitData.maxPos = maxPos;
-        softLimitData.enabled = enabled ? 1 : 0;
-
-        if (debugState)
-            log_i("Sending SoftLimitData to axis: %i (CAN ID: %u), min: %ld, max: %ld, enabled: %u",
-                  axis, slave_addr, (long)minPos, (long)maxPos, softLimitData.enabled);
-
-        int err = sendTypedCanMessage(slave_addr, SOFT_LIMIT_SET, (uint8_t *)&softLimitData, sizeof(SoftLimitData));
-        if (err != 0)
-        {
-            if (debugState)
-                log_e("Error sending soft limits to CAN slave at address %i", slave_addr);
-        }
-        else
-        {
-            if (debugState)
-                log_i("Soft limits sent to CAN slave at address %i", slave_addr);
-        }
-        return err;
     }
 
     void sendHomeStateToMaster(HomeState homeState)

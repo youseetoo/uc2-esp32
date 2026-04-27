@@ -71,6 +71,13 @@ __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitali
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";
 #endif
+
+// Status indicator (on-board NeoPixel) and beeper for the FRAME / CAN HAT.
+// These are local-only signalling interfaces; independent from /ledarr_act.
+__attribute__ ((unused)) static const  char* signal_act_endpoint = "/signal_act";
+__attribute__ ((unused)) static const  char* signal_get_endpoint = "/signal_get";
+__attribute__ ((unused)) static const  char* indicator_act_endpoint = "/indicator_act"; // alias for /signal_act
+__attribute__ ((unused)) static const  char* buzzer_act_endpoint = "/buzzer_act";
 #ifdef MESSAGE_CONTROLLER
 __attribute__ ((unused)) static const  char* message_act_endpoint = "/message_act";
 __attribute__ ((unused)) static const  char* message_get_endpoint = "/message_get";

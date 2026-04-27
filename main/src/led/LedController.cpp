@@ -57,6 +57,15 @@ namespace LedController
 	void setup()
 	{
 
+		// On boards where the on-board NeoPixel is only used as a status
+		// indicator (e.g. the CAN HAT master with IS_STATUS_LED=true), the
+		// pixel is owned by SignalController via /signal_act. Skip the heavy
+		// LED-array setup here so we don't double-init the same data pin.
+		if (pinConfig.IS_STATUS_LED) {
+			log_i("LedController: IS_STATUS_LED=true, status pixel handled by SignalController — skipping setup");
+			return;
+		}
+
 #ifdef DOTSTAR
 		matrix = new Adafruit_DotStar(LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
 #elif defined(HUB75)
@@ -996,7 +1005,10 @@ namespace LedController
 		// Execute locally if:
 		// 1. This is a status LED display, OR
 		// 2. Hybrid dual output mode is enabled (LED_PIN is configured for local LED array)
-		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
+		// NOTE: When IS_STATUS_LED is set the on-board pixel is owned by
+		// SignalController; do not let LedController stomp on it (matrix is
+		// also nullptr in that case). Use /signal_act for status indication.
+		if (!pinConfig.IS_STATUS_LED && pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0)
 		{
 			log_i("Hybrid LED mode: Executing on local LED array");
 			execLedCommand(cmd);
@@ -1220,68 +1232,9 @@ namespace LedController
 			}
 		}
 
-		// only on the HAT Master => Glow or show status
-		if( pinConfig.IS_STATUS_LED)	
-		{
-	// log_i("LedController loop: Updating status LED effect for status %d", static_cast<int>(currentLedForStatus));
-
-		// Determine color based on currentLedForStatus
-		uint32_t color = 0;
-		// Fade the brightnessLoop up/down
-		brightnessLoop += (fadeDirection * 5);
-		//log_i("LedController loop: brightnessLoop=%d, fadeDirection=%d", brightnessLoop, fadeDirection);
-		if (brightnessLoop == 0 || brightnessLoop == 255)
-		{
-			fadeDirection = -fadeDirection;
-		}
-		switch (currentLedForStatus)
-		{
-		case LedForStatus::busy:
-			// Busy => Yellow
-			color = matrix->Color(brightnessLoop, brightnessLoop, 0);
-			break;
-		case LedForStatus::error:
-			// Error => Red
-			color = matrix->Color(brightnessLoop, 0, 0);
-			break;
-		case LedForStatus::idle:
-			// Idle => Green
-			color = matrix->Color(0, brightnessLoop, 0);
-			break;
-		case LedForStatus::rainbow:
-		{
-			// Rainbow => show a color gradient across the strip
-			for (uint16_t i = 0; i < LED_COUNT; i++)
-			{
-				// Create a hue offset for each pixel, adding brightnessLoop helps shift the pattern
-				uint8_t hue = (brightnessLoop + i * 256 / LED_COUNT) & 0xFF;
-				// Convert HSV to RGB, apply gamma correction
-				uint32_t c = matrix->gamma32(matrix->ColorHSV((uint16_t)hue << 8, 255, 255));
-				matrix->setPixelColor(i, c);
-			}
-			matrix->show();
-			return; // skip the rest
-		}
-		case LedForStatus::on_:
-			// On => White
-			color = matrix->Color(255, 255, 255);
-			break;
-		case LedForStatus::off_:
-			// Off => Black
-			color = matrix->Color(0, 0, 0);
-			break;
-		default:
-			// Unknown => do nothing
-			return;
-		}
-		
-		// Apply the color to all LEDs
-		for (uint16_t i = 0; i < LED_COUNT; i++)
-		{
-			matrix->setPixelColor(i, color);
-		}
-		matrix->show();
-	}
+		// Status-indicator handling has moved to SignalController (/signal_act).
+		// LedController is now responsible only for the (multi-pixel) LED array
+		// driven via /ledarr_act and CANopen pattern animations.
 
 }
 

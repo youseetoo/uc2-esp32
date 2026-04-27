@@ -64,7 +64,9 @@ Preferences preferences;
 #endif
 #ifdef LED_CONTROLLER
 #include "src/led/LedController.h"
+#include "src/signal/SignalController.h"
 #endif
+#include "src/buzzer/BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER
 #include "src/message/MessageController.h"
 #endif
@@ -198,7 +200,9 @@ extern "C" void looper(void *p)
 			LedController::loop();
 			vTaskDelay(1);
 		}
+		SignalController::loop();
 #endif
+		BuzzerController::loop();
 #ifdef MESSAGE_CONTROLLER
 		if (runtimeConfig.message) {
 			MessageController::loop();
@@ -584,7 +588,9 @@ extern "C" void setupApp(void)
 	if (runtimeConfig.led) {
 		LedController::setup();
 	}
+	SignalController::setup();
 #endif
+	BuzzerController::setup();
 #ifdef MESSAGE_CONTROLLER
 	if (runtimeConfig.message) {
 		MessageController::setup();

@@ -54,6 +54,8 @@
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#include "../signal/SignalController.h"
+#include "../buzzer/BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER
 #include "../message/MessageController.h"
 #endif
@@ -692,7 +694,15 @@ namespace SerialProcess
 			serialize(LedController::get(jsonDocument));
 		else if (runtimeConfig.led && strcmp(task, ledarr_act_endpoint) == 0)
 			serialize(LedController::act(jsonDocument));
+		// Status indicator + buzzer (always available — local-only signalling)
+		else if (strcmp(task, signal_act_endpoint) == 0 ||
+		         strcmp(task, indicator_act_endpoint) == 0)
+			serialize(SignalController::act(jsonDocument));
+		else if (strcmp(task, signal_get_endpoint) == 0)
+			serialize(SignalController::get(jsonDocument));
 #endif
+		else if (strcmp(task, buzzer_act_endpoint) == 0)
+			serialize(BuzzerController::act(jsonDocument));
 #ifdef MESSAGE_CONTROLLER
 		else if (runtimeConfig.message && strcmp(task, message_get_endpoint) == 0)
 			serialize(MessageController::get(jsonDocument));

@@ -103,8 +103,8 @@ namespace StageScan
         {
             writeToPin(outputPin, 1, 0);
             // print "++{"cam":1}--" to serial to indicate a software trigger 
-            ets_delay_us(4); // Adjust delay for speed
-            Serial.println("++\n{\"cam\":1}\n--");
+            ets_delay_us(1000); // Adjust delay for speed
+            //Serial.println("++\n{\"cam\":1}\n--");
             writeToPin(outputPin, 0, 0);
         }
         else

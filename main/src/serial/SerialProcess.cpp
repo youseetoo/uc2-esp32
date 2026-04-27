@@ -577,6 +577,7 @@ namespace SerialProcess
 		cJSON *canResponse = DeviceRouter::routeCommand(task, jsonDocument);
 		if (canResponse)
 		{
+			log_i("Received response from DeviceRouter for task %s", task);
 			serialize(canResponse);
 			return; // If the command was routed, we assume it was handled and return immediately. If the command is not recognized by the router, it returns nullptr and we continue with local processing.
 		}

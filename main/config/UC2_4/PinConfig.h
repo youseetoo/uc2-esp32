@@ -21,6 +21,7 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #define LASER_CONTROLLER
 #define DIGITAL_IN_CONTROLLER 
 #define LED_CONTROLLER
+#define STAGE_SCAN
 
 struct UC2_4 : PinConfig
 {

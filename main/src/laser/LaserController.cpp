@@ -622,6 +622,21 @@ namespace LaserController
 		//delay(5000);
 		for (int i = 0; i < MAX_LASERS; i++)
 		{
+	//          0 = LOCAL (on-board GPIO),
+     //          1 = REMOTE (forward over CAN to the CAN_ID_* node),
+     //          2 = OFF (disabled)
+			// Check for local vs remote routing through the ROUTE_LASER table (0 local, 1 remote, 2 off)
+			if(pinConfig.ROUTE_LASER[i] == 2) // OFF
+			{
+				log_i("LASERid %i is set to OFF in ROUTE_LASER, skipping setup", i);
+				continue;
+			}
+			else if (pinConfig.ROUTE_LASER[i] == 1) // REMOTE
+			{
+				log_i("LASERid %i is set to REMOTE in ROUTE_LASER, skipping local setup", i);
+				continue;
+			}
+			
 			int laserPin = getLaserPin(i);
 			
 			// Skip if pin is not configured
@@ -636,6 +651,7 @@ namespace LaserController
 			setupLaser(laserPin, getPWMChannel(i), pwm_frequency, pwm_resolution);
 			setLaserVal(i, 0);
 		}
+		
 		for (int i = 0; i < MAX_LASERS; i++)
 		{
 			// Skip if pin is not configured

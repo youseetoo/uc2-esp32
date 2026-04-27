@@ -386,6 +386,7 @@ calibrate with direction and polarity (e.g. homing to set 0 position, objective 
 {"task": "/motor_act", "stagescan": {"nStepsLine": 100, "dStepsLine": 1, "nStepsPixel": 100, "dStepsPixel": 2, "delayTimeStep": 10, "stopped": 0, "nFrames": 50}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 256, "dStepsLine": 25, "nStepsPixel": 256, "dStepsPixel": 25, "delayTimeStep": 25, "stopped": 0, "nFrames": 50}}}
 	// {"task": "/motor_act", "stagescan": {"stopped": 1"}}
+    {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart": 0, "xStep": 500, "yStep": 500, "zStep": 0, "nX": 10, "nY": 10, "nZ": 0, "tPre": 10, "tPost": 50, "illumination": [0, 50, 0, 0]}}
 	// {"task": "/motor_act", "stagescan": {"nStepsLine": 1{"task": "/motor_act", "stagescan": {"nStepsLine": 10, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}0, "dStepsLine": 1, "nTriggerLine": 1, "nStepsPixel": 10, "dStepsPixel": 1, "nTriggerPixel": 1, "delayTimeStep": 10, "stopped": 0, "nFrames": 5}}"}}
     			{ "task": "/motor_act", "focusscan": { "zStart": 0, "zStep": 50, "nZ": 20, "tPre": 50, "tTrig": 20, "tPost": 50, "led": 255, "illumination": [0, 0, 0, 0], "speed": 20000, "acceleration": 1000000, "qid": 42 }}
 
@@ -1013,3 +1014,20 @@ does not work:
 
 // Back to raster (existing API unchanged)
 {"task":"/galvo_act", "config":{"nx":256,"ny":256,...}}
+
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":400,"speed":15000,"isabs":0,"isaccel":0}, {"stepperid":2,"position":400,"speed":15000,"isabs":0,"isaccel":0}]}} 
+
+
+// Endpoint: /buzzer_act
+{ "task": "/buzzer_act", "qid": 1, "buzzer": { "freq": 25040, "duration": 200 } }
+{ "task": "/buzzer_act", "qid": 1, "buzzer": { "beeps": 3, "freq": 4000, "duration": 80, "gap": 80 } }
+{ "task": "/buzzer_act", "qid": 1, "buzzer": { "preset": "error" } }
+{ "task": "/buzzer_act", "qid": 1, "buzzer": { "stop": true } }
+
+
+{ "task": "/signal_act", "qid": 1, "signal": { "status": "idle" } }
+{ "task": "/signal_act", "qid": 1, "signal": { "status": "off" } }
+{ "task": "/signal_act", "qid": 1, "signal": { "status": "custom","primary":   { "color": "#85b918", "duration": 1 },"secondary": { "color": "#FFFFFF", "duration": 1 },"tertiary":  { "color": "#000000", "duration": 1 },"brightness": 128 } }
+{ "task": "/signal_act", "qid": 1, "signal": { "brightness": 255 } }

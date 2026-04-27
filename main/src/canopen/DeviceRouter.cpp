@@ -101,7 +101,11 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
     if (!motor) return nullptr;
     cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
-    if (!steppers || !cJSON_IsArray(steppers)) return nullptr;
+    if (!steppers || !cJSON_IsArray(steppers)) 
+    {
+        log_i("motor_act missing 'steppers' array");
+        return nullptr;
+    }
 
     cJSON* respSteppers = cJSON_CreateArray();
     int n = cJSON_GetArraySize(steppers);

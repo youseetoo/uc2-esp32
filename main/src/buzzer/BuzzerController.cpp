@@ -26,6 +26,7 @@ namespace BuzzerController
         if (!initialized) return;
         ledcWrite(LEDC_CHANNEL, 0);
         toneActive = false;
+
     }
 
     static void hwTone(uint32_t freq)
@@ -35,6 +36,8 @@ namespace BuzzerController
             hwOff();
             return;
         }
+        log_i("hwTone: freq=%d Hz", freq);
+        // Use channel-based API (Arduino 2.0.x / ESP-IDF): ledcWriteTone takes a channel, not a pin.
         ledcWriteTone(LEDC_CHANNEL, freq);
         ledcWrite(LEDC_CHANNEL, 1 << (LEDC_RES_BITS - 1)); // 50% duty
         toneActive = true;
@@ -47,14 +50,19 @@ namespace BuzzerController
             log_i("BuzzerController: BUZZER_PIN disabled");
             return;
         }
+        // https://docs.sunfounder.com/projects/esp32-starter-kit/de/latest/arduino/basic_projects/ar_pa_buz.html
+        //ledcAttach(pinConfig.BUZZER_PIN, 2000, 8); // Set up the PWM pin
+        
         ledcSetup(LEDC_CHANNEL, 2000, LEDC_RES_BITS);
         ledcAttachPin(pinConfig.BUZZER_PIN, LEDC_CHANNEL);
         ledcWrite(LEDC_CHANNEL, 0);
+        
         initialized = true;
-        log_i("BuzzerController setup on pin %d", pinConfig.BUZZER_PIN);
+        log_i("BuzzerController setup on pin %d, channel %d", pinConfig.BUZZER_PIN, LEDC_CHANNEL);
 
         // Short power-on chirp so the user knows the buzzer works.
         beep(1, 3000, 60, 0);
+        log_i("BuzzerController: Power-on chirp played");
     }
 
     void tone(uint32_t freq, uint32_t durationMs)
@@ -74,7 +82,10 @@ namespace BuzzerController
 
     void beep(uint8_t count, uint32_t freq, uint32_t durationMs, uint32_t gapMs)
     {
-        if (!initialized || count == 0) return;
+        if (!initialized || count == 0) {
+            log_i("beep: invalid parameters or buzzer not initialized (count=%d freq=%d duration=%d gap=%d)", count, freq, durationMs, gapMs);
+            return;
+        }
         seqRemaining = count;
         seqFreq = freq;
         seqOnMs = durationMs;
@@ -156,7 +167,7 @@ namespace BuzzerController
     {
         cJSON *jqid = cJSON_GetObjectItem(root, "qid");
         int qid = (jqid && cJSON_IsNumber(jqid)) ? jqid->valueint : 0;
-
+        log_i("/buzzer_act: qid=%d", qid);
         cJSON *bz = cJSON_GetObjectItem(root, "buzzer");
         if (!bz || !cJSON_IsObject(bz))
         {

@@ -141,34 +141,6 @@ namespace MotorJsonParser
 #ifdef STAGE_SCAN
     void parseStageScan(cJSON *doc)
     {
-        // set trigger
-        cJSON *settrigger = cJSON_GetObjectItem(doc, key_settrigger);
-        // {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 1, "trigPin": 1, "trigOff":0, "trigPer":1}]}}
-        // {"task": "/motor_act", "setTrig": {"steppers": [{"stepperid": 2, "trigPin": 2, "trigOff":0, "trigPer":1}]}}
-        // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 1, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
-        // {"task":"/motor_act","motor":{"steppers": [{ "stepperid": 2, "position": 5000, "speed": 100000, "isabs": 0, "isaccel":0}]}}
-        // {"task": "/motor_get"}
-        if (settrigger != NULL)
-        { // NOT ACTIVELY USED 
-            log_d("settrigger");
-            cJSON *stprs = cJSON_GetObjectItem(settrigger, key_steppers);
-            if (stprs != NULL)
-            {
-
-                cJSON *stp = NULL;
-                cJSON_ArrayForEach(stp, stprs)
-                {
-                    Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
-                    FocusMotor::getData()[s]->triggerPin = cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint;
-                    FocusMotor::getData()[s]->offsetTrigger = cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint;
-                    FocusMotor::getData()[s]->triggerPeriod = cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint;
-                    log_i("Setting motor trigger offset to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggeroffset)->valueint);
-                    log_i("Setting motor trigger period to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerperiod)->valueint);
-                    log_i("Setting motor trigger pin ID to %i", cJSON_GetObjectItemCaseSensitive(stp, key_triggerpin)->valueint);
-                }
-            }
-        }
-
         // start independent stageScan
         //
         cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
@@ -182,7 +154,7 @@ namespace MotorJsonParser
             }
 #if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
             // CAN-based stage scanning with grid parameters
-            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 500, "yStep": 500, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125], "zicZac":0}}
+            // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 5000, "yStep": 5000, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125], "zicZac":0}}
 			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
 			// With XYZ scanning: {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":100, "nX": 5, "nY": 5, "nZ":3, "tPre": 50, "tPost": 50}}
             StageScan::getStageScanData()->xStart = cJsonTool::getJsonInt(stagescan, "xStart");
@@ -803,8 +775,6 @@ namespace MotorJsonParser
 		// set motor pin direction (either 0 or 1)
 		// {"task": "/motor_act", "setdir": {"steppers": [{"stepperid": 0, "dir": 1}]}, "qid": 37}
 		parseMotorPinDirection(doc);
-
-
 
 		// set hard limits (emergency stop on endstop hit during normal operation)
 		// {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 2, "enabled": 0, "polarity": 0}]}}

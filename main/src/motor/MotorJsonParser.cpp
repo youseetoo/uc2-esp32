@@ -143,6 +143,7 @@ namespace MotorJsonParser
     {
         // start independent stageScan
         //
+		log_i("Parsing stage scan command");
         cJSON *stagescan = cJSON_GetObjectItem(doc, "stagescan");
         if (stagescan != NULL)
         { // ACTIVELY USED
@@ -470,7 +471,7 @@ namespace MotorJsonParser
 		return false;
 	}
 
-	static void parseSetJoystickDirection(cJSON *doc)
+	void parseSetJoystickDirection(cJSON *doc)
 	{
 		/*
 		{"task": "/motor_act", "joystickdir": {"steppers": [{"stepperid": 1, "inverted": 1}]}}
@@ -515,7 +516,7 @@ namespace MotorJsonParser
 		}
 	}
 
-	static void parseSetHardLimits(cJSON *doc)
+	void parseSetHardLimits(cJSON *doc)
 	{
 		/*
 		Configure hard limits (emergency stop on endstop hit during normal operation, not during homing)

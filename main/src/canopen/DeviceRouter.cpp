@@ -93,18 +93,55 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
 
 // ============================================================================
 // Motor act — routing-table dispatch
+//
+// PR-7.7: DeviceRouter is now the single entry point for /motor_act. We first
+// run all master-side config sub-parsers (enable/setpos/hardlimits/...) and
+// the stage scan orchestration, then route the per-stepper drive command via
+// the routing table. The previous behaviour silently dropped every config and
+// stage-scan command on routed builds because SerialProcess only fell through
+// to MotorJsonParser::act when DeviceRouter returned nullptr.
 // ============================================================================
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
-    // TODO: We should rather use the MotorJsonParser here instead of duplicating the parsing logic, but that would require refactoring MotorJsonParser to separate parsing from acting, and also to allow passing through the "isStop" flag which is currently only handled in SerialProcess. For now, we duplicate the parsing logic here for simplicity.?
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");
+
+    int qid = cJsonTool::getJsonInt(doc, "qid");
+
+    // ── 1. Config sub-commands — always run locally ──
+    // Master-side configuration that doesn't depend on motor location. For
+    // hardware-side fields (setpos, setdir) the parsers themselves apply only
+    // to motors physically present on this board; remote forwarding via SDO
+    // is deferred (see PR-8). joystickdir/hardlimits are master-side config.
+    MotorJsonParser::parseEnableMotor(doc);          // isen
+    MotorJsonParser::parseAutoEnableMotor(doc);      // isenauto
+    MotorJsonParser::parseSetPosition(doc);          // setpos
+    MotorJsonParser::parseMotorPinDirection(doc);    // setdir
+    MotorJsonParser::parseSetHardLimits(doc);        // hardlimits
+    MotorJsonParser::parseSetJoystickDirection(doc); // joystickdir
+
+#ifdef STAGE_SCAN
+    // Stage scanning is master-side orchestration — it issues motor.move
+    // commands internally which themselves go through DeviceRouter again.
+    MotorJsonParser::parseStageScan(doc);
+#endif
+
+    // ── 2. Drive command — route per stepper ──
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
-    if (!motor) return nullptr;
+    if (!motor) {
+        // Config-only request (e.g. {"task":"/motor_act","isen":1}) — done.
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "qid", qid);
+        cJSON_AddNumberToObject(resp, "return", 1);
+        return resp;
+    }
     cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
-    if (!steppers || !cJSON_IsArray(steppers)) 
+    if (!steppers || !cJSON_IsArray(steppers))
     {
         log_i("motor_act missing 'steppers' array");
-        return nullptr;
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "qid", qid);
+        cJSON_AddNumberToObject(resp, "return", 1);
+        return resp;
     }
 
     cJSON* respSteppers = cJSON_CreateArray();
@@ -232,9 +269,12 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
-    if (!motor) return nullptr;
+    // Bare {"task":"/motor_get"} (no "motor" filter) → return all local axes
+    // via the existing controller. Previously this was handled by the now-
+    // deleted SerialProcess fallback branch.
+    if (!motor) return MotorJsonParser::get(doc);
     cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
-    if (!steppers || !cJSON_IsArray(steppers)) return nullptr;
+    if (!steppers || !cJSON_IsArray(steppers)) return MotorJsonParser::get(doc);
 
     cJSON* respSteppers = cJSON_CreateArray();
     int n = cJSON_GetArraySize(steppers);
@@ -344,7 +384,11 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
     bool ok = true;
     if (route->where == UC2::RouteEntry::LOCAL) {
         log_i("Routing laser_act to LOCAL laser %d with value %d", laserid, rawVal);
-        ok = LaserController::setLaserVal(laserid, rawVal);
+        // Delegate to LaserController::act so we keep full feature parity:
+        // PWM frequency/resolution, despeckle, servo mode, qid registration.
+        // act() returns qid (>=0) and logs validation errors internally; we
+        // treat the call as successful from the router's perspective.
+        (void)LaserController::act(doc);
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         uint16_t pwmVal = (uint16_t)std::min(std::max(rawVal, 0), 65535);

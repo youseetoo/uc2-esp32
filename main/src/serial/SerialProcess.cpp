@@ -651,12 +651,6 @@ namespace SerialProcess
 			serialize(LinearEncoderController::get(jsonDocument));
 		}
 #endif
-#ifdef HOME_MOTOR //TODO: When will this case actually be reached? probably we will always go through the routing? 
-		else if (runtimeConfig.home && strcmp(task, home_get_endpoint) == 0)
-			serialize(HomeMotor::get(jsonDocument));
-		else if (runtimeConfig.home && strcmp(task, home_act_endpoint) == 0)
-			serialize(HomeMotor::act(jsonDocument));
-#endif
 #ifdef I2C_MASTER
 		else if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_master::get(jsonDocument));
@@ -678,24 +672,11 @@ namespace SerialProcess
 		else if (strcmp(task, can_act_endpoint) == 0)
 			serialize(CANopenModule::act(jsonDocument));
 #endif
-#ifdef LASER_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
-		else if (runtimeConfig.laser && strcmp(task, laser_get_endpoint) == 0)
-			serialize(LaserController::get(jsonDocument));
-		else if (runtimeConfig.laser && strcmp(task, laser_act_endpoint) == 0)
-			serialize(LaserController::act(jsonDocument));
-#endif
-#ifdef TMC_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
-		else if (runtimeConfig.tmc && strcmp(task, tmc_get_endpoint) == 0)
-			serialize(TMCController::get(jsonDocument));
-		else if (runtimeConfig.tmc && strcmp(task, tmc_act_endpoint) == 0)
-			serialize(TMCController::act(jsonDocument));
-#endif
-#ifdef LED_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
-		else if (runtimeConfig.led && strcmp(task, ledarr_get_endpoint) == 0)
-			serialize(LedController::get(jsonDocument));
-		else if (runtimeConfig.led && strcmp(task, ledarr_act_endpoint) == 0)
-			serialize(LedController::act(jsonDocument));
-		// Status indicator + buzzer (always available — local-only signalling)
+		// laser_get/_act, led_get/_act, motor_get/_act, home_get/_act,
+		// tmc_get/_act, galvo_get/_act are handled by DeviceRouter (PR-7.7).
+#ifdef LED_CONTROLLER
+		// SignalController is only compiled when LED_CONTROLLER is enabled
+		// (it shares the NeoPixel/HUB75 backend with the LED array).
 		else if (strcmp(task, signal_act_endpoint) == 0 ||
 		         strcmp(task, indicator_act_endpoint) == 0)
 			serialize(SignalController::act(jsonDocument));
@@ -710,23 +691,11 @@ namespace SerialProcess
 		else if (runtimeConfig.message && strcmp(task, message_act_endpoint) == 0)
 			serialize(MessageController::act(jsonDocument));
 #endif
-#ifdef MOTOR_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
-		else if (runtimeConfig.motor && strcmp(task, motor_get_endpoint) == 0)
-			serialize(MotorJsonParser::get(jsonDocument));
-		else if (runtimeConfig.motor && strcmp(task, motor_act_endpoint) == 0)
-			serialize(MotorJsonParser::act(jsonDocument));
-#endif
 #ifdef SCANNER_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 	
 		else if (runtimeConfig.scanner && strcmp(task, scanner_get_endpoint) == 0)
 			serialize(ScannerController::get(jsonDocument));
 		else if (runtimeConfig.scanner && strcmp(task, scanner_act_endpoint) == 0)
 			serialize(ScannerController::act(jsonDocument));
-#endif
-#ifdef GALVO_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 
-		else if (runtimeConfig.galvo && strcmp(task, galvo_get_endpoint) == 0)
-			serialize(GalvoController::get(jsonDocument));
-		else if (runtimeConfig.galvo && strcmp(task, galvo_act_endpoint) == 0)
-			serialize(GalvoController::act(jsonDocument));
 #endif
 #ifdef PID_CONTROLLER
 		else if (runtimeConfig.pid && strcmp(task, PID_get_endpoint) == 0)

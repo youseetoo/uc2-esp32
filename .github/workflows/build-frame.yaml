@@ -363,6 +363,10 @@ jobs:
     needs: build-fw-images
     if: github.event_name == 'push' && github.ref_type == 'tag'
     steps:
+      # Note: this step is required for us to be able to determine the release tag:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Download firmware images
         uses: actions/download-artifact@v4
         with:

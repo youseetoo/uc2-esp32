@@ -35,9 +35,22 @@ namespace FAccelStep
         }
 
         faststeppers[i]->setSpeedInHz(speed);
-        if (getData()[i]->acceleration >= 0)
+
+        // Honor isaccelerated. The JSON parser defaults absent fields to 0,
+        // so a missing "isaccel" / "accel" must not silently keep stale
+        // ramp settings. FAS has no true "constant velocity" mode for
+        // moveTo/move, so when the user asks for no acceleration we use
+        // MAX_ACCELERATION_A to keep the ramp as short as possible.
+        const bool wantAccel = getData()[i]->isaccelerated != 0;
+        const int32_t reqAccel = getData()[i]->acceleration;
+        if (wantAccel && reqAccel > 0)
         {
-            faststeppers[i]->setAcceleration(getData()[i]->acceleration);
+            if (faststeppers[i]->setAcceleration(reqAccel) != 0)
+            {
+                log_w("setAcceleration(%d) rejected on motor %d, using MAX_ACCELERATION_A",
+                      (int)reqAccel, i);
+                faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
+            }
         }
         else
         {
@@ -196,19 +209,19 @@ namespace FAccelStep
         // log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
         // log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
 
-        // Use RMT driver instead of PCNT to avoid conflicts with ESP32Encoder
-        // This completely avoids PCNT resource conflicts
-        #ifdef LINEAR_ENCODER_CONTROLLER
+        // Always try RMT first. RMT inserts a MIN_CMD_TICKS pause before
+        // direction toggles which the MCPWM/PCNT driver does not, and on
+        // boards without an encoder there is no PCNT contention to worry
+        // about. Fall back to MCPWM/PCNT only if RMT allocation fails.
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
-        #endif
         if (faststeppers[stepper] == nullptr)
         {
-            log_e("Failed to create RMT stepper for motor %d, falling back to PCNT", stepper);
             faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
+            log_w("Motor %d: RMT unavailable, falling back to MCPWM/PCNT", stepper);
         }
         else
         {
-            log_i("Successfully created RMT stepper for motor %d (avoiding PCNT conflicts)", stepper);
+            log_i("Motor %d: using RMT driver", stepper);
         }
 
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
@@ -221,16 +234,23 @@ namespace FAccelStep
         faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);
         faststeppers[stepper]->setAcceleration(DEFAULT_ACCELERATION);
         faststeppers[stepper]->setCurrentPosition(getData()[stepper]->currentPosition);
-        faststeppers[stepper]->move(2);
-        faststeppers[stepper]->move(-2);
+        // Note: previously there were two priming move(2)/move(-2) calls here.
+        // They were non-blocking, queued asynchronously, and could coalesce
+        // with the first user move, producing unaccounted direction reversals
+        // and extra step pulses. The FAS engine handles cold starts fine on
+        // its own; do not re-add them.
     }
 
     void stopFastAccelStepper(int i)
     {
         if (faststeppers[i] == nullptr)
             return;
-        faststeppers[i]->forceStop();
-        faststeppers[i]->stopMove();
+        // Hard stop with consistent post-stop position. Don't combine
+        // forceStop() and stopMove(): forceStop() halts the ramp generator
+        // but does not empty the queue, and the follow-up stopMove() then
+        // becomes a no-op. forceStopAndNewPosition() pins the position to
+        // the current value so getCurrentPosition() below is meaningful.
+        faststeppers[i]->forceStopAndNewPosition(faststeppers[i]->getCurrentPosition());
         log_i("stop stepper in FAccelStep %i", i);
         getData()[i]->isforever = false;
         getData()[i]->speed = 0;

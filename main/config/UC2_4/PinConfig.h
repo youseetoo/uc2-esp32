@@ -37,7 +37,19 @@ struct UC2_4 : PinConfig
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
 
-     // THIS LIVES ON TCA
+     // ---------------------------------------------------------------------
+    // Camera / trigger / panelboard IO
+    // ---------------------------------------------------------------------
+    // Camera I/O lines from schematic block
+    int8_t CAM_IO0_IN  = GPIO_NUM_25; // “Cam In Line 0”
+    int8_t CAM_IO1_OUT = disabled; // “Cam Out Line 1”
+    int8_t CAM_IO2_IO  = disabled; // “Cam In/Out Line 2”
+
+    // Use the dedicated OUT line as the default external camera trigger
+    int8_t CAMERA_TRIGGER_PIN = CAM_IO0_IN;
+    bool   CAMERA_TRIGGER_INVERTED = false;
+
+    // THIS LIVES ON TCA
      int8_t MOTOR_ENABLE = 0; 
      int8_t MOTOR_X_DIR = 1;
      int8_t MOTOR_Y_DIR = 2;

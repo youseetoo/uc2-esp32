@@ -100,6 +100,7 @@ list(APPEND srcs ${mainsrc}src/tmc/TMCController.cpp)
 endif()
 if(LED_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/led/LedController.cpp)
+    list(APPEND srcs ${mainsrc}src/led/Ws2812Rmt.cpp)
     list(APPEND srcs ${mainsrc}src/signal/SignalController.cpp)
 endif()
 

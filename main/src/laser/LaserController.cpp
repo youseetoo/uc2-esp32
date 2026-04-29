@@ -8,7 +8,7 @@
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
-#ifdef I2C_LASER 
+#ifdef I2C_LASER
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
@@ -26,15 +26,21 @@ namespace LaserController
 	{
 		switch (LASERid)
 		{
-			case 0: return pinConfig.LASER_0;
-			case 1: return pinConfig.LASER_1;
-			case 2: return pinConfig.LASER_2;
-			case 3: return pinConfig.LASER_3;
-			case 4: return pinConfig.LASER_4;
-			default: return -1;
+		case 0:
+			return pinConfig.LASER_0;
+		case 1:
+			return pinConfig.LASER_1;
+		case 2:
+			return pinConfig.LASER_2;
+		case 3:
+			return pinConfig.LASER_3;
+		case 4:
+			return pinConfig.LASER_4;
+		default:
+			return -1;
 		}
 	}
-	
+
 	// Helper function to get PWM channel by ID
 	int getPWMChannel(int LASERid)
 	{
@@ -52,16 +58,16 @@ namespace LaserController
 			log_w("Invalid LASERid %i for despeckle", LASERid);
 			return;
 		}
-		
+
 		log_e("LASERdespeckle %i, LASERid %i, LASERperiod %i", LASERdespeckle, LASERid, LASERperiod);
-		
+
 		int LASER_val_wiggle = LASER_val_arr[LASERid];
 		int PWM_CHANNEL = getPWMChannel(LASERid);
-		
+
 		// Add random number to current value to let it oscillate
 		int32_t laserwiggle = random(-LASERdespeckle, LASERdespeckle);
 		LASER_val_wiggle += laserwiggle;
-		
+
 		if (LASER_val_wiggle > pwm_max)
 			LASER_val_wiggle -= (2 * abs(laserwiggle));
 		if (LASER_val_wiggle < 0)
@@ -93,7 +99,7 @@ namespace LaserController
 		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
 		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
 		bool hasLASERval = cJSON_HasObjectItem(ob, "LASERval"); // check if ob contains the key "LASERval"
-		bool isServo = cJSON_HasObjectItem(ob, "servo"); // check if ob contains the key "servo"
+		bool isServo = cJSON_HasObjectItem(ob, "servo");		// check if ob contains the key "servo"
 
 		// assign values
 		int LASERid = 0;
@@ -106,7 +112,6 @@ namespace LaserController
 		LASERdespeckle = cJsonTool::getJsonInt(ob, "LASERdespeckle");
 		LASERdespecklePeriod = cJsonTool::getJsonInt(ob, "LASERdespecklePeriod");
 
-
 		// debugging
 		log_i("LaserID %i, LaserVal %i, LaserDespeckle %i, LaserDespecklePeriod %i", LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod);
 
@@ -117,26 +122,26 @@ namespace LaserController
 			State::setBusy(false);
 			return 0;
 		}
-		
+
 		int laserPin = getLaserPin(LASERid);
 		int pwmChannel = getPWMChannel(LASERid);
-		
-		// Check if laser pin is configured for native laser control
-		// Skip this check for I2C laser boards
-		#if !defined(I2C_LASER)
+
+// Check if laser pin is configured for native laser control
+// Skip this check for I2C laser boards
+#if !defined(I2C_LASER)
 		if (laserPin < 0)
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
 			State::setBusy(false);
 			return 0;
 		}
-		#endif
+#endif
 
 		/*
 		Set Laser PWM Frequency
 		*/
 		if (setPWMFreq != NULL && !isServo)
-		{ 
+		{
 			// {"task":"/laser_act", "LASERid":1 ,"LASERFreq":50, "LASERval":1000, "qid":1}
 			pwm_frequency = setPWMFreq->valueint;
 			log_i("Setting PWM frequency to %i for LASERid %i", pwm_frequency, LASERid);
@@ -147,13 +152,12 @@ namespace LaserController
 		Set Laser PWM Resolution
 		*/
 		if (setPWMRes != NULL && !isServo)
-		{ 
+		{
 			// {"task":"/laser_act", "LASERid":2 ,"LASERRes":16}
 			pwm_resolution = setPWMRes->valueint;
 			log_i("Setting PWM resolution to %i for LASERid %i", pwm_resolution, LASERid);
 			setupLaser(laserPin, pwmChannel, pwm_frequency, pwm_resolution);
 		}
-
 
 		// Handle laser value setting
 		if (hasLASERval)
@@ -173,55 +177,54 @@ namespace LaserController
 				// Normal laser mode - use overloaded setLaserVal with despeckle parameters
 				setLaserVal(LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod, qid);
 			}
-			
+
 			log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		// Laser is synchronous: register and immediately report done
+			// Laser is synchronous: register and immediately report done
+			if (qid > 0)
+			{
+				QidRegistry::registerQid(qid, 1);
+				QidRegistry::reportActionDone(qid);
+			}
+			State::setBusy(false);
+			return qid;
+		}
+
+		// No LASERval provided - still report QID done if set
 		if (qid > 0)
 		{
 			QidRegistry::registerQid(qid, 1);
 			QidRegistry::reportActionDone(qid);
 		}
-		State::setBusy(false);
-		return qid;
-	}
-	
-	// No LASERval provided - still report QID done if set
-	if (qid > 0)
-	{
-		QidRegistry::registerQid(qid, 1);
-		QidRegistry::reportActionDone(qid);
-	}
 		return qid;
 	}
 
-		void applyLaserValue(const LaserData& laserData)
+	void applyLaserValue(const LaserData &laserData)
 	{
-		#ifdef I2C_LASER
-			i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
-		#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
-			can_controller::sendLaserDataToCANDriver(laserData);
-		#else
-			int LASERid = laserData.LASERid;
-			
-			// Validate LASERid
-			if (LASERid < 0 || LASERid >= MAX_LASERS)
-			{
-				log_w("Invalid LASERid: %d", LASERid);
-				return;
-			}
-			
-			// Set value in array
-			LASER_val_arr[LASERid] = laserData.LASERval;
-			
-			// Get PWM channel and apply
-			int pwmChannel = getPWMChannel(LASERid);
-			if (pwmChannel != -1)
-			{
-				setPWM(laserData.LASERval, pwmChannel);
-			}
-		#endif
-	}
+#ifdef I2C_LASER
+		i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
+#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
+		can_controller::sendLaserDataToCANDriver(laserData);
+#else
+		int LASERid = laserData.LASERid;
 
+		// Validate LASERid
+		if (LASERid < 0 || LASERid >= MAX_LASERS)
+		{
+			log_w("Invalid LASERid: %d", LASERid);
+			return;
+		}
+
+		// Set value in array
+		LASER_val_arr[LASERid] = laserData.LASERval;
+
+		// Get PWM channel and apply
+		int pwmChannel = getPWMChannel(LASERid);
+		if (pwmChannel != -1)
+		{
+			setPWM(laserData.LASERval, pwmChannel);
+		}
+#endif
+	}
 
 	bool setLaserVal(int LASERid, int LASERval, int qid)
 	{
@@ -231,24 +234,24 @@ namespace LaserController
 
 	bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid)
 	{
-		log_i("Setting Laser Value: LASERid %i, LASERval %i, despeckle %i, period %i, qid %i", 
-		      LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod, qid);
-		
+		log_i("Setting Laser Value: LASERid %i, LASERval %i, despeckle %i, period %i, qid %i",
+			  LASERid, LASERval, LASERdespeckle, LASERdespecklePeriod, qid);
+
 		// Validate LASERid
 		if (LASERid < 0 || LASERid >= MAX_LASERS)
 		{
 			log_w("Invalid LASERid: %d", LASERid);
 			return false;
 		}
-		
+
 		// Store qid for this laser
 		pendingQid[LASERid] = qid;
-		
+
 		// Update arrays with new values
 		LASER_val_arr[LASERid] = LASERval;
 		LASER_despeckle_arr[LASERid] = LASERdespeckle;
 		LASER_despeckle_period_arr[LASERid] = LASERdespecklePeriod;
-		
+
 		// Apply PWM locally (CAN routing is handled by DeviceRouter)
 		int laserPin = getLaserPin(LASERid);
 		if (laserPin <= 0)
@@ -256,12 +259,12 @@ namespace LaserController
 			log_w("Laser pin not configured for LASERid %d", LASERid);
 			return false;
 		}
-		
+
 		int pwmChannel = getPWMChannel(LASERid);
 		setPWM(LASERval, pwmChannel);
-		
+
 		log_i("LASERid %i, LASERval %i", LASERid, LASERval);
-		
+
 		// Set flag to send update in next loop cycle
 		laserValuePending[LASERid] = true;
 		return true;
@@ -275,7 +278,7 @@ namespace LaserController
 			log_w("Invalid LASERid: %d", LASERid);
 			return 0;
 		}
-		
+
 		int laserVal = LASER_val_arr[LASERid];
 		log_i("LASERid %i, LASERval %i", LASERid, laserVal);
 		return laserVal;
@@ -285,10 +288,10 @@ namespace LaserController
 	{
 		// Send laser value update similar to sendMotorPos pattern
 		// JSON format: {"laser": {"LASERid": X, "LASERval": Y}, "qid": Z}
-		
-		log_i("Sending laser value update: LASERid %i, LASERval %i, qid %i", 
-		      LASERid, getLaserVal(LASERid), qid);
-		
+
+		log_i("Sending laser value update: LASERid %i, LASERval %i, qid %i",
+			  LASERid, getLaserVal(LASERid), qid);
+
 		cJSON *root = cJSON_CreateObject();
 		if (root == NULL)
 		{
@@ -303,12 +306,12 @@ namespace LaserController
 			log_e("Failed to create laser object");
 			return;
 		}
-		
+
 		cJSON_AddItemToObject(root, "laser", laserObj);
 		cJSON_AddNumberToObject(laserObj, "LASERid", LASERid);
 		cJSON_AddNumberToObject(laserObj, "LASERval", getLaserVal(LASERid));
 		cJSON_AddNumberToObject(laserObj, "isDone", true); // Laser is immediately done after setting
-		
+
 		if (qid != 0)
 		{
 			cJSON_AddNumberToObject(root, "qid", qid);
@@ -320,7 +323,7 @@ namespace LaserController
 
 		// Serialize to string BEFORE deleting the cJSON object
 		char *jsonString = cJSON_PrintUnformatted(root);
-		
+
 		// Check if serialization was successful
 		if (jsonString == NULL)
 		{
@@ -328,18 +331,18 @@ namespace LaserController
 			cJSON_Delete(root);
 			return;
 		}
-		
+
 		// Delete cJSON object immediately after serialization
 		cJSON_Delete(root);
 		root = NULL;
-		
+
 		// Send the pre-serialized string through the safe output queue
 		SerialProcess::safeSendJsonString(jsonString);
-		
+
 		// Free the serialized string
 		free(jsonString);
 		jsonString = NULL;
-		
+
 		log_d("Laser value update sent successfully for LASERid %i", LASERid);
 	}
 
@@ -351,7 +354,8 @@ namespace LaserController
 		ledcAttachPin(laser_pin, pwm_chan);
 	}
 
-	LaserData getLaserData(){
+	LaserData getLaserData()
+	{
 		LaserData laserData;
 		laserData.LASERid = 1;
 		laserData.LASERval = LASER_val_1;
@@ -362,36 +366,36 @@ namespace LaserController
 
 	bool laser_on = false;
 	bool laser2_on = false;
-	
+
 	// Variables for hold/release detection
 	static unsigned long pressStartTime[4] = {0, 0, 0, 0}; // UP, DOWN, RIGHT, LEFT
 	static bool isPressed[4] = {false, false, false, false};
 	static bool isHolding[4] = {false, false, false, false};
 	static unsigned long lastHoldAction[4] = {0, 0, 0, 0};
-	static const unsigned long HOLD_THRESHOLD = 500; // ms to detect hold
+	static const unsigned long HOLD_THRESHOLD = 500;		  // ms to detect hold
 	static const unsigned long HOLD_INCREMENT_INTERVAL = 200; // ms between increments
-	
+
 	// Cross button toggle for Laser 4
 	static unsigned long crossLastEventTime = 0;
 	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
-	static bool laser4ToggleState = false; // false = off/min, true = on/max
-	
+	static bool laser4ToggleState = false;				   // false = off/min, true = on/max
+
 	void dpad_changed_event(Dpad::Direction pressed)
 	{
 		/*
 		Enhanced behavior:
 		- Short click RIGHT => toggle laser 2 on/off (10000/0)
 		- Long hold RIGHT => increment laser 2 in steps of 500
-		- Short click LEFT => toggle laser 2 on/off (10000/0) 
+		- Short click LEFT => toggle laser 2 on/off (10000/0)
 		- Long hold LEFT => decrement laser 2 in steps of 500
 		- Short click UP => toggle laser 1 on/off (10000/0)
 		- Long hold UP => increment laser 1 in steps of 500
 		- Short click DOWN => toggle laser 1 on/off (10000/0)
 		- Long hold DOWN => decrement laser 1 in steps of 500
 		*/
-		
+
 		unsigned long currentTime = millis();
-		
+
 		if (pressed == Dpad::Direction::up)
 		{
 			if (!isPressed[0]) // Button press started
@@ -437,7 +441,7 @@ namespace LaserController
 				{
 					isPressed[i] = false;
 					unsigned long pressDuration = currentTime - pressStartTime[i];
-					
+
 					if (!isHolding[i] && pressDuration < HOLD_THRESHOLD)
 					{
 						// Short click detected
@@ -448,7 +452,7 @@ namespace LaserController
 			}
 		}
 	}
-	
+
 	void handleShortClick(int direction)
 	{
 		// 0=UP, 1=DOWN, 2=RIGHT, 3=LEFT
@@ -483,15 +487,15 @@ namespace LaserController
 			}
 		}
 	}
-	
+
 	// Call this from loop() to handle hold actions
 	void processHoldActions()
 	{
 		unsigned long currentTime = millis();
-		
+
 		for (int i = 0; i < 4; i++)
 		{
-			if (isPressed[i] && !isHolding[i] && 
+			if (isPressed[i] && !isHolding[i] &&
 				(currentTime - pressStartTime[i]) >= HOLD_THRESHOLD)
 			{
 				// Start hold action
@@ -499,8 +503,8 @@ namespace LaserController
 				lastHoldAction[i] = currentTime;
 				log_i("Hold started for direction %d", i);
 			}
-			
-			if (isHolding[i] && 
+
+			if (isHolding[i] &&
 				(currentTime - lastHoldAction[i]) >= HOLD_INCREMENT_INTERVAL)
 			{
 				// Execute hold action
@@ -509,7 +513,7 @@ namespace LaserController
 			}
 		}
 	}
-	
+
 	void executeHoldAction(int direction)
 	{
 		// 0=UP, 1=DOWN, 2=RIGHT, 3=LEFT
@@ -560,7 +564,7 @@ namespace LaserController
 			}
 		}
 	}
-	
+
 	void moveServo(int ledChannel, int angle, int frequency, int resolution)
 	{
 		// { "task": "/laser_act", "LASERid": 1, "LASERval": 170, "servo": 1, "qid": 1 }
@@ -617,16 +621,16 @@ namespace LaserController
 		pwm_resolution = pinConfig.LASER_PWM_RESOLUTION;
 		pwm_max = (long)pow(2, pwm_resolution);
 		log_i("Laser PWM: %d Hz, %d-bit resolution (%ld steps)", pwm_frequency, pwm_resolution, pwm_max);
-		
+
 		// Setup all lasers using array iteration
-		//delay(5000);
+		// delay(5000);
 		for (int i = 0; i < MAX_LASERS; i++)
 		{
-	//          0 = LOCAL (on-board GPIO),
-     //          1 = REMOTE (forward over CAN to the CAN_ID_* node),
-     //          2 = OFF (disabled)
+			//          0 = LOCAL (on-board GPIO),
+			//          1 = REMOTE (forward over CAN to the CAN_ID_* node),
+			//          2 = OFF (disabled)
 			// Check for local vs remote routing through the ROUTE_LASER table (0 local, 1 remote, 2 off)
-			if(pinConfig.ROUTE_LASER[i] == 2) // OFF
+			if (pinConfig.ROUTE_LASER[i] == 2) // OFF
 			{
 				log_i("LASERid %i is set to OFF in ROUTE_LASER, skipping setup", i);
 				continue;
@@ -636,35 +640,30 @@ namespace LaserController
 				log_i("LASERid %i is set to REMOTE in ROUTE_LASER, skipping local setup", i);
 				continue;
 			}
-			
+			else{
+				log_i("LASERid %i is set to LOCAL in ROUTE_LASER, proceeding with setup", i);
+				// Proceed with local setup
+			}
+
 			int laserPin = getLaserPin(i);
-			
+
 			// Skip if pin is not configured
-			if (laserPin <= 0)
+			if (laserPin <= 0){
+				log_i("LASERid %i has no valid pin configured, skipping setup", i);
 				continue;
-			
-			const char* laserName = (i == 0) ? "Heating Unit" : "Laser";
+			}
+
+			const char *laserName = (i == 0) ? "Heating Unit" : "Laser";
 			log_i("%s ID %i, pin: %i", laserName, i, laserPin);
 			// BEWARE: THE LED ON THE ILLU BOARD NEEDS 12V TO LIGHT UP!
+
 			pinMode(laserPin, OUTPUT);
 			digitalWrite(laserPin, LOW);
 			setupLaser(laserPin, getPWMChannel(i), pwm_frequency, pwm_resolution);
 			setLaserVal(i, 0);
 		}
-		
-		for (int i = 0; i < MAX_LASERS; i++)
-		{
-			// Skip if pin is not configured
-			int laserPin = getLaserPin(i);
+		log_i("LASER setup complete");
 
-			if (laserPin <= 0)
-				continue;
-			
-			if (pinConfig.testLaserPinOnBoot)
-				setLaserVal(i, 100); // TODO THIS IS ANTI LASERSAFETY!
-			//delay(1000);
-			setLaserVal(i, 0);
-		}
 	}
 
 	void loop()
@@ -676,10 +675,10 @@ namespace LaserController
 			{
 				sendLaserValue(i, pendingQid[i]);
 				laserValuePending[i] = false; // Clear the flag after sending
-				pendingQid[i] = 0; // Reset qid
+				pendingQid[i] = 0;			  // Reset qid
 			}
 		}
-		
+
 		// Process hold actions for continuous laser adjustment
 		processHoldActions();
 
@@ -699,20 +698,20 @@ namespace LaserController
 		if (pressed)
 		{
 			unsigned long currentTime = millis();
-			
+
 			// Debounce check - ignore if too soon after last event
 			if (currentTime - crossLastEventTime < BUTTON_DEBOUNCE_TIME)
 			{
 				return;
 			}
-			
+
 			crossLastEventTime = currentTime;
-			
+
 			// Toggle Laser 4 state
 			laser4ToggleState = !laser4ToggleState;
-			
+
 			log_i("Cross pressed - Laser 4 toggle to %s", laser4ToggleState ? "MAX (10000)" : "MIN (0)");
-			
+
 			if (laser4ToggleState)
 			{
 				// Turn Laser 4 to MAX

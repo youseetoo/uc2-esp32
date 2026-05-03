@@ -58,20 +58,7 @@ namespace FAccelStep
         }
 
         // Check soft limits before allowing movement (unless homing is active)
-        if (getData()[i]->softLimitEnabled && !getData()[i]->isforever && !getData()[i]->isHoming)
-        {
-            int32_t targetPos = getData()[i]->absolutePosition 
-                ? getData()[i]->targetPosition 
-                : faststeppers[i]->getCurrentPosition() + getData()[i]->targetPosition;
-            
-            if (targetPos < getData()[i]->minPos || targetPos > getData()[i]->maxPos)
-            {
-                log_e("Motor %i: Soft limit violation! Target=%ld, Limits=[%ld, %ld]", 
-                      i, (long)targetPos, (long)getData()[i]->minPos, (long)getData()[i]->maxPos);
-                getData()[i]->stopped = true;
-                return;
-            }
-        }
+        // (Removed: soft-limit subsystem deleted; hard limits via endstops are the only positional safety.)
 
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
@@ -222,10 +209,64 @@ namespace FAccelStep
         // log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
         // log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
 
-        // Always try RMT first. RMT inserts a MIN_CMD_TICKS pause before
-        // direction toggles which the MCPWM/PCNT driver does not, and on
-        // boards without an encoder there is no PCNT contention to worry
-        // about. Fall back to MCPWM/PCNT only if RMT allocation fails.
+        // Driver selection.
+        //
+        // The MCPWM/PCNT backend in our FastAccelStepper fork does NOT
+        // honor the external-direction-pin handshake correctly: even when
+        // the wrapper returns the *previous* state (signalling "DIR not
+        // settled yet"), the MCPWM/PCNT pipeline still emits a few
+        // already-loaded step pulses on direction reversal. Result: the
+        // STAGE walks +3 extra steps every time the move reverses
+        // direction. The standalone reproducer (which uses DRIVER_RMT)
+        // does not show this — the RMT ISR re-applies the repeating
+        // pause command without firing additional STEP pulses.
+        //
+        // Therefore: when ANY motor pin is routed through the TCA9535
+        // I/O expander (USE_TCA9535), the external-pin handshake is
+        // mandatory and we MUST use the RMT backend, regardless of
+        // LED_CONTROLLER.
+        //
+        // RMT vs NeoPixel coexistence: FAS-RMT calls rmt_isr_register()
+        // (a global shared ISR) and Adafruit_NeoPixel calls
+        // rmt_driver_install(). They are mutually exclusive on the same
+        // RMT controller, but each FAS stepper allocates its own RMT
+        // channel (channels 0..3 for steppers, channels 4..7 free for
+        // NeoPixel) and rmt_isr_register vs rmt_driver_install can
+        // coexist as long as they target different channels — which is
+        // already the case here. The historical comment about a panic
+        // was for the old single-RMT-ISR path.
+#if defined(USE_TCA9535)
+        // External direction pins via TCA: must use RMT for correct
+        // dir-change handshake. No fallback — MCPWM/PCNT would silently
+        // re-introduce the +3-step bug on every direction reversal.
+        faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+        if (faststeppers[stepper] == nullptr)
+        {
+            log_e("Motor %d: RMT unavailable but USE_TCA9535 requires it. "
+                  "Direction-reversal handshake will not work — refusing to "
+                  "fall back to MCPWM/PCNT to avoid silent +3-step drift.",
+                  stepper);
+        }
+        else
+        {
+            log_i("Motor %d: using RMT driver (required for TCA9535 dir handshake)", stepper);
+        }
+#elif defined(LED_CONTROLLER) && !defined(LINEAR_ENCODER_CONTROLLER)
+        // NeoPixel-only board with native dir pins: no external-pin
+        // handshake needed, so MCPWM/PCNT is fine and frees RMT for
+        // NeoPixel exclusively.
+        faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
+        if (faststeppers[stepper] == nullptr)
+        {
+            log_e("Motor %d: failed to create MCPWM/PCNT stepper", stepper);
+        }
+        else
+        {
+            log_i("Motor %d: using MCPWM/PCNT driver (LED_CONTROLLER keeps RMT for NeoPixel)", stepper);
+        }
+#else
+        // Always try RMT first. Fall back to MCPWM/PCNT only if RMT
+        // allocation fails.
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
         if (faststeppers[stepper] == nullptr)
         {
@@ -236,6 +277,7 @@ namespace FAccelStep
         {
             log_i("Motor %d: using RMT driver", stepper);
         }
+#endif
 
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, getData()[stepper]->directionPinInverted);
@@ -281,7 +323,7 @@ namespace FAccelStep
     {
         if (faststeppers[i] == nullptr)
         {
-            log_e("FastAccelStepper for axis %d is null in updateData", i);
+            log_d("FastAccelStepper for axis %d is null in updateData", i);
             return;
         }
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();

@@ -38,7 +38,6 @@ namespace FocusMotor
 	void toggleStepper(Stepper s, bool isStop, int reduced); // reduced=> 0: full values MotorData, 1: reduced MotorDataReduced, 2: single VAlue for CAN
 	void setAutoEnable(bool enable);
 	void setEnable(bool enable);
-	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos, bool isEnabled);
 	void updateData(int axis); // pull motor data to the data-array
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
@@ -57,12 +56,4 @@ namespace FocusMotor
 	bool isEncoderBasedMotionEnabled(int axis);
 	void setEncoderBasedMotion(int axis, bool enabled);
 	void startEncoderBasedMotion(int axis);
-	
-	// Hybrid mode support: determines if an axis should use CAN or native driver
-	// Returns true if axis should be routed to CAN bus, false for native driver
-	bool shouldUseCANForAxis(int axis);
-	
-	// Hybrid mode support: converts internal hybrid axis (4,5,6,7) to CAN axis (0,1,2,3)
-	// Used when sending commands to CAN satellites in hybrid mode
-	int getCANAxisForHybrid(int axis);
 };

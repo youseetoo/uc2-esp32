@@ -1,0 +1,53 @@
+name: CANopen Registry Drift Check
+
+# Ensures that the generated files (EDS, OD.h, UC2_OD_Indices.h, …) are
+# always in sync with tools/canopen/uc2_canopen_registry.yaml.
+# If someone edits the registry without re-running the generator this job fails.
+
+on:
+  push:
+    paths:
+      - 'tools/canopen/**'
+      - 'DOCUMENTATION/openUC2_satellite.eds'
+      - 'DOCUMENTATION/UC2_CANopen_Parameters.md'
+      - 'main/src/canopen/UC2_OD_Indices.h'
+      - 'PYTHON/uc2_canopen/uc2_indices.py'
+      - 'lib/uc2_od/**'
+  pull_request:
+    paths:
+      - 'tools/canopen/**'
+      - 'DOCUMENTATION/openUC2_satellite.eds'
+      - 'DOCUMENTATION/UC2_CANopen_Parameters.md'
+      - 'main/src/canopen/UC2_OD_Indices.h'
+      - 'PYTHON/uc2_canopen/uc2_indices.py'
+      - 'lib/uc2_od/**'
+  workflow_dispatch:
+
+jobs:
+  registry-drift:
+    name: Registry → Generated files are in sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Regenerate from registry
+        run: python tools/canopen/regenerate_all.py
+
+      - name: Check for drift
+        run: |
+          git diff --exit-code || {
+            echo ""
+            echo "ERROR: Generated files are out of date with uc2_canopen_registry.yaml."
+            echo "Run 'python tools/canopen/regenerate_all.py' locally, then commit"
+            echo "the YAML and all generated files together."
+            exit 1
+          }

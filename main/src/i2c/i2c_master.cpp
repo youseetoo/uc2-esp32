@@ -195,8 +195,8 @@ namespace i2c_master
         }
         else
         {
-            log_i("MotorSettings sent to axis: %i, at address %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
-                  axis, slave_addr, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+            log_i("MotorSettings sent to axis: %i, at address %i, maxspeed: %i, acceleration: %i",
+                  axis, slave_addr, motorSettings.maxspeed, motorSettings.acceleration);
             // Mark settings as sent for this axis
             if (axis < 4)
                 motorSettingsSent[axis] = true;

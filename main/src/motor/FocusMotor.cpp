@@ -7,6 +7,7 @@
 #include "../../cJsonTool.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
+#include "../qid/QidRegistry.h"
 #include "esp_debug_helpers.h"
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
@@ -31,7 +32,7 @@
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
 #include "../digitalin/DigitalInController.h"
@@ -55,7 +56,10 @@ namespace FocusMotor
 
 	Preferences preferences;
 	int logcount;
-	bool waitForFirstRun[] = {false, false, false, false};
+	// Grace-period counter: skip this many loop iterations after startStepper()
+	// before the stop-condition is allowed to fire.  Gives the stepper time to
+	// start actually running (especially important for CAN-dispatched moves).
+	int waitForFirstRun[] = {0, 0, 0, 0};
 
 	xSemaphoreHandle xMutex = NULL;
 	xSemaphoreHandle xSerialMutex = NULL; // Mutex for serial JSON output
@@ -84,81 +88,42 @@ namespace FocusMotor
 		// getData()[axis] = mData;
 	}
 
-	// Helper function to determine if an axis should use CAN in hybrid mode
-	// IMPORTANT: Pin check must match FAccelStep::setupFastAccelStepper() which uses >= 0
-	// A pin value of 'disabled' (-1) means no native driver, GPIO_NUM_0 (=0) IS a valid pin!
-	bool shouldUseCANForAxis(int axis)
+	// Compute the requested motion direction for the current command parameters.
+	// Returns +1, -1, or 0 (unknown / stop / no motion).
+	static int8_t computeRequestedDir(int axis)
 	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		// In hybrid mode: axes >= threshold use CAN, axes < threshold use native drivers
-		// Check if this axis has a native driver configured
-		// NOTE: Use >= 0 because GPIO_NUM_0 is a valid pin, -1 (disabled) means no driver
-		bool hasNativeDriver = false;
-		switch (axis)
+		MotorData *md = getData()[axis];
+		if (md->isStop)
+			return 0;
+		if (md->isforever)
 		{
-		case Stepper::A:
-			hasNativeDriver = (pinConfig.MOTOR_A_STEP >= 0);
-			break;
-		case Stepper::X:
-			hasNativeDriver = (pinConfig.MOTOR_X_STEP >= 0);
-			break;
-		case Stepper::Y:
-			hasNativeDriver = (pinConfig.MOTOR_Y_STEP >= 0);
-			break;
-		case Stepper::Z:
-			hasNativeDriver = (pinConfig.MOTOR_Z_STEP >= 0);
-			break;
-		case Stepper::B:
-			hasNativeDriver = (pinConfig.MOTOR_B_STEP >= 0);
-			break;
-		case Stepper::C:
-			hasNativeDriver = (pinConfig.MOTOR_C_STEP >= 0);
-			break;
-		case Stepper::D:
-			hasNativeDriver = (pinConfig.MOTOR_D_STEP >= 0);
-			break;
-		case Stepper::E:
-			hasNativeDriver = (pinConfig.MOTOR_E_STEP >= 0);
-			break;
-		case Stepper::F:
-			hasNativeDriver = (pinConfig.MOTOR_F_STEP >= 0);
-			break;
-		case Stepper::G:
-			hasNativeDriver = (pinConfig.MOTOR_G_STEP >= 0);
-			break;
-		default:
-			hasNativeDriver = false;
-			break;
+			if (md->speed > 0) return 1;
+			if (md->speed < 0) return -1;
+			return 0;
 		}
-
-		// If axis >= hybrid threshold AND no native driver, use CAN
-		// If axis < hybrid threshold AND has native driver, use native
-		// If axis >= hybrid threshold but has native driver, use native (hardware override)
-		if (hasNativeDriver)
+		if (md->absolutePosition)
 		{
-			return false; // Use native driver
+			int32_t delta = md->targetPosition - md->currentPosition;
+			if (delta > 0) return 1;
+			if (delta < 0) return -1;
+			return 0;
 		}
-		// No native driver - use CAN if axis >= threshold
-		return (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD);
-#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
-		// Pure CAN master (non-hybrid): all axes use CAN
-		return true;
-#else
-		return false; // CAN not available or this is a slave
-#endif
+		// relative move
+		if (md->targetPosition > 0) return 1;
+		if (md->targetPosition < 0) return -1;
+		return 0;
 	}
 
-	// Helper function to convert hybrid internal axis (4,5,6,7...) to CAN axis (0,1,2,3...)
-	// In hybrid mode: internal axis 4 -> CAN axis 0 -> CAN address 10 (CAN_ID_MOT_A)
-	int getCANAxisForHybrid(int axis)
+	// Returns false if motion in that direction is locked out by a previous
+	// hard-limit hit. requestedDir is +1, -1, or 0.
+	static bool directionAllowed(int axis, int8_t requestedDir)
 	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		if (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD)
-		{
-			return axis - pinConfig.HYBRID_MOTOR_CAN_THRESHOLD;
-		}
-#endif
-		return axis;
+		MotorData *md = getData()[axis];
+		if (md->hardLimitLockoutDir == 0)
+			return true;
+		if (requestedDir == 0)
+			return true; // let stops / zero-speed updates through
+		return requestedDir != md->hardLimitLockoutDir;
 	}
 
 	void startStepper(int axis, int reduced = 0)
@@ -168,82 +133,37 @@ namespace FocusMotor
 		reduced: 0 => All data transfered MotorData
 		reduced: 1 => MotorDataReduced is transfered
 		reducsed: 2 => single Value udpates
-		*/
+	*/
 
-		// Check if hard limit is triggered - don't start motor unless we're homing
-		// During homing (especially Phase 0), we MUST be able to move away from active endstop
-		if (getData()[axis]->hardLimitTriggered && !getData()[axis]->isHoming)
+		// Directional hard-limit lockout. Homing legitimately drives into the endstop,
+		// so it always bypasses the guard.
+		int8_t requestedDir = computeRequestedDir(axis);
+		if (!getData()[axis]->isHoming && !directionAllowed(axis, requestedDir))
 		{
-			log_i("Cannot start motor on axis %d - hard limit triggered! Homing required.", axis);
+			log_w("Axis %d: motion in dir %d blocked by hard-limit lockout (lockoutDir=%d)",
+				  axis, (int)requestedDir, (int)getData()[axis]->hardLimitLockoutDir);
 			getData()[axis]->stopped = true;
-			sendMotorPos(axis, 0, -3); // Send with special qid to indicate error state
+			sendMotorPos(axis, 0, -3); // error report
+#ifdef CAN_RECEIVE_MOTOR
+			if (getData()[axis]->qid > 0)
+				can_controller::sendQidReportToMaster(getData()[axis]->qid, 1);
+#else
+			QidRegistry::reportActionError(getData()[axis]->qid);
+#endif
 			return;
 		}
+		if (requestedDir != 0)
+			getData()[axis]->lastCommandedDir = requestedDir;
 
 		// Use timeout instead of portMAX_DELAY to prevent PS4 controller from blocking indefinitely
 		// when serial commands are being processed. 50ms is enough for most operations while
 		// allowing gamepad to retry quickly if mutex is busy.
 		if (xSemaphoreTake(xMutex, pdMS_TO_TICKS(50)))
 		{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-			// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
-			if (shouldUseCANForAxis(axis))
-			{ //TODO: This is really odd, let's update this at some point 
-				// Route to CAN satellite
-				// Convert hybrid axis (4,5,6,7) to CAN axis (0,1,2,3) for addressing
-				int canAxis = getCANAxisForHybrid(axis);
-				log_i("Hybrid mode: Routing axis %d to CAN axis %d (address %d)", axis, canAxis, can_controller::axis2id(canAxis));
-
-				// Copy motor data from internal axis to CAN axis position for can_controller to use
-				MotorData *srcData = getData()[axis];
-				MotorData *canData = getData()[canAxis];
-				if (srcData != nullptr && canData != nullptr)
-				{
-					// Copy motor settings to CAN axis
-					*canData = *srcData;
-					int err = can_controller::startStepper(canData, canAxis, reduced);
-					if (err != 0)
-					{
-						getData()[axis]->stopped = true;
-						sendMotorPos(axis, 0);
-					}
-				}
-				else
-				{
-					log_e("Hybrid mode: Invalid motor data for axis %d or CAN axis %d", axis, canAxis);
-					getData()[axis]->stopped = true;
-					sendMotorPos(axis, 0);
-				}
-			}
-			else
-			{
-				// Use native driver (FastAccelStepper or AccelStepper)
-				log_i("Hybrid mode: Routing axis %d to native driver", axis);
 #if defined(USE_FASTACCEL)
-				waitForFirstRun[axis] = 1;
-				FAccelStep::startFastAccelStepper(axis);
-#elif defined(USE_ACCELSTEP)
-				AccelStep::startAccelStepper(axis);
-#else
-				log_w("No native motor driver available for axis %d in hybrid mode", axis);
-				getData()[axis]->stopped = true;
-				sendMotorPos(axis, 0);
-#endif
-			}
-#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-			// Pure CAN master mode (non-hybrid) - all motors via CAN
-			MotorData *m = getData()[axis];
-			int err = can_controller::startStepper(m, axis, reduced);
-			if (err != 0)
-			{
-				getData()[axis]->stopped = true;
-				sendMotorPos(axis, 0);
-			}
-
-#elif defined USE_FASTACCEL
-			waitForFirstRun[axis] = 1; // TODO: This is probably a weird workaround to skip the first check in the loop() if the motor is actually running - otherwise It'll stop immediately
+			waitForFirstRun[axis] = 10;
 			FAccelStep::startFastAccelStepper(axis);
-#elif defined USE_ACCELSTEP
+#elif defined(USE_ACCELSTEP)
 			AccelStep::startAccelStepper(axis);
 #endif
 			getData()[axis]->stopped = false;
@@ -326,68 +246,20 @@ namespace FocusMotor
 
 	void updateData(int axis)
 	{
-// Request the current position from the slave motors depending on the interface
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
-		if (shouldUseCANForAxis(axis))
-		{
-			// CAN axes: position is assigned externally via CAN messages
-			// Nothing to do here as the slave pushes updates
-		}
-		else
-		{
-			// Native axes: update from local driver
 #if defined(USE_FASTACCEL)
-			FAccelStep::updateData(axis);
-#elif defined(USE_ACCELSTEP)
-			AccelStep::updateData(axis);
-#endif
-		}
-#elif defined USE_FASTACCEL
 		FAccelStep::updateData(axis);
-#elif defined USE_ACCELSTEP
+#elif defined(USE_ACCELSTEP)
 		AccelStep::updateData(axis);
-#elif defined I2C_MASTER
+#elif defined(I2C_MASTER)
 		MotorState mMotorState = i2c_master::pullMotorDataReducedDriver(axis);
 		data[axis]->currentPosition = mMotorState.currentPosition;
-		// data[axis]->isforever = mMotorState.isforever;
-#elif defined CAN_BUS_ENABLED
-		// FIXME: nothing to do here since the position is assigned externally?
 #endif
 	}
 
 	long getCurrentMotorPosition(int axis)
 	{
-		// Get real-time motor position directly from stepper library
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
-		if (shouldUseCANForAxis(axis))
-		{
-			// CAN axes: use cached position
-			return data[axis]->currentPosition;
-		}
-		else
-		{
-			// Native axes: get from local driver
 #if defined(USE_FASTACCEL)
-			return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
-#elif defined(USE_ACCELSTEP)
-			return data[axis]->currentPosition;
-#else
-			return data[axis]->currentPosition;
-#endif
-		}
-#elif defined USE_FASTACCEL
 		return FAccelStep::getCurrentPosition(static_cast<Stepper>(axis));
-#elif defined USE_ACCELSTEP
-		// For AccelStep, we need to rely on cached position
-		return data[axis]->currentPosition;
-#elif defined I2C_MASTER
-		// For I2C, we need to rely on cached position
-		return data[axis]->currentPosition;
-#elif defined CAN_BUS_ENABLED
-		// For CAN, we need to rely on cached position
-		return data[axis]->currentPosition;
 #else
 		return data[axis]->currentPosition;
 #endif
@@ -444,9 +316,6 @@ namespace FocusMotor
 			data[Stepper::A]->dirPin = pinConfig.MOTOR_A_DIR;
 			data[Stepper::A]->stpPin = pinConfig.MOTOR_A_STEP;
 			data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
-			data[Stepper::A]->minPos = preferences.getInt(("min" + String(Stepper::A)).c_str());
-			data[Stepper::A]->maxPos = preferences.getInt(("max" + String(Stepper::A)).c_str());
-			data[Stepper::A]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::A)).c_str(), false);
 			data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
 			data[Stepper::A]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::A)).c_str(), false);
 			data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), false);	  // Disabled by default
@@ -459,9 +328,6 @@ namespace FocusMotor
 			data[Stepper::X]->dirPin = pinConfig.MOTOR_X_DIR;
 			data[Stepper::X]->stpPin = pinConfig.MOTOR_X_STEP;
 			data[Stepper::X]->currentPosition = preferences.getInt(("motor" + String(Stepper::X)).c_str());
-			data[Stepper::X]->minPos = preferences.getInt(("min" + String(Stepper::X)).c_str());
-			data[Stepper::X]->maxPos = preferences.getInt(("max" + String(Stepper::X)).c_str());
-			data[Stepper::X]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::X)).c_str(), false);
 			data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
 			data[Stepper::X]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::X)).c_str(), false);
 			data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), false);	  // Disabled by default
@@ -474,9 +340,6 @@ namespace FocusMotor
 			data[Stepper::Y]->dirPin = pinConfig.MOTOR_Y_DIR;
 			data[Stepper::Y]->stpPin = pinConfig.MOTOR_Y_STEP;
 			data[Stepper::Y]->currentPosition = preferences.getInt(("motor" + String(Stepper::Y)).c_str());
-			data[Stepper::Y]->minPos = preferences.getInt(("min" + String(Stepper::Y)).c_str());
-			data[Stepper::Y]->maxPos = preferences.getInt(("max" + String(Stepper::Y)).c_str());
-			data[Stepper::Y]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Y)).c_str(), false);
 			data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
 			data[Stepper::Y]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Y)).c_str(), false);
 			data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), false);	  // Disabled by default
@@ -489,9 +352,6 @@ namespace FocusMotor
 			data[Stepper::Z]->dirPin = pinConfig.MOTOR_Z_DIR;
 			data[Stepper::Z]->stpPin = pinConfig.MOTOR_Z_STEP;
 			data[Stepper::Z]->currentPosition = preferences.getInt(("motor" + String(Stepper::Z)).c_str());
-			data[Stepper::Z]->minPos = preferences.getInt(("min" + String(Stepper::Z)).c_str());
-			data[Stepper::Z]->maxPos = preferences.getInt(("max" + String(Stepper::Z)).c_str());
-			data[Stepper::Z]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::Z)).c_str(), false);
 			data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
 			data[Stepper::Z]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Z)).c_str(), false);
 			data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), false);	  // Disabled by default
@@ -504,9 +364,6 @@ namespace FocusMotor
 			data[Stepper::B]->dirPin = pinConfig.MOTOR_B_DIR;
 			data[Stepper::B]->stpPin = pinConfig.MOTOR_B_STEP;
 			data[Stepper::B]->currentPosition = preferences.getInt(("motor" + String(Stepper::B)).c_str());
-			data[Stepper::B]->minPos = preferences.getInt(("min" + String(Stepper::B)).c_str());
-			data[Stepper::B]->maxPos = preferences.getInt(("max" + String(Stepper::B)).c_str());
-			data[Stepper::B]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::B)).c_str(), false);
 			log_i("Motor B position: %i", data[Stepper::B]->currentPosition);
 		}
 		if (pinConfig.MOTOR_C_STEP >= 0)
@@ -514,9 +371,6 @@ namespace FocusMotor
 			data[Stepper::C]->dirPin = pinConfig.MOTOR_C_DIR;
 			data[Stepper::C]->stpPin = pinConfig.MOTOR_C_STEP;
 			data[Stepper::C]->currentPosition = preferences.getInt(("motor" + String(Stepper::C)).c_str());
-			data[Stepper::C]->minPos = preferences.getInt(("min" + String(Stepper::C)).c_str());
-			data[Stepper::C]->maxPos = preferences.getInt(("max" + String(Stepper::C)).c_str());
-			data[Stepper::C]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::C)).c_str(), false);
 			log_i("Motor C position: %i", data[Stepper::C]->currentPosition);
 		}
 		if (pinConfig.MOTOR_D_STEP >= 0)
@@ -524,9 +378,6 @@ namespace FocusMotor
 			data[Stepper::D]->dirPin = pinConfig.MOTOR_D_DIR;
 			data[Stepper::D]->stpPin = pinConfig.MOTOR_D_STEP;
 			data[Stepper::D]->currentPosition = preferences.getInt(("motor" + String(Stepper::D)).c_str());
-			data[Stepper::D]->minPos = preferences.getInt(("min" + String(Stepper::D)).c_str());
-			data[Stepper::D]->maxPos = preferences.getInt(("max" + String(Stepper::D)).c_str());
-			data[Stepper::D]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::D)).c_str(), false);
 			log_i("Motor D position: %i", data[Stepper::D]->currentPosition);
 		}
 		if (pinConfig.MOTOR_E_STEP >= 0)
@@ -534,9 +385,6 @@ namespace FocusMotor
 			data[Stepper::E]->dirPin = pinConfig.MOTOR_E_DIR;
 			data[Stepper::E]->stpPin = pinConfig.MOTOR_E_STEP;
 			data[Stepper::E]->currentPosition = preferences.getInt(("motor" + String(Stepper::E)).c_str());
-			data[Stepper::E]->minPos = preferences.getInt(("min" + String(Stepper::E)).c_str());
-			data[Stepper::E]->maxPos = preferences.getInt(("max" + String(Stepper::E)).c_str());
-			data[Stepper::E]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::E)).c_str(), false);
 			log_i("Motor E position: %i", data[Stepper::E]->currentPosition);
 		}
 		if (pinConfig.MOTOR_F_STEP >= 0)
@@ -544,9 +392,6 @@ namespace FocusMotor
 			data[Stepper::F]->dirPin = pinConfig.MOTOR_F_DIR;
 			data[Stepper::F]->stpPin = pinConfig.MOTOR_F_STEP;
 			data[Stepper::F]->currentPosition = preferences.getInt(("motor" + String(Stepper::F)).c_str());
-			data[Stepper::F]->minPos = preferences.getInt(("min" + String(Stepper::F)).c_str());
-			data[Stepper::F]->maxPos = preferences.getInt(("max" + String(Stepper::F)).c_str());
-			data[Stepper::F]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::F)).c_str(), false);
 			log_i("Motor F position: %i", data[Stepper::F]->currentPosition);
 		}
 		if (pinConfig.MOTOR_G_STEP >= 0)
@@ -554,9 +399,6 @@ namespace FocusMotor
 			data[Stepper::G]->dirPin = pinConfig.MOTOR_G_DIR;
 			data[Stepper::G]->stpPin = pinConfig.MOTOR_G_STEP;
 			data[Stepper::G]->currentPosition = preferences.getInt(("motor" + String(Stepper::G)).c_str());
-			data[Stepper::G]->minPos = preferences.getInt(("min" + String(Stepper::G)).c_str());
-			data[Stepper::G]->maxPos = preferences.getInt(("max" + String(Stepper::G)).c_str());
-			data[Stepper::G]->softLimitEnabled = preferences.getBool(("isen" + String(Stepper::G)).c_str(), false);
 			log_i("Motor G position: %i", data[Stepper::G]->currentPosition);
 		}
 		preferences.end();
@@ -597,7 +439,8 @@ namespace FocusMotor
 			}
 		}
 	}
-#else
+#endif
+
 	void sendMotorPosition()
 	{
 		// send motor positions
@@ -609,7 +452,6 @@ namespace FocusMotor
 			}
 		}
 	}
-#endif // TCA9535
 
 	void setup()
 	{
@@ -678,15 +520,6 @@ namespace FocusMotor
 #endif
 	}
 
-	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos, bool isEnabled)
-	{
-		// set soft limits
-		getData()[axis]->softLimitEnabled = isEnabled;
-		getData()[axis]->minPos = minPos;
-		getData()[axis]->maxPos = maxPos;
-		log_i("Set soft limits on axis %d: min=%ld, max=%ld", axis, (long)minPos, (long)maxPos);
-	}
-
 	void setHardLimit(int axis, bool enabled, bool polarity)
 	{
 		// Set hard limit configuration for a motor axis
@@ -720,101 +553,65 @@ namespace FocusMotor
 		log_i("Cleared hard limit triggered flag for axis %d", axis);
 	}
 
+	// Per-axis hard-limit handling: trip detection (rising edge) and lockout-clear
+	// when the endstop is physically released and the motor is idle.
+	static void evaluateHardLimitForAxis(int axis, int digitalInputIdx)
+	{
+		MotorData *md = getData()[axis];
+		if (!isActivated[axis] || !md->hardLimitEnabled || md->isHoming)
+			return;
+
+		bool endstopState = DigitalInController::getDigitalVal(digitalInputIdx);
+		bool polarity = md->hardLimitPolarity;
+		// Pressed when endstopState != polarity
+		// (NO/polarity=0: pressed=1; NC/polarity=1: pressed=0)
+		bool pressed = (endstopState != polarity);
+
+		// --- Trip detection (rising edge while motor is moving) ---
+		if (pressed && isRunning(axis) && !md->hardLimitTriggered)
+		{
+			// Determine direction of the motion that just hit the endstop.
+			int8_t dir = md->lastCommandedDir;
+			if (dir == 0)
+			{
+				if (md->speed > 0) dir = 1;
+				else if (md->speed < 0) dir = -1;
+				else
+				{
+					int32_t delta = md->targetPosition - md->currentPosition;
+					if (delta > 0) dir = 1;
+					else if (delta < 0) dir = -1;
+				}
+			}
+			log_e("HARD LIMIT TRIGGERED on axis %d (endstop=%d, polarity=%d, dir=%d)",
+				  axis, endstopState, polarity, (int)dir);
+			md->hardLimitLockoutDir = dir;
+			md->hardLimitTriggered = true;
+			stopStepper(axis);
+			sendMotorPos(axis, 0, -3); // one-shot error report
+			return;
+		}
+
+		// --- Lockout clear when endstop is released and motor is idle ---
+		if (!pressed && md->hardLimitLockoutDir != 0 && !isRunning(axis))
+		{
+			log_i("Hard-limit lockout cleared on axis %d (endstop released)", axis);
+			md->hardLimitLockoutDir = 0;
+			md->hardLimitTriggered = false;
+		}
+	}
+
 	void checkHardLimits()
 	{
 #if defined(CAN_RECEIVE_MOTOR) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
-		// Hard limit checks are ONLY performed on CAN slave/satellite motor controllers
-		// The slave has direct access to the endstop and controls the motor directly
-		// Master controllers receive motor state updates from slaves via CAN
-
-		// On CAN slaves, we only have one motor (REMOTE_MOTOR_AXIS_ID) connected to DIGITAL_IN_1
+		// CAN slave / satellite: single motor on REMOTE_MOTOR_AXIS_ID, endstop on DIGITAL_IN_1
 		Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
-
-		if (isActivated[mStepper] && getData()[mStepper]->hardLimitEnabled &&
-			!getData()[mStepper]->isHoming) // && !getData()[mStepper]->hardLimitTriggered)
-		{
-			bool endstopState = DigitalInController::getDigitalVal(1); // Slaves use DIGITAL_IN_1
-			bool hardLimitPolarity = getData()[mStepper]->hardLimitPolarity;
-
-			// Trigger if endstop state indicates limit is hit
-			// For NO (polarity=0): trigger when endstopState=1 (pressed)
-			// For NC (polarity=1): trigger when endstopState=0 (opened)
-			if (endstopState != hardLimitPolarity && isRunning(mStepper))
-			{
-				if (!getData()[mStepper]->hardLimitTriggered)
-				{
-					log_e("HARD LIMIT TRIGGERED on slave motor! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
-					setPosition(mStepper, 999999); // Set to special value to indicate error state
-					sendMotorPos(mStepper, 0, -3); // Send with special qid to indicate error
-				}
-				stopStepper(mStepper);
-				getData()[mStepper]->hardLimitTriggered = true;
-			}
-		}
+		evaluateHardLimitForAxis(mStepper, 1);
 #elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_BUS_ENABLED)
-		// Non-CAN configurations (local motor drivers with direct endstop access)
-		// Check hard limits for X, Y, Z axes (digital inputs 1, 2, 3)
-		// Only check if motor is running and not in homing mode
-
-		// Axis X uses digital input 1
-		// CRITICAL: Skip ALL hard limit checking during homing (removed !hardLimitTriggered check)
-		// During Phase 0, endstop may be active and hardLimitTriggered gets cleared - we must
-		// not re-trigger it while the homing task is trying to move away from the endstop
-		if (isActivated[Stepper::X] && getData()[Stepper::X]->hardLimitEnabled &&
-			!getData()[Stepper::X]->isHoming)
-		{
-			bool endstopState = DigitalInController::getDigitalVal(1);
-			bool hardLimitPolarity = getData()[Stepper::X]->hardLimitPolarity;
-
-			// Trigger if endstop state matches the polarity
-			// For NO (polarity=0): trigger when endstopState=1 (pressed)
-			// For NC (polarity=1): trigger when endstopState=0 (opened)
-			if (endstopState != hardLimitPolarity && isRunning(Stepper::X) && !getData()[Stepper::X]->hardLimitTriggered)
-			{
-				log_e("HARD LIMIT TRIGGERED on axis X! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
-				stopStepper(Stepper::X);
-				getData()[Stepper::X]->hardLimitTriggered = true;
-				setPosition(Stepper::X, 999999); // Set to special value to indicate error state
-				sendMotorPos(Stepper::X, 0, -3); // Send with special qid to indicate error
-			}
-		}
-
-		// Axis Y uses digital input 2
-		// CRITICAL: Skip ALL hard limit checking during homing
-		if (isActivated[Stepper::Y] && getData()[Stepper::Y]->hardLimitEnabled &&
-			!getData()[Stepper::Y]->isHoming)
-		{
-			bool endstopState = DigitalInController::getDigitalVal(2);
-			bool hardLimitPolarity = getData()[Stepper::Y]->hardLimitPolarity;
-
-			if (endstopState != hardLimitPolarity && isRunning(Stepper::Y) && !getData()[Stepper::Y]->hardLimitTriggered)
-			{
-				log_e("HARD LIMIT TRIGGERED on axis Y! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
-				stopStepper(Stepper::Y);
-				getData()[Stepper::Y]->hardLimitTriggered = true;
-				setPosition(Stepper::Y, 999999);
-				sendMotorPos(Stepper::Y, 0, -3);
-			}
-		}
-
-		// Axis Z uses digital input 3
-		// CRITICAL: Skip ALL hard limit checking during homing
-		if (isActivated[Stepper::Z] && getData()[Stepper::Z]->hardLimitEnabled &&
-			!getData()[Stepper::Z]->isHoming)
-		{
-			bool endstopState = DigitalInController::getDigitalVal(3);
-			bool hardLimitPolarity = getData()[Stepper::Z]->hardLimitPolarity;
-
-			if (endstopState != hardLimitPolarity && isRunning(Stepper::Z) && !getData()[Stepper::Z]->hardLimitTriggered)
-			{
-				log_e("HARD LIMIT TRIGGERED on axis Z! Endstop state: %d, Polarity: %d", endstopState, hardLimitPolarity);
-				stopStepper(Stepper::Z);
-				getData()[Stepper::Z]->hardLimitTriggered = true;
-				setPosition(Stepper::Z, 999999);
-				sendMotorPos(Stepper::Z, 0, -3);
-
-			}
-		}
+		// Non-CAN: X/Y/Z mapped to digital inputs 1/2/3
+		evaluateHardLimitForAxis(Stepper::X, 1);
+		evaluateHardLimitForAxis(Stepper::Y, 2);
+		evaluateHardLimitForAxis(Stepper::Z, 3);
 #endif
 		// CAN_BUS_ENABLED masters don't check hard limits locally - slaves handle this
 		// and report back via CAN when a hard limit is triggered
@@ -907,6 +704,9 @@ namespace FocusMotor
 
 	void loop()
 	{
+		// Check for QID timeouts
+		QidRegistry::tickTimeout();
+
 // Check hard limits ONCE per loop iteration (not per motor)
 // Hard limits are only checked on slaves or non-CAN configurations
 #if (!defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR))
@@ -916,54 +716,23 @@ namespace FocusMotor
 		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 #if defined(USE_FASTACCEL) || defined(USE_ACCELSTEP)
+			// Skip axes that were never activated (no step pin configured)
+			if (!isActivated[i])
+				continue;
+
 			// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{
-				waitForFirstRun[i] = 0;
+				waitForFirstRun[i]--;
 				continue;
-			}
-			// If soft limits are enabled, decide whether to stop
-			if (getData()[i]->softLimitEnabled)
-			{
-				log_i("Soft limits enabled for motor %d", i);
-				int32_t pos = getData()[i]->currentPosition;
-				int32_t minPos = getData()[i]->minPos;
-				int32_t maxPos = getData()[i]->maxPos;
-				int32_t spd = getData()[i]->speed; // can be negative or positive
-
-				// If below minPos
-				if (pos < minPos)
-				{
-					// Only stop if continuing further negative
-					// i.e. speed < 0 => going more negative
-					if (spd < 0)
-					{
-						log_i("Motor %d outside min limit & moving further negative => STOP", i);
-						stopStepper(i);
-					}
-					// else if speed > 0 => let it keep running to move back inside the range
-				}
-
-				// If above maxPos
-				else if (pos > maxPos)
-				{
-					// Only stop if continuing further positive
-					// i.e. speed > 0 => going more positive
-					if (spd > 0)
-					{
-						log_i("Motor %d outside max limit & moving further positive => STOP", i);
-						stopStepper(i);
-					}
-					// else if speed < 0 => let it keep running to move back inside the range
-				}
 			}
 			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever && !data[i]->isHoming)
 			{
 				// If the motor is not running, we stop it, report the position and save the position
 				// This is the ordinary case if the motor is not connected via I2C/CAN
 				// Skip during homing - the homing task manages motor lifecycle
-				log_i("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
+				log_d("Stop Motor (2) %i in loop, mIsRunning %i, data[i]->stopped %i", i, isRunning(i), !data[i]->stopped);
 				stopStepper(i);
 			}
 
@@ -974,34 +743,14 @@ namespace FocusMotor
 	bool isRunning(int i)
 	{
 		bool mIsRunning = false;
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-		// HYBRID MODE SUPPORT: Check if this axis uses CAN or native driver
-		if (shouldUseCANForAxis(i))
-		{
-			// CAN axes: get status from CAN controller using converted CAN axis
-			int canAxis = getCANAxisForHybrid(i);
-			mIsRunning = can_controller::isMotorRunning(canAxis);
-		}
-		else
-		{
-			// Native axes: get status from local driver
+		// Fallback: local stepper only (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
-			mIsRunning = FAccelStep::isRunning(i);
-#elif defined(USE_ACCELSTEP)
-			mIsRunning = AccelStep::isRunning(i);
-#endif
-		}
-#elif defined USE_FASTACCEL
 		mIsRunning = FAccelStep::isRunning(i);
-#elif defined USE_ACCELSTEP
+#elif defined(USE_ACCELSTEP)
 		mIsRunning = AccelStep::isRunning(i);
-#elif defined I2C_MASTER
-		// Request data from the slave but only if inside i2cAddresses
+#elif defined(I2C_MASTER)
 		MotorState mData = i2c_master::getMotorState(i);
 		mIsRunning = mData.isRunning;
-#elif defined CAN_BUS_ENABLED
-		// Slave will push this information to the master via CAN asynchrously
-		mIsRunning = can_controller::isMotorRunning(i);
 #endif
 		return mIsRunning;
 	}
@@ -1009,6 +758,12 @@ namespace FocusMotor
 	// returns json {"steppers":[...]} as qid
 	void sendMotorPos(int i, int arraypos, int qid)
 	{
+		// Always update and persist position first, independent of serial mutex
+		updateData(i);
+		preferences.begin("UC2", false);
+		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
+		preferences.end();
+
 		// Safety check: ensure mutex is initialized
 		if (xSerialMutex == NULL)
 		{
@@ -1024,7 +779,7 @@ namespace FocusMotor
 			return;
 		}
 
-		// update current position of the motor depending on the interface
+		// update current position of the motor depending on the interface (already done above, refresh for JSON)
 		updateData(i);
 
 		cJSON *root = cJSON_CreateObject();
@@ -1072,11 +827,6 @@ namespace FocusMotor
 		}
 #endif
 
-		// also save in preferences
-		preferences.begin("UC2", false);
-		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
-		preferences.end();
-
 		arraypos++;
 
 #ifdef WIFI
@@ -1121,66 +871,30 @@ namespace FocusMotor
 
 	void stopStepper(int i)
 	{
-
-
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID) && !defined(CAN_RECEIVE_MOTOR)
-		// HYBRID MODE SUPPORT: Check if this axis should use CAN or native driver
-		if (shouldUseCANForAxis(i))
-		{
-			// Stop via CAN - convert to CAN axis for addressing
-			int canAxis = getCANAxisForHybrid(i);
-			log_i("Hybrid mode: Stopping axis %d via CAN axis %d", i, canAxis);
-			getData()[i]->isforever = false;
-			getData()[i]->speed = 0;
-			getData()[i]->stopped = true;
-			getData()[i]->isStop = true;
-			// Copy stop state to CAN axis position
-			MotorData *canData = getData()[canAxis];
-			if (canData != nullptr)
-			{
-				canData->isforever = false;
-				canData->speed = 0;
-				canData->stopped = true;
-				canData->isStop = true;
-			}
-			Stepper s = static_cast<Stepper>(canAxis);
-			can_controller::stopStepper(s);
-		}
-		else
-		{
-			// Stop native driver
-			log_i("Hybrid mode: Stopping axis %d via native driver", i);
+		// Stop local stepper (CAN routing handled by DeviceRouter)
 #if defined(USE_FASTACCEL)
-			FAccelStep::stopFastAccelStepper(i);
-#elif defined(USE_ACCELSTEP)
-			AccelStep::stopAccelStepper(i);
-#else
-			log_w("No native motor driver available for axis %d in hybrid mode", i);
-#endif
-		}
-#elif defined USE_FASTACCEL
 		FAccelStep::stopFastAccelStepper(i);
-#elif defined USE_ACCELSTEP
+#elif defined(USE_ACCELSTEP)
 		AccelStep::stopAccelStepper(i);
-#elif defined I2C_MASTER
+#elif defined(I2C_MASTER)
 		getData()[i]->isforever = false;
 		getData()[i]->speed = 0;
 		getData()[i]->stopped = true;
 		getData()[i]->isStop = true;
 		MotorData *m = getData()[i];
 		i2c_master::stopStepper(m, i);
-#elif defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
-		getData()[i]->isforever = false;
-		getData()[i]->speed = 0;
-		getData()[i]->stopped = true;
-		getData()[i]->isStop = true;
-		Stepper s = static_cast<Stepper>(i);
-		can_controller::stopStepper(s);
-
 #endif
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
 		sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
+		// Report QID completion
+#ifdef CAN_RECEIVE_MOTOR
+		// On CAN slave: send QID report to master via dedicated CAN message
+		if (data[i]->qid > 0)
+			can_controller::sendQidReportToMaster(data[i]->qid, 0);
+#else
+		QidRegistry::reportActionDone(data[i]->qid);
+#endif
 	}
 
 	uint32_t getPosition(Stepper s)

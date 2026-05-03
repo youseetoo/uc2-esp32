@@ -13,6 +13,8 @@
 #include "../bt/BtController.h"
 #endif
 #include "../config/ConfigController.h"
+#include "../config/RuntimeConfig.h"
+#include "../config/NVSConfig.h"
 #ifdef DAC_CONTROLLER
 #include "../dac/DacController.h"
 #endif
@@ -28,32 +30,39 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-#include "../objective/ObjectiveController.h"
-#endif
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
+#include "../can/can_transport.h"
 #include "../can/BinaryOtaProtocol.h"
 #include "../can/CanOtaStreaming.h"
 #endif
+#ifdef CAN_CONTROLLER_CANOPEN
+#include "../canopen/CANopenModule.h"
+#endif
+#include "../canopen/DeviceRouter.h"
+#include "../canopen/RoutingTable.h"
+#include "cJsonTool.h"
+
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
+#include "../signal/SignalController.h"
+#include "../buzzer/BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER
 #include "../message/MessageController.h"
 #endif
 #ifdef MOTOR_CONTROLLER
 #include "../motor/MotorJsonParser.h"
 #endif
+#include "../qid/QidRegistry.h"
 #ifdef PID_CONTROLLER
 #include "../pid/PidController.h"
 #endif
@@ -76,15 +85,16 @@ namespace SerialProcess
 {
 	// Queue-based processing to handle serial load without blocking main thread
 	QueueHandle_t serialMSGQueue = nullptr; // Queue that buffers incoming messages and delegates them to the appropriate task
-	TaskHandle_t xHandle = nullptr;		  // Task handle for the serial task
-	
+	TaskHandle_t xHandle = nullptr;			// Task handle for the serial task
+
 	// Serial output queue to prevent race conditions
 	QueueHandle_t serialOutputQueue = nullptr; // Queue for serial output strings
-	TaskHandle_t xOutputHandle = nullptr;       // Task handle for serial output task
-	
+	TaskHandle_t xOutputHandle = nullptr;	   // Task handle for serial output task
+
 	// Structure to hold serial output messages
-	struct SerialMessage {
-		char* message;
+	struct SerialMessage
+	{
+		char *message;
 		size_t length;
 	};
 
@@ -102,9 +112,9 @@ namespace SerialProcess
 				if (msg.message != nullptr)
 				{
 					// Direct serial write without critical section - this task has exclusive access
-					Serial.write((uint8_t*)msg.message, msg.length);
+					Serial.write((uint8_t *)msg.message, msg.length);
 					Serial.flush();
-					
+
 					// Free the allocated message
 					free(msg.message);
 				}
@@ -114,7 +124,7 @@ namespace SerialProcess
 	}
 
 	// Thread-safe Serial.println replacement
-	void safePrintln(const char* message)
+	void safePrintln(const char *message)
 	{
 		if (message == nullptr || serialOutputQueue == nullptr)
 			return;
@@ -124,7 +134,7 @@ namespace SerialProcess
 			return;
 
 		// Allocate buffer for message + newline
-		char* buffer = (char*)malloc(len + 2);
+		char *buffer = (char *)malloc(len + 2);
 		if (buffer == nullptr)
 		{
 			log_e("Failed to allocate serial output buffer");
@@ -155,8 +165,10 @@ namespace SerialProcess
 		{
 			cJSON *root = NULL;
 			xQueueReceive(serialMSGQueue, &root, portMAX_DELAY);
-			if (root == NULL)
+			if (root == NULL){
+				log_w("Received NULL JSON document in serial task");
 				continue; // Handle NULL case
+			}
 
 			cJSON *tasks = cJSON_GetObjectItemCaseSensitive(root, "tasks");
 			if (tasks != NULL)
@@ -188,8 +200,13 @@ namespace SerialProcess
 				if (string != NULL)
 				{
 					char *ss = cJSON_GetStringValue(string);
+					log_i("Process single task: %s", ss);
 					if (ss != NULL)
 						jsonProcessor(ss, root);
+				}
+				else
+				{
+					log_w("No 'task' or 'tasks' field found in JSON document");
 				}
 			}
 
@@ -224,7 +241,7 @@ namespace SerialProcess
 	// Send a pre-serialized JSON string with protocol delimiters
 	// This is useful when JSON serialization needs to happen in a protected context
 	// The caller is responsible for freeing jsonString after calling this function
-	void safeSendJsonString(char* jsonString)
+	void safeSendJsonString(char *jsonString)
 	{
 		if (jsonString == NULL)
 		{
@@ -242,7 +259,7 @@ namespace SerialProcess
 
 		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--\n" (4) + null terminator (1)
 		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char* buffer = (char*)malloc(totalLen);
+		char *buffer = (char *)malloc(totalLen);
 		if (buffer == nullptr)
 		{
 			safePrintln("{\"error\":\"Out of memory\"}");
@@ -311,6 +328,10 @@ namespace SerialProcess
 				if (ss != NULL)
 					jsonProcessor(ss, root);
 			}
+			else
+			{
+				log_w("No 'task' or 'tasks' field found in JSON document");
+			}
 		}
 
 		cJSON_Delete(root); // Delete root after processing
@@ -319,118 +340,145 @@ namespace SerialProcess
 	void setup()
 	{
 		log_i("SerialProcess::setup() starting");
-		
+
 		// Create queue and separate task for serial processing
 		if (serialMSGQueue == nullptr)
 			serialMSGQueue = xQueueCreate(5, sizeof(cJSON *)); // Queue for cJSON pointers (increased size)
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "serialtask", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
-		
+
 		// Create queue and task for serial output to prevent race conditions
 		if (serialOutputQueue == nullptr)
 			serialOutputQueue = xQueueCreate(10, sizeof(SerialMessage)); // Queue for serial output
 		if (xOutputHandle == nullptr)
 			xTaskCreate(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle); // Higher priority
-		
+
 		Serial.setTimeout(100);
-		Serial.setTxBufferSize(1024);
-		
+		QidRegistry::setup();
+
 		log_i("SerialProcess::setup() completed - Ready to receive serial data");
 		Serial.println("DEBUG: SerialProcess ready");
-		//esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
-		//Serial.setDebugOutput(false);
+		// esp_log_level_set("*", ESP_LOG_NONE); // FIXME: This causes the counter to fail - and in general the ESP32s3 serial output too
+		// Serial.setDebugOutput(false);
 	}
 
 	void addJsonToQueue(cJSON *doc)
 	{
 		// This bypasses the serial input and directly adds a cJSON object to the queue (e.g. via I2C)
-		if (serialMSGQueue != nullptr) {
-			if (xQueueSend(serialMSGQueue, &doc, 0) != pdTRUE) {
+		if (serialMSGQueue != nullptr)
+		{
+			if (xQueueSend(serialMSGQueue, &doc, 0) != pdTRUE)
+			{
 				// Queue full - delete doc to prevent memory leak
 				cJSON_Delete(doc);
 				log_w("Serial queue full - dropping message");
 			}
 		}
+		else
+		{
+			log_e("SerialMSGQueue not initialized - cannot add message");
+			cJSON_Delete(doc);
+		}
 	}
 
 	// Static buffer for serial reading to avoid heap fragmentation
-	static char serialInputBuffer[8192];  // 8KB buffer for large JSON strings
+	static char serialInputBuffer[8192]; // 8KB buffer for large JSON strings
 	static size_t serialInputPos = 0;
 	static bool inJsonObject = false;
 	static int braceCount = 0;
 
 	void loop()
 	{
-		// Check if we're in binary OTA mode
-		#ifdef CAN_BUS_ENABLED
-		if (binary_ota::isInBinaryMode()) {
+// Check if we're in binary OTA mode
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: This should work through the canopen layer as well once implemented there
+		if (binary_ota::isInBinaryMode())
+		{
 			// Process binary packets instead of JSON
 			binary_ota::processBinaryPacket();
-			return;  // Don't process JSON in binary mode
+			return; // Don't process JSON in binary mode
 		}
-		
+
 		// Check if we're in streaming binary mode (for CAN OTA streaming)
-		if (can_ota_stream::isStreamingModeActive()) {
+		if (can_ota_stream::isStreamingModeActive())
+		{
 			// Process binary stream packets from Serial
 			can_ota_stream::processBinaryStreamPacket();
-			return;  // Don't process JSON in streaming binary mode
+			return; // Don't process JSON in streaming binary mode
 		}
-		#endif
-		
+#endif
+
 		// Read serial data byte-by-byte to handle large JSON strings reliably
 		// TODO: These could be optimized further if needed - the input could hang potentially
-		while (Serial.available() > 0) {
+		while (Serial.available() > 0)
+		{
 			char c = Serial.read();
-			
+
 			// Track JSON object boundaries
-			if (c == '{') {
-				if (!inJsonObject) {
+			if (c == '{')
+			{
+				if (!inJsonObject)
+				{
 					inJsonObject = true;
 					serialInputPos = 0;
 					braceCount = 0;
 				}
 				braceCount++;
 			}
-			
+
 			// Only store if we're inside a JSON object
-			if (inJsonObject) {
+			if (inJsonObject)
+			{
 				// Prevent buffer overflow
-				if (serialInputPos < sizeof(serialInputBuffer) - 1) {
+				if (serialInputPos < sizeof(serialInputBuffer) - 1)
+				{
 					serialInputBuffer[serialInputPos++] = c;
-				} else {
+				}
+				else
+				{
 					// Buffer overflow - reset and report error
 					log_e("Serial input buffer overflow");
 					inJsonObject = false;
 					serialInputPos = 0;
 					braceCount = 0;
-					
+
 					cJSON *errorResponse = cJSON_CreateObject();
-					if (errorResponse != NULL) {
+					if (errorResponse != NULL)
+					{
 						cJSON_AddStringToObject(errorResponse, "error", "Input buffer overflow");
 						serialize(errorResponse);
 					}
 					continue;
 				}
-				
-				if (c == '}') {
+
+				if (c == '}')
+				{
 					braceCount--;
-					
+
 					// Complete JSON object received
-					if (braceCount == 0) {
+					if (braceCount == 0)
+					{
 						serialInputBuffer[serialInputPos] = '\0';
-						
+
 						cJSON *doc = cJSON_Parse(serialInputBuffer);
-						if (doc) {
+						// print in case we are in debug mode - this is useful to see the incoming JSON in the serial monitor without the need of a separate tool
+						log_i("Received JSON: %s", serialInputBuffer);
+
+						if (doc)
+						{
+							log_i("Parsed JSON successfully");
 							addJsonToQueue(doc);
-						} else {
+						}
+						else
+						{
 							// Parse error - send error response
 							cJSON *errorResponse = cJSON_CreateObject();
-							if (errorResponse != NULL) {
+							if (errorResponse != NULL)
+							{
 								cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
 								serialize(errorResponse);
 							}
 						}
-						
+
 						// Reset for next message
 						inJsonObject = false;
 						serialInputPos = 0;
@@ -440,7 +488,7 @@ namespace SerialProcess
 		}
 
 		// Let other tasks run
-		vTaskDelay(pdMS_TO_TICKS(5));  // Reduced from 10ms for faster processing
+		vTaskDelay(pdMS_TO_TICKS(5)); // Reduced from 10ms for faster processing
 	}
 
 	void serialize(cJSON *doc)
@@ -450,7 +498,8 @@ namespace SerialProcess
 		// IMPORTANT: Only delete the doc if it's a new object created by a controller
 		// The serialTask is responsible for deleting the root request object
 		// This function is called with RESPONSE objects created by controllers (get/act functions)
-		if (doc != NULL) {
+		if (doc != NULL)
+		{
 			cJSON_Delete(doc);
 		}
 	}
@@ -478,7 +527,7 @@ namespace SerialProcess
 		// Print the JSON document to a string
 		char *s = cJSON_PrintUnformatted(doc);
 		cJSON_Delete(doc); // Free the cJSON object
-		
+
 		if (s == NULL)
 			return;
 
@@ -486,7 +535,7 @@ namespace SerialProcess
 		size_t len = strlen(s);
 		// Calculate buffer size: "++\n" (3) + s (len) + "\n--\n" (4) + null terminator (1)
 		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char* buffer = (char*)malloc(totalLen);
+		char *buffer = (char *)malloc(totalLen);
 		if (buffer == nullptr)
 		{
 			free(s);
@@ -505,7 +554,7 @@ namespace SerialProcess
 			SerialMessage msg;
 			msg.message = buffer;
 			msg.length = strlen(buffer) + 1; // Include newline
-			
+
 			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
 			{
 				free(buffer);
@@ -520,6 +569,18 @@ namespace SerialProcess
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
 	{
+		log_i("Processing task: %s", task);
+
+		// Route commands through RoutingTable — handles LOCAL, REMOTE, OFF
+		// transparently for all roles (master, slave, standalone).
+		log_i("Routing task through DeviceRouter");
+		cJSON *canResponse = DeviceRouter::routeCommand(task, jsonDocument);
+		if (canResponse)
+		{
+			log_i("Received response from DeviceRouter for task %s", task);
+			serialize(canResponse);
+			return; // If the command was routed, we assume it was handled and return immediately. If the command is not recognized by the router, it returns nullptr and we continue with local processing.
+		}
 
 		/*
 		This function takes in the task (e.g. /state_get)
@@ -529,14 +590,13 @@ namespace SerialProcess
 		if (false) // keep all other else ifs happy
 			return;
 #ifdef ANALOG_OUT_CONTROLLER
-		else if (strcmp(task, analogout_act_endpoint) == 0)
+		else if (runtimeConfig.analogOut && strcmp(task, analogout_act_endpoint) == 0)
 			serialize(AnalogOutController::act(jsonDocument));
-		else if (strcmp(task, analogout_get_endpoint) == 0)
+		else if (runtimeConfig.analogOut && strcmp(task, analogout_get_endpoint) == 0)
 			serialize(AnalogOutController::get(jsonDocument));
 #endif
-
 #ifdef BLUETOOTH
-		else if (strcmp(task, bt_connect_endpoint) == 0)
+		else if (runtimeConfig.bluetooth && strcmp(task, bt_connect_endpoint) == 0)
 		{
 			// {"task":"/bt_connect", "mac":"1a:2b:3c:01:01:01", "psx":2}
 			char *mac = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(jsonDocument, "mac")); // jsonDocument["mac"];
@@ -548,61 +608,48 @@ namespace SerialProcess
 			BtController::connectPsxController(mac, ps);
 #endif
 		}
-		else if (strcmp(task, bt_scan_endpoint) == 0)
+		else if (runtimeConfig.bluetooth && strcmp(task, bt_scan_endpoint) == 0)
 		{
 			BtController::scanForDevices(jsonDocument);
 		}
-		else if (strcmp(task, bt_disconnect_endpoint) == 0)
+		else if (runtimeConfig.bluetooth && strcmp(task, bt_disconnect_endpoint) == 0)
 		{
 			BtController::disconnect();
 		}
 #endif
 
 #ifdef DAC_CONTROLLER
-		else if (strcmp(task, dac_act_endpoint) == 0)
+		else if (runtimeConfig.dac && strcmp(task, dac_act_endpoint) == 0)
 			serialize(DacController::act(jsonDocument));
 		// else  if (strcmp(task, dac_get_endpoint) == 0)
 		//	serialize(DacController::get(jsonDocument));
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
-		else if (strcmp(task, digitalin_act_endpoint) == 0)
+		else if (runtimeConfig.digitalIn && strcmp(task, digitalin_act_endpoint) == 0)
 			serialize(DigitalInController::act(jsonDocument));
-		else if (strcmp(task, digitalin_get_endpoint) == 0)
+		else if (runtimeConfig.digitalIn && strcmp(task, digitalin_get_endpoint) == 0)
 			serialize(DigitalInController::get(jsonDocument));
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-		else if (strcmp(task, digitalout_act_endpoint) == 0)
+		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_act_endpoint) == 0)
 			serialize(DigitalOutController::act(jsonDocument));
-		else if (strcmp(task, digitalout_get_endpoint) == 0)
+		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_get_endpoint) == 0)
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
-
 
 /*
 	  LinearEncoders
 	*/
 #ifdef LINEAR_ENCODER_CONTROLLER
-		else if (strcmp(task, linearencoder_act_endpoint) == 0)
+		else if (runtimeConfig.encoder && strcmp(task, linearencoder_act_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::act(jsonDocument));
 		}
-		else if (strcmp(task, linearencoder_get_endpoint) == 0)
+		else if (runtimeConfig.encoder && strcmp(task, linearencoder_get_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::get(jsonDocument));
 		}
-#endif
-#ifdef HOME_MOTOR
-		else if (strcmp(task, home_get_endpoint) == 0)
-			serialize(HomeMotor::get(jsonDocument));
-		else if (strcmp(task, home_act_endpoint) == 0)
-			serialize(HomeMotor::act(jsonDocument));
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-		else if (strcmp(task, objective_get_endpoint) == 0)
-			serialize(ObjectiveController::get(jsonDocument));
-		else if (strcmp(task, objective_act_endpoint) == 0)
-			serialize(ObjectiveController::act(jsonDocument));
 #endif
 #ifdef I2C_MASTER
 		else if (strcmp(task, i2c_get_endpoint) == 0)
@@ -610,7 +657,7 @@ namespace SerialProcess
 		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // legacy ISO-TP transport
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(can_controller::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)
@@ -619,53 +666,41 @@ namespace SerialProcess
 			serialize(can_controller::actCanOta(jsonDocument));
 		else if (strcmp(task, can_ota_stream_endpoint) == 0)
 			serialize(can_controller::actCanOtaStream(jsonDocument));
+#elif defined(CAN_CONTROLLER_CANOPEN) // CANopen transport — node ID management //
+		else if (strcmp(task, can_get_endpoint) == 0)
+			serialize(CANopenModule::get(jsonDocument));
+		else if (strcmp(task, can_act_endpoint) == 0)
+			serialize(CANopenModule::act(jsonDocument));
 #endif
-#ifdef LASER_CONTROLLER
-		else if (strcmp(task, laser_get_endpoint) == 0)
-			serialize(LaserController::get(jsonDocument));
-		else if (strcmp(task, laser_act_endpoint) == 0)
-			serialize(LaserController::act(jsonDocument));
-#endif
-#ifdef TMC_CONTROLLER
-		else if (strcmp(task, tmc_get_endpoint) == 0)
-			serialize(TMCController::get(jsonDocument));
-		else if (strcmp(task, tmc_act_endpoint) == 0)
-			serialize(TMCController::act(jsonDocument));
-#endif
+		// laser_get/_act, led_get/_act, motor_get/_act, home_get/_act,
+		// tmc_get/_act, galvo_get/_act are handled by DeviceRouter (PR-7.7).
 #ifdef LED_CONTROLLER
-		else if (strcmp(task, ledarr_get_endpoint) == 0)
-			serialize(LedController::get(jsonDocument));
-		else if (strcmp(task, ledarr_act_endpoint) == 0)
-			serialize(LedController::act(jsonDocument));
+		// SignalController is only compiled when LED_CONTROLLER is enabled
+		// (it shares the NeoPixel/HUB75 backend with the LED array).
+		else if (strcmp(task, signal_act_endpoint) == 0 ||
+		         strcmp(task, indicator_act_endpoint) == 0)
+			serialize(SignalController::act(jsonDocument));
+		else if (strcmp(task, signal_get_endpoint) == 0)
+			serialize(SignalController::get(jsonDocument));
 #endif
+		else if (strcmp(task, buzzer_act_endpoint) == 0)
+			serialize(BuzzerController::act(jsonDocument));
 #ifdef MESSAGE_CONTROLLER
-		else if (strcmp(task, message_get_endpoint) == 0)
+		else if (runtimeConfig.message && strcmp(task, message_get_endpoint) == 0)
 			serialize(MessageController::get(jsonDocument));
-		else if (strcmp(task, message_act_endpoint) == 0)
+		else if (runtimeConfig.message && strcmp(task, message_act_endpoint) == 0)
 			serialize(MessageController::act(jsonDocument));
 #endif
-#ifdef MOTOR_CONTROLLER
-		else if (strcmp(task, motor_get_endpoint) == 0)
-			serialize(MotorJsonParser::get(jsonDocument));
-		else if (strcmp(task, motor_act_endpoint) == 0)
-			serialize(MotorJsonParser::act(jsonDocument));
-#endif
-#ifdef SCANNER_CONTROLLER
-		else if (strcmp(task, scanner_get_endpoint) == 0)
+#ifdef SCANNER_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 	
+		else if (runtimeConfig.scanner && strcmp(task, scanner_get_endpoint) == 0)
 			serialize(ScannerController::get(jsonDocument));
-		else if (strcmp(task, scanner_act_endpoint) == 0)
+		else if (runtimeConfig.scanner && strcmp(task, scanner_act_endpoint) == 0)
 			serialize(ScannerController::act(jsonDocument));
 #endif
-#ifdef GALVO_CONTROLLER
-		else if (strcmp(task, galvo_get_endpoint) == 0)
-			serialize(GalvoController::get(jsonDocument));
-		else if (strcmp(task, galvo_act_endpoint) == 0)
-			serialize(GalvoController::act(jsonDocument));
-#endif
 #ifdef PID_CONTROLLER
-		else if (strcmp(task, PID_get_endpoint) == 0)
+		else if (runtimeConfig.pid && strcmp(task, PID_get_endpoint) == 0)
 			serialize(PidController::get(jsonDocument));
-		else if (strcmp(task, PID_act_endpoint) == 0)
+		else if (runtimeConfig.pid && strcmp(task, PID_act_endpoint) == 0)
 			serialize(PidController::act(jsonDocument));
 #endif
 
@@ -685,27 +720,100 @@ namespace SerialProcess
 		{
 			serialize(State::getModules());
 		}
+		else if (strcmp(task, route_get_endpoint) == 0)
+		{
+			serialize(UC2::RoutingTable::toJson());
+		}
+		else if (strcmp(task, route_set_endpoint) == 0)
+		{
+			// {"task":"/route_set","type":"MOTOR","id":0,"where":"REMOTE","nodeId":10}
+			cJSON *typeItem = cJSON_GetObjectItem(jsonDocument, "type");
+			const char *typeStr = (typeItem && cJSON_IsString(typeItem)) ? typeItem->valuestring : nullptr;
+			int logicalId = cJsonTool::getJsonInt(jsonDocument, "id");
+			cJSON *whereItem = cJSON_GetObjectItem(jsonDocument, "where");
+			const char *whereStr = (whereItem && cJSON_IsString(whereItem)) ? whereItem->valuestring : nullptr;
+			int nodeId = cJsonTool::getJsonInt(jsonDocument, "nodeId");
+
+			UC2::RouteEntry::Type type = UC2::RouteEntry::MOTOR;
+			if (typeStr)
+			{
+				if (strcmp(typeStr, "LASER") == 0)
+					type = UC2::RouteEntry::LASER;
+				else if (strcmp(typeStr, "LED") == 0)
+					type = UC2::RouteEntry::LED;
+				else if (strcmp(typeStr, "GALVO") == 0)
+					type = UC2::RouteEntry::GALVO;
+				else if (strcmp(typeStr, "HOME") == 0)
+					type = UC2::RouteEntry::HOME;
+				else if (strcmp(typeStr, "TMC") == 0)
+					type = UC2::RouteEntry::TMC;
+			}
+			UC2::RouteEntry::Where where = UC2::RouteEntry::LOCAL;
+			if (whereStr)
+			{
+				if (strcmp(whereStr, "REMOTE") == 0)
+					where = UC2::RouteEntry::REMOTE;
+				else if (strcmp(whereStr, "OFF") == 0)
+					where = UC2::RouteEntry::OFF;
+			}
+			UC2::RoutingTable::set(type, logicalId, where, (uint8_t)nodeId);
+			serialize(UC2::RoutingTable::toJson());
+		}
 #ifdef WIFI
-		else if (strcmp(task, scanwifi_endpoint) == 0)
+		else if (runtimeConfig.wifi && strcmp(task, scanwifi_endpoint) == 0)
 		{
 			serialize(WifiController::scan());
 		}
 		// {"task":"/wifi/scan"}
-		else if (strcmp(task, connectwifi_endpoint) == 0)
+		else if (runtimeConfig.wifi && strcmp(task, connectwifi_endpoint) == 0)
 		{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
 			WifiController::connect(jsonDocument);
 		}
 #endif
 #ifdef HEAT_CONTROLLER
-		else if (strcmp(task, heat_get_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, heat_get_endpoint) == 0)
 			serialize(HeatController::get(jsonDocument));
-		else if (strcmp(task, heat_act_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, heat_act_endpoint) == 0)
 			serialize(HeatController::act(jsonDocument));
-		else if (strcmp(task, ds18b20_get_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, ds18b20_get_endpoint) == 0)
 			serialize(DS18b20Controller::get(jsonDocument));
-		else if (strcmp(task, ds18b20_act_endpoint) == 0)
+		else if (runtimeConfig.heat && strcmp(task, ds18b20_act_endpoint) == 0)
 			serialize(DS18b20Controller::act(jsonDocument));
 #endif
+		else if (strcmp(task, qid_state_endpoint) == 0)
+			serialize(QidRegistry::handleQidStateQuery(jsonDocument));
+		else if (strcmp(task, qid_pause_endpoint) == 0)
+			serialize(QidRegistry::handleQidPause(jsonDocument));
+		else if (strcmp(task, qid_resume_endpoint) == 0)
+			serialize(QidRegistry::handleQidResume(jsonDocument));
+		// ── RuntimeConfig endpoints ─────────────────────────────────
+		else if (strcmp(task, config_get_endpoint) == 0)
+		{
+			// Return current runtime configuration as JSON
+			cJSON *cfg = NVSConfig::toJson();
+			serialize(cfg);
+		}
+		else if (strcmp(task, config_set_endpoint) == 0)
+		{
+			// Merge partial JSON into runtimeConfig and persist to NVS
+			NVSConfig::fromJson(jsonDocument);
+			NVSConfig::saveConfig();
+			cJSON *resp = cJSON_CreateObject();
+			cJSON_AddNumberToObject(resp, "success", 1);
+			cJSON_AddStringToObject(resp, "msg", "config saved, reboot to apply");
+			serialize(resp);
+		}
+		else if (strcmp(task, config_reset_endpoint) == 0)
+		{
+			// Clear NVS config namespace and reboot
+			NVSConfig::resetConfig();
+			cJSON *resp = cJSON_CreateObject();
+			cJSON_AddNumberToObject(resp, "success", 1);
+			cJSON_AddStringToObject(resp, "msg", "config reset, rebooting");
+			serialize(resp);
+			delay(500);
+			ESP.restart();
+		}
 		else
 		{
 			// Unknown task

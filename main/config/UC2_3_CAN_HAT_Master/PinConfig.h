@@ -13,7 +13,6 @@
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
-#define OBJECTIVE_CONTROLLER=1
 #define STAGE_SCAN=1
 #define CAN_SEND_COMMANDS
 #define MOTOR_AXIS_COUNT 10   

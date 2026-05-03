@@ -420,9 +420,38 @@ struct PinConfig
      uint8_t CAN_ID_LASER_3 = 23;
      uint8_t CAN_ID_LASER_4 = 24;
 
+     // Per-channel laser routing: node ID and sub-axis per logical laser channel.
+     // CAN_NODE_LASER[ch] — CAN node ID the master addresses for that channel.
+     //   Default mirrors CAN_ID_LASER_N (one node per channel). Override ALL
+     //   four entries to the same value when one slave node serves multiple channels.
+     //   Example (4 channels on node 0x14): {0x14, 0x14, 0x14, 0x14}
+     // CAN_SUBAXIS_LASER[ch] — OD sub-index - 1 written for that channel.
+     //   Default {0, 1, 2, 3} — sub 0x01…0x04 of OD object LASER_PWM_VALUE.
+     //   If two nodes each handle 2 channels:
+     //     CAN_NODE_LASER    = {0x14, 0x14, 0x15, 0x15}
+     //     CAN_SUBAXIS_LASER = {0,    1,    0,    1}
+     uint8_t CAN_NODE_LASER[4]     = {20, 21, 22, 23};  // defaults match CAN_ID_LASER_N
+     int8_t  CAN_SUBAXIS_LASER[4]  = {0, 1, 2, 3};      // 0-based sub-axis (OD sub = ch+1)
+
      uint8_t CAN_ID_LED_0 = 30;
 
      uint8_t CAN_ID_GALVO_0 = 40;
+
+     // ========================================================================
+     // PER-DEVICE ROUTING OVERRIDES
+     // ========================================================================
+     // Explicit routing for RoutingTable::buildDefault().
+     // Values: -1 = INFER (from pin config + canRole, default behaviour),
+     //          0 = LOCAL (on-board GPIO),
+     //          1 = REMOTE (forward over CAN to the CAN_ID_* node),
+     //          2 = OFF (disabled)
+     // Override these in board-specific PinConfig.h for explicit control.
+     int8_t ROUTE_MOTOR[4]  = {-1, -1, -1, -1}; // A, X, Y, Z
+     int8_t ROUTE_HOME[4]   = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
+     int8_t ROUTE_TMC[4]    = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
+     int8_t ROUTE_LASER[4]  = {-1, -1, -1, -1}; // laser channels 0-3
+     int8_t ROUTE_LED        = -1;               // single LED array
+     int8_t ROUTE_GALVO      = -1;               // single galvo
 
      // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
      // Set to 0 to disable secondary address listening

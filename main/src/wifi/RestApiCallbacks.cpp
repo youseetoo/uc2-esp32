@@ -31,9 +31,6 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-#include "../objective/ObjectiveController.h"
-#endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
@@ -321,18 +318,6 @@ namespace RestApi
     esp_err_t HomeMotor_getESP(httpd_req_t *req)
     {
         serializeESP(HomeMotor::get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-    esp_err_t Objective_setESP(httpd_req_t *req)
-    {
-        serializeESP(ObjectiveController::act(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-    esp_err_t Objective_getESP(httpd_req_t *req)
-    {
-        serializeESP(ObjectiveController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

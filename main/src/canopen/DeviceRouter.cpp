@@ -529,9 +529,9 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
     if (route->where == UC2::RouteEntry::LOCAL) {
         // LedController::act returns int; wrap into JSON response
         int result = LedController::act(doc);
+        log_i("Routing led_act to LOCAL LED controller, result: %d", result);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", result);
-        log_i("Routing led_act to LOCAL LED controller, result: %d", result);
         return resp;
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN

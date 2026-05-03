@@ -5,6 +5,7 @@
 #include "Arduino.h"
 #include "JsonKeys.h"
 #include <Preferences.h>
+#include "../canopen/DeviceRouter.h"
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorTypes.h"
@@ -41,8 +42,19 @@ namespace MessageController
 		log_i("Starting homing for axis %d with stored params: timeout=%d, speed=%d, maxspeed=%d, dir=%d, polarity=%d",
 			  axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		
-		// Start homing with the stored parameters
-		HomeMotor::startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, 0, 0);
+		// Route through DeviceRouter so CANopen REMOTE axes are forwarded to the correct slave node
+		cJSON* doc = cJSON_CreateObject();
+		cJSON* home = cJSON_CreateObject();
+		cJSON_AddNumberToObject(home, "stepperid", axis);
+		cJSON_AddNumberToObject(home, "speed", homeSpeed);
+		cJSON_AddNumberToObject(home, "direction", homeDirection);
+		cJSON_AddNumberToObject(home, "timeout", homeTimeout);
+		cJSON_AddNumberToObject(home, "endstopRelease", 0);
+		cJSON_AddNumberToObject(home, "endstopPolarity", homeEndStopPolarity);
+		cJSON_AddItemToObject(doc, "home", home);
+		cJSON* resp = DeviceRouter::handleHomeAct(doc);
+		if (resp) cJSON_Delete(resp);
+		cJSON_Delete(doc);
 		
 		// Send feedback message (key=100+axis indicates homing started)
 		sendMesageSerial(100 + axis, 1);

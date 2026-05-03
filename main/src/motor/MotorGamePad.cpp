@@ -1,6 +1,7 @@
 #include "MotorGamePad.h"
 #include "FocusMotor.h"
 #include "MotorTypes.h"
+#include "../canopen/DeviceRouter.h"
 
 
 // sample pio project e.g. https://github.com/inventonater/flashbike-matrix/blob/master/scratch/tetris/tetris-matrix-s3.cpp
@@ -29,20 +30,60 @@ static int16_t lastAxisValues[4] = {0, 0, 0, 0}; // Track last values for each a
 static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change time for each axis
 
 
+	// Helper: issue a single-step relative move via DeviceRouter
+	static void doSingleStep(int axis, int position)
+	{
+		cJSON* doc = cJSON_CreateObject();
+		cJSON* motor = cJSON_CreateObject();
+		cJSON* steppers = cJSON_CreateArray();
+		cJSON* s = cJSON_CreateObject();
+		cJSON_AddNumberToObject(s, "stepperid", axis);
+		cJSON_AddNumberToObject(s, "speed", 20000);
+		cJSON_AddNumberToObject(s, "position", position);
+		cJSON_AddNumberToObject(s, "isforever", 0);
+		cJSON_AddNumberToObject(s, "isabs", 0);
+		cJSON_AddNumberToObject(s, "acceleration", MAX_ACCELERATION_A);
+		cJSON_AddItemToArray(steppers, s);
+		cJSON_AddItemToObject(motor, "steppers", steppers);
+		cJSON_AddItemToObject(doc, "motor", motor);
+		cJSON* resp = DeviceRouter::handleMotorAct(doc);
+		if (resp) cJSON_Delete(resp);
+		cJSON_Delete(doc);
+	}
+
 	static inline void stopAxis(int ax)
 	{
-		FocusMotor::stopStepper(ax);
+		cJSON* doc = cJSON_CreateObject();
+		cJSON* motor = cJSON_CreateObject();
+		cJSON* steppers = cJSON_CreateArray();
+		cJSON* s = cJSON_CreateObject();
+		cJSON_AddNumberToObject(s, "stepperid", ax);
+		cJSON_AddNumberToObject(s, "isStop", 1);
+		cJSON_AddItemToArray(steppers, s);
+		cJSON_AddItemToObject(motor, "steppers", steppers);
+		cJSON_AddItemToObject(doc, "motor", motor);
+		cJSON* resp = DeviceRouter::handleMotorAct(doc);
+		if (resp) cJSON_Delete(resp);
+		cJSON_Delete(doc);
 		axisRunning[ax] = false;
 	}
 
 	static inline void startAxis(int ax, int speed)
 	{
-		auto *d = FocusMotor::getData()[ax];
-		d->speed = speed;
-		d->isforever = true;
-		d->acceleration = MAX_ACCELERATION_A;
-
-		FocusMotor::startStepper(ax, 1);
+		cJSON* doc = cJSON_CreateObject();
+		cJSON* motor = cJSON_CreateObject();
+		cJSON* steppers = cJSON_CreateArray();
+		cJSON* s = cJSON_CreateObject();
+		cJSON_AddNumberToObject(s, "stepperid", ax);
+		cJSON_AddNumberToObject(s, "speed", speed);
+		cJSON_AddNumberToObject(s, "isforever", 1);
+		cJSON_AddNumberToObject(s, "acceleration", MAX_ACCELERATION_A);
+		cJSON_AddItemToArray(steppers, s);
+		cJSON_AddItemToObject(motor, "steppers", steppers);
+		cJSON_AddItemToObject(doc, "motor", motor);
+		cJSON* resp = DeviceRouter::handleMotorAct(doc);
+		if (resp) cJSON_Delete(resp);
+		cJSON_Delete(doc);
 		axisRunning[ax] = true;
 	}
 
@@ -112,7 +153,7 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		}
 
 		// Z⇄A mutual exclusion ────────────────────────────────────────────────
-		#ifndef CAN_SEND_COMMANDS 
+		#ifndef CAN_SEND_COMMANDS  // TODO: Need to go through router
 		{ // TODO: Problem might be that they cancel each other out if there is not return from CAN
 			if (ax == Stepper::Z && axisRunning[Stepper::A])
 				stopAxis(Stepper::A);
@@ -204,42 +245,10 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		// log_i("singlestep_event left:%d right:%i r1:%i r2:%i l1:%i l2:%i", left,right,r1,r2,l1,l2);
 		// for r1/l1 move z-axis by 10 steps
 		// for r2/l2 move z-axis by 100 steps
-		if (r1)
-		{
-			FocusMotor::getData()[Stepper::Z]->isforever = false;
-			FocusMotor::getData()[Stepper::Z]->speed = 20000;
-			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::getData()[Stepper::Z]->targetPosition = 1;
-			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
-			FocusMotor::startStepper(Stepper::Z, 1);
-		}
-		if (r2)
-		{
-			FocusMotor::getData()[Stepper::Z]->isforever = false;
-			FocusMotor::getData()[Stepper::Z]->speed = 20000;
-			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::getData()[Stepper::Z]->targetPosition = 10;
-			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
-			FocusMotor::startStepper(Stepper::Z, 1);
-		}
-		if (l1)
-		{
-			FocusMotor::getData()[Stepper::Z]->isforever = false;
-			FocusMotor::getData()[Stepper::Z]->speed = 20000;
-			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::getData()[Stepper::Z]->targetPosition = -1;
-			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
-			FocusMotor::startStepper(Stepper::Z, 1);
-		}
-		if (l2)
-		{
-			FocusMotor::getData()[Stepper::Z]->isforever = false;
-			FocusMotor::getData()[Stepper::Z]->speed = 20000;
-			FocusMotor::getData()[Stepper::Z]->acceleration = MAX_ACCELERATION_A;
-			FocusMotor::getData()[Stepper::Z]->targetPosition = -10;
-			FocusMotor::getData()[Stepper::Z]->absolutePosition = false;
-			FocusMotor::startStepper(Stepper::Z, 1);
-		}
+		if (r1) doSingleStep(Stepper::Z,   1);
+		if (r2) doSingleStep(Stepper::Z,  10);
+		if (l1) doSingleStep(Stepper::Z,  -1);
+		if (l2) doSingleStep(Stepper::Z, -10);
 	}
 
 		float getJoystickScaleFactor()

@@ -7,6 +7,7 @@
 #include "PinConfig.h" // user-provided config, if needed
 #include "../qid/QidRegistry.h"
 #include "src/serial/SerialProcess.h"
+#include "../canopen/DeviceRouter.h"
 
 #if !defined(DOTSTAR) && !defined(HUB75)
 #include "Ws2812Rmt.h"
@@ -30,7 +31,14 @@
 // All TX is done through Ws2812Rmt::show() on a free RMT channel.
 #if !defined(DOTSTAR) && !defined(HUB75)
 #ifndef UC2_WS2812_RMT_CHANNEL
-#define UC2_WS2812_RMT_CHANNEL 4 // FAS owns 0..3 on UC2_4
+#  if defined(CONFIG_IDF_TARGET_ESP32S3)
+     // S3 has 4 TX channels (0..3); default to ch0. If motors are present the
+     // caller should override via -DUC2_WS2812_RMT_CHANNEL=<free channel>.
+#    define UC2_WS2812_RMT_CHANNEL 0
+#  else
+     // Classic ESP32: FAS owns channels 0..3 (one per stepper on UC2_4).
+#    define UC2_WS2812_RMT_CHANNEL 4
+#  endif
 #endif
 #endif
 
@@ -55,8 +63,14 @@ namespace LedController
 	{
 #if defined(DOTSTAR) || defined(HUB75)
 		if (matrix) matrix->show();
-#else
-		if (matrix) Ws2812Rmt::show(matrix->getPixels(), matrix->numPixels() * 3);
+#elif defined(LED_CONTROLLER) && defined(USE_FASTACCEL)
+		// this is a special case since we would occupy the same RMT channel for the LED strip and 
+		// the stepper motors, so we need to call the LinearEncoderController act function with a dummy 
+		// JSON object to trigger the encoder-based motion
+		if (matrix) Ws2812Rmt::show(matrix->getPixels(), matrix->numPixels() * ((matrix->numPixels() > 0) ? (matrix->getPixels() ? 3 : 3) : 3));
+#else 
+		if (matrix) 
+			matrix->show();
 #endif
 	}
 	
@@ -130,6 +144,9 @@ namespace LedController
 		// the RX/TX peripheral via the IDF driver and conflict with FAS). begin()
 		// only configures the GPIO direction here, which we do ourselves below.
 		matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+#if !defined(USE_FASTACCEL) && !defined(USE_ACCELSTEP)
+		matrix->begin(); // Only call begin() if we're not sharing the RMT with FastAccelStepper, to avoid conflicts. If FastAccelStepper is used, we'll do the necessary GPIO setup ourselves below.
+#endif
 		matrix->setBrightness(255);
 		matrix->clear();
 		
@@ -140,10 +157,8 @@ namespace LedController
 		log_i("LedController: about to show() — first RMT TX");
 		ledShow();
 		log_i("LedController: first show() returned");
-		// {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart": 0, "xStep": 500, "yStep": 500, "zStep": 0, "nX": 3, "nY": 3, "nZ": 0, "tPre": 0, "tPost": 0, "illumination": [0, 50, 0, 0]}}
-		return;
-		
-		#endif
+
+#endif
 		
 		// test led array
 		int initIntensity = 100;
@@ -213,7 +228,7 @@ namespace LedController
 #else
 		if (index < LED_COUNT)
 		{
-			matrix->clear();
+			// matrix->clear();
 			matrix->setPixelColor(index, matrix->Color(r, g, b));
 			ledShow();
 		}
@@ -689,6 +704,10 @@ namespace LedController
 			{
 				cmd.mode = LedMode::FILL;
 			}
+			else if (actStr == "on")
+			{
+				cmd.mode = LedMode::FILL;
+			}
 			else if (actStr == "single")
 			{
 				cmd.mode = LedMode::SINGLE;
@@ -945,7 +964,8 @@ namespace LedController
 		// Check if this is a device that requires thermal protection
 		bool needsThermalProtection = (pinConfig.pindefName && 
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
-			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 || 
+			 strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ));
 		
 		if (needsThermalProtection)
 		{
@@ -1018,7 +1038,7 @@ namespace LedController
 			drawCircle(cmd.radius, cmd.r, cmd.g, cmd.b);
 			break;
 		case LedMode::ARRAY:
-			// Here you could parse an array of LED changes.
+			// TODO: Here you could parse an array of LED changes.
 			// For brevity, not implemented in detail.
 			// e.g. cJSON_GetObjectItem(root,"led_array")...
 			// Then set each LED individually
@@ -1120,44 +1140,30 @@ namespace LedController
 			ledToggleState = !ledToggleState;
 			
 			log_i("Circle pressed - LED toggle to %s", ledToggleState ? "ON" : "OFF");
-			
-			LedCommand cmd;
+			// TODO: Shall we route through dictionaries? Much slower probably? 
+			cJSON* doc = cJSON_CreateObject();
+			cJSON_AddStringToObject(doc, "task", "/ledarr_act");
+			cJSON* led = cJSON_CreateObject();
 			if (ledToggleState)
 			{
-				// Turn LED ON
-				// Serial.println("Circle pressed - LED ON");
-				cmd.mode = LedMode::CIRCLE;
-				cmd.r = 0;
-				cmd.g = 255;
-				cmd.b = 0;
-				cmd.radius = 8;
-				cmd.ledIndex = 0;
-				cmd.region[0] = 0;
-				cmd.qid = 0;
+				// Turn LED ON via circles mode
+				cJSON_AddStringToObject(led, "action", "circles");
+				cJSON_AddNumberToObject(led, "r", 0);
+				cJSON_AddNumberToObject(led, "g", 255);
+				cJSON_AddNumberToObject(led, "b", 0);
+				cJSON_AddNumberToObject(led, "radius", 8);
 				isOn = true;
 			}
 			else
 			{
 				// Turn LED OFF
-				// Serial.println("Circle pressed - LED OFF");
-				cmd.mode = LedMode::CIRCLE;
-				cmd.r = 0;
-				cmd.g = 0;
-				cmd.b = 0;
-				cmd.radius = 8;
-				cmd.ledIndex = 0;
-				cmd.region[0] = 0;
-				cmd.qid = 0;
+				cJSON_AddStringToObject(led, "action", "off");
 				isOn = false;
 			}
-			
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
-			// Send the command to the CAN driver
-			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-#else
-			// Execute the command directly
-			execLedCommand(cmd);
-#endif
+			cJSON_AddItemToObject(doc, "led", led);
+			cJSON* resp = DeviceRouter::handleLedAct(doc);
+			if (resp) cJSON_Delete(resp);
+			cJSON_Delete(doc);
 		}
 	}
 

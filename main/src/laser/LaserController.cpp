@@ -5,6 +5,7 @@
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
+#include "../canopen/DeviceRouter.h"
 #ifdef WIFI
 #include "../wifi/WifiController.h"
 #endif
@@ -456,18 +457,23 @@ namespace LaserController
 	void handleShortClick(int direction)
 	{
 		// 0=UP, 1=DOWN, 2=RIGHT, 3=LEFT
+		int laserID = 0;
+		int laserVal = 0;
 		if (direction == 0 || direction == 1) // UP or DOWN - Laser 1
 		{
 			if (laser_on)
 			{
+				//TODO: needs to go through router
 				log_i("Short click - Laser 1 OFF");
-				LaserController::setLaserVal(1, 0);
+				laserID = 1;
+				laserVal = 0;
 				laser_on = false;
 			}
 			else
 			{
 				log_i("Short click - Laser 1 ON");
-				LaserController::setLaserVal(1, 10000);
+				laserID = 1;
+				laserVal = 10000;
 				laser_on = true;
 			}
 		}
@@ -476,16 +482,26 @@ namespace LaserController
 			if (laser2_on)
 			{
 				log_i("Short click - Laser 2 OFF");
-				LaserController::setLaserVal(2, 0);
+				laserID = 2;
+				laserVal = 0;
 				laser2_on = false;
 			}
 			else
 			{
 				log_i("Short click - Laser 2 ON");
-				LaserController::setLaserVal(2, 10000);
-				laser2_on = true;
+				laserID = 2;
+				laserVal = 10000;
+´				laser2_on = true;
 			}
 		}
+
+		cJSON* doc = cJSON_CreateObject();
+		cJSON_AddNumberToObject(doc, "LASERid", laserID);
+		cJSON_AddNumberToObject(doc, "LASERval", laserVal);
+		cJSON* resp = DeviceRouter::handleLaserAct(doc);
+		if (resp) cJSON_Delete(resp);
+		cJSON_Delete(doc);				
+		
 	}
 
 	// Call this from loop() to handle hold actions
@@ -715,12 +731,22 @@ namespace LaserController
 			if (laser4ToggleState)
 			{
 				// Turn Laser 4 to MAX
-				setLaserVal(4, 10000);
+				cJSON* doc = cJSON_CreateObject();
+				cJSON_AddNumberToObject(doc, "LASERid", 4);
+				cJSON_AddNumberToObject(doc, "LASERval", 10000);
+				cJSON* resp = DeviceRouter::handleLaserAct(doc);
+				if (resp) cJSON_Delete(resp);
+				cJSON_Delete(doc);
 			}
 			else
 			{
 				// Turn Laser 4 to MIN
-				setLaserVal(4, 0);
+				cJSON* doc = cJSON_CreateObject();
+				cJSON_AddNumberToObject(doc, "LASERid", 4);
+				cJSON_AddNumberToObject(doc, "LASERval", 0);
+				cJSON* resp = DeviceRouter::handleLaserAct(doc);
+				if (resp) cJSON_Delete(resp);
+				cJSON_Delete(doc);
 			}
 		}
 	}

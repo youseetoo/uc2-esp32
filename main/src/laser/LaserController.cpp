@@ -491,7 +491,7 @@ namespace LaserController
 				log_i("Short click - Laser 2 ON");
 				laserID = 2;
 				laserVal = 10000;
-´				laser2_on = true;
+				laser2_on = true;
 			}
 		}
 

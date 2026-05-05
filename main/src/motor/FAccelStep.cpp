@@ -41,9 +41,8 @@ namespace FAccelStep
         // ramp settings. FAS has no true "constant velocity" mode for
         // moveTo/move, so when the user asks for no acceleration we use
         // MAX_ACCELERATION_A to keep the ramp as short as possible.
-        const bool wantAccel = getData()[i]->isaccelerated != 0;
         const int32_t reqAccel = getData()[i]->acceleration;
-        if (wantAccel && reqAccel > 0)
+        if (reqAccel > 0)
         {
             if (faststeppers[i]->setAcceleration(reqAccel) != 0)
             {
@@ -111,15 +110,55 @@ namespace FAccelStep
             TMCController::setTMCCurrent(rmsCurrFromPref);
 #endif
 
+/*
+            // Force a clean ramp-generator reset before re-arming. Without this,
+            // a direction reversal (e.g. previous move +N, this move -M) can
+            // leave residual entries in the FAS queue: getCurrentPosition()
+            // stalls a few steps shy of getPositionAfterCommandsCompleted(),
+            // ramp state goes IDLE, but isRunning() stays true forever because
+            // it ORs both. Symptom: 50-step undershoot + isRunning never clears.
+            // Stopping the queue first guarantees a fresh start.
+            if (faststeppers[i]->isRunning() ||
+                faststeppers[i]->getCurrentPosition() !=
+                    faststeppers[i]->getPositionAfterCommandsCompleted())
+            {
+                faststeppers[i]->forceStopAndNewPosition(
+                    faststeppers[i]->getCurrentPosition());
+                // Brief settle so the engine fully drains the queue/RMT.
+                uint32_t t0 = millis();
+                while (faststeppers[i]->isRunning() && millis() - t0 < 10)
+                {
+                    delayMicroseconds(100);
+                }
+            }
+                */
+
+            // Force a clean ramp-generator reset before re-arming if the previous
+            // motion didn't fully drain. Only needed when the ramp is non-IDLE
+            // (e.g. caller is overriding an in-flight move). After a normal
+            // completion the ramp is IDLE and the residual curPos/endPos mismatch
+            // is just RMT position-counter lag — no reset required.
+            const uint8_t rs = faststeppers[i]->rampState() & RAMP_STATE_MASK;
+            if (rs != RAMP_STATE_IDLE)
+            {
+                faststeppers[i]->forceStopAndNewPosition(
+                    faststeppers[i]->getPositionAfterCommandsCompleted());
+                uint32_t t0 = millis();
+                while ((faststeppers[i]->rampState() & RAMP_STATE_MASK)
+                        != RAMP_STATE_IDLE
+                    && millis() - t0 < 10)
+                {
+                    delayMicroseconds(100);
+                }
+            }
+
             if (getData()[i]->absolutePosition)
             {
-                // absolute position coordinates
                 log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
             else
             {
-                // relative position coordinates
                 log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
             }
@@ -138,7 +177,7 @@ namespace FAccelStep
         }
         // "unstop" the motor after it has actually started?
         getData()[i]->stopped = false;
-        
+
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -150,7 +189,6 @@ namespace FAccelStep
               getData()[i]->acceleration,
               getData()[i]->stopped,
               isRunning(i));
-              
     }
 
     void setupFastAccelStepper()
@@ -296,6 +334,7 @@ namespace FAccelStep
         // its own; do not re-add them.
     }
 
+    /*
     void stopFastAccelStepper(int i)
     {
         if (faststeppers[i] == nullptr)
@@ -312,6 +351,35 @@ namespace FAccelStep
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
         getData()[i]->stopped = true;
     }
+    */
+
+void stopFastAccelStepper(int i)
+    {
+        if (faststeppers[i] == nullptr)
+            return;
+        FastAccelStepper* s = faststeppers[i];
+
+        // Choose the post-stop position carefully:
+        //   - If ramp is IDLE, the move completed normally. The queue-end
+        //     position is where the motor physically is (RMT may have
+        //     emitted pulses the position counter hasn't accounted for yet).
+        //   - If ramp is non-IDLE (user-initiated stop mid-motion), use the
+        //     live position — the motor was actually moving and queue-end
+        //     is far ahead of where we want to halt.
+        const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
+        const int32_t finalPos =
+            (rs == RAMP_STATE_IDLE)
+                ? s->getPositionAfterCommandsCompleted()
+                : s->getCurrentPosition();
+
+        s->forceStopAndNewPosition(finalPos);
+        log_i("stop stepper in FAccelStep %d (rs=0x%02x, pinnedPos=%ld)",
+              i, rs, (long)finalPos);
+        getData()[i]->isforever = false;
+        getData()[i]->speed = 0;
+        getData()[i]->currentPosition = finalPos;
+        getData()[i]->stopped = true;
+    }
 
     void setExternalCallForPin(
         bool (*func)(uint8_t pin, uint8_t value))
@@ -320,13 +388,20 @@ namespace FAccelStep
     }
 
     void updateData(int i)
-    {
+        {
         if (faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in updateData", i);
             return;
         }
-        getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
+        FastAccelStepper* s = faststeppers[i];
+        const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
+        // When idle, the queue-end position is the physical truth on RMT.
+        // When moving, the live position is what we want for telemetry.
+        getData()[i]->currentPosition =
+            (rs == RAMP_STATE_IDLE)
+                ? s->getPositionAfterCommandsCompleted()
+                : s->getCurrentPosition();
     }
 
     void setAutoEnable(bool enable)
@@ -371,13 +446,86 @@ namespace FAccelStep
         faststeppers[s]->setCurrentPosition(val);
     }
 
-    bool isRunning(int i)
+bool isRunning(int i)
     {
         if (faststeppers[i] == nullptr)
         {
             return false;
         }
-        return faststeppers[i]->isRunning();
+        FastAccelStepper* s = faststeppers[i];
+
+        // Use getPositionAfterCommandsCompleted() — the *queue-end* position —
+        // for completion detection. On ESP32 RMT, getCurrentPosition() can lag
+        // the real motor by up to a full command's worth of steps because the
+        // RMT pulse generator and the position accountant are decoupled. The
+        // queue-end position is updated at queue-fill time and is reliable.
+        //
+        // Definition of "running": ramp is non-IDLE, OR there are still
+        // unconsumed queue entries (queue-end position differs from where the
+        // ramp generator thinks the next-to-fill entry will land).
+        const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
+        if (rs != RAMP_STATE_IDLE) return true;
+
+        // Ramp is idle. Treat as truly-done. Don't trust FAS's isRunning()
+        // here because on RMT it stays true while the position counter
+        // catches up to the ongoing command's pulses — but the *motion* is
+        // already over from the application's point of view.
+        return false;
+    }
+
+    int rampState(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in rampState", i);
+            return -1;
+        }
+        return faststeppers[i]->rampState();
+    }
+
+    int32_t getCurrentSpeedInMilliHz(int i, bool withSign)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in getCurrentSpeedInMilliHz", i);
+            return 0;
+        }
+        int32_t speed = faststeppers[i]->getCurrentSpeedInMilliHz();
+        if (!withSign)
+        {
+            speed = abs(speed);
+        }
+        return speed;
+    }
+
+    int32_t getCurrentPosition(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in getCurrentPosition", i);
+            return 0;
+        }
+        return faststeppers[i]->getCurrentPosition();
+    }
+
+    int32_t getPositionAfterCommandsCompleted(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in getPositionAfterCommandsCompleted", i);
+            return 0;
+        }
+        return faststeppers[i]->getPositionAfterCommandsCompleted();
+    }
+
+    bool isQueueFull(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in isQueueFull", i);
+            return false;
+        }
+        return faststeppers[i]->isQueueFull();
     }
 
     void move(Stepper s, int steps, bool blocking)

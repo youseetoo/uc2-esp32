@@ -97,20 +97,26 @@ namespace FocusMotor
 			return 0;
 		if (md->isforever)
 		{
-			if (md->speed > 0) return 1;
-			if (md->speed < 0) return -1;
+			if (md->speed > 0)
+				return 1;
+			if (md->speed < 0)
+				return -1;
 			return 0;
 		}
 		if (md->absolutePosition)
 		{
 			int32_t delta = md->targetPosition - md->currentPosition;
-			if (delta > 0) return 1;
-			if (delta < 0) return -1;
+			if (delta > 0)
+				return 1;
+			if (delta < 0)
+				return -1;
 			return 0;
 		}
 		// relative move
-		if (md->targetPosition > 0) return 1;
-		if (md->targetPosition < 0) return -1;
+		if (md->targetPosition > 0)
+			return 1;
+		if (md->targetPosition < 0)
+			return -1;
 		return 0;
 	}
 
@@ -164,6 +170,7 @@ namespace FocusMotor
 			waitForFirstRun[axis] = 10;
 			FAccelStep::startFastAccelStepper(axis);
 #elif defined(USE_ACCELSTEP)
+			waitForFirstRun[axis] = 10;
 			AccelStep::startAccelStepper(axis);
 #endif
 			getData()[axis]->stopped = false;
@@ -204,7 +211,7 @@ namespace FocusMotor
 			}
 			else
 			{
-				startStepper(s, reduced); 
+				startStepper(s, reduced);
 			}
 		}
 	}
@@ -241,8 +248,6 @@ namespace FocusMotor
 		AccelStep::Enable(enable);
 #endif
 	}
-
-
 
 	void updateData(int axis)
 	{
@@ -303,8 +308,6 @@ namespace FocusMotor
 		if (data[Stepper::G] == nullptr)
 			log_e("Stepper G data NULL");
 #endif
-
-
 	}
 
 	void fill_data()
@@ -574,13 +577,17 @@ namespace FocusMotor
 			int8_t dir = md->lastCommandedDir;
 			if (dir == 0)
 			{
-				if (md->speed > 0) dir = 1;
-				else if (md->speed < 0) dir = -1;
+				if (md->speed > 0)
+					dir = 1;
+				else if (md->speed < 0)
+					dir = -1;
 				else
 				{
 					int32_t delta = md->targetPosition - md->currentPosition;
-					if (delta > 0) dir = 1;
-					else if (delta < 0) dir = -1;
+					if (delta > 0)
+						dir = 1;
+					else if (delta < 0)
+						dir = -1;
 				}
 			}
 			log_e("HARD LIMIT TRIGGERED on axis %d (endstop=%d, polarity=%d, dir=%d)",
@@ -704,6 +711,7 @@ namespace FocusMotor
 
 	void loop()
 	{
+
 		// Check for QID timeouts
 		QidRegistry::tickTimeout();
 
@@ -720,12 +728,28 @@ namespace FocusMotor
 			if (!isActivated[i])
 				continue;
 
+			/*
+	#ifdef USE_FASTACCEL
+	log_i("FAS ax%d: ramp=0x%02x speedMHz=%ld curPos=%ld endPos=%ld qFull=%d",
+  i, FAccelStep::rampState(i),
+  (long)FAccelStep::getCurrentSpeedInMilliHz(i, true),
+  (long)FAccelStep::getCurrentPosition(i),
+  (long)FAccelStep::getPositionAfterCommandsCompleted(i),
+  FAccelStep::isQueueFull(i));
+	#endif
+*/
+
 			// checks if a stepper is still running
 			// seems like the i2c needs a moment to start the motor (i.e. act is async and loop is continously running, maybe faster than the motor can start)
 			if (waitForFirstRun[i])
 			{
 				waitForFirstRun[i]--;
 				continue;
+			}
+			if (0)
+			{
+				log_i("Checking motor %d: isRunning=%d, stopped=%d, isforever=%d, isHoming=%d",
+					  i, isRunning(i), data[i]->stopped, data[i]->isforever, data[i]->isHoming);
 			}
 			if (isActivated[i] && !isRunning(i) && !data[i]->stopped && !data[i]->isforever && !data[i]->isHoming)
 			{
@@ -887,7 +911,7 @@ namespace FocusMotor
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
 		sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
-		// Report QID completion
+							// Report QID completion
 #ifdef CAN_RECEIVE_MOTOR
 		// On CAN slave: send QID report to master via dedicated CAN message
 		if (data[i]->qid > 0)

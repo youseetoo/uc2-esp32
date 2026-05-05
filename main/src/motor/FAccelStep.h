@@ -25,6 +25,13 @@ namespace FAccelStep
     bool isRunning(int i);
     void move(Stepper s, int steps, bool blocking);
 
+
+    int rampState(int i);
+    int32_t getCurrentSpeedInMilliHz(int i, bool withSign);
+    int32_t getCurrentPosition(int i);
+    int32_t getPositionAfterCommandsCompleted(int i);
+    bool isQueueFull(int i);
+
     // store old motor current for each motor
     static int oldMotorCurrent[4] = {0, 0, 0, 0};
 

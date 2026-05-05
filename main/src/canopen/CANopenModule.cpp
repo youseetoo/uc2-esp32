@@ -775,6 +775,13 @@ void CANopenModule::syncRpdoToModules_slave()
         for (int ax = 0; ax < 4; ax++) {
             if (cmdWord & (1u << ax)) {
                 // Move command for axis ax
+                log_i("Received motor command for axis %d: pos=%ld spd=%ld accel=%ld abs=%d forever=%d (cmdWord=0x%02x)",
+                    ax, (long)OD_RAM.x2000_motor_target_position[ax],
+                    (long)OD_RAM.x2002_motor_speed[ax],
+                    (long)OD_RAM.x2006_motor_acceleration[ax],
+                    OD_RAM.x2007_motor_is_absolute[ax] != 0,
+                    OD_RAM.x200B_motor_is_forever[ax] != 0,
+                    cmdWord);
                 s_axisCmds[ax].pos   = OD_RAM.x2000_motor_target_position[ax];
                 s_axisCmds[ax].speed = (int32_t)OD_RAM.x2002_motor_speed[ax];
                 s_axisCmds[ax].accel = (int32_t)OD_RAM.x2006_motor_acceleration[ax];
@@ -784,6 +791,7 @@ void CANopenModule::syncRpdoToModules_slave()
                 s_axisCmds[ax].pending   = true;  // commit last
             }
             if (cmdWord & (1u << (ax + 4))) {
+                log_i("Received STOP command for axis %d (cmdWord=0x%02x)", ax, cmdWord);
                 // Stop command for axis ax
                 s_axisCmds[ax].isStop  = true;
                 s_axisCmds[ax].pending = true;
@@ -791,6 +799,14 @@ void CANopenModule::syncRpdoToModules_slave()
         }
         OD_RAM.x2003_motor_command_word = 0;
     }
+
+    for (int ax = 0; ax < 4; ax++) {
+    if (s_axisCmds[ax].pending) {
+        ESP_LOGW(TAG_CO, "STALE pending ax=%d pos=%ld spd=%ld stop=%d (cmdWord=0x%02x)",
+                 ax, (long)s_axisCmds[ax].pos, (long)s_axisCmds[ax].speed,
+                 s_axisCmds[ax].isStop, cmdWord);
+    }
+}
 #endif
 
 #ifdef HOME_MOTOR
@@ -1164,8 +1180,14 @@ void CANopenModule::loop()
                      ax, localAxis, (long)m->targetPosition, (long)m->speed,
                      (long)m->acceleration, m->absolutePosition);
             FocusMotor::startStepper(localAxis, 0);
+            static uint32_t dispatchN[4] = {0,0,0,0};
+            if (s_axisCmds[ax].pending) {
+                dispatchN[ax]++;
+                ESP_LOGW(TAG_CO, "DISPATCH #%u ax=%d -> startStepper(%d)", dispatchN[ax], ax, localAxis);
+            }
         }
     }
+
 #endif
 
 #ifdef HOME_MOTOR

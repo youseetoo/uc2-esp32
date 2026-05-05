@@ -179,7 +179,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         cJSON* foreverItem = cJSON_GetObjectItem(s, "isforever");
 
         int32_t  pos   = posItem   ? posItem->valueint   : 0;
-        uint32_t speed = speedItem ? (uint32_t)std::abs(speedItem->valueint) : 1000;
+        int32_t speed = speedItem ? speedItem->valueint : 0;
         uint32_t accel = accelItem ? (uint32_t)std::abs(accelItem->valueint) : 0;
         // cJSON_IsTrue only handles cJSON bool, not numeric 1/0 — handle both
         bool     isAbs     = isAbsItem && (cJSON_IsTrue(isAbsItem) || (cJSON_IsNumber(isAbsItem) && isAbsItem->valueint != 0));
@@ -435,67 +435,74 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 
 // ============================================================================
 // Home act — routing-table dispatch
+// Parses {"task":"/home_act", "home": {"steppers": [{"stepperid":1,
+//   "timeout":20000, "speed":5000, "maxspeed":10000, "direction":1,
+//   "endstoppolarity":0, "endstoprelease":0, "endoffset":0}]}, "qid":1234}
+// Iterates all stepper entries and routes each to LOCAL (startHome) or REMOTE (SDO).
 // ============================================================================
 cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
 #ifdef HOME_MOTOR
+    log_i("Handling home_act via DeviceRouter");
+
     cJSON* home = cJSON_GetObjectItem(doc, "home");
-    if (!home) return nullptr;
-
-    cJSON* stepperid_item = cJSON_GetObjectItem(home, "stepperid");
-    if (!stepperid_item) return nullptr;
-
-    int stepperid = stepperid_item->valueint;
-    const auto* route = UC2::RoutingTable::find(
-        UC2::RouteEntry::HOME, (uint8_t)stepperid);
-
-    if (!route || route->where == UC2::RouteEntry::OFF) {
-        ESP_LOGW(TAG, "home %d has no route", stepperid);
-        cJSON* resp = cJSON_CreateObject();
-        cJSON_AddNumberToObject(resp, "return", 0);
-        return resp;
+    if (!home) {
+        log_w("home_act missing 'home' object");
+        return nullptr;
+    }
+    cJSON* steppers = cJSON_GetObjectItem(home, "steppers");
+    if (!steppers || !cJSON_IsArray(steppers)) {
+        log_w("home_act missing 'steppers' array inside 'home'");
+        return nullptr;
     }
 
-    cJSON* speedItem    = cJSON_GetObjectItem(home, "speed");
-    cJSON* dirItem      = cJSON_GetObjectItem(home, "direction");
-    cJSON* timeoutItem  = cJSON_GetObjectItem(home, "timeout");
-    cJSON* releaseItem  = cJSON_GetObjectItem(home, "endstopRelease");
-    cJSON* polarityItem = cJSON_GetObjectItem(home, "endstopPolarity");
+    int qid = cJsonTool::getJsonInt(doc, "qid");
 
-    int speed     = speedItem    ? std::abs(speedItem->valueint) : 1000;
-    int dir       = dirItem      ? dirItem->valueint              : -1;
-    int timeout   = timeoutItem  ? timeoutItem->valueint          : 10000;
-    int release   = releaseItem  ? releaseItem->valueint          : 0;
-    int polarity  = polarityItem ? polarityItem->valueint         : 0;
+    cJSON* stp = nullptr;
+    cJSON_ArrayForEach(stp, steppers) {
+        cJSON* stepperid_item = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
+        if (!stepperid_item) continue;
 
-    bool ok = true;
-    if (route->where == UC2::RouteEntry::LOCAL) {
-        // Call HomeMotor directly — pass the full JSON for maximum compatibility
-        HomeMotor::act(doc);
-    } else { // REMOTE
+        int stepperid = stepperid_item->valueint;
+        const auto* route = UC2::RoutingTable::find(
+            UC2::RouteEntry::HOME, (uint8_t)stepperid);
+
+        if (!route || route->where == UC2::RouteEntry::OFF) {
+            ESP_LOGW(TAG, "home %d has no route", stepperid);
+            continue;
+        }
+
+        int homeTimeout  = cJsonTool::getJsonInt(stp, key_home_timeout);
+        int homeSpeed    = cJsonTool::getJsonInt(stp, key_home_speed);
+        int homeMaxspeed = cJsonTool::getJsonInt(stp, key_home_maxspeed);
+        int homeDir      = cJsonTool::getJsonInt(stp, key_home_direction);
+        int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
+        int homeRelease  = cJsonTool::getJsonInt(stp, key_home_endstoprelease);
+        int homeOffset   = cJsonTool::getJsonInt(stp, key_home_endoffset);
+
+        if (route->where == UC2::RouteEntry::LOCAL) {
+            log_i("Routing home_act to LOCAL stepper %d: speed=%d dir=%d timeout=%d maxspeed=%d polarity=%d offset=%d",
+                  stepperid, homeSpeed, homeDir, homeTimeout, homeMaxspeed, homePolarity, homeOffset);
+            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
+        } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
-        uint8_t sub = route->subAxis + 1;
-        uint32_t spd32 = (uint32_t)speed;
-        int8_t   dir8  = (int8_t)dir;
-        uint32_t tmo32 = (uint32_t)timeout;
-        int32_t  rel32 = (int32_t)release;
-        uint8_t  pol8  = (uint8_t)polarity;
-
-        CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_SPEED, sub, spd32);
-        CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_DIRECTION, sub, (uint8_t)dir8);
-        CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, tmo32);
-        CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, rel32);
-        CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, pol8);
-        uint8_t trigger = 1;
-        ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, trigger);
-        if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
+            uint8_t sub = route->subAxis + 1;
+            log_i("Routing home_act to REMOTE node 0x%02X subAxis %d (OD sub 0x%02X) for stepper %d: speed=%d dir=%d timeout=%d release=%d polarity=%d",
+                  route->nodeId, route->subAxis, sub, stepperid, homeSpeed, homeDir, homeTimeout, homeRelease, homePolarity);
+            CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_SPEED, sub, (uint32_t)std::abs(homeSpeed));
+            CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_DIRECTION, sub, (uint8_t)(int8_t)homeDir);
+            CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, (uint32_t)homeTimeout);
+            CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, (int32_t)homeRelease);
+            CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
+            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, 1);
+            if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
 #else
-        ESP_LOGW(TAG, "REMOTE routing requires CANopen — home %d ignored", stepperid);
-        ok = false;
+            ESP_LOGW(TAG, "REMOTE routing requires CANopen — home %d ignored", stepperid);
 #endif
+        }
     }
 
     cJSON* resp = cJSON_CreateObject();
-    cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+    cJSON_AddNumberToObject(resp, "return", 1);
     return resp;
 #else
     return nullptr;

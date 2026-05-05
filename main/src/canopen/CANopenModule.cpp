@@ -1068,8 +1068,10 @@ void CANopenModule::syncModulesToTpdo()
         static uint32_t s_lastSyncLogMs = 0;
         if (nowMs - s_lastSyncLogMs >= 1000) {
             s_lastSyncLogMs = nowMs;
-            ESP_LOGI(TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> TPDO1",
+            /*
+            (TAG_CO, "syncModulesToTpdo: local-ax%d pos=%ld running=%d -> TPDO1",
                      localAxis, (long)newPos, (int)isRunning);
+                     */
         }
     }
 #endif
@@ -1176,9 +1178,11 @@ void CANopenModule::loop()
                 m->acceleration = s_axisCmds[ax].accel;
             else if (m->acceleration <= 0)
                 m->acceleration = 40000;
+            /*
             ESP_LOGI(TAG_CO, "Dispatch motor OD-ax%d -> local-ax%d: pos=%ld spd=%ld accel=%ld abs=%d",
                      ax, localAxis, (long)m->targetPosition, (long)m->speed,
                      (long)m->acceleration, m->absolutePosition);
+            */
             FocusMotor::startStepper(localAxis, 0);
             static uint32_t dispatchN[4] = {0,0,0,0};
             if (s_axisCmds[ax].pending) {

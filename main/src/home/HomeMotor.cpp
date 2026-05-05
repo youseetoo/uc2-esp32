@@ -16,6 +16,7 @@
 #ifdef CAN_BUS_ENABLED
 #include "../can/can_transport.h"
 #endif
+#include "../canopen/DeviceRouter.h"
 using namespace FocusMotor;
 
 
@@ -37,20 +38,13 @@ namespace HomeMotor
 		// {"task": "/home_act", "home": {"steppers": [{"stepperid":0, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "home_e"}]}, "qid":1234}
 		// {"task": "/home_act", "home": {"steppers": [{"stepperid":1, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "precise":1}]}, "qid":1234}
 		log_i("home_act_fct");
-		// print the json
 		char *out = cJSON_PrintUnformatted(doc);
 		log_i("HomeMotor act %s", out);
+		free(out);
 		int qid = cJsonTool::getJsonInt(doc, "qid");
-
-		// parse the home data and start homing
-		// parseHomeData() calls startHome() which handles ALL routing:
-		// - Native driver: creates FreeRTOS homing task
-		// - CAN (hybrid): sends to CAN slave for remote axes, local task for native axes
-		// - CAN (pure master): sends to CAN slave
-		// Do NOT call runStepper() or sendHomeDataToCANDriver() here - that would
-		// double-start the motor and override the homing task's motor configuration!
-		uint8_t axis = parseHomeData(doc);
-
+		// Always route through DeviceRouter for unified LOCAL/REMOTE dispatch
+		cJSON* resp = DeviceRouter::handleHomeAct(doc);
+		if (resp) cJSON_Delete(resp);
 		return qid;
 	}
 

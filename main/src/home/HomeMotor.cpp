@@ -276,7 +276,7 @@ int axis = 0;
 					// Prevents race where isRunning() returns false before motor actually starts
 					if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
 						log_i("[Homing Task] Phase 4: Axis %d retract complete, starting slow approach", axis);
-						vTaskDelay(pdMS_TO_TICKS(100));  // Brief pause
+						vTaskDelay(pdMS_TO_TICKS(10));  // Brief pause
 						hd->homingPhase = 5;
 						phaseStartTime = millis();
 					}
@@ -285,6 +285,10 @@ int axis = 0;
 				
 				case 5: {  // Phase 5: Slow approach to endstop
 					//Serial.println("5");
+					// add deley to let motor settle for a moment
+					vTaskDelay(pdMS_TO_TICKS(100));  // Brief pause
+					// FIXME: if we are driving too fast >15000 then the direction change in the fastaccelstepper is not taken into account :/
+
 					// Move slowly back toward endstop
 					md->isforever = true;
 					md->speed = hd->homeDirection * abs(hd->homeSpeed/4);

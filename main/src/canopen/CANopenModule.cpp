@@ -751,6 +751,15 @@ struct PendingLaserCmd {
 };
 static PendingLaserCmd s_laserCmds[4];
 
+struct PendingHardLimitCmd {
+    volatile bool pending  = false;
+    bool          isCommand = false;   // true  -> run command (clear)
+    bool          isConfig  = false;   // true  -> update enabled/polarity
+    uint8_t       enabled  = 0;
+    uint8_t       polarity = 0;
+};
+static PendingHardLimitCmd s_hardlimitCmds[4];
+
 // ============================================================================
 // OD <-> Module sync (called from CO_tmr_task)
 // Using native UC2 OD entries (0x2000+)
@@ -800,13 +809,28 @@ void CANopenModule::syncRpdoToModules_slave()
         OD_RAM.x2003_motor_command_word = 0;
     }
 
-    for (int ax = 0; ax < 4; ax++) {
-    if (s_axisCmds[ax].pending) {
-        ESP_LOGW(TAG_CO, "STALE pending ax=%d pos=%ld spd=%ld stop=%d (cmdWord=0x%02x)",
-                 ax, (long)s_axisCmds[ax].pos, (long)s_axisCmds[ax].speed,
-                 s_axisCmds[ax].isStop, cmdWord);
+    // Throttle STALE-pending warnings: this is called from CO_tmr_task at 1ms,
+    // logging every tick floods the serial port and starves IDLE0 -> task watchdog
+    // reset. Only warn once per axis if the pending hasn't been consumed for >200 ms.
+    {
+        static uint32_t s_pendSince[4] = {0,0,0,0};
+        static uint32_t s_lastWarn[4]  = {0,0,0,0};
+        uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
+        for (int ax = 0; ax < 4; ax++) {
+            if (s_axisCmds[ax].pending) {
+                if (s_pendSince[ax] == 0) s_pendSince[ax] = nowMs;
+                if (nowMs - s_pendSince[ax] > 200 && nowMs - s_lastWarn[ax] > 1000) {
+                    s_lastWarn[ax] = nowMs;
+                    ESP_LOGW(TAG_CO, "STALE pending ax=%d pos=%ld spd=%ld stop=%d (cmdWord=0x%02x)",
+                             ax, (long)s_axisCmds[ax].pos, (long)s_axisCmds[ax].speed,
+                             s_axisCmds[ax].isStop, cmdWord);
+                }
+            } else {
+                s_pendSince[ax] = 0;
+                s_lastWarn[ax]  = 0;
+            }
+        }
     }
-}
 #endif
 
 #ifdef HOME_MOTOR
@@ -819,6 +843,33 @@ void CANopenModule::syncRpdoToModules_slave()
             s_homingCmds[ax].polarity       = OD_RAM.x2015_homing_endstop_polarity[ax];
             s_homingCmds[ax].pending        = true;
             OD_RAM.x2010_homing_command[ax] = 0;
+        }
+    }
+#endif
+
+#ifdef MOTOR_CONTROLLER
+    // TODO: Is this actually working? 
+    // Hard-limit config and clear-command
+    for (int ax = 0; ax < 4; ax++) {
+        // command word: 1 = clear triggered flag + lockout
+        if (OD_RAM.x2030_hardlimit_command[ax]) {
+            s_hardlimitCmds[ax].isCommand = true;
+            s_hardlimitCmds[ax].isConfig  = false;
+            s_hardlimitCmds[ax].pending   = true;
+            OD_RAM.x2030_hardlimit_command[ax] = 0;
+        }
+        // enabled/polarity — arm on any write (master sets these before command)
+        static uint8_t lastEn[4]  = {0xFF, 0xFF, 0xFF, 0xFF};
+        static uint8_t lastPol[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+        if (OD_RAM.x2031_hardlimit_enabled[ax]  != lastEn[ax]  ||
+            OD_RAM.x2032_hardlimit_polarity[ax] != lastPol[ax]) {
+            lastEn[ax]  = OD_RAM.x2031_hardlimit_enabled[ax];
+            lastPol[ax] = OD_RAM.x2032_hardlimit_polarity[ax];
+            s_hardlimitCmds[ax].enabled  = lastEn[ax];
+            s_hardlimitCmds[ax].polarity = lastPol[ax];
+            s_hardlimitCmds[ax].isConfig  = true;
+            s_hardlimitCmds[ax].isCommand = false;
+            s_hardlimitCmds[ax].pending   = true;
         }
     }
 #endif
@@ -1161,11 +1212,26 @@ void CANopenModule::loop()
             continue;
         }
         MotorData* m = FocusMotor::getData()[localAxis];
+#ifdef HOME_MOTOR
+        // TODO: Think about this:  Don't let CAN-delivered motor commands (e.g. PS4 joystick PSx packets
+        // streamed continuously from the master) preempt an active homing run.
+        // Drop them silently so the homing state machine retains exclusive
+        // control of the axis.
+        HomeData** hdAll = HomeMotor::getHomeData();
+        if (hdAll && hdAll[localAxis] && hdAll[localAxis]->homeIsActive) {
+            // also drop STOP - the homing task issues its own stops at phase
+            // boundaries and a stray CAN-STOP would only desync the state machine.
+            // continue;
+            log_i("We could consider dropping the incoming values here to avoid interfering with the homing state machine, but for now we allow them through so the master can still issue a STOP if needed.");
+        }
+#endif
         if (s_axisCmds[ax].isStop) {
             m->isStop    = true;
             m->isforever = false;
             log_i("Dispatch motor STOP OD-ax%d -> local-ax%d", ax, localAxis);
-            FocusMotor::startStepper(localAxis, 0);
+            // Use stopStepper(); calling startStepper() with target=0,isforever=false
+            // makes FAS attempt move(0) which never starts -> "motor never got going".
+            FocusMotor::stopStepper(localAxis);
         } else {
             m->targetPosition   = s_axisCmds[ax].pos;
             m->speed            = s_axisCmds[ax].speed;
@@ -1209,6 +1275,25 @@ void CANopenModule::loop()
             (int)s_homingCmds[ax].endstopRelease,
             0  /* qid */); // TODO: we need to keep track of the qid to now if its still alive/busy
             // TODO: How about the stop command? We currently ignore it and just let the homing run until completion or timeout. We could add a "isStop" flag to PendingHomingCmd and check it here to allow stopping an ongoing homing operation.
+    }
+#endif
+
+#ifdef MOTOR_CONTROLLER
+    // Dispatch pending hard-limit config/clear commands
+    for (int ax = 0; ax < 4; ax++) {
+        if (!s_hardlimitCmds[ax].pending) continue;
+        s_hardlimitCmds[ax].pending = false;
+        if (s_hardlimitCmds[ax].isCommand) {
+            ESP_LOGI(TAG_CO, "Hard-limit CLEAR on axis %d via CAN", ax);
+            FocusMotor::clearHardLimitTriggered(ax);
+        }
+        if (s_hardlimitCmds[ax].isConfig) {
+            ESP_LOGI(TAG_CO, "Hard-limit CONFIG ax %d: enabled=%d polarity=%d via CAN",
+                     ax, (int)s_hardlimitCmds[ax].enabled, (int)s_hardlimitCmds[ax].polarity);
+            FocusMotor::setHardLimit(ax,
+                s_hardlimitCmds[ax].enabled  != 0,
+                s_hardlimitCmds[ax].polarity != 0);
+        }
     }
 #endif
 

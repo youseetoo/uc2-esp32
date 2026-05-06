@@ -129,6 +129,10 @@ typedef struct {
     uint8_t  x2025_tmc_blank_time[4];
     uint8_t  x2026_tmc_toff[4];
     uint32_t x2027_tmc_stall_count[4];
+    // hard limits (0x2030-0x2032)
+    uint8_t  x2030_hardlimit_command[4];
+    uint8_t  x2031_hardlimit_enabled[4];
+    uint8_t  x2032_hardlimit_polarity[4];
     // laser
     uint16_t x2100_laser_pwm_value[4];
     uint16_t x2101_laser_max_value[4];

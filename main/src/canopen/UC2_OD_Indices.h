@@ -52,6 +52,13 @@ constexpr uint16_t TMC_BLANK_TIME                           = 0x2025;
 constexpr uint16_t TMC_TOFF                                 = 0x2026;
 constexpr uint16_t TMC_STALL_COUNT                          = 0x2027;
 
+// ─── HARD_LIMIT (base 0x2030) ───
+// Per-axis hard-limit (endstop) configuration
+
+constexpr uint16_t HARDLIMIT_COMMAND                        = 0x2030;
+constexpr uint16_t HARDLIMIT_ENABLED                        = 0x2031;
+constexpr uint16_t HARDLIMIT_POLARITY                       = 0x2032;
+
 // ─── LASER (base 0x2100) ───
 // Laser intensity control via PWM, up to 4 channels per node
 

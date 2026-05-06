@@ -124,6 +124,11 @@ struct UC2_canopen_slave_motor : PinConfig
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
 
+    // limit settings 
+      bool hardLimitEnabledX = true; 
+      bool hardLimitPolarityX = true;
+
+
      // OTA settings
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
 

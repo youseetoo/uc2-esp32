@@ -165,6 +165,16 @@ struct PinConfig
      int8_t MOTOR_G_DIR = disabled;
      int8_t MOTOR_G_STEP = disabled;
 
+     // limit settings 
+      bool hardLimitEnabledA = false;
+      bool hardLimitPolarityA = false;
+      bool hardLimitEnabledX = false; 
+      bool hardLimitPolarityX = false;
+      bool hardLimitEnabledY = false;
+      bool hardLimitPolarityY = false;
+      bool hardLimitEnabledZ = false;
+      bool hardLimitPolarityZ = false;
+
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted

@@ -217,6 +217,10 @@ typedef struct {
     OD_obj_array_t  o_2025_tmc_blank_time;
     OD_obj_array_t  o_2026_tmc_toff;
     OD_obj_array_t  o_2027_tmc_stall_count;
+    /* UC2 hard limits (0x2030-0x2032) */
+    OD_obj_array_t  o_2030_hardlimit_command;
+    OD_obj_array_t  o_2031_hardlimit_enabled;
+    OD_obj_array_t  o_2032_hardlimit_polarity;
     /* UC2 laser (0x2100-0x2106) */
     OD_obj_array_t  o_2100_laser_pwm_value;
     OD_obj_array_t  o_2101_laser_max_value;
@@ -548,6 +552,12 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     .o_2026_tmc_toff                = _ARR4_U8(x2026_tmc_toff,                 ODA_SDO_RW),
     .o_2027_tmc_stall_count         = _ARR4_U32(x2027_tmc_stall_count,         ODA_SDO_R | ODA_TPDO),
     /* -----------------------------------------------------------------------
+     * UC2 hard limits (0x2030-0x2032)
+     * ----------------------------------------------------------------------- */
+    .o_2030_hardlimit_command  = _ARR4_U8(x2030_hardlimit_command,  ODA_SDO_RW | ODA_RPDO),
+    .o_2031_hardlimit_enabled  = _ARR4_U8(x2031_hardlimit_enabled,  ODA_SDO_RW | ODA_RPDO),
+    .o_2032_hardlimit_polarity = _ARR4_U8(x2032_hardlimit_polarity, ODA_SDO_RW | ODA_RPDO),
+    /* -----------------------------------------------------------------------
      * UC2 laser (0x2100-0x2106)
      * ----------------------------------------------------------------------- */
     .o_2100_laser_pwm_value      = _ARR4_U16(x2100_laser_pwm_value,      ODA_SDO_RW | ODA_RPDO),
@@ -811,6 +821,10 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2025, 0x05, ODT_ARR, &ODObjs.o_2025_tmc_blank_time,             NULL},
     {0x2026, 0x05, ODT_ARR, &ODObjs.o_2026_tmc_toff,                   NULL},
     {0x2027, 0x05, ODT_ARR, &ODObjs.o_2027_tmc_stall_count,            NULL},
+    /* UC2 hard limits */
+    {0x2030, 0x05, ODT_ARR, &ODObjs.o_2030_hardlimit_command,          NULL},
+    {0x2031, 0x05, ODT_ARR, &ODObjs.o_2031_hardlimit_enabled,          NULL},
+    {0x2032, 0x05, ODT_ARR, &ODObjs.o_2032_hardlimit_polarity,         NULL},
     /* UC2 laser */
     {0x2100, 0x05, ODT_ARR, &ODObjs.o_2100_laser_pwm_value,            NULL},
     {0x2101, 0x05, ODT_ARR, &ODObjs.o_2101_laser_max_value,            NULL},

@@ -321,8 +321,8 @@ namespace FocusMotor
 			data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
 			data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
 			data[Stepper::A]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::A)).c_str(), false);
-			data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), false);	  // Disabled by default
-			data[Stepper::A]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::A)).c_str(), false); // NO by default
+			data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), pinConfig.hardLimitEnabledA);	  // Disabled by default
+			data[Stepper::A]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::A)).c_str(), pinConfig.hardLimitPolarityA); // NO by default
 			isActivated[Stepper::A] = true;
 			log_i("Motor A position: %i", data[Stepper::A]->currentPosition);
 		}
@@ -333,8 +333,8 @@ namespace FocusMotor
 			data[Stepper::X]->currentPosition = preferences.getInt(("motor" + String(Stepper::X)).c_str());
 			data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
 			data[Stepper::X]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::X)).c_str(), false);
-			data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), false);	  // Disabled by default
-			data[Stepper::X]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::X)).c_str(), false); // NO by default
+			data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), pinConfig.hardLimitEnabledX);	  // Disabled by default
+			data[Stepper::X]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::X)).c_str(), pinConfig.hardLimitPolarityX); // NO by default
 			isActivated[Stepper::X] = true;
 			log_i("Motor X position: %i", data[Stepper::X]->currentPosition);
 		}
@@ -345,8 +345,8 @@ namespace FocusMotor
 			data[Stepper::Y]->currentPosition = preferences.getInt(("motor" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
 			data[Stepper::Y]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Y)).c_str(), false);
-			data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), false);	  // Disabled by default
-			data[Stepper::Y]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Y)).c_str(), false); // NO by default
+			data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), pinConfig.hardLimitEnabledY);	  // Disabled by default
+			data[Stepper::Y]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Y)).c_str(), pinConfig.hardLimitPolarityY); // NO by default
 			isActivated[Stepper::Y] = true;
 			log_i("Motor Y position: %i", data[Stepper::Y]->currentPosition);
 		}
@@ -357,8 +357,8 @@ namespace FocusMotor
 			data[Stepper::Z]->currentPosition = preferences.getInt(("motor" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
 			data[Stepper::Z]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Z)).c_str(), false);
-			data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), false);	  // Disabled by default
-			data[Stepper::Z]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Z)).c_str(), false); // NO by default
+			data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), pinConfig.hardLimitEnabledZ);	  // Disabled by default
+			data[Stepper::Z]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Z)).c_str(), pinConfig.hardLimitPolarityZ); // NO by default
 			isActivated[Stepper::Z] = true;
 			log_i("Motor Z position: %i", data[Stepper::Z]->currentPosition);
 		}
@@ -533,7 +533,12 @@ namespace FocusMotor
 
 		getData()[axis]->hardLimitEnabled = enabled;
 		getData()[axis]->hardLimitPolarity = polarity;
-		log_i("Set hard limit on axis %d: enabled=%d, polarity=%d (0=NO, 1=NC)", axis, enabled, polarity);
+		if (!enabled) {
+			// Immediately release any active lockout so motion is possible again
+			getData()[axis]->hardLimitLockoutDir = 0;
+			getData()[axis]->hardLimitTriggered = false;
+		}
+		log_i("Set hard limit on axis %d: enabled=%d, polarity=%d", axis, enabled, polarity);
 
 		// Save to preferences
 		preferences.begin("UC2", false);
@@ -553,7 +558,8 @@ namespace FocusMotor
 		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
 			return;
 		getData()[axis]->hardLimitTriggered = false;
-		log_i("Cleared hard limit triggered flag for axis %d", axis);
+		getData()[axis]->hardLimitLockoutDir = 0;  // must also clear lockout, directionAllowed() checks this
+		log_i("Cleared hard limit triggered flag and lockout for axis %d", axis);
 	}
 
 	// Per-axis hard-limit handling: trip detection (rising edge) and lockout-clear
@@ -566,9 +572,9 @@ namespace FocusMotor
 
 		bool endstopState = DigitalInController::getDigitalVal(digitalInputIdx);
 		bool polarity = md->hardLimitPolarity;
-		// Pressed when endstopState != polarity
-		// (NO/polarity=0: pressed=1; NC/polarity=1: pressed=0)
-		bool pressed = (endstopState != polarity);
+		// Same convention as homing: polarity is the digital state when the endstop IS triggered.
+		// polarity=1 -> triggered when HIGH; polarity=0 -> triggered when LOW.
+		bool pressed = (endstopState == polarity);
 
 		// --- Trip detection (rising edge while motor is moving) ---
 		if (pressed && isRunning(axis) && !md->hardLimitTriggered)

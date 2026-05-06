@@ -68,6 +68,52 @@ namespace FAccelStep
             delayMicroseconds(50);
         }
 
+        // Force a clean ramp-generator reset before re-arming, but ONLY when we
+        // are actually switching mode/direction. The original problem case:
+        // previous move(-N) leaves a residual ramp state, then runForward()
+        // reports isRunning=true but emits no pulses (homing Phase 9 -> Phase 1
+        // stuck for 17s). Solution: reset whenever the desired motion does not
+        // match the current ramp.
+        // Doing the reset unconditionally caused audible click/stutter when the
+        // PS4 controller streams continuous runForward() speed updates -- each
+        // update would forceStop+restart the engine. So gate the reset:
+        //   - isforever, new dir != current dir          -> reset
+        //   - isforever after a finite move (rs!=IDLE && finite target) -> reset
+        //   - !isforever (move/moveTo) and rs!=IDLE      -> reset (existing behaviour)
+        {   // TODO: This needs a revisiion - it's a massive hickup with the registers RMT and queue of FAS
+            // - we should only do that when we detect a direction change or when we switch from finite to infinite move or vice versa, but not on every move command if the motor is already running - that is just too much of a hickup and can cause stuttering and other issues - we need to check the current ramp state and speed and compare it to the new command to decide if we need to do a reset or not
+            const uint8_t rs0 = faststeppers[i]->rampState() & RAMP_STATE_MASK;
+            const int32_t curSpeedMilliHz = faststeppers[i]->getCurrentSpeedInMilliHz();
+            const bool wantForever = getData()[i]->isforever;
+            const int32_t wantSpeed = getData()[i]->speed;
+            bool needReset = false;
+            if (wantForever) {
+                // Reverse direction while running -> need reset
+                if (rs0 != RAMP_STATE_IDLE && wantSpeed != 0 &&
+                    ((wantSpeed > 0 && curSpeedMilliHz < 0) ||
+                     (wantSpeed < 0 && curSpeedMilliHz > 0))) {
+                    needReset = true;
+                }
+                // Coming out of a finite move while ramp not idle
+                else if (rs0 != RAMP_STATE_IDLE && !faststeppers[i]->isRunningContinuously()) {
+                    needReset = true;
+                }
+            } else {
+                if (rs0 != RAMP_STATE_IDLE) needReset = true;
+            }
+            if (needReset) {
+                faststeppers[i]->forceStopAndNewPosition(
+                    faststeppers[i]->getPositionAfterCommandsCompleted());
+                uint32_t t0 = millis();
+                while ((faststeppers[i]->rampState() & RAMP_STATE_MASK)
+                            != RAMP_STATE_IDLE
+                       && millis() - t0 < 10)
+                {
+                    delayMicroseconds(100);
+                }
+            }
+        }
+
         if (getData()[i]->isforever)
         {
             // run forver (e.g. PSx or initaited via Serial)
@@ -133,24 +179,9 @@ namespace FAccelStep
             }
                 */
 
-            // Force a clean ramp-generator reset before re-arming if the previous
-            // motion didn't fully drain. Only needed when the ramp is non-IDLE
-            // (e.g. caller is overriding an in-flight move). After a normal
-            // completion the ramp is IDLE and the residual curPos/endPos mismatch
-            // is just RMT position-counter lag — no reset required.
-            const uint8_t rs = faststeppers[i]->rampState() & RAMP_STATE_MASK;
-            if (rs != RAMP_STATE_IDLE)
-            {
-                faststeppers[i]->forceStopAndNewPosition(
-                    faststeppers[i]->getPositionAfterCommandsCompleted());
-                uint32_t t0 = millis();
-                while ((faststeppers[i]->rampState() & RAMP_STATE_MASK)
-                        != RAMP_STATE_IDLE
-                    && millis() - t0 < 10)
-                {
-                    delayMicroseconds(100);
-                }
-            }
+            // Ramp-generator reset is now performed unconditionally above
+            // for both isforever and targeted-move paths — see the
+            // forceStopAndNewPosition block right after the queue-full wait.
 
             if (getData()[i]->absolutePosition)
             {

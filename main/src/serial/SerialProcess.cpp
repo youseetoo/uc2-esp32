@@ -587,7 +587,7 @@ namespace SerialProcess
 		and a JSON object that holds the information for the
 		task that needs to be processed. It calls the get/act
 		function for the different controllers*/
-		if (false) // keep all other else ifs happy
+		/* KEEP THAT!! */ if (false) // keep all other else ifs happy
 			return;
 #ifdef ANALOG_OUT_CONTROLLER
 		else if (runtimeConfig.analogOut && strcmp(task, analogout_act_endpoint) == 0)
@@ -705,6 +705,9 @@ namespace SerialProcess
 #endif
 
 		else if (strcmp(task, state_act_endpoint) == 0)
+			// Handled by DeviceRouter::handleStateAct (PR-7.8). Should never
+			// reach here; kept as a safety net so a stray state_act doesn't
+			// silently fall through.
 			serialize(State::act(jsonDocument));
 		else if (strcmp(task, state_get_endpoint) == 0)
 			serialize(State::get(jsonDocument));

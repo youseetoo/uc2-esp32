@@ -41,6 +41,9 @@
 #ifdef GALVO_CONTROLLER
 #include "../scanner/GalvoController.h"
 #endif
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
 
 #include "CanOpenOTA.h"
 
@@ -375,7 +378,7 @@ static bool isNodeReachable(uint8_t nodeId)
             return false;
         }
         if ((millis() - slave.lastUpdateMs) > 5000) {
-            log_w("Node 0x%02X last update too old, skipping SDO operation", nodeId);
+            //log_w("Node 0x%02X last update too old, skipping SDO operation", nodeId);
             return false;
         }
         return true;
@@ -809,6 +812,22 @@ void CANopenModule::syncRpdoToModules_slave()
         OD_RAM.x2003_motor_command_word = 0;
     }
 
+    // Motor enable: detect change on the local axis and apply to driver.
+    // setEnable() is global (affects all FAS steppers on this board), so we
+    // only watch the entry corresponding to the local axis ID.
+    {
+        uint8_t localAx = (uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        if (localAx < 4) {
+            static uint8_t s_lastMotorEnable = 0xFF;
+            uint8_t en = OD_RAM.x2005_motor_enable[localAx];
+            if (en != s_lastMotorEnable) {
+                s_lastMotorEnable = en;
+                log_i("Motor enable change ax=%u -> %u", localAx, en);
+                FocusMotor::setEnable(en != 0);
+            }
+        }
+    }
+
     // Throttle STALE-pending warnings: this is called from CO_tmr_task at 1ms,
     // logging every tick floods the serial port and starves IDLE0 -> task watchdog
     // reset. Only warn once per axis if the pending hasn't been consumed for >200 ms.
@@ -992,6 +1011,78 @@ void CANopenModule::syncRpdoToModules_slave()
         }
     }
 #endif
+
+#ifdef TMC_CONTROLLER
+    // TMC params: detect change of any tracked OD entry on the local axis
+    // and dispatch the new TMCData to TMCController. Comparing each field
+    // separately avoids spurious reapplies when the master writes only one
+    // entry at a time (each SDO write here lands one tick at a time).
+    {
+        uint8_t localAx = (uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        if (localAx < 4) {
+            static uint16_t lastMs    = 0xFFFF;
+            static uint16_t lastCur   = 0xFFFF;
+            static uint8_t  lastSg    = 0xFF;
+            static uint8_t  lastSemin = 0xFF;
+            static uint8_t  lastSemax = 0xFF;
+            static uint8_t  lastBlank = 0xFF;
+            static uint8_t  lastToff  = 0xFF;
+            uint16_t ms    = OD_RAM.x2020_tmc_microsteps[localAx];
+            uint16_t cur   = OD_RAM.x2021_tmc_rms_current[localAx];
+            uint8_t  sg    = OD_RAM.x2022_tmc_stallguard_threshold[localAx];
+            uint8_t  semin = OD_RAM.x2023_tmc_coolstep_semin[localAx];
+            uint8_t  semax = OD_RAM.x2024_tmc_coolstep_semax[localAx];
+            uint8_t  blank = OD_RAM.x2025_tmc_blank_time[localAx];
+            uint8_t  toff  = OD_RAM.x2026_tmc_toff[localAx];
+
+            if (ms != lastMs || cur != lastCur || sg != lastSg
+                || semin != lastSemin || semax != lastSemax
+                || blank != lastBlank || toff != lastToff) {
+                lastMs    = ms;
+                lastCur   = cur;
+                lastSg    = sg;
+                lastSemin = semin;
+                lastSemax = semax;
+                lastBlank = blank;
+                lastToff  = toff;
+
+                TMCData p{};
+                // Only forward fields with non-zero values; the OD initial
+                // state is all-zero, applying that to the driver would brick
+                // the stepper. Zero-valued fields keep the existing values.
+                p.msteps      = ms    ? ms    : pinConfig.tmc_microsteps;
+                p.rms_current = cur   ? cur   : pinConfig.tmc_rms_current;
+                p.sgthrs      = sg    ? sg    : pinConfig.tmc_sgthrs;
+                p.semin       = semin ? semin : pinConfig.tmc_semin;
+                p.semax       = semax ? semax : pinConfig.tmc_semax;
+                p.blank_time  = blank ? blank : pinConfig.tmc_blank_time;
+                p.toff        = toff  ? toff  : pinConfig.tmc_toff;
+                // Fields not in the OD keep their pinConfig defaults
+                p.stall_value = pinConfig.tmc_stall_value;
+                p.sedn        = pinConfig.tmc_sedn;
+                p.tcoolthrs   = pinConfig.tmc_tcoolthrs;
+
+                log_i("TMC OD change ax=%u msteps=%u current=%u sgthrs=%u",
+                      localAx, ms, cur, sg);
+                TMCController::applyParamsToDriver(p, true);
+            }
+        }
+    }
+#endif
+
+#ifdef CAN_CONTROLLER_CANOPEN
+    // Reboot command: master writes 1 to 0x2507; slave performs ESP.restart().
+    {
+        uint8_t v = OD_RAM.x2507_reboot_command;
+        if (v != 0) {
+            log_w("Reboot command received via CANopen — restarting in 200 ms");
+            OD_RAM.x2507_reboot_command = 0;
+            // Defer slightly so the SDO server can complete its response frame
+            vTaskDelay(pdMS_TO_TICKS(200));
+            ESP.restart();
+        }
+    }
+#endif
 }
 
 // Master: drain RPDO-written OD_RAM entries into the remote slave cache.
@@ -1027,8 +1118,10 @@ void CANopenModule::syncRpdoToModules_master()
         uint32_t nowLog = millis();
         if ((nowLog - s_lastRpdoLogMs) >= 1000) {
             s_lastRpdoLogMs = nowLog;
+            /*
             log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
                   slot, (long)newPos, newStatus, (int)nowRunning);
+                  */
         }
 
         // Mirror into FocusMotor data so /motor_get keeps working
@@ -1044,10 +1137,34 @@ void CANopenModule::syncRpdoToModules_master()
                 md->stopped         = !nowRunning;
             }
 
-            // Detect running -> stopped transition -> report completion via QidRegistry
+            // Detect running -> stopped transition -> emit position JSON
+            // (matches FocusMotor::sendMotorPos format) and report completion via QidRegistry.
+            // ImSwitch / PS4 controller path watch for {"steppers":[{...,"isDone":1}]}.
             if (wasRunning && !nowRunning) {
                 ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) DONE pos=%ld",
                          slot, logicalAx, (long)newPos);
+
+                cJSON* root = cJSON_CreateObject();
+                if (root) {
+                    cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
+                    cJSON* item  = cJSON_CreateObject();
+                    if (stprs && item) {
+                        cJSON_AddNumberToObject(item, "stepperid", logicalAx);
+                        cJSON_AddNumberToObject(item, "position",  newPos);
+                        cJSON_AddNumberToObject(item, "isDone",    1);
+                        cJSON_AddItemToArray(stprs, item);
+                        cJSON_AddNumberToObject(root, "qid", md ? md->qid : -1);
+                        char* jsonStr = cJSON_PrintUnformatted(root);
+                        if (jsonStr) {
+                            SerialProcess::safeSendJsonString(jsonStr);
+                            free(jsonStr);
+                        }
+                    } else if (item) {
+                        cJSON_Delete(item);
+                    }
+                    cJSON_Delete(root);
+                }
+
                 if (md && md->qid > 0) {
                     QidRegistry::reportActionDone(md->qid);
                 }

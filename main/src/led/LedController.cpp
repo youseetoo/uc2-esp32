@@ -872,38 +872,32 @@ namespace LedController
 			log_e("setMode: LED matrix not initialized");
 			return;
 		}
-		uint8_t r = (colour >> 16) & 0xFF;
-		uint8_t g = (colour >> 8)  & 0xFF;
-		uint8_t b = (colour)       & 0xFF;
 
 		// Disable pattern animation when a mode is explicitly set
 		activePatternId = 0;
-
 		matrix->setBrightness(brightness);
 
+		// Build a LedCommand and dispatch through execLedCommand so the same
+		// thermal protection / mode handling logic applies as for JSON input.
+		LedCommand cmd{};
+		cmd.qid = 0;
+		cmd.r = (colour >> 16) & 0xFF;
+		cmd.g = (colour >> 8)  & 0xFF;
+		cmd.b = (colour)       & 0xFF;
+		cmd.radius = 0;
+		cmd.ledIndex = 0;
+		cmd.region[0] = '\0';
+
 		switch (mode) {
-			case 0: // OFF
-				turnOff();
-				break;
-			case 1: // FILL — uniform colour for the whole strip
-				fillAll(r, g, b);
-				break;
-			case 2: // HALVES left
-				fillHalves("left", r, g, b);
-				break;
-			case 3: // HALVES right
-				fillHalves("right", r, g, b);
-				break;
-			case 4: // HALVES top
-				fillHalves("top", r, g, b);
-				break;
-			case 5: // HALVES bottom
-				fillHalves("bottom", r, g, b);
-				break;
-			default:
-				fillAll(r, g, b);
-				break;
+			case 0: cmd.mode = LedMode::OFF;    break;
+			case 1: cmd.mode = LedMode::FILL;   break;
+			case 2: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "left",   sizeof(cmd.region) - 1); break;
+			case 3: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "right",  sizeof(cmd.region) - 1); break;
+			case 4: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "top",    sizeof(cmd.region) - 1); break;
+			case 5: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "bottom", sizeof(cmd.region) - 1); break;
+			default: cmd.mode = LedMode::FILL;  break;
 		}
+		execLedCommand(cmd);
 	}
 
 	// ------------------------------------------------

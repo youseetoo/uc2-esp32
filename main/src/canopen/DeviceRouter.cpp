@@ -41,6 +41,8 @@
 #include "../tmc/TMCController.h"
 #endif
 
+#include "../state/State.h"
+
 
 static const char* TAG = "UC2_DR";
 
@@ -88,6 +90,12 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
         return handleTmcGet(doc);
 #endif
 
+    // State act — handles "restart" with optional remote nodeId targeting.
+    // state_get stays in SerialProcess for now (local State::get also serves
+    // the master uptime; remote uptime is reachable via /can_get).
+    if (strcmp(task, state_act_endpoint) == 0) // {"task":"/state_act","state":"restart","nodeId":11}
+        return handleStateAct(doc);
+
     return nullptr; // not a routed command
 }
 
@@ -118,6 +126,25 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     MotorJsonParser::parseMotorPinDirection(doc);    // setdir
     MotorJsonParser::parseSetHardLimits(doc);        // hardlimits
     MotorJsonParser::parseSetJoystickDirection(doc); // joystickdir
+
+#ifdef CAN_CONTROLLER_CANOPEN
+    // Forward motor-enable to remote nodes via SDO. parseEnableMotor only
+    // handles the local driver(s); without this, a master's {"isen":1} never
+    // reaches a slave-mounted motor.
+    {
+        cJSON* isenItem = cJSON_GetObjectItemCaseSensitive(doc, "isen");
+        if (isenItem) {
+            uint8_t isen = (cJSON_IsTrue(isenItem)
+                            || (cJSON_IsNumber(isenItem) && isenItem->valueint != 0)) ? 1 : 0;
+            for (int ax = 0; ax < 4; ax++) {
+                const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, (uint8_t)ax);
+                if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
+                CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::MOTOR_ENABLE,
+                                           (uint8_t)(r->subAxis + 1), isen);
+            }
+        }
+    }
+#endif
 
 #ifdef STAGE_SCAN
     // Stage scanning is master-side orchestration — it issues motor.move
@@ -804,14 +831,62 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
 
 // ============================================================================
 // TMC act — routing-table dispatch
+// REMOTE: write the TMC OD entries (0x2020..0x2026) for the slave's axis,
+// the slave's syncRpdoToModules_slave reassembles a TMCData and applies it.
+// LOCAL : delegate to TMCController::act for the legacy single-board path.
 // ============================================================================
 cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
 #ifdef TMC_CONTROLLER
-    // TMC config is board-specific — always local
+    int axis = cJsonTool::getJsonInt(doc, "axis");
+    if (axis < 0) axis = 0;
+
+    const auto* route = UC2::RoutingTable::find(
+        UC2::RouteEntry::TMC, (uint8_t)axis);
+
+    // Default to local when no route is configured (single-board builds).
+    bool isRemote = (route && route->where == UC2::RouteEntry::REMOTE);
+
+    if (!isRemote) {
+        int result = TMCController::act(doc);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", result);
+        return resp;
+    }
+
+#ifdef CAN_CONTROLLER_CANOPEN
+    uint8_t nodeId = route->nodeId;
+    uint8_t sub    = (uint8_t)(route->subAxis + 1);
+    bool ok = true;
+
+    log_i("Routing tmc_act to REMOTE node 0x%02X axis %u (logical %d)",
+          nodeId, route->subAxis, axis);
+
+    int v;
+    v = cJsonTool::getJsonInt(doc, "msteps");
+    if (v > 0) ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::TMC_MICROSTEPS,           sub, (uint16_t)v) && ok;
+    v = cJsonTool::getJsonInt(doc, "rms_current");
+    if (v > 0) ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::TMC_RMS_CURRENT,          sub, (uint16_t)v) && ok;
+    v = cJsonTool::getJsonInt(doc, "sgthrs");
+    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_STALLGUARD_THRESHOLD, sub, (uint8_t)v)  && ok;
+    v = cJsonTool::getJsonInt(doc, "semin");
+    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_COOLSTEP_SEMIN,       sub, (uint8_t)v)  && ok;
+    v = cJsonTool::getJsonInt(doc, "semax");
+    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_COOLSTEP_SEMAX,       sub, (uint8_t)v)  && ok;
+    v = cJsonTool::getJsonInt(doc, "blank_time");
+    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_BLANK_TIME,           sub, (uint8_t)v)  && ok;
+    v = cJsonTool::getJsonInt(doc, "toff");
+    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_TOFF,                 sub, (uint8_t)v)  && ok;
+
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+    return resp;
+#else
+    log_w("REMOTE TMC routing requires CANopen — falling back to local");
     int result = TMCController::act(doc);
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "return", result);
     return resp;
+#endif
 #else
     return nullptr;
 #endif
@@ -822,8 +897,18 @@ cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
 #ifdef LASER_CONTROLLER
-    // For now, always query local controller.
-    // TODO: REMOTE SDO read for laser state when OD entries are wired up
+    // PR-7.8 Issue 7: warn if any laser is REMOTE — get over CAN not yet implemented.
+    for (uint8_t id = 0; id < 4; ++id) {
+        const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LASER, id);
+        if (r && r->where == UC2::RouteEntry::REMOTE) {
+            log_w("laser_get: laser %u is REMOTE — get over CAN not implemented yet", id);
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", 0);
+            cJSON_AddStringToObject(resp, "error",
+                "device is on remote node — get not implemented over CAN yet");
+            return resp;
+        }
+    }
     return LaserController::get(doc);
 #else
     return nullptr;
@@ -835,7 +920,18 @@ cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleHomeGet(cJSON* doc) {
 #ifdef HOME_MOTOR
-    // Homing status is always local (homing runs on the board that owns the motor)
+    // PR-7.8 Issue 7: warn if any homing axis is REMOTE.
+    for (uint8_t ax = 0; ax < 4; ++ax) {
+        const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::HOME, ax);
+        if (r && r->where == UC2::RouteEntry::REMOTE) {
+            log_w("home_get: axis %u is REMOTE — get over CAN not implemented yet", ax);
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", 0);
+            cJSON_AddStringToObject(resp, "error",
+                "device is on remote node — get not implemented over CAN yet");
+            return resp;
+        }
+    }
     return HomeMotor::get(doc);
 #else
     return nullptr;
@@ -847,6 +943,16 @@ cJSON* DeviceRouter::handleHomeGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLedGet(cJSON* doc) {
 #ifdef LED_CONTROLLER
+    // PR-7.8 Issue 7: warn if LED array is REMOTE.
+    const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
+    if (r && r->where == UC2::RouteEntry::REMOTE) {
+        log_w("led_get: LED array is REMOTE — get over CAN not implemented yet");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", 0);
+        cJSON_AddStringToObject(resp, "error",
+            "device is on remote node — get not implemented over CAN yet");
+        return resp;
+    }
     return LedController::get(doc);
 #else
     return nullptr;
@@ -941,3 +1047,35 @@ cJSON* DeviceRouter::handleStateGet(uint8_t nodeId) {
     return resp;
 }
 #endif // CAN_CONTROLLER_CANOPEN
+
+// ============================================================================
+// State act — routes restart/reboot to a remote node when "nodeId" is given,
+// otherwise delegates to the local State::act handler.
+// JSON shape examples:
+//   {"task":"/state_act","restart":1}                — local restart
+//   {"task":"/state_act","restart":1,"nodeId":11}    — restart remote node 11
+// ============================================================================
+cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
+#ifdef CAN_CONTROLLER_CANOPEN
+    cJSON* nodeItem = cJSON_GetObjectItemCaseSensitive(doc, "nodeId");
+    cJSON* restartItem = cJSON_GetObjectItemCaseSensitive(doc, "restart");
+    bool wantRestart = restartItem
+        && (cJSON_IsTrue(restartItem)
+            || (cJSON_IsNumber(restartItem) && restartItem->valueint != 0));
+
+    if (nodeItem && cJSON_IsNumber(nodeItem) && wantRestart) {
+        uint8_t nodeId = (uint8_t)nodeItem->valueint;
+        log_w("state_act restart -> remote node 0x%02X via SDO", nodeId);
+        bool ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::REBOOT_COMMAND, 0x00, 1);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+        cJSON_AddNumberToObject(resp, "nodeId", nodeId);
+        return resp;
+    }
+#endif
+    // Local handling — State::act will perform ESP.restart() or other ops
+    int rc = State::act(doc);
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "return", rc);
+    return resp;
+}

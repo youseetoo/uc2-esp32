@@ -28,6 +28,10 @@ public:
     static cJSON* handleTmcAct(cJSON* doc);
     static cJSON* handleTmcGet(cJSON* doc);
 
+    // State act — currently only routes "restart" to a remote node when
+    // "nodeId" is provided in the JSON; other state ops are handled locally.
+    static cJSON* handleStateAct(cJSON* doc);
+
 private:
 #ifdef CAN_CONTROLLER_CANOPEN
     static cJSON* handleStateGet(uint8_t nodeId);

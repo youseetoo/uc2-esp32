@@ -411,11 +411,17 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
     }   
     // Fast-fail when slave hasn't been heard from (no recent TPDO).
     // Discovery happens via the slave's heartbeat toggle in its TPDO.
-    if (!isNodeReachable(nodeId)) return false;
+    if (!isNodeReachable(nodeId)) {
+        log_e("writeSDO: node 0x%02X not reachable, skipping idx=0x%04X sub=0x%02X", nodeId, index, subIndex);
+        return false;
+    }
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize);
     if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+    if (ret != CO_SDO_AB_NONE) {
+        log_e("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed, abort=0x%08lX", nodeId, index, subIndex, (unsigned long)ret);
+    }
     return (ret == CO_SDO_AB_NONE);
 }
 

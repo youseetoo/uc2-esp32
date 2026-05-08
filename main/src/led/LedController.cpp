@@ -875,7 +875,11 @@ namespace LedController
 
 		// Disable pattern animation when a mode is explicitly set
 		activePatternId = 0;
-		matrix->setBrightness(brightness);
+		// Only apply brightness when explicitly non-zero. Brightness=0 (the OD
+		// default when the master never wrote x2201_led_brightness via SDO)
+		// would permanently zero Adafruit_NeoPixel's global brightness scaler,
+		// making all subsequent ledShow() calls render black.
+		if (brightness > 0) matrix->setBrightness(brightness);
 
 		// Build a LedCommand and dispatch through execLedCommand so the same
 		// thermal protection / mode handling logic applies as for JSON input.

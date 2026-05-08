@@ -1,4 +1,4 @@
-# Motor Settings Refactoring
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 4, "speed":20000, "position": 100000,  "isabs": 0}]}, "qid": 5}# Motor Settings Refactoring
 
 ## Overview
 

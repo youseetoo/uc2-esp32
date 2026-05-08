@@ -84,6 +84,8 @@ namespace DigitalInController
 			if(pinConfig.pinEmergencyExit>0){
 				log_i("Emergency Exit: %i", pinConfig.pinEmergencyExit);
 				pinMode(pinConfig.pinEmergencyExit, INPUT_PULLDOWN);
+				// Initialize state from actual pin to avoid false trigger on first loop()
+				pinEmergencyExitState = digitalRead(pinConfig.pinEmergencyExit);
 			}			
 			else{
 				/* setup the output nodes and reset them to 0*/

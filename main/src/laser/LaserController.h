@@ -35,14 +35,6 @@ namespace LaserController
     int getLaserPin(int LASERid);
     int getPWMChannel(int LASERid);
     
-    // Hybrid mode support: determines if a laser should use CAN or native driver
-    // Returns true if laser should be routed to CAN bus, false for native driver
-    bool shouldUseCANForLaser(int LASERid);
-    
-    // Hybrid mode support: converts internal hybrid laser ID (4,5,6,7) to CAN laser ID (0,1,2,3)
-    // Used when sending commands to CAN satellites in hybrid mode
-    int getCANLaserIdForHybrid(int LASERid);
-    
     // Main API functions
     int getLaserVal(int LASERid);
     bool setLaserVal(int LASERid, int LASERval, int qid = 0);

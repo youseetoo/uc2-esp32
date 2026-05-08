@@ -107,10 +107,11 @@ struct seeed_xiao_esp32s3_can_slave_illumination : PinConfig
 
     // PWM configuration for the white LED driver:
     // - Minimum 10 kHz required by the LED driver to avoid flicker at low dimming levels
-    // - 12-bit resolution (4096 steps) is the maximum for f >= 10 kHz on ESP32
-    //   (ESP32 LEDC: f_max = 80 MHz / 2^12 = 19.5 kHz > 10 kHz ✓)
+    // - ESP32-S3 LEDC uses a 40 MHz clock source (not 80 MHz like plain ESP32).
+    //   div_param = (40 MHz * 256) / (freq * 2^res) must be >= 256 (integer part >= 1).
+    //   At 10 kHz + 12-bit: div_param = 250 → FAILS. At 10 kHz + 11-bit: div_param = 500 ✓
     int LASER_PWM_FREQUENCY = 10000; // Hz (10 kHz - minimum for LED driver)
-    int LASER_PWM_RESOLUTION = 12;   // bits (4096 steps for smooth dimming)
+    int LASER_PWM_RESOLUTION = 11;   // bits (2048 steps, max for 10 kHz on ESP32-S3 / 40 MHz clock)
     
     // CAN communication
     int8_t CAN_TX = GPIO_NUM_5; // D4 - CAN Tx

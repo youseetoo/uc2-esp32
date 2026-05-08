@@ -2,6 +2,7 @@
 #include "State.h"
 #include "esp_log.h"
 #include "../config/ConfigController.h"
+#include "../config/RuntimeConfig.h"
 #include "Preferences.h"
 #include "cJsonTool.h"
 #include "Arduino.h"
@@ -13,7 +14,7 @@
 #include "../i2c/i2c_master.h"
 
 #ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#include "../can/can_transport.h"
 #endif
 namespace State
 {
@@ -160,7 +161,14 @@ namespace State
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
 			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
 			#ifdef CAN_CONTROLLER
-			cJSON_AddItemToObject(st, "CAN_SLAVE", cJSON_CreateNumber(pinConfig.CAN_ID_CURRENT));
+			// Report the active node-id from runtimeConfig (may differ from
+			// pinConfig.CAN_ID_CURRENT after LSS conflict resolution / NVS edits)
+			cJSON_AddItemToObject(st, "CAN_SLAVE", cJSON_CreateNumber(runtimeConfig.canNodeId));
+			cJSON_AddItemToObject(st, "CAN_SLAVE_DEFAULT", cJSON_CreateNumber(pinConfig.CAN_ID_CURRENT));
+			#endif
+			#ifdef CAN_CONTROLLER_CANOPEN
+			cJSON_AddItemToObject(st, "CAN_SLAVE", cJSON_CreateNumber(runtimeConfig.canNodeId));
+			cJSON_AddItemToObject(st, "CAN_SLAVE_DEFAULT", cJSON_CreateNumber(pinConfig.CAN_ID_CURRENT));
 			#endif
 			#ifdef GIT_COMMIT_HASH
 				cJSON_AddItemToObject(st, "git_commit", cJSON_CreateString(GIT_COMMIT_HASH));

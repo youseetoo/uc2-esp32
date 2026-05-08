@@ -117,7 +117,6 @@ __attribute__ ((unused)) static const PROGMEM char * key_linearencoder_stall_tim
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisstop = "isStop";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisrunning = "isRunning";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperisforever = "isforever";
-__attribute__ ((unused)) static const PROGMEM char * key_stepperisen = "isen";
 __attribute__ ((unused)) static const PROGMEM char * key_stepperstopped = "stopped";
 
 __attribute__ ((unused)) static const PROGMEM char * key_rotator = "rotator";
@@ -152,8 +151,6 @@ __attribute__ ((unused)) static const PROGMEM char * key_steppin_inverted = "ste
 __attribute__ ((unused)) static const PROGMEM char * key_enablepin_inverted = "enable_inverted";
 __attribute__ ((unused)) static const PROGMEM char * key_min_position = "min_pos";
 __attribute__ ((unused)) static const PROGMEM char * key_max_position = "max_pos";
-__attribute__ ((unused)) static const PROGMEM char * key_steppermin = "min";
-__attribute__ ((unused)) static const PROGMEM char * key_steppermax = "max";
 __attribute__ ((unused)) static const PROGMEM char * key_settrigger = "setTrig";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerpin = "trigPin";
 __attribute__ ((unused)) static const PROGMEM char * key_triggerperiod = "trigPer";

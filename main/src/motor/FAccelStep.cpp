@@ -41,9 +41,8 @@ namespace FAccelStep
         // ramp settings. FAS has no true "constant velocity" mode for
         // moveTo/move, so when the user asks for no acceleration we use
         // MAX_ACCELERATION_A to keep the ramp as short as possible.
-        const bool wantAccel = getData()[i]->isaccelerated != 0;
         const int32_t reqAccel = getData()[i]->acceleration;
-        if (wantAccel && reqAccel > 0)
+        if (reqAccel > 0)
         {
             if (faststeppers[i]->setAcceleration(reqAccel) != 0)
             {
@@ -58,20 +57,7 @@ namespace FAccelStep
         }
 
         // Check soft limits before allowing movement (unless homing is active)
-        if (getData()[i]->softLimitEnabled && !getData()[i]->isforever && !getData()[i]->isHoming)
-        {
-            int32_t targetPos = getData()[i]->absolutePosition 
-                ? getData()[i]->targetPosition 
-                : faststeppers[i]->getCurrentPosition() + getData()[i]->targetPosition;
-            
-            if (targetPos < getData()[i]->minPos || targetPos > getData()[i]->maxPos)
-            {
-                log_e("Motor %i: Soft limit violation! Target=%ld, Limits=[%ld, %ld]", 
-                      i, (long)targetPos, (long)getData()[i]->minPos, (long)getData()[i]->maxPos);
-                getData()[i]->stopped = true;
-                return;
-            }
-        }
+        // (Removed: soft-limit subsystem deleted; hard limits via endstops are the only positional safety.)
 
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
@@ -80,6 +66,52 @@ namespace FAccelStep
         while (faststeppers[i]->isQueueFull())
         {
             delayMicroseconds(50);
+        }
+
+        // Force a clean ramp-generator reset before re-arming, but ONLY when we
+        // are actually switching mode/direction. The original problem case:
+        // previous move(-N) leaves a residual ramp state, then runForward()
+        // reports isRunning=true but emits no pulses (homing Phase 9 -> Phase 1
+        // stuck for 17s). Solution: reset whenever the desired motion does not
+        // match the current ramp.
+        // Doing the reset unconditionally caused audible click/stutter when the
+        // PS4 controller streams continuous runForward() speed updates -- each
+        // update would forceStop+restart the engine. So gate the reset:
+        //   - isforever, new dir != current dir          -> reset
+        //   - isforever after a finite move (rs!=IDLE && finite target) -> reset
+        //   - !isforever (move/moveTo) and rs!=IDLE      -> reset (existing behaviour)
+        {   // TODO: This needs a revisiion - it's a massive hickup with the registers RMT and queue of FAS
+            // - we should only do that when we detect a direction change or when we switch from finite to infinite move or vice versa, but not on every move command if the motor is already running - that is just too much of a hickup and can cause stuttering and other issues - we need to check the current ramp state and speed and compare it to the new command to decide if we need to do a reset or not
+            const uint8_t rs0 = faststeppers[i]->rampState() & RAMP_STATE_MASK;
+            const int32_t curSpeedMilliHz = faststeppers[i]->getCurrentSpeedInMilliHz();
+            const bool wantForever = getData()[i]->isforever;
+            const int32_t wantSpeed = getData()[i]->speed;
+            bool needReset = false;
+            if (wantForever) {
+                // Reverse direction while running -> need reset
+                if (rs0 != RAMP_STATE_IDLE && wantSpeed != 0 &&
+                    ((wantSpeed > 0 && curSpeedMilliHz < 0) ||
+                     (wantSpeed < 0 && curSpeedMilliHz > 0))) {
+                    needReset = true;
+                }
+                // Coming out of a finite move while ramp not idle
+                else if (rs0 != RAMP_STATE_IDLE && !faststeppers[i]->isRunningContinuously()) {
+                    needReset = true;
+                }
+            } else {
+                if (rs0 != RAMP_STATE_IDLE) needReset = true;
+            }
+            if (needReset) {
+                faststeppers[i]->forceStopAndNewPosition(
+                    faststeppers[i]->getPositionAfterCommandsCompleted());
+                uint32_t t0 = millis();
+                while ((faststeppers[i]->rampState() & RAMP_STATE_MASK)
+                            != RAMP_STATE_IDLE
+                       && millis() - t0 < 10)
+                {
+                    delayMicroseconds(100);
+                }
+            }
         }
 
         if (getData()[i]->isforever)
@@ -124,15 +156,40 @@ namespace FAccelStep
             TMCController::setTMCCurrent(rmsCurrFromPref);
 #endif
 
+/*
+            // Force a clean ramp-generator reset before re-arming. Without this,
+            // a direction reversal (e.g. previous move +N, this move -M) can
+            // leave residual entries in the FAS queue: getCurrentPosition()
+            // stalls a few steps shy of getPositionAfterCommandsCompleted(),
+            // ramp state goes IDLE, but isRunning() stays true forever because
+            // it ORs both. Symptom: 50-step undershoot + isRunning never clears.
+            // Stopping the queue first guarantees a fresh start.
+            if (faststeppers[i]->isRunning() ||
+                faststeppers[i]->getCurrentPosition() !=
+                    faststeppers[i]->getPositionAfterCommandsCompleted())
+            {
+                faststeppers[i]->forceStopAndNewPosition(
+                    faststeppers[i]->getCurrentPosition());
+                // Brief settle so the engine fully drains the queue/RMT.
+                uint32_t t0 = millis();
+                while (faststeppers[i]->isRunning() && millis() - t0 < 10)
+                {
+                    delayMicroseconds(100);
+                }
+            }
+                */
+
+            // Ramp-generator reset is now performed unconditionally above
+            // for both isforever and targeted-move paths — see the
+            // forceStopAndNewPosition block right after the queue-full wait.
+
             if (getData()[i]->absolutePosition)
             {
-                // absolute position coordinates
                 log_i("moveTo %i", getData()[i]->targetPosition);
                 faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             }
             else
             {
-                // relative position coordinates
                 log_i("move %i", getData()[i]->targetPosition);
                 faststeppers[i]->move(getData()[i]->targetPosition, false);
             }
@@ -151,7 +208,7 @@ namespace FAccelStep
         }
         // "unstop" the motor after it has actually started?
         getData()[i]->stopped = false;
-        
+
         log_i("start stepper (act): motor:%i isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i, isStopped %i, isRunning %i",
               i,
               getData()[i]->isforever,
@@ -163,7 +220,6 @@ namespace FAccelStep
               getData()[i]->acceleration,
               getData()[i]->stopped,
               isRunning(i));
-              
     }
 
     void setupFastAccelStepper()
@@ -222,10 +278,64 @@ namespace FAccelStep
         // log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
         // log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
 
-        // Always try RMT first. RMT inserts a MIN_CMD_TICKS pause before
-        // direction toggles which the MCPWM/PCNT driver does not, and on
-        // boards without an encoder there is no PCNT contention to worry
-        // about. Fall back to MCPWM/PCNT only if RMT allocation fails.
+        // Driver selection.
+        //
+        // The MCPWM/PCNT backend in our FastAccelStepper fork does NOT
+        // honor the external-direction-pin handshake correctly: even when
+        // the wrapper returns the *previous* state (signalling "DIR not
+        // settled yet"), the MCPWM/PCNT pipeline still emits a few
+        // already-loaded step pulses on direction reversal. Result: the
+        // STAGE walks +3 extra steps every time the move reverses
+        // direction. The standalone reproducer (which uses DRIVER_RMT)
+        // does not show this — the RMT ISR re-applies the repeating
+        // pause command without firing additional STEP pulses.
+        //
+        // Therefore: when ANY motor pin is routed through the TCA9535
+        // I/O expander (USE_TCA9535), the external-pin handshake is
+        // mandatory and we MUST use the RMT backend, regardless of
+        // LED_CONTROLLER.
+        //
+        // RMT vs NeoPixel coexistence: FAS-RMT calls rmt_isr_register()
+        // (a global shared ISR) and Adafruit_NeoPixel calls
+        // rmt_driver_install(). They are mutually exclusive on the same
+        // RMT controller, but each FAS stepper allocates its own RMT
+        // channel (channels 0..3 for steppers, channels 4..7 free for
+        // NeoPixel) and rmt_isr_register vs rmt_driver_install can
+        // coexist as long as they target different channels — which is
+        // already the case here. The historical comment about a panic
+        // was for the old single-RMT-ISR path.
+#if defined(USE_TCA9535)
+        // External direction pins via TCA: must use RMT for correct
+        // dir-change handshake. No fallback — MCPWM/PCNT would silently
+        // re-introduce the +3-step bug on every direction reversal.
+        faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+        if (faststeppers[stepper] == nullptr)
+        {
+            log_e("Motor %d: RMT unavailable but USE_TCA9535 requires it. "
+                  "Direction-reversal handshake will not work — refusing to "
+                  "fall back to MCPWM/PCNT to avoid silent +3-step drift.",
+                  stepper);
+        }
+        else
+        {
+            log_i("Motor %d: using RMT driver (required for TCA9535 dir handshake)", stepper);
+        }
+#elif defined(LED_CONTROLLER) && !defined(LINEAR_ENCODER_CONTROLLER)
+        // NeoPixel-only board with native dir pins: no external-pin
+        // handshake needed, so MCPWM/PCNT is fine and frees RMT for
+        // NeoPixel exclusively.
+        faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
+        if (faststeppers[stepper] == nullptr)
+        {
+            log_e("Motor %d: failed to create MCPWM/PCNT stepper", stepper);
+        }
+        else
+        {
+            log_i("Motor %d: using MCPWM/PCNT driver (LED_CONTROLLER keeps RMT for NeoPixel)", stepper);
+        }
+#else
+        // Always try RMT first. Fall back to MCPWM/PCNT only if RMT
+        // allocation fails.
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
         if (faststeppers[stepper] == nullptr)
         {
@@ -236,6 +346,7 @@ namespace FAccelStep
         {
             log_i("Motor %d: using RMT driver", stepper);
         }
+#endif
 
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, getData()[stepper]->directionPinInverted);
@@ -254,6 +365,7 @@ namespace FAccelStep
         // its own; do not re-add them.
     }
 
+    /*
     void stopFastAccelStepper(int i)
     {
         if (faststeppers[i] == nullptr)
@@ -270,6 +382,35 @@ namespace FAccelStep
         getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
         getData()[i]->stopped = true;
     }
+    */
+
+void stopFastAccelStepper(int i)
+    {
+        if (faststeppers[i] == nullptr)
+            return;
+        FastAccelStepper* s = faststeppers[i];
+
+        // Choose the post-stop position carefully:
+        //   - If ramp is IDLE, the move completed normally. The queue-end
+        //     position is where the motor physically is (RMT may have
+        //     emitted pulses the position counter hasn't accounted for yet).
+        //   - If ramp is non-IDLE (user-initiated stop mid-motion), use the
+        //     live position — the motor was actually moving and queue-end
+        //     is far ahead of where we want to halt.
+        const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
+        const int32_t finalPos =
+            (rs == RAMP_STATE_IDLE)
+                ? s->getPositionAfterCommandsCompleted()
+                : s->getCurrentPosition();
+
+        s->forceStopAndNewPosition(finalPos);
+        log_i("stop stepper in FAccelStep %d (rs=0x%02x, pinnedPos=%ld)",
+              i, rs, (long)finalPos);
+        getData()[i]->isforever = false;
+        getData()[i]->speed = 0;
+        getData()[i]->currentPosition = finalPos;
+        getData()[i]->stopped = true;
+    }
 
     void setExternalCallForPin(
         bool (*func)(uint8_t pin, uint8_t value))
@@ -278,13 +419,20 @@ namespace FAccelStep
     }
 
     void updateData(int i)
-    {
+        {
         if (faststeppers[i] == nullptr)
         {
-            log_e("FastAccelStepper for axis %d is null in updateData", i);
+            log_d("FastAccelStepper for axis %d is null in updateData", i);
             return;
         }
-        getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
+        FastAccelStepper* s = faststeppers[i];
+        const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
+        // When idle, the queue-end position is the physical truth on RMT.
+        // When moving, the live position is what we want for telemetry.
+        getData()[i]->currentPosition =
+            (rs == RAMP_STATE_IDLE)
+                ? s->getPositionAfterCommandsCompleted()
+                : s->getCurrentPosition();
     }
 
     void setAutoEnable(bool enable)
@@ -329,13 +477,86 @@ namespace FAccelStep
         faststeppers[s]->setCurrentPosition(val);
     }
 
-    bool isRunning(int i)
+bool isRunning(int i)
     {
         if (faststeppers[i] == nullptr)
         {
             return false;
         }
-        return faststeppers[i]->isRunning();
+        FastAccelStepper* s = faststeppers[i];
+
+        // Use getPositionAfterCommandsCompleted() — the *queue-end* position —
+        // for completion detection. On ESP32 RMT, getCurrentPosition() can lag
+        // the real motor by up to a full command's worth of steps because the
+        // RMT pulse generator and the position accountant are decoupled. The
+        // queue-end position is updated at queue-fill time and is reliable.
+        //
+        // Definition of "running": ramp is non-IDLE, OR there are still
+        // unconsumed queue entries (queue-end position differs from where the
+        // ramp generator thinks the next-to-fill entry will land).
+        const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
+        if (rs != RAMP_STATE_IDLE) return true;
+
+        // Ramp is idle. Treat as truly-done. Don't trust FAS's isRunning()
+        // here because on RMT it stays true while the position counter
+        // catches up to the ongoing command's pulses — but the *motion* is
+        // already over from the application's point of view.
+        return false;
+    }
+
+    int rampState(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in rampState", i);
+            return -1;
+        }
+        return faststeppers[i]->rampState();
+    }
+
+    int32_t getCurrentSpeedInMilliHz(int i, bool withSign)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in getCurrentSpeedInMilliHz", i);
+            return 0;
+        }
+        int32_t speed = faststeppers[i]->getCurrentSpeedInMilliHz();
+        if (!withSign)
+        {
+            speed = abs(speed);
+        }
+        return speed;
+    }
+
+    int32_t getCurrentPosition(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in getCurrentPosition", i);
+            return 0;
+        }
+        return faststeppers[i]->getCurrentPosition();
+    }
+
+    int32_t getPositionAfterCommandsCompleted(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in getPositionAfterCommandsCompleted", i);
+            return 0;
+        }
+        return faststeppers[i]->getPositionAfterCommandsCompleted();
+    }
+
+    bool isQueueFull(int i)
+    {
+        if (faststeppers[i] == nullptr)
+        {
+            log_d("FastAccelStepper for axis %d is null in isQueueFull", i);
+            return false;
+        }
+        return faststeppers[i]->isQueueFull();
     }
 
     void move(Stepper s, int steps, bool blocking)

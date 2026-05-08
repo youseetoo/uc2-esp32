@@ -29,17 +29,15 @@ namespace AccelStep
     {
         if (!power_enable)
         {
-#ifdef USE_TCA9535            
-                _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-#endif
-        }
-        else
-        {
+#ifdef USE_TCA9535
+            _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+#else
             pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
             digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+#endif
+            power_enable = true;
+            log_i("poweron motors");
         }
-        power_enable = true;
-        log_i("poweron motors");
     }
 
     void poweroff(bool force)
@@ -206,18 +204,26 @@ namespace AccelStep
         getData()[i]->stopped = false;
 
         if (i == 0 && !taskRunning[i])
+        {
+            taskRunning[i] = true;
             xTaskCreatePinnedToCore(&driveMotorALoop, "motor_task_A", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
+        }
         if (i == 1 && !taskRunning[i])
         {
+            taskRunning[i] = true;
             xTaskCreatePinnedToCore(&driveMotorXLoop, "motor_task_X", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
             log_i("started x task");
         }
-        // else
-        //     log_i("x wont start");
         if (i == 2 && !taskRunning[i])
+        {
+            taskRunning[i] = true;
             xTaskCreatePinnedToCore(&driveMotorYLoop, "motor_task_Y", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
+        }
         if (i == 3 && !taskRunning[i])
+        {
+            taskRunning[i] = true;
             xTaskCreatePinnedToCore(&driveMotorZLoop, "motor_task_Z", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
+        }
     }
 
 
@@ -234,10 +240,15 @@ namespace AccelStep
         getData()[i]->speed = 0;
         getData()[i]->currentPosition = steppers[i]->currentPosition();
         getData()[i]->stopped = true;
+        taskRunning[i] = false;
+
     }
 
     bool isRunning(int stepperid)
     {
+        if (steppers[stepperid] == nullptr)
+            return false;
+
         AccelStepper *s = steppers[stepperid];
         return s->isRunning();
     }
@@ -248,16 +259,20 @@ namespace AccelStep
         AccelStepper *s = steppers[stepperid];
         s->setMaxSpeed(getData()[stepperid]->maxspeed);
         log_i("Start Task %i", stepperid);
+
+        long tNow = millis();
         while (!getData()[stepperid]->stopped)
         {
 
             if (getData()[stepperid]->isforever)
             {
+                //log_i("run forever stepper %i at speed %i", stepperid, getData()[stepperid]->speed);
                 s->setSpeed(getData()[stepperid]->speed);
                 s->runSpeed();
             }
             else
             {
+                //log(i "run stepper %i to position %i at speed %i", stepperid, getData()[stepperid]->targetPosition, getData()[stepperid]->speed);
                 if (!getData()[stepperid]->isaccelerated)
                     s->setSpeed(getData()[stepperid]->speed);
                 if (!s->run())
@@ -271,7 +286,20 @@ namespace AccelStep
                     stopAccelStepper(stepperid);
                 }
             }
-            getData()[stepperid]->currentPosition = s->currentPosition();
+
+            if(millis() - tNow > 10){
+                // do less updates to speed up things
+                getData()[stepperid]->currentPosition = s->currentPosition();
+                tNow = millis();
+            }
+
+            // FEED THE WATCHDOG
+            esp_task_wdt_reset(); 
+
+            // If motor speeds are low, vTaskDelay(1) is best.
+            // If they are high, use taskYIELD() to allow other tasks of SAME priority to run.
+            taskYIELD();
+            vTaskDelay(1);
         }
         getData()[stepperid]->stopped = true;
         poweroff(false);
@@ -292,7 +320,12 @@ namespace AccelStep
 
     void updateData(int val)
     {
+        // check if stepper is running and update the position in the data struct
+         AccelStepper *s = steppers[val];
+         if (s) 
+        {
         getData()[val]->currentPosition = steppers[val]->currentPosition();
+        }
     }
 
     void setExternalCallForPin(

@@ -53,7 +53,10 @@ namespace DialController
     // Timing constants
     static const unsigned long LONG_PRESS_DURATION_MS = 500;   // Long press to switch axis/mode
     static const unsigned long SHORT_PRESS_MAX_MS = 500;       // Max duration for short press
-    static const unsigned long SEND_INTERVAL_MS = 100;         // Send motor commands every 100ms
+    // ISO-TP transactions to the slave take ~130 ms (FF -> FC wait -> CF) in practice.
+    // Keeping the interval well above that prevents queue build-up which would
+    // starve the slave's CAN receive task and cause FC-wait timeouts.
+    static const unsigned long SEND_INTERVAL_MS = 250;         // Send motor commands every 250ms
     static const unsigned long DEBOUNCE_MS = 50;               // Touch debounce
 
     // Display colors (RGB565 format)

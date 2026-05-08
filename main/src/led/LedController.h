@@ -93,6 +93,12 @@ namespace LedController
     static int currentLedForStatus = LedForStatus::idle;
 	static uint8_t brightnessLoop = 0;    // Tracks current fade brightnessLoop
     static int fadeDirection = 1;     // Fade up (+1) or down (-1)
+
+    // Pattern animation state
+    static uint8_t activePatternId = 0;     // 0=none, 1=rainbow, 2=breathe, 3=chase, ...
+    static uint16_t activePatternSpeed = 100; // ms per frame
+    static uint32_t lastPatternUpdateMs = 0;
+    static uint8_t patternFrame = 0;
 	
 	// LED safety auto-off tracking
 	static uint16_t currentTotalIntensity = 0;  // Sum of R + G + B channels (0-765)
@@ -119,6 +125,11 @@ namespace LedController
     void cross_changed_event(int pressed);
     void circle_changed_event(int pressed);
     uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
+
+    // CANopen integration: called from OD sync / SDO callbacks
+    void setMode(uint8_t mode, uint8_t brightness, uint32_t colour);
+    void setPattern(uint8_t patternId, uint16_t speed);
+    void setPixels(const uint8_t* data, uint16_t pixelCount);
 
 
     void setup();

@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UC2 CANopen motor flow — interactive walkthrough</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-bright: #79c0ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --cyan: #39c5cf;
+    --inactive: #30363d;
+    --active: #1f6feb;
+    --active-glow: #388bfd66;
+    --fresh: #3fb950;
+    --stale: #d29922;
+    --missing: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .header {
+    padding: 18px 24px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .header h1 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    flex-wrap: wrap;
+    background: var(--panel);
+  }
+  .flow-switch {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .flow-switch button {
+    background: transparent;
+    color: var(--text);
+    border: none;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .flow-switch button.active {
+    background: var(--active);
+    color: white;
+  }
+  .step-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .step-controls button {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .step-controls button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent-bright);
+  }
+  .step-controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .step-counter {
+    color: var(--muted);
+    font-size: 12px;
+    min-width: 70px;
+    text-align: center;
+  }
+  .step-message {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    height: calc(100vh - 140px);
+  }
+  .diagram {
+    padding: 20px;
+    overflow: auto;
+    position: relative;
+  }
+  .sidebar {
+    border-left: 1px solid var(--border);
+    padding: 18px 20px;
+    overflow-y: auto;
+    background: var(--panel);
+  }
+  .sidebar h2 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-bright);
+  }
+  .sidebar h3 {
+    margin: 16px 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .sidebar p {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .sidebar code {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    background: var(--bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: var(--accent-bright);
+  }
+  .sidebar .field {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .sidebar .field b {
+    color: var(--text);
+  }
+  .sidebar-default {
+    color: var(--muted);
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  /* Diagram */
+  svg {
+    width: 100%;
+    min-width: 1100px;
+    height: auto;
+    display: block;
+  }
+  .node rect, .node-label rect {
+    transition: fill 0.25s, stroke 0.25s;
+    cursor: pointer;
+  }
+  .node rect {
+    fill: var(--panel);
+    stroke: var(--border);
+    stroke-width: 1.5;
+  }
+  .node text {
+    fill: var(--text);
+    font-size: 12px;
+    pointer-events: none;
+    font-family: inherit;
+  }
+  .node text.title {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .node text.sub {
+    fill: var(--muted);
+    font-size: 10px;
+  }
+  .node.active rect {
+    fill: #132b4d;
+    stroke: var(--active);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 8px var(--active-glow));
+  }
+  .node.active text.title {
+    fill: var(--accent-bright);
+  }
+  .node:hover rect {
+    stroke: var(--accent);
+  }
+  .lane {
+    fill: #0b0e13;
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+  .lane-label {
+    font-size: 11px;
+    fill: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .section-label {
+    font-size: 13px;
+    fill: var(--accent-bright);
+    font-weight: 600;
+  }
+  .canbus-rect {
+    fill: #1a1f29;
+    stroke: var(--purple);
+    stroke-width: 2;
+  }
+  .canbus-text {
+    fill: var(--purple);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .arrow {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 1.5;
+    marker-end: url(#arrowhead);
+    transition: stroke 0.25s;
+  }
+  .arrow.active {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    marker-end: url(#arrowhead-active);
+  }
+  .arrow.active-down { stroke: var(--cyan); marker-end: url(#arrowhead-down); stroke-width: 2.5; }
+  .arrow.active-up   { stroke: var(--green); marker-end: url(#arrowhead-up); stroke-width: 2.5; }
+  .arrow-label {
+    font-size: 10px;
+    fill: var(--muted);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .arrow-label.active { fill: var(--accent-bright); }
+
+  /* Freshness panel */
+  .freshness {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .freshness h3 {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .fresh-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+  }
+  .fresh-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--inactive);
+    transition: background 0.25s, box-shadow 0.25s;
+  }
+  .fresh-dot.fresh { background: var(--fresh); box-shadow: 0 0 6px var(--fresh); }
+  .fresh-dot.stale { background: var(--stale); }
+  .fresh-dot.missing { background: var(--missing); }
+  .fresh-label { color: var(--text); }
+  .fresh-label .sub { color: var(--muted); font-size: 10px; }
+
+  /* Legend popup */
+  .legend {
+    padding: 10px 24px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend i {
+    display: inline-block;
+    width: 22px;
+    height: 2px;
+    margin-right: 2px;
+  }
+  .legend .cmd-line { background: var(--cyan); }
+  .legend .st-line { background: var(--green); }
+  .legend .inline-line { background: var(--border); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>UC2 CANopen motor flow — interactive walkthrough</h1>
+  <p>Based on actual source at <code>main/src/canopen/</code> as of April 2026. Click any box for details. Use Prev/Next to step through the flow.</p>
+</div>
+
+<div class="legend">
+  <span><i class="cmd-line"></i> command down (master → slave)</span>
+  <span><i class="st-line"></i> state up (slave → master)</span>
+  <span><i class="inline-line"></i> in-process call</span>
+  <span>🕐 1 ms tick / 1 kHz FreeRTOS</span>
+  <span>🔗 CAN bus @ 500 kbit/s</span>
+</div>
+
+<div class="controls">
+  <div class="flow-switch">
+    <button id="flow-cmd" class="active">📤 motor_act (command down)</button>
+    <button id="flow-state">📥 slave arrives (state up)</button>
+  </div>
+  <div class="step-controls">
+    <button id="btn-prev">◀ Prev</button>
+    <span class="step-counter" id="step-counter">step 0 / 0</span>
+    <button id="btn-next">Next ▶</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+  <div class="step-message" id="step-message">Click <b>Next</b> to start the walkthrough. Click any box for details.</div>
+</div>
+
+<div class="main">
+  <div class="diagram">
+    <svg id="svg" viewBox="0 0 1180 860" preserveAspectRatio="xMinYMin meet">
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#30363d"/>
+        </marker>
+        <marker id="arrowhead-active" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#58a6ff"/>
+        </marker>
+        <marker id="arrowhead-down" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#39c5cf"/>
+        </marker>
+        <marker id="arrowhead-up" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+          <polygon points="0 0, 10 3, 0 6" fill="#3fb950"/>
+        </marker>
+      </defs>
+
+      <!-- Lane backgrounds -->
+      <rect class="lane" x="10"   y="40"  width="520" height="780" rx="6"/>
+      <rect class="lane" x="650"  y="40"  width="520" height="780" rx="6"/>
+
+      <!-- Lane headers -->
+      <text class="section-label" x="245" y="30">MASTER (UC2_3 CAN HAT)</text>
+      <text class="section-label" x="880" y="30">SLAVE (Xiao ESP32-S3)</text>
+
+      <!-- CAN bus center -->
+      <rect class="canbus-rect" x="540" y="360" width="100" height="140" rx="10"/>
+      <text class="canbus-text" x="590" y="420" text-anchor="middle">CAN BUS</text>
+      <text x="590" y="438" text-anchor="middle" fill="#bc8cff" font-size="10">500 kbit/s</text>
+      <text x="590" y="460" text-anchor="middle" fill="#8b949e" font-size="10">0x18A TPDO1</text>
+      <text x="590" y="474" text-anchor="middle" fill="#8b949e" font-size="10">0x60A SDO rx</text>
+      <text x="590" y="488" text-anchor="middle" fill="#8b949e" font-size="10">0x58A SDO tx</text>
+
+      <!-- ===== MASTER SIDE ===== -->
+
+      <!-- User / Pi -->
+      <g class="node" data-id="pi">
+        <rect x="30" y="60" width="220" height="50" rx="6"/>
+        <text class="title" x="140" y="82" text-anchor="middle">Host (Pi / ImSwitch)</text>
+        <text class="sub" x="140" y="98" text-anchor="middle">sends JSON over USB serial</text>
+      </g>
+
+      <!-- Serial UART RX -->
+      <g class="node" data-id="serial-rx">
+        <rect x="30" y="130" width="220" height="50" rx="6"/>
+        <text class="title" x="140" y="152" text-anchor="middle">Serial UART RX @ 115200 bps</text>
+        <text class="sub" x="140" y="168" text-anchor="middle">polled by SerialProcess::loop</text>
+      </g>
+
+      <!-- SerialProcess loop / serialTask -->
+      <g class="node" data-id="serial-loop">
+        <rect x="30" y="200" width="220" height="55" rx="6"/>
+        <text class="title" x="140" y="222" text-anchor="middle">SerialProcess::loop → addJsonToQueue</text>
+        <text class="sub" x="140" y="238" text-anchor="middle">parses bytes → cJSON → xQueueSend</text>
+        <text class="sub" x="140" y="250" text-anchor="middle">then vTaskDelay(5 ms)</text>
+      </g>
+
+      <g class="node" data-id="serial-task">
+        <rect x="30" y="275" width="220" height="55" rx="6"/>
+        <text class="title" x="140" y="297" text-anchor="middle">serialTask (prio default)</text>
+        <text class="sub" x="140" y="313" text-anchor="middle">xQueueReceive(portMAX_DELAY)</text>
+        <text class="sub" x="140" y="325" text-anchor="middle">→ jsonProcessor(task, doc)</text>
+      </g>
+
+      <!-- DeviceRouter -->
+      <g class="node" data-id="device-router">
+        <rect x="30" y="350" width="220" height="55" rx="6"/>
+        <text class="title" x="140" y="372" text-anchor="middle">DeviceRouter::routeCommand</text>
+        <text class="sub" x="140" y="388" text-anchor="middle">dispatch by task string</text>
+        <text class="sub" x="140" y="400" text-anchor="middle">→ handleMotorAct / handleMotorGet</text>
+      </g>
+
+      <!-- RoutingTable lookup -->
+      <g class="node" data-id="routing-table">
+        <rect x="290" y="350" width="220" height="55" rx="6"/>
+        <text class="title" x="400" y="372" text-anchor="middle">RoutingTable::find(MOTOR, id)</text>
+        <text class="sub" x="400" y="388" text-anchor="middle">pure lookup, built at boot</text>
+        <text class="sub" x="400" y="400" text-anchor="middle">→ {LOCAL | REMOTE node=0x0A}</text>
+      </g>
+
+      <!-- SDO client (master) -->
+      <g class="node" data-id="sdo-client">
+        <rect x="30" y="425" width="220" height="65" rx="6"/>
+        <text class="title" x="140" y="447" text-anchor="middle">CANopenModule::writeSDO_*</text>
+        <text class="sub" x="140" y="462" text-anchor="middle">takes s_sdoMutex (timeout 200 ms)</text>
+        <text class="sub" x="140" y="474" text-anchor="middle">6 × _write_SDO sequentially</text>
+        <text class="sub" x="140" y="484" text-anchor="middle">isNodeReachable fast-fail</text>
+      </g>
+
+      <!-- RemoteSlaveCache -->
+      <g class="node" data-id="remote-cache">
+        <rect x="290" y="425" width="220" height="65" rx="6"/>
+        <text class="title" x="400" y="447" text-anchor="middle">s_remoteSlaves[4] cache</text>
+        <text class="sub" x="400" y="462" text-anchor="middle">{ motorPosition, motorStatus,</text>
+        <text class="sub" x="400" y="474" text-anchor="middle">  lastUpdateMs, seen }</text>
+        <text class="sub" x="400" y="485" text-anchor="middle">read by handleMotorGet</text>
+      </g>
+
+      <!-- OD_RAM master -->
+      <g class="node" data-id="od-ram-master">
+        <rect x="290" y="510" width="220" height="65" rx="6"/>
+        <text class="title" x="400" y="532" text-anchor="middle">OD_RAM (master)</text>
+        <text class="sub" x="400" y="548" text-anchor="middle">x2001 position[4]</text>
+        <text class="sub" x="400" y="560" text-anchor="middle">x2004 statusWord[4]</text>
+        <text class="sub" x="400" y="572" text-anchor="middle">written by RPDO consumer</text>
+      </g>
+
+      <!-- CO_tmr_task master -->
+      <g class="node" data-id="co-tmr-master">
+        <rect x="30" y="510" width="220" height="65" rx="6"/>
+        <text class="title" x="140" y="532" text-anchor="middle">CO_tmr_task (master)</text>
+        <text class="sub" x="140" y="548" text-anchor="middle">1 ms cadence</text>
+        <text class="sub" x="140" y="562" text-anchor="middle">CO_process_RPDO</text>
+        <text class="sub" x="140" y="574" text-anchor="middle">→ syncRpdoToModules_master</text>
+      </g>
+
+      <!-- TWAI master -->
+      <g class="node" data-id="twai-master">
+        <rect x="140" y="600" width="260" height="60" rx="6"/>
+        <text class="title" x="270" y="622" text-anchor="middle">TWAI driver (master)</text>
+        <text class="sub" x="270" y="638" text-anchor="middle">tx_queue_len=0, HW buffer 1 frame</text>
+        <text class="sub" x="270" y="650" text-anchor="middle">CAN_TX_queue → CAN_ctrl_task</text>
+      </g>
+
+      <!-- Sidebar: master-side FocusMotor mirror -->
+      <g class="node" data-id="focusmotor-master">
+        <rect x="290" y="200" width="220" height="50" rx="6"/>
+        <text class="title" x="400" y="222" text-anchor="middle">FocusMotor::getData()[0..3]</text>
+        <text class="sub" x="400" y="238" text-anchor="middle">master's mirror — updated from cache</text>
+      </g>
+
+      <!-- ===== SLAVE SIDE ===== -->
+
+      <!-- TWAI slave -->
+      <g class="node" data-id="twai-slave">
+        <rect x="780" y="600" width="260" height="60" rx="6"/>
+        <text class="title" x="910" y="622" text-anchor="middle">TWAI driver (slave)</text>
+        <text class="sub" x="910" y="638" text-anchor="middle">CAN_ctrl_task feeds CO_driver</text>
+      </g>
+
+      <!-- SDO server (slave) -->
+      <g class="node" data-id="sdo-server">
+        <rect x="930" y="510" width="220" height="65" rx="6"/>
+        <text class="title" x="1040" y="532" text-anchor="middle">SDO server (slave)</text>
+        <text class="sub" x="1040" y="548" text-anchor="middle">CO_process (1 ms)</text>
+        <text class="sub" x="1040" y="562" text-anchor="middle">writes to OD_RAM directly</text>
+        <text class="sub" x="1040" y="574" text-anchor="middle">no app code involved</text>
+      </g>
+
+      <!-- CO_tmr_task slave -->
+      <g class="node" data-id="co-tmr-slave">
+        <rect x="670" y="510" width="220" height="65" rx="6"/>
+        <text class="title" x="780" y="532" text-anchor="middle">CO_tmr_task (slave)</text>
+        <text class="sub" x="780" y="548" text-anchor="middle">1 ms cadence</text>
+        <text class="sub" x="780" y="562" text-anchor="middle">→ syncRpdoToModules_slave</text>
+        <text class="sub" x="780" y="574" text-anchor="middle">→ syncModulesToTpdo</text>
+      </g>
+
+      <!-- OD_RAM slave -->
+      <g class="node" data-id="od-ram-slave">
+        <rect x="670" y="425" width="220" height="65" rx="6"/>
+        <text class="title" x="780" y="447" text-anchor="middle">OD_RAM (slave)</text>
+        <text class="sub" x="780" y="462" text-anchor="middle">x2000 target, x2002 speed,</text>
+        <text class="sub" x="780" y="474" text-anchor="middle">x2003 cmdWord, x2001/x2004 state</text>
+        <text class="sub" x="780" y="485" text-anchor="middle">TPDO mapped: x2001 + x2004</text>
+      </g>
+
+      <!-- s_axisCmds pending -->
+      <g class="node" data-id="axis-cmds">
+        <rect x="930" y="425" width="220" height="65" rx="6"/>
+        <text class="title" x="1040" y="447" text-anchor="middle">s_axisCmds[4] (pending)</text>
+        <text class="sub" x="1040" y="462" text-anchor="middle">volatile bool pending</text>
+        <text class="sub" x="1040" y="474" text-anchor="middle">producer: CO_tmr_task</text>
+        <text class="sub" x="1040" y="485" text-anchor="middle">consumer: CANopenModule::loop</text>
+      </g>
+
+      <!-- CANopenModule::loop (slave main loop) -->
+      <g class="node" data-id="co-loop-slave">
+        <rect x="670" y="350" width="220" height="55" rx="6"/>
+        <text class="title" x="780" y="372" text-anchor="middle">CANopenModule::loop (slave)</text>
+        <text class="sub" x="780" y="388" text-anchor="middle">called from main looper</text>
+        <text class="sub" x="780" y="400" text-anchor="middle">drains s_axisCmds → FocusMotor</text>
+      </g>
+
+      <!-- FocusMotor slave -->
+      <g class="node" data-id="focusmotor-slave">
+        <rect x="930" y="350" width="220" height="55" rx="6"/>
+        <text class="title" x="1040" y="372" text-anchor="middle">FocusMotor::startStepper</text>
+        <text class="sub" x="1040" y="388" text-anchor="middle">→ FAccelStep → stepper HW</text>
+      </g>
+
+      <!-- Motor hardware -->
+      <g class="node" data-id="motor-hw">
+        <rect x="780" y="270" width="260" height="55" rx="6"/>
+        <text class="title" x="910" y="292" text-anchor="middle">Physical stepper</text>
+        <text class="sub" x="910" y="308" text-anchor="middle">FastAccelStepper ISR — step/dir pulses</text>
+      </g>
+
+      <!-- syncModulesToTpdo (slave state writer) -->
+      <g class="node" data-id="sync-to-tpdo">
+        <rect x="670" y="200" width="220" height="55" rx="6"/>
+        <text class="title" x="780" y="222" text-anchor="middle">syncModulesToTpdo (slave)</text>
+        <text class="sub" x="780" y="238" text-anchor="middle">writes OD_RAM x2001 / x2004</text>
+        <text class="sub" x="780" y="250" text-anchor="middle">CO_TPDOsendRequest on change</text>
+      </g>
+
+      <!-- FocusMotor data slave -->
+      <g class="node" data-id="md-slave">
+        <rect x="930" y="200" width="220" height="55" rx="6"/>
+        <text class="title" x="1040" y="222" text-anchor="middle">FocusMotor::updateData(localAxis)</text>
+        <text class="sub" x="1040" y="238" text-anchor="middle">currentPosition from stepper</text>
+        <text class="sub" x="1040" y="250" text-anchor="middle">isRunning flag</text>
+      </g>
+
+      <!-- Async notification back to serial -->
+      <g class="node" data-id="async-notify">
+        <rect x="30" y="720" width="480" height="55" rx="6"/>
+        <text class="title" x="270" y="742" text-anchor="middle">SerialProcess::safeSendJsonString</text>
+        <text class="sub" x="270" y="758" text-anchor="middle">{"stepperid":0,"position":3000,"isDone":1} → Host</text>
+        <text class="sub" x="270" y="770" text-anchor="middle">triggered by running→stopped transition in cache</text>
+      </g>
+
+      <!-- ===== ARROWS ===== -->
+
+      <!-- Command down: Pi → serial → dispatch → SDO → TWAI → bus -->
+      <g id="arrows">
+        <path class="arrow" id="a-pi-serialrx" d="M 140 110 L 140 130"/>
+        <path class="arrow" id="a-serialrx-loop" d="M 140 180 L 140 200"/>
+        <path class="arrow" id="a-loop-task" d="M 140 255 L 140 275"/>
+        <path class="arrow" id="a-task-router" d="M 140 330 L 140 350"/>
+        <path class="arrow" id="a-router-routing" d="M 250 378 L 290 378"/>
+        <path class="arrow" id="a-routing-router" d="M 290 392 L 250 392" stroke-dasharray="3 3"/>
+        <path class="arrow" id="a-router-sdo" d="M 140 405 L 140 425"/>
+        <path class="arrow" id="a-sdo-twai" d="M 140 490 L 200 600"/>
+        <path class="arrow" id="a-twai-bus" d="M 400 625 Q 500 590 540 470"/>
+        <path class="arrow" id="a-bus-twaislave" d="M 640 440 Q 720 600 780 620"/>
+        <path class="arrow" id="a-twaislave-sdosrv" d="M 950 600 L 1010 575"/>
+        <path class="arrow" id="a-sdosrv-odslave" d="M 950 510 L 900 490"/>
+        <path class="arrow" id="a-odslave-synrpdo" d="M 780 510 L 780 578 M 780 578 L 780 578"/>
+        <path class="arrow" id="a-odslave-axiscmds" d="M 890 455 L 930 455"/>
+        <path class="arrow" id="a-axiscmds-coloop" d="M 1040 425 L 1040 405 L 900 405 L 900 405"/>
+        <path class="arrow" id="a-coloop-focus" d="M 890 378 L 930 378"/>
+        <path class="arrow" id="a-focus-motor" d="M 1040 350 L 1040 325"/>
+
+        <!-- State up: motor → FM::updateData → syncModules → OD_RAM slave → TPDO → bus → RPDO → OD_RAM master → syncRpdo_master → cache -->
+        <path class="arrow" id="a-motor-md" d="M 1040 270 L 1040 255"/>
+        <path class="arrow" id="a-md-sync" d="M 930 228 L 890 228"/>
+        <path class="arrow" id="a-sync-odslave" d="M 780 255 L 780 425"/>
+        <path class="arrow" id="a-odslave-tpdo" d="M 780 425 Q 690 460 640 440"/>
+        <path class="arrow" id="a-bus-twaimaster" d="M 540 440 Q 480 600 400 620"/>
+        <path class="arrow" id="a-twaimaster-od" d="M 270 600 L 350 575"/>
+        <path class="arrow" id="a-odmaster-synrpdo" d="M 290 545 L 250 545"/>
+        <path class="arrow" id="a-synrpdo-cache" d="M 200 510 L 340 490"/>
+        <path class="arrow" id="a-cache-focus" d="M 400 425 L 400 250"/>
+        <path class="arrow" id="a-cache-async" d="M 310 490 L 270 720"/>
+        <path class="arrow" id="a-async-pi" d="M 30 740 Q 5 400 30 110"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-default">
+      <h2>ℹ️ How to use this diagram</h2>
+      <p>Choose a flow at the top. Use <b>Next</b> to step through what happens at each moment. The highlighted boxes show where control/data is currently located. Click any box to read about it in detail.</p>
+      <h3>Are we still doing CANopen?</h3>
+      <p>Yes, with one documented deviation:</p>
+      <ul style="margin:0; padding-left:18px; font-size:13px;">
+        <li><b>Commands master→slave:</b> SDO expedited download into manufacturer entries 0x2000-0x200B (textbook CiA 301)</li>
+        <li><b>State slave→master:</b> event-driven TPDO1 on 0x180+nodeId carrying x2001 + x2004 (textbook CiA 301)</li>
+        <li><b>Slight deviation:</b> a 2 s heartbeat bit is toggled inside x2004 status word to force a TPDO retransmit even when position and running state are unchanged. The CiA-clean way is 0x1800 sub 5 event-timer or a separate heartbeat producer object. See <b>syncModulesToTpdo</b> for details.</li>
+      </ul>
+      <h3>Open the "state up" flow</h3>
+      <p>That's where the interesting part of PR-7.6 lives — the TPDO/RPDO push that replaced the old SDO position poller.</p>
+    </div>
+  </div>
+</div>
+
+<div class="freshness">
+  <h3>🕐 Cache freshness:</h3>
+  <div class="fresh-item"><span class="fresh-dot" id="f-cache"></span><span class="fresh-label">s_remoteSlaves<span class="sub"> (master)</span></span></div>
+  <div class="fresh-item"><span class="fresh-dot" id="f-od-m"></span><span class="fresh-label">OD_RAM<span class="sub"> (master)</span></span></div>
+  <div class="fresh-item"><span class="fresh-dot" id="f-od-s"></span><span class="fresh-label">OD_RAM<span class="sub"> (slave)</span></span></div>
+  <div class="fresh-item"><span class="fresh-dot" id="f-axis"></span><span class="fresh-label">s_axisCmds<span class="sub"> (slave)</span></span></div>
+  <div class="fresh-item"><span class="fresh-dot" id="f-fm-m"></span><span class="fresh-label">FocusMotor mirror<span class="sub"> (master)</span></span></div>
+  <div class="fresh-item"><span class="fresh-dot" id="f-fm-s"></span><span class="fresh-label">FocusMotor<span class="sub"> (slave)</span></span></div>
+</div>
+
+<script>
+// ============================================================================
+// Node explanations
+// ============================================================================
+const nodeInfo = {
+  'pi': {
+    title: 'Host (Raspberry Pi / ImSwitch)',
+    body: `
+      <p>Sends JSON commands over USB serial at 115200 baud. Example:</p>
+      <code style="display:block; padding:8px; font-size:11px; word-break:break-all;">{"task":"/motor_act","motor":{"steppers":[{"stepperid":0,"speed":20000,"position":3000,"isabs":0}]},"qid":5}</code>
+      <p>Receives asynchronous responses delimited by <code>++\\n ... \\n--\\n</code>.</p>
+      <h3>Timing</h3>
+      <p class="field"><b>JSON line</b> ≈ 100-200 bytes → ~1-2 ms on the wire</p>
+    `
+  },
+  'serial-rx': {
+    title: 'Serial UART RX @ 115200 bps',
+    body: `
+      <p>ESP32 UART peripheral buffers incoming bytes into a small HW FIFO. <code>Serial.available()</code> returns the count.</p>
+      <h3>Polled, not event-driven</h3>
+      <p>No UART interrupt callback is wired up. Bytes only get read when <code>SerialProcess::loop()</code> runs.</p>
+      <p class="field"><b>Latency floor:</b> up to 5 ms because loop() ends with <code>vTaskDelay(pdMS_TO_TICKS(5))</code>. At 1 kHz FreeRTOS tick that's actually 5 ms.</p>
+    `
+  },
+  'serial-loop': {
+    title: 'SerialProcess::loop → addJsonToQueue',
+    body: `
+      <p>Runs from the main <code>looper</code> task on core 1. Reads bytes one at a time, tracks <code>{ }</code> nesting, and when a complete JSON object arrives parses it with cJSON.</p>
+      <p>Parsed document is pushed to <code>serialMSGQueue</code>.</p>
+      <h3>Critical line</h3>
+      <code>vTaskDelay(pdMS_TO_TICKS(5))</code>
+      <p class="field">Every iteration yields for 5 ms. That's the floor for command latency between host and parser.</p>
+    `
+  },
+  'serial-task': {
+    title: 'serialTask (own FreeRTOS task)',
+    body: `
+      <p>Dedicated task that blocks on <code>serialMSGQueue</code> with <code>portMAX_DELAY</code>. Wakes the instant a message is queued — no tick delay here.</p>
+      <p>Calls <code>jsonProcessor(task, doc)</code> which delegates to <code>DeviceRouter::routeCommand</code>.</p>
+      <h3>Good news</h3>
+      <p>Dispatching runs in a separate task, so the looper is free to keep scanning UART while a command is being sent over CAN. <b>But</b>: the serialTask itself blocks for the full duration of the 6 SDO writes.</p>
+    `
+  },
+  'device-router': {
+    title: 'DeviceRouter::routeCommand',
+    body: `
+      <p>The single dispatcher — one entry point per task string. Central place that decides <b>local</b> vs <b>remote</b> for every command.</p>
+      <p>For <code>/motor_act</code> → <code>handleMotorAct</code>. Looks up each stepperid in the routing table, then either calls <code>FocusMotor::startStepper</code> directly (LOCAL) or fires SDO writes (REMOTE).</p>
+      <h3>Returns immediately</h3>
+      <p>Synchronously — meaning serialTask is blocked until all 6 SDO writes complete. Response JSON includes <code>isDone:0</code> because the move hasn't finished yet.</p>
+    `
+  },
+  'routing-table': {
+    title: 'RoutingTable::find(MOTOR, id)',
+    body: `
+      <p>Pure data lookup, zero CAN traffic, O(n) over a ~20-entry array. Built once at boot by <code>buildDefault()</code> from <code>pinConfig.ROUTE_MOTOR[]</code> overrides and the canRole.</p>
+      <h3>Entry shape</h3>
+      <code>{ type, logicalId, where, nodeId, subAxis }</code>
+      <p class="field">where ∈ {LOCAL=0, REMOTE=1, OFF=2}</p>
+      <h3>Example from your log</h3>
+      <p class="field">motor 0 → REMOTE node 0x0A</p>
+      <p class="field">motor 1 → REMOTE node 0x0B</p>
+    `
+  },
+  'sdo-client': {
+    title: 'CANopenModule::writeSDO_* (master)',
+    body: `
+      <p>Wrapper around CANopenNode's SDO client. Six sequential calls per <code>motor_act</code>:</p>
+      <code style="display:block; padding:8px; font-size:11px;">writeSDO_i32 → MOTOR_TARGET_POSITION<br>writeSDO_u32 → MOTOR_SPEED<br>writeSDO_u32 → MOTOR_ACCELERATION<br>writeSDO_u8 → MOTOR_IS_ABSOLUTE<br>writeSDO_u8 → MOTOR_IS_FOREVER<br>writeSDO_u8 → MOTOR_COMMAND_WORD (trigger)</code>
+      <h3>Fast-fail guard</h3>
+      <p><code>isNodeReachable(nodeId)</code> checks <code>s_remoteSlaves[slot].seen</code> and <code>lastUpdateMs</code>. If the slave hasn't pushed a TPDO in 5 s, every SDO write returns false immediately — prevents TWAI retransmission storms when the slave is disconnected.</p>
+      <h3>Cost</h3>
+      <p class="field">~3 ms per SDO at 1 kHz tick → ~18 ms total per motor_act when the slave is present.</p>
+      <p class="field">Still using SDO is <b>PR-8 work</b> — PR-7.6 kept this as-is and only fixed the return path.</p>
+    `
+  },
+  'remote-cache': {
+    title: 's_remoteSlaves[4] — the PR-7.6 addition',
+    body: `
+      <p>Master-only cache of slave state. Populated by <code>syncRpdoToModules_master</code> every time an RPDO arrives from a slave TPDO1.</p>
+      <h3>Shape</h3>
+      <code style="display:block; padding:8px; font-size:11px;">struct RemoteSlaveState {<br>&nbsp;&nbsp;int32_t  motorPosition;<br>&nbsp;&nbsp;uint8_t  motorStatus;    // bit 0 = running<br>&nbsp;&nbsp;uint32_t lastUpdateMs;<br>&nbsp;&nbsp;bool     seen;<br>};</code>
+      <h3>Why it exists</h3>
+      <p>Before PR-7.6 the master learned slave state only from a 500 ms round-robin SDO poll — each axis got touched every 2 seconds. Now state is pushed within 1-10 ms of any change on the slave.</p>
+      <p><code>handleMotorGet</code> reads directly from this cache: zero CAN traffic, constant-time response.</p>
+    `
+  },
+  'od-ram-master': {
+    title: 'OD_RAM on the master',
+    body: `
+      <p>The master has the same Object Dictionary structure as the slave, but most manufacturer entries are <b>RPDO destinations</b> on the master rather than application-written values.</p>
+      <h3>What the RPDO writes</h3>
+      <p class="field"><b>x2001_motor_actual_position[slot]</b> ← slave's reported position</p>
+      <p class="field"><b>x2004_motor_status_word[slot]</b> ← slave's running/idle + heartbeat bit</p>
+      <h3>Who reads it</h3>
+      <p><code>syncRpdoToModules_master</code> reads OD_RAM every 1 ms, diffs against cached values, and updates <code>s_remoteSlaves[]</code> on change.</p>
+    `
+  },
+  'co-tmr-master': {
+    title: 'CO_tmr_task (master)',
+    body: `
+      <p>CANopenNode's 1 ms timer task. Does three things per tick:</p>
+      <ol style="padding-left:18px; margin:4px 0; font-size:13px;">
+        <li><code>CO_process_RPDO</code> — decode any pending RPDO frames into OD_RAM</li>
+        <li><code>syncRpdoToModules_master</code> — diff OD_RAM against cache, emit "arrived" notifications</li>
+        <li><code>CO_process_TPDO</code> — transmit any pending TPDO frames (master rarely has any)</li>
+      </ol>
+      <h3>Critical timing</h3>
+      <p><code>vTaskDelay(pdMS_TO_TICKS(1))</code> at end of loop. With 1 kHz tick = 1 ms per iteration. So state propagation from "RPDO arrives" to "cache updated" is bounded by 1 ms.</p>
+    `
+  },
+  'twai-master': {
+    title: 'TWAI driver (master)',
+    body: `
+      <p>ESP-IDF TWAI peripheral wrapper. Configured with <code>tx_queue_len=0</code> to dodge the <code>tx_msg_count</code> race condition from older IDF versions.</p>
+      <h3>Consequence</h3>
+      <p>The HW TX buffer is 1 frame deep. <code>CAN_ctrl_task</code> feeds frames one at a time from <code>CAN_TX_queue</code> when the HW is ready.</p>
+      <p>CANopenNode puts frames into <code>CAN_TX_queue</code> (size 32). The driver drains them.</p>
+      <h3>RX path</h3>
+      <p>TWAI RX ISR → internal RX queue → <code>CAN_ctrl_task</code> copies into <code>CAN_RX_queue</code> → <code>CO_interrupt_task</code> calls <code>CO_CANinterrupt</code> to decode frames into CANopenNode buffers.</p>
+    `
+  },
+  'focusmotor-master': {
+    title: 'FocusMotor::getData()[0..3] (master mirror)',
+    body: `
+      <p>Legacy array that ImSwitch expects to exist. On the master, indices 0-3 mirror the corresponding slave's state so that old code paths that read <code>getData()[i]->currentPosition</code> continue to work.</p>
+      <p>The mirror is updated from <code>s_remoteSlaves</code> inside <code>syncRpdoToModules_master</code>, keyed by the routing table's (logicalId → slot) mapping.</p>
+      <h3>Status</h3>
+      <p class="field">This mirror is an interim convenience. Long-term, the FocusMotor class should be split so that "local hardware" and "remote proxy" are cleanly separated. PR-8 cleanup territory.</p>
+    `
+  },
+  'twai-slave': {
+    title: 'TWAI driver (slave)',
+    body: `
+      <p>Identical driver wrapper as the master. On the slave it's the counterpart: RX frames get decoded by CANopenNode's SDO server and RPDO consumer, and TX frames are TPDO transmissions back to the master.</p>
+    `
+  },
+  'sdo-server': {
+    title: 'SDO server (slave)',
+    body: `
+      <p>CANopenNode's built-in server. Entirely library code — the UC2 application never touches it directly.</p>
+      <p>When an SDO download frame arrives on COB-ID <code>0x600 + nodeId</code>, the server validates the index/sub/length against the OD descriptor table in <code>OD.c</code> and writes the value directly into the corresponding <code>OD_RAM.xXXXX_*</code> field.</p>
+      <h3>Key point</h3>
+      <p>The SDO server is <b>synchronous with OD_RAM writes</b>. As soon as the 6th SDO completes, the slave's OD_RAM already contains the full command set.</p>
+    `
+  },
+  'co-tmr-slave': {
+    title: 'CO_tmr_task (slave)',
+    body: `
+      <p>Same 1 ms CANopenNode timer task as on the master, but with different work:</p>
+      <ol style="padding-left:18px; margin:4px 0; font-size:13px;">
+        <li><code>CO_process_RPDO</code> (rarely used on slave — master doesn't push RPDO to slave in current design)</li>
+        <li><code>syncRpdoToModules_slave</code> — watches x2003 command word. When bit N set, copies target/speed/accel into <code>s_axisCmds[N]</code> and sets <code>pending=true</code></li>
+        <li><code>syncModulesToTpdo</code> — reads FocusMotor state, writes x2001/x2004, calls <code>CO_TPDOsendRequest</code> on change</li>
+        <li><code>CO_process_TPDO</code> — actually transmits the TPDO frame</li>
+      </ol>
+    `
+  },
+  'od-ram-slave': {
+    title: 'OD_RAM on the slave',
+    body: `
+      <p>Central state container. Read by SDO server, written by application code (<code>syncModulesToTpdo</code>), read by TPDO producer.</p>
+      <h3>Master→slave entries (command)</h3>
+      <p class="field">x2000 target_position, x2002 speed, x2006 acceleration, x2007 is_absolute, x200B is_forever, <b>x2003 command_word</b> (trigger)</p>
+      <h3>Slave→master entries (state)</h3>
+      <p class="field">x2001 actual_position, <b>x2004 status_word</b> — both mapped into TPDO1</p>
+      <h3>x2003 is the trigger</h3>
+      <p>The SDO sequence writes target/speed/accel/flags first, then writes x2003 last. Only x2003 has a side effect — setting bit N means "start axis N". This is what the SDO server writes that gets noticed.</p>
+    `
+  },
+  'axis-cmds': {
+    title: 's_axisCmds[4] — pending command buffer (slave)',
+    body: `
+      <p>A 4-entry producer/consumer buffer inside <code>CANopenModule.cpp</code>.</p>
+      <h3>Producer</h3>
+      <p><code>syncRpdoToModules_slave</code> (CO_tmr_task context, every 1 ms). Fires when it sees x2003 command word bits set. Copies target/speed/accel from OD_RAM, sets <code>pending = true</code> last (acts as commit flag).</p>
+      <h3>Consumer</h3>
+      <p><code>CANopenModule::loop()</code> (main looper context). Checks <code>pending</code>, dispatches to <code>FocusMotor::startStepper</code>, clears <code>pending</code>.</p>
+      <h3>Known race</h3>
+      <p class="field">No mutex. A new command from CO_tmr_task can arrive mid-read on the main loop — the fields are not atomic as a group. In practice this only bites under fast scanning.</p>
+    `
+  },
+  'co-loop-slave': {
+    title: 'CANopenModule::loop (slave main-loop hook)',
+    body: `
+      <p>Called once per main looper iteration. On the slave, its job is to drain the <code>s_axisCmds[]</code> pending queue and call into <code>FocusMotor::startStepper</code>.</p>
+      <p>Also on the master it used to contain the round-robin SDO position poller — <b>deleted in PR-7.6</b>. Now only the NMT state-change logger and pending-dispatch code remain.</p>
+      <h3>Latency floor</h3>
+      <p>Depends on how often the main looper cycles — typically 10-50 ms depending on what other modules do. After <code>syncRpdoToModules_slave</code> has set <code>pending=true</code>, the command waits here until the next looper pass.</p>
+    `
+  },
+  'focusmotor-slave': {
+    title: 'FocusMotor::startStepper (slave)',
+    body: `
+      <p>The actual motor control entry point. Fills a <code>MotorData</code> struct and hands off to <code>FAccelStep</code> which drives the FastAccelStepper engine.</p>
+      <p>From here on it's stepper hardware + ISR — nanosecond territory, nothing CAN-related.</p>
+    `
+  },
+  'motor-hw': {
+    title: 'Physical stepper (FastAccelStepper)',
+    body: `
+      <p>Step/dir pulses generated by hardware timers at up to ~200 kHz step rate. Independent of FreeRTOS and of any CAN activity.</p>
+      <p><code>FAccelStep::isRunning(localAxis)</code> returns true while the ramp is active, false when the target is reached.</p>
+    `
+  },
+  'sync-to-tpdo': {
+    title: 'syncModulesToTpdo (slave)',
+    body: `
+      <p>Runs from <code>CO_tmr_task</code> every 1 ms. Reads <code>FocusMotor::updateData(localAxis)</code> + <code>FocusMotor::isRunning</code> and writes them into <code>OD_RAM.x2001</code> / <code>OD_RAM.x2004</code>.</p>
+      <h3>Change detection</h3>
+      <p>Only writes and requests TPDO when position or status actually changed, to avoid flooding the bus.</p>
+      <h3>2 second heartbeat toggle</h3>
+      <p>Every 2 s, bit 1 of status_word is flipped regardless. This guarantees at least one TPDO every 2 s even when the motor is idle — so the master can detect "is my slave still alive?" via <code>s_remoteSlaves[].lastUpdateMs</code>.</p>
+      <p class="field">CiA-clean alternative would be 0x1800 sub 5 (event timer) or the dedicated heartbeat producer on 0x1017. Our toggle works but is slightly non-standard — documented as a known cosmetic deviation.</p>
+      <h3>TPDO request</h3>
+      <code>CO_TPDOsendRequest(&CO->TPDO[0])</code>
+      <p class="field">Tells CANopenNode "the values I just wrote are fresh — transmit on the next CO_process_TPDO cycle, subject to the inhibit time".</p>
+    `
+  },
+  'md-slave': {
+    title: 'FocusMotor::updateData + isRunning (slave)',
+    body: `
+      <p><code>updateData(localAxis)</code> reads <code>currentPosition</code> from the FastAccelStepper engine and stores it in the <code>MotorData</code> struct.</p>
+      <p><code>isRunning(localAxis)</code> asks FastAccelStepper whether the step generator is still active.</p>
+      <h3>Where "arrived" is born</h3>
+      <p>When the stepper reaches target, <code>FAccelStep::isRunning</code> flips false. On the very next <code>syncModulesToTpdo</code> call (≤1 ms later), the status_word flips bit 0 to 0, which triggers a TPDO transmit.</p>
+    `
+  },
+  'async-notify': {
+    title: 'Async "arrived" serial notification',
+    body: `
+      <p>Produced by <code>syncRpdoToModules_master</code> when it detects <code>wasRunning && !nowRunning</code> in the diff against the cache.</p>
+      <p>Emits a JSON message over the serial output queue:</p>
+      <code style="display:block; padding:8px; font-size:11px; word-break:break-all;">{"steppers":[{"stepperid":0,"position":3000,"isDone":1}],"qid":N}</code>
+      <h3>End-to-end latency</h3>
+      <p class="field">Stepper stops → next 1 ms tick → FAccelStep.isRunning = false → syncModulesToTpdo writes OD + requests TPDO → next CO_process_TPDO tick → TPDO on wire (~280 µs) → master TWAI ISR → CO_process_RPDO → OD_RAM updated → next syncRpdoToModules_master → cache update → serial notification queued</p>
+      <p class="field"><b>Total: 1-10 ms</b> typical. Was 500-2500 ms before PR-7.6.</p>
+    `
+  }
+};
+
+// ============================================================================
+// Flows
+// ============================================================================
+
+// A step is an object:
+// {
+//   msg: "human text shown in top bar",
+//   activeNodes: ["node-id", ...],
+//   activeArrows: ["arrow-id", ...],
+//   arrowClass: "active-down" | "active-up" | "active",
+//   freshness: { 'f-cache': 'fresh'|'stale'|'missing'|'inactive', ... }
+// }
+
+const freshDefault = {
+  'f-cache': 'inactive',
+  'f-od-m':  'inactive',
+  'f-od-s':  'inactive',
+  'f-axis':  'inactive',
+  'f-fm-m':  'inactive',
+  'f-fm-s':  'inactive'
+};
+
+const commandFlow = [
+  {
+    msg: "T=0  Host sends one JSON line: {\"task\":\"/motor_act\", \"motor\":{\"steppers\":[{\"stepperid\":0,\"speed\":20000,\"position\":3000,\"isabs\":0}]}, \"qid\":5}",
+    activeNodes: ['pi'],
+    activeArrows: ['a-pi-serialrx'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault }
+  },
+  {
+    msg: "T ≈ 1 ms  Bytes land in the ESP32 UART RX FIFO. SerialProcess::loop() reads them one at a time when it next runs (up to 5 ms delay at end of loop).",
+    activeNodes: ['serial-rx'],
+    activeArrows: ['a-serialrx-loop'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault }
+  },
+  {
+    msg: "T ≈ 2-6 ms  Complete JSON object parsed with cJSON, pushed to serialMSGQueue. serialTask wakes immediately via portMAX_DELAY.",
+    activeNodes: ['serial-loop', 'serial-task'],
+    activeArrows: ['a-loop-task'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault }
+  },
+  {
+    msg: "T ≈ 6 ms  serialTask calls jsonProcessor → DeviceRouter::routeCommand(\"/motor_act\", doc) → handleMotorAct(doc). Control now on core 1 in the serialTask context.",
+    activeNodes: ['serial-task', 'device-router'],
+    activeArrows: ['a-task-router'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault }
+  },
+  {
+    msg: "T ≈ 6 ms  For stepperid=0, DeviceRouter asks RoutingTable::find(MOTOR, 0) → returns {REMOTE, nodeId=0x0A, subAxis=0}. Pure memory lookup, no CAN yet.",
+    activeNodes: ['device-router', 'routing-table'],
+    activeArrows: ['a-router-routing', 'a-routing-router'],
+    arrowClass: 'active',
+    freshness: { ...freshDefault }
+  },
+  {
+    msg: "T ≈ 6 ms  Route says REMOTE. Take s_sdoMutex. isNodeReachable(0x0A) checks the cache — slave was seen recently → proceed. Begin 6-write SDO sequence.",
+    activeNodes: ['sdo-client', 'remote-cache'],
+    activeArrows: [],
+    arrowClass: 'active',
+    freshness: { ...freshDefault, 'f-cache': 'fresh' }
+  },
+  {
+    msg: "T ≈ 6-9 ms  First SDO: writeSDO_i32(MOTOR_TARGET_POSITION[1]=3000). Frame enqueued to CAN_TX_queue, TWAI driver picks it up, transmits 0x60A frame. Slave SDO server receives, writes directly into OD_RAM.x2000[0]. ACKed.",
+    activeNodes: ['sdo-client', 'twai-master', 'twai-slave', 'sdo-server', 'od-ram-slave'],
+    activeArrows: ['a-sdo-twai', 'a-twai-bus', 'a-bus-twaislave', 'a-twaislave-sdosrv', 'a-sdosrv-odslave'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault, 'f-cache': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ 9-24 ms  5 more SDO writes in sequence: SPEED, ACCELERATION, IS_ABSOLUTE, IS_FOREVER, and finally COMMAND_WORD = (1 << subAxis). Each ≈ 3 ms. serialTask is BLOCKED for the entire sequence.",
+    activeNodes: ['sdo-client', 'sdo-server', 'od-ram-slave'],
+    activeArrows: ['a-sdo-twai', 'a-twai-bus', 'a-bus-twaislave', 'a-twaislave-sdosrv', 'a-sdosrv-odslave'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault, 'f-cache': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ 24 ms  handleMotorAct returns. serialTask serializes the response JSON with isDone:0 and pushes it back to the host. Meanwhile the slave already has the command in OD_RAM.",
+    activeNodes: ['device-router', 'serial-task'],
+    activeArrows: [],
+    arrowClass: 'active',
+    freshness: { ...freshDefault, 'f-cache': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ 25 ms  Next CO_tmr_task tick on slave. syncRpdoToModules_slave sees x2003_motor_command_word bit 0 set. Copies target/speed/accel/flags from OD_RAM into s_axisCmds[0], sets pending=true, clears the command word.",
+    activeNodes: ['co-tmr-slave', 'od-ram-slave', 'axis-cmds'],
+    activeArrows: ['a-odslave-axiscmds'],
+    arrowClass: 'active',
+    freshness: { ...freshDefault, 'f-cache': 'fresh', 'f-od-s': 'fresh', 'f-axis': 'fresh' }
+  },
+  {
+    msg: "T ≈ 25-75 ms  Next main looper pass on slave calls CANopenModule::loop(). It sees s_axisCmds[0].pending=true. Copies values into MotorData, clears pending, calls FocusMotor::startStepper(localAxis, 0).",
+    activeNodes: ['co-loop-slave', 'axis-cmds', 'focusmotor-slave'],
+    activeArrows: ['a-axiscmds-coloop', 'a-coloop-focus'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault, 'f-cache': 'fresh', 'f-od-s': 'fresh', 'f-fm-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ 25-75 ms  FAccelStep starts generating step pulses. The physical motor begins moving. Stepper hardware ISR is driving step/dir pins — this is independent of CAN or FreeRTOS now.",
+    activeNodes: ['focusmotor-slave', 'motor-hw'],
+    activeArrows: ['a-focus-motor'],
+    arrowClass: 'active-down',
+    freshness: { ...freshDefault, 'f-cache': 'fresh', 'f-od-s': 'fresh', 'f-fm-s': 'fresh' }
+  }
+];
+
+const stateFlow = [
+  {
+    msg: "T=0  Motor is running. FastAccelStepper ISR generates step pulses. Position counter ticks forward. isRunning = true.",
+    activeNodes: ['motor-hw'],
+    activeArrows: [],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ +1 ms  Every CO_tmr_task tick (1 ms) the slave calls FocusMotor::updateData which reads the new position from the step counter. isRunning(localAxis) returns true.",
+    activeNodes: ['motor-hw', 'md-slave'],
+    activeArrows: ['a-motor-md'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ +1 ms  syncModulesToTpdo compares (newPos, newStatus) against (s_lastPos, s_lastStatus). Position changed → write to all 4 slots of OD_RAM.x2001 and x2004. Call CO_TPDOsendRequest(&CO->TPDO[0]).",
+    activeNodes: ['sync-to-tpdo', 'md-slave', 'od-ram-slave'],
+    activeArrows: ['a-md-sync', 'a-sync-odslave'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ +1 ms  Same tick, CO_process_TPDO sees the request bit set for TPDO1. If inhibit time (10 ms) has elapsed since last transmit, it builds a CAN frame: COB-ID 0x180+nodeId, payload = 4 bytes i32 position + 1 byte status.",
+    activeNodes: ['od-ram-slave', 'co-tmr-slave', 'twai-slave'],
+    activeArrows: ['a-odslave-tpdo'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ +2 ms  Frame on the CAN bus. One shot, no ACK needed for PDO — CAN protocol uses ACK for any frame, so at least one other node on the bus has to ACK. Wire transit ≈ 280 µs at 500 kbit/s.",
+    activeNodes: ['twai-slave', 'twai-master'],
+    activeArrows: ['a-bus-twaimaster'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ +2 ms  Master's TWAI peripheral receives the frame. RX ISR queues it. CAN_ctrl_task copies to CAN_RX_queue. CO_interrupt_task calls CO_CANinterrupt which hands it to CANopenNode's RPDO handler.",
+    activeNodes: ['twai-master'],
+    activeArrows: ['a-twaimaster-od'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ +2 ms  CO_process_RPDO (on the master's next CO_tmr_task tick) decodes the frame against the RPDO mapping. Writes the i32 into OD_RAM.x2001[slot] and the u8 into OD_RAM.x2004[slot] on the master side.",
+    activeNodes: ['co-tmr-master', 'od-ram-master'],
+    activeArrows: [],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh', 'f-od-m': 'fresh' }
+  },
+  {
+    msg: "T ≈ +3 ms  Same master tick, syncRpdoToModules_master runs. It diffs OD_RAM.x2001/x2004 against s_remoteSlaves[slot]. Change detected. Updates cache: motorPosition, motorStatus, lastUpdateMs, seen=true.",
+    activeNodes: ['co-tmr-master', 'od-ram-master', 'remote-cache'],
+    activeArrows: ['a-odmaster-synrpdo', 'a-synrpdo-cache'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh', 'f-od-m': 'fresh', 'f-cache': 'fresh' }
+  },
+  {
+    msg: "T ≈ +3 ms  Cache update also writes into FocusMotor::getData()[logicalAx] mirror so legacy motor_get handlers (and ImSwitch status polling) can read currentPosition and stopped flags.",
+    activeNodes: ['remote-cache', 'focusmotor-master'],
+    activeArrows: ['a-cache-focus'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh', 'f-od-m': 'fresh', 'f-cache': 'fresh', 'f-fm-m': 'fresh' }
+  },
+  {
+    msg: "T ≈ +3 ms  During a move, this cycle repeats every ~1 ms until the motor reaches target. Position updates flow continuously while running=true.",
+    activeNodes: ['remote-cache'],
+    activeArrows: [],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh', 'f-od-m': 'fresh', 'f-cache': 'fresh', 'f-fm-m': 'fresh' }
+  },
+  {
+    msg: "T ≈ 165 ms  Motor reaches target. Next syncModulesToTpdo tick: isRunning=false, status_word bit 0 clears. TPDO transmitted one more time carrying the final position and running=false.",
+    activeNodes: ['motor-hw', 'md-slave', 'sync-to-tpdo', 'od-ram-slave'],
+    activeArrows: ['a-motor-md', 'a-md-sync', 'a-sync-odslave', 'a-odslave-tpdo'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh' }
+  },
+  {
+    msg: "T ≈ 166 ms  Master's syncRpdoToModules_master diffs and sees wasRunning=true, nowRunning=false → emits async serial JSON: {\"stepperid\":0, \"position\":3000, \"isDone\":1}. SerialProcess queues it to the output task.",
+    activeNodes: ['remote-cache', 'async-notify'],
+    activeArrows: ['a-cache-async'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh', 'f-od-m': 'fresh', 'f-cache': 'fresh', 'f-fm-m': 'fresh' }
+  },
+  {
+    msg: "T ≈ 167 ms  Host receives the arrived notification. End-to-end latency from \"FastAccelStepper stopped\" to \"host knows\" is ≈ 1-10 ms (was 500-2500 ms before PR-7.6).",
+    activeNodes: ['async-notify', 'pi'],
+    activeArrows: ['a-async-pi'],
+    arrowClass: 'active-up',
+    freshness: { ...freshDefault, 'f-fm-s': 'fresh', 'f-od-s': 'fresh', 'f-od-m': 'fresh', 'f-cache': 'fresh', 'f-fm-m': 'fresh' }
+  }
+];
+
+// ============================================================================
+// Runtime
+// ============================================================================
+let currentFlow = commandFlow;
+let currentStep = -1;  // -1 = not started
+const svg = document.getElementById('svg');
+
+function render() {
+  // Reset all nodes and arrows
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.arrow').forEach(a => {
+    a.classList.remove('active', 'active-down', 'active-up');
+  });
+
+  if (currentStep < 0) {
+    document.getElementById('step-counter').textContent = `step 0 / ${currentFlow.length}`;
+    document.getElementById('step-message').innerHTML = 'Click <b>Next</b> to start the walkthrough. Click any box for details.';
+    // Reset freshness
+    Object.keys(freshDefault).forEach(k => {
+      const el = document.getElementById(k);
+      el.className = 'fresh-dot';
+    });
+    document.getElementById('btn-prev').disabled = true;
+    document.getElementById('btn-next').disabled = false;
+    return;
+  }
+
+  const step = currentFlow[currentStep];
+  step.activeNodes.forEach(id => {
+    const n = document.querySelector(`.node[data-id="${id}"]`);
+    if (n) n.classList.add('active');
+  });
+  step.activeArrows.forEach(id => {
+    const a = document.getElementById(id);
+    if (a) {
+      a.classList.add(step.arrowClass || 'active');
+    }
+  });
+
+  document.getElementById('step-counter').textContent = `step ${currentStep + 1} / ${currentFlow.length}`;
+  document.getElementById('step-message').innerHTML = step.msg;
+
+  // Update freshness dots
+  Object.entries(step.freshness).forEach(([id, state]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'fresh-dot' + (state !== 'inactive' ? ' ' + state : '');
+  });
+
+  document.getElementById('btn-prev').disabled = currentStep <= 0;
+  document.getElementById('btn-next').disabled = currentStep >= currentFlow.length - 1;
+}
+
+function next() {
+  if (currentStep < currentFlow.length - 1) {
+    currentStep++;
+    render();
+  }
+}
+function prev() {
+  if (currentStep > 0) {
+    currentStep--;
+    render();
+  } else {
+    currentStep = -1;
+    render();
+  }
+}
+function reset() {
+  currentStep = -1;
+  render();
+}
+function switchFlow(flow) {
+  currentFlow = flow;
+  currentStep = -1;
+  render();
+}
+
+document.getElementById('btn-next').addEventListener('click', next);
+document.getElementById('btn-prev').addEventListener('click', prev);
+document.getElementById('btn-reset').addEventListener('click', reset);
+document.getElementById('flow-cmd').addEventListener('click', () => {
+  document.getElementById('flow-cmd').classList.add('active');
+  document.getElementById('flow-state').classList.remove('active');
+  switchFlow(commandFlow);
+});
+document.getElementById('flow-state').addEventListener('click', () => {
+  document.getElementById('flow-state').classList.add('active');
+  document.getElementById('flow-cmd').classList.remove('active');
+  switchFlow(stateFlow);
+});
+
+// Click handlers for nodes — show detail in sidebar
+document.querySelectorAll('.node').forEach(n => {
+  n.addEventListener('click', () => {
+    const id = n.getAttribute('data-id');
+    const info = nodeInfo[id];
+    if (!info) return;
+    const sb = document.getElementById('sidebar');
+    sb.innerHTML = `
+      <h2>${info.title}</h2>
+      ${info.body}
+      <p style="margin-top:20px; color:var(--muted); font-size:11px;">
+        <i>Click <b>Reset</b> in the top bar to clear and step through a flow, or click another box.</i>
+      </p>
+    `;
+  });
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') next();
+  if (e.key === 'ArrowLeft') prev();
+  if (e.key === 'r' || e.key === 'R') reset();
+});
+
+// Initial render
+render();
+</script>
+</body>
+</html>

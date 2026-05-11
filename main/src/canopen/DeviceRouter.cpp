@@ -13,6 +13,7 @@
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "CANopenModule.h"
 #include "UC2_OD_Indices.h"
+#include "OtaBinaryReceive.h"
 #endif
 
 #ifdef MOTOR_CONTROLLER
@@ -95,6 +96,12 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
     // the master uptime; remote uptime is reachable via /can_get).
     if (strcmp(task, state_act_endpoint) == 0) // {"task":"/state_act","state":"restart","nodeId":11}
         return handleStateAct(doc);
+
+#ifdef CAN_CONTROLLER_CANOPEN
+    if (strcmp(task, ota_start_endpoint) == 0){
+        return handleOtaStart(doc);
+    }
+#endif
 
     return nullptr; // not a routed command
 }
@@ -1079,3 +1086,90 @@ cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
     cJSON_AddNumberToObject(resp, "return", rc);
     return resp;
 }
+
+#ifdef CAN_CONTROLLER_CANOPEN
+// ============================================================================
+// /ota_start — JSON preamble that primes binary OTA receive.
+//
+// JSON format:
+//   {"task":"/ota_start","ota":{"nodeId":11,"size":1048576,"crc32":"0xABCD1234"}}
+//
+// On success, OtaBinaryReceive::isActive() becomes true and SerialProcess::loop
+// will divert raw Serial bytes into the receive buffer until the full
+// firmware payload arrives.
+// ============================================================================
+cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
+    cJSON* otaObj = cJSON_GetObjectItem(doc, "ota");
+    log_i("handleOtaStart: found ota object: %p", otaObj);
+    if (!otaObj) {
+        log_e("ota_start missing 'ota' object");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "ota_status", "error");
+        cJSON_AddStringToObject(resp, "error", "missing_ota_object");
+        return resp;
+    }
+
+    cJSON* nodeIdItem = cJSON_GetObjectItem(otaObj, "nodeId");
+    cJSON* sizeItem   = cJSON_GetObjectItem(otaObj, "size");
+    if (!nodeIdItem || !cJSON_IsNumber(nodeIdItem) ||
+        !sizeItem   || !cJSON_IsNumber(sizeItem)) {
+        log_e("ota_start missing/invalid 'nodeId' or 'size' in ota object");
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "ota_status", "error");
+        cJSON_AddStringToObject(resp, "error", "missing_nodeId_or_size");
+        return resp;
+    }
+
+    // nodeId: must be a valid CANopen node ID (1..127)
+    int nodeIdRaw = nodeIdItem->valueint;
+    if (nodeIdRaw < 1 || nodeIdRaw > 127) {
+        log_e("ota_start nodeId out of range (1..127): %d", nodeIdRaw);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "ota_status", "error");
+        cJSON_AddStringToObject(resp, "error", "invalid_nodeId");
+        return resp;
+    }
+    uint8_t nodeId = (uint8_t)nodeIdRaw;
+
+    // size: cJSON ints are 32-bit; for very large firmware (>2 GiB) the JSON
+    // would have to come in as a double — read valuedouble as a fallback so
+    // sizes up to 2^53 are represented losslessly.
+    double sizeD = cJSON_IsNumber(sizeItem) ? sizeItem->valuedouble : 0.0;
+    if (sizeD <= 0.0 || sizeD > (double)UINT32_MAX) {
+        log_e("ota_start size out of range: %f", sizeD);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "ota_status", "error");
+        cJSON_AddStringToObject(resp, "error", "invalid_size");
+        return resp;
+    }
+    uint32_t size = (uint32_t)sizeD;
+
+    // crc32: optional — accept "0x......" / decimal string / number; 0 disables check.
+    uint32_t crc32 = 0;
+    cJSON* crc32Item = cJSON_GetObjectItem(otaObj, "crc32");
+    if (crc32Item) {
+        if (cJSON_IsString(crc32Item) && crc32Item->valuestring) {
+            const char* crcStr = crc32Item->valuestring;
+            // strtoul with base 0 auto-detects "0x" prefix vs decimal.
+            char* endPtr = nullptr;
+            unsigned long parsed = strtoul(crcStr, &endPtr, 0);
+            if (endPtr == crcStr) {
+                log_w("ota_start crc32 string unparseable, defaulting to 0: %s", crcStr);
+            } else {
+                crc32 = (uint32_t)parsed;
+            }
+        } else if (cJSON_IsNumber(crc32Item)) {
+            // Use valuedouble — valueint is signed 32-bit and would corrupt
+            // CRC values with the high bit set.
+            crc32 = (uint32_t)crc32Item->valuedouble;
+        } else {
+            log_w("ota_start crc32 item is not a string or number, defaulting to 0");
+        }
+    } else {
+        log_i("ota_start crc32 not provided, defaulting to 0 (no check)");
+    }
+
+    log_i("ota_start: nodeId=%u size=%u crc32=0x%08X", nodeId, size, crc32);
+    return OtaBinaryReceive::begin(nodeId, size, crc32);
+}
+#endif

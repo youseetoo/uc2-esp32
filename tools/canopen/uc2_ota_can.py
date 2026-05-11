@@ -5,6 +5,13 @@ UC2 CAN OTA — flash a slave directly from laptop via python-canopen + Waveshar
 Usage:
     python -m uc2_canopen.uc2_ota_can --node 11 --binary firmware.bin
     python -m uc2_canopen.uc2_ota_can --node 11 --binary firmware.bin --interface socketcan --channel can0
+    python tools/canopen/uc2_ota_can.py --node 11 --binary firmware.bin --waveshare
+    python tools/canopen/uc2_ota_can.py --node 11 --binary /path/to/firmware.bin --waveshare --channel /dev/cu.wchusbserial110
+
+    /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.venv/bin/python tools/canopen/uc2_ota_can.py --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/UC2-REST/binaries/latest/esp32_seeed_xiao_esp32s3_can_slave_motor.bin --waveshare --channel /dev/cu.wchusbserial110
+
+    
+
 
 Requires:
     pip install python-canopen
@@ -17,6 +24,8 @@ Protocol:
 """
 
 import argparse
+import glob
+import os
 import struct
 import sys
 import time
@@ -28,6 +37,59 @@ try:
 except ImportError:
     print("ERROR: python-canopen not installed. Run: pip install python-canopen")
     sys.exit(1)
+
+
+def _import_waveshare_bus():
+    """Locate and import the WaveshareBus class.
+
+    Tries the installed `uc2canopen` package first, then falls back to the
+    sibling UC2-REST-CANOPEN repository checkout that lives next to uc2-ESP.
+    """
+    try:
+        from waveshare_bus import WaveshareBus  # type: ignore
+        return WaveshareBus
+    except ImportError:
+        print("WaveshareBus not found in installed packages, trying sibling UC2-REST-CANOPEN repo...")
+        pass
+
+    here = Path(__file__).resolve()
+    candidates = [
+        here.parents[2] / "UC2-REST-CANOPEN" / "src",            # workspace sibling
+        here.parents[3] / "UC2-REST-CANOPEN" / "src",            # one level up
+        Path.home() / "Dropbox" / "Dokumente" / "Promotion" / "PROJECTS"
+            / "UC2-REST-CANOPEN" / "src",                        # known dev path
+    ]
+    for c in candidates:
+        if (c / "uc2canopen" / "waveshare_bus.py").exists():
+            sys.path.insert(0, str(c))
+            try:
+                from uc2canopen.waveshare_bus import WaveshareBus  # type: ignore
+                return WaveshareBus
+            except ImportError:
+                continue
+    raise ImportError(
+        "WaveshareBus not found. Install UC2-REST-CANOPEN "
+        "(pip install -e <path>/UC2-REST-CANOPEN) or place it next to uc2-ESP."
+    )
+
+
+def _autodetect_waveshare_port() -> str:
+    """Best-effort autodetection of the Waveshare USB-CAN-A serial port."""
+    patterns = [
+        "/dev/cu.wchusbserial*",
+        "/dev/cu.usbserial*",
+        "/dev/tty.wchusbserial*",
+        "/dev/tty.usbserial*",
+        "/dev/ttyUSB*",
+    ]
+    for p in patterns:
+        matches = sorted(glob.glob(p))
+        if matches:
+            return matches[0]
+    raise RuntimeError(
+        "Could not auto-detect a Waveshare USB-CAN-A port. "
+        "Pass --channel /dev/ttyXXX explicitly."
+    )
 
 
 # UC2 OD indices (from UC2_OD_Indices.h)
@@ -113,11 +175,13 @@ def main():
     parser.add_argument("--binary", type=str, required=True,
                         help="Path to firmware .bin file")
     parser.add_argument("--interface", type=str, default="slcan",
-                        help="python-can interface (default: slcan)")
+                        help="python-can interface (default: slcan). Ignored when --waveshare is set.")
     parser.add_argument("--channel", type=str, default="/dev/ttyUSB0",
                         help="CAN interface channel (default: /dev/ttyUSB0)")
     parser.add_argument("--bitrate", type=int, default=500000,
                         help="CAN bus bitrate (default: 500000)")
+    parser.add_argument("--waveshare", action="store_true",
+                        help="Use Waveshare USB-CAN-A adapter (auto-detect port if --channel not set)")
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose output")
     args = parser.parse_args()
@@ -135,15 +199,37 @@ def main():
     print("=" * 60)
     print("UC2 CANopen OTA Firmware Flasher")
     print("=" * 60)
-    print(f"Interface:       {args.interface}")
-    print(f"Channel:         {args.channel}")
-    print(f"Bitrate:         {args.bitrate}")
-    print(f"Firmware:        {firmware_path.name}")
+
+    # Auto-detect Waveshare port when requested but channel left at default
+    waveshare_bus = None
+    if args.waveshare:
+        WaveshareBus = _import_waveshare_bus()
+        channel = args.channel
+        if channel == "/dev/ttyUSB0":  # default value, override with autodetect
+            try:
+                channel = _autodetect_waveshare_port()
+            except RuntimeError as e:
+                print(f"ERROR: {e}")
+                sys.exit(1)
+        print(f"Interface:       waveshare USB-CAN-A")
+        print(f"Channel:         {channel}")
+        print(f"Bitrate:         {args.bitrate}")
+        print(f"Firmware:        {firmware_path.name}")
+        waveshare_bus = WaveshareBus(channel=channel, bitrate=args.bitrate)
+    else:
+        print(f"Interface:       {args.interface}")
+        print(f"Channel:         {args.channel}")
+        print(f"Bitrate:         {args.bitrate}")
+        print(f"Firmware:        {firmware_path.name}")
 
     network = canopen.Network()
     try:
-        network.connect(bustype=args.interface, channel=args.channel,
-                        bitrate=args.bitrate)
+        if waveshare_bus is not None:
+            # python-canopen accepts a pre-built python-can bus instance
+            network.connect(bus=waveshare_bus)
+        else:
+            network.connect(bustype=args.interface, channel=args.channel,
+                            bitrate=args.bitrate)
         print("CAN bus connected.\n")
 
         success = flash_node(network, args.node, firmware, args.verbose)

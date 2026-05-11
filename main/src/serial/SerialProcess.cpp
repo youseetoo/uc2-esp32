@@ -43,6 +43,7 @@
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "../canopen/CANopenModule.h"
+#include "../canopen/OtaBinaryReceive.h"
 #endif
 #include "../canopen/DeviceRouter.h"
 #include "../canopen/RoutingTable.h"
@@ -404,6 +405,18 @@ namespace SerialProcess
 			// Process binary stream packets from Serial
 			can_ota_stream::processBinaryStreamPacket();
 			return; // Don't process JSON in streaming binary mode
+		}
+#endif
+
+#ifdef CAN_CONTROLLER_CANOPEN
+		// CANopen path: /ota_start preamble flips this on. Raw firmware bytes
+		// stream into a PSRAM buffer until the announced size is reached, then
+		// CanOpenOTAStreaming::flashSlave() pushes them to the slave via SDO.
+		if (OtaBinaryReceive::isActive())
+		{
+			OtaBinaryReceive::processBytes();
+			vTaskDelay(pdMS_TO_TICKS(1));
+			return;
 		}
 #endif
 

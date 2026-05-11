@@ -93,6 +93,7 @@ __attribute__ ((unused)) static const  char* PID_get_endpoint = "/PID_get";
 __attribute__ ((unused)) static const  char* features_endpoint = "/features_get";
 __attribute__ ((unused)) static const  char* identity_endpoint = "/identity";
 __attribute__ ((unused)) static const  char* ota_endpoint = "/ota";
+__attribute__ ((unused)) static const  char* ota_start_endpoint = "/ota_start";
 __attribute__ ((unused)) static const  char* update_endpoint = "/update";
 __attribute__ ((unused)) static const  char* scanwifi_endpoint = "/wifi/scan";
 __attribute__ ((unused)) static const  char* connectwifi_endpoint = "/wifi/connect";

@@ -468,8 +468,12 @@ bool CANopenModule::writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIn
         log_e("SDO client not initialized");
         return false;
     }
-    if (!isNodeReachable(nodeId)) return false;
-    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(500)) != pdTRUE) return false;
+    // NOTE: intentionally NO isNodeReachable() check here. Domain transfers
+    // (e.g. OTA firmware ~1 MB) take minutes; the slave stops pushing TPDOs
+    // while busy writing flash, so its "seen recently" timestamp would go
+    // stale and abort an in-flight transfer. The 2 s per-transaction SDO
+    // timeout below already handles unresponsive nodes gracefully.
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(5000)) != pdTRUE) return false;
 
     log_i("Writing SDO domain: node 0x%02X idx 0x%04X sub 0x%02X size %u",
           nodeId, index, subIndex, (unsigned)dataSize);

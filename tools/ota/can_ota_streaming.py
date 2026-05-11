@@ -10,7 +10,7 @@ Speed comparison:
 - Streaming (ACK per 4KB): ~1.5-2 minutes for 1MB
 
 Usage:
-  python can_ota_streaming.py                    - Upload default firmware
+  python can_ota_streaming.py                     - Upload default firmware
   python can_ota_streaming.py --firmware file.bin - Upload specific firmware
 """
 

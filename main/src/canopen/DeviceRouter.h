@@ -32,6 +32,14 @@ public:
     // "nodeId" is provided in the JSON; other state ops are handled locally.
     static cJSON* handleStateAct(cJSON* doc);
 
+#ifdef CAN_CONTROLLER_CANOPEN
+    // /ota_start — JSON preamble that flips the master into binary OTA receive
+    // mode. Subsequent raw bytes on Serial are streamed into a PSRAM buffer
+    // by OtaBinaryReceive::processBytes() and then forwarded to the slave via
+    // CanOpenOTAStreaming::flashSlave().
+    static cJSON* handleOtaStart(cJSON* doc);
+#endif
+
 private:
 #ifdef CAN_CONTROLLER_CANOPEN
     static cJSON* handleStateGet(uint8_t nodeId);

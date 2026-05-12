@@ -489,6 +489,267 @@ bool CANopenModule::writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIn
 }
 
 // ============================================================================
+// Streaming SDO download — chunked transfer for large blobs (e.g. OTA)
+// ============================================================================
+//
+// CANopenNode v4 supports refilling the SDO client FIFO between calls by
+// passing bufferPartial=true. This lets us stream a multi-MB firmware image
+// to a remote node in small chunks (4 KB), keeping the master's RAM
+// footprint constant and independent of the total transfer size.
+//
+// The state machine of CO_SDOclient is driven exclusively by
+// CO_SDOclientDownload(); it is NOT ticked by CO_process. Therefore we
+// must keep calling it from this module until the chunk's data is fully
+// queued and the client is parked in CO_SDO_RT_waitingResponse (i.e. the
+// FIFO is empty and the next segment ACK from the server is awaited).
+// ============================================================================
+
+static bool                s_sdoStreamActive       = false;
+static CO_SDOclient_t*     s_sdoStreamClient       = nullptr;
+static uint32_t            s_sdoStreamTotalSize    = 0;
+static uint32_t            s_sdoStreamBytesQueued  = 0;
+static uint64_t            s_sdoStreamLastUs       = 0;
+
+// Maximum time we will spin inside a single chunk call before yielding back
+// to the caller, even if the FIFO is not yet drained. Prevents the WDT from
+// firing on extremely slow links. The state machine resumes on the next
+// chunk call (data still queued in FIFO).
+static constexpr uint32_t SDO_STREAM_CHUNK_BUDGET_MS = 2000;
+// Per-call SDO timeout (passed to CO_SDOclientDownloadInitiate). Must be
+// long enough to cover the slave's flash-write latency.
+static constexpr uint16_t SDO_STREAM_TIMEOUT_MS      = 5000;
+
+bool CANopenModule::sdoDownloadActive() { return s_sdoStreamActive; }
+
+bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
+                                     uint8_t subIndex, uint32_t totalSize)
+{
+    if (s_sdoStreamActive) {
+        log_e("sdoDownloadBegin: another stream already active");
+        return false;
+    }
+    if (CO == NULL || CO->SDOclient == NULL) {
+        log_e("sdoDownloadBegin: SDO client not initialised");
+        return false;
+    }
+    if (totalSize == 0) {
+        log_e("sdoDownloadBegin: totalSize=0");
+        return false;
+    }
+
+    // Hold the SDO mutex for the entire streaming session so other writes do
+    // not interleave segments. Use a longer wait than the regular helpers.
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+        log_e("sdoDownloadBegin: failed to take SDO mutex");
+        return false;
+    }
+
+    s_sdoStreamClient = CO->SDOclient;
+    CO_SDO_return_t r = CO_SDOclient_setup(s_sdoStreamClient,
+        CO_CAN_ID_SDO_CLI + nodeId,
+        CO_CAN_ID_SDO_SRV + nodeId, nodeId);
+    if (r != CO_SDO_RT_ok_communicationEnd) {
+        log_e("sdoDownloadBegin: CO_SDOclient_setup ret=%d", r);
+        if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+        s_sdoStreamClient = nullptr;
+        return false;
+    }
+
+    // Initiate with the full transfer size so the slave can call
+    // esp_ota_begin(totalSize) before any data arrives.
+    r = CO_SDOclientDownloadInitiate(s_sdoStreamClient, index, subIndex,
+                                     totalSize, SDO_STREAM_TIMEOUT_MS, false);
+    if (r != CO_SDO_RT_ok_communicationEnd) {
+        log_e("sdoDownloadBegin: CO_SDOclientDownloadInitiate ret=%d", r);
+        if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+        s_sdoStreamClient = nullptr;
+        return false;
+    }
+
+    s_sdoStreamTotalSize   = totalSize;
+    s_sdoStreamBytesQueued = 0;
+    s_sdoStreamLastUs      = esp_timer_get_time();
+    s_sdoStreamActive      = true;
+
+    log_i("sdoDownloadBegin: node 0x%02X idx 0x%04X sub 0x%02X total=%u",
+          nodeId, index, subIndex, (unsigned)totalSize);
+    return true;
+}
+
+bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
+{
+    if (!s_sdoStreamActive || s_sdoStreamClient == nullptr) {
+        log_e("sdoDownloadChunk: no active stream");
+        return false;
+    }
+    if (data == nullptr || count == 0) return true;
+
+    // bufferPartial is true while more chunks may follow. The very last
+    // byte of the very last chunk is finalised in sdoDownloadEnd() with
+    // bufferPartial=false, so we always pass true here.
+    const bool bufferPartial = true;
+
+    size_t   offset       = 0;
+    uint32_t deadlineMs   = (uint32_t)(esp_timer_get_time() / 1000ULL)
+                            + SDO_STREAM_CHUNK_BUDGET_MS;
+
+    while (offset < count) {
+        // Refill the FIFO with whatever fits.
+        size_t nWritten = CO_SDOclientDownloadBufWrite(s_sdoStreamClient,
+                                                       data + offset,
+                                                       count - offset);
+        offset += nWritten;
+
+        // Drive the state machine to drain over CAN.
+        uint64_t now = esp_timer_get_time();
+        uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
+        s_sdoStreamLastUs = now;
+        // Clamp dtUs to a sane range; very small values cause no harm but
+        // a too-large value (e.g. first call) would advance internal
+        // timers excessively.
+        if (dtUs > 100000U) dtUs = 100000U;
+        if (dtUs == 0)      dtUs = 1;
+
+        CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
+        CO_SDO_return_t r = CO_SDOclientDownload(s_sdoStreamClient, dtUs,
+                                                 /*abort=*/false,
+                                                 bufferPartial,
+                                                 &abortCode, NULL, NULL);
+        if (r < 0) {
+            log_e("sdoDownloadChunk: ret=%d abort=0x%08lX (queued %u/%u of chunk)",
+                  r, (unsigned long)abortCode,
+                  (unsigned)offset, (unsigned)count);
+            sdoDownloadAbort();
+            return false;
+        }
+
+        // Watchdog: bail out if we have spent too long inside this call.
+        // (Chunk is partially queued; caller will not retry — treat as fail.)
+        uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
+        if ((int32_t)(nowMs - deadlineMs) > 0) {
+            log_e("sdoDownloadChunk: budget exceeded after %u/%u bytes",
+                  (unsigned)offset, (unsigned)count);
+            sdoDownloadAbort();
+            return false;
+        }
+
+        // If the FIFO had no room AND the state machine made no progress
+        // (still waiting for the server), yield so other tasks can run.
+        if (nWritten == 0) {
+            taskYIELD();
+        }
+    }
+
+    // All bytes from this chunk are now in the FIFO. Keep ticking the
+    // state machine until it parks in waitingResponse (1) — i.e. the FIFO
+    // has been drained over CAN and we are waiting on the server's ACK.
+    // This naturally throttles the caller to the CAN bus rate.
+    for (;;) {
+        uint64_t now = esp_timer_get_time();
+        uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
+        s_sdoStreamLastUs = now;
+        if (dtUs > 100000U) dtUs = 100000U;
+        if (dtUs == 0)      dtUs = 1;
+
+        CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
+        CO_SDO_return_t r = CO_SDOclientDownload(s_sdoStreamClient, dtUs,
+                                                 /*abort=*/false,
+                                                 bufferPartial,
+                                                 &abortCode, NULL, NULL);
+        if (r < 0) {
+            log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX",
+                  r, (unsigned long)abortCode);
+            sdoDownloadAbort();
+            return false;
+        }
+        // r == 0 cannot happen with bufferPartial=true (it requires the
+        // final call). r == 1 (waitingResponse) is our exit point.
+        if (r == CO_SDO_RT_waitingResponse) break;
+
+        uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
+        if ((int32_t)(nowMs - deadlineMs) > 0) {
+            // FIFO not fully drained yet — that's OK, the state machine
+            // will resume on the next chunk call. Bytes are accounted for
+            // (they are in the FIFO).
+            break;
+        }
+        taskYIELD();
+    }
+
+    s_sdoStreamBytesQueued += count;
+    return true;
+}
+
+bool CANopenModule::sdoDownloadEnd()
+{
+    if (!s_sdoStreamActive || s_sdoStreamClient == nullptr) {
+        log_e("sdoDownloadEnd: no active stream");
+        return false;
+    }
+
+    // Final pass with bufferPartial=false to finalise the transfer.
+    // The state machine may still need to push remaining FIFO contents
+    // and wait for the server's final ACK before returning
+    // CO_SDO_RT_ok_communicationEnd (0).
+    uint32_t deadlineMs = (uint32_t)(esp_timer_get_time() / 1000ULL)
+                          + (uint32_t)SDO_STREAM_TIMEOUT_MS + 2000U;
+    CO_SDO_return_t r;
+    for (;;) {
+        uint64_t now = esp_timer_get_time();
+        uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
+        s_sdoStreamLastUs = now;
+        if (dtUs > 100000U) dtUs = 100000U;
+        if (dtUs == 0)      dtUs = 1;
+
+        CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
+        r = CO_SDOclientDownload(s_sdoStreamClient, dtUs,
+                                 /*abort=*/false,
+                                 /*bufferPartial=*/false,
+                                 &abortCode, NULL, NULL);
+        if (r < 0) {
+            log_e("sdoDownloadEnd: ret=%d abort=0x%08lX",
+                  r, (unsigned long)abortCode);
+            sdoDownloadAbort();
+            return false;
+        }
+        if (r == CO_SDO_RT_ok_communicationEnd) break;
+
+        uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
+        if ((int32_t)(nowMs - deadlineMs) > 0) {
+            log_e("sdoDownloadEnd: timeout waiting for completion");
+            sdoDownloadAbort();
+            return false;
+        }
+        taskYIELD();
+    }
+
+    CO_SDOclientClose(s_sdoStreamClient);
+    s_sdoStreamActive = false;
+    s_sdoStreamClient = nullptr;
+    if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+    log_i("sdoDownloadEnd: stream complete (%u bytes)",
+          (unsigned)s_sdoStreamBytesQueued);
+    return true;
+}
+
+void CANopenModule::sdoDownloadAbort()
+{
+    if (!s_sdoStreamActive || s_sdoStreamClient == nullptr) return;
+
+    // Best-effort abort: tell the server, ignore errors.
+    CO_SDO_abortCode_t abortCode = CO_SDO_AB_GENERAL;
+    (void)CO_SDOclientDownload(s_sdoStreamClient, 1000,
+                               /*abort=*/true, false,
+                               &abortCode, NULL, NULL);
+    CO_SDOclientClose(s_sdoStreamClient);
+    s_sdoStreamActive = false;
+    s_sdoStreamClient = nullptr;
+    if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+    log_w("sdoDownloadAbort: stream aborted after %u bytes",
+          (unsigned)s_sdoStreamBytesQueued);
+}
+
+// ============================================================================
 // LED pixel data — OD extension for SDO segmented/block transfer (slave side)
 // ============================================================================
 #ifdef LED_CONTROLLER

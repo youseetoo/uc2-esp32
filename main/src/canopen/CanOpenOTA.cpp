@@ -16,6 +16,7 @@
  */
 
 #include "CanOpenOTA.h"
+#include "PinConfig.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
 
@@ -66,7 +67,7 @@ static void resetOtaState() {
 static void setError(uint8_t errCode) {
     OD_OTA_STATUS = CANOPEN_OTA_ERROR;
     OD_OTA_ERROR_CODE = errCode;
-    ESP_LOGE(TAG, "OTA error: %d", errCode);
+    log_e(TAG, "OTA error: %d", errCode);
     resetOtaState();
     // Keep error code visible after reset
     OD_OTA_STATUS = CANOPEN_OTA_ERROR;
@@ -88,7 +89,7 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
     if (firmwareSize == 0) {
         // Size 0 = abort/reset
         resetOtaState();
-        ESP_LOGI(TAG, "OTA reset (size=0)");
+        log_i(TAG, "OTA reset (size=0)");
         return ODR_OK;
     }
 
@@ -113,7 +114,7 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
     // Begin OTA
     esp_err_t err = esp_ota_begin(s_otaPartition, firmwareSize, &s_otaHandle);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ota_begin failed: 0x%x", err);
+        log_e(TAG, "esp_ota_begin failed: 0x%x", err);
         setError(CANOPEN_OTA_ERR_BEGIN_FAILED);
         return ODR_HW;
     }
@@ -125,8 +126,8 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
     OD_OTA_BYTES_RECEIVED = 0;
     OD_OTA_ERROR_CODE = CANOPEN_OTA_ERR_NONE;
 
-    ESP_LOGI(TAG, "OTA started: size=%lu, partition=%s",
-             (unsigned long)firmwareSize, s_otaPartition->label);
+    log_i(TAG, "OTA started: size=%lu, partition=%s",
+          (unsigned long)firmwareSize, s_otaPartition->label);
     return ODR_OK;
 }
 
@@ -137,7 +138,7 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
 static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
                              OD_size_t count, OD_size_t* countWritten) {
     if (!s_otaStarted) {
-        ESP_LOGE(TAG, "OTA data received but OTA not started (write size first)");
+        log_e(TAG, "OTA data received but OTA not started (write size first)");
         return ODR_DEV_INCOMPAT;
     }
 
@@ -149,7 +150,7 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
     // Write chunk to flash
     esp_err_t err = esp_ota_write(s_otaHandle, buf, count);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ota_write failed at offset %lu: 0x%x",
+        log_e(TAG, "esp_ota_write failed at offset %lu: 0x%x",
                  (unsigned long)s_bytesWritten, err);
         setError(CANOPEN_OTA_ERR_WRITE_FAILED);
         return ODR_HW;
@@ -165,20 +166,21 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
 
     // Log progress every 64 KB
     if ((s_bytesWritten % (64 * 1024)) < count) {
-        ESP_LOGI(TAG, "OTA progress: %lu / %lu bytes",
-                 (unsigned long)s_bytesWritten, (unsigned long)OD_OTA_FIRMWARE_SIZE);
+        log_i(TAG, "OTA progress: %lu / %lu bytes",
+              (unsigned long)s_bytesWritten, (unsigned long)OD_OTA_FIRMWARE_SIZE);
     }
 
     // Check if this was the last segment
     if (stream->dataOffset + count >= stream->dataLength) {
+
         ESP_LOGI(TAG, "OTA transfer complete: %lu bytes", (unsigned long)s_bytesWritten);
         OD_OTA_STATUS = CANOPEN_OTA_VERIFYING;
 
         // Verify CRC32
         uint32_t expectedCrc = OD_OTA_FIRMWARE_CRC32;
         if (expectedCrc != 0 && s_crc32Running != expectedCrc) {
-            ESP_LOGE(TAG, "CRC32 mismatch: expected=0x%08lx, got=0x%08lx",
-                     (unsigned long)expectedCrc, (unsigned long)s_crc32Running);
+            log_e(TAG, "CRC32 mismatch: expected=0x%08lx, got=0x%08lx",
+                  (unsigned long)expectedCrc, (unsigned long)s_crc32Running);
             esp_ota_abort(s_otaHandle);
             s_otaHandle = 0;
             s_otaStarted = false;

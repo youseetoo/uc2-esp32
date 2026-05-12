@@ -49,6 +49,21 @@ public:
     static bool writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                                const uint8_t* data, size_t dataSize);
 
+    // Streaming SDO download — for large transfers that don't fit in RAM
+    // (e.g. OTA firmware images). The caller manages chunk buffering;
+    // CANopenModule holds the SDO session open across multiple chunks.
+    // The total size is known up front and passed to Begin; each Chunk call
+    // appends data; End finalises and closes the session. Only one streaming
+    // session can be active at a time. The s_sdoMutex is held for the entire
+    // session (taken in Begin, released in End/Abort).
+    static bool sdoDownloadBegin(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                                  uint32_t totalSize);
+    static bool sdoDownloadChunk(const uint8_t* data, size_t count);
+    static bool sdoDownloadEnd();
+    static void sdoDownloadAbort();
+    // True while a streaming SDO download is in progress.
+    static bool sdoDownloadActive();
+
     static cJSON* get(cJSON* doc);
     static cJSON* act(cJSON* doc);
 

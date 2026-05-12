@@ -241,10 +241,11 @@ static uint8_t send_can_message(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
         for (int i = 0; i < tx_msg.message.data_length_code; i++) {
             msgData |= ((uint64_t)tx_msg.message.data[i] << (8 * i));
         }
-        //ESP_LOGI("CO_transmit",
-        //         "CAN:%X,%llX",
-        //         tx_msg.message.identifier,
-        //         msgData);
+        log_i("CO_TX",
+              "Prepared CAN message: id=0x%03X dlc=%u data=0x%016llX",
+              tx_msg.message.identifier,
+              tx_msg.message.data_length_code,
+              msgData);
 
 
         /* Now add message to FIFO. Should not fail */
@@ -396,6 +397,17 @@ void CO_CANinterrupt(CO_CANmodule_t *CANmodule)
         rcvMsg->DLC = rx_msg.message.data_length_code;
         for (int i = 0; i < 8; i++)
             rcvMsg->data[i] = rx_msg.message.data[i];
+
+        // Log EVERY received frame so we can see what the bus carries
+        {
+            uint64_t rxData = 0;
+            for (int i = 0; i < rx_msg.message.data_length_code; i++)
+                rxData |= ((uint64_t)rx_msg.message.data[i] << (8 * i));
+            log_i("CO_RX", "Received CAN message: id=0x%03X dlc=%u data=0x%016llX",
+                  rx_msg.message.identifier,
+                  rx_msg.message.data_length_code,
+                  rxData);
+        }
 
         if (CANmodule->useCANrxFilters) {
             /* CAN module filters are used. Message with known 11-bit identifier

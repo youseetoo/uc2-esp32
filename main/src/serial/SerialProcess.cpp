@@ -410,8 +410,8 @@ namespace SerialProcess
 
 #ifdef CAN_CONTROLLER_CANOPEN
 		// CANopen path: /ota_start preamble flips this on. Raw firmware bytes
-		// stream into a PSRAM buffer until the announced size is reached, then
-		// CanOpenOTAStreaming::flashSlave() pushes them to the slave via SDO.
+		// are streamed in 4 KB chunks straight to the slave via SDO — no
+		// full-image buffer is held on the master.
 		if (OtaBinaryReceive::isActive())
 		{
 			OtaBinaryReceive::processBytes();

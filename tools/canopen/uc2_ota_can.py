@@ -215,7 +215,7 @@ def main():
         print(f"Channel:         {channel}")
         print(f"Bitrate:         {args.bitrate}")
         print(f"Firmware:        {firmware_path.name}")
-        waveshare_bus = WaveshareBus(channel=channel, bitrate=args.bitrate)
+        waveshare_bus = WaveshareBus(channel=channel, bitrate=args.bitrate, serial_baudrate=2000000)
     else:
         print(f"Interface:       {args.interface}")
         print(f"Channel:         {args.channel}")
@@ -223,12 +223,20 @@ def main():
         print(f"Firmware:        {firmware_path.name}")
 
     network = canopen.Network()
+    # The Waveshare USB-CAN-A serial path adds latency; bump the default
+    # SDO response timeout (0.3 s) to avoid spurious 0x05040000 aborts.
+    try:
+        canopen.sdo.client.RESPONSE_TIMEOUT = 5.0  # type: ignore[attr-defined]
+    except Exception:
+        pass
     try:
         if waveshare_bus is not None:
-            # python-canopen accepts a pre-built python-can bus instance
-            network.connect(bus=waveshare_bus)
+            # Newer python-canopen ignores `bus=` in connect(); assign directly
+            # so connect() skips can.Bus creation and only starts the notifier.
+            network.bus = waveshare_bus
+            network.connect()
         else:
-            network.connect(bustype=args.interface, channel=args.channel,
+            network.connect(interface=args.interface, channel=args.channel,
                             bitrate=args.bitrate)
         print("CAN bus connected.\n")
 

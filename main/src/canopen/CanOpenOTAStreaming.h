@@ -19,6 +19,11 @@ namespace CanOpenOTAStreaming {
 /**
  * @brief Flash a slave node's firmware via SDO domain transfer.
  *
+ * @deprecated For serial-fed OTA on memory-constrained masters use
+ * OtaBinaryReceive (streams 4 KB chunks via CANopenModule::sdoDownload*).
+ * flashSlave() requires the full firmware image in RAM and is kept only
+ * for tests where the host owns the buffer (e.g. flashing from SD).
+ *
  * Steps:
  *   1. Write firmware size to slave 0x2F01
  *   2. Write CRC32 to slave 0x2F02

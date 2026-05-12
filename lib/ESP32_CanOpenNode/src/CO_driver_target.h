@@ -48,7 +48,14 @@ extern "C" {
 
 /* Stack configuration override default values.
  * For more information see file CO_config.h. */
-#define CO_CONFIG_SDO_CLI (1)
+/* SDO client: ENABLE (0x01) | SEGMENTED (0x02) — needed for OTA streaming
+ * (firmware blobs are far larger than the 4-byte expedited limit). */
+#define CO_CONFIG_SDO_CLI (0x01 | 0x02)
+/* Larger client FIFO so the streaming OTA loop can refill efficiently and
+ * the SDO state machine has work between caller ticks. 256 bytes is small
+ * enough for any ESP32 internal-DRAM build, and ~36 segments worth of
+ * payload (7 bytes each) gives plenty of headroom. */
+#define CO_CONFIG_SDO_CLI_BUFFER_SIZE 256
 #define CO_CONFIG_FIFO (1)
 
 

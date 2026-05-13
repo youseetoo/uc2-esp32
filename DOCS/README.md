@@ -22,6 +22,9 @@ Before diving into the development process, ensure you have the following:
 
 ### Setting Up Your Development Environment
 
+`git submodule update --init --recursive`
+
+
 #### Step 1: Install Visual Studio Code and PlatformIO
 1. Download and install **Visual Studio Code** (VS Code) from the [official website](https://code.visualstudio.com/).
 2. Open VS Code and navigate to the Extensions view by clicking on the square icon on the sidebar or pressing `Ctrl+Shift+X`.

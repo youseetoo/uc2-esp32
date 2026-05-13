@@ -226,7 +226,13 @@ namespace FAccelStep
         // direction toggles which the MCPWM/PCNT driver does not, and on
         // boards without an encoder there is no PCNT contention to worry
         // about. Fall back to MCPWM/PCNT only if RMT allocation fails.
+#ifdef LED_CONTROLLER
+// don'T use RMT for motor control if LED controller is active, to avoid conflicts over the RMT peripheral
+         log_i("LED controller active, skipping RMT allocation for motor %d", stepper);
+         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_MCPWM_PCNT);
+#else
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+#endif
         if (faststeppers[stepper] == nullptr)
         {
             faststeppers[stepper] = engine.stepperConnectToPin(motorstp);

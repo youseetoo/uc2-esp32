@@ -648,8 +648,10 @@ extern "C" void app_main(void)
 	log_i("Start setup");
 	
 	// IMPORTANT: Set RX buffer size BEFORE Serial.begin()!
-	// This is needed for binary OTA which sends 1036-byte packets
-	Serial.setRxBufferSize(4096);  // Large enough for 1024-byte chunks + header
+	// Must hold at least one full streaming OTA chunk (4096 B) plus headroom
+	// for the next chunk that may arrive while the master is busy pushing the
+	// previous one over CAN. 8 KB gives a safe margin against UART overflow.
+	Serial.setRxBufferSize(8192);
 	Serial.setTxBufferSize(2048);
 	//delay(10000);
 	// Start Serial

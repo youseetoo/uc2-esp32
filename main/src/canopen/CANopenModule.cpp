@@ -134,7 +134,11 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         .clkout_io      = TWAI_IO_UNUSED,
         .bus_off_io     = TWAI_IO_UNUSED,
         .tx_queue_len   = 0,
-        .rx_queue_len   = 20,
+        .rx_queue_len   = 64,   // bumped from 20: a 256-B SDO chunk = ~37
+                                // CAN frames hit the slave back-to-back; a
+                                // small queue + 1 ms task tick can drop
+                                // frames and trigger SDO server timeout
+                                // (abort 0x05040000) on the OTA stream.
         .alerts_enabled = TWAI_ALERT_NONE,
         .clkout_divider = 0,
         .intr_flags     = ESP_INTR_FLAG_LEVEL1
@@ -509,6 +513,7 @@ static CO_SDOclient_t*     s_sdoStreamClient       = nullptr;
 static uint32_t            s_sdoStreamTotalSize    = 0;
 static uint32_t            s_sdoStreamBytesQueued  = 0;
 static uint64_t            s_sdoStreamLastUs       = 0;
+static uint32_t            s_sdoStreamLastLoggedKB = 0;
 
 // Maximum time we will spin inside a single chunk call before yielding back
 // to the caller, even if the FIFO is not yet drained. Prevents the WDT from
@@ -566,10 +571,11 @@ bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
         return false;
     }
 
-    s_sdoStreamTotalSize   = totalSize;
-    s_sdoStreamBytesQueued = 0;
-    s_sdoStreamLastUs      = esp_timer_get_time();
-    s_sdoStreamActive      = true;
+    s_sdoStreamTotalSize    = totalSize;
+    s_sdoStreamBytesQueued  = 0;
+    s_sdoStreamLastUs       = esp_timer_get_time();
+    s_sdoStreamLastLoggedKB = 0;
+    s_sdoStreamActive       = true;
 
     log_i("sdoDownloadBegin: node 0x%02X idx 0x%04X sub 0x%02X total=%u",
           nodeId, index, subIndex, (unsigned)totalSize);
@@ -616,9 +622,11 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
                                                  bufferPartial,
                                                  &abortCode, NULL, NULL);
         if (r < 0) {
-            log_e("sdoDownloadChunk: ret=%d abort=0x%08lX (queued %u/%u of chunk)",
+            log_e("sdoDownloadChunk(fill): node 0x%02X ret=%d abort=0x%08lX queued %u/%u of chunk (totalQueued=%u)",
+                  s_sdoStreamClient ? (unsigned)s_sdoStreamClient->nodeIDOfTheSDOServer : 0u,
                   r, (unsigned long)abortCode,
-                  (unsigned)offset, (unsigned)count);
+                  (unsigned)offset, (unsigned)count,
+                  (unsigned)s_sdoStreamBytesQueued);
             sdoDownloadAbort();
             return false;
         }
@@ -627,8 +635,10 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         // (Chunk is partially queued; caller will not retry — treat as fail.)
         uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
         if ((int32_t)(nowMs - deadlineMs) > 0) {
-            log_e("sdoDownloadChunk: budget exceeded after %u/%u bytes",
-                  (unsigned)offset, (unsigned)count);
+            log_e("sdoDownloadChunk: budget %ums exceeded after %u/%u bytes (totalQueued=%u, last ret=%d)",
+                  (unsigned)SDO_STREAM_CHUNK_BUDGET_MS,
+                  (unsigned)offset, (unsigned)count,
+                  (unsigned)s_sdoStreamBytesQueued, r);
             sdoDownloadAbort();
             return false;
         }
@@ -657,8 +667,9 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
                                                  bufferPartial,
                                                  &abortCode, NULL, NULL);
         if (r < 0) {
-            log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX",
-                  r, (unsigned long)abortCode);
+            log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX totalQueued=%u",
+                  r, (unsigned long)abortCode,
+                  (unsigned)s_sdoStreamBytesQueued);
             sdoDownloadAbort();
             return false;
         }
@@ -677,6 +688,17 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
     }
 
     s_sdoStreamBytesQueued += count;
+
+    // Throttled progress log so we can see the master pumping segments
+    // without flooding the UART (which would itself starve the CO task).
+    uint32_t curKB = s_sdoStreamBytesQueued / 1024U;
+    if (curKB >= s_sdoStreamLastLoggedKB + 16U) {
+        log_i("sdoDownloadChunk: queued %u / %u bytes (%u KB)",
+              (unsigned)s_sdoStreamBytesQueued,
+              (unsigned)s_sdoStreamTotalSize,
+              (unsigned)curKB);
+        s_sdoStreamLastLoggedKB = curKB;
+    }
     return true;
 }
 

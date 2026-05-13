@@ -43,13 +43,45 @@ except ImportError:
 READY_TIMEOUT_S = 10.0
 FLASH_TIMEOUT_S = 600.0   # SDO domain transfer can take minutes
 CHUNK_SIZE      = 4096
+ACK_TIMEOUT_S   = 30.0    # max wait per chunk for the master's ota_rx ACK
 INTER_CHUNK_DELAY_S = 0.0  # set >0 if the host overruns the master's UART
+
+# Mirror everything the master prints (logs, JSON, errors) to stdout. Set
+# False if you only want the high-level progress lines.
+VERBOSE_MIRROR_MASTER = True
 
 
 # Match standalone JSON objects on a single line. The master's framed output
 # uses ``++\n<json>\n--\n`` envelopes, but bare JSON lines (e.g. emitted from
 # OtaBinaryReceive::emitJson) are also handled.
 _JSON_LINE_RE = re.compile(rb"\{[^\n]*\}")
+
+
+def _mirror_lines(buf: bytearray) -> None:
+    """Drain whole lines from ``buf`` and print them prefixed with [MASTER].
+
+    Leaves any trailing partial line in ``buf`` for later. Replaces non-UTF-8
+    bytes with the unicode replacement character so we never raise on logs.
+    """
+    if not VERBOSE_MIRROR_MASTER or not buf:
+        return
+    while True:
+        nl = buf.find(b"\n")
+        if nl < 0:
+            return
+        line = bytes(buf[:nl]).rstrip(b"\r")
+        del buf[: nl + 1]
+        if not line:
+            continue
+        try:
+            text = line.decode("utf-8", errors="replace")
+        except Exception:
+            text = repr(line)
+        # Tag JSON status lines so they stand out.
+        tag = "MASTER"
+        if line.startswith(b"{") and b"ota_" in line:
+            tag = "MASTER/JSON"
+        print(f"[{tag}] {text}", flush=True)
 
 
 def _try_extract_json_status(buf: bytes):
@@ -72,10 +104,14 @@ def _wait_for_status(ser: serial.Serial, deadline: float, key_values=None):
     ``("ready",)``). Returns the matching JSON object or None on timeout.
     """
     buf = bytearray()
+    mirror = bytearray()
     while time.time() < deadline:
+
         chunk = ser.read(ser.in_waiting or 1)
         if chunk:
             buf.extend(chunk)
+            mirror.extend(chunk)
+            _mirror_lines(mirror)
             obj = _try_extract_json_status(bytes(buf))
             if obj is not None:
                 if key_values is None:
@@ -130,32 +166,91 @@ def flash_via_master(port: str, baud: int, node_id: int, firmware: bytes) -> boo
             return False
         print(f"      master ready: {ready}")
 
-        # Step 2: stream raw firmware bytes.
-        print(f"[2/3] Uploading {size:,} bytes...")
+        # Step 2: stream raw firmware bytes — strictly ACK-paced.
+        #
+        # The master can only push ~one 4 KB chunk per CAN round-trip; if we
+        # blast bytes faster than that, the master's UART RX ring overflows
+        # and the slave receives garbage (e.g. 0x0d instead of the firmware
+        # magic 0xE9). Therefore: send exactly CHUNK_SIZE bytes, then block
+        # until the master confirms with `{"ota_rx": N}` where N >= sent.
+        print(f"[2/3] Uploading {size:,} bytes (ACK-paced, {CHUNK_SIZE} B chunks)...")
         start = time.time()
         sent = 0
+        last_ack = 0
+        ack_buf = bytearray()
+
+        def _drain(ack_buf: bytearray) -> tuple[int, dict | None]:
+            """Read whatever is in the RX buffer, return (latest_ack, error_obj).
+
+            Also mirrors all complete lines from the master to stdout so we
+            can see ESP_LOG output (e.g. ``[E][CANopenModule.cpp:625] ...``)
+            inline with the upload progress.
+            """
+            latest = last_ack
+            err = None
+            if ser.in_waiting:
+                ack_buf.extend(ser.read(ser.in_waiting))
+            # Mirror first so the log context appears before any error return.
+            _mirror_lines(ack_buf)
+            for match in _JSON_LINE_RE.findall(bytes(ack_buf)):
+                try:
+                    obj = json.loads(match.decode(errors="ignore"))
+                except json.JSONDecodeError:
+                    continue
+                if "ota_rx" in obj:
+                    try:
+                        latest = max(latest, int(obj["ota_rx"]))
+                    except (TypeError, ValueError):
+                        pass
+                elif obj.get("ota_status") == "error":
+                    err = obj
+            # Trim consumed JSON to keep the buffer small.
+            cut = bytes(ack_buf).rfind(b"}")
+            if cut > 0:
+                del ack_buf[: cut + 1]
+            return latest, err
+
+        chunk_no = 0
         while sent < size:
             end = min(sent + CHUNK_SIZE, size)
-            n = ser.write(firmware[sent:end])
+            payload = firmware[sent:end]
+            chunk_no += 1
+            t_send = time.time()
+            ser.write(payload)
             ser.flush()
-            sent += n
+            print(f"[TX  ] chunk #{chunk_no:>4}  bytes {sent:>7,}..{end:>7,}  "
+                  f"first4={payload[:4].hex()}  last4={payload[-4:].hex()}",
+                  flush=True)
+            sent = end
 
-            # Drain progress ACKs as they arrive.
-            if ser.in_waiting:
-                pending = ser.read(ser.in_waiting)
-                for match in _JSON_LINE_RE.findall(pending):
-                    try:
-                        obj = json.loads(match.decode(errors="ignore"))
-                    except json.JSONDecodeError:
-                        continue
-                    if "ota_rx" in obj:
-                        rx = int(obj["ota_rx"])
-                        pct = rx / size * 100.0
-                        print(f"      progress: {rx:,} / {size:,} ({pct:5.1f}%)",
-                              end="\r", flush=True)
-                    elif obj.get("ota_status") == "error":
-                        print(f"\nERROR from master: {obj}")
-                        return False
+            # Block until the master ACKs at least `sent` bytes (or errors).
+            deadline = time.time() + ACK_TIMEOUT_S
+            while last_ack < sent:
+                last_ack, err = _drain(ack_buf)
+                if err is not None:
+                    print(f"\n[FAIL] master reported error: {err}")
+                    print(f"[FAIL] at chunk #{chunk_no}, sent={sent}, "
+                          f"last_ack={last_ack}, missing={sent - last_ack} bytes")
+                    # Drain any remaining log lines so the user sees the
+                    # error context the master printed just before/after.
+                    time.sleep(0.3)
+                    _drain(ack_buf)
+                    return False
+                if last_ack >= sent:
+                    break
+                if time.time() > deadline:
+                    print(f"\n[FAIL] timeout waiting for ACK at chunk #{chunk_no} "
+                          f"(sent={sent}, last_ack={last_ack}, "
+                          f"waited={time.time()-t_send:.1f}s)")
+                    time.sleep(0.3)
+                    _drain(ack_buf)
+                    return False
+                time.sleep(0.002)
+
+            dt = time.time() - t_send
+            pct = last_ack / size * 100.0
+            print(f"[ACK ] chunk #{chunk_no:>4}  ack={last_ack:>7,}  "
+                  f"({pct:5.1f}%)  rtt={dt*1000:6.0f} ms", flush=True)
 
             if INTER_CHUNK_DELAY_S > 0:
                 time.sleep(INTER_CHUNK_DELAY_S)

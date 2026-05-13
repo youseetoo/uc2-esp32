@@ -97,7 +97,8 @@ bool flushChunk() {
         s_streamOpen = true;
     }
 
-    if (!CANopenModule::sdoDownloadChunk(s_chunk, s_chunkPos)) {
+    //CANopenModule::sdoDownloadChunk(s_chunk, s_chunkPos);
+    if (!CANopenModule::sdoDownloadChunk(s_chunk, s_chunkPos)) { // TODO: What exactly is this doing? Does it push the chunk to the slave?
         emitJson("{\"ota_status\":\"error\",\"error\":\"sdo_chunk_failed\"}");
         s_streamOpen = false;  // sdoDownloadChunk already aborted on failure
         return false;

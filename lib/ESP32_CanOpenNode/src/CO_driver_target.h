@@ -56,6 +56,15 @@ extern "C" {
  * enough for any ESP32 internal-DRAM build, and ~36 segments worth of
  * payload (7 bytes each) gives plenty of headroom. */
 #define CO_CONFIG_SDO_CLI_BUFFER_SIZE 256
+/* Server-side buffer drives how many segment payloads accumulate before the
+ * OD write callback is invoked. Default 32 = only 28 B per callback, which
+ * forces esp_ota_write to be called ~30 000 times for a 800 KB image (each
+ * call is ~10 ms of flash overhead → effectively ~1 KB/s).
+ *
+ * Bumping to 1024 B means each callback writes up to ~1 KB of flash at
+ * once, raising effective throughput by ~30x and matching the master's
+ * 4 KB chunk budget. RAM cost: 1 KB BSS in CO_SDOserver_t. */
+#define CO_CONFIG_SDO_SRV_BUFFER_SIZE 1024
 #define CO_CONFIG_FIFO (1)
 
 

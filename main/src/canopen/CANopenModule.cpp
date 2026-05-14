@@ -368,7 +368,7 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 // Returns true if the slave at nodeId has pushed a TPDO within the last 5 seconds.
 // Used to fast-fail SDO writes against absent slaves, preventing TWAI retransmission
 // storms that could starve the WDT. Allows one probe per second for discovery.
-static bool isNodeReachable(uint8_t nodeId)
+bool CANopenModule::isNodeReachable(uint8_t nodeId)
 {
     // Check motor routes first — they have TPDO-based liveness tracking
     for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
@@ -404,6 +404,20 @@ static bool isNodeReachable(uint8_t nodeId)
     }
 
     return false;  // no route to this nodeId
+}
+
+// Poll isNodeReachable() until it returns true or timeoutMs elapses.
+// Used by OTA: after a slave reboot it takes ~1 s before the master sees
+// the first TPDO/heartbeat, and we don't want the very first SDO write
+// (CRC32 / size) to fail just because we asked too early.
+bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
+{
+    const uint32_t deadline = millis() + timeoutMs;
+    while (millis() < deadline) {
+        if (isNodeReachable(nodeId)) return true;
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    return isNodeReachable(nodeId);
 }
 
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,

@@ -39,6 +39,14 @@ public:
     static bool readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                         uint8_t* buf, size_t bufSize, size_t* readSize);
 
+    // Returns true if the slave at nodeId has been heard from recently
+    // (TPDO/heartbeat). For non-motor peripherals always returns true if a
+    // route exists. Used to gate fast-fail SDO writes.
+    static bool isNodeReachable(uint8_t nodeId);
+    // Block until isNodeReachable(nodeId) returns true or timeoutMs elapses.
+    // Polls every 50 ms. Returns true on success, false on timeout.
+    static bool waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs);
+
     // Typed SDO write helpers
     static bool writeSDO_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v);
     static bool writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v);

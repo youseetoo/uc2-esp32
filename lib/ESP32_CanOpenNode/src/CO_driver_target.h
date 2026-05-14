@@ -48,14 +48,15 @@ extern "C" {
 
 /* Stack configuration override default values.
  * For more information see file CO_config.h. */
-/* SDO client: ENABLE (0x01) | SEGMENTED (0x02) — needed for OTA streaming
- * (firmware blobs are far larger than the 4-byte expedited limit). */
-#define CO_CONFIG_SDO_CLI (0x01 | 0x02)
+/* SDO client: ENABLE (0x01) | SEGMENTED (0x02) | BLOCK (0x04).
+ * Block transfer batches 127 segments per ACK — critical for OTA throughput
+ * (raw segmented SDO over 500 kbit/s CAN tops out at ~1–1.5 KB/s, block
+ * pushes that to ~10–15 KB/s on this stack). */
+#define CO_CONFIG_SDO_CLI (0x01 | 0x02 | 0x04)
 /* Larger client FIFO so the streaming OTA loop can refill efficiently and
- * the SDO state machine has work between caller ticks. 256 bytes is small
- * enough for any ESP32 internal-DRAM build, and ~36 segments worth of
- * payload (7 bytes each) gives plenty of headroom. */
-#define CO_CONFIG_SDO_CLI_BUFFER_SIZE 256
+ * the SDO state machine has work between caller ticks. Block transfer
+ * requires at least 899 bytes (127*7) to use full block size. */
+#define CO_CONFIG_SDO_CLI_BUFFER_SIZE 1024
 /* Server-side buffer drives how many segment payloads accumulate before the
  * OD write callback is invoked. Default 32 = only 28 B per callback, which
  * forces esp_ota_write to be called ~30 000 times for a 800 KB image (each
@@ -65,7 +66,17 @@ extern "C" {
  * once, raising effective throughput by ~30x and matching the master's
  * 4 KB chunk budget. RAM cost: 1 KB BSS in CO_SDOserver_t. */
 #define CO_CONFIG_SDO_SRV_BUFFER_SIZE 1024
-#define CO_CONFIG_FIFO (1)
+/* SDO server: SEGMENTED (0x02) | BLOCK (0x04) | OD_DYNAMIC (0x4000).
+ * Must include BLOCK so the slave can negotiate block transfer with the
+ * master. OD_DYNAMIC is part of the upstream default and required by
+ * other code paths. */
+#define CO_CONFIG_SDO_SRV (0x02 | 0x04 | 0x4000)
+/* FIFO: ENABLE (0x01) | ALT_READ (0x02) | CRC16_CCITT (0x04).
+ * ALT_READ + CRC16 are mandatory when SDO_CLI_BLOCK is enabled — block
+ * transfer pre-reads bytes from the FIFO to compute CRC before sending. */
+#define CO_CONFIG_FIFO (0x01 | 0x02 | 0x04)
+/* CRC16 table-driven implementation, used by block transfer. */
+#define CO_CONFIG_CRC16 (0x01)
 
 
 /* Basic definitions. If big endian, CO_SWAP_xx macros must swap bytes. */

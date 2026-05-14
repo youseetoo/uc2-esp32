@@ -71,6 +71,16 @@ bool flushChunk() {
     if (s_chunkPos == 0) return true;
 
     if (!s_streamOpen) {
+        // 0) Wait for the slave to be reachable. After the slave just
+        //    finished a previous OTA (or just powered up), the master
+        //    hasn't received its first heartbeat/TPDO yet; without this
+        //    wait the very first writeSDO_u32 below fails with
+        //    "node not reachable" and the host sees crc_write_failed.
+        if (!CANopenModule::waitForNodeReachable(s_nodeId, 10000)) {
+            log_e("OTA: slave 0x%02X not reachable after 10s", s_nodeId);
+            emitJson("{\"ota_status\":\"error\",\"error\":\"slave_unreachable\"}");
+            return false;
+        }
         // 1) Tell the slave the expected CRC32 (so it can verify the image).
         if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_CRC32,
                                          0, s_expectedCrc32)) {

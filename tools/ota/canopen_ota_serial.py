@@ -20,7 +20,7 @@ Usage:
     python tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/UC2-REST/binaries/latest/esp32_seeed_xiao_esp32s3_can_slave_motor.bin --baud 921600
     python tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.pio/build/UC2_canopen_slave_motor/firmware.bin --baud 921600
     python /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.pio/build/UC2_canopen_slave_motor/firmware.bin --baud 921600 
-    python /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.pio/build/UC2_canopen_slave_motor/firmware.bin --baud 921600 
+    python /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/UC2-REST/binaries/latest/esp32_seeed_xiao_esp32s3_can_slave_motor.bin --baud 921600 
 =============================
 {"task": "/ota_start", "ota": {"nodeId": 11, "size": 798432, "crc32": "0xD2A5FB80"}}
 

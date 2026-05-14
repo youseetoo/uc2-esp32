@@ -42,7 +42,8 @@ static const esp_partition_t*  s_otaPartition = nullptr;
 static uint32_t                s_crc32Running = 0;
 static uint32_t                s_bytesWritten = 0;
 static bool                    s_otaStarted = false;
-static uint32_t                s_nextProgressMark = 0;
+static uint32_t                s_nextProgressMark      = 64U * 1024U;
+;
 
 static OD_extension_t s_otaDataExt;
 static OD_extension_t s_otaSizeExt;
@@ -62,7 +63,7 @@ static void resetOtaState() {
     s_crc32Running = 0;
     s_bytesWritten = 0;
     s_otaStarted = false;
-    s_nextProgressMark = 16U * 1024U;
+    s_nextProgressMark = 64U * 1024U;
     OD_OTA_STATUS = CANOPEN_OTA_IDLE;
     OD_OTA_BYTES_RECEIVED = 0;
     OD_OTA_ERROR_CODE = CANOPEN_OTA_ERR_NONE;
@@ -160,29 +161,6 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
         return ODR_OK;
     }
 
-    // Per-segment debug counter. With CO_CONFIG_SDO_SRV_BUFFER_SIZE = 32
-    // (default) this fires every ~32 B; that's ~25 kHz at 500 kbit/s for
-    // a fully-saturated SDO download. Logging every 64th invocation keeps
-    // UART well below saturation while still proving frames arrive.
-    static uint32_t s_dbgCallCount = 0;
-    s_dbgCallCount++;
-    if (s_dbgCallCount <= 4 || (s_dbgCallCount & 0x3F) == 0) {
-        log_i("onOtaWriteChunk #%lu: count=%u offset=%u dataLen=%u written=%lu",
-              (unsigned long)s_dbgCallCount, (unsigned)count,
-              (unsigned)stream->dataOffset, (unsigned)stream->dataLength,
-              (unsigned long)s_bytesWritten);
-    }
-
-    // First-segment debug: log what the SDO server thinks of the transfer so
-    // we can verify dataLength behaviour for the domain entry.
-    if (s_bytesWritten == 0) {
-        log_i("OTA first segment: count=%u dataOffset=%u dataLength=%u expectedSize=%u",
-              (unsigned)count,
-              (unsigned)stream->dataOffset,
-              (unsigned)stream->dataLength,
-              (unsigned)OD_OTA_FIRMWARE_SIZE);
-    }
-
     // Write chunk to flash. esp_ota_write does not block long for small
     // counts (<= 256 B) but we still avoid logging here on every call —
     // the SDO segment rate is several kHz and per-segment logs over
@@ -203,16 +181,12 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
     // Update OD status for TPDO reporting
     OD_OTA_BYTES_RECEIVED = s_bytesWritten;
 
-    // Throttled progress log: every 16 KB and on any flush > 1 KB.
-    // Using a counter rather than %=0 to avoid relying on alignment.
+    // Throttled progress log: every 64 KB to avoid UART blocking the SDO task.
     if (s_bytesWritten >= s_nextProgressMark) {
-        log_i("OTA progress: %lu / %lu bytes (last seg=%u, dataOffset=%u, dataLength=%u)",
+        log_i("OTA progress: %lu / %lu bytes",
               (unsigned long)s_bytesWritten,
-              (unsigned long)OD_OTA_FIRMWARE_SIZE,
-              (unsigned)count,
-              (unsigned)stream->dataOffset,
-              (unsigned)stream->dataLength);
-        s_nextProgressMark += 16U * 1024U;
+              (unsigned long)OD_OTA_FIRMWARE_SIZE);
+        s_nextProgressMark += 64U * 1024U;
     }
 
     // Detect end-of-transfer.

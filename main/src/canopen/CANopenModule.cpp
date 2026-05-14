@@ -519,10 +519,10 @@ static uint32_t            s_sdoStreamLastLoggedKB = 0;
 // to the caller, even if the FIFO is not yet drained. Prevents the WDT from
 // firing on extremely slow links. The state machine resumes on the next
 // chunk call (data still queued in FIFO).
-static constexpr uint32_t SDO_STREAM_CHUNK_BUDGET_MS = 2000;
+static constexpr uint32_t SDO_STREAM_CHUNK_BUDGET_MS = 10000;
 // Per-call SDO timeout (passed to CO_SDOclientDownloadInitiate). Must be
 // long enough to cover the slave's flash-write latency.
-static constexpr uint16_t SDO_STREAM_TIMEOUT_MS      = 5000;
+static constexpr uint16_t SDO_STREAM_TIMEOUT_MS      = 15000;
 
 bool CANopenModule::sdoDownloadActive() { return s_sdoStreamActive; }
 
@@ -1074,6 +1074,10 @@ void CANopenModule::syncRpdoToModules()
 // Slave: consume RPDO data from OD_RAM and dispatch to local modules
 void CANopenModule::syncRpdoToModules_slave()
 {
+    // Skip motor housekeeping during OTA — avoids competing with the SDO task.
+    if (OD_OTA_STATUS == CANOPEN_OTA_RECEIVING ||
+        OD_OTA_STATUS == CANOPEN_OTA_VERIFYING) return;
+
 #ifdef MOTOR_CONTROLLER
     uint8_t cmdWord = OD_RAM.x2003_motor_command_word;
     if (cmdWord) {
@@ -1474,6 +1478,10 @@ void CANopenModule::syncRpdoToModules_master()
 
 void CANopenModule::syncModulesToTpdo()
 {
+    // Skip TPDO updates during OTA — avoids competing with the SDO task.
+    if (OD_OTA_STATUS == CANOPEN_OTA_RECEIVING ||
+        OD_OTA_STATUS == CANOPEN_OTA_VERIFYING) return;
+
     /*
     This function pushes the current module state into the TPDOs.
     It is called every 1 ms from the CO_tmr_task, but only updates 

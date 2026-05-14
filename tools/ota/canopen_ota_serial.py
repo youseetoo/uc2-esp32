@@ -18,7 +18,10 @@ Usage:
         --binary /path/to/firmware.bin
 
     python tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/UC2-REST/binaries/latest/esp32_seeed_xiao_esp32s3_can_slave_motor.bin --baud 921600
-
+    python tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.pio/build/UC2_canopen_slave_motor/firmware.bin --baud 921600
+    python /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.pio/build/UC2_canopen_slave_motor/firmware.bin --baud 921600 
+    python /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/tools/ota/canopen_ota_serial.py --port /dev/cu.SLAB_USBtoUART --node 11 --binary /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/.pio/build/UC2_canopen_slave_motor/firmware.bin --baud 921600 
+=============================
 {"task": "/ota_start", "ota": {"nodeId": 11, "size": 798432, "crc32": "0xD2A5FB80"}}
 
 """
@@ -190,8 +193,10 @@ def flash_via_master(port: str, baud: int, node_id: int, firmware: bytes) -> boo
             err = None
             if ser.in_waiting:
                 ack_buf.extend(ser.read(ser.in_waiting))
-            # Mirror first so the log context appears before any error return.
-            _mirror_lines(ack_buf)
+            # IMPORTANT: parse JSON BEFORE mirroring. _mirror_lines() drains
+            # complete lines from the buffer (del buf[:nl+1]), so if we
+            # mirror first the ack JSON line is already gone by the time
+            # the regex runs and last_ack stays at 0 forever.
             for match in _JSON_LINE_RE.findall(bytes(ack_buf)):
                 try:
                     obj = json.loads(match.decode(errors="ignore"))
@@ -204,10 +209,9 @@ def flash_via_master(port: str, baud: int, node_id: int, firmware: bytes) -> boo
                         pass
                 elif obj.get("ota_status") == "error":
                     err = obj
-            # Trim consumed JSON to keep the buffer small.
-            cut = bytes(ack_buf).rfind(b"}")
-            if cut > 0:
-                del ack_buf[: cut + 1]
+            # Now drain complete lines for human-visible logging. This also
+            # removes the consumed JSON bytes from the buffer.
+            _mirror_lines(ack_buf)
             return latest, err
 
         chunk_no = 0

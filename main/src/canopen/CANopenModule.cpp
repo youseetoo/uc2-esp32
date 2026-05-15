@@ -576,8 +576,10 @@ bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
 
     // Initiate with the full transfer size so the slave can call
     // esp_ota_begin(totalSize) before any data arrives.
+    // Last argument enables BLOCK transfer (127 segments per ACK instead
+    // of one ACK per 7-byte segment) — critical for OTA throughput.
     r = CO_SDOclientDownloadInitiate(s_sdoStreamClient, index, subIndex,
-                                     totalSize, SDO_STREAM_TIMEOUT_MS, false);
+                                     totalSize, SDO_STREAM_TIMEOUT_MS, true);
     if (r != CO_SDO_RT_ok_communicationEnd) {
         log_e("sdoDownloadBegin: CO_SDOclientDownloadInitiate ret=%d", r);
         if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
@@ -659,8 +661,11 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
 
         // If the FIFO had no room AND the state machine made no progress
         // (still waiting for the server), yield so other tasks can run.
+        // Use vTaskDelay(1) (not taskYIELD) so the IDLE task gets CPU and
+        // the IDLE/Task WDTs can be fed — otherwise this hot loop starves
+        // priority-0 IDLE and panics after ~5s.
         if (nWritten == 0) {
-            taskYIELD();
+            vTaskDelay(1);
         }
     }
 
@@ -698,7 +703,9 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
             // (they are in the FIFO).
             break;
         }
-        taskYIELD();
+        // vTaskDelay(1), not taskYIELD: drain loop also waits on the
+        // server's block ACK and must not starve IDLE.
+        vTaskDelay(1);
     }
 
     s_sdoStreamBytesQueued += count;
@@ -756,7 +763,10 @@ bool CANopenModule::sdoDownloadEnd()
             sdoDownloadAbort();
             return false;
         }
-        taskYIELD();
+        // vTaskDelay(1), not taskYIELD: this loop can spin for hundreds
+        // of ms waiting on the slave's final block ACK; starving IDLE
+        // would trip the IDLE WDT and panic.
+        vTaskDelay(1);
     }
 
     CO_SDOclientClose(s_sdoStreamClient);

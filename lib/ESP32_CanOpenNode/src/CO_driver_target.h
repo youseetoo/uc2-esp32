@@ -66,11 +66,13 @@ extern "C" {
  * once, raising effective throughput by ~30x and matching the master's
  * 4 KB chunk budget. RAM cost: 1 KB BSS in CO_SDOserver_t. */
 #define CO_CONFIG_SDO_SRV_BUFFER_SIZE 1024
-/* SDO server: SEGMENTED (0x02) | BLOCK (0x04) | OD_DYNAMIC (0x4000).
- * Must include BLOCK so the slave can negotiate block transfer with the
- * master. OD_DYNAMIC is part of the upstream default and required by
- * other code paths. */
-#define CO_CONFIG_SDO_SRV (0x02 | 0x04 | 0x4000)
+/* SDO server: SEGMENTED (0x02) | BLOCK (0x04) | CALLBACK_PRE (0x1000) |
+ * TIMERNEXT (0x2000) | OD_DYNAMIC (0x4000).
+ * BLOCK is required so the slave can negotiate block transfer with the
+ * master. The other three flags are part of the upstream default — keep
+ * them so existing callback-driven code paths (eg. OD write extensions)
+ * continue to behave identically. */
+#define CO_CONFIG_SDO_SRV (0x02 | 0x04 | 0x1000 | 0x2000 | 0x4000)
 /* FIFO: ENABLE (0x01) | ALT_READ (0x02) | CRC16_CCITT (0x04).
  * ALT_READ + CRC16 are mandatory when SDO_CLI_BLOCK is enabled — block
  * transfer pre-reads bytes from the FIFO to compute CRC before sending. */

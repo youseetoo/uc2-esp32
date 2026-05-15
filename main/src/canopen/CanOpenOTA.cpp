@@ -68,7 +68,7 @@ static void resetOtaState() {
     OD_OTA_BYTES_RECEIVED = 0;
     OD_OTA_ERROR_CODE = CANOPEN_OTA_ERR_NONE;
     if (wasActive) {
-        log_w("OTA state reset (was active, %lu bytes written)",
+        log_i("OTA state reset (was active, %lu bytes written)",
               (unsigned long)lastBytes);
     }
 }

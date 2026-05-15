@@ -382,7 +382,7 @@ bool CANopenModule::isNodeReachable(uint8_t nodeId)
             return false;
         }
         if ((millis() - slave.lastUpdateMs) > 5000) {
-            //log_w("Node 0x%02X last update too old, skipping SDO operation", nodeId);
+            //log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
             return false;
         }
         return true;
@@ -659,14 +659,15 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
             return false;
         }
 
-        // If the FIFO had no room AND the state machine made no progress
-        // (still waiting for the server), yield so other tasks can run.
-        // Use vTaskDelay(1) (not taskYIELD) so the IDLE task gets CPU and
-        // the IDLE/Task WDTs can be fed — otherwise this hot loop starves
-        // priority-0 IDLE and panics after ~5s.
-        if (nWritten == 0) {
-            vTaskDelay(1);
-        }
+        // Yield UNCONDITIONALLY every iteration. Even when nWritten>0 (the
+        // FIFO is accepting bytes because block-transfer is draining it
+        // fast), the CAN bus is the bottleneck — we have nothing useful to
+        // do for ~50us while a frame is on the wire. Without this yield the
+        // loop runs hot at priority-1 (Arduino loopTask), starving the
+        // priority-0 IDLE task and tripping the IDLE Task WDT after ~5s
+        // -> abort()/panic. vTaskDelay(1) costs ~1 RTOS tick (1-2 ms) per
+        // iteration, which is noise compared to the per-segment CAN time.
+        vTaskDelay(1);
     }
 
     // All bytes from this chunk are now in the FIFO. Keep ticking the
@@ -791,7 +792,7 @@ void CANopenModule::sdoDownloadAbort()
     s_sdoStreamActive = false;
     s_sdoStreamClient = nullptr;
     if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
-    log_w("sdoDownloadAbort: stream aborted after %u bytes",
+    log_i("sdoDownloadAbort: stream aborted after %u bytes",
           (unsigned)s_sdoStreamBytesQueued);
 }
 
@@ -841,14 +842,14 @@ void CANopenModule::CO_main_task(void* arg)
     CO_config_t* config_ptr = NULL;
     CO = CO_new(config_ptr, &heapMemoryUsed);
     if (CO == NULL) {
-        ESP_LOGE(TAG_CO, "CO_new failed — out of memory");
+        log_e("CO_new failed — out of memory");
         vTaskDelete(NULL);
         return;
     }
-    ESP_LOGI(TAG_CO, "Allocated %lu bytes for CANopen objects", (unsigned long)heapMemoryUsed);
+    log_i("Allocated %lu bytes for CANopen objects", (unsigned long)heapMemoryUsed);
 
     while (reset != CO_RESET_APP) {
-        ESP_LOGI(TAG_CO, "Communication reset (node-id=%d)...", activeNodeId);
+        log_i("Communication reset (node-id=%d)...", activeNodeId);
 
         CO->CANmodule->CANnormal = false;
         CO_CANsetConfigurationMode((void*)&CANptr);
@@ -857,7 +858,7 @@ void CANopenModule::CO_main_task(void* arg)
         // Init CAN
         CO_ReturnError_t err = CO_CANinit(CO, CANptr, pendingBitRate);
         if (err != CO_ERROR_NO) {
-            ESP_LOGE(TAG_CO, "CO_CANinit failed: %d", err);
+            log_e("CO_CANinit failed: %d", err);
             vTaskDelete(NULL);
             return;
         }
@@ -871,7 +872,7 @@ void CANopenModule::CO_main_task(void* arg)
         }};
         err = CO_LSSinit(CO, &lssAddress, &pendingNodeId, &pendingBitRate);
         if (err != CO_ERROR_NO) {
-            ESP_LOGE(TAG_CO, "CO_LSSinit failed: %d", err);
+            log_e("CO_LSSinit failed: %d", err);
             vTaskDelete(NULL);
             return;
         }
@@ -893,7 +894,7 @@ void CANopenModule::CO_main_task(void* arg)
             FIRST_HB_TIME, SDO_SRV_TIMEOUT_TIME, SDO_CLI_TIMEOUT_TIME,
             SDO_CLI_BLOCK, activeNodeId, &errInfo);
         if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
-            ESP_LOGE(TAG_CO, "CO_CANopenInit failed: %d (OD entry 0x%lX)",
+            log_e("CO_CANopenInit failed: %d (OD entry 0x%lX)",
                      err, (unsigned long)errInfo);
             vTaskDelete(NULL);
             return;
@@ -902,7 +903,7 @@ void CANopenModule::CO_main_task(void* arg)
         // Init PDOs
         err = CO_CANopenInitPDO(CO, CO->em, OD, activeNodeId, &errInfo);
         if (err != CO_ERROR_NO) {
-            ESP_LOGE(TAG_CO, "PDO init failed: %d (OD entry 0x%lX)",
+            log_e("PDO init failed: %d (OD entry 0x%lX)",
                      err, (unsigned long)errInfo);
             vTaskDelete(NULL);
             return;
@@ -917,7 +918,7 @@ void CANopenModule::CO_main_task(void* arg)
                 s_ledPixelExt.read   = nullptr;
                 s_ledPixelExt.write  = onLedPixelWrite;
                 OD_extension_init(entry, &s_ledPixelExt);
-                ESP_LOGI(TAG_CO, "LED pixel data OD extension registered (0x2210)");
+                log_i("LED pixel data OD extension registered (0x2210)");
             }
         }
 #endif
@@ -935,7 +936,20 @@ void CANopenModule::CO_main_task(void* arg)
         CO_CANsetNormalMode(CO->CANmodule);
         reset = CO_RESET_NOT;
 
-        ESP_LOGI(TAG_CO, "*** CANopenNode running — node-id %d ***", activeNodeId);
+        log_i("*** CANopenNode running - node-id %d ***", activeNodeId);
+        // One-shot dump of the effective SDO configuration so we can verify
+        // at boot whether BLOCK transfer is actually compiled in (a common
+        // failure mode is editing CO_driver_target.h but the library .c
+        // files not getting recompiled by PlatformIO incremental builds).
+        log_i("SDO cfg: CLI=0x%04X (BLOCK=%d) CLI_BUF=%d  "
+            "SRV=0x%04X (BLOCK=%d) SRV_BUF=%d  CRC16=0x%02X",
+            (unsigned)CO_CONFIG_SDO_CLI,
+            ((CO_CONFIG_SDO_CLI) & CO_CONFIG_SDO_CLI_BLOCK) ? 1 : 0,
+            (int)CO_CONFIG_SDO_CLI_BUFFER_SIZE,
+            (unsigned)CO_CONFIG_SDO_SRV,
+            ((CO_CONFIG_SDO_SRV) & CO_CONFIG_SDO_SRV_BLOCK) ? 1 : 0,
+            (int)CO_CONFIG_SDO_SRV_BUFFER_SIZE,
+            (unsigned)CO_CONFIG_CRC16);
 
         while (reset == CO_RESET_NOT) {
             reset = CO_process(CO, false, 1000, NULL);
@@ -945,7 +959,7 @@ void CANopenModule::CO_main_task(void* arg)
 
     CO_CANsetConfigurationMode((void*)&CANptr);
     CO_delete(CO);
-    ESP_LOGI(TAG_CO, "CANopenNode finished");
+    log_i("CANopenNode finished");
     vTaskDelete(NULL);
 }
 
@@ -1396,7 +1410,7 @@ void CANopenModule::syncRpdoToModules_slave()
     {
         uint8_t v = OD_RAM.x2507_reboot_command;
         if (v != 0) {
-            log_w("Reboot command received via CANopen — restarting in 200 ms");
+            log_i("Reboot command received via CANopen — restarting in 200 ms");
             OD_RAM.x2507_reboot_command = 0;
             // Defer slightly so the SDO server can complete its response frame
             vTaskDelay(pdMS_TO_TICKS(200));
@@ -1462,7 +1476,7 @@ void CANopenModule::syncRpdoToModules_master()
             // (matches FocusMotor::sendMotorPos format) and report completion via QidRegistry.
             // ImSwitch / PS4 controller path watch for {"steppers":[{...,"isDone":1}]}.
             if (wasRunning && !nowRunning) {
-                ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) DONE pos=%ld",
+                log_i("Slave slot %d (motor %d) DONE pos=%ld",
                          slot, logicalAx, (long)newPos);
 
                 cJSON* root = cJSON_CreateObject();
@@ -1492,7 +1506,7 @@ void CANopenModule::syncRpdoToModules_master()
             }
 
             if (firstSeen) {
-                ESP_LOGI(TAG_CO, "Slave slot %d (motor %d) FIRST SEEN pos=%ld running=%d",
+                log_i("Slave slot %d (motor %d) FIRST SEEN pos=%ld running=%d",
                          slot, logicalAx, (long)newPos, (int)nowRunning);
             }
         }
@@ -1590,7 +1604,7 @@ void CANopenModule::syncModulesToTpdo()
 // ============================================================================
 void CANopenModule::setup()
 {
-    ESP_LOGI(TAG_CO, "Starting CANopen stack (node-id=%d, TX=%d, RX=%d)...",
+    log_i("Starting CANopen stack (node-id=%d, TX=%d, RX=%d)...",
              runtimeConfig.canNodeId, pinConfig.CAN_TX, pinConfig.CAN_RX);
 
     // The CANopenNode library logs every CAN frame at INFO level under these tags.
@@ -1630,7 +1644,7 @@ void CANopenModule::loop()
                 case CO_NMT_OPERATIONAL:     stateStr = "OPERATIONAL"; break;
                 case CO_NMT_STOPPED:         stateStr = "STOPPED"; break;
             }
-            ESP_LOGI(TAG_CO, "NMT state changed -> %s (%d)", stateStr, curState);
+            log_i("NMT state changed -> %s (%d)", stateStr, curState);
         }
     }
 
@@ -1687,7 +1701,7 @@ void CANopenModule::loop()
             else if (m->acceleration <= 0)
                 m->acceleration = 40000;
             /*
-            ESP_LOGI(TAG_CO, "Dispatch motor OD-ax%d -> local-ax%d: pos=%ld spd=%ld accel=%ld abs=%d",
+            log_i("Dispatch motor OD-ax%d -> local-ax%d: pos=%ld spd=%ld accel=%ld abs=%d",
                      ax, localAxis, (long)m->targetPosition, (long)m->speed,
                      (long)m->acceleration, m->absolutePosition);
             */
@@ -1726,11 +1740,11 @@ void CANopenModule::loop()
         if (!s_hardlimitCmds[ax].pending) continue;
         s_hardlimitCmds[ax].pending = false;
         if (s_hardlimitCmds[ax].isCommand) {
-            ESP_LOGI(TAG_CO, "Hard-limit CLEAR on axis %d via CAN", ax);
+            log_i("Hard-limit CLEAR on axis %d via CAN", ax);
             FocusMotor::clearHardLimitTriggered(ax);
         }
         if (s_hardlimitCmds[ax].isConfig) {
-            ESP_LOGI(TAG_CO, "Hard-limit CONFIG ax %d: enabled=%d polarity=%d via CAN",
+            log_i("Hard-limit CONFIG ax %d: enabled=%d polarity=%d via CAN",
                      ax, (int)s_hardlimitCmds[ax].enabled, (int)s_hardlimitCmds[ax].polarity);
             FocusMotor::setHardLimit(ax,
                 s_hardlimitCmds[ax].enabled  != 0,
@@ -1744,7 +1758,7 @@ void CANopenModule::loop()
     for (int ch = 0; ch < 4; ch++) {
         if (!s_laserCmds[ch].pending) continue;
         s_laserCmds[ch].pending = false;
-        ESP_LOGI(TAG_CO, "Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
+        log_i("Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
         LaserController::setLaserVal(ch, (int)s_laserCmds[ch].value);
     }
 #endif

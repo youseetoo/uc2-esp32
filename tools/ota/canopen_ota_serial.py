@@ -318,4 +318,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # {"task": "/ota_start", "ota": {"nodeId": 11, "size": 798432, "crc32": "0xD2A5FB80"}}
+    # {"task":"/state_get"}
     sys.exit(main())

@@ -71,16 +71,6 @@ bool flushChunk() {
     if (s_chunkPos == 0) return true;
 
     if (!s_streamOpen) {
-        // 0) Wait for the slave to be reachable. After the slave just
-        //    finished a previous OTA (or just powered up), the master
-        //    hasn't received its first heartbeat/TPDO yet; without this
-        //    wait the very first writeSDO_u32 below fails with
-        //    "node not reachable" and the host sees crc_write_failed.
-        if (!CANopenModule::waitForNodeReachable(s_nodeId, 10000)) {
-            log_e("OTA: slave 0x%02X not reachable after 10s", s_nodeId);
-            emitJson("{\"ota_status\":\"error\",\"error\":\"slave_unreachable\"}");
-            return false;
-        }
         // 1) Tell the slave the expected CRC32 (so it can verify the image).
         if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_CRC32,
                                          0, s_expectedCrc32)) {
@@ -131,15 +121,33 @@ cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
     if (!resp) return nullptr;
 
     if (s_active) {
-        log_w("OTA receive already in progress, rejecting new request");
-        cJSON_AddStringToObject(resp, "ota_status", "error");
-        cJSON_AddStringToObject(resp, "error", "ota_in_progress");
-        return resp;
+        // A previous run is wedged (e.g. host died mid-transfer and we
+        // never saw a final byte; or the master rebooted before cleanup
+        // ran). Reset to a clean state so we don't reject this request.
+        log_i("OTA: previous session still marked active, forcing cleanup");
+        cleanup();
+    }
+    if (CANopenModule::sdoDownloadActive()) {
+        // SDO mutex still held from a wedged previous stream — release it
+        // so sdoDownloadBegin() below can take the mutex.
+        log_i("OTA: stale SDO stream detected, aborting it");
+        CANopenModule::sdoDownloadAbort();
     }
     if (size == 0 || size > 8 * 1024 * 1024) {
         log_e("Invalid OTA size: %u", (unsigned)size);
         cJSON_AddStringToObject(resp, "ota_status", "error");
         cJSON_AddStringToObject(resp, "error", "invalid_size");
+        return resp;
+    }
+
+    // Confirm the slave is reachable BEFORE telling the host "ready".
+    // Otherwise the host streams the first 4 KB into the master while the
+    // master can't yet reach the slave — by the time flushChunk runs the
+    // host has already disconnected on size_write_failed.
+    if (!CANopenModule::waitForNodeReachable(nodeId, 10000)) {
+        log_e("OTA: slave 0x%02X not reachable after 10s", nodeId);
+        cJSON_AddStringToObject(resp, "ota_status", "error");
+        cJSON_AddStringToObject(resp, "error", "slave_unreachable");
         return resp;
     }
 
@@ -170,28 +178,41 @@ bool isActive() { return s_active; }
 void processBytes() {
     if (!s_active) return;
 
-    int avail = Serial.available();
-    if (avail > 0) {
+    // Drain as much as possible this call - NOT just one FIFO-worth.
+    // The host writes 4096 B at once; if we only drain ~256 B per main-loop
+    // iteration, the UART ring buffer overflows and bytes are lost silently
+    // (firmware ends up corrupt, only caught by the slave-side CRC).
+    bool didRead = false;
+    while (Serial.available() > 0 && s_bytesReceived < s_totalSize) {
         uint32_t remaining = s_totalSize - s_bytesReceived;
-        size_t toRead = (size_t)avail;
-        if (toRead > remaining)              toRead = remaining;
-        if (toRead > (CHUNK_SIZE - s_chunkPos))
-            toRead = CHUNK_SIZE - s_chunkPos;
+        size_t   space     = CHUNK_SIZE - s_chunkPos;
+        size_t   avail     = (size_t)Serial.available();
+        size_t   toRead    = avail;
+        if (toRead > remaining) toRead = remaining;
+        if (toRead > space)     toRead = space;
+        if (toRead == 0) break;  // chunk is full, must flush before reading more
 
         size_t nRead = Serial.readBytes(s_chunk + s_chunkPos, toRead);
+        if (nRead == 0) break;
         s_chunkPos      += nRead;
         s_bytesReceived += nRead;
-        if (nRead > 0) s_lastByteMillis = millis();
+        s_lastByteMillis = millis();
+        didRead = true;
 
-        // Flush when the chunk is full or the last firmware byte landed.
+        // Flush as soon as the chunk is full or the last firmware byte landed.
         bool isLast = (s_bytesReceived >= s_totalSize);
         if (s_chunkPos >= CHUNK_SIZE || (isLast && s_chunkPos > 0)) {
             if (!flushChunk()) {
                 cleanup();
                 return;
             }
+            // After flushChunk we can keep draining the UART for the next
+            // chunk in the same call - avoids waiting for the next main-loop
+            // iteration just to read bytes that are already in the FIFO.
         }
+    }
 
+    if (didRead) {
         // Progress ACK every ACK_INTERVAL_BYTES (or at completion).
         if ((s_bytesReceived - s_lastAckBytes) >= ACK_INTERVAL_BYTES ||
             s_bytesReceived >= s_totalSize) {

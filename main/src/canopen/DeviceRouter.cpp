@@ -1129,6 +1129,9 @@ cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
         cJSON_AddStringToObject(resp, "error", "invalid_nodeId");
         return resp;
     }
+    else{
+        log_i("ota_start nodeId: %d", nodeIdRaw);
+    }
     uint8_t nodeId = (uint8_t)nodeIdRaw;
 
     // size: cJSON ints are 32-bit; for very large firmware (>2 GiB) the JSON
@@ -1170,6 +1173,7 @@ cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
     }
 
     log_i("ota_start: nodeId=%u size=%u crc32=0x%08X", nodeId, size, crc32);
+    // TODO: Are we certain we parse the CRC correctly?
     return OtaBinaryReceive::begin(nodeId, size, crc32);
 }
 #endif

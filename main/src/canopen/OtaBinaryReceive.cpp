@@ -68,7 +68,10 @@ void cleanup() {
 // slave with CRC32 + size and opens the streaming SDO session for
 // OTA_FIRMWARE_DATA. Returns false on error (and emits an error JSON).
 bool flushChunk() {
-    if (s_chunkPos == 0) return true;
+    if (s_chunkPos == 0) {
+        log_i("flushChunk called with empty chunk, ignoring");
+        return true;
+    }
 
     if (!s_streamOpen) {
         // 0) Wait for the slave to be reachable. After the slave just
@@ -86,7 +89,10 @@ bool flushChunk() {
                                          0, s_expectedCrc32)) {
             emitJson("{\"ota_status\":\"error\",\"error\":\"crc_write_failed\"}");
             return false;
-        }
+        } // TODO: Under which circumstances can this fail? If the slave is reachable, shouldn't this always succeed?
+          //       If it can fail, do we want to retry a few times before giving up?
+          //       If it fails, the host sees crc_write_failed which is a bit misleading if the real issue is connectivity. Maybe we want a separate error for this case?
+       
         // 2) Tell the slave the firmware size — this triggers esp_ota_begin
         //    on the slave so the next OTA_FIRMWARE_DATA bytes can be flashed.
         if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_SIZE,
@@ -125,6 +131,7 @@ bool flushChunk() {
 namespace OtaBinaryReceive {
 
 cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
+    // This is most likiley fired from the master 
     log_i("OTA begin: nodeId=%u size=%u crc32=0x%08lX",
           nodeId, (unsigned)size, (unsigned long)crc32);
     cJSON* resp = cJSON_CreateObject();
@@ -144,7 +151,7 @@ cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
     }
 
     // Streaming session — no large allocation. The 4 KB s_chunk buffer
-    // lives in BSS and is reused for every transfer.
+    // lives in BSS  and is reused for every transfer.
     s_totalSize       = size;
     s_expectedCrc32   = crc32;
     s_runningCrc32    = 0;
@@ -169,12 +176,13 @@ bool isActive() { return s_active; }
 
 void processBytes() {
     if (!s_active) return;
-
+    // TODO: we could also have an internal loop here instead of the globa?
     int avail = Serial.available();
     if (avail > 0) {
         uint32_t remaining = s_totalSize - s_bytesReceived;
         size_t toRead = (size_t)avail;
-        if (toRead > remaining)              toRead = remaining;
+        if (toRead > remaining)              
+            toRead = remaining;
         if (toRead > (CHUNK_SIZE - s_chunkPos))
             toRead = CHUNK_SIZE - s_chunkPos;
 
@@ -187,6 +195,7 @@ void processBytes() {
         bool isLast = (s_bytesReceived >= s_totalSize);
         if (s_chunkPos >= CHUNK_SIZE || (isLast && s_chunkPos > 0)) {
             if (!flushChunk()) {
+                log_i("Flushing chunk failed, aborting OTA session");
                 cleanup();
                 return;
             }
@@ -221,7 +230,8 @@ void processBytes() {
         char err[112];
         snprintf(err, sizeof(err),
                  "{\"ota_status\":\"error\",\"error\":\"crc_mismatch\","
-                 "\"computed\":\"0x%08lX\",\"expected\":\"0x%08lX\"}",
+                 "\"computed\":\"0x%08lX\",\"expected\":\"0x%08lX\","
+                 "\"comment\":\"Host→master serial corruption?\"}",
                  (unsigned long)s_runningCrc32,
                  (unsigned long)s_expectedCrc32);
         emitJson(err);

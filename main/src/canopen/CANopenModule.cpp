@@ -423,6 +423,12 @@ bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                              uint8_t* data, size_t dataSize)
 {
+    /*
+        writeSDO: This function writes data to a specified SDO (Service Data Object) 
+        on a remote node in the CANopen network. It checks if the SDO client is 
+        initialized, verifies if the target node is reachable, and then performs 
+        the SDO write operation while handling potential errors and timeouts.
+    */
     if (CO == NULL || CO->SDOclient == NULL) {
         log_e("SDO client not initialized");
         return false;
@@ -433,10 +439,18 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
         log_e("writeSDO: node 0x%02X not reachable, skipping idx=0x%04X sub=0x%02X", nodeId, index, subIndex);
         return false;
     }
-    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) 
+    {
+        log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed to take SDO mutex", nodeId, index, subIndex);
+        return false;
+    }
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize);
-    if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+    if (s_sdoMutex) {
+        xSemaphoreGive(s_sdoMutex);
+        log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X write %u bytes, abort=0x%08lX",
+              nodeId, index, subIndex, (unsigned)dataSize, (unsigned long)ret);
+    }
     if (ret != CO_SDO_AB_NONE) {
         log_e("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed, abort=0x%08lX", nodeId, index, subIndex, (unsigned long)ret);
     }
@@ -604,7 +618,11 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         log_e("sdoDownloadChunk: no active stream");
         return false;
     }
-    if (data == nullptr || count == 0) return true;
+    if (data == nullptr || count == 0) 
+    {
+        log_e("sdoDownloadChunk: invalid data/count");
+        return true;
+    }
 
     // bufferPartial is true while more chunks may follow. The very last
     // byte of the very last chunk is finalised in sdoDownloadEnd() with
@@ -640,7 +658,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         if (r < 0) {
             log_e("sdoDownloadChunk(fill): node 0x%02X ret=%d abort=0x%08lX queued %u/%u of chunk (totalQueued=%u)",
                   s_sdoStreamClient ? (unsigned)s_sdoStreamClient->nodeIDOfTheSDOServer : 0u,
-                  r, (unsigned long)abortCode,
+                  r, (unsigned long)abortCode, // ABORTCODE: -10 = endedWithServerAbort
                   (unsigned)offset, (unsigned)count,
                   (unsigned)s_sdoStreamBytesQueued);
             sdoDownloadAbort();
@@ -685,7 +703,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
                                                  /*abort=*/false,
                                                  bufferPartial,
                                                  &abortCode, NULL, NULL);
-        if (r < 0) {
+        if (r < 0) { // error abort -10     /** Communication ended with server abort */     CO_SDO_RT_endedWithServerAbort = -10,
             log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX totalQueued=%u",
                   r, (unsigned long)abortCode,
                   (unsigned)s_sdoStreamBytesQueued);

@@ -632,7 +632,7 @@ CO_SDO_return_t CO_SDOclientDownload(CO_SDOclient_t *SDO_C,
                 /* verify for errors in write */
                 if (odRet != ODR_OK && odRet != ODR_PARTIAL) {
                     abortCode = (CO_SDO_abortCode_t)OD_getSDOabCode(odRet);
-                    ret = CO_SDO_RT_endedWithServerAbort;
+                    ret = CO_SDO_RT_endedWithServerAbort; // -10
                 }
                 /* error if OD variable was written completely,
                  * but SDO download still has data */

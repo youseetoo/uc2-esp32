@@ -412,6 +412,7 @@ namespace SerialProcess
 		// CANopen path: /ota_start preamble flips this on. Raw firmware bytes
 		// are streamed in 4 KB chunks straight to the slave via SDO — no
 		// full-image buffer is held on the master.
+		// TODO: We are limited to 1khz due to the loop task delay, or? 
 		if (OtaBinaryReceive::isActive())
 		{
 			OtaBinaryReceive::processBytes();

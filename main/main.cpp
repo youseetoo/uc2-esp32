@@ -127,6 +127,29 @@ long period_led = 1000;
 static void checkBtButtonLongPress();
 #endif
 
+
+
+// ---------------------------------------------------------------------------
+// dw_is_debugger_attached()
+//
+// Reads the Xtensa Debug Status Register (SREG 233).
+// Returns non-zero when a JTAG debugger has the core under its control.
+// ---------------------------------------------------------------------------
+static bool dw_is_debugger_attached() {
+    uint32_t dsr = 0;
+    asm volatile("rsr %0, 233" : "=a"(dsr));
+    return (dsr != 0);
+}
+
+// ---------------------------------------------------------------------------
+// microsecond-granularity, non-blocking delay helper
+// Uses busy-wait so the JTAG interface keeps getting "air time".
+// ---------------------------------------------------------------------------
+static void busy_delay_us(long us) {
+    unsigned long start = micros();
+    while ((long)(micros() - start) < us) { /* spin */ }
+}
+
 extern "C" void looper(void *p)
 {
 	log_i("Starting loop");
@@ -660,6 +683,32 @@ extern "C" void app_main(void)
 	Serial.println("DEBUG: Serial initialized");
 	Serial.printf("DEBUG: Baudrate=%lu, RX buffer size will be set\n", pinConfig.BAUDRATE);
 	
+	// ------------------------------------------------------------------
+    // DEBUG-only block
+    // ------------------------------------------------------------------
+#ifdef DEBUG
+    // Extend the watchdog so it does not fire while you are stepping through
+    // code with the debugger paused.
+    // New IDF API requires a config struct instead of (timeout, panic) args
+    const esp_task_wdt_config_t wdt_cfg = {
+        .timeout_ms = 30000,   // 30 s timeout
+        .idle_core_mask = 0,
+        .trigger_panic = false,
+    };
+    esp_task_wdt_init(&wdt_cfg);
+
+    // Spin here (with JTAG-friendly busy-waits) until the debugger attaches.
+    // Once OpenOCD connects, dw_is_debugger_attached() returns true and we
+    // fall through – execution continues to your first breakpoint.
+    micros_interval = 10;
+    previousMicros  = micros();
+    while (!dw_is_debugger_attached()) {
+        busy_delay_us(micros_interval);
+    }
+#endif
+    // ------------------------------------------------------------------
+
+
 	// Initialisieren Sie den NVS-Speicher
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)

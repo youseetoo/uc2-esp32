@@ -80,8 +80,13 @@ extern "C" {
     | CO_ERR_REG_GENERIC_ERR \
     | CO_ERR_REG_COMMUNICATION
 #define FIRST_HB_TIME           500
-#define SDO_SRV_TIMEOUT_TIME   1000
-#define SDO_CLI_TIMEOUT_TIME   1000
+// SDO server timeout: must be generous for block download OTA.
+// The slave's SDO server aborts with 0x05040000 if it doesn't receive
+// the next expected frame within this period.  1000ms was too tight —
+// the master needs time to process the initiate response and begin
+// sending sub-blocks (CAN_ctrl_task drain rate + task scheduling jitter).
+#define SDO_SRV_TIMEOUT_TIME   5000
+#define SDO_CLI_TIMEOUT_TIME   5000
 #define SDO_CLI_BLOCK          false
 #define OD_STATUS_BITS         NULL
 
@@ -214,6 +219,25 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             static uint32_t busErrCount = 0;
             if ((++busErrCount % 100) == 1) {
                 ESP_LOGW(TAG_CAN, "CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
+            }
+        }
+
+        // Defensive: poll TWAI state and initiate recovery if we somehow
+        // entered bus-off without the alert firing (observed after heavy SDO
+        // abort exchanges). Without this, the node is permanently dead until
+        // power-cycled.
+        {
+            twai_status_info_t st;
+            if (twai_get_status_info(&st) == ESP_OK
+                && st.state == TWAI_STATE_BUS_OFF
+                && !(alerts & TWAI_ALERT_BUS_OFF))
+            {
+                static uint32_t s_busOffPollCount = 0;
+                if ((++s_busOffPollCount % 50) == 1) {
+                    ESP_LOGW(TAG_CAN, "Bus-off detected via poll (no alert) — recovering");
+                }
+                while (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {}
+                twai_initiate_recovery();
             }
         }
 
@@ -690,8 +714,11 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
 
     // All bytes from this chunk are now in the FIFO. Keep ticking the
     // state machine until it parks in waitingResponse (1) — i.e. the FIFO
-    // has been drained over CAN and we are waiting on the server's ACK.
-    // This naturally throttles the caller to the CAN bus rate.
+    // has been drained over CAN and we are waiting on the server's ACK —
+    // OR until it returns blockDownldInProgress (3), meaning the FIFO is
+    // nearly empty (< 7 bytes) and the client wants a refill. Since this
+    // is a chunk boundary, a refill will come from the next
+    // sdoDownloadChunk() call or sdoDownloadEnd().
     for (;;) {
         uint64_t now = esp_timer_get_time();
         uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
@@ -704,26 +731,24 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
                                                  /*abort=*/false,
                                                  bufferPartial,
                                                  &abortCode, NULL, NULL);
-        if (r < 0) { // error abort -10     /** Communication ended with server abort */     CO_SDO_RT_endedWithServerAbort = -10,
+        if (r < 0) {
             log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX totalQueued=%u",
                   r, (unsigned long)abortCode,
                   (unsigned)s_sdoStreamBytesQueued);
             sdoDownloadAbort();
             return false;
         }
-        // r == 0 cannot happen with bufferPartial=true (it requires the
-        // final call). r == 1 (waitingResponse) is our exit point.
+        // waitingResponse (1): waiting on server block ACK — chunk is done.
         if (r == CO_SDO_RT_waitingResponse) break;
+        // blockDownldInProgress (3): FIFO < 7 bytes, client wants refill.
+        // All data for this chunk has been transmitted; exit and let the
+        // next sdoDownloadChunk() provide more bytes.
+        if (r == CO_SDO_RT_blockDownldInProgress) break;
 
         uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
         if ((int32_t)(nowMs - deadlineMs) > 0) {
-            // FIFO not fully drained yet — that's OK, the state machine
-            // will resume on the next chunk call. Bytes are accounted for
-            // (they are in the FIFO).
             break;
         }
-        // vTaskDelay(1), not taskYIELD: drain loop also waits on the
-        // server's block ACK and must not starve IDLE.
         vTaskDelay(1);
     }
 

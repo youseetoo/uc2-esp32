@@ -90,9 +90,10 @@ bool flushChunk() {
             emitJson("{\"ota_status\":\"error\",\"error\":\"size_write_failed\"}");
             return false;
         }
-        // Give the slave a moment to call esp_ota_begin before we start
-        // pumping segments at it.
-        vTaskDelay(pdMS_TO_TICKS(200));
+        // Give the slave time to complete esp_ota_begin (flash erase can
+        // take 200-500ms depending on partition state) and for the CAN
+        // stack to recover from any missed frames during the erase.
+        vTaskDelay(pdMS_TO_TICKS(500));
 
         // 3) Open the streaming SDO session for the firmware blob.
         if (!CANopenModule::sdoDownloadBegin(s_nodeId,

@@ -90,6 +90,9 @@ static void setError(uint8_t errCode) {
 static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
                             OD_size_t count, OD_size_t* countWritten) {
     // Let CANopenNode write the value to RAM first
+    // THIS is on the slave side, so this is called when the master writes to 0x2F01 on the slave.
+    // The master is expected to write the firmware size here first, which triggers the OTA process on the slave.
+    log_i("onOtaSizeWrite: count=%u", (unsigned)count);
     ODR_t ret = OD_writeOriginal(stream, buf, count, countWritten);
     if (ret != ODR_OK) return ret;
 
@@ -110,6 +113,8 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
     }
 
     // Abort any previous OTA
+    log_i("OTA is still active: %s, bytesWritten=%lu. Resetting state for new OTA.",
+          s_otaStarted ? "yes" : "no", (unsigned long)s_bytesWritten);
     if (s_otaStarted) {
         log_i("OTA already in progress, aborting and starting new OTA");
         resetOtaState();
@@ -123,13 +128,20 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
         return ODR_HW;
     }
 
-    // Begin OTA
+    // esp_ota_begin erases the target partition. This blocks the calling
+    // thread for 200-500ms. During the erase, flash SPI operations may
+    // momentarily starve the CAN peripheral of bus cycles (especially on
+    // single-core ESP32-S3 variants sharing the SPI bus). Yield briefly
+    // before AND after to let the CAN ctrl task drain its queues.
+    vTaskDelay(pdMS_TO_TICKS(10));
     esp_err_t err = esp_ota_begin(s_otaPartition, firmwareSize, &s_otaHandle);
     if (err != ESP_OK) {
         log_e("esp_ota_begin failed: 0x%x", err);
         setError(CANOPEN_OTA_ERR_BEGIN_FAILED);
         return ODR_HW;
     }
+    // Let the CAN stack recover from any frames missed during flash erase
+    vTaskDelay(pdMS_TO_TICKS(50));
 
     s_crc32Running = 0;
     s_bytesWritten = 0;
@@ -182,7 +194,7 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
     OD_OTA_BYTES_RECEIVED = s_bytesWritten;
 
     // Throttled progress log: every 64 KB to avoid UART blocking the SDO task.
-    if (s_bytesWritten >= s_nextProgressMark) {
+    if (1){ //s_bytesWritten >= s_nextProgressMark) {
         log_i("OTA progress: %lu / %lu bytes",
               (unsigned long)s_bytesWritten,
               (unsigned long)OD_OTA_FIRMWARE_SIZE);
@@ -231,7 +243,7 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
         err = esp_ota_end(s_otaHandle);
         s_otaHandle = 0;
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "esp_ota_end failed: 0x%x", err);
+            log_e("esp_ota_end failed: 0x%x", err);
             s_otaStarted = false;
             setError(CANOPEN_OTA_ERR_COMMIT_FAILED);
             return ODR_HW;
@@ -239,7 +251,7 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
 
         err = esp_ota_set_boot_partition(s_otaPartition);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "esp_ota_set_boot_partition failed: 0x%x", err);
+            log_e("esp_ota_set_boot_partition failed: 0x%x", err);
             s_otaStarted = false;
             setError(CANOPEN_OTA_ERR_COMMIT_FAILED);
             return ODR_HW;

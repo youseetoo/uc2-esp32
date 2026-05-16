@@ -211,6 +211,21 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             ESP_LOGI(TAG_CAN, "Bus recovered");
             twai_start();
             twai_reconfigure_alerts(TWAI_ALERT_ALL, NULL);
+            // Wipe any stuck bufferFull flags on the CANopen TX array.
+            // Bus-off can leave SDO/TPDO buffers marked bufferFull=true; the
+            // CO_CANsend fix self-heals on the next tick, but explicitly
+            // clearing them here prevents the state machine from spending
+            // one wasted tick returning transmittBufferFull right after
+            // recovery.
+            if (CO != NULL && CO->CANmodule != NULL && CO->CANmodule->txArray != NULL) {
+                for (uint16_t i = 0; i < CO->CANmodule->txSize; i++) {
+                    CO->CANmodule->txArray[i].bufferFull = false;
+                }
+                CO->CANmodule->CANtxCount = 0;
+                CO->CANmodule->bufferInhibitFlag = false;
+                ESP_LOGI(TAG_CAN, "Cleared %u stuck TX buffers after recovery",
+                         (unsigned)CO->CANmodule->txSize);
+            }
         }
 
         // Transient bus frame errors (e.g. no ACK when master absent) — hardware

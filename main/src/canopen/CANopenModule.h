@@ -11,6 +11,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 #include "cJSON.h"
+#include "PinConfig.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
 
@@ -78,7 +79,7 @@ public:
     static bool isOperational();
 
     // Remote slave cache — master only, populated by RPDO consumers
-    static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;
+    static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;  // TODO: Is this motors only? We probably have more?!
     static RemoteSlaveState s_remoteSlaves[REMOTE_SLAVE_SLOTS];
 
 private:

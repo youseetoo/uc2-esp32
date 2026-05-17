@@ -198,6 +198,22 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             }
         }
 
+        // Run the TX retry walker on EVERY tick — not just when we drained
+        // something. Stuck-bufferFull buffers live in CANmodule->txArray,
+        // NOT in CAN_TX_queue. If a TPDO's first send failed at boot
+        // (e.g. queue temporarily full during init), CO_CANsend marks
+        // bufferFull=true and the upper layer never tries to send that
+        // buffer again until bufferFull is cleared. The walker is the
+        // ONLY mechanism that clears it on this port — so it must run
+        // whenever there might be a stuck buffer, regardless of whether
+        // we just drained the FreeRTOS TX queue.
+        //
+        // The walker has a cheap early-return when CANtxCount==0 (no lock,
+        // single read), so this is nearly free in the common case.
+        if (CO != NULL && CO->CANmodule != NULL) {
+            CO_CANtx_retryQueued(CO->CANmodule);
+        }
+
         // Bus-off: flush our TX queue (frames are now stale) then
         // trigger hardware recovery.
         if (alerts & TWAI_ALERT_BUS_OFF) {
@@ -211,18 +227,20 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             ESP_LOGI(TAG_CAN, "Bus recovered");
             twai_start();
             twai_reconfigure_alerts(TWAI_ALERT_ALL, NULL);
-            // Wipe any stuck bufferFull flags on the CANopen TX array.
-            // Bus-off can leave SDO/TPDO buffers marked bufferFull=true; the
-            // CO_CANsend fix self-heals on the next tick, but explicitly
-            // clearing them here prevents the state machine from spending
-            // one wasted tick returning transmittBufferFull right after
-            // recovery.
-            if (CO != NULL && CO->CANmodule != NULL && CO->CANmodule->txArray != NULL) {
+            // Wipe any stuck bufferFull flags on the CANopen TX array. The
+            // bus-off event has rendered queued frames meaningless. Hold the
+            // send-side mutex so we don't race CO_CANsend / the retry walker.
+            if (CO != NULL && CO->CANmodule != NULL
+                && CO->CANmodule->txArray != NULL
+                && CO->CANmodule->xCAN_SEND_Mutex != NULL)
+            {
+                xSemaphoreTake(CO->CANmodule->xCAN_SEND_Mutex, portMAX_DELAY);
                 for (uint16_t i = 0; i < CO->CANmodule->txSize; i++) {
                     CO->CANmodule->txArray[i].bufferFull = false;
                 }
-                CO->CANmodule->CANtxCount = 0;
+                CO->CANmodule->CANtxCount        = 0;
                 CO->CANmodule->bufferInhibitFlag = false;
+                xSemaphoreGive(CO->CANmodule->xCAN_SEND_Mutex);
                 ESP_LOGI(TAG_CAN, "Cleared %u stuck TX buffers after recovery",
                          (unsigned)CO->CANmodule->txSize);
             }
@@ -421,7 +439,7 @@ bool CANopenModule::isNodeReachable(uint8_t nodeId)
             return false;
         }
         if ((millis() - slave.lastUpdateMs) > 5000) {
-            //log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
+            log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
             return false;
         }
         return true;
@@ -1481,6 +1499,9 @@ void CANopenModule::syncRpdoToModules_slave()
 // Master: drain RPDO-written OD_RAM entries into the remote slave cache.
 // Called every 1 ms from CO_tmr_task. Detects running->stopped transitions
 // and emits async serial notifications.
+// RPOD stands for Receive PDO, the CANopen mechanism for real-time data exchange between nodes.
+// PDO stands for Process Data Object, the CANopen mechanism for real-time data exchange between nodes.
+// SDO stands for Service Data Object, the CANopen mechanism for non-real-time configuration and commands.
 RemoteSlaveState CANopenModule::s_remoteSlaves[REMOTE_SLAVE_SLOTS] = {};
 
 void CANopenModule::syncRpdoToModules_master()
@@ -1511,10 +1532,10 @@ void CANopenModule::syncRpdoToModules_master()
         uint32_t nowLog = millis();
         if ((nowLog - s_lastRpdoLogMs) >= 1000) {
             s_lastRpdoLogMs = nowLog;
-            /*
+            
             log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
                   slot, (long)newPos, newStatus, (int)nowRunning);
-                  */
+                  
         }
 
         // Mirror into FocusMotor data so /motor_get keeps working

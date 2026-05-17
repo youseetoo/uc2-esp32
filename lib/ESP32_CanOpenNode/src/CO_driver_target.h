@@ -141,6 +141,23 @@ typedef struct {
 } CO_CANmodule_t;
 
 void CO_CANinterrupt(CO_CANmodule_t *CANmodule);
+
+/**
+ * ESP32 port — TX retry walker. Stand-in for the TX-complete hardware
+ * interrupt the upstream design expects. Call this from CAN_ctrl_task
+ * (the FreeRTOS task that drains CAN_TX_queue into the TWAI HW) after
+ * each successful dequeue+twai_transmit, when CAN_TX_queue has just
+ * gained free space.
+ *
+ * Walks CANmodule->txArray and re-enqueues any CO_CANtx_t whose
+ * bufferFull flag is still set from a prior CO_CANsend() that hit a
+ * full CAN_TX_queue. Each successful re-send clears bufferFull and
+ * decrements CANmodule->CANtxCount.
+ *
+ * Cheap fast path: if CANtxCount==0 the call returns immediately
+ * without taking the lock.
+ */
+void CO_CANtx_retryQueued(CO_CANmodule_t *CANmodule);
     /**
  * Data storage object for one entry.
  * For more information on Data storage see @ref CO_storage or **CO_storage.h**

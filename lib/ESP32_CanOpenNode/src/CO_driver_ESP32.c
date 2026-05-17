@@ -207,119 +207,152 @@ CO_CANtx_t *CO_CANtxBufferInit(CO_CANmodule_t *CANmodule,
     return buffer;
 }
 
-static uint8_t send_can_message(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
+/* Internal helper: build a TWAI frame from a CO_CANtx_t and try to enqueue
+ * it to CAN_TX_queue (non-blocking). Caller MUST hold xCAN_SEND_Mutex.
+ * Returns 1 on success, 0 if the queue is full. */
+static uint8_t send_can_message_locked(CO_CANtx_t *buffer)
 {
     struct CANMessages tx_msg;
 
-    /* Build the TWAI message once. The buffer's contents must be read under
-     * the send-side lock to prevent another task mutating the buffer mid-copy
-     * (CANopenNode upper layers can reuse a CO_CANtx_t between calls). */
+    tx_msg.message.identifier        = buffer->ident & CANID_MASK;
+    tx_msg.message.data_length_code  = 8;
+    tx_msg.message.data[0]           = buffer->data[0];
+    tx_msg.message.data[1]           = buffer->data[1];
+    tx_msg.message.data[2]           = buffer->data[2];
+    tx_msg.message.data[3]           = buffer->data[3];
+    tx_msg.message.data[4]           = buffer->data[4];
+    tx_msg.message.data[5]           = buffer->data[5];
+    tx_msg.message.data[6]           = buffer->data[6];
+    tx_msg.message.data[7]           = buffer->data[7];
+    tx_msg.message.extd              = 0;
+    tx_msg.message.rtr               = 0;
+    tx_msg.message.ss                = 0;
+    tx_msg.message.self              = 0;
+    tx_msg.message.dlc_non_comp      = 1;
+
+    return (xQueueSend(CAN_TX_queue, (void *)&tx_msg, 0) == pdTRUE) ? 1 : 0;
+}
+
+/* Public single-shot send. Takes the send-side lock and delegates. Used by
+ * CO_CANsend when there are no pending retries. */
+static uint8_t send_can_message(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
+{
+    uint8_t ok;
     CO_LOCK_CAN_SEND(CANmodule);
-    tx_msg.message.identifier = buffer->ident & CANID_MASK;
-    tx_msg.message.data_length_code = 8;
-    tx_msg.message.data[0] = buffer->data[0];
-    tx_msg.message.data[1] = buffer->data[1];
-    tx_msg.message.data[2] = buffer->data[2];
-    tx_msg.message.data[3] = buffer->data[3];
-    tx_msg.message.data[4] = buffer->data[4];
-    tx_msg.message.data[5] = buffer->data[5];
-    tx_msg.message.data[6] = buffer->data[6];
-    tx_msg.message.data[7] = buffer->data[7];
-    tx_msg.message.extd = 0;
-    tx_msg.message.rtr = 0;
-    tx_msg.message.ss = 0;
-    tx_msg.message.self = 0;
-    tx_msg.message.dlc_non_comp = 1;
+    ok = send_can_message_locked(buffer);
     CO_UNLOCK_CAN_SEND(CANmodule);
-
-    /* First try: non-blocking enqueue. Hot-path for normal operation. */
-    if (xQueueSend(CAN_TX_queue, (void *)&tx_msg, 0) == pdTRUE) {
-        return 1;
-    }
-
-    /* Queue momentarily full — this happens during SDO block-download
-     * bursts where the producer (state machine, ~1 frame/ms) can briefly
-     * outrun the consumer (CAN_ctrl_task draining the TWAI HW at
-     * ~250us/frame on 500 kbit/s with arbitration / bit-stuffing jitter).
-     *
-     * Without this retry, a single transient queue-full would cause the
-     * upper layer to set bufferFull=true and short-circuit the SDO state
-     * machine on subsequent ticks (CO_SDOclient.c line 871-873), since
-     * this ESP32 port has no TX-complete interrupt to clear bufferFull
-     * later. Yielding briefly lets CAN_ctrl_task drain a slot and we
-     * succeed on the second attempt. */
-    if (xQueueSend(CAN_TX_queue, (void *)&tx_msg, pdMS_TO_TICKS(4)) == pdTRUE) {
-        return 1;
-    }
-
-    return 0;
+    return ok;
 }
 
 
 /******************************************************************************/
-/* ESP32 port note (IMPORTANT):
+/* ESP32 port — TX retry architecture (Option 1, upstream-compliant)
  *
- * The original CANopenNode design assumes a TX-complete hardware interrupt
- * that calls CO_CANinterrupt(), which in turn decrements CANmodule->CANtxCount
- * and clears the per-buffer bufferFull flag (the "retry from interrupt"
- * pattern at the bottom of CO_CANinterrupt below).
+ * Upstream CANopenNode expects two cooperating pieces in any port:
+ *   - CO_CANsend(): writes the frame to the HW mailbox if it's free.
+ *     Otherwise marks buffer->bufferFull=true, increments CANtxCount, and
+ *     returns CO_ERROR_TX_OVERFLOW (a soft error — the upper layer just
+ *     waits for the buffer to clear).
+ *   - A TX-complete hardware interrupt that calls CO_CANinterrupt(), which
+ *     walks txArray for the next bufferFull buffer, copies it into the HW
+ *     mailbox, clears bufferFull, and decrements CANtxCount.
  *
- * On this ESP32 port that interrupt path does NOT exist — it is dead code
- * gated by `else if (0) { ... }` further down in this file. Instead,
- * CAN_ctrl_task (in CANopenModule.cpp) pulls frames off CAN_TX_queue and
- * hands them to twai_transmit(). Once xQueueSend() returns success from
- * send_can_message(), the frame is committed; the buffer's contents are no
- * longer needed and the upper layer is free to reuse the buffer.
+ * The SDO client (CO_SDOclient.c:871-873) checks bufferFull *before* calling
+ * CO_CANsend on each tick — so the only way for a frame stuck with
+ * bufferFull=true to ever go out is the TX-complete-driven retry walk.
  *
- * The old logic
+ * On this ESP32 port:
+ *   - "HW mailbox" = a slot in CAN_TX_queue (32-deep FreeRTOS queue).
+ *   - CAN_ctrl_task (CANopenModule.cpp) drains CAN_TX_queue into the TWAI HW.
+ *   - "TX-complete interrupt" = CAN_ctrl_task itself, after each successful
+ *     dequeue+twai_transmit, calling CO_CANtx_retryQueued() to walk txArray
+ *     for any buffers that CO_CANsend couldn't fit and re-enqueue them.
  *
- *     if (send_can_message(...) && CANmodule->CANtxCount == 0) {
- *         // success path
- *     } else {
- *         buffer->bufferFull = true;
- *         CANmodule->CANtxCount++;
- *     }
- *
- * has a fatal flaw on this port: once CANtxCount becomes non-zero (which
- * happens the first time the FreeRTOS TX queue is momentarily full — easy
- * during SDO block download bursts), every subsequent CO_CANsend falls into
- * the else branch even though send_can_message() succeeded. CANtxCount has
- * no way to decrement, so bufferFull is set on every buffer forever.
- *
- * The SDO client (CO_SDOclient.c) checks buffer->bufferFull after CO_CANsend
- * and returns CO_SDO_RT_transmittBufferFull whenever it is set, halting the
- * state machine. This is why block transfers fail: not a single sub-block
- * segment makes it onto the wire after the first transient queue-full event,
- * the slave's SDO server times out, and we see abort 0x05040000.
- *
- * Fix: on successful enqueue, clear bufferFull and reset CANtxCount to 0.
- * On failure, mark the buffer so the caller can retry on the next tick.
- * Single-frame SDOs (motor commands etc.) are unaffected — they were already
- * working because they never stressed the TX queue. */
+ * This restores the upstream contract:
+ *   - CO_CANsend is fast and non-blocking.
+ *   - CANtxCount tracks pending retries (decrements as buffers drain).
+ *   - CO_CANclearPendingSyncPDOs() works as designed (iterating txArray).
+ *   - The "lost frame" failure mode that broke SDO block download
+ *     (transient queue-full → permanent bufferFull → state-machine
+ *     deadlock → slave SDO timeout 0x05040000) is gone, because
+ *     CO_CANtx_retryQueued unconditionally retries stuck buffers on every
+ *     CAN_ctrl_task tick. */
 CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
 {
     CO_ReturnError_t err = CO_ERROR_NO;
 
-    if (send_can_message(CANmodule, buffer)) {
-        /* Frame committed to CAN_TX_queue. CAN_ctrl_task will deliver it. */
-        buffer->bufferFull = false;
-        CANmodule->bufferInhibitFlag = buffer->syncFlag;
-        CANmodule->firstCANtxMessage = false;
-        /* CANtxCount is only ever decremented from the dead TX-interrupt
-         * path on this port. Keep it pinned at 0 so it never becomes a
-         * one-way ratchet that blocks future sends. */
-        CANmodule->CANtxCount = 0;
-    }
-    else {
-        /* TX queue full — mark buffer; upper layer retries on next tick. */
+    CO_LOCK_CAN_SEND(CANmodule);
+
+    /* Defensive: if the caller submitted a buffer whose bufferFull is still
+     * set from a prior call, the retry walker already owns it. Don't
+     * double-count CANtxCount — just report overflow and bail. */
+    if (buffer->bufferFull) {
         if (!CANmodule->firstCANtxMessage) {
             CANmodule->CANerrorStatus |= CO_CAN_ERRTX_OVERFLOW;
         }
-        buffer->bufferFull = true;
-        err = CO_ERROR_TX_OVERFLOW;
+        CO_UNLOCK_CAN_SEND(CANmodule);
+        return CO_ERROR_TX_OVERFLOW;
     }
 
+    /* Try to enqueue immediately. We only take the fast path when there
+     * are no pending retries — preserves FIFO order with the walker. */
+    if (CANmodule->CANtxCount == 0 && send_can_message_locked(buffer)) {
+        CANmodule->bufferInhibitFlag = buffer->syncFlag;
+        CANmodule->firstCANtxMessage = false;
+        /* bufferFull is already false (checked above). */
+    } else {
+        /* Either CAN_TX_queue is full, or earlier buffers are still
+         * queued for retry. Defer to CO_CANtx_retryQueued. */
+        buffer->bufferFull = true;
+        CANmodule->CANtxCount++;
+    }
+
+    CO_UNLOCK_CAN_SEND(CANmodule);
     return err;
+}
+
+
+/******************************************************************************/
+/* TX retry walker — the ESP32 port's stand-in for the TX-complete interrupt.
+ *
+ * Called by CAN_ctrl_task after each successful dequeue+twai_transmit, when
+ * CAN_TX_queue has just gained free space. Walks txArray and re-tries every
+ * buffer that CO_CANsend couldn't fit. Each successful re-send clears
+ * bufferFull and decrements CANtxCount. Stops early if the queue refills
+ * mid-walk (we'll catch the remainder on the next tick).
+ *
+ * Locking: takes xCAN_SEND_Mutex. CO_CANsend takes the same mutex, so the
+ * walker and the producers serialize cleanly. */
+void CO_CANtx_retryQueued(CO_CANmodule_t *CANmodule)
+{
+    if (CANmodule == NULL || CANmodule->txArray == NULL) return;
+
+    /* Fast path: nothing pending. Avoid the lock entirely. CANtxCount is
+     * volatile-by-convention here (it's only written under the lock; reading
+     * it racy is fine — we'll see the change on a later tick). */
+    if (CANmodule->CANtxCount == 0) return;
+
+    CO_LOCK_CAN_SEND(CANmodule);
+
+    CO_CANtx_t *buffer = &CANmodule->txArray[0];
+    for (uint16_t i = CANmodule->txSize;
+         i > 0U && CANmodule->CANtxCount > 0U;
+         i--, buffer++)
+    {
+        if (!buffer->bufferFull) continue;
+
+        if (!send_can_message_locked(buffer)) {
+            /* CAN_TX_queue full again — abandon walk; next tick retries. */
+            break;
+        }
+
+        buffer->bufferFull = false;
+        CANmodule->CANtxCount--;
+        CANmodule->bufferInhibitFlag = buffer->syncFlag;
+        CANmodule->firstCANtxMessage = false;
+    }
+
+    CO_UNLOCK_CAN_SEND(CANmodule);
 }
 
 
@@ -328,29 +361,31 @@ void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule)
 {
     uint32_t tpdoDeleted = 0U;
 
+    if (CANmodule == NULL) return;
+
+    /* Hold the lock for the whole walk: the retry walker
+     * (CO_CANtx_retryQueued) also iterates txArray and we must not race. */
+    CO_LOCK_CAN_SEND(CANmodule);
+
     /* Abort message from CAN module, if there is synchronous TPDO.
      * Take special care with this functionality. */
-    if (/*messageIsOnCanBuffer && */ CANmodule->bufferInhibitFlag) {
-        /* clear TXREQ */
+    if (CANmodule->bufferInhibitFlag) {
         CANmodule->bufferInhibitFlag = false;
         tpdoDeleted = 1U;
     }
-    /* delete also pending synchronous TPDOs in TX buffers */
+    /* Drop pending synchronous TPDOs that are still waiting for retry. */
     if (CANmodule->CANtxCount != 0U) {
-        uint16_t i;
         CO_CANtx_t *buffer = &CANmodule->txArray[0];
-        for (i = CANmodule->txSize; i > 0U; i--) {
-            if (buffer->bufferFull) {
-                if (buffer->syncFlag) {
-                    buffer->bufferFull = false;
-                    CANmodule->CANtxCount--;
-                    tpdoDeleted = 2U;
-                }
+        for (uint16_t i = CANmodule->txSize; i > 0U; i--, buffer++) {
+            if (buffer->bufferFull && buffer->syncFlag) {
+                buffer->bufferFull = false;
+                CANmodule->CANtxCount--;
+                tpdoDeleted = 2U;
             }
-            buffer++;
         }
     }
 
+    CO_UNLOCK_CAN_SEND(CANmodule);
 
     if (tpdoDeleted != 0U) {
         CANmodule->CANerrorStatus |= CO_CAN_ERRTX_PDO_LATE;

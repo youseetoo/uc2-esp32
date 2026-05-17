@@ -316,13 +316,23 @@ void CANopenModule::CO_tmr_task(void* arg)
 void CANopenModule::CO_interrupt_task(void* arg)
 {
     /*
-    This function handles CANopen interrupts by polling the CAN_RX_queue for incoming CANopen frames and processing them accordingly.
+    This function handles CANopen interrupts by polling the CAN_RX_queue for
+    incoming CANopen frames and processing them accordingly.
+
+    IMPORTANT: bound the per-tick work. The old "drain everything in one tick"
+    pattern can starve the IDLE task on this core if RX arrives faster than
+    we can process (e.g. during SDO block-download bursts where dozens of
+    frames may queue up). With no inner vTaskDelay, the task watchdog
+    eventually fires (observed as abort() at task_wdt_isr on the master
+    during OTA at ~70%). Cap at 16 frames per tick and yield — at 1 kHz tick
+    rate that's still 16,000 frames/s, well above the wire rate.
     */
     for (;;) {
         if (CO != NULL) {
-            // Drain all pending RX messages each tick for responsive SDO
-            while (uxQueueMessagesWaiting(CAN_RX_queue) > 0) {
+            int processed = 0;
+            while (processed < 16 && uxQueueMessagesWaiting(CAN_RX_queue) > 0) {
                 CO_CANinterrupt(CO->CANmodule);
+                processed++;
             }
         }
         vTaskDelay(1);
@@ -478,31 +488,37 @@ bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
 }
 
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                             uint8_t* data, size_t dataSize)
+                             uint8_t* data, size_t dataSize,
+                             uint32_t timeoutMs)
 {
     /*
-        writeSDO: This function writes data to a specified SDO (Service Data Object) 
-        on a remote node in the CANopen network. It checks if the SDO client is 
-        initialized, verifies if the target node is reachable, and then performs 
-        the SDO write operation while handling potential errors and timeouts.
+        writeSDO: writes data to a specified SDO on a remote node. Checks the
+        SDO client is initialized, verifies the target node is reachable, then
+        performs the SDO write and handles errors and timeouts.
+
+        timeoutMs: SDO inter-frame timeout in milliseconds. Default 250 ms is
+        appropriate when the slave's OD write handler is a simple memory
+        store (e.g. motor command word). For OD entries whose handler does
+        slow work (e.g. 0x2F01 OTA_FIRMWARE_SIZE triggers esp_ota_begin which
+        blocks ~400 ms for flash erase), pass a larger value (e.g. 5000 ms).
     */
     if (CO == NULL || CO->SDOclient == NULL) {
         log_e("SDO client not initialized");
         return false;
-    }   
+    }
     // Fast-fail when slave hasn't been heard from (no recent TPDO).
     // Discovery happens via the slave's heartbeat toggle in its TPDO.
     if (!isNodeReachable(nodeId)) {
         log_e("writeSDO: node 0x%02X not reachable, skipping idx=0x%04X sub=0x%02X", nodeId, index, subIndex);
         return false;
     }
-    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) 
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE)
     {
         log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed to take SDO mutex", nodeId, index, subIndex);
         return false;
     }
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
-        index, subIndex, data, dataSize);
+        index, subIndex, data, dataSize, timeoutMs);
     if (s_sdoMutex) {
         xSemaphoreGive(s_sdoMutex);
         log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X write %u bytes, abort=0x%08lX",
@@ -533,17 +549,17 @@ bool CANopenModule::isOperational()
 }
 
 // Typed SDO write helpers
-bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v) {
-    return writeSDO(nodeId, idx, sub, &v, sizeof(v));
+bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, &v, sizeof(v), timeoutMs);
 }
-bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
 }
-bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
 }
-bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
 }
 
 // SDO domain write — handles segmented transfer for arbitrary-length data.

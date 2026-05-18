@@ -64,13 +64,6 @@ namespace FocusMotor
 	xSemaphoreHandle xMutex = NULL;
 	xSemaphoreHandle xSerialMutex = NULL; // Mutex for serial JSON output
 
-	// for A,X,Y,Z intialize the I2C addresses
-	uint8_t i2c_addresses[] = {
-		pinConfig.I2C_ADD_MOT_A,
-		pinConfig.I2C_ADD_MOT_X,
-		pinConfig.I2C_ADD_MOT_Y,
-		pinConfig.I2C_ADD_MOT_Z};
-
 	MotorData **getData()
 	{
 		if (data != nullptr)

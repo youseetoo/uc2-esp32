@@ -460,6 +460,20 @@ struct PinConfig
      int8_t ROUTE_HOME[4]   = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
      int8_t ROUTE_TMC[4]    = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
      int8_t ROUTE_LASER[4]  = {-1, -1, -1, -1}; // laser channels 0-3
+
+     // ── Laser channel 4 (extra remote laser, typically an illumination
+     //    satellite board that exposes a single PWM as OD sub-index 1) ──
+     // Routing for laser id 4 is handled separately from ROUTE_LASER[0..3]
+     // so existing PinConfigs that declare ROUTE_LASER as a fixed-size
+     // [4] array do not need to be touched. By convention, channel 4 lives
+     // on the illumination board's CANopen node (default = CAN_ID_LED_0)
+     // and reuses its sole laser channel (sub-axis 0 → OD sub 0x01).
+     // Hybrid masters typically set ROUTE_LASER[0..3]=LOCAL and
+     // ROUTE_LASER_4=REMOTE so logical laser id 4 is routed over CAN.
+     int8_t  ROUTE_LASER_4    = -1;  // -1=infer, 0=LOCAL, 1=REMOTE, 2=OFF
+     uint8_t CAN_NODE_LASER_4 = 30;  // default = CAN_ID_LED_0 (illumination board)
+     int8_t  CAN_SUBAXIS_LASER_4 = 0; // OD sub-axis (sub = value + 1)
+
      int8_t ROUTE_LED        = -1;               // single LED array
      int8_t ROUTE_GALVO      = -1;               // single galvo
 

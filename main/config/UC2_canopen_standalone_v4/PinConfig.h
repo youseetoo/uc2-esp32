@@ -36,7 +36,7 @@ DIP Switch Configuration:
 #undef MOTOR_AXIS_COUNT
 #define MOTOR_AXIS_COUNT 10
 
-struct UC2_4_CAN_HYBRID : PinConfig
+struct UC2_canopen_standalone_v4 : PinConfig
 {
      /*
      UC2 v4 Standalone board in HYBRID mode:
@@ -46,7 +46,7 @@ struct UC2_4_CAN_HYBRID : PinConfig
      - CAN bus lasers 4+
      */
   
-     const char * pindefName = "UC2_4_CAN_HYBRID";
+     const char * pindefName = "UC2_canopen_standalone_v4";
      const unsigned long BAUDRATE = 115200;
      bool DEBUG_CAN_ISO_TP = 1;
 
@@ -127,16 +127,6 @@ struct UC2_4_CAN_HYBRID : PinConfig
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
 
-     int8_t I2C_ADD_MOT_X = 0x40;
-     int8_t I2C_ADD_MOT_Y = 0x41;
-     int8_t I2C_ADD_MOT_Z = 0x42;
-     int8_t I2C_ADD_MOT_A = 0x43;
-     int8_t I2C_ADD_LEX_MAT = 0x50;
-     int8_t I2C_ADD_LEX_PWM1 = 0x51;
-     int8_t I2C_ADD_LEX_PWM2 = 0x52;
-     int8_t I2C_ADD_LEX_PWM3 = 0x53;
-     int8_t I2C_ADD_LEX_PWM4 = 0x54;
-
      // SPI (unused but configured)
      int8_t SPI_MOSI = GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;
@@ -148,20 +138,6 @@ struct UC2_4_CAN_HYBRID : PinConfig
      int8_t CAN_TX = GPIO_NUM_32;
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
 
-     // ========================================================================
-     // HYBRID MODE CONFIGURATION
-     // ========================================================================
-     // Motors: axes 0-3 use native FastAccelStepper, axes 4+ use CAN
-     // Lasers: lasers 0-3 use native PWM, laser 4+ uses CAN
-     // LEDs: can output to both native LED array AND CAN LED devices
-     // ========================================================================
-     
-     // Axis threshold for CAN routing (default: 4 means A,X,Y,Z are native; B,C,D,E,F,G use CAN)
-     uint8_t HYBRID_MOTOR_CAN_THRESHOLD = 4;
-     
-     // Laser threshold for CAN routing (default: 4 means lasers 0-3 are native)
-     uint8_t HYBRID_LASER_CAN_THRESHOLD = 4;
-     
      // Set to true to send LED commands to BOTH native array AND CAN devices
      bool HYBRID_LED_DUAL_OUTPUT = false;
 
@@ -172,10 +148,10 @@ struct UC2_4_CAN_HYBRID : PinConfig
      // pin-availability inference. This master keeps motors/lasers 0-3
      // local and forwards laser 4 + the LED array to the illumination
      // satellite board over CAN.
-     int8_t ROUTE_MOTOR[4] = {0, 0, 0, 0};  // A,X,Y,Z native (FastAccelStepper)
-     int8_t ROUTE_HOME[4]  = {0, 0, 0, 0};
-     int8_t ROUTE_TMC[4]   = {0, 0, 0, 0};
-     int8_t ROUTE_LASER[4] = {0, 0, 0, 0};  // lasers 0-3 native
+     int8_t ROUTE_MOTOR[4] = {0, 0, 0, 0};  // A,X,Y,Z native (FastAccelStepper) // TODO: enlarge to 10 entries?
+     int8_t ROUTE_HOME[4]  = {0, 0, 0, 0};  // TODO: enlarge to 10 entries?
+     int8_t ROUTE_TMC[4]   = {0, 0, 0, 0}; // TODO: enlarge to 10 entries?
+     int8_t ROUTE_LASER[4] = {0, 0, 0, 0};  // lasers 0-3 native // TODO: enlarge to 10 entries?
 
      // Laser id 4 → REMOTE on illumination board (CAN_ID_LED_0 = 30, sub 0x01)
      int8_t  ROUTE_LASER_4     = 1;        // REMOTE
@@ -187,4 +163,4 @@ struct UC2_4_CAN_HYBRID : PinConfig
      // set ROUTE_LED = 0 to keep the on-board LED_PIN array instead.
      int8_t ROUTE_LED = 1; // REMOTE → illumination board (CAN_ID_LED_0 = 30)
 };
-const UC2_4_CAN_HYBRID pinConfig;
+const UC2_canopen_standalone_v4 pinConfig;

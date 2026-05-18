@@ -426,7 +426,8 @@ bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
 }
 
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                             uint8_t* data, size_t dataSize)
+                             uint8_t* data, size_t dataSize,
+                             uint32_t timeoutMs)
 {
     /*
         writeSDO: This function writes data to a specified SDO (Service Data Object) 
@@ -450,7 +451,7 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
         return false;
     }
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
-        index, subIndex, data, dataSize);
+        index, subIndex, data, dataSize, timeoutMs);
     if (s_sdoMutex) {
         xSemaphoreGive(s_sdoMutex);
         log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X write %u bytes, abort=0x%08lX",
@@ -481,17 +482,17 @@ bool CANopenModule::isOperational()
 }
 
 // Typed SDO write helpers
-bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v) {
-    return writeSDO(nodeId, idx, sub, &v, sizeof(v));
+bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, &v, sizeof(v), timeoutMs);
 }
-bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
 }
-bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
 }
-bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
+bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v, uint32_t timeoutMs) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
 }
 
 // SDO domain write — handles segmented transfer for arbitrary-length data.

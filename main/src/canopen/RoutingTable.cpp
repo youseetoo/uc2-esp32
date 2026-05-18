@@ -206,6 +206,43 @@ void RoutingTable::buildDefault() {
         }
     }
 
+    // Laser channel 4 — single extra channel for an illumination/satellite
+    // board that exposes one PWM. Routing fields live in standalone members
+    // (ROUTE_LASER_4 / CAN_NODE_LASER_4 / CAN_SUBAXIS_LASER_4) so that
+    // existing PinConfigs declaring `int8_t ROUTE_LASER[4]` keep compiling.
+    {
+        uint8_t ch        = 4;
+        int8_t  ov4       = pinConfig.ROUTE_LASER_4;
+        bool    hasPin4   = hasLocalLaserPin(4);
+        uint8_t nid4      = pinConfig.CAN_NODE_LASER_4;
+        uint8_t sub4      = (uint8_t)pinConfig.CAN_SUBAXIS_LASER_4;
+
+        if (ov4 >= 0) {
+            RouteEntry::Where w = static_cast<RouteEntry::Where>(ov4);
+            uint8_t resolvedNid = (w == RouteEntry::REMOTE) ? nid4 : 0;
+            log_i("Laser ch%d: explicit route=%d node=0x%02X subAxis=%d",
+                  ch, int(w), resolvedNid, sub4);
+            RoutingTable::set(RouteEntry::LASER, ch, w, resolvedNid, sub4);
+        } else {
+            switch (runtimeConfig.canRole) {
+            case NodeRole::STANDALONE:
+            case NodeRole::CAN_SLAVE:
+                RoutingTable::set(RouteEntry::LASER, ch,
+                    hasPin4 ? RouteEntry::LOCAL : RouteEntry::OFF, 0, sub4);
+                break;
+            case NodeRole::CAN_MASTER:
+                if (hasPin4) {
+                    RoutingTable::set(RouteEntry::LASER, ch, RouteEntry::LOCAL, 0, sub4);
+                } else {
+                    log_i("Laser ch%d: inferred REMOTE node=0x%02X subAxis=%d",
+                          ch, nid4, sub4);
+                    RoutingTable::set(RouteEntry::LASER, ch, RouteEntry::REMOTE, nid4, sub4);
+                }
+                break;
+            }
+        }
+    }
+
     // LED
     resolveRoute(RouteEntry::LED, 0, pinConfig.ROUTE_LED, hasLocalLedPin());
 

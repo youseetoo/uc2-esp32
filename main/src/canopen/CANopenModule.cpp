@@ -198,22 +198,6 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             }
         }
 
-        // Run the TX retry walker on EVERY tick — not just when we drained
-        // something. Stuck-bufferFull buffers live in CANmodule->txArray,
-        // NOT in CAN_TX_queue. If a TPDO's first send failed at boot
-        // (e.g. queue temporarily full during init), CO_CANsend marks
-        // bufferFull=true and the upper layer never tries to send that
-        // buffer again until bufferFull is cleared. The walker is the
-        // ONLY mechanism that clears it on this port — so it must run
-        // whenever there might be a stuck buffer, regardless of whether
-        // we just drained the FreeRTOS TX queue.
-        //
-        // The walker has a cheap early-return when CANtxCount==0 (no lock,
-        // single read), so this is nearly free in the common case.
-        if (CO != NULL && CO->CANmodule != NULL) {
-            CO_CANtx_retryQueued(CO->CANmodule);
-        }
-
         // Bus-off: flush our TX queue (frames are now stale) then
         // trigger hardware recovery.
         if (alerts & TWAI_ALERT_BUS_OFF) {
@@ -227,23 +211,6 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             ESP_LOGI(TAG_CAN, "Bus recovered");
             twai_start();
             twai_reconfigure_alerts(TWAI_ALERT_ALL, NULL);
-            // Wipe any stuck bufferFull flags on the CANopen TX array. The
-            // bus-off event has rendered queued frames meaningless. Hold the
-            // send-side mutex so we don't race CO_CANsend / the retry walker.
-            if (CO != NULL && CO->CANmodule != NULL
-                && CO->CANmodule->txArray != NULL
-                && CO->CANmodule->xCAN_SEND_Mutex != NULL)
-            {
-                xSemaphoreTake(CO->CANmodule->xCAN_SEND_Mutex, portMAX_DELAY);
-                for (uint16_t i = 0; i < CO->CANmodule->txSize; i++) {
-                    CO->CANmodule->txArray[i].bufferFull = false;
-                }
-                CO->CANmodule->CANtxCount        = 0;
-                CO->CANmodule->bufferInhibitFlag = false;
-                xSemaphoreGive(CO->CANmodule->xCAN_SEND_Mutex);
-                ESP_LOGI(TAG_CAN, "Cleared %u stuck TX buffers after recovery",
-                         (unsigned)CO->CANmodule->txSize);
-            }
         }
 
         // Transient bus frame errors (e.g. no ACK when master absent) — hardware
@@ -252,25 +219,6 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             static uint32_t busErrCount = 0;
             if ((++busErrCount % 100) == 1) {
                 ESP_LOGW(TAG_CAN, "CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
-            }
-        }
-
-        // Defensive: poll TWAI state and initiate recovery if we somehow
-        // entered bus-off without the alert firing (observed after heavy SDO
-        // abort exchanges). Without this, the node is permanently dead until
-        // power-cycled.
-        {
-            twai_status_info_t st;
-            if (twai_get_status_info(&st) == ESP_OK
-                && st.state == TWAI_STATE_BUS_OFF
-                && !(alerts & TWAI_ALERT_BUS_OFF))
-            {
-                static uint32_t s_busOffPollCount = 0;
-                if ((++s_busOffPollCount % 50) == 1) {
-                    ESP_LOGW(TAG_CAN, "Bus-off detected via poll (no alert) — recovering");
-                }
-                while (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {}
-                twai_initiate_recovery();
             }
         }
 
@@ -316,23 +264,13 @@ void CANopenModule::CO_tmr_task(void* arg)
 void CANopenModule::CO_interrupt_task(void* arg)
 {
     /*
-    This function handles CANopen interrupts by polling the CAN_RX_queue for
-    incoming CANopen frames and processing them accordingly.
-
-    IMPORTANT: bound the per-tick work. The old "drain everything in one tick"
-    pattern can starve the IDLE task on this core if RX arrives faster than
-    we can process (e.g. during SDO block-download bursts where dozens of
-    frames may queue up). With no inner vTaskDelay, the task watchdog
-    eventually fires (observed as abort() at task_wdt_isr on the master
-    during OTA at ~70%). Cap at 16 frames per tick and yield — at 1 kHz tick
-    rate that's still 16,000 frames/s, well above the wire rate.
+    This function handles CANopen interrupts by polling the CAN_RX_queue for incoming CANopen frames and processing them accordingly.
     */
     for (;;) {
         if (CO != NULL) {
-            int processed = 0;
-            while (processed < 16 && uxQueueMessagesWaiting(CAN_RX_queue) > 0) {
+            // Drain all pending RX messages each tick for responsive SDO
+            while (uxQueueMessagesWaiting(CAN_RX_queue) > 0) {
                 CO_CANinterrupt(CO->CANmodule);
-                processed++;
             }
         }
         vTaskDelay(1);
@@ -449,7 +387,7 @@ bool CANopenModule::isNodeReachable(uint8_t nodeId)
             return false;
         }
         if ((millis() - slave.lastUpdateMs) > 5000) {
-            log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
+            //log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
             return false;
         }
         return true;
@@ -488,37 +426,31 @@ bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
 }
 
 bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                             uint8_t* data, size_t dataSize,
-                             uint32_t timeoutMs)
+                             uint8_t* data, size_t dataSize)
 {
     /*
-        writeSDO: writes data to a specified SDO on a remote node. Checks the
-        SDO client is initialized, verifies the target node is reachable, then
-        performs the SDO write and handles errors and timeouts.
-
-        timeoutMs: SDO inter-frame timeout in milliseconds. Default 250 ms is
-        appropriate when the slave's OD write handler is a simple memory
-        store (e.g. motor command word). For OD entries whose handler does
-        slow work (e.g. 0x2F01 OTA_FIRMWARE_SIZE triggers esp_ota_begin which
-        blocks ~400 ms for flash erase), pass a larger value (e.g. 5000 ms).
+        writeSDO: This function writes data to a specified SDO (Service Data Object) 
+        on a remote node in the CANopen network. It checks if the SDO client is 
+        initialized, verifies if the target node is reachable, and then performs 
+        the SDO write operation while handling potential errors and timeouts.
     */
     if (CO == NULL || CO->SDOclient == NULL) {
         log_e("SDO client not initialized");
         return false;
-    }
+    }   
     // Fast-fail when slave hasn't been heard from (no recent TPDO).
     // Discovery happens via the slave's heartbeat toggle in its TPDO.
     if (!isNodeReachable(nodeId)) {
         log_e("writeSDO: node 0x%02X not reachable, skipping idx=0x%04X sub=0x%02X", nodeId, index, subIndex);
         return false;
     }
-    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE)
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) 
     {
         log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed to take SDO mutex", nodeId, index, subIndex);
         return false;
     }
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
-        index, subIndex, data, dataSize, timeoutMs);
+        index, subIndex, data, dataSize);
     if (s_sdoMutex) {
         xSemaphoreGive(s_sdoMutex);
         log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X write %u bytes, abort=0x%08lX",
@@ -549,17 +481,17 @@ bool CANopenModule::isOperational()
 }
 
 // Typed SDO write helpers
-bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v, uint32_t timeoutMs) {
-    return writeSDO(nodeId, idx, sub, &v, sizeof(v), timeoutMs);
+bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v) {
+    return writeSDO(nodeId, idx, sub, &v, sizeof(v));
 }
-bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
+bool CANopenModule::writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
 }
-bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
+bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
 }
-bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v, uint32_t timeoutMs) {
-    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v), timeoutMs);
+bool CANopenModule::writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v) {
+    return writeSDO(nodeId, idx, sub, (uint8_t*)&v, sizeof(v));
 }
 
 // SDO domain write — handles segmented transfer for arbitrary-length data.
@@ -1515,9 +1447,6 @@ void CANopenModule::syncRpdoToModules_slave()
 // Master: drain RPDO-written OD_RAM entries into the remote slave cache.
 // Called every 1 ms from CO_tmr_task. Detects running->stopped transitions
 // and emits async serial notifications.
-// RPOD stands for Receive PDO, the CANopen mechanism for real-time data exchange between nodes.
-// PDO stands for Process Data Object, the CANopen mechanism for real-time data exchange between nodes.
-// SDO stands for Service Data Object, the CANopen mechanism for non-real-time configuration and commands.
 RemoteSlaveState CANopenModule::s_remoteSlaves[REMOTE_SLAVE_SLOTS] = {};
 
 void CANopenModule::syncRpdoToModules_master()
@@ -1548,10 +1477,10 @@ void CANopenModule::syncRpdoToModules_master()
         uint32_t nowLog = millis();
         if ((nowLog - s_lastRpdoLogMs) >= 1000) {
             s_lastRpdoLogMs = nowLog;
-            
+            /*
             log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
                   slot, (long)newPos, newStatus, (int)nowRunning);
-                  
+                  */
         }
 
         // Mirror into FocusMotor data so /motor_get keeps working

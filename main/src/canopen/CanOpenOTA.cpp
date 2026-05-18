@@ -30,6 +30,8 @@ extern "C" {
 #include <esp_ota_ops.h>
 #include <esp_log.h>
 #include <rom/crc.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #define TAG "OTA_SDO"
 
@@ -43,10 +45,78 @@ static uint32_t                s_crc32Running = 0;
 static uint32_t                s_bytesWritten = 0;
 static bool                    s_otaStarted = false;
 static uint32_t                s_nextProgressMark      = 64U * 1024U;
-;
+
+// Tracks the millis() time of the last successful onOtaWriteChunk so a
+// background task can abort the OTA if the master goes silent mid-transfer.
+// Updated from the SDO context; read from the watchdog task.
+static volatile uint32_t       s_lastChunkMillis = 0;
+
+// OTA inactivity timeout: if no chunks arrive for this long, the watchdog
+// task aborts the OTA so the slave doesn't stay wedged in "receiving" forever.
+// 30 s comfortably exceeds the master's normal inter-chunk gap (~1.5 s) and
+// the post-CRC settle time (a few hundred ms).
+static constexpr uint32_t      OTA_INACTIVITY_TIMEOUT_MS = 30000;
 
 static OD_extension_t s_otaDataExt;
 static OD_extension_t s_otaSizeExt;
+
+// Forward declarations (resetOtaState is defined further down with the
+// rest of the internal helpers).
+static void resetOtaState();
+
+// ============================================================================
+// Deferred reboot task — fires after the SDO END_RSP has had time to go out.
+// ============================================================================
+
+static void deferredRestartTask(void* arg) {
+    // The SDO END_RSP frame the server sent before we return from the OD
+    // callback needs ~ms to make it onto the wire and be processed by the
+    // master. Give it a comfortable 2 s buffer so the master's
+    // sdoDownloadEnd() returns CO_SDO_RT_ok_communicationEnd cleanly before
+    // we kill ourselves.
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    log_i("Deferred OTA reboot now");
+    esp_restart();
+    // Never reached.
+    vTaskDelete(NULL);
+}
+
+static void scheduleDeferredRestart() {
+    // Low priority is fine — the only thing this task does is sleep then
+    // call esp_restart(). 2 KB stack is plenty.
+    BaseType_t rc = xTaskCreate(deferredRestartTask, "ota_restart",
+                                2048, NULL, 1, NULL);
+    if (rc != pdPASS) {
+        log_e("Failed to spawn deferred restart task — falling back to inline restart");
+        // Inline restart still drops the SDO response, but better than not
+        // restarting at all (the OTA flash already committed).
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        esp_restart();
+    }
+}
+
+// ============================================================================
+// OTA inactivity watchdog — aborts a wedged OTA without external help.
+// ============================================================================
+
+static void otaWatchdogTask(void* arg) {
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        if (!s_otaStarted) continue;
+        // s_lastChunkMillis is updated by onOtaWriteChunk; if it goes stale
+        // while OTA is "active", the master has disappeared.
+        uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+        uint32_t last = s_lastChunkMillis;
+        if (last != 0 && (now - last) > OTA_INACTIVITY_TIMEOUT_MS) {
+            log_w("OTA inactivity timeout (%lu ms since last chunk); aborting",
+                  (unsigned long)(now - last));
+            // resetOtaState closes the esp_ota handle, clears all state,
+            // and returns the slave to an OTA-idle posture so the next
+            // /ota_start works without a manual slave reboot.
+            resetOtaState();
+        }
+    }
+}
 
 // ============================================================================
 // Internal helpers
@@ -64,6 +134,7 @@ static void resetOtaState() {
     s_bytesWritten = 0;
     s_otaStarted = false;
     s_nextProgressMark = 64U * 1024U;
+    s_lastChunkMillis = 0;        // disarm the watchdog
     OD_OTA_STATUS = CANOPEN_OTA_IDLE;
     OD_OTA_BYTES_RECEIVED = 0;
     OD_OTA_ERROR_CODE = CANOPEN_OTA_ERR_NONE;
@@ -149,6 +220,9 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
     OD_OTA_STATUS = CANOPEN_OTA_RECEIVING;
     OD_OTA_BYTES_RECEIVED = 0;
     OD_OTA_ERROR_CODE = CANOPEN_OTA_ERR_NONE;
+    // Arm the inactivity watchdog with "now" as the last-activity reference
+    // so it doesn't fire while waiting for the first chunk.
+    s_lastChunkMillis = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
 
     log_i("OTA started: size=%lu, partition=%s",
           (unsigned long)firmwareSize, s_otaPartition->label);
@@ -192,6 +266,11 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
 
     // Update OD status for TPDO reporting
     OD_OTA_BYTES_RECEIVED = s_bytesWritten;
+
+    // Feed the OTA inactivity watchdog. If the master goes silent for
+    // OTA_INACTIVITY_TIMEOUT_MS, otaWatchdogTask will resetOtaState() so
+    // the next /ota_start can start cleanly without a slave reboot.
+    s_lastChunkMillis = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
 
     // Throttled progress log: every 64 KB to avoid UART blocking the SDO task.
     if (1){ //s_bytesWritten >= s_nextProgressMark) {
@@ -262,9 +341,17 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
         log_i("OTA complete and verified. Boot partition set to %s",
               s_otaPartition->label);
 
-        // Reboot after short delay (let SDO response go out)
-        vTaskDelay(pdMS_TO_TICKS(2000));
-        esp_restart();
+        // Schedule a deferred reboot. Critically, we DO NOT call
+        // esp_restart() inline here — that would kill the slave before the
+        // SDO server has a chance to send the END_RSP frame back to the
+        // master, leaving the master stuck in sdoDownloadEnd() waiting on
+        // a response that will never arrive. The master's IDLE WDT then
+        // fires at 5 s and the master panics — exactly the failure we
+        // were seeing in field logs. Instead, return ODR_OK now so the
+        // SDO server sends the END_RSP, and let the deferred task reboot
+        // us 2 s later (plenty of time for the response to hit the wire
+        // and the master to clean up its end of the stream).
+        scheduleDeferredRestart();
 
         // Final segment: tell the SDO server the OD variable is complete.
         return ODR_OK;
@@ -312,6 +399,17 @@ void CanOpenOTA::registerOdExtensions() {
     OD_OTA_STATUS = CANOPEN_OTA_IDLE;
     OD_OTA_BYTES_RECEIVED = 0;
     OD_OTA_ERROR_CODE = CANOPEN_OTA_ERR_NONE;
+
+    // Spawn the inactivity watchdog. If an OTA is started but no chunks
+    // arrive for OTA_INACTIVITY_TIMEOUT_MS, the watchdog calls
+    // resetOtaState() so the slave can accept a fresh /ota_start without
+    // a manual reboot. One-shot creation — task lives for the lifetime
+    // of the slave.
+    BaseType_t rc = xTaskCreate(otaWatchdogTask, "ota_wdog",
+                                3072, NULL, 1, NULL);
+    if (rc != pdPASS) {
+        log_e("Failed to spawn OTA watchdog task — aborted OTAs will require manual reboot");
+    }
 }
 
 #endif // CAN_CONTROLLER_CANOPEN

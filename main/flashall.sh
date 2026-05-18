@@ -19,13 +19,13 @@ echo "----------------------------------------"
 
 # Step 2: Full Chip Erase on the Slave (Matches the Web Tool)
 echo "🧹 Step 2: Performing low-level factory flash erase on Slave..."
-$PIO_PYTHON $ESPTOOL --chip esp32s3 --port /dev/cu.usbmodem101 --baud 921600 erase_flash
+# $PIO_PYTHON $ESPTOOL --chip esp32s3 --port /dev/cu.usbmodem101 --baud 921600 erase_flash
 echo "✅ Slave flash entirely erased."
 echo "----------------------------------------"
 
 # Step 3: Upload to the CANopen Slave
 echo "📥 Step 3: Uploading firmware to Slave motor environment..."
-$PIO run --target upload --environment UC2_canopen_slave_motor --upload-port /dev/cu.usbmodem101
+$PIO run --target upload --environment UC2_canopen_slave_motor --upload-port /dev/cu.usbmodem14
 echo "✅ Slave upload complete."
 echo "----------------------------------------"
 

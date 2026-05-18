@@ -75,36 +75,25 @@ bool flushChunk() {
 
     if (!s_streamOpen) {
         // 1) Tell the slave the expected CRC32 (so it can verify the image).
-        // Use a 5 s SDO timeout: the CRC write itself is cheap, but the
-        // slave's CO_main_task may be momentarily busy responding to other
-        // traffic, and we want to be tolerant of jitter.
         if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_CRC32,
-                                         0, s_expectedCrc32,
-                                         /*timeoutMs=*/5000)) {
+                                         0, s_expectedCrc32)) {
             emitJson("{\"ota_status\":\"error\",\"error\":\"crc_write_failed\"}");
             return false;
-        }
+        } // TODO: Under which circumstances can this fail? If the slave is reachable, shouldn't this always succeed?
+          //       If it can fail, do we want to retry a few times before giving up?
+          //       If it fails, the host sees crc_write_failed which is a bit misleading if the real issue is connectivity. Maybe we want a separate error for this case?
 
         // 2) Tell the slave the firmware size — this triggers esp_ota_begin
-        //    on the slave which blocks ~400 ms for the flash partition
-        //    erase. The slave can't respond to the SDO until the OD write
-        //    handler returns, so the master needs a generous timeout here.
-        //    The default 250 ms is way too tight and causes intermittent
-        //    "size_write_failed" — depending on master scheduler jitter the
-        //    250 logical-ticks-of-1 ms can elapse in 250 ms wall time
-        //    (master idle) or 600 ms wall time (master busy). 5000 ms is
-        //    plenty for any reasonable flash partition size.
+        //    on the slave so the next OTA_FIRMWARE_DATA bytes can be flashed.
         if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_SIZE,
-                                         0, s_totalSize,
-                                         /*timeoutMs=*/5000)) {
+                                         0, s_totalSize)) {
             emitJson("{\"ota_status\":\"error\",\"error\":\"size_write_failed\"}");
             return false;
         }
-        // Small post-write settle: by now esp_ota_begin has already
-        // returned (the SDO ACK we just received confirmed that), but give
-        // the slave's CAN stack a few RTOS ticks to drain any backlog
-        // before we start streaming the block download.
-        vTaskDelay(pdMS_TO_TICKS(100));
+        // Give the slave time to complete esp_ota_begin (flash erase can
+        // take 200-500ms depending on partition state) and for the CAN
+        // stack to recover from any missed frames during the erase.
+        vTaskDelay(pdMS_TO_TICKS(500));
 
         // 3) Open the streaming SDO session for the firmware blob.
         if (!CANopenModule::sdoDownloadBegin(s_nodeId,

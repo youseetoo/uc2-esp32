@@ -23,8 +23,8 @@ DIP Switch Configuration:
 #define CAN_CONTROLLER_CANOPEN   // Use the CANopen stack (DeviceRouter REMOTE path)
 #define USE_FASTACCEL
 #define USE_TCA9535
-#define BLUETOOTH
-#define BTHID
+//#define BLUETOOTH
+//#define BTHID
 #define CAN_HYBRID
 //#define WIFI
 #define HOME_MOTOR
@@ -34,7 +34,7 @@ DIP Switch Configuration:
 
 // Extend motor count to include CAN satellites
 #undef MOTOR_AXIS_COUNT
-#define MOTOR_AXIS_COUNT 10
+#define MOTOR_AXIS_COUNT 4
 
 struct UC2_canopen_standalone_v4 : PinConfig
 {
@@ -74,7 +74,7 @@ struct UC2_canopen_standalone_v4 : PinConfig
      const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 4* 2048;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
      const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 2048;
-     const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
+     const uint16_t MOTOR_TASK_STACKSIZE =  1024; // TODO: was 4*1024, but can we get away with less since only 4 native motors are active?
      const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 0;
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 0;
      const uint16_t TCA_TASK_STACKSIZE = 1024;
@@ -152,6 +152,7 @@ struct UC2_canopen_standalone_v4 : PinConfig
      int8_t ROUTE_HOME[4]  = {0, 0, 0, 0};  // TODO: enlarge to 10 entries?
      int8_t ROUTE_TMC[4]   = {0, 0, 0, 0}; // TODO: enlarge to 10 entries?
      int8_t ROUTE_LASER[4] = {0, 0, 0, 0};  // lasers 0-3 native // TODO: enlarge to 10 entries?
+     int8_t ROUTE_GALVO     = 1;            // remote
 
      // Laser id 4 → REMOTE on illumination board (CAN_ID_LED_0 = 30, sub 0x01)
      int8_t  ROUTE_LASER_4     = 1;        // REMOTE

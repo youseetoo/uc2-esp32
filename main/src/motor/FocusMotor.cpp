@@ -270,7 +270,7 @@ namespace FocusMotor
 		data[Stepper::X] = &x_dat;
 		data[Stepper::Y] = &y_dat;
 		data[Stepper::Z] = &z_dat;
-#if MOTOR_AXIS_COUNT > 4
+#if MOTOR_AXIS_COUNT > 4 // TODO: We should only setup the data for the motors that are actually present according to the pin configuration, but for now we just assume that if MOTOR_AXIS_COUNT > 4 then we have all 7 axes and set them up accordingly
 		data[Stepper::B] = &b_dat;
 		data[Stepper::C] = &c_dat;
 		data[Stepper::D] = &d_dat;
@@ -399,6 +399,7 @@ namespace FocusMotor
 		}
 		preferences.end();
 
+		/*
 		// setup trigger pins
 		if (pinConfig.DIGITAL_OUT_1 > 0)
 			data[Stepper::X]->triggerPin = 1; // pixel^
@@ -406,6 +407,7 @@ namespace FocusMotor
 			data[Stepper::Y]->triggerPin = 2; // line^
 		if (pinConfig.DIGITAL_OUT_3 > 0)
 			data[Stepper::Z]->triggerPin = 3; // frame^
+			*/
 	}
 
 #ifdef USE_TCA9535
@@ -417,11 +419,12 @@ namespace FocusMotor
 			// need to activate the motor's dir pin eventually
 			// This also updates the dial's positions
 			// only test those motors that are activated
-			if (isActivated[iMotor])
+			// Only test axes that are both activated AND have a local step pin.
+			// Axes routed via CANopen (stpPin == -1) have no local FastAccelStepper
+			// handle; calling startStepper() on them would access faststeppers[]
+			// out-of-bounds and crash.
+			if (isActivated[iMotor] && getData()[iMotor]->stpPin >= 0)
 			{
-				// need to activate the motor's dir pin eventually
-				// This also updates the dial's positions
-				// only test those motors that are activated
 				Stepper s = static_cast<Stepper>(iMotor);
 				data[s]->absolutePosition = false;
 				data[s]->targetPosition = -1;

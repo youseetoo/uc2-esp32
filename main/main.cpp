@@ -514,9 +514,6 @@ extern "C" void setupApp(void)
 		DialController::setup();
 	}
 #endif
-#ifdef I2C_SLAVE_DIAL
-	i2c_slave_dial::setup();
-#endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
@@ -763,6 +760,11 @@ extern "C" void app_main(void)
 
 	// initialize the module controller
 	setupApp();
+
+	// print heap just before launching the main loop for the first time
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
+	SerialProcess::safePrintln(buffer);
 
 	// Run main loop on Core 1, let motor tasks use Core 0 for separation
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);

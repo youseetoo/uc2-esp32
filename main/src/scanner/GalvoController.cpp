@@ -36,6 +36,7 @@ void GalvoController::setup()
 #if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
     // Host/Master mode - only forward commands via CAN, no local hardware
     initialized_ = true;
+    log_i("Running in MASTER mode (CAN command forwarding only)");
     return;
 #else
     delay(2000); // Wait for CAN bus to stabilize

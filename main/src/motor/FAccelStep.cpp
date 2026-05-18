@@ -23,6 +23,13 @@ namespace FAccelStep
     void startFastAccelStepper(int i)
     {
         log_i("Starting FastAccelStepper for motor %i", i);
+        // Guard: faststeppers is sized for LOCAL axes only (currently 4).
+        // REMOTE axes (index >= array size) have no FastAccelStepper handle.
+        if (i < 0 || i >= (int)faststeppers.size())
+        {
+            log_d("startFastAccelStepper: axis %d has no local stepper (REMOTE or OUT_OF_RANGE)", i);
+            return;
+        }
         if (faststeppers[i] == nullptr)
         {
             log_e("stepper %i is null", i);
@@ -386,6 +393,12 @@ namespace FAccelStep
 
 void stopFastAccelStepper(int i)
     {
+        // Guard: faststeppers is sized for LOCAL axes only.
+        if (i < 0 || i >= (int)faststeppers.size())
+        {
+            log_d("stopFastAccelStepper: axis %d has no local stepper (REMOTE or OUT_OF_RANGE)", i);
+            return;
+        }
         if (faststeppers[i] == nullptr)
             return;
         FastAccelStepper* s = faststeppers[i];
@@ -420,6 +433,12 @@ void stopFastAccelStepper(int i)
 
     void updateData(int i)
         {
+        // Guard: faststeppers is sized for LOCAL axes only.
+        if (i < 0 || i >= (int)faststeppers.size())
+        {
+            log_d("updateData: axis %d has no local stepper (REMOTE or OUT_OF_RANGE)", i);
+            return;
+        }
         if (faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in updateData", i);

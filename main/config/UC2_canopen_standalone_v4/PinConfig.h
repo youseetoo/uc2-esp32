@@ -82,7 +82,7 @@ struct UC2_canopen_standalone_v4 : PinConfig
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 0;
 
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
      // ─────────────────────────────────────────────────────────────────────

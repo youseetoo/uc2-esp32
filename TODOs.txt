@@ -56,3 +56,25 @@ ensure demo_motor.py is owrking
 
 
 we should have a moe unified interface for laser vs motors vs. aynthing w.r.t. enumeration and then for remote vs local  usage
+
+
+
+
+
+
+
+Error
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "fill", "r":255, "g":0, "b":26 } }
+
+e(SDO_C, data, dataSize);
+
+    do {
+        CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
+        SDO_ret = CO_SDOclientDownload(SDO_C, 1000, false, false,
+            &abortCode, NULL, NULL);
+        if (SDO_ret < 0) {
+            log_e("Write abort: %d", SDO_ret);
+
+--
+E (115371) SDO: Write abort: -9
+E (115871) SDO: Write abort: -9

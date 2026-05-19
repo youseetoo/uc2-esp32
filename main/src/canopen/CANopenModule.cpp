@@ -201,7 +201,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         // Bus-off: flush our TX queue (frames are now stale) then
         // trigger hardware recovery.
         if (alerts & TWAI_ALERT_BUS_OFF) {
-            ESP_LOGW(TAG_CAN, "Bus-off — flushing TX queue and initiating recovery...");
+            log_i("Bus-off — flushing TX queue and initiating recovery...");
             while (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {}
             twai_initiate_recovery();
         }
@@ -218,7 +218,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         if (alerts & TWAI_ALERT_BUS_ERROR) {
             static uint32_t busErrCount = 0;
             if ((++busErrCount % 100) == 1) {
-                ESP_LOGW(TAG_CAN, "CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
+                log_i("CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
             }
         }
 
@@ -306,7 +306,7 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
             &abortCode, NULL, NULL, NULL);
         if (SDO_ret < 0) {
             CO_SDOclientClose(SDO_C);
-            ESP_LOGE("SDO", "Read abort: %d", SDO_ret);
+            log_e("Read abort: %d", SDO_ret);
             return abortCode;
         }
         vTaskDelay(pdMS_TO_TICKS(1));
@@ -349,7 +349,8 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
         SDO_ret = CO_SDOclientDownload(SDO_C, 1000, false, false,
             &abortCode, NULL, NULL);
         if (SDO_ret < 0) {
-            ESP_LOGE("SDO", "Write abort: %d", SDO_ret);
+            log_e("Write abort: %d", SDO_ret);
+            
             return abortCode;
         }
         // SDO_ret constants:

@@ -4,6 +4,7 @@
 #include "../i2c/tca_controller.h"
 #include "../../JsonKeys.h"
 #include "../../cJsonTool.h"
+#include "../canopen/DeviceRouter.h"
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
 #endif
@@ -110,39 +111,65 @@ namespace StageScan
     }
 
     // -----------------------------------------------------------------------------
-    // CAN-MASTER implementation – absolute positioning sent to the slaves
+    // Absolute positioning via DeviceRouter.
+    // The router dispatches to LOCAL FocusMotor or REMOTE CANopen slave based on
+    // the RoutingTable, so this works on standalone boards as well as on a
+    // CANopen master where the motors live on remote slave nodes. We then poll
+    // FocusMotor::getData()[ax]->stopped / currentPosition, which is mirrored
+    // from the slave's TPDO by syncRpdoToModules_master() on the master side.
     // -----------------------------------------------------------------------------
     static inline void moveAbs(Stepper ax, int32_t pos, int speed = 20000, int acceleration = 1000000, int32_t timeout = 2000)
     {
         auto *d = FocusMotor::getData()[ax];
-        d->absolutePosition = 1;
-        d->targetPosition = pos;
-        d->speed = speed;
-        d->isStop = 0;
+        if (!d)
+        {
+            log_e("moveAbs: no MotorData for axis %d", ax);
+            return;
+        }
+
+        // Reset completion flag before dispatching so the poll loop can detect
+        // the running -> stopped transition reliably (especially for REMOTE).
         d->stopped = false;
-        d->acceleration = acceleration;
-        d->isforever = false;
-        log_i("Moving axis %d to position %d with speed %d and acceleration %d, isAbs%d", ax, pos, speed, acceleration, d->absolutePosition);
-        FocusMotor::startStepper(ax, 1);
-        // give some time to send the command and wait for the motor to start e.g. 100ms
+        d->isStop = 0;
+
+        log_i("Moving axis %d to position %d with speed %d and acceleration %d (via DeviceRouter)",
+              ax, pos, speed, acceleration);
+
+        // Build motor_act JSON: {"motor":{"steppers":[{stepperid, position, speed, acceleration, isabs:1}]}}
+        cJSON *doc = cJSON_CreateObject();
+        cJSON *motor = cJSON_AddObjectToObject(doc, "motor");
+        cJSON *steppers = cJSON_AddArrayToObject(motor, "steppers");
+        cJSON *s = cJSON_CreateObject();
+        cJSON_AddNumberToObject(s, "stepperid", (int)ax);
+        cJSON_AddNumberToObject(s, "position", pos);
+        cJSON_AddNumberToObject(s, "speed", speed);
+        cJSON_AddNumberToObject(s, "acceleration", acceleration);
+        cJSON_AddNumberToObject(s, "isabs", 1);
+        cJSON_AddNumberToObject(s, "isforever", 0);
+        cJSON_AddItemToArray(steppers, s);
+
+        cJSON *resp = DeviceRouter::handleMotorAct(doc);
+        if (resp) cJSON_Delete(resp);
+        cJSON_Delete(doc);
+
+        // Give the motor (or the SDO write + slave start) a brief moment to begin.
         vTaskDelay(pdMS_TO_TICKS(100));
-        // we need a timeout to wait for the motor to stop
+
+        // Wait for completion: either the controller reports stopped, or the
+        // mirrored currentPosition matches the target. Bail out on timeout.
         int32_t timeStart = millis();
         while (1)
         {
             vTaskDelay(1);
-            if (d->stopped or FocusMotor::getData()[ax]->currentPosition == pos)
-            { // !FocusMotor::isRunning(ax)){
-                // motor is running, we can break the loop
-                // Serial.println("Motor done, took us " + String(millis() - timeStart) + "ms");
+            if (d->stopped || d->currentPosition == pos)
+            {
                 break;
             }
             if (millis() - timeStart > timeout)
             {
                 log_e("Timeout while moving axis %d to position %d", ax, pos);
-                break; // timeout reached
+                break;
             }
-            // Serial.println("Motor stopped"); //TODO: This is not working as expected - I guess status is not correct here
         }
     }
 

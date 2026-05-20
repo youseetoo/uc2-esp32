@@ -4,10 +4,6 @@
 #include "../../cJsonTool.h"
 #include "esp_log.h"
 
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
-
 static const char *TAG = "QidRegistry";
 
 namespace QidRegistry
@@ -229,7 +225,6 @@ namespace QidRegistry
             {
                 xSemaphoreGive(xQidMutex);
 
-                #if defined(CAN_BUS_ENABLED) 
                 // Save remaining distance before stopping
                 int32_t currentPos = FocusMotor::getData()[i]->currentPosition;
                 int32_t targetPos = FocusMotor::getData()[i]->targetPosition;
@@ -242,7 +237,6 @@ namespace QidRegistry
 
                 // Stop the motor
                 FocusMotor::stopStepper(i);
-#endif
                 if (!xSemaphoreTake(xQidMutex, pdMS_TO_TICKS(500)))
                     return false;
                 idx = findEntry(qid); // re-find after releasing mutex

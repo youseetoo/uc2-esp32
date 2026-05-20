@@ -140,9 +140,9 @@ RuntimeConfig runtimeConfig;
 #endif
 
 // CAN role default
-#if defined(CAN_SEND_COMMANDS)
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
   #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_MASTER)
-#elif defined(CAN_RECEIVE_MOTOR) || defined(CAN_RECEIVE_LASER) || defined(CAN_RECEIVE_LED) || defined(CAN_RECEIVE_GALVO) || defined(CAN_RECEIVE_DIAL)
+#elif defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 2)
   #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_SLAVE)
 #elif defined(CAN_BUS_ENABLED)
   #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_MASTER)

@@ -10,10 +10,6 @@
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
-
 namespace StageScan
 {
     StageScanningData stageScanningData;
@@ -118,7 +114,6 @@ namespace StageScan
     // -----------------------------------------------------------------------------
     static inline void moveAbs(Stepper ax, int32_t pos, int speed = 20000, int acceleration = 1000000, int32_t timeout = 2000)
     {
-#ifndef CAN_RECEIVE_MOTOR
         auto *d = FocusMotor::getData()[ax];
         d->absolutePosition = 1;
         d->targetPosition = pos;
@@ -149,19 +144,16 @@ namespace StageScan
             }
             // Serial.println("Motor stopped"); //TODO: This is not working as expected - I guess status is not correct here
         }
-#endif
     }
 
     // -----------------------------------------------------------------------------
     // Unified stageScan – works with both local GPIO drivers and remote CAN slaves.
     // FocusMotor::startStepper() dispatches to the right back-end automatically.
-    // Use CAN_BUS_ENABLED as build flag to differentiate LED dispatch where needed.
     // -----------------------------------------------------------------------------
     void stageScan(bool isThread)
     {
         if (isRunning)
             return;
-#ifndef CAN_RECEIVE_MOTOR
         auto &sd = StageScan::stageScanningData;
 
         FocusMotor::setEnable(true);
@@ -192,7 +184,7 @@ namespace StageScan
             return totalTime;
         };
 
-        // Agnostic LED helper: sends illumination command via CAN_BUS_ENABLED or local driver
+        // LED helper: sends illumination command via local driver
         auto sendLed = [&](uint8_t intensity) {
 #ifdef LED_CONTROLLER
             LedCommand cmd;
@@ -204,11 +196,7 @@ namespace StageScan
             cmd.ledIndex = 0;
             cmd.region[0] = '\0';
             cmd.qid = 0;
-#ifdef CAN_BUS_ENABLED
-            can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-#else
             LedController::execLedCommand(cmd);
-#endif
 #endif
         };
 
@@ -496,7 +484,6 @@ namespace StageScan
         Serial.println("--");
 
         isRunning = false;
-#endif // CAN_RECEIVE_MOTOR
 
         if (isThread)
             vTaskDelete(NULL);
@@ -509,7 +496,7 @@ namespace StageScan
     //
     // Motor commands are dispatched via FocusMotor::startStepper which handles both
     // local drivers (FastAccelStepper/AccelStepper) and remote back-ends (CAN/I2C)
-    // transparently.  Use the CAN_BUS_ENABLED build flag to differentiate LED dispatch.
+    // transparently.
     {
         stageScan(true);
     }

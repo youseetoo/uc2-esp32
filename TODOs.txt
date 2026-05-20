@@ -82,3 +82,6 @@ E (115871) SDO: Write abort: -9
 
 
 have firmware version (hardcoded) / Github Hash exposed via can 
+
+
+bump ota over can in python

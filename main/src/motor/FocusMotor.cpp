@@ -31,9 +31,6 @@
 #ifdef I2C_MASTER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
 #ifdef DIGITAL_IN_CONTROLLER
 #include "../digitalin/DigitalInController.h"
 #endif
@@ -143,12 +140,7 @@ namespace FocusMotor
 				  axis, (int)requestedDir, (int)getData()[axis]->hardLimitLockoutDir);
 			getData()[axis]->stopped = true;
 			sendMotorPos(axis, 0, -3); // error report
-#ifdef CAN_RECEIVE_MOTOR
-			if (getData()[axis]->qid > 0)
-				can_controller::sendQidReportToMaster(getData()[axis]->qid, 1);
-#else
 			QidRegistry::reportActionError(getData()[axis]->qid);
-#endif
 			return;
 		}
 		if (requestedDir != 0)
@@ -467,32 +459,6 @@ namespace FocusMotor
 		// Initialize motor-encoder conversion configuration
 		MotorEncoderConfig::setup();
 
-#if (defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR))
-		// stop all motors on startup
-		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
-		{
-			isActivated[i] = true;
-			stopStepper(i); // TODO: do it twice - wrong state on slave/master side? Weird!! //FIXME: why?
-			delay(40);
-			// TODO: This apparently does not suffice to wake up the motor and get the current position from CAN satellites
-			// move motor by 0 to wake it up and get the current position
-		}
-
-		// Send motor settings (soft limits, acceleration, etc.) to all CAN slaves
-		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
-		{
-			MotorSettings settings = can_controller::extractMotorSettings(*getData()[i]);
-			can_controller::sendMotorSettingsToCANDriver(settings, i);
-			delay(20); // Allow time for CAN transmission
-		}
-		log_i("Motor settings sent to all CAN slaves during setup");
-#endif
-
-#ifdef CAN_RECEIVE_MOTOR
-		// send current position to master
-		can_controller::sendMotorStateToMaster();
-#endif
-
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
 		log_i("Setting external pin for FastAccelStepper");
@@ -541,12 +507,6 @@ namespace FocusMotor
 		preferences.putBool(("hlEn" + String(axis)).c_str(), enabled);
 		preferences.putBool(("hlPol" + String(axis)).c_str(), polarity);
 		preferences.end();
-
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-		// Master: Notify CAN slaves about the hard limit settings
-		MotorSettings settings = can_controller::extractMotorSettings(*getData()[axis]);
-		can_controller::sendMotorSettingsToCANDriver(settings, axis);
-#endif
 	}
 
 	void clearHardLimitTriggered(int axis)
@@ -612,18 +572,14 @@ namespace FocusMotor
 
 	void checkHardLimits()
 	{
-#if defined(CAN_RECEIVE_MOTOR) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
-		// CAN slave / satellite: single motor on REMOTE_MOTOR_AXIS_ID, endstop on DIGITAL_IN_1
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 2) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
 		Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
 		evaluateHardLimitForAxis(mStepper, 1);
-#elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_BUS_ENABLED)
-		// Non-CAN: X/Y/Z mapped to digital inputs 1/2/3
+#elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_CONTROLLER_CANOPEN)
 		evaluateHardLimitForAxis(Stepper::X, 1);
 		evaluateHardLimitForAxis(Stepper::Y, 2);
 		evaluateHardLimitForAxis(Stepper::Z, 3);
 #endif
-		// CAN_BUS_ENABLED masters don't check hard limits locally - slaves handle this
-		// and report back via CAN when a hard limit is triggered
 	}
 
 	bool isEncoderBasedMotionEnabled(int axis)
@@ -639,11 +595,6 @@ namespace FocusMotor
 			return;
 		getData()[axis]->encoderBasedMotion = enabled;
 		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
-
-#ifdef CAN_BUS_ENABLED
-		// Notify CAN slaves if we are a CAN master
-		can_controller::sendEncoderBasedMotionToCanDriver(axis, enabled);
-#endif
 	}
 
 	void startEncoderBasedMotion(int axis)
@@ -717,9 +668,7 @@ namespace FocusMotor
 		// Check for QID timeouts
 		QidRegistry::tickTimeout();
 
-// Check hard limits ONCE per loop iteration (not per motor)
-// Hard limits are only checked on slaves or non-CAN configurations
-#if (!defined(CAN_BUS_ENABLED) || defined(CAN_RECEIVE_MOTOR))
+#if !defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2)
 		checkHardLimits();
 #endif
 
@@ -889,10 +838,6 @@ namespace FocusMotor
 		free(jsonString);
 		jsonString = NULL;
 
-#ifdef CAN_RECEIVE_MOTOR
-		// We push the current state to the master to inform it that we are running and about the current position
-		can_controller::sendMotorStateToMaster();
-#endif
 	}
 
 	void stopStepper(int i)
@@ -912,15 +857,8 @@ namespace FocusMotor
 #endif
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
-		sendMotorPos(i, 0); // rather here or at the end? M5Dial needs the position ASAP
-							// Report QID completion
-#ifdef CAN_RECEIVE_MOTOR
-		// On CAN slave: send QID report to master via dedicated CAN message
-		if (data[i]->qid > 0)
-			can_controller::sendQidReportToMaster(data[i]->qid, 0);
-#else
+		sendMotorPos(i, 0);
 		QidRegistry::reportActionDone(data[i]->qid);
-#endif
 	}
 
 	uint32_t getPosition(Stepper s)

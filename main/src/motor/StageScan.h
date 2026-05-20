@@ -33,8 +33,7 @@ namespace StageScan
         bool useCoordinates = false;
         StagePosition* coordinates = nullptr;
         int coordinateCount = 0;
-        
-#ifndef  CAN_RECEIVE_MOTOR
+    
         int32_t xStart = 0;
         int32_t yStart = 0;
         int32_t zStart = 0;
@@ -53,7 +52,6 @@ namespace StageScan
         int acceleration = 1000000;
         int delayTimeTrigger = 20; // delay time for the trigger
         bool nonstop = false; // continuous movement without stopping at each position
-#endif
     };
 
     void stageScanThread(void *arg);

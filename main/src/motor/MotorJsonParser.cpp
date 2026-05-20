@@ -14,10 +14,6 @@
 #include "../encoder/LinearEncoderController.h"
 #endif
 
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
-
 namespace MotorJsonParser
 {
 
@@ -153,8 +149,7 @@ namespace MotorJsonParser
                 log_i("stagescan stopped");
                 return;
             }
-#ifndef  CAN_RECEIVE_MOTOR
-            // CAN-based stage scanning with grid parameters
+            // Stage scanning with grid parameters
             // {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "xStep": 5000, "yStep": 5000, "nX": 5, "nY": 5, "tPre": 50, "tPost": 50, "illumination": [50, 75, 100, 125], "zicZac":0}}
 			// {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}, {"x": 500, "y": 600}], "tPre": 50, "tPost": 50, "led": 100, "illumination": [50, 75, 100, 125], "stopped": 0}}
 			// With XYZ scanning: {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":100, "nX": 5, "nY": 5, "nZ":3, "tPre": 50, "tPost": 50}}
@@ -275,10 +270,8 @@ namespace MotorJsonParser
 
             xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
 
-#endif
 		}
 
-		#ifndef  CAN_RECEIVE_MOTOR
 		// start independent focusScan
 		cJSON *focusscan = cJSON_GetObjectItem(doc, "focusscan");
 		if (focusscan != NULL)
@@ -330,7 +323,6 @@ namespace MotorJsonParser
 						0,
 						nullptr);
 		}
-		#endif
 
 
 	}
@@ -466,12 +458,7 @@ namespace MotorJsonParser
 			preferences.end();
 			log_i("Set joystick direction: stepperid %i, inverted %i", axis, inverted);
 
-			// Apply locally or via CAN
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-			can_controller::sendMotorSingleValue(axis, offsetof(MotorData, joystickDirectionInverted), inverted);
-#else
 			FocusMotor::getData()[axis]->joystickDirectionInverted = inverted;
-#endif
 		}
 	}
 
@@ -606,23 +593,6 @@ namespace MotorJsonParser
 					log_i("start stepper from parseMotorDriveJson");
 					Stepper s = static_cast<Stepper>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)));
 
-					/*
-					#ifdef CAN_BUS_ENABLED
-					// CORE IDEA: if we have a single value, only send thos value to the CAN bus
-					// compute the number of keys - if we have a single element (excluding qid), we can use can_controller::sendMotorSingleValue(s, offsetof(MotorData, speed), (int)motorSpeed);
-					int nKeyse = countKeysExcludingQID(stp);
-					if (nKeyse == 1)
-					{
-						// only one key, so we can use the single value function
-						log_i("Only one key in the JSON object, using single value function");
-						log_i("position: %d", cJSON_GetJsonInt(stp, key_position));
-						// send value to CAN
-						//can_controller::sendMotorSingleValue(s, offsetof(MotorData, targetPosition), cJSON_GetJsonInt(stp, key_position));
-						// start the motor
-						//can_controller::sendMotorSingleValue(s, offsetof(MotorData, stopped), false);
-						continue; // skip this motor
-					}
-					*/
 					FocusMotor::getData()[s]->qid = cJsonTool::getJsonInt(doc, "qid");
 					FocusMotor::getData()[s]->speed = cJsonTool::getJsonInt(stp, key_speed);
 					FocusMotor::getData()[s]->isEnable = cJsonTool::getJsonInt(stp, key_isen);

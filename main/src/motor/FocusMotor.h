@@ -13,7 +13,7 @@
 #include "MotorTypes.h"
 
 #ifdef MOTOR_CONTROLLER
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP &&  !defined DIAL_CONTROLLER && !defined CAN_RECEIVE_MOTOR && !defined CAN_SEND_COMMANDS
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined DIAL_CONTROLLER && !defined CAN_CONTROLLER_CANOPEN
 #error Pls set USE_FASTACCEL or USE_ACCELSTEP
 #endif
 #endif

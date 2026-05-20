@@ -153,14 +153,12 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		}
 
 		// Z⇄A mutual exclusion ────────────────────────────────────────────────
-		#ifndef CAN_SEND_COMMANDS  // TODO: Need to go through router
-		{ // TODO: Problem might be that they cancel each other out if there is not return from CAN
+		{
 			if (ax == Stepper::Z && axisRunning[Stepper::A])
 				stopAxis(Stepper::A);
 			if (ax == Stepper::A && axisRunning[Stepper::Z])
 				stopAxis(Stepper::Z);
 		}
-		#endif
 		// speed computation ───────────────────────────────────────────────────
 		float speed = curve(value) * kMaxSpeed;
 

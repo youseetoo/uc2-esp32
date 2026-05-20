@@ -13,10 +13,6 @@
 #include "Ws2812Rmt.h"
 #endif
 
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
-
 // --------------------------------------------------------------------------------
 // FastAccelStepper / NeoPixel RMT coexistence — see Ws2812Rmt.cpp for context.
 //
@@ -1065,28 +1061,7 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
-		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
-		// When HYBRID_LED_DUAL_OUTPUT is enabled, commands go to both local and remote LEDs
-		
-		// Always send to CAN (for remote LED arrays)
-		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-		
-		// Execute locally if:
-		// 1. This is a status LED display, OR
-		// 2. Hybrid dual output mode is enabled (LED_PIN is configured for local LED array)
-		// NOTE: When IS_STATUS_LED is set the on-board pixel is owned by
-		// SignalController; do not let LedController stomp on it (matrix is
-		// also nullptr in that case). Use /signal_act for status indication.
-		if (!pinConfig.IS_STATUS_LED && pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0)
-		{
-			log_i("Hybrid LED mode: Executing on local LED array");
-			execLedCommand(cmd);
-		}
-#else
-			execLedCommand(cmd);
-		
-#endif
+		execLedCommand(cmd);
 
 
 		// LED is synchronous: register and immediately report done

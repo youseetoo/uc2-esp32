@@ -1,7 +1,7 @@
 /**
  * CANopenModule.h
  *
- * CANopenNode integration for UC2 — replaces can_transport for CANopen builds.
+ * CANopenNode integration for UC2.
  * Bridges the CANopenNode Object Dictionary to existing UC2 Module controllers.
  *
  * Only compiled when CAN_CONTROLLER_CANOPEN is defined in the build flags.

@@ -12,10 +12,6 @@
 #ifdef I2C_LASER
 #include "../i2c/i2c_master.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
-
 namespace LaserController
 {
 	// Flags to track pending laser value updates that need to be sent
@@ -203,8 +199,6 @@ namespace LaserController
 	{
 #ifdef I2C_LASER
 		i2c_master::sendLaserDataI2C(laserData, laserData.LASERid);
-#elif defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_LASER)
-		can_controller::sendLaserDataToCANDriver(laserData);
 #else
 		int LASERid = laserData.LASERid;
 

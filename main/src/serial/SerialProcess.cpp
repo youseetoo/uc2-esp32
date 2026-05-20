@@ -36,11 +36,6 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
-#include "../can/can_transport.h"
-#include "../can/BinaryOtaProtocol.h"
-#include "../can/CanOtaStreaming.h"
-#endif
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "../canopen/CANopenModule.h"
 #include "../canopen/OtaBinaryReceive.h"
@@ -390,24 +385,6 @@ namespace SerialProcess
 
 	void loop()
 	{
-// Check if we're in binary OTA mode
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // TODO: This should work through the canopen layer as well once implemented there
-		if (binary_ota::isInBinaryMode())
-		{
-			// Process binary packets instead of JSON
-			binary_ota::processBinaryPacket();
-			return; // Don't process JSON in binary mode
-		}
-
-		// Check if we're in streaming binary mode (for CAN OTA streaming)
-		if (can_ota_stream::isStreamingModeActive())
-		{
-			// Process binary stream packets from Serial
-			can_ota_stream::processBinaryStreamPacket();
-			return; // Don't process JSON in streaming binary mode
-		}
-#endif
-
 #ifdef CAN_CONTROLLER_CANOPEN
 		// CANopen path: /ota_start preamble flips this on. Raw firmware bytes
 		// are streamed in 4 KB chunks straight to the slave via SDO — no
@@ -671,16 +648,7 @@ namespace SerialProcess
 		else if (strcmp(task, i2c_act_endpoint) == 0)
 			serialize(i2c_master::act(jsonDocument));
 #endif
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN) // legacy ISO-TP transport
-		else if (strcmp(task, can_get_endpoint) == 0)
-			serialize(can_controller::get(jsonDocument));
-		else if (strcmp(task, can_act_endpoint) == 0)
-			serialize(can_controller::act(jsonDocument));
-		else if (strcmp(task, can_ota_endpoint) == 0)
-			serialize(can_controller::actCanOta(jsonDocument));
-		else if (strcmp(task, can_ota_stream_endpoint) == 0)
-			serialize(can_controller::actCanOtaStream(jsonDocument));
-#elif defined(CAN_CONTROLLER_CANOPEN) // CANopen transport — node ID management //
+#if defined(CAN_CONTROLLER_CANOPEN) // CANopen transport — node ID management //
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(CANopenModule::get(jsonDocument));
 		else if (strcmp(task, can_act_endpoint) == 0)

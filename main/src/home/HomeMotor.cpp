@@ -13,9 +13,6 @@
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
 #include "../canopen/DeviceRouter.h"
 using namespace FocusMotor;
 
@@ -711,21 +708,13 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		free(ret);
 		//Serial.println("--");
 #endif
-#if defined(CAN_BUS_ENABLED) && defined(CAN_RECEIVE_MOTOR)
-		// send home state to master
-		HomeState homeState;
-		homeState.isHoming = false;
-		homeState.isHomed = true;
-		homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
-		can_controller::sendHomeStateToMaster(homeState);
-#endif
 	}
 
 	void checkAndProcessHome(Stepper s, int digitalin_val)
 	{
 #ifdef MOTOR_CONTROLLER
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-		// For CAN master, we receive push messages, only monitor timeout
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
+		// For CANopen master, we receive push messages, only monitor timeout
 		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
 		{
 			log_i("Home Motor %i timeout", s);

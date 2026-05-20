@@ -13,9 +13,6 @@
 #include <ArduinoOTA.h>
 #include "../i2c/i2c_master.h"
 
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_transport.h"
-#endif
 namespace State
 {
 
@@ -214,17 +211,16 @@ namespace State
 		// and start an OTA server
 		// This is a blocking function
 
-		#ifdef I2C_MASTER or defined(CAN_SEND_COMMANDS)
-		// send OTA Trigger to device
+		#if defined(I2C_MASTER)
 		i2c_master::startOTA();
 		#else
 
 		// close any ongoing wifi connection
 		WiFi.disconnect(true);
 
-		// Generate SSID based on ESP32's MAC address
+		// Generate SSID based on node ID or MAC address
 		#ifdef CAN_BUS_ENABLED
-		String ssid = "UC2-" + String(can_controller::getCANAddress(), HEX);
+		String ssid = "UC2-" + String(pinConfig.CAN_ID_CURRENT, HEX);
 		ssid.toUpperCase();
 		#else
 		uint8_t mac[6];

@@ -78,3 +78,7 @@ e(SDO_C, data, dataSize);
 --
 E (115371) SDO: Write abort: -9
 E (115871) SDO: Write abort: -9
+
+
+
+have firmware version (hardcoded) / Github Hash exposed via can 

@@ -123,7 +123,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     int qid = cJsonTool::getJsonInt(doc, "qid");
 
     // ── 1. Config sub-commands — always run locally ──
-    // Master-side configuration that doesn't depend on motor location. For
+    // TODO: Master-side configuration that doesn't depend on motor location. For
     // hardware-side fields (setpos, setdir) the parsers themselves apply only
     // to motors physically present on this board; remote forwarding via SDO
     // is deferred (see PR-8). joystickdir/hardlimits are master-side config.
@@ -148,6 +148,44 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                 if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
                 CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::MOTOR_ENABLE,
                                            (uint8_t)(r->subAxis + 1), isen);
+            }
+        }
+    }
+
+    // Forward hardlimits (enabled/polarity/clear) to remote nodes via SDO.
+    // parseSetHardLimits above only updated local axes; remote axes need OD
+    // writes to 0x2031/0x2032 (config) and 0x2030 (clear command).
+    {
+        cJSON* hardObj = cJSON_GetObjectItemCaseSensitive(doc, "hardlimits");
+        if (hardObj) {
+            cJSON* stprs = cJSON_GetObjectItemCaseSensitive(hardObj, "steppers");
+            if (stprs && cJSON_IsArray(stprs)) {
+                cJSON* stp = nullptr;
+                cJSON_ArrayForEach(stp, stprs) {
+                    cJSON* idItem = cJSON_GetObjectItemCaseSensitive(stp, "stepperid");
+                    if (!cJSON_IsNumber(idItem)) continue;
+                    int axis = idItem->valueint;
+                    const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, (uint8_t)axis);
+                    if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
+                    uint8_t sub = (uint8_t)(r->subAxis + 1);
+
+                    cJSON* clearItem = cJSON_GetObjectItemCaseSensitive(stp, "clear");
+                    if (clearItem && cJSON_IsNumber(clearItem) && clearItem->valueint) {
+                        log_i("Forward hardlimit CLEAR -> node 0x%02X axis %u",
+                              r->nodeId, r->subAxis);
+                        CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::HARDLIMIT_COMMAND, sub, 1);
+                        continue;
+                    }
+
+                    cJSON* enabledItem  = cJSON_GetObjectItemCaseSensitive(stp, "enabled");
+                    cJSON* polarityItem = cJSON_GetObjectItemCaseSensitive(stp, "polarity");
+                    uint8_t enabled  = enabledItem  ? (enabledItem->valueint  ? 1 : 0) : 0;
+                    uint8_t polarity = polarityItem ? (polarityItem->valueint ? 1 : 0) : 0;
+                    log_i("Forward hardlimit CONFIG -> node 0x%02X axis %u: en=%u pol=%u",
+                          r->nodeId, r->subAxis, enabled, polarity);
+                    CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::HARDLIMIT_ENABLED,  sub, enabled);
+                    CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::HARDLIMIT_POLARITY, sub, polarity);
+                }
             }
         }
     }

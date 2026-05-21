@@ -51,15 +51,22 @@ namespace TMCController
         // Temporarily disable motor to allow microstep changes
         digitalWrite(pinConfig.MOTOR_ENABLE, HIGH);
         delay(10);
-        
+
+        // TMCStepper's microsteps(ms) setter only accepts {256,128,64,32,16,8,4,2,0}
+        // where 0 means "full step" (i.e. 1 microstep). Passing literal 1 is a no-op
+        // (silently ignored by the switch in the library), which left msteps_ at the
+        // previous value. Translate 1 -> 0 for the API while keeping p.msteps == 1
+        // for preferences/log/verify (the getter returns 256>>MRES, which is 1 for MRES=8).
+        uint16_t apiMs = (p.msteps == 1) ? 0 : (uint16_t)p.msteps;
+
         // Set microsteps with proper timing
-        driver.microsteps(p.msteps);
+        driver.microsteps(apiMs);
         delay(10); // Give UART time to process
-        
+
         // Verify and retry if needed
         for (int iTrial = 0; iTrial < 3 && driver.microsteps() != p.msteps; iTrial++) {
             log_w("Microstep setting mismatch, retrying... (attempt %d)", iTrial + 1);
-            driver.microsteps(p.msteps);
+            driver.microsteps(apiMs);
             delay(10);
         }
         

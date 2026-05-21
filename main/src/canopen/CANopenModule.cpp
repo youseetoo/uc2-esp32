@@ -1241,6 +1241,29 @@ void CANopenModule::syncRpdoToModules_slave()
         // enabled/polarity — arm on any write (master sets these before command)
         static uint8_t lastEn[4]  = {0xFF, 0xFF, 0xFF, 0xFF};
         static uint8_t lastPol[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+        static bool    hlInitialized[4] = {false, false, false, false};
+        // On first sync, prime lastEn/lastPol from OD_RAM without dispatching a
+        // CONFIG. This prevents the slave from overwriting the hardlimit values
+        // loaded by FocusMotor::fill_data() (preferences fallback to pinConfig
+        // defaults — e.g. enabled-by-default on canopen_slave_motor) with the
+        // OD's zero-initialised contents on every reboot.
+        if (!hlInitialized[ax]) {
+            lastEn[ax]  = OD_RAM.x2031_hardlimit_enabled[ax];
+            lastPol[ax] = OD_RAM.x2032_hardlimit_polarity[ax];
+            hlInitialized[ax] = true;
+            // Also push the locally-loaded values into the OD so masters that
+            // SDO-read them get the actual active configuration. We only do
+            // this for the local axis owned by this slave.
+            if ((uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID == (uint8_t)ax) {
+                MotorData* md = FocusMotor::getData()[ax];
+                if (md) {
+                    OD_RAM.x2031_hardlimit_enabled[ax]  = md->hardLimitEnabled  ? 1 : 0;
+                    OD_RAM.x2032_hardlimit_polarity[ax] = md->hardLimitPolarity ? 1 : 0;
+                    lastEn[ax]  = OD_RAM.x2031_hardlimit_enabled[ax];
+                    lastPol[ax] = OD_RAM.x2032_hardlimit_polarity[ax];
+                }
+            }
+        }
         if (OD_RAM.x2031_hardlimit_enabled[ax]  != lastEn[ax]  ||
             OD_RAM.x2032_hardlimit_polarity[ax] != lastPol[ax]) {
             lastEn[ax]  = OD_RAM.x2031_hardlimit_enabled[ax];

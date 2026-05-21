@@ -571,11 +571,12 @@ namespace FocusMotor
 	}
 
 	void checkHardLimits()
-	{
+	{ // NODE_ROLE = 2 => can slave
 #if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 2) && defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER)
 		Stepper mStepper = static_cast<Stepper>(pinConfig.REMOTE_MOTOR_AXIS_ID);
 		evaluateHardLimitForAxis(mStepper, 1);
 #elif defined(MOTOR_CONTROLLER) && defined(DIGITAL_IN_CONTROLLER) && !defined(CAN_CONTROLLER_CANOPEN)
+		// standalone case //TODO: add Stepper 0?
 		evaluateHardLimitForAxis(Stepper::X, 1);
 		evaluateHardLimitForAxis(Stepper::Y, 2);
 		evaluateHardLimitForAxis(Stepper::Z, 3);

@@ -28,6 +28,9 @@ OPTION(HEAT_CONTROLLER "HEAT_CONTROLLER" OFF)
 OPTION(I2C_MASTER "I2C_MASTER" OFF)
 OPTION(I2C_SLAVE_SLAVE_DIAL "I2C_SLAVE" OFF)
 
+# DS4 USB-OTG -> CANopen bridge (S3 only)
+OPTION(JOYSTICK_USBHOST_PROVIDER "Joystick over USB Host HID" OFF)
+
 # CAN Bus Options
 OPTION(CAN_BUS_ENABLED "Enable CAN bus hardware" OFF)
 OPTION(CAN_CONTROLLER_CANOPEN "CANopen stack via CANopenNode" OFF)
@@ -165,18 +168,13 @@ if(HEAT_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/heat/HeatController.cpp)
 endif()
 
+if(JOYSTICK_USBHOST_PROVIDER EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/joystick/JoystickUsbHost.cpp)
+    list(APPEND srcs ${mainsrc}src/joystick/JoystickRouter.cpp)
+endif()
+
 #idf_component_register(SRCS ${srcs})
 idf_component_register(
     SRCS ${srcs}
     REQUIRES driver  # or driver_pcnt ?
 )
-
-if(WIFI EQUAL 1)
-    target_add_binary_data(${COMPONENT_TARGET} "certs/prvtkey.pem" TEXT)
-    target_add_binary_data(${COMPONENT_TARGET} "certs/servercert.pem" TEXT)
-    target_add_binary_data(${COMPONENT_TARGET} "data/index.html" TEXT)
-    target_add_binary_data(${COMPONENT_TARGET} "data/jquery.js" TEXT)
-    target_add_binary_data(${COMPONENT_TARGET} "data/ota.html" TEXT)
-    target_add_binary_data(${COMPONENT_TARGET} "data/script.js" TEXT)
-    target_add_binary_data(${COMPONENT_TARGET} "data/styles.css" TEXT)
-endif()

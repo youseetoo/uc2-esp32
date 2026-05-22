@@ -1,7 +1,10 @@
 #include "MotorGamePad.h"
+#ifdef MOTOR_CONTROLLER
 #include "FocusMotor.h"
+#endif
 #include "MotorTypes.h"
 #include "../canopen/DeviceRouter.h"
+#include <cstring>
 
 
 // sample pio project e.g. https://github.com/inventonater/flashbike-matrix/blob/master/scratch/tetris/tetris-matrix-s3.cpp
@@ -28,6 +31,12 @@ static int16_t joystickOffsets[4] = {0, 0, 0, 0}; // X, Y, Z, A
 static const unsigned long INACTIVITY_TIMEOUT = 10000; // ms of no change before stopping motor
 static int16_t lastAxisValues[4] = {0, 0, 0, 0}; // Track last values for each axis
 static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change time for each axis
+
+#ifndef MOTOR_CONTROLLER
+// Bridge build — no local FocusMotor instance to query for per-axis
+// inversion. Mirror the field locally; default to non-inverted.
+static bool s_joystickInverted[4] = {false, false, false, false};
+#endif
 
 
 	// Helper: issue a single-step relative move via DeviceRouter
@@ -105,26 +114,45 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 
 	inline void handleAxis(int16_t value, int ax)
 	{
-		if (ax==0 &&
-			 (pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master") || 
-				pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2") ||
-				pinConfig.pindefName == std::string("UC2_4_CAN_HYBRID") || 
-				pinConfig.pindefName == std::string("UC2_3_CAN_HAT_Master_v2_debug") || 
-				pinConfig.pindefName == std::string("UC2_4_CAN_HYBRID_debug") ||
-				pinConfig.pindefName == std::string("UC2_4_CAN_HYBRID_Master")
-		))
+		if (ax == 0)
 		{
-			// In UC2_4_CAN_HYBRID, Axis A is not native - ignore direct joystick control
-			return;
+			// Cache pindef-based skip decision once to avoid per-call std::string
+			// allocations (caused intermittent bad_alloc -> std::terminate when
+			// the BT/HID stack already fragmented the heap).
+			static const char* cachedPindef = nullptr;
+			static bool skipAxisA = false;
+			const char* pn = pinConfig.pindefName ? pinConfig.pindefName : "";
+			if (pn != cachedPindef)
+			{
+				cachedPindef = pn;
+				skipAxisA =
+					strcmp(pn, "UC2_3_CAN_HAT_Master") == 0 ||
+					strcmp(pn, "UC2_3_CAN_HAT_Master_v2") == 0 ||
+					strcmp(pn, "UC2_4_CAN_HYBRID") == 0 ||
+					strcmp(pn, "UC2_3_CAN_HAT_Master_v2_debug") == 0 ||
+					strcmp(pn, "UC2_4_CAN_HYBRID_debug") == 0 ||
+					strcmp(pn, "UC2_4_CAN_HYBRID_Master") == 0;
+			}
+			if (skipAxisA)
+			{
+				// In UC2_4_CAN_HYBRID, Axis A is not native - ignore direct joystick control
+				return;
+			}
 		}
 		
 		// Apply offset calibration
 		value -= joystickOffsets[ax];
-		
+
 		// Apply direction inversion if configured
+#ifdef MOTOR_CONTROLLER
 		if (FocusMotor::getData()[ax]->joystickDirectionInverted) {
 			value = -value;
 		}
+#else
+		if (ax < 4 && s_joystickInverted[ax]) {
+			value = -value;
+		}
+#endif
 		
 		// Check for inactivity - if value hasn't changed, check timeout
 		unsigned long currentTime = millis();
@@ -264,6 +292,16 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 		isCalibrated = false;
 		joystickOffsets[0] = joystickOffsets[1] = joystickOffsets[2] = joystickOffsets[3] = 0;
 		log_i("Joystick calibration reset - will recalibrate on next input");
+	}
+
+	void setJoystickInverted(int ax, bool inverted)
+	{
+#ifndef MOTOR_CONTROLLER
+		if (ax >= 0 && ax < 4) s_joystickInverted[ax] = inverted;
+#else
+		(void)ax; (void)inverted; // on builds with FocusMotor, the inverted
+		// flag lives in MotorData and is set via the regular config path.
+#endif
 	}
 
 }

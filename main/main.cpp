@@ -102,6 +102,11 @@ Preferences preferences;
 CANopenModule canopenModule;
 #endif
 #include "src/canopen/RoutingTable.h"
+
+#ifdef JOYSTICK_USBHOST_PROVIDER
+#include "src/joystick/JoystickUsbHost.h"
+#include "src/joystick/JoystickRouter.h"
+#endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
 #endif
@@ -656,6 +661,14 @@ State::startOTA();
 	// Build the routing table from pinConfig + runtimeConfig (all builds)
 	UC2::RoutingTable::buildDefault();
 	UC2::RoutingTable::logAll();
+
+#ifdef JOYSTICK_USBHOST_PROVIDER
+	// DS4-over-USB-OTG → CANopen bridge. Spawns USB Host + HID Host tasks
+	// then a 100 Hz consumer that emits expedited SDO writes against the
+	// routes we just built. Must run AFTER RoutingTable::buildDefault().
+	JoystickUsbHost::begin();
+	JoystickRouter::begin();
+#endif
 
 	SerialProcess::safePrintln("{'setup':'done'}");
 }

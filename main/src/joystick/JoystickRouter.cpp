@@ -46,6 +46,45 @@ constexpr float kOneOver32768f = 1.0f / 32768.0f;
 // bus quiet while the operator hovers the stick.
 constexpr int kSpeedHysteresis = 50;
 
+// "Send and forget": short SDO timeout so an unresponsive slave doesn't
+// stall the 100 Hz router task. A healthy expedited SDO completes in 1–3
+// CAN frames (<5 ms at 500 kbit/s); 40 ms is generous for retries while
+// keeping a 6-frame dead-node burst under one tick period.
+constexpr uint32_t kSdoTimeoutMs = 40;
+
+// After this many consecutive failed SDOs to the same node, suppress
+// further writes for kDeadNodeBackoffMs to keep the bus / task free.
+constexpr uint8_t  kDeadNodeFailThreshold = 2;
+constexpr uint32_t kDeadNodeBackoffMs     = 2000;
+
+struct NodeHealth {
+    uint8_t  nodeId   = 0;
+    uint8_t  fails    = 0;
+    uint32_t silentUntilMs = 0;
+};
+NodeHealth s_health[8];
+
+static NodeHealth* healthSlot(uint8_t nodeId) {
+    for (auto& h : s_health) if (h.nodeId == nodeId) return &h;
+    for (auto& h : s_health) if (h.nodeId == 0)      { h.nodeId = nodeId; return &h; }
+    return &s_health[0];
+}
+
+static inline bool nodeMuted(uint8_t nodeId) {
+    NodeHealth* h = healthSlot(nodeId);
+    return millis() < h->silentUntilMs;
+}
+
+static inline void noteSdo(uint8_t nodeId, bool ok) {
+    NodeHealth* h = healthSlot(nodeId);
+    if (ok) { h->fails = 0; h->silentUntilMs = 0; return; }
+    if (++h->fails >= kDeadNodeFailThreshold) {
+        h->silentUntilMs = millis() + kDeadNodeBackoffMs;
+        ESP_LOGW(TAG, "node 0x%02X muted for %u ms (SDO timeouts)",
+                 nodeId, (unsigned)kDeadNodeBackoffMs);
+    }
+}
+
 struct AxisRuntime {
     bool    running    = false;
     int32_t lastSpeed  = 0;
@@ -77,21 +116,27 @@ static inline float curveValue(int16_t raw)
 }
 
 // Issue the 6-frame REMOTE motor command. Mirrors DeviceRouter.cpp:285-315.
+// Uses short SDO timeouts + dead-node suppression so a missing slave can't
+// stall the router task.
 static void emitMotorRemote(uint8_t nodeId, uint8_t subAxis,
                             int32_t pos, int32_t speed, uint32_t accel,
                             bool isAbs, bool isForever, bool isStop)
 {
+    if (nodeMuted(nodeId)) return;
     const uint8_t sub = subAxis + 1;
-    CANopenModule::writeSDO_i32(nodeId, UC2_OD::MOTOR_TARGET_POSITION, sub, pos);
-    CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_SPEED, sub, (uint32_t)std::abs(speed));
+    bool ok = true;
+    ok &= CANopenModule::writeSDO_i32(nodeId, UC2_OD::MOTOR_TARGET_POSITION, sub, pos, kSdoTimeoutMs);
+    // Preserve sign: slave decodes MOTOR_SPEED as signed (matches DeviceRouter.cpp:293).
+    ok &= CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_SPEED, sub, (uint32_t)speed, kSdoTimeoutMs);
     if (accel > 0)
-        CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_ACCELERATION, sub, accel);
-    CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0);
-    CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_FOREVER, sub, isForever ? 1 : 0);
+        ok &= CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_ACCELERATION, sub, accel, kSdoTimeoutMs);
+    ok &= CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0, kSdoTimeoutMs);
+    ok &= CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_FOREVER, sub, isForever ? 1 : 0, kSdoTimeoutMs);
     const uint8_t cmdWord = isStop
         ? (uint8_t)(1u << (subAxis + 4))
         : (uint8_t)(1u << subAxis);
-    CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, cmdWord);
+    ok &= CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, cmdWord, kSdoTimeoutMs);
+    noteSdo(nodeId, ok);
 }
 
 static void stopAxis(int ax)
@@ -164,22 +209,26 @@ static void emitLaserRemote(uint16_t pwmVal)
 {
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LASER, 0);
     if (!route || route->where != UC2::RouteEntry::REMOTE) return;
-    CANopenModule::writeSDO_u16(route->nodeId,
+    if (nodeMuted(route->nodeId)) return;
+    bool ok = CANopenModule::writeSDO_u16(route->nodeId,
                                  UC2_OD::LASER_PWM_VALUE,
-                                 (uint8_t)(route->subAxis + 1), pwmVal);
-    ESP_LOGI(TAG, "laser -> node 0x%02X = %u", route->nodeId, pwmVal);
+                                 (uint8_t)(route->subAxis + 1), pwmVal,
+                                 kSdoTimeoutMs);
+    noteSdo(route->nodeId, ok);
+    ESP_LOGI(TAG, "laser -> node 0x%02X = %u (%s)", route->nodeId, pwmVal, ok?"ok":"fail");
 }
 
 static void emitLedPattern(uint8_t patternId)
 {
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
     if (!route || route->where != UC2::RouteEntry::REMOTE) return;
-    // Mode 1 = fill, brightness mid, then pattern id. Cycles through the
-    // slave's built-in pattern bank.
-    CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::LED_ARRAY_MODE, 0, 1);
-    CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::LED_BRIGHTNESS, 0, 128);
-    CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::LED_PATTERN_ID, 0, patternId);
-    ESP_LOGI(TAG, "led pattern -> %u", patternId);
+    if (nodeMuted(route->nodeId)) return;
+    bool ok = true;
+    ok &= CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::LED_ARRAY_MODE, 0, 1, kSdoTimeoutMs);
+    ok &= CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::LED_BRIGHTNESS, 0, 128, kSdoTimeoutMs);
+    ok &= CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::LED_PATTERN_ID, 0, patternId, kSdoTimeoutMs);
+    noteSdo(route->nodeId, ok);
+    ESP_LOGI(TAG, "led pattern -> %u (%s)", patternId, ok?"ok":"fail");
 }
 
 static void handleButtons(const JoystickUsbHost::Ds4State& s)

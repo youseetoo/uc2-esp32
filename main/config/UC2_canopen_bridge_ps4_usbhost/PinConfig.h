@@ -40,7 +40,11 @@ struct UC2_canopen_bridge_ps4_usbhost : PinConfig
     // Routing overrides — all REMOTE so DeviceRouter-style dispatch (now
     // done locally inside JoystickRouter) emits SDOs at the slaves'
     // default node-ids inherited from PinConfigDefault.h.
-    int8_t ROUTE_MOTOR[4] = {1, 1, 1, 1};  // A, X, Y, Z all REMOTE
+    // Indexed by Stepper enum: A=0, X=1, Y=2, Z=3. Default bus has only
+    // motor slaves at 0x0B/0x0C/0x0D (X/Y/Z) — A is OFF to avoid blocking
+    // SDO writes to a non-existent node 0x0A on every right-stick-X motion.
+    // Set [0]=1 if a 4th motor slave is added at 0x0A.
+    int8_t ROUTE_MOTOR[4] = {2, 1, 1, 1};
     int8_t ROUTE_HOME[4]  = {2, 2, 2, 2};  // homing not driven from bridge
     int8_t ROUTE_TMC[4]   = {2, 2, 2, 2};
     int8_t ROUTE_LASER[4] = {1, 2, 2, 2};  // laser ch 0 REMOTE, rest OFF

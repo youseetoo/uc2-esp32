@@ -376,12 +376,18 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 // storms that could starve the WDT. Allows one probe per second for discovery.
 bool CANopenModule::isNodeReachable(uint8_t nodeId)
 {
-    // Check motor routes first — they have TPDO-based liveness tracking
+    // Check motor routes first — they have TPDO-based liveness tracking,
+    // but only when MOTOR_CONTROLLER is compiled in (master path mirrors
+    // motor TPDOs into s_remoteSlaves via syncRpdoToModules_master). Nodes
+    // without MOTOR_CONTROLLER (e.g. the DS4→CAN bridge) have no local
+    // liveness data, so fall through to the permissive path and rely on
+    // the per-SDO timeout to drop unresponsive targets.
     for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
         if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
         if (route->nodeId != nodeId) continue;
 
+#ifdef MOTOR_CONTROLLER
         const auto& slave = CANopenModule::s_remoteSlaves[route->subAxis];
         if (!slave.seen) {
             log_e("Node 0x%02X not seen, skipping SDO operation", nodeId);
@@ -391,6 +397,7 @@ bool CANopenModule::isNodeReachable(uint8_t nodeId)
             //log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
             return false;
         }
+#endif
         return true;
     }
 

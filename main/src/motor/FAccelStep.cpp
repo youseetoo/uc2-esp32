@@ -344,6 +344,7 @@ namespace FAccelStep
         // Always try RMT first. Fall back to MCPWM/PCNT only if RMT
         // allocation fails.
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+#endif
         if (faststeppers[stepper] == nullptr)
         {
             faststeppers[stepper] = engine.stepperConnectToPin(motorstp);

@@ -45,7 +45,7 @@ namespace LedController
 {
 
 	const char *TAG = "LedController";
-	
+
 	// Toggle functionality for Circle button
 	static unsigned long circleLastEventTime = 0;
 	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
@@ -60,16 +60,16 @@ namespace LedController
 #if defined(DOTSTAR) || defined(HUB75)
 		if (matrix) matrix->show();
 #elif defined(LED_CONTROLLER) && defined(USE_FASTACCEL)
-		// this is a special case since we would occupy the same RMT channel for the LED strip and 
-		// the stepper motors, so we need to call the LinearEncoderController act function with a dummy 
+		// this is a special case since we would occupy the same RMT channel for the LED strip and
+		// the stepper motors, so we need to call the LinearEncoderController act function with a dummy
 		// JSON object to trigger the encoder-based motion
 		if (matrix) Ws2812Rmt::show(matrix->getPixels(), matrix->numPixels() * ((matrix->numPixels() > 0) ? (matrix->getPixels() ? 3 : 3) : 3));
-#else 
-		if (matrix) 
+#else
+		if (matrix)
 			matrix->show();
 #endif
 	}
-	
+
 
 
 	// ------------------------------------------------
@@ -111,6 +111,7 @@ namespace LedController
 			return;
 		}
 
+		log_i("Initializing LED matrix");
 #ifdef DOTSTAR
 		matrix = new Adafruit_DotStar(LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
 #elif defined(HUB75)
@@ -145,7 +146,7 @@ namespace LedController
 #endif
 		matrix->setBrightness(255);
 		matrix->clear();
-		
+
 		// Bring up our own RMT-based driver on a channel above FAS's allocation.
 		if (!Ws2812Rmt::begin(pinConfig.LED_PIN, UC2_WS2812_RMT_CHANNEL)) {
 			log_e("LedController: Ws2812Rmt::begin() failed — strip will stay dark");
@@ -155,11 +156,11 @@ namespace LedController
 		log_i("LedController: first show() returned");
 
 #endif
-		
+
 		// test led array
 		int initIntensity = 100;
-		
-		
+
+
 		fillAll(initIntensity, initIntensity, initIntensity);
 		delay(10);
 		fillAll(0, 0, 0);
@@ -175,6 +176,7 @@ namespace LedController
 		gpio_matrix_in(6, SIG_IN_FUNC212_IDX, false);
 		gpio_matrix_out(14, SIG_IN_FUNC212_IDX, false, false);
 #endif
+		log_i("LED matrix initialization complete");
 	}
 
 	// ------------------------------------------------
@@ -308,7 +310,7 @@ namespace LedController
 	//       Q1 (top-left)  | Q3 (top-right)
 	//       ---------------+---------------
 	//       Q2 (bottom-left)| Q4 (bottom-right)
-	//     
+	//
 	//     Halves:
 	//       left = Q1 + Q2, right = Q3 + Q4
 	//       top = Q1 + Q3,  bottom = Q2 + Q4
@@ -316,7 +318,7 @@ namespace LedController
 	void fillHalvesRingSegments(const char *region, uint8_t r, uint8_t g, uint8_t b)
 	{
 		log_i("fillHalvesRingSegments: region=%s, r=%d, g=%d, b=%d", region, r, g, b);
-		
+
 		// Helper lambda to set LEDs for a segment in one ring
 		auto setRingSegment = [&](uint16_t ringStart, uint16_t segmentOffset, uint16_t count) {
 			for (uint16_t i = 0; i < count; i++) {
@@ -418,7 +420,7 @@ namespace LedController
 		// Check if this is an illumination board with defined ring structure
 		#ifdef LED_CONTROLLER
 		// Check if we have ring definitions in the pin config (illumination board)
-		if (pinConfig.pindefName && 
+		if (pinConfig.pindefName &&
 			strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0)
 		{
 			// Use direct ring indexing for illumination board
@@ -489,20 +491,20 @@ namespace LedController
 
 		switch (ring_id) {
 			case 0: // Inner ring
-				start_idx = pinConfig.RING_INNER_START;   
-				count = pinConfig.RING_INNER_COUNT;      
+				start_idx = pinConfig.RING_INNER_START;
+				count = pinConfig.RING_INNER_COUNT;
 				break;
 			case 1: // Middle ring
-				start_idx = pinConfig.RING_MIDDLE_START;  
-				count = pinConfig.RING_MIDDLE_COUNT;      
+				start_idx = pinConfig.RING_MIDDLE_START;
+				count = pinConfig.RING_MIDDLE_COUNT;
 				break;
 			case 2: // Biggest ring
-				start_idx = pinConfig.RING_BIGGEST_START;  
-				count = pinConfig.RING_BIGGEST_COUNT;      
+				start_idx = pinConfig.RING_BIGGEST_START;
+				count = pinConfig.RING_BIGGEST_COUNT;
 				break;
 			case 3: // Outest ring
-				start_idx = pinConfig.RING_OUTEST_START;  
-				count = pinConfig.RING_OUTEST_COUNT;      
+				start_idx = pinConfig.RING_OUTEST_START;
+				count = pinConfig.RING_OUTEST_COUNT;
 				break;
 			default:
 				// Invalid ring, light up all rings
@@ -517,12 +519,12 @@ namespace LedController
 
 		// Clear all LEDs first
 		matrix->clear();
-		
+
 		// Set the specified ring
 		for (uint16_t i = 0; i < count; i++) {
 			matrix->setPixelColor(start_idx + i, matrix->Color(r, g, b));
 		}
-		
+
 		ledShow();
 		isOn = (r || g || b);
 	}
@@ -540,7 +542,7 @@ namespace LedController
 		log_i("drawIlluminationRingSegment: ring_id=%d, region=%s, r=%d, g=%d, b=%d", ring_id, region, r, g, b);
 		switch (ring_id) {
 			case 0: start_idx = pinConfig.RING_INNER_START; count = pinConfig.RING_INNER_COUNT; break;   // Inner ring
-			case 1: start_idx = pinConfig.RING_MIDDLE_START; count = pinConfig.RING_MIDDLE_COUNT; break;  // Middle ring  
+			case 1: start_idx = pinConfig.RING_MIDDLE_START; count = pinConfig.RING_MIDDLE_COUNT; break;  // Middle ring
 			case 2: start_idx = pinConfig.RING_BIGGEST_START; count = pinConfig.RING_BIGGEST_COUNT; break;  // Biggest ring
 			case 3: start_idx = pinConfig.RING_OUTEST_START; count = pinConfig.RING_OUTEST_COUNT; break;  // Outest ring
 			default: return; // Invalid ring
@@ -576,7 +578,7 @@ namespace LedController
 			uint16_t led_idx = start_idx + ((relative_start + i) % count);
 			matrix->setPixelColor(led_idx, matrix->Color(r, g, b));
 		}
-		
+
 		ledShow();
 		isOn = (r || g || b);
 	}
@@ -635,7 +637,7 @@ namespace LedController
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 3, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
-		{ "task": "/ledarr_act", "qid": 17, "led"} 
+		{ "task": "/ledarr_act", "qid": 17, "led"}
 		{"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":5}
 
 		*/
@@ -953,21 +955,21 @@ namespace LedController
 	void execLedCommand(const LedCommand &cmd)
 	{
 		log_i("execLedCommand: Executing command with mode %d", static_cast<int>(cmd.mode));
-		
+
 		// Track intensity for auto-off safety (only for LED arrays that need thermal protection)
 		// Check if this is a device that requires thermal protection
-		bool needsThermalProtection = (pinConfig.pindefName && 
+		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
-			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 || 
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
 			 strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ));
-		
+
 		if (needsThermalProtection)
 		{
 			// Calculate total intensity as sum of all RGB channels for accurate thermal calculation
 			// This better represents actual power/heat than just the max channel
 			uint16_t totalIntensity = (uint16_t)cmd.r + (uint16_t)cmd.g + (uint16_t)cmd.b;
 			currentTotalIntensity = totalIntensity;
-			
+
 			if (totalIntensity > pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD)
 			{
 				if (highIntensityStartTime == 0)
@@ -976,7 +978,7 @@ namespace LedController
 					highIntensityStartTime = millis();
 					highIntensityWarningShown = false;
 					ledAutoOffTriggered = false;
-					log_w("LED total intensity %d (R:%d+G:%d+B:%d) exceeds threshold %d - auto-off timer started", 
+					log_w("LED total intensity %d (R:%d+G:%d+B:%d) exceeds threshold %d - auto-off timer started",
 						  totalIntensity, cmd.r, cmd.g, cmd.b, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD);
 				}
 			}
@@ -992,7 +994,7 @@ namespace LedController
 				ledAutoOffTriggered = false;
 			}
 		}
-		
+
 		switch (cmd.mode)
 		{
 		case LedMode::OFF:
@@ -1017,7 +1019,7 @@ namespace LedController
 			break;
 		case LedMode::RINGS:
 			// For illumination board, check if region is specified for ring segments
-			if (pinConfig.pindefName && 
+			if (pinConfig.pindefName &&
 				strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 &&
 				strlen(cmd.region) > 0)
 			{
@@ -1100,20 +1102,20 @@ namespace LedController
 		if (pressed)
 		{
 			unsigned long currentTime = millis();
-			
+
 			// Debounce check - ignore if too soon after last event
 			if (currentTime - circleLastEventTime < BUTTON_DEBOUNCE_TIME)
 			{
 				return;
 			}
-			
+
 			circleLastEventTime = currentTime;
-			
+
 			// Toggle LED state
 			ledToggleState = !ledToggleState;
-			
+
 			log_i("Circle pressed - LED toggle to %s", ledToggleState ? "ON" : "OFF");
-			// TODO: Shall we route through dictionaries? Much slower probably? 
+			// TODO: Shall we route through dictionaries? Much slower probably?
 			cJSON* doc = cJSON_CreateObject();
 			cJSON_AddStringToObject(doc, "task", "/ledarr_act");
 			cJSON* led = cJSON_CreateObject();
@@ -1144,14 +1146,14 @@ namespace LedController
 	{
 		// LED auto-off safety: Monitor high intensity LEDs and auto-shut off to prevent overheating
 		// Check if this is a device that requires thermal protection
-		bool needsThermalProtection = (pinConfig.pindefName && 
+		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
 			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
-		
+
 		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
 		{
 			unsigned long elapsedTime = millis() - highIntensityStartTime;
-			
+
 			// Show warning at 75% of auto-off time
 			if (!highIntensityWarningShown && elapsedTime >= (pinConfig.LED_AUTO_OFF_TIME_MS * 3 / 4))
 			{
@@ -1162,22 +1164,22 @@ namespace LedController
 				Serial.println("{\"led\":{\"warning\":\"High intensity detected - hardware can overheat and be destroyed!\"}}");
 				Serial.println("--");
 			}
-			
+
 			// Auto-off when time limit exceeded
 			if (elapsedTime >= pinConfig.LED_AUTO_OFF_TIME_MS)
 			{
 				ledAutoOffTriggered = true;
 				log_e("LED AUTO-OFF TRIGGERED! Total intensity %d exceeded %d threshold for %lu ms - shutting down LEDs to prevent damage",
 					  currentTotalIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD, elapsedTime);
-				
+
 				// Turn off LEDs for safety
 				turnOff();
-				
+
 				// Send warning message to user
 				Serial.println("++");
 				Serial.println("{\"led\":{\"error\":\"AUTO-OFF: LEDs too hot! Hardware protection activated. Reduce intensity or wait before restarting.\"}}");
 				Serial.println("--");
-				
+
 				// Reset tracking (user must send new command to restart)
 				highIntensityStartTime = 0;
 				currentTotalIntensity = 0;

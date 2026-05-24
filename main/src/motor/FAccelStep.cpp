@@ -354,7 +354,7 @@ namespace FAccelStep
         {
             log_i("Motor %d: using RMT driver", stepper);
         }
-#endif
+
 
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
         faststeppers[stepper]->setDirectionPin(motordir, getData()[stepper]->directionPinInverted);

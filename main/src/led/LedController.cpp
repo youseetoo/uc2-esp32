@@ -57,6 +57,7 @@ namespace LedController
 	void setup()
 	{
 
+		log_i("Initializing LED matrix");
 #ifdef DOTSTAR
 		matrix = new Adafruit_DotStar(LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
 #elif defined(HUB75)
@@ -80,6 +81,7 @@ namespace LedController
 
 #else
 		matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800); // NEO_KHZ800);
+		log_i("LED matrix created with %d LEDs on pin %d", LED_COUNT, pinConfig.LED_PIN);
 		matrix->begin();
 		matrix->setBrightness(255); // moderate brightness
 		matrix->clear();
@@ -103,6 +105,7 @@ namespace LedController
 		gpio_matrix_in(6, SIG_IN_FUNC212_IDX, false);
 		gpio_matrix_out(14, SIG_IN_FUNC212_IDX, false, false);
 #endif
+		log_i("LED matrix initialization complete");
 	}
 
 	// ------------------------------------------------

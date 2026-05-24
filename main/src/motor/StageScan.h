@@ -34,7 +34,7 @@ namespace StageScan
         StagePosition* coordinates = nullptr;
         int coordinateCount = 0;
         
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
+#ifndef  CAN_RECEIVE_MOTOR
         int32_t xStart = 0;
         int32_t yStart = 0;
         int32_t zStart = 0;
@@ -58,7 +58,6 @@ namespace StageScan
 
     void stageScanThread(void *arg);
     void stageScan(bool isThread = false);
-    void stageScanCAN(bool isThread = false);
     StageScanningData *getStageScanData();
     
     void setCoordinates(StagePosition* coords, int count);

@@ -526,7 +526,12 @@ namespace FocusMotor
 		if (!isActivated[axis] || !md->hardLimitEnabled || md->isHoming)
 			return;
 
+#ifdef DIGITAL_IN_CONTROLLER
 		bool endstopState = DigitalInController::getDigitalVal(digitalInputIdx);
+#else
+		// If no digital input controller, assume endstop is not triggered (safe default)
+		bool endstopState = false;
+#endif
 		bool polarity = md->hardLimitPolarity;
 		// Same convention as homing: polarity is the digital state when the endstop IS triggered.
 		// polarity=1 -> triggered when HIGH; polarity=0 -> triggered when LOW.

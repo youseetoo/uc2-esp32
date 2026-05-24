@@ -75,19 +75,12 @@ jobs:
             display_name: "UC2 CAN Master"
             board_id: "uc2-can-master"
             chip_family: "ESP32"
+            
           - env_name: UC2_canopen_standalone_v4
             display_name: "UC2 CAN Standalone V4"
             board_id: "uc2-can-standalone-v4"
             chip_family: "ESP32"
 
-          - env_name: uc2lasercover
-            display_name: "UC2 Laser Cover"
-            board_id: "uc2lasercover"
-            chip_family: "ESP32-S3"
-          - env_name: waveshare_hub75_uc2lasercover
-            display_name: "Waveshare HUB75 Laser Cover"
-            board_id: "waveshare-hub75-uc2lasercover"
-            chip_family: "ESP32-S3"
           - env_name: waveshare_esp32s3_7inchScreen
             display_name: "Waveshare ESP32S3 7-inch Screen"
             board_id: "waveshare-esp32s3-7inchscreen"

@@ -83,8 +83,8 @@ jobs:
           IFS=',' read -ra ENVS <<< "${{ steps.get_envs.outputs.envs }}"
           for ENV in "${ENVS[@]}"; do
             echo "==> Building $ENV"
-            # skip UC2_canopen_xiao_base and UC2_canopen_master for now since they fail to build in CI due to missing CAN library files 
-            if [[ "$ENV" == "UC2_canopen_xiao_base" || "$ENV" == "UC2_canopen_master" ]]; then
+            # skip UC2_canopen_xiao_base for now since they fail to build in CI due to missing CAN library files 
+            if [[ "$ENV" == "UC2_canopen_xiao_base" ]]; then
               echo "⚠️ Skipping $ENV due to known build issues in CI."
               continue
             fi

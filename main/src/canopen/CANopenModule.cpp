@@ -107,6 +107,12 @@ typedef struct { twai_message_t message; } CANMessages;
 static SemaphoreHandle_t CAN_ctrl_task_sem;
 static SemaphoreHandle_t s_sdoMutex = NULL;
 
+// Updated whenever the TWAI driver reports a BUS_ERROR alert (e.g. missing
+// ACK because no other node is on the bus).  Used by isNodeReachable() to
+// fast-fail SDO writes when the bus is unhealthy — avoids burning ~500 ms
+// per write timeout when the cable is unplugged.
+static volatile uint32_t s_lastBusErrorMs = 0;
+
 // These queues are extern'd by CO_driver_ESP32.c in the library
 QueueHandle_t CAN_TX_queue;
 QueueHandle_t CAN_RX_queue;
@@ -216,8 +222,9 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         // Transient bus frame errors (e.g. no ACK when master absent) — hardware
         // handles these automatically; just count quietly to avoid log spam.
         if (alerts & TWAI_ALERT_BUS_ERROR) {
+            s_lastBusErrorMs = millis();
             static uint32_t busErrCount = 0;
-            if ((++busErrCount % 100) == 1) {
+            if ((++busErrCount % 1000) == 1) {
                 log_i("CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
             }
         }
@@ -402,8 +409,16 @@ bool CANopenModule::isNodeReachable(uint8_t nodeId)
     }
 
     // Non-motor peripherals (LED, LASER, GALVO, etc.) don't have TPDO feedback
-    // yet.  If there is a remote route to this nodeId, allow the SDO attempt —
-    // the 100 ms SDO timeout handles unresponsive nodes gracefully.
+    // yet. Fail-fast when the bus has produced TWAI BUS_ERROR alerts within
+    // the last second — that means the slave isn't ACKing and an SDO would
+    // just block for its full timeout.
+    if (s_lastBusErrorMs != 0 && (millis() - s_lastBusErrorMs) < 1000) {
+        return false;
+    }
+    if (CO == NULL || CO->NMT == NULL ||
+        CO->NMT->operatingState != CO_NMT_OPERATIONAL) {
+        return false;
+    }
     static const UC2::RouteEntry::Type nonMotorTypes[] = {
         UC2::RouteEntry::LASER, UC2::RouteEntry::LED,
         UC2::RouteEntry::GALVO, UC2::RouteEntry::HOME,
@@ -856,6 +871,34 @@ static ODR_t onLedPixelWrite(OD_stream_t* stream, const void* buf,
     }
     return ODR_OK;
 }
+
+// 0x2211 — LED_SINGLE_PIXEL: 5-byte payload {u16 index, u8 r, u8 g, u8 b}.
+// Each complete write drives one LED at the given index, leaving the rest
+// of the strip untouched.  Atomic small write — no buffering needed.
+static OD_extension_t s_ledSinglePixelExt;
+static uint8_t        s_ledSinglePixelBuf[5];
+static size_t         s_ledSinglePixelBytes = 0;
+
+static ODR_t onLedSinglePixelWrite(OD_stream_t* stream, const void* buf,
+                                   OD_size_t count, OD_size_t* countWritten) {
+    if (s_ledSinglePixelBytes + count > sizeof(s_ledSinglePixelBuf)) {
+        s_ledSinglePixelBytes = 0;
+        return ODR_OUT_OF_MEM;
+    }
+    memcpy(s_ledSinglePixelBuf + s_ledSinglePixelBytes, buf, count);
+    s_ledSinglePixelBytes += count;
+    *countWritten = count;
+    if (stream->dataOffset + count >= stream->dataLength) {
+        uint16_t index = (uint16_t)s_ledSinglePixelBuf[0] |
+                         ((uint16_t)s_ledSinglePixelBuf[1] << 8);
+        uint8_t r = s_ledSinglePixelBuf[2];
+        uint8_t g = s_ledSinglePixelBuf[3];
+        uint8_t b = s_ledSinglePixelBuf[4];
+        LedController::setSingle(index, r, g, b);
+        s_ledSinglePixelBytes = 0;
+    }
+    return ODR_OK;
+}
 #endif // LED_CONTROLLER
 
 // ============================================================================
@@ -952,6 +995,14 @@ void CANopenModule::CO_main_task(void* arg)
                 s_ledPixelExt.write  = onLedPixelWrite;
                 OD_extension_init(entry, &s_ledPixelExt);
                 log_i("LED pixel data OD extension registered (0x2210)");
+            }
+            OD_entry_t* singleEntry = OD_find(OD, UC2_OD::LED_SINGLE_PIXEL);
+            if (singleEntry) {
+                s_ledSinglePixelExt.object = nullptr;
+                s_ledSinglePixelExt.read   = nullptr;
+                s_ledSinglePixelExt.write  = onLedSinglePixelWrite;
+                OD_extension_init(singleEntry, &s_ledSinglePixelExt);
+                log_i("LED single pixel OD extension registered (0x2211)");
             }
         }
 #endif

@@ -643,7 +643,16 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         //   2 = HALVES left    3 = HALVES right
         //   4 = HALVES top     5 = HALVES bottom
         // Falls back to any explicit "LEDArrMode" value if present.
+        //
+        // NOTE: actions like "single" (ledIndex+RGB) and pattern actions
+        // ("circles", "rings") are NOT representable by the current SDO OD
+        // (LED_ARRAY_MODE + LED_UNIFORM_COLOUR).  Until a dedicated OD entry
+        // for per-index pixel writes is added on the slave, route them via
+        // the per-pixel LED_PIXEL_DATA path if the caller supplied a
+        // "led_array"; otherwise refuse so we don't silently light the whole
+        // strip.
         uint8_t ledMode = 1; // default: on (fill)
+        bool actionUnsupported = false;
         cJSON* jAction = cJSON_GetObjectItem(led, "action");
         if (jAction && cJSON_IsString(jAction)) {
             const char* actStr = jAction->valuestring;
@@ -656,54 +665,106 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                 else if (strcasecmp(region, "top")    == 0) ledMode = 4;
                 else if (strcasecmp(region, "bottom") == 0) ledMode = 5;
                 else                                         ledMode = 2; // default: left
+            } else if (strcasecmp(actStr, "single")  == 0 ||
+                       strcasecmp(actStr, "circles") == 0 ||
+                       strcasecmp(actStr, "rings")   == 0) {
+                actionUnsupported = true;
             }
-            // fill / uniform / rings / circles → mode 1 (best approximation via uniform colour)
+            // fill / uniform → mode 1
         }
         // Allow explicit "LEDArrMode" override
         cJSON* jLedArrMode = cJSON_GetObjectItem(led, "LEDArrMode");
         if (jLedArrMode && cJSON_IsNumber(jLedArrMode)) ledMode = (uint8_t)jLedArrMode->valueint;
 
-        log_i("Setting LED array mode to %u", ledMode);
-        if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, ledMode)) anySdoTimeout = true;
+        // Refuse actions we can't represent via the current OD, unless the
+        // caller supplied an explicit per-pixel led_array (handled below) or
+        // overrode LEDArrMode directly.
+        cJSON* jArrEarly = cJSON_GetObjectItem(led, "led_array");
+        if (actionUnsupported && !(jArrEarly && cJSON_IsArray(jArrEarly)) && !jLedArrMode) {
+            // "single" → write 5 bytes to LED_SINGLE_PIXEL (0x2211).
+            if (jAction && strcasecmp(jAction->valuestring, "single") == 0) {
+                cJSON* jIdx = cJSON_GetObjectItem(led, "ledIndex");
+                if (!jIdx || !cJSON_IsNumber(jIdx)) {
+                    log_e("led_act single: missing ledIndex");
+                    if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+                    cJSON* resp = cJSON_CreateObject();
+                    cJSON_AddNumberToObject(resp, "return", 0);
+                    return resp;
+                }
+                uint16_t idx = (uint16_t)jIdx->valueint;
+                cJSON* sjr = cJSON_GetObjectItem(led, "r");
+                cJSON* sjg = cJSON_GetObjectItem(led, "g");
+                cJSON* sjb = cJSON_GetObjectItem(led, "b");
+                uint8_t rr = (sjr && cJSON_IsNumber(sjr)) ? (uint8_t)sjr->valueint : 0;
+                uint8_t gg = (sjg && cJSON_IsNumber(sjg)) ? (uint8_t)sjg->valueint : 0;
+                uint8_t bb = (sjb && cJSON_IsNumber(sjb)) ? (uint8_t)sjb->valueint : 0;
+                uint8_t payload[5] = {
+                    (uint8_t)(idx & 0xFF), (uint8_t)((idx >> 8) & 0xFF),
+                    rr, gg, bb
+                };
+                log_i("Routing LED single pixel: idx=%u R:%u G:%u B:%u", idx, rr, gg, bb);
+                bool sok = CANopenModule::writeSDO(nodeId, UC2_OD::LED_SINGLE_PIXEL, 0,
+                                                   payload, sizeof(payload));
+                if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+                cJSON* resp = cJSON_CreateObject();
+                cJSON_AddNumberToObject(resp, "return", sok ? 1 : 0);
+                return resp;
+            }
+            // "circles" / "rings" still have no SDO mapping — refuse.
+            log_w("led_act: action '%s' not supported via REMOTE SDO routing yet (only 'single' is). "
+                  "Send 'led_array' for arbitrary patterns.",
+                  (jAction && jAction->valuestring) ? jAction->valuestring : "?");
+            if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", 0);
+            return resp;
+        }
 
-        // Brightness
+        log_i("Setting LED array mode to %u", ledMode);
+        if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, ledMode)) {
+            anySdoTimeout = true;
+            ok = false;
+        }
+
+        // Brightness — skip subsequent SDO writes once a write has failed,
+        // so an unhealthy bus doesn't cost 250 ms per remaining field.
         cJSON* br = cJSON_GetObjectItem(led, "brightness");
-        if (br && cJSON_IsNumber(br)) {
+        if (ok && br && cJSON_IsNumber(br)) {
             uint8_t b = (uint8_t)br->valueint;
             log_i("Setting LED brightness to %u", b);
-            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b)) anySdoTimeout = true;
+            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b)) { anySdoTimeout = true; ok = false; }
         }
 
         // Uniform colour (r, g, b packed into u32)
         cJSON* jr = cJSON_GetObjectItem(led, "r");
         cJSON* jg = cJSON_GetObjectItem(led, "g");
         cJSON* jb = cJSON_GetObjectItem(led, "b");
-        if (jr || jg || jb) {
+        if (ok && (jr || jg || jb)) {
             uint8_t rr = (jr && cJSON_IsNumber(jr)) ? (uint8_t)jr->valueint : 0;
             uint8_t gg = (jg && cJSON_IsNumber(jg)) ? (uint8_t)jg->valueint : 0;
             uint8_t bb = (jb && cJSON_IsNumber(jb)) ? (uint8_t)jb->valueint : 0;
             uint32_t colour = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | bb;
             log_i("Setting LED uniform colour to R:%u G:%u B:%u (0x%06X)", rr, gg, bb, colour);
-            if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour)) anySdoTimeout = true;
+            if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour)) { anySdoTimeout = true; ok = false; }
         }
 
         // Pattern
         cJSON* pat = cJSON_GetObjectItem(led, "patternId");
-        if (pat && cJSON_IsNumber(pat)) {
+        if (ok && pat && cJSON_IsNumber(pat)) {
             uint8_t p = (uint8_t)pat->valueint;
             log_i("Setting LED pattern ID to %u", p);
-            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p)) anySdoTimeout = true;
+            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p)) { anySdoTimeout = true; ok = false; }
         }
         cJSON* patSpeed = cJSON_GetObjectItem(led, "patternSpeed");
-        if (patSpeed && cJSON_IsNumber(patSpeed)) {
+        if (ok && patSpeed && cJSON_IsNumber(patSpeed)) {
             uint16_t s = (uint16_t)patSpeed->valueint;
             log_i("Setting LED pattern speed to %u", s);
-            if (!CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s)) anySdoTimeout = true;
+            if (!CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s)) { anySdoTimeout = true; ok = false; }
         }
 
         // Per-pixel array — SDO domain (segmented) transfer
         cJSON* arr = cJSON_GetObjectItem(led, "led_array");
-        if (arr && cJSON_IsArray(arr)) {
+        if (ok && arr && cJSON_IsArray(arr)) {
             int n = cJSON_GetArraySize(arr);
             if (n > 0) {
                 uint8_t* buf = (uint8_t*)malloc(n * 3);

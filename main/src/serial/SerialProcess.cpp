@@ -339,7 +339,7 @@ namespace SerialProcess
 
 		// Create queue and separate task for serial processing
 		if (serialMSGQueue == nullptr)
-			serialMSGQueue = xQueueCreate(5, sizeof(cJSON *)); // Queue for cJSON pointers (increased size)
+			serialMSGQueue = xQueueCreate(16, sizeof(cJSON *)); // Queue for cJSON pointers (increased size)
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "serialtask", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
 

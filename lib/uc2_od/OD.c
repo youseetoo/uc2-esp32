@@ -233,6 +233,7 @@ typedef struct {
     OD_obj_var_t    o_2202_led_uniform_colour;
     OD_obj_var_t    o_2203_led_pixel_count;
     OD_obj_var_t    o_2210_led_pixel_data;
+    OD_obj_var_t    o_2211_led_single_pixel;
     OD_obj_var_t    o_2220_led_pattern_id;
     OD_obj_var_t    o_2221_led_pattern_speed;
     /* UC2 digital I/O (0x2300-0x2301) */
@@ -598,6 +599,13 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_RW,
         .dataLength = 0
     },
+    /* 0x2211 — LED single pixel (5 bytes: u16 index + u8 r + u8 g + u8 b).
+       Slave registers an OD extension that calls LedController::setSingle(). */
+    .o_2211_led_single_pixel = {
+        .dataOrig = &OD_RAM.x2211_led_single_pixel[0],
+        .attribute = ODA_SDO_RW,
+        .dataLength = 5
+    },
     /* 0x2220 — LED pattern ID */
     .o_2220_led_pattern_id = {
         .dataOrig = &OD_RAM.x2220_led_pattern_id,
@@ -837,6 +845,7 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2202, 0x01, ODT_VAR, &ODObjs.o_2202_led_uniform_colour,         NULL},
     {0x2203, 0x01, ODT_VAR, &ODObjs.o_2203_led_pixel_count,            NULL},
     {0x2210, 0x01, ODT_VAR, &ODObjs.o_2210_led_pixel_data,             NULL},
+    {0x2211, 0x01, ODT_VAR, &ODObjs.o_2211_led_single_pixel,           NULL},
     {0x2220, 0x01, ODT_VAR, &ODObjs.o_2220_led_pattern_id,             NULL},
     {0x2221, 0x01, ODT_VAR, &ODObjs.o_2221_led_pattern_speed,          NULL},
     /* UC2 digital I/O */

@@ -81,6 +81,7 @@ constexpr uint16_t LED_LAYOUT_WIDTH                         = 0x2204;
 constexpr uint16_t LED_LAYOUT_HEIGHT                        = 0x2205;
 constexpr uint16_t LED_PIXEL_DATA                           = 0x2210;
 constexpr uint16_t LED_SINGLE_PIXEL                         = 0x2211;
+constexpr uint16_t LED_SHAPE                                = 0x2212;
 constexpr uint16_t LED_PATTERN_ID                           = 0x2220;
 constexpr uint16_t LED_PATTERN_SPEED                        = 0x2221;
 

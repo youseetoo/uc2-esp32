@@ -899,6 +899,35 @@ static ODR_t onLedSinglePixelWrite(OD_stream_t* stream, const void* buf,
     }
     return ODR_OK;
 }
+
+// 0x2212 — LED_SHAPE: 5-byte payload {u8 shape, u8 radius, u8 r, u8 g, u8 b}.
+// shape: 0 = rings → LedController::drawRings(radius, r, g, b)
+//        1 = circle → LedController::drawCircle(radius, r, g, b)
+static OD_extension_t s_ledShapeExt;
+static uint8_t        s_ledShapeBuf[5];
+static size_t         s_ledShapeBytes = 0;
+
+static ODR_t onLedShapeWrite(OD_stream_t* stream, const void* buf,
+                             OD_size_t count, OD_size_t* countWritten) {
+    if (s_ledShapeBytes + count > sizeof(s_ledShapeBuf)) {
+        s_ledShapeBytes = 0;
+        return ODR_OUT_OF_MEM;
+    }
+    memcpy(s_ledShapeBuf + s_ledShapeBytes, buf, count);
+    s_ledShapeBytes += count;
+    *countWritten = count;
+    if (stream->dataOffset + count >= stream->dataLength) {
+        uint8_t shape  = s_ledShapeBuf[0];
+        uint8_t radius = s_ledShapeBuf[1];
+        uint8_t r      = s_ledShapeBuf[2];
+        uint8_t g      = s_ledShapeBuf[3];
+        uint8_t b      = s_ledShapeBuf[4];
+        if (shape == 1) LedController::drawCircle(radius, r, g, b);
+        else            LedController::drawRings(radius, r, g, b);
+        s_ledShapeBytes = 0;
+    }
+    return ODR_OK;
+}
 #endif // LED_CONTROLLER
 
 // ============================================================================
@@ -1003,6 +1032,14 @@ void CANopenModule::CO_main_task(void* arg)
                 s_ledSinglePixelExt.write  = onLedSinglePixelWrite;
                 OD_extension_init(singleEntry, &s_ledSinglePixelExt);
                 log_i("LED single pixel OD extension registered (0x2211)");
+            }
+            OD_entry_t* shapeEntry = OD_find(OD, UC2_OD::LED_SHAPE);
+            if (shapeEntry) {
+                s_ledShapeExt.object = nullptr;
+                s_ledShapeExt.read   = nullptr;
+                s_ledShapeExt.write  = onLedShapeWrite;
+                OD_extension_init(shapeEntry, &s_ledShapeExt);
+                log_i("LED shape OD extension registered (0x2212)");
             }
         }
 #endif

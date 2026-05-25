@@ -710,8 +710,30 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                 cJSON_AddNumberToObject(resp, "return", sok ? 1 : 0);
                 return resp;
             }
-            // "circles" / "rings" still have no SDO mapping — refuse.
-            log_w("led_act: action '%s' not supported via REMOTE SDO routing yet (only 'single' is). "
+            // "circles" / "rings" → write 5 bytes to LED_SHAPE (0x2212).
+            if (jAction && (strcasecmp(jAction->valuestring, "rings")   == 0 ||
+                            strcasecmp(jAction->valuestring, "circles") == 0)) {
+                uint8_t shape = (strcasecmp(jAction->valuestring, "circles") == 0) ? 1 : 0;
+                cJSON* jRad = cJSON_GetObjectItem(led, "radius");
+                uint8_t radius = (jRad && cJSON_IsNumber(jRad)) ? (uint8_t)jRad->valueint : 1;
+                cJSON* sjr2 = cJSON_GetObjectItem(led, "r");
+                cJSON* sjg2 = cJSON_GetObjectItem(led, "g");
+                cJSON* sjb2 = cJSON_GetObjectItem(led, "b");
+                uint8_t rr = (sjr2 && cJSON_IsNumber(sjr2)) ? (uint8_t)sjr2->valueint : 0;
+                uint8_t gg = (sjg2 && cJSON_IsNumber(sjg2)) ? (uint8_t)sjg2->valueint : 0;
+                uint8_t bb = (sjb2 && cJSON_IsNumber(sjb2)) ? (uint8_t)sjb2->valueint : 0;
+                uint8_t payload[5] = { shape, radius, rr, gg, bb };
+                log_i("Routing LED shape: %s radius=%u R:%u G:%u B:%u",
+                      jAction->valuestring, radius, rr, gg, bb);
+                bool sok = CANopenModule::writeSDO(nodeId, UC2_OD::LED_SHAPE, 0,
+                                                   payload, sizeof(payload));
+                if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+                cJSON* resp = cJSON_CreateObject();
+                cJSON_AddNumberToObject(resp, "return", sok ? 1 : 0);
+                return resp;
+            }
+            // Any remaining unsupported action — refuse.
+            log_w("led_act: action '%s' not supported via REMOTE SDO routing. "
                   "Send 'led_array' for arbitrary patterns.",
                   (jAction && jAction->valuestring) ? jAction->valuestring : "?");
             if (ledQid > 0) QidRegistry::reportActionDone(ledQid);

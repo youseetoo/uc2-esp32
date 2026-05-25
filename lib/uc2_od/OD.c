@@ -234,6 +234,7 @@ typedef struct {
     OD_obj_var_t    o_2203_led_pixel_count;
     OD_obj_var_t    o_2210_led_pixel_data;
     OD_obj_var_t    o_2211_led_single_pixel;
+    OD_obj_var_t    o_2212_led_shape;
     OD_obj_var_t    o_2220_led_pattern_id;
     OD_obj_var_t    o_2221_led_pattern_speed;
     /* UC2 digital I/O (0x2300-0x2301) */
@@ -606,6 +607,14 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_RW,
         .dataLength = 5
     },
+    /* 0x2212 — LED shape (5 bytes: u8 shape, u8 radius, u8 r, u8 g, u8 b).
+       shape: 0 = rings (drawRings), 1 = circle (drawCircle).
+       Slave registers an OD extension that dispatches to LedController. */
+    .o_2212_led_shape = {
+        .dataOrig = &OD_RAM.x2212_led_shape[0],
+        .attribute = ODA_SDO_RW,
+        .dataLength = 5
+    },
     /* 0x2220 — LED pattern ID */
     .o_2220_led_pattern_id = {
         .dataOrig = &OD_RAM.x2220_led_pattern_id,
@@ -846,6 +855,7 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2203, 0x01, ODT_VAR, &ODObjs.o_2203_led_pixel_count,            NULL},
     {0x2210, 0x01, ODT_VAR, &ODObjs.o_2210_led_pixel_data,             NULL},
     {0x2211, 0x01, ODT_VAR, &ODObjs.o_2211_led_single_pixel,           NULL},
+    {0x2212, 0x01, ODT_VAR, &ODObjs.o_2212_led_shape,                  NULL},
     {0x2220, 0x01, ODT_VAR, &ODObjs.o_2220_led_pattern_id,             NULL},
     {0x2221, 0x01, ODT_VAR, &ODObjs.o_2221_led_pattern_speed,          NULL},
     /* UC2 digital I/O */

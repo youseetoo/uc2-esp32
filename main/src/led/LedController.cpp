@@ -93,6 +93,7 @@ namespace LedController
 		matrix->drawPixel(x, y, rgb565(r, g, b));
 #else
 		uint16_t idx = xyToIndex(x, y);
+		log_i("Setting LED at (x=%d, y=%d, index=%d) to color: R=%d, G=%d, B=%d", x, y, idx, r, g, b);
 		matrix->setPixelColor(idx, matrix->Color(r, g, b));
 #endif
 	}
@@ -421,7 +422,8 @@ namespace LedController
 		#ifdef LED_CONTROLLER
 		// Check if we have ring definitions in the pin config (illumination board)
 		if (pinConfig.pindefName &&
-			strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0)
+			(strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+			strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0))
 		{
 			// Use direct ring indexing for illumination board
 			drawIlluminationRings(radius, r, g, b);
@@ -523,6 +525,7 @@ namespace LedController
 		// Set the specified ring
 		for (uint16_t i = 0; i < count; i++) {
 			matrix->setPixelColor(start_idx + i, matrix->Color(r, g, b));
+			log_i("Setting LED at index %d (ring %d) to color: R=%d, G=%d, B=%d", start_idx + i, ring_id, r, g, b);
 		}
 
 		ledShow();
@@ -961,6 +964,7 @@ namespace LedController
 		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
 			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 ||
 			 strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ));
 
 		if (needsThermalProtection)
@@ -1020,7 +1024,8 @@ namespace LedController
 		case LedMode::RINGS:
 			// For illumination board, check if region is specified for ring segments
 			if (pinConfig.pindefName &&
-				strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 &&
+				(strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+				strcmp(pinConfig.pindefName, "UC2_canopen_slave_led")==0) &&
 				strlen(cmd.region) > 0)
 			{
 				drawIlluminationRingSegment(cmd.radius, cmd.region, cmd.r, cmd.g, cmd.b);
@@ -1148,7 +1153,8 @@ namespace LedController
 		// Check if this is a device that requires thermal protection
 		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
-			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0) ||
+			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 );
 
 		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
 		{

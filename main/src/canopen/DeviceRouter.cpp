@@ -219,15 +219,15 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     cJSON* respSteppers = cJSON_CreateArray();
     int n = cJSON_GetArraySize(steppers);
 
-    // Extract QID so TPDO-driven completion (syncRpdoToModules_master) can report it
-#ifdef CAN_CONTROLLER_CANOPEN
+    // Extract QID so TPDO-driven completion (syncRpdoToModules_master) and
+    // FocusMotor::stopStepper (LOCAL completion) can report it via QidRegistry.
     int motorQid = 0;
     {
         cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
         if (qidItem && cJSON_IsNumber(qidItem)) motorQid = qidItem->valueint;
     }
     int remoteStepperCount = 0;
-#endif
+    int localStepperCount  = 0;
 
     for (int i = 0; i < n; i++) {
         cJSON* s = cJSON_GetArrayItem(steppers, i);
@@ -266,6 +266,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                 if (FocusMotor::getData()[stepperid]) {
                     FocusMotor::getData()[stepperid]->isStop = true;
                     FocusMotor::getData()[stepperid]->isforever = false;
+                    FocusMotor::getData()[stepperid]->qid = motorQid;
                     FocusMotor::startStepper(stepperid, 0);
                 }
             } else {
@@ -277,11 +278,13 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                     d->isforever        = isForever;
                     d->isStop           = false;
                     d->stopped          = false;
+                    d->qid              = motorQid;
                     if (accel > 0) d->acceleration = accel;
                     else if (d->acceleration <= 0) d->acceleration = 40000;
                     FocusMotor::startStepper(stepperid, 0); // TODO: Shouldn't we use stopstepper instead?
                 }
             }
+            localStepperCount++;
         } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t nodeId = route->nodeId;
@@ -320,15 +323,18 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         cJSON_AddItemToArray(respSteppers, rs);
     }
 
-    // Register the QID for all dispatched remote steppers so QidRegistry can
-    // emit {"qid":N,"state":"done"} when their TPDO signals completion.
-#ifdef CAN_CONTROLLER_CANOPEN
-    if (motorQid > 0 && remoteStepperCount > 0)
-        QidRegistry::registerQid(motorQid, (uint8_t)remoteStepperCount);
-#endif
+    // Register the QID with the total number of dispatched steppers (LOCAL +
+    // REMOTE) so QidRegistry emits {"qid":N,"state":"done"} once every axis
+    // signals completion (FocusMotor::stopStepper for LOCAL, TPDO callback for
+    // REMOTE).
+    int totalStepperCount = localStepperCount + remoteStepperCount;
+    if (motorQid > 0 && totalStepperCount > 0)
+        QidRegistry::registerQid(motorQid, (uint8_t)totalStepperCount);
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
+    if (motorQid > 0)
+        cJSON_AddNumberToObject(resp, "qid", motorQid);
     return resp;
 #else
     return nullptr;

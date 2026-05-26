@@ -76,7 +76,7 @@ jobs:
             board_id: "uc2-can-master"
             chip_family: "ESP32"
 
-          - env_name: UC2_canopen_standalone_v4
+          - env_name: UC2_canopen_standalone_v4_release
             display_name: "UC2 CAN Standalone V4"
             board_id: "uc2-can-standalone-v4"
             chip_family: "ESP32"

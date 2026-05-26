@@ -1128,12 +1128,99 @@ cJSON* CANopenModule::get(cJSON* /*doc*/)
 }
 
 // ============================================================================
-// /can_act — set node ID, persists to NVS
-// {"task":"/can_act", "nodeId": 10}
+// /can_act — set node ID, persists to NVS; also handles bus scan + remote
+// reboot for backward compatibility with the pre-CANopen Python client.
+// ----------------------------------------------------------------------------
+//   {"task":"/can_act", "nodeId": 10, "canMotorAxis": 1}  — local config
+//   {"task":"/can_act", "scan": true, "qid": <n>}          — enumerate REMOTE
+//                                                            routes + probe
+//   {"task":"/can_act", "restart": <nodeId>}               — 0 = self,
+//                                                            else SDO 0x2507=1
 // ============================================================================
 cJSON* CANopenModule::act(cJSON* doc)
 {
     cJSON* resp = cJSON_CreateObject();
+
+    // ----- scan: enumerate REMOTE routes and probe each unique nodeId -----
+    cJSON* scanItem = cJSON_GetObjectItem(doc, "scan");
+    if (scanItem && (cJSON_IsTrue(scanItem) ||
+                     (cJSON_IsNumber(scanItem) && scanItem->valueint != 0)))
+    {
+        cJSON* arr = cJSON_CreateArray();
+        // Dedupe nodeIds; remember the first route-type we saw per node.
+        struct Entry { uint8_t nodeId; UC2::RouteEntry::Type type; };
+        Entry seen[16]; uint8_t nSeen = 0;
+        static const UC2::RouteEntry::Type types[] = {
+            UC2::RouteEntry::MOTOR, UC2::RouteEntry::LASER,
+            UC2::RouteEntry::LED,   UC2::RouteEntry::GALVO,
+            UC2::RouteEntry::HOME,
+        };
+        for (auto t : types) {
+            for (uint8_t lid = 0; lid < 4; lid++) {
+                const auto* r = UC2::RoutingTable::find(t, lid);
+                if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
+                bool dup = false;
+                for (uint8_t i = 0; i < nSeen; i++) {
+                    if (seen[i].nodeId == r->nodeId) { dup = true; break; }
+                }
+                if (dup) continue;
+                if (nSeen < (uint8_t)(sizeof(seen)/sizeof(seen[0]))) {
+                    seen[nSeen++] = { r->nodeId, t };
+                }
+            }
+        }
+        for (uint8_t i = 0; i < nSeen; i++) {
+            cJSON* dev = cJSON_CreateObject();
+            const char* tStr = "?";
+            switch (seen[i].type) {
+                case UC2::RouteEntry::MOTOR: tStr = "motor"; break;
+                case UC2::RouteEntry::LASER: tStr = "laser"; break;
+                case UC2::RouteEntry::LED:   tStr = "led";   break;
+                case UC2::RouteEntry::GALVO: tStr = "galvo"; break;
+                case UC2::RouteEntry::HOME:  tStr = "home";  break;
+                default: break;
+            }
+            bool reachable = isNodeReachable(seen[i].nodeId);
+            cJSON_AddNumberToObject(dev, "canId",         seen[i].nodeId);
+            cJSON_AddNumberToObject(dev, "deviceType",    (int)seen[i].type);
+            cJSON_AddStringToObject(dev, "deviceTypeStr", tStr);
+            cJSON_AddNumberToObject(dev, "status",        reachable ? 0 : 1);
+            cJSON_AddStringToObject(dev, "statusStr",
+                                    reachable ? "idle" : "unreachable");
+            cJSON_AddItemToArray(arr, dev);
+        }
+        cJSON_AddItemToObject(resp, "scan", arr);
+        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+        cJSON_AddNumberToObject(resp, "qid",
+            (qidItem && cJSON_IsNumber(qidItem)) ? qidItem->valueint : 0);
+        cJSON_AddNumberToObject(resp, "count", nSeen);
+        return resp;
+    }
+
+    // ----- restart: 0 = master self-reboot, else SDO write 1 -> 0x2507 -----
+    cJSON* restartItem = cJSON_GetObjectItem(doc, "restart");
+    if (restartItem && cJSON_IsNumber(restartItem)) {
+        int target = restartItem->valueint;
+        if (target == 0) {
+            cJSON_AddStringToObject(resp, "status", "rebooting");
+            cJSON_AddNumberToObject(resp, "nodeId", 0);
+            vTaskDelay(pdMS_TO_TICKS(300));
+            esp_restart();
+            return resp;  // unreachable
+        }
+        if (target < 1 || target > 127) {
+            cJSON_AddStringToObject(resp, "status", "error");
+            cJSON_AddStringToObject(resp, "error", "nodeId out of range");
+            return resp;
+        }
+        bool ok = writeSDO_u8((uint8_t)target,
+                              0x2507, 0x00, 1, /*timeoutMs*/ 1000);
+        cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
+        cJSON_AddNumberToObject(resp, "nodeId", target);
+        if (!ok) cJSON_AddStringToObject(resp, "error", "SDO write failed");
+        return resp;
+    }
+
     bool changed = false;
     // {"task":"/can_act","nodeId":11,"canMotorAxis":1}
     cJSON* nodeIdItem = cJSON_GetObjectItem(doc, "nodeId");

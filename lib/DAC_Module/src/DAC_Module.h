@@ -4,7 +4,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#include "PinConfig.h"
 
 #ifndef ESP32S3_MODEL_XIAO
 #if !defined(M5DIAL)

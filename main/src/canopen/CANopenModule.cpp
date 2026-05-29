@@ -113,6 +113,13 @@ static SemaphoreHandle_t s_sdoMutex = NULL;
 // per write timeout when the cable is unplugged.
 static volatile uint32_t s_lastBusErrorMs = 0;
 
+// Per-node liveness timestamp, indexed by CANopen nodeId (1..127).
+// Updated from the TWAI RX drain on any frame whose source nodeId matches
+// a known function code (TPDO/SDO-resp/heartbeat). Used by isNodeReachable
+// to fast-fail SDO writes against absent slaves uniformly across all
+// peripheral types (motor, laser, LED, galvo, ...).
+static volatile uint32_t s_nodeLastSeenMs[128] = {0};
+
 // These queues are extern'd by CO_driver_ESP32.c in the library
 QueueHandle_t CAN_TX_queue;
 QueueHandle_t CAN_RX_queue;
@@ -179,6 +186,23 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         // RX: drain TWAI FIFO into CAN_RX_queue (for CANopenNode to process)
         if (alerts & TWAI_ALERT_RX_DATA) {
             while (twai_receive(&rx_message, 0) == ESP_OK) {
+                // Universal node liveness: any CANopen frame whose source
+                // nodeId is 1..127 marks that node as alive. COB-ID layout:
+                //   bits 10..7 = function code, bits 6..0 = source nodeId.
+                // We accept TPDO1..4 (0x180/0x280/0x380/0x480), SDO server
+                // response (0x580), and heartbeat (0x700). Note: this is
+                // master-side bookkeeping — on a slave the table simply
+                // reflects whatever other nodes happen to chatter.
+                if (!(rx_message.flags & TWAI_MSG_FLAG_EXTD)) {
+                    uint16_t cobid = rx_message.identifier & 0x7FF;
+                    uint16_t fc    = cobid & 0x780;
+                    uint8_t  src   = cobid & 0x7F;
+                    if (src >= 1 && src <= 127 &&
+                        (fc == 0x180 || fc == 0x280 || fc == 0x380 ||
+                         fc == 0x480 || fc == 0x580 || fc == 0x700)) {
+                        s_nodeLastSeenMs[src] = millis();
+                    }
+                }
                 xQueueSend(CAN_RX_queue, (void*)&rx_message, 10);
             }
         }
@@ -378,60 +402,29 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 // Public SDO API
 // ============================================================================
 
-// Returns true if the slave at nodeId has pushed a TPDO within the last 5 seconds.
-// Used to fast-fail SDO writes against absent slaves, preventing TWAI retransmission
-// storms that could starve the WDT. Allows one probe per second for discovery.
+// Returns true if the slave at nodeId has been heard from on the CAN bus
+// within the last 5 seconds (any TPDO/SDO-response/heartbeat frame).
+// Uniform across all peripheral types — replaces the old motor-only TPDO
+// check + permissive "always true if NMT operational" branch that caused
+// 500 ms SDO timeouts against absent laser/LED/galvo nodes during boot.
 bool CANopenModule::isNodeReachable(uint8_t nodeId)
 {
-    // Check motor routes first — they have TPDO-based liveness tracking,
-    // but only when MOTOR_CONTROLLER is compiled in (master path mirrors
-    // motor TPDOs into s_remoteSlaves via syncRpdoToModules_master). Nodes
-    // without MOTOR_CONTROLLER (e.g. the DS4→CAN bridge) have no local
-    // liveness data, so fall through to the permissive path and rely on
-    // the per-SDO timeout to drop unresponsive targets.
-    for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
-        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
-        if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
-        if (route->nodeId != nodeId) continue;
+    if (nodeId < 1 || nodeId > 127) return false;
 
-#ifdef MOTOR_CONTROLLER
-        const auto& slave = CANopenModule::s_remoteSlaves[route->subAxis];
-        if (!slave.seen) {
-            log_e("Node 0x%02X not seen, skipping SDO operation", nodeId);
-            return false;
-        }
-        if ((millis() - slave.lastUpdateMs) > 5000) {
-            //log_i("Node 0x%02X last update too old, skipping SDO operation", nodeId);
-            return false;
-        }
-#endif
-        return true;
-    }
-
-    // Non-motor peripherals (LED, LASER, GALVO, etc.) don't have TPDO feedback
-    // yet. Fail-fast when the bus has produced TWAI BUS_ERROR alerts within
-    // the last second — that means the slave isn't ACKing and an SDO would
-    // just block for its full timeout.
-    if (s_lastBusErrorMs != 0 && (millis() - s_lastBusErrorMs) < 1000) {
-        return false;
-    }
     if (CO == NULL || CO->NMT == NULL ||
         CO->NMT->operatingState != CO_NMT_OPERATIONAL) {
         return false;
     }
-    static const UC2::RouteEntry::Type nonMotorTypes[] = {
-        UC2::RouteEntry::LASER, UC2::RouteEntry::LED,
-        UC2::RouteEntry::GALVO, UC2::RouteEntry::HOME,
-    };
-    for (auto t : nonMotorTypes) {
-        for (uint8_t id = 0; id < 4; id++) {
-            const auto* route = UC2::RoutingTable::find(t, id);
-            if (route && route->where == UC2::RouteEntry::REMOTE && route->nodeId == nodeId)
-                return true;
-        }
+
+    // Recent bus errors mean the slave likely isn't ACKing; skip the SDO
+    // and let the caller fall back instead of stalling for the full timeout.
+    if (s_lastBusErrorMs != 0 && (millis() - s_lastBusErrorMs) < 1000) {
+        return false;
     }
 
-    return false;  // no route to this nodeId
+    uint32_t lastSeen = s_nodeLastSeenMs[nodeId];
+    if (lastSeen == 0) return false;
+    return (millis() - lastSeen) < 5000;
 }
 
 // Poll isNodeReachable() until it returns true or timeoutMs elapses.

@@ -125,7 +125,12 @@ int axis = 0;
 		else if (axis == Stepper::A) endstopInput = 4; // Dual Z uses same endstop as Z
 		
 		uint32_t phaseStartTime = millis();
-		
+		// check if home speed is > 18000 - if so, cut it down
+		if ( abs(hd->homeSpeed) > 18000) {
+			log_w("[Homing Task] Axis %d home speed %d is too high, cutting down to 18000", axis, hd->homeSpeed);
+			hd->homeSpeed = 18000 * (hd->homeSpeed > 0 ? 1 : -1);
+		}
+
 		while (hd->homeIsActive) {
 			// Check for timeout
 			if (millis() - hd->homeTimeStarted > hd->homeTimeout) {
@@ -284,7 +289,7 @@ int axis = 0;
 					//Serial.println("5");
 					// add deley to let motor settle for a moment
 					vTaskDelay(pdMS_TO_TICKS(100));  // Brief pause
-					// FIXME: if we are driving too fast >15000 then the direction change in the fastaccelstepper is not taken into account :/
+					// FIXME: if we are driving too fast >18000 then the direction change in the fastaccelstepper is not taken into account :/
 
 					// Move slowly back toward endstop
 					md->isforever = true;

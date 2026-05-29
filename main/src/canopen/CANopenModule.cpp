@@ -1945,8 +1945,16 @@ void CANopenModule::loop()
     for (int ax = 0; ax < 4; ax++) {
         if (!s_homingCmds[ax].pending) continue;
         s_homingCmds[ax].pending = false;
+
+        // Map OD axis to local physical axis (same as motor moves)
+        int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        if (FocusMotor::getData()[localAxis] == nullptr) {
+            ESP_LOGW(TAG_CO, "Homing dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
+            continue;
+        }
+
         int maxSpeed = s_homingCmds[ax].speed > 0 ? s_homingCmds[ax].speed * 2 : 1000;
-        HomeMotor::startHome(ax,
+        HomeMotor::startHome(localAxis,
             (int)s_homingCmds[ax].timeout,
             (int)s_homingCmds[ax].speed,
             maxSpeed,

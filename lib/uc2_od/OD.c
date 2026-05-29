@@ -865,6 +865,11 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2310, 0x09, ODT_ARR, &ODObjs.o_2310_analog_input_value,         NULL},
     /* UC2 encoder */
     {0x2340, 0x05, ODT_ARR, &ODObjs.o_2340_encoder_position,           NULL},
+    /* UC2 system — MUST stay sorted before 0x2600 (CANopenNode OD_find is binary search) */
+    {0x2503, 0x01, ODT_VAR, &ODObjs.o_2503_uptime_seconds,             NULL},
+    {0x2504, 0x01, ODT_VAR, &ODObjs.o_2504_free_heap_bytes,            NULL},
+    {0x2505, 0x01, ODT_VAR, &ODObjs.o_2505_can_error_counter,          NULL},
+    {0x2507, 0x01, ODT_VAR, &ODObjs.o_2507_reboot_command,             NULL},
     /* UC2 galvo */
     {0x2600, 0x03, ODT_ARR, &ODObjs.o_2600_galvo_target_position,      NULL},
     {0x2601, 0x03, ODT_ARR, &ODObjs.o_2601_galvo_actual_position,      NULL},
@@ -882,11 +887,6 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x260D, 0x01, ODT_VAR, &ODObjs.o_260D_galvo_x_step,               NULL},
     {0x260E, 0x01, ODT_VAR, &ODObjs.o_260E_galvo_y_step,               NULL},
     {0x260F, 0x01, ODT_VAR, &ODObjs.o_260F_galvo_camera_trigger_mode,  NULL},
-    /* UC2 system */
-    {0x2503, 0x01, ODT_VAR, &ODObjs.o_2503_uptime_seconds,             NULL},
-    {0x2504, 0x01, ODT_VAR, &ODObjs.o_2504_free_heap_bytes,            NULL},
-    {0x2505, 0x01, ODT_VAR, &ODObjs.o_2505_can_error_counter,          NULL},
-    {0x2507, 0x01, ODT_VAR, &ODObjs.o_2507_reboot_command,             NULL},
     /* UC2 OTA */
     {0x2F00, 0x01, ODT_VAR, &ODObjs.o_2F00_ota_firmware_data,           NULL},
     {0x2F01, 0x01, ODT_VAR, &ODObjs.o_2F01_ota_firmware_size,           NULL},

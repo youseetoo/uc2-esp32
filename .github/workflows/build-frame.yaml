@@ -67,10 +67,16 @@ jobs:
 
       - name: Extract environment list
         id: get_envs
-        run: | 
+        run: |
           set -eux
           envs="$(pio project config | grep 'env:' | cut -d ':' -f 2 | sort -u)"
-          envs="$(grep -e '_release$' <<<$envs | grep '^${{ matrix.prefix }}')"
+          if [[ "${{ matrix.prefix }}" == "UC2_canopen" ]]; then
+            # For CANopen: keep only _release variants
+            envs="$(grep -e '_release$' <<<$envs | grep '^${{ matrix.prefix }}')"
+          else
+            # For others: keep base names (exclude _debug, _default, _Xiao, _release)
+            envs="$(grep -v -e '_debug$' -e '_default$' -e '_Xiao$' -e '_release$' <<<$envs | grep '^${{ matrix.prefix }}')"
+          fi
           echo "Environments:"
           echo "$envs"
           echo "envs=$(echo "$envs" | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT

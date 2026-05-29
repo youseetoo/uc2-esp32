@@ -125,11 +125,13 @@ int axis = 0;
 		else if (axis == Stepper::A) endstopInput = 4; // Dual Z uses same endstop as Z
 		
 		uint32_t phaseStartTime = millis();
-		// check if home speed is > 18000 - if so, cut it down
+		// FIXME: Only for fastaccel: check if home speed is > 18000 - if so, cut it down
+		#ifdef FASTACCELSTEPPER
 		if ( abs(hd->homeSpeed) > 18000) {
 			log_w("[Homing Task] Axis %d home speed %d is too high, cutting down to 18000", axis, hd->homeSpeed);
 			hd->homeSpeed = 18000 * (hd->homeSpeed > 0 ? 1 : -1);
 		}
+		#endif
 
 		while (hd->homeIsActive) {
 			// Check for timeout

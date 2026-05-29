@@ -42,12 +42,15 @@ namespace AccelStep
 
     void poweroff(bool force)
     {
-        if ((getData()[Stepper::A]->stopped &&
-             getData()[Stepper::X]->stopped &&
-             getData()[Stepper::Y]->stopped &&
-             getData()[Stepper::Z]->stopped &&
-             power_enable) ||
-            force)
+        bool allStopped = true;
+        if (!force) {
+            const int axes[] = { Stepper::A, Stepper::X, Stepper::Y, Stepper::Z };
+            for (int i = 0; i < 4; i++) {
+                MotorData *md = getData()[axes[i]];
+                if (md && !md->stopped) { allStopped = false; break; }
+            }
+        }
+        if (force || (allStopped && power_enable))
         {
 #ifdef USE_TCA9535
             _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
@@ -293,13 +296,16 @@ namespace AccelStep
                 tNow = millis();
             }
 
-            // FEED THE WATCHDOG
-            esp_task_wdt_reset(); 
-
-            // If motor speeds are low, vTaskDelay(1) is best.
-            // If they are high, use taskYIELD() to allow other tasks of SAME priority to run.
-            taskYIELD();
-            vTaskDelay(1);
+            // FEED THE WATCHDOG periodically (not every step)
+            static uint32_t s_lastWdt[4] = {0,0,0,0};
+            uint32_t nowMs = millis();
+            if (stepperid >= 0 && stepperid < 4 && nowMs - s_lastWdt[stepperid] > 50) {
+                s_lastWdt[stepperid] = nowMs;
+                esp_task_wdt_reset();
+                vTaskDelay(1);   // yield to lower-prio tasks ~20Hz
+            } else {
+                taskYIELD();     // yield to same-prio tasks without blocking
+            }
         }
         getData()[stepperid]->stopped = true;
         poweroff(false);

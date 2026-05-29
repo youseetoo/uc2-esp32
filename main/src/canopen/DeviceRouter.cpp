@@ -274,6 +274,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                 if (d) {
                     d->targetPosition   = pos;
                     d->speed            = speed;
+                    d->maxspeed         = abs(speed);   // ensure setMaxSpeed >= requested speed
                     d->absolutePosition = isAbs;
                     d->isforever        = isForever;
                     d->isStop           = false;

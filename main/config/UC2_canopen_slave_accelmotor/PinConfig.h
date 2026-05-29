@@ -17,13 +17,14 @@
 #define HOME_MOTOR
 #define DIGITAL_IN_CONTROLLER
 //#define USE_FASTACCEL
+#define USE_ACCELSTEP
 #define TMC_CONTROLLER
 #define LINEAR_ENCODER_CONTROLLER
 //#define OTA_ON_STARTUP
 #define USE_PCNT_COUNTER
 #define CAN_CONTROLLER_CANOPEN
 
-struct UC2_canopen_slave : PinConfig
+struct UC2_canopen_slave_motor : PinConfig
 {
      /*
      D0: 1
@@ -55,7 +56,7 @@ struct UC2_canopen_slave : PinConfig
      
      bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
-     const char * pindefName = "UC2_canopen_slave";
+     const char * pindefName = "UC2_canopen_slave_motor";
      const unsigned long BAUDRATE = 921600; // 115200;
 
      int8_t MOTOR_X_STEP = GPIO_NUM_8;  // D9 -> GPIO8
@@ -123,6 +124,11 @@ struct UC2_canopen_slave : PinConfig
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
 
+    // limit settings 
+      bool hardLimitEnabledX = true; 
+      bool hardLimitPolarityX = true;
+
+
      // OTA settings
      const uint32_t OTA_TIME_FROM_STARTUP = 30000; // 30 seconds
 
@@ -130,4 +136,4 @@ struct UC2_canopen_slave : PinConfig
 
 };
   
-const UC2_canopen_slave pinConfig;
+const UC2_canopen_slave_motor pinConfig;

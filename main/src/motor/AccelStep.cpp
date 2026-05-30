@@ -3,7 +3,14 @@
 #include "AccelStep.h"
 #include "FocusMotor.h"
 #include "esp_task_wdt.h"
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
 using namespace FocusMotor;
+#ifdef TMC_CONTROLLER
+using namespace TMCController;
+#endif
 
 void driveMotorXLoop(void *pvParameter)
 {
@@ -160,6 +167,10 @@ namespace AccelStep
     void startAccelStepper(int i)
     {
 
+        if (getData()[i] ->acceleration >= 0){
+            getData()[i] ->isaccelerated = true; 
+        }
+
         log_d("start rotator: motor:%i, isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
               i,
               getData()[i]->isforever,
@@ -169,6 +180,22 @@ namespace AccelStep
               getData()[i]->absolutePosition,
               getData()[i]->isaccelerated,
               getData()[i]->acceleration);
+
+            // if the motor speed is above threshold, maximise motor current to avoid stalling
+            // We rather do that to not change motor current with any call (e.g. PS, Encoder, etc)
+#ifdef TMC_CONTROLLER // TODO: This is only working on TMC2209-enabled sattelite boards since we have only one TMC Controller for one motor
+            // read value from preferences
+            Preferences preferences;
+            preferences.begin("tmc", false);
+            uint16_t rmsCurrFromPref = preferences.getInt("current", pinConfig.tmc_rms_current);
+            preferences.end();
+            if (abs(getData()[i]->speed) > 10000)
+            {
+                rmsCurrFromPref = (int)((float)rmsCurrFromPref * 1.5);
+                log_i("Overdrive current for motor %i: %i", i, rmsCurrFromPref);
+            }
+            TMCController::setTMCCurrent(rmsCurrFromPref);
+#endif
 
         // adjust direction pin if necessary
         if (getData()[i]->directionPinInverted)

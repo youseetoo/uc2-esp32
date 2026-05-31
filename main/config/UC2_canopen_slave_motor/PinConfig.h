@@ -95,7 +95,10 @@ struct UC2_canopen_slave_motor : PinConfig
      // CAN
      int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
      int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
-     uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
+#ifndef CAN_AXIS_ID
+#define CAN_AXIS_ID CAN_ID_MOT_X
+#endif
+     uint32_t CAN_ID_CURRENT = CAN_AXIS_ID;
 
      // Routing overrides: 0=LOCAL, 1=REMOTE, 2=OFF  (-1=infer)
      int8_t ROUTE_MOTOR[4] = {2, 0, 2, 2}; // A=OFF, X=LOCAL, Y=OFF, Z=OFF

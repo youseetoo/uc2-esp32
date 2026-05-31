@@ -126,6 +126,10 @@ QueueHandle_t CAN_RX_queue;
 
 CO_t* CO = NULL;
 
+// Set to CO_RESET_COMM from any context to trigger a live node-ID reload
+// without esp_restart(). CO_main_task checks this in its inner loop.
+static volatile CO_NMT_reset_cmd_t s_requestedReset = CO_RESET_NOT;
+
 // ============================================================================
 // CAN controller task — manages TWAI driver, TX/RX queues, error recovery
 // (Preserved from MWE with pinConfig-based GPIO)
@@ -298,7 +302,7 @@ void CANopenModule::CO_interrupt_task(void* arg)
     This function handles CANopen interrupts by polling the CAN_RX_queue for incoming CANopen frames and processing them accordingly.
     */
     for (;;) {
-        if (CO != NULL) {
+        if (CO != NULL && CO->CANmodule != NULL && CO->CANmodule->CANnormal) {
             // Drain all pending RX messages each tick for responsive SDO
             while (uxQueueMessagesWaiting(CAN_RX_queue) > 0) {
                 CO_CANinterrupt(CO->CANmodule);
@@ -932,8 +936,8 @@ void CANopenModule::CO_main_task(void* arg)
     CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
     uint32_t heapMemoryUsed;
     void* CANptr = NULL;
-    uint8_t pendingNodeId = runtimeConfig.canNodeId;    // start with the configured node ID, but allow LSS to override if it's already taken on the bus
-    uint8_t activeNodeId  = runtimeConfig.canNodeId;    // for logging only — reflects the actual node ID in use, which may be overridden by LSS if there is a conflict
+    uint8_t pendingNodeId = runtimeConfig.canNodeId;
+    uint8_t activeNodeId  = runtimeConfig.canNodeId;
     uint16_t pendingBitRate = 500;
 
     // Allocate CANopenNode objects
@@ -946,7 +950,18 @@ void CANopenModule::CO_main_task(void* arg)
     }
     log_i("Allocated %lu bytes for CANopen objects", (unsigned long)heapMemoryUsed);
 
+    // Subtasks are started once here and idle safely via CANnormal guard during
+    // any subsequent CO_RESET_COMM re-init cycle.
+    xTaskCreatePinnedToCore(CO_tmr_task,      "CO_TMR", 4096, NULL,
+                            CANOPEN_TMR_TASK_PRIO, NULL, tskNO_AFFINITY);
+    xTaskCreatePinnedToCore(CO_interrupt_task, "CO_INT", 4096, NULL,
+                            CANOPEN_INT_TASK_PRIO, NULL, tskNO_AFFINITY);
+
     while (reset != CO_RESET_APP) {
+        // Re-read node ID on every comm reset so a live update (via s_requestedReset)
+        // takes effect without esp_restart().
+        pendingNodeId = runtimeConfig.canNodeId;
+        activeNodeId  = pendingNodeId;
         log_i("Communication reset (node-id=%d)...", activeNodeId);
 
         CO->CANmodule->CANnormal = false;
@@ -1040,13 +1055,7 @@ void CANopenModule::CO_main_task(void* arg)
         // Register OTA OD extensions (all slave builds)
         CanOpenOTA::registerOdExtensions();
 
-        // Start processing tasks
-        xTaskCreatePinnedToCore(CO_tmr_task,       "CO_TMR", 4096, NULL,
-                                CANOPEN_TMR_TASK_PRIO, NULL, tskNO_AFFINITY);
-        xTaskCreatePinnedToCore(CO_interrupt_task,  "CO_INT", 4096, NULL,
-                                CANOPEN_INT_TASK_PRIO, NULL, tskNO_AFFINITY);
-
-        // Enter normal mode
+        // Enter normal mode — subtasks resume processing via CANnormal guard
         CO_CANsetNormalMode(CO->CANmodule);
         reset = CO_RESET_NOT;
 
@@ -1066,6 +1075,11 @@ void CANopenModule::CO_main_task(void* arg)
             (unsigned)CO_CONFIG_CRC16);
 
         while (reset == CO_RESET_NOT) {
+            if (s_requestedReset != CO_RESET_NOT) {
+                reset = s_requestedReset;
+                s_requestedReset = CO_RESET_NOT;
+                break;
+            }
             reset = CO_process(CO, false, 1000, NULL);
             vTaskDelay(pdMS_TO_TICKS(1));
         }
@@ -1215,7 +1229,7 @@ cJSON* CANopenModule::act(cJSON* doc)
     }
 
     bool changed = false;
-    // {"task":"/can_act","nodeId":11,"canMotorAxis":1}
+    // Assign CAN OPEN ID: {"task":"/can_act","nodeId":11,"canMotorAxis":1}
     cJSON* nodeIdItem = cJSON_GetObjectItem(doc, "nodeId");
     if (nodeIdItem && cJSON_IsNumber(nodeIdItem) &&
         nodeIdItem->valueint >= 1 && nodeIdItem->valueint <= 127)
@@ -1240,10 +1254,10 @@ cJSON* CANopenModule::act(cJSON* doc)
         cJSON_AddStringToObject(resp, "status", "saved");
         cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);
         cJSON_AddNumberToObject(resp, "canMotorAxis", runtimeConfig.canMotorAxis);
-        cJSON_AddBoolToObject(resp, "rebooting", true);
-        // Delay slightly so the HTTP response can be sent before the reboot.
-        vTaskDelay(pdMS_TO_TICKS(300));
-        esp_restart();
+        cJSON_AddBoolToObject(resp, "resetting", true);
+        // Trigger a CANopen communication reset: CO_main_task will re-init the
+        // node stack with the new node ID without requiring esp_restart().
+        s_requestedReset = CO_RESET_COMM;
     } else {
         cJSON_AddStringToObject(resp, "status", "ok");
         cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);

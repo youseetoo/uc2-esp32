@@ -59,9 +59,9 @@ namespace FAccelStep
         int32_t reqAccel = getData()[i]->acceleration;
         constexpr int32_t kHighSpeedHz  = 35000;
         constexpr int32_t kSafeMinAccel = 200000;
-        if (speed > kHighSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel)
+        if ((speed > kHighSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel) || reqAccel <= 100000 )
         {
-            log_w("Auto-bumping accel %d -> %d on motor %d (speed %d Hz)",
+            log_d("Auto-bumping accel %d -> %d on motor %d (speed %d Hz)",
                   (int)reqAccel, (int)kSafeMinAccel, i, speed);
             reqAccel = kSafeMinAccel;
         }

@@ -120,8 +120,30 @@ namespace PCNTEncoderController
         ESP32Encoder::useInternalWeakPullResistors = puType::none;
         
         // Set ISR service to Core 0 with high priority to isolate from serial/main tasks on Core 1
-        ESP32Encoder::isrServiceCpuCore = 0;  
-        
+        ESP32Encoder::isrServiceCpuCore = 0;
+
+        // --- PCNT unit coordination with the FastAccelStepper MCPWM backend ---
+        // The motor now uses FAS's MCPWM/PCNT step generator (see
+        // FAccelStep.cpp), which hard-maps stepper queue 0 -> PCNT_UNIT_0.
+        // ESP32Encoder::attach() assigns the *first free* slot of its static
+        // encoders[] array as the PCNT unit index, so the first encoder would
+        // otherwise grab PCNT_UNIT_0 and fight the motor for the same PCNT
+        // hardware unit (lost encoder counts + corrupted step generation).
+        //
+        // Reserve slot 0 with a never-attached placeholder so attachFullQuad()
+        // below skips index 0 and lands on PCNT_UNIT_1, leaving UNIT_0 for the
+        // motor. The S3 has 4 PCNT units, so units 1..3 remain for encoders.
+        // The placeholder is never attached: it registers no ISR and its
+        // members are never dereferenced (the encoder ISR uses the per-unit
+        // 'this' passed to pcnt_isr_handler_add, not array iteration). The
+        // == nullptr guard keeps this idempotent and never clobbers a real
+        // encoder that may already own slot 0.
+        static ESP32Encoder pcntUnit0Reservation;
+        if (ESP32Encoder::encoders[0] == nullptr) {
+            ESP32Encoder::encoders[0] = &pcntUnit0Reservation;
+            ESP_LOGI(TAG, "Reserved PCNT_UNIT_0 for FAS motor; encoder will use PCNT_UNIT_1+");
+        }
+
         // Only configure X-axis encoder for maximum stability and count accuracy
         // Multiple encoders can cause ISR conflicts and count loss
         if (pinConfig.ENC_X_A >= 0 && pinConfig.ENC_X_B >= 0) {

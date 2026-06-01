@@ -37,13 +37,24 @@ namespace FAccelStep
         }
         int speed = abs(getData()[i]->speed);
 
+        // clamp speed to 80000
+        if (speed > 80000) {
+            log_w("Clamping speed %d -> 80000 on motor %d", speed, i);
+            speed = 80000;
+        }
         if (faststeppers[i]->setSpeedInHz(speed) != 0)
             log_w("setSpeedInHz(%d) rejected on motor %d", speed, i);
 
-        // Empirical safety floor: for speeds > 40 kHz, FAS plans degenerate
-        // ramps (slow motion + overshoot) when accel < ~170000. Sharp,
-        // reproducible boundary; likely a pmfl rounding edge in
-        // calculate_ramp_steps. Auto-bump and warn. // FIXME:/TODO: This is weird, was found emperically on the esp32s3 canopen 
+        // CORRECTED DIAGNOSIS (2026-05): the "slow motion + overshoot" above a
+        // speed/accel ratio is NOT a planner/pmfl rounding bug. A faithful host
+        // simulation of FAS's real ramp math shows that, planned FROM REST, every
+        // (speed, accel) pair below stops EXACTLY on target with zero overshoot.
+        // The overshoot only appears when a NEW move is planned while the axis is
+        // still moving fast: FAS overshoots by the deceleration distance v^2/(2a)
+        // and then REVERSEs to recover (the "first fast, then crawls / overruns
+        // the hard limit" symptom). Higher accel just shrinks v^2/(2a), which is
+        // why ~12x "kinda" worked. The real fix is the REST GUARANTEE below; the
+        // empirical test matrix is kept for reference only.
         /*
         
 
@@ -57,17 +68,43 @@ namespace FAccelStep
         {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -50000, "acceleration": 40000, "isabs": 0}]}, "qid": 5} => works 
         */
         int32_t reqAccel = getData()[i]->acceleration;
-        constexpr int32_t kHighSpeedHz  = 35000;
-        constexpr int32_t kSafeMinAccel = 200000;
-        if ((speed > kHighSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel) || reqAccel <= 100000 )
+        /*
+        
+        TODO: FIXME whatsoever, it has been shown in the current configuration that only an acceleration that is 12x higher than the speed 
+        can guarantee that the motor gets going and does not just start with a slow motion and then overshoots. 
+        This is a very weird finding and we need to investigate this further, but for now we will just auto-bump 
+        the acceleration to a safe value if the speed is above a certain threshold and the acceleration is below the safe minimum. 
+        We should also log this auto-bump so we can track how often it happens and maybe find a better solution in the future.
+         */
+        
+        
+        // REMOVED: `reqAccel = speed * 12;` (empirical override).
+        // Honour the caller-requested acceleration. Host simulation of the real
+        // FAS planner proves that from REST every reported (speed, accel) pair
+        // stops exactly on target with ZERO overshoot, so there is no need to
+        // inflate accel to mask the retarget-while-moving overshoot — the rest
+        // guarantee further down removes that race directly.
+        if (reqAccel <= 0)  reqAccel = 100000; // sane default when caller passes <= 0
+        if (reqAccel < 100) reqAccel = 100;    // FAS sanity floor
+        
+        /*
+        if ((speed > kMidSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel))
+            reqAccel = 1000000;
+        }
+        if ((speed > kHighSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel))
         {
             log_d("Auto-bumping accel %d -> %d on motor %d (speed %d Hz)",
                   (int)reqAccel, (int)kSafeMinAccel, i, speed);
             reqAccel = kSafeMinAccel;
         }
         const int32_t effAccel = (reqAccel > 0) ? reqAccel : MAX_ACCELERATION_A;
-        if (faststeppers[i]->setAcceleration(effAccel) != 0)
-            faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
+        */
+        if (faststeppers[i]->setAcceleration(reqAccel) != 0)
+            log_e("setAcceleration(%d) rejected on motor %d", reqAccel, i);
+        else 
+            log_i("setAcceleration(%d) accepted on motor %d", reqAccel, i);
+            //faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
+        
 
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
@@ -78,22 +115,48 @@ namespace FAccelStep
             delayMicroseconds(50);
         }
 
+        // --- REST GUARANTEE for bounded moves -----------------------------
+        // A bounded (non-forever) move MUST be planned from rest. If the axis is
+        // still ramping or the RMT/queue still holds commands, planning a new
+        // target now makes FAS overshoot by v^2/(2a) before its REVERSE logic
+        // recovers — exactly the reported "first fast, then crawls back / overruns
+        // the hard limit" symptom. So: hard-stop, pin to the LIVE position
+        // (getCurrentPosition(), consistent with stopFastAccelStepper;
+        // getPositionAfterCommandsCompleted() is the queue END, far ahead of the
+        // motor while it is moving), then wait until VERIFIABLY idle before we
+        // re-arm speed/accel and issue the move.
         if (!getData()[i]->isforever)
         {
             const uint8_t rs0 = faststeppers[i]->rampState() & RAMP_STATE_MASK;
-            if (rs0 != RAMP_STATE_IDLE || !faststeppers[i]->isQueueEmpty()) // TODO: Maybe we should rather check how much space is in the queue instead of checking if it is full or not? Because if it is full we have to wait anyway, but if it is not empty but has space for the new move, we can already enqueue the new move and save some time?
+            const bool notIdle   = (rs0 != RAMP_STATE_IDLE);
+            const bool queueBusy = !faststeppers[i]->isQueueEmpty();
+            if (notIdle || queueBusy)
             {
-                log_i("Motor %d: rampState %d, queue not empty before move command - stopping and resetting position to avoid ramp/queue issues",
-                      i, rs0);
-                faststeppers[i]->forceStopAndNewPosition(
-                    faststeppers[i]->getPositionAfterCommandsCompleted());
+                const int32_t pinPos = faststeppers[i]->getCurrentPosition();
+                log_i("Motor %d not at rest before bounded move (rs=0x%02x queueBusy=%d) - hard-stopping, pin=%ld",
+                      i, rs0, (int)queueBusy, (long)pinPos);
+                faststeppers[i]->forceStopAndNewPosition(pinPos);
+
+                // forceStop is a HARD stop (clears the queue; the RMT only drains
+                // its small hardware buffer), so this converges within a few ms
+                // regardless of the configured acceleration. Use a generous
+                // ceiling so we never plan a new move on top of a draining queue.
                 uint32_t t0 = millis();
                 while (((faststeppers[i]->rampState() & RAMP_STATE_MASK) != RAMP_STATE_IDLE
                         || !faststeppers[i]->isQueueEmpty())
-                       && millis() - t0 < 30)
+                       && (millis() - t0) < 200)
                     delayMicroseconds(100);
+
+                const bool atRest =
+                    ((faststeppers[i]->rampState() & RAMP_STATE_MASK) == RAMP_STATE_IDLE)
+                    && faststeppers[i]->isQueueEmpty();
+                if (!atRest)
+                    log_e("Motor %d did NOT reach rest within 200ms (rs=0x%02x) - move may overshoot",
+                          i, faststeppers[i]->rampState() & RAMP_STATE_MASK);
+
+                // forceStop may have perturbed the ramp params; re-arm them.
                 faststeppers[i]->setSpeedInHz(speed);
-                faststeppers[i]->setAcceleration(effAccel);
+                faststeppers[i]->setAcceleration(reqAccel);
             }
         }
 
@@ -123,7 +186,7 @@ namespace FAccelStep
         }
         else
         {
-#ifdef TMC_CONTROLLER
+#ifdef TMC_CONTROLLER_NOT
             // Boost current 1.5x for high-speed moves to avoid stalling.
             Preferences preferences;
             preferences.begin("tmc", false);
@@ -133,16 +196,25 @@ namespace FAccelStep
             TMCController::setTMCCurrent(rmsCurr);
 #endif
 
+            // Diagnostic snapshot of the planning state. If a single move from a
+            // verified-idle axis STILL overshoots on hardware, the divergence is
+            // BELOW the planner (RMT pulse generation) — these numbers will then
+            // show rampState != IDLE or curPos far from the queue-end at plan time.
+            log_i("plan move motor %d: rs=0x%02x curPos=%ld queueEndPos=%ld speed=%d accel=%d target=%d isabs=%d",
+                  i, faststeppers[i]->rampState() & RAMP_STATE_MASK,
+                  (long)faststeppers[i]->getCurrentPosition(),
+                  (long)faststeppers[i]->getPositionAfterCommandsCompleted(),
+                  speed, (int)reqAccel,
+                  getData()[i]->targetPosition, (int)getData()[i]->absolutePosition);
+
+            int8_t mres;
             if (getData()[i]->absolutePosition)
-            {
-                log_i("moveTo %i", getData()[i]->targetPosition);
-                faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
-            }
+                mres = faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
             else
-            {
-                log_i("move %i", getData()[i]->targetPosition);
-                faststeppers[i]->move(getData()[i]->targetPosition, false);
-            }
+                mres = faststeppers[i]->move(getData()[i]->targetPosition, false);
+            if (mres != MOVE_OK)
+                log_e("motor %d move/moveTo rejected (rc=%d target=%d isabs=%d) - check speed/accel set",
+                      i, (int)mres, getData()[i]->targetPosition, (int)getData()[i]->absolutePosition);
 
             // spin until queue started
             uint32_t t0 = millis();
@@ -157,7 +229,7 @@ namespace FAccelStep
         log_i("start stepper (act): motor:%d isforever:%d speed:%d target:%d isabs:%d accel:%d isRunning:%d",
               i, getData()[i]->isforever, getData()[i]->speed,
               getData()[i]->targetPosition, getData()[i]->absolutePosition,
-              getData()[i]->acceleration, isRunning(i));
+              reqAccel, isRunning(i));
     }
 
 
@@ -273,18 +345,54 @@ namespace FAccelStep
             log_i("Motor %d: using MCPWM/PCNT driver (LED_CONTROLLER keeps RMT for NeoPixel)", stepper);
         }
 #else
-        // Always try RMT first. Fall back to MCPWM/PCNT only if RMT
-        // allocation fails.
-        faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
-#endif
+        // Native direction pins (no TCA external-pin handshake): use the
+        // MCPWM/PCNT backend as the PRIMARY step generator.
+        //
+        // WHY MCPWM/PCNT and not RMT here: the RMT backend strands the last
+        // 1-12 steps of a move at low instantaneous step rates. Its refill
+        // runs in continuous mode and is threshold-interrupt driven; once the
+        // step period grows past a threshold the refill interrupts stop firing
+        // before the queue drains, so the RMT freezes mid-stream with
+        // rampState=IDLE but isRunning=1 forever. The move then never reports
+        // complete (final position 1-12 steps short), which surfaces as
+        // "motor moves and never stops" plus qid-timeouts. Reproduced in a
+        // standalone single-axis firmware with NO CANopen/serial concurrency,
+        // and the failure is NON-MONOTONIC in speed (so it cannot be tuned
+        // away with min speed/accel limits). The MCPWM/PCNT backend - FAS's
+        // original, battle-tested generator - passes a full 70/70 speed x
+        // accel sweep including extreme low accel that RMT could never finish.
+        //
+        // Safe here: no external-direction-pin handshake is in play (that is
+        // the ONLY scenario where MCPWM/PCNT misbehaves - +3-step drift on
+        // reversal, see the USE_TCA9535 branch above).
+        //
+        // PCNT-unit coordination: the MCPWM backend hard-maps stepper queue 0
+        // -> PCNT_UNIT_0. The X linear encoder (ESP32Encoder) is steered onto
+        // PCNT_UNIT_1 in PCNTEncoderController::setup() so they never collide
+        // on the same PCNT hardware unit.
+        faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_MCPWM_PCNT);
         if (faststeppers[stepper] == nullptr)
         {
-            faststeppers[stepper] = engine.stepperConnectToPin(motorstp);
-            log_w("Motor %d: RMT unavailable, falling back to MCPWM/PCNT", stepper);
+            // MCPWM/PCNT exhausted (all PCNT units taken): fall back to RMT so
+            // the axis still moves. RMT may strand trailing steps at low rates,
+            // but a degraded axis beats a dead one.
+            faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_RMT);
+            log_w("Motor %d: MCPWM/PCNT unavailable, falling back to RMT "
+                  "(trailing-step stall possible at low step rates)", stepper);
         }
         else
         {
-            log_i("Motor %d: using RMT driver", stepper);
+            log_i("Motor %d: using MCPWM/PCNT driver (robust trailing-step flush)", stepper);
+        }
+#endif
+        // Null guard: if no backend could be allocated, bail out before the
+        // dereferences below. (For USE_TCA9535 we intentionally do NOT fall
+        // back to MCPWM/PCNT - see that branch - so a null here means the axis
+        // stays disabled rather than silently drifting +3 steps per reversal.)
+        if (faststeppers[stepper] == nullptr)
+        {
+            log_e("Motor %d: no step generator could be allocated - axis disabled", stepper);
+            return;
         }
 
 

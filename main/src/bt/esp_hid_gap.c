@@ -30,6 +30,13 @@ static size_t num_bt_scan_results = 0;
 static esp_hid_scan_result_t *ble_scan_results = NULL;
 static size_t num_ble_scan_results = 0;
 
+// Mode the controller was actually initialised in (set by esp_hid_gap_init).
+// Used by esp_hid_scan() so we only attempt the transports we actually
+// brought up — esp_hid_scan() previously called start_ble_scan()
+// unconditionally whenever CONFIG_BT_BLE_ENABLED was set, which would
+// fail (and short-circuit the BT scan) on BT-classic-only builds.
+static uint8_t s_init_mode = 0;
+
 static SemaphoreHandle_t bt_hidh_cb_semaphore = NULL;
 #define WAIT_BT_CB() xSemaphoreTake(bt_hidh_cb_semaphore, portMAX_DELAY)
 #define SEND_BT_CB() xSemaphoreGive(bt_hidh_cb_semaphore)
@@ -804,6 +811,7 @@ esp_err_t esp_hid_gap_init(uint8_t mode)
         return ret;
     }
 
+    s_init_mode = mode;
     return ESP_OK;
 }
 
@@ -815,18 +823,22 @@ esp_err_t esp_hid_scan(uint32_t seconds, size_t *num_results, esp_hid_scan_resul
     }
 
 #if CONFIG_BT_BLE_ENABLED
-    if (start_ble_scan(seconds) == ESP_OK) {
-        WAIT_BLE_CB();
-    } else {
-        return ESP_FAIL;
+    if (s_init_mode & ESP_BT_MODE_BLE) {
+        if (start_ble_scan(seconds) == ESP_OK) {
+            WAIT_BLE_CB();
+        } else {
+            return ESP_FAIL;
+        }
     }
 #endif /* CONFIG_BT_BLE_ENABLED */
 
 #if CONFIG_BT_HID_HOST_ENABLED
-    if (start_bt_scan(seconds) == ESP_OK) {
-        WAIT_BT_CB();
-    } else {
-        return ESP_FAIL;
+    if (s_init_mode & ESP_BT_MODE_CLASSIC_BT) {
+        if (start_bt_scan(seconds) == ESP_OK) {
+            WAIT_BT_CB();
+        } else {
+            return ESP_FAIL;
+        }
     }
 #endif
 

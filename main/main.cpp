@@ -535,11 +535,8 @@ extern "C" void setupApp(void)
 		DialController::setup();
 	}
 #endif
-#ifdef FAN_CONTROLLER
-	if (runtimeConfig.fan) {
-		FanController::setup();
-	}
-#endif
+	// FanController::setup() runs later, AFTER Tmp102Controller::setup()
+	// (which is responsible for Wire.begin() on the canopen-master build).
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif

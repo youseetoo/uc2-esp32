@@ -401,12 +401,19 @@ namespace BtController
         // IMPORTANT: Pass non-null parameter (1) to indicate it's running as a task
         // This prevents vTaskDelete from being skipped and ensures proper task cleanup
         // Stack size 8192 is needed for BT scanning operations
+        // Check available heap memory before scanning
+        size_t free_heap = esp_get_free_heap_size();
+        log_i( "Free heap before BT scan: %d bytes", free_heap);
+        
+        log_i("Starting BT scan task");
         xTaskCreate(hid_demo_task, "hid_demo_task", 8192, (void*)1, 6, NULL);
         
         cJSON *root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "status", "scan_started");
         cJSON_AddStringToObject(root, "message", "Bluetooth device scan started in background");
         return root;
+#else
+        log_i("BT scanning not supported on this device");
 #endif
         return NULL;
     }
@@ -582,8 +589,14 @@ namespace BtController
     {
 #ifdef BTHID
         esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+#ifdef UC2_FORCE_BT_CLASSIC_ONLY
+        bt_cfg.mode = ESP_BT_MODE_CLASSIC_BT;
+        esp_bt_controller_init(&bt_cfg);
+        esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT);
+#else
         esp_bt_controller_init(&bt_cfg);
         esp_bt_controller_enable(ESP_BT_MODE_BTDM);
+#endif
 
         // Get the maximum number of paired devices
         int num_devices = esp_bt_gap_get_bond_device_num();

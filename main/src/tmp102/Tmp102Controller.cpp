@@ -72,12 +72,18 @@ namespace Tmp102Controller
 
     void setup()
     {
-        // Wire.begin() is performed by i2c_master::setup() before us — we just
-        // talk to the existing bus.
+        // Ensure the I2C bus is up. On boards that compile i2c_master.cpp the
+        // call has already been made and re-issuing it is a no-op once a
+        // matching configuration is in place. On the CAN-HAT master build the
+        // master-side I2C scanner is not compiled, so this call is the only
+        // Wire.begin() in the system. The MCP4017 and TMP102 share this bus.
+        Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+
         bool okPcb = configureSensor(ADDR_PCB);
         bool okAir = configureSensor(ADDR_AIR);
         initialized = true;
-        log_i("Tmp102Controller setup: pcb_cfg=%d air_cfg=%d", okPcb, okAir);
+        log_i("Tmp102Controller setup: pcb_cfg=%d air_cfg=%d (SDA=%d, SCL=%d)",
+              okPcb, okAir, pinConfig.I2C_SDA, pinConfig.I2C_SCL);
     }
 
     void loop()

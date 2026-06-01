@@ -663,6 +663,19 @@ extern "C" void setupApp(void)
 		HeatController::setup();
 	}
 #endif
+#ifdef TMP102_CONTROLLER
+	// MUST run before FanController::setup() because Tmp102Controller::setup()
+	// is the one that calls Wire.begin() on the canopen-master build (where
+	// i2c_master.cpp is not compiled).
+	if (runtimeConfig.fan) {
+		Tmp102Controller::setup();
+	}
+#endif
+#ifdef FAN_CONTROLLER
+	if (runtimeConfig.fan) {
+		FanController::setup();
+	}
+#endif
 #ifdef GALVO_CONTROLLER
 	if (runtimeConfig.galvo) {
 		GalvoController::setup();

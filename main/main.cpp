@@ -535,6 +535,11 @@ extern "C" void setupApp(void)
 		DialController::setup();
 	}
 #endif
+#ifdef FAN_CONTROLLER
+	if (runtimeConfig.fan) {
+		FanController::setup();
+	}
+#endif
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif

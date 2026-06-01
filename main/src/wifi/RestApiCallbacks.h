@@ -187,4 +187,14 @@ namespace RestApi
     esp_err_t DS18B20_getESP(httpd_req_t *req);
     esp_err_t DS18B20_actESP(httpd_req_t *req);
 #endif
+
+#ifdef TMP102_CONTROLLER
+    esp_err_t Temp_getESP(httpd_req_t *req);
+    esp_err_t Temp_actESP(httpd_req_t *req);
+#endif
+
+#ifdef FAN_CONTROLLER
+    esp_err_t Fan_actESP(httpd_req_t *req);
+    esp_err_t Fan_getESP(httpd_req_t *req);
+#endif
 };

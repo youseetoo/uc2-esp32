@@ -117,6 +117,12 @@ CANopenModule canopenModule;
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
 #endif
+#ifdef TMP102_CONTROLLER
+#include "src/tmp102/Tmp102Controller.h"
+#endif
+#ifdef FAN_CONTROLLER
+#include "src/fan/FanController.h"
+#endif
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"
 #endif
@@ -276,6 +282,16 @@ extern "C" void looper(void *p)
 		if (runtimeConfig.heat) {
 			HeatController::loop();
 			vTaskDelay(1);
+		}
+#endif
+#ifdef TMP102_CONTROLLER
+		if (runtimeConfig.fan) {
+			Tmp102Controller::loop();
+		}
+#endif
+#ifdef FAN_CONTROLLER
+		if (runtimeConfig.fan) {
+			FanController::loop();
 		}
 #endif
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)

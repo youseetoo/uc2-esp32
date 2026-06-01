@@ -396,6 +396,12 @@ struct PinConfig
      // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
 
+     // Case-fan control (MCP4017T-503E digital rheostat over I2C + Noctua tacho)
+     // FAN_TACHO_PIN is the open-drain tacho line from the fan -> ESP32 GPIO.
+     // I2C_ADDR_MCP4017 is the wiper chip on the panelboard regulating fan voltage.
+     int8_t FAN_TACHO_PIN = disabled;
+     static constexpr uint8_t I2C_ADDR_MCP4017 = 0x2F;
+
      // CAN
      int8_t CAN_TX = 5;
      int8_t CAN_RX = 44;

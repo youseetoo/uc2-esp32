@@ -30,6 +30,7 @@ struct RuntimeConfig {
     bool dial        = false;
     bool objective   = false;
     bool heat        = false;
+    bool fan         = false; // MCP4017-controlled case fan + TMP102 sensors
 
     // CAN role
     NodeRole canRole = NodeRole::STANDALONE;

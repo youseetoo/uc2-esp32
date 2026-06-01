@@ -118,6 +118,14 @@ __attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act
 __attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
 #endif
 
+// Chassis-cooling endpoints (TMP102 + MCP4017 + tacho).
+#if defined(FAN_CONTROLLER) || defined(TMP102_CONTROLLER)
+__attribute__ ((unused)) static const  char* temp_get_endpoint = "/temp_get";
+__attribute__ ((unused)) static const  char* temp_act_endpoint = "/temp_act";
+__attribute__ ((unused)) static const  char* fan_act_endpoint  = "/fan_act";
+__attribute__ ((unused)) static const  char* fan_get_endpoint  = "/fan_get";
+#endif
+
 // Routing table inspection/override (CANopen builds)
 __attribute__ ((unused)) static const  char* route_get_endpoint = "/route_get";
 __attribute__ ((unused)) static const  char* route_set_endpoint = "/route_set";

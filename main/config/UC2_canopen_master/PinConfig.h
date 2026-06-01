@@ -21,6 +21,8 @@
 #define DAC_CONTROLLER
 #define CAN_CONTROLLER_CANOPEN
 #define LASER_CONTROLLER
+#define FAN_CONTROLLER
+#define TMP102_CONTROLLER
 
 struct UC2_canopen_master : PinConfig
 {
@@ -110,8 +112,13 @@ struct UC2_canopen_master : PinConfig
     int8_t CAMERA_TRIGGER_PIN = CAM_IO0_IN;
     bool   CAMERA_TRIGGER_INVERTED = false;
 
-    // Panelboard fan tachometer (available on connector; route to ESP if populated)
-    int8_t FAN_TACHO_PIN = disabled;
+    // Panelboard fan tachometer — Noctua-style open-drain pulse on the panelboard
+    // header (J1901 pin 7). Two pulses per revolution. Internal pull-up; the fan
+    // pulls LOW each rotation.
+    int8_t FAN_TACHO_PIN = GPIO_NUM_33;
+
+    // MCP4017T-503E digital rheostat on the panelboard at I2C addr 0x2F controls
+    // the case-fan voltage (defined as a constexpr in PinConfigDefault.h).
 
     // ---------------------------------------------------------------------
     // Motors / encoders (directions preserved; step/dir/ena via expander on this rev)

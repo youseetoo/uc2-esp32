@@ -480,6 +480,32 @@ void EspHttpsServer::start_webserver()
     httpd_register_uri_handler(server, &dsb_get);
 #endif
 
+#ifdef TMP102_CONTROLLER
+    httpd_uri_t temp_get = {
+        .uri = temp_get_endpoint,
+        .method = HTTP_GET,
+        .handler = RestApi::Temp_getESP};
+    httpd_register_uri_handler(server, &temp_get);
+    httpd_uri_t temp_act = {
+        .uri = temp_act_endpoint,
+        .method = HTTP_POST,
+        .handler = RestApi::Temp_actESP};
+    httpd_register_uri_handler(server, &temp_act);
+#endif
+
+#ifdef FAN_CONTROLLER
+    httpd_uri_t fan_act = {
+        .uri = fan_act_endpoint,
+        .method = HTTP_POST,
+        .handler = RestApi::Fan_actESP};
+    httpd_register_uri_handler(server, &fan_act);
+    httpd_uri_t fan_get = {
+        .uri = fan_get_endpoint,
+        .method = HTTP_GET,
+        .handler = RestApi::Fan_getESP};
+    httpd_register_uri_handler(server, &fan_get);
+#endif
+
 #ifdef WIFI
     httpd_uri_t wifi_get = {
         .uri = scanwifi_endpoint,

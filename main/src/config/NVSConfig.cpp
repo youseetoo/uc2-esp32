@@ -139,6 +139,12 @@ RuntimeConfig runtimeConfig;
   #define DEFAULT_HEAT false
 #endif
 
+#if defined(FAN_CONTROLLER) || defined(TMP102_CONTROLLER)
+  #define DEFAULT_FAN true
+#else
+  #define DEFAULT_FAN false
+#endif
+
 // CAN role default
 #if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
   #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_MASTER)
@@ -178,6 +184,7 @@ void NVSConfig::loadConfig()
     runtimeConfig.dial       = prefs.getBool("dial",       DEFAULT_DIAL);
     runtimeConfig.objective  = prefs.getBool("objective",  DEFAULT_OBJECTIVE);
     runtimeConfig.heat       = prefs.getBool("heat",       DEFAULT_HEAT);
+    runtimeConfig.fan        = prefs.getBool("fan",        DEFAULT_FAN);
 
     runtimeConfig.canRole      = (NodeRole)prefs.getUChar("canRole",   DEFAULT_CAN_ROLE);
     // Default canNodeId comes from the board's PinConfig (CAN_ID_CURRENT).
@@ -228,6 +235,7 @@ void NVSConfig::saveConfig()
     prefs.putBool("dial",       runtimeConfig.dial);
     prefs.putBool("objective",  runtimeConfig.objective);
     prefs.putBool("heat",       runtimeConfig.heat);
+    prefs.putBool("fan",        runtimeConfig.fan);
 
     prefs.putUChar("canRole",   (uint8_t)runtimeConfig.canRole);
     prefs.putUChar("canNodeId",  runtimeConfig.canNodeId);
@@ -273,6 +281,7 @@ cJSON* NVSConfig::toJson()
     cJSON_AddBoolToObject(json, "dial",       runtimeConfig.dial);
     cJSON_AddBoolToObject(json, "objective",  runtimeConfig.objective);
     cJSON_AddBoolToObject(json, "heat",       runtimeConfig.heat);
+    cJSON_AddBoolToObject(json, "fan",        runtimeConfig.fan);
 
     cJSON_AddNumberToObject(json, "canRole",      (int)runtimeConfig.canRole);
     cJSON_AddNumberToObject(json, "canNodeId",    runtimeConfig.canNodeId);
@@ -349,6 +358,9 @@ void NVSConfig::fromJson(cJSON* json)
 
     item = cJSON_GetObjectItemCaseSensitive(json, "heat");
     if (item && cJSON_IsBool(item)) runtimeConfig.heat = cJSON_IsTrue(item);
+
+    item = cJSON_GetObjectItemCaseSensitive(json, "fan");
+    if (item && cJSON_IsBool(item)) runtimeConfig.fan = cJSON_IsTrue(item);
 
     item = cJSON_GetObjectItemCaseSensitive(json, "canRole");
     if (item && cJSON_IsNumber(item)) {

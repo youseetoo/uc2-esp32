@@ -76,6 +76,12 @@
 #include "../heat/HeatController.h"
 #include "../heat/DS18b20Controller.h"
 #endif
+#ifdef TMP102_CONTROLLER
+#include "../tmp102/Tmp102Controller.h"
+#endif
+#ifdef FAN_CONTROLLER
+#include "../fan/FanController.h"
+#endif
 
 namespace SerialProcess
 {
@@ -764,6 +770,18 @@ namespace SerialProcess
 			serialize(DS18b20Controller::get(jsonDocument));
 		else if (runtimeConfig.heat && strcmp(task, ds18b20_act_endpoint) == 0)
 			serialize(DS18b20Controller::act(jsonDocument));
+#endif
+#ifdef TMP102_CONTROLLER
+		else if (runtimeConfig.fan && strcmp(task, temp_get_endpoint) == 0)
+			serialize(Tmp102Controller::get(jsonDocument));
+		else if (runtimeConfig.fan && strcmp(task, temp_act_endpoint) == 0)
+			serialize(Tmp102Controller::act(jsonDocument));
+#endif
+#ifdef FAN_CONTROLLER
+		else if (runtimeConfig.fan && strcmp(task, fan_act_endpoint) == 0)
+			serialize(FanController::act(jsonDocument));
+		else if (runtimeConfig.fan && strcmp(task, fan_get_endpoint) == 0)
+			serialize(FanController::get(jsonDocument));
 #endif
 		else if (strcmp(task, qid_state_endpoint) == 0)
 			serialize(QidRegistry::handleQidStateQuery(jsonDocument));

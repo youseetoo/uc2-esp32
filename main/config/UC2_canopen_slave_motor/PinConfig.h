@@ -84,7 +84,7 @@ struct UC2_canopen_slave_motor : PinConfig
      int tmc_microsteps =  16; //TODO: Verify if we can drive faster 
      int tmc_rms_current = 1400;
      int tmc_stall_value = 50;
-     int tmc_sgthrs = 5ß;
+     int tmc_sgthrs = 5;
      int tmc_semin = 0;
      int tmc_semax = 0;
      int tmc_sedn = 0;

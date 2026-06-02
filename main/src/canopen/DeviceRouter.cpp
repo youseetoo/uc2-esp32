@@ -366,9 +366,42 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 
 // ============================================================================
 // Motor get — routing-table dispatch
+//
+// Single source of truth: SDO-read each REMOTE axis at entry and write the
+// fresh value into both caches consumers will read (master's FocusMotor mirror
+// for the no-filter path that delegates to MotorJsonParser::get, and the
+// s_remoteSlaves TPDO cache for the filtered branch below). Without this the
+// caches lag any slave-side mutation that doesn't round-trip through the master
+// — most visibly homing (slave calls setPosition(0) in phase 6, the post-home
+// 0 takes up to one TPDO event-timer cycle (500 ms) to arrive) and direct
+// serial setpos issued on a slave's own console (never round-trips at all).
+// Cost is one SDO read per REMOTE axis (~10–30 ms each); acceptable for the
+// ~1 Hz polling cadence ImSwitch uses.
 // ============================================================================
 cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
+#ifdef CAN_CONTROLLER_CANOPEN
+    for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
+        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
+        if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+
+        uint8_t sub = (uint8_t)(route->subAxis + 1);
+        int32_t pos = 0;
+        size_t readSize = 0;
+        if (!CANopenModule::readSDO(route->nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
+                                    (uint8_t*)&pos, sizeof(pos), &readSize)
+            || readSize != sizeof(pos)) {
+            continue; // slave unresponsive — leave the cached value alone
+        }
+        MotorData* md = FocusMotor::getData()[logicalAx];
+        if (md) md->currentPosition = pos;
+        uint8_t slot = route->subAxis;
+        if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
+            CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
+        }
+    }
+#endif
+
     cJSON* motor = cJSON_GetObjectItem(doc, "motor");
     // Bare {"task":"/motor_get"} (no "motor" filter) → return all local axes
     // via the existing controller. Previously this was handled by the now-
@@ -407,7 +440,7 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             } else {
                 cJSON_AddNumberToObject(rs, "isDone", -1);
             }
-        } else { // REMOTE — read from TPDO cache (zero-copy, no SDO)
+        } else { // REMOTE — cache was refreshed via SDO at handleMotorGet entry
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t slot = route->subAxis;
             if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {

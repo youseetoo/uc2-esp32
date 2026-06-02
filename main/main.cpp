@@ -646,75 +646,77 @@ extern "C" void setupApp(void)
 	}
 	SignalController::setup();
 #endif
-	BuzzerController::setup();
 #ifdef MESSAGE_CONTROLLER
-	if (runtimeConfig.message) {
-		MessageController::setup();
-	}
+if (runtimeConfig.message) {
+	MessageController::setup();
+}
 #endif
 #ifdef PID_CONTROLLER
-	if (runtimeConfig.pid) {
-		PidController::setup();
-	}
+if (runtimeConfig.pid) {
+	PidController::setup();
+}
 #endif
 #ifdef SCANNER_CONTROLLER
-	if (runtimeConfig.scanner) {
-		ScannerController::setup();
-	}
+if (runtimeConfig.scanner) {
+	ScannerController::setup();
+}
 #endif
 #ifdef WIFI
-	if (runtimeConfig.wifi) {
-		WifiController::setup();
-	}
+if (runtimeConfig.wifi) {
+	WifiController::setup();
+}
 #endif
 #ifdef HEAT_CONTROLLER
-	if (runtimeConfig.heat) {
-		DS18b20Controller::setup();
-		HeatController::setup();
-	}
+if (runtimeConfig.heat) {
+	DS18b20Controller::setup();
+	HeatController::setup();
+}
 #endif
 #ifdef TMP102_CONTROLLER
-	// MUST run before FanController::setup() because Tmp102Controller::setup()
-	// is the one that calls Wire.begin() on the canopen-master build (where
-	// i2c_master.cpp is not compiled).
-	if (runtimeConfig.fan) {
-		Tmp102Controller::setup();
-	}
+// MUST run before FanController::setup() because Tmp102Controller::setup()
+// is the one that calls Wire.begin() on the canopen-master build (where
+// i2c_master.cpp is not compiled).
+if (runtimeConfig.fan) {
+	Tmp102Controller::setup();
+}
 #endif
 #ifdef FAN_CONTROLLER
 	if (runtimeConfig.fan) {
 		FanController::setup();
 	}
-#endif
-#ifdef GALVO_CONTROLLER
+	#endif
+	#ifdef GALVO_CONTROLLER
 	if (runtimeConfig.galvo) {
 		GalvoController::setup();
 	}
-#endif
-#ifdef ESPNOW_MASTER
+	#endif
+	#ifdef ESPNOW_MASTER
 	espnow_master::setup();
-#endif
+	#endif
 #ifdef ESPNOW_SLAVE_MOTOR
-	espnow_slave_motor::setup();
+espnow_slave_motor::setup();
 #endif
 
 #ifdef OTA_ON_STARTUP
 State::startOTA();
 #endif
 
-	// Build the routing table from pinConfig + runtimeConfig (all builds)
-	UC2::RoutingTable::buildDefault();
-	UC2::RoutingTable::logAll();
+// Build the routing table from pinConfig + runtimeConfig (all builds)
+UC2::RoutingTable::buildDefault();
+UC2::RoutingTable::logAll();
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
-	// DS4-over-USB-OTG → CANopen bridge. Spawns USB Host + HID Host tasks
-	// then a 100 Hz consumer that emits expedited SDO writes against the
-	// routes we just built. Must run AFTER RoutingTable::buildDefault().
-	JoystickUsbHost::begin();
-	JoystickRouter::begin();
+// DS4-over-USB-OTG → CANopen bridge. Spawns USB Host + HID Host tasks
+// then a 100 Hz consumer that emits expedited SDO writes against the
+// routes we just built. Must run AFTER RoutingTable::buildDefault().
+JoystickUsbHost::begin();
+JoystickRouter::begin();
 #endif
 
-	SerialProcess::safePrintln("{'setup':'done'}");
+//#ifdef BUZZER_CONTROLLER //TODO: We have to add this to the cmakelist.txt
+BuzzerController::setup();
+//#endif
+SerialProcess::safePrintln("{'setup':'done'}");
 }
 
 extern "C" void app_main(void)

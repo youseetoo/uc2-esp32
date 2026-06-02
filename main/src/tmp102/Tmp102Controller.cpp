@@ -27,6 +27,8 @@ namespace Tmp102Controller
     static float lastEspC = NAN;
     static uint32_t lastPollMs = 0;
     static bool initialized = false;
+    static bool pcbAvailable = false;
+    static bool airAvailable = false;
 
     // Configure a TMP102 for the default 12-bit, 4 Hz continuous-conversion
     // mode (CR1:CR0 = 10). POR value already does this, but writing it back
@@ -79,11 +81,15 @@ namespace Tmp102Controller
         // Wire.begin() in the system. The MCP4017 and TMP102 share this bus.
         Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 
-        bool okPcb = configureSensor(ADDR_PCB);
-        bool okAir = configureSensor(ADDR_AIR);
+        pcbAvailable = configureSensor(ADDR_PCB);
+        airAvailable = configureSensor(ADDR_AIR);
+        if (!pcbAvailable && !airAvailable) {
+            log_w("Tmp102Controller: no sensors found — polling disabled");
+            return;
+        }
         initialized = true;
-        log_i("Tmp102Controller setup: pcb_cfg=%d air_cfg=%d (SDA=%d, SCL=%d)",
-              okPcb, okAir, pinConfig.I2C_SDA, pinConfig.I2C_SCL);
+        log_i("Tmp102Controller setup: pcb=%d air=%d (SDA=%d, SCL=%d)",
+              pcbAvailable, airAvailable, pinConfig.I2C_SDA, pinConfig.I2C_SCL);
     }
 
     void loop()
@@ -93,8 +99,8 @@ namespace Tmp102Controller
         if ((now - lastPollMs) < POLL_INTERVAL_MS) return;
         lastPollMs = now;
 
-        lastPcbC = readSensor(ADDR_PCB);
-        lastAirC = readSensor(ADDR_AIR);
+        if (pcbAvailable) lastPcbC = readSensor(ADDR_PCB);
+        if (airAvailable) lastAirC = readSensor(ADDR_AIR);
 
         // ESP internal temperature: the raw reading is in 1°F units offset by
         // 32°F. Conversion: ((raw - 32) * 5/9). It drifts a lot but is OK as

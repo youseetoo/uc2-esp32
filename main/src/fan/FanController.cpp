@@ -191,6 +191,14 @@ namespace FanController
 
         initialized = true;
 
+        // Verify the chip is present before proceeding. If the quiet write
+        // fails we disable the module so loop() never polls a missing device.
+        if (!setWiper(WIPER_QUIET)) {
+            log_w("MCP4017 @ 0x%02X not present — FanController disabled", MCP4017_ADDR);
+            initialized = false;
+            return;
+        }
+
         // Startup blast — drive the fan full for a moment to confirm it
         // unsticks. We do this unconditionally so the user gets feedback
         // that the new control path works.

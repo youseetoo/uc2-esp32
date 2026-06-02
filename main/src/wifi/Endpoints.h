@@ -57,14 +57,13 @@ __attribute__ ((unused)) static const  char* dac_get_endpoint = "/dac_get";
 __attribute__ ((unused)) static const  char* analogout_act_endpoint = "/analogout_act";
 __attribute__ ((unused)) static const  char* analogout_get_endpoint = "/analogout_get";
 #endif
-#ifdef DIGITAL_OUT_CONTROLLER
+// Digital I/O endpoint strings are always defined — DeviceRouter routes
+// /digitalout_act / /digitalin_get on builds without a local
+// DIGITAL_*_CONTROLLER too (they forward to a remote GPIO slave via SDO).
 __attribute__ ((unused)) static const  char* digitalout_act_endpoint = "/digitalout_act";
 __attribute__ ((unused)) static const  char* digitalout_get_endpoint = "/digitalout_get";
-#endif
-#ifdef DIGITAL_IN_CONTROLLER
 __attribute__ ((unused)) static const  char* digitalin_act_endpoint = "/digitalin_act";
 __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitalin_get";
-#endif
 #ifdef LED_CONTROLLER
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";

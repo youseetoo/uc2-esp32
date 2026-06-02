@@ -28,6 +28,14 @@ public:
     static cJSON* handleTmcAct(cJSON* doc);
     static cJSON* handleTmcGet(cJSON* doc);
 
+    // Digital I/O act/get — LOCAL goes to DigitalOutController / DigitalInController,
+    // REMOTE writes OD x2301 (out) / reads OD x2300 (in) on the requested node.
+    // The "node" field in the JSON document, when present and we're a master,
+    // forces a REMOTE dispatch regardless of routing-table state.
+    static cJSON* handleDigitalOutAct(cJSON* doc);
+    static cJSON* handleDigitalOutGet(cJSON* doc);
+    static cJSON* handleDigitalInGet(cJSON* doc);
+
     // State act — currently only routes "restart" to a remote node when
     // "nodeId" is provided in the JSON; other state ops are handled locally.
     static cJSON* handleStateAct(cJSON* doc);

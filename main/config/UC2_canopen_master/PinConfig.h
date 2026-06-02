@@ -59,6 +59,12 @@ struct UC2_canopen_master : PinConfig
     uint8_t pinEmergencyExit = GPIO_NUM_34; // TODO: Implement such that if we sense that the emergency button was pressed that we immediately stop all motors and switch off all lights and heaters, etc. we should print out a message to the log as well {"Emergency stop activated! Shutting down all systems."}
     uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured 
 
+    // ── Remote GPIO/E-stop/collision slave (UC2_canopen_slave_gpio) ──────
+    // Setting this to a non-disabled node id activates the master's TPDO2
+    // sniffer (see CANopenModule::CAN_ctrl_task) — the slave's GPIO state
+    // changes get forwarded to serial as {"gpio":{...}} JSON lines.
+    int8_t MASTER_GPIO_SLAVE_NODE_ID = CAN_ID_GPIO_0; // = 60 by default
+
     // TEMPERATURE : TMP102AIDRLR
     // I2C  ADDR:
     // GND = 0x48

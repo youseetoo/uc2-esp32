@@ -629,28 +629,14 @@ namespace SerialProcess
 			serialize(DigitalInController::get(jsonDocument));
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_act_endpoint) == 0) {
-#ifdef CAN_CONTROLLER_CANOPEN
-			// Remote routing: {"task":"/digitalout_act","node":60,"digitaloutid":1,"digitaloutval":1}
-			// is forwarded to the GPIO slave at nodeId via SDO write to OD
-			// 0x2301 sub `digitaloutid`. Locally-handled cases (no "node"
-			// key) fall through to DigitalOutController::act as before.
-			cJSON* nodeIt = cJSON_GetObjectItemCaseSensitive(jsonDocument, "node");
-			if (runtimeConfig.isMaster() && nodeIt && cJSON_IsNumber(nodeIt)) {
-				uint8_t node = (uint8_t)nodeIt->valueint;
-				int id  = cJsonTool::getJsonInt(jsonDocument, "digitaloutid");
-				int val = cJsonTool::getJsonInt(jsonDocument, "digitaloutval");
-				bool ok = CANopenModule_setRemoteGpio(node, (uint8_t)id, val);
-				cJSON* resp = cJSON_CreateObject();
-				cJSON_AddNumberToObject(resp, "node", node);
-				cJSON_AddNumberToObject(resp, "digitaloutid", id);
-				cJSON_AddNumberToObject(resp, "digitaloutval", val);
-				cJSON_AddBoolToObject(resp, "ok", ok);
-				serialize(resp);
-			} else
-#endif
-				serialize(DigitalOutController::act(jsonDocument));
-		}
+		// digitalout_act / digitalout_get are now routed through DeviceRouter
+		// (see DeviceRouter::handleDigitalOutAct). DeviceRouter handles BOTH
+		// the local-pin path (calls DigitalOutController::act) and the
+		// remote-CAN path (SDO write to OD 0x2301 on the requested node).
+		// The cases here only run if DeviceRouter returned nullptr — i.e.
+		// the routing layer is disabled — so we keep the local fallback.
+		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_act_endpoint) == 0)
+			serialize(DigitalOutController::act(jsonDocument));
 		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_get_endpoint) == 0)
 			serialize(DigitalOutController::get(jsonDocument));
 #endif

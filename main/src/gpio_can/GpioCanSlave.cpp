@@ -205,20 +205,52 @@ namespace GpioCanSlave
         // --- Drive remote outputs -----------------------------------------
         updateOutputsFromOd();
 
-        // --- Trigger TPDO2 on any change ----------------------------------
-        bool changed =
-            (estop      != s_lastDigByte0) ||
-            (flags      != s_lastDigByte3) ||
-            (s_filtered != s_lastAdcFilt);
+        // --- Trigger TPDO2 only on edge changes ---------------------------
+        // We INTENTIONALLY exclude `s_filtered != s_lastAdcFilt` from this
+        // predicate. The filtered ADC value is in the payload (so the master
+        // sees the level at the moment the event fires), but it must not
+        // drive the send — otherwise every ADC sample becomes a CAN frame
+        // and the bus is flooded. The Schmitt-trigger inside the ADC block
+        // above is the only thing allowed to flip `s_trip`, which in turn
+        // sets bit 0 of `flags`, which is what triggers a send here.
+        //
+        // Edge sources we DO send on:
+        //   - E-stop digital level changed (estop byte)
+        //   - status flags byte changed (collision-trip enter/leave OR
+        //     E-stop bit). This catches both the resistance-threshold trip
+        //     and an E-stop press in one comparison.
+        // CANopenNode's own TPDO event-timer (x1801 sub 5 = 1000 ms) gives
+        // the master a periodic heartbeat regardless, so the master can
+        // distinguish "slave alive, idle" from "slave dropped off the bus".
+        bool edge =
+            (estop != s_lastDigByte0) ||
+            (flags != s_lastDigByte3);
 
-        if (changed) {
+        s_lastAdcFilt = s_filtered;  // tracked for diagnostic logging only
+
+        if (edge) {
+            uint8_t prevEstop = s_lastDigByte0;
+            uint8_t prevFlags = s_lastDigByte3;
             s_lastDigByte0 = estop;
             s_lastDigByte3 = flags;
-            s_lastAdcFilt  = s_filtered;
             if (CO != nullptr && CO->TPDO != nullptr) {
-                log_i("GpioCanSlave TPDO2 send (estop=%u flags=0x%02X filt=%u)",
-                      (unsigned)estop, (unsigned)flags, (unsigned)s_filtered);
+                log_i("GpioCanSlave TPDO2 send  estop %u->%u  flags 0x%02X->0x%02X  filt=%u  (trip=%d)",
+                      (unsigned)prevEstop, (unsigned)estop,
+                      (unsigned)prevFlags, (unsigned)flags,
+                      (unsigned)s_filtered, s_trip ? 1 : 0);
                 CO_TPDOsendRequest(&CO->TPDO[1]); // TPDO2 = index 1
+            }
+        } else {
+            // Periodic diagnostic — once every 5 s — so you can see the
+            // slave is reading ADC even though it isn't sending CAN frames.
+            static uint32_t s_lastDiagMs = 0;
+            uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
+            if ((nowMs - s_lastDiagMs) >= 5000) {
+                s_lastDiagMs = nowMs;
+                log_d("GpioCanSlave idle  estop=%u flags=0x%02X filt=%u raw=%u thr=%u trip=%d",
+                      (unsigned)estop, (unsigned)flags,
+                      (unsigned)s_filtered, (unsigned)raw,
+                      (unsigned)s_threshold, s_trip ? 1 : 0);
             }
         }
 #endif
@@ -234,9 +266,16 @@ namespace GpioCanSlave
     int act(cJSON* doc)
     {
         int qid = cJsonTool::getJsonInt(doc, "qid");
+        uint16_t prevThr = s_threshold;
         cJSON* thr = cJSON_GetObjectItemCaseSensitive(doc, "threshold");
         if (thr && cJSON_IsNumber(thr)) {
-            setThreshold((uint16_t)thr->valueint);
+            uint16_t newThr = (uint16_t)thr->valueint;
+            setThreshold(newThr);
+            log_i("GpioCanSlave act qid=%d threshold %u -> %u (filt=%u trip=%d)",
+                  qid, (unsigned)prevThr, (unsigned)newThr,
+                  (unsigned)s_filtered, s_trip ? 1 : 0);
+        } else {
+            log_i("GpioCanSlave act qid=%d (no-op: no 'threshold' field)", qid);
         }
         return qid;
     }

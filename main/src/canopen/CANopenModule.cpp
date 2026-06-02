@@ -155,17 +155,39 @@ static void forwardGpioSlaveTpdo(uint8_t nodeId, const uint8_t* d)
     bool trip  = (flags & 0x01) != 0;
     bool estopFlag = (flags & 0x02) != 0;
 
-    // Deduplicate identical frames so we don't spam serial when nothing
-    // changed (TPDO event-timer falls back to 1 s heartbeat).
-    static uint8_t  s_lastEstop = 0xFF, s_lastIn2 = 0xFF, s_lastIn3 = 0xFF;
-    static uint8_t  s_lastFlags = 0xFF;
-    static uint16_t s_lastAdcF  = 0xFFFF;
+    // Deduplicate so we only emit serial JSON on a *digital edge*.
+    //
+    // The slave's TPDO2 has a 1 s event-timer heartbeat (OD x1801 sub 5),
+    // and OD_RAM.x2310 is rewritten with the latest filtered ADC every loop
+    // tick. If we included `adcF` in the predicate, every heartbeat with the
+    // same digital state but a slightly different ADC reading would
+    // re-emit — which is exactly the "periodic updates we don't want"
+    // symptom the bench test showed.
+    //
+    // Dedup keys are the digital inputs and the flags byte only. The ADC
+    // values still ride in the JSON payload so downstream consumers see the
+    // ADC level at the moment of the edge, but a heartbeat that brings only
+    // a drifted ADC value goes silently into the bit bucket here.
+    static uint8_t s_lastEstop = 0xFF, s_lastIn2 = 0xFF, s_lastIn3 = 0xFF;
+    static uint8_t s_lastFlags = 0xFF;
     if (estop == s_lastEstop && in2 == s_lastIn2 && in3 == s_lastIn3 &&
-        flags == s_lastFlags && adcF == s_lastAdcF) {
+        flags == s_lastFlags) {
+        // Optional: heartbeat-rate log so we can confirm the slave is alive
+        // without flooding serial. Once every 10 s is plenty for diagnostics.
+        static uint32_t s_lastHbLogMs = 0;
+        uint32_t nowMs = millis();
+        if ((nowMs - s_lastHbLogMs) >= 10000) {
+            s_lastHbLogMs = nowMs;
+            log_d("gpio slave heartbeat  node=%u flags=0x%02X adc=%u (no edge, suppressed)",
+                  nodeId, (unsigned)flags, (unsigned)adcF);
+        }
         return;
     }
     s_lastEstop = estop; s_lastIn2 = in2; s_lastIn3 = in3;
-    s_lastFlags = flags; s_lastAdcF  = adcF;
+    s_lastFlags = flags;
+    log_i("gpio slave EDGE  node=%u estop=%u in2=%u in3=%u flags=0x%02X adc=%u",
+          nodeId, (unsigned)estop, (unsigned)in2, (unsigned)in3,
+          (unsigned)flags, (unsigned)adcF);
 
     cJSON* root = cJSON_CreateObject();
     if (!root) return;
@@ -1243,7 +1265,7 @@ cJSON* CANopenModule::act(cJSON* doc)
         static const UC2::RouteEntry::Type types[] = {
             UC2::RouteEntry::MOTOR, UC2::RouteEntry::LASER,
             UC2::RouteEntry::LED,   UC2::RouteEntry::GALVO,
-            UC2::RouteEntry::HOME,
+            UC2::RouteEntry::HOME,  UC2::RouteEntry::DIN,
         };
         for (auto t : types) {
             for (uint8_t lid = 0; lid < 4; lid++) {
@@ -1259,6 +1281,19 @@ cJSON* CANopenModule::act(cJSON* doc)
                 }
             }
         }
+        // Always add the GPIO slave if its node-id is configured, even when
+        // no DIN route is in the routing table (e.g. on masters that don't
+        // expose digital_in routing yet).
+        if (pinConfig.MASTER_GPIO_SLAVE_NODE_ID > 0) {
+            uint8_t gpioNid = (uint8_t)pinConfig.MASTER_GPIO_SLAVE_NODE_ID;
+            bool dup = false;
+            for (uint8_t i = 0; i < nSeen; i++) {
+                if (seen[i].nodeId == gpioNid) { dup = true; break; }
+            }
+            if (!dup && nSeen < (uint8_t)(sizeof(seen)/sizeof(seen[0]))) {
+                seen[nSeen++] = { gpioNid, UC2::RouteEntry::DIN };
+            }
+        }
         for (uint8_t i = 0; i < nSeen; i++) {
             cJSON* dev = cJSON_CreateObject();
             const char* tStr = "?";
@@ -1268,6 +1303,7 @@ cJSON* CANopenModule::act(cJSON* doc)
                 case UC2::RouteEntry::LED:   tStr = "led";   break;
                 case UC2::RouteEntry::GALVO: tStr = "galvo"; break;
                 case UC2::RouteEntry::HOME:  tStr = "home";  break;
+                case UC2::RouteEntry::DIN:   tStr = "gpio";  break;
                 default: break;
             }
             bool reachable = isNodeReachable(seen[i].nodeId);

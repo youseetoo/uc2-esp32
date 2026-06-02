@@ -4,6 +4,7 @@
 #include "DeviceRouter.h"
 #include <PinConfig.h>
 
+#include "../config/RuntimeConfig.h"
 #include "RoutingTable.h"
 #include "../wifi/Endpoints.h"
 #include "esp_log.h"
@@ -41,6 +42,13 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
+#ifdef DIGITAL_OUT_CONTROLLER
+#include "../digitalout/DigitalOutController.h"
+#endif
+#ifdef DIGITAL_IN_CONTROLLER
+#include "../digitalin/DigitalInController.h"
+#endif
+#include "cJsonTool.h"
 
 #include "../state/State.h"
 
@@ -90,6 +98,16 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
     if (strcmp(task, tmc_get_endpoint) == 0)
         return handleTmcGet(doc);
 #endif
+
+    // Digital I/O — always routed, even on builds without local DIGITAL_*_CONTROLLER.
+    // A master without a local DigitalOutController still needs to forward
+    // /digitalout_act to a remote GPIO slave; that's the primary use case.
+    if (strcmp(task, digitalout_act_endpoint) == 0)
+        return handleDigitalOutAct(doc);
+    if (strcmp(task, digitalout_get_endpoint) == 0)
+        return handleDigitalOutGet(doc);
+    if (strcmp(task, digitalin_get_endpoint) == 0)
+        return handleDigitalInGet(doc);
 
     // State act — handles "restart" with optional remote nodeId targeting.
     // state_get stays in SerialProcess for now (local State::get also serves
@@ -1309,3 +1327,121 @@ cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
     return OtaBinaryReceive::begin(nodeId, size, crc32);
 }
 #endif
+
+// ============================================================================
+// Digital I/O — LOCAL or REMOTE dispatch
+// ----------------------------------------------------------------------------
+// Request shape (act):
+//   {"task":"/digitalout_act","digitaloutid":1,"digitaloutval":1}            // LOCAL
+//   {"task":"/digitalout_act","node":60,"digitaloutid":1,"digitaloutval":1}  // REMOTE
+//   {"task":"/digitalout_act","node":60,"digitaloutid":2,"digitaloutval":-1} // REMOTE pulse
+// Request shape (get):
+//   {"task":"/digitalin_get","digitalinid":1}            // LOCAL
+//   {"task":"/digitalin_get","node":60,"digitalinid":1}  // REMOTE (SDO read x2300 sub N)
+// ============================================================================
+
+// Returns the node-id from doc->"node" if present + numeric, else 0.
+static uint8_t extractRemoteNode(cJSON* doc) {
+    if (!doc) return 0;
+    cJSON* it = cJSON_GetObjectItemCaseSensitive(doc, "node");
+    if (it && cJSON_IsNumber(it)) return (uint8_t)it->valueint;
+    return 0;
+}
+
+cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
+    uint8_t node = extractRemoteNode(doc);
+    // We use literal key strings here instead of the JsonKeys.h constants
+    // because those are gated behind #ifdef DIGITAL_OUT_CONTROLLER and the
+    // master build (which is the primary REMOTE forwarder) does NOT define
+    // DIGITAL_OUT_CONTROLLER. The keys themselves are stable JSON contract.
+    int id  = cJsonTool::getJsonInt(doc, "digitaloutid");
+    int val = cJsonTool::getJsonInt(doc, "digitaloutval");
+
+#ifdef CAN_CONTROLLER_CANOPEN
+    // REMOTE path: explicit "node" key on a master forces SDO forwarding.
+    if (runtimeConfig.isMaster() && node > 0) {
+        log_i("DR digitalout_act REMOTE  node=%u id=%d val=%d", node, id, val);
+        bool ok = CANopenModule_setRemoteGpio(node, (uint8_t)id, val);
+        if (!ok) {
+            log_w("DR digitalout_act REMOTE  node=%u id=%d val=%d -> SDO FAIL",
+                  node, id, val);
+        }
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "node", node);
+        cJSON_AddNumberToObject(resp, "digitaloutid", id);
+        cJSON_AddNumberToObject(resp, "digitaloutval", val);
+        cJSON_AddBoolToObject(resp, "ok", ok);
+        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+        if (qidItem && cJSON_IsNumber(qidItem))
+            cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
+        return resp;
+    }
+#endif
+
+    // LOCAL path: delegate to the controller. DigitalOutController::act
+    // returns an int (the qid), not cJSON — wrap it into a small response so
+    // callers still see {"qid":..., "ok":true} like the routed paths.
+#ifdef DIGITAL_OUT_CONTROLLER
+    if (runtimeConfig.digitalOut) {
+        log_i("DR digitalout_act LOCAL  id=%d val=%d", id, val);
+        int retQid = DigitalOutController::act(doc);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "digitaloutid", id);
+        cJSON_AddNumberToObject(resp, "digitaloutval", val);
+        cJSON_AddNumberToObject(resp, "qid", retQid);
+        cJSON_AddBoolToObject(resp, "ok", true);
+        return resp;
+    }
+#endif
+    log_w("DR digitalout_act: no LOCAL path (DIGITAL_OUT_CONTROLLER off) and no \"node\" routed");
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "error", "digitalout not available locally and no remote node specified");
+    cJSON_AddNumberToObject(resp, "digitaloutid", id);
+    cJSON_AddNumberToObject(resp, "digitaloutval", val);
+    return resp;
+}
+
+cJSON* DeviceRouter::handleDigitalOutGet(cJSON* doc) {
+    // We don't push x2301 OD reads remotely — outputs are write-only state on
+    // the slave's side anyway. So /digitalout_get always runs LOCAL when
+    // available, and returns an error otherwise.
+#ifdef DIGITAL_OUT_CONTROLLER
+    if (runtimeConfig.digitalOut)
+        return DigitalOutController::get(doc);
+#endif
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "error", "digitalout_get not available locally");
+    return resp;
+}
+
+cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
+    uint8_t node = extractRemoteNode(doc);
+    int id = cJsonTool::getJsonInt(doc, "digitalinid");
+
+#ifdef CAN_CONTROLLER_CANOPEN
+    if (runtimeConfig.isMaster() && node > 0) {
+        // SDO read OD 0x2300 sub `id` from the remote slave. id is 1-based to
+        // mirror the local API; sub 0 is the array length per CiA 301.
+        uint8_t v = 0; size_t got = 0;
+        bool ok = CANopenModule::readSDO(node, 0x2300, (uint8_t)id,
+                                         &v, sizeof(v), &got);
+        log_i("DR digitalin_get REMOTE  node=%u id=%d -> ok=%d val=%u",
+              node, id, ok, (unsigned)v);
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "node", node);
+        cJSON_AddNumberToObject(resp, "digitalinid", id);
+        cJSON_AddNumberToObject(resp, "digitalinval", ok ? v : 0);
+        cJSON_AddBoolToObject(resp, "ok", ok);
+        return resp;
+    }
+#endif
+
+#ifdef DIGITAL_IN_CONTROLLER
+    if (runtimeConfig.digitalIn)
+        return DigitalInController::get(doc);
+#endif
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "error", "digitalin_get not available locally and no remote node specified");
+    cJSON_AddNumberToObject(resp, "digitalinid", id);
+    return resp;
+}

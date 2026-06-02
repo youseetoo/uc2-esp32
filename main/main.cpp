@@ -101,6 +101,9 @@ Preferences preferences;
 #include "src/canopen/CANopenModule.h"
 CANopenModule canopenModule;
 #endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+#include "src/gpio_can/GpioCanSlave.h"
+#endif
 #include "src/canopen/RoutingTable.h"
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
@@ -303,6 +306,10 @@ extern "C" void looper(void *p)
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 		canopenModule.loop();
+#endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+		GpioCanSlave::loop();
+		vTaskDelay(1);
 #endif
 
 
@@ -525,6 +532,12 @@ extern "C" void setupApp(void)
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	can_controller::setup();
+#endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+	// Must run BEFORE canopenModule.setup() — it patches the TPDO2 COB-ID
+	// in OD_PERSIST_COMM so the CANopen stack picks the enabled value when
+	// it builds its TPDO descriptors.
+	GpioCanSlave::setup();
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 	canopenModule.setup();

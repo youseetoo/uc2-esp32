@@ -98,12 +98,16 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
         .eventTimer  = 0x01F4,           /* 500 ms */
         .SYNCStartValue = 0x00
     },
+    /* TPDO2 (0x1801): GPIO slave input push.
+     * Default COB-ID has bit 31 set (invalid) so motor/LED/galvo slaves never
+     * emit. The GPIO slave clears bit 31 at boot (see GpioCanSlave::setup)
+     * which activates the mapping below: 4x u8 digital input + 2x u16 analog. */
     .x1801_TPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x06,
         .COB_IDUsedByTPDO = 0xC0000280,
         .transmissionType = 0xFE,
-        .inhibitTime = 0x0000,
-        .eventTimer  = 0x05DC,
+        .inhibitTime = 0x0064,           /* 10 ms min gap */
+        .eventTimer  = 0x03E8,           /* 1000 ms heartbeat fallback */
         .SYNCStartValue = 0x00
     },
     .x1802_TPDOCommunicationParameter = {
@@ -126,7 +130,18 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
      * Slave writes all 4 sub-indices identically (single-motor slave); the master's
      * RPDOs pick the correct sub-index per slot.  Total payload = 5 bytes. */
     .x1A00_TPDOMappingParameter = { .n=2, .o1=0x20010120, .o2=0x20040108, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1A01_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    /* TPDO2 (used by GPIO slave): 4x digital input u8 + 2x analog input u16.
+     * Layout in 8 byte payload:
+     *   byte 0 = x2300 sub 1 (digital in 1, e.g. E-stop)
+     *   byte 1 = x2300 sub 2 (digital in 2)
+     *   byte 2 = x2300 sub 3 (digital in 3)
+     *   byte 3 = x2300 sub 4 (collision-threshold trip bit + flags)
+     *   byte 4..5 = x2310 sub 1 (analog in 1, raw u16)
+     *   byte 6..7 = x2310 sub 2 (analog in 2, raw u16) */
+    .x1A01_TPDOMappingParameter = { .n=6,
+        .o1=0x23000108, .o2=0x23000208, .o3=0x23000308, .o4=0x23000408,
+        .o5=0x23100110, .o6=0x23100210,
+        .o7=0, .o8=0 },
     .x1A02_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     .x1A03_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
 };

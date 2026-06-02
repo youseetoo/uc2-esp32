@@ -61,7 +61,7 @@ namespace BuzzerController
         log_i("BuzzerController setup on pin %d, channel %d", pinConfig.BUZZER_PIN, LEDC_CHANNEL);
 
         // Short power-on chirp so the user knows the buzzer works.
-        beep(1, 3000, 60, 0);
+        beep(1, 440, 60, 0);
         log_i("BuzzerController: Power-on chirp played");
     }
 

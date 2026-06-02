@@ -453,6 +453,9 @@ struct PinConfig
 
      uint8_t CAN_ID_GALVO_0 = 40;
 
+     // ── GPIO / sensor I/O slave (E-stop, collision-threshold, remote GPIOs) ──
+     uint8_t CAN_ID_GPIO_0 = 60;
+
      // ========================================================================
      // PER-DEVICE ROUTING OVERRIDES
      // ========================================================================
@@ -530,4 +533,29 @@ struct PinConfig
      int8_t pinEmergencyExit = disabled;
 
      uint8_t ESTOP_PIN = disabled;
+
+     // ── GPIO-CAN slave (UC2_canopen_slave_gpio) ──────────────────────────
+     // The GPIO slave is a small XIAO ESP32S3 node that:
+     //   - reports E-stop + collision-threshold trips to the master,
+     //   - exposes two remote-controllable digital outputs (GPIO1/GPIO4) to
+     //     the master via SDO writes on x2301_digital_output_command.
+     // GPIO_COLLISION_ADC is read on every loop; when its filtered value
+     // crosses GPIO_COLLISION_THRESHOLD_DEFAULT the slave sets bit 0 of
+     // x2300_digital_input_state[3] (the "flags" byte of TPDO2) and pushes
+     // a TPDO frame so the master can react.
+     // The threshold is overridable at runtime via NVS preference key
+     // "gpioCollThr" — see GpioCanSlave::setThreshold().
+     int8_t   GPIO_ESTOP_PIN              = disabled;     // digital in (E-stop button)
+     int8_t   GPIO_COLLISION_ADC          = disabled;     // analog in (resistive collision sensor)
+     uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT = 2048;    // raw ADC counts
+     uint16_t GPIO_COLLISION_HYSTERESIS   = 100;          // raw ADC counts
+     uint16_t GPIO_ADC_FILTER_ALPHA_X1024 = 128;          // EWMA alpha * 1024 (~0.125)
+     // Two slots driven by master via x2301_digital_output_command sub 1/2.
+     // Reuses pinConfig.DIGITAL_OUT_1 and DIGITAL_OUT_2 already in this struct.
+
+     // Master-side: CAN node-id of the GPIO slave the master forwards events
+     // for. Set to disabled (-1) on slave builds and on masters that have no
+     // GPIO slave wired. When non-disabled, the master sniffs the slave's
+     // TPDO2 (COB-ID 0x280 + nodeId) in CAN_ctrl_task and emits serial JSON.
+     int8_t   MASTER_GPIO_SLAVE_NODE_ID   = disabled;
 };

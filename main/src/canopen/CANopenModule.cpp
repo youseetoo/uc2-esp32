@@ -24,9 +24,12 @@
 // Constants are declared here for compile-time verification; not yet used in logic.
 #include "UC2_OD_Indices.h"
 
+// SerialProcess is needed by the GPIO-slave TPDO2 sniffer (master-only) as
+// well as the motor-completion path below, so it's hoisted out of the
+// MOTOR_CONTROLLER block.
+#include "../serial/SerialProcess.h"
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
-#include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #endif
 #ifdef HOME_MOTOR
@@ -131,6 +134,72 @@ CO_t* CO = NULL;
 static volatile CO_NMT_reset_cmd_t s_requestedReset = CO_RESET_NOT;
 
 // ============================================================================
+// GPIO-slave TPDO2 forwarder (master only)
+// ----------------------------------------------------------------------------
+// Decode the 8-byte payload pushed by the GPIO slave and emit a serial JSON
+// frame that downstream tools (ImSwitch, the PS4 bridge, …) already know how
+// to consume. The format intentionally mirrors what the slave would print
+// locally if /gpio_get were polled — only the transport differs.
+// ============================================================================
+static void forwardGpioSlaveTpdo(uint8_t nodeId, const uint8_t* d)
+{
+    if (!d) return;
+
+    uint8_t  estop  = d[0];
+    uint8_t  in2    = d[1];
+    uint8_t  in3    = d[2];
+    uint8_t  flags  = d[3];
+    uint16_t adcF   = (uint16_t)d[4] | ((uint16_t)d[5] << 8);
+    uint16_t adcR   = (uint16_t)d[6] | ((uint16_t)d[7] << 8);
+
+    bool trip  = (flags & 0x01) != 0;
+    bool estopFlag = (flags & 0x02) != 0;
+
+    // Deduplicate identical frames so we don't spam serial when nothing
+    // changed (TPDO event-timer falls back to 1 s heartbeat).
+    static uint8_t  s_lastEstop = 0xFF, s_lastIn2 = 0xFF, s_lastIn3 = 0xFF;
+    static uint8_t  s_lastFlags = 0xFF;
+    static uint16_t s_lastAdcF  = 0xFFFF;
+    if (estop == s_lastEstop && in2 == s_lastIn2 && in3 == s_lastIn3 &&
+        flags == s_lastFlags && adcF == s_lastAdcF) {
+        return;
+    }
+    s_lastEstop = estop; s_lastIn2 = in2; s_lastIn3 = in3;
+    s_lastFlags = flags; s_lastAdcF  = adcF;
+
+    cJSON* root = cJSON_CreateObject();
+    if (!root) return;
+    cJSON* gpio = cJSON_AddObjectToObject(root, "gpio");
+    if (gpio) {
+        cJSON_AddNumberToObject(gpio, "node",     nodeId);
+        cJSON_AddNumberToObject(gpio, "estop",    estop);
+        cJSON_AddNumberToObject(gpio, "in2",      in2);
+        cJSON_AddNumberToObject(gpio, "in3",      in3);
+        cJSON_AddNumberToObject(gpio, "flags",    flags);
+        cJSON_AddNumberToObject(gpio, "trip",     trip      ? 1 : 0);
+        cJSON_AddNumberToObject(gpio, "estopBit", estopFlag ? 1 : 0);
+        cJSON_AddNumberToObject(gpio, "adc",      adcF);
+        cJSON_AddNumberToObject(gpio, "adcRaw",   adcR);
+        char* s = cJSON_PrintUnformatted(root);
+        if (s) {
+            SerialProcess::safeSendJsonString(s);
+            free(s);
+        }
+    }
+    cJSON_Delete(root);
+}
+
+// Remote-set helper for GPIO1 / GPIO4 on the slave. id ∈ {1, 2} maps to the
+// slave's DIGITAL_OUT_1 / DIGITAL_OUT_2. Pass val = -1 to fire a brief pulse
+// (the slave treats 0xFF as the pulse sentinel).
+bool CANopenModule_setRemoteGpio(uint8_t nodeId, uint8_t id, int val)
+{
+    if (id < 1 || id > 2) return false;
+    uint8_t v = (val < 0) ? 0xFF : (uint8_t)(val ? 1 : 0);
+    return CANopenModule::writeSDO_u8(nodeId, 0x2301, id, v);
+}
+
+// ============================================================================
 // CAN controller task — manages TWAI driver, TX/RX queues, error recovery
 // (Preserved from MWE with pinConfig-based GPIO)
 // ============================================================================
@@ -205,6 +274,20 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                         (fc == 0x180 || fc == 0x280 || fc == 0x380 ||
                          fc == 0x480 || fc == 0x580 || fc == 0x700)) {
                         s_nodeLastSeenMs[src] = millis();
+                    }
+
+                    // ── GPIO-slave TPDO2 sniffer (master only) ───────────
+                    // The master's four RPDOs are saturated by motor slots,
+                    // so the GPIO slave's TPDO2 is consumed by a direct
+                    // TWAI hook instead. Payload layout matches OD x1A01
+                    // (4x u8 digital + 2x u16 analog).
+                    if (runtimeConfig.isMaster() &&
+                        pinConfig.MASTER_GPIO_SLAVE_NODE_ID > 0 &&
+                        fc == 0x280 &&
+                        src == (uint8_t)pinConfig.MASTER_GPIO_SLAVE_NODE_ID &&
+                        rx_message.data_length_code >= 8)
+                    {
+                        forwardGpioSlaveTpdo(src, rx_message.data);
                     }
                 }
                 xQueueSend(CAN_RX_queue, (void*)&rx_message, 10);

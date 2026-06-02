@@ -104,4 +104,9 @@ private:
 // Global CANopenNode object (same pattern as MWE)
 extern CO_t* CO;
 
+// Remote-GPIO helper — master writes x2301 sub `id` (1 or 2) of the GPIO
+// slave at nodeId. val ≥ 0 sets the pin level; val < 0 fires a brief pulse.
+// Returns true on SDO success.
+bool CANopenModule_setRemoteGpio(uint8_t nodeId, uint8_t id, int val);
+
 #endif // CAN_CONTROLLER_CANOPEN

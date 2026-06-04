@@ -37,10 +37,10 @@ namespace FAccelStep
         }
         int speed = abs(getData()[i]->speed);
 
-        // clamp speed to 80000
-        if (speed > 80000) {
+        // clamp speed to 100000
+        if (speed > 100000) {
             log_w("Clamping speed %d -> 80000 on motor %d", speed, i);
-            speed = 80000;
+            speed = 100000;
         }
         if (faststeppers[i]->setSpeedInHz(speed) != 0)
             log_w("setSpeedInHz(%d) rejected on motor %d", speed, i);

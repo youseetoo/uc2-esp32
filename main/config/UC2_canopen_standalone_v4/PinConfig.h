@@ -31,6 +31,9 @@ DIP Switch Configuration:
 #define LASER_CONTROLLER
 #define DIGITAL_IN_CONTROLLER 
 #define LED_CONTROLLER
+#define UC2_FORCE_BT_CLASSIC_ONLY=1
+#define BTHID=1
+#define BLUETOOTH=1
 
 // Extend motor count to include CAN satellites
 #undef MOTOR_AXIS_COUNT

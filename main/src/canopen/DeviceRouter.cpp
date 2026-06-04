@@ -368,15 +368,22 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 // Motor get — routing-table dispatch
 //
 // Single source of truth: SDO-read each REMOTE axis at entry and write the
-// fresh value into both caches consumers will read (master's FocusMotor mirror
-// for the no-filter path that delegates to MotorJsonParser::get, and the
-// s_remoteSlaves TPDO cache for the filtered branch below). Without this the
-// caches lag any slave-side mutation that doesn't round-trip through the master
-// — most visibly homing (slave calls setPosition(0) in phase 6, the post-home
-// 0 takes up to one TPDO event-timer cycle (500 ms) to arrive) and direct
-// serial setpos issued on a slave's own console (never round-trips at all).
-// Cost is one SDO read per REMOTE axis (~10–30 ms each); acceptable for the
-// ~1 Hz polling cadence ImSwitch uses.
+// fresh value into every location the read paths and the TPDO consumer touch
+// (OD_RAM, s_remoteSlaves, master's FocusMotor mirror). Without this the caches
+// lag any slave-side mutation that doesn't round-trip through the master —
+// most visibly homing (slave calls setPosition(0) in phase 6, the post-home 0
+// takes up to one TPDO event-timer cycle (500 ms) to arrive) and direct serial
+// setpos issued on a slave's own console (never round-trips at all). Cost is
+// one SDO read per REMOTE axis (~10–30 ms each); acceptable for the ~1 Hz
+// polling cadence ImSwitch uses.
+//
+// Why we also write OD_RAM (not just the cache + mirror): syncRpdoToModules_master
+// runs every 1 ms on CO_tmr_task and diffs OD_RAM.x2001[slot] against
+// s_remoteSlaves[slot].motorPosition. If they differ it clobbers the cache (and
+// md->currentPosition) with the OD_RAM value. Writing only the cache leaves a
+// race where the next tick reverts our fresh SDO value to whatever stale TPDO
+// data sits in OD_RAM. Writing OD_RAM first means a tick firing mid-loop sees
+// matching state and skips.
 // ============================================================================
 cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
@@ -391,14 +398,21 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
         if (!CANopenModule::readSDO(route->nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
                                     (uint8_t*)&pos, sizeof(pos), &readSize)
             || readSize != sizeof(pos)) {
+            log_i("Failed to read position SDO for node 0x%02X axis %u",
+                  route->nodeId, route->subAxis);
             continue; // slave unresponsive — leave the cached value alone
+        }
+
+        // Order: OD_RAM first, then cache, then mirror — see header comment.
+        uint8_t slot = route->subAxis;
+        if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
+            OD_RAM.x2001_motor_actual_position[slot]      = pos;
+            CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
         }
         MotorData* md = FocusMotor::getData()[logicalAx];
         if (md) md->currentPosition = pos;
-        uint8_t slot = route->subAxis;
-        if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
-            CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
-        }
+        log_i("Refreshed REMOTE motor cache: node 0x%02X axis %u pos=%ld",
+              route->nodeId, route->subAxis, (long)pos);
     }
 #endif
 

@@ -131,7 +131,8 @@ static bool s_joystickInverted[4] = {false, false, false, false};
 					strcmp(pn, "UC2_4_CAN_HYBRID") == 0 ||
 					strcmp(pn, "UC2_3_CAN_HAT_Master_v2_debug") == 0 ||
 					strcmp(pn, "UC2_4_CAN_HYBRID_debug") == 0 ||
-					strcmp(pn, "UC2_4_CAN_HYBRID_Master") == 0;
+					strcmp(pn, "UC2_4_CAN_HYBRID_Master") == 0 || 
+					strcmp(pn, "UC2_canopen_master") == 0;
 			}
 			if (skipAxisA)
 			{

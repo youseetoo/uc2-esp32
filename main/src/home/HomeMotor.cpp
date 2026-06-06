@@ -582,41 +582,48 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		getData()[axis]->isHoming = true;
 		hdata[axis]->homeTimeStarted = millis();
 		
-		// Check initial endstop state to determine starting mode.
-		// Linear actuators may share a single GPIO between both physical endstops,
-		// so the signal alone cannot tell which side we are trapped on. We use
-		// the FocusMotor directional-lockout / last-commanded-direction info to
-		// distinguish:
-		//   - lockoutDir == homeDirection  -> trapped in the HOME endstop  -> Phase 0 (release opposite to homeDirection)
-		//   - lockoutDir == -homeDirection -> trapped in the WRONG endstop -> Phase 13 (escape toward homeDirection, then normal homing)
-		//   - lockoutDir == 0              -> unknown, assume HOME endstop -> Phase 0 (legacy behaviour)
-#if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
-		int currentEndstopState = 0;
-		if (axis == Stepper::X) currentEndstopState = DigitalInController::getDigitalVal(1);
-		else if (axis == Stepper::Y) currentEndstopState = DigitalInController::getDigitalVal(2);
-		else if (axis == Stepper::Z) currentEndstopState = DigitalInController::getDigitalVal(3);
-
-		// Check if endstop is already triggered
-		bool endstopAlreadyTriggered = (currentEndstopState == hdata[axis]->homeEndStopPolarity);
-		if (endstopAlreadyTriggered) {
-			MotorData *md = FocusMotor::getData()[axis];
-			int8_t trapDir = md->hardLimitLockoutDir;
-			if (trapDir == 0) trapDir = md->lastCommandedDir;
-			if (trapDir != 0 && trapDir == -hdata[axis]->homeDirection) {
-				log_w("Axis %i appears trapped in WRONG endstop (lastDir=%d, homeDir=%d). Escaping toward home first.",
-					  axis, (int)trapDir, (int)hdata[axis]->homeDirection);
-				hdata[axis]->homingPhase = 13;  // Phase 13: escape wrong endstop
-			} else {
-				log_i("Axis %i endstop already active (lastDir=%d, homeDir=%d), starting with release phase",
-					  axis, (int)trapDir, (int)hdata[axis]->homeDirection);
-				hdata[axis]->homingPhase = 0;  // Phase 0: Release endstop first
+		// Coherent polarity. The FocusMotor module reads the SAME physical
+		// endstop GPIO using md->hardLimitPolarity. If hard-limit is enabled,
+		// override the home_act-supplied polarity to match — otherwise a
+		// mismatched polarity inverts every "triggered"/"released" check inside
+		// the homing state machine (Phase 2/6/8/14) and the homing run
+		// either oscillates between Phase 0/13 on retries or times out
+		// because releases never register.
+		MotorData *md = FocusMotor::getData()[axis];
+		if (md->hardLimitEnabled) {
+			bool hwPol = md->hardLimitPolarity ? 1 : 0;
+			if (hdata[axis]->homeEndStopPolarity != hwPol) {
+				log_w("Axis %d: home_act endstoppolarity=%d != hardLimitPolarity=%d; overriding with hardLimitPolarity",
+					  axis, (int)hdata[axis]->homeEndStopPolarity, (int)md->hardLimitPolarity);
+				hdata[axis]->homeEndStopPolarity = hwPol;
 			}
-		} else {
-			hdata[axis]->homingPhase = 1;  // Phase 1: Normal fast to endstop
 		}
-#else
-		hdata[axis]->homingPhase = 1;  // Start with phase 1: fast to endstop
-#endif
+
+		// Check initial endstop state to determine starting mode.
+		// hardLimitLockoutDir is the AUTHORITATIVE "we are physically against
+		// an endstop" signal: it's set by FocusMotor whenever a hard-limit trip
+		// occurs (using the correctly configured hardLimitPolarity) and only
+		// cleared when the GPIO physically releases AND the motor is idle.
+		// We do NOT fall back to a polarity-dependent GPIO read or to
+		// lastCommandedDir here, because both are easily wrong (mismatched
+		// polarity inverts the GPIO check; lastCommandedDir reflects the LAST
+		// motion regardless of whether it ended in an endstop, so using it as
+		// a "trapped" indicator causes Phase 0/13 to alternate on every retry).
+		//   lockoutDir == 0              -> not trapped, start Phase 1
+		//   lockoutDir == homeDirection  -> trapped in HOME endstop  -> Phase 0
+		//   lockoutDir == -homeDirection -> trapped in WRONG endstop -> Phase 13
+		int8_t lockoutDir = md->hardLimitLockoutDir;
+		if (lockoutDir == 0) {
+			hdata[axis]->homingPhase = 1;  // Not trapped — normal fast approach
+		} else if (lockoutDir == -hdata[axis]->homeDirection) {
+			log_w("Axis %i trapped in WRONG endstop (lockoutDir=%d, homeDir=%d). Escaping toward home first.",
+				  axis, (int)lockoutDir, (int)hdata[axis]->homeDirection);
+			hdata[axis]->homingPhase = 13;  // Phase 13: escape wrong endstop
+		} else {
+			log_i("Axis %i trapped in HOME endstop (lockoutDir=%d, homeDir=%d), starting with release phase",
+				  axis, (int)lockoutDir, (int)hdata[axis]->homeDirection);
+			hdata[axis]->homingPhase = 0;  // Phase 0: release HOME endstop first
+		}
 		
 		// Start local homing (CAN routing handled by DeviceRouter)
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)

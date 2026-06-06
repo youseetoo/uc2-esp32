@@ -74,9 +74,9 @@ struct UC2_canopen_standalone_v4 : PinConfig
      const uint16_t DEFAULT_TASK_PRIORITY = 0;
      const uint16_t MAIN_TASK_STACKSIZE = 8128;
      const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 0;
-     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 4* 2048;
+     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2 * 2048;
      const uint16_t HTTP_MAX_URI_HANDLERS = 35;
-     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 2048;
+     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 2 * 2048;
      const uint16_t MOTOR_TASK_STACKSIZE =  1024; // TODO: was 4*1024, but can we get away with less since only 4 native motors are active?
      const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 0;
      const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 0;

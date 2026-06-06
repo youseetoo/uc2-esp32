@@ -448,7 +448,65 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						}
 						break;
 					}
-					
+
+					case 13: {  // Phase 13: Escape WRONG endstop (move toward homeDirection)
+						// Used when both physical endstops share one GPIO and the axis was last
+						// commanded opposite to homeDirection -> we are trapped on the far side.
+						// Moving in -homeDirection (Phase 0 behaviour) would push further into the
+						// wall, so instead we drive in +homeDirection until the shared signal
+						// releases, then resume normal homing at Phase 1.
+						log_i("[Homing Task] Axis %d Phase 13: Escaping WRONG endstop (homeDir=%d)",
+							  axis, hd->homeDirection);
+						FocusMotor::clearHardLimitTriggered(axis);
+
+						md->isforever = true;
+						md->targetPosition = 0;
+						md->absolutePosition = false;
+						md->speed = hd->homeDirection * abs(hd->homeSpeed);
+						md->maxspeed = abs(hd->homeSpeed);
+						md->isEnable = 1;
+						md->isaccelerated = 0;
+						md->acceleration = MAX_ACCELERATION_A;
+						md->isStop = 0;
+						md->stopped = false;
+
+						log_i("[Homing Task] Axis %d Phase 13: Starting motor speed=%d", axis, md->speed);
+						FocusMotor::startStepper(axis, 0);
+
+						bool phase13Started = false;
+						for (int i = 0; i < 5; i++) {
+							vTaskDelay(pdMS_TO_TICKS(50));
+							if (FocusMotor::isRunning(axis)) {
+								log_i("[Homing Task] Axis %d Phase 13: Motor running (attempt %d)", axis, i+1);
+								phase13Started = true;
+								break;
+							}
+							log_w("[Homing Task] Axis %d Phase 13: Motor not running, retry %d/5", axis, i+1);
+							md->stopped = false;
+							FocusMotor::startStepper(axis, 0);
+						}
+
+						if (phase13Started) {
+							hd->homingPhase = 14;  // Wait for wrong-endstop release
+							phaseStartTime = millis();
+						} else {
+							log_e("[Homing Task] Axis %d Phase 13: Motor start failed, aborting", axis);
+							hd->homeIsActive = false;
+						}
+						break;
+					}
+
+					case 14: {  // Phase 14: Wait for wrong-endstop to release, then start normal homing
+						if (!endstopTriggered) {
+							log_i("[Homing Task] Axis %d Phase 14: Wrong endstop released, switching to fast approach", axis);
+							FocusMotor::stopStepper(axis);
+							vTaskDelay(pdMS_TO_TICKS(100));
+							hd->homingPhase = 1;  // Resume normal homing toward HOME endstop
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
 					default:
 					log_e("[Homing Task] Axis %d unknown phase %d", axis, hd->homingPhase);
 					hd->homeIsActive = false;
@@ -524,19 +582,35 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		getData()[axis]->isHoming = true;
 		hdata[axis]->homeTimeStarted = millis();
 		
-		// Check initial endstop state to determine starting mode
-		// If endstop is already pressed, start in release phase (Phase 0)
+		// Check initial endstop state to determine starting mode.
+		// Linear actuators may share a single GPIO between both physical endstops,
+		// so the signal alone cannot tell which side we are trapped on. We use
+		// the FocusMotor directional-lockout / last-commanded-direction info to
+		// distinguish:
+		//   - lockoutDir == homeDirection  -> trapped in the HOME endstop  -> Phase 0 (release opposite to homeDirection)
+		//   - lockoutDir == -homeDirection -> trapped in the WRONG endstop -> Phase 13 (escape toward homeDirection, then normal homing)
+		//   - lockoutDir == 0              -> unknown, assume HOME endstop -> Phase 0 (legacy behaviour)
 #if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
 		int currentEndstopState = 0;
 		if (axis == Stepper::X) currentEndstopState = DigitalInController::getDigitalVal(1);
 		else if (axis == Stepper::Y) currentEndstopState = DigitalInController::getDigitalVal(2);
 		else if (axis == Stepper::Z) currentEndstopState = DigitalInController::getDigitalVal(3);
-		
+
 		// Check if endstop is already triggered
 		bool endstopAlreadyTriggered = (currentEndstopState == hdata[axis]->homeEndStopPolarity);
 		if (endstopAlreadyTriggered) {
-			log_i("Axis %i endstop already active, starting with release phase", axis);
-			hdata[axis]->homingPhase = 0;  // Phase 0: Release endstop first
+			MotorData *md = FocusMotor::getData()[axis];
+			int8_t trapDir = md->hardLimitLockoutDir;
+			if (trapDir == 0) trapDir = md->lastCommandedDir;
+			if (trapDir != 0 && trapDir == -hdata[axis]->homeDirection) {
+				log_w("Axis %i appears trapped in WRONG endstop (lastDir=%d, homeDir=%d). Escaping toward home first.",
+					  axis, (int)trapDir, (int)hdata[axis]->homeDirection);
+				hdata[axis]->homingPhase = 13;  // Phase 13: escape wrong endstop
+			} else {
+				log_i("Axis %i endstop already active (lastDir=%d, homeDir=%d), starting with release phase",
+					  axis, (int)trapDir, (int)hdata[axis]->homeDirection);
+				hdata[axis]->homingPhase = 0;  // Phase 0: Release endstop first
+			}
 		} else {
 			hdata[axis]->homingPhase = 1;  // Phase 1: Normal fast to endstop
 		}

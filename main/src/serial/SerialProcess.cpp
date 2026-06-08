@@ -38,7 +38,9 @@
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "../canopen/CANopenModule.h"
+#ifndef CANOPEN_OTA_NO_SENDER
 #include "../canopen/OtaBinaryReceive.h"
+#endif
 #endif
 #include "../canopen/DeviceRouter.h"
 #include "../canopen/RoutingTable.h"
@@ -391,11 +393,11 @@ namespace SerialProcess
 
 	void loop()
 	{
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_SENDER)
 		// CANopen path: /ota_start preamble flips this on. Raw firmware bytes
 		// are streamed in 4 KB chunks straight to the slave via SDO — no
 		// full-image buffer is held on the master.
-		// TODO: We are limited to 1khz due to the loop task delay, or? 
+		// TODO: We are limited to 1khz due to the loop task delay, or?
 		if (OtaBinaryReceive::isActive())
 		{
 			OtaBinaryReceive::processBytes();

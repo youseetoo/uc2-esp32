@@ -14,7 +14,9 @@
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "CANopenModule.h"
 #include "UC2_OD_Indices.h"
+#ifndef CANOPEN_OTA_NO_SENDER
 #include "OtaBinaryReceive.h"
+#endif
 #endif
 
 #ifdef MOTOR_CONTROLLER
@@ -115,7 +117,7 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
     if (strcmp(task, state_act_endpoint) == 0) // {"task":"/state_act","state":"restart","nodeId":11}
         return handleStateAct(doc);
 
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_SENDER)
     if (strcmp(task, ota_start_endpoint) == 0){
         return handleOtaStart(doc);
     }
@@ -1284,7 +1286,7 @@ cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
     return resp;
 }
 
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_SENDER)
 // ============================================================================
 // /ota_start — JSON preamble that primes binary OTA receive.
 //
@@ -1373,7 +1375,7 @@ cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
     // TODO: Are we certain we parse the CRC correctly?
     return OtaBinaryReceive::begin(nodeId, size, crc32);
 }
-#endif
+#endif // CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_SENDER
 
 // ============================================================================
 // Digital I/O — LOCAL or REMOTE dispatch

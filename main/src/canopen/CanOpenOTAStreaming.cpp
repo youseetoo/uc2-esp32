@@ -8,7 +8,7 @@
 
 #include "CanOpenOTAStreaming.h"
 
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_SENDER)
 
 #include "CANopenModule.h"
 #include "UC2_OD_Indices.h"
@@ -119,4 +119,4 @@ int CanOpenOTAStreaming::actFromJson(cJSON* doc) {
     return 0;
 }
 
-#endif // CAN_CONTROLLER_CANOPEN
+#endif // CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_SENDER

@@ -18,7 +18,7 @@
 #include "CanOpenOTA.h"
 #include "PinConfig.h"
 
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_RECEIVER)
 
 #include "UC2_OD_Indices.h"
 #include <CANopen.h>
@@ -412,4 +412,4 @@ void CanOpenOTA::registerOdExtensions() {
     }
 }
 
-#endif // CAN_CONTROLLER_CANOPEN
+#endif // CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_RECEIVER

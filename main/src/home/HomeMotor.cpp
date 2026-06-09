@@ -387,7 +387,7 @@ int axis = 0;
 						hd->homingPhase = 0;
 						md->isHoming = false;
 						md->hardLimitTriggered = false;
-						md->hardLimitLockoutDir = 0;
+						FocusMotor::setHardLimitLockoutDir(axis, 0); // clear + persist: homed, no longer trapped
 						md->isforever = false;
 						md->isStop = false;
 						md->stopped = true;  // Motor is stopped after homing

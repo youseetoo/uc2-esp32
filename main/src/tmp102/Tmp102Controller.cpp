@@ -138,6 +138,10 @@ namespace Tmp102Controller
         cJSON *ret = cJSON_CreateObject();
         cJSON *tmp = cJSON_CreateObject();
 
+        // extrac the qid:
+        int qid = cJsonTool::getJsonInt(root, "qid");
+        cJsonTool::setJsonInt(ret, "qid", qid);
+        
         // Force a fresh read so /temp_get is always recent — useful when the
         // caller polls faster than the 1 Hz loop cadence.
         if (initialized)

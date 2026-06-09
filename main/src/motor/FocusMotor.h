@@ -51,7 +51,10 @@ namespace FocusMotor
 	void setHardLimit(int axis, bool enabled, bool polarity);
 	void checkHardLimits(); // Called in loop to check endstops and emergency stop if triggered (only on slaves)
 	void clearHardLimitTriggered(int axis); // Called after successful homing
-	
+	// Set + persist (NVS) the directional hard-limit lockout so a stage trapped
+	// against an endstop keeps the correct escape direction across a reboot.
+	void setHardLimitLockoutDir(int axis, int8_t dir);
+
 	// Encoder-based motion control functions
 	bool isEncoderBasedMotionEnabled(int axis);
 	void setEncoderBasedMotion(int axis, bool enabled);

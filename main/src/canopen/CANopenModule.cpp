@@ -295,6 +295,11 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                     if (src >= 1 && src <= 127 &&
                         (fc == 0x180 || fc == 0x280 || fc == 0x380 ||
                          fc == 0x480 || fc == 0x580 || fc == 0x700)) {
+                        // One-time log the first time a node is heard from, so the
+                        // cold-start path is observable. fc==0x700 == heartbeat/
+                        // bootup, i.e. the slave announcing itself (no polling).
+                        if (s_nodeLastSeenMs[src] == 0)
+                            log_i("CAN node 0x%02X first seen (fc=0x%03X)", src, fc);
                         s_nodeLastSeenMs[src] = millis();
                     }
 
@@ -1986,6 +1991,11 @@ void CANopenModule::setup()
     xTaskCreatePinnedToCore(CO_main_task, "CO_MAIN", 6000, NULL,
                             CANOPEN_TASK_PRIO, NULL, tskNO_AFFINITY);
     vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Node liveness is heartbeat-driven: every node produces a heartbeat at
+    // x1017_producerHeartbeatTime (1000 ms) and the RX hook in CAN_ctrl_task
+    // stamps s_nodeLastSeenMs from those 0x700 frames, so isNodeReachable()
+    // becomes true ~1 s after a slave boots — no active SDO polling needed.
 }
 
 void CANopenModule::loop()

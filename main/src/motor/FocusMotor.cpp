@@ -389,6 +389,17 @@ namespace FocusMotor
 			data[Stepper::G]->currentPosition = preferences.getInt(("motor" + String(Stepper::G)).c_str());
 			log_i("Motor G position: %i", data[Stepper::G]->currentPosition);
 		}
+
+		// Restore the persisted directional hard-limit lockout so a stage left
+		// trapped against an endstop across a reboot/power-cycle still knows
+		// which way is safe to move. If the endstop is no longer pressed, the
+		// runtime hard-limit check (evaluateHardLimitForAxis) clears it again on
+		// the next loop.
+		for (int ax = 0; ax < MOTOR_AXIS_COUNT; ax++)
+		{
+			if (isActivated[ax])
+				data[ax]->hardLimitLockoutDir = preferences.getChar(("hlLock" + String(ax)).c_str(), 0);
+		}
 		preferences.end();
 
 		/*
@@ -497,7 +508,7 @@ namespace FocusMotor
 		getData()[axis]->hardLimitPolarity = polarity;
 		if (!enabled) {
 			// Immediately release any active lockout so motion is possible again
-			getData()[axis]->hardLimitLockoutDir = 0;
+			setHardLimitLockoutDir(axis, 0);
 			getData()[axis]->hardLimitTriggered = false;
 		}
 		log_i("Set hard limit on axis %d: enabled=%d, polarity=%d", axis, enabled, polarity);
@@ -514,8 +525,25 @@ namespace FocusMotor
 		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
 			return;
 		getData()[axis]->hardLimitTriggered = false;
-		getData()[axis]->hardLimitLockoutDir = 0;  // must also clear lockout, directionAllowed() checks this
+		setHardLimitLockoutDir(axis, 0);  // also clears the persisted lockout
 		log_i("Cleared hard limit triggered flag and lockout for axis %d", axis);
+	}
+
+	// Set the directional hard-limit lockout for an axis AND persist it to NVS,
+	// so a stage left trapped against an endstop keeps the correct escape
+	// direction across a reboot/power-cycle. NVS write is skipped when unchanged.
+	void setHardLimitLockoutDir(int axis, int8_t dir)
+	{
+		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+			return;
+		MotorData *md = getData()[axis];
+		if (md->hardLimitLockoutDir == dir)
+			return; // no change -> no NVS write
+		md->hardLimitLockoutDir = dir;
+		preferences.begin("UC2", false);
+		preferences.putChar(("hlLock" + String(axis)).c_str(), dir);
+		preferences.end();
+		log_i("Axis %d hard-limit lockout dir -> %d (persisted)", axis, (int)dir);
 	}
 
 	// Per-axis hard-limit handling: trip detection (rising edge) and lockout-clear
@@ -559,7 +587,7 @@ namespace FocusMotor
 			}
 			log_e("HARD LIMIT TRIGGERED on axis %d (endstop=%d, polarity=%d, dir=%d)",
 				  axis, endstopState, polarity, (int)dir);
-			md->hardLimitLockoutDir = dir;
+			setHardLimitLockoutDir(axis, dir); // persist so we can escape after a reboot
 			md->hardLimitTriggered = true;
 			stopStepper(axis);
 			sendMotorPos(axis, 0, -3); // one-shot error report
@@ -570,7 +598,7 @@ namespace FocusMotor
 		if (!pressed && md->hardLimitLockoutDir != 0 && !isRunning(axis))
 		{
 			log_i("Hard-limit lockout cleared on axis %d (endstop released)", axis);
-			md->hardLimitLockoutDir = 0;
+			setHardLimitLockoutDir(axis, 0);
 			md->hardLimitTriggered = false;
 		}
 	}

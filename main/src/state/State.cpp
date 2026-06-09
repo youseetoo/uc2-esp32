@@ -12,20 +12,42 @@
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 #include "../i2c/i2c_master.h"
+#ifdef DIGITAL_IN_CONTROLLER
+#include "../digitalin/DigitalInController.h"
+#endif
 
 namespace State
 {
+
+	// Tracks the logical CAN-bus power state (true = ON). Mirrors the
+	// BUSPOWER_OFF_PIN gate so /state_get can report it without reading the pin.
+	static bool busPowerOn = true;
+
+	void setBusPower(bool on)
+	{
+		busPowerOn = on;
+		if (pinConfig.BUSPOWER_OFF_PIN >= 0)
+		{
+			pinMode(pinConfig.BUSPOWER_OFF_PIN, OUTPUT);
+			// Active-low-for-on gate: LOW enables bus power, HIGH cuts it.
+			digitalWrite(pinConfig.BUSPOWER_OFF_PIN, on ? LOW : HIGH);
+		}
+		log_i("CAN-bus power %s", on ? "ON" : "OFF");
+	}
+
+	bool getBusPower()
+	{
+		return busPowerOn;
+	}
 
 	void setup()
 	{
 		log_d("Setup State");
 
-		// ensure BUZZER_PIN is set low if configured
-		if (pinConfig.BUZZER_PIN >= 0)
-		{
-			pinMode(pinConfig.BUZZER_PIN, OUTPUT);
-			digitalWrite(pinConfig.BUZZER_PIN, LOW);
-		}
+		// CAN-bus power defaults to ON at boot (drives BUSPOWER_OFF_PIN LOW).
+		// (The buzzer pin is owned by BuzzerController, which sets it up later.)
+		if (pinConfig.BUSPOWER_OFF_PIN >= 0)
+			setBusPower(true);
 	}
 
 	// {"task":"/state_act", "restart":1}
@@ -34,6 +56,8 @@ namespace State
 	// {"task":"/state_act", "resetPreferences":1}
 	// {"task":"/state_act", "isDEBUG":0} // 0-5
 	// {"task": "/state_act", "buzzer": 1}
+	// {"task": "/state_act", "power": 1}  // CAN-bus power: 1=ON (default), 0=OFF
+	// {"task": "/state_act", "power": 0}  // start OTA update mode
 
 	// Custom function accessible by the API
 	int act(cJSON *doc)
@@ -59,18 +83,34 @@ namespace State
 				}
 			}
 		}
+		// CAN-bus power control: {"task":"/state_act","power":0|1}
+		cJSON *power = cJSON_GetObjectItemCaseSensitive(doc, "power");
+		if (power != NULL)
+		{
+			setBusPower(power->valueint > 0);
+		}
+
+#ifdef DIGITAL_IN_CONTROLLER
+		// Emergency-STOP polarity: {"task":"/state_act","estopPolarity":0|1}
+		// 0 = asserted-LOW (idle HIGH), 1 = asserted-HIGH (idle LOW). Live + persisted.
+		cJSON *estopPol = cJSON_GetObjectItemCaseSensitive(doc, "estopPolarity");
+		if (estopPol != NULL)
+		{
+			DigitalInController::setEmergencyPolarity((int8_t)(estopPol->valueint ? 1 : 0));
+		}
+#endif
+
 		cJSON *restart = cJSON_GetObjectItemCaseSensitive(doc, "restart");
 		// assign default values to thhe variables
 		if (restart != NULL)
-		{ // {"task":"/state_act", "restart":1}
-			// pull emergency stop up 
-			if(pinConfig.ESTOP_PIN >= 0)
+		{ // {"task":"/state_act", "restart":1, "busrestart":1}
+			// Cut CAN-bus power before rebooting so all slaves power-cycle with
+			// the master; State::setup() restores power (pin LOW) after reboot.
+			if (cJSON_GetObjectItemCaseSensitive(doc, "busrestart") != NULL && pinConfig.BUSPOWER_OFF_PIN >= 0)
 			{
-				log_i("Pulling emergency stop pin HIGH before restart");
-				pinMode(pinConfig.ESTOP_PIN, OUTPUT);
-				digitalWrite(pinConfig.ESTOP_PIN, HIGH);
-				log_i("Pulling emergency stop pin LOW again before restart");
-				digitalWrite(pinConfig.ESTOP_PIN, LOW);
+				log_i("Cutting CAN-bus power before restart");
+				setBusPower(false);
+				delay(200);
 			}
 
 			// {"task": "/state_act", "restart": 1}
@@ -130,6 +170,9 @@ namespace State
 		// {"task":"/state_get",  "qid":1}
 		// {"task":"/state_get", "isBusy":1}
 		// {"task":"/state_get", "heap":1}
+		// {"task":"/state_get", "power":1}  // CAN-bus power state (1=ON)
+		// {"task":"/state_get", "estop":1}  // E-stop polarity + raw level + active
+		// {"task":"/state_get", "pindef":1}  // pin definition name from PinConfig struct
 		// This returns: {"identifier_name":UC2_Feather, "identifier_id":V2.0, "identifier_date":__DATE__ __TIME__, "identifier_author":BD, "IDENTIFIER_NAME":uc2-esp, "configIsSet":0, "pindef":UC2}
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *st = cJSON_CreateObject();
@@ -139,6 +182,8 @@ namespace State
 		int qid = cJsonTool::getJsonInt(docin, "qid");
 		cJSON *BUSY = cJSON_GetObjectItemCaseSensitive(docin, "isBusy");
 		cJSON *HEAP = cJSON_GetObjectItemCaseSensitive(docin, "heap");
+		cJSON *POWER = cJSON_GetObjectItemCaseSensitive(docin, "power");
+		cJSON *ESTOP = cJSON_GetObjectItemCaseSensitive(docin, "estop");
 		if (BUSY != NULL)
 		{
 			cJSON_AddItemToObject(st, "isBusy", cJSON_CreateNumber(((int)isBusy)));
@@ -146,6 +191,22 @@ namespace State
 		else if (HEAP != NULL)
 		{
 			cJSON_AddItemToObject(st, "heap", cJSON_CreateNumber(ESP.getFreeHeap()));
+		}
+		else if (POWER != NULL)
+		{
+			// {"task":"/state_get","power":1} -> CAN-bus power state (1=ON)
+			cJSON_AddItemToObject(st, "power", cJSON_CreateNumber((int)getBusPower()));
+		}
+		else if (ESTOP != NULL)
+		{
+#ifdef DIGITAL_IN_CONTROLLER
+			// {"task":"/state_get","estop":1} -> E-stop diagnostics for tuning.
+			// estopRaw is the live pin level; flip estopPolarity until pressing
+			// the button makes estopActive read 1.
+			cJSON_AddItemToObject(st, "estopPolarity", cJSON_CreateNumber(DigitalInController::getEmergencyPolarity()));
+			cJSON_AddItemToObject(st, "estopRaw", cJSON_CreateNumber(DigitalInController::getEmergencyRaw()));
+			cJSON_AddItemToObject(st, "estopActive", cJSON_CreateNumber(DigitalInController::isEmergencyActive() ? 1 : 0));
+#endif
 		}
 		else
 		{
@@ -157,6 +218,16 @@ namespace State
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));
 			cJSON_AddItemToObject(st, "pindef", cJSON_CreateString(pinConfig.pindefName));
 			cJSON_AddItemToObject(st, "I2C_SLAVE", cJSON_CreateNumber(pinConfig.I2C_CONTROLLER_TYPE));
+			if (pinConfig.BUSPOWER_OFF_PIN >= 0)
+				cJSON_AddItemToObject(st, "power", cJSON_CreateNumber((int)getBusPower()));
+#ifdef DIGITAL_IN_CONTROLLER
+			if (pinConfig.pinEmergencyExit >= 0)
+			{
+				cJSON_AddItemToObject(st, "estopPolarity", cJSON_CreateNumber(DigitalInController::getEmergencyPolarity()));
+				cJSON_AddItemToObject(st, "estopRaw", cJSON_CreateNumber(DigitalInController::getEmergencyRaw()));
+				cJSON_AddItemToObject(st, "estopActive", cJSON_CreateNumber(DigitalInController::isEmergencyActive() ? 1 : 0));
+			}
+#endif
 			#ifdef CAN_CONTROLLER
 			// Report the active node-id from runtimeConfig (may differ from
 			// pinConfig.CAN_ID_CURRENT after LSS conflict resolution / NVS edits)

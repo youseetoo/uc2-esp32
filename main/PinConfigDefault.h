@@ -529,10 +529,20 @@ struct PinConfig
      // Default: 150 (equivalent to all channels at ~50 intensity each)
      uint16_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 150;
 
-     // Emergency stop
+     // Emergency-STOP sense input, polled by DigitalInController (always-on).
      int8_t pinEmergencyExit = disabled;
+     // Default ASSERTED (emergency) logic level on pinEmergencyExit:
+     //   0 = active-LOW  (asserted reads LOW,  idle HIGH)
+     //   1 = active-HIGH (asserted reads HIGH, idle LOW)
+     // Runtime-overridable + persisted via /state_act {"estopPolarity":0|1}.
+     // NOTE: input-only pins (GPIO34-39) have no internal pull — they need an
+     // EXTERNAL pull resistor to the idle level or the reading will float.
+     int8_t pinEmergencyExitPolarity = 1;
 
-     uint8_t ESTOP_PIN = disabled;
+     // High-current CAN-bus power MOSFET gate. HIGH = bus power OFF, LOW = ON.
+     // Driven via /state_act {"power":0|1}; default ON at boot. See State.cpp.
+     // (Supersedes the former ESTOP_PIN, which addressed this same gate.)
+     int8_t BUSPOWER_OFF_PIN = disabled;
 
      // ── GPIO-CAN slave (UC2_canopen_slave_gpio) ──────────────────────────
      // The GPIO slave is a small XIAO ESP32S3 node that:

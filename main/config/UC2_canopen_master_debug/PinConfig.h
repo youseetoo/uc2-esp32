@@ -50,11 +50,14 @@ struct UC2_canopen_master : PinConfig
     // ---------------------------------------------------------------------
     // Power / safety integration
     // ---------------------------------------------------------------------
-    // Drives the high-current bus power MOSFET gate logic (HIGH = turn OFF)
-    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4; // TODO: implement power control via status_act ((text "ESP pin\nHI turns device off")
+    // Drives the high-current CAN-bus power MOSFET gate (HIGH = bus power OFF).
+    // Controlled via /state_act {"power":0|1} and reported by /state_get. Default ON.
+    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
 
-    // Emergency STOP sense (input-only pin; HIGH = normal, LOW = E-STOP asserted)
-    uint8_t pinEmergencyExit = GPIO_NUM_34; // TODO: Implement such that if we sense that the emergency button was pressed that we immediately stop all motors and switch off all lights and heaters, etc. we should print out a message to the log as well {"Emergency stop activated! Shutting down all systems."}
+    // Emergency-STOP sense (input-only pin; external pull-up: HIGH = normal,
+    // LOW = E-STOP asserted). On a trip the master cuts bus power and emits an
+    // async {"emergency":...} serial event (see DigitalInController).
+    int8_t pinEmergencyExit = GPIO_NUM_34;
     uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured 
 
     // TEMPERATURE : TMP102AIDRLR

@@ -195,6 +195,10 @@ extern "C" void looper(void *p)
 		#endif
 		SerialProcess::loop();
 
+#ifdef DIGITAL_IN_CONTROLLER
+		// Safety: poll the E-stop every loop, independent of runtimeConfig.digitalIn.
+		DigitalInController::checkEmergencyStop();
+#endif
 
 #ifdef LINEAR_ENCODER_CONTROLLER
 		if (runtimeConfig.encoder) {
@@ -526,6 +530,9 @@ extern "C" void setupApp(void)
   pinMode(LED_BUILTIN, OUTPUT);
 #endif	
 	SerialProcess::setup();
+	// State::setup() establishes the default CAN-bus power state (ON) and must
+	// run early so peripherals/slaves have power before their own setup runs.
+	State::setup();
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
@@ -614,6 +621,8 @@ extern "C" void setupApp(void)
 	if (runtimeConfig.digitalIn) {
 		DigitalInController::setup();
 	}
+	// Note: the E-stop sense (checkEmergencyStop) is polled unconditionally in
+	// the main loop and lazily self-initializes on first call — no setup here.
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 	if (runtimeConfig.digitalOut) {

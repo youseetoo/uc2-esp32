@@ -112,8 +112,9 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t objectiveHomeDirection = -1;
      int8_t objectiveHomeEndStopPolarity = 0;
 			
-     // Emergency stop
-     uint8_t pinEmergencyExit = GPIO_NUM_34;
-     uint8_t ESTOP_PIN = GPIO_NUM_4;
+     // Emergency-STOP sense (HIGH = normal, LOW = asserted) + CAN-bus power gate
+     // (HIGH = bus power OFF). See PinConfigDefault.h / State.cpp.
+     int8_t pinEmergencyExit = GPIO_NUM_34;
+     int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
 };
 const UC2_3_CAN_HAT_Master pinConfig;

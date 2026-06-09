@@ -30,6 +30,12 @@ namespace State
 	void setBusy(bool busy);
 	bool getBusy();
 
+	// CAN-bus power control (BUSPOWER_OFF_PIN gate; HIGH = OFF, LOW = ON).
+	// Default ON at boot. Exposed via /state_act {"power":0|1} and /state_get.
+	// setBusPower is also called by the E-stop handler to cut all slave power.
+	void setBusPower(bool on);
+	bool getBusPower();
+
 	void startOTA();
 	void stopOTA();
 };

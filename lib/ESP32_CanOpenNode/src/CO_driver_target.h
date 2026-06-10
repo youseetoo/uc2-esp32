@@ -158,6 +158,11 @@ void CO_CANinterrupt(CO_CANmodule_t *CANmodule);
  * without taking the lock.
  */
 void CO_CANtx_retryQueued(CO_CANmodule_t *CANmodule);
+
+/* Reset deferred-TX bookkeeping (bufferFull flags + CANtxCount) after the
+ * CAN_TX_queue was flushed externally, e.g. during bus-off recovery. Without
+ * this, CO_CANsend stays wedged at CO_ERROR_TX_OVERFLOW and TX never resumes. */
+void CO_CANclearPendingTx(CO_CANmodule_t *CANmodule);
     /**
  * Data storage object for one entry.
  * For more information on Data storage see @ref CO_storage or **CO_storage.h**

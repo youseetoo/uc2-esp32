@@ -357,6 +357,31 @@ void CO_CANtx_retryQueued(CO_CANmodule_t *CANmodule)
 
 
 /******************************************************************************/
+/* Reconcile the deferred-TX bookkeeping after CAN_TX_queue was flushed
+ * externally (bus-off recovery in CAN_ctrl_task). Those frames are gone from
+ * the queue, so clear every txArray buffer's bufferFull and reset CANtxCount;
+ * otherwise CO_CANsend keeps returning CO_ERROR_TX_OVERFLOW for buffers whose
+ * bufferFull is stuck set, and TX never recovers (SDO writes hang forever). */
+void CO_CANclearPendingTx(CO_CANmodule_t *CANmodule)
+{
+    if (CANmodule == NULL) return;
+
+    CO_LOCK_CAN_SEND(CANmodule);
+
+    if (CANmodule->txArray != NULL) {
+        CO_CANtx_t *buffer = &CANmodule->txArray[0];
+        for (uint16_t i = CANmodule->txSize; i > 0U; i--, buffer++) {
+            buffer->bufferFull = false;
+        }
+    }
+    CANmodule->CANtxCount = 0U;
+    CANmodule->bufferInhibitFlag = false;
+
+    CO_UNLOCK_CAN_SEND(CANmodule);
+}
+
+
+/******************************************************************************/
 void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule)
 {
     uint32_t tpdoDeleted = 0U;

@@ -76,12 +76,18 @@ extern "C" {
 #define CANOPEN_TMR_TASK_PRIO       4
 #define CANOPEN_INT_TASK_PRIO       2
 
-// NMT control flags
-#define NMT_CONTROL \
-    CO_NMT_STARTUP_TO_OPERATIONAL \
-    | CO_NMT_ERR_ON_ERR_REG \
-    | CO_ERR_REG_GENERIC_ERR \
-    | CO_ERR_REG_COMMUNICATION
+// NMT control flags.
+// Boot to OPERATIONAL and STAY there. We deliberately do NOT set
+// CO_NMT_ERR_ON_ERR_REG (nor CO_NMT_ERR_ON_BUSOFF_HB): a UC2 node is routinely
+// alone on the bus (master powered before its slaves, a slave unplugged, ...)
+// with no peer to ACK its frames, so the CAN communication error bit sets.
+// Tying NMT state to that demoted the node to PRE-OPERATIONAL, where it stopped
+// producing PDOs/heartbeats; and because the error never clears while alone it
+// got stuck there and stayed unreachable even after the peer returned (the
+// "long disconnect can't recover" symptom). Bus-off is still recovered at the
+// TWAI hardware layer (CAN_ctrl_task), so a node that stays OPERATIONAL simply
+// resumes talking the instant the peer reappears — no NMT round-trip needed.
+#define NMT_CONTROL CO_NMT_STARTUP_TO_OPERATIONAL
 #define FIRST_HB_TIME           500
 // SDO server timeout: must be generous for block download OTA.
 // The slave's SDO server aborts with 0x05040000 if it doesn't receive
@@ -342,11 +348,26 @@ void CANopenModule::CAN_ctrl_task(void* arg)
             }
         }
 
+        // Re-queue any frames CO_CANsend had to defer (bufferFull) because
+        // CAN_TX_queue was full. This is the TX-complete stand-in the driver
+        // documents but nothing was calling — without it a single queue-full
+        // episode leaves CANtxCount>0 and CO_CANsend wedged at TX_OVERFLOW.
+        // Cheap: returns immediately when nothing is pending.
+        if (CO != NULL && CO->CANmodule != NULL)
+            CO_CANtx_retryQueued(CO->CANmodule);
+
         // Bus-off: flush our TX queue (frames are now stale) then
         // trigger hardware recovery.
         if (alerts & TWAI_ALERT_BUS_OFF) {
             log_i("Bus-off — flushing TX queue and initiating recovery...");
             while (xQueueReceive(CAN_TX_queue, (void*)&tx_msg, 0) == pdTRUE) {}
+            // Reconcile CANopenNode's TX bookkeeping with the now-empty queue:
+            // the flushed frames left buffers stuck bufferFull=true with
+            // CANtxCount>0. Without this reset, CO_CANsend returns TX_OVERFLOW
+            // forever after recovery and every SDO write hangs — the exact
+            // "must reboot the master after a bus-off" failure.
+            if (CO != NULL && CO->CANmodule != NULL)
+                CO_CANclearPendingTx(CO->CANmodule);
             twai_initiate_recovery();
         }
 
@@ -541,6 +562,29 @@ bool CANopenModule::isNodeReachable(uint8_t nodeId)
     return (millis() - lastSeen) < 5000;
 }
 
+// Gate for SDO *command* attempts — deliberately more permissive than
+// isNodeReachable():
+//   * SDO is a valid service in PRE-OPERATIONAL as well as OPERATIONAL, so we
+//     don't refuse just because the master briefly dropped to pre-op.
+//   * UC2 slaves emit only a CANopen boot-up frame plus on-demand TPDOs (no
+//     periodic heartbeat), so a node that booted a while ago looks "stale" to
+//     isNodeReachable() yet is physically present and will answer. We therefore
+//     attempt the SDO for any node that has EVER announced itself; the transfer
+//     itself is the real liveness test. writeSDO()/readSDO() reset a node to
+//     "absent" when it fails to respond at all, so a genuinely removed node
+//     fast-fails on the next command instead of stalling every time.
+static bool canReachForSDO(uint8_t nodeId)
+{
+    if (nodeId < 1 || nodeId > 127) return false;
+    if (CO == NULL || CO->NMT == NULL || CO->SDOclient == NULL) return false;
+    uint8_t st = CO->NMT->operatingState;
+    if (st != CO_NMT_OPERATIONAL && st != CO_NMT_PRE_OPERATIONAL) return false;
+    // Recent bus errors mean nobody is ACKing — let the caller fall back
+    // instead of stalling for the full SDO timeout.
+    if (s_lastBusErrorMs != 0 && (millis() - s_lastBusErrorMs) < 1000) return false;
+    return s_nodeLastSeenMs[nodeId] != 0; // ever announced itself (boot-up/HB/TPDO/SDO-resp)
+}
+
 // Poll isNodeReachable() until it returns true or timeoutMs elapses.
 // Used by OTA: after a slave reboot it takes ~1 s before the master sees
 // the first TPDO/heartbeat, and we don't want the very first SDO write
@@ -569,17 +613,19 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
         log_e("SDO client not initialized");
         return false;
     }   
-    // Fast-fail when slave hasn't been heard from (no recent TPDO).
-    // Discovery happens via the slave's heartbeat toggle in its TPDO.
-    if (!isNodeReachable(nodeId)) {
+    // Fast-fail only for nodes that have never announced themselves; a node
+    // that booted at least once is attempted even if currently quiet (see
+    // canReachForSDO — slaves here have no periodic heartbeat).
+    if (!canReachForSDO(nodeId)) {
         log_e("writeSDO: node 0x%02X not reachable, skipping idx=0x%04X sub=0x%02X", nodeId, index, subIndex);
         return false;
     }
-    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) 
+    if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE)
     {
         log_i("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed to take SDO mutex", nodeId, index, subIndex);
         return false;
     }
+    uint32_t seenBefore = s_nodeLastSeenMs[nodeId];
     CO_SDO_abortCode_t ret = _write_SDO(CO->SDOclient, nodeId,
         index, subIndex, data, dataSize, timeoutMs);
     if (s_sdoMutex) {
@@ -589,6 +635,12 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
     }
     if (ret != CO_SDO_AB_NONE) {
         log_e("writeSDO: node 0x%02X idx=0x%04X sub=0x%02X failed, abort=0x%08lX", nodeId, index, subIndex, (unsigned long)ret);
+        // If no response frame arrived during the whole transfer (s_nodeLastSeenMs
+        // unchanged), the node is gone — mark it absent so the next command
+        // fast-fails instead of stalling for the full timeout again. A protocol
+        // abort (node answered) leaves liveness refreshed, so we keep it.
+        if (s_nodeLastSeenMs[nodeId] == seenBefore)
+            s_nodeLastSeenMs[nodeId] = 0;
     }
     return (ret == CO_SDO_AB_NONE);
 }
@@ -597,11 +649,15 @@ bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                             uint8_t* buf, size_t bufSize, size_t* readSize)
 {
     if (CO == NULL || CO->SDOclient == NULL) return false;
-    if (!isNodeReachable(nodeId)) return false;
+    if (!canReachForSDO(nodeId)) return false;
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;
+    uint32_t seenBefore = s_nodeLastSeenMs[nodeId];
     CO_SDO_abortCode_t ret = _read_SDO(CO->SDOclient, nodeId,
         index, subIndex, buf, bufSize, readSize);
     if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
+    // No response at all -> mark node absent so the next call fast-fails.
+    if (ret != CO_SDO_AB_NONE && s_nodeLastSeenMs[nodeId] == seenBefore)
+        s_nodeLastSeenMs[nodeId] = 0;
     return (ret == CO_SDO_AB_NONE);
 }
 
@@ -2044,10 +2100,14 @@ void CANopenModule::loop()
         // control of the axis.
         HomeData** hdAll = HomeMotor::getHomeData();
         if (hdAll && hdAll[localAxis] && hdAll[localAxis]->homeIsActive) {
-            // also drop STOP - the homing task issues its own stops at phase
-            // boundaries and a stray CAN-STOP would only desync the state machine.
-            // continue;
-            log_i("We could consider dropping the incoming values here to avoid interfering with the homing state machine, but for now we allow them through so the master can still issue a STOP if needed.");
+            // Homing owns the axis: drop ALL incoming motor commands (move AND
+            // stop) for it. The homing state machine issues its own stops at
+            // phase boundaries; a stray CAN move/stop streamed from the master
+            // (e.g. PS4 joystick PSx packets) would desync the state machine and,
+            // with the shared endstop, corrupt the lockout direction. Abort an
+            // in-flight home via /home stop or the E-stop path instead.
+            log_d("Dropping CAN motor cmd for axis %d during active homing", localAxis);
+            continue;
         }
 #endif
         if (s_axisCmds[ax].isStop) {

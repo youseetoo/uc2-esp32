@@ -685,14 +685,15 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         return resp;
     }
 
-    if (route->where == UC2::RouteEntry::LOCAL) {
+    if (route->where == UC2::RouteEntry::LOCAL or pinConfig.HYBRID_LED_DUAL_OUTPUT) {
         // LedController::act returns int; wrap into JSON response
         int result = LedController::act(doc);
         log_i("Routing led_act to LOCAL LED controller, result: %d", result);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", result);
         return resp;
-    } else { // REMOTE
+    }
+    if (route->where == UC2::RouteEntry::REMOTE) { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         log_i("Routing led_act to REMOTE node 0x%02X", route->nodeId);
         cJSON* led = cJSON_GetObjectItem(doc, "led");

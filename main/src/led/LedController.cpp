@@ -59,7 +59,7 @@ namespace LedController
 	{
 #if defined(DOTSTAR) || defined(HUB75)
 		if (matrix) matrix->show();
-#elif defined(LED_CONTROLLER) && defined(USE_FASTACCEL)
+#elif defined(USE_FASTACCEL)
 		// this is a special case since we would occupy the same RMT channel for the LED strip and
 		// the stepper motors, so we need to call the LinearEncoderController act function with a dummy
 		// JSON object to trigger the encoder-based motion
@@ -142,16 +142,19 @@ namespace LedController
 		// the RX/TX peripheral via the IDF driver and conflict with FAS). begin()
 		// only configures the GPIO direction here, which we do ourselves below.
 		matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
-#if !defined(USE_FASTACCEL) && !defined(USE_ACCELSTEP)
+#if !defined(USE_FASTACCEL) 
+		log_i("LedController: calling matrix->begin() to set up GPIO (no FastAccelStepper conflict)");
 		matrix->begin(); // Only call begin() if we're not sharing the RMT with FastAccelStepper, to avoid conflicts. If FastAccelStepper is used, we'll do the necessary GPIO setup ourselves below.
-#endif
-		matrix->setBrightness(255);
-		matrix->clear();
-
+#else
+		log_i("LedController: skipping matrix->begin() to avoid RMT conflict with FastAccelStepper; configuring GPIO ourselves");
 		// Bring up our own RMT-based driver on a channel above FAS's allocation.
 		if (!Ws2812Rmt::begin(pinConfig.LED_PIN, UC2_WS2812_RMT_CHANNEL)) {
 			log_e("LedController: Ws2812Rmt::begin() failed — strip will stay dark");
 		}
+#endif
+		matrix->setBrightness(255);
+		matrix->clear();
+
 		log_i("LedController: about to show() — first RMT TX");
 		ledShow();
 		log_i("LedController: first show() returned");

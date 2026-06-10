@@ -21,7 +21,7 @@ DIP Switch Configuration:
 #define CAN_BUS_ENABLED          // Enable CAN hardware
 #define CAN_SEND_COMMANDS        // This device sends commands to CAN slaves
 #define CAN_CONTROLLER_CANOPEN   // Use the CANopen stack (DeviceRouter REMOTE path)
-#define USE_FASTACCEL
+#define USE_FASTACCEL=1
 #define USE_TCA9535
 //#define BLUETOOTH
 //#define BTHID
@@ -34,6 +34,7 @@ DIP Switch Configuration:
 #define UC2_FORCE_BT_CLASSIC_ONLY=1
 #define BTHID=1
 #define BLUETOOTH=1
+
 
 // Extend motor count to include CAN satellites
 #undef MOTOR_AXIS_COUNT
@@ -142,7 +143,7 @@ struct UC2_canopen_standalone_v4 : PinConfig
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
 
      // Set to true to send LED commands to BOTH native array AND CAN devices
-     bool HYBRID_LED_DUAL_OUTPUT = false;
+     bool HYBRID_LED_DUAL_OUTPUT = true;
 
      // ─────────────────────────────────────────────────────────────────────
      // CANopen device routing (DeviceRouter / RoutingTable)

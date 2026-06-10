@@ -70,6 +70,12 @@ namespace FocusMotor
 	xSemaphoreHandle xMutex = NULL;
 	xSemaphoreHandle xSerialMutex = NULL; // Mutex for serial JSON output
 
+	// Guard: set to false during setup() to prevent NVS writes while RMT ISR is active.
+	// Calling Preferences::putInt() with the RMT driver running causes a
+	// "Cache disabled but cached memory region accessed" panic because the RMT ISR
+	// is not placed in IRAM and fires while the SPI flash cache is disabled.
+	bool _setupComplete = false;
+
 	MotorData **getData()
 	{
 		if (data != nullptr)
@@ -503,6 +509,9 @@ namespace FocusMotor
 		sendMotorPosition();
 #endif
 #endif
+		// NVS writes are now safe: all ISR-driven peripherals are initialised and
+		// any testTca() moves have completed.
+		_setupComplete = true;
 	}
 
 	void setHardLimit(int axis, bool enabled, bool polarity)
@@ -816,9 +825,15 @@ namespace FocusMotor
 	{
 		// Always update and persist position first, independent of serial mutex
 		updateData(i);
-		preferences.begin("UC2", false);
-		preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
-		preferences.end();
+		// Skip NVS write during setup: Preferences::putInt() disables the SPI flash
+		// cache, and if an RMT ISR fires at that moment the CPU panics with
+		// "Cache disabled but cached memory region accessed".
+		if (_setupComplete)
+		{
+			preferences.begin("UC2", false);
+			preferences.putInt(("motor" + String(i)).c_str(), data[i]->currentPosition);
+			preferences.end();
+		}
 
 		// Safety check: ensure mutex is initialized
 		if (xSerialMutex == NULL)

@@ -2100,14 +2100,11 @@ void CANopenModule::loop()
         // control of the axis.
         HomeData** hdAll = HomeMotor::getHomeData();
         if (hdAll && hdAll[localAxis] && hdAll[localAxis]->homeIsActive) {
-            // Homing owns the axis: drop ALL incoming motor commands (move AND
-            // stop) for it. The homing state machine issues its own stops at
-            // phase boundaries; a stray CAN move/stop streamed from the master
-            // (e.g. PS4 joystick PSx packets) would desync the state machine and,
-            // with the shared endstop, corrupt the lockout direction. Abort an
-            // in-flight home via /home stop or the E-stop path instead.
-            log_d("Dropping CAN motor cmd for axis %d during active homing", localAxis);
-            continue;
+            // NOTE: we intentionally do NOT drop motor commands during homing.
+            // The host must ALWAYS be able to stop the motor (a CAN STOP has to
+            // get through), so blocking motor_act here is not acceptable. Moves
+            // that arrive mid-home are allowed through as well.
+            log_d("Motor cmd for axis %d arrived during homing - passing through (STOP must always work)", localAxis);
         }
 #endif
         if (s_axisCmds[ax].isStop) {

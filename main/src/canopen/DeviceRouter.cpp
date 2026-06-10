@@ -625,7 +625,9 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
         int homeSpeed    = cJsonTool::getJsonInt(stp, key_home_speed);
         int homeMaxspeed = cJsonTool::getJsonInt(stp, key_home_maxspeed);
         int homeDir      = cJsonTool::getJsonInt(stp, key_home_direction);
-        int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity);
+        // Default -1 (= "not supplied") so an omitted field keeps the configured
+        // polarity; an explicit 0/1 is ground truth and updates hardLimitPolarity.
+        int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity, -1);
         int homeRelease  = cJsonTool::getJsonInt(stp, key_home_endstoprelease);
         int homeOffset   = cJsonTool::getJsonInt(stp, key_home_endoffset);
 

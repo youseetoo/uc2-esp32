@@ -58,6 +58,15 @@ namespace FocusMotor
 	// start actually running (especially important for CAN-dispatched moves).
 	int waitForFirstRun[] = {0, 0, 0, 0};
 
+	// Per-axis edge state for the hard-limit endstop. We detect a hit on the
+	// RISING edge of "pressed" and clear the lockout on the FALLING edge, instead
+	// of relying on a sticky hardLimitTriggered that only cleared while idle.
+	// This is what makes a shared endstop GPIO (both physical limits wired in
+	// parallel) re-arm correctly: each new contact - even at the opposite end,
+	// even while the motor keeps moving - is a fresh trip.
+	static bool s_hlPrevPressed[MOTOR_AXIS_COUNT] = {false};
+	static bool s_hlPrevValid[MOTOR_AXIS_COUNT] = {false};
+
 	xSemaphoreHandle xMutex = NULL;
 	xSemaphoreHandle xSerialMutex = NULL; // Mutex for serial JSON output
 
@@ -546,12 +555,22 @@ namespace FocusMotor
 		log_i("Axis %d hard-limit lockout dir -> %d (persisted)", axis, (int)dir);
 	}
 
-	// Per-axis hard-limit handling: trip detection (rising edge) and lockout-clear
-	// when the endstop is physically released and the motor is idle.
+	// Per-axis hard-limit handling: EDGE-based trip + lockout-clear.
+	//
+	// Both physical endstops of a linear axis are wired in parallel onto a single
+	// GPIO ("pressed" at either end, released in between). The previous LEVEL-based
+	// logic gated the trip on a sticky hardLimitTriggered that only cleared while
+	// the motor was idle. When escaping one endstop you drive toward the other, so
+	// the release happened WHILE MOVING and the flag never cleared - which masked
+	// the hit at the far end and left the directional lockout pointing at the wrong
+	// wall. Result: the far endstop was ignored and the axis got "trapped" with the
+	// escape direction blocked. Detecting edges fixes this:
+	//   rising edge (released -> pressed) while moving -> trip on the CURRENT dir
+	//   falling edge (pressed -> released)             -> clear, even while moving
 	static void evaluateHardLimitForAxis(int axis, int digitalInputIdx)
 	{
 		MotorData *md = getData()[axis];
-		if (!isActivated[axis] || !md->hardLimitEnabled || md->isHoming)
+		if (!isActivated[axis] || !md->hardLimitEnabled)
 			return;
 
 #ifdef DIGITAL_IN_CONTROLLER
@@ -560,15 +579,31 @@ namespace FocusMotor
 		// If no digital input controller, assume endstop is not triggered (safe default)
 		bool endstopState = false;
 #endif
-		bool polarity = md->hardLimitPolarity;
-		// Same convention as homing: polarity is the digital state when the endstop IS triggered.
-		// polarity=1 -> triggered when HIGH; polarity=0 -> triggered when LOW.
-		bool pressed = (endstopState == polarity);
+		// SINGLE SOURCE OF TRUTH for the endstop's active level: hardLimitPolarity.
+		// polarity is the digital level read when the endstop IS triggered
+		// (polarity=1 -> triggered when HIGH; polarity=0 -> triggered when LOW).
+		// The homing state machine uses this exact same field (synced in startHome).
+		bool pressed = (endstopState == md->hardLimitPolarity);
 
-		// --- Trip detection (rising edge while motor is moving) ---
-		if (pressed && isRunning(axis) && !md->hardLimitTriggered)
+		// Keep the edge baseline current even while homing, so normal hard-limit
+		// handling never synthesizes a stale edge when it resumes after a run.
+		bool prevPressed = s_hlPrevPressed[axis];
+		bool prevValid = s_hlPrevValid[axis];
+		s_hlPrevPressed[axis] = pressed;
+		s_hlPrevValid[axis] = true;
+
+		// Homing deliberately drives into endstops; the homing task owns the axis.
+		if (md->isHoming)
+			return;
+		if (!prevValid)
+			return; // first sample: baseline only, never act on a synthetic edge
+
+		// --- Trip on the RISING edge of a contact while the motor is moving ---
+		if (pressed && !prevPressed && isRunning(axis))
 		{
-			// Determine direction of the motion that just hit the endstop.
+			// Direction of the motion that just hit the endstop = the wall we are
+			// now against. Using the CURRENT commanded direction (not a stale one)
+			// keeps the lockout pointing at the correct end of a shared GPIO.
 			int8_t dir = md->lastCommandedDir;
 			if (dir == 0)
 			{
@@ -586,7 +621,7 @@ namespace FocusMotor
 				}
 			}
 			log_e("HARD LIMIT TRIGGERED on axis %d (endstop=%d, polarity=%d, dir=%d)",
-				  axis, endstopState, polarity, (int)dir);
+				  axis, endstopState, (int)md->hardLimitPolarity, (int)dir);
 			setHardLimitLockoutDir(axis, dir); // persist so we can escape after a reboot
 			md->hardLimitTriggered = true;
 			stopStepper(axis);
@@ -594,12 +629,24 @@ namespace FocusMotor
 			return;
 		}
 
-		// --- Lockout clear when endstop is released and motor is idle ---
-		if (!pressed && md->hardLimitLockoutDir != 0 && !isRunning(axis))
+		// --- Clear the lockout when the endstop is released ---
+		// (a) FALLING edge: the axis just drove off the endstop -> free both
+		//     directions immediately, even while still moving. This un-traps a
+		//     shared-GPIO axis the instant it leaves the switch.
+		// (b) safety net: released AND idle with a stale/persisted lockout still
+		//     set (e.g. restored from NVS after a reboot when not on the switch).
+		if (!pressed)
 		{
-			log_i("Hard-limit lockout cleared on axis %d (endstop released)", axis);
-			setHardLimitLockoutDir(axis, 0);
-			md->hardLimitTriggered = false;
+			bool fallingEdge = prevPressed;
+			bool idleStale = !isRunning(axis);
+			if ((fallingEdge || idleStale) &&
+				(md->hardLimitLockoutDir != 0 || md->hardLimitTriggered))
+			{
+				log_i("Hard-limit lockout cleared on axis %d (released, edge=%d idle=%d)",
+					  axis, (int)fallingEdge, (int)idleStale);
+				setHardLimitLockoutDir(axis, 0);
+				md->hardLimitTriggered = false;
+			}
 		}
 	}
 

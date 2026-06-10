@@ -175,6 +175,13 @@ struct PinConfig
       bool hardLimitEnabledZ = false;
       bool hardLimitPolarityZ = false;
 
+      // Homing back-off: after the final endstop touch, drive OFF the switch
+      // until it releases and then this many extra steps before setting home=0.
+      // Mandatory so homing never ends while the endstop is still pressed -
+      // otherwise the next move INTO that direction starts already-triggered,
+      // produces no fresh endstop edge, and overshoots into the mechanical stop.
+      uint16_t homeEndstopReleaseSteps = 50;
+
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted

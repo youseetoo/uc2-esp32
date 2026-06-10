@@ -125,13 +125,6 @@ int axis = 0;
 		else if (axis == Stepper::A) endstopInput = 4; // Dual Z uses same endstop as Z
 		
 		uint32_t phaseStartTime = millis();
-		// FIXME: Only for fastaccel: check if home speed is > 18000 - if so, cut it down
-		#ifdef FASTACCELSTEPPER
-		if ( abs(hd->homeSpeed) > 18000) {
-			log_w("[Homing Task] Axis %d home speed %d is too high, cutting down to 18000", axis, hd->homeSpeed);
-			hd->homeSpeed = 18000 * (hd->homeSpeed > 0 ? 1 : -1);
-		}
-		#endif
 
 		while (hd->homeIsActive) {
 			// Check for timeout
@@ -254,11 +247,16 @@ int axis = 0;
 				
 				case 3: {  // Phase 3: Retract fixed distance
 					//Serial.println("3");
-					// Move away from endstop by fixed distance
+					// Retract AWAY from the endstop. Encode the direction in BOTH
+					// the target and the speed sign: FastAccelStepper takes the
+					// direction from the target sign (move()), AccelStepper takes it
+					// from the speed sign. Keeping them consistent makes the retract
+					// go the right way on either driver - the old `speed = abs(...)`
+					// drove the AccelStepper build straight back INTO the endstop.
 					md->isforever = false;
-					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;  // Opposite direction // TODO: This does not switch direction it seems 
+					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;
 					md->absolutePosition = false;  // Relative move
-					md->speed = abs(hd->homeSpeed);
+					md->speed = -hd->homeDirection * abs(hd->homeSpeed);
 					md->maxspeed = abs(hd->homeSpeed);
 					md->isEnable = 1;
 					md->isaccelerated = 1;
@@ -310,22 +308,20 @@ int axis = 0;
 					break;
 				}
 				
-				case 6: {  // Phase 6: Wait for final endstop trigger
+				case 6: {  // Phase 6: Wait for final endstop trigger (slow approach)
 					//Serial.println("6");
 					if (endstopTriggered) {
-						
-						// Stop motor
+						// Stop AT the switch, then back OFF it before setting home=0.
+						// Zeroing here (on the switch) would leave the axis sitting on
+						// a pressed endstop: the next move in the home direction starts
+						// already-triggered, generates no fresh endstop edge, and slams
+						// the mechanical stop. Phases 15-17 drive off the switch first.
 						FocusMotor::stopStepper(axis);
 						vTaskDelay(pdMS_TO_TICKS(200));  // Let motor settle
-						
-						// Set position to zero at home
-						FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
-						
 						md->isforever = false;
-						
-						hd->homingPhase = 7;  // Move to completion
+						hd->homingPhase = 15;  // back off OFF the switch, THEN set home=0
 						phaseStartTime = millis();
-						log_i("[Homing Task] Phase 6: Axis %d final position reached, stopping", axis);
+						log_i("[Homing Task] Phase 6: Axis %d endstop hit; backing off before zeroing", axis);
 					}
 					break;
 				}
@@ -350,11 +346,13 @@ int axis = 0;
 				case 11: {  // Phase 11: Move to final position with offset
 					log_i("[Homing Task] Phase 11: Axis %d moving %d steps from home", axis, hd->homeEndOffset);
 					
-					// Move to final position relative to home (0)
+					// Move to final position relative to home (0). Direction in both
+					// target and speed sign (see Phase 3) so it is correct on FAS and
+					// AccelStepper. Phase 7 only routes here when homeEndOffset != 0.
 					md->isforever = false;
 					md->targetPosition = hd->homeEndOffset;
 					md->absolutePosition = false;  // Relative move from current position (0)
-					md->speed = abs(hd->homeSpeed);
+					md->speed = (hd->homeEndOffset >= 0 ? 1 : -1) * abs(hd->homeSpeed);
 					md->maxspeed = abs(hd->homeSpeed);
 					md->isEnable = 1;
 					md->isaccelerated = 1;
@@ -419,10 +417,12 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (2000 steps)", axis);
 						// Move additional 2000 steps away for safety
 						md->isforever = false;
-						// Additional safety distance in the opposite direction of homing (same direction as retract)
-						md->targetPosition = -hd->homeDirection * 2000;  
+						// Additional safety distance away from the endstop (same
+						// direction as the Phase 3 retract). Direction in both target
+						// and speed sign (see Phase 3) for FAS + AccelStepper.
+						md->targetPosition = -hd->homeDirection * 2000;
 						md->absolutePosition = false;  // Relative move
-						md->speed = abs(hd->homeSpeed);
+						md->speed = -hd->homeDirection * abs(hd->homeSpeed);
 						md->maxspeed = abs(hd->homeSpeed);
 						md->isEnable = 1;
 						md->isaccelerated = 1;
@@ -507,6 +507,73 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						break;
 					}
 
+					case 15: {  // Phase 15: Back off - drive OFF the endstop (escape dir)
+						// Slow constant-speed sweep away from the switch (opposite of
+						// homeDirection) until the shared endstop GPIO releases.
+						log_i("[Homing Task] Axis %d Phase 15: Backing off endstop (escape dir)", axis);
+						md->isforever = true;
+						md->targetPosition = 0;
+						md->absolutePosition = false;
+						md->speed = -hd->homeDirection * abs(hd->homeSpeed / 4);
+						md->maxspeed = abs(hd->homeSpeed / 4);
+						md->isEnable = 1;
+						md->isaccelerated = 0;
+						md->acceleration = MAX_ACCELERATION_A;
+						md->isStop = 0;
+						md->stopped = false;
+						FocusMotor::startStepper(axis, 0);
+						hd->homingPhase = 16;  // wait for release, then step N more off
+						phaseStartTime = millis();
+						break;
+					}
+
+					case 16: {  // Phase 16: Endstop released -> move N more steps off, or zero
+						if (!endstopTriggered) {
+							// Stop the escape sweep at the release point and settle.
+							FocusMotor::stopStepper(axis);
+							vTaskDelay(pdMS_TO_TICKS(100));
+							md->isforever = false;
+
+							uint16_t extra = pinConfig.homeEndstopReleaseSteps;
+							if (extra == 0) {
+								// No extra margin requested: zero right at the release point.
+								FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
+								log_i("[Homing Task] Phase 16: Axis %d released; home=0 at release point", axis);
+								hd->homingPhase = 7;
+								phaseStartTime = millis();
+								break;
+							}
+							// Drive N more steps further into the safe zone (escape dir).
+							// Direction in BOTH target and speed sign (FAS uses target,
+							// AccelStepper uses speed - see Phase 3).
+							md->targetPosition = -hd->homeDirection * (int32_t)extra;
+							md->absolutePosition = false;  // relative
+							md->speed = -hd->homeDirection * abs(hd->homeSpeed / 4);
+							md->maxspeed = abs(hd->homeSpeed / 4);
+							md->isEnable = 1;
+							md->isaccelerated = 1;
+							md->acceleration = MAX_ACCELERATION_A;
+							md->isStop = 0;
+							md->stopped = false;
+							FocusMotor::startStepper(axis, 0);
+							log_i("[Homing Task] Phase 16: Axis %d released; stepping %d more off switch", axis, (int)extra);
+							hd->homingPhase = 17;  // wait for the back-off move to finish
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
+					case 17: {  // Phase 17: Wait for back-off move to finish, set home=0
+						if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
+							FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
+							md->isforever = false;
+							log_i("[Homing Task] Phase 17: Axis %d backed off endstop; home set to 0", axis);
+							hd->homingPhase = 7;  // continue to optional offset / completion
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
 					default:
 					log_e("[Homing Task] Axis %d unknown phase %d", axis, hd->homingPhase);
 					hd->homeIsActive = false;
@@ -566,15 +633,6 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		{
 			hdata[axis]->homeDirection = -1;
 		}
-		// Normalize endstop polarity to 0 or 1
-		if (hdata[axis]->homeEndStopPolarity > 0)
-		{
-			hdata[axis]->homeEndStopPolarity = 1;
-		}
-		else
-		{
-			hdata[axis]->homeEndStopPolarity = 0;
-		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		
 		// Set isHoming flag IMMEDIATELY to prevent concurrent homing attempts
@@ -582,22 +640,28 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		getData()[axis]->isHoming = true;
 		hdata[axis]->homeTimeStarted = millis();
 		
-		// Coherent polarity. The FocusMotor module reads the SAME physical
-		// endstop GPIO using md->hardLimitPolarity. If hard-limit is enabled,
-		// override the home_act-supplied polarity to match — otherwise a
-		// mismatched polarity inverts every "triggered"/"released" check inside
-		// the homing state machine (Phase 2/6/8/14) and the homing run
-		// either oscillates between Phase 0/13 on retries or times out
-		// because releases never register.
+		// SINGLE SOURCE OF TRUTH for endstop polarity, SETTABLE via home_act/CAN.
+		// The home endstop and the hard-limit endstop are the SAME physical signal.
+		// When the caller SUPPLIES a polarity (0 or 1) it is GROUND TRUTH: write it
+		// through to md->hardLimitPolarity (persisted) so the hard-limit checker and
+		// the homing state machine can never disagree. A negative value (-1) or an
+		// omitted field means "keep the currently configured polarity".
 		MotorData *md = FocusMotor::getData()[axis];
-		if (md->hardLimitEnabled) {
-			bool hwPol = md->hardLimitPolarity ? 1 : 0;
-			if (hdata[axis]->homeEndStopPolarity != hwPol) {
-				log_w("Axis %d: home_act endstoppolarity=%d != hardLimitPolarity=%d; overriding with hardLimitPolarity",
-					  axis, (int)hdata[axis]->homeEndStopPolarity, (int)md->hardLimitPolarity);
-				hdata[axis]->homeEndStopPolarity = hwPol;
+		if (homeEndStopPolarity == 0 || homeEndStopPolarity == 1) {
+			bool newPol = (homeEndStopPolarity == 1);
+			if (md->hardLimitPolarity != newPol) {
+				log_i("Axis %d: home_act endstoppolarity=%d -> updating hardLimitPolarity (was %d), persisting",
+					  axis, (int)newPol, (int)md->hardLimitPolarity);
+				// setHardLimit persists to NVS and keeps the runtime field in sync;
+				// hardLimitEnabled is left unchanged.
+				FocusMotor::setHardLimit(axis, md->hardLimitEnabled, newPol);
 			}
+		} else {
+			log_i("Axis %d: no endstoppolarity supplied (=%d) - keeping hardLimitPolarity=%d",
+				  axis, homeEndStopPolarity, (int)md->hardLimitPolarity);
 		}
+		// The homing state machine mirrors the single source (md->hardLimitPolarity).
+		hdata[axis]->homeEndStopPolarity = md->hardLimitPolarity ? 1 : 0;
 
 		// Check initial endstop state to determine starting mode.
 		// hardLimitLockoutDir is the AUTHORITATIVE "we are physically against

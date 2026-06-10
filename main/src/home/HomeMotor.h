@@ -24,7 +24,8 @@ struct HomeData
 	// New CNC-style homing fields
 	uint homingPhase = 0;  // 0=release-home-endstop, 1=fast approach, 2..7=normal sequence,
 	                       // 8..10=post-release safety, 11..12=offset+done,
-	                       // 13=escape WRONG endstop, 14=wait for wrong-endstop release
+	                       // 13=escape WRONG endstop, 14=wait for wrong-endstop release,
+	                       // 15..17=final back-off OFF the endstop before zeroing
 	uint16_t homeRetractDistance = 2000;  // Steps to retract after hitting endstop
 	int32_t homeFirstHitPosition = 0;  // Position where endstop was first triggered
 	int32_t homeEndOffset = 0;  // Final position offset from home (can be positive or negative)

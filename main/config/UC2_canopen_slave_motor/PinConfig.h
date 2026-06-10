@@ -127,9 +127,13 @@ struct UC2_canopen_slave_motor : PinConfig
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
 
-    // limit settings 
-      bool hardLimitEnabledX = true; 
+    // limit settings
+      bool hardLimitEnabledX = true;
       bool hardLimitPolarityX = true;
+
+     // Homing back-off: steps to move OFF the endstop (after it releases) before
+     // setting home=0, so homing never ends sitting on the switch. Tune here.
+      uint16_t homeEndstopReleaseSteps = 50;
 
 
      // OTA settings

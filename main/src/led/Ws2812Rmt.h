@@ -20,6 +20,8 @@ namespace Ws2812Rmt
     bool begin(int gpioPin, int rmtChannel = 4);
 
     // Push pixel bytes to the strip.  Layout matches Adafruit_NeoPixel::getPixels()
-    // (GRB-ordered for NEO_GRB strips).
+    // (GRB-ordered for NEO_GRB strips).  Streams the frame in RMT-sized chunks
+    // with interrupts disabled on the calling core, and blocks until the strip
+    // has been clocked out (~30 us per pixel, e.g. ~2 ms for 64 LEDs).
     void show(const uint8_t *pixels, size_t numBytes);
 }

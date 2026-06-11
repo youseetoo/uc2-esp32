@@ -6,24 +6,35 @@
 
 // Bare-metal WS2812 driver for the ESP32 RMT peripheral.
 //
-// Why not use the IDF rmt_driver_install?
-// FastAccelStepper (gin66) registers its own shared ISR via rmt_isr_register
-// AND writes global RMT config bits. rmt_driver_install() from another library
-// would install a competing ISR on the same shared IRQ -- causing FAS to emit
-// garbage step pulses.
+// Why not the IDF rmt_driver_install?
+//   FastAccelStepper (gin66) owns the single shared RMT IRQ via
+//   rmt_isr_register(..., ESP_INTR_FLAG_SHARED, ...). A competing
+//   rmt_driver_install() would fight over that IRQ and make FAS emit garbage
+//   step pulses. So we drive the strip with no IDF driver and no ISR: we fill
+//   RMTMEM directly and poll for completion.
 //
-// This driver masks our channel's RMT interrupts so FAS's shared ISR ignores
-// our events, fills RMTMEM directly, and polls for completion. No IDF driver.
-// No ISR. No global RMT config writes (except sys_conf.apb_fifo_mask on S3
-// which FAS also sets to the same value).
+// Why the transmission runs with interrupts disabled:
+//   A WS2812 strip latches whenever its data line idles LOW longer than the
+//   reset time (~50 us). RMTMEM only holds a couple of LEDs' worth of bits, so a
+//   64-LED frame must be sent as several back-to-back chunks. Refilling between
+//   chunks is only a few microseconds of CPU -- but if ANY interrupt lands in
+//   that window the gap stretches past the reset time and the strip latches a
+//   partial frame. On this board the TWAI/CAN controller fires error interrupts
+//   continuously when the master is absent, so that was happening on nearly
+//   every frame -> visibly "random" colours. We therefore disable interrupts on
+//   this core for the whole frame: the inter-chunk gaps stay deterministic
+//   (~5 us, well under the reset time), no interrupt can preempt a refill, and
+//   the strip sees one clean continuous frame. This is the same trade-off the
+//   stock Adafruit NeoPixel bit-bang path makes (~2 ms with IRQs off for 64
+//   LEDs). Motors are not stepping during LED commands, and deferring the CAN
+//   error ISR for ~2 ms is harmless, so the cost is acceptable.
 //
 // Chip differences:
-//   ESP32-classic: conf_ch[N].conf0/conf1, 64 items/block, channels 0..7
-//                  int bits: 3 per channel packed (tx_end at 3*ch)
-//                  Default WS2812 channel: 4 (above FAS cha//                  ESP32-S3:      chnconf0[N] with _n suffix, 48 items/block, TX ch 0..3
-//                  requires conf_update_n strobe after R/W shadow registers
-//                  int bits: tx_end at ch, err at ch+4, thr at ch+8
-//                  Default WS2812 channel: 0 (waveshare_ledarray has no motors)
+//   ESP32-classic: conf_ch[N].conf0/conf1, 64 items/block, channels 0..7.
+//                  Default WS2812 channel: 4 (FAS owns 0..3 on UC2_4).
+//   ESP32-S3:      chnconf0[N] with _n suffix + conf_update_n strobe,
+//                  48 items/block, TX ch 0..3.
+//                  Default WS2812 channel: 0 (waveshare_ledarray has no motors).
 
 #include "soc/rmt_struct.h"
 #include "soc/gpio_sig_map.h"
@@ -44,6 +55,10 @@ namespace Ws2812Rmt
     static bool s_initialised = false;
     static int  s_channel     = -1;
     static int  s_pin         = -1;
+
+    // Guards the whole frame transmission: disables interrupts on the current
+    // core so no ISR can stretch an inter-chunk gap past the WS2812 reset time.
+    static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
     static inline uint32_t bitItem(bool one)
     {
@@ -137,10 +152,14 @@ namespace Ws2812Rmt
     void show(const uint8_t *pixels, size_t numBytes)
     {
         if (!s_initialised || pixels == nullptr || numBytes == 0) return;
-        log_i("%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel); 
+        log_i("%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
         const int      ch     = s_channel;
         const uint32_t endBit = endBitMask(ch);
+        bool           timedOut = false;
 
+        // Interrupts off for the whole frame -- see header comment. No ISR can
+        // stretch an inter-chunk gap, and no refill races the TX read pointer.
+        portENTER_CRITICAL(&s_mux);
         size_t pos = 0;
         while (pos < numBytes) {
             const int chunk = (int)((numBytes - pos) > (size_t)CHUNK_BYTES
@@ -155,17 +174,22 @@ namespace Ws2812Rmt
             RMT.int_clr.val             = endBit;
             RMT.chnconf0[ch].tx_start_n = 1;
 
-            // Poll until chunk is sent (~50 us for 40 items at 1.25 us/bit).
-            uint32_t timeout = 240u * 1000u * 5u; // ~5 ms ceiling
+            // Poll until the chunk is sent (~50 us for 40 items). Cycle-based
+            // ceiling so it can't false-trip regardless of bus latency.
+            const uint32_t t0 = ESP.getCycleCount();
             while (!(RMT.int_raw.val & endBit)) {
-                if (--timeout == 0) {
-                    log_w("%s: tx_end timeout on chunk @%u", TAG, (unsigned)pos);
+                if ((uint32_t)(ESP.getCycleCount() - t0) > 480000u) { // ~2 ms
+                    timedOut = true;
                     break;
                 }
             }
             RMT.int_clr.val = endBit;
+            if (timedOut) break;
             pos += chunk;
         }
+        portEXIT_CRITICAL(&s_mux);
+
+        if (timedOut) log_w("%s: tx_end timeout (%u bytes)", TAG, (unsigned)numBytes);
         // Strip latches after >50 us of idle (idle_out_lv_n=0 keeps line low).
     }
 
@@ -203,11 +227,10 @@ namespace Ws2812Rmt
         const uint32_t chMask = (0x7u << (3 * s_channel));
         RMT.int_ena.val &= ~chMask;
         RMT.int_clr.val  =  chMask;
-        
 
         // Per-channel config via raw registers.
         // Do NOT touch RMT.apb_conf -- FAS owns those global bits.
-        RMT.conf_ch[s_channel].conf0.div_cnt      = 2;  // 40 MHz tick
+        RMT.conf_ch[s_channel].conf0.div_cnt       = 2;  // 40 MHz tick
         RMT.conf_ch[s_channel].conf0.mem_size      = 2;  // 128 items (borrows ch+1)
         RMT.conf_ch[s_channel].conf0.carrier_en    = 0;
         RMT.conf_ch[s_channel].conf0.mem_pd        = 0;  // power-up RAM
@@ -249,11 +272,14 @@ namespace Ws2812Rmt
     void show(const uint8_t *pixels, size_t numBytes)
     {
         if (!s_initialised || pixels == nullptr || numBytes == 0) return;
-        // print for debugging 
-        log_i("%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel); 
+        log_i("%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
         const int      ch     = s_channel;
         const uint32_t endBit = 1u << (3 * ch); // tx_end bit for this channel
+        bool           timedOut = false;
 
+        // Interrupts off for the whole frame -- see header comment. No ISR can
+        // stretch an inter-chunk gap, and no refill races the TX read pointer.
+        portENTER_CRITICAL(&s_mux);
         size_t pos = 0;
         while (pos < numBytes) {
             const int chunk = (int)((numBytes - pos) > (size_t)CHUNK_BYTES
@@ -268,18 +294,23 @@ namespace Ws2812Rmt
             RMT.int_clr.val                  = endBit;
             RMT.conf_ch[ch].conf1.tx_start   = 1;
 
-            // Poll until the chunk is sent (~80 us for 64 items).
-            uint32_t timeout = 240u * 1000u * 5u; // ~5 ms ceiling
+            // Poll until the chunk is sent (~80 us for 64 items). Cycle-based
+            // ceiling so it can't false-trip regardless of bus latency.
+            const uint32_t t0 = ESP.getCycleCount();
             while (!(RMT.int_raw.val & endBit)) {
-                if (--timeout == 0) {
-                    log_w("%s: tx_end timeout on chunk @%u", TAG, (unsigned)pos);
+                if ((uint32_t)(ESP.getCycleCount() - t0) > 480000u) { // ~2 ms
+                    timedOut = true;
                     break;
                 }
             }
             RMT.int_clr.val = endBit;
+            if (timedOut) break;
             pos += chunk;
         }
-        // Strip latches after >50 us of idle (idle_out_lv=0).
+        portEXIT_CRITICAL(&s_mux);
+
+        if (timedOut) log_w("%s: tx_end timeout (%u bytes)", TAG, (unsigned)numBytes);
+        // Strip latches after >50 us of idle (idle_out_lv=0 keeps line low).
     }
 
 #endif // CONFIG_IDF_TARGET_ESP32S3

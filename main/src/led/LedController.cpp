@@ -60,10 +60,10 @@ namespace LedController
 #if defined(DOTSTAR) || defined(HUB75)
 		if (matrix) matrix->show();
 #elif defined(USE_FASTACCEL)
-		// this is a special case since we would occupy the same RMT channel for the LED strip and
-		// the stepper motors, so we need to call the LinearEncoderController act function with a dummy
-		// JSON object to trigger the encoder-based motion
-		if (matrix) Ws2812Rmt::show(matrix->getPixels(), matrix->numPixels() * ((matrix->numPixels() > 0) ? (matrix->getPixels() ? 3 : 3) : 3));
+		// FastAccelStepper owns RMT channels 0..3 for the steppers, so the strip
+		// is driven by our own bare-metal RMT driver on a free channel instead of
+		// Adafruit's espShow(). NEO_GRB is 3 bytes/pixel.
+		if (matrix) Ws2812Rmt::show(matrix->getPixels(), (size_t)matrix->numPixels() * 3);
 #else
 		if (matrix)
 			matrix->show();

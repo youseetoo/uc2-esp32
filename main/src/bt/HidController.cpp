@@ -3,9 +3,21 @@
 #include "esp_task_wdt.h"
 // include logging
 #include "esp_log.h"
+#include "esp_bt.h"
 #if defined(PSXCONTROLLER) && defined(BTHID)
 #error "PSXCONTROLLER und BTHID dürfen nicht gleichzeitig definiert werden!"
 #endif
+
+// When the firmware only wires up a BT-classic gamepad (PS4 etc.) we
+// force BT-classic-only at runtime even if the Arduino libs were
+// compiled with BLE enabled. This saves ~30 KB of internal RAM that
+// the BLE controller would otherwise reserve.
+#ifdef UC2_FORCE_BT_CLASSIC_ONLY
+#define UC2_EFFECTIVE_HID_MODE HIDH_BT_MODE
+#else
+#define UC2_EFFECTIVE_HID_MODE HID_HOST_MODE
+#endif
+
 GamePadData gamePadData;
 bool hidIsConnected = false;
 
@@ -15,16 +27,17 @@ void setupHidController()
     ESP_LOGI(TAG, "setup");
     esp_err_t ret;
 
-    #if HID_HOST_MODE == HIDH_IDLE_MODE
+    #if UC2_EFFECTIVE_HID_MODE == HIDH_IDLE_MODE
         ESP_LOGE(TAG, "Please turn on BT HID host or BLE!");
         return;
     #endif
 
     // Print configuration details
     log_i("HID Configuration:");
-    log_i("  HID_HOST_MODE: %d", HID_HOST_MODE);
+    log_i("  HID_HOST_MODE (compile): %d", HID_HOST_MODE);
+    log_i("  Effective mode (runtime): %d", UC2_EFFECTIVE_HID_MODE);
     log_i("  HIDH_IDLE_MODE: %d", HIDH_IDLE_MODE);
-    log_i("  HIDH_BLE_MODE: %d", HIDH_BLE_MODE); 
+    log_i("  HIDH_BLE_MODE: %d", HIDH_BLE_MODE);
     log_i("  HIDH_BT_MODE: %d", HIDH_BT_MODE);
     log_i("  HIDH_BTDM_MODE: %d", HIDH_BTDM_MODE);
     log_i("  CONFIG_BT_HID_HOST_ENABLED: %d", CONFIG_BT_HID_HOST_ENABLED);
@@ -37,11 +50,22 @@ void setupHidController()
     }
     ESP_ERROR_CHECK(ret);
 
-    log_i("setting hid gap, mode:%d", HID_HOST_MODE);
-    log_i("HID_HOST_MODE details - BT_HID_HOST: %d, BT_BLE: %d", 
-          CONFIG_BT_HID_HOST_ENABLED, CONFIG_BT_BLE_ENABLED);
-    ESP_ERROR_CHECK(esp_hid_gap_init(HID_HOST_MODE));
+    // NOTE: we previously called esp_bt_controller_mem_release(ESP_BT_MODE_BLE)
+    // here when UC2_FORCE_BT_CLASSIC_ONLY was set. That hung boot — the
+    // BTDM-built IDF controller library still touches the released BLE
+    // DRAM region during esp_bluedroid_init/enable, so we leave the
+    // memory in place. The runtime mode override below is enough to
+    // skip the BLE controller activation overhead.
 
+    log_i("setting hid gap, mode:%d", UC2_EFFECTIVE_HID_MODE);
+    log_i("HID_HOST_MODE details - BT_HID_HOST: %d, BT_BLE: %d",
+          CONFIG_BT_HID_HOST_ENABLED, CONFIG_BT_BLE_ENABLED);
+    ESP_ERROR_CHECK(esp_hid_gap_init(UC2_EFFECTIVE_HID_MODE));
+
+    // Always register the BLE GATTC callback when the IDF lib was built
+    // with BLE support — esp_hidh_init() registers internal BLE-HID
+    // event handlers regardless of the gap-init mode, and they fail
+    // unless this callback is present.
     #if CONFIG_BT_BLE_ENABLED
         ESP_ERROR_CHECK(esp_ble_gattc_register_callback(esp_hidh_gattc_event_handler));
     #endif
@@ -52,6 +76,7 @@ void setupHidController()
         .callback_arg = NULL,
     };
     ESP_ERROR_CHECK(esp_hidh_init(&config));
+    log_i("setupHidController() complete");
 }
 
 int slowInputLog = 0;
@@ -60,8 +85,6 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
 {
     esp_hidh_event_t event = (esp_hidh_event_t)id;
     esp_hidh_event_data_t *param = (esp_hidh_event_data_t *)event_data;
-    // print HEAP memory
-    esp_log_level_set("*", ESP_LOG_DEBUG); 
     switch (event) {
 	    case ESP_HIDH_OPEN_EVENT:
             if (param->open.status == ESP_OK) {
@@ -102,12 +125,14 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             
             break;
             }
-        default: { 
+        default: {
             ESP_LOGI(TAG, "EVENT: %d", event);
             break;
             }
     }
-    esp_log_level_set("*", ESP_LOG_NONE);            
+    // Previously: esp_log_level_set("*", ESP_LOG_NONE)
+    // That silenced every subsequent log_i across the firmware, which made
+    // a perfectly running boot look hung on the serial monitor. Drop it.
 }
 
 void handleHidInputEvent(esp_hidh_event_data_t *param)
@@ -187,6 +212,7 @@ void updateGamePadDataDS4(const DS4Data *d)
 
 void hid_demo_task(void *pvParameters)
 {
+    log_i("BT scan task started");
     // pvParameters is used to indicate if this was called as a task (non-null) or directly (null)
     bool calledAsTask = (pvParameters != nullptr);
     

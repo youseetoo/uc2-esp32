@@ -40,7 +40,7 @@ struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
      bool ENC_Z_motorDirection = true;
 
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
      // Laser control pins (using updated GPIO values)

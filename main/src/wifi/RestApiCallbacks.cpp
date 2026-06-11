@@ -31,9 +31,6 @@
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-#include "../objective/ObjectiveController.h"
-#endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
 #endif
@@ -66,6 +63,12 @@
 #ifdef HEAT_CONTROLLER
 #include "../heat/HeatController.h"
 #include "../heat/DS18b20Controller.h"
+#endif
+#ifdef TMP102_CONTROLLER
+#include "../tmp102/Tmp102Controller.h"
+#endif
+#ifdef FAN_CONTROLLER
+#include "../fan/FanController.h"
 #endif
 
 #define SCRATCH_BUFSIZE (10240)
@@ -324,18 +327,6 @@ namespace RestApi
         return ESP_OK;
     }
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-    esp_err_t Objective_setESP(httpd_req_t *req)
-    {
-        serializeESP(ObjectiveController::act(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-    esp_err_t Objective_getESP(httpd_req_t *req)
-    {
-        serializeESP(ObjectiveController::get(deserializeESP(req)), req);
-        return ESP_OK;
-    }
-#endif
 #ifdef LINEAR_ENCODER_CONTROLLER
     esp_err_t LinearEncoderMotor_setESP(httpd_req_t *req)
     {
@@ -474,6 +465,32 @@ namespace RestApi
     esp_err_t DS18B20_getESP(httpd_req_t *req)
     {
         serializeESP(DS18b20Controller::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+
+#ifdef TMP102_CONTROLLER
+    esp_err_t Temp_getESP(httpd_req_t *req)
+    {
+        serializeESP(Tmp102Controller::get(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t Temp_actESP(httpd_req_t *req)
+    {
+        serializeESP(Tmp102Controller::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+#endif
+
+#ifdef FAN_CONTROLLER
+    esp_err_t Fan_actESP(httpd_req_t *req)
+    {
+        serializeESP(FanController::act(deserializeESP(req)), req);
+        return ESP_OK;
+    }
+    esp_err_t Fan_getESP(httpd_req_t *req)
+    {
+        serializeESP(FanController::get(deserializeESP(req)), req);
         return ESP_OK;
     }
 #endif

@@ -3,7 +3,7 @@
  * @brief Galvo scanner controller implementation
  *
  * Static class - no instance/singleton pattern needed.
- * Master mode: forwards commands via CAN
+ * Master mode (NODE_ROLE==1): forwards commands via DeviceRouter/CANopen
  * Slave mode: controls local galvo hardware
  */
 
@@ -13,8 +13,8 @@
 #include <stdio.h>
 #include "PinConfig.h"
 
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#ifdef CAN_CONTROLLER_CANOPEN
+#include "../canopen/DeviceRouter.h"
 #endif
 
 static const char *TAG = "GalvoCtrl";
@@ -33,9 +33,10 @@ unsigned long GalvoController::last_status_print_ = 0;
 void GalvoController::setup()
 {
  
-#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
-    // Host/Master mode - only forward commands via CAN, no local hardware
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
+    // Host/Master mode - only forward commands via DeviceRouter, no local hardware
     initialized_ = true;
+    log_i("Running in MASTER mode (DeviceRouter command forwarding only)");
     return;
 #else
     delay(2000); // Wait for CAN bus to stabilize
@@ -133,7 +134,7 @@ void GalvoController::loop()
     if (!initialized_)
         return;
 
-#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
     // Master mode - nothing to do in loop
     return;
 #endif
@@ -191,149 +192,19 @@ cJSON *GalvoController::processCommand(cJSON *doc)
     
     cJSON *response = cJSON_CreateObject();
 
-#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
-    // ========== MASTER MODE - Forward commands via CAN ==========
-    // GALVO_LOG("Master mode - forwarding via CAN");
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
+    // ========== MASTER MODE - Forward commands via DeviceRouter ==========
+    GALVO_LOG("Master mode - routing via DeviceRouter");
 
-    // Check for stop command
-    cJSON *stop_cmd = cJSON_GetObjectItem(doc, "stop");
-    if (stop_cmd && cJSON_IsTrue(stop_cmd))
+    cJSON *routed = DeviceRouter::handleGalvoAct(doc);
+    if (routed)
     {
-        GALVO_LOG("Forwarding STOP via CAN");
-        GalvoData galvoData;
-        galvoData.isRunning = false;
-        galvoData.nFrames = 0;
-#ifdef CAN_BUS_ENABLED
-        can_controller::sendGalvoDataToCANDriver(galvoData);
-#endif
-        cJSON_AddBoolToObject(response, "success", true);
-        cJSON_AddStringToObject(response, "message", "Stop sent via CAN");
-        return response;
-    }
-
-    // Extract config and create GalvoData for CAN transmission
-    cJSON *config_obj = cJSON_GetObjectItem(doc, "config");
-    if (config_obj)
-    {
-        GalvoData galvoData;
-
-        cJSON *item;
-        if ((item = cJSON_GetObjectItem(config_obj, "x_min")))
-            galvoData.X_MIN = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "x_max")))
-            galvoData.X_MAX = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "y_min")))
-            galvoData.Y_MIN = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "y_max")))
-            galvoData.Y_MAX = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "nx")))
-            galvoData.STEP = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "sample_period_us")))
-            galvoData.tPixelDwelltime = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "frame_count")))
-            galvoData.nFrames = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "bidirectional")))
-            galvoData.bidirectional = cJSON_IsTrue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "pre_samples")))
-            galvoData.pre_samples = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "fly_samples")))
-            galvoData.fly_samples = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "line_settle_samples")))
-            galvoData.line_settle_samples = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "trig_delay_us")))
-            galvoData.trig_delay_us = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "trig_width_us")))
-            galvoData.trig_width_us = (int32_t)cJSON_GetNumberValue(item);
-        if ((item = cJSON_GetObjectItem(config_obj, "enable_trigger")))
-            galvoData.enable_trigger = cJSON_IsTrue(item) ? 1 : 0;
-
-        // Get qid from doc
-        if ((item = cJSON_GetObjectItem(doc, "qid")))
-            galvoData.qid = (int)cJSON_GetNumberValue(item);
-
-        galvoData.isRunning = true; // Start scanning
-
-        // Log all parameters being sent
-        if (0){
-        GALVO_LOG("Sending config via CAN: nx=%d, ny=%d, x=[%d,%d], y=[%d,%d]",
-                  galvoData.STEP, galvoData.STEP, galvoData.X_MIN, galvoData.X_MAX, 
-                  galvoData.Y_MIN, galvoData.Y_MAX);
-        GALVO_LOG("  timing: period=%dµs, pre=%d, fly=%d, settle=%d",
-                  galvoData.tPixelDwelltime, galvoData.pre_samples, 
-                  galvoData.fly_samples, galvoData.line_settle_samples);
-        GALVO_LOG("  trigger: enable=%d, delay=%dµs, width=%dµs",
-                  galvoData.enable_trigger, galvoData.trig_delay_us, galvoData.trig_width_us);
-        GALVO_LOG("  frames=%d, bidir=%d, isRunning=%d",
-                  galvoData.nFrames, galvoData.bidirectional, galvoData.isRunning);
-}
-
-        // Send via CAN
-#ifdef CAN_BUS_ENABLED
-        can_controller::sendGalvoDataToCANDriver(galvoData);
-#endif
-
-        cJSON_AddBoolToObject(response, "success", true);
-        cJSON_AddStringToObject(response, "message", "Config sent via CAN");
-        return response;
-    }
-
-    // Check for arbitrary points array (forward to slave via CAN)
-    cJSON *points_array = cJSON_GetObjectItem(doc, "points");
-    if (points_array && cJSON_IsArray(points_array))
-    {
-        int point_count = cJSON_GetArraySize(points_array);
-        GALVO_LOG("Forwarding %d arbitrary points via CAN", point_count);
-        
-        if (point_count == 0 || point_count > SCANNER_MAX_ARBITRARY_POINTS) {
-            cJSON_AddBoolToObject(response, "success", false);
-            cJSON_AddStringToObject(response, "error", "Invalid point count (1-256)");
-            return response;
-        }
-        
-        ArbitraryScanPoint points[SCANNER_MAX_ARBITRARY_POINTS];
-        for (int i = 0; i < point_count; ++i) {
-            cJSON *point = cJSON_GetArrayItem(points_array, i);
-            if (!point || !cJSON_IsObject(point)) {
-                cJSON_AddBoolToObject(response, "success", false);
-                cJSON_AddStringToObject(response, "error", "Invalid point format");
-                return response;
-            }
-            cJSON *x_item = cJSON_GetObjectItem(point, "x");
-            cJSON *y_item = cJSON_GetObjectItem(point, "y");
-            cJSON *dwell_item = cJSON_GetObjectItem(point, "dwell_us");
-            
-            if (!x_item || !y_item || !dwell_item) {
-                cJSON_AddBoolToObject(response, "success", false);
-                cJSON_AddStringToObject(response, "error", "Missing x, y, or dwell_us");
-                return response;
-            }
-            
-            points[i].x = (uint16_t)cJSON_GetNumberValue(x_item);
-            points[i].y = (uint16_t)cJSON_GetNumberValue(y_item);
-            points[i].dwell_us = (uint32_t)cJSON_GetNumberValue(dwell_item);
-        }
-        
-        // Determine trigger mode
-        TriggerMode trigMode = TRIGGER_AUTO;
-        cJSON *laser_trigger = cJSON_GetObjectItem(doc, "laser_trigger");
-        if (laser_trigger && cJSON_IsString(laser_trigger)) {
-            const char* ts = cJSON_GetStringValue(laser_trigger);
-            if (strcmp(ts, "HIGH") == 0) trigMode = TRIGGER_HIGH;
-            else if (strcmp(ts, "LOW") == 0) trigMode = TRIGGER_LOW;
-            else if (strcmp(ts, "CONTINUOUS") == 0) trigMode = TRIGGER_CONTINUOUS;
-        }
-        
-#ifdef CAN_BUS_ENABLED
-        can_controller::sendGalvoPointsToCANDriver(points, point_count, trigMode);
-#endif
-        cJSON_AddBoolToObject(response, "success", true);
-        cJSON_AddStringToObject(response, "message", "Points sent via CAN");
-        cJSON_AddNumberToObject(response, "point_count", point_count);
-        return response;
+        cJSON_Delete(response);
+        return routed;
     }
 
     cJSON_AddBoolToObject(response, "success", false);
-    cJSON_AddStringToObject(response, "error", "Master mode - provide config to forward");
+    cJSON_AddStringToObject(response, "error", "Master mode - DeviceRouter returned no response");
     return response;
 
 #else
@@ -558,14 +429,14 @@ cJSON *GalvoController::processCommand(cJSON *doc)
     GALVO_LOG("No specific command, returning status");
     cJSON_Delete(response);
     return getStatus();
-#endif // Master/Slave mode selection
+#endif // CAN_CONTROLLER_CANOPEN Master/Slave mode selection
 }
 
 cJSON *GalvoController::getStatus()
 {
     cJSON *status = cJSON_CreateObject();
 
-#if defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_GALVO)
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
     // Master mode
     cJSON_AddBoolToObject(status, "master_mode", true);
     cJSON_AddBoolToObject(status, "initialized", initialized_);

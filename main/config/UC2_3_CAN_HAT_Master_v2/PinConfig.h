@@ -13,14 +13,13 @@
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
-#define OBJECTIVE_CONTROLLER=1
 #define STAGE_SCAN=1
 #define CAN_SEND_COMMANDS
 #define MOTOR_AXIS_COUNT 10   
 #define LED_CONTROLLER
 #define GALVO_CONTROLLER
 #define DAC_CONTROLLER
-#define CAN_BUS_ENABLED 
+#define LASER_CONTROLLER
 
 struct UC2_3_CAN_HAT_Master_v2 : PinConfig
 {
@@ -50,11 +49,14 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // ---------------------------------------------------------------------
     // Power / safety integration
     // ---------------------------------------------------------------------
-    // Drives the high-current bus power MOSFET gate logic (HIGH = turn OFF)
-    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4; // TODO: implement power control via status_act ((text "ESP pin\nHI turns device off")
+    // Drives the high-current CAN-bus power MOSFET gate (HIGH = bus power OFF).
+    // Controlled via /state_act {"power":0|1} and reported by /state_get. Default ON.
+    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
 
-    // Emergency STOP sense (input-only pin; HIGH = normal, LOW = E-STOP asserted)
-    uint8_t pinEmergencyExit = GPIO_NUM_34; // TODO: Implement such that if we sense that the emergency button was pressed that we immediately stop all motors and switch off all lights and heaters, etc. we should print out a message to the log as well {"Emergency stop activated! Shutting down all systems."}
+    // Emergency-STOP sense (input-only pin; external pull-up: HIGH = normal,
+    // LOW = E-STOP asserted). On a trip the master cuts bus power and emits an
+    // async {"emergency":...} serial event (see DigitalInController).
+    int8_t pinEmergencyExit = GPIO_NUM_34;
     uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured 
 
     // TEMPERATURE : TMP102AIDRLR
@@ -77,6 +79,14 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
      int8_t CAN_RX = GPIO_NUM_18;
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
     bool DEBUG_CAN_ISO_TP = false;
+
+    // Routing overrides: 0=LOCAL, 1=REMOTE, 2=OFF  (-1=infer)
+    int8_t ROUTE_MOTOR[4] = {1, 1, 1, 1}; // A, X, Y, Z — all remote via CAN slaves
+    int8_t ROUTE_HOME[4]  = {1, 1, 1, 1};
+    int8_t ROUTE_TMC[4]   = {1, 1, 1, 1};
+    int8_t ROUTE_LASER[4] = {1, 1, 1, 1}; // all remote
+    int8_t ROUTE_LED       = 0;            // on-board WS2812 is local
+    int8_t ROUTE_GALVO     = 1;            // remote
 
     // ---------------------------------------------------------------------
     // Lighting / status
@@ -119,7 +129,7 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     bool ENC_Z_motorDirection = true;
 
     bool MOTOR_ENABLE_INVERTED = true;
-    bool MOTOR_AUTOENABLE = true;
+    bool MOTOR_AUTOENABLE = false;
     int8_t AccelStepperMotorType = 1;
 
     // Digital inputs (reserved)

@@ -23,15 +23,12 @@ __attribute__ ((unused)) static const  char* galvo_get_endpoint = "/galvo_get";
 
 __attribute__ ((unused)) static const  char* config_act_endpoint = "/config_act";
 __attribute__ ((unused)) static const  char* config_get_endpoint = "/config_get";
+__attribute__ ((unused)) static const  char* config_set_endpoint = "/config_set";
+__attribute__ ((unused)) static const  char* config_reset_endpoint = "/config_reset";
 
 #ifdef HOME_MOTOR
 __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
 __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
-#endif
-
-#ifdef OBJECTIVE_CONTROLLER
-__attribute__ ((unused)) static const  char* objective_act_endpoint = "/objective_act";
-__attribute__ ((unused)) static const  char* objective_get_endpoint = "/objective_get";
 #endif
 
 #ifdef I2C_MASTER
@@ -42,8 +39,6 @@ __attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
 #ifdef CAN_BUS_ENABLED
 __attribute__ ((unused)) static const  char* can_act_endpoint = "/can_act";
 __attribute__ ((unused)) static const  char* can_get_endpoint = "/can_get";
-__attribute__ ((unused)) static const  char* can_ota_endpoint = "/can_ota";
-__attribute__ ((unused)) static const  char* can_ota_stream_endpoint = "/can_ota_stream";
 #endif
 
 #ifdef ENCODER_CONTROLLER
@@ -62,18 +57,24 @@ __attribute__ ((unused)) static const  char* dac_get_endpoint = "/dac_get";
 __attribute__ ((unused)) static const  char* analogout_act_endpoint = "/analogout_act";
 __attribute__ ((unused)) static const  char* analogout_get_endpoint = "/analogout_get";
 #endif
-#ifdef DIGITAL_OUT_CONTROLLER
+// Digital I/O endpoint strings are always defined — DeviceRouter routes
+// /digitalout_act / /digitalin_get on builds without a local
+// DIGITAL_*_CONTROLLER too (they forward to a remote GPIO slave via SDO).
 __attribute__ ((unused)) static const  char* digitalout_act_endpoint = "/digitalout_act";
 __attribute__ ((unused)) static const  char* digitalout_get_endpoint = "/digitalout_get";
-#endif
-#ifdef DIGITAL_IN_CONTROLLER
 __attribute__ ((unused)) static const  char* digitalin_act_endpoint = "/digitalin_act";
 __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitalin_get";
-#endif
 #ifdef LED_CONTROLLER
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";
 #endif
+
+// Status indicator (on-board NeoPixel) and beeper for the FRAME / CAN HAT.
+// These are local-only signalling interfaces; independent from /ledarr_act.
+__attribute__ ((unused)) static const  char* signal_act_endpoint = "/signal_act";
+__attribute__ ((unused)) static const  char* signal_get_endpoint = "/signal_get";
+__attribute__ ((unused)) static const  char* indicator_act_endpoint = "/indicator_act"; // alias for /signal_act
+__attribute__ ((unused)) static const  char* buzzer_act_endpoint = "/buzzer_act";
 #ifdef MESSAGE_CONTROLLER
 __attribute__ ((unused)) static const  char* message_act_endpoint = "/message_act";
 __attribute__ ((unused)) static const  char* message_get_endpoint = "/message_get";
@@ -89,6 +90,7 @@ __attribute__ ((unused)) static const  char* PID_get_endpoint = "/PID_get";
 __attribute__ ((unused)) static const  char* features_endpoint = "/features_get";
 __attribute__ ((unused)) static const  char* identity_endpoint = "/identity";
 __attribute__ ((unused)) static const  char* ota_endpoint = "/ota";
+__attribute__ ((unused)) static const  char* ota_start_endpoint = "/ota_start";
 __attribute__ ((unused)) static const  char* update_endpoint = "/update";
 __attribute__ ((unused)) static const  char* scanwifi_endpoint = "/wifi/scan";
 __attribute__ ((unused)) static const  char* connectwifi_endpoint = "/wifi/connect";
@@ -114,4 +116,16 @@ __attribute__ ((unused)) static const  char* heat_get_endpoint = "/heat_get";
 __attribute__ ((unused)) static const char* ds18b20_act_endpoint = "/ds18b20_act";
 __attribute__ ((unused)) static const char* ds18b20_get_endpoint = "/ds18b20_get";
 #endif
+
+// Chassis-cooling endpoints (TMP102 + MCP4017 + tacho).
+#if defined(FAN_CONTROLLER) || defined(TMP102_CONTROLLER)
+__attribute__ ((unused)) static const  char* temp_get_endpoint = "/temp_get";
+__attribute__ ((unused)) static const  char* temp_act_endpoint = "/temp_act";
+__attribute__ ((unused)) static const  char* fan_act_endpoint  = "/fan_act";
+__attribute__ ((unused)) static const  char* fan_get_endpoint  = "/fan_get";
+#endif
+
+// Routing table inspection/override (CANopen builds)
+__attribute__ ((unused)) static const  char* route_get_endpoint = "/route_get";
+__attribute__ ((unused)) static const  char* route_set_endpoint = "/route_set";
 

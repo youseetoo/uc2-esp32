@@ -27,3 +27,9 @@ THID*
 /build/*
 /managed_components
 /main/LASERSCANNER
+
+# Generated log and observation files
+observations_*.txt
+logs.txt
+*.pyc
+__pycache__/

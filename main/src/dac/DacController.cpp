@@ -12,8 +12,18 @@ namespace DacController
 		if (pinConfig.dac_fake_1 < 0 || pinConfig.dac_fake_2 < 0)
 		{
 			log_i("No DAC pins defined");
-			//return;
+			return;
 		}
+		else if (pinConfig.BUZZER_PIN >= 0)
+		{
+			log_i("DAC pin used for Buzzer, not initializing DAC output here - use /buzzer_act task to control buzzer output");
+			return;
+		}
+		else
+		{
+			log_i("DAC pins not defined and no buzzer pin defined - DAC output will not work");
+		}
+
 		log_i("Setting up DAC on channel %i, %i", DAC_CHANNEL_1, DAC_CHANNEL_2);
 
 		

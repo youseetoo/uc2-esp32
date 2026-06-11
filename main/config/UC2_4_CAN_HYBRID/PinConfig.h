@@ -18,8 +18,9 @@ DIP Switch Configuration:
 
 // Enable hybrid CAN mode with native motor drivers
 #define MOTOR_CONTROLLER
-#define CAN_BUS_ENABLED      // Enable CAN hardware
-#define CAN_SEND_COMMANDS    // This device sends commands to CAN slaves
+#define CAN_BUS_ENABLED          // Enable CAN hardware
+#define CAN_SEND_COMMANDS        // This device sends commands to CAN slaves
+#define CAN_CONTROLLER_CANOPEN   // Use the CANopen stack (DeviceRouter REMOTE path)
 #define USE_FASTACCEL
 #define USE_TCA9535
 #define BLUETOOTH
@@ -81,15 +82,29 @@ struct UC2_4_CAN_HYBRID : PinConfig
      const uint16_t TEMPERATURE_TASK_STACKSIZE = 0;
 
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
-     // Native laser drivers (PWM channels 1-4)
+     // ─────────────────────────────────────────────────────────────────────
+     // Native laser drivers (PWM channels 1-4) and reserved laser id scheme
+     // ─────────────────────────────────────────────────────────────────────
+     // RESERVED LASER IDs ON THIS MASTER:
+     //   id 0..3 → LOCAL  (driven directly via on-board PWM pins below)
+     //   id 4    → REMOTE (CANopen illumination satellite board, OD sub 0x01)
+     //   id 5+   → unused (kept reserved for future remote lasers)
+     //
+     // The CANopen Object Dictionary entry LASER_PWM_VALUE (0x2100) carries
+     // 4 sub-indices, so any single REMOTE node can serve at most 4 laser
+     // channels. The illumination board only has 1 PWM laser → it lives on
+     // sub-axis 0 (OD sub 0x01) of node CAN_ID_LED_0 (default 30).
      int8_t LASER_1 = GPIO_NUM_12;
      int8_t LASER_2 = GPIO_NUM_4;
      int8_t LASER_3 = GPIO_NUM_2;
-     int8_t LASER_4 = GPIO_NUM_17;
-     int MAX_LASERS = 5+5; // Support for LASER IDs 0-4
+     // Laser id 4 is REMOTE on the illumination board; the GPIO that was
+     // historically wired here is no longer driven locally. Routing is
+     // enforced via ROUTE_LASER_4 below.
+     int8_t LASER_4 = disabled; // was GPIO_NUM_17 — now remote (illumination board)
+     int MAX_LASERS = 5+5; // Support for LASER IDs 0-4 (and reserved 5-9)
      // Native LED array
      int8_t LED_PIN = GPIO_NUM_13;
      int8_t LED_COUNT = 64;
@@ -149,5 +164,27 @@ struct UC2_4_CAN_HYBRID : PinConfig
      
      // Set to true to send LED commands to BOTH native array AND CAN devices
      bool HYBRID_LED_DUAL_OUTPUT = false;
+
+     // ─────────────────────────────────────────────────────────────────────
+     // CANopen device routing (DeviceRouter / RoutingTable)
+     // ─────────────────────────────────────────────────────────────────────
+     // Make routing fully explicit so the RoutingTable does not rely on
+     // pin-availability inference. This master keeps motors/lasers 0-3
+     // local and forwards laser 4 + the LED array to the illumination
+     // satellite board over CAN.
+     int8_t ROUTE_MOTOR[4] = {0, 0, 0, 0};  // A,X,Y,Z native (FastAccelStepper)
+     int8_t ROUTE_HOME[4]  = {0, 0, 0, 0};
+     int8_t ROUTE_TMC[4]   = {0, 0, 0, 0};
+     int8_t ROUTE_LASER[4] = {0, 0, 0, 0};  // lasers 0-3 native
+
+     // Laser id 4 → REMOTE on illumination board (CAN_ID_LED_0 = 30, sub 0x01)
+     int8_t  ROUTE_LASER_4     = 1;        // REMOTE
+     uint8_t CAN_NODE_LASER_4  = 30;       // = CAN_ID_LED_0
+     int8_t  CAN_SUBAXIS_LASER_4 = 0;      // OD sub 0x01 on the slave
+
+     // NeoPixel: route LED array to the illumination board as well.
+     // NOTE: HYBRID_LED_DUAL_OUTPUT above is not honoured by DeviceRouter yet;
+     // set ROUTE_LED = 0 to keep the on-board LED_PIN array instead.
+     int8_t ROUTE_LED = 1; // REMOTE → illumination board (CAN_ID_LED_0 = 30)
 };
 const UC2_4_CAN_HYBRID pinConfig;

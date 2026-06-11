@@ -4,11 +4,9 @@
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
 
-#ifdef CAN_SEND_COMMANDS
-#include "../can/can_controller.h"
-#include "../motor/MotorTypes.h"
+#include "../motor/FocusMotor.h"
 #include "../laser/LaserController.h"
-#endif
+#include "../canopen/DeviceRouter.h"
 
 namespace DialController
 {
@@ -79,7 +77,6 @@ namespace DialController
     // Get CAN ID for axis
     uint8_t getCanIdForAxis(MotorAxis axis)
     {
-#ifdef CAN_SEND_COMMANDS
         switch (axis)
         {
             case MotorAxis::X: return pinConfig.CAN_ID_MOT_X;
@@ -88,9 +85,6 @@ namespace DialController
             case MotorAxis::A: return pinConfig.CAN_ID_MOT_A;
             default: return 0;
         }
-#else
-        return 0;
-#endif
     }
     
     // Get axis index for CAN motor arrays (0=A, 1=X, 2=Y, 3=Z)
@@ -112,47 +106,34 @@ namespace DialController
     
     void sendMotorCommand(int axis, int32_t steps)
     {
-#ifdef CAN_SEND_COMMANDS
         if (steps == 0) return;
-        
-        // Create MotorDataReduced for efficient CAN transmission
-        MotorDataReduced motorCmd;
-        motorCmd.targetPosition = steps;
-        motorCmd.speed = config.motorSpeed;
-        motorCmd.isforever = false;
-        motorCmd.absolutePosition = false;  // Relative movement
-        motorCmd.isStop = false;
-        
-        uint8_t canId = getCanIdForAxis(static_cast<MotorAxis>(axis));
-        
-        log_d("Dial sending motor command: axis=%d, canId=%d, steps=%d", axis, canId, steps);
-        
-        // Send via CAN using typed message format (MOTOR_ACT_REDUCED 0x15 prefix).
-        // This matches what can_controller::startStepper() sends and what the slave
-        // dispatch table expects. Using raw sendCanMessage() would omit the type
-        // prefix, causing the slave to misinterpret the first byte of targetPosition
-        // as an unknown message type and silently drop the payload.
-        int err = can_controller::sendTypedCanMessage(canId, MOTOR_ACT_REDUCED, (uint8_t*)&motorCmd, sizeof(MotorDataReduced));
-        if (err != 0)
-        {
-            log_e("Failed to send motor command via CAN");
-        }
-#endif
+
+        // Set motor data — DeviceRouter will route to the correct node
+        // (local or remote slave) based on the routing table.
+        FocusMotor::getData()[axis]->targetPosition = steps;
+        FocusMotor::getData()[axis]->speed = config.motorSpeed;
+        FocusMotor::getData()[axis]->isforever = false;
+        FocusMotor::getData()[axis]->absolutePosition = false;  // Relative movement
+        FocusMotor::getData()[axis]->isStop = false;
+        FocusMotor::getData()[axis]->isEnable = true;
+
+        log_d("Dial sending motor command: axis=%d, steps=%d", axis, steps);
+
+        FocusMotor::startStepper(axis, 0);
     }
     
     void sendLaserCommand(int laserId, int intensity)
     {
-#ifdef CAN_SEND_COMMANDS
         LaserData laserCmd;
         laserCmd.LASERid = laserId;
         laserCmd.LASERval = intensity;
         laserCmd.LASERdespeckle = 0;
         laserCmd.LASERdespecklePeriod = 0;
-        
+
         log_d("Dial sending laser command: id=%d, intensity=%d", laserId, intensity);
-        
-        can_controller::sendLaserDataToCANDriver(laserCmd);
-#endif
+
+        // DeviceRouter will route to the correct node (local or remote slave)
+        LaserController::applyLaserValue(laserCmd);
     }
 
     // ========================================================================
@@ -552,15 +533,11 @@ namespace DialController
         M5Dial.Display.setTextSize(1);
         
         // Load CAN IDs from pinConfig
-#ifdef CAN_SEND_COMMANDS
         config.canIdMotorX = pinConfig.CAN_ID_MOT_X;
         config.canIdMotorY = pinConfig.CAN_ID_MOT_Y;
         config.canIdMotorZ = pinConfig.CAN_ID_MOT_Z;
         config.canIdMotorA = pinConfig.CAN_ID_MOT_A;
         config.canIdLaser = pinConfig.CAN_ID_LASER_0;
-		// send some info to the master
-
-#endif
         
         // Initialize encoder position
         lastEncoderPos = M5Dial.Encoder.read();

@@ -2,6 +2,8 @@
 #include "esp_log.h"
 #include "PinConfig.h"
 #include "src/config/ConfigController.h"
+#include "src/config/RuntimeConfig.h"
+#include "src/config/NVSConfig.h"
 #include "src/serial/SerialProcess.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -62,7 +64,9 @@ Preferences preferences;
 #endif
 #ifdef LED_CONTROLLER
 #include "src/led/LedController.h"
+#include "src/signal/SignalController.h"
 #endif
+#include "src/buzzer/BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER
 #include "src/message/MessageController.h"
 #endif
@@ -84,17 +88,27 @@ Preferences preferences;
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
 #endif
-#ifdef OBJECTIVE_CONTROLLER
-#include "src/objective/ObjectiveController.h"
-#endif
 #ifdef WIFI
 #include "src/wifi/WifiController.h"
 #endif
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "src/can/can_controller.h"
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
+#include "src/can/can_transport.h"
+#endif
+#ifdef CAN_CONTROLLER_CANOPEN
+#include "src/canopen/CANopenModule.h"
+CANopenModule canopenModule;
+#endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+#include "src/gpio_can/GpioCanSlave.h"
+#endif
+#include "src/canopen/RoutingTable.h"
+
+#ifdef JOYSTICK_USBHOST_PROVIDER
+#include "src/joystick/JoystickUsbHost.h"
+#include "src/joystick/JoystickRouter.h"
 #endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"
@@ -105,6 +119,12 @@ Preferences preferences;
 #ifdef HEAT_CONTROLLER
 #include "src/heat/DS18b20Controller.h"
 #include "src/heat/HeatController.h"
+#endif
+#ifdef TMP102_CONTROLLER
+#include "src/tmp102/Tmp102Controller.h"
+#endif
+#ifdef FAN_CONTROLLER
+#include "src/fan/FanController.h"
 #endif
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"
@@ -120,6 +140,29 @@ long period_led = 1000;
 #ifdef BLUETOOTH
 static void checkBtButtonLongPress();
 #endif
+
+
+
+// ---------------------------------------------------------------------------
+// dw_is_debugger_attached()
+//
+// Reads the Xtensa Debug Status Register (SREG 233).
+// Returns non-zero when a JTAG debugger has the core under its control.
+// ---------------------------------------------------------------------------
+static bool dw_is_debugger_attached() {
+    uint32_t dsr = 0;
+    asm volatile("rsr %0, 233" : "=a"(dsr));
+    return (dsr != 0);
+}
+
+// ---------------------------------------------------------------------------
+// microsecond-granularity, non-blocking delay helper
+// Uses busy-wait so the JTAG interface keeps getting "air time".
+// ---------------------------------------------------------------------------
+static void busy_delay_us(long us) {
+    unsigned long start = micros();
+    while ((long)(micros() - start) < us) { /* spin */ }
+}
 
 extern "C" void looper(void *p)
 {
@@ -152,83 +195,130 @@ extern "C" void looper(void *p)
 		#endif
 		SerialProcess::loop();
 
+#ifdef DIGITAL_IN_CONTROLLER
+		// Safety: poll the E-stop every loop, independent of runtimeConfig.digitalIn.
+		DigitalInController::checkEmergencyStop();
+#endif
 
 #ifdef LINEAR_ENCODER_CONTROLLER
-		LinearEncoderController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.encoder) {
+			LinearEncoderController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef HOME_MOTOR
-		HomeMotor::loop();
-		vTaskDelay(1);
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-		ObjectiveController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.home) {
+			HomeMotor::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
-		DigitalInController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.digitalIn) {
+			DigitalInController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef DIAL_CONTROLLER
-		DialController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.dial) {
+			DialController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef TMC_CONTROLLER
-		TMCController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.tmc) {
+			TMCController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef LASER_CONTROLLER
-		LaserController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.laser) {
+			LaserController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef LED_CONTROLLER
-		LedController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.led) {
+			LedController::loop();
+			vTaskDelay(1);
+		}
+		SignalController::loop();
 #endif
+		BuzzerController::loop();
 #ifdef MESSAGE_CONTROLLER
-		MessageController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.message) {
+			MessageController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef BLUETOOTH
-		// Check for long-press homing on PS4/PS5 controller buttons
-		checkBtButtonLongPress();
-		vTaskDelay(1);
+		if (runtimeConfig.bluetooth) {
+			// Check for long-press homing on PS4/PS5 controller buttons
+			checkBtButtonLongPress();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef MOTOR_CONTROLLER
-		FocusMotor::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.motor) {
+			FocusMotor::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef I2C_MASTER
 		i2c_master::loop();
 		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
-		PidController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.pid) {
+			PidController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef SCANNER_CONTROLLER
-		ScannerController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.scanner) {
+			ScannerController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef GALVO_CONTROLLER
-		GalvoController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.galvo) {
+			GalvoController::loop();
+			vTaskDelay(1);
+		}
 #endif
 #ifdef HEAT_CONTROLLER
-		HeatController::loop();
-		vTaskDelay(1);
+		if (runtimeConfig.heat) {
+			HeatController::loop();
+			vTaskDelay(1);
+		}
 #endif
-#ifdef CAN_BUS_ENABLED
+#ifdef TMP102_CONTROLLER
+		if (runtimeConfig.fan) {
+			Tmp102Controller::loop();
+		}
+#endif
+#ifdef FAN_CONTROLLER
+		if (runtimeConfig.fan) {
+			FanController::loop();
+		}
+#endif
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 		// Handle OTA updates in non-blocking mode
 		can_controller::handleOtaLoop();
 		// Handle pending scan results
 		can_controller::loop();
 		vTaskDelay(1);
 #endif
+#ifdef CAN_CONTROLLER_CANOPEN
+		canopenModule.loop();
+#endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+		GpioCanSlave::loop();
+		vTaskDelay(1);
+#endif
 
 
 		// process all commands in their modules
-		if ((pinConfig.dumpHeap|| false)  && lastHeapUpdateTime + 500000 < esp_timer_get_time())
+		if ((pinConfig.dumpHeap|| 0)  && lastHeapUpdateTime + 500000 < esp_timer_get_time())
 		{ //
 			/* code */
 			char buffer[64];
@@ -432,128 +522,210 @@ extern "C" void setupApp(void)
 	log_i("SetupApp");
 	// setup debugging level
 	esp_log_level_set("*", ESP_LOG_DEBUG); // set all components to INFO level
+
+	//delay(10000);
 	// switch off debug messages 
 	//esp_log_level_set("*", ESP_LOG_NONE);
 #ifdef DESP32S3_MODEL_XIAO
   pinMode(LED_BUILTIN, OUTPUT);
 #endif	
 	SerialProcess::setup();
+	// State::setup() establishes the default CAN-bus power state (ON) and must
+	// run early so peripherals/slaves have power before their own setup runs.
+	State::setup();
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
-#ifdef CAN_BUS_ENABLED
+#if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	can_controller::setup();
 #endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+	// Must run BEFORE canopenModule.setup() — it patches the TPDO2 COB-ID
+	// in OD_PERSIST_COMM so the CANopen stack picks the enabled value when
+	// it builds its TPDO descriptors.
+	GpioCanSlave::setup();
+#endif
+#ifdef CAN_CONTROLLER_CANOPEN
+	canopenModule.setup();
+#endif
 #ifdef DIAL_CONTROLLER
-	// Dial controller needs CAN bus to be ready when in CAN master mode
-	DialController::setup();
+	if (runtimeConfig.dial) {
+		// Dial controller needs CAN bus to be ready when in CAN master mode //TODO: This has to move over to canopen too
+		DialController::setup();
+	}
 #endif
-#ifdef I2C_SLAVE_DIAL
-	i2c_slave_dial::setup();
-#endif
+	// FanController::setup() runs later, AFTER Tmp102Controller::setup()
+	// (which is responsible for Wire.begin() on the canopen-master build).
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
 #endif
 #ifdef MOTOR_CONTROLLER
-	FocusMotor::setup();
+	if (runtimeConfig.motor) {
+		FocusMotor::setup();
+	}
 #endif
 #ifdef ANALOG_IN_CONTROLLER
-	AnalogInController::setup();
+	if (runtimeConfig.analogIn) {
+		AnalogInController::setup();
+	}
 #endif
 #ifdef ANALOG_JOYSTICK
-	AnalogJoystick::setup();
+	if (runtimeConfig.joystick) {
+		AnalogJoystick::setup();
+	}
 #endif 
 #ifdef ANALOG_OUT_CONTROLLER
-	AnalogOutController::setup();
+	if (runtimeConfig.analogOut) {
+		AnalogOutController::setup();
+	}
 #endif
 #ifdef BLUETOOTH
-	log_i("BtController setup");
-	BtController::setup();
-	
-	// Register combined button handlers that support both short and long press
-	// Triangle: short = hard limit release, long (5s) = home axis A
-	BtController::setTriangleChangedEvent(handleTriangleCombined);
-	
-	// Cross: short = laser toggle, long (5s) = home axis X
-	BtController::setCrossChangedEvent(handleCrossCombined);
-	
-	// Circle: short = LED toggle, long (5s) = home axis Y  
-	BtController::setCircleChangedEvent(handleCircleCombined);
-	
-	// Square: short = normal, 3s = reboot, 5s = home axis Z
-	BtController::setSquareChangedEvent(handleSquareCombined);
-	
-	#ifdef LASER_CONTROLLER
-		BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
-	#endif
-	#ifdef OBJECTIVE_CONTROLLER
-		BtController::setShareChangedEvent(ObjectiveController::share_changed_event);
-	#endif
-	#ifdef MOTOR_CONTROLLER
-		BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
-		BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
-		BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event);
-	#endif
+	if (runtimeConfig.bluetooth) {
+		log_i("BtController setup");
+		BtController::setup();
+		
+		// Register combined button handlers that support both short and long press
+		// Triangle: short = hard limit release, long (5s) = home axis A
+		BtController::setTriangleChangedEvent(handleTriangleCombined);
+		
+		// Cross: short = laser toggle, long (5s) = home axis X
+		BtController::setCrossChangedEvent(handleCrossCombined);
+		
+		// Circle: short = LED toggle, long (5s) = home axis Y  
+		BtController::setCircleChangedEvent(handleCircleCombined);
+		
+		// Square: short = normal, 3s = reboot, 5s = home axis Z
+		BtController::setSquareChangedEvent(handleSquareCombined);
+		
+		#ifdef LASER_CONTROLLER
+		if (runtimeConfig.laser) {
+			BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
+		}
+		#endif
+		#ifdef MOTOR_CONTROLLER
+		if (runtimeConfig.motor) {
+			BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
+			BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
+			BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event);
+		}
+		#endif
+	}
 #endif
 #ifdef DAC_CONTROLLER
-	DacController::setup();
+	if (runtimeConfig.dac) {
+		DacController::setup();
+	}
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
-	DigitalInController::setup();
+	if (runtimeConfig.digitalIn) {
+		DigitalInController::setup();
+	}
+	// Note: the E-stop sense (checkEmergencyStop) is polled unconditionally in
+	// the main loop and lazily self-initializes on first call — no setup here.
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-	DigitalOutController::setup();
+	if (runtimeConfig.digitalOut) {
+		DigitalOutController::setup();
+	}
 #endif
 #ifdef LINEAR_ENCODER_CONTROLLER
-	LinearEncoderController::setup();
+	if (runtimeConfig.encoder) {
+		LinearEncoderController::setup();
+	}
 #endif
 #ifdef HOME_MOTOR
-	HomeMotor::setup();
-#endif
-#ifdef OBJECTIVE_CONTROLLER
-	ObjectiveController::setup();
+	if (runtimeConfig.home) {
+		HomeMotor::setup();
+	}
 #endif
 #ifdef LASER_CONTROLLER
-	LaserController::setup();
+	if (runtimeConfig.laser) {
+		LaserController::setup();
+	}
 #endif
 #ifdef TMC_CONTROLLER
-	TMCController::setup();
+	if (runtimeConfig.tmc) {
+		TMCController::setup();
+	}
 #endif
 #ifdef LED_CONTROLLER
-	LedController::setup();
+	if (runtimeConfig.led) {
+		LedController::setup();
+	}
+	SignalController::setup();
 #endif
 #ifdef MESSAGE_CONTROLLER
+if (runtimeConfig.message) {
 	MessageController::setup();
+}
 #endif
 #ifdef PID_CONTROLLER
+if (runtimeConfig.pid) {
 	PidController::setup();
+}
 #endif
 #ifdef SCANNER_CONTROLLER
+if (runtimeConfig.scanner) {
 	ScannerController::setup();
+}
 #endif
 #ifdef WIFI
+if (runtimeConfig.wifi) {
 	WifiController::setup();
+}
 #endif
 #ifdef HEAT_CONTROLLER
+if (runtimeConfig.heat) {
 	DS18b20Controller::setup();
 	HeatController::setup();
+}
 #endif
-#ifdef GALVO_CONTROLLER
-	GalvoController::setup();
+#ifdef TMP102_CONTROLLER
+// MUST run before FanController::setup() because Tmp102Controller::setup()
+// is the one that calls Wire.begin() on the canopen-master build (where
+// i2c_master.cpp is not compiled).
+if (runtimeConfig.fan) {
+	Tmp102Controller::setup();
+}
 #endif
-#ifdef ESPNOW_MASTER
+#ifdef FAN_CONTROLLER
+	if (runtimeConfig.fan) {
+		FanController::setup();
+	}
+	#endif
+	#ifdef GALVO_CONTROLLER
+	if (runtimeConfig.galvo) {
+		GalvoController::setup();
+	}
+	#endif
+	#ifdef ESPNOW_MASTER
 	espnow_master::setup();
-#endif
+	#endif
 #ifdef ESPNOW_SLAVE_MOTOR
-	espnow_slave_motor::setup();
+espnow_slave_motor::setup();
 #endif
 
 #ifdef OTA_ON_STARTUP
 State::startOTA();
 #endif
 
-	SerialProcess::safePrintln("{'setup':'done'}");
+// Build the routing table from pinConfig + runtimeConfig (all builds)
+UC2::RoutingTable::buildDefault();
+UC2::RoutingTable::logAll();
+
+#ifdef JOYSTICK_USBHOST_PROVIDER
+// DS4-over-USB-OTG → CANopen bridge. Spawns USB Host + HID Host tasks
+// then a 100 Hz consumer that emits expedited SDO writes against the
+// routes we just built. Must run AFTER RoutingTable::buildDefault().
+JoystickUsbHost::begin();
+JoystickRouter::begin();
+#endif
+
+//#ifdef BUZZER_CONTROLLER //TODO: We have to add this to the cmakelist.txt
+BuzzerController::setup();
+//#endif
+SerialProcess::safePrintln("{'setup':'done'}");
 }
 
 extern "C" void app_main(void)
@@ -564,16 +736,44 @@ extern "C" void app_main(void)
 	log_i("Start setup");
 	
 	// IMPORTANT: Set RX buffer size BEFORE Serial.begin()!
-	// This is needed for binary OTA which sends 1036-byte packets
-	Serial.setRxBufferSize(4096);  // Large enough for 1024-byte chunks + header
+	// Must hold at least one full streaming OTA chunk (4096 B) plus headroom
+	// for the next chunk that may arrive while the master is busy pushing the
+	// previous one over CAN. 8 KB gives a safe margin against UART overflow.
+	Serial.setRxBufferSize(8192);
 	Serial.setTxBufferSize(2048);
-	
+	//delay(10000);
 	// Start Serial
 	Serial.begin(pinConfig.BAUDRATE); // default is 115200
 	delay(100); // Give serial time to initialize
 	Serial.println("DEBUG: Serial initialized");
 	Serial.printf("DEBUG: Baudrate=%lu, RX buffer size will be set\n", pinConfig.BAUDRATE);
 	
+	// ------------------------------------------------------------------
+    // DEBUG-only block
+    // ------------------------------------------------------------------
+#ifdef DEBUG
+    // Extend the watchdog so it does not fire while you are stepping through
+    // code with the debugger paused.
+    // New IDF API requires a config struct instead of (timeout, panic) args
+    const esp_task_wdt_config_t wdt_cfg = {
+        .timeout_ms = 30000,   // 30 s timeout
+        .idle_core_mask = 0,
+        .trigger_panic = false,
+    };
+    esp_task_wdt_init(&wdt_cfg);
+
+    // Spin here (with JTAG-friendly busy-waits) until the debugger attaches.
+    // Once OpenOCD connects, dw_is_debugger_attached() returns true and we
+    // fall through – execution continues to your first breakpoint.
+    micros_interval = 10;
+    previousMicros  = micros();
+    while (!dw_is_debugger_attached()) {
+        busy_delay_us(micros_interval);
+    }
+#endif
+    // ------------------------------------------------------------------
+
+
 	// Initialisieren Sie den NVS-Speicher
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -623,8 +823,16 @@ extern "C" void app_main(void)
 	log_i("Config::setup");
 	Config::setup();
 
+	// Load runtime module configuration from NVS (overrides compile-time defaults)
+	NVSConfig::loadConfig();
+
 	// initialize the module controller
 	setupApp();
+
+	// print heap just before launching the main loop for the first time
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
+	SerialProcess::safePrintln(buffer);
 
 	// Run main loop on Core 1, let motor tasks use Core 0 for separation
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);

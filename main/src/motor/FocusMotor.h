@@ -13,7 +13,7 @@
 #include "MotorTypes.h"
 
 #ifdef MOTOR_CONTROLLER
-#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP &&  !defined DIAL_CONTROLLER && !defined CAN_RECEIVE_MOTOR && !defined CAN_SEND_COMMANDS
+#if !defined USE_FASTACCEL && !defined USE_ACCELSTEP && !defined DIAL_CONTROLLER && !defined CAN_CONTROLLER_CANOPEN
 #error Pls set USE_FASTACCEL or USE_ACCELSTEP
 #endif
 #endif
@@ -38,7 +38,6 @@ namespace FocusMotor
 	void toggleStepper(Stepper s, bool isStop, int reduced); // reduced=> 0: full values MotorData, 1: reduced MotorDataReduced, 2: single VAlue for CAN
 	void setAutoEnable(bool enable);
 	void setEnable(bool enable);
-	void setSoftLimits(int axis, int32_t minPos, int32_t maxPos, bool isEnabled);
 	void updateData(int axis); // pull motor data to the data-array
 	MotorData **getData();
 	void setData(int axis, MotorData *data);
@@ -52,17 +51,12 @@ namespace FocusMotor
 	void setHardLimit(int axis, bool enabled, bool polarity);
 	void checkHardLimits(); // Called in loop to check endstops and emergency stop if triggered (only on slaves)
 	void clearHardLimitTriggered(int axis); // Called after successful homing
-	
+	// Set + persist (NVS) the directional hard-limit lockout so a stage trapped
+	// against an endstop keeps the correct escape direction across a reboot.
+	void setHardLimitLockoutDir(int axis, int8_t dir);
+
 	// Encoder-based motion control functions
 	bool isEncoderBasedMotionEnabled(int axis);
 	void setEncoderBasedMotion(int axis, bool enabled);
 	void startEncoderBasedMotion(int axis);
-	
-	// Hybrid mode support: determines if an axis should use CAN or native driver
-	// Returns true if axis should be routed to CAN bus, false for native driver
-	bool shouldUseCANForAxis(int axis);
-	
-	// Hybrid mode support: converts internal hybrid axis (4,5,6,7) to CAN axis (0,1,2,3)
-	// Used when sending commands to CAN satellites in hybrid mode
-	int getCANAxisForHybrid(int axis);
 };

@@ -23,19 +23,6 @@ using namespace FocusMotor;
 namespace i2c_master
 {
 
-    // for A,X,Y,Z intialize the I2C addresses
-    uint8_t i2c_addresses[] = {
-        pinConfig.I2C_ADD_MOT_A,
-        pinConfig.I2C_ADD_MOT_X,
-        pinConfig.I2C_ADD_MOT_Y,
-        pinConfig.I2C_ADD_MOT_Z};
-
-    uint8_t i2c_laseraddresses[] = {
-        pinConfig.I2C_ADD_LEX_PWM0,
-        pinConfig.I2C_ADD_LEX_PWM1,
-        pinConfig.I2C_ADD_LEX_PWM2,
-        pinConfig.I2C_ADD_LEX_PWM3};
-
     // keep track of the motor states
     const int MAX_I2C_DEVICES = 20;     // Maximum number of expected devices
     byte i2cAddresses[MAX_I2C_DEVICES]; // Array to store found I2C addresses
@@ -195,8 +182,8 @@ namespace i2c_master
         }
         else
         {
-            log_i("MotorSettings sent to axis: %i, at address %i, maxspeed: %i, acceleration: %i, softLimitEnabled: %i", 
-                  axis, slave_addr, motorSettings.maxspeed, motorSettings.acceleration, motorSettings.softLimitEnabled);
+            log_i("MotorSettings sent to axis: %i, at address %i, maxspeed: %i, acceleration: %i",
+                  axis, slave_addr, motorSettings.maxspeed, motorSettings.acceleration);
             // Mark settings as sent for this axis
             if (axis < 4)
                 motorSettingsSent[axis] = true;
@@ -414,11 +401,7 @@ namespace i2c_master
 
     int laserid2address(int id)
     {
-        // we need to check if the id is in the range of the laser addresses
-        if (id >= 0 && id < numDevices)
-        {
-            return i2c_laseraddresses[id];
-        }
+        // TODO: REMOVE THIS
         return 0;
     }
 

@@ -7,6 +7,7 @@ def before_build():
     print("Executing pre-build script...")  # This will print to the PlatformIO build log
     scf = env.get("PIOENV",[])
     scf = scf.replace("_debug","")
+    scf = scf.replace("_release","")
     print(scf)
     try:
         source_file = "main/config/"+ scf +"/PinConfig.h"

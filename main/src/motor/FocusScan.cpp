@@ -22,7 +22,6 @@ namespace FocusScan
                                int32_t acceleration = 1000000,
                                int32_t timeout = 2000)
     {
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto *d = FocusMotor::getData()[ax];
         d->absolutePosition = 1;
         d->targetPosition = pos;
@@ -37,14 +36,12 @@ namespace FocusScan
         uint32_t t0 = millis();
         while (!d->stopped && (millis() - t0) < uint32_t(timeout))
             vTaskDelay(1);
-#endif
     }
 
     FocusScanningData *getFocusScanData() { return &focusScanningData; }
 
     void focusScanCAN(bool isThread)
     {
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_MOTOR
         auto &sd = focusScanningData;
         isRunning = true;
 
@@ -66,50 +63,37 @@ namespace FocusScan
 #ifdef LED_CONTROLLER
             if (sd.ledarrayIntensity)
             {
-                // TODO: Generalize this:
                 LedCommand cmd;
                 cmd.mode = LedMode::CIRCLE;
-                cmd.r = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
-                cmd.g = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
-                cmd.b = sd.ledarrayIntensity; // pinConfig.JOYSTICK_MAX_ILLU;
-                cmd.radius = 8;               // radius of the circle
-                cmd.ledIndex = 0;             // not used
-                cmd.region[0] = 0;            // not used
-                cmd.qid = 0;                  // not used
+                cmd.r = sd.ledarrayIntensity;
+                cmd.g = sd.ledarrayIntensity;
+                cmd.b = sd.ledarrayIntensity;
+                cmd.radius = 8;
+                cmd.ledIndex = 0;
+                cmd.region[0] = 0;
+                cmd.qid = 0;
+                LedController::execLedCommand(cmd);
                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                 triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                 vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
 
-                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-
                 cmd.r = 0;
                 cmd.g = 0;
-                cmd.b = 0; // switch off the LED
-                can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
+                cmd.b = 0;
+                LedController::execLedCommand(cmd);
             }
 #endif
 #ifdef LASER_CONTROLLER
             for (uint8_t i = 0; i < 4; ++i)
             {
-#if defined CAN_BUS_ENABLED && !defined CAN_RECEIVE_LASER
                 if (sd.lightsourceIntensities[i])
                 {
-                    LaserData l;
-                    l.LASERid = i;
-                    l.LASERval = sd.lightsourceIntensities[i];
-                    can_controller::sendLaserDataToCANDriver(l);
+                    LaserController::setLaserVal(i, sd.lightsourceIntensities[i]);
                     vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
                     triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
                     vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                    if (sd.lightsourceIntensities[i])
-                    {
-                        LaserData l;
-                        l.LASERid = i;
-                        l.LASERval = 0;
-                        can_controller::sendLaserDataToCANDriver(l);
-                    }
+                    LaserController::setLaserVal(i, 0);
                 }
-#endif
             }
 #endif
         }
@@ -131,7 +115,6 @@ namespace FocusScan
         isRunning = false;
         if (isThread)
             vTaskDelete(NULL);
-#endif
     }
 
     void focusScanThread(void *arg) { focusScanCAN(true); }

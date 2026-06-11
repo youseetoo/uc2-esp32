@@ -11,7 +11,6 @@ namespace FAccelStep
     static FastAccelStepperEngine engine = FastAccelStepperEngine();
     static std::array<FastAccelStepper *, 4> faststeppers;
     static bool (*_externalCallForPin)(uint8_t pin, uint8_t value);
-    void setSoftLimits(int axis, int32_t minPos, int32_t maxPos);
     static Preferences preferences;
     void startFastAccelStepper(int i);
     void stopFastAccelStepper(int i);
@@ -25,6 +24,13 @@ namespace FAccelStep
     void setPosition(Stepper s, int val);
     bool isRunning(int i);
     void move(Stepper s, int steps, bool blocking);
+
+
+    int rampState(int i);
+    int32_t getCurrentSpeedInMilliHz(int i, bool withSign);
+    int32_t getCurrentPosition(int i);
+    int32_t getPositionAfterCommandsCompleted(int i);
+    bool isQueueFull(int i);
 
     // store old motor current for each motor
     static int oldMotorCurrent[4] = {0, 0, 0, 0};

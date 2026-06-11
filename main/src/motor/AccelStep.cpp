@@ -3,7 +3,14 @@
 #include "AccelStep.h"
 #include "FocusMotor.h"
 #include "esp_task_wdt.h"
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
 using namespace FocusMotor;
+#ifdef TMC_CONTROLLER
+using namespace TMCController;
+#endif
 
 void driveMotorXLoop(void *pvParameter)
 {
@@ -29,27 +36,28 @@ namespace AccelStep
     {
         if (!power_enable)
         {
-#ifdef USE_TCA9535            
-                _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
-#endif
-        }
-        else
-        {
+#ifdef USE_TCA9535
+            _externalCallForPin(100, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+#else
             pinMode(pinConfig.MOTOR_ENABLE, OUTPUT);
             digitalWrite(pinConfig.MOTOR_ENABLE, HIGH ^ pinConfig.MOTOR_ENABLE_INVERTED);
+#endif
+            power_enable = true;
+            log_i("poweron motors");
         }
-        power_enable = true;
-        log_i("poweron motors");
     }
 
     void poweroff(bool force)
     {
-        if ((getData()[Stepper::A]->stopped &&
-             getData()[Stepper::X]->stopped &&
-             getData()[Stepper::Y]->stopped &&
-             getData()[Stepper::Z]->stopped &&
-             power_enable) ||
-            force)
+        bool allStopped = true;
+        if (!force) {
+            const int axes[] = { Stepper::A, Stepper::X, Stepper::Y, Stepper::Z };
+            for (int i = 0; i < 4; i++) {
+                MotorData *md = getData()[axes[i]];
+                if (md && !md->stopped) { allStopped = false; break; }
+            }
+        }
+        if (force || (allStopped && power_enable))
         {
 #ifdef USE_TCA9535
             _externalCallForPin(100, LOW ^ pinConfig.MOTOR_ENABLE_INVERTED);
@@ -158,66 +166,109 @@ namespace AccelStep
 
     void startAccelStepper(int i)
     {
-
-        log_d("start rotator: motor:%i, isforver:%i, speed: %i, maxSpeed: %i, target pos: %i, isabsolute: %i, isacceleration: %i, acceleration: %i",
-              i,
-              getData()[i]->isforever,
-              getData()[i]->speed,
-              getData()[i]->maxspeed,
-              getData()[i]->targetPosition,
-              getData()[i]->absolutePosition,
-              getData()[i]->isaccelerated,
-              getData()[i]->acceleration);
-
-        // adjust direction pin if necessary
-        if (getData()[i]->directionPinInverted)
-        {
-            steppers[i]->setPinsInverted (true, false, false);
-            log_i("Inverting direction pin for motor %i", i);
+        if (i < 0 || i >= (int)steppers.size() || !steppers[i]) {
+            log_e("startAccelStepper: invalid stepper %d", i);
+            return;
         }
+        MotorData *d = getData()[i];
+        if (!d) { log_e("startAccelStepper: null MotorData %d", i); return; }
 
-        if (!getData()[i]->isforever)
-        {
-            // accelstepper wants in relative mode that targetpostion and speed point into same direction
-            if (!getData()[i]->absolutePosition && ((getData()[i]->targetPosition < 0 && getData()[i]->speed > 0) || (getData()[i]->targetPosition > 0 && getData()[i]->speed < 0)))
-                getData()[i]->speed *= -1;
-            // in absolute mode speed direction is up to the target and current position difference
-            if (getData()[i]->absolutePosition)
-            {
-                int speeddir = getData()[i]->targetPosition - getData()[i]->currentPosition;
-                if ((speeddir > 0 && getData()[i]->speed < 0) || (speeddir < 0 && getData()[i]->speed > 0))
-                    getData()[i]->speed *= -1;
+        // Mode selection:
+        //   forever            -> constant speed, no target  (runSpeed loop)
+        //   accel & target     -> trapezoidal profile        (s->run())
+        //   const & target     -> constant speed to target   (runSpeed until distanceToGo==0)
+        bool useAccel = (d->acceleration > 0) && !d->isforever;
+        d->isaccelerated = useAccel;
+
+        log_d("start motor %d: mode=%s speed=%ld maxspeed=%ld target=%d abs=%d accel=%ld forever=%d",
+              i,
+              useAccel ? "accel" : (d->isforever ? "forever" : "const"),
+              (long)d->speed, (long)d->maxspeed,
+              d->targetPosition, (int)d->absolutePosition,
+              (long)d->acceleration, (int)d->isforever);
+
+#ifdef TMC_CONTROLLER
+        // Bump TMC current at high speeds to avoid stalling
+        Preferences preferences;
+        preferences.begin("tmc", false);
+        uint16_t rmsCurrFromPref = preferences.getInt("current", pinConfig.tmc_rms_current);
+        preferences.end();
+        if (abs((long)d->speed) > 10000) {
+            rmsCurrFromPref = (uint16_t)((float)rmsCurrFromPref * 1.5f);
+            log_i("Overdrive current for motor %i: %i", i, rmsCurrFromPref);
+        }
+        TMCController::setTMCCurrent(rmsCurrFromPref);
+#endif
+
+        if (d->directionPinInverted)
+            steppers[i]->setPinsInverted(true, false, false);
+
+        // Sanitize: setMaxSpeed needs positive value
+        long reqSpeed = (long)abs(d->speed);
+        long maxSpd   = (long)abs(d->maxspeed);
+        if (maxSpd <= 0) maxSpd = MAX_VELOCITY_A;
+        long appliedMax = (reqSpeed > 0 && reqSpeed < maxSpd) ? reqSpeed : maxSpd;
+
+        steppers[i]->setMaxSpeed((float)appliedMax);
+
+        if (d->isforever) {
+            // Constant speed forever; sign of d->speed sets direction
+            steppers[i]->setSpeed((float)d->speed);
+        }
+        else if (useAccel) {
+            steppers[i]->setAcceleration((float)d->acceleration);
+            if (d->absolutePosition) {
+                if (d->currentPosition == d->targetPosition) {
+                    d->stopped = true;
+                    return;
+                }
+                steppers[i]->moveTo(d->targetPosition);
+            } else {
+                long rel = d->targetPosition;
+                // Honor speed sign as direction override in relative mode
+                if ((d->speed < 0 && rel > 0) || (d->speed > 0 && rel < 0))
+                    rel = -rel;
+                steppers[i]->move(rel);
             }
         }
-        steppers[i]->setMaxSpeed(getData()[i]->maxspeed);
-        steppers[i]->setAcceleration(getData()[i]->acceleration);
-        if (getData()[i]->absolutePosition)
-        {
-            if (getData()[i]->currentPosition == getData()[i]->targetPosition)
-                return;
-            // absolute position coordinates
-            steppers[i]->moveTo(getData()[i]->targetPosition);
+        else {
+            // Constant speed to target (no acceleration ramp)
+            long signedSpeed = (d->speed != 0) ? (long)d->speed : appliedMax;
+            if (d->absolutePosition) {
+                if (d->currentPosition == d->targetPosition) {
+                    d->stopped = true;
+                    return;
+                }
+                long delta = (long)d->targetPosition - (long)d->currentPosition;
+                if ((delta > 0 && signedSpeed < 0) || (delta < 0 && signedSpeed > 0))
+                    signedSpeed = -signedSpeed;
+                steppers[i]->moveTo(d->targetPosition);
+            } else {
+                long rel = d->targetPosition;
+                if ((rel > 0 && signedSpeed < 0) || (rel < 0 && signedSpeed > 0))
+                    rel = -rel;
+                steppers[i]->move(rel);
+            }
+            steppers[i]->setSpeed((float)signedSpeed);
         }
-        else
-        {
-            // relative position coordinates
-            steppers[i]->move(getData()[i]->targetPosition);
-        }
-        getData()[i]->stopped = false;
 
-        if (i == 0 && !taskRunning[i])
-            xTaskCreatePinnedToCore(&driveMotorALoop, "motor_task_A", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
-        if (i == 1 && !taskRunning[i])
-        {
-            xTaskCreatePinnedToCore(&driveMotorXLoop, "motor_task_X", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
-            log_i("started x task");
+        d->stopped = false;
+        d->isStop  = false;
+
+        TaskFunction_t fn = nullptr;
+        const char *name = nullptr;
+        switch (i) {
+            case 0: fn = &driveMotorALoop; name = "motor_task_A"; break;
+            case 1: fn = &driveMotorXLoop; name = "motor_task_X"; break;
+            case 2: fn = &driveMotorYLoop; name = "motor_task_Y"; break;
+            case 3: fn = &driveMotorZLoop; name = "motor_task_Z"; break;
         }
-        // else
-        //     log_i("x wont start");
-        if (i == 2 && !taskRunning[i])
-            xTaskCreatePinnedToCore(&driveMotorYLoop, "motor_task_Y", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
-        if (i == 3 && !taskRunning[i])
-            xTaskCreatePinnedToCore(&driveMotorZLoop, "motor_task_Z", pinConfig.MOTOR_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY - 1, NULL, 0);
+        if (fn && !taskRunning[i]) {
+            taskRunning[i] = true;
+            // Full DEFAULT priority (not -1) for stable step timing
+            xTaskCreatePinnedToCore(fn, name, pinConfig.MOTOR_TASK_STACKSIZE, NULL,
+                                    pinConfig.DEFAULT_TASK_PRIORITY, NULL, 0);
+        }
     }
 
 
@@ -225,58 +276,98 @@ namespace AccelStep
         getData()[axis]->currentPosition = pos;
         steppers[axis]->setCurrentPosition(pos);
     }
-    
+
     void stopAccelStepper(int i)
     {
         log_i("stop stepper %i", i);
-        steppers[i]->stop();
-        getData()[i]->isforever = false;
-        getData()[i]->speed = 0;
-        getData()[i]->currentPosition = steppers[i]->currentPosition();
-        getData()[i]->stopped = true;
+        if (i < 0 || i >= (int)steppers.size()) return;
+        if (steppers[i]) steppers[i]->stop();
+        MotorData *d = getData()[i];
+        if (d) {
+            d->isforever = false;
+            d->speed = 0;
+            if (steppers[i]) d->currentPosition = steppers[i]->currentPosition();
+            d->stopped = true;
+        }
+        // taskRunning is cleared by the task itself when it exits its while-loop
     }
 
     bool isRunning(int stepperid)
     {
+        if (steppers[stepperid] == nullptr)
+            return false;
+
         AccelStepper *s = steppers[stepperid];
         return s->isRunning();
     }
 
     void driveMotorLoop(int stepperid)
     {
-        poweron();
         AccelStepper *s = steppers[stepperid];
-        s->setMaxSpeed(getData()[stepperid]->maxspeed);
-        log_i("Start Task %i", stepperid);
-        while (!getData()[stepperid]->stopped)
-        {
+        MotorData    *d = getData()[stepperid];
+        if (!s || !d) {
+            taskRunning[stepperid] = false;
+            vTaskDelete(NULL);
+            return;
+        }
 
-            if (getData()[stepperid]->isforever)
-            {
-                s->setSpeed(getData()[stepperid]->speed);
+        poweron();
+        log_i("Start Task %d", stepperid);
+
+        const uint32_t WDT_PERIOD_MS = 50;
+        const uint32_t POS_PERIOD_MS = 20;
+        uint32_t lastWdt = millis();
+        uint32_t lastPos = millis();
+        bool     targetReached = false;
+
+        while (!d->stopped && !d->isStop)
+        {
+            if (d->isforever) {
+                // Constant speed forever; pick up runtime speed updates
+                s->setSpeed((float)d->speed);
                 s->runSpeed();
             }
-            else
-            {
-                if (!getData()[stepperid]->isaccelerated)
-                    s->setSpeed(getData()[stepperid]->speed);
-                if (!s->run())
-                    stopAccelStepper(stepperid);
-                // checks if a stepper is still running
-                // log_i("distance to go:%i", s->distanceToGo());
-                if (s->distanceToGo() == 0 && !getData()[stepperid]->stopped)
-                {
-                    log_i("stop stepper:%i", stepperid);
-                    // if not turn it off
-                    stopAccelStepper(stepperid);
+            else if (d->isaccelerated) {
+                // Trapezoidal profile to target — run() returns false when done
+                if (!s->run()) {
+                    targetReached = true;
+                    break;
                 }
             }
-            getData()[stepperid]->currentPosition = s->currentPosition();
+            else {
+                // Constant speed to target
+                if (s->distanceToGo() == 0) {
+                    targetReached = true;
+                    break;
+                }
+                s->runSpeed();
+            }
+
+            uint32_t nowMs = millis();
+            if (nowMs - lastPos >= POS_PERIOD_MS) {
+                d->currentPosition = s->currentPosition();
+                lastPos = nowMs;
+            }
+            if (nowMs - lastWdt >= WDT_PERIOD_MS) {
+                esp_task_wdt_reset();
+                lastWdt = nowMs;
+                vTaskDelay(1);   // ~20 Hz yield to lower-prio tasks
+            }
+            // No per-step taskYIELD — keeps step timing stable.
         }
-        getData()[stepperid]->stopped = true;
+
+        d->currentPosition = s->currentPosition();
+        d->stopped = true;
+
+        log_i("Stop Task %d (targetReached=%d)", stepperid, (int)targetReached);
         poweroff(false);
-        log_i("Stop Task %i", stepperid);
         taskRunning[stepperid] = false;
+
+        // Notify upper layer so QID is reported done. Slave's FocusMotor::loop
+        // doesn't always observe the stop window in time on a single-axis node.
+        if (targetReached)
+            FocusMotor::stopStepper(stepperid);
+
         vTaskDelete(NULL);
     }
 
@@ -292,7 +383,12 @@ namespace AccelStep
 
     void updateData(int val)
     {
+        // check if stepper is running and update the position in the data struct
+         AccelStepper *s = steppers[val];
+         if (s) 
+        {
         getData()[val]->currentPosition = steppers[val]->currentPosition();
+        }
     }
 
     void setExternalCallForPin(

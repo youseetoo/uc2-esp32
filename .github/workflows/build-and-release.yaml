@@ -36,10 +36,6 @@ jobs:
             display_name: "UC2 Standalone V4"
             board_id: "esp32-uc2-standalone-4"
             chip_family: "ESP32"
-          - env_name: UC2_4_CAN_HYBRID
-            display_name: "UC2 V4 CAN Hybrid"
-            board_id: "esp32-uc2-v4-can-hybrid"
-            chip_family: "ESP32"
           - env_name: UC2_WEMOS
             display_name: "UC2 WEMOS D1 R32"
             board_id: "esp32-uc2-wemos"
@@ -58,30 +54,31 @@ jobs:
             board_id: "seeed_xiao_esp32s3_ledring"
             chip_family: "ESP32-S3"
 
-          - env_name: seeed_xiao_esp32s3_can_slave_motor
-            display_name: "Xiao CAN Slave Motor"
-            board_id: "xiao-can-slave-motor"
+          - env_name: UC2_canopen_slave_motor_release
+            display_name: "UC2 CAN Slave Motor"
+            board_id: "uc2-can-slave-motor"
             chip_family: "ESP32-S3"
-          - env_name: seeed_xiao_esp32s3_can_slave_galvo
-            display_name: "Xiao CAN Slave Galvo"
-            board_id: "xiao-can-slave-galvo"
+          - env_name: UC2_canopen_slave_galvo_release
+            display_name: "UC2 CAN Slave Galvo"
+            board_id: "uc2-can-slave-galvo"
             chip_family: "ESP32-S3"
-          - env_name: seeed_xiao_esp32s3_can_slave_laser
-            display_name: "Xiao CAN Slave Laser"
-            board_id: "xiao-can-slave-laser"
+          - env_name: UC2_canopen_slave_laser_release
+            display_name: "UC2 CAN Slave Laser"
+            board_id: "uc2-can-slave-laser"
             chip_family: "ESP32-S3"
-          - env_name: seeed_xiao_esp32s3_can_slave_led
-            display_name: "Xiao CAN Slave LED"
-            board_id: "xiao-can-slave-led"
-            chip_family: "ESP32-S3"
-          - env_name: seeed_xiao_esp32s3_can_slave_illumination
-            display_name: "Xiao CAN Slave Illumination"
-            board_id: "xiao-can-slave-illumination"
+          - env_name: UC2_canopen_slave_led_release
+            display_name: "UC2 CAN Slave LED"
+            board_id: "uc2-can-slave-led"
             chip_family: "ESP32-S3"
 
-          - env_name: UC2_3_CAN_HAT_Master_v2
-            display_name: "CAN HAT Master V2"
-            board_id: "can-hat-master-v2"
+          - env_name: UC2_canopen_master_release
+            display_name: "UC2 CAN Master"
+            board_id: "uc2-can-master"
+            chip_family: "ESP32"
+
+          - env_name: UC2_canopen_standalone_v4_release
+            display_name: "UC2 CAN Standalone V4"
+            board_id: "uc2-can-standalone-v4"
             chip_family: "ESP32"
 
           - env_name: waveshare_esp32s3_ledarray

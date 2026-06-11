@@ -13,7 +13,6 @@
 #define BTHID=1 
 #define BLUETOOTH=1	
 #define TMC_CONTROLLER=1
-#define OBJECTIVE_CONTROLLER=1
 #define STAGE_SCAN=1
 #define CAN_SEND_COMMANDS
 #define MOTOR_AXIS_COUNT 10   
@@ -46,7 +45,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      bool ENC_Z_motorDirection = true;
 
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
      int8_t LASER_1 = disabled;
@@ -113,8 +112,9 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t objectiveHomeDirection = -1;
      int8_t objectiveHomeEndStopPolarity = 0;
 			
-     // Emergency stop
-     uint8_t pinEmergencyExit = GPIO_NUM_34;
-     uint8_t ESTOP_PIN = GPIO_NUM_4;
+     // Emergency-STOP sense (HIGH = normal, LOW = asserted) + CAN-bus power gate
+     // (HIGH = bus power OFF). See PinConfigDefault.h / State.cpp.
+     int8_t pinEmergencyExit = GPIO_NUM_34;
+     int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
 };
 const UC2_3_CAN_HAT_Master pinConfig;

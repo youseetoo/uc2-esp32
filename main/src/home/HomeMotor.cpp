@@ -13,67 +13,12 @@
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "../encoder/LinearEncoderController.h"
 #endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
-#endif
+#include "../canopen/DeviceRouter.h"
 using namespace FocusMotor;
 
 
 namespace HomeMotor
 {
-
-	// Helper function to determine if an axis should use CAN in hybrid mode
-	// IMPORTANT: Pin check must match FAccelStep::setupFastAccelStepper() which uses >= 0
-	// A pin value of 'disabled' (-1) means no native driver, GPIO_NUM_0 (=0) IS a valid pin!
-	bool shouldUseCANForAxis(int axis)
-	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		// In hybrid mode: axes >= threshold use CAN, axes < threshold use native drivers
-		// Check if this axis has a native driver configured
-		// NOTE: Use >= 0 because GPIO_NUM_0 is a valid pin, -1 (disabled) means no driver
-		bool hasNativeDriver = false;
-		switch(axis) {
-			case Stepper::A: hasNativeDriver = (pinConfig.MOTOR_A_STEP >= 0); break;
-			case Stepper::X: hasNativeDriver = (pinConfig.MOTOR_X_STEP >= 0); break;
-			case Stepper::Y: hasNativeDriver = (pinConfig.MOTOR_Y_STEP >= 0); break;
-			case Stepper::Z: hasNativeDriver = (pinConfig.MOTOR_Z_STEP >= 0); break;
-			case Stepper::B: hasNativeDriver = (pinConfig.MOTOR_B_STEP >= 0); break;
-			case Stepper::C: hasNativeDriver = (pinConfig.MOTOR_C_STEP >= 0); break;
-			case Stepper::D: hasNativeDriver = (pinConfig.MOTOR_D_STEP >= 0); break;
-			case Stepper::E: hasNativeDriver = (pinConfig.MOTOR_E_STEP >= 0); break;
-			case Stepper::F: hasNativeDriver = (pinConfig.MOTOR_F_STEP >= 0); break;
-			case Stepper::G: hasNativeDriver = (pinConfig.MOTOR_G_STEP >= 0); break;
-			default: hasNativeDriver = false; break;
-		}
-		
-		// If axis >= hybrid threshold AND no native driver, use CAN
-		// If axis < hybrid threshold AND has native driver, use native
-		// If axis >= hybrid threshold but has native driver, use native (hardware override)
-		if (hasNativeDriver) {
-			return false; // Use native driver regardless of axis number
-		}
-		// No native driver - use CAN if axis >= threshold
-		return (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD);
-#elif defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_MOTOR)
-		// Pure CAN master (non-hybrid): all axes use CAN
-		return true;
-#else
-		return false; // CAN not available or this is a slave
-#endif
-	}
-
-	// Helper function to convert hybrid internal axis (4,5,6,7...) to CAN axis (0,1,2,3...)
-	// In hybrid mode: internal axis 4 -> CAN axis 0 -> CAN address 10 (CAN_ID_MOT_A)
-	int getCANAxisForHybrid(int axis)
-	{
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && defined(CAN_HYBRID)
-		if (axis >= pinConfig.HYBRID_MOTOR_CAN_THRESHOLD)
-		{
-			return axis - pinConfig.HYBRID_MOTOR_CAN_THRESHOLD;
-		}
-#endif
-		return axis;
-	}
 
 	HomeData *hdata[4] = {nullptr, nullptr, nullptr, nullptr};
 
@@ -90,20 +35,13 @@ namespace HomeMotor
 		// {"task": "/home_act", "home": {"steppers": [{"stepperid":0, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "home_e"}]}, "qid":1234}
 		// {"task": "/home_act", "home": {"steppers": [{"stepperid":1, "home_timeout":10000, "home_speed":5000, "home_maxspeed":10000, "home_direction":1, "home_endstoppolarity":0", "precise":1}]}, "qid":1234}
 		log_i("home_act_fct");
-		// print the json
 		char *out = cJSON_PrintUnformatted(doc);
 		log_i("HomeMotor act %s", out);
+		free(out);
 		int qid = cJsonTool::getJsonInt(doc, "qid");
-
-		// parse the home data and start homing
-		// parseHomeData() calls startHome() which handles ALL routing:
-		// - Native driver: creates FreeRTOS homing task
-		// - CAN (hybrid): sends to CAN slave for remote axes, local task for native axes
-		// - CAN (pure master): sends to CAN slave
-		// Do NOT call runStepper() or sendHomeDataToCANDriver() here - that would
-		// double-start the motor and override the homing task's motor configuration!
-		uint8_t axis = parseHomeData(doc);
-
+		// Always route through DeviceRouter for unified LOCAL/REMOTE dispatch
+		cJSON* resp = DeviceRouter::handleHomeAct(doc);
+		if (resp) cJSON_Delete(resp);
 		return qid;
 	}
 
@@ -187,7 +125,7 @@ int axis = 0;
 		else if (axis == Stepper::A) endstopInput = 4; // Dual Z uses same endstop as Z
 		
 		uint32_t phaseStartTime = millis();
-		
+
 		while (hd->homeIsActive) {
 			// Check for timeout
 			if (millis() - hd->homeTimeStarted > hd->homeTimeout) {
@@ -195,7 +133,7 @@ int axis = 0;
 				FocusMotor::stopStepper(axis);
 				hd->homeIsActive = false;
 				md->isHoming = false;  // Release global lock on timeout
-				sendHomeDone(axis);
+				sendHomeDone(axis, "timeout");
 				break;
 			}
 			
@@ -309,11 +247,16 @@ int axis = 0;
 				
 				case 3: {  // Phase 3: Retract fixed distance
 					//Serial.println("3");
-					// Move away from endstop by fixed distance
+					// Retract AWAY from the endstop. Encode the direction in BOTH
+					// the target and the speed sign: FastAccelStepper takes the
+					// direction from the target sign (move()), AccelStepper takes it
+					// from the speed sign. Keeping them consistent makes the retract
+					// go the right way on either driver - the old `speed = abs(...)`
+					// drove the AccelStepper build straight back INTO the endstop.
 					md->isforever = false;
-					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;  // Opposite direction // TODO: This does not switch direction it seems 
+					md->targetPosition = -hd->homeDirection * hd->homeRetractDistance;
 					md->absolutePosition = false;  // Relative move
-					md->speed = abs(hd->homeSpeed);
+					md->speed = -hd->homeDirection * abs(hd->homeSpeed);
 					md->maxspeed = abs(hd->homeSpeed);
 					md->isEnable = 1;
 					md->isaccelerated = 1;
@@ -335,7 +278,7 @@ int axis = 0;
 					// Prevents race where isRunning() returns false before motor actually starts
 					if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
 						log_i("[Homing Task] Phase 4: Axis %d retract complete, starting slow approach", axis);
-						vTaskDelay(pdMS_TO_TICKS(100));  // Brief pause
+						vTaskDelay(pdMS_TO_TICKS(10));  // Brief pause
 						hd->homingPhase = 5;
 						phaseStartTime = millis();
 					}
@@ -344,6 +287,10 @@ int axis = 0;
 				
 				case 5: {  // Phase 5: Slow approach to endstop
 					//Serial.println("5");
+					// add deley to let motor settle for a moment
+					vTaskDelay(pdMS_TO_TICKS(100));  // Brief pause
+					// FIXME: if we are driving too fast >18000 then the direction change in the fastaccelstepper is not taken into account :/
+
 					// Move slowly back toward endstop
 					md->isforever = true;
 					md->speed = hd->homeDirection * abs(hd->homeSpeed/4);
@@ -361,22 +308,20 @@ int axis = 0;
 					break;
 				}
 				
-				case 6: {  // Phase 6: Wait for final endstop trigger
+				case 6: {  // Phase 6: Wait for final endstop trigger (slow approach)
 					//Serial.println("6");
 					if (endstopTriggered) {
-						
-						// Stop motor
+						// Stop AT the switch, then back OFF it before setting home=0.
+						// Zeroing here (on the switch) would leave the axis sitting on
+						// a pressed endstop: the next move in the home direction starts
+						// already-triggered, generates no fresh endstop edge, and slams
+						// the mechanical stop. Phases 15-17 drive off the switch first.
 						FocusMotor::stopStepper(axis);
 						vTaskDelay(pdMS_TO_TICKS(200));  // Let motor settle
-						
-						// Set position to zero at home
-						FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
-						
 						md->isforever = false;
-						
-						hd->homingPhase = 7;  // Move to completion
+						hd->homingPhase = 15;  // back off OFF the switch, THEN set home=0
 						phaseStartTime = millis();
-						log_i("[Homing Task] Phase 6: Axis %d final position reached, stopping", axis);
+						log_i("[Homing Task] Phase 6: Axis %d endstop hit; backing off before zeroing", axis);
 					}
 					break;
 				}
@@ -401,11 +346,13 @@ int axis = 0;
 				case 11: {  // Phase 11: Move to final position with offset
 					log_i("[Homing Task] Phase 11: Axis %d moving %d steps from home", axis, hd->homeEndOffset);
 					
-					// Move to final position relative to home (0)
+					// Move to final position relative to home (0). Direction in both
+					// target and speed sign (see Phase 3) so it is correct on FAS and
+					// AccelStepper. Phase 7 only routes here when homeEndOffset != 0.
 					md->isforever = false;
 					md->targetPosition = hd->homeEndOffset;
 					md->absolutePosition = false;  // Relative move from current position (0)
-					md->speed = abs(hd->homeSpeed);
+					md->speed = (hd->homeEndOffset >= 0 ? 1 : -1) * abs(hd->homeSpeed);
 					md->maxspeed = abs(hd->homeSpeed);
 					md->isEnable = 1;
 					md->isaccelerated = 1;
@@ -428,8 +375,7 @@ int axis = 0;
 						FocusMotor::sendMotorPos(axis, 0);
 						
 						// Send completion message
-						sendHomeDone(axis);
-						
+					sendHomeDone(axis, "done");
 						// COMPREHENSIVE cleanup: reset ALL motor state flags that homing modified.
 						// This is critical because subsequent motor commands (especially via
 						// MotorDataReduced/CAN) may not set these fields, and stale values
@@ -438,6 +384,7 @@ int axis = 0;
 						hd->homingPhase = 0;
 						md->isHoming = false;
 						md->hardLimitTriggered = false;
+						FocusMotor::setHardLimitLockoutDir(axis, 0); // clear + persist: homed, no longer trapped
 						md->isforever = false;
 						md->isStop = false;
 						md->stopped = true;  // Motor is stopped after homing
@@ -469,10 +416,12 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						log_i("[Homing Task] Axis %d Phase 9: Moving safety distance (2000 steps)", axis);
 						// Move additional 2000 steps away for safety
 						md->isforever = false;
-						// Additional safety distance in the opposite direction of homing (same direction as retract)
-						md->targetPosition = -hd->homeDirection * 2000;  
+						// Additional safety distance away from the endstop (same
+						// direction as the Phase 3 retract). Direction in both target
+						// and speed sign (see Phase 3) for FAS + AccelStepper.
+						md->targetPosition = -hd->homeDirection * 2000;
 						md->absolutePosition = false;  // Relative move
-						md->speed = abs(hd->homeSpeed);
+						md->speed = -hd->homeDirection * abs(hd->homeSpeed);
 						md->maxspeed = abs(hd->homeSpeed);
 						md->isEnable = 1;
 						md->isaccelerated = 1;
@@ -498,7 +447,133 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						}
 						break;
 					}
-					
+
+					case 13: {  // Phase 13: Escape WRONG endstop (move toward homeDirection)
+						// Used when both physical endstops share one GPIO and the axis was last
+						// commanded opposite to homeDirection -> we are trapped on the far side.
+						// Moving in -homeDirection (Phase 0 behaviour) would push further into the
+						// wall, so instead we drive in +homeDirection until the shared signal
+						// releases, then resume normal homing at Phase 1.
+						log_i("[Homing Task] Axis %d Phase 13: Escaping WRONG endstop (homeDir=%d)",
+							  axis, hd->homeDirection);
+						FocusMotor::clearHardLimitTriggered(axis);
+
+						md->isforever = true;
+						md->targetPosition = 0;
+						md->absolutePosition = false;
+						md->speed = hd->homeDirection * abs(hd->homeSpeed);
+						md->maxspeed = abs(hd->homeSpeed);
+						md->isEnable = 1;
+						md->isaccelerated = 0;
+						md->acceleration = MAX_ACCELERATION_A;
+						md->isStop = 0;
+						md->stopped = false;
+
+						log_i("[Homing Task] Axis %d Phase 13: Starting motor speed=%d", axis, md->speed);
+						FocusMotor::startStepper(axis, 0);
+
+						bool phase13Started = false;
+						for (int i = 0; i < 5; i++) {
+							vTaskDelay(pdMS_TO_TICKS(50));
+							if (FocusMotor::isRunning(axis)) {
+								log_i("[Homing Task] Axis %d Phase 13: Motor running (attempt %d)", axis, i+1);
+								phase13Started = true;
+								break;
+							}
+							log_w("[Homing Task] Axis %d Phase 13: Motor not running, retry %d/5", axis, i+1);
+							md->stopped = false;
+							FocusMotor::startStepper(axis, 0);
+						}
+
+						if (phase13Started) {
+							hd->homingPhase = 14;  // Wait for wrong-endstop release
+							phaseStartTime = millis();
+						} else {
+							log_e("[Homing Task] Axis %d Phase 13: Motor start failed, aborting", axis);
+							hd->homeIsActive = false;
+						}
+						break;
+					}
+
+					case 14: {  // Phase 14: Wait for wrong-endstop to release, then start normal homing
+						if (!endstopTriggered) {
+							log_i("[Homing Task] Axis %d Phase 14: Wrong endstop released, switching to fast approach", axis);
+							FocusMotor::stopStepper(axis);
+							vTaskDelay(pdMS_TO_TICKS(100));
+							hd->homingPhase = 1;  // Resume normal homing toward HOME endstop
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
+					case 15: {  // Phase 15: Back off - drive OFF the endstop (escape dir)
+						// Slow constant-speed sweep away from the switch (opposite of
+						// homeDirection) until the shared endstop GPIO releases.
+						log_i("[Homing Task] Axis %d Phase 15: Backing off endstop (escape dir)", axis);
+						md->isforever = true;
+						md->targetPosition = 0;
+						md->absolutePosition = false;
+						md->speed = -hd->homeDirection * abs(hd->homeSpeed / 4);
+						md->maxspeed = abs(hd->homeSpeed / 4);
+						md->isEnable = 1;
+						md->isaccelerated = 0;
+						md->acceleration = MAX_ACCELERATION_A;
+						md->isStop = 0;
+						md->stopped = false;
+						FocusMotor::startStepper(axis, 0);
+						hd->homingPhase = 16;  // wait for release, then step N more off
+						phaseStartTime = millis();
+						break;
+					}
+
+					case 16: {  // Phase 16: Endstop released -> move N more steps off, or zero
+						if (!endstopTriggered) {
+							// Stop the escape sweep at the release point and settle.
+							FocusMotor::stopStepper(axis);
+							vTaskDelay(pdMS_TO_TICKS(100));
+							md->isforever = false;
+
+							uint16_t extra = pinConfig.homeEndstopReleaseSteps;
+							if (extra == 0) {
+								// No extra margin requested: zero right at the release point.
+								FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
+								log_i("[Homing Task] Phase 16: Axis %d released; home=0 at release point", axis);
+								hd->homingPhase = 7;
+								phaseStartTime = millis();
+								break;
+							}
+							// Drive N more steps further into the safe zone (escape dir).
+							// Direction in BOTH target and speed sign (FAS uses target,
+							// AccelStepper uses speed - see Phase 3).
+							md->targetPosition = -hd->homeDirection * (int32_t)extra;
+							md->absolutePosition = false;  // relative
+							md->speed = -hd->homeDirection * abs(hd->homeSpeed / 4);
+							md->maxspeed = abs(hd->homeSpeed / 4);
+							md->isEnable = 1;
+							md->isaccelerated = 1;
+							md->acceleration = MAX_ACCELERATION_A;
+							md->isStop = 0;
+							md->stopped = false;
+							FocusMotor::startStepper(axis, 0);
+							log_i("[Homing Task] Phase 16: Axis %d released; stepping %d more off switch", axis, (int)extra);
+							hd->homingPhase = 17;  // wait for the back-off move to finish
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
+					case 17: {  // Phase 17: Wait for back-off move to finish, set home=0
+						if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
+							FocusMotor::setPosition(static_cast<Stepper>(axis), 0);
+							md->isforever = false;
+							log_i("[Homing Task] Phase 17: Axis %d backed off endstop; home set to 0", axis);
+							hd->homingPhase = 7;  // continue to optional offset / completion
+							phaseStartTime = millis();
+
+						}
+						break;
+					}
+
 					default:
 					log_e("[Homing Task] Axis %d unknown phase %d", axis, hd->homingPhase);
 					hd->homeIsActive = false;
@@ -558,15 +633,6 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		{
 			hdata[axis]->homeDirection = -1;
 		}
-		// Normalize endstop polarity to 0 or 1
-		if (hdata[axis]->homeEndStopPolarity > 0)
-		{
-			hdata[axis]->homeEndStopPolarity = 1;
-		}
-		else
-		{
-			hdata[axis]->homeEndStopPolarity = 0;
-		}
 		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
 		
 		// Set isHoming flag IMMEDIATELY to prevent concurrent homing attempts
@@ -574,44 +640,56 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		getData()[axis]->isHoming = true;
 		hdata[axis]->homeTimeStarted = millis();
 		
-		// Check initial endstop state to determine starting mode
-		// If endstop is already pressed, start in release phase (Phase 0)
-#if defined MOTOR_CONTROLLER && defined DIGITAL_IN_CONTROLLER
-		int currentEndstopState = 0;
-		if (axis == Stepper::X) currentEndstopState = DigitalInController::getDigitalVal(1);
-		else if (axis == Stepper::Y) currentEndstopState = DigitalInController::getDigitalVal(2);
-		else if (axis == Stepper::Z) currentEndstopState = DigitalInController::getDigitalVal(3);
-		
-		// Check if endstop is already triggered
-		bool endstopAlreadyTriggered = (currentEndstopState == hdata[axis]->homeEndStopPolarity);
-		if (endstopAlreadyTriggered) {
-			log_i("Axis %i endstop already active, starting with release phase", axis);
-			hdata[axis]->homingPhase = 0;  // Phase 0: Release endstop first
+		// SINGLE SOURCE OF TRUTH for endstop polarity, SETTABLE via home_act/CAN.
+		// The home endstop and the hard-limit endstop are the SAME physical signal.
+		// When the caller SUPPLIES a polarity (0 or 1) it is GROUND TRUTH: write it
+		// through to md->hardLimitPolarity (persisted) so the hard-limit checker and
+		// the homing state machine can never disagree. A negative value (-1) or an
+		// omitted field means "keep the currently configured polarity".
+		MotorData *md = FocusMotor::getData()[axis];
+		if (homeEndStopPolarity == 0 || homeEndStopPolarity == 1) {
+			bool newPol = (homeEndStopPolarity == 1);
+			if (md->hardLimitPolarity != newPol) {
+				log_i("Axis %d: home_act endstoppolarity=%d -> updating hardLimitPolarity (was %d), persisting",
+					  axis, (int)newPol, (int)md->hardLimitPolarity);
+				// setHardLimit persists to NVS and keeps the runtime field in sync;
+				// hardLimitEnabled is left unchanged.
+				FocusMotor::setHardLimit(axis, md->hardLimitEnabled, newPol);
+			}
 		} else {
-			hdata[axis]->homingPhase = 1;  // Phase 1: Normal fast to endstop
+			log_i("Axis %d: no endstoppolarity supplied (=%d) - keeping hardLimitPolarity=%d",
+				  axis, homeEndStopPolarity, (int)md->hardLimitPolarity);
 		}
-#else
-		hdata[axis]->homingPhase = 1;  // Start with phase 1: fast to endstop
-#endif
-		
-		// Determine whether to use native driver or CAN based on hybrid mode
-		bool useCANForHoming = shouldUseCANForAxis(axis);
-		
-		if (useCANForHoming)
-		{
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-			// In hybrid mode, send home data to CAN slave
-			int canAxis = getCANAxisForHybrid(axis);
-			log_i("Homing axis %d via CAN (CAN axis: %d)", axis, canAxis);
-			can_controller::sendHomeDataToCANDriver(*hdata[axis], canAxis);
-			// Clear isHoming on master - the slave manages its own homing state.
-			// Without this, isHoming stays true forever on the master (no local
-			// homing task to clear it), blocking all future homing commands.
-			getData()[axis]->isHoming = false;
-#endif
+		// The homing state machine mirrors the single source (md->hardLimitPolarity).
+		hdata[axis]->homeEndStopPolarity = md->hardLimitPolarity ? 1 : 0;
+
+		// Check initial endstop state to determine starting mode.
+		// hardLimitLockoutDir is the AUTHORITATIVE "we are physically against
+		// an endstop" signal: it's set by FocusMotor whenever a hard-limit trip
+		// occurs (using the correctly configured hardLimitPolarity) and only
+		// cleared when the GPIO physically releases AND the motor is idle.
+		// We do NOT fall back to a polarity-dependent GPIO read or to
+		// lastCommandedDir here, because both are easily wrong (mismatched
+		// polarity inverts the GPIO check; lastCommandedDir reflects the LAST
+		// motion regardless of whether it ended in an endstop, so using it as
+		// a "trapped" indicator causes Phase 0/13 to alternate on every retry).
+		//   lockoutDir == 0              -> not trapped, start Phase 1
+		//   lockoutDir == homeDirection  -> trapped in HOME endstop  -> Phase 0
+		//   lockoutDir == -homeDirection -> trapped in WRONG endstop -> Phase 13
+		int8_t lockoutDir = md->hardLimitLockoutDir;
+		if (lockoutDir == 0) {
+			hdata[axis]->homingPhase = 1;  // Not trapped — normal fast approach
+		} else if (lockoutDir == -hdata[axis]->homeDirection) {
+			log_w("Axis %i trapped in WRONG endstop (lockoutDir=%d, homeDir=%d). Escaping toward home first.",
+				  axis, (int)lockoutDir, (int)hdata[axis]->homeDirection);
+			hdata[axis]->homingPhase = 13;  // Phase 13: escape wrong endstop
+		} else {
+			log_i("Axis %i trapped in HOME endstop (lockoutDir=%d, homeDir=%d), starting with release phase",
+				  axis, (int)lockoutDir, (int)hdata[axis]->homeDirection);
+			hdata[axis]->homingPhase = 0;  // Phase 0: release HOME endstop first
 		}
-		else
-		{
+		
+		// Start local homing (CAN routing handled by DeviceRouter)
 #if defined(USE_ACCELSTEP) || defined(USE_FASTACCEL)
 			// Use native driver with new CNC-style task-based homing
 			
@@ -668,7 +746,6 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 				getData()[axis]->isHoming = false;  // Release lock on failure
 			}
 #endif
-		}
 	}
 
 	void stopHome(int axis)
@@ -759,49 +836,34 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 
 	// home done returns
 	//{"home":{...}}
-	void sendHomeDone(int axis)
+	void sendHomeDone(int axis, const char* status)
 	{
 #ifdef MOTOR_CONTROLLER
-		// send home done to client
+		// send home result to client: {"home":{"stepperid":0,"status":"done","pos":0},"qid":1234}
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
 		cJSON_AddItemToObject(json, key_home, home);
-		cJSON *steppers = cJSON_CreateObject();
-		cJSON_AddItemToObject(home, key_steppers, steppers);
-		cJSON *axs = cJSON_CreateNumber(axis);
-		cJSON *done = cJSON_CreateNumber(true);
-		cJSON *pos = cJSON_CreateNumber(FocusMotor::getData()[axis]->currentPosition);
-		cJSON_AddItemToObject(steppers, "axis", axs);
-		cJSON_AddItemToObject(steppers, "pos", pos);
-		cJSON_AddItemToObject(steppers, "isDone", done);
-		cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
+		cJSON_AddItemToObject(home, "stepperid", cJSON_CreateNumber(axis));
+		cJSON_AddItemToObject(home, "status", cJSON_CreateString(status));
+		cJSON_AddItemToObject(home, "pos", cJSON_CreateNumber(FocusMotor::getData()[axis]->currentPosition));
 		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
-		//Serial.println("++");
 		char *ret = cJSON_PrintUnformatted(json);
+		log_i("[HomeMotor] sendHomeDone axis=%d status=%s: %s", axis, status, ret);
+		Serial.println(ret);
 		cJSON_Delete(json);
-		//Serial.println(ret);
 		free(ret);
-		//Serial.println("--");
-#endif
-#if defined(CAN_BUS_ENABLED) && defined(CAN_RECEIVE_MOTOR)
-		// send home state to master
-		HomeState homeState;
-		homeState.isHoming = false;
-		homeState.isHomed = true;
-		homeState.currentPosition = FocusMotor::getData()[axis]->currentPosition;
-		can_controller::sendHomeStateToMaster(homeState);
 #endif
 	}
 
 	void checkAndProcessHome(Stepper s, int digitalin_val)
 	{
 #ifdef MOTOR_CONTROLLER
-#if defined(CAN_BUS_ENABLED) && !defined(CAN_RECEIVE_MOTOR)
-		// For CAN master, we receive push messages, only monitor timeout
+#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
+		// For CANopen master, we receive push messages, only monitor timeout
 		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
 		{
 			log_i("Home Motor %i timeout", s);
-			sendHomeDone(s);
+			sendHomeDone(s, "timeout");
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag
 			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing

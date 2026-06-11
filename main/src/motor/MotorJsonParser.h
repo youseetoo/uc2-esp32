@@ -7,6 +7,21 @@ namespace MotorJsonParser
 {
     int act(cJSON *doc);
     cJSON *get(cJSON *docin);
+
+    // Individual sub-parsers — called by DeviceRouter::handleMotorAct so that
+    // routed /motor_act commands still execute config side-effects (enable,
+    // setpos, hardlimits, joystickdir, ...) and stage scans. Previously these
+    // only ran when DeviceRouter returned nullptr (i.e. never for routed paths).
+    void parseEnableMotor(cJSON *doc);
+    void parseAutoEnableMotor(cJSON *doc);
+    bool parseSetPosition(cJSON *doc);
+    void parseMotorPinDirection(cJSON *doc);
+    void parseSetHardLimits(cJSON *doc);
+    void parseSetJoystickDirection(cJSON *doc);
+    void parseMotorDriveJson(cJSON *doc);
+#ifdef STAGE_SCAN
+    void parseStageScan(cJSON *doc);
+#endif
     
     // Helper function to check if encoder-based precision motion is requested
     inline bool isEncoderPrecisionRequested(cJSON *stepper) {

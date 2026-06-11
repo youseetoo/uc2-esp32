@@ -1,10 +1,5 @@
 #include "TMCController.h"
-#ifdef I2C_MASTER
-#include "../i2c/i2c_master.h"
-#endif
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
-#endif
+
 
 using namespace FocusMotor;
 
@@ -52,19 +47,26 @@ namespace TMCController
 
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
     {
-        #if not defined(CAN_SEND_COMMANDS)
+        #if !defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2)
         // Temporarily disable motor to allow microstep changes
         digitalWrite(pinConfig.MOTOR_ENABLE, HIGH);
         delay(10);
-        
+
+        // TMCStepper's microsteps(ms) setter only accepts {256,128,64,32,16,8,4,2,0}
+        // where 0 means "full step" (i.e. 1 microstep). Passing literal 1 is a no-op
+        // (silently ignored by the switch in the library), which left msteps_ at the
+        // previous value. Translate 1 -> 0 for the API while keeping p.msteps == 1
+        // for preferences/log/verify (the getter returns 256>>MRES, which is 1 for MRES=8).
+        uint16_t apiMs = (p.msteps == 1) ? 0 : (uint16_t)p.msteps;
+
         // Set microsteps with proper timing
-        driver.microsteps(p.msteps);
+        driver.microsteps(apiMs);
         delay(10); // Give UART time to process
-        
+
         // Verify and retry if needed
         for (int iTrial = 0; iTrial < 3 && driver.microsteps() != p.msteps; iTrial++) {
             log_w("Microstep setting mismatch, retrying... (attempt %d)", iTrial + 1);
-            driver.microsteps(p.msteps);
+            driver.microsteps(apiMs);
             delay(10);
         }
         
@@ -142,9 +144,6 @@ namespace TMCController
         // send TMC data via I2C
         i2c_master::sendTMCDataI2C(p, axis);
         return 0;
-#elif defined(CAN_SEND_COMMANDS)
-        can_controller::sendTMCDataToCANDriver(p, axis);
-        return 0;
 #else
         if (pinConfig.tmc_SW_RX == disabled)
         {
@@ -193,7 +192,7 @@ namespace TMCController
         {
             return jsonDocument;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
         TMCData p = readParamsFromPreferences();
         cJSON *monitor_json = cJSON_CreateObject();
         cJSON_AddNumberToObject(monitor_json, "msteps", p.msteps);
@@ -223,7 +222,7 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration");
             return 0;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
         return driver.rms_current();
 #else
         return 0;
@@ -240,12 +239,9 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration");
             return;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
-        bool isZAxis = false ;
-        #ifdef CAN_RECEIVE_MOTOR
-            // retreive the current ID
-            isZAxis = can_controller::device_can_id == pinConfig.CAN_ID_MOT_Z;
-        #endif
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+        // Determine if this board drives the Z axis (needs more current)
+        bool isZAxis = (pinConfig.CAN_ID_CURRENT == pinConfig.CAN_ID_MOT_Z);
         if (isZAxis){
             driver.rms_current(current*1.5); // we double the current for the Z axis as it needs more power
         }
@@ -258,7 +254,7 @@ namespace TMCController
 
     void callibrateStallguard(int speed = 10000)
     {
-#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
@@ -333,7 +329,7 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
             return;
         }
-#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
         log_i("Setting up TMC2209");
 
         preferences.begin("tmc", false);
@@ -362,7 +358,7 @@ namespace TMCController
 
         if (pinConfig.TMC_DEBUG)
         {
-#ifdef TMC_CONTROLLER and not defined(CAN_SEND_COMMANDS)
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
 // print stallguard and current in every cycle
             log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
             #endif

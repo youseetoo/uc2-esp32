@@ -165,6 +165,23 @@ struct PinConfig
      int8_t MOTOR_G_DIR = disabled;
      int8_t MOTOR_G_STEP = disabled;
 
+     // limit settings 
+      bool hardLimitEnabledA = false;
+      bool hardLimitPolarityA = false;
+      bool hardLimitEnabledX = false; 
+      bool hardLimitPolarityX = false;
+      bool hardLimitEnabledY = false;
+      bool hardLimitPolarityY = false;
+      bool hardLimitEnabledZ = false;
+      bool hardLimitPolarityZ = false;
+
+      // Homing back-off: after the final endstop touch, drive OFF the switch
+      // until it releases and then this many extra steps before setting home=0.
+      // Mandatory so homing never ends while the endstop is still pressed -
+      // otherwise the next move INTO that direction starts already-triggered,
+      // produces no fresh endstop edge, and overshoots into the mechanical stop.
+      uint16_t homeEndstopReleaseSteps = 50;
+
      // motor enable power
      int8_t MOTOR_ENABLE = disabled;
      // motor power pin is inverted
@@ -386,6 +403,12 @@ struct PinConfig
      // Temperature Sensor
      int8_t DS28b20_PIN = disabled;
 
+     // Case-fan control (MCP4017T-503E digital rheostat over I2C + Noctua tacho)
+     // FAN_TACHO_PIN is the open-drain tacho line from the fan -> ESP32 GPIO.
+     // I2C_ADDR_MCP4017 is the wiper chip on the panelboard regulating fan voltage.
+     int8_t FAN_TACHO_PIN = disabled;
+     static constexpr uint8_t I2C_ADDR_MCP4017 = 0x2F;
+
      // CAN
      int8_t CAN_TX = 5;
      int8_t CAN_RX = 44;
@@ -420,9 +443,55 @@ struct PinConfig
      uint8_t CAN_ID_LASER_3 = 23;
      uint8_t CAN_ID_LASER_4 = 24;
 
+     // Per-channel laser routing: node ID and sub-axis per logical laser channel.
+     // CAN_NODE_LASER[ch] — CAN node ID the master addresses for that channel.
+     //   Default mirrors CAN_ID_LASER_N (one node per channel). Override ALL
+     //   four entries to the same value when one slave node serves multiple channels.
+     //   Example (4 channels on node 0x14): {0x14, 0x14, 0x14, 0x14}
+     // CAN_SUBAXIS_LASER[ch] — OD sub-index - 1 written for that channel.
+     //   Default {0, 1, 2, 3} — sub 0x01…0x04 of OD object LASER_PWM_VALUE.
+     //   If two nodes each handle 2 channels:
+     //     CAN_NODE_LASER    = {0x14, 0x14, 0x15, 0x15}
+     //     CAN_SUBAXIS_LASER = {0,    1,    0,    1}
+     uint8_t CAN_NODE_LASER[4]     = {20, 21, 22, 23};  // defaults match CAN_ID_LASER_N
+     int8_t  CAN_SUBAXIS_LASER[4]  = {0, 1, 2, 3};      // 0-based sub-axis (OD sub = ch+1)
+
      uint8_t CAN_ID_LED_0 = 30;
 
      uint8_t CAN_ID_GALVO_0 = 40;
+
+     // ── GPIO / sensor I/O slave (E-stop, collision-threshold, remote GPIOs) ──
+     uint8_t CAN_ID_GPIO_0 = 60;
+
+     // ========================================================================
+     // PER-DEVICE ROUTING OVERRIDES
+     // ========================================================================
+     // Explicit routing for RoutingTable::buildDefault().
+     // Values: -1 = INFER (from pin config + canRole, default behaviour),
+     //          0 = LOCAL (on-board GPIO),
+     //          1 = REMOTE (forward over CAN to the CAN_ID_* node),
+     //          2 = OFF (disabled)
+     // Override these in board-specific PinConfig.h for explicit control.
+     int8_t ROUTE_MOTOR[4]  = {-1, -1, -1, -1}; // A, X, Y, Z
+     int8_t ROUTE_HOME[4]   = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
+     int8_t ROUTE_TMC[4]    = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
+     int8_t ROUTE_LASER[4]  = {-1, -1, -1, -1}; // laser channels 0-3
+
+     // ── Laser channel 4 (extra remote laser, typically an illumination
+     //    satellite board that exposes a single PWM as OD sub-index 1) ──
+     // Routing for laser id 4 is handled separately from ROUTE_LASER[0..3]
+     // so existing PinConfigs that declare ROUTE_LASER as a fixed-size
+     // [4] array do not need to be touched. By convention, channel 4 lives
+     // on the illumination board's CANopen node (default = CAN_ID_LED_0)
+     // and reuses its sole laser channel (sub-axis 0 → OD sub 0x01).
+     // Hybrid masters typically set ROUTE_LASER[0..3]=LOCAL and
+     // ROUTE_LASER_4=REMOTE so logical laser id 4 is routed over CAN.
+     int8_t  ROUTE_LASER_4    = -1;  // -1=infer, 0=LOCAL, 1=REMOTE, 2=OFF
+     uint8_t CAN_NODE_LASER_4 = 30;  // default = CAN_ID_LED_0 (illumination board)
+     int8_t  CAN_SUBAXIS_LASER_4 = 0; // OD sub-axis (sub = value + 1)
+
+     int8_t ROUTE_LED        = -1;               // single LED array
+     int8_t ROUTE_GALVO      = -1;               // single galvo
 
      // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
      // Set to 0 to disable secondary address listening
@@ -467,8 +536,43 @@ struct PinConfig
      // Default: 150 (equivalent to all channels at ~50 intensity each)
      uint16_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 150;
 
-     // Emergency stop
+     // Emergency-STOP sense input, polled by DigitalInController (always-on).
      int8_t pinEmergencyExit = disabled;
+     // Default ASSERTED (emergency) logic level on pinEmergencyExit:
+     //   0 = active-LOW  (asserted reads LOW,  idle HIGH)
+     //   1 = active-HIGH (asserted reads HIGH, idle LOW)
+     // Runtime-overridable + persisted via /state_act {"estopPolarity":0|1}.
+     // NOTE: input-only pins (GPIO34-39) have no internal pull — they need an
+     // EXTERNAL pull resistor to the idle level or the reading will float.
+     int8_t pinEmergencyExitPolarity = 1;
 
-     uint8_t ESTOP_PIN = disabled;
+     // High-current CAN-bus power MOSFET gate. HIGH = bus power OFF, LOW = ON.
+     // Driven via /state_act {"power":0|1}; default ON at boot. See State.cpp.
+     // (Supersedes the former ESTOP_PIN, which addressed this same gate.)
+     int8_t BUSPOWER_OFF_PIN = disabled;
+
+     // ── GPIO-CAN slave (UC2_canopen_slave_gpio) ──────────────────────────
+     // The GPIO slave is a small XIAO ESP32S3 node that:
+     //   - reports E-stop + collision-threshold trips to the master,
+     //   - exposes two remote-controllable digital outputs (GPIO1/GPIO4) to
+     //     the master via SDO writes on x2301_digital_output_command.
+     // GPIO_COLLISION_ADC is read on every loop; when its filtered value
+     // crosses GPIO_COLLISION_THRESHOLD_DEFAULT the slave sets bit 0 of
+     // x2300_digital_input_state[3] (the "flags" byte of TPDO2) and pushes
+     // a TPDO frame so the master can react.
+     // The threshold is overridable at runtime via NVS preference key
+     // "gpioCollThr" — see GpioCanSlave::setThreshold().
+     int8_t   GPIO_ESTOP_PIN              = disabled;     // digital in (E-stop button)
+     int8_t   GPIO_COLLISION_ADC          = disabled;     // analog in (resistive collision sensor)
+     uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT = 2048;    // raw ADC counts
+     uint16_t GPIO_COLLISION_HYSTERESIS   = 100;          // raw ADC counts
+     uint16_t GPIO_ADC_FILTER_ALPHA_X1024 = 128;          // EWMA alpha * 1024 (~0.125)
+     // Two slots driven by master via x2301_digital_output_command sub 1/2.
+     // Reuses pinConfig.DIGITAL_OUT_1 and DIGITAL_OUT_2 already in this struct.
+
+     // Master-side: CAN node-id of the GPIO slave the master forwards events
+     // for. Set to disabled (-1) on slave builds and on masters that have no
+     // GPIO slave wired. When non-disabled, the master sniffs the slave's
+     // TPDO2 (COB-ID 0x280 + nodeId) in CAN_ctrl_task and emits serial JSON.
+     int8_t   MASTER_GPIO_SLAVE_NODE_ID   = disabled;
 };

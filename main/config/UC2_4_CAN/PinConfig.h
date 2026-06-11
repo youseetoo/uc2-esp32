@@ -23,7 +23,6 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #define HOME_MOTOR=1
 #define BTHID=1 
 #define BLUETOOTH=1	
-#define OBJECTIVE_CONTROLLER=1
 #define USE_FASTACCEL=1
 struct UC2_4 : PinConfig
 {
@@ -52,7 +51,7 @@ struct UC2_4 : PinConfig
      */
 
      bool MOTOR_ENABLE_INVERTED = true;
-     bool MOTOR_AUTOENABLE = true;
+     bool MOTOR_AUTOENABLE = false;
      int8_t AccelStepperMotorType = 1;
 
      //The PWM channels 1-3 go to headers, LED drivers, LASERBOX jack.

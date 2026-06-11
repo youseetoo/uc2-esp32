@@ -98,11 +98,6 @@ namespace RestApi
     esp_err_t HomeMotor_getESP(httpd_req_t *req);
 #endif
 
-#ifdef OBJECTIVE_CONTROLLER
-    esp_err_t Objective_setESP(httpd_req_t *req);
-    esp_err_t Objective_getESP(httpd_req_t *req);
-#endif
-
 #ifdef ENCODER_CONTROLLER
     esp_err_t EncoderMotor_setESP(httpd_req_t *req);
     esp_err_t EncoderMotor_getESP(httpd_req_t *req);
@@ -191,5 +186,15 @@ namespace RestApi
     esp_err_t Heat_getESP(httpd_req_t *req);
     esp_err_t DS18B20_getESP(httpd_req_t *req);
     esp_err_t DS18B20_actESP(httpd_req_t *req);
+#endif
+
+#ifdef TMP102_CONTROLLER
+    esp_err_t Temp_getESP(httpd_req_t *req);
+    esp_err_t Temp_actESP(httpd_req_t *req);
+#endif
+
+#ifdef FAN_CONTROLLER
+    esp_err_t Fan_actESP(httpd_req_t *req);
+    esp_err_t Fan_getESP(httpd_req_t *req);
 #endif
 };

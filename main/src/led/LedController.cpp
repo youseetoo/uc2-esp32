@@ -6,9 +6,36 @@
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 #include "../qid/QidRegistry.h"
+#include "src/serial/SerialProcess.h"
+#include "../canopen/DeviceRouter.h"
 
-#ifdef CAN_BUS_ENABLED
-#include "../can/can_controller.h"
+#if !defined(DOTSTAR) && !defined(HUB75)
+#include "Ws2812Rmt.h"
+#endif
+
+// --------------------------------------------------------------------------------
+// FastAccelStepper / NeoPixel RMT coexistence — see Ws2812Rmt.cpp for context.
+//
+// Adafruit_NeoPixel's built-in espShow() calls rmt_driver_install(ch, 0, 0),
+// i.e. WITHOUT ESP_INTR_FLAG_SHARED. On the ESP32-classic the whole RMT
+// peripheral has a single IRQ line, and FastAccelStepper has already grabbed
+// it via rmt_isr_register(..., ESP_INTR_FLAG_SHARED, ...). Adafruit's install
+// then fails silently and ledShow() hangs in rmt_wait_tx_done().
+//
+// We bypass Adafruit's espShow() entirely. Adafruit_NeoPixel is kept only as a
+// pixel-buffer / colour-utility object (setPixelColor, getPixels, Color, ...).
+// All TX is done through Ws2812Rmt::show() on a free RMT channel.
+#if !defined(DOTSTAR) && !defined(HUB75)
+#ifndef UC2_WS2812_RMT_CHANNEL
+#  if defined(CONFIG_IDF_TARGET_ESP32S3)
+     // S3 has 4 TX channels (0..3); default to ch0. If motors are present the
+     // caller should override via -DUC2_WS2812_RMT_CHANNEL=<free channel>.
+#    define UC2_WS2812_RMT_CHANNEL 0
+#  else
+     // Classic ESP32: FAS owns channels 0..3 (one per stepper on UC2_4).
+#    define UC2_WS2812_RMT_CHANNEL 4
+#  endif
+#endif
 #endif
 
 // --------------------------------------------------------------------------------
@@ -18,12 +45,31 @@ namespace LedController
 {
 
 	const char *TAG = "LedController";
-	
+
 	// Toggle functionality for Circle button
 	static unsigned long circleLastEventTime = 0;
 	static const unsigned long BUTTON_DEBOUNCE_TIME = 300; // ms to prevent multiple toggles
 	static bool ledToggleState = false; // false = off, true = on
-	
+
+	// ------------------------------------------------
+	// Internal show() helper — routes through our Ws2812Rmt driver for the
+	// NeoPixel build path. DOTSTAR / HUB75 keep using the Adafruit show().
+	// ------------------------------------------------
+	static inline void ledShow()
+	{
+#if defined(DOTSTAR) || defined(HUB75)
+		if (matrix) matrix->show();
+#elif defined(USE_FASTACCEL)
+		// FastAccelStepper owns RMT channels 0..3 for the steppers, so the strip
+		// is driven by our own bare-metal RMT driver on a free channel instead of
+		// Adafruit's espShow(). NEO_GRB is 3 bytes/pixel.
+		if (matrix) Ws2812Rmt::show(matrix->getPixels(), (size_t)matrix->numPixels() * 3);
+#else
+		if (matrix)
+			matrix->show();
+#endif
+	}
+
 
 
 	// ------------------------------------------------
@@ -47,6 +93,7 @@ namespace LedController
 		matrix->drawPixel(x, y, rgb565(r, g, b));
 #else
 		uint16_t idx = xyToIndex(x, y);
+		log_i("Setting LED at (x=%d, y=%d, index=%d) to color: R=%d, G=%d, B=%d", x, y, idx, r, g, b);
 		matrix->setPixelColor(idx, matrix->Color(r, g, b));
 #endif
 	}
@@ -56,6 +103,14 @@ namespace LedController
 	// ------------------------------------------------
 	void setup()
 	{
+		// On boards where the on-board NeoPixel is only used as a status
+		// indicator (e.g. the CAN HAT master with IS_STATUS_LED=true), the
+		// pixel is owned by SignalController via /signal_act. Skip the heavy
+		// LED-array setup here so we don't double-init the same data pin.
+		if (pinConfig.IS_STATUS_LED) {
+			log_i("LedController: IS_STATUS_LED=true, status pixel handled by SignalController — skipping setup");
+			return;
+		}
 
 		log_i("Initializing LED matrix");
 #ifdef DOTSTAR
@@ -80,20 +135,40 @@ namespace LedController
 		}
 
 #else
-		matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800); // NEO_KHZ800);
-		log_i("LED matrix created with %d LEDs on pin %d", LED_COUNT, pinConfig.LED_PIN);
-		matrix->begin();
-		matrix->setBrightness(255); // moderate brightness
+		log_i("LedController: LED_COUNT=%u pin=%d — using Ws2812Rmt on RMT ch %d",
+			  (unsigned)LED_COUNT, (int)pinConfig.LED_PIN, UC2_WS2812_RMT_CHANNEL);
+		// Pixel buffer + colour helpers only — NO RMT install via Adafruit.
+		// We deliberately do NOT call matrix->begin() (which would try to set up
+		// the RX/TX peripheral via the IDF driver and conflict with FAS). begin()
+		// only configures the GPIO direction here, which we do ourselves below.
+		matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+#if !defined(USE_FASTACCEL) 
+		log_i("LedController: calling matrix->begin() to set up GPIO (no FastAccelStepper conflict)");
+		matrix->begin(); // Only call begin() if we're not sharing the RMT with FastAccelStepper, to avoid conflicts. If FastAccelStepper is used, we'll do the necessary GPIO setup ourselves below.
+#else
+		log_i("LedController: skipping matrix->begin() to avoid RMT conflict with FastAccelStepper; configuring GPIO ourselves");
+		// Bring up our own RMT-based driver on a channel above FAS's allocation.
+		if (!Ws2812Rmt::begin(pinConfig.LED_PIN, UC2_WS2812_RMT_CHANNEL)) {
+			log_e("LedController: Ws2812Rmt::begin() failed — strip will stay dark");
+		}
+#endif
+		matrix->setBrightness(255);
 		matrix->clear();
-		matrix->show();
+
+		log_i("LedController: about to show() — first RMT TX");
+		ledShow();
+		log_i("LedController: first show() returned");
+
 #endif
 
 		// test led array
 		int initIntensity = 100;
+
+
 		fillAll(initIntensity, initIntensity, initIntensity);
 		delay(10);
 		fillAll(0, 0, 0);
-		matrix->show(); //  Update strip to match
+		ledShow(); //  Update strip to match
 
 		isOn = false;
 
@@ -115,10 +190,10 @@ namespace LedController
 	{
 #ifdef HUB75
 		matrix->fillScreen(0);
-		matrix->show();
+		ledShow();
 #else
 		matrix->clear();
-		matrix->show();
+		ledShow();
 #endif
 		isOn = false;
 	}
@@ -136,7 +211,7 @@ namespace LedController
 		for (uint16_t i = 0; i < LED_COUNT; i++)
 			matrix->setPixelColor(i, matrix->Color(r, g, b));
 #endif
-		matrix->show();
+		ledShow();
 		isOn = (r || g || b);
 	}
 
@@ -145,18 +220,19 @@ namespace LedController
 	// ------------------------------------------------
 	void setSingle(uint16_t index, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("Setting single LED at index %d to color: R=%d, G=%d, B=%d", index, r, g, b);
 #ifdef HUB75
 		matrix->fillScreen(0);
 		int x = index % pinConfig.MATRIX_W;
 		int y = index / pinConfig.MATRIX_W;
 		matrix->drawPixel(x, y, rgb565(r, g, b));
-		matrix->show();
+		ledShow();
 #else
 		if (index < LED_COUNT)
 		{
-			matrix->clear();
+			// matrix->clear();
 			matrix->setPixelColor(index, matrix->Color(r, g, b));
-			matrix->show();
+			ledShow();
 		}
 #endif
 		isOn = (r || g || b);
@@ -168,6 +244,7 @@ namespace LedController
 	// ------------------------------------------------
 	void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("fillHalves: region=%s, r=%d, g=%d, b=%d", region, r, g, b);
 #ifndef HUB75
 
 		matrix->clear();
@@ -225,7 +302,7 @@ namespace LedController
 		}
 		// else unknown => remain dark
 
-		matrix->show();
+		ledShow();
 		isOn = (r || g || b);
 #endif
 	}
@@ -237,7 +314,7 @@ namespace LedController
 	//       Q1 (top-left)  | Q3 (top-right)
 	//       ---------------+---------------
 	//       Q2 (bottom-left)| Q4 (bottom-right)
-	//     
+	//
 	//     Halves:
 	//       left = Q1 + Q2, right = Q3 + Q4
 	//       top = Q1 + Q3,  bottom = Q2 + Q4
@@ -245,7 +322,7 @@ namespace LedController
 	void fillHalvesRingSegments(const char *region, uint8_t r, uint8_t g, uint8_t b)
 	{
 		log_i("fillHalvesRingSegments: region=%s, r=%d, g=%d, b=%d", region, r, g, b);
-		
+
 		// Helper lambda to set LEDs for a segment in one ring
 		auto setRingSegment = [&](uint16_t ringStart, uint16_t segmentOffset, uint16_t count) {
 			for (uint16_t i = 0; i < count; i++) {
@@ -330,7 +407,7 @@ namespace LedController
 		}
 		// else unknown => remain dark
 
-		matrix->show();
+		ledShow();
 		isOn = (r || g || b);
 	}
 
@@ -342,12 +419,14 @@ namespace LedController
 	// ------------------------------------------------
 	void drawRings(uint8_t radius, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("drawRings: radius=%d, r=%d, g=%d, b=%d", radius, r, g, b);
 #ifndef HUB75
 		// Check if this is an illumination board with defined ring structure
 		#ifdef LED_CONTROLLER
 		// Check if we have ring definitions in the pin config (illumination board)
-		if (pinConfig.pindefName && 
-			strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0)
+		if (pinConfig.pindefName &&
+			(strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+			strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0))
 		{
 			// Use direct ring indexing for illumination board
 			drawIlluminationRings(radius, r, g, b);
@@ -397,7 +476,7 @@ namespace LedController
 			}
 		}
 
-		matrix->show();
+		ledShow();
 		isOn = (r || g || b);
 #endif
 	}
@@ -408,6 +487,8 @@ namespace LedController
 	// ------------------------------------------------
 	void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b)
 	{
+		log_i("drawIlluminationRings: ring_id=%d, r=%d, g=%d, b=%d", ring_id, r, g, b);
+
 		// Hard-coded ring mapping for illumination board
 		// Ring mapping: radius 0=inner, 1=middle, 2=biggest, 3=outest
 		uint16_t start_idx = 0;
@@ -415,20 +496,20 @@ namespace LedController
 
 		switch (ring_id) {
 			case 0: // Inner ring
-				start_idx = pinConfig.RING_INNER_START;   
-				count = pinConfig.RING_INNER_COUNT;      
+				start_idx = pinConfig.RING_INNER_START;
+				count = pinConfig.RING_INNER_COUNT;
 				break;
 			case 1: // Middle ring
-				start_idx = pinConfig.RING_MIDDLE_START;  
-				count = pinConfig.RING_MIDDLE_COUNT;      
+				start_idx = pinConfig.RING_MIDDLE_START;
+				count = pinConfig.RING_MIDDLE_COUNT;
 				break;
 			case 2: // Biggest ring
-				start_idx = pinConfig.RING_BIGGEST_START;  
-				count = pinConfig.RING_BIGGEST_COUNT;      
+				start_idx = pinConfig.RING_BIGGEST_START;
+				count = pinConfig.RING_BIGGEST_COUNT;
 				break;
 			case 3: // Outest ring
-				start_idx = pinConfig.RING_OUTEST_START;  
-				count = pinConfig.RING_OUTEST_COUNT;      
+				start_idx = pinConfig.RING_OUTEST_START;
+				count = pinConfig.RING_OUTEST_COUNT;
 				break;
 			default:
 				// Invalid ring, light up all rings
@@ -436,20 +517,21 @@ namespace LedController
 				for (uint16_t i = 0; i < total_leds; i++) {
 					matrix->setPixelColor(i, matrix->Color(r, g, b));
 				}
-				matrix->show();
+				ledShow();
 				isOn = (r || g || b);
 				return;
 		}
 
 		// Clear all LEDs first
 		matrix->clear();
-		
+
 		// Set the specified ring
 		for (uint16_t i = 0; i < count; i++) {
 			matrix->setPixelColor(start_idx + i, matrix->Color(r, g, b));
+			log_i("Setting LED at index %d (ring %d) to color: R=%d, G=%d, B=%d", start_idx + i, ring_id, r, g, b);
 		}
-		
-		matrix->show();
+
+		ledShow();
 		isOn = (r || g || b);
 	}
 
@@ -459,13 +541,14 @@ namespace LedController
 	// ------------------------------------------------
 	void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b)
 	{
+
 		// Get ring parameters
 		uint16_t start_idx = 0;
 		uint16_t count = 0;
 		log_i("drawIlluminationRingSegment: ring_id=%d, region=%s, r=%d, g=%d, b=%d", ring_id, region, r, g, b);
 		switch (ring_id) {
 			case 0: start_idx = pinConfig.RING_INNER_START; count = pinConfig.RING_INNER_COUNT; break;   // Inner ring
-			case 1: start_idx = pinConfig.RING_MIDDLE_START; count = pinConfig.RING_MIDDLE_COUNT; break;  // Middle ring  
+			case 1: start_idx = pinConfig.RING_MIDDLE_START; count = pinConfig.RING_MIDDLE_COUNT; break;  // Middle ring
 			case 2: start_idx = pinConfig.RING_BIGGEST_START; count = pinConfig.RING_BIGGEST_COUNT; break;  // Biggest ring
 			case 3: start_idx = pinConfig.RING_OUTEST_START; count = pinConfig.RING_OUTEST_COUNT; break;  // Outest ring
 			default: return; // Invalid ring
@@ -501,8 +584,8 @@ namespace LedController
 			uint16_t led_idx = start_idx + ((relative_start + i) % count);
 			matrix->setPixelColor(led_idx, matrix->Color(r, g, b));
 		}
-		
-		matrix->show();
+
+		ledShow();
 		isOn = (r || g || b);
 	}
 
@@ -511,6 +594,7 @@ namespace LedController
 	// ------------------------------------------------
 	void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal)
 	{
+		log_i("drawCircle: radius=%d, r=%d, g=%d, b=%d", radius, rVal, gVal, bVal);
 #ifndef HUB75
 		matrix->clear();
 
@@ -530,7 +614,7 @@ namespace LedController
 			}
 		}
 
-		matrix->show();
+		ledShow();
 		isOn = (rVal || gVal || bVal);
 #endif
 	}
@@ -559,7 +643,7 @@ namespace LedController
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 3, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 2, "r": 255, "g": 255, "b": 255 } }
 		{ "task": "/ledarr_act", "qid": 17, "led": { "action": "status", "status":"idle" } }
-		{ "task": "/ledarr_act", "qid": 17, "led"} 
+		{ "task": "/ledarr_act", "qid": 17, "led"}
 		{"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":5}
 
 		*/
@@ -621,6 +705,10 @@ namespace LedController
 				cmd.mode = LedMode::HALVES;
 			}
 			else if (actStr == "fill")
+			{
+				cmd.mode = LedMode::FILL;
+			}
+			else if (actStr == "on")
 			{
 				cmd.mode = LedMode::FILL;
 			}
@@ -778,25 +866,117 @@ namespace LedController
 	}
 
 	// ------------------------------------------------
+	// 11b) CANopen: Set LED mode from OD values
+	// ------------------------------------------------
+	void setMode(uint8_t mode, uint8_t brightness, uint32_t colour)
+	{
+		log_i("setMode: mode=%d, brightness=%d, colour=0x%06X", mode, brightness, colour);
+		// check if matrix is initialized (most likely when do setup)
+		if (!matrix)		{
+			log_e("setMode: LED matrix not initialized");
+			return;
+		}
+
+		// Disable pattern animation when a mode is explicitly set
+		activePatternId = 0;
+		// Only apply brightness when explicitly non-zero. Brightness=0 (the OD
+		// default when the master never wrote x2201_led_brightness via SDO)
+		// would permanently zero Adafruit_NeoPixel's global brightness scaler,
+		// making all subsequent ledShow() calls render black.
+		if (brightness > 0) matrix->setBrightness(brightness);
+
+		// Build a LedCommand and dispatch through execLedCommand so the same
+		// thermal protection / mode handling logic applies as for JSON input.
+		LedCommand cmd{};
+		cmd.qid = 0;
+		cmd.r = (colour >> 16) & 0xFF;
+		cmd.g = (colour >> 8)  & 0xFF;
+		cmd.b = (colour)       & 0xFF;
+		cmd.radius = 0;
+		cmd.ledIndex = 0;
+		cmd.region[0] = '\0';
+
+		switch (mode) {
+			case 0: cmd.mode = LedMode::OFF;    break;
+			case 1: cmd.mode = LedMode::FILL;   break;
+			case 2: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "left",   sizeof(cmd.region) - 1); break;
+			case 3: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "right",  sizeof(cmd.region) - 1); break;
+			case 4: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "top",    sizeof(cmd.region) - 1); break;
+			case 5: cmd.mode = LedMode::HALVES; strncpy(cmd.region, "bottom", sizeof(cmd.region) - 1); break;
+			default: cmd.mode = LedMode::FILL;  break;
+		}
+		execLedCommand(cmd);
+	}
+
+	// ------------------------------------------------
+	// 11c) CANopen: Set LED pattern
+	// ------------------------------------------------
+	void setPattern(uint8_t patternId, uint16_t speed)
+	{
+		log_i("setPattern: patternId=%d, speed=%d", patternId, speed);
+		// check if matrix is initialized (most likely when do setup)
+		if (!matrix)		{
+			log_e("setMode: LED matrix not initialized");
+			return;
+		}
+
+
+		activePatternId = patternId;
+		activePatternSpeed = (speed > 0) ? speed : 50;
+		patternFrame = 0;
+		lastPatternUpdateMs = 0;
+		log_i("LED pattern set: id=%d speed=%d", patternId, speed);
+	}
+
+	// ------------------------------------------------
+	// 11d) CANopen: Bulk set pixels from RGB buffer
+	// ------------------------------------------------
+	void setPixels(const uint8_t* data, uint16_t pixelCount)
+	{
+		log_i("setPixels: pixelCount=%d", pixelCount);
+		// check if matrix is initialized (most likely when do setup)
+		if (!matrix)		{
+			log_e("setMode: LED matrix not initialized");
+			return;
+		}
+
+		// Disable pattern animation when pixel data is set directly
+		activePatternId = 0;
+
+		uint16_t count = (pixelCount > LED_COUNT) ? LED_COUNT : pixelCount;
+		for (uint16_t i = 0; i < count; i++) {
+			uint8_t r = data[i * 3 + 0];
+			uint8_t g = data[i * 3 + 1];
+			uint8_t b = data[i * 3 + 2];
+			matrix->setPixelColor(i, matrix->Color(r, g, b));
+		}
+		ledShow();
+		isOn = (count > 0);
+		log_i("setPixels: %d pixels applied", count);
+	}
+
+	// ------------------------------------------------
 	// 12) Execute a LedCommand
 	// ------------------------------------------------
 	void execLedCommand(const LedCommand &cmd)
 	{
 		log_i("execLedCommand: Executing command with mode %d", static_cast<int>(cmd.mode));
-		
+
 		// Track intensity for auto-off safety (only for LED arrays that need thermal protection)
 		// Check if this is a device that requires thermal protection
-		bool needsThermalProtection = (pinConfig.pindefName && 
+		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
-			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
-		
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 ||
+			 strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ));
+
 		if (needsThermalProtection)
 		{
 			// Calculate total intensity as sum of all RGB channels for accurate thermal calculation
 			// This better represents actual power/heat than just the max channel
 			uint16_t totalIntensity = (uint16_t)cmd.r + (uint16_t)cmd.g + (uint16_t)cmd.b;
 			currentTotalIntensity = totalIntensity;
-			
+
 			if (totalIntensity > pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD)
 			{
 				if (highIntensityStartTime == 0)
@@ -805,7 +985,7 @@ namespace LedController
 					highIntensityStartTime = millis();
 					highIntensityWarningShown = false;
 					ledAutoOffTriggered = false;
-					log_w("LED total intensity %d (R:%d+G:%d+B:%d) exceeds threshold %d - auto-off timer started", 
+					log_w("LED total intensity %d (R:%d+G:%d+B:%d) exceeds threshold %d - auto-off timer started",
 						  totalIntensity, cmd.r, cmd.g, cmd.b, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD);
 				}
 			}
@@ -821,7 +1001,7 @@ namespace LedController
 				ledAutoOffTriggered = false;
 			}
 		}
-		
+
 		switch (cmd.mode)
 		{
 		case LedMode::OFF:
@@ -846,8 +1026,9 @@ namespace LedController
 			break;
 		case LedMode::RINGS:
 			// For illumination board, check if region is specified for ring segments
-			if (pinConfig.pindefName && 
-				strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 &&
+			if (pinConfig.pindefName &&
+				(strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+				strcmp(pinConfig.pindefName, "UC2_canopen_slave_led")==0) &&
 				strlen(cmd.region) > 0)
 			{
 				drawIlluminationRingSegment(cmd.radius, cmd.region, cmd.r, cmd.g, cmd.b);
@@ -861,11 +1042,11 @@ namespace LedController
 			drawCircle(cmd.radius, cmd.r, cmd.g, cmd.b);
 			break;
 		case LedMode::ARRAY:
-			// Here you could parse an array of LED changes.
+			// TODO: Here you could parse an array of LED changes.
 			// For brevity, not implemented in detail.
 			// e.g. cJSON_GetObjectItem(root,"led_array")...
 			// Then set each LED individually
-			// matrix->show();
+			// ledShow();
 			break;
 		case LedMode::STATUS:
 			// Status handling is done in the loop() for dynamic effects
@@ -890,25 +1071,7 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
-		// HYBRID MODE SUPPORT: In hybrid mode, send to both native LED and CAN LED
-		// When HYBRID_LED_DUAL_OUTPUT is enabled, commands go to both local and remote LEDs
-		
-		// Always send to CAN (for remote LED arrays)
-		can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-		
-		// Execute locally if:
-		// 1. This is a status LED display, OR
-		// 2. Hybrid dual output mode is enabled (LED_PIN is configured for local LED array)
-		if (pinConfig.IS_STATUS_LED || (pinConfig.HYBRID_LED_DUAL_OUTPUT && pinConfig.LED_PIN > 0))
-		{
-			log_i("Hybrid LED mode: Executing on local LED array");
-			execLedCommand(cmd);
-		}
-#else
-			execLedCommand(cmd);
-		
-#endif
+		execLedCommand(cmd);
 
 
 		// LED is synchronous: register and immediately report done
@@ -947,57 +1110,43 @@ namespace LedController
 		if (pressed)
 		{
 			unsigned long currentTime = millis();
-			
+
 			// Debounce check - ignore if too soon after last event
 			if (currentTime - circleLastEventTime < BUTTON_DEBOUNCE_TIME)
 			{
 				return;
 			}
-			
+
 			circleLastEventTime = currentTime;
-			
+
 			// Toggle LED state
 			ledToggleState = !ledToggleState;
-			
+
 			log_i("Circle pressed - LED toggle to %s", ledToggleState ? "ON" : "OFF");
-			
-			LedCommand cmd;
+			// TODO: Shall we route through dictionaries? Much slower probably?
+			cJSON* doc = cJSON_CreateObject();
+			cJSON_AddStringToObject(doc, "task", "/ledarr_act");
+			cJSON* led = cJSON_CreateObject();
 			if (ledToggleState)
 			{
-				// Turn LED ON
-				// Serial.println("Circle pressed - LED ON");
-				cmd.mode = LedMode::CIRCLE;
-				cmd.r = 0;
-				cmd.g = 255;
-				cmd.b = 0;
-				cmd.radius = 8;
-				cmd.ledIndex = 0;
-				cmd.region[0] = 0;
-				cmd.qid = 0;
+				// Turn LED ON via circles mode
+				cJSON_AddStringToObject(led, "action", "circles");
+				cJSON_AddNumberToObject(led, "r", 0);
+				cJSON_AddNumberToObject(led, "g", 255);
+				cJSON_AddNumberToObject(led, "b", 0);
+				cJSON_AddNumberToObject(led, "radius", 8);
 				isOn = true;
 			}
 			else
 			{
 				// Turn LED OFF
-				// Serial.println("Circle pressed - LED OFF");
-				cmd.mode = LedMode::CIRCLE;
-				cmd.r = 0;
-				cmd.g = 0;
-				cmd.b = 0;
-				cmd.radius = 8;
-				cmd.ledIndex = 0;
-				cmd.region[0] = 0;
-				cmd.qid = 0;
+				cJSON_AddStringToObject(led, "action", "off");
 				isOn = false;
 			}
-			
-#if defined(CAN_BUS_ENABLED) && defined(CAN_SEND_COMMANDS) && !defined(CAN_RECEIVE_LED)
-			// Send the command to the CAN driver
-			can_controller::sendLedCommandToCANDriver(cmd, pinConfig.CAN_ID_LED_0);
-#else
-			// Execute the command directly
-			execLedCommand(cmd);
-#endif
+			cJSON_AddItemToObject(doc, "led", led);
+			cJSON* resp = DeviceRouter::handleLedAct(doc);
+			if (resp) cJSON_Delete(resp);
+			cJSON_Delete(doc);
 		}
 	}
 
@@ -1005,14 +1154,15 @@ namespace LedController
 	{
 		// LED auto-off safety: Monitor high intensity LEDs and auto-shut off to prevent overheating
 		// Check if this is a device that requires thermal protection
-		bool needsThermalProtection = (pinConfig.pindefName && 
+		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
-			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0));
-		
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0) ||
+			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 );
+
 		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
 		{
 			unsigned long elapsedTime = millis() - highIntensityStartTime;
-			
+
 			// Show warning at 75% of auto-off time
 			if (!highIntensityWarningShown && elapsedTime >= (pinConfig.LED_AUTO_OFF_TIME_MS * 3 / 4))
 			{
@@ -1023,90 +1173,110 @@ namespace LedController
 				Serial.println("{\"led\":{\"warning\":\"High intensity detected - hardware can overheat and be destroyed!\"}}");
 				Serial.println("--");
 			}
-			
+
 			// Auto-off when time limit exceeded
 			if (elapsedTime >= pinConfig.LED_AUTO_OFF_TIME_MS)
 			{
 				ledAutoOffTriggered = true;
 				log_e("LED AUTO-OFF TRIGGERED! Total intensity %d exceeded %d threshold for %lu ms - shutting down LEDs to prevent damage",
 					  currentTotalIntensity, pinConfig.LED_AUTO_OFF_INTENSITY_THRESHOLD, elapsedTime);
-				
+
 				// Turn off LEDs for safety
 				turnOff();
-				
+
 				// Send warning message to user
 				Serial.println("++");
 				Serial.println("{\"led\":{\"error\":\"AUTO-OFF: LEDs too hot! Hardware protection activated. Reduce intensity or wait before restarting.\"}}");
 				Serial.println("--");
-				
+
 				// Reset tracking (user must send new command to restart)
 				highIntensityStartTime = 0;
 				currentTotalIntensity = 0;
 			}
 		}
 
-		// only on the HAT Master => Glow or show status
-		if( pinConfig.IS_STATUS_LED)	
+		// Pattern animation (CANopen-driven patterns)
+		if (activePatternId > 0)
 		{
-	// log_i("LedController loop: Updating status LED effect for status %d", static_cast<int>(currentLedForStatus));
-
-		// Determine color based on currentLedForStatus
-		uint32_t color = 0;
-		// Fade the brightnessLoop up/down
-		brightnessLoop += (fadeDirection * 5);
-		//log_i("LedController loop: brightnessLoop=%d, fadeDirection=%d", brightnessLoop, fadeDirection);
-		if (brightnessLoop == 0 || brightnessLoop == 255)
-		{
-			fadeDirection = -fadeDirection;
-		}
-		switch (currentLedForStatus)
-		{
-		case LedForStatus::busy:
-			// Busy => Yellow
-			color = matrix->Color(brightnessLoop, brightnessLoop, 0);
-			break;
-		case LedForStatus::error:
-			// Error => Red
-			color = matrix->Color(brightnessLoop, 0, 0);
-			break;
-		case LedForStatus::idle:
-			// Idle => Green
-			color = matrix->Color(0, brightnessLoop, 0);
-			break;
-		case LedForStatus::rainbow:
-		{
-			// Rainbow => show a color gradient across the strip
-			for (uint16_t i = 0; i < LED_COUNT; i++)
-			{
-				// Create a hue offset for each pixel, adding brightnessLoop helps shift the pattern
-				uint8_t hue = (brightnessLoop + i * 256 / LED_COUNT) & 0xFF;
-				// Convert HSV to RGB, apply gamma correction
-				uint32_t c = matrix->gamma32(matrix->ColorHSV((uint16_t)hue << 8, 255, 255));
-				matrix->setPixelColor(i, c);
+			uint32_t now = millis();
+			if (now - lastPatternUpdateMs >= activePatternSpeed) {
+				lastPatternUpdateMs = now;
+				patternFrame++;
+				switch (activePatternId) {
+					case 1: { // Rainbow
+						for (uint16_t i = 0; i < LED_COUNT; i++) {
+							uint16_t hue = ((uint16_t)patternFrame * 256 + i * 65536 / LED_COUNT) & 0xFFFF;
+							uint32_t c = matrix->gamma32(matrix->ColorHSV(hue, 255, 255));
+							matrix->setPixelColor(i, c);
+						}
+						ledShow();
+						break;
+					}
+					case 2: { // Breathe (white)
+						uint8_t br = (patternFrame < 128) ? patternFrame * 2 : (255 - patternFrame) * 2;
+						for (uint16_t i = 0; i < LED_COUNT; i++)
+							matrix->setPixelColor(i, matrix->Color(br, br, br));
+						ledShow();
+						break;
+					}
+					case 3: { // Chase
+						matrix->clear();
+						uint16_t pos = patternFrame % LED_COUNT;
+						for (uint8_t t = 0; t < 3; t++) {
+							uint16_t idx = (pos + t * LED_COUNT / 3) % LED_COUNT;
+							matrix->setPixelColor(idx, matrix->Color(255, 255, 255));
+						}
+						ledShow();
+						break;
+					}
+					case 4: { // Fire
+						for (uint16_t i = 0; i < LED_COUNT; i++) {
+							uint8_t heat = random(100, 255);
+							matrix->setPixelColor(i, matrix->Color(heat, heat / 3, 0));
+						}
+						ledShow();
+						break;
+					}
+					case 5: { // Sparkle
+						matrix->clear();
+						for (uint8_t s = 0; s < 3; s++) {
+							uint16_t idx = random(0, LED_COUNT);
+							matrix->setPixelColor(idx, matrix->Color(255, 255, 255));
+						}
+						ledShow();
+						break;
+					}
+					case 6: { // Heatmap (gradient red->yellow->white)
+						for (uint16_t i = 0; i < LED_COUNT; i++) {
+							uint8_t t = ((uint16_t)patternFrame + i * 4) & 0xFF;
+							uint8_t r = 255;
+							uint8_t g = (t < 128) ? t * 2 : 255;
+							uint8_t b = (t < 128) ? 0 : (t - 128) * 2;
+							matrix->setPixelColor(i, matrix->Color(r, g, b));
+						}
+						ledShow();
+						break;
+					}
+					case 7: { // Spiral
+						matrix->clear();
+						for (uint8_t t = 0; t < 5; t++) {
+							uint16_t idx = (patternFrame + t * 3) % LED_COUNT;
+							uint16_t hue = (t * 65536 / 5);
+							uint32_t c = matrix->gamma32(matrix->ColorHSV(hue, 255, 255));
+							matrix->setPixelColor(idx, c);
+						}
+						ledShow();
+						break;
+					}
+					default:
+						break;
+				}
 			}
-			matrix->show();
-			return; // skip the rest
 		}
-		case LedForStatus::on_:
-			// On => White
-			color = matrix->Color(255, 255, 255);
-			break;
-		case LedForStatus::off_:
-			// Off => Black
-			color = matrix->Color(0, 0, 0);
-			break;
-		default:
-			// Unknown => do nothing
-			return;
-		}
-		
-		// Apply the color to all LEDs
-		for (uint16_t i = 0; i < LED_COUNT; i++)
-		{
-			matrix->setPixelColor(i, color);
-		}
-		matrix->show();
-	}
+
+		// Status-indicator handling has moved to SignalController (/signal_act).
+		// LedController is now responsible only for the (multi-pixel) LED array
+		// driven via /ledarr_act and CANopen pattern animations.
 
 }
 

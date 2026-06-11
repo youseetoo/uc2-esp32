@@ -81,6 +81,6 @@ namespace HomeMotor
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid);
 	void stopHome(int axis);
 	HomeData** getHomeData();
-	void sendHomeDone(int axis);
+	void sendHomeDone(int axis, const char* status = "done");
 };
 #pragma pack(pop)

@@ -133,7 +133,7 @@ int axis = 0;
 				FocusMotor::stopStepper(axis);
 				hd->homeIsActive = false;
 				md->isHoming = false;  // Release global lock on timeout
-				sendHomeDone(axis);
+				sendHomeDone(axis, "timeout");
 				break;
 			}
 			
@@ -375,8 +375,7 @@ int axis = 0;
 						FocusMotor::sendMotorPos(axis, 0);
 						
 						// Send completion message
-						sendHomeDone(axis);
-						
+					sendHomeDone(axis, "done");
 						// COMPREHENSIVE cleanup: reset ALL motor state flags that homing modified.
 						// This is critical because subsequent motor commands (especially via
 						// MotorDataReduced/CAN) may not set these fields, and stale values
@@ -570,6 +569,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 							log_i("[Homing Task] Phase 17: Axis %d backed off endstop; home set to 0", axis);
 							hd->homingPhase = 7;  // continue to optional offset / completion
 							phaseStartTime = millis();
+
 						}
 						break;
 					}
@@ -836,29 +836,22 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 
 	// home done returns
 	//{"home":{...}}
-	void sendHomeDone(int axis)
+	void sendHomeDone(int axis, const char* status)
 	{
 #ifdef MOTOR_CONTROLLER
-		// send home done to client
+		// send home result to client: {"home":{"stepperid":0,"status":"done","pos":0},"qid":1234}
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
 		cJSON_AddItemToObject(json, key_home, home);
-		cJSON *steppers = cJSON_CreateObject();
-		cJSON_AddItemToObject(home, key_steppers, steppers);
-		cJSON *axs = cJSON_CreateNumber(axis);
-		cJSON *done = cJSON_CreateNumber(true);
-		cJSON *pos = cJSON_CreateNumber(FocusMotor::getData()[axis]->currentPosition);
-		cJSON_AddItemToObject(steppers, "axis", axs);
-		cJSON_AddItemToObject(steppers, "pos", pos);
-		cJSON_AddItemToObject(steppers, "isDone", done);
-		cJSON_AddItemToObject(json, keyQueueID, cJSON_CreateNumber(hdata[axis]->qid));
+		cJSON_AddItemToObject(home, "stepperid", cJSON_CreateNumber(axis));
+		cJSON_AddItemToObject(home, "status", cJSON_CreateString(status));
+		cJSON_AddItemToObject(home, "pos", cJSON_CreateNumber(FocusMotor::getData()[axis]->currentPosition));
 		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
-		//Serial.println("++");
 		char *ret = cJSON_PrintUnformatted(json);
+		log_i("[HomeMotor] sendHomeDone axis=%d status=%s: %s", axis, status, ret);
+		Serial.println(ret);
 		cJSON_Delete(json);
-		//Serial.println(ret);
 		free(ret);
-		//Serial.println("--");
 #endif
 	}
 
@@ -870,7 +863,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		if (hdata[s]->homeIsActive and hdata[s]->homeTimeStarted + hdata[s]->homeTimeout < millis())
 		{
 			log_i("Home Motor %i timeout", s);
-			sendHomeDone(s);
+			sendHomeDone(s, "timeout");
 			hdata[s]->homeIsActive = false;
 			getData()[s]->isHoming = false;  // Clear homing flag
 			getData()[s]->hardLimitTriggered = false;  // Clear hard limit triggered flag after successful homing

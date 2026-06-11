@@ -917,6 +917,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
 #else
     return nullptr;
 #endif
+    return nullptr;
 }
 
 // ============================================================================

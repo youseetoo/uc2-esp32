@@ -685,7 +685,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         return resp;
     }
 
-    if (route->where == UC2::RouteEntry::LOCAL or pinConfig.HYBRID_LED_DUAL_OUTPUT) {
+    if (route->where == UC2::RouteEntry::LOCAL) {
         // LedController::act returns int; wrap into JSON response
         int result = LedController::act(doc);
         log_i("Routing led_act to LOCAL LED controller, result: %d", result);
@@ -693,7 +693,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         cJSON_AddNumberToObject(resp, "return", result);
         return resp;
     }
-    if (route->where == UC2::RouteEntry::REMOTE) { // REMOTE
+    else if (route->where == UC2::RouteEntry::REMOTE) { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         log_i("Routing led_act to REMOTE node 0x%02X", route->nodeId);
         cJSON* led = cJSON_GetObjectItem(doc, "led");
@@ -702,6 +702,12 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", 0);
             return resp;
+        }
+
+        if (pinConfig.HYBRID_LED_DUAL_OUTPUT){
+            // also apply the settings to the led locally
+            int result = LedController::act(doc);
+            log_i("Routing led_act to LOCAL LED controller, result: %d", result);
         }
 
         uint8_t nodeId = route->nodeId;

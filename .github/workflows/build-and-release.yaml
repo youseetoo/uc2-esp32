@@ -58,6 +58,10 @@ jobs:
             display_name: "UC2 CAN Slave Motor"
             board_id: "uc2-can-slave-motor"
             chip_family: "ESP32-S3"
+          - env_name: UC2_canopen_slave_accelmotor_release
+            display_name: "UC2 CAN Slave AccelMotor"
+            board_id: "uc2-can-slave-accelmotor"
+            chip_family: "ESP32-S3"
           - env_name: UC2_canopen_slave_galvo_release
             display_name: "UC2 CAN Slave Galvo"
             board_id: "uc2-can-slave-galvo"
@@ -69,6 +73,14 @@ jobs:
           - env_name: UC2_canopen_slave_led_release
             display_name: "UC2 CAN Slave LED"
             board_id: "uc2-can-slave-led"
+            chip_family: "ESP32-S3"
+          - env_name: UC2_canopen_slave_gpio_release
+            display_name: "UC2 CAN Slave GPIO"
+            board_id: "uc2-can-slave-gpio"
+            chip_family: "ESP32-S3"
+          - env_name: UC2_canopen_bridge_ps4_usbhost_release
+            display_name: "UC2 CAN Bridge PS4 USB"
+            board_id: "uc2-can-bridge-ps4-usbhost"
             chip_family: "ESP32-S3"
 
           - env_name: UC2_canopen_master_release

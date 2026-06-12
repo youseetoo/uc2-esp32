@@ -16,6 +16,8 @@ on:
 
 env:
   GITHUB_REPO: "youseetoo/uc2-esp32"
+  # Opt into Node.js 24 before the forced migration on 2026-06-16
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-all-firmware:
@@ -206,7 +208,12 @@ jobs:
   create-release:
     needs: build-all-firmware
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Run on tag pushes even when some matrix builds failed (partial failure is acceptable).
+    # 'cancelled' / 'skipped' are excluded so we don't publish an empty release.
+    if: |
+      (needs.build-all-firmware.result == 'success' || needs.build-all-firmware.result == 'failure') &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 
@@ -300,7 +307,11 @@ jobs:
   publish-binaries-repo:
     needs: create-release
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Mirror the same tolerance: run as long as create-release itself was not cancelled.
+    if: |
+      (needs.create-release.result == 'success' || needs.create-release.result == 'failure') &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Download all firmware artifacts

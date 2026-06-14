@@ -139,28 +139,30 @@ jobs:
             #
             # Matching on the ENV name is reliable for this project because
             # every environment name encodes the target chip:
-            #   seeed_*  /  *esp32s3*  ->  ESP32-S3  (qio, 80m, boot @ 0x0)
-            #   *esp32c3*              ->  ESP32-C3  (qio, 80m, boot @ 0x0)
-            #   everything else        ->  classic ESP32 (dio, 40m, boot @ 0x1000)
+            #   seeed_*  /  *esp32s3*  ->  ESP32-S3  (boot @ 0x0)
+            #   *esp32c3*              ->  ESP32-C3  (boot @ 0x0)
+            #   everything else        ->  classic ESP32 (boot @ 0x1000)
+            #
+            # NOTE: flash_mode / flash_freq / flash_size are intentionally NOT
+            # forced here. They are taken verbatim from the compiled bootloader
+            # header via "merge_bin --flash_mode keep ..." so the merged image is
+            # byte-identical to what "pio run --target upload" flashes (which is
+            # known to boot). Forcing qio/80m here previously produced a mismatch
+            # between the (qio) bootloader and the (dio) app image baked by the
+            # sdkconfig -> "invalid header" boot-loops after erase.
             # ------------------------------------------------------------------
             if [[ "$ENV" == seeed_* ]] || [[ "$ENV" == *"esp32s3"* ]] || [[ "$ENV" == *"canopen_slave"* ]]; then
               CHIP_ARG="esp32s3"
               BOOT_ADDR="0x0000"
-              FLASH_MODE="qio"
-              FLASH_FREQ="80m"
             elif [[ "$ENV" == *"esp32c3"* ]]; then
               CHIP_ARG="esp32c3"
               BOOT_ADDR="0x0000"
-              FLASH_MODE="qio"
-              FLASH_FREQ="80m"
             else
               CHIP_ARG="esp32"
               BOOT_ADDR="0x1000"
-              FLASH_MODE="dio"
-              FLASH_FREQ="40m"
             fi
 
-            echo "==> Copying binaries for $ENV${AXIS_SUFFIX} (chip: $CHIP_ARG, flash_mode: $FLASH_MODE, flash_freq: $FLASH_FREQ)"
+            echo "==> Copying binaries for $ENV${AXIS_SUFFIX} (chip: $CHIP_ARG, boot_addr: $BOOT_ADDR)"
             OUT_BIN="build/fw-images/esp32_${ENV}${AXIS_SUFFIX}.bin"
             cp "$BIN_DIR/firmware.bin" "$OUT_BIN"
 
@@ -177,35 +179,16 @@ jobs:
             # ------------------------------------------------------------------
             # Bootloader selection for merged binary
             #
-            # The compiled bootloader.bin (from $BIN_DIR) for seeed_* / esp32s3
-            # environments may be built WITHOUT Octal PSRAM support because the
-            # CAN slave sdkconfigs do not set CONFIG_SPIRAM.  The Seeed XIAO
-            # ESP32-S3 has 8 MB Octal PSRAM hardwired; a PSRAM-unaware bootloader
-            # corrupts the flash bus during init → TG0WDT boot-loop.
+            # Always use the freshly COMPILED bootloader.bin from this build.
+            # It matches the app image's flash mode/freq (both come from the same
+            # sdkconfig) and is exactly what "pio run --target upload" flashes.
             #
-            # The pre-built bootloader shipped with the arduino-esp32 framework
-            # package IS compiled with PSRAM support (it is the same one that
-            # `pio run --target upload` uses locally and that boots correctly).
-            # We use it here so the merged binary behaves identically to a local
-            # PlatformIO flash.
-            #
-            # For classic ESP32 environments the compiled bootloader is fine.
+            # Do NOT swap in a pre-built framework bootloader: it can be compiled
+            # with different flash-mode/PSRAM settings than the app image, which
+            # mixes a qio bootloader with a dio app -> bus corruption / invalid
+            # header on the next boot (precisely the bug this used to cause).
             # ------------------------------------------------------------------
-            if [[ "$CHIP_ARG" == "esp32s3" || "$CHIP_ARG" == "esp32c3" ]]; then
-              PREBUILT_BOOT="$(find ~/.platformio/packages/framework-arduinoespressif32* \
-                -path "*/tools/sdk/${CHIP_ARG}/bin/bootloader_${FLASH_MODE}_${FLASH_FREQ}.bin" \
-                2>/dev/null | head -1)"
-              if [[ -n "$PREBUILT_BOOT" && -f "$PREBUILT_BOOT" ]]; then
-                echo "==> Using pre-built framework bootloader (PSRAM-aware): $PREBUILT_BOOT"
-                BOOT_BIN="$PREBUILT_BOOT"
-              else
-                echo "⚠️  Pre-built bootloader not found, falling back to compiled bootloader."
-                echo "   Searched: ~/.platformio/packages/framework-arduinoespressif32*/tools/sdk/${CHIP_ARG}/bin/bootloader_${FLASH_MODE}_${FLASH_FREQ}.bin"
-                BOOT_BIN="$BIN_DIR/bootloader.bin"
-              fi
-            else
-              BOOT_BIN="$BIN_DIR/bootloader.bin"
-            fi
+            BOOT_BIN="$BIN_DIR/bootloader.bin"
 
             if [[ -f "$BOOT_BIN" && -f "$BIN_DIR/partitions.bin" && -n "$BOOT_APP0" ]]; then
               echo "==> Merging binaries for $ENV${AXIS_SUFFIX} -> $OUT_MERGED"
@@ -213,9 +196,9 @@ jobs:
                 --chip "$CHIP_ARG" \
                 merge_bin \
                 -o "$OUT_MERGED" \
-                --flash_mode "$FLASH_MODE" \
-                --flash_freq "$FLASH_FREQ" \
-                --flash_size 4MB \
+                --flash_mode keep \
+                --flash_freq keep \
+                --flash_size keep \
                 "$BOOT_ADDR" "$BOOT_BIN" \
                 0x8000      "$BIN_DIR/partitions.bin" \
                 0xe000      "$BOOT_APP0" \

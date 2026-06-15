@@ -99,7 +99,7 @@ jobs:
             # -DCAN_AXIS_ID=CAN_ID_MOT_<X> via PLATFORMIO_BUILD_FLAGS, which PlatformIO
             # appends to existing build_flags without touching platformio.ini.
             if [[ "$ENV" == *"canopen_slave_motor"* ]]; then
-              AXES=(X Y Z A)
+              AXES=("" X Y Z A)
             else
               AXES=("")
             fi

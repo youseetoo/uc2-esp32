@@ -654,7 +654,9 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
     }
 
     cJSON* resp = cJSON_CreateObject();
-    cJSON_AddNumberToObject(resp, "return", 1, "qid", qid);
+    cJSON_AddNumberToObject(resp, "return", 1);
+    cJSON_AddNumberToObject(resp, "qid", qid);
+
     return resp;
 #else
     return nullptr;

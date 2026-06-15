@@ -593,7 +593,7 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
 #ifdef HOME_MOTOR
     log_i("Handling home_act via DeviceRouter");
-
+    // {'task': '/home_act', 'home': {'steppers': [{'stepperid': 1, 'timeout': 20000, 'speed': 20000, 'direction': -1, 'endstoppolarity': 0, 'endoffset': 0}]}, 'qid': 38}
     cJSON* home = cJSON_GetObjectItem(doc, "home");
     if (!home) {
         log_w("home_act missing 'home' object");
@@ -654,7 +654,7 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
     }
 
     cJSON* resp = cJSON_CreateObject();
-    cJSON_AddNumberToObject(resp, "return", 1);
+    cJSON_AddNumberToObject(resp, "return", 1, "qid", qid);
     return resp;
 #else
     return nullptr;

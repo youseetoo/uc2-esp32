@@ -25,6 +25,7 @@ extern "C" {
 struct RemoteSlaveState {
     int32_t  motorPosition;     // last known position from TPDO
     uint8_t  motorStatus;       // bit 0 = running
+    uint8_t  homingStatus;      // last homing phase from TPDO (OD 0x2016): 0=idle,1=homing,2=done,3=timeout
     uint32_t lastUpdateMs;      // millis() when the cache was last written
     bool     seen;              // has this slave EVER pushed a TPDO?
 };

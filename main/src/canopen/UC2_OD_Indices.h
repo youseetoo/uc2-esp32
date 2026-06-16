@@ -39,6 +39,7 @@ constexpr uint16_t HOMING_DIRECTION                         = 0x2012;
 constexpr uint16_t HOMING_TIMEOUT                           = 0x2013;
 constexpr uint16_t HOMING_ENDSTOP_RELEASE                   = 0x2014;
 constexpr uint16_t HOMING_ENDSTOP_POLARITY                  = 0x2015;
+constexpr uint16_t HOMING_STATUS                            = 0x2016;
 
 // ─── TMC (base 0x2020) ───
 // TMC2209 silent stepper driver configuration

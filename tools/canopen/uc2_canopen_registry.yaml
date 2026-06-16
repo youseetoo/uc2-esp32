@@ -265,6 +265,22 @@ modules:
         description: "0=normally low, 1=normally high"
         sdo_only: true
 
+      - index: 0x2016
+        name: homing_status
+        type: U8
+        access: ro
+        sub_indices: 4
+        default: 0
+        bitfield:
+          value0: "idle"
+          value1: "homing"
+          value2: "done"
+          value3: "timeout"
+        description: "Per-axis homing phase. TPDO-broadcast on change so the master
+          can fire an async {\"home\":{...},\"qid\":N} event when a remote slave
+          finishes homing — mirroring the LOCAL HomeMotor::sendHomeDone path."
+        pdo: tpdo1
+
   # ==========================================================================
   # TMC2209 STEPPER DRIVER CONFIG — 0x2020-0x202F
   # ==========================================================================
@@ -1115,10 +1131,11 @@ pdo_mapping:
     transmission_type: 254
     event_timer_ms: 100             # max stale time — slave pushes at least every 100ms
     inhibit_time_ms: 5              # min gap between pushes (5ms)
-    description: "Motor actual position + status — slave PUSHES on change"
+    description: "Motor actual position + status + homing status — slave PUSHES on change"
     mappings:
       - {index: 0x2001, sub: 1, bits: 32}    # actual position axis 1
       - {index: 0x2004, sub: 1, bits: 8}     # status word axis 1
+      - {index: 0x2016, sub: 1, bits: 8}     # homing status axis 1
 
   tpdo2:
     cob_id: "0x280 + node_id"

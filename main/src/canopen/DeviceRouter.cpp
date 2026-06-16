@@ -516,7 +516,7 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
     // Extract qid (mirrors handleMotorAct). LOCAL path registers/reports the
     // qid inside LaserController::setLaserVal already, so we only register on
     // the REMOTE path here.
-    int laserQid = 0;    
+    int laserQid = 0;
     cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
     if (qidItem && cJSON_IsNumber(qidItem)) laserQid = qidItem->valueint;
 
@@ -647,6 +647,23 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
             bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, 1);
             if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
+
+            // Arm master-side completion tracking. The slave reports its homing
+            // phase back over TPDO1 (OD 0x2016); syncRpdoToModules_master watches
+            // for the finished edge and emits {"home":{...},"pos":...},"qid":N} via
+            // HomeMotor::sendHomeDone — identical to the LOCAL path. Caching the qid
+            // and setting homeIsActive here is what that watcher (and the
+            // checkAndProcessHome timeout fallback) keys off. The timeout is given
+            // grace over the slave's own so the slave's push normally wins the race.
+            HomeData** mhdAll = HomeMotor::getHomeData();
+            if (mhdAll && mhdAll[stepperid]) {
+                HomeData* mhd        = mhdAll[stepperid];
+                mhd->qid             = (uint16_t)qid;
+                mhd->homeResultCode  = 0;
+                mhd->homeTimeout     = (uint32_t)homeTimeout + 5000;
+                mhd->homeTimeStarted = millis();
+                mhd->homeIsActive    = true;
+            }
 #else
             ESP_LOGW(TAG, "REMOTE routing requires CANopen — home %d ignored", stepperid);
 #endif
@@ -678,8 +695,8 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
     int ledQid = 0;
     cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
     if (qidItem && cJSON_IsNumber(qidItem)) ledQid = qidItem->valueint;
-    
-    
+
+
     if (!route || route->where == UC2::RouteEntry::OFF) {
         log_e("led 0 has no route");
         cJSON* resp = cJSON_CreateObject();

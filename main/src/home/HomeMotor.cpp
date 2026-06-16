@@ -859,8 +859,10 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
 		char *ret = cJSON_PrintUnformatted(json);
 		log_i("[HomeMotor] sendHomeDone axis=%d status=%s: %s", axis, status, ret);
+		Serial.println("++");
 		Serial.println(ret);
 		cJSON_Delete(json);
+		Serial.println("--");
 		free(ret);
 #endif
 	}

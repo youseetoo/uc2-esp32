@@ -120,6 +120,7 @@ typedef struct {
     uint32_t x2013_homing_timeout[4];
     int32_t  x2014_homing_endstop_release[4];
     uint8_t  x2015_homing_endstop_polarity[4];
+    uint8_t  x2016_homing_status[4];          // 0=idle, 1=homing, 2=done, 3=timeout (slave->master TPDO)
     // tmc
     uint16_t x2020_tmc_microsteps[4];
     uint16_t x2021_tmc_rms_current[4];
@@ -228,6 +229,7 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_HOMING_TIMEOUT           OD_RAM.x2013_homing_timeout
 #define OD_HOMING_ENDSTOP_RELEASE   OD_RAM.x2014_homing_endstop_release
 #define OD_HOMING_ENDSTOP_POLARITY  OD_RAM.x2015_homing_endstop_polarity
+#define OD_HOMING_STATUS            OD_RAM.x2016_homing_status
 #define OD_LASER_PWM_VALUE          OD_RAM.x2100_laser_pwm_value
 #define OD_LED_ARRAY_MODE           OD_RAM.x2200_led_array_mode
 #define OD_LED_BRIGHTNESS           OD_RAM.x2201_led_brightness

@@ -20,6 +20,10 @@ struct HomeData
 	bool homeEndStopPolarity = 0; // normally open
 	uint16_t qid = -1;
 	bool precise = false; // Use encoder-based stall detection for homing
+	// Latched outcome of the most recent homing run, so a CANopen slave can push
+	// it to the master over TPDO (OD 0x2016): 0=idle/none, 2=done, 3=timeout.
+	// Set in sendHomeDone(), cleared at the start of startHome().
+	uint8_t homeResultCode = 0;
 	
 	// New CNC-style homing fields
 	uint homingPhase = 0;  // 0=release-home-endstop, 1=fast approach, 2..7=normal sequence,

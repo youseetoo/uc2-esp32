@@ -623,6 +623,9 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		hdata[axis]->homeEndStopPolarity = homeEndStopPolarity;
 		hdata[axis]->homeEndOffset = homeEndOffset;
 		hdata[axis]->qid = qid;
+		// Fresh run: clear the latched outcome so the CANopen TPDO status (0x2016)
+		// reads "homing" (1) until this run completes, rather than a stale done/timeout.
+		hdata[axis]->homeResultCode = 0;
 
 		// Normalize direction to 1 or -1
 		if (homeDirection >= 0)
@@ -839,6 +842,13 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 	void sendHomeDone(int axis, const char* status)
 	{
 #ifdef MOTOR_CONTROLLER
+		// Latch the outcome so a CANopen slave's syncModulesToTpdo() can push it to
+		// the master via OD 0x2016 (2=done, 3=timeout). Harmless on master/standalone.
+		if (hdata[axis])
+		{
+			if (strcmp(status, "done") == 0)         hdata[axis]->homeResultCode = 2;
+			else if (strcmp(status, "timeout") == 0) hdata[axis]->homeResultCode = 3;
+		}
 		// send home result to client: {"home":{"stepperid":0,"status":"done","pos":0},"qid":1234}
 		cJSON *json = cJSON_CreateObject();
 		cJSON *home = cJSON_CreateObject();
@@ -849,8 +859,10 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		cJsonTool::setJsonInt(json, keyQueueID, hdata[axis]->qid);
 		char *ret = cJSON_PrintUnformatted(json);
 		log_i("[HomeMotor] sendHomeDone axis=%d status=%s: %s", axis, status, ret);
+		Serial.println("++");
 		Serial.println(ret);
 		cJSON_Delete(json);
+		Serial.println("--");
 		free(ret);
 #endif
 	}

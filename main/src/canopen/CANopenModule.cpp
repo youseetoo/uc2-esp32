@@ -1851,20 +1851,24 @@ void CANopenModule::syncRpdoToModules_master()
     for (uint8_t slot = 0; slot < REMOTE_SLAVE_SLOTS; slot++) {
         int32_t newPos    = OD_RAM.x2001_motor_actual_position[slot];
         uint8_t newStatus = OD_RAM.x2004_motor_status_word[slot];
+        uint8_t newHoming = OD_RAM.x2016_homing_status[slot];
 
         RemoteSlaveState& slave = s_remoteSlaves[slot];
 
         // Skip if nothing changed AND we've already initialised
         if (slave.seen
             && newPos    == slave.motorPosition
-            && newStatus == slave.motorStatus) continue;
+            && newStatus == slave.motorStatus
+            && newHoming == slave.homingStatus) continue;
 
         bool wasRunning = slave.seen && (slave.motorStatus & 0x01) != 0;
         bool nowRunning = (newStatus & 0x01) != 0;
         bool firstSeen  = !slave.seen;
+        uint8_t prevHoming = slave.seen ? slave.homingStatus : 0;
 
         slave.motorPosition = newPos;
         slave.motorStatus   = newStatus;
+        slave.homingStatus  = newHoming;
         slave.lastUpdateMs  = millis();
         slave.seen          = true;
 
@@ -1925,6 +1929,29 @@ void CANopenModule::syncRpdoToModules_master()
                 }
             }
 
+#ifdef HOME_MOTOR
+            // Remote homing-done push: the slave reports its homing phase via OD
+            // 0x2016 on TPDO1 (0=idle,1=homing,2=done,3=timeout). When a finished
+            // result (>=2) arrives for an axis this master dispatched a home to,
+            // emit the SAME {"home":{...},"qid":N} event the LOCAL path produces —
+            // reusing HomeMotor::sendHomeDone(), which reads the mirrored
+            // currentPosition set just above and the qid cached at dispatch — and
+            // stop the master-side timeout watchdog. Gating on homeIsActive avoids
+            // spurious events from a slave that homed on its own and guarantees a
+            // single report per run.
+            if (md && newHoming >= 2 && newHoming != prevHoming) {
+                HomeData** hd = HomeMotor::getHomeData();
+                if (hd && hd[logicalAx] && hd[logicalAx]->homeIsActive) {
+                    const char* hstatus = (newHoming == 3) ? "timeout" : "done";
+                    log_i("Remote home %s: slot %d (motor %d) pos=%ld",
+                          hstatus, slot, logicalAx, (long)newPos);
+                    HomeMotor::sendHomeDone(logicalAx, hstatus);  // reads md->currentPosition + hd->qid
+                    hd[logicalAx]->homeIsActive = false;
+                    md->isHoming = false;
+                }
+            }
+#endif
+
             if (firstSeen) {
                 log_i("Slave slot %d (motor %d) FIRST SEEN pos=%ld running=%d",
                          slot, logicalAx, (long)newPos, (int)nowRunning);
@@ -1976,16 +2003,32 @@ void CANopenModule::syncModulesToTpdo()
     }
     newStatus |= s_heartbeatToggle;
 
+    // Homing phase, pushed alongside motor state so the master can fire an async
+    // home-done event (see syncRpdoToModules_master). 0=idle,1=homing,2=done,3=timeout.
+    // Latched in HomeMotor::sendHomeDone()/cleared in startHome(), so a finished
+    // result stays readable until the next run even though homeIsActive flips off.
+    uint8_t newHoming = 0;
+#ifdef HOME_MOTOR
+    {
+        HomeData** hd = HomeMotor::getHomeData();
+        if (hd && hd[localAxis])
+            newHoming = hd[localAxis]->homeIsActive ? 1 : hd[localAxis]->homeResultCode;
+    }
+#endif
+
     static int32_t s_lastPos    = INT32_MIN;
     static uint8_t s_lastStatus = 0xFF;
+    static uint8_t s_lastHoming = 0xFF;
 
-    if (newPos != s_lastPos || newStatus != s_lastStatus) {
+    if (newPos != s_lastPos || newStatus != s_lastStatus || newHoming != s_lastHoming) {
         for (int ax = 0; ax < 4; ax++) {
             OD_RAM.x2001_motor_actual_position[ax] = newPos;
             OD_RAM.x2004_motor_status_word[ax]     = newStatus;
+            OD_RAM.x2016_homing_status[ax]         = newHoming;
         }
         s_lastPos    = newPos;
         s_lastStatus = newStatus;
+        s_lastHoming = newHoming;
 
         // Request TPDO1 transmission on next CO_process_TPDO cycle
         if (CO != NULL && CO->TPDO != NULL) {

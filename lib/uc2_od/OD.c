@@ -80,11 +80,12 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
     },
     /* RPDO mapping: each RPDO maps the incoming TPDO payload into a different
      * OD sub-index so 4 slaves can coexist without overwriting each other.
-     * Layout matches slave TPDO1: i32 pos (0x2001 sub N) + u8 status (0x2004 sub N). */
-    .x1600_RPDOMappingParameter = { .n=2, .o1=0x20010120, .o2=0x20040108, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1601_RPDOMappingParameter = { .n=2, .o1=0x20010220, .o2=0x20040208, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1602_RPDOMappingParameter = { .n=2, .o1=0x20010320, .o2=0x20040308, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
-    .x1603_RPDOMappingParameter = { .n=2, .o1=0x20010420, .o2=0x20040408, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+     * Layout matches slave TPDO1: i32 pos (0x2001 sub N) + u8 status (0x2004 sub N)
+     * + u8 homing status (0x2016 sub N). */
+    .x1600_RPDOMappingParameter = { .n=3, .o1=0x20010120, .o2=0x20040108, .o3=0x20160108,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    .x1601_RPDOMappingParameter = { .n=3, .o1=0x20010220, .o2=0x20040208, .o3=0x20160208,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    .x1602_RPDOMappingParameter = { .n=3, .o1=0x20010320, .o2=0x20040308, .o3=0x20160308,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    .x1603_RPDOMappingParameter = { .n=3, .o1=0x20010420, .o2=0x20040408, .o3=0x20160408,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     /* TPDO comm params (1800..1803)
      * TPDO1 (0x1800): motor state push — event-driven (type 254).
      * COB-ID uses dynamic node-id: bit 30 set = stack adds node-id at init.
@@ -126,10 +127,11 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
         .eventTimer  = 0x0000,
         .SYNCStartValue = 0x00
     },
-    /* TPDO mapping: TPDO1 carries motor actual position (i32) + status word (u8).
+    /* TPDO mapping: TPDO1 carries motor actual position (i32) + status word (u8)
+     * + homing status (u8: 0=idle,1=homing,2=done,3=timeout).
      * Slave writes all 4 sub-indices identically (single-motor slave); the master's
-     * RPDOs pick the correct sub-index per slot.  Total payload = 5 bytes. */
-    .x1A00_TPDOMappingParameter = { .n=2, .o1=0x20010120, .o2=0x20040108, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+     * RPDOs pick the correct sub-index per slot.  Total payload = 6 bytes. */
+    .x1A00_TPDOMappingParameter = { .n=3, .o1=0x20010120, .o2=0x20040108, .o3=0x20160108,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     /* TPDO2 (used by GPIO slave): 4x digital input u8 + 2x analog input u16.
      * Layout in 8 byte payload:
      *   byte 0 = x2300 sub 1 (digital in 1, e.g. E-stop)
@@ -223,6 +225,7 @@ typedef struct {
     OD_obj_array_t  o_2013_homing_timeout;
     OD_obj_array_t  o_2014_homing_endstop_release;
     OD_obj_array_t  o_2015_homing_endstop_polarity;
+    OD_obj_array_t  o_2016_homing_status;
     /* UC2 TMC (0x2020-0x2027) */
     OD_obj_array_t  o_2020_tmc_microsteps;
     OD_obj_array_t  o_2021_tmc_rms_current;
@@ -557,6 +560,9 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     .o_2013_homing_timeout          = _ARR4_U32(x2013_homing_timeout,         ODA_SDO_RW | ODA_RPDO),
     .o_2014_homing_endstop_release  = _ARR4_I32(x2014_homing_endstop_release, ODA_SDO_RW | ODA_RPDO),
     .o_2015_homing_endstop_polarity = _ARR4_U8(x2015_homing_endstop_polarity, ODA_SDO_RW | ODA_RPDO),
+    /* Homing status: slave-pushed (TPDO) and master-received (RPDO) — same dual
+     * mappability as the motor status word 0x2004 (ODA_TRPDO). */
+    .o_2016_homing_status           = _ARR4_U8(x2016_homing_status,           ODA_SDO_RW | ODA_TRPDO),
     /* -----------------------------------------------------------------------
      * UC2 TMC (0x2020-0x2027)
      * ----------------------------------------------------------------------- */
@@ -844,6 +850,7 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2013, 0x05, ODT_ARR, &ODObjs.o_2013_homing_timeout,             NULL},
     {0x2014, 0x05, ODT_ARR, &ODObjs.o_2014_homing_endstop_release,     NULL},
     {0x2015, 0x05, ODT_ARR, &ODObjs.o_2015_homing_endstop_polarity,    NULL},
+    {0x2016, 0x05, ODT_ARR, &ODObjs.o_2016_homing_status,              NULL},
     /* UC2 TMC */
     {0x2020, 0x05, ODT_ARR, &ODObjs.o_2020_tmc_microsteps,              NULL},
     {0x2021, 0x05, ODT_ARR, &ODObjs.o_2021_tmc_rms_current,            NULL},

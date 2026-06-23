@@ -185,6 +185,9 @@ typedef struct {
     uint32_t x2504_free_heap_bytes;
     uint32_t x2505_can_error_counter;
     uint8_t  x2507_reboot_command;
+    char     x2508_build_timestamp[32];   // __DATE__ " " __TIME__ of the slave firmware
+    char     x2509_mac_address[18];        // factory MAC as "AA:BB:CC:DD:EE:FF"
+    uint8_t  x250A_commanded_node_id;      // master writes 1..127 to reassign this node's CAN id
     // OTA (0x2F00-0x2F05)
     // x2F00 is a DOMAIN — no RAM backing; handled by OD_extension_init() callback
     uint32_t x2F01_ota_firmware_size;

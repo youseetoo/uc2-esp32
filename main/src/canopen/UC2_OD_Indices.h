@@ -126,6 +126,9 @@ constexpr uint16_t FREE_HEAP_BYTES                          = 0x2504;
 constexpr uint16_t CAN_ERROR_COUNTER                        = 0x2505;
 constexpr uint16_t CPU_TEMPERATURE                          = 0x2506;
 constexpr uint16_t REBOOT_COMMAND                           = 0x2507;
+constexpr uint16_t BUILD_TIMESTAMP                          = 0x2508;
+constexpr uint16_t MAC_ADDRESS                              = 0x2509;
+constexpr uint16_t COMMANDED_NODE_ID                        = 0x250A;
 
 // ─── GALVO (base 0x2600) ───
 // Galvo mirrors with raster/line scanning

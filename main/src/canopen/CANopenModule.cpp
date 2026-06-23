@@ -1367,6 +1367,8 @@ static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t out
 //                                                            else SDO 0x2507=1
 //   {"task":"/can_act", "setRemoteNodeId": <newId>,        — reassign a remote
 //                       "target": <curId>, "expectMac": "AA:.."}  node's CAN id
+//   {"task":"/can_act", "setRemoteNodeId": <newId>,        — reassign by MAC
+//                       "byMac": "AA:BB:CC:DD:EE:FF"}          (master finds it)
 // ============================================================================
 cJSON* CANopenModule::act(cJSON* doc)
 {
@@ -1531,37 +1533,68 @@ cJSON* CANopenModule::act(cJSON* doc)
     }
 
     // ----- setRemoteNodeId: reassign a remote node's CAN id by SDO (0x250A) ----
-    // {"task":"/can_act","setRemoteNodeId":<newId>,"target":<curId>,"expectMac":"AA:.."}
-    // The optional expectMac guards against a stale scan view: the master reads
-    // the target's MAC (0x2509) first and refuses on mismatch, so a CAN id is
-    // only ever bound to the intended physical device.
+    // setRemoteNodeId is always the NEW id. Identify the node EITHER by:
+    //   * its current id   — {"setRemoteNodeId":<new>,"target":<cur>,"expectMac":"AA:.."}
+    //     (optional expectMac is verified first, so the id only ever binds to
+    //      the intended device), OR
+    //   * its MAC only     — {"setRemoteNodeId":<new>,"byMac":"AA:BB:CC:DD:EE:FF"}
+    //     (the master probes the bus to find which id currently has that MAC —
+    //      use this when you don't know / don't care about the current id).
     cJSON* setIdItem  = cJSON_GetObjectItem(doc, "setRemoteNodeId");
     cJSON* targetItem = cJSON_GetObjectItem(doc, "target");
-    if (setIdItem && cJSON_IsNumber(setIdItem) &&
-        targetItem && cJSON_IsNumber(targetItem)) {
-        int newId  = setIdItem->valueint;
-        int target = targetItem->valueint;
-        if (newId < 1 || newId > 127 || target < 1 || target > 127) {
+    cJSON* byMacItem  = cJSON_GetObjectItem(doc, "byMac");
+    bool   haveTarget = targetItem && cJSON_IsNumber(targetItem);
+    bool   haveByMac  = byMacItem  && cJSON_IsString(byMacItem);
+    if (setIdItem && cJSON_IsNumber(setIdItem) && (haveTarget || haveByMac)) {
+        int newId = setIdItem->valueint;
+        if (newId < 1 || newId > 127) {
             cJSON_AddStringToObject(resp, "status", "error");
-            cJSON_AddStringToObject(resp, "error", "nodeId out of range");
+            cJSON_AddStringToObject(resp, "error", "newId out of range (1..127)");
             return resp;
         }
-        cJSON* expectMacItem = cJSON_GetObjectItem(doc, "expectMac");
-        if (expectMacItem && cJSON_IsString(expectMacItem)) {
-            char macBuf[40];
-            if (!readNodeString((uint8_t)target, UC2_OD::MAC_ADDRESS,
-                                macBuf, sizeof(macBuf))) {
+        int target = -1;
+        if (haveByMac) {
+            // Probe the bus for the node currently advertising this MAC. Absent
+            // ids fast-fail (canReachForSDO), so only present nodes cost time.
+            const char* wantMac = byMacItem->valuestring;
+            for (int nid = 1; nid <= 127 && target < 0; nid++) {
+                if (nid == runtimeConfig.canNodeId) continue;   // skip self
+                char macBuf[40];
+                if (readNodeString((uint8_t)nid, UC2_OD::MAC_ADDRESS, macBuf, sizeof(macBuf)) &&
+                    strcasecmp(macBuf, wantMac) == 0) {
+                    target = nid;
+                }
+            }
+            if (target < 0) {
                 cJSON_AddStringToObject(resp, "status", "error");
-                cJSON_AddStringToObject(resp, "error", "could not read target MAC");
-                cJSON_AddNumberToObject(resp, "target", target);
+                cJSON_AddStringToObject(resp, "error", "MAC not found on bus");
+                cJSON_AddStringToObject(resp, "mac", wantMac);
                 return resp;
             }
-            if (strcasecmp(macBuf, expectMacItem->valuestring) != 0) {
+        } else {
+            target = targetItem->valueint;
+            if (target < 1 || target > 127) {
                 cJSON_AddStringToObject(resp, "status", "error");
-                cJSON_AddStringToObject(resp, "error", "MAC mismatch");
-                cJSON_AddStringToObject(resp, "mac", macBuf);
-                cJSON_AddNumberToObject(resp, "target", target);
+                cJSON_AddStringToObject(resp, "error", "target out of range (1..127)");
                 return resp;
+            }
+            cJSON* expectMacItem = cJSON_GetObjectItem(doc, "expectMac");
+            if (expectMacItem && cJSON_IsString(expectMacItem)) {
+                char macBuf[40];
+                if (!readNodeString((uint8_t)target, UC2_OD::MAC_ADDRESS,
+                                    macBuf, sizeof(macBuf))) {
+                    cJSON_AddStringToObject(resp, "status", "error");
+                    cJSON_AddStringToObject(resp, "error", "could not read target MAC");
+                    cJSON_AddNumberToObject(resp, "target", target);
+                    return resp;
+                }
+                if (strcasecmp(macBuf, expectMacItem->valuestring) != 0) {
+                    cJSON_AddStringToObject(resp, "status", "error");
+                    cJSON_AddStringToObject(resp, "error", "MAC mismatch");
+                    cJSON_AddStringToObject(resp, "mac", macBuf);
+                    cJSON_AddNumberToObject(resp, "target", target);
+                    return resp;
+                }
             }
         }
         bool ok = writeSDO_u8((uint8_t)target, UC2_OD::COMMANDED_NODE_ID, 0x00,
@@ -1569,6 +1602,7 @@ cJSON* CANopenModule::act(cJSON* doc)
         cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
         cJSON_AddNumberToObject(resp, "target", target);
         cJSON_AddNumberToObject(resp, "newId",  newId);
+        if (haveByMac) cJSON_AddStringToObject(resp, "mac", byMacItem->valuestring);
         if (!ok) cJSON_AddStringToObject(resp, "error", "SDO write failed");
         return resp;
     }

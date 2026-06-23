@@ -51,6 +51,7 @@ Stepper motor control with TMC2209 driver, up to 4 axes per node
 | `0x2008` | 1..4 | `motor_min_position` | I32 | rw | SDO only | Soft limit minimum. Slave clips target to this range. |
 | `0x2009` | 1..4 | `motor_max_position` | I32 | rw | SDO only | Soft limit maximum. |
 | `0x200A` | 1..4 | `motor_jerk` | U32 | rw | SDO only | S-curve jerk (0=trapezoidal). Optional; 0 disables S-curve. |
+| `0x200B` | 1..4 | `motor_is_forever` | U8 | rw | — | 1=continuous motion (no target position, runs until stopped). 0=finite move. |
 
 ### Homing — base `0x2010`
 
@@ -68,6 +69,7 @@ Sensorless or endstop-based homing
 | `0x2013` | 1..4 | `homing_timeout` | U32 | rw | SDO only |  |
 | `0x2014` | 1..4 | `homing_endstop_release` | I32 | rw | SDO only | Distance to back off after touching endstop |
 | `0x2015` | 1..4 | `homing_endstop_polarity` | U8 | rw | SDO only | 0=normally low, 1=normally high |
+| `0x2016` | 1..4 | `homing_status` | U8 | ro | tpdo1 | Per-axis homing phase. TPDO-broadcast on change so the master can fire an asy... |
 
 ### Tmc — base `0x2020`
 
@@ -87,6 +89,18 @@ TMC2209 silent stepper driver configuration
 | `0x2025` | 1..4 | `tmc_blank_time` | U8 | rw | SDO only |  |
 | `0x2026` | 1..4 | `tmc_toff` | U8 | rw | SDO only |  |
 | `0x2027` | 1..4 | `tmc_stall_count` | U32 | ro | SDO only | Cumulative stall events since boot |
+
+### Hard_Limit — base `0x2030`
+
+Per-axis hard-limit (endstop) configuration
+
+*C++ class:* `FocusMotor`
+
+| Index | Sub | Name | Type | Access | PDO | Description |
+|-------|-----|------|------|--------|-----|-------------|
+| `0x2030` | 1..4 | `hardlimit_command` | U8 | rw | SDO only | Write 1 to clear a latched hard-limit trip on this axis |
+| `0x2031` | 1..4 | `hardlimit_enabled` | U8 | rw | SDO only | 1 = hard-limit endstop enabled for this axis |
+| `0x2032` | 1..4 | `hardlimit_polarity` | U8 | rw | SDO only | Endstop polarity (0=normally low, 1=normally high) |
 
 ### Laser — base `0x2100`
 
@@ -123,6 +137,8 @@ Addressable LED array (NeoPixel) with pattern support
 | `0x2204` | 0 | `led_layout_width` | U8 | ro | SDO only |  |
 | `0x2205` | 0 | `led_layout_height` | U8 | ro | SDO only |  |
 | `0x2210` | 0 | `led_pixel_data` | DOMAIN | rw | SDO only | Bulk pixel data via SDO segmented/block transfer. Format: tightly-packed N x ... |
+| `0x2211` | 0 | `led_single_pixel` | DOMAIN | rw | SDO only | Fixed 5-byte payload: u16 index + u8 r + u8 g + u8 b. Implemented in OD.c as ... |
+| `0x2212` | 0 | `led_shape` | DOMAIN | rw | SDO only | Fixed 5-byte payload: u8 shape (0=rings, 1=circle), u8 radius, u8 r, u8 g, u8... |
 | `0x2220` | 0 | `led_pattern_id` | U8 | rw | rpdo3 | Built-in pattern: 0=none, 1=rainbow, 2=breathe, 3=chase, 4=fire, 5=sparkle, 6... |
 | `0x2221` | 0 | `led_pattern_speed` | U16 | rw | SDO only | Animation speed (frames per second) |
 
@@ -193,6 +209,9 @@ Firmware version, board info, runtime stats
 | `0x2505` | 0 | `can_error_counter` | U32 | ro | SDO only |  |
 | `0x2506` | 0 | `cpu_temperature` | I16 | ro | SDO only |  |
 | `0x2507` | 0 | `reboot_command` | U8 | wo | SDO only | Write 1 to soft-reboot the node |
+| `0x2508` | 0 | `build_timestamp` | STRING | ro | SDO only | Firmware build date+time (__DATE__ __TIME__). Reported by bus scan. |
+| `0x2509` | 0 | `mac_address` | STRING | ro | SDO only | Factory MAC as AA:BB:CC:DD:EE:FF. Lower 32 bits also feed x1018:4 serialNumbe... |
+| `0x250A` | 0 | `commanded_node_id` | U8 | wo | SDO only | Master writes 1..127 to reassign this node's CAN id (provisioning, typically ... |
 
 ### Galvo — base `0x2600`
 
@@ -305,7 +324,7 @@ Firmware update via SDO block transfer
 
 - COB-ID: `0x180 + node_id`
 - Direction: s2m
-- Description: Motor actual position + status — slave PUSHES on change
+- Description: Motor actual position + status + homing status — slave PUSHES on change
 - Event timer: 100 ms
 - Inhibit time: 5 ms
 
@@ -313,6 +332,7 @@ Firmware update via SDO block transfer
 |---|-----------|------|---------|
 | 1 | `0x2001:01` | 32 | `motor_actual_position` |
 | 2 | `0x2004:01` | 8 | `motor_status_word` |
+| 3 | `0x2016:01` | 8 | `homing_status` |
 
 ### TPDO2
 

@@ -5,30 +5,31 @@ Generate all CANopen artifacts from the central parameter registry.
 Reads:  uc2_canopen_registry.yaml
 Writes:
     DOCUMENTATION/openUC2_satellite.eds         (CiA 306 INI for CANopenEditor)
-    lib/uc2_od/OD.h                              (CANopenNode v4 header)
-    lib/uc2_od/OD.c                              (CANopenNode v4 source)
     main/src/canopen/UC2_OD_Indices.h            (C++ named constants)
     PYTHON/uc2_canopen/uc2_indices.py            (Python named constants)
     DOCUMENTATION/UC2_CANopen_Parameters.md      (human-readable reference)
 
+DOES NOT write lib/uc2_od/OD.c or lib/uc2_od/OD.h. Those are the HAND-MAINTAINED
+source of truth for the compiled Object Dictionary (the full CANopenNode
+descriptor table, PDO comm/mapping records and ODList). This registry is a
+SUPERSET *profile* used to derive the EDS, the named-constant headers and the
+docs; the OD implements the subset the firmware actually uses. Earlier versions
+of this script emitted stub OD.c/OD.h that would clobber the real ones — that
+was removed. The firmware is the source of truth; the registry mirrors it.
+
 Usage:
     python tools/regenerate_all.py [registry.yaml]
 
-When you add a new parameter:
-    1. Edit uc2_canopen_registry.yaml
-    2. Run: python tools/regenerate_all.py
-    3. Commit all generated files together
-    4. Open in CANopenEditor to verify the EDS still loads cleanly
-
-NOTE: The generated OD.h/OD.c are produced from a template that mirrors what
-CANopenEditor would emit. CANopenEditor remains useful for VISUAL validation
-and for round-trip editing — load the .eds, eyeball PDO mappings, save back.
-But the source of truth is THIS registry, not the .eds.
+When you add a new OD entry:
+    1. Add the field/descriptor/ODList row to lib/uc2_od/OD.h and OD.c BY HAND.
+    2. Mirror the entry in uc2_canopen_registry.yaml (index, name, type, access).
+    3. Run: python tools/regenerate_all.py   (refreshes EDS / indices / docs)
+    4. Commit OD.c/OD.h, the registry, and all generated files together.
+    5. Optionally open the EDS in CANopenEditor to eyeball PDO mappings.
 """
 
 import sys
 import os
-import datetime
 from pathlib import Path
 
 try:
@@ -110,7 +111,12 @@ def generate_eds(registry, out_path):
     L = []
     w = lambda s="": L.append(s)
 
-    now = datetime.datetime.now()
+    # Fixed, deterministic metadata. Using datetime.now() here made the EDS
+    # change on every run, so the CI drift check (git diff --exit-code after
+    # regenerating) could never pass. These fields are cosmetic EDS metadata.
+    BUILD_DATE = "01-01-2025"   # mm-dd-yyyy
+    BUILD_TIME = "12:00AM"
+    BUILD_ISO  = "2025-01-01"
     dev = registry["device"]
 
     # File info
@@ -120,11 +126,11 @@ def generate_eds(registry, out_path):
     w("FileRevision=1")
     w("EDSVersion=4.0")
     w(f"Description={dev['product_name']}")
-    w(f"CreationTime={now.strftime('%I:%M%p')}")
-    w(f"CreationDate={now.strftime('%m-%d-%Y')}")
+    w(f"CreationTime={BUILD_TIME}")
+    w(f"CreationDate={BUILD_DATE}")
     w(f"CreatedBy={dev['vendor_name']}")
-    w(f"ModificationTime={now.strftime('%I:%M%p')}")
-    w(f"ModificationDate={now.strftime('%m-%d-%Y')}")
+    w(f"ModificationTime={BUILD_TIME}")
+    w(f"ModificationDate={BUILD_DATE}")
     w(f"ModifiedBy={dev['vendor_name']}")
     w()
 
@@ -157,7 +163,7 @@ def generate_eds(registry, out_path):
 
     w("[Comments]")
     w("Lines=2")
-    w(f"Line1=Generated from uc2_canopen_registry.yaml on {now.strftime('%Y-%m-%d')}")
+    w(f"Line1=Generated from uc2_canopen_registry.yaml ({BUILD_ISO})")
     w("Line2=DO NOT EDIT — regenerate with tools/regenerate_all.py")
     w()
 
@@ -594,113 +600,13 @@ def generate_markdown(registry, out_path):
 
 
 # ============================================================================
-# 5. CANopenNode v4 OD.h (skeleton — full table generation is large)
+# OD.c / OD.h are NOT generated here
 # ============================================================================
-
-def generate_od_h(registry, out_path):
-    """
-    Generate a CANopenNode v4 OD.h header. This is a SIMPLIFIED version —
-    for full production use, run the generated EDS through CANopenEditor's
-    exporter, OR extend this generator. The CANopenNode OD format is well
-    documented in libedssharp/EDSSharp.
-    """
-    L = []
-    w = lambda s="": L.append(s)
-
-    w("// AUTO-GENERATED from uc2_canopen_registry.yaml")
-    w("// Regenerate with: python tools/regenerate_all.py")
-    w("//")
-    w("// This file is the CANopenNode v4 Object Dictionary header.")
-    w("// It declares OD_RAM (the runtime data) and OD (the descriptor table).")
-    w()
-    w("#ifndef OD_H")
-    w("#define OD_H")
-    w()
-    w('#include "301/CO_ODinterface.h"')
-    w()
-    w("#define OD_CNT_NMT                 1")
-    w("#define OD_CNT_EM                  1")
-    w("#define OD_CNT_SYNC                1")
-    w("#define OD_CNT_HB_PROD             1")
-    w("#define OD_CNT_HB_CONS             1")
-    w("#define OD_CNT_RPDO                4")
-    w("#define OD_CNT_TPDO                4")
-    w()
-
-    # The OD_RAM struct holds the runtime data
-    w("// Runtime variables for OD entries")
-    w("typedef struct {")
-
-    # CiA 301 standard entries
-    w("    // --- CiA 301 communication area ---")
-    w("    uint8_t  x1001_errorRegister;")
-    w("    uint16_t x1017_producerHeartbeatTime;")
-    w()
-
-    # Manufacturer entries
-    w("    // --- Manufacturer-specific area ---")
-    for mod_name, mod in registry["modules"].items():
-        w(f"    // {mod_name}")
-        for entry in mod["entries"]:
-            ctype = C_TYPES[entry["type"]]
-            name = f"x{entry['index']:04X}_{entry['name']}"
-            sub = entry.get("sub_indices", 0)
-            if entry["type"] == "STRING":
-                w(f"    {ctype} {name}[{entry.get('max_length', 32)}];")
-            elif entry["type"] == "DOMAIN":
-                w(f"    {ctype}* {name};  // DOMAIN — pointer set at runtime")
-            elif sub > 0:
-                w(f"    {ctype} {name}[{sub}];")
-            else:
-                w(f"    {ctype} {name};")
-        w()
-
-    w("} OD_RAM_t;")
-    w()
-    w("extern OD_RAM_t OD_RAM;")
-    w("extern OD_t *OD;")
-    w()
-    w("// PDO mapping helper macros (for syncRpdoToModules / syncModulesToTpdo)")
-    for mod_name, mod in registry["modules"].items():
-        for entry in mod["entries"]:
-            macro = f"OD_{entry['name'].upper()}"
-            field = f"OD_RAM.x{entry['index']:04X}_{entry['name']}"
-            w(f"#define {macro:<48} {field}")
-    w()
-    w("#endif // OD_H")
-
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(out_path).write_text("\n".join(L))
-    print(f"  ✓ OD.h:          {out_path}")
-
-
-def generate_od_c(registry, out_path):
-    """
-    Generate a STUB OD.c. The full table generation requires reproducing
-    the CANopenNode descriptor format. For production, prefer running the
-    EDS through CANopenEditor's exporter and storing the result here.
-    """
-    L = []
-    w = lambda s="": L.append(s)
-
-    w("// AUTO-GENERATED from uc2_canopen_registry.yaml")
-    w("// This is a STUB. For production use:")
-    w("//   1. Run: python tools/regenerate_all.py")
-    w("//   2. Open DOCUMENTATION/openUC2_satellite.eds in CANopenEditor")
-    w("//   3. File → Export → CANopenNode v4 (OD.c only)")
-    w("//   4. Replace this file with the exported one")
-    w("//")
-    w("// Long-term: extend tools/regenerate_all.py to emit a complete OD.c table.")
-    w()
-    w('#include "OD.h"')
-    w()
-    w("OD_RAM_t OD_RAM = { 0 };")
-    w()
-
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(out_path).write_text("\n".join(L))
-    print(f"  ✓ OD.c (stub):   {out_path}")
-
+# They are the hand-maintained source of truth for the compiled Object
+# Dictionary (full CANopenNode descriptor table, PDO records, ODList). The
+# previous stub generators were removed because they overwrote the real,
+# hand-written tables with non-compiling skeletons. Edit lib/uc2_od/OD.c and
+# OD.h by hand and mirror new entries in the registry YAML.
 
 # ============================================================================
 # Main
@@ -729,11 +635,14 @@ def main():
     generate_cpp_indices(registry,    base / "main/src/canopen/UC2_OD_Indices.h")
     generate_python_indices(registry, base / "PYTHON/uc2_canopen/uc2_indices.py")
     generate_markdown(registry,       base / "DOCUMENTATION/UC2_CANopen_Parameters.md")
-    generate_od_h(registry,           base / "lib/uc2_od/OD.h")
-    generate_od_c(registry,           base / "lib/uc2_od/OD.c")
+
+    # lib/uc2_od/OD.c and OD.h are intentionally NOT generated — they are the
+    # hand-maintained source of truth for the compiled OD. See module docstring.
 
     print()
-    print("Done. Commit all generated files together with the registry.")
+    print("Done. Commit the generated files together with the registry.")
+    print("Reminder: lib/uc2_od/OD.c and OD.h are hand-maintained — this script")
+    print("does NOT touch them. Add OD entries there by hand, then mirror in YAML.")
 
 
 if __name__ == "__main__":

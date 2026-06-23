@@ -360,6 +360,44 @@ modules:
         sdo_only: true
 
   # ==========================================================================
+  # HARD LIMIT — 0x2030-0x203F
+  # ==========================================================================
+  # NOTE: implemented in OD.c as ODA_SDO_RW | ODA_RPDO (RPDO-mappable) but not
+  # placed in any active PDO map; the master writes them per-axis via SDO.
+  hard_limit:
+    base_index: 0x2030
+    description: "Per-axis hard-limit (endstop) configuration"
+    cpp_class: "FocusMotor"
+    entries:
+
+      - index: 0x2030
+        name: hardlimit_command
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Write 1 to clear a latched hard-limit trip on this axis"
+        sdo_only: true
+
+      - index: 0x2031
+        name: hardlimit_enabled
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "1 = hard-limit endstop enabled for this axis"
+        sdo_only: true
+
+      - index: 0x2032
+        name: hardlimit_polarity
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Endstop polarity (0=normally low, 1=normally high)"
+        sdo_only: true
+
+  # ==========================================================================
   # LASER — 0x2100-0x21FF
   # ==========================================================================
   laser:
@@ -522,6 +560,28 @@ modules:
           Master writes the entire array, slave applies on completion.
         sdo_only: true
         cpp_field: "ledController->setPixels(buffer, count)"
+
+      - index: 0x2211
+        name: led_single_pixel
+        type: DOMAIN
+        access: rw
+        sub_indices: 0
+        description: |
+          Fixed 5-byte payload: u16 index + u8 r + u8 g + u8 b.
+          Implemented in OD.c as a fixed uint8_t[5]; slave OD extension
+          calls LedController::setSingle(). DOMAIN here is documentation only.
+        sdo_only: true
+
+      - index: 0x2212
+        name: led_shape
+        type: DOMAIN
+        access: rw
+        sub_indices: 0
+        description: |
+          Fixed 5-byte payload: u8 shape (0=rings, 1=circle), u8 radius,
+          u8 r, u8 g, u8 b. Implemented in OD.c as a fixed uint8_t[5]; slave
+          OD extension dispatches to LedController. DOMAIN here is doc only.
+        sdo_only: true
 
       - index: 0x2220
         name: led_pattern_id
@@ -780,6 +840,37 @@ modules:
         sub_indices: 0
         default: 0
         description: "Write 1 to soft-reboot the node"
+        sdo_only: true
+
+      - index: 0x2508
+        name: build_timestamp
+        type: STRING
+        access: ro
+        max_length: 32
+        default: ""
+        description: "Firmware build date+time (__DATE__ __TIME__). Reported by bus scan."
+        sdo_only: true
+
+      - index: 0x2509
+        name: mac_address
+        type: STRING
+        access: ro
+        max_length: 18
+        default: ""
+        description: "Factory MAC as AA:BB:CC:DD:EE:FF. Lower 32 bits also feed x1018:4 serialNumber. Reported by bus scan."
+        sdo_only: true
+
+      - index: 0x250A
+        name: commanded_node_id
+        type: U8
+        access: wo
+        sub_indices: 0
+        default: 0
+        description: |
+          Master writes 1..127 to reassign this node's CAN id (provisioning,
+          typically keyed by MAC). The slave persists it to NVS and performs a
+          CANopen communication reset (deferred ~250 ms so the SDO response is
+          sent on the old id first). Same effect as a local /can_act nodeId set.
         sdo_only: true
 
   # ==========================================================================

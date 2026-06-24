@@ -18,8 +18,7 @@ of this script emitted stub OD.c/OD.h that would clobber the real ones — that
 was removed. The firmware is the source of truth; the registry mirrors it.
 
 Usage:
-    python tools/regenerate_all.py [registry.yaml]
-
+    python tools/canopen/regenerate_all.py [registry.yaml]
 When you add a new OD entry:
     1. Add the field/descriptor/ODList row to lib/uc2_od/OD.h and OD.c BY HAND.
     2. Mirror the entry in uc2_canopen_registry.yaml (index, name, type, access).

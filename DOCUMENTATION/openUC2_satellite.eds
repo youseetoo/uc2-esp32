@@ -4,11 +4,11 @@ FileVersion=1
 FileRevision=1
 EDSVersion=4.0
 Description=UC2 ESP32-S3 Satellite Node
-CreationTime=04:09PM
-CreationDate=04-08-2026
+CreationTime=12:00AM
+CreationDate=01-01-2025
 CreatedBy=openUC2 GmbH
-ModificationTime=04:09PM
-ModificationDate=04-08-2026
+ModificationTime=12:00AM
+ModificationDate=01-01-2025
 ModifiedBy=openUC2 GmbH
 
 [DeviceInfo]
@@ -47,7 +47,7 @@ Dummy0007=1
 
 [Comments]
 Lines=2
-Line1=Generated from uc2_canopen_registry.yaml on 2026-04-08
+Line1=Generated from uc2_canopen_registry.yaml (2025-01-01)
 Line2=DO NOT EDIT — regenerate with tools/regenerate_all.py
 
 [MandatoryObjects]
@@ -660,7 +660,7 @@ PDOMapping=0
 ParameterName=TPDO1 mapping parameter
 ObjectType=0x9
 ;StorageLocation=PERSIST_COMM
-SubNumber=0x3
+SubNumber=0x4
 
 [1A00sub0]
 ParameterName=Number of mapped objects
@@ -668,7 +668,7 @@ ObjectType=0x7
 ;StorageLocation=RAM
 DataType=0x0005
 AccessType=rw
-DefaultValue=2
+DefaultValue=3
 PDOMapping=0
 
 [1A00sub1]
@@ -687,6 +687,15 @@ ObjectType=0x7
 DataType=0x0007
 AccessType=rw
 DefaultValue=0x20040108
+PDOMapping=0
+
+[1A00sub3]
+ParameterName=Application object 3
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0007
+AccessType=rw
+DefaultValue=0x20160108
 PDOMapping=0
 
 [1801]
@@ -1005,7 +1014,7 @@ DefaultValue=0x26010120
 PDOMapping=0
 
 [ManufacturerObjects]
-SupportedObjects=90
+SupportedObjects=100
 1=0x2000
 2=0x2001
 3=0x2002
@@ -1017,85 +1026,95 @@ SupportedObjects=90
 9=0x2008
 10=0x2009
 11=0x200A
-12=0x2010
-13=0x2011
-14=0x2012
-15=0x2013
-16=0x2014
-17=0x2015
-18=0x2020
-19=0x2021
-20=0x2022
-21=0x2023
-22=0x2024
-23=0x2025
-24=0x2026
-25=0x2027
-26=0x2100
-27=0x2101
-28=0x2102
-29=0x2103
-30=0x2104
-31=0x2105
-32=0x2106
-33=0x2200
-34=0x2201
-35=0x2202
-36=0x2203
-37=0x2204
-38=0x2205
-39=0x2210
-40=0x2220
-41=0x2221
-42=0x2300
-43=0x2301
-44=0x2302
-45=0x2310
-46=0x2311
-47=0x2320
-48=0x2340
-49=0x2341
-50=0x2342
-51=0x2400
-52=0x2401
-53=0x2402
-54=0x2403
-55=0x2500
-56=0x2501
-57=0x2502
-58=0x2503
-59=0x2504
-60=0x2505
-61=0x2506
-62=0x2507
-63=0x2600
-64=0x2601
-65=0x2602
-66=0x2603
-67=0x2604
-68=0x2605
-69=0x2606
-70=0x2607
-71=0x2608
-72=0x2609
-73=0x260A
-74=0x260B
-75=0x260C
-76=0x260D
-77=0x260E
-78=0x260F
-79=0x2700
-80=0x2701
-81=0x2702
-82=0x2703
-83=0x2704
-84=0x2705
-85=0x2F00
-86=0x2F01
-87=0x2F02
-88=0x2F03
-89=0x2F04
-90=0x2F05
+12=0x200B
+13=0x2010
+14=0x2011
+15=0x2012
+16=0x2013
+17=0x2014
+18=0x2015
+19=0x2016
+20=0x2020
+21=0x2021
+22=0x2022
+23=0x2023
+24=0x2024
+25=0x2025
+26=0x2026
+27=0x2027
+28=0x2030
+29=0x2031
+30=0x2032
+31=0x2100
+32=0x2101
+33=0x2102
+34=0x2103
+35=0x2104
+36=0x2105
+37=0x2106
+38=0x2200
+39=0x2201
+40=0x2202
+41=0x2203
+42=0x2204
+43=0x2205
+44=0x2210
+45=0x2211
+46=0x2212
+47=0x2220
+48=0x2221
+49=0x2300
+50=0x2301
+51=0x2302
+52=0x2310
+53=0x2311
+54=0x2320
+55=0x2340
+56=0x2341
+57=0x2342
+58=0x2400
+59=0x2401
+60=0x2402
+61=0x2403
+62=0x2500
+63=0x2501
+64=0x2502
+65=0x2503
+66=0x2504
+67=0x2505
+68=0x2506
+69=0x2507
+70=0x2508
+71=0x2509
+72=0x250A
+73=0x2600
+74=0x2601
+75=0x2602
+76=0x2603
+77=0x2604
+78=0x2605
+79=0x2606
+80=0x2607
+81=0x2608
+82=0x2609
+83=0x260A
+84=0x260B
+85=0x260C
+86=0x260D
+87=0x260E
+88=0x260F
+89=0x2700
+90=0x2701
+91=0x2702
+92=0x2703
+93=0x2704
+94=0x2705
+95=0x2F00
+96=0x2F01
+97=0x2F02
+98=0x2F03
+99=0x2F04
+100=0x2F05
 
 [2000]
 ParameterName=motor_target_position
@@ -1616,6 +1635,57 @@ AccessType=rw
 DefaultValue=0
 PDOMapping=0
 
+[200B]
+ParameterName=motor_is_forever
+ObjectType=0x8
+;StorageLocation=RAM
+SubNumber=0x5
+
+[200Bsub0]
+ParameterName=Number of entries
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x04
+PDOMapping=0
+
+[200Bsub1]
+ParameterName=motor_is_forever 1
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[200Bsub2]
+ParameterName=motor_is_forever 2
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[200Bsub3]
+ParameterName=motor_is_forever 3
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[200Bsub4]
+ParameterName=motor_is_forever 4
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
 [2010]
 ParameterName=homing_command
 ObjectType=0x8
@@ -1921,6 +1991,57 @@ DataType=0x0005
 AccessType=rw
 DefaultValue=0
 PDOMapping=0
+
+[2016]
+ParameterName=homing_status
+ObjectType=0x8
+;StorageLocation=RAM
+SubNumber=0x5
+
+[2016sub0]
+ParameterName=Number of entries
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x04
+PDOMapping=0
+
+[2016sub1]
+ParameterName=homing_status 1
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+
+[2016sub2]
+ParameterName=homing_status 2
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+
+[2016sub3]
+ParameterName=homing_status 3
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
+
+[2016sub4]
+ParameterName=homing_status 4
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+PDOMapping=1
 
 [2020]
 ParameterName=tmc_microsteps
@@ -2330,6 +2451,159 @@ AccessType=ro
 DefaultValue=0
 PDOMapping=0
 
+[2030]
+ParameterName=hardlimit_command
+ObjectType=0x8
+;StorageLocation=RAM
+SubNumber=0x5
+
+[2030sub0]
+ParameterName=Number of entries
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x04
+PDOMapping=0
+
+[2030sub1]
+ParameterName=hardlimit_command 1
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2030sub2]
+ParameterName=hardlimit_command 2
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2030sub3]
+ParameterName=hardlimit_command 3
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2030sub4]
+ParameterName=hardlimit_command 4
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2031]
+ParameterName=hardlimit_enabled
+ObjectType=0x8
+;StorageLocation=RAM
+SubNumber=0x5
+
+[2031sub0]
+ParameterName=Number of entries
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x04
+PDOMapping=0
+
+[2031sub1]
+ParameterName=hardlimit_enabled 1
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2031sub2]
+ParameterName=hardlimit_enabled 2
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2031sub3]
+ParameterName=hardlimit_enabled 3
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2031sub4]
+ParameterName=hardlimit_enabled 4
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2032]
+ParameterName=hardlimit_polarity
+ObjectType=0x8
+;StorageLocation=RAM
+SubNumber=0x5
+
+[2032sub0]
+ParameterName=Number of entries
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=ro
+DefaultValue=0x04
+PDOMapping=0
+
+[2032sub1]
+ParameterName=hardlimit_polarity 1
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2032sub2]
+ParameterName=hardlimit_polarity 2
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2032sub3]
+ParameterName=hardlimit_polarity 3
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2032sub4]
+ParameterName=hardlimit_polarity 4
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
 [2100]
 ParameterName=laser_pwm_value
 ObjectType=0x8
@@ -2701,6 +2975,24 @@ PDOMapping=0
 
 [2210]
 ParameterName=led_pixel_data
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x000F
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2211]
+ParameterName=led_single_pixel
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x000F
+AccessType=rw
+DefaultValue=0
+PDOMapping=0
+
+[2212]
+ParameterName=led_shape
 ObjectType=0x7
 ;StorageLocation=RAM
 DataType=0x000F
@@ -3430,6 +3722,33 @@ PDOMapping=0
 
 [2507]
 ParameterName=reboot_command
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0005
+AccessType=wo
+DefaultValue=0
+PDOMapping=0
+
+[2508]
+ParameterName=build_timestamp
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0009
+AccessType=ro
+DefaultValue=
+PDOMapping=0
+
+[2509]
+ParameterName=mac_address
+ObjectType=0x7
+;StorageLocation=RAM
+DataType=0x0009
+AccessType=ro
+DefaultValue=
+PDOMapping=0
+
+[250A]
+ParameterName=commanded_node_id
 ObjectType=0x7
 ;StorageLocation=RAM
 DataType=0x0005

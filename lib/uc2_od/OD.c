@@ -279,11 +279,15 @@ typedef struct {
     OD_obj_var_t    o_260D_galvo_x_step;
     OD_obj_var_t    o_260E_galvo_y_step;
     OD_obj_var_t    o_260F_galvo_camera_trigger_mode;
-    /* UC2 system (0x2500-0x2507) */
+    /* UC2 system (0x2500-0x250A) */
+    OD_obj_var_t    o_2500_firmware_version_string;
     OD_obj_var_t    o_2503_uptime_seconds;
     OD_obj_var_t    o_2504_free_heap_bytes;
     OD_obj_var_t    o_2505_can_error_counter;
     OD_obj_var_t    o_2507_reboot_command;
+    OD_obj_var_t    o_2508_build_timestamp;
+    OD_obj_var_t    o_2509_mac_address;
+    OD_obj_var_t    o_250A_commanded_node_id;
     /* UC2 OTA (0x2F00-0x2F05) */
     OD_obj_var_t    o_2F00_ota_firmware_data;
     OD_obj_var_t    o_2F01_ota_firmware_size;
@@ -733,8 +737,13 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .dataLength = 1
     },
     /* -----------------------------------------------------------------------
-     * UC2 system (0x2503-0x2507)
+     * UC2 system (0x2500-0x250A)
      * ----------------------------------------------------------------------- */
+    .o_2500_firmware_version_string = {
+        .dataOrig = &OD_RAM.x2500_firmware_version_string[0],
+        .attribute = ODA_SDO_R | ODA_STR,
+        .dataLength = sizeof(OD_RAM.x2500_firmware_version_string)
+    },
     .o_2503_uptime_seconds = {
         .dataOrig = &OD_RAM.x2503_uptime_seconds,
         .attribute = ODA_SDO_R | ODA_TPDO | ODA_MB,
@@ -752,6 +761,21 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     },
     .o_2507_reboot_command = {
         .dataOrig = &OD_RAM.x2507_reboot_command,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 1
+    },
+    .o_2508_build_timestamp = {
+        .dataOrig = &OD_RAM.x2508_build_timestamp[0],
+        .attribute = ODA_SDO_R | ODA_STR,
+        .dataLength = sizeof(OD_RAM.x2508_build_timestamp)
+    },
+    .o_2509_mac_address = {
+        .dataOrig = &OD_RAM.x2509_mac_address[0],
+        .attribute = ODA_SDO_R | ODA_STR,
+        .dataLength = sizeof(OD_RAM.x2509_mac_address)
+    },
+    .o_250A_commanded_node_id = {
+        .dataOrig = &OD_RAM.x250A_commanded_node_id,
         .attribute = ODA_SDO_RW,
         .dataLength = 1
     },
@@ -888,10 +912,14 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     /* UC2 encoder */
     {0x2340, 0x05, ODT_ARR, &ODObjs.o_2340_encoder_position,           NULL},
     /* UC2 system — MUST stay sorted before 0x2600 (CANopenNode OD_find is binary search) */
+    {0x2500, 0x01, ODT_VAR, &ODObjs.o_2500_firmware_version_string,    NULL},
     {0x2503, 0x01, ODT_VAR, &ODObjs.o_2503_uptime_seconds,             NULL},
     {0x2504, 0x01, ODT_VAR, &ODObjs.o_2504_free_heap_bytes,            NULL},
     {0x2505, 0x01, ODT_VAR, &ODObjs.o_2505_can_error_counter,          NULL},
     {0x2507, 0x01, ODT_VAR, &ODObjs.o_2507_reboot_command,             NULL},
+    {0x2508, 0x01, ODT_VAR, &ODObjs.o_2508_build_timestamp,            NULL},
+    {0x2509, 0x01, ODT_VAR, &ODObjs.o_2509_mac_address,                NULL},
+    {0x250A, 0x01, ODT_VAR, &ODObjs.o_250A_commanded_node_id,          NULL},
     /* UC2 galvo */
     {0x2600, 0x03, ODT_ARR, &ODObjs.o_2600_galvo_target_position,      NULL},
     {0x2601, 0x03, ODT_ARR, &ODObjs.o_2601_galvo_actual_position,      NULL},

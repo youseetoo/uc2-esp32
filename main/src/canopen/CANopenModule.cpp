@@ -61,6 +61,8 @@ extern "C" {
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_mac.h"   // esp_read_mac() — populate 0x2509 MAC + 0x1018 serialNumber
+#include <strings.h>   // strcasecmp() — case-insensitive MAC compare in act()
 #include "driver/gpio.h"
 #include "driver/twai.h"
 
@@ -1097,6 +1099,36 @@ static ODR_t onLedShapeWrite(OD_stream_t* stream, const void* buf,
 // CO_main task — CANopenNode init + main processing loop
 // (Preserved structure from MWE, parametrised by runtimeConfig.canNodeId)
 // ============================================================================
+// Populate the read-only SYSTEM OD strings (0x2500 fw version, 0x2508 build
+// timestamp, 0x2509 MAC) and derive the CANopen identity serial number from the
+// factory MAC. Called once at startup before CO_LSSinit() reads x1018. The MAC
+// makes x1018:4 (serialNumber) globally unique — a prerequisite for any future
+// LSS-based node-id assignment — and lets the master report each node's MAC in
+// the bus scan.
+static void populateSystemOD()
+{
+    uint8_t mac[6] = {0};
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+
+    snprintf(OD_RAM.x2500_firmware_version_string,
+             sizeof(OD_RAM.x2500_firmware_version_string), "UC2-ESP v2.0"); // TODO: Replace this with versioned firmware string from build system
+    snprintf(OD_RAM.x2508_build_timestamp,
+             sizeof(OD_RAM.x2508_build_timestamp), "%s %s", __DATE__, __TIME__);
+    snprintf(OD_RAM.x2509_mac_address, sizeof(OD_RAM.x2509_mac_address),
+             "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    // Lower 32 bits of the MAC → unique CANopen serial number (x1018:4).
+    OD_PERSIST_COMM.x1018_identity.serialNumber =
+        ((uint32_t)mac[2] << 24) | ((uint32_t)mac[3] << 16) |
+        ((uint32_t)mac[4] << 8)  |  (uint32_t)mac[5];
+
+    log_i("System OD: fw='%s' build='%s' mac=%s serial=0x%08lX",
+          OD_RAM.x2500_firmware_version_string, OD_RAM.x2508_build_timestamp,
+          OD_RAM.x2509_mac_address,
+          (unsigned long)OD_PERSIST_COMM.x1018_identity.serialNumber);
+}
+
 void CANopenModule::CO_main_task(void* arg)
 {
     CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
@@ -1115,6 +1147,10 @@ void CANopenModule::CO_main_task(void* arg)
         return;
     }
     log_i("Allocated %lu bytes for CANopen objects", (unsigned long)heapMemoryUsed);
+
+    // Fill in fw-version / build-timestamp / MAC OD strings and the MAC-derived
+    // identity serial before LSS init (below) reads x1018.
+    populateSystemOD();
 
     // Subtasks are started once here and idle safely via CANnormal guard during
     // any subsequent CO_RESET_COMM re-init cycle.
@@ -1302,6 +1338,23 @@ cJSON* CANopenModule::get(cJSON* /*doc*/)
     return resp;
 }
 
+// Read a VISIBLE_STRING OD entry (sub 0) from a remote node into a NUL-terminated
+// buffer. Returns true on success. Used by the bus scan to fetch each slave's
+// build timestamp (0x2508), firmware version (0x2500) and MAC (0x2509).
+static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t outSize)
+{
+    if (!out || outSize == 0) return false;
+    out[0] = '\0';
+    uint8_t buf[40];
+    size_t  readSize = 0;
+    if (!CANopenModule::readSDO(nodeId, index, 0x00, buf, sizeof(buf), &readSize))
+        return false;
+    if (readSize >= outSize) readSize = outSize - 1;
+    memcpy(out, buf, readSize);
+    out[readSize] = '\0';
+    return true;
+}
+
 // ============================================================================
 // /can_act — set node ID, persists to NVS; also handles bus scan + remote
 // reboot for backward compatibility with the pre-CANopen Python client.
@@ -1309,8 +1362,13 @@ cJSON* CANopenModule::get(cJSON* /*doc*/)
 //   {"task":"/can_act", "nodeId": 10, "canMotorAxis": 1}  — local config
 //   {"task":"/can_act", "scan": true, "qid": <n>}          — enumerate REMOTE
 //                                                            routes + probe
+//                                                            (reports build/mac)
 //   {"task":"/can_act", "restart": <nodeId>}               — 0 = self,
 //                                                            else SDO 0x2507=1
+//   {"task":"/can_act", "setRemoteNodeId": <newId>,        — reassign a remote
+//                       "target": <curId>, "expectMac": "AA:.."}  node's CAN id
+//   {"task":"/can_act", "setRemoteNodeId": <newId>,        — reassign by MAC
+//                       "byMac": "AA:BB:CC:DD:EE:FF"}          (master finds it)
 // ============================================================================
 cJSON* CANopenModule::act(cJSON* doc)
 {
@@ -1376,13 +1434,77 @@ cJSON* CANopenModule::act(cJSON* doc)
             cJSON_AddNumberToObject(dev, "status",        reachable ? 0 : 1);
             cJSON_AddStringToObject(dev, "statusStr",
                                     reachable ? "idle" : "unreachable");
+            // For reachable nodes, SDO-read their identity strings so the scan
+            // reports firmware build date, version and MAC. Each read is guarded
+            // by reachability already; absent nodes are skipped (no stall).
+            if (reachable) {
+                char tmp[40];
+                if (readNodeString(seen[i].nodeId, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "build", tmp);
+                if (readNodeString(seen[i].nodeId, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "fwVersion", tmp);
+                if (readNodeString(seen[i].nodeId, UC2_OD::MAC_ADDRESS, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "mac", tmp);
+            }
             cJSON_AddItemToArray(arr, dev);
         }
+        // The scan only SDO-probes remotes; report the master's own identity
+        // (read locally from its OD) at the top level so the host sees it too.
+        cJSON* master = cJSON_CreateObject();
+        cJSON_AddNumberToObject(master, "canId",     runtimeConfig.canNodeId);
+        cJSON_AddStringToObject(master, "build",     OD_RAM.x2508_build_timestamp);
+        cJSON_AddStringToObject(master, "fwVersion", OD_RAM.x2500_firmware_version_string);
+        cJSON_AddStringToObject(master, "mac",       OD_RAM.x2509_mac_address);
+        cJSON_AddItemToObject(resp, "master", master);
+
+        // Optional discovery probe: SDO-read the MAC from a range of node-ids so
+        // brand-new / unrouted nodes can be found for MAC-keyed provisioning.
+        // {"scan":true,"probeRange":true[,"from":1,"to":127]}. Absent ids
+        // fast-fail (canReachForSDO returns false for nodes that never
+        // announced themselves), so this only spends real time on nodes that
+        // are physically present on the bus.
+        uint8_t nProbed = 0;
+        cJSON* probeItem = cJSON_GetObjectItem(doc, "probeRange");
+        if (probeItem && (cJSON_IsTrue(probeItem) ||
+                          (cJSON_IsNumber(probeItem) && probeItem->valueint != 0))) {
+            int from = 1, to = 127;
+            cJSON* f = cJSON_GetObjectItem(doc, "from");
+            cJSON* t = cJSON_GetObjectItem(doc, "to");
+            if (f && cJSON_IsNumber(f)) from = f->valueint;
+            if (t && cJSON_IsNumber(t)) to   = t->valueint;
+            if (from < 1)   from = 1;
+            if (to   > 127) to   = 127;
+            for (int nid = from; nid <= to; nid++) {
+                if (nid == runtimeConfig.canNodeId) continue;   // skip self
+                bool already = false;                            // skip routed nodes
+                for (uint8_t i = 0; i < nSeen; i++)
+                    if (seen[i].nodeId == (uint8_t)nid) { already = true; break; }
+                if (already) continue;
+                char macStr[40];
+                if (!readNodeString((uint8_t)nid, UC2_OD::MAC_ADDRESS, macStr, sizeof(macStr)))
+                    continue;   // no response → not present
+                cJSON* dev = cJSON_CreateObject();
+                cJSON_AddNumberToObject(dev, "canId",         nid);
+                cJSON_AddNumberToObject(dev, "deviceType",    -1);
+                cJSON_AddStringToObject(dev, "deviceTypeStr", "unrouted");
+                cJSON_AddNumberToObject(dev, "status",        0);
+                cJSON_AddStringToObject(dev, "statusStr",     "idle");
+                cJSON_AddStringToObject(dev, "mac",           macStr);
+                char tmp[40];
+                if (readNodeString((uint8_t)nid, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "build", tmp);
+                if (readNodeString((uint8_t)nid, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "fwVersion", tmp);
+                cJSON_AddItemToArray(arr, dev);
+                nProbed++;
+            }
+        }
+
         cJSON_AddItemToObject(resp, "scan", arr);
         cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
         cJSON_AddNumberToObject(resp, "qid",
             (qidItem && cJSON_IsNumber(qidItem)) ? qidItem->valueint : 0);
-        cJSON_AddNumberToObject(resp, "count", nSeen);
+        cJSON_AddNumberToObject(resp, "count", nSeen + nProbed);
         return resp;
     }
 
@@ -1406,6 +1528,81 @@ cJSON* CANopenModule::act(cJSON* doc)
                               0x2507, 0x00, 1, /*timeoutMs*/ 1000);
         cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
         cJSON_AddNumberToObject(resp, "nodeId", target);
+        if (!ok) cJSON_AddStringToObject(resp, "error", "SDO write failed");
+        return resp;
+    }
+
+    // ----- setRemoteNodeId: reassign a remote node's CAN id by SDO (0x250A) ----
+    // setRemoteNodeId is always the NEW id. Identify the node EITHER by:
+    //   * its current id   — {"setRemoteNodeId":<new>,"target":<cur>,"expectMac":"AA:.."}
+    //     (optional expectMac is verified first, so the id only ever binds to
+    //      the intended device), OR
+    //   * its MAC only     — {"setRemoteNodeId":<new>,"byMac":"AA:BB:CC:DD:EE:FF"}
+    //     (the master probes the bus to find which id currently has that MAC —
+    //      use this when you don't know / don't care about the current id).
+    cJSON* setIdItem  = cJSON_GetObjectItem(doc, "setRemoteNodeId");
+    cJSON* targetItem = cJSON_GetObjectItem(doc, "target");
+    cJSON* byMacItem  = cJSON_GetObjectItem(doc, "byMac");
+    bool   haveTarget = targetItem && cJSON_IsNumber(targetItem);
+    bool   haveByMac  = byMacItem  && cJSON_IsString(byMacItem);
+    if (setIdItem && cJSON_IsNumber(setIdItem) && (haveTarget || haveByMac)) {
+        int newId = setIdItem->valueint;
+        if (newId < 1 || newId > 127) {
+            cJSON_AddStringToObject(resp, "status", "error");
+            cJSON_AddStringToObject(resp, "error", "newId out of range (1..127)");
+            return resp;
+        }
+        int target = -1;
+        if (haveByMac) {
+            // Probe the bus for the node currently advertising this MAC. Absent
+            // ids fast-fail (canReachForSDO), so only present nodes cost time.
+            const char* wantMac = byMacItem->valuestring;
+            for (int nid = 1; nid <= 127 && target < 0; nid++) {
+                if (nid == runtimeConfig.canNodeId) continue;   // skip self
+                char macBuf[40];
+                if (readNodeString((uint8_t)nid, UC2_OD::MAC_ADDRESS, macBuf, sizeof(macBuf)) &&
+                    strcasecmp(macBuf, wantMac) == 0) {
+                    target = nid;
+                }
+            }
+            if (target < 0) {
+                cJSON_AddStringToObject(resp, "status", "error");
+                cJSON_AddStringToObject(resp, "error", "MAC not found on bus");
+                cJSON_AddStringToObject(resp, "mac", wantMac);
+                return resp;
+            }
+        } else {
+            target = targetItem->valueint;
+            if (target < 1 || target > 127) {
+                cJSON_AddStringToObject(resp, "status", "error");
+                cJSON_AddStringToObject(resp, "error", "target out of range (1..127)");
+                return resp;
+            }
+            cJSON* expectMacItem = cJSON_GetObjectItem(doc, "expectMac");
+            if (expectMacItem && cJSON_IsString(expectMacItem)) {
+                char macBuf[40];
+                if (!readNodeString((uint8_t)target, UC2_OD::MAC_ADDRESS,
+                                    macBuf, sizeof(macBuf))) {
+                    cJSON_AddStringToObject(resp, "status", "error");
+                    cJSON_AddStringToObject(resp, "error", "could not read target MAC");
+                    cJSON_AddNumberToObject(resp, "target", target);
+                    return resp;
+                }
+                if (strcasecmp(macBuf, expectMacItem->valuestring) != 0) {
+                    cJSON_AddStringToObject(resp, "status", "error");
+                    cJSON_AddStringToObject(resp, "error", "MAC mismatch");
+                    cJSON_AddStringToObject(resp, "mac", macBuf);
+                    cJSON_AddNumberToObject(resp, "target", target);
+                    return resp;
+                }
+            }
+        }
+        bool ok = writeSDO_u8((uint8_t)target, UC2_OD::COMMANDED_NODE_ID, 0x00,
+                              (uint8_t)newId, /*timeoutMs*/ 1000);
+        cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
+        cJSON_AddNumberToObject(resp, "target", target);
+        cJSON_AddNumberToObject(resp, "newId",  newId);
+        if (haveByMac) cJSON_AddStringToObject(resp, "mac", byMacItem->valuestring);
         if (!ok) cJSON_AddStringToObject(resp, "error", "SDO write failed");
         return resp;
     }
@@ -1835,6 +2032,33 @@ void CANopenModule::syncRpdoToModules_slave()
             // Defer slightly so the SDO server can complete its response frame
             vTaskDelay(pdMS_TO_TICKS(200));
             ESP.restart();
+        }
+    }
+
+    // Commanded node-id (0x250A): master writes 1..127 to reassign this node's
+    // CAN id (provisioning, e.g. keyed by MAC). Persist to NVS and trigger a
+    // CANopen comm reset so the new id takes effect without a full reboot — same
+    // mechanism as the local /can_act nodeId change. The reset is deferred ~250 ms
+    // so the SDO write's response frame is sent on the *current* id before the
+    // stack re-inits on the new one (otherwise the master's writeSDO times out
+    // even when the assignment succeeded). vTaskDelay is avoided here so the 1 ms
+    // CO_tmr_task loop keeps servicing PDOs/SDO in the meantime.
+    {
+        static uint32_t pendingResetAtMs = 0;
+        uint8_t newId = OD_RAM.x250A_commanded_node_id;
+        if (pendingResetAtMs == 0 && newId != 0) {
+            if (newId <= 127 && newId != runtimeConfig.canNodeId) {
+                log_i("Commanded node-id %u via CANopen (was %u) — save + deferred reset",
+                      newId, runtimeConfig.canNodeId);
+                runtimeConfig.canNodeId = newId;
+                NVSConfig::saveConfig();
+                pendingResetAtMs = millis() + 250;
+            }
+            OD_RAM.x250A_commanded_node_id = 0;  // consume (also clears no-op/out-of-range)
+        }
+        if (pendingResetAtMs != 0 && (int32_t)(millis() - pendingResetAtMs) >= 0) {
+            pendingResetAtMs = 0;
+            s_requestedReset = CO_RESET_COMM;
         }
     }
 #endif

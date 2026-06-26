@@ -2436,20 +2436,33 @@ void CANopenModule::loop()
 #endif
 
 #ifdef MOTOR_CONTROLLER
-    // Dispatch pending hard-limit config/clear commands
-    for (int ax = 0; ax < 4; ax++) {
-        if (!s_hardlimitCmds[ax].pending) continue;
-        s_hardlimitCmds[ax].pending = false;
-        if (s_hardlimitCmds[ax].isCommand) {
-            log_i("Hard-limit CLEAR on axis %d via CAN", ax);
-            FocusMotor::clearHardLimitTriggered(ax);
-        }
-        if (s_hardlimitCmds[ax].isConfig) {
-            log_i("Hard-limit CONFIG ax %d: enabled=%d polarity=%d via CAN",
-                     ax, (int)s_hardlimitCmds[ax].enabled, (int)s_hardlimitCmds[ax].polarity);
-            FocusMotor::setHardLimit(ax,
-                s_hardlimitCmds[ax].enabled  != 0,
-                s_hardlimitCmds[ax].polarity != 0);
+    // Dispatch pending hard-limit config/clear commands.
+    // Map OD axis -> local physical axis (same as motor moves at #2357 and homing
+    // at #2419): the master addresses this slave by its routing sub-index, but the
+    // physical stepper AND its endstop always live at REMOTE_MOTOR_AXIS_ID, which is
+    // also the only axis checkHardLimits()/evaluateHardLimitForAxis() enforces.
+    // Without this remap, a slave whose routing sub-index != REMOTE_MOTOR_AXIS_ID
+    // (e.g. motor Y=2, motor Z=3) applied setHardLimit() to an idle OD axis while
+    // the real axis kept enforcing the endstop — so disabling hardlimits silently
+    // did nothing and the motor still stopped. Motor X (sub-index 1) worked only by
+    // coincidence. clearHardLimitTriggered must hit the same physical axis so a
+    // tripped/locked-out axis is actually released.
+    {
+        const int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        for (int ax = 0; ax < 4; ax++) {
+            if (!s_hardlimitCmds[ax].pending) continue;
+            s_hardlimitCmds[ax].pending = false;
+            if (s_hardlimitCmds[ax].isCommand) {
+                log_i("Hard-limit CLEAR OD-ax%d -> local-ax%d via CAN", ax, localAxis);
+                FocusMotor::clearHardLimitTriggered(localAxis);
+            }
+            if (s_hardlimitCmds[ax].isConfig) {
+                log_i("Hard-limit CONFIG OD-ax%d -> local-ax%d: enabled=%d polarity=%d via CAN",
+                         ax, localAxis, (int)s_hardlimitCmds[ax].enabled, (int)s_hardlimitCmds[ax].polarity);
+                FocusMotor::setHardLimit(localAxis,
+                    s_hardlimitCmds[ax].enabled  != 0,
+                    s_hardlimitCmds[ax].polarity != 0);
+            }
         }
     }
 #endif

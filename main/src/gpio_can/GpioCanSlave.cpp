@@ -169,6 +169,7 @@ namespace GpioCanSlave
         uint16_t raw = 0;
         if (pinConfig.GPIO_COLLISION_ADC >= 0) {
             raw = (uint16_t)analogRead(pinConfig.GPIO_COLLISION_ADC);
+            log_i("GpioCanSlave collision ADC raw=%u", (unsigned)raw);
             // EWMA: filtered = filtered + alpha * (raw - filtered)
             uint32_t alpha = pinConfig.GPIO_ADC_FILTER_ALPHA_X1024;
             int32_t  delta = (int32_t)raw - (int32_t)s_filtered;

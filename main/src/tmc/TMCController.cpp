@@ -136,15 +136,13 @@ namespace TMCController
         // get hold on the axis used - if necessary
         int axis = cJsonTool::getJsonInt(jsonDocument, "axis");
 
+        // extract qid
+        int qid = cJsonTool::getJsonInt(jsonDocument, "qid");
+
         // parse data from json and apply to settings
         TMCData p = readParamsFromPreferences();
         parseTMCDataFromJSON(jsonDocument, p);
 
-#ifdef I2C_MASTER
-        // send TMC data via I2C
-        i2c_master::sendTMCDataI2C(p, axis);
-        return 0;
-#else
         if (pinConfig.tmc_SW_RX == disabled)
         {
             return -1;
@@ -157,7 +155,7 @@ namespace TMCController
             log_i("Calibrating TMC2209 Stallguard");
             int speed = cJsonTool::getJsonInt(jsonDocument, "calibrate");
             callibrateStallguard(speed);
-            return 0;
+            return qid;
         }
 
         bool tmc_reset = (cJsonTool::getJsonInt(jsonDocument, "reset") == 1);
@@ -178,12 +176,12 @@ namespace TMCController
             preferences.end();
             TMCData defaults = readParamsFromPreferences();
             applyParamsToDriver(defaults, false);
-            return 0;
+            return qid;
         }
 
         applyParamsToDriver(p, true);
-        return 0;
-#endif
+        return qid;
+
     }
 
     cJSON *get(cJSON *jsonDocument)

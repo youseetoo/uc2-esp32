@@ -144,16 +144,6 @@ static bool s_joystickInverted[4] = {false, false, false, false};
 		// Apply offset calibration
 		value -= joystickOffsets[ax];
 
-		// Apply direction inversion if configured
-#ifdef MOTOR_CONTROLLER
-		if (FocusMotor::getData()[ax]->joystickDirectionInverted) {
-			value = -value;
-		}
-#else
-		if (ax < 4 && s_joystickInverted[ax]) {
-			value = -value;
-		}
-#endif
 		
 		// Check for inactivity - if value hasn't changed, check timeout
 		unsigned long currentTime = millis();
@@ -177,28 +167,38 @@ static bool s_joystickInverted[4] = {false, false, false, false};
 		if (std::abs(value) <= kOffset)
 		{
 			if (axisRunning[ax])
-				stopAxis(ax);
+			stopAxis(ax);
 			return;
 		}
-
+		
 		// Z⇄A mutual exclusion ────────────────────────────────────────────────
 		{
 			if (ax == Stepper::Z && axisRunning[Stepper::A])
-				stopAxis(Stepper::A);
+			stopAxis(Stepper::A);
 			if (ax == Stepper::A && axisRunning[Stepper::Z])
-				stopAxis(Stepper::Z);
+			stopAxis(Stepper::Z);
 		}
 		// speed computation ───────────────────────────────────────────────────
 		float speed = curve(value) * kMaxSpeed;
-
+		
 		// per-axis scaling
 		speed *= (ax == Stepper::Z )
-					 ? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
-					 : pinConfig.JOYSTICK_SPEED_MULTIPLIER;
-
+		? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
+		: pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+		
 		// Apply fine/coarse mode scaling from MotorGamePad
 		speed *= getJoystickScaleFactor();
-
+		
+		// Apply direction inversion if configured
+#ifdef MOTOR_CONTROLLER
+		if (FocusMotor::getData()[ax]->joystickDirectionInverted) {
+			speed = -speed;
+		}
+#else
+		if (ax < 4 && s_joystickInverted[ax]) {
+			speed = -speed;
+		}
+#endif
 		startAxis(ax, static_cast<int>(speed));
 
 		log_i("Motor %d: raw=%d  speed=%f  scale=%.1f  mode=%s", 

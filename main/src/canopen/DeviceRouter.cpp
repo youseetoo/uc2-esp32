@@ -1567,6 +1567,21 @@ cJSON* DeviceRouter::handleGpioAct(cJSON* doc) {
         cJSON_AddBoolToObject(resp, "calibrate", ok);
         allOk &= ok;
     }
+    // "mode": "auto"|"manual" or 0|1 — write OD 0x2335 (slave picks up the change)
+    cJSON* mode = cJSON_GetObjectItemCaseSensitive(doc, "mode");
+    if (mode) {
+        int mval = -1;
+        if (cJSON_IsString(mode) && mode->valuestring)
+            mval = (strcmp(mode->valuestring, "manual") == 0) ? 1 : 0;
+        else if (cJSON_IsNumber(mode))
+            mval = (mode->valueint != 0) ? 1 : 0;
+        if (mval >= 0) {
+            bool ok = CANopenModule::writeSDO_u8(node, UC2_OD::COLLISION_MODE, 0, (uint8_t)mval);
+            log_i("DR gpio_act node=%u mode=%d -> %s", node, mval, ok ? "ok" : "FAIL");
+            cJSON_AddNumberToObject(resp, "mode", mval);
+            allOk &= ok;
+        }
+    }
 
     cJSON_AddBoolToObject(resp, "ok", allOk);
     cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
@@ -1602,8 +1617,8 @@ cJSON* DeviceRouter::handleGpioGet(cJSON* doc) {
         return CANopenModule::readSDO(node, idx, sub, &out, sizeof(out), &got);
     };
 
-    uint16_t mean = 0, filtered = 0, raw = 0, reference = 0, threshold = 0;
-    uint8_t  sensitivity = 0, flags = 0;
+    uint16_t mean = 0, filtered = 0, raw = 0, reference = 0, threshold = 0, sigma = 0;
+    uint8_t  sensitivity = 0, flags = 0, mode = 0;
     bool ok = true;
     ok &= readU16(UC2_OD::COLLISION_MEAN,        0, mean);
     ok &= readU16(UC2_OD::ANALOG_INPUT_VALUE,    1, filtered);
@@ -1611,17 +1626,30 @@ cJSON* DeviceRouter::handleGpioGet(cJSON* doc) {
     ok &= readU16(UC2_OD::COLLISION_REFERENCE,   0, reference);
     ok &= readU16(UC2_OD::COLLISION_THRESHOLD,   0, threshold);
     ok &= readU8 (UC2_OD::COLLISION_SENSITIVITY, 0, sensitivity);
+    ok &= readU8 (UC2_OD::COLLISION_MODE,        0, mode);
+    ok &= readU16(UC2_OD::COLLISION_SIGMA,       0, sigma);
     ok &= readU8 (UC2_OD::DIGITAL_INPUT_STATE,   4, flags);
 
-    log_i("DR gpio_get node=%u ok=%d mean=%u ref=%u thr=%u sens=%u flags=0x%02X",
-          node, ok, (unsigned)mean, (unsigned)reference, (unsigned)threshold,
-          (unsigned)sensitivity, (unsigned)flags);
+    // In AUTO the reported "mean" IS the adaptive baseline; deviation is
+    // |filtered - baseline|. Compute it here for display (the slave's own
+    // s_deviation isn't mapped to the OD to keep the object dictionary lean).
+    uint16_t baseline  = mean;
+    uint16_t deviation = (filtered > baseline) ? (filtered - baseline)
+                                               : (baseline - filtered);
+
+    log_i("DR gpio_get node=%u ok=%d mode=%u mean=%u sigma=%u dev=%u ref=%u thr=%u flags=0x%02X",
+          node, ok, (unsigned)mode, (unsigned)mean, (unsigned)sigma,
+          (unsigned)deviation, (unsigned)reference, (unsigned)threshold, (unsigned)flags);
 
     cJSON* resp = cJSON_CreateObject();
     cJSON* g = cJSON_AddObjectToObject(resp, "gpio");
     if (g) {
         cJSON_AddNumberToObject(g, "node",        node);
+        cJSON_AddNumberToObject(g, "mode",        mode);
         cJSON_AddNumberToObject(g, "mean",        mean);
+        cJSON_AddNumberToObject(g, "baseline",    baseline);
+        cJSON_AddNumberToObject(g, "sigma",       sigma);
+        cJSON_AddNumberToObject(g, "deviation",   deviation);
         cJSON_AddNumberToObject(g, "filtered",    filtered);
         cJSON_AddNumberToObject(g, "raw",         raw);
         cJSON_AddNumberToObject(g, "reference",   reference);

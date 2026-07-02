@@ -42,13 +42,15 @@ namespace GpioCanSlave
     void loop();
 
     // Collision-detector configuration (persisted to NVS on change)
+    uint8_t  getMode();                  // 0 = AUTO (adaptive), 1 = MANUAL
+    void     setMode(uint8_t mode);
     uint16_t getReference();
     void     setReference(uint16_t value);
     uint16_t getThreshold();
     void     setThreshold(uint16_t value);
     uint8_t  getSensitivity();
     void     setSensitivity(uint8_t value);
-    // reference := current rolling mean; returns the new reference
+    // reference := current rolling mean; returns the new reference (MANUAL)
     uint16_t calibrate();
 
     // JSON entry-points, dispatched by DeviceRouter on the slave itself:

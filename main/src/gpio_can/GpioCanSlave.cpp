@@ -23,20 +23,37 @@ namespace GpioCanSlave
     static const char* NVS_KEY_THR  = "gpioCT";
     static const char* NVS_KEY_REF  = "gpioCR";
     static const char* NVS_KEY_SENS = "gpioCS";
+    static const char* NVS_KEY_MODE = "gpioCMode";
+
+    // Detection modes.
+    //   AUTO   — adaptive baseline + robust noise scale (σ) + z-score vote.
+    //            Parameter-free: tracks a slowly drifting background and trips
+    //            on a fast deflection that exceeds K·σ. This is the default.
+    //   MANUAL — fixed reference ± threshold with a consecutive-sample vote.
+    //            Deterministic; needs the reference calibrated to the idle level.
+    static constexpr uint8_t MODE_AUTO   = 0;
+    static constexpr uint8_t MODE_MANUAL = 1;
 
     // ── Collision-detector config (NVS-backed) ─────────────────────────
-    static uint16_t s_reference   = 0;   // idle baseline; 0 = auto-seed pending
-    static uint16_t s_threshold   = 0;   // deviation band (counts)
-    static uint8_t  s_sensitivity = 4;   // consecutive samples to trip/clear
+    static uint8_t  s_mode        = MODE_AUTO;
+    static uint16_t s_reference   = 0;   // MANUAL idle baseline; 0 = auto-seed pending
+    static uint16_t s_threshold   = 0;   // MANUAL deviation band (counts)
+    static uint8_t  s_sensitivity = 4;   // MANUAL consecutive samples to trip/clear
 
     // ── Detector state ─────────────────────────────────────────────────
     static uint16_t s_filtered    = 0;   // fast EWMA (detection input)
-    static uint32_t s_meanX16     = 0;   // slow rolling mean, 4 fractional bits
+    static uint32_t s_meanX16     = 0;   // MANUAL slow rolling mean, 4 fractional bits
     static bool     s_meanSeeded  = false;
     static bool     s_trip        = false;
     static uint8_t  s_outCount    = 0;   // consecutive out-of-band samples
     static uint8_t  s_inCount     = 0;   // consecutive in-band samples
-    static uint16_t s_bootSamples = 0;   // samples seen since boot (for auto-seed)
+    static uint16_t s_bootSamples = 0;   // samples seen since boot (warmup/auto-seed)
+    static uint16_t s_deviation   = 0;   // last |filtered - baseline| (both modes)
+
+    // ── AUTO-mode adaptive state (fixed-point ×16) ─────────────────────
+    static uint32_t s_baselineX16 = 0;   // slow adaptive baseline
+    static uint32_t s_sigmaX16     = 0;  // robust noise scale (EWMA of |dev|)
+    static bool     s_adaptSeeded  = false;
 
     // ── TPDO edge tracking ──────────────────────────────────────────────
     static uint8_t  s_lastDigByte0 = 0xFF;
@@ -45,21 +62,42 @@ namespace GpioCanSlave
     static uint8_t  s_lastOut2Cmd  = 0xFF;
     static uint32_t s_lastReadUs   = 0;
 
-    // 50 Hz sampling: with sensitivity 4 a collision is confirmed in ~80 ms,
-    // and single-sample ADC glitches (e.g. raw 55 or 29 in an otherwise
-    // ~585-count idle trace) never accumulate enough votes to trip.
+    // 50 Hz sampling.
     static constexpr uint32_t READ_PERIOD_US = 20000;
 
-    // Slow-mean smoothing: mean += (sample - mean) / 64 at 50 Hz → time
-    // constant ≈ 1.3 s. Slow enough to be a stable calibration source, fast
-    // enough that the polled value settles within a few seconds of touching
-    // the sensor mount.
-    static constexpr uint8_t MEAN_SHIFT = 6;
+    // ── AUTO-mode constants (locked by simulation on the real sensor trace;
+    //    all scale-free — expressed as multiples of the self-measured noise,
+    //    so no per-sensor calibration is ever required) ──────────────────
+    // Baseline EWMA: b += (x-b)>>9  → τ ≈ 512/50 ≈ 10 s. Tracks the slow
+    // background drift; far slower than a collision (which is frozen out).
+    static constexpr uint8_t  AUTO_BASE_SHIFT = 9;
+    // Sigma EWMA: σ += (|dev|-σ)>>6 → τ ≈ 64/50 ≈ 1.3 s. Adapts the trip band
+    // to the current noise (e.g. widens after a collision leaves the sensor
+    // in a noisier regime).
+    static constexpr uint8_t  AUTO_SIG_SHIFT  = 6;
+    static constexpr uint16_t AUTO_K_TRIP     = 10;  // trip when |dev| > K·σ
+    static constexpr uint16_t AUTO_K_CLEAR    = 5;   // clear hysteresis multiplier
+    static constexpr uint16_t AUTO_DEV_FLOOR  = 40;  // min trip band (counts), dead-quiet guard
+    static constexpr uint16_t AUTO_SIG_FLOOR  = 3;   // σ never collapses below this
+    static constexpr uint16_t AUTO_SIG_SEED   = 8;   // σ at boot before it settles
+    static constexpr uint8_t  AUTO_N_TRIP     = 3;   // consecutive out-of-band to trip (~60 ms)
+    static constexpr uint8_t  AUTO_N_CLEAR    = 8;   // consecutive in-band to clear (~160 ms)
+    static constexpr uint16_t AUTO_WARMUP     = 100; // ~2 s settle before trips are armed
 
-    // Auto-seed the reference after ~2 s of boot samples if never calibrated.
+    // MANUAL slow-mean smoothing: mean += (sample-mean)/64 (calibration source).
+    static constexpr uint8_t MEAN_SHIFT = 6;
+    // MANUAL auto-seed reference after ~2 s if never calibrated.
     static constexpr uint16_t BOOT_SEED_SAMPLES = 100;
 
-    static inline uint16_t meanValue() { return (uint16_t)(s_meanX16 >> 4); }
+    static inline uint16_t rollingMeanValue() { return (uint16_t)(s_meanX16 >> 4); }
+    static inline uint16_t baselineValue()    { return (uint16_t)(s_baselineX16 >> 4); }
+    static inline uint16_t sigmaValue()       { return (uint16_t)(s_sigmaX16 >> 4); }
+    // "mean" reported to the outside world: the value you'd calibrate against.
+    // In AUTO the adaptive baseline already IS that; in MANUAL it's the slow mean.
+    static inline uint16_t meanValue()
+    {
+        return (s_mode == MODE_AUTO) ? baselineValue() : rollingMeanValue();
+    }
 
     static inline bool canopenReady()
     {
@@ -130,6 +168,27 @@ namespace GpioCanSlave
         return m;
     }
 
+    uint8_t getMode() { return s_mode; }
+
+    void setMode(uint8_t mode)
+    {
+        mode = (mode == MODE_MANUAL) ? MODE_MANUAL : MODE_AUTO;
+        if (mode == s_mode) return;
+        s_mode = mode;
+        Preferences p;
+        if (p.begin(NVS_NS, false)) { p.putUChar(NVS_KEY_MODE, mode); p.end(); }
+#ifdef CAN_CONTROLLER_CANOPEN
+        OD_RAM.x2335_collision_mode = mode;
+#endif
+        // Re-seed the adaptive state so a mode flip starts clean rather than
+        // inheriting a stale baseline/σ from a previous AUTO session.
+        s_adaptSeeded = false;
+        s_trip = false;
+        s_outCount = s_inCount = 0;
+        s_bootSamples = 0;
+        log_i("GpioCanSlave mode -> %s", mode == MODE_AUTO ? "AUTO" : "MANUAL");
+    }
+
     static void enableTpdo2()
     {
 #ifdef CAN_CONTROLLER_CANOPEN
@@ -148,6 +207,7 @@ namespace GpioCanSlave
         {
             Preferences p;
             bool ok = p.begin(NVS_NS, true);
+            s_mode        = ok ? p.getUChar(NVS_KEY_MODE, MODE_AUTO) : MODE_AUTO;
             s_threshold   = ok ? p.getUShort(NVS_KEY_THR, pinConfig.GPIO_COLLISION_THRESHOLD_DEFAULT)
                                : pinConfig.GPIO_COLLISION_THRESHOLD_DEFAULT;
             s_reference   = ok ? p.getUShort(NVS_KEY_REF, 0) : 0;  // 0 = auto-seed
@@ -155,8 +215,10 @@ namespace GpioCanSlave
                                : pinConfig.GPIO_COLLISION_SENSITIVITY_DEFAULT;
             if (ok) p.end();
         }
+        if (s_mode != MODE_MANUAL) s_mode = MODE_AUTO;
         if (s_sensitivity < 1) s_sensitivity = 1;
-        log_i("GpioCanSlave collision cfg: reference=%u (0=auto-seed) threshold=%u sensitivity=%u",
+        log_i("GpioCanSlave collision cfg: mode=%s reference=%u (0=auto-seed) threshold=%u sensitivity=%u",
+              s_mode == MODE_AUTO ? "AUTO" : "MANUAL",
               (unsigned)s_reference, (unsigned)s_threshold, (unsigned)s_sensitivity);
 
         // E-stop input — momentary-to-GND with internal pull-up.
@@ -179,6 +241,8 @@ namespace GpioCanSlave
         OD_RAM.x2331_collision_threshold   = s_threshold;
         OD_RAM.x2332_collision_sensitivity = s_sensitivity;
         OD_RAM.x2333_collision_command     = 0;
+        OD_RAM.x2335_collision_mode        = s_mode;
+        OD_RAM.x2336_collision_sigma       = 0;
 #endif
 
         // Enable TPDO2 broadcasting. Must happen before canopenModule.setup()
@@ -228,20 +292,139 @@ namespace GpioCanSlave
         uint16_t odRef  = OD_RAM.x2330_collision_reference;
         uint16_t odThr  = OD_RAM.x2331_collision_threshold;
         uint8_t  odSens = OD_RAM.x2332_collision_sensitivity;
+        uint8_t  odMode = OD_RAM.x2335_collision_mode;
         if (odRef  != s_reference)   setReference(odRef);
         if (odThr  != s_threshold)   setThreshold(odThr);
         if (odSens != s_sensitivity) setSensitivity(odSens);
+        if (odMode != s_mode)        setMode(odMode);
 
         uint8_t cmd = OD_RAM.x2333_collision_command;
         if (cmd != 0) {
             OD_RAM.x2333_collision_command = 0;
-            if (cmd == 1) {
-                calibrate();
-            } else {
-                log_w("GpioCanSlave unknown collision command %u", (unsigned)cmd);
+            switch (cmd) {
+                case 1: calibrate();       break;  // reference := rolling mean (manual)
+                case 2: setMode(MODE_AUTO);   break;
+                case 3: setMode(MODE_MANUAL); break;
+                default:
+                    log_w("GpioCanSlave unknown collision command %u", (unsigned)cmd);
             }
         }
 #endif
+    }
+
+    // ── AUTO detection: adaptive baseline + robust σ + z-score vote ─────
+    // Trips when the fast-filtered signal deviates from the slowly-adapting
+    // baseline by more than K·σ for N consecutive samples. Baseline and σ are
+    // FROZEN whenever a deviation is being counted or a trip is active, so a
+    // collision can never be absorbed into the baseline. σ adapts to the
+    // current noise floor, widening the trip band automatically in noisier
+    // regimes. No user calibration — the trip band is a pure multiple of the
+    // sensor's own measured noise.
+    static void detectAuto()
+    {
+        uint16_t x = s_filtered;
+
+        if (!s_adaptSeeded) {
+            s_baselineX16 = ((uint32_t)x) << 4;
+            s_sigmaX16    = ((uint32_t)AUTO_SIG_SEED) << 4;
+            s_adaptSeeded = true;
+        }
+
+        uint16_t base = baselineValue();
+        uint16_t dev  = (x > base) ? (uint16_t)(x - base) : (uint16_t)(base - x);
+        s_deviation = dev;
+
+        uint16_t sigma     = sigmaValue();
+        uint32_t thrTrip   = (uint32_t)AUTO_K_TRIP  * sigma;
+        if (thrTrip  < AUTO_DEV_FLOOR)      thrTrip  = AUTO_DEV_FLOOR;
+        uint32_t thrClear  = (uint32_t)AUTO_K_CLEAR * sigma;
+        if (thrClear < (AUTO_DEV_FLOOR / 2)) thrClear = AUTO_DEV_FLOOR / 2;
+
+        bool warm      = s_bootSamples >= AUTO_WARMUP;
+        bool outOfBand = warm && (dev > thrTrip);
+
+        if (!s_trip) {
+            if (outOfBand) {
+                s_inCount = 0;
+                if (s_outCount < 0xFF) s_outCount++;
+                if (s_outCount >= AUTO_N_TRIP) {
+                    s_trip = true;
+                    log_i("GpioCanSlave AUTO COLLISION TRIP (filt=%u base=%u dev=%u thr=%u sigma=%u)",
+                          (unsigned)x, (unsigned)base, (unsigned)dev,
+                          (unsigned)thrTrip, (unsigned)sigma);
+                }
+            } else {
+                s_outCount = 0;
+                // Adapt baseline + σ only while genuinely quiet.
+                s_baselineX16 = (uint32_t)((int32_t)s_baselineX16 +
+                                (((int32_t)(x << 4) - (int32_t)s_baselineX16) >> AUTO_BASE_SHIFT));
+                s_sigmaX16 = (uint32_t)((int32_t)s_sigmaX16 +
+                             (((int32_t)(dev << 4) - (int32_t)s_sigmaX16) >> AUTO_SIG_SHIFT));
+                if (s_sigmaX16 < ((uint32_t)AUTO_SIG_FLOOR << 4))
+                    s_sigmaX16 = (uint32_t)AUTO_SIG_FLOOR << 4;
+            }
+        } else {
+            if (dev < thrClear) {
+                s_outCount = 0;
+                if (s_inCount < 0xFF) s_inCount++;
+                if (s_inCount >= AUTO_N_CLEAR) {
+                    s_trip = false;
+                    log_i("GpioCanSlave AUTO collision cleared (filt=%u base=%u dev=%u)",
+                          (unsigned)x, (unsigned)base, (unsigned)dev);
+                }
+            } else {
+                s_inCount = 0;
+            }
+        }
+    }
+
+    // ── MANUAL detection: fixed reference ± threshold, consecutive vote ──
+    static void detectManual()
+    {
+        uint16_t dev = (s_filtered > s_reference)
+                       ? (uint16_t)(s_filtered - s_reference)
+                       : (uint16_t)(s_reference - s_filtered);
+        s_deviation = dev;
+        bool outOfBand = (s_reference != 0) && (dev > s_threshold);
+
+        if (outOfBand) {
+            s_inCount = 0;
+            if (s_outCount < 0xFF) s_outCount++;
+            if (!s_trip && s_outCount >= s_sensitivity) {
+                s_trip = true;
+                log_i("GpioCanSlave MANUAL COLLISION TRIP (filt=%u ref=%u dev=%u thr=%u after %u)",
+                      (unsigned)s_filtered, (unsigned)s_reference,
+                      (unsigned)dev, (unsigned)s_threshold, (unsigned)s_outCount);
+            }
+        } else {
+            s_outCount = 0;
+            if (s_inCount < 0xFF) s_inCount++;
+            if (s_trip && s_inCount >= s_sensitivity) {
+                s_trip = false;
+                log_i("GpioCanSlave MANUAL collision cleared (filt=%u ref=%u)",
+                      (unsigned)s_filtered, (unsigned)s_reference);
+            }
+        }
+
+        // Slow rolling mean (calibration source) — frozen during any deviation.
+        if (!s_trip && s_outCount == 0) {
+            if (!s_meanSeeded) {
+                s_meanX16 = ((uint32_t)s_filtered) << 4;
+                s_meanSeeded = true;
+            } else {
+                int32_t mdelta = ((int32_t)s_filtered << 4) - (int32_t)s_meanX16;
+                s_meanX16 = (uint32_t)((int32_t)s_meanX16 + (mdelta >> MEAN_SHIFT));
+            }
+        }
+
+        // Auto-seed the reference once after boot if never calibrated.
+        if (s_reference == 0 && s_meanSeeded && s_bootSamples >= BOOT_SEED_SAMPLES) {
+            s_reference = rollingMeanValue();
+#ifdef CAN_CONTROLLER_CANOPEN
+            OD_RAM.x2330_collision_reference = s_reference;
+#endif
+            log_i("GpioCanSlave MANUAL auto-seeded reference = %u", (unsigned)s_reference);
+        }
     }
 
     void loop()
@@ -260,7 +443,7 @@ namespace GpioCanSlave
         // --- Digital inputs ------------------------------------------------
         uint8_t estop = readDigital(pinConfig.GPIO_ESTOP_PIN, /*activeLow=*/true);
 
-        // --- Collision detection (baseline-deviation vote) -----------------
+        // --- Collision detection -------------------------------------------
         uint16_t raw = 0;
         if (pinConfig.GPIO_COLLISION_ADC >= 0) {
             raw = (uint16_t)analogRead(pinConfig.GPIO_COLLISION_ADC);
@@ -271,60 +454,10 @@ namespace GpioCanSlave
             int32_t  delta = (int32_t)raw - (int32_t)s_filtered;
             s_filtered = (uint16_t)((int32_t)s_filtered + (delta * (int32_t)alpha) / 1024);
 
-            uint16_t dev = (s_filtered > s_reference)
-                           ? (uint16_t)(s_filtered - s_reference)
-                           : (uint16_t)(s_reference - s_filtered);
-            bool outOfBand = (s_reference != 0) && (dev > s_threshold);
-
-            // Consecutive-sample vote: `sensitivity` out-of-band samples trip,
-            // `sensitivity` in-band samples clear. A lone spike resets to 0 on
-            // the next sample and never confirms.
-            // log all values for now 
-            log_i("GpioCanSlave collision ADC read: raw=%u filt=%u ref=%u dev=%u thr=%u trip=%d outCount=%u inCount=%u",
-                  (unsigned)raw, (unsigned)s_filtered, (unsigned)s_reference,
-                  (unsigned)dev, (unsigned)s_threshold, s_trip ? 1 : 0,
-                  (unsigned)s_outCount, (unsigned)s_inCount);
-            if (outOfBand) {
-                s_inCount = 0;
-                if (s_outCount < 0xFF) s_outCount++;
-                if (!s_trip && s_outCount >= s_sensitivity) {
-                    s_trip = true;
-                    log_i("GpioCanSlave COLLISION TRIP (filt=%u ref=%u dev=%u thr=%u after %u samples)",
-                          (unsigned)s_filtered, (unsigned)s_reference,
-                          (unsigned)dev, (unsigned)s_threshold, (unsigned)s_outCount);
-                }
+            if (s_mode == MODE_AUTO) {
+                detectAuto();
             } else {
-                s_outCount = 0;
-                if (s_inCount < 0xFF) s_inCount++;
-                if (s_trip && s_inCount >= s_sensitivity) {
-                    s_trip = false;
-                    log_i("GpioCanSlave collision cleared (filt=%u ref=%u)",
-                          (unsigned)s_filtered, (unsigned)s_reference);
-                }
-            }
-
-            // Slow rolling mean — the calibration/diagnostic value. Freeze it
-            // while a deviation is being counted or a trip is active so a
-            // collision cannot drag the baseline towards itself.
-            if (!s_trip && s_outCount == 0) {
-                if (!s_meanSeeded) {
-                    s_meanX16 = ((uint32_t)s_filtered) << 4;
-                    s_meanSeeded = true;
-                } else {
-                    int32_t mdelta = ((int32_t)s_filtered << 4) - (int32_t)s_meanX16;
-                    s_meanX16 = (uint32_t)((int32_t)s_meanX16 + (mdelta >> MEAN_SHIFT));
-                }
-            }
-
-            // Auto-seed: if never calibrated (reference 0), take the rolling
-            // mean after the boot settling window. Not persisted — an explicit
-            // calibrate (or reference write) is what commits to NVS, so a
-            // sensor swap doesn't inherit a stale baseline forever.
-            if (s_reference == 0 && s_meanSeeded && s_bootSamples >= BOOT_SEED_SAMPLES) {
-                s_reference = meanValue();
-                OD_RAM.x2330_collision_reference = s_reference;
-                log_i("GpioCanSlave auto-seeded reference = %u (uncalibrated boot)",
-                      (unsigned)s_reference);
+                detectManual();
             }
         }
 
@@ -340,6 +473,8 @@ namespace GpioCanSlave
         OD_RAM.x2310_analog_input_value[0]  = s_filtered;
         OD_RAM.x2310_analog_input_value[1]  = raw;
         OD_RAM.x2334_collision_mean         = meanValue();
+        OD_RAM.x2335_collision_mode         = s_mode;
+        OD_RAM.x2336_collision_sigma        = (s_mode == MODE_AUTO) ? sigmaValue() : 0;
 
         // --- Drive remote outputs / apply config writes ---------------------
         updateOutputsFromOd();
@@ -354,6 +489,12 @@ namespace GpioCanSlave
             (estop != s_lastDigByte0) ||
             (flags != s_lastDigByte3);
 
+        // log any value for debugging
+        log_i("GpioCanSlave loop: estop=%u flags=0x%02X filt=%u raw=%u base=%u sigma=%u dev=%u trip=%d edge=%d",
+              (unsigned)estop, (unsigned)flags,
+              (unsigned)s_filtered, (unsigned)raw,
+              (unsigned)baselineValue(), (unsigned)sigmaValue(),
+              (unsigned)s_deviation, s_trip ? 1 : 0, edge ? 1 : 0);
         if (edge) {
             uint8_t prevEstop = s_lastDigByte0;
             uint8_t prevFlags = s_lastDigByte3;
@@ -373,12 +514,20 @@ namespace GpioCanSlave
             uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
             if ((nowMs - s_lastDiagMs) >= 5000) {
                 s_lastDiagMs = nowMs;
-                log_d("GpioCanSlave idle  estop=%u flags=0x%02X filt=%u raw=%u mean=%u ref=%u thr=%u sens=%u trip=%d",
-                      (unsigned)estop, (unsigned)flags,
-                      (unsigned)s_filtered, (unsigned)raw,
-                      (unsigned)meanValue(), (unsigned)s_reference,
-                      (unsigned)s_threshold, (unsigned)s_sensitivity,
-                      s_trip ? 1 : 0);
+                if (s_mode == MODE_AUTO) {
+                    log_d("GpioCanSlave idle AUTO  estop=%u flags=0x%02X filt=%u raw=%u base=%u sigma=%u dev=%u trip=%d",
+                          (unsigned)estop, (unsigned)flags,
+                          (unsigned)s_filtered, (unsigned)raw,
+                          (unsigned)baselineValue(), (unsigned)sigmaValue(),
+                          (unsigned)s_deviation, s_trip ? 1 : 0);
+                } else {
+                    log_d("GpioCanSlave idle MANUAL estop=%u flags=0x%02X filt=%u raw=%u mean=%u ref=%u thr=%u dev=%u sens=%u trip=%d",
+                          (unsigned)estop, (unsigned)flags,
+                          (unsigned)s_filtered, (unsigned)raw,
+                          (unsigned)rollingMeanValue(), (unsigned)s_reference,
+                          (unsigned)s_threshold, (unsigned)s_deviation,
+                          (unsigned)s_sensitivity, s_trip ? 1 : 0);
+                }
             }
         }
 #endif
@@ -397,6 +546,16 @@ namespace GpioCanSlave
     {
         int qid = cJsonTool::getJsonInt(doc, "qid");
 
+        // "mode": "auto"|"manual" or 0|1
+        cJSON* modeItem = cJSON_GetObjectItemCaseSensitive(doc, "mode");
+        if (modeItem) {
+            if (cJSON_IsString(modeItem) && modeItem->valuestring) {
+                setMode(strcmp(modeItem->valuestring, "manual") == 0 ? MODE_MANUAL : MODE_AUTO);
+            } else if (cJSON_IsNumber(modeItem)) {
+                setMode((uint8_t)modeItem->valueint);
+            }
+            log_i("GpioCanSlave act qid=%d mode=%s", qid, s_mode == MODE_AUTO ? "AUTO" : "MANUAL");
+        }
         cJSON* thr = cJSON_GetObjectItemCaseSensitive(doc, "threshold");
         if (thr && cJSON_IsNumber(thr)) {
             setThreshold((uint16_t)thr->valueint);
@@ -428,7 +587,11 @@ namespace GpioCanSlave
         if (!out) return nullptr;
         cJSON* g = cJSON_CreateObject();
         cJSON_AddItemToObject(out, "gpio", g);
+        cJsonTool::setJsonInt(g, "mode",        (int)s_mode);   // 0=auto, 1=manual
         cJsonTool::setJsonInt(g, "mean",        (int)meanValue());
+        cJsonTool::setJsonInt(g, "baseline",    (int)baselineValue());
+        cJsonTool::setJsonInt(g, "sigma",       (int)((s_mode == MODE_AUTO) ? sigmaValue() : 0));
+        cJsonTool::setJsonInt(g, "deviation",   (int)s_deviation);
         cJsonTool::setJsonInt(g, "filtered",    (int)s_filtered);
         cJsonTool::setJsonInt(g, "reference",   (int)s_reference);
         cJsonTool::setJsonInt(g, "threshold",   (int)s_threshold);

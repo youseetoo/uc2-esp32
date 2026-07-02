@@ -270,6 +270,8 @@ typedef struct {
     OD_obj_var_t    o_2332_collision_sensitivity;
     OD_obj_var_t    o_2333_collision_command;
     OD_obj_var_t    o_2334_collision_mean;
+    OD_obj_var_t    o_2335_collision_mode;
+    OD_obj_var_t    o_2336_collision_sigma;
     /* UC2 encoder (0x2340) */
     OD_obj_array_t  o_2340_encoder_position;
     /* UC2 galvo (0x2600-0x260F) */
@@ -700,6 +702,16 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_R | ODA_MB,
         .dataLength = 2
     },
+    .o_2335_collision_mode = {
+        .dataOrig = &OD_RAM.x2335_collision_mode,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 1
+    },
+    .o_2336_collision_sigma = {
+        .dataOrig = &OD_RAM.x2336_collision_sigma,
+        .attribute = ODA_SDO_R | ODA_MB,
+        .dataLength = 2
+    },
     /* 0x2340 — Encoder position (4 x int32) */
     .o_2340_encoder_position = _ARR4_I32(x2340_encoder_position, ODA_SDO_RW | ODA_TPDO),
     /* -----------------------------------------------------------------------
@@ -956,6 +968,8 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2332, 0x01, ODT_VAR, &ODObjs.o_2332_collision_sensitivity,      NULL},
     {0x2333, 0x01, ODT_VAR, &ODObjs.o_2333_collision_command,          NULL},
     {0x2334, 0x01, ODT_VAR, &ODObjs.o_2334_collision_mean,             NULL},
+    {0x2335, 0x01, ODT_VAR, &ODObjs.o_2335_collision_mode,             NULL},
+    {0x2336, 0x01, ODT_VAR, &ODObjs.o_2336_collision_sigma,            NULL},
     /* UC2 encoder */
     {0x2340, 0x05, ODT_ARR, &ODObjs.o_2340_encoder_position,           NULL},
     /* UC2 system — MUST stay sorted before 0x2600 (CANopenNode OD_find is binary search) */

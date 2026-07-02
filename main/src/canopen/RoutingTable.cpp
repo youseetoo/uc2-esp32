@@ -294,7 +294,7 @@ void RoutingTable::set(RouteEntry::Type t, uint8_t logicalId,
         table[count] = { t, logicalId, w, nodeId, subAxis };
         count++;
     } else {
-        ESP_LOGE(TAG, "Routing table full (%d entries)", MAX_ROUTES);
+        log_e("RoutingTable overflow: cannot add type=%d id=%d", int(t), int(logicalId));
     }
 }
 
@@ -345,14 +345,15 @@ cJSON* RoutingTable::toJson() {
 // logAll() — boot diagnostic dump
 // ============================================================================
 void RoutingTable::logAll() {
-    ESP_LOGI(TAG, "Routing table (%d entries):", count);
+    log_i("Routing table dump (%d entries):", count);
     for (uint8_t i = 0; i < count; i++) {
         const RouteEntry& e = table[i];
         if (e.where == RouteEntry::REMOTE) {
-            ESP_LOGI(TAG, "  %-6s %d -> REMOTE node %d axis %d",
-                     typeToStr(e.type), e.logicalId, e.nodeId, e.subAxis);
+            log_i("  %-6s %d -> %s (node 0x%02X subAxis %d)",
+                     typeToStr(e.type), e.logicalId, whereToStr(e.where),
+                     e.nodeId, e.subAxis);
         } else {
-            ESP_LOGI(TAG, "  %-6s %d -> %s",
+            log_i("  %-6s %d -> %s",
                      typeToStr(e.type), e.logicalId, whereToStr(e.where));
         }
     }

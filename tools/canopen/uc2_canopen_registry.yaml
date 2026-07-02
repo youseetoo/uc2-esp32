@@ -737,7 +737,26 @@ modules:
         sub_indices: 0
         default: 0
         unit: "ADC counts"
-        description: "Slow rolling mean of the sensor (poll via SDO; never broadcast)."
+        description: "Rolling mean (MANUAL) or adaptive baseline (AUTO); poll via SDO, never broadcast."
+        sdo_only: true
+
+      - index: 0x2335
+        name: collision_mode
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: "Detection mode: 0=AUTO (adaptive baseline + robust sigma z-score, parameter-free), 1=MANUAL (fixed reference +/- threshold). Persisted in NVS (gpioCMode)."
+        sdo_only: true
+
+      - index: 0x2336
+        name: collision_sigma
+        type: U16
+        access: ro
+        sub_indices: 0
+        default: 0
+        unit: "ADC counts"
+        description: "AUTO robust noise scale (EWMA of |deviation|). Trip band = max(K*sigma, floor). Read-only telemetry."
         sdo_only: true
 
   # ==========================================================================

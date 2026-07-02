@@ -108,6 +108,8 @@ constexpr uint16_t COLLISION_THRESHOLD                      = 0x2331;
 constexpr uint16_t COLLISION_SENSITIVITY                    = 0x2332;
 constexpr uint16_t COLLISION_COMMAND                        = 0x2333;
 constexpr uint16_t COLLISION_MEAN                           = 0x2334;
+constexpr uint16_t COLLISION_MODE                           = 0x2335;
+constexpr uint16_t COLLISION_SIGMA                          = 0x2336;
 
 // ─── ENCODER (base 0x2340) ───
 // Quadrature or magnetic (AS5600) encoder feedback

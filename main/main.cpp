@@ -830,10 +830,12 @@ extern "C" void app_main(void)
 	setupApp();
 
 	// print heap just before launching the main loop for the first time
-	char buffer[64];
-	snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
-	SerialProcess::safePrintln(buffer);
-
+	if(0){
+		char buffer[64];
+		snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
+		SerialProcess::safePrintln(buffer);
+	}
+	
 	// Run main loop on Core 1, let motor tasks use Core 0 for separation
 	xTaskCreatePinnedToCore(&looper, "loop", pinConfig.MAIN_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, NULL, 1);
 	// xTaskCreate(&looper, "loop", 8128, NULL, 5, NULL);

@@ -158,11 +158,13 @@ typedef struct {
     // analog_io
     uint16_t x2310_analog_input_value[8];
     // collision detector (GPIO slave, SDO-only — see GpioCanSlave.cpp)
-    uint16_t x2330_collision_reference;    // idle baseline (ADC counts)
-    uint16_t x2331_collision_threshold;    // allowed deviation band (ADC counts)
-    uint8_t  x2332_collision_sensitivity;  // consecutive out-of-band samples to trip
-    uint8_t  x2333_collision_command;      // 1 = calibrate (reference := rolling mean)
-    uint16_t x2334_collision_mean;         // slow rolling mean, read-only
+    uint16_t x2330_collision_reference;    // MANUAL idle baseline (ADC counts)
+    uint16_t x2331_collision_threshold;    // MANUAL allowed deviation band (ADC counts)
+    uint8_t  x2332_collision_sensitivity;  // MANUAL consecutive out-of-band samples to trip
+    uint8_t  x2333_collision_command;      // 1=calibrate, 2=set AUTO mode, 3=set MANUAL mode
+    uint16_t x2334_collision_mean;         // rolling mean / adaptive baseline, read-only
+    uint8_t  x2335_collision_mode;         // 0=AUTO (adaptive), 1=MANUAL
+    uint16_t x2336_collision_sigma;        // AUTO robust noise scale (ADC counts), read-only
     // encoder
     int32_t  x2340_encoder_position[4];
     // system

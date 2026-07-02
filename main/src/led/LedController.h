@@ -118,7 +118,7 @@ namespace LedController
     void fillHalvesRingSegments(const char *region, uint8_t r, uint8_t g, uint8_t b);
     void drawRings(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
     void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b);
-    void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b);
+    void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b, bool clearBeforeDraw);
     void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
     bool parseLedCommand(cJSON *root, LedCommand &cmd);
     void execLedCommand(const LedCommand &cmd);

@@ -539,7 +539,7 @@ namespace LedController
 	// 9c) ILLUMINATION RING SEGMENTS: Handle ring segments (left/right/top/bottom)
 	//     for the UC2 illumination board
 	// ------------------------------------------------
-	void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b)
+	void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b, bool clearBeforeDraw)
 	{
 
 		// Get ring parameters
@@ -555,7 +555,8 @@ namespace LedController
 		}
 
 		// Clear all LEDs first
-		matrix->clear();
+		if(clearBeforeDraw)
+			matrix->clear();
 
 		// Calculate segment within the ring (relative to ring start)
 		uint16_t relative_start = 0;
@@ -598,22 +599,12 @@ namespace LedController
 #ifndef HUB75
 		matrix->clear();
 
-		float cx = (pinConfig.MATRIX_W - 1) / 2.0;
-		float cy = (pinConfig.MATRIX_H - 1) / 2.0;
-		for (int y = 0; y < pinConfig.MATRIX_H; y++)
-		{
-			for (int x = 0; x < pinConfig.MATRIX_W; x++)
-			{
-				float dx = x - cx;
-				float dy = y - cy;
-				float dist = sqrtf(dx * dx + dy * dy);
-				if (dist <= radius)
-				{
-					setPixelXY(x, y, rVal, gVal, bVal);
-				}
-			}
+		// draw LEDs from 0 to ring segment count for a filled circle
+		for (int iRing = 0; iRing < radius; iRing++) {
+			// For each ring, draw the full segment (all LEDs in that ring)
+			drawIlluminationRingSegment(iRing, "None", rVal, gVal, bVal, false);
 		}
-
+		
 		ledShow();
 		isOn = (rVal || gVal || bVal);
 #endif
@@ -1031,7 +1022,7 @@ namespace LedController
 				strcmp(pinConfig.pindefName, "UC2_canopen_slave_led")==0) &&
 				strlen(cmd.region) > 0)
 			{
-				drawIlluminationRingSegment(cmd.radius, cmd.region, cmd.r, cmd.g, cmd.b);
+				drawIlluminationRingSegment(cmd.radius, cmd.region, cmd.r, cmd.g, cmd.b, false);
 			}
 			else
 			{

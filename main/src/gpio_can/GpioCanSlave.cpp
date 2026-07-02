@@ -279,6 +279,11 @@ namespace GpioCanSlave
             // Consecutive-sample vote: `sensitivity` out-of-band samples trip,
             // `sensitivity` in-band samples clear. A lone spike resets to 0 on
             // the next sample and never confirms.
+            // log all values for now 
+            log_i("GpioCanSlave collision ADC read: raw=%u filt=%u ref=%u dev=%u thr=%u trip=%d outCount=%u inCount=%u",
+                  (unsigned)raw, (unsigned)s_filtered, (unsigned)s_reference,
+                  (unsigned)dev, (unsigned)s_threshold, s_trip ? 1 : 0,
+                  (unsigned)s_outCount, (unsigned)s_inCount);
             if (outOfBand) {
                 s_inCount = 0;
                 if (s_outCount < 0xFF) s_outCount++;

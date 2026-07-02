@@ -1469,11 +1469,6 @@ cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
     // returns an int (the qid), not cJSON — wrap it into a small response so
     // callers still see {"qid":..., "ok":true} like the routed paths.
 #ifdef DIGITAL_OUT_CONTROLLER
-#pragma message "DEBUG_PROBE: DIGITAL_OUT_CONTROLLER IS defined here"
-#else
-#pragma message "DEBUG_PROBE: DIGITAL_OUT_CONTROLLER is NOT defined here"
-#endif
-#ifdef DIGITAL_OUT_CONTROLLER
     if (runtimeConfig.digitalOut) {
         log_i("DR digitalout_act LOCAL  id=%d val=%d", id, val);
         int retQid = DigitalOutController::act(doc);
@@ -1524,12 +1519,8 @@ static uint8_t resolveGpioNode(cJSON* doc) {
 
 cJSON* DeviceRouter::handleGpioAct(cJSON* doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
-#pragma message "DEBUG_PROBE: GPIO_CAN_SLAVE_CONTROLLER IS defined here"
-#else
-#pragma message "DEBUG_PROBE: GPIO_CAN_SLAVE_CONTROLLER is NOT defined here"
-#endif
-#ifdef GPIO_CAN_SLAVE_CONTROLLER
     // GPIO slave: apply locally.
+    log_i("DR gpio_act LOCAL  doc=%p", doc);
     return GpioCanSlave::act(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
     if (!runtimeConfig.isMaster()) return nullptr;

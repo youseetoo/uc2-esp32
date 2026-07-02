@@ -676,6 +676,71 @@ modules:
         sdo_only: true
 
   # ==========================================================================
+  # COLLISION — 0x2330-0x233F
+  # ==========================================================================
+  collision:
+    base_index: 0x2330
+    description: >
+      Baseline-deviation collision detector on the GPIO slave. The sensor has
+      an idle value; a collision manifests as N consecutive samples deviating
+      more than `collision_threshold` counts (up OR down) from
+      `collision_reference`. Single-sample spikes are rejected by the
+      consecutive-sample vote. Config is SDO-written by the master; the trip
+      EVENT rides TPDO2 (flags byte 0x2300:04 bit 0). Sensor values are never
+      broadcast — the rolling mean is polled via SDO on demand.
+    json_endpoint: "/gpio_act, /gpio_get"
+    cpp_class: "GpioCanSlave"
+    entries:
+
+      - index: 0x2330
+        name: collision_reference
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 0
+        unit: "ADC counts"
+        description: "Idle baseline. 0 = auto-seed from rolling mean at boot. Persisted in NVS (gpioCollRef)."
+        sdo_only: true
+
+      - index: 0x2331
+        name: collision_threshold
+        type: U16
+        access: rw
+        sub_indices: 0
+        default: 150
+        unit: "ADC counts"
+        description: "Allowed deviation band around the reference. Persisted in NVS (gpioCollThr)."
+        sdo_only: true
+
+      - index: 0x2332
+        name: collision_sensitivity
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 4
+        description: "Consecutive out-of-band samples required to trip (and in-band to clear). Persisted in NVS (gpioCollSens)."
+        sdo_only: true
+
+      - index: 0x2333
+        name: collision_command
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: "1 = calibrate: reference := current rolling mean, persisted. Slave clears after execution."
+        sdo_only: true
+
+      - index: 0x2334
+        name: collision_mean
+        type: U16
+        access: ro
+        sub_indices: 0
+        default: 0
+        unit: "ADC counts"
+        description: "Slow rolling mean of the sensor (poll via SDO; never broadcast)."
+        sdo_only: true
+
+  # ==========================================================================
   # ENCODER — 0x2340-0x234F
   # ==========================================================================
   encoder:

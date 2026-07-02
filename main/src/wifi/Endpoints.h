@@ -64,6 +64,10 @@ __attribute__ ((unused)) static const  char* digitalout_act_endpoint = "/digital
 __attribute__ ((unused)) static const  char* digitalout_get_endpoint = "/digitalout_get";
 __attribute__ ((unused)) static const  char* digitalin_act_endpoint = "/digitalin_act";
 __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitalin_get";
+// GPIO-slave collision detector — local on the GPIO slave, SDO-forwarded on
+// the master (see DeviceRouter::handleGpioAct/Get).
+__attribute__ ((unused)) static const  char* gpio_act_endpoint = "/gpio_act";
+__attribute__ ((unused)) static const  char* gpio_get_endpoint = "/gpio_get";
 #ifdef LED_CONTROLLER
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";

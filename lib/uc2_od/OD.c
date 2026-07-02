@@ -102,13 +102,17 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
     /* TPDO2 (0x1801): GPIO slave input push.
      * Default COB-ID has bit 31 set (invalid) so motor/LED/galvo slaves never
      * emit. The GPIO slave clears bit 31 at boot (see GpioCanSlave::setup)
-     * which activates the mapping below: 4x u8 digital input + 2x u16 analog. */
+     * which activates the mapping below: 4x u8 digital input + 2x u16 analog.
+     * eventTimer = 0: NO periodic transmission — sensor values must not be
+     * broadcast on the bus. TPDO2 fires only on CO_TPDOsendRequest (digital
+     * edge / collision trip). Node liveness comes from the CANopen heartbeat
+     * (0x1017, 1000 ms) which the master's CAN_ctrl_task already accepts. */
     .x1801_TPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x06,
         .COB_IDUsedByTPDO = 0xC0000280,
         .transmissionType = 0xFE,
         .inhibitTime = 0x0064,           /* 10 ms min gap */
-        .eventTimer  = 0x03E8,           /* 1000 ms heartbeat fallback */
+        .eventTimer  = 0x0000,           /* no periodic push — edges only */
         .SYNCStartValue = 0x00
     },
     .x1802_TPDOCommunicationParameter = {
@@ -260,6 +264,12 @@ typedef struct {
     OD_obj_array_t  o_2301_digital_output_command;
     /* UC2 analog I/O (0x2310) */
     OD_obj_array_t  o_2310_analog_input_value;
+    /* UC2 collision detector (0x2330-0x2334) */
+    OD_obj_var_t    o_2330_collision_reference;
+    OD_obj_var_t    o_2331_collision_threshold;
+    OD_obj_var_t    o_2332_collision_sensitivity;
+    OD_obj_var_t    o_2333_collision_command;
+    OD_obj_var_t    o_2334_collision_mean;
     /* UC2 encoder (0x2340) */
     OD_obj_array_t  o_2340_encoder_position;
     /* UC2 galvo (0x2600-0x260F) */
@@ -659,6 +669,37 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     .o_2301_digital_output_command = _ARR8_U8(x2301_digital_output_command, ODA_SDO_RW | ODA_RPDO),
     /* 0x2310 — Analog inputs (8 x uint16) */
     .o_2310_analog_input_value = _ARR8_U16(x2310_analog_input_value, ODA_SDO_R | ODA_TPDO),
+    /* -----------------------------------------------------------------------
+     * UC2 collision detector (0x2330-0x2334) — GPIO slave only, SDO-only.
+     * Values are never mapped to PDOs: config is written by the master via
+     * SDO, the rolling mean is polled via SDO. Only the trip EVENT rides
+     * TPDO2 (flags byte of 0x2300 sub 4).
+     * ----------------------------------------------------------------------- */
+    .o_2330_collision_reference = {
+        .dataOrig = &OD_RAM.x2330_collision_reference,
+        .attribute = ODA_SDO_RW | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2331_collision_threshold = {
+        .dataOrig = &OD_RAM.x2331_collision_threshold,
+        .attribute = ODA_SDO_RW | ODA_MB,
+        .dataLength = 2
+    },
+    .o_2332_collision_sensitivity = {
+        .dataOrig = &OD_RAM.x2332_collision_sensitivity,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 1
+    },
+    .o_2333_collision_command = {
+        .dataOrig = &OD_RAM.x2333_collision_command,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 1
+    },
+    .o_2334_collision_mean = {
+        .dataOrig = &OD_RAM.x2334_collision_mean,
+        .attribute = ODA_SDO_R | ODA_MB,
+        .dataLength = 2
+    },
     /* 0x2340 — Encoder position (4 x int32) */
     .o_2340_encoder_position = _ARR4_I32(x2340_encoder_position, ODA_SDO_RW | ODA_TPDO),
     /* -----------------------------------------------------------------------
@@ -909,6 +950,12 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2301, 0x09, ODT_ARR, &ODObjs.o_2301_digital_output_command,     NULL},
     /* UC2 analog I/O */
     {0x2310, 0x09, ODT_ARR, &ODObjs.o_2310_analog_input_value,         NULL},
+    /* UC2 collision detector (GPIO slave) */
+    {0x2330, 0x01, ODT_VAR, &ODObjs.o_2330_collision_reference,        NULL},
+    {0x2331, 0x01, ODT_VAR, &ODObjs.o_2331_collision_threshold,        NULL},
+    {0x2332, 0x01, ODT_VAR, &ODObjs.o_2332_collision_sensitivity,      NULL},
+    {0x2333, 0x01, ODT_VAR, &ODObjs.o_2333_collision_command,          NULL},
+    {0x2334, 0x01, ODT_VAR, &ODObjs.o_2334_collision_mean,             NULL},
     /* UC2 encoder */
     {0x2340, 0x05, ODT_ARR, &ODObjs.o_2340_encoder_position,           NULL},
     /* UC2 system — MUST stay sorted before 0x2600 (CANopenNode OD_find is binary search) */

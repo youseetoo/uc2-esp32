@@ -201,15 +201,19 @@ static void forwardGpioSlaveTpdo(uint8_t nodeId, const uint8_t* d)
     if (!root) return;
     cJSON* gpio = cJSON_AddObjectToObject(root, "gpio");
     if (gpio) {
+        // "event":1 marks this as an asynchronously PUSHED edge (TPDO2), as
+        // opposed to a /gpio_get response which carries the same "gpio" key.
+        // UC2-REST uses this to fire collision callbacks only on real events.
+        cJSON_AddNumberToObject(gpio, "event",    1);
         cJSON_AddNumberToObject(gpio, "node",     nodeId);
-        cJSON_AddNumberToObject(gpio, "estop",    estop);
+        cJSON_AddNumberToObject(gpio, "estop",    estopFlag ? 1 : 0);
+        cJSON_AddNumberToObject(gpio, "estopPin", estop);
         cJSON_AddNumberToObject(gpio, "in2",      in2);
         cJSON_AddNumberToObject(gpio, "in3",      in3);
         cJSON_AddNumberToObject(gpio, "flags",    flags);
-        cJSON_AddNumberToObject(gpio, "trip",     trip      ? 1 : 0);
-        cJSON_AddNumberToObject(gpio, "estopBit", estopFlag ? 1 : 0);
-        cJSON_AddNumberToObject(gpio, "adc",      adcF);
-        cJSON_AddNumberToObject(gpio, "adcRaw",   adcR);
+        cJSON_AddNumberToObject(gpio, "trip",     trip ? 1 : 0);
+        cJSON_AddNumberToObject(gpio, "filtered", adcF);
+        cJSON_AddNumberToObject(gpio, "raw",      adcR);
         char* s = cJSON_PrintUnformatted(root);
         if (s) {
             SerialProcess::safeSendJsonString(s);

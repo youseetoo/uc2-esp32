@@ -36,6 +36,15 @@ public:
     static cJSON* handleDigitalOutGet(cJSON* doc);
     static cJSON* handleDigitalInGet(cJSON* doc);
 
+    // GPIO-slave collision detector. On the GPIO slave itself these call
+    // GpioCanSlave locally; on a CAN master they forward to the remote node
+    // (doc "node" key, default pinConfig.MASTER_GPIO_SLAVE_NODE_ID) via SDO:
+    //   act: threshold->0x2331, sensitivity->0x2332, reference->0x2330,
+    //        calibrate->0x2333=1
+    //   get: reads 0x2334/0x2310/0x2330-0x2332/0x2300:04 into {"gpio":{...}}
+    static cJSON* handleGpioAct(cJSON* doc);
+    static cJSON* handleGpioGet(cJSON* doc);
+
     // State act — currently only routes "restart" to a remote node when
     // "nodeId" is provided in the JSON; other state ops are handled locally.
     static cJSON* handleStateAct(cJSON* doc);

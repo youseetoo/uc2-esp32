@@ -556,16 +556,18 @@ struct PinConfig
      //   - reports E-stop + collision-threshold trips to the master,
      //   - exposes two remote-controllable digital outputs (GPIO1/GPIO4) to
      //     the master via SDO writes on x2301_digital_output_command.
-     // GPIO_COLLISION_ADC is read on every loop; when its filtered value
-     // crosses GPIO_COLLISION_THRESHOLD_DEFAULT the slave sets bit 0 of
-     // x2300_digital_input_state[3] (the "flags" byte of TPDO2) and pushes
-     // a TPDO frame so the master can react.
-     // The threshold is overridable at runtime via NVS preference key
-     // "gpioCollThr" — see GpioCanSlave::setThreshold().
+     // GPIO_COLLISION_ADC is sampled at 50 Hz. The sensor has an idle value
+     // (the "reference", NVS key gpioCollRef, auto-seeded at boot when
+     // uncalibrated); a collision = GPIO_COLLISION_SENSITIVITY_DEFAULT
+     // consecutive samples deviating more than the threshold (NVS
+     // gpioCollThr) from the reference — rising OR falling. Single-sample
+     // ADC spikes never accumulate enough votes and are ignored. On trip the
+     // slave sets bit 0 of x2300_digital_input_state[3] (TPDO2 flags byte)
+     // and pushes ONE TPDO frame; sensor values are never broadcast.
      int8_t   GPIO_ESTOP_PIN              = disabled;     // digital in (E-stop button)
      int8_t   GPIO_COLLISION_ADC          = disabled;     // analog in (resistive collision sensor)
-     uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT = 2048;    // raw ADC counts
-     uint16_t GPIO_COLLISION_HYSTERESIS   = 100;          // raw ADC counts
+     uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT = 150;     // deviation band, ADC counts
+     uint8_t  GPIO_COLLISION_SENSITIVITY_DEFAULT = 4;     // consecutive samples to trip/clear
      uint16_t GPIO_ADC_FILTER_ALPHA_X1024 = 128;          // EWMA alpha * 1024 (~0.125)
      // Two slots driven by master via x2301_digital_output_command sub 1/2.
      // Reuses pinConfig.DIGITAL_OUT_1 and DIGITAL_OUT_2 already in this struct.

@@ -100,6 +100,15 @@ constexpr uint16_t ANALOG_INPUT_VALUE                       = 0x2310;
 constexpr uint16_t ANALOG_INPUT_FILTERED                    = 0x2311;
 constexpr uint16_t DAC_OUTPUT_VALUE                         = 0x2320;
 
+// ─── COLLISION (base 0x2330) ───
+// Baseline-deviation collision detector on the GPIO slave (SDO-only)
+
+constexpr uint16_t COLLISION_REFERENCE                      = 0x2330;
+constexpr uint16_t COLLISION_THRESHOLD                      = 0x2331;
+constexpr uint16_t COLLISION_SENSITIVITY                    = 0x2332;
+constexpr uint16_t COLLISION_COMMAND                        = 0x2333;
+constexpr uint16_t COLLISION_MEAN                           = 0x2334;
+
 // ─── ENCODER (base 0x2340) ───
 // Quadrature or magnetic (AS5600) encoder feedback
 

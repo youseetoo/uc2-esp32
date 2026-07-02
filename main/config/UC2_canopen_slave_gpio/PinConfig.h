@@ -72,14 +72,20 @@ struct UC2_canopen_slave_gpio : PinConfig
     // GpioCanSlave owns the E-stop input (configures pull-up itself) so we
     // can publish its state on x2300 sub 1 without relying on
     // DigitalInController's PULLDOWN default.
-    int8_t GPIO_ESTOP_PIN = GPIO_NUM_3; // D2
+    int8_t GPIO_ESTOP_PIN = disabled; // D2
 
     // ── Collision sensor (resistance → voltage divider on ADC) ───────────
     // ADC1_CH8 on ESP32-S3 (= GPIO9). 12-bit reads.
-    int8_t   GPIO_COLLISION_ADC              = GPIO_NUM_9; // D10
-    uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT = 2200;       // raw ADC counts
-    uint16_t GPIO_COLLISION_HYSTERESIS        = 150;        // raw ADC counts
-    uint16_t GPIO_ADC_FILTER_ALPHA_X1024      = 128;        // EWMA alpha * 1024
+    // The sensor idles around ~585 counts; collisions push the value up OR
+    // down (bench trace: dips to ~150-350 for ~2 s, bumps to ~650-690).
+    // Detection is baseline-relative: reference (auto-seeded/calibrated) ±
+    // threshold, confirmed over GPIO_COLLISION_SENSITIVITY_DEFAULT
+    // consecutive samples so single-sample spikes (e.g. 55 or 29) are
+    // rejected. All three values are runtime-tunable via /gpio_act.
+    int8_t   GPIO_COLLISION_ADC                 = GPIO_NUM_9; // D10
+    uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT   = 150;        // deviation band, ADC counts
+    uint8_t  GPIO_COLLISION_SENSITIVITY_DEFAULT = 4;          // consecutive samples
+    uint16_t GPIO_ADC_FILTER_ALPHA_X1024        = 128;        // EWMA alpha * 1024
 
     // analogin_PIN_0 is wired to the same pin so the standard
     // AnalogInController::get path still works for diagnostics.

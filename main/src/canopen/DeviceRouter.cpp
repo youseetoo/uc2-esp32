@@ -50,6 +50,9 @@
 #ifdef DIGITAL_IN_CONTROLLER
 #include "../digitalin/DigitalInController.h"
 #endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+#include "../gpio_can/GpioCanSlave.h"
+#endif
 #include "cJsonTool.h"
 
 #include "../state/State.h"
@@ -110,6 +113,12 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
         return handleDigitalOutGet(doc);
     if (strcmp(task, digitalin_get_endpoint) == 0)
         return handleDigitalInGet(doc);
+
+    // GPIO-slave collision detector (local on GPIO slave, SDO on master)
+    if (strcmp(task, gpio_act_endpoint) == 0)
+        return handleGpioAct(doc);
+    if (strcmp(task, gpio_get_endpoint) == 0)
+        return handleGpioGet(doc);
 
     // State act — handles "restart" with optional remote nodeId targeting.
     // state_get stays in SerialProcess for now (local State::get also serves
@@ -1460,6 +1469,11 @@ cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
     // returns an int (the qid), not cJSON — wrap it into a small response so
     // callers still see {"qid":..., "ok":true} like the routed paths.
 #ifdef DIGITAL_OUT_CONTROLLER
+#pragma message "DEBUG_PROBE: DIGITAL_OUT_CONTROLLER IS defined here"
+#else
+#pragma message "DEBUG_PROBE: DIGITAL_OUT_CONTROLLER is NOT defined here"
+#endif
+#ifdef DIGITAL_OUT_CONTROLLER
     if (runtimeConfig.digitalOut) {
         log_i("DR digitalout_act LOCAL  id=%d val=%d", id, val);
         int retQid = DigitalOutController::act(doc);
@@ -1490,6 +1504,149 @@ cJSON* DeviceRouter::handleDigitalOutGet(cJSON* doc) {
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "error", "digitalout_get not available locally");
     return resp;
+}
+
+// ============================================================================
+// GPIO-slave collision detector — /gpio_act, /gpio_get
+// ----------------------------------------------------------------------------
+// On the GPIO slave itself: dispatch to GpioCanSlave locally.
+// On a CAN master: forward via SDO to the remote node. The node comes from
+// the JSON "node" key, falling back to pinConfig.MASTER_GPIO_SLAVE_NODE_ID so
+// downstream tooling doesn't need to know the node id.
+// ============================================================================
+static uint8_t resolveGpioNode(cJSON* doc) {
+    cJSON* it = doc ? cJSON_GetObjectItemCaseSensitive(doc, "node") : nullptr;
+    if (it && cJSON_IsNumber(it)) return (uint8_t)it->valueint;
+    if (pinConfig.MASTER_GPIO_SLAVE_NODE_ID > 0)
+        return (uint8_t)pinConfig.MASTER_GPIO_SLAVE_NODE_ID;
+    return 0;
+}
+
+cJSON* DeviceRouter::handleGpioAct(cJSON* doc) {
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+#pragma message "DEBUG_PROBE: GPIO_CAN_SLAVE_CONTROLLER IS defined here"
+#else
+#pragma message "DEBUG_PROBE: GPIO_CAN_SLAVE_CONTROLLER is NOT defined here"
+#endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+    // GPIO slave: apply locally.
+    return GpioCanSlave::act(doc);
+#elif defined(CAN_CONTROLLER_CANOPEN)
+    if (!runtimeConfig.isMaster()) return nullptr;
+    uint8_t node = resolveGpioNode(doc);
+    if (node == 0) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "error",
+            "no GPIO slave node configured (MASTER_GPIO_SLAVE_NODE_ID) and no \"node\" given");
+        return resp;
+    }
+
+    bool allOk = true;
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "node", node);
+
+    cJSON* thr = cJSON_GetObjectItemCaseSensitive(doc, "threshold");
+    if (thr && cJSON_IsNumber(thr)) {
+        bool ok = CANopenModule::writeSDO_u16(node, UC2_OD::COLLISION_THRESHOLD, 0,
+                                              (uint16_t)thr->valueint);
+        log_i("DR gpio_act node=%u threshold=%d -> %s", node, thr->valueint, ok ? "ok" : "FAIL");
+        cJSON_AddNumberToObject(resp, "threshold", thr->valueint);
+        allOk &= ok;
+    }
+    cJSON* sens = cJSON_GetObjectItemCaseSensitive(doc, "sensitivity");
+    if (sens && cJSON_IsNumber(sens)) {
+        bool ok = CANopenModule::writeSDO_u8(node, UC2_OD::COLLISION_SENSITIVITY, 0,
+                                             (uint8_t)sens->valueint);
+        log_i("DR gpio_act node=%u sensitivity=%d -> %s", node, sens->valueint, ok ? "ok" : "FAIL");
+        cJSON_AddNumberToObject(resp, "sensitivity", sens->valueint);
+        allOk &= ok;
+    }
+    cJSON* ref = cJSON_GetObjectItemCaseSensitive(doc, "reference");
+    if (ref && cJSON_IsNumber(ref)) {
+        bool ok = CANopenModule::writeSDO_u16(node, UC2_OD::COLLISION_REFERENCE, 0,
+                                              (uint16_t)ref->valueint);
+        log_i("DR gpio_act node=%u reference=%d -> %s", node, ref->valueint, ok ? "ok" : "FAIL");
+        cJSON_AddNumberToObject(resp, "reference", ref->valueint);
+        allOk &= ok;
+    }
+    cJSON* cal = cJSON_GetObjectItemCaseSensitive(doc, "calibrate");
+    if (cal && cJSON_IsNumber(cal) && cal->valueint != 0) {
+        bool ok = CANopenModule::writeSDO_u8(node, UC2_OD::COLLISION_COMMAND, 0, 1);
+        log_i("DR gpio_act node=%u calibrate -> %s", node, ok ? "ok" : "FAIL");
+        cJSON_AddBoolToObject(resp, "calibrate", ok);
+        allOk &= ok;
+    }
+
+    cJSON_AddBoolToObject(resp, "ok", allOk);
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (qidItem && cJSON_IsNumber(qidItem))
+        cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
+    return resp;
+#else
+    return nullptr;
+#endif
+}
+
+cJSON* DeviceRouter::handleGpioGet(cJSON* doc) {
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+    return GpioCanSlave::get(doc);
+#elif defined(CAN_CONTROLLER_CANOPEN)
+    if (!runtimeConfig.isMaster()) return nullptr;
+    uint8_t node = resolveGpioNode(doc);
+    if (node == 0) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "error",
+            "no GPIO slave node configured (MASTER_GPIO_SLAVE_NODE_ID) and no \"node\" given");
+        return resp;
+    }
+
+    auto readU16 = [&](uint16_t idx, uint8_t sub, uint16_t& out) -> bool {
+        uint8_t buf[2] = {0, 0}; size_t got = 0;
+        if (!CANopenModule::readSDO(node, idx, sub, buf, sizeof(buf), &got)) return false;
+        out = (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
+        return true;
+    };
+    auto readU8 = [&](uint16_t idx, uint8_t sub, uint8_t& out) -> bool {
+        size_t got = 0;
+        return CANopenModule::readSDO(node, idx, sub, &out, sizeof(out), &got);
+    };
+
+    uint16_t mean = 0, filtered = 0, raw = 0, reference = 0, threshold = 0;
+    uint8_t  sensitivity = 0, flags = 0;
+    bool ok = true;
+    ok &= readU16(UC2_OD::COLLISION_MEAN,        0, mean);
+    ok &= readU16(UC2_OD::ANALOG_INPUT_VALUE,    1, filtered);
+    ok &= readU16(UC2_OD::ANALOG_INPUT_VALUE,    2, raw);
+    ok &= readU16(UC2_OD::COLLISION_REFERENCE,   0, reference);
+    ok &= readU16(UC2_OD::COLLISION_THRESHOLD,   0, threshold);
+    ok &= readU8 (UC2_OD::COLLISION_SENSITIVITY, 0, sensitivity);
+    ok &= readU8 (UC2_OD::DIGITAL_INPUT_STATE,   4, flags);
+
+    log_i("DR gpio_get node=%u ok=%d mean=%u ref=%u thr=%u sens=%u flags=0x%02X",
+          node, ok, (unsigned)mean, (unsigned)reference, (unsigned)threshold,
+          (unsigned)sensitivity, (unsigned)flags);
+
+    cJSON* resp = cJSON_CreateObject();
+    cJSON* g = cJSON_AddObjectToObject(resp, "gpio");
+    if (g) {
+        cJSON_AddNumberToObject(g, "node",        node);
+        cJSON_AddNumberToObject(g, "mean",        mean);
+        cJSON_AddNumberToObject(g, "filtered",    filtered);
+        cJSON_AddNumberToObject(g, "raw",         raw);
+        cJSON_AddNumberToObject(g, "reference",   reference);
+        cJSON_AddNumberToObject(g, "threshold",   threshold);
+        cJSON_AddNumberToObject(g, "sensitivity", sensitivity);
+        cJSON_AddNumberToObject(g, "trip",        (flags & 0x01) ? 1 : 0);
+        cJSON_AddNumberToObject(g, "estop",       (flags & 0x02) ? 1 : 0);
+    }
+    cJSON_AddBoolToObject(resp, "ok", ok);
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (qidItem && cJSON_IsNumber(qidItem))
+        cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
+    return resp;
+#else
+    return nullptr;
+#endif
 }
 
 cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {

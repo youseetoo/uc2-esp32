@@ -68,6 +68,11 @@ struct UC2_canopen_master : PinConfig
     // changes get forwarded to serial as {"gpio":{...}} JSON lines.
     int8_t MASTER_GPIO_SLAVE_NODE_ID = CAN_ID_GPIO_0; // = 60 by default
 
+    // ── PTZ keyboard bridge (UC2_canopen_bridge_ptz) ─────────────────────
+    // Same TPDO2 sniffer, PTZ payload: key events (presets, AUX, iris) are
+    // forwarded to serial as {"ptz":{...}} JSON lines for ImSwitch.
+    int8_t MASTER_PTZ_NODE_ID = 61; // = UC2_canopen_bridge_ptz CAN_ID_CURRENT
+
     // TEMPERATURE : TMP102AIDRLR
     // I2C  ADDR:
     // GND = 0x48

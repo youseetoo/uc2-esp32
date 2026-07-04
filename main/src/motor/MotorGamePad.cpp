@@ -13,7 +13,7 @@ namespace MotorGamePad
 {
 constexpr int   kOffset         = 1025;      // joystick dead-zone
 constexpr float kAlpha          = 0.40f;     // linear range boundary
-constexpr float kMaxSpeed       = 2000.0f;   // base max speed
+constexpr float kMaxSpeed       = 5000.0f;   // base max speed
 constexpr float kOneOver32768f  = 1.0f / 32768.0f;
 
 // State variables for fine/coarse mode and button edge detection

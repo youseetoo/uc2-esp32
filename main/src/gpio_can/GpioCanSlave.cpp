@@ -1,5 +1,5 @@
 #include "GpioCanSlave.h"
-
+#include "PinConfig.h"
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
 
 #include <Arduino.h>
@@ -23,7 +23,7 @@ namespace GpioCanSlave
     static const char* NVS_KEY_THR  = "gpioCT";
     static const char* NVS_KEY_REF  = "gpioCR";
     static const char* NVS_KEY_SENS = "gpioCS";
-    static const char* NVS_KEY_MODE = "gpioCMode";
+    static const char* NVS_KEY_MODE = "gpioCMx  ";
 
     // Detection modes.
     //   AUTO   — adaptive baseline + robust noise scale (σ) + z-score vote.
@@ -75,12 +75,12 @@ namespace GpioCanSlave
     // to the current noise (e.g. widens after a collision leaves the sensor
     // in a noisier regime).
     static constexpr uint8_t  AUTO_SIG_SHIFT  = 6;
-    static constexpr uint16_t AUTO_K_TRIP     = 10;  // trip when |dev| > K·σ
+    static constexpr uint16_t AUTO_K_TRIP     = 6;  // trip when |dev| > K·σ
     static constexpr uint16_t AUTO_K_CLEAR    = 5;   // clear hysteresis multiplier
-    static constexpr uint16_t AUTO_DEV_FLOOR  = 40;  // min trip band (counts), dead-quiet guard
+    static constexpr uint16_t AUTO_DEV_FLOOR  = 30;  // min trip band (counts), dead-quiet guard
     static constexpr uint16_t AUTO_SIG_FLOOR  = 3;   // σ never collapses below this
     static constexpr uint16_t AUTO_SIG_SEED   = 8;   // σ at boot before it settles
-    static constexpr uint8_t  AUTO_N_TRIP     = 3;   // consecutive out-of-band to trip (~60 ms)
+    static constexpr uint8_t  AUTO_N_TRIP     = 2;   // consecutive out-of-band to trip (~60 ms)
     static constexpr uint8_t  AUTO_N_CLEAR    = 8;   // consecutive in-band to clear (~160 ms)
     static constexpr uint16_t AUTO_WARMUP     = 100; // ~2 s settle before trips are armed
 
@@ -330,7 +330,7 @@ namespace GpioCanSlave
             s_adaptSeeded = true;
         }
 
-        uint16_t base = baselineValue();
+        uint16_t base = baselineValue(); // slow adaptive baseline
         uint16_t dev  = (x > base) ? (uint16_t)(x - base) : (uint16_t)(base - x);
         s_deviation = dev;
 
@@ -447,7 +447,7 @@ namespace GpioCanSlave
         uint16_t raw = 0;
         if (pinConfig.GPIO_COLLISION_ADC >= 0) {
             raw = (uint16_t)analogRead(pinConfig.GPIO_COLLISION_ADC);
-            s_bootSamples++;
+            s_bootSamples++; // TODO: Will there be a flip-over after some time (will warm stay "warm?")
 
             // Fast EWMA for detection: filtered += alpha * (raw - filtered)
             uint32_t alpha = pinConfig.GPIO_ADC_FILTER_ALPHA_X1024;

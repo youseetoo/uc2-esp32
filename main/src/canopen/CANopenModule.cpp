@@ -223,6 +223,59 @@ static void forwardGpioSlaveTpdo(uint8_t nodeId, const uint8_t* d)
     cJSON_Delete(root);
 }
 
+// ============================================================================
+// PTZ-bridge TPDO2 forwarder (master only)
+// ----------------------------------------------------------------------------
+// The PTZ keyboard bridge (UC2_canopen_bridge_ptz) pushes discrete key events
+// on its TPDO2 using the shared x1A01 mapping. Payload (see PtzRouter.cpp,
+// emitEventTpdo):
+//   d[0] = event type (1=preset call, 2=preset set, 3=preset clear,
+//          4=aux on, 5=aux off, 6=iris open, 7=iris close,
+//          8=camera on/off key, 9=autoscan key)
+//   d[1] = argument (preset / aux number)
+//   d[2] = sequence number — dedup key across the 1 s TPDO heartbeat
+//   d[3] = 0x80 magic marker ("this is a PTZ event, not GPIO state")
+// Downstream (UC2-REST / ImSwitch) maps these freely, e.g. preset call 1 →
+// snap image, AUX 1 on/off → laser, iris open/close → LED brightness.
+// ============================================================================
+static void forwardPtzSlaveTpdo(uint8_t nodeId, const uint8_t* d)
+{
+    if (!d || d[3] != 0x80) return; // not a PTZ event payload
+
+    static uint8_t s_lastSeq = 0xFF;
+    if (d[2] == s_lastSeq) return;  // TPDO heartbeat repeat, not a new event
+    s_lastSeq = d[2];
+
+    static const char* kTypeNames[] = {
+        "none", "preset_call", "preset_set", "preset_clear",
+        "aux_on", "aux_off", "iris_open", "iris_close",
+        "camera_onoff", "autoscan"
+    };
+    const uint8_t type = d[0];
+    const char* name = (type < sizeof(kTypeNames) / sizeof(kTypeNames[0]))
+                           ? kTypeNames[type] : "unknown";
+    log_i("ptz bridge EVENT  node=%u type=%s arg=%u seq=%u",
+          nodeId, name, (unsigned)d[1], (unsigned)d[2]);
+
+    cJSON* root = cJSON_CreateObject();
+    if (!root) return;
+    cJSON* ptz = cJSON_AddObjectToObject(root, "ptz");
+    if (ptz) {
+        cJSON_AddNumberToObject(ptz, "event", 1);
+        cJSON_AddNumberToObject(ptz, "node",  nodeId);
+        cJSON_AddNumberToObject(ptz, "type",  type);
+        cJSON_AddStringToObject(ptz, "name",  name);
+        cJSON_AddNumberToObject(ptz, "arg",   d[1]);
+        cJSON_AddNumberToObject(ptz, "seq",   d[2]);
+        char* s = cJSON_PrintUnformatted(root);
+        if (s) {
+            SerialProcess::safeSendJsonString(s);
+            free(s);
+        }
+    }
+    cJSON_Delete(root);
+}
+
 // Remote-set helper for GPIO1 / GPIO4 on the slave. id ∈ {1, 2} maps to the
 // slave's DIGITAL_OUT_1 / DIGITAL_OUT_2. Pass val = -1 to fire a brief pulse
 // (the slave treats 0xFF as the pulse sentinel).
@@ -327,6 +380,18 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                         rx_message.data_length_code >= 8)
                     {
                         forwardGpioSlaveTpdo(src, rx_message.data);
+                    }
+
+                    // ── PTZ-bridge TPDO2 sniffer (master only) ───────────
+                    // Same transport as the GPIO slave, PTZ key-event
+                    // payload (0x80 marker + seq dedup inside).
+                    if (runtimeConfig.isMaster() &&
+                        pinConfig.MASTER_PTZ_NODE_ID > 0 &&
+                        fc == 0x280 &&
+                        src == (uint8_t)pinConfig.MASTER_PTZ_NODE_ID &&
+                        rx_message.data_length_code >= 8)
+                    {
+                        forwardPtzSlaveTpdo(src, rx_message.data);
                     }
                 }
                 xQueueSend(CAN_RX_queue, (void*)&rx_message, 10);

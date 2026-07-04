@@ -53,6 +53,9 @@
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
 #include "../gpio_can/GpioCanSlave.h"
 #endif
+#ifdef PTZ_KEYBOARD_CONTROLLER
+#include "../ptz/PtzKeyboard.h"
+#endif
 #include "cJsonTool.h"
 
 #include "../state/State.h"
@@ -119,6 +122,14 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
         return handleGpioAct(doc);
     if (strcmp(task, gpio_get_endpoint) == 0)
         return handleGpioGet(doc);
+
+#ifdef PTZ_KEYBOARD_CONTROLLER
+    // PTZ keyboard bridge — debug/config, local only (USB serial on the node)
+    if (strcmp(task, ptz_act_endpoint) == 0)
+        return PtzKeyboard::act(doc);
+    if (strcmp(task, ptz_get_endpoint) == 0)
+        return PtzKeyboard::get(doc);
+#endif
 
     // State act — handles "restart" with optional remote nodeId targeting.
     // state_get stays in SerialProcess for now (local State::get also serves

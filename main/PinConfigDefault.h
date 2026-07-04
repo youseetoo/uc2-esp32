@@ -577,4 +577,10 @@ struct PinConfig
      // GPIO slave wired. When non-disabled, the master sniffs the slave's
      // TPDO2 (COB-ID 0x280 + nodeId) in CAN_ctrl_task and emits serial JSON.
      int8_t   MASTER_GPIO_SLAVE_NODE_ID   = disabled;
+
+     // Master-side: CAN node-id of the PTZ keyboard bridge. Same TPDO2 sniff
+     // mechanism as the GPIO slave, but the payload carries key events
+     // (preset call/set/clear, AUX on/off, iris) which the master emits as
+     // {"ptz":...} serial JSON for UC2-REST / ImSwitch.
+     int8_t   MASTER_PTZ_NODE_ID          = disabled;
 };

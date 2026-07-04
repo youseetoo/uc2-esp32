@@ -68,6 +68,10 @@ __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitali
 // the master (see DeviceRouter::handleGpioAct/Get).
 __attribute__ ((unused)) static const  char* gpio_act_endpoint = "/gpio_act";
 __attribute__ ((unused)) static const  char* gpio_get_endpoint = "/gpio_get";
+// PTZ keyboard bridge — local-only debug/config on the PTZ bridge node
+// (see PtzKeyboard::act/get).
+__attribute__ ((unused)) static const  char* ptz_act_endpoint = "/ptz_act";
+__attribute__ ((unused)) static const  char* ptz_get_endpoint = "/ptz_get";
 #ifdef LED_CONTROLLER
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";

@@ -39,7 +39,7 @@ namespace {
 // identical to the master's BT path.
 constexpr int   kOffset        = 1025;
 constexpr float kAlpha         = 0.40f;
-constexpr float kMaxSpeed      = 2000.0f;
+constexpr float kMaxSpeed      = 5000.0f;
 constexpr float kOneOver32768f = 1.0f / 32768.0f;
 
 // Speed delta below which we don't re-issue a motor SDO burst. Keeps the

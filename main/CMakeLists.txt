@@ -85,6 +85,9 @@ if(DIGITAL_OUT_CONTROLLER EQUAL 1)
 endif()
 if(GPIO_CAN_SLAVE_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/gpio_can/GpioCanSlave.cpp)
+    # Generic raw-I2C passthrough — gated internally by I2C_BRIDGE_CONTROLLER
+    # (PinConfig.h). Compiles to empty on gpio builds that don't enable it.
+    list(APPEND srcs ${mainsrc}src/i2c/I2cBridge.cpp)
 endif()
 if(PTZ_KEYBOARD_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/ptz/PelcoParser.cpp)

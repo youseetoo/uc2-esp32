@@ -167,6 +167,14 @@ typedef struct {
     uint16_t x2336_collision_sigma;        // AUTO robust noise scale (ADC counts), read-only
     // encoder
     int32_t  x2340_encoder_position[4];
+    // generic I2C passthrough (GPIO slave — see I2cBridge / GpioCanSlave)
+    // 0x2350 command buffer, layout: [addr7, flags, rd_len, wr_len, delay_ms, wr...]
+    //   flags bit0 = send STOP after write (1) vs repeated-START before read (0)
+    uint8_t  x2350_i2c_command[40];
+    uint8_t  x2351_i2c_trigger;      // master writes !=0 → execute the pending command
+    uint8_t  x2352_i2c_status;       // 0 idle/ready, 1 busy, 2 done-ok, 0x80|err = failure
+    uint8_t  x2353_i2c_response[40]; // bytes read back (read-only for the master)
+    uint8_t  x2354_i2c_resp_len;     // number of valid bytes in x2353
     // system
     char     x2500_firmware_version_string[32];
     char     x2501_board_name[32];

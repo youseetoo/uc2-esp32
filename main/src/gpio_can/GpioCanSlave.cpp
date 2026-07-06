@@ -7,6 +7,9 @@
 #include "PinConfig.h"
 #include "../digitalin/DigitalInController.h"
 #include "../digitalout/DigitalOutController.h"
+#ifdef I2C_BRIDGE_CONTROLLER
+#include "../i2c/I2cBridge.h"
+#endif
 #include "cJsonTool.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
@@ -248,6 +251,11 @@ namespace GpioCanSlave
         // Enable TPDO2 broadcasting. Must happen before canopenModule.setup()
         // builds its TPDO descriptors (see main.cpp ordering).
         enableTpdo2();
+
+#ifdef I2C_BRIDGE_CONTROLLER
+        // Generic I2C passthrough (Wire.begin on pinConfig.I2C_SDA/SCL).
+        I2cBridge::setup();
+#endif
     }
 
     static uint8_t readDigital(int8_t pin, bool activeLow)
@@ -431,6 +439,12 @@ namespace GpioCanSlave
     {
 #ifdef CAN_CONTROLLER_CANOPEN
         if (!canopenReady()) return;
+
+#ifdef I2C_BRIDGE_CONTROLLER
+        // Service the I2C passthrough state machine on every iteration (not
+        // throttled) so device conversion delays resolve promptly.
+        I2cBridge::loop();
+#endif
 
         uint32_t nowUs = (uint32_t)esp_timer_get_time();
         if ((nowUs - s_lastReadUs) < READ_PERIOD_US) {

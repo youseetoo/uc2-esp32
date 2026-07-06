@@ -68,6 +68,11 @@ __attribute__ ((unused)) static const  char* digitalin_get_endpoint = "/digitali
 // the master (see DeviceRouter::handleGpioAct/Get).
 __attribute__ ((unused)) static const  char* gpio_act_endpoint = "/gpio_act";
 __attribute__ ((unused)) static const  char* gpio_get_endpoint = "/gpio_get";
+// Generic I2C passthrough on the GPIO slave — one transaction per /i2c_act
+// (write / optional delay / read); /i2c_get re-reads the last response.
+// See DeviceRouter::handleI2cAct/Get and I2cBridge.
+__attribute__ ((unused)) static const  char* i2c_act_endpoint = "/i2c_act";
+__attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
 // PTZ keyboard bridge — local-only debug/config on the PTZ bridge node
 // (see PtzKeyboard::act/get).
 __attribute__ ((unused)) static const  char* ptz_act_endpoint = "/ptz_act";

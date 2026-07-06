@@ -118,6 +118,17 @@ constexpr uint16_t ENCODER_POSITION                         = 0x2340;
 constexpr uint16_t ENCODER_VELOCITY                         = 0x2341;
 constexpr uint16_t ENCODER_ZERO_OFFSET                      = 0x2342;
 
+// ─── I2C PASSTHROUGH (base 0x2350) ───
+// Generic raw-I2C bridge on the GPIO slave. Command/response buffers are
+// octet strings; register maps live entirely on the Python (UC2-REST) side.
+// Mirrored in tools/canopen/uc2_canopen_registry.yaml (group i2c_bridge).
+
+constexpr uint16_t I2C_COMMAND                              = 0x2350;
+constexpr uint16_t I2C_TRIGGER                              = 0x2351;
+constexpr uint16_t I2C_STATUS                               = 0x2352;
+constexpr uint16_t I2C_RESPONSE                             = 0x2353;
+constexpr uint16_t I2C_RESP_LEN                             = 0x2354;
+
 // ─── JOYSTICK (base 0x2400) ───
 // Analog joystick or PSX gamepad bridge
 

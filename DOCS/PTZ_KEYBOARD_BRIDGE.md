@@ -106,6 +106,41 @@ functions than the CAN payload ever needs.
 The master must know the bridge's node-id: `MASTER_PTZ_NODE_ID = 61`
 (set in `UC2_canopen_master/PinConfig.h`; `disabled` elsewhere).
 
+## Host-side mapping (UC2-REST → ImSwitch)
+
+The key events are turned into microscope functions on the host, using the
+same callback plumbing as the `gpio` collision events:
+
+* **UC2-REST** `uc2rest/ptz.py` (`ESP32.ptz`) registers a serial callback on
+  the `"ptz"` key and fires `register_event_callback` on each `event==1`
+  frame. Config/diagnostics: `set_debug()`, `set_address()`,
+  `set_motion_timeout()`, `get_status()`.
+* **ImSwitch** `UC2ConfigManager` exposes `registerPtzCallback` /
+  `getPtzStatus` / `setPtzDebug`; `UC2ConfigController` holds a
+  **user-editable binding table** `eventKey → {action, params}` and a fixed
+  registry of named actions (`snap`, `objective`, `laser`/`led`, `none`).
+
+`eventKey` is `"name:arg"` (e.g. `preset_call:1`, `aux_on:4`) or a plain
+`"name"` for arg-less keys (`iris_open`); dispatch tries the exact key first,
+then the arg-agnostic name. Default bindings: `preset_call:1`→objective 0,
+`preset_call:2`→objective 1, `iris_open`→snap.
+
+Reconfigure at runtime via the ImSwitch API (all `@APIExport`):
+
+```python
+listPtzActions()                                  # available actions + help
+getPtzMapping()                                   # current bindings
+setPtzAction("aux_on:4", "led", {"name":"LED","value":512,"active":True})
+setPtzAction("aux_off:4","led", {"name":"LED","value":0,"active":False})
+clearPtzAction("iris_open")
+triggerPtzEvent("preset_call", 1)                 # test a binding w/o hardware
+```
+
+Every event (mapped or not) emits `sigPtzEvent` with
+`{event, eventKey, binding, result}` — ready for a WebSocket handler / binding
+UI, and useful to discover a key's `eventKey` by pressing it and watching the
+signal.
+
 ## Build / flash
 
 ```bash

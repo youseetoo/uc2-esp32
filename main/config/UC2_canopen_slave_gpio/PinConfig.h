@@ -18,6 +18,7 @@
 #define CAN_BUS_ENABLED
 #define CAN_CONTROLLER_CANOPEN
 #define GPIO_CAN_SLAVE_CONTROLLER  // wires GpioCanSlave::setup/loop into main.cpp
+#define I2C_BRIDGE_CONTROLLER      // generic raw-I2C passthrough (0x2350-0x2354)
 
 struct UC2_canopen_slave_gpio : PinConfig
 {
@@ -102,9 +103,15 @@ struct UC2_canopen_slave_gpio : PinConfig
     int8_t ROUTE_LED       = 2;
     int8_t ROUTE_GALVO     = 2;
 
-    // ── I2C disabled ─────────────────────────────────────────────────────
-    int8_t I2C_SCL = disabled; // would be D4
-    int8_t I2C_SDA = disabled; // would be D5
+    // ── I2C — generic sensor passthrough bus (I2cBridge) ─────────────────
+    // The board's silkscreen I2C connector (GPIO3/GPIO2) is used for CAN on
+    // this build, so the sensor I2C bus lives on the spare D4/D5 pins.
+    //   D4 GPIO_NUM_5 → SDA
+    //   D5 GPIO_NUM_6 → SCL
+    // Attach any I2C sensor (SHT45 @0x44, TSL2591 @0x29, …) here; the register
+    // map is driven entirely from Python over CAN (see I2cBridge / /i2c_act).
+    int8_t I2C_SDA = GPIO_NUM_5; // D4
+    int8_t I2C_SCL = GPIO_NUM_6; // D5
 };
 
 const UC2_canopen_slave_gpio pinConfig;

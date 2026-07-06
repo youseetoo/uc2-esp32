@@ -1484,16 +1484,32 @@ cJSON* CANopenModule::act(cJSON* doc)
                 seen[nSeen++] = { gpioNid, UC2::RouteEntry::DIN };
             }
         }
+        // The PTZ keyboard bridge (UC2_canopen_bridge_ptz) is a *producer*, not
+        // a route target, so it never appears in the routing table. List it
+        // explicitly, like the GPIO slave above, so the host can discover it.
+        // Its 1 s producer heartbeat (OD 0x1017) keeps it reachable while
+        // powered. Tagged with a synthetic type so the switch below prints "ptz".
+        static constexpr int8_t kPtzTypeTag = 100;
+        if (pinConfig.MASTER_PTZ_NODE_ID > 0) {
+            uint8_t ptzNid = (uint8_t)pinConfig.MASTER_PTZ_NODE_ID;
+            bool dup = false;
+            for (uint8_t i = 0; i < nSeen; i++)
+                if (seen[i].nodeId == ptzNid) { dup = true; break; }
+            if (!dup && nSeen < (uint8_t)(sizeof(seen)/sizeof(seen[0]))) {
+                seen[nSeen++] = { ptzNid, (UC2::RouteEntry::Type)kPtzTypeTag };
+            }
+        }
         for (uint8_t i = 0; i < nSeen; i++) {
             cJSON* dev = cJSON_CreateObject();
             const char* tStr = "?";
-            switch (seen[i].type) {
+            switch ((int)seen[i].type) {
                 case UC2::RouteEntry::MOTOR: tStr = "motor"; break;
                 case UC2::RouteEntry::LASER: tStr = "laser"; break;
                 case UC2::RouteEntry::LED:   tStr = "led";   break;
                 case UC2::RouteEntry::GALVO: tStr = "galvo"; break;
                 case UC2::RouteEntry::HOME:  tStr = "home";  break;
                 case UC2::RouteEntry::DIN:   tStr = "gpio";  break;
+                case kPtzTypeTag:            tStr = "ptz";   break;
                 default: break;
             }
             bool reachable = isNodeReachable(seen[i].nodeId);

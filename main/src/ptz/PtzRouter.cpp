@@ -200,8 +200,15 @@ static void router_task(void* /*arg*/)
         vTaskDelayUntil(&last, period);
 
         // Discrete key events → upstream TPDO2 (never handled locally).
+        // Emit at most ONE per tick: emitEventTpdo stages the payload into
+        // the shared OD_RAM.x2300 slot and only *requests* an async TPDO2
+        // send. Draining several in one tick would let a later event
+        // overwrite x2300 before the CANopen stack has transmitted the
+        // earlier frame — the master would silently miss events. One event
+        // per 20 ms tick is far faster than any keypress, and the 16-deep
+        // queue absorbs bursts.
         PtzKeyboard::Event ev;
-        while (evq && xQueueReceive(evq, &ev, 0) == pdTRUE)
+        if (evq && xQueueReceive(evq, &ev, 0) == pdTRUE)
             emitEventTpdo(ev, 0);
 
         PtzKeyboard::Motion m;

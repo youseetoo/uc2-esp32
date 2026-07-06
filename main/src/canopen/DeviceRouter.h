@@ -45,6 +45,19 @@ public:
     static cJSON* handleGpioAct(cJSON* doc);
     static cJSON* handleGpioGet(cJSON* doc);
 
+    // Generic I2C passthrough on the GPIO slave. On the slave itself these
+    // drive I2cBridge's OD directly; on a master they push the command blob to
+    // the remote node via SDO domain write, pulse the trigger, poll the status,
+    // and read the response back. JSON:
+    //   {"task":"/i2c_act","node":60,"addr":68,"write":[253],"read":6,
+    //    "delay":10,"stop":1,"qid":N}
+    //     addr = 7-bit I2C address; write = byte array; read = #bytes to read;
+    //     delay = ms between write and read; stop = STOP after write (default
+    //     repeated-START). Response: {"node":..,"status":2,"data":[...],"qid":N}
+    //   {"task":"/i2c_get","node":60} — re-read the last response buffer.
+    static cJSON* handleI2cAct(cJSON* doc);
+    static cJSON* handleI2cGet(cJSON* doc);
+
     // State act — currently only routes "restart" to a remote node when
     // "nodeId" is provided in the JSON; other state ops are handled locally.
     static cJSON* handleStateAct(cJSON* doc);

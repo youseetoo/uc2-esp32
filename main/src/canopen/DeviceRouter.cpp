@@ -53,6 +53,9 @@
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
 #include "../gpio_can/GpioCanSlave.h"
 #endif
+#ifdef I2C_BRIDGE_CONTROLLER
+#include "../i2c/I2cBridge.h"
+#endif
 #ifdef PTZ_KEYBOARD_CONTROLLER
 #include "../ptz/PtzKeyboard.h"
 #endif
@@ -122,6 +125,12 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
         return handleGpioAct(doc);
     if (strcmp(task, gpio_get_endpoint) == 0)
         return handleGpioGet(doc);
+
+    // Generic I2C passthrough on the GPIO slave (local on slave, SDO on master)
+    if (strcmp(task, i2c_act_endpoint) == 0)
+        return handleI2cAct(doc);
+    if (strcmp(task, i2c_get_endpoint) == 0)
+        return handleI2cGet(doc);
 
 #ifdef PTZ_KEYBOARD_CONTROLLER
     // PTZ keyboard bridge — debug/config, local only (USB serial on the node)
@@ -1676,6 +1685,179 @@ cJSON* DeviceRouter::handleGpioGet(cJSON* doc) {
     return resp;
 #else
     return nullptr;
+#endif
+}
+
+// ============================================================================
+// Generic I2C passthrough — /i2c_act, /i2c_get
+// ----------------------------------------------------------------------------
+// One JSON request = one raw I2C transaction (optional write, optional delay,
+// optional read). The register map for any device lives on the Python side;
+// firmware just relays bytes. On the GPIO slave the request runs locally via
+// I2cBridge::execute(); on a master it is shipped to the remote node through
+// the OD (0x2350 command → 0x2351 trigger → poll → 0x2353 response).
+// ============================================================================
+static const uint8_t I2C_CMD_CAP   = 40; // 0x2350 capacity (must match OD)
+static const uint8_t I2C_HDR_LEN   = 5;  // [addr, flags, rdLen, wrLen, delayMs]
+static const uint8_t I2C_MAX_WRITE = I2C_CMD_CAP - I2C_HDR_LEN; // 35
+static const uint8_t I2C_MAX_READ  = 40; // 0x2353 capacity
+
+// Parse the common fields shared by act. Returns false (and fills err) on a
+// malformed request. wr[] must hold at least I2C_MAX_WRITE bytes.
+static bool parseI2cRequest(cJSON* doc, uint8_t& addr, uint8_t& flags,
+                            uint8_t& rdLen, uint8_t* wr, uint8_t& wrLen,
+                            uint8_t& delayMs, const char** err) {
+    *err = nullptr;
+    cJSON* a = cJSON_GetObjectItemCaseSensitive(doc, "addr");
+    if (!a || !cJSON_IsNumber(a)) { *err = "missing \"addr\""; return false; }
+    addr = (uint8_t)(a->valueint & 0x7F);
+
+    rdLen = 0;
+    cJSON* r = cJSON_GetObjectItemCaseSensitive(doc, "read");
+    if (r && cJSON_IsNumber(r)) rdLen = (uint8_t)r->valueint;
+    if (rdLen > I2C_MAX_READ) { *err = "read length too large (max 40)"; return false; }
+
+    delayMs = 0;
+    cJSON* d = cJSON_GetObjectItemCaseSensitive(doc, "delay");
+    if (d && cJSON_IsNumber(d)) delayMs = (uint8_t)(d->valueint > 255 ? 255 : d->valueint);
+
+    flags = 0;
+    cJSON* s = cJSON_GetObjectItemCaseSensitive(doc, "stop");
+    if (s && ((cJSON_IsNumber(s) && s->valueint) || cJSON_IsTrue(s))) flags |= 0x01;
+
+    wrLen = 0;
+    cJSON* w = cJSON_GetObjectItemCaseSensitive(doc, "write");
+    if (w && cJSON_IsArray(w)) {
+        int n = cJSON_GetArraySize(w);
+        if (n > I2C_MAX_WRITE) { *err = "write length too large (max 35)"; return false; }
+        for (int i = 0; i < n; i++) {
+            cJSON* b = cJSON_GetArrayItem(w, i);
+            wr[wrLen++] = (uint8_t)(cJSON_IsNumber(b) ? (b->valueint & 0xFF) : 0);
+        }
+    }
+    // rdLen == 0 && wrLen == 0 is a valid address probe (bus scan): the slave
+    // just issues beginTransmission/endTransmission and reports the ACK.
+    return true;
+}
+
+static void addI2cResponse(cJSON* resp, uint8_t status, const uint8_t* data,
+                           uint8_t len, cJSON* doc) {
+    cJSON_AddNumberToObject(resp, "status", status);
+    cJSON_AddBoolToObject(resp, "ok", status == 0x02);
+    cJSON* arr = cJSON_AddArrayToObject(resp, "data");
+    if (arr) for (uint8_t i = 0; i < len; i++)
+        cJSON_AddItemToArray(arr, cJSON_CreateNumber(data[i]));
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (qidItem && cJSON_IsNumber(qidItem))
+        cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
+}
+
+cJSON* DeviceRouter::handleI2cAct(cJSON* doc) {
+    uint8_t addr = 0, flags = 0, rdLen = 0, wrLen = 0, delayMs = 0;
+    uint8_t wr[I2C_MAX_WRITE];
+    const char* err = nullptr;
+    if (!parseI2cRequest(doc, addr, flags, rdLen, wr, wrLen, delayMs, &err)) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "error", err ? err : "bad request");
+        return resp;
+    }
+
+#ifdef I2C_BRIDGE_CONTROLLER
+    // GPIO slave: run the transaction locally (synchronous).
+    uint8_t data[I2C_MAX_READ]; uint8_t got = 0;
+    uint8_t status = I2cBridge::execute(addr, flags, rdLen, wr, wrLen, delayMs,
+                                        data, sizeof(data), &got);
+    cJSON* resp = cJSON_CreateObject();
+    addI2cResponse(resp, status, data, got, doc);
+    return resp;
+#elif defined(CAN_CONTROLLER_CANOPEN)
+    if (!runtimeConfig.isMaster()) return nullptr;
+    uint8_t node = resolveGpioNode(doc);
+    if (node == 0) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "error",
+            "no GPIO slave node configured (MASTER_GPIO_SLAVE_NODE_ID) and no \"node\" given");
+        return resp;
+    }
+
+    // Command blob: [addr, flags, rdLen, wrLen, delayMs, wr...]. Sent full-
+    // length (zero-padded) so the write matches the 0x2350 OD entry size.
+    uint8_t cmd[I2C_CMD_CAP] = {0};
+    cmd[0] = addr; cmd[1] = flags; cmd[2] = rdLen; cmd[3] = wrLen; cmd[4] = delayMs;
+    for (uint8_t i = 0; i < wrLen; i++) cmd[I2C_HDR_LEN + i] = wr[i];
+
+    bool ok = CANopenModule::writeSDODomain(node, UC2_OD::I2C_COMMAND, 0, cmd, sizeof(cmd));
+    if (ok) ok = CANopenModule::writeSDO_u8(node, UC2_OD::I2C_TRIGGER, 0, 1);
+    if (!ok) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(resp, "node", node);
+        cJSON_AddStringToObject(resp, "error", "SDO write to I2C bridge failed");
+        return resp;
+    }
+
+    // Poll the trigger back to 0 (the slave releases it when done).
+    uint32_t budgetMs = 300 + (uint32_t)delayMs;
+    uint8_t trig = 1;
+    uint32_t waited = 0;
+    while (waited < budgetMs) {
+        delay(5); waited += 5;
+        size_t got = 0;
+        if (!CANopenModule::readSDO(node, UC2_OD::I2C_TRIGGER, 0, &trig, sizeof(trig), &got))
+            continue;
+        if (trig == 0) break;
+    }
+
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "node", node);
+    if (trig != 0) {
+        cJSON_AddStringToObject(resp, "error", "I2C bridge timeout");
+        cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+        if (qidItem && cJSON_IsNumber(qidItem))
+            cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
+        return resp;
+    }
+
+    uint8_t status = 0, respLen = 0; size_t got = 0;
+    CANopenModule::readSDO(node, UC2_OD::I2C_STATUS,   0, &status,  sizeof(status),  &got);
+    CANopenModule::readSDO(node, UC2_OD::I2C_RESP_LEN, 0, &respLen, sizeof(respLen), &got);
+    uint8_t data[I2C_MAX_READ] = {0};
+    if (respLen > sizeof(data)) respLen = sizeof(data);
+    if (respLen > 0)
+        CANopenModule::readSDO(node, UC2_OD::I2C_RESPONSE, 0, data, sizeof(data), &got);
+    addI2cResponse(resp, status, data, respLen, doc);
+    return resp;
+#else
+    return nullptr;
+#endif
+}
+
+cJSON* DeviceRouter::handleI2cGet(cJSON* doc) {
+    // Re-read the last response buffer without re-triggering a transaction.
+#if defined(CAN_CONTROLLER_CANOPEN) && !defined(I2C_BRIDGE_CONTROLLER)
+    if (!runtimeConfig.isMaster()) return nullptr;
+    uint8_t node = resolveGpioNode(doc);
+    if (node == 0) {
+        cJSON* resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "error", "no GPIO slave node configured");
+        return resp;
+    }
+    uint8_t status = 0, respLen = 0; size_t got = 0;
+    CANopenModule::readSDO(node, UC2_OD::I2C_STATUS,   0, &status,  sizeof(status),  &got);
+    CANopenModule::readSDO(node, UC2_OD::I2C_RESP_LEN, 0, &respLen, sizeof(respLen), &got);
+    uint8_t data[I2C_MAX_READ] = {0};
+    if (respLen > sizeof(data)) respLen = sizeof(data);
+    if (respLen > 0)
+        CANopenModule::readSDO(node, UC2_OD::I2C_RESPONSE, 0, data, sizeof(data), &got);
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resp, "node", node);
+    addI2cResponse(resp, status, data, respLen, doc);
+    return resp;
+#else
+    // On the GPIO slave itself, /i2c_get is a no-op stub — /i2c_act already
+    // returns the data inline. Return the last status only.
+    cJSON* resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "info", "use /i2c_act; it returns data inline");
+    return resp;
 #endif
 }
 

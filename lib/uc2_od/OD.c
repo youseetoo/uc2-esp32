@@ -274,6 +274,12 @@ typedef struct {
     OD_obj_var_t    o_2336_collision_sigma;
     /* UC2 encoder (0x2340) */
     OD_obj_array_t  o_2340_encoder_position;
+    /* UC2 generic I2C passthrough (0x2350-0x2354) */
+    OD_obj_var_t    o_2350_i2c_command;
+    OD_obj_var_t    o_2351_i2c_trigger;
+    OD_obj_var_t    o_2352_i2c_status;
+    OD_obj_var_t    o_2353_i2c_response;
+    OD_obj_var_t    o_2354_i2c_resp_len;
     /* UC2 galvo (0x2600-0x260F) */
     OD_obj_array_t  o_2600_galvo_target_position;
     OD_obj_array_t  o_2601_galvo_actual_position;
@@ -715,6 +721,36 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     /* 0x2340 — Encoder position (4 x int32) */
     .o_2340_encoder_position = _ARR4_I32(x2340_encoder_position, ODA_SDO_RW | ODA_TPDO),
     /* -----------------------------------------------------------------------
+     * UC2 generic I2C passthrough (0x2350-0x2354) — GPIO slave only.
+     * Master writes a command blob to 0x2350, pulses 0x2351, polls 0x2352,
+     * then reads 0x2353/0x2354. All SDO-only; never mapped to PDOs.
+     * ----------------------------------------------------------------------- */
+    .o_2350_i2c_command = {
+        .dataOrig = &OD_RAM.x2350_i2c_command[0],
+        .attribute = ODA_SDO_RW,
+        .dataLength = sizeof(OD_RAM.x2350_i2c_command)
+    },
+    .o_2351_i2c_trigger = {
+        .dataOrig = &OD_RAM.x2351_i2c_trigger,
+        .attribute = ODA_SDO_RW,
+        .dataLength = 1
+    },
+    .o_2352_i2c_status = {
+        .dataOrig = &OD_RAM.x2352_i2c_status,
+        .attribute = ODA_SDO_R,
+        .dataLength = 1
+    },
+    .o_2353_i2c_response = {
+        .dataOrig = &OD_RAM.x2353_i2c_response[0],
+        .attribute = ODA_SDO_R,
+        .dataLength = sizeof(OD_RAM.x2353_i2c_response)
+    },
+    .o_2354_i2c_resp_len = {
+        .dataOrig = &OD_RAM.x2354_i2c_resp_len,
+        .attribute = ODA_SDO_R,
+        .dataLength = 1
+    },
+    /* -----------------------------------------------------------------------
      * UC2 galvo (0x2600-0x260F)
      * ----------------------------------------------------------------------- */
     .o_2600_galvo_target_position = _ARR2_I32(x2600_galvo_target_position, ODA_SDO_RW | ODA_RPDO),
@@ -972,6 +1008,12 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2336, 0x01, ODT_VAR, &ODObjs.o_2336_collision_sigma,            NULL},
     /* UC2 encoder */
     {0x2340, 0x05, ODT_ARR, &ODObjs.o_2340_encoder_position,           NULL},
+    /* UC2 generic I2C passthrough (GPIO slave) */
+    {0x2350, 0x01, ODT_VAR, &ODObjs.o_2350_i2c_command,                NULL},
+    {0x2351, 0x01, ODT_VAR, &ODObjs.o_2351_i2c_trigger,                NULL},
+    {0x2352, 0x01, ODT_VAR, &ODObjs.o_2352_i2c_status,                 NULL},
+    {0x2353, 0x01, ODT_VAR, &ODObjs.o_2353_i2c_response,               NULL},
+    {0x2354, 0x01, ODT_VAR, &ODObjs.o_2354_i2c_resp_len,               NULL},
     /* UC2 system — MUST stay sorted before 0x2600 (CANopenNode OD_find is binary search) */
     {0x2500, 0x01, ODT_VAR, &ODObjs.o_2500_firmware_version_string,    NULL},
     {0x2503, 0x01, ODT_VAR, &ODObjs.o_2503_uptime_seconds,             NULL},

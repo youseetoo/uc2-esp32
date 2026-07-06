@@ -795,6 +795,65 @@ modules:
         sdo_only: true
 
   # ==========================================================================
+  # I2C PASSTHROUGH — 0x2350-0x235F
+  # ==========================================================================
+  i2c_bridge:
+    base_index: 0x2350
+    description: |
+      Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
+      writes a self-contained transaction into 0x2350, pulses 0x2351, polls
+      0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
+      (UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
+    cpp_class: "I2cBridge"
+    entries:
+
+      - index: 0x2350
+        name: i2c_command
+        type: DOMAIN
+        access: rw
+        sub_indices: 0
+        description: |
+          Command buffer, fixed uint8_t[40] in OD.c. Layout:
+          [0]=addr7, [1]=flags (bit0 STOP-after-write), [2]=rd_len,
+          [3]=wr_len, [4]=delay_ms, [5..]=write payload.
+        sdo_only: true
+
+      - index: 0x2351
+        name: i2c_trigger
+        type: U8
+        access: rw
+        sub_indices: 0
+        default: 0
+        description: "Master writes !=0 to execute; slave clears it when done."
+        sdo_only: true
+
+      - index: 0x2352
+        name: i2c_status
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: "0 idle, 1 busy, 2 done-ok, 0x81..0x85 write err, 0x90 short read, 0xA0 bad param."
+        sdo_only: true
+
+      - index: 0x2353
+        name: i2c_response
+        type: DOMAIN
+        access: ro
+        sub_indices: 0
+        description: "Bytes read back, fixed uint8_t[40] in OD.c."
+        sdo_only: true
+
+      - index: 0x2354
+        name: i2c_resp_len
+        type: U8
+        access: ro
+        sub_indices: 0
+        default: 0
+        description: "Number of valid bytes in i2c_response (0x2353)."
+        sdo_only: true
+
+  # ==========================================================================
   # JOYSTICK / GAMEPAD — 0x2400-0x240F
   # ==========================================================================
   joystick:

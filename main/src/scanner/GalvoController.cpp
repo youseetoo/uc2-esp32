@@ -158,7 +158,13 @@ void GalvoController::loop()
 
 cJSON *GalvoController::get(cJSON *doc)
 {
-    return getStatus();
+    // Echo the request qid so the host serial layer can match this status reply
+    // to its command (LOCAL/standalone analog of the REMOTE fix in DeviceRouter).
+    cJSON *resp = getStatus();
+    cJSON *qidItem = doc ? cJSON_GetObjectItem(doc, "qid") : nullptr;
+    if (resp && qidItem && cJSON_IsNumber(qidItem) && !cJSON_GetObjectItem(resp, "qid"))
+        cJSON_AddNumberToObject(resp, "qid", qidItem->valuedouble);
+    return resp;
 }
 
 cJSON *GalvoController::act(cJSON *doc)

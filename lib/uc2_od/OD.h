@@ -196,6 +196,7 @@ typedef struct {
     int32_t  x260D_galvo_x_step;
     int32_t  x260E_galvo_y_step;
     uint8_t  x260F_galvo_camera_trigger_mode;
+    // 0x2610 galvo_points_data — DOMAIN (handled by OD extension callback, no RAM backing)
     // system
     uint32_t x2503_uptime_seconds;
     uint32_t x2504_free_heap_bytes;

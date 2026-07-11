@@ -973,12 +973,17 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
 #ifdef GALVO_CONTROLLER
+    // Echo the request qid on every response so the host's serial layer can
+    // match the reply to its command (missing qid => host times out, then
+    // returns an error string that the caller mistakes for a status dict).
+    int qid = cJsonTool::getJsonInt(doc, "qid");
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
 
     if (!route || route->where == UC2::RouteEntry::OFF) {
         log_e("galvo 0 has no route");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
+        cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
     }
 
@@ -994,11 +999,88 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
         // Check for stop command
         cJSON* stop_cmd = cJSON_GetObjectItem(doc, "stop");
         if (stop_cmd && cJSON_IsTrue(stop_cmd)) {
-            uint8_t cmd = 0;
+            uint8_t cmd = GALVO_CMD_STOP;
             log_i("Issuing galvo stop command to node 0x%02X", nodeId);
             ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd);
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+            cJSON_AddNumberToObject(resp, "qid", qid);
+            return resp;
+        }
+
+        // Arbitrary point list — pack {header + points} and stream to the slave
+        // via an SDO domain (segmented) write to GALVO_POINTS_DATA (0x2610). The
+        // slave's OD extension reassembles it and starts an arbitrary-point scan.
+        cJSON* points_arr = cJSON_GetObjectItem(doc, "points");
+        if (points_arr && cJSON_IsArray(points_arr)) {
+            int n = cJSON_GetArraySize(points_arr);
+            if (n <= 0 || n > SCANNER_MAX_ARBITRARY_POINTS) {
+                cJSON* resp = cJSON_CreateObject();
+                cJSON_AddNumberToObject(resp, "return", 0);
+                cJSON_AddStringToObject(resp, "error", "Invalid point count (1-256)");
+                cJSON_AddNumberToObject(resp, "qid", qid);
+                return resp;
+            }
+
+            // Optional laser_trigger string -> TriggerMode enum (default AUTO=0)
+            uint8_t trigMode = 0;
+            cJSON* lt = cJSON_GetObjectItem(doc, "laser_trigger");
+            if (lt && cJSON_IsString(lt)) {
+                const char* s = cJSON_GetStringValue(lt);
+                if (strcmp(s, "HIGH") == 0) trigMode = 1;
+                else if (strcmp(s, "LOW") == 0) trigMode = 2;
+                else if (strcmp(s, "CONTINUOUS") == 0) trigMode = 3;
+            }
+
+            size_t bufLen = sizeof(GalvoPointsHeader) + (size_t)n * sizeof(ArbitraryScanPoint);
+            uint8_t* buf = (uint8_t*)malloc(bufLen);
+            if (!buf) {
+                cJSON* resp = cJSON_CreateObject();
+                cJSON_AddNumberToObject(resp, "return", 0);
+                cJSON_AddStringToObject(resp, "error", "malloc failed");
+                cJSON_AddNumberToObject(resp, "qid", qid);
+                return resp;
+            }
+            GalvoPointsHeader hdr;
+            hdr.trigger_mode = trigMode;
+            hdr.point_count = (uint16_t)n;
+            memcpy(buf, &hdr, sizeof(hdr));
+
+            uint8_t* p = buf + sizeof(hdr);
+            bool valid = true;
+            for (int i = 0; i < n; i++) {
+                cJSON* pt = cJSON_GetArrayItem(points_arr, i);
+                cJSON* xi = pt ? cJSON_GetObjectItem(pt, "x") : nullptr;
+                cJSON* yi = pt ? cJSON_GetObjectItem(pt, "y") : nullptr;
+                cJSON* di = pt ? cJSON_GetObjectItem(pt, "dwell_us") : nullptr;
+                if (!xi || !yi || !di) { valid = false; break; }
+                ArbitraryScanPoint sp;
+                sp.x = (uint16_t)cJSON_GetNumberValue(xi);
+                sp.y = (uint16_t)cJSON_GetNumberValue(yi);
+                sp.dwell_us = (uint32_t)cJSON_GetNumberValue(di);
+                if (sp.x > 4095 || sp.y > 4095) { valid = false; break; }
+                memcpy(p, &sp, sizeof(sp));
+                p += sizeof(sp);
+            }
+            if (!valid) {
+                free(buf);
+                cJSON* resp = cJSON_CreateObject();
+                cJSON_AddNumberToObject(resp, "return", 0);
+                cJSON_AddStringToObject(resp, "error", "Invalid point (missing x/y/dwell_us or out of range)");
+                cJSON_AddNumberToObject(resp, "qid", qid);
+                return resp;
+            }
+
+            log_i("Sending %d galvo points to node 0x%02X (%u bytes, trig=%u)",
+                  n, nodeId, (unsigned)bufLen, (unsigned)trigMode);
+            bool domOk = CANopenModule::writeSDODomain(nodeId, UC2_OD::GALVO_POINTS_DATA, 0, buf, bufLen);
+            free(buf);
+            if (!domOk) log_w("Galvo points SDO domain write timed out: node 0x%02X (best-effort)", nodeId);
+
+            cJSON* resp = cJSON_CreateObject();
+            cJSON_AddNumberToObject(resp, "return", domOk ? 1 : 0);
+            cJSON_AddNumberToObject(resp, "point_count", n);
+            cJSON_AddNumberToObject(resp, "qid", qid);
             return resp;
         }
 
@@ -1024,6 +1106,21 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
                 ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_T_POST_US, 0, (uint16_t)item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "enable_trigger")))
                 ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_CAMERA_TRIGGER_MODE, 0, (uint8_t)item->valueint) && ok;
+            // bidirectional + line_settle_samples are consumed by the scanner core
+            // but had no dedicated OD entry, so they never reached the slave. Reuse
+            // the two otherwise-unused galvo slots as transport containers:
+            //   GALVO_D_STEPS_LINE  (0x2607) -> bidirectional (0/1)
+            //   GALVO_D_STEPS_PIXEL (0x2608) -> line_settle_samples
+            // The slave decodes these back in syncRpdoToModules_slave (see there).
+            {
+                cJSON* bidir = cJSON_GetObjectItem(config_obj, "bidirectional");
+                // Accept either a JSON bool (true/false) or a number (0/1).
+                uint16_t bidirVal = (bidir && (cJSON_IsTrue(bidir) ||
+                                     (cJSON_IsNumber(bidir) && bidir->valueint != 0))) ? 1 : 0;
+                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_D_STEPS_LINE, 0, bidirVal) && ok;
+            }
+            if ((item = cJSON_GetObjectItem(config_obj, "line_settle_samples")))
+                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_D_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
 
             // Compute x_step, y_step from x_min/x_max/nx and y_min/y_max/ny
             cJSON* xMin = cJSON_GetObjectItem(config_obj, "x_min");
@@ -1043,8 +1140,8 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
                 ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_STEP, 0, yStep) && ok;
             }
 
-            // Issue raster scan command (cmd=3)
-            uint8_t cmd = 3;
+            // Issue raster scan command
+            uint8_t cmd = GALVO_CMD_RASTER;
             ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
             // TODO: galvo should follow the motor pattern — register qid here
             // and wire syncRpdoToModules_master to call QidRegistry::reportActionDone
@@ -1055,6 +1152,7 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
 
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+            cJSON_AddNumberToObject(resp, "qid", qid);
             return resp;
         }
 
@@ -1072,19 +1170,21 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
                 ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 2, v) && ok;
             }
             if (tx || ty) {
-                // Issue goto command (cmd=1)
-                uint8_t cmd = 1;
+                // Issue goto command
+                uint8_t cmd = GALVO_CMD_GOTO;
                 ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
             }
         }
 
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
+        cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
 #else
         ESP_LOGW(TAG, "Galvo remote routing requires CANopen");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
+        cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
 #endif
     }
@@ -1228,11 +1328,14 @@ cJSON* DeviceRouter::handleLedGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
 #ifdef GALVO_CONTROLLER
+    // Echo qid so the host serial layer can match this reply (see handleGalvoAct).
+    int qid = cJsonTool::getJsonInt(doc, "qid");
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
 
     if (!route || route->where == UC2::RouteEntry::OFF) {
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
+        cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
     }
 
@@ -1267,11 +1370,13 @@ cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
         }
 
         cJSON_AddNumberToObject(resp, "return", 1);
+        cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
 #else
         ESP_LOGW(TAG, "Galvo remote get requires CANopen");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
+        cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
 #endif
     }

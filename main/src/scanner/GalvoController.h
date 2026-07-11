@@ -21,6 +21,26 @@
 #define GALVO_PREFS_NAMESPACE "galvo"
 
 /**
+ * @brief Galvo command word (OD 0x2602) values — shared master/slave protocol.
+ *
+ * The command word is a "doorbell": the master writes a nonzero code via SDO,
+ * the slave processes it in syncRpdoToModules_slave() and clears the word back
+ * to GALVO_CMD_IDLE (0). Therefore 0 MUST mean "no pending command" — it must
+ * NOT be reused as an explicit stop. Previously stop==0 collided with the
+ * cleared state, so the self-clear on the cycle right after a start looked like
+ * a fresh "stop 0" command and immediately halted every scan. Stop now has its
+ * own nonzero code (GALVO_CMD_STOP).
+ */
+enum GalvoCommandWord : uint8_t {
+    GALVO_CMD_IDLE   = 0,  // no pending command (cleared state — never a stop)
+    GALVO_CMD_GOTO   = 1,  // move to target XY
+    GALVO_CMD_LINE   = 2,  // single-line scan
+    GALVO_CMD_RASTER = 3,  // raster scan
+    GALVO_CMD_STOP   = 4,  // stop scanning
+    GALVO_CMD_ESTOP  = 5,  // emergency stop
+};
+
+/**
  * @brief CAN wire format header for arbitrary point transmission
  * 
  * Wire format: [TriggerMode (1 byte)] [PointCount (2 bytes)] [Points (8 bytes each)]

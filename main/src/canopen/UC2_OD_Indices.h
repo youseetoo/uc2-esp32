@@ -101,7 +101,8 @@ constexpr uint16_t ANALOG_INPUT_FILTERED                    = 0x2311;
 constexpr uint16_t DAC_OUTPUT_VALUE                         = 0x2320;
 
 // ─── COLLISION (base 0x2330) ───
-// Baseline-deviation collision detector on the GPIO slave (SDO-only)
+// Baseline-deviation collision detector on the GPIO slave. The sensor has an idle value; a collision manifests as N consecutive samples deviating more than `collision_threshold` counts (up OR down) from `collision_reference`. Single-sample spikes are rejected by the consecutive-sample vote. Config is SDO-written by the master; the trip EVENT rides TPDO2 (flags byte 0x2300:04 bit 0). Sensor values are never broadcast — the rolling mean is polled via SDO on demand.
+
 
 constexpr uint16_t COLLISION_REFERENCE                      = 0x2330;
 constexpr uint16_t COLLISION_THRESHOLD                      = 0x2331;
@@ -118,10 +119,13 @@ constexpr uint16_t ENCODER_POSITION                         = 0x2340;
 constexpr uint16_t ENCODER_VELOCITY                         = 0x2341;
 constexpr uint16_t ENCODER_ZERO_OFFSET                      = 0x2342;
 
-// ─── I2C PASSTHROUGH (base 0x2350) ───
-// Generic raw-I2C bridge on the GPIO slave. Command/response buffers are
-// octet strings; register maps live entirely on the Python (UC2-REST) side.
-// Mirrored in tools/canopen/uc2_canopen_registry.yaml (group i2c_bridge).
+// ─── I2C_BRIDGE (base 0x2350) ───
+/* 
+Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
+writes a self-contained transaction into 0x2350, pulses 0x2351, polls
+0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
+(UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
+*/
 
 constexpr uint16_t I2C_COMMAND                              = 0x2350;
 constexpr uint16_t I2C_TRIGGER                              = 0x2351;
@@ -171,6 +175,7 @@ constexpr uint16_t GALVO_Y_START                            = 0x260C;
 constexpr uint16_t GALVO_X_STEP                             = 0x260D;
 constexpr uint16_t GALVO_Y_STEP                             = 0x260E;
 constexpr uint16_t GALVO_CAMERA_TRIGGER_MODE                = 0x260F;
+constexpr uint16_t GALVO_POINTS_DATA                        = 0x2610;
 
 // ─── PID (base 0x2700) ───
 // Generic PID controller (e.g. for focus stabilization)

@@ -1,6 +1,6 @@
 """
 AUTO-GENERATED from uc2_canopen_registry.yaml — DO NOT EDIT
-Regenerate with: python tools/canopen/regenerate_all.py
+Regenerate with: python tools/regenerate_all.py
 
 Use these constants when writing CANopen scripts via python-canopen
 or the Waveshare USB-CAN adapter.
@@ -86,10 +86,31 @@ class OD:
     ANALOG_INPUT_FILTERED = 0x2311
     DAC_OUTPUT_VALUE = 0x2320
 
+    # COLLISION — Baseline-deviation collision detector on the GPIO slave. The sensor has an idle value; a collision manifests as N consecutive samples deviating more than `collision_threshold` counts (up OR down) from `collision_reference`. Single-sample spikes are rejected by the consecutive-sample vote. Config is SDO-written by the master; the trip EVENT rides TPDO2 (flags byte 0x2300:04 bit 0). Sensor values are never broadcast — the rolling mean is polled via SDO on demand.
+
+    COLLISION_REFERENCE = 0x2330
+    COLLISION_THRESHOLD = 0x2331
+    COLLISION_SENSITIVITY = 0x2332
+    COLLISION_COMMAND = 0x2333
+    COLLISION_MEAN = 0x2334
+    COLLISION_MODE = 0x2335
+    COLLISION_SIGMA = 0x2336
+
     # ENCODER — Quadrature or magnetic (AS5600) encoder feedback
     ENCODER_POSITION = 0x2340
     ENCODER_VELOCITY = 0x2341
     ENCODER_ZERO_OFFSET = 0x2342
+
+    # I2C_BRIDGE — Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
+writes a self-contained transaction into 0x2350, pulses 0x2351, polls
+0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
+(UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
+
+    I2C_COMMAND = 0x2350
+    I2C_TRIGGER = 0x2351
+    I2C_STATUS = 0x2352
+    I2C_RESPONSE = 0x2353
+    I2C_RESP_LEN = 0x2354
 
     # JOYSTICK — Analog joystick or PSX gamepad bridge
     JOYSTICK_AXIS = 0x2400
@@ -127,6 +148,7 @@ class OD:
     GALVO_X_STEP = 0x260D
     GALVO_Y_STEP = 0x260E
     GALVO_CAMERA_TRIGGER_MODE = 0x260F
+    GALVO_POINTS_DATA = 0x2610
 
     # PID — Generic PID controller (e.g. for focus stabilization)
     PID_SETPOINT = 0x2700
@@ -215,9 +237,21 @@ OD_NAMES = {
     0x2310: 'analog_input_value',
     0x2311: 'analog_input_filtered',
     0x2320: 'dac_output_value',
+    0x2330: 'collision_reference',
+    0x2331: 'collision_threshold',
+    0x2332: 'collision_sensitivity',
+    0x2333: 'collision_command',
+    0x2334: 'collision_mean',
+    0x2335: 'collision_mode',
+    0x2336: 'collision_sigma',
     0x2340: 'encoder_position',
     0x2341: 'encoder_velocity',
     0x2342: 'encoder_zero_offset',
+    0x2350: 'i2c_command',
+    0x2351: 'i2c_trigger',
+    0x2352: 'i2c_status',
+    0x2353: 'i2c_response',
+    0x2354: 'i2c_resp_len',
     0x2400: 'joystick_axis',
     0x2401: 'joystick_buttons',
     0x2402: 'joystick_speed_multiplier',
@@ -249,6 +283,7 @@ OD_NAMES = {
     0x260D: 'galvo_x_step',
     0x260E: 'galvo_y_step',
     0x260F: 'galvo_camera_trigger_mode',
+    0x2610: 'galvo_points_data',
     0x2700: 'pid_setpoint',
     0x2701: 'pid_actual_value',
     0x2702: 'pid_kp',

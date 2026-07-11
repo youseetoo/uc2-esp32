@@ -1103,6 +1103,7 @@ modules:
         access: rw
         sub_indices: 0
         default: 1
+        description: "REUSED as raster 'bidirectional' flag (0/1) — see DeviceRouter::handleGalvoAct"
         sdo_only: true
 
       - index: 0x2608
@@ -1111,6 +1112,7 @@ modules:
         access: rw
         sub_indices: 0
         default: 1
+        description: "REUSED as raster 'line_settle_samples' — see DeviceRouter::handleGalvoAct"
         sdo_only: true
 
       - index: 0x2609
@@ -1170,6 +1172,18 @@ modules:
         sub_indices: 0
         default: 0
         description: "0=off, 1=per-pixel, 2=per-line, 3=per-frame"
+        sdo_only: true
+
+      - index: 0x2610
+        name: galvo_points_data
+        type: DOMAIN
+        access: wo
+        sub_indices: 0
+        description: |
+          Arbitrary scan point list via SDO domain (segmented) transfer.
+          Wire format: GalvoPointsHeader {u8 trigger_mode, u16 point_count}
+          followed by point_count x ArbitraryScanPoint {u16 x, u16 y, u32 dwell_us}.
+          Slave OD extension parses, loads the points and starts arbitrary scan.
         sdo_only: true
 
   # ==========================================================================

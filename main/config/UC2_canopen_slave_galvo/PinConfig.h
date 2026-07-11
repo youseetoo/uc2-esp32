@@ -37,8 +37,8 @@ struct UC2_canopen_slave_galvo : PinConfig
      const unsigned long BAUDRATE = 115200;
 
      // CAN communication
-     int8_t CAN_TX =  GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
-     int8_t CAN_RX =  GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
+     int8_t CAN_TX =  GPIO_NUM_5;  // D4
+     int8_t CAN_RX =  GPIO_NUM_44; // D7
 
 
      uint8_t galvo_miso = -1;

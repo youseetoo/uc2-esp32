@@ -168,6 +168,25 @@ ADC inputs, DAC outputs
 | `0x2311` | 1..8 | `analog_input_filtered` | U16 | ro | SDO only | EWMA-filtered ADC reading |
 | `0x2320` | 1..4 | `dac_output_value` | U16 | rw | SDO only |  |
 
+### Collision — base `0x2330`
+
+Baseline-deviation collision detector on the GPIO slave. The sensor has an idle value; a collision manifests as N consecutive samples deviating more than `collision_threshold` counts (up OR down) from `collision_reference`. Single-sample spikes are rejected by the consecutive-sample vote. Config is SDO-written by the master; the trip EVENT rides TPDO2 (flags byte 0x2300:04 bit 0). Sensor values are never broadcast — the rolling mean is polled via SDO on demand.
+
+
+*Maps to JSON endpoint(s):* `/gpio_act, /gpio_get`
+
+*C++ class:* `GpioCanSlave`
+
+| Index | Sub | Name | Type | Access | PDO | Description |
+|-------|-----|------|------|--------|-----|-------------|
+| `0x2330` | 0 | `collision_reference` | U16 | rw | SDO only | Idle baseline. 0 = auto-seed from rolling mean at boot. Persisted in NVS (gpi... |
+| `0x2331` | 0 | `collision_threshold` | U16 | rw | SDO only | Allowed deviation band around the reference. Persisted in NVS (gpioCollThr). |
+| `0x2332` | 0 | `collision_sensitivity` | U8 | rw | SDO only | Consecutive out-of-band samples required to trip (and in-band to clear). Pers... |
+| `0x2333` | 0 | `collision_command` | U8 | rw | SDO only | 1 = calibrate: reference := current rolling mean, persisted. Slave clears aft... |
+| `0x2334` | 0 | `collision_mean` | U16 | ro | SDO only | Rolling mean (MANUAL) or adaptive baseline (AUTO); poll via SDO, never broadc... |
+| `0x2335` | 0 | `collision_mode` | U8 | rw | SDO only | Detection mode: 0=AUTO (adaptive baseline + robust sigma z-score, parameter-f... |
+| `0x2336` | 0 | `collision_sigma` | U16 | ro | SDO only | AUTO robust noise scale (EWMA of |deviation|). Trip band = max(K*sigma, floor... |
+
 ### Encoder — base `0x2340`
 
 Quadrature or magnetic (AS5600) encoder feedback
@@ -179,6 +198,24 @@ Quadrature or magnetic (AS5600) encoder feedback
 | `0x2340` | 1..4 | `encoder_position` | I32 | ro | tpdo3 |  |
 | `0x2341` | 1..4 | `encoder_velocity` | I32 | ro | tpdo3 |  |
 | `0x2342` | 1..4 | `encoder_zero_offset` | I32 | rw | SDO only |  |
+
+### I2C_Bridge — base `0x2350`
+
+Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
+writes a self-contained transaction into 0x2350, pulses 0x2351, polls
+0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
+(UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
+
+
+*C++ class:* `I2cBridge`
+
+| Index | Sub | Name | Type | Access | PDO | Description |
+|-------|-----|------|------|--------|-----|-------------|
+| `0x2350` | 0 | `i2c_command` | DOMAIN | rw | SDO only | Command buffer, fixed uint8_t[40] in OD.c. Layout: [0]=addr7, [1]=flags (bit0... |
+| `0x2351` | 0 | `i2c_trigger` | U8 | rw | SDO only | Master writes !=0 to execute; slave clears it when done. |
+| `0x2352` | 0 | `i2c_status` | U8 | ro | SDO only | 0 idle, 1 busy, 2 done-ok, 0x81..0x85 write err, 0x90 short read, 0xA0 bad pa... |
+| `0x2353` | 0 | `i2c_response` | DOMAIN | ro | SDO only | Bytes read back, fixed uint8_t[40] in OD.c. |
+| `0x2354` | 0 | `i2c_resp_len` | U8 | ro | SDO only | Number of valid bytes in i2c_response (0x2353). |
 
 ### Joystick — base `0x2400`
 
@@ -230,8 +267,8 @@ Galvo mirrors with raster/line scanning
 | `0x2604` | 0 | `galvo_scan_speed` | U32 | rw | SDO only |  |
 | `0x2605` | 0 | `galvo_n_steps_line` | U16 | rw | SDO only |  |
 | `0x2606` | 0 | `galvo_n_steps_pixel` | U16 | rw | SDO only |  |
-| `0x2607` | 0 | `galvo_d_steps_line` | U16 | rw | SDO only |  |
-| `0x2608` | 0 | `galvo_d_steps_pixel` | U16 | rw | SDO only |  |
+| `0x2607` | 0 | `galvo_d_steps_line` | U16 | rw | SDO only | REUSED as raster 'bidirectional' flag (0/1) — see DeviceRouter::handleGalvoAct |
+| `0x2608` | 0 | `galvo_d_steps_pixel` | U16 | rw | SDO only | REUSED as raster 'line_settle_samples' — see DeviceRouter::handleGalvoAct |
 | `0x2609` | 0 | `galvo_t_pre_us` | U32 | rw | SDO only | Pre-trigger settle time |
 | `0x260A` | 0 | `galvo_t_post_us` | U32 | rw | SDO only | Post-trigger hold time |
 | `0x260B` | 0 | `galvo_x_start` | I32 | rw | SDO only |  |
@@ -239,6 +276,7 @@ Galvo mirrors with raster/line scanning
 | `0x260D` | 0 | `galvo_x_step` | I32 | rw | SDO only |  |
 | `0x260E` | 0 | `galvo_y_step` | I32 | rw | SDO only |  |
 | `0x260F` | 0 | `galvo_camera_trigger_mode` | U8 | rw | SDO only | 0=off, 1=per-pixel, 2=per-line, 3=per-frame |
+| `0x2610` | 0 | `galvo_points_data` | DOMAIN | wo | SDO only | Arbitrary scan point list via SDO domain (segmented) transfer. Wire format: G... |
 
 ### Pid — base `0x2700`
 

@@ -1165,6 +1165,72 @@ static ODR_t onLedShapeWrite(OD_stream_t* stream, const void* buf,
 #endif // LED_CONTROLLER
 
 // ============================================================================
+// Galvo arbitrary points — OD extension for SDO domain transfer (slave side)
+// Mirrors the LED pixel pattern: the master streams a packed byte buffer to
+// 0x2610 (GALVO_POINTS_DATA); we reassemble it, parse the header + point list,
+// and start an arbitrary-point scan. Wire format:
+//   GalvoPointsHeader { u8 trigger_mode, u16 point_count }   (packed, 3 bytes)
+//   point_count x ArbitraryScanPoint { u16 x, u16 y, u32 dwell_us }  (8 bytes)
+// ============================================================================
+#ifdef GALVO_CONTROLLER
+#define GALVO_POINTS_BUF_MAX (sizeof(GalvoPointsHeader) + \
+                              SCANNER_MAX_ARBITRARY_POINTS * sizeof(ArbitraryScanPoint))
+static OD_extension_t s_galvoPointsExt;
+static uint8_t        s_galvoPointsBuffer[GALVO_POINTS_BUF_MAX];
+static size_t         s_galvoPointsBytesReceived = 0;
+
+static ODR_t onGalvoPointsWrite(OD_stream_t* stream, const void* buf,
+                                OD_size_t count, OD_size_t* countWritten) {
+    if (s_galvoPointsBytesReceived + count > sizeof(s_galvoPointsBuffer)) {
+        s_galvoPointsBytesReceived = 0;
+        return ODR_OUT_OF_MEM;
+    }
+    memcpy(s_galvoPointsBuffer + s_galvoPointsBytesReceived, buf, count);
+    s_galvoPointsBytesReceived += count;
+    *countWritten = count;
+
+    // Not the last segment yet — keep buffering.
+    if (stream->dataOffset + count < stream->dataLength) {
+        return ODR_OK;
+    }
+
+    // Final segment: parse and launch. Reset the accumulator first so a
+    // malformed transfer can't wedge the next one.
+    size_t total = s_galvoPointsBytesReceived;
+    s_galvoPointsBytesReceived = 0;
+
+    if (total < sizeof(GalvoPointsHeader)) {
+        log_w("Galvo points: short transfer (%u bytes)", (unsigned)total);
+        return ODR_OK;
+    }
+    GalvoPointsHeader hdr;
+    memcpy(&hdr, s_galvoPointsBuffer, sizeof(hdr));
+    uint16_t n = hdr.point_count;
+    size_t expected = sizeof(GalvoPointsHeader) + (size_t)n * sizeof(ArbitraryScanPoint);
+    if (n == 0 || n > SCANNER_MAX_ARBITRARY_POINTS || total < expected) {
+        log_w("Galvo points: bad transfer count=%u total=%u expected=%u",
+              (unsigned)n, (unsigned)total, (unsigned)expected);
+        return ODR_OK;
+    }
+
+    ArbitraryScanPoint points[SCANNER_MAX_ARBITRARY_POINTS];
+    memcpy(points, s_galvoPointsBuffer + sizeof(GalvoPointsHeader),
+           (size_t)n * sizeof(ArbitraryScanPoint));
+    log_i("Galvo points received: %u points, trigger_mode=%u",
+          (unsigned)n, (unsigned)hdr.trigger_mode);
+
+    if (GalvoController::setArbitraryPoints(points, n)) {
+        GalvoController::setScanMode(SCAN_MODE_ARBITRARY);
+        GalvoController::setTriggerMode((TriggerMode)hdr.trigger_mode);
+        GalvoController::start();
+    } else {
+        log_w("Galvo points: setArbitraryPoints failed");
+    }
+    return ODR_OK;
+}
+#endif // GALVO_CONTROLLER
+
+// ============================================================================
 // CO_main task — CANopenNode init + main processing loop
 // (Preserved structure from MWE, parametrised by runtimeConfig.canNodeId)
 // ============================================================================
@@ -1319,6 +1385,19 @@ void CANopenModule::CO_main_task(void* arg)
                 s_ledShapeExt.write  = onLedShapeWrite;
                 OD_extension_init(shapeEntry, &s_ledShapeExt);
                 log_i("LED shape OD extension registered (0x2212)");
+            }
+        }
+#endif
+
+#ifdef GALVO_CONTROLLER
+        {
+            OD_entry_t* gpEntry = OD_find(OD, UC2_OD::GALVO_POINTS_DATA);
+            if (gpEntry) {
+                s_galvoPointsExt.object = nullptr;
+                s_galvoPointsExt.read   = nullptr;
+                s_galvoPointsExt.write  = onGalvoPointsWrite;
+                OD_extension_init(gpEntry, &s_galvoPointsExt);
+                log_i("Galvo points OD extension registered (0x2610)");
             }
         }
 #endif
@@ -1977,18 +2056,17 @@ void CANopenModule::syncRpdoToModules_slave()
 #endif
 
 #ifdef GALVO_CONTROLLER
-    // Galvo: detect changes to command word and scan parameters, dispatch to GalvoController
+    // Galvo command word is a doorbell: the master writes a nonzero code via
+    // SDO, we execute it and clear the word back to GALVO_CMD_IDLE (0). We must
+    // NOT treat 0 as a command — doing so, combined with the self-clear below,
+    // made the cleared state look like a fresh "stop" on the very next sync
+    // cycle and killed every scan right after it started. So: skip 0, and use
+    // the dedicated GALVO_CMD_STOP code for stops.
     {
-        static uint8_t lastGalvoCmd = 0;
         uint8_t cmd = OD_RAM.x2602_galvo_command_word;
-        if (cmd != lastGalvoCmd) {
-            lastGalvoCmd = cmd;
+        if (cmd != GALVO_CMD_IDLE) {
             switch (cmd) {
-                case 0: // Stop
-                    log_i("Galvo stop command received");
-                    GalvoController::stop();
-                    break;
-                case 1: { // Goto XY — set target position via raster config
+                case GALVO_CMD_GOTO: { // Goto XY — set target position via raster config
                     ScanConfig cfg = GalvoController::getCurrentConfig();
                     log_i("Galvo goto command: x=%u y=%u",
                           (unsigned)OD_RAM.x2600_galvo_target_position[0],
@@ -2001,13 +2079,14 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.ny = 1;
                     cfg.frame_count = 1;
                     GalvoController::setConfig(cfg);
+                    GalvoController::setScanMode(SCAN_MODE_RASTER);
                     GalvoController::start();
                     break;
                 }
-                case 2: // Line scan
-                    // TODO: not implemented yet?
+                case GALVO_CMD_LINE: // Line scan (single line: ny forced to 1 below)
                     log_i("Galvo line scan command received");
-                case 3: { // Raster scan
+                    // fall through — same raster path, ny is clamped to 1
+                case GALVO_CMD_RASTER: { // Raster scan
                     log_i("Galvo raster scan command received: x_start=%u y_start=%u x_steps=%u y_steps=%u x_step=%d y_step=%d speed=%u pre_us=%u post_us=%u trigger=%u",
                           (unsigned)OD_RAM.x260B_galvo_x_start,
                           (unsigned)OD_RAM.x260C_galvo_y_start,
@@ -2023,7 +2102,7 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.x_min = (uint16_t)OD_RAM.x260B_galvo_x_start;
                     cfg.y_min = (uint16_t)OD_RAM.x260C_galvo_y_start;
                     cfg.nx = OD_RAM.x2605_galvo_n_steps_line;
-                    cfg.ny = (cmd == 2) ? 1 : OD_RAM.x2606_galvo_n_steps_pixel;
+                    cfg.ny = (cmd == GALVO_CMD_LINE) ? 1 : OD_RAM.x2606_galvo_n_steps_pixel;
                     int32_t xStep = OD_RAM.x260D_galvo_x_step;
                     int32_t yStep = OD_RAM.x260E_galvo_y_step;
                     cfg.x_max = (uint16_t)(cfg.x_min + cfg.nx * xStep);
@@ -2033,18 +2112,34 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.fly_samples = OD_RAM.x260A_galvo_t_post_us;
                     cfg.frame_count = 0; // Infinite until stopped
                     cfg.enable_trigger = OD_RAM.x260F_galvo_camera_trigger_mode;
+                    // bidirectional + line_settle_samples ride in the reused
+                    // d_steps slots (see DeviceRouter::handleGalvoAct). Line scan
+                    // (single line) is always unidirectional.
+                    cfg.bidirectional = (cmd == GALVO_CMD_LINE) ? 0
+                                        : (uint8_t)(OD_RAM.x2607_galvo_d_steps_line ? 1 : 0);
+                    cfg.line_settle_samples = OD_RAM.x2608_galvo_d_steps_pixel;
+                    log_i("Galvo raster extras: bidirectional=%u line_settle=%u",
+                          (unsigned)cfg.bidirectional, (unsigned)cfg.line_settle_samples);
                     GalvoController::setConfig(cfg);
+                    // Reset to raster mode — a prior arbitrary-point scan (0x2610)
+                    // would otherwise leave the scanner in ARBITRARY mode.
+                    GalvoController::setScanMode(SCAN_MODE_RASTER);
                     GalvoController::start();
                     break;
                 }
-                case 5: // Emergency stop
+                case GALVO_CMD_STOP: // Stop
+                    log_i("Galvo stop command received");
+                    GalvoController::stop();
+                    break;
+                case GALVO_CMD_ESTOP: // Emergency stop
                     log_i("Galvo emergency stop command received");
                     GalvoController::stop();
                     break;
                 default:
+                    log_w("Galvo unknown command word: %u", (unsigned)cmd);
                     break;
             }
-            OD_RAM.x2602_galvo_command_word = 0;
+            OD_RAM.x2602_galvo_command_word = GALVO_CMD_IDLE;
         }
     }
 #endif

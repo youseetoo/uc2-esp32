@@ -13,6 +13,23 @@
 #include "driver/gpio.h"
 #include "soc/gpio_struct.h"
 #include "esp_rom_sys.h"
+#include "soc/soc_caps.h"
+// Hardware pixel clock needs RMT finite TX loop count (ESP32-S3; not classic
+// ESP32). IDF >= 5 provides driver/rmt_tx.h; the IDF 4.4-based Arduino core
+// only has the legacy driver/rmt.h, which exposes the same loop-count feature
+// via rmt_set_tx_loop_count() + autostop.
+#if SOC_RMT_SUPPORT_TX_LOOP_COUNT
+#if __has_include("driver/rmt_tx.h")
+#define GALVO_RMT_NEW_API 1
+#include "driver/rmt_tx.h"
+#elif __has_include("driver/rmt.h")
+#define GALVO_RMT_LEGACY_API 1
+#include "driver/rmt.h"
+// Use the last TX-capable channel to avoid colliding with libraries that
+// allocate from 0 upwards (e.g. NeoPixel)
+#define GALVO_RMT_CHANNEL RMT_CHANNEL_3
+#endif
+#endif
 #include <cmath>
 #include <cstring>
 #include <stdio.h>
@@ -35,6 +52,7 @@ HighSpeedScannerCore::HighSpeedScannerCore()
 HighSpeedScannerCore::~HighSpeedScannerCore()
 {
     stop();
+    disableHwPixelClock();
     if (task_handle_) {
         vTaskDelete(task_handle_);
         task_handle_ = nullptr;
@@ -44,12 +62,13 @@ HighSpeedScannerCore::~HighSpeedScannerCore()
     }
 }
 
-bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel, 
-                                 int trigger_pin_line, int trigger_pin_frame)
+bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
+                                 int trigger_pin_line, int trigger_pin_frame,
+                                 int laser_pin)
 {
-    SCANNER_LOG("init() called with pins: pixel=%d, line=%d, frame=%d", 
-                trigger_pin_pixel, trigger_pin_line, trigger_pin_frame);
-    
+    SCANNER_LOG("init() called with pins: pixel=%d, line=%d, frame=%d, laser=%d",
+                trigger_pin_pixel, trigger_pin_line, trigger_pin_frame, laser_pin);
+
     if (!dac) {
         SCANNER_LOG("ERROR: DAC pointer is null");
         return false;
@@ -59,13 +78,15 @@ bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
     trigger_pin_pixel_ = trigger_pin_pixel;
     trigger_pin_line_ = trigger_pin_line;
     trigger_pin_frame_ = trigger_pin_frame;
+    laser_pin_ = laser_pin;
 
-    // Configure all three trigger pins
+    // Configure trigger pins and the laser gate pin
     uint64_t pin_mask = 0;
     if (trigger_pin_pixel_ >= 0) pin_mask |= (1ULL << trigger_pin_pixel_);
     if (trigger_pin_line_ >= 0) pin_mask |= (1ULL << trigger_pin_line_);
     if (trigger_pin_frame_ >= 0) pin_mask |= (1ULL << trigger_pin_frame_);
-    
+    if (laser_pin_ >= 0) pin_mask |= (1ULL << laser_pin_);
+
     if (pin_mask != 0) {
         gpio_config_t io = {};
         io.intr_type = GPIO_INTR_DISABLE;
@@ -74,13 +95,14 @@ bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
         io.pull_down_en = GPIO_PULLDOWN_DISABLE;
         io.pull_up_en = GPIO_PULLUP_DISABLE;
         gpio_config(&io);
-        
+
         if (trigger_pin_pixel_ >= 0) gpio_set_level((gpio_num_t)trigger_pin_pixel_, 0);
         if (trigger_pin_line_ >= 0) gpio_set_level((gpio_num_t)trigger_pin_line_, 0);
         if (trigger_pin_frame_ >= 0) gpio_set_level((gpio_num_t)trigger_pin_frame_, 0);
-        
-        SCANNER_LOG("Trigger pins configured: Pixel=GPIO%d, Line=GPIO%d, Frame=GPIO%d", 
-                    trigger_pin_pixel_, trigger_pin_line_, trigger_pin_frame_);
+        if (laser_pin_ >= 0) gpio_set_level((gpio_num_t)laser_pin_, 0);
+
+        SCANNER_LOG("Pins configured: Pixel=GPIO%d, Line=GPIO%d, Frame=GPIO%d, Laser=GPIO%d",
+                    trigger_pin_pixel_, trigger_pin_line_, trigger_pin_frame_, laser_pin_);
     }
 
     buildLineProfile();
@@ -99,9 +121,12 @@ bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
 
 bool HighSpeedScannerCore::setConfig(const ScanConfig& config)
 {
-    // Validate configuration
-    uint32_t line_total = (uint32_t)config.pre_samples + config.nx + 
-                          config.fly_samples + config.line_settle_samples;
+    // Validate configuration. In bidirectional mode there is no flyback
+    // (odd lines scan backwards), so fly_samples does not contribute.
+    uint32_t line_total = (uint32_t)config.pre_samples +
+                          2u * config.overscan_samples + config.nx +
+                          (config.bidirectional ? 0 : config.fly_samples) +
+                          config.line_settle_samples;
     
     SCANNER_LOG("setConfig: nx=%d, ny=%d, x=[%d,%d], y=[%d,%d], period=%dus, frames=%d",
                 config.nx, config.ny, config.x_min, config.x_max,
@@ -221,6 +246,7 @@ void HighSpeedScannerCore::stop()
     SCANNER_LOG("stop() called");
     running_ = false;
     config_changed_ = false;  // Clear config change flag
+    setLaserGate(false);      // Never leave the laser on after a stop
     SCANNER_LOG("Scanning STOPPED");
 }
 
@@ -236,54 +262,77 @@ ScannerStatus HighSpeedScannerCore::getStatus() const
 
 void HighSpeedScannerCore::buildLineProfile()
 {
-    uint32_t total = (uint32_t)config_.pre_samples + config_.nx + 
-                     config_.fly_samples + config_.line_settle_samples;
-    
+    const bool bidir = (config_.bidirectional != 0);
+    const uint32_t ov = config_.overscan_samples;
+    const uint32_t fly = bidir ? 0 : config_.fly_samples;
+    uint32_t total = (uint32_t)config_.pre_samples + 2u * ov + config_.nx +
+                     fly + config_.line_settle_samples;
+
     if (total == 0 || total > SCANNER_MAX_LINE_SAMPLES) {
         line_len_ = 0;
+        img_start_ = 0;
+        img_end_ = 0;
         return;
     }
 
+    // Per-pixel slope of the imaging ramp; the overscan regions continue this
+    // exact slope beyond [x_min, x_max] so the mirror is at constant velocity
+    // throughout the (triggered) imaging window.
+    const float slope = (config_.nx > 1)
+        ? (float)((int32_t)config_.x_max - (int32_t)config_.x_min) / (float)(config_.nx - 1)
+        : 0.0f;
+    const float start_x = (float)config_.x_min - slope * (float)ov; // ramp entry point
+    const float end_x   = (float)config_.x_max + slope * (float)ov; // ramp exit point
+
     uint32_t k = 0;
 
-    // Pre-blanking region (hold at x_min)
+    // ---- Forward profile: pre @ start_x | ov ramp | nx ramp | ov ramp | [fly] | settle ----
     for (uint32_t i = 0; i < config_.pre_samples; ++i) {
-        line_x_[k++] = config_.x_min;
+        line_x_fwd_[k++] = clamp12((int)(start_x + 0.5f));
     }
-
-    // Imaging region (linear ramp from x_min to x_max)
+    for (uint32_t i = 0; i < ov; ++i) { // lead-in overscan: start_x -> x_min (exclusive)
+        line_x_fwd_[k++] = clamp12((int)(start_x + slope * (float)i + 0.5f));
+    }
+    img_start_ = (uint16_t)k;
     if (config_.nx <= 1) {
-        line_x_[k++] = config_.x_min;
+        line_x_fwd_[k++] = config_.x_min;
     } else {
-        int32_t dx = (int32_t)config_.x_max - (int32_t)config_.x_min;
         for (uint32_t i = 0; i < config_.nx; ++i) {
-            int32_t x = (int32_t)config_.x_min + (dx * (int32_t)i) / (int32_t)(config_.nx - 1);
-            line_x_[k++] = clamp12(x);
+            line_x_fwd_[k++] = clamp12((int)((float)config_.x_min + slope * (float)i + 0.5f));
         }
     }
-
-    // Flyback region (cosine ease from x_max to x_min)
-    if (config_.fly_samples == 0) {
-        // No flyback
-    } else if (config_.fly_samples == 1) {
-        line_x_[k++] = config_.x_min;
-    } else {
-        float x0 = (float)config_.x_max;
-        float x1 = (float)config_.x_min;
-        for (uint32_t i = 0; i < config_.fly_samples; ++i) {
-            float t = (float)i / (float)(config_.fly_samples - 1);
+    img_end_ = (uint16_t)k;
+    for (uint32_t i = 1; i <= ov; ++i) { // lead-out overscan: x_max -> end_x
+        line_x_fwd_[k++] = clamp12((int)((float)config_.x_max + slope * (float)i + 0.5f));
+    }
+    // Flyback (cosine ease from end_x back to start_x) - unidirectional only
+    if (fly == 1) {
+        line_x_fwd_[k++] = clamp12((int)(start_x + 0.5f));
+    } else if (fly > 1) {
+        for (uint32_t i = 0; i < fly; ++i) {
+            float t = (float)i / (float)(fly - 1);
             float s = 0.5f - 0.5f * cosf((float)M_PI * t);
-            float xf = x0 + (x1 - x0) * s;
-            line_x_[k++] = clamp12((int)(xf + 0.5f));
+            line_x_fwd_[k++] = clamp12((int)(end_x + (start_x - end_x) * s + 0.5f));
         }
     }
-
-    // Settle region
+    // Settle region: hold at the position the next line starts from
+    // (start_x after flyback; end_x in bidirectional mode)
+    const float settle_x = bidir ? end_x : start_x;
     for (uint32_t i = 0; i < config_.line_settle_samples; ++i) {
-        line_x_[k++] = config_.x_min;
+        line_x_fwd_[k++] = clamp12((int)(settle_x + 0.5f));
     }
-
     line_len_ = (uint16_t)k;
+
+    // ---- Reverse profile (bidirectional odd lines): exact mirror in X. ----
+    // Same region layout and therefore the SAME [img_start_, img_end_) window:
+    // triggers stay monotonic and equidistant; only the direction of motion
+    // differs (pixel j maps to x_max - slope*j). The bridge/host must flip
+    // odd lines when reassembling the image.
+    for (uint32_t i = 0; i < line_len_; ++i) {
+        // Mirror around the scan center: x' = (start+end) - x
+        float mirrored = (start_x + end_x) - (float)line_x_fwd_[i];
+        line_x_rev_[i] = clamp12((int)(mirrored + 0.5f));
+    }
 }
 
 uint16_t HighSpeedScannerCore::computeY(uint16_t line) const
@@ -325,6 +374,145 @@ void HighSpeedScannerCore::triggerPulseFrame()
     GPIO.out_w1ts = (1U << trigger_pin_frame_);
     esp_rom_delay_us(5);
     GPIO.out_w1tc = (1U << trigger_pin_frame_);
+}
+
+void HighSpeedScannerCore::setLaserGate(bool on)
+{
+    if (laser_pin_ < 0) return;
+    if (on) {
+        GPIO.out_w1ts = (1U << laser_pin_);
+    } else {
+        GPIO.out_w1tc = (1U << laser_pin_);
+    }
+}
+
+/**
+ * Hardware pixel clock via the RMT peripheral.
+ *
+ * One RMT symbol encodes a full pixel cycle (high for trig_width_us, low for
+ * the rest of the dwell); the peripheral loops it exactly nx times per line
+ * with hardware timing, fully decoupled from the SPI/DAC software loop.
+ * Requires finite TX loop count support (ESP32-S3 yes, classic ESP32 no);
+ * without it the scanner falls back to software pulses.
+ */
+bool HighSpeedScannerCore::enableHwPixelClock()
+{
+#if defined(GALVO_RMT_NEW_API)
+    if (hw_clock_active_) return true;
+    if (trigger_pin_pixel_ < 0) return false;
+
+    rmt_tx_channel_config_t chan_cfg = {};
+    chan_cfg.gpio_num = (gpio_num_t)trigger_pin_pixel_;
+    chan_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
+    chan_cfg.resolution_hz = 1000000; // 1 tick = 1 us
+    chan_cfg.mem_block_symbols = 48;
+    chan_cfg.trans_queue_depth = 2;
+
+    rmt_channel_handle_t chan = nullptr;
+    if (rmt_new_tx_channel(&chan_cfg, &chan) != ESP_OK) {
+        SCANNER_LOG("ERROR: RMT channel alloc failed - using software pixel clock");
+        return false;
+    }
+    rmt_copy_encoder_config_t enc_cfg = {};
+    rmt_encoder_handle_t enc = nullptr;
+    if (rmt_new_copy_encoder(&enc_cfg, &enc) != ESP_OK || rmt_enable(chan) != ESP_OK) {
+        if (enc) rmt_del_encoder(enc);
+        rmt_del_channel(chan);
+        SCANNER_LOG("ERROR: RMT encoder/enable failed - using software pixel clock");
+        return false;
+    }
+    rmt_chan_ = chan;
+    rmt_encoder_ = enc;
+    hw_clock_active_ = true;
+    SCANNER_LOG("Hardware pixel clock enabled (RMT on GPIO%d)", trigger_pin_pixel_);
+    return true;
+#elif defined(GALVO_RMT_LEGACY_API)
+    if (hw_clock_active_) return true;
+    if (trigger_pin_pixel_ < 0) return false;
+
+    rmt_config_t cfg = RMT_DEFAULT_CONFIG_TX((gpio_num_t)trigger_pin_pixel_, GALVO_RMT_CHANNEL);
+    cfg.clk_div = 80;               // 80 MHz APB / 80 -> 1 tick = 1 us
+    cfg.tx_config.loop_en = true;   // loop the symbol; autostop after loop count
+    if (rmt_config(&cfg) != ESP_OK ||
+        rmt_driver_install(GALVO_RMT_CHANNEL, 0, 0) != ESP_OK) {
+        SCANNER_LOG("ERROR: RMT (legacy) init failed - using software pixel clock");
+        return false;
+    }
+    rmt_enable_tx_loop_autostop(GALVO_RMT_CHANNEL, true);
+    hw_clock_active_ = true;
+    SCANNER_LOG("Hardware pixel clock enabled (legacy RMT ch%d on GPIO%d)",
+                (int)GALVO_RMT_CHANNEL, trigger_pin_pixel_);
+    return true;
+#else
+    SCANNER_LOG("Hardware pixel clock not supported on this SoC - using software pulses");
+    return false;
+#endif
+}
+
+void HighSpeedScannerCore::disableHwPixelClock()
+{
+#if defined(GALVO_RMT_NEW_API) || defined(GALVO_RMT_LEGACY_API)
+    if (!hw_clock_active_) return;
+#if defined(GALVO_RMT_NEW_API)
+    rmt_disable((rmt_channel_handle_t)rmt_chan_);
+    rmt_del_encoder((rmt_encoder_handle_t)rmt_encoder_);
+    rmt_del_channel((rmt_channel_handle_t)rmt_chan_);
+    rmt_chan_ = nullptr;
+    rmt_encoder_ = nullptr;
+#else
+    rmt_tx_stop(GALVO_RMT_CHANNEL);
+    rmt_driver_uninstall(GALVO_RMT_CHANNEL);
+#endif
+    hw_clock_active_ = false;
+    // Give the pin back to the GPIO matrix for software pulses
+    if (trigger_pin_pixel_ >= 0) {
+        gpio_config_t io = {};
+        io.intr_type = GPIO_INTR_DISABLE;
+        io.mode = GPIO_MODE_OUTPUT;
+        io.pin_bit_mask = (1ULL << trigger_pin_pixel_);
+        gpio_config(&io);
+        gpio_set_level((gpio_num_t)trigger_pin_pixel_, 0);
+    }
+    SCANNER_LOG("Hardware pixel clock disabled");
+#endif
+}
+
+void HighSpeedScannerCore::armHwPixelClock(uint16_t count, uint16_t period_us, uint16_t width_us)
+{
+#if defined(GALVO_RMT_NEW_API) || defined(GALVO_RMT_LEGACY_API)
+    if (!hw_clock_active_ || count == 0 || period_us == 0) return;
+    // RMT symbol durations are 15-bit (max 32767 ticks @ 1 MHz)
+    uint16_t w = width_us ? width_us : 1;
+    if (w >= period_us) w = (period_us > 1) ? (period_us - 1) : 1;
+    uint16_t low = period_us - w;
+    if (w > 32767 || low > 32767) return; // dwell too long for one symbol - skip
+
+#if defined(GALVO_RMT_NEW_API)
+    rmt_symbol_word_t sym = {};
+    sym.level0 = 1;
+    sym.duration0 = w;
+    sym.level1 = 0;
+    sym.duration1 = low;
+
+    rmt_transmit_config_t tx_cfg = {};
+    tx_cfg.loop_count = count;
+    // Previous line's train is guaranteed shorter than the full line period,
+    // but don't block if something went wrong
+    rmt_tx_wait_all_done((rmt_channel_handle_t)rmt_chan_, 0);
+    rmt_transmit((rmt_channel_handle_t)rmt_chan_, (rmt_encoder_handle_t)rmt_encoder_,
+                 &sym, sizeof(sym), &tx_cfg);
+#else
+    rmt_item32_t item;
+    item.level0 = 1;
+    item.duration0 = w;
+    item.level1 = 0;
+    item.duration1 = low;
+
+    rmt_tx_stop(GALVO_RMT_CHANNEL); // previous train has finished (autostop)
+    rmt_set_tx_loop_count(GALVO_RMT_CHANNEL, count);
+    rmt_write_items(GALVO_RMT_CHANNEL, &item, 1, false);
+#endif
+#endif
 }
 
 void HighSpeedScannerCore::setTriggerState(bool high)
@@ -464,12 +652,14 @@ void HighSpeedScannerCore::scannerTask()
         }
         else if (current_mode == SCAN_MODE_RASTER)
         {       
-        // RASTER SCAN MODE (existing implementation)
+        // RASTER SCAN MODE
         // Snapshot configuration for this frame
         ScanConfig cfg;
         xSemaphoreTake(config_mutex_, portMAX_DELAY);
         cfg = config_;
         uint16_t line_len = line_len_;
+        uint32_t img_start = img_start_;
+        uint32_t img_end = img_end_;
         xSemaphoreGive(config_mutex_);
 
         if (line_len == 0 || cfg.nx == 0 || cfg.ny == 0) {
@@ -478,42 +668,42 @@ void HighSpeedScannerCore::scannerTask()
             continue;
         }
 
+        // Hardware pixel clock lifecycle (RMT owns the pixel pin while active)
+        const bool want_hw_clock = (cfg.hw_pixel_clock != 0) && (cfg.sample_period_us > 0);
+        if (want_hw_clock && !hw_clock_active_) enableHwPixelClock();
+        if (!want_hw_clock && hw_clock_active_) disableHwPixelClock();
+        const bool hw_clock = hw_clock_active_;
+
         // Log frame start (only every 100 frames to avoid spam)
         if (frame_idx_ % 100 == 0) {
-            SCANNER_LOG("Frame %lu starting, bidirectional=%d", (unsigned long)frame_idx_, cfg.bidirectional);
+            SCANNER_LOG("Frame %lu starting, bidirectional=%d, hw_clock=%d",
+                        (unsigned long)frame_idx_, cfg.bidirectional, (int)hw_clock);
         }
 
         const bool bidir = (cfg.bidirectional != 0);
-        
-        const uint32_t img_start = cfg.pre_samples;
-        const uint32_t img_end = cfg.pre_samples + cfg.nx;
-
-        // FRAME TRIGGER
-        /*
-        if (1) { // TODO : ensure it's always true ; cfg.enable_trigger) {
-            triggerPulseFrame();
+        const bool do_trig = (cfg.enable_trigger != 0);
+        const bool do_laser = (cfg.laser_blanking != 0) && (laser_pin_ >= 0);
+        // Pixel pulse width (software mode): honour trig_width_us but always
+        // leave at least half the dwell for the DAC update; 0 keeps the legacy
+        // register-fast pulse (tens of ns)
+        uint16_t pix_width_us = cfg.trig_width_us;
+        if (cfg.sample_period_us > 0 && pix_width_us > cfg.sample_period_us / 2) {
+            pix_width_us = cfg.sample_period_us / 2;
         }
-            */
 
         // Scan all lines (Y steps)
         for (uint16_t ly = 0; ly < cfg.ny && running_ && !config_changed_; ++ly) {
             line_idx_ = ly;
 
-            // LINE TRIGGER
-            /*
-            if (cfg.enable_trigger) {
-                // triggerPulseLine();
-            }
-            */
-
-            // Determine if this line is reversed (bidirectional: odd lines go backwards)
-            bool reverse_line = bidir && (ly & 1);
+            // Bidirectional: odd lines use the mirrored profile. Trigger and
+            // laser windows use the SAME sample indices in both directions.
+            const bool reverse_line = bidir && (ly & 1);
+            const uint16_t* line_buf = reverse_line ? line_x_rev_ : line_x_fwd_;
 
             // Compute Y position - lock only for the computation
             xSemaphoreTake(config_mutex_, portMAX_DELAY);
             uint16_t y12 = computeY(ly);
             bool do_lut = (config_.apply_x_lut != 0) && x_map_valid_;
-            bool do_trig = 1; //(config_.enable_trigger != 0);
             uint16_t sp_us = config_.sample_period_us;
             xSemaphoreGive(config_mutex_);
 
@@ -521,14 +711,33 @@ void HighSpeedScannerCore::scannerTask()
             dac_->setY(y12);
             dac_->ldacPulse();
 
+            // LINE/FRAME MARKERS at line start (during the pre-blanking hold,
+            // where the DAC is static and there is timing slack). The frame
+            // marker leads the line marker by trig_delay_us; both lead the
+            // first pixel by (pre_samples + overscan_samples) * dwell, which
+            // the acquisition side models as offset_left / trigger delay.
+            if (do_trig) {
+                uint16_t marker_width = cfg.trig_width_us ? cfg.trig_width_us : 1;
+                if (ly == 0 && trigger_pin_frame_ >= 0) {
+                    GPIO.out_w1ts = (1U << trigger_pin_frame_);
+                    esp_rom_delay_us(marker_width);
+                    GPIO.out_w1tc = (1U << trigger_pin_frame_);
+                    if (cfg.trig_delay_us) esp_rom_delay_us(cfg.trig_delay_us);
+                }
+                if (trigger_pin_line_ >= 0) {
+                    GPIO.out_w1ts = (1U << trigger_pin_line_);
+                    esp_rom_delay_us(marker_width);
+                    GPIO.out_w1tc = (1U << trigger_pin_line_);
+                }
+            }
+
             int64_t next_t = esp_timer_get_time();
 
             // Scan one line
             for (uint32_t i = 0; i < line_len && running_ && !config_changed_; ++i) {
                 next_t += sp_us;
 
-                // TIMING CONTROL: Wait until exact time for periodic trigger
-                // This ensures precise timing regardless of processing variations
+                // TIMING CONTROL: wait until the exact periodic instant
                 int64_t now;
                 while (true) {
                     now = esp_timer_get_time();
@@ -541,61 +750,43 @@ void HighSpeedScannerCore::scannerTask()
                 int64_t overrun_us = now - next_t;
                 if (overrun_us > (int64_t)sp_us) {
                     overruns_++;
-                    // Log critical overruns (>10% of period)
-                    if (overruns_ % 100 == 1) {
-                        //SCANNER_LOG("Timing overrun: %lld µs (period: %d µs)", overrun_us, sp_us);
+                }
+
+                // IMAGING WINDOW ENTRY: open laser gate, arm hardware clock
+                if (i == img_start) {
+                    if (do_laser) setLaserGate(true);
+                    if (do_trig && hw_clock) {
+                        // RMT emits exactly nx hardware-timed pulses
+                        armHwPixelClock(cfg.nx, sp_us, cfg.trig_width_us);
                     }
                 }
 
-                // PIXEL TRIGGER - Fire at exact periodic interval
-                // Frame, Line, and first Pixel trigger happen simultaneously
-                // Only during imaging region, minimal pulse width
-                if (do_trig && (i >= img_start) && (i < img_end)) {
-                    bool is_first_pixel = (i == img_start);
-                    bool is_first_line = (ly == 0);
-                    
-                    // Synchronize all triggers on first pixel of first line
-                    if (is_first_line && is_first_pixel) {
-                        // All three triggers fire simultaneously
-                        uint32_t trigger_mask = 0;
-                        if (trigger_pin_frame_ >= 0) trigger_mask |= (1U << trigger_pin_frame_);
-                        if (trigger_pin_line_ >= 0) trigger_mask |= (1U << trigger_pin_line_);
-                        if (trigger_pin_pixel_ >= 0) trigger_mask |= (1U << trigger_pin_pixel_);
-                        
-                        GPIO.out_w1ts = trigger_mask;  // Set all at once
-                        GPIO.out_w1tc = trigger_mask;  // Clear all at once
-                    }
-                    else if (is_first_pixel) {
-                        // First pixel of subsequent lines: Line + Pixel trigger
-                        uint32_t trigger_mask = 0;
-                        if (trigger_pin_line_ >= 0) trigger_mask |= (1U << trigger_pin_line_);
-                        if (trigger_pin_pixel_ >= 0) trigger_mask |= (1U << trigger_pin_pixel_);
-                        
-                        GPIO.out_w1ts = trigger_mask;
-                        GPIO.out_w1tc = trigger_mask;
-                    }
-                    else {
-                        // Subsequent pixels: Only pixel trigger
-                        if (trigger_pin_pixel_ >= 0) {
-                            GPIO.out_w1ts = (1U << trigger_pin_pixel_);
-                            GPIO.out_w1tc = (1U << trigger_pin_pixel_);
-                        }
-                    }
+                // PIXEL TRIGGER (software fallback): equidistant pacing comes
+                // from next_t; width honours trig_width_us (capped at dwell/2)
+                if (do_trig && !hw_clock && (i >= img_start) && (i < img_end) &&
+                    trigger_pin_pixel_ >= 0) {
+                    GPIO.out_w1ts = (1U << trigger_pin_pixel_);
+                    if (pix_width_us) esp_rom_delay_us(pix_width_us);
+                    GPIO.out_w1tc = (1U << trigger_pin_pixel_);
                 }
 
-                // DAC UPDATE: Now we have remaining time budget for processing
-                // Get X position and apply LUT if enabled
-                uint32_t idx = reverse_line ? (line_len - 1 - i) : i;
-                uint16_t x12 = line_x_[idx];
+                // IMAGING WINDOW EXIT: close laser gate
+                if (do_laser && i == img_end) {
+                    setLaserGate(false);
+                }
+
+                // DAC UPDATE with remaining time budget
+                uint16_t x12 = line_buf[i];
                 if (do_lut) x12 = applyXMap(x12);
-
-                // Update X position via DAC
                 dac_->setX(x12);
                 dac_->ldacPulse();
             }
-            
+
+            // Safety: never leave the laser on across line boundaries
+            // (img_end == line_len when there is no post-imaging region)
+            if (do_laser) setLaserGate(false);
+
             // Reset watchdog and yield after each line to prevent timeout
-            // This is critical for long scans (e.g., 256x256 at max speed)
             esp_task_wdt_reset();
             if (sp_us == 0) {
                 taskYIELD();  // Brief yield at max speed - not vTaskDelay to maintain speed

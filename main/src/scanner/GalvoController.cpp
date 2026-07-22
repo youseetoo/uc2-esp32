@@ -43,20 +43,23 @@ void GalvoController::setup()
     // Satellite/Slave mode - initialize actual hardware
     GALVO_LOG("Running in SLAVE mode (local hardware)");
 
-    // Get pin configuration from global pinConfig
+    // Get pin configuration from global pinConfig.
+    // Pins are stored as uint8_t; the "disabled" sentinel (-1) wraps to 255,
+    // so cast through int8_t to recover -1 for unconfigured pins.
     int sdi_pin = pinConfig.galvo_sdi;
     int sck_pin = pinConfig.galvo_sck;
     int cs_pin = pinConfig.galvo_cs;
     int ldac_pin = pinConfig.galvo_ldac;
-    int trig_pixel = pinConfig.galvo_trig_pixel;
-    int trig_line = pinConfig.galvo_trig_line;
-    int trig_frame = pinConfig.galvo_trig_frame;
+    int trig_pixel = (int8_t)pinConfig.galvo_trig_pixel;
+    int trig_line = (int8_t)pinConfig.galvo_trig_line;
+    int trig_frame = (int8_t)pinConfig.galvo_trig_frame;
+    int laser_pin = (int8_t)pinConfig.galvo_laser;
 
     GALVO_LOG("Pin configuration:");
     GALVO_LOG("  SPI: SDI=%d, SCK=%d, CS=%d, LDAC=%d",
               sdi_pin, sck_pin, cs_pin, ldac_pin);
-    GALVO_LOG("  Triggers: Pixel=%d, Line=%d, Frame=%d",
-              trig_pixel, trig_line, trig_frame);
+    GALVO_LOG("  Triggers: Pixel=%d, Line=%d, Frame=%d, Laser=%d",
+              trig_pixel, trig_line, trig_frame, laser_pin);
 
     // Initialize DAC
     GALVO_LOG("Initializing MCP4822 DAC...");
@@ -75,7 +78,7 @@ void GalvoController::setup()
 
     // Initialize scanner
     GALVO_LOG("Initializing scanner core...");
-    if (!scanner_.init(&dac_, trig_pixel, trig_line, trig_frame))
+    if (!scanner_.init(&dac_, trig_pixel, trig_line, trig_frame, laser_pin))
     {
         GALVO_LOG("ERROR: Scanner initialization failed!");
         return;
@@ -506,6 +509,10 @@ bool GalvoController::saveConfig()
     prefs_.putUChar("en_trig", cfg.enable_trigger);
     prefs_.putUChar("x_lut", cfg.apply_x_lut);
     prefs_.putUShort("frames", cfg.frame_count);
+    prefs_.putBool("bidirectional", cfg.bidirectional != 0);
+    prefs_.putUShort("overscan", cfg.overscan_samples);
+    prefs_.putUChar("laser_blank", cfg.laser_blanking);
+    prefs_.putUChar("hw_pix_clk", cfg.hw_pixel_clock);
     prefs_.putBool("saved", true);
 
     prefs_.end();
@@ -545,6 +552,9 @@ bool GalvoController::loadConfig()
     cfg.apply_x_lut = prefs_.getUChar("x_lut", 0);
     cfg.frame_count = prefs_.getUShort("frames", 0);
     cfg.bidirectional = prefs_.getBool("bidirectional", false) ? 1 : 0;
+    cfg.overscan_samples = prefs_.getUShort("overscan", 0);
+    cfg.laser_blanking = prefs_.getUChar("laser_blank", 0);
+    cfg.hw_pixel_clock = prefs_.getUChar("hw_pix_clk", 0);
 
     prefs_.end();
 
@@ -593,6 +603,12 @@ bool GalvoController::parseJsonConfig(cJSON *json, ScanConfig &cfg)
         cfg.frame_count = (uint16_t)cJSON_GetNumberValue(item);
     if ((item = cJSON_GetObjectItem(json, "bidirectional")))
         cfg.bidirectional = cJSON_IsTrue(item) ? 1 : 0;
+    if ((item = cJSON_GetObjectItem(json, "overscan_samples")))
+        cfg.overscan_samples = (uint16_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "laser_blanking")))
+        cfg.laser_blanking = (uint8_t)cJSON_GetNumberValue(item);
+    if ((item = cJSON_GetObjectItem(json, "hw_pixel_clock")))
+        cfg.hw_pixel_clock = (uint8_t)cJSON_GetNumberValue(item);
 
     GALVO_LOG("Parsed config: nx=%d ny=%d x=[%d,%d] y=[%d,%d] frames=%d, bidirectional=%d",
               cfg.nx, cfg.ny, cfg.x_min, cfg.x_max, cfg.y_min, cfg.y_max, cfg.frame_count, cfg.bidirectional);
@@ -620,5 +636,8 @@ cJSON *GalvoController::configToJson(const ScanConfig &cfg)
     cJSON_AddNumberToObject(json, "apply_x_lut", cfg.apply_x_lut);
     cJSON_AddNumberToObject(json, "frame_count", cfg.frame_count);
     cJSON_AddNumberToObject(json, "bidirectional", cfg.bidirectional);
+    cJSON_AddNumberToObject(json, "overscan_samples", cfg.overscan_samples);
+    cJSON_AddNumberToObject(json, "laser_blanking", cfg.laser_blanking);
+    cJSON_AddNumberToObject(json, "hw_pixel_clock", cfg.hw_pixel_clock);
     return json;
 }

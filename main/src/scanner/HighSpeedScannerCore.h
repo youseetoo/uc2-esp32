@@ -117,7 +117,14 @@ struct ScanConfig {
     uint8_t  apply_x_lut;           // Apply X lookup table
     uint16_t frame_count;           // Number of frames (0 = infinite/continuous)
     uint8_t  bidirectional;         // Bidirectional scan: even lines min->max, odd lines max->min
-    
+    uint16_t overscan_samples;      // Linear ramp extension (same slope) on both sides of the
+                                    // imaging window: the mirror is already moving at constant
+                                    // velocity when triggers/laser start (galvo lag compensation)
+    uint8_t  laser_blanking;        // Gate the laser pin HIGH only during the imaging window
+    uint8_t  hw_pixel_clock;        // Generate the pixel clock with the RMT peripheral
+                                    // (hardware-equidistant pulses, decoupled from the SPI loop);
+                                    // falls back to software pulses on SoCs without loop count
+
     // Default constructor
     ScanConfig() :
         nx(256),
@@ -135,7 +142,10 @@ struct ScanConfig {
         enable_trigger(1),
         apply_x_lut(0),
         frame_count(0),  // Default: infinite scanning
-        bidirectional(0) // Default: unidirectional
+        bidirectional(0), // Default: unidirectional
+        overscan_samples(0),
+        laser_blanking(0),
+        hw_pixel_clock(1)
     {}
 } __attribute__((packed));
 #pragma pack(pop)
@@ -159,9 +169,13 @@ public:
     ~HighSpeedScannerCore();
 
     /**
-     * @brief Initialize scanner with DAC and trigger pins
+     * @brief Initialize scanner with DAC, trigger pins and optional laser gate pin
+     *
+     * @param laser_pin GPIO used to gate the laser during the imaging window
+     *                  (laser_blanking config); -1 to disable
      */
-    bool init(DAC_MCP4822* dac, int trigger_pin_pixel, int trigger_pin_line, int trigger_pin_frame);
+    bool init(DAC_MCP4822* dac, int trigger_pin_pixel, int trigger_pin_line, int trigger_pin_frame,
+              int laser_pin = -1);
 
     /**
      * @brief Set scan configuration
@@ -249,6 +263,7 @@ private:
     int trigger_pin_pixel_ = -1;
     int trigger_pin_line_ = -1;
     int trigger_pin_frame_ = -1;
+    int laser_pin_ = -1;
 
     ScanConfig config_;
     SemaphoreHandle_t config_mutex_;
@@ -261,9 +276,23 @@ private:
     volatile int32_t overruns_ = 0;
     TaskHandle_t task_handle_ = nullptr;
 
-    // Raster scan buffers
-    uint16_t line_x_[SCANNER_MAX_LINE_SAMPLES];
+    // Raster scan buffers: forward and reversed line profiles. Both share the
+    // same trigger/laser window indices [img_start_, img_end_), so pixel
+    // counts stay monotonic and equidistant in bidirectional mode.
+    uint16_t line_x_fwd_[SCANNER_MAX_LINE_SAMPLES];
+    uint16_t line_x_rev_[SCANNER_MAX_LINE_SAMPLES];
     uint16_t line_len_ = 0;
+    uint16_t img_start_ = 0;   // First sample index of the imaging window
+    uint16_t img_end_ = 0;     // One past the last imaging sample
+
+    // Hardware pixel clock (RMT) state
+    void* rmt_chan_ = nullptr;     // rmt_channel_handle_t (kept as void* to limit header deps)
+    void* rmt_encoder_ = nullptr;  // rmt_encoder_handle_t
+    bool hw_clock_active_ = false; // RMT currently owns the pixel pin
+    bool enableHwPixelClock();
+    void disableHwPixelClock();
+    void armHwPixelClock(uint16_t count, uint16_t period_us, uint16_t width_us);
+    void setLaserGate(bool on);
 
     // Arbitrary point scan buffers
     ArbitraryScanPoint arbitrary_points_[SCANNER_MAX_ARBITRARY_POINTS];

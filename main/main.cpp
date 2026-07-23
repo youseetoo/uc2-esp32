@@ -55,6 +55,9 @@ Preferences preferences;
 #endif
 #ifdef LINEAR_ENCODER_CONTROLLER
 #include "src/encoder/LinearEncoderController.h"
+#ifdef AXIS_CONTROLLER
+#include "src/axis/AxisController.h"
+#endif
 #endif
 #ifdef LASER_CONTROLLER
 #include "src/laser/LaserController.h"
@@ -208,6 +211,11 @@ extern "C" void looper(void *p)
 		if (runtimeConfig.encoder) {
 			LinearEncoderController::loop();
 			vTaskDelay(1);
+		}
+#endif
+#ifdef AXIS_CONTROLLER
+		if (runtimeConfig.encoder) {
+			AxisController::loop();
 		}
 #endif
 #ifdef HOME_MOTOR
@@ -641,6 +649,13 @@ extern "C" void setupApp(void)
 #ifdef LINEAR_ENCODER_CONTROLLER
 	if (runtimeConfig.encoder) {
 		LinearEncoderController::setup();
+	}
+#endif
+#ifdef AXIS_CONTROLLER
+	// New clean-slate feedback layer (design v2). Runs alongside the legacy
+	// encoder controller until validated on hardware (WP10).
+	if (runtimeConfig.encoder) {
+		AxisController::setup();
 	}
 #endif
 #ifdef HOME_MOTOR

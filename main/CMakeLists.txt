@@ -100,7 +100,12 @@ endif()
 if(LINEAR_ENCODER_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/encoder/LinearEncoderController.cpp)
     list(APPEND srcs ${mainsrc}src/encoder/PCNTEncoderController.cpp)
-    
+
+    # New clean-slate axis/ feedback module (design v2, WP1–WP3). Coexists with
+    # the legacy encoder path above until validated on hardware (WP10).
+    list(APPEND srcs ${mainsrc}src/axis/EncoderBackend.cpp)
+    list(APPEND srcs ${mainsrc}src/axis/AxisCalibration.cpp)
+    list(APPEND srcs ${mainsrc}src/axis/AxisController.cpp)
 endif()
 if(LASER_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/laser/LaserController.cpp)

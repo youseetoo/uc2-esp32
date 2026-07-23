@@ -37,6 +37,9 @@ namespace TMCController
     void setup();
     void setTMCCurrent(uint16_t current);
     uint16_t getTMCCurrent();
+    // Currently-applied microstep setting (persisted value; falls back to the
+    // PinConfig default). Used by AxisCalibration to tag calibration records.
+    uint16_t getMicrosteps();
     void loop();
     void callibrateStallguard(int speed);
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs);

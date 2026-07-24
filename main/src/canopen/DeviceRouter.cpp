@@ -6,7 +6,7 @@
 
 #include "../config/RuntimeConfig.h"
 #include "RoutingTable.h"
-#include "../wifi/Endpoints.h"
+#include "../serial/Endpoints.h"
 #include "esp_log.h"
 #include <cstring>
 #include <algorithm>

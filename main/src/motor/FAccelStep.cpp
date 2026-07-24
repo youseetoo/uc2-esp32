@@ -368,7 +368,7 @@ namespace FAccelStep
         //
         // PCNT-unit coordination: the MCPWM backend hard-maps stepper queue 0
         // -> PCNT_UNIT_0. The X linear encoder (ESP32Encoder) is steered onto
-        // PCNT_UNIT_1 in PCNTEncoderController::setup() so they never collide
+        // PCNT_UNIT_1 in axis/EncoderBackend so they never collide
         // on the same PCNT hardware unit.
         faststeppers[stepper] = engine.stepperConnectToPin(motorstp, DRIVER_MCPWM_PCNT);
         if (faststeppers[stepper] == nullptr)

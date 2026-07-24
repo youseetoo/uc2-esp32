@@ -100,14 +100,9 @@ __attribute__ ((unused)) static const  char* readanalogin_get_endpoint = "/reada
 __attribute__ ((unused)) static const  char* PID_act_endpoint = "/PID_act";
 __attribute__ ((unused)) static const  char* PID_get_endpoint = "/PID_get";
 #endif
-__attribute__ ((unused)) static const  char* features_endpoint = "/features_get";
-__attribute__ ((unused)) static const  char* identity_endpoint = "/identity";
-__attribute__ ((unused)) static const  char* ota_endpoint = "/ota";
-__attribute__ ((unused)) static const  char* ota_start_endpoint = "/ota_start";
-__attribute__ ((unused)) static const  char* update_endpoint = "/update";
-__attribute__ ((unused)) static const  char* scanwifi_endpoint = "/wifi/scan";
-__attribute__ ((unused)) static const  char* connectwifi_endpoint = "/wifi/connect";
 __attribute__ ((unused)) static const  char* reset_nv_flash_endpoint = "/resetnv";
+// OTA-over-CAN start command (used by DeviceRouter; not an HTTP endpoint).
+__attribute__ ((unused)) static const  char* ota_start_endpoint = "/ota_start";
 #ifdef BLUETOOTH
 __attribute__ ((unused)) static const  char* bt_disconnect_endpoint = "/bt_disconnect";
 __attribute__ ((unused)) static const  char* bt_scan_endpoint = "/bt_scan";

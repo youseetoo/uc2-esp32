@@ -53,13 +53,8 @@ Preferences preferences;
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "src/digitalout/DigitalOutController.h"
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
-#ifdef USE_LEGACY_ENCODER
-#include "src/encoder/LinearEncoderController.h"
-#endif
 #ifdef AXIS_CONTROLLER
 #include "src/axis/AxisController.h"
-#endif
 #endif
 #ifdef LASER_CONTROLLER
 #include "src/laser/LaserController.h"
@@ -92,9 +87,6 @@ Preferences preferences;
 #endif
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
-#endif
-#ifdef WIFI
-#include "src/wifi/WifiController.h"
 #endif
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
@@ -209,12 +201,6 @@ extern "C" void looper(void *p)
 		DigitalInController::checkEmergencyStop();
 #endif
 
-#ifdef USE_LEGACY_ENCODER
-		if (runtimeConfig.encoder) {
-			LinearEncoderController::loop();
-			vTaskDelay(1);
-		}
-#endif
 #ifdef AXIS_CONTROLLER
 		if (runtimeConfig.encoder) {
 			AxisController::loop();
@@ -648,14 +634,8 @@ extern "C" void setupApp(void)
 		DigitalOutController::setup();
 	}
 #endif
-#ifdef USE_LEGACY_ENCODER
-	if (runtimeConfig.encoder) {
-		LinearEncoderController::setup();
-	}
-#endif
 #ifdef AXIS_CONTROLLER
-	// New clean-slate feedback layer (design v2). Runs alongside the legacy
-	// encoder controller until validated on hardware (WP10).
+	// Clean-slate closed-loop feedback layer (design v2).
 	if (runtimeConfig.encoder) {
 		AxisController::setup();
 	}
@@ -694,11 +674,6 @@ if (runtimeConfig.pid) {
 #ifdef SCANNER_CONTROLLER
 if (runtimeConfig.scanner) {
 	ScannerController::setup();
-}
-#endif
-#ifdef WIFI
-if (runtimeConfig.wifi) {
-	WifiController::setup();
 }
 #endif
 #ifdef HEAT_CONTROLLER

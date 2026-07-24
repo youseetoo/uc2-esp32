@@ -55,6 +55,4 @@ namespace FocusMotor
 	// against an endstop keeps the correct escape direction across a reboot.
 	void setHardLimitLockoutDir(int axis, int8_t dir);
 
-	// Encoder-based motion control (legacy path; superseded by src/axis/)
-	void startEncoderBasedMotion(int axis);
 };

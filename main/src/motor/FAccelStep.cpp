@@ -640,4 +640,29 @@ bool isRunning(int i)
         }
         return faststeppers[s]->getCurrentPosition();
     }
+
+    // Live velocity command for the axis SERVO loop (design v2, WP7). Applies a
+    // signed speed directly to the running FAS stepper WITHOUT taking the
+    // FocusMotor mutex, so the servo PID task never blocks CAN servicing.
+    // signedSpeed > 0 -> forward, < 0 -> backward, 0 -> decelerate to a stop.
+    void setLiveSpeed(int i, int32_t signedSpeed, uint32_t accel)
+    {
+        if (i < 0 || i >= (int)faststeppers.size() || faststeppers[i] == nullptr)
+            return;
+        FastAccelStepper *st = faststeppers[i];
+        int32_t hz = signedSpeed < 0 ? -signedSpeed : signedSpeed;
+        if (hz > 100000)
+            hz = 100000;
+        if (hz == 0)
+        {
+            st->stopMove();
+            return;
+        }
+        st->setSpeedInHz((uint32_t)hz);
+        st->setAcceleration((int32_t)accel);
+        if (signedSpeed >= 0)
+            st->runForward();
+        else
+            st->runBackward();
+    }
 }

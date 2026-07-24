@@ -243,6 +243,19 @@ typedef struct {
     OD_obj_array_t  o_2030_hardlimit_command;
     OD_obj_array_t  o_2031_hardlimit_enabled;
     OD_obj_array_t  o_2032_hardlimit_polarity;
+    /* UC2 axis closed-loop feedback (0x2040-0x204B) */
+    OD_obj_array_t  o_2040_axis_measured_steps;
+    OD_obj_array_t  o_2041_axis_position_error_steps;
+    OD_obj_array_t  o_2042_axis_mode;
+    OD_obj_array_t  o_2043_axis_health;
+    OD_obj_array_t  o_2044_axis_fault;
+    OD_obj_array_t  o_2045_axis_reset;
+    OD_obj_array_t  o_2046_axis_calibrated;
+    OD_obj_array_t  o_2047_axis_referenced;
+    OD_obj_array_t  o_2048_axis_calibrate;
+    OD_obj_array_t  o_2049_axis_counts_per_step_q16;
+    OD_obj_array_t  o_204A_axis_backlash_steps;
+    OD_obj_array_t  o_204B_axis_raw_counts;
     /* UC2 laser (0x2100-0x2106) */
     OD_obj_array_t  o_2100_laser_pwm_value;
     OD_obj_array_t  o_2101_laser_max_value;
@@ -603,6 +616,21 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     .o_2030_hardlimit_command  = _ARR4_U8(x2030_hardlimit_command,  ODA_SDO_RW | ODA_RPDO),
     .o_2031_hardlimit_enabled  = _ARR4_U8(x2031_hardlimit_enabled,  ODA_SDO_RW | ODA_RPDO),
     .o_2032_hardlimit_polarity = _ARR4_U8(x2032_hardlimit_polarity, ODA_SDO_RW | ODA_RPDO),
+    /* -----------------------------------------------------------------------
+     * UC2 axis closed-loop feedback (0x2040-0x204B) — SDO-only
+     * ----------------------------------------------------------------------- */
+    .o_2040_axis_measured_steps       = _ARR4_I32(x2040_axis_measured_steps,       ODA_SDO_R),
+    .o_2041_axis_position_error_steps = _ARR4_I32(x2041_axis_position_error_steps, ODA_SDO_R),
+    .o_2042_axis_mode                 = _ARR4_U8 (x2042_axis_mode,                 ODA_SDO_RW),
+    .o_2043_axis_health               = _ARR4_U8 (x2043_axis_health,               ODA_SDO_R),
+    .o_2044_axis_fault                = _ARR4_U8 (x2044_axis_fault,                ODA_SDO_R),
+    .o_2045_axis_reset                = _ARR4_U8 (x2045_axis_reset,                ODA_SDO_RW),
+    .o_2046_axis_calibrated           = _ARR4_U8 (x2046_axis_calibrated,           ODA_SDO_R),
+    .o_2047_axis_referenced           = _ARR4_U8 (x2047_axis_referenced,           ODA_SDO_R),
+    .o_2048_axis_calibrate            = _ARR4_U8 (x2048_axis_calibrate,            ODA_SDO_RW),
+    .o_2049_axis_counts_per_step_q16  = _ARR4_I32(x2049_axis_counts_per_step_q16,  ODA_SDO_RW),
+    .o_204A_axis_backlash_steps       = _ARR4_I32(x204A_axis_backlash_steps,       ODA_SDO_RW),
+    .o_204B_axis_raw_counts           = _ARR4_I32(x204B_axis_raw_counts,           ODA_SDO_R),
     /* -----------------------------------------------------------------------
      * UC2 laser (0x2100-0x2106)
      * ----------------------------------------------------------------------- */
@@ -984,6 +1012,19 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2030, 0x05, ODT_ARR, &ODObjs.o_2030_hardlimit_command,          NULL},
     {0x2031, 0x05, ODT_ARR, &ODObjs.o_2031_hardlimit_enabled,          NULL},
     {0x2032, 0x05, ODT_ARR, &ODObjs.o_2032_hardlimit_polarity,         NULL},
+    /* UC2 axis closed-loop feedback (0x2040-0x204B) */
+    {0x2040, 0x05, ODT_ARR, &ODObjs.o_2040_axis_measured_steps,        NULL},
+    {0x2041, 0x05, ODT_ARR, &ODObjs.o_2041_axis_position_error_steps,  NULL},
+    {0x2042, 0x05, ODT_ARR, &ODObjs.o_2042_axis_mode,                  NULL},
+    {0x2043, 0x05, ODT_ARR, &ODObjs.o_2043_axis_health,                NULL},
+    {0x2044, 0x05, ODT_ARR, &ODObjs.o_2044_axis_fault,                 NULL},
+    {0x2045, 0x05, ODT_ARR, &ODObjs.o_2045_axis_reset,                 NULL},
+    {0x2046, 0x05, ODT_ARR, &ODObjs.o_2046_axis_calibrated,            NULL},
+    {0x2047, 0x05, ODT_ARR, &ODObjs.o_2047_axis_referenced,            NULL},
+    {0x2048, 0x05, ODT_ARR, &ODObjs.o_2048_axis_calibrate,             NULL},
+    {0x2049, 0x05, ODT_ARR, &ODObjs.o_2049_axis_counts_per_step_q16,   NULL},
+    {0x204A, 0x05, ODT_ARR, &ODObjs.o_204A_axis_backlash_steps,        NULL},
+    {0x204B, 0x05, ODT_ARR, &ODObjs.o_204B_axis_raw_counts,            NULL},
     /* UC2 laser */
     {0x2100, 0x05, ODT_ARR, &ODObjs.o_2100_laser_pwm_value,            NULL},
     {0x2101, 0x05, ODT_ARR, &ODObjs.o_2101_laser_max_value,            NULL},

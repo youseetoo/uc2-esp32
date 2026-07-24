@@ -10,8 +10,11 @@
 #include "StageScan.h"
 #endif
 
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 #include "../encoder/LinearEncoderController.h"
+#endif
+#ifdef AXIS_CONTROLLER
+#include "../axis/AxisController.h"
 #endif
 
 namespace MotorJsonParser
@@ -77,7 +80,7 @@ namespace MotorJsonParser
 				FocusMotor::updateData(i);
 				
 				// If encoder-based motion is enabled, return encoder position instead of motor position
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 				if (FocusMotor::getData()[i]->encoderBasedMotion) {
 					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
 					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
@@ -106,7 +109,7 @@ namespace MotorJsonParser
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				
 				// If encoder-based motion is enabled, return encoder position instead of motor position
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 				if (FocusMotor::getData()[i]->encoderBasedMotion) {
 					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
 					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
@@ -605,17 +608,29 @@ namespace MotorJsonParser
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 					
 					// Check for encoder-based precision motion (precise=1 or enc=1 for backward compatibility)
-					#ifdef LINEAR_ENCODER_CONTROLLER
+					#if defined(AXIS_CONTROLLER) || defined(USE_LEGACY_ENCODER)
 					bool useEncoderPrecision = isEncoderPrecisionRequested(stp);
-					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
 					#else
 					bool useEncoderPrecision = false;
 					#endif
 
 					if (useEncoderPrecision) {
 						log_i("Motor %d: Encoder-based precision motion (precise=1)", s);
-						#ifdef LINEAR_ENCODER_CONTROLLER
-						
+						#if defined(AXIS_CONTROLLER)
+						// NEW closed-loop path (design v2): route the precise move to
+						// the axis feedback module in SERVO mode. If the axis is not
+						// calibrated, AxisController::moveTo falls back to open loop.
+						{
+							int32_t target = FocusMotor::getData()[s]->targetPosition;
+							int32_t pspeed = abs(FocusMotor::getData()[s]->speed);
+							bool    isAbs  = FocusMotor::getData()[s]->absolutePosition;
+							AxisController::setMode(s, MODE_SERVO);
+							AxisController::moveTo(s, target, pspeed, isAbs);
+						}
+						continue; // skip regular motor processing
+						#elif defined(USE_LEGACY_ENCODER)
+						FocusMotor::getData()[s]->encoderBasedMotion = true;
+
 						// Build JSON for LinearEncoderController with correct structure
 						// Format: {"moveP": {"steppers": [{"stepperid":1, "position":X, ...}]}}
 						cJSON* precisionJson = cJSON_CreateObject();

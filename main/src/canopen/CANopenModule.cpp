@@ -47,6 +47,12 @@
 #ifdef TMC_CONTROLLER
 #include "../tmc/TMCController.h"
 #endif
+// Axis fault enum (header-only; safe to include on any CAN build) for the
+// EMCY code map used by emitAxisEmcy / the master EMCY consumer.
+#include "../axis/AxisTypes.h"
+#ifdef AXIS_CONTROLLER
+#include "../axis/AxisController.h"
+#endif
 
 #include "CanOpenOTA.h"
 
@@ -738,6 +744,86 @@ bool CANopenModule::isOperational()
             CO->NMT->operatingState == CO_NMT_OPERATIONAL);
 }
 
+// ── Axis feedback (design v2, WP5): EMCY emit + JSON conversion ──────────────
+// Reverse of AxisNotify::emcyCodeForFault — turn a manufacturer EMCY code back
+// into the fault name used in the {"axisEvent":...} JSON.
+static const char *axisFaultNameFromEmcy(uint16_t code)
+{
+    switch (code)
+    {
+    case 0xFF01: return "STALL";
+    case 0xFF02: return "LOST_STEPS";
+    case 0xFF03: return "DIVERGENCE";
+    case 0xFF04: return "TIMEOUT";
+    case 0xFF05: return "CAL_INVALID";
+    case 0xFF06: return "CAL_FAILED";
+    case 0xFF07: return "ENC_NOISE";
+    default:     return "NONE";
+    }
+}
+
+// Local copy of the AxisFault -> EMCY code map (kept self-contained so this file
+// links on CAN builds that don't compile the axis/ module, e.g. the master).
+static uint16_t axisEmcyCodeFromFault(uint8_t fault)
+{
+    switch (fault)
+    {
+    case FAULT_STALL:       return 0xFF01;
+    case FAULT_LOST_STEPS:  return 0xFF02;
+    case FAULT_DIVERGENCE:  return 0xFF03;
+    case FAULT_TIMEOUT:     return 0xFF04;
+    case FAULT_CAL_INVALID: return 0xFF05;
+    case FAULT_CAL_FAILED:  return 0xFF06;
+    case FAULT_ENC_NOISE:   return 0xFF07;
+    default:                return 0xFF00;
+    }
+}
+
+void CANopenModule::emitAxisEmcy(uint8_t axis, uint8_t fault, int32_t posErrSteps)
+{
+    if (CO == NULL || CO->em == NULL)
+        return;
+    uint16_t code = axisEmcyCodeFromFault(fault);
+    // Encode the axis into a manufacturer-specific error status bit (0x30+).
+    uint8_t errorBit = (uint8_t)(CO_EM_MANUFACTURER_START + (axis & 0x0F));
+    CO_error(CO->em, true, errorBit, code, (uint32_t)posErrSteps);
+}
+
+#if (CO_CONFIG_EM) & CO_CONFIG_EM_CONSUMER
+// Master-side EMCY consumer: convert an inbound axis-fault EMCY into the same
+// {"axisEvent":{...}} JSON the standalone path emits. Runs in CO stack context
+// — keep it short and non-blocking.
+static void axisEmcyRxCallback(const uint16_t ident, const uint16_t errorCode,
+                               const uint8_t errorRegister, const uint8_t errorBit,
+                               const uint32_t infoCode)
+{
+    (void)errorRegister;
+    // Only our manufacturer axis codes.
+    if (errorCode < 0xFF01 || errorCode > 0xFF07)
+        return;
+    uint8_t node = (uint8_t)(ident & 0x7F); // EMCY COB-ID = 0x80 + node-id
+    uint8_t axis = (errorBit >= CO_EM_MANUFACTURER_START)
+                       ? (uint8_t)(errorBit - CO_EM_MANUFACTURER_START)
+                       : errorBit;
+    int32_t posErr = (int32_t)infoCode;
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *ev = cJSON_AddObjectToObject(root, "axisEvent");
+    cJSON_AddNumberToObject(ev, "node", node);
+    cJSON_AddNumberToObject(ev, "axis", axis);
+    cJSON_AddStringToObject(ev, "fault", axisFaultNameFromEmcy(errorCode));
+    cJSON_AddNumberToObject(ev, "posErrSteps", posErr);
+    cJSON_AddNumberToObject(ev, "event", 1);
+    char *json = cJSON_PrintUnformatted(root);
+    if (json)
+    {
+        SerialProcess::safeSendJsonString(json);
+        free(json);
+    }
+    cJSON_Delete(root);
+}
+#endif
+
 // Typed SDO write helpers
 bool CANopenModule::writeSDO_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v, uint32_t timeoutMs) {
     return writeSDO(nodeId, idx, sub, &v, sizeof(v), timeoutMs);
@@ -1359,6 +1445,14 @@ void CANopenModule::CO_main_task(void* arg)
             return;
         }
 
+#if (CO_CONFIG_EM) & CO_CONFIG_EM_CONSUMER
+        // Master converts inbound axis-fault EMCY (from motor slaves) into
+        // {"axisEvent":...} JSON on the host serial channel (design v2, WP5).
+        if (runtimeConfig.isMaster()) {
+            CO_EM_initCallbackRx(CO->em, axisEmcyRxCallback);
+        }
+#endif
+
         // Register OD extensions for domain entries (slave side)
 #ifdef LED_CONTROLLER
         {
@@ -1521,6 +1615,59 @@ static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t out
 cJSON* CANopenModule::act(cJSON* doc)
 {
     cJSON* resp = cJSON_CreateObject();
+
+    // ----- generic SDO read/write bridge (master) -----
+    // Lets the host read/write any slave OD entry by index/sub. Used by the
+    // UC2-REST axis feedback layer (design v2, WP9) to reach the AXIS block
+    // (0x2040+), but works for any manufacturer OD entry.
+    //   write: {"task":"/can_act","sdo":{"node":11,"index":8258,"sub":1,
+    //           "op":"w","type":"i32","value":123}}
+    //   read : {"task":"/can_act","sdo":{"node":11,"index":8256,"sub":1,
+    //           "op":"r","type":"i32"}}  -> {"status":"ok","value":..,"node":11}
+    // type ∈ {u8,u16,u32,i32}. index/sub/value are decimal ints on the wire.
+    cJSON* sdoItem = cJSON_GetObjectItem(doc, "sdo");
+    if (sdoItem && cJSON_IsObject(sdoItem)) {
+        cJSON* jNode  = cJSON_GetObjectItem(sdoItem, "node");
+        cJSON* jIndex = cJSON_GetObjectItem(sdoItem, "index");
+        cJSON* jSub   = cJSON_GetObjectItem(sdoItem, "sub");
+        cJSON* jOp    = cJSON_GetObjectItem(sdoItem, "op");
+        cJSON* jType  = cJSON_GetObjectItem(sdoItem, "type");
+        if (!cJSON_IsNumber(jNode) || !cJSON_IsNumber(jIndex) || !cJSON_IsNumber(jSub)) {
+            cJSON_AddStringToObject(resp, "status", "error");
+            cJSON_AddStringToObject(resp, "error", "sdo needs node/index/sub");
+            return resp;
+        }
+        uint8_t  node = (uint8_t)jNode->valueint;
+        uint16_t idx  = (uint16_t)jIndex->valueint;
+        uint8_t  sub  = (uint8_t)jSub->valueint;
+        const char* type = (jType && jType->valuestring) ? jType->valuestring : "i32";
+        bool isWrite = (jOp && jOp->valuestring && jOp->valuestring[0] == 'w');
+
+        if (isWrite) {
+            cJSON* jVal = cJSON_GetObjectItem(sdoItem, "value");
+            long v = cJSON_IsNumber(jVal) ? (long)jVal->valuedouble : 0;
+            bool ok;
+            if      (!strcmp(type, "u8"))  ok = writeSDO_u8 (node, idx, sub, (uint8_t)v);
+            else if (!strcmp(type, "u16")) ok = writeSDO_u16(node, idx, sub, (uint16_t)v);
+            else if (!strcmp(type, "u32")) ok = writeSDO_u32(node, idx, sub, (uint32_t)v);
+            else                           ok = writeSDO_i32(node, idx, sub, (int32_t)v);
+            cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
+        } else {
+            uint8_t buf[8] = {0};
+            size_t rd = 0;
+            bool ok = readSDO(node, idx, sub, buf, sizeof(buf), &rd);
+            if (ok) {
+                int32_t val = 0;
+                memcpy(&val, buf, rd < 4 ? rd : 4);
+                cJSON_AddNumberToObject(resp, "value", val);
+            }
+            cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
+        }
+        cJSON_AddNumberToObject(resp, "node", node);
+        cJSON_AddNumberToObject(resp, "index", idx);
+        cJSON_AddNumberToObject(resp, "sub", sub);
+        return resp;
+    }
 
     // ----- scan: enumerate REMOTE routes and probe each unique nodeId -----
     cJSON* scanItem = cJSON_GetObjectItem(doc, "scan");
@@ -1940,6 +2087,35 @@ void CANopenModule::syncRpdoToModules_slave()
             } else {
                 s_pendSince[ax] = 0;
                 s_lastWarn[ax]  = 0;
+            }
+        }
+    }
+#endif
+
+#ifdef AXIS_CONTROLLER
+    // Axis closed-loop commands (design v2, WP8). The SDO server has written the
+    // host's values into OD_RAM; here we detect changes/doorbells and hand them
+    // to AxisController as DEFERRED requests (the actual work — incl. blocking
+    // calibration — runs on the main loop task, never here in the CO timer task).
+    {
+        int ax = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        if (ax >= 0 && ax < 4) {
+            // MODE (0x2042): apply if the host changed it.
+            uint8_t desiredMode = OD_RAM.x2042_axis_mode[ax];
+            if (desiredMode <= 3 && desiredMode != AxisController::getFeedback(ax).mode) {
+                AxisController::requestMode(ax, desiredMode);
+            }
+            // RESET doorbell (0x2045): 1=TRUST_ENCODER 2=TRUST_STEPS 3=FORCE_REHOME.
+            uint8_t rst = OD_RAM.x2045_axis_reset[ax];
+            if (rst != 0) {
+                uint8_t policy = (rst >= 1 && rst <= 3) ? (uint8_t)(rst - 1) : 0;
+                AxisController::requestReset(ax, policy);
+                OD_RAM.x2045_axis_reset[ax] = 0; // clear doorbell
+            }
+            // CALIBRATE doorbell (0x2048): trigger the routine.
+            if (OD_RAM.x2048_axis_calibrate[ax] != 0) {
+                AxisController::requestCalibration(ax);
+                OD_RAM.x2048_axis_calibrate[ax] = 0; // clear doorbell
             }
         }
     }
@@ -2448,6 +2624,26 @@ void CANopenModule::syncModulesToTpdo()
                      */
         }
     }
+
+#ifdef AXIS_CONTROLLER
+    // Push AxisController feedback into the SDO-readable AXIS block (0x2040+) so
+    // the master can poll it. Read-back only (measured/error/health/fault/etc.);
+    // x2042 mode is a command input and is NOT written back here to avoid
+    // clobbering a pending host mode change. All values in STEPS except raw.
+    if (localAxis >= 0 && localAxis < 4) {
+        AxisFeedback afb = AxisController::getFeedback(localAxis);
+        AxisCalibration acal = AxisController::getCalibration(localAxis);
+        OD_RAM.x2040_axis_measured_steps[localAxis]       = afb.measuredSteps;
+        OD_RAM.x2041_axis_position_error_steps[localAxis] = afb.positionErrorSteps;
+        OD_RAM.x2043_axis_health[localAxis]               = afb.health;
+        OD_RAM.x2044_axis_fault[localAxis]                = afb.fault;
+        OD_RAM.x2046_axis_calibrated[localAxis]           = afb.calibrated ? 1 : 0;
+        OD_RAM.x2047_axis_referenced[localAxis]           = afb.referenced ? 1 : 0;
+        OD_RAM.x2049_axis_counts_per_step_q16[localAxis]  = acal.countsPerStep_q16 * acal.countSign;
+        OD_RAM.x204A_axis_backlash_steps[localAxis]       = axisCountsToSteps(acal, acal.backlashCounts);
+        OD_RAM.x204B_axis_raw_counts[localAxis]           = (int32_t)afb.rawCounts;
+    }
+#endif
 #endif
 
 #ifdef GALVO_CONTROLLER

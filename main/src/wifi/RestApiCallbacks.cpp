@@ -25,7 +25,7 @@
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 #include "../encoder/LinearEncoderController.h"
 #endif
 #ifdef HOME_MOTOR
@@ -327,7 +327,7 @@ namespace RestApi
         return ESP_OK;
     }
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
     esp_err_t LinearEncoderMotor_setESP(httpd_req_t *req)
     {
         serializeESP(LinearEncoderController::act(deserializeESP(req)), req);

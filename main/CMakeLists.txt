@@ -11,6 +11,7 @@ OPTION(DIGITAL_IN_CONTROLLER "DIGITAL_IN_CONTROLLER" OFF)
 OPTION(DIGITAL_OUT_CONTROLLER "DIGITAL_OUT_CONTROLLER" OFF)
 OPTION(DIAL_CONTROLLER "DIAL_CONTROLLER" OFF)
 OPTION(LINEAR_ENCODER_CONTROLLER "LINEAR_ENCODER_CONTROLLER" OFF)
+OPTION(USE_LEGACY_ENCODER "USE_LEGACY_ENCODER (retired legacy closed-loop path)" OFF)
 OPTION(LASER_CONTROLLER "Laser" OFF)
 OPTION(TMC_CONTROLLER "TMC" OFF)
 OPTION(LED_CONTROLLER "LED" OFF)
@@ -98,14 +99,20 @@ if(DIAL_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/dial/DialController.cpp)
 endif()
 if(LINEAR_ENCODER_CONTROLLER EQUAL 1)
-    list(APPEND srcs ${mainsrc}src/encoder/LinearEncoderController.cpp)
-    list(APPEND srcs ${mainsrc}src/encoder/PCNTEncoderController.cpp)
-
-    # New clean-slate axis/ feedback module (design v2, WP1–WP3). Coexists with
-    # the legacy encoder path above until validated on hardware (WP10).
+    # Clean-slate axis/ feedback module (design v2) — the encoder path.
     list(APPEND srcs ${mainsrc}src/axis/EncoderBackend.cpp)
     list(APPEND srcs ${mainsrc}src/axis/AxisCalibration.cpp)
+    list(APPEND srcs ${mainsrc}src/axis/AxisWatchdog.cpp)
+    list(APPEND srcs ${mainsrc}src/axis/AxisNotify.cpp)
     list(APPEND srcs ${mainsrc}src/axis/AxisController.cpp)
+endif()
+# Legacy closed-loop path (retired, design v2 WP10) — compiled only when the
+# USE_LEGACY_ENCODER escape hatch is enabled. Default OFF: the axis/ module above
+# is the supported path.
+if(USE_LEGACY_ENCODER EQUAL 1)
+    list(APPEND srcs ${mainsrc}src/encoder/LinearEncoderController.cpp)
+    list(APPEND srcs ${mainsrc}src/encoder/PCNTEncoderController.cpp)
+    list(APPEND srcs ${mainsrc}src/motor/MotorEncoderConfig.cpp)
 endif()
 if(LASER_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/laser/LaserController.cpp)
@@ -157,7 +164,7 @@ if(MOTOR_CONTROLLER EQUAL 1)
     list(APPEND srcs ${mainsrc}src/motor/FocusMotor.cpp)
     list(APPEND srcs ${mainsrc}src/motor/MotorJsonParser.cpp)
     list(APPEND srcs ${mainsrc}src/motor/MotorGamePad.cpp)
-    list(APPEND srcs ${mainsrc}src/motor/MotorEncoderConfig.cpp)
+    # MotorEncoderConfig.cpp compiles only under USE_LEGACY_ENCODER (see above).
 
     if(USE_FASTACCEL EQUAL 1)
         list(APPEND srcs ${mainsrc}src/motor/FAccelStep.cpp)

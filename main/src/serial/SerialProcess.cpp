@@ -24,7 +24,7 @@
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 #include "../encoder/LinearEncoderController.h"
 #endif
 #ifdef HOME_MOTOR
@@ -646,7 +646,7 @@ namespace SerialProcess
 /*
 	  LinearEncoders
 	*/
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 		else if (runtimeConfig.encoder && strcmp(task, linearencoder_act_endpoint) == 0)
 		{
 			serialize(LinearEncoderController::act(jsonDocument));

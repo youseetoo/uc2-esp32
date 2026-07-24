@@ -85,6 +85,13 @@ public:
 
     static bool isOperational();
 
+    // Emit a UC2 axis-fault EMCY from THIS node (slave). COB-ID 0x80+node-id,
+    // manufacturer error code per AxisFault, axis in the error bit, and the
+    // signed position error (steps) in the info code. Fire-and-forget: sets the
+    // EMCY condition, actual TX happens in CO_process. Safe to call on any role
+    // (no-op if CO/em not ready). The master converts inbound EMCY to JSON.
+    static void emitAxisEmcy(uint8_t axis, uint8_t fault, int32_t posErrSteps);
+
     // Remote slave cache — master only, populated by RPDO consumers
     static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;  // TODO: Is this motors only? We probably have more?!
     static RemoteSlaveState s_remoteSlaves[REMOTE_SLAVE_SLOTS];

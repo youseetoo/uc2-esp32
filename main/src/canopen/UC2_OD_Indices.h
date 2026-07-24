@@ -60,6 +60,22 @@ constexpr uint16_t HARDLIMIT_COMMAND                        = 0x2030;
 constexpr uint16_t HARDLIMIT_ENABLED                        = 0x2031;
 constexpr uint16_t HARDLIMIT_POLARITY                       = 0x2032;
 
+// ─── AXIS (base 0x2040) ───
+// Per-axis closed-loop feedback & control (encoder). Values in STEPS.
+
+constexpr uint16_t AXIS_MEASURED_STEPS                      = 0x2040;
+constexpr uint16_t AXIS_POSITION_ERROR_STEPS                = 0x2041;
+constexpr uint16_t AXIS_MODE                                = 0x2042;
+constexpr uint16_t AXIS_HEALTH                              = 0x2043;
+constexpr uint16_t AXIS_FAULT                               = 0x2044;
+constexpr uint16_t AXIS_RESET                               = 0x2045;
+constexpr uint16_t AXIS_CALIBRATED                          = 0x2046;
+constexpr uint16_t AXIS_REFERENCED                          = 0x2047;
+constexpr uint16_t AXIS_CALIBRATE                           = 0x2048;
+constexpr uint16_t AXIS_COUNTS_PER_STEP_Q16                 = 0x2049;
+constexpr uint16_t AXIS_BACKLASH_STEPS                      = 0x204A;
+constexpr uint16_t AXIS_RAW_COUNTS                          = 0x204B;
+
 // ─── LASER (base 0x2100) ───
 // Laser intensity control via PWM, up to 4 channels per node
 
@@ -103,7 +119,6 @@ constexpr uint16_t DAC_OUTPUT_VALUE                         = 0x2320;
 // ─── COLLISION (base 0x2330) ───
 // Baseline-deviation collision detector on the GPIO slave. The sensor has an idle value; a collision manifests as N consecutive samples deviating more than `collision_threshold` counts (up OR down) from `collision_reference`. Single-sample spikes are rejected by the consecutive-sample vote. Config is SDO-written by the master; the trip EVENT rides TPDO2 (flags byte 0x2300:04 bit 0). Sensor values are never broadcast — the rolling mean is polled via SDO on demand.
 
-
 constexpr uint16_t COLLISION_REFERENCE                      = 0x2330;
 constexpr uint16_t COLLISION_THRESHOLD                      = 0x2331;
 constexpr uint16_t COLLISION_SENSITIVITY                    = 0x2332;
@@ -120,12 +135,10 @@ constexpr uint16_t ENCODER_VELOCITY                         = 0x2341;
 constexpr uint16_t ENCODER_ZERO_OFFSET                      = 0x2342;
 
 // ─── I2C_BRIDGE (base 0x2350) ───
-/* 
-Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
-writes a self-contained transaction into 0x2350, pulses 0x2351, polls
-0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
-(UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
-*/
+// Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
+// writes a self-contained transaction into 0x2350, pulses 0x2351, polls
+// 0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
+// (UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
 
 constexpr uint16_t I2C_COMMAND                              = 0x2350;
 constexpr uint16_t I2C_TRIGGER                              = 0x2351;

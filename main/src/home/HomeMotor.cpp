@@ -2,7 +2,6 @@
 #include "HomeMotor.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
-#include "../motor/MotorEncoderConfig.h"
 #include "HardwareSerial.h"
 #include "../../cJsonTool.h"
 #include "Arduino.h"
@@ -10,7 +9,7 @@
 #include "../motor/MotorTypes.h"
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorJsonParser.h"
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 #include "../encoder/LinearEncoderController.h"
 #endif
 #include "../canopen/DeviceRouter.h"
@@ -78,7 +77,7 @@ namespace HomeMotor
 					
 					if (useEncoderHoming) {
 						log_i("Starting encoder-based homing for axis %d", axis);
-						#ifdef LINEAR_ENCODER_CONTROLLER
+						#ifdef USE_LEGACY_ENCODER
 						// Use stall-based homing with encoder feedback
 						// Speed sign determines direction
 						int homingSpeed = homeSpeed * homeDirection;

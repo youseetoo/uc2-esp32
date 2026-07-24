@@ -1,7 +1,9 @@
 #include <PinConfig.h>
 #include "../../config.h"
 #include "FocusMotor.h"
+#ifdef USE_LEGACY_ENCODER
 #include "MotorEncoderConfig.h"
+#endif
 #include "Wire.h"
 #include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
@@ -9,7 +11,7 @@
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "esp_debug_helpers.h"
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 #include "../encoder/LinearEncoderController.h"
 #include "../encoder/PCNTEncoderController.h"
 #endif
@@ -201,7 +203,7 @@ namespace FocusMotor
 			if (getData()[s]->encoderBasedMotion)
 			{
 				log_i("Starting encoder-based precise motion for stepper %d", s);
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 				// Use LinearEncoderController for precise motion
 				startEncoderBasedMotion(s);
 #else
@@ -483,7 +485,9 @@ namespace FocusMotor
 		fill_data();
 
 		// Initialize motor-encoder conversion configuration
+#ifdef USE_LEGACY_ENCODER
 		MotorEncoderConfig::setup();
+#endif
 
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
@@ -672,24 +676,9 @@ namespace FocusMotor
 #endif
 	}
 
-	bool isEncoderBasedMotionEnabled(int axis)
-	{
-		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
-			return false;
-		return getData()[axis]->encoderBasedMotion;
-	}
-
-	void setEncoderBasedMotion(int axis, bool enabled)
-	{
-		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
-			return;
-		getData()[axis]->encoderBasedMotion = enabled;
-		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
-	}
-
 	void startEncoderBasedMotion(int axis)
 	{
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 		// Create a JSON object to call LinearEncoderController moveP function
 		// All values are in pure encoder counts now - no conversion!
 		MotorData *motorData = getData()[axis];
@@ -729,7 +718,7 @@ namespace FocusMotor
 			  axis, encoderPosition, motorData->absolutePosition ? 1 : 0);
 
 // Start encoder accuracy tracking for this move
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 		PCNTEncoderController::startEncoderTracking(axis, motorData->targetPosition);
 #endif
 
@@ -885,7 +874,7 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 
 		// Add encoder position if encoder-based motion is enabled
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 		if (i == 1)
 		{
 			// Get current encoder position (raw counts - no conversion!)

@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <stdio.h>
+#include <new>
 
 static const char* TAG = "Scanner";
 
@@ -42,8 +43,9 @@ static const char* TAG = "Scanner";
 HighSpeedScannerCore::HighSpeedScannerCore()
 {
     config_mutex_ = xSemaphoreCreateMutex();
-    buildLineProfile();
-    
+    // Line profile buffer is allocated in init(); buildLineProfile() no-ops
+    // until then, so CAN masters that never init() stay memory-free.
+
     // Initialize arbitrary point buffer with default center point
     arbitrary_points_[0] = ArbitraryScanPoint(2048, 2048, 1000);
     arbitrary_point_count_ = 0;  // Start with no points (disabled)
@@ -60,6 +62,8 @@ HighSpeedScannerCore::~HighSpeedScannerCore()
     if (config_mutex_) {
         vSemaphoreDelete(config_mutex_);
     }
+    delete[] line_x_;
+    delete[] x_map_;
 }
 
 bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
@@ -79,6 +83,16 @@ bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
     trigger_pin_line_ = trigger_pin_line;
     trigger_pin_frame_ = trigger_pin_frame;
     laser_pin_ = laser_pin;
+
+    // Allocate the line profile buffer (slave/hardware nodes only reach here;
+    // CAN masters never call init() and stay at zero DRAM cost)
+    if (!line_x_) {
+        line_x_ = new (std::nothrow) uint16_t[SCANNER_MAX_LINE_SAMPLES];
+        if (!line_x_) {
+            SCANNER_LOG("ERROR: line profile buffer allocation failed");
+            return false;
+        }
+    }
 
     // Configure trigger pins and the laser gate pin
     uint64_t pin_mask = 0;
@@ -220,6 +234,15 @@ void HighSpeedScannerCore::setXLUT(const uint16_t* lut256)
 {
     if (!lut256) return;
 
+    // Allocate on first upload only (keeps masters and LUT-free setups lean)
+    if (!x_map_) {
+        x_map_ = new (std::nothrow) uint16_t[4096];
+        if (!x_map_) {
+            SCANNER_LOG("ERROR: X LUT allocation failed");
+            return;
+        }
+    }
+
     for (int x = 0; x < 4096; ++x) {
         int idx = (x * (SCANNER_X_LUT_N - 1) + 2047) / 4095;
         if (idx < 0) idx = 0;
@@ -268,7 +291,7 @@ void HighSpeedScannerCore::buildLineProfile()
     uint32_t total = (uint32_t)config_.pre_samples + 2u * ov + config_.nx +
                      fly + config_.line_settle_samples;
 
-    if (total == 0 || total > SCANNER_MAX_LINE_SAMPLES) {
+    if (!line_x_ || total == 0 || total > SCANNER_MAX_LINE_SAMPLES) {
         line_len_ = 0;
         img_start_ = 0;
         img_end_ = 0;
@@ -288,51 +311,47 @@ void HighSpeedScannerCore::buildLineProfile()
 
     // ---- Forward profile: pre @ start_x | ov ramp | nx ramp | ov ramp | [fly] | settle ----
     for (uint32_t i = 0; i < config_.pre_samples; ++i) {
-        line_x_fwd_[k++] = clamp12((int)(start_x + 0.5f));
+        line_x_[k++] = clamp12((int)(start_x + 0.5f));
     }
     for (uint32_t i = 0; i < ov; ++i) { // lead-in overscan: start_x -> x_min (exclusive)
-        line_x_fwd_[k++] = clamp12((int)(start_x + slope * (float)i + 0.5f));
+        line_x_[k++] = clamp12((int)(start_x + slope * (float)i + 0.5f));
     }
     img_start_ = (uint16_t)k;
     if (config_.nx <= 1) {
-        line_x_fwd_[k++] = config_.x_min;
+        line_x_[k++] = config_.x_min;
     } else {
         for (uint32_t i = 0; i < config_.nx; ++i) {
-            line_x_fwd_[k++] = clamp12((int)((float)config_.x_min + slope * (float)i + 0.5f));
+            line_x_[k++] = clamp12((int)((float)config_.x_min + slope * (float)i + 0.5f));
         }
     }
     img_end_ = (uint16_t)k;
     for (uint32_t i = 1; i <= ov; ++i) { // lead-out overscan: x_max -> end_x
-        line_x_fwd_[k++] = clamp12((int)((float)config_.x_max + slope * (float)i + 0.5f));
+        line_x_[k++] = clamp12((int)((float)config_.x_max + slope * (float)i + 0.5f));
     }
     // Flyback (cosine ease from end_x back to start_x) - unidirectional only
     if (fly == 1) {
-        line_x_fwd_[k++] = clamp12((int)(start_x + 0.5f));
+        line_x_[k++] = clamp12((int)(start_x + 0.5f));
     } else if (fly > 1) {
         for (uint32_t i = 0; i < fly; ++i) {
             float t = (float)i / (float)(fly - 1);
             float s = 0.5f - 0.5f * cosf((float)M_PI * t);
-            line_x_fwd_[k++] = clamp12((int)(end_x + (start_x - end_x) * s + 0.5f));
+            line_x_[k++] = clamp12((int)(end_x + (start_x - end_x) * s + 0.5f));
         }
     }
     // Settle region: hold at the position the next line starts from
     // (start_x after flyback; end_x in bidirectional mode)
     const float settle_x = bidir ? end_x : start_x;
     for (uint32_t i = 0; i < config_.line_settle_samples; ++i) {
-        line_x_fwd_[k++] = clamp12((int)(settle_x + 0.5f));
+        line_x_[k++] = clamp12((int)(settle_x + 0.5f));
     }
     line_len_ = (uint16_t)k;
 
-    // ---- Reverse profile (bidirectional odd lines): exact mirror in X. ----
-    // Same region layout and therefore the SAME [img_start_, img_end_) window:
-    // triggers stay monotonic and equidistant; only the direction of motion
-    // differs (pixel j maps to x_max - slope*j). The bridge/host must flip
-    // odd lines when reassembling the image.
-    for (uint32_t i = 0; i < line_len_; ++i) {
-        // Mirror around the scan center: x' = (start+end) - x
-        float mirrored = (start_x + end_x) - (float)line_x_fwd_[i];
-        line_x_rev_[i] = clamp12((int)(mirrored + 0.5f));
-    }
+    // Bidirectional odd lines are mirrored on the fly in the scan loop
+    // (x' = mirror_sum_ - x): same region layout and therefore the SAME
+    // [img_start_, img_end_) window - triggers stay monotonic and
+    // equidistant; only the direction of motion differs. The bridge/host
+    // must flip odd lines when reassembling the image.
+    mirror_sum_ = (int32_t)lroundf(start_x + end_x);
 }
 
 uint16_t HighSpeedScannerCore::computeY(uint16_t line) const
@@ -345,7 +364,7 @@ uint16_t HighSpeedScannerCore::computeY(uint16_t line) const
 
 uint16_t HighSpeedScannerCore::applyXMap(uint16_t x) const
 {
-    if (!x_map_valid_) return x;
+    if (!x_map_valid_ || !x_map_) return x;
     return x_map_[x & 0x0FFF];
 }
 
@@ -698,7 +717,6 @@ void HighSpeedScannerCore::scannerTask()
             // Bidirectional: odd lines use the mirrored profile. Trigger and
             // laser windows use the SAME sample indices in both directions.
             const bool reverse_line = bidir && (ly & 1);
-            const uint16_t* line_buf = reverse_line ? line_x_rev_ : line_x_fwd_;
 
             // Compute Y position - lock only for the computation
             xSemaphoreTake(config_mutex_, portMAX_DELAY);
@@ -776,7 +794,12 @@ void HighSpeedScannerCore::scannerTask()
                 }
 
                 // DAC UPDATE with remaining time budget
-                uint16_t x12 = line_buf[i];
+                // Odd bidirectional lines: mirror around the ramp center on
+                // the fly (one subtraction; keeps the reverse profile without
+                // a second 8 KB buffer)
+                uint16_t x12 = reverse_line
+                    ? clamp12(mirror_sum_ - (int32_t)line_x_[i])
+                    : line_x_[i];
                 if (do_lut) x12 = applyXMap(x12);
                 dac_->setX(x12);
                 dac_->ldacPulse();

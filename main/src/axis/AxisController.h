@@ -45,4 +45,12 @@ namespace AxisController
     AxisCalibration getCalibration(int axis);
 
     bool hasEncoder(int axis);
+
+    // ---- deferred requests (safe to call from another task, e.g. the CANopen
+    // timer task). They only set a scalar flag; the actual work runs in loop()
+    // on the main task, so g_axes is never mutated concurrently. calibrate is
+    // blocking and MUST be deferred this way rather than called inline. --------
+    void requestMode(int axis, uint8_t mode);
+    void requestReset(int axis, uint8_t policy);
+    void requestCalibration(int axis);
 }

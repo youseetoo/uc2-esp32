@@ -54,7 +54,9 @@ Preferences preferences;
 #include "src/digitalout/DigitalOutController.h"
 #endif
 #ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 #include "src/encoder/LinearEncoderController.h"
+#endif
 #ifdef AXIS_CONTROLLER
 #include "src/axis/AxisController.h"
 #endif
@@ -207,7 +209,7 @@ extern "C" void looper(void *p)
 		DigitalInController::checkEmergencyStop();
 #endif
 
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 		if (runtimeConfig.encoder) {
 			LinearEncoderController::loop();
 			vTaskDelay(1);
@@ -646,7 +648,7 @@ extern "C" void setupApp(void)
 		DigitalOutController::setup();
 	}
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef USE_LEGACY_ENCODER
 	if (runtimeConfig.encoder) {
 		LinearEncoderController::setup();
 	}

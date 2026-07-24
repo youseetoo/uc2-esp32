@@ -61,7 +61,6 @@ struct UC2_ESP32S3_XIAO : PinConfig
      #define USE_TCA9535
      #define BLUETOOTH
      #define BTHID
-     #define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER

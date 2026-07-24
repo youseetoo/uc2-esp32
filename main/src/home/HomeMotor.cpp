@@ -2,7 +2,6 @@
 #include "HomeMotor.h"
 #include "../digitalin/DigitalInController.h"
 #include "../config/ConfigController.h"
-#include "../motor/MotorEncoderConfig.h"
 #include "HardwareSerial.h"
 #include "../../cJsonTool.h"
 #include "Arduino.h"
@@ -10,9 +9,6 @@
 #include "../motor/MotorTypes.h"
 #include "../motor/FocusMotor.h"
 #include "../motor/MotorJsonParser.h"
-#ifdef LINEAR_ENCODER_CONTROLLER
-#include "../encoder/LinearEncoderController.h"
-#endif
 #include "../canopen/DeviceRouter.h"
 using namespace FocusMotor;
 
@@ -73,29 +69,8 @@ namespace HomeMotor
 					int homeEndOffset = cJsonTool::getJsonInt(stp, key_home_endoffset);
 					int qid = cJsonTool::getJsonInt(doc, "qid");
 					
-					// Check for encoder-based homing (precise=1 or enc=1 for backward compatibility)
-					bool useEncoderHoming = MotorJsonParser::isEncoderPrecisionRequested(stp);
-					
-					if (useEncoderHoming) {
-						log_i("Starting encoder-based homing for axis %d", axis);
-						#ifdef LINEAR_ENCODER_CONTROLLER
-						// Use stall-based homing with encoder feedback
-						// Speed sign determines direction
-						int homingSpeed = homeSpeed * homeDirection;
-						
-						log_i("Starting encoder-based homing for axis %d: speed=%d", axis, homingSpeed);
-						
-						// Call simplified homeAxis function directly
-						LinearEncoderController::homeAxis(homingSpeed, axis);
-						#else
-						log_w("Encoder-based homing requested but LINEAR_ENCODER_CONTROLLER not available");
-						// Fall back to regular homing
-						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, qid);
-						#endif
-					} else {
 						// Standard endstop-based homing
 						startHome(axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, homeEndOffset, qid);
-					}
 				}
 			}
 		}

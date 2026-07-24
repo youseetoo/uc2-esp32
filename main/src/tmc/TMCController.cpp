@@ -213,6 +213,14 @@ namespace TMCController
 #endif
     }
 
+    uint16_t getMicrosteps()
+    {
+        // Reflect the persisted/config value (what was applied at boot) rather
+        // than a UART read-back, so this stays cheap and works even if the
+        // driver is momentarily unresponsive.
+        return readParamsFromPreferences().msteps;
+    }
+
     uint16_t getTMCCurrent()
     {
         if (pinConfig.tmc_SW_RX == disabled)

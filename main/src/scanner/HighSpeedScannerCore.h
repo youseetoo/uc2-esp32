@@ -276,14 +276,16 @@ private:
     volatile int32_t overruns_ = 0;
     TaskHandle_t task_handle_ = nullptr;
 
-    // Raster scan buffers: forward and reversed line profiles. Both share the
-    // same trigger/laser window indices [img_start_, img_end_), so pixel
-    // counts stay monotonic and equidistant in bidirectional mode.
-    uint16_t line_x_fwd_[SCANNER_MAX_LINE_SAMPLES];
-    uint16_t line_x_rev_[SCANNER_MAX_LINE_SAMPLES];
+    // Raster scan line profile (forward direction). Heap-allocated in init()
+    // so CAN masters - which forward commands but never drive hardware - do
+    // not pay the DRAM cost. Bidirectional odd lines are mirrored on the fly
+    // (x' = mirror_sum_ - x) with the SAME [img_start_, img_end_) window, so
+    // pixel counts stay monotonic and equidistant in both directions.
+    uint16_t* line_x_ = nullptr;   // [SCANNER_MAX_LINE_SAMPLES] once allocated
     uint16_t line_len_ = 0;
     uint16_t img_start_ = 0;   // First sample index of the imaging window
     uint16_t img_end_ = 0;     // One past the last imaging sample
+    int32_t mirror_sum_ = 0;   // start_x + end_x of the ramp, for mirroring
 
     // Hardware pixel clock (RMT) state
     void* rmt_chan_ = nullptr;     // rmt_channel_handle_t (kept as void* to limit header deps)
@@ -302,7 +304,8 @@ private:
     ScanMode scan_mode_ = SCAN_MODE_RASTER;
     TriggerMode trigger_mode_ = TRIGGER_AUTO;
 
-    uint16_t x_map_[4096];
+    // X linearization LUT, heap-allocated on first setXLUT() upload
+    uint16_t* x_map_ = nullptr;    // [4096] once allocated
     bool x_map_valid_ = false;
 
     void buildLineProfile();

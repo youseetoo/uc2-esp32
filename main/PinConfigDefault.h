@@ -22,7 +22,6 @@ available modules. to enable a module define them inside your config
 #define MOTOR_CONTROLLER
 #define PID_CONTROLLER
 #define SCANNER_CONTROLLER
-#define WIFI
 
 */
 

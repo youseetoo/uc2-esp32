@@ -6,7 +6,6 @@ struct UC2_WEMOS : PinConfig // also used for cellSTORM wellplateformat
      /*#define MOTOR_CONTROLLER
      #define BLUETOOTH
      #define PSXCONTROLLER
-     #define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR
      #define LASER_CONTROLLER*/

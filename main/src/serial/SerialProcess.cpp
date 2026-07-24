@@ -1,8 +1,7 @@
 #include <PinConfig.h>
 #include "SerialProcess.h"
-#include "../wifi/Endpoints.h"
+#include "Endpoints.h"
 #include "Arduino.h"
-#include "../wifi/RestApiCallbacks.h"
 #ifdef ANALOG_IN_CONTROLLER
 #include "../analogin/AnalogInController.h"
 #endif
@@ -23,9 +22,6 @@
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
-#endif
-#ifdef LINEAR_ENCODER_CONTROLLER
-#include "../encoder/LinearEncoderController.h"
 #endif
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
@@ -71,9 +67,6 @@
 #include "../scanner/GalvoController.h"
 #endif
 #include "../state/State.h"
-#ifdef WIFI
-#include "../wifi/WifiController.h"
-#endif
 #ifdef HEAT_CONTROLLER
 #include "../heat/HeatController.h"
 #include "../heat/DS18b20Controller.h"
@@ -643,19 +636,6 @@ namespace SerialProcess
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
 
-/*
-	  LinearEncoders
-	*/
-#ifdef LINEAR_ENCODER_CONTROLLER
-		else if (runtimeConfig.encoder && strcmp(task, linearencoder_act_endpoint) == 0)
-		{
-			serialize(LinearEncoderController::act(jsonDocument));
-		}
-		else if (runtimeConfig.encoder && strcmp(task, linearencoder_get_endpoint) == 0)
-		{
-			serialize(LinearEncoderController::get(jsonDocument));
-		}
-#endif
 #ifdef I2C_MASTER
 		else if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_master::get(jsonDocument));
@@ -758,17 +738,6 @@ namespace SerialProcess
 			UC2::RoutingTable::set(type, logicalId, where, (uint8_t)nodeId);
 			serialize(UC2::RoutingTable::toJson());
 		}
-#ifdef WIFI
-		else if (runtimeConfig.wifi && strcmp(task, scanwifi_endpoint) == 0)
-		{
-			serialize(WifiController::scan());
-		}
-		// {"task":"/wifi/scan"}
-		else if (runtimeConfig.wifi && strcmp(task, connectwifi_endpoint) == 0)
-		{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
-			WifiController::connect(jsonDocument);
-		}
-#endif
 #ifdef HEAT_CONTROLLER
 		else if (runtimeConfig.heat && strcmp(task, heat_get_endpoint) == 0)
 			serialize(HeatController::get(jsonDocument));

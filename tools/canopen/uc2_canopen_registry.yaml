@@ -398,6 +398,130 @@ modules:
         sdo_only: true
 
   # ==========================================================================
+  # AXIS — 0x2040-0x204F  (closed-loop / encoder feedback, design v2)
+  # ==========================================================================
+  # Per-axis encoder feedback + closed-loop control exposed by AxisController.
+  # ALL values are in STEPS except the explicitly-named raw-counts diagnostic.
+  # SDO-only for now; posErrorSteps can later be mapped into the spare TPDO3.
+  axis:
+    base_index: 0x2040
+    description: "Per-axis closed-loop feedback & control (encoder). Values in STEPS."
+    cpp_class: "AxisController"
+    entries:
+
+      - index: 0x2040
+        name: axis_measured_steps
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        unit: steps
+        description: "Encoder-derived position in steps. Identity for encoderless axes."
+        sdo_only: true
+
+      - index: 0x2041
+        name: axis_position_error_steps
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        unit: steps
+        description: "measuredSteps - commandedSteps (relative to origin)."
+        sdo_only: true
+
+      - index: 0x2042
+        name: axis_mode
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "0=OPEN_LOOP 1=MONITOR 2=CORRECT 3=SERVO"
+        sdo_only: true
+
+      - index: 0x2043
+        name: axis_health
+        type: U8
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "0=OK 1=DEGRADED 2=FAULT"
+        sdo_only: true
+
+      - index: 0x2044
+        name: axis_fault
+        type: U8
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "AxisFault: 0=NONE 1=STALL 2=LOST_STEPS 3=DIVERGENCE 4=TIMEOUT 5=CAL_INVALID 6=CAL_FAILED 7=ENC_NOISE"
+        sdo_only: true
+
+      - index: 0x2045
+        name: axis_reset
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Write 1+policy to clear fault & re-establish origin. 1=TRUST_ENCODER 2=TRUST_STEPS 3=FORCE_REHOME"
+        sdo_only: true
+
+      - index: 0x2046
+        name: axis_calibrated
+        type: U8
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "1 = valid sign+scale calibration for the current microstepping"
+        sdo_only: true
+
+      - index: 0x2047
+        name: axis_referenced
+        type: U8
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "1 = homed (absolute moves allowed)"
+        sdo_only: true
+
+      - index: 0x2048
+        name: axis_calibrate
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Write 1 to trigger the sign/scale/backlash calibration routine"
+        sdo_only: true
+
+      - index: 0x2049
+        name: axis_counts_per_step_q16
+        type: I32
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Calibrated |counts per step|, Q16.16 fixed point (diagnostics/override)"
+        sdo_only: true
+
+      - index: 0x204A
+        name: axis_backlash_steps
+        type: I32
+        access: rw
+        sub_indices: 4
+        default: 0
+        unit: steps
+        description: "Calibrated reversal backlash, expressed in steps"
+        sdo_only: true
+
+      - index: 0x204B
+        name: axis_raw_counts
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        unit: counts
+        description: "Raw encoder count (DIAGNOSTIC — not steps)"
+        sdo_only: true
+
+  # ==========================================================================
   # LASER — 0x2100-0x21FF
   # ==========================================================================
   laser:

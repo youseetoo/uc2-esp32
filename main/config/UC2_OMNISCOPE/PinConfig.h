@@ -6,7 +6,6 @@ struct UC2_OMNISCOPE : PinConfig
      /*#define MOTOR_CONTROLLER
      #define BLUETOOTH
      #define PSXCONTROLLER
-     #define WIFI
      #define LED_CONTROLLER
      #define HOME_MOTOR*/
      const char *pindefName = "UC2_WEMOS";

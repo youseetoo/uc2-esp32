@@ -53,8 +53,8 @@ Preferences preferences;
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "src/digitalout/DigitalOutController.h"
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
-#include "src/encoder/LinearEncoderController.h"
+#ifdef AXIS_CONTROLLER
+#include "src/axis/AxisController.h"
 #endif
 #ifdef LASER_CONTROLLER
 #include "src/laser/LaserController.h"
@@ -87,9 +87,6 @@ Preferences preferences;
 #endif
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"
-#endif
-#ifdef WIFI
-#include "src/wifi/WifiController.h"
 #endif
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"
@@ -204,10 +201,9 @@ extern "C" void looper(void *p)
 		DigitalInController::checkEmergencyStop();
 #endif
 
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef AXIS_CONTROLLER
 		if (runtimeConfig.encoder) {
-			LinearEncoderController::loop();
-			vTaskDelay(1);
+			AxisController::loop();
 		}
 #endif
 #ifdef HOME_MOTOR
@@ -638,9 +634,10 @@ extern "C" void setupApp(void)
 		DigitalOutController::setup();
 	}
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
+#ifdef AXIS_CONTROLLER
+	// Clean-slate closed-loop feedback layer (design v2).
 	if (runtimeConfig.encoder) {
-		LinearEncoderController::setup();
+		AxisController::setup();
 	}
 #endif
 #ifdef HOME_MOTOR
@@ -677,11 +674,6 @@ if (runtimeConfig.pid) {
 #ifdef SCANNER_CONTROLLER
 if (runtimeConfig.scanner) {
 	ScannerController::setup();
-}
-#endif
-#ifdef WIFI
-if (runtimeConfig.wifi) {
-	WifiController::setup();
 }
 #endif
 #ifdef HEAT_CONTROLLER

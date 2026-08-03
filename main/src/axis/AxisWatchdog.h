@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 // ============================================================================
-// AxisWatchdog — fast, cheap blocked/slipping-axis detection (design v2, WP4).
+// AxisWatchdog — fast, cheap blocked/slipping-axis detection.
 //
 // Independent of any PID so it protects EVERY mode, including OPEN_LOOP. It only
 // reads counters + timers, so it is safe to run every motor-loop iteration.

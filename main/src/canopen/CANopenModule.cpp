@@ -2098,24 +2098,53 @@ void CANopenModule::syncRpdoToModules_slave()
     // to AxisController as DEFERRED requests (the actual work — incl. blocking
     // calibration — runs on the main loop task, never here in the CO timer task).
     {
+        // Sub-index tolerance: CANopenNode maps SDO sub i -> array slot i-1, and
+        // hosts variously address a single-axis slave with sub 1 (slot 0) or
+        // sub REMOTE_MOTOR_AXIS_ID+1. Per the OD-axis-remap rule, accept a
+        // command in ANY slot and apply it to the ONE physical axis of this
+        // node, then re-sync all slots so stale slots never re-trigger.
         int ax = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
         if (ax >= 0 && ax < 4) {
-            // MODE (0x2042): apply if the host changed it.
-            uint8_t desiredMode = OD_RAM.x2042_axis_mode[ax];
-            if (desiredMode <= 3 && desiredMode != AxisController::getFeedback(ax).mode) {
-                AxisController::requestMode(ax, desiredMode);
+            uint8_t curMode = AxisController::getFeedback(ax).mode;
+            // First pass after boot: seed the OD slots with the controller's
+            // actual mode (MONITOR by default when calibrated). Without this,
+            // the all-zero boot OD would immediately force OPEN_LOOP.
+            static bool s_axisModeSeeded = false;
+            if (!s_axisModeSeeded) {
+                for (int k = 0; k < 4; k++)
+                    OD_RAM.x2042_axis_mode[k] = curMode;
+                s_axisModeSeeded = true;
+            }
+            // MODE (0x2042): apply the first slot that differs from the current
+            // mode, then mirror the new mode into every slot.
+            for (int s = 0; s < 4; s++) {
+                uint8_t desiredMode = OD_RAM.x2042_axis_mode[s];
+                if (desiredMode <= 3 && desiredMode != curMode) {
+                    AxisController::requestMode(ax, desiredMode);
+                    for (int k = 0; k < 4; k++)
+                        OD_RAM.x2042_axis_mode[k] = desiredMode;
+                    break;
+                }
             }
             // RESET doorbell (0x2045): 1=TRUST_ENCODER 2=TRUST_STEPS 3=FORCE_REHOME.
-            uint8_t rst = OD_RAM.x2045_axis_reset[ax];
-            if (rst != 0) {
-                uint8_t policy = (rst >= 1 && rst <= 3) ? (uint8_t)(rst - 1) : 0;
-                AxisController::requestReset(ax, policy);
-                OD_RAM.x2045_axis_reset[ax] = 0; // clear doorbell
+            for (int s = 0; s < 4; s++) {
+                uint8_t rst = OD_RAM.x2045_axis_reset[s];
+                if (rst != 0) {
+                    uint8_t policy = (rst >= 1 && rst <= 3) ? (uint8_t)(rst - 1) : 0;
+                    AxisController::requestReset(ax, policy);
+                    for (int k = 0; k < 4; k++)
+                        OD_RAM.x2045_axis_reset[k] = 0; // clear doorbells
+                    break;
+                }
             }
             // CALIBRATE doorbell (0x2048): trigger the routine.
-            if (OD_RAM.x2048_axis_calibrate[ax] != 0) {
-                AxisController::requestCalibration(ax);
-                OD_RAM.x2048_axis_calibrate[ax] = 0; // clear doorbell
+            for (int s = 0; s < 4; s++) {
+                if (OD_RAM.x2048_axis_calibrate[s] != 0) {
+                    AxisController::requestCalibration(ax);
+                    for (int k = 0; k < 4; k++)
+                        OD_RAM.x2048_axis_calibrate[k] = 0; // clear doorbells
+                    break;
+                }
             }
         }
     }
@@ -2774,6 +2803,18 @@ void CANopenModule::loop()
                      ax, localAxis, (long)m->targetPosition, (long)m->speed,
                      (long)m->acceleration, m->absolutePosition);
             */
+#ifdef AXIS_CONTROLLER
+            // Closed-loop dispatch (design v2): when the axis is in a feedback
+            // mode, hand the bounded move to AxisController (MONITOR divergence
+            // check / CORRECT verify+retry / SERVO PID). Forever/jog moves stay
+            // on the plain open-loop path.
+            if (!m->isforever &&
+                AxisController::getFeedback(localAxis).mode != MODE_OPEN_LOOP) {
+                AxisController::moveTo(localAxis, m->targetPosition, m->speed,
+                                       m->absolutePosition);
+                continue;
+            }
+#endif
             FocusMotor::startStepper(localAxis, 0);
             static uint32_t dispatchN[4] = {0,0,0,0};
             if (s_axisCmds[ax].pending) {

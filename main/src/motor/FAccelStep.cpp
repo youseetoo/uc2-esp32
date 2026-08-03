@@ -635,7 +635,7 @@ bool isRunning(int i)
     {
         if (faststeppers[s] == nullptr)
         {
-            log_e("FastAccelStepper for axis %d is null", s);
+            // log_e("FastAccelStepper for axis %d is null", s);
             return 0;
         }
         return faststeppers[s]->getCurrentPosition();
@@ -652,7 +652,7 @@ bool isRunning(int i)
         FastAccelStepper *st = faststeppers[i];
         int32_t hz = signedSpeed < 0 ? -signedSpeed : signedSpeed;
         if (hz > 100000)
-            hz = 100000;
+            hz = 100000; // TODO: need to set this as a variable
         if (hz == 0)
         {
             st->stopMove();

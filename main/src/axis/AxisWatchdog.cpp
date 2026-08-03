@@ -45,14 +45,17 @@ namespace AxisWatchdog
         // ---- LOST_STEPS: moving but persistently behind ---------------------
         // Independent of the stall test — catches slipping (encoder advancing,
         // just not enough) which the stall test would miss.
-        if ((int32_t)abs(positionErrorSteps) > cfg.lagLimitSteps)
+        if ((int32_t)abs(positionErrorSteps) > cfg.lagLimitSteps){
+            log_i("AxisWatchdog: LOST_STEPS trip (posErr=%d > lagLimit=%d)", positionErrorSteps, cfg.lagLimitSteps);
             return TRIP_LOST_STEPS;
+        }
 
         // ---- STALL: no encoder progress for stallTimeoutMs ------------------
         int64_t moved = rawCounts - s.lastProgressCnt;
         if ((moved < 0 ? -moved : moved) >= (int64_t)cfg.noiseThresholdCounts)
         {
             // Real progress — reset the stall clock.
+            log_i("AxisWatchdog: progress detected (moved=%lld counts)", moved);
             s.lastProgressCnt = rawCounts;
             s.lastProgressMs = nowMs;
             return TRIP_NONE;
@@ -63,8 +66,10 @@ namespace AxisWatchdog
         if ((nowMs - s.motionStartMs) < cfg.graceMs)
             return TRIP_NONE;
 
-        if ((nowMs - s.lastProgressMs) >= cfg.stallTimeoutMs)
+        if ((nowMs - s.lastProgressMs) >= cfg.stallTimeoutMs){
+            log_i("AxisWatchdog: STALL trip (no progress for %d ms)", cfg.stallTimeoutMs);
             return TRIP_STALL;
+        }
 
         return TRIP_NONE;
     }

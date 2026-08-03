@@ -33,6 +33,7 @@ public:
 
     void setTarget(int32_t targetCounts, int32_t currentCounts)
     {
+        log_i("AxisPID: setTarget=%d, currentCounts=%d", targetCounts, currentCounts);
         setpoint = targetCounts;
         integralError = 0.0f;
         lastError = targetCounts - currentCounts;

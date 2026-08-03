@@ -256,3 +256,195 @@ Phase B is the real deliverable for your tile-scan problem: you may not need `MO
 - Current microstep setting on the CAN slave nodes (TMC config) → the `microstepsAtCal` baseline.
 - Whether any deployed slave node is physically a non-X axis → determines urgency of the WP2 axis-index fix.
 - Typical reversal slack in steps (your ~30) → cross-check against the WP3 measured `backlashCounts`.
+
+---
+
+## 12. Serial command reference — bring-up, calibration, debugging (2026-07-24)
+
+All commands are one-line JSON sent over USB serial (baud 921600, newline-terminated). Two entry points exist:
+
+- **Master serial** (the CAN-HAT master): the normal path. Motor moves are routed over CAN automatically; axis-block access goes through the generic SDO bridge `/can_act {"sdo":...}`.
+- **Slave serial** (USB directly on the motor node): `/motor_act` works locally with the same syntax (the slave's own stepper is `stepperid = 1` on the standard X node). The `/can_act` SDO bridge is master-only.
+
+Conventions: X axis = `stepperid 1`, X motor slave = **CAN node 11** (`UC2_NODE::MOTOR_X`; Y=12, Z=13, A=14). All positions/speeds in **steps**. The `sdo` bridge takes **decimal** numbers on the wire — hex values below are shown with their decimal equivalent. `sub` may be anything 1–4 on a single-axis slave (the firmware remaps any sub-slot to its one physical axis); use `1`.
+
+### 12.0 Native `/motor_act` interface (no CAN needed) — preferred
+
+Calibration, mode and fault-reset are plain per-stepper keys on the familiar `/motor_act` shape. They work **identically on a slave's own USB serial (fully local, no CAN)** and on the master (where they're transparently forwarded as SDO writes):
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"calibrate":1}]}}
+```
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":1}]}}
+```
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axisreset":1}]}}
+```
+
+| Key | Values | Meaning |
+|---|---|---|
+| `calibrate` | 1 | run the calibration routine (sign/scale/backlash/noise), persist to NVS |
+| `axismode` | 0/1/2/3 | OPEN_LOOP / MONITOR / CORRECT / SERVO |
+| `axisreset` | 1/2/3 | clear latched fault: TRUST_ENCODER / TRUST_STEPS / FORCE_REHOME |
+
+A config-only entry (no `position`/`speed`/`isstop`) performs **no motion**; the keys can also ride along with a normal move. Read everything back with the filtered get — the LOCAL response now includes the axis feedback:
+
+```json
+{"task":"/motor_get","motor":{"steppers":[{"stepperid":1}]}}
+```
+→ `{"steppers":[{"stepperid":1,"position":…,"isRunning":0,"isDone":1,"measured":…,"posErr":…,"axismode":1,"health":0,"fault":0,"calibrated":1,"rawCounts":…}]}`
+
+**Code route (local, no CAN):** serial line → `SerialProcess::loop` (parse + task strcmp) → `DeviceRouter::routeCommand` → `handleMotorAct` → routing table says LOCAL → the new keys become `AxisController::requestCalibration/requestMode/requestReset` — *deferred* flags consumed by `AxisController::loop()` on the main task (calibration blocks that task while it runs its probe moves through `issueMove → FocusMotor::startStepper → FAS`; results land in NVS + `AxisFeedback`). On the master the same keys hit the REMOTE branch instead and are forwarded as SDO writes to the slave's AXIS OD doorbells (0x2042/0x2045/0x2048), where the slave's OD handler makes the identical `request*` calls.
+
+The SDO bridge below (12.1) remains available for scripted/host access and for reading individual OD entries.
+
+### 12.1 The AXIS OD block (0x2040+) via the SDO bridge
+
+| Entry | Index (dec) | Access | Meaning |
+|---|---|---|---|
+| `AXIS_MEASURED_STEPS` | 0x2040 (8256) | ro, i32 | encoder-derived position, steps |
+| `AXIS_POSITION_ERROR_STEPS` | 0x2041 (8257) | ro, i32 | measured − commanded, steps |
+| `AXIS_MODE` | 0x2042 (8258) | rw, u8 | 0=OPEN_LOOP 1=MONITOR 2=CORRECT 3=SERVO |
+| `AXIS_HEALTH` | 0x2043 (8259) | ro, u8 | 0=OK 1=DEGRADED 2=FAULT |
+| `AXIS_FAULT` | 0x2044 (8260) | ro, u8 | 0=NONE 1=STALL 2=LOST_STEPS 3=DIVERGENCE 4=TIMEOUT 5=CAL_INVALID 6=CAL_FAILED 7=ENC_NOISE |
+| `AXIS_RESET` | 0x2045 (8261) | wo, u8 | doorbell: 1=TRUST_ENCODER 2=TRUST_STEPS 3=FORCE_REHOME |
+| `AXIS_CALIBRATED` | 0x2046 (8262) | ro, u8 | 1 = valid calibration loaded |
+| `AXIS_REFERENCED` | 0x2047 (8263) | ro, u8 | 1 = homed |
+| `AXIS_CALIBRATE` | 0x2048 (8264) | wo, u8 | doorbell: write 1 to start calibration |
+| `AXIS_COUNTS_PER_STEP_Q16` | 0x2049 (8265) | ro, i32 | signed Q16.16; ÷65536 = counts/step |
+| `AXIS_BACKLASH_STEPS` | 0x204A (8266) | ro, i32 | measured reversal slack, steps |
+| `AXIS_RAW_COUNTS` | 0x204B (8267) | ro, i32 | raw encoder counter (diagnostics) |
+
+Read example (measured steps of node 11):
+
+```json
+{"task":"/can_act","sdo":{"node":11,"index":8256,"sub":1,"op":"r","type":"i32"}}
+```
+→ `{"status":"ok","value":12345,"node":11,"index":8256,"sub":1}`
+
+Write example (set mode): see 12.3.
+
+### 12.2 First bring-up: is the encoder alive?
+
+**Continuous monitor (easiest).** Enable a periodic count report on the node's own serial (thread-safe sampler in `EncoderMonitor`; period in ms, min 50, `0` = off):
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"encmonitor":500}]}}
+```
+
+→ every 500 ms an unsolicited line appears:
+
+```json
+{"encoderMonitor":{"axis":1,"count":1234,"delta":56,"dtMs":502}}
+```
+
+Push the stage by hand or jog: `delta` must be non-zero while anything moves and ~0 at rest (±1–2 counts of noise). `delta` stuck at 0 during motion = wiring/PCNT problem. Turn it off with `"encmonitor":0`. This is LOCAL-only — send it to the serial port of the node that owns the encoder (on the master it logs a warning instead of forwarding).
+
+**One-shot checks:**
+
+1. Read `AXIS_RAW_COUNTS` twice while pushing the stage by hand (or after a small move):
+   ```json
+   {"task":"/can_act","sdo":{"node":11,"index":8267,"sub":1,"op":"r","type":"i32"}}
+   ```
+   The value must change. If it stays 0: check A/B wiring (ENC_X_A/B = GPIO5/6 on the Xiao slave), and the slave boot log for `axis 1: encoder present`.
+2. Jog open-loop and re-read raw counts:
+   ```json
+   {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":5000,"speed":10000,"isabs":0}]},"qid":1}
+   ```
+   Expect |Δcounts| ≈ 5000 × counts/step (≈ 1500–3000 for the AS5311 @ 2 mm pole pair, 16 µsteps).
+
+### 12.3 Calibration (measures sign, scale, backlash, noise)
+
+Requirements: stage roughly mid-travel (the routine moves ±≈4000 steps at low speed), no fault latched. Then (simplest — works locally and via master, see 12.0):
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"calibrate":1}]}}
+```
+
+or equivalently via the SDO bridge:
+
+```json
+{"task":"/can_act","sdo":{"node":11,"index":8264,"sub":1,"op":"w","type":"u8","value":1}}
+```
+
+The routine runs on the slave (sign check → 500/1000/2000/4000-step regression both directions → backlash probe) and takes ~10–30 s. Poll until done:
+
+```json
+{"task":"/can_act","sdo":{"node":11,"index":8262,"sub":1,"op":"r","type":"u8"}}
+```
+→ `value:1` = calibrated (persisted to NVS, survives reboot). On failure `AXIS_FAULT` reads 6 (CAL_FAILED — encoder dead/not wired) — fix and retry.
+
+Sanity-check the result:
+
+```json
+{"task":"/can_act","sdo":{"node":11,"index":8265,"sub":1,"op":"r","type":"i32"}}
+```
+→ counts/step = value ÷ 65536 (sign = count direction vs step direction). At 3200 steps/mm and ~1 µm/count expect ≈ ±0.3 (value ≈ ±20500). Also read backlash (8266) and compare with the known ~30-step slack.
+
+Notes: after `/tmc_act` changes `msteps`, the stored calibration is rescaled analytically and flagged `CAL_INVALID` (fault 5, warning — motion continues; recalibrate when convenient).
+
+### 12.4 Closed-loop moves
+
+Set the mode once (sticky until reboot; MONITOR auto-engages at boot when calibrated):
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":1}]}}
+```
+
+(or via the SDO bridge: index 8258, `value` 1=MONITOR, 2=CORRECT, 3=SERVO, 0=OPEN_LOOP.) From then on **normal `/motor_act` bounded moves automatically run in that mode** — same syntax as always, nothing else changes:
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":20000,"speed":15000,"isabs":1}]},"qid":2}
+```
+
+- **MONITOR**: move is open-loop; at completion the error is checked and a `DIVERGENCE` event is pushed if too large. Never corrects. Safe default — start here.
+- **CORRECT**: after the move, if |error| > tolerance the slave issues bounded corrective moves (≤2 retries, backlash feed-forward on reversals), then adopts the encoder position as truth (also into FAS, so the next absolute move is right).
+- **SERVO**: 1 kHz PID drives to target in count space; done when the encoder says so.
+- Jogs (`"isforever":1`) and homing always stay open-loop. Uncalibrated axes silently fall back to open loop.
+
+Verify closed-loop is doing something: after a CORRECT move read `AXIS_POSITION_ERROR_STEPS` (8257) — it should be within ±(2σ+2) steps of zero.
+
+### 12.5 Async fault events & recovery
+
+On STALL / LOST_STEPS / DIVERGENCE the slave raises an EMCY; the master converts it and pushes on its serial, unsolicited:
+
+```json
+{"axisEvent":{"node":11,"axis":1,"fault":"STALL","posErrSteps":-142,"event":1}}
+```
+
+STALL and LOST_STEPS are **latching**: the axis refuses motion until reset. Recover with:
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axisreset":1}]}}
+```
+(or SDO index 8261; 1=TRUST_ENCODER — commanded position is adjusted to the encoder; 2=TRUST_STEPS — encoder re-zeroed to match steps; 3=FORCE_REHOME — origin invalidated, home again.)
+
+Quick stall test: start a long move, gently block the stage → motion must stop within ~100 ms and the `axisEvent` must appear; then reset as above.
+
+### 12.6 Debugging checklist
+
+| Symptom | Check |
+|---|---|
+| No `axisEvent` ever | Watch master serial in a raw terminal (events are unsolicited lines, ImSwitch may swallow them). Confirm slave EMCY: fault (8260) + health (8259) read non-zero after a forced stall. |
+| Raw counts don't move | Wiring (A/B), boot log `encoder present`, PCNT unit conflict warning in the log. |
+| Calibration fails (fault 6) | Counts don't change with motion → encoder/wiring; or travel blocked → recentre the stage. |
+| `value` won't stick when writing MODE | Axis not calibrated (mode falls back), or node unreachable (`status:"error"` — check `/can_act {"scan":true}`). |
+| Spurious STALL on slow moves | Speed below the watchdog gate is exempt; if it still trips, recalibrate — thresholds derive from measured `residualScatter`. |
+| Error grows every reversal | Backlash: check 8266 vs mechanical slack; CORRECT mode compensates it, MONITOR only reports. |
+| Position drifts after CORRECT | Read 8256 vs the master's `/motor_get` position — after adoption they must agree; a persistent offset means the axis needs re-homing (`/home_act`). |
+
+Firmware-side logging: flash the `_debug` env (`pio run -e UC2_canopen_slave_motor_debug -t upload`) and watch the slave's own USB serial — tags `AxisController`, `AxisCal`, `AxisNotify`, `PCNT` narrate every mode change, calibration step and watchdog trip.
+
+### 12.7 Python (UC2-REST) equivalents
+
+```python
+m = ESP32Client(...).motor
+m.calibrateAxis(node=11)              # trigger + wait
+m.getAxisCalibration(node=11)         # counts/step, backlash, quality
+m.setAxisMode(node=11, mode="MONITOR")  # or CORRECT / SERVO
+m.getAxisFeedback(node=11)            # measured/error/mode/health/fault dict
+m.resetAxis(node=11, policy="TRUST_ENCODER")
+m.register_axis_event_callback(lambda ev: print("FAULT", ev))
+# moves: unchanged — m.move_x(...) etc.; closed-loop kicks in via the mode
+```

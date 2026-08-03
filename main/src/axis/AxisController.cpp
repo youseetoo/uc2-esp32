@@ -3,6 +3,7 @@
 #include "AxisWatchdog.h"
 #include "AxisNotify.h"
 #include "AxisPID.h"
+#include "EncoderMonitor.h"
 #include <PinConfig.h>
 #include "esp_log.h"
 #include "../motor/MotorTypes.h" // Stepper enum, MotorData (header-only)
@@ -251,7 +252,7 @@ namespace AxisController
         e.commandedSteps = a.fb.commandedSteps;
         e.measuredSteps = a.fb.measuredSteps;
         AxisNotify::report(e);
-        ESP_LOGW(TAG, "axis %d FAULT %d (posErr=%d) — motion latched", axis, fault,
+        log_w("axis %d FAULT %d (posErr=%d) — motion latched", axis, fault,
                  a.fb.positionErrorSteps);
     }
 
@@ -302,6 +303,7 @@ namespace AxisController
         // pins to REMOTE_MOTOR_AXIS_ID instead of hardcoding X (WP2 req #2).
         if (axis == (int)pinConfig.REMOTE_MOTOR_AXIS_ID)
         {
+            log_i("axis %d: encoder pins A=%d B=%d invert=%d", axis, pinConfig.ENC_X_A, pinConfig.ENC_X_B, !pinConfig.ENC_X_encoderDirection);
             a = pinConfig.ENC_X_A;
             b = pinConfig.ENC_X_B;
             invert = !pinConfig.ENC_X_encoderDirection;
@@ -365,6 +367,29 @@ namespace AxisController
         AxisNotify::report(e);
     }
 
+    // Issue a stepper move like FocusMotor::moveMotor, but WITHOUT clobbering the
+    // caller-configured acceleration (moveMotor hardcodes 1000). Preserves the
+    // qid set by the dispatch layer so completion reporting still works.
+    static void issueMove(int axis, int32_t target, int32_t speed, bool isRelative)
+    {
+#ifdef MOTOR_CONTROLLER
+        MotorData *d = FocusMotor::getData()[axis];
+        if (!d)
+            return;
+        d->targetPosition = target;
+        d->isforever = false;
+        d->absolutePosition = !isRelative;
+        d->isStop = false;
+        d->stopped = false;
+        d->speed = speed;
+        if (d->acceleration <= 0)
+            d->acceleration = 40000;
+        FocusMotor::startStepper(axis, 0);
+#else
+        (void)axis; (void)target; (void)speed; (void)isRelative;
+#endif
+    }
+
     // Start an open-loop absolute move, optionally with backlash feed-forward on
     // a direction reversal (CORRECT mode).
     static void startOpenLoopMove(int axis, int32_t absTarget, int32_t speed, bool applyBacklash)
@@ -379,7 +404,7 @@ namespace AxisController
         a.reversalMove = reversal;
         if (dir != 0)
             a.lastMoveDir = dir;
-        FocusMotor::moveMotor(olTarget, speed, axis, false /*absolute*/);
+        issueMove(axis, olTarget, speed, false /*absolute*/);
 #else
         (void)axis; (void)absTarget; (void)speed; (void)applyBacklash;
 #endif
@@ -441,9 +466,7 @@ namespace AxisController
                 int32_t corr = err;
                 if (corr > kMaxCorrectionSteps) corr = kMaxCorrectionSteps;
                 if (corr < -kMaxCorrectionSteps) corr = -kMaxCorrectionSteps;
-#ifdef MOTOR_CONTROLLER
-                FocusMotor::moveMotor(corr, kCorrectionSpeed, axis, true /*relative*/);
-#endif
+                issueMove(axis, corr, kCorrectionSpeed, true /*relative*/);
                 a.moveStage = MJ_CORRECTING;
             }
             break;
@@ -471,6 +494,19 @@ namespace AxisController
         a.pid.setTarget(targetCounts, (int32_t)a.encoder.getCount());
         a.moveStage = MJ_IDLE;
         a.servoArrived = false;
+#ifdef MOTOR_CONTROLLER
+        // Reflect the servo's commanded speed into MotorData so the watchdog's
+        // minimum-speed gate stays armed while the servo drives the axis.
+        {
+            MotorData *d = FocusMotor::getData()[axis];
+            if (d)
+            {
+                d->speed = (speed > 0) ? speed : (int32_t)a.pid.maxVelocity;
+                d->isforever = true; // continuous-mode; servo owns the velocity
+                d->stopped = false;
+            }
+        }
+#endif
         a.servoActive = true; // set last: the servo task starts driving now
 #else
         a.correctRetries = kMaxCorrectionRetries;
@@ -484,6 +520,7 @@ namespace AxisController
     // blocked. Applies velocity via the mutex-free FAS set-speed path.
     static void servoTask(void *)
     {
+        log_i("Axis servo task started on core %d", xPortGetCoreID());
         for (;;)
         {
             for (int axis = 0; axis < AXIS_MAX_STEPPERS; axis++)
@@ -505,6 +542,7 @@ namespace AxisController
                     a.servoActive = false;
                     a.servoArrived = true; // loop() finalizes (stop + adopt)
                     FAccelStep::setLiveSpeed(axis, 0);
+                    
                     continue;
                 }
                 FAccelStep::setLiveSpeed(axis, (int32_t)v);
@@ -543,15 +581,20 @@ namespace AxisController
             // Only axes backed by a real FAS stepper can be feedback-controlled.
             if (axis < AXIS_MAX_STEPPERS && encoderPinsForAxis(axis, pinA, pinB, invert))
             {
+                log_i("axis %d: encoder pins A=%d B=%d invert=%d", axis, pinA, pinB, invert);
                 a.hasEnc = a.encoder.begin(pinA, pinB, invert,
                                            AXIS_ENC_PCNT_UNIT, AXIS_ENC_GLITCH_FILTER);
             }
 
             if (a.hasEnc)
             {
+
+                log_w("axis %d: encoder present, loading calibration", axis);
                 // Load calibration, then apply the microstep-change rule.
                 if (AxisCalibrationStore::load(axis, a.cal))
                 {
+                    log_i("axis %d: loaded calibration (valid=%d, scatter=%d, backlash=%d)",
+                          axis, a.cal.valid, a.cal.residualScatter, a.cal.backlashCounts);
                     uint16_t ms = currentMicrosteps();
                     if (AxisCalibrationStore::applyMicrostepRule(a.cal, ms))
                     {
@@ -560,16 +603,18 @@ namespace AxisController
                         a.fb.fault = FAULT_CAL_INVALID;
                         a.fb.health = HEALTH_OK;
                         AxisCalibrationStore::save(axis, a.cal);
+                        log_i("axis %d: rescaled calibration to %d microsteps (scatter=%d, backlash=%d)",
+                              axis, ms, a.cal.residualScatter, a.cal.backlashCounts);
                     }
                 }
                 a.fb.calibrated = a.cal.valid;
-                configureWatchdog(axis);
-                reanchorOrigin(axis);
+                configureWatchdog(axis); // TODO: Do we actually need this? 
+                reanchorOrigin(axis);  // TODO: Do we actually need this? 
                 AxisWatchdog::reset(a.wdState);
                 // MONITOR is the safe default once an encoder is present and
                 // calibrated; otherwise stay OPEN_LOOP until calibrated.
                 a.fb.mode = a.cal.valid ? MODE_MONITOR : MODE_OPEN_LOOP;
-                ESP_LOGI(TAG, "axis %d: encoder present (cal=%d, mode=%d)",
+                log_i( "axis %d: encoder present (cal=%d, mode=%d)",
                          axis, a.cal.valid, a.fb.mode);
             }
             else
@@ -623,9 +668,15 @@ namespace AxisController
 
             updateFeedback(axis);
 
+            // Periodic encoder liveness monitor (reuses this iteration's count
+            // sample — no extra PCNT access). No-op unless enabled via
+            // {"encmonitor":<ms>} / EncoderMonitor::setPeriod.
+            AxisState &a = g_axes[axis];
+            if (a.hasEnc)
+                EncoderMonitor::tick(axis, a.fb.rawCounts, now);
+
             // Fast blocking/stall watchdog — protects EVERY mode, incl. open
             // loop. Skip if no encoder or already latched.
-            AxisState &a = g_axes[axis];
             if (!a.hasEnc || a.fb.health == HEALTH_FAULT)
                 continue;
             AxisWatchdog::Trip trip = AxisWatchdog::update(
@@ -670,7 +721,7 @@ namespace AxisController
         // Refuse motion while a fault is latched (except CAL_INVALID, a warning).
         if (g_axes[axis].fb.health == HEALTH_FAULT)
         {
-            ESP_LOGW(TAG, "moveTo ax%d refused: fault %d latched (resetAxis first)",
+            log_w("moveTo ax%d refused: fault %d latched (resetAxis first)",
                      axis, g_axes[axis].fb.fault);
             return;
         }
@@ -731,7 +782,7 @@ namespace AxisController
         // Feedback modes require an encoder; fall back to OPEN_LOOP otherwise.
         if (mode != MODE_OPEN_LOOP && !g_axes[axis].hasEnc)
         {
-            ESP_LOGW(TAG, "axis %d has no encoder; forcing OPEN_LOOP", axis);
+            log_w("axis %d has no encoder; forcing OPEN_LOOP", axis);
             mode = MODE_OPEN_LOOP;
         }
         g_axes[axis].fb.mode = mode;
@@ -804,7 +855,7 @@ namespace AxisController
         AxisState &a = g_axes[axis];
         if (!a.hasEnc)
         {
-            ESP_LOGW(TAG, "calibrateAxis %d: no encoder", axis);
+            log_w("calibrateAxis %d: no encoder", axis);
             a.fb.fault = FAULT_CAL_FAILED;
             return false;
         }
@@ -833,7 +884,7 @@ namespace AxisController
             AxisWatchdog::reset(a.wdState);
             if (a.fb.mode == MODE_OPEN_LOOP)
                 a.fb.mode = MODE_MONITOR;
-            ESP_LOGI(TAG, "calibrateAxis %d OK (q=%u scatter=%u)", axis,
+            log_i( "calibrateAxis %d OK (q=%u scatter=%u)", axis,
                      a.cal.quality, a.cal.residualScatter);
         }
         else

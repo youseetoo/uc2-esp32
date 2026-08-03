@@ -1,5 +1,6 @@
 #include "EncoderBackend.h"
 #include "esp_log.h"
+#include <PinConfig.h>
 
 // ESP32Encoder is only meaningful when the PCNT counter is compiled in.
 #ifdef USE_PCNT_COUNTER
@@ -37,7 +38,7 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
     if (pcntUnit == FAS_PCNT_UNIT)
     {
         // Constraint #4: never share the FAS step-generator's PCNT unit.
-        ESP_LOGE(TAG, "Configured PCNT unit %d collides with FAS unit %d — refusing to attach",
+        log_e("Configured PCNT unit %d collides with FAS unit %d — refusing to attach",
                  pcntUnit, FAS_PCNT_UNIT);
         return false;
     }
@@ -54,7 +55,7 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
     static ESP32Encoder slotReservation[MAX_ESP32_ENCODERS];
     if (unitIndex < 0 || unitIndex >= MAX_ESP32_ENCODERS)
     {
-        ESP_LOGE(TAG, "PCNT unit %d out of range [0..%d)", unitIndex, MAX_ESP32_ENCODERS);
+        log_e("PCNT unit %d out of range [0..%d)", unitIndex, MAX_ESP32_ENCODERS);
         return false;
     }
     for (int i = 0; i < unitIndex; i++)
@@ -73,21 +74,21 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
     {
         // Reservation failed to steer the slot (another encoder already owned
         // it). Not fatal, but surface it so the collision is diagnosable.
-        ESP_LOGE(TAG, "Encoder landed on PCNT unit %d, expected %d", (int)enc->unit, unitIndex);
+        log_e("Encoder landed on PCNT unit %d, expected %d", (int)enc->unit, unitIndex);
         unitIndex = (int)enc->unit;
     }
     if (unitIndex == FAS_PCNT_UNIT)
     {
-        ESP_LOGE(TAG, "Encoder ended up on FAS PCNT unit %d — count/step corruption likely", unitIndex);
+        log_e("Encoder ended up on FAS PCNT unit %d — count/step corruption likely", unitIndex);
     }
 
     encoderImpl = enc;
     present = true;
-    ESP_LOGI(TAG, "Encoder attached: A=%d B=%d unit=%d filter=%u invert=%d",
+    log_i("Encoder attached: A=%d B=%d unit=%d filter=%u invert=%d",
              aPin, bPin, unitIndex, glitchFilter, invertDir);
     return true;
 #else
-    ESP_LOGW(TAG, "USE_PCNT_COUNTER not defined — encoder disabled");
+    log_e("USE_PCNT_COUNTER not defined — encoder disabled");
     return false;
 #endif
 }

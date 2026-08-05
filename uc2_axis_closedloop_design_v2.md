@@ -285,8 +285,21 @@ Calibration, mode and fault-reset are plain per-stepper keys on the familiar `/m
 | Key | Values | Meaning |
 |---|---|---|
 | `calibrate` | 1 | run the calibration routine (sign/scale/backlash/noise), persist to NVS |
-| `axismode` | 0/1/2/3 | OPEN_LOOP / MONITOR / CORRECT / SERVO |
+| `axismode` | 0/1/2/3 | OPEN_LOOP / MONITOR / CORRECT / SERVO — the axis's **persistent** mode |
 | `axisreset` | 1/2/3 | clear latched fault: TRUST_ENCODER / TRUST_STEPS / FORCE_REHOME |
+| `encmonitor` | ms | periodic encoder liveness report (0 = off, min 50 ms) — see 12.2 |
+| `closedloop` | 0..3 / bool | **per-move** mode override; does not change `axismode` |
+
+**Per-move open/closed loop.** `closedloop` overrides the mode for that one move only:
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":10000,"speed":15000,"isabs":1,"closedloop":2}]}}
+```
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":10000,"speed":15000,"isabs":1,"closedloop":0}]}}
+```
+
+`0`/`false` = force open loop, `1` = MONITOR, `2` = CORRECT, `3` = SERVO, `true` = CORRECT. Omit the key to use the axis's configured `axismode`. So you can leave an axis in MONITOR permanently and opt individual moves into CORRECT/SERVO, or drop a single move to open loop for an A/B comparison — without re-configuring the axis. Jogs (`isforever`) and uncalibrated axes always run open loop.
 
 A config-only entry (no `position`/`speed`/`isstop`) performs **no motion**; the keys can also ride along with a normal move. Read everything back with the filtered get — the LOCAL response now includes the axis feedback:
 
@@ -368,7 +381,15 @@ or equivalently via the SDO bridge:
 {"task":"/can_act","sdo":{"node":11,"index":8264,"sub":1,"op":"w","type":"u8","value":1}}
 ```
 
-The routine runs on the slave (sign check → 500/1000/2000/4000-step regression both directions → backlash probe) and takes ~10–30 s. Poll until done:
+The routine runs on the slave (sign check → 500/1000/2000/4000-step regression both directions → backlash probe) and takes ~15–25 s. **On completion it pushes the measured result as an unsolicited JSON event** — no follow-up read needed:
+
+```json
+{"axisCalibration":{"axis":1,"ok":1,"countsPerStep":0.15688,"stepsPerCount":6.374,
+ "countsPerStepQ16":10281,"countSign":-1,"backlashCounts":3,"backlashSteps":19,
+ "residualScatter":6,"quality":100,"microsteps":16,"fault":"NONE"}}
+```
+
+On failure `ok:0` and `fault` names the reason (e.g. `CAL_FAILED`). You can still poll:
 
 ```json
 {"task":"/can_act","sdo":{"node":11,"index":8262,"sub":1,"op":"r","type":"u8"}}
@@ -383,6 +404,22 @@ Sanity-check the result:
 → counts/step = value ÷ 65536 (sign = count direction vs step direction). At 3200 steps/mm and ~1 µm/count expect ≈ ±0.3 (value ≈ ±20500). Also read backlash (8266) and compare with the known ~30-step slack.
 
 Notes: after `/tmc_act` changes `msteps`, the stored calibration is rescaled analytically and flagged `CAL_INVALID` (fault 5, warning — motion continues; recalibrate when convenient).
+
+**Hardcoded routine parameters** (`AxisCalibrationRoutine::Params`, [AxisCalibration.h](main/src/axis/AxisCalibration.h)) — these are the *routine's* tunables, not the measured result:
+
+| Param | Default | Meaning |
+|---|---|---|
+| `probeSpeed` | 2000 steps/s | speed of every probe move (low & safe) |
+| `lengths[4]` | 500, 1000, 2000, 4000 | scale-regression probe lengths (each run +then−) |
+| `numLengths` | 4 | how many of the above are used |
+| `minCountsForValidity` | 4 counts | sign probe must move at least this much, else CAL_FAILED |
+| `minR2` | 0.98 | regression quality gate |
+| `backlashRepeats` | 3 | averaged reversal measurements |
+| `backlashApproach` | 2000 steps | travel per backlash leg |
+| `settleMs` | 60 ms | dwell after each move before reading the encoder |
+| `currentMicrosteps` | from TMC | stored as `microstepsAtCal` |
+
+Probe acceleration is fixed at 40000 steps/s² (`kCalProbeAccel` in AxisController.cpp). Total travel stays within ±4000 steps of the start point and the whole run is 16 moves (~15–25 s). **Nothing about the encoder scale is hardcoded** — `countsPerStep`, `countSign`, `backlashCounts` and `residualScatter` are all measured here and are the only source for downstream thresholds.
 
 ### 12.4 Closed-loop moves
 
@@ -419,6 +456,10 @@ STALL and LOST_STEPS are **latching**: the axis refuses motion until reset. Reco
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axisreset":1}]}}
 ```
 (or SDO index 8261; 1=TRUST_ENCODER — commanded position is adjusted to the encoder; 2=TRUST_STEPS — encoder re-zeroed to match steps; 3=FORCE_REHOME — origin invalidated, home again.)
+
+**Why latching, and why there is no auto-reset.** STALL/LOST_STEPS mean the stage is either blocked or has lost its position reference. Auto-clearing after a timeout would let the next queued move run against a wall, or run from a position the firmware knows is wrong — during an unattended tile scan that turns one bad move into a damaged sample. The reset is therefore an explicit host decision, and the policy makes the host say *which* source it trusts. If you want automatic recovery during a scan, do it host-side: subscribe to the `axisEvent` callback, decide (re-home? abort the scan? retry once?), then send `axisreset` — that keeps the decision where the context is.
+
+For bring-up you can of course reset in a loop; the command is idempotent and cheap.
 
 Quick stall test: start a long move, gently block the stage → motion must stop within ~100 ms and the `axisEvent` must appear; then reset as above.
 

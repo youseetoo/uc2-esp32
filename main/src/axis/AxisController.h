@@ -27,7 +27,12 @@ namespace AxisController
     void loop();
 
     // ---- unified motion interface (ImSwitch-visible; unchanged semantics) ---
+    // Runs in the axis's configured mode (OPEN_LOOP/MONITOR/CORRECT/SERVO).
     void moveTo(int axis, int32_t targetSteps, int32_t speed, bool isAbsolute);
+    // Same, but forcing a mode for THIS move only (the axis's configured mode is
+    // untouched). Used by the per-move {"closedloop":0|1} JSON flag.
+    void moveToWithMode(int axis, int32_t targetSteps, int32_t speed, bool isAbsolute,
+                        uint8_t modeOverride);
     void stop(int axis);
 
     // ---- additive, optional ------------------------------------------------

@@ -460,7 +460,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         if (alerts & TWAI_ALERT_BUS_ERROR) {
             s_lastBusErrorMs = millis();
             static uint32_t busErrCount = 0;
-            if ((++busErrCount % 1000) == 1) {
+            if ((++busErrCount % 10000) == 1) {
                 log_i("CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
             }
         }
@@ -2810,8 +2810,8 @@ void CANopenModule::loop()
             // on the plain open-loop path.
             if (!m->isforever &&
                 AxisController::getFeedback(localAxis).mode != MODE_OPEN_LOOP) {
-                AxisController::moveTo(localAxis, m->targetPosition, m->speed,
-                                       m->absolutePosition);
+                AxisController::moveToWithMode(localAxis, m->targetPosition, m->speed,
+                                               m->absolutePosition, 0xFF /*axis mode*/);
                 continue;
             }
 #endif

@@ -325,6 +325,21 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         cJSON* amodeItem  = cJSON_GetObjectItem(s, "axismode");
         cJSON* aresetItem = cJSON_GetObjectItem(s, "axisreset");
         cJSON* emonItem   = cJSON_GetObjectItem(s, "encmonitor");
+
+        // Per-move closed-loop override (same numbering as "axismode"):
+        //   0 / false = force OPEN_LOOP for THIS move
+        //   1 = MONITOR, 2 = CORRECT, 3 = SERVO
+        //   true      = CORRECT (the useful "closed loop please" default)
+        // Absent => use the axis's configured mode. 0xFF = no override.
+        // The axis's configured mode is never changed by this key.
+        cJSON* clItem = cJSON_GetObjectItem(s, "closedloop");
+        uint8_t clOverride = 0xFF;
+        if (clItem && cJSON_IsBool(clItem)) {
+            clOverride = cJSON_IsTrue(clItem) ? 2 : 0;
+        } else if (clItem && cJSON_IsNumber(clItem)) {
+            int v = clItem->valueint;
+            clOverride = (v >= 0 && v <= 3) ? (uint8_t)v : 0xFF;
+        }
         if (calItem || amodeItem || aresetItem || emonItem) {
             if (route->where == UC2::RouteEntry::LOCAL) {
 #ifdef AXIS_CONTROLLER
@@ -405,9 +420,14 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                     // in MONITOR/CORRECT/SERVO goes through AxisController so the
                     // encoder verify/correct/servo logic runs. Jog (isforever)
                     // stays on the plain open-loop path.
-                    if (!isForever &&
-                        AxisController::getFeedback(stepperid).mode != MODE_OPEN_LOOP)
-                        AxisController::moveTo(stepperid, pos, speed, isAbs);
+                    //
+                    // Per-move override: "closedloop":0 forces this ONE move open
+                    // loop; 1..3 force MONITOR/CORRECT/SERVO (1 == "on" == the
+                    // axis mode if already closed-loop). The axis's configured
+                    // mode is not changed either way.
+                    if (!isForever && (clItem || AxisController::getFeedback(stepperid).mode
+                                                     != MODE_OPEN_LOOP))
+                        AxisController::moveToWithMode(stepperid, pos, speed, isAbs, clOverride);
                     else
 #endif
                     FocusMotor::startStepper(stepperid, 0); // TODO: Shouldn't we use stopstepper instead?

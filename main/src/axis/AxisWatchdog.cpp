@@ -46,7 +46,7 @@ namespace AxisWatchdog
         // Independent of the stall test — catches slipping (encoder advancing,
         // just not enough) which the stall test would miss.
         if ((int32_t)abs(positionErrorSteps) > cfg.lagLimitSteps){
-            log_i("AxisWatchdog: LOST_STEPS trip (posErr=%d > lagLimit=%d)", positionErrorSteps, cfg.lagLimitSteps);
+            log_i("AxisWatchdog: LOST_STEPS trip (posErr=%d > lagLimit=%d)", (int32_t)abs(positionErrorSteps), cfg.lagLimitSteps);
             return TRIP_LOST_STEPS;
         }
 

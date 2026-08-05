@@ -6,6 +6,9 @@
 #include "EncoderMonitor.h"
 #include <PinConfig.h>
 #include "esp_log.h"
+#include "esp_task_wdt.h"
+#include "cJSON.h"
+#include "../serial/SerialProcess.h"
 #include "../motor/MotorTypes.h" // Stepper enum, MotorData (header-only)
 
 #ifdef MOTOR_CONTROLLER
@@ -195,12 +198,32 @@ namespace AxisController
     }
 
     // Blocking relative move used only by the on-demand calibration routine.
+    // Defined below (move-job section); used by the calibration probe moves.
+    static void issueMove(int axis, int32_t target, int32_t speed, bool isRelative,
+                          int32_t accel);
+
+    // Acceleration for calibration probe moves. Explicit so the probes aren't
+    // stuck with whatever a previous move left behind (FocusMotor::moveMotor
+    // used to hardcode 1000, making each 500-step probe take ~1.4 s).
+    static constexpr int32_t kCalProbeAccel = 40000;
+
+    // Delay that keeps the task watchdog fed. Calibration blocks the main loop
+    // task (which owns the TWDT subscription and normally feeds it once per
+    // iteration) for tens of seconds, so every wait inside the routine MUST
+    // feed the WDT or the node panics with "task_wdt: - loop (CPU 1)".
+    // esp_task_wdt_reset() is harmless (ESP_ERR_NOT_FOUND) on unsubscribed tasks.
+    static void wdtDelay(uint32_t ms)
+    {
+        esp_task_wdt_reset();
+        delay(ms);
+    }
+
     static bool blockingRelMove(int axis, int32_t deltaSteps, int32_t speed)
     {
 #ifdef MOTOR_CONTROLLER
         if (axisAborted(axis))
             return false;
-        FocusMotor::moveMotor(deltaSteps, abs(speed), axis, true /*relative*/);
+        issueMove(axis, deltaSteps, abs(speed), true /*relative*/, kCalProbeAccel);
 
         const uint32_t startTimeoutMs = 300;
         const uint32_t moveTimeoutMs = 15000;
@@ -210,7 +233,7 @@ namespace AxisController
         {
             if (axisAborted(axis))
                 return false;
-            delay(1);
+            wdtDelay(1);
         }
         // Wait for completion.
         while (FocusMotor::isRunning(axis))
@@ -223,11 +246,12 @@ namespace AxisController
             if ((millis() - t0) > moveTimeoutMs)
             {
                 FocusMotor::stopStepper(axis);
-                ESP_LOGE(TAG, "blockingRelMove ax%d timed out", axis);
+                log_e("blockingRelMove ax%d timed out", axis);
                 return false;
             }
-            delay(2);
+            wdtDelay(2);
         }
+        esp_task_wdt_reset(); // settle period follows in the routine
         return true;
 #else
         (void)axis; (void)deltaSteps; (void)speed;
@@ -253,14 +277,24 @@ namespace AxisController
         e.measuredSteps = a.fb.measuredSteps;
         AxisNotify::report(e);
         log_w("axis %d FAULT %d (posErr=%d) — motion latched", axis, fault,
-                 a.fb.positionErrorSteps);
+                 a.fb.positionErrorSteps); 
     }
 
     // Recompute one axis's feedback from the encoder (or identity if none).
     static void updateFeedback(int axis)
     {
+        /*
+        This function is called from the main loop task, so it can safely call
+        FocusMotor::getCurrentMotorPosition() to get the commanded position. 
+        It also reads the encoder count and applies the calibration to compute the
+        measured position and position error.
+        If the axis has no encoder, it sets the measured position equal to the 
+        commanded position and the position error to zero.
+        It also updates the raw encoder count and the mode in the feedback struct 
+
+        */
         AxisState &a = g_axes[axis];
-        int32_t commanded = commandedStepsOf(axis);
+        int32_t commanded = commandedStepsOf(axis); // TODO: This is unclear to me as this is the current position of the stepper, but we want to know the target position of the stepper. Maybe we need to change this to getTargetMotorPosition() instead?
         a.fb.commandedSteps = commanded;
 
         if (!a.hasEnc)
@@ -275,11 +309,13 @@ namespace AxisController
 
         int64_t raw = a.encoder.getCount();
         a.fb.rawCounts = raw;
-        if (a.cal.valid)
+        if (a.cal.valid) // TODO: This is never called or rather never valid?
         {
             int32_t measured = a.originSteps + axisCountsToSteps(a.cal, raw);
             a.fb.measuredSteps = measured;
             a.fb.positionErrorSteps = measured - commanded;
+            log_i("axis %d: feedback updated — commanded=%d measured=%d posErr=%d rawCounts=%lld",
+                  axis, commanded, measured, a.fb.positionErrorSteps, raw);
         }
         else
         {
@@ -287,6 +323,8 @@ namespace AxisController
             // position but keep rawCounts visible for diagnostics.
             a.fb.measuredSteps = commanded;
             a.fb.positionErrorSteps = 0;
+            log_i("axis %d: feedback updated — commanded=%d measured=%d posErr=%d rawCounts=%lld (no cal)",
+                  axis, commanded, a.fb.measuredSteps, a.fb.positionErrorSteps, raw);
         }
         a.fb.calibrated = a.cal.valid;
     }
@@ -370,7 +408,8 @@ namespace AxisController
     // Issue a stepper move like FocusMotor::moveMotor, but WITHOUT clobbering the
     // caller-configured acceleration (moveMotor hardcodes 1000). Preserves the
     // qid set by the dispatch layer so completion reporting still works.
-    static void issueMove(int axis, int32_t target, int32_t speed, bool isRelative)
+    static void issueMove(int axis, int32_t target, int32_t speed, bool isRelative,
+                          int32_t accel)
     {
 #ifdef MOTOR_CONTROLLER
         MotorData *d = FocusMotor::getData()[axis];
@@ -382,11 +421,13 @@ namespace AxisController
         d->isStop = false;
         d->stopped = false;
         d->speed = speed;
-        if (d->acceleration <= 0)
+        if (accel > 0)
+            d->acceleration = accel;
+        else if (d->acceleration <= 0)
             d->acceleration = 40000;
         FocusMotor::startStepper(axis, 0);
 #else
-        (void)axis; (void)target; (void)speed; (void)isRelative;
+        (void)axis; (void)target; (void)speed; (void)isRelative; (void)accel;
 #endif
     }
 
@@ -404,7 +445,7 @@ namespace AxisController
         a.reversalMove = reversal;
         if (dir != 0)
             a.lastMoveDir = dir;
-        issueMove(axis, olTarget, speed, false /*absolute*/);
+        issueMove(axis, olTarget, speed, false /*absolute*/, 0 /*keep accel*/);
 #else
         (void)axis; (void)absTarget; (void)speed; (void)applyBacklash;
 #endif
@@ -466,7 +507,7 @@ namespace AxisController
                 int32_t corr = err;
                 if (corr > kMaxCorrectionSteps) corr = kMaxCorrectionSteps;
                 if (corr < -kMaxCorrectionSteps) corr = -kMaxCorrectionSteps;
-                issueMove(axis, corr, kCorrectionSpeed, true /*relative*/);
+                issueMove(axis, corr, kCorrectionSpeed, true /*relative*/, 0 /*keep accel*/);
                 a.moveStage = MJ_CORRECTING;
             }
             break;
@@ -491,6 +532,19 @@ namespace AxisController
 #ifdef AXIS_SERVO_AVAILABLE
         int32_t targetCounts = (int32_t)axisStepsToCounts(a.cal, absTarget - a.originSteps);
         a.pid.maxVelocity = (speed > 0) ? (float)speed : a.pid.maxVelocity;
+
+        // Arrival tolerance must live ABOVE the measured encoder noise floor —
+        // a tolerance tighter than residualScatter can never be satisfied, so
+        // the servo would hunt forever and never report "arrived".
+        uint16_t scatter = a.cal.valid ? a.cal.residualScatter : 3;
+        if (scatter < 1)
+            scatter = 1;
+        a.pid.positionTolerance = (int32_t)scatter;
+        if (a.pid.positionTolerance < 2)
+            a.pid.positionTolerance = 2;
+        // FAR -> NEAR switch a good margin outside the noise band.
+        a.pid.nearThreshold = a.pid.positionTolerance * 8;
+
         a.pid.setTarget(targetCounts, (int32_t)a.encoder.getCount());
         a.moveStage = MJ_IDLE;
         a.servoArrived = false;
@@ -542,10 +596,16 @@ namespace AxisController
                     a.servoActive = false;
                     a.servoArrived = true; // loop() finalizes (stop + adopt)
                     FAccelStep::setLiveSpeed(axis, 0);
-                    
+
                     continue;
                 }
-                FAccelStep::setLiveSpeed(axis, (int32_t)v);
+                // CRITICAL: the PID error lives in COUNT space, the velocity
+                // command in STEP space. When countSign is -1 (+steps produce
+                // -counts) the raw command drives the axis AWAY from the target
+                // — positive feedback, i.e. a full-speed runaway that only the
+                // watchdog stops. Map count-space -> step-space with countSign.
+                int32_t cmd = (int32_t)v * (int32_t)a.cal.countSign;
+                FAccelStep::setLiveSpeed(axis, cmd);
             }
             vTaskDelay(1); // ~1 kHz
         }
@@ -644,7 +704,7 @@ namespace AxisController
         // default identity feedback.
         int n = (MOTOR_AXIS_COUNT < AXIS_MAX_STEPPERS) ? MOTOR_AXIS_COUNT : AXIS_MAX_STEPPERS;
         uint32_t now = millis();
-        for (int axis = 0; axis < n; axis++)
+        for (int axis = 0; axis < n; axis++) // TODO: We only have one encoder per esp32 for now 
         {
             // Consume deferred requests (set from the CANopen task) on THIS task.
             AxisState &st = g_axes[axis];
@@ -652,20 +712,23 @@ namespace AxisController
             {
                 uint8_t m = (uint8_t)st.reqMode;
                 st.reqMode = -1;
+                log_i("axis %d: deferred setMode(%d)", axis, m);
                 setMode(axis, (AxisMode)m);
             }
             if (st.reqReset >= 0)
             {
                 uint8_t p = (uint8_t)st.reqReset;
                 st.reqReset = -1;
+                log_i("axis %d: deferred resetAxis(%d)", axis, p);
                 resetAxis(axis, (AxisResetPolicy)p);
             }
             if (st.reqCalibrate)
             {
                 st.reqCalibrate = false;
+                log_i("axis %d: deferred calibrateAxis()", axis);
                 calibrateAxis(axis); // blocking — fine on the main loop task
             }
-
+            // Update the feedback struct from the encoder (or identity if none).
             updateFeedback(axis);
 
             // Periodic encoder liveness monitor (reuses this iteration's count
@@ -716,6 +779,13 @@ namespace AxisController
 
     void moveTo(int axis, int32_t targetSteps, int32_t speed, bool isAbsolute)
     {
+        // 0xFF = "use the axis's configured mode".
+        moveToWithMode(axis, targetSteps, speed, isAbsolute, 0xFF);
+    }
+
+    void moveToWithMode(int axis, int32_t targetSteps, int32_t speed, bool isAbsolute,
+                        uint8_t modeOverride)
+    {
         if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
             return;
         // Refuse motion while a fault is latched (except CAL_INVALID, a warning).
@@ -729,8 +799,10 @@ namespace AxisController
         AxisState &a = g_axes[axis];
         int32_t absTarget = isAbsolute ? targetSteps : commandedStepsOf(axis) + targetSteps;
 
+        // Per-move override wins over the axis's configured mode; it does NOT
+        // change a.fb.mode, so the next plain move reverts to the axis default.
+        uint8_t mode = (modeOverride <= MODE_SERVO) ? modeOverride : a.fb.mode;
         // Feedback modes require a valid calibration; otherwise run pure open loop.
-        uint8_t mode = a.fb.mode;
         if (!a.hasEnc || !a.cal.valid)
             mode = MODE_OPEN_LOOP;
 
@@ -755,7 +827,9 @@ namespace AxisController
             break;
         case MODE_OPEN_LOOP:
         default:
-            FocusMotor::moveMotor(targetSteps, speed, axis, !isAbsolute);
+            // Keep the caller-configured acceleration (moveMotor would clobber
+            // it with its hardcoded 1000).
+            issueMove(axis, targetSteps, speed, !isAbsolute, 0 /*keep accel*/);
             a.moveStage = MJ_IDLE;
             break;
         }
@@ -847,6 +921,41 @@ namespace AxisController
         updateFeedback(axis);
     }
 
+    // Push the calibration outcome to the host as an async JSON event so the
+    // measured numbers are available without a follow-up SDO/OD read:
+    //  {"axisCalibration":{"axis":1,"ok":1,"countsPerStep":0.15688,"countSign":-1,
+    //    "stepsPerCount":6.37,"backlashCounts":3,"backlashSteps":19,
+    //    "residualScatter":6,"quality":100,"microsteps":16,"fault":"NONE"}}
+    static void emitCalibrationJson(int axis, bool ok, uint8_t fault)
+    {
+        const AxisCalibration &c = g_axes[axis].cal;
+        cJSON *root = cJSON_CreateObject();
+        cJSON *o = cJSON_AddObjectToObject(root, "axisCalibration");
+        cJSON_AddNumberToObject(o, "axis", axis);
+        cJSON_AddNumberToObject(o, "ok", ok ? 1 : 0);
+        if (ok)
+        {
+            double cps = (double)c.countsPerStep_q16 / 65536.0;
+            cJSON_AddNumberToObject(o, "countsPerStep", cps);
+            cJSON_AddNumberToObject(o, "stepsPerCount", (cps > 0.0) ? (1.0 / cps) : 0.0);
+            cJSON_AddNumberToObject(o, "countsPerStepQ16", c.countsPerStep_q16);
+            cJSON_AddNumberToObject(o, "countSign", c.countSign);
+            cJSON_AddNumberToObject(o, "backlashCounts", c.backlashCounts);
+            cJSON_AddNumberToObject(o, "backlashSteps", abs(axisCountsToSteps(c, c.backlashCounts)));
+            cJSON_AddNumberToObject(o, "residualScatter", c.residualScatter);
+            cJSON_AddNumberToObject(o, "quality", c.quality);
+            cJSON_AddNumberToObject(o, "microsteps", c.microstepsAtCal);
+        }
+        cJSON_AddStringToObject(o, "fault", AxisNotify::faultName(fault));
+        char *json = cJSON_PrintUnformatted(root);
+        if (json)
+        {
+            SerialProcess::safeSendJsonString(json);
+            free(json);
+        }
+        cJSON_Delete(root);
+    }
+
     // ------------------------------------------------------------- calibration
     bool calibrateAxis(int axis, const AxisCalibrationRoutine::Params &params)
     {
@@ -871,6 +980,13 @@ namespace AxisController
 
         AxisCalibration result;
         AxisFault err = FAULT_NONE;
+        // NOTE: don't use std::function::target<>() here — it needs RTTI, which
+        // this build disables (and capturing lambdas never match a plain fn ptr
+        // anyway, so it would always print null). Log wiring as booleans.
+        log_i("Calibrating axis %d — hooks wired: getStepPos=%d moveRelBlocking=%d "
+              "getRawCount=%d aborted=%d",
+              axis, (bool)hooks.getStepPos, (bool)hooks.moveRelBlocking,
+              (bool)hooks.getRawCount, (bool)hooks.aborted);
         bool ok = AxisCalibrationRoutine::run(hooks, params, result, err);
         if (ok)
         {
@@ -890,8 +1006,9 @@ namespace AxisController
         else
         {
             a.fb.fault = err;
-            ESP_LOGE(TAG, "calibrateAxis %d FAILED (fault=%d)", axis, err);
+            log_e("calibrateAxis %d FAILED (fault=%d)", axis, err);
         }
+        emitCalibrationJson(axis, ok, (uint8_t)(ok ? FAULT_NONE : err));
         return ok;
     }
 

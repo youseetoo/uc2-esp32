@@ -80,41 +80,44 @@ namespace AxisCalibrationRoutine
         if (!hooks.getStepPos || !hooks.moveRelBlocking || !hooks.getRawCount || !hooks.aborted)
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "Calibration hooks not fully wired");
+            log_e("Calibration hooks not fully wired");
             return false;
         }
         if (hooks.aborted())
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "Cannot calibrate: axis already in an abort state (endstop?)");
+            log_e("Cannot calibrate: axis already in an abort state (endstop?)");
             return false;
         }
 
         // ---- Step 1: ORIGIN -------------------------------------------------
         // Zeroing of the encoder is the caller's job (it owns the backend); we
         // just record the common origin implicitly via delta measurements.
-        ESP_LOGI(TAG, "Calibration start (microsteps=%u, probeSpeed=%d)",
+        log_i("Calibration start (microsteps=%u, probeSpeed=%d)",
                  params.currentMicrosteps, params.probeSpeed);
 
         // ---- Step 2: SIGN ---------------------------------------------------
         int64_t dPlus = 0, dMinus = 0;
+        log_i("Step 2: Sign (probeSpeed=%d, settleMs=%d)", params.probeSpeed, params.settleMs);
         if (!moveAndMeasure(hooks, params, +params.lengths[0], dPlus))
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SIGN: aborted during + probe");
+            log_e("SIGN: aborted during + probe");
             return false;
         }
         if (!moveAndMeasure(hooks, params, -params.lengths[0], dMinus))
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SIGN: aborted during - probe");
+            log_e("SIGN: aborted during - probe");
             return false;
         }
+        // compare delta counts forward/backwards
+        log_i("SIGN: dPlus=%lld dMinus=%lld", dPlus, dMinus);
         if (llabs(dPlus) < params.minCountsForValidity ||
             llabs(dMinus) < params.minCountsForValidity)
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SIGN: encoder barely moved (d+=%lld d-=%lld) — dead/unwired?",
+            log_e("SIGN: encoder barely moved (d+=%lld d-=%lld) — dead/unwired?",
                      dPlus, dMinus);
             return false;
         }
@@ -122,16 +125,16 @@ namespace AxisCalibrationRoutine
         if ((dPlus > 0) == (dMinus > 0))
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SIGN: directions disagree (d+=%lld d-=%lld)", dPlus, dMinus);
+            log_e("SIGN: directions disagree (d+=%lld d-=%lld)", dPlus, dMinus);
             return false;
         }
         int8_t countSign = (dPlus > 0) ? 1 : -1;
-        ESP_LOGI(TAG, "SIGN: countSign=%d (d+=%lld d-=%lld)", countSign, dPlus, dMinus);
+        log_i("SIGN: countSign=%d (d+=%lld d-=%lld)", countSign, dPlus, dMinus);
 
         // ---- Step 3: SCALE by regression -----------------------------------
         // Command several lengths in BOTH directions; regress counts vs steps.
         // Using signed steps/counts anchors the intercept and averages slack.
-        const int maxPts = 2 * 4;
+        const int maxPts =  4;
         double xs[maxPts];
         double ys[maxPts];
         int n = 0;
@@ -169,13 +172,13 @@ namespace AxisCalibrationRoutine
         if (!reg.ok)
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SCALE: regression failed (n=%d)", n);
+            log_e("SCALE: regression failed (n=%d)", n);
             return false;
         }
         if (reg.r2 < params.minR2)
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SCALE: R^2=%.4f below gate %.4f — nonlinear/noisy",
+            log_e("SCALE: R^2=%.4f below gate %.4f — nonlinear/noisy",
                      reg.r2, params.minR2);
             return false;
         }
@@ -184,12 +187,12 @@ namespace AxisCalibrationRoutine
         if (slopeMag < 1e-6)
         {
             err = FAULT_CAL_FAILED;
-            ESP_LOGE(TAG, "SCALE: slope ~0");
+            log_e("SCALE: slope ~0");
             return false;
         }
 
         out.countsPerStep_q16 = (int32_t)llround(slopeMag * 65536.0);
-        out.countSign = (reg.slope >= 0) ? 1 : -1;
+        out.countSign = (reg.slope >= 0) ? 1 : -1; // TODO: we already have that from step 2, but this is a double-check?
         // Residual scatter -> the basis for verify tolerance & watchdog noise.
         // Floor at 1 count so downstream thresholds are never zero.
         double scatter = reg.residualStd;
@@ -198,10 +201,11 @@ namespace AxisCalibrationRoutine
         out.residualScatter = (uint16_t)llround(scatter);
         out.quality = (uint8_t)llround(constrain(reg.r2, 0.0, 1.0) * 100.0);
 
-        ESP_LOGI(TAG, "SCALE: countsPerStep=%.5f (q16=%d) sign=%d R2=%.4f scatter=%u q=%u",
+        log_i("SCALE: countsPerStep=%.5f (q16=%d) sign=%d R2=%.4f scatter=%u q=%u",
                  slopeMag, out.countsPerStep_q16, out.countSign, reg.r2,
                  out.residualScatter, out.quality);
 
+        // TODO: Do we want to have backlash included? 
         // ---- Step 4: BACKLASH ----------------------------------------------
         // Approach a point from +, reverse, and measure the counts "lost"
         // before the encoder resumes tracking the commanded motion.
@@ -230,7 +234,7 @@ namespace AxisCalibrationRoutine
             backlashN++;
         }
         out.backlashCounts = (backlashN > 0) ? (int32_t)(backlashAccum / backlashN) : 0;
-        ESP_LOGI(TAG, "BACKLASH: %d counts (avg of %u)", out.backlashCounts, backlashN);
+        log_i("BACKLASH: %d counts (avg of %u)", out.backlashCounts, backlashN);
 
         // ---- Step 5: finalize ----------------------------------------------
         out.timestamp = millis();
@@ -255,7 +259,7 @@ namespace AxisCalibrationStore
         size_t written = prefs.putBytes(keyFor(axis).c_str(), &cal, sizeof(AxisCalibration));
         prefs.end();
         bool ok = (written == sizeof(AxisCalibration));
-        ESP_LOGI(TAG, "save axis %d: %s (cps=%d sign=%d ms=%u)", axis, ok ? "ok" : "FAIL",
+        log_i("save axis %d: %s (cps=%d sign=%d ms=%u)", axis, ok ? "ok" : "FAIL",
                  cal.countsPerStep_q16, cal.countSign, cal.microstepsAtCal);
         return ok;
     }

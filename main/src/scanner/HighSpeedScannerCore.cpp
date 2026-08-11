@@ -30,6 +30,11 @@
 #define GALVO_RMT_CHANNEL RMT_CHANNEL_3
 #endif
 #endif
+// Widest line the RMT can clock in a single armed train. The hardware TX loop
+// counter is 10-bit on the ESP32-S3 (RMT_LL_MAX_LOOP_COUNT in hal/rmt_ll.h —
+// a private HAL header we deliberately don't include here, so mirror it).
+// Lines longer than this fall back to software pixel pulses.
+#define GALVO_RMT_MAX_LOOP_COUNT 1023
 #include <cmath>
 #include <cstring>
 #include <stdio.h>
@@ -499,12 +504,22 @@ void HighSpeedScannerCore::disableHwPixelClock()
 void HighSpeedScannerCore::armHwPixelClock(uint16_t count, uint16_t period_us, uint16_t width_us)
 {
 #if defined(GALVO_RMT_NEW_API) || defined(GALVO_RMT_LEGACY_API)
-    if (!hw_clock_active_ || count == 0 || period_us == 0) return;
-    // RMT symbol durations are 15-bit (max 32767 ticks @ 1 MHz)
+    if (!hw_clock_active_ || count == 0) return;
+    // A duration field of 0 is an RMT END MARKER, not a zero-length level.
+    // Emitting one makes the transmitter halt at that symbol, so the
+    // loop-count event never fires — which used to wedge this task forever
+    // (see the rmt_write_items note below). Both halves must be >= 1 tick,
+    // so the period needs at least 2 us. The caller gates on the same
+    // condition; this is belt-and-braces.
+    if (period_us < 2) return;
     uint16_t w = width_us ? width_us : 1;
-    if (w >= period_us) w = (period_us > 1) ? (period_us - 1) : 1;
-    uint16_t low = period_us - w;
+    if (w >= period_us) w = period_us - 1;  // period_us >= 2  =>  w >= 1
+    uint16_t low = period_us - w;           // >= 1 by construction
+    // RMT symbol durations are 15-bit (max 32767 ticks @ 1 MHz)
     if (w > 32767 || low > 32767) return; // dwell too long for one symbol - skip
+    // The hardware loop counter is 10-bit; a longer line cannot be expressed
+    // as one loop and would leave a stale count programmed.
+    if (count > GALVO_RMT_MAX_LOOP_COUNT) return;
 
 #if defined(GALVO_RMT_NEW_API)
     rmt_symbol_word_t sym = {};
@@ -521,15 +536,26 @@ void HighSpeedScannerCore::armHwPixelClock(uint16_t count, uint16_t period_us, u
     rmt_transmit((rmt_channel_handle_t)rmt_chan_, (rmt_encoder_handle_t)rmt_encoder_,
                  &sym, sizeof(sym), &tx_cfg);
 #else
-    rmt_item32_t item;
-    item.level0 = 1;
-    item.duration0 = w;
-    item.level1 = 0;
-    item.duration1 = low;
+    // items[1] is the end marker the loop wraps on (duration 0 == terminator)
+    rmt_item32_t items[2];
+    items[0].level0 = 1;
+    items[0].duration0 = w;
+    items[0].level1 = 0;
+    items[0].duration1 = low;
+    items[1].val = 0;
 
+    // Write straight into the channel's RAM and start the transmitter by hand.
+    // rmt_write_items() must NOT be used here: it does
+    // xSemaphoreTake(tx_sem, portMAX_DELAY), and that token is only returned by
+    // the loop-count ISR. rmt_tx_stop() below does not return it either, so any
+    // train that ends without a loop-count event — a malformed symbol, or a
+    // stop issued mid-train — deadlocks this task forever and trips the task
+    // watchdog (reboot, DAC output frozen). rmt_fill_tx_items()/rmt_tx_start()
+    // never touch the semaphore, so arming stays non-blocking and bounded.
     rmt_tx_stop(GALVO_RMT_CHANNEL); // previous train has finished (autostop)
     rmt_set_tx_loop_count(GALVO_RMT_CHANNEL, count);
-    rmt_write_items(GALVO_RMT_CHANNEL, &item, 1, false);
+    rmt_fill_tx_items(GALVO_RMT_CHANNEL, items, 2, 0);
+    rmt_tx_start(GALVO_RMT_CHANNEL, true);
 #endif
 #endif
 }
@@ -687,8 +713,15 @@ void HighSpeedScannerCore::scannerTask()
             continue;
         }
 
-        // Hardware pixel clock lifecycle (RMT owns the pixel pin while active)
-        const bool want_hw_clock = (cfg.hw_pixel_clock != 0) && (cfg.sample_period_us > 0);
+        // Hardware pixel clock lifecycle (RMT owns the pixel pin while active).
+        // One RMT symbol must carry a >= 1 us high and a >= 1 us low half (a
+        // 0-duration half is an end marker), so the dwell needs >= 2 us; and the
+        // hardware loop counter is 10-bit, so a line may be at most 1023 pixels.
+        // Outside that envelope we leave the RMT off and the software pulse path
+        // below takes over — otherwise the pixel trigger would vanish entirely.
+        const bool want_hw_clock = (cfg.hw_pixel_clock != 0) &&
+                                   (cfg.sample_period_us >= 2) &&
+                                   (cfg.nx <= GALVO_RMT_MAX_LOOP_COUNT);
         if (want_hw_clock && !hw_clock_active_) enableHwPixelClock();
         if (!want_hw_clock && hw_clock_active_) disableHwPixelClock();
         const bool hw_clock = hw_clock_active_;
@@ -751,6 +784,11 @@ void HighSpeedScannerCore::scannerTask()
 
             int64_t next_t = esp_timer_get_time();
 
+            // Diagnostics: trace the first couple of lines of the first frame
+            // so a stall shows exactly where it happened in the serial log,
+            // instead of only the coarse "line=N" from the 5s status ticker.
+            const bool trace_line = (frame_idx_ == 0 && ly < 2);
+
             // Scan one line
             for (uint32_t i = 0; i < line_len && running_ && !config_changed_; ++i) {
                 next_t += sp_us;
@@ -770,12 +808,26 @@ void HighSpeedScannerCore::scannerTask()
                     overruns_++;
                 }
 
+                // Feed the task watchdog and yield periodically WITHIN the
+                // line, not just once per completed line. With the default
+                // sample_period_us the DAC/SPI update alone can exceed the
+                // configured period (see GALVO_FLIM_TIMING_REVIEW.md F3), and
+                // any single blocking call in this inner loop (SPI, RMT, GPIO)
+                // previously had no escape hatch before the 5s task watchdog
+                // timeout - this bounds the blast radius and keeps the WDT fed
+                // even while a slow/stalled line is still in progress.
+                if ((i & 0x3F) == 0) {
+                    esp_task_wdt_reset();
+                }
+
                 // IMAGING WINDOW ENTRY: open laser gate, arm hardware clock
                 if (i == img_start) {
                     if (do_laser) setLaserGate(true);
                     if (do_trig && hw_clock) {
+                        if (trace_line) SCANNER_LOG("  line %d: arming hw pixel clock (i=%lu)", ly, (unsigned long)i);
                         // RMT emits exactly nx hardware-timed pulses
                         armHwPixelClock(cfg.nx, sp_us, cfg.trig_width_us);
+                        if (trace_line) SCANNER_LOG("  line %d: hw pixel clock armed", ly);
                     }
                 }
 

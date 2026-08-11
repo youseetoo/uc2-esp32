@@ -368,14 +368,15 @@ cJSON *GalvoController::processCommand(cJSON *doc)
 
         ScanConfig config = scanner_.getConfig(); // Start with current config
 
-        // in case of bidreciontal scanning, we don't need pre_samples and fly_samples for timing
-        if (config.bidirectional) {
-            // log
-            GALVO_LOG("Bidirectional scan: ignoring pre_samples and fly_samples for timing");
-            config.pre_samples = 0;
-            config.fly_samples = 0;
-        }
-        
+        // NOTE: there used to be a "bidirectional -> zero pre_samples and
+        // fly_samples" block here. It tested the PREVIOUS config's flag (this
+        // runs before parseJsonConfig applies the new JSON), so a scan that had
+        // been bidirectional silently zeroed pre_samples/fly_samples for the
+        // NEXT command whenever those keys were omitted — which made flyback
+        // tuning look random. It was also redundant: buildLineProfile already
+        // drops the flyback in bidirectional mode (fly = bidir ? 0 : fly_samples)
+        // and pre_samples is still a useful pre-blanking hold in both modes.
+
         if (parseJsonConfig(config_obj, config))
         {
             if (scanner_.setConfig(config))

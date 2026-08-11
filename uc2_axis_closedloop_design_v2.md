@@ -288,7 +288,10 @@ Calibration, mode and fault-reset are plain per-stepper keys on the familiar `/m
 | `axismode` | 0/1/2/3 | OPEN_LOOP / MONITOR / CORRECT / SERVO — the axis's **persistent** mode |
 | `axisreset` | 1/2/3 | clear latched fault: TRUST_ENCODER / TRUST_STEPS / FORCE_REHOME |
 | `encmonitor` | ms | periodic encoder liveness report (0 = off, min 50 ms) — see 12.2 |
+| `enctable` | N points | diagnostic linearity sweep (+`tablestep`, `tablespeed`) — see 12.8 |
 | `closedloop` | 0..3 / bool | **per-move** mode override; does not change `axismode` |
+
+> **Open loop is never interfered with.** When the effective mode is `OPEN_LOOP` — the axis default, or a single move via `"closedloop":0` — the watchdog is **disabled** for that move: no STALL, no LOST_STEPS, no latching, no firmware-initiated stop. The host owns the move. Feedback is still measured and readable (`/motor_get`, `encmonitor`), it just never acts.
 
 **Per-move open/closed loop.** `closedloop` overrides the mode for that one move only:
 
@@ -405,21 +408,29 @@ Sanity-check the result:
 
 Notes: after `/tmc_act` changes `msteps`, the stored calibration is rescaled analytically and flagged `CAL_INVALID` (fault 5, warning — motion continues; recalibrate when convenient).
 
-**Hardcoded routine parameters** (`AxisCalibrationRoutine::Params`, [AxisCalibration.h](main/src/axis/AxisCalibration.h)) — these are the *routine's* tunables, not the measured result:
+**Method — monotonic sweep (revised 2026-07-24).** The routine preloads one segment forward (to take up slack), sweeps `sweepSegments` × `segmentSteps` forward sampling the encoder at every stop, then sweeps back the same way, and fits **each leg separately**:
+
+- `countsPerStep` = mean of the two leg slopes; `countSign` from their sign
+- `backlashCounts` = **vertical separation of the two parallel legs** (the hysteresis loop width) — needs no assumed scale, so it cannot be corrupted by a slope error
+- `residualScatter` = worst per-leg residual σ; `quality` = worst per-leg R²
+- fails if either R² < gate, the legs disagree in sign, or their slopes differ by more than `maxSlopeMismatch`
+
+> **Why not alternating ± legs?** The original method probed +500, −500, +1000, −1000, … — *every* leg was a direction reversal, so *every* measurement lost the backlash. That injects a `sign(x)`-shaped error into the regression, which **tilts the fitted slope** rather than shifting it: on real hardware it read ~4 % low (0.1532 vs a true 0.1595), and the follow-on backlash step then used that wrong slope to compute "expected", reporting ≈0 counts of slack — a self-consistent but wrong answer. Within a single-direction sweep there are no reversals, so backlash lands in the *intercept*, where it is harmless to the slope and directly measurable.
 
 | Param | Default | Meaning |
 |---|---|---|
 | `probeSpeed` | 2000 steps/s | speed of every probe move (low & safe) |
-| `lengths[4]` | 500, 1000, 2000, 4000 | scale-regression probe lengths (each run +then−) |
-| `numLengths` | 4 | how many of the above are used |
-| `minCountsForValidity` | 4 counts | sign probe must move at least this much, else CAL_FAILED |
-| `minR2` | 0.98 | regression quality gate |
-| `backlashRepeats` | 3 | averaged reversal measurements |
-| `backlashApproach` | 2000 steps | travel per backlash leg |
+| `sweepSegments` | 10 | samples per direction (clamped 3–20) |
+| `segmentSteps` | 500 | steps between samples |
+| `minCountsForValidity` | 4 counts | sweep must move at least this much, else CAL_FAILED |
+| `minR2` | 0.98 | per-leg regression quality gate |
+| `maxSlopeMismatch` | 0.10 | forward/reverse slopes must agree within 10 % |
 | `settleMs` | 60 ms | dwell after each move before reading the encoder |
 | `currentMicrosteps` | from TMC | stored as `microstepsAtCal` |
 
-Probe acceleration is fixed at 40000 steps/s² (`kCalProbeAccel` in AxisController.cpp). Total travel stays within ±4000 steps of the start point and the whole run is 16 moves (~15–25 s). **Nothing about the encoder scale is hardcoded** — `countsPerStep`, `countSign`, `backlashCounts` and `residualScatter` are all measured here and are the only source for downstream thresholds.
+Probe acceleration is fixed at 40000 steps/s² (`kCalProbeAccel` in AxisController.cpp). Travel stays within +(`sweepSegments`+1)×`segmentSteps` of the start (≈5500 steps at defaults) and returns to it. **Nothing about the encoder scale is hardcoded** — `countsPerStep`, `countSign`, `backlashCounts` and `residualScatter` are all measured and are the only source for downstream thresholds.
+
+The result event carries the full sweep (`points`, `nForward`) plus both leg fits (`slopeForward`/`slopeReverse`, `interceptForward`/`interceptReverse`, `r2Forward`/`r2Reverse`), so a calibration can be replotted and cross-checked against an independent `enctable` sweep (12.8) — the two should now agree.
 
 ### 12.4 Closed-loop moves
 
@@ -489,3 +500,44 @@ m.resetAxis(node=11, policy="TRUST_ENCODER")
 m.register_axis_event_callback(lambda ev: print("FAULT", ev))
 # moves: unchanged — m.move_x(...) etc.; closed-loop kicks in via the mode
 ```
+
+### 12.8 Encoder linearity sweep (is the scale trustworthy?)
+
+If calibration returns a different `countsPerStep` on repeat runs, the fit itself is not the problem — the underlying step↔count relationship is. This sweep dumps the raw relation so it can be plotted:
+
+```json
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"enctable":20,"tablestep":500,"tablespeed":2000}]}}
+```
+
+Moves `enctable` × `tablestep` steps forward, then all the way back, sampling the raw count at every stop, and emits one event:
+
+```json
+{"encoderTable":{"axis":1,"stepSize":500,"points":20,"speed":2000,"ok":1,
+  "data":[[0,0],[500,-76],[1000,-152], ... ,[500,-77],[0,-1]]}}
+```
+
+`data` is `[[cumulativeSteps, rawCounts], ...]` in execution order — the first half is the outward leg, the second the return. Plot it:
+
+```python
+import json, matplotlib.pyplot as plt
+d = json.loads(line)["encoderTable"]["data"]
+s, c = zip(*d)
+n = len(d)//2 + 1
+plt.plot(s[:n], c[:n], 'o-', label='forward')
+plt.plot(s[n-1:], c[n-1:], 's-', label='return')
+plt.xlabel('commanded steps'); plt.ylabel('encoder counts'); plt.legend()
+```
+
+What the shape tells you:
+
+| Observation | Interpretation |
+|---|---|
+| Straight line, both legs on top of each other | scale is trustworthy; calibration should be repeatable |
+| Straight but the two legs offset vertically | backlash / lost motion — the offset **is** the slack |
+| Slope changes along the sweep | mechanical nonlinearity (belt, coupling, magnet-to-scale gap varying) |
+| Kinks or plateaus | encoder dropping counts locally — read head alignment / gap |
+| Slope differs when you re-run with a higher `tablespeed` | **counts lost at speed** — glitch filter or PCNT bandwidth; calibrate and operate at the same speed regime, or lower the filter |
+
+Since calibration probes at 2000 steps/s but moves may run far faster, the speed comparison is the highest-value check: run the sweep at 2000 and again at your working speed and compare slopes.
+
+The calibration event (12.3) now also carries its own raw inputs — `points` (`[[steps,counts],…]` for each probe leg), `slope`, `intercept`, `r2`, and the two sign-probe deltas — so a suspicious fit can be re-examined without re-running anything.

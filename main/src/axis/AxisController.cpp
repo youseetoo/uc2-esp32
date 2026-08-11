@@ -67,6 +67,15 @@ namespace AxisController
         volatile int8_t      reqMode = -1;      // -1 = none
         volatile int8_t      reqReset = -1;     // -1 = none, else AxisResetPolicy
         volatile bool        reqCalibrate = false;
+        volatile bool        reqEncTable = false;
+        volatile int32_t     reqEncTablePoints = 0;
+        volatile int32_t     reqEncTableStep = 0;
+        volatile int32_t     reqEncTableSpeed = 0;
+
+        // Mode actually driving the CURRENT move. Differs from fb.mode when a
+        // per-move {"closedloop":N} override is in play. The watchdog keys off
+        // THIS, so an explicitly open-loop move is never stopped by feedback.
+        uint8_t  activeMode = MODE_OPEN_LOOP;
 
         // ---- move job (MONITOR/CORRECT), driven in loop() ----
         uint8_t  moveStage = MJ_IDLE;
@@ -313,9 +322,20 @@ namespace AxisController
         {
             int32_t measured = a.originSteps + axisCountsToSteps(a.cal, raw);
             a.fb.measuredSteps = measured;
-            a.fb.positionErrorSteps = measured - commanded;
-            log_i("axis %d: feedback updated — commanded=%d measured=%d posErr=%d rawCounts=%lld",
-                  axis, commanded, measured, a.fb.positionErrorSteps, raw);
+            a.fb.positionErrorSteps = measured - commanded; // measured and commanded are both in step units
+            // Throttled: this used to log EVERY loop (~30 ms), which floods the
+            // shared UART and interleaves into (i.e. corrupts) the JSON replies.
+            static uint32_t s_lastFbLogMs[MOTOR_AXIS_COUNT] = {0};
+            static int32_t  s_lastFbErr[MOTOR_AXIS_COUNT] = {0};
+            uint32_t nowMs = millis();
+            if (a.fb.positionErrorSteps != s_lastFbErr[axis] &&
+                (nowMs - s_lastFbLogMs[axis]) >= 500)
+            {
+                s_lastFbLogMs[axis] = nowMs;
+                s_lastFbErr[axis] = a.fb.positionErrorSteps;
+                log_i("axis %d: commanded=%d measured=%d posErr=%d rawCounts=%lld",
+                      axis, commanded, measured, a.fb.positionErrorSteps, raw);
+            }
         }
         else
         {
@@ -722,6 +742,15 @@ namespace AxisController
                 log_i("axis %d: deferred resetAxis(%d)", axis, p);
                 resetAxis(axis, (AxisResetPolicy)p);
             }
+            if (st.reqEncTable)
+            {
+                st.reqEncTable = false;
+                int pts = (int)st.reqEncTablePoints;
+                int32_t sz = st.reqEncTableStep;
+                int32_t sp = st.reqEncTableSpeed;
+                log_i("axis %d: deferred encoderTable()", axis);
+                encoderTable(axis, pts, sz, sp); // blocking, WDT-fed
+            }
             if (st.reqCalibrate)
             {
                 st.reqCalibrate = false;
@@ -738,9 +767,13 @@ namespace AxisController
             if (a.hasEnc)
                 EncoderMonitor::tick(axis, a.fb.rawCounts, now);
 
-            // Fast blocking/stall watchdog — protects EVERY mode, incl. open
-            // loop. Skip if no encoder or already latched.
-            if (!a.hasEnc || a.fb.health == HEALTH_FAULT)
+            // Fast blocking/stall watchdog. Skipped when the axis (or this
+            // move, via {"closedloop":0}) is OPEN_LOOP: open loop means the
+            // host owns responsibility for the move, so firmware must never
+            // stop or latch on encoder feedback there. Also skipped without an
+            // encoder or while a fault is already latched.
+            if (!a.hasEnc || a.fb.health == HEALTH_FAULT ||
+                a.activeMode == MODE_OPEN_LOOP)
                 continue;
             AxisWatchdog::Trip trip = AxisWatchdog::update(
                 a.wdCfg, a.wdState, axisMoving(axis), commandedSpeedOf(axis),
@@ -805,6 +838,7 @@ namespace AxisController
         // Feedback modes require a valid calibration; otherwise run pure open loop.
         if (!a.hasEnc || !a.cal.valid)
             mode = MODE_OPEN_LOOP;
+        a.activeMode = mode; // gates the watchdog for the duration of this move
 
         // A fresh move supersedes anything in flight.
         cancelMotion(axis);
@@ -860,6 +894,9 @@ namespace AxisController
             mode = MODE_OPEN_LOOP;
         }
         g_axes[axis].fb.mode = mode;
+        // Keep the watchdog gate in step with the configured mode for moves
+        // that never pass through moveTo (plain open-loop dispatch).
+        g_axes[axis].activeMode = mode;
     }
 
     AxisFeedback getFeedback(int axis)
@@ -945,6 +982,30 @@ namespace AxisController
             cJSON_AddNumberToObject(o, "residualScatter", c.residualScatter);
             cJSON_AddNumberToObject(o, "quality", c.quality);
             cJSON_AddNumberToObject(o, "microsteps", c.microstepsAtCal);
+
+            // Raw regression inputs, so a bad fit can be diagnosed off-device:
+            // "points" is [[steps,counts],...] in execution order.
+            const AxisCalibrationRoutine::LastRun &lr = AxisCalibrationRoutine::lastRun();
+            cJSON_AddNumberToObject(o, "r2", lr.r2);
+            cJSON_AddNumberToObject(o, "slope", lr.slope);
+            cJSON_AddNumberToObject(o, "intercept", lr.intercept);
+            // Per-leg fits: forward and reverse should be parallel; their
+            // intercept difference is the backlash (hysteresis loop width).
+            cJSON_AddNumberToObject(o, "slopeForward", lr.slopeForward);
+            cJSON_AddNumberToObject(o, "slopeReverse", lr.slopeReverse);
+            cJSON_AddNumberToObject(o, "interceptForward", lr.interceptForward);
+            cJSON_AddNumberToObject(o, "interceptReverse", lr.interceptReverse);
+            cJSON_AddNumberToObject(o, "r2Forward", lr.r2Forward);
+            cJSON_AddNumberToObject(o, "r2Reverse", lr.r2Reverse);
+            cJSON_AddNumberToObject(o, "nForward", lr.nForward);
+            cJSON *pts = cJSON_AddArrayToObject(o, "points");
+            for (uint8_t i = 0; i < lr.nPoints; i++)
+            {
+                cJSON *pair = cJSON_CreateArray();
+                cJSON_AddItemToArray(pair, cJSON_CreateNumber(lr.stepsAtPoint[i]));
+                cJSON_AddItemToArray(pair, cJSON_CreateNumber(lr.countsAtPoint[i]));
+                cJSON_AddItemToArray(pts, pair);
+            }
         }
         cJSON_AddStringToObject(o, "fault", AxisNotify::faultName(fault));
         char *json = cJSON_PrintUnformatted(root);
@@ -1017,6 +1078,100 @@ namespace AxisController
         AxisCalibrationRoutine::Params p;
         p.currentMicrosteps = currentMicrosteps();
         return calibrateAxis(axis, p);
+    }
+
+    // ------------------------------------------------- encoder linearity sweep
+    bool encoderTable(int axis, int points, int32_t stepSize, int32_t speed)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return false;
+        AxisState &a = g_axes[axis];
+        if (!a.hasEnc)
+        {
+            log_w("encoderTable %d: no encoder", axis);
+            return false;
+        }
+        if (points < 1)  points = 10;
+        if (points > 40) points = 40; // bound travel + JSON size
+        if (stepSize == 0) stepSize = 500;
+        if (speed <= 0)    speed = 2000;
+
+        // Sweep out and back from the current position so the two legs expose
+        // hysteresis/backlash directly (forward and reverse at the same spots).
+        const int total = 2 * points + 1;
+        static int32_t stepsArr[2 * 40 + 1];
+        static int32_t cntsArr[2 * 40 + 1];
+        int n = 0;
+
+        a.encoder.zero();
+        int32_t cumSteps = 0;
+        stepsArr[n] = 0;
+        cntsArr[n] = (int32_t)a.encoder.getCount();
+        n++;
+
+        log_i("encoderTable ax%d: %d points x %d steps @ %d steps/s (out and back)",
+              axis, points, (int)stepSize, (int)speed);
+
+        bool ok = true;
+        for (int leg = 0; leg < 2 && ok; leg++)
+        {
+            int32_t delta = (leg == 0) ? stepSize : -stepSize;
+            for (int i = 0; i < points && n < total; i++)
+            {
+                if (!blockingRelMove(axis, delta, speed))
+                {
+                    log_e("encoderTable ax%d aborted at point %d", axis, n);
+                    ok = false;
+                    break;
+                }
+                delay(40); // settle before sampling
+                esp_task_wdt_reset();
+                cumSteps += delta;
+                stepsArr[n] = cumSteps;
+                cntsArr[n] = (int32_t)a.encoder.getCount();
+                n++;
+            }
+        }
+
+        // Emit the whole table as one event: plot counts vs steps to judge
+        // linearity, and compare the two legs to see hysteresis.
+        cJSON *root = cJSON_CreateObject();
+        cJSON *o = cJSON_AddObjectToObject(root, "encoderTable");
+        cJSON_AddNumberToObject(o, "axis", axis);
+        cJSON_AddNumberToObject(o, "stepSize", stepSize);
+        cJSON_AddNumberToObject(o, "points", points);
+        cJSON_AddNumberToObject(o, "speed", speed);
+        cJSON_AddNumberToObject(o, "ok", ok ? 1 : 0);
+        cJSON *arr = cJSON_AddArrayToObject(o, "data");
+        for (int i = 0; i < n; i++)
+        {
+            cJSON *pair = cJSON_CreateArray();
+            cJSON_AddItemToArray(pair, cJSON_CreateNumber(stepsArr[i]));
+            cJSON_AddItemToArray(pair, cJSON_CreateNumber(cntsArr[i]));
+            cJSON_AddItemToArray(arr, pair);
+        }
+        char *json = cJSON_PrintUnformatted(root);
+        if (json)
+        {
+            SerialProcess::safeSendJsonString(json);
+            free(json);
+        }
+        cJSON_Delete(root);
+
+        reanchorOrigin(axis); // sweep moved us around; re-anchor cleanly
+        AxisWatchdog::reset(a.wdState);
+        return ok;
+    }
+
+    void requestEncoderTable(int axis, int points, int32_t stepSize, int32_t speed)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        AxisState &a = g_axes[axis];
+        a.reqEncTablePoints = points;
+        a.reqEncTableStep = stepSize;
+        a.reqEncTableSpeed = speed;
+        a.reqEncTable = true; // set last: commit flag
     }
 
     AxisCalibration getCalibration(int axis)

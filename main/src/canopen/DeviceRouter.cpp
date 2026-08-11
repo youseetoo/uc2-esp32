@@ -325,6 +325,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         cJSON* amodeItem  = cJSON_GetObjectItem(s, "axismode");
         cJSON* aresetItem = cJSON_GetObjectItem(s, "axisreset");
         cJSON* emonItem   = cJSON_GetObjectItem(s, "encmonitor");
+        cJSON* tblItem    = cJSON_GetObjectItem(s, "enctable");
 
         // Per-move closed-loop override (same numbering as "axismode"):
         //   0 / false = force OPEN_LOOP for THIS move
@@ -340,7 +341,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
             int v = clItem->valueint;
             clOverride = (v >= 0 && v <= 3) ? (uint8_t)v : 0xFF;
         }
-        if (calItem || amodeItem || aresetItem || emonItem) {
+        if (calItem || amodeItem || aresetItem || emonItem || tblItem) {
             if (route->where == UC2::RouteEntry::LOCAL) {
 #ifdef AXIS_CONTROLLER
                 if (amodeItem && cJSON_IsNumber(amodeItem) &&
@@ -355,6 +356,17 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                 // THIS node's serial ({"encoderMonitor":...}); 0 = off.
                 if (emonItem && cJSON_IsNumber(emonItem) && emonItem->valueint >= 0)
                     EncoderMonitor::setPeriod(stepperid, (uint32_t)emonItem->valueint);
+                // "enctable":N — diagnostic linearity sweep of N points out and
+                // back; optional "tablestep"/"tablespeed". Result arrives as one
+                // {"encoderTable":{...}} event with [[steps,counts],...].
+                if (tblItem && cJSON_IsNumber(tblItem) && tblItem->valueint > 0) {
+                    cJSON* tsz = cJSON_GetObjectItem(s, "tablestep");
+                    cJSON* tsp = cJSON_GetObjectItem(s, "tablespeed");
+                    AxisController::requestEncoderTable(
+                        stepperid, tblItem->valueint,
+                        (tsz && cJSON_IsNumber(tsz)) ? tsz->valueint : 500,
+                        (tsp && cJSON_IsNumber(tsp)) ? tsp->valueint : 2000);
+                }
 #else
                 ESP_LOGW(TAG, "axis config keys ignored: AXIS_CONTROLLER not built");
 #endif

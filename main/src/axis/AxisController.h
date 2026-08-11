@@ -49,6 +49,13 @@ namespace AxisController
     // Read-only access to the persisted calibration for host reporting.
     AxisCalibration getCalibration(int axis);
 
+    // Diagnostic sweep: step the axis in `points` equal increments of
+    // `stepSize` (forward, then back to the start), sampling the raw encoder
+    // count at every stop. Emits the whole table as one JSON event so the host
+    // can plot counts-vs-steps and judge linearity / hysteresis / lost counts.
+    // Blocking (runs on the caller's task) — request it via requestEncoderTable.
+    bool encoderTable(int axis, int points, int32_t stepSize, int32_t speed);
+
     bool hasEncoder(int axis);
 
     // ---- deferred requests (safe to call from another task, e.g. the CANopen
@@ -58,4 +65,5 @@ namespace AxisController
     void requestMode(int axis, uint8_t mode);
     void requestReset(int axis, uint8_t policy);
     void requestCalibration(int axis);
+    void requestEncoderTable(int axis, int points, int32_t stepSize, int32_t speed);
 }

@@ -1,0 +1,344 @@
+
+
+cd /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP
+pio run --environment UC2_4_CAN_HYBRID
+cd .pio/build/UC2_4_CAN_HYBRID/
+/Users/bene/.platformio/penv/bin/python -m esptool --chip esp32 merge_bin  -o esp32_UC2_4_CAN_HYBRID.bin  --flash_mode dio  --flash_freq 40m  --flash_size 4MB  0x1000 bootloader.bin  0x8000 partitions.bin  0xe000 ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin  0x10000 firmware.bin
+mv esp32_UC2_4_CAN_HYBRID.bin /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/youseetoo.github/static/firmware_build/esp32_UC2_4_CAN_HYBRID.bin
+
+
+{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart": 0, "xStep": 5000, "yStep": 5000, "zStep": 0, "nX": 10, "nY": 10, "nZ": 0, "tPre": 0, "tPost": 0, "illumination": [0, 50, 0, 120]}}
+
+{"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart": 0, "xStep": 200, "yStep": 200, "zStep": 0, "nX": 10, "nY": 10, "nZ": 0, "tPre": 10, "tPost": 50, "illumination": [0, 50, 0, 0]}}
+
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 115200
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 912600
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.wchusbserial110 --baud 115200 
+
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.wchusbserial10 --baud 115200
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment fas_test_xiao_s3 --upload-port /dev/cu.wchusbserial10
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_bridge_ptz_debug --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_standalone_v4_debug --upload-port /dev/cu.SLAB_USBtoUART
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_standalone_v4_release --upload-port /dev/cu.SLAB_USBtoUART
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_laser_release --upload-port /dev/cu.usbmodem1101
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment waveshare_esp32s3_ledarray --upload-port /dev/cu.usbmodem1101
+
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master_debug --upload-port /dev/cu.SLAB_USBtoUART
+
+
+UC2_canopen_master_release => HAT v2, but this has to be flashed via USB
+UC2_canopen_slave_led_release => previous esp32_seeed_xiao_esp32s3_can_slave_illumination
+UC2_canopen_slave_laser_release =>             30: "esp32_seeed_xiao_esp32s3_can_slave_illumination.bin",  # LED 0
+UC2_canopen_slave_galvo_release =>             40: "esp32_seeed_xiao_esp32s3_can_slave_galvo.bin",  # Galvo mirror
+UC2_canopen_slave_motor_release =>             10: "esp32_seeed_xiao_esp32s3_can_slave_motor.bin",  # Motor A
+
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master_debug --upload-port /dev/cu.SLAB_USBtoUART
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master_release --upload-port /dev/cu.SLAB_USBtoUART
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_led --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_galvo_debug --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_debug --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_release --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_gpio_debug --upload-port /dev/cu.usbmodem101
+
+
+
+## Tutorial for canopen on FRAME (production):
+
+Flash this to master:
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master --upload-port /dev/cu.SLAB_USBtoUART
+Flash this to any motor:
+/Users/bene/.platformio/penv/bin/platformio run --target erase --environment UC2_canopen_slave_motor_release --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target erase --environment UC2_canopen_master_debug --upload-port /dev/cu.SLAB_USBtoUART
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_release --upload-port /dev/cu.usbmodem101
+
+## Assign an ID:
+open serial
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem1101 --baud 115200
+
+test if motor moves
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":300000, "position": -100000,  "isabs": 0}]}, "qid": 5}
+
+
+ set the id by sending this over serial to local can device
+{"task":"/can_act","nodeId":10,"canMotorAxis":1} - A/0
+{"task":"/can_act","nodeId":11,"canMotorAxis":1} - X/1
+{"task":"/can_act","nodeId":12,"canMotorAxis":1} - Y
+{"task":"/can_act","nodeId":13,"canMotorAxis":1} - Z
+
+# not yet working:
+{"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 3, "enabled": 1, "polarity": 1,"qid":1}]}}
+
+ verify 
+{"task":"/can_get", "address": 1}
+test
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -2000,  "isabs": 0}]}, "qid": 5} 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": -2000,  "isabs": 0}]}, "qid": 5} 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 20000,  "isabs": 0}]}, "qid": 5} 
+
+## Test from master 
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 921600
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":20000, "position": 2000,  "isabs": 0}]}, "qid": 5} 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -2000,  "isabs": 0, "t":1000000}]}, "qid": 5} 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": 2000,  "isabs": 0,  "acceleration":1000000}]}, "qid": 5} 
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":20000, "position": 2000,  "isabs": 0}]}, "qid": 5}
+
+
+# CANOPEN PS4 bridge
+/Users/bene/.platformio/penv/bin/platformio run --target erase --environment UC2_canopen_bridge_ps4_usbhost --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.wchusbserial55700030371 --baud 115200
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_bridge_ps4_usbhost  --upload-port /dev/cu.wchusbserial55700030371 
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.wchusbserial55700030371 --baud 115200
+
+
+# sniffer 
+cd /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/uc2-ESP/can_sniffer
+/Users/bene/.platformio/penv/bin/platformio run --target upload --upload-port /dev/cu.SLAB_USBtoUART
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 115200
+
+
+
+# TODO: 
+
+- Ethan needs to build new images (release of new configurations)
+- adapt firmware ota commands
+- adapt announce can address 
+
+
+
+{"task":"/can_get"}
+        {"task":"/can_act", "scan": true}
+
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_led --upload-port /dev/cu.usbmodem14
+
+
+{"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":1000, "Y_MIN":0, "Y_MAX":1000, "STEP":10, "tPixelDwelltime":1, "nFrames":100}
+{"task":"/galvo_act", "qid":1, "X_MIN":0, "X_MAX":100, "Y_MIN":0, "Y_MAX":100, "STEP":1, "tPixelDwelltime":0, "nFrames":1}
+{"task":"/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"frame_count":0,"bidirectional":true}}
+{"task":"/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"frame_count":0,"bidirectional":false, "trig_delay_us":0, "line_settle_samples":5000}}
+{"task":"/galvo_act", "points":[{"x":1024,"y":2048,"dwell_us":500},{"x":1500,"y":2100,"dwell_us":1000},{"x":2000,"y":2500,"dwell_us":250}]}
+
+
+{"task":"/galvo_act","config":{"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"sample_period_us":25,"frame_count":0,"bidirectional":false,"overscan_samples":32,"pre_samples":64,"fly_samples":256,"line_settle_samples":128,"enable_trigger":1}}
+
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 1000, "speed": 80000, "direction":1, "endstoppolarity":0}]}}
+
+
+SO THIS WORKS; BUT WE HAVE TO CHECK PHASE SPEED VALUE IN PHASE 5
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 60000, "direction":1, "endstoppolarity":0}]}}
+
+{"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 3, "enabled": 0, "polarity": 1}]}}
+                // Clear hard limit triggered flag: {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
+
+{"task":"/tmc_act", "msteps":16, "rms_current":1200, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+//   {"task":"/state_act","restart":1,"nodeId":11}    — restart remote node 11
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":2000, "position": -1000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -10000,  "acceleration":1000000, "isabs": 0}]}, "qid": 5}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 2000, "acceleration":100000, "isabs": 0}]}, "qid": 5}
+
+
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 80000, "direction":1, "endstoppolarity":1}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 80000, "direction":1, "endstoppolarity":0}]}}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 80000, "direction":1, "endstoppolarity":-1}]}}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -200,  "isabs": 0}]}, "qid": 5}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":20000, "position": -200,  "isabs": 0}]}, "qid": 5}
+
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": 3000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "acceleration":1000, "position": 10000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "isforever":0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":200, "position": -10000, "acceleration": 100000, "isabs": 0, "isforver":1, "isstop":1}]}, "qid": 5}
+
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":10000, "position": 4000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":10000, "position": 4000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 0, "speed":10000, "position": 4000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":10000, "position": 4000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -200,  "isabs": 1}]}, "qid": 5}
+
+{"task": "/laser_act", "LASERid":4, "LASERval": 0, "qid":1}
+{"task": "/laser_act", "LASERid":4, "LASERval": 118, "qid":1}
+{"task": "/laser_act", "LASERid":4, "LASERval": 200, "qid":1}
+{"task": "/laser_act", "LASERid":1, "LASERval": 0, "qid":1}
+{"task": "/laser_act", "LASERid":0, "LASERval": 1000, "qid":1}
+{"task": "/laser_act", "LASERid":1, "LASERval": 1000, "qid":1}
+{"task": "/laser_act", "LASERid":2, "LASERval": 1000, "qid":1}
+{"task": "/laser_act", "LASERid":3, "LASERval": 1000, "qid":1}
+{"task": "/motor_get"}
+
+
+{"task":"/ledarr_get"}
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "off" } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "fill", "r":255, "g":255, "b":26 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "single", "ledIndex": 4, "r": 255, "g": 2, "b": 255 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "left", "r": 255, "g": 255, "b": 255 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "halves", "region": "right", "r": 15, "g": 15, "b": 15} }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 3, "r": 255, "g": 255, "b": 255 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "circles", "radius": 4, "r": 255, "g": 255, "b": 255 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 1, "r": 255, "g": 255, "b": 255 } }
+{ "task": "/ledarr_act", "qid": 17, "led": { "action": "rings", "radius": 0, "r": 255, "g": 255, "b": 255 } }
+
+
+
+
+
+
+
+
+
+
+
+{"task":"/can_get"}
+{"task":"/state_get"}
+{"task":"/modules_get"}
+{"task":"/bt_scan"}
+{"task":"/can_get"}
+{"task":"/state_act", "restart":1}
+
+{"task":"/motor_get"}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":80000, "position": 20000, "acceleration":1000000, "isabs": 0}]}, "qid": 5}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 1000, "speed": 20000, "direction":1, "endstoppolarity":0}]}}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":80000, "position": 20000, "acceleration":1000000, "isabs": 0}]}, "qid": 5}
+{"task":"/home_act", "home": {"steppers": [{"stepperid":2, "timeout": 10000, "speed": 60000, "direction":1, "endstoppolarity":0}]}}
+
+
+        {"task":"/can_act", "address": 10}
+        {"task":"/can_get", "address": 1}
+        {"task":"/can_act", "scan": true}
+
+{"task": "/ota_start", "ota": {"nodeId": 11, "size": 798432, "crc32": "0xD2A5FB80"}}
+e905022f1c663740ee0000000900000000ffff000000000120000a3cd0a101003254cdab00000000000000000000000076323032362e302e302d616c7068612e312d312d67643633343430622d646900756332657370333200000000000000000000000000000000000000000000000031303a34313a3036000000000000000046656220313020323032360000000000342e342e3700000000000000000000000000000000000000000000000000000040c144aa5dccfba09634169c4ad0956ff09d58f0680ff3a94ce704d43a45cc7d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000077696669206970633a206661696c656420746f20706f73742077696669207461736b006661696c656420746f20706f7374206576656e743d2564207265743d256400776966692073746f70207374616765333a206f7574206f66206d656d6f72792100776966692073746f70207374616765323a206f7574206f66206d656d6f72792100776966692073746f703a206f7574206f66206d656d6f7279210077696669206465696e697420696e7465726e616c3a2077696669206e6f742073746f7000616c6c6f63206e657438303231312066756e6373206661696c0a004d4943206d69736d6174636820666f7220746865204263617374204d676d74206672616d65287265733d256429004d494320636f6d7075746174696f6e20666f7220424950204661696c6564287265733d25642900424950207265706c617920646574656374656400496e76616c6964204d4d4945004d4943206d69736d6174636820666f7220746865204263617374204d676d74206672616d65287265733d256429004d494320636f6d7075746174696f6e20666f7220424950204661696c6564287265733d25642900424950207265706c617920646574656374656400496e76616c6964204d4d49450025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a006167655f72656f726465723a206e756c6c20726170007278615f6562206d656d206661696c207469643d256400726170206d656d206661696c207469643d25640025732025640a006661696c656420746f2073746172742061646462612074696d657200616464626120696e6465783a20756e6b6e6f7720636f6e6e3d25700074617020746f20696e6465783a206e756c6c20636f6e6e0074617020746f20696e6465783a206e756c6c2062737300616464626120726573706f6e73652063623a20737461747573202564206e6f7420737563636573732c206e6f206e65656420746f20636f6e66696775726520686172647761726500616464626120726573706f6e73652063623a206170206273732064656c6574656400616464626120726573706f6e73652063623a20617020636f6e6e2064656c6574656400616464626120726573706f6e73652063623a206273736964206368616e67652066726f6d20253032783a253032783a253032783a253032783a253032783a2530327820746f20253032783a253032783a253032783a253032783a253032783a2530327800616464626120726573706f6e73652063623a20737461206273732064656c6574656400616464626120726573706f6e73652063623a2073746120636f6e6e2064656c6574656400616464626120726573706f6e736520696e76616c696420706172616d0025732025640a0025732025640a0025732025640a0025732025640a00616c6c6f63206368616c6c656e67653a206f7574206f66206d656d6f7279210025732025640a00696f63746c5f70726f636573733a20696e76616c69642061726700696f63746c3a20756e737570706f7274656420696f63746c20636d643d256400696f63746c3a20696e76616c696420636d642825642900696f63746c3a206e756c6c20706172616d00696e76616c69642069706320636667007770613220656e7420656e61626c652c20696e76616c696420706172616d2825702900776966692073746f70207374616765206572726f722c2073746167653d25640a00496e2066756e6374696f6e2025732c206661696c20746f2072656769737465722066756e6374696f6e210d0a00696e76616c696420636f72652069642025640072782062612077696e646f77202564206572726f72006d616e6167656d656e742073686f727420627566206e756d626572202564206973206f7574206f662072616e6765007478206275662074797065202564206572726f720064796e616d696320747820627566206e756d626572202564206973206f7574206f662072616e67650073746174696320747820627566206e756d626572202564206973206f7574206f662072616e67650064796e616d696320727820627566206e756d626572202564206973206f7574206f662072616e67650073746174696320727820627566206e756d626572202564206973206f7574206f662072616e6765007770612063727970746f2066756e63732065787065637465642073697a653d25642076657273696f6e3d25642c2061637475616c2073697a653d25642076657273696f6e3d256400696e76616c6964206d61676963206e756d6265722025782c2063616c6c20574946495f494e49545f434f4e4649475f44454641554c5420746f20696e697420636f6e66696700706172616d6574657220636f6e6669672073686f756c64206e6f74206265204e554c4c0025732025640a0025732025640a0025732025640a0025732025640a004368616e6e656c206e756d626572202564206973206f7574206f662072616e67652066726f6d20256420746f20256420696e20636f756e74727920636f64652063633d2563256325632e0073746120697320636f6e6e656374696e672c2072657475726e206572726f7200696e6974206e76733a206661696c65642c207265743d25780077696669206e76732063666720616c6c6f63206f7574206f66206d656d6f7279006e767320696e76616c6964206d696e202564206d617820256400696e76616c69642077696669206e7673206b657920696e6465782025640025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a0025732025640a00736574757020726174653a206f7574206f66206d656d6f7279210025732025640a0025732025640a0025732025640a006e756c6c207770615f70617273655f7770615f6965006e756c6c207770615f70617273655f7770615f6965006e756c6c207770615f70617273655f7770615f696500534145204832452064697361626c6564007770615f636f6e6669675f70617273655f737472696e67206973206e756c6c0025732025640a0025732025640a004d656d20616c6c6f63206661696c20666f72205341205120726571004d656d20616c6c6f63206661696c20666f72205341205120726571005365742073746174757320746f20494e4954004173736f63696174696f6e20726566757365642074656d706f726172696c792c20636f6d656261636b2074696d6520256c7520285455732920746f6f206c6f6e672c206d617820616c6c6f77656420353030302028545573290025732025640a00696e76616c69642061633d256400777061206d69636861656c206d6963206661696c75726520636220656d7074790025732025640a0025732025640a0025732025640a006661696c20746f20616c6c6f632074696d65722c20747970653d2564006661696c20746f20706f73742074696d65722c20747970653d25640074696d656f7574207768656e205769466920756e2d696e69742c20747970653d25640074696d656f757420627574206661696c20746f20676574206c6f636b2c20747970653d25640025732025640a00696e76616c6964206368616e6e656c20696e666f00696e76616c6964206368616e6e656c0025732025640a0025732025640a00636e785f6273735f696e69743a206e756c6c206273730025732025640a006e756c6c207770615f7374615f61705f7365745f72736e7865007374615f7363616e3a20535441206e6f74206578697374210068743230343020636f6578206672616d6520616c6c6f63206661696c0025732025640a0043434d50207265706c61792064657465637465643a2041313d253032783a253032783a253032783a253032783a253032783a253032782041323d253032783a253032783a253032783a253032783a253032783a2530327820504e3d256c6c752c205253433d256c6c75207365713d25750043434d50206d676d74206672616d652066726f6d20253032783a253032783a253032783a253032783a253032783a253032782075736564206e6f6e2d7a65726f207265736572766564206269740045787065637465642043434d50206672616d652066726f6d20253032783a253032783a253032783a253032783a253032783a2530327820646964206e6f742068617665204578744956206269742073657420746f203100656275665f667265653a20696e76616c696420747970653d2564006573665f6275665f616c6c6f633a20696e76616c696420747970653d2564006573665f6275665f616c6c6f635f64796e616d69633a20696e76616c696420747970653d256400736574207669663a20696e76616c696420696e6465783d25640025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a0025732025732025750a004572726f72212053686f756c6420656e61626c652057694669206d6f64656d20736c656570207768656e20626f7468205769466920616e6420426c7565746f6f74682061726520656e61626c65642121212121210a0025732025750a006372656174652077696669207461736b3a206661696c656420746f20637265617465207461736b006372656174652077696669207461736b3a206661696c656420746f206372656174652073656d006372656174652077696669207461736b3a20666169
+
+
+{"task":"/route_get"}
+{"task":"/route_set","type":"MOTOR","id":0,"where":"REMOTE","nodeId":10}
+
+{"task":"/state_act", "restart":1}
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":200000, "position": 20000, "acceleration":1000000, "isabs": 0}]}, "qid": 5}
+
+
+
+// ============================================================================
+// Digital I/O — LOCAL or REMOTE dispatch
+// ----------------------------------------------------------------------------
+// Request shape (act):
+//   {"task":"/digitalout_act","digitaloutid":1,"digitaloutval":1}            // LOCAL
+//   {"task":"/digitalout_act","node":60,"digitaloutid":1,"digitaloutval":1}  // REMOTE
+//   {"task":"/digitalout_act","node":60,"digitaloutid":2,"digitaloutval":-1} // REMOTE pulse
+// Request shape (get):
+//   {"task":"/digitalin_get","digitalinid":1}            // LOCAL
+//   {"task":"/digitalin_get","node":60,"digitalinid":1}  // REMOTE (SDO read x2300 sub N)
+
+
+// {"task":"/temp_get"} → {temp:{pcb,air,esp,pcb_ok,air_ok}}
+// {"task":"/fan_act","fan":{"mode":"auto"}} — temp-driven (default)
+// {"task":"/fan_act","fan":{"mode":"manual","wiper":48}} — hold value
+// {"task":"/fan_act","fan":{"mode":"off"}} — quietest
+// {"task":"/fan_act","fan":{"kick":0|1}} — toggle kick-start
+// {"task":"/fan_act","fan":{"curve":[[35,127],[45,80],...]}} — retune
+// {"task":"/fan_get"} → {fan:{mode,wiper,manual,rpm,stalled,kick,tempC,curve}}
+
+
+{"task":"/state_act", "restart":1, "busrestart":1}
+
+{"task": "/state_act", "power": 1}  // CAN-bus power: 1=ON (default), 0=OFF
+{"task": "/state_act", "power": 0}  // start OTA update mode
+
+
+
+//   {"task":"/can_act", "setRemoteNodeId": <newId>,        — reassign a remote
+//                       "target": <curId>, "expectMac": "AA:.."}  node's CAN id
+
+{"task":"/can_act","scan":true},"probeRange":true,"from":1,"to":127}
+
+
+{"task":"/can_act","setRemoteNodeId":10,"byMac":"D8:3B:DA:A4:4D:C8"}
+
+{"task":"/can_get"}
+
+
+{"task":"/motor_act", "joystickdir": {"steppers": [{"stepperid": 1, "inverted": 0}]}}
+{"task":"/motor_act", "joystickdir": {"steppers": [{"stepperid": 2, "inverted": 1}]}}
+
+{"task":"/gpio_get"}
+{"task":"/gpio_act","threshold":20,"sensitivity":2, "calibrate":1}
+,"calibrate":1}         
+
+// ── Debug-first bring-up ────────────────────────────────────────────────────
+// {"task":"/ptz_act", "debug":2}  → print every received chunk as raw hex
+//                                   (wiring / baud / A-B-swap debugging)
+// {"task":"/ptz_act", "debug":1}  → print each decoded frame as JSON
+// {"task":"/ptz_act", "debug":0}  → quiet (default)
+// {"task":"/ptz_act", "addr":3}   → only accept frames for camera address 3
+//                                   (0 = accept any, default)
+// {"task":"/ptz_act", "timeout":2000} → motion watchdog ms (0 = off); if no
+//                                   frame arrives in this window the router
+//                                   stops all axes (lost-stop-frame failsafe)
+// {"task":"/ptz_get"}             → parser stats + last frame + motion state
+//
+
+
+# encoder stuff
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"encmonitor":0}]}}
+
+{"encoderMonitor":{"axis":1,"count":1234,"delta":56,"dtMs":502}}
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"calibrate":1}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":1}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":1}]}}
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":5000,"speed":10000,"isabs":0}]},"qid":1}
+
+
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":3000, "position": -1000,  "isabs": 0}]}, "qid": 5}
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":10000,"speed":15000,"isabs":0,"closedloop":0}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":5000,"speed":25000,"isabs":0,"closedloop":3}]}}
+
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"enctable":20,"tablestep":500,"tablespeed":5000}]}}
+
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":5000,"speed":5000,"isabs":0,"closedloop":0}]}}
+
+[1131229][I][AxisCalibration.cpp:234] run(): SCALE: countsPerStep=0.15320 (q16=10040) sign=-1 R2=0.9999 scatter=2 q=100
+
+
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axisreset":1}]}}
+
+0/false = force open loop
+1 = MONITOR
+2 = CORRECT
+3 = SERVO 
+true = CORRECT
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":10000,"speed":15000,"isabs":1,"closedloop":3}]}}

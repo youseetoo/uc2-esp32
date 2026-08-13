@@ -346,12 +346,59 @@ struct PinConfig
      int tmc_rms_current = 500;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
-     int tmc_semin = 5;
-     int tmc_semax = 2;
+     // CoolStep OFF by default. With semin > 0 the driver uses the StallGuard
+     // result to *reduce* the coil current whenever it judges the load to be
+     // light — great for heat, bad whenever you want guaranteed torque (and it
+     // reacts too slowly for the load steps a microscope stage sees). Set
+     // semin = 5 / semax = 2 explicitly on a board that wants CoolStep back.
+     int tmc_semin = 0;
+     int tmc_semax = 0;
      int tmc_sedn = 0b01;
      int tmc_tcoolthrs = 0xFFFFF;
      int tmc_blank_time = 24;
      int tmc_toff = 4;
+     // 1 = SpreadCycle at every velocity: maximum torque across the whole speed
+     // range, and no StealthChop<->SpreadCycle transition to step through.
+     // Costs silence and StallGuard4 (which only functions in StealthChop) —
+     // we do not use sensorless homing, so that is the right trade.
+     int tmc_en_spreadcycle = 1;
+     // Only consulted when tmc_en_spreadcycle == 0: velocity (steps/s at
+     // tmc_microsteps resolution) at which StealthChop hands over to
+     // SpreadCycle. 15000 steps/s @ 16 microsteps -> TPWMTHRS = 50.
+     // 0 = stay in StealthChop at every velocity (the chip's power-on default).
+     int tmc_tpwmthrs_sps = 15000;
+     // SpreadCycle chopper hysteresis, raw CHOPCONF fields. 5 / 0 is the
+     // TMC2209 reset default and a sane starting point; raise hend if the
+     // chopper sings, lower it if current regulation looks sluggish.
+     int tmc_hstrt = 5;
+     int tmc_hend = 0;
+     // false = take the current reference from the VREF pin (the chip's OTP
+     // default), true = use the internal reference so rms_current() alone
+     // decides the coil current. Keep true unless a board really does set its
+     // current with a VREF divider.
+     bool tmc_internal_vref = true;
+     // Standstill current in % of the run current. TMCStepper's own default is
+     // 50 %; raise it for more holding torque against back-driving, at the
+     // price of a hotter motor when idle.
+     int tmc_hold_multiplier_pct = 50;
+
+     // ── Thermal monitoring (NTC heat-sink sensors) ────────────────────────
+     // Illumination board rev. H fits four NCP15XH103F03RC 10k NTCs in a
+     // 3V3 -> NTC -> node -> 1k -> GND divider behind an LM324 buffer.
+     // Leave the pins `disabled` on boards without the thermistors — the
+     // module then stays inert no matter what is stored in NVS.
+     int8_t thermal_PIN_0 = disabled;
+     int8_t thermal_PIN_1 = disabled;
+     int8_t thermal_PIN_2 = disabled;
+     int8_t thermal_PIN_3 = disabled;
+     int thermal_series_r_ohm = 1000; // lower leg of the divider
+     int thermal_supply_mv = 3300;    // rail feeding the NTC
+     // ~58 °C is the touch-safe heat-sink limit from the CENELEC figure in
+     // issue #86 (4 s contact, bare metal); above criticalC the LEDs are cut.
+     float thermal_warn_c = 58.0f;
+     float thermal_critical_c = 70.0f;
+     float thermal_recover_c = 50.0f; // hysteresis: below this we go back to OK
+     bool thermal_enabled_default = false;
 
      // I2c
      bool isI2Cinitiated = false;

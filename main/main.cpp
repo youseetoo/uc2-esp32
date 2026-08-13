@@ -127,6 +127,9 @@ CANopenModule canopenModule;
 #ifdef FAN_CONTROLLER
 #include "src/fan/FanController.h"
 #endif
+#ifdef THERMAL_CONTROLLER
+#include "src/thermal/ThermalController.h"
+#endif
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"
 #endif
@@ -300,6 +303,9 @@ extern "C" void looper(void *p)
 		if (runtimeConfig.fan) {
 			FanController::loop();
 		}
+#endif
+#ifdef THERMAL_CONTROLLER
+		ThermalController::loop();
 #endif
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 		// Handle OTA updates in non-blocking mode
@@ -695,6 +701,11 @@ if (runtimeConfig.fan) {
 		FanController::setup();
 	}
 	#endif
+#ifdef THERMAL_CONTROLLER
+	// Heat-sink NTCs on the illumination board. Runs after LedController::setup()
+	// so an over-temperature latch found at boot can cut the LEDs immediately.
+	ThermalController::setup();
+#endif
 	#ifdef GALVO_CONTROLLER
 	if (runtimeConfig.galvo) {
 		GalvoController::setup();

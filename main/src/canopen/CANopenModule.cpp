@@ -2398,6 +2398,14 @@ void CANopenModule::syncRpdoToModules_slave()
                 p.stall_value = pinConfig.tmc_stall_value;
                 p.sedn        = pinConfig.tmc_sedn;
                 p.tcoolthrs   = pinConfig.tmc_tcoolthrs;
+                // Chopper mode / hold current are not carried over CANopen yet.
+                // They MUST be filled in here — p is zero-initialised, and a
+                // zero hold_mult_pct would drop the standstill current to 0.
+                p.tpwmthrs_sps   = pinConfig.tmc_tpwmthrs_sps;
+                p.en_spreadcycle = pinConfig.tmc_en_spreadcycle;
+                p.hold_mult_pct  = pinConfig.tmc_hold_multiplier_pct;
+                p.hstrt          = pinConfig.tmc_hstrt;
+                p.hend           = pinConfig.tmc_hend;
 
                 log_i("TMC OD change ax=%u msteps=%u current=%u sgthrs=%u",
                       localAx, ms, cur, sg);

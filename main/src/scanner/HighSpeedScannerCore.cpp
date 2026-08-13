@@ -30,9 +30,15 @@
 #define GALVO_RMT_CHANNEL RMT_CHANNEL_3
 #endif
 #endif
+// Widest line the RMT can clock in a single armed train. The hardware TX loop
+// counter is 10-bit on the ESP32-S3 (RMT_LL_MAX_LOOP_COUNT in hal/rmt_ll.h —
+// a private HAL header we deliberately don't include here, so mirror it).
+// Lines longer than this fall back to software pixel pulses.
+#define GALVO_RMT_MAX_LOOP_COUNT 1023
 #include <cmath>
 #include <cstring>
 #include <stdio.h>
+#include <new>
 
 static const char* TAG = "Scanner";
 
@@ -42,8 +48,9 @@ static const char* TAG = "Scanner";
 HighSpeedScannerCore::HighSpeedScannerCore()
 {
     config_mutex_ = xSemaphoreCreateMutex();
-    buildLineProfile();
-    
+    // Line profile buffer is allocated in init(); buildLineProfile() no-ops
+    // until then, so CAN masters that never init() stay memory-free.
+
     // Initialize arbitrary point buffer with default center point
     arbitrary_points_[0] = ArbitraryScanPoint(2048, 2048, 1000);
     arbitrary_point_count_ = 0;  // Start with no points (disabled)
@@ -60,6 +67,8 @@ HighSpeedScannerCore::~HighSpeedScannerCore()
     if (config_mutex_) {
         vSemaphoreDelete(config_mutex_);
     }
+    delete[] line_x_;
+    delete[] x_map_;
 }
 
 bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
@@ -79,6 +88,16 @@ bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
     trigger_pin_line_ = trigger_pin_line;
     trigger_pin_frame_ = trigger_pin_frame;
     laser_pin_ = laser_pin;
+
+    // Allocate the line profile buffer (slave/hardware nodes only reach here;
+    // CAN masters never call init() and stay at zero DRAM cost)
+    if (!line_x_) {
+        line_x_ = new (std::nothrow) uint16_t[SCANNER_MAX_LINE_SAMPLES];
+        if (!line_x_) {
+            SCANNER_LOG("ERROR: line profile buffer allocation failed");
+            return false;
+        }
+    }
 
     // Configure trigger pins and the laser gate pin
     uint64_t pin_mask = 0;
@@ -220,6 +239,15 @@ void HighSpeedScannerCore::setXLUT(const uint16_t* lut256)
 {
     if (!lut256) return;
 
+    // Allocate on first upload only (keeps masters and LUT-free setups lean)
+    if (!x_map_) {
+        x_map_ = new (std::nothrow) uint16_t[4096];
+        if (!x_map_) {
+            SCANNER_LOG("ERROR: X LUT allocation failed");
+            return;
+        }
+    }
+
     for (int x = 0; x < 4096; ++x) {
         int idx = (x * (SCANNER_X_LUT_N - 1) + 2047) / 4095;
         if (idx < 0) idx = 0;
@@ -268,7 +296,7 @@ void HighSpeedScannerCore::buildLineProfile()
     uint32_t total = (uint32_t)config_.pre_samples + 2u * ov + config_.nx +
                      fly + config_.line_settle_samples;
 
-    if (total == 0 || total > SCANNER_MAX_LINE_SAMPLES) {
+    if (!line_x_ || total == 0 || total > SCANNER_MAX_LINE_SAMPLES) {
         line_len_ = 0;
         img_start_ = 0;
         img_end_ = 0;
@@ -288,51 +316,47 @@ void HighSpeedScannerCore::buildLineProfile()
 
     // ---- Forward profile: pre @ start_x | ov ramp | nx ramp | ov ramp | [fly] | settle ----
     for (uint32_t i = 0; i < config_.pre_samples; ++i) {
-        line_x_fwd_[k++] = clamp12((int)(start_x + 0.5f));
+        line_x_[k++] = clamp12((int)(start_x + 0.5f));
     }
     for (uint32_t i = 0; i < ov; ++i) { // lead-in overscan: start_x -> x_min (exclusive)
-        line_x_fwd_[k++] = clamp12((int)(start_x + slope * (float)i + 0.5f));
+        line_x_[k++] = clamp12((int)(start_x + slope * (float)i + 0.5f));
     }
     img_start_ = (uint16_t)k;
     if (config_.nx <= 1) {
-        line_x_fwd_[k++] = config_.x_min;
+        line_x_[k++] = config_.x_min;
     } else {
         for (uint32_t i = 0; i < config_.nx; ++i) {
-            line_x_fwd_[k++] = clamp12((int)((float)config_.x_min + slope * (float)i + 0.5f));
+            line_x_[k++] = clamp12((int)((float)config_.x_min + slope * (float)i + 0.5f));
         }
     }
     img_end_ = (uint16_t)k;
     for (uint32_t i = 1; i <= ov; ++i) { // lead-out overscan: x_max -> end_x
-        line_x_fwd_[k++] = clamp12((int)((float)config_.x_max + slope * (float)i + 0.5f));
+        line_x_[k++] = clamp12((int)((float)config_.x_max + slope * (float)i + 0.5f));
     }
     // Flyback (cosine ease from end_x back to start_x) - unidirectional only
     if (fly == 1) {
-        line_x_fwd_[k++] = clamp12((int)(start_x + 0.5f));
+        line_x_[k++] = clamp12((int)(start_x + 0.5f));
     } else if (fly > 1) {
         for (uint32_t i = 0; i < fly; ++i) {
             float t = (float)i / (float)(fly - 1);
             float s = 0.5f - 0.5f * cosf((float)M_PI * t);
-            line_x_fwd_[k++] = clamp12((int)(end_x + (start_x - end_x) * s + 0.5f));
+            line_x_[k++] = clamp12((int)(end_x + (start_x - end_x) * s + 0.5f));
         }
     }
     // Settle region: hold at the position the next line starts from
     // (start_x after flyback; end_x in bidirectional mode)
     const float settle_x = bidir ? end_x : start_x;
     for (uint32_t i = 0; i < config_.line_settle_samples; ++i) {
-        line_x_fwd_[k++] = clamp12((int)(settle_x + 0.5f));
+        line_x_[k++] = clamp12((int)(settle_x + 0.5f));
     }
     line_len_ = (uint16_t)k;
 
-    // ---- Reverse profile (bidirectional odd lines): exact mirror in X. ----
-    // Same region layout and therefore the SAME [img_start_, img_end_) window:
-    // triggers stay monotonic and equidistant; only the direction of motion
-    // differs (pixel j maps to x_max - slope*j). The bridge/host must flip
-    // odd lines when reassembling the image.
-    for (uint32_t i = 0; i < line_len_; ++i) {
-        // Mirror around the scan center: x' = (start+end) - x
-        float mirrored = (start_x + end_x) - (float)line_x_fwd_[i];
-        line_x_rev_[i] = clamp12((int)(mirrored + 0.5f));
-    }
+    // Bidirectional odd lines are mirrored on the fly in the scan loop
+    // (x' = mirror_sum_ - x): same region layout and therefore the SAME
+    // [img_start_, img_end_) window - triggers stay monotonic and
+    // equidistant; only the direction of motion differs. The bridge/host
+    // must flip odd lines when reassembling the image.
+    mirror_sum_ = (int32_t)lroundf(start_x + end_x);
 }
 
 uint16_t HighSpeedScannerCore::computeY(uint16_t line) const
@@ -345,7 +369,7 @@ uint16_t HighSpeedScannerCore::computeY(uint16_t line) const
 
 uint16_t HighSpeedScannerCore::applyXMap(uint16_t x) const
 {
-    if (!x_map_valid_) return x;
+    if (!x_map_valid_ || !x_map_) return x;
     return x_map_[x & 0x0FFF];
 }
 
@@ -480,12 +504,22 @@ void HighSpeedScannerCore::disableHwPixelClock()
 void HighSpeedScannerCore::armHwPixelClock(uint16_t count, uint16_t period_us, uint16_t width_us)
 {
 #if defined(GALVO_RMT_NEW_API) || defined(GALVO_RMT_LEGACY_API)
-    if (!hw_clock_active_ || count == 0 || period_us == 0) return;
-    // RMT symbol durations are 15-bit (max 32767 ticks @ 1 MHz)
+    if (!hw_clock_active_ || count == 0) return;
+    // A duration field of 0 is an RMT END MARKER, not a zero-length level.
+    // Emitting one makes the transmitter halt at that symbol, so the
+    // loop-count event never fires — which used to wedge this task forever
+    // (see the rmt_write_items note below). Both halves must be >= 1 tick,
+    // so the period needs at least 2 us. The caller gates on the same
+    // condition; this is belt-and-braces.
+    if (period_us < 2) return;
     uint16_t w = width_us ? width_us : 1;
-    if (w >= period_us) w = (period_us > 1) ? (period_us - 1) : 1;
-    uint16_t low = period_us - w;
+    if (w >= period_us) w = period_us - 1;  // period_us >= 2  =>  w >= 1
+    uint16_t low = period_us - w;           // >= 1 by construction
+    // RMT symbol durations are 15-bit (max 32767 ticks @ 1 MHz)
     if (w > 32767 || low > 32767) return; // dwell too long for one symbol - skip
+    // The hardware loop counter is 10-bit; a longer line cannot be expressed
+    // as one loop and would leave a stale count programmed.
+    if (count > GALVO_RMT_MAX_LOOP_COUNT) return;
 
 #if defined(GALVO_RMT_NEW_API)
     rmt_symbol_word_t sym = {};
@@ -502,15 +536,26 @@ void HighSpeedScannerCore::armHwPixelClock(uint16_t count, uint16_t period_us, u
     rmt_transmit((rmt_channel_handle_t)rmt_chan_, (rmt_encoder_handle_t)rmt_encoder_,
                  &sym, sizeof(sym), &tx_cfg);
 #else
-    rmt_item32_t item;
-    item.level0 = 1;
-    item.duration0 = w;
-    item.level1 = 0;
-    item.duration1 = low;
+    // items[1] is the end marker the loop wraps on (duration 0 == terminator)
+    rmt_item32_t items[2];
+    items[0].level0 = 1;
+    items[0].duration0 = w;
+    items[0].level1 = 0;
+    items[0].duration1 = low;
+    items[1].val = 0;
 
+    // Write straight into the channel's RAM and start the transmitter by hand.
+    // rmt_write_items() must NOT be used here: it does
+    // xSemaphoreTake(tx_sem, portMAX_DELAY), and that token is only returned by
+    // the loop-count ISR. rmt_tx_stop() below does not return it either, so any
+    // train that ends without a loop-count event — a malformed symbol, or a
+    // stop issued mid-train — deadlocks this task forever and trips the task
+    // watchdog (reboot, DAC output frozen). rmt_fill_tx_items()/rmt_tx_start()
+    // never touch the semaphore, so arming stays non-blocking and bounded.
     rmt_tx_stop(GALVO_RMT_CHANNEL); // previous train has finished (autostop)
     rmt_set_tx_loop_count(GALVO_RMT_CHANNEL, count);
-    rmt_write_items(GALVO_RMT_CHANNEL, &item, 1, false);
+    rmt_fill_tx_items(GALVO_RMT_CHANNEL, items, 2, 0);
+    rmt_tx_start(GALVO_RMT_CHANNEL, true);
 #endif
 #endif
 }
@@ -668,8 +713,15 @@ void HighSpeedScannerCore::scannerTask()
             continue;
         }
 
-        // Hardware pixel clock lifecycle (RMT owns the pixel pin while active)
-        const bool want_hw_clock = (cfg.hw_pixel_clock != 0) && (cfg.sample_period_us > 0);
+        // Hardware pixel clock lifecycle (RMT owns the pixel pin while active).
+        // One RMT symbol must carry a >= 1 us high and a >= 1 us low half (a
+        // 0-duration half is an end marker), so the dwell needs >= 2 us; and the
+        // hardware loop counter is 10-bit, so a line may be at most 1023 pixels.
+        // Outside that envelope we leave the RMT off and the software pulse path
+        // below takes over — otherwise the pixel trigger would vanish entirely.
+        const bool want_hw_clock = (cfg.hw_pixel_clock != 0) &&
+                                   (cfg.sample_period_us >= 2) &&
+                                   (cfg.nx <= GALVO_RMT_MAX_LOOP_COUNT);
         if (want_hw_clock && !hw_clock_active_) enableHwPixelClock();
         if (!want_hw_clock && hw_clock_active_) disableHwPixelClock();
         const bool hw_clock = hw_clock_active_;
@@ -698,7 +750,6 @@ void HighSpeedScannerCore::scannerTask()
             // Bidirectional: odd lines use the mirrored profile. Trigger and
             // laser windows use the SAME sample indices in both directions.
             const bool reverse_line = bidir && (ly & 1);
-            const uint16_t* line_buf = reverse_line ? line_x_rev_ : line_x_fwd_;
 
             // Compute Y position - lock only for the computation
             xSemaphoreTake(config_mutex_, portMAX_DELAY);
@@ -733,6 +784,11 @@ void HighSpeedScannerCore::scannerTask()
 
             int64_t next_t = esp_timer_get_time();
 
+            // Diagnostics: trace the first couple of lines of the first frame
+            // so a stall shows exactly where it happened in the serial log,
+            // instead of only the coarse "line=N" from the 5s status ticker.
+            const bool trace_line = (frame_idx_ == 0 && ly < 2);
+
             // Scan one line
             for (uint32_t i = 0; i < line_len && running_ && !config_changed_; ++i) {
                 next_t += sp_us;
@@ -752,12 +808,26 @@ void HighSpeedScannerCore::scannerTask()
                     overruns_++;
                 }
 
+                // Feed the task watchdog and yield periodically WITHIN the
+                // line, not just once per completed line. With the default
+                // sample_period_us the DAC/SPI update alone can exceed the
+                // configured period (see GALVO_FLIM_TIMING_REVIEW.md F3), and
+                // any single blocking call in this inner loop (SPI, RMT, GPIO)
+                // previously had no escape hatch before the 5s task watchdog
+                // timeout - this bounds the blast radius and keeps the WDT fed
+                // even while a slow/stalled line is still in progress.
+                if ((i & 0x3F) == 0) {
+                    esp_task_wdt_reset();
+                }
+
                 // IMAGING WINDOW ENTRY: open laser gate, arm hardware clock
                 if (i == img_start) {
                     if (do_laser) setLaserGate(true);
                     if (do_trig && hw_clock) {
+                        if (trace_line) SCANNER_LOG("  line %d: arming hw pixel clock (i=%lu)", ly, (unsigned long)i);
                         // RMT emits exactly nx hardware-timed pulses
                         armHwPixelClock(cfg.nx, sp_us, cfg.trig_width_us);
+                        if (trace_line) SCANNER_LOG("  line %d: hw pixel clock armed", ly);
                     }
                 }
 
@@ -776,7 +846,12 @@ void HighSpeedScannerCore::scannerTask()
                 }
 
                 // DAC UPDATE with remaining time budget
-                uint16_t x12 = line_buf[i];
+                // Odd bidirectional lines: mirror around the ramp center on
+                // the fly (one subtraction; keeps the reverse profile without
+                // a second 8 KB buffer)
+                uint16_t x12 = reverse_line
+                    ? clamp12(mirror_sum_ - (int32_t)line_x_[i])
+                    : line_x_[i];
                 if (do_lut) x12 = applyXMap(x12);
                 dac_->setX(x12);
                 dac_->ldacPulse();

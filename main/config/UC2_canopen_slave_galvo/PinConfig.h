@@ -47,8 +47,8 @@ struct UC2_canopen_slave_galvo : PinConfig
      uint8_t galvo_cs = GPIO_NUM_8;
      uint8_t galvo_ldac = GPIO_NUM_6;
      uint8_t galvo_laser = GPIO_NUM_43;
-     uint8_t galvo_trig_pixel = disabled;// GPIO_NUM_2;  // D1
-     uint8_t galvo_trig_line = disabled;// GPIO_NUM_3;   // D2
+     uint8_t galvo_trig_pixel =  GPIO_NUM_2;  // D1
+     uint8_t galvo_trig_line = GPIO_NUM_3;   // D2
      uint8_t galvo_trig_frame = GPIO_NUM_4;  // D3
      
      uint32_t CAN_ID_CURRENT = CAN_ID_GALVO_0;

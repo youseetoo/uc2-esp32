@@ -6,7 +6,7 @@
 
 #include "../config/RuntimeConfig.h"
 #include "RoutingTable.h"
-#include "../wifi/Endpoints.h"
+#include "../serial/Endpoints.h"
 #include "esp_log.h"
 #include <cstring>
 #include <algorithm>
@@ -17,6 +17,10 @@
 #ifndef CANOPEN_OTA_NO_SENDER
 #include "OtaBinaryReceive.h"
 #endif
+#endif
+#ifdef AXIS_CONTROLLER
+#include "../axis/AxisController.h"
+#include "../axis/EncoderMonitor.h"
 #endif
 
 #ifdef MOTOR_CONTROLLER
@@ -307,6 +311,94 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         bool     isStop    = isStopItem && (cJSON_IsTrue(isStopItem) || (cJSON_IsNumber(isStopItem) && isStopItem->valueint != 0));
         bool     isForever = foreverItem && (cJSON_IsTrue(foreverItem) || (cJSON_IsNumber(foreverItem) && foreverItem->valueint != 0));
 
+        // ---- axis closed-loop config keys (design v2) ------------------------
+        // Optional per-stepper keys, usable standalone (no motion fields) or
+        // alongside a move:
+        //   "calibrate":1   -> run the encoder calibration routine on this axis
+        //   "axismode":0..3 -> OPEN_LOOP / MONITOR / CORRECT / SERVO
+        //   "axisreset":1..3-> clear latched fault (1=TRUST_ENCODER,
+        //                      2=TRUST_STEPS, 3=FORCE_REHOME)
+        // LOCAL: handed to AxisController as deferred requests (calibration is
+        // blocking and runs on the main-loop task). REMOTE: forwarded as SDO
+        // writes to the slave's AXIS OD block — same JSON works from the master.
+        cJSON* calItem    = cJSON_GetObjectItem(s, "calibrate");
+        cJSON* amodeItem  = cJSON_GetObjectItem(s, "axismode");
+        cJSON* aresetItem = cJSON_GetObjectItem(s, "axisreset");
+        cJSON* emonItem   = cJSON_GetObjectItem(s, "encmonitor");
+        cJSON* tblItem    = cJSON_GetObjectItem(s, "enctable");
+
+        // Per-move closed-loop override (same numbering as "axismode"):
+        //   0 / false = force OPEN_LOOP for THIS move
+        //   1 = MONITOR, 2 = CORRECT, 3 = SERVO
+        //   true      = CORRECT (the useful "closed loop please" default)
+        // Absent => use the axis's configured mode. 0xFF = no override.
+        // The axis's configured mode is never changed by this key.
+        cJSON* clItem = cJSON_GetObjectItem(s, "closedloop");
+        uint8_t clOverride = 0xFF;
+        if (clItem && cJSON_IsBool(clItem)) {
+            clOverride = cJSON_IsTrue(clItem) ? 2 : 0;
+        } else if (clItem && cJSON_IsNumber(clItem)) {
+            int v = clItem->valueint;
+            clOverride = (v >= 0 && v <= 3) ? (uint8_t)v : 0xFF;
+        }
+        if (calItem || amodeItem || aresetItem || emonItem || tblItem) {
+            if (route->where == UC2::RouteEntry::LOCAL) {
+#ifdef AXIS_CONTROLLER
+                if (amodeItem && cJSON_IsNumber(amodeItem) &&
+                    amodeItem->valueint >= 0 && amodeItem->valueint <= 3)
+                    AxisController::requestMode(stepperid, (uint8_t)amodeItem->valueint);
+                if (aresetItem && cJSON_IsNumber(aresetItem) &&
+                    aresetItem->valueint >= 1 && aresetItem->valueint <= 3)
+                    AxisController::requestReset(stepperid, (uint8_t)(aresetItem->valueint - 1));
+                if (calItem && cJSON_IsNumber(calItem) && calItem->valueint != 0)
+                    AxisController::requestCalibration(stepperid);
+                // "encmonitor":<periodMs> — periodic encoder liveness reports on
+                // THIS node's serial ({"encoderMonitor":...}); 0 = off.
+                if (emonItem && cJSON_IsNumber(emonItem) && emonItem->valueint >= 0)
+                    EncoderMonitor::setPeriod(stepperid, (uint32_t)emonItem->valueint);
+                // "enctable":N — diagnostic linearity sweep of N points out and
+                // back; optional "tablestep"/"tablespeed". Result arrives as one
+                // {"encoderTable":{...}} event with [[steps,counts],...].
+                if (tblItem && cJSON_IsNumber(tblItem) && tblItem->valueint > 0) {
+                    cJSON* tsz = cJSON_GetObjectItem(s, "tablestep");
+                    cJSON* tsp = cJSON_GetObjectItem(s, "tablespeed");
+                    AxisController::requestEncoderTable(
+                        stepperid, tblItem->valueint,
+                        (tsz && cJSON_IsNumber(tsz)) ? tsz->valueint : 500,
+                        (tsp && cJSON_IsNumber(tsp)) ? tsp->valueint : 2000);
+                }
+#else
+                ESP_LOGW(TAG, "axis config keys ignored: AXIS_CONTROLLER not built");
+#endif
+            } else { // REMOTE
+#ifdef CAN_CONTROLLER_CANOPEN
+                uint8_t axNodeId = route->nodeId;
+                uint8_t axSub    = (uint8_t)(route->subAxis + 1);
+                if (amodeItem && cJSON_IsNumber(amodeItem))
+                    CANopenModule::writeSDO_u8(axNodeId, UC2_OD::AXIS_MODE, axSub,
+                                               (uint8_t)amodeItem->valueint);
+                if (aresetItem && cJSON_IsNumber(aresetItem))
+                    CANopenModule::writeSDO_u8(axNodeId, UC2_OD::AXIS_RESET, axSub,
+                                               (uint8_t)aresetItem->valueint);
+                if (calItem && cJSON_IsNumber(calItem) && calItem->valueint != 0)
+                    CANopenModule::writeSDO_u8(axNodeId, UC2_OD::AXIS_CALIBRATE, axSub, 1);
+                if (emonItem)
+                    ESP_LOGW(TAG, "encmonitor is LOCAL-only (reports on the node's own "
+                                  "serial) — send it to the slave's USB port instead");
+#endif
+            }
+            // Config-only entry (no motion fields): acknowledge and skip the
+            // move dispatch — otherwise pos would default to 0 and the axis
+            // would drive to origin as a side effect.
+            if (!posItem && !isStopItem && !speedItem) {
+                cJSON* rs = cJSON_CreateObject();
+                cJSON_AddNumberToObject(rs, "stepperid", stepperid);
+                cJSON_AddNumberToObject(rs, "isDone", 1);
+                cJSON_AddItemToArray(respSteppers, rs);
+                continue;
+            }
+        }
+
         if (route->where == UC2::RouteEntry::LOCAL) {
             // Direct call into FocusMotor — no CAN involved
             log_i("Routing motor_act to LOCAL stepper %d: pos=%ld speed=%u accel=%u abs=%d stop=%d",
@@ -335,6 +427,21 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                     d->qid              = motorQid;
                     if (accel > 0) d->acceleration = accel;
                     else if (d->acceleration <= 0) d->acceleration = 40000;
+#ifdef AXIS_CONTROLLER
+                    // Closed-loop dispatch (design v2): a bounded move on an axis
+                    // in MONITOR/CORRECT/SERVO goes through AxisController so the
+                    // encoder verify/correct/servo logic runs. Jog (isforever)
+                    // stays on the plain open-loop path.
+                    //
+                    // Per-move override: "closedloop":0 forces this ONE move open
+                    // loop; 1..3 force MONITOR/CORRECT/SERVO (1 == "on" == the
+                    // axis mode if already closed-loop). The axis's configured
+                    // mode is not changed either way.
+                    if (!isForever && (clItem || AxisController::getFeedback(stepperid).mode
+                                                     != MODE_OPEN_LOOP))
+                        AxisController::moveToWithMode(stepperid, pos, speed, isAbs, clOverride);
+                    else
+#endif
                     FocusMotor::startStepper(stepperid, 0); // TODO: Shouldn't we use stopstepper instead?
                 }
             }
@@ -482,6 +589,21 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
                 cJSON_AddNumberToObject(rs, "position", d->currentPosition);
                 cJSON_AddNumberToObject(rs, "isRunning", FocusMotor::isRunning(stepperid) ? 1 : 0);
                 cJSON_AddNumberToObject(rs, "isDone", FocusMotor::isRunning(stepperid) ? 0 : 1);
+#ifdef AXIS_CONTROLLER
+                // Closed-loop feedback (design v2) — all in steps. Present on
+                // every LOCAL axis; encoderless axes report identity values
+                // (measured == position, posErr == 0, axismode == 0).
+                {
+                    AxisFeedback afb = AxisController::getFeedback(stepperid);
+                    cJSON_AddNumberToObject(rs, "measured", afb.measuredSteps);
+                    cJSON_AddNumberToObject(rs, "posErr", afb.positionErrorSteps);
+                    cJSON_AddNumberToObject(rs, "axismode", afb.mode);
+                    cJSON_AddNumberToObject(rs, "health", afb.health);
+                    cJSON_AddNumberToObject(rs, "fault", afb.fault);
+                    cJSON_AddNumberToObject(rs, "calibrated", afb.calibrated ? 1 : 0);
+                    cJSON_AddNumberToObject(rs, "rawCounts", (double)afb.rawCounts);
+                }
+#endif
             } else {
                 cJSON_AddNumberToObject(rs, "isDone", -1);
             }

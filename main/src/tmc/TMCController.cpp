@@ -9,6 +9,23 @@ namespace TMCController
     TMC2209Stepper driver(&Serial1, R_SENSE, DRIVER_ADDRESS);
 
 
+    uint32_t tstepFromStepsPerSecond(uint32_t stepsPerSecond, uint16_t microsteps)
+    {
+        // 0 = "never switch" — the register semantics already encode that
+        // (TSTEP >= threshold selects StealthChop, and TSTEP is never < 0).
+        if (stepsPerSecond == 0)
+            return 0;
+        if (microsteps == 0)
+            microsteps = 1;
+        // One input step equals (256 / microsteps) of the 1/256 microsteps the
+        // TSTEP timer counts, hence the microsteps factor in the numerator.
+        uint64_t tstep = ((uint64_t)TMC_FCLK_HZ * (uint64_t)microsteps) /
+                         (256ULL * (uint64_t)stepsPerSecond);
+        if (tstep > 0xFFFFF) // 20-bit register
+            tstep = 0xFFFFF;
+        return (uint32_t)tstep;
+    }
+
     static void writeParamsToPreferences(const TMCData &p)
     {
         preferences.begin("tmc", false);
@@ -22,9 +39,16 @@ namespace TMCController
         preferences.putInt("tcool", p.tcoolthrs);
         preferences.putInt("blank", p.blank_time);
         preferences.putInt("toff", p.toff);
+        preferences.putInt("tpwmsps", p.tpwmthrs_sps);
+        preferences.putInt("enspread", p.en_spreadcycle);
+        preferences.putInt("holdmult", p.hold_mult_pct);
+        preferences.putInt("hstrt", p.hstrt);
+        preferences.putInt("hend", p.hend);
+        preferences.putInt("ver", TMC_SETTINGS_VERSION);
         preferences.end();
-        log_i("TMC2209 settings saved to preferences: msteps: %i, current: %i, stall: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcool: %i, blank: %i, toff: %i",
-              p.msteps, p.rms_current, p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff);
+        log_i("TMC2209 settings saved to preferences: msteps: %i, current: %i, stall: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcool: %i, blank: %i, toff: %i, tpwmthrs_sps: %i, en_spreadcycle: %i, hold_mult: %i%%",
+              p.msteps, p.rms_current, p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff,
+              (int)p.tpwmthrs_sps, p.en_spreadcycle, p.hold_mult_pct);
     }
 
     static TMCData readParamsFromPreferences()
@@ -41,8 +65,50 @@ namespace TMCController
         p.tcoolthrs = preferences.getInt("tcool", pinConfig.tmc_tcoolthrs);
         p.blank_time = preferences.getInt("blank", pinConfig.tmc_blank_time);
         p.toff = preferences.getInt("toff", pinConfig.tmc_toff);
+        p.tpwmthrs_sps = preferences.getInt("tpwmsps", pinConfig.tmc_tpwmthrs_sps);
+        p.en_spreadcycle = preferences.getInt("enspread", pinConfig.tmc_en_spreadcycle);
+        p.hold_mult_pct = preferences.getInt("holdmult", pinConfig.tmc_hold_multiplier_pct);
+        p.hstrt = preferences.getInt("hstrt", pinConfig.tmc_hstrt);
+        p.hend = preferences.getInt("hend", pinConfig.tmc_hend);
         preferences.end();
         return p;
+    }
+
+    static TMCData paramsFromPinConfig()
+    {
+        TMCData p;
+        p.msteps = pinConfig.tmc_microsteps;
+        p.rms_current = pinConfig.tmc_rms_current;
+        p.stall_value = pinConfig.tmc_stall_value;
+        p.sgthrs = pinConfig.tmc_sgthrs;
+        p.semin = pinConfig.tmc_semin;
+        p.semax = pinConfig.tmc_semax;
+        p.sedn = pinConfig.tmc_sedn;
+        p.tcoolthrs = pinConfig.tmc_tcoolthrs;
+        p.blank_time = pinConfig.tmc_blank_time;
+        p.toff = pinConfig.tmc_toff;
+        p.tpwmthrs_sps = pinConfig.tmc_tpwmthrs_sps;
+        p.en_spreadcycle = pinConfig.tmc_en_spreadcycle;
+        p.hold_mult_pct = pinConfig.tmc_hold_multiplier_pct;
+        p.hstrt = pinConfig.tmc_hstrt;
+        p.hend = pinConfig.tmc_hend;
+        return p;
+    }
+
+    // NVS wins over pinConfig on every boot, so a board that has run older
+    // firmware keeps its stored values forever — which is exactly how a changed
+    // firmware default (e.g. CoolStep off) can fail to reach the hardware.
+    // Re-seed from pinConfig whenever the settings version moves.
+    static void migratePreferencesIfNeeded()
+    {
+        preferences.begin("tmc", true);
+        int storedVersion = preferences.getInt("ver", 0);
+        preferences.end();
+        if (storedVersion == TMC_SETTINGS_VERSION)
+            return;
+        log_w("TMC settings version %d -> %d: re-seeding NVS from PinConfig",
+              storedVersion, TMC_SETTINGS_VERSION);
+        writeParamsToPreferences(paramsFromPinConfig());
     }
 
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
@@ -74,22 +140,99 @@ namespace TMCController
         digitalWrite(pinConfig.MOTOR_ENABLE, LOW);
         delay(10);
         
-        // Set other parameters
-        driver.rms_current(p.rms_current);
+        // Current reference source. The chip's OTP default is "scale by the
+        // VREF pin", which silently derates everything rms_current() computes
+        // by VREF/2.5 V. Force the internal reference so the commanded current
+        // is the current the coils actually see.
+        driver.I_scale_analog(!pinConfig.tmc_internal_vref);
+
+        // Chopper mode selection — this is what decides torque vs. silence.
+        //   en_spreadcycle = 1 : SpreadCycle everywhere (max torque, loudest)
+        //   otherwise          : StealthChop below tpwmthrs_sps, SpreadCycle above.
+        // TPWMTHRS lives in the TSTEP domain, so it depends on the microstep
+        // resolution and must be recomputed whenever msteps changes — that is
+        // why we store the threshold as a velocity and convert here, after
+        // the microsteps above have been applied.
+        bool spreadAlways = (p.en_spreadcycle != 0);
+        uint32_t tpwmthrs = spreadAlways
+                                ? 0 // irrelevant once GCONF forces SpreadCycle
+                                : tstepFromStepsPerSecond(p.tpwmthrs_sps, p.msteps);
+        bool spreadReachable = spreadAlways || (tpwmthrs != 0);
+
+        // CoolStep and SpreadCycle MUST NOT be enabled together on a TMC2209.
+        // CoolStep drives the current from the StallGuard4 result, and
+        // StallGuard4 only produces a valid SG_RESULT in StealthChop. Leave
+        // semin > 0 while SpreadCycle can run and the driver scales the current
+        // off meaningless data — in practice down towards IRUN/4, i.e. a large
+        // and completely silent torque loss exactly at the speeds where
+        // SpreadCycle engages. Force CoolStep off instead.
+        uint8_t effSemin = p.semin;
+        uint8_t effSemax = p.semax;
+        uint32_t effTcoolthrs = p.tcoolthrs;
+        if (spreadReachable && effSemin != 0)
+        {
+            log_w("CoolStep (semin=%u) disabled: it needs StallGuard4, which does not "
+                  "work in SpreadCycle — leaving it on would throttle the current",
+                  effSemin);
+            effSemin = 0;
+            effSemax = 0;
+        }
+        if (effSemin == 0)
+        {
+            // With CoolStep off there is nothing for TCOOLTHRS to gate, and a
+            // wide-open threshold only keeps the StallGuard machinery running.
+            effTcoolthrs = 0;
+        }
+
+        // Set other parameters. The hold multiplier has to ride along with the
+        // current: TMCStepper derives IHOLD from IRUN at the moment
+        // rms_current() runs, so setting it afterwards would have no effect.
+        float holdMult = (float)p.hold_mult_pct / 100.0f;
+        if (holdMult < 0.0f) holdMult = 0.0f;
+        if (holdMult > 1.0f) holdMult = 1.0f;
+        driver.rms_current(p.rms_current, holdMult);
         driver.SGTHRS(p.sgthrs);
-        driver.semin(p.semin);
-        driver.semax(p.semax);
+        driver.semin(effSemin);
+        driver.semax(effSemax);
         driver.sedn(p.sedn);
-        driver.TCOOLTHRS(p.tcoolthrs);
+        driver.TCOOLTHRS(effTcoolthrs);
         driver.blank_time(p.blank_time);
         driver.toff(p.toff);
-        
+        // SpreadCycle chopper hysteresis — only has an effect once SpreadCycle
+        // actually runs, which is now the normal case.
+        driver.hstrt(p.hstrt);
+        driver.hend(p.hend);
+
+        driver.TPWMTHRS(tpwmthrs);
+        driver.en_spreadCycle(spreadAlways);
+
         if (saveToPrefs)
             writeParamsToPreferences(p);
-        
-        log_i("Apply Motor Settings: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i",
-              p.msteps, driver.microsteps(), p.rms_current, driver.rms_current(), p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff);
+
+        // The driver silently saturates at CS = 31; with R_SENSE = 0.2 Ohm that
+        // caps the achievable current near 1050 mA RMS. Surface it instead of
+        // letting a config quietly ask for a current the driver cannot deliver.
+        uint16_t actualCurrent = driver.rms_current();
+        if (p.rms_current > actualCurrent + (p.rms_current / 20))
+            log_w("TMC2209 current clipped: requested %u mA, driver delivers %u mA "
+                  "(CS saturated for R_SENSE=%.2f Ohm)",
+                  p.rms_current, actualCurrent, (double)R_SENSE);
+
+        log_i("Apply Motor Settings: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i, hstrt: %i, hend: %i, tpwmthrs: %i (@%i steps/s), en_spreadcycle: %i, internal_vref: %i, hold_mult: %i%%",
+              p.msteps, driver.microsteps(), p.rms_current, actualCurrent, p.stall_value, p.sgthrs, effSemin, effSemax, p.sedn, (int)effTcoolthrs, p.blank_time, p.toff,
+              p.hstrt, p.hend, (int)tpwmthrs, (int)p.tpwmthrs_sps, p.en_spreadcycle,
+              pinConfig.tmc_internal_vref ? 1 : 0, p.hold_mult_pct);
         #endif
+    }
+
+    // Presence test for keys whose *zero* is a meaningful setting (e.g. semin=0
+    // switches CoolStep off). The plain "val > 0" guards below cannot express
+    // that, but they still protect the fields where a stray 0 would disable the
+    // driver outright (toff) or make it step wrong (msteps, rms_current).
+    static bool jsonHasNumber(cJSON *jsonDocument, const char *key)
+    {
+        cJSON *val = cJSON_GetObjectItemCaseSensitive(jsonDocument, key);
+        return (val != NULL) && cJSON_IsNumber(val);
     }
 
     static void parseTMCDataFromJSON(cJSON *jsonDocument, TMCData &p)
@@ -107,15 +250,14 @@ namespace TMCController
         val = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
         if (val > 0)
             p.sgthrs = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "semin");
-        if (val > 0)
-            p.semin = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "semax");
-        if (val > 0)
-            p.semax = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "sedn");
-        if (val >= 0)
-            p.sedn = val;
+        // semin = 0 disables CoolStep, so these have to be presence-checked
+        // rather than value-checked or you could never switch CoolStep off.
+        if (jsonHasNumber(jsonDocument, "semin"))
+            p.semin = cJsonTool::getJsonInt(jsonDocument, "semin");
+        if (jsonHasNumber(jsonDocument, "semax"))
+            p.semax = cJsonTool::getJsonInt(jsonDocument, "semax");
+        if (jsonHasNumber(jsonDocument, "sedn"))
+            p.sedn = cJsonTool::getJsonInt(jsonDocument, "sedn");
         val = cJsonTool::getJsonInt(jsonDocument, "tcoolthrs");
         if (val > 0)
             p.tcoolthrs = val;
@@ -125,6 +267,23 @@ namespace TMCController
         val = cJsonTool::getJsonInt(jsonDocument, "toff");
         if (val > 0)
             p.toff = val;
+        // Chopper-mode controls — 0 is meaningful for all three
+        // (tpwmthrs_sps = 0 -> StealthChop always, en_spreadcycle = 0 -> hybrid).
+        if (jsonHasNumber(jsonDocument, "tpwmthrs_sps"))
+            p.tpwmthrs_sps = (uint32_t)cJsonTool::getJsonInt(jsonDocument, "tpwmthrs_sps");
+        if (jsonHasNumber(jsonDocument, "en_spreadcycle"))
+            p.en_spreadcycle = cJsonTool::getJsonInt(jsonDocument, "en_spreadcycle") ? 1 : 0;
+        if (jsonHasNumber(jsonDocument, "hstrt"))
+            p.hstrt = cJsonTool::getJsonInt(jsonDocument, "hstrt") & 0x07;
+        if (jsonHasNumber(jsonDocument, "hend"))
+            p.hend = cJsonTool::getJsonInt(jsonDocument, "hend") & 0x0F;
+        if (jsonHasNumber(jsonDocument, "hold_mult_pct"))
+        {
+            int hm = cJsonTool::getJsonInt(jsonDocument, "hold_mult_pct");
+            if (hm < 0) hm = 0;
+            if (hm > 100) hm = 100;
+            p.hold_mult_pct = (uint8_t)hm;
+        }
     }
 
     int act(cJSON *jsonDocument)
@@ -162,19 +321,8 @@ namespace TMCController
         if (tmc_reset)
         {
             log_i("Resetting TMC2209 settings to default");
-            preferences.begin("tmc", false);
-            preferences.putInt("msteps", pinConfig.tmc_microsteps);
-            preferences.putInt("current", pinConfig.tmc_rms_current);
-            preferences.putInt("stall", pinConfig.tmc_stall_value);
-            preferences.putInt("sgthrs", pinConfig.tmc_sgthrs);
-            preferences.putInt("semin", pinConfig.tmc_semin);
-            preferences.putInt("semax", pinConfig.tmc_semax);
-            preferences.putInt("sedn", pinConfig.tmc_sedn);
-            preferences.putInt("tcool", pinConfig.tmc_tcoolthrs);
-            preferences.putInt("blank", pinConfig.tmc_blank_time);
-            preferences.putInt("toff", pinConfig.tmc_toff);
-            preferences.end();
-            TMCData defaults = readParamsFromPreferences();
+            TMCData defaults = paramsFromPinConfig();
+            writeParamsToPreferences(defaults);
             applyParamsToDriver(defaults, false);
             return qid;
         }
@@ -205,12 +353,30 @@ namespace TMCController
         cJSON_AddNumberToObject(monitor_json, "tcoolthrs", p.tcoolthrs);
         cJSON_AddNumberToObject(monitor_json, "blank_time", p.blank_time);
         cJSON_AddNumberToObject(monitor_json, "toff", p.toff);
+        cJSON_AddNumberToObject(monitor_json, "tpwmthrs_sps", p.tpwmthrs_sps);
+        cJSON_AddNumberToObject(monitor_json, "tpwmthrs", tstepFromStepsPerSecond(p.tpwmthrs_sps, p.msteps));
+        cJSON_AddNumberToObject(monitor_json, "tpwmthrs_", driver.TPWMTHRS());
+        cJSON_AddNumberToObject(monitor_json, "en_spreadcycle", p.en_spreadcycle);
+        cJSON_AddNumberToObject(monitor_json, "en_spreadcycle_", driver.en_spreadCycle() ? 1 : 0);
+        cJSON_AddNumberToObject(monitor_json, "hold_mult_pct", p.hold_mult_pct);
+        cJSON_AddNumberToObject(monitor_json, "hstrt", p.hstrt);
+        cJSON_AddNumberToObject(monitor_json, "hend", p.hend);
+        cJSON_AddNumberToObject(monitor_json, "internal_vref", pinConfig.tmc_internal_vref ? 1 : 0);
+        cJSON_AddNumberToObject(monitor_json, "i_scale_analog_", driver.I_scale_analog() ? 1 : 0);
         cJSON_AddNumberToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());
         cJSON_AddNumberToObject(monitor_json, "current", driver.cs2rms(driver.cs_actual()));
         return monitor_json;
 #else
         return nullptr;
 #endif
+    }
+
+    uint16_t getMicrosteps()
+    {
+        // Reflect the persisted/config value (what was applied at boot) rather
+        // than a UART read-back, so this stays cheap and works even if the
+        // driver is momentarily unresponsive.
+        return readParamsFromPreferences().msteps;
     }
 
     uint16_t getTMCCurrent()
@@ -339,6 +505,8 @@ namespace TMCController
         // Necessary for TMC2208 to set microstep register with UART
         driver.mstep_reg_select(1);
         driver.intpol(true);
+
+        migratePreferencesIfNeeded();
 
         TMCData p = readParamsFromPreferences();
         applyParamsToDriver(p, false);

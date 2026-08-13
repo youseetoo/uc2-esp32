@@ -134,6 +134,20 @@ typedef struct {
     uint8_t  x2030_hardlimit_command[4];
     uint8_t  x2031_hardlimit_enabled[4];
     uint8_t  x2032_hardlimit_polarity[4];
+    // axis closed-loop feedback (0x2040-0x204B, design v2). Values in STEPS
+    // except x204B raw counts. Populated by AxisController via CANopen sync.
+    int32_t  x2040_axis_measured_steps[4];
+    int32_t  x2041_axis_position_error_steps[4];
+    uint8_t  x2042_axis_mode[4];
+    uint8_t  x2043_axis_health[4];
+    uint8_t  x2044_axis_fault[4];
+    uint8_t  x2045_axis_reset[4];
+    uint8_t  x2046_axis_calibrated[4];
+    uint8_t  x2047_axis_referenced[4];
+    uint8_t  x2048_axis_calibrate[4];
+    int32_t  x2049_axis_counts_per_step_q16[4];
+    int32_t  x204A_axis_backlash_steps[4];
+    int32_t  x204B_axis_raw_counts[4];
     // laser
     uint16_t x2100_laser_pwm_value[4];
     uint16_t x2101_laser_max_value[4];
@@ -250,6 +264,18 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_HOMING_ENDSTOP_RELEASE   OD_RAM.x2014_homing_endstop_release
 #define OD_HOMING_ENDSTOP_POLARITY  OD_RAM.x2015_homing_endstop_polarity
 #define OD_HOMING_STATUS            OD_RAM.x2016_homing_status
+#define OD_AXIS_MEASURED_STEPS      OD_RAM.x2040_axis_measured_steps
+#define OD_AXIS_POSITION_ERROR_STEPS OD_RAM.x2041_axis_position_error_steps
+#define OD_AXIS_MODE                OD_RAM.x2042_axis_mode
+#define OD_AXIS_HEALTH              OD_RAM.x2043_axis_health
+#define OD_AXIS_FAULT               OD_RAM.x2044_axis_fault
+#define OD_AXIS_RESET               OD_RAM.x2045_axis_reset
+#define OD_AXIS_CALIBRATED          OD_RAM.x2046_axis_calibrated
+#define OD_AXIS_REFERENCED          OD_RAM.x2047_axis_referenced
+#define OD_AXIS_CALIBRATE           OD_RAM.x2048_axis_calibrate
+#define OD_AXIS_COUNTS_PER_STEP_Q16 OD_RAM.x2049_axis_counts_per_step_q16
+#define OD_AXIS_BACKLASH_STEPS      OD_RAM.x204A_axis_backlash_steps
+#define OD_AXIS_RAW_COUNTS          OD_RAM.x204B_axis_raw_counts
 #define OD_LASER_PWM_VALUE          OD_RAM.x2100_laser_pwm_value
 #define OD_LED_ARRAY_MODE           OD_RAM.x2200_led_array_mode
 #define OD_LED_BRIGHTNESS           OD_RAM.x2201_led_brightness

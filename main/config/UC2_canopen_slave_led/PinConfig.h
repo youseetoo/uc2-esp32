@@ -36,16 +36,25 @@ struct UC2_canopen_slave_led : PinConfig
     /*
      UC2 Illumination Board (CANopen slave)
      ──────────────────────────────────────
-     Seeed XIAO ESP32S3 pin map:
-       D0  GPIO_NUM_1   – Touch electrode 1
-       D1  GPIO_NUM_2   – Touch electrode 2
+     Seeed XIAO ESP32S3 pin map (board rev. H):
+       D0  GPIO_NUM_1   – I2C SDA
+       D1  GPIO_NUM_2   – temperature-sensor_1  (NTC, ADC1_CH1)
        D2  GPIO_NUM_3   – NeoPixel data
        D3  GPIO_NUM_4   – White LED PWM         (exposed as logical laser 0)
        D4  GPIO_NUM_5   – CAN TX
        D5  GPIO_NUM_6   – CAN RX
-       D6  GPIO_NUM_43  – spare
-       D7  GPIO_NUM_44  – spare
-       D8  GPIO_NUM_7   – spare
+       D6  GPIO_NUM_43  – I2C SCL
+       D7  GPIO_NUM_44  – fan tacho
+       D8  GPIO_NUM_7   – temperature-sensor_4  (NTC, ADC1_CH6)
+       D9  GPIO_NUM_8   – temperature-sensor_3  (NTC, ADC1_CH7)
+       D10 GPIO_NUM_9   – temperature-sensor_2  (NTC, ADC1_CH8)
+
+     Rev. H adds heat-sink monitoring: four NCP15XH103F03RC 10k NTCs, each
+     wired 3V3 -> NTC -> node -> 1k -> GND and buffered by an LM324, plus a
+     hardware over-temperature cut-off of the NeoPixel +5V supply. All four
+     sensor pins are on ADC1. Boards older than rev. H have no thermistors —
+     they simply leave thermal_enabled_default off (see below), or it can be
+     switched off at runtime with {"task":"/temp_act","enabled":0}.
 
      Single CANopen node ID (CAN_ID_LED_0, default 30) covers BOTH the
      LED ring and the PWM laser. The master addresses this node through
@@ -60,9 +69,13 @@ struct UC2_canopen_slave_led : PinConfig
     // prints all the ISO TP Stuff - leave off in CANopen mode
     bool DEBUG_CAN_ISO_TP = 0;
 
-    // ── Touch sensor inputs ───────────────────────────────────────────────
-    int8_t TOUCH_1 = GPIO_NUM_1; // D0
-    int8_t TOUCH_2 = GPIO_NUM_2; // D1
+    // ── Heat-sink thermistors (rev. H) ────────────────────────────────────
+    // Numbered as on the schematic: temperature-sensor_1..4.
+    int8_t thermal_PIN_0 = GPIO_NUM_2; // D1  – temperature-sensor_1
+    int8_t thermal_PIN_1 = GPIO_NUM_9; // D10 – temperature-sensor_2
+    int8_t thermal_PIN_2 = GPIO_NUM_8; // D9  – temperature-sensor_3
+    int8_t thermal_PIN_3 = GPIO_NUM_7; // D8  – temperature-sensor_4
+    bool thermal_enabled_default = true;
 
     // ── NeoPixel ring stack ───────────────────────────────────────────────
     uint8_t LED_PIN = GPIO_NUM_3; // D2 – RGB ring data
@@ -142,14 +155,16 @@ struct UC2_canopen_slave_led : PinConfig
     int8_t ROUTE_LASER[4] = {0, 2, 2, 2}; // ch0 LOCAL (PWM), ch1..3 OFF
     int8_t ROUTE_LASER_4  = 2;            // no extra laser on this board
 
-    // ── I2C disabled ──────────────────────────────────────────────────────
+    // ── I2C ───────────────────────────────────────────────────────────────
+    // Routed on rev. H (SDA = D0/GPIO1, SCL = D6/GPIO43) but left disabled
+    // until something on the bus is actually driven from firmware.
     int8_t I2C_SCL = -1;
     int8_t I2C_SDA = -1;
 
-    // ── Spare pins (J1101) ────────────────────────────────────────────────
-    int8_t UNUSED_1 = GPIO_NUM_43; // D6
-    int8_t UNUSED_2 = GPIO_NUM_44; // D7
-    int8_t UNUSED_3 = GPIO_NUM_7;  // D8
+    // ── Fan ───────────────────────────────────────────────────────────────
+    // Tacho feedback from the fan socket. The speed itself is set by the
+    // board's software-controlled voltage output, which is not driven yet.
+    int8_t FAN_TACHO_PIN = GPIO_NUM_44; // D7
 };
 
 const UC2_canopen_slave_led pinConfig;

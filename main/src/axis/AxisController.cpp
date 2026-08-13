@@ -1,0 +1,1211 @@
+#include "AxisController.h"
+#include "EncoderBackend.h"
+#include "AxisWatchdog.h"
+#include "AxisNotify.h"
+#include "AxisPID.h"
+#include "EncoderMonitor.h"
+#include <PinConfig.h>
+#include "esp_log.h"
+#include "esp_task_wdt.h"
+#include "cJSON.h"
+#include "../serial/SerialProcess.h"
+#include "../motor/MotorTypes.h" // Stepper enum, MotorData (header-only)
+
+#ifdef MOTOR_CONTROLLER
+#include "../motor/FocusMotor.h"
+#endif
+#if defined(MOTOR_CONTROLLER) && defined(USE_FASTACCEL)
+#include "../motor/FAccelStep.h" // setLiveSpeed for the SERVO loop
+#define AXIS_SERVO_AVAILABLE 1
+#endif
+#ifdef TMC_CONTROLLER
+#include "../tmc/TMCController.h"
+#endif
+
+static const char *TAG = "AxisCtrl";
+
+#ifndef MOTOR_AXIS_COUNT
+#define MOTOR_AXIS_COUNT 4
+#endif
+
+// Default PCNT unit for the encoder (UNIT_0 is reserved for FastAccelStepper).
+#ifndef AXIS_ENC_PCNT_UNIT
+#define AXIS_ENC_PCNT_UNIT 1
+#endif
+// Default glitch filter for the encoder input.
+#ifndef AXIS_ENC_GLITCH_FILTER
+#define AXIS_ENC_GLITCH_FILTER 1
+#endif
+
+// FastAccelStepper backs at most 4 physical steppers (A/X/Y/Z). The motor data
+// arrays are MOTOR_AXIS_COUNT wide, but indexing the FAS layer beyond this is
+// out of bounds — never touch FAS for axes >= this.
+static constexpr int AXIS_MAX_STEPPERS = 4;
+
+namespace AxisController
+{
+    // Move-job stage for MONITOR/CORRECT (SERVO uses the servo task).
+    enum MoveStage : uint8_t
+    {
+        MJ_IDLE = 0,
+        MJ_RUNNING,    // open-loop move in flight
+        MJ_VERIFY,     // move done; check error
+        MJ_CORRECTING  // corrective move in flight
+    };
+
+    struct AxisState
+    {
+        EncoderBackend       encoder;
+        AxisCalibration      cal;
+        AxisFeedback         fb;
+        AxisWatchdog::Config wdCfg;
+        AxisWatchdog::State  wdState;
+        bool                 hasEnc = false;
+        int32_t              originSteps = 0; // step position at the encoder origin
+        // originCounts is always 0 (we zero the hardware counter at the origin).
+        // Deferred requests set from another task (CANopen), consumed in loop().
+        volatile int8_t      reqMode = -1;      // -1 = none
+        volatile int8_t      reqReset = -1;     // -1 = none, else AxisResetPolicy
+        volatile bool        reqCalibrate = false;
+        volatile bool        reqEncTable = false;
+        volatile int32_t     reqEncTablePoints = 0;
+        volatile int32_t     reqEncTableStep = 0;
+        volatile int32_t     reqEncTableSpeed = 0;
+
+        // Mode actually driving the CURRENT move. Differs from fb.mode when a
+        // per-move {"closedloop":N} override is in play. The watchdog keys off
+        // THIS, so an explicitly open-loop move is never stopped by feedback.
+        uint8_t  activeMode = MODE_OPEN_LOOP;
+
+        // ---- move job (MONITOR/CORRECT), driven in loop() ----
+        uint8_t  moveStage = MJ_IDLE;
+        int32_t  targetSteps = 0;     // absolute target of the current job
+        int32_t  moveSpeed = 0;
+        uint8_t  correctRetries = 0;
+        int8_t   lastMoveDir = 0;     // last commanded direction (backlash)
+        bool     reversalMove = false; // widen verify tolerance for this move
+
+        // ---- derived thresholds (from calibration scatter/backlash) ----
+        int32_t  verifyTolSteps = 4;
+        int32_t  divergenceThresholdSteps = 20;
+        int32_t  backlashSteps = 0;
+
+        // ---- SERVO (driven by the servo task) ----
+        AxisPID  pid;
+        volatile bool servoActive = false;  // servo task should drive this axis
+        volatile bool servoArrived = false; // task -> loop: reached target, finalize
+    };
+
+    // Correction bounds (design v2, WP6).
+    static constexpr int32_t kMaxCorrectionSteps = 5000; // clamp per corrective move
+    static constexpr uint8_t kMaxCorrectionRetries = 2;
+    static constexpr int32_t kCorrectionSpeed = 2000;    // steps/s for corrections
+
+    static AxisState g_axes[MOTOR_AXIS_COUNT];
+    static bool g_setupDone = false;
+
+    // ------------------------------------------------------------------ helpers
+    static uint16_t currentMicrosteps()
+    {
+#ifdef TMC_CONTROLLER
+        uint16_t ms = TMCController::getMicrosteps();
+        if (ms == 0)
+            ms = (uint16_t)pinConfig.tmc_microsteps;
+        return ms;
+#else
+        return (uint16_t)pinConfig.tmc_microsteps;
+#endif
+    }
+
+    static int32_t commandedStepsOf(int axis)
+    {
+#ifdef MOTOR_CONTROLLER
+        if (axis < 0 || axis >= AXIS_MAX_STEPPERS)
+            return 0; // no FAS stepper backs this index — avoid OOB access
+        return (int32_t)FocusMotor::getCurrentMotorPosition(axis);
+#else
+        (void)axis;
+        return 0;
+#endif
+    }
+
+    static bool axisMoving(int axis)
+    {
+#ifdef MOTOR_CONTROLLER
+        if (axis < 0 || axis >= AXIS_MAX_STEPPERS)
+            return false;
+        return FocusMotor::isRunning(axis);
+#else
+        (void)axis;
+        return false;
+#endif
+    }
+
+    // |commanded speed| in steps/s for the axis (gates the watchdog).
+    static int32_t commandedSpeedOf(int axis)
+    {
+#ifdef MOTOR_CONTROLLER
+        MotorData **d = FocusMotor::getData();
+        if (d && d[axis])
+            return abs((int32_t)d[axis]->speed);
+#endif
+        (void)axis;
+        return 0;
+    }
+
+    // Derive watchdog thresholds from the measured encoder noise. Called after a
+    // calibration is loaded/produced so tolerances follow real scatter.
+    static void configureWatchdog(int axis)
+    {
+        AxisState &a = g_axes[axis];
+        AxisWatchdog::Config &c = a.wdCfg;
+        // "Progress" must clear a few sigma of quantisation noise.
+        uint16_t scatter = a.cal.valid ? a.cal.residualScatter : 3;
+        if (scatter < 1)
+            scatter = 1;
+        c.noiseThresholdCounts = (uint16_t)(scatter * 3);
+        if (c.noiseThresholdCounts < 2)
+            c.noiseThresholdCounts = 2;
+        // Lag limit: a generous multiple of scatter expressed in steps, so a
+        // genuine lost-step burst trips but calibrated backlash does not.
+        if (a.cal.valid)
+        {
+            int32_t scatterSteps = abs(axisCountsToSteps(a.cal, (int64_t)scatter * 8));
+            a.backlashSteps = abs(axisCountsToSteps(a.cal, a.cal.backlashCounts));
+            c.lagLimitSteps = scatterSteps + a.backlashSteps + 20;
+
+            // Verify tolerance (CORRECT) and divergence threshold (MONITOR) also
+            // follow measured noise: a couple of sigma for verify, more for a
+            // divergence alert.
+            int32_t sigmaSteps = abs(axisCountsToSteps(a.cal, scatter));
+            a.verifyTolSteps = sigmaSteps * 2 + 2;
+            a.divergenceThresholdSteps = sigmaSteps * 4 + a.backlashSteps + 4;
+        }
+        c.enabled = a.hasEnc;
+    }
+
+    // Re-zero the encoder and pin the current step position as the origin.
+    static void reanchorOrigin(int axis)
+    {
+        AxisState &a = g_axes[axis];
+        if (!a.hasEnc)
+            return;
+        a.encoder.zero();
+        a.originSteps = commandedStepsOf(axis);
+    }
+
+    // Is the axis being forced to abort (endstop / e-stop)? Used by calibration.
+    static bool axisAborted(int axis)
+    {
+#ifdef MOTOR_CONTROLLER
+        MotorData **d = FocusMotor::getData();
+        if (d && d[axis])
+            return d[axis]->hardLimitTriggered || d[axis]->endstop_hit;
+#endif
+        (void)axis;
+        return false;
+    }
+
+    // Blocking relative move used only by the on-demand calibration routine.
+    // Defined below (move-job section); used by the calibration probe moves.
+    static void issueMove(int axis, int32_t target, int32_t speed, bool isRelative,
+                          int32_t accel);
+
+    // Acceleration for calibration probe moves. Explicit so the probes aren't
+    // stuck with whatever a previous move left behind (FocusMotor::moveMotor
+    // used to hardcode 1000, making each 500-step probe take ~1.4 s).
+    static constexpr int32_t kCalProbeAccel = 40000;
+
+    // Delay that keeps the task watchdog fed. Calibration blocks the main loop
+    // task (which owns the TWDT subscription and normally feeds it once per
+    // iteration) for tens of seconds, so every wait inside the routine MUST
+    // feed the WDT or the node panics with "task_wdt: - loop (CPU 1)".
+    // esp_task_wdt_reset() is harmless (ESP_ERR_NOT_FOUND) on unsubscribed tasks.
+    static void wdtDelay(uint32_t ms)
+    {
+        esp_task_wdt_reset();
+        delay(ms);
+    }
+
+    static bool blockingRelMove(int axis, int32_t deltaSteps, int32_t speed)
+    {
+#ifdef MOTOR_CONTROLLER
+        if (axisAborted(axis))
+            return false;
+        issueMove(axis, deltaSteps, abs(speed), true /*relative*/, kCalProbeAccel);
+
+        const uint32_t startTimeoutMs = 300;
+        const uint32_t moveTimeoutMs = 15000;
+        uint32_t t0 = millis();
+        // Wait for the motor to actually start.
+        while (!FocusMotor::isRunning(axis) && (millis() - t0) < startTimeoutMs)
+        {
+            if (axisAborted(axis))
+                return false;
+            wdtDelay(1);
+        }
+        // Wait for completion.
+        while (FocusMotor::isRunning(axis))
+        {
+            if (axisAborted(axis))
+            {
+                FocusMotor::stopStepper(axis);
+                return false;
+            }
+            if ((millis() - t0) > moveTimeoutMs)
+            {
+                FocusMotor::stopStepper(axis);
+                log_e("blockingRelMove ax%d timed out", axis);
+                return false;
+            }
+            wdtDelay(2);
+        }
+        esp_task_wdt_reset(); // settle period follows in the routine
+        return true;
+#else
+        (void)axis; (void)deltaSteps; (void)speed;
+        return false;
+#endif
+    }
+
+    // Latch a fault: stop the axis, mark health, and fire an async notification.
+    // Motion stays refused until resetAxis() clears it (enforced in moveTo).
+    static void raiseFault(int axis, AxisFault fault)
+    {
+        AxisState &a = g_axes[axis];
+        a.fb.fault = fault;
+        a.fb.health = HEALTH_FAULT;
+#ifdef MOTOR_CONTROLLER
+        FocusMotor::stopStepper(axis);
+#endif
+        AxisNotify::Event e;
+        e.axis = (uint8_t)axis;
+        e.fault = (uint8_t)fault;
+        e.posErrSteps = a.fb.positionErrorSteps;
+        e.commandedSteps = a.fb.commandedSteps;
+        e.measuredSteps = a.fb.measuredSteps;
+        AxisNotify::report(e);
+        log_w("axis %d FAULT %d (posErr=%d) — motion latched", axis, fault,
+                 a.fb.positionErrorSteps); 
+    }
+
+    // Recompute one axis's feedback from the encoder (or identity if none).
+    static void updateFeedback(int axis)
+    {
+        /*
+        This function is called from the main loop task, so it can safely call
+        FocusMotor::getCurrentMotorPosition() to get the commanded position. 
+        It also reads the encoder count and applies the calibration to compute the
+        measured position and position error.
+        If the axis has no encoder, it sets the measured position equal to the 
+        commanded position and the position error to zero.
+        It also updates the raw encoder count and the mode in the feedback struct 
+
+        */
+        AxisState &a = g_axes[axis];
+        int32_t commanded = commandedStepsOf(axis); // TODO: This is unclear to me as this is the current position of the stepper, but we want to know the target position of the stepper. Maybe we need to change this to getTargetMotorPosition() instead?
+        a.fb.commandedSteps = commanded;
+
+        if (!a.hasEnc)
+        {
+            // Identity feedback so downstream code never branches.
+            a.fb.measuredSteps = commanded;
+            a.fb.positionErrorSteps = 0;
+            a.fb.rawCounts = 0;
+            a.fb.mode = MODE_OPEN_LOOP;
+            return;
+        }
+
+        int64_t raw = a.encoder.getCount();
+        a.fb.rawCounts = raw;
+        if (a.cal.valid) // TODO: This is never called or rather never valid?
+        {
+            int32_t measured = a.originSteps + axisCountsToSteps(a.cal, raw);
+            a.fb.measuredSteps = measured;
+            a.fb.positionErrorSteps = measured - commanded; // measured and commanded are both in step units
+            // Throttled: this used to log EVERY loop (~30 ms), which floods the
+            // shared UART and interleaves into (i.e. corrupts) the JSON replies.
+            static uint32_t s_lastFbLogMs[MOTOR_AXIS_COUNT] = {0};
+            static int32_t  s_lastFbErr[MOTOR_AXIS_COUNT] = {0};
+            uint32_t nowMs = millis();
+            if (a.fb.positionErrorSteps != s_lastFbErr[axis] &&
+                (nowMs - s_lastFbLogMs[axis]) >= 500)
+            {
+                s_lastFbLogMs[axis] = nowMs;
+                s_lastFbErr[axis] = a.fb.positionErrorSteps;
+                log_i("axis %d: commanded=%d measured=%d posErr=%d rawCounts=%lld",
+                      axis, commanded, measured, a.fb.positionErrorSteps, raw);
+            }
+        }
+        else
+        {
+            // No scale yet: cannot express counts as steps. Report identity for
+            // position but keep rawCounts visible for diagnostics.
+            a.fb.measuredSteps = commanded;
+            a.fb.positionErrorSteps = 0;
+            log_i("axis %d: feedback updated — commanded=%d measured=%d posErr=%d rawCounts=%lld (no cal)",
+                  axis, commanded, a.fb.measuredSteps, a.fb.positionErrorSteps, raw);
+        }
+        a.fb.calibrated = a.cal.valid;
+    }
+
+    // ------------------------------------------------------------------ mapping
+    // Decide which logical axis index the wired encoder pins belong to, and
+    // return the A/B pins + inversion for that axis. Returns false if the axis
+    // has no encoder.
+    static bool encoderPinsForAxis(int axis, int8_t &a, int8_t &b, bool &invert)
+    {
+#ifdef CAN_CONTROLLER_CANOPEN
+        // On a CAN slave there is ONE physical motor+encoder, wired to the
+        // ENC_X_* pins, representing the node's LOGICAL axis. Map the wired
+        // pins to REMOTE_MOTOR_AXIS_ID instead of hardcoding X (WP2 req #2).
+        if (axis == (int)pinConfig.REMOTE_MOTOR_AXIS_ID)
+        {
+            log_i("axis %d: encoder pins A=%d B=%d invert=%d", axis, pinConfig.ENC_X_A, pinConfig.ENC_X_B, !pinConfig.ENC_X_encoderDirection);
+            a = pinConfig.ENC_X_A;
+            b = pinConfig.ENC_X_B;
+            invert = !pinConfig.ENC_X_encoderDirection;
+            return (a >= 0 && b >= 0);
+        }
+        return false;
+#else
+        // Standalone: X/Y/Z map to their own ENC_* pins.
+        switch (axis)
+        {
+        case Stepper::X:
+            a = pinConfig.ENC_X_A; b = pinConfig.ENC_X_B;
+            invert = !pinConfig.ENC_X_encoderDirection;
+            return (a >= 0 && b >= 0);
+        case Stepper::Y:
+            a = pinConfig.ENC_Y_A; b = pinConfig.ENC_Y_B;
+            invert = !pinConfig.ENC_Y_encoderDirection;
+            return (a >= 0 && b >= 0);
+        case Stepper::Z:
+            a = pinConfig.ENC_Z_A; b = pinConfig.ENC_Z_B;
+            invert = !pinConfig.ENC_Z_encoderDirection;
+            return (a >= 0 && b >= 0);
+        default:
+            return false;
+        }
+#endif
+    }
+
+    // ---------------------------------------------------- move-job / servo (WP6/7)
+
+    // Adopt the encoder-derived position as truth: push it into FAS so the next
+    // ABSOLUTE move computes from the corrected origin (design §3.2 — must call
+    // setCurrentPosition, not just update a struct field), and re-anchor so the
+    // reported position error is zero.
+    static void adoptEncoderPosition(int axis)
+    {
+#ifdef MOTOR_CONTROLLER
+        AxisState &a = g_axes[axis];
+        if (!a.hasEnc || !a.cal.valid)
+            return;
+        int32_t measured = a.originSteps + axisCountsToSteps(a.cal, a.encoder.getCount());
+        FocusMotor::setPosition(static_cast<Stepper>(axis), measured);
+        a.originSteps = measured;
+        a.encoder.zero();
+#else
+        (void)axis;
+#endif
+    }
+
+    // Async DIVERGENCE notification (does NOT stop/latch — that's for the
+    // watchdog faults). Sets health=DEGRADED at the call site.
+    static void notifyDivergence(int axis)
+    {
+        AxisState &a = g_axes[axis];
+        AxisNotify::Event e;
+        e.axis = (uint8_t)axis;
+        e.fault = (uint8_t)FAULT_DIVERGENCE;
+        e.posErrSteps = a.fb.positionErrorSteps;
+        e.commandedSteps = a.fb.commandedSteps;
+        e.measuredSteps = a.fb.measuredSteps;
+        AxisNotify::report(e);
+    }
+
+    // Issue a stepper move like FocusMotor::moveMotor, but WITHOUT clobbering the
+    // caller-configured acceleration (moveMotor hardcodes 1000). Preserves the
+    // qid set by the dispatch layer so completion reporting still works.
+    static void issueMove(int axis, int32_t target, int32_t speed, bool isRelative,
+                          int32_t accel)
+    {
+#ifdef MOTOR_CONTROLLER
+        MotorData *d = FocusMotor::getData()[axis];
+        if (!d)
+            return;
+        d->targetPosition = target;
+        d->isforever = false;
+        d->absolutePosition = !isRelative;
+        d->isStop = false;
+        d->stopped = false;
+        d->speed = speed;
+        if (accel > 0)
+            d->acceleration = accel;
+        else if (d->acceleration <= 0)
+            d->acceleration = 40000;
+        FocusMotor::startStepper(axis, 0);
+#else
+        (void)axis; (void)target; (void)speed; (void)isRelative; (void)accel;
+#endif
+    }
+
+    // Start an open-loop absolute move, optionally with backlash feed-forward on
+    // a direction reversal (CORRECT mode).
+    static void startOpenLoopMove(int axis, int32_t absTarget, int32_t speed, bool applyBacklash)
+    {
+#ifdef MOTOR_CONTROLLER
+        AxisState &a = g_axes[axis];
+        int32_t cur = commandedStepsOf(axis);
+        int8_t dir = (absTarget > cur) ? 1 : (absTarget < cur ? -1 : 0);
+        bool reversal = applyBacklash && a.backlashSteps > 0 && dir != 0 &&
+                        a.lastMoveDir != 0 && dir != a.lastMoveDir;
+        int32_t olTarget = reversal ? absTarget + dir * a.backlashSteps : absTarget;
+        a.reversalMove = reversal;
+        if (dir != 0)
+            a.lastMoveDir = dir;
+        issueMove(axis, olTarget, speed, false /*absolute*/, 0 /*keep accel*/);
+#else
+        (void)axis; (void)absTarget; (void)speed; (void)applyBacklash;
+#endif
+    }
+
+    // MONITOR/CORRECT state machine, ticked once per axis in loop().
+    static void driveMoveJob(int axis)
+    {
+        AxisState &a = g_axes[axis];
+        if (a.moveStage == MJ_IDLE)
+            return;
+
+        switch (a.moveStage)
+        {
+        case MJ_RUNNING:
+            if (axisMoving(axis))
+                return; // open-loop move still in flight
+            if (a.fb.mode == MODE_MONITOR)
+            {
+                // MONITOR never corrects — only alerts on divergence.
+                if (abs(a.fb.positionErrorSteps) > a.divergenceThresholdSteps)
+                {
+                    a.fb.health = HEALTH_DEGRADED;
+                    a.fb.fault = FAULT_DIVERGENCE;
+                    notifyDivergence(axis);
+                }
+                a.moveStage = MJ_IDLE;
+            }
+            else // CORRECT
+            {
+                a.moveStage = MJ_VERIFY;
+            }
+            break;
+
+        case MJ_VERIFY:
+        {
+            int32_t err = a.targetSteps - a.fb.measuredSteps;
+            int32_t tol = a.verifyTolSteps + (a.reversalMove ? a.backlashSteps : 0);
+            if (abs(err) <= tol)
+            {
+                adoptEncoderPosition(axis); // encoder is truth after each move
+                a.moveStage = MJ_IDLE;
+                a.reversalMove = false;
+            }
+            else if (a.correctRetries == 0)
+            {
+                // Out of tolerance after all retries: degrade + alert, but still
+                // adopt the measured truth so the next move starts corrected.
+                a.fb.health = HEALTH_DEGRADED;
+                a.fb.fault = FAULT_DIVERGENCE;
+                notifyDivergence(axis);
+                adoptEncoderPosition(axis);
+                a.moveStage = MJ_IDLE;
+                a.reversalMove = false;
+            }
+            else
+            {
+                a.correctRetries--;
+                int32_t corr = err;
+                if (corr > kMaxCorrectionSteps) corr = kMaxCorrectionSteps;
+                if (corr < -kMaxCorrectionSteps) corr = -kMaxCorrectionSteps;
+                issueMove(axis, corr, kCorrectionSpeed, true /*relative*/, 0 /*keep accel*/);
+                a.moveStage = MJ_CORRECTING;
+            }
+            break;
+        }
+
+        case MJ_CORRECTING:
+            if (!axisMoving(axis))
+                a.moveStage = MJ_VERIFY; // re-check after the corrective move
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    // Begin a SERVO move. Falls back to CORRECT-style handling if the FAS live
+    // set-speed path is unavailable (e.g. AccelStep builds).
+    static void startServo(int axis, int32_t absTarget, int32_t speed)
+    {
+        AxisState &a = g_axes[axis];
+        a.targetSteps = absTarget;
+#ifdef AXIS_SERVO_AVAILABLE
+        int32_t targetCounts = (int32_t)axisStepsToCounts(a.cal, absTarget - a.originSteps);
+        a.pid.maxVelocity = (speed > 0) ? (float)speed : a.pid.maxVelocity;
+
+        // Arrival tolerance must live ABOVE the measured encoder noise floor —
+        // a tolerance tighter than residualScatter can never be satisfied, so
+        // the servo would hunt forever and never report "arrived".
+        uint16_t scatter = a.cal.valid ? a.cal.residualScatter : 3;
+        if (scatter < 1)
+            scatter = 1;
+        a.pid.positionTolerance = (int32_t)scatter;
+        if (a.pid.positionTolerance < 2)
+            a.pid.positionTolerance = 2;
+        // FAR -> NEAR switch a good margin outside the noise band.
+        a.pid.nearThreshold = a.pid.positionTolerance * 8;
+
+        a.pid.setTarget(targetCounts, (int32_t)a.encoder.getCount());
+        a.moveStage = MJ_IDLE;
+        a.servoArrived = false;
+#ifdef MOTOR_CONTROLLER
+        // Reflect the servo's commanded speed into MotorData so the watchdog's
+        // minimum-speed gate stays armed while the servo drives the axis.
+        {
+            MotorData *d = FocusMotor::getData()[axis];
+            if (d)
+            {
+                d->speed = (speed > 0) ? speed : (int32_t)a.pid.maxVelocity;
+                d->isforever = true; // continuous-mode; servo owns the velocity
+                d->stopped = false;
+            }
+        }
+#endif
+        a.servoActive = true; // set last: the servo task starts driving now
+#else
+        a.correctRetries = kMaxCorrectionRetries;
+        startOpenLoopMove(axis, absTarget, speed, true);
+        a.moveStage = MJ_RUNNING;
+#endif
+    }
+
+#ifdef AXIS_SERVO_AVAILABLE
+    // Dedicated 1 kHz PID task (core 0) so CAN servicing on core 1 is never
+    // blocked. Applies velocity via the mutex-free FAS set-speed path.
+    static void servoTask(void *)
+    {
+        log_i("Axis servo task started on core %d", xPortGetCoreID());
+        for (;;)
+        {
+            for (int axis = 0; axis < AXIS_MAX_STEPPERS; axis++)
+            {
+                AxisState &a = g_axes[axis];
+                if (!a.servoActive)
+                    continue;
+                if (a.fb.health == HEALTH_FAULT)
+                {
+                    // Watchdog latched a fault — stop servoing immediately.
+                    a.servoActive = false;
+                    FAccelStep::setLiveSpeed(axis, 0);
+                    continue;
+                }
+                int32_t cur = (int32_t)a.encoder.getCount();
+                float v = a.pid.compute(cur);
+                if (a.pid.isComplete())
+                {
+                    a.servoActive = false;
+                    a.servoArrived = true; // loop() finalizes (stop + adopt)
+                    FAccelStep::setLiveSpeed(axis, 0);
+
+                    continue;
+                }
+                // CRITICAL: the PID error lives in COUNT space, the velocity
+                // command in STEP space. When countSign is -1 (+steps produce
+                // -counts) the raw command drives the axis AWAY from the target
+                // — positive feedback, i.e. a full-speed runaway that only the
+                // watchdog stops. Map count-space -> step-space with countSign.
+                int32_t cmd = (int32_t)v * (int32_t)a.cal.countSign;
+                FAccelStep::setLiveSpeed(axis, cmd);
+            }
+            vTaskDelay(1); // ~1 kHz
+        }
+    }
+#endif
+
+    // Cancel any in-flight move job / servo for the axis.
+    static void cancelMotion(int axis)
+    {
+        AxisState &a = g_axes[axis];
+        a.moveStage = MJ_IDLE;
+        a.servoActive = false;
+        a.servoArrived = false;
+        a.pid.stop();
+#ifdef AXIS_SERVO_AVAILABLE
+        FAccelStep::setLiveSpeed(axis, 0);
+#endif
+    }
+
+    // --------------------------------------------------------------------- API
+    void setup()
+    {
+        if (g_setupDone)
+            return;
+
+        for (int axis = 0; axis < MOTOR_AXIS_COUNT; axis++)
+        {
+            AxisState &a = g_axes[axis];
+            a.fb = AxisFeedback();
+
+            int8_t pinA = -1, pinB = -1;
+            bool invert = false;
+            // Only axes backed by a real FAS stepper can be feedback-controlled.
+            if (axis < AXIS_MAX_STEPPERS && encoderPinsForAxis(axis, pinA, pinB, invert))
+            {
+                log_i("axis %d: encoder pins A=%d B=%d invert=%d", axis, pinA, pinB, invert);
+                a.hasEnc = a.encoder.begin(pinA, pinB, invert,
+                                           AXIS_ENC_PCNT_UNIT, AXIS_ENC_GLITCH_FILTER);
+            }
+
+            if (a.hasEnc)
+            {
+
+                log_w("axis %d: encoder present, loading calibration", axis);
+                // Load calibration, then apply the microstep-change rule.
+                if (AxisCalibrationStore::load(axis, a.cal))
+                {
+                    log_i("axis %d: loaded calibration (valid=%d, scatter=%d, backlash=%d)",
+                          axis, a.cal.valid, a.cal.residualScatter, a.cal.backlashCounts);
+                    uint16_t ms = currentMicrosteps();
+                    if (AxisCalibrationStore::applyMicrostepRule(a.cal, ms))
+                    {
+                        // Rescaled from a different microstep setting: keep
+                        // motion, but flag CAL_INVALID as a WARNING.
+                        a.fb.fault = FAULT_CAL_INVALID;
+                        a.fb.health = HEALTH_OK;
+                        AxisCalibrationStore::save(axis, a.cal);
+                        log_i("axis %d: rescaled calibration to %d microsteps (scatter=%d, backlash=%d)",
+                              axis, ms, a.cal.residualScatter, a.cal.backlashCounts);
+                    }
+                }
+                a.fb.calibrated = a.cal.valid;
+                configureWatchdog(axis); // TODO: Do we actually need this? 
+                reanchorOrigin(axis);  // TODO: Do we actually need this? 
+                AxisWatchdog::reset(a.wdState);
+                // MONITOR is the safe default once an encoder is present and
+                // calibrated; otherwise stay OPEN_LOOP until calibrated.
+                a.fb.mode = a.cal.valid ? MODE_MONITOR : MODE_OPEN_LOOP;
+                log_i( "axis %d: encoder present (cal=%d, mode=%d)",
+                         axis, a.cal.valid, a.fb.mode);
+            }
+            else
+            {
+                a.fb.mode = MODE_OPEN_LOOP;
+            }
+        }
+
+#ifdef AXIS_SERVO_AVAILABLE
+        // One PID task services all SERVO-mode axes; pinned to core 0 so the
+        // 1 kHz loop never contends with CAN servicing on core 1.
+        static TaskHandle_t s_servoTask = nullptr;
+        if (s_servoTask == nullptr)
+        {
+            xTaskCreatePinnedToCore(servoTask, "axisServo", 4096, nullptr,
+                                    configMAX_PRIORITIES - 3, &s_servoTask, 0);
+        }
+#endif
+        g_setupDone = true;
+    }
+
+    void loop()
+    {
+        if (!g_setupDone)
+            return;
+        // Only FAS-backed axes have live positions; higher indices keep their
+        // default identity feedback.
+        int n = (MOTOR_AXIS_COUNT < AXIS_MAX_STEPPERS) ? MOTOR_AXIS_COUNT : AXIS_MAX_STEPPERS;
+        uint32_t now = millis();
+        for (int axis = 0; axis < n; axis++) // TODO: We only have one encoder per esp32 for now 
+        {
+            // Consume deferred requests (set from the CANopen task) on THIS task.
+            AxisState &st = g_axes[axis];
+            if (st.reqMode >= 0)
+            {
+                uint8_t m = (uint8_t)st.reqMode;
+                st.reqMode = -1;
+                log_i("axis %d: deferred setMode(%d)", axis, m);
+                setMode(axis, (AxisMode)m);
+            }
+            if (st.reqReset >= 0)
+            {
+                uint8_t p = (uint8_t)st.reqReset;
+                st.reqReset = -1;
+                log_i("axis %d: deferred resetAxis(%d)", axis, p);
+                resetAxis(axis, (AxisResetPolicy)p);
+            }
+            if (st.reqEncTable)
+            {
+                st.reqEncTable = false;
+                int pts = (int)st.reqEncTablePoints;
+                int32_t sz = st.reqEncTableStep;
+                int32_t sp = st.reqEncTableSpeed;
+                log_i("axis %d: deferred encoderTable()", axis);
+                encoderTable(axis, pts, sz, sp); // blocking, WDT-fed
+            }
+            if (st.reqCalibrate)
+            {
+                st.reqCalibrate = false;
+                log_i("axis %d: deferred calibrateAxis()", axis);
+                calibrateAxis(axis); // blocking — fine on the main loop task
+            }
+            // Update the feedback struct from the encoder (or identity if none).
+            updateFeedback(axis);
+
+            // Periodic encoder liveness monitor (reuses this iteration's count
+            // sample — no extra PCNT access). No-op unless enabled via
+            // {"encmonitor":<ms>} / EncoderMonitor::setPeriod.
+            AxisState &a = g_axes[axis];
+            if (a.hasEnc)
+                EncoderMonitor::tick(axis, a.fb.rawCounts, now);
+
+            // Fast blocking/stall watchdog. Skipped when the axis (or this
+            // move, via {"closedloop":0}) is OPEN_LOOP: open loop means the
+            // host owns responsibility for the move, so firmware must never
+            // stop or latch on encoder feedback there. Also skipped without an
+            // encoder or while a fault is already latched.
+            if (!a.hasEnc || a.fb.health == HEALTH_FAULT ||
+                a.activeMode == MODE_OPEN_LOOP)
+                continue;
+            AxisWatchdog::Trip trip = AxisWatchdog::update(
+                a.wdCfg, a.wdState, axisMoving(axis), commandedSpeedOf(axis),
+                a.fb.rawCounts, a.fb.positionErrorSteps, now);
+            if (trip == AxisWatchdog::TRIP_STALL)
+            {
+                cancelMotion(axis);
+                raiseFault(axis, FAULT_STALL);
+                continue;
+            }
+            else if (trip == AxisWatchdog::TRIP_LOST_STEPS)
+            {
+                cancelMotion(axis);
+                raiseFault(axis, FAULT_LOST_STEPS);
+                continue;
+            }
+
+            // Finalize a SERVO move the task flagged as arrived (stop + adopt on
+            // the main task, off the servo hot loop).
+            if (a.servoArrived)
+            {
+                a.servoArrived = false;
+#ifdef MOTOR_CONTROLLER
+                FocusMotor::stopStepper(axis);
+#endif
+                adoptEncoderPosition(axis);
+            }
+
+            // Drive the MONITOR/CORRECT move-job state machine.
+            driveMoveJob(axis);
+        }
+
+        // Drain async fault notifications (EMCY on slave / JSON standalone).
+        AxisNotify::loop();
+    }
+
+    void moveTo(int axis, int32_t targetSteps, int32_t speed, bool isAbsolute)
+    {
+        // 0xFF = "use the axis's configured mode".
+        moveToWithMode(axis, targetSteps, speed, isAbsolute, 0xFF);
+    }
+
+    void moveToWithMode(int axis, int32_t targetSteps, int32_t speed, bool isAbsolute,
+                        uint8_t modeOverride)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        // Refuse motion while a fault is latched (except CAL_INVALID, a warning).
+        if (g_axes[axis].fb.health == HEALTH_FAULT)
+        {
+            log_w("moveTo ax%d refused: fault %d latched (resetAxis first)",
+                     axis, g_axes[axis].fb.fault);
+            return;
+        }
+#ifdef MOTOR_CONTROLLER
+        AxisState &a = g_axes[axis];
+        int32_t absTarget = isAbsolute ? targetSteps : commandedStepsOf(axis) + targetSteps;
+
+        // Per-move override wins over the axis's configured mode; it does NOT
+        // change a.fb.mode, so the next plain move reverts to the axis default.
+        uint8_t mode = (modeOverride <= MODE_SERVO) ? modeOverride : a.fb.mode;
+        // Feedback modes require a valid calibration; otherwise run pure open loop.
+        if (!a.hasEnc || !a.cal.valid)
+            mode = MODE_OPEN_LOOP;
+        a.activeMode = mode; // gates the watchdog for the duration of this move
+
+        // A fresh move supersedes anything in flight.
+        cancelMotion(axis);
+
+        switch (mode)
+        {
+        case MODE_MONITOR:
+            a.targetSteps = absTarget;
+            startOpenLoopMove(axis, absTarget, speed, false /*no backlash FF*/);
+            a.moveStage = MJ_RUNNING;
+            break;
+        case MODE_CORRECT:
+            a.targetSteps = absTarget;
+            a.correctRetries = kMaxCorrectionRetries;
+            startOpenLoopMove(axis, absTarget, speed, true /*backlash FF*/);
+            a.moveStage = MJ_RUNNING;
+            break;
+        case MODE_SERVO:
+            startServo(axis, absTarget, speed);
+            break;
+        case MODE_OPEN_LOOP:
+        default:
+            // Keep the caller-configured acceleration (moveMotor would clobber
+            // it with its hardcoded 1000).
+            issueMove(axis, targetSteps, speed, !isAbsolute, 0 /*keep accel*/);
+            a.moveStage = MJ_IDLE;
+            break;
+        }
+#else
+        (void)targetSteps; (void)speed; (void)isAbsolute;
+#endif
+    }
+
+    void stop(int axis)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        if (axis < AXIS_MAX_STEPPERS)
+            cancelMotion(axis);
+#ifdef MOTOR_CONTROLLER
+        FocusMotor::stopStepper(axis);
+#endif
+    }
+
+    void setMode(int axis, AxisMode mode)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        // Feedback modes require an encoder; fall back to OPEN_LOOP otherwise.
+        if (mode != MODE_OPEN_LOOP && !g_axes[axis].hasEnc)
+        {
+            log_w("axis %d has no encoder; forcing OPEN_LOOP", axis);
+            mode = MODE_OPEN_LOOP;
+        }
+        g_axes[axis].fb.mode = mode;
+        // Keep the watchdog gate in step with the configured mode for moves
+        // that never pass through moveTo (plain open-loop dispatch).
+        g_axes[axis].activeMode = mode;
+    }
+
+    AxisFeedback getFeedback(int axis)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return AxisFeedback();
+        return g_axes[axis].fb;
+    }
+
+    void resetAxis(int axis, AxisResetPolicy policy)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        AxisState &a = g_axes[axis];
+
+        // Abandon any in-flight move/servo and clear PID/stall state.
+        if (axis < AXIS_MAX_STEPPERS)
+            cancelMotion(axis);
+
+        // Clear latched fault/health. Preserve a CAL_INVALID warning unless a
+        // fresh calibration replaces it.
+        a.fb.fault = a.cal.derived ? FAULT_CAL_INVALID : FAULT_NONE;
+        a.fb.health = HEALTH_OK;
+        AxisWatchdog::reset(a.wdState);
+
+        if (!a.hasEnc)
+            return;
+
+        switch (policy)
+        {
+        case RESET_TRUST_ENCODER:
+            // Adopt the encoder-derived position as truth: push it into FAS so
+            // the next absolute move computes from the corrected origin.
+            if (a.cal.valid)
+            {
+#ifdef MOTOR_CONTROLLER
+                int32_t measured = a.originSteps + axisCountsToSteps(a.cal, a.encoder.getCount());
+                FocusMotor::setPosition(static_cast<Stepper>(axis), measured);
+                a.originSteps = measured;
+                a.encoder.zero();
+#endif
+            }
+            else
+            {
+                reanchorOrigin(axis);
+            }
+            break;
+
+        case RESET_TRUST_STEPS:
+            // Zero the encoder to match the step counter.
+            reanchorOrigin(axis);
+            break;
+
+        case RESET_FORCE_REHOME:
+            reanchorOrigin(axis);
+            a.fb.referenced = false;
+            break;
+        }
+        updateFeedback(axis);
+    }
+
+    // Push the calibration outcome to the host as an async JSON event so the
+    // measured numbers are available without a follow-up SDO/OD read:
+    //  {"axisCalibration":{"axis":1,"ok":1,"countsPerStep":0.15688,"countSign":-1,
+    //    "stepsPerCount":6.37,"backlashCounts":3,"backlashSteps":19,
+    //    "residualScatter":6,"quality":100,"microsteps":16,"fault":"NONE"}}
+    static void emitCalibrationJson(int axis, bool ok, uint8_t fault)
+    {
+        const AxisCalibration &c = g_axes[axis].cal;
+        cJSON *root = cJSON_CreateObject();
+        cJSON *o = cJSON_AddObjectToObject(root, "axisCalibration");
+        cJSON_AddNumberToObject(o, "axis", axis);
+        cJSON_AddNumberToObject(o, "ok", ok ? 1 : 0);
+        if (ok)
+        {
+            double cps = (double)c.countsPerStep_q16 / 65536.0;
+            cJSON_AddNumberToObject(o, "countsPerStep", cps);
+            cJSON_AddNumberToObject(o, "stepsPerCount", (cps > 0.0) ? (1.0 / cps) : 0.0);
+            cJSON_AddNumberToObject(o, "countsPerStepQ16", c.countsPerStep_q16);
+            cJSON_AddNumberToObject(o, "countSign", c.countSign);
+            cJSON_AddNumberToObject(o, "backlashCounts", c.backlashCounts);
+            cJSON_AddNumberToObject(o, "backlashSteps", abs(axisCountsToSteps(c, c.backlashCounts)));
+            cJSON_AddNumberToObject(o, "residualScatter", c.residualScatter);
+            cJSON_AddNumberToObject(o, "quality", c.quality);
+            cJSON_AddNumberToObject(o, "microsteps", c.microstepsAtCal);
+
+            // Raw regression inputs, so a bad fit can be diagnosed off-device:
+            // "points" is [[steps,counts],...] in execution order.
+            const AxisCalibrationRoutine::LastRun &lr = AxisCalibrationRoutine::lastRun();
+            cJSON_AddNumberToObject(o, "r2", lr.r2);
+            cJSON_AddNumberToObject(o, "slope", lr.slope);
+            cJSON_AddNumberToObject(o, "intercept", lr.intercept);
+            // Per-leg fits: forward and reverse should be parallel; their
+            // intercept difference is the backlash (hysteresis loop width).
+            cJSON_AddNumberToObject(o, "slopeForward", lr.slopeForward);
+            cJSON_AddNumberToObject(o, "slopeReverse", lr.slopeReverse);
+            cJSON_AddNumberToObject(o, "interceptForward", lr.interceptForward);
+            cJSON_AddNumberToObject(o, "interceptReverse", lr.interceptReverse);
+            cJSON_AddNumberToObject(o, "r2Forward", lr.r2Forward);
+            cJSON_AddNumberToObject(o, "r2Reverse", lr.r2Reverse);
+            cJSON_AddNumberToObject(o, "nForward", lr.nForward);
+            cJSON *pts = cJSON_AddArrayToObject(o, "points");
+            for (uint8_t i = 0; i < lr.nPoints; i++)
+            {
+                cJSON *pair = cJSON_CreateArray();
+                cJSON_AddItemToArray(pair, cJSON_CreateNumber(lr.stepsAtPoint[i]));
+                cJSON_AddItemToArray(pair, cJSON_CreateNumber(lr.countsAtPoint[i]));
+                cJSON_AddItemToArray(pts, pair);
+            }
+        }
+        cJSON_AddStringToObject(o, "fault", AxisNotify::faultName(fault));
+        char *json = cJSON_PrintUnformatted(root);
+        if (json)
+        {
+            SerialProcess::safeSendJsonString(json);
+            free(json);
+        }
+        cJSON_Delete(root);
+    }
+
+    // ------------------------------------------------------------- calibration
+    bool calibrateAxis(int axis, const AxisCalibrationRoutine::Params &params)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return false;
+        AxisState &a = g_axes[axis];
+        if (!a.hasEnc)
+        {
+            log_w("calibrateAxis %d: no encoder", axis);
+            a.fb.fault = FAULT_CAL_FAILED;
+            return false;
+        }
+
+        // Origin: zero the encoder and record the common step origin.
+        reanchorOrigin(axis);
+
+        AxisCalibrationRoutine::Hooks hooks;
+        hooks.getStepPos = [axis]() { return commandedStepsOf(axis); };
+        hooks.moveRelBlocking = [axis](int32_t d, int32_t s) { return blockingRelMove(axis, d, s); };
+        hooks.getRawCount = [axis]() { return g_axes[axis].encoder.getCount(); };
+        hooks.aborted = [axis]() { return axisAborted(axis); };
+
+        AxisCalibration result;
+        AxisFault err = FAULT_NONE;
+        // NOTE: don't use std::function::target<>() here — it needs RTTI, which
+        // this build disables (and capturing lambdas never match a plain fn ptr
+        // anyway, so it would always print null). Log wiring as booleans.
+        log_i("Calibrating axis %d — hooks wired: getStepPos=%d moveRelBlocking=%d "
+              "getRawCount=%d aborted=%d",
+              axis, (bool)hooks.getStepPos, (bool)hooks.moveRelBlocking,
+              (bool)hooks.getRawCount, (bool)hooks.aborted);
+        bool ok = AxisCalibrationRoutine::run(hooks, params, result, err);
+        if (ok)
+        {
+            a.cal = result;
+            AxisCalibrationStore::save(axis, a.cal);
+            a.fb.calibrated = true;
+            a.fb.fault = FAULT_NONE;
+            a.fb.health = HEALTH_OK;
+            configureWatchdog(axis); // thresholds now follow measured scatter
+            reanchorOrigin(axis); // fresh origin after all the probe moves
+            AxisWatchdog::reset(a.wdState);
+            if (a.fb.mode == MODE_OPEN_LOOP)
+                a.fb.mode = MODE_MONITOR;
+            log_i( "calibrateAxis %d OK (q=%u scatter=%u)", axis,
+                     a.cal.quality, a.cal.residualScatter);
+        }
+        else
+        {
+            a.fb.fault = err;
+            log_e("calibrateAxis %d FAILED (fault=%d)", axis, err);
+        }
+        emitCalibrationJson(axis, ok, (uint8_t)(ok ? FAULT_NONE : err));
+        return ok;
+    }
+
+    bool calibrateAxis(int axis)
+    {
+        AxisCalibrationRoutine::Params p;
+        p.currentMicrosteps = currentMicrosteps();
+        return calibrateAxis(axis, p);
+    }
+
+    // ------------------------------------------------- encoder linearity sweep
+    bool encoderTable(int axis, int points, int32_t stepSize, int32_t speed)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return false;
+        AxisState &a = g_axes[axis];
+        if (!a.hasEnc)
+        {
+            log_w("encoderTable %d: no encoder", axis);
+            return false;
+        }
+        if (points < 1)  points = 10;
+        if (points > 40) points = 40; // bound travel + JSON size
+        if (stepSize == 0) stepSize = 500;
+        if (speed <= 0)    speed = 2000;
+
+        // Sweep out and back from the current position so the two legs expose
+        // hysteresis/backlash directly (forward and reverse at the same spots).
+        const int total = 2 * points + 1;
+        static int32_t stepsArr[2 * 40 + 1];
+        static int32_t cntsArr[2 * 40 + 1];
+        int n = 0;
+
+        a.encoder.zero();
+        int32_t cumSteps = 0;
+        stepsArr[n] = 0;
+        cntsArr[n] = (int32_t)a.encoder.getCount();
+        n++;
+
+        log_i("encoderTable ax%d: %d points x %d steps @ %d steps/s (out and back)",
+              axis, points, (int)stepSize, (int)speed);
+
+        bool ok = true;
+        for (int leg = 0; leg < 2 && ok; leg++)
+        {
+            int32_t delta = (leg == 0) ? stepSize : -stepSize;
+            for (int i = 0; i < points && n < total; i++)
+            {
+                if (!blockingRelMove(axis, delta, speed))
+                {
+                    log_e("encoderTable ax%d aborted at point %d", axis, n);
+                    ok = false;
+                    break;
+                }
+                delay(40); // settle before sampling
+                esp_task_wdt_reset();
+                cumSteps += delta;
+                stepsArr[n] = cumSteps;
+                cntsArr[n] = (int32_t)a.encoder.getCount();
+                n++;
+            }
+        }
+
+        // Emit the whole table as one event: plot counts vs steps to judge
+        // linearity, and compare the two legs to see hysteresis.
+        cJSON *root = cJSON_CreateObject();
+        cJSON *o = cJSON_AddObjectToObject(root, "encoderTable");
+        cJSON_AddNumberToObject(o, "axis", axis);
+        cJSON_AddNumberToObject(o, "stepSize", stepSize);
+        cJSON_AddNumberToObject(o, "points", points);
+        cJSON_AddNumberToObject(o, "speed", speed);
+        cJSON_AddNumberToObject(o, "ok", ok ? 1 : 0);
+        cJSON *arr = cJSON_AddArrayToObject(o, "data");
+        for (int i = 0; i < n; i++)
+        {
+            cJSON *pair = cJSON_CreateArray();
+            cJSON_AddItemToArray(pair, cJSON_CreateNumber(stepsArr[i]));
+            cJSON_AddItemToArray(pair, cJSON_CreateNumber(cntsArr[i]));
+            cJSON_AddItemToArray(arr, pair);
+        }
+        char *json = cJSON_PrintUnformatted(root);
+        if (json)
+        {
+            SerialProcess::safeSendJsonString(json);
+            free(json);
+        }
+        cJSON_Delete(root);
+
+        reanchorOrigin(axis); // sweep moved us around; re-anchor cleanly
+        AxisWatchdog::reset(a.wdState);
+        return ok;
+    }
+
+    void requestEncoderTable(int axis, int points, int32_t stepSize, int32_t speed)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        AxisState &a = g_axes[axis];
+        a.reqEncTablePoints = points;
+        a.reqEncTableStep = stepSize;
+        a.reqEncTableSpeed = speed;
+        a.reqEncTable = true; // set last: commit flag
+    }
+
+    AxisCalibration getCalibration(int axis)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return AxisCalibration();
+        return g_axes[axis].cal;
+    }
+
+    bool hasEncoder(int axis)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return false;
+        return g_axes[axis].hasEnc;
+    }
+
+    void requestMode(int axis, uint8_t mode)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT || mode > MODE_SERVO)
+            return;
+        g_axes[axis].reqMode = (int8_t)mode;
+    }
+
+    void requestReset(int axis, uint8_t policy)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT || policy > RESET_FORCE_REHOME)
+            return;
+        g_axes[axis].reqReset = (int8_t)policy;
+    }
+
+    void requestCalibration(int axis)
+    {
+        if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
+            return;
+        g_axes[axis].reqCalibrate = true;
+    }
+}

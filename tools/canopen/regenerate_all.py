@@ -438,7 +438,10 @@ def generate_cpp_indices(registry, out_path):
     for mod_name, mod in registry["modules"].items():
         w(f"// ─── {mod_name.upper()} (base 0x{mod['base_index']:04X}) ───")
         if mod.get("description"):
-            w(f"// {mod['description']}")
+            # Multi-line descriptions must have EVERY line comment-prefixed,
+            # otherwise continuation lines are invalid C++.
+            for line in str(mod["description"]).rstrip().split("\n"):
+                w(f"// {line}")
         w()
         for entry in mod["entries"]:
             const_name = entry["name"].upper()
@@ -487,7 +490,10 @@ def generate_python_indices(registry, out_path):
     w("class OD:")
     w('    """CANopen Object Dictionary indices for openUC2 satellite nodes."""')
     for mod_name, mod in registry["modules"].items():
-        w(f"    # {mod_name.upper()} — {mod.get('description', '')}")
+        # Collapse multi-line descriptions to one line so the Python comment
+        # stays valid (a bare continuation line would be a syntax error).
+        desc = str(mod.get("description", "")).replace("\n", " ").strip()
+        w(f"    # {mod_name.upper()} — {desc}")
         for entry in mod["entries"]:
             const_name = entry["name"].upper()
             w(f"    {const_name} = 0x{entry['index']:04X}")

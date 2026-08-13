@@ -1,8 +1,7 @@
 #include <PinConfig.h>
 #include "SerialProcess.h"
-#include "../wifi/Endpoints.h"
+#include "Endpoints.h"
 #include "Arduino.h"
-#include "../wifi/RestApiCallbacks.h"
 #ifdef ANALOG_IN_CONTROLLER
 #include "../analogin/AnalogInController.h"
 #endif
@@ -23,9 +22,6 @@
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 #include "../digitalout/DigitalOutController.h"
-#endif
-#ifdef LINEAR_ENCODER_CONTROLLER
-#include "../encoder/LinearEncoderController.h"
 #endif
 #ifdef HOME_MOTOR
 #include "../home/HomeMotor.h"
@@ -71,9 +67,6 @@
 #include "../scanner/GalvoController.h"
 #endif
 #include "../state/State.h"
-#ifdef WIFI
-#include "../wifi/WifiController.h"
-#endif
 #ifdef HEAT_CONTROLLER
 #include "../heat/HeatController.h"
 #include "../heat/DS18b20Controller.h"
@@ -83,6 +76,9 @@
 #endif
 #ifdef FAN_CONTROLLER
 #include "../fan/FanController.h"
+#endif
+#ifdef THERMAL_CONTROLLER
+#include "../thermal/ThermalController.h"
 #endif
 
 namespace SerialProcess
@@ -390,6 +386,34 @@ namespace SerialProcess
 	static size_t serialInputPos = 0;
 	static bool inJsonObject = false;
 	static int braceCount = 0;
+	static bool inStringLiteral = false; // inside a "..." — braces there don't nest
+	static bool escapeNext = false;		 // previous char was a backslash in a string
+	static uint32_t frameLastByteMs = 0; // last time a byte of this frame arrived
+
+	// A frame that stops arriving mid-object is dropped after this long. Covers
+	// a sender that dies (or never terminates the line at all) — without it the
+	// partial frame would sit in the buffer and swallow the next command.
+	static const uint32_t SERIAL_FRAME_TIMEOUT_MS = 2000;
+
+	static void resetSerialFrame()
+	{
+		inJsonObject = false;
+		serialInputPos = 0;
+		braceCount = 0;
+		inStringLiteral = false;
+		escapeNext = false;
+	}
+
+	// Answer a bad line with a JSON error rather than silently dropping it.
+	static void reportSerialError(const char *reason)
+	{
+		cJSON *errorResponse = cJSON_CreateObject();
+		if (errorResponse != NULL)
+		{
+			cJSON_AddStringToObject(errorResponse, "error", reason);
+			serialize(errorResponse); // serialize() takes ownership
+		}
+	}
 
 	void loop()
 	{
@@ -406,84 +430,109 @@ namespace SerialProcess
 		}
 #endif
 
-		// Read serial data byte-by-byte to handle large JSON strings reliably
-		// TODO: These could be optimized further if needed - the input could hang potentially
+		// Read serial data byte-by-byte to handle large JSON strings reliably.
+		// Framing rule: one line = one command. A frame starts at '{' and ends
+		// at the matching '}'; a newline before that means the line was
+		// malformed, and it is dropped so the *next* command still parses.
 		while (Serial.available() > 0)
 		{
 			char c = Serial.read();
 
-			// Track JSON object boundaries
-			if (c == '{')
+			// End of line — either we already completed the object (nothing to
+			// do) or the object never closed and this line is garbage. Without
+			// this, a missing '}' left braceCount stuck above zero and every
+			// following command was appended to the same dead frame, which is
+			// what wedged the interface until the 8 KB buffer overflowed.
+			if (c == '\n' || c == '\r')
 			{
-				if (!inJsonObject)
+				if (inJsonObject)
 				{
-					inJsonObject = true;
-					serialInputPos = 0;
-					braceCount = 0;
+					log_w("Discarding malformed JSON line (%u bytes, %d brace(s) unclosed)",
+						  (unsigned)serialInputPos, braceCount);
+					resetSerialFrame();
+					reportSerialError("Malformed JSON - unterminated object");
 				}
+				continue;
+			}
+
+			// Outside a frame, ignore noise until an object starts.
+			if (!inJsonObject)
+			{
+				if (c != '{')
+					continue;
+				resetSerialFrame();
+				inJsonObject = true;
+			}
+
+			frameLastByteMs = millis();
+
+			// Prevent buffer overflow
+			if (serialInputPos >= sizeof(serialInputBuffer) - 1)
+			{
+				log_e("Serial input buffer overflow");
+				resetSerialFrame();
+				reportSerialError("Input buffer overflow");
+				continue;
+			}
+			serialInputBuffer[serialInputPos++] = c;
+
+			// Brace tracking, string-aware: a '{' or '}' inside a string literal
+			// (e.g. {"task":"/x","name":"a{b"}) must not change the nesting.
+			if (escapeNext)
+			{
+				escapeNext = false;
+			}
+			else if (inStringLiteral && c == '\\')
+			{
+				escapeNext = true;
+			}
+			else if (c == '"')
+			{
+				inStringLiteral = !inStringLiteral;
+			}
+			else if (!inStringLiteral && c == '{')
+			{
 				braceCount++;
 			}
-
-			// Only store if we're inside a JSON object
-			if (inJsonObject)
+			else if (!inStringLiteral && c == '}')
 			{
-				// Prevent buffer overflow
-				if (serialInputPos < sizeof(serialInputBuffer) - 1)
-				{
-					serialInputBuffer[serialInputPos++] = c;
-				}
-				else
-				{
-					// Buffer overflow - reset and report error
-					log_e("Serial input buffer overflow");
-					inJsonObject = false;
-					serialInputPos = 0;
-					braceCount = 0;
+				braceCount--;
 
-					cJSON *errorResponse = cJSON_CreateObject();
-					if (errorResponse != NULL)
+				// Complete JSON object received
+				if (braceCount == 0)
+				{
+					serialInputBuffer[serialInputPos] = '\0';
+
+					cJSON *doc = cJSON_Parse(serialInputBuffer);
+					// print in case we are in debug mode - this is useful to see the incoming JSON in the serial monitor without the need of a separate tool
+					log_i("Received JSON: %s", serialInputBuffer);
+
+					// Reset before dispatching so an early `continue` or a
+					// failed parse can never leave the frame state half-open.
+					resetSerialFrame();
+
+					if (doc)
 					{
-						cJSON_AddStringToObject(errorResponse, "error", "Input buffer overflow");
-						serialize(errorResponse);
+						log_i("Parsed JSON successfully");
+						addJsonToQueue(doc);
 					}
-					continue;
-				}
-
-				if (c == '}')
-				{
-					braceCount--;
-
-					// Complete JSON object received
-					if (braceCount == 0)
+					else
 					{
-						serialInputBuffer[serialInputPos] = '\0';
-
-						cJSON *doc = cJSON_Parse(serialInputBuffer);
-						// print in case we are in debug mode - this is useful to see the incoming JSON in the serial monitor without the need of a separate tool
-						log_i("Received JSON: %s", serialInputBuffer);
-
-						if (doc)
-						{
-							log_i("Parsed JSON successfully");
-							addJsonToQueue(doc);
-						}
-						else
-						{
-							// Parse error - send error response
-							cJSON *errorResponse = cJSON_CreateObject();
-							if (errorResponse != NULL)
-							{
-								cJSON_AddStringToObject(errorResponse, "error", "Failed to parse JSON");
-								serialize(errorResponse);
-							}
-						}
-
-						// Reset for next message
-						inJsonObject = false;
-						serialInputPos = 0;
+						log_w("Failed to parse JSON - ignoring line");
+						reportSerialError("Failed to parse JSON");
 					}
 				}
 			}
+		}
+
+		// Drop a frame that stopped arriving half-way through, so a sender that
+		// died mid-write cannot keep the parser busy forever.
+		if (inJsonObject && (millis() - frameLastByteMs) > SERIAL_FRAME_TIMEOUT_MS)
+		{
+			log_w("Serial frame timed out after %u bytes - discarding",
+				  (unsigned)serialInputPos);
+			resetSerialFrame();
+			reportSerialError("Malformed JSON - frame timeout");
 		}
 
 		// Let other tasks run
@@ -643,19 +692,6 @@ namespace SerialProcess
 			serialize(DigitalOutController::get(jsonDocument));
 #endif
 
-/*
-	  LinearEncoders
-	*/
-#ifdef LINEAR_ENCODER_CONTROLLER
-		else if (runtimeConfig.encoder && strcmp(task, linearencoder_act_endpoint) == 0)
-		{
-			serialize(LinearEncoderController::act(jsonDocument));
-		}
-		else if (runtimeConfig.encoder && strcmp(task, linearencoder_get_endpoint) == 0)
-		{
-			serialize(LinearEncoderController::get(jsonDocument));
-		}
-#endif
 #ifdef I2C_MASTER
 		else if (strcmp(task, i2c_get_endpoint) == 0)
 			serialize(i2c_master::get(jsonDocument));
@@ -758,17 +794,6 @@ namespace SerialProcess
 			UC2::RoutingTable::set(type, logicalId, where, (uint8_t)nodeId);
 			serialize(UC2::RoutingTable::toJson());
 		}
-#ifdef WIFI
-		else if (runtimeConfig.wifi && strcmp(task, scanwifi_endpoint) == 0)
-		{
-			serialize(WifiController::scan());
-		}
-		// {"task":"/wifi/scan"}
-		else if (runtimeConfig.wifi && strcmp(task, connectwifi_endpoint) == 0)
-		{ // {"task":"/wifi/connect","ssid":"Test","PW":"12345678", "AP":false}
-			WifiController::connect(jsonDocument);
-		}
-#endif
 #ifdef HEAT_CONTROLLER
 		else if (runtimeConfig.heat && strcmp(task, heat_get_endpoint) == 0)
 			serialize(HeatController::get(jsonDocument));
@@ -790,6 +815,14 @@ namespace SerialProcess
 			serialize(FanController::act(jsonDocument));
 		else if (runtimeConfig.fan && strcmp(task, fan_get_endpoint) == 0)
 			serialize(FanController::get(jsonDocument));
+#endif
+#ifdef THERMAL_CONTROLLER
+		// NTC heat-sink monitoring on the illumination board. Only compiled in
+		// where TMP102_CONTROLLER is not, so the endpoints cannot collide.
+		else if (strcmp(task, temp_get_endpoint) == 0)
+			serialize(ThermalController::get(jsonDocument));
+		else if (strcmp(task, temp_act_endpoint) == 0)
+			serialize(ThermalController::act(jsonDocument));
 #endif
 		else if (strcmp(task, qid_state_endpoint) == 0)
 			serialize(QidRegistry::handleQidStateQuery(jsonDocument));

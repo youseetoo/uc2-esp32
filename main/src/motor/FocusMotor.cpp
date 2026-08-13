@@ -1,18 +1,12 @@
 #include <PinConfig.h>
 #include "../../config.h"
 #include "FocusMotor.h"
-#include "MotorEncoderConfig.h"
 #include "Wire.h"
-#include "../wifi/WifiController.h"
 #include "../../cJsonTool.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "esp_debug_helpers.h"
-#ifdef LINEAR_ENCODER_CONTROLLER
-#include "../encoder/LinearEncoderController.h"
-#include "../encoder/PCNTEncoderController.h"
-#endif
 #ifdef USE_TCA9535
 #include "../i2c/tca_controller.h"
 #endif
@@ -197,22 +191,7 @@ namespace FocusMotor
 		}
 		else
 		{
-			// Check if encoder-based motion is enabled for this stepper
-			if (getData()[s]->encoderBasedMotion)
-			{
-				log_i("Starting encoder-based precise motion for stepper %d", s);
-#ifdef LINEAR_ENCODER_CONTROLLER
-				// Use LinearEncoderController for precise motion
-				startEncoderBasedMotion(s);
-#else
-				log_w("Encoder-based motion requested but LINEAR_ENCODER_CONTROLLER not defined");
-				startStepper(s, reduced);
-#endif
-			}
-			else
-			{
-				startStepper(s, reduced);
-			}
+			startStepper(s, reduced);
 		}
 	}
 
@@ -482,8 +461,6 @@ namespace FocusMotor
 		setup_data();
 		fill_data();
 
-		// Initialize motor-encoder conversion configuration
-		MotorEncoderConfig::setup();
 
 #ifdef USE_FASTACCEL
 #ifdef USE_TCA9535
@@ -672,82 +649,6 @@ namespace FocusMotor
 #endif
 	}
 
-	bool isEncoderBasedMotionEnabled(int axis)
-	{
-		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
-			return false;
-		return getData()[axis]->encoderBasedMotion;
-	}
-
-	void setEncoderBasedMotion(int axis, bool enabled)
-	{
-		if (axis < 0 || axis >= MOTOR_AXIS_COUNT)
-			return;
-		getData()[axis]->encoderBasedMotion = enabled;
-		log_i("Encoder-based motion for axis %d: %s", axis, enabled ? "enabled" : "disabled");
-	}
-
-	void startEncoderBasedMotion(int axis)
-	{
-#ifdef LINEAR_ENCODER_CONTROLLER
-		// Create a JSON object to call LinearEncoderController moveP function
-		// All values are in pure encoder counts now - no conversion!
-		MotorData *motorData = getData()[axis];
-
-		// Position and speed are passed directly in encoder counts
-		// No conversion factor needed - host computes encoder counts directly
-		int32_t encoderPosition = motorData->targetPosition;
-		int32_t encoderSpeed = abs(motorData->speed);
-
-		// Create JSON for LinearEncoderController moveP command
-		// Structure: {"task": "/linearencoder_act", "moveP": {"steppers": [...]}}
-		cJSON *movePreciseJson = cJSON_CreateObject();
-		cJSON *moveP = cJSON_CreateObject();
-		cJSON *steppers = cJSON_CreateArray();
-		cJSON *stepper = cJSON_CreateObject();
-
-		// Add task identifier
-		cJSON_AddStringToObject(movePreciseJson, "task", "/linearencoder_act");
-
-		// Build stepper object - pure encoder counts
-		cJSON_AddNumberToObject(stepper, "stepperid", axis);
-		cJSON_AddNumberToObject(stepper, "position", encoderPosition);
-		cJSON_AddNumberToObject(stepper, "isabs", motorData->absolutePosition ? 1 : 0);
-		cJSON_AddNumberToObject(stepper, "speed", encoderSpeed);
-
-		// Set default PID values if not already configured
-		cJSON_AddNumberToObject(stepper, "cp", 20.0); // Proportional gain
-		cJSON_AddNumberToObject(stepper, "ci", 1.0);  // Integral gain
-		cJSON_AddNumberToObject(stepper, "cd", 5.0);  // Derivative gain
-
-		// Nest properly: steppers array -> moveP object -> root object
-		cJSON_AddItemToArray(steppers, stepper);
-		cJSON_AddItemToObject(moveP, "steppers", steppers);
-		cJSON_AddItemToObject(movePreciseJson, "moveP", moveP);
-
-		log_i("Starting encoder-based motion for axis %d: position=%d counts (abs=%d)",
-			  axis, encoderPosition, motorData->absolutePosition ? 1 : 0);
-
-// Start encoder accuracy tracking for this move
-#ifdef LINEAR_ENCODER_CONTROLLER
-		PCNTEncoderController::startEncoderTracking(axis, motorData->targetPosition);
-#endif
-
-		// print the json for debugging
-		char *jsonString = cJSON_Print(movePreciseJson);
-		if (jsonString)
-		{
-			log_d("Encoder-based motion JSON: %s", jsonString);
-			cJSON_free(jsonString);
-		}
-		// Clean up JSON object
-		// Call LinearEncoderController act function with moveP command
-		LinearEncoderController::act(movePreciseJson);
-		cJSON_Delete(movePreciseJson);
-#else
-		log_w("LINEAR_ENCODER_CONTROLLER not available for encoder-based motion");
-#endif
-	}
 
 	static unsigned long lastSendTime = 0; // holds the last time positions were sent
 	const unsigned long interval = 2000;   // 2-second interval
@@ -884,25 +785,9 @@ namespace FocusMotor
 		cJSON_AddNumberToObject(item, key_position, data[i]->currentPosition);
 		cJSON_AddNumberToObject(item, "isDone", data[i]->stopped);
 
-		// Add encoder position if encoder-based motion is enabled
-#ifdef LINEAR_ENCODER_CONTROLLER
-		if (i == 1)
-		{
-			// Get current encoder position (raw counts - no conversion!)
-			bool encoderDirection = LinearEncoderController::getEncoderData(i)->encoderDirection;
-			int64_t encoderCount = PCNTEncoderController::getEncoderCount(i);
-			// int32_t currentPos = edata[s]->encoderDirection ? -rawPos : rawPos;
-			// get encoderDirection
-
-			cJSON_AddNumberToObject(item, "encoderCount", encoderCount ? (int)encoderCount : -(int)encoderCount);
-		}
-#endif
 
 		arraypos++;
 
-#ifdef WIFI
-		WifiController::sendJsonWebSocketMsg(root);
-#endif
 #ifdef defined I2C_MASTER &&defined DIAL_CONTROLLER
 		i2c_master::pushMotorPosToDial();
 #endif

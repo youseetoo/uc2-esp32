@@ -20,6 +20,7 @@
 #define USE_ACCELSTEP
 #define TMC_CONTROLLER
 #define LINEAR_ENCODER_CONTROLLER
+#define AXIS_CONTROLLER
 //#define OTA_ON_STARTUP
 #define USE_PCNT_COUNTER
 #define CAN_CONTROLLER_CANOPEN
@@ -85,8 +86,10 @@ struct UC2_canopen_slave_motor : PinConfig
      int tmc_rms_current = 1050;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
-     int tmc_semin = 5;
-     int tmc_semax = 2;
+     // CoolStep off — it throttles the current back whenever StallGuard reads
+     // a light load, which is the opposite of what a stage axis wants.
+     int tmc_semin = 0;
+     int tmc_semax = 0;
      int tmc_sedn = 0b01;
      int tmc_tcoolthrs = 0xFFFFF;
      int tmc_blank_time = 24;

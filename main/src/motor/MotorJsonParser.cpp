@@ -10,9 +10,6 @@
 #include "StageScan.h"
 #endif
 
-#ifdef LINEAR_ENCODER_CONTROLLER
-#include "../encoder/LinearEncoderController.h"
-#endif
 
 namespace MotorJsonParser
 {
@@ -76,18 +73,7 @@ namespace MotorJsonParser
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				FocusMotor::updateData(i);
 				
-				// If encoder-based motion is enabled, return encoder position instead of motor position
-#ifdef LINEAR_ENCODER_CONTROLLER
-				if (FocusMotor::getData()[i]->encoderBasedMotion) {
-					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
-					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
-					log_i("Returning encoder position %ld for motor %d (encoder-based motion)", encoderPosition, i);
-				} else {
-					cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
-				}
-#else
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
-#endif
 				cJSON_AddItemToArray(stprs, aritem);
 			}
 			else if (stop != NULL)
@@ -105,17 +91,7 @@ namespace MotorJsonParser
 				cJSON *aritem = cJSON_CreateObject();
 				cJsonTool::setJsonInt(aritem, key_stepperid, i);
 				
-				// If encoder-based motion is enabled, return encoder position instead of motor position
-#ifdef LINEAR_ENCODER_CONTROLLER
-				if (FocusMotor::getData()[i]->encoderBasedMotion) {
-					long encoderPosition = (long)LinearEncoderController::getCurrentPosition(i);
-					cJsonTool::setJsonInt(aritem, key_position, encoderPosition);
-				} else {
-					cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
-				}
-#else
 				cJsonTool::setJsonInt(aritem, key_position, FocusMotor::getData()[i]->currentPosition);
-#endif
 			cJsonTool::setJsonInt(aritem, key_triggeroffset, FocusMotor::getData()[i]->offsetTrigger);
 			cJsonTool::setJsonInt(aritem, key_triggerperiod, FocusMotor::getData()[i]->triggerPeriod);
 			cJsonTool::setJsonInt(aritem, key_triggerpin, FocusMotor::getData()[i]->triggerPin);
@@ -604,72 +580,6 @@ namespace MotorJsonParser
 					// FocusMotor::getData()[s]->isStop = cJsonTool::getJsonInt(stp, key_isstop);
 					int isReduced = cJsonTool::getJsonInt(stp, key_isReduced);
 					
-					// Check for encoder-based precision motion (precise=1 or enc=1 for backward compatibility)
-					#ifdef LINEAR_ENCODER_CONTROLLER
-					bool useEncoderPrecision = isEncoderPrecisionRequested(stp);
-					FocusMotor::getData()[s]->encoderBasedMotion = useEncoderPrecision;
-					#else
-					bool useEncoderPrecision = false;
-					#endif
-
-					if (useEncoderPrecision) {
-						log_i("Motor %d: Encoder-based precision motion (precise=1)", s);
-						#ifdef LINEAR_ENCODER_CONTROLLER
-						
-						// Build JSON for LinearEncoderController with correct structure
-						// Format: {"moveP": {"steppers": [{"stepperid":1, "position":X, ...}]}}
-						cJSON* precisionJson = cJSON_CreateObject();
-						cJSON* movePrecise = cJSON_CreateObject();
-						cJSON* steppers = cJSON_CreateArray();
-						cJSON* stepper = cJSON_CreateObject();
-						
-						// Stepper ID
-						cJSON_AddNumberToObject(stepper, key_stepperid, s);
-						
-						// Position in encoder counts (computed on host)
-						cJSON_AddNumberToObject(stepper, key_linearencoder_position, 
-							FocusMotor::getData()[s]->targetPosition);
-						cJSON_AddNumberToObject(stepper, key_isabs, 
-							FocusMotor::getData()[s]->absolutePosition ? 1 : 0);
-						
-						// max velocity
-						if (FocusMotor::getData()[s]->speed != 0) {
-							cJSON_AddNumberToObject(stepper, key_speed, 
-								abs(FocusMotor::getData()[s]->speed));
-						}
-						
-						// two-stage PID parameters (from testFeedbackStepper)
-						addJsonFloatIfPresent(stp, stepper, "kpFar");
-						addJsonFloatIfPresent(stp, stepper, "kpNear");
-						addJsonFloatIfPresent(stp, stepper, key_linearencoder_ci); // ki
-						addJsonFloatIfPresent(stp, stepper, key_linearencoder_cd); // kd
-						
-						// Optional stall detection tuning
-						addJsonIntIfPresent(stp, stepper, "stallTimeMs");
-						addJsonIntIfPresent(stp, stepper, "stallNoiseThreshold");
-						
-						// Debug output
-						addJsonIntIfPresent(stp, stepper, key_linearencoder_debug);
-						
-						// Build the correct structure
-						cJSON_AddItemToArray(steppers, stepper);
-						cJSON_AddItemToObject(movePrecise, key_steppers, steppers);
-						cJSON_AddItemToObject(precisionJson, key_linearencoder_moveprecise, movePrecise);
-						
-						// Debug: print the JSON we're sending
-						char* jsonStr = cJSON_PrintUnformatted(precisionJson);
-						log_i("Precision motion JSON: %s", jsonStr);
-						free(jsonStr);
-						
-						LinearEncoderController::act(precisionJson);
-						cJSON_Delete(precisionJson);
-						
-						// Skip regular motor processing
-						continue;
-						#else
-						log_w("Encoder precision requested but LINEAR_ENCODER_CONTROLLER not available");
-						#endif
-					}
 
 					cJSON *cstop = cJSON_GetObjectItemCaseSensitive(stp, key_isstop);
 					bool isStop = (cstop != NULL) ? cstop->valueint : false;

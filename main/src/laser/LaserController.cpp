@@ -6,9 +6,6 @@
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "../canopen/DeviceRouter.h"
-#ifdef WIFI
-#include "../wifi/WifiController.h"
-#endif
 #ifdef I2C_LASER
 #include "../i2c/i2c_master.h"
 #endif
@@ -312,9 +309,6 @@ namespace LaserController
 			cJSON_AddNumberToObject(root, "qid", qid);
 		}
 
-#ifdef WIFI
-		WifiController::sendJsonWebSocketMsg(root);
-#endif
 
 		// Serialize to string BEFORE deleting the cJSON object
 		char *jsonString = cJSON_PrintUnformatted(root);

@@ -102,6 +102,27 @@ Per-axis hard-limit (endstop) configuration
 | `0x2031` | 1..4 | `hardlimit_enabled` | U8 | rw | SDO only | 1 = hard-limit endstop enabled for this axis |
 | `0x2032` | 1..4 | `hardlimit_polarity` | U8 | rw | SDO only | Endstop polarity (0=normally low, 1=normally high) |
 
+### Axis — base `0x2040`
+
+Per-axis closed-loop feedback & control (encoder). Values in STEPS.
+
+*C++ class:* `AxisController`
+
+| Index | Sub | Name | Type | Access | PDO | Description |
+|-------|-----|------|------|--------|-----|-------------|
+| `0x2040` | 1..4 | `axis_measured_steps` | I32 | ro | SDO only | Encoder-derived position in steps. Identity for encoderless axes. |
+| `0x2041` | 1..4 | `axis_position_error_steps` | I32 | ro | SDO only | measuredSteps - commandedSteps (relative to origin). |
+| `0x2042` | 1..4 | `axis_mode` | U8 | rw | SDO only | 0=OPEN_LOOP 1=MONITOR 2=CORRECT 3=SERVO |
+| `0x2043` | 1..4 | `axis_health` | U8 | ro | SDO only | 0=OK 1=DEGRADED 2=FAULT |
+| `0x2044` | 1..4 | `axis_fault` | U8 | ro | SDO only | AxisFault: 0=NONE 1=STALL 2=LOST_STEPS 3=DIVERGENCE 4=TIMEOUT 5=CAL_INVALID 6... |
+| `0x2045` | 1..4 | `axis_reset` | U8 | rw | SDO only | Write 1+policy to clear fault & re-establish origin. 1=TRUST_ENCODER 2=TRUST_... |
+| `0x2046` | 1..4 | `axis_calibrated` | U8 | ro | SDO only | 1 = valid sign+scale calibration for the current microstepping |
+| `0x2047` | 1..4 | `axis_referenced` | U8 | ro | SDO only | 1 = homed (absolute moves allowed) |
+| `0x2048` | 1..4 | `axis_calibrate` | U8 | rw | SDO only | Write 1 to trigger the sign/scale/backlash calibration routine |
+| `0x2049` | 1..4 | `axis_counts_per_step_q16` | I32 | rw | SDO only | Calibrated |counts per step|, Q16.16 fixed point (diagnostics/override) |
+| `0x204A` | 1..4 | `axis_backlash_steps` | I32 | rw | SDO only | Calibrated reversal backlash, expressed in steps |
+| `0x204B` | 1..4 | `axis_raw_counts` | I32 | ro | SDO only | Raw encoder count (DIAGNOSTIC — not steps) |
+
 ### Laser — base `0x2100`
 
 Laser intensity control via PWM, up to 4 channels per node

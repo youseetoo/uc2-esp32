@@ -8,6 +8,9 @@
 #include "../qid/QidRegistry.h"
 #include "src/serial/SerialProcess.h"
 #include "../canopen/DeviceRouter.h"
+#ifdef THERMAL_CONTROLLER
+#include "../thermal/ThermalController.h"
+#endif
 
 #if !defined(DOTSTAR) && !defined(HUB75)
 #include "Ws2812Rmt.h"
@@ -856,11 +859,29 @@ namespace LedController
 		return true; // Successfully parsed
 	}
 
+	// Refuse to light anything up while the heat-sink is over temperature.
+	// Guards every entry point that can turn LEDs on (serial and CANopen) —
+	// without this the host would simply re-send its last command after the
+	// thermal cut and cook the board anyway. turnOff() deliberately stays
+	// reachable.
+	static bool thermalBlocked(const char *what)
+	{
+#ifdef THERMAL_CONTROLLER
+		if (ThermalController::isLedCutActive())
+		{
+			log_w("%s ignored - over-temperature protection active", what);
+			return true;
+		}
+#endif
+		return false;
+	}
+
 	// ------------------------------------------------
 	// 11b) CANopen: Set LED mode from OD values
 	// ------------------------------------------------
 	void setMode(uint8_t mode, uint8_t brightness, uint32_t colour)
 	{
+		if (thermalBlocked("setMode")) return;
 		log_i("setMode: mode=%d, brightness=%d, colour=0x%06X", mode, brightness, colour);
 		// check if matrix is initialized (most likely when do setup)
 		if (!matrix)		{
@@ -904,6 +925,7 @@ namespace LedController
 	// ------------------------------------------------
 	void setPattern(uint8_t patternId, uint16_t speed)
 	{
+		if (thermalBlocked("setPattern")) return;
 		log_i("setPattern: patternId=%d, speed=%d", patternId, speed);
 		// check if matrix is initialized (most likely when do setup)
 		if (!matrix)		{
@@ -924,6 +946,7 @@ namespace LedController
 	// ------------------------------------------------
 	void setPixels(const uint8_t* data, uint16_t pixelCount)
 	{
+		if (thermalBlocked("setPixels")) return;
 		log_i("setPixels: pixelCount=%d", pixelCount);
 		// check if matrix is initialized (most likely when do setup)
 		if (!matrix)		{
@@ -951,6 +974,7 @@ namespace LedController
 	// ------------------------------------------------
 	void execLedCommand(const LedCommand &cmd)
 	{
+		if (thermalBlocked("execLedCommand")) return;
 		log_i("execLedCommand: Executing command with mode %d", static_cast<int>(cmd.mode));
 
 		// Track intensity for auto-off safety (only for LED arrays that need thermal protection)
@@ -1149,6 +1173,14 @@ namespace LedController
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
 			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0) ||
 			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 );
+
+#ifdef THERMAL_CONTROLLER
+		// Measured heat-sink temperature supersedes this stopwatch entirely.
+		// The intensity timer only ever guessed at heat from brightness and
+		// elapsed time — with NTCs fitted it would cut perfectly cool LEDs.
+		if (ThermalController::isEnabled())
+			needsThermalProtection = false;
+#endif
 
 		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
 		{

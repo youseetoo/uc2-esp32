@@ -54,6 +54,20 @@ class OD:
     HARDLIMIT_ENABLED = 0x2031
     HARDLIMIT_POLARITY = 0x2032
 
+    # AXIS — Per-axis closed-loop feedback & control (encoder). Values in STEPS.
+    AXIS_MEASURED_STEPS = 0x2040
+    AXIS_POSITION_ERROR_STEPS = 0x2041
+    AXIS_MODE = 0x2042
+    AXIS_HEALTH = 0x2043
+    AXIS_FAULT = 0x2044
+    AXIS_RESET = 0x2045
+    AXIS_CALIBRATED = 0x2046
+    AXIS_REFERENCED = 0x2047
+    AXIS_CALIBRATE = 0x2048
+    AXIS_COUNTS_PER_STEP_Q16 = 0x2049
+    AXIS_BACKLASH_STEPS = 0x204A
+    AXIS_RAW_COUNTS = 0x204B
+
     # LASER — Laser intensity control via PWM, up to 4 channels per node
     LASER_PWM_VALUE = 0x2100
     LASER_MAX_VALUE = 0x2101
@@ -87,7 +101,6 @@ class OD:
     DAC_OUTPUT_VALUE = 0x2320
 
     # COLLISION — Baseline-deviation collision detector on the GPIO slave. The sensor has an idle value; a collision manifests as N consecutive samples deviating more than `collision_threshold` counts (up OR down) from `collision_reference`. Single-sample spikes are rejected by the consecutive-sample vote. Config is SDO-written by the master; the trip EVENT rides TPDO2 (flags byte 0x2300:04 bit 0). Sensor values are never broadcast — the rolling mean is polled via SDO on demand.
-
     COLLISION_REFERENCE = 0x2330
     COLLISION_THRESHOLD = 0x2331
     COLLISION_SENSITIVITY = 0x2332
@@ -101,11 +114,7 @@ class OD:
     ENCODER_VELOCITY = 0x2341
     ENCODER_ZERO_OFFSET = 0x2342
 
-    # I2C_BRIDGE — Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master
-writes a self-contained transaction into 0x2350, pulses 0x2351, polls
-0x2352, then reads 0x2353/0x2354. Register maps live on the Python side
-(UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
-
+    # I2C_BRIDGE — Generic raw-I2C passthrough on the GPIO slave (I2cBridge). The master writes a self-contained transaction into 0x2350, pulses 0x2351, polls 0x2352, then reads 0x2353/0x2354. Register maps live on the Python side (UC2-REST); no per-device driver runs on the ESP32. All SDO-only.
     I2C_COMMAND = 0x2350
     I2C_TRIGGER = 0x2351
     I2C_STATUS = 0x2352
@@ -213,6 +222,18 @@ OD_NAMES = {
     0x2030: 'hardlimit_command',
     0x2031: 'hardlimit_enabled',
     0x2032: 'hardlimit_polarity',
+    0x2040: 'axis_measured_steps',
+    0x2041: 'axis_position_error_steps',
+    0x2042: 'axis_mode',
+    0x2043: 'axis_health',
+    0x2044: 'axis_fault',
+    0x2045: 'axis_reset',
+    0x2046: 'axis_calibrated',
+    0x2047: 'axis_referenced',
+    0x2048: 'axis_calibrate',
+    0x2049: 'axis_counts_per_step_q16',
+    0x204A: 'axis_backlash_steps',
+    0x204B: 'axis_raw_counts',
     0x2100: 'laser_pwm_value',
     0x2101: 'laser_max_value',
     0x2102: 'laser_pwm_frequency',

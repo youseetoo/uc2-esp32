@@ -59,9 +59,6 @@ struct MotorSettings
 	int dirPin = -1;
 	int stpPin = -1;
 
-	// Advanced features
-	bool encoderBasedMotion = false;
-	
 	// Hard limit settings (emergency stop on endstop hit)
 	bool hardLimitEnabled = false;  // Enabled by default
 	bool hardLimitPolarity = 0;    // 0 = normally open (NO), 1 = normally closed (NC)
@@ -100,7 +97,6 @@ struct MotorData
 	int triggerPin = -1;
 	int dirPin = -1;
 	int stpPin = -1;
-	bool encoderBasedMotion = false;
 
 	// Hard limit runtime state (settings are in MotorSettings, sent via CAN to slaves)
 	bool hardLimitEnabled = false;   // Runtime copy from MotorSettings

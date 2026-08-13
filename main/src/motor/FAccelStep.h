@@ -28,6 +28,8 @@ namespace FAccelStep
 
     int rampState(int i);
     int32_t getCurrentSpeedInMilliHz(int i, bool withSign);
+    // Live velocity for the axis SERVO loop (mutex-free direct FAS call).
+    void setLiveSpeed(int i, int32_t signedSpeed, uint32_t accel = 200000);
     int32_t getCurrentPosition(int i);
     int32_t getPositionAfterCommandsCompleted(int i);
     bool isQueueFull(int i);

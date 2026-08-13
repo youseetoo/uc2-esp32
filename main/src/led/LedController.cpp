@@ -1174,6 +1174,14 @@ namespace LedController
 			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0) ||
 			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 );
 
+#ifdef THERMAL_CONTROLLER
+		// Measured heat-sink temperature supersedes this stopwatch entirely.
+		// The intensity timer only ever guessed at heat from brightness and
+		// elapsed time — with NTCs fitted it would cut perfectly cool LEDs.
+		if (ThermalController::isEnabled())
+			needsThermalProtection = false;
+#endif
+
 		if (needsThermalProtection && highIntensityStartTime != 0 && !ledAutoOffTriggered)
 		{
 			unsigned long elapsedTime = millis() - highIntensityStartTime;

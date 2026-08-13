@@ -1,6 +1,7 @@
 #include "ThermalController.h"
 #include <Preferences.h>
 #include <math.h>
+#include "esp_log.h"
 #include "cJsonTool.h"
 #include "../serial/SerialProcess.h"
 #ifdef LED_CONTROLLER
@@ -32,7 +33,7 @@ namespace ThermalController
 
     // ---- sampling accumulators ----
     static uint32_t accMv[THERMAL_NUM_SENSORS];
-    static uint32_t accRaw[THERMAL_NUM_SENSORS];
+    static uint16_t lastRaw[THERMAL_NUM_SENSORS];
     static uint8_t sweepCount = 0;
     static uint32_t lastSweepMs = 0;
 
@@ -189,6 +190,13 @@ namespace ThermalController
     // ── lifecycle ────────────────────────────────────────────────────────
     void setup()
     {
+        // Arduino's analogRead*() re-runs pinMode(pin, ANALOG) on every call,
+        // and gpio_config() logs a line at INFO for each one. Four channels of
+        // periodic sampling turns that into hundreds of lines per second —
+        // enough to saturate the 115200-baud link and truncate the JSON
+        // replies sharing it. Nothing else needs gpio at INFO.
+        esp_log_level_set("gpio", ESP_LOG_WARN);
+
         for (uint8_t i = 0; i < THERMAL_NUM_SENSORS; ++i)
         {
             readings[i].pin = pinForIndex(i);
@@ -198,7 +206,7 @@ namespace ThermalController
             readings[i].fault = true;
             readings[i].saturated = false;
             accMv[i] = 0;
-            accRaw[i] = 0;
+            lastRaw[i] = 0;
             if (readings[i].pin >= 0)
             {
                 haveAnyPin = true;
@@ -252,7 +260,7 @@ namespace ThermalController
             }
 
             r.milliVolts = (uint16_t)(accMv[i] / sweepCount);
-            r.raw = (uint16_t)(accRaw[i] / sweepCount);
+            r.raw = lastRaw[i];
             r.saturated = (r.raw >= THERMAL_RAW_SATURATED);
 
             if (r.milliVolts < THERMAL_MV_FAULT_FLOOR)
@@ -417,19 +425,25 @@ namespace ThermalController
             if (readings[i].pin < 0)
                 continue;
             accMv[i] += analogReadMilliVolts(readings[i].pin);
-            accRaw[i] += analogRead(readings[i].pin);
         }
         sweepCount++;
 
         if (sweepCount >= THERMAL_OVERSAMPLE)
         {
+            // Raw counts are diagnostics only, so sample them once per window
+            // rather than per sweep. Every Arduino analog read re-runs
+            // pinMode(pin, ANALOG) internally, and each of those emits an
+            // ESP-IDF "gpio:" INFO line — at sweep rate that alone produces
+            // far more UART traffic than 115200 baud can carry.
+            for (uint8_t i = 0; i < THERMAL_NUM_SENSORS; ++i)
+            {
+                if (readings[i].pin >= 0)
+                    lastRaw[i] = (uint16_t)analogRead(readings[i].pin);
+            }
             evaluateWindow();
             sweepCount = 0;
             for (uint8_t i = 0; i < THERMAL_NUM_SENSORS; ++i)
-            {
                 accMv[i] = 0;
-                accRaw[i] = 0;
-            }
         }
     }
 
@@ -515,7 +529,7 @@ namespace ThermalController
                     for (uint8_t i = 0; i < THERMAL_NUM_SENSORS; ++i)
                     {
                         accMv[i] = 0;
-                        accRaw[i] = 0;
+                        lastRaw[i] = 0;
                     }
                     lastSweepMs = millis();
                 }

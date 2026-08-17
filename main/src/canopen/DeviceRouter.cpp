@@ -63,6 +63,9 @@
 #ifdef PTZ_KEYBOARD_CONTROLLER
 #include "../ptz/PtzKeyboard.h"
 #endif
+#ifdef JOYSTICK_USBHOST_PROVIDER
+#include "../joystick/JoystickRouter.h"
+#endif
 #include "cJsonTool.h"
 
 #include "../state/State.h"
@@ -142,6 +145,14 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
         return PtzKeyboard::act(doc);
     if (strcmp(task, ptz_get_endpoint) == 0)
         return PtzKeyboard::get(doc);
+#endif
+
+#ifdef JOYSTICK_USBHOST_PROVIDER
+    // DS4 joystick bridge — speed-scaling config, local only (USB serial on the node)
+    if (strcmp(task, joystick_act_endpoint) == 0)
+        return JoystickRouter::act(doc);
+    if (strcmp(task, joystick_get_endpoint) == 0)
+        return JoystickRouter::get(doc);
 #endif
 
     // State act — handles "restart" with optional remote nodeId targeting.

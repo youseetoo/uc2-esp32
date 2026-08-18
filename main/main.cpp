@@ -339,8 +339,8 @@ extern "C" void looper(void *p)
 }
 
 #ifdef BLUETOOTH
-// Long-press duration for homing (5 seconds)
-static const uint32_t HOMING_LONG_PRESS_MS = 5000;
+// Long-press duration for CAN-bus power toggle (5 seconds)
+static const uint32_t BUS_POWER_LONG_PRESS_MS = 5000;
 
 // Button state tracking for long-press detection
 struct BtButtonState {
@@ -349,12 +349,12 @@ struct BtButtonState {
     bool longPressTriggered;
 };
 
-static BtButtonState btTriangleState = {false, 0, false};  // Axis A
-static BtButtonState btCrossState = {false, 0, false};     // Axis X
-static BtButtonState btCircleState = {false, 0, false};    // Axis Y
-static BtButtonState btSquareState = {false, 0, false};    // Axis Z
+static BtButtonState btTriangleState = {false, 0, false};
+static BtButtonState btCrossState = {false, 0, false};
+static BtButtonState btCircleState = {false, 0, false};
+static BtButtonState btSquareState = {false, 0, false};    // also drives the bus-power long-press toggle
 
-// Combined Triangle handler: short press = hard limit release, long press = home axis A
+// Combined Triangle handler: short press = hard limit release
 static void handleTriangleCombined(int pressed)
 {
     if (pressed)
@@ -377,7 +377,7 @@ static void handleTriangleCombined(int pressed)
     }
 }
 
-// Combined Cross handler: short press = laser toggle, long press = home axis X
+// Combined Cross handler: short press = laser toggle
 static void handleCrossCombined(int pressed)
 {
     if (pressed)
@@ -401,7 +401,7 @@ static void handleCrossCombined(int pressed)
     }
 }
 
-// Combined Circle handler: short press = LED toggle, long press = home axis Y
+// Combined Circle handler: short press = LED toggle
 static void handleCircleCombined(int pressed)
 {
     if (pressed)
@@ -425,7 +425,7 @@ static void handleCircleCombined(int pressed)
     }
 }
 
-// Combined Square handler: short press = normal, 3s = reboot, 5s = home axis Z
+// Combined Square handler: short press = normal, 3s = reboot, 5s = toggle CAN-bus power
 static void handleSquareCombined(int pressed)
 {
     if (pressed)
@@ -459,61 +459,23 @@ static void handleSquareCombined(int pressed)
     }
 }
 
-// Check for long-press homing on all buttons - called from main loop
+// Check for Square long-press (>= BUS_POWER_LONG_PRESS_MS) - called from main loop.
+// Held long enough, it toggles CAN-bus power while the button is still down;
+// the shorter 3s-on-release reboot tier in handleSquareCombined() still applies below that.
 static void checkBtButtonLongPress()
 {
     uint32_t currentTime = millis();
-    
-    #ifdef HOME_MOTOR
-    // Triangle - Axis A
-    if (btTriangleState.isPressed && !btTriangleState.longPressTriggered)
-    {
-        if (currentTime - btTriangleState.pressStartTime >= HOMING_LONG_PRESS_MS)
-        {
-            btTriangleState.longPressTriggered = true;
-            log_i("Triangle long press - starting homing for axis A");
-            MessageController::startHomingWithStoredParams(Stepper::A);  // TODO: Not sure if this is the right controller - rather HomeMotor??
-			MessageController::startHomingWithStoredParams(Stepper::A);  // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
-        }
-    }
-    
-    // Cross - Axis X
-    if (btCrossState.isPressed && !btCrossState.longPressTriggered)
-    {
-        if (currentTime - btCrossState.pressStartTime >= HOMING_LONG_PRESS_MS)
-        {
-            btCrossState.longPressTriggered = true;
-            log_i("Cross long press - starting homing for axis X");
-            MessageController::startHomingWithStoredParams(Stepper::X);  // TODO: Not sure if this is the right controller - rather HomeMotor??
-			MessageController::startHomingWithStoredParams(Stepper::X);  // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
-        }
-    }
-    
-    // Circle - Axis Y
-    if (btCircleState.isPressed && !btCircleState.longPressTriggered)
-    {
-        if (currentTime - btCircleState.pressStartTime >= HOMING_LONG_PRESS_MS)
-        {
-            btCircleState.longPressTriggered = true;
-            log_i("Circle long press - starting homing for axis Y");
-            MessageController::startHomingWithStoredParams(Stepper::Y); // TODO: Not sure if this is the right controller - rather HomeMotor??
-			MessageController::startHomingWithStoredParams(Stepper::Y); // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
 
-        }
-    }
-    
-    // Square - Axis Z
     if (btSquareState.isPressed && !btSquareState.longPressTriggered)
     {
-        if (currentTime - btSquareState.pressStartTime >= HOMING_LONG_PRESS_MS)
+        if (currentTime - btSquareState.pressStartTime >= BUS_POWER_LONG_PRESS_MS)
         {
             btSquareState.longPressTriggered = true;
-            log_i("Square long press - starting homing for axis Z");
-            MessageController::startHomingWithStoredParams(Stepper::Z);  // TODO: Not sure if this is the right controller - rather HomeMotor??
-			MessageController::startHomingWithStoredParams(Stepper::Z);  // TODO: Not sure why we have to start twice - I guess we are in the wrong state once we have triggered an endstop?
+            bool newBusPowerState = !State::getBusPower();
+            log_i("Square long press - toggling CAN-bus power %s", newBusPowerState ? "ON" : "OFF");
+            State::setBusPower(newBusPowerState);
         }
     }
-    #endif
 }
 #endif
 
@@ -597,16 +559,16 @@ extern "C" void setupApp(void)
 		BtController::setup();
 		
 		// Register combined button handlers that support both short and long press
-		// Triangle: short = hard limit release, long (5s) = home axis A
+		// Triangle: short = hard limit release
 		BtController::setTriangleChangedEvent(handleTriangleCombined);
-		
-		// Cross: short = laser toggle, long (5s) = home axis X
+
+		// Cross: short = laser toggle
 		BtController::setCrossChangedEvent(handleCrossCombined);
-		
-		// Circle: short = LED toggle, long (5s) = home axis Y  
+
+		// Circle: short = LED toggle
 		BtController::setCircleChangedEvent(handleCircleCombined);
-		
-		// Square: short = normal, 3s = reboot, 5s = home axis Z
+
+		// Square: short = normal, 3s = reboot, 5s = toggle CAN-bus power
 		BtController::setSquareChangedEvent(handleSquareCombined);
 		
 		#ifdef LASER_CONTROLLER

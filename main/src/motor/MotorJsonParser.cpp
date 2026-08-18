@@ -446,14 +446,18 @@ namespace MotorJsonParser
 		serial API is consistent regardless of which node applies the scaling.
 		{"task": "/motor_act", "speedmult": {"steppers": [{"stepperid": 1, "multiplier": 75}]}}
 		*/
+		log_i("Parsing joystick speed multiplier");
+		log_i("JSON: %s", cJSON_PrintUnformatted(doc));
 		cJSON *speedMultObj = cJSON_GetObjectItemCaseSensitive(doc, "speedmult");
 		if (!speedMultObj)
 		{
+			log_w("No 'speedmult' object found in JSON, skipping joystick speed multiplier parsing");
 			return;
 		}
 		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(speedMultObj, key_steppers);
 		if (!stprs)
 		{
+			log_w("No 'steppers' array found in 'speedmult' object, skipping joystick speed multiplier parsing");
 			return;
 		}
 		cJSON *stp = nullptr;

@@ -197,6 +197,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     MotorJsonParser::parseMotorPinDirection(doc);    // setdir
     MotorJsonParser::parseSetHardLimits(doc);        // hardlimits
     MotorJsonParser::parseSetJoystickDirection(doc); // joystickdir
+    MotorJsonParser::parseSetJoystickSpeed(doc);     // speedmult
 
 #ifdef CAN_CONTROLLER_CANOPEN
     // Forward motor-enable to remote nodes via SDO. parseEnableMotor only

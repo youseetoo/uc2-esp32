@@ -63,6 +63,9 @@
 #ifdef PTZ_KEYBOARD_CONTROLLER
 #include "../ptz/PtzKeyboard.h"
 #endif
+#ifdef JOYSTICK_USBHOST_PROVIDER
+#include "../joystick/JoystickRouter.h"
+#endif
 #include "cJsonTool.h"
 
 #include "../state/State.h"
@@ -144,6 +147,14 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
         return PtzKeyboard::get(doc);
 #endif
 
+#ifdef JOYSTICK_USBHOST_PROVIDER
+    // DS4 joystick bridge — speed-scaling config, local only (USB serial on the node)
+    if (strcmp(task, joystick_act_endpoint) == 0)
+        return JoystickRouter::act(doc);
+    if (strcmp(task, joystick_get_endpoint) == 0)
+        return JoystickRouter::get(doc);
+#endif
+
     // State act — handles "restart" with optional remote nodeId targeting.
     // state_get stays in SerialProcess for now (local State::get also serves
     // the master uptime; remote uptime is reachable via /can_get).
@@ -186,6 +197,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     MotorJsonParser::parseMotorPinDirection(doc);    // setdir
     MotorJsonParser::parseSetHardLimits(doc);        // hardlimits
     MotorJsonParser::parseSetJoystickDirection(doc); // joystickdir
+    MotorJsonParser::parseSetJoystickSpeed(doc);     // speedmult
 
 #ifdef CAN_CONTROLLER_CANOPEN
     // Forward motor-enable to remote nodes via SDO. parseEnableMotor only

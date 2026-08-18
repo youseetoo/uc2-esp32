@@ -87,6 +87,12 @@ struct MotorData
 	// Settings - these should eventually be moved to MotorSettings
 	bool directionPinInverted = false;
 	bool joystickDirectionInverted = false;
+	// Per-axis joystick speed-scaling multiplier. Runtime default is loaded
+	// from pinConfig.JOYSTICK_SPEED_MULTIPLIER[_Z] in FocusMotor::fill_data(),
+	// but can be overridden and persisted via /motor_act "speedmult" (see
+	// MotorJsonParser::parseSetJoystickSpeed). The 1.0f here is only a
+	// compile-time placeholder, always overwritten before use.
+	float joystickSpeedMultiplier = 1.0f;
 	bool isaccelerated = false;
 	bool isEnable = true;
 	int32_t maxspeed = 200000;

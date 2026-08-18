@@ -77,6 +77,13 @@ __attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
 // (see PtzKeyboard::act/get).
 __attribute__ ((unused)) static const  char* ptz_act_endpoint = "/ptz_act";
 __attribute__ ((unused)) static const  char* ptz_get_endpoint = "/ptz_get";
+
+#ifdef JOYSTICK_USBHOST_PROVIDER
+// DS4-over-USB-OTG joystick bridge — local-only speed-scaling config on the
+// joystick bridge node (see JoystickRouter::act/get).
+__attribute__ ((unused)) static const  char* joystick_act_endpoint = "/joystick_act";
+__attribute__ ((unused)) static const  char* joystick_get_endpoint = "/joystick_get";
+#endif
 #ifdef LED_CONTROLLER
 __attribute__ ((unused)) static const  char* ledarr_act_endpoint = "/ledarr_act";
 __attribute__ ((unused)) static const  char* ledarr_get_endpoint = "/ledarr_get";

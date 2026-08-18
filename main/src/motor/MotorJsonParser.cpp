@@ -438,6 +438,53 @@ namespace MotorJsonParser
 		}
 	}
 
+	void parseSetJoystickSpeed(cJSON *doc)
+	{
+		/*
+		Per-axis joystick speed-scaling multiplier — same "speedmult"/"multiplier"
+		interface as JoystickRouter::act() on the USB-host bridge node, so the
+		serial API is consistent regardless of which node applies the scaling.
+		{"task": "/motor_act", "speedmult": {"steppers": [{"stepperid": 1, "multiplier": 75}]}}
+		*/
+		log_i("Parsing joystick speed multiplier");
+		log_i("JSON: %s", cJSON_PrintUnformatted(doc));
+		cJSON *speedMultObj = cJSON_GetObjectItemCaseSensitive(doc, "speedmult");
+		if (!speedMultObj)
+		{
+			log_w("No 'speedmult' object found in JSON, skipping joystick speed multiplier parsing");
+			return;
+		}
+		cJSON *stprs = cJSON_GetObjectItemCaseSensitive(speedMultObj, key_steppers);
+		if (!stprs)
+		{
+			log_w("No 'steppers' array found in 'speedmult' object, skipping joystick speed multiplier parsing");
+			return;
+		}
+		cJSON *stp = nullptr;
+		cJSON_ArrayForEach(stp, stprs)
+		{
+			Preferences preferences;
+			cJSON *idItem = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
+			cJSON *multItem = cJSON_GetObjectItemCaseSensitive(stp, "multiplier");
+
+			if (!cJSON_IsNumber(idItem) || !cJSON_IsNumber(multItem))
+			{
+				continue;
+			}
+			int axis = idItem->valueint;
+			float multiplier = (float)multItem->valuedouble;
+
+			// Store in preferences
+			const char *prefNamespace = "UC2";
+			preferences.begin(prefNamespace, false);
+			preferences.putFloat(("joySpd" + String(axis)).c_str(), multiplier);
+			preferences.end();
+			log_i("Set joystick speed multiplier: stepperid %i, multiplier %.2f", axis, multiplier);
+
+			FocusMotor::getData()[axis]->joystickSpeedMultiplier = multiplier;
+		}
+	}
+
 	void parseSetHardLimits(cJSON *doc)
 	{
 		/*
@@ -624,6 +671,10 @@ namespace MotorJsonParser
 		// set joystick direction inversion
 		// {"task": "/motor_act", "joystickdir": {"steppers": [{"stepperid": 1, "inverted": 1}]}}
 		parseSetJoystickDirection(doc);
+
+		// set joystick speed-scaling multiplier
+		// {"task": "/motor_act", "speedmult": {"steppers": [{"stepperid": 1, "multiplier": 75}]}}
+		parseSetJoystickSpeed(doc);
 
 		// move motor drive
 		// {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "position": 0, "speed": 20000, "isabs": 1, "isaccel": 1, "accel":20000, "isen": true}]}, "qid": 5}

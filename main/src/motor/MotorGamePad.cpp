@@ -36,6 +36,22 @@ static unsigned long lastAxisChangeTime[4] = {0, 0, 0, 0}; // Track last change 
 // Bridge build — no local FocusMotor instance to query for per-axis
 // inversion. Mirror the field locally; default to non-inverted.
 static bool s_joystickInverted[4] = {false, false, false, false};
+// Same for the per-axis speed-scaling multiplier. Left at 0 until
+// ensureSpeedMultiplierDefaults() lazily seeds it from pinConfig on first
+// use — reading pinConfig at static-init time here would risk the static
+// initialization order fiasco (pinConfig lives in a different translation
+// unit).
+static float s_speedMultiplier[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+static bool  s_speedMultiplierInitialized = false;
+
+static inline void ensureSpeedMultiplierDefaults()
+{
+    if (s_speedMultiplierInitialized) return;
+    for (int ax = 0; ax < 4; ax++)
+        s_speedMultiplier[ax] = (ax == Stepper::Z) ? (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
+                                                    : (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+    s_speedMultiplierInitialized = true;
+}
 #endif
 
 
@@ -181,10 +197,15 @@ static bool s_joystickInverted[4] = {false, false, false, false};
 		// speed computation ───────────────────────────────────────────────────
 		float speed = curve(value) * kMaxSpeed;
 		
-		// per-axis scaling
-		speed *= (ax == Stepper::Z )
-		? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
-		: pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+		// per-axis scaling — runtime-configurable via /motor_act "speedmult"
+		// (MOTOR_CONTROLLER builds) or setJoystickSpeedMultiplier() (bridge
+		// builds); falls back to pinConfig.JOYSTICK_SPEED_MULTIPLIER[_Z].
+#ifdef MOTOR_CONTROLLER
+		speed *= FocusMotor::getData()[ax]->joystickSpeedMultiplier;
+#else
+		ensureSpeedMultiplierDefaults();
+		speed *= (ax >= 0 && ax < 4) ? s_speedMultiplier[ax] : pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+#endif
 		
 		// Apply fine/coarse mode scaling from MotorGamePad
 		speed *= getJoystickScaleFactor();
@@ -302,6 +323,17 @@ static bool s_joystickInverted[4] = {false, false, false, false};
 #else
 		(void)ax; (void)inverted; // on builds with FocusMotor, the inverted
 		// flag lives in MotorData and is set via the regular config path.
+#endif
+	}
+
+	void setJoystickSpeedMultiplier(int ax, float multiplier)
+	{
+#ifndef MOTOR_CONTROLLER
+		ensureSpeedMultiplierDefaults();
+		if (ax >= 0 && ax < 4) s_speedMultiplier[ax] = multiplier;
+#else
+		(void)ax; (void)multiplier; // on builds with FocusMotor, the multiplier
+		// lives in MotorData and is set via /motor_act "speedmult" instead.
 #endif
 	}
 

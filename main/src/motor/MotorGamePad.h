@@ -18,4 +18,11 @@ namespace MotorGamePad
     // false for every axis. On master / slave builds the value is taken from
     // FocusMotor::getData()[ax]->joystickDirectionInverted instead.
     void setJoystickInverted(int ax, bool inverted);
+
+    // Bridge-only per-axis joystick speed-scaling multiplier (used when
+    // MOTOR_CONTROLLER is not defined). Defaults to pinConfig.JOYSTICK_SPEED_MULTIPLIER[_Z].
+    // On master / slave builds the value is taken from
+    // FocusMotor::getData()[ax]->joystickSpeedMultiplier instead, which is
+    // set via /motor_act "speedmult" (see MotorJsonParser::parseSetJoystickSpeed).
+    void setJoystickSpeedMultiplier(int ax, float multiplier);
 };

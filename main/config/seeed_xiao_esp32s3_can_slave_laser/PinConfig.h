@@ -1,15 +1,12 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
-#define LASER_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_BUS_ENABLED
-#define CAN_RECEIVE_LASER
+#define ESP32S3_MODEL_XIAO
+
 
 struct UC2_3_Xiao_Slave_Laser : PinConfig
 {
@@ -29,7 +26,7 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
 
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
-     
+
     const char *pindefName = "seeed_xiao_esp32s3_can_slave_laser";
     const unsigned long BAUDRATE = 115200;
 
@@ -61,5 +58,5 @@ struct UC2_3_Xiao_Slave_Laser : PinConfig
 
 
 };
-  
+
 const UC2_3_Xiao_Slave_Laser pinConfig;

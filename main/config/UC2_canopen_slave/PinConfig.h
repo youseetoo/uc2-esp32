@@ -2,27 +2,16 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#undef MOTOR_AXIS_COUNT
+
 // redfine
 #define MOTOR_AXIS_COUNT 10
-#undef PSXCONTROLLER
+
 
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
-#define DIGITAL_IN_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_RECEIVE_MOTOR
-#define CAN_BUS_ENABLED
-#define MOTOR_CONTROLLER
-#define HOME_MOTOR
-#define DIGITAL_IN_CONTROLLER
+#define ESP32S3_MODEL_XIAO
+
 //#define USE_FASTACCEL
-#define TMC_CONTROLLER
-#define LINEAR_ENCODER_CONTROLLER
-#define AXIS_CONTROLLER
 //#define OTA_ON_STARTUP
-#define USE_PCNT_COUNTER
-#define CAN_CONTROLLER_CANOPEN
 
 struct UC2_canopen_slave : PinConfig
 {
@@ -53,7 +42,7 @@ struct UC2_canopen_slave : PinConfig
 
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
-     
+
      bool DEBUG_CAN_ISO_TP = 0; // 1 = debug CAN communication, 0 = no debug
 
      const char * pindefName = "UC2_canopen_slave";
@@ -68,20 +57,20 @@ struct UC2_canopen_slave : PinConfig
 
      // I2c - as slave
      const char *I2C_NAME = "MOTX";
-     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
-     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2 
+     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)
+     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2
      int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
-     
-     // I2C  - as controller 
+
+     // I2C  - as controller
      int8_t I2C_SCL_ext = disabled; //  GPIO_NUM_5; // D5 -> GPIO5
      int8_t I2C_SDA_ext = disabled; // GPIO_NUM_4; // D4 -> GPIO4
 
-     // TMC UART 
+     // TMC UART
      int8_t tmc_SW_RX = 44;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = 43;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = GPIO_NUM_4; // D3 -> GPIO4
      bool TMC_DEBUG = false;
-     int tmc_microsteps =  16; //TODO: Verify if we can drive faster 
+     int tmc_microsteps =  16; //TODO: Verify if we can drive faster
      int tmc_rms_current = 1050;
      int tmc_stall_value = 100;
      int tmc_sgthrs = 100;
@@ -104,7 +93,7 @@ struct UC2_canopen_slave : PinConfig
      int8_t ROUTE_LASER[4] = {2, 2, 2, 2}; // all OFF on this slave
      int8_t ROUTE_LED       = 2;            // OFF
      int8_t ROUTE_GALVO     = 2;            // OFF
-     
+
 
      // Endstops should be the same for all - depending on the motor
      uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
@@ -116,9 +105,9 @@ struct UC2_canopen_slave : PinConfig
      // Currently disabled - can be enabled for testing PCNT vs interrupt performance
      int8_t ENC_X_A = GPIO_NUM_5; // GPIO_NUM_21; // Example: could use available GPIO pins
      int8_t ENC_X_B = GPIO_NUM_6; // GPIO_NUM_20;
-     int8_t ENC_Y_A = disabled; 
+     int8_t ENC_Y_A = disabled;
      int8_t ENC_Y_B = disabled;
-     int8_t ENC_Z_A = disabled; 
+     int8_t ENC_Z_A = disabled;
      int8_t ENC_Z_B = disabled;
      bool ENC_X_encoderDirection = true;
      bool ENC_Y_encoderDirection = true;
@@ -130,5 +119,5 @@ struct UC2_canopen_slave : PinConfig
      const uint16_t serialTimeout = 100;
 
 };
-  
+
 const UC2_canopen_slave pinConfig;

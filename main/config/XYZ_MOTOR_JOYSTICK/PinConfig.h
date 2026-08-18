@@ -8,7 +8,6 @@ struct UC2_3 : PinConfig
      */
      /*
 
-
      Y_Cal-Data 34
      X_Cal-Data 32
      Z_Cal-Data 36
@@ -89,14 +88,14 @@ struct UC2_3 : PinConfig
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;
-     
+
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
-     
+
 
      // for caliper
      int8_t X_CAL_DATA = GPIO_NUM_32;

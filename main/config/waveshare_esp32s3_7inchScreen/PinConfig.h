@@ -2,18 +2,14 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#undef MOTOR_AXIS_COUNT
+
 // redfine
 #define MOTOR_AXIS_COUNT 10
-#undef PSXCONTROLLER
+
 
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
-#define MESSAGE_CONTROLLER
-#define CAN_RECEIVE_MOTOR
-#define CAN_BUS_ENABLED
-#define MOTOR_CONTROLLER
-#define USE_FASTACCEL
+#define ESP32S3_MODEL_XIAO
+
 //#define OTA_ON_STARTUP
 
 
@@ -46,7 +42,7 @@ struct waveshare_esp32s3_7inchScreen : PinConfig
 
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
-     
+
      bool DEBUG_CAN_ISO_TP = 1; // 1 = debug CAN communication, 0 = no debug
 
      const char * pindefName = "seeed_xiao_esp32s3_can_slave_motor";
@@ -61,19 +57,19 @@ struct waveshare_esp32s3_7inchScreen : PinConfig
 
      // I2c - as slave
      const char *I2C_NAME = "MOTX";
-     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)  
-     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2 
+     int8_t I2C_ADD_SLAVE = I2C_ADD_MOT_X;    // I2C address of the ESP32 if it's a slave ( 0x40;)
+     int8_t I2C_SCL = disabled; // GPIO_NUM_2; // D1 -> GPIO2
      int8_t I2C_SDA = disabled; // GPIO_NUM_3; // D2 -> GPIO3
-     
-     // I2C  - as controller 
+
+     // I2C  - as controller
      int8_t I2C_SCL_ext = disabled; // D5 -> GPIO5
      int8_t I2C_SDA_ext = disabled; // D4 -> GPIO4
 
-     // TMC UART 
+     // TMC UART
      int8_t tmc_SW_RX = disabled;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = disabled;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
-     
+
      int tmc_microsteps = 16;
      int tmc_rms_current = 850;
      int tmc_stall_value = 100;
@@ -89,7 +85,7 @@ struct waveshare_esp32s3_7inchScreen : PinConfig
      int8_t CAN_TX = GPIO_NUM_20; // GPIO_NUM_3;  // D2 in (I2C SDA) CAN Motor Board
      int8_t CAN_RX = GPIO_NUM_19; //GPIO_NUM_2; // D1 in (I2C SCL)  CAN Motor Board
      uint32_t CAN_ID_CURRENT = CAN_ID_MOT_X;
-     
+
 
      // Endstops should be the same for all - depending on the motor
      uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 - > TOUCH
@@ -103,5 +99,5 @@ struct waveshare_esp32s3_7inchScreen : PinConfig
      const bool dumpHeap = true;
 
 };
-  
+
 const waveshare_esp32s3_7inchScreen pinConfig;

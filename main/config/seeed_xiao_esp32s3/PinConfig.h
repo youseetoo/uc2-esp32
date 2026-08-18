@@ -1,7 +1,6 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
 struct UC2_ESP32S3_XIAO : PinConfig
 {
      /*
@@ -72,11 +71,11 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_15;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     
+
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
-     bool ENC_X_encoderDirection = true; 
-     bool ENC_Y_encoderDirection = true; 
-     bool ENC_Z_encoderDirection = true; 
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
      bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_motorDirection = true;
      bool ENC_Y_motorDirection = true;
@@ -90,7 +89,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t LASER_2 = GPIO_NUM_4;
      int8_t LASER_3 = GPIO_NUM_2;
 
-     int8_t LED_PIN = GPIO_NUM_14; // internally conncted to the LED array on the LED matrix Waveshare board 
+     int8_t LED_PIN = GPIO_NUM_14; // internally conncted to the LED array on the LED matrix Waveshare board
      int8_t LED_COUNT = 64;
 
      // FIXME: Is this redudant?!
@@ -104,7 +103,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 30;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 30;
-     
+
 
      // for caliper
      int8_t ENC_X_A = disabled;
@@ -115,7 +114,7 @@ struct UC2_ESP32S3_XIAO : PinConfig
      int8_t ENC_Z_B = disabled;
 
      // I2c
-     int8_t I2C_SCL = GPIO_NUM_7; 
+     int8_t I2C_SCL = GPIO_NUM_7;
      int8_t I2C_SDA = GPIO_NUM_6;
      int8_t I2C_ADD_TCA = 0x27;
      int8_t I2C_ADD_SLAVE = 0x08; // IF 0 then we are in I2C slave mode

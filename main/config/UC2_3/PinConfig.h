@@ -3,6 +3,7 @@
 #include "PinConfigDefault.h"
 
 #define MOTOR_CONTROLLER
+#define USE_FASTACCEL
 #define USE_TCA9535
 #define BLUETOOTH
 #define BTHID

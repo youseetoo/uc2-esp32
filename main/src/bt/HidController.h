@@ -18,6 +18,8 @@
 #include "HidGamePad.h"
 #include "esp_hidh.h"
 #include "esp_hid_gap.h"
+#include "PS4TrackpadParser.h"
+#include "BtController.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

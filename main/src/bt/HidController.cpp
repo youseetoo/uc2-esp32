@@ -1,6 +1,7 @@
 #include <PinConfig.h>
 #include "HidController.h"
 #include "esp_task_wdt.h"
+#include "PS4TrackpadParser.h"
 // include logging
 #include "esp_log.h"
 #include "esp_bt.h"
@@ -146,6 +147,12 @@ void handleHidInputEvent(esp_hidh_event_data_t *param)
         //log_i("HID input event (updateGamePadDataDS4): %d", param->input.length);
         const DS4Data *d = (DS4Data*)param->input.data;
         updateGamePadDataDS4(d);
+    } else if (param->input.length == 49) {
+        // PS4 full report with trackpad data
+        //log_i("HID input event (PS4 trackpad): %d", param->input.length);
+        updateGamePadDataDS4((const DS4Data*)param->input.data);
+        auto trackpadData = PS4TrackpadParser::parseTrackpadData(param->input.data, param->input.length);
+        BtController::processTrackpadData(trackpadData);
     } else {
         ESP_LOGI(TAG,"unknown size:%d", param->input.length);
     }

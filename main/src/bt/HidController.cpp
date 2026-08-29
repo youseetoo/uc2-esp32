@@ -1,4 +1,3 @@
-#include <PinConfig.h>
 #include "HidController.h"
 #include "esp_task_wdt.h"
 #include "PS4TrackpadParser.h"
@@ -21,6 +20,12 @@
 
 GamePadData gamePadData;
 bool hidIsConnected = false;
+
+// DS4 extended-mode state (defined below, after handleHidInputEvent()).
+// Declared here so hidh_callback() can update it.
+extern esp_hidh_dev_t *ds4Dev;
+extern bool ds4ExtendedActive;
+extern uint32_t ds4LastPollMs;
 
 void setupHidController()
 {
@@ -89,12 +94,29 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
     switch (event) {
 	    case ESP_HIDH_OPEN_EVENT:
             if (param->open.status == ESP_OK) {
-                const uint8_t *bda = esp_hidh_dev_bda_get(param->open.dev);
-                ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->open.dev));
-                esp_hidh_dev_dump(param->open.dev, stdout);
+                esp_hidh_dev_t *dev = param->open.dev;
+                const uint8_t *bda = esp_hidh_dev_bda_get(dev);
+                ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(dev));
+                esp_hidh_dev_dump(dev, stdout);
                 // print heap
                 ESP_LOGI(TAG, "  heap: %d", ESP.getFreeHeap());
                 hidIsConnected = true;
+
+                // PS4/DualShock4 controllers start in "standard" mode (9-byte
+                // reports, no trackpad data). The switch to the 77-byte extended
+                // reports happens via a GET of feature report 0x02 - but
+                // esp_hidh_dev_feature_get() BLOCKS (up to 500 ms), so it must
+                // not run in this callback (BT stack task context). Record the
+                // device here; the BtController task triggers the handshake via
+                // ds4PollExtendedMode() (see DS4 extended-mode state below).
+                if (esp_hidh_dev_name_get(dev) &&
+                    (strstr(esp_hidh_dev_name_get(dev), "Wireless Controller") ||
+                     strstr(esp_hidh_dev_name_get(dev), "DUALSHOCK"))) {
+                    log_i(ESP_BD_ADDR_STR " PS4 controller - requesting extended (trackpad) mode", ESP_BD_ADDR_HEX(bda));
+                    ds4Dev = dev;
+                    ds4ExtendedActive = false;
+                    ds4LastPollMs = 0;
+                }
             } else {
                 ESP_LOGE(TAG, " OPEN failed!");
                 ESP_LOGE(TAG, "  status: %d", param->open.status);
@@ -116,14 +138,28 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
                      esp_hid_usage_str(param->feature.usage), param->feature.map_index, param->feature.report_id,
                      param->feature.length);
             ESP_LOG_BUFFER_HEX(TAG, param->feature.data, param->feature.length);
+            // The controller's answer to our feature-GET 0x02 confirms the
+            // extended (trackpad) mode handshake succeeded.
+            if (ds4Dev != NULL && param->feature.dev == ds4Dev &&
+                param->feature.report_id == DS4_FEATURE_ENABLE_REPORT_ID) {
+                ds4ExtendedActive = true;
+                log_i(ESP_BD_ADDR_STR " extended mode handshake confirmed (feature 0x02, len %u)",
+                      ESP_BD_ADDR_HEX(bda), param->feature.length);
+            }
             break;
         }
         case ESP_HIDH_CLOSE_EVENT: {
             hidIsConnected = false;
             const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
             ESP_LOGI(TAG, ESP_BD_ADDR_STR " CLOSE: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->close.dev));
-            // TODO: We need to stop all motors 
-            
+            if (param->close.dev == ds4Dev) {
+                // Reset the handshake state so a (re)connect starts over
+                ds4ExtendedActive = false;
+                ds4LastPollMs = 0;
+                ds4Dev = NULL;
+            }
+            // TODO: We need to stop all motors
+
             break;
             }
         default: {
@@ -143,19 +179,71 @@ void handleHidInputEvent(esp_hidh_event_data_t *param)
         //log_i("HID input event (updateGamePadDataHyperX): %d", param->input.length);
         const HyperXClutchData *d = (HyperXClutchData*)param->input.data;
         updateGamePadDataHyperX(d);
-    } else if (param->input.length == 9) {
+    } else if (param->input.length == DS4_EXT_REPORT_SIZE) {
+        // PS4 extended report (77 bytes) with trackpad data. The leading
+        // 9 bytes have the standard-report layout, so the gamepad update
+        // reuses updateGamePadDataDS4().
+        const DS4DataExt *ext = (const DS4DataExt *)param->input.data;
+        if (!BtController::PS4TrackpadParser::validateCrc(param->input.data)) {
+            ESP_LOGW(TAG, "DS4 extended report CRC mismatch - dropping");
+            return;
+        }
+        updateGamePadDataDS4((const DS4Data *)param->input.data);
+        ds4ExtendedActive = true; // controller is actually sending extended reports
+        BtController::TrackpadData td = BtController::PS4TrackpadParser::parseTrackpadData(ext);
+        BtController::processTrackpadData(td);
+    } else if (param->input.length == DS4_STANDARD_REPORT_SIZE) {
         //log_i("HID input event (updateGamePadDataDS4): %d", param->input.length);
         const DS4Data *d = (DS4Data*)param->input.data;
         updateGamePadDataDS4(d);
-    } else if (param->input.length == 49) {
-        // PS4 full report with trackpad data
-        //log_i("HID input event (PS4 trackpad): %d", param->input.length);
-        updateGamePadDataDS4((const DS4Data*)param->input.data);
-        auto trackpadData = PS4TrackpadParser::parseTrackpadData(param->input.data, param->input.length);
-        BtController::processTrackpadData(trackpadData);
+        // Standard reports again? The controller may have reverted (e.g. after
+        // a PS-button mode change) - clear the flag so ds4PollExtendedMode()
+        // re-issues the feature GET.
+        if (ds4Dev != NULL)
+            ds4ExtendedActive = false;
     } else {
         ESP_LOGI(TAG,"unknown size:%d", param->input.length);
     }
+}
+
+// --- DS4 extended (trackpad) mode handshake ---------------------------------
+esp_hidh_dev_t *ds4Dev = NULL;
+bool ds4ExtendedActive = false;
+uint32_t ds4LastPollMs = 0;
+static const uint32_t DS4_POLL_RETRY_MS = 2000;
+
+void ds4PollExtendedMode(void)
+{
+    if (ds4ExtendedActive)
+        return;
+    if (ds4Dev == NULL)
+        return;
+    uint32_t now = millis();
+    if (now - ds4LastPollMs < DS4_POLL_RETRY_MS)
+        return;
+    ds4LastPollMs = now;
+
+    // GET feature report 0x02 (37 bytes): a plain GET flips the controller
+    // into extended mode - it then starts sending the 77-byte reports.
+    // This call BLOCKS (up to ~500 ms), which is fine from the BtController
+    // task but would deadlock the BT stack if called from hidh_callback().
+    static uint8_t feature02[DS4_FEATURE_ENABLE_REPORT_SIZE];
+    size_t len = DS4_FEATURE_ENABLE_REPORT_SIZE;
+    esp_err_t ret = esp_hidh_dev_feature_get(ds4Dev, 0, DS4_FEATURE_ENABLE_REPORT_ID,
+                                             DS4_FEATURE_ENABLE_REPORT_SIZE, feature02, &len);
+    if (ret == ESP_OK) {
+        ds4ExtendedActive = true;
+        log_i(ESP_BD_ADDR_STR " DS4 extended mode enabled (feature 0x02, %u bytes)",
+              ESP_BD_ADDR_HEX(esp_hidh_dev_bda_get(ds4Dev)), (unsigned)len);
+    } else {
+        log_w(ESP_BD_ADDR_STR " DS4 extended mode request failed: %s (retry in %lu ms)",
+              ESP_BD_ADDR_HEX(esp_hidh_dev_bda_get(ds4Dev)), esp_err_to_name(ret), (unsigned long)DS4_POLL_RETRY_MS);
+    }
+}
+
+bool ds4IsExtendedActive(void)
+{
+    return ds4ExtendedActive;
 }
 
 void updateGamePadDataHyperX(const HyperXClutchData *d)
@@ -215,6 +303,13 @@ void updateGamePadDataDS4(const DS4Data *d)
             gamePadData.dpaddirection = Dpad::Direction::left;
             break;
     }
+}
+
+void updateGamePadDataDS4Ext(const DS4DataExt *d)
+{
+    // Sticks, buttons and triggers: same fields/encodings as the 9-byte
+    // report (bytes [2..10] of the extended report), so reuse the mapping.
+    updateGamePadDataDS4((const DS4Data *)d);
 }
 
 void hid_demo_task(void *pvParameters)

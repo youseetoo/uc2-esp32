@@ -229,6 +229,10 @@ namespace BtController
 
     void loop()
     {
+        // DS4: issue/retry the extended (trackpad) mode feature-GET from this
+        // task - esp_hidh_dev_feature_get() blocks and must not run in the
+        // esp_hidh callback context.
+        ds4PollExtendedMode();
         //log_i("hid connected:%i", hidIsConnected);
         if (hidIsConnected and (millis()-updateRateMS)>lastUpdate)
         {

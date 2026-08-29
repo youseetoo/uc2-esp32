@@ -40,6 +40,18 @@ void hid_demo_task(void *pvParameters);
 
 void updateGamePadDataDS4(const DS4Data *d);
 
+void updateGamePadDataDS4Ext(const DS4DataExt *d);
+
 void updateGamePadDataHyperX(const HyperXClutchData *d);
 
 void handleHidInputEvent(esp_hidh_event_data_t *param);
+
+// --- DS4 extended (trackpad) reporting -------------------------------------
+// The DS4 starts in "standard" mode (9-byte reports only). Switching it to
+// the extended 77-byte reports (with trackpad data) requires a GET of
+// feature report 0x02. esp_hidh_dev_feature_get() BLOCKS (up to 500 ms) and
+// hidh_callback() runs in the BT stack task context, so the request is made
+// from the BtController task via ds4PollExtendedMode() - never from
+// hidh_callback() itself (that would deadlock the BT stack).
+void ds4PollExtendedMode(void);
+bool ds4IsExtendedActive(void);

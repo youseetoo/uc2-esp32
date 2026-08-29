@@ -1,4 +1,3 @@
-
 #pragma once
 #include <PinConfig.h>
 #include "esp_err.h"
@@ -18,14 +17,13 @@ namespace BtController
     void connectPsxController(char* mac, int type);
     #endif
     
-
+    
     #define PAIR_MAX_DEVICES 20
     static char bda_str[18];
 
     static uint32_t updateRateMS = 100; // update every 100ms
     static uint32_t lastUpdate = 0;    // last update time
     
-
     void setup();
     void loop();
     cJSON * scanForDevices(cJSON *  doc);
@@ -72,4 +70,5 @@ namespace BtController
     
     void setTrackpadSwipeEvent(void (*trackpad_swipe_event)(SwipeDirection direction));
     void setTrackpadTouchEvent(void (*trackpad_touch_event)(TouchData touch1, TouchData touch2));
+    void processTrackpadData(TrackpadData &currentData);
 };

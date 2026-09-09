@@ -26,13 +26,10 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#undef PSXCONTROLLER
+
 
 #define ESP32S3_MODEL_XIAO
-#define MESSAGE_CONTROLLER
-#define CAN_BUS_ENABLED
-#define CAN_CONTROLLER_CANOPEN
-#define PTZ_KEYBOARD_CONTROLLER
+
 // PTZ_KEYBOARD_CONTROLLER also comes from build_flags in platformio.ini.
 
 struct UC2_canopen_bridge_ptz : PinConfig

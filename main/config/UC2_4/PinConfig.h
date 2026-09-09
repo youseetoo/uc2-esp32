@@ -1,9 +1,9 @@
 //This is for the standalone aka mAIkroscope::mainboard Rev. G, dated 2025-08-15.
 /*
-New in this Hardware Rev: 
-3 flicker-less LED drivers with field-settable current, 
-CAN transceiver with FRAME-backbone-compatible 12V+XH port, 
-XH 6-pin port to connect directly to LASERBOX, 
+New in this Hardware Rev:
+3 flicker-less LED drivers with field-settable current,
+CAN transceiver with FRAME-backbone-compatible 12V+XH port,
+XH 6-pin port to connect directly to LASERBOX,
 XH and SH ports with pinout identical to off-the-shelf endstop boards
 */
 
@@ -12,23 +12,14 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 #include "PinConfigDefault.h"
 
 // only for linting
-#define MOTOR_CONTROLLER
-#define USE_TCA9535
-#define BLUETOOTH
-#define BTHID
 //#define WIFI
-#define HOME_MOTOR
-#define LASER_CONTROLLER
-#define DIGITAL_IN_CONTROLLER 
-#define LED_CONTROLLER
-#define STAGE_SCAN
 
 struct UC2_4 : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
      */
-  
+
      const char * pindefName = "UC2_4";
      const unsigned long BAUDRATE = 115200;
 
@@ -50,7 +41,7 @@ struct UC2_4 : PinConfig
     bool   CAMERA_TRIGGER_INVERTED = false;
 
     // THIS LIVES ON TCA
-     int8_t MOTOR_ENABLE = 0; 
+     int8_t MOTOR_ENABLE = 0;
      int8_t MOTOR_X_DIR = 1;
      int8_t MOTOR_Y_DIR = 2;
      int8_t MOTOR_Z_DIR = 3;
@@ -93,7 +84,7 @@ struct UC2_4 : PinConfig
      int8_t DIGITAL_IN_1 = 5;
      int8_t DIGITAL_IN_2 = 6;
      int8_t DIGITAL_IN_3 = 7;
-     
+
      //DAC pins go out to pinheaders DAC_1 and DAC_2
      int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
      int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
@@ -107,7 +98,7 @@ struct UC2_4 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
-     
+
      /*
      FIXME: Not featured in this revision anymore
      // for caliper
@@ -137,7 +128,7 @@ struct UC2_4 : PinConfig
      int8_t I2C_ADD_LEX_PWM3 = 0x53;
      int8_t I2C_ADD_LEX_PWM4 = 0x54;
      /*
-     FIXME: 
+     FIXME:
      I/O expander, nothing new in this Revision.
      The notation/labels are weird. Not sure if they are correct.
      Step_Enable for all motors on P00
@@ -149,8 +140,8 @@ struct UC2_4 : PinConfig
      Y_LIMIT: P06
      Z_LIMIT: P07
      Just broken out to 2.54mm pitch holes: P10-P17
-     
-     Also connected: 
+
+     Also connected:
      int8_t IOEXP_INTERRUPT = GPIO_NUM_27;
      */
 
@@ -166,9 +157,9 @@ struct UC2_4 : PinConfig
      const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";
      bool mAP = true; // false;
-     const char *mSSIDAP = "UC2";            
-     const char *hostname = "youseetoo";    
-     */ 
+     const char *mSSIDAP = "UC2";
+     const char *hostname = "youseetoo";
+     */
 
      /*
      FIXME: Maybe this is application-based?

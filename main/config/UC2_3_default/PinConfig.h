@@ -2,17 +2,6 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#define MOTOR_CONTROLLER
-#define USE_TCA9535
-#define BLUETOOTH
-#define BTHID
-#define LED_CONTROLLER
-#define HOME_MOTOR
-#define LASER_CONTROLLER
-#define DIGITAL_IN_CONTROLLER
-#define ENCODER_CONTROLLER
-#define DIAL_CONTROLLER
-#define LED_CONTROLLER
 
 struct UC2_3 : PinConfig
 {
@@ -78,19 +67,19 @@ struct UC2_3 : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     
+
      // THIS LIVES ON TCA
-     int8_t MOTOR_ENABLE = 0; 
+     int8_t MOTOR_ENABLE = 0;
      int8_t MOTOR_X_DIR = 1;
      int8_t MOTOR_Y_DIR = 2;
      int8_t MOTOR_Z_DIR = 3;
      int8_t MOTOR_A_DIR = 4;
 
-     
+
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
-     bool ENC_X_encoderDirection = true; 
-     bool ENC_Y_encoderDirection = true; 
-     bool ENC_Z_encoderDirection = true; 
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
      bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_motorDirection = true;
      bool ENC_Y_motorDirection = true;
@@ -124,7 +113,7 @@ struct UC2_3 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
-     
+
      // for caliper
      int8_t ENC_X_A = GPIO_NUM_32;
      int8_t ENC_Y_A = GPIO_NUM_34;
@@ -150,7 +139,7 @@ struct UC2_3 : PinConfig
      int8_t tmc_SW_TX = SPI_CS;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_RX = SPI_SCK;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = SPI_MISO; // D3 -> GPIO4
-     
+
      int tmc_microsteps = 16;
      int tmc_rms_current = 500;
      int tmc_stall_value = 100;
@@ -168,8 +157,8 @@ struct UC2_3 : PinConfig
      const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";
      bool mAP = true; // false;
-     const char *mSSIDAP = "UC2";            
-     const char *hostname = "youseetoo";     
+     const char *mSSIDAP = "UC2";
+     const char *hostname = "youseetoo";
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;

@@ -3,29 +3,13 @@
 #include "PinConfigDefault.h"
 
 // #define CORE_DEBUG_LEVEL=5
-#define LASER_CONTROLLER=1
-#define DIGITAL_IN_CONTROLLER=1
-#define MESSAGE_CONTROLLER=1
-#define CAN_BUS_ENABLED=1
-#define DIAL_CONTROLLER=1
-#define MOTOR_CONTROLLER=1
-#define HOME_MOTOR=1
-#define BTHID=1 
-#define BLUETOOTH=1	
-#define TMC_CONTROLLER=1
-#define STAGE_SCAN=1
-#define CAN_SEND_COMMANDS
-#define MOTOR_AXIS_COUNT 10   
-#define LED_CONTROLLER
-#define GALVO_CONTROLLER
-#define DAC_CONTROLLER
-#define CAN_BUS_ENABLED 
+#define MOTOR_AXIS_COUNT 10
 struct UC2_3_CAN_HAT_Master : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
      */
-  
+
      const char * pindefName = "UC2_3_CAN_HAT_Master";
      const unsigned long BAUDRATE = 115200;
 
@@ -34,11 +18,11 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_0;
      int8_t MOTOR_Y_STEP = GPIO_NUM_0;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     
+
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
-     bool ENC_X_encoderDirection = true; 
-     bool ENC_Y_encoderDirection = true; 
-     bool ENC_Z_encoderDirection = true; 
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
      bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_motorDirection = true;
      bool ENC_Y_motorDirection = true;
@@ -60,7 +44,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;
-     
+
      int8_t dac_fake_1 = GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
      int8_t dac_fake_2 = GPIO_NUM_26; // Coolant
 
@@ -69,7 +53,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 10;
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
-     
+
      int8_t CAMERA_TRIGGER_PIN = 27;
      bool CAMERA_TRIGGER_INVERTED = false; // true = inverted, false = normal
      // for caliper
@@ -83,7 +67,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
 
      const int32_t MAX_ACCELERATION_A = 600000;
      const int32_t DEFAULT_ACCELERATION = 100000;
-     
+
      // I2c
      int8_t I2C_SCL = GPIO_NUM_22;      // This is the poart that connects to all other slaves
      int8_t I2C_SDA = GPIO_NUM_21;
@@ -94,10 +78,10 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      const char *mSSID = "UC2x-CAN-HAT";
      const char *mPWD =  "";
      bool mAP = true; // false;
-     const char *mSSIDAP = "UC2";            
-     const char *hostname = "youseetoo";     
+     const char *mSSIDAP = "UC2";
+     const char *hostname = "youseetoo";
 
-     
+
      // CAN
      int8_t CAN_TX = GPIO_NUM_17;
      int8_t CAN_RX = GPIO_NUM_18;
@@ -111,7 +95,7 @@ struct UC2_3_CAN_HAT_Master : PinConfig
      uint32_t objectivePositionX1 = 35000;
      int8_t objectiveHomeDirection = -1;
      int8_t objectiveHomeEndStopPolarity = 0;
-			
+
      // Emergency-STOP sense (HIGH = normal, LOW = asserted) + CAN-bus power gate
      // (HIGH = bus power OFF). See PinConfigDefault.h / State.cpp.
      int8_t pinEmergencyExit = GPIO_NUM_34;

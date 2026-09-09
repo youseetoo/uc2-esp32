@@ -1,11 +1,8 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 #define ESP32S3_MODEL_XIAO
-#define GALVO_CONTROLLER
-#define CAN_RECEIVE_GALVO
-#define CAN_BUS_ENABLED
 
 struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
 {
@@ -45,9 +42,9 @@ struct seeed_xiao_esp32s3_can_slave_galvo : PinConfig
      uint8_t galvo_trig_pixel = GPIO_NUM_2;  // D1
      uint8_t galvo_trig_line = GPIO_NUM_3;   // D2
      uint8_t galvo_trig_frame = GPIO_NUM_4;  // D3
-     
+
      uint32_t CAN_ID_CURRENT = CAN_ID_GALVO_0;
 
-     
+
 };
 const seeed_xiao_esp32s3_can_slave_galvo pinConfig;

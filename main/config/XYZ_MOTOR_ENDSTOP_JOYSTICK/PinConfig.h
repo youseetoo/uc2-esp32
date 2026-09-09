@@ -22,7 +22,6 @@ struct XYZ_MOTOR_ENDSTOP_JOYSTICK : PinConfig
      int8_t ANLOG_JOYSTICK_X = 0;
      int8_t ANLOG_JOYSTICK_Y = 0;
 
-     #define HOME_MOTOR
      int8_t DIGITAL_IN_1 = 12;
      int8_t DIGITAL_IN_2 = 13;
      int8_t DIGITAL_IN_3 = 5;

@@ -1,12 +1,8 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 #define ESP32S3_MODEL_XIAO
-#define GALVO_CONTROLLER
-#define CAN_RECEIVE_GALVO
-#define CAN_BUS_ENABLED
-#define CAN_CONTROLLER_CANOPEN
 struct UC2_canopen_slave_galvo : PinConfig
 {
      /*
@@ -50,10 +46,10 @@ struct UC2_canopen_slave_galvo : PinConfig
      uint8_t galvo_trig_pixel =  GPIO_NUM_2;  // D1
      uint8_t galvo_trig_line = GPIO_NUM_3;   // D2
      uint8_t galvo_trig_frame = GPIO_NUM_4;  // D3
-     
+
      uint32_t CAN_ID_CURRENT = CAN_ID_GALVO_0;
     int8_t ROUTE_GALVO = 0; // 0=LOCAL, 1=REMOTE, 2=OFF
 
-     
+
 };
 const UC2_canopen_slave_galvo pinConfig;

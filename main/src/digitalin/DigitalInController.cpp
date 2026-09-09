@@ -46,6 +46,13 @@ namespace DigitalInController
 		cJSON_AddItemToObject(monitor_json, key_digitalin, digitalinholder);
 		cJSON_AddItemToObject(digitalinholder, "digitalinid", cJSON_CreateNumber(digitalinid));
 		cJSON_AddItemToObject(digitalinholder, "digitalinval", cJSON_CreateNumber(digitalinval));
+
+		cJsonTool::setJsonInt(
+			monitor_json,
+			"qid",
+			cJsonTool::getJsonInt(jsonDocument, "qid")
+		);
+
 		return monitor_json;
 	}
 

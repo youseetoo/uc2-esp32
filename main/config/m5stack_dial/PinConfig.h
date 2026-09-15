@@ -10,9 +10,15 @@
 #define DIAL_CONTROLLER
 #define CAN_SEND_COMMANDS
 #define CAN_BUS_ENABLED
-#define LASER_CONTROLLER
+#define CAN_CONTROLLER_CANOPEN
+
+// NODE_ROLE=2 + ROUTE_*=REMOTE (set in platformio.ini): the dial is a CANopen
+// originator node — it writes the same expedited SDOs the master would, so
+// motors/lasers work with no master on the bus. No actuator controllers are
+// compiled in (same pattern as UC2_canopen_bridge_ptz / _ps4_usbhost).
 
 // Explicitly disable all unnecessary controllers
+#undef LASER_CONTROLLER
 #undef MOTOR_CONTROLLER
 #undef HOME_MOTOR
 #undef BLUETOOTH
@@ -38,7 +44,7 @@ struct UC2_M5StackDial : PinConfig
 {
      /*
      This is the M5Stack Dial Pin Configuration 
-     Configured as CAN Master for direct motor/laser control
+     Configured as CANopen originator node for direct motor/laser control
      
      M5Dial (ESP32-S3) GPIO Pinout:
      - Built-in: Display, Encoder (G40/G41), Speaker (G14), Touch screen
@@ -58,9 +64,10 @@ struct UC2_M5StackDial : PinConfig
      int8_t CAN_TX = 2;//13;   // Grove Yellow wire - TWAI TX
      int8_t CAN_RX = 1;//15;   // Grove White wire - TWAI RX
      
-     // CAN Configuration
-     uint8_t CAN_ID_CENTRAL_NODE = 1;  // This dial acts as central node/master
-     
+     // Own CANopen node-id: 62, right after the PTZ bridge (61) and the GPIO
+     // slave (60), outside the motor (10..19) / laser (20..) / LED (30) ranges.
+     uint32_t CAN_ID_CURRENT = 62;
+
      // Motor CAN IDs (matching default slave configuration)
      uint8_t CAN_ID_MOT_A = 10;  // Axis A motor
      uint8_t CAN_ID_MOT_X = 11;  // Axis X motor
@@ -73,12 +80,18 @@ struct UC2_M5StackDial : PinConfig
      uint8_t CAN_ID_MOT_F = 18;
      uint8_t CAN_ID_MOT_G = 19;
      
-     // Laser CAN IDs
-     uint8_t CAN_ID_LASER_0 = 20;  // Primary laser/illumination
-     uint8_t CAN_ID_LASER_1 = 21;
-     uint8_t CAN_ID_LASER_2 = 22;
-     uint8_t CAN_ID_LASER_3 = 23;
-     uint8_t CAN_ID_LASER_4 = 24;
+     // Laser channels 0..3 all live on the illumination node 0x14, OD sub 1..4
+     // (same map as UC2_canopen_master so the dial addresses the same hardware).
+     uint8_t CAN_NODE_LASER[4]    = {0x14, 0x14, 0x14, 0x14};
+     int8_t  CAN_SUBAXIS_LASER[4] = {0, 1, 2, 3};
+
+     // Routing — everything the dial touches is REMOTE (1); the rest OFF (2).
+     // Indexed by Stepper enum: A=0, X=1, Y=2, Z=3.
+     int8_t ROUTE_MOTOR[4] = {1, 1, 1, 1};
+     int8_t ROUTE_HOME[4]  = {2, 2, 2, 2};
+     int8_t ROUTE_TMC[4]   = {2, 2, 2, 2};
+     int8_t ROUTE_LASER[4] = {1, 1, 1, 1};
+     int8_t ROUTE_LED      = 2;
      
      // Disable I2C (not used in CAN mode)
      int8_t I2C_SDA = -1; 
@@ -100,8 +113,7 @@ struct UC2_M5StackDial : PinConfig
      int8_t LED_COUNT = 0;
      
      // Debug settings
-     bool DEBUG_CAN_ISO_TP = true;
-     uint32_t CAN_ID_CURRENT = 100; // Default temporary ID before set by master
+     bool DEBUG_CAN_ISO_TP = false;
 
      // WiFi (optional, can be enabled for OTA updates)
      const char *mSSID = "UC2-M5Dial";

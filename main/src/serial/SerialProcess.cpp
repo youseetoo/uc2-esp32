@@ -47,8 +47,8 @@
 #endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
+#include "../signal/SignalController.h"  // needs Adafruit_NeoPixel, only in LED builds
 #endif
-#include "../signal/SignalController.h"
 #include "../buzzer/BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER
 #include "../message/MessageController.h"

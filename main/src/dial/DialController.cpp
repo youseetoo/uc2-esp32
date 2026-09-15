@@ -4,9 +4,9 @@
 #include "../../JsonKeys.h"
 #include "cJsonTool.h"
 
-#include "../motor/FocusMotor.h"
-#include "../laser/LaserController.h"
-#include "../canopen/DeviceRouter.h"
+#include "../motor/MotorTypes.h"
+#include "../canopen/RoutingTable.h"
+#include "../canopen/SdoEmit.h"
 
 namespace DialController
 {
@@ -23,10 +23,11 @@ namespace DialController
     static int32_t accumulatedSteps = 0;            // Steps accumulated since last send
     static long lastEncoderPos = 0;                 // Last encoder position
     
-    // Illumination mode state
-    static int illuminationValue = 0;               // Current illumination value (0-255)
-    static bool illuminationOn = false;             // Illumination on/off state
-    static int illumIncrementIndex = 0;             // Index into ILLUM_INCREMENTS array
+    // Illumination mode state (per laser channel)
+    static int currentLaser = 0;                            // Selected channel 0..3
+    static int illumValue[LASER_CHANNEL_COUNT] = {0};       // Intensity per channel (0..MAX_ILLUMINATION)
+    static bool illumOn[LASER_CHANNEL_COUNT] = {false};     // On/off per channel
+    static int illumIncrementIndex = 2;                     // Index into ILLUM_INCREMENTS array (default 10)
     
     // Touch handling state
     static unsigned long touchStartTime = 0;
@@ -74,19 +75,6 @@ namespace DialController
         }
     }
     
-    // Get CAN ID for axis
-    uint8_t getCanIdForAxis(MotorAxis axis)
-    {
-        switch (axis)
-        {
-            case MotorAxis::X: return pinConfig.CAN_ID_MOT_X;
-            case MotorAxis::Y: return pinConfig.CAN_ID_MOT_Y;
-            case MotorAxis::Z: return pinConfig.CAN_ID_MOT_Z;
-            case MotorAxis::A: return pinConfig.CAN_ID_MOT_A;
-            default: return 0;
-        }
-    }
-    
     // Get axis index for CAN motor arrays (0=A, 1=X, 2=Y, 3=Z)
     int getAxisIndex(MotorAxis axis)
     {
@@ -101,39 +89,40 @@ namespace DialController
     }
 
     // ========================================================================
-    // CAN Communication Functions
+    // CANopen Communication Functions
+    // The dial is a NODE_ROLE=2 originator: it looks up the REMOTE route the
+    // master would use and writes the same expedited SDOs itself, so the
+    // master is bypassed entirely (same pattern as PtzRouter / JoystickRouter).
     // ========================================================================
     
     void sendMotorCommand(int axis, int32_t steps)
     {
         if (steps == 0) return;
-
-        // Set motor data — DeviceRouter will route to the correct node
-        // (local or remote slave) based on the routing table.
-        FocusMotor::getData()[axis]->targetPosition = steps;
-        FocusMotor::getData()[axis]->speed = config.motorSpeed;
-        FocusMotor::getData()[axis]->isforever = false;
-        FocusMotor::getData()[axis]->absolutePosition = false;  // Relative movement
-        FocusMotor::getData()[axis]->isStop = false;
-        FocusMotor::getData()[axis]->isEnable = true;
-
-        log_d("Dial sending motor command: axis=%d, steps=%d", axis, steps);
-
-        FocusMotor::startStepper(axis, 0);
+#ifdef CAN_CONTROLLER_CANOPEN
+        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, (uint8_t)axis);
+        if (!route || route->where != UC2::RouteEntry::REMOTE)
+        {
+            log_w("Dial: motor axis %d has no REMOTE route", axis);
+            return;
+        }
+        log_d("Dial motor: axis=%d steps=%d -> node 0x%02X sub %u", axis, steps, route->nodeId, route->subAxis);
+        SdoEmit::motor(route->nodeId, route->subAxis, steps, config.motorSpeed,
+                       (uint32_t)MAX_ACCELERATION_A, /*isAbs*/false, /*isForever*/false, /*isStop*/false);
+#endif
     }
     
     void sendLaserCommand(int laserId, int intensity)
     {
-        LaserData laserCmd;
-        laserCmd.LASERid = laserId;
-        laserCmd.LASERval = intensity;
-        laserCmd.LASERdespeckle = 0;
-        laserCmd.LASERdespecklePeriod = 0;
-
-        log_d("Dial sending laser command: id=%d, intensity=%d", laserId, intensity);
-
-        // DeviceRouter will route to the correct node (local or remote slave)
-        LaserController::applyLaserValue(laserCmd);
+#ifdef CAN_CONTROLLER_CANOPEN
+        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LASER, (uint8_t)laserId);
+        if (!route || route->where != UC2::RouteEntry::REMOTE)
+        {
+            log_w("Dial: laser %d has no REMOTE route", laserId);
+            return;
+        }
+        log_d("Dial laser: id=%d value=%d -> node 0x%02X sub %u", laserId, intensity, route->nodeId, route->subAxis);
+        SdoEmit::laser(route->nodeId, route->subAxis, (uint16_t)intensity);
+#endif
     }
 
     // ========================================================================
@@ -202,7 +191,7 @@ namespace DialController
 #ifdef M5DIAL
         M5Dial.Display.fillScreen(COLOR_BG);
         
-        uint16_t mainColor = illuminationOn ? COLOR_ILLUM_ON : COLOR_ILLUM_OFF;
+        uint16_t mainColor = illumOn[currentLaser] ? COLOR_ILLUM_ON : COLOR_ILLUM_OFF;
         int increment = ILLUM_INCREMENTS[illumIncrementIndex];
         
         // Draw decorative ring
@@ -213,16 +202,16 @@ namespace DialController
         M5Dial.Display.setTextColor(mainColor);
         M5Dial.Display.setTextDatum(middle_center);
         M5Dial.Display.setTextSize(1);
-        M5Dial.Display.drawString(illuminationOn ? "ON" : "OFF", CENTER_X, CENTER_Y - 50);
+        M5Dial.Display.drawString(illumOn[currentLaser] ? "ON" : "OFF", CENTER_X, CENTER_Y - 50);
         
         // Draw illumination value in large text
         M5Dial.Display.setTextSize(2.5);
         M5Dial.Display.setTextColor(COLOR_TEXT);
-        String valueText = String(illuminationValue);
+        String valueText = String(illumValue[currentLaser]);
         M5Dial.Display.drawString(valueText, CENTER_X, CENTER_Y);
         
         // Draw progress arc showing illumination level
-        int arcAngle = map(illuminationValue, 0, MAX_ILLUMINATION, 0, 360);
+        int arcAngle = map(illumValue[currentLaser], 0, MAX_ILLUMINATION, 0, 360);
         if (arcAngle > 0)
         {
             for (int a = -90; a < -90 + arcAngle && a < 270; a += 2)
@@ -240,10 +229,10 @@ namespace DialController
         String incText = "Step: " + String(increment);
         M5Dial.Display.drawString(incText, CENTER_X, CENTER_Y + 50);
         
-        // Draw mode indicator
+        // Draw mode indicator with selected channel
         M5Dial.Display.setTextSize(0.8);
         M5Dial.Display.setTextColor(COLOR_ACCENT);
-        M5Dial.Display.drawString("ILLUMINATION", CENTER_X, DISPLAY_HEIGHT - 25);
+        M5Dial.Display.drawString("LASER " + String(currentLaser), CENTER_X, DISPLAY_HEIGHT - 25);
 #endif
     }
     
@@ -267,14 +256,15 @@ namespace DialController
     
     DialMode getCurrentMode() { return currentMode; }
     MotorAxis getCurrentAxis() { return currentAxis; }
+    int getCurrentLaser() { return currentLaser; }
     int getCurrentIncrement() 
     { 
         return currentMode == DialMode::MOTOR ? 
                MOTOR_INCREMENTS[motorIncrementIndex] : 
                ILLUM_INCREMENTS[illumIncrementIndex]; 
     }
-    int getIlluminationValue() { return illuminationValue; }
-    bool isIlluminationOn() { return illuminationOn; }
+    int getIlluminationValue() { return illumValue[currentLaser]; }
+    bool isIlluminationOn() { return illumOn[currentLaser]; }
 
     // ========================================================================
     // Input Handling
@@ -290,10 +280,10 @@ namespace DialController
         }
         else
         {
-            // Toggle illumination on/off
-            illuminationOn = !illuminationOn;
-            sendLaserCommand(0, illuminationOn ? illuminationValue : 0);
-            log_d("Illumination toggled: %s", illuminationOn ? "ON" : "OFF");
+            // Toggle selected laser on/off
+            illumOn[currentLaser] = !illumOn[currentLaser];
+            sendLaserCommand(currentLaser, illumOn[currentLaser] ? illumValue[currentLaser] : 0);
+            log_d("Laser %d toggled: %s", currentLaser, illumOn[currentLaser] ? "ON" : "OFF");
         }
         updateDisplay();
     }
@@ -315,9 +305,9 @@ namespace DialController
         }
         else
         {
-            // In illumination mode, cycle through increments
-            illumIncrementIndex = (illumIncrementIndex + 1) % ILLUM_INCREMENT_COUNT;
-            log_d("Illumination increment changed to: %d", ILLUM_INCREMENTS[illumIncrementIndex]);
+            // Cycle through laser channels 0 -> 1 -> 2 -> 3 -> 0 (mirrors axis cycling)
+            currentLaser = (currentLaser + 1) % LASER_CHANNEL_COUNT;
+            log_d("Laser channel changed to: %d", currentLaser);
         }
         updateDisplay();
     }
@@ -335,16 +325,17 @@ namespace DialController
         {
             // Immediately update illumination value
             int increment = ILLUM_INCREMENTS[illumIncrementIndex];
-            illuminationValue += delta * increment;
+            int &val = illumValue[currentLaser];
+            val += delta * increment;
             
             // Clamp to valid range
-            if (illuminationValue < 0) illuminationValue = 0;
-            if (illuminationValue > MAX_ILLUMINATION) illuminationValue = MAX_ILLUMINATION;
+            if (val < 0) val = 0;
+            if (val > MAX_ILLUMINATION) val = MAX_ILLUMINATION;
             
-            // Send immediately if illumination is on
-            if (illuminationOn)
+            // Send immediately if this channel is on
+            if (illumOn[currentLaser])
             {
-                sendLaserCommand(0, illuminationValue);
+                sendLaserCommand(currentLaser, val);
             }
             updateDisplay();
         }
@@ -393,31 +384,41 @@ namespace DialController
             config.motorSpeed = speedItem->valueint;
         }
         
-        // Handle increment setting via API
+        // Handle laser channel selection via API
+        cJSON *laserItem = cJSON_GetObjectItem(jsonDocument, "laser");
+        if (laserItem != nullptr && laserItem->valueint >= 0 && laserItem->valueint < LASER_CHANNEL_COUNT)
+        {
+            currentLaser = laserItem->valueint;
+            updateDisplay();
+        }
+        
+        // Handle increment setting via API (applies to the current mode)
         cJSON *incItem = cJSON_GetObjectItem(jsonDocument, "increment");
         if (incItem != nullptr)
         {
             int inc = incItem->valueint;
-            // Find matching increment index
-            for (int i = 0; i < MOTOR_INCREMENT_COUNT; i++)
+            if (currentMode == DialMode::MOTOR)
             {
-                if (MOTOR_INCREMENTS[i] == inc)
-                {
-                    motorIncrementIndex = i;
-                    break;
-                }
+                for (int i = 0; i < MOTOR_INCREMENT_COUNT; i++)
+                    if (MOTOR_INCREMENTS[i] == inc) { motorIncrementIndex = i; break; }
+            }
+            else
+            {
+                for (int i = 0; i < ILLUM_INCREMENT_COUNT; i++)
+                    if (ILLUM_INCREMENTS[i] == inc) { illumIncrementIndex = i; break; }
             }
             updateDisplay();
         }
         
-        // Handle illumination value setting via API
+        // Handle illumination value setting via API (for the selected laser)
         cJSON *illumItem = cJSON_GetObjectItem(jsonDocument, "illumination");
         if (illumItem != nullptr)
         {
-            illuminationValue = illumItem->valueint;
-            if (illuminationValue < 0) illuminationValue = 0;
-            if (illuminationValue > MAX_ILLUMINATION) illuminationValue = MAX_ILLUMINATION;
-            if (illuminationOn) sendLaserCommand(0, illuminationValue);
+            int &val = illumValue[currentLaser];
+            val = illumItem->valueint;
+            if (val < 0) val = 0;
+            if (val > MAX_ILLUMINATION) val = MAX_ILLUMINATION;
+            if (illumOn[currentLaser]) sendLaserCommand(currentLaser, val);
             updateDisplay();
         }
         
@@ -431,10 +432,11 @@ namespace DialController
         
         cJSON_AddStringToObject(result, "mode", currentMode == DialMode::MOTOR ? "motor" : "illumination");
         cJSON_AddStringToObject(result, "axis", getAxisName(currentAxis));
+        cJSON_AddNumberToObject(result, "laser", currentLaser);
         cJSON_AddNumberToObject(result, "increment", getCurrentIncrement());
         cJSON_AddNumberToObject(result, "speed", config.motorSpeed);
-        cJSON_AddNumberToObject(result, "illumination", illuminationValue);
-        cJSON_AddBoolToObject(result, "illuminationOn", illuminationOn);
+        cJSON_AddNumberToObject(result, "illumination", illumValue[currentLaser]);
+        cJSON_AddBoolToObject(result, "illuminationOn", illumOn[currentLaser]);
         
         return result;
     }
@@ -518,7 +520,7 @@ namespace DialController
     void setup()
     {
 #ifdef M5DIAL
-        log_i("Initializing Dial Controller (CAN Master Mode)");
+        log_i("Initializing Dial Controller (CANopen originator)");
         
         // Initialize M5Dial - disable external I2C to free up Grove pins for CAN
         auto cfg = M5.config();
@@ -532,13 +534,6 @@ namespace DialController
         M5Dial.Display.setTextFont(&fonts::Orbitron_Light_32);
         M5Dial.Display.setTextSize(1);
         
-        // Load CAN IDs from pinConfig
-        config.canIdMotorX = pinConfig.CAN_ID_MOT_X;
-        config.canIdMotorY = pinConfig.CAN_ID_MOT_Y;
-        config.canIdMotorZ = pinConfig.CAN_ID_MOT_Z;
-        config.canIdMotorA = pinConfig.CAN_ID_MOT_A;
-        config.canIdLaser = pinConfig.CAN_ID_LASER_0;
-        
         // Initialize encoder position
         lastEncoderPos = M5Dial.Encoder.read();
         
@@ -549,7 +544,7 @@ namespace DialController
         M5Dial.Display.drawString("UC2 DIAL", CENTER_X, CENTER_Y - 30);
         M5Dial.Display.setTextSize(0.8);
         M5Dial.Display.setTextColor(COLOR_TEXT);
-        M5Dial.Display.drawString("CAN Master", CENTER_X, CENTER_Y + 10);
+        M5Dial.Display.drawString("CANopen", CENTER_X, CENTER_Y + 10);
         M5Dial.Display.drawString("Initializing...", CENTER_X, CENTER_Y + 40);
         
         delay(1000);
@@ -557,7 +552,8 @@ namespace DialController
         // Draw initial screen
         updateDisplay();
         
-        log_i("Dial Controller initialized - Mode: MOTOR, Axis: X, Increment: %d", MOTOR_INCREMENTS[0]);
+        log_i("Dial Controller initialized - Mode: MOTOR, Axis: %s, Increment: %d",
+              getAxisName(currentAxis), MOTOR_INCREMENTS[motorIncrementIndex]);
 #endif
     }
 

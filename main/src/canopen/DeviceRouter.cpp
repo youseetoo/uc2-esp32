@@ -2118,6 +2118,11 @@ cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
         cJSON_AddNumberToObject(resp, "digitalinid", id);
         cJSON_AddNumberToObject(resp, "digitalinval", ok ? v : 0);
         cJSON_AddBoolToObject(resp, "ok", ok);
+        cJsonTool::setJsonInt(
+            resp,
+            "qid",
+            cJsonTool::getJsonInt(doc, "qid")
+        );
         return resp;
     }
 #endif
@@ -2129,5 +2134,10 @@ cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "error", "digitalin_get not available locally and no remote node specified");
     cJSON_AddNumberToObject(resp, "digitalinid", id);
+    cJsonTool::setJsonInt(
+        resp,
+        "qid",
+        cJsonTool::getJsonInt(doc, "qid")
+    );
     return resp;
 }

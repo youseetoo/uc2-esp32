@@ -66,6 +66,19 @@ namespace SdoEmit
         return ok;
     }
 
+    // LED matrix uniform fill: colour 0xRRGGBB (OD 0x2202) then array mode
+    // (OD 0x2200: 0 = off, 1 = fill). Colour first so the slave's change
+    // detector applies both in one pass.
+    static inline bool led(uint8_t nodeId, bool on, uint32_t rgb)
+    {
+        if (nodeMuted(nodeId)) return false;
+        bool ok = true;
+        ok &= CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, rgb, kSdoTimeoutMs);
+        ok &= CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, on ? 1 : 0, kSdoTimeoutMs);
+        noteSdo(nodeId, ok);
+        return ok;
+    }
+
     // Single-frame laser PWM write (OD 0x2100, sub = channel + 1).
     static inline bool laser(uint8_t nodeId, uint8_t subAxis, uint16_t pwm)
     {

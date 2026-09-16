@@ -435,11 +435,43 @@ cJSON *GalvoController::processCommand(cJSON *doc)
         return response;
     }
 
+    // Direct positioning / park: {"galvo": {"x": 2048, "y": 2048}}
+    cJSON *galvo = cJSON_GetObjectItem(doc, "galvo");
+    if (galvo)
+    {
+        cJSON *tx = cJSON_GetObjectItem(galvo, "x");
+        cJSON *ty = cJSON_GetObjectItem(galvo, "y");
+        if (tx || ty)
+        {
+            ScanConfig cur = scanner_.getConfig();
+            uint16_t x = tx ? (uint16_t)cJSON_GetNumberValue(tx) : cur.x_min;
+            uint16_t y = ty ? (uint16_t)cJSON_GetNumberValue(ty) : cur.y_min;
+            gotoXY(x, y);
+            cJSON_AddBoolToObject(response, "success", true);
+            cJSON_AddStringToObject(response, "message", "Parked");
+            return response;
+        }
+    }
+
     // Default: return status
     GALVO_LOG("No specific command, returning status");
     cJSON_Delete(response);
     return getStatus();
 #endif // CAN_CONTROLLER_CANOPEN Master/Slave mode selection
+}
+
+void GalvoController::gotoXY(uint16_t x, uint16_t y)
+{
+    // Park must NOT go through a 1x1 raster: setConfig() rejects x_min==x_max
+    // ("Invalid range"), and the unconditional start() that followed re-armed
+    // the PREVIOUS raster config — so "park" restarted the scan it was meant
+    // to end. Stop, let the scanner task drain (it checks running_ every
+    // sample), then write the DAC directly.
+    scanner_.stop();
+    vTaskDelay(pdMS_TO_TICKS(2)); // ponytail: no task-idle handshake; one sample period is 25 us
+    dac_.setXY(x & 0x0FFF, y & 0x0FFF);
+    dac_.ldacPulse();
+    GALVO_LOG("Parked at (%u, %u)", (unsigned)x, (unsigned)y);
 }
 
 cJSON *GalvoController::getStatus()

@@ -91,7 +91,7 @@ struct UC2_M5StackDial : PinConfig
      int8_t ROUTE_HOME[4]  = {2, 2, 2, 2};
      int8_t ROUTE_TMC[4]   = {2, 2, 2, 2};
      int8_t ROUTE_LASER[4] = {1, 1, 1, 1};
-     int8_t ROUTE_LED      = 2;
+     int8_t ROUTE_LED      = 1;   // LED matrix on CAN_ID_LED_0 (default 30)
      
      // Disable I2C (not used in CAN mode)
      int8_t I2C_SDA = -1; 

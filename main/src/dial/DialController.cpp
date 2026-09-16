@@ -7,6 +7,9 @@
 #include "../motor/MotorTypes.h"
 #include "../canopen/RoutingTable.h"
 #include "../canopen/SdoEmit.h"
+#ifdef M5DIAL
+#include <ESP32Encoder.h>
+#endif
 
 namespace DialController
 {
@@ -23,11 +26,16 @@ namespace DialController
     static int32_t accumulatedSteps = 0;            // Steps accumulated since last send
     static long lastEncoderPos = 0;                 // Last encoder position
     
-    // Illumination mode state (per laser channel)
-    static int currentLaser = 0;                            // Selected channel 0..3
-    static int illumValue[LASER_CHANNEL_COUNT] = {0};       // Intensity per channel (0..MAX_ILLUMINATION)
-    static bool illumOn[LASER_CHANNEL_COUNT] = {false};     // On/off per channel
+    // Illumination mode state (per channel; LED channels 4..7 share one on/off
+    // flag at index ILLUM_LED_RGB since they are one device)
+    static int currentIllum = 0;                            // Selected channel 0..7
+    static int illumValue[ILLUM_CHANNEL_COUNT] = {0};       // Intensity per channel
+    static bool illumOn[ILLUM_CHANNEL_COUNT] = {false};     // On/off (lasers per channel, LED shared)
     static int illumIncrementIndex = 2;                     // Index into ILLUM_INCREMENTS array (default 10)
+
+#ifdef M5DIAL
+    static ESP32Encoder encoder;                            // PCNT-backed, never misses an edge
+#endif
     
     // Touch handling state
     static unsigned long touchStartTime = 0;
@@ -75,6 +83,17 @@ namespace DialController
         }
     }
     
+    // Illumination channel helpers
+    static inline bool isLedChannel(int ch) { return ch >= ILLUM_LED_RGB; }
+    static inline int  onIndex(int ch)      { return isLedChannel(ch) ? ILLUM_LED_RGB : ch; }
+    static inline int  channelMax(int ch)   { return isLedChannel(ch) ? MAX_LED : MAX_ILLUMINATION; }
+    static const char* channelName(int ch)
+    {
+        static const char* names[ILLUM_CHANNEL_COUNT] =
+            {"LASER 0", "LASER 1", "LASER 2", "LASER 3", "LED RGB", "LED R", "LED G", "LED B"};
+        return (ch >= 0 && ch < ILLUM_CHANNEL_COUNT) ? names[ch] : "?";
+    }
+
     // Get axis index for CAN motor arrays (0=A, 1=X, 2=Y, 3=Z)
     int getAxisIndex(MotorAxis axis)
     {
@@ -123,6 +142,31 @@ namespace DialController
         log_d("Dial laser: id=%d value=%d -> node 0x%02X sub %u", laserId, intensity, route->nodeId, route->subAxis);
         SdoEmit::laser(route->nodeId, route->subAxis, (uint16_t)intensity);
 #endif
+    }
+
+    void sendLedCommand()
+    {
+#ifdef CAN_CONTROLLER_CANOPEN
+        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
+        if (!route || route->where != UC2::RouteEntry::REMOTE)
+        {
+            log_w("Dial: LED has no REMOTE route");
+            return;
+        }
+        uint32_t rgb = ((uint32_t)illumValue[ILLUM_LED_R] << 16) |
+                       ((uint32_t)illumValue[ILLUM_LED_G] << 8)  |
+                        (uint32_t)illumValue[ILLUM_LED_B];
+        bool on = illumOn[ILLUM_LED_RGB];
+        log_d("Dial LED: on=%d rgb=0x%06X -> node 0x%02X", on, rgb, route->nodeId);
+        SdoEmit::led(route->nodeId, on, rgb);
+#endif
+    }
+
+    // Push the current state of one illumination channel to the bus.
+    static void sendIllum(int ch)
+    {
+        if (isLedChannel(ch)) sendLedCommand();
+        else                  sendLaserCommand(ch, illumOn[ch] ? illumValue[ch] : 0);
     }
 
     // ========================================================================
@@ -191,7 +235,7 @@ namespace DialController
 #ifdef M5DIAL
         M5Dial.Display.fillScreen(COLOR_BG);
         
-        uint16_t mainColor = illumOn[currentLaser] ? COLOR_ILLUM_ON : COLOR_ILLUM_OFF;
+        uint16_t mainColor = illumOn[onIndex(currentIllum)] ? COLOR_ILLUM_ON : COLOR_ILLUM_OFF;
         int increment = ILLUM_INCREMENTS[illumIncrementIndex];
         
         // Draw decorative ring
@@ -202,16 +246,16 @@ namespace DialController
         M5Dial.Display.setTextColor(mainColor);
         M5Dial.Display.setTextDatum(middle_center);
         M5Dial.Display.setTextSize(1);
-        M5Dial.Display.drawString(illumOn[currentLaser] ? "ON" : "OFF", CENTER_X, CENTER_Y - 50);
+        M5Dial.Display.drawString(illumOn[onIndex(currentIllum)] ? "ON" : "OFF", CENTER_X, CENTER_Y - 50);
         
         // Draw illumination value in large text
         M5Dial.Display.setTextSize(2.5);
         M5Dial.Display.setTextColor(COLOR_TEXT);
-        String valueText = String(illumValue[currentLaser]);
+        String valueText = String(illumValue[currentIllum]);
         M5Dial.Display.drawString(valueText, CENTER_X, CENTER_Y);
         
         // Draw progress arc showing illumination level
-        int arcAngle = map(illumValue[currentLaser], 0, MAX_ILLUMINATION, 0, 360);
+        int arcAngle = map(illumValue[currentIllum], 0, channelMax(currentIllum), 0, 360);
         if (arcAngle > 0)
         {
             for (int a = -90; a < -90 + arcAngle && a < 270; a += 2)
@@ -232,7 +276,7 @@ namespace DialController
         // Draw mode indicator with selected channel
         M5Dial.Display.setTextSize(0.8);
         M5Dial.Display.setTextColor(COLOR_ACCENT);
-        M5Dial.Display.drawString("LASER " + String(currentLaser), CENTER_X, DISPLAY_HEIGHT - 25);
+        M5Dial.Display.drawString(channelName(currentIllum), CENTER_X, DISPLAY_HEIGHT - 25);
 #endif
     }
     
@@ -256,15 +300,15 @@ namespace DialController
     
     DialMode getCurrentMode() { return currentMode; }
     MotorAxis getCurrentAxis() { return currentAxis; }
-    int getCurrentLaser() { return currentLaser; }
+    int getCurrentIllumChannel() { return currentIllum; }
     int getCurrentIncrement() 
     { 
         return currentMode == DialMode::MOTOR ? 
                MOTOR_INCREMENTS[motorIncrementIndex] : 
                ILLUM_INCREMENTS[illumIncrementIndex]; 
     }
-    int getIlluminationValue() { return illumValue[currentLaser]; }
-    bool isIlluminationOn() { return illumOn[currentLaser]; }
+    int getIlluminationValue() { return illumValue[currentIllum]; }
+    bool isIlluminationOn() { return illumOn[onIndex(currentIllum)]; }
 
     // ========================================================================
     // Input Handling
@@ -280,10 +324,11 @@ namespace DialController
         }
         else
         {
-            // Toggle selected laser on/off
-            illumOn[currentLaser] = !illumOn[currentLaser];
-            sendLaserCommand(currentLaser, illumOn[currentLaser] ? illumValue[currentLaser] : 0);
-            log_d("Laser %d toggled: %s", currentLaser, illumOn[currentLaser] ? "ON" : "OFF");
+            // Toggle selected channel on/off (LED channels share one flag)
+            int oi = onIndex(currentIllum);
+            illumOn[oi] = !illumOn[oi];
+            sendIllum(currentIllum);
+            log_d("%s toggled: %s", channelName(currentIllum), illumOn[oi] ? "ON" : "OFF");
         }
         updateDisplay();
     }
@@ -305,9 +350,9 @@ namespace DialController
         }
         else
         {
-            // Cycle through laser channels 0 -> 1 -> 2 -> 3 -> 0 (mirrors axis cycling)
-            currentLaser = (currentLaser + 1) % LASER_CHANNEL_COUNT;
-            log_d("Laser channel changed to: %d", currentLaser);
+            // Cycle channels: lasers 0..3 -> LED RGB -> R -> G -> B -> laser 0
+            currentIllum = (currentIllum + 1) % ILLUM_CHANNEL_COUNT;
+            log_d("Illumination channel changed to: %s", channelName(currentIllum));
         }
         updateDisplay();
     }
@@ -325,17 +370,21 @@ namespace DialController
         {
             // Immediately update illumination value
             int increment = ILLUM_INCREMENTS[illumIncrementIndex];
-            int &val = illumValue[currentLaser];
+            int &val = illumValue[currentIllum];
             val += delta * increment;
             
             // Clamp to valid range
             if (val < 0) val = 0;
-            if (val > MAX_ILLUMINATION) val = MAX_ILLUMINATION;
+            if (val > channelMax(currentIllum)) val = channelMax(currentIllum);
+
+            // LED RGB drives all three components together
+            if (currentIllum == ILLUM_LED_RGB)
+                illumValue[ILLUM_LED_R] = illumValue[ILLUM_LED_G] = illumValue[ILLUM_LED_B] = val;
             
             // Send immediately if this channel is on
-            if (illumOn[currentLaser])
+            if (illumOn[onIndex(currentIllum)])
             {
-                sendLaserCommand(currentLaser, val);
+                sendIllum(currentIllum);
             }
             updateDisplay();
         }
@@ -384,11 +433,11 @@ namespace DialController
             config.motorSpeed = speedItem->valueint;
         }
         
-        // Handle laser channel selection via API
-        cJSON *laserItem = cJSON_GetObjectItem(jsonDocument, "laser");
-        if (laserItem != nullptr && laserItem->valueint >= 0 && laserItem->valueint < LASER_CHANNEL_COUNT)
+        // Handle illumination channel selection via API (0..3 lasers, 4..7 LED RGB/R/G/B)
+        cJSON *chItem = cJSON_GetObjectItem(jsonDocument, "channel");
+        if (chItem != nullptr && chItem->valueint >= 0 && chItem->valueint < ILLUM_CHANNEL_COUNT)
         {
-            currentLaser = laserItem->valueint;
+            currentIllum = chItem->valueint;
             updateDisplay();
         }
         
@@ -410,15 +459,17 @@ namespace DialController
             updateDisplay();
         }
         
-        // Handle illumination value setting via API (for the selected laser)
+        // Handle illumination value setting via API (for the selected channel)
         cJSON *illumItem = cJSON_GetObjectItem(jsonDocument, "illumination");
         if (illumItem != nullptr)
         {
-            int &val = illumValue[currentLaser];
+            int &val = illumValue[currentIllum];
             val = illumItem->valueint;
             if (val < 0) val = 0;
-            if (val > MAX_ILLUMINATION) val = MAX_ILLUMINATION;
-            if (illumOn[currentLaser]) sendLaserCommand(currentLaser, val);
+            if (val > channelMax(currentIllum)) val = channelMax(currentIllum);
+            if (currentIllum == ILLUM_LED_RGB)
+                illumValue[ILLUM_LED_R] = illumValue[ILLUM_LED_G] = illumValue[ILLUM_LED_B] = val;
+            if (illumOn[onIndex(currentIllum)]) sendIllum(currentIllum);
             updateDisplay();
         }
         
@@ -432,11 +483,12 @@ namespace DialController
         
         cJSON_AddStringToObject(result, "mode", currentMode == DialMode::MOTOR ? "motor" : "illumination");
         cJSON_AddStringToObject(result, "axis", getAxisName(currentAxis));
-        cJSON_AddNumberToObject(result, "laser", currentLaser);
+        cJSON_AddNumberToObject(result, "channel", currentIllum);
+        cJSON_AddStringToObject(result, "channelName", channelName(currentIllum));
         cJSON_AddNumberToObject(result, "increment", getCurrentIncrement());
         cJSON_AddNumberToObject(result, "speed", config.motorSpeed);
-        cJSON_AddNumberToObject(result, "illumination", illumValue[currentLaser]);
-        cJSON_AddBoolToObject(result, "illuminationOn", illumOn[currentLaser]);
+        cJSON_AddNumberToObject(result, "illumination", illumValue[currentIllum]);
+        cJSON_AddBoolToObject(result, "illuminationOn", illumOn[onIndex(currentIllum)]);
         
         return result;
     }
@@ -459,13 +511,15 @@ namespace DialController
             updateDisplay();
         }
         
-        // Handle encoder rotation
-        long newEncoderPos = M5Dial.Encoder.read();
-        if (newEncoderPos != lastEncoderPos)
+        // Handle encoder rotation. The PCNT counter never drops edges even
+        // while this loop is busy redrawing or blocked in an SDO write; we
+        // consume whole detents and leave the remainder in lastEncoderPos.
+        long newEncoderPos = (long)encoder.getCount();
+        long detents = (newEncoderPos - lastEncoderPos) / ENCODER_COUNTS_PER_DETENT;
+        if (detents != 0)
         {
-            long delta = newEncoderPos - lastEncoderPos;
-            lastEncoderPos = newEncoderPos;
-            handleEncoderChange(delta);
+            lastEncoderPos += detents * ENCODER_COUNTS_PER_DETENT;
+            handleEncoderChange(detents);
         }
         
         // Handle touch screen input
@@ -522,11 +576,19 @@ namespace DialController
 #ifdef M5DIAL
         log_i("Initializing Dial Controller (CANopen originator)");
         
-        // Initialize M5Dial - disable external I2C to free up Grove pins for CAN
+        // Initialize M5Dial - disable external I2C to free up Grove pins for CAN.
+        // M5Dial's own Encoder class is NOT used: its ESP32 interrupt table stops
+        // at GPIO 39, so on GPIO 40/41 it silently degrades to polling once per
+        // loop() and loses edges whenever the loop is busy (display, SDO writes).
         auto cfg = M5.config();
         cfg.external_spk = false;  // Disable external speaker I2C
         cfg.external_rtc = false;  // Disable external RTC I2C
-        M5Dial.begin(cfg, true, false);
+        M5Dial.begin(cfg, /*enableEncoder*/false, /*enableRFID*/false);
+
+        ESP32Encoder::useInternalWeakPullResistors = puType::up;
+        encoder.attachFullQuad(ENCODER_PIN_A, ENCODER_PIN_B);
+        encoder.setFilter(1023);   // max PCNT glitch filter (~12.8 us @ 80 MHz)
+        encoder.clearCount();
         
         // Configure display
         M5Dial.Display.setTextColor(COLOR_TEXT);
@@ -535,7 +597,7 @@ namespace DialController
         M5Dial.Display.setTextSize(1);
         
         // Initialize encoder position
-        lastEncoderPos = M5Dial.Encoder.read();
+        lastEncoderPos = (long)encoder.getCount();
         
         // Show startup screen
         M5Dial.Display.fillScreen(COLOR_BG);

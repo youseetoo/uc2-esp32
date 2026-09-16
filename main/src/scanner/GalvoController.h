@@ -148,6 +148,8 @@ public:
     // Direct control (for CAN receiver)
     static void start() { scanner_.start(); }
     static void stop() { scanner_.stop(); }
+    // Park: stop any running scan and drive the DAC straight to (x, y).
+    static void gotoXY(uint16_t x, uint16_t y);
     static bool isRunning() { return scanner_.getStatus().running; }
     static bool setConfig(const ScanConfig& cfg) { return scanner_.setConfig(cfg); }
     static ScanConfig getCurrentConfig() { return scanner_.getConfig(); }

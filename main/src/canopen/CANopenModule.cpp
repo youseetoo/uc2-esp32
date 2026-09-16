@@ -2271,23 +2271,13 @@ void CANopenModule::syncRpdoToModules_slave()
         uint8_t cmd = OD_RAM.x2602_galvo_command_word;
         if (cmd != GALVO_CMD_IDLE) {
             switch (cmd) {
-                case GALVO_CMD_GOTO: { // Goto XY — set target position via raster config
-                    ScanConfig cfg = GalvoController::getCurrentConfig();
+                case GALVO_CMD_GOTO: // Goto XY / park — stops any scan, drives DAC directly
                     log_i("Galvo goto command: x=%u y=%u",
                           (unsigned)OD_RAM.x2600_galvo_target_position[0],
                           (unsigned)OD_RAM.x2600_galvo_target_position[1]);
-                    cfg.x_min = (uint16_t)OD_RAM.x2600_galvo_target_position[0];
-                    cfg.x_max = cfg.x_min;
-                    cfg.y_min = (uint16_t)OD_RAM.x2600_galvo_target_position[1];
-                    cfg.y_max = cfg.y_min;
-                    cfg.nx = 1;
-                    cfg.ny = 1;
-                    cfg.frame_count = 1;
-                    GalvoController::setConfig(cfg);
-                    GalvoController::setScanMode(SCAN_MODE_RASTER);
-                    GalvoController::start();
+                    GalvoController::gotoXY((uint16_t)OD_RAM.x2600_galvo_target_position[0],
+                                            (uint16_t)OD_RAM.x2600_galvo_target_position[1]);
                     break;
-                }
                 case GALVO_CMD_LINE: // Line scan (single line: ny forced to 1 below)
                     log_i("Galvo line scan command received");
                     // fall through — same raster path, ny is clamped to 1
@@ -2325,7 +2315,12 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.line_settle_samples = OD_RAM.x2608_galvo_d_steps_pixel;
                     log_i("Galvo raster extras: bidirectional=%u line_settle=%u",
                           (unsigned)cfg.bidirectional, (unsigned)cfg.line_settle_samples);
-                    GalvoController::setConfig(cfg);
+                    if (!GalvoController::setConfig(cfg)) {
+                        // Rejected (line > SCANNER_MAX_LINE_SAMPLES, bad range, ...):
+                        // do NOT start(), that would re-arm the previous scan.
+                        log_e("Galvo raster config rejected, not starting");
+                        break;
+                    }
                     // Reset to raster mode — a prior arbitrary-point scan (0x2610)
                     // would otherwise leave the scanner in ARBITRARY mode.
                     GalvoController::setScanMode(SCAN_MODE_RASTER);

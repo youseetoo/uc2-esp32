@@ -33,17 +33,30 @@ namespace DialController
         AXIS_COUNT = 4
     };
 
-    // Laser channels 0..3 = RoutingTable LASER logicalId
-    // (pinConfig.CAN_NODE_LASER[ch] / CAN_SUBAXIS_LASER[ch]).
+    // Illumination channels: 0..3 = lasers (RoutingTable LASER logicalId,
+    // pinConfig.CAN_NODE_LASER[ch] / CAN_SUBAXIS_LASER[ch]); 4..7 = LED matrix
+    // (RoutingTable LED 0): RGB sets all three components at once, R/G/B one each.
     static const int LASER_CHANNEL_COUNT = 4;
+    static const int ILLUM_LED_RGB = 4;
+    static const int ILLUM_LED_R   = 5;
+    static const int ILLUM_LED_G   = 6;
+    static const int ILLUM_LED_B   = 7;
+    static const int ILLUM_CHANNEL_COUNT = 8;
+    static const int MAX_LED = 255;
+
+    // M5Dial encoder: quadrature on GPIO 41/40, counted by the PCNT peripheral
+    // (ESP32Encoder). 4 edges per detent; tune if the knob feels off.
+    static const int ENCODER_PIN_A = 41;
+    static const int ENCODER_PIN_B = 40;
+    static const int ENCODER_COUNTS_PER_DETENT = 4;
 
     struct DialConfig {
         int32_t motorSpeed = 10000; // steps/s for relative moves
     };
 
     // Available step increments for motor mode
-    static const int MOTOR_INCREMENTS[] = {1, 5, 10, 100};
-    static const int MOTOR_INCREMENT_COUNT = 4;
+    static const int MOTOR_INCREMENTS[] = {1, 5, 10, 100, 1000};
+    static const int MOTOR_INCREMENT_COUNT = 5;
 
     // Available step increments for illumination mode
     static const int ILLUM_INCREMENTS[] = {1, 5, 10, 25, 100};
@@ -78,11 +91,12 @@ namespace DialController
     // CANopen communication (expedited SDO writes to the routed slave node)
     void sendMotorCommand(int axis, int32_t steps);
     void sendLaserCommand(int laserId, int intensity);
+    void sendLedCommand();
 
     // Internal state getters (for debugging/API)
     DialMode getCurrentMode();
     MotorAxis getCurrentAxis();
-    int getCurrentLaser();
+    int getCurrentIllumChannel();
     int getCurrentIncrement();
     int getIlluminationValue();
     bool isIlluminationOn();

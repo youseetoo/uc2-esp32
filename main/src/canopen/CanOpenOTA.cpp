@@ -50,6 +50,9 @@ static uint32_t                s_nextProgressMark      = 64U * 1024U;
 // background task can abort the OTA if the master goes silent mid-transfer.
 // Updated from the SDO context; read from the watchdog task.
 static volatile uint32_t       s_lastChunkMillis = 0;
+// millis() when esp_ota_begin succeeded; used for the KB/s figure in the
+// progress log so throughput can be read straight off the slave UART.
+static uint32_t                s_otaStartMillis  = 0;
 
 // OTA inactivity timeout: if no chunks arrive for this long, the watchdog
 // task aborts the OTA so the slave doesn't stay wedged in "receiving" forever.
@@ -223,6 +226,7 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
     // Arm the inactivity watchdog with "now" as the last-activity reference
     // so it doesn't fire while waiting for the first chunk.
     s_lastChunkMillis = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    s_otaStartMillis  = s_lastChunkMillis;
 
     log_i("OTA started: size=%lu, partition=%s",
           (unsigned long)firmwareSize, s_otaPartition->label);
@@ -272,11 +276,15 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
     // the next /ota_start can start cleanly without a slave reboot.
     s_lastChunkMillis = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
 
-    // Throttled progress log: every 64 KB to avoid UART blocking the SDO task.
-    if (1){ //s_bytesWritten >= s_nextProgressMark) {
-        log_i("OTA progress: %lu / %lu bytes",
+    // Throttled progress log: every 64 KB. This callback runs inside the
+    // SDO server's block-ACK path, so a log line here delays the ACK and
+    // every segment behind it — never log per call.
+    if (s_bytesWritten >= s_nextProgressMark) {
+        uint32_t elapsedMs = s_lastChunkMillis - s_otaStartMillis;
+        log_i("OTA progress: %lu / %lu bytes, %lu KB/s",
               (unsigned long)s_bytesWritten,
-              (unsigned long)OD_OTA_FIRMWARE_SIZE);
+              (unsigned long)OD_OTA_FIRMWARE_SIZE,
+              (unsigned long)(elapsedMs ? s_bytesWritten / elapsedMs : 0));
         s_nextProgressMark += 64U * 1024U;
     }
 
@@ -300,7 +308,12 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
                                     && ((stream->dataOffset + count)
                                         >= stream->dataLength);
     if (sizeReached || streamFinished) {
-        log_i("OTA transfer complete: %lu bytes", (unsigned long)s_bytesWritten);
+        {
+            uint32_t totalMs = s_lastChunkMillis - s_otaStartMillis;
+            log_i("OTA transfer complete: %lu bytes in %lu ms (%lu KB/s)",
+                  (unsigned long)s_bytesWritten, (unsigned long)totalMs,
+                  (unsigned long)(totalMs ? s_bytesWritten / totalMs : 0));
+        }
         OD_OTA_STATUS = CANOPEN_OTA_VERIFYING;
 
         // Verify CRC32

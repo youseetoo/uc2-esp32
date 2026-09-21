@@ -1,20 +1,16 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
+#define ESP32S3_MODEL_XIAO
 #define DCONFIG_TINYUSB_MSC_BUFSIZE 2048
 #define CONFIG_TINYUSB_HID_BUFSIZE 64
 #define CONFIG_TINYUSB_VIDEO_STREAMING_BUFSIZE 64
 #define CONFIG_TINYUSB_VENDOR_RX_BUFSIZE 64
 #define CONFIG_TINYUSB_VENDOR_TX_BUFSIZE 64
-#define CAN_BUS_ENABLED
-#define CAN_RECEIVE_LED
-#define LED_CONTROLLER
-#define HUB75
 
 //#define DOTSTAR // outcomment if neopixel
 
@@ -37,11 +33,11 @@ struct waveshare_hub75_uc2lasercover : PinConfig
 
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
-     
+
     const char *pindefName = "seeed_xiao_esp32s3_can_slave_led";
     const unsigned long BAUDRATE = 115200;
 
-    // prints all the ISO TP Stuff - better don't use it to avoid session timeout! 
+    // prints all the ISO TP Stuff - better don't use it to avoid session timeout!
     bool DEBUG_CAN_ISO_TP = 0;
 
     // Interlock status
@@ -49,8 +45,8 @@ struct waveshare_hub75_uc2lasercover : PinConfig
     int8_t digita_in_2 = GPIO_NUM_1; // D0 (LO when interlock tripped, enable pullup) // INTERLOCK_LED
 
     // CAN communication
-    int8_t CAN_TX = A3; 
-    int8_t CAN_RX = A4; 
+    int8_t CAN_TX = A3;
+    int8_t CAN_RX = A4;
     uint32_t CAN_ID_CURRENT = CAN_ID_LED_0; // Broadcasting address for laser PWM control
 
     // I2C Configuration (Disabled in this setup)
@@ -81,7 +77,7 @@ struct waveshare_hub75_uc2lasercover : PinConfig
        code that references LED_PIN still compiles.                    */
     uint8_t LED_PIN = 255;
 
-   
+
 };
-  
+
 const waveshare_hub75_uc2lasercover pinConfig;

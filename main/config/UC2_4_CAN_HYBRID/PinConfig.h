@@ -17,23 +17,13 @@ DIP Switch Configuration:
 #include "PinConfigDefault.h"
 
 // Enable hybrid CAN mode with native motor drivers
-#define MOTOR_CONTROLLER
-#define CAN_BUS_ENABLED          // Enable CAN hardware
-#define CAN_SEND_COMMANDS        // This device sends commands to CAN slaves
-#define CAN_CONTROLLER_CANOPEN   // Use the CANopen stack (DeviceRouter REMOTE path)
-#define USE_FASTACCEL
-#define USE_TCA9535
-#define BLUETOOTH
-#define BTHID
-#define CAN_HYBRID
+
+
+
 //#define WIFI
-#define HOME_MOTOR
-#define LASER_CONTROLLER
-#define DIGITAL_IN_CONTROLLER 
-#define LED_CONTROLLER
 
 // Extend motor count to include CAN satellites
-#undef MOTOR_AXIS_COUNT
+
 #define MOTOR_AXIS_COUNT 10
 
 struct UC2_4_CAN_HYBRID : PinConfig
@@ -45,7 +35,7 @@ struct UC2_4_CAN_HYBRID : PinConfig
      - Native lasers 0-3
      - CAN bus lasers 4+
      */
-  
+
      const char * pindefName = "UC2_4_CAN_HYBRID";
      const unsigned long BAUDRATE = 115200;
      bool DEBUG_CAN_ISO_TP = 1;
@@ -57,7 +47,7 @@ struct UC2_4_CAN_HYBRID : PinConfig
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
 
      // Direction pins live on TCA9535
-     int8_t MOTOR_ENABLE = 0; 
+     int8_t MOTOR_ENABLE = 0;
      int8_t MOTOR_X_DIR = 1;
      int8_t MOTOR_Y_DIR = 2;
      int8_t MOTOR_Z_DIR = 3;
@@ -113,14 +103,14 @@ struct UC2_4_CAN_HYBRID : PinConfig
      int8_t DIGITAL_IN_1 = 5;
      int8_t DIGITAL_IN_2 = 6;
      int8_t DIGITAL_IN_3 = 7;
-     
+
      int8_t dac_fake_1 = disabled;
      int8_t dac_fake_2 = disabled;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
-     
+
      // I2C for TCA9535 port expander
      int8_t I2C_SCL = GPIO_NUM_22;
      int8_t I2C_SDA = GPIO_NUM_21;
@@ -155,13 +145,13 @@ struct UC2_4_CAN_HYBRID : PinConfig
      // Lasers: lasers 0-3 use native PWM, laser 4+ uses CAN
      // LEDs: can output to both native LED array AND CAN LED devices
      // ========================================================================
-     
+
      // Axis threshold for CAN routing (default: 4 means A,X,Y,Z are native; B,C,D,E,F,G use CAN)
      uint8_t HYBRID_MOTOR_CAN_THRESHOLD = 4;
-     
+
      // Laser threshold for CAN routing (default: 4 means lasers 0-3 are native)
      uint8_t HYBRID_LASER_CAN_THRESHOLD = 4;
-     
+
      // Set to true to send LED commands to BOTH native array AND CAN devices
      bool HYBRID_LED_DUAL_OUTPUT = false;
 

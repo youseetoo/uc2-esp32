@@ -13,13 +13,10 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#undef PSXCONTROLLER
+
 
 #define ESP32S3_MODEL_XIAO
-#define MESSAGE_CONTROLLER
-#define CAN_BUS_ENABLED
-#define CAN_CONTROLLER_CANOPEN
-#define JOYSTICK_USBHOST_PROVIDER
+
 // JOYSTICK_USBHOST_PROVIDER comes from build_flags in platformio.ini.
 
 struct UC2_canopen_bridge_ps4_usbhost : PinConfig

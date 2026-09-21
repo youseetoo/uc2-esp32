@@ -2,15 +2,7 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#define MOTOR_CONTROLLER
-#define USE_TCA9535
-#define BLUETOOTH
-#define BTHID
 //#define WIFI
-#define HOME_MOTOR
-#define LASER_CONTROLLER
-#define DIGITAL_IN_CONTROLLER 
-#define LED_CONTROLLER
 
 struct UC2_3 : PinConfig
 {
@@ -18,7 +10,6 @@ struct UC2_3 : PinConfig
      This is the newest electronics where direction/enable are on a seperate port extender
      */
      /*
-
 
      Y_Cal-Data 34
      X_Cal-Data 32
@@ -68,7 +59,6 @@ struct UC2_3 : PinConfig
      C561273
      */
 
-
      const char * pindefName = "UC2_3";
      const unsigned long BAUDRATE = 115200;
 
@@ -76,15 +66,15 @@ struct UC2_3 : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     
+
      // THIS LIVES ON TCA
-     int8_t MOTOR_ENABLE = 0; 
+     int8_t MOTOR_ENABLE = 0;
      int8_t MOTOR_X_DIR = 1;
      int8_t MOTOR_Y_DIR = 2;
      int8_t MOTOR_Z_DIR = 3;
      int8_t MOTOR_A_DIR = 4;
 
-     
+
      /*
      WARNING PLEASE HANDLE WITH CARE
      */
@@ -102,11 +92,11 @@ struct UC2_3 : PinConfig
     const uint16_t SCANNER_TASK_STACKSIZE = 0;
     const uint16_t TEMPERATURE_TASK_STACKSIZE = 0; // 8096;
 
-     
+
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
-     bool ENC_X_encoderDirection = true; 
-     bool ENC_Y_encoderDirection = true; 
-     bool ENC_Z_encoderDirection = true; 
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
      bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_motorDirection = true;
      bool ENC_Y_motorDirection = true;
@@ -133,14 +123,13 @@ struct UC2_3 : PinConfig
      int8_t dac_fake_1 = disabled; //GPIO_NUM_25; // RESET-ABORT just toggles between 1 and 0
      int8_t dac_fake_2 = disabled; //GPIO_NUM_26; // Coolant
 
-
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
      // int8_t PSX_CONTROLLER_TYPE = 2; // 1: PS3, 2: PS4
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
      int8_t JOYSTICK_MAX_ILLU = 255;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
-     
+
      // for caliper
      int8_t ENC_X_A = GPIO_NUM_32;
      int8_t ENC_Y_A = GPIO_NUM_34;
@@ -155,7 +144,6 @@ struct UC2_3 : PinConfig
      int8_t I2C_ADD_TCA = 0x27;
      gpio_num_t I2C_INT = GPIO_NUM_27;
 
-
      // SPI
      int8_t SPI_MOSI = GPIO_NUM_17; // GPIO_NUM_23;
      int8_t SPI_MISO = GPIO_NUM_19;
@@ -166,7 +154,7 @@ struct UC2_3 : PinConfig
      int8_t tmc_SW_TX = SPI_CS;// GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_RX = SPI_SCK;// GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = SPI_MISO; // D3 -> GPIO4
-     
+
      int tmc_microsteps = 16;
      int tmc_rms_current = 500;
      int tmc_stall_value = 100;
@@ -178,14 +166,12 @@ struct UC2_3 : PinConfig
      int tmc_blank_time = 24;
      int tmc_toff = 4;
 
-
-
      // WIFI - specific to SEEED microscope
      const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";
      bool mAP = true; // false;
-     const char *mSSIDAP = "UC2";            
-     const char *hostname = "youseetoo";     
+     const char *mSSIDAP = "UC2";
+     const char *hostname = "youseetoo";
 
      // Temperature
      int8_t DS28b20_PIN = GPIO_NUM_25;

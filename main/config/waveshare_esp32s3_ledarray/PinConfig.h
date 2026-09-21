@@ -2,13 +2,11 @@
 #include "Arduino.h"
 #include "PinConfigDefault.h"
 
-#undef PSXCONTROLLER
+
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
-#define LED_CONTROLLER
-#define WAVESHARE_ESP32S3_LEDARRAY
+#define ESP32S3_MODEL_XIAO
 struct waveshare_esp32s3_ledarray : PinConfig
 {
      /*
@@ -38,18 +36,18 @@ struct waveshare_esp32s3_ledarray : PinConfig
 
     This is a test to work with the UC2_3 board which acts as a I2C slave
      */
-     
+
      const char * pindefName = "waveshare_esp32s3_ledarray";
      const unsigned long BAUDRATE = 115200;
 
      int8_t LED_PIN = GPIO_NUM_14;
      int8_t LED_COUNT = 64;
 
-     bool dumpHeap = false; 
+     bool dumpHeap = false;
 
      const uint16_t serialTimeout = 100;
 
      uint32_t CAN_ID_CURRENT = disabled;
 };
-  
+
 const waveshare_esp32s3_ledarray pinConfig;

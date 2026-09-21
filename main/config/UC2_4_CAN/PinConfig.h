@@ -1,9 +1,9 @@
 //This is for the standalone aka mAIkroscope::mainboard Rev. G, dated 2025-08-15.
 /*
-New in this Hardware Rev: 
-3 flicker-less LED drivers with field-settable current, 
-CAN transceiver with FRAME-backbone-compatible 12V+XH port, 
-XH 6-pin port to connect directly to LASERBOX, 
+New in this Hardware Rev:
+3 flicker-less LED drivers with field-settable current,
+CAN transceiver with FRAME-backbone-compatible 12V+XH port,
+XH 6-pin port to connect directly to LASERBOX,
 XH and SH ports with pinout identical to off-the-shelf endstop boards
 */
 
@@ -13,23 +13,16 @@ XH and SH ports with pinout identical to off-the-shelf endstop boards
 
 // only for linting
 // #define CORE_DEBUG_LEVEL=5
-#define LASER_CONTROLLER=1
-#define DIGITAL_IN_CONTROLLER=1
-#define MESSAGE_CONTROLLER=1
+
 //#define LINEAR_ENCODER_CONTROLLER=1
 //#define CAN_BUS_ENABLED=1
 //#define DIAL_CONTROLLER=1
-#define MOTOR_CONTROLLER=1
-#define HOME_MOTOR=1
-#define BTHID=1 
-#define BLUETOOTH=1	
-#define USE_FASTACCEL=1
 struct UC2_4 : PinConfig
 {
      /*
      This is the newest electronics where direction/enable are on a seperate port extender
      */
-  
+
      const char * pindefName = "UC2_4";
      const unsigned long BAUDRATE = 115200;
 
@@ -37,13 +30,13 @@ struct UC2_4 : PinConfig
      int8_t MOTOR_X_STEP = GPIO_NUM_16;
      int8_t MOTOR_Y_STEP = GPIO_NUM_14;
      int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-     
+
      /*
      //FIXME: No encoder jacks on the hw anymore
      bool ENC_A_encoderDirection = true;  // true = count up, false = count down -> invert polarity
-     bool ENC_X_encoderDirection = true; 
-     bool ENC_Y_encoderDirection = true; 
-     bool ENC_Z_encoderDirection = true; 
+     bool ENC_X_encoderDirection = true;
+     bool ENC_Y_encoderDirection = true;
+     bool ENC_Z_encoderDirection = true;
      bool ENC_A_motorDirection = true;  // true = count up, false = count down -> invert polarity
      bool ENC_X_motorDirection = true;
      bool ENC_Y_motorDirection = true;
@@ -69,10 +62,10 @@ struct UC2_4 : PinConfig
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;
-     
+
      //DAC pins go out to pinheaders DAC_1 and DAC_2
      int8_t dac_fake_1 = GPIO_NUM_25; //GPIO_NUM_25;
-     int8_t dac_fake_2 = GPIO_NUM_26; //GPIO_NUM_26; 
+     int8_t dac_fake_2 = GPIO_NUM_26; //GPIO_NUM_26;
 
 
      // const char * PSX_MAC = "1a:2b:3c:01:01:04";
@@ -81,7 +74,7 @@ struct UC2_4 : PinConfig
      int8_t JOYSTICK_SPEED_MULTIPLIER = 5;
      int8_t JOYSTICK_MAX_ILLU = 100;
      int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
-     
+
      /*
      FIXME: Not featured in this revision anymore
      // for caliper
@@ -110,7 +103,7 @@ struct UC2_4 : PinConfig
      int8_t I2C_ADD_LEX_PWM3 = 0x53;
      int8_t I2C_ADD_LEX_PWM4 = 0x54;
      /*
-     FIXME: 
+     FIXME:
      I/O expander, nothing new in this Revision.
      The notation/labels are weird. Not sure if they are correct.
      Step_Enable for all motors on P00
@@ -122,8 +115,8 @@ struct UC2_4 : PinConfig
      Y_LIMIT: P06
      Z_LIMIT: P07
      Just broken out to 2.54mm pitch holes: P10-P17
-     
-     Also connected: 
+
+     Also connected:
      int8_t IOEXP_INTERRUPT = GPIO_NUM_27;
      */
 
@@ -139,9 +132,9 @@ struct UC2_4 : PinConfig
      const char *mSSID = "UC2xSeeed-";
      const char *mPWD =  "";
      bool mAP = true; // false;
-     const char *mSSIDAP = "UC2";            
-     const char *hostname = "youseetoo";    
-     */ 
+     const char *mSSIDAP = "UC2";
+     const char *hostname = "youseetoo";
+     */
 
      /*
      FIXME: Maybe this is application-based?

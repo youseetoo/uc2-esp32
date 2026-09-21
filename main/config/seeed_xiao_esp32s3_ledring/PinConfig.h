@@ -1,13 +1,12 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
-#define LASER_CONTROLLER
-#define MESSAGE_CONTROLLER
+#define ESP32S3_MODEL_XIAO
+
 struct UC2_3_Xiao_Slave_Laser : PinConfig
 {
     /*

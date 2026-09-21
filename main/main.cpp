@@ -795,7 +795,8 @@ extern "C" void app_main(void)
 	
 	#ifdef ESP32S3_MODEL_XIAO
 	// additional serial settings for the ESP32S3
-	Serial.setTxTimeoutMs(0);
+	// Note: setTxTimeoutMs is ESP-IDF API, not available in Arduino HardwareSerial
+	// Serial.setTxTimeoutMs(0);
 	Serial.println("DEBUG: Using ESP32S3 XIAO configuration");
 	#endif
 

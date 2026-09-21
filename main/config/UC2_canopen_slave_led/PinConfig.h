@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 // #define CORE_DEBUG_LEVEL
@@ -21,13 +21,10 @@
 //   • LED_UNIFORM_COLOUR  (0x2202)
 //   • LED_PIXEL_DATA      (0x2210, domain transfer)
 //   • LED_PATTERN_ID/SPEED(0x2220/0x2221)
-#define LASER_CONTROLLER
-#define LED_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_BUS_ENABLED
-#define CAN_RECEIVE_LASER          // marks this node as a CAN laser slave (NVS role default)
-#define CAN_RECEIVE_LED            // marks this node as a CAN LED slave (NVS role default)
-#define CAN_CONTROLLER_CANOPEN     // CANopen stack (instead of ISO-TP)
+
+
+
+
 
 //#define DOTSTAR // outcomment if neopixel
 

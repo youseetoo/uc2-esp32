@@ -1,7 +1,6 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
 struct UC2_ESP32S3_XIAO_LEDSERVO : PinConfig
 {
      /*

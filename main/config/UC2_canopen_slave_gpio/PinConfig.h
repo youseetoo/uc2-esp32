@@ -1,7 +1,7 @@
 #pragma once
 #include "Arduino.h"
 #include "PinConfigDefault.h"
-#undef PSXCONTROLLER
+
 
 #define ESP32S3_MODEL_XIAO
 
@@ -12,13 +12,10 @@
 //   * AnalogInController        — GPIO9 collision sensor (resistance read)
 //   * GpioCanSlave              — glue that mirrors all of the above into the
 //                                 CANopen OD and pushes TPDO2 on changes.
-#define DIGITAL_IN_CONTROLLER
-#define DIGITAL_OUT_CONTROLLER
-#define MESSAGE_CONTROLLER
-#define CAN_BUS_ENABLED
-#define CAN_CONTROLLER_CANOPEN
-#define GPIO_CAN_SLAVE_CONTROLLER  // wires GpioCanSlave::setup/loop into main.cpp
-#define I2C_BRIDGE_CONTROLLER      // generic raw-I2C passthrough (0x2350-0x2354)
+
+
+
+
 
 struct UC2_canopen_slave_gpio : PinConfig
 {

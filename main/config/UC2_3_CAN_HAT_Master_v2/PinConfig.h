@@ -3,23 +3,8 @@
 #include "PinConfigDefault.h"
 
 // #define CORE_DEBUG_LEVEL=5
-#define LASER_CONTROLLER=1
-#define DIGITAL_IN_CONTROLLER=1
-#define MESSAGE_CONTROLLER=1
-#define CAN_BUS_ENABLED=1
-#define DIAL_CONTROLLER=1
-#define MOTOR_CONTROLLER=1
-#define HOME_MOTOR=1
-#define BTHID=1 
-#define BLUETOOTH=1	
-#define TMC_CONTROLLER=1
-#define STAGE_SCAN=1
-#define CAN_SEND_COMMANDS
-#define MOTOR_AXIS_COUNT 10   
-#define LED_CONTROLLER
-#define GALVO_CONTROLLER
-#define DAC_CONTROLLER
-#define LASER_CONTROLLER
+
+#define MOTOR_AXIS_COUNT 10
 
 struct UC2_3_CAN_HAT_Master_v2 : PinConfig
 {
@@ -57,7 +42,7 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // LOW = E-STOP asserted). On a trip the master cuts bus power and emits an
     // async {"emergency":...} serial event (see DigitalInController).
     int8_t pinEmergencyExit = GPIO_NUM_34;
-    uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured 
+    uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured
 
     // TEMPERATURE : TMP102AIDRLR
     // I2C  ADDR:
@@ -67,7 +52,7 @@ struct UC2_3_CAN_HAT_Master_v2 : PinConfig
     // SCL = 0x4B
     // PCB: I2C addr: 0x4A
     // Ambient: I2C addr: 0x4B
-    // FAN Control Pin I2C controllable 
+    // FAN Control Pin I2C controllable
 
     // Momentary local kill button exists on HAT; no pin here (handled in hardware gate)
 

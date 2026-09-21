@@ -343,8 +343,7 @@ namespace AxisController
             // position but keep rawCounts visible for diagnostics.
             a.fb.measuredSteps = commanded;
             a.fb.positionErrorSteps = 0;
-            log_i("axis %d: feedback updated — commanded=%d measured=%d posErr=%d rawCounts=%lld (no cal)",
-                  axis, commanded, a.fb.measuredSteps, a.fb.positionErrorSteps, raw);
+            //log_i("axis %d: feedback updated — commanded=%d measured=%d posErr=%d rawCounts=%lld (no cal)", axis, commanded, a.fb.measuredSteps, a.fb.positionErrorSteps, raw);
         }
         a.fb.calibrated = a.cal.valid;
     }

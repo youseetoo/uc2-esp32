@@ -79,7 +79,11 @@ extern "C" {
 #define TAG_CO     "UC2_CO"
 
 // Task priorities (same scheme as MWE trainer)
-#define CAN_CTRL_TASK_PRIO          1
+// TWAI_ctrl is the I/O pump between CAN_TX/RX_queue and the hardware. It
+// blocks on driver alerts and only runs when a frame completed or arrived,
+// so it must outrank the tasks that feed it — otherwise a queued frame
+// waits for the next scheduler tick instead of going out back-to-back.
+#define CAN_CTRL_TASK_PRIO          5
 #define CANOPEN_TASK_PRIO           3
 #define CANOPEN_TMR_TASK_PRIO       4
 #define CANOPEN_INT_TASK_PRIO       2
@@ -347,7 +351,13 @@ void CANopenModule::CAN_ctrl_task(void* arg)
 
     // Main CAN I/O loop
     while (true) {
-        twai_read_alerts(&alerts, 0);
+        // Block until the driver raises an alert (TX done, RX frame, bus
+        // state change) so queued frames go out back-to-back at wire rate
+        // instead of one per 1 ms tick — the old polling capped SDO block
+        // download at ~7 KB/s. The 1-tick timeout is the fallback for frames
+        // another task queued while the bus was idle; on timeout the driver
+        // sets alerts = 0 so the checks below are still valid.
+        twai_read_alerts(&alerts, pdMS_TO_TICKS(1));
 
         // RX: drain TWAI FIFO into CAN_RX_queue (for CANopenNode to process)
         if (alerts & TWAI_ALERT_RX_DATA) {
@@ -464,8 +474,8 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                 log_i("CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
             }
         }
-
-        vTaskDelay(1);
+        // No vTaskDelay here: twai_read_alerts() at the top of the loop is
+        // the blocking point (1 tick max), so this task never spins.
     }
 }
 
@@ -903,6 +913,42 @@ static constexpr uint16_t SDO_STREAM_TIMEOUT_MS      = 15000;
 
 bool CANopenModule::sdoDownloadActive() { return s_sdoStreamActive; }
 
+// Drive the SDO client state machine once per caller tick.
+//
+// In block download CO_SDOclientDownload() sends exactly ONE 7-byte segment
+// per call and returns blockDownldInProgress with timerNext_us=0, i.e.
+// "call me again immediately". Calling it once and sleeping a tick capped
+// the transfer at 1 frame/ms (~7 KB/s). So burst: keep calling while it
+// keeps sending, until it parks (waiting for the server's block ACK, TX
+// queue full, FIFO < 7 bytes and needs a refill, or error).
+//
+// The burst is bounded by the CAN_TX_queue depth (32): past that CO_CANsend
+// marks the buffer full and the client returns transmittBufferFull anyway.
+// The "no progress" check catches the FIFO-needs-refill case, where the
+// client returns blockDownldInProgress without sending.
+static CO_SDO_return_t sdoStreamPump(bool bufferPartial,
+                                     CO_SDO_abortCode_t* abortCode)
+{
+    uint64_t now  = esp_timer_get_time();
+    uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
+    s_sdoStreamLastUs = now;
+    // Clamp: a huge dt (first call) would advance internal timers too far.
+    if (dtUs > 100000U) dtUs = 100000U;
+    if (dtUs == 0)      dtUs = 1;
+
+    CO_SDO_return_t r = CO_SDO_RT_waitingResponse;
+    size_t sentBefore = 0, sentAfter = 0;
+    for (int burst = 0; burst < 32; ++burst) {
+        r = CO_SDOclientDownload(s_sdoStreamClient, dtUs, /*abort=*/false,
+                                 bufferPartial, abortCode, &sentAfter, NULL);
+        if (r != CO_SDO_RT_blockDownldInProgress || sentAfter == sentBefore)
+            break;
+        sentBefore = sentAfter;
+        dtUs = 1;
+    }
+    return r;
+}
+
 bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
                                      uint8_t subIndex, uint32_t totalSize)
 {
@@ -990,20 +1036,8 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         offset += nWritten;
 
         // Drive the state machine to drain over CAN.
-        uint64_t now = esp_timer_get_time();
-        uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
-        s_sdoStreamLastUs = now;
-        // Clamp dtUs to a sane range; very small values cause no harm but
-        // a too-large value (e.g. first call) would advance internal
-        // timers excessively.
-        if (dtUs > 100000U) dtUs = 100000U;
-        if (dtUs == 0)      dtUs = 1;
-
         CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
-        CO_SDO_return_t r = CO_SDOclientDownload(s_sdoStreamClient, dtUs,
-                                                 /*abort=*/false,
-                                                 bufferPartial,
-                                                 &abortCode, NULL, NULL);
+        CO_SDO_return_t r = sdoStreamPump(bufferPartial, &abortCode);
         if (r < 0) {
             log_e("sdoDownloadChunk(fill): node 0x%02X ret=%d abort=0x%08lX queued %u/%u of chunk (totalQueued=%u)",
                   s_sdoStreamClient ? (unsigned)s_sdoStreamClient->nodeIDOfTheSDOServer : 0u,
@@ -1026,14 +1060,11 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
             return false;
         }
 
-        // Yield UNCONDITIONALLY every iteration. Even when nWritten>0 (the
-        // FIFO is accepting bytes because block-transfer is draining it
-        // fast), the CAN bus is the bottleneck — we have nothing useful to
-        // do for ~50us while a frame is on the wire. Without this yield the
-        // loop runs hot at priority-1 (Arduino loopTask), starving the
-        // priority-0 IDLE task and tripping the IDLE Task WDT after ~5s
-        // -> abort()/panic. vTaskDelay(1) costs ~1 RTOS tick (1-2 ms) per
-        // iteration, which is noise compared to the per-segment CAN time.
+        // Yield UNCONDITIONALLY every iteration: the pump has either filled
+        // the TX queue or is waiting on the slave, and running hot at
+        // priority-1 (Arduino loopTask) would starve IDLE and trip its WDT.
+        // TWAI_ctrl drains ~4 frames per tick at 500 kbit/s, so one tick is
+        // exactly the refill cadence.
         vTaskDelay(1);
     }
 
@@ -1045,17 +1076,8 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
     // is a chunk boundary, a refill will come from the next
     // sdoDownloadChunk() call or sdoDownloadEnd().
     for (;;) {
-        uint64_t now = esp_timer_get_time();
-        uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
-        s_sdoStreamLastUs = now;
-        if (dtUs > 100000U) dtUs = 100000U;
-        if (dtUs == 0)      dtUs = 1;
-
         CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
-        CO_SDO_return_t r = CO_SDOclientDownload(s_sdoStreamClient, dtUs,
-                                                 /*abort=*/false,
-                                                 bufferPartial,
-                                                 &abortCode, NULL, NULL);
+        CO_SDO_return_t r = sdoStreamPump(bufferPartial, &abortCode);
         if (r < 0) {
             log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX totalQueued=%u",
                   r, (unsigned long)abortCode,
@@ -1107,17 +1129,8 @@ bool CANopenModule::sdoDownloadEnd()
                           + (uint32_t)SDO_STREAM_TIMEOUT_MS + 2000U;
     CO_SDO_return_t r;
     for (;;) {
-        uint64_t now = esp_timer_get_time();
-        uint32_t dtUs = (uint32_t)(now - s_sdoStreamLastUs);
-        s_sdoStreamLastUs = now;
-        if (dtUs > 100000U) dtUs = 100000U;
-        if (dtUs == 0)      dtUs = 1;
-
         CO_SDO_abortCode_t abortCode = CO_SDO_AB_NONE;
-        r = CO_SDOclientDownload(s_sdoStreamClient, dtUs,
-                                 /*abort=*/false,
-                                 /*bufferPartial=*/false,
-                                 &abortCode, NULL, NULL);
+        r = sdoStreamPump(/*bufferPartial=*/false, &abortCode);
         if (r < 0) {
             log_e("sdoDownloadEnd: ret=%d abort=0x%08lX",
                   r, (unsigned long)abortCode);
@@ -2271,23 +2284,13 @@ void CANopenModule::syncRpdoToModules_slave()
         uint8_t cmd = OD_RAM.x2602_galvo_command_word;
         if (cmd != GALVO_CMD_IDLE) {
             switch (cmd) {
-                case GALVO_CMD_GOTO: { // Goto XY — set target position via raster config
-                    ScanConfig cfg = GalvoController::getCurrentConfig();
+                case GALVO_CMD_GOTO: // Goto XY / park — stops any scan, drives DAC directly
                     log_i("Galvo goto command: x=%u y=%u",
                           (unsigned)OD_RAM.x2600_galvo_target_position[0],
                           (unsigned)OD_RAM.x2600_galvo_target_position[1]);
-                    cfg.x_min = (uint16_t)OD_RAM.x2600_galvo_target_position[0];
-                    cfg.x_max = cfg.x_min;
-                    cfg.y_min = (uint16_t)OD_RAM.x2600_galvo_target_position[1];
-                    cfg.y_max = cfg.y_min;
-                    cfg.nx = 1;
-                    cfg.ny = 1;
-                    cfg.frame_count = 1;
-                    GalvoController::setConfig(cfg);
-                    GalvoController::setScanMode(SCAN_MODE_RASTER);
-                    GalvoController::start();
+                    GalvoController::gotoXY((uint16_t)OD_RAM.x2600_galvo_target_position[0],
+                                            (uint16_t)OD_RAM.x2600_galvo_target_position[1]);
                     break;
-                }
                 case GALVO_CMD_LINE: // Line scan (single line: ny forced to 1 below)
                     log_i("Galvo line scan command received");
                     // fall through — same raster path, ny is clamped to 1
@@ -2325,7 +2328,12 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.line_settle_samples = OD_RAM.x2608_galvo_d_steps_pixel;
                     log_i("Galvo raster extras: bidirectional=%u line_settle=%u",
                           (unsigned)cfg.bidirectional, (unsigned)cfg.line_settle_samples);
-                    GalvoController::setConfig(cfg);
+                    if (!GalvoController::setConfig(cfg)) {
+                        // Rejected (line > SCANNER_MAX_LINE_SAMPLES, bad range, ...):
+                        // do NOT start(), that would re-arm the previous scan.
+                        log_e("Galvo raster config rejected, not starting");
+                        break;
+                    }
                     // Reset to raster mode — a prior arbitrary-point scan (0x2610)
                     // would otherwise leave the scanner in ARBITRARY mode.
                     GalvoController::setScanMode(SCAN_MODE_RASTER);

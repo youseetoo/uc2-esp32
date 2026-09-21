@@ -28,7 +28,6 @@ namespace {
 // required). The total firmware size is irrelevant — we never hold more
 // than one chunk in RAM.
 constexpr size_t   CHUNK_SIZE          = 4096;
-constexpr uint32_t ACK_INTERVAL_BYTES  = 4096;
 constexpr uint32_t RX_TIMEOUT_MS       = 30000;
 
 uint8_t  s_chunk[CHUNK_SIZE];
@@ -41,7 +40,6 @@ uint32_t s_expectedCrc32   = 0;
 uint32_t s_runningCrc32    = 0;
 uint8_t  s_nodeId          = 0;
 uint32_t s_bytesReceived   = 0;
-uint32_t s_lastAckBytes    = 0;
 uint32_t s_lastByteMillis  = 0;
 
 void emitJson(const char* msg) {
@@ -60,7 +58,6 @@ void cleanup() {
     s_runningCrc32   = 0;
     s_nodeId         = 0;
     s_bytesReceived  = 0;
-    s_lastAckBytes   = 0;
     s_chunkPos       = 0;
 }
 
@@ -166,7 +163,6 @@ cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
     s_runningCrc32    = 0;
     s_nodeId          = nodeId;
     s_bytesReceived   = 0;
-    s_lastAckBytes    = 0;
     s_lastByteMillis  = millis();
     s_chunkPos        = 0;
     s_streamOpen      = false;
@@ -210,28 +206,32 @@ void processBytes() {
         // Flush as soon as the chunk is full or the last firmware byte landed.
         bool isLast = (s_bytesReceived >= s_totalSize);
         if (s_chunkPos >= CHUNK_SIZE || (isLast && s_chunkPos > 0)) {
-            if (!flushChunk()) {
-                log_i("Flushing chunk failed, aborting OTA session");
-                cleanup();
-                return;
-            }
-            // After flushChunk we can keep draining the UART for the next
-            // chunk in the same call - avoids waiting for the next main-loop
-            // iteration just to read bytes that are already in the FIFO.
-        }
-    }
-
-    if (didRead) {
-        // Progress ACK every ACK_INTERVAL_BYTES (or at completion).
-        if ((s_bytesReceived - s_lastAckBytes) >= ACK_INTERVAL_BYTES ||
-            s_bytesReceived >= s_totalSize) {
-            s_lastAckBytes = s_bytesReceived;
+            // ACK *before* pushing to CAN. The host sends the next chunk as
+            // soon as it sees the ACK, so it lands in the 8 KB UART ring
+            // while this one is on the bus — the serial hop is hidden
+            // behind the CAN hop instead of added to it. The host keeps
+            // exactly one chunk in flight, so the ring cannot overflow.
             char ack[48];
             snprintf(ack, sizeof(ack), "{\"ota_rx\":%lu}",
                      (unsigned long)s_bytesReceived);
             emitJson(ack);
+
+            if (!flushChunk()) {
+                log_i("Flushing chunk failed, aborting OTA session");
+                // The next chunk is probably already in flight (we ACKed
+                // above). Swallow it so it isn't parsed as JSON commands.
+                vTaskDelay(pdMS_TO_TICKS(100));
+                while (Serial.available() > 0) Serial.read();
+                cleanup();
+                return;
+            }
+            // Return once per chunk: the caller (loopTask) feeds the task
+            // watchdog and polls the E-stop between calls.
+            break;
         }
-    } else {
+    }
+
+    if (!didRead) {
         // Watchdog: abort if the host stalls mid-transfer.
         if ((millis() - s_lastByteMillis) > RX_TIMEOUT_MS) {
             ESP_LOGE(TAG, "OTA receive timeout after %u/%u bytes",

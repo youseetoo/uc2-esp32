@@ -300,6 +300,7 @@ namespace FocusMotor
 			data[Stepper::A]->currentPosition = preferences.getInt(("motor" + String(Stepper::A)).c_str());
 			data[Stepper::A]->directionPinInverted = preferences.getInt("motainvert", false);
 			data[Stepper::A]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::A)).c_str(), false);
+			data[Stepper::A]->joystickSpeedMultiplier = preferences.getFloat(("joySpd" + String(Stepper::A)).c_str(), (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER);
 			data[Stepper::A]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::A)).c_str(), pinConfig.hardLimitEnabledA);	  // Disabled by default
 			data[Stepper::A]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::A)).c_str(), pinConfig.hardLimitPolarityA); // NO by default
 			isActivated[Stepper::A] = true;
@@ -312,6 +313,7 @@ namespace FocusMotor
 			data[Stepper::X]->currentPosition = preferences.getInt(("motor" + String(Stepper::X)).c_str());
 			data[Stepper::X]->directionPinInverted = preferences.getInt("motxinv", false);
 			data[Stepper::X]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::X)).c_str(), false);
+			data[Stepper::X]->joystickSpeedMultiplier = preferences.getFloat(("joySpd" + String(Stepper::X)).c_str(), (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER);
 			data[Stepper::X]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::X)).c_str(), pinConfig.hardLimitEnabledX);	  // Disabled by default
 			data[Stepper::X]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::X)).c_str(), pinConfig.hardLimitPolarityX); // NO by default
 			isActivated[Stepper::X] = true;
@@ -324,6 +326,7 @@ namespace FocusMotor
 			data[Stepper::Y]->currentPosition = preferences.getInt(("motor" + String(Stepper::Y)).c_str());
 			data[Stepper::Y]->directionPinInverted = preferences.getInt("motyinv", false);
 			data[Stepper::Y]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Y)).c_str(), false);
+			data[Stepper::Y]->joystickSpeedMultiplier = preferences.getFloat(("joySpd" + String(Stepper::Y)).c_str(), (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER);
 			data[Stepper::Y]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Y)).c_str(), pinConfig.hardLimitEnabledY);	  // Disabled by default
 			data[Stepper::Y]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Y)).c_str(), pinConfig.hardLimitPolarityY); // NO by default
 			isActivated[Stepper::Y] = true;
@@ -336,6 +339,7 @@ namespace FocusMotor
 			data[Stepper::Z]->currentPosition = preferences.getInt(("motor" + String(Stepper::Z)).c_str());
 			data[Stepper::Z]->directionPinInverted = preferences.getInt("motzinv", false);
 			data[Stepper::Z]->joystickDirectionInverted = preferences.getBool(("joyDir" + String(Stepper::Z)).c_str(), false);
+			data[Stepper::Z]->joystickSpeedMultiplier = preferences.getFloat(("joySpd" + String(Stepper::Z)).c_str(), (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z);
 			data[Stepper::Z]->hardLimitEnabled = preferences.getBool(("hlEn" + String(Stepper::Z)).c_str(), pinConfig.hardLimitEnabledZ);	  // Disabled by default
 			data[Stepper::Z]->hardLimitPolarity = preferences.getBool(("hlPol" + String(Stepper::Z)).c_str(), pinConfig.hardLimitPolarityZ); // NO by default
 			isActivated[Stepper::Z] = true;

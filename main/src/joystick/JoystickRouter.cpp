@@ -19,6 +19,7 @@
 #include <Arduino.h>
 #include <cmath>
 #include <cstdlib>
+#include <Preferences.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -28,6 +29,7 @@
 #include "PinConfig.h"
 #include "../canopen/CANopenModule.h"
 #include "../canopen/RoutingTable.h"
+#include "../../JsonKeys.h"
 #include "../canopen/UC2_OD_Indices.h"
 #include "../motor/MotorTypes.h"
 
@@ -90,6 +92,31 @@ struct AxisRuntime {
     int32_t lastSpeed  = 0;
 };
 AxisRuntime s_axis[4]; // indexed by Stepper enum (A=0, X=1, Y=2, Z=3)
+
+// Per-axis joystick speed-scaling multiplier. Defaults to the compile-time
+// pinConfig.JOYSTICK_SPEED_MULTIPLIER[_Z] values, but can be overridden at
+// runtime via /joystick_act and is persisted to Preferences (NVS) so the
+// override survives a reboot. Indexed by Stepper enum, same as s_axis.
+float s_speedMultiplier[4];
+
+const char* kPrefsNamespace = "UC2";
+
+static inline float defaultSpeedMultiplier(int ax)
+{
+    return (ax == Stepper::Z) ? (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
+                              : (float)pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+}
+
+// Load persisted multipliers (falling back to pinConfig defaults) once at
+// startup, mirroring how FocusMotor::fill_data() restores "joyDir" + axis.
+static void loadSpeedMultipliers()
+{
+    Preferences prefs;
+    prefs.begin(kPrefsNamespace, false);
+    for (int ax = 0; ax < 4; ax++)
+        s_speedMultiplier[ax] = prefs.getFloat(("joySpd" + String(ax)).c_str(), defaultSpeedMultiplier(ax));
+    prefs.end();
+}
 
 // Edge-detect previous button state. button1/2/3 packing matches DS4Report_t
 // in JoystickUsbHost.cpp.
@@ -193,9 +220,7 @@ static void handleAxis(int16_t value, int ax)
     if (ax == Stepper::A && s_axis[Stepper::Z].running) stopAxis(Stepper::Z);
 
     float speed = curveValue(value) * kMaxSpeed;
-    speed *= (ax == Stepper::Z)
-                ? pinConfig.JOYSTICK_SPEED_MULTIPLIER_Z
-                : pinConfig.JOYSTICK_SPEED_MULTIPLIER;
+    speed *= s_speedMultiplier[ax];
     startAxis(ax, (int)speed);
 }
 
@@ -320,6 +345,7 @@ bool begin()
 {
     static bool started = false;
     if (started) return true;
+    loadSpeedMultipliers();
     BaseType_t ok = xTaskCreatePinnedToCore(router_task, "ds4_router",
                                             4096, NULL, 3, NULL, 0);
     if (ok != pdTRUE) {
@@ -329,6 +355,56 @@ bool begin()
     started = true;
     ESP_LOGI(TAG, "DS4 → CAN router started");
     return true;
+}
+
+// {"task":"/joystick_act", "speedmult": {"steppers": [{"stepperid": 1, "multiplier": 75}]}}
+// stepperid follows the Stepper enum (A=0, X=1, Y=2, Z=3), same as /motor_act.
+cJSON* act(cJSON* doc)
+{
+    cJSON* speedMultObj = cJSON_GetObjectItemCaseSensitive(doc, "speedmult");
+    if (speedMultObj) {
+        cJSON* stprs = cJSON_GetObjectItemCaseSensitive(speedMultObj, key_steppers);
+        cJSON* stp = nullptr;
+        cJSON_ArrayForEach(stp, stprs)
+        {
+            cJSON* idItem = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
+            cJSON* multItem = cJSON_GetObjectItemCaseSensitive(stp, "multiplier");
+            if (!cJSON_IsNumber(idItem) || !cJSON_IsNumber(multItem))
+                continue;
+            int axis = idItem->valueint;
+            if (axis < 0 || axis >= 4)
+                continue;
+            float multiplier = (float)multItem->valuedouble;
+
+            s_speedMultiplier[axis] = multiplier;
+
+            Preferences prefs;
+            prefs.begin(kPrefsNamespace, false);
+            prefs.putFloat(("joySpd" + String(axis)).c_str(), multiplier);
+            prefs.end();
+            ESP_LOGI(TAG, "Set joystick speed multiplier: axis %d = %.2f", axis, multiplier);
+        }
+    }
+    return get(doc);
+}
+
+// {"task":"/joystick_get"} → current per-axis speed multipliers
+cJSON* get(cJSON* /*doc*/)
+{
+    cJSON* ret = cJSON_CreateObject();
+    if (!ret) return nullptr;
+    cJSON* speedMultObj = cJSON_AddObjectToObject(ret, "speedmult");
+    if (!speedMultObj) return ret;
+    cJSON* stprs = cJSON_AddArrayToObject(speedMultObj, key_steppers);
+    if (!stprs) return ret;
+    for (int ax = 0; ax < 4; ax++) {
+        cJSON* item = cJSON_CreateObject();
+        if (!item) continue;
+        cJSON_AddNumberToObject(item, key_stepperid, ax);
+        cJSON_AddNumberToObject(item, "multiplier", s_speedMultiplier[ax]);
+        cJSON_AddItemToArray(stprs, item);
+    }
+    return ret;
 }
 
 } // namespace JoystickRouter

@@ -18,6 +18,7 @@ namespace MotorJsonParser
     void parseMotorPinDirection(cJSON *doc);
     void parseSetHardLimits(cJSON *doc);
     void parseSetJoystickDirection(cJSON *doc);
+    void parseSetJoystickSpeed(cJSON *doc);
     void parseMotorDriveJson(cJSON *doc);
 #ifdef STAGE_SCAN
     void parseStageScan(cJSON *doc);

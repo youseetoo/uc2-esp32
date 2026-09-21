@@ -22,33 +22,47 @@ namespace DialController
         ILLUMINATION    // Control laser illumination
     };
 
-    // Motor axis identifiers (matches CAN_MOTOR_IDs array indexing)
+    // Motor axis identifiers — values are the RoutingTable logicalId
+    // (Stepper enum order A=0, X=1, Y=2, Z=3). Node ids come from the
+    // routing table (pinConfig.CAN_ID_MOT_*), not from here.
     enum class MotorAxis {
-        A = 0,  // Index 0 -> CAN_ID_MOT_A
-        X = 1,  // Index 1 -> CAN_ID_MOT_X
-        Y = 2,  // Index 2 -> CAN_ID_MOT_Y
-        Z = 3,  // Index 3 -> CAN_ID_MOT_Z
+        A = 0,
+        X = 1,
+        Y = 2,
+        Z = 3,
         AXIS_COUNT = 4
     };
 
-    // Configuration for CAN IDs (loaded from pinConfig)
+    // Illumination channels: 0..3 = lasers (RoutingTable LASER logicalId,
+    // pinConfig.CAN_NODE_LASER[ch] / CAN_SUBAXIS_LASER[ch]); 4..7 = LED matrix
+    // (RoutingTable LED 0): RGB sets all three components at once, R/G/B one each.
+    static const int LASER_CHANNEL_COUNT = 4;
+    static const int ILLUM_LED_RGB = 4;
+    static const int ILLUM_LED_R   = 5;
+    static const int ILLUM_LED_G   = 6;
+    static const int ILLUM_LED_B   = 7;
+    static const int ILLUM_CHANNEL_COUNT = 8;
+    static const int MAX_LED = 255;
+
+    // M5Dial encoder: quadrature on GPIO 41/40, counted by the PCNT peripheral
+    // (ESP32Encoder). 4 edges per detent; tune if the knob feels off.
+    static const int ENCODER_PIN_A = 41;
+    static const int ENCODER_PIN_B = 40;
+    static const int ENCODER_COUNTS_PER_DETENT = 4;
+
     struct DialConfig {
-        uint8_t canIdMotorX = 11;   // Default CAN ID for X axis
-        uint8_t canIdMotorY = 12;   // Default CAN ID for Y axis
-        uint8_t canIdMotorZ = 13;   // Default CAN ID for Z axis
-        uint8_t canIdMotorA = 10;   // Default CAN ID for A axis
-        uint8_t canIdLaser = 20;    // Default CAN ID for laser/illumination
-        int32_t motorSpeed = 10000; // Default motor speed
+        int32_t motorSpeed = 10000; // steps/s for relative moves
     };
 
     // Available step increments for motor mode
-    static const int MOTOR_INCREMENTS[] = {1, 5, 10, 100};
-    static const int MOTOR_INCREMENT_COUNT = 4;
+    static const int MOTOR_INCREMENTS[] = {1, 5, 10, 100, 1000};
+    static const int MOTOR_INCREMENT_COUNT = 5;
 
     // Available step increments for illumination mode
     static const int ILLUM_INCREMENTS[] = {1, 5, 10, 25, 100};
     static const int ILLUM_INCREMENT_COUNT = 5;
-    static const int MAX_ILLUMINATION = 255;
+    // Laser slaves default to 10-bit PWM (pinConfig.LASER_PWM_RESOLUTION = 10).
+    static const int MAX_ILLUMINATION = 1023;
 
     // Timing constants
     static const unsigned long LONG_PRESS_DURATION_MS = 500;   // Long press to switch axis/mode
@@ -74,13 +88,15 @@ namespace DialController
     void drawIlluminationScreen();
     void drawModeIndicator();
 
-    // CAN communication functions
+    // CANopen communication (expedited SDO writes to the routed slave node)
     void sendMotorCommand(int axis, int32_t steps);
     void sendLaserCommand(int laserId, int intensity);
+    void sendLedCommand();
 
     // Internal state getters (for debugging/API)
     DialMode getCurrentMode();
     MotorAxis getCurrentAxis();
+    int getCurrentIllumChannel();
     int getCurrentIncrement();
     int getIlluminationValue();
     bool isIlluminationOn();

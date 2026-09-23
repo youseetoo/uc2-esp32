@@ -1,19 +1,25 @@
 #include "StageScan.h"
+#include "StageScanOrder.h"
 #include "Arduino.h"
 #include "FocusMotor.h"
-#include "../i2c/tca_controller.h"
 #include "../../JsonKeys.h"
 #include "../../cJsonTool.h"
 #include "../canopen/DeviceRouter.h"
-#ifdef LED_CONTROLLER
-#include "../led/LedController.h"
-#endif
-#ifdef LASER_CONTROLLER
-#include "../laser/LaserController.h"
-#endif
+#include "../serial/SerialProcess.h"
+
+// -----------------------------------------------------------------------------
+// Everything that touches hardware goes through DeviceRouter, so the same code
+// runs on a standalone board (local steppers / PWM lasers / NeoPixels) and on a
+// CANopen master whose motors, lasers and LEDs live on slave nodes. The camera
+// trigger pin is always local (it is wired to the master / HAT).
+//
+// Timing model per frame:  move (all changed axes together) -> light on ->
+// tPre -> trigger pulse (tTrig) -> tPost -> light off.
+// -----------------------------------------------------------------------------
 namespace StageScan
 {
     StageScanningData stageScanningData;
+    volatile bool isRunning = false;
 
     StageScanningData *getStageScanData()
     {
@@ -22,18 +28,13 @@ namespace StageScan
 
     void setCoordinates(StagePosition *coords, int count)
     {
-        // Clear existing coordinates first
         clearCoordinates();
         log_i("Setting %d coordinates for stage scanning", count);
-
         if (coords != nullptr && count > 0)
         {
             stageScanningData.coordinates = new StagePosition[count];
             for (int i = 0; i < count; i++)
-            {
-                log_i("Coordinate %d: x=%d, y=%d", i, coords[i].x, coords[i].y);
                 stageScanningData.coordinates[i] = coords[i];
-            }
             stageScanningData.coordinateCount = count;
             stageScanningData.useCoordinates = true;
         }
@@ -50,481 +51,460 @@ namespace StageScan
         stageScanningData.useCoordinates = false;
     }
 
-    void moveMotor(int stepPin, int dirPin, int steps, bool direction, int delayTimeStep)
+    // -------------------------------------------------------------------------
+    // Serial notifications: framed (++/--) through the output queue, so they
+    // never interleave with responses other tasks are writing.
+    // -------------------------------------------------------------------------
+    static void sendJson(cJSON *json)
     {
-        steps = abs(steps);
-
-        //  direction perhaps externally controlled
-        if (pinConfig.I2C_SCL > -1)
+        char *s = cJSON_PrintUnformatted(json);
+        if (s)
         {
-#ifdef USE_TCA
-            tca_controller::setExternalPin(dirPin, direction);
+            SerialProcess::safeSendJsonString(s);
+            free(s);
+        }
+        cJSON_Delete(json);
+    }
+
+    // -------------------------------------------------------------------------
+    // Camera trigger: a clean pulse on CAMERA_TRIGGER_PIN, then the
+    // {"cam":1,"frame":n} notification the host uses for software triggering
+    // and frame counting. (It used to be printed *inside* the pulse, so the
+    // pulse width was whatever the UART took.) Without a trigger pin only the
+    // notification is sent.
+    // -------------------------------------------------------------------------
+    static void fireTrigger(uint32_t frameIndex, int pulseMs)
+    {
+        const int pin = pinConfig.CAMERA_TRIGGER_PIN;
+        if (pin >= 0)
+        {
+            const bool inv = pinConfig.CAMERA_TRIGGER_INVERTED;
+            digitalWrite(pin, inv ? LOW : HIGH);
+            if (pulseMs <= 1)
+                ets_delay_us(1000); // 1 ms floor keeps opto-isolated inputs happy
+            else
+                vTaskDelay(pdMS_TO_TICKS(pulseMs));
+            digitalWrite(pin, inv ? HIGH : LOW);
+        }
+        cJSON *j = cJSON_CreateObject();
+        cJSON_AddNumberToObject(j, "cam", 1);
+        cJSON_AddNumberToObject(j, "frame", (double)frameIndex);
+        sendJson(j);
+    }
+
+    // -------------------------------------------------------------------------
+    // Lights. LaserController::setLaserVal / LedController::execLedCommand only
+    // drive LOCAL hardware; on a CAN master the lasers and the LED array are
+    // slave nodes, which only DeviceRouter knows how to reach.
+    // -------------------------------------------------------------------------
+    static void setLaser(int channel, int value)
+    {
+#ifdef LASER_CONTROLLER
+        cJSON *doc = cJSON_CreateObject();
+        cJSON_AddNumberToObject(doc, "LASERid", channel);
+        cJSON_AddNumberToObject(doc, "LASERval", value);
+        cJSON *resp = DeviceRouter::handleLaserAct(doc);
+        if (resp) cJSON_Delete(resp);
+        cJSON_Delete(doc);
+#else
+        (void)channel; (void)value;
+        log_w("stagescan: laser %d requested but LASER_CONTROLLER is not built", channel);
 #endif
+    }
+
+    static void setLedArray(int intensity)
+    {
+#ifdef LED_CONTROLLER
+        cJSON *doc = cJSON_CreateObject();
+        cJSON *led = cJSON_AddObjectToObject(doc, "led");
+        if (intensity > 0)
+        {
+            const int v = intensity > 255 ? 255 : intensity;
+            cJSON_AddStringToObject(led, "action", "fill");
+            cJSON_AddNumberToObject(led, "r", v);
+            cJSON_AddNumberToObject(led, "g", v);
+            cJSON_AddNumberToObject(led, "b", v);
         }
         else
         {
-            digitalWrite(dirPin, direction ? HIGH : LOW);
+            cJSON_AddStringToObject(led, "action", "off");
         }
-
-        for (int i = 0; i < steps; ++i)
-        {
-            digitalWrite(stepPin, HIGH);
-            ets_delay_us(delayTimeStep); // Adjust delay for speed
-            digitalWrite(stepPin, LOW);
-            ets_delay_us(delayTimeStep); // Adjust delay for speed
-        }
+        cJSON *resp = DeviceRouter::handleLedAct(doc);
+        if (resp) cJSON_Delete(resp);
+        cJSON_Delete(doc);
+#else
+        (void)intensity;
+        log_w("stagescan: LED array requested but LED_CONTROLLER is not built");
+#endif
     }
 
-    void writeToPin(int digitaloutid, int digitaloutval, int triggerdelay)
+    static void setChannel(const StageScanningData &sd, int channel, bool on)
     {
-        bool isInverted = pinConfig.CAMERA_TRIGGER_INVERTED;
+        if (channel == StageScanOrder::kChannelNone) return;
+        if (channel == StageScanOrder::kChannelLed)
+            setLedArray(on ? sd.ledarrayIntensity : 0);
+        else
+            setLaser(channel, on ? sd.lightsourceIntensities[channel] : 0);
+    }
 
-        if (digitaloutval == -1)
+    static void allLightsOff(const StageScanningData &sd)
+    {
+        for (int j = 0; j < StageScanOrder::kLaserChannels; ++j)
+            if (sd.lightsourceIntensities[j] > 0) setLaser(j, 0);
+        if (sd.ledarrayIntensity > 0) setLedArray(0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Motion. One motor_act with every changed axis, so X/Y/Z move together
+    // instead of one after the other (the old moveAbs also slept a fixed
+    // 100 ms after every single-axis dispatch: >= 300 ms dead time per point).
+    // -------------------------------------------------------------------------
+    static const Stepper kAxes[3] = {Stepper::X, Stepper::Y, Stepper::Z};
+
+    // Trapezoidal profile estimate in ms; only used for timeouts and the
+    // nonstop trigger schedule.
+    static uint32_t travelTimeMs(int32_t from, int32_t to, int32_t speed, int32_t accel)
+    {
+        const int32_t distance = (to > from) ? (to - from) : (from - to);
+        if (distance == 0 || speed <= 0 || accel <= 0) return 0;
+        const float accelTime = (float)speed / (float)accel;                 // s
+        const float accelDist = (float)speed * (float)speed / (2.0f * accel); // steps
+        float total;
+        if ((float)distance < 2.0f * accelDist)
         {
-            // perform trigger
-            digitalWrite(digitaloutid, isInverted ? LOW : HIGH);
-            delay(triggerdelay);
-            digitalWrite(digitaloutid, isInverted ? HIGH : LOW);
+            const float peak = sqrtf((float)distance * (float)accel);
+            total = 2.0f * peak / (float)accel;
         }
         else
         {
-            digitalWrite(digitaloutid, isInverted ? !digitaloutval : digitaloutval);
+            total = 2.0f * accelTime + ((float)distance - 2.0f * accelDist) / (float)speed;
         }
+        return (uint32_t)(total * 1000.0f);
     }
 
-    void triggerOutput(int outputPin, int triggerTime = 10, int state = -1)
+    static void dispatchMove(const int32_t *target, const bool *active, int speed, int accel)
     {
-        // if state is -1 we alternate from 0,1,0
-        // Output trigger logic
-        if (state == -1)
-        {
-            writeToPin(outputPin, 1, 0);
-            // print "++{"cam":1}--" to serial to indicate a software trigger 
-            ets_delay_us(4); // Adjust delay for speed
-            Serial.println("++\n{\"cam\":1}\n--");
-            writeToPin(outputPin, 0, 0);
-        }
-        else
-        {
-            writeToPin(outputPin, state, 0);
-        }
-    }
-
-    // -----------------------------------------------------------------------------
-    // Absolute positioning via DeviceRouter.
-    // The router dispatches to LOCAL FocusMotor or REMOTE CANopen slave based on
-    // the RoutingTable, so this works on standalone boards as well as on a
-    // CANopen master where the motors live on remote slave nodes. We then poll
-    // FocusMotor::getData()[ax]->stopped / currentPosition, which is mirrored
-    // from the slave's TPDO by syncRpdoToModules_master() on the master side.
-    // -----------------------------------------------------------------------------
-    static inline void moveAbs(Stepper ax, int32_t pos, int speed = 20000, int acceleration = 1000000, int32_t timeout = 2000)
-    {
-        auto *d = FocusMotor::getData()[ax];
-        if (!d)
-        {
-            log_e("moveAbs: no MotorData for axis %d", ax);
-            return;
-        }
-
-        // Reset completion flag before dispatching so the poll loop can detect
-        // the running -> stopped transition reliably (especially for REMOTE).
-        d->stopped = false;
-        d->isStop = 0;
-
-        log_i("Moving axis %d to position %d with speed %d and acceleration %d (via DeviceRouter)",
-              ax, pos, speed, acceleration);
-
-        // Build motor_act JSON: {"motor":{"steppers":[{stepperid, position, speed, acceleration, isabs:1}]}}
         cJSON *doc = cJSON_CreateObject();
         cJSON *motor = cJSON_AddObjectToObject(doc, "motor");
         cJSON *steppers = cJSON_AddArrayToObject(motor, "steppers");
-        cJSON *s = cJSON_CreateObject();
-        cJSON_AddNumberToObject(s, "stepperid", (int)ax);
-        cJSON_AddNumberToObject(s, "position", pos);
-        cJSON_AddNumberToObject(s, "speed", speed);
-        cJSON_AddNumberToObject(s, "acceleration", acceleration);
-        cJSON_AddNumberToObject(s, "isabs", 1);
-        cJSON_AddNumberToObject(s, "isforever", 0);
-        cJSON_AddItemToArray(steppers, s);
-
+        for (int a = 0; a < 3; ++a)
+        {
+            if (!active[a]) continue;
+            MotorData *d = FocusMotor::getData()[kAxes[a]];
+            if (!d) continue;
+            d->stopped = false; // completion = the running -> stopped edge (waitForAxes)
+            d->isStop = 0;
+            cJSON *s = cJSON_CreateObject();
+            cJSON_AddNumberToObject(s, "stepperid", (int)kAxes[a]);
+            cJSON_AddNumberToObject(s, "position", target[a]);
+            cJSON_AddNumberToObject(s, "speed", speed);
+            cJSON_AddNumberToObject(s, "acceleration", accel);
+            cJSON_AddNumberToObject(s, "isabs", 1);
+            cJSON_AddNumberToObject(s, "isforever", 0);
+            cJSON_AddItemToArray(steppers, s);
+        }
         cJSON *resp = DeviceRouter::handleMotorAct(doc);
         if (resp) cJSON_Delete(resp);
         cJSON_Delete(doc);
+    }
 
-        // Give the motor (or the SDO write + slave start) a brief moment to begin.
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-        // Wait for completion: either the controller reports stopped, or the
-        // mirrored currentPosition matches the target. Bail out on timeout.
-        int32_t timeStart = millis();
-        while (1)
+    static void stopAxes()
+    {
+        cJSON *doc = cJSON_CreateObject();
+        cJSON *motor = cJSON_AddObjectToObject(doc, "motor");
+        cJSON *steppers = cJSON_AddArrayToObject(motor, "steppers");
+        for (int a = 0; a < 3; ++a)
         {
-            vTaskDelay(1);
-            if (d->stopped || d->currentPosition == pos)
+            cJSON *s = cJSON_CreateObject();
+            cJSON_AddNumberToObject(s, "stepperid", (int)kAxes[a]);
+            cJSON_AddNumberToObject(s, "isStop", 1);
+            cJSON_AddItemToArray(steppers, s);
+        }
+        cJSON *resp = DeviceRouter::handleMotorAct(doc);
+        if (resp) cJSON_Delete(resp);
+        cJSON_Delete(doc);
+    }
+
+    // Blocks until every active axis reports stopped AT its target. "Stopped
+    // and at target" is deliberate: a slave's status word carries a 1 Hz
+    // heartbeat toggle, so a stale "not running" frame can reach the master
+    // between our command and the slave's first "running" report; it still
+    // carries the old position, so it cannot satisfy this check. Local axes
+    // refresh currentPosition when they stop (FAccelStep), so no polling of
+    // the driver is needed here.
+    static bool waitForAxes(const int32_t *target, const bool *active, uint32_t timeoutMs)
+    {
+        const uint32_t t0 = millis();
+        for (;;)
+        {
+            bool done = true;
+            for (int a = 0; a < 3 && done; ++a)
             {
-                break;
+                if (!active[a]) continue;
+                MotorData *d = FocusMotor::getData()[kAxes[a]];
+                if (d && !(d->stopped && d->currentPosition == target[a])) done = false;
             }
-            if (millis() - timeStart > timeout)
+            if (done) return true;
+            if (stageScanningData.stopped) return false;
+            if ((uint32_t)(millis() - t0) > timeoutMs)
             {
-                log_e("Timeout while moving axis %d to position %d", ax, pos);
-                break;
+                log_e("stagescan: move timeout after %u ms (target X:%d Y:%d Z:%d)",
+                      (unsigned)timeoutMs, (int)target[0], (int)target[1], (int)target[2]);
+                return false;
+            }
+            vTaskDelay(1);
+        }
+    }
+
+    // Move the requested axes together; axes already at their target are
+    // skipped. Returns false on timeout or abort.
+    static bool moveTo(const int32_t *target, const bool *active, int speed, int accel)
+    {
+        bool need[3] = {false, false, false};
+        bool any = false;
+        uint32_t est = 0;
+        for (int a = 0; a < 3; ++a)
+        {
+            if (!active[a]) continue;
+            MotorData *d = FocusMotor::getData()[kAxes[a]];
+            if (!d || d->currentPosition == target[a]) continue;
+            need[a] = true;
+            any = true;
+            const uint32_t t = travelTimeMs(d->currentPosition, target[a], speed, accel);
+            if (t > est) est = t;
+        }
+        if (!any) return true;
+        dispatchMove(target, need, speed, accel);
+        return waitForAxes(target, need, est * 2 + 1000);
+    }
+
+    // -------------------------------------------------------------------------
+    // One frame: light on -> tPre -> trigger -> tPost -> light off
+    // -------------------------------------------------------------------------
+    static void exposeFrame(const StageScanningData &sd, int channel, uint32_t frame)
+    {
+        setChannel(sd, channel, true);
+        if (sd.delayTimePreTrigger > 0) vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+        fireTrigger(frame, sd.delayTimeTrigger);
+        if (sd.delayTimePostTrigger > 0) vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+        setChannel(sd, channel, false);
+    }
+
+    struct ScanStats
+    {
+        uint32_t frames = 0;
+        uint32_t moveTimeouts = 0;
+        bool aborted = false;
+    };
+
+    // -------------------------------------------------------------------------
+    // Grid, stop-and-go: the frame order is StageScanOrder::forEachFrame.
+    // -------------------------------------------------------------------------
+    static void gridStopAndGo(StageScanningData &sd, int32_t x0, int32_t y0, int32_t z0, ScanStats &st)
+    {
+        int lastCol = -1, lastRow = -1, lastZ = -1;
+        StageScanOrder::forEachFrame(
+            sd.nX, sd.nY, sd.nZ, sd.zicZac, sd.lightsourceIntensities, sd.ledarrayIntensity,
+            [&](uint16_t col, uint16_t row, uint16_t iz, int channel) -> bool
+            {
+                if (sd.stopped) { st.aborted = true; return false; }
+                if ((int)col != lastCol || (int)row != lastRow || (int)iz != lastZ)
+                {
+                    const int32_t target[3] = {x0 + (int32_t)col * sd.xStep,
+                                               y0 + (int32_t)row * sd.yStep,
+                                               z0 + (int32_t)iz * sd.zStep};
+                    const bool active[3] = {(int)col != lastCol, (int)row != lastRow, (int)iz != lastZ};
+                    if (!moveTo(target, active, sd.speed, sd.acceleration))
+                    {
+                        if (sd.stopped) { st.aborted = true; return false; }
+                        ++st.moveTimeouts; // keep going: the frame is taken where the stage got to
+                    }
+                    lastCol = col; lastRow = row; lastZ = iz;
+                }
+                exposeFrame(sd, channel, st.frames++);
+                return true;
+            });
+    }
+
+    // -------------------------------------------------------------------------
+    // Grid, nonstop: each row is swept continuously and the trigger fires when
+    // the motion profile says a column is passed. No light switching (as
+    // before) and no Z stack; nZ is ignored here.
+    // -------------------------------------------------------------------------
+    static void gridNonstop(StageScanningData &sd, int32_t x0, int32_t y0, int32_t z0, ScanStats &st)
+    {
+        for (uint16_t iy = 0; iy < sd.nY; ++iy)
+        {
+            if (sd.stopped) { st.aborted = true; return; }
+            const int32_t xFirst = x0 + (int32_t)StageScanOrder::columnFor(0, iy, sd.nX, sd.zicZac) * sd.xStep;
+            const int32_t xLast  = x0 + (int32_t)StageScanOrder::columnFor(sd.nX - 1, iy, sd.nX, sd.zicZac) * sd.xStep;
+            const int32_t rowStart[3] = {xFirst, y0 + (int32_t)iy * sd.yStep, z0};
+            const bool all[3] = {true, true, true};
+            if (!moveTo(rowStart, all, sd.speed, sd.acceleration))
+            {
+                if (sd.stopped) { st.aborted = true; return; }
+                ++st.moveTimeouts;
+            }
+
+            const int32_t sweep[3] = {xLast, 0, 0};
+            const bool onlyX[3] = {sd.nX > 1, false, false};
+            const uint32_t tLine = millis();
+            if (onlyX[0]) dispatchMove(sweep, onlyX, sd.speed, sd.acceleration);
+            log_i("stagescan nonstop row %u: X %d -> %d", (unsigned)iy, (int)xFirst, (int)xLast);
+
+            for (uint16_t ix = 0; ix < sd.nX; ++ix)
+            {
+                if (sd.stopped) { stopAxes(); st.aborted = true; return; }
+                const int32_t xTarget = x0 + (int32_t)StageScanOrder::columnFor(ix, iy, sd.nX, sd.zicZac) * sd.xStep;
+                const uint32_t due = travelTimeMs(xFirst, xTarget, sd.speed, sd.acceleration);
+                const uint32_t elapsed = millis() - tLine;
+                if (due > elapsed) vTaskDelay(pdMS_TO_TICKS(due - elapsed));
+                if (sd.delayTimePreTrigger > 0) vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+                fireTrigger(st.frames++, sd.delayTimeTrigger);
+                if (sd.delayTimePostTrigger > 0) vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+            }
+            if (onlyX[0] && !waitForAxes(sweep, onlyX, travelTimeMs(xFirst, xLast, sd.speed, sd.acceleration) * 2 + 1000))
+            {
+                if (sd.stopped) { st.aborted = true; return; }
+                ++st.moveTimeouts;
             }
         }
     }
 
-    // -----------------------------------------------------------------------------
-    // Unified stageScan – works with both local GPIO drivers and remote CAN slaves.
-    // FocusMotor::startStepper() dispatches to the right back-end automatically.
-    // -----------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Coordinate list, stop-and-go: move, then one frame per light channel.
+    // -------------------------------------------------------------------------
+    static void coordinatesStopAndGo(StageScanningData &sd, ScanStats &st)
+    {
+        int seq[StageScanOrder::kLaserChannels + 1];
+        const int nCh = StageScanOrder::channelSequence(sd.lightsourceIntensities, sd.ledarrayIntensity, seq);
+        for (int i = 0; i < sd.coordinateCount; ++i)
+        {
+            if (sd.stopped) { st.aborted = true; return; }
+            const StagePosition &p = sd.coordinates[i];
+            const bool hasZ = (p.z != kKeepAxis);
+            const int32_t target[3] = {p.x, p.y, hasZ ? p.z : 0};
+            const bool active[3] = {true, true, hasZ};
+            if (!moveTo(target, active, sd.speed, sd.acceleration))
+            {
+                if (sd.stopped) { st.aborted = true; return; }
+                ++st.moveTimeouts;
+            }
+            for (int c = 0; c < nCh; ++c)
+            {
+                if (sd.stopped) { st.aborted = true; return; }
+                exposeFrame(sd, seq[c], st.frames++);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Coordinate list, nonstop: head for the last coordinate and trigger when
+    // the motion profile says each intermediate one is passed (as before).
+    // -------------------------------------------------------------------------
+    static void coordinatesNonstop(StageScanningData &sd, ScanStats &st)
+    {
+        MotorData *dx = FocusMotor::getData()[Stepper::X];
+        MotorData *dy = FocusMotor::getData()[Stepper::Y];
+        const int32_t sx = dx ? dx->currentPosition : 0;
+        const int32_t sy = dy ? dy->currentPosition : 0;
+        const StagePosition &last = sd.coordinates[sd.coordinateCount - 1];
+        const int32_t target[3] = {last.x, last.y, 0};
+        const bool xy[3] = {true, true, false};
+        const uint32_t t0 = millis();
+        dispatchMove(target, xy, sd.speed, sd.acceleration);
+        for (int i = 0; i < sd.coordinateCount; ++i)
+        {
+            if (sd.stopped) { stopAxes(); st.aborted = true; return; }
+            const uint32_t tx = travelTimeMs(sx, sd.coordinates[i].x, sd.speed, sd.acceleration);
+            const uint32_t ty = travelTimeMs(sy, sd.coordinates[i].y, sd.speed, sd.acceleration);
+            const uint32_t due = tx > ty ? tx : ty;
+            const uint32_t elapsed = millis() - t0;
+            if (due > elapsed) vTaskDelay(pdMS_TO_TICKS(due - elapsed));
+            if (sd.delayTimePreTrigger > 0) vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
+            fireTrigger(st.frames++, sd.delayTimeTrigger);
+            if (sd.delayTimePostTrigger > 0) vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
+        }
+        const uint32_t tx = travelTimeMs(sx, last.x, sd.speed, sd.acceleration);
+        const uint32_t ty = travelTimeMs(sy, last.y, sd.speed, sd.acceleration);
+        if (!waitForAxes(target, xy, (tx > ty ? tx : ty) * 2 + 1000) && !sd.stopped) ++st.moveTimeouts;
+    }
+
+    // -------------------------------------------------------------------------
+    // Entry point (runs in its own task, see MotorJsonParser::parseStageScan)
+    // -------------------------------------------------------------------------
     void stageScan(bool isThread)
     {
         if (isRunning)
+        {
+            log_w("stagescan already running");
+            if (isThread) vTaskDelete(NULL);
             return;
-        auto &sd = StageScan::stageScanningData;
+        }
+        isRunning = true;
+        StageScanningData &sd = stageScanningData;
+        ScanStats st;
 
         FocusMotor::setEnable(true);
-
-        // Trapezoidal motion profile: estimated travel time in ms
-        auto calculateTimeToPosition = [](int32_t startPos, int32_t targetPos, int32_t speed, int32_t accel) -> uint32_t
+        if (pinConfig.CAMERA_TRIGGER_PIN >= 0)
         {
-            int32_t distance = abs(targetPos - startPos);
-            if (distance == 0)
-                return 0;
-
-            // Trapezoidal motion profile calculation
-            // Time to accelerate to max speed
-            float accelTime = (float)speed / (float)accel;
-            // Distance covered during acceleration
-            int32_t accelDist = (speed * speed) / (2 * accel);
-            uint32_t totalTime;
-            if (distance < 2 * accelDist)
-            {
-                float peakSpeed = sqrt((float)distance * (float)accel);
-                totalTime = (uint32_t)(2.0f * peakSpeed / (float)accel * 1000.0f);
-            }
-            else
-            {
-                float constTime = (float)(distance - 2 * accelDist) / (float)speed;
-                totalTime = (uint32_t)((2.0f * accelTime + constTime) * 1000.0f);
-            }
-            return totalTime;
-        };
-
-        // LED helper: sends illumination command via local driver
-        auto sendLed = [&](uint8_t intensity) {
-#ifdef LED_CONTROLLER
-            LedCommand cmd;
-            cmd.mode = LedMode::CIRCLE;
-            cmd.r = intensity;
-            cmd.g = intensity;
-            cmd.b = intensity;
-            cmd.radius = 8;
-            cmd.ledIndex = 0;
-            cmd.region[0] = '\0';
-            cmd.qid = 0;
-            LedController::execLedCommand(cmd);
-#endif
-        };
-
-        bool zicZac = sd.zicZac;
-
-        if (sd.useCoordinates && sd.coordinates != nullptr)
-        {
-            // ----------------------------------------------------------------
-            // Coordinate-based scanning
-            // ----------------------------------------------------------------
-            isRunning = true;
-            long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
-            long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
-            long currentPosZ = FocusMotor::getData()[Stepper::Z]->currentPosition;
             pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
             digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW);
-            log_i("Coordinate-based scan: %d coords, %d frames, nonstop=%d",
-                  sd.coordinateCount, sd.nFrames, sd.nonstop);
-
-            if (sd.nonstop)
-            {
-                // Continuous: kick motors toward final position, trigger at intermediate times
-                int32_t finalX = sd.coordinates[sd.coordinateCount - 1].x;
-                int32_t finalY = sd.coordinates[sd.coordinateCount - 1].y;
-                int32_t startX = currentPosX;
-                int32_t startY = currentPosY;
-                int32_t startZ = currentPosZ;
-
-                auto *dataX = FocusMotor::getData()[Stepper::X];
-                auto *dataY = FocusMotor::getData()[Stepper::Y];
-                dataX->absolutePosition = 1; dataX->targetPosition = finalX;
-                dataX->speed = sd.speed;     dataX->isStop = 0;
-                dataX->stopped = false;      dataX->acceleration = sd.acceleration;
-                dataX->isforever = false;
-
-                dataY->absolutePosition = 1; dataY->targetPosition = finalY;
-                dataY->speed = sd.speed;     dataY->isStop = 0;
-                dataY->stopped = false;      dataY->acceleration = sd.acceleration;
-                dataY->isforever = false;
-
-                uint32_t startTime = millis();
-                FocusMotor::startStepper(Stepper::X, 1);
-                FocusMotor::startStepper(Stepper::Y, 1);
-                log_i("Continuous movement from (%ld,%ld) to (%d,%d)", currentPosX, currentPosY, finalX, finalY);
-
-                for (int i = 0; i < sd.coordinateCount && !sd.stopped; i++)
-                {
-                    int32_t tX = sd.coordinates[i].x;
-                    int32_t tY = sd.coordinates[i].y;
-                    int32_t tZ = sd.coordinates[i].z;
-                    uint32_t expectedTime = max(calculateTimeToPosition(startX, tX, sd.speed, sd.acceleration),
-                                           max(calculateTimeToPosition(startY, tY, sd.speed, sd.acceleration),
-                                               calculateTimeToPosition(startZ, tZ, sd.speed, sd.acceleration)));
-                    uint32_t elapsedTime = millis() - startTime;
-                    if (expectedTime > elapsedTime)
-                    {
-                        log_i("Position %d (%d,%d): waiting %u ms", i, tX, tY, expectedTime - elapsedTime);
-                        vTaskDelay(pdMS_TO_TICKS(expectedTime - elapsedTime));
-                    }
-                    if (sd.stopped) break;
-                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                }
-            }
-            else
-            {
-                // Stop-and-go: move to each coordinate, acquire, continue
-                for (int i = 0; i < sd.coordinateCount && !sd.stopped; i++)
-                {
-                    int32_t tX = sd.coordinates[i].x;
-                    int32_t tY = sd.coordinates[i].y;
-                    int32_t tZ = sd.coordinates[i].z;
-                    log_i("Moving to coordinate X:%d Y:%d Z:%d", tX, tY, tZ);
-                    moveAbs(Stepper::X, tX, sd.speed, sd.acceleration);
-                    moveAbs(Stepper::Y, tY, sd.speed, sd.acceleration);
-                    moveAbs(Stepper::Z, tZ, sd.speed, sd.acceleration);
-
-#ifdef LED_CONTROLLER
-                    if (sd.ledarrayIntensity > 0)
-                    {
-                        sendLed(sd.ledarrayIntensity);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                        sendLed(0);
-                    }
-#endif
-#ifdef LASER_CONTROLLER
-                    for (int j = 0; j < 4; ++j)
-                    {
-                        if (sd.lightsourceIntensities[j] > 0)
-                        {
-                            // LaserController::setLaserVal dispatches to CAN or native PWM internally
-                            LaserController::setLaserVal(j, sd.lightsourceIntensities[j]);
-                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                            StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                            vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                            LaserController::setLaserVal(j, 0);
-                        }
-                    }
-#endif
-                    // No light source configured: still trigger camera
-                    if (sd.ledarrayIntensity == 0 &&
-                        sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 &&
-                        sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0)
-                    {
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                    }
-                }
-            }
         }
         else
         {
-            // ----------------------------------------------------------------
-            // Grid-based scanning (XYZ raster)
-            // ----------------------------------------------------------------
-            long currentPosX = FocusMotor::getData()[Stepper::X]->currentPosition;
-            long currentPosY = FocusMotor::getData()[Stepper::Y]->currentPosition;
-            long currentPosZ = FocusMotor::getData()[Stepper::Z]->currentPosition;
-            int32_t x0 = currentPosX;
-            int32_t y0 = currentPosY;
-            int32_t z0 = currentPosZ;
-            int32_t key_speed = sd.speed;
-            int32_t key_acceleration = sd.acceleration;
-            isRunning = true;
+            log_w("stagescan: no CAMERA_TRIGGER_PIN, only {\"cam\":1} notifications will be sent");
+        }
+        allLightsOff(sd);
 
-            if (sd.xStart != 0) x0 = sd.xStart;
-            if (sd.yStart != 0) y0 = sd.yStart;
-            if (sd.zStart != 0) z0 = sd.zStart;
-
-            pinMode(pinConfig.CAMERA_TRIGGER_PIN, OUTPUT);
-            digitalWrite(pinConfig.CAMERA_TRIGGER_PIN, pinConfig.CAMERA_TRIGGER_INVERTED ? HIGH : LOW);
-            log_i("Grid scan start X:%d Y:%d Z:%d (current X:%ld Y:%ld Z:%ld) nonstop=%d",
-                  x0, y0, z0, currentPosX, currentPosY, currentPosZ, sd.nonstop);
-            moveAbs(Stepper::X, x0, key_speed, key_acceleration);
-            moveAbs(Stepper::Y, y0, key_speed, key_acceleration);
-            moveAbs(Stepper::Z, z0, key_speed, key_acceleration);
-
-            if (sd.nonstop)
-            {
-                // Continuous: sweep X line while timing-based trigger
-                log_i("Continuous grid scan mode");
-                auto *dataX = FocusMotor::getData()[Stepper::X];
-                auto *dataY = FocusMotor::getData()[Stepper::Y];
-
-                for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
-                {
-                    bool rev = (iy & 1);
-                    int32_t targetY = y0 + int32_t(iy) * sd.yStep;
-                    int32_t prevY   = y0 + int32_t(iy > 0 ? iy - 1 : 0) * sd.yStep;
-
-                    if (iy > 0)
-                    {
-                        uint32_t yMoveTime = calculateTimeToPosition(prevY, targetY, key_speed, key_acceleration);
-                        dataY->absolutePosition = 1; dataY->targetPosition = targetY;
-                        dataY->speed = key_speed;    dataY->isStop = 0;
-                        dataY->stopped = false;      dataY->acceleration = key_acceleration;
-                        dataY->isforever = false;
-                        FocusMotor::startStepper(Stepper::Y, 1);
-                        log_i("Y line %d: %u ms", iy, yMoveTime);
-                        vTaskDelay(pdMS_TO_TICKS(yMoveTime + 50));
-                    }
-
-                    int32_t startXLine = rev ? (x0 + int32_t(sd.nX - 1) * sd.xStep) : x0;
-                    int32_t endXLine   = rev ? x0 : (x0 + int32_t(sd.nX - 1) * sd.xStep);
-                    dataX->absolutePosition = 1; dataX->targetPosition = endXLine;
-                    dataX->speed = key_speed;    dataX->isStop = 0;
-                    dataX->stopped = false;      dataX->acceleration = key_acceleration;
-                    dataX->isforever = false;
-
-                    uint32_t lineStartTime = millis();
-                    FocusMotor::startStepper(Stepper::X, 1);
-                    log_i("X line scan %d -> %d", startXLine, endXLine);
-
-                    for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix)
-                    {
-                        uint16_t j = rev ? (sd.nX - 1 - ix) : ix;
-                        int32_t tgtX = x0 + int32_t(j) * sd.xStep;
-                        uint32_t expectedTime = calculateTimeToPosition(startXLine, tgtX, key_speed, key_acceleration);
-                        uint32_t elapsedTime  = millis() - lineStartTime;
-                        if (expectedTime > elapsedTime)
-                            vTaskDelay(pdMS_TO_TICKS(expectedTime - elapsedTime));
-                        if (sd.stopped) break;
-                        log_i("Trigger grid (%d,%d) X=%d", ix, iy, tgtX);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                        StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                        vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                    }
-                    if (sd.stopped) break;
-                }
-            }
-            else
-            {
-                // Stop-and-go grid scan with optional Z stack and illumination
-                for (uint16_t iy = 0; iy < sd.nY && !sd.stopped; ++iy)
-                {
-                    bool rev = (iy & 1);
-                    for (uint16_t ix = 0; ix < sd.nX && !sd.stopped; ++ix)
-                    {
-                        uint16_t j = zicZac ? (rev ? (sd.nX - 1 - ix) : ix) : ix;
-                        int32_t tgtX = x0 + int32_t(j) * sd.xStep;
-                        log_i("Moving X to %d", tgtX);
-                        uint32_t timeX = calculateTimeToPosition(x0 + int32_t(j) * sd.xStep,
-                                                                 x0 + int32_t(j + 1) * sd.xStep,
-                                                                 sd.speed, sd.acceleration);
-                        moveAbs(Stepper::X, tgtX, key_speed, key_acceleration, timeX + 200);
-
-                        for (uint16_t iz = 0; iz < sd.nZ && !sd.stopped; ++iz)
-                        {
-                            int32_t tgtZ = z0 + int32_t(iz) * sd.zStep;
-                            log_i("Moving Z to %d", tgtZ);
-                            uint32_t timeZ = calculateTimeToPosition(z0 + int32_t(iz) * sd.zStep,
-                                                                     z0 + int32_t(iz + 1) * sd.zStep,
-                                                                     key_speed, key_acceleration);
-                            moveAbs(Stepper::Z, tgtZ, key_speed, key_acceleration, timeZ + 200);
-
-#ifdef LED_CONTROLLER
-                            if (sd.ledarrayIntensity > 0)
-                            {
-                                sendLed(sd.ledarrayIntensity);
-                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                                StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                                log_i("LED triggered at intensity %d", sd.ledarrayIntensity);
-                                sendLed(0);
-                            }
-#endif
-#ifdef LASER_CONTROLLER
-                            for (int jj = 0; jj < 5; ++jj)
-                            {
-                                if (sd.lightsourceIntensities[jj] > 0)
-                                {
-                                    log_i("Laser %d at intensity %d", jj, sd.lightsourceIntensities[jj]);
-                                    // LaserController::setLaserVal dispatches to CAN or native PWM internally
-                                    LaserController::setLaserVal(jj, sd.lightsourceIntensities[jj]);
-                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                                    StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                                    vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                                    LaserController::setLaserVal(jj, 0);
-                                }
-                                else
-                                {
-                                    log_i("Laser %d intensity 0, skipping", jj);
-                                }
-                            }
-#endif
-                            if (sd.ledarrayIntensity == 0 &&
-                                sd.lightsourceIntensities[0] == 0 && sd.lightsourceIntensities[1] == 0 &&
-                                sd.lightsourceIntensities[2] == 0 && sd.lightsourceIntensities[3] == 0 &&
-                                sd.lightsourceIntensities[4] == 0)
-                            {
-                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePreTrigger));
-                                StageScan::triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, sd.delayTimeTrigger);
-                                vTaskDelay(pdMS_TO_TICKS(sd.delayTimePostTrigger));
-                                log_i("Camera triggered at X:%d Y:%d Z:%d", tgtX, y0 + int32_t(iy) * sd.yStep, tgtZ);
-                            }
-                        }
-                    }
-
-                    if (iy + 1 == sd.nY || sd.stopped)
-                        break;
-
-                    log_i("Moving Y to %d", y0 + int32_t(iy + 1) * sd.yStep);
-                    uint32_t timeY = calculateTimeToPosition(y0 + int32_t(iy) * sd.yStep,
-                                                             y0 + int32_t(iy + 1) * sd.yStep,
-                                                             key_speed, key_acceleration);
-                    moveAbs(Stepper::Y, y0 + int32_t(iy + 1) * sd.yStep, key_speed, key_acceleration, timeY + 200);
-                }
-            }
+        if (sd.useCoordinates && sd.coordinates != nullptr && sd.coordinateCount > 0)
+        {
+            log_i("stagescan: %d coordinates, nonstop=%d", sd.coordinateCount, (int)sd.nonstop);
+            if (sd.nonstop) coordinatesNonstop(sd, st);
+            else coordinatesStopAndGo(sd, st);
+        }
+        else
+        {
+            // A start of 0 means "from where the stage is" (what ImSwitch sends).
+            MotorData *dx = FocusMotor::getData()[Stepper::X];
+            MotorData *dy = FocusMotor::getData()[Stepper::Y];
+            MotorData *dz = FocusMotor::getData()[Stepper::Z];
+            const int32_t x0 = sd.xStart != 0 ? sd.xStart : (dx ? dx->currentPosition : 0);
+            const int32_t y0 = sd.yStart != 0 ? sd.yStart : (dy ? dy->currentPosition : 0);
+            const int32_t z0 = sd.zStart != 0 ? sd.zStart : (dz ? dz->currentPosition : 0);
+            log_i("stagescan: grid %ux%ux%u from X:%d Y:%d Z:%d step X:%d Y:%d Z:%d nonstop=%d, %u frames",
+                  (unsigned)sd.nX, (unsigned)sd.nY, (unsigned)sd.nZ, (int)x0, (int)y0, (int)z0,
+                  (int)sd.xStep, (int)sd.yStep, (int)sd.zStep, (int)sd.nonstop,
+                  (unsigned)StageScanOrder::frameCount(sd.nX, sd.nY, sd.nZ, sd.lightsourceIntensities, sd.ledarrayIntensity));
+            if (sd.nonstop) gridNonstop(sd, x0, y0, z0, st);
+            else gridStopAndGo(sd, x0, y0, z0, st);
         }
 
-        // Completion message
+        allLightsOff(sd); // also covers an abort mid-exposure
+
+        // Completion: {"stagescan":true,"frames":N,"moveTimeouts":k,"aborted":0|1,"qid":q,"success":0|1}
+        // The host matches on "stagescan" + "success"; the counters let it
+        // tell "all frames fired" from "stopped early" without guessing.
         cJSON *json = cJSON_CreateObject();
         cJsonTool::setJsonBool(json, "stagescan", 1);
+        cJsonTool::setJsonInt(json, "frames", (int)st.frames);
+        cJsonTool::setJsonInt(json, "moveTimeouts", (int)st.moveTimeouts);
+        cJsonTool::setJsonInt(json, "aborted", st.aborted ? 1 : 0);
         cJsonTool::setJsonInt(json, keyQueueID, sd.qid);
-        cJsonTool::setJsonInt(json, "success", 1);
-        Serial.println("++");
-        char *ret = cJSON_PrintUnformatted(json);
-        Serial.println(ret);
-        cJSON_Delete(json);
-        free(ret);
-        Serial.println("--");
+        cJsonTool::setJsonInt(json, "success", (st.aborted || st.moveTimeouts) ? 0 : 1);
+        sendJson(json);
 
         isRunning = false;
-
         if (isThread)
             vTaskDelete(NULL);
     }
 
     void stageScanThread(void *arg)
-    // Scanning examples:
-    // Grid-based:       {"task": "/motor_act", "stagescan": {"xStart": 0, "yStart": 0, "zStart":0, "xStep": 500, "yStep": 500, "zStep":0, "nX": 2, "nY": 2, "nZ":1, "tPre": 50, "tPost": 50}}
-    // Coordinate-based: {"task": "/motor_act", "stagescan": {"coordinates": [{"x": 100, "y": 200}, {"x": 300, "y": 400}], "delayTimeStep": 10, "nFrames": 1}}
-    //
-    // Motor commands are dispatched via FocusMotor::startStepper which handles both
-    // local drivers (FastAccelStepper/AccelStepper) and remote back-ends (CAN/I2C)
-    // transparently.
+    // Grid:        {"task":"/motor_act","stagescan":{"xStart":0,"yStart":0,"zStart":0,"xStep":500,"yStep":500,"zStep":0,
+    //               "nX":2,"nY":2,"nZ":1,"tPre":50,"tPost":50,"tTrig":1,"illumination":[0,100,0,0,0],"led":0}}
+    // Coordinates: {"task":"/motor_act","stagescan":{"coordinates":[{"x":100,"y":200},{"x":300,"y":400,"z":10}],"tPre":50,"tPost":50}}
     {
+        (void)arg;
         stageScan(true);
     }
 

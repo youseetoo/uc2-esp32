@@ -140,10 +140,20 @@ namespace MotorJsonParser
 			StageScan::getStageScanData()->nZ = max(cJsonTool::getJsonInt(stagescan, "nZ"), 1);
             StageScan::getStageScanData()->delayTimePreTrigger = cJsonTool::getJsonInt(stagescan, "tPre");
             StageScan::getStageScanData()->delayTimePostTrigger = cJsonTool::getJsonInt(stagescan, "tPost");
-            StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig");
-            StageScan::getStageScanData()->speed = max(cJsonTool::getJsonInt(stagescan, "speed"), 20000);
-            StageScan::getStageScanData()->acceleration = max(cJsonTool::getJsonInt(stagescan, "acceleration"), 1000000);
-            StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid");
+            // Trigger pulse width in ms; the firmware floors it at 1 ms.
+            StageScan::getStageScanData()->delayTimeTrigger = cJsonTool::getJsonInt(stagescan, "tTrig", 1);
+            // max() here used to *raise* any requested speed/acceleration to the
+            // default, so a slow scan was impossible. Now: value if given, else default.
+            {
+                int speed = cJsonTool::getJsonInt(stagescan, "speed", 0);
+                int accel = cJsonTool::getJsonInt(stagescan, "acceleration", 0);
+                if (accel <= 0) accel = cJsonTool::getJsonInt(stagescan, "accel", 0); // UC2-REST < 2026-09 sent "accel"
+                StageScan::getStageScanData()->speed = speed > 0 ? speed : 20000;
+                StageScan::getStageScanData()->acceleration = accel > 0 ? accel : 1000000;
+            }
+            // UC2-REST puts the qid on the outer document; echo it in the completion message.
+            StageScan::getStageScanData()->qid = cJsonTool::getJsonInt(stagescan, "qid",
+                                                                       cJsonTool::getJsonInt(doc, "qid", -1));
             StageScan::getStageScanData()->nFrames = cJsonTool::getJsonInt(stagescan, "nFrames");
             StageScan::getStageScanData()->nonstop = cJsonTool::getJsonInt(stagescan, "nonstop");
 			StageScan::getStageScanData()->zicZac = cJsonTool::getJsonInt(stagescan, "zicZac", 1);
@@ -169,6 +179,14 @@ namespace MotorJsonParser
                         {
                             positions[i].x = cJsonTool::getJsonInt(coord, "x");
                             positions[i].y = cJsonTool::getJsonInt(coord, "y");
+                            // no "z": leave the Z axis alone (it used to move to an uninitialised value)
+                            positions[i].z = cJsonTool::getJsonInt(coord, "z", StageScan::kKeepAxis);
+                        }
+                        else
+                        {
+                            positions[i].x = 0;
+                            positions[i].y = 0;
+                            positions[i].z = StageScan::kKeepAxis;
                         }
                     }
                     
@@ -244,7 +262,9 @@ namespace MotorJsonParser
                   StageScan::isRunning,
                   StageScan::getStageScanData()->useCoordinates);
 
-            xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 0, NULL);
+            // Priority 1 (not 0): the scan must not share the idle priority with
+            // everything else that yields, or its ms delays stretch unpredictably.
+            xTaskCreate(StageScan::stageScanThread, "stageScan", pinConfig.STAGESCAN_TASK_STACKSIZE, NULL, 1, NULL);
 
 		}
 

@@ -35,6 +35,7 @@
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
+#include "../laser/StrobeRoute.h"
 #endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
@@ -260,6 +261,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     // Stage scanning is master-side orchestration — it issues motor.move
     // commands internally which themselves go through DeviceRouter again.
     MotorJsonParser::parseStageScan(doc);
+    MotorJsonParser::parseStrobeSweep(doc);
 #endif
 
     // ── 2. Drive command — route per stepper ──
@@ -666,6 +668,34 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 #ifdef LASER_CONTROLLER
+    // Strobed sweep: {"task":"/laser_act","LASERid":4,"strobe":{"enable":1,"delayUs":1200,"widthUs":20}}
+    // Routed like any laser command (LOCAL LaserStrobe / REMOTE SDO to the node).
+    cJSON* strobeItem = cJSON_GetObjectItem(doc, "strobe");
+    if (strobeItem && cJSON_IsObject(strobeItem)) {
+        cJSON* idItem = cJSON_GetObjectItem(doc, "LASERid");
+        cJSON* q = cJSON_GetObjectItem(doc, "qid");
+        const int strobeQid = (q && cJSON_IsNumber(q)) ? q->valueint : 0;
+        cJSON* resp = cJSON_CreateObject();
+        if (!idItem || !cJSON_IsNumber(idItem)) {
+            cJSON_AddNumberToObject(resp, "return", 0);
+            cJSON_AddStringToObject(resp, "error", "strobe needs LASERid");
+            cJSON_AddNumberToObject(resp, "qid", strobeQid);
+            return resp;
+        }
+        cJSON* en = cJSON_GetObjectItem(strobeItem, "enable");
+        cJSON* dl = cJSON_GetObjectItem(strobeItem, "delayUs");
+        cJSON* wd = cJSON_GetObjectItem(strobeItem, "widthUs");
+        const bool enable = !en || (cJSON_IsNumber(en) ? en->valueint != 0 : cJSON_IsTrue(en));
+        const int delayUs = (dl && cJSON_IsNumber(dl)) ? std::max(0, dl->valueint) : 0;
+        const int widthUs = (wd && cJSON_IsNumber(wd)) ? std::max(1, wd->valueint) : 20;
+        StrobeRoute::Result r = StrobeRoute::configure(idItem->valueint, enable, (uint32_t)delayUs, (uint32_t)widthUs);
+        cJSON_AddItemToObject(resp, "strobe", StrobeRoute::toJson(r));
+        cJSON_AddNumberToObject(resp, "return", r.ok ? 1 : 0);
+        if (r.error) cJSON_AddStringToObject(resp, "error", r.error);
+        cJSON_AddNumberToObject(resp, "qid", strobeQid);
+        return resp;
+    }
+
     cJSON* laserid_item = cJSON_GetObjectItem(doc, "LASERid");
     cJSON* val_item     = cJSON_GetObjectItem(doc, "LASERval");
     if (!laserid_item || !val_item) {

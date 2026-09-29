@@ -73,6 +73,7 @@ Preferences preferences;
 #ifdef MOTOR_CONTROLLER
 #include "src/motor/FocusMotor.h"
 #include "src/motor/MotorGamePad.h"
+#include "src/motor/SyncLatch.h"
 #endif
 // Include MotorTypes for Stepper enum used in BT button handlers
 #include "src/motor/MotorTypes.h"
@@ -518,6 +519,12 @@ extern "C" void setupApp(void)
 	// Same TPDO2 COB-ID contract as GpioCanSlave: must run BEFORE
 	// canopenModule.setup(). Also installs the RS-485 UART receiver.
 	PtzKeyboard::setup();
+#endif
+#if defined(CAN_CONTROLLER_CANOPEN) && defined(MOTOR_CONTROLLER)
+	// Strobed sweep position latch. Must run BEFORE canopenModule.setup():
+	// it makes TPDO3 valid in OD_PERSIST_COMM (motor slaves only).
+	if (runtimeConfig.isSlave())
+		SyncLatch::setupSlave();
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 	canopenModule.setup();

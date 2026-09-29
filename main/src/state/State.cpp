@@ -393,6 +393,13 @@ namespace State
 #ifdef SCANNER_CONTROLLER
 		cJSON_AddItemToObject(mod, key_scanner, cJSON_CreateNumber(1));
 #endif
+		// Strobed sweep capability (hosts fall back to free-running scans without these keys)
+#ifdef LASER_CONTROLLER
+		cJSON_AddItemToObject(mod, "strobe", cJSON_CreateNumber(1));
+#endif
+#if defined(STAGE_SCAN) && defined(MOTOR_CONTROLLER)
+		cJSON_AddItemToObject(mod, "strobesweep", cJSON_CreateNumber(1));
+#endif
 
 		return doc;
 	}

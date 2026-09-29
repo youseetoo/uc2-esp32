@@ -282,6 +282,13 @@ struct PinConfig
 
      int8_t CAMERA_TRIGGER_PIN = disabled;
      bool CAMERA_TRIGGER_INVERTED = false;
+
+     // Strobed sweep (docs/STROBED_STAGEMAP_SYNC.md in ImSwitch). Enforced on
+     // the node that drives the light, whatever the host asks for.
+     uint32_t STROBE_MAX_WIDTH_US = 1000;       // longest flash
+     uint32_t STROBE_MAX_DELAY_US = 100000;     // longest SYNC-to-flash delay
+     uint16_t STROBE_MAX_DUTY_PERMILLE = 50;    // flash width / flash spacing, 5 %
+     uint32_t STROBE_TRIGGER_US = 100;          // default camera trigger pulse width
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;

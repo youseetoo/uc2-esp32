@@ -87,6 +87,7 @@ __attribute__ ((unused)) static const PROGMEM char * key_home_isactive = "isacti
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoppolarity = "endstoppolarity";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endstoprelease = "endstoprelease";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endoffset = "endoffset";
+__attribute__ ((unused)) static const PROGMEM char * key_home_hardhome = "hardhome";
 #endif 
 
 

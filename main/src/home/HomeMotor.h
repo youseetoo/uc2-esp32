@@ -29,10 +29,17 @@ struct HomeData
 	uint homingPhase = 0;  // 0=release-home-endstop, 1=fast approach, 2..7=normal sequence,
 	                       // 8..10=post-release safety, 11..12=offset+done,
 	                       // 13=escape WRONG endstop, 14=wait for wrong-endstop release,
-	                       // 15..17=final back-off OFF the endstop before zeroing
+	                       // 15..17=final back-off OFF the endstop before zeroing,
+	                       // 18..20=hard homing: ram mechanical stop, back off, re-home
 	uint16_t homeRetractDistance = 2000;  // Steps to retract after hitting endstop
 	int32_t homeFirstHitPosition = 0;  // Position where endstop was first triggered
 	int32_t homeEndOffset = 0;  // Final position offset from home (can be positive or negative)
+	// Hard homing (18..20): after the first home, drive past it into the mechanical
+	// stop so both motors of a dual-motor axis stall there and square up, back off,
+	// then run a second normal homing cycle. One-shot, set per startHome().
+	bool hardHome = false;
+	uint16_t hardHomeOvershoot = 1000;  // steps driven from home toward the mechanical stop
+	uint16_t hardHomeBackoff = 3000;    // steps backed off the stop before re-homing
 	TaskHandle_t homingTaskHandle = nullptr;  // FreeRTOS task handle
 };
 #pragma pack(pop)
@@ -82,7 +89,7 @@ namespace HomeMotor
     void checkAndProcessHome(Stepper s, int digitalin_val);
 	int parseHomeData(cJSON *doc);
 	void runStepper(int s);
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid);
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid, bool hardHome = false);
 	void stopHome(int axis);
 	HomeData** getHomeData();
 	void sendHomeDone(int axis, const char* status = "done");

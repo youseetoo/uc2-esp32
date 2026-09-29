@@ -823,11 +823,12 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
         int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity, -1);
         int homeRelease  = cJsonTool::getJsonInt(stp, key_home_endstoprelease);
         int homeOffset   = cJsonTool::getJsonInt(stp, key_home_endoffset);
+        bool hardHome    = cJsonTool::getJsonInt(stp, key_home_hardhome) > 0;
 
         if (route->where == UC2::RouteEntry::LOCAL) {
             log_i("Routing home_act to LOCAL stepper %d: speed=%d dir=%d timeout=%d maxspeed=%d polarity=%d offset=%d",
                   stepperid, homeSpeed, homeDir, homeTimeout, homeMaxspeed, homePolarity, homeOffset);
-            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
+            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid, hardHome);
         } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t sub = route->subAxis + 1;
@@ -838,7 +839,8 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, (uint32_t)homeTimeout);
             CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, (int32_t)homeRelease);
             CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
-            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, 1);
+            // 2 = hard homing. Older slaves treat any non-zero as a normal home.
+            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, hardHome ? 2 : 1);
             if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
 
             // Arm master-side completion tracking. The slave reports its homing
@@ -853,7 +855,8 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
                 HomeData* mhd        = mhdAll[stepperid];
                 mhd->qid             = (uint16_t)qid;
                 mhd->homeResultCode  = 0;
-                mhd->homeTimeout     = (uint32_t)homeTimeout + 5000;
+                // Hard homing = two cycles; the slave restarts its timer for the second.
+                mhd->homeTimeout     = (uint32_t)homeTimeout * (hardHome ? 2 : 1) + 5000;
                 mhd->homeTimeStarted = millis();
                 mhd->homeIsActive    = true;
             }

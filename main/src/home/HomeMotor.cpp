@@ -303,6 +303,11 @@ int axis = 0;
 				
 				case 7: {  // Phase 7: Check if final offset move is needed
 					log_i("[Homing Task] Phase 7: Axis %d homing complete", axis);
+
+					if (hd->hardHome) {  // first cycle of a hard homing done -> ram the stop
+						hd->homingPhase = 18;
+						break;
+					}
 					
 					// Check if we need to move to final position with offset
 					if (hd->homeEndOffset != 0) {
@@ -549,6 +554,62 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 						break;
 					}
 
+					case 18: {  // Phase 18: Hard homing - drive past home into the mechanical stop
+						// Endstop and hard limit are ignored while isHoming. The leading
+						// motor of a dual-motor axis stalls at the stop until the lagging
+						// one catches up, which squares the axis. Slow speed = gentle stall.
+						// The timeout restarts here so overshoot + re-home get a full budget.
+						hd->homeTimeStarted = millis();
+						log_i("[Homing Task] Axis %d Phase 18: Hard homing, overshooting %d steps into the stop", axis, (int)hd->hardHomeOvershoot);
+						md->isforever = false;
+						md->targetPosition = hd->homeDirection * (int32_t)hd->hardHomeOvershoot;
+						md->absolutePosition = false;  // relative, direction in target AND speed sign (see Phase 3)
+						md->speed = hd->homeDirection * abs(hd->homeSpeed / 4);
+						md->maxspeed = abs(hd->homeSpeed / 4);
+						md->isEnable = 1;
+						md->isaccelerated = 1;
+						md->acceleration = MAX_ACCELERATION_A;
+						md->isStop = 0;
+						md->stopped = false;
+						FocusMotor::startStepper(axis, 0);
+						hd->homingPhase = 19;
+						phaseStartTime = millis();
+						break;
+					}
+
+					case 19: {  // Phase 19: Overshoot done -> back off the mechanical stop
+						if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
+							vTaskDelay(pdMS_TO_TICKS(100));  // settle before the direction change
+							log_i("[Homing Task] Axis %d Phase 19: Backing off %d steps from the stop", axis, (int)hd->hardHomeBackoff);
+							md->isforever = false;
+							md->targetPosition = -hd->homeDirection * (int32_t)hd->hardHomeBackoff;
+							md->absolutePosition = false;
+							md->speed = -hd->homeDirection * abs(hd->homeSpeed);
+							md->maxspeed = abs(hd->homeSpeed);
+							md->isEnable = 1;
+							md->isaccelerated = 1;
+							md->acceleration = MAX_ACCELERATION_A;
+							md->isStop = 0;
+							md->stopped = false;
+							FocusMotor::startStepper(axis, 0);
+							hd->homingPhase = 20;
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
+					case 20: {  // Phase 20: Back-off done -> run a second, normal homing cycle
+						if ((millis() - phaseStartTime > 100) && !FocusMotor::isRunning(axis)) {
+							vTaskDelay(pdMS_TO_TICKS(100));
+							hd->hardHome = false;  // one-shot: the next pass through Phase 7 finishes normally
+							// Back-off should have cleared the switch; if not, release it first.
+							hd->homingPhase = endstopTriggered ? 0 : 1;
+							log_i("[Homing Task] Axis %d Phase 20: Re-homing from phase %d", axis, hd->homingPhase);
+							phaseStartTime = millis();
+						}
+						break;
+					}
+
 					default:
 					log_e("[Homing Task] Axis %d unknown phase %d", axis, hd->homingPhase);
 					hd->homeIsActive = false;
@@ -569,7 +630,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		vTaskDelete(nullptr);  // Delete self
 	}
 
-	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid)
+	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid, bool hardHome)
 	{
 		// CRITICAL: Check if homing is already running BEFORE touching any state
 		// Use getData()[axis]->isHoming as the single source of truth
@@ -598,6 +659,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		hdata[axis]->homeEndStopPolarity = homeEndStopPolarity;
 		hdata[axis]->homeEndOffset = homeEndOffset;
 		hdata[axis]->qid = qid;
+		hdata[axis]->hardHome = hardHome;
 		// Fresh run: clear the latched outcome so the CANopen TPDO status (0x2016)
 		// reads "homing" (1) until this run completes, rather than a stale done/timeout.
 		hdata[axis]->homeResultCode = 0;
@@ -611,7 +673,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 		{
 			hdata[axis]->homeDirection = -1;
 		}
-		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity);
+		log_i("Start home for axis %i with timeout %i, speed %i, maxspeed %i, direction %i, endstop polarity %i, hard %i", axis, homeTimeout, homeSpeed, homeMaxspeed, homeDirection, homeEndStopPolarity, (int)hardHome);
 		
 		// Set isHoming flag IMMEDIATELY to prevent concurrent homing attempts
 		// This is the single source of truth - hdata[axis]->homeIsActive is for task control only

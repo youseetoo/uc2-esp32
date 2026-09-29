@@ -242,7 +242,7 @@ modules:
         access: rw
         sub_indices: 4
         default: 0
-        description: "0=idle, 1=start homing on this axis"
+        description: "0=idle, 1=start homing on this axis, 2=hard homing (home, ram mechanical stop, back off, re-home)"
         pdo: rpdo2
 
       - index: 0x2011

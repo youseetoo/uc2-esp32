@@ -2019,6 +2019,7 @@ struct PendingHomingCmd {
     int32_t timeout        = 5000;
     int32_t endstopRelease = 0;
     uint8_t polarity       = 0;
+    bool    hard           = false;  // HOMING_COMMAND == 2
 };
 static PendingHomingCmd s_homingCmds[4];
 
@@ -2206,6 +2207,7 @@ void CANopenModule::syncRpdoToModules_slave()
             s_homingCmds[ax].timeout        = (int32_t)OD_RAM.x2013_homing_timeout[ax];
             s_homingCmds[ax].endstopRelease = OD_RAM.x2014_homing_endstop_release[ax];
             s_homingCmds[ax].polarity       = OD_RAM.x2015_homing_endstop_polarity[ax];
+            s_homingCmds[ax].hard           = OD_RAM.x2010_homing_command[ax] == 2;
             s_homingCmds[ax].pending        = true;
             OD_RAM.x2010_homing_command[ax] = 0;
         }
@@ -2921,7 +2923,8 @@ void CANopenModule::loop()
             (int)s_homingCmds[ax].direction,
             (int)s_homingCmds[ax].polarity,
             (int)s_homingCmds[ax].endstopRelease,
-            0  /* qid */); // TODO: we need to keep track of the qid to now if its still alive/busy
+            0  /* qid */,
+            s_homingCmds[ax].hard); // TODO: we need to keep track of the qid to now if its still alive/busy
             // TODO: How about the stop command? We currently ignore it and just let the homing run until completion or timeout. We could add a "isStop" flag to PendingHomingCmd and check it here to allow stopping an ongoing homing operation.
     }
 #endif

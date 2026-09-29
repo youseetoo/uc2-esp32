@@ -21,12 +21,14 @@ mv esp32_UC2_4_CAN_HYBRID.bin /Users/bene/Dropbox/Dokumente/Promotion/PROJECTS/y
 
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment fas_test_xiao_s3 --upload-port /dev/cu.wchusbserial10
 
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment m5stack_dial --upload-port /dev/cu.usbmodem101
+
 
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_bridge_ptz_debug --upload-port /dev/cu.usbmodem101
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_standalone_v4_debug --upload-port /dev/cu.SLAB_USBtoUART
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_standalone_v4_release --upload-port /dev/cu.SLAB_USBtoUART
 
-/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_laser_release --upload-port /dev/cu.usbmodem1101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_laser_debug --upload-port /dev/cu.usbmodem1101
 
 
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment waveshare_esp32s3_ledarray --upload-port /dev/cu.usbmodem1101
@@ -48,7 +50,8 @@ UC2_canopen_slave_motor_release =>             10: "esp32_seeed_xiao_esp32s3_can
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master_release --upload-port /dev/cu.SLAB_USBtoUART
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_led --upload-port /dev/cu.usbmodem101
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_galvo_debug --upload-port /dev/cu.usbmodem101
-/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_debug --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_galvo_release --upload-port /dev/cu.usbmodem101
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_debug --upload-port /dev/cu.usbmodem1101
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_release --upload-port /dev/cu.usbmodem101
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_gpio_debug --upload-port /dev/cu.usbmodem101
 
@@ -66,10 +69,10 @@ Flash this to any motor:
 
 ## Assign an ID:
 open serial
-/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem1101 --baud 115200
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
 
 test if motor moves
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":300000, "position": -100000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":120000, "acceleration":1000000, "position": 10000,  "isabs": 0}]}, "qid": 5}
 
 
  set the id by sending this over serial to local can device
@@ -145,7 +148,7 @@ SO THIS WORKS; BUT WE HAVE TO CHECK PHASE SPEED VALUE IN PHASE 5
 {"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 60000, "direction":1, "endstoppolarity":0}]}}
 
 {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 3, "enabled": 0, "polarity": 1}]}}
-                // Clear hard limit triggered flag: {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
+		// Clear hard limit triggered flag: {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
 
 {"task":"/tmc_act", "msteps":16, "rms_current":1200, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
 //   {"task":"/state_act","restart":1,"nodeId":11}    — restart remote node 11
@@ -187,6 +190,8 @@ SO THIS WORKS; BUT WE HAVE TO CHECK PHASE SPEED VALUE IN PHASE 5
 {"task": "/laser_act", "LASERid":1, "LASERval": 1000, "qid":1}
 {"task": "/laser_act", "LASERid":2, "LASERval": 1000, "qid":1}
 {"task": "/laser_act", "LASERid":3, "LASERval": 1000, "qid":1}
+{"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":1}
+
 {"task": "/motor_get"}
 
 
@@ -304,20 +309,22 @@ e905022f1c663740ee0000000900000000ffff000000000120000a3cd0a101003254cdab00000000
 
 # encoder stuff
 
-{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"encmonitor":0}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"encmonitor":1}]}}
 
 {"encoderMonitor":{"axis":1,"count":1234,"delta":56,"dtMs":502}}
 
 
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"calibrate":1}]}}
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":1}]}}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":3}]}}
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"axismode":1}]}}
+        //   "axismode":0..3 -> OPEN_LOOP / MONITOR / CORRECT / SERVO
 
 
-{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":5000,"speed":10000,"isabs":0}]},"qid":1}
+{"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":20000,"speed":20000,"isabs":0}]},"qid":1}
 
 
-{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":3000, "position": -1000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":80000, "position": -10000,  "isabs": 0}]}, "qid": 5}
 
 
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":10000,"speed":15000,"isabs":0,"closedloop":0}]}}
@@ -342,3 +349,27 @@ e905022f1c663740ee0000000900000000ffff000000000120000a3cd0a101003254cdab00000000
 3 = SERVO 
 true = CORRECT
 {"task":"/motor_act","motor":{"steppers":[{"stepperid":1,"position":10000,"speed":15000,"isabs":1,"closedloop":3}]}}
+
+
+{"task": "/motor_act", "speedmult": {"steppers": [{"stepperid": 1, "multiplier": 15}]}}
+{"task": "/motor_act", "speedmult": {"steppers": [{"stepperid": 2, "multiplier": 5}]}}
+{"task": "/motor_act", "speedmult": {"steppers": [{"stepperid": 3, "multiplier": 15}]}}
+
+
+
+{"task":"/motor_act","strobesweep":{"axis":1,"target":250000,"speed":20000, "periodUs":33333,"trigUs":100,"laser":4,"delayUs":1200 "widthUs":20, "latch":1,"report":16,"maxFrames":0}}
+
+ {"task":"/motor_act","strobesweep":{"stopped":1}}
+//
+// Per frame the camera trigger pulses and, when a laser is given, the flash
+// fires delayUs later for widthUs. If the flash or the position comes from a
+// CAN node, the frame is a SYNC frame: the camera pulses when the SYNC has
+// left the controller, the illumination node flashes relative to its SYNC
+// reception and the motor node latches its position (TPDO3). Otherwise the
+// sweep task fires everything locally.
+//
+// Reports while running: 
+{"strobesweep":{"n":[1,2,...],"x":[steps,...]}}
+
+// Completion: 
+{"strobesweep":true,"frames":N,"camera":N,"flashes":N|-1,"positions":N,"latch":0|1,"strobe":0|1,"aborted":0|1,"success":0|1,"qid":q[,"error":"..."]}

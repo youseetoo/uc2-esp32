@@ -66,7 +66,7 @@ Sensorless or endstop-based homing
 
 | Index | Sub | Name | Type | Access | PDO | Description |
 |-------|-----|------|------|--------|-----|-------------|
-| `0x2010` | 1..4 | `homing_command` | U8 | rw | rpdo2 | 0=idle, 1=start homing on this axis |
+| `0x2010` | 1..4 | `homing_command` | U8 | rw | rpdo2 | 0=idle, 1=start homing on this axis, 2=hard homing (home, ram mechanical stop, back off, re-home) |
 | `0x2011` | 1..4 | `homing_speed` | U32 | rw | SDO only |  |
 | `0x2012` | 1..4 | `homing_direction` | I8 | rw | SDO only | -1 or +1 |
 | `0x2013` | 1..4 | `homing_timeout` | U32 | rw | SDO only |  |

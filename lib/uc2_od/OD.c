@@ -115,9 +115,15 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
         .eventTimer  = 0x0000,           /* no periodic push — edges only */
         .SYNCStartValue = 0x00
     },
+    /* TPDO3 (0x1802): strobed-sweep position latch (motor slaves only).
+     * Invalid by default (bit 31) so no node emits it. Motor slaves write
+     * 0x40000380 at boot (SyncLatch::setupSlave); 0x380 is the stack's
+     * predefined TPDO3 base, so CANopenNode adds the node-id -> 0x380+id.
+     * Event-driven, no inhibit, no event timer: it only goes out when the
+     * latch requests it after a SYNC. */
     .x1802_TPDOCommunicationParameter = {
         .highestSub_indexSupported = 0x06,
-        .COB_IDUsedByTPDO = 0x80000480,
+        .COB_IDUsedByTPDO = 0x80000380,
         .transmissionType = 0xFE,
         .inhibitTime = 0x0000,
         .eventTimer  = 0x0000,
@@ -148,7 +154,8 @@ OD_ATTR_PERSIST_COMM OD_PERSIST_COMM_t OD_PERSIST_COMM = {
         .o1=0x23000108, .o2=0x23000208, .o3=0x23000308, .o4=0x23000408,
         .o5=0x23100110, .o6=0x23100210,
         .o7=0, .o8=0 },
-    .x1A02_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
+    /* TPDO3: latched sync position (i32, 0x200C sub1) + sync count (u16, 0x200D sub1) = 6 bytes */
+    .x1A02_TPDOMappingParameter = { .n=2, .o1=0x200C0120, .o2=0x200D0110, .o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
     .x1A03_TPDOMappingParameter = { .n=0, .o1=0,.o2=0,.o3=0,.o4=0,.o5=0,.o6=0,.o7=0,.o8=0 },
 };
 
@@ -222,6 +229,9 @@ typedef struct {
     OD_obj_array_t  o_2009_motor_max_position;
     OD_obj_array_t  o_200A_motor_jerk;
     OD_obj_array_t  o_200B_motor_is_forever;
+    OD_obj_array_t  o_200C_motor_sync_position;
+    OD_obj_array_t  o_200D_motor_sync_count;
+    OD_obj_array_t  o_200E_motor_sync_latch_enable;
     /* UC2 homing (0x2010-0x2015) */
     OD_obj_array_t  o_2010_homing_command;
     OD_obj_array_t  o_2011_homing_speed;
@@ -262,6 +272,10 @@ typedef struct {
     OD_obj_array_t  o_2102_laser_pwm_frequency;
     OD_obj_array_t  o_2103_laser_pwm_resolution;
     OD_obj_var_t    o_2106_laser_safety_state;
+    OD_obj_array_t  o_2107_laser_strobe_enable;
+    OD_obj_array_t  o_2108_laser_strobe_delay_us;
+    OD_obj_array_t  o_2109_laser_strobe_width_us;
+    OD_obj_array_t  o_210A_laser_strobe_count;
     /* UC2 LED (0x2200-0x2221) */
     OD_obj_var_t    o_2200_led_array_mode;
     OD_obj_var_t    o_2201_led_brightness;
@@ -587,6 +601,10 @@ static CO_PROGMEM ODObjs_t ODObjs = {
     .o_2009_motor_max_position = _ARR4_I32(x2009_motor_max_position, ODA_SDO_RW),
     .o_200A_motor_jerk         = _ARR4_U32(x200A_motor_jerk,         ODA_SDO_RW),
     .o_200B_motor_is_forever   = _ARR4_U8(x200B_motor_is_forever,    ODA_SDO_RW | ODA_RPDO),
+    /* strobed sweep position latch (0x200C-0x200E) */
+    .o_200C_motor_sync_position     = _ARR4_I32(x200C_motor_sync_position,     ODA_SDO_R | ODA_TPDO),
+    .o_200D_motor_sync_count        = _ARR4_U16(x200D_motor_sync_count,        ODA_SDO_R | ODA_TPDO),
+    .o_200E_motor_sync_latch_enable = _ARR4_U8 (x200E_motor_sync_latch_enable, ODA_SDO_RW),
     /* -----------------------------------------------------------------------
      * UC2 homing (0x2010-0x2015)
      * ----------------------------------------------------------------------- */
@@ -643,6 +661,11 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_RW | ODA_TPDO,
         .dataLength = 1
     },
+    /* strobed sweep flash (0x2107-0x210A) */
+    .o_2107_laser_strobe_enable   = _ARR4_U8 (x2107_laser_strobe_enable,   ODA_SDO_RW),
+    .o_2108_laser_strobe_delay_us = _ARR4_U32(x2108_laser_strobe_delay_us, ODA_SDO_RW),
+    .o_2109_laser_strobe_width_us = _ARR4_U32(x2109_laser_strobe_width_us, ODA_SDO_RW),
+    .o_210A_laser_strobe_count    = _ARR4_U32(x210A_laser_strobe_count,    ODA_SDO_R),
     /* -----------------------------------------------------------------------
      * UC2 LED (0x2200-0x2203)
      * ----------------------------------------------------------------------- */
@@ -991,6 +1014,9 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2009, 0x05, ODT_ARR, &ODObjs.o_2009_motor_max_position,         NULL},
     {0x200A, 0x05, ODT_ARR, &ODObjs.o_200A_motor_jerk,                 NULL},
     {0x200B, 0x05, ODT_ARR, &ODObjs.o_200B_motor_is_forever,            NULL},
+    {0x200C, 0x05, ODT_ARR, &ODObjs.o_200C_motor_sync_position,         NULL},
+    {0x200D, 0x05, ODT_ARR, &ODObjs.o_200D_motor_sync_count,            NULL},
+    {0x200E, 0x05, ODT_ARR, &ODObjs.o_200E_motor_sync_latch_enable,     NULL},
     /* UC2 homing */
     {0x2010, 0x05, ODT_ARR, &ODObjs.o_2010_homing_command,             NULL},
     {0x2011, 0x05, ODT_ARR, &ODObjs.o_2011_homing_speed,               NULL},
@@ -1031,6 +1057,10 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2102, 0x05, ODT_ARR, &ODObjs.o_2102_laser_pwm_frequency,        NULL},
     {0x2103, 0x05, ODT_ARR, &ODObjs.o_2103_laser_pwm_resolution,       NULL},
     {0x2106, 0x01, ODT_VAR, &ODObjs.o_2106_laser_safety_state,         NULL},
+    {0x2107, 0x05, ODT_ARR, &ODObjs.o_2107_laser_strobe_enable,        NULL},
+    {0x2108, 0x05, ODT_ARR, &ODObjs.o_2108_laser_strobe_delay_us,      NULL},
+    {0x2109, 0x05, ODT_ARR, &ODObjs.o_2109_laser_strobe_width_us,      NULL},
+    {0x210A, 0x05, ODT_ARR, &ODObjs.o_210A_laser_strobe_count,         NULL},
     /* UC2 LED */
     {0x2200, 0x01, ODT_VAR, &ODObjs.o_2200_led_array_mode,             NULL},
     {0x2201, 0x01, ODT_VAR, &ODObjs.o_2201_led_brightness,             NULL},

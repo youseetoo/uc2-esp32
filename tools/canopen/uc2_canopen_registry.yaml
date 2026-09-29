@@ -200,6 +200,32 @@ modules:
         description: "1=continuous motion (no target position, runs until stopped). 0=finite move."
         pdo_mappable: rpdo
 
+      - index: 0x200C
+        name: motor_sync_position
+        type: I32
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "Strobed sweep: step count latched when the last SYNC was received. Sent in TPDO3 while the latch is enabled."
+        pdo_mappable: tpdo
+
+      - index: 0x200D
+        name: motor_sync_count
+        type: U16
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "Strobed sweep: SYNCs latched since the latch was enabled (1 = first frame). Sent in TPDO3."
+        pdo_mappable: tpdo
+
+      - index: 0x200E
+        name: motor_sync_latch_enable
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Strobed sweep: 1 = latch the position on every SYNC and send TPDO3; writing 1 resets the count."
+
   # ==========================================================================
   # HOMING — 0x2010-0x201F
   # ==========================================================================
@@ -598,6 +624,38 @@ modules:
           bit2: "enabled"
         description: "Safety status — TPDO broadcast on change"
         pdo: tpdo3
+
+      - index: 0x2107
+        name: laser_strobe_enable
+        type: U8
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Strobed sweep: 1 = fire one flash per received SYNC; PWM is detached from the pin while enabled, 0 restores the PWM value."
+
+      - index: 0x2108
+        name: laser_strobe_delay_us
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 0
+        description: "Strobed sweep: delay D from SYNC reception to LED on, microseconds (clamped to STROBE_MAX_DELAY_US)."
+
+      - index: 0x2109
+        name: laser_strobe_width_us
+        type: U32
+        access: rw
+        sub_indices: 4
+        default: 20
+        description: "Strobed sweep: flash width w, microseconds (clamped to STROBE_MAX_WIDTH_US)."
+
+      - index: 0x210A
+        name: laser_strobe_count
+        type: U32
+        access: ro
+        sub_indices: 4
+        default: 0
+        description: "Strobed sweep: flashes fired since the strobe was enabled."
 
   # ==========================================================================
   # LED MATRIX (NeoPixel/WS2812) — 0x2200-0x22FF
@@ -1526,13 +1584,12 @@ pdo_mapping:
     cob_id: "0x380 + node_id"
     direction: s2m
     transmission_type: 254
-    event_timer_ms: 50
-    inhibit_time_ms: 5
-    description: "Encoder feedback + safety status"
+    event_timer_ms: 0               # no periodic push: only sent when the latch requests it
+    inhibit_time_ms: 0
+    description: "Strobed-sweep position latch — motor slaves only, COB-ID enabled at boot, sent after each SYNC while 0x200E = 1"
     mappings:
-      - {index: 0x2340, sub: 1, bits: 32}    # encoder pos 1
-      - {index: 0x2106, sub: 0, bits: 8}     # laser safety
-      - {index: 0x2F03, sub: 0, bits: 8}     # OTA status
+      - {index: 0x200C, sub: 1, bits: 32}    # latched sync position
+      - {index: 0x200D, sub: 1, bits: 16}    # sync count
 
   tpdo4:
     cob_id: "0x480 + node_id"

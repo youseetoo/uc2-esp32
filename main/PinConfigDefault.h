@@ -282,6 +282,13 @@ struct PinConfig
 
      int8_t CAMERA_TRIGGER_PIN = disabled;
      bool CAMERA_TRIGGER_INVERTED = false;
+
+     // Strobed sweep (docs/STROBED_STAGEMAP_SYNC.md in ImSwitch). Enforced on
+     // the node that drives the light, whatever the host asks for.
+     uint32_t STROBE_MAX_WIDTH_US = 1000;       // longest flash
+     uint32_t STROBE_MAX_DELAY_US = 100000;     // longest SYNC-to-flash delay
+     uint16_t STROBE_MAX_DUTY_PERMILLE = 50;    // flash width / flash spacing, 5 %
+     uint32_t STROBE_TRIGGER_US = 100;          // default camera trigger pulse width
      int8_t DIGITAL_IN_1 = disabled;
      int8_t DIGITAL_IN_2 = disabled;
      int8_t DIGITAL_IN_3 = disabled;
@@ -341,6 +348,12 @@ struct PinConfig
      int8_t tmc_SW_RX = disabled;    // GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = disabled;    // GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
+     // TMC2209s sharing the tmc_SW_RX/TX single-wire UART. Driver i has UART
+     // address i and drives axis i (A=0, X=1, Y=2, Z=3). 1 = single-driver board.
+     uint8_t tmc_driver_count = 1;
+     // Sense resistor of the driver module in Ohm - sets the mA -> CS scaling.
+     // 0.2 on the UC2 stepper backpacks, 0.11 on BigTreeTech TMC2209 modules.
+     float tmc_r_sense = 0.2f;
      bool TMC_DEBUG = false;
      int tmc_microsteps = 16;
      int tmc_rms_current = 500;

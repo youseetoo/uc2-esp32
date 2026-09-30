@@ -12,14 +12,17 @@
  * Node ID comes from runtimeConfig.canNodeId (NVS-backed).
  */
 #include "CANopenModule.h"
+#include "SyncHook.h"
 
 
 #include "PinConfig.h"
+#include "uc2_fw_version.h"
 #ifdef CAN_CONTROLLER_CANOPEN
 
 #include "../config/RuntimeConfig.h"
 #include "../config/NVSConfig.h"
 #include "RoutingTable.h"
+#include "esp_task_wdt.h"
 // Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
 // Constants are declared here for compile-time verification; not yet used in logic.
 #include "UC2_OD_Indices.h"
@@ -30,6 +33,7 @@
 #include "../serial/SerialProcess.h"
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#include "../motor/SyncLatch.h"
 #include "../qid/QidRegistry.h"
 #endif
 #ifdef HOME_MOTOR
@@ -37,6 +41,7 @@
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
+#include "../laser/LaserStrobe.h"
 #endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
@@ -146,6 +151,19 @@ QueueHandle_t CAN_TX_queue;
 QueueHandle_t CAN_RX_queue;
 
 CO_t* CO = NULL;
+
+// Strobed sweep: queue a raw frame (SYNC) ahead of everything else. The TX
+// loop in CAN_ctrl_task sends it as soon as the controller is idle.
+bool CANopenModule::sendRawFrameFront(uint32_t id, uint8_t dlc, const uint8_t* data)
+{
+    if (CAN_TX_queue == NULL || dlc > 8) return false;
+    CANMessages m = {};
+    m.message.identifier = id & 0x7FF;
+    m.message.data_length_code = dlc;
+    m.message.flags = TWAI_MSG_FLAG_NONE;
+    for (uint8_t i = 0; i < dlc && data != nullptr; ++i) m.message.data[i] = data[i];
+    return xQueueSendToFront(CAN_TX_queue, (void*)&m, 0) == pdTRUE;
+}
 
 // Set to CO_RESET_COMM from any context to trigger a live node-ID reload
 // without esp_restart(). CO_main_task checks this in its inner loop.
@@ -359,9 +377,17 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         // sets alerts = 0 so the checks below are still valid.
         twai_read_alerts(&alerts, pdMS_TO_TICKS(1));
 
+        // Strobed sweep: the end of our own SYNC frame is the camera trigger
+        // instant. Handle it before anything else in this iteration.
+        if (alerts & TWAI_ALERT_TX_SUCCESS) SyncHook::onTxSuccess();
+        if (alerts & TWAI_ALERT_TX_FAILED)  SyncHook::onTxFailed();
+
         // RX: drain TWAI FIFO into CAN_RX_queue (for CANopenNode to process)
         if (alerts & TWAI_ALERT_RX_DATA) {
             while (twai_receive(&rx_message, 0) == ESP_OK) {
+                // SYNC timestamp / TPDO3 position latch, before the frame is
+                // queued for the CANopen stack (which still processes it).
+                SyncHook::onFrameReceived(rx_message);
                 // Universal node liveness: any CANopen frame whose source
                 // nodeId is 1..127 marks that node as alive. COB-ID layout:
                 //   bits 10..7 = function code, bits 6..0 = source nodeId.
@@ -432,6 +458,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                     xQueueSendToFront(CAN_TX_queue, (void*)&tx_msg, 0);
                     break;
                 }
+                SyncHook::onFrameTransmitted(tx_msg.message);
             }
         }
 
@@ -562,6 +589,9 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
             log_e("Read abort: %d", SDO_ret);
             return abortCode;
         }
+        // The loop task's watchdog panics after 10 s; a long timeout here
+        // must not reboot the master. Harmless on unwatched tasks.
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(1));
     } while (SDO_ret > 0);
 
@@ -613,6 +643,9 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
         // We Download the information about the SDO transfer in a loop until 
         // it's complete, with a small delay to allow the CANopen stack to 
         // process incoming messages (e.g. SDO responses).
+        // Feed the loop task's 10 s watchdog: the OTA size write waits up to
+        // 20 s for an old slave's flash erase. Harmless on unwatched tasks.
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(1));
     } while (SDO_ret > 0);
 
@@ -902,10 +935,9 @@ static uint32_t            s_sdoStreamBytesQueued  = 0;
 static uint64_t            s_sdoStreamLastUs       = 0;
 static uint32_t            s_sdoStreamLastLoggedKB = 0;
 
-// Maximum time we will spin inside a single chunk call before yielding back
-// to the caller, even if the FIFO is not yet drained. Prevents the WDT from
-// firing on extremely slow links. The state machine resumes on the next
-// chunk call (data still queued in FIFO).
+// Maximum time we will spin inside a single chunk call before giving up on
+// the transfer. The loops below feed the loop task's 10 s watchdog, so this
+// budget (and sdoDownloadEnd's) may exceed it without rebooting the master.
 static constexpr uint32_t SDO_STREAM_CHUNK_BUDGET_MS = 10000;
 // Per-call SDO timeout (passed to CO_SDOclientDownloadInitiate). Must be
 // long enough to cover the slave's flash-write latency.
@@ -1065,6 +1097,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         // priority-1 (Arduino loopTask) would starve IDLE and trip its WDT.
         // TWAI_ctrl drains ~4 frames per tick at 500 kbit/s, so one tick is
         // exactly the refill cadence.
+        esp_task_wdt_reset();
         vTaskDelay(1);
     }
 
@@ -1096,6 +1129,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         if ((int32_t)(nowMs - deadlineMs) > 0) {
             break;
         }
+        esp_task_wdt_reset();
         vTaskDelay(1);
     }
 
@@ -1147,7 +1181,9 @@ bool CANopenModule::sdoDownloadEnd()
         }
         // vTaskDelay(1), not taskYIELD: this loop can spin for hundreds
         // of ms waiting on the slave's final block ACK; starving IDLE
-        // would trip the IDLE WDT and panic.
+        // would trip the IDLE WDT and panic. The deadline (17 s) exceeds
+        // the loop task's 10 s watchdog, so feed it too.
+        esp_task_wdt_reset();
         vTaskDelay(1);
     }
 
@@ -1333,8 +1369,8 @@ static ODR_t onGalvoPointsWrite(OD_stream_t* stream, const void* buf,
 // CO_main task — CANopenNode init + main processing loop
 // (Preserved structure from MWE, parametrised by runtimeConfig.canNodeId)
 // ============================================================================
-// Populate the read-only SYSTEM OD strings (0x2500 fw version, 0x2508 build
-// timestamp, 0x2509 MAC) and derive the CANopen identity serial number from the
+// Populate the read-only SYSTEM OD strings (0x2500 fw version, 0x2501 image
+// name, 0x2508 build timestamp, 0x2509 MAC) and derive the CANopen identity serial number from the
 // factory MAC. Called once at startup before CO_LSSinit() reads x1018. The MAC
 // makes x1018:4 (serialNumber) globally unique — a prerequisite for any future
 // LSS-based node-id assignment — and lets the master report each node's MAC in
@@ -1345,7 +1381,8 @@ static void populateSystemOD()
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
 
     snprintf(OD_RAM.x2500_firmware_version_string,
-             sizeof(OD_RAM.x2500_firmware_version_string), "UC2-ESP v2.0"); // TODO: Replace this with versioned firmware string from build system
+             sizeof(OD_RAM.x2500_firmware_version_string), "%s", UC2_FW_VERSION);
+    snprintf(OD_RAM.x2501_board_name, sizeof(OD_RAM.x2501_board_name), "%s", UC2_FW_IMAGE);
     snprintf(OD_RAM.x2508_build_timestamp,
              sizeof(OD_RAM.x2508_build_timestamp), "%s %s", __DATE__, __TIME__);
     snprintf(OD_RAM.x2509_mac_address, sizeof(OD_RAM.x2509_mac_address),
@@ -1357,8 +1394,9 @@ static void populateSystemOD()
         ((uint32_t)mac[2] << 24) | ((uint32_t)mac[3] << 16) |
         ((uint32_t)mac[4] << 8)  |  (uint32_t)mac[5];
 
-    log_i("System OD: fw='%s' build='%s' mac=%s serial=0x%08lX",
-          OD_RAM.x2500_firmware_version_string, OD_RAM.x2508_build_timestamp,
+    log_i("System OD: fw='%s' image='%s' build='%s' mac=%s serial=0x%08lX",
+          OD_RAM.x2500_firmware_version_string, OD_RAM.x2501_board_name,
+          OD_RAM.x2508_build_timestamp,
           OD_RAM.x2509_mac_address,
           (unsigned long)OD_PERSIST_COMM.x1018_identity.serialNumber);
 }
@@ -1595,12 +1633,12 @@ cJSON* CANopenModule::get(cJSON* /*doc*/)
 
 // Read a VISIBLE_STRING OD entry (sub 0) from a remote node into a NUL-terminated
 // buffer. Returns true on success. Used by the bus scan to fetch each slave's
-// build timestamp (0x2508), firmware version (0x2500) and MAC (0x2509).
+// build timestamp (0x2508), firmware version (0x2500), image (0x2501) and MAC (0x2509).
 static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t outSize)
 {
     if (!out || outSize == 0) return false;
     out[0] = '\0';
-    uint8_t buf[40];
+    uint8_t buf[64];   // fits the widest identity string (0x2500, 64 bytes)
     size_t  readSize = 0;
     if (!CANopenModule::readSDO(nodeId, index, 0x00, buf, sizeof(buf), &readSize))
         return false;
@@ -1762,11 +1800,14 @@ cJSON* CANopenModule::act(cJSON* doc)
             // reports firmware build date, version and MAC. Each read is guarded
             // by reachability already; absent nodes are skipped (no stall).
             if (reachable) {
-                char tmp[40];
+                char tmp[64];
                 if (readNodeString(seen[i].nodeId, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "build", tmp);
                 if (readNodeString(seen[i].nodeId, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "fwVersion", tmp);
+                // Absent on nodes built before 0x2501 was exposed (SDO abort).
+                if (readNodeString(seen[i].nodeId, UC2_OD::BOARD_NAME, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "fwImage", tmp);
                 if (readNodeString(seen[i].nodeId, UC2_OD::MAC_ADDRESS, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "mac", tmp);
             }
@@ -1778,6 +1819,7 @@ cJSON* CANopenModule::act(cJSON* doc)
         cJSON_AddNumberToObject(master, "canId",     runtimeConfig.canNodeId);
         cJSON_AddStringToObject(master, "build",     OD_RAM.x2508_build_timestamp);
         cJSON_AddStringToObject(master, "fwVersion", OD_RAM.x2500_firmware_version_string);
+        cJSON_AddStringToObject(master, "fwImage",   OD_RAM.x2501_board_name);
         cJSON_AddStringToObject(master, "mac",       OD_RAM.x2509_mac_address);
         cJSON_AddItemToObject(resp, "master", master);
 
@@ -1814,11 +1856,13 @@ cJSON* CANopenModule::act(cJSON* doc)
                 cJSON_AddNumberToObject(dev, "status",        0);
                 cJSON_AddStringToObject(dev, "statusStr",     "idle");
                 cJSON_AddStringToObject(dev, "mac",           macStr);
-                char tmp[40];
+                char tmp[64];
                 if (readNodeString((uint8_t)nid, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "build", tmp);
                 if (readNodeString((uint8_t)nid, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "fwVersion", tmp);
+                if (readNodeString((uint8_t)nid, UC2_OD::BOARD_NAME, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "fwImage", tmp);
                 cJSON_AddItemToArray(arr, dev);
                 nProbed++;
             }
@@ -1994,6 +2038,7 @@ struct PendingHomingCmd {
     int32_t timeout        = 5000;
     int32_t endstopRelease = 0;
     uint8_t polarity       = 0;
+    bool    hard           = false;  // HOMING_COMMAND == 2
 };
 static PendingHomingCmd s_homingCmds[4];
 
@@ -2002,6 +2047,16 @@ struct PendingLaserCmd {
     uint16_t      value   = 0;
 };
 static PendingLaserCmd s_laserCmds[4];
+
+// Strobed sweep: strobe configuration written by the master into OD
+// 0x2107-0x2109, applied from loop() (it touches the LEDC peripheral).
+struct PendingStrobeCmd {
+    volatile bool pending = false;
+    uint8_t       enable  = 0;
+    uint32_t      delayUs = 0;
+    uint32_t      widthUs = 0;   // matches the OD default, so boot raises no request
+};
+static PendingStrobeCmd s_strobeCmds[4];
 
 struct PendingHardLimitCmd {
     volatile bool pending  = false;
@@ -2171,6 +2226,7 @@ void CANopenModule::syncRpdoToModules_slave()
             s_homingCmds[ax].timeout        = (int32_t)OD_RAM.x2013_homing_timeout[ax];
             s_homingCmds[ax].endstopRelease = OD_RAM.x2014_homing_endstop_release[ax];
             s_homingCmds[ax].polarity       = OD_RAM.x2015_homing_endstop_polarity[ax];
+            s_homingCmds[ax].hard           = OD_RAM.x2010_homing_command[ax] == 2;
             s_homingCmds[ax].pending        = true;
             OD_RAM.x2010_homing_command[ax] = 0;
         }
@@ -2228,6 +2284,20 @@ void CANopenModule::syncRpdoToModules_slave()
 #endif
 
 #ifdef LASER_CONTROLLER
+    // Strobed sweep: strobe configuration from the master (applied in loop()).
+    for (int ch = 0; ch < 4; ch++) {
+        const uint8_t  en = OD_RAM.x2107_laser_strobe_enable[ch];
+        const uint32_t d  = OD_RAM.x2108_laser_strobe_delay_us[ch];
+        const uint32_t w  = OD_RAM.x2109_laser_strobe_width_us[ch];
+        if (s_strobeCmds[ch].enable != en || s_strobeCmds[ch].delayUs != d ||
+            s_strobeCmds[ch].widthUs != w) {
+            s_strobeCmds[ch].enable  = en;
+            s_strobeCmds[ch].delayUs = d;
+            s_strobeCmds[ch].widthUs = w;
+            s_strobeCmds[ch].pending = true;
+        }
+    }
+
     for (int ch = 0; ch < 4; ch++) {
         uint16_t v = OD_RAM.x2100_laser_pwm_value[ch];
         // Only arm pending when the OD value actually changed from the last dispatched value.
@@ -2461,6 +2531,15 @@ void CANopenModule::syncRpdoToModules_slave()
             pendingResetAtMs = 0;
             s_requestedReset = CO_RESET_COMM;
         }
+    }
+#endif
+
+#ifdef MOTOR_CONTROLLER
+    // Strobed sweep: position latch on/off from the master (OD 0x200E).
+    {
+        bool want = false;
+        for (int ax = 0; ax < 4; ax++) want = want || OD_RAM.x200E_motor_sync_latch_enable[ax] != 0;
+        if (want != SyncLatch::enabled()) SyncLatch::setEnabled(want);
     }
 #endif
 }
@@ -2863,7 +2942,8 @@ void CANopenModule::loop()
             (int)s_homingCmds[ax].direction,
             (int)s_homingCmds[ax].polarity,
             (int)s_homingCmds[ax].endstopRelease,
-            0  /* qid */); // TODO: we need to keep track of the qid to now if its still alive/busy
+            0  /* qid */,
+            s_homingCmds[ax].hard); // TODO: we need to keep track of the qid to now if its still alive/busy
             // TODO: How about the stop command? We currently ignore it and just let the homing run until completion or timeout. We could add a "isStop" flag to PendingHomingCmd and check it here to allow stopping an ongoing homing operation.
     }
 #endif
@@ -2907,6 +2987,33 @@ void CANopenModule::loop()
         s_laserCmds[ch].pending = false;
         log_i("Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
         LaserController::setLaserVal(ch, (int)s_laserCmds[ch].value);
+    }
+
+    // Apply strobe configuration. Read the OD again here instead of using the
+    // poll's snapshot: the master writes delay, width and enable a few ms
+    // apart, and a stale snapshot would apply (and write back) an old state.
+    // Only values the node changed are written back - enable 0 when refused,
+    // clamped delay/width - so an accepted request is never overwritten.
+    for (int ch = 0; ch < 4; ch++) {
+        if (!s_strobeCmds[ch].pending) continue;
+        s_strobeCmds[ch].pending = false;
+        const uint8_t  reqEn = OD_RAM.x2107_laser_strobe_enable[ch];
+        const uint32_t reqD  = OD_RAM.x2108_laser_strobe_delay_us[ch];
+        const uint32_t reqW  = OD_RAM.x2109_laser_strobe_width_us[ch];
+        const bool want = reqEn != 0;
+        const char* err = nullptr;
+        if (!LaserStrobe::configure(ch, want, reqD, reqW, &err))
+            log_w("Strobe laser %d refused: %s", ch, err ? err : "?");
+        const uint8_t en = LaserStrobe::isStrobing(ch) ? 1 : 0;
+        uint32_t d = reqD, w = reqW;
+        if (en) { d = LaserStrobe::delayUs(ch); w = LaserStrobe::widthUs(ch); }
+        // Cache first, so the poll does not treat the write-back as a new request.
+        s_strobeCmds[ch].enable  = en;
+        s_strobeCmds[ch].delayUs = d;
+        s_strobeCmds[ch].widthUs = w;
+        if (en != reqEn) OD_RAM.x2107_laser_strobe_enable[ch]   = en;
+        if (d  != reqD)  OD_RAM.x2108_laser_strobe_delay_us[ch] = d;
+        if (w  != reqW)  OD_RAM.x2109_laser_strobe_width_us[ch] = w;
     }
 #endif
 }

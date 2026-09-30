@@ -35,6 +35,7 @@
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
+#include "../laser/StrobeRoute.h"
 #endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
@@ -260,6 +261,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     // Stage scanning is master-side orchestration — it issues motor.move
     // commands internally which themselves go through DeviceRouter again.
     MotorJsonParser::parseStageScan(doc);
+    MotorJsonParser::parseStrobeSweep(doc);
 #endif
 
     // ── 2. Drive command — route per stepper ──
@@ -666,6 +668,34 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 #ifdef LASER_CONTROLLER
+    // Strobed sweep: {"task":"/laser_act","LASERid":4,"strobe":{"enable":1,"delayUs":1200,"widthUs":20}}
+    // Routed like any laser command (LOCAL LaserStrobe / REMOTE SDO to the node).
+    cJSON* strobeItem = cJSON_GetObjectItem(doc, "strobe");
+    if (strobeItem && cJSON_IsObject(strobeItem)) {
+        cJSON* idItem = cJSON_GetObjectItem(doc, "LASERid");
+        cJSON* q = cJSON_GetObjectItem(doc, "qid");
+        const int strobeQid = (q && cJSON_IsNumber(q)) ? q->valueint : 0;
+        cJSON* resp = cJSON_CreateObject();
+        if (!idItem || !cJSON_IsNumber(idItem)) {
+            cJSON_AddNumberToObject(resp, "return", 0);
+            cJSON_AddStringToObject(resp, "error", "strobe needs LASERid");
+            cJSON_AddNumberToObject(resp, "qid", strobeQid);
+            return resp;
+        }
+        cJSON* en = cJSON_GetObjectItem(strobeItem, "enable");
+        cJSON* dl = cJSON_GetObjectItem(strobeItem, "delayUs");
+        cJSON* wd = cJSON_GetObjectItem(strobeItem, "widthUs");
+        const bool enable = !en || (cJSON_IsNumber(en) ? en->valueint != 0 : cJSON_IsTrue(en));
+        const int delayUs = (dl && cJSON_IsNumber(dl)) ? std::max(0, dl->valueint) : 0;
+        const int widthUs = (wd && cJSON_IsNumber(wd)) ? std::max(1, wd->valueint) : 20;
+        StrobeRoute::Result r = StrobeRoute::configure(idItem->valueint, enable, (uint32_t)delayUs, (uint32_t)widthUs);
+        cJSON_AddItemToObject(resp, "strobe", StrobeRoute::toJson(r));
+        cJSON_AddNumberToObject(resp, "return", r.ok ? 1 : 0);
+        if (r.error) cJSON_AddStringToObject(resp, "error", r.error);
+        cJSON_AddNumberToObject(resp, "qid", strobeQid);
+        return resp;
+    }
+
     cJSON* laserid_item = cJSON_GetObjectItem(doc, "LASERid");
     cJSON* val_item     = cJSON_GetObjectItem(doc, "LASERval");
     if (!laserid_item || !val_item) {
@@ -793,11 +823,12 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
         int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity, -1);
         int homeRelease  = cJsonTool::getJsonInt(stp, key_home_endstoprelease);
         int homeOffset   = cJsonTool::getJsonInt(stp, key_home_endoffset);
+        bool hardHome    = cJsonTool::getJsonInt(stp, key_home_hardhome) > 0;
 
         if (route->where == UC2::RouteEntry::LOCAL) {
             log_i("Routing home_act to LOCAL stepper %d: speed=%d dir=%d timeout=%d maxspeed=%d polarity=%d offset=%d",
                   stepperid, homeSpeed, homeDir, homeTimeout, homeMaxspeed, homePolarity, homeOffset);
-            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
+            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid, hardHome);
         } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t sub = route->subAxis + 1;
@@ -808,7 +839,8 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, (uint32_t)homeTimeout);
             CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, (int32_t)homeRelease);
             CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
-            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, 1);
+            // 2 = hard homing. Older slaves treat any non-zero as a normal home.
+            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, hardHome ? 2 : 1);
             if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
 
             // Arm master-side completion tracking. The slave reports its homing
@@ -823,7 +855,8 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
                 HomeData* mhd        = mhdAll[stepperid];
                 mhd->qid             = (uint16_t)qid;
                 mhd->homeResultCode  = 0;
-                mhd->homeTimeout     = (uint32_t)homeTimeout + 5000;
+                // Hard homing = two cycles; the slave restarts its timer for the second.
+                mhd->homeTimeout     = (uint32_t)homeTimeout * (hardHome ? 2 : 1) + 5000;
                 mhd->homeTimeStarted = millis();
                 mhd->homeIsActive    = true;
             }

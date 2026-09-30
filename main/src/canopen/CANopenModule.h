@@ -46,6 +46,9 @@ public:
     static bool readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                         uint8_t* buf, size_t bufSize, size_t* readSize);
 
+    // Queue a raw CAN frame at the front of the TX queue (strobed-sweep SYNC).
+    static bool sendRawFrameFront(uint32_t id, uint8_t dlc, const uint8_t* data);
+
     // Returns true if the slave at nodeId has been heard from recently
     // (TPDO/heartbeat). For non-motor peripherals always returns true if a
     // route exists. Used to gate fast-fail SDO writes.

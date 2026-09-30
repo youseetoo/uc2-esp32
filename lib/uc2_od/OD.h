@@ -113,6 +113,10 @@ typedef struct {
     int32_t  x2009_motor_max_position[4];
     uint32_t x200A_motor_jerk[4];
     uint8_t  x200B_motor_is_forever[4];
+    // strobed sweep: step count latched at SYNC reception (slave -> master TPDO3)
+    int32_t  x200C_motor_sync_position[4];
+    uint16_t x200D_motor_sync_count[4];
+    uint8_t  x200E_motor_sync_latch_enable[4];
     // homing
     uint8_t  x2010_homing_command[4];
     uint32_t x2011_homing_speed[4];
@@ -154,6 +158,11 @@ typedef struct {
     uint32_t x2102_laser_pwm_frequency[4];
     uint8_t  x2103_laser_pwm_resolution[4];
     uint8_t  x2106_laser_safety_state;
+    // strobed sweep: one flash per SYNC, delay/width in microseconds
+    uint8_t  x2107_laser_strobe_enable[4];
+    uint32_t x2108_laser_strobe_delay_us[4];
+    uint32_t x2109_laser_strobe_width_us[4];
+    uint32_t x210A_laser_strobe_count[4];
     // led
     uint8_t  x2200_led_array_mode;
     uint8_t  x2201_led_brightness;
@@ -190,8 +199,8 @@ typedef struct {
     uint8_t  x2353_i2c_response[40]; // bytes read back (read-only for the master)
     uint8_t  x2354_i2c_resp_len;     // number of valid bytes in x2353
     // system
-    char     x2500_firmware_version_string[32];
-    char     x2501_board_name[32];
+    char     x2500_firmware_version_string[64];  // UC2_FW_VERSION (tools/fw_version.py)
+    char     x2501_board_name[64];               // UC2_FW_IMAGE: image this node was built as
     uint32_t x2502_enabled_modules_bitmask;
     // galvo (0x2600-0x260F)
     int32_t  x2600_galvo_target_position[2];   // sub 1=X, sub 2=Y
@@ -257,6 +266,9 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_MOTOR_ACCELERATION       OD_RAM.x2006_motor_acceleration
 #define OD_MOTOR_IS_ABSOLUTE        OD_RAM.x2007_motor_is_absolute
 #define OD_MOTOR_IS_FOREVER         OD_RAM.x200B_motor_is_forever
+#define OD_MOTOR_SYNC_POSITION      OD_RAM.x200C_motor_sync_position
+#define OD_MOTOR_SYNC_COUNT         OD_RAM.x200D_motor_sync_count
+#define OD_MOTOR_SYNC_LATCH_ENABLE  OD_RAM.x200E_motor_sync_latch_enable
 #define OD_HOMING_COMMAND           OD_RAM.x2010_homing_command
 #define OD_HOMING_SPEED             OD_RAM.x2011_homing_speed
 #define OD_HOMING_DIRECTION         OD_RAM.x2012_homing_direction
@@ -277,6 +289,10 @@ extern OD_ATTR_OD OD_t *OD;
 #define OD_AXIS_BACKLASH_STEPS      OD_RAM.x204A_axis_backlash_steps
 #define OD_AXIS_RAW_COUNTS          OD_RAM.x204B_axis_raw_counts
 #define OD_LASER_PWM_VALUE          OD_RAM.x2100_laser_pwm_value
+#define OD_LASER_STROBE_ENABLE      OD_RAM.x2107_laser_strobe_enable
+#define OD_LASER_STROBE_DELAY_US    OD_RAM.x2108_laser_strobe_delay_us
+#define OD_LASER_STROBE_WIDTH_US    OD_RAM.x2109_laser_strobe_width_us
+#define OD_LASER_STROBE_COUNT       OD_RAM.x210A_laser_strobe_count
 #define OD_LED_ARRAY_MODE           OD_RAM.x2200_led_array_mode
 #define OD_LED_BRIGHTNESS           OD_RAM.x2201_led_brightness
 #define OD_LED_UNIFORM_COLOUR       OD_RAM.x2202_led_uniform_colour

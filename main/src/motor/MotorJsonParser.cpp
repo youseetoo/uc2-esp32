@@ -4,6 +4,7 @@
 #ifdef STAGE_SCAN
 #include "StageScan.h"
 #include "FocusScan.h"
+#include "StrobeSweep.h"
 #endif
 
 #ifdef STAGE_SCAN
@@ -111,6 +112,11 @@ namespace MotorJsonParser
 	}
 
 #ifdef STAGE_SCAN
+    void parseStrobeSweep(cJSON *doc)
+    {
+        StrobeSweep::parseJson(doc);
+    }
+
     void parseStageScan(cJSON *doc)
     {
         // start independent stageScan

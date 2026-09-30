@@ -327,6 +327,7 @@ typedef struct {
     OD_obj_var_t    o_2610_galvo_points_data;
     /* UC2 system (0x2500-0x250A) */
     OD_obj_var_t    o_2500_firmware_version_string;
+    OD_obj_var_t    o_2501_board_name;
     OD_obj_var_t    o_2503_uptime_seconds;
     OD_obj_var_t    o_2504_free_heap_bytes;
     OD_obj_var_t    o_2505_can_error_counter;
@@ -891,6 +892,11 @@ static CO_PROGMEM ODObjs_t ODObjs = {
         .attribute = ODA_SDO_R | ODA_STR,
         .dataLength = sizeof(OD_RAM.x2500_firmware_version_string)
     },
+    .o_2501_board_name = {
+        .dataOrig = &OD_RAM.x2501_board_name[0],
+        .attribute = ODA_SDO_R | ODA_STR,
+        .dataLength = sizeof(OD_RAM.x2501_board_name)
+    },
     .o_2503_uptime_seconds = {
         .dataOrig = &OD_RAM.x2503_uptime_seconds,
         .attribute = ODA_SDO_R | ODA_TPDO | ODA_MB,
@@ -1094,6 +1100,7 @@ static OD_ATTR_OD OD_entry_t ODList[] = {
     {0x2354, 0x01, ODT_VAR, &ODObjs.o_2354_i2c_resp_len,               NULL},
     /* UC2 system — MUST stay sorted before 0x2600 (CANopenNode OD_find is binary search) */
     {0x2500, 0x01, ODT_VAR, &ODObjs.o_2500_firmware_version_string,    NULL},
+    {0x2501, 0x01, ODT_VAR, &ODObjs.o_2501_board_name,                 NULL},
     {0x2503, 0x01, ODT_VAR, &ODObjs.o_2503_uptime_seconds,             NULL},
     {0x2504, 0x01, ODT_VAR, &ODObjs.o_2504_free_heap_bytes,            NULL},
     {0x2505, 0x01, ODT_VAR, &ODObjs.o_2505_can_error_counter,          NULL},

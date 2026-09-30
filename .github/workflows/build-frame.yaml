@@ -164,7 +164,9 @@ jobs:
               AXIS_SUFFIX=""
             fi
 
-            if ! pio run --environment "$ENV"; then
+            # UC2_FW_IMAGE = the file name this build is published as (see OUT_BIN
+            # below); the firmware reports it so ImSwitch picks the matching image.
+            if ! UC2_FW_IMAGE="esp32_${ENV}${AXIS_SUFFIX}.bin" pio run --environment "$ENV"; then
               echo "❌ Build failed for $ENV${AXIS_SUFFIX} — continuing with others."
               failed=true
               continue

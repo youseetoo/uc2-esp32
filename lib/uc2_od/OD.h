@@ -200,7 +200,7 @@ typedef struct {
     uint8_t  x2354_i2c_resp_len;     // number of valid bytes in x2353
     // system
     char     x2500_firmware_version_string[64];  // UC2_FW_VERSION (tools/fw_version.py)
-    char     x2501_board_name[32];
+    char     x2501_board_name[64];               // UC2_FW_IMAGE: image this node was built as
     uint32_t x2502_enabled_modules_bitmask;
     // galvo (0x2600-0x260F)
     int32_t  x2600_galvo_target_position[2];   // sub 1=X, sub 2=Y

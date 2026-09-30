@@ -1369,8 +1369,8 @@ static ODR_t onGalvoPointsWrite(OD_stream_t* stream, const void* buf,
 // CO_main task — CANopenNode init + main processing loop
 // (Preserved structure from MWE, parametrised by runtimeConfig.canNodeId)
 // ============================================================================
-// Populate the read-only SYSTEM OD strings (0x2500 fw version, 0x2508 build
-// timestamp, 0x2509 MAC) and derive the CANopen identity serial number from the
+// Populate the read-only SYSTEM OD strings (0x2500 fw version, 0x2501 image
+// name, 0x2508 build timestamp, 0x2509 MAC) and derive the CANopen identity serial number from the
 // factory MAC. Called once at startup before CO_LSSinit() reads x1018. The MAC
 // makes x1018:4 (serialNumber) globally unique — a prerequisite for any future
 // LSS-based node-id assignment — and lets the master report each node's MAC in
@@ -1382,6 +1382,7 @@ static void populateSystemOD()
 
     snprintf(OD_RAM.x2500_firmware_version_string,
              sizeof(OD_RAM.x2500_firmware_version_string), "%s", UC2_FW_VERSION);
+    snprintf(OD_RAM.x2501_board_name, sizeof(OD_RAM.x2501_board_name), "%s", UC2_FW_IMAGE);
     snprintf(OD_RAM.x2508_build_timestamp,
              sizeof(OD_RAM.x2508_build_timestamp), "%s %s", __DATE__, __TIME__);
     snprintf(OD_RAM.x2509_mac_address, sizeof(OD_RAM.x2509_mac_address),
@@ -1393,8 +1394,9 @@ static void populateSystemOD()
         ((uint32_t)mac[2] << 24) | ((uint32_t)mac[3] << 16) |
         ((uint32_t)mac[4] << 8)  |  (uint32_t)mac[5];
 
-    log_i("System OD: fw='%s' build='%s' mac=%s serial=0x%08lX",
-          OD_RAM.x2500_firmware_version_string, OD_RAM.x2508_build_timestamp,
+    log_i("System OD: fw='%s' image='%s' build='%s' mac=%s serial=0x%08lX",
+          OD_RAM.x2500_firmware_version_string, OD_RAM.x2501_board_name,
+          OD_RAM.x2508_build_timestamp,
           OD_RAM.x2509_mac_address,
           (unsigned long)OD_PERSIST_COMM.x1018_identity.serialNumber);
 }
@@ -1631,7 +1633,7 @@ cJSON* CANopenModule::get(cJSON* /*doc*/)
 
 // Read a VISIBLE_STRING OD entry (sub 0) from a remote node into a NUL-terminated
 // buffer. Returns true on success. Used by the bus scan to fetch each slave's
-// build timestamp (0x2508), firmware version (0x2500) and MAC (0x2509).
+// build timestamp (0x2508), firmware version (0x2500), image (0x2501) and MAC (0x2509).
 static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t outSize)
 {
     if (!out || outSize == 0) return false;
@@ -1803,6 +1805,9 @@ cJSON* CANopenModule::act(cJSON* doc)
                     cJSON_AddStringToObject(dev, "build", tmp);
                 if (readNodeString(seen[i].nodeId, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "fwVersion", tmp);
+                // Absent on nodes built before 0x2501 was exposed (SDO abort).
+                if (readNodeString(seen[i].nodeId, UC2_OD::BOARD_NAME, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "fwImage", tmp);
                 if (readNodeString(seen[i].nodeId, UC2_OD::MAC_ADDRESS, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "mac", tmp);
             }
@@ -1814,6 +1819,7 @@ cJSON* CANopenModule::act(cJSON* doc)
         cJSON_AddNumberToObject(master, "canId",     runtimeConfig.canNodeId);
         cJSON_AddStringToObject(master, "build",     OD_RAM.x2508_build_timestamp);
         cJSON_AddStringToObject(master, "fwVersion", OD_RAM.x2500_firmware_version_string);
+        cJSON_AddStringToObject(master, "fwImage",   OD_RAM.x2501_board_name);
         cJSON_AddStringToObject(master, "mac",       OD_RAM.x2509_mac_address);
         cJSON_AddItemToObject(resp, "master", master);
 
@@ -1855,6 +1861,8 @@ cJSON* CANopenModule::act(cJSON* doc)
                     cJSON_AddStringToObject(dev, "build", tmp);
                 if (readNodeString((uint8_t)nid, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "fwVersion", tmp);
+                if (readNodeString((uint8_t)nid, UC2_OD::BOARD_NAME, tmp, sizeof(tmp)))
+                    cJSON_AddStringToObject(dev, "fwImage", tmp);
                 cJSON_AddItemToArray(arr, dev);
                 nProbed++;
             }

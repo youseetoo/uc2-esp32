@@ -348,6 +348,12 @@ struct PinConfig
      int8_t tmc_SW_RX = disabled;    // GPIO_NUM_44; // D7 -> GPIO44
      int8_t tmc_SW_TX = disabled;    // GPIO_NUM_43; // D6 -> GPIO43
      int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
+     // TMC2209s sharing the tmc_SW_RX/TX single-wire UART. Driver i has UART
+     // address i and drives axis i (A=0, X=1, Y=2, Z=3). 1 = single-driver board.
+     uint8_t tmc_driver_count = 1;
+     // Sense resistor of the driver module in Ohm - sets the mA -> CS scaling.
+     // 0.2 on the UC2 stepper backpacks, 0.11 on BigTreeTech TMC2209 modules.
+     float tmc_r_sense = 0.2f;
      bool TMC_DEBUG = false;
      int tmc_microsteps = 16;
      int tmc_rms_current = 500;

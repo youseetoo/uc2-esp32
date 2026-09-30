@@ -12,9 +12,6 @@
 #include "../motor/FocusMotor.h"
 #include "esp_task_wdt.h"
 
-#define DRIVER_ADDRESS 0b00
-#define R_SENSE 0.2f
-
 // Internal oscillator of the TMC2209 (typ. 12 MHz). Used to convert a
 // velocity in steps/s into the TSTEP-domain thresholds (TPWMTHRS/TCOOLTHRS).
 #define TMC_FCLK_HZ 12000000UL
@@ -68,7 +65,9 @@ namespace TMCController
     uint16_t getMicrosteps();
     void loop();
     void callibrateStallguard(int speed);
-    void applyParamsToDriver(const TMCData &p, bool saveToPrefs);
+    // axis selects the driver on multi-driver boards (UART address = axis);
+    // single-driver boards map every axis onto their one driver.
+    void applyParamsToDriver(const TMCData &p, bool saveToPrefs, int axis = 0);
 
     // Convert a velocity in steps/s (at the given microstep resolution) into
     // the TSTEP-domain register value used by TPWMTHRS / TCOOLTHRS.

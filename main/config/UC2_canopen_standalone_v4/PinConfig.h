@@ -31,6 +31,7 @@ DIP Switch Configuration:
 #define LASER_CONTROLLER
 #define DIGITAL_IN_CONTROLLER 
 #define LED_CONTROLLER
+#define TMC_CONTROLLER
 #define UC2_FORCE_BT_CLASSIC_ONLY=1
 #define BTHID=1
 #define BLUETOOTH=1
@@ -120,6 +121,15 @@ struct UC2_canopen_standalone_v4 : PinConfig
      
      int8_t dac_fake_1 = disabled;
      int8_t dac_fake_2 = disabled;
+
+     // Mainboard Rev. H: 4 BigTreeTech TMC2209 on one single-wire UART, UART
+     // address = axis (A=0, X=1, Y=2, Z=3). Their MS1/MS2 pins carry the address,
+     // so microstepping (tmc_microsteps = 16) MUST be set over UART.
+     // GPIO26 is shared with DAC_2 - keep dac_fake_2 disabled.
+     int8_t tmc_SW_RX = GPIO_NUM_34;  // UART_POCI
+     int8_t tmc_SW_TX = GPIO_NUM_26;  // UART_PICO
+     uint8_t tmc_driver_count = 4;
+     float tmc_r_sense = 0.11f;
 
      int8_t JOYSTICK_SPEED_MULTIPLIER = 2;
      int8_t JOYSTICK_MAX_ILLU = 255;

@@ -150,7 +150,11 @@ SO THIS WORKS; BUT WE HAVE TO CHECK PHASE SPEED VALUE IN PHASE 5
 {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 3, "enabled": 0, "polarity": 1}]}}
 		// Clear hard limit triggered flag: {"task": "/motor_act", "hardlimits": {"steppers": [{"stepperid": 1, "clear": 1}]}}
 
-{"task":"/tmc_act", "msteps":16, "rms_current":1200, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":1}
+{"task":"/tmc_act", "msteps":16, "rms_current":1600, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4, "axis":3}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 3, "speed":60000, "position": -320000,  "accel":10000000, "isabs": 0}]}, "qid": 5} 
+
+
+{"task":"/tmc_get"}
 //   {"task":"/state_act","restart":1,"nodeId":11}    — restart remote node 11
 
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 2, "speed":2000, "position": -1000,  "isabs": 0}]}, "qid": 5}

@@ -199,7 +199,7 @@ typedef struct {
     uint8_t  x2353_i2c_response[40]; // bytes read back (read-only for the master)
     uint8_t  x2354_i2c_resp_len;     // number of valid bytes in x2353
     // system
-    char     x2500_firmware_version_string[32];
+    char     x2500_firmware_version_string[64];  // UC2_FW_VERSION (tools/fw_version.py)
     char     x2501_board_name[32];
     uint32_t x2502_enabled_modules_bitmask;
     // galvo (0x2600-0x260F)

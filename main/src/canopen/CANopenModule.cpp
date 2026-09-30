@@ -16,11 +16,13 @@
 
 
 #include "PinConfig.h"
+#include "uc2_fw_version.h"
 #ifdef CAN_CONTROLLER_CANOPEN
 
 #include "../config/RuntimeConfig.h"
 #include "../config/NVSConfig.h"
 #include "RoutingTable.h"
+#include "esp_task_wdt.h"
 // Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
 // Constants are declared here for compile-time verification; not yet used in logic.
 #include "UC2_OD_Indices.h"
@@ -587,6 +589,9 @@ static CO_SDO_abortCode_t _read_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
             log_e("Read abort: %d", SDO_ret);
             return abortCode;
         }
+        // The loop task's watchdog panics after 10 s; a long timeout here
+        // must not reboot the master. Harmless on unwatched tasks.
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(1));
     } while (SDO_ret > 0);
 
@@ -638,6 +643,9 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
         // We Download the information about the SDO transfer in a loop until 
         // it's complete, with a small delay to allow the CANopen stack to 
         // process incoming messages (e.g. SDO responses).
+        // Feed the loop task's 10 s watchdog: the OTA size write waits up to
+        // 20 s for an old slave's flash erase. Harmless on unwatched tasks.
+        esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(1));
     } while (SDO_ret > 0);
 
@@ -927,10 +935,9 @@ static uint32_t            s_sdoStreamBytesQueued  = 0;
 static uint64_t            s_sdoStreamLastUs       = 0;
 static uint32_t            s_sdoStreamLastLoggedKB = 0;
 
-// Maximum time we will spin inside a single chunk call before yielding back
-// to the caller, even if the FIFO is not yet drained. Prevents the WDT from
-// firing on extremely slow links. The state machine resumes on the next
-// chunk call (data still queued in FIFO).
+// Maximum time we will spin inside a single chunk call before giving up on
+// the transfer. The loops below feed the loop task's 10 s watchdog, so this
+// budget (and sdoDownloadEnd's) may exceed it without rebooting the master.
 static constexpr uint32_t SDO_STREAM_CHUNK_BUDGET_MS = 10000;
 // Per-call SDO timeout (passed to CO_SDOclientDownloadInitiate). Must be
 // long enough to cover the slave's flash-write latency.
@@ -1090,6 +1097,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         // priority-1 (Arduino loopTask) would starve IDLE and trip its WDT.
         // TWAI_ctrl drains ~4 frames per tick at 500 kbit/s, so one tick is
         // exactly the refill cadence.
+        esp_task_wdt_reset();
         vTaskDelay(1);
     }
 
@@ -1121,6 +1129,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
         if ((int32_t)(nowMs - deadlineMs) > 0) {
             break;
         }
+        esp_task_wdt_reset();
         vTaskDelay(1);
     }
 
@@ -1172,7 +1181,9 @@ bool CANopenModule::sdoDownloadEnd()
         }
         // vTaskDelay(1), not taskYIELD: this loop can spin for hundreds
         // of ms waiting on the slave's final block ACK; starving IDLE
-        // would trip the IDLE WDT and panic.
+        // would trip the IDLE WDT and panic. The deadline (17 s) exceeds
+        // the loop task's 10 s watchdog, so feed it too.
+        esp_task_wdt_reset();
         vTaskDelay(1);
     }
 
@@ -1370,7 +1381,7 @@ static void populateSystemOD()
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
 
     snprintf(OD_RAM.x2500_firmware_version_string,
-             sizeof(OD_RAM.x2500_firmware_version_string), "UC2-ESP v2.0"); // TODO: Replace this with versioned firmware string from build system
+             sizeof(OD_RAM.x2500_firmware_version_string), "%s", UC2_FW_VERSION);
     snprintf(OD_RAM.x2508_build_timestamp,
              sizeof(OD_RAM.x2508_build_timestamp), "%s %s", __DATE__, __TIME__);
     snprintf(OD_RAM.x2509_mac_address, sizeof(OD_RAM.x2509_mac_address),
@@ -1625,7 +1636,7 @@ static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t out
 {
     if (!out || outSize == 0) return false;
     out[0] = '\0';
-    uint8_t buf[40];
+    uint8_t buf[64];   // fits the widest identity string (0x2500, 64 bytes)
     size_t  readSize = 0;
     if (!CANopenModule::readSDO(nodeId, index, 0x00, buf, sizeof(buf), &readSize))
         return false;
@@ -1787,7 +1798,7 @@ cJSON* CANopenModule::act(cJSON* doc)
             // reports firmware build date, version and MAC. Each read is guarded
             // by reachability already; absent nodes are skipped (no stall).
             if (reachable) {
-                char tmp[40];
+                char tmp[64];
                 if (readNodeString(seen[i].nodeId, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "build", tmp);
                 if (readNodeString(seen[i].nodeId, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
@@ -1839,7 +1850,7 @@ cJSON* CANopenModule::act(cJSON* doc)
                 cJSON_AddNumberToObject(dev, "status",        0);
                 cJSON_AddStringToObject(dev, "statusStr",     "idle");
                 cJSON_AddStringToObject(dev, "mac",           macStr);
-                char tmp[40];
+                char tmp[64];
                 if (readNodeString((uint8_t)nid, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "build", tmp);
                 if (readNodeString((uint8_t)nid, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))

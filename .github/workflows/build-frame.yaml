@@ -23,8 +23,58 @@ env:
   MAIN_BRANCH: 'main' # pushing to this branch will update the "edge" tag on the container image
 
 jobs:
+  # One release identity for the whole run: baked into every firmware image
+  # (UC2_FW_VERSION, see tools/fw_version.py) and published as version.json on
+  # the firmware server, so ImSwitch can compare boards against the server.
+  fw-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version-string.outputs.version }}
+      commit: ${{ steps.version-string.outputs.commit }}
+      commit_time: ${{ steps.version-string.outputs.commit_time }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git describe needs history and tags
+
+      - name: Determine version string
+        id: version-string
+        run: |
+          # Get the SHA of the actual commit (not the fake merge commit) on PR-triggered runs
+          # (refer to https://stackoverflow.com/a/68068674/23202949):
+          if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+            ACTUAL_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            # Note: we want to have a SHA to check out even in merge queues, so we always fall back
+            # to a SHA even if it's a fictional SHA detached from any branches:
+            ACTUAL_SHA="${{ github.sha }}"
+          fi
+
+          TAG="$(git describe --tags --exact-match --match "v*" "$ACTUAL_SHA" 2>/dev/null || printf "")"
+          # --always: fall back to the bare SHA when no v* tag is reachable (e.g. forks)
+          VERSION="$(git describe --tags --match "v*" --abbrev=7 --always "$ACTUAL_SHA")"
+          # format-local (not format) so TZ=UTC applies; plain format: would use the author's timezone
+          TIMESTAMP="$(TZ=UTC git show -s --format=%ad --date=format-local:'t%Y%m%d%H%M%S' "$ACTUAL_SHA")"
+
+          if [[ "$VERSION" != "$TAG" ]]; then
+            VERSION="$VERSION-$TIMESTAMP"
+            if [[ -n "${{ github.event.pull_request.head.sha }}" ]]; then
+              # We're in a pull request
+              VERSION="$VERSION-pr${{ github.event.pull_request.number }}"
+            fi
+          fi
+
+          echo "version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$ACTUAL_SHA" >> $GITHUB_OUTPUT
+          echo "commit_time=$(TZ=UTC git show -s --format=%ad --date=format-local:'%Y-%m-%dT%H:%M:%SZ' "$ACTUAL_SHA")" >> $GITHUB_OUTPUT
+
   build-fw-images:
     runs-on: ubuntu-latest
+    needs: fw-version
+    env:
+      UC2_FW_VERSION: ${{ needs.fw-version.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -236,6 +286,7 @@ jobs:
             gha-runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.gha-runner }}
     needs:
+      - fw-version
       - build-fw-images
     steps:
       - uses: actions/checkout@v4
@@ -246,6 +297,17 @@ jobs:
           path: build/fw-images
           pattern: firmware-images-*
           merge-multiple: true
+
+      # Served by Caddy at <server>/firmware/version.json (Dockerfile copies
+      # build/fw-images to /srv). Read by ImSwitch's UC2ConfigController.
+      - name: Write version.json
+        run: |
+          python3 tools/write_fw_manifest.py build/fw-images \
+            --version "${{ needs.fw-version.outputs.version }}" \
+            --commit "${{ needs.fw-version.outputs.commit }}" \
+            --commit-time "${{ needs.fw-version.outputs.commit_time }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          cat build/fw-images/version.json
 
       # Work around a bug where capital letters in the GitHub username (e.g. "PlanktoScope") make it
       # impossible to push to GHCR. See https://github.com/macbre/push-to-ghcr/issues/12

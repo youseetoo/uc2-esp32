@@ -1,5 +1,6 @@
 #include <PinConfig.h>
 #include "State.h"
+#include "uc2_fw_version.h"
 #include "esp_log.h"
 #include "../config/ConfigController.h"
 #include "../config/RuntimeConfig.h"
@@ -173,7 +174,7 @@ namespace State
 		// {"task":"/state_get", "power":1}  // CAN-bus power state (1=ON)
 		// {"task":"/state_get", "estop":1}  // E-stop polarity + raw level + active
 		// {"task":"/state_get", "pindef":1}  // pin definition name from PinConfig struct
-		// This returns: {"identifier_name":UC2_Feather, "identifier_id":V2.0, "identifier_date":__DATE__ __TIME__, "identifier_author":BD, "IDENTIFIER_NAME":uc2-esp, "configIsSet":0, "pindef":UC2}
+		// This returns: {"identifier_name":UC2_Feather, "identifier_id":V2.0, "identifier_date":__DATE__ __TIME__, "identifier_version":UC2_FW_VERSION, "identifier_author":BD, "IDENTIFIER_NAME":uc2-esp, "configIsSet":0, "pindef":UC2}
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *st = cJSON_CreateObject();
 		cJSON_AddItemToObject(doc, "state", st);
@@ -213,6 +214,7 @@ namespace State
 			cJSON_AddItemToObject(st, "identifier_name", cJSON_CreateString(identifier_name));
 			cJSON_AddItemToObject(st, "identifier_id", cJSON_CreateString(identifier_id));
 			cJSON_AddItemToObject(st, "identifier_date", cJSON_CreateString(identifier_date));
+			cJSON_AddItemToObject(st, "identifier_version", cJSON_CreateString(UC2_FW_VERSION));
 			cJSON_AddItemToObject(st, "identifier_author", cJSON_CreateString(identifier_author));
 			cJSON_AddItemToObject(st, "IDENTIFIER_NAME", cJSON_CreateString(IDENTIFIER_NAME));
 			cJSON_AddItemToObject(st, "configIsSet", cJSON_CreateNumber(config_set));

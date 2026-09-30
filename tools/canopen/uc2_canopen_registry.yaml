@@ -1091,8 +1091,9 @@ modules:
         name: firmware_version_string
         type: STRING
         access: ro
-        max_length: 32
+        max_length: 64
         default: "v0.0.0"
+        description: "Release identity UC2_FW_VERSION (git describe + commit time, see tools/fw_version.py). Matches version.json on the firmware server. Reported by bus scan as fwVersion."
         sdo_only: true
 
       - index: 0x2501

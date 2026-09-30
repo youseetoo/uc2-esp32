@@ -78,18 +78,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        prefix:
-          # - UC2_2
-          - UC2_3
-          # - UC2_4
-          # - UC2_WEMOS
-          - seeed_xiao_esp32s3
-          - UC2_canopen
-          # - seeed_xiao_esp32c3
-          # - waveshare
-          # - esp32
-          # - m5stack
-          # - uc2lasercover
+        # envs: regex over the env names in platformio.ini; skip: regex of envs
+        # to leave to another job. release_only builds the *_release variants,
+        # otherwise the plain env (no _debug/_default/_Xiao/_release suffix).
+        include:
+          - {name: UC2_3,              envs: '^UC2_3',               skip: '', release_only: false}
+          - {name: seeed_xiao_esp32s3, envs: '^seeed_xiao_esp32s3', skip: '', release_only: false}
+          # CANopen was one job of 14 sequential builds (the motor slave once
+          # per axis); three jobs run them in parallel. New CANopen envs land
+          # in one of them automatically.
+          - {name: UC2_canopen_motor,  envs: '^UC2_canopen_slave_motor_', skip: '',                          release_only: true}
+          - {name: UC2_canopen_slaves, envs: '^UC2_canopen_slave_',       skip: '^UC2_canopen_slave_motor_', release_only: true}
+          - {name: UC2_canopen_master, envs: '^UC2_canopen_',             skip: '^UC2_canopen_slave_',       release_only: true}
+          # Not built (add an entry with envs: '^<prefix>' to enable):
+          # UC2_2, UC2_4, UC2_WEMOS, seeed_xiao_esp32c3, waveshare, esp32, m5stack, uc2lasercover
 
     steps:
       - name: Checkout repository
@@ -97,13 +99,43 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache dependencies
+      # Toolchains, ESP-IDF and the Arduino core (~2 GB per chip family):
+      # restored instead of downloaded / git-cloned every run. One cache for
+      # all jobs; each job installs both chip families' packages (next steps),
+      # so whichever job saves first saves the complete set.
+      - name: Cache PlatformIO packages
         uses: actions/cache@v4
         with:
           path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
             ~/.cache/pip
-            ~/.platformio/.cache
-          key: ${{ runner.os }}-pio
+          key: pio-packages-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-packages-${{ runner.os }}-
+
+      # PlatformIO's object cache (platformio.ini: build_cache_dir =
+      # ~/.pio/build_cache). Every env compiles all of ESP-IDF + Arduino from
+      # source; with a warm cache those objects are copied instead (locally a
+      # clean env build dropped from ~115 s to ~25 s). A new cache is saved
+      # whenever the sources change; the newest one for this job is restored.
+      - name: Cache PlatformIO build objects
+        uses: actions/cache@v4
+        with:
+          path: ~/.pio/build_cache
+          key: pio-build-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('platformio.ini', 'sdkconfig.*', 'CMakeLists.txt', 'main/**', 'lib/**', 'include/**') }}
+          restore-keys: pio-build-${{ runner.os }}-${{ matrix.name }}-
+
+      # PlatformIO never prunes the object cache, and every commit adds
+      # objects. Start over when it gets big (one slow run, then warm again)
+      # so the saved caches stay well inside GitHub's 10 GB per repository.
+      - name: Limit build cache size
+        run: |
+          size_mb=$(du -sm ~/.pio/build_cache 2>/dev/null | cut -f1 || echo 0)
+          echo "build cache: ${size_mb:-0} MB"
+          if [ "${size_mb:-0}" -gt 3000 ]; then
+            echo "over 3000 MB - clearing"
+            rm -rf ~/.pio/build_cache
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -114,18 +146,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install platformio esptool
+          # Both chip families (ESP32: UC2_3, ESP32-S3: CAN slaves), so the
+          # shared package cache is complete whichever job saves it.
+          pio pkg install -e UC2_3 -e UC2_canopen_slave_motor_release
 
       - name: Extract environment list
         id: get_envs
         run: |
           set -eux
-          envs="$(pio project config | grep 'env:' | cut -d ':' -f 2 | sort -u)"
-          if [[ "${{ matrix.prefix }}" == "UC2_canopen" ]]; then
-            # For CANopen: keep only _release variants
-            envs="$(grep -e '_release$' <<<$envs | grep '^${{ matrix.prefix }}')"
+          envs="$(pio project config | grep 'env:' | cut -d ':' -f 2 | sort -u | grep -E '${{ matrix.envs }}')"
+          if [[ -n "${{ matrix.skip }}" ]]; then
+            envs="$(grep -v -E '${{ matrix.skip }}' <<<"$envs")"
+          fi
+          if [[ "${{ matrix.release_only }}" == "true" ]]; then
+            envs="$(grep -e '_release$' <<<"$envs")"
           else
-            # For others: keep base names (exclude _debug, _default, _Xiao, _release)
-            envs="$(grep -v -e '_debug$' -e '_default$' -e '_Xiao$' -e '_release$' <<<$envs | grep '^${{ matrix.prefix }}')"
+            envs="$(grep -v -e '_debug$' -e '_default$' -e '_Xiao$' -e '_release$' <<<"$envs")"
           fi
           echo "Environments:"
           echo "$envs"
@@ -271,7 +307,7 @@ jobs:
       - name: Upload all merged binaries as artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-images-${{ matrix.prefix }}
+          name: firmware-images-${{ matrix.name }}
           path: build/fw-images/
 
   build-server-ctr-image:

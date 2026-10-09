@@ -1,0 +1,22 @@
+#
+# Target overlay: ESP32 (classic).  (T1.1)
+#
+# IDF auto-picks this file when IDF_TARGET=esp32 and merges it AFTER the root
+# sdkconfig.defaults (so it can override target-specific values). Deliberate
+# settings for this target only. Per-BOARD specifics (a rare non-default flash
+# chip, etc.) go in apps/<app>/sdkconfig.defaults (T1.5+).
+#
+
+# Flash frequency: 40 MHz — matches the PIO release builds and the merge_bin
+# recipe (dio/40m/4MB).
+CONFIG_ESPTOOLPY_FLASHFREQ="40m"
+# Flash mode: DIO — matches the PIO esp32 envs (board_build.flash_mode = dio)
+# and the current resolved sdkconfig.
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+# Flash size: 4 MB. The custom partition table below (factory 2 MB +
+# storage 1 MB + nvs/phy) requires a 4 MB chip.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+# Partition table: the project's own esp32 layout (nvs/phy_init/factory/storage),
+# not the IDF single-app default. Path is relative to the project root.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="custom_partition.csv"

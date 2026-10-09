@@ -48,10 +48,10 @@ executor agent.
 - [x] **T0.2** [T0.2.md](steps/T0.2.md) — Branch `port/idf-c` off `main_espidf`; reference PIO build green · 15 min · ← T0.1
 - [x] **T0.3** [T0.3.md](steps/T0.3.md) — PIO size baselines for all 17 CI envs → `DOCS/baselines.md` · 2 h · ← T0.2
 - [ ] **T0.4** [T0.4.md](steps/T0.4.md) — `[HW]` serial JSON + CANopen trace baselines → `DOCS/baselines/` · 4 h · ← T0.2
-- [ ] **T0.5** [T0.5.md](steps/T0.5.md) — *(D5)* Adopt 168-test Unity suite from `main_pioclean_mocks_tests` as host tests · 1–2 d · ← T0.2
+- [x] **T0.5** [T0.5.md](steps/T0.5.md) — *(D5)* Adopt 168-test Unity suite from `main_pioclean_mocks_tests` as host tests · 1–2 d · ← T0.2 — **done 2026-10-08 (2bd1283, 8a79a6b): 154/0/5 on MSVC**
 
 ### Phase 1 — IDF skeleton + first app (2–4 d)
-- [ ] **T1.1** [T1.1.md](steps/T1.1.md) — *(D1)* Distilled `sdkconfig.defaults` + target overlays · 0.5 d · ← T0.1, T0.2
+- [x] **T1.1** [T1.1.md](steps/T1.1.md) — *(D1)* Distilled `sdkconfig.defaults` + target overlays · 0.5 d · ← T0.1, T0.2 — **done 2026-10-08: root 4.6 KB + esp32/s3 overlays, all option names verified vs IDF 6.1**
 - [ ] **T1.2** [T1.2.md](steps/T1.2.md) — Move the 5 already-C components verbatim + wire top-level CMake · 0.5 d · ← T1.1
 - [ ] **T1.3** [T1.3.md](steps/T1.3.md) — Build `uc2_hal` shim v1 (Arduino→IDF) · 1–2 d · ← T1.1
 - [ ] **T1.4** [T1.4.md](steps/T1.4.md) — Feature Kconfig symbol set + `uc2_app` glue + source-gating pattern · 0.5 d · ← T1.3

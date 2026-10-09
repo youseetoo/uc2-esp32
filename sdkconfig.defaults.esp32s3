@@ -1,0 +1,26 @@
+#
+# Target overlay: ESP32-S3.  (T1.1)
+#
+# IDF auto-picks this file when IDF_TARGET=esp32s3 and merges it AFTER the root
+# sdkconfig.defaults (so it can override target-specific values). Deliberate
+# settings for this target only. Per-BOARD specifics (the 7" OPI-PSRAM/8 MB
+# variant, BT stack, USB console) go in apps/<app>/sdkconfig.defaults (T1.5+).
+#
+
+# Flash frequency: 40 MHz — parity with the esp32 overlay and the merge recipe.
+CONFIG_ESPTOOLPY_FLASHFREQ="40m"
+# Flash mode: QIO — matches the PIO esp32s3 envs (board_build.flash_mode = qio).
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+# Flash size: 4 MB. custom_partition_esp32s3.csv uses exactly 4 MB (two 1.25 MB
+# OTA app slots + spiffs); a smaller chip would not fit the table.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+# Partition table: the project's S3 layout (nvs/otadata/app0/app1/eeprom/spiffs),
+# OTA-enabled. Path is relative to the project root.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="custom_partition_esp32s3.csv"
+#
+# USB-Serial-JTAG console: deliberately NOT set here — it is app-specific, not
+# target-wide. An S3 app that uses the USB CDC console (the equivalent of
+# ARDUINO_USB_CDC_ON_BOOT=1) sets CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y in its own
+# apps/<app>/sdkconfig.defaults (see refs/env-app-mapping.md §3).
+#

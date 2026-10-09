@@ -46,7 +46,7 @@ executor agent.
 ### Phase 0 — Baseline & decisions (1–2 d)
 - [x] **T0.1** [T0.1.md](steps/T0.1.md) — Resolve decisions D1–D7 with the user · 1 h · *(D1–D7)* — **done 2026-10-08: all 7 = plan recommendations**
 - [x] **T0.2** [T0.2.md](steps/T0.2.md) — Branch `port/idf-c` off `main_espidf`; reference PIO build green · 15 min · ← T0.1
-- [ ] **T0.3** [T0.3.md](steps/T0.3.md) — PIO size baselines for all 17 CI envs → `DOCS/baselines.md` · 2 h · ← T0.2
+- [x] **T0.3** [T0.3.md](steps/T0.3.md) — PIO size baselines for all 17 CI envs → `DOCS/baselines.md` · 2 h · ← T0.2
 - [ ] **T0.4** [T0.4.md](steps/T0.4.md) — `[HW]` serial JSON + CANopen trace baselines → `DOCS/baselines/` · 4 h · ← T0.2
 - [ ] **T0.5** [T0.5.md](steps/T0.5.md) — *(D5)* Adopt 168-test Unity suite from `main_pioclean_mocks_tests` as host tests · 1–2 d · ← T0.2
 

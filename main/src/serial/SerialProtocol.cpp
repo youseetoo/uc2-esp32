@@ -54,8 +54,17 @@ bool SerialProtocol::getMessageInfo(const uint8_t* data, size_t len,
     // Legacy format - find end delimiter
     if (len >= LEGACY_START_LEN && 
         memcmp(data, LEGACY_START, LEGACY_START_LEN) == 0) {
-        // Search for end delimiter
-        for (size_t i = LEGACY_START_LEN; i < len - LEGACY_END_LEN; i++) {
+        // A complete legacy frame is at least "++\n" + "\n--\n"; anything
+        // shorter cannot contain the end delimiter (and `len - LEGACY_END_LEN`
+        // would underflow the size_t search bound below).
+        if (len < LEGACY_START_LEN + LEGACY_END_LEN) {
+            return false;  // Incomplete legacy message
+        }
+        // Search for the end delimiter. It may start anywhere from
+        // LEGACY_START_LEN up to AND INCLUDING len - LEGACY_END_LEN (a well-
+        // formed frame has the delimiter exactly at the buffer end), so the
+        // bound is inclusive.
+        for (size_t i = LEGACY_START_LEN; i <= len - LEGACY_END_LEN; i++) {
             if (memcmp(data + i, LEGACY_END, LEGACY_END_LEN) == 0) {
                 payloadLen = i - LEGACY_START_LEN;
                 return true;
@@ -208,10 +217,15 @@ cJSON* SerialProtocol::decodeLegacy(const uint8_t* data, size_t len)
     // Find end delimiter
     const uint8_t* end = nullptr;
     size_t remaining = len - (start - data) - LEGACY_START_LEN;
-    for (size_t i = 0; i < remaining - LEGACY_END_LEN; i++) {
-        if (memcmp(start + LEGACY_START_LEN + i, LEGACY_END, LEGACY_END_LEN) == 0) {
-            end = start + LEGACY_START_LEN + i;
-            break;
+    // The end delimiter must fit entirely in `remaining` bytes. A well-formed
+    // frame has it exactly at the buffer end, so the search bound is inclusive
+    // (and the guard keeps `remaining - LEGACY_END_LEN` from underflowing).
+    if (remaining >= LEGACY_END_LEN) {
+        for (size_t i = 0; i <= remaining - LEGACY_END_LEN; i++) {
+            if (memcmp(start + LEGACY_START_LEN + i, LEGACY_END, LEGACY_END_LEN) == 0) {
+                end = start + LEGACY_START_LEN + i;
+                break;
+            }
         }
     }
     

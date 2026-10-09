@@ -1,7 +1,7 @@
 #ifdef UNIT_TEST
 
 #include <unity.h>
-#include <cjson/cJSON.h>
+#include <cJSON.h>
 
 // Mock types for testing - simplified versions
 struct StagePosition
@@ -146,31 +146,6 @@ void test_grid_mode_fallback()
     TEST_ASSERT_NULL(testData.coordinates);
     
     cJSON_Delete(doc);
-}
-
-void setUp(void) {
-    // Set up test data
-    testData.useCoordinates = false;
-    testData.coordinates = nullptr;
-    testData.coordinateCount = 0;
-}
-
-void tearDown(void) {
-    // Clean up test data
-    if (testData.coordinates)
-    {
-        delete[] testData.coordinates;
-        testData.coordinates = nullptr;
-    }
-}
-
-int main(int argc, char **argv) {
-    UNITY_BEGIN();
-    
-    RUN_TEST(test_coordinate_parsing);
-    RUN_TEST(test_grid_mode_fallback);
-    
-    return UNITY_END();
 }
 
 #endif

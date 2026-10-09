@@ -98,6 +98,14 @@ private:
     static void buildHeader(uint8_t* header, MessageFormat format, uint16_t payloadLen);
     static bool parseHeader(const uint8_t* header, MessageFormat& format, uint16_t& payloadLen);
     
+#ifdef UNIT_TEST
+public:
+    // Expose private helpers for unit tests
+    static void buildHeaderTest(uint8_t* header, MessageFormat format, uint16_t payloadLen) {
+        buildHeader(header, format, payloadLen);
+    }
+#endif
+    
     // MessagePack to cJSON conversion helpers
     #ifdef HAS_MPACK
     static cJSON* mpackNodeToJson(mpack_node_t node);

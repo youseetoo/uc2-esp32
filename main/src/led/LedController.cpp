@@ -132,7 +132,9 @@ namespace LedController
 
 		if (matrix->begin() != 0)
 		{
+#ifndef UNIT_TEST
 			Serial.println("Protomatter init failed");
+#endif
 			while (1)
 				delay(10);
 		}
@@ -177,7 +179,9 @@ namespace LedController
 
 #ifdef WAVESHARE_ESP32S3_LEDARRAY
 		// This will enable the masterboard to take over control of the LED array, too (alongside the firmware)
+#ifndef UNIT_TEST
 		Serial.println("WAVESHARE_ESP32S3_LEDARRAY");
+#endif
 		pinMode(14, OUTPUT);
 		pinMode(6, INPUT);
 		gpio_matrix_in(6, SIG_IN_FUNC212_IDX, false);
@@ -1192,9 +1196,11 @@ namespace LedController
 				highIntensityWarningShown = true;
 				log_w("WARNING: LED total intensity %d has been high for %lu ms. Auto-off in %lu ms to prevent overheating!",
 					  currentTotalIntensity, elapsedTime, pinConfig.LED_AUTO_OFF_TIME_MS - elapsedTime);
+#ifndef UNIT_TEST
 				Serial.println("+|");
 				Serial.println("{\"led\":{\"warning\":\"High intensity detected - hardware can overheat and be destroyed!\"}}");
 				Serial.println("--");
+#endif
 			}
 
 			// Auto-off when time limit exceeded
@@ -1208,9 +1214,11 @@ namespace LedController
 				turnOff();
 
 				// Send warning message to user
+#ifndef UNIT_TEST
 				Serial.println("++");
 				Serial.println("{\"led\":{\"error\":\"AUTO-OFF: LEDs too hot! Hardware protection activated. Reduce intensity or wait before restarting.\"}}");
 				Serial.println("--");
+#endif
 
 				// Reset tracking (user must send new command to restart)
 				highIntensityStartTime = 0;

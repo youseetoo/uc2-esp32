@@ -70,15 +70,21 @@ namespace FocusMotor
 	// is not placed in IRAM and fires while the SPI flash cache is disabled.
 	bool _setupComplete = false;
 
+	// Forward declaration: setup_data() is defined below, but getData() must be
+	// able to call it so it can lazily initialize the data array.
+	void setup_data();
+
 	MotorData **getData()
 	{
-		if (data != nullptr)
-			return data;
-		else
-		{
-			MotorData *mData[MOTOR_AXIS_COUNT];
-			return mData;
-		}
+		// `data` is an array (never a null pointer), so the old `data != nullptr`
+		// check was always true and the else branch returned a dangling pointer to
+		// a local array. Detect the real "uninitialized" state (first slot still
+		// null) and populate the array with the static MotorData objects on demand.
+		// This also makes getData() safe to call before the full setup() runs
+		// (e.g. in the host unit-test suite, where setup() is never invoked).
+		if (data[Stepper::A] == nullptr)
+			setup_data();
+		return data;
 	}
 
 	void setData(int axis, MotorData *mData)

@@ -46,6 +46,11 @@ private:
     static constexpr uint8_t MAX_ROUTES = 64;
     static RouteEntry table[MAX_ROUTES];
     static uint8_t    count;
+    
+public:
+    // Expose for unit tests
+    static uint8_t getCount() { return count; }
+    static constexpr uint8_t getMaxRoutes() { return MAX_ROUTES; }
 };
 
 } // namespace UC2

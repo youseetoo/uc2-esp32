@@ -1,6 +1,7 @@
 # UC2-ESP Makefile — convenience targets
 #
 # Usage:
+#   make test             Run the full host regression suite (native + unity)
 #   make canopen-regen    Re-generate all CANopen artifacts from the registry
 #   make canopen-check    Run the generator and verify no files changed (CI-style)
 
@@ -8,7 +9,7 @@ PYTHON ?= python3
 REGISTRY = tools/canopen/uc2_canopen_registry.yaml
 GENERATOR = tools/canopen/regenerate_all.py
 
-.PHONY: canopen-regen canopen-check
+.PHONY: canopen-regen canopen-check test
 
 canopen-regen: ## Regenerate all CANopen artifacts from uc2_canopen_registry.yaml
 	$(PYTHON) $(GENERATOR)
@@ -21,6 +22,10 @@ canopen-check: ## Regenerate and fail if any generated file differs (drift check
 		echo "Run 'make canopen-regen' and commit the results."; \
 		exit 1; \
 	}
+
+test: ## Run the full host regression suite (native + unity) — T0.5 PR gate
+	sh test/native/run.sh
+	bash test/unity/run.sh
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | \

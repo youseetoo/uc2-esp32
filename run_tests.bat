@@ -1,0 +1,6 @@
+@echo off
+echo Cleaning previous build...
+rmdir /s /q .pio\build\test 2>nul
+echo Running PlatformIO tests...
+python -m platformio test -e test
+pause

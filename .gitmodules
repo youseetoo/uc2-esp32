@@ -1,4 +1,4 @@
-[submodule "main/cJSON"]
-	path = main/cJSON
-	url = https://github.com/DaveGamble/cJSON.git
-	branch = master
+[submodule "components/cjson"]
+	path = components/cjson
+	url = https://github.com/youseetoo/cJSON.git
+	branch = esp-idf

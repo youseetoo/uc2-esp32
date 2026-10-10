@@ -1,0 +1,3 @@
+# idf.py build output for the T1.2 scratch app
+build/
+sdkconfig

@@ -51,8 +51,6 @@ set(mainsrc ${CMAKE_SOURCE_DIR}/main/)
 #FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/main/)
 set(srcs    ${mainsrc}main.cpp
             ${mainsrc}JsonKeys.h
-            ${mainsrc}cJSON/cJSON.h
-            ${mainsrc}cJSON/cJSON_Utils.h
             ${mainsrc}src/serial/SerialProcess.cpp
             ${mainsrc}src/qid/QidRegistry.cpp
             ${mainsrc}src/state/State.cpp
@@ -203,5 +201,5 @@ endif()
 #idf_component_register(SRCS ${srcs})
 idf_component_register(
     SRCS ${srcs}
-    REQUIRES driver  # or driver_pcnt ?
+    REQUIRES driver cjson  # cjson moved to components/cjson (T1.2)
 )

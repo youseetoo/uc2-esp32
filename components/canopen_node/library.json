@@ -16,7 +16,7 @@
   "platforms": "*",
   "headers": "CANopen.h",
   "build": {
-    "srcDir": "src",
+    "srcDir": ".",
     "srcFilter": [
       "+<*>",
       "-<OD.c>"

@@ -52,7 +52,7 @@ executor agent.
 
 ### Phase 1 — IDF skeleton + first app (2–4 d)
 - [x] **T1.1** [T1.1.md](steps/T1.1.md) — *(D1)* Distilled `sdkconfig.defaults` + target overlays · 0.5 d · ← T0.1, T0.2 — **done 2026-10-08: root 4.6 KB + esp32/s3 overlays, all option names verified vs IDF 6.1**
-- [ ] **T1.2** [T1.2.md](steps/T1.2.md) — Move the 5 already-C components verbatim + wire top-level CMake · 0.5 d · ← T1.1
+- [x] **T1.2** [T1.2.md](steps/T1.2.md) — Move the 5 already-C components verbatim + wire top-level CMake · 0.5 d · ← T1.1 — **done 2026-10-10: 5 components moved verbatim (+ per-comp CMakeLists, cjson submodule repointed); scratch_t12 links all five clean under idf.py (esp32s3); PIO reference green, Δ −0.002 %**
 - [ ] **T1.3** [T1.3.md](steps/T1.3.md) — Build `uc2_hal` shim v1 (Arduino→IDF) · 1–2 d · ← T1.1
 - [ ] **T1.4** [T1.4.md](steps/T1.4.md) — Feature Kconfig symbol set + `uc2_app` glue + source-gating pattern · 0.5 d · ← T1.3
 - [ ] **T1.5** [T1.5.md](steps/T1.5.md) — *(D3, D7)* App #1 scaffold: `apps/canopen_slave_laser` + `boards/` PinConfig · 0.5 d · ← T1.4

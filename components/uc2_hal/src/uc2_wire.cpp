@@ -59,11 +59,11 @@ bool Wire_::begin(uint8_t slave_addr, int sda, int scl, int freq_hz)
         ESP_LOGE(TAG, "i2c_new_slave_device failed: %s", esp_err_to_name(err));
         return false;
     }
+    // IDF 6.1: i2c_slave_event_callbacks_t = { on_request, on_receive }
+    // (both unconditional; on_request fires when the master reads from us).
     i2c_slave_event_callbacks_t cbs = {};
     cbs.on_receive = onSlaveReceive;
-#if SOC_I2C_SLAVE_CAN_GET_STRETCH_CAUSE
     cbs.on_request = onSlaveRequest;
-#endif
     i2c_slave_register_event_callbacks(slave_, &cbs, this);
     ESP_LOGI(TAG, "I2C slave addr=0x%02X on sda=%d scl=%d @ %u Hz", slave_addr, sda, scl,
           (unsigned)freq_hz);

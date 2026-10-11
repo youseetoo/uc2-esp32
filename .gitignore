@@ -2,3 +2,5 @@
 /.pio/libdeps/*
 /build/*
 /build-idf61/*
+/.vscode/
+/test/native/out_xcross/

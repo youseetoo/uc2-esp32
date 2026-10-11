@@ -1,13 +1,20 @@
 #include "BuzzerController.h"
-#include <Arduino.h>
 #include <string.h>
+
+// T1.3: direct IDF 6.1 (no Arduino):
+#include "driver/ledc.h"          // LEDC v2 (esp_driver_ledc)
+#include "uc2_hal/uc2_log.h"      // log_* -> ESP_LOG*
+#include "uc2_hal/uc2_time.h"     // millis -> esp_timer
 
 namespace BuzzerController
 {
     static const char *TAG = "BuzzerController";
 
-    static const uint8_t LEDC_CHANNEL = 7;       // dedicated channel for the buzzer
-    static const uint8_t LEDC_RES_BITS = 8;       // 8-bit resolution -> duty 0..255
+    // Arduino ch 7 == IDF LEDC v2 LEDC_CHANNEL_7 = timer 3, slot 1 (same HW).
+    // 8-bit duty resolution -> duty 0..255; 50% = 128.
+    static const ledc_timer_t   LEDC_TIMER = LEDC_TIMER_3;
+    static const ledc_channel_t LEDC_CHANNEL = LEDC_CHANNEL_7;
+    static const uint32_t       LEDC_DUTY_50 = 128;
 
     static bool initialized = false;
     static bool toneActive = false;
@@ -24,7 +31,7 @@ namespace BuzzerController
     static void hwOff()
     {
         if (!initialized) return;
-        ledcWrite(LEDC_CHANNEL, 0);
+        ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, 0, LEDC_CHANNEL);
         toneActive = false;
 
     }
@@ -37,9 +44,8 @@ namespace BuzzerController
             return;
         }
         log_i("hwTone: freq=%d Hz", freq);
-        // Use channel-based API (Arduino 2.0.x / ESP-IDF): ledcWriteTone takes a channel, not a pin.
-        ledcWriteTone(LEDC_CHANNEL, freq);
-        ledcWrite(LEDC_CHANNEL, 1 << (LEDC_RES_BITS - 1)); // 50% duty
+        ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER, freq);
+        ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, LEDC_DUTY_50, LEDC_CHANNEL);
         toneActive = true;
     }
 
@@ -50,13 +56,29 @@ namespace BuzzerController
             log_i("BuzzerController: BUZZER_PIN disabled");
             return;
         }
-        // https://docs.sunfounder.com/projects/esp32-starter-kit/de/latest/arduino/basic_projects/ar_pa_buz.html
-        //ledcAttach(pinConfig.BUZZER_PIN, 2000, 8); // Set up the PWM pin
-        
-        ledcSetup(LEDC_CHANNEL, 2000, LEDC_RES_BITS);
-        ledcAttachPin(pinConfig.BUZZER_PIN, LEDC_CHANNEL);
-        ledcWrite(LEDC_CHANNEL, 0);
-        
+        // Direct IDF LEDC v2 (was ledcSetup(7, 2000, 8) + ledcAttachPin(pin, 7)).
+        ledc_timer_config_t tc = {};
+        tc.speed_mode      = LEDC_LOW_SPEED_MODE;
+        tc.duty_resolution = LEDC_TIMER_8_BIT;
+        tc.timer_num       = LEDC_TIMER;
+        tc.freq_hz         = 2000;
+        if (ledc_timer_config(&tc) != ESP_OK)
+        {
+            log_e("BuzzerController: ledc_timer_config failed");
+            return;
+        }
+        ledc_channel_config_t cc = {};
+        cc.gpio_num   = pinConfig.BUZZER_PIN;
+        cc.speed_mode = LEDC_LOW_SPEED_MODE;
+        cc.channel    = LEDC_CHANNEL;
+        cc.timer_sel  = LEDC_TIMER;
+        cc.duty       = 0;
+        if (ledc_channel_config(&cc) != ESP_OK)
+        {
+            log_e("BuzzerController: ledc_channel_config failed");
+            return;
+        }
+
         initialized = true;
         log_i("BuzzerController setup on pin %d, channel %d", pinConfig.BUZZER_PIN, LEDC_CHANNEL);
 

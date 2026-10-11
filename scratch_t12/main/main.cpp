@@ -11,6 +11,15 @@
 #include "usb/usb_host.h"      // usb_host (vendored IDF 5.5.1 driver)
 #include "DAC_Module.h"        // dac_module (C++)
 
+// T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
+#include "BuzzerController.h"
+#include "uc2_hal/uc2_esp.h"
+#include "uc2_hal/uc2_log.h"
+#include "uc2_hal/uc2_string.h"
+#include "uc2_hal/uc2_time.h"
+
+static const char *TAG = "t13scratch";
+
 extern "C" {
 
 // Reference one symbol per C component to force link-in:
@@ -37,7 +46,26 @@ void app_main(void)
     (void)&DAC_Module::Setup;
     std::printf("T1.3 scratch: dac_module linked OK\n");
 
-    std::printf("T1.3 scratch: all six components linked OK (no Arduino, no shim)\n");
+    // uc2_hal: exercise every façade wrapper (compile + runtime smoke)
+    const uint32_t t0 = millis();
+    delay(2);
+    uc2::String mac = uc2::String(static_cast<unsigned char>(0x05), HEX) + "-" + "lit";
+    uc2::String num = "42";
+    log_i("T1.3 scratch: uc2_hal ok (ms_delta=%lu str=%s len=%u toInt=%d)",
+          (unsigned long)(millis() - t0), mac.c_str(),
+          (unsigned)mac.length(), num.toInt());
+    std::printf("T1.3 scratch: ESP façade heap=%u cycles=%u\n",
+                ESP.getFreeHeap(), ESP.getCycleCount());
+
+    // BuzzerController — first module converted to direct IDF (T1.3 action 2)
+    BuzzerController::setup();
+    BuzzerController::loop();
+    cJSON *broot = cJSON_Parse("{\"qid\":7,\"buzzer\":{\"beeps\":2,\"freq\":1000,\"duration\":50,\"gap\":20}}");
+    const int bq = BuzzerController::act(broot);
+    std::printf("T1.3 scratch: BuzzerController act qid=%d\n", bq);
+    cJSON_Delete(broot);
+
+    std::printf("T1.3 scratch: components + uc2_hal + BuzzerController OK (no Arduino, no shim)\n");
 }
 
 } // extern "C"

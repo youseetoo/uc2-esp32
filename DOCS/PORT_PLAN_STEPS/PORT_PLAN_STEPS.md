@@ -40,7 +40,7 @@
 
 | Ref | Title | File |
 |-----|-------|------|
-| hal-shim | Arduino → IDF API mapping | [refs/hal-shim.md](refs/hal-shim.md) |
+| arduino-idf-mapping | Arduino → IDF API mapping | [refs/arduino-idf-mapping.md](refs/arduino-idf-mapping.md) |
 | component-layout | Target component layout | [refs/component-layout.md](refs/component-layout.md) |
 | env-app-mapping | PIO env → IDF app mapping | [refs/env-app-mapping.md](refs/env-app-mapping.md) |
 | ci-cutover | CI cutover mechanics | [refs/ci-cutover.md](refs/ci-cutover.md) |

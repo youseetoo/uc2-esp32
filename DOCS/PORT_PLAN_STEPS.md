@@ -29,9 +29,10 @@ executor agent.
    flash/RAM (`DOCS/baselines.md`, T0.3). A breach is a stop-the-line event.
 6. **`[HW]`** = needs a physical board; queue it to the user, never skip its acceptance.
 7. **Reference docs**: `refs/env-app-mapping.md` (all 21 env→app tables + Kconfig mechanics),
-   `refs/component-layout.md` (full tree, app skeleton, source gating), `refs/hal-shim.md`
-   (full Arduino→IDF table + leaf-first port order), `refs/ci-cutover.md` (per-workflow
-   cutover + dual-build gate mechanics), `refs/test-strategy.md`, `refs/risk-rollback.md`.
+    `refs/component-layout.md` (full tree, app skeleton, source gating),
+    `refs/arduino-idf-mapping.md` (Arduino→IDF table + leaf-first port order),
+    `refs/ci-cutover.md` (per-workflow cutover + single-build gate mechanics),
+    `refs/test-strategy.md`, `refs/risk-rollback.md`.
 8. **File-tool discipline**: this repo's docs are edited with file tools only (no shell for
    read/write — PowerShell 5.1 mangles BOM/non-ASCII); shell/PowerShell is allowed for
    builds and `git`.
@@ -48,10 +49,10 @@ executor agent.
 ### Phase 1 — IDF skeleton + first app (2–4 d)
 - [x] **T1.1** [T1.1.md](steps/T1.1.md) — *(D1)* Distilled `sdkconfig.defaults` + target overlays · 0.5 d · ← T0.1, T0.2 — **done 2026-10-08: root 4.6 KB + esp32/s3 overlays, all option names verified vs IDF 6.1**
 - [x] **T1.2** [T1.2.md](steps/T1.2.md) — Move the 5 already-C components verbatim + wire top-level CMake · 0.5 d · ← T1.1 — **done 2026-10-10: 5 components moved verbatim (+ per-comp CMakeLists, cjson submodule repointed); scratch_t12 links all five clean under idf.py (esp32s3); PIO reference green, Δ −0.002 %**
-- [ ] **T1.3** [T1.3.md](steps/T1.3.md) — Build `uc2_hal` shim v1 (Arduino→IDF) · 1–2 d · ← T1.1
+- [ ] **T1.3** [T1.3.md](steps/T1.3.md) — Convert `main/` to direct IDF (no shim; removes T1.2's `uc2_arduino_shim`) · 3–5 d · ← T1.1
 - [ ] **T1.4** [T1.4.md](steps/T1.4.md) — Feature Kconfig symbol set + `uc2_app` glue + source-gating pattern · 0.5 d · ← T1.3
 - [ ] **T1.5** [T1.5.md](steps/T1.5.md) — *(D3, D7)* App #1 scaffold: `apps/canopen_slave_laser` + `boards/` PinConfig · 0.5 d · ← T1.4
-- [ ] **T1.6** [T1.6.md](steps/T1.6.md) — Port the laser app's compile chain onto the shim · 1–2 d · ← T1.5
+- [ ] **T1.6** [T1.6.md](steps/T1.6.md) — Port the laser app to direct IDF (no shim) · 1–2 d · ← T1.5
 - [ ] **T1.7** [T1.7.md](steps/T1.7.md) — *(D1)* Build + flash + `[HW]` laser/CANopen smoke; size ±10 % · 0.5 d + `[HW]` · ← T1.6
 - [ ] **T1.8** [T1.8.md](steps/T1.8.md) — *(D6)* CI `idf-build` job (laser only) alongside PIO matrix · 0.5 d · ← T1.7
 
@@ -94,14 +95,14 @@ executor agent.
 - [ ] **T5.1** [T5.1.md](steps/T5.1.md) — *(D2=(b))* C-ify vendor leaves: accelstepper, onewire_ds18b20, encoder, tca95xx, DAC_Module (upstream/ ref copy per lib; TMC+FAS stay C++ leaves) · 1–2 w · ← T4.8
 - [ ] **T5.2** [T5.2.md](steps/T5.2.md) — *(D2=(b))* **SKIPPED BY DEFAULT** — FAS stays a C++ leaf; execute only on user revisit · 1 w · ← T4.3
 - [ ] **T5.3** [T5.3.md](steps/T5.3.md) — NeoPixel → C RMT LED-strip driver in `uc2_pixel_buf` (WS2812 timing identical) · 2–4 d · ← T4.8
-- [ ] **T5.4** [T5.4.md](steps/T5.4.md) — *(D4=(b))* M5GFX 3 envs stay on PIO; record `DOCS/m5gfx.md` + board status · 0.5 d · ← T4.7
-- [ ] **T5.5** [T5.5.md](steps/T5.5.md) — Final Arduino purge + shim removal + `DOCS/cpp-leaves.md` freeze · 1 d · ← T5.1–T5.4
+- [ ] **T5.4** [T5.4.md](steps/T5.4.md) — *(D4)* M5GFX 3 envs: port to IDF as C++ leaves (no PIO) + `DOCS/m5gfx.md` · 1–2 w · ← T4.7
+- [ ] **T5.5** [T5.5.md](steps/T5.5.md) — Final `Arduino.h` purge + shim-component removal + `DOCS/cpp-leaves.md` freeze · 1 d · ← T5.1–T5.4
 
 ### Phase 6 — CI cutover, legacy removal, final gate (~1–2 w)
 - [ ] **T6.1** [T6.1.md](steps/T6.1.md) — *(D6)* Per-board cutover wave 1: 11 non-BT boards (4-item checklist gate, `refs/ci-cutover.md` §4) · 1–2 d · ← T5.5
 - [ ] **T6.2** [T6.2.md](steps/T6.2.md) — *(D6)* Per-board cutover wave 2: 6 BT boards + whole-rig constellation check · 1–2 d · ← T6.1
 - [ ] **T6.3** [T6.3.md](steps/T6.3.md) — Retire PIO dev matrix (CI single-system); `build-frame.yaml` → IDF list; odmr/registry workflows stay unchanged · 0.5 d · ← T6.2
-- [ ] **T6.4** [T6.4.md](steps/T6.4.md) — `platformio.ini` → `legacy/` (strip non-M5GFX envs if D4=(b)); README IDF-only · 0.5 d · ← T6.3
+- [ ] **T6.4** [T6.4.md](steps/T6.4.md) — `platformio.ini` → `legacy/` (all envs ported — moves wholesale); README IDF-only · 0.5 d · ← T6.3
 - [ ] **T6.5** [T6.5.md](steps/T6.5.md) — *(D6)* Delete `main/` (uniqueness audit first; keep `manifest.json` if still consumed) · 0.5 d · ← T6.4
 - [ ] **T6.6** [T6.6.md](steps/T6.6.md) — *(D2)* Final C++-leaf sweep vs `DOCS/cpp-leaves.md` + repo hygiene · 1 d · ← T6.5
 - [ ] **T6.7** [T6.7.md](steps/T6.7.md) — Phase-6 gate: real release tag + full-rig `[HW]` verification + merge `port/idf-c` → `main` · 0.5 d · ← T6.6
@@ -151,8 +152,8 @@ start immediately.**
 idf.py -D IDF_TARGET=esp32s3 -D PROJECT_DIR=apps/canopen_slave_laser build
 # (each app dir gets a build.sh wrapper doing exactly this — created in T1.5)
 
-# PIO build is no longer required (IDF-only). Use it only for size comparison:
-# pio run -e UC2_canopen_slave_laser_release -t size
+# PIO is not part of the build (IDF-only). Size comparisons use the reference
+# baselines already captured in DOCS/baselines.md (T0.3).
 
 # Host tests:
 make test            # = test/native/run.sh + test/unity/run.sh

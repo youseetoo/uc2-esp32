@@ -1,5 +1,9 @@
 # UC2-ESP32: Port to C + ESP-IDF — Plan (v2, verified against repo 2026-07-24)
 
+> **SUPERSEDED (2026-10):** the active plan is [`PORT_PLAN_STEPS.md`](PORT_PLAN_STEPS.md) —
+> pure ESP-IDF 6.1, **no shim layer** (this doc's `uc2_hal` shim approach was dropped in
+> favor of converting `main/` to direct IDF calls, T1.3) and PIO retired (T6.3–T6.6).
+
 Goal: move the firmware off PlatformIO + Arduino (Arduino-ESP32 2.0.15/2.0.17, i.e. ESP-IDF 4.4.2)
 onto **native ESP-IDF**, and convert the first-party code from **C++ to C**.
 

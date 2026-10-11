@@ -34,8 +34,8 @@ module-by-module (leaf-first order in §3); no shim layer is introduced.
 | `yield()` | `vTaskDelay(1)` (no-op equivalent) | |
 | `setup()`/`loop()` | `uc2_app_start()` in `uc2_app` (loop → FreeRTOS task) | |
 
-Shim unit-test hook: every function is a thin wrapper → the 168-test suite (T0.5) can run
-it on the host with IDF drivers mocked (same mocks the suite already carries for TWAI).
+Unit-test hook: converted functions are thin wrappers → the 168-test suite (T0.5) can run
+them on the host with IDF drivers mocked (same mocks the suite already carries for TWAI).
 
 ## 3. Per-module conversion order (leaf-first, with dependency arrows)
 

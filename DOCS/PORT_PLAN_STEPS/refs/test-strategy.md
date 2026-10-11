@@ -24,7 +24,7 @@ Index: `../PORT_PLAN_STEPS.md`. Owner steps: T0.5, T4.7, T4.8, T6.3.
 |---|---|
 | 0 | `make test` green on clean machine (168 + native); baselines committed |
 | 1 | laser app: `make test` green; `[HW]` T1.7 smoke; idf CI job green on PR |
-| 2 | every T2.x: app builds in both systems; suite green; `[HW]` board smoke; sizes ±10 % |
+| 2 | every T2.x: app builds in IDF (legacy PIO pipeline green until T6.1); suite green; `[HW]` board smoke; sizes ±10 % |
 | 3 | suite green; BT smoke (pairing + trackpad); RAM headroom within baseline band |
 | 4 | C-only gate green; suite green against C code; zero C++ in `uc2_*`; laser+motor+master spot-smokes |
 | 5 | suite green; leaf list final (only D2-chosen components contain C++); LED/motor boards smoke-identical |

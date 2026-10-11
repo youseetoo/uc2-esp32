@@ -189,6 +189,37 @@ int Wire_::requestFrom(uint8_t addr, int qty, bool /*stop*/)
     return n;
 }
 
+int Wire_::writeRead(uint8_t addr, const uint8_t* wr, int wrLen, uint8_t* rd, int rdLen,
+                     uint8_t* errCode)
+{
+    if (errCode) {
+        *errCode = 0;
+    }
+    if (!bus_) {
+        if (errCode) {
+            *errCode = ERR_OTHER;
+        }
+        return -1;
+    }
+    i2c_master_dev_handle_t d = devFor(addr);
+    if (!d) {
+        if (errCode) {
+            *errCode = ERR_OTHER;
+        }
+        return -1;
+    }
+    esp_err_t err = i2c_master_transmit_receive(d, wr, wrLen, rd, rdLen, XFER_TIMEOUT_MS);
+    if (err != ESP_OK) {
+        if (errCode) {
+            *errCode = (err == ESP_ERR_TIMEOUT) ? ERR_TIMEOUT
+                                                : (err == ESP_ERR_INVALID_RESPONSE) ? ERR_DATA_NACK
+                                                                                    : ERR_OTHER;
+        }
+        return -1;
+    }
+    return rdLen;  // v2 either reads exactly rdLen bytes or fails
+}
+
 int Wire_::available()
 {
     return static_cast<int>(rxCount_ - rxPos_);

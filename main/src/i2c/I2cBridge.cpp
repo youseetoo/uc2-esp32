@@ -2,8 +2,8 @@
 #include "PinConfig.h"
 #ifdef I2C_BRIDGE_CONTROLLER
 
-#include <Arduino.h>
-#include <Wire.h>
+#include <uc2_hal.h>
+#include <uc2_hal/uc2_wire.h>
 
 #ifdef CAN_CONTROLLER_CANOPEN
 extern "C" {
@@ -13,6 +13,8 @@ extern "C" {
 
 namespace I2cBridge
 {
+    static const char* TAG = "I2cBridge";
+
     // Command-blob byte offsets (see I2cBridge.h).
     static constexpr uint8_t OFF_ADDR   = 0;
     static constexpr uint8_t OFF_FLAGS  = 1;
@@ -125,22 +127,32 @@ namespace I2cBridge
             return;
         }
 
-        // --- Write phase ---------------------------------------------------
+        // --- Immediate write+read: one transaction (repeated START) --------
+        if (wrLen > 0 && s_rdLen > 0 && s_delayMs == 0 &&
+            !(flags & FLAG_STOP_AFTER_WRITE)) {
+            uint8_t ec = 0;
+            int n = Wire.writeRead(s_addr, cmd + OFF_WRDATA, (int)wrLen,
+                                   OD_RAM.x2353_i2c_response, (int)s_rdLen, &ec);
+            OD_RAM.x2354_i2c_resp_len = (n > 0) ? (uint8_t)n : 0;
+            OD_RAM.x2352_i2c_status   = (n < 0) ? (uint8_t)(ST_ERR_WRITE | (ec & 0x0F))
+                                                : (n == s_rdLen) ? ST_DONE_OK : ST_ERR_SHORT;
+            OD_RAM.x2351_i2c_trigger  = 0;
+            s_phase = PHASE_IDLE;
+            return;
+        }
+
+        // --- Write phase (always with STOP; repeated START handled above) --
         if (wrLen > 0) {
-            // Release the bus (STOP) when the device asks for it, when a delay
-            // follows, or when there is no read — otherwise repeated-START.
-            bool sendStop = (flags & FLAG_STOP_AFTER_WRITE) ||
-                            (s_delayMs > 0) || (s_rdLen == 0);
             Wire.beginTransmission(s_addr);
             Wire.write(cmd + OFF_WRDATA, wrLen);
-            uint8_t err = Wire.endTransmission(sendStop);
+            uint8_t err = Wire.endTransmission(true);
             if (err != 0) {
                 complete((uint8_t)(ST_ERR_WRITE | (err & 0x0F)));
                 return;
             }
         }
 
-        // --- Read phase (immediate, deferred, or none) ---------------------
+        // --- Read phase (deferred, or none) --------------------------------
         if (s_rdLen == 0) {
             complete(ST_DONE_OK);
             return;
@@ -172,13 +184,20 @@ namespace I2cBridge
             return err ? (uint8_t)(ST_ERR_WRITE | (err & 0x0F)) : ST_DONE_OK;
         }
 
-        // Write phase.
+        // Immediate write+read: one transaction (repeated START).
+        if (wrLen > 0 && rdLen > 0 && delayMs == 0 && !(flags & FLAG_STOP_AFTER_WRITE)) {
+            uint8_t ec = 0;
+            int n = Wire.writeRead(addr, wr, (int)wrLen, resp, (int)rdLen, &ec);
+            if (respLen) *respLen = (n > 0) ? (uint8_t)n : 0;
+            if (n < 0) return (uint8_t)(ST_ERR_WRITE | (ec & 0x0F));
+            return (n == rdLen) ? ST_DONE_OK : ST_ERR_SHORT;
+        }
+
+        // Write phase (always with STOP).
         if (wrLen > 0) {
-            bool sendStop = (flags & FLAG_STOP_AFTER_WRITE) ||
-                            (delayMs > 0) || (rdLen == 0);
             Wire.beginTransmission(addr);
             if (wr && wrLen) Wire.write(wr, wrLen);
-            uint8_t err = Wire.endTransmission(sendStop);
+            uint8_t err = Wire.endTransmission(true);
             if (err != 0) return (uint8_t)(ST_ERR_WRITE | (err & 0x0F));
         }
 
@@ -186,12 +205,11 @@ namespace I2cBridge
         if (delayMs > 0) delay(delayMs);
 
         // Read phase.
-        uint8_t got = (uint8_t)Wire.requestFrom((int)addr, (int)rdLen);
         uint8_t n = 0;
+        Wire.requestFrom((int)addr, (int)rdLen);
         while (Wire.available() && n < rdLen && n < respCap)
             resp[n++] = (uint8_t)Wire.read();
         if (respLen) *respLen = n;
-        (void)got;
         return (n == rdLen) ? ST_DONE_OK : ST_ERR_SHORT;
     }
 }

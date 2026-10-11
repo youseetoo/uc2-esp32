@@ -13,6 +13,7 @@
 
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
+#include "I2cBridge.h"
 #include "NVSConfig.h"
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_log.h"
@@ -76,6 +77,11 @@ void app_main(void)
     std::printf("T1.3 scratch: NVSConfig loaded (motor=%d laser=%d canRole=%d canNodeId=%u)\n",
                 (int)runtimeConfig.motor, (int)runtimeConfig.laser,
                 (int)runtimeConfig.canRole, (unsigned)runtimeConfig.canNodeId);
+
+    // I2cBridge — converted to uc2::Wire (T1.3 action 2)
+    I2cBridge::setup();
+    I2cBridge::loop();
+    std::printf("T1.3 scratch: I2cBridge setup/loop ok\n");
 
     // uc2::Preferences round-trip on a scratch namespace (proves put/get/clear)
     uc2::Preferences p;

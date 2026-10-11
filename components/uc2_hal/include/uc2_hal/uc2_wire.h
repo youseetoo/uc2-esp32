@@ -39,7 +39,15 @@ public:
     size_t write(uint8_t b);
     size_t write(const uint8_t* buf, size_t len);
     uint8_t endTransmission(bool stop = true);  // 0 on success
-    int requestFrom(uint8_t addr, int qty, bool stop = true);  // bytes actually read
+    int requestFrom(uint8_t addr, int qty, bool stop = true);
+
+    // Write then read within ONE transaction (repeated START). v2 cannot hold
+    // the bus across separate endTransmission(false)/requestFrom() calls, so
+    // code that relied on repeated start (I2cBridge) uses this instead.
+    // Returns the number of bytes read (rdLen on success), or -1 on bus error
+    // (errCode gets the endTransmission-style code).
+    int writeRead(uint8_t addr, const uint8_t* wr, int wrLen, uint8_t* rd, int rdLen,
+                  uint8_t* errCode = nullptr);  // bytes actually read
     int available();
     int read();  // -1 when empty
     int readBytes(uint8_t* buf, int len, uint32_t timeout_ms = 0);

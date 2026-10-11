@@ -1,6 +1,6 @@
 #pragma once
 #include "cJSON.h"
-#include "Arduino.h"
+#include <cstdint>
 
 namespace cJsonTool
 {
@@ -35,7 +35,7 @@ namespace cJsonTool
     static float getJsonFloat(cJSON *job, const char *key)
     {
         cJSON *val = cJSON_GetObjectItemCaseSensitive(job, key);
-        if (cJSON_IsNumber(val) && val->valuedouble != NULL)
+        if (cJSON_IsNumber(val))
             return val->valuedouble;
         return 0;
     };

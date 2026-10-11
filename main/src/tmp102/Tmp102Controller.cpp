@@ -1,14 +1,12 @@
 #include "Tmp102Controller.h"
-#include <Arduino.h>
-#include <Wire.h>
+#include <uc2_hal.h>
+#include <uc2_hal/uc2_wire.h>
+#include "driver/temperature_sensor.h"
 #include <math.h>
 #include "cJsonTool.h"
 
-// ESP32 internal temperature sensor.
-// The Arduino-ESP32 core exposes temperatureRead() in degrees C. The IDF
-// equivalent is temp_sensor_read_celsius(); we use the simpler Arduino call
-// here because the rest of the firmware already targets the Arduino layer.
-extern "C" uint8_t temprature_sens_read();
+// ESP32 internal temperature sensor via the IDF tsens driver (handle-based;
+// S3 has no ROM temprature_sens_read()).
 
 namespace Tmp102Controller
 {
@@ -29,6 +27,7 @@ namespace Tmp102Controller
     static bool initialized = false;
     static bool pcbAvailable = false;
     static bool airAvailable = false;
+    static temperature_sensor_handle_t tsens = nullptr;
 
     // Configure a TMP102 for the default 12-bit, 4 Hz continuous-conversion
     // mode (CR1:CR0 = 10). POR value already does this, but writing it back
@@ -72,6 +71,15 @@ namespace Tmp102Controller
         return raw * 0.0625f;
     }
 
+    // Read the ESP internal temperature in degrees C, or NAN on failure.
+    static float readEspC()
+    {
+        float c = NAN;
+        if (tsens && temperature_sensor_get_celsius(tsens, &c) == ESP_OK)
+            return c;
+        return NAN;
+    }
+
     void setup()
     {
         // Ensure the I2C bus is up. On boards that compile i2c_master.cpp the
@@ -80,6 +88,17 @@ namespace Tmp102Controller
         // master-side I2C scanner is not compiled, so this call is the only
         // Wire.begin() in the system. The MCP4017 and TMP102 share this bus.
         Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
+
+        // Internal tsens: install + enable (read is on-demand below).
+        temperature_sensor_config_t tsCfg = TEMPERATURE_SENSOR_CONFIG_DEFAULT(-4, 85);
+        if (temperature_sensor_install(&tsCfg, &tsens) == ESP_OK)
+        {
+            temperature_sensor_enable(tsens);
+        }
+        else
+        {
+            tsens = nullptr;
+        }
 
         pcbAvailable = configureSensor(ADDR_PCB);
         airAvailable = configureSensor(ADDR_AIR);
@@ -102,11 +121,9 @@ namespace Tmp102Controller
         if (pcbAvailable) lastPcbC = readSensor(ADDR_PCB);
         if (airAvailable) lastAirC = readSensor(ADDR_AIR);
 
-        // ESP internal temperature: the raw reading is in 1°F units offset by
-        // 32°F. Conversion: ((raw - 32) * 5/9). It drifts a lot but is OK as
-        // a "is the chip hot?" fallback.
-        uint8_t rawEsp = temprature_sens_read();
-        lastEspC = (rawEsp - 32) * (5.0f / 9.0f);
+        // ESP internal temperature (tsens driver, degrees C). It drifts a lot
+        // but is OK as a "is the chip hot?" fallback.
+        lastEspC = readEspC();
     }
 
     float getPcbC() { return lastPcbC; }
@@ -148,8 +165,7 @@ namespace Tmp102Controller
         {
             lastPcbC = readSensor(ADDR_PCB);
             lastAirC = readSensor(ADDR_AIR);
-            uint8_t rawEsp = temprature_sens_read();
-            lastEspC = (rawEsp - 32) * (5.0f / 9.0f);
+            lastEspC = readEspC();
         }
 
         cJsonTool::setJsonFloat(tmp, "pcb", lastPcbC);

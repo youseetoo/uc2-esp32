@@ -14,6 +14,7 @@
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
 #include "I2cBridge.h"
+#include "Tmp102Controller.h"
 #include "NVSConfig.h"
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_log.h"
@@ -82,6 +83,13 @@ void app_main(void)
     I2cBridge::setup();
     I2cBridge::loop();
     std::printf("T1.3 scratch: I2cBridge setup/loop ok\n");
+
+    // Tmp102 — Wire + tsens driver (T1.3 action 2)
+    Tmp102Controller::setup();
+    Tmp102Controller::loop();
+    std::printf("T1.3 scratch: Tmp102 pcb=%.1f air=%.1f esp=%.1f\n",
+                Tmp102Controller::getPcbC(), Tmp102Controller::getAirC(),
+                Tmp102Controller::getEspC());
 
     // uc2::Preferences round-trip on a scratch namespace (proves put/get/clear)
     uc2::Preferences p;

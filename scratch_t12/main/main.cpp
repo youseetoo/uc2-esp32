@@ -17,6 +17,7 @@
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_log.h"
 #include "uc2_hal/uc2_prefs.h"
+#include "uc2_hal/uc2_serial.h"
 #include "uc2_hal/uc2_string.h"
 #include "uc2_hal/uc2_time.h"
 #include "nvs_flash.h"
@@ -95,6 +96,25 @@ void app_main(void)
     {
         std::printf("T1.3 scratch: prefs begin FAILED\n");
     }
+
+    // uc2::Serial façade (UART0; S3 console is USB-Serial-JTAG → no clash)
+    Serial.setRxBufferSize(8192);  // main/main.cpp sets sizes before begin
+    Serial.setTxBufferSize(2048);
+    Serial.begin(115200);
+    Serial.setTimeout(10);
+    Serial.println("T1.3 scratch: Serial facade up");
+    Serial.println(1234);
+    Serial.println(3.14159);
+    Serial.printf("free_heap=%lu\n", (unsigned long)ESP.getFreeHeap());
+    Serial.write('A');
+    Serial.flush();
+    (void)Serial.available();
+    char rb[8] = {0};
+    (void)Serial.readBytes(rb, sizeof(rb), 5);
+    Serial1.begin(115200);  // UART2 (TMC), default pins
+    Serial1.println("serial1 ok");
+    Serial1.end();
+    std::printf("T1.3 scratch: Serial/Serial1 ok\n");
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig OK (no Arduino, no shim)\n");
 }

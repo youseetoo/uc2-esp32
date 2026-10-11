@@ -9,4 +9,5 @@
 #include "uc2_hal/uc2_log.h"
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_prefs.h"
+#include "uc2_hal/uc2_serial.h"
 #include "uc2_hal/uc2_string.h"

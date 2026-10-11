@@ -5,4 +5,4 @@ idf_component_register(SRCS "main.cpp"
                        INCLUDE_DIRS "${UC2_MAIN}"
                                     "${UC2_MAIN}/src/buzzer"
                        REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
-                                dac_module driver uc2_hal)
+                                 dac_module driver esp_driver_ledc uc2_hal)

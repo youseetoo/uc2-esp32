@@ -31,7 +31,7 @@ namespace BuzzerController
     static void hwOff()
     {
         if (!initialized) return;
-        ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, 0, LEDC_CHANNEL);
+        ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL, 0, 0);
         toneActive = false;
 
     }
@@ -45,7 +45,7 @@ namespace BuzzerController
         }
         log_i("hwTone: freq=%d Hz", freq);
         ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER, freq);
-        ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, LEDC_DUTY_50, LEDC_CHANNEL);
+        ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL, LEDC_DUTY_50, 0);
         toneActive = true;
     }
 

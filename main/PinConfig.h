@@ -5,12 +5,26 @@
 
 // ATTENTION: THIS IS ONLY FOR LINTING!
 // #define CORE_DEBUG_LEVEL
-#define ESP32S3_MODEL_XIAO 
+// #ifndef guards: the IDF build may already define board/feature flags via
+// target_compile_definitions (-DFOO=1 vs empty #define FOO would -Werror).
+#ifndef ESP32S3_MODEL_XIAO
+#define ESP32S3_MODEL_XIAO
+#endif
+#ifndef LASER_CONTROLLER
 #define LASER_CONTROLLER
+#endif
+#ifndef MESSAGE_CONTROLLER
 #define MESSAGE_CONTROLLER
+#endif
+#ifndef CAN_BUS_ENABLED
 #define CAN_BUS_ENABLED
+#endif
+#ifndef CAN_RECEIVE_LASER
 #define CAN_RECEIVE_LASER
+#endif
+#ifndef CAN_CONTROLLER_CANOPEN
 #define CAN_CONTROLLER_CANOPEN
+#endif
 
 struct UC2_canopen_slave_laser : PinConfig
 {

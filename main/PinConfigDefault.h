@@ -1,6 +1,10 @@
 #pragma once
+// T1.3: direct IDF 6.1 (no Arduino) — this header only needs the integer
+// types and gpio_num_t/GPIO_NUM_NC, which IDF provides directly.
+// (IDF >= 6: gpio types moved to esp_hal_gpio, include path unchanged.)
+#include <cstdint>
 #include "esp_err.h"
-#include "Arduino.h"
+#include "hal/gpio_types.h"
 
 #define MOTOR_AXIS_COUNT 4
 

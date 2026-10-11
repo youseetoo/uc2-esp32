@@ -54,8 +54,8 @@ void app_main(void)
     log_i("T1.3 scratch: uc2_hal ok (ms_delta=%lu str=%s len=%u toInt=%d)",
           (unsigned long)(millis() - t0), mac.c_str(),
           (unsigned)mac.length(), num.toInt());
-    std::printf("T1.3 scratch: ESP façade heap=%u cycles=%u\n",
-                ESP.getFreeHeap(), ESP.getCycleCount());
+    std::printf("T1.3 scratch: ESP façade heap=%lu cycles=%lu\n",
+                (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getCycleCount());
 
     // BuzzerController — first module converted to direct IDF (T1.3 action 2)
     BuzzerController::setup();

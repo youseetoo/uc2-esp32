@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-#include "esp_rom_sys.h"        // esp_delay_us
+#include "esp_rom_sys.h"        // esp_rom_delay_us (6.1: esp_delay_us removed)
 #include "esp_timer.h"          // esp_timer_get_time (monotonic µs)
 #include "freertos/FreeRTOS.h"  // pdMS_TO_TICKS
 #include "freertos/task.h"      // vTaskDelay
@@ -31,5 +31,5 @@ inline void delay(uint32_t ms)
 // Busy-wait for µs (ISR-safe, like Arduino delayMicroseconds).
 inline void delayMicroseconds(uint32_t us)
 {
-    esp_delay_us(us);
+    esp_rom_delay_us(us);
 }

@@ -15,17 +15,17 @@
 class EspClass
 {
 public:
-    void restart()
+    void restart() const
     {
         esp_restart();
     }
 
-    uint32_t getFreeHeap()
+    uint32_t getFreeHeap() const
     {
         return static_cast<uint32_t>(esp_get_free_heap_size());
     }
 
-    uint32_t getCycleCount()
+    uint32_t getCycleCount() const
     {
         return static_cast<uint32_t>(esp_cpu_get_cycle_count());
     }

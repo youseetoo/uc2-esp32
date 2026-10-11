@@ -2,14 +2,16 @@ set(UC2_MAIN M:/repos/uc2-esp32/main)
 
 idf_component_register(SRCS "main.cpp"
                        "${UC2_MAIN}/src/buzzer/BuzzerController.cpp"
-                       "${UC2_MAIN}/src/config/NVSConfig.cpp"
-                       "${UC2_MAIN}/src/i2c/I2cBridge.cpp"
-                       "${UC2_MAIN}/src/tmp102/Tmp102Controller.cpp"
-                       INCLUDE_DIRS "${UC2_MAIN}"
-                                    "${UC2_MAIN}/src/buzzer"
-                                    "${UC2_MAIN}/src/config"
-                                    "${UC2_MAIN}/src/i2c"
-                                    "${UC2_MAIN}/src/tmp102"
+                        "${UC2_MAIN}/src/config/NVSConfig.cpp"
+                        "${UC2_MAIN}/src/fan/FanController.cpp"
+                        "${UC2_MAIN}/src/i2c/I2cBridge.cpp"
+                        "${UC2_MAIN}/src/tmp102/Tmp102Controller.cpp"
+                        INCLUDE_DIRS "${UC2_MAIN}"
+                                     "${UC2_MAIN}/src/buzzer"
+                                     "${UC2_MAIN}/src/config"
+                                     "${UC2_MAIN}/src/fan"
+                                     "${UC2_MAIN}/src/i2c"
+                                     "${UC2_MAIN}/src/tmp102"
                        REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
                                  dac_module driver esp_driver_ledc esp_driver_tsens
                                  nvs_flash uc2_hal)

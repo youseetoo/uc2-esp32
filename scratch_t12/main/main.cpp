@@ -13,6 +13,7 @@
 
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
+#include "FanController.h"
 #include "I2cBridge.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
@@ -90,6 +91,27 @@ void app_main(void)
     std::printf("T1.3 scratch: Tmp102 pcb=%.1f air=%.1f esp=%.1f\n",
                 Tmp102Controller::getPcbC(), Tmp102Controller::getAirC(),
                 Tmp102Controller::getEspC());
+
+    // FanController — Wire + Preferences + tacho GPIO ISR (T1.3 action 2)
+    FanController::setup();
+    FanController::loop();
+    cJSON *froot = cJSON_Parse("{\"qid\":9,\"fan\":{\"kick\":1}}");
+    const int fq = FanController::act(froot);
+    cJSON *fg = FanController::get(froot);
+    std::printf("T1.3 scratch: FanController act qid=%d wiper=0x%02X rpm=%.1f\n",
+                fq, (unsigned)FanController::getWiper(), FanController::getRpm());
+    if (fg)
+    {
+        char *fs = cJSON_PrintUnformatted(fg);
+        std::printf("T1.3 scratch: FanController get=%s\n", fs ? fs : "(null)");
+        if (fs) cJSON_free(fs);
+        cJSON_Delete(fg);
+    }
+    else
+    {
+        std::printf("T1.3 scratch: FanController get=NULL\n");
+    }
+    cJSON_Delete(froot);
 
     // uc2::Preferences round-trip on a scratch namespace (proves put/get/clear)
     uc2::Preferences p;

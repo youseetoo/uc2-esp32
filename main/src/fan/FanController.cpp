@@ -1,7 +1,9 @@
 #include "FanController.h"
-#include <Arduino.h>
-#include <Wire.h>
-#include <Preferences.h>
+#include <uc2_hal.h>
+#include <uc2_hal/uc2_wire.h>
+#include <uc2_hal/uc2_gpio.h>
+#include <esp_attr.h>
+#include <strings.h>
 #include <math.h>
 #include "cJsonTool.h"
 #include "../tmp102/Tmp102Controller.h"
@@ -32,7 +34,7 @@ namespace FanController
     static CurvePoint curve[MAX_CURVE_POINTS];
     static uint8_t    curvePoints = 0;
 
-    static Preferences fPrefs;
+    static uc2::Preferences fPrefs;
 
     // Default curve (ascending temperature thresholds):
     //   < 35 °C  → quiet
@@ -54,7 +56,7 @@ namespace FanController
     // Pulled into IRAM so the ISR can run while flash is busy.
     static void IRAM_ATTR onTachoEdge()
     {
-        tachoPulses++;
+        tachoPulses = tachoPulses + 1;
     }
 
     // ===== MCP4017 driver =====
@@ -175,7 +177,7 @@ namespace FanController
         size_t blobSize = fPrefs.getBytesLength("curve");
         if (blobSize == sizeof(CurvePoint) * MAX_CURVE_POINTS) {
             CurvePoint tmp[MAX_CURVE_POINTS];
-            fPrefs.getBytes("curve", tmp, sizeof(tmp));
+            fPrefs.getBytes("curve", (uint8_t *)tmp, sizeof(tmp));
             // Trust persisted curve if it has at least one valid breakpoint.
             uint8_t n = 0;
             for (; n < MAX_CURVE_POINTS; ++n) {
@@ -238,7 +240,7 @@ namespace FanController
             blob[i].thresholdC = 0.0f;
         }
         fPrefs.begin("fan", false);
-        fPrefs.putBytes("curve", blob, sizeof(blob));
+        fPrefs.putBytes("curve", (const uint8_t *)blob, sizeof(blob));
         fPrefs.end();
     }
 
@@ -339,7 +341,8 @@ namespace FanController
         cJSON *jwiper = cJSON_GetObjectItem(fan, "wiper");
         if (jwiper && cJSON_IsNumber(jwiper)) {
             int w = jwiper->valueint;
-            if (w < 0) w = 0; if (w > 0x7F) w = 0x7F;
+            if (w < 0) w = 0;
+            if (w > 0x7F) w = 0x7F;
             manualWiper = (uint8_t)w;
             // If the caller set a wiper without specifying a mode, assume manual.
             if (!jmode) { mode = MODE_MANUAL; modeChanged = true; }
@@ -365,7 +368,8 @@ namespace FanController
                 cJSON *jw = cJSON_GetArrayItem(pair, 1);
                 if (!jt || !jw || !cJSON_IsNumber(jt) || !cJSON_IsNumber(jw)) continue;
                 int w = jw->valueint;
-                if (w < 0) w = 0; if (w > 0x7F) w = 0x7F;
+                if (w < 0) w = 0;
+                if (w > 0x7F) w = 0x7F;
                 tmp[n].thresholdC = (float)jt->valuedouble;
                 tmp[n].wiper      = (uint8_t)w;
                 ++n;

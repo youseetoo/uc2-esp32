@@ -11,3 +11,4 @@
 #include "uc2_hal/uc2_prefs.h"
 #include "uc2_hal/uc2_serial.h"
 #include "uc2_hal/uc2_string.h"
+#include "uc2_hal/uc2_wire.h"

@@ -19,6 +19,7 @@
 #include "uc2_hal/uc2_prefs.h"
 #include "uc2_hal/uc2_serial.h"
 #include "uc2_hal/uc2_string.h"
+#include "uc2_hal/uc2_wire.h"
 #include "uc2_hal/uc2_time.h"
 #include "nvs_flash.h"
 
@@ -116,7 +117,20 @@ void app_main(void)
     Serial1.end();
     std::printf("T1.3 scratch: Serial/Serial1 ok\n");
 
-    std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig OK (no Arduino, no shim)\n");
+    // uc2::Wire façade (master, I2C_NUM_0). No device on the bus in the
+    // scratch build → endTransmission must NACK (non-zero), requestFrom 0 bytes.
+    if (!Wire.begin(45, 44, 100000))
+    {
+        std::printf("T1.3 scratch: Wire.begin FAILED\n");
+    }
+    Wire.beginTransmission(0x68);
+    Wire.write(0x10);
+    uint8_t we = Wire.endTransmission();
+    std::printf("T1.3 scratch: Wire endTransmission=0x%02x (non-zero expected: no device)\n", we);
+    int rq = Wire.requestFrom(0x68, 2);
+    std::printf("T1.3 scratch: Wire requestFrom=%d available=%d (0 expected)\n", rq, Wire.available());
+
+    std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }
 
 } // extern "C"

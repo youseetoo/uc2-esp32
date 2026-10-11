@@ -1,7 +1,7 @@
 #include "NVSConfig.h"
 #include "RuntimeConfig.h"
 #include "PinConfig.h"
-#include <Preferences.h>
+#include "uc2_hal/uc2_prefs.h"
 #include "cJSON.h"
 #include "esp_log.h"
 
@@ -160,7 +160,7 @@ RuntimeConfig runtimeConfig;
 
 void NVSConfig::loadConfig()
 {
-    Preferences prefs;
+    uc2::Preferences prefs;
     prefs.begin(NVS_NAMESPACE, true); // read-only
 
     runtimeConfig.motor      = prefs.getBool("motor",      DEFAULT_MOTOR);
@@ -211,7 +211,7 @@ void NVSConfig::loadConfig()
 
 void NVSConfig::saveConfig()
 {
-    Preferences prefs;
+    uc2::Preferences prefs;
     prefs.begin(NVS_NAMESPACE, false); // read-write
 
     prefs.putBool("motor",      runtimeConfig.motor);
@@ -247,7 +247,7 @@ void NVSConfig::saveConfig()
 
 void NVSConfig::resetConfig()
 {
-    Preferences prefs;
+    uc2::Preferences prefs;
     prefs.begin(NVS_NAMESPACE, false);
     prefs.clear();
     prefs.end();

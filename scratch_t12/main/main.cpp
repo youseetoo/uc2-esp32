@@ -13,10 +13,13 @@
 
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
+#include "NVSConfig.h"
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_log.h"
+#include "uc2_hal/uc2_prefs.h"
 #include "uc2_hal/uc2_string.h"
 #include "uc2_hal/uc2_time.h"
+#include "nvs_flash.h"
 
 static const char *TAG = "t13scratch";
 
@@ -65,7 +68,35 @@ void app_main(void)
     std::printf("T1.3 scratch: BuzzerController act qid=%d\n", bq);
     cJSON_Delete(broot);
 
-    std::printf("T1.3 scratch: components + uc2_hal + BuzzerController OK (no Arduino, no shim)\n");
+    // NVSConfig — config module converted to uc2::Preferences (T1.3 action 2)
+    nvs_flash_init();
+    NVSConfig::loadConfig();
+    std::printf("T1.3 scratch: NVSConfig loaded (motor=%d laser=%d canRole=%d canNodeId=%u)\n",
+                (int)runtimeConfig.motor, (int)runtimeConfig.laser,
+                (int)runtimeConfig.canRole, (unsigned)runtimeConfig.canNodeId);
+
+    // uc2::Preferences round-trip on a scratch namespace (proves put/get/clear)
+    uc2::Preferences p;
+    if (p.begin("t13scratch"))
+    {
+        uint8_t blob[4] = {1, 2, 3, 4};
+        p.putUChar("n", 42);
+        p.putString("s", "hello");
+        p.putBytes("b", blob, 4);
+        std::printf("T1.3 scratch: prefs n=%u s=%s b_len=%zu\n",
+                    (unsigned)p.getUChar("n", 0), p.getString("s", "?").c_str(),
+                    p.getBytesLength("b"));
+        p.clear();
+        std::printf("T1.3 scratch: prefs after clear n=%u b_len=%zu\n",
+                    (unsigned)p.getUChar("n", 99), p.getBytesLength("b"));
+        p.end();
+    }
+    else
+    {
+        std::printf("T1.3 scratch: prefs begin FAILED\n");
+    }
+
+    std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig OK (no Arduino, no shim)\n");
 }
 
 } // extern "C"

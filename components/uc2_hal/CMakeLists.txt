@@ -6,4 +6,4 @@ idf_component_register(
     SRCS "src/uc2_string.cpp" "src/uc2_esp.cpp"
     INCLUDE_DIRS "include"
     REQUIRES log esp_timer esp_rom esp_system esp_hw_support heap freertos
-)
+             esp_driver_gpio esp_driver_ledc nvs_flash)

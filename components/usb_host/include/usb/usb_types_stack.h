@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,6 +10,7 @@ Warning: The USB Host Library API is still a beta version and may be subject to 
 
 #pragma once
 
+#include <stdbool.h>
 #include "usb/usb_types_ch9.h"
 
 #ifdef __cplusplus
@@ -24,6 +25,7 @@ extern "C" {
 typedef enum {
     USB_SPEED_LOW = 0,                  /**< USB Low Speed (1.5 Mbit/s) */
     USB_SPEED_FULL,                     /**< USB Full Speed (12 Mbit/s) */
+    USB_SPEED_HIGH,                     /**< USB High Speed (480 Mbit/s) */
 } usb_speed_t;
 
 /**
@@ -43,12 +45,44 @@ typedef enum {
 /**
  * @brief Handle of a USB Device connected to a USB Host
  */
-typedef struct usb_device_handle_s * usb_device_handle_t;
+typedef struct usb_device_handle_s *usb_device_handle_t;
+
+/**
+ * @brief Enumeration filter callback
+ *
+ * This callback is called at the beginning of the enumeration process for a newly attached device.
+ * Through this callback, users are able to:
+ *
+ * - filter which devices should be enumerated
+ * - select the configuration number to use when enumerating the device
+ *
+ * The device descriptor is passed to this callback to allow users to filter devices based on
+ * Vendor ID, Product ID, and class code.
+ *
+ * @attention This callback must be non-blocking
+ * @attention This callback must not submit any USB transfers
+ * @param[in] dev_desc Device descriptor of the device to enumerate
+ * @param[out] bConfigurationValue Configuration number to use when enumerating the device (starts with 1)
+ *
+ * @return bool
+ *  - true:  USB device will be enumerated
+ *  - false: USB device will not be enumerated
+ */
+typedef bool (*usb_host_enum_filter_cb_t)(const usb_device_desc_t *dev_desc, uint8_t *bConfigurationValue);
+
+/**
+ * @brief Parent device information
+*/
+typedef struct {
+    usb_device_handle_t dev_hdl;                    /**< Device's parent handle */
+    uint8_t port_num;                               /**< Device's parent port number */
+} usb_parent_dev_info_t;
 
 /**
  * @brief Basic information of an enumerated device
  */
 typedef struct {
+    usb_parent_dev_info_t parent;                   /**< Device's parent information */
     usb_speed_t speed;                              /**< Device's speed */
     uint8_t dev_addr;                               /**< Device's address */
     uint8_t bMaxPacketSize0;                        /**< The maximum packet size of the device's default endpoint */
@@ -126,7 +160,7 @@ typedef void (*usb_transfer_cb_t)(usb_transfer_t *transfer);
  * @brief USB transfer structure
  *
  */
-struct usb_transfer_s{
+struct usb_transfer_s {
     uint8_t *const data_buffer;                     /**< Pointer to data buffer */
     const size_t data_buffer_size;                  /**< Size of the data buffer in bytes */
     int num_bytes;                                  /**< Number of bytes to transfer.

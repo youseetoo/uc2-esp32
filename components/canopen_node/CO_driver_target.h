@@ -36,7 +36,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include <Arduino.h>
+#include "freertos/semphr.h"
 
 #ifdef CO_DRIVER_CUSTOM
 #include "CO_driver_custom.h"

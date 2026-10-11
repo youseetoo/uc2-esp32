@@ -27,12 +27,11 @@
 
 #include "301/CO_driver.h"
 #include "CO_driver_target.h"
-#include "driver/gpio.h"
 #include "driver/twai.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include <Arduino.h>
 #include <hal/twai_types.h>
 
 #define CANID_MASK 0x07FF /*!< CAN standard ID mask */
@@ -501,7 +500,7 @@ void CO_CANinterrupt(CO_CANmodule_t *CANmodule)
             for (int i = 0; i < rx_msg.message.data_length_code; i++)
                 rxData |= ((uint64_t)rx_msg.message.data[i] << (8 * i));
             if (0)
-                log_i("CO_RX", "Received CAN message: id=0x%03X dlc=%u data=0x%016llX",
+                ESP_LOGI("CO_RX", "Received CAN message: id=0x%03X dlc=%u data=0x%016llX",
                     rx_msg.message.identifier,
                     rx_msg.message.data_length_code,
                     rxData);

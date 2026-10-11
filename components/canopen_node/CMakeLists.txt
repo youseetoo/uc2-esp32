@@ -5,7 +5,7 @@ file(GLOB_RECURSE _co_sources "*.c")
 list(FILTER _co_sources EXCLUDE REGEX ".*/OD\\.c$")
 idf_component_register(SRCS ${_co_sources}
                        INCLUDE_DIRS "." "301" "303" "304" "305" "309" "extra" "storage"
-                       REQUIRES driver log uc2_arduino_shim)
+                        REQUIRES driver log)
 
 # The legacy driver/twai.h (used by canopen_node) emits a #warning under IDF 6.1;
 # suppress it so -Werror=cpp does not fail the build.

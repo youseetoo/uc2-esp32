@@ -1,4 +1,4 @@
-# Ref: CI cutover per workflow + dual-build gate mechanics
+# Ref: CI cutover per workflow + gate mechanics
 
 Index: `../PORT_PLAN_STEPS.md`. Owner steps: T1.8, T2.12, T3.8, T6.1–T6.5.
 
@@ -75,10 +75,10 @@ env from `platformio.ini` (keep non-release variants until T6.6) + note in the c
 5. Size + internal-heap-free within budget (±10 % / baseline band).
 6. 5-minute soak: no watchdog reset, no log spam, RAM stable.
 
-## 6. Dual-build gate mechanics (throughout the port)
+## 6. CI gate mechanics (throughout the port)
 
-- Invariant: **every commit on `port/idf-c` builds both systems** — PIO matrix (existing
-  jobs, triggered on PR) + `idf-build` job (growing matrix). A red in either blocks merge.
-- Timebox (D6): dual-CI ends at T6.1 (target ≤ 1 release cycle after the last BT board).
-- Escalation: if a board fails its §4 checklist twice, park it on PIO (record reason),
+- Invariant: **every commit on `port/idf-c` builds green in IDF** (single build system).
+  No dual-build; PIO is not part of the CI.
+- The `idf-build` job grows one app per verified board (T1.8 → T2.12 → T3.8).
+- Escalation: if a board fails its §4 checklist twice, park it (record reason),
   continue with others; the parked-board list is tracked in `DOCS/baselines.md`.

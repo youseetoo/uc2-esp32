@@ -11,7 +11,6 @@ uc2-esp32/
 ├─ sdkconfig.defaults.esp32    # target overlay
 ├─ sdkconfig.defaults.esp32s3  # target overlay
 ├─ components/
-│  ├─ uc2_hal/                 # NEW (T1.3): Arduino-compat shim, see hal-shim.md
 │  ├─ uc2_app/                 # NEW (T1.4): main/src glue
 │  │    └─ from: main/main.cpp, main/JsonKeys.h, main/cJsonTool.h,
 │  │             main/PinConfigDefault.h  (C++ until T4.6, then C)
@@ -142,7 +141,7 @@ if(CONFIG_UC2_MOTOR_CONTROLLER)
   if(CONFIG_UC2_STAGE_SCAN)     list(APPEND srcs StageScan.cpp FocusScan.cpp) endif()
   if(CONFIG_UC2_HOME_MOTOR)     list(APPEND srcs ${CMAKE_SOURCE_DIR}/../main/src/home/HomeMotor.cpp) endif()
   idf_component_register(SRCS ${srcs} INCLUDE_DIRS "."
-                         REQUIRES uc2_hal driver cjson fastaccelstepper accelstepper tmc_stepper encoder)
+                         REQUIRES driver cjson fastaccelstepper accelstepper tmc_stepper encoder)
 else()
   idf_component_register(SRCS "" INCLUDE_DIRS ".")
 endif()

@@ -22,14 +22,9 @@ executor agent.
 3. **Resume across sessions**: checkboxes exist in the index AND each step file. When a
    step's acceptance criteria pass, flip both, and commit the docs together with the code.
 4. **Branch model**: all work on `port/idf-c` (branched from `main_espidf`, which holds the
-   partial IDF scaffolding). PIO builds stay green the whole time (dual-build gate,
-   `refs/ci-cutover.md` §6) until a board is individually cut over. Never delete a PIO env
-   or a `main/src` file before its board's retirement checklist passes.
-    **Dual-build source rule** (applies to every `git mv main/src/… → components/…`): the
-    old `main/src/<dir>/<File>.cpp` becomes a one-line stub
-    `#include "…/components/uc2_xxx/<File>.cpp"` (or `.c`), so the PIO build keeps
-    compiling the same file from its new home with zero logic duplication; the stubs are
-    deleted with `main/` in T6.6.
+   partial IDF scaffolding). **IDF-only build** (no PIO, no dual-build): the code is
+   converted to direct IDF (no shim layer). `main/` is deleted in T6.5 once every board
+   is verified on IDF.
 5. **Size budget**: every app, at every phase exit, within **±10 %** of its PIO baseline
    flash/RAM (`DOCS/baselines.md`, T0.3). A breach is a stop-the-line event.
 6. **`[HW]`** = needs a physical board; queue it to the user, never skip its acceptance.
@@ -125,10 +120,10 @@ Status: **ALL 7 CONFIRMED 2026-10-08** — the user accepted every plan recommen
   C backend headers (T5.2 therefore **skipped by default**; T5.1 scope excludes TMC).
 - **D3** = **all 21 envs** in scope; `esp32dev` stays dev-only (no release app, not in CI).
 - **D4** = **(b)** all three M5GFX envs (`m5stack_dial`, `m5stack_dial7`, `waveshare_d7`)
-  **stay on PIO** until a later port.
+  **ported to IDF** as C++ leaves (M5GFX + M5Unified + M5Dial) — no PIO.
 - **D5** = **adopt** the 168-test Unity suite from `main_pioclean_mocks_tests`.
-- **D6** = **dual-build** CI with per-board retirement checklists, timeboxed ~1 release
-  cycle.
+- **D6** = **IDF-only** CI (no dual-build, no PIO). The code is converted to direct IDF
+  (no shim layer). `main/` is deleted in T6.5.
 - **D7** = **single repo** with `apps/`.
 
 | ID | Decision | Plan recommendation | User must confirm | Gates (tasks) |
@@ -136,13 +131,13 @@ Status: **ALL 7 CONFIRMED 2026-10-08** — the user accepted every plan recommen
 | **D1** | IDF version | **6.1** (installed at `M:\.espressif\v6.1\esp-idf`; GrowControl migrated to 6.1 on 2026-10-06) vs 5.5.x LTS | Version number; whether CI uses the same version | T1.1, T1.7, T1.8 (all IDF builds); CI runner setup in T6.1 |
 | **D2** | Strictness of "C" | **(b)** C core + small C++ leaf set (`fastaccelstepper`, `tmc_stepper`) behind C backend headers; revisit leaves later — vs (a) 100 % C incl. rewriting FAS/TMC | (a) vs (b); if (a), accept 2–3 extra weeks and RMT/timing risk | T2.6, T2.7 (FAS/TMC strategy), T3.2 (BT stack), T5.1, T5.2 |
 | **D3** | Board scope | All 21 envs (17 CI + ptz + m5stack_dial + 7"; `esp32dev` dev-only) **or** only boards still shipped | Exact board list; fate of `esp32dev` | Which of T2.x/T3.x tasks exist; T2.11 cleanup list |
-| **D4** | M5GFX boards (m5stack_dial, waveshare_7inch) | **Keep on PIO** until a later port (not in CI) vs port M5GFX as C++ leaves vs replace UI | One of the three options | T5.4 (and whether `apps/m5stack_dial`, `apps/waveshare_7inch` + `m5gfx/` component are created) |
+| **D4** | M5GFX boards (m5stack_dial, waveshare_7inch) | **Port to IDF** as C++ leaves (M5GFX + M5Unified + M5Dial) — no PIO | — (confirmed: port to IDF) | T5.4 (port M5GFX to IDF) |
 | **D5** | Test suite | **Adopt** the 168-test Unity suite + mocks from `main_pioclean_mocks_tests` vs re-derive smaller | Adopt vs re-derive | T0.5, T4.8, T6.3 |
-| **D6** | Cutover strategy | **Dual-build** CI (PIO + IDF side by side, timeboxed); retire a board's PIO env only after its IDF app is hardware-verified | Dual vs hard cutover; timebox length (recommend 1 release cycle) | T1.8 (dual job introduced), T2.12, T3.8, T6.1, T6.5 |
+| **D6** | Cutover strategy | **IDF-only** CI (no dual-build, no PIO). The code is converted to direct IDF (no shim layer). `main/` is deleted in T6.5 | — (confirmed: IDF-only) | T1.8, T2.12, T3.8, T6.1, T6.5 |
 | **D7** | Repo shape | **Single repo with `apps/`** (release pipeline stays one workflow) vs split firmware repos | Single vs split | All layout tasks; if split, this whole plan's paths change (re-plan needed) |
 
-**Decisions gating Phase 1:** all resolved 2026-10-08 — D1 (6.1), D3 (all 21 envs;
-`canopen_slave_laser` is app #1), D6 (dual-build), D7 (single repo). D2/D4/D5 are
+**Decisions gating Phase 1:** all resolved 2026-10-08, revised for IDF-only — D1 (6.1), D3 (all 21 envs;
+`canopen_slave_laser` is app #1), D6 (IDF-only, no dual-build), D7 (single repo). D2/D4/D5 are
 confirmed as well (Phases 3–5 unblocked). **No decision gates remain: T0.2 onward can
 start immediately.**
 
@@ -156,9 +151,8 @@ start immediately.**
 idf.py -D IDF_TARGET=esp32s3 -D PROJECT_DIR=apps/canopen_slave_laser build
 # (each app dir gets a build.sh wrapper doing exactly this — created in T1.5)
 
-# PIO reference build (dual-build invariant):
-pio run -e UC2_canopen_slave_laser_release
-pio run -e UC2_canopen_slave_laser_release -t size
+# PIO build is no longer required (IDF-only). Use it only for size comparison:
+# pio run -e UC2_canopen_slave_laser_release -t size
 
 # Host tests:
 make test            # = test/native/run.sh + test/unity/run.sh

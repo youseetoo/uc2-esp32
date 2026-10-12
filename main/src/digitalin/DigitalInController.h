@@ -5,11 +5,12 @@
 
 namespace DigitalInController
 {
-    static bool isDEBUG = false;
+    // T1.3: per-TU namespace statics — not every includer uses every member.
+    [[maybe_unused]] static bool isDEBUG = false;
 
-    static int digitalin_val_1 = 0;
-    static int digitalin_val_2 = 0;
-    static int digitalin_val_3 = 0;
+    [[maybe_unused]] static int digitalin_val_1 = 0;
+    [[maybe_unused]] static int digitalin_val_2 = 0;
+    [[maybe_unused]] static int digitalin_val_3 = 0;
 
     int act(cJSON* jsonDocument);
     cJSON* get(cJSON* jsonDocument);

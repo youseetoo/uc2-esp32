@@ -77,6 +77,10 @@ extern "C" {
 // ============================================================================
 #define TAG_CAN    "UC2_CAN"
 #define TAG_CO     "UC2_CO"
+// T1.3: uc2_log.h façades (log_i/log_e/log_w/log_d) need a file-local TAG.
+// TAG_CO is the dominant tag in this file; TAG_CAN is kept for the raw
+// ESP_LOG* calls in the TWAI layer.
+#define TAG TAG_CO
 
 // Task priorities (same scheme as MWE trainer)
 // TWAI_ctrl is the I/O pump between CAN_TX/RX_queue and the hardware. It
@@ -316,6 +320,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
     // cleared.  With tx_queue_len=0 the driver writes directly to the HW
     // TX buffer and tx_msg_count never exceeds 1.
     twai_general_config_t g_config = {
+        .controller_id  = 0,   // T1.3: IDF 6.1 twai_general_config_t (first field)
         .mode           = TWAI_MODE_NORMAL,
         .tx_io          = (gpio_num_t)pinConfig.CAN_TX,
         .rx_io          = (gpio_num_t)pinConfig.CAN_RX,
@@ -329,7 +334,8 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                                 // (abort 0x05040000) on the OTA stream.
         .alerts_enabled = TWAI_ALERT_NONE,
         .clkout_divider = 0,
-        .intr_flags     = ESP_INTR_FLAG_LEVEL1
+        .intr_flags     = ESP_INTR_FLAG_LEVEL1,
+        .general_flags  = {0}  // T1.3: IDF 6.1 twai_general_config_t (last field)
     };
 
     ESP_ERROR_CHECK(twai_driver_install(&g_config, &t_config, &f_config));
@@ -1985,7 +1991,9 @@ struct PendingAxisCmd {
     bool    isStop    = false;
     bool    isForever = false;
 };
+#ifdef MOTOR_CONTROLLER  // T1.3: only the motor dispatch path touches this
 static PendingAxisCmd s_axisCmds[4];
+#endif
 
 struct PendingHomingCmd {
     volatile bool pending  = false;
@@ -1995,7 +2003,9 @@ struct PendingHomingCmd {
     int32_t endstopRelease = 0;
     uint8_t polarity       = 0;
 };
+#ifdef HOME_MOTOR  // T1.3: only the homing dispatch path touches this
 static PendingHomingCmd s_homingCmds[4];
+#endif
 
 struct PendingLaserCmd {
     volatile bool pending = false;
@@ -2010,7 +2020,9 @@ struct PendingHardLimitCmd {
     uint8_t       enabled  = 0;
     uint8_t       polarity = 0;
 };
+#ifdef MOTOR_CONTROLLER  // T1.3: hard limits belong to the motor path
 static PendingHardLimitCmd s_hardlimitCmds[4];
+#endif
 
 // ============================================================================
 // OD <-> Module sync (called from CO_tmr_task)
@@ -2432,7 +2444,7 @@ void CANopenModule::syncRpdoToModules_slave()
             OD_RAM.x2507_reboot_command = 0;
             // Defer slightly so the SDO server can complete its response frame
             vTaskDelay(pdMS_TO_TICKS(200));
-            ESP.restart();
+            esp_restart();  // T1.3: raw IDF (esp_system.h already included)
         }
     }
 

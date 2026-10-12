@@ -35,7 +35,7 @@ namespace LaserController
 
     // PWM configuration
     static int pwm_resolution = 10; //8bit 256, 10bit 1024, 12bit 4096;
-    static int pwm_frequency = 5000; //19000; //12000
+    [[maybe_unused]] static int pwm_frequency = 5000; //19000; //12000
     static long pwm_max = (int)pow(2, pwm_resolution);
 
     // Helper functions to get pin and channel for a given LASERid
@@ -72,10 +72,10 @@ namespace LaserController
     static int& LASER_despeckle_period_3 = LASER_despeckle_period_arr[3];
     static int& LASER_despeckle_period_4 = LASER_despeckle_period_arr[4];
 
-    static int minPulseWidth = 500;
-    static int maxPulseWidth = 2500;
+    [[maybe_unused]] static int minPulseWidth = 500;
+    [[maybe_unused]] static int maxPulseWidth = 2500;
 
-    static bool isDEBUG = false;
+    [[maybe_unused]] static bool isDEBUG = false;
 
     void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
     int act(cJSON * ob);

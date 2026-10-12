@@ -4,7 +4,8 @@
 
 namespace cJsonTool
 {
-    static int getJsonInt(cJSON *job, const char *key, int defaultVal = 0)
+    // T1.3: per-TU statics — not every includer uses every helper.
+    [[maybe_unused]] static int getJsonInt(cJSON *job, const char *key, int defaultVal = 0)
     {
         if (job == NULL)
         {
@@ -22,17 +23,17 @@ namespace cJsonTool
         return defaultVal;
     };
 
-    static void setJsonInt(cJSON *job, const char *key, int valToSet)
+    [[maybe_unused]] static void setJsonInt(cJSON *job, const char *key, int valToSet)
     {
         cJSON *v = cJSON_CreateNumber(valToSet);
         cJSON_AddItemToObject(job, key, v);
     };
-    static void setJsonFloat(cJSON *job, const char *key, float valToSet)
+    [[maybe_unused]] static void setJsonFloat(cJSON *job, const char *key, float valToSet)
     {
         cJSON *v = cJSON_CreateNumber(valToSet);
         cJSON_AddItemToObject(job, key, v);
     };
-    static float getJsonFloat(cJSON *job, const char *key)
+    [[maybe_unused]] static float getJsonFloat(cJSON *job, const char *key)
     {
         cJSON *val = cJSON_GetObjectItemCaseSensitive(job, key);
         if (cJSON_IsNumber(val))
@@ -40,7 +41,7 @@ namespace cJsonTool
         return 0;
     };
     
-    static bool getJsonBool(cJSON *job, const char *key, bool defaultVal = false)
+    [[maybe_unused]] static bool getJsonBool(cJSON *job, const char *key, bool defaultVal = false)
     {
         if (job == NULL)
         {
@@ -59,7 +60,7 @@ namespace cJsonTool
         return defaultVal;
     };
     
-    static void setJsonBool(cJSON *job, const char *key, bool valToSet)
+    [[maybe_unused]] static void setJsonBool(cJSON *job, const char *key, bool valToSet)
     {
         cJSON *v = cJSON_CreateBool(valToSet);
         cJSON_AddItemToObject(job, key, v);

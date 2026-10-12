@@ -75,29 +75,9 @@ cJSON *DeviceRouter::handleLaserAct(cJSON *doc)
     return nullptr;
 }
 
-// Scratch link stub: CANopenModule.cpp (138KB) is not part of scratch_t12
-// yet. OtaBinaryReceive references its static SDO/streaming methods at link
-// time; the stubs report "no bus": node unreachable, every write/stream
-// fails, no stream active — so begin() fast-fails with slave_unreachable.
-#ifdef CAN_CONTROLLER_CANOPEN
-bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
-{ (void)nodeId; (void)timeoutMs; return false; }
-bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs)
-{ (void)nodeId; (void)idx; (void)sub; (void)v; (void)timeoutMs; return false; }
-bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index, uint8_t subIndex, uint32_t totalSize)
-{ (void)nodeId; (void)index; (void)subIndex; (void)totalSize; return false; }
-bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
-{ (void)data; (void)count; return false; }
-bool CANopenModule::sdoDownloadEnd() { return false; }
-void CANopenModule::sdoDownloadAbort() {}
-bool CANopenModule::sdoDownloadActive() { return false; }
-bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                            uint8_t* buf, size_t bufSize, size_t* readSize)
-{ (void)nodeId; (void)index; (void)subIndex; (void)buf; (void)bufSize; (void)readSize; return false; }
-bool CANopenModule::writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                                   const uint8_t* data, size_t dataSize)
-{ (void)nodeId; (void)index; (void)subIndex; (void)data; (void)dataSize; return false; }
-#endif
+// CANopenModule.cpp (138KB) is now a real part of scratch_t12: its static
+// SDO/streaming methods satisfy OtaBinaryReceive's link references directly,
+// so the former "no bus" link stubs here were removed (duplicate definitions).
 
 extern "C" {
 
@@ -110,6 +90,10 @@ extern "C" {
 void app_main(void)
 {
     std::printf("T1.3 scratch: canopen linked (CO_new=%p)\n", (void *)CO_new);
+    // CANopenModule (real 138KB TU now in the build): ODR + light runtime probe.
+    // Pre-setup, CO == NULL, so isNodeReachable must return false immediately.
+    std::printf("T1.3 scratch: CANopenModule linked (isNodeReachable(99)=%d)\n",
+                (int)CANopenModule::isNodeReachable(99));
     std::printf("T1.3 scratch: usb_host linked (usb_host_install=%p)\n", (void *)usb_host_install);
     (void)hid_host_uninstall;   // symbol reference only
 
@@ -120,8 +104,8 @@ void app_main(void)
     if (s) cJSON_free(s);
     cJSON_Delete(root);
 
-    // dac_module: default-construct + ODR-use a member fn to force the object in
-    DAC_Module dac;
+    // dac_module: ODR-use a member fn to force the object in
+    // (no local — -Wunused-variable under strict flags)
     (void)&DAC_Module::Setup;
     std::printf("T1.3 scratch: dac_module linked OK\n");
 

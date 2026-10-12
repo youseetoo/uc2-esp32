@@ -1,5 +1,6 @@
 #pragma once
-#include <Arduino.h>
+// T1.3: direct-IDF — this header uses only stdint types + bool.
+#include <stdint.h>
 
 // ============================================================================
 // axis/ module — clean-slate closed-loop / feedback layer (design v2).

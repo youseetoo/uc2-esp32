@@ -64,6 +64,12 @@ CONFIG_LOG_DEFAULT_LEVEL=3
 #   - PCNT       — the quadrature encoders;
 #   - ADC        — the analog inputs.
 #
+# The CAN path (CANopenModule) still uses the legacy driver/twai.h API. In
+# IDF 6.1 that header emits a #warning (not a normal -W warning, so
+# -Wno-deprecated-declarations cannot silence it); under strict -Werror flags
+# the warning is an error. Suppress it here until the CAN path moves to
+# esp_twai.h:
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
 
 # ── Bluetooth ────────────────────────────────────────────────────────────────
 # NO BT symbols in the root file. The BT stack (Bluedroid classic, per D2/D3) is

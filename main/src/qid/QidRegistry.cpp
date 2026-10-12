@@ -6,7 +6,7 @@
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
 #endif
-#include "../../cJsonTool.h"
+#include "cJsonTool.h"
 #include "esp_log.h"
 
 static const char *TAG = "QidRegistry";

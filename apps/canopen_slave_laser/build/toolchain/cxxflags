@@ -1,0 +1,7 @@
+-DESP32S3_MODEL_XIAO=1
+-mlongcalls
+-fno-builtin-memcpy
+-fno-builtin-memset
+-fno-builtin-bzero
+"-specs=M:/repos/uc2-esp32/apps/canopen_slave_laser/build/specs/picolibc.specs"
+-fno-rtti

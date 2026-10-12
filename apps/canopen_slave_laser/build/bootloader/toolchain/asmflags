@@ -1,0 +1,5 @@
+"-specs=M:/repos/uc2-esp32/apps/canopen_slave_laser/build/bootloader/specs/picolibc.specs"
+-mlongcalls
+-fno-builtin-memcpy
+-fno-builtin-memset
+-fno-builtin-bzero

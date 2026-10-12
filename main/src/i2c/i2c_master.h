@@ -1,5 +1,5 @@
 #pragma once
-#include "../../cJsonTool.h"
+#include "cJsonTool.h"
 #include "../motor/MotorTypes.h"
 #include "../laser/LaserController.h"
 #include "../home/HomeMotor.h"

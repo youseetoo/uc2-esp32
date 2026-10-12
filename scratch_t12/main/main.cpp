@@ -13,10 +13,12 @@
 
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
+#include "DialController.h"
 #include "FanController.h"
 #include "I2cBridge.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
+#include "i2c_slave_dial.h"
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_log.h"
 #include "uc2_hal/uc2_prefs.h"
@@ -112,6 +114,16 @@ void app_main(void)
         std::printf("T1.3 scratch: FanController get=NULL\n");
     }
     cJSON_Delete(froot);
+
+    // i2c_slave_dial — uc2::Wire slave (T1.3 action 2). Board combo here has
+    // I2C pins -1 / I2C_CONTROLLER_TYPE=mDISABLED: setup() must fail the slave
+    // begin cleanly and register callbacks; loop-level callbacks are no-ops.
+    i2c_slave_dial::setup();
+    const DialData dd = DialController::getDialValues();
+    DialController::setDialValues(DialData{11, 22, 33, 44, 55});
+    const DialData dd2 = DialController::getDialValues();
+    std::printf("T1.3 scratch: i2c_slave_dial setup ok (dial A=%ld X=%ld Y=%ld Z=%ld I=%ld after set/get)\n",
+                (long)dd.pos_a, (long)dd2.pos_x, (long)dd2.pos_y, (long)dd2.pos_z, (long)dd2.intensity);
 
     // uc2::Preferences round-trip on a scratch namespace (proves put/get/clear)
     uc2::Preferences p;

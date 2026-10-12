@@ -1,10 +1,12 @@
 #include "i2c_slave_dial.h"
-#include "Wire.h"
+#include <uc2_hal.h>
 #include "PinConfig.h"
 #include "../dial/DialController.h"
 
 namespace i2c_slave_dial
 {
+    static const char *TAG = "i2c_slave_dial";
+
     void parseDialEvent(int numBytes)
     {
         // We will receive the array of 4 positions and one intensity from the master and have to update the dial display

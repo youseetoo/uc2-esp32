@@ -1,18 +1,41 @@
 #include <PinConfig.h>
 #include "DialController.h"
-#include "Arduino.h"
-#include "../../JsonKeys.h"
+#include <uc2_hal.h>
+#include <cstring>
 #include "cJsonTool.h"
 
 #include "../motor/MotorTypes.h"
+// SdoEmit.h / CANopenModule.h are not yet converted to direct IDF (they
+// include Arduino.h). The dial SDO path only compiles where SdoEmit works:
+// Arduino builds (ARDUINO defined) or, once the CANopen layer is converted,
+// IDF builds that define UC2_SDOEMIT_AVAILABLE (see main/CMakeLists.txt).
+// Note: -UCAN_CONTROLLER_CANOPEN cannot suppress this — PinConfig.h
+// redefines the macro via #ifndef, so the guard keys off SdoEmit
+// availability instead.
+#if defined(CAN_CONTROLLER_CANOPEN) && (defined(UC2_SDOEMIT_AVAILABLE) || defined(ARDUINO))
 #include "../canopen/RoutingTable.h"
 #include "../canopen/SdoEmit.h"
+#endif
 #ifdef M5DIAL
 #include <ESP32Encoder.h>
 #endif
 
 namespace DialController
 {
+    static const char *TAG = "DialController";
+
+    DialData mDialData;
+
+    void setDialValues(const DialData &d)
+    {
+        mDialData = d;
+    }
+
+    DialData getDialValues()
+    {
+        return mDialData;
+    }
+
     // ========================================================================
     // Internal State Variables
     // ========================================================================
@@ -117,7 +140,7 @@ namespace DialController
     void sendMotorCommand(int axis, int32_t steps)
     {
         if (steps == 0) return;
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && (defined(UC2_SDOEMIT_AVAILABLE) || defined(ARDUINO))
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, (uint8_t)axis);
         if (!route || route->where != UC2::RouteEntry::REMOTE)
         {
@@ -132,7 +155,7 @@ namespace DialController
     
     void sendLaserCommand(int laserId, int intensity)
     {
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && (defined(UC2_SDOEMIT_AVAILABLE) || defined(ARDUINO))
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LASER, (uint8_t)laserId);
         if (!route || route->where != UC2::RouteEntry::REMOTE)
         {
@@ -146,7 +169,7 @@ namespace DialController
 
     void sendLedCommand()
     {
-#ifdef CAN_CONTROLLER_CANOPEN
+#if defined(CAN_CONTROLLER_CANOPEN) && (defined(UC2_SDOEMIT_AVAILABLE) || defined(ARDUINO))
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
         if (!route || route->where != UC2::RouteEntry::REMOTE)
         {

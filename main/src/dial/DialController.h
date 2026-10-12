@@ -8,6 +8,18 @@
 #include <M5Dial.h>
 #endif
 
+// Wire format the master writes to the dial (i2c_master -> i2c_slave_dial):
+// four axis positions + laser intensity. Packed, 20 bytes, no padding.
+#pragma pack(push, 1)
+struct DialData {
+    int32_t pos_a = 0;
+    int32_t pos_x = 0;
+    int32_t pos_y = 0;
+    int32_t pos_z = 0;
+    int32_t intensity = 0;
+};
+#pragma pack(pop)
+
 namespace DialController
 {
     // API functions
@@ -92,6 +104,14 @@ namespace DialController
     void sendMotorCommand(int axis, int32_t steps);
     void sendLaserCommand(int laserId, int intensity);
     void sendLedCommand();
+
+    // Last dial data (received via I2C in i2c_slave_dial, or applied locally).
+    // extern: DialData has default member initializers, so a plain
+    // "DialData mDialData;" in this header is a DEFINITION (one per TU);
+    // the single definition lives in DialController.cpp.
+    extern DialData mDialData;
+    void setDialValues(const DialData &d);
+    DialData getDialValues();
 
     // Internal state getters (for debugging/API)
     DialMode getCurrentMode();

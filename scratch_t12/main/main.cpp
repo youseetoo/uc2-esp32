@@ -29,6 +29,7 @@
 #include "OtaBinaryReceive.h"
 #include "QidRegistry.h"
 #include "RoutingTable.h"
+#include "SerialProcess.h"
 #include "State.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
@@ -44,34 +45,11 @@
 
 static const char *TAG = "t13scratch";
 
-// Scratch link stub: the real SerialProcess.cpp (867-line hub) is not part of
-// scratch_t12 yet. DigitalInController's E-stop path references
-// SerialProcess::serialize(cJSON*) at link time; this weak stub keeps the
-// link green and frees the doc like the real one does.
-namespace SerialProcess
-{
-__attribute__((weak)) void serialize(cJSON *doc)
-{
-    char *s = doc ? cJSON_PrintUnformatted(doc) : nullptr;
-    std::printf("estop event (scratch stub): %s\n", s ? s : "(null)");
-    if (s) cJSON_free(s);
-    if (doc) cJSON_Delete(doc);
-}
-// QidRegistry sends {"qid":N,"state":"..."} through this; stub echoes to
-// console (the real hub serializes over UART once it is converted).
-__attribute__((weak)) void safeSendJsonString(char *jsonString)
-{
-    std::printf("qid notify (scratch stub): %s\n", jsonString ? jsonString : "(null)");
-}
-}  // namespace SerialProcess
-
-// DeviceRouter.cpp (104KB hub) and CANopenModule.cpp (138KB) are now real
-// parts of scratch_t12: LaserController's reference to
-// DeviceRouter::handleLaserAct(cJSON*) and OtaBinaryReceive's references to
-// the CANopen SDO/streaming methods resolve against the real definitions,
-// so the former link stubs here were removed (duplicate definitions).
-// SDO/streaming methods satisfy OtaBinaryReceive's link references directly,
-// so the former "no bus" link stubs here were removed (duplicate definitions).
+// DeviceRouter.cpp (104KB hub), CANopenModule.cpp (138KB) and
+// SerialProcess.cpp (28KB hub) are now real parts of scratch_t12: the
+// former link stubs here (DeviceRouter::handleLaserAct, the CANopen SDO /
+// OTA "no bus" stubs, SerialProcess::serialize / safeSendJsonString) were
+// removed — the real TUs define those symbols now (duplicate definitions).
 
 extern "C" {
 
@@ -309,17 +287,31 @@ void app_main(void)
     }
     cJSON_Delete(mroot);
 
+    // SerialProcess — the 28KB serial hub, now the real TU (T1.3 action 2).
+    // setup() spawns serialtask/serialout and owns QidRegistry::setup()
+    // (non-idempotent — must not be called twice), so it runs BEFORE the
+    // QidRegistry smoke below.
+    SerialProcess::setup();
+    SerialProcess::loop();  // drains Serial RX (5ms delay inside)
+    {
+        // Unknown task → serialTask answers {"qid":-1,"success":-1} over UART.
+        cJSON *spj = cJSON_Parse("{\"task\":\"/__t13_sp_smoke__\"}");
+        SerialProcess::addJsonToQueue(spj);
+        delay(50);  // let serialtask + serialout run
+        SerialProcess::loop();
+        std::printf("T1.3 scratch: SerialProcess setup/loop/addJsonToQueue ok\n");
+    }
+
     // QidRegistry — FreeRTOS mutex + millis/log (T1.3 action 2).
     // FocusMotor paths compile out (MOTOR_CONTROLLER off); SerialProcess::
-    // safeSendJsonString resolves to the weak stub above.
-    QidRegistry::setup();
+    // safeSendJsonString is the real hub now (UART output queue).
     const bool qreg = QidRegistry::registerQid(15, 2);
     const int qstate = (int)QidRegistry::getQidState(15);
     QidRegistry::reportActionDone(15); // 1/2 — no notification yet
-    QidRegistry::reportActionDone(15); // 2/2 — weak stub prints "done"
+    QidRegistry::reportActionDone(15); // 2/2 — hub prints "done" on UART
     const bool qpause = QidRegistry::pauseQid(16); // qid 16 not busy → false
     cJSON *qroot = cJSON_Parse("{\"qid\":16}");
-    const int qh = QidRegistry::handleQidStateQuery(qroot); // weak stub prints state
+    const int qh = QidRegistry::handleQidStateQuery(qroot); // hub prints state on UART
     std::printf("T1.3 scratch: QidRegistry reg=%d state=%d pause16=%d handleQ=%d\n",
                 (int)qreg, qstate, (int)qpause, qh);
     cJSON_Delete(qroot);
@@ -352,23 +344,19 @@ void app_main(void)
 
     // LaserController — uc2 ledc/gpio/time/misc façades (T1.3 action 2).
     // I2C_LASER off in this combo → i2c path compile-out; DeviceRouter::
-    // handleLaserAct resolves to the weak stub above. The State smoke left
-    // State busy=true (would block setLaserVal) → clear it first.
+    // handleLaserAct is the real router now (returns -1, no route). The State
+    // smoke left State busy=true (would block setLaserVal) → clear it first.
     State::setBusy(false);
-    LaserController::setup();
-    LaserController::loop();
-    const bool lset = LaserController::setLaserVal(1, 512);
-    LaserController::setPWM(256, LaserController::getPWMChannel(1));
-    LaserController::moveServo(LaserController::getPWMChannel(1), 90, 50, 12);
-    LaserController::dpad_changed_event(Dpad::up);    // qid 0 → no-op
+    const bool lset = LaserController::setLaserVal(2, 128);
+    const int lval = LaserController::getLaserVal(2);
     LaserController::cross_changed_event(0);          // qid 0 → no-op
     cJSON *lroot = cJSON_Parse("{\"LASERid\":2,\"LASERval\":128,\"qid\":21}");
-    const int laq = LaserController::act(lroot);      // weak stub: no route
+    const int laq = LaserController::act(lroot);      // real router: no route
     cJSON *lget = LaserController::get(lroot);
     {
         char *lgs = lget ? cJSON_PrintUnformatted(lget) : nullptr;
-        std::printf("T1.3 scratch: LaserController set=%d act qid=%d get=%s\n",
-                    (int)lset, laq, lgs ? lgs : "(null)");
+        std::printf("T1.3 scratch: LaserController set=%d val=%d act qid=%d get=%s\n",
+                    (int)lset, lval, laq, lgs ? lgs : "(null)");
         if (lgs) cJSON_free(lgs);
         if (lget) cJSON_Delete(lget);
     }

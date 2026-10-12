@@ -1,7 +1,14 @@
 #include <PinConfig.h>
 #include "SerialProcess.h"
 #include "Endpoints.h"
-#include "Arduino.h"
+// T1.3: direct IDF (no Arduino) — uc2 façade for Serial / millis / delay /
+// log_* / ESP.restart(); FreeRTOS types come along via uc2_time.h.
+#include <cstdlib>  // malloc/free
+#include <cstring>  // strlen/strcpy/strcat/memcpy
+#include "uc2_hal/uc2_esp.h"
+#include "uc2_hal/uc2_log.h"
+#include "uc2_hal/uc2_serial.h"
+#include "uc2_hal/uc2_time.h"
 #ifdef ANALOG_IN_CONTROLLER
 #include "../analogin/AnalogInController.h"
 #endif
@@ -80,6 +87,9 @@
 #ifdef THERMAL_CONTROLLER
 #include "../thermal/ThermalController.h"
 #endif
+
+// T1.3: tag for the uc2 log_* façade (ESP_LOG* forwarding, see uc2_log.h).
+static const char *TAG = "UC2_SERIAL";
 
 namespace SerialProcess
 {

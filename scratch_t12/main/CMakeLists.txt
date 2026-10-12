@@ -1,6 +1,6 @@
 set(UC2_MAIN M:/repos/uc2-esp32/main)
 
-idf_component_register(SRCS "main.cpp"
+idf_component_register(SRCS "${UC2_MAIN}/main.cpp"
                        "${UC2_MAIN}/src/buzzer/BuzzerController.cpp"
                         "${UC2_MAIN}/src/config/NVSConfig.cpp"
                         "${UC2_MAIN}/src/config/ConfigController.cpp"

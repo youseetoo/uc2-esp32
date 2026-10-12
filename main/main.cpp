@@ -9,9 +9,12 @@
 #include "soc/rtc_cntl_reg.h"
 #include "esp_task_wdt.h"
 #include "esp_system.h"
-#include "Wire.h"
-#include <Preferences.h>
+// T1.3 (no Arduino): Wire/Preferences come from the uc2 façades (PinConfig.h
+// already pulls the uc2_hal umbrella; these keep the intent explicit).
+#include "uc2_hal/uc2_wire.h"
+#include "uc2_hal/uc2_prefs.h"
 #include "nvs_flash.h"
+#include <cstdio>  // T1.3: snprintf (no longer pulled in by Arduino.h)
 #if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
 // hal/usb_hal.h is only available for certain ESP32-S3 USB configurations
 #if __has_include("hal/usb_hal.h")
@@ -19,7 +22,10 @@
 #endif
 #endif
 
-Preferences preferences;
+// T1.3: tag for the uc2 log_* façade (ESP_LOG* forwarding, see uc2_log.h).
+static const char *TAG = "UC2_MAIN";
+
+uc2::Preferences preferences;
 
 #define WDTIMEOUT 10 // ensure that the watchdog timer is reset every 2 seconds, otherwise the ESP32 will reset
 
@@ -172,7 +178,19 @@ extern "C" void looper(void *p)
 {
 	log_i("Starting loop");
 	// Enable the watchdog timer to detect and recover from system crashes
+#ifdef ARDUINO
 	esp_task_wdt_init(WDTIMEOUT, true); // Enable panic so ESP32 restarts
+#else
+	// IDF 6.1: struct-configured init (timeout in ms, panic on fire).
+	// idle_core_mask = both cores: old 2-arg init() always subscribed the
+	// idle tasks, so keep that (S3 is dual-core).
+	esp_task_wdt_config_t wdt_cfg = {
+		.timeout_ms = WDTIMEOUT * 1000,
+		.idle_core_mask = 0x1 | 0x2,
+		.trigger_panic = true,
+	};
+	esp_task_wdt_init(&wdt_cfg);
+#endif
 	esp_task_wdt_add(NULL);				// Add current thread to WDT watch
 
 	for (;;)

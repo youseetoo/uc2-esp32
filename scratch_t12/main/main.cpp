@@ -15,6 +15,7 @@
 #include "BuzzerController.h"
 #include "DialController.h"
 #include "DigitalInController.h"
+#include "DigitalOutController.h"
 #include "FanController.h"
 #include "I2cBridge.h"
 #include "Tmp102Controller.h"
@@ -128,6 +129,26 @@ void app_main(void)
     std::printf("T1.3 scratch: DigitalInController estop active=%d pol=%d\n",
                 (int)DigitalInController::isEmergencyActive(),
                 (int)DigitalInController::getEmergencyPolarity());
+
+    // DigitalOutController — uc2 gpio/time façade (T1.3 action 2).
+    // DIGITAL_OUT_* are -1 in this board combo: pinMode/digitalWrite no-op
+    // via the façade's pin guard (-1 → 255 >= SOC_GPIO_PIN_COUNT).
+    DigitalOutController::setup();
+    DigitalOutController::loop();
+    cJSON *oroot = cJSON_Parse("{\"qid\":12,\"digitaloutid\":1,\"digitaloutval\":1,"
+                               "\"digitalout1IsTrigger\":1,\"digitalout1TriggerDelayOn\":10,"
+                               "\"digitalout1TriggerDelayOff\":10}");
+    const int oq = DigitalOutController::act(oroot);
+    DigitalOutController::loop(); // runs the (no-pin) trigger table once
+    cJSON *og = DigitalOutController::get(oroot);
+    {
+        char *os = og ? cJSON_PrintUnformatted(og) : nullptr;
+        std::printf("T1.3 scratch: DigitalOutController act qid=%d get=%s\n", oq, os ? os : "(null)");
+        if (os) cJSON_free(os);
+        if (og) cJSON_Delete(og);
+    }
+    cJSON_Delete(oroot);
+    std::printf("T1.3 scratch: DigitalOutController setup/loop ok (pins -1)\n");
 
     // FanController — Wire + Preferences + tacho GPIO ISR (T1.3 action 2)
     FanController::setup();

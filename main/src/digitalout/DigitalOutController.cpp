@@ -1,11 +1,14 @@
 #include <PinConfig.h>
 #include "DigitalOutController.h"
-#include "Arduino.h"
-#include "JsonKeys.h"
+// T1.3: direct IDF (no Arduino) — uc2 façade for gpio/time/log.
+// JsonKeys.h dropped (Arduino/pgmspace): literal key strings.
+#include <uc2_hal.h>
 #include "cJsonTool.h"
 
 namespace DigitalOutController
 {
+	static const char *TAG = "DigitalOutController";
+
 	// Custom function accessible by the API
 	int act(cJSON *jsonDocument)
 	{
@@ -16,20 +19,20 @@ namespace DigitalOutController
 
 		// set default parameters
 		// is trigger active?
-		is_digital_trigger_1 = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut1IsTrigger);
-		is_digital_trigger_2 = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut2IsTrigger);
-		is_digital_trigger_3 = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut3IsTrigger);
+		is_digital_trigger_1 = cJsonTool::getJsonInt(jsonDocument, "digitalout1IsTrigger");
+		is_digital_trigger_2 = cJsonTool::getJsonInt(jsonDocument, "digitalout2IsTrigger");
+		is_digital_trigger_3 = cJsonTool::getJsonInt(jsonDocument, "digitalout3IsTrigger");
 
 		// on-delay
-		digitalout_trigger_delay_1_on = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut1TriggerDelayOn);
-		digitalout_trigger_delay_2_on = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut2TriggerDelayOn);
-		digitalout_trigger_delay_3_on = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut3TriggerDelayOn);
+		digitalout_trigger_delay_1_on = cJsonTool::getJsonInt(jsonDocument, "digitalout1TriggerDelayOn");
+		digitalout_trigger_delay_2_on = cJsonTool::getJsonInt(jsonDocument, "digitalout2TriggerDelayOn");
+		digitalout_trigger_delay_3_on = cJsonTool::getJsonInt(jsonDocument, "digitalout3TriggerDelayOn");
 
 		// off-delay
-		digitalout_trigger_delay_1_off = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut1TriggerDelayOff);
-		digitalout_trigger_delay_2_off = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut2TriggerDelayOff);
-		digitalout_trigger_delay_3_off = cJsonTool::getJsonInt(jsonDocument, keyDigitalOut3TriggerDelayOff);
-		int reset = cJsonTool::getJsonInt(jsonDocument, keyDigitalOutIsTriggerReset);
+		digitalout_trigger_delay_1_off = cJsonTool::getJsonInt(jsonDocument, "digitalout1TriggerDelayOff");
+		digitalout_trigger_delay_2_off = cJsonTool::getJsonInt(jsonDocument, "digitalout2TriggerDelayOff");
+		digitalout_trigger_delay_3_off = cJsonTool::getJsonInt(jsonDocument, "digitalout3TriggerDelayOff");
+		int reset = cJsonTool::getJsonInt(jsonDocument, "digitaloutistriggerreset");
 
 		// reset trigger
 		if (reset == 1)
@@ -40,8 +43,8 @@ namespace DigitalOutController
 		}
 
 		//
-		int digitaloutid = cJsonTool::getJsonInt(jsonDocument, keyDigitalOutid);
-		int digitaloutval = cJsonTool::getJsonInt(jsonDocument, keyDigitalOutVal);
+		int digitaloutid = cJsonTool::getJsonInt(jsonDocument, "digitaloutid");
+		int digitaloutval = cJsonTool::getJsonInt(jsonDocument, "digitaloutval");
 
 		// print debugging information
 		log_d("digitaloutid %d", digitaloutid);
@@ -144,7 +147,7 @@ namespace DigitalOutController
 
 		jsonDocument = cJSON_CreateObject();
 		cJSON *douth = cJSON_CreateObject();
-		cJSON_AddItemToObject(jsonDocument, key_digitalout, douth);
+		cJSON_AddItemToObject(jsonDocument, "digitalout", douth);
 		cJsonTool::setJsonInt(douth, "digitaloutid", digitaloutid);
 		cJsonTool::setJsonInt(douth, "digitaloutval", digitaloutval);
 		cJsonTool::setJsonInt(douth, "digitaloutpin", digitaloutpin);

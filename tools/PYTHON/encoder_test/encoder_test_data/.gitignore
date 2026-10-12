@@ -1,0 +1,4 @@
+# The CSVs that encoder_test.ipynb reads are tracked here.
+# The plots are written by the notebook and the photos are too large: both stay local.
+encoder_test_plots/
+*_photos/

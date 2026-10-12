@@ -1,0 +1,6 @@
+# T1.4: uc2_app consumes uc2_core's UC2_* feature symbols (main.cpp gates on
+# CONFIG_UC2_*); source them here so every app that REQUIRES uc2_app gets
+# the full symbol set without depending on uc2_core directly.
+menu "UC2 features"
+rsource "../uc2_core/Kconfig"
+endmenu

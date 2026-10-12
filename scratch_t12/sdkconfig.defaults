@@ -1,0 +1,17 @@
+# T1.4: minimal sdkconfig for the scratch app — target + the non-default IDF
+# settings from the previous accumulated sdkconfig + the UC2_* feature gates.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
+CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ=160
+
+# UC2 feature gates (components/uc2_core/Kconfig) — mirror the scratch combo:
+# laser PinConfig + I2C_BRIDGE + CANopen (scratch_t12/main/CMakeLists.txt).
+CONFIG_UC2_NODE_ROLE=2
+CONFIG_UC2_LASER_CONTROLLER=y
+CONFIG_UC2_MESSAGE_CONTROLLER=y
+CONFIG_UC2_DIGITAL_IN_CONTROLLER=y
+CONFIG_UC2_DIGITAL_OUT_CONTROLLER=y
+CONFIG_UC2_DIAL_CONTROLLER=y
+CONFIG_UC2_CAN_BUS_ENABLED=y
+CONFIG_UC2_CAN_CONTROLLER_CANOPEN=y
+CONFIG_UC2_FAN_CONTROLLER=y

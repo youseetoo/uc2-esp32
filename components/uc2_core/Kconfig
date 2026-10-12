@@ -1,0 +1,168 @@
+# UC2 feature flags — single source of truth for all UC2_* build symbols.
+# T1.4: symbol list exactly as DOCS/PORT_PLAN_STEPS/refs/env-app-mapping.md §3.
+# Sourced into the build by uc2_app/Kconfig (every app REQUIRES uc2_app).
+# Consumed by:
+#   - uc2_app/main.cpp:  #ifdef CONFIG_UC2_<NAME> gates (T1.4)
+#   - component CMakeLists: source gates (T1.6+, component-layout.md §3)
+#   - component .c/.cpp:  #ifdef CONFIG_UC2_<NAME> gates
+#
+# Deliberately NOT here (env-app-mapping.md §4):
+#   - I2C_BRIDGE_CONTROLLER  — PinConfig.h-gated (board-combo concern)
+#   - ESP32S3_MODEL_XIAO     — board flag (target_compile_definitions / PinConfig)
+
+config UC2_NODE_ROLE
+    int "Node role bitmask (1=master, 2=laser, 4=dial, 8=motor, 16=scanner)"
+    default 1
+
+config UC2_CORE_DEBUG_LEVEL
+    int "Core debug level (0=off, 1..5=increasingly verbose)"
+    default 0
+    range 0 5
+
+config UC2_CAN_AXIS_ID
+    string "CAN axis node id (empty = unused)"
+    default ""
+
+config UC2_BLUETOOTH
+    bool "Bluetooth (classic + BLE)"
+    default n
+
+config UC2_BTHID
+    bool "Bluetooth HID (requires UC2_BLUETOOTH)"
+    default n
+
+config UC2_MOTOR_CONTROLLER
+    bool "Motor controller"
+    default n
+
+config UC2_LASER_CONTROLLER
+    bool "Laser controller"
+    default n
+
+config UC2_LED_CONTROLLER
+    bool "LED controller"
+    default n
+
+config UC2_DIGITAL_IN_CONTROLLER
+    bool "Digital in controller"
+    default n
+
+config UC2_DIGITAL_OUT_CONTROLLER
+    bool "Digital out controller"
+    default n
+
+config UC2_DAC_CONTROLLER
+    bool "DAC controller"
+    default n
+
+config UC2_HEAT_CONTROLLER
+    bool "Heat controller"
+    default n
+
+config UC2_DS18B20_CONTROLLER
+    bool "DS18B20 temperature sensor"
+    default n
+
+config UC2_USE_TCA9535
+    bool "TCA9535 I2C GPIO expander"
+    default n
+
+config UC2_HOME_MOTOR
+    bool "Home motor"
+    default n
+
+config UC2_MESSAGE_CONTROLLER
+    bool "Message controller"
+    default n
+
+config UC2_USE_FASTACCEL
+    bool "Fast-accel motion profile (motor)"
+    default n
+
+config UC2_USE_ACCELSTEP
+    bool "AccelStepper motion profile (motor)"
+    default n
+
+config UC2_STAGE_SCAN
+    bool "Stage scan (motor)"
+    default n
+
+config UC2_CAN_BUS_ENABLED
+    bool "CAN bus hardware"
+    default n
+
+config UC2_CAN_CONTROLLER_CANOPEN
+    bool "CANopen stack via CANopenNode (requires UC2_CAN_BUS_ENABLED)"
+    default n
+
+config UC2_GPIO_CAN_SLAVE_CONTROLLER
+    bool "GPIO-CAN slave bridge"
+    default n
+
+config UC2_PTZ_KEYBOARD_CONTROLLER
+    bool "PTZ keyboard (Pelco) over serial"
+    default n
+
+config UC2_GALVO_CONTROLLER
+    bool "Galvo scanner controller"
+    default n
+
+config UC2_DIAL_CONTROLLER
+    bool "Dial controller"
+    default n
+
+config UC2_M5DIAL
+    bool "M5Dial hardware variant"
+    default n
+
+config UC2_TMC_CONTROLLER
+    bool "TMC stepper driver controller"
+    default n
+
+config UC2_ENCODER_CONTROLLER
+    bool "Legacy encoder controller"
+    default n
+
+config UC2_LINEAR_ENCODER_CONTROLLER
+    bool "Linear encoder / closed-loop axis controller (design v2)"
+    default n
+
+config UC2_I2C_SLAVE_MOTOR
+    bool "I2C slave motor node"
+    default n
+
+config UC2_I2C_SLAVE_LASER
+    bool "I2C slave laser node"
+    default n
+
+config UC2_I2C_MASTER
+    bool "I2C master"
+    default n
+
+config UC2_TMP102_CONTROLLER
+    bool "TMP102 I2C temperature sensor"
+    default n
+
+config UC2_FAN_CONTROLLER
+    bool "Fan controller"
+    default n
+
+config UC2_THERMAL_CONTROLLER
+    bool "NTC heat-sink thermal monitoring"
+    default n
+
+config UC2_JOYSTICK_USBHOST_PROVIDER
+    bool "Joystick over USB Host HID (DS4 bridge, S3 only)"
+    default n
+
+config UC2_CANOPEN_OTA_NO_RECEIVER
+    bool "CANopen OTA: omit receiver role"
+    default n
+
+config UC2_CANOPEN_OTA_NO_SENDER
+    bool "CANopen OTA: omit sender role"
+    default n
+
+config UC2_FORCE_BT_CLASSIC_ONLY
+    bool "Force classic-BT-only (no BLE) when UC2_BLUETOOTH is on"
+    default n

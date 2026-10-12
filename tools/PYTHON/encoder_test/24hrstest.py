@@ -18,7 +18,7 @@ Calibration: modes 1..3 only work with a valid encoder calibration in the
 firmware (sign, counts per step, backlash), otherwise "measured"/"posErr"
 are wrong and CORRECT/SERVO move the axis to the wrong place. So with
 --mode 1..3 the script first runs the firmware's calibration
-({"stepperid": 1, "calibrate": 1}: the axis sweeps +5500 steps from where it
+({"stepperid": 1, "calibrate": 1}: the axis sweeps +55000 steps from where it
 is and back, the result is stored in the board), --no-calibrate skips it.
 After that the first leg (to the sample position) is run open loop as a
 scale check: if the encoder does not see about as many steps as were
@@ -80,8 +80,8 @@ MODES = {0: "OPEN_LOOP", 1: "MONITOR", 2: "CORRECT", 3: "SERVO"}
 # CORRECT / SERVO adopt the encoder position as the new step counter, so the
 # move ends near the target, not exactly on it
 ARRIVE_TOL = 200
-# the firmware's calibration sweeps preload 500 + 10 x 500 steps in + and back
-CAL_SWEEP = 5500
+# the firmware's calibration sweeps preload 5000 + 10 x 5000 steps in + and back
+CAL_SWEEP = 55000
 
 
 def send(ser, stepper):
@@ -117,7 +117,7 @@ def axis_status(ser, timeout=2.0, flush=True):
 
 def calibrate(ser, timeout=90.0):
     """Run the firmware's encoder calibration of axis 1 (sign, counts per step,
-    backlash). The axis sweeps +5500 steps from where it is and comes back.
+    backlash). The axis sweeps +55000 steps from where it is and comes back.
     The result is taken from the firmware's log lines (its long JSON replies
     do not arrive complete on the USB serial port)."""
     ser.reset_input_buffer()

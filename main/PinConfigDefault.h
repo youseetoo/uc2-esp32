@@ -336,6 +336,7 @@ struct PinConfig
      bool ENC_X_encoderDirection = true;
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
+     int32_t axis_backlash_steps = 0;
 
      // TMC 2209 stuff
      int8_t tmc_SW_RX = disabled;    // GPIO_NUM_44; // D7 -> GPIO44

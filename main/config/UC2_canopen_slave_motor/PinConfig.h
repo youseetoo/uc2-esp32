@@ -139,6 +139,10 @@ struct UC2_canopen_slave_motor : PinConfig
      bool ENC_Y_encoderDirection = true;
      bool ENC_Z_encoderDirection = true;
 
+     // X stage reversal slack: 20 steps (6.25 um at 0.3125 um/step; measured
+     // 6.5 +- 0.9 um with test_backlash_x.py, 2026-10-07, against the camera).
+     int32_t axis_backlash_steps = 20;
+
     // limit settings
       bool hardLimitEnabledX = true;
       bool hardLimitPolarityX = true;

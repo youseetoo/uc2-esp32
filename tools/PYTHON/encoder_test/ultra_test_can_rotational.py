@@ -251,8 +251,8 @@ FAULTS = {0: "NONE", 1: "STALL", 2: "LOST_STEPS", 3: "DIVERGENCE", 4: "TIMEOUT",
 # CORRECT / SERVO adopt the encoder position as the new step counter, so the
 # move ends near the target, not exactly on it
 ARRIVE_TOL = 200
-# the firmware's calibration sweeps preload 500 + 10 x 500 steps in + and back
-CAL_SWEEP = 5500
+# the firmware's calibration sweeps preload 5000 + 10 x 5000 steps in + and back
+CAL_SWEEP = 55000
 
 # slave object dictionary (main/src/canopen/UC2_OD_Indices.h)
 OD_POSITION, OD_STATUS = 0x2001, 0x2004
@@ -352,7 +352,7 @@ class Axis:
 
     def calibrate(self, timeout=120.0):
         """Run the firmware's encoder calibration (sign, counts per step,
-        backlash). The axis sweeps +5500 steps from where it is and comes back.
+        backlash). The axis sweeps +55000 steps from where it is and comes back.
         Returns what can be read back over CAN."""
         start = self.position()[0]
         self.sdo(OD_CALIBRATE, 1, "u8")

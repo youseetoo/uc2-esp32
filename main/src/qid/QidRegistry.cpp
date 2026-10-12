@@ -1,6 +1,11 @@
 #include "QidRegistry.h"
 #include "../serial/SerialProcess.h"
+// T1.3: direct IDF (no Arduino) — uc2 façade for millis()/log_*.
+// JsonKeys.h not used. FocusMotor is only referenced under MOTOR_CONTROLLER.
+#include <uc2_hal.h>
+#ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
+#endif
 #include "../../cJsonTool.h"
 #include "esp_log.h"
 

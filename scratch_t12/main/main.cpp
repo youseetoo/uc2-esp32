@@ -21,6 +21,7 @@
 #include "I2cBridge.h"
 #include "InterruptController.h"
 #include "MessageController.h"
+#include "QidRegistry.h"
 #include "State.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
@@ -48,6 +49,12 @@ __attribute__((weak)) void serialize(cJSON *doc)
     std::printf("estop event (scratch stub): %s\n", s ? s : "(null)");
     if (s) cJSON_free(s);
     if (doc) cJSON_Delete(doc);
+}
+// QidRegistry sends {"qid":N,"state":"..."} through this; stub echoes to
+// console (the real hub serializes over UART once it is converted).
+__attribute__((weak)) void safeSendJsonString(char *jsonString)
+{
+    std::printf("qid notify (scratch stub): %s\n", jsonString ? jsonString : "(null)");
 }
 }  // namespace SerialProcess
 
@@ -272,6 +279,21 @@ void app_main(void)
         if (mg) cJSON_Delete(mg);
     }
     cJSON_Delete(mroot);
+
+    // QidRegistry — FreeRTOS mutex + millis/log (T1.3 action 2).
+    // FocusMotor paths compile out (MOTOR_CONTROLLER off); SerialProcess::
+    // safeSendJsonString resolves to the weak stub above.
+    QidRegistry::setup();
+    const bool qreg = QidRegistry::registerQid(15, 2);
+    const int qstate = (int)QidRegistry::getQidState(15);
+    QidRegistry::reportActionDone(15); // 1/2 — no notification yet
+    QidRegistry::reportActionDone(15); // 2/2 — weak stub prints "done"
+    const bool qpause = QidRegistry::pauseQid(16); // qid 16 not busy → false
+    cJSON *qroot = cJSON_Parse("{\"qid\":16}");
+    const int qh = QidRegistry::handleQidStateQuery(qroot); // weak stub prints state
+    std::printf("T1.3 scratch: QidRegistry reg=%d state=%d pause16=%d handleQ=%d\n",
+                (int)qreg, qstate, (int)qpause, qh);
+    cJSON_Delete(qroot);
 
     // State — uc2 gpio/prefs/log/time/ESP façade (T1.3 action 2).
     // I2C_MASTER undefined in this combo → i2c_master::reboot()/startOTA()

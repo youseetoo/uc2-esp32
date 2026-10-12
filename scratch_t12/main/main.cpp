@@ -15,11 +15,13 @@
 #include "BuzzerController.h"
 #include "ConfigController.h"
 #include "DialController.h"
+#include "DeviceRouter.h"
 #include "DigitalInController.h"
 #include "DigitalOutController.h"
 #include "FanController.h"
 #include "I2cBridge.h"
 #include "InterruptController.h"
+#include "LaserController.h"
 #include "MessageController.h"
 #include "QidRegistry.h"
 #include "State.h"
@@ -57,6 +59,16 @@ __attribute__((weak)) void safeSendJsonString(char *jsonString)
     std::printf("qid notify (scratch stub): %s\n", jsonString ? jsonString : "(null)");
 }
 }  // namespace SerialProcess
+
+// Scratch link stub: DeviceRouter.cpp (104KB hub) is not part of scratch_t12
+// yet. LaserController's act/dpad/cross paths reference
+// DeviceRouter::handleLaserAct(cJSON*); the real one only READS doc (no
+// ownership) and returns a fresh response — the stub answers "no route".
+cJSON *DeviceRouter::handleLaserAct(cJSON *doc)
+{
+    std::printf("laser act (scratch stub): doc %p -> no route\n", (void *)doc);
+    return nullptr;
+}
 
 extern "C" {
 
@@ -320,6 +332,30 @@ void app_main(void)
     State::startOTA();  // raw-IDF path → log_w, no WiFi
     State::stopOTA();
     std::printf("T1.3 scratch: State setup/act/get/getModules/OTA ok (no WiFi in raw IDF)\n");
+
+    // LaserController — uc2 ledc/gpio/time/misc façades (T1.3 action 2).
+    // I2C_LASER off in this combo → i2c path compile-out; DeviceRouter::
+    // handleLaserAct resolves to the weak stub above. The State smoke left
+    // State busy=true (would block setLaserVal) → clear it first.
+    State::setBusy(false);
+    LaserController::setup();
+    LaserController::loop();
+    const bool lset = LaserController::setLaserVal(1, 512);
+    LaserController::setPWM(256, LaserController::getPWMChannel(1));
+    LaserController::moveServo(LaserController::getPWMChannel(1), 90, 50, 12);
+    LaserController::dpad_changed_event(Dpad::up);    // qid 0 → no-op
+    LaserController::cross_changed_event(0);          // qid 0 → no-op
+    cJSON *lroot = cJSON_Parse("{\"LASERid\":2,\"LASERval\":128,\"qid\":21}");
+    const int laq = LaserController::act(lroot);      // weak stub: no route
+    cJSON *lget = LaserController::get(lroot);
+    {
+        char *lgs = lget ? cJSON_PrintUnformatted(lget) : nullptr;
+        std::printf("T1.3 scratch: LaserController set=%d act qid=%d get=%s\n",
+                    (int)lset, laq, lgs ? lgs : "(null)");
+        if (lgs) cJSON_free(lgs);
+        if (lget) cJSON_Delete(lget);
+    }
+    cJSON_Delete(lroot);
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

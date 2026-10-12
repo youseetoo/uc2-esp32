@@ -14,7 +14,8 @@ idf_component_register(SRCS "main.cpp"
                          "${UC2_MAIN}/src/dial/DialController.cpp"
                           "${UC2_MAIN}/src/message/MessageController.cpp"
                           "${UC2_MAIN}/src/qid/QidRegistry.cpp"
-                          "${UC2_MAIN}/src/state/State.cpp"
+                           "${UC2_MAIN}/src/state/State.cpp"
+                           "${UC2_MAIN}/src/laser/LaserController.cpp"
                         INCLUDE_DIRS "${UC2_MAIN}"
                                      "${UC2_MAIN}/src/buzzer"
                                      "${UC2_MAIN}/src/config"
@@ -27,8 +28,10 @@ idf_component_register(SRCS "main.cpp"
                                        "${UC2_MAIN}/src/encoder"
                                          "${UC2_MAIN}/src/message"
                                          "${UC2_MAIN}/src/qid"
-                                         "${UC2_MAIN}/src/state"
-                       REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
+                                          "${UC2_MAIN}/src/state"
+                                          "${UC2_MAIN}/src/laser"
+                                          "${UC2_MAIN}/src/canopen"
+                        REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
                                  dac_module driver esp_driver_ledc esp_driver_tsens
                                  nvs_flash uc2_hal)
 # UC2_canopen_slave_gpio board combo (I2C_BRIDGE_CONTROLLER always pairs with CAN_CONTROLLER_CANOPEN)

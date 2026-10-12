@@ -19,6 +19,7 @@ idf_component_register(SRCS "main.cpp"
                             "${UC2_MAIN}/src/canopen/RoutingTable.cpp"
                             "${UC2_MAIN}/src/canopen/OtaBinaryReceive.cpp"
                             "${UC2_MAIN}/src/canopen/CanOpenOTAStreaming.cpp"
+                            "${UC2_MAIN}/src/canopen/CanOpenOTA.cpp"
                          INCLUDE_DIRS "${UC2_MAIN}"
                                      "${UC2_MAIN}/src/buzzer"
                                      "${UC2_MAIN}/src/config"
@@ -36,7 +37,7 @@ idf_component_register(SRCS "main.cpp"
                                           "${UC2_MAIN}/src/canopen"
                         REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
                                  dac_module driver esp_driver_ledc esp_driver_tsens
-                                 nvs_flash uc2_hal)
+                                 nvs_flash uc2_hal app_update)
 # UC2_canopen_slave_gpio board combo (I2C_BRIDGE_CONTROLLER always pairs with CAN_CONTROLLER_CANOPEN)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE I2C_BRIDGE_CONTROLLER CAN_CONTROLLER_CANOPEN)
 # Note: DialController.cpp's SdoEmit/RoutingTable path is guarded inside the

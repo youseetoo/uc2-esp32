@@ -14,6 +14,7 @@
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
 #include "CANopenModule.h"
+#include "CanOpenOTA.h"
 #include "CanOpenOTAStreaming.h"
 #include "ConfigController.h"
 #include "DialController.h"
@@ -417,6 +418,11 @@ void app_main(void)
     std::printf("T1.3 scratch: CanOpenOTAStreaming act=%d flash=%d status=0x%02x\n",
                 csr, (int)csf, css);
     cJSON_Delete(csj);
+
+    // CanOpenOTA (slave side) — registers OD 0x2F00/0x2F01 extensions +
+    // spawns the inactivity watchdog. Logs its registration lines.
+    CanOpenOTA::registerOdExtensions();
+    std::printf("T1.3 scratch: CanOpenOTA::registerOdExtensions() ok\n");
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

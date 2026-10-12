@@ -1,6 +1,7 @@
 # T1.5: canopen_slave_laser feature set (from PIO env UC2_canopen_slave_laser_release).
 # Target: esp32s3 (XIAO ESP32S3). Console: USB-Serial-JTAG.
 CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../custom_partition_esp32s3.csv"

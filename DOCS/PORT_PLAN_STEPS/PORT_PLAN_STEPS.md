@@ -56,12 +56,13 @@ executor agent.
 - [ ] **T1.3** [T1.3.md](steps/T1.3.md) — Convert `main/` to direct IDF (no shim; removes T1.2's `uc2_arduino_shim`) · 3–5 d · ← T1.1
 - [x] **T1.4** [T1.4.md](steps/T1.4.md) — Feature Kconfig symbol set + `uc2_app` glue + source-gating pattern · 0.5 d · ← T1.3
 - [ ] **T1.5** [T1.5.md](steps/T1.5.md) — *(D3, D7)* App #1 scaffold: `apps/canopen_slave_laser` + `boards/` PinConfig · 0.5 d · ← T1.4
-- [ ] **T1.6** [T1.6.md](steps/T1.6.md) — Port the laser app to direct IDF (no shim) · 1–2 d · ← T1.5
+- [x] **T1.6** [T1.6.md](steps/T1.6.md) — Port the laser app to direct IDF (no shim) · 1–2 d · ← T1.5 — **done 2026-10-13: laser green 359,616 B (app-local `uc2_modules`; per-controller split = T1.9)**
 - [ ] **T1.7** [T1.7.md](steps/T1.7.md) — *(D1)* Build + flash + `[HW]` laser/CANopen smoke; size ±10 % · 0.5 d + `[HW]` · ← T1.6
 - [ ] **T1.8** [T1.8.md](steps/T1.8.md) — *(D6)* CI `idf-build` job (laser only) alongside PIO matrix · 0.5 d · ← T1.7
+- [ ] **T1.9** [T1.9.md](steps/T1.9.md) — Split `main/src/` into per-controller components (for app-sharing) · 1–2 d · ← T1.6
 
 ### Phase 2 — All non-BT boards (1.5–3 w; each task is an individually verifiable board unit)
-- [ ] **T2.1** [T2.1.md](steps/T2.1.md) — `apps/xiao_ledservo` + `apps/xiao_ledring` · 2–3 d · ← T1.8
+- [ ] **T2.1** [T2.1.md](steps/T2.1.md) — `apps/xiao_ledservo` + `apps/xiao_ledring` · 2–3 d · ← T1.8, T1.9
 - [ ] **T2.2** [T2.2.md](steps/T2.2.md) — `apps/waveshare_ledarray` (WS2812 RMT ch 0 on S3) · 1–2 d · ← T1.8
 - [ ] **T2.3** [T2.3.md](steps/T2.3.md) — `apps/canopen_slave_gpio` (gpio_can + I2cBridge) · 1–2 d · ← T1.8
 - [ ] **T2.4** [T2.4.md](steps/T2.4.md) — `apps/canopen_slave_led` (LED + thermal + laser) · 2 d · ← T1.8
@@ -155,6 +156,15 @@ start immediately.**
 # Build one app (CWD-independent):
 idf.py -D IDF_TARGET=esp32s3 -D PROJECT_DIR=apps/canopen_slave_laser build
 # (each app dir gets a build.sh wrapper doing exactly this — created in T1.5)
+
+# Build speed-ups (verified 2026-10-13, esp32s3 laser app):
+#   - INCREMENTAL: `idf.py build` is incremental — do NOT nuke `build/` between iterations.
+#     Only `Remove-Item build -Recurse -Force` after CMakeLists/REQUIRES/file-MOVE changes (a
+#     stale CMake cache then gives "Cannot find source"). Include-only changes rebuild ~10–30 s,
+#     not the ~120 s full build.
+#   - CCACHE: set `CCACHE_ENABLE=1` (env) — big win on repeated builds across the 21 apps.
+#   - Windows/PowerShell 5.1: no `&&` (chain with `;`). Full line:
+#     . "M:\.espressif\v6.1\esp-idf\export.ps1" | Out-Null; cd <app>; idf.py build
 
 # PIO is not part of the build (IDF-only). Size comparisons use the reference
 # baselines already captured in DOCS/baselines.md (T0.3).

@@ -14,6 +14,7 @@
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
 #include "CANopenModule.h"
+#include "CanOpenOTAStreaming.h"
 #include "ConfigController.h"
 #include "DialController.h"
 #include "DeviceRouter.h"
@@ -89,6 +90,12 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
 bool CANopenModule::sdoDownloadEnd() { return false; }
 void CANopenModule::sdoDownloadAbort() {}
 bool CANopenModule::sdoDownloadActive() { return false; }
+bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                            uint8_t* buf, size_t bufSize, size_t* readSize)
+{ (void)nodeId; (void)index; (void)subIndex; (void)buf; (void)bufSize; (void)readSize; return false; }
+bool CANopenModule::writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                                   const uint8_t* data, size_t dataSize)
+{ (void)nodeId; (void)index; (void)subIndex; (void)data; (void)dataSize; return false; }
 #endif
 
 extern "C" {
@@ -399,6 +406,17 @@ void app_main(void)
                 ors ? ors : "(null)", (int)OtaBinaryReceive::isActive());
     if (ors) cJSON_free(ors);
     if (orj) cJSON_Delete(orj);
+
+    // CanOpenOTAStreaming — actFromJson parses the command; flashSlave
+    // fast-fails on the stubbed writeSDO_u32; status read -> 0xFF.
+    cJSON *csj = cJSON_Parse("{\"ota\":{\"nodeId\":11,\"size\":16,\"crc32\":\"0xdeadbeef\"}}");
+    int csr = CanOpenOTAStreaming::actFromJson(csj);
+    const uint8_t csbuf[4] = {1, 2, 3, 4};
+    bool csf = CanOpenOTAStreaming::flashSlave(11, csbuf, 4, 0xdeadbeef);
+    uint8_t css = CanOpenOTAStreaming::readSlaveStatus(11);
+    std::printf("T1.3 scratch: CanOpenOTAStreaming act=%d flash=%d status=0x%02x\n",
+                csr, (int)csf, css);
+    cJSON_Delete(csj);
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

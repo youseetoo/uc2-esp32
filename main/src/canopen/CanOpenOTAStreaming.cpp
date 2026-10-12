@@ -13,6 +13,9 @@
 #include "CANopenModule.h"
 #include "UC2_OD_Indices.h"
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <cstdlib>
 #include <rom/crc.h>
 
 extern "C" {

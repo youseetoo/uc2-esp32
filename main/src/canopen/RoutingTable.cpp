@@ -133,9 +133,9 @@ static void resolveRoute(RouteEntry::Type type, uint8_t logicalId,
     }
 
     // Infer from canRole + pins (legacy behaviour)
+    log_i("Inferring route for type=%d id=%d: canRole=%d hasLocalPin=%d",
+          int(type), int(logicalId), int(runtimeConfig.canRole), int(hasLocalPin));
     switch (runtimeConfig.canRole) {
-        log_i("Inferring route for type=%d id=%d: canRole=%d hasLocalPin=%d",
-              int(type), int(logicalId), int(runtimeConfig.canRole), int(hasLocalPin));
     case NodeRole::STANDALONE:
     case NodeRole::CAN_SLAVE:
         RoutingTable::set(type, logicalId,

@@ -24,6 +24,7 @@
 #include "LaserController.h"
 #include "MessageController.h"
 #include "QidRegistry.h"
+#include "RoutingTable.h"
 #include "State.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
@@ -356,6 +357,20 @@ void app_main(void)
         if (lget) cJSON_Delete(lget);
     }
     cJSON_Delete(lroot);
+
+    // RoutingTable — already raw-IDF (cJSON/esp_log/pinConfig); wire + smoke.
+    UC2::RoutingTable::buildDefault();
+    {
+        const UC2::RouteEntry *rte = UC2::RoutingTable::find(UC2::RouteEntry::LASER, 2);
+        cJSON *rj = UC2::RoutingTable::toJson();
+        char *rjs = rj ? cJSON_PrintUnformatted(rj) : nullptr;
+        std::printf("T1.3 scratch: RoutingTable count=%u laser2=%s table=%s\n",
+                    (unsigned)UC2::RoutingTable::getCount(),
+                    rte ? (rte->where == UC2::RouteEntry::REMOTE ? "REMOTE" : "LOCAL/OFF") : "(none)",
+                    rjs ? rjs : "(null)");
+        if (rjs) cJSON_free(rjs);
+        if (rj) cJSON_Delete(rj);
+    }
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

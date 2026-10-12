@@ -7,6 +7,7 @@
 // DOCS/PORT_PLAN_STEPS/refs/arduino-idf-mapping.md (API table).
 #include "uc2_hal/uc2_time.h"
 #include "uc2_hal/uc2_log.h"
+#include "uc2_hal/uc2_gpio.h"
 #include "uc2_hal/uc2_esp.h"
 #include "uc2_hal/uc2_prefs.h"
 #include "uc2_hal/uc2_serial.h"

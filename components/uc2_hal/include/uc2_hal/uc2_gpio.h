@@ -18,6 +18,7 @@
 #define INPUT         0x01
 #define OUTPUT        0x03
 #define INPUT_PULLUP  0x04
+#define INPUT_PULLDOWN 0x05  // DigitalInController E-stop / endstops
 #define HIGH          0x01
 #define LOW           0x00
 #define FALLING       1

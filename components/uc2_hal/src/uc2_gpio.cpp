@@ -44,6 +44,10 @@ void pinMode(uint8_t pin, uint8_t mode)
         c.mode = GPIO_MODE_INPUT;
         c.pull_up_en = GPIO_PULLUP_ENABLE;
         break;
+    case INPUT_PULLDOWN:
+        c.mode = GPIO_MODE_INPUT;
+        c.pull_down_en = GPIO_PULLDOWN_ENABLE;
+        break;
     case INPUT:
     default:
         break;

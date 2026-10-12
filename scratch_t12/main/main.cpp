@@ -14,6 +14,7 @@
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
 #include "DialController.h"
+#include "DigitalInController.h"
 #include "FanController.h"
 #include "I2cBridge.h"
 #include "Tmp102Controller.h"
@@ -29,6 +30,21 @@
 #include "nvs_flash.h"
 
 static const char *TAG = "t13scratch";
+
+// Scratch link stub: the real SerialProcess.cpp (867-line hub) is not part of
+// scratch_t12 yet. DigitalInController's E-stop path references
+// SerialProcess::serialize(cJSON*) at link time; this weak stub keeps the
+// link green and frees the doc like the real one does.
+namespace SerialProcess
+{
+__attribute__((weak)) void serialize(cJSON *doc)
+{
+    char *s = doc ? cJSON_PrintUnformatted(doc) : nullptr;
+    std::printf("estop event (scratch stub): %s\n", s ? s : "(null)");
+    if (s) cJSON_free(s);
+    if (doc) cJSON_Delete(doc);
+}
+}  // namespace SerialProcess
 
 extern "C" {
 
@@ -93,6 +109,25 @@ void app_main(void)
     std::printf("T1.3 scratch: Tmp102 pcb=%.1f air=%.1f esp=%.1f\n",
                 Tmp102Controller::getPcbC(), Tmp102Controller::getAirC(),
                 Tmp102Controller::getEspC());
+
+    // DigitalInController — uc2 gpio/prefs/time façade (T1.3 action 2).
+    // DIGITAL_IN_* and pinEmergencyExit are -1 in this board combo, so
+    // setup()/checkEmergencyStop() take their no-pin paths (no GPIO touched).
+    DigitalInController::setup();
+    DigitalInController::loop();
+    cJSON *droot = cJSON_Parse("{\"qid\":11,\"digitalinid\":1}");
+    cJSON *dg = DigitalInController::get(droot);
+    {
+        char *ds = dg ? cJSON_PrintUnformatted(dg) : nullptr;
+        std::printf("T1.3 scratch: DigitalInController get=%s\n", ds ? ds : "(null)");
+        if (ds) cJSON_free(ds);
+        if (dg) cJSON_Delete(dg);
+    }
+    cJSON_Delete(droot);
+    DigitalInController::checkEmergencyStop(); // pin -1 → early return
+    std::printf("T1.3 scratch: DigitalInController estop active=%d pol=%d\n",
+                (int)DigitalInController::isEmergencyActive(),
+                (int)DigitalInController::getEmergencyPolarity());
 
     // FanController — Wire + Preferences + tacho GPIO ISR (T1.3 action 2)
     FanController::setup();

@@ -1,6 +1,10 @@
 #pragma once
 #include <PinConfig.h>
+// T1.3: Arduino.h was only needed by the USE_TCA9535 path (TCA9555.h); keep
+// it for Arduino builds, let raw-IDF consumers include uc2_hal.h themselves.
+#ifdef ARDUINO
 #include "Arduino.h"
+#endif
 #ifdef USE_TCA9535
 #include "TCA9555.h"
 #endif

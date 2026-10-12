@@ -3,7 +3,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+// T1.3: Arduino.h was pulled in only so unconverted modules could rely on
+// this header transitively. Keep it for Arduino builds; raw-IDF consumers
+// must include their own headers (uc2_hal.h).
+#ifdef ARDUINO
 #include "Arduino.h"
+#endif
 
 namespace SerialProcess
 {

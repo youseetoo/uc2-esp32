@@ -1,8 +1,8 @@
 #include <PinConfig.h>
 #include "DigitalInController.h"
-#include "Arduino.h"
-#include "Preferences.h"
-#include "../../JsonKeys.h"
+// T1.3: direct IDF (no Arduino) — uc2 façade for gpio/prefs/time/log.
+// JsonKeys.h dropped (Arduino/pgmspace): key_digitalin == "digitalin".
+#include <uc2_hal.h>
 #include "cJsonTool.h"
 #include "../i2c/tca_controller.h"
 #include "../state/State.h"
@@ -10,6 +10,8 @@
 
 namespace DigitalInController
 {
+	static const char *TAG = "DigitalInController";
+
 	// ── Emergency-STOP state (file-local) ────────────────────────────────
 	// pinEmergencyExit senses a hardware E-stop. The ASSERTED (emergency) logic
 	// level is configurable at runtime via emergencyPolarity:
@@ -43,7 +45,7 @@ namespace DigitalInController
 		// create new json document
 		cJSON *monitor_json = cJSON_CreateObject();
 		cJSON *digitalinholder = cJSON_CreateObject();
-		cJSON_AddItemToObject(monitor_json, key_digitalin, digitalinholder);
+		cJSON_AddItemToObject(monitor_json, "digitalin", digitalinholder);
 		cJSON_AddItemToObject(digitalinholder, "digitalinid", cJSON_CreateNumber(digitalinid));
 		cJSON_AddItemToObject(digitalinholder, "digitalinval", cJSON_CreateNumber(digitalinval));
 
@@ -166,7 +168,7 @@ namespace DigitalInController
 	static void initEmergency()
 	{
 		// Load the configurable polarity from NVS (default from pinConfig).
-		Preferences prefs;
+		uc2::Preferences prefs;
 		prefs.begin("UC2", true); // read-only
 		emergencyPolarity = (int8_t)prefs.getChar("estopPol", pinConfig.pinEmergencyExitPolarity);
 		prefs.end();
@@ -241,7 +243,7 @@ namespace DigitalInController
 	void setEmergencyPolarity(int8_t pol)
 	{
 		emergencyPolarity = pol ? HIGH : LOW;
-		Preferences prefs;
+		uc2::Preferences prefs;
 		prefs.begin("UC2", false);
 		prefs.putChar("estopPol", emergencyPolarity);
 		prefs.end();

@@ -4,3 +4,5 @@
 /build-idf61/*
 /.vscode/
 /test/native/out_xcross/
+apps/*/build/
+scratch_t12/build/

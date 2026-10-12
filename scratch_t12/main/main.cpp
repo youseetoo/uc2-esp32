@@ -13,6 +13,7 @@
 
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
+#include "CANopenModule.h"
 #include "ConfigController.h"
 #include "DialController.h"
 #include "DeviceRouter.h"
@@ -23,6 +24,7 @@
 #include "InterruptController.h"
 #include "LaserController.h"
 #include "MessageController.h"
+#include "OtaBinaryReceive.h"
 #include "QidRegistry.h"
 #include "RoutingTable.h"
 #include "State.h"
@@ -70,6 +72,24 @@ cJSON *DeviceRouter::handleLaserAct(cJSON *doc)
     std::printf("laser act (scratch stub): doc %p -> no route\n", (void *)doc);
     return nullptr;
 }
+
+// Scratch link stub: CANopenModule.cpp (138KB) is not part of scratch_t12
+// yet. OtaBinaryReceive references its static SDO/streaming methods at link
+// time; the stubs report "no bus": node unreachable, every write/stream
+// fails, no stream active — so begin() fast-fails with slave_unreachable.
+#ifdef CAN_CONTROLLER_CANOPEN
+bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
+{ (void)nodeId; (void)timeoutMs; return false; }
+bool CANopenModule::writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs)
+{ (void)nodeId; (void)idx; (void)sub; (void)v; (void)timeoutMs; return false; }
+bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index, uint8_t subIndex, uint32_t totalSize)
+{ (void)nodeId; (void)index; (void)subIndex; (void)totalSize; return false; }
+bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
+{ (void)data; (void)count; return false; }
+bool CANopenModule::sdoDownloadEnd() { return false; }
+void CANopenModule::sdoDownloadAbort() {}
+bool CANopenModule::sdoDownloadActive() { return false; }
+#endif
 
 extern "C" {
 
@@ -371,6 +391,14 @@ void app_main(void)
         if (rjs) cJSON_free(rjs);
         if (rj) cJSON_Delete(rj);
     }
+
+    // OtaBinaryReceive — stubbed SDO layer ⇒ begin() fast-fails, no session.
+    cJSON *orj = OtaBinaryReceive::begin(11, 0x10000, 0x12345678);
+    char *ors = orj ? cJSON_PrintUnformatted(orj) : nullptr;
+    std::printf("T1.3 scratch: OtaBinaryReceive begin=%s active=%d\n",
+                ors ? ors : "(null)", (int)OtaBinaryReceive::isActive());
+    if (ors) cJSON_free(ors);
+    if (orj) cJSON_Delete(orj);
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

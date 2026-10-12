@@ -15,7 +15,7 @@
 
 #include "CANopenModule.h"
 #include "UC2_OD_Indices.h"
-#include <Arduino.h>
+#include <uc2_hal.h>
 #include <esp_log.h>
 #include <rom/crc.h>
 
@@ -196,7 +196,7 @@ void processBytes() {
         if (toRead > space)     toRead = space;
         if (toRead == 0) break;  // chunk is full, must flush before reading more
 
-        size_t nRead = Serial.readBytes(s_chunk + s_chunkPos, toRead);
+        size_t nRead = Serial.readBytes(reinterpret_cast<char*>(s_chunk) + s_chunkPos, toRead);
         if (nRead == 0) break;
         s_chunkPos      += nRead;
         s_bytesReceived += nRead;
@@ -248,7 +248,7 @@ void processBytes() {
     // host→master serial corruption before we waste minutes verifying on
     // the slave).
     if (s_expectedCrc32 != 0 && s_runningCrc32 != s_expectedCrc32) {
-        char err[112];
+        char err[160];
         snprintf(err, sizeof(err),
                  "{\"ota_status\":\"error\",\"error\":\"crc_mismatch\","
                  "\"computed\":\"0x%08lX\",\"expected\":\"0x%08lX\","

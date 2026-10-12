@@ -65,17 +65,11 @@ __attribute__((weak)) void safeSendJsonString(char *jsonString)
 }
 }  // namespace SerialProcess
 
-// Scratch link stub: DeviceRouter.cpp (104KB hub) is not part of scratch_t12
-// yet. LaserController's act/dpad/cross paths reference
-// DeviceRouter::handleLaserAct(cJSON*); the real one only READS doc (no
-// ownership) and returns a fresh response — the stub answers "no route".
-cJSON *DeviceRouter::handleLaserAct(cJSON *doc)
-{
-    std::printf("laser act (scratch stub): doc %p -> no route\n", (void *)doc);
-    return nullptr;
-}
-
-// CANopenModule.cpp (138KB) is now a real part of scratch_t12: its static
+// DeviceRouter.cpp (104KB hub) and CANopenModule.cpp (138KB) are now real
+// parts of scratch_t12: LaserController's reference to
+// DeviceRouter::handleLaserAct(cJSON*) and OtaBinaryReceive's references to
+// the CANopen SDO/streaming methods resolve against the real definitions,
+// so the former link stubs here were removed (duplicate definitions).
 // SDO/streaming methods satisfy OtaBinaryReceive's link references directly,
 // so the former "no bus" link stubs here were removed (duplicate definitions).
 
@@ -94,6 +88,16 @@ void app_main(void)
     // Pre-setup, CO == NULL, so isNodeReachable must return false immediately.
     std::printf("T1.3 scratch: CANopenModule linked (isNodeReachable(99)=%d)\n",
                 (int)CANopenModule::isNodeReachable(99));
+    // DeviceRouter (real 104KB TU now in the build): unknown task must return
+    // nullptr (not handled) without touching any hardware.
+    {
+        cJSON *smokeDoc = cJSON_CreateObject();
+        cJSON *smokeResp = DeviceRouter::routeCommand("/__t13_smoke__", smokeDoc);
+        std::printf("T1.3 scratch: DeviceRouter linked (routeCommand smoke resp=%p)\n",
+                    (void *)smokeResp);
+        if (smokeResp) cJSON_Delete(smokeResp);
+        if (smokeDoc) cJSON_Delete(smokeDoc);
+    }
     std::printf("T1.3 scratch: usb_host linked (usb_host_install=%p)\n", (void *)usb_host_install);
     (void)hid_host_uninstall;   // symbol reference only
 

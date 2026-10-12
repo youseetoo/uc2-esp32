@@ -1,13 +1,16 @@
 #include "ConfigController.h"
-#include "esp_log.h"
-#include "Preferences.h"
-#include "JsonKeys.h"
+// T1.3: direct IDF (no Arduino) — uc2 façade for prefs/string/log.
+// JsonKeys.h dropped (unused here; Arduino/pgmspace).
+#include <uc2_hal.h>
+#include <cstring>
 #include "nvs_flash.h"
 #include "PinConfig.h"
 namespace Config
 {
 
-	Preferences preferences;
+	static const char *TAG = "ConfigController";
+
+	uc2::Preferences preferences;
 
 	const char *prefNamespace = "UC2";
 
@@ -36,7 +39,7 @@ namespace Config
 	char* getPsxMac()
 	{
 		preferences.begin(prefNamespace, true);
-		String macString = preferences.getString("mac", "00:00:00:00:00:00");
+		uc2::String macString = preferences.getString("mac", "00:00:00:00:00:00");
 		char* m = new char[macString.length() + 1];
 		strcpy(m, macString.c_str());
 		

@@ -3,6 +3,8 @@ set(UC2_MAIN M:/repos/uc2-esp32/main)
 idf_component_register(SRCS "main.cpp"
                        "${UC2_MAIN}/src/buzzer/BuzzerController.cpp"
                         "${UC2_MAIN}/src/config/NVSConfig.cpp"
+                        "${UC2_MAIN}/src/config/ConfigController.cpp"
+                        "${UC2_MAIN}/src/encoder/InterruptController.cpp"
                         "${UC2_MAIN}/src/digitalin/DigitalInController.cpp"
                         "${UC2_MAIN}/src/digitalout/DigitalOutController.cpp"
                         "${UC2_MAIN}/src/fan/FanController.cpp"
@@ -18,7 +20,8 @@ idf_component_register(SRCS "main.cpp"
                                      "${UC2_MAIN}/src/fan"
                                      "${UC2_MAIN}/src/i2c"
                                      "${UC2_MAIN}/src/tmp102"
-                                     "${UC2_MAIN}/src/dial"
+                                      "${UC2_MAIN}/src/dial"
+                                      "${UC2_MAIN}/src/encoder"
                        REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
                                  dac_module driver esp_driver_ledc esp_driver_tsens
                                  nvs_flash uc2_hal)

@@ -3,7 +3,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include <Arduino.h>
+// T1.3: direct IDF (no Arduino) — gpio_int_type_t comes from the IDF gpio
+// driver (same header uc2_gpio.cpp uses).
+#include <driver/gpio.h>
 
 
 namespace InterruptController

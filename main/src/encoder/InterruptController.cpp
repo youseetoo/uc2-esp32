@@ -66,7 +66,7 @@ namespace InterruptController{
             .intr_type = int_type, // To handle CHANGE interrupt type
         };
         gpio_config(&io_conf_pwm);
-        gpio_isr_handler_add((gpio_num_t)pin, ISR_handler, (void *)pin);
+        gpio_isr_handler_add((gpio_num_t)pin, ISR_handler, (void *)(uintptr_t)pin);
     };
 
     void removeInterruptListner(uint8_t pin)

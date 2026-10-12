@@ -13,11 +13,13 @@
 
 // T1.3 action 2: uc2_hal façades + first converted leaf module (no Arduino)
 #include "BuzzerController.h"
+#include "ConfigController.h"
 #include "DialController.h"
 #include "DigitalInController.h"
 #include "DigitalOutController.h"
 #include "FanController.h"
 #include "I2cBridge.h"
+#include "InterruptController.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
 #include "i2c_slave_dial.h"
@@ -233,6 +235,24 @@ void app_main(void)
     std::printf("T1.3 scratch: Wire endTransmission=0x%02x (non-zero expected: no device)\n", we);
     int rq = Wire.requestFrom(0x68, 2);
     std::printf("T1.3 scratch: Wire requestFrom=%d available=%d (0 expected)\n", rq, Wire.available());
+
+    // InterruptController — raw-IDF GPIO ISR + queue task (T1.3 action 2).
+    // Pin 38 is spare on this combo; a CHANGE listener just records the pin.
+    static volatile uint8_t isrPin = 0;
+    InterruptController::addInterruptListner(38,
+                                             [](uint8_t pin) { isrPin = pin; },
+                                             GPIO_INTR_ANYEDGE);
+    delay(50);
+    std::printf("T1.3 scratch: InterruptController attached pin38 (isrPin=%u)\n",
+                (unsigned)isrPin);
+    InterruptController::removeInterruptListner(38);
+
+    // ConfigController — uc2::Preferences PSX getters (T1.3 action 2)
+    Config::setup();
+    char *psxMac = Config::getPsxMac();
+    std::printf("T1.3 scratch: Config setup ok, mac=%s type=%d\n",
+                psxMac ? psxMac : "(null)", Config::getPsxControllerType());
+    delete[] psxMac;
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

@@ -21,6 +21,7 @@
 #include "I2cBridge.h"
 #include "InterruptController.h"
 #include "MessageController.h"
+#include "State.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
 #include "i2c_slave_dial.h"
@@ -271,6 +272,32 @@ void app_main(void)
         if (mg) cJSON_Delete(mg);
     }
     cJSON_Delete(mroot);
+
+    // State — uc2 gpio/prefs/log/time/ESP façade (T1.3 action 2).
+    // I2C_MASTER undefined in this combo → i2c_master::reboot()/startOTA()
+    // compile out; WiFi/OTA path is ARDUINO-only → startOTA takes log_w.
+    State::setup();
+    State::printInfo();
+    State::setBusy(true);
+    cJSON *sroot = cJSON_Parse("{\"qid\":14,\"isBusy\":1}");
+    const int sq = State::act(sroot);
+    cJSON *sg = State::get(sroot);
+    cJSON *smods = State::getModules();
+    {
+        char *sgs = sg ? cJSON_PrintUnformatted(sg) : nullptr;
+        char *sms = smods ? cJSON_PrintUnformatted(smods) : nullptr;
+        std::printf("T1.3 scratch: State act qid=%d busy=%d power=%d get=%s modules=%s\n",
+                    sq, (int)State::getBusy(), (int)State::getBusPower(),
+                    sgs ? sgs : "(null)", sms ? sms : "(null)");
+        if (sgs) cJSON_free(sgs);
+        if (sms) cJSON_free(sms);
+        if (sg) cJSON_Delete(sg);
+        if (smods) cJSON_Delete(smods);
+    }
+    cJSON_Delete(sroot);
+    State::startOTA();  // raw-IDF path → log_w, no WiFi
+    State::stopOTA();
+    std::printf("T1.3 scratch: State setup/act/get/getModules/OTA ok (no WiFi in raw IDF)\n");
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

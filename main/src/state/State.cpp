@@ -3,21 +3,29 @@
 #include "esp_log.h"
 #include "../config/ConfigController.h"
 #include "../config/RuntimeConfig.h"
-#include "Preferences.h"
 #include "cJsonTool.h"
-#include "Arduino.h"
-#include "JsonKeys.h"
+// T1.3: direct IDF (no Arduino) — uc2 façades for gpio/prefs/log/time/ESP.
+// JsonKeys.h + Preferences.h + Arduino.h dropped (uc2::Preferences, uc2 gpio,
+// literal key strings below; Arduino/pgmspace).
+#include <uc2_hal.h>
+#ifdef I2C_MASTER
+#include "../i2c/i2c_master.h"
+#endif
+#ifdef ARDUINO
+// WiFi-AP OTA path. Needs a uc2 WiFi/OTA façade in raw-IDF builds —
+// compile-out there (startOTA/stopOTA take their log_w/flag-only paths).
 #include <WiFi.h>
 #include <WiFiAP.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
-#include "../i2c/i2c_master.h"
+#endif
 #ifdef DIGITAL_IN_CONTROLLER
 #include "../digitalin/DigitalInController.h"
 #endif
 
 namespace State
 {
+	static const char *TAG = "State";
 
 	// Tracks the logical CAN-bus power state (true = ON). Mirrors the
 	// BUSPOWER_OFF_PIN gate so /state_get can report it without reading the pin.
@@ -152,7 +160,7 @@ namespace State
 		if (reset != NULL)
 		{
 			log_i("resetPreferences");
-			Preferences preferences;
+			uc2::Preferences preferences;
 			const char *prefNamespace = "UC2";
 			preferences.begin(prefNamespace, false);
 			preferences.clear();
@@ -269,9 +277,11 @@ namespace State
 
 	void stopOTA()
 	{
+	#ifdef ARDUINO
+		// End the OTA server + turn off the wifi hotspot (WiFi-AP path only).
 		ArduinoOTA.end();
-		// turn off the wifi hotspot
 		WiFi.softAPdisconnect(true);
+	#endif
 		OTArunning = false;
 
 	}
@@ -284,7 +294,7 @@ namespace State
 
 		#if defined(I2C_MASTER)
 		i2c_master::startOTA();
-		#else
+		#elif defined(ARDUINO)
 
 		// close any ongoing wifi connection
 		WiFi.disconnect(true);
@@ -359,6 +369,8 @@ namespace State
 			}
 		}
 		log_i("No OTA for this device");
+		#else
+		log_w("startOTA: WiFi-AP OTA path needs the uc2 WiFi/OTA façade (I2C_MASTER or ARDUINO only)");
 		#endif
 		OTArunning = true;
 	}
@@ -367,31 +379,34 @@ namespace State
 	{
 		cJSON *doc = cJSON_CreateObject();
 		cJSON *mod = cJSON_CreateObject();
-		cJSON_AddItemToObject(doc, key_modules, mod);
+		// T1.3: JsonKeys.h dropped — literal key strings (same values).
+		// NOTE: key_gpio was never defined in JsonKeys.h either (dead ref under
+		// GPIO_CONTROLLER, no build defines it) — "gpio" literal keeps the shape.
+		cJSON_AddItemToObject(doc, "modules", mod);
 #ifdef LED_CONTROLLER
-		cJSON_AddItemToObject(mod, keyLed, cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
+		cJSON_AddItemToObject(mod, "led", cJSON_CreateNumber(pinConfig.LED_PIN >= 0));
 #endif
 #ifdef MOTOR_CONTROLLER
-		cJSON_AddItemToObject(mod, key_motor, cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
+		cJSON_AddItemToObject(mod, "motor", cJSON_CreateNumber(pinConfig.MOTOR_ENABLE >= 0));
 #endif
 #ifdef GPIO_CONTROLLER
-		cJSON_AddItemToObject(mod, key_gpio, cJSON_CreateNumber((pinConfig.GPIO_PIN_1 >= 0 || pinConfig.GPIO_PIN_2 >= 0 || pinConfig.GPIO_PIN_3 >= 0)));
+		cJSON_AddItemToObject(mod, "gpio", cJSON_CreateNumber((pinConfig.GPIO_PIN_1 >= 0 || pinConfig.GPIO_PIN_2 >= 0 || pinConfig.GPIO_PIN_3 >= 0)));
 #endif
 #ifdef MESSAGE_CONTROLLER
-		cJSON_AddItemToObject(mod, key_message, cJSON_CreateNumber(1));
+		cJSON_AddItemToObject(mod, "message", cJSON_CreateNumber(1));
 #endif
 #ifdef HOME_MOTOR
-		cJSON_AddItemToObject(mod, key_home, cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 || pinConfig.DIGITAL_IN_3 >= 0)));
+		cJSON_AddItemToObject(mod, "home", cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 || pinConfig.DIGITAL_IN_3 >= 0)));
 #endif
-		cJSON_AddItemToObject(mod, key_analogin, cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
-		cJSON_AddItemToObject(mod, key_pid, cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));
-		cJSON_AddItemToObject(mod, key_laser, cJSON_CreateNumber((pinConfig.LASER_1 >= 0 || pinConfig.LASER_2 >= 0 || pinConfig.LASER_3 >= 0)));
-		cJSON_AddItemToObject(mod, key_dac, cJSON_CreateNumber((pinConfig.dac_fake_1 >= 0 || pinConfig.dac_fake_2 >= 0)));
-		cJSON_AddItemToObject(mod, key_analogout, cJSON_CreateNumber((pinConfig.analogout_PIN_1 >= 0 || pinConfig.analogout_PIN_2 >= 0 || pinConfig.analogout_PIN_3 >= 0)));
-		cJSON_AddItemToObject(mod, key_digitalout, cJSON_CreateNumber((pinConfig.DIGITAL_OUT_1 >= 0 || pinConfig.DIGITAL_OUT_2 >= 0 || pinConfig.DIGITAL_OUT_3 >= 0)));
-		cJSON_AddItemToObject(mod, key_digitalin, cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 || pinConfig.DIGITAL_IN_3 >= 0)));
+		cJSON_AddItemToObject(mod, "analogin", cJSON_CreateNumber((pinConfig.analogin_PIN_0 >= 0 || pinConfig.analogin_PIN_1 >= 0 || pinConfig.analogin_PIN_2 >= 0 || pinConfig.analogin_PIN_3 >= 0)));
+		cJSON_AddItemToObject(mod, "pid", cJSON_CreateNumber((pinConfig.pid1 >= 0 || pinConfig.pid2 >= 0 || pinConfig.pid3 >= 0)));
+		cJSON_AddItemToObject(mod, "laser", cJSON_CreateNumber((pinConfig.LASER_1 >= 0 || pinConfig.LASER_2 >= 0 || pinConfig.LASER_3 >= 0)));
+		cJSON_AddItemToObject(mod, "dac", cJSON_CreateNumber((pinConfig.dac_fake_1 >= 0 || pinConfig.dac_fake_2 >= 0)));
+		cJSON_AddItemToObject(mod, "analogout", cJSON_CreateNumber((pinConfig.analogout_PIN_1 >= 0 || pinConfig.analogout_PIN_2 >= 0 || pinConfig.analogout_PIN_3 >= 0)));
+		cJSON_AddItemToObject(mod, "digitalout", cJSON_CreateNumber((pinConfig.DIGITAL_OUT_1 >= 0 || pinConfig.DIGITAL_OUT_2 >= 0 || pinConfig.DIGITAL_OUT_3 >= 0)));
+		cJSON_AddItemToObject(mod, "digitalin", cJSON_CreateNumber((pinConfig.DIGITAL_IN_1 >= 0 || pinConfig.DIGITAL_IN_2 >= 0 || pinConfig.DIGITAL_IN_3 >= 0)));
 #ifdef SCANNER_CONTROLLER
-		cJSON_AddItemToObject(mod, key_scanner, cJSON_CreateNumber(1));
+		cJSON_AddItemToObject(mod, "scanner", cJSON_CreateNumber(1));
 #endif
 
 		return doc;

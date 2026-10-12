@@ -13,6 +13,7 @@ idf_component_register(SRCS "main.cpp"
                         "${UC2_MAIN}/src/tmp102/Tmp102Controller.cpp"
                          "${UC2_MAIN}/src/dial/DialController.cpp"
                          "${UC2_MAIN}/src/message/MessageController.cpp"
+                         "${UC2_MAIN}/src/state/State.cpp"
                         INCLUDE_DIRS "${UC2_MAIN}"
                                      "${UC2_MAIN}/src/buzzer"
                                      "${UC2_MAIN}/src/config"
@@ -23,7 +24,8 @@ idf_component_register(SRCS "main.cpp"
                                      "${UC2_MAIN}/src/tmp102"
                                       "${UC2_MAIN}/src/dial"
                                        "${UC2_MAIN}/src/encoder"
-                                       "${UC2_MAIN}/src/message"
+                                        "${UC2_MAIN}/src/message"
+                                        "${UC2_MAIN}/src/state"
                        REQUIRES canopen_node uc2_od cjson usb_host esp_usb_host_hid
                                  dac_module driver esp_driver_ledc esp_driver_tsens
                                  nvs_flash uc2_hal)

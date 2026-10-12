@@ -20,6 +20,7 @@
 #include "FanController.h"
 #include "I2cBridge.h"
 #include "InterruptController.h"
+#include "MessageController.h"
 #include "Tmp102Controller.h"
 #include "NVSConfig.h"
 #include "i2c_slave_dial.h"
@@ -253,6 +254,23 @@ void app_main(void)
     std::printf("T1.3 scratch: Config setup ok, mac=%s type=%d\n",
                 psxMac ? psxMac : "(null)", Config::getPsxControllerType());
     delete[] psxMac;
+
+    // MessageController — uc2 prefs/string/serial/log (T1.3 action 2).
+    // HOME_MOTOR/MOTOR_CONTROLLER are off in this combo, so the homing/motor
+    // paths (incl. DeviceRouter::handleHomeAct) compile out — no link deps.
+    MessageController::setup();
+    MessageController::loop();
+    cJSON *mroot = cJSON_Parse("{\"qid\":13,\"message\":{\"key\":1,\"value\":2}}");
+    const int mq = MessageController::act(mroot);
+    MessageController::startHomingWithStoredParams(1); // HOME_MOTOR off → log_w path
+    cJSON *mg = MessageController::get(mroot);
+    {
+        char *ms = mg ? cJSON_PrintUnformatted(mg) : nullptr;
+        std::printf("T1.3 scratch: MessageController act qid=%d get=%s\n", mq, ms ? ms : "(null)");
+        if (ms) cJSON_free(ms);
+        if (mg) cJSON_Delete(mg);
+    }
+    cJSON_Delete(mroot);
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

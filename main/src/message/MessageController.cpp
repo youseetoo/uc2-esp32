@@ -1,10 +1,10 @@
 #include <PinConfig.h>
 
 #include "MessageController.h"
+// T1.3: direct IDF (no Arduino) — uc2 façades for prefs/string/log/serial.
+// JsonKeys.h dropped (unused here; Arduino/pgmspace).
+#include <uc2_hal.h>
 #include "cJsonTool.h"
-#include "Arduino.h"
-#include "JsonKeys.h"
-#include <Preferences.h>
 #include "../canopen/DeviceRouter.h"
 #ifdef MOTOR_CONTROLLER
 #include "../motor/FocusMotor.h"
@@ -19,7 +19,7 @@ namespace MessageController
 	const char * TAG = "MessageController";
 	
 	// Preferences for reading stored home parameters
-	static Preferences homePrefs;
+	static uc2::Preferences homePrefs;
 
 	void setup()
 	{
@@ -32,11 +32,11 @@ namespace MessageController
 		#ifdef HOME_MOTOR
 		// Read stored homing parameters from preferences
 		homePrefs.begin("home", true); // read-only mode
-		int homeTimeout = homePrefs.getInt(("to_" + String(axis)).c_str(), 20000); // default 20s timeout
-		int homeSpeed = homePrefs.getInt(("hs_" + String(axis)).c_str(), 5000);    // default speed
-		int homeMaxspeed = homePrefs.getInt(("hms_" + String(axis)).c_str(), 5000); // default maxspeed
-		int homeDirection = homePrefs.getInt(("hd_" + String(axis)).c_str(), 1);    // default direction
-		int homeEndStopPolarity = homePrefs.getInt(("hep_" + String(axis)).c_str(), 0); // default polarity
+		int homeTimeout = homePrefs.getInt(("to_" + uc2::String(axis)).c_str(), 20000); // default 20s timeout
+		int homeSpeed = homePrefs.getInt(("hs_" + uc2::String(axis)).c_str(), 5000);    // default speed
+		int homeMaxspeed = homePrefs.getInt(("hms_" + uc2::String(axis)).c_str(), 5000); // default maxspeed
+		int homeDirection = homePrefs.getInt(("hd_" + uc2::String(axis)).c_str(), 1);    // default direction
+		int homeEndStopPolarity = homePrefs.getInt(("hep_" + uc2::String(axis)).c_str(), 0); // default polarity
 		homePrefs.end();
 		
 		log_i("Starting homing for axis %d with stored params: timeout=%d, speed=%d, maxspeed=%d, dir=%d, polarity=%d",

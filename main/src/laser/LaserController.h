@@ -1,7 +1,14 @@
 #include <PinConfig.h>
 #pragma once
 #include "cJSON.h"
+// T1.3: Arduino.h only for Arduino builds; raw-IDF consumers get the uc2
+// façade via PinConfig.h (which includes uc2_hal.h).
+#ifdef ARDUINO
 #include "Arduino.h"
+#else
+#include <cmath>
+#include <cstdint>
+#endif
 #include "../bt/HidGamePad.h"
 
 struct LaserData

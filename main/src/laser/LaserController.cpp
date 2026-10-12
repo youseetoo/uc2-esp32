@@ -1,7 +1,12 @@
 #include <PinConfig.h>
 #include "LaserController.h"
+// T1.3: direct IDF (no Arduino) — uc2 façades for ledc/gpio/time/misc/log.
+// JsonKeys.h dropped (Arduino/pgmspace): key_laser == "laser".
+#include <uc2_hal.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include "cJsonTool.h"
-#include "JsonKeys.h"
 #include "../state/State.h"
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
@@ -9,6 +14,9 @@
 #ifdef I2C_LASER
 #include "../i2c/i2c_master.h"
 #endif
+
+static const char *TAG = "LaserController";
+
 namespace LaserController
 {
 	// Flags to track pending laser value updates that need to be sent
@@ -605,7 +613,7 @@ namespace LaserController
 							"LASER3val":0}} */
 		cJSON *j = cJSON_CreateObject();
 		cJSON *ls = cJSON_CreateObject();
-		cJSON_AddItemToObject(j, key_laser, ls);
+		cJSON_AddItemToObject(j, "laser", ls);
 		cJsonTool::setJsonInt(ls, "LASER1pin", pinConfig.LASER_1);
 		cJsonTool::setJsonInt(ls, "LASER2pin", pinConfig.LASER_2);
 		cJsonTool::setJsonInt(ls, "LASER3pin", pinConfig.LASER_3);
@@ -633,13 +641,17 @@ namespace LaserController
 			//          0 = LOCAL (on-board GPIO),
 			//          1 = REMOTE (forward over CAN to the CAN_ID_* node),
 			//          2 = OFF (disabled)
-			// Check for local vs remote routing through the ROUTE_LASER table (0 local, 1 remote, 2 off)
-			if (pinConfig.ROUTE_LASER[i] == 2) // OFF
+			// Check for local vs remote routing through the ROUTE_LASER table (0 local, 1 remote, 2 off).
+			// ROUTE_LASER is sized [4] (lasers 0-3); laser id 4 uses the separate ROUTE_LASER_4
+			// entry and the reserved ids 5..MAX_LASERS-1 have no routing (treated as OFF).
+			const int8_t route = (i < 4) ? pinConfig.ROUTE_LASER[i]
+				: (i == 4) ? pinConfig.ROUTE_LASER_4 : 2;
+			if (route == 2) // OFF
 			{
 				log_i("LASERid %i is set to OFF in ROUTE_LASER, skipping setup", i);
 				continue;
 			}
-			else if (pinConfig.ROUTE_LASER[i] == 1) // REMOTE
+			else if (route == 1) // REMOTE
 			{
 				log_i("LASERid %i is set to REMOTE in ROUTE_LASER, skipping local setup", i);
 				continue;

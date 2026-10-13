@@ -89,7 +89,7 @@ uc2::Preferences preferences;
 #include "src/scanner/ScannerController.h"
 #endif
 #ifdef GALVO_CONTROLLER
-#include "src/scanner/GalvoController.h"
+#include "GalvoController.h"  // T2.5: raw-IDF port in uc2_periph/scanner (via modinc)
 #endif
 #ifdef HOME_MOTOR
 #include "src/home/HomeMotor.h"

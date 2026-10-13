@@ -28,6 +28,9 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/i2c
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/tmp102
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/fan
+    # T2.5: galvo scanner (raw-IDF port, compiled by uc2_periph) — listed before
+    # ../main/src/scanner (line below) so the ported copy wins for #include "GalvoController.h".
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/scanner
     # board PinConfig (main/PinConfig.h) — for now the laser board's PinConfig lives
     # in the repo main/; T2.11 reworks boards/ to make it per-app. Listed first.
     ${CMAKE_CURRENT_LIST_DIR}/../main

@@ -53,13 +53,13 @@ executor agent.
 ### Phase 1 — IDF skeleton + first app (2–4 d)
 - [x] **T1.1** [T1.1.md](steps/T1.1.md) — *(D1)* Distilled `sdkconfig.defaults` + target overlays · 0.5 d · ← T0.1, T0.2 — **done 2026-10-08: root 4.6 KB + esp32/s3 overlays, all option names verified vs IDF 6.1**
 - [x] **T1.2** [T1.2.md](steps/T1.2.md) — Move the 5 already-C components verbatim + wire top-level CMake · 0.5 d · ← T1.1 — **done 2026-10-10: 5 components moved verbatim (+ per-comp CMakeLists, cjson submodule repointed); scratch_t12 links all five clean under idf.py (esp32s3); PIO reference green, Δ −0.002 %**
-- [ ] **T1.3** [T1.3.md](steps/T1.3.md) — Convert `main/` to direct IDF (no shim; removes T1.2's `uc2_arduino_shim`) · 3–5 d · ← T1.1
+- [x] **T1.3** [T1.3.md](steps/T1.3.md) — Convert `main/` to direct IDF (no shim; removes T1.2's `uc2_arduino_shim`) · 3–5 d · ← T1.1 — **done 2026-10-13: laser on direct IDF, 359,616 B / 73 % free; residual 3 vestigial `#include "Arduino.h"` in dormant headers (clean in Ph2/4)**
 - [x] **T1.4** [T1.4.md](steps/T1.4.md) — Feature Kconfig symbol set + `uc2_app` glue + source-gating pattern · 0.5 d · ← T1.3
-- [ ] **T1.5** [T1.5.md](steps/T1.5.md) — *(D3, D7)* App #1 scaffold: `apps/canopen_slave_laser` + `boards/` PinConfig · 0.5 d · ← T1.4
+- [x] **T1.5** [T1.5.md](steps/T1.5.md) — *(D3, D7)* App #1 scaffold: `apps/canopen_slave_laser` + `boards/` PinConfig · 0.5 d · ← T1.4 — **done 2026-10-13: scaffold + build.sh + sdkconfig; laser green 359,616 B**
 - [x] **T1.6** [T1.6.md](steps/T1.6.md) — Port the laser app to direct IDF (no shim) · 1–2 d · ← T1.5 — **done 2026-10-13: laser green 359,616 B (app-local `uc2_modules`; per-controller split = T1.9)**
 - [ ] **T1.7** [T1.7.md](steps/T1.7.md) — *(D1)* Build + flash + `[HW]` laser/CANopen smoke; size ±10 % · 0.5 d + `[HW]` · ← T1.6
 - [ ] **T1.8** [T1.8.md](steps/T1.8.md) — *(D6)* CI `idf-build` job (laser only) alongside PIO matrix · 0.5 d · ← T1.7
-- [ ] **T1.9** [T1.9.md](steps/T1.9.md) — Split `main/src/` into per-controller components (for app-sharing) · 1–2 d · ← T1.6
+- [x] **T1.9** [T1.9.md](steps/T1.9.md) — Split `main/src/` into per-controller components (for app-sharing) · 1–2 d · ← T1.6 — **done 2026-10-13: 5 shared comps uc2_core/uc2_serial/uc2_canopen/uc2_io/uc2_periph; main/src untouched**
 
 ### Phase 2 — All non-BT boards (1.5–3 w; each task is an individually verifiable board unit)
 - [ ] **T2.1** [T2.1.md](steps/T2.1.md) — `apps/xiao_ledservo` + `apps/xiao_ledring` · 2–3 d · ← T1.8, T1.9

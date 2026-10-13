@@ -15,3 +15,4 @@
 #include "uc2_hal/uc2_wire.h"
 #include "uc2_hal/uc2_ledc.h"
 #include "uc2_hal/uc2_misc.h"
+#include "uc2_hal/uc2_adc.h"

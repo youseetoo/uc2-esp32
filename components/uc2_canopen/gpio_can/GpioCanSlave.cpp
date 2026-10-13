@@ -2,8 +2,7 @@
 #include "PinConfig.h"
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
 
-#include <Arduino.h>
-#include <Preferences.h>
+#include "uc2_hal.h"
 #include "PinConfig.h"
 #include "DigitalInController.h"
 #include "DigitalOutController.h"
@@ -19,6 +18,8 @@ extern "C" {
 #include "OD.h"
 }
 #endif
+
+static const char *TAG = "GpioCanSlave";
 
 namespace GpioCanSlave
 {
@@ -114,12 +115,12 @@ namespace GpioCanSlave
     // ── NVS persistence ─────────────────────────────────────────────────
     static void persistU16(const char* key, uint16_t v)
     {
-        Preferences p;
+        uc2::Preferences p;
         if (p.begin(NVS_NS, false)) { p.putUShort(key, v); p.end(); }
     }
     static void persistU8(const char* key, uint8_t v)
     {
-        Preferences p;
+        uc2::Preferences p;
         if (p.begin(NVS_NS, false)) { p.putUChar(key, v); p.end(); }
     }
 
@@ -178,7 +179,7 @@ namespace GpioCanSlave
         mode = (mode == MODE_MANUAL) ? MODE_MANUAL : MODE_AUTO;
         if (mode == s_mode) return;
         s_mode = mode;
-        Preferences p;
+        uc2::Preferences p;
         if (p.begin(NVS_NS, false)) { p.putUChar(NVS_KEY_MODE, mode); p.end(); }
 #ifdef CAN_CONTROLLER_CANOPEN
         OD_RAM.x2335_collision_mode = mode;
@@ -208,7 +209,7 @@ namespace GpioCanSlave
 
         // Load collision config from NVS, falling back to pinConfig defaults.
         {
-            Preferences p;
+            uc2::Preferences p;
             bool ok = p.begin(NVS_NS, true);
             s_mode        = ok ? p.getUChar(NVS_KEY_MODE, MODE_AUTO) : MODE_AUTO;
             s_threshold   = ok ? p.getUShort(NVS_KEY_THR, pinConfig.GPIO_COLLISION_THRESHOLD_DEFAULT)

@@ -726,7 +726,7 @@ BuzzerController::setup();
 SerialProcess::safePrintln("{'setup':'done'}");
 }
 
-extern "C" void app_main(void)
+extern "C" void uc2_app_start(void)
 {
 	// Disable brownout detector
 	// WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);

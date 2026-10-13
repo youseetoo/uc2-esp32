@@ -13,4 +13,4 @@ idf_component_register(SRCS "main.cpp"
                         REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update
                                  esp_driver_ledc esp_driver_tsens
                                  canopen_node uc2_od dac_module usb_host esp_usb_host_hid
-                                 uc2_canopen uc2_led)
+                                  uc2_canopen uc2_led uc2_serial uc2_io uc2_periph)

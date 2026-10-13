@@ -4,8 +4,8 @@
 # DOCS/PORT_PLAN_STEPS/refs/arduino-idf-mapping.md §2).
 idf_component_register(
     SRCS "src/uc2_string.cpp" "src/uc2_esp.cpp" "src/uc2_serial.cpp"
-         "src/uc2_gpio.cpp" "src/uc2_wire.cpp"
+         "src/uc2_gpio.cpp" "src/uc2_wire.cpp" "src/uc2_adc.cpp"
     INCLUDE_DIRS "include"
     REQUIRES log esp_timer esp_rom esp_system esp_hw_support heap freertos
              esp_driver_gpio esp_driver_ledc esp_driver_uart nvs_flash
-             esp_driver_i2c)
+             esp_driver_i2c esp_adc)

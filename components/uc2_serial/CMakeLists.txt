@@ -4,5 +4,5 @@ set(srcs
     "serial/SerialProcess.cpp")
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
-    REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc
+    REQUIRES uc2_core uc2_hal uc2_canopen cjson nvs_flash driver app_update esp_driver_ledc
              esp_driver_tsens canopen_node uc2_od dac_module usb_host esp_usb_host_hid)

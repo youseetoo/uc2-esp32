@@ -1,8 +1,8 @@
 // DeviceRouter.cpp — Routing-table-driven command dispatcher.
 // Consults RoutingTable to decide LOCAL vs REMOTE for each logical device.
 // Active on ALL builds. REMOTE dispatch requires CAN_CONTROLLER_CANOPEN.
-#include "DeviceRouter.h"
 #include <PinConfig.h>
+#include "DeviceRouter.h"
 
 #include "RuntimeConfig.h"
 #include "RoutingTable.h"

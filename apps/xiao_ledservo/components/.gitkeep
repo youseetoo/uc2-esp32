@@ -1,0 +1,2 @@
+# App-local components for xiao_ledservo (empty for now; all shared components come
+# from top-level components/). Kept so EXTRA_COMPONENT_DIRS has a valid path.

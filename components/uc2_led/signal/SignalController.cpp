@@ -1,7 +1,11 @@
 #include "SignalController.h"
-#include <Arduino.h>
+#include "Adafruit_NeoPixel.h"
+#include "esp_log.h"
+#include "esp_timer.h"
 #include <math.h>
 #include <string.h>
+#include <strings.h>
+#include <stdlib.h>
 
 namespace SignalController
 {
@@ -191,12 +195,12 @@ namespace SignalController
     {
         if (pinConfig.LED_PIN < 0)
         {
-            log_w("SignalController: LED_PIN disabled, skipping setup");
+            ESP_LOGW(TAG, "LED_PIN disabled, skipping setup");
             return;
         }
         if (!pinConfig.IS_STATUS_LED)
         {
-            log_i("SignalController: IS_STATUS_LED=false, signal disabled");
+            ESP_LOGI(TAG, "IS_STATUS_LED=false, signal disabled");
             return;
         }
 
@@ -211,7 +215,7 @@ namespace SignalController
         strip->show();
 
         setStatus(SignalStatus::INITIALIZING);
-        log_i("SignalController setup on pin %d, %d pixel(s)", pinConfig.LED_PIN, numPixels);
+        ESP_LOGI(TAG, "setup on pin %d, %d pixel(s)", pinConfig.LED_PIN, numPixels);
     }
 
     void setBrightness(uint8_t b)
@@ -225,15 +229,15 @@ namespace SignalController
         currentStatus = s;
         currentPattern = patternFor(s);
         segIndex = firstActiveStop();
-        segStartMs = millis();
+        segStartMs = (uint32_t)(esp_timer_get_time() / 1000);
         inFade = false;
-        log_i("SignalController status -> %s", nameFromStatus(s));
+        ESP_LOGI(TAG, "status -> %s", nameFromStatus(s));
     }
 
     bool setStatusByName(const char *name)
     {
         SignalStatus s = statusFromName(name);
-        log_i("SignalController setStatusByName('%s') -> %s", name, nameFromStatus(s));
+        ESP_LOGI(TAG, "setStatusByName('%s') -> %s", name, nameFromStatus(s));
         if (s == SignalStatus::UNKNOWN) return false;
         setStatus(s);
         return true;
@@ -244,7 +248,7 @@ namespace SignalController
         currentPattern = p;
         currentStatus = SignalStatus::CUSTOM;
         segIndex = firstActiveStop();
-        segStartMs = millis();
+        segStartMs = (uint32_t)(esp_timer_get_time() / 1000);
         inFade = false;
     }
 
@@ -262,7 +266,7 @@ namespace SignalController
         if (!strip) return;
         if (currentStatus == SignalStatus::UNKNOWN) return;
 
-        uint32_t now = millis();
+        uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
         ColorStop &cur = currentPattern.stops[segIndex];
 
         if (!inFade)
@@ -320,7 +324,7 @@ namespace SignalController
         cJSON *sig = cJSON_GetObjectItem(root, "signal");
         if (!sig || !cJSON_IsObject(sig))
         {
-            log_w("/signal_act: missing 'signal' object");
+            ESP_LOGW(TAG, "/signal_act: missing 'signal' object");
             return qid;
         }
 
@@ -341,7 +345,7 @@ namespace SignalController
         if (statusName && strcasecmp(statusName, "custom") != 0 && !hasCustomColors)
         {
             if (!setStatusByName(statusName))
-                log_w("/signal_act: unknown status '%s'", statusName);
+                ESP_LOGW(TAG, "/signal_act: unknown status '%s'", statusName);
             return qid;
         }
 

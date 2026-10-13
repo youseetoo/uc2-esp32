@@ -1,7 +1,6 @@
 // Implements the RMT peripheral on ESP32 (raw ESP-IDF 6.x) for NeoPixel.
-// T5.3: converted from the Arduino-ESP32 build. The old esp.c used the classic
-// RMT API (rmt_data_t / rmtInit / rmtWrite — Arduino-ESP32 wrappers) which IDF
-// 5.0+ removed; this uses the modern rmt_new_tx_channel / rmt_transmit API.
+// T5.3: converted from the Arduino-ESP32 build. Uses the modern
+// rmt_new_tx_channel / rmt_new_copy_encoder / rmt_transmit API.
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -9,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "driver/rmt_tx.h"
+#include "driver/rmt_encoder.h"
 #include "driver/gpio.h"
 
 #define WS2812_T0H_NS 400
@@ -21,6 +21,7 @@
 #define WS2811_T1L_NS 1300
 
 static rmt_channel_handle_t show_channel = NULL;
+static rmt_encoder_handle_t show_encoder = NULL;
 static int show_channel_pin = -1;
 static SemaphoreHandle_t show_mutex = NULL;
 
@@ -40,10 +41,14 @@ void espShow(uint16_t pin, uint8_t *pixels, uint32_t numBytes, uint8_t type) {
     // Create (or rebind) the RMT TX channel for the requested pin.
     if (!show_channel || show_channel_pin != (int)pin) {
         if (show_channel) {
-            rmt_delete_channel(show_channel);
+            rmt_del_channel(show_channel);
             show_channel = NULL;
         }
-        const rmt_channel_config_t cfg = {
+        if (show_encoder) {
+            rmt_del_encoder(show_encoder);
+            show_encoder = NULL;
+        }
+        const rmt_tx_channel_config_t cfg = {
             .gpio_num = (gpio_num_t)pin,
             .clk_src = RMT_CLK_SRC_DEFAULT,
             .resolution_hz = 10 * 1000 * 1000, // 100 ns per tick
@@ -51,6 +56,12 @@ void espShow(uint16_t pin, uint8_t *pixels, uint32_t numBytes, uint8_t type) {
             .trans_queue_depth = 0,
         };
         if (rmt_new_tx_channel(&cfg, &show_channel) != ESP_OK) {
+            xSemaphoreGive(show_mutex);
+            return;
+        }
+        if (rmt_new_copy_encoder(NULL, &show_encoder) != ESP_OK) {
+            rmt_del_channel(show_channel);
+            show_channel = NULL;
             xSemaphoreGive(show_mutex);
             return;
         }
@@ -83,8 +94,8 @@ void espShow(uint16_t pin, uint8_t *pixels, uint32_t numBytes, uint8_t type) {
         }
     }
 
-    rmt_transmit(show_channel, symbols, i, NULL);
-    rmt_tx_wait_all_done(show_channel, pdMS_TO_TICKS(100));
+    rmt_transmit(show_channel, show_encoder, symbols, n * sizeof(rmt_symbol_word_t), NULL);
+    rmt_tx_wait_all_done(show_channel, 100);
     free(symbols);
 
     xSemaphoreGive(show_mutex);

@@ -1,8 +1,16 @@
 // (T2.1: removed stray '#pragma once' — this is a .cpp, not a header.)
 #include "LedController.h"
 #include "JsonKeys.h"
-#include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <string>
+#include <cctype>
+#include <cstdio>
+#include <math.h>
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 #include "../qid/QidRegistry.h"
@@ -48,6 +56,20 @@ namespace LedController
 {
 
 	const char *TAG = "LedController";
+
+	// ------------------------------------------------------------------
+	// T5.3 Arduino->IDF shims (so the bulk of this file needs no per-call
+	// edits): log_* short macros, millis(), delay(), Serial (UART0/printf),
+	// and a minimal Arduino String stand-in (UString: toLowerCase/==/c_str).
+	// ------------------------------------------------------------------
+#define log_i(fmt, ...) ESP_LOGI(TAG, fmt, ##__VA_ARGS__)
+#define log_e(fmt, ...) ESP_LOGE(TAG, fmt, ##__VA_ARGS__)
+#define log_w(fmt, ...) ESP_LOGW(TAG, fmt, ##__VA_ARGS__)
+static inline uint32_t millis() { return (uint32_t)(esp_timer_get_time() / 1000); }
+static inline void delay(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+namespace { class UString { std::string s; public: UString(const char *p = "") : s(p ? p : "") {} void toLowerCase() { for (auto &c : s) c = (char)tolower((unsigned char)c); } bool operator==(const char *p) const { return s == p; } const char *c_str() const { return s.c_str(); } }; class Uart0Serial { public: void println(const char *s) { std::printf("%s\n", s); } }; }
+static Uart0Serial Serial;
+typedef UString String;
 
 	// Toggle functionality for Circle button
 	static unsigned long circleLastEventTime = 0;
@@ -1175,8 +1197,8 @@ namespace LedController
 		// Check if this is a device that requires thermal protection
 		bool needsThermalProtection = (pinConfig.pindefName &&
 			(strcmp(pinConfig.pindefName, "waveshare_esp32s3_ledarray") == 0 ||
-			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0) ||
-			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0 );
+			 strcmp(pinConfig.pindefName, "seeed_xiao_esp32s3_can_slave_illumination") == 0 ||
+			 strcmp(pinConfig.pindefName, "UC2_canopen_slave_led") == 0));
 
 #ifdef THERMAL_CONTROLLER
 		// Measured heat-sink temperature supersedes this stopwatch entirely.

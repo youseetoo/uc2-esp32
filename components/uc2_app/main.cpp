@@ -69,8 +69,8 @@ uc2::Preferences preferences;
 #include "src/tmc/TMCController.h"
 #endif
 #ifdef LED_CONTROLLER
-#include "src/led/LedController.h"
-#include "src/signal/SignalController.h"
+#include "LedController.h"
+#include "SignalController.h"
 #endif
 #include "src/buzzer/BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER

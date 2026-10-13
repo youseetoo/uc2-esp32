@@ -44,11 +44,9 @@
 #endif
 
 #else
-// T5.3: raw ESP-IDF (no Arduino) — provide the standard types the rest of this
-// header uses (uint8_t/size_t/bool were pulled in transitively by Arduino.h).
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
+// T5.3: raw ESP-IDF (no Arduino) — provide the standard types + Arduino API
+// shims the rest of this header/file uses (Arduino.h used to provide them).
+#include "arduino_shim.h"
 #include <string.h>
 #include "pgmspace.h" // PROGMEM + pgm_read_byte (Arduino shim; no-op on ESP32)
 #endif

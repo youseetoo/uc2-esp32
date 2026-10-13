@@ -50,6 +50,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
+#include "pgmspace.h" // PROGMEM + pgm_read_byte (Arduino shim; no-op on ESP32)
 #endif
 
 #ifdef TARGET_LPC1768

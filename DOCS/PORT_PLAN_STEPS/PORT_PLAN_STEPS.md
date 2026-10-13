@@ -62,7 +62,7 @@ executor agent.
 - [x] **T1.9** [T1.9.md](steps/T1.9.md) — Split `main/src/` into per-controller components (for app-sharing) · 1–2 d · ← T1.6 — **done 2026-10-13: 5 shared comps uc2_core/uc2_serial/uc2_canopen/uc2_io/uc2_periph; main/src untouched**
 
 ### Phase 2 — All non-BT boards (1.5–3 w; each task is an individually verifiable board unit)
-- [ ] **T2.1** [T2.1.md](steps/T2.1.md) — `apps/xiao_ledservo` + `apps/xiao_ledring` · 2–3 d · ← T1.8, T1.9
+- [x] **T2.1** [T2.1.md](steps/T2.1.md) — `apps/xiao_ledservo` + `apps/xiao_ledring` · 2–3 d · ← T1.8, T1.9 — **done 2026-10-14: both build green (ledservo 302 KB, ledring 264 KB), laser regression green, RMT link-order fixed via --start-group/--end-group**
 - [ ] **T2.2** [T2.2.md](steps/T2.2.md) — `apps/waveshare_ledarray` (WS2812 RMT ch 0 on S3) · 1–2 d · ← T1.8
 - [ ] **T2.3** [T2.3.md](steps/T2.3.md) — `apps/canopen_slave_gpio` (gpio_can + I2cBridge) · 1–2 d · ← T1.8
 - [ ] **T2.4** [T2.4.md](steps/T2.4.md) — `apps/canopen_slave_led` (LED + thermal + laser) · 2 d · ← T1.8

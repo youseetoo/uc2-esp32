@@ -1,14 +1,13 @@
-# T5.3: NeoPixel (Adafruit_NeoPixel) — WS2812/WS2811 driver, extracted from the
-# Arduino build (was .pio/libdeps/seeed_xiao_esp32s3/Adafruit NeoPixel/).
-# Kept as a leaf until T5.3 (component-layout.md §2).
-#
-# T2.1: pulled forward so xiao_ledservo (raw-IDF, uc2_led) can link it.
-# Gated on UC2_LED_CONTROLLER so apps without LED (e.g. canopen_slave_laser)
-# don't compile it (its Adafruit_NeoPixel.cpp needs the raw-IDF arch fix, T5.3).
+# T2.1: neopixel — Adafruit NeoPixel driver (leaf component, NeoPixel-leaf until T5.3).
+# T5.3: converted from the Arduino-ESP32 build (esp.c uses the modern IDF RMT API).
+# Gated on UC2_LED_CONTROLLER (the laser app doesn't use it → don't build it).
+# Note: the `ESP32` arch macro is #define'd inside Adafruit_NeoPixel.cpp (raw-IDF
+# 6.x doesn't auto-define it the way the Arduino build did) — a CMake
+# target_compile_definitions on the component target is not available here.
 if(CONFIG_UC2_LED_CONTROLLER)
     idf_component_register(SRCS "Adafruit_NeoPixel.cpp" "esp.c"
-        INCLUDE_DIRS ".")
+        INCLUDE_DIRS "."
+        REQUIRES driver esp_common)
 else()
-    # Header-only when LED is off (no .cpp compiled for apps like laser).
-    idf_component_register(INCLUDE_DIRS ".")
+    idf_component_register(SRCS "" INCLUDE_DIRS ".")
 endif()

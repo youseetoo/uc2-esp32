@@ -44,6 +44,11 @@
  *
  */
 
+// raw-IDF 6.x does not auto-define ESP32 (the Arduino-ESP32 build did) — the
+// architecture checks below (e.g. `#elif defined(ESP8266) || defined(ESP32)`)
+// need it to select the espShow() path.
+#define ESP32
+
 #include "Adafruit_NeoPixel.h"
 
 #if defined(TARGET_LPC1768)

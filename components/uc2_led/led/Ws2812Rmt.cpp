@@ -37,9 +37,21 @@
 
 #include "soc/rmt_struct.h"
 #include "soc/gpio_sig_map.h"
-#include "driver/periph_ctrl.h"
+// IDF 5.0+ removed driver/periph_ctrl.h (periph clock control moved to
+// esp_hw_support's esp_private header) — see the build HINT.
+#include "esp_private/periph_ctrl.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+
+// Raw-IDF replacement for Arduino-ESP32's RMTMEM (the RMT DMA data buffer).
+// S3: RMT SRAM at 0x3FC2D000, 48 words/channel (SOC_RMT_MEM_WORDS_PER_CHANNEL).
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+typedef struct { uint32_t data32[48]; } uc2_rmt_mem_chan_t;
+typedef struct { uc2_rmt_mem_chan_t chan[8]; } uc2_rmt_mem_t;
+#define RMTMEM ((uc2_rmt_mem_t *)0x3FC2D000)
+#endif
 
 namespace Ws2812Rmt
 {

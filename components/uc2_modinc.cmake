@@ -51,6 +51,9 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/ptz
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/scanner
     ${CMAKE_CURRENT_LIST_DIR}/uc2_led/signal
+    # T2.1: neopixel (Adafruit_NeoPixel.h) — for LedController.h (in uc2_led) which is
+    # included by uc2_canopen/uc2_serial; in the shared list so ALL components resolve it.
+    ${CMAKE_CURRENT_LIST_DIR}/neopixel
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/thermal
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/tmc)
 # T2.1: per-app PinConfig override. An app sets UC2_APP_MAIN_DIR to its own main/

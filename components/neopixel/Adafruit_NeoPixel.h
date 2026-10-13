@@ -43,6 +43,13 @@
 #include <Adafruit_TinyUSB.h>
 #endif
 
+#else
+// T5.3: raw ESP-IDF (no Arduino) — provide the standard types the rest of this
+// header uses (uint8_t/size_t/bool were pulled in transitively by Arduino.h).
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+#include <string.h>
 #endif
 
 #ifdef TARGET_LPC1768

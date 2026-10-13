@@ -27,6 +27,9 @@ static adc_cali_handle_t s_cali[CALI_MAX] = {};
 static bool s_caliTried[CALI_MAX] = {};
 
 // Full scale in mV per Arduino attenuation index (fallback scale only).
+static int attenFullScaleMv(int att);
+static inline adc_atten_t arduinoAttToIdf(int att);
+
 static int attenFullScaleMv(int att)
 {
     switch (att) {

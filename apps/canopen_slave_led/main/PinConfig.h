@@ -98,7 +98,7 @@ struct UC2_canopen_slave_led : PinConfig
     bool thermal_enabled_default = true;
 
     // ── NeoPixel ring stack ───────────────────────────────────────────────
-    uint8_t LED_PIN = GPIO_NUM_3; // D2 – RGB ring data
+    int8_t LED_PIN = GPIO_NUM_3; // D2 – RGB ring data (int8_t: matches base PinConfigDefault)
 
     // 12x12 matrix bounds (we drive the first 136 LEDs)
     const uint8_t MATRIX_W = 12;

@@ -41,6 +41,7 @@
 // esp_hw_support's esp_private header) — see the build HINT.
 #include "esp_private/periph_ctrl.h"
 #include "driver/gpio.h"
+#include "esp_private/gpio.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -95,7 +96,7 @@ namespace Ws2812Rmt
 
     static inline volatile uint32_t *channelMem(int ch)
     {
-        return (volatile uint32_t *)RMTMEM.chan[ch].data32;
+        return (volatile uint32_t *)RMTMEM->chan[ch].data32;
     }
 
     // S3 interrupt bit layout: tx_end=bit(ch), err=bit(ch+4), thr=bit(ch+8)
@@ -109,14 +110,14 @@ namespace Ws2812Rmt
     {
         if (s_initialised) return true;
         if (rmtChannel < 0 || rmtChannel > 3) {
-            log_e("%s: invalid S3 TX channel %d (must be 0..3)", TAG, rmtChannel);
+            ESP_LOGE(TAG, "%s: invalid S3 TX channel %d (must be 0..3)", TAG, rmtChannel);
             return false;
         }
         s_pin     = gpioPin;
         s_channel = rmtChannel;
 
-        // periph_module_enable is ref-counted: first call enables the clock.
-        periph_module_enable(PERIPH_RMT_MODULE);
+        // RMT is APB-clocked (always on) on the S3 — no periph clock gate to
+        // enable. (IDF 6.1 has no PERIPH_RMT_MODULE.)
 
         // Global S3 settings (harmless if FAS already set the same values).
         // apb_fifo_mask=1: use memory bus for RMTMEM (not the APB FIFO path).
@@ -129,24 +130,24 @@ namespace Ws2812Rmt
         RMT.int_ena.val &= ~mask;
         RMT.int_clr.val  =  mask;
 
-        // Channel config -- all R/W shadow registers; commit with conf_update_n.
-        RMT.chnconf0[s_channel].div_cnt_n       = 2;  // 40 MHz tick
-        RMT.chnconf0[s_channel].mem_size_n      = 1;  // 48 items (CHUNK_BYTES=5 fits)
-        RMT.chnconf0[s_channel].tx_conti_mode_n = 0;
-        RMT.chnconf0[s_channel].idle_out_lv_n   = 0;
-        RMT.chnconf0[s_channel].idle_out_en_n   = 1;
+        // Channel config -- all R/W shadow registers; commit with conf_update_chn.
+        RMT.chnconf0[s_channel].div_cnt_chn       = 2;  // 40 MHz tick
+        RMT.chnconf0[s_channel].mem_size_chn      = 1;  // 48 items (CHUNK_BYTES=5 fits)
+        RMT.chnconf0[s_channel].tx_conti_mode_chn = 0;
+        RMT.chnconf0[s_channel].idle_out_lv_chn   = 0;
+        RMT.chnconf0[s_channel].idle_out_en_chn   = 1;
         // Commit shadow registers (S3-specific strobe).
-        RMT.chnconf0[s_channel].conf_update_n   = 1;
-        RMT.chnconf0[s_channel].conf_update_n   = 0;
+        RMT.chnconf0[s_channel].conf_update_chn   = 1;
+        RMT.chnconf0[s_channel].conf_update_chn   = 0;
 
         // Wire GPIO matrix.
         gpio_set_direction((gpio_num_t)gpioPin, GPIO_MODE_OUTPUT);
         gpio_set_level((gpio_num_t)gpioPin, 0);
-        gpio_matrix_out((gpio_num_t)gpioPin,
+        gpio_matrix_output((gpio_num_t)gpioPin,
                         RMT_SIG_OUT0_IDX + s_channel, false, false);
 
         s_initialised = true;
-        log_i("%s: ready on GPIO %d using RMT TX ch %d (ESP32-S3 bare-metal)",
+        ESP_LOGI(TAG, "%s: ready on GPIO %d using RMT TX ch %d (ESP32-S3 bare-metal)",
               TAG, gpioPin, s_channel);
         return true;
     }
@@ -167,7 +168,7 @@ namespace Ws2812Rmt
     void show(const uint8_t *pixels, size_t numBytes)
     {
         if (!s_initialised || pixels == nullptr || numBytes == 0) return;
-        log_i("%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
+        ESP_LOGI(TAG, "%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
         const int      ch     = s_channel;
         const uint32_t endBit = endBitMask(ch);
         bool           timedOut = false;
@@ -182,12 +183,12 @@ namespace Ws2812Rmt
             fillChunk(ch, pixels + pos, chunk);
 
             // Reset memory read pointer (WT field -- immediate, no conf_update).
-            RMT.chnconf0[ch].mem_rd_rst_n = 1;
-            RMT.chnconf0[ch].mem_rd_rst_n = 0;
+            RMT.chnconf0[ch].mem_rd_rst_chn = 1;
+            RMT.chnconf0[ch].mem_rd_rst_chn = 0;
 
-            // Clear stale tx_end; kick TX (tx_start_n is WT -- no conf_update).
+            // Clear stale tx_end; kick TX (tx_start_chn is WT -- no conf_update).
             RMT.int_clr.val             = endBit;
-            RMT.chnconf0[ch].tx_start_n = 1;
+            RMT.chnconf0[ch].tx_start_chn = 1;
 
             // Poll until the chunk is sent (~50 us for 40 items). Cycle-based
             // ceiling so it can't false-trip regardless of bus latency.
@@ -204,8 +205,8 @@ namespace Ws2812Rmt
         }
         portEXIT_CRITICAL(&s_mux);
 
-        if (timedOut) log_w("%s: tx_end timeout (%u bytes)", TAG, (unsigned)numBytes);
-        // Strip latches after >50 us of idle (idle_out_lv_n=0 keeps line low).
+        if (timedOut) ESP_LOGW(TAG, "%s: tx_end timeout (%u bytes)", TAG, (unsigned)numBytes);
+        // Strip latches after >50 us of idle (idle_out_lv_chn=0 keeps line low).
     }
 
 #else // !CONFIG_IDF_TARGET_ESP32S3

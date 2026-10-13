@@ -45,11 +45,11 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/home
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/image
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/joystick
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/led
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_led/led
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/motor
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/pid
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/ptz
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/scanner
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/signal
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_led/signal
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/thermal
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/tmc)

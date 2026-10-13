@@ -1,5 +1,4 @@
 #include "Ws2812Rmt.h"
-#include <Arduino.h>
 #include "esp_debug_helpers.h"
 // Guard: only built on ESP32 family (classic or S3).
 #ifdef ESP_PLATFORM
@@ -40,7 +39,7 @@
 #include "soc/gpio_sig_map.h"
 #include "driver/periph_ctrl.h"
 #include "driver/gpio.h"
-#include "esp32-hal-gpio.h"
+#include "esp_timer.h"
 
 namespace Ws2812Rmt
 {
@@ -59,6 +58,10 @@ namespace Ws2812Rmt
     // Guards the whole frame transmission: disables interrupts on the current
     // core so no ISR can stretch an inter-chunk gap past the WS2812 reset time.
     static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
+
+    // Raw-IDF tx-timeout clock (us). Replaces Arduino.h's ESP.getCycleCount();
+    // the old 480000-cycle ceiling at 240MHz == 2000us.
+    static inline uint32_t ws2812_now_us() { return (uint32_t)esp_timer_get_time(); }
 
     static inline uint32_t bitItem(bool one)
     {
@@ -125,7 +128,7 @@ namespace Ws2812Rmt
         RMT.chnconf0[s_channel].conf_update_n   = 0;
 
         // Wire GPIO matrix.
-        pinMode(gpioPin, OUTPUT);
+        gpio_set_direction((gpio_num_t)gpioPin, GPIO_MODE_OUTPUT);
         gpio_set_level((gpio_num_t)gpioPin, 0);
         gpio_matrix_out((gpio_num_t)gpioPin,
                         RMT_SIG_OUT0_IDX + s_channel, false, false);
@@ -176,9 +179,9 @@ namespace Ws2812Rmt
 
             // Poll until the chunk is sent (~50 us for 40 items). Cycle-based
             // ceiling so it can't false-trip regardless of bus latency.
-            const uint32_t t0 = ESP.getCycleCount();
+            const uint32_t t0 = ws2812_now_us();
             while (!(RMT.int_raw.val & endBit)) {
-                if ((uint32_t)(ESP.getCycleCount() - t0) > 480000u) { // ~2 ms
+                if ((uint32_t)(ws2812_now_us() - t0) > 2000u) { // ~2 ms
                     timedOut = true;
                     break;
                 }
@@ -243,7 +246,7 @@ namespace Ws2812Rmt
         RMT.conf_ch[s_channel].conf1.idle_out_en   = 1;
 
         // Wire GPIO matrix.
-        pinMode(gpioPin, OUTPUT);
+        gpio_set_direction((gpio_num_t)gpioPin, GPIO_MODE_OUTPUT);
         gpio_set_level((gpio_num_t)gpioPin, 0);
         gpio_matrix_out((gpio_num_t)gpioPin,
                         RMT_SIG_OUT0_IDX + s_channel, false, false);
@@ -296,9 +299,9 @@ namespace Ws2812Rmt
 
             // Poll until the chunk is sent (~80 us for 64 items). Cycle-based
             // ceiling so it can't false-trip regardless of bus latency.
-            const uint32_t t0 = ESP.getCycleCount();
+            const uint32_t t0 = ws2812_now_us();
             while (!(RMT.int_raw.val & endBit)) {
-                if ((uint32_t)(ESP.getCycleCount() - t0) > 480000u) { // ~2 ms
+                if ((uint32_t)(ws2812_now_us() - t0) > 2000u) { // ~2 ms
                     timedOut = true;
                     break;
                 }

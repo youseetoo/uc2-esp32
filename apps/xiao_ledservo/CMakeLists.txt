@@ -3,11 +3,11 @@ cmake_minimum_required(VERSION 3.16.0)
 # Shared components from top-level components/ (uc2_core/serial/canopen/io/periph/led).
 set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components"
                          "${CMAKE_CURRENT_LIST_DIR}/components")
-# -DESP32S3_MODEL_XIAO: board model.
-# -I main/: app-local PinConfig.h (UC2_ESP32S3_XIAO_LEDSERVO) shadows the shared
-#   main/PinConfig.h (laser) for ALL components — CMAKE_CXX_FLAGS -I precedes a
-#   component's target_include_directories in the compile line, so this dir wins.
-#   (Per-app PinConfig rework lands in T2.11; this shadow is the T2.1 stopgap.)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -I${CMAKE_CURRENT_LIST_DIR}/main")
+# -DESP32S3_MODEL_XIAO: board model (bare #define gating code across shared components).
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1")
+# UC2_APP_MAIN_DIR: app-local main/ holds the ledservo PinConfig.h (UC2_ESP32S3_XIAO_
+# LEDSERVO); uc2_modinc.cmake prepends it so it shadows the shared main/PinConfig.h
+# (laser) for ALL components. (Per-app PinConfig rework lands in T2.11; T2.1 stopgap.)
+set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(xiao_ledservo)

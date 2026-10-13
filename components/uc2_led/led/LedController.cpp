@@ -1,4 +1,4 @@
-#pragma once
+// (T2.1: removed stray '#pragma once' — this is a .cpp, not a header.)
 #include "LedController.h"
 #include "JsonKeys.h"
 #include <Arduino.h>

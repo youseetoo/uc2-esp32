@@ -53,3 +53,14 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/uc2_led/signal
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/thermal
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/tmc)
+# T2.1: per-app PinConfig override. An app sets UC2_APP_MAIN_DIR to its own main/
+# (in the top-level CMakeLists before project()); it is prepended so its PinConfig.h
+# shadows the shared main/PinConfig.h (laser) for ALL components. Empty for the laser
+# (which uses the shared main/ PinConfig directly).
+# T2.1: per-app PinConfig override. The app sets the UC2_APP_MAIN_DIR environment
+# var (top-level CMakeLists, before project()); it is prepended so the app's
+# main/PinConfig.h shadows the shared main/PinConfig.h (laser) for ALL components.
+# (ENV channel — a plain/CACHE CMake var does not reach ESP-IDF component scope.)
+if(DEFINED ENV{UC2_APP_MAIN_DIR})
+    list(PREPEND UC2_MODULE_INCLUDE_DIRS "$ENV{UC2_APP_MAIN_DIR}")
+endif()

@@ -143,7 +143,7 @@ namespace Ws2812Rmt
         // Wire GPIO matrix.
         gpio_set_direction((gpio_num_t)gpioPin, GPIO_MODE_OUTPUT);
         gpio_set_level((gpio_num_t)gpioPin, 0);
-        gpio_matrix_output((gpio_num_t)gpioPin,
+        esp_rom_gpio_connect_out_signal((gpio_num_t)gpioPin,
                         RMT_SIG_OUT0_IDX + s_channel, false, false);
 
         s_initialised = true;
@@ -261,7 +261,7 @@ namespace Ws2812Rmt
         // Wire GPIO matrix.
         gpio_set_direction((gpio_num_t)gpioPin, GPIO_MODE_OUTPUT);
         gpio_set_level((gpio_num_t)gpioPin, 0);
-        gpio_matrix_out((gpio_num_t)gpioPin,
+        esp_rom_gpio_connect_out_signal((gpio_num_t)gpioPin,
                         RMT_SIG_OUT0_IDX + s_channel, false, false);
 
         s_initialised = true;

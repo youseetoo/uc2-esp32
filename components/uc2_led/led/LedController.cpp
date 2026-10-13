@@ -206,8 +206,8 @@ typedef UString String;
 #endif
 		pinMode(14, OUTPUT);
 		pinMode(6, INPUT);
-		gpio_matrix_in(6, SIG_IN_FUNC212_IDX, false);
-		gpio_matrix_out(14, SIG_IN_FUNC212_IDX, false, false);
+		esp_rom_gpio_connect_in_signal(6, SIG_IN_FUNC212_IDX, false);
+		esp_rom_gpio_connect_out_signal(14, SIG_IN_FUNC212_IDX, false, false);
 #endif
 		log_i("LED matrix initialization complete");
 	}

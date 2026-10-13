@@ -1,18 +1,24 @@
+// T2.4: ThermalController (ported from main/src/thermal — Arduino -> raw IDF).
+// Preferences -> uc2::Preferences (NVS), analogRead* -> uc2_adc (eFuse-calibrated
+// mV on S3), millis/log_* -> uc2_time/uc2_log.
 #include "ThermalController.h"
-#include <Preferences.h>
-#include <math.h>
-#include "esp_log.h"
+#include "uc2_hal.h"
 #include "cJsonTool.h"
-#include "../serial/SerialProcess.h"
+#include "SerialProcess.h"
 #ifdef LED_CONTROLLER
-#include "../led/LedController.h"
+#include "LedController.h"
 #endif
 #ifdef LASER_CONTROLLER
-#include "../laser/LaserController.h"
+#include "LaserController.h"
 #endif
+
+#include <math.h>
+#include <esp_log.h>
 
 namespace ThermalController
 {
+    static const char *TAG = "Thermal";
+
     // ---- configuration (NVS-backed) ----
     static bool enabled = false;
     static float warnC = 58.0f;
@@ -37,7 +43,7 @@ namespace ThermalController
     static uint8_t sweepCount = 0;
     static uint32_t lastSweepMs = 0;
 
-    static Preferences tPrefs;
+    static uc2::Preferences tPrefs;
 
     // A divider node below this cannot be a real temperature: at -20 °C the
     // node still sits around 43 mV, so anything lower means the NTC is open or
@@ -190,11 +196,9 @@ namespace ThermalController
     // ── lifecycle ────────────────────────────────────────────────────────
     void setup()
     {
-        // Arduino's analogRead*() re-runs pinMode(pin, ANALOG) on every call,
-        // and gpio_config() logs a line at INFO for each one. Four channels of
-        // periodic sampling turns that into hundreds of lines per second —
-        // enough to saturate the 115200-baud link and truncate the JSON
-        // replies sharing it. Nothing else needs gpio at INFO.
+        // gpio_config() logs a line at INFO for each channel configure; four
+        // channels of periodic sampling would flood the 115200-baud link and
+        // truncate the JSON replies sharing it. Nothing else needs gpio at INFO.
         esp_log_level_set("gpio", ESP_LOG_WARN);
 
         for (uint8_t i = 0; i < THERMAL_NUM_SENSORS; ++i)
@@ -431,10 +435,7 @@ namespace ThermalController
         if (sweepCount >= THERMAL_OVERSAMPLE)
         {
             // Raw counts are diagnostics only, so sample them once per window
-            // rather than per sweep. Every Arduino analog read re-runs
-            // pinMode(pin, ANALOG) internally, and each of those emits an
-            // ESP-IDF "gpio:" INFO line — at sweep rate that alone produces
-            // far more UART traffic than 115200 baud can carry.
+            // rather than per sweep.
             for (uint8_t i = 0; i < THERMAL_NUM_SENSORS; ++i)
             {
                 if (readings[i].pin >= 0)
@@ -457,6 +458,7 @@ namespace ThermalController
     // ── JSON API ─────────────────────────────────────────────────────────
     cJSON *get(cJSON *ob)
     {
+        (void)ob;
         cJSON *root = cJSON_CreateObject();
         cJSON *t = cJSON_CreateObject();
         cJSON_AddItemToObject(root, "temp", t);

@@ -11,6 +11,10 @@ endif()
 if(CONFIG_UC2_FAN_CONTROLLER)
     list(APPEND srcs "fan/FanController.cpp")
 endif()
+# T2.4: thermal (NTC heat-sink monitoring) — ported to raw IDF from main/src/thermal.
+if(CONFIG_UC2_THERMAL_CONTROLLER)
+    list(APPEND srcs "thermal/ThermalController.cpp")
+endif()
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
     REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc

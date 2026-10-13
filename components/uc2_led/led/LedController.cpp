@@ -17,7 +17,7 @@
 #include "src/serial/SerialProcess.h"
 #include "../canopen/DeviceRouter.h"
 #ifdef THERMAL_CONTROLLER
-#include "../thermal/ThermalController.h"
+#include "ThermalController.h"
 #endif
 
 #if !defined(DOTSTAR) && !defined(HUB75)

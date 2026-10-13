@@ -134,7 +134,7 @@ CANopenModule canopenModule;
 #include "src/fan/FanController.h"
 #endif
 #ifdef THERMAL_CONTROLLER
-#include "src/thermal/ThermalController.h"
+#include "ThermalController.h"
 #endif
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"

@@ -23,3 +23,8 @@
 int  analogRead(int pin);
 void analogReadResolution(int bits);
 void analogSetPinAttenuation(int pin, int attenuation);
+
+// eFuse-calibrated millivolt read (Arduino-ESP32 analogReadMilliVolts: per-channel
+// curve-fitting scheme on S3). Falls back to a naive full-scale scale when the
+// calibration eFuse is absent.
+int  analogReadMilliVolts(int pin);

@@ -1,7 +1,9 @@
 #pragma once
+// T2.4: ThermalController (ported from main/src/thermal — Arduino.h -> uc2_hal).
 #include <PinConfig.h>
-#include "Arduino.h"
 #include "cJSON.h"
+
+#include <cstdint>
 
 /*
  * ThermalController — NTC heat-sink monitoring for the illumination board.
@@ -26,9 +28,9 @@
  *  - 6 dB attenuation gives an effective 0..1600 mV range with ±10 mV error,
  *    which is the range the divider actually uses (0.25 V @ 20 °C,
  *    1.45 V @ 90 °C). This is the attenuation the schematic asks for.
- *  - analogReadMilliVolts() applies the per-chip eFuse calibration, so it is
- *    used instead of scaling raw counts by 3.3/4095 (that naive conversion
- *    reads ~8-10 % low on the ESP32-S3).
+ *  - analogReadMilliVolts() (uc2_adc, eFuse-calibrated) is used instead of
+ *    scaling raw counts by 3.3/4095 (that naive conversion reads ~8-10 % low
+ *    on the ESP32-S3).
  *  - Single reads scatter by roughly ±20 counts, so every reported value is a
  *    boxcar average over THERMAL_OVERSAMPLE sweeps spread across
  *    THERMAL_SAMPLE_PERIOD_MS each — long enough to average out mains ripple.

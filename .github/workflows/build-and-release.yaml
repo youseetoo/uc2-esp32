@@ -205,6 +205,98 @@ jobs:
           path: build/fw-images/
           retention-days: 30
 
+  # ── T1.8 (D6, Phase 1) — ESP-IDF build of the raw-IDF apps ──────────────────
+  # Standalone CI gate on the same (workflow-level) triggers as the PIO matrix.
+  # Grows one app per verified board (T1.8 laser -> T2.7 motor, 5-variant loop).
+  # Target esp32s3 is pinned in each app's committed sdkconfig (idf.py uses it).
+  # NOTE: this job (and host-tests) was removed by f8aea75 ("clan build and
+  # release.yaml"); re-added here in T2.7 with the motor 5-axis variant loop.
+  idf-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: canopen_slave_laser
+            display_name: "UC2 CAN Slave Laser (IDF)"
+            target: esp32s3
+            artifact: idf-fw-canopen-slave-laser
+          - app: canopen_slave_motor
+            display_name: "UC2 CAN Slave Motor (IDF, 5-axis)"
+            target: esp32s3
+            artifact: idf-fw-canopen-slave-motor
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git-ref || github.ref }}
+          submodules: recursive
+
+      - name: Cache ESP-IDF toolchain
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.idf
+          key: idf-tools-${{ matrix.target }}-v6.1
+          restore-keys: |
+            idf-tools-${{ matrix.target }}-
+
+      - name: Install ESP-IDF (pinned v6.1)
+        uses: espressif/install-esp-idf-action@v1
+        with:
+          version: v6.1
+          path: ${{ github.workspace }}/.idf/esp-idf
+          tools-path: ${{ github.workspace }}/.idf
+
+      - name: Cache app build dir
+        uses: actions/cache@v4
+        with:
+          path: apps/${{ matrix.app }}/build
+          key: idf-build-${{ matrix.app }}-${{ github.sha }}
+          restore-keys: |
+            idf-build-${{ matrix.app }}-
+
+      - name: Build firmware
+        run: |
+          cd apps/${{ matrix.app }}
+          if [ "${{ matrix.app }}" = "canopen_slave_motor" ]; then
+            # T2.7: 5-axis variant loop (mirrors the PIO build-frame). default(X)
+            # + Y/Z/A; each selects the CAN node via UC2_CAN_AXIS -> -DCAN_AXIS_ID.
+            for AXIS in "" X Y Z A; do
+              export UC2_CAN_AXIS="$AXIS"
+              touch CMakeLists.txt   # force CMake re-run (env change)
+              echo "==> Building canopen_slave_motor axis: ${AXIS:-default(X)}"
+              idf.py build
+              SUFFIX=""; [ -n "$AXIS" ] && SUFFIX="_mot${AXIS}"
+              cp build/canopen_slave_motor.bin "build/canopen_slave_motor${SUFFIX}.bin"
+            done
+          else
+            idf.py build
+          fi
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            apps/${{ matrix.app }}/build/${{ matrix.app }}*.bin
+            apps/${{ matrix.app }}/build/bootloader/bootloader.bin
+            apps/${{ matrix.app }}/build/partition_table/partition-table.bin
+          if-no-files-found: error
+          retention-days: 30
+
+  # T1.8 action #2 — host regression suite (`make test`: native + unity).
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git-ref || github.ref }}
+          submodules: recursive
+
+      - name: Run host regression suite
+        run: make test
+
   create-release:
     needs: build-all-firmware
     runs-on: ubuntu-latest

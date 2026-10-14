@@ -274,8 +274,10 @@ namespace AccelStep
 
 
     void setPosition(Stepper axis, int pos){
-        getData()[axis]->currentPosition = pos;
-        steppers[axis]->setCurrentPosition(pos);
+        MotorData *d = getData()[axis];
+        if (!d) return;
+        d->currentPosition = pos;
+        if (steppers[axis]) steppers[axis]->setCurrentPosition(pos);
     }
 
     void stopAccelStepper(int i)

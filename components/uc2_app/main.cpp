@@ -114,8 +114,8 @@ CANopenModule canopenModule;
 #include "src/joystick/JoystickRouter.h"
 #endif
 #ifdef PTZ_KEYBOARD_CONTROLLER
-#include "src/ptz/PtzKeyboard.h"
-#include "src/ptz/PtzRouter.h"
+#include "PtzKeyboard.h"
+#include "PtzRouter.h"
 #endif
 #ifdef I2C_MASTER
 #include "src/i2c/i2c_master.h"

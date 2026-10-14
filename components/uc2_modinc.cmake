@@ -19,6 +19,10 @@ set(UC2_MODULE_INCLUDE_DIRS
     # uc2_canopen
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/canopen
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/gpio_can
+    # T2.8: ptz (RS-485 Pelco-D keyboard -> CANopen bridge, raw-IDF port from
+    # main/src/ptz, compiled by uc2_canopen) — listed so bare includes
+    # (#include "PtzKeyboard.h") resolve for ALL components.
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/ptz
     # uc2_io
     ${CMAKE_CURRENT_LIST_DIR}/uc2_io/digitalin
     ${CMAKE_CURRENT_LIST_DIR}/uc2_io/digitalout

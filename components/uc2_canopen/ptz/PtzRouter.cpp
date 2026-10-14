@@ -5,12 +5,12 @@
 // the routing table, and forwards discrete key events upstream via TPDO2.
 // The SDO helpers (short timeout + dead-node muting) are copied from
 // JoystickRouter so a missing slave can't stall this task either.
-#include "PtzRouter.h"
 #include "PinConfig.h"
+#include "PtzRouter.h"
 
 #ifdef PTZ_KEYBOARD_CONTROLLER
 
-#include <Arduino.h>
+#include "uc2_hal.h"
 #include <cstdlib>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -18,10 +18,10 @@
 #include "freertos/queue.h"
 
 #include "PtzKeyboard.h"
-#include "../canopen/CANopenModule.h"
-#include "../canopen/RoutingTable.h"
-#include "../canopen/UC2_OD_Indices.h"
-#include "../motor/MotorTypes.h"
+#include "CANopenModule.h"
+#include "RoutingTable.h"
+#include "UC2_OD_Indices.h"
+#include "MotorTypes.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
 extern "C" {

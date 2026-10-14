@@ -1,16 +1,16 @@
 // PtzKeyboard.cpp — UART1 RS-485 receiver task + Pelco frame → Motion/Event
 // fan-out. See PtzKeyboard.h for the wiring / debug workflow.
-#include "PtzKeyboard.h"
 #include "PinConfig.h"
+#include "PtzKeyboard.h"
 
 #ifdef PTZ_KEYBOARD_CONTROLLER
 
-#include <Arduino.h>
+#include "uc2_hal.h"
+#include <stdio.h>
 #include "esp_log.h"
 #include "driver/uart.h"
 #include "freertos/task.h"
 #include "PelcoParser.h"
-#include "../serial/SerialProcess.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
 extern "C" {
@@ -61,7 +61,7 @@ void debugHex(const char* tag, const uint8_t* d, size_t n)
         off += (size_t)snprintf(line + off, sizeof(line) - off, "%02X ", d[i]);
     if (off > 0 && line[off - 1] == ' ') off--;
     snprintf(line + off, sizeof(line) - off, "\"}");
-    SerialProcess::safePrintln(line);
+    ESP_LOGI(TAG, "%s", line);
 }
 
 void debugFrame(const Pelco::Frame& f, const Pelco::Action& a)
@@ -90,7 +90,9 @@ void debugFrame(const Pelco::Frame& f, const Pelco::Action& a)
             cJSON_AddNumberToObject(p, "iris",  a.irisDir);
         }
     }
-    SerialProcess::safeSerializeJson(root); // serializes only, we keep ownership
+    char* _s = cJSON_PrintUnformatted(root); // print only, we keep ownership of root
+    ESP_LOGI(TAG, "%s", _s ? _s : "");
+    cJSON_free(_s);
     cJSON_Delete(root);
 }
 

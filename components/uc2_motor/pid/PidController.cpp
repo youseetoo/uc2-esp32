@@ -1,0 +1,129 @@
+static const char *TAG = "PidController";
+#include <PinConfig.h>
+
+#include "PidController.h"
+#include "cJsonTool.h"
+#include "uc2_hal.h"
+
+#include "JsonKeys.h"
+
+namespace PidController
+{
+	// Custom function accessible by the API
+	int act(cJSON *ob)
+	{
+		int qid = cJsonTool::getJsonInt(ob, "qid");
+		PID_active = cJsonTool::getJsonInt(ob, key_PIDactive);
+		PID_Kp = cJsonTool::getJsonInt(ob, key_Kp);
+		PID_Ki = cJsonTool::getJsonInt(ob, key_Ki);
+		PID_Kd = cJsonTool::getJsonInt(ob, key_Kd);
+		PID_target = cJsonTool::getJsonInt(ob, key_target);
+		PID_updaterate = cJsonTool::getJsonInt(ob, key_PID_updaterate);
+		// here you can do something
+		if (isDEBUG)
+			log_d("PID_act_fct");
+
+		if (!PID_active)
+		{
+// force shutdown the motor
+#ifdef MOTOR_CONTROLLER
+			FocusMotor::getData()[Stepper::X]->speed = 0;
+			FocusMotor::stopStepper(Stepper::X);
+#endif
+		}
+		return qid;
+	}
+
+	void loop()
+	{
+		currentMillis = millis();
+		if (PID_active && (currentMillis - startMillis >= PID_updaterate))
+		{
+			// hardcoded for now:
+			int analoginpin = pinConfig.pid1;
+
+			// get rid of noise?
+			float analoginValueAvg = 0;
+			for (int imeas = 0; imeas < N_analogin_avg; imeas++)
+			{
+				analoginValueAvg += analogRead(analoginpin);
+			}
+
+			analoginValueAvg = (float)analoginValueAvg / (float)N_analogin_avg;
+			int32_t motorValue = returnControlValue(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
+#ifdef MOTOR_CONTROLLER
+			FocusMotor::getData()[Stepper::X]->isforever = 1; // run motor at certain speed
+			FocusMotor::getData()[Stepper::X]->speed = motorValue;
+			FocusMotor::startStepper(Stepper::X, 0);
+#endif
+			startMillis = millis();
+		}
+	}
+
+	int32_t returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd)
+	{
+		float analoginOffset = 0.;
+		float maxError = 1.;
+		float error = (controlTarget - (analoginValue - analoginOffset)) / maxError;
+		float cP = Kp * error;
+		float cI = Ki * errorRunSum;
+		float cD = Kd * (error - previousError);
+		float PID = cP + cI + cD;
+		int32_t stepperOut = (int32_t)PID;
+
+		if (stepperOut > stepperMaxValue)
+		{
+			stepperOut = stepperMaxValue;
+		}
+
+		if (stepperOut < -stepperMaxValue)
+		{
+			stepperOut = -stepperMaxValue;
+		}
+
+		errorRunSum = errorRunSum + error;
+		previousError = error;
+
+		if (isDEBUG)
+			// log_d is printf-style (const char* format), so build the String and
+			// pass it via a %s argument (Arduino's Serial logging took a String).
+			log_d("%s", (String("analoginValue: ") + String(analoginValue) + ", P: " + String(cP) + ", I: " + String(cI) + ", D: " + String(cD) + ", errorRunSum: " + String(errorRunSum) + ", previousError: " + String(previousError) + ", stepperOut: " + String(stepperOut)).c_str());
+		return stepperOut;
+	}
+
+	// Custom function accessible by the API
+	// returns json {"pid":{...}} as qid
+	cJSON *get(cJSON *ob)
+	{
+		if (isDEBUG)
+			log_d("PID_get_fct");
+		int PIDID = cJsonTool::getJsonInt(ob, key_PIDID);
+		int PIDPIN = 0;
+		switch (PIDID)
+		{
+		case 0:
+			PIDPIN = pinConfig.pid1;
+			break;
+		case 1:
+			PIDPIN = pinConfig.pid2;
+			break;
+		case 2:
+			PIDPIN = pinConfig.pid3;
+			break;
+		}
+
+		cJSON *ret = cJSON_CreateObject();
+		cJSON *pd = cJSON_CreateObject();
+		cJSON_AddItemToObject(ret, key_pid, pd);
+		cJsonTool::setJsonInt(pd, key_N_analogin_avg, N_analogin_avg);
+		cJsonTool::setJsonInt(pd, key_PIDPIN, PIDPIN);
+		cJsonTool::setJsonInt(pd, key_PIDID, PIDID);
+		return ret;
+	}
+
+	void setup()
+	{
+		log_d("Setup PID");
+		startMillis = millis();
+	}
+}

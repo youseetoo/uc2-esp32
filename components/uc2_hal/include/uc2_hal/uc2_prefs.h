@@ -62,6 +62,14 @@ public:
         nvs_commit(handle_);
     }
 
+    // Remove a single key (Arduino Preferences::remove).
+    void remove(const char *key)
+    {
+        if (handle_ == 0) return;
+        nvs_erase_key(handle_, key);
+        commit();
+    }
+
     // ── bool ───────────────────────────────────────────────────────────────
     void putBool(const char *key, bool value)
     {
@@ -175,7 +183,7 @@ public:
     // ── bytes (blob, max 4000) ─────────────────────────────────────────────
     // Returns the number of bytes written (bufferSize on success, 0 on error)
     // — main/ (AxisCalibration) assigns the result, unlike Arduino's void.
-    size_t putBytes(const char *key, const uint8_t *buffer, size_t bufferSize)
+    size_t putBytes(const char *key, const void *buffer, size_t bufferSize)
     {
         if (nvs_set_blob(handle_, key, buffer, bufferSize) != ESP_OK) return 0;
         nvs_commit(handle_);
@@ -183,7 +191,7 @@ public:
     }
     // Returns the number of bytes copied (0 if the key is absent or the
     // buffer is too small), like Arduino.
-    size_t getBytes(const char *key, uint8_t *buffer, size_t bufferSize,
+    size_t getBytes(const char *key, void *buffer, size_t bufferSize,
                     size_t bufferLen = 0)
     {
         size_t len = (bufferLen != 0) ? bufferLen : bufferSize;

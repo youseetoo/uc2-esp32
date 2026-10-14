@@ -26,3 +26,17 @@ inline long map(long x, long in_min, long in_max, long out_min, long out_max)
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
+// Arduino math helpers (constrain + the std math fns the ported modules use
+// unqualified, as Arduino.h provided). Shared here so every component gets them.
+#include <cmath>
+using std::fabs;
+using std::fabsf;
+using std::sqrt;
+
+// Arduino constrain: clamp x into [lo, hi].
+template <typename T>
+inline T constrain(T x, T lo, T hi)
+{
+    return (x < lo) ? lo : ((x > hi) ? hi : x);
+}

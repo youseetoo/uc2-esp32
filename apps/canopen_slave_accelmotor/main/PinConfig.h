@@ -110,7 +110,7 @@ struct UC2_canopen_slave_motor : PinConfig
     int8_t ROUTE_GALVO     = 2;            // OFF
 
     // Endstop
-    uint8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 -> TOUCH
+    int8_t DIGITAL_IN_1 = GPIO_NUM_1; // D0 -> GPIO1 -> TOUCH
     uint32_t objectivePositionX0 = 10000;
     uint32_t objectivePositionX1 = 80000;
 

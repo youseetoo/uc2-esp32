@@ -37,6 +37,14 @@ set(UC2_MODULE_INCLUDE_DIRS
     # PinConfigDefault.h (the PinConfig base struct) lives in uc2_app/ — include-only
     # (no link dep), so this does NOT create a component dependency on uc2_app.
     ${CMAKE_CURRENT_LIST_DIR}/uc2_app
+    # T2.6: uc2_motor (stepper/encoder/axis/home/pid/tmc, raw-IDF port from
+    # main/src/{motor,home,axis,tmc,pid}) — listed BEFORE ../main/src/{axis,home,
+    # motor,pid,tmc} below so the ported copies win for #include "FocusMotor.h" etc.
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/axis
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/home
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/motor
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/pid
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/tmc
     # non-copied (headers only, still in main/src/)
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/analogin
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/analogout

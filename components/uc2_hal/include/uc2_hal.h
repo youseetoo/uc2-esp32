@@ -16,3 +16,11 @@
 #include "uc2_hal/uc2_ledc.h"
 #include "uc2_hal/uc2_misc.h"
 #include "uc2_hal/uc2_adc.h"
+
+// Arduino-compat name: ported app code (uc2_motor, main/) declares
+// `Preferences prefs;` unqualified, as Arduino.h did. Alias uc2::Preferences
+// at global scope so those files compile without per-file edits.
+using uc2::Preferences;
+// Arduino-compat name: ported app code uses `String` unqualified (Arduino.h
+// provided it at global scope). Alias uc2::String so those files compile.
+using uc2::String;

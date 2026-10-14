@@ -66,7 +66,7 @@ uc2::Preferences preferences;
 #include "src/laser/LaserController.h"
 #endif
 #ifdef TMC_CONTROLLER
-#include "src/tmc/TMCController.h"
+#include "TMCController.h"  // T2.6: raw-IDF port in uc2_motor/tmc (via modinc)
 #endif
 #ifdef LED_CONTROLLER
 #include "LedController.h"
@@ -77,11 +77,11 @@ uc2::Preferences preferences;
 #include "src/message/MessageController.h"
 #endif
 #ifdef MOTOR_CONTROLLER
-#include "src/motor/FocusMotor.h"
-#include "src/motor/MotorGamePad.h"
+#include "FocusMotor.h"  // T2.6: raw-IDF port in uc2_motor/motor (via modinc)
+#include "MotorGamePad.h"
 #endif
 // Include MotorTypes for Stepper enum used in BT button handlers
-#include "src/motor/MotorTypes.h"
+#include "MotorTypes.h"
 #ifdef PID_CONTROLLER
 #include "src/pid/PidController.h"
 #endif
@@ -92,7 +92,7 @@ uc2::Preferences preferences;
 #include "GalvoController.h"  // T2.5: raw-IDF port in uc2_periph/scanner (via modinc)
 #endif
 #ifdef HOME_MOTOR
-#include "src/home/HomeMotor.h"
+#include "HomeMotor.h"  // T2.6: raw-IDF port in uc2_motor/home (via modinc)
 #endif
 #ifdef USE_TCA9535
 #include "src/i2c/tca_controller.h"

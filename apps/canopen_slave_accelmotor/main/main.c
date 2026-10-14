@@ -8,7 +8,7 @@
  */
 #include "uc2_app.h"
 
-extern "C" void app_main(void)
+void app_main(void)
 {
     uc2_app_start();
 }

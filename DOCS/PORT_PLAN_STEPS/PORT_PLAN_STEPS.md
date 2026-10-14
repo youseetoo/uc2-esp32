@@ -67,7 +67,7 @@ executor agent.
 - [x] **T2.3** [T2.3.md](steps/T2.3.md) — `apps/canopen_slave_gpio` (gpio_can + I2cBridge) · 1–2 d · ← T1.8 — **done 2026-10-14 (bdd6d11): builds green (raw-IDF), uc2_adc eFuse-calibrated mV API added**
 - [x] **T2.4** [T2.4.md](steps/T2.4.md) — `apps/canopen_slave_led` (LED + thermal + laser) · 2 d · ← T1.8 — **done 2026-10-14 (cfed910): builds green (raw-IDF, 421 KB), thermal → uc2_periph (UC2_THERMAL_CONTROLLER-gated), laser + gpio regressions green; [HW] smoke pending**
 - [x] **T2.5** [T2.5.md](steps/T2.5.md) — `apps/canopen_slave_galvo` (MCP4822 SPI) · 2–3 d · ← T1.8 — **done 2026-10-14 (88797c9): builds green (raw-IDF, 400 KB / 69 % free); shared-comp fixes: `[[fallthrough]]` in CANopenModule + `volatile +=` in HighSpeedScannerCore; [HW] smoke pending**
-- [ ] **T2.6** [T2.6.md](steps/T2.6.md) — *(D2)* `apps/canopen_slave_accelmotor` · 2–3 d · ← T2.3
+- [x] **T2.6** [T2.6.md](steps/T2.6.md) — *(D2)* `apps/canopen_slave_accelmotor` · 2–3 d · ← T2.3 — **done 2026-10-14 (1ac70c8): builds green (raw-IDF, 419 KB / 68 % free); new `uc2_motor` comp (37 files), TMCStepper v0.7.3 vendored, ESP32Encoder rewritten to IDF6.1 pcnt API, `--start-group` link fix; [HW] smoke pending**
 - [ ] **T2.7** [T2.7.md](steps/T2.7.md) — *(D2)* `apps/canopen_slave_motor` (FAS RMT-IRQ + `[HW]` step timing; 5 per-axis builds) · 3–5 d · ← T2.6
 - [ ] **T2.8** [T2.8.md](steps/T2.8.md) — `apps/canopen_bridge_ptz` (RS-485 Pelco-D) · 2 d · ← T1.8
 - [ ] **T2.9** [T2.9.md](steps/T2.9.md) — `apps/xiao_odmr` (largest S3 app; IS31FL3741 check) · 3–5 d · ← T2.7

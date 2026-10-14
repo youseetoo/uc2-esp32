@@ -56,7 +56,6 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/bt
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/dac
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/dial
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/heat
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/home
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/image
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/joystick

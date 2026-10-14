@@ -104,3 +104,11 @@ inline void ledcWrite(int channel, uint32_t duty)
     ledc_set_duty(LEDC_LOW_SPEED_MODE, ch, duty);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, ch);
 }
+
+// Arduino ledcRead(channel): get current duty cycle.
+// ledc_get_duty(speed_mode, channel) returns uint32_t in IDF 6.x.
+inline uint32_t ledcRead(int channel)
+{
+    ledc_channel_t ch = uc2_ledc_ch_for(channel);
+    return ledc_get_duty(LEDC_LOW_SPEED_MODE, ch);
+}

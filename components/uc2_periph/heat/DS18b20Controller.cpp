@@ -5,6 +5,8 @@
 #include "PinConfig.h"
 #include "cJsonTool.h"
 
+static const char *TAG = "DS18b20";
+
 namespace DS18b20Controller
 {
 	bool isDEBUG = false;

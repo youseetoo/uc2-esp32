@@ -22,8 +22,12 @@ if(CONFIG_UC2_GALVO_CONTROLLER)
         "scanner/HighSpeedScannerCore.cpp"
         "scanner/DAC_MCP4822.cpp")
 endif()
+# T2.9: DS18b20 heat controller (heat sink thermal regulation for laser diode).
+if(CONFIG_UC2_HEAT_CONTROLLER)
+    list(APPEND srcs "heat/DS18b20Controller.cpp" "heat/HeatController.cpp")
+endif()
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
     REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc
              esp_driver_tsens canopen_node uc2_od dac_module usb_host esp_usb_host_hid
-             esp_driver_rmt esp_driver_spi)
+             esp_driver_rmt esp_driver_spi onewire_ds18b20)

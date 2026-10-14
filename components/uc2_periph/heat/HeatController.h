@@ -1,8 +1,8 @@
 #pragma once
 
 #include "DS18b20Controller.h"
-#include "../laser/LaserController.h"
-#include <Preferences.h>
+#include "LaserController.h"
+#include "uc2_hal.h"
 
 namespace HeatController
 {

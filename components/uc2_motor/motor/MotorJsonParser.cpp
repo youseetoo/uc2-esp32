@@ -1,4 +1,6 @@
 static const char *TAG = "MotorJsonParser";
+#include <algorithm>
+using std::max;
 #include "MotorJsonParser.h"
 #include "FocusMotor.h"
 #include "QidRegistry.h"

@@ -63,7 +63,7 @@ uc2::Preferences preferences;
 #include "src/axis/AxisController.h"
 #endif
 #ifdef LASER_CONTROLLER
-#include "src/laser/LaserController.h"
+#include "LaserController.h"
 #endif
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"  // T2.6: raw-IDF port in uc2_motor/tmc (via modinc)
@@ -124,8 +124,8 @@ CANopenModule canopenModule;
 #include "src/i2c/i2c_slave_dial.h"
 #endif
 #ifdef HEAT_CONTROLLER
-#include "src/heat/DS18b20Controller.h"
-#include "src/heat/HeatController.h"
+#include "DS18b20Controller.h"
+#include "HeatController.h"
 #endif
 #ifdef TMP102_CONTROLLER
 #include "src/tmp102/Tmp102Controller.h"

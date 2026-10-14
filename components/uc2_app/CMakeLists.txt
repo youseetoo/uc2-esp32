@@ -10,7 +10,8 @@
 # top-level CMakeLists) so the app-local PinConfig.h shadows the shared one.
 idf_component_register(SRCS "main.cpp"
                        INCLUDE_DIRS "." "$ENV{UC2_APP_MAIN_DIR}" "${CMAKE_CURRENT_LIST_DIR}/../../main"
-                        REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update
-                                 esp_driver_ledc esp_driver_tsens
-                                 canopen_node uc2_od dac_module usb_host esp_usb_host_hid
+                                            "${CMAKE_CURRENT_LIST_DIR}/../uc2_periph/heat"
+                         REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update
+                                  esp_driver_ledc esp_driver_tsens
+                                  canopen_node uc2_od dac_module usb_host esp_usb_host_hid
                                   uc2_canopen uc2_led uc2_serial uc2_io uc2_periph)

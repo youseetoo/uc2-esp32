@@ -4,12 +4,14 @@
 #include "PinConfig.h"
 #include "Arduino.h"
 
+static const char *TAG = "Heat";
+
 namespace HeatController
 {
 
 	void loop()
 	{
-#ifdef LASER_CONTROLLER && DS18B20_CONTROLLER 
+#if defined(LASER_CONTROLLER) && defined(DS18B20_CONTROLLER)
 		int pwmPin = pinConfig.LASER_0;
 		if (pwmPin < 0)
 		{
@@ -53,7 +55,7 @@ namespace HeatController
 			Heat_was_active = true;
 		}
 		else if (Heat_active == false and Heat_was_active == true)
-		{ // if we are not using it, turn it off - but only once! 
+		{ // if we are not using it, turn it off - but only once!
 			if (ledcRead(pwmChannel) != 0)
 			{
 				log_i("Heat: %f, pwmValue: %f", DS18b20Controller::getCurrentValueCelcius(), 0.0f);
@@ -98,7 +100,7 @@ namespace HeatController
 	int act(cJSON *ob)
 	{
 		int qid = cJsonTool::getJsonInt(ob, "qid");
-#ifdef LASER_CONTROLLER && DS18B20_CONTROLLER
+#if defined(LASER_CONTROLLER) && defined(DS18B20_CONTROLLER)
 		hPreferences.begin("heat", false);
 		// {"task": "/heat_act", "active":1, "Kp":1000, "Ki":0.1, "Kd":0.1, "target":22, "timeout":600000, "updaterate":1000, "qid":1}
 		// {"task": "/heat_act", "active":0}
@@ -192,7 +194,7 @@ namespace HeatController
 	cJSON *get(cJSON *ob)
 	{
 		cJSON *ret = cJSON_CreateObject();
-#ifdef LASER_CONTROLLER && DS18B20_CONTROLLER		
+#if defined(LASER_CONTROLLER) && defined(DS18B20_CONTROLLER)
 		// {"task": "/heat_get"}
 		float temperatureValueAvg = 9999.0f;
 		temperatureValueAvg = DS18b20Controller::getCurrentValueCelcius();
@@ -203,7 +205,7 @@ namespace HeatController
 
 	void setup()
 	{
-#ifdef LASER_CONTROLLER and DS18B20_CONTROLLER
+#if defined(LASER_CONTROLLER) && defined(DS18B20_CONTROLLER)
 		log_d("Setup Heat");
 		startMillis = millis();
 
@@ -221,9 +223,9 @@ namespace HeatController
 		{
 			// some safety mechanisms
 			t_tempControlStarted = millis();
-			temp_tempControlStarted = DS18b20Controller::getCurrentValueCelcius();			
+			temp_tempControlStarted = DS18b20Controller::getCurrentValueCelcius();
 		}
 		hPreferences.end();
-	}
 #endif
+	}
 }

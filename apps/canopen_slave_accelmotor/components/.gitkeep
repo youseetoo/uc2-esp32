@@ -1,0 +1,5 @@
+# T2.6: canopen_slave_accelmotor. The app reuses the shared components/ (uc2_app,
+# uc2_motor, uc2_hal, ...) — no app-local components yet (accelstepper/encoder
+# are vendored at the top level during the T2.6 port). This dir keeps the
+# app directory shape identical to the other apps so EXTRA_COMPONENT_DIRS
+# patterns stay uniform.

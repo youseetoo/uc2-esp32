@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include "FastAccelStepper.h"
 #include "FocusMotor.h"
 

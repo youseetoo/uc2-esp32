@@ -24,6 +24,6 @@ set(srcs
     "tmc/TMCController.cpp")
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
-    REQUIRES uc2_core uc2_hal uc2_periph uc2_io uc2_canopen uc2_serial uc2_app uc2_led tmcstepper accelstepper esp32_encoder
-             cjson tmcstepper accelstepper esp32_encoder driver esp_driver_rmt nvs_flash
+    REQUIRES uc2_core uc2_hal uc2_periph uc2_io uc2_canopen uc2_serial uc2_app uc2_led tmcstepper accelstepper esp32_encoder fastaccelstepper
+             cjson tmcstepper accelstepper esp32_encoder fastaccelstepper driver esp_driver_rmt nvs_flash
              esp_timer esp_driver_gpio)

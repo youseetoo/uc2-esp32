@@ -2306,6 +2306,7 @@ void CANopenModule::syncRpdoToModules_slave()
                 case GALVO_CMD_LINE: // Line scan (single line: ny forced to 1 below)
                     log_i("Galvo line scan command received");
                     // fall through — same raster path, ny is clamped to 1
+                    [[fallthrough]];
                 case GALVO_CMD_RASTER: { // Raster scan
                     log_i("Galvo raster scan command received: x_start=%u y_start=%u x_steps=%u y_steps=%u x_step=%d y_step=%d speed=%u pre_us=%u post_us=%u trigger=%u",
                           (unsigned)OD_RAM.x260B_galvo_x_start,

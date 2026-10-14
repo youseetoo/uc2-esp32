@@ -681,7 +681,7 @@ void HighSpeedScannerCore::scannerTask()
             executeArbitraryPointScan();
             
             // Check if we should continue looping
-            frame_idx_++;
+            frame_idx_ += 1;  // volatile: += not ++ (C++ deprecates ++ on volatile)
             xSemaphoreTake(config_mutex_, portMAX_DELAY);
             uint16_t fc = config_.frame_count;
             xSemaphoreGive(config_mutex_);
@@ -805,7 +805,7 @@ void HighSpeedScannerCore::scannerTask()
                 // Check for timing overrun (loop too slow)
                 int64_t overrun_us = now - next_t;
                 if (overrun_us > (int64_t)sp_us) {
-                    overruns_++;
+                    overruns_ += 1;  // volatile: += not ++
                 }
 
                 // Feed the task watchdog and yield periodically WITHIN the
@@ -874,7 +874,7 @@ void HighSpeedScannerCore::scannerTask()
             continue;
         }
 
-        frame_idx_++;
+        frame_idx_ += 1;  // volatile: += not ++
 
         // Check frame count (0 = infinite)
         xSemaphoreTake(config_mutex_, portMAX_DELAY);

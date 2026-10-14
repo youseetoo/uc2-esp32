@@ -1,0 +1,2 @@
+# T2.5: app-local components dir (empty for now; mirrors canopen_slave_led).
+# Required as a valid EXTRA_COMPONENT_DIRS entry in the app CMakeLists.

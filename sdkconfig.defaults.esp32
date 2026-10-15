@@ -19,4 +19,4 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # Partition table: the project's own esp32 layout (nvs/phy_init/factory/storage),
 # not the IDF single-app default. Path is relative to the project root.
 CONFIG_PARTITION_TABLE_CUSTOM=y
-CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="custom_partition.csv"
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions/custom_partition.csv"

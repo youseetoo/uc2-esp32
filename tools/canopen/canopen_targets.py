@@ -5,7 +5,7 @@ Wire this up in platformio.ini by appending it to extra_scripts in
 [env:esp32_framework] (or whichever base env you use):
 
     extra_scripts =
-        pre:copy_PinConfig.py
+        pre:legacy/copy_PinConfig.py
         tools/canopen/canopen_targets.py
 
 Then run:

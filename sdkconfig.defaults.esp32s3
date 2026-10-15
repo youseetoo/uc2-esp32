@@ -17,7 +17,7 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # Partition table: the project's S3 layout (nvs/otadata/app0/app1/eeprom/spiffs),
 # OTA-enabled. Path is relative to the project root.
 CONFIG_PARTITION_TABLE_CUSTOM=y
-CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="custom_partition_esp32s3.csv"
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions/custom_partition_esp32s3.csv"
 #
 # USB-Serial-JTAG console: deliberately NOT set here — it is app-specific, not
 # target-wide. An S3 app that uses the USB CDC console (the equivalent of

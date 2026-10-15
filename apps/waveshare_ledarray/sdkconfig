@@ -961,9 +961,9 @@ CONFIG_ESPTOOLPY_MONITOR_BAUD=115200
 # CONFIG_PARTITION_TABLE_TWO_OTA is not set
 # CONFIG_PARTITION_TABLE_TWO_OTA_LARGE is not set
 CONFIG_PARTITION_TABLE_CUSTOM=y
-CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../custom_partition_esp32s3_waveshare.csv"
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../partitions/custom_partition_esp32s3_waveshare.csv"
 # default:
-CONFIG_PARTITION_TABLE_FILENAME="../../custom_partition_esp32s3_waveshare.csv"
+CONFIG_PARTITION_TABLE_FILENAME="../../partitions/custom_partition_esp32s3_waveshare.csv"
 # default:
 CONFIG_PARTITION_TABLE_OFFSET=0x8000
 # default:

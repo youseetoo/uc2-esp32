@@ -19,6 +19,10 @@ set(UC2_MODULE_INCLUDE_DIRS
     # uc2_canopen
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/canopen
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/gpio_can
+    # T2.10: joystick (DS4-over-USB-OTG -> CANopen bridge, raw-IDF port from
+    # main/src/joystick, compiled by uc2_joystick) — listed so bare includes
+    # (#include "JoystickRouter.h") resolve for ALL components.
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_joystick
     # T2.8: ptz (RS-485 Pelco-D keyboard -> CANopen bridge, raw-IDF port from
     # main/src/ptz, compiled by uc2_canopen) — listed so bare includes
     # (#include "PtzKeyboard.h") resolve for ALL components.
@@ -58,7 +62,6 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/dial
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/home
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/image
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/joystick
     ${CMAKE_CURRENT_LIST_DIR}/uc2_led/led
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/motor
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/pid

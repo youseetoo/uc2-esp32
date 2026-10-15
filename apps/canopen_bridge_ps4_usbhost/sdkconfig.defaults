@@ -1,0 +1,23 @@
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../custom_partition_esp32s3.csv"
+
+# T2.10: canopen_bridge_ps4_usbhost feature set (from PIO env
+# UC2_canopen_bridge_ps4_usbhost_release = UC2_canopen_xiao_base + release).
+# DS4 over USB-OTG (GPIO19/20, fixed) -> expedited SDO writes; all actuators REMOTE.
+# Console: USB-Serial-JTAG (the /joystick_act config path is "USB serial on the node").
+CONFIG_UC2_NODE_ROLE=2
+CONFIG_UC2_CORE_DEBUG_LEVEL=0
+CONFIG_UC2_CAN_BUS_ENABLED=y
+CONFIG_UC2_CAN_CONTROLLER_CANOPEN=y
+CONFIG_UC2_MESSAGE_CONTROLLER=y
+CONFIG_UC2_JOYSTICK_USBHOST_PROVIDER=y
+
+# CANopen TWAI deprecation suppression (IDF 6.1)
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
+
+# Strict flags (T1.1)
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_LEVEL=y
+CONFIG_COMPILER_STACK_CHECK=y

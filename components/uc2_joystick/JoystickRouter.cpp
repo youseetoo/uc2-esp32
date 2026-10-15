@@ -16,10 +16,10 @@
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
 
-#include <Arduino.h>
 #include <cmath>
 #include <cstdlib>
-#include <Preferences.h>
+#include <cstdio>
+#include "uc2_hal.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -27,11 +27,11 @@
 
 #include "JoystickUsbHost.h"
 #include "PinConfig.h"
-#include "../canopen/CANopenModule.h"
-#include "../canopen/RoutingTable.h"
-#include "../../JsonKeys.h"
-#include "../canopen/UC2_OD_Indices.h"
-#include "../motor/MotorTypes.h"
+#include "CANopenModule.h"
+#include "RoutingTable.h"
+#include "JsonKeys.h"
+#include "UC2_OD_Indices.h"
+#include "MotorTypes.h"
 
 static const char* TAG = "ds4_router";
 
@@ -113,8 +113,11 @@ static void loadSpeedMultipliers()
 {
     Preferences prefs;
     prefs.begin(kPrefsNamespace, false);
-    for (int ax = 0; ax < 4; ax++)
-        s_speedMultiplier[ax] = prefs.getFloat(("joySpd" + String(ax)).c_str(), defaultSpeedMultiplier(ax));
+    for (int ax = 0; ax < 4; ax++) {
+        char key[16];
+        snprintf(key, sizeof(key), "joySpd%d", ax);
+        s_speedMultiplier[ax] = prefs.getFloat(key, defaultSpeedMultiplier(ax));
+    }
     prefs.end();
 }
 
@@ -282,7 +285,8 @@ static void handleButtons(const JoystickUsbHost::Ds4State& s)
         if (s.dpad == 3 || s.dpad == 4 || s.dpad == 5) delta = -4096;
         if (delta) {
             int v = (int)s_laserIntensity + delta;
-            if (v < 0) v = 0; if (v > 65535) v = 65535;
+            if (v < 0) v = 0;
+            if (v > 65535) v = 65535;
             s_laserIntensity = (uint16_t)v;
             if (s_laserOn) emitLaserRemote(s_laserIntensity);
         }
@@ -378,9 +382,11 @@ cJSON* act(cJSON* doc)
 
             s_speedMultiplier[axis] = multiplier;
 
+            char key[16];
+            snprintf(key, sizeof(key), "joySpd%d", axis);
             Preferences prefs;
             prefs.begin(kPrefsNamespace, false);
-            prefs.putFloat(("joySpd" + String(axis)).c_str(), multiplier);
+            prefs.putFloat(key, multiplier);
             prefs.end();
             ESP_LOGI(TAG, "Set joystick speed multiplier: axis %d = %.2f", axis, multiplier);
         }

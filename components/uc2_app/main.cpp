@@ -110,8 +110,8 @@ CANopenModule canopenModule;
 #include "src/canopen/RoutingTable.h"
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
-#include "src/joystick/JoystickUsbHost.h"
-#include "src/joystick/JoystickRouter.h"
+#include "JoystickUsbHost.h"
+#include "JoystickRouter.h"
 #endif
 #ifdef PTZ_KEYBOARD_CONTROLLER
 #include "PtzKeyboard.h"

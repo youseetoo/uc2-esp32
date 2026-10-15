@@ -16,6 +16,11 @@ target_link_libraries(__idf_main PRIVATE
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_periph/libuc2_periph.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_io/libuc2_io.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_led/libuc2_led.a"
+    # T2.10 regression: uc2_led's LedController.o is only pulled inside this
+    # group, so libneopixel.a (Adafruit_NeoPixel) must be re-scanned here too or
+    # the RMT/NeoPixel symbols stay undefined (natural order puts neopixel before
+    # the group). Same --start-group pattern as the RMT fix in 68791e0.
+    "LINKER:${CMAKE_BINARY_DIR}/esp-idf/neopixel/libneopixel.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_serial/libuc2_serial.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_core/libuc2_core.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_hal/libuc2_hal.a"

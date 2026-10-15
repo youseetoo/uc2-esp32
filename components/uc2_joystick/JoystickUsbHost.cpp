@@ -7,7 +7,6 @@
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
 
-#include <Arduino.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -166,10 +165,12 @@ static void hid_host_device_cb(hid_host_device_handle_t handle,
 
 static void usb_lib_task(void* arg)
 {
-    const usb_host_config_t host_config = {
-        .skip_phy_setup = false,
-        .intr_flags     = ESP_INTR_FLAG_LEVEL1,
-    };
+    // Zero-init then set fields (not a designated-initializer list): IDF 6.1 grew
+    // usb_host_config_t, and -Wextra -Werror flags missing-field-initializers on a
+    // partial designated init. Explicit zero-init is immune to struct-layout changes.
+    usb_host_config_t host_config = {};
+    host_config.skip_phy_setup = false;
+    host_config.intr_flags     = ESP_INTR_FLAG_LEVEL1;
     ESP_ERROR_CHECK(usb_host_install(&host_config));
     xTaskNotifyGive((TaskHandle_t)arg);
 

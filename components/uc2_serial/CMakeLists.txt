@@ -4,5 +4,7 @@ set(srcs
     "serial/SerialProcess.cpp")
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
+    # uc2_bt: BtController.h is included under #ifdef BLUETOOTH (SerialProcess.cpp); the stub
+    # links when UC2_BLUETOOTH is off, the real component when on.
     REQUIRES uc2_core uc2_hal uc2_canopen cjson nvs_flash driver app_update esp_driver_ledc
-             esp_driver_tsens canopen_node uc2_od dac_module usb_host esp_usb_host_hid)
+             esp_driver_tsens canopen_node uc2_od dac_module usb_host esp_usb_host_hid uc2_bt)

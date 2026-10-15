@@ -31,6 +31,16 @@ config UC2_BTHID
     bool "Bluetooth HID (requires UC2_BLUETOOTH)"
     default n
 
+config UC2_PSXCONTROLLER
+    bool "Classic PS3/PS4 L2CAP controller (PSController leaf)"
+    default n
+    depends on UC2_BLUETOOTH
+    help
+      Port the classic-BT PS3/PS4 L2CAP path (components/pscontroller, an Arduino-era
+      C++ leaf). No current board enables it (the -DPSXCONTROLLER flag is unused in
+      platformio.ini); the BLE HID path (UC2_BTHID) is the active controller route.
+      Off by default so the leaf is not compiled; the feature is preserved.
+
 config UC2_MOTOR_CONTROLLER
     bool "Motor controller"
     default n

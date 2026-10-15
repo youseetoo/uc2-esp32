@@ -3,7 +3,8 @@
 
 #include <inttypes.h>
 
-#include "Arduino.h"
+// T3.3: Arduino.h -> uc2_hal shim (bare String via global alias).
+#include <uc2_hal.h>
 
 class JoystickController
 {

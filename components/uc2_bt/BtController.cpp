@@ -1,12 +1,13 @@
 
 #include "BtController.h"
 #include <esp_log.h>
-#include "../config/ConfigController.h"
+#include "ConfigController.h"
 #ifdef BTHID
 #include "HidController.h"
 #endif
-#include "Arduino.h"
-#include "JsonKeys.h"
+// T3.3: Arduino.h -> uc2_hal shim (String/Preferences/log_* via global aliases).
+// JsonKeys.h dropped (no JsonKeys:: usage remains; literal key strings).
+#include <uc2_hal.h>
 #include <cmath>
 
 

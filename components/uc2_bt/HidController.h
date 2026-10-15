@@ -21,7 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Arduino.h"
+// T3.3: Arduino.h -> uc2_hal shim (String/Preferences/log_* via global aliases).
+#include <uc2_hal.h>
 
 static const char *TAG = "HIDGamePad";
 

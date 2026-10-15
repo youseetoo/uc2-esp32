@@ -87,6 +87,23 @@ platform as the env it extends — `espressif32@6.9.0` for the two led* envs
 (base `UC2_3_Xiao`) and `…#v6.3.2` for waveshare (base `esp32_framework`).
 After the fix all 17 build green and are included in the table above.
 
+## T2.11 — PIO-era cleanup + stale-list decision record (2026-10-15)
+
+Cleanup commit `51503ea` (companion `6bd4258`: the neopixel link-order fix it surfaced in
+`waveshare_ledarray` + `canopen_slave_led`) retired the PIO-era layout; all S3 apps
+re-verified green.
+
+- **Moved to new structure:** `lib/{AS5311-PWM, ESP32-TWAI-CAN-master, ESP32_CanOpenNode}` +
+  `copy_PinConfig.py` → `legacy/`; `custom_partition*.csv` → `partitions/`; per-app
+  `PinConfig.h` → app-local `apps/<app>/main/` (wired via `UC2_APP_MAIN_DIR`).
+  `platformio.ini` stays at root until T6.4 (the legacy pipeline ships until the T6.1–T6.3 cutover).
+- **Deleted (D3-confirmed stale):** 96 top-level `sdkconfig*` (all but the 3 kept
+  `sdkconfig.defaults[.esp32/.esp32s3]`) and 46 `main/config/*/PinConfig.h` PIO shadows —
+  the `UC2_*`, `seeed_xiao_*`, `waveshare_*`, `esp32dev`, `m5stack_dial` env variants
+  (full list: `git show --stat 51503ea`). The BT boards' `UC2_*` / `UC2_canopen_master` /
+  `UC2_canopen_standalone_v4` shadows are removed now; their Phase-3 app-local PinConfig.h
+  is created fresh at T3.x.
+
 ## Reproduction
 
 ```powershell

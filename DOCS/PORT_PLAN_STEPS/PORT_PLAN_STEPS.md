@@ -72,7 +72,7 @@ executor agent.
 - [x] **T2.8** [T2.8.md](steps/T2.8.md) — `apps/canopen_bridge_ptz` (RS-485 Pelco-D) · 2 d · ← T1.8 — **done 2026-10-14 (9ae0a26): build green (raw-IDF, 337.5 KB / 73 % free); [HW] smoke pending**
 - [x] **T2.9** [T2.9.md](steps/T2.9.md) — `apps/xiao_odmr` (largest S3 app; IS31FL3741 check) · 3–5 d · ← T2.7 — **done 2026-10-14 (0fe9a59): build green (raw-IDF, 345.3 KB / 73 % free; PIO 894.2 KB); IS31FL3741 unused → dropped; onewire_ds18b20 vendored, heat → uc2_periph; accelmotor regression green; [HW] smoke pending**
 - [x] **T2.10** [T2.10.md](steps/T2.10.md) — `apps/canopen_bridge_ps4_usbhost` (esp_usb_host_hid, no BT) · 1–2 d · ← T1.8 — **done 2026-10-14 (5aa50ba): build green (raw-IDF, 391.4 KB / 69 % free; PIO 892.3 KB); joystick → uc2_joystick; xiao_odmr + accelmotor regression green (fixed pre-existing xiao_odmr neopixel link-order bug); [HW] smoke pending**
-- [ ] **T2.11** [T2.11.md](steps/T2.11.md) — Cleanup: stale `sdkconfig*`, `main/config`→`boards/`, `partitions/`, `legacy/`, retire copy script · 1 d · ← T2.1–T2.10
+- [x] **T2.11** [T2.11.md](steps/T2.11.md) — Cleanup: stale `sdkconfig*`, `main/config`→`boards/`, `partitions/`, `legacy/`, retire copy script · 1 d · ← T2.1–T2.10 — **done 2026-10-15 (51503ea cleanup + 6bd4258 neopixel link fix): all S3 apps green; 96 `sdkconfig*` + 46 `main/config` PinConfig.h deleted, `lib`/`copy_PinConfig`→`legacy`, `custom_partition*.csv`→`partitions`; `DOCS/baselines.md` stale-list record added**
 - [ ] **T2.12** [T2.12.md](steps/T2.12.md) — CI `idf-build` matrix expansion + per-board retirement checklists · 0.5 h/board · ← T2.1–T2.11
 - [ ] **T2.13** [T2.13.md](steps/T2.13.md) — Phase-2 gate summary · 0.5 d · ← T2.12
 

@@ -57,7 +57,12 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/analogin
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/analogout
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/axis
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/bt
+    # T3.3: bt moved main/src/bt -> components/uc2_bt (gated UC2_BLUETOOTH); PSController
+    # vendor leaf moved lib/PSController -> components/pscontroller (gated UC2_PS_CONTROLLER).
+    # Listed so bare includes (#include "HidGamePad.h", "BtController.h") still resolve for
+    # ALL components (e.g. uc2_io/laser pulls HidGamePad.h header-only).
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_bt
+    ${CMAKE_CURRENT_LIST_DIR}/pscontroller
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/dac
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/dial
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/home

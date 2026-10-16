@@ -80,7 +80,7 @@ executor agent.
 - [ ] **T3.1** [T3.1.md](steps/T3.1.md) — BT/PS4 inventory + `[HW]` internal-RAM headroom baseline · 1 d · ← T2.13
 - [ ] **T3.2** [T3.2.md](steps/T3.2.md) — *(D2)* Pick BT stack (recommend Bluedroid classic-only); `DOCS/bt.md` · 1–2 d · ← T3.1
 - [ ] **T3.3** [T3.3.md](steps/T3.3.md) — Port `uc2_bt` (BtController/HidController/esp_hid_gap.c) onto IDF BT · 3–5 d · ← T3.2
-- [ ] **T3.4** [T3.4.md](steps/T3.4.md) — `apps/uc2_2` + `uc2_3` + `uc2_wemos` + `uc2_4` (BT boards) · 3–5 d · ← T3.3
+- [x] **T3.4** [T3.4.md](steps/T3.4.md) — `apps/uc2_2` + `uc2_3` + `uc2_wemos` + `uc2_4` (BT boards) · 3–5 d · ← T3.3 — **done 2026-10-16 (build scope): all 4 build green under pure IDF (uc2_2 1038.6 KB, uc2_3 1060 KB, uc2_wemos 1056.5 KB, uc2_4 1056.3 KB; ~16 % under PIO flash baselines, well within the 2 MB app partition); [HW] smoke (T3.7) + CI matrix (T3.8) + size-baseline recording pending**
 - [ ] **T3.5** [T3.5.md](steps/T3.5.md) — `apps/canopen_master` (all controllers, RAM-tight) · 3–5 d · ← T3.4
 - [ ] **T3.6** [T3.6.md](steps/T3.6.md) — `apps/canopen_standalone_v4` (OTA sender+receiver off) · 2 d · ← T3.5
 - [ ] **T3.7** [T3.7.md](steps/T3.7.md) — `[HW]` PS4 pairing/trackpad + RAM headroom verification on all BT boards · 2 d · ← T3.4–T3.6

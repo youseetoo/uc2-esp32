@@ -133,6 +133,20 @@ typedef UString String;
 		// pixel is owned by SignalController via /signal_act. Skip the heavy
 		// LED-array setup here so we don't double-init the same data pin.
 		if (pinConfig.IS_STATUS_LED) {
+			// Allocate the pixel buffer so matrix is non-null (the matrix-deref
+			// helpers must not be provably-null under -Werror=nonnull), but skip
+			// begin()/show(): the status pixel is owned by SignalController via
+			// /signal_act, so we must not double-init the same data pin.
+#ifdef DOTSTAR
+			matrix = new Adafruit_DotStar(LED_COUNT, pinConfig.LED_PIN, pinConfig.LED_CLK, DOTSTAR_BGR);
+#elif defined(HUB75)
+			matrix = new Adafruit_Protomatter(pinConfig.MATRIX_W, pinConfig.HUB75_BIT_DEPTH, 1,
+				const_cast<uint8_t *>(pinConfig.HUB75_RGB_PINS), 5,
+				const_cast<uint8_t *>(pinConfig.HUB75_ADDR_PINS), pinConfig.HUB75_CLK,
+				pinConfig.HUB75_LAT, pinConfig.HUB75_OE, true);
+#else
+			matrix = new Adafruit_NeoPixel(LED_COUNT, pinConfig.LED_PIN, NEO_GRB + NEO_KHZ800);
+#endif
 			log_i("LedController: IS_STATUS_LED=true, status pixel handled by SignalController — skipping setup");
 			return;
 		}

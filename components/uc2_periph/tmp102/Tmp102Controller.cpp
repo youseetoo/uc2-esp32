@@ -1,7 +1,11 @@
 #include "Tmp102Controller.h"
 #include <uc2_hal.h>
 #include <uc2_hal/uc2_wire.h>
+// The handle-based esp_driver_tsens is only available on S3+ (SOC_TEMP_SENSOR
+// SUPPORTED); the classic ESP32 has no such HAL, so it is excluded there.
+#ifndef CONFIG_IDF_TARGET_ESP32
 #include "driver/temperature_sensor.h"
+#endif
 #include <math.h>
 #include "cJsonTool.h"
 
@@ -27,7 +31,9 @@ namespace Tmp102Controller
     static bool initialized = false;
     static bool pcbAvailable = false;
     static bool airAvailable = false;
+#ifndef CONFIG_IDF_TARGET_ESP32
     static temperature_sensor_handle_t tsens = nullptr;
+#endif
 
     // Configure a TMP102 for the default 12-bit, 4 Hz continuous-conversion
     // mode (CR1:CR0 = 10). POR value already does this, but writing it back
@@ -71,13 +77,20 @@ namespace Tmp102Controller
         return raw * 0.0625f;
     }
 
-    // Read the ESP internal temperature in degrees C, or NAN on failure.
+    // Read the ESP internal temperature in degrees C, or NAN on failure. On the
+    // classic ESP32 the handle-based esp_driver_tsens is unavailable (no
+    // SOC_TEMP_SENSOR_SUPPORTED), so this returns NAN and the two TMP102 I2C
+    // sensors (pcb/air) are the source of truth.
     static float readEspC()
     {
+#ifdef CONFIG_IDF_TARGET_ESP32
+        return NAN;
+#else
         float c = NAN;
         if (tsens && temperature_sensor_get_celsius(tsens, &c) == ESP_OK)
             return c;
         return NAN;
+#endif
     }
 
     void setup()
@@ -89,7 +102,9 @@ namespace Tmp102Controller
         // Wire.begin() in the system. The MCP4017 and TMP102 share this bus.
         Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000);
 
-        // Internal tsens: install + enable (read is on-demand below).
+#ifndef CONFIG_IDF_TARGET_ESP32
+        // Internal tsens (S3+): install + enable (read is on-demand below).
+        // Skipped on the classic ESP32 — see readEspC().
         temperature_sensor_config_t tsCfg = TEMPERATURE_SENSOR_CONFIG_DEFAULT(-4, 85);
         if (temperature_sensor_install(&tsCfg, &tsens) == ESP_OK)
         {
@@ -99,6 +114,7 @@ namespace Tmp102Controller
         {
             tsens = nullptr;
         }
+#endif
 
         pcbAvailable = configureSensor(ADDR_PCB);
         airAvailable = configureSensor(ADDR_AIR);

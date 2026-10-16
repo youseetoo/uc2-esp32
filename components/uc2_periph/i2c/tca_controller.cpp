@@ -1,10 +1,14 @@
 #include "tca_controller.h"
 #include "PinConfig.h"
 #include "FocusMotor.h"
-#include "Wire.h"
+// T3.3: Arduino Wire.h -> uc2_hal (provides the global uc2::Wire_ + uc2 macros).
+#include <uc2_hal.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include <cstring>
+
+// T3.3: uc2 log macros forward to a per-file TAG (ESP_LOGI(TAG, ...)).
+static const char *TAG = "tca";
 
 namespace tca_controller
 {

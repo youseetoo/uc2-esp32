@@ -230,14 +230,15 @@ namespace Ws2812Rmt
     {
         if (s_initialised) return true;
         if (rmtChannel < 0 || rmtChannel > 7) {
-            log_e("%s: invalid channel %d", TAG, rmtChannel);
+            ESP_LOGE(TAG, "%s: invalid channel %d", TAG, rmtChannel);
             return false;
         }
         s_pin     = gpioPin;
         s_channel = rmtChannel;
 
-        // RMT is already enabled by FAS; second call is a no-op (ref-counted).
-        periph_module_enable(PERIPH_RMT_MODULE);
+        // RMT uses the APB clock (ref_always_on below; always on) and is
+        // already enabled by FAS -- no periph clock gate to enable. (IDF 6.1
+        // has no PERIPH_RMT_MODULE for the classic target either.)
 
         // Mask our channel's interrupts -- classic: 3 bits per channel packed.
         const uint32_t chMask = (0x7u << (3 * s_channel));
@@ -265,7 +266,7 @@ namespace Ws2812Rmt
                         RMT_SIG_OUT0_IDX + s_channel, false, false);
 
         s_initialised = true;
-        log_i("%s: ready on GPIO %d using RMT channel %d (bare-metal, no ISR)",
+        ESP_LOGI(TAG, "%s: ready on GPIO %d using RMT channel %d (bare-metal, no ISR)",
               TAG, gpioPin, s_channel);
         return true;
     }
@@ -288,7 +289,7 @@ namespace Ws2812Rmt
     void show(const uint8_t *pixels, size_t numBytes)
     {
         if (!s_initialised || pixels == nullptr || numBytes == 0) return;
-        log_i("%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
+        ESP_LOGI(TAG, "%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
         const int      ch     = s_channel;
         const uint32_t endBit = 1u << (3 * ch); // tx_end bit for this channel
         bool           timedOut = false;
@@ -325,7 +326,7 @@ namespace Ws2812Rmt
         }
         portEXIT_CRITICAL(&s_mux);
 
-        if (timedOut) log_w("%s: tx_end timeout (%u bytes)", TAG, (unsigned)numBytes);
+        if (timedOut) ESP_LOGW(TAG, "%s: tx_end timeout (%u bytes)", TAG, (unsigned)numBytes);
         // Strip latches after >50 us of idle (idle_out_lv=0 keeps line low).
     }
 

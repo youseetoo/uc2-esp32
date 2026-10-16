@@ -6,9 +6,33 @@
 
 DAC_Module DAC_Module;
 
+// IDF 6.x removed dac_output_enable/disable + dac_write_byte. Shim the DAC output
+// onto the oneshot channel API (creating a channel == enabling that output).
+static dac_oneshot_handle_t s_oneshot[2] = { NULL, NULL };
+static void dac_out_enable(dac_channel_t channel) {
+    int idx = (channel == DAC_CHANNEL_2) ? 1 : 0;
+    if (!s_oneshot[idx]) {
+        dac_oneshot_config_t cfg = { .chan_id = (dac_channel_t)idx };
+        if (dac_oneshot_new_channel(&cfg, &s_oneshot[idx]) != ESP_OK) s_oneshot[idx] = NULL;
+    }
+}
+static void dac_out_disable(dac_channel_t channel) {
+    int idx = (channel == DAC_CHANNEL_2) ? 1 : 0;
+    if (s_oneshot[idx]) { dac_oneshot_del_channel(s_oneshot[idx]); s_oneshot[idx] = NULL; }
+}
+
+void dacWrite(int channel, int value) {
+    int idx = (channel == DAC_CHANNEL_2) ? 1 : 0;
+    if (!s_oneshot[idx]) {
+        dac_oneshot_config_t cfg = { .chan_id = (dac_channel_t)idx };
+        if (dac_oneshot_new_channel(&cfg, &s_oneshot[idx]) != ESP_OK) return;
+    }
+    if (s_oneshot[idx]) dac_oneshot_output_voltage(s_oneshot[idx], (uint8_t)value);
+}
+
 void DAC_Module::Stop(dac_channel_t channel) {
     #if SOC_DAC_SUPPORTED
-    dac_output_disable(channel);
+    dac_out_disable(channel);
     dac_cosine_disable(channel);
     #endif
 
@@ -158,7 +182,7 @@ void DAC_Module::Setup(dac_channel_t channel, int clk_div, int frequency, int sc
     dac_offset_set(channel, phase);
 
     dac_cosine_enable(channel, invert);    
-    dac_output_enable(channel);
+    dac_out_enable(channel);
     #endif
 }
 #endif

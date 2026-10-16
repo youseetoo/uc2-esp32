@@ -45,7 +45,7 @@ uc2::Preferences preferences;
 #include "src/analogout/AnalogOutController.h"
 #endif
 #ifdef BLUETOOTH
-#include "src/bt/BtController.h"
+#include "BtController.h"  // T3.3: moved main/src/bt -> components/uc2_bt (via modinc)
 #endif
 #ifdef DAC_CONTROLLER
 #include "src/dac/DacController.h"

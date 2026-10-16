@@ -23,7 +23,8 @@ bool hidIsConnected = false;
 
 void setupHidController()
 {
-    btStarted();
+    // T3.3: btStarted() was an Arduino helper; the full BT-controller + Bluedroid
+    // init now happens in esp_hid_gap_init() below.
     ESP_LOGI(TAG, "setup");
     esp_err_t ret;
 

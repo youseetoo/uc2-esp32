@@ -27,11 +27,36 @@ if(CONFIG_UC2_BLUETOOTH)
   string(REPLACE "\\" "/" _idf_path "${_idf_path}")
   set(uc2_bt_bt_incs
       "${_idf_path}/components/bt/include/esp32/include"
+      "${_idf_path}/components/bt/host/bluedroid/api/include/api"
+      "${_idf_path}/components/bt/common/api/include/api"
+      "${_idf_path}/components/bt/common/include"
+      "${_idf_path}/components/bt/common/btc/include"
       "${_idf_path}/components/esp_wifi/include"
-      "${_idf_path}/components/esp_hid/include")
+      "${_idf_path}/components/esp_wifi/include/local"
+      "${_idf_path}/components/esp_wifi/wifi_apps/include"
+      "${_idf_path}/components/esp_hid/include"
+      "${_idf_path}/components/esp_event/include"
+      "${_idf_path}/components/esp_netif/include"
+      "${_idf_path}/components/esp_phy/include"
+      "${_idf_path}/components/esp_coex/include")
   idf_component_register(SRCS ${uc2_bt_srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS} ${uc2_bt_bt_incs}
     REQUIRES ${uc2_bt_requires})
+  # Link-order fix (classic ESP32 + BT): IDF orders the `bt` component lib (libbt.a)
+  # and the prebuilt controller lib (libbtdm_app.a) BEFORE the project component lib
+  # (libuc2_bt.a), so the Bluedroid host symbols (esp_bt_gap_*, esp_ble_gap_*,
+  # esp_hidh_*, esp_hid_usage_from_*, ...) that uc2_bt / pscontroller reference are
+  # unresolved. Force them into a --start-group processed AFTER uc2_bt (same pattern
+  # as the neopixel RMT fix) so the linker pulls them in regardless of order.
+  # Also libesp_hid.a: the HID host API (esp_hidh_*, esp_hid_usage_str,
+  # esp_hid_cod_*_str) lives in the `esp_hid` component, not `bt`; IDF orders it
+  # before uc2_bt too, so group it here as well.
+  target_link_libraries(__idf_uc2_bt PRIVATE
+      "LINKER:--start-group"
+      "LINKER:${CMAKE_BINARY_DIR}/esp-idf/bt/libbt.a"
+      "LINKER:${_idf_path}/components/bt/controller/lib_esp32/esp32/libbtdm_app.a"
+      "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_hid/libesp_hid.a"
+      "LINKER:--end-group")
 else()
   file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/uc2_bt_stub.c "/* uc2_bt: UC2_BLUETOOTH off (stub) */\n")
   idf_component_register(SRCS ${CMAKE_CURRENT_BINARY_DIR}/uc2_bt_stub.c

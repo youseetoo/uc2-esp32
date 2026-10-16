@@ -1,8 +1,11 @@
 #include <PinConfig.h>
 #include "DacController.h"
-#include "Arduino.h"
+// T3.3: Arduino.h -> uc2_hal shim (log_*/pinMode/digitalWrite/delay/Serial via uc2_hal.h).
+#include <uc2_hal.h>
 #include "JsonKeys.h"
 #include "cJsonTool.h"
+
+static const char *TAG = "DacController";
 
 namespace DacController
 {
@@ -58,6 +61,8 @@ namespace DacController
 
 		cJSON *monitor_json = ob;
 		int qid = cJsonTool::getJsonInt(ob, "qid");
+		if (dacm == nullptr)
+			return qid;   // DAC not initialized (setup() not called)
 		// here you can do something
 		// apply default parameters
 		// DAC Channel
@@ -72,14 +77,14 @@ namespace DacController
 		dac_channel = DAC_CHANNEL_1;
 		fake_galvo_running = false;
 		cJSON *dac_channelj = cJSON_GetObjectItemCaseSensitive(monitor_json, "dac_channel");
-		if (cJSON_IsNumber(dac_channelj) && dac_channelj->valueint != NULL)
+		if (cJSON_IsNumber(dac_channelj))
 		{
 			dac_channel = (dac_channel_t)dac_channelj->valueint; //(ob)["dac_channel"];
 		}
 
 		// only set the DAC value (e.g. analog value 0-255)
 		cJSON *dac_value = cJSON_GetObjectItemCaseSensitive(monitor_json, "dac_value");
-		if (cJSON_IsNumber(dac_value) && dac_value->valueint != NULL)
+		if (cJSON_IsNumber(dac_value))
 		{ // {"task":"/dac_act", "dac_channel":1, "dac_value":255, "qid":2}
 			dacm->Stop(dac_channel);
 			dac_is_running = false;
@@ -91,7 +96,7 @@ namespace DacController
 
 		// DAC Frequency
 		cJSON *frequencyj = cJSON_GetObjectItemCaseSensitive(monitor_json, "frequency");
-		if (cJSON_IsNumber(frequencyj) && frequencyj->valueint != NULL)
+		if (cJSON_IsNumber(frequencyj))
 		{
 			frequency = frequencyj->valueint;
 		}
@@ -99,7 +104,7 @@ namespace DacController
 		// DAC offset
 		int offset = 0;
 		cJSON *offsetj = cJSON_GetObjectItemCaseSensitive(monitor_json, "offset");
-		if (cJSON_IsNumber(offsetj) && offsetj->valueint != NULL)
+		if (cJSON_IsNumber(offsetj))
 		{
 			offset = frequencyj->valueint;
 		}
@@ -107,7 +112,7 @@ namespace DacController
 		// DAC phase
 		int phase = 0;
 		cJSON *phasej = cJSON_GetObjectItemCaseSensitive(monitor_json, "phase");
-		if (cJSON_IsNumber(phasej) && phasej->valueint != NULL)
+		if (cJSON_IsNumber(phasej))
 		{
 			phase = phasej->valueint;
 		}
@@ -115,7 +120,7 @@ namespace DacController
 		// DAC invert
 		int invert = 2;
 		cJSON *invertj = cJSON_GetObjectItemCaseSensitive(monitor_json, "invert");
-		if (cJSON_IsNumber(invertj) && invertj->valueint != NULL)
+		if (cJSON_IsNumber(invertj))
 		{
 			invert = invertj->valueint;
 		}
@@ -123,7 +128,7 @@ namespace DacController
 		// DAC amplitude
 		int amplitude = 0;
 		cJSON *amplitudej = cJSON_GetObjectItemCaseSensitive(monitor_json, "amplitude");
-		if (cJSON_IsNumber(amplitudej) && amplitudej->valueint != NULL)
+		if (cJSON_IsNumber(amplitudej))
 		{
 			amplitude = amplitudej->valueint;
 		}
@@ -131,7 +136,7 @@ namespace DacController
 		// DAC clk_div
 		int clk_div = 0;
 		cJSON *clk_divj = cJSON_GetObjectItemCaseSensitive(monitor_json, "divider");
-		if (cJSON_IsNumber(clk_divj) && clk_divj->valueint != NULL)
+		if (cJSON_IsNumber(clk_divj))
 		{
 			clk_div = clk_divj->valueint;
 		}

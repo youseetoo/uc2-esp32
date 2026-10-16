@@ -4,7 +4,11 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
     "i2c/I2cBridge.cpp"
-    "i2c/i2c_slave_dial.cpp")
+    "i2c/i2c_slave_dial.cpp"
+    # T3.3: TCA9535 I/O expander (UC2_2/3/4/wemos). The body is internally
+    # #ifdef USE_TCA9535-gated, so compiling unconditionally is safe (no-op on
+    # boards without the flag); setExternalPin() is the FastAccelStepper callback.
+    "i2c/tca_controller.cpp")
 if(CONFIG_UC2_TMP102_CONTROLLER OR CONFIG_UC2_FAN_CONTROLLER)
     list(APPEND srcs "tmp102/Tmp102Controller.cpp")
 endif()
@@ -30,4 +34,4 @@ idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
     REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc
              esp_driver_tsens canopen_node uc2_od dac_module usb_host esp_usb_host_hid
-             esp_driver_rmt esp_driver_spi onewire_ds18b20)
+             esp_driver_rmt esp_driver_spi onewire_ds18b20 tca9555)

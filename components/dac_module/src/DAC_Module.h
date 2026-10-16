@@ -13,6 +13,10 @@
 #include "soc/rtc_cntl_reg.h"
 #include "soc/sens_reg.h"
 #include "soc/rtc.h"
+// IDF 6.x renamed the DAC channel enum values DAC_CHANNEL_1/2 -> DAC_CHAN_0/1
+// (hal/dac_types.h); alias them so legacy callers keep working.
+#define DAC_CHANNEL_1 DAC_CHAN_0
+#define DAC_CHANNEL_2 DAC_CHAN_1
 #endif
 #else
 typedef enum {
@@ -21,6 +25,11 @@ typedef enum {
     DAC_CHANNEL_MAX,
 } dac_channel_t;
 #endif
+
+// IDF 6.x removed dac_write_byte / dac_output_enable (and the 1-arg forms); the
+// legacy dacWrite() is shimmed onto the oneshot channel API (see DAC_Module.cpp).
+// DAC_CHANNEL_1/2 come from the dac_channel_t enum above.
+void dacWrite(int channel, int value);
 
 class DAC_Module {
     public:

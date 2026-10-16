@@ -27,8 +27,15 @@ CONFIG_UC2_STAGE_SCAN=y
 # BT (Bluedroid dual-mode classic + BLE, HID host) — DOCS/bt.md fragment
 CONFIG_BT_ENABLED=y
 CONFIG_BT_CLASSIC_ENABLED=y
-CONFIG_BT_BLUEDROID_ENABLED=y
 CONFIG_BT_BLE_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=y
+# Controller must be dual-mode: the BTDM_CTRL_MODE choice has no `default`, so kconfig
+# picks the first option (BLE_ONLY) which silently disables classic BT.
+CONFIG_BTDM_CTRL_MODE_BTDM=y
+# Classic BT HID host. BT_HID_HOST_ENABLED depends on BT_HID_ENABLED which depends on
+# BT_CLASSIC_ENABLED -- all three must be set or the symbol is dropped from sdkconfig.h
+# and the C code fails with "CONFIG_BT_HID_HOST_ENABLED not declared".
+CONFIG_BT_HID_ENABLED=y
 CONFIG_BT_HID_HOST_ENABLED=y
 
 # Strict flags (T1.1)

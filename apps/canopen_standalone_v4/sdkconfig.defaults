@@ -1,0 +1,56 @@
+# T3.6: canopen_standalone_v4 feature set (from PIO env UC2_canopen_standalone_v4_release).
+# Target: esp32 (classic). Console: UART (classic ESP32 has no USB-Serial-JTAG).
+# HYBRID CAN mode: native FastAccelStepper motors A-Z + CAN satellites; native
+# lasers 0-3 + CAN laser 4; TCA9535 IO; classic-BT HID (PS4); OTA off.
+CONFIG_IDF_TARGET="esp32"
+# Flash 4MB + the esp32 partition layout (nvs/phy/factory ~2MB + storage ~1MB).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESP_CONSOLE_UART=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../partitions/custom_partition.csv"
+# CAN TWAI deprecation suppression (IDF 6.1): the CANopen path uses the legacy
+# driver/twai.h API; suppress its #warning under -Werror until it moves to esp_twai.h.
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
+
+# BT (Bluedroid dual-mode classic + BLE, HID host) — mirrors apps/uc2_4 (T3.4).
+# The full chain must be set: BT_HID_HOST_ENABLED depends on BT_HID_ENABLED which
+# depends on BT_CLASSIC_ENABLED. The controller must be built dual-mode (BTDM): the
+# BTDM_CTRL_MODE choice has no default, so kconfig otherwise picks BLE_ONLY and
+# silently drops classic BT. (UC2_FORCE_BT_CLASSIC_ONLY below only switches the
+# RUNTIME HID mode to classic; the IDF lib stays BTDM — releasing BLE DRAM at
+# runtime hung boot, see HidController.cpp:54.)
+CONFIG_BT_ENABLED=y
+CONFIG_BT_CLASSIC_ENABLED=y
+CONFIG_BT_BLE_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=y
+CONFIG_BTDM_CTRL_MODE_BTDM=y
+CONFIG_BT_HID_ENABLED=y
+CONFIG_BT_HID_HOST_ENABLED=y
+
+# UC2 feature flags (mirrors platformio.ini UC2_canopen_standalone_v4 build_flags;
+# see DOCS/PORT_PLAN_STEPS/refs/env-app-mapping.md). HYBRID mode: on-board axes use
+# local FastAccelStepper, so UNLIKE canopen_master this sets UC2_USE_FASTACCEL
+# (Step 0 — the T3.5 master had no local backend; this board does). TCA9535 drives
+# the direction/enable pins; OTA sender+receiver are both compiled out.
+CONFIG_UC2_NODE_ROLE=1
+CONFIG_UC2_CORE_DEBUG_LEVEL=0
+CONFIG_UC2_USE_TCA9535=y
+CONFIG_UC2_LASER_CONTROLLER=y
+CONFIG_UC2_DIGITAL_IN_CONTROLLER=y
+CONFIG_UC2_MESSAGE_CONTROLLER=y
+CONFIG_UC2_CAN_BUS_ENABLED=y
+CONFIG_UC2_CAN_CONTROLLER_CANOPEN=y
+CONFIG_UC2_MOTOR_CONTROLLER=y
+CONFIG_UC2_HOME_MOTOR=y
+CONFIG_UC2_USE_FASTACCEL=y
+CONFIG_UC2_LED_CONTROLLER=y
+CONFIG_UC2_BTHID=y
+CONFIG_UC2_BLUETOOTH=y
+CONFIG_UC2_STAGE_SCAN=y
+CONFIG_UC2_GALVO_CONTROLLER=y
+CONFIG_UC2_DAC_CONTROLLER=y
+# Standalone v4 is neither an OTA sender nor receiver — both roles compiled out.
+CONFIG_UC2_CANOPEN_OTA_NO_RECEIVER=y
+CONFIG_UC2_CANOPEN_OTA_NO_SENDER=y
+# PS4 uses BT-classic only; skip BLE init to recover internal-RAM headroom.
+CONFIG_UC2_FORCE_BT_CLASSIC_ONLY=y

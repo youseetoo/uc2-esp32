@@ -85,6 +85,12 @@ namespace AxisController
         int8_t   lastMoveDir = 0;     // last commanded direction (backlash)
         bool     reversalMove = false; // widen verify tolerance for this move
 
+        // ---- stall recovery (CORRECT) ----
+        // The first watchdog trip of a CORRECT move does not latch: the axis is
+        // stopped, the encoder adopted, and VERIFY corrects the missing steps.
+        bool     recovering = false;     // this move already had its one trip
+        bool     recoverPending = false; // stop issued; adopt encoder once at rest
+
         // ---- derived thresholds (from calibration scatter/backlash) ----
         int32_t  verifyTolSteps = 4;
         int32_t  divergenceThresholdSteps = 20;
@@ -97,9 +103,10 @@ namespace AxisController
     };
 
     // Correction bounds (design v2, WP6).
-    static constexpr int32_t kMaxCorrectionSteps = 5000; // clamp per corrective move
+    // 50000, not 5000: a stall left far more than 5000 steps missing.
+    static constexpr int32_t kMaxCorrectionSteps = 50000; // clamp per corrective move
     static constexpr uint8_t kMaxCorrectionRetries = 2;
-    static constexpr int32_t kCorrectionSpeed = 2000;    // steps/s for corrections
+    static constexpr int32_t kCorrectionSpeed = 10000;    // steps/s for corrections
 
     static AxisState g_axes[MOTOR_AXIS_COUNT];
     static bool g_setupDone = false;
@@ -482,7 +489,19 @@ namespace AxisController
         case MJ_RUNNING:
             if (axisMoving(axis))
                 return; // open-loop move still in flight
-            if (a.fb.mode == MODE_MONITOR)
+            if (a.recoverPending)
+            {
+                // At rest after a watchdog trip: take the encoder as truth and
+                // let VERIFY correct what is missing to the target.
+                a.recoverPending = false;
+                adoptEncoderPosition(axis);
+                AxisWatchdog::reset(a.wdState);
+                a.moveStage = MJ_VERIFY;
+                return;
+            }
+            // Key off the mode that drives THIS move (a per-move override may
+            // differ from the axis default in fb.mode).
+            if (a.activeMode == MODE_MONITOR)
             {
                 // MONITOR never corrects — only alerts on divergence.
                 if (abs(a.fb.positionErrorSteps) > a.divergenceThresholdSteps)
@@ -508,6 +527,7 @@ namespace AxisController
                 adoptEncoderPosition(axis); // encoder is truth after each move
                 a.moveStage = MJ_IDLE;
                 a.reversalMove = false;
+                a.recovering = false;
             }
             else if (a.correctRetries == 0)
             {
@@ -519,6 +539,7 @@ namespace AxisController
                 adoptEncoderPosition(axis);
                 a.moveStage = MJ_IDLE;
                 a.reversalMove = false;
+                a.recovering = false;
             }
             else
             {
@@ -636,6 +657,8 @@ namespace AxisController
     {
         AxisState &a = g_axes[axis];
         a.moveStage = MJ_IDLE;
+        a.recovering = false;
+        a.recoverPending = false;
         a.servoActive = false;
         a.servoArrived = false;
         a.pid.stop();
@@ -774,10 +797,30 @@ namespace AxisController
             if (!a.hasEnc || a.fb.health == HEALTH_FAULT ||
                 a.activeMode == MODE_OPEN_LOOP)
                 continue;
-            AxisWatchdog::Trip trip = AxisWatchdog::update(
-                a.wdCfg, a.wdState, axisMoving(axis), commandedSpeedOf(axis),
-                a.fb.rawCounts, a.fb.positionErrorSteps, now);
-            if (trip == AxisWatchdog::TRIP_STALL)
+            // While the stepper comes to rest after a trip, posErr is stale by
+            // the lost steps: don't judge until driveMoveJob() has re-anchored.
+            AxisWatchdog::Trip trip = AxisWatchdog::TRIP_NONE;
+            if (!a.recoverPending)
+                trip = AxisWatchdog::update(
+                    a.wdCfg, a.wdState, axisMoving(axis), commandedSpeedOf(axis),
+                    a.fb.rawCounts, a.fb.positionErrorSteps, now);
+            if (trip != AxisWatchdog::TRIP_NONE && a.activeMode == MODE_CORRECT &&
+                a.moveStage != MJ_IDLE && !a.recovering)
+            {
+                // First trip of a CORRECT move: stop and hand the move to
+                // VERIFY instead of latching. A second trip (the motor does not
+                // follow the slow correction either) latches below.
+                log_w("axis %d: watchdog trip %d in CORRECT (posErr=%d) — recovering",
+                      axis, trip, a.fb.positionErrorSteps);
+#ifdef MOTOR_CONTROLLER
+                FocusMotor::stopStepper(axis);
+#endif
+                a.recovering = true;
+                a.recoverPending = true;
+                a.moveStage = MJ_RUNNING; // wait for the stop, then VERIFY
+                continue;
+            }
+            else if (trip == AxisWatchdog::TRIP_STALL)
             {
                 cancelMotion(axis);
                 raiseFault(axis, FAULT_STALL);

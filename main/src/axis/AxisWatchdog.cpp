@@ -54,8 +54,9 @@ namespace AxisWatchdog
         int64_t moved = rawCounts - s.lastProgressCnt;
         if ((moved < 0 ? -moved : moved) >= (int64_t)cfg.noiseThresholdCounts)
         {
-            // Real progress — reset the stall clock.
-            log_i("AxisWatchdog: progress detected (moved=%lld counts)", moved);
+            // Real progress — reset the stall clock. Debug level only: this
+            // fires every loop iteration of every move and would flood the UART.
+            log_d("AxisWatchdog: progress detected (moved=%lld counts)", moved);
             s.lastProgressCnt = rawCounts;
             s.lastProgressMs = nowMs;
             return TRIP_NONE;

@@ -75,7 +75,12 @@ __attribute__ ((unused)) static const PROGMEM char * keyWifiAP = "AP";
 __attribute__ ((unused)) static const PROGMEM char * key_config = "config";
 __attribute__ ((unused)) static const PROGMEM char * keyQueueID = "qid";
 
-#ifdef HOME_MOTOR
+// Gate on MOTOR_CONTROLLER || HOME_MOTOR (not HOME_MOTOR alone): HomeMotor.cpp's
+// get()/sendHomeDone() bodies are gated on MOTOR_CONTROLLER (DeviceRouter +
+// CANopenModule call them for CAN home-routing even on home-less motor nodes such
+// as waveshare_d7), and they reference these keys. A HOME_MOTOR-only gate left
+// key_home undefined on MOTOR-on/HOME-off nodes -> -Werror (undeclared identifier).
+#if defined(MOTOR_CONTROLLER) || defined(HOME_MOTOR)
 __attribute__ ((unused)) static const PROGMEM char * key_home = "home";
 __attribute__ ((unused)) static const PROGMEM char * key_home_endpospin = "endpospin";
 __attribute__ ((unused)) static const PROGMEM char * key_home_timeout = "timeout";

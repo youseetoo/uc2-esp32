@@ -17,8 +17,11 @@ if(${target} STREQUAL "linux")
 endif()
 
 set(srcs)
-set(include)
-set(priv_includes)
+# T5.4: always expose the include dirs (a consumer needs usb/usb_host.h to
+# compile regardless of component-registration order; the Kconfig is not
+# reliably set at registration). Header-only is harmless; SRCs stay Kconfig-gated.
+set(include "include")
+set(priv_includes "private_include")
 # As CONFIG_SOC_USB_OTG_SUPPORTED comes from Kconfig, it is not evaluated yet
 # when components are being registered.
 # Thus, always add the (private) requirements, regardless of Kconfig
@@ -39,8 +42,6 @@ if(CONFIG_SOC_USB_OTG_SUPPORTED)
                      "src/usbh.c"
                      "src/usb_phy.c"
                      )
-    list(APPEND include "include")
-    list(APPEND priv_includes "private_include")
 endif()
 
 if(CONFIG_USB_HOST_HUBS_SUPPORTED)

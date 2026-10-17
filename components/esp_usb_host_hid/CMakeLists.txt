@@ -15,5 +15,11 @@ if(NOT CONFIG_SOC_USB_OTG_SUPPORTED)
     idf_component_register(SRCS ${CMAKE_CURRENT_BINARY_DIR}/esp_usb_host_hid_stub.c
                            INCLUDE_DIRS ".")
 else()
-    idf_component_register(SRCS "hid_host.c" INCLUDE_DIRS "." REQUIRES driver usb_host)
+    idf_component_register(SRCS "hid_host.c" INCLUDE_DIRS "."
+        REQUIRES driver PRIV_REQUIRES usb_host)
+    # The vendored usb_host registers empty sources when its Kconfig is not yet
+    # set at registration, so its include dir does not propagate through
+    # REQUIRES/PRIV_REQUIRES. Add it directly so hid_host.c finds usb/usb_host.h.
+    target_include_directories(${COMPONENT_LIB} PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/../usb_host/include)
 endif()

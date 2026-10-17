@@ -28,13 +28,24 @@
 #ifndef M5DIAL_ENCODER_H
 #define M5DIAL_ENCODER_H
 
-#if defined(ARDUINO) && ARDUINO >= 100
-#include "Arduino.h"
-#elif defined(WIRING)
-#include "Wiring.h"
-#else
-#include "WProgram.h"
-#include "pins_arduino.h"
+// T5.4 IDF port: the Arduino / Wiring / WProgram includes above don't exist in a
+// pure-IDF build. Use the uc2_hal umbrella (pinMode / INPUT_PULLUP /
+// delayMicroseconds) + the GPIO driver (the direct-register reads below).
+#include <uc2_hal.h>
+#include "driver/gpio.h"
+#include "soc/gpio_reg.h"
+// Arduino-esp32 port helpers the PIN_TO_BASEREG / PIN_TO_BITMASK macros use. On
+// ESP32 / ESP32-S3 every user GPIO lives on one port, and GPIO_IN_REG (the raw
+// input-data register, soc/gpio_reg.h) holds the live level of every pin, so all
+// portInputRegister() calls return a pointer to that single register.
+#ifndef portInputRegister
+static inline uint32_t *portInputRegister(uint32_t) { return (uint32_t *)GPIO_IN_REG; }
+#endif
+#ifndef digitalPinToPort
+static inline uint32_t digitalPinToPort(uint32_t) { return 0; }  // single GPIO port
+#endif
+#ifndef digitalPinToBitMask
+static inline uint32_t digitalPinToBitMask(uint32_t pin) { return (1u << pin); }
 #endif
 
 #if defined(ENCODER_USE_INTERRUPTS) || !defined(ENCODER_DO_NOT_USE_INTERRUPTS)
@@ -42,7 +53,9 @@
 #define ENCODER_USE_INTERRUPTS
 #define ENCODER_ARGLIST_SIZE CORE_NUM_INTERRUPT
 
-#if defined(ESP32)
+#if 1  // T5.4: always active — ESP32 and ESP32-S3 share this single-port GPIO
+// model; a pure-IDF build defines neither ESP32 nor ESP32S3, so the original
+// `#if defined(ESP32)` gate left IO_REG_TYPE / PIN_TO_BASEREG undefined.
 
 #define IO_REG_TYPE                 uint32_t
 #define PIN_TO_BASEREG(pin)         (portInputRegister(digitalPinToPort(pin)))

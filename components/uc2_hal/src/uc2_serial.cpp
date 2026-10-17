@@ -224,6 +224,40 @@ void Serial_::print(double v)
 }
 void Serial_::print(bool v) { writeStr(v ? "1" : "0"); }
 
+// Arduino base-conversion (value, base). base 2/8/10/16 (anything <2 -> 10).
+void Serial_::print(int v, int base) { print(static_cast<long>(v), base); }
+void Serial_::print(long v, int base)
+{
+    if (v < 0)
+    {
+        write('-');
+        print(static_cast<unsigned long>(-(v + 1)) + 1u, base);
+        return;
+    }
+    print(static_cast<unsigned long>(v), base);
+}
+void Serial_::print(unsigned long v, int base)
+{
+    if (base < 2)
+    {
+        base = 10;
+    }
+    char buf[16];
+    int len = 0;
+    do
+    {
+        const unsigned digit =
+            static_cast<unsigned>(v % static_cast<unsigned>(base));
+        buf[len++] = static_cast<char>(digit < 10 ? '0' + digit
+                                                  : 'A' + digit - 10);
+        v /= static_cast<unsigned>(base);
+    } while (v);
+    while (len--)
+    {
+        write(static_cast<uint8_t>(buf[len]));
+    }
+}
+
 void Serial_::println() { writeStr("\n"); }
 void Serial_::println(const char *s)
 {

@@ -31,7 +31,14 @@ set(_uc2_proj_comps
 set(_uc2_group_libs "")
 foreach(_uc2_c ${_uc2_proj_comps})
     if(TARGET __idf_${_uc2_c})
-        list(APPEND _uc2_group_libs "LINKER:${CMAKE_BINARY_DIR}/esp-idf/${_uc2_c}/lib${_uc2_c}.a")
+        # Skip feature-off components registered with no sources (e.g. neopixel
+        # when UC2_LED_CONTROLLER is off): they still create a CMake target (so
+        # TARGET is true) but produce no lib<comp>.a, so adding them here would
+        # reference a missing archive at link time.
+        get_target_property(_uc2_csrcs __idf_${_uc2_c} SOURCES)
+        if(_uc2_csrcs)
+            list(APPEND _uc2_group_libs "LINKER:${CMAKE_BINARY_DIR}/esp-idf/${_uc2_c}/lib${_uc2_c}.a")
+        endif()
     endif()
 endforeach()
 if(_uc2_group_libs)

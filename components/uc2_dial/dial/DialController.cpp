@@ -26,6 +26,11 @@
 #endif
 #ifdef M5DIAL
 #include <ESP32Encoder.h>
+// M5GFX + the dial draw code reference PI (Arduino defines it; neither IDF nor
+// M5GFX does). Guarded so a future M5GFX PI definition wins.
+#ifndef PI
+#define PI 3.14159265358979323846
+#endif
 #endif
 
 namespace DialController
@@ -226,7 +231,7 @@ namespace DialController
         M5Dial.Display.setTextColor(COLOR_TEXT);
         M5Dial.Display.setTextSize(1.5);
         String incText = "Step: " + String(increment);
-        M5Dial.Display.drawString(incText, CENTER_X, CENTER_Y + 40);
+        M5Dial.Display.drawString(incText.c_str(), CENTER_X, CENTER_Y + 40);
         
         // Draw mode indicator at bottom
         M5Dial.Display.setTextSize(0.8);
@@ -283,7 +288,7 @@ namespace DialController
         M5Dial.Display.setTextSize(2.5);
         M5Dial.Display.setTextColor(COLOR_TEXT);
         String valueText = String(illumValue[currentIllum]);
-        M5Dial.Display.drawString(valueText, CENTER_X, CENTER_Y);
+        M5Dial.Display.drawString(valueText.c_str(), CENTER_X, CENTER_Y);
         
         // Draw progress arc showing illumination level
         int arcAngle = map(illumValue[currentIllum], 0, channelMax(currentIllum), 0, 360);
@@ -302,7 +307,7 @@ namespace DialController
         M5Dial.Display.setTextSize(1);
         M5Dial.Display.setTextColor(COLOR_TEXT);
         String incText = "Step: " + String(increment);
-        M5Dial.Display.drawString(incText, CENTER_X, CENTER_Y + 50);
+        M5Dial.Display.drawString(incText.c_str(), CENTER_X, CENTER_Y + 50);
         
         // Draw mode indicator with selected channel
         M5Dial.Display.setTextSize(0.8);

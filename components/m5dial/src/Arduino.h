@@ -24,6 +24,9 @@
 typedef uc2::Serial_ Stream;
 typedef uc2::Serial_ HardwareSerial;
 
+// Arduino `word` (unsigned int) — MFRC522 uses it as a loop counter.
+typedef unsigned int word;
+
 #ifndef PROGMEM
 #define PROGMEM
 #endif

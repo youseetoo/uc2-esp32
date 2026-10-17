@@ -76,6 +76,14 @@ public:
     void print(double v);
     void print(bool v);
 
+    // 2-arg (value, base) overloads — the Arduino Print API. main/ uses only the
+    // single-arg forms, but Arduino-era leaves need the base variant (the M5Dial
+    // MFRC522 NFC leaf calls Serial.print(v, HEX)). No default base: that would
+    // make print(int) ambiguous against the single-arg print(int) above.
+    void print(int v, int base);
+    void print(long v, int base);
+    void print(unsigned long v, int base);
+
     void println();
     void println(const char *s);
     void println(char c);

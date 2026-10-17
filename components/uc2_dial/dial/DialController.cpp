@@ -1,5 +1,13 @@
 #include <PinConfig.h>
 #include "DialController.h"
+// T5.4: M5 includes live here (not in DialController.h) so only this TU drags in
+// the M5 stack. Under M5DIAL the dial uses M5GFX (display) + M5Dial (encoder);
+// M5Dial.h pulls the RFID utility (MFRC522 -> Arduino.h / Wire.h), satisfied by
+// the shims in components/m5dial/src.
+#ifdef M5DIAL
+#include <M5Unified.hpp>
+#include <M5Dial.h>
+#endif
 #include <uc2_hal.h>
 #include <cstring>
 #include "cJsonTool.h"

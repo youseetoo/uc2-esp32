@@ -1,0 +1,322 @@
+// Copyright (c) M5Stack. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+#ifndef __M5_Power_Class_H__
+#define __M5_Power_Class_H__
+
+#include "m5unified_common.h"
+
+#include "I2C_Class.hpp"
+#include "power/AXP192_Class.hpp"
+#include "power/AXP2101_Class.hpp"
+#include "power/IP5306_Class.hpp"
+#include "power/INA3221_Class.hpp"
+#include "power/INA226_Class.hpp"
+#include "power/AW32001_Class.hpp"
+#include "power/BQ27220_Class.hpp"
+#include "power/M5PM1_Class.hpp"
+#include "RTC_Class.hpp"
+
+#if __has_include (<sdkconfig.h>)
+#include <sdkconfig.h>
+#endif
+
+#if __has_include (<esp_adc/adc_oneshot.h>) // ESP-IDF v5 or later
+#include <esp_adc/adc_oneshot.h>
+ #if __has_include(<esp_adc/adc_cali.h>)
+  #include <esp_adc/adc_cali.h>
+ #endif
+#elif __has_include (<driver/adc.h>)
+#include <driver/adc.h>
+#include <esp_adc_cal.h>
+#endif
+
+namespace m5
+{
+  class M5Unified;
+
+  enum ext_port_mask_t
+  { ext_none = 0
+  // For individual control of external ports of M5Station and M5PowerHub.
+  , ext_PA     = 1 << 0
+  , ext_PB1    = 1 << 1
+  , ext_PB2    = 1 << 2
+  , ext_PC1    = 1 << 3
+  , ext_PC2    = 1 << 4
+  , ext_USB    = 1 << 5 // M5Station external USB.   ※ Not for CoreS3 main USB.
+  , ext_PWR485 = 1 << 6 // M5PowerHub external RS485.
+  , ext_PWRCAN = 1 << 7 // M5PowerHub external CAN.
+  , ext_EXT    = 1 << 8 // M5Tab5X bottom Hat power.
+  , ext_MAIN   = 1 << 15
+  };
+
+  struct ext_port_bus_t
+  {
+    // output voltage of the external port(3000~20000mV, step 20mV).
+    uint16_t voltage;
+
+    // output current limit(0~232mA).
+    uint8_t currentLimit;
+
+    // output enable/disable.
+    bool enable = 0;
+
+    // output direction. true=output / false=input
+    bool direction = 0;
+  };
+
+  class Power_Class
+  {
+  friend M5Unified;
+  public:
+
+    enum pmic_t
+    { pmic_unknown
+    , pmic_adc
+    , pmic_axp192
+    , pmic_ip5306
+    , pmic_axp2101
+    , pmic_aw32001
+    , pmic_m5pm1
+    };
+
+    enum is_charging_t
+    { is_discharging = 0
+    , is_charging
+    , charge_unknown
+    };
+
+    bool begin(void);
+
+    /// Set power output of the external ports.
+    /// @param enable true=output / false=input
+    /// @param port_mask for M5Station. ext_port (bitmask).
+    /// @note On the CoreS3 family (CoreS3 / CoreS3 SE / StackChan), disabling an enabled output blocks for
+    ///       about 200 ms (the boost converter is stopped first and the bus is left to discharge before the
+    ///       switch-over), and enabling without a battery may block for up to 1 s while the protection check
+    ///       waits for the TS reading to settle. Enabling also precharges the bus with short pulses first
+    ///       (about 10 ms), so that the empty bus does not pull the PMIC under its DCDC under-voltage
+    ///       threshold on a weak USB supply. The switch-over is serialized with setUsbOutput and the
+    ///       internal speaker enable, so those may wait for it as well.
+    /// @note Core2 v1.1 (AXP2101; a Tough with the AXP2101 takes the same path): disabling
+    ///       the output while powered from USB with no battery makes the ESP32 brownout and
+    ///       reset (the board's VBUS-to-bus switch closes before the boost stops and the
+    ///       transient pulls VSYS down). The PMIC stays on and the board reboots with the
+    ///       output enabled again, so a sketch that unconditionally disables it at startup
+    ///       will reboot in a loop on such a unit. With a battery, or with 5 V supplied on
+    ///       the bus, the transition itself does not disturb the board. Disabling an enabled
+    ///       output blocks for about 20 ms while the PMIC's DCDC under-voltage power-off is
+    ///       suspended; the output is left untouched when that protection cannot be suspended.
+    void setExtOutput(bool enable, ext_port_mask_t port_mask = (ext_port_mask_t)0xFF);
+
+    /// deprecated : Change to "setExtOutput"
+    [[deprecated("Change to setExtOutput")]]
+    void setExtPower(bool enable, ext_port_mask_t port_mask = (ext_port_mask_t)0xFF) { setExtOutput(enable, port_mask); }
+
+    /// Get power output of the external ports.
+    /// @return true=output enabled / false=output disabled
+    bool getExtOutput(void);
+
+    /// Set power output of the main USB port.
+    /// @param enable true=output / false=input
+    /// @attention for M5Stack CoreS3 main USB port.
+    /// @attention ※ Not for M5Station/M5Tab external USB.
+    void setUsbOutput(bool enable);
+
+    /// Get power output of the main USB port.
+    /// @return true=output enabled / false=output disabled
+    /// @attention for M5Stack CoreS3 main USB port.
+    /// @attention ※ Not for M5Station/M5Tab external USB.
+    bool getUsbOutput(void);
+
+    /// Turn on/off the power LED.
+    /// @param brightness 0=OFF: 1~255=ON (Set brightness if possible.)
+    void setLed(uint8_t brightness = 255);
+
+    /// all power off.
+    /// @note PowerHub enters light sleep after requesting power-off and restarts if it wakes.
+    void powerOff(void);
+
+    /// sleep and timer boot. The boot condition can be specified by the argument.
+    /// @note PowerHub paces alarm writes by 50 ms, settles for 500 ms before requesting
+    ///       power-off, then enters light sleep and restarts if it wakes.
+    /// @param seconds Number of seconds to boot.
+    void timerSleep(int seconds);
+
+    /// sleep and timer boot. The boot condition can be specified by the argument.
+    /// @param time Time to boot. (only minutes and hours can be specified. Ignore seconds)
+    /// @attention CoreInk and M5Paper can't alarm boot because it can't be turned off while connected to USB.
+    /// @attention CoreInk と M5Paper は USB接続中はRTCタイマー起動が出来ない。;
+    void timerSleep(const rtc_time_t& time);
+
+    /// sleep and timer boot. The boot condition can be specified by the argument.
+    /// @param date Date to boot. (only date and weekDay can be specified. Ignore year and month)
+    /// @param time Time to boot. (only minutes and hours can be specified. Ignore seconds)
+    /// @attention CoreInk and M5Paper can't alarm boot because it can't be turned off while connected to USB.
+    /// @attention CoreInk と M5Paper は USB接続中はRTCタイマー起動が出来ない。;
+    void timerSleep(const rtc_date_t& date, const rtc_time_t& time);
+
+    /// Value for micro_seconds of deepSleep / lightSleep, meaning "sleep without a timer wakeup".
+    /// The device sleeps until a wakeup pin or another wakeup source is triggered.
+    static constexpr std::uint64_t sleep_no_timer = ~0ull;
+
+    /// ESP32 deepsleep
+    /// @param micro_seconds Number of micro seconds to wakeup. 0 = do not sleep. sleep_no_timer = no timer wakeup.
+    /// @param touch_wakeup Enable wakeup by the wakeup pin of the device, if it has one.
+    /// @attention Waking up from deep sleep restarts the program from the beginning.
+    void deepSleep(std::uint64_t micro_seconds = sleep_no_timer, bool touch_wakeup = true);
+
+    /// ESP32 lightsleep
+    /// @param micro_seconds Number of micro seconds to wakeup. 0 = do not sleep. sleep_no_timer = no timer wakeup.
+    /// @param touch_wakeup Enable wakeup by the wakeup pin of the device, if it has one.
+    void lightSleep(std::uint64_t micro_seconds = sleep_no_timer, bool touch_wakeup = true);
+
+    /// Get the remaining battery power.
+    /// @return 0-100 level
+    std::int32_t getBatteryLevel(void);
+
+    /// set battery charge enable.
+    /// @param enable true=enable / false=disable
+    void setBatteryCharge(bool enable);
+
+    /// set battery charge current
+    /// @param max_mA milli ampere.
+    /// @note CoreMatrix selects 180 mA below 650 mA, otherwise 650 mA.
+    /// @note ToughC5 selects 180 mA below 650 mA, otherwise 650 mA.
+    /// @attention Non-functioning models : CoreInk , M5Paper , M5Stack(with non I2C IP5306)
+    void setChargeCurrent(std::uint16_t max_mA);
+
+    /// set battery charge voltage
+    /// @param max_mV milli volt.
+    /// @attention Non-functioning models : CoreInk , M5Paper , M5Stack(with non I2C IP5306)
+    void setChargeVoltage(std::uint16_t max_mV);
+
+    /// Get whether the battery is currently charging or not.
+    /// @attention Non-functioning models : CoreInk , M5Paper , M5Stack(with non I2C IP5306)
+    is_charging_t isCharging(void);
+
+    /// Get VBUS voltage
+    /// @return VBUS voltage [mV] / -1=not supported model
+    /// @attention Only for models with AXP192, AXP2101, or M5PM1 VBUS monitoring
+    int16_t getVBUSVoltage(void);
+
+    /// Get battery voltage
+    /// @return battery voltage [mV]
+    /// @attention Models with battery detection ( ex. CoreMatrix , ToughC5 )
+    /// return 0 when no battery is attached and -1 while the presence has
+    /// not been determined yet (shortly after boot).
+    int16_t getBatteryVoltage(void);
+
+    /// get battery current
+    /// @return battery current [mA] ( +=charge / -=discharge )
+    /// @attention This reading comes from the hardware of the board: an AXP192, or a
+    /// dedicated current sense IC ( ex. Core2 v1.1 , M5Tab5 , M5PowerHub ).
+    /// Boards without either of them return 0.
+    int32_t getBatteryCurrent(void);
+
+    /// Get Ext Port voltage
+    /// @return Ext voltage [mV]
+    float getExtVoltage(ext_port_mask_t port_mask);
+
+    /// get Ext Port current
+    /// @return Ext current [mA] ( +=charge / -=discharge )
+    float getExtCurrent(ext_port_mask_t port_mask);
+
+    /// Get Power Key Press condition.
+    /// @return 0=none / 1=long pressed / 2=short clicked / 3=both
+    /// @attention Only for models with AXP192, AXP2101, or M5PM1.
+    /// @attention M5PM1 reports only 0 or 2.
+    /// @attention Once this function is called, the value is reset to 0, and the next time it is pressed on, the value changes.
+    uint8_t getKeyState(void);
+
+    /// Set the configuration of the external port bus.
+    /// @param config Configuration of the external port bus.
+    /// @attention for M5PowerHub.
+    void setExtPortBusConfig(const ext_port_bus_t& config);
+
+    /// Operate the vibration motor
+    /// @param level Vibration strength of the motor. (0=stop)
+    void setVibration(uint8_t level);
+
+    pmic_t getType(void) const { return _pmic; }
+
+#if defined (CONFIG_IDF_TARGET_ESP32S3)
+
+    AXP2101_Class Axp2101;
+    M5PM1_Class M5pm1;
+    INA226_Class Ina226 = { 0x40 };
+
+#elif defined (CONFIG_IDF_TARGET_ESP32C3)
+#elif defined (CONFIG_IDF_TARGET_ESP32C6)
+
+    AW32001_Class Aw32001;
+    BQ27220_Class Bq27220;
+
+#elif defined (CONFIG_IDF_TARGET_ESP32C61)
+    M5PM1_Class M5pm1;
+
+#elif defined (CONFIG_IDF_TARGET_ESP32P4)
+    M5PM1_Class M5pm1;
+    INA226_Class Ina226 = { 0x41 };
+
+#else
+
+    AXP2101_Class Axp2101;
+    AXP192_Class Axp192;
+    IP5306_Class Ip5306;
+    // secondery INA3221 for M5Station.
+    INA3221_Class Ina3221[2] = { { 0x40 }, { 0x41 } };
+
+#if defined (CONFIG_IDF_TARGET_ESP32C5)
+    M5PM1_Class M5pm1;
+#endif
+
+#endif
+
+  private:
+    /// CoreS3 family: AW9523 のビット操作を setExtOutput / setUsbOutput と同じ排他区間で行う (スピーカー制御用)
+    static void _core_s3_aw9523_bit(uint8_t reg, uint8_t mask, bool on);
+    std::int32_t _getBatteryAdcRaw(void);
+    void _powerOff(bool withTimer);
+    void _timerSleep(void);
+
+#if defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+    /// Check whether a battery is actually attached (non-blocking).
+    /// @return 1=present / 0=absent / -1=not yet determined
+    std::int8_t _batteryPresent(void);
+    /// Read the raw charger CHG_STAT line. @return false=not readable
+    bool _readChargeStat(bool* level);
+    /// Whether the VBAT node is confirmed collapsed (false when unreadable).
+    bool _vbatNodeDown(void);
+    /// Battery presence. -1 = not yet determined.
+    std::int8_t _batt_present = -1;
+    /// Tick when charging last stopped (0 = at reset, which clears PWR_CFG).
+    std::uint32_t _chg_off_ms = 0;
+    /// Presence sampling state: last VBAT sample, CHG_STAT low since,
+    /// and evidence counters. 0 in the tick fields = no sample yet.
+    std::uint16_t _bp_last_mv = 0;
+    std::uint32_t _bp_last_ms = 0;
+    std::uint32_t _bp_chg_low_ms = 0;
+    std::uint8_t _bp_stable = 0;
+    std::uint8_t _bp_unstable = 0;
+    std::uint8_t _bp_low = 0;
+#endif
+
+    /// Release the wakeup pin so that it can be asserted again while sleeping.
+    /// @return true if the pin is released ( high ).
+    bool _releaseWakeupPin(std::uint_fast8_t wakeup_pin, bool* clear_comm_ok = nullptr);
+    float _readExtValue(ext_port_mask_t port_mask, bool is_voltage);
+
+    float _adc_ratio = 0;
+    std::uint8_t _wakeupPin = 255;
+    std::uint8_t _rtcIntPin = 255;
+    pmic_t _pmic = pmic_t::pmic_unknown;
+#if !defined (M5UNIFIED_PC_BUILD)
+    uint8_t _batAdcCh;
+    uint8_t _batAdcUnit;
+    uint8_t _batAdcPin = 255;
+#endif
+  };
+}
+
+#endif

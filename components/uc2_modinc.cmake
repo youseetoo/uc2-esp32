@@ -78,6 +78,13 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/neopixel
     # T2.4: thermal moved from main/src/thermal (raw-IDF port, compiled by uc2_periph).
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/thermal
+    # T5.4: M5 graphics (m5unified/m5dial/m5gfx) — DialController.h includes
+    # M5Unified.hpp + M5Dial.h under M5DIAL; it is pulled in by uc2_periph
+    # (i2c_slave_dial.cpp), uc2_app and uc2_dial. Include-only (no link dep); the
+    # M5 components are always built (EXTRA_COMPONENT_DIRS).
+    ${CMAKE_CURRENT_LIST_DIR}/m5unified/src
+    ${CMAKE_CURRENT_LIST_DIR}/m5dial/src
+    ${CMAKE_CURRENT_LIST_DIR}/m5gfx/src
     ${CMAKE_CURRENT_LIST_DIR}/../main/src/tmc)
 # T2.1: per-app PinConfig override. An app sets UC2_APP_MAIN_DIR to its own main/
 # (in the top-level CMakeLists before project()); it is prepended so its PinConfig.h

@@ -1,0 +1,303 @@
+// Copyright (c) M5Stack. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+#ifndef __M5_Mic_Class_H__
+#define __M5_Mic_Class_H__
+
+#include "m5unified_common.h"
+
+#if defined ( ESP_PLATFORM )
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
+#include <soc/i2s_struct.h>
+
+#if __has_include(<driver/i2s_std.h>)
+ #include <driver/i2s_std.h>
+ #include <driver/i2s_pdm.h>
+#else
+ #include <driver/i2s.h>
+#endif
+
+#endif
+
+#include <stdint.h>
+#include <atomic>
+
+#ifndef I2S_PIN_NO_CHANGE
+#define I2S_PIN_NO_CHANGE (-1)
+#endif
+
+namespace m5
+{
+  class M5Unified;
+
+  enum input_channel_t : uint8_t
+  {
+    input_only_right = 0,
+    input_only_left = 1,
+    input_stereo = 2,
+  };
+
+  struct mic_config_t
+  {
+    /// i2s_data_in (for mic)
+    int pin_data_in = -1;
+
+    /// i2s_bclk
+    int pin_bck = I2S_PIN_NO_CHANGE;
+
+    /// i2s_mclk
+    int pin_mck = I2S_PIN_NO_CHANGE;
+
+    /// i2s_ws (lrck)
+    int pin_ws = I2S_PIN_NO_CHANGE;
+
+    /// input sampling rate (Hz)
+    uint32_t sample_rate = 16000;
+
+    union
+    {
+      struct
+      {
+        uint8_t left_channel : 1;
+        uint8_t stereo : 1;
+        uint8_t reserve : 6;
+      };
+      input_channel_t input_channel = input_only_right;
+    };
+
+    /// Sampling times of obtain the average value
+    uint8_t over_sampling = 2;
+
+    /// multiplier for input value
+    uint8_t magnification = 16;
+
+    /// Coefficient of the previous value, used for noise filtering.
+    uint8_t noise_filter_level = 0;
+
+    /// use analog input mic ( need only pin_data_in )
+    bool use_adc = false;
+
+    /// for I2S dma_buf_len
+    size_t dma_buf_len = 128;
+
+    /// for I2S dma_buf_count
+    size_t dma_buf_count = 8;
+
+    /// background task priority
+    uint8_t task_priority = 2;
+
+    /// background task pinned core
+    uint8_t task_pinned_core = -1;
+
+    /// I2S port
+    i2s_port_t i2s_port = (i2s_port_t)I2S_NUM_0;
+  };
+
+  class Mic_Class
+  {
+  friend M5Unified;
+
+  public:
+
+    /// Config access (this getter included) is not synchronized with
+    /// begin()/end()/record(): read or reconfigure only while the port is
+    /// stopped or no other task is using this instance (an explicit-rate
+    /// record() writes the stored sample rate).
+    mic_config_t config(void) const { return _cfg; }
+    void config(const mic_config_t& cfg) { _cfg = cfg; }
+
+    /// start the capture port. serialized with end().
+    /// Success means the port runs and the codec is configured; some codecs
+    /// (ES8311) additionally warm up for about a second after power-up,
+    /// during which captured samples can be all zero.
+    bool begin(void);
+
+    /// stop the capture port. serialized with begin().
+    void end(void);
+
+    bool isRunning(void) const { return _task_running; }
+
+    bool isEnabled(void) const { return _cfg.pin_data_in >= 0; }
+
+    /// now in recording or not.
+    /// @return 0=not recording / 1=recording (There's room in the queue) / 2=recording (There's no room in the queue.)
+    size_t isRecording(void) const volatile { return ((bool)_rec_info[0].length.load(std::memory_order_acquire)) + ((bool)_rec_info[1].length.load(std::memory_order_acquire)); }
+
+    /// Register a function called when the capture task has filled a buffer
+    /// given to record(): from then on the caller may read or reuse it. Two
+    /// buffers used alternately are enough when the next record() is issued
+    /// from this point.
+    /// @param args passed through as the first argument.
+    /// @param func (args, data, length): data is the pointer given to record(),
+    ///             length its array_len.
+    /// @attention Called from the capture task, not an ISR: keep it short,
+    ///            never block in it (the record() exception is below), never
+    ///            call begin()/end() from it.
+    /// @attention Requests dropped by end() do not call back. Delivery follows
+    ///            the slot release, so it can arrive after isRecording() has
+    ///            already dropped: track buffers by pointer, not by counting.
+    /// @attention record() may be called from within at the current sample
+    ///            rate. It never waits for a slot there: false at once when
+    ///            both slots are taken. It does wait, up to a few ticks, for
+    ///            another task holding the request lock (normally a record()
+    ///            that is publishing) to release it, and gives up
+    ///            with false past that or when an end() or rate change is
+    ///            stopping the task (whether the request would have fit is
+    ///            unknown then). A different rate is refused there (it would
+    ///            rebuild the calling task) and leaves the current rate
+    ///            untouched.
+    /// @attention Set or clear it only before the first record() or after
+    ///            end() has returned - not merely while isRecording() is 0:
+    ///            the task may still be about to call the previous function,
+    ///            and the function and args are not swapped as one unit.
+    void setBufferReleaseCallback(void* args, void (*func)(void* args, void* data, size_t length)) { _cb_buffer_release_args = args; _cb_buffer_release = func; }
+
+    /// set recording sampling rate. Not synchronized: to change the rate
+    /// while other tasks may be recording, pass it to record() instead.
+    /// @param sample_rate the sampling rate (Hz)
+    void setSampleRate(uint32_t sample_rate) { _cfg.sample_rate = sample_rate; }
+
+    /// record raw sound wave data.
+    /// A completed request has exactly array_len elements written, never
+    /// more. A stereo buffer holds L/R pairs; with an odd array_len the last
+    /// element receives the left sample only. Requests that are already
+    /// queued when the previous one completes are continuous whatever their
+    /// length (a capture step that straddles two buffers is carried over).
+    /// @param rec_data Recording destination array. nullptr returns false.
+    /// @param array_len Number of data array elements. 0 returns false
+    ///                  (nothing is queued and the release callback is not called).
+    /// @param sample_rate the sampling rate (Hz). 0 is invalid and returns false.
+    /// @param stereo true=data is stereo / false=data is monaural.
+    /// @return false when the arguments are invalid, the mic cannot start, or
+    ///         (from the release callback only) no request slot is free, the
+    ///         task is being stopped, another caller kept the request lock
+    ///         for too long, or the sample rate differs from the current one.
+    bool record(uint8_t* rec_data, size_t array_len, uint32_t sample_rate, bool stereo = false)
+    {
+      return sample_rate != 0 && _rec_raw(rec_data, array_len, false, sample_rate, stereo);
+    }
+
+    /// record raw sound wave data. See the uint8_t overload for the contract.
+    bool record(int16_t* rec_data, size_t array_len, uint32_t sample_rate, bool stereo = false)
+    {
+      return sample_rate != 0 && _rec_raw(rec_data, array_len,  true, sample_rate, stereo);
+    }
+
+    /// record raw sound wave data at the current sample rate (monaural).
+    /// See the 4-argument overload for the contract.
+    bool record(uint8_t* rec_data, size_t array_len)
+    { // sample_rate 0 == keep the current rate; resolved under the lock.
+      return _rec_raw(rec_data, array_len, false, 0, false);
+    }
+
+    /// record raw sound wave data at the current sample rate (monaural).
+    /// See the 4-argument overload for the contract.
+    bool record(int16_t* rec_data, size_t array_len)
+    {
+      return _rec_raw(rec_data, array_len,  true, 0, false);
+    }
+
+  protected:
+
+    /// The callbacks run while the begin()/end() locks are held and must not
+    /// call begin(), end() or record() themselves (record() takes the same
+    /// non-recursive locks and would self-deadlock).
+    void setCallback(void* args, bool(*func)(void*, bool)) { _cb_set_enabled = func; _cb_set_enabled_args = args; }
+
+    struct recording_info_t
+    {
+      void* data = nullptr;
+      /// The task takes a slot as soon as this is set, so it is stored last
+      /// with a release and loaded first with an acquire: that is what makes
+      /// the fields above visible to the task, and the recorded samples
+      /// visible to whoever waits for the slot to come back empty. It is also
+      /// why the slot cannot be copied as a whole.
+      std::atomic<size_t> length { 0 };
+      size_t index = 0;
+      /// Publish-order stamp (wrap-safe compare). The task consumes the
+      /// pending slot with the older stamp: slot identity cannot express
+      /// the order once a freed slot is refilled.
+      uint32_t seq = 0;
+      bool is_stereo = false;
+      bool is_16bit = false;
+
+      void clear(void);
+    };
+
+    recording_info_t _rec_info[2];
+    /// Next publish-order stamp. Guarded by _rec_lock.
+    uint32_t _wr_seq = 0;
+
+    static void mic_task(void* args);
+
+    uint32_t _calc_rec_rate(void) const;
+    int _begin_raw(uint32_t sample_rate);
+    bool _begin_locked(void);
+    esp_err_t _setup_i2s(void);
+    bool _rec_raw(void* recdata, size_t array_len, bool flg_16bit, uint32_t sample_rate, bool stereo);
+    int _rec_try_locked(void* recdata, size_t array_len, bool flg_16bit, uint32_t sample_rate, bool stereo);
+
+    mic_config_t _cfg;
+    uint32_t _rec_sample_rate = 0;
+
+    bool (*_cb_set_enabled)(void* args, bool enabled) = nullptr;
+    void* _cb_set_enabled_args = nullptr;
+    void (*_cb_buffer_release)(void* args, void* data, size_t length) = nullptr;
+    void* _cb_buffer_release_args = nullptr;
+
+    int32_t _offset = 0;
+    /// Written by begin()/end(), polled by the capture task: atomic so the
+    /// stop request and the task's exit are actual synchronization, not a
+    /// volatile-based data race.
+    std::atomic<bool> _task_running { false };
+    /// how long record() from the release callback waits for another caller's
+    /// publish to finish before giving up (a legitimate holder releases within
+    /// microseconds; the bound covers priority inversion on the plain atomic).
+    static constexpr uint32_t in_task_lock_wait_ticks = 5;
+    /// begin() runs from whichever task records first, and setup starts by
+    /// tearing the port down - so only one call may go through.
+    std::atomic<bool> _begin_lock { false };
+    /// serializes record() callers with each other and with end().
+    /// Lock order: _rec_lock before _begin_lock. Both locks are
+    /// per-instance: two Mic_Class instances driving the same I2S port
+    /// are not supported (the driver state is port-global).
+    std::atomic<bool> _rec_lock { false };
+    /// true only once begin() has fully finished.
+    std::atomic<bool> _begun { false };
+#if defined (SDL_h_)
+    SDL_Thread* _task_handle = nullptr;
+#else
+    /// The task never touches this: it parks itself with vTaskSuspend and
+    /// _end_locked() deletes it and clears the handle. Atomic for the same
+    /// reason as _task_running.
+    std::atomic<TaskHandle_t> _task_handle { nullptr };
+    /// Set by the task once its I2S cleanup is done, right before it parks.
+    /// _end_locked() waits for this ack, not for a scheduler state: old
+    /// kernels (ESP-IDF 4.0-4.2) report an indefinite notification wait as
+    /// eSuspended, which would pass a state-only check before cleanup ran.
+    std::atomic<bool> _task_exited { false };
+    volatile SemaphoreHandle_t _task_semaphore = nullptr;
+#endif
+
+  private:
+
+    /// set a callback that begin() invokes once the capture task has brought
+    /// the I2S clock up, for codecs that accept part of their setup only
+    /// while the bus clock runs (ES8311). A false return (or no clock within
+    /// one second) fails begin() and tears the port back down.
+    void setPostStartCallback(void* args, bool(*func)(void*)) { _cb_post_start = func; _cb_post_start_args = args; }
+
+    void _end_locked(void);
+
+    bool (*_cb_post_start)(void* args) = nullptr;
+    void* _cb_post_start_args = nullptr;
+    /// set by the task once the I2S channel is enabled; begin() waits on it
+    /// before invoking the post-start callback.
+    std::atomic<bool> _i2s_active { false };
+  };
+}
+
+#endif

@@ -5,6 +5,14 @@
 #include "JsonKeys.h"
 #include "cJsonTool.h"
 
+// T5.4: the M5Dial + XIAO boards have no DAC. DacController.h only declares the
+// dac_channel static under `#if !defined(M5DIAL) && !defined(ESP32S3_MODEL_XIAO)`,
+// but this body uses dac_channel throughout. PIO never compiles this file for
+// those boards (no -DDAC_CONTROLLER); IDF's uc2_app does, so it must be gated the
+// same way here, or the build fails on the undeclared dac_channel.
+#ifndef ESP32S3_MODEL_XIAO
+#if !defined(M5DIAL)
+
 static const char *TAG = "DacController";
 
 namespace DacController
@@ -206,3 +214,5 @@ namespace DacController
 		}
 	}
 }
+#endif // M5DIAL
+#endif // ESP32S3_MODEL_XIAO

@@ -3,10 +3,11 @@
 #include "cJSON.h"
 #include <freertos/FreeRTOS.h>
 
-#ifdef M5DIAL
-#include <M5Unified.hpp>
-#include <M5Dial.h>
-#endif
+// T5.4: the M5 includes (M5Unified.hpp / M5Dial.h) moved to DialController.cpp.
+// M5Dial.h pulls the RFID utility (MFRC522 -> Arduino.h / Wire.h); keeping the M5
+// includes out of this header stops non-dial consumers (i2c_slave_dial.cpp in
+// uc2_periph, main.cpp in uc2_app) from dragging the whole M5 stack + its Arduino
+// shims into every TU that merely uses the DialData wire API.
 
 // Wire format the master writes to the dial (i2c_master -> i2c_slave_dial):
 // four axis positions + laser intensity. Packed, 20 bytes, no padding.

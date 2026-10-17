@@ -1,0 +1,27 @@
+# T5.4: m5stack_dial feature set (from PIO env m5stack_dial).
+# Target: esp32s3 (M5Stack Stamps3). Console: USB-Serial-JTAG.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../partitions/custom_partition_esp32s3.csv"
+
+# CAN TWAI deprecation suppression (IDF 6.1): the CANopen path uses the legacy
+# driver/twai.h API; suppress its #warning under -Werror until it moves to esp_twai.h.
+CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN=y
+
+# UC2 feature flags (env-app-mapping.md). CANopen ORIGINATOR node (NODE_ROLE=2):
+# writes expedited SDOs directly so motors/lasers work with no master on the bus.
+# No actuator controllers (same pattern as the ptz / ps4_usbhost bridges). The M5
+# display stack (M5GFX + M5Unified + M5Dial) is gated by UC2_M5DIAL / DIAL.
+CONFIG_UC2_NODE_ROLE=2
+CONFIG_UC2_CORE_DEBUG_LEVEL=0
+CONFIG_UC2_M5DIAL=y
+CONFIG_UC2_DIAL_CONTROLLER=y
+CONFIG_UC2_MESSAGE_CONTROLLER=y
+CONFIG_UC2_CAN_BUS_ENABLED=y
+CONFIG_UC2_CAN_CONTROLLER_CANOPEN=y
+
+# Strict flags (T1.1)
+CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_LEVEL=y
+CONFIG_COMPILER_STACK_CHECK=y

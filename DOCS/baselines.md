@@ -104,6 +104,40 @@ re-verified green.
   `UC2_canopen_standalone_v4` shadows are removed now; their Phase-3 app-local PinConfig.h
   is created fresh at T3.x.
 
+## Retirement checklists — D6 cutover gate (T2.12)
+
+A board's PIO env may be removed from the release matrix (T6.1) only when ALL four items
+in `refs/ci-cutover.md` §4 are ticked. Ticked as evidence lands; the pure-IDF `idf-build`
+matrix in `build-and-release.yaml` is the source for item 1. Size (item 3) is a **ceiling** —
+the raw-IDF image is ~40–49 % of the PIO baseline (Arduino-removal), so it is always inside
+the "must not grow > 10 %" band and starts pre-ticked. `m5stack_dial` / `waveshare_d7` are
+8 MB boards (not in the PIO table above) — plenty of partition headroom, item 3 pre-ticked.
+
+| app | 1. ≥3× green `idf-build` | 2. [HW] smoke (§5) | 3. size ≤ +10 % baseline | 4. tagged release on HW |
+|-----|:---:|:---:|:---:|:---:|
+| xiao_ledservo | ☐ | ☐ | ☑ | ☐ |
+| xiao_ledring | ☐ | ☐ | ☑ | ☐ |
+| xiao_odmr | ☐ | ☐ | ☑ | ☐ |
+| waveshare_ledarray | ☐ | ☐ | ☑ | ☐ |
+| canopen_slave_laser | ☐ | ☐ | ☑ | ☐ |
+| canopen_slave_led | ☐ | ☐ | ☑ | ☐ |
+| canopen_slave_gpio | ☐ | ☐ | ☑ | ☐ |
+| canopen_slave_galvo | ☐ | ☐ | ☑ | ☐ |
+| canopen_slave_accelmotor | ☐ | ☐ | ☑ | ☐ |
+| canopen_slave_motor (×5 axis) | ☐ | ☐ | ☑ | ☐ |
+| canopen_bridge_ptz | ☐ | ☐ | ☑ | ☐ |
+| canopen_bridge_ps4_usbhost | ☐ | ☐ | ☑ | ☐ |
+| uc2_2 | ☐ | ☐ | ☑ | ☐ |
+| uc2_3 | ☐ | ☐ | ☑ | ☐ |
+| uc2_4 | ☐ | ☐ | ☑ | ☐ |
+| uc2_wemos | ☐ | ☐ | ☑ | ☐ |
+| canopen_master | ☐ | ☐ | ☑ | ☐ |
+| canopen_standalone_v4 | ☐ | ☐ | ☑ | ☐ |
+| m5stack_dial | ☐ | ☐ | ☑ | ☐ |
+| waveshare_d7 | ☐ | ☐ | ☑ | ☐ |
+
+Parked boards (failed the gate twice — reason recorded here): _none yet._
+
 ## Reproduction
 
 ```powershell

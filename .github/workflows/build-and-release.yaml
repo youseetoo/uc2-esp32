@@ -205,6 +205,145 @@ jobs:
           path: build/fw-images/
           retention-days: 30
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # T2.12: pure-ESP-IDF build matrix (D6 dual-build phase). Builds every verified
+  # app via idf.py (NO PlatformIO), merges bootloader+partitions+app into one
+  # flashable image (idf.py merge-bin — flash params baked from the app's own
+  # sdkconfig, matching build-frame's "freshly compiled bootloader" rule), and
+  # uploads <board_id>-idf.bin. INDEPENDENT of the PIO build-all-firmware job and
+  # the release jobs (which stay on PIO artifacts until the T6.1 cutover).
+  # fail-fast:false so one red board never masks the rest.
+  #
+  # IDF is provisioned by espressif/setup-espressif pinned to the D1 version (6.1).
+  # Prefer a self-hosted runner / IDF container later (ci-cutover.md §1) by swapping
+  # the "Set up ESP-IDF" step for `container: image: espressif/idf:release-v6.1` —
+  # the build/merge/upload steps are unchanged.
+  #
+  # canopen_slave_motor is built once here (default axis); its 5 UC2_CAN_AXIS_ID
+  # variants ("", X, Y, Z, A) are the build-frame.yaml per-axis loop, not this matrix.
+  idf-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Phase 1/2 (ESP32-S3) ──
+          - app: xiao_ledservo
+            target: esp32s3
+            board_id: "seeed_xiao_esp32s3_ledservo"
+            chip_family: "ESP32-S3"
+          - app: xiao_ledring
+            target: esp32s3
+            board_id: "seeed_xiao_esp32s3_ledring"
+            chip_family: "ESP32-S3"
+          - app: xiao_odmr
+            target: esp32s3
+            board_id: "seeed_xiao_esp32s3"
+            chip_family: "ESP32-S3"
+          - app: waveshare_ledarray
+            target: esp32s3
+            board_id: "waveshare_esp32s3_ledarray"
+            chip_family: "ESP32-S3"
+          - app: canopen_slave_laser
+            target: esp32s3
+            board_id: "uc2-can-slave-laser"
+            chip_family: "ESP32-S3"
+          - app: canopen_slave_led
+            target: esp32s3
+            board_id: "uc2-can-slave-led"
+            chip_family: "ESP32-S3"
+          - app: canopen_slave_gpio
+            target: esp32s3
+            board_id: "uc2-can-slave-gpio"
+            chip_family: "ESP32-S3"
+          - app: canopen_slave_galvo
+            target: esp32s3
+            board_id: "uc2-can-slave-galvo"
+            chip_family: "ESP32-S3"
+          - app: canopen_slave_accelmotor
+            target: esp32s3
+            board_id: "uc2-can-slave-accelmotor"
+            chip_family: "ESP32-S3"
+          - app: canopen_slave_motor
+            target: esp32s3
+            board_id: "uc2-can-slave-motor"
+            chip_family: "ESP32-S3"
+          - app: canopen_bridge_ptz
+            target: esp32s3
+            board_id: "uc2-can-bridge-ptz"
+            chip_family: "ESP32-S3"
+          - app: canopen_bridge_ps4_usbhost
+            target: esp32s3
+            board_id: "uc2-can-bridge-ps4-usbhost"
+            chip_family: "ESP32-S3"
+          # ── Phase 3 (classic ESP32, BT) ──
+          - app: uc2_2
+            target: esp32
+            board_id: "esp32-uc2-standalone-2"
+            chip_family: "ESP32"
+          - app: uc2_3
+            target: esp32
+            board_id: "esp32-uc2-standalone-3"
+            chip_family: "ESP32"
+          - app: uc2_4
+            target: esp32
+            board_id: "esp32-uc2-standalone-4"
+            chip_family: "ESP32"
+          - app: uc2_wemos
+            target: esp32
+            board_id: "esp32-uc2-wemos"
+            chip_family: "ESP32"
+          - app: canopen_master
+            target: esp32
+            board_id: "uc2-can-master"
+            chip_family: "ESP32"
+          - app: canopen_standalone_v4
+            target: esp32
+            board_id: "uc2-can-standalone-v4"
+            chip_family: "ESP32"
+          # ── T5.4 (M5GFX-grouped, ESP32-S3 8MB) ──
+          - app: m5stack_dial
+            target: esp32s3
+            board_id: "m5stack_dial"
+            chip_family: "ESP32-S3"
+          - app: waveshare_d7
+            target: esp32s3
+            board_id: "waveshare_d7"
+            chip_family: "ESP32-S3"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git-ref || github.ref }}
+          submodules: recursive
+
+      - name: Set up ESP-IDF (D1 = 6.1)
+        uses: espressif/setup-espressif@v1
+        with:
+          idf-version: v6.1
+
+      - name: Build + merge (idf.py)
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          echo "==> idf.py build + merge-bin for ${{ matrix.app }} (target ${{ matrix.target }})"
+          idf.py build merge-bin
+          ls -lh build/${{ matrix.app }}-merged.bin
+
+      - name: Stage merged image
+        run: |
+          mkdir -p build/fw-images
+          cp "apps/${{ matrix.app }}/build/${{ matrix.app }}-merged.bin" \
+             "build/fw-images/${{ matrix.board_id }}-idf.bin"
+          ls -lh build/fw-images/
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idf-firmware-${{ matrix.board_id }}
+          path: build/fw-images/
+          retention-days: 30
+
   create-release:
     needs: build-all-firmware
     runs-on: ubuntu-latest

@@ -1,7 +1,8 @@
 # T1.9: uc2_serial — serial protocol + process (per-controller split).
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "serial/SerialProcess.cpp")
+    "serial/SerialProcessIn.cpp"
+    "serial/uc2_serial_out.c")
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
     # uc2_bt: BtController.h is included under #ifdef BLUETOOTH (SerialProcess.cpp); the stub

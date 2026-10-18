@@ -61,7 +61,7 @@ namespace StageScan
         char *s = cJSON_PrintUnformatted(json);
         if (s)
         {
-            SerialProcess::safeSendJsonString(s);
+            serial_out_safe_send_json_string(s);
             free(s);
         }
         cJSON_Delete(json);

@@ -9,25 +9,23 @@
 #ifdef ARDUINO
 #include "Arduino.h"
 #endif
+// T4.1: the thread-safe serial OUTPUT (safePrintln / safeSerializeJson /
+// safeSendJsonString + the output queue/task) moved to the pure-C
+// uc2_serial_out.h. C callers use serial_out_* directly; this header keeps
+// only the INPUT side (serialTask/loop/jsonProcessor/serialize/addJsonToQueue).
+#include "uc2_serial_out.h"
 
 namespace SerialProcess
 {
     // Queue-based processing to handle serial load without blocking main thread
     extern QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
 	extern TaskHandle_t xHandle;			// Task handle for the serial task
-	extern QueueHandle_t serialOutputQueue;	// Queue for thread-safe serial output
-	extern TaskHandle_t xOutputHandle;		// Task handle for serial output task
 
     void jsonProcessor(char * task,cJSON * jsonDocument);
     void serialize(cJSON * doc);
     void serialize(int success);
-    void safeSerializeJson(cJSON * doc);  // Thread-safe JSON serialization
-    void safeSendJsonString(char* jsonString); // Send pre-serialized JSON string with delimiters
     void serialTask(void *p);             // Serial processing task
-    void serialOutputTask(void *p);       // Serial output task
-    void safePrintln(const char* message); // Thread-safe Serial.println replacement
     void setup();
     void loop();
     void addJsonToQueue(cJSON * doc);   // Add a cJSON object to the processing queue
 };
-

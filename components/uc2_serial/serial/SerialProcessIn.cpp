@@ -1,6 +1,10 @@
 #include <PinConfig.h>
 #include "SerialProcess.h"
 #include "Endpoints.h"
+// T4.1: the serial OUTPUT side (safeSendJsonString/safePrintln/safeSerializeJson
+// + the output queue + task) was extracted to the pure-C uc2_serial_out.c. This
+// file keeps the INPUT side (serialTask/loop/jsonProcessor) + the serialize()
+// wrappers (which route through the C output).
 // T1.3: direct IDF (no Arduino) — uc2 façade for Serial / millis / delay /
 // log_* / ESP.restart(); FreeRTOS types come along via uc2_time.h.
 #include <cstdlib>  // malloc/free
@@ -9,6 +13,7 @@
 #include "uc2_hal/uc2_log.h"
 #include "uc2_hal/uc2_serial.h"
 #include "uc2_hal/uc2_time.h"
+#include "uc2_serial_out.h"   // T4.1: pure-C serial output (safeSendJsonString/…)
 #ifdef ANALOG_IN_CONTROLLER
 #include "AnalogInController.h"
 #endif
@@ -97,77 +102,9 @@ namespace SerialProcess
 	QueueHandle_t serialMSGQueue = nullptr; // Queue that buffers incoming messages and delegates them to the appropriate task
 	TaskHandle_t xHandle = nullptr;			// Task handle for the serial task
 
-	// Serial output queue to prevent race conditions
-	QueueHandle_t serialOutputQueue = nullptr; // Queue for serial output strings
-	TaskHandle_t xOutputHandle = nullptr;	   // Task handle for serial output task
-
-	// Structure to hold serial output messages
-	struct SerialMessage
-	{
-		char *message;
-		size_t length;
-	};
-
-	// Critical section mutex to prevent serial output interruption
-	portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-
-	// Serial output task - processes queued output to prevent race conditions
-	void serialOutputTask(void *p)
-	{
-		for (;;)
-		{
-			SerialMessage msg;
-			if (xQueueReceive(serialOutputQueue, &msg, portMAX_DELAY) == pdTRUE)
-			{
-				if (msg.message != nullptr)
-				{
-					// Direct serial write without critical section - this task has exclusive access
-					Serial.write((uint8_t *)msg.message, msg.length);
-					Serial.flush();
-
-					// Free the allocated message
-					free(msg.message);
-				}
-			}
-		}
-		vTaskDelete(NULL);
-	}
-
-	// Thread-safe Serial.println replacement
-	void safePrintln(const char *message)
-	{
-		if (message == nullptr || serialOutputQueue == nullptr)
-			return;
-
-		size_t len = strlen(message);
-		if (len == 0 || len > 8192)
-			return;
-
-		// Allocate buffer for message + newline
-		char *buffer = (char *)malloc(len + 2);
-		if (buffer == nullptr)
-		{
-			log_e("Failed to allocate serial output buffer");
-			return;
-		}
-
-		// Copy message and add newline
-		memcpy(buffer, message, len);
-		buffer[len] = '\n';
-		buffer[len + 1] = '\0';
-
-		SerialMessage msg;
-		msg.message = buffer;
-		msg.length = len + 1;
-
-		// Try to send to queue with timeout
-		if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
-		{
-			// Queue full - free buffer and drop message
-			free(buffer);
-			log_w("Serial output queue full - dropping message");
-		}
-	}
+	// T4.1: the output queue/task + safePrintln/safeSendJsonString/safeSerializeJson
+	// now live in the pure-C uc2_serial_out.c (see uc2_serial_out.h). This file
+	// keeps only the INPUT side (serialTask/loop) + the serialize() wrappers.
 
 	void serialTask(void *p)
 	{
@@ -223,81 +160,6 @@ namespace SerialProcess
 			cJSON_Delete(root); // Delete root after processing
 		}
 		vTaskDelete(NULL);
-	}
-
-	// Thread-safe JSON serial output function
-	void safeSerializeJson(cJSON *doc)
-	{
-		if (doc == NULL)
-		{
-			safePrintln("{\"error\":\"NULL JSON document\"}");
-			return;
-		}
-
-		// CRITICAL: Serialize JSON to string immediately
-		// The caller must ensure the cJSON object remains valid during this call
-		char *s = cJSON_PrintUnformatted(doc);
-		if (s == NULL)
-		{
-			safePrintln("{\"error\":\"Failed to serialize JSON\"}");
-			return;
-		}
-
-		// Send the serialized string and free it
-		safeSendJsonString(s);
-		free(s);
-	}
-
-	// Send a pre-serialized JSON string with protocol delimiters
-	// This is useful when JSON serialization needs to happen in a protected context
-	// The caller is responsible for freeing jsonString after calling this function
-	void safeSendJsonString(char *jsonString)
-	{
-		if (jsonString == NULL)
-		{
-			safePrintln("{\"error\":\"NULL JSON string\"}");
-			return;
-		}
-
-		// Build complete message with delimiters
-		size_t len = strlen(jsonString);
-		if (len == 0 || len > 8192)
-		{
-			safePrintln("{\"error\":\"JSON string too large or empty\"}");
-			return;
-		}
-
-		// Calculate buffer size: "++\n" (3) + jsonString (len) + "\n--\n" (4) + null terminator (1)
-		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char *buffer = (char *)malloc(totalLen);
-		if (buffer == nullptr)
-		{
-			safePrintln("{\"error\":\"Out of memory\"}");
-			return;
-		}
-
-		// Construct message: "++\n<json>\n--\n"
-		strcpy(buffer, "++\n");
-		strcat(buffer, jsonString);
-		strcat(buffer, "\n--\n");
-
-		// Send through output queue
-		if (serialOutputQueue != nullptr)
-		{
-			SerialMessage msg;
-			msg.message = buffer;
-			msg.length = strlen(buffer) + 1; // Include newline
-
-			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
-			{
-				free(buffer);
-				log_w("Serial output queue full - dropping JSON string");
-			}
-		}
-		else
-		{
-			free(buffer);
-		}
 	}
 
 	void processJsonDocument(cJSON *root)
@@ -357,11 +219,9 @@ namespace SerialProcess
 		if (xHandle == nullptr)
 			xTaskCreate(serialTask, "serialtask", pinConfig.BT_CONTROLLER_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &xHandle);
 
-		// Create queue and task for serial output to prevent race conditions
-		if (serialOutputQueue == nullptr)
-			serialOutputQueue = xQueueCreate(10, sizeof(SerialMessage)); // Queue for serial output
-		if (xOutputHandle == nullptr)
-			xTaskCreate(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle); // Higher priority
+		// T4.1: initialize the pure-C serial output (queue + task). Pass the
+		// board's output-task priority (was pinConfig.DEFAULT_TASK_PRIORITY + 1).
+		serial_out_init((UBaseType_t)(pinConfig.DEFAULT_TASK_PRIORITY + 1));
 
 		Serial.setTimeout(100);
 		QidRegistry::setup();
@@ -552,7 +412,7 @@ namespace SerialProcess
 	void serialize(cJSON *doc)
 	{
 		// Use the new thread-safe function
-		safeSerializeJson(doc);
+		serial_out_safe_serialize_json(doc);
 		// IMPORTANT: Only delete the doc if it's a new object created by a controller
 		// The serialTask is responsible for deleting the root request object
 		// This function is called with RESPONSE objects created by controllers (get/act functions)
@@ -589,40 +449,10 @@ namespace SerialProcess
 		if (s == NULL)
 			return;
 
-		// Build complete message with delimiters
-		size_t len = strlen(s);
-		// Calculate buffer size: "++\n" (3) + s (len) + "\n--\n" (4) + null terminator (1)
-		size_t totalLen = len + 8; // 3 + len + 4 + 1 for null terminator
-		char *buffer = (char *)malloc(totalLen);
-		if (buffer == nullptr)
-		{
-			free(s);
-			return;
-		}
-
-		// Construct message: "++\n<json>\n--\n"
-		strcpy(buffer, "++\n");
-		strcat(buffer, s);
-		strcat(buffer, "\n--\n");
+		// T4.1: build the "++\n<json>\n--\n" message and enqueue via the
+		// pure-C output path (serial_out.c).
+		serial_out_safe_send_json_string(s);
 		free(s);
-
-		// Send through output queue
-		if (serialOutputQueue != nullptr)
-		{
-			SerialMessage msg;
-			msg.message = buffer;
-			msg.length = strlen(buffer) + 1; // Include newline
-
-			if (xQueueSend(serialOutputQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE)
-			{
-				free(buffer);
-				log_w("Serial output queue full - dropping qid message");
-			}
-		}
-		else
-		{
-			free(buffer);
-		}
 	}
 
 	void jsonProcessor(char *task, cJSON *jsonDocument)
@@ -759,7 +589,7 @@ namespace SerialProcess
 			// Build message and send through queue
 			char buffer[32];
 			snprintf(buffer, sizeof(buffer), "++{'b':%d}--", State::getBusy());
-			safePrintln(buffer);
+			serial_out_safe_println(buffer);
 		}
 		else if (strcmp(task, modules_get_endpoint) == 0)
 		{

@@ -230,7 +230,7 @@ static void forwardGpioSlaveTpdo(uint8_t nodeId, const uint8_t* d)
         cJSON_AddNumberToObject(gpio, "raw",      adcR);
         char* s = cJSON_PrintUnformatted(root);
         if (s) {
-            SerialProcess::safeSendJsonString(s);
+            serial_out_safe_send_json_string(s);
             free(s);
         }
     }
@@ -283,7 +283,7 @@ static void forwardPtzSlaveTpdo(uint8_t nodeId, const uint8_t* d)
         cJSON_AddNumberToObject(ptz, "seq",   d[2]);
         char* s = cJSON_PrintUnformatted(root);
         if (s) {
-            SerialProcess::safeSendJsonString(s);
+            serial_out_safe_send_json_string(s);
             free(s);
         }
     }
@@ -833,7 +833,7 @@ static void axisEmcyRxCallback(const uint16_t ident, const uint16_t errorCode,
     char *json = cJSON_PrintUnformatted(root);
     if (json)
     {
-        SerialProcess::safeSendJsonString(json);
+        serial_out_safe_send_json_string(json);
         free(json);
     }
     cJSON_Delete(root);
@@ -2553,7 +2553,7 @@ void CANopenModule::syncRpdoToModules_master()
                         cJSON_AddNumberToObject(root, "qid", md ? md->qid : -1);
                         char* jsonStr = cJSON_PrintUnformatted(root);
                         if (jsonStr) {
-                            SerialProcess::safeSendJsonString(jsonStr);
+                            serial_out_safe_send_json_string(jsonStr);
                             free(jsonStr);
                         }
                     } else if (item) {

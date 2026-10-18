@@ -349,7 +349,7 @@ extern "C" void looper(void *p)
 			/* code */
 			char buffer[64];
 			snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
-			SerialProcess::safePrintln(buffer);
+			serial_out_safe_println(buffer);
 			lastHeapUpdateTime = esp_timer_get_time();
 		}
 		// Allow other tasks to run and reset the WDT
@@ -463,7 +463,7 @@ static void handleSquareCombined(int pressed)
             uint32_t pressDuration = millis() - btSquareState.pressStartTime;
             if (pressDuration > 3000)
             {
-                SerialProcess::safePrintln("Square button long-press detected, rebooting...");
+                serial_out_safe_println("Square button long-press detected, rebooting...");
                 ESP.restart();
             }
             else
@@ -725,7 +725,7 @@ PtzRouter::begin();
 //#ifdef BUZZER_CONTROLLER //TODO: We have to add this to the cmakelist.txt
 BuzzerController::setup();
 //#endif
-SerialProcess::safePrintln("{'setup':'done'}");
+serial_out_safe_println("{'setup':'done'}");
 }
 
 extern "C" void uc2_app_start(void)
@@ -795,7 +795,7 @@ extern "C" void uc2_app_start(void)
 	if (false and !hasBooted)
 	{ // some ESPs are freaking out on start, but this is not a good solution
 		// Set the flag to indicate that the ESP32 has booted once
-		SerialProcess::safePrintln("First boot");
+		serial_out_safe_println("First boot");
 		preferences.putBool("hasBooted", true);
 		preferences.end();
 		ESP.restart(); // Restart the ESP32 immediately
@@ -833,7 +833,7 @@ extern "C" void uc2_app_start(void)
 	if(0){
 		char buffer[64];
 		snprintf(buffer, sizeof(buffer), "free heap:%lu", (unsigned long)ESP.getFreeHeap());
-		SerialProcess::safePrintln(buffer);
+		serial_out_safe_println(buffer);
 	}
 	
 	// Run main loop on Core 1, let motor tasks use Core 0 for separation

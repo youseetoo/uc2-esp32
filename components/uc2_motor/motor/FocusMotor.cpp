@@ -826,7 +826,7 @@ namespace FocusMotor
 		xSemaphoreGive(xSerialMutex);
 
 		// Now send the pre-serialized string through the safe output queue
-		SerialProcess::safeSendJsonString(jsonString);
+		serial_out_safe_send_json_string(jsonString);
 
 		// Free the serialized string - cJSON_PrintUnformatted allocates with malloc
 		free(jsonString);

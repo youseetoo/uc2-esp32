@@ -66,7 +66,7 @@ namespace EncoderMonitor
         char *json = cJSON_PrintUnformatted(root);
         if (json)
         {
-            SerialProcess::safeSendJsonString(json);
+            serial_out_safe_send_json_string(json);
             free(json);
         }
         cJSON_Delete(root);

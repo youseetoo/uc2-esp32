@@ -77,7 +77,7 @@ namespace QidRegistry
         if (jsonString == NULL)
             return;
 
-        SerialProcess::safeSendJsonString(jsonString);
+        serial_out_safe_send_json_string(jsonString);
         free(jsonString);
     }
 
@@ -361,7 +361,7 @@ namespace QidRegistry
         if (jsonString == NULL)
             return -1;
 
-        SerialProcess::safeSendJsonString(jsonString);
+        serial_out_safe_send_json_string(jsonString);
         free(jsonString);
         return qid;
     }

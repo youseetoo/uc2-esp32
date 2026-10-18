@@ -1,47 +1,60 @@
 #pragma once
+// T4.1: C (was C++). enum class NodeRole -> C enum; struct RuntimeConfig loses
+// its in-class default initializers (now a designated initializer in NVSConfig.c)
+// and its isMaster/isSlave/hasCan methods (now static inline accessors). The
+// field set + names are unchanged so the NVS keys / JSON keys round-trip as before.
 #include <stdint.h>
+#include <stdbool.h>
 
-enum class NodeRole : uint8_t {
-    STANDALONE = 0,   // No CAN — serial/WiFi only (existing UC2_2, UC2_3 boards)
-    CAN_MASTER = 1,   // CAN HAT — bridges serial to CAN bus
-    CAN_SLAVE  = 2    // Satellite — receives commands via CAN
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-struct RuntimeConfig {
+typedef enum NodeRole {
+    NODE_ROLE_STANDALONE = 0,   // No CAN — serial/WiFi only (existing UC2_2, UC2_3 boards)
+    NODE_ROLE_CAN_MASTER = 1,   // CAN HAT — bridges serial to CAN bus
+    NODE_ROLE_CAN_SLAVE  = 2    // Satellite — receives commands via CAN
+} NodeRole;
+
+typedef struct RuntimeConfig {
     // Module enables — defaults match the most common board (UC2_3)
-    bool motor       = false;
-    bool laser       = false;
-    bool led         = false;
-    bool home        = false;
-    bool digitalIn   = false;
-    bool digitalOut  = false;
-    bool analogIn    = false;
-    bool analogOut   = false;
-    bool dac         = false;
-    bool tmc         = false;
-    bool encoder     = false;
-    bool joystick    = false;
-    bool galvo       = false;
-    bool bluetooth   = false;
-    bool wifi        = false;
-    bool pid         = false;
-    bool scanner     = false;
-    bool message     = false;
-    bool dial        = false;
-    bool objective   = false;
-    bool heat        = false;
-    bool fan         = false; // MCP4017-controlled case fan + TMP102 sensors
+    bool motor;
+    bool laser;
+    bool led;
+    bool home;
+    bool digitalIn;
+    bool digitalOut;
+    bool analogIn;
+    bool analogOut;
+    bool dac;
+    bool tmc;
+    bool encoder;
+    bool joystick;
+    bool galvo;
+    bool bluetooth;
+    bool wifi;
+    bool pid;
+    bool scanner;
+    bool message;
+    bool dial;
+    bool objective;
+    bool heat;
+    bool fan; // MCP4017-controlled case fan + TMP102 sensors
 
     // CAN role
-    NodeRole canRole = NodeRole::STANDALONE;
-    uint8_t  canNodeId = 10;     // CANopen node-id (1-127), stored in NVS
-    uint8_t  canMotorAxis = 1;  // Local FocusMotor index dispatched on slave (0-3), stored in NVS
+    NodeRole canRole;
+    uint8_t  canNodeId;     // CANopen node-id (1-127), stored in NVS
+    uint8_t  canMotorAxis;  // Local FocusMotor index dispatched on slave (0-3), stored in NVS
+} RuntimeConfig;
 
-    // Convenience
-    bool isMaster() const { return canRole == NodeRole::CAN_MASTER; }
-    bool isSlave()  const { return canRole == NodeRole::CAN_SLAVE; }
-    bool hasCan()   const { return canRole != NodeRole::STANDALONE; }
-};
-
-// Global instance — defined in NVSConfig.cpp
+// Global instance — defined in NVSConfig.c
 extern RuntimeConfig runtimeConfig;
+
+// Convenience accessors (C equivalents of the old C++ methods).
+static inline bool runtime_config_is_master(const RuntimeConfig *c) { return c->canRole == NODE_ROLE_CAN_MASTER; }
+static inline bool runtime_config_is_slave(const RuntimeConfig *c)  { return c->canRole == NODE_ROLE_CAN_SLAVE; }
+static inline bool runtime_config_has_can(const RuntimeConfig *c)   { return c->canRole != NODE_ROLE_STANDALONE; }
+
+#ifdef __cplusplus
+}
+#endif

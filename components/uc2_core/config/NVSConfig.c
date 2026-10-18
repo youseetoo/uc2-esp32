@@ -1,15 +1,39 @@
+// T4.1: C (was C++). namespace NVSConfig -> free functions (nvsconfig_*).
+// uc2::Preferences -> raw nvs_* (get-with-default + put/commit semantics
+// replicated in the nvsg_* helpers below). The original read the C++ global
+// pinConfig.CAN_ID_CURRENT in loadConfig; a .c TU cannot touch a C++ object, so
+// the caller now passes (pinConfig.CAN_ID_CURRENT & 0x7F) as pin_cfg_node_id.
+// That value is captured (s_pin_cfg_node_id) so nvsconfig_reset can re-load with
+// the same board default. log_* -> ESP_LOG* (esp_log.h, C-compatible).
 #include "NVSConfig.h"
 #include "RuntimeConfig.h"
-#include "PinConfig.h"
-#include "uc2_hal/uc2_prefs.h"
-#include "cJSON.h"
+
 #include "esp_log.h"
+#include "nvs.h"
 
-static const char* TAG = "NVSConfig";
-static const char* NVS_NAMESPACE = "uc2cfg";
+static const char *TAG = "NVSConfig";
+static const char *NVS_NAMESPACE = "uc2cfg";
 
-// Global RuntimeConfig instance
-RuntimeConfig runtimeConfig;
+// Global RuntimeConfig instance (C99 designated init; all bool fields default
+// to false, matching the old in-class member initializers).
+RuntimeConfig runtimeConfig = {
+    .canRole = NODE_ROLE_STANDALONE,
+    .canNodeId = 10,
+    .canMotorAxis = 1,
+};
+
+// Board CAN id captured by the most recent nvsconfig_load (used by reset).
+static uint8_t s_pin_cfg_node_id = 10;
+
+// raw-nvs helper: nvs_get_u8 with a default (like uc2::Preferences::getUChar).
+static uint8_t nvsg_get_u8(nvs_handle_t h, const char *k, uint8_t def)
+{
+    uint8_t v = def;
+    if (h == 0 || nvs_get_u8(h, k, &v) != ESP_OK) {
+        return def;
+    }
+    return v;
+}
 
 // ── Compile-time defaults derived from build flags ──────────────────────────
 
@@ -18,127 +42,106 @@ RuntimeConfig runtimeConfig;
 #else
   #define DEFAULT_MOTOR false
 #endif
-
 #ifdef LASER_CONTROLLER
   #define DEFAULT_LASER true
 #else
   #define DEFAULT_LASER false
 #endif
-
 #ifdef LED_CONTROLLER
   #define DEFAULT_LED true
 #else
   #define DEFAULT_LED false
 #endif
-
 #ifdef HOME_MOTOR
   #define DEFAULT_HOME true
 #else
   #define DEFAULT_HOME false
 #endif
-
 #ifdef DIGITAL_IN_CONTROLLER
   #define DEFAULT_DIGITALIN true
 #else
   #define DEFAULT_DIGITALIN false
 #endif
-
 #ifdef DIGITAL_OUT_CONTROLLER
   #define DEFAULT_DIGITALOUT true
 #else
   #define DEFAULT_DIGITALOUT false
 #endif
-
 #ifdef ANALOG_IN_CONTROLLER
   #define DEFAULT_ANALOGIN true
 #else
   #define DEFAULT_ANALOGIN false
 #endif
-
 #ifdef ANALOG_OUT_CONTROLLER
   #define DEFAULT_ANALOGOUT true
 #else
   #define DEFAULT_ANALOGOUT false
 #endif
-
 #ifdef DAC_CONTROLLER
   #define DEFAULT_DAC true
 #else
   #define DEFAULT_DAC false
 #endif
-
 #ifdef TMC_CONTROLLER
   #define DEFAULT_TMC true
 #else
   #define DEFAULT_TMC false
 #endif
-
 #ifdef LINEAR_ENCODER_CONTROLLER
   #define DEFAULT_ENCODER true
 #else
   #define DEFAULT_ENCODER false
 #endif
-
 #ifdef ANALOG_JOYSTICK
   #define DEFAULT_JOYSTICK true
 #else
   #define DEFAULT_JOYSTICK false
 #endif
-
 #ifdef GALVO_CONTROLLER
   #define DEFAULT_GALVO true
 #else
   #define DEFAULT_GALVO false
 #endif
-
 #ifdef BLUETOOTH
   #define DEFAULT_BLUETOOTH true
 #else
   #define DEFAULT_BLUETOOTH false
 #endif
-
 #ifdef WIFI
   #define DEFAULT_WIFI true
 #else
   #define DEFAULT_WIFI false
 #endif
-
 #ifdef PID_CONTROLLER
   #define DEFAULT_PID true
 #else
   #define DEFAULT_PID false
 #endif
-
 #ifdef SCANNER_CONTROLLER
   #define DEFAULT_SCANNER true
 #else
   #define DEFAULT_SCANNER false
 #endif
-
 #ifdef MESSAGE_CONTROLLER
   #define DEFAULT_MESSAGE true
 #else
   #define DEFAULT_MESSAGE false
 #endif
-
 #ifdef DIAL_CONTROLLER
   #define DEFAULT_DIAL true
 #else
   #define DEFAULT_DIAL false
 #endif
-
 #ifdef OBJECTIVE_CONTROLLER
   #define DEFAULT_OBJECTIVE true
 #else
   #define DEFAULT_OBJECTIVE false
 #endif
-
 #ifdef HEAT_CONTROLLER
   #define DEFAULT_HEAT true
 #else
   #define DEFAULT_HEAT false
 #endif
-
 #if defined(FAN_CONTROLLER) || defined(TMP102_CONTROLLER)
   #define DEFAULT_FAN true
 #else
@@ -147,61 +150,62 @@ RuntimeConfig runtimeConfig;
 
 // CAN role default
 #if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
-  #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_MASTER)
+  #define DEFAULT_CAN_ROLE (NODE_ROLE_CAN_MASTER)
 #elif defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 2)
-  #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_SLAVE)
+  #define DEFAULT_CAN_ROLE (NODE_ROLE_CAN_SLAVE)
 #elif defined(CAN_BUS_ENABLED)
-  #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::CAN_MASTER)
+  #define DEFAULT_CAN_ROLE (NODE_ROLE_CAN_MASTER)
 #else
-  #define DEFAULT_CAN_ROLE ((uint8_t)NodeRole::STANDALONE)
+  #define DEFAULT_CAN_ROLE (NODE_ROLE_STANDALONE)
 #endif
 
 // ── Implementation ──────────────────────────────────────────────────────────
 
-void NVSConfig::loadConfig()
+void nvsconfig_load(uint8_t pin_cfg_node_id)
 {
-    uc2::Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, true); // read-only
-
-    runtimeConfig.motor      = prefs.getBool("motor",      DEFAULT_MOTOR);
-    runtimeConfig.laser      = prefs.getBool("laser",      DEFAULT_LASER);
-    runtimeConfig.led        = prefs.getBool("led",        DEFAULT_LED);
-    runtimeConfig.home       = prefs.getBool("home",       DEFAULT_HOME);
-    runtimeConfig.digitalIn  = prefs.getBool("digitalIn",  DEFAULT_DIGITALIN);
-    runtimeConfig.digitalOut = prefs.getBool("digitalOut",  DEFAULT_DIGITALOUT);
-    runtimeConfig.analogIn   = prefs.getBool("analogIn",   DEFAULT_ANALOGIN);
-    runtimeConfig.analogOut  = prefs.getBool("analogOut",  DEFAULT_ANALOGOUT);
-    runtimeConfig.dac        = prefs.getBool("dac",        DEFAULT_DAC);
-    runtimeConfig.tmc        = prefs.getBool("tmc",        DEFAULT_TMC);
-    runtimeConfig.encoder    = prefs.getBool("encoder",    DEFAULT_ENCODER);
-    runtimeConfig.joystick   = prefs.getBool("joystick",   DEFAULT_JOYSTICK);
-    runtimeConfig.galvo      = prefs.getBool("galvo",      DEFAULT_GALVO);
-    runtimeConfig.bluetooth  = prefs.getBool("bluetooth",  DEFAULT_BLUETOOTH);
-    runtimeConfig.wifi       = prefs.getBool("wifi",       DEFAULT_WIFI);
-    runtimeConfig.pid        = prefs.getBool("pid",        DEFAULT_PID);
-    runtimeConfig.scanner    = prefs.getBool("scanner",    DEFAULT_SCANNER);
-    runtimeConfig.message    = prefs.getBool("message",    DEFAULT_MESSAGE);
-    runtimeConfig.dial       = prefs.getBool("dial",       DEFAULT_DIAL);
-    runtimeConfig.objective  = prefs.getBool("objective",  DEFAULT_OBJECTIVE);
-    runtimeConfig.heat       = prefs.getBool("heat",       DEFAULT_HEAT);
-    runtimeConfig.fan        = prefs.getBool("fan",        DEFAULT_FAN);
-
-    runtimeConfig.canRole      = (NodeRole)prefs.getUChar("canRole",   DEFAULT_CAN_ROLE);
-    // Default canNodeId comes from the board's PinConfig (CAN_ID_CURRENT).
-    // On first boot the NVS key is absent → we use the hardware-defined default
-    // (e.g. CAN_ID_LASER_0 for laser slave, CAN_ID_MOT_X for motor slave).
-    // On subsequent boots the stored value is used (may have been changed by
-    // LSS conflict resolution or via configuration command).
-    {
-        uint8_t pinCfgNodeId = (uint8_t)(pinConfig.CAN_ID_CURRENT & 0x7F);
-        if (pinCfgNodeId < 1 || pinCfgNodeId > 127) {
-            pinCfgNodeId = 10; // safe fallback
-        }
-        runtimeConfig.canNodeId = prefs.getUChar("canNodeId", pinCfgNodeId);
+    nvs_handle_t h = 0;
+    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) != ESP_OK) {
+        h = 0; // namespace absent / not yet initialized -> compile-time defaults
     }
-    runtimeConfig.canMotorAxis = prefs.getUChar("canMotAxis", 1);
 
-    prefs.end();
+    runtimeConfig.motor      = nvsg_get_u8(h, "motor",      DEFAULT_MOTOR) != 0;
+    runtimeConfig.laser      = nvsg_get_u8(h, "laser",      DEFAULT_LASER) != 0;
+    runtimeConfig.led        = nvsg_get_u8(h, "led",        DEFAULT_LED) != 0;
+    runtimeConfig.home       = nvsg_get_u8(h, "home",       DEFAULT_HOME) != 0;
+    runtimeConfig.digitalIn  = nvsg_get_u8(h, "digitalIn",  DEFAULT_DIGITALIN) != 0;
+    runtimeConfig.digitalOut = nvsg_get_u8(h, "digitalOut", DEFAULT_DIGITALOUT) != 0;
+    runtimeConfig.analogIn   = nvsg_get_u8(h, "analogIn",   DEFAULT_ANALOGIN) != 0;
+    runtimeConfig.analogOut  = nvsg_get_u8(h, "analogOut",  DEFAULT_ANALOGOUT) != 0;
+    runtimeConfig.dac        = nvsg_get_u8(h, "dac",        DEFAULT_DAC) != 0;
+    runtimeConfig.tmc        = nvsg_get_u8(h, "tmc",        DEFAULT_TMC) != 0;
+    runtimeConfig.encoder    = nvsg_get_u8(h, "encoder",    DEFAULT_ENCODER) != 0;
+    runtimeConfig.joystick   = nvsg_get_u8(h, "joystick",   DEFAULT_JOYSTICK) != 0;
+    runtimeConfig.galvo      = nvsg_get_u8(h, "galvo",      DEFAULT_GALVO) != 0;
+    runtimeConfig.bluetooth  = nvsg_get_u8(h, "bluetooth",  DEFAULT_BLUETOOTH) != 0;
+    runtimeConfig.wifi       = nvsg_get_u8(h, "wifi",       DEFAULT_WIFI) != 0;
+    runtimeConfig.pid        = nvsg_get_u8(h, "pid",        DEFAULT_PID) != 0;
+    runtimeConfig.scanner    = nvsg_get_u8(h, "scanner",    DEFAULT_SCANNER) != 0;
+    runtimeConfig.message    = nvsg_get_u8(h, "message",    DEFAULT_MESSAGE) != 0;
+    runtimeConfig.dial       = nvsg_get_u8(h, "dial",       DEFAULT_DIAL) != 0;
+    runtimeConfig.objective  = nvsg_get_u8(h, "objective",  DEFAULT_OBJECTIVE) != 0;
+    runtimeConfig.heat       = nvsg_get_u8(h, "heat",       DEFAULT_HEAT) != 0;
+    runtimeConfig.fan        = nvsg_get_u8(h, "fan",        DEFAULT_FAN) != 0;
+
+    runtimeConfig.canRole = (NodeRole)nvsg_get_u8(h, "canRole", (uint8_t)DEFAULT_CAN_ROLE);
+
+    // Default canNodeId comes from the board's PinConfig (CAN_ID_CURRENT), passed
+    // in by the C++ caller. On first boot the NVS key is absent -> the hardware
+    // default is used; on later boots the stored value wins (LSS / serial edits).
+    if (pin_cfg_node_id < 1 || pin_cfg_node_id > 127) {
+        pin_cfg_node_id = 10; // safe fallback
+    }
+    s_pin_cfg_node_id = pin_cfg_node_id;
+    runtimeConfig.canNodeId = nvsg_get_u8(h, "canNodeId", pin_cfg_node_id);
+    runtimeConfig.canMotorAxis = nvsg_get_u8(h, "canMotAxis", 1);
+
+    if (h) {
+        nvs_close(h);
+    }
 
     ESP_LOGI(TAG, "Loaded: motor=%d laser=%d led=%d home=%d bt=%d wifi=%d canRole=%d canNodeId=%u",
              runtimeConfig.motor, runtimeConfig.laser, runtimeConfig.led,
@@ -209,56 +213,63 @@ void NVSConfig::loadConfig()
              (int)runtimeConfig.canRole, (unsigned)runtimeConfig.canNodeId);
 }
 
-void NVSConfig::saveConfig()
+void nvsconfig_save(void)
 {
-    uc2::Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, false); // read-write
+    nvs_handle_t h = 0;
+    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) != ESP_OK) {
+        return;
+    }
 
-    prefs.putBool("motor",      runtimeConfig.motor);
-    prefs.putBool("laser",      runtimeConfig.laser);
-    prefs.putBool("led",        runtimeConfig.led);
-    prefs.putBool("home",       runtimeConfig.home);
-    prefs.putBool("digitalIn",  runtimeConfig.digitalIn);
-    prefs.putBool("digitalOut", runtimeConfig.digitalOut);
-    prefs.putBool("analogIn",   runtimeConfig.analogIn);
-    prefs.putBool("analogOut",  runtimeConfig.analogOut);
-    prefs.putBool("dac",        runtimeConfig.dac);
-    prefs.putBool("tmc",        runtimeConfig.tmc);
-    prefs.putBool("encoder",    runtimeConfig.encoder);
-    prefs.putBool("joystick",   runtimeConfig.joystick);
-    prefs.putBool("galvo",      runtimeConfig.galvo);
-    prefs.putBool("bluetooth",  runtimeConfig.bluetooth);
-    prefs.putBool("wifi",       runtimeConfig.wifi);
-    prefs.putBool("pid",        runtimeConfig.pid);
-    prefs.putBool("scanner",    runtimeConfig.scanner);
-    prefs.putBool("message",    runtimeConfig.message);
-    prefs.putBool("dial",       runtimeConfig.dial);
-    prefs.putBool("objective",  runtimeConfig.objective);
-    prefs.putBool("heat",       runtimeConfig.heat);
-    prefs.putBool("fan",        runtimeConfig.fan);
+    nvs_set_u8(h, "motor",      runtimeConfig.motor ? 1 : 0);
+    nvs_set_u8(h, "laser",      runtimeConfig.laser ? 1 : 0);
+    nvs_set_u8(h, "led",        runtimeConfig.led ? 1 : 0);
+    nvs_set_u8(h, "home",       runtimeConfig.home ? 1 : 0);
+    nvs_set_u8(h, "digitalIn",  runtimeConfig.digitalIn ? 1 : 0);
+    nvs_set_u8(h, "digitalOut", runtimeConfig.digitalOut ? 1 : 0);
+    nvs_set_u8(h, "analogIn",   runtimeConfig.analogIn ? 1 : 0);
+    nvs_set_u8(h, "analogOut",  runtimeConfig.analogOut ? 1 : 0);
+    nvs_set_u8(h, "dac",        runtimeConfig.dac ? 1 : 0);
+    nvs_set_u8(h, "tmc",        runtimeConfig.tmc ? 1 : 0);
+    nvs_set_u8(h, "encoder",    runtimeConfig.encoder ? 1 : 0);
+    nvs_set_u8(h, "joystick",   runtimeConfig.joystick ? 1 : 0);
+    nvs_set_u8(h, "galvo",      runtimeConfig.galvo ? 1 : 0);
+    nvs_set_u8(h, "bluetooth",  runtimeConfig.bluetooth ? 1 : 0);
+    nvs_set_u8(h, "wifi",       runtimeConfig.wifi ? 1 : 0);
+    nvs_set_u8(h, "pid",        runtimeConfig.pid ? 1 : 0);
+    nvs_set_u8(h, "scanner",    runtimeConfig.scanner ? 1 : 0);
+    nvs_set_u8(h, "message",    runtimeConfig.message ? 1 : 0);
+    nvs_set_u8(h, "dial",       runtimeConfig.dial ? 1 : 0);
+    nvs_set_u8(h, "objective",  runtimeConfig.objective ? 1 : 0);
+    nvs_set_u8(h, "heat",       runtimeConfig.heat ? 1 : 0);
+    nvs_set_u8(h, "fan",        runtimeConfig.fan ? 1 : 0);
 
-    prefs.putUChar("canRole",   (uint8_t)runtimeConfig.canRole);
-    prefs.putUChar("canNodeId",  runtimeConfig.canNodeId);
-    prefs.putUChar("canMotAxis", runtimeConfig.canMotorAxis);
+    nvs_set_u8(h, "canRole",    (uint8_t)runtimeConfig.canRole);
+    nvs_set_u8(h, "canNodeId",  runtimeConfig.canNodeId);
+    nvs_set_u8(h, "canMotAxis", runtimeConfig.canMotorAxis);
 
-    prefs.end();
+    nvs_commit(h);
+    nvs_close(h);
     ESP_LOGI(TAG, "Config saved to NVS");
 }
 
-void NVSConfig::resetConfig()
+void nvsconfig_reset(void)
 {
-    uc2::Preferences prefs;
-    prefs.begin(NVS_NAMESPACE, false);
-    prefs.clear();
-    prefs.end();
+    nvs_handle_t h = 0;
+    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_erase_all(h);
+        nvs_commit(h);
+        nvs_close(h);
+    }
     ESP_LOGI(TAG, "NVS namespace cleared, reloading compile-time defaults");
-    loadConfig();
+    nvsconfig_load(s_pin_cfg_node_id);
 }
 
-cJSON* NVSConfig::toJson()
+cJSON *nvsconfig_to_json(void)
 {
-    cJSON* json = cJSON_CreateObject();
-    if (!json) return nullptr;
+    cJSON *json = cJSON_CreateObject();
+    if (!json) {
+        return NULL;
+    }
 
     cJSON_AddBoolToObject(json, "motor",      runtimeConfig.motor);
     cJSON_AddBoolToObject(json, "laser",      runtimeConfig.laser);
@@ -290,11 +301,13 @@ cJSON* NVSConfig::toJson()
     return json;
 }
 
-void NVSConfig::fromJson(cJSON* json)
+void nvsconfig_from_json(cJSON *json)
 {
-    if (!json) return;
+    if (!json) {
+        return;
+    }
 
-    cJSON* item;
+    cJSON *item;
 
     item = cJSON_GetObjectItemCaseSensitive(json, "motor");
     if (item && cJSON_IsBool(item)) runtimeConfig.motor = cJSON_IsTrue(item);

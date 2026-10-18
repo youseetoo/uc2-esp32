@@ -1,9 +1,11 @@
 //#define CORE_isDEBUG_LEVEL 0
 #include "esp_log.h"
 #include "PinConfig.h"
-#include "src/config/ConfigController.h"
-#include "src/config/RuntimeConfig.h"
-#include "src/config/NVSConfig.h"
+// T4.1: config is now C (components/uc2_core/config) — include the component
+// headers directly (the old main/src/config/ C++ copies are PIO-build-only now).
+#include "ConfigController.h"
+#include "RuntimeConfig.h"
+#include "NVSConfig.h"
 #include "src/serial/SerialProcess.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -818,11 +820,11 @@ extern "C" void uc2_app_start(void)
 	#endif
 
 	// initialize the pin/settings configurator
-	log_i("Config::setup");
-	Config::setup();
+	log_i("config_setup");
+	config_setup(pinConfig.pindefName);
 
 	// Load runtime module configuration from NVS (overrides compile-time defaults)
-	NVSConfig::loadConfig();
+	nvsconfig_load((uint8_t)(pinConfig.CAN_ID_CURRENT & 0x7F));
 
 	// initialize the module controller
 	setupApp();

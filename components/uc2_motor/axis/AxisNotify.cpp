@@ -101,7 +101,7 @@ namespace AxisNotify
                 break;
 
 #ifdef CAN_CONTROLLER_CANOPEN
-            if (runtimeConfig.isSlave())
+            if (runtime_config_is_slave(&runtimeConfig))
             {
                 // The host lives behind the master: raise an EMCY; the master
                 // converts it to the JSON event.

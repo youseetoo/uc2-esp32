@@ -4,8 +4,8 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
     "state/State.cpp"
-    "config/NVSConfig.cpp"
-    "config/ConfigController.cpp"
+    "config/NVSConfig.c"
+    "config/ConfigController.c"
     "qid/QidRegistry.cpp"
     "buzzer/BuzzerController.cpp")
 if(CONFIG_UC2_MESSAGE_CONTROLLER)

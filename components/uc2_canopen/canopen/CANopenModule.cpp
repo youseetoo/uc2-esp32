@@ -395,7 +395,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                     // so the GPIO slave's TPDO2 is consumed by a direct
                     // TWAI hook instead. Payload layout matches OD x1A01
                     // (4x u8 digital + 2x u16 analog).
-                    if (runtimeConfig.isMaster() &&
+                    if (runtime_config_is_master(&runtimeConfig) &&
                         pinConfig.MASTER_GPIO_SLAVE_NODE_ID > 0 &&
                         fc == 0x280 &&
                         src == (uint8_t)pinConfig.MASTER_GPIO_SLAVE_NODE_ID &&
@@ -407,7 +407,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                     // ── PTZ-bridge TPDO2 sniffer (master only) ───────────
                     // Same transport as the GPIO slave, PTZ key-event
                     // payload (0x80 marker + seq dedup inside).
-                    if (runtimeConfig.isMaster() &&
+                    if (runtime_config_is_master(&runtimeConfig) &&
                         pinConfig.MASTER_PTZ_NODE_ID > 0 &&
                         fc == 0x280 &&
                         src == (uint8_t)pinConfig.MASTER_PTZ_NODE_ID &&
@@ -1439,7 +1439,7 @@ void CANopenModule::CO_main_task(void* arg)
             ESP_LOGW(TAG_CO, "LSS reassigned node-id %u -> %u (saved to NVS)",
                      (unsigned)runtimeConfig.canNodeId, (unsigned)activeNodeId);
             runtimeConfig.canNodeId = activeNodeId;
-            NVSConfig::saveConfig();
+            nvsconfig_save();
         }
         uint32_t errInfo = 0;
 
@@ -1467,7 +1467,7 @@ void CANopenModule::CO_main_task(void* arg)
 #if (CO_CONFIG_EM) & CO_CONFIG_EM_CONSUMER
         // Master converts inbound axis-fault EMCY (from motor slaves) into
         // {"axisEvent":...} JSON on the host serial channel (design v2, WP5).
-        if (runtimeConfig.isMaster()) {
+        if (runtime_config_is_master(&runtimeConfig)) {
             CO_EM_initCallbackRx(CO->em, axisEmcyRxCallback);
         }
 #endif
@@ -1959,7 +1959,7 @@ cJSON* CANopenModule::act(cJSON* doc)
     }
 
     if (changed) {
-        NVSConfig::saveConfig();
+        nvsconfig_save();
         cJSON_AddStringToObject(resp, "status", "saved");
         cJSON_AddNumberToObject(resp, "nodeId",       runtimeConfig.canNodeId);
         cJSON_AddNumberToObject(resp, "canMotorAxis", runtimeConfig.canMotorAxis);
@@ -2032,7 +2032,7 @@ static PendingHardLimitCmd s_hardlimitCmds[4];
 // ============================================================================
 void CANopenModule::syncRpdoToModules()
 {
-    if (runtimeConfig.isSlave()) {
+    if (runtime_config_is_slave(&runtimeConfig)) {
         syncRpdoToModules_slave();
     } else {
         syncRpdoToModules_master();
@@ -2465,7 +2465,7 @@ void CANopenModule::syncRpdoToModules_slave()
                 log_i("Commanded node-id %u via CANopen (was %u) — save + deferred reset",
                       newId, runtimeConfig.canNodeId);
                 runtimeConfig.canNodeId = newId;
-                NVSConfig::saveConfig();
+                nvsconfig_save();
                 pendingResetAtMs = millis() + 250;
             }
             OD_RAM.x250A_commanded_node_id = 0;  // consume (also clears no-op/out-of-range)
@@ -2616,7 +2616,7 @@ void CANopenModule::syncModulesToTpdo()
     OD_RAM.x2504_free_heap_bytes = (uint32_t)esp_get_free_heap_size();
 
     // Only slaves need to push module state into OD for TPDOs
-    if (!runtimeConfig.isSlave()) return;
+    if (!runtime_config_is_slave(&runtimeConfig)) return;
 
 #ifdef MOTOR_CONTROLLER
     int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;

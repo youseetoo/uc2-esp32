@@ -844,14 +844,14 @@ namespace SerialProcess
 		else if (strcmp(task, config_get_endpoint) == 0)
 		{
 			// Return current runtime configuration as JSON
-			cJSON *cfg = NVSConfig::toJson();
+			cJSON *cfg = nvsconfig_to_json();
 			serialize(cfg);
 		}
 		else if (strcmp(task, config_set_endpoint) == 0)
 		{
 			// Merge partial JSON into runtimeConfig and persist to NVS
-			NVSConfig::fromJson(jsonDocument);
-			NVSConfig::saveConfig();
+			nvsconfig_from_json(jsonDocument);
+			nvsconfig_save();
 			cJSON *resp = cJSON_CreateObject();
 			cJSON_AddNumberToObject(resp, "success", 1);
 			cJSON_AddStringToObject(resp, "msg", "config saved, reboot to apply");
@@ -860,7 +860,7 @@ namespace SerialProcess
 		else if (strcmp(task, config_reset_endpoint) == 0)
 		{
 			// Clear NVS config namespace and reboot
-			NVSConfig::resetConfig();
+			nvsconfig_reset();
 			cJSON *resp = cJSON_CreateObject();
 			cJSON_AddNumberToObject(resp, "success", 1);
 			cJSON_AddStringToObject(resp, "msg", "config reset, rebooting");

@@ -136,12 +136,12 @@ static void resolveRoute(RouteEntry::Type type, uint8_t logicalId,
     log_i("Inferring route for type=%d id=%d: canRole=%d hasLocalPin=%d",
           int(type), int(logicalId), int(runtimeConfig.canRole), int(hasLocalPin));
     switch (runtimeConfig.canRole) {
-    case NodeRole::STANDALONE:
-    case NodeRole::CAN_SLAVE:
+    case NODE_ROLE_STANDALONE:
+    case NODE_ROLE_CAN_SLAVE:
         RoutingTable::set(type, logicalId,
             hasLocalPin ? RouteEntry::LOCAL : RouteEntry::OFF);
         break;
-    case NodeRole::CAN_MASTER:
+    case NODE_ROLE_CAN_MASTER:
         if (hasLocalPin) {
             RoutingTable::set(type, logicalId, RouteEntry::LOCAL);
         } else {
@@ -189,12 +189,12 @@ void RoutingTable::buildDefault() {
         } else {
             // Infer from canRole + local pin availability
             switch (runtimeConfig.canRole) {
-            case NodeRole::STANDALONE:
-            case NodeRole::CAN_SLAVE:
+            case NODE_ROLE_STANDALONE:
+            case NODE_ROLE_CAN_SLAVE:
                 RoutingTable::set(RouteEntry::LASER, ch,
                     hasPin ? RouteEntry::LOCAL : RouteEntry::OFF, 0, sub);
                 break;
-            case NodeRole::CAN_MASTER:
+            case NODE_ROLE_CAN_MASTER:
                 if (hasPin) {
                     RoutingTable::set(RouteEntry::LASER, ch, RouteEntry::LOCAL, 0, sub);
                 } else {
@@ -225,12 +225,12 @@ void RoutingTable::buildDefault() {
             RoutingTable::set(RouteEntry::LASER, ch, w, resolvedNid, sub4);
         } else {
             switch (runtimeConfig.canRole) {
-            case NodeRole::STANDALONE:
-            case NodeRole::CAN_SLAVE:
+            case NODE_ROLE_STANDALONE:
+            case NODE_ROLE_CAN_SLAVE:
                 RoutingTable::set(RouteEntry::LASER, ch,
                     hasPin4 ? RouteEntry::LOCAL : RouteEntry::OFF, 0, sub4);
                 break;
-            case NodeRole::CAN_MASTER:
+            case NODE_ROLE_CAN_MASTER:
                 if (hasPin4) {
                     RoutingTable::set(RouteEntry::LASER, ch, RouteEntry::LOCAL, 0, sub4);
                 } else {

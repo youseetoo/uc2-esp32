@@ -1705,7 +1705,7 @@ cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
 
 #ifdef CAN_CONTROLLER_CANOPEN
     // REMOTE path: explicit "node" key on a master forces SDO forwarding.
-    if (runtimeConfig.isMaster() && node > 0) {
+    if (runtime_config_is_master(&runtimeConfig) && node > 0) {
         log_i("DR digitalout_act REMOTE  node=%u id=%d val=%d", node, id, val);
         bool ok = CANopenModule_setRemoteGpio(node, (uint8_t)id, val);
         if (!ok) {
@@ -1782,7 +1782,7 @@ cJSON* DeviceRouter::handleGpioAct(cJSON* doc) {
     log_i("DR gpio_act LOCAL  doc=%p", doc);
     return GpioCanSlave::act(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
-    if (!runtimeConfig.isMaster()) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -1856,7 +1856,7 @@ cJSON* DeviceRouter::handleGpioGet(cJSON* doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
     return GpioCanSlave::get(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
-    if (!runtimeConfig.isMaster()) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -2010,7 +2010,7 @@ cJSON* DeviceRouter::handleI2cAct(cJSON* doc) {
     addI2cResponse(resp, status, data, got, doc);
     return resp;
 #elif defined(CAN_CONTROLLER_CANOPEN)
-    if (!runtimeConfig.isMaster()) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -2073,7 +2073,7 @@ cJSON* DeviceRouter::handleI2cAct(cJSON* doc) {
 cJSON* DeviceRouter::handleI2cGet(cJSON* doc) {
     // Re-read the last response buffer without re-triggering a transaction.
 #if defined(CAN_CONTROLLER_CANOPEN) && !defined(I2C_BRIDGE_CONTROLLER)
-    if (!runtimeConfig.isMaster()) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -2105,7 +2105,7 @@ cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
     int id = cJsonTool::getJsonInt(doc, "digitalinid");
 
 #ifdef CAN_CONTROLLER_CANOPEN
-    if (runtimeConfig.isMaster() && node > 0) {
+    if (runtime_config_is_master(&runtimeConfig) && node > 0) {
         // SDO read OD 0x2300 sub `id` from the remote slave. id is 1-based to
         // mirror the local API; sub 0 is the array length per CiA 301.
         uint8_t v = 0; size_t got = 0;

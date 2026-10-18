@@ -111,8 +111,8 @@ namespace BtController
 
 // get the bluetooth config
 #ifdef PSXCONTROLLER
-        char *m = Config::getPsxMac();
-        int type = Config::getPsxControllerType();
+        char *m = config_psx_mac_get();
+        int type = config_psx_type_get();
 
         if (m != NULL && pinConfig.PSX_MAC != NULL)
         {
@@ -494,8 +494,8 @@ namespace BtController
     void connectPsxController(char *mac, int type)
     {
         log_i("start psx advertising with mac: %s type:%i", mac, type);
-        Config::setPsxMac(mac);
-        Config::setPsxControllerType(type);
+        config_psx_mac_set(mac);
+        config_psx_type_set(type);
         setupPS(mac, type);
     }
 #endif

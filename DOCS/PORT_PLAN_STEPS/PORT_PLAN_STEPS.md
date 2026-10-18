@@ -73,7 +73,7 @@ executor agent.
 - [x] **T2.9** [T2.9.md](steps/T2.9.md) — `apps/xiao_odmr` (largest S3 app; IS31FL3741 check) · 3–5 d · ← T2.7 — **done 2026-10-14 (0fe9a59): build green (raw-IDF, 345.3 KB / 73 % free; PIO 894.2 KB); IS31FL3741 unused → dropped; onewire_ds18b20 vendored, heat → uc2_periph; accelmotor regression green; [HW] smoke pending**
 - [x] **T2.10** [T2.10.md](steps/T2.10.md) — `apps/canopen_bridge_ps4_usbhost` (esp_usb_host_hid, no BT) · 1–2 d · ← T1.8 — **done 2026-10-14 (5aa50ba): build green (raw-IDF, 391.4 KB / 69 % free; PIO 892.3 KB); joystick → uc2_joystick; xiao_odmr + accelmotor regression green (fixed pre-existing xiao_odmr neopixel link-order bug); [HW] smoke pending**
 - [x] **T2.11** [T2.11.md](steps/T2.11.md) — Cleanup: stale `sdkconfig*`, `main/config`→`boards/`, `partitions/`, `legacy/`, retire copy script · 1 d · ← T2.1–T2.10 — **done 2026-10-15 (51503ea cleanup + 6bd4258 neopixel link fix): all S3 apps green; 96 `sdkconfig*` + 46 `main/config` PinConfig.h deleted, `lib`/`copy_PinConfig`→`legacy`, `custom_partition*.csv`→`partitions`; `DOCS/baselines.md` stale-list record added**
-- [ ] **T2.12** [T2.12.md](steps/T2.12.md) — CI `idf-build` matrix expansion + per-board retirement checklists · 0.5 h/board · ← T2.1–T2.11
+- [x] **T2.12** [T2.12.md](steps/T2.12.md) — CI `idf-build` matrix expansion + per-board retirement checklists · 0.5 h/board · ← T2.1–T2.11 — **done 2026-10-16 (build scope): `idf-build` job (20-app matrix, fail-fast:false, setup-espressif 6.1, `idf.py build merge-bin`) + baselines.md per-board D6 checklists; PIO 17-env matrix + release jobs intact. CI tag-build run pending (needs remote + a `workflow`-scope token)**
 - [ ] **T2.13** [T2.13.md](steps/T2.13.md) — Phase-2 gate summary · 0.5 d · ← T2.12
 
 ### Phase 3 — Bluetooth boards (1–2 w; highest risk)
@@ -100,7 +100,7 @@ executor agent.
 - [ ] **T5.1** [T5.1.md](steps/T5.1.md) — *(D2=(b))* C-ify vendor leaves: accelstepper, onewire_ds18b20, encoder, tca95xx, DAC_Module (upstream/ ref copy per lib; TMC+FAS stay C++ leaves) · 1–2 w · ← T4.8
 - [ ] **T5.2** [T5.2.md](steps/T5.2.md) — *(D2=(b))* **SKIPPED BY DEFAULT** — FAS stays a C++ leaf; execute only on user revisit · 1 w · ← T4.3
 - [ ] **T5.3** [T5.3.md](steps/T5.3.md) — NeoPixel → C RMT LED-strip driver in `uc2_pixel_buf` (WS2812 timing identical) · 2–4 d · ← T4.8
-- [ ] **T5.4** [T5.4.md](steps/T5.4.md) — *(D4)* M5GFX 3 envs: port to IDF as C++ leaves (no PIO) + `DOCS/m5gfx.md` · 1–2 w · ← T4.7
+- [ ] **T5.4** [T5.4.md](steps/T5.4.md) — *(D4)* M5GFX 3 envs: port to IDF as C++ leaves (no PIO) + `DOCS/m5gfx.md` · 1–2 w · ← T4.7 — **2 of 3 envs green: m5stack_dial (591 KB, first M5GFX board, commit 957d197) + waveshare_d7 (a CAN *motor* node, not M5GFX/LVGL, commit 7b42276); m5stack_dial7 + [HW] display smoke + DOCS/m5gfx.md pending**
 - [ ] **T5.5** [T5.5.md](steps/T5.5.md) — Final `Arduino.h` purge + shim-component removal + `DOCS/cpp-leaves.md` freeze · 1 d · ← T5.1–T5.4
 
 ### Phase 6 — CI cutover, legacy removal, final gate (~1–2 w)

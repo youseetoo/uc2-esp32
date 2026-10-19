@@ -83,6 +83,7 @@ jobs:
         # otherwise the plain env (no _debug/_default/_Xiao/_release suffix).
         include:
           - {name: UC2_3,              envs: '^UC2_3',               skip: '', release_only: false}
+          - {name: UC2_4,              envs: '^UC2_4',               skip: '', release_only: false}
           - {name: seeed_xiao_esp32s3, envs: '^seeed_xiao_esp32s3', skip: '', release_only: false}
           # CANopen was one job of 14 sequential builds (the motor slave once
           # per axis); three jobs run them in parallel. New CANopen envs land
@@ -91,7 +92,7 @@ jobs:
           - {name: UC2_canopen_slaves, envs: '^UC2_canopen_slave_',       skip: '^UC2_canopen_slave_motor_', release_only: true}
           - {name: UC2_canopen_master, envs: '^UC2_canopen_',             skip: '^UC2_canopen_slave_',       release_only: true}
           # Not built (add an entry with envs: '^<prefix>' to enable):
-          # UC2_2, UC2_4, UC2_WEMOS, seeed_xiao_esp32c3, waveshare, esp32, m5stack, uc2lasercover
+          # UC2_2, UC2_WEMOS, seeed_xiao_esp32c3, waveshare, esp32, m5stack, uc2lasercover
 
     steps:
       - name: Checkout repository

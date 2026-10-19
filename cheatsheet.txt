@@ -55,7 +55,8 @@ UC2_canopen_slave_motor_release =>             10: "esp32_seeed_xiao_esp32s3_can
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_release --upload-port /dev/cu.usbmodem101
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_gpio_debug --upload-port /dev/cu.usbmodem101
 
-
+{"task": "/galvo_act", "config": {"nx": 128, "ny": 256, "x_min": 0, "x_max": 2000, "y_min": 0, "y_max": 2000, "sample_period_us": 1, "frame_count": 0, "bidirectional": false, "pre_samples": 0, "fly_samples": 0, "trig_delay_us": 0, "trig_width_us": 0, "line_settle_samples": 128, "enable_trigger": 1, "apply_x_lut": 0, "overscan_samples": 32, "laser_blanking": 0, "hw_pixel_clock": 0}, "qid": 22}
+{"task": "/galvo_act", "config": {"nx":  64, "ny": 64, "x_min": 0, "x_max": 2000, "y_min": 0, "y_max": 2000, "sample_period_us": 1, "frame_count": 0, "bidirectional": false, "pre_samples": 0, "fly_samples": 0, "trig_delay_us": 0, "trig_width_us": 0, "line_settle_samples": 128, "enable_trigger": 1, "apply_x_lut": 0, "overscan_samples": 32, "laser_blanking": 0, "hw_pixel_clock": 0}, "qid": 22}
 
 
 
@@ -72,6 +73,7 @@ Flash this to any motor:
 ## Assign an ID:
 open serial
 /Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem101 --baud 115200
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 921600
 
 test if motor moves
 {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":120000, "acceleration":1000000, "position": 10000,  "isabs": 0}]}, "qid": 5}

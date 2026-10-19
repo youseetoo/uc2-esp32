@@ -94,6 +94,12 @@ static esp_err_t ensureUnit(adc_unit_t unit)
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
+// extern "C": declared C-linkage in uc2_hal/uc2_adc.h (T4.1: called from the
+// pure-C PidController.c).
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void analogReadResolution(int bits)
 {
     if (bits > 0 && bits <= 12) s_resolution = bits;
@@ -183,3 +189,7 @@ int analogReadMilliVolts(int pin)
     // on S3 — good enough to keep a missing eFuse from reading 0 mV.
     return raw * attenFullScaleMv(s_atten[pin]) / 4095;
 }
+
+#ifdef __cplusplus
+}
+#endif

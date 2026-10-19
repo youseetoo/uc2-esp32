@@ -571,9 +571,9 @@ namespace SerialProcess
 #endif
 #ifdef PID_CONTROLLER
 		else if (runtimeConfig.pid && strcmp(task, PID_get_endpoint) == 0)
-			serialize(PidController::get(jsonDocument));
+			serialize(pid_get(jsonDocument));
 		else if (runtimeConfig.pid && strcmp(task, PID_act_endpoint) == 0)
-			serialize(PidController::act(jsonDocument));
+			serialize(pid_act(jsonDocument));
 #endif
 
 		else if (strcmp(task, state_act_endpoint) == 0)

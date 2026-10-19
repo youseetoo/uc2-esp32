@@ -21,7 +21,7 @@ set(srcs
     "motor/MotorGamePad.cpp"
     "motor/MotorJsonParser.cpp"
     "motor/StageScan.cpp"
-    "pid/PidController.cpp"
+    "pid/PidController.c"
     "tmc/TMCController.cpp")
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}

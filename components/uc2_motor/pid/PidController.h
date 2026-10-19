@@ -1,35 +1,35 @@
-#include <PinConfig.h>
 #pragma once
-#include "cJSON.h"
-#ifdef MOTOR_CONTROLLER
-#include "FocusMotor.h"
+// T4.1: PidController converted from a C++ namespace to a pure-C module
+// (see QidRegistry.h for the pattern). The C++ FocusMotor dependency
+// (stop/start the focus stepper, gated on MOTOR_CONTROLLER) is hidden behind
+// the focusmotor_qid_c.h C shim (same component, uc2_motor).
+#include <stdbool.h>
+#include <stdint.h>
+#include <cJSON.h>
+#include "PinConfigDefault.h"  // pinConfig.pid1/pid2/pid3 (pure C; PinConfig.h is C++)
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-namespace PidController
-{
+// Initialize the PID controller (records the start timestamp).
+void pid_setup(void);
 
-    /* data */
-    long returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd);
+// Periodic PID tick — call from the app loop (was PidController::loop()).
+void pid_loop(void);
 
-    static bool isDEBUG = false;
+// Process /pid_act JSON command. Returns the qid.
+int pid_act(cJSON *ob);
 
-    static float errorRunSum=0;
-    static float previousError=0;
-    static float stepperMaxValue=2500.;
-    static float PID_Kp = 10;
-    static float PID_Ki = 0.1;
-    static float PID_Kd = 0.1;
-    static float PID_target = 500;
-    static float PID_updaterate = 200; // ms
-    static bool PID_active=false;
-    // timing variables
-	static unsigned long startMillis;
-	static unsigned long currentMillis;
+// Process /pid_get JSON command. Returns {"pid":{...}} (caller owns the
+// returned cJSON object).
+cJSON *pid_get(cJSON *ob);
 
-    static int N_analogin_avg = 50;
+// PID core math (was PidController::returnControlValue):
+// returns the stepper output clamped to ±2500 (updated internal I/D state).
+int32_t pid_return_control_value(float controlTarget, float analoginValue,
+                                 float Kp, float Ki, float Kd);
 
-    void setup();
-    void loop();
-    int act(cJSON * ob);
-    cJSON * get(cJSON * ob);
-};
+#ifdef __cplusplus
+}
+#endif

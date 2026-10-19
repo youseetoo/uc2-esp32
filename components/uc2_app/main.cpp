@@ -292,7 +292,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef PID_CONTROLLER
 		if (runtimeConfig.pid) {
-			PidController::loop();
+			pid_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -656,7 +656,7 @@ if (runtimeConfig.message) {
 #endif
 #ifdef PID_CONTROLLER
 if (runtimeConfig.pid) {
-	PidController::setup();
+	pid_setup();
 }
 #endif
 #ifdef SCANNER_CONTROLLER

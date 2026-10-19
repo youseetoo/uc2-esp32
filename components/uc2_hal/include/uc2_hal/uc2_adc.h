@@ -12,13 +12,17 @@
 //   * Values are scaled to the requested resolution (Arduino-ESP32 behaviour).
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>  // C-compatible (T4.1: included from pure-C PidController.c)
 
 // ── Arduino-ESP32 attenuation constants (value = index, NOT dB) ────────────
 #define ADC_11db  0   // max attenuation (12 dB on S3)
 #define ADC_6db   1
 #define ADC_2_5db 2
 #define ADC_0db   3   // no attenuation
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int  analogRead(int pin);
 void analogReadResolution(int bits);
@@ -28,3 +32,7 @@ void analogSetPinAttenuation(int pin, int attenuation);
 // curve-fitting scheme on S3). Falls back to a naive full-scale scale when the
 // calibration eFuse is absent.
 int  analogReadMilliVolts(int pin);
+
+#ifdef __cplusplus
+}
+#endif

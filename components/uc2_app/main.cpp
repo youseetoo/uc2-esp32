@@ -264,7 +264,7 @@ extern "C" void looper(void *p)
 			LedController::loop();
 			vTaskDelay(1);
 		}
-		SignalController::loop();
+		signal_loop();
 #endif
 		BuzzerController::loop();
 #ifdef MESSAGE_CONTROLLER
@@ -647,7 +647,7 @@ extern "C" void setupApp(void)
 	if (runtimeConfig.led) {
 		LedController::setup();
 	}
-	SignalController::setup();
+	signal_setup();
 #endif
 #ifdef MESSAGE_CONTROLLER
 if (runtimeConfig.message) {

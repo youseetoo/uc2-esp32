@@ -551,9 +551,9 @@ namespace SerialProcess
 		// (it shares the NeoPixel/HUB75 backend with the LED array).
 		else if (strcmp(task, signal_act_endpoint) == 0 ||
 		         strcmp(task, indicator_act_endpoint) == 0)
-			serialize(SignalController::act(jsonDocument));
+			serialize(signal_act(jsonDocument));
 		else if (strcmp(task, signal_get_endpoint) == 0)
-			serialize(SignalController::get(jsonDocument));
+			serialize(signal_get(jsonDocument));
 #endif
 		else if (strcmp(task, buzzer_act_endpoint) == 0)
 			serialize(BuzzerController::act(jsonDocument));

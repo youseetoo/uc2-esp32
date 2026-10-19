@@ -141,7 +141,7 @@ CANopenModule canopenModule;
 #ifdef ESPNOW_SLAVE_MOTOR
 #include "src/espnow/espnow_slave_motor.h"
 #endif
-#include "./src/state/State.h"
+#include "State.h"  // T4.1: pure-C State (components/uc2_core/state)
 
 long lastHeapUpdateTime = 0;
 bool state_led = false;
@@ -200,9 +200,9 @@ extern "C" void looper(void *p)
 
 		// measure time since boot and turn off OTA on startup 
 		#ifdef OTA_ON_STARTUP
-		if (esp_timer_get_time()>pinConfig.OTA_TIME_FROM_STARTUP and State::OTArunning)
+		if (esp_timer_get_time()>pinConfig.OTA_TIME_FROM_STARTUP and state_otarunning)
 		{
-			State::stopOTA();
+			state_stop_ota();
 		}
 		#endif
 
@@ -491,9 +491,9 @@ static void checkBtButtonLongPress()
         if (currentTime - btSquareState.pressStartTime >= BUS_POWER_LONG_PRESS_MS)
         {
             btSquareState.longPressTriggered = true;
-            bool newBusPowerState = !State::getBusPower();
+            bool newBusPowerState = !state_get_bus_power();
             log_i("Square long press - toggling CAN-bus power %s", newBusPowerState ? "ON" : "OFF");
-            State::setBusPower(newBusPowerState);
+            state_set_bus_power(newBusPowerState);
         }
     }
 }
@@ -518,9 +518,9 @@ extern "C" void setupApp(void)
   pinMode(LED_BUILTIN, OUTPUT);
 #endif	
 	SerialProcess::setup();
-	// State::setup() establishes the default CAN-bus power state (ON) and must
+	// state_setup() establishes the default CAN-bus power state (ON) and must
 	// run early so peripherals/slaves have power before their own setup runs.
-	State::setup();
+	state_setup();
 #ifdef I2C_MASTER
 	i2c_master::setup();
 #endif
@@ -701,7 +701,7 @@ espnow_slave_motor::setup();
 #endif
 
 #ifdef OTA_ON_STARTUP
-State::startOTA();
+state_start_ota();
 #endif
 
 // Build the routing table from pinConfig + runtimeConfig (all builds)

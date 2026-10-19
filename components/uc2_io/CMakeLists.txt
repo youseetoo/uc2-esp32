@@ -5,6 +5,8 @@ set(srcs
     "encoder/InterruptController.cpp")
 if(CONFIG_UC2_DIGITAL_IN_CONTROLLER)
     list(APPEND srcs "digitalin/DigitalInController.cpp")
+    # T4.1: C shim for the pure-C State (uc2_core) E-stop access
+    list(APPEND srcs "digitalin/digitalin_c.cpp")
 endif()
 if(CONFIG_UC2_DIGITAL_OUT_CONTROLLER)
     list(APPEND srcs "digitalout/DigitalOutController.cpp")

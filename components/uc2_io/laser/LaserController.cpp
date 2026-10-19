@@ -96,7 +96,7 @@ namespace LaserController
 		// {"task":"/laser_act", "LASERid":1, "LASERval":1000}, "LASERdespeckle":0, "LASERdespecklePeriod":0}
 		// {"task":"/laser_act", "LASERid":2, "LASERval":1000}
 		// {"task":"/laser_act", "LASERid":2, "LASERval":10000}
-		State::setBusy(true);
+		state_set_busy(true);
 		int qid = cJsonTool::getJsonInt(ob, "qid");
 		cJSON *setPWMFreq = cJSON_GetObjectItemCaseSensitive(ob, "LASERFreq");
 		cJSON *setPWMRes = cJSON_GetObjectItemCaseSensitive(ob, "LASERRes");
@@ -121,7 +121,7 @@ namespace LaserController
 		if (LASERid < 0 || LASERid >= MAX_LASERS)
 		{
 			log_w("Invalid LASERid: %d", LASERid);
-			State::setBusy(false);
+			state_set_busy(false);
 			return 0;
 		}
 
@@ -134,7 +134,7 @@ namespace LaserController
 		if (laserPin < 0)
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
-			State::setBusy(false);
+			state_set_busy(false);
 			return 0;
 		}
 #endif
@@ -187,7 +187,7 @@ namespace LaserController
 				qid_register(qid, 1);
 				qid_report_action_done(qid);
 			}
-			State::setBusy(false);
+			state_set_busy(false);
 			return qid;
 		}
 

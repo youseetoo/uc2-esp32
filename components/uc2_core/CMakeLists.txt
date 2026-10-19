@@ -3,7 +3,7 @@
 # Gating per refs/component-layout.md §3.
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "state/State.cpp"
+    "state/State.c"
     "config/NVSConfig.c"
     "config/ConfigController.c"
     "qid/QidRegistry.c"

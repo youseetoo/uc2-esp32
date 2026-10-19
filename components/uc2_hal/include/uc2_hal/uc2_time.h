@@ -3,33 +3,37 @@
 // delay 53, delayMicroseconds 8 — grep-verified 2026-10-11).
 #pragma once
 
-#include <cstdint>
+// C-compatible (stdint, not cstdint): included from C modules (T4.1 State.c).
+#include <stdint.h>
 
 #include "esp_rom_sys.h"        // esp_rom_delay_us (6.1: esp_delay_us removed)
 #include "esp_timer.h"          // esp_timer_get_time (monotonic µs)
 #include "freertos/FreeRTOS.h"  // pdMS_TO_TICKS
 #include "freertos/task.h"      // vTaskDelay
 
+// C-compatible: C casts + `static inline` so the header works from both C
+// (T4.1 State.c) and C++ TUs.
+//
 // Milliseconds since boot; wraps at ~49.7 days (Arduino millis() semantics —
 // the firmware does (int32_t)(now - then) difference arithmetic).
-inline uint32_t millis()
+static inline uint32_t millis(void)
 {
-    return static_cast<uint32_t>(esp_timer_get_time() / 1000);
+    return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-inline uint32_t micros()
+static inline uint32_t micros(void)
 {
-    return static_cast<uint32_t>(esp_timer_get_time());
+    return (uint32_t)(esp_timer_get_time());
 }
 
 // Yield for ms — task context only.
-inline void delay(uint32_t ms)
+static inline void delay(uint32_t ms)
 {
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
 // Busy-wait for µs (ISR-safe, like Arduino delayMicroseconds).
-inline void delayMicroseconds(uint32_t us)
+static inline void delayMicroseconds(uint32_t us)
 {
     esp_rom_delay_us(us);
 }

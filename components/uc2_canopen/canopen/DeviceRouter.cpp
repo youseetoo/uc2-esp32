@@ -1576,8 +1576,8 @@ cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
         return resp;
     }
 #endif
-    // Local handling — State::act will perform ESP.restart() or other ops
-    int rc = State::act(doc);
+    // Local handling — state_act() will perform esp_restart() or other ops
+    int rc = state_act(doc);
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "return", rc);
     return resp;

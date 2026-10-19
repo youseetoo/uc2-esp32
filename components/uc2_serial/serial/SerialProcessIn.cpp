@@ -580,20 +580,20 @@ namespace SerialProcess
 			// Handled by DeviceRouter::handleStateAct (PR-7.8). Should never
 			// reach here; kept as a safety net so a stray state_act doesn't
 			// silently fall through.
-			serialize(State::act(jsonDocument));
+			serialize(state_act(jsonDocument));
 		else if (strcmp(task, state_get_endpoint) == 0)
-			serialize(State::get(jsonDocument));
+			serialize(state_get(jsonDocument));
 		else if (strcmp(task, state_busy_endpoint) == 0)
 		{
 			// super fast check if the system is busy {"task":"/b"}
 			// Build message and send through queue
 			char buffer[32];
-			snprintf(buffer, sizeof(buffer), "++{'b':%d}--", State::getBusy());
+			snprintf(buffer, sizeof(buffer), "++{'b':%d}--", state_get_busy());
 			serial_out_safe_println(buffer);
 		}
 		else if (strcmp(task, modules_get_endpoint) == 0)
 		{
-			serialize(State::getModules());
+			serialize(state_get_modules());
 		}
 		else if (strcmp(task, route_get_endpoint) == 0)
 		{

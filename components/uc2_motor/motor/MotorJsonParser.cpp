@@ -626,7 +626,7 @@ namespace MotorJsonParser
 			if (motorQid > 0 && stprs != NULL)
 			{
 				int numSteppers = cJSON_GetArraySize(stprs);
-				QidRegistry::registerQid(motorQid, numSteppers);
+				qid_register(motorQid, numSteppers);
 			}
 
 			// TODO: Check if motor is in available motors and skip if not

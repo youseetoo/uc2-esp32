@@ -184,8 +184,8 @@ namespace LaserController
 			// Laser is synchronous: register and immediately report done
 			if (qid > 0)
 			{
-				QidRegistry::registerQid(qid, 1);
-				QidRegistry::reportActionDone(qid);
+				qid_register(qid, 1);
+				qid_report_action_done(qid);
 			}
 			State::setBusy(false);
 			return qid;
@@ -194,8 +194,8 @@ namespace LaserController
 		// No LASERval provided - still report QID done if set
 		if (qid > 0)
 		{
-			QidRegistry::registerQid(qid, 1);
-			QidRegistry::reportActionDone(qid);
+			qid_register(qid, 1);
+			qid_report_action_done(qid);
 		}
 		return qid;
 	}

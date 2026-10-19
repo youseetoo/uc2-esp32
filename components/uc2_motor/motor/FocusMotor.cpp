@@ -158,7 +158,7 @@ namespace FocusMotor
 				  axis, (int)requestedDir, (int)getData()[axis]->hardLimitLockoutDir);
 			getData()[axis]->stopped = true;
 			sendMotorPos(axis, 0, -3); // error report
-			QidRegistry::reportActionError(getData()[axis]->qid);
+			qid_report_action_error(getData()[axis]->qid);
 			return;
 		}
 		if (requestedDir != 0)
@@ -670,7 +670,7 @@ namespace FocusMotor
 	{
 
 		// Check for QID timeouts
-		QidRegistry::tickTimeout();
+		qid_tick_timeout();
 
 #if !defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2)
 		checkHardLimits();
@@ -852,7 +852,7 @@ namespace FocusMotor
 		log_i("stopStepper Focus Motor %i, stopped: %i", i, data[i]->stopped);
 		// only send motor data if it was running before
 		sendMotorPos(i, 0);
-		QidRegistry::reportActionDone(data[i]->qid);
+		qid_report_action_done(data[i]->qid);
 	}
 
 	uint32_t getPosition(Stepper s)

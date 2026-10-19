@@ -1132,8 +1132,8 @@ typedef UString String;
 		// LED is synchronous: register and immediately report done
 		if (cmd.qid > 0)
 		{
-			QidRegistry::registerQid(cmd.qid, 1);
-			QidRegistry::reportActionDone(cmd.qid);
+			qid_register(cmd.qid, 1);
+			qid_report_action_done(cmd.qid);
 		}
 
 		return cmd.qid; // return the same QID

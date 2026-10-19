@@ -224,7 +224,7 @@ namespace SerialProcess
 		serial_out_init((UBaseType_t)(pinConfig.DEFAULT_TASK_PRIORITY + 1));
 
 		Serial.setTimeout(100);
-		QidRegistry::setup();
+		qid_setup();
 
 		log_i("SerialProcess::setup() completed - Ready to receive serial data");
 		Serial.println("DEBUG: SerialProcess ready");
@@ -665,11 +665,11 @@ namespace SerialProcess
 			serialize(ThermalController::act(jsonDocument));
 #endif
 		else if (strcmp(task, qid_state_endpoint) == 0)
-			serialize(QidRegistry::handleQidStateQuery(jsonDocument));
+			serialize(qid_handle_state_query(jsonDocument));
 		else if (strcmp(task, qid_pause_endpoint) == 0)
-			serialize(QidRegistry::handleQidPause(jsonDocument));
+			serialize(qid_handle_pause(jsonDocument));
 		else if (strcmp(task, qid_resume_endpoint) == 0)
-			serialize(QidRegistry::handleQidResume(jsonDocument));
+			serialize(qid_handle_resume(jsonDocument));
 		// ── RuntimeConfig endpoints ─────────────────────────────────
 		else if (strcmp(task, config_get_endpoint) == 0)
 		{

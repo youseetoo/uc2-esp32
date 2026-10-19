@@ -2563,7 +2563,7 @@ void CANopenModule::syncRpdoToModules_master()
                 }
 
                 if (md && md->qid > 0) {
-                    QidRegistry::reportActionDone(md->qid);
+                    qid_report_action_done(md->qid);
                 }
             }
 

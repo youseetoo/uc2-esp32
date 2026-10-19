@@ -6,7 +6,7 @@ set(srcs
     "state/State.cpp"
     "config/NVSConfig.c"
     "config/ConfigController.c"
-    "qid/QidRegistry.cpp"
+    "qid/QidRegistry.c"
     "buzzer/BuzzerController.cpp")
 if(CONFIG_UC2_MESSAGE_CONTROLLER)
     list(APPEND srcs "message/MessageController.cpp")

@@ -502,7 +502,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     // REMOTE).
     int totalStepperCount = localStepperCount + remoteStepperCount;
     if (motorQid > 0 && totalStepperCount > 0)
-        QidRegistry::registerQid(motorQid, (uint8_t)totalStepperCount);
+        qid_register(motorQid, (uint8_t)totalStepperCount);
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
@@ -711,7 +711,7 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 
         // Register the qid BEFORE dispatching, so a fast TPDO/ack path could
         // report it back later if we ever add a laser status TPDO.
-        if (laserQid > 0) QidRegistry::registerQid(laserQid, 1);
+        if (laserQid > 0) qid_register(laserQid, 1);
 
         bool sdoOk = CANopenModule::writeSDO_u16(route->nodeId, UC2_OD::LASER_PWM_VALUE, sub, pwmVal);
         if (!sdoOk) {
@@ -725,7 +725,7 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
         // Acknowledge the qid immediately — there is no laser TPDO completion
         // to wait for. Treat the dispatch as done so the master emits
         // {"qid":N,"state":"done"} / {"qid":N,"success":1} just like motor.
-        if (laserQid > 0) QidRegistry::reportActionDone(laserQid);
+        if (laserQid > 0) qid_report_action_done(laserQid);
 
         // Always return success on the REMOTE path: the OD is updated as part
         // of the SDO server transaction, and the slave's syncRpdoToModules
@@ -897,7 +897,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         bool anySdoTimeout = false;
 
         // Register the qid before issuing any SDO writes — see laser comment.
-        if (ledQid > 0) QidRegistry::registerQid(ledQid, 1);
+        if (ledQid > 0) qid_register(ledQid, 1);
 
         // Derive LED array mode from the high-level "action" field so the slave
         // can reconstruct the intended pattern.  The slave's setMode() maps:
@@ -949,7 +949,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                 cJSON* jIdx = cJSON_GetObjectItem(led, "ledIndex");
                 if (!jIdx || !cJSON_IsNumber(jIdx)) {
                     log_e("led_act single: missing ledIndex");
-                    if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+                    if (ledQid > 0) qid_report_action_done(ledQid);
                     cJSON* resp = cJSON_CreateObject();
                     cJSON_AddNumberToObject(resp, "return", 0);
                     return resp;
@@ -968,7 +968,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                 log_i("Routing LED single pixel: idx=%u R:%u G:%u B:%u", idx, rr, gg, bb);
                 bool sok = CANopenModule::writeSDO(nodeId, UC2_OD::LED_SINGLE_PIXEL, 0,
                                                    payload, sizeof(payload));
-                if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+                if (ledQid > 0) qid_report_action_done(ledQid);
                 cJSON* resp = cJSON_CreateObject();
                 cJSON_AddNumberToObject(resp, "return", sok ? 1 : 0);
                 return resp;
@@ -990,7 +990,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
                       jAction->valuestring, radius, rr, gg, bb);
                 bool sok = CANopenModule::writeSDO(nodeId, UC2_OD::LED_SHAPE, 0,
                                                    payload, sizeof(payload));
-                if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+                if (ledQid > 0) qid_report_action_done(ledQid);
                 cJSON* resp = cJSON_CreateObject();
                 cJSON_AddNumberToObject(resp, "return", sok ? 1 : 0);
                 return resp;
@@ -999,7 +999,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
             log_w("led_act: action '%s' not supported via REMOTE SDO routing. "
                   "Send 'led_array' for arbitrary patterns.",
                   (jAction && jAction->valuestring) ? jAction->valuestring : "?");
-            if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+            if (ledQid > 0) qid_report_action_done(ledQid);
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", 0);
             return resp;
@@ -1084,7 +1084,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
         if (anySdoTimeout) {
             log_w("LED SDO write(s) timed out: node 0x%02X (best-effort delivered)", nodeId);
         }
-        if (ledQid > 0) QidRegistry::reportActionDone(ledQid);
+        if (ledQid > 0) qid_report_action_done(ledQid);
 
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);

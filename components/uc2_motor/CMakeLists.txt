@@ -17,6 +17,7 @@ set(srcs
     "motor/FAccelStep.cpp"
     "motor/FocusMotor.cpp"
     "motor/FocusScan.cpp"
+    "motor/focusmotor_qid_c.cpp"
     "motor/MotorGamePad.cpp"
     "motor/MotorJsonParser.cpp"
     "motor/StageScan.cpp"

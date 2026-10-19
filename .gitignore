@@ -9,3 +9,9 @@ scratch_t12/build/
 
 # T2.6: temp dir for extracting vendored-library zips (the code is copied into components/); not part of the build
 vendor_tmp/
+
+# T4.1 local build-check logs (build_*.ps1 output)
+/build_laser_check.log
+/build_uc2_3.log
+*laser_build_check.log
+*uc2_3_build.log

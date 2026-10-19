@@ -33,3 +33,4 @@ observations_*.txt
 logs.txt
 *.pyc
 __pycache__/
+/main/uc2_fw_version.h

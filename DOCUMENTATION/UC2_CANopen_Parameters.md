@@ -52,6 +52,9 @@ Stepper motor control with TMC2209 driver, up to 4 axes per node
 | `0x2009` | 1..4 | `motor_max_position` | I32 | rw | SDO only | Soft limit maximum. |
 | `0x200A` | 1..4 | `motor_jerk` | U32 | rw | SDO only | S-curve jerk (0=trapezoidal). Optional; 0 disables S-curve. |
 | `0x200B` | 1..4 | `motor_is_forever` | U8 | rw | — | 1=continuous motion (no target position, runs until stopped). 0=finite move. |
+| `0x200C` | 1..4 | `motor_sync_position` | I32 | ro | — | Strobed sweep: step count latched when the last SYNC was received. Sent in TP... |
+| `0x200D` | 1..4 | `motor_sync_count` | U16 | ro | — | Strobed sweep: SYNCs latched since the latch was enabled (1 = first frame). S... |
+| `0x200E` | 1..4 | `motor_sync_latch_enable` | U8 | rw | — | Strobed sweep: 1 = latch the position on every SYNC and send TPDO3; writing 1... |
 
 ### Homing — base `0x2010`
 
@@ -63,7 +66,7 @@ Sensorless or endstop-based homing
 
 | Index | Sub | Name | Type | Access | PDO | Description |
 |-------|-----|------|------|--------|-----|-------------|
-| `0x2010` | 1..4 | `homing_command` | U8 | rw | rpdo2 | 0=idle, 1=start homing on this axis |
+| `0x2010` | 1..4 | `homing_command` | U8 | rw | rpdo2 | 0=idle, 1=start homing on this axis, 2=hard homing (home, ram mechanical stop, back off, re-home) |
 | `0x2011` | 1..4 | `homing_speed` | U32 | rw | SDO only |  |
 | `0x2012` | 1..4 | `homing_direction` | I8 | rw | SDO only | -1 or +1 |
 | `0x2013` | 1..4 | `homing_timeout` | U32 | rw | SDO only |  |
@@ -140,6 +143,10 @@ Laser intensity control via PWM, up to 4 channels per node
 | `0x2104` | 1..4 | `laser_despeckle_period` | U32 | rw | SDO only | Despeckle modulation period; 0 = off |
 | `0x2105` | 1..4 | `laser_despeckle_amplitude` | U16 | rw | SDO only |  |
 | `0x2106` | 0 | `laser_safety_state` | U8 | ro | tpdo3 | Safety status — TPDO broadcast on change |
+| `0x2107` | 1..4 | `laser_strobe_enable` | U8 | rw | — | Strobed sweep: 1 = fire one flash per received SYNC; PWM is detached from the... |
+| `0x2108` | 1..4 | `laser_strobe_delay_us` | U32 | rw | — | Strobed sweep: delay D from SYNC reception to LED on, microseconds (clamped t... |
+| `0x2109` | 1..4 | `laser_strobe_width_us` | U32 | rw | — | Strobed sweep: flash width w, microseconds (clamped to STROBE_MAX_WIDTH_US). |
+| `0x210A` | 1..4 | `laser_strobe_count` | U32 | ro | — | Strobed sweep: flashes fired since the strobe was enabled. |
 
 ### Led — base `0x2200`
 
@@ -412,15 +419,12 @@ Firmware update via SDO block transfer
 
 - COB-ID: `0x380 + node_id`
 - Direction: s2m
-- Description: Encoder feedback + safety status
-- Event timer: 50 ms
-- Inhibit time: 5 ms
+- Description: Strobed-sweep position latch — motor slaves only, COB-ID enabled at boot, sent after each SYNC while 0x200E = 1
 
 | # | Index:Sub | Bits | Maps to |
 |---|-----------|------|---------|
-| 1 | `0x2340:01` | 32 | `encoder_position` |
-| 2 | `0x2106:00` | 8 | `laser_safety_state` |
-| 3 | `0x2F03:00` | 8 | `ota_status` |
+| 1 | `0x200C:01` | 32 | `motor_sync_position` |
+| 2 | `0x200D:01` | 16 | `motor_sync_count` |
 
 ### TPDO4
 

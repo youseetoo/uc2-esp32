@@ -6,6 +6,7 @@
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "../canopen/DeviceRouter.h"
+#include "LaserStrobe.h"
 #ifdef I2C_LASER
 #include "../i2c/i2c_master.h"
 #endif
@@ -250,6 +251,15 @@ namespace LaserController
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
 			return false;
+		}
+
+		// Strobed sweep: the pin belongs to the strobe timer. Keep the value;
+		// LaserStrobe restores it when the strobe is switched off.
+		if (LaserStrobe::isStrobing(LASERid))
+		{
+			log_w("LASERid %i is strobing: PWM %i stored, applied when the strobe ends", LASERid, LASERval);
+			laserValuePending[LASERid] = true;
+			return true;
 		}
 
 		int pwmChannel = getPWMChannel(LASERid);

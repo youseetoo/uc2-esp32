@@ -11,6 +11,7 @@
 # T3.3: DacController (JSON API over DAC_Module) still lives in main/src/dac and is
 # called by main.cpp under #ifdef DAC_CONTROLLER; uc2_app owns it (see header note).
 idf_component_register(SRCS "main.cpp"
+                       "pinconfig_defaults.c"
                        "${CMAKE_CURRENT_LIST_DIR}/../../main/src/dac/DacController.cpp"
                        INCLUDE_DIRS "." "$ENV{UC2_APP_MAIN_DIR}" "${CMAKE_CURRENT_LIST_DIR}/../../main"
                                             "${CMAKE_CURRENT_LIST_DIR}/../uc2_periph/heat"

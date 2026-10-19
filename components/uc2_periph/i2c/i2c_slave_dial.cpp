@@ -39,7 +39,7 @@ namespace i2c_slave_dial
     void receiveEvent(int numBytes)
     {
         // Master and Slave
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+        if (pinConfig.I2C_CONTROLLER_TYPE == I2C_CONTROLLER_DIAL)
         {
             // Handle incoming data for the motor controller
             parseDialEvent(numBytes);
@@ -55,7 +55,7 @@ namespace i2c_slave_dial
     {
         // The master request data from the slave
         // !THIS IS ONLY EXECUTED IN I2C SLAVE MODE!
-        if (pinConfig.I2C_CONTROLLER_TYPE == I2CControllerType::mDIAL)
+        if (pinConfig.I2C_CONTROLLER_TYPE == I2C_CONTROLLER_DIAL)
         {
             // The master request data from the slave
             DialData dialDataMotor;

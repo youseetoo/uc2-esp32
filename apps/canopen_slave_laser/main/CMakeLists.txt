@@ -1,7 +1,7 @@
 # T1.5: app component — main.c entry (app_main -> uc2_app_start()).
 # T1.9: controllers now live in the shared components (uc2_core/uc2_serial/
 # uc2_canopen/uc2_io/uc2_periph); the app-local uc2_modules is gone.
-idf_component_register(SRCS "main.c" INCLUDE_DIRS "."
+idf_component_register(SRCS "main.c" "pinconfig.c" INCLUDE_DIRS "."
     REQUIRES uc2_app uc2_core uc2_serial uc2_canopen uc2_io uc2_periph
              uc2_hal canopen_node uc2_od cjson dac_module
              esp_usb_host_hid driver esp_driver_ledc

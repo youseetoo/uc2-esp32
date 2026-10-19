@@ -34,6 +34,16 @@ foreach(_uc2_c ${_uc2_proj_comps})
         list(APPEND _uc2_group_libs "LINKER:${CMAKE_BINARY_DIR}/esp-idf/${_uc2_c}/lib${_uc2_c}.a")
     endif()
 endforeach()
+# T4.1: the pinConfig DEFINITION is in libmain.a (the `main` component's
+# pinconfig.c). It must be INSIDE the group: the uc2_* group resolves among
+# themselves and stops, so a pinConfig reference would still dangle against a
+# later libmain.a. (Harmless duplicate of the normal libmain.a.)
+list(APPEND _uc2_group_libs "LINKER:${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a")
 if(_uc2_group_libs)
     target_link_libraries(__idf_main PRIVATE "LINKER:--start-group" ${_uc2_group_libs} "LINKER:--end-group")
 endif()
+
+# T4.1: pinconfig.c (main) intentionally re-initializes fields already set by
+# PINCONFIG_DEFAULTS_FIELDS (board overrides after the defaults); GCC 15
+# (gnu23 + -Wextra + -Werror) promotes -Woverride-init to an error.
+target_compile_options(__idf_main PRIVATE -Wno-override-init)

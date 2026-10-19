@@ -1,5 +1,10 @@
 // Based on https://github.com/krzychb/dac-cosine/blob/master/main/dac-cosine.c
 
+// SOC_DAC_SUPPORTED lives in soc_caps.h; kconfig.h/soc_caps.h are NOT
+// force-included by IDF 6.x, so include it before the guard (an undefined
+// guard evaluates to 0 and silently excludes the whole file).
+#include "soc/soc_caps.h"
+
 #if SOC_DAC_SUPPORTED
 #if !defined(M5DIAL)
 #include "DAC_Module.h"

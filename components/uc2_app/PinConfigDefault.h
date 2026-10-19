@@ -1,636 +1,246 @@
 #pragma once
-// T1.3: direct IDF 6.1 (no Arduino) — this header only needs the integer
-// types and gpio_num_t/GPIO_NUM_NC, which IDF provides directly.
-// (IDF >= 6: gpio types moved to esp_hal_gpio, include path unchanged.)
-#include <cstdint>
+// T4.1: PinConfig — pure-C board pin/parameter table (Phase 4 C conversion).
+//
+// The struct is the UNION of every field any board uses; a board only sets the
+// fields it needs (in its apps/<app>/main/pinconfig.c), everything else stays
+// at the disabled/zero default from pinconfig_defaults(). This makes
+// `pinConfig` a plain C object readable by every C-converted module with no
+// shim, while the 1181 existing `pinConfig.X` call sites compile unchanged.
+//
+// C-compatible: no default-member-initializers, no inheritance, no
+// `static constexpr` (those became #defines below). `I2CControllerType` is a
+// C enum. The single former `static constexpr I2C_ADDR_MCP4017` is a #define.
+#include <stdbool.h>
+#include <stdint.h>
 #include "esp_err.h"
 #include "hal/gpio_types.h"
 
+#ifndef MOTOR_AXIS_COUNT
 #define MOTOR_AXIS_COUNT 4
+#endif
 
-// default Pin structure
-
-/*
-available modules. to enable a module define them inside your config
-
-#define ANALOG_IN_CONTROLLER
-#define ANALOG_JOYSTICK
-#define ANALOG_OUT_CONTROLLER
-#define BLUETOOTH
-#define DAC_CONTROLLER
-#define DIGITAL_IN_CONTROLLER
-#define DIGITAL_OUT_CONTROLLER
-#define HOME_MOTOR
-#define LASER_CONTROLLER
-#define LED_CONTROLLER
-#define MOTOR_CONTROLLER
-#define PID_CONTROLLER
-#define SCANNER_CONTROLLER
-
-*/
-
-/*
-bt defines
-#define BTHID
-#define PSXCONTROLLER
-*/
-
-/*
-motor defines
-#define USE_TCA9535
-*/
-
-/*
-CAN Bus Configuration Flags:
-=============================
-CAN_BUS_ENABLED       - Enables CAN bus hardware (required for any CAN communication)
-CAN_SEND_COMMANDS     - Device can SEND commands to CAN slaves (master/gateway role)
-CAN_RECEIVE_MOTOR     - Device receives and executes motor commands via CAN (slave role)
-CAN_RECEIVE_LASER     - Device receives and executes laser commands via CAN (slave role)
-CAN_RECEIVE_LED       - Device receives and executes LED commands via CAN (slave role)
-CAN_RECEIVE_GALVO     - Device receives and executes galvo commands via CAN (slave role)
-CAN_HYBRID            - Enables hybrid mode: native drivers for local hardware + CAN for remote
-
-Board Type Configurations:
---------------------------
-1. CAN Master/Gateway (no local motors, just routes serial→CAN):
-   CAN_BUS_ENABLED + CAN_SEND_COMMANDS
-   
-2. CAN Slave - Motor (Seeed Xiao satellite, executes motor commands):
-   CAN_BUS_ENABLED + CAN_RECEIVE_MOTOR
-   
-3. CAN Slave - Illumination (Seeed Xiao satellite, executes laser+LED commands):
-   CAN_BUS_ENABLED + CAN_RECEIVE_LASER + CAN_RECEIVE_LED
-   
-4. CAN Hybrid Master (UC2 v4 with native motors A,X,Y,Z + CAN satellites B,C,D...):
-   CAN_BUS_ENABLED + CAN_SEND_COMMANDS + CAN_HYBRID
-   - Uses native FastAccelStepper for axes with configured STEP pins (>= 0)
-   - Routes axes without native pins to CAN when axis >= HYBRID_MOTOR_CAN_THRESHOLD
-   - Same logic applies to lasers via HYBRID_LASER_CAN_THRESHOLD
-
-IMPORTANT: GPIO_NUM_0 (=0) IS a valid pin! Use >= 0 to check for configured pins.
-           disabled = -1 means the pin is not configured.
-*/
-
-//#define USE_PCNT_COUNTER 
-const int8_t disabled = -1;
+// `disabled` sentinel for pin fields (was `const int8_t disabled = -1`).
+#ifndef disabled
+#define disabled (-1)
+#endif
 
 #define LED_BUILTIN 0 // for Xiao ESP32S3
-// will be used to differentiate between the different controllers for I2C
-enum I2CControllerType : uint8_t
-{
-     mDISABLED = 0,
-     mENCODER = 1,
-     mLINEAR_ENCODER = 2,
-     mHOME = 3,
-     mI2C = 4,
-     mTCA = 5,
-     mmANALOG = 6,
-     mDIGITAL = 7,
-     mBT = 8,
-     mLASER = 9,
-     mLED = 10,
-     mPID = 11,
-     mSCANNER = 12,
-     mWIFI = 13,
-     mHEAT = 14,
-     mGALVO = 15,
-     mMESSAGE = 16,
-     mDAC = 17,
-     mMOTOR = 18,
-     mDIAL = 19
-};
+
+// Former C++ `enum I2CControllerType : uint8_t`.
+typedef enum {
+    I2C_CONTROLLER_DISABLED = 0,
+    I2C_CONTROLLER_ENCODER = 1,
+    I2C_CONTROLLER_LINEAR_ENCODER = 2,
+    I2C_CONTROLLER_HOME = 3,
+    I2C_CONTROLLER_I2C = 4,
+    I2C_CONTROLLER_TCA = 5,
+    I2C_CONTROLLER_ANALOG = 6,
+    I2C_CONTROLLER_DIGITAL = 7,
+    I2C_CONTROLLER_BT = 8,
+    I2C_CONTROLLER_LASER = 9,
+    I2C_CONTROLLER_LED = 10,
+    I2C_CONTROLLER_PID = 11,
+    I2C_CONTROLLER_SCANNER = 12,
+    I2C_CONTROLLER_WIFI = 13,
+    I2C_CONTROLLER_HEAT = 14,
+    I2C_CONTROLLER_GALVO = 15,
+    I2C_CONTROLLER_MESSAGE = 16,
+    I2C_CONTROLLER_DAC = 17,
+    I2C_CONTROLLER_MOTOR = 18,
+    I2C_CONTROLLER_DIAL = 19
+} I2CControllerType;
+
+// Former `static constexpr I2C_ADDR_MCP4017` (wiper chip address) — plain #define.
+#define I2C_ADDR_MCP4017 0x2F
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct PinConfig
 {
-     const bool dumpHeap = false;
-     const uint16_t DEFAULT_TASK_PRIORITY = 0;
-     const uint16_t MAIN_TASK_STACKSIZE = 8128;
-     const uint16_t ANALOGJOYSTICK_TASK_STACKSIZE = 1024;
-     const uint16_t STAGESCAN_TASK_STACKSIZE = 4 * 2048;
-     const uint16_t HIDCONTROLLER_EVENT_STACK_SIZE = 2 * 2048; // Don't go below 2048
-     const uint16_t HTTP_MAX_URI_HANDLERS = 35;
-     const uint16_t BT_CONTROLLER_TASK_STACKSIZE = 4 * 2048; // TODO check if this is ending in stackoverflow
-     const uint16_t MOTOR_TASK_STACKSIZE = 4 * 1024;
-     const uint16_t MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE = 6 * 1024;
-     const uint16_t INTERRUPT_CONTROLLER_TASK_STACKSIZE = 6 * 1024;
-     const uint16_t TCA_TASK_STACKSIZE = 2048;
-     const uint16_t SCANNER_TASK_STACKSIZE = 10000;
-     const uint16_t TEMPERATURE_TASK_STACKSIZE = 1024; // 8096;
-     const unsigned long BAUDRATE = 115200;
-     const uint16_t serialTimeout = 50;
-     const char *pindefName = "pindef";
+    // ── Task / system ──
+    bool          dumpHeap;
+    uint16_t      DEFAULT_TASK_PRIORITY;
+    uint16_t      MAIN_TASK_STACKSIZE;
+    uint16_t      ANALOGJOYSTICK_TASK_STACKSIZE;
+    uint16_t      STAGESCAN_TASK_STACKSIZE;
+    uint16_t      HIDCONTROLLER_EVENT_STACK_SIZE;
+    uint16_t      HTTP_MAX_URI_HANDLERS;
+    uint16_t      BT_CONTROLLER_TASK_STACKSIZE;
+    uint16_t      MOTOR_TASK_STACKSIZE;
+    uint16_t      MOTOR_TASK_UPDATEWEBSOCKET_STACKSIZE;
+    uint16_t      INTERRUPT_CONTROLLER_TASK_STACKSIZE;
+    uint16_t      TCA_TASK_STACKSIZE;
+    uint16_t      SCANNER_TASK_STACKSIZE;
+    uint16_t      TEMPERATURE_TASK_STACKSIZE;
+    unsigned long BAUDRATE;
+    uint16_t      serialTimeout;
+    const char   *pindefName;
 
-     bool DEBUG_CAN_ISO_TP = 0;
-     uint32_t CAN_ID_CURRENT = disabled;
-     // see AccelStepper.h MotorInterfaceType
-     /*
-     typedef enum
-     {
-          FUNCTION  = 0, ///< Use the functional interface, implementing your own driver functions (internal use only)
-          DRIVER    = 1, ///< Stepper Driver, 2 driver pins required
-          FULL2WIRE = 2, ///< 2 wire stepper, 2 motor pins required
-          FULL3WIRE = 3, ///< 3 wire stepper, such as HDD spindle, 3 motor pins required
-          FULL4WIRE = 4, ///< 4 wire full stepper, 4 motor pins required
-          HALF3WIRE = 6, ///< 3 wire half stepper, such as HDD spindle, 3 motor pins required
-          HALF4WIRE = 8  ///< 4 wire half stepper, 4 motor pins required
-     } MotorInterfaceType;
-     */
-     int8_t AccelStepperMotorType = 8;
-     // motor x direction pin
-     int8_t MOTOR_X_DIR = disabled;
-     // motor x step pin
-     int8_t MOTOR_X_STEP = disabled;
-     // motor y direction pin
-     int8_t MOTOR_Y_DIR = disabled;
-     // motor y step pin
-     int8_t MOTOR_Y_STEP = disabled;
-     // motor z direction pin
-     int8_t MOTOR_Z_DIR = disabled;
-     // motor z step pin
-     int8_t MOTOR_Z_STEP = disabled;
-     // motor a direction pin
-     int8_t MOTOR_A_DIR = disabled;
-     // motor a step pin
-     int8_t MOTOR_A_STEP = disabled;
+    // ── CAN / debug ──
+    bool          DEBUG_CAN_ISO_TP;
+    uint32_t      CAN_ID_CURRENT;
+    int8_t        AccelStepperMotorType;
 
-     // additional dummy pins
-     int8_t MOTOR_B_DIR = disabled;
-     int8_t MOTOR_B_STEP = disabled;
-     int8_t MOTOR_C_DIR = disabled;
-     int8_t MOTOR_C_STEP = disabled;
-     int8_t MOTOR_D_DIR = disabled;
-     int8_t MOTOR_D_STEP = disabled;
-     int8_t MOTOR_E_DIR = disabled;
-     int8_t MOTOR_E_STEP = disabled;
-     int8_t MOTOR_F_DIR = disabled;
-     int8_t MOTOR_F_STEP = disabled;
-     int8_t MOTOR_G_DIR = disabled;
-     int8_t MOTOR_G_STEP = disabled;
+    // ── Motor step/dir pins ──
+    int8_t        MOTOR_X_DIR,  MOTOR_X_STEP;
+    int8_t        MOTOR_Y_DIR,  MOTOR_Y_STEP;
+    int8_t        MOTOR_Z_DIR,  MOTOR_Z_STEP;
+    int8_t        MOTOR_A_DIR,  MOTOR_A_STEP;
+    int8_t        MOTOR_B_DIR,  MOTOR_B_STEP;
+    int8_t        MOTOR_C_DIR,  MOTOR_C_STEP;
+    int8_t        MOTOR_D_DIR,  MOTOR_D_STEP;
+    int8_t        MOTOR_E_DIR,  MOTOR_E_STEP;
+    int8_t        MOTOR_F_DIR,  MOTOR_F_STEP;
+    int8_t        MOTOR_G_DIR,  MOTOR_G_STEP;
 
-     // limit settings 
-      bool hardLimitEnabledA = false;
-      bool hardLimitPolarityA = false;
-      bool hardLimitEnabledX = false; 
-      bool hardLimitPolarityX = false;
-      bool hardLimitEnabledY = false;
-      bool hardLimitPolarityY = false;
-      bool hardLimitEnabledZ = false;
-      bool hardLimitPolarityZ = false;
+    // ── Hard limits ──
+    bool          hardLimitEnabledA, hardLimitPolarityA;
+    bool          hardLimitEnabledX, hardLimitPolarityX;
+    bool          hardLimitEnabledY, hardLimitPolarityY;
+    bool          hardLimitEnabledZ, hardLimitPolarityZ;
+    uint16_t      homeEndstopReleaseSteps;
 
-      // Homing back-off: after the final endstop touch, drive OFF the switch
-      // until it releases and then this many extra steps before setting home=0.
-      // Mandatory so homing never ends while the endstop is still pressed -
-      // otherwise the next move INTO that direction starts already-triggered,
-      // produces no fresh endstop edge, and overshoots into the mechanical stop.
-      uint16_t homeEndstopReleaseSteps = 50;
+    // ── Motor enable / homing ──
+    int8_t        MOTOR_ENABLE;
+    bool          MOTOR_ENABLE_INVERTED, MOTOR_AUTOENABLE;
+    int8_t        HOME_X_DIR, HOME_Y_DIR, HOME_Z_DIR;
+    int           HOME_X_SPEED, HOME_Y_SPEED, HOME_Z_SPEED;
+    bool          HOME_X_SIG_INVERTED, HOME_Y_SIG_INVERTED, HOME_Z_SIG_INVERTED;
 
-     // motor enable power
-     int8_t MOTOR_ENABLE = disabled;
-     // motor power pin is inverted
-     bool MOTOR_ENABLE_INVERTED = false;
-     // keep motors on after idle time?
-     bool MOTOR_AUTOENABLE = false;
+    // ── I2C / motor encoder pins ──
+    gpio_num_t    I2C_INT;
+    int8_t        MOTOR_X_0, MOTOR_X_1, MOTOR_Y_0, MOTOR_Y_1;
+    int8_t        MOTOR_Z_0, MOTOR_Z_1, MOTOR_A_0, MOTOR_A_1;
+    uint8_t       objectiveMotorAxis, focusMotorAxis;
 
-     int8_t HOME_X_DIR = -1;
-     int8_t HOME_Y_DIR = -1;
-     int8_t HOME_Z_DIR = -1;
-     int HOME_X_SPEED = 3000;
-     int HOME_Y_SPEED = 3000;
-     int HOME_Z_SPEED = 3000;
-     bool HOME_X_SIG_INVERTED = false;
-     bool HOME_Y_SIG_INVERTED = false;
-     bool HOME_Z_SIG_INVERTED = false;
+    // ── LED ──
+    int8_t        LED_PIN, LED_COUNT;
+    bool          IS_STATUS_LED;
+    uint16_t      RING_INNER_START,   RING_INNER_COUNT;
+    uint16_t      RING_MIDDLE_START,  RING_MIDDLE_COUNT;
+    uint16_t      RING_BIGGEST_START, RING_BIGGEST_COUNT;
+    uint16_t      RING_OUTEST_START,  RING_OUTEST_COUNT;
+    uint8_t       MATRIX_W, MATRIX_H;
+    // Former `static constexpr` segment offsets (LED ring indexing, per-board in
+    // pinconfig.c — all 0 by default = no illumination-board ring segments).
+    uint16_t      SEGMENT_INNER_RIGHT_START,  SEGMENT_INNER_BOTTOM_START;
+    uint16_t      SEGMENT_INNER_LEFT_START,   SEGMENT_INNER_TOP_START;
+    uint16_t      SEGMENT_INNER_COUNT;
+    uint16_t      SEGMENT_MIDDLE_RIGHT_START, SEGMENT_MIDDLE_BOTTOM_START;
+    uint16_t      SEGMENT_MIDDLE_LEFT_START,  SEGMENT_MIDDLE_TOP_START;
+    uint16_t      SEGMENT_MIDDLE_COUNT;
+    uint16_t      SEGMENT_BIGGEST_RIGHT_START, SEGMENT_BIGGEST_BOTTOM_START;
+    uint16_t      SEGMENT_BIGGEST_LEFT_START,  SEGMENT_BIGGEST_TOP_START;
+    uint16_t      SEGMENT_BIGGEST_COUNT;
+    uint16_t      SEGMENT_OUTEST_RIGHT_START, SEGMENT_OUTEST_BOTTOM_START;
+    uint16_t      SEGMENT_OUTEST_LEFT_START,  SEGMENT_OUTEST_TOP_START;
+    uint16_t      SEGMENT_OUTEST_COUNT;
 
-     gpio_num_t I2C_INT = GPIO_NUM_NC;
-     int8_t MOTOR_X_0 = disabled;
-     int8_t MOTOR_X_1 = disabled;
-     int8_t MOTOR_Y_0 = disabled;
-     int8_t MOTOR_Y_1 = disabled;
-     int8_t MOTOR_Z_0 = disabled;
-     int8_t MOTOR_Z_1 = disabled;
-     int8_t MOTOR_A_0 = disabled;
-     int8_t MOTOR_A_1 = disabled;
+    // ── Joystick / laser / digital out ──
+    int8_t        ANLOG_JOYSTICK_X, ANLOG_JOYSTICK_Y;
+    int8_t        LASER_1, LASER_2, LASER_3, LASER_4, LASER_0;
+    int8_t        DIGITAL_OUT_1, DIGITAL_OUT_2, DIGITAL_OUT_3;
+    bool          testLaserPinOnBoot;
+    int           LASER_PWM_FREQUENCY, LASER_PWM_RESOLUTION;
 
-     // Objective related 
-     uint8_t objectiveMotorAxis = disabled;
-     uint8_t focusMotorAxis = disabled;
-     
-     // LED_PINcontrol pin
-     int8_t LED_PIN = disabled;
-     // LED_PINcount from the strip
-     int8_t LED_COUNT = disabled;
-     // status led 
-     bool IS_STATUS_LED = false;
+    // ── Camera / digital in / DAC / analog ──
+    int8_t        CAMERA_TRIGGER_PIN;
+    bool          CAMERA_TRIGGER_INVERTED;
+    int8_t        DIGITAL_IN_1, DIGITAL_IN_2, DIGITAL_IN_3;
+    int8_t        dac_fake_1, dac_fake_2;
+    int8_t        analogout_PIN_1, analogout_PIN_2, analogout_PIN_3;
+    int8_t        analogin_PIN_0, analogin_PIN_1, analogin_PIN_2, analogin_PIN_3;
+    int8_t        pid1, pid2, pid3;
 
-         // Ring definitions for LED indexing (total: 136 LEDs)
-    const uint16_t RING_INNER_START = 0;      // Inner ring: 20 LEDs (indices 0-19)
-    const uint16_t RING_INNER_COUNT = 20;
-    const uint16_t RING_MIDDLE_START = 20;    // Middle ring: 28 LEDs (indices 20-47)
-    const uint16_t RING_MIDDLE_COUNT = 28;
-    const uint16_t RING_BIGGEST_START = 48;   // Biggest ring: 40 LEDs (indices 48-87)
-    const uint16_t RING_BIGGEST_COUNT = 40;
-    const uint16_t RING_OUTEST_START = 88;    // Outest ring: 48 LEDs (indices 88-135)
-    const uint16_t RING_OUTEST_COUNT = 48;
-    
-    // Segment definitions for directional illumination (default values for non-ring LEDs)
-    // These are overridden in illumination board configs with actual ring segment values
-    static constexpr uint16_t SEGMENT_INNER_RIGHT_START = 0;
-    static constexpr uint16_t SEGMENT_INNER_BOTTOM_START = 0;
-    static constexpr uint16_t SEGMENT_INNER_LEFT_START = 0;
-    static constexpr uint16_t SEGMENT_INNER_TOP_START = 0;
-    static constexpr uint16_t SEGMENT_INNER_COUNT = 0;
-    static constexpr uint16_t SEGMENT_MIDDLE_RIGHT_START = 0;
-    static constexpr uint16_t SEGMENT_MIDDLE_BOTTOM_START = 0;
-    static constexpr uint16_t SEGMENT_MIDDLE_LEFT_START = 0;
-    static constexpr uint16_t SEGMENT_MIDDLE_TOP_START = 0;
-    static constexpr uint16_t SEGMENT_MIDDLE_COUNT = 0;
-    static constexpr uint16_t SEGMENT_BIGGEST_RIGHT_START = 0;
-    static constexpr uint16_t SEGMENT_BIGGEST_BOTTOM_START = 0;
-    static constexpr uint16_t SEGMENT_BIGGEST_LEFT_START = 0;
-    static constexpr uint16_t SEGMENT_BIGGEST_TOP_START = 0;
-    static constexpr uint16_t SEGMENT_BIGGEST_COUNT = 0;
-    static constexpr uint16_t SEGMENT_OUTEST_RIGHT_START = 0;
-    static constexpr uint16_t SEGMENT_OUTEST_BOTTOM_START = 0;
-    static constexpr uint16_t SEGMENT_OUTEST_LEFT_START = 0;
-    static constexpr uint16_t SEGMENT_OUTEST_TOP_START = 0;
-    static constexpr uint16_t SEGMENT_OUTEST_COUNT = 0;
+    // ── PSX / joystick tuning ──
+    const char   *PSX_MAC;
+    int8_t        PSX_CONTROLLER_TYPE;
+    int8_t        JOYSTICK_SPEED_MULTIPLIER, JOYSTICK_MAX_ILLU, JOYSTICK_SPEED_MULTIPLIER_Z;
 
-     const uint8_t  MATRIX_W   = 8;    // width
-     const uint8_t  MATRIX_H   = 8;    // height
- 
-     // anlog joystick x pin
-     int8_t ANLOG_JOYSTICK_X = disabled;
-     // analog joystick y pin
-     int8_t ANLOG_JOYSTICK_Y = disabled;
+    // ── WiFi / mDNS ──
+    const char   *mSSID, *mPWD, *mSSIDAP, *hostname;
+    bool          mAP;
 
-     int8_t LASER_1 = disabled;
-     int8_t LASER_2 = disabled;
-     int8_t LASER_3 = disabled; // GPIO_NUM_21
-     int8_t LASER_4 = disabled; // GPIO_NUM_22
-     int8_t LASER_0 = disabled;
+    // ── Caliper / encoder ──
+    int8_t        X_CAL_DATA, Y_CAL_DATA, Z_CAL_DATA;
+    int8_t        X_CAL_CLK,  Y_CAL_CLK,  Z_CAL_CLK;
+    int8_t        ENC_X_A, ENC_Y_A, ENC_Z_A, ENC_X_B, ENC_Y_B, ENC_Z_B;
+    bool          ENC_X_encoderDirection, ENC_Y_encoderDirection, ENC_Z_encoderDirection;
 
-     int8_t DIGITAL_OUT_1 = disabled;
-     int8_t DIGITAL_OUT_2 = disabled;
-     int8_t DIGITAL_OUT_3 = disabled;
+    // ── TMC2209 ──
+    int8_t        tmc_SW_RX, tmc_SW_TX, tmc_pin_diag;
+    bool          TMC_DEBUG;
+    int           tmc_microsteps, tmc_rms_current, tmc_stall_value, tmc_sgthrs;
+    int           tmc_semin, tmc_semax, tmc_sedn, tmc_tcoolthrs, tmc_blank_time;
+    int           tmc_toff, tmc_en_spreadcycle, tmc_tpwmthrs_sps, tmc_hstrt, tmc_hend;
+    bool          tmc_internal_vref;
+    int           tmc_hold_multiplier_pct;
 
-     bool testLaserPinOnBoot = false;
+    // ── Thermal (NTC) ──
+    int8_t        thermal_PIN_0, thermal_PIN_1, thermal_PIN_2, thermal_PIN_3;
+    int           thermal_series_r_ohm, thermal_supply_mv;
+    float         thermal_warn_c, thermal_critical_c, thermal_recover_c;
+    bool          thermal_enabled_default;
 
-     // PWM configuration for laser/LED drivers.
-     // Minimum 10 kHz required for LED drivers to avoid flicker at low dimming levels.
-     // ESP32 LEDC constraint: f_max = 80 MHz / 2^resolution
-     //   10-bit (1024 steps) -> f_max = 78 kHz
-     //   12-bit (4096 steps) -> f_max = 19.5 kHz  (use this for LED drivers >= 10 kHz)
-     int LASER_PWM_FREQUENCY = 5000;  // Hz, default for laser diodes
-     int LASER_PWM_RESOLUTION = 10;   // bits (1024 steps)
+    // ── I2C / aux devices ──
+    bool          isI2Cinitiated;
+    int8_t        I2C_SCL, I2C_SDA, I2C_ADD_TCA;
+    I2CControllerType I2C_CONTROLLER_TYPE;
+    uint8_t       I2C_ADD_SLAVE, REMOTE_MOTOR_AXIS_ID, REMOTE_LASER_ID;
+    uint8_t       I2C_ADD_MOT_X, I2C_ADD_MOT_Y, I2C_ADD_MOT_Z, I2C_ADD_MOT_A;
+    uint8_t       I2C_ADD_LEX_MAT, I2C_ADD_LEX_PWM0, I2C_ADD_LEX_PWM1, I2C_ADD_LEX_PWM2, I2C_ADD_LEX_PWM3;
+    uint8_t       I2C_ADD_M5_DIAL;
 
-     int8_t CAMERA_TRIGGER_PIN = disabled;
-     bool CAMERA_TRIGGER_INVERTED = false;
-     int8_t DIGITAL_IN_1 = disabled;
-     int8_t DIGITAL_IN_2 = disabled;
-     int8_t DIGITAL_IN_3 = disabled;
+    // ── SPI / galvo ──
+    int8_t        SPI_MOSI, SPI_MISO, SPI_SCK, SPI_CS;
+    uint8_t       galvo_miso, galvo_sck, galvo_sdi, galvo_cs, galvo_ldac, galvo_laser;
+    uint8_t       galvo_trig_pixel, galvo_trig_line, galvo_trig_frame;
 
-     // GALVos are always connected to 25/26
-     int8_t dac_fake_1 = disabled; //
-     int8_t dac_fake_2 = disabled; //
+    // ── Buzzer / temp / fan ──
+    int8_t        BUZZER_PIN, DS28b20_PIN, FAN_TACHO_PIN;
 
-     // analogout out (e.g. Lenses)
-     int8_t analogout_PIN_1 = disabled;
-     int8_t analogout_PIN_2 = disabled;
-     int8_t analogout_PIN_3 = disabled;
+    // ── CAN ──
+    int8_t        CAN_TX, CAN_RX;
+    uint8_t       CAN_ID_CENTRAL_NODE;
+    uint8_t       CAN_ID_MOT_A, CAN_ID_MOT_X, CAN_ID_MOT_Y, CAN_ID_MOT_Z;
+    uint8_t       CAN_ID_MOT_B, CAN_ID_MOT_C, CAN_ID_MOT_D, CAN_ID_MOT_E, CAN_ID_MOT_F, CAN_ID_MOT_G;
+    uint8_t       CAN_ID_LASER_0, CAN_ID_LASER_1, CAN_ID_LASER_2, CAN_ID_LASER_3, CAN_ID_LASER_4;
+    uint8_t       CAN_NODE_LASER[4];
+    int8_t        CAN_SUBAXIS_LASER[4];
+    uint8_t       CAN_ID_LED_0, CAN_ID_GALVO_0, CAN_ID_GPIO_0;
+    int8_t        ROUTE_MOTOR[4], ROUTE_HOME[4], ROUTE_TMC[4], ROUTE_LASER[4];
+    int8_t        ROUTE_LASER_4;
+    uint8_t       CAN_NODE_LASER_4;
+    int8_t        CAN_SUBAXIS_LASER_4, ROUTE_LED, ROUTE_GALVO;
+    uint32_t      CAN_ID_SECONDARY;
 
-     int8_t analogin_PIN_0 = disabled;
-     int8_t analogin_PIN_1 = disabled;
-     int8_t analogin_PIN_2 = disabled;
-     int8_t analogin_PIN_3 = disabled;
+    // ── Hybrid mode ──
+    uint8_t       HYBRID_MOTOR_CAN_THRESHOLD, HYBRID_LASER_CAN_THRESHOLD;
+    bool          HYBRID_LED_DUAL_OUTPUT;
+    uint32_t      LED_AUTO_OFF_TIME_MS;
+    uint16_t      LED_AUTO_OFF_INTENSITY_THRESHOLD;
 
-     int8_t pid1 = disabled;
-     int8_t pid2 = disabled;
-     int8_t pid3 = disabled;
+    // ── E-stop / bus power ──
+    int8_t        pinEmergencyExit, pinEmergencyExitPolarity;
+    int8_t        BUSPOWER_OFF_PIN;
 
-     const char *PSX_MAC = "";
-     int8_t PSX_CONTROLLER_TYPE = 0; // 1 = ps3, 2 =ps4
-
-     int8_t JOYSTICK_SPEED_MULTIPLIER = 50;
-     int8_t JOYSTICK_MAX_ILLU = 255;
-     int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 10;
-
-     // WIFI
-     const char *mSSID = "Uc2";
-     const char *mPWD = "12345678";
-     bool mAP = true;
-     const char *mSSIDAP = "UC2";
-     const char *hostname = "youseetoo";
-
-     // for caliper
-     int8_t X_CAL_DATA = disabled;
-     int8_t Y_CAL_DATA = disabled;
-     int8_t Z_CAL_DATA = disabled;
-     int8_t X_CAL_CLK = disabled;
-     int8_t Y_CAL_CLK = disabled;
-     int8_t Z_CAL_CLK = disabled;
-
-     // for AS5311
-     int8_t ENC_X_A = disabled;
-     int8_t ENC_Y_A = disabled;
-     int8_t ENC_Z_A = disabled;
-     int8_t ENC_X_B = disabled;
-     int8_t ENC_Y_B = disabled;
-     int8_t ENC_Z_B = disabled;
-     bool ENC_X_encoderDirection = true;
-     bool ENC_Y_encoderDirection = true;
-     bool ENC_Z_encoderDirection = true;
-
-     // TMC 2209 stuff
-     int8_t tmc_SW_RX = disabled;    // GPIO_NUM_44; // D7 -> GPIO44
-     int8_t tmc_SW_TX = disabled;    // GPIO_NUM_43; // D6 -> GPIO43
-     int8_t tmc_pin_diag = disabled; // D3 -> GPIO4
-     bool TMC_DEBUG = false;
-     int tmc_microsteps = 16;
-     int tmc_rms_current = 500;
-     int tmc_stall_value = 100;
-     int tmc_sgthrs = 100;
-     // CoolStep OFF by default. With semin > 0 the driver uses the StallGuard
-     // result to *reduce* the coil current whenever it judges the load to be
-     // light — great for heat, bad whenever you want guaranteed torque (and it
-     // reacts too slowly for the load steps a microscope stage sees). Set
-     // semin = 5 / semax = 2 explicitly on a board that wants CoolStep back.
-     int tmc_semin = 0;
-     int tmc_semax = 0;
-     int tmc_sedn = 0b01;
-     int tmc_tcoolthrs = 0xFFFFF;
-     int tmc_blank_time = 24;
-     int tmc_toff = 4;
-     // 1 = SpreadCycle at every velocity: maximum torque across the whole speed
-     // range, and no StealthChop<->SpreadCycle transition to step through.
-     // Costs silence and StallGuard4 (which only functions in StealthChop) —
-     // we do not use sensorless homing, so that is the right trade.
-     int tmc_en_spreadcycle = 1;
-     // Only consulted when tmc_en_spreadcycle == 0: velocity (steps/s at
-     // tmc_microsteps resolution) at which StealthChop hands over to
-     // SpreadCycle. 15000 steps/s @ 16 microsteps -> TPWMTHRS = 50.
-     // 0 = stay in StealthChop at every velocity (the chip's power-on default).
-     int tmc_tpwmthrs_sps = 15000;
-     // SpreadCycle chopper hysteresis, raw CHOPCONF fields. 5 / 0 is the
-     // TMC2209 reset default and a sane starting point; raise hend if the
-     // chopper sings, lower it if current regulation looks sluggish.
-     int tmc_hstrt = 5;
-     int tmc_hend = 0;
-     // false = take the current reference from the VREF pin (the chip's OTP
-     // default), true = use the internal reference so rms_current() alone
-     // decides the coil current. Keep true unless a board really does set its
-     // current with a VREF divider.
-     bool tmc_internal_vref = true;
-     // Standstill current in % of the run current. TMCStepper's own default is
-     // 50 %; raise it for more holding torque against back-driving, at the
-     // price of a hotter motor when idle.
-     int tmc_hold_multiplier_pct = 50;
-
-     // ── Thermal monitoring (NTC heat-sink sensors) ────────────────────────
-     // Illumination board rev. H fits four NCP15XH103F03RC 10k NTCs in a
-     // 3V3 -> NTC -> node -> 1k -> GND divider behind an LM324 buffer.
-     // Leave the pins `disabled` on boards without the thermistors — the
-     // module then stays inert no matter what is stored in NVS.
-     int8_t thermal_PIN_0 = disabled;
-     int8_t thermal_PIN_1 = disabled;
-     int8_t thermal_PIN_2 = disabled;
-     int8_t thermal_PIN_3 = disabled;
-     int thermal_series_r_ohm = 1000; // lower leg of the divider
-     int thermal_supply_mv = 3300;    // rail feeding the NTC
-     // ~58 °C is the touch-safe heat-sink limit from the CENELEC figure in
-     // issue #86 (4 s contact, bare metal); above criticalC the LEDs are cut.
-     float thermal_warn_c = 58.0f;
-     float thermal_critical_c = 70.0f;
-     float thermal_recover_c = 50.0f; // hysteresis: below this we go back to OK
-     bool thermal_enabled_default = false;
-
-     // I2c
-     bool isI2Cinitiated = false;
-     int8_t I2C_SCL = disabled; // This is the poart that connects to all other slaves
-     int8_t I2C_SDA = disabled;
-
-     // Auxilarry I2C devices
-     int8_t I2C_ADD_TCA = disabled; // this is the port extender on the PCB that controls the direction of the motors
-     I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
-     uint8_t I2C_ADD_SLAVE = -1;       // I2C address of the ESP32 if it's a slave
-     uint8_t REMOTE_MOTOR_AXIS_ID = 1; // On the slave we have one motor axis per slave
-     uint8_t REMOTE_LASER_ID = 0;      // On the slave we have one laser axis per slave
-     uint8_t I2C_ADD_MOT_X = 0x40;
-     uint8_t I2C_ADD_MOT_Y = 0x41;
-     uint8_t I2C_ADD_MOT_Z = 0x42;
-     uint8_t I2C_ADD_MOT_A = 0x43;
-     uint8_t I2C_ADD_LEX_MAT = 0x60;
-     uint8_t I2C_ADD_LEX_PWM0 = 0x50;
-     uint8_t I2C_ADD_LEX_PWM1 = 0x51;
-     uint8_t I2C_ADD_LEX_PWM2 = 0x52;
-     uint8_t I2C_ADD_LEX_PWM3 = 0x53;
-
-     // inputs
-     uint8_t I2C_ADD_M5_DIAL = 0x60;
-
-     // SPI
-     int8_t SPI_MOSI = disabled;
-     int8_t SPI_MISO = disabled;
-     int8_t SPI_SCK = disabled;
-     int8_t SPI_CS = disabled;
-
-     // Galvo
-
-     uint8_t galvo_miso = disabled;
-     uint8_t galvo_sck = disabled;
-     uint8_t galvo_sdi = disabled;
-     uint8_t galvo_cs = disabled;
-     uint8_t galvo_ldac = disabled;
-     uint8_t galvo_laser = disabled;
-     uint8_t galvo_trig_pixel = disabled;  // D1
-     uint8_t galvo_trig_line = disabled;   // D2
-     uint8_t galvo_trig_frame = disabled;  // D3
-
-      // Buzzer
-    int8_t BUZZER_PIN = disabled; // active HIGH // TODO: implement buzzer control via new buzzer controller interface (buzzer_act)
-
-
-     // Temperature Sensor
-     int8_t DS28b20_PIN = disabled;
-
-     // Case-fan control (MCP4017T-503E digital rheostat over I2C + Noctua tacho)
-     // FAN_TACHO_PIN is the open-drain tacho line from the fan -> ESP32 GPIO.
-     // I2C_ADDR_MCP4017 is the wiper chip on the panelboard regulating fan voltage.
-     int8_t FAN_TACHO_PIN = disabled;
-     static constexpr uint8_t I2C_ADDR_MCP4017 = 0x2F;
-
-     // CAN
-     int8_t CAN_TX = 5;
-     int8_t CAN_RX = 44;
-
-     // Source ID Assignment Scheme
-     // Device Type          Starting ID  Range       Total Devices
-     // Gateway (Master)     0x00         0x00        1
-     // Lasers               0         0 - 9 10
-     // Motors               0x20         0x20 - 0x29 10
-     // LEDs                 0x30         0x30 - 0x39 10
-     // Sensors              0x40         0x40 - 0x49 10
-     // Reserved             0xF0         0xF0 - 0xFF Management, Heartbeats
-
-     // Variables for different IDs
-     // addresses
-     uint8_t CAN_ID_CENTRAL_NODE = 1; // this is similar to the master address
-
-     uint8_t CAN_ID_MOT_A = 10;
-     uint8_t CAN_ID_MOT_X = 11;
-     uint8_t CAN_ID_MOT_Y = 12;
-     uint8_t CAN_ID_MOT_Z = 13;
-     uint8_t CAN_ID_MOT_B = 14;
-     uint8_t CAN_ID_MOT_C = 15;
-     uint8_t CAN_ID_MOT_D = 16;
-     uint8_t CAN_ID_MOT_E = 17;
-     uint8_t CAN_ID_MOT_F = 18;
-     uint8_t CAN_ID_MOT_G = 19;
-
-     uint8_t CAN_ID_LASER_0 = 20;
-     uint8_t CAN_ID_LASER_1 = 21;
-     uint8_t CAN_ID_LASER_2 = 22;
-     uint8_t CAN_ID_LASER_3 = 23;
-     uint8_t CAN_ID_LASER_4 = 24;
-
-     // Per-channel laser routing: node ID and sub-axis per logical laser channel.
-     // CAN_NODE_LASER[ch] — CAN node ID the master addresses for that channel.
-     //   Default mirrors CAN_ID_LASER_N (one node per channel). Override ALL
-     //   four entries to the same value when one slave node serves multiple channels.
-     //   Example (4 channels on node 0x14): {0x14, 0x14, 0x14, 0x14}
-     // CAN_SUBAXIS_LASER[ch] — OD sub-index - 1 written for that channel.
-     //   Default {0, 1, 2, 3} — sub 0x01…0x04 of OD object LASER_PWM_VALUE.
-     //   If two nodes each handle 2 channels:
-     //     CAN_NODE_LASER    = {0x14, 0x14, 0x15, 0x15}
-     //     CAN_SUBAXIS_LASER = {0,    1,    0,    1}
-     uint8_t CAN_NODE_LASER[4]     = {20, 21, 22, 23};  // defaults match CAN_ID_LASER_N
-     int8_t  CAN_SUBAXIS_LASER[4]  = {0, 1, 2, 3};      // 0-based sub-axis (OD sub = ch+1)
-
-     uint8_t CAN_ID_LED_0 = 30;
-
-     uint8_t CAN_ID_GALVO_0 = 40;
-
-     // ── GPIO / sensor I/O slave (E-stop, collision-threshold, remote GPIOs) ──
-     uint8_t CAN_ID_GPIO_0 = 60;
-
-     // ========================================================================
-     // PER-DEVICE ROUTING OVERRIDES
-     // ========================================================================
-     // Explicit routing for RoutingTable::buildDefault().
-     // Values: -1 = INFER (from pin config + canRole, default behaviour),
-     //          0 = LOCAL (on-board GPIO),
-     //          1 = REMOTE (forward over CAN to the CAN_ID_* node),
-     //          2 = OFF (disabled)
-     // Override these in board-specific PinConfig.h for explicit control.
-     int8_t ROUTE_MOTOR[4]  = {-1, -1, -1, -1}; // A, X, Y, Z
-     int8_t ROUTE_HOME[4]   = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
-     int8_t ROUTE_TMC[4]    = {-1, -1, -1, -1}; // follows ROUTE_MOTOR unless overridden
-     int8_t ROUTE_LASER[4]  = {-1, -1, -1, -1}; // laser channels 0-3
-
-     // ── Laser channel 4 (extra remote laser, typically an illumination
-     //    satellite board that exposes a single PWM as OD sub-index 1) ──
-     // Routing for laser id 4 is handled separately from ROUTE_LASER[0..3]
-     // so existing PinConfigs that declare ROUTE_LASER as a fixed-size
-     // [4] array do not need to be touched. By convention, channel 4 lives
-     // on the illumination board's CANopen node (default = CAN_ID_LED_0)
-     // and reuses its sole laser channel (sub-axis 0 → OD sub 0x01).
-     // Hybrid masters typically set ROUTE_LASER[0..3]=LOCAL and
-     // ROUTE_LASER_4=REMOTE so logical laser id 4 is routed over CAN.
-     int8_t  ROUTE_LASER_4    = -1;  // -1=infer, 0=LOCAL, 1=REMOTE, 2=OFF
-     uint8_t CAN_NODE_LASER_4 = 30;  // default = CAN_ID_LED_0 (illumination board)
-     int8_t  CAN_SUBAXIS_LASER_4 = 0; // OD sub-axis (sub = value + 1)
-
-     int8_t ROUTE_LED        = -1;               // single LED array
-     int8_t ROUTE_GALVO      = -1;               // single galvo
-
-     // Secondary CAN ID for devices that listen to multiple addresses (e.g., illumination board)
-     // Set to 0 to disable secondary address listening
-     uint32_t CAN_ID_SECONDARY = 0;
-
-     // ========================================================================
-     // HYBRID MODE CONFIGURATION
-     // ========================================================================
-     // When HYBRID_MODE is enabled, the device can control both:
-     // - Native motors (directly attached via FastAccelStepper) for axes 0-3
-     // - CAN-connected motors (via CAN bus satellite boards) for axes 4-7+
-     //
-     // Motor ID assignment in hybrid mode:
-     // - Axes 0-3 (A, X, Y, Z): Native on-board drivers
-     // - Axes 4-7 (B, C, D, E...): External CAN satellite boards
-     //
-     // Similarly for lasers:
-     // - Laser IDs 0-3: Native on-board drivers
-     // - Laser IDs 4+: External CAN satellite boards
-     //
-     // LED arrays are addressed both natively AND via CAN simultaneously
-     // when in hybrid mode.
-     // ========================================================================
-     
-     // Threshold axis ID where CAN routing begins (axes >= this use CAN)
-     // Default: 4 means axes A(0), X(1), Y(2), Z(3) are native; B(4), C(5), etc. use CAN
-     uint8_t HYBRID_MOTOR_CAN_THRESHOLD = 4;
-     
-     // Threshold laser ID where CAN routing begins
-     // Default: 4 means lasers 0-3 are native; laser 4+ use CAN
-     uint8_t HYBRID_LASER_CAN_THRESHOLD = 4;
-     
-     // When true, LED commands are sent to BOTH native LED array AND CAN LED devices
-     bool HYBRID_LED_DUAL_OUTPUT = false;
-
-     // LED auto-off safety: time in milliseconds before high-intensity LEDs auto-shut off to prevent overheating
-     // Applies to waveshare_esp32s3_ledarray and seeed_xiao_esp32s3_can_slave_illumination builds
-     // Default: 60000ms (60 seconds) - auto-off when sum of RGB channels exceeds threshold
-     uint32_t LED_AUTO_OFF_TIME_MS = 60000;
-     
-     // LED intensity threshold for triggering auto-off (sum of R+G+B, range 0-765)
-     // Default: 150 (equivalent to all channels at ~50 intensity each)
-     uint16_t LED_AUTO_OFF_INTENSITY_THRESHOLD = 150;
-
-     // Emergency-STOP sense input, polled by DigitalInController (always-on).
-     int8_t pinEmergencyExit = disabled;
-     // Default ASSERTED (emergency) logic level on pinEmergencyExit:
-     //   0 = active-LOW  (asserted reads LOW,  idle HIGH)
-     //   1 = active-HIGH (asserted reads HIGH, idle LOW)
-     // Runtime-overridable + persisted via /state_act {"estopPolarity":0|1}.
-     // NOTE: input-only pins (GPIO34-39) have no internal pull — they need an
-     // EXTERNAL pull resistor to the idle level or the reading will float.
-     int8_t pinEmergencyExitPolarity = 1;
-
-     // High-current CAN-bus power MOSFET gate. HIGH = bus power OFF, LOW = ON.
-     // Driven via /state_act {"power":0|1}; default ON at boot. See State.cpp.
-     // (Supersedes the former ESTOP_PIN, which addressed this same gate.)
-     int8_t BUSPOWER_OFF_PIN = disabled;
-
-     // ── GPIO-CAN slave (UC2_canopen_slave_gpio) ──────────────────────────
-     // The GPIO slave is a small XIAO ESP32S3 node that:
-     //   - reports E-stop + collision-threshold trips to the master,
-     //   - exposes two remote-controllable digital outputs (GPIO1/GPIO4) to
-     //     the master via SDO writes on x2301_digital_output_command.
-     // GPIO_COLLISION_ADC is sampled at 50 Hz. The sensor has an idle value
-     // (the "reference", NVS key gpioCollRef, auto-seeded at boot when
-     // uncalibrated); a collision = GPIO_COLLISION_SENSITIVITY_DEFAULT
-     // consecutive samples deviating more than the threshold (NVS
-     // gpioCollThr) from the reference — rising OR falling. Single-sample
-     // ADC spikes never accumulate enough votes and are ignored. On trip the
-     // slave sets bit 0 of x2300_digital_input_state[3] (TPDO2 flags byte)
-     // and pushes ONE TPDO frame; sensor values are never broadcast.
-     int8_t   GPIO_ESTOP_PIN              = disabled;     // digital in (E-stop button)
-     int8_t   GPIO_COLLISION_ADC          = disabled;     // analog in (resistive collision sensor)
-     uint16_t GPIO_COLLISION_THRESHOLD_DEFAULT = 150;     // deviation band, ADC counts
-     uint8_t  GPIO_COLLISION_SENSITIVITY_DEFAULT = 4;     // consecutive samples to trip/clear
-     uint16_t GPIO_ADC_FILTER_ALPHA_X1024 = 128;          // EWMA alpha * 1024 (~0.125)
-     // Two slots driven by master via x2301_digital_output_command sub 1/2.
-     // Reuses pinConfig.DIGITAL_OUT_1 and DIGITAL_OUT_2 already in this struct.
-
-     // Master-side: CAN node-id of the GPIO slave the master forwards events
-     // for. Set to disabled (-1) on slave builds and on masters that have no
-     // GPIO slave wired. When non-disabled, the master sniffs the slave's
-     // TPDO2 (COB-ID 0x280 + nodeId) in CAN_ctrl_task and emits serial JSON.
-     int8_t   MASTER_GPIO_SLAVE_NODE_ID   = disabled;
-
-     // Master-side: CAN node-id of the PTZ keyboard bridge. Same TPDO2 sniff
-     // mechanism as the GPIO slave, but the payload carries key events
-     // (preset call/set/clear, AUX on/off, iris) which the master emits as
-     // {"ptz":...} serial JSON for UC2-REST / ImSwitch.
-     int8_t   MASTER_PTZ_NODE_ID          = disabled;
+    // ── GPIO-CAN slave ──
+    int8_t        GPIO_ESTOP_PIN, GPIO_COLLISION_ADC;
+    uint16_t      GPIO_COLLISION_THRESHOLD_DEFAULT;
+    uint8_t       GPIO_COLLISION_SENSITIVITY_DEFAULT;
+    uint16_t      GPIO_ADC_FILTER_ALPHA_X1024;
+    int8_t        MASTER_GPIO_SLAVE_NODE_ID, MASTER_PTZ_NODE_ID;
 };
+
+// Returns a PinConfig with every pin at `disabled` (-1) and every counter /
+// routing / tuning value at its safe default. Each app's pinconfig.c starts
+// from this and overrides only the fields the board actually uses.
+struct PinConfig pinconfig_defaults(void);
+
+extern const struct PinConfig pinConfig;
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

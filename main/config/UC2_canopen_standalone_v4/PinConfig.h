@@ -151,6 +151,9 @@ struct UC2_canopen_standalone_v4 : PinConfig
      int8_t CAN_RX = GPIO_NUM_33;
      int8_t CAN_TX = GPIO_NUM_32;
      uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
+     // When switched to satellite (/config_set {"canRole":2,"canNodeId":14}) the
+     // HAT+ master drives all four local axes and lasers 1-3 of this board.
+     bool CAN_MULTI_AXIS_SLAVE = true;
 
      // Set to true to send LED commands to BOTH native array AND CAN devices
      bool HYBRID_LED_DUAL_OUTPUT = true;

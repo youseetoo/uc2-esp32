@@ -423,6 +423,11 @@ struct PinConfig
      I2CControllerType I2C_CONTROLLER_TYPE = I2CControllerType::mDISABLED;
      uint8_t I2C_ADD_SLAVE = -1;       // I2C address of the ESP32 if it's a slave
      uint8_t REMOTE_MOTOR_AXIS_ID = 1; // On the slave we have one motor axis per slave
+     // Multi-axis CAN satellite (e.g. standalone v4 with canRole=2): OD axis k
+     // drives local axis k (instead of every OD axis -> REMOTE_MOTOR_AXIS_ID), and
+     // the status of each axis is sent in a frame on COB-ID 0x480+nodeId
+     // (byte0 axis, byte1 status, byte2 homing, byte3 0x4D, bytes4-7 position).
+     bool CAN_MULTI_AXIS_SLAVE = false;
      uint8_t REMOTE_LASER_ID = 0;      // On the slave we have one laser axis per slave
      uint8_t I2C_ADD_MOT_X = 0x40;
      uint8_t I2C_ADD_MOT_Y = 0x41;

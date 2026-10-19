@@ -693,6 +693,7 @@ State::startOTA();
 
 // Build the routing table from pinConfig + runtimeConfig (all builds)
 UC2::RoutingTable::buildDefault();
+UC2::RoutingTable::applyNvsOverrides();   // routes saved with /route_set "persist":1
 UC2::RoutingTable::logAll();
 
 #ifdef JOYSTICK_USBHOST_PROVIDER

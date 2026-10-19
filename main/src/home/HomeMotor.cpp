@@ -16,7 +16,9 @@ using namespace FocusMotor;
 namespace HomeMotor
 {
 
-	HomeData *hdata[4] = {nullptr, nullptr, nullptr, nullptr};
+	// One entry per motor axis: on a CAN master, remote axes >= 4 (e.g. a
+	// multi-axis satellite) also need a slot for the home-done event.
+	HomeData *hdata[MOTOR_AXIS_COUNT] = {nullptr};
 
 	HomeData **getHomeData()
 	{
@@ -632,6 +634,11 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 
 	void startHome(int axis, int homeTimeout, int homeSpeed, int homeMaxspeed, int homeDirection, int homeEndStopPolarity, int homeEndOffset, int qid, bool hardHome)
 	{
+		// Local homing runs a task per axis (homingTaskHandles[4]): axes 0-3 only.
+		if (axis < 0 || axis >= 4) {
+			log_w("Local homing not supported for axis %d", axis);
+			return;
+		}
 		// CRITICAL: Check if homing is already running BEFORE touching any state
 		// Use getData()[axis]->isHoming as the single source of truth
 		// This prevents race conditions when multiple homing commands arrive quickly
@@ -948,7 +955,7 @@ case 8: {  // Phase 8: Wait for endstop to be released (for Phase 0 only)
 	void setup()
 	{
 		log_i("HomeMotor setup");
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < MOTOR_AXIS_COUNT; i++)
 		{
 			hdata[i] = new HomeData();
 		}

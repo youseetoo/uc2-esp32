@@ -165,6 +165,88 @@ bool CANopenModule::sendRawFrameFront(uint32_t id, uint8_t dlc, const uint8_t* d
     return xQueueSendToFront(CAN_TX_queue, (void*)&m, 0) == pdTRUE;
 }
 
+bool CANopenModule::sendRawFrame(uint32_t id, uint8_t dlc, const uint8_t* data)
+{
+    if (CAN_TX_queue == NULL || dlc > 8) return false;
+    CANMessages m = {};
+    m.message.identifier = id & 0x7FF;
+    m.message.data_length_code = dlc;
+    m.message.flags = TWAI_MSG_FLAG_NONE;
+    for (uint8_t i = 0; i < dlc && data != nullptr; ++i) m.message.data[i] = data[i];
+    return xQueueSend(CAN_TX_queue, (void*)&m, 0) == pdTRUE;
+}
+
+// ============================================================================
+// Multi-axis satellites (pinConfig.CAN_MULTI_AXIS_SLAVE, e.g. standalone v4)
+// ----------------------------------------------------------------------------
+// One 8-byte status frame per axis on COB-ID 0x480+node:
+//   [0] axis 0-3  [1] status (bit0 running)  [2] homing (0 idle,1 homing,2 done,
+//   3 timeout)  [3] 0x4D marker  [4..7] position, int32 little endian.
+// Master: the TWAI task stores the latest frame per (node, axis);
+// syncRpdoToModules_master diffs it against the cache like an RPDO slot.
+// ============================================================================
+static constexpr uint8_t MULTI_AXIS_MARKER = 0x4D;
+struct MultiAxisRaw { int32_t pos; uint8_t status; uint8_t homing; bool valid; };
+static volatile uint8_t s_maNode[CANopenModule::MULTI_AXIS_NODES] = {0};
+static MultiAxisRaw     s_maRaw[CANopenModule::MULTI_AXIS_NODES][4] = {};
+static RemoteSlaveState s_maState[CANopenModule::MULTI_AXIS_NODES][4] = {};
+static portMUX_TYPE     s_maMux = portMUX_INITIALIZER_UNLOCKED;
+
+static int multiAxisIndex(uint8_t nodeId)
+{
+    for (int i = 0; i < CANopenModule::MULTI_AXIS_NODES; i++)
+        if (nodeId != 0 && s_maNode[i] == nodeId) return i;
+    return -1;
+}
+
+// TWAI task context (master)
+static void storeMultiAxisFrame(uint8_t nodeId, const uint8_t* d)
+{
+    if (d[0] >= 4 || d[3] != MULTI_AXIS_MARKER) return;
+    portENTER_CRITICAL(&s_maMux);
+    int i = multiAxisIndex(nodeId);
+    for (int k = 0; i < 0 && k < CANopenModule::MULTI_AXIS_NODES; k++)
+        if (s_maNode[k] == 0) { s_maNode[k] = nodeId; i = k; }
+    if (i >= 0) {
+        MultiAxisRaw& r = s_maRaw[i][d[0]];
+        r.status = d[1];
+        r.homing = d[2];
+        r.pos    = (int32_t)((uint32_t)d[4] | ((uint32_t)d[5] << 8) |
+                             ((uint32_t)d[6] << 16) | ((uint32_t)d[7] << 24));
+        r.valid  = true;
+    }
+    portEXIT_CRITICAL(&s_maMux);
+}
+
+bool CANopenModule::isMultiAxisNode(uint8_t nodeId) { return multiAxisIndex(nodeId) >= 0; }
+
+RemoteSlaveState* CANopenModule::remoteMotorState(uint8_t nodeId, uint8_t subAxis)
+{
+    int i = multiAxisIndex(nodeId);
+    if (i >= 0) return subAxis < 4 ? &s_maState[i][subAxis] : nullptr;
+    if (nodeId >= RPDO_FIRST_NODE && nodeId < RPDO_FIRST_NODE + REMOTE_SLAVE_SLOTS)
+        return &s_remoteSlaves[nodeId - RPDO_FIRST_NODE];
+    return nullptr;
+}
+
+void CANopenModule::setRemoteMotorPosition(uint8_t nodeId, uint8_t subAxis, int32_t pos)
+{
+    // Write the raw source first, then the cache, so the next feedback tick
+    // sees no difference and does not revert to a stale value.
+    int i = multiAxisIndex(nodeId);
+    if (i >= 0) {
+        if (subAxis >= 4) return;
+        portENTER_CRITICAL(&s_maMux);
+        s_maRaw[i][subAxis].pos = pos;
+        portEXIT_CRITICAL(&s_maMux);
+        s_maState[i][subAxis].motorPosition = pos;
+    } else if (nodeId >= RPDO_FIRST_NODE && nodeId < RPDO_FIRST_NODE + REMOTE_SLAVE_SLOTS) {
+        const uint8_t slot = nodeId - RPDO_FIRST_NODE;
+        OD_RAM.x2001_motor_actual_position[slot] = pos;
+        s_remoteSlaves[slot].motorPosition = pos;
+    }
+}
+
 // Set to CO_RESET_COMM from any context to trigger a live node-ID reload
 // without esp_restart(). CO_main_task checks this in its inner loop.
 static volatile CO_NMT_reset_cmd_t s_requestedReset = CO_RESET_NOT;
@@ -434,6 +516,13 @@ void CANopenModule::CAN_ctrl_task(void* arg)
                         rx_message.data_length_code >= 8)
                     {
                         forwardPtzSlaveTpdo(src, rx_message.data);
+                    }
+
+                    // ── Multi-axis satellite status (master only) ────────
+                    if (runtimeConfig.isMaster() && fc == 0x480 &&
+                        rx_message.data_length_code == 8)
+                    {
+                        storeMultiAxisFrame(src, rx_message.data);
                     }
                 }
                 xQueueSend(CAN_RX_queue, (void*)&rx_message, 10);
@@ -2082,6 +2171,108 @@ void CANopenModule::syncRpdoToModules()
     }
 }
 
+// Slave: which local axis an OD axis (sub-index - 1) drives. Single-axis
+// satellites map every OD axis onto their one stepper (REMOTE_MOTOR_AXIS_ID);
+// multi-axis satellites (CAN_MULTI_AXIS_SLAVE) map OD axis k to local axis k.
+static inline int localAxisFor(int odAx)
+{
+    return pinConfig.CAN_MULTI_AXIS_SLAVE ? odAx : (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+}
+
+#ifdef TMC_CONTROLLER
+// Slave: apply TMC settings written to OD slot `slot` to driver `driver`
+// when any of the tracked entries changed.
+static void syncTmcSlot(int slot, int driver)
+{
+    static uint16_t lastMs[4]    = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    static uint16_t lastCur[4]   = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    static uint8_t  lastSg[4]    = {0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t  lastSemin[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t  lastSemax[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t  lastBlank[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t  lastToff[4]  = {0xFF, 0xFF, 0xFF, 0xFF};
+    uint16_t ms    = OD_RAM.x2020_tmc_microsteps[slot];
+    uint16_t cur   = OD_RAM.x2021_tmc_rms_current[slot];
+    uint8_t  sg    = OD_RAM.x2022_tmc_stallguard_threshold[slot];
+    uint8_t  semin = OD_RAM.x2023_tmc_coolstep_semin[slot];
+    uint8_t  semax = OD_RAM.x2024_tmc_coolstep_semax[slot];
+    uint8_t  blank = OD_RAM.x2025_tmc_blank_time[slot];
+    uint8_t  toff  = OD_RAM.x2026_tmc_toff[slot];
+    if (ms == lastMs[slot] && cur == lastCur[slot] && sg == lastSg[slot]
+        && semin == lastSemin[slot] && semax == lastSemax[slot]
+        && blank == lastBlank[slot] && toff == lastToff[slot]) return;
+    lastMs[slot] = ms; lastCur[slot] = cur; lastSg[slot] = sg; lastSemin[slot] = semin;
+    lastSemax[slot] = semax; lastBlank[slot] = blank; lastToff[slot] = toff;
+
+    TMCData p{};
+    // Only forward fields with non-zero values; the OD initial
+    // state is all-zero, applying that to the driver would brick
+    // the stepper. Zero-valued fields keep the existing values.
+    p.msteps      = ms    ? ms    : pinConfig.tmc_microsteps;
+    p.rms_current = cur   ? cur   : pinConfig.tmc_rms_current;
+    p.sgthrs      = sg    ? sg    : pinConfig.tmc_sgthrs;
+    p.semin       = semin ? semin : pinConfig.tmc_semin;
+    p.semax       = semax ? semax : pinConfig.tmc_semax;
+    p.blank_time  = blank ? blank : pinConfig.tmc_blank_time;
+    p.toff        = toff  ? toff  : pinConfig.tmc_toff;
+    // Fields not in the OD keep their pinConfig defaults
+    p.stall_value = pinConfig.tmc_stall_value;
+    p.sedn        = pinConfig.tmc_sedn;
+    p.tcoolthrs   = pinConfig.tmc_tcoolthrs;
+    // Chopper mode / hold current are not carried over CANopen yet.
+    // They MUST be filled in here — p is zero-initialised, and a
+    // zero hold_mult_pct would drop the standstill current to 0.
+    p.tpwmthrs_sps   = pinConfig.tmc_tpwmthrs_sps;
+    p.en_spreadcycle = pinConfig.tmc_en_spreadcycle;
+    p.hold_mult_pct  = pinConfig.tmc_hold_multiplier_pct;
+    p.hstrt          = pinConfig.tmc_hstrt;
+    p.hend           = pinConfig.tmc_hend;
+
+    log_i("TMC OD change slot=%d driver=%d msteps=%u current=%u sgthrs=%u",
+          slot, driver, ms, cur, sg);
+    TMCController::applyParamsToDriver(p, true, driver);
+}
+#endif
+
+#ifdef MOTOR_CONTROLLER
+// Slave with CAN_MULTI_AXIS_SLAVE: mirror every local axis into its own OD slot
+// (SDO reads of 0x2001:k+1 are per axis) and send one status frame per axis on
+// COB 0x480+node: on change (>= 10 ms apart) and every 500 ms.
+static void publishMultiAxisStatus()
+{
+    static int32_t  lastPos[4]    = {INT32_MIN, INT32_MIN, INT32_MIN, INT32_MIN};
+    static uint8_t  lastStatus[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    static uint8_t  lastHoming[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    static uint32_t lastTxMs[4]   = {0, 0, 0, 0};
+    const uint32_t now = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+    for (int ax = 0; ax < 4 && ax < MOTOR_AXIS_COUNT; ax++) {
+        MotorData* md = FocusMotor::getData()[ax];
+        if (md == nullptr || md->stpPin < 0) continue;
+        FocusMotor::updateData(ax);
+        const int32_t pos    = md->currentPosition;
+        const uint8_t status = FocusMotor::isRunning(ax) ? 0x01u : 0x00u;
+        uint8_t homing = 0;
+#ifdef HOME_MOTOR
+        HomeData** hd = HomeMotor::getHomeData();
+        if (hd && hd[ax]) homing = hd[ax]->homeIsActive ? 1 : hd[ax]->homeResultCode;
+#endif
+        OD_RAM.x2001_motor_actual_position[ax] = pos;
+        OD_RAM.x2004_motor_status_word[ax]     = status;
+        OD_RAM.x2016_homing_status[ax]         = homing;
+
+        const bool changed = pos != lastPos[ax] || status != lastStatus[ax] || homing != lastHoming[ax];
+        const uint32_t age = now - lastTxMs[ax];
+        if (!((changed && age >= 10) || age >= 500)) continue;
+        const uint8_t f[8] = { (uint8_t)ax, status, homing, MULTI_AXIS_MARKER,
+                               (uint8_t)pos, (uint8_t)(pos >> 8),
+                               (uint8_t)(pos >> 16), (uint8_t)(pos >> 24) };
+        if (CANopenModule::sendRawFrame(0x480 + runtimeConfig.canNodeId, 8, f)) {
+            lastTxMs[ax] = now; lastPos[ax] = pos; lastStatus[ax] = status; lastHoming[ax] = homing;
+        }
+    }
+}
+#endif
+
 // Slave: consume RPDO data from OD_RAM and dispatch to local modules
 void CANopenModule::syncRpdoToModules_slave()
 {
@@ -2120,17 +2311,17 @@ void CANopenModule::syncRpdoToModules_slave()
         OD_RAM.x2003_motor_command_word = 0;
     }
 
-    // Motor enable: detect change on the local axis and apply to driver.
-    // setEnable() is global (affects all FAS steppers on this board), so we
-    // only watch the entry corresponding to the local axis ID.
+    // Motor enable: detect a change and apply it to the drivers. setEnable()
+    // is global (affects all steppers on this board): single-axis satellites
+    // watch their own slot, multi-axis satellites every slot.
     {
-        uint8_t localAx = (uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        if (localAx < 4) {
-            static uint8_t s_lastMotorEnable = 0xFF;
-            uint8_t en = OD_RAM.x2005_motor_enable[localAx];
-            if (en != s_lastMotorEnable) {
-                s_lastMotorEnable = en;
-                log_i("Motor enable change ax=%u -> %u", localAx, en);
+        static uint8_t s_lastMotorEnable[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+        for (int k = 0; k < 4; k++) {
+            if (!pinConfig.CAN_MULTI_AXIS_SLAVE && k != (int)pinConfig.REMOTE_MOTOR_AXIS_ID) continue;
+            uint8_t en = OD_RAM.x2005_motor_enable[k];
+            if (en != s_lastMotorEnable[k]) {
+                s_lastMotorEnable[k] = en;
+                log_i("Motor enable change ax=%d -> %u", k, en);
                 FocusMotor::setEnable(en != 0);
             }
         }
@@ -2260,7 +2451,7 @@ void CANopenModule::syncRpdoToModules_slave()
             // Also push the locally-loaded values into the OD so masters that
             // SDO-read them get the actual active configuration. We only do
             // this for the local axis owned by this slave.
-            if ((uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID == (uint8_t)ax) {
+            if (localAxisFor(ax) == ax) {
                 MotorData* md = FocusMotor::getData()[ax];
                 if (md) {
                     OD_RAM.x2031_hardlimit_enabled[ax]  = md->hardLimitEnabled  ? 1 : 0;
@@ -2428,68 +2619,12 @@ void CANopenModule::syncRpdoToModules_slave()
 #endif
 
 #ifdef TMC_CONTROLLER
-    // TMC params: detect change of any tracked OD entry on the local axis
-    // and dispatch the new TMCData to TMCController. Comparing each field
-    // separately avoids spurious reapplies when the master writes only one
-    // entry at a time (each SDO write here lands one tick at a time).
-    {
-        uint8_t localAx = (uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        if (localAx < 4) {
-            static uint16_t lastMs    = 0xFFFF;
-            static uint16_t lastCur   = 0xFFFF;
-            static uint8_t  lastSg    = 0xFF;
-            static uint8_t  lastSemin = 0xFF;
-            static uint8_t  lastSemax = 0xFF;
-            static uint8_t  lastBlank = 0xFF;
-            static uint8_t  lastToff  = 0xFF;
-            uint16_t ms    = OD_RAM.x2020_tmc_microsteps[localAx];
-            uint16_t cur   = OD_RAM.x2021_tmc_rms_current[localAx];
-            uint8_t  sg    = OD_RAM.x2022_tmc_stallguard_threshold[localAx];
-            uint8_t  semin = OD_RAM.x2023_tmc_coolstep_semin[localAx];
-            uint8_t  semax = OD_RAM.x2024_tmc_coolstep_semax[localAx];
-            uint8_t  blank = OD_RAM.x2025_tmc_blank_time[localAx];
-            uint8_t  toff  = OD_RAM.x2026_tmc_toff[localAx];
-
-            if (ms != lastMs || cur != lastCur || sg != lastSg
-                || semin != lastSemin || semax != lastSemax
-                || blank != lastBlank || toff != lastToff) {
-                lastMs    = ms;
-                lastCur   = cur;
-                lastSg    = sg;
-                lastSemin = semin;
-                lastSemax = semax;
-                lastBlank = blank;
-                lastToff  = toff;
-
-                TMCData p{};
-                // Only forward fields with non-zero values; the OD initial
-                // state is all-zero, applying that to the driver would brick
-                // the stepper. Zero-valued fields keep the existing values.
-                p.msteps      = ms    ? ms    : pinConfig.tmc_microsteps;
-                p.rms_current = cur   ? cur   : pinConfig.tmc_rms_current;
-                p.sgthrs      = sg    ? sg    : pinConfig.tmc_sgthrs;
-                p.semin       = semin ? semin : pinConfig.tmc_semin;
-                p.semax       = semax ? semax : pinConfig.tmc_semax;
-                p.blank_time  = blank ? blank : pinConfig.tmc_blank_time;
-                p.toff        = toff  ? toff  : pinConfig.tmc_toff;
-                // Fields not in the OD keep their pinConfig defaults
-                p.stall_value = pinConfig.tmc_stall_value;
-                p.sedn        = pinConfig.tmc_sedn;
-                p.tcoolthrs   = pinConfig.tmc_tcoolthrs;
-                // Chopper mode / hold current are not carried over CANopen yet.
-                // They MUST be filled in here — p is zero-initialised, and a
-                // zero hold_mult_pct would drop the standstill current to 0.
-                p.tpwmthrs_sps   = pinConfig.tmc_tpwmthrs_sps;
-                p.en_spreadcycle = pinConfig.tmc_en_spreadcycle;
-                p.hold_mult_pct  = pinConfig.tmc_hold_multiplier_pct;
-                p.hstrt          = pinConfig.tmc_hstrt;
-                p.hend           = pinConfig.tmc_hend;
-
-                log_i("TMC OD change ax=%u msteps=%u current=%u sgthrs=%u",
-                      localAx, ms, cur, sg);
-                TMCController::applyParamsToDriver(p, true);
-            }
-        }
+    // TMC params: apply on change. Single-axis satellites read their own slot
+    // and drive their only driver; multi-axis satellites map slot k to driver k.
+    if (pinConfig.CAN_MULTI_AXIS_SLAVE) {
+        for (int k = 0; k < 4; k++) syncTmcSlot(k, k);
+    } else if (pinConfig.REMOTE_MOTOR_AXIS_ID < 4) {
+        syncTmcSlot(pinConfig.REMOTE_MOTOR_AXIS_ID, 0);
     }
 #endif
 
@@ -2549,117 +2684,128 @@ void CANopenModule::syncRpdoToModules_slave()
 // and emits async serial notifications.
 RemoteSlaveState CANopenModule::s_remoteSlaves[REMOTE_SLAVE_SLOTS] = {};
 
+#ifdef MOTOR_CONTROLLER
+// Apply one motor feedback update (position / running / homing) to the REMOTE
+// motor routes it belongs to: routes on nodeId, and - for multi-axis satellites -
+// with subAxis == matchSub. matchSub < 0: single-axis satellite, one physical
+// axis per node, every route on that node matches.
+static void applyRemoteMotorUpdate(RemoteSlaveState& slave, int32_t newPos, uint8_t newStatus,
+                                   uint8_t newHoming, uint8_t nodeId, int matchSub)
+{
+    // Skip if nothing changed AND we've already initialised
+    if (slave.seen
+        && newPos    == slave.motorPosition
+        && newStatus == slave.motorStatus
+        && newHoming == slave.homingStatus) return;
+
+    bool wasRunning = slave.seen && (slave.motorStatus & 0x01) != 0;
+    bool nowRunning = (newStatus & 0x01) != 0;
+    bool firstSeen  = !slave.seen;
+    uint8_t prevHoming = slave.seen ? slave.homingStatus : 0;
+
+    slave.motorPosition = newPos;
+    slave.motorStatus   = newStatus;
+    slave.homingStatus  = newHoming;
+    slave.lastUpdateMs  = millis();
+    slave.seen          = true;
+
+    for (uint8_t logicalAx = 0; logicalAx < MOTOR_AXIS_COUNT; logicalAx++) {
+        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
+        if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+        if (route->nodeId != nodeId) continue;
+        if (matchSub >= 0 && route->subAxis != matchSub) continue;
+
+        // Mirror into FocusMotor data so /motor_get keeps working
+        MotorData* md = FocusMotor::getData()[logicalAx];
+        if (md) {
+            md->currentPosition = newPos;
+            md->stopped         = !nowRunning;
+        }
+
+        // Detect running -> stopped transition -> emit position JSON
+        // (matches FocusMotor::sendMotorPos format) and report completion via QidRegistry.
+        // ImSwitch / PS4 controller path watch for {"steppers":[{...,"isDone":1}]}.
+        if (wasRunning && !nowRunning) {
+            log_i("Node %u axis %d (motor %d) DONE pos=%ld", nodeId, matchSub, logicalAx, (long)newPos);
+
+            cJSON* root = cJSON_CreateObject();
+            if (root) {
+                cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
+                cJSON* item  = cJSON_CreateObject();
+                if (stprs && item) {
+                    cJSON_AddNumberToObject(item, "stepperid", logicalAx);
+                    cJSON_AddNumberToObject(item, "position",  newPos);
+                    cJSON_AddNumberToObject(item, "isDone",    1);
+                    cJSON_AddItemToArray(stprs, item);
+                    cJSON_AddNumberToObject(root, "qid", md ? md->qid : -1);
+                    char* jsonStr = cJSON_PrintUnformatted(root);
+                    if (jsonStr) {
+                        SerialProcess::safeSendJsonString(jsonStr);
+                        free(jsonStr);
+                    }
+                } else if (item) {
+                    cJSON_Delete(item);
+                }
+                cJSON_Delete(root);
+            }
+
+            if (md && md->qid > 0) {
+                QidRegistry::reportActionDone(md->qid);
+            }
+        }
+
+#ifdef HOME_MOTOR
+        // Remote homing-done push: the slave reports its homing phase via OD
+        // 0x2016 (0=idle,1=homing,2=done,3=timeout). When a finished result
+        // (>=2) arrives for an axis this master dispatched a home to, emit the
+        // SAME {"home":{...},"qid":N} event the LOCAL path produces, reusing
+        // HomeMotor::sendHomeDone() (reads the mirrored currentPosition and the
+        // qid cached at dispatch), and stop the master-side timeout watchdog.
+        // Gating on homeIsActive avoids spurious events from a slave that homed
+        // on its own and guarantees a single report per run.
+        if (md && newHoming >= 2 && newHoming != prevHoming) {
+            HomeData** hd = HomeMotor::getHomeData();
+            if (hd && hd[logicalAx] && hd[logicalAx]->homeIsActive) {
+                const char* hstatus = (newHoming == 3) ? "timeout" : "done";
+                log_i("Remote home %s: node %u (motor %d) pos=%ld",
+                      hstatus, nodeId, logicalAx, (long)newPos);
+                HomeMotor::sendHomeDone(logicalAx, hstatus);  // reads md->currentPosition + hd->qid
+                hd[logicalAx]->homeIsActive = false;
+                md->isHoming = false;
+            }
+        }
+#endif
+
+        if (firstSeen) {
+            log_i("Node %u (motor %d) FIRST SEEN pos=%ld running=%d",
+                  nodeId, logicalAx, (long)newPos, (int)nowRunning);
+        }
+    }
+}
+#endif
+
 void CANopenModule::syncRpdoToModules_master()
 {
 #ifdef MOTOR_CONTROLLER
+    // Single-axis satellites: RPDO slot k = TPDO1 of node RPDO_FIRST_NODE + k
     for (uint8_t slot = 0; slot < REMOTE_SLAVE_SLOTS; slot++) {
-        int32_t newPos    = OD_RAM.x2001_motor_actual_position[slot];
-        uint8_t newStatus = OD_RAM.x2004_motor_status_word[slot];
-        uint8_t newHoming = OD_RAM.x2016_homing_status[slot];
-
-        RemoteSlaveState& slave = s_remoteSlaves[slot];
-
-        // Skip if nothing changed AND we've already initialised
-        if (slave.seen
-            && newPos    == slave.motorPosition
-            && newStatus == slave.motorStatus
-            && newHoming == slave.homingStatus) continue;
-
-        bool wasRunning = slave.seen && (slave.motorStatus & 0x01) != 0;
-        bool nowRunning = (newStatus & 0x01) != 0;
-        bool firstSeen  = !slave.seen;
-        uint8_t prevHoming = slave.seen ? slave.homingStatus : 0;
-
-        slave.motorPosition = newPos;
-        slave.motorStatus   = newStatus;
-        slave.homingStatus  = newHoming;
-        slave.lastUpdateMs  = millis();
-        slave.seen          = true;
-
-        // Rate-limit log to once per second (keepalive toggles arrive every 2 s)
-        static uint32_t s_lastRpdoLogMs = 0;
-        uint32_t nowLog = millis();
-        if ((nowLog - s_lastRpdoLogMs) >= 1000) {
-            s_lastRpdoLogMs = nowLog;
-            /*
-            log_i("Remote slave slot %d update: pos=%ld status=0x%02X running=%d",
-                  slot, (long)newPos, newStatus, (int)nowRunning);
-                  */
-        }
-
-        // Mirror into FocusMotor data so /motor_get keeps working
-        for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) { // TODO: We should consider having more axis 
-            const auto* route = UC2::RoutingTable::find(
-                UC2::RouteEntry::MOTOR, logicalAx);
-            if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
-            if (route->subAxis != slot) continue;
-
-            MotorData* md = FocusMotor::getData()[logicalAx];
-            if (md) {
-                md->currentPosition = newPos;
-                md->stopped         = !nowRunning;
-            }
-
-            // Detect running -> stopped transition -> emit position JSON
-            // (matches FocusMotor::sendMotorPos format) and report completion via QidRegistry.
-            // ImSwitch / PS4 controller path watch for {"steppers":[{...,"isDone":1}]}.
-            if (wasRunning && !nowRunning) {
-                log_i("Slave slot %d (motor %d) DONE pos=%ld",
-                         slot, logicalAx, (long)newPos);
-
-                cJSON* root = cJSON_CreateObject();
-                if (root) {
-                    cJSON* stprs = cJSON_AddArrayToObject(root, "steppers");
-                    cJSON* item  = cJSON_CreateObject();
-                    if (stprs && item) {
-                        cJSON_AddNumberToObject(item, "stepperid", logicalAx);
-                        cJSON_AddNumberToObject(item, "position",  newPos);
-                        cJSON_AddNumberToObject(item, "isDone",    1);
-                        cJSON_AddItemToArray(stprs, item);
-                        cJSON_AddNumberToObject(root, "qid", md ? md->qid : -1);
-                        char* jsonStr = cJSON_PrintUnformatted(root);
-                        if (jsonStr) {
-                            SerialProcess::safeSendJsonString(jsonStr);
-                            free(jsonStr);
-                        }
-                    } else if (item) {
-                        cJSON_Delete(item);
-                    }
-                    cJSON_Delete(root);
-                }
-
-                if (md && md->qid > 0) {
-                    QidRegistry::reportActionDone(md->qid);
-                }
-            }
-
-#ifdef HOME_MOTOR
-            // Remote homing-done push: the slave reports its homing phase via OD
-            // 0x2016 on TPDO1 (0=idle,1=homing,2=done,3=timeout). When a finished
-            // result (>=2) arrives for an axis this master dispatched a home to,
-            // emit the SAME {"home":{...},"qid":N} event the LOCAL path produces —
-            // reusing HomeMotor::sendHomeDone(), which reads the mirrored
-            // currentPosition set just above and the qid cached at dispatch — and
-            // stop the master-side timeout watchdog. Gating on homeIsActive avoids
-            // spurious events from a slave that homed on its own and guarantees a
-            // single report per run.
-            if (md && newHoming >= 2 && newHoming != prevHoming) {
-                HomeData** hd = HomeMotor::getHomeData();
-                if (hd && hd[logicalAx] && hd[logicalAx]->homeIsActive) {
-                    const char* hstatus = (newHoming == 3) ? "timeout" : "done";
-                    log_i("Remote home %s: slot %d (motor %d) pos=%ld",
-                          hstatus, slot, logicalAx, (long)newPos);
-                    HomeMotor::sendHomeDone(logicalAx, hstatus);  // reads md->currentPosition + hd->qid
-                    hd[logicalAx]->homeIsActive = false;
-                    md->isHoming = false;
-                }
-            }
-#endif
-
-            if (firstSeen) {
-                log_i("Slave slot %d (motor %d) FIRST SEEN pos=%ld running=%d",
-                         slot, logicalAx, (long)newPos, (int)nowRunning);
-            }
+        const uint8_t node = RPDO_FIRST_NODE + slot;
+        if (multiAxisIndex(node) >= 0) continue;   // that node reports per axis
+        applyRemoteMotorUpdate(s_remoteSlaves[slot],
+                               OD_RAM.x2001_motor_actual_position[slot],
+                               OD_RAM.x2004_motor_status_word[slot],
+                               OD_RAM.x2016_homing_status[slot], node, -1);
+    }
+    // Multi-axis satellites: one status frame per axis on 0x480+node
+    for (int i = 0; i < MULTI_AXIS_NODES; i++) {
+        const uint8_t node = s_maNode[i];
+        if (node == 0) continue;
+        for (uint8_t ax = 0; ax < 4; ax++) {
+            portENTER_CRITICAL(&s_maMux);
+            const MultiAxisRaw r = s_maRaw[i][ax];
+            portEXIT_CRITICAL(&s_maMux);
+            if (!r.valid) continue;
+            applyRemoteMotorUpdate(s_maState[i][ax], r.pos, r.status, r.homing, node, ax);
         }
     }
 #endif
@@ -2685,6 +2831,9 @@ void CANopenModule::syncModulesToTpdo()
     if (!runtimeConfig.isSlave()) return;
 
 #ifdef MOTOR_CONTROLLER
+    if (pinConfig.CAN_MULTI_AXIS_SLAVE) {
+        publishMultiAxisStatus();
+    } else {
     int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
     FocusMotor::updateData(localAxis);
     MotorData* md = FocusMotor::getData()[localAxis];
@@ -2768,6 +2917,7 @@ void CANopenModule::syncModulesToTpdo()
         OD_RAM.x204B_axis_raw_counts[localAxis]           = (int32_t)afb.rawCounts;
     }
 #endif
+    } // single-axis satellite
 #endif
 
 #ifdef GALVO_CONTROLLER
@@ -2852,9 +3002,9 @@ void CANopenModule::loop()
     for (int ax = 0; ax < 4; ax++) {
         if (!s_axisCmds[ax].pending) continue;
         s_axisCmds[ax].pending = false;
-        // pinConfig.REMOTE_MOTOR_AXIS_ID is the compile-time authoritative axis index for
-        // the physical stepper on this slave board — always correct, no runtime config needed.
-        int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        // Single-axis satellite: pinConfig.REMOTE_MOTOR_AXIS_ID is the physical
+        // stepper. Multi-axis satellite: OD axis k drives local axis k.
+        int localAxis = localAxisFor(ax);
         if (FocusMotor::getData()[localAxis] == nullptr) {
             ESP_LOGW(TAG_CO, "Motor dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
@@ -2928,7 +3078,7 @@ void CANopenModule::loop()
         s_homingCmds[ax].pending = false;
 
         // Map OD axis to local physical axis (same as motor moves)
-        int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
+        int localAxis = localAxisFor(ax);
         if (FocusMotor::getData()[localAxis] == nullptr) {
             ESP_LOGW(TAG_CO, "Homing dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
@@ -2961,10 +3111,10 @@ void CANopenModule::loop()
     // coincidence. clearHardLimitTriggered must hit the same physical axis so a
     // tripped/locked-out axis is actually released.
     {
-        const int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
         for (int ax = 0; ax < 4; ax++) {
             if (!s_hardlimitCmds[ax].pending) continue;
             s_hardlimitCmds[ax].pending = false;
+            const int localAxis = localAxisFor(ax);
             if (s_hardlimitCmds[ax].isCommand) {
                 log_i("Hard-limit CLEAR OD-ax%d -> local-ax%d via CAN", ax, localAxis);
                 FocusMotor::clearHardLimitTriggered(localAxis);

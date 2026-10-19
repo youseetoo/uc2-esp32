@@ -302,6 +302,10 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         if (!idItem) continue;
 
         int stepperid = idItem->valueint;
+        if (stepperid < 0 || stepperid >= MOTOR_AXIS_COUNT) {
+            ESP_LOGW(TAG, "motor %d out of range (MOTOR_AXIS_COUNT %d)", stepperid, MOTOR_AXIS_COUNT);
+            continue;
+        }
         const auto* route = UC2::RoutingTable::find(
             UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
 
@@ -540,9 +544,12 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
 #ifdef CAN_CONTROLLER_CANOPEN
-    for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
+    for (uint8_t logicalAx = 0; logicalAx < MOTOR_AXIS_COUNT; logicalAx++) {
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
         if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+        // Multi-axis satellites push every change within 10 ms; their 0x2001
+        // slots are also written by RPDOs from nodes 10-13, so an SDO read can race.
+        if (CANopenModule::isMultiAxisNode(route->nodeId)) continue;
 
         uint8_t sub = (uint8_t)(route->subAxis + 1);
         int32_t pos = 0;
@@ -555,12 +562,8 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             continue; // slave unresponsive — leave the cached value alone
         }
 
-        // Order: OD_RAM first, then cache, then mirror — see header comment.
-        uint8_t slot = route->subAxis;
-        if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
-            OD_RAM.x2001_motor_actual_position[slot]      = pos;
-            CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
-        }
+        // Order: feedback source first, then cache, then mirror — see header comment.
+        CANopenModule::setRemoteMotorPosition(route->nodeId, route->subAxis, pos);
         MotorData* md = FocusMotor::getData()[logicalAx];
         if (md) md->currentPosition = pos;
         log_i("Refreshed REMOTE motor cache: node 0x%02X axis %u pos=%ld",
@@ -598,7 +601,7 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
         }
 
         if (route->where == UC2::RouteEntry::LOCAL) {
-            MotorData* d = FocusMotor::getData()[stepperid];
+            MotorData* d = (stepperid >= 0 && stepperid < MOTOR_AXIS_COUNT) ? FocusMotor::getData()[stepperid] : nullptr;
             if (d) {
                 cJSON_AddNumberToObject(rs, "position", d->currentPosition);
                 cJSON_AddNumberToObject(rs, "isRunning", FocusMotor::isRunning(stepperid) ? 1 : 0);
@@ -623,17 +626,12 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             }
         } else { // REMOTE — cache was refreshed via SDO at handleMotorGet entry
 #ifdef CAN_CONTROLLER_CANOPEN
-            uint8_t slot = route->subAxis;
-            if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
-                const auto& slave = CANopenModule::s_remoteSlaves[slot];
-                if (slave.seen) {
-                    cJSON_AddNumberToObject(rs, "position", slave.motorPosition);
-                    bool running = (slave.motorStatus & 0x01) != 0;
-                    cJSON_AddNumberToObject(rs, "isRunning", running ? 1 : 0);
-                    cJSON_AddNumberToObject(rs, "isDone",    running ? 0 : 1);
-                } else {
-                    cJSON_AddNumberToObject(rs, "isDone", -1);
-                }
+            const RemoteSlaveState* slave = CANopenModule::remoteMotorState(route->nodeId, route->subAxis);
+            if (slave && slave->seen) {
+                cJSON_AddNumberToObject(rs, "position", slave->motorPosition);
+                bool running = (slave->motorStatus & 0x01) != 0;
+                cJSON_AddNumberToObject(rs, "isRunning", running ? 1 : 0);
+                cJSON_AddNumberToObject(rs, "isDone",    running ? 0 : 1);
             } else {
                 cJSON_AddNumberToObject(rs, "isDone", -1);
             }
@@ -647,6 +645,8 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (cJSON_IsNumber(qidItem)) cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);  // clients match replies by qid
     return resp;
 #else
     return nullptr;
@@ -851,7 +851,7 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             // checkAndProcessHome timeout fallback) keys off. The timeout is given
             // grace over the slave's own so the slave's push normally wins the race.
             HomeData** mhdAll = HomeMotor::getHomeData();
-            if (mhdAll && mhdAll[stepperid]) {
+            if (mhdAll && stepperid >= 0 && stepperid < MOTOR_AXIS_COUNT && mhdAll[stepperid]) {
                 HomeData* mhd        = mhdAll[stepperid];
                 mhd->qid             = (uint16_t)qid;
                 mhd->homeResultCode  = 0;

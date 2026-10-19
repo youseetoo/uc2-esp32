@@ -761,38 +761,68 @@ namespace SerialProcess
 		}
 		else if (strcmp(task, route_set_endpoint) == 0)
 		{
-			// {"task":"/route_set","type":"MOTOR","id":0,"where":"REMOTE","nodeId":10}
-			cJSON *typeItem = cJSON_GetObjectItem(jsonDocument, "type");
-			const char *typeStr = (typeItem && cJSON_IsString(typeItem)) ? typeItem->valuestring : nullptr;
-			int logicalId = cJsonTool::getJsonInt(jsonDocument, "id");
-			cJSON *whereItem = cJSON_GetObjectItem(jsonDocument, "where");
-			const char *whereStr = (whereItem && cJSON_IsString(whereItem)) ? whereItem->valuestring : nullptr;
-			int nodeId = cJsonTool::getJsonInt(jsonDocument, "nodeId");
+			// {"task":"/route_set","type":"MOTOR","id":4,"where":"REMOTE","nodeId":14,"subAxis":0,"persist":1}
+			// {"task":"/route_set","reset":1}   forget persisted routes, rebuild defaults
+			// subAxis = axis/channel on the remote node (OD sub-index - 1), default = id.
+			// A MOTOR route also sets the HOME and TMC routes of that axis.
+			if (cJsonTool::getJsonInt(jsonDocument, "reset") > 0)
+			{
+				UC2::RoutingTable::resetToDefaults();
+				serialize(UC2::RoutingTable::toJson());
+			}
+			else
+			{
+				cJSON *typeItem = cJSON_GetObjectItem(jsonDocument, "type");
+				const char *typeStr = (typeItem && cJSON_IsString(typeItem)) ? typeItem->valuestring : nullptr;
+				int logicalId = cJsonTool::getJsonInt(jsonDocument, "id");
+				cJSON *whereItem = cJSON_GetObjectItem(jsonDocument, "where");
+				const char *whereStr = (whereItem && cJSON_IsString(whereItem)) ? whereItem->valuestring : nullptr;
+				int nodeId = cJsonTool::getJsonInt(jsonDocument, "nodeId");
+				int subAxis = cJsonTool::getJsonInt(jsonDocument, "subAxis", logicalId);
+				bool persist = cJsonTool::getJsonInt(jsonDocument, "persist") > 0;
 
-			UC2::RouteEntry::Type type = UC2::RouteEntry::MOTOR;
-			if (typeStr)
-			{
-				if (strcmp(typeStr, "LASER") == 0)
-					type = UC2::RouteEntry::LASER;
-				else if (strcmp(typeStr, "LED") == 0)
-					type = UC2::RouteEntry::LED;
-				else if (strcmp(typeStr, "GALVO") == 0)
-					type = UC2::RouteEntry::GALVO;
-				else if (strcmp(typeStr, "HOME") == 0)
-					type = UC2::RouteEntry::HOME;
-				else if (strcmp(typeStr, "TMC") == 0)
-					type = UC2::RouteEntry::TMC;
+				UC2::RouteEntry::Type type = UC2::RouteEntry::MOTOR;
+				if (typeStr)
+				{
+					if (strcasecmp(typeStr, "LASER") == 0)
+						type = UC2::RouteEntry::LASER;
+					else if (strcasecmp(typeStr, "LED") == 0)
+						type = UC2::RouteEntry::LED;
+					else if (strcasecmp(typeStr, "GALVO") == 0)
+						type = UC2::RouteEntry::GALVO;
+					else if (strcasecmp(typeStr, "HOME") == 0)
+						type = UC2::RouteEntry::HOME;
+					else if (strcasecmp(typeStr, "TMC") == 0)
+						type = UC2::RouteEntry::TMC;
+				}
+				UC2::RouteEntry::Where where = UC2::RouteEntry::LOCAL;
+				if (whereStr)
+				{
+					if (strcasecmp(whereStr, "REMOTE") == 0)
+						where = UC2::RouteEntry::REMOTE;
+					else if (strcasecmp(whereStr, "OFF") == 0 || strcasecmp(whereStr, "disabled") == 0)
+						where = UC2::RouteEntry::OFF;
+				}
+				if (logicalId < 0 || logicalId > 63 ||
+					(where == UC2::RouteEntry::REMOTE && (nodeId < 1 || nodeId > 127 || subAxis < 0 || subAxis > 3)))
+				{
+					cJSON *err = cJSON_CreateObject();
+					cJSON_AddStringToObject(err, "error", "route_set: id 0-63, REMOTE needs nodeId 1-127 and subAxis 0-3");
+					serialize(err);
+				}
+				else
+				{
+					const UC2::RouteEntry::Type types[3] = {type, UC2::RouteEntry::HOME, UC2::RouteEntry::TMC};
+					const int nTypes = (type == UC2::RouteEntry::MOTOR) ? 3 : 1;
+					for (int k = 0; k < nTypes; k++)
+					{
+						UC2::RoutingTable::set(types[k], logicalId, where, (uint8_t)nodeId, (uint8_t)subAxis);
+						if (persist)
+							UC2::RoutingTable::persist(types[k], logicalId, where, (uint8_t)nodeId, (uint8_t)subAxis);
+					}
+					serialize(UC2::RoutingTable::toJson());
+				}
 			}
-			UC2::RouteEntry::Where where = UC2::RouteEntry::LOCAL;
-			if (whereStr)
-			{
-				if (strcmp(whereStr, "REMOTE") == 0)
-					where = UC2::RouteEntry::REMOTE;
-				else if (strcmp(whereStr, "OFF") == 0)
-					where = UC2::RouteEntry::OFF;
-			}
-			UC2::RoutingTable::set(type, logicalId, where, (uint8_t)nodeId);
-			serialize(UC2::RoutingTable::toJson());
 		}
 #ifdef HEAT_CONTROLLER
 		else if (runtimeConfig.heat && strcmp(task, heat_get_endpoint) == 0)

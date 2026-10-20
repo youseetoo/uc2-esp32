@@ -1,15 +1,29 @@
-// FAccelStep is the FastAccelStepper wrapper — only needed when USE_FASTACCEL
-// is set. FastAccelStepper is not vendored for the raw-IDF port yet, so apps
-// that don't enable USE_FASTACCEL compile this file out entirely.
+// T4.1: C++ ISLAND — vendor FastAccelStepper (FAS) API + the extern "C"
+// API declared in FAccelStep.h (the only surface visible to pure-C modules:
+// FocusMotor.c, axis_motor_c.cpp).
+// Only compiled when USE_FASTACCEL is set; apps without it compile this out.
+// Owns its state (engine, faststeppers, _externalCallForPin); motor data
+// comes from the pure-C FocusMotor module (focusmotor_get_data()).
 #ifdef USE_FASTACCEL
 static const char *TAG = "FAccelStep";
-#include "FAccelStep.h"
 #include <PinConfig.h>
+#include <cstdlib>
+
+#include "FastAccelStepper.h"   // vendor C++ island API
+
+#include "FAccelStep.h"
+#include "FocusMotor.h"
+#include "uc2_hal/uc2_log.h"
+#include "uc2_hal/uc2_time.h"
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"
+#include "uc2_hal/uc2_prefs.h"
 #endif
 
-// convert pins to internal pins in setupFastAccelStepper
+// The vendor header defines PIN_EXTERNAL_FLAG 128 for its internal
+// dir/enable external-pin handling. For the STEP/DIR/EN pins passed to
+// stepperConnectToPin()/setEnablePin()/setDirectionPin() below we only
+// want the flag when the pins are actually routed through the TCA9535.
 #ifdef USE_TCA9535
 #undef PIN_EXTERNAL_FLAG
 #define PIN_EXTERNAL_FLAG 128
@@ -17,11 +31,15 @@ static const char *TAG = "FAccelStep";
 #undef PIN_EXTERNAL_FLAG
 #define PIN_EXTERNAL_FLAG 0x00
 #endif
-
-using namespace FocusMotor;
-#ifdef TMC_CONTROLLER
-using namespace TMCController;
+#ifdef USE_TCA9535
+#include "tca_controller.h"
 #endif
+
+// Local axes: 0=A, 1=X, 2=Y, 3=Z (matches the Stepper enum / focusmotor data[]).
+static const int LOCAL_AXES = 4;
+static FastAccelStepperEngine engine;
+static FastAccelStepper *faststeppers[LOCAL_AXES] = {nullptr};
+static bool (*_externalCallForPin)(uint8_t pin, uint8_t value) = nullptr;
 
 namespace FAccelStep
 {
@@ -30,7 +48,7 @@ namespace FAccelStep
         log_i("Starting FastAccelStepper for motor %i", i);
         // Guard: faststeppers is sized for LOCAL axes only (currently 4).
         // REMOTE axes (index >= array size) have no FastAccelStepper handle.
-        if (i < 0 || i >= (int)faststeppers.size())
+        if (i < 0 || i >= LOCAL_AXES)
         {
             log_d("startFastAccelStepper: axis %d has no local stepper (REMOTE or OUT_OF_RANGE)", i);
             return;
@@ -40,7 +58,7 @@ namespace FAccelStep
             log_e("stepper %i is null", i);
             return;
         }
-        int speed = abs(getData()[i]->speed);
+        int speed = abs(focusmotor_get_data()[i]->speed);
 
         // clamp speed to 100000
         if (speed > 100000) {
@@ -61,28 +79,25 @@ namespace FAccelStep
         // why ~12x "kinda" worked. The real fix is the REST GUARANTEE below; the
         // empirical test matrix is kept for reference only.
         /*
-        
-
         works: {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":70000, "position": 50000, "acceleration": 170000, "isabs": 0}]}, "qid": 5}
-        does not work:  => slow motion / overshoots 
+        does not work:  => slow motion / overshoots
         works: {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":50000, "position": -50000, "acceleration": 170000, "isabs": 0}]}, "qid": 5}
-        does not work: {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":50000, "position": 50000, "acceleration": 160000, "isabs": 0}]}, "qid": 5} => slow motion / overshoots 
+        does not work: {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":50000, "position": 50000, "acceleration": 160000, "isabs": 0}]}, "qid": 5} => slow motion / overshoots
         {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":50000, "position": 50000, "acceleration": 20000, "isabs": 0}]}, "qid": 5} => does not work, some accelerates, slower motion than 50000 and overshoots
-        {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":40000, "position": 50000, "acceleration": 20000, "isabs": 0}]}, "qid": 5} => works 
-        {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":30000, "position": -50000, "acceleration": 20000, "isabs": 0}]}, "qid": 5} => works 
-        {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -50000, "acceleration": 40000, "isabs": 0}]}, "qid": 5} => works 
+        {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":40000, "position": 50000, "acceleration": 20000, "isabs": 0}]}, "qid": 5} => works
+        {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":30000, "position": -50000, "acceleration": 20000, "isabs": 0}]}, "qid": 5} => works
+        {"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":20000, "position": -50000, "acceleration": 40000, "isabs": 0}]}, "qid": 5} => works
         */
-        int32_t reqAccel = getData()[i]->acceleration;
+        int32_t reqAccel = focusmotor_get_data()[i]->acceleration;
         /*
-        
-        TODO: FIXME whatsoever, it has been shown in the current configuration that only an acceleration that is 12x higher than the speed 
-        can guarantee that the motor gets going and does not just start with a slow motion and then overshoots. 
-        This is a very weird finding and we need to investigate this further, but for now we will just auto-bump 
-        the acceleration to a safe value if the speed is above a certain threshold and the acceleration is below the safe minimum. 
+        TODO: FIXME whatsoever, it has been shown in the current configuration that only an acceleration that is 12x higher than the speed
+        can guarantee that the motor gets going and does not just start with a slow motion and then overshoots.
+        This is a very weird finding and we need to investigate this further, but for now we will just auto-bump
+        the acceleration to a safe value if the speed is above a certain threshold and the acceleration is below the safe minimum.
         We should also log this auto-bump so we can track how often it happens and maybe find a better solution in the future.
          */
-        
-        
+
+
         // REMOVED: `reqAccel = speed * 12;` (empirical override).
         // Honour the caller-requested acceleration. Host simulation of the real
         // FAS planner proves that from REST every reported (speed, accel) pair
@@ -91,25 +106,11 @@ namespace FAccelStep
         // guarantee further down removes that race directly.
         if (reqAccel <= 0)  reqAccel = 100000; // sane default when caller passes <= 0
         if (reqAccel < 100) reqAccel = 100;    // FAS sanity floor
-        
-        /*
-        if ((speed > kMidSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel))
-            reqAccel = 1000000;
-        }
-        if ((speed > kHighSpeedHz && reqAccel > 0 && reqAccel < kSafeMinAccel))
-        {
-            log_d("Auto-bumping accel %d -> %d on motor %d (speed %d Hz)",
-                  (int)reqAccel, (int)kSafeMinAccel, i, speed);
-            reqAccel = kSafeMinAccel;
-        }
-        const int32_t effAccel = (reqAccel > 0) ? reqAccel : MAX_ACCELERATION_A;
-        */
+
         if (faststeppers[i]->setAcceleration(reqAccel) != 0)
             log_e("setAcceleration(%d) rejected on motor %d", reqAccel, i);
-        else 
+        else
             log_i("setAcceleration(%d) accepted on motor %d", reqAccel, i);
-            //faststeppers[i]->setAcceleration(MAX_ACCELERATION_A);
-        
 
         // prolong the time the enable pin goes to high again
         faststeppers[i]->setDelayToDisable(500);
@@ -130,7 +131,7 @@ namespace FAccelStep
         // getPositionAfterCommandsCompleted() is the queue END, far ahead of the
         // motor while it is moving), then wait until VERIFIABLY idle before we
         // re-arm speed/accel and issue the move.
-        if (!getData()[i]->isforever)
+        if (!focusmotor_get_data()[i]->isforever)
         {
             const uint8_t rs0 = faststeppers[i]->rampState() & RAMP_STATE_MASK;
             const bool notIdle   = (rs0 != RAMP_STATE_IDLE);
@@ -165,22 +166,22 @@ namespace FAccelStep
             }
         }
 
-        if (getData()[i]->isforever)
+        if (focusmotor_get_data()[i]->isforever)
         {
-            // run forver (e.g. PSx or initaited via Serial)
+            // run forever (e.g. PSx or initiated via Serial)
             for (int iStart = 0; iStart < 10; iStart++)
             { // TODO: this is weird, but sometimes necessary for the very first start it seems - timing issue with the QUEUE? // TODO: / FIXME: !!
-                if (getData()[i]->speed > 0)
+                if (focusmotor_get_data()[i]->speed > 0)
                 {
                     // run clockwise
                     faststeppers[i]->runForward();
-                    log_i("runForward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    log_i("runForward, speed: %i, isRunning %i", focusmotor_get_data()[i]->speed, isRunning(i));
                 }
-                else if (getData()[i]->speed < 0)
+                else if (focusmotor_get_data()[i]->speed < 0)
                 {
                     // run counterclockwise
                     faststeppers[i]->runBackward();
-                    log_i("runBackward, speed: %i, isRunning %i", getData()[i]->speed, isRunning(i));
+                    log_i("runBackward, speed: %i, isRunning %i", focusmotor_get_data()[i]->speed, isRunning(i));
                 }
                 if (isRunning(i))
                 {
@@ -191,9 +192,9 @@ namespace FAccelStep
         }
         else
         {
-#ifdef TMC_CONTROLLER_NOT
+#ifdef TMC_CONTROLLER
             // Boost current 1.5x for high-speed moves to avoid stalling.
-            Preferences preferences;
+            uc2::Preferences preferences;
             preferences.begin("tmc", false);
             uint16_t rmsCurr = preferences.getInt("current", pinConfig.tmc_rms_current);
             preferences.end();
@@ -210,16 +211,16 @@ namespace FAccelStep
                   (long)faststeppers[i]->getCurrentPosition(),
                   (long)faststeppers[i]->getPositionAfterCommandsCompleted(),
                   speed, (int)reqAccel,
-                  getData()[i]->targetPosition, (int)getData()[i]->absolutePosition);
+                  focusmotor_get_data()[i]->targetPosition, (int)focusmotor_get_data()[i]->absolutePosition);
 
             int8_t mres;
-            if (getData()[i]->absolutePosition)
-                mres = faststeppers[i]->moveTo(getData()[i]->targetPosition, false);
+            if (focusmotor_get_data()[i]->absolutePosition)
+                mres = faststeppers[i]->moveTo(focusmotor_get_data()[i]->targetPosition, false);
             else
-                mres = faststeppers[i]->move(getData()[i]->targetPosition, false);
+                mres = faststeppers[i]->move(focusmotor_get_data()[i]->targetPosition, false);
             if (mres != MOVE_OK)
                 log_e("motor %d move/moveTo rejected (rc=%d target=%d isabs=%d) - check speed/accel set",
-                      i, (int)mres, getData()[i]->targetPosition, (int)getData()[i]->absolutePosition);
+                      i, (int)mres, focusmotor_get_data()[i]->targetPosition, (int)focusmotor_get_data()[i]->absolutePosition);
 
             // spin until queue started
             uint32_t t0 = millis();
@@ -230,23 +231,22 @@ namespace FAccelStep
                 return;
             }
         }
-        getData()[i]->stopped = false;
+        focusmotor_get_data()[i]->stopped = false;
         log_i("start stepper (act): motor:%d isforever:%d speed:%d target:%d isabs:%d accel:%d isRunning:%d",
-              i, getData()[i]->isforever, getData()[i]->speed,
-              getData()[i]->targetPosition, getData()[i]->absolutePosition,
+              i, focusmotor_get_data()[i]->isforever, focusmotor_get_data()[i]->speed,
+              focusmotor_get_data()[i]->targetPosition, (int)focusmotor_get_data()[i]->absolutePosition,
               reqAccel, isRunning(i));
     }
 
-
     void setupFastAccelStepper()
     {
-        if (getData()[Stepper::A] == nullptr)
+        if (focusmotor_get_data()[A] == nullptr)
             log_e("Stepper A getData() NULL");
-        if (getData()[Stepper::X] == nullptr)
+        if (focusmotor_get_data()[X] == nullptr)
             log_e("Stepper X getData() NULL");
-        if (getData()[Stepper::Y] == nullptr)
+        if (focusmotor_get_data()[Y] == nullptr)
             log_e("Stepper Y getData() NULL");
-        if (getData()[Stepper::Z] == nullptr)
+        if (focusmotor_get_data()[Z] == nullptr)
             log_e("Stepper Z getData() NULL");
 
         // Initialize engine - RMT drivers will be used instead of PCNT to avoid conflicts
@@ -259,41 +259,38 @@ namespace FAccelStep
         engine.setExternalCallForPin(_externalCallForPin);
 #endif
 
-        // setup the getData()
-        for (int i = 0; i < faststeppers.size(); i++)
+        // setup the steppers
+        for (int i = 0; i < LOCAL_AXES; i++)
         {
             faststeppers[i] = nullptr;
         }
         // setup the stepper A
         if (pinConfig.MOTOR_A_STEP >= 0)
         {
-            setupFastAccelStepper(Stepper::A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
+            setupFastAccelStepper(A, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_A_STEP);
         }
 
         // setup the stepper X
         if (pinConfig.MOTOR_X_STEP >= 0)
         {
-            setupFastAccelStepper(Stepper::X, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
+            setupFastAccelStepper(X, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_X_STEP);
         }
 
         // setup the stepper Y
         if (pinConfig.MOTOR_Y_STEP >= 0)
         {
-            setupFastAccelStepper(Stepper::Y, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
+            setupFastAccelStepper(Y, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Y_STEP);
         }
 
         // setup the stepper Z
         if (pinConfig.MOTOR_Z_STEP >= 0)
         {
-            setupFastAccelStepper(Stepper::Z, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
+            setupFastAccelStepper(Z, pinConfig.MOTOR_ENABLE | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_DIR | PIN_EXTERNAL_FLAG, pinConfig.MOTOR_Z_STEP);
         }
     }
 
     void setupFastAccelStepper(Stepper stepper, int motoren, int motordir, int motorstp)
     {
-        // log_i("setupFastAccelStepper %i with motor pins: %i, %i, %i", stepper, motoren, motordir, motorstp);
-        // log_i("Heap before setupFastAccelStepper: %d", ESP.getFreeHeap());
-
         // Driver selection.
         //
         // The MCPWM/PCNT backend in our FastAccelStepper fork does NOT
@@ -400,9 +397,8 @@ namespace FAccelStep
             return;
         }
 
-
         faststeppers[stepper]->setEnablePin(motoren, pinConfig.MOTOR_ENABLE_INVERTED);
-        faststeppers[stepper]->setDirectionPin(motordir, getData()[stepper]->directionPinInverted);
+        faststeppers[stepper]->setDirectionPin(motordir, focusmotor_get_data()[stepper]->directionPinInverted);
 
         if (pinConfig.MOTOR_AUTOENABLE)
             faststeppers[stepper]->setAutoEnable(pinConfig.MOTOR_AUTOENABLE);
@@ -410,7 +406,7 @@ namespace FAccelStep
             faststeppers[stepper]->enableOutputs();
         faststeppers[stepper]->setSpeedInHz(MAX_VELOCITY_A);
         faststeppers[stepper]->setAcceleration(DEFAULT_ACCELERATION);
-        faststeppers[stepper]->setCurrentPosition(getData()[stepper]->currentPosition);
+        faststeppers[stepper]->setCurrentPosition(focusmotor_get_data()[stepper]->currentPosition);
         // Note: previously there were two priming move(2)/move(-2) calls here.
         // They were non-blocking, queued asynchronously, and could coalesce
         // with the first user move, producing unaccounted direction reversals
@@ -418,29 +414,10 @@ namespace FAccelStep
         // its own; do not re-add them.
     }
 
-    /*
     void stopFastAccelStepper(int i)
     {
-        if (faststeppers[i] == nullptr)
-            return;
-        // Hard stop with consistent post-stop position. Don't combine
-        // forceStop() and stopMove(): forceStop() halts the ramp generator
-        // but does not empty the queue, and the follow-up stopMove() then
-        // becomes a no-op. forceStopAndNewPosition() pins the position to
-        // the current value so getCurrentPosition() below is meaningful.
-        faststeppers[i]->forceStopAndNewPosition(faststeppers[i]->getCurrentPosition());
-        log_i("stop stepper in FAccelStep %i", i);
-        getData()[i]->isforever = false;
-        getData()[i]->speed = 0;
-        getData()[i]->currentPosition = faststeppers[i]->getCurrentPosition();
-        getData()[i]->stopped = true;
-    }
-    */
-
-void stopFastAccelStepper(int i)
-    {
         // Guard: faststeppers is sized for LOCAL axes only.
-        if (i < 0 || i >= (int)faststeppers.size())
+        if (i < 0 || i >= LOCAL_AXES)
         {
             log_d("stopFastAccelStepper: axis %d has no local stepper (REMOTE or OUT_OF_RANGE)", i);
             return;
@@ -465,10 +442,10 @@ void stopFastAccelStepper(int i)
         s->forceStopAndNewPosition(finalPos);
         log_i("stop stepper in FAccelStep %d (rs=0x%02x, pinnedPos=%ld)",
               i, rs, (long)finalPos);
-        getData()[i]->isforever = false;
-        getData()[i]->speed = 0;
-        getData()[i]->currentPosition = finalPos;
-        getData()[i]->stopped = true;
+        focusmotor_get_data()[i]->isforever = false;
+        focusmotor_get_data()[i]->speed = 0;
+        focusmotor_get_data()[i]->currentPosition = finalPos;
+        focusmotor_get_data()[i]->stopped = true;
     }
 
     void setExternalCallForPin(
@@ -478,9 +455,9 @@ void stopFastAccelStepper(int i)
     }
 
     void updateData(int i)
-        {
+    {
         // Guard: faststeppers is sized for LOCAL axes only.
-        if (i < 0 || i >= (int)faststeppers.size())
+        if (i < 0 || i >= LOCAL_AXES)
         {
             log_d("updateData: axis %d has no local stepper (REMOTE or OUT_OF_RANGE)", i);
             return;
@@ -494,7 +471,7 @@ void stopFastAccelStepper(int i)
         const uint8_t rs = s->rampState() & RAMP_STATE_MASK;
         // When idle, the queue-end position is the physical truth on RMT.
         // When moving, the live position is what we want for telemetry.
-        getData()[i]->currentPosition =
+        focusmotor_get_data()[i]->currentPosition =
             (rs == RAMP_STATE_IDLE)
                 ? s->getPositionAfterCommandsCompleted()
                 : s->getCurrentPosition();
@@ -502,7 +479,7 @@ void stopFastAccelStepper(int i)
 
     void setAutoEnable(bool enable)
     {
-        for (int i = 0; i < faststeppers.size(); i++)
+        for (int i = 0; i < LOCAL_AXES; i++)
         {
             if (faststeppers[i] != nullptr)
             {
@@ -513,7 +490,7 @@ void stopFastAccelStepper(int i)
 
     void Enable(bool enable)
     {
-        for (int i = 0; i < faststeppers.size(); i++)
+        for (int i = 0; i < LOCAL_AXES; i++)
         {
             if (faststeppers[i] == nullptr)
             {
@@ -534,7 +511,7 @@ void stopFastAccelStepper(int i)
 
     void setPosition(Stepper s, int val)
     {
-        if (faststeppers[s] == nullptr)
+        if (s < 0 || s >= LOCAL_AXES || faststeppers[s] == nullptr)
         {
             log_e("FastAccelStepper for axis %d is null in setPosition", s);
             return;
@@ -542,9 +519,9 @@ void stopFastAccelStepper(int i)
         faststeppers[s]->setCurrentPosition(val);
     }
 
-bool isRunning(int i)
+    bool isRunning(int i)
     {
-        if (faststeppers[i] == nullptr)
+        if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
         {
             return false;
         }
@@ -572,7 +549,7 @@ bool isRunning(int i)
 
     int rampState(int i)
     {
-        if (faststeppers[i] == nullptr)
+        if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in rampState", i);
             return -1;
@@ -582,7 +559,7 @@ bool isRunning(int i)
 
     int32_t getCurrentSpeedInMilliHz(int i, bool withSign)
     {
-        if (faststeppers[i] == nullptr)
+        if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in getCurrentSpeedInMilliHz", i);
             return 0;
@@ -597,7 +574,7 @@ bool isRunning(int i)
 
     int32_t getCurrentPosition(int i)
     {
-        if (faststeppers[i] == nullptr)
+        if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in getCurrentPosition", i);
             return 0;
@@ -607,7 +584,7 @@ bool isRunning(int i)
 
     int32_t getPositionAfterCommandsCompleted(int i)
     {
-        if (faststeppers[i] == nullptr)
+        if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in getPositionAfterCommandsCompleted", i);
             return 0;
@@ -617,7 +594,7 @@ bool isRunning(int i)
 
     bool isQueueFull(int i)
     {
-        if (faststeppers[i] == nullptr)
+        if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
         {
             log_d("FastAccelStepper for axis %d is null in isQueueFull", i);
             return false;
@@ -627,7 +604,7 @@ bool isRunning(int i)
 
     void move(Stepper s, int steps, bool blocking)
     {
-        if (faststeppers[s] == nullptr)
+        if (s < 0 || s >= LOCAL_AXES || faststeppers[s] == nullptr)
         {
             log_e("FastAccelStepper for axis %d is null in move", s);
             return;
@@ -635,41 +612,113 @@ bool isRunning(int i)
         // move the motor by the given steps
         faststeppers[s]->move(steps, blocking);
     }
+}
 
-    long getCurrentPosition(Stepper s)
-    {
-        if (faststeppers[s] == nullptr)
-        {
-            // log_e("FastAccelStepper for axis %d is null", s);
-            return 0;
-        }
-        return faststeppers[s]->getCurrentPosition();
-    }
+// ---------------------------------------------------------------------------
+// extern "C" API (FAccelStep.h) — pure-C modules call these.
+// ---------------------------------------------------------------------------
+void faccel_step_setup(void)
+{
+    FAccelStep::setupFastAccelStepper();
+}
 
-    // Live velocity command for the axis SERVO loop (design v2, WP7). Applies a
-    // signed speed directly to the running FAS stepper WITHOUT taking the
-    // FocusMotor mutex, so the servo PID task never blocks CAN servicing.
-    // signedSpeed > 0 -> forward, < 0 -> backward, 0 -> decelerate to a stop.
-    void setLiveSpeed(int i, int32_t signedSpeed, uint32_t accel)
+void faccel_step_setup_axis(Stepper stepper, int motoren, int motordir, int motorstp)
+{
+    FAccelStep::setupFastAccelStepper(stepper, motoren, motordir, motorstp);
+}
+
+void faccel_step_start(int i)
+{
+    FAccelStep::startFastAccelStepper(i);
+}
+
+void faccel_step_stop(int i)
+{
+    FAccelStep::stopFastAccelStepper(i);
+}
+
+void faccel_step_set_external_call_for_tca(void)
+{
+#ifdef USE_TCA9535
+    FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+}
+
+void faccel_step_update_data(int i)
+{
+    FAccelStep::updateData(i);
+}
+
+int32_t faccel_step_get_current_position(Stepper s)
+{
+    if (s < 0 || s >= LOCAL_AXES || faststeppers[s] == nullptr)
+        return 0;
+    return faststeppers[s]->getCurrentPosition();
+}
+
+int32_t faccel_step_get_current_position_idx(int i)
+{
+    return FAccelStep::getCurrentPosition(i);
+}
+
+void faccel_step_set_auto_enable(bool enable)
+{
+    FAccelStep::setAutoEnable(enable);
+}
+
+void faccel_step_enable(bool enable)
+{
+    FAccelStep::Enable(enable);
+}
+
+void faccel_step_set_position(Stepper s, int val)
+{
+    FAccelStep::setPosition(s, val);
+}
+
+bool faccel_step_is_running(int i)
+{
+    return FAccelStep::isRunning(i);
+}
+
+void faccel_step_move(Stepper s, int steps, bool blocking)
+{
+    FAccelStep::move(s, steps, blocking);
+}
+
+int faccel_step_ramp_state(int i)
+{
+    return FAccelStep::rampState(i);
+}
+
+int32_t faccel_step_get_current_speed_mhz(int i, bool withSign)
+{
+    return FAccelStep::getCurrentSpeedInMilliHz(i, withSign);
+}
+
+// Live velocity command for the axis SERVO loop (design v2, WP7). Applies a
+// signed speed directly to the running FAS stepper WITHOUT taking the
+// FocusMotor mutex, so the servo PID task never blocks CAN servicing.
+// signedSpeed > 0 -> forward, < 0 -> backward, 0 -> decelerate to a stop.
+void faccel_step_set_live_speed(int i, int32_t signedSpeed, uint32_t accel)
+{
+    if (i < 0 || i >= LOCAL_AXES || faststeppers[i] == nullptr)
+        return;
+    FastAccelStepper *st = faststeppers[i];
+    int32_t hz = signedSpeed < 0 ? -signedSpeed : signedSpeed;
+    if (hz > 100000)
+        hz = 100000; // TODO: need to set this as a variable
+    if (hz == 0)
     {
-        if (i < 0 || i >= (int)faststeppers.size() || faststeppers[i] == nullptr)
-            return;
-        FastAccelStepper *st = faststeppers[i];
-        int32_t hz = signedSpeed < 0 ? -signedSpeed : signedSpeed;
-        if (hz > 100000)
-            hz = 100000; // TODO: need to set this as a variable
-        if (hz == 0)
-        {
-            st->stopMove();
-            return;
-        }
-        st->setSpeedInHz((uint32_t)hz);
-        st->setAcceleration((int32_t)accel);
-        if (signedSpeed >= 0)
-            st->runForward();
-        else
-            st->runBackward();
+        st->stopMove();
+        return;
     }
+    st->setSpeedInHz((uint32_t)hz);
+    st->setAcceleration((int32_t)accel);
+    if (signedSpeed >= 0)
+        st->runForward();
+    else
+        st->runBackward();
 }
 
 #endif // USE_FASTACCEL

@@ -1,38 +1,35 @@
+// T4.1: C++ ISLAND — vendor AccelStepper API + the extern "C" API declared in
+// AccelStep.h (the only surface visible to pure-C modules: FocusMotor.c, ...).
+// Owns its state (steppers, taskRunning, power_enable, _externalCallForPin);
+// motor data comes from the pure-C FocusMotor module (focusmotor_get_data()).
 static const char *TAG = "AccelStep";
 #include <PinConfig.h>
+#include <cstdlib>
+#include <vector>
+
+#include "AccelStepper.h"   // vendor C++ island API
 
 #include "AccelStep.h"
 #include "FocusMotor.h"
+#include "uc2_hal/uc2_log.h"
+#include "uc2_hal/uc2_time.h"
 #include "esp_task_wdt.h"
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"
 #endif
-
-using namespace FocusMotor;
-#ifdef TMC_CONTROLLER
-using namespace TMCController;
+#ifdef USE_TCA9535
+#include "tca_controller.h"
 #endif
 
-void driveMotorXLoop(void *pvParameter)
-{
-    AccelStep::driveMotorLoop(Stepper::X);
-}
-void driveMotorYLoop(void *pvParameter)
-{
-    AccelStep::driveMotorLoop(Stepper::Y);
-}
-void driveMotorZLoop(void *pvParameter)
-{
-    AccelStep::driveMotorLoop(Stepper::Z);
-}
-void driveMotorALoop(void *pvParameter)
-{
-    AccelStep::driveMotorLoop(Stepper::A);
-}
+// Local axes: 0=A, 1=X, 2=Y, 3=Z (matches the Stepper enum / focusmotor data[]).
+static const int LOCAL_AXES = 4;
+static std::vector<AccelStepper *> steppers(LOCAL_AXES, nullptr);
+static bool taskRunning[LOCAL_AXES] = {false};
+static bool power_enable = false;
+static bool (*_externalCallForPin)(uint8_t pin, uint8_t value) = nullptr;
 
 namespace AccelStep
 {
-
     void poweron()
     {
         if (!power_enable)
@@ -52,9 +49,9 @@ namespace AccelStep
     {
         bool allStopped = true;
         if (!force) {
-            const int axes[] = { Stepper::A, Stepper::X, Stepper::Y, Stepper::Z };
-            for (int i = 0; i < 4; i++) {
-                MotorData *md = getData()[axes[i]];
+            const Stepper axes[LOCAL_AXES] = { A, X, Y, Z };
+            for (int i = 0; i < LOCAL_AXES; i++) {
+                MotorData *md = focusmotor_get_data()[axes[i]];
                 if (md && !md->stopped) { allStopped = false; break; }
             }
         }
@@ -76,79 +73,58 @@ namespace AccelStep
         /*
           Motor related settings
         */
-
-        for (int i = 0; i < taskRunning.size(); i++)
-        {
+        for (int i = 0; i < LOCAL_AXES; i++)
             taskRunning[i] = false;
-        }
 
         if (pinConfig.MOTOR_A_STEP > -1)
         {
 #ifdef USE_TCA9535
             {
-                steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+                steppers[A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, 104 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
             }
 #else
             if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
-            {
-                steppers[Stepper::A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR);
-            }
+                steppers[A] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR);
             else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
-            {
-                steppers[Stepper::A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
-            }
+                steppers[A] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_A_STEP, pinConfig.MOTOR_A_DIR, pinConfig.MOTOR_A_0, pinConfig.MOTOR_A_1);
 #endif
         }
         if (pinConfig.MOTOR_X_STEP > -1)
         {
 #ifdef USE_TCA9535
-            steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
-            //[Stepper::X]->setEnablePin(100 | PIN_EXTERNAL_FLAG);
-            // steppers[Stepper::X]->setPinsInverted(false, false, true);
+            steppers[X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, 101 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
 #else
             if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
-            {
-                steppers[Stepper::X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
-            }
+                steppers[X] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR);
             else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
-            {
-                steppers[Stepper::X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
-            }
+                steppers[X] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_X_STEP, pinConfig.MOTOR_X_DIR, pinConfig.MOTOR_X_0, pinConfig.MOTOR_X_1);
 #endif
         }
         if (pinConfig.MOTOR_Y_STEP > -1)
         {
 #ifdef USE_TCA9535
-            steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+            steppers[Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, 102 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
 #else
             if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
-            {
-                steppers[Stepper::Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR);
-            }
+                steppers[Y] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR);
             else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
-            {
-                steppers[Stepper::Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
-            }
+                steppers[Y] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Y_STEP, pinConfig.MOTOR_Y_DIR, pinConfig.MOTOR_Y_0, pinConfig.MOTOR_Y_1);
 #endif
         }
         if (pinConfig.MOTOR_Z_STEP > -1)
         {
 #ifdef USE_TCA9535
-            steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
+            steppers[Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, 103 | PIN_EXTERNAL_FLAG, -1, -1, true, _externalCallForPin);
 #else
             if (pinConfig.AccelStepperMotorType == AccelStepper::DRIVER)
-            {
-                steppers[Stepper::Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
-            }
+                steppers[Z] = new AccelStepper(AccelStepper::DRIVER, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR);
             else if (pinConfig.AccelStepperMotorType == AccelStepper::HALF4WIRE)
-            {
-                steppers[Stepper::Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
-            }
+                steppers[Z] = new AccelStepper(AccelStepper::HALF4WIRE, pinConfig.MOTOR_Z_STEP, pinConfig.MOTOR_Z_DIR, pinConfig.MOTOR_Z_0, pinConfig.MOTOR_Z_1);
 #endif
         }
 
         // setting default values
-        for (int i = 0; i < steppers.size(); i++)
+        for (int i = 0; i < LOCAL_AXES; i++)
         {
             if (steppers[i])
             {
@@ -157,9 +133,8 @@ namespace AccelStep
                 steppers[i]->setAcceleration(DEFAULT_ACCELERATION);
                 steppers[i]->runToNewPosition(-1);
                 steppers[i]->runToNewPosition(1);
-                log_d("1");
 
-                steppers[i]->setCurrentPosition(getData()[i]->currentPosition);
+                steppers[i]->setCurrentPosition(focusmotor_get_data()[i]->currentPosition);
             }
         }
         poweroff(true);
@@ -167,11 +142,11 @@ namespace AccelStep
 
     void startAccelStepper(int i)
     {
-        if (i < 0 || i >= (int)steppers.size() || !steppers[i]) {
+        if (i < 0 || i >= LOCAL_AXES || !steppers[i]) {
             log_e("startAccelStepper: invalid stepper %d", i);
             return;
         }
-        MotorData *d = getData()[i];
+        MotorData *d = focusmotor_get_data()[i];
         if (!d) { log_e("startAccelStepper: null MotorData %d", i); return; }
 
         // Mode selection:
@@ -190,7 +165,7 @@ namespace AccelStep
 
 #ifdef TMC_CONTROLLER
         // Bump TMC current at high speeds to avoid stalling
-        Preferences preferences;
+        uc2::Preferences preferences;
         preferences.begin("tmc", false);
         uint16_t rmsCurrFromPref = preferences.getInt("current", pinConfig.tmc_rms_current);
         preferences.end();
@@ -272,9 +247,8 @@ namespace AccelStep
         }
     }
 
-
     void setPosition(Stepper axis, int pos){
-        MotorData *d = getData()[axis];
+        MotorData *d = focusmotor_get_data()[axis];
         if (!d) return;
         d->currentPosition = pos;
         if (steppers[axis]) steppers[axis]->setCurrentPosition(pos);
@@ -283,11 +257,11 @@ namespace AccelStep
     void stopAccelStepper(int i)
     {
         log_i("stop stepper %i", i);
-        if (i < 0 || i >= (int)steppers.size()) return;
+        if (i < 0 || i >= LOCAL_AXES) return;
         if (steppers[i]) steppers[i]->stop();
-        MotorData *d = getData()[i];
+        MotorData *d = focusmotor_get_data()[i];
         if (d) {
-            d->isforever = false;
+            d->isforever = 0;
             d->speed = 0;
             if (steppers[i]) d->currentPosition = steppers[i]->currentPosition();
             d->stopped = true;
@@ -297,7 +271,7 @@ namespace AccelStep
 
     bool isRunning(int stepperid)
     {
-        if (steppers[stepperid] == nullptr)
+        if (stepperid < 0 || stepperid >= LOCAL_AXES || steppers[stepperid] == nullptr)
             return false;
 
         AccelStepper *s = steppers[stepperid];
@@ -307,7 +281,7 @@ namespace AccelStep
     void driveMotorLoop(int stepperid)
     {
         AccelStepper *s = steppers[stepperid];
-        MotorData    *d = getData()[stepperid];
+        MotorData    *d = focusmotor_get_data()[stepperid];
         if (!s || !d) {
             taskRunning[stepperid] = false;
             vTaskDelete(NULL);
@@ -366,10 +340,10 @@ namespace AccelStep
         poweroff(false);
         taskRunning[stepperid] = false;
 
-        // Notify upper layer so QID is reported done. Slave's FocusMotor::loop
+        // Notify upper layer so QID is reported done. Slave's FocusMotor loop
         // doesn't always observe the stop window in time on a single-axis node.
         if (targetReached)
-            FocusMotor::stopStepper(stepperid);
+            focusmotor_stop_stepper(stepperid);
 
         vTaskDelete(NULL);
     }
@@ -377,9 +351,7 @@ namespace AccelStep
     void Enable(bool en)
     {
         if (en)
-        {
             poweron();
-        }
         else
             poweroff(true);
     }
@@ -387,11 +359,10 @@ namespace AccelStep
     void updateData(int val)
     {
         // check if stepper is running and update the position in the data struct
-         AccelStepper *s = steppers[val];
-         if (s) 
-        {
-        getData()[val]->currentPosition = steppers[val]->currentPosition();
-        }
+        if (val < 0 || val >= LOCAL_AXES) return;
+        AccelStepper *s = steppers[val];
+        if (s)
+            focusmotor_get_data()[val]->currentPosition = s->currentPosition();
     }
 
     void setExternalCallForPin(
@@ -399,4 +370,73 @@ namespace AccelStep
     {
         _externalCallForPin = func;
     }
+}
+
+// ---------------------------------------------------------------------------
+// extern "C" API (AccelStep.h) — pure-C modules call these.
+// ---------------------------------------------------------------------------
+void driveMotorXLoop(void *pvParameter) { AccelStep::driveMotorLoop(X); }
+void driveMotorYLoop(void *pvParameter) { AccelStep::driveMotorLoop(Y); }
+void driveMotorZLoop(void *pvParameter) { AccelStep::driveMotorLoop(Z); }
+void driveMotorALoop(void *pvParameter) { AccelStep::driveMotorLoop(A); }
+
+void accel_step_setup(void)
+{
+    AccelStep::setupAccelStepper();
+}
+
+void accel_step_start(int i)
+{
+    AccelStep::startAccelStepper(i);
+}
+
+void accel_step_stop(int i)
+{
+    AccelStep::stopAccelStepper(i);
+}
+
+void accel_step_set_external_call_for_tca(void)
+{
+#ifdef USE_TCA9535
+    AccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+#endif
+}
+
+void accel_step_drive_motor_loop(int stepperid)
+{
+    AccelStep::driveMotorLoop(stepperid);
+}
+
+void accel_step_update_data(int i)
+{
+    AccelStep::updateData(i);
+}
+
+int32_t accel_step_get_current_position(int i)
+{
+    if (i < 0 || i >= LOCAL_AXES || !steppers[i])
+        return 0;
+    return steppers[i]->currentPosition();
+}
+
+void accel_step_enable(bool enable)
+{
+    AccelStep::Enable(enable);
+}
+
+void accel_step_set_position(Stepper axis, int pos)
+{
+    AccelStep::setPosition(axis, pos);
+}
+
+bool accel_step_is_running(int i)
+{
+    return AccelStep::isRunning(i);
+}
+
+void accel_step_send_motor_pos(int i, int arraypos)
+{
+    // Dead API: nothing calls this (focusmotor_send_motor_pos in FocusMotor.c
+    // is the live path). Kept as a no-op for source compatibility.
+    (void)i; (void)arraypos;
 }

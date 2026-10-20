@@ -8,7 +8,7 @@
 #include "ConfigController.h"
 #include "uc2_hal/uc2_prefs.h"
 #ifdef USE_TCA9535
-#include "tca9535.h"
+#include "tca_controller.h"
 #endif
 #include "MotorTypes.h"
 

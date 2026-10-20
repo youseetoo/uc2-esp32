@@ -10,7 +10,7 @@ set(srcs
     "motor/AccelStep.cpp"
     "motor/FAccelStep.cpp"
     "motor/FocusMotor.c"
-    "motor/FocusScan.cpp"
+    "motor/FocusScan.c"
     "motor/axis_motor_c.cpp"
     "motor/focusmotor_qid_c.cpp"
     "motor/MotorGamePad.cpp"

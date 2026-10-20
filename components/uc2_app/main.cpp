@@ -231,7 +231,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef HOME_MOTOR
 		if (runtimeConfig.home) {
-			HomeMotor::loop();
+			home_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -630,7 +630,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef HOME_MOTOR
 	if (runtimeConfig.home) {
-		HomeMotor::setup();
+		home_setup();
 	}
 #endif
 #ifdef LASER_CONTROLLER

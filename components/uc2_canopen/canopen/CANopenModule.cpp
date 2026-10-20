@@ -2572,18 +2572,18 @@ void CANopenModule::syncRpdoToModules_master()
             // 0x2016 on TPDO1 (0=idle,1=homing,2=done,3=timeout). When a finished
             // result (>=2) arrives for an axis this master dispatched a home to,
             // emit the SAME {"home":{...},"qid":N} event the LOCAL path produces —
-            // reusing HomeMotor::sendHomeDone(), which reads the mirrored
+            // reusing home_send_done(), which reads the mirrored
             // currentPosition set just above and the qid cached at dispatch — and
             // stop the master-side timeout watchdog. Gating on homeIsActive avoids
             // spurious events from a slave that homed on its own and guarantees a
             // single report per run.
             if (md && newHoming >= 2 && newHoming != prevHoming) {
-                HomeData** hd = HomeMotor::getHomeData();
+                HomeData** hd = home_get_data();
                 if (hd && hd[logicalAx] && hd[logicalAx]->homeIsActive) {
                     const char* hstatus = (newHoming == 3) ? "timeout" : "done";
                     log_i("Remote home %s: slot %d (motor %d) pos=%ld",
                           hstatus, slot, logicalAx, (long)newPos);
-                    HomeMotor::sendHomeDone(logicalAx, hstatus);  // reads md->currentPosition + hd->qid
+                    home_send_done(logicalAx, hstatus);  // reads md->currentPosition + hd->qid
                     hd[logicalAx]->homeIsActive = false;
                     md->isHoming = false;
                 }
@@ -2643,12 +2643,12 @@ void CANopenModule::syncModulesToTpdo()
 
     // Homing phase, pushed alongside motor state so the master can fire an async
     // home-done event (see syncRpdoToModules_master). 0=idle,1=homing,2=done,3=timeout.
-    // Latched in HomeMotor::sendHomeDone()/cleared in startHome(), so a finished
+    // Latched in home_send_done()/cleared in home_start(), so a finished
     // result stays readable until the next run even though homeIsActive flips off.
     uint8_t newHoming = 0;
 #ifdef HOME_MOTOR
     {
-        HomeData** hd = HomeMotor::getHomeData();
+        HomeData** hd = home_get_data();
         if (hd && hd[localAxis])
             newHoming = hd[localAxis]->homeIsActive ? 1 : hd[localAxis]->homeResultCode;
     }
@@ -2799,7 +2799,7 @@ void CANopenModule::loop()
         // streamed continuously from the master) preempt an active homing run.
         // Drop them silently so the homing state machine retains exclusive
         // control of the axis.
-        HomeData** hdAll = HomeMotor::getHomeData();
+        HomeData** hdAll = home_get_data();
         if (hdAll && hdAll[localAxis] && hdAll[localAxis]->homeIsActive) {
             // NOTE: we intentionally do NOT drop motor commands during homing.
             // The host must ALWAYS be able to stop the motor (a CAN STOP has to
@@ -2869,7 +2869,7 @@ void CANopenModule::loop()
         }
 
         int maxSpeed = s_homingCmds[ax].speed > 0 ? s_homingCmds[ax].speed * 2 : 1000;
-        HomeMotor::startHome(localAxis,
+        home_start(localAxis,
             (int)s_homingCmds[ax].timeout,
             (int)s_homingCmds[ax].speed,
             maxSpeed,

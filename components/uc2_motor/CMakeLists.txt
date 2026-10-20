@@ -6,7 +6,7 @@
 # these just gets empty translation units).
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "home/HomeMotor.cpp"
+     "home/HomeMotor.c"
     "motor/AccelStep.cpp"
     "motor/FAccelStep.cpp"
     "motor/FocusMotor.c"

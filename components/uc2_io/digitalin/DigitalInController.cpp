@@ -264,3 +264,7 @@ namespace DigitalInController
 			triggerEmergency(pressed);
 	}
 } // namespace DigitalInController
+
+// T4.1: C shim for pure-C modules (HomeMotor.c).
+extern "C" bool digitalin_get_val(int digitalinid)
+{ return DigitalInController::getDigitalVal(digitalinid); }

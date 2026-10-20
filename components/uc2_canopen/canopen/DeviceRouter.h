@@ -88,6 +88,7 @@ extern "C" {
 cJSON *device_router_handle_motor_act(cJSON *doc);
 cJSON *device_router_handle_laser_act(cJSON *doc);
 cJSON *device_router_handle_led_act(cJSON *doc);
+cJSON *device_router_handle_home_act(cJSON *doc);
 #ifdef __cplusplus
 }
 #endif

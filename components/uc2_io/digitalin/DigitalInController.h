@@ -1,8 +1,9 @@
 #include <PinConfig.h>
 #pragma once
+#include <stdbool.h>
 #include "cJSON.h"
 
-
+#ifdef __cplusplus
 namespace DigitalInController
 {
     // T1.3: per-TU namespace statics — not every includer uses every member.
@@ -33,3 +34,13 @@ namespace DigitalInController
     int8_t getEmergencyPolarity();
     int    getEmergencyRaw();
 };
+#endif // __cplusplus
+
+// T4.1: C shim for pure-C modules (HomeMotor.c) that read a digital input.
+#ifdef __cplusplus
+extern "C" {
+#endif
+bool digitalin_get_val(int digitalinid);
+#ifdef __cplusplus
+}
+#endif

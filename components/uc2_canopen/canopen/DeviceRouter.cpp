@@ -191,6 +191,9 @@ extern "C" cJSON *device_router_handle_laser_act(cJSON *doc)
 extern "C" cJSON *device_router_handle_led_act(cJSON *doc)
 { return DeviceRouter::handleLedAct(doc); }
 
+extern "C" cJSON *device_router_handle_home_act(cJSON *doc)
+{ return DeviceRouter::handleHomeAct(doc); }
+
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");
@@ -808,7 +811,7 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
         if (route->where == UC2::RouteEntry::LOCAL) {
             log_i("Routing home_act to LOCAL stepper %d: speed=%d dir=%d timeout=%d maxspeed=%d polarity=%d offset=%d",
                   stepperid, homeSpeed, homeDir, homeTimeout, homeMaxspeed, homePolarity, homeOffset);
-            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
+            home_start(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
         } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t sub = route->subAxis + 1;
@@ -825,11 +828,11 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             // Arm master-side completion tracking. The slave reports its homing
             // phase back over TPDO1 (OD 0x2016); syncRpdoToModules_master watches
             // for the finished edge and emits {"home":{...},"pos":...},"qid":N} via
-            // HomeMotor::sendHomeDone — identical to the LOCAL path. Caching the qid
+            // home_send_done — identical to the LOCAL path. Caching the qid
             // and setting homeIsActive here is what that watcher (and the
             // checkAndProcessHome timeout fallback) keys off. The timeout is given
             // grace over the slave's own so the slave's push normally wins the race.
-            HomeData** mhdAll = HomeMotor::getHomeData();
+            HomeData** mhdAll = home_get_data();
             if (mhdAll && mhdAll[stepperid]) {
                 HomeData* mhd        = mhdAll[stepperid];
                 mhd->qid             = (uint16_t)qid;
@@ -1441,7 +1444,7 @@ cJSON* DeviceRouter::handleHomeGet(cJSON* doc) {
             return resp;
         }
     }
-    return HomeMotor::get(doc);
+    return home_get(doc);
 #else
     return nullptr;
 #endif

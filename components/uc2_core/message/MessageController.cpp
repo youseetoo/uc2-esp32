@@ -90,8 +90,8 @@ namespace MessageController
 					
 					#ifdef HOME_MOTOR
 					// Use homing event with timeout=0 to clear hard limit
-					HomeMotor::startHome(axis, 1, 0, 0, 1, 0, 0, -99);
-					HomeMotor::getHomeData()[axis]->homeIsActive = false;
+					home_start(axis, 1, 0, 0, 1, 0, 0, -99);
+					home_get_data()[axis]->homeIsActive = false;
 					FocusMotor::getData()[axis]->isHoming = false;
 					#endif
 					

@@ -9,7 +9,7 @@ set(srcs
     "home/HomeMotor.cpp"
     "motor/AccelStep.cpp"
     "motor/FAccelStep.cpp"
-    "motor/FocusMotor.cpp"
+    "motor/FocusMotor.c"
     "motor/FocusScan.cpp"
     "motor/axis_motor_c.cpp"
     "motor/focusmotor_qid_c.cpp"

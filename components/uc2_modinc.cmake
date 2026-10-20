@@ -3,10 +3,9 @@
 #   include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 # then references ${UC2_MODULE_INCLUDE_DIRS} in idf_component_register(INCLUDE_DIRS ...).
 #
-# Inside this file CMAKE_CURRENT_LIST_DIR == <repo>/components (this file's dir),
-# so copied module dirs are ./uc2_*/<mod> and non-copied headers are ../main/src/<mod>.
-# Copied modules (compiled by the components) are listed first; the non-copied modules
-# (motor, home, led, ...) still live in main/src/ (headers only, until their own T1.6 split).
+# Inside this file CMAKE_CURRENT_LIST_DIR == <repo>/components (this file's dir).
+# The root main/ tree is GONE (T4.1 batch, 2026-10-19: PIO build retired) — every
+# module header now lives under components/.
 set(UC2_MODULE_INCLUDE_DIRS
     # uc2_core
     ${CMAKE_CURRENT_LIST_DIR}/uc2_core/state
@@ -19,13 +18,13 @@ set(UC2_MODULE_INCLUDE_DIRS
     # uc2_canopen
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/canopen
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/gpio_can
-    # T2.10: joystick (DS4-over-USB-OTG -> CANopen bridge, raw-IDF port from
-    # main/src/joystick, compiled by uc2_joystick) — listed so bare includes
-    # (#include "JoystickRouter.h") resolve for ALL components.
+    # T2.10: joystick (DS4-over-USB-OTG -> CANopen bridge, compiled by
+    # uc2_joystick) — listed so bare includes (#include "JoystickRouter.h")
+    # resolve for ALL components.
     ${CMAKE_CURRENT_LIST_DIR}/uc2_joystick
-    # T2.8: ptz (RS-485 Pelco-D keyboard -> CANopen bridge, raw-IDF port from
-    # main/src/ptz, compiled by uc2_canopen) — listed so bare includes
-    # (#include "PtzKeyboard.h") resolve for ALL components.
+    # T2.8: ptz (RS-485 Pelco-D keyboard -> CANopen bridge, compiled by
+    # uc2_canopen) — listed so bare includes (#include "PtzKeyboard.h")
+    # resolve for ALL components.
     ${CMAKE_CURRENT_LIST_DIR}/uc2_canopen/ptz
     # uc2_io
     ${CMAKE_CURRENT_LIST_DIR}/uc2_io/digitalin
@@ -36,64 +35,44 @@ set(UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/i2c
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/tmp102
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/fan
-    # T2.5: galvo scanner (raw-IDF port, compiled by uc2_periph) — listed before
-    # ../main/src/scanner (line below) so the ported copy wins for #include "GalvoController.h".
+    # T2.5: galvo scanner (raw-IDF port, compiled by uc2_periph).
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/scanner
-    # board PinConfig (main/PinConfig.h) — for now the laser board's PinConfig lives
-    # in the repo main/; T2.11 reworks boards/ to make it per-app. Listed first.
-    ${CMAKE_CURRENT_LIST_DIR}/../main
     # PinConfigDefault.h (the PinConfig base struct) lives in uc2_app/ — include-only
     # (no link dep), so this does NOT create a component dependency on uc2_app.
     ${CMAKE_CURRENT_LIST_DIR}/uc2_app
-    # T2.6: uc2_motor (stepper/encoder/axis/home/pid/tmc, raw-IDF port from
-    # main/src/{motor,home,axis,tmc,pid}) — listed BEFORE ../main/src/{axis,home,
-    # motor,pid,tmc} below so the ported copies win for #include "FocusMotor.h" etc.
+    # T2.6: uc2_motor (stepper/encoder/axis/home/pid/tmc, raw-IDF port).
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/axis
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/home
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/motor
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/pid
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/tmc
-    # non-copied (headers only, still in main/src/)
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/analogin
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/analogout
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/axis
-    # T3.3: bt moved main/src/bt -> components/uc2_bt (gated UC2_BLUETOOTH); PSController
-    # vendor leaf moved lib/PSController -> components/pscontroller (gated UC2_PS_CONTROLLER).
-    # Listed so bare includes (#include "HidGamePad.h", "BtController.h") still resolve for
-    # ALL components (e.g. uc2_io/laser pulls HidGamePad.h header-only).
+    # T3.3: bt in components/uc2_bt (gated UC2_BLUETOOTH); PSController vendor
+    # leaf in components/pscontroller (gated UC2_PS_CONTROLLER). Listed so bare
+    # includes (#include "HidGamePad.h", "BtController.h") still resolve for ALL
+    # components (e.g. uc2_io/laser pulls HidGamePad.h header-only).
     ${CMAKE_CURRENT_LIST_DIR}/uc2_bt
     ${CMAKE_CURRENT_LIST_DIR}/pscontroller
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/dac
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/dial
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/home
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/image
+    # T4.1: dial (components/uc2_dial, compiled by uc2_dial) — shared so bare
+    # #include "DialController.h" resolves for all components.
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_dial/dial
     ${CMAKE_CURRENT_LIST_DIR}/uc2_led/led
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/motor
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/pid
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/ptz
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/scanner
     ${CMAKE_CURRENT_LIST_DIR}/uc2_led/signal
-    # T2.1: neopixel (Adafruit_NeoPixel.h) — for LedController.h (in uc2_led) which is
-    # included by uc2_canopen/uc2_serial; in the shared list so ALL components resolve it.
+    # T2.1: neopixel (Adafruit_NeoPixel.h) — for LedController.h (in uc2_led)
+    # which is included by uc2_canopen/uc2_serial; shared so ALL components
+    # resolve it.
     ${CMAKE_CURRENT_LIST_DIR}/neopixel
-    # T2.4: thermal moved from main/src/thermal (raw-IDF port, compiled by uc2_periph).
+    # T2.4: thermal (raw-IDF port, compiled by uc2_periph).
     ${CMAKE_CURRENT_LIST_DIR}/uc2_periph/thermal
     # T5.4: M5 graphics (m5unified/m5dial/m5gfx) — DialController.h includes
-    # M5Unified.hpp + M5Dial.h under M5DIAL; it is pulled in by uc2_periph
-    # (i2c_slave_dial.cpp), uc2_app and uc2_dial. Include-only (no link dep); the
+    # M5Unified.hpp + M5Dial.h under M5DIAL. Include-only (no link dep); the
     # M5 components are always built (EXTRA_COMPONENT_DIRS).
     ${CMAKE_CURRENT_LIST_DIR}/m5unified/src
     ${CMAKE_CURRENT_LIST_DIR}/m5dial/src
-    ${CMAKE_CURRENT_LIST_DIR}/m5gfx/src
-    ${CMAKE_CURRENT_LIST_DIR}/../main/src/tmc)
-# T2.1: per-app PinConfig override. An app sets UC2_APP_MAIN_DIR to its own main/
-# (in the top-level CMakeLists before project()); it is prepended so its PinConfig.h
-# shadows the shared main/PinConfig.h (laser) for ALL components. Empty for the laser
-# (which uses the shared main/ PinConfig directly).
+    ${CMAKE_CURRENT_LIST_DIR}/m5gfx/src)
 # T2.1: per-app PinConfig override. The app sets the UC2_APP_MAIN_DIR environment
 # var (top-level CMakeLists, before project()); it is prepended so the app's
-# main/PinConfig.h shadows the shared main/PinConfig.h (laser) for ALL components.
-# (ENV channel — a plain/CACHE CMake var does not reach ESP-IDF component scope.)
+# main/PinConfig.h wins for ALL components. (ENV channel — a plain/CACHE CMake
+# var does not reach ESP-IDF component scope.)
 if(DEFINED ENV{UC2_APP_MAIN_DIR})
     list(PREPEND UC2_MODULE_INCLUDE_DIRS "$ENV{UC2_APP_MAIN_DIR}")
 endif()

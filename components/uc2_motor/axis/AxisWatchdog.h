@@ -1,5 +1,7 @@
 #pragma once
-#include "uc2_hal.h"
+// T4.1: pure-C (was a C++ namespace; the module is pure logic — no C++ deps).
+#include <stdbool.h>
+#include <stdint.h>
 
 // ============================================================================
 // AxisWatchdog — fast, cheap blocked/slipping-axis detection.
@@ -13,43 +15,40 @@
 // not hardcoded constants.
 // ============================================================================
 
-namespace AxisWatchdog
-{
-    enum Trip : uint8_t
-    {
-        TRIP_NONE = 0,
-        TRIP_STALL = 1,      // encoder not progressing while motion is expected
-        TRIP_LOST_STEPS = 2  // moving but position error exceeds the lag limit
-    };
+typedef enum AxisWatchdogTrip {
+    AW_TRIP_NONE = 0,
+    AW_TRIP_STALL = 1,      // encoder not progressing while motion is expected
+    AW_TRIP_LOST_STEPS = 2  // moving but position error exceeds the lag limit
+} AxisWatchdogTrip;
 
-    struct Config
-    {
-        uint16_t noiseThresholdCounts = 3;   // "progress" must exceed this (from scatter)
-        int32_t  lagLimitSteps        = 200; // |posErr| beyond this -> LOST_STEPS
-        uint32_t stallTimeoutMs       = 80;  // no progress this long -> STALL
-        uint32_t graceMs              = 60;  // ignore stall right after motion start
-        int32_t  minSpeedStepsPerSec  = 200; // only judge when commanded speed exceeds this
-        bool     enabled              = true;
-    };
+// Caller fills this (AxisController::configureWatchdog derives the values from
+// measured scatter); no in-struct defaults — C.
+typedef struct AxisWatchdogConfig {
+    uint16_t noiseThresholdCounts; // "progress" must exceed this (from scatter)
+    int32_t  lagLimitSteps;        // |posErr| beyond this -> LOST_STEPS
+    uint32_t stallTimeoutMs;       // no progress this long -> STALL
+    uint32_t graceMs;              // ignore stall right after motion start
+    int32_t  minSpeedStepsPerSec;  // only judge when commanded speed exceeds this
+    bool     enabled;
+} AxisWatchdogConfig;
 
-    struct State
-    {
-        bool     wasExpected      = false; // motion-expected edge tracking
-        uint32_t motionStartMs    = 0;     // when motion last became expected
-        uint32_t lastProgressMs   = 0;     // last time the encoder advanced
-        int64_t  lastProgressCnt  = 0;     // encoder count at last progress
-    };
+typedef struct AxisWatchdogState {
+    bool     wasExpected;      // motion-expected edge tracking
+    uint32_t motionStartMs;    // when motion last became expected
+    uint32_t lastProgressMs;   // last time the encoder advanced
+    int64_t  lastProgressCnt;  // encoder count at last progress
+} AxisWatchdogState;
 
-    // Reset the transient state (call on resetAxis / new move).
-    void reset(State &s);
+// Reset the transient state (call on resetAxis / new move).
+void axis_wd_reset(AxisWatchdogState *s);
 
-    // Evaluate one sample. Returns the trip that fired this tick (TRIP_NONE if
-    // healthy). Latching is the caller's responsibility.
-    //   motionExpected     : stepper backend reports the axis running
-    //   commandedStepsPerSec : |commanded speed| (steps/s)
-    //   rawCounts          : current signed encoder count
-    //   positionErrorSteps : measured - commanded (steps)
-    Trip update(const Config &cfg, State &s, bool motionExpected,
-                int32_t commandedStepsPerSec, int64_t rawCounts,
-                int32_t positionErrorSteps, uint32_t nowMs);
-}
+// Evaluate one sample. Returns the trip that fired this tick (AW_TRIP_NONE if
+// healthy). Latching is the caller's responsibility.
+//   motionExpected     : stepper backend reports the axis running
+//   commandedStepsPerSec : |commanded speed| (steps/s)
+//   rawCounts          : current signed encoder count
+//   positionErrorSteps : measured - commanded (steps)
+AxisWatchdogTrip axis_wd_update(const AxisWatchdogConfig *cfg, AxisWatchdogState *s,
+                                bool motionExpected, int32_t commandedStepsPerSec,
+                                int64_t rawCounts, int32_t positionErrorSteps,
+                                uint32_t nowMs);

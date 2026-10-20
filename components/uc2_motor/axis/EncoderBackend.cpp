@@ -1,3 +1,7 @@
+// T4.1: EncoderBackend — C API over the C++ ESP32Encoder library.
+// This file stays C++: the esp32_encoder vendor library is C++ (static
+// members, heap alloc); everything it touches is wrapped in extern "C"
+// functions that operate on the pure-C struct from EncoderBackend.h.
 static const char *TAG = "AxisEncoder";
 #include "EncoderBackend.h"
 #include "esp_log.h"
@@ -14,20 +18,31 @@ static const char *TAG = "AxisEncoder";
 #endif
 #endif
 
-
 #ifdef AXIS_ENCODER_HW
 // Atomic count reads vs the PCNT ISR.
 static portMUX_TYPE axisEncMux = portMUX_INITIALIZER_UNLOCKED;
 #endif
 
-bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
-                           uint16_t glitchFilter)
+extern "C" {
+
+void encoder_backend_init(EncoderBackend *be)
 {
-    aPin = pinA;
-    bPin = pinB;
-    invertDir = invert;
-    unitIndex = pcntUnit;
-    present = false;
+    be->present = false;
+    be->invertDir = false;
+    be->unitIndex = -1;
+    be->aPin = -1;
+    be->bPin = -1;
+    be->encoderImpl = nullptr;
+}
+
+bool encoder_backend_begin(EncoderBackend *be, int8_t pinA, int8_t pinB, bool invert,
+                           int pcntUnit, uint16_t glitchFilter)
+{
+    be->aPin = pinA;
+    be->bPin = pinB;
+    be->invertDir = invert;
+    be->unitIndex = pcntUnit;
+    be->present = false;
 
     if (pinA < 0 || pinB < 0)
     {
@@ -35,11 +50,11 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
         return false;
     }
 
-    if (pcntUnit == FAS_PCNT_UNIT)
+    if (pcntUnit == ENCODER_BACKEND_FAS_PCNT_UNIT)
     {
         // Constraint #4: never share the FAS step-generator's PCNT unit.
         log_e("Configured PCNT unit %d collides with FAS unit %d — refusing to attach",
-                 pcntUnit, FAS_PCNT_UNIT);
+                  pcntUnit, ENCODER_BACKEND_FAS_PCNT_UNIT);
         return false;
     }
 
@@ -53,6 +68,7 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
     // a never-attached placeholder, attach() lands exactly on unitIndex.
     // Placeholders are inert: they register no ISR and are never dereferenced.
     static ESP32Encoder slotReservation[MAX_ESP32_ENCODERS];
+    int unitIndex = be->unitIndex;
     if (unitIndex < 0 || unitIndex >= MAX_ESP32_ENCODERS)
     {
         log_e("PCNT unit %d out of range [0..%d)", unitIndex, MAX_ESP32_ENCODERS);
@@ -66,7 +82,7 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
 
     ESP32Encoder *enc = new ESP32Encoder();
     enc->clearCount();
-    enc->attachFullQuad(aPin, bPin);
+    enc->attachFullQuad(pinA, pinB);
     enc->setCount(0);
     enc->setFilter(glitchFilter);
 
@@ -76,16 +92,17 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
         // it). Not fatal, but surface it so the collision is diagnosable.
         log_e("Encoder landed on PCNT unit %d, expected %d", (int)enc->unit, unitIndex);
         unitIndex = (int)enc->unit;
+        be->unitIndex = unitIndex;
     }
-    if (unitIndex == FAS_PCNT_UNIT)
+    if (be->unitIndex == ENCODER_BACKEND_FAS_PCNT_UNIT)
     {
-        log_e("Encoder ended up on FAS PCNT unit %d — count/step corruption likely", unitIndex);
+        log_e("Encoder ended up on FAS PCNT unit %d — count/step corruption likely", be->unitIndex);
     }
 
-    encoderImpl = enc;
-    present = true;
+    be->encoderImpl = enc;
+    be->present = true;
     log_i("Encoder attached: A=%d B=%d unit=%d filter=%u invert=%d",
-             aPin, bPin, unitIndex, glitchFilter, invertDir);
+             pinA, pinB, be->unitIndex, glitchFilter, invert);
     return true;
 #else
     log_e("USE_PCNT_COUNTER not defined — encoder disabled");
@@ -93,28 +110,28 @@ bool EncoderBackend::begin(int8_t pinA, int8_t pinB, bool invert, int pcntUnit,
 #endif
 }
 
-int64_t EncoderBackend::getCount()
+int64_t encoder_backend_get_count(const EncoderBackend *be)
 {
 #ifdef AXIS_ENCODER_HW
-    if (present && encoderImpl != nullptr)
+    if (be->present && be->encoderImpl != nullptr)
     {
-        ESP32Encoder *enc = static_cast<ESP32Encoder *>(encoderImpl);
+        ESP32Encoder *enc = static_cast<ESP32Encoder *>(be->encoderImpl);
         portENTER_CRITICAL(&axisEncMux);
         int64_t count = enc->getCount();
         portEXIT_CRITICAL(&axisEncMux);
         // SINGLE point of direction inversion.
-        return invertDir ? -count : count;
+        return be->invertDir ? -count : count;
     }
 #endif
     return 0;
 }
 
-void EncoderBackend::zero()
+void encoder_backend_zero(EncoderBackend *be)
 {
 #ifdef AXIS_ENCODER_HW
-    if (present && encoderImpl != nullptr)
+    if (be->present && be->encoderImpl != nullptr)
     {
-        ESP32Encoder *enc = static_cast<ESP32Encoder *>(encoderImpl);
+        ESP32Encoder *enc = static_cast<ESP32Encoder *>(be->encoderImpl);
         portENTER_CRITICAL(&axisEncMux);
         enc->setCount(0);
         portEXIT_CRITICAL(&axisEncMux);
@@ -122,12 +139,14 @@ void EncoderBackend::zero()
 #endif
 }
 
-void EncoderBackend::setGlitchFilter(uint16_t value)
+void encoder_backend_set_glitch_filter(EncoderBackend *be, uint16_t value)
 {
 #ifdef AXIS_ENCODER_HW
-    if (present && encoderImpl != nullptr)
+    if (be->present && be->encoderImpl != nullptr)
     {
-        static_cast<ESP32Encoder *>(encoderImpl)->setFilter(value);
+        static_cast<ESP32Encoder *>(be->encoderImpl)->setFilter(value);
     }
 #endif
 }
+
+} // extern "C"

@@ -1,5 +1,7 @@
 #pragma once
-#include "uc2_hal.h"
+// T4.1: pure C (was a C++ namespace).
+#include <stdbool.h>
+#include <stdint.h>
 
 // ============================================================================
 // EncoderMonitor — periodic, thread-safe encoder liveness monitor.
@@ -15,26 +17,30 @@
 // (period in ms, clamped to >= 50; 0 disables). Off by default.
 // ============================================================================
 
-namespace EncoderMonitor
-{
-    struct Snapshot
-    {
-        int64_t  count = 0;      // count at the last completed interval
-        int64_t  delta = 0;      // change over that interval
-        uint32_t sampleMs = 0;   // millis() when it was taken
-        uint32_t intervalMs = 0; // actual elapsed time of the interval
-        bool     valid = false;  // at least one full interval observed
-    };
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    // Enable/disable periodic reporting. periodMs == 0 disables; otherwise
-    // clamped to >= 50 ms so the serial channel can't be flooded.
-    void setPeriod(int axis, uint32_t periodMs);
-    uint32_t getPeriod(int axis);
+typedef struct EncoderMonitorSnapshot {
+    int64_t  count;        // count at the last completed interval
+    int64_t  delta;        // change over that interval
+    uint32_t sampleMs;     // millis() when it was taken
+    uint32_t intervalMs;   // actual elapsed time of the interval
+    bool     valid;        // at least one full interval observed
+} EncoderMonitorSnapshot;
 
-    // Feed one sample. Called from AxisController::loop() with the raw count it
-    // already read this iteration. Emits the JSON report when the period lapses.
-    void tick(int axis, int64_t rawCounts, uint32_t nowMs);
+// Enable/disable periodic reporting. periodMs == 0 disables; otherwise
+// clamped to >= 50 ms so the serial channel can't be flooded.
+void encoder_monitor_set_period(int axis, uint32_t periodMs);
+uint32_t encoder_monitor_get_period(int axis);
 
-    // Thread-safe read of the latest completed interval, callable from any task.
-    Snapshot getSnapshot(int axis);
+// Feed one sample. Called from AxisController::loop() with the raw count it
+// already read this iteration. Emits the JSON report when the period lapses.
+void encoder_monitor_tick(int axis, int64_t rawCounts, uint32_t nowMs);
+
+// Thread-safe read of the latest completed interval, callable from any task.
+EncoderMonitorSnapshot encoder_monitor_get_snapshot(int axis);
+
+#ifdef __cplusplus
 }
+#endif

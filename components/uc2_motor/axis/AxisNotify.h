@@ -1,5 +1,7 @@
 #pragma once
-#include "uc2_hal.h"
+// T4.1: pure C (was a C++ namespace).
+#include <stdbool.h>
+#include <stdint.h>
 
 // ============================================================================
 // AxisNotify — asynchronous fault notification (design v2, WP5).
@@ -13,27 +15,31 @@
 // All values are in STEPS.
 // ============================================================================
 
-namespace AxisNotify
-{
-    struct Event
-    {
-        uint8_t axis           = 0;
-        uint8_t fault          = 0; // AxisFault
-        int32_t posErrSteps    = 0;
-        int32_t commandedSteps = 0;
-        int32_t measuredSteps  = 0;
-    };
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    // Non-blocking enqueue from the fault site. Drops the event if the queue is
-    // full (a fault storm must never wedge the motor loop).
-    void report(const Event &e);
+typedef struct AxisEvent {
+    uint8_t axis;             // logical axis index
+    uint8_t fault;            // AxisFault
+    int32_t posErrSteps;
+    int32_t commandedSteps;
+    int32_t measuredSteps;
+} AxisEvent;
 
-    // Drain the queue (call from the main/motor loop). Cheap when empty.
-    void loop();
+// Non-blocking enqueue from the fault site. Drops the event if the queue is
+// full (a fault storm must never wedge the motor loop).
+void axis_notify_report(const AxisEvent *e);
 
-    // UC2-specific EMCY error code for an AxisFault (manufacturer range 0xFFxx).
-    uint16_t emcyCodeForFault(uint8_t fault);
+// Drain the queue (call from the main/motor loop). Cheap when empty.
+void axis_notify_loop(void);
 
-    // Human-readable fault name for the JSON payload.
-    const char *faultName(uint8_t fault);
+// UC2-specific EMCY error code for an AxisFault (manufacturer range 0xFFxx).
+uint16_t axis_notify_emcy_code_for_fault(uint8_t fault);
+
+// Human-readable fault name for the JSON payload.
+const char *axis_notify_fault_name(uint8_t fault);
+
+#ifdef __cplusplus
 }
+#endif

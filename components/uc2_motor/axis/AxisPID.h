@@ -1,4 +1,11 @@
 #pragma once
+// T4.1: pure-C (was a C++ class with default member initializers). Header-only:
+// struct + static inline functions. Uses the uc2 time/log façades, which are
+// C-compatible (see uc2_time.h / uc2_log.h).
+#include <stdbool.h>
+#include <stdint.h>
+#include <math.h>
+#include <stdlib.h> // abs()
 #include "uc2_hal.h"
 
 // ============================================================================
@@ -13,102 +20,136 @@
 // scaling, matching the legacy tuning).
 // ============================================================================
 
-class AxisPID
-{
-public:
+typedef struct AxisPID {
     // FAR mode — aggressive approach.
-    float kpFar = 80.0f;
-    float kiFar = 0.0f;
-    float kdFar = 8.0f;
+    float kpFar;
+    float kiFar;
+    float kdFar;
     // NEAR mode — precise positioning.
-    float kpNear = 100.0f;
-    float kiNear = 5.0f;
-    float kdNear = 8.0f;
+    float kpNear;
+    float kiNear;
+    float kdNear;
 
-    int32_t nearThreshold = 50;    // counts: FAR -> NEAR switch
-    float   maxVelocity = 15000.0f; // steps/s ceiling
-    float   minVelocity = 80.0f;    // steps/s floor while not yet arrived
-    int32_t positionTolerance = 1;  // counts: "arrived"
-    float   integralLimit = 500.0f; // anti-windup clamp
+    int32_t nearThreshold;     // counts: FAR -> NEAR switch
+    float   maxVelocity;       // steps/s ceiling
+    float   minVelocity;       // steps/s floor while not yet arrived
+    int32_t positionTolerance; // counts: "arrived"
+    float   integralLimit;     // anti-windup clamp
 
-    void setTarget(int32_t targetCounts, int32_t currentCounts)
+    // ---- state ----
+    int32_t  setpoint;
+    float    integralError;
+    int32_t  lastError;
+    uint32_t lastControlTimeUs;
+    bool     positionReached;
+    bool     active;
+} AxisPID;
+
+static inline float axisPidClampF(float v, float lo, float hi)
+{
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+// Set the legacy default gains/limits (call once per axis at setup).
+static inline void axis_pid_init(AxisPID *p)
+{
+    p->kpFar = 80.0f;
+    p->kiFar = 0.0f;
+    p->kdFar = 8.0f;
+    p->kpNear = 100.0f;
+    p->kiNear = 5.0f;
+    p->kdNear = 8.0f;
+    p->nearThreshold = 50;
+    p->maxVelocity = 15000.0f;
+    p->minVelocity = 80.0f;
+    p->positionTolerance = 1;
+    p->integralLimit = 500.0f;
+    p->setpoint = 0;
+    p->integralError = 0.0f;
+    p->lastError = 0;
+    p->lastControlTimeUs = 0;
+    p->positionReached = true;  // matches the legacy default member init
+    p->active = false;
+}
+
+static inline void axis_pid_set_target(AxisPID *p, int32_t targetCounts, int32_t currentCounts)
+{
+    log_i("AxisPID: setTarget=%d, currentCounts=%d", targetCounts, currentCounts);
+    p->setpoint = targetCounts;
+    p->integralError = 0.0f;
+    p->lastError = targetCounts - currentCounts;
+    p->positionReached = false;
+    p->active = true;
+}
+
+// Compute the velocity command (steps/s, signed). dt<=0 → auto-timed.
+static inline float axis_pid_compute(AxisPID *p, int32_t currentCounts, float dt)
+{
+    if (dt <= 0.0f)
     {
-        log_i("AxisPID: setTarget=%d, currentCounts=%d", targetCounts, currentCounts);
-        setpoint = targetCounts;
-        integralError = 0.0f;
-        lastError = targetCounts - currentCounts;
-        positionReached = false;
-        active = true;
+        uint32_t nowUs = micros();
+        uint32_t dtUs = nowUs - p->lastControlTimeUs;
+        p->lastControlTimeUs = nowUs;
+        dt = dtUs * 1e-6f;
+    }
+    if (dt <= 0.0f || dt > 0.1f)
+        dt = 0.001f;
+
+    int32_t error = p->setpoint - currentCounts;
+
+    if (abs(error) <= p->positionTolerance)
+    {
+        if (!p->positionReached)
+        {
+            p->integralError = 0.0f;
+            p->positionReached = true;
+            p->active = false;
+        }
+        p->lastError = error;
+        return 0.0f;
+    }
+    p->positionReached = false;
+
+    float kp, ki, kd;
+    if (abs(error) > p->nearThreshold)
+    {
+        kp = p->kpFar; ki = p->kiFar; kd = p->kdFar;
+        p->integralError = 0.0f; // no windup during the fast approach
+    }
+    else
+    {
+        kp = p->kpNear; ki = p->kiNear; kd = p->kdNear;
     }
 
-    // Compute the velocity command (steps/s, signed). dt<=0 → auto-timed.
-    float compute(int32_t currentCounts, float dt = 0.0f)
-    {
-        if (dt <= 0.0f)
-        {
-            uint32_t nowUs = micros();
-            uint32_t dtUs = nowUs - lastControlTimeUs;
-            lastControlTimeUs = nowUs;
-            dt = dtUs * 1e-6f;
-        }
-        if (dt <= 0.0f || dt > 0.1f)
-            dt = 0.001f;
+    float pTerm = kp * (float)error;
+    p->integralError += (float)error * dt;
+    p->integralError = axisPidClampF(p->integralError, -p->integralLimit, p->integralLimit);
+    float iTerm = ki * p->integralError;
+    float dTerm = kd * (float)(error - p->lastError) / dt;
+    p->lastError = error;
 
-        int32_t error = setpoint - currentCounts;
+    float v = pTerm + iTerm + dTerm;
+    v = axisPidClampF(v, -p->maxVelocity, p->maxVelocity);
+    if (fabsf(v) < p->minVelocity)
+        v = (error > 0) ? p->minVelocity : -p->minVelocity;
+    return v;
+}
 
-        if (abs(error) <= positionTolerance)
-        {
-            if (!positionReached)
-            {
-                integralError = 0.0f;
-                positionReached = true;
-                active = false;
-            }
-            lastError = error;
-            return 0.0f;
-        }
-        positionReached = false;
+static inline void axis_pid_stop(AxisPID *p)
+{
+    p->active = false;
+    p->positionReached = true;
+    p->integralError = 0.0f;
+}
 
-        float kp, ki, kd;
-        if (abs(error) > nearThreshold)
-        {
-            kp = kpFar; ki = kiFar; kd = kdFar;
-            integralError = 0.0f; // no windup during the fast approach
-        }
-        else
-        {
-            kp = kpNear; ki = kiNear; kd = kdNear;
-        }
+static inline bool axis_pid_is_complete(const AxisPID *p)
+{
+    return p->positionReached && !p->active;
+}
 
-        float pTerm = kp * (float)error;
-        integralError += (float)error * dt;
-        integralError = constrain(integralError, -integralLimit, integralLimit);
-        float iTerm = ki * integralError;
-        float dTerm = kd * (float)(error - lastError) / dt;
-        lastError = error;
-
-        float v = pTerm + iTerm + dTerm;
-        v = constrain(v, -maxVelocity, maxVelocity);
-        if (fabsf(v) < minVelocity)
-            v = (error > 0) ? minVelocity : -minVelocity;
-        return v;
-    }
-
-    void stop()
-    {
-        active = false;
-        positionReached = true;
-        integralError = 0.0f;
-    }
-
-    bool isComplete() const { return positionReached && !active; }
-    int32_t getSetpoint() const { return setpoint; }
-
-private:
-    int32_t  setpoint = 0;
-    float    integralError = 0.0f;
-    int32_t  lastError = 0;
-    uint32_t lastControlTimeUs = 0;
-    bool     positionReached = true;
-    bool     active = false;
-};
+static inline int32_t axis_pid_get_setpoint(const AxisPID *p)
+{
+    return p->setpoint;
+}

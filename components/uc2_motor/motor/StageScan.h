@@ -1,74 +1,77 @@
+// T4.1: pure C (was the C++ StageScan namespace).
 #pragma once
+#include <stdbool.h>
+#include <stdint.h>
 
-// Hardware-triggered stage scan: the firmware walks a grid (or a coordinate
-// list), switches the lights and fires the camera trigger; the host only
-// collects frames. The frame order is defined in StageScanOrder.h and mirrored
-// by ImSwitch (scan_plan.stage_scan_frame_table) — keep them in sync.
-#include <cstdint>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace StageScan
+// Sentinel "leave this axis alone" for the per-coordinate "z" (C replacement
+// for the old StageScan::kKeepAxis).
+#define STAGE_SCAN_KEEP_AXIS (-1)
+
+typedef struct StagePosition
 {
-    // Set while a scan task runs. One definition (StageScan.cpp): it used to
-    // be a header-static, so the parser's "already running" guard read its
-    // own always-false copy and a second command spawned a second scan task.
-    extern volatile bool isRunning;
+    int x;
+    int y;
+    int z; // STAGE_SCAN_KEEP_AXIS = don't move the Z axis for this coordinate
+} StagePosition;
 
-    // Coordinate value meaning "leave this axis where it is" (coordinate mode
-    // entries without a "z").
-    static const int32_t kKeepAxis = INT32_MIN;
+typedef struct StageScanningData
+{
+    // Grid-based scanning parameters
+    int xStart;
+    int yStart;
+    int xStep;
+    int yStep;
+    int zStart;
+    int zStep;
+    int nX;
+    int nY;
+    int nZ;
 
-    struct StagePosition
-    {
-        int x;
-        int y;
-        int z;
-    };
+    int delayTimeStep;
+    int delayTimeTrigger;
+    int delayTimePreTrigger;
+    int delayTimePostTrigger;
 
-    struct StageScanningData
-    {
-        // Legacy line/pixel fields (unused by the grid scan, kept for callers)
-        int nStepsLine = 100;
-        int dStepsLine = 1;
-        int nTriggerLine = 1;
-        int nStepsPixel = 100;
-        int dStepsPixel = 1;
-        int nTriggerPixel = 1;
-        int delayTimeStep = 10;
-        int stopped = 0;
-        int nFrames = 1;
-        int qid = -1; // query id echoed in the completion message
-        bool zicZac = true;
+    bool zicZac;
+    int  speed;        // steps /s
+    int  acceleration; // steps /s^2
 
-        // Coordinate-based scanning parameters
-        bool useCoordinates = false;
-        StagePosition* coordinates = nullptr;
-        int coordinateCount = 0;
+    // Coordinate-based scanning parameters
+    bool useCoordinates;
+    StagePosition *coordinates; // malloc'd; owned by this struct
+    int coordinateCount;
 
-        // Grid: 0 for a start means "from the current position"
-        int32_t xStart = 0;
-        int32_t yStart = 0;
-        int32_t zStart = 0;
-        int32_t xStep = 0;
-        int32_t yStep = 0;
-        int32_t zStep = 0;
-        uint16_t nX = 1;
-        uint16_t nY = 1;
-        uint16_t nZ = 1;
-        int delayTimePreTrigger = 0;   // tPre  [ms]: settle after the move / light on
-        int delayTimePostTrigger = 0;  // tPost [ms]: exposure after the trigger
-        // Laser channels 0..4 (illumination[] in the JSON), fired ascending when > 0
-        int lightsourceIntensities[5] = {0, 0, 0, 0, 0};
-        int ledarrayIntensity = 0;     // LED array, fired after the lasers when > 0
-        int speed = 20000;
-        int acceleration = 1000000;
-        int delayTimeTrigger = 1;      // tTrig [ms]: camera trigger pulse width (>= 1)
-        bool nonstop = false;          // sweep rows continuously, trigger on the fly
-    };
+    int nFrames;
+    int stopped;
+    int qid;
+    int nonstop; // 1 = continuous-row / fly-through scan, 0 = stop-and-go
 
-    void stageScanThread(void *arg);
-    void stageScan(bool isThread = false);
-    StageScanningData *getStageScanData();
+    int lightsourceIntensities[5]; // per-laser channel intensity
+    int ledarrayIntensity;         // LED array intensity (0-255)
+} StageScanningData;
 
-    void setCoordinates(StagePosition* coords, int count);
-    void clearCoordinates();
-};
+// C replacement for the old NSDMI defaults (delayTimeStep=10, nFrames=1);
+// the rest is zero.
+static inline StageScanningData stage_scan_data_init(void)
+{
+    StageScanningData d = {0};
+    d.delayTimeStep = 10;
+    d.nFrames = 1;
+    return d;
+}
+
+StageScanningData *stage_scan_get_data(void);
+void stage_scan_set_coordinates(StagePosition *coords, int count);
+void stage_scan_clear_coordinates(void);
+void stage_scan(bool isThread); // isThread => vTaskDelete(NULL) on exit
+void stage_scan_thread(void *arg); // FreeRTOS entry (see MotorJsonParser::parseStageScan)
+
+extern volatile bool stage_scan_is_running;
+
+#ifdef __cplusplus
+}
+#endif

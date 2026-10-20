@@ -7,6 +7,9 @@
 #include <cJSON.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+// C++ dispatch table (still C++ during the T4.1 batch; the pure-C modules
+// below use the extern-"C" shims at the bottom of this header).
 class DeviceRouter {
 public:
     // Route a JSON command through the routing table.
@@ -75,13 +78,16 @@ private:
     static cJSON* handleStateGet(uint8_t nodeId);
 #endif
 };
+#endif // __cplusplus
 
-// T4.1: C shim for the pure-C modules (MotorGamePad.c / StageScan.c) that
-// dispatch /motor_act documents. Wraps DeviceRouter::handleMotorAct.
+// T4.1: C shims for the pure-C modules (MotorGamePad.c / StageScan.c) that
+// dispatch command documents. Each wraps the matching DeviceRouter handler.
 #ifdef __cplusplus
 extern "C" {
 #endif
 cJSON *device_router_handle_motor_act(cJSON *doc);
+cJSON *device_router_handle_laser_act(cJSON *doc);
+cJSON *device_router_handle_led_act(cJSON *doc);
 #ifdef __cplusplus
 }
 #endif

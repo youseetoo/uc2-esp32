@@ -15,7 +15,7 @@ set(srcs
     "motor/focusmotor_qid_c.cpp"
     "motor/MotorGamePad.c"
     "motor/MotorJsonParser.cpp"
-    "motor/StageScan.cpp"
+    "motor/StageScan.c"
     "pid/PidController.c"
     "tmc/TMCController.cpp")
 idf_component_register(SRCS ${srcs}

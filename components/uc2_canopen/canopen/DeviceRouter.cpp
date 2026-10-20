@@ -185,6 +185,12 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
 extern "C" cJSON *device_router_handle_motor_act(cJSON *doc)
 { return DeviceRouter::handleMotorAct(doc); }
 
+extern "C" cJSON *device_router_handle_laser_act(cJSON *doc)
+{ return DeviceRouter::handleLaserAct(doc); }
+
+extern "C" cJSON *device_router_handle_led_act(cJSON *doc)
+{ return DeviceRouter::handleLedAct(doc); }
+
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");

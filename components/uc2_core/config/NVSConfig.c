@@ -5,6 +5,14 @@
 // the caller now passes (pinConfig.CAN_ID_CURRENT & 0x7F) as pin_cfg_node_id.
 // That value is captured (s_pin_cfg_node_id) so nvsconfig_reset can re-load with
 // the same board default. log_* -> ESP_LOG* (esp_log.h, C-compatible).
+//
+// C feature gating: raw-IDF build -D feature flags are CXX-only (toolchain/
+// cxxflags), so a C TU must gate on the CONFIG_UC2_* Kconfig symbols
+// (sdkconfig.h) — the same mapping the component CMakeLists use. Flags with no
+// Kconfig symbol (ANALOG_JOYSTICK, WIFI, PID_CONTROLLER, SCANNER_CONTROLLER,
+// OBJECTIVE_CONTROLLER, ...) keep the bare #ifdef: they are undefined for every
+// current build (C and CXX alike), so both evaluate false identically.
+#include "sdkconfig.h"
 #include "NVSConfig.h"
 #include "RuntimeConfig.h"
 
@@ -37,32 +45,32 @@ static uint8_t nvsg_get_u8(nvs_handle_t h, const char *k, uint8_t def)
 
 // ── Compile-time defaults derived from build flags ──────────────────────────
 
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
   #define DEFAULT_MOTOR true
 #else
   #define DEFAULT_MOTOR false
 #endif
-#ifdef LASER_CONTROLLER
+#if CONFIG_UC2_LASER_CONTROLLER
   #define DEFAULT_LASER true
 #else
   #define DEFAULT_LASER false
 #endif
-#ifdef LED_CONTROLLER
+#if CONFIG_UC2_LED_CONTROLLER
   #define DEFAULT_LED true
 #else
   #define DEFAULT_LED false
 #endif
-#ifdef HOME_MOTOR
+#if CONFIG_UC2_HOME_MOTOR
   #define DEFAULT_HOME true
 #else
   #define DEFAULT_HOME false
 #endif
-#ifdef DIGITAL_IN_CONTROLLER
+#if CONFIG_UC2_DIGITAL_IN_CONTROLLER
   #define DEFAULT_DIGITALIN true
 #else
   #define DEFAULT_DIGITALIN false
 #endif
-#ifdef DIGITAL_OUT_CONTROLLER
+#if CONFIG_UC2_DIGITAL_OUT_CONTROLLER
   #define DEFAULT_DIGITALOUT true
 #else
   #define DEFAULT_DIGITALOUT false
@@ -77,17 +85,17 @@ static uint8_t nvsg_get_u8(nvs_handle_t h, const char *k, uint8_t def)
 #else
   #define DEFAULT_ANALOGOUT false
 #endif
-#ifdef DAC_CONTROLLER
+#if CONFIG_UC2_DAC_CONTROLLER
   #define DEFAULT_DAC true
 #else
   #define DEFAULT_DAC false
 #endif
-#ifdef TMC_CONTROLLER
+#if CONFIG_UC2_TMC_CONTROLLER
   #define DEFAULT_TMC true
 #else
   #define DEFAULT_TMC false
 #endif
-#ifdef LINEAR_ENCODER_CONTROLLER
+#if CONFIG_UC2_LINEAR_ENCODER_CONTROLLER
   #define DEFAULT_ENCODER true
 #else
   #define DEFAULT_ENCODER false
@@ -97,12 +105,12 @@ static uint8_t nvsg_get_u8(nvs_handle_t h, const char *k, uint8_t def)
 #else
   #define DEFAULT_JOYSTICK false
 #endif
-#ifdef GALVO_CONTROLLER
+#if CONFIG_UC2_GALVO_CONTROLLER
   #define DEFAULT_GALVO true
 #else
   #define DEFAULT_GALVO false
 #endif
-#ifdef BLUETOOTH
+#if CONFIG_UC2_BLUETOOTH
   #define DEFAULT_BLUETOOTH true
 #else
   #define DEFAULT_BLUETOOTH false
@@ -122,12 +130,12 @@ static uint8_t nvsg_get_u8(nvs_handle_t h, const char *k, uint8_t def)
 #else
   #define DEFAULT_SCANNER false
 #endif
-#ifdef MESSAGE_CONTROLLER
+#if CONFIG_UC2_MESSAGE_CONTROLLER
   #define DEFAULT_MESSAGE true
 #else
   #define DEFAULT_MESSAGE false
 #endif
-#ifdef DIAL_CONTROLLER
+#if CONFIG_UC2_DIAL_CONTROLLER
   #define DEFAULT_DIAL true
 #else
   #define DEFAULT_DIAL false
@@ -137,23 +145,27 @@ static uint8_t nvsg_get_u8(nvs_handle_t h, const char *k, uint8_t def)
 #else
   #define DEFAULT_OBJECTIVE false
 #endif
-#ifdef HEAT_CONTROLLER
+#if CONFIG_UC2_HEAT_CONTROLLER
   #define DEFAULT_HEAT true
 #else
   #define DEFAULT_HEAT false
 #endif
-#if defined(FAN_CONTROLLER) || defined(TMP102_CONTROLLER)
+#if CONFIG_UC2_FAN_CONTROLLER || CONFIG_UC2_TMP102_CONTROLLER
   #define DEFAULT_FAN true
 #else
   #define DEFAULT_FAN false
 #endif
 
-// CAN role default
-#if defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 1)
+// CAN role default. NODE_ROLE (the legacy -D macro) is undefined in every C TU,
+// so the original C++ (NODE_ROLE == 1)/(NODE_ROLE == 2) comparisons always
+// folded false and the laser app silently defaulted to STANDALONE. The Kconfig
+// int CONFIG_UC2_NODE_ROLE carries the same value, restoring the intended
+// branch (laser: CANopen slave).
+#if CONFIG_UC2_CAN_CONTROLLER_CANOPEN && (CONFIG_UC2_NODE_ROLE == 1)
   #define DEFAULT_CAN_ROLE (NODE_ROLE_CAN_MASTER)
-#elif defined(CAN_CONTROLLER_CANOPEN) && (NODE_ROLE == 2)
+#elif CONFIG_UC2_CAN_CONTROLLER_CANOPEN && (CONFIG_UC2_NODE_ROLE == 2)
   #define DEFAULT_CAN_ROLE (NODE_ROLE_CAN_SLAVE)
-#elif defined(CAN_BUS_ENABLED)
+#elif CONFIG_UC2_CAN_BUS_ENABLED
   #define DEFAULT_CAN_ROLE (NODE_ROLE_CAN_MASTER)
 #else
   #define DEFAULT_CAN_ROLE (NODE_ROLE_STANDALONE)

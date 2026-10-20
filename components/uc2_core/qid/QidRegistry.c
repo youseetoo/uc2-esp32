@@ -1,12 +1,15 @@
 ﻿// T4.1: QidRegistry — pure-C QID tracking (was a C++ namespace).
 // The C++ FocusMotor dependency is hidden behind the focusmotor_qid_c.h shim
-// (gated on MOTOR_CONTROLLER). Serial output uses the C serial_out_* API.
+// (gated on CONFIG_UC2_MOTOR_CONTROLLER). Serial output uses the C serial_out_* API.
+// C feature gating: the raw -D feature flags are CXX-only (toolchain/cxxflags);
+// a C TU must gate on the CONFIG_UC2_* Kconfig symbols (sdkconfig.h).
+#include "sdkconfig.h"
 #include "QidRegistry.h"
 #include "uc2_serial_out.h"
 #include "cJsonTool.h"
 #include "esp_log.h"
 #include "esp_timer.h"
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
 #include "focusmotor_qid_c.h"
 // MOTOR_AXIS_COUNT is a per-app #define (in the app's PinConfig.h, which is
 // C++). The C QidRegistry can't include it, so default to the max (10).
@@ -20,9 +23,9 @@
 // ── Weak defaults for the focusmotor_* shim ─────────────────────────────────
 // The real implementation lives in uc2_motor (focusmotor_qid_c.cpp); uc2_core
 // cannot depend on uc2_motor (circular), so the QidRegistry links against
-// weak no-op defaults. When uc2_motor is in the build (MOTOR_CONTROLLER),
+// weak no-op defaults. When uc2_motor is in the build (CONFIG_UC2_MOTOR_CONTROLLER),
 // the linker resolves to the real shim.
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
 __attribute__((weak)) int focusmotor_get_qid(int a) { (void)a; return -1; }
 __attribute__((weak)) int focusmotor_is_stopped(int a) { (void)a; return 1; }
 __attribute__((weak)) int32_t focusmotor_get_current_position(int a) { (void)a; return 0; }
@@ -252,7 +255,7 @@ int qid_pause(int qid)
 
     // Suppress done reports during pause stop
     entries[idx].suppressDoneReport = 1;
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
     // Stop all motors that belong to this QID and save their remaining steps
     for (int i = 0; i < MOTOR_AXIS_COUNT && i < QID_MAX_PAUSED_AXES; i++)
     {
@@ -308,7 +311,7 @@ int qid_resume(int qid)
     uint8_t resumedAxes = 0;
     entries[idx].state = QID_BUSY;
 
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
     for (int i = 0; i < MOTOR_AXIS_COUNT && i < QID_MAX_PAUSED_AXES; i++)
     {
         if (entries[idx].pausedAxes[i].paused)
@@ -335,7 +338,7 @@ int qid_resume(int qid)
     entries[idx].suppressDoneReport = 0;
 
     xSemaphoreGive(xQidMutex);
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
     // Start the motors (outside mutex)
     for (int i = 0; i < MOTOR_AXIS_COUNT && i < QID_MAX_PAUSED_AXES; i++)
     {

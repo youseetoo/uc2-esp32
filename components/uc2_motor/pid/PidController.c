@@ -1,7 +1,10 @@
 // T4.1: PidController — pure-C PID controller (was a C++ namespace).
 // millis() -> esp_timer; analogRead -> uc2_adc (C API); log_d -> ESP_LOGD;
 // String-concat debug line -> one printf-style ESP_LOGD. FocusMotor C++ calls
-// (gated on MOTOR_CONTROLLER) go through the focusmotor_qid_c.h C shim.
+// (gated on CONFIG_UC2_MOTOR_CONTROLLER) go through the focusmotor_qid_c.h C shim.
+// C feature gating: the raw -D feature flags are CXX-only (toolchain/cxxflags);
+// a C TU must gate on the CONFIG_UC2_* Kconfig symbols (sdkconfig.h).
+#include "sdkconfig.h"
 #include "PidController.h"
 
 #include "cJsonTool.h"    // cjson_tool_* C helpers
@@ -10,7 +13,7 @@
 #include "esp_timer.h"
 #include "JsonKeys.h"
 
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
 #include "focusmotor_qid_c.h"
 #endif
 
@@ -50,7 +53,7 @@ int pid_act(cJSON *ob)
     if (!PID_active)
     {
 // force shutdown the motor
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
         focusmotor_set_speed(1, 0);
         focusmotor_stop_stepper(1);
 #endif
@@ -75,7 +78,7 @@ void pid_loop(void)
 
         analoginValueAvg = analoginValueAvg / (float)N_analogin_avg;
         int32_t motorValue = pid_return_control_value(PID_target, analoginValueAvg, PID_Kp, PID_Ki, PID_Kd);
-#ifdef MOTOR_CONTROLLER
+#if CONFIG_UC2_MOTOR_CONTROLLER
         focusmotor_set_isforever(1, 1); // run motor at certain speed
         focusmotor_set_speed(1, motorValue);
         focusmotor_start_stepper(1, 0);

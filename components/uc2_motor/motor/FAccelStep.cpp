@@ -199,7 +199,7 @@ namespace FAccelStep
             uint16_t rmsCurr = preferences.getInt("current", pinConfig.tmc_rms_current);
             preferences.end();
             if (abs(speed) > 10000) rmsCurr = (uint16_t)(rmsCurr * 1.5f);
-            TMCController::setTMCCurrent(rmsCurr);
+            tmc_set_current(rmsCurr);
 #endif
 
             // Diagnostic snapshot of the planning state. If a single move from a

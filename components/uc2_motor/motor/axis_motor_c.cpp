@@ -62,7 +62,7 @@ void axis_motor_set_live_speed(int axis, int32_t signedSpeed)
 uint16_t axis_motor_get_microsteps(void)
 {
 #ifdef TMC_CONTROLLER
-    return TMCController::getMicrosteps();
+    return tmc_get_microsteps();
 #else
     return 0;
 #endif

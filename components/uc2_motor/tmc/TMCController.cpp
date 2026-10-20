@@ -1,33 +1,24 @@
+// T4.1 C++ island: owns the TMC2209Stepper vendor object (TMCStepper C++
+// library, kept) and exposes the extern-C tmc_* API declared in
+// TMCController.h. Everything else in the port is C.
 static const char *TAG = "TMCController";
 #include "TMCController.h"
+#include <TMCStepper.h>
+#include "uc2_hal/uc2_serial.h"
+#include "uc2_hal/uc2_prefs.h"
+#include "esp_task_wdt.h"
 
+using namespace uc2;
 
-using namespace FocusMotor;
+namespace {
 
-namespace TMCController
-{
-    // TMC2209 instance
+    // TMC2209 instance (vendor C++ class — the reason this file stays C++).
     TMC2209Stepper driver(&Serial1, R_SENSE, DRIVER_ADDRESS);
 
+    // NVS persistence for the driver parameters ("tmc" namespace).
+    Preferences preferences;
 
-    uint32_t tstepFromStepsPerSecond(uint32_t stepsPerSecond, uint16_t microsteps)
-    {
-        // 0 = "never switch" — the register semantics already encode that
-        // (TSTEP >= threshold selects StealthChop, and TSTEP is never < 0).
-        if (stepsPerSecond == 0)
-            return 0;
-        if (microsteps == 0)
-            microsteps = 1;
-        // One input step equals (256 / microsteps) of the 1/256 microsteps the
-        // TSTEP timer counts, hence the microsteps factor in the numerator.
-        uint64_t tstep = ((uint64_t)TMC_FCLK_HZ * (uint64_t)microsteps) /
-                         (256ULL * (uint64_t)stepsPerSecond);
-        if (tstep > 0xFFFFF) // 20-bit register
-            tstep = 0xFFFFF;
-        return (uint32_t)tstep;
-    }
-
-    static void writeParamsToPreferences(const TMCData &p)
+    void writeParamsToPreferences(const TMCData &p)
     {
         preferences.begin("tmc", false);
         preferences.putInt("msteps", p.msteps);
@@ -52,7 +43,7 @@ namespace TMCController
               (int)p.tpwmthrs_sps, p.en_spreadcycle, p.hold_mult_pct);
     }
 
-    static TMCData readParamsFromPreferences()
+    TMCData readParamsFromPreferences()
     {
         TMCData p;
         preferences.begin("tmc", true);
@@ -75,7 +66,7 @@ namespace TMCController
         return p;
     }
 
-    static TMCData paramsFromPinConfig()
+    TMCData paramsFromPinConfig()
     {
         TMCData p;
         p.msteps = pinConfig.tmc_microsteps;
@@ -100,7 +91,7 @@ namespace TMCController
     // firmware keeps its stored values forever — which is exactly how a changed
     // firmware default (e.g. CoolStep off) can fail to reach the hardware.
     // Re-seed from pinConfig whenever the settings version moves.
-    static void migratePreferencesIfNeeded()
+    void migratePreferencesIfNeeded()
     {
         preferences.begin("tmc", true);
         int storedVersion = preferences.getInt("ver", 0);
@@ -110,6 +101,67 @@ namespace TMCController
         log_w("TMC settings version %d -> %d: re-seeding NVS from PinConfig",
               storedVersion, TMC_SETTINGS_VERSION);
         writeParamsToPreferences(paramsFromPinConfig());
+    }
+
+    // Presence test for keys whose *zero* is a meaningful setting (e.g. semin=0
+    // switches CoolStep off). The plain "val > 0" guards below cannot express
+    // that, but they still protect the fields where a stray 0 would disable the
+    // driver outright (toff) or make it step wrong (msteps, rms_current).
+    bool jsonHasNumber(cJSON *jsonDocument, const char *key)
+    {
+        cJSON *val = cJSON_GetObjectItemCaseSensitive(jsonDocument, key);
+        return (val != NULL) && cJSON_IsNumber(val);
+    }
+
+    void parseTMCDataFromJSON(cJSON *jsonDocument, TMCData &p)
+    {
+        int val = 0;
+        val = cjson_tool_get_int(jsonDocument, "msteps");
+        if (val > 0)
+            p.msteps = val;
+        val = cjson_tool_get_int(jsonDocument, "rms_current");
+        if (val > 0)
+            p.rms_current = val;
+        val = cjson_tool_get_int(jsonDocument, "stall_value");
+        if (val > 0)
+            p.stall_value = val;
+        val = cjson_tool_get_int(jsonDocument, "sgthrs");
+        if (val > 0)
+            p.sgthrs = val;
+        // semin = 0 disables CoolStep, so these have to be presence-checked
+        // rather than value-checked or you could never switch CoolStep off.
+        if (jsonHasNumber(jsonDocument, "semin"))
+            p.semin = cjson_tool_get_int(jsonDocument, "semin");
+        if (jsonHasNumber(jsonDocument, "semax"))
+            p.semax = cjson_tool_get_int(jsonDocument, "semax");
+        if (jsonHasNumber(jsonDocument, "sedn"))
+            p.sedn = cjson_tool_get_int(jsonDocument, "sedn");
+        val = cjson_tool_get_int(jsonDocument, "tcoolthrs");
+        if (val > 0)
+            p.tcoolthrs = val;
+        val = cjson_tool_get_int(jsonDocument, "blank_time");
+        if (val > 0)
+            p.blank_time = val;
+        val = cjson_tool_get_int(jsonDocument, "toff");
+        if (val > 0)
+            p.toff = val;
+        // Chopper-mode controls — 0 is meaningful for all three
+        // (tpwmthrs_sps = 0 -> StealthChop always, en_spreadcycle = 0 -> hybrid).
+        if (jsonHasNumber(jsonDocument, "tpwmthrs_sps"))
+            p.tpwmthrs_sps = (uint32_t)cjson_tool_get_int(jsonDocument, "tpwmthrs_sps");
+        if (jsonHasNumber(jsonDocument, "en_spreadcycle"))
+            p.en_spreadcycle = cjson_tool_get_int(jsonDocument, "en_spreadcycle") ? 1 : 0;
+        if (jsonHasNumber(jsonDocument, "hstrt"))
+            p.hstrt = cjson_tool_get_int(jsonDocument, "hstrt") & 0x07;
+        if (jsonHasNumber(jsonDocument, "hend"))
+            p.hend = cjson_tool_get_int(jsonDocument, "hend") & 0x0F;
+        if (jsonHasNumber(jsonDocument, "hold_mult_pct"))
+        {
+            int hm = cjson_tool_get_int(jsonDocument, "hold_mult_pct");
+            if (hm < 0) hm = 0;
+            if (hm > 100) hm = 100;
+            p.hold_mult_pct = (uint8_t)hm;
+        }
     }
 
     void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
@@ -136,11 +188,11 @@ namespace TMCController
             driver.microsteps(apiMs);
             delay(10);
         }
-        
+
         // Re-enable motor
         digitalWrite(pinConfig.MOTOR_ENABLE, LOW);
         delay(10);
-        
+
         // Current reference source. The chip's OTP default is "scale by the
         // VREF pin", which silently derates everything rms_current() computes
         // by VREF/2.5 V. Force the internal reference so the commanded current
@@ -157,7 +209,7 @@ namespace TMCController
         bool spreadAlways = (p.en_spreadcycle != 0);
         uint32_t tpwmthrs = spreadAlways
                                 ? 0 // irrelevant once GCONF forces SpreadCycle
-                                : tstepFromStepsPerSecond(p.tpwmthrs_sps, p.msteps);
+                                : tmc_tstep_from_sps(p.tpwmthrs_sps, p.msteps);
         bool spreadReachable = spreadAlways || (tpwmthrs != 0);
 
         // CoolStep and SpreadCycle MUST NOT be enabled together on a TMC2209.
@@ -226,200 +278,9 @@ namespace TMCController
         #endif
     }
 
-    // Presence test for keys whose *zero* is a meaningful setting (e.g. semin=0
-    // switches CoolStep off). The plain "val > 0" guards below cannot express
-    // that, but they still protect the fields where a stray 0 would disable the
-    // driver outright (toff) or make it step wrong (msteps, rms_current).
-    static bool jsonHasNumber(cJSON *jsonDocument, const char *key)
+    void callibrateStallguard(int speed)
     {
-        cJSON *val = cJSON_GetObjectItemCaseSensitive(jsonDocument, key);
-        return (val != NULL) && cJSON_IsNumber(val);
-    }
-
-    static void parseTMCDataFromJSON(cJSON *jsonDocument, TMCData &p)
-    {
-        int val = 0;
-        val = cJsonTool::getJsonInt(jsonDocument, "msteps");
-        if (val > 0)
-            p.msteps = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "rms_current");
-        if (val > 0)
-            p.rms_current = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "stall_value");
-        if (val > 0)
-            p.stall_value = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "sgthrs");
-        if (val > 0)
-            p.sgthrs = val;
-        // semin = 0 disables CoolStep, so these have to be presence-checked
-        // rather than value-checked or you could never switch CoolStep off.
-        if (jsonHasNumber(jsonDocument, "semin"))
-            p.semin = cJsonTool::getJsonInt(jsonDocument, "semin");
-        if (jsonHasNumber(jsonDocument, "semax"))
-            p.semax = cJsonTool::getJsonInt(jsonDocument, "semax");
-        if (jsonHasNumber(jsonDocument, "sedn"))
-            p.sedn = cJsonTool::getJsonInt(jsonDocument, "sedn");
-        val = cJsonTool::getJsonInt(jsonDocument, "tcoolthrs");
-        if (val > 0)
-            p.tcoolthrs = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "blank_time");
-        if (val > 0)
-            p.blank_time = val;
-        val = cJsonTool::getJsonInt(jsonDocument, "toff");
-        if (val > 0)
-            p.toff = val;
-        // Chopper-mode controls — 0 is meaningful for all three
-        // (tpwmthrs_sps = 0 -> StealthChop always, en_spreadcycle = 0 -> hybrid).
-        if (jsonHasNumber(jsonDocument, "tpwmthrs_sps"))
-            p.tpwmthrs_sps = (uint32_t)cJsonTool::getJsonInt(jsonDocument, "tpwmthrs_sps");
-        if (jsonHasNumber(jsonDocument, "en_spreadcycle"))
-            p.en_spreadcycle = cJsonTool::getJsonInt(jsonDocument, "en_spreadcycle") ? 1 : 0;
-        if (jsonHasNumber(jsonDocument, "hstrt"))
-            p.hstrt = cJsonTool::getJsonInt(jsonDocument, "hstrt") & 0x07;
-        if (jsonHasNumber(jsonDocument, "hend"))
-            p.hend = cJsonTool::getJsonInt(jsonDocument, "hend") & 0x0F;
-        if (jsonHasNumber(jsonDocument, "hold_mult_pct"))
-        {
-            int hm = cJsonTool::getJsonInt(jsonDocument, "hold_mult_pct");
-            if (hm < 0) hm = 0;
-            if (hm > 100) hm = 100;
-            p.hold_mult_pct = (uint8_t)hm;
-        }
-    }
-
-    int act(cJSON *jsonDocument)
-    {
-        // modify the TMC2209 settings
-        // {"task":"/tmc_act", "msteps":16, "rmscurr":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
-        // {"task":"/tmc_act", "reset": 1}
-
-        // get hold on the axis used - if necessary
-        int axis = cJsonTool::getJsonInt(jsonDocument, "axis");
-
-        // extract qid
-        int qid = cJsonTool::getJsonInt(jsonDocument, "qid");
-
-        // parse data from json and apply to settings
-        TMCData p = readParamsFromPreferences();
-        parseTMCDataFromJSON(jsonDocument, p);
-
-        if (pinConfig.tmc_SW_RX == disabled)
-        {
-            return -1;
-        }
-
-        bool tmc_calibrate = (cJsonTool::getJsonInt(jsonDocument, "calibrate") == 1);
-        if (tmc_calibrate)
-        { // {"task":"/tmc_act", "calibrate": 10000}
-            // callibrateStallguard(...)
-            log_i("Calibrating TMC2209 Stallguard");
-            int speed = cJsonTool::getJsonInt(jsonDocument, "calibrate");
-            callibrateStallguard(speed);
-            return qid;
-        }
-
-        bool tmc_reset = (cJsonTool::getJsonInt(jsonDocument, "reset") == 1);
-        if (tmc_reset)
-        {
-            log_i("Resetting TMC2209 settings to default");
-            TMCData defaults = paramsFromPinConfig();
-            writeParamsToPreferences(defaults);
-            applyParamsToDriver(defaults, false);
-            return qid;
-        }
-
-        applyParamsToDriver(p, true);
-        return qid;
-
-    }
-
-    cJSON *get(cJSON *jsonDocument)
-    {
-        if (pinConfig.tmc_SW_RX == disabled)
-        {
-            return jsonDocument;
-        }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        TMCData p = readParamsFromPreferences();
-        cJSON *monitor_json = cJSON_CreateObject();
-        cJSON_AddNumberToObject(monitor_json, "msteps", p.msteps);
-        cJSON_AddNumberToObject(monitor_json, "msteps_", driver.microsteps());
-        cJSON_AddNumberToObject(monitor_json, "rmscurr", p.rms_current);
-        cJSON_AddNumberToObject(monitor_json, "rmscurr_", driver.rms_current());
-        cJSON_AddNumberToObject(monitor_json, "stall_value", p.stall_value);
-        cJSON_AddNumberToObject(monitor_json, "sgthrs", p.sgthrs);
-        cJSON_AddNumberToObject(monitor_json, "semin", p.semin);
-        cJSON_AddNumberToObject(monitor_json, "semax", p.semax);
-        cJSON_AddNumberToObject(monitor_json, "sedn", p.sedn);
-        cJSON_AddNumberToObject(monitor_json, "tcoolthrs", p.tcoolthrs);
-        cJSON_AddNumberToObject(monitor_json, "blank_time", p.blank_time);
-        cJSON_AddNumberToObject(monitor_json, "toff", p.toff);
-        cJSON_AddNumberToObject(monitor_json, "tpwmthrs_sps", p.tpwmthrs_sps);
-        cJSON_AddNumberToObject(monitor_json, "tpwmthrs", tstepFromStepsPerSecond(p.tpwmthrs_sps, p.msteps));
-        cJSON_AddNumberToObject(monitor_json, "tpwmthrs_", driver.TPWMTHRS());
-        cJSON_AddNumberToObject(monitor_json, "en_spreadcycle", p.en_spreadcycle);
-        cJSON_AddNumberToObject(monitor_json, "en_spreadcycle_", driver.en_spreadCycle() ? 1 : 0);
-        cJSON_AddNumberToObject(monitor_json, "hold_mult_pct", p.hold_mult_pct);
-        cJSON_AddNumberToObject(monitor_json, "hstrt", p.hstrt);
-        cJSON_AddNumberToObject(monitor_json, "hend", p.hend);
-        cJSON_AddNumberToObject(monitor_json, "internal_vref", pinConfig.tmc_internal_vref ? 1 : 0);
-        cJSON_AddNumberToObject(monitor_json, "i_scale_analog_", driver.I_scale_analog() ? 1 : 0);
-        cJSON_AddNumberToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());
-        cJSON_AddNumberToObject(monitor_json, "current", driver.cs2rms(driver.cs_actual()));
-        return monitor_json;
-#else
-        return nullptr;
-#endif
-    }
-
-    uint16_t getMicrosteps()
-    {
-        // Reflect the persisted/config value (what was applied at boot) rather
-        // than a UART read-back, so this stays cheap and works even if the
-        // driver is momentarily unresponsive.
-        return readParamsFromPreferences().msteps;
-    }
-
-    uint16_t getTMCCurrent()
-    {
-        if (pinConfig.tmc_SW_RX == disabled)
-        {
-            log_e("TMC2209 not enabled in this configuration");
-            return 0;
-        }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        return driver.rms_current();
-#else
-        return 0;
-#endif
-    }
-
-
-
-    void setTMCCurrent(uint16_t current)
-    {
-        // This will change the driver's current but will not save it to preferences (e.g. won't survive boot)
-        if (pinConfig.tmc_SW_RX == disabled)
-        {
-            log_e("TMC2209 not enabled in this configuration");
-            return;
-        }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        // Determine if this board drives the Z axis (needs more current)
-        bool isZAxis = (pinConfig.CAN_ID_CURRENT == pinConfig.CAN_ID_MOT_Z);
-        if (isZAxis){
-            driver.rms_current(current*1.5); // we double the current for the Z axis as it needs more power
-        }
-        else{
-            driver.rms_current(current);
-        }
-        log_i("TMC2209 Current set to %i", current);
-#endif
-    }
-
-    void callibrateStallguard(int speed = 10000)
-    {
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+    #if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
@@ -432,14 +293,14 @@ namespace TMCController
             return;
         }
         // we start moving the motor to get a stallguard value
-        int mStepper = Stepper::A; // we assume we are working with motor A
-                                   // we may have a dual axis so we would need to start A too
+        int mStepper = A; // we assume we are working with motor A
+                                    // we may have a dual axis so we would need to start A too
         log_i("Starting A forever");
-        getData()[mStepper]->isforever = true;
-        getData()[mStepper]->speed = speed;
-        getData()[mStepper]->isEnable = 1;
-        getData()[mStepper]->isaccelerated = 0;
-        FocusMotor::startStepper(mStepper, 0);
+        focusmotor_get_data()[mStepper]->isforever = true;
+        focusmotor_get_data()[mStepper]->speed = speed;
+        focusmotor_get_data()[mStepper]->isEnable = 1;
+        focusmotor_get_data()[mStepper]->isaccelerated = 0;
+        focusmotor_start_stepper(mStepper, 0);
         delay(200);
 
         int START_SGTHRS = 0;
@@ -460,7 +321,7 @@ namespace TMCController
             if (digitalRead(pinConfig.tmc_pin_diag) == LOW)
             {
                 log_i("Obstacle detected at SGTHRS: %i", sgthrs);
-                // FocusMotor::stopStepper(mStepper);
+                // focusmotor_stop_stepper(mStepper);
                 // obstacleDetected = true;
                 // break; // Exit the loop as the obstacle is detected
             }
@@ -483,53 +344,210 @@ namespace TMCController
             Serial.print("Optimal SGTHRS found: ");
             Serial.println(sgthrs);
         }
-        FocusMotor::stopStepper(mStepper);
-#endif
+        focusmotor_stop_stepper(mStepper);
+    #endif
     }
 
-    void setup()
-    {
-        if (pinConfig.tmc_SW_RX == disabled)
-        {
-            log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
-            return;
-        }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        log_i("Setting up TMC2209");
+} // anonymous namespace
 
-        preferences.begin("tmc", false);
-        Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
-        driver.begin();
-        //https://github.com/teemuatlut/TMCStepper/issues/35#issuecomment-498605125
-        // Use PDN/UART pin for communication
-        driver.pdn_disable(true);
-        // Necessary for TMC2208 to set microstep register with UART
-        driver.mstep_reg_select(1);
-        driver.intpol(true);
+// ── extern-C API (declared in TMCController.h) ─────────────────────────────
 
-        migratePreferencesIfNeeded();
-
-        TMCData p = readParamsFromPreferences();
-        applyParamsToDriver(p, false);
-        applyParamsToDriver(p, false);
-        writeParamsToPreferences(p);
-        // Set the stallguard threshold
-        pinMode(pinConfig.tmc_pin_diag, INPUT);
-       preferences.end();
-
-        log_i("TMC2209 setup done");
-#endif
-    }
-
-    void loop() {
-
-        if (pinConfig.TMC_DEBUG)
-        {
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-// print stallguard and current in every cycle
-            log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
-            #endif
-    };
+uint32_t tmc_tstep_from_sps(uint32_t stepsPerSecond, uint16_t microsteps)
+{
+    // 0 = "never switch" — the register semantics already encode that
+    // (TSTEP >= threshold selects StealthChop, and TSTEP is never < 0).
+    if (stepsPerSecond == 0)
+        return 0;
+    if (microsteps == 0)
+        microsteps = 1;
+    // One input step equals (256 / microsteps) of the 1/256 microsteps the
+    // TSTEP timer counts, hence the microsteps factor in the numerator.
+    uint64_t tstep = ((uint64_t)TMC_FCLK_HZ * (uint64_t)microsteps) /
+                     (256ULL * (uint64_t)stepsPerSecond);
+    if (tstep > 0xFFFFF) // 20-bit register
+        tstep = 0xFFFFF;
+    return (uint32_t)tstep;
 }
 
+void tmc_apply_params(const TMCData *pIn, bool saveToPrefs)
+{
+    const TMCData &p = *pIn;
+    applyParamsToDriver(p, saveToPrefs);
+}
+
+int tmc_act(cJSON *jsonDocument)
+{
+    // modify the TMC2209 settings
+    // {"task":"/tmc_act", "msteps":16, "rmscurr":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
+    // {"task":"/tmc_act", "reset": 1}
+
+    // get hold on the axis used - if necessary
+    int axis = cjson_tool_get_int(jsonDocument, "axis");
+
+    // extract qid
+    int qid = cjson_tool_get_int(jsonDocument, "qid");
+
+    // parse data from json and apply to settings
+    TMCData p = readParamsFromPreferences();
+    parseTMCDataFromJSON(jsonDocument, p);
+
+    if (pinConfig.tmc_SW_RX == disabled)
+    {
+        return -1;
+    }
+
+    bool tmc_calibrate = (cjson_tool_get_int(jsonDocument, "calibrate") == 1);
+    if (tmc_calibrate)
+    { // {"task":"/tmc_act", "calibrate": 10000}
+        // tmc_calibrate_stallguard(...)
+        log_i("Calibrating TMC2209 Stallguard");
+        int speed = cjson_tool_get_int(jsonDocument, "calibrate");
+        tmc_calibrate_stallguard(speed);
+        return qid;
+    }
+
+    bool tmc_reset = (cjson_tool_get_int(jsonDocument, "reset") == 1);
+    if (tmc_reset)
+    {
+        log_i("Resetting TMC2209 settings to default");
+        TMCData defaults = paramsFromPinConfig();
+        writeParamsToPreferences(defaults);
+        applyParamsToDriver(defaults, false);
+        return qid;
+    }
+
+    applyParamsToDriver(p, true);
+    return qid;
+}
+
+cJSON *tmc_get(cJSON *jsonDocument)
+{
+    if (pinConfig.tmc_SW_RX == disabled)
+    {
+        return jsonDocument;
+    }
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+    TMCData p = readParamsFromPreferences();
+    cJSON *monitor_json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(monitor_json, "msteps", p.msteps);
+    cJSON_AddNumberToObject(monitor_json, "msteps_", driver.microsteps());
+    cJSON_AddNumberToObject(monitor_json, "rmscurr", p.rms_current);
+    cJSON_AddNumberToObject(monitor_json, "rmscurr_", driver.rms_current());
+    cJSON_AddNumberToObject(monitor_json, "stall_value", p.stall_value);
+    cJSON_AddNumberToObject(monitor_json, "sgthrs", p.sgthrs);
+    cJSON_AddNumberToObject(monitor_json, "semin", p.semin);
+    cJSON_AddNumberToObject(monitor_json, "semax", p.semax);
+    cJSON_AddNumberToObject(monitor_json, "sedn", p.sedn);
+    cJSON_AddNumberToObject(monitor_json, "tcoolthrs", p.tcoolthrs);
+    cJSON_AddNumberToObject(monitor_json, "blank_time", p.blank_time);
+    cJSON_AddNumberToObject(monitor_json, "toff", p.toff);
+    cJSON_AddNumberToObject(monitor_json, "tpwmthrs_sps", p.tpwmthrs_sps);
+    cJSON_AddNumberToObject(monitor_json, "tpwmthrs", tmc_tstep_from_sps(p.tpwmthrs_sps, p.msteps));
+    cJSON_AddNumberToObject(monitor_json, "tpwmthrs_", driver.TPWMTHRS());
+    cJSON_AddNumberToObject(monitor_json, "en_spreadcycle", p.en_spreadcycle);
+    cJSON_AddNumberToObject(monitor_json, "en_spreadcycle_", driver.en_spreadCycle() ? 1 : 0);
+    cJSON_AddNumberToObject(monitor_json, "hold_mult_pct", p.hold_mult_pct);
+    cJSON_AddNumberToObject(monitor_json, "hstrt", p.hstrt);
+    cJSON_AddNumberToObject(monitor_json, "hend", p.hend);
+    cJSON_AddNumberToObject(monitor_json, "internal_vref", pinConfig.tmc_internal_vref ? 1 : 0);
+    cJSON_AddNumberToObject(monitor_json, "i_scale_analog_", driver.I_scale_analog() ? 1 : 0);
+    cJSON_AddNumberToObject(monitor_json, "SG_RESULT", driver.SG_RESULT());
+    cJSON_AddNumberToObject(monitor_json, "current", driver.cs2rms(driver.cs_actual()));
+    return monitor_json;
+#else
+    return nullptr;
+#endif
+}
+
+uint16_t tmc_get_microsteps(void)
+{
+    // Reflect the persisted/config value (what was applied at boot) rather
+    // than a UART read-back, so this stays cheap and works even if the
+    // driver is momentarily unresponsive.
+    return readParamsFromPreferences().msteps;
+}
+
+uint16_t tmc_get_current(void)
+{
+    if (pinConfig.tmc_SW_RX == disabled)
+    {
+        log_e("TMC2209 not enabled in this configuration");
+        return 0;
+    }
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+    return driver.rms_current();
+#else
+    return 0;
+#endif
+}
+
+void tmc_set_current(uint16_t current)
+{
+    // This will change the driver's current but will not save it to preferences (e.g. won't survive boot)
+    if (pinConfig.tmc_SW_RX == disabled)
+    {
+        log_e("TMC2209 not enabled in this configuration");
+        return;
+    }
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+    // Determine if this board drives the Z axis (needs more current)
+    bool isZAxis = (pinConfig.CAN_ID_CURRENT == pinConfig.CAN_ID_MOT_Z);
+    if (isZAxis){
+        driver.rms_current(current*1.5); // we double the current for the Z axis as it needs more power
+    }
+    else{
+        driver.rms_current(current);
+    }
+    log_i("TMC2209 Current set to %i", current);
+#endif
+}
+
+void tmc_calibrate_stallguard(int speed)
+{
+    callibrateStallguard(speed);
+}
+
+void tmc_setup(void)
+{
+    if (pinConfig.tmc_SW_RX == disabled)
+    {
+        log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
+        return;
+    }
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+    log_i("Setting up TMC2209");
+
+    preferences.begin("tmc", false);
+    preferences.end();
+    Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
+    driver.begin();
+    //https://github.com/teemuatlut/TMCStepper/issues/35#issuecomment-498605125
+    // Use PDN/UART pin for communication
+    driver.pdn_disable(true);
+    // Necessary for TMC2208 to set microstep register with UART
+    driver.mstep_reg_select(1);
+    driver.intpol(true);
+
+    migratePreferencesIfNeeded();
+
+    TMCData p = readParamsFromPreferences();
+    applyParamsToDriver(p, false);
+    applyParamsToDriver(p, false);
+    writeParamsToPreferences(p);
+    // Set the stallguard threshold
+    pinMode(pinConfig.tmc_pin_diag, INPUT);
+
+    log_i("TMC2209 setup done");
+#endif
+}
+
+void tmc_loop(void)
+{
+    if (pinConfig.TMC_DEBUG)
+    {
+#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+        // print stallguard and current in every cycle
+        log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
+#endif
+    };
 }

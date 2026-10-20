@@ -2430,7 +2430,7 @@ void CANopenModule::syncRpdoToModules_slave()
 
                 log_i("TMC OD change ax=%u msteps=%u current=%u sgthrs=%u",
                       localAx, ms, cur, sg);
-                TMCController::applyParamsToDriver(p, true);
+                tmc_apply_params(&p, true);
             }
         }
     }

@@ -23,7 +23,7 @@ bool axis_motor_aborted(int axis);
 // No-op unless USE_FASTACCEL (AccelStep builds have no live set-speed).
 void axis_motor_set_live_speed(int axis, int32_t signedSpeed);
 
-// TMCController::getMicrosteps() — 0 unless TMC_CONTROLLER.
+// tmc_get_microsteps() — 0 unless TMC_CONTROLLER.
 uint16_t axis_motor_get_microsteps(void);
 
 #ifdef __cplusplus

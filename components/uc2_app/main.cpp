@@ -249,7 +249,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef TMC_CONTROLLER
 		if (runtimeConfig.tmc) {
-			TMCController::loop();
+			tmc_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -640,7 +640,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef TMC_CONTROLLER
 	if (runtimeConfig.tmc) {
-		TMCController::setup();
+		tmc_setup();
 	}
 #endif
 #ifdef LED_CONTROLLER

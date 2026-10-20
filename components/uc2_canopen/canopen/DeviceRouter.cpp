@@ -1342,7 +1342,7 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
 // TMC act — routing-table dispatch
 // REMOTE: write the TMC OD entries (0x2020..0x2026) for the slave's axis,
 // the slave's syncRpdoToModules_slave reassembles a TMCData and applies it.
-// LOCAL : delegate to TMCController::act for the legacy single-board path.
+// LOCAL : delegate to tmc_act for the legacy single-board path.
 // ============================================================================
 cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
 #ifdef TMC_CONTROLLER
@@ -1356,7 +1356,7 @@ cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
     bool isRemote = (route && route->where == UC2::RouteEntry::REMOTE);
 
     if (!isRemote) {
-        int result = TMCController::act(doc);
+        int result = tmc_act(doc);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", result);
         return resp;
@@ -1391,7 +1391,7 @@ cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
     return resp;
 #else
     log_w("REMOTE TMC routing requires CANopen — falling back to local");
-    int result = TMCController::act(doc);
+    int result = tmc_act(doc);
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "return", result);
     return resp;
@@ -1535,7 +1535,7 @@ cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleTmcGet(cJSON* doc) {
 #ifdef TMC_CONTROLLER
-    return TMCController::get(doc);
+    return tmc_get(doc);
 #else
     return nullptr;
 #endif

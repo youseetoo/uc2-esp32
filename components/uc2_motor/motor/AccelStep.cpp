@@ -173,7 +173,7 @@ namespace AccelStep
             rmsCurrFromPref = (uint16_t)((float)rmsCurrFromPref * 1.5f);
             log_i("Overdrive current for motor %i: %i", i, rmsCurrFromPref);
         }
-        TMCController::setTMCCurrent(rmsCurrFromPref);
+        tmc_set_current(rmsCurrFromPref);
 #endif
 
         if (d->directionPinInverted)

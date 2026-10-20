@@ -62,7 +62,7 @@ uc2::Preferences preferences;
 #include "src/digitalout/DigitalOutController.h"
 #endif
 #ifdef AXIS_CONTROLLER
-#include "src/axis/AxisController.h"
+#include "AxisController.h"   // T4.1: uc2_axis (pure C), via UC2_MODULE_INCLUDE_DIRS
 #endif
 #ifdef LASER_CONTROLLER
 #include "LaserController.h"

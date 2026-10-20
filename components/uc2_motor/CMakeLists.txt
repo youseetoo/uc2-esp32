@@ -6,17 +6,12 @@
 # these just gets empty translation units).
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "axis/AxisCalibration.cpp"
-    "axis/AxisController.cpp"
-    "axis/AxisNotify.cpp"
-    "axis/AxisWatchdog.cpp"
-    "axis/EncoderBackend.cpp"
-    "axis/EncoderMonitor.cpp"
     "home/HomeMotor.cpp"
     "motor/AccelStep.cpp"
     "motor/FAccelStep.cpp"
     "motor/FocusMotor.cpp"
     "motor/FocusScan.cpp"
+    "motor/axis_motor_c.cpp"
     "motor/focusmotor_qid_c.cpp"
     "motor/MotorGamePad.cpp"
     "motor/MotorJsonParser.cpp"

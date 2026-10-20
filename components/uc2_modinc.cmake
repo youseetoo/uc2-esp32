@@ -41,7 +41,9 @@ set(UC2_MODULE_INCLUDE_DIRS
     # (no link dep), so this does NOT create a component dependency on uc2_app.
     ${CMAKE_CURRENT_LIST_DIR}/uc2_app
     # T2.6: uc2_motor (stepper/encoder/axis/home/pid/tmc, raw-IDF port).
-    ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/axis
+    # T4.1: axis moved to its own component (uc2_axis) — include-only for
+    # uc2_canopen/uc2_app (no link dep, so no REQUIRES cycle with uc2_motor).
+    ${CMAKE_CURRENT_LIST_DIR}/uc2_axis/axis
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/home
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/motor
     ${CMAKE_CURRENT_LIST_DIR}/uc2_motor/pid

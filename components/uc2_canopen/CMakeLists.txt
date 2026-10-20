@@ -25,4 +25,4 @@ idf_component_register(SRCS ${srcs}
     REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc
              tmcstepper accelstepper esp32_encoder
              esp_driver_tsens canopen_node uc2_od dac_module usb_host esp_usb_host_hid
-             esp_driver_spi uc2_motor)
+              esp_driver_spi uc2_motor uc2_axis)

@@ -13,7 +13,7 @@ set(srcs
     "motor/FocusScan.c"
     "motor/axis_motor_c.cpp"
     "motor/focusmotor_qid_c.cpp"
-    "motor/MotorGamePad.cpp"
+    "motor/MotorGamePad.c"
     "motor/MotorJsonParser.cpp"
     "motor/StageScan.cpp"
     "pid/PidController.c"

@@ -75,3 +75,13 @@ private:
     static cJSON* handleStateGet(uint8_t nodeId);
 #endif
 };
+
+// T4.1: C shim for the pure-C modules (MotorGamePad.c / StageScan.c) that
+// dispatch /motor_act documents. Wraps DeviceRouter::handleMotorAct.
+#ifdef __cplusplus
+extern "C" {
+#endif
+cJSON *device_router_handle_motor_act(cJSON *doc);
+#ifdef __cplusplus
+}
+#endif

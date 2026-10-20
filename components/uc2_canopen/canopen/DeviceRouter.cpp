@@ -180,6 +180,11 @@ cJSON* DeviceRouter::routeCommand(const char* task, cJSON* doc) {
 // stage-scan command on routed builds because SerialProcess only fell through
 // to MotorJsonParser::act when DeviceRouter returned nullptr.
 // ============================================================================
+// T4.1: C shim — pure-C modules (MotorGamePad.c / StageScan.c) dispatch
+// /motor_act documents through this.
+extern "C" cJSON *device_router_handle_motor_act(cJSON *doc)
+{ return DeviceRouter::handleMotorAct(doc); }
+
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");

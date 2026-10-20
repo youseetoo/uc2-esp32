@@ -1,41 +1,36 @@
+// T4.1: pure C (was the C++ MotorJsonParser namespace).
 #pragma once
-
+#include <stdbool.h>
 #include "cJSON.h"
 #include "JsonKeys.h"
 
-namespace MotorJsonParser
-{
-    int act(cJSON *doc);
-    cJSON *get(cJSON *docin);
-
-    // Individual sub-parsers — called by DeviceRouter::handleMotorAct so that
-    // routed /motor_act commands still execute config side-effects (enable,
-    // setpos, hardlimits, joystickdir, ...) and stage scans. Previously these
-    // only ran when DeviceRouter returned nullptr (i.e. never for routed paths).
-    void parseEnableMotor(cJSON *doc);
-    void parseAutoEnableMotor(cJSON *doc);
-    bool parseSetPosition(cJSON *doc);
-    void parseMotorPinDirection(cJSON *doc);
-    void parseSetHardLimits(cJSON *doc);
-    void parseSetJoystickDirection(cJSON *doc);
-    void parseSetJoystickSpeed(cJSON *doc);
-    void parseMotorDriveJson(cJSON *doc);
-#ifdef STAGE_SCAN
-    void parseStageScan(cJSON *doc);
+#ifdef __cplusplus
+extern "C" {
 #endif
-    
-    // Helper function to add JSON parameter if present
-    inline void addJsonFloatIfPresent(cJSON *source, cJSON *target, const char *key) {
-        cJSON *param = cJSON_GetObjectItemCaseSensitive(source, key);
-        if (param != NULL) {
-            cJSON_AddNumberToObject(target, key, param->valuedouble);
-        }
-    }
-    
-    inline void addJsonIntIfPresent(cJSON *source, cJSON *target, const char *key) {
-        cJSON *param = cJSON_GetObjectItemCaseSensitive(source, key);
-        if (param != NULL) {
-            cJSON_AddNumberToObject(target, key, param->valueint);
-        }
-    }
-};
+
+int  motorjson_act(cJSON *doc);
+cJSON *motorjson_get(cJSON *docin);
+
+// Individual sub-parsers — called by device_router_handle_motor_act so that
+// routed /motor_act commands still execute config side-effects (enable,
+// setpos, hardlimits, joystickdir, ...) and stage scans. Previously these
+// only ran when DeviceRouter returned nullptr (i.e. never for routed paths).
+void motorjson_parse_enable_motor(cJSON *doc);
+void motorjson_parse_auto_enable_motor(cJSON *doc);
+bool motorjson_parse_set_position(cJSON *doc);
+void motorjson_parse_motor_pin_direction(cJSON *doc);
+void motorjson_parse_set_hard_limits(cJSON *doc);
+void motorjson_parse_set_joystick_direction(cJSON *doc);
+void motorjson_parse_set_joystick_speed(cJSON *doc);
+void motorjson_parse_motor_drive_json(cJSON *doc);
+#ifdef STAGE_SCAN
+void motorjson_parse_stage_scan(cJSON *doc);
+#endif
+
+// Helper function to add JSON parameter if present
+void motorjson_add_json_float_if_present(cJSON *source, cJSON *target, const char *key);
+void motorjson_add_json_int_if_present(cJSON *source, cJSON *target, const char *key);
+
+#ifdef __cplusplus
+}
+#endif

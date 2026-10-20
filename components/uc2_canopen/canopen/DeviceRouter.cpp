@@ -205,13 +205,13 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     // hardware-side fields (setpos, setdir) the parsers themselves apply only
     // to motors physically present on this board; remote forwarding via SDO
     // is deferred (see PR-8). joystickdir/hardlimits are master-side config.
-    MotorJsonParser::parseEnableMotor(doc);          // isen
-    MotorJsonParser::parseAutoEnableMotor(doc);      // isenauto
-    MotorJsonParser::parseSetPosition(doc);          // setpos
-    MotorJsonParser::parseMotorPinDirection(doc);    // setdir
-    MotorJsonParser::parseSetHardLimits(doc);        // hardlimits
-    MotorJsonParser::parseSetJoystickDirection(doc); // joystickdir
-    MotorJsonParser::parseSetJoystickSpeed(doc);     // speedmult
+    motorjson_parse_enable_motor(doc);          // isen
+    motorjson_parse_auto_enable_motor(doc);     // isenauto
+    motorjson_parse_set_position(doc);          // setpos
+    motorjson_parse_motor_pin_direction(doc);   // setdir
+    motorjson_parse_set_hard_limits(doc);       // hardlimits
+    motorjson_parse_set_joystick_direction(doc); // joystickdir
+    motorjson_parse_set_joystick_speed(doc);    // speedmult
 
 #ifdef CAN_CONTROLLER_CANOPEN
     // Forward motor-enable to remote nodes via SDO. parseEnableMotor only
@@ -273,7 +273,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 #ifdef STAGE_SCAN
     // Stage scanning is master-side orchestration — it issues motor.move
     // commands internally which themselves go through DeviceRouter again.
-    MotorJsonParser::parseStageScan(doc);
+    motorjson_parse_stage_scan(doc);
 #endif
 
     // ── 2. Drive command — route per stepper ──
@@ -584,9 +584,9 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
     // Bare {"task":"/motor_get"} (no "motor" filter) → return all local axes
     // via the existing controller. Previously this was handled by the now-
     // deleted SerialProcess fallback branch.
-    if (!motor) return MotorJsonParser::get(doc);
+    if (!motor) return motorjson_get(doc);
     cJSON* steppers = cJSON_GetObjectItem(motor, "steppers");
-    if (!steppers || !cJSON_IsArray(steppers)) return MotorJsonParser::get(doc);
+    if (!steppers || !cJSON_IsArray(steppers)) return motorjson_get(doc);
 
     cJSON* respSteppers = cJSON_CreateArray();
     int n = cJSON_GetArraySize(steppers);

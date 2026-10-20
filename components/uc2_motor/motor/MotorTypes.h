@@ -1,148 +1,167 @@
+// T4.1: pure C (was C++ with default member initializers).
 #pragma once
+#include <stdbool.h>
+#include <stdint.h>
 
-
-const int32_t MAX_VELOCITY_A = 20000;
-const int32_t MAX_ACCELERATION_A = 600000;
-const int32_t DEFAULT_ACCELERATION = 100000;
+#define MAX_VELOCITY_A     (20000)
+#define MAX_ACCELERATION_A (600000)
+#define DEFAULT_ACCELERATION (100000)
 
 #pragma pack(push,1)
-struct MotorState {
-	int32_t currentPosition = 0;
-	bool isRunning = 0;
-	uint8_t axis = 0;
-};
+typedef struct MotorState {
+    int32_t currentPosition;
+    bool    isRunning;
+    uint8_t axis;
+} MotorState;
 #pragma pack(pop)
 
 // Dedicated QID report for CAN (kept small to fit single CAN frame)
 #pragma pack(push,1)
-struct QidReport {
-	int16_t qid = -1;
-	uint8_t state = 0; // 0=done, 1=error
-};
+typedef struct QidReport {
+    int16_t qid;      // default -1, see motor_data_defaults
+    uint8_t state;    // 0=done, 1=error
+} QidReport;
 #pragma pack(pop)
 
-
 #pragma pack(push,1)
-struct MotorAction
+typedef struct MotorAction
 {
-	// Runtime motor commands - sent frequently via CAN/I2C
-	int32_t targetPosition = 0;
-	int32_t speed = 0;
-	bool isforever = false;
-	bool absolutePosition = false;
-	bool isStop = false;
-}__attribute__((packed));
+    // Runtime motor commands - sent frequently via CAN/I2C
+    int32_t targetPosition;
+    int32_t speed;
+    bool    isforever;
+    bool    absolutePosition;
+    bool    isStop;
+} MotorAction;
 #pragma pack(pop)
 
 // Legacy alias for backwards compatibility
 typedef MotorAction MotorDataReduced;
 
-
 #pragma pack(push,1)
-struct MotorSettings
+typedef struct MotorSettings
 {
-	// Motor configuration settings - sent once or rarely
-	bool directionPinInverted = false;
-	bool joystickDirectionInverted = false;
-	bool isaccelerated = false;
-	bool isEnable = true;
-	int32_t maxspeed = 200000;
-	int32_t acceleration = 0;
-	
-	// Trigger settings
-	bool isTriggered = false;
-	int32_t offsetTrigger = 0;
-	int32_t triggerPeriod = -1;
-	int triggerPin = -1;
-	
-	// Pin configuration (can be removed if handled via PinConfig)
-	int dirPin = -1;
-	int stpPin = -1;
+    // Motor configuration settings - sent once or rarely
+    bool    directionPinInverted;
+    bool    joystickDirectionInverted;
+    bool    isaccelerated;
+    bool    isEnable;
+    int32_t maxspeed;
+    int32_t acceleration;
 
-	// Hard limit settings (emergency stop on endstop hit)
-	bool hardLimitEnabled = false;  // Enabled by default
-	bool hardLimitPolarity = 0;    // 0 = normally open (NO), 1 = normally closed (NC)
-}__attribute__((packed));
+    // Trigger settings
+    bool    isTriggered;
+    int32_t offsetTrigger;
+    int32_t triggerPeriod;
+    int     triggerPin;
+
+    // Pin configuration (can be removed if handled via PinConfig)
+    int dirPin;
+    int stpPin;
+
+    // Hard limit settings (emergency stop on endstop hit)
+    bool hardLimitEnabled;   // Enabled by default (see motor_settings_defaults)
+    bool hardLimitPolarity;  // 0 = normally open (NO), 1 = normally closed (NC)
+} MotorSettings;
 #pragma pack(pop)
 
-
-
 #pragma pack(push,1)
-struct MotorData
+typedef struct MotorData
 {
-	// Runtime action fields
-	int32_t speed = 0;
-	int32_t targetPosition = 0;
-	int32_t currentPosition = 0;
-	int isforever = false;
-	bool absolutePosition = false;
-	bool isStop = false;
-	int qid = -1;
-	
-	// Internal state
-	bool stopped = true;
-	bool endstop_hit = false;
-	bool isHoming = false; // homing in progress - ignore soft limits
-	
-	// Settings - these should eventually be moved to MotorSettings
-	bool directionPinInverted = false;
-	bool joystickDirectionInverted = false;
-	// Per-axis joystick speed-scaling multiplier. Runtime default is loaded
-	// from pinConfig.JOYSTICK_SPEED_MULTIPLIER[_Z] in FocusMotor::fill_data(),
-	// but can be overridden and persisted via /motor_act "speedmult" (see
-	// MotorJsonParser::parseSetJoystickSpeed). The 1.0f here is only a
-	// compile-time placeholder, always overwritten before use.
-	float joystickSpeedMultiplier = 1.0f;
-	bool isaccelerated = false;
-	bool isEnable = true;
-	int32_t maxspeed = 200000;
-	int32_t acceleration = 0;
-	bool isTriggered = false;
-	int32_t offsetTrigger = 0;
-	int32_t triggerPeriod = -1;
-	int triggerPin = -1;
-	int dirPin = -1;
-	int stpPin = -1;
+    // Runtime action fields
+    int32_t speed;
+    int32_t targetPosition;
+    int32_t currentPosition;
+    int     isforever;
+    bool    absolutePosition;
+    bool    isStop;
+    int     qid;
 
-	// Hard limit runtime state (settings are in MotorSettings, sent via CAN to slaves)
-	bool hardLimitEnabled = false;   // Runtime copy from MotorSettings
-	bool hardLimitPolarity = 0;     // Runtime copy from MotorSettings (0=NO, 1=NC)
-	bool hardLimitTriggered = false; // One-shot rising-edge flag for telemetry; lockout uses hardLimitLockoutDir
+    // Internal state
+    bool stopped;
+    bool endstop_hit;
+    bool isHoming; // homing in progress - ignore soft limits
 
-	// Directional lockout after a hard-limit hit.
-	//  0 = no lockout active
-	// +1 = endstop hit while moving in positive direction => only negative motion allowed
-	// -1 = endstop hit while moving in negative direction => only positive motion allowed
-	int8_t hardLimitLockoutDir = 0;
+    // Settings - these should eventually be moved to MotorSettings
+    bool  directionPinInverted;
+    bool  joystickDirectionInverted;
+    // Per-axis joystick speed-scaling multiplier. Runtime default is loaded
+    // from pinConfig.JOYSTICK_SPEED_MULTIPLIER[_Z] in FocusMotor fill_data(),
+    // but can be overridden and persisted via /motor_act "speedmult" (see
+    // MotorJsonParser::parseSetJoystickSpeed). The 1.0f here is only a
+    // compile-time placeholder, always overwritten before use.
+    float joystickSpeedMultiplier;
+    bool  isaccelerated;
+    bool  isEnable;
+    int32_t maxspeed;
+    int32_t acceleration;
+    bool  isTriggered;
+    int32_t offsetTrigger;
+    int32_t triggerPeriod;
+    int   triggerPin;
+    int   dirPin;
+    int   stpPin;
 
-	// Last commanded direction (+1, -1, or 0). Updated by startStepper().
-	int8_t lastCommandedDir = 0;
+    // Hard limit runtime state (settings are in MotorSettings, sent via CAN to slaves)
+    bool   hardLimitEnabled;    // Runtime copy from MotorSettings
+    bool   hardLimitPolarity;   // Runtime copy from MotorSettings (0=NO, 1=NC)
+    bool   hardLimitTriggered;  // One-shot rising-edge flag for telemetry; lockout uses hardLimitLockoutDir
 
-}__attribute__((packed));
+    // Directional lockout after a hard-limit hit.
+    //  0 = no lockout active
+    // +1 = endstop hit while moving in positive direction => only negative motion allowed
+    // -1 = endstop hit while moving in negative direction => only positive motion allowed
+    int8_t hardLimitLockoutDir;
+
+    // Last commanded direction (+1, -1, or 0). Updated by startStepper().
+    int8_t lastCommandedDir;
+} MotorData;
 #pragma pack(pop)
-
-
 
 // Common minimal struct
 #pragma pack(push,1)
-struct MotorDataValueUpdate {
-  uint16_t offset;   // e.g. offsetof(MotorData, isforever)
-  int32_t  value;    // We'll interpret as bool on the other side
-};
+typedef struct MotorDataValueUpdate {
+    uint16_t offset;   // e.g. offsetof(MotorData, isforever)
+    int32_t  value;    // We'll interpret as bool on the other side
+} MotorDataValueUpdate;
 #pragma pack(pop)
 
-
-
-enum Stepper
+typedef enum Stepper
 {
-	A =0,
-	X,
-	Y,
-	Z, 
-	B, 
-	C,
-	D,
-	E,
-	F,
-	G
-};
+    A = 0,
+    X,
+    Y,
+    Z,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G
+} Stepper;
+
+// C replacement for the C++ default member initializers removed above.
+// Call after every zero-init / fresh MotorData so runtime defaults match
+// the old C++ semantics (qid=-1, isEnable=true, stopped=true, ...).
+static inline void motor_data_defaults(MotorData *d)
+{
+    d->qid = -1;
+    d->stopped = true;
+    d->isEnable = true;
+    d->joystickSpeedMultiplier = 1.0f;
+    d->maxspeed = 200000;
+    d->triggerPeriod = -1;
+    d->triggerPin = -1;
+    d->dirPin = -1;
+    d->stpPin = -1;
+}
+
+static inline void motor_settings_defaults(MotorSettings *s)
+{
+    s->isEnable = true;
+    s->maxspeed = 200000;
+    s->triggerPeriod = -1;
+    s->triggerPin = -1;
+    s->dirPin = -1;
+    s->stpPin = -1;
+}

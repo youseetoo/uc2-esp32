@@ -2018,7 +2018,7 @@ cJSON* DeviceRouter::handleI2cAct(cJSON* doc) {
 #ifdef I2C_BRIDGE_CONTROLLER
     // GPIO slave: run the transaction locally (synchronous).
     uint8_t data[I2C_MAX_READ]; uint8_t got = 0;
-    uint8_t status = I2cBridge::execute(addr, flags, rdLen, wr, wrLen, delayMs,
+    uint8_t status = i2c_bridge_execute(addr, flags, rdLen, wr, wrLen, delayMs,
                                         data, sizeof(data), &got);
     cJSON* resp = cJSON_CreateObject();
     addI2cResponse(resp, status, data, got, doc);

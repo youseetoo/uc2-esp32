@@ -316,6 +316,11 @@ extern "C"
         return Wire.write(b);
     }
 
+    size_t wire_write_buf(const uint8_t* buf, size_t len)
+    {
+        return Wire.write(buf, len);
+    }
+
     uint8_t wire_end_transmission(bool stop)
     {
         return Wire.endTransmission(stop);
@@ -324,6 +329,11 @@ extern "C"
     int wire_request_from(uint8_t addr, int qty)
     {
         return Wire.requestFrom(addr, qty);
+    }
+
+    int wire_available(void)
+    {
+        return Wire.available();
     }
 
     int wire_read(void)

@@ -29,26 +29,38 @@
 //
 // Compiled only when I2C_BRIDGE_CONTROLLER is defined; wired into the GPIO
 // slave via GpioCanSlave (guarded by pinConfig.I2C_SDA >= 0).
+//
+// T4.1: pure C (was namespace I2cBridge).
 
-#pragma once
+#ifndef I2C_BRIDGE_H
+#define I2C_BRIDGE_H
+
+#include <stdbool.h>
 #include <stdint.h>
 
-namespace I2cBridge
-{
-    // Wire.begin on pinConfig.I2C_SDA / I2C_SCL. No-op if either pin is
-    // disabled (< 0). Safe to call once from GpioCanSlave::setup().
-    void setup();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    // Services the transaction state machine. Cheap when idle. Call every
-    // loop iteration (not throttled) so conversion delays resolve promptly.
-    void loop();
+// Wire.begin on pinConfig.I2C_SDA / I2C_SCL. No-op if either pin is
+// disabled (< 0). Safe to call once from GpioCanSlave::setup().
+void i2c_bridge_setup(void);
 
-    // Synchronous one-shot transaction — used by the LOCAL /i2c_act path on
-    // the GPIO slave (a command handler runs in the same task as loop(), so it
-    // cannot wait for the async state machine). Blocks for delayMs. Writes up
-    // to respCap bytes into resp, sets *respLen, and returns the status byte
-    // (2 = ok, 0x8x/0x90/0xA0 = error — see the OD 0x2352 codes in the .cpp).
-    uint8_t execute(uint8_t addr, uint8_t flags, uint8_t rdLen,
-                    const uint8_t* wr, uint8_t wrLen, uint8_t delayMs,
-                    uint8_t* resp, uint8_t respCap, uint8_t* respLen);
+// Services the transaction state machine. Cheap when idle. Call every
+// loop iteration (not throttled) so conversion delays resolve promptly.
+void i2c_bridge_loop(void);
+
+// Synchronous one-shot transaction — used by the LOCAL /i2c_act path on
+// the GPIO slave (a command handler runs in the same task as loop(), so it
+// cannot wait for the async state machine). Blocks for delayMs. Writes up
+// to respCap bytes into resp, sets *respLen, and returns the status byte
+// (2 = ok, 0x8x/0x90/0xA0 = error — see the OD 0x2352 codes in the .c).
+uint8_t i2c_bridge_execute(uint8_t addr, uint8_t flags, uint8_t rd_len,
+                           const uint8_t* wr, uint8_t wr_len, uint8_t delay_ms,
+                           uint8_t* resp, uint8_t resp_cap, uint8_t* resp_len);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif // I2C_BRIDGE_H

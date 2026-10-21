@@ -1,9 +1,9 @@
 # T1.9: uc2_periph — i2c bridge + slave dial, tmp102, fan (per-controller split).
-# I2cBridge.cpp is always compiled; its body is internally gated by
+# I2cBridge.c is always compiled; its body is internally gated by
 # #ifdef I2C_BRIDGE_CONTROLLER (board combo, applied by the app).
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "i2c/I2cBridge.cpp"
+    "i2c/I2cBridge.c"
     "i2c/i2c_slave_dial.cpp"
     # T3.3: TCA9535 I/O expander (UC2_2/3/4/wemos). The body is internally
     # #ifdef USE_TCA9535-gated, so compiling unconditionally is safe (no-op on

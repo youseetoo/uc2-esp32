@@ -255,7 +255,7 @@ namespace GpioCanSlave
 
 #ifdef I2C_BRIDGE_CONTROLLER
         // Generic I2C passthrough (Wire.begin on pinConfig.I2C_SDA/SCL).
-        I2cBridge::setup();
+        i2c_bridge_setup();
 #endif
     }
 
@@ -444,7 +444,7 @@ namespace GpioCanSlave
 #ifdef I2C_BRIDGE_CONTROLLER
         // Service the I2C passthrough state machine on every iteration (not
         // throttled) so device conversion delays resolve promptly.
-        I2cBridge::loop();
+        i2c_bridge_loop();
 #endif
 
         uint32_t nowUs = (uint32_t)esp_timer_get_time();

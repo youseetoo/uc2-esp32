@@ -2143,7 +2143,7 @@ cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
 
 #ifdef DIGITAL_IN_CONTROLLER
     if (runtimeConfig.digitalIn)
-        return DigitalInController::get(doc);
+        return digitalin_get(doc);
 #endif
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "error", "digitalin_get not available locally and no remote node specified");

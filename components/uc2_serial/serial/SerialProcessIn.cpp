@@ -515,9 +515,9 @@ namespace SerialProcess
 
 #ifdef DIGITAL_IN_CONTROLLER
 		else if (runtimeConfig.digitalIn && strcmp(task, digitalin_act_endpoint) == 0)
-			serialize(DigitalInController::act(jsonDocument));
+				serialize(digitalin_act(jsonDocument));
 		else if (runtimeConfig.digitalIn && strcmp(task, digitalin_get_endpoint) == 0)
-			serialize(DigitalInController::get(jsonDocument));
+				serialize(digitalin_get(jsonDocument));
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 		// digitalout_act / digitalout_get are now routed through DeviceRouter

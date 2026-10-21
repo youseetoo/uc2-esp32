@@ -4,9 +4,9 @@
 // TU gates on the CONFIG_UC2_* Kconfig symbols (sdkconfig.h) — the same
 // mapping the CMakeLists use to select sources.
 //
-// The C++ DigitalInController E-stop dependency is hidden behind the
-// digitalin_c.h shim (gated on CONFIG_UC2_DIGITAL_IN_CONTROLLER); weak no-op
-// defaults below cover builds where uc2_io's digitalin is absent.
+// The DigitalInController E-stop dependency is a plain C API (gated on
+// CONFIG_UC2_DIGITAL_IN_CONTROLLER); weak no-op defaults below cover builds
+// where uc2_io's digitalin is absent.
 //
 // Dropped vs the C++ original (all dead in every current app — none of the
 // legacy -D flags I2C_MASTER / ARDUINO / CAN_CONTROLLER / CAN_CONTROLLER_CANOPEN
@@ -28,20 +28,20 @@
 #include "esp_heap_caps.h" // esp_get_free_heap_size
 #include "nvs.h"           // resetPrefs
 #if CONFIG_UC2_DIGITAL_IN_CONTROLLER
-#include "digitalin_c.h"
+#include "DigitalInController.h"
 #endif
 
-// ── Weak defaults for the digitalin_c shim ──────────────────────────────────
-// The real implementation lives in uc2_io (digitalin_c.cpp); uc2_core cannot
-// depend on uc2_io (circular), so State.c links against weak no-op defaults.
-// When uc2_io's digitalin is in the build (CONFIG_UC2_DIGITAL_IN_CONTROLLER),
-// the linker resolves to the real shim (see the QidRegistry/focusmotor
-// precedent).
+// ── Weak defaults for the digitalin E-stop API ──────────────────────────────
+// The real implementation lives in uc2_io (DigitalInController.c); uc2_core
+// cannot depend on uc2_io (circular), so State.c links against weak no-op
+// defaults. When uc2_io's digitalin is in the build
+// (CONFIG_UC2_DIGITAL_IN_CONTROLLER), the linker resolves to the real
+// implementation (see the QidRegistry/focusmotor precedent).
 #if CONFIG_UC2_DIGITAL_IN_CONTROLLER
-__attribute__((weak)) void digitalin_c_set_emergency_polarity(int8_t pol) { (void)pol; }
-__attribute__((weak)) int8_t digitalin_c_get_emergency_polarity(void) { return 0; }
-__attribute__((weak)) int digitalin_c_get_emergency_raw(void) { return -1; }
-__attribute__((weak)) bool digitalin_c_is_emergency_active(void) { return false; }
+__attribute__((weak)) void digitalin_set_emergency_polarity(int8_t pol) { (void)pol; }
+__attribute__((weak)) int8_t digitalin_get_emergency_polarity(void) { return 0; }
+__attribute__((weak)) int digitalin_get_emergency_raw(void) { return -1; }
+__attribute__((weak)) bool digitalin_is_emergency_active(void) { return false; }
 #endif
 
 static const char *TAG = "State";
@@ -135,7 +135,7 @@ int state_act(cJSON *doc)
     cJSON *estopPol = cJSON_GetObjectItemCaseSensitive(doc, "estopPolarity");
     if (estopPol != NULL)
     {
-        digitalin_c_set_emergency_polarity((int8_t)(estopPol->valueint ? 1 : 0));
+        digitalin_set_emergency_polarity((int8_t)(estopPol->valueint ? 1 : 0));
     }
 #endif
 
@@ -242,9 +242,9 @@ cJSON *state_get(cJSON *docin)
         // {"task":"/state_get","estop":1} -> E-stop diagnostics for tuning.
         // estopRaw is the live pin level; flip estopPolarity until pressing
         // the button makes estopActive read 1.
-        cJSON_AddItemToObject(st, "estopPolarity", cJSON_CreateNumber(digitalin_c_get_emergency_polarity()));
-        cJSON_AddItemToObject(st, "estopRaw", cJSON_CreateNumber(digitalin_c_get_emergency_raw()));
-        cJSON_AddItemToObject(st, "estopActive", cJSON_CreateNumber(digitalin_c_is_emergency_active() ? 1 : 0));
+        cJSON_AddItemToObject(st, "estopPolarity", cJSON_CreateNumber(digitalin_get_emergency_polarity()));
+        cJSON_AddItemToObject(st, "estopRaw", cJSON_CreateNumber(digitalin_get_emergency_raw()));
+        cJSON_AddItemToObject(st, "estopActive", cJSON_CreateNumber(digitalin_is_emergency_active() ? 1 : 0));
 #endif
     }
     else
@@ -262,9 +262,9 @@ cJSON *state_get(cJSON *docin)
 #if CONFIG_UC2_DIGITAL_IN_CONTROLLER
         if (pinConfig.pinEmergencyExit >= 0)
         {
-            cJSON_AddItemToObject(st, "estopPolarity", cJSON_CreateNumber(digitalin_c_get_emergency_polarity()));
-            cJSON_AddItemToObject(st, "estopRaw", cJSON_CreateNumber(digitalin_c_get_emergency_raw()));
-            cJSON_AddItemToObject(st, "estopActive", cJSON_CreateNumber(digitalin_c_is_emergency_active() ? 1 : 0));
+            cJSON_AddItemToObject(st, "estopPolarity", cJSON_CreateNumber(digitalin_get_emergency_polarity()));
+            cJSON_AddItemToObject(st, "estopRaw", cJSON_CreateNumber(digitalin_get_emergency_raw()));
+            cJSON_AddItemToObject(st, "estopActive", cJSON_CreateNumber(digitalin_is_emergency_active() ? 1 : 0));
         }
 #endif
         // Report the active node-id from runtimeConfig (may differ from

@@ -33,3 +33,13 @@ I/O-exp. GPIO	target	Input/Output	comment
     bool tca_read_endstop(uint8_t pin);
 
 };
+
+// T4.1: C shim for pure-C consumers (DigitalInController.c) on USE_TCA9535
+// boards.
+#ifdef __cplusplus
+extern "C" {
+#endif
+bool tca_read_endstop_c(uint8_t pin);
+#ifdef __cplusplus
+}
+#endif

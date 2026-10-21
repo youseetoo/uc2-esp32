@@ -221,7 +221,7 @@ extern "C" void looper(void *p)
 
 #ifdef DIGITAL_IN_CONTROLLER
 		// Safety: poll the E-stop every loop, independent of runtimeConfig.digitalIn.
-		DigitalInController::checkEmergencyStop();
+		digitalin_check_emergency_stop();
 #endif
 
 #ifdef AXIS_CONTROLLER
@@ -237,7 +237,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
 		if (runtimeConfig.digitalIn) {
-			DigitalInController::loop();
+			digitalin_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -612,7 +612,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
 	if (runtimeConfig.digitalIn) {
-		DigitalInController::setup();
+		digitalin_setup();
 	}
 	// Note: the E-stop sense (checkEmergencyStop) is polled unconditionally in
 	// the main loop and lazily self-initializes on first call — no setup here.

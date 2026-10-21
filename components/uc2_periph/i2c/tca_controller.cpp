@@ -192,3 +192,9 @@ bool setExternalPin(uint8_t pin, uint8_t value)
 		#endif
 	}
 } // namespace tca_controller
+
+// T4.1: C shim for pure-C consumers (DigitalInController.c).
+extern "C" bool tca_read_endstop_c(uint8_t pin)
+{
+    return tca_controller::tca_read_endstop(pin);
+}

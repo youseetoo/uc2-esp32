@@ -556,7 +556,7 @@ namespace SerialProcess
 			serialize(signal_get(jsonDocument));
 #endif
 		else if (strcmp(task, buzzer_act_endpoint) == 0)
-			serialize(BuzzerController::act(jsonDocument));
+			serialize(buzzer_act(jsonDocument));
 #ifdef MESSAGE_CONTROLLER
 		else if (runtimeConfig.message && strcmp(task, message_get_endpoint) == 0)
 			serialize(MessageController::get(jsonDocument));

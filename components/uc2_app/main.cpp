@@ -266,7 +266,7 @@ extern "C" void looper(void *p)
 		}
 		signal_loop();
 #endif
-		BuzzerController::loop();
+		buzzer_loop();
 #ifdef MESSAGE_CONTROLLER
 		if (runtimeConfig.message) {
 			MessageController::loop();
@@ -723,7 +723,7 @@ PtzRouter::begin();
 #endif
 
 //#ifdef BUZZER_CONTROLLER //TODO: We have to add this to the cmakelist.txt
-BuzzerController::setup();
+buzzer_setup();
 //#endif
 serial_out_safe_println("{'setup':'done'}");
 }

@@ -1,5 +1,6 @@
 // uc2::Wire — implementation over IDF I2C v2 (master bus + slave device).
 #include "uc2_hal/uc2_wire.h"
+#include "uc2_hal/uc2_wire_c.h"
 
 #include <cstring>
 
@@ -296,3 +297,43 @@ bool Wire_::onSlaveRequest(i2c_slave_dev_handle_t dev, const i2c_slave_request_e
 }
 
 }  // namespace uc2
+
+// ── C-facing API (uc2_wire_c.h) — forwards to the global Wire ──────────────
+extern "C"
+{
+    bool wire_begin(int sda, int scl, int freq_hz)
+    {
+        return Wire.begin(sda, scl, freq_hz);
+    }
+
+    void wire_begin_transmission(uint8_t addr)
+    {
+        Wire.beginTransmission(addr);
+    }
+
+    size_t wire_write(uint8_t b)
+    {
+        return Wire.write(b);
+    }
+
+    uint8_t wire_end_transmission(bool stop)
+    {
+        return Wire.endTransmission(stop);
+    }
+
+    int wire_request_from(uint8_t addr, int qty)
+    {
+        return Wire.requestFrom(addr, qty);
+    }
+
+    int wire_read(void)
+    {
+        return Wire.read();
+    }
+
+    int wire_write_read(uint8_t addr, const uint8_t* wr, int wr_len,
+                        uint8_t* rd, int rd_len, uint8_t* err_code)
+    {
+        return Wire.writeRead(addr, wr, wr_len, rd, rd_len, err_code);
+    }
+}

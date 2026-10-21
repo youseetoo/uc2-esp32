@@ -316,7 +316,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef TMP102_CONTROLLER
 		if (runtimeConfig.fan) {
-			Tmp102Controller::loop();
+			tmp102_loop();
 		}
 #endif
 #ifdef FAN_CONTROLLER
@@ -555,7 +555,7 @@ extern "C" void setupApp(void)
 		DialController::setup();
 	}
 #endif
-	// FanController::setup() runs later, AFTER Tmp102Controller::setup()
+	// fan_setup() runs later, AFTER tmp102_setup()
 	// (which is responsible for Wire.begin() on the canopen-master build).
 #ifdef USE_TCA9535
 	tca_controller::init_tca();
@@ -678,11 +678,11 @@ if (runtimeConfig.heat) {
 }
 #endif
 #ifdef TMP102_CONTROLLER
-// MUST run before FanController::setup() because Tmp102Controller::setup()
+// MUST run before fan_setup() because tmp102_setup()
 // is the one that calls Wire.begin() on the canopen-master build (where
 // i2c_master.cpp is not compiled).
 if (runtimeConfig.fan) {
-	Tmp102Controller::setup();
+	tmp102_setup();
 }
 #endif
 #ifdef FAN_CONTROLLER

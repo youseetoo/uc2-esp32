@@ -10,7 +10,7 @@ set(srcs
     # boards without the flag); setExternalPin() is the FastAccelStepper callback.
     "i2c/tca_controller.cpp")
 if(CONFIG_UC2_TMP102_CONTROLLER OR CONFIG_UC2_FAN_CONTROLLER)
-    list(APPEND srcs "tmp102/Tmp102Controller.cpp")
+    list(APPEND srcs "tmp102/Tmp102Controller.c")
 endif()
 if(CONFIG_UC2_FAN_CONTROLLER)
     list(APPEND srcs "fan/FanController.cpp")

@@ -646,9 +646,9 @@ namespace SerialProcess
 #endif
 #ifdef TMP102_CONTROLLER
 		else if (runtimeConfig.fan && strcmp(task, temp_get_endpoint) == 0)
-			serialize(Tmp102Controller::get(jsonDocument));
+			serialize(tmp102_get(jsonDocument));
 		else if (runtimeConfig.fan && strcmp(task, temp_act_endpoint) == 0)
-			serialize(Tmp102Controller::act(jsonDocument));
+			serialize(tmp102_act(jsonDocument));
 #endif
 #ifdef FAN_CONTROLLER
 		else if (runtimeConfig.fan && strcmp(task, fan_act_endpoint) == 0)

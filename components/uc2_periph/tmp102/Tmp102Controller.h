@@ -1,12 +1,9 @@
 #pragma once
-#include <PinConfig.h>
-#include "cJSON.h"
-
-// Tmp102Controller
+// Tmp102Controller (Phase 4: pure C)
 // ---------------------------------------------------------------------------
 // Drives the two TMP102AIDRLR temperature sensors on the CAN-HAT v2:
-//   * 0x4A → PCB temperature (HAT itself)
-//   * 0x4B → ambient air temperature inside the electronics box
+//   * 0x4A -> PCB temperature (HAT itself)
+//   * 0x4B -> ambient air temperature inside the electronics box
 //
 // Also exposes the ESP32 internal temperature as a fallback / sanity check.
 // The TMP102 is auto-converting after a single config write enabling the
@@ -15,28 +12,30 @@
 // after reset).
 //
 // Endpoints:
-//   /temp_get → { "temp": { "pcb": 42.5, "air": 31.2, "esp": 51.0,
+//   /temp_get -> { "temp": { "pcb": 42.5, "air": 31.2, "esp": 51.0,
 //                            "pcb_ok": true, "air_ok": true } }
 //
 // All temperatures are degrees Celsius. A sensor that fails to respond on
 // I2C is reported as NaN with the matching *_ok flag set to false; the
 // FanController uses these flags to fall back to the ESP internal sensor.
-namespace Tmp102Controller
-{
-    static constexpr uint8_t ADDR_PCB = 0x4A; // I2C addr - PCB sensor
-    static constexpr uint8_t ADDR_AIR = 0x4B; // I2C addr - air-temperature sensor
+#include <stdbool.h>
+#include <stdint.h>
+#include <PinConfig.h>
+#include "cJSON.h"
 
-    void setup();
-    void loop();
+#define TMP102_ADDR_PCB 0x4A  // I2C addr - PCB sensor
+#define TMP102_ADDR_AIR 0x4B  // I2C addr - air-temperature sensor
 
-    // Last cached reading. Returns NAN if the sensor wasn't reachable.
-    float getPcbC();
-    float getAirC();
-    float getEspC();
+void   tmp102_setup(void);
+void   tmp102_loop(void);
 
-    // Worst-case (max) of pcb/air readings — used by the fan curve.
-    float getMaxAmbientC();
+// Last cached reading. Returns NAN if the sensor wasn't reachable.
+float  tmp102_get_pcb_c(void);
+float  tmp102_get_air_c(void);
+float  tmp102_get_esp_c(void);
 
-    int    act(cJSON *root);
-    cJSON *get(cJSON *root);
-}
+// Worst-case (max) of pcb/air/esp readings — used by the fan curve.
+float  tmp102_get_max_ambient_c(void);
+
+int    tmp102_act(cJSON *root);
+cJSON *tmp102_get(cJSON *root);

@@ -88,7 +88,7 @@ typedef UString String;
 		// FastAccelStepper owns RMT channels 0..3 for the steppers, so the strip
 		// is driven by our own bare-metal RMT driver on a free channel instead of
 		// Adafruit's espShow(). NEO_GRB is 3 bytes/pixel.
-		if (matrix) Ws2812Rmt::show(matrix->getPixels(), (size_t)matrix->numPixels() * 3);
+		if (matrix) ws2812_rmt_show(matrix->getPixels(), (size_t)matrix->numPixels() * 3);
 #else
 		if (matrix)
 			matrix->show();
@@ -189,8 +189,8 @@ typedef UString String;
 #else
 		log_i("LedController: skipping matrix->begin() to avoid RMT conflict with FastAccelStepper; configuring GPIO ourselves");
 		// Bring up our own RMT-based driver on a channel above FAS's allocation.
-		if (!Ws2812Rmt::begin(pinConfig.LED_PIN, UC2_WS2812_RMT_CHANNEL)) {
-			log_e("LedController: Ws2812Rmt::begin() failed — strip will stay dark");
+		if (!ws2812_rmt_begin(pinConfig.LED_PIN, UC2_WS2812_RMT_CHANNEL)) {
+			log_e("LedController: ws2812_rmt_begin() failed — strip will stay dark");
 		}
 #endif
 		matrix->setBrightness(255);
@@ -1360,4 +1360,19 @@ typedef UString String;
 extern "C" void led_c_turn_off(void)
 {
 	LedController::turnOff();
+}
+
+// T4.1: C shim for the pure-C FocusScan (focus-stack circle highlight).
+// Was: LedCommand{CIRCLE, r=g=b=rgb, radius, qid} via
+// LedController::execLedCommand.
+extern "C" void led_exec_circ_command(uint8_t rgb, uint8_t radius, uint8_t qid)
+{
+	LedCommand cmd = {};
+	cmd.qid = qid;
+	cmd.mode = LedMode::CIRCLE;
+	cmd.r = rgb;
+	cmd.g = rgb;
+	cmd.b = rgb;
+	cmd.radius = radius;
+	LedController::execLedCommand(cmd);
 }

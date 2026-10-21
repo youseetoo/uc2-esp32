@@ -54,9 +54,8 @@ typedef struct { uc2_rmt_mem_chan_t chan[8]; } uc2_rmt_mem_t;
 #define RMTMEM ((uc2_rmt_mem_t *)0x3FC2D000)
 #endif
 
-namespace Ws2812Rmt
-{
-    static const char *TAG = "Ws2812Rmt";
+// T4.1: pure C — the Ws2812Rmt namespace became the ws2812_rmt_* C API.
+static const char *TAG = "Ws2812Rmt";
 
     // 80 MHz APB / div_cnt=2 -> 40 MHz tick -> 25 ns per tick.
     static const uint16_t T0H = 16; // 0.40 us
@@ -106,7 +105,7 @@ namespace Ws2812Rmt
         return (1u << ch) | (1u << (ch + 4)) | (1u << (ch + 8));
     }
 
-    bool begin(int gpioPin, int rmtChannel)
+    bool ws2812_rmt_begin(int gpioPin, int rmtChannel)
     {
         if (s_initialised) return true;
         if (rmtChannel < 0 || rmtChannel > 3) {
@@ -165,7 +164,7 @@ namespace Ws2812Rmt
         mem[slot] = 0; // end marker -- always fits (40 items + 1 <= 48)
     }
 
-    void show(const uint8_t *pixels, size_t numBytes)
+    void ws2812_rmt_show(const uint8_t *pixels, size_t numBytes)
     {
         if (!s_initialised || pixels == nullptr || numBytes == 0) return;
         ESP_LOGI(TAG, "%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
@@ -226,7 +225,7 @@ namespace Ws2812Rmt
         return (volatile uint32_t *)(0x3FF56800 + ch * 64 * 4);
     }
 
-    bool begin(int gpioPin, int rmtChannel)
+    bool ws2812_rmt_begin(int gpioPin, int rmtChannel)
     {
         if (s_initialised) return true;
         if (rmtChannel < 0 || rmtChannel > 7) {
@@ -286,7 +285,7 @@ namespace Ws2812Rmt
         mem[slot] = 0;
     }
 
-    void show(const uint8_t *pixels, size_t numBytes)
+    void ws2812_rmt_show(const uint8_t *pixels, size_t numBytes)
     {
         if (!s_initialised || pixels == nullptr || numBytes == 0) return;
         ESP_LOGI(TAG, "%s: show() %u bytes on channel %d", TAG, (unsigned)numBytes, s_channel);
@@ -331,7 +330,5 @@ namespace Ws2812Rmt
     }
 
 #endif // CONFIG_IDF_TARGET_ESP32S3
-
-} // namespace Ws2812Rmt
 
 #endif // ESP_PLATFORM

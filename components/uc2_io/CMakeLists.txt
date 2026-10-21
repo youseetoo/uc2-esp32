@@ -2,7 +2,7 @@
 # Gating per component-layout.md §3.
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "encoder/InterruptController.cpp")
+    "encoder/InterruptController.c")
 if(CONFIG_UC2_DIGITAL_IN_CONTROLLER)
     list(APPEND srcs "digitalin/DigitalInController.cpp")
     # T4.1: C shim for the pure-C State (uc2_core) E-stop access

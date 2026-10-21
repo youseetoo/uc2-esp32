@@ -1,16 +1,17 @@
+// T4.1: C++ island — the vendored OneWire + DallasTemperature libs
+// (onewire_ds18b20) are C++; the public API is pure C (ds18b20_*, see
+// DS18b20Controller.h).
 #include "DS18b20Controller.h"
 #include "OneWire.h"
 #include "DallasTemperature.h"
-#include "JsonKeys.h"
+// JsonKeys.h dropped (Arduino/pgmspace): key_ds18b20_val == "sensorval".
 #include "PinConfig.h"
 #include "cJsonTool.h"
 
 static const char *TAG = "DS18b20";
 
-namespace DS18b20Controller
+namespace
 {
-	bool isDEBUG = false;
-
 	long lastReading = 0;
 	float readingPeriod = 1000; // ms
 	float currentValueCelcius = 0.0;
@@ -23,10 +24,6 @@ namespace DS18b20Controller
 	DallasTemperature *mDS18B20;
 	TaskHandle_t temperatureTaskHandle;
 
-	float getCurrentValueCelcius()
-	{
-		return currentValueCelcius;
-	}
 	// Static task function
 	void temperatureTask(void *pvParameters)
 	{
@@ -38,47 +35,52 @@ namespace DS18b20Controller
 			vTaskDelay(pdMS_TO_TICKS(1000)); // Adjust the delay as needed
 		}
 	}
+} // namespace
 
-	float readTemperature()
+extern "C" float ds18b20_read_temperature(void)
+{
+	return currentValueCelcius;
+}
+
+// Custom function accessible by the API
+extern "C" int ds18b20_act(cJSON *ob)
+{
+	// nothing to do here
+	int qid = cjson_tool_get_int(ob, "qid", 0);
+	return qid;
+}
+
+extern "C" cJSON *ds18b20_get(cJSON *ob)
+{
+	// {"task": "/ds18b20_get"}
+	cJSON *monitor_json = ob;
+	// here you can do something
+	float returnValue = ds18b20_read_temperature();
+	log_i("Sensor has temp: %f", returnValue);
+
+	cJSON *monitor = cJSON_CreateObject();
+	cJSON *jsonSensorVAL = NULL;
+	jsonSensorVAL = cJSON_CreateNumber(returnValue);
+	cJSON_AddItemToObject(monitor, "sensorval", jsonSensorVAL);
+	return monitor;
+}
+
+extern "C" float ds18b20_get_current_value_celcius(void)
+{
+	return currentValueCelcius;
+}
+
+extern "C" void ds18b20_setup(void)
+{
+	if (pinConfig.DS28b20_PIN > -1)
 	{
-		return currentValueCelcius;
-	}
 
-	// Custom function accessible by the API
-	int act(cJSON *ob)
-	{
-		// nothing to do here
-		int qid = cJsonTool::getJsonInt(ob, "qid");
-		return qid;
-	}
+		log_d("Setup DS18b20Controller on pin %i", pinConfig.DS28b20_PIN);
+		mOneWire = new OneWire(pinConfig.DS28b20_PIN);
+		mDS18B20 = new DallasTemperature(mOneWire);
+		mDS18B20->begin();
 
-	cJSON *get(cJSON *ob)
-	{
-		// {"task": "/ds18b20_get"}
-		cJSON *monitor_json = ob;
-		// here you can do something
-		float returnValue = readTemperature();
-		log_i("Sensor has temp: %f", returnValue);
-
-		cJSON *monitor = cJSON_CreateObject();
-		cJSON *jsonSensorVAL = NULL;
-		jsonSensorVAL = cJSON_CreateNumber(returnValue);
-		cJSON_AddItemToObject(monitor, key_ds18b20_val, jsonSensorVAL);
-		return monitor;
-	}
-
-	void setup()
-	{
-		if (pinConfig.DS28b20_PIN > -1)
-		{
-
-			log_d("Setup DS18b20Controller on pin %i", pinConfig.DS28b20_PIN);
-			mOneWire = new OneWire(pinConfig.DS28b20_PIN);
-			mDS18B20 = new DallasTemperature(mOneWire);
-			mDS18B20->begin();
-
-			// Create the temperature reading task
-			xTaskCreate(temperatureTask, "TemperatureTask", pinConfig.TEMPERATURE_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &temperatureTaskHandle);
-		}
+		// Create the temperature reading task
+		xTaskCreate(temperatureTask, "TemperatureTask", pinConfig.TEMPERATURE_TASK_STACKSIZE, NULL, pinConfig.DEFAULT_TASK_PRIORITY, &temperatureTaskHandle);
 	}
 }

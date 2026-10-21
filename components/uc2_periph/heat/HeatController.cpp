@@ -26,7 +26,7 @@ namespace HeatController
 		{
 
 			// get rid of noise?
-			float temperatureValueAvg = DS18b20Controller::getCurrentValueCelcius();
+			float temperatureValueAvg = ds18b20_get_current_value_celcius();
 			float pwmValue = 0;
 			if (temperatureValueAvg < 60)
 			{
@@ -58,7 +58,7 @@ namespace HeatController
 		{ // if we are not using it, turn it off - but only once!
 			if (ledcRead(pwmChannel) != 0)
 			{
-				log_i("Heat: %f, pwmValue: %f", DS18b20Controller::getCurrentValueCelcius(), 0.0f);
+				log_i("Heat: %f, pwmValue: %f", ds18b20_get_current_value_celcius(), 0.0f);
 				laser_set_pwm(0, pwmChannel);
 			}
 			Heat_was_active = false;
@@ -180,7 +180,7 @@ namespace HeatController
 
 		// some safety mechanisms
 		t_tempControlStarted = millis();
-		temp_tempControlStarted = DS18b20Controller::getCurrentValueCelcius();
+		temp_tempControlStarted = ds18b20_get_current_value_celcius();
 		hPreferences.putLong("t_tempControlStarted", t_tempControlStarted);
 		hPreferences.putFloat("temp_tempControlStarted", temp_tempControlStarted);
 		log_d("Heat_act_fct");
@@ -197,7 +197,7 @@ namespace HeatController
 #if defined(LASER_CONTROLLER) && defined(DS18B20_CONTROLLER)
 		// {"task": "/heat_get"}
 		float temperatureValueAvg = 9999.0f;
-		temperatureValueAvg = DS18b20Controller::getCurrentValueCelcius();
+		temperatureValueAvg = ds18b20_get_current_value_celcius();
 		cJsonTool::setJsonFloat(ret, key_heat, temperatureValueAvg);
 #endif
 		return ret;
@@ -223,7 +223,7 @@ namespace HeatController
 		{
 			// some safety mechanisms
 			t_tempControlStarted = millis();
-			temp_tempControlStarted = DS18b20Controller::getCurrentValueCelcius();
+			temp_tempControlStarted = ds18b20_get_current_value_celcius();
 		}
 		hPreferences.end();
 #endif

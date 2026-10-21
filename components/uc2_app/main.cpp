@@ -673,7 +673,7 @@ if (runtimeConfig.scanner) {
 #endif
 #ifdef HEAT_CONTROLLER
 if (runtimeConfig.heat) {
-	DS18b20Controller::setup();
+	ds18b20_setup();
 	HeatController::setup();
 }
 #endif

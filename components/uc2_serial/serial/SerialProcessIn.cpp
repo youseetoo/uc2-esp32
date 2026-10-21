@@ -652,9 +652,9 @@ namespace SerialProcess
 #endif
 #ifdef FAN_CONTROLLER
 		else if (runtimeConfig.fan && strcmp(task, fan_act_endpoint) == 0)
-			serialize(FanController::act(jsonDocument));
+			serialize(fan_act(jsonDocument));
 		else if (runtimeConfig.fan && strcmp(task, fan_get_endpoint) == 0)
-			serialize(FanController::get(jsonDocument));
+			serialize(fan_get(jsonDocument));
 #endif
 #ifdef THERMAL_CONTROLLER
 		// NTC heat-sink monitoring on the illumination board. Only compiled in

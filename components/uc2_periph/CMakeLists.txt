@@ -13,7 +13,7 @@ if(CONFIG_UC2_TMP102_CONTROLLER OR CONFIG_UC2_FAN_CONTROLLER)
     list(APPEND srcs "tmp102/Tmp102Controller.c")
 endif()
 if(CONFIG_UC2_FAN_CONTROLLER)
-    list(APPEND srcs "fan/FanController.cpp")
+    list(APPEND srcs "fan/FanController.c")
 endif()
 # T2.4: thermal (NTC heat-sink monitoring) — ported to raw IDF from main/src/thermal.
 if(CONFIG_UC2_THERMAL_CONTROLLER)

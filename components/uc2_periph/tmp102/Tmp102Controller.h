@@ -23,6 +23,10 @@
 #include <PinConfig.h>
 #include "cJSON.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TMP102_ADDR_PCB 0x4A  // I2C addr - PCB sensor
 #define TMP102_ADDR_AIR 0x4B  // I2C addr - air-temperature sensor
 
@@ -39,3 +43,7 @@ float  tmp102_get_max_ambient_c(void);
 
 int    tmp102_act(cJSON *root);
 cJSON *tmp102_get(cJSON *root);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

@@ -321,7 +321,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef FAN_CONTROLLER
 		if (runtimeConfig.fan) {
-			FanController::loop();
+			fan_loop();
 		}
 #endif
 #ifdef THERMAL_CONTROLLER
@@ -687,7 +687,7 @@ if (runtimeConfig.fan) {
 #endif
 #ifdef FAN_CONTROLLER
 	if (runtimeConfig.fan) {
-		FanController::setup();
+		fan_setup();
 	}
 	#endif
 #ifdef THERMAL_CONTROLLER

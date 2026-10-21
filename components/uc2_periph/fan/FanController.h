@@ -1,9 +1,5 @@
 #pragma once
-#include <PinConfig.h>
-#include "cJSON.h"
-#include <stdint.h>
-
-// FanController
+// FanController (Phase 4: pure C)
 // ---------------------------------------------------------------------------
 // Heat-controlled case-fan management for the CAN-HAT v2.
 //
@@ -18,10 +14,10 @@
 //     ESP internal sensor (fallback).
 //
 // Modes (selectable via /fan_act):
-//   * MODE_AUTO   — apply the temperature curve every CURVE_TICK_MS,
-//                   with hysteresis to avoid oscillation.
-//   * MODE_MANUAL — hold a wiper value chosen by the caller.
-//   * MODE_OFF    — hold wiper at 0x7F (lowest voltage).
+//   * FAN_MODE_AUTO   — apply the temperature curve every CURVE_TICK_MS,
+//                       with hysteresis to avoid oscillation.
+//   * FAN_MODE_MANUAL — hold a wiper value chosen by the caller.
+//   * FAN_MODE_OFF    — hold wiper at 0x7F (lowest voltage).
 //
 // Optional behaviours:
 //   * STARTUP BLAST: on setup(), drive the wiper to 0x00 for STARTUP_BLAST_MS
@@ -38,51 +34,62 @@
 //     { "task":"/fan_act", "fan":{"kick":1} }                  // toggle kick-start
 //     { "task":"/fan_act", "fan":{"curve":[[35,127],[45,80],[55,48],[65,16],[75,0]]} }
 //
-//   /fan_get → reports current mode, wiper, last RPM, stall flag, curve.
-namespace FanController
-{
-    // ---- Hardware tunables ----
-    static constexpr uint8_t MCP4017_ADDR  = 0x2F; // mirrored from PinConfigDefault
-    static constexpr uint8_t WIPER_FULL    = 0x00; // max voltage / full speed
-    static constexpr uint8_t WIPER_QUIET   = 0x7F; // min voltage / off
-    static constexpr uint8_t WIPER_POR     = 0x3F; // power-on default we expect
+//   /fan_get -> reports current mode, wiper, last RPM, stall flag, curve.
+#include <stdbool.h>
+#include <stdint.h>
+#include <PinConfig.h>
+#include "cJSON.h"
 
-    // ---- Tacho ----
-    static constexpr uint8_t  PULSES_PER_REV = 2; // Noctua-style 4-pin convention
-    static constexpr uint32_t TACHO_WINDOW_MS = 1000; // RPM update cadence
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    // ---- Control loop ----
-    static constexpr uint32_t CURVE_TICK_MS    = 100;
-    static constexpr float    CURVE_HYSTERESIS = 2.0f; // °C
-    static constexpr uint32_t KICK_STALL_GRACE_MS = 2500;
-    static constexpr uint32_t KICK_DURATION_MS = 500;
-    static constexpr uint32_t STARTUP_BLAST_MS = 1500;
+// ---- Hardware tunables ----
+#define FAN_MCP4017_ADDR  0x2F  // mirrored from PinConfigDefault
+#define FAN_WIPER_FULL    0x00  // max voltage / full speed
+#define FAN_WIPER_QUIET   0x7F  // min voltage / off
+#define FAN_WIPER_POR     0x3F  // power-on default we expect
 
-    // ---- Curve format ----
-    // A monotonic-ascending list of (temp_threshold_C, wiper) breakpoints.
-    // The control loop picks the lowest-temp breakpoint whose threshold is
-    // BELOW the current temperature, with HYSTERESIS to avoid bounce.
-    static constexpr uint8_t MAX_CURVE_POINTS = 8;
-    struct CurvePoint {
-        float   thresholdC;
-        uint8_t wiper;
-    };
+// ---- Tacho ----
+#define FAN_PULSES_PER_REV   2     // Noctua-style 4-pin convention
+#define FAN_TACHO_WINDOW_MS  1000  // RPM update cadence
 
-    enum Mode : uint8_t {
-        MODE_AUTO   = 0,
-        MODE_MANUAL = 1,
-        MODE_OFF    = 2,
-    };
+// ---- Control loop ----
+#define FAN_CURVE_TICK_MS       100
+#define FAN_CURVE_HYSTERESIS    2.0f  // °C
+#define FAN_KICK_STALL_GRACE_MS 2500
+#define FAN_KICK_DURATION_MS    500
+#define FAN_STARTUP_BLAST_MS    1500
 
-    void setup();
-    void loop();
+// ---- Curve format ----
+// A monotonic-ascending list of (temp_threshold_C, wiper) breakpoints.
+// The control loop picks the lowest-temp breakpoint whose threshold is
+// BELOW the current temperature, with HYSTERESIS to avoid bounce.
+#define FAN_MAX_CURVE_POINTS 8
 
-    // Low-level access (used by other modules and unit tests).
-    bool    setWiper(uint8_t value);
-    uint8_t getWiper();
-    float   getRpm();
-    bool    isStalled();
+typedef struct {
+    float   threshold_c;
+    uint8_t wiper;
+} fan_curve_point_t;
 
-    int    act(cJSON *root);
-    cJSON *get(cJSON *root);
-}
+typedef enum {
+    FAN_MODE_AUTO   = 0,
+    FAN_MODE_MANUAL = 1,
+    FAN_MODE_OFF    = 2,
+} fan_mode_t;
+
+void   fan_setup(void);
+void   fan_loop(void);
+
+// Low-level access (used by other modules and unit tests).
+bool   fan_set_wiper(uint8_t value);
+uint8_t fan_get_wiper(void);
+float  fan_get_rpm(void);
+bool   fan_is_stalled(void);
+
+int    fan_act(cJSON *root);
+cJSON *fan_get(cJSON *root);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

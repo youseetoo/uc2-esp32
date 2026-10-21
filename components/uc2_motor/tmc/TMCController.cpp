@@ -116,48 +116,48 @@ namespace {
     void parseTMCDataFromJSON(cJSON *jsonDocument, TMCData &p)
     {
         int val = 0;
-        val = cjson_tool_get_int(jsonDocument, "msteps");
+        val = cjson_tool_get_int(jsonDocument, "msteps", 0);
         if (val > 0)
             p.msteps = val;
-        val = cjson_tool_get_int(jsonDocument, "rms_current");
+        val = cjson_tool_get_int(jsonDocument, "rms_current", 0);
         if (val > 0)
             p.rms_current = val;
-        val = cjson_tool_get_int(jsonDocument, "stall_value");
+        val = cjson_tool_get_int(jsonDocument, "stall_value", 0);
         if (val > 0)
             p.stall_value = val;
-        val = cjson_tool_get_int(jsonDocument, "sgthrs");
+        val = cjson_tool_get_int(jsonDocument, "sgthrs", 0);
         if (val > 0)
             p.sgthrs = val;
         // semin = 0 disables CoolStep, so these have to be presence-checked
         // rather than value-checked or you could never switch CoolStep off.
         if (jsonHasNumber(jsonDocument, "semin"))
-            p.semin = cjson_tool_get_int(jsonDocument, "semin");
+            p.semin = cjson_tool_get_int(jsonDocument, "semin", 0);
         if (jsonHasNumber(jsonDocument, "semax"))
-            p.semax = cjson_tool_get_int(jsonDocument, "semax");
+            p.semax = cjson_tool_get_int(jsonDocument, "semax", 0);
         if (jsonHasNumber(jsonDocument, "sedn"))
-            p.sedn = cjson_tool_get_int(jsonDocument, "sedn");
-        val = cjson_tool_get_int(jsonDocument, "tcoolthrs");
+            p.sedn = cjson_tool_get_int(jsonDocument, "sedn", 0);
+        val = cjson_tool_get_int(jsonDocument, "tcoolthrs", 0);
         if (val > 0)
             p.tcoolthrs = val;
-        val = cjson_tool_get_int(jsonDocument, "blank_time");
+        val = cjson_tool_get_int(jsonDocument, "blank_time", 0);
         if (val > 0)
             p.blank_time = val;
-        val = cjson_tool_get_int(jsonDocument, "toff");
+        val = cjson_tool_get_int(jsonDocument, "toff", 0);
         if (val > 0)
             p.toff = val;
         // Chopper-mode controls — 0 is meaningful for all three
         // (tpwmthrs_sps = 0 -> StealthChop always, en_spreadcycle = 0 -> hybrid).
         if (jsonHasNumber(jsonDocument, "tpwmthrs_sps"))
-            p.tpwmthrs_sps = (uint32_t)cjson_tool_get_int(jsonDocument, "tpwmthrs_sps");
+            p.tpwmthrs_sps = (uint32_t)cjson_tool_get_int(jsonDocument, "tpwmthrs_sps", 0);
         if (jsonHasNumber(jsonDocument, "en_spreadcycle"))
-            p.en_spreadcycle = cjson_tool_get_int(jsonDocument, "en_spreadcycle") ? 1 : 0;
+            p.en_spreadcycle = cjson_tool_get_int(jsonDocument, "en_spreadcycle", 0) ? 1 : 0;
         if (jsonHasNumber(jsonDocument, "hstrt"))
-            p.hstrt = cjson_tool_get_int(jsonDocument, "hstrt") & 0x07;
+            p.hstrt = cjson_tool_get_int(jsonDocument, "hstrt", 0) & 0x07;
         if (jsonHasNumber(jsonDocument, "hend"))
-            p.hend = cjson_tool_get_int(jsonDocument, "hend") & 0x0F;
+            p.hend = cjson_tool_get_int(jsonDocument, "hend", 0) & 0x0F;
         if (jsonHasNumber(jsonDocument, "hold_mult_pct"))
         {
-            int hm = cjson_tool_get_int(jsonDocument, "hold_mult_pct");
+            int hm = cjson_tool_get_int(jsonDocument, "hold_mult_pct", 0);
             if (hm < 0) hm = 0;
             if (hm > 100) hm = 100;
             p.hold_mult_pct = (uint8_t)hm;
@@ -381,11 +381,8 @@ int tmc_act(cJSON *jsonDocument)
     // {"task":"/tmc_act", "msteps":16, "rmscurr":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
     // {"task":"/tmc_act", "reset": 1}
 
-    // get hold on the axis used - if necessary
-    int axis = cjson_tool_get_int(jsonDocument, "axis");
-
     // extract qid
-    int qid = cjson_tool_get_int(jsonDocument, "qid");
+    int qid = cjson_tool_get_int(jsonDocument, "qid", 0);
 
     // parse data from json and apply to settings
     TMCData p = readParamsFromPreferences();
@@ -396,17 +393,17 @@ int tmc_act(cJSON *jsonDocument)
         return -1;
     }
 
-    bool tmc_calibrate = (cjson_tool_get_int(jsonDocument, "calibrate") == 1);
+    bool tmc_calibrate = (cjson_tool_get_int(jsonDocument, "calibrate", 0) == 1);
     if (tmc_calibrate)
     { // {"task":"/tmc_act", "calibrate": 10000}
         // tmc_calibrate_stallguard(...)
         log_i("Calibrating TMC2209 Stallguard");
-        int speed = cjson_tool_get_int(jsonDocument, "calibrate");
+        int speed = cjson_tool_get_int(jsonDocument, "calibrate", 0);
         tmc_calibrate_stallguard(speed);
         return qid;
     }
 
-    bool tmc_reset = (cjson_tool_get_int(jsonDocument, "reset") == 1);
+    bool tmc_reset = (cjson_tool_get_int(jsonDocument, "reset", 0) == 1);
     if (tmc_reset)
     {
         log_i("Resetting TMC2209 settings to default");

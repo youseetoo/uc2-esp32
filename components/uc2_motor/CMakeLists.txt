@@ -11,10 +11,10 @@ set(srcs
     "motor/FAccelStep.cpp"
     "motor/FocusMotor.c"
     "motor/FocusScan.c"
-    "motor/axis_motor_c.cpp"
-    "motor/focusmotor_qid_c.cpp"
+    "motor/axis_motor_c.c"
+    "motor/focusmotor_qid_c.c"
     "motor/MotorGamePad.c"
-    "motor/MotorJsonParser.cpp"
+    "motor/MotorJsonParser.c"
     "motor/StageScan.c"
     "pid/PidController.c"
     "tmc/TMCController.cpp")

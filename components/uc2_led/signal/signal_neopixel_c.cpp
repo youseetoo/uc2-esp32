@@ -1,6 +1,6 @@
 // T4.1: C++ implementation of the signal_neopixel_c.h shim — forwards the
 // C calls from the pure-C SignalController.c to the C++ Adafruit_NeoPixel
-// class (same pattern as uc2_motor/motor/focusmotor_qid_c.cpp for FocusMotor).
+// class (same pattern as uc2_motor/motor/focusmotor_qid_c.c for FocusMotor).
 #include "signal_neopixel_c.h"
 #include "Adafruit_NeoPixel.h"
 

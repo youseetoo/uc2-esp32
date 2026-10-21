@@ -1,7 +1,7 @@
-// T4.1: C shim for the C++ FocusMotor — used by the pure-C QidRegistry
-// (pause/resume motor control, gated on MOTOR_CONTROLLER). The C QidRegistry
-// calls these C functions; this shim (a thin C++ TU) forwards to the C++
-// FocusMotor namespace. Keeps the C module free of C++ dependencies.
+// T4.1: C accessors for the pure-C FocusMotor module — used by the pure-C
+// QidRegistry (pause/resume motor control) and AxisController. Implemented in
+// focusmotor_qid_c.c over focusmotor_get_data(). start/stop_stepper are
+// declared here for convenience but defined in FocusMotor.c.
 #pragma once
 #include <stdint.h>
 

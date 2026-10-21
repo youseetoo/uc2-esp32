@@ -1,6 +1,6 @@
-// T4.1: C shims for the C++ FocusMotor / FAccelStep / TMCController functions
-// the pure-C AxisController (uc2_axis) needs. Implemented in axis_motor_c.cpp
-// (a thin C++ TU) so the C module stays free of C++ dependencies.
+// T4.1: C shims for the FocusMotor / FAccelStep / TMCController functions the
+// pure-C AxisController (uc2_axis) needs. Implemented in axis_motor_c.c
+// (pure C, forwarding to focusmotor_* / faccel_step_* / tmc_*).
 // Axis is 0..AXIS_MAX_STEPPERS-1; safe no-ops when out of range / disabled.
 #pragma once
 #include <stdbool.h>

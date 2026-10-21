@@ -1,4 +1,4 @@
-﻿// T4.1: QidRegistry — pure-C QID tracking (was a C++ namespace).
+// T4.1: QidRegistry � pure-C QID tracking (was a C++ namespace).
 // The C++ FocusMotor dependency is hidden behind the focusmotor_qid_c.h shim
 // (gated on CONFIG_UC2_MOTOR_CONTROLLER). Serial output uses the C serial_out_* API.
 // C feature gating: the raw -D feature flags are CXX-only (toolchain/cxxflags);
@@ -14,14 +14,14 @@
 // MOTOR_AXIS_COUNT is a per-app #define (in the app's PinConfig.h, which is
 // C++). The C QidRegistry can't include it, so default to the max (10).
 // The loop bound is min(MOTOR_AXIS_COUNT, QID_MAX_PAUSED_AXES) so a high
-// default is safe — out-of-range axes are no-ops in the focusmotor_* shim.
+// default is safe � out-of-range axes are no-ops in the focusmotor_* shim.
 #ifndef MOTOR_AXIS_COUNT
 #define MOTOR_AXIS_COUNT 10
 #endif
 #endif
 
-// ── Weak defaults for the focusmotor_* shim ─────────────────────────────────
-// The real implementation lives in uc2_motor (focusmotor_qid_c.cpp); uc2_core
+// -- Weak defaults for the focusmotor_* shim ---------------------------------
+// The real implementation lives in uc2_motor (focusmotor_qid_c.c); uc2_core
 // cannot depend on uc2_motor (circular), so the QidRegistry links against
 // weak no-op defaults. When uc2_motor is in the build (CONFIG_UC2_MOTOR_CONTROLLER),
 // the linker resolves to the real shim.

@@ -1,6 +1,6 @@
 // T4.1: C++ ISLAND — vendor FastAccelStepper (FAS) API + the extern "C"
 // API declared in FAccelStep.h (the only surface visible to pure-C modules:
-// FocusMotor.c, axis_motor_c.cpp).
+// FocusMotor.c, axis_motor_c.c).
 // Only compiled when USE_FASTACCEL is set; apps without it compile this out.
 // Owns its state (engine, faststeppers, _externalCallForPin); motor data
 // comes from the pure-C FocusMotor module (focusmotor_get_data()).

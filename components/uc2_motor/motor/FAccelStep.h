@@ -1,6 +1,6 @@
 // T4.1: C API over the FastAccelStepper vendor library (C++ island).
 // Implementation in FAccelStep.cpp keeps the vendor C++ types; only this
-// header is visible to pure-C modules (FocusMotor.c, axis_motor_c.cpp).
+// header is visible to pure-C modules (FocusMotor.c, axis_motor_c.c).
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

@@ -7,12 +7,17 @@
 // channel index (ledc_channel_t 0..LEDC_CHANNEL_MAX-1; timer is implicit:
 // S3 timer = ch>=8 ? 1 : 0). The explicit timer is only needed for
 // ledc_timer_config / timer_sel (esp32-hal-ledc layout).
+//
+// T4.1: dual-language — C++ consumers keep the original inline API; pure-C
+// consumers (LaserController.c) get static inline equivalents.
 #pragma once
 
-#include <cstdint>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include <driver/ledc.h>
 
+#ifdef __cplusplus
 namespace
 {
 inline ledc_timer_t uc2_ledc_timer_for(int channel)
@@ -112,3 +117,89 @@ inline uint32_t ledcRead(int channel)
     ledc_channel_t ch = uc2_ledc_ch_for(channel);
     return ledc_get_duty(LEDC_LOW_SPEED_MODE, ch);
 }
+
+#else // !__cplusplus — pure C branch
+static inline ledc_timer_t uc2_ledc_timer_for_c(int channel)
+{
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    return (ledc_timer_t)(channel / 4);
+#else
+    return (ledc_timer_t)(channel >= 8 ? 1 : 0);
+#endif
+}
+
+// pin → Arduino-channel bookkeeping. Function-local static = one shared
+// table across all TUs.
+static inline int* uc2_ledc_pin_table_c(void)
+{
+    static int table[40];
+    static bool init = false;
+    if (!init)
+    {
+        for (int i = 0; i < 40; i++)
+            table[i] = -1;
+        init = true;
+    }
+    return table;
+}
+
+static inline bool ledcSetup(int channel, uint32_t freq, uint8_t resolution)
+{
+    ledc_timer_config_t cfg = {0};
+    cfg.speed_mode = LEDC_LOW_SPEED_MODE;
+    cfg.timer_num = uc2_ledc_timer_for_c(channel);
+    cfg.duty_resolution = (ledc_timer_bit_t)resolution;
+    cfg.freq_hz = freq;
+    cfg.clk_cfg = LEDC_AUTO_CLK;
+    cfg.deconfigure = false;
+    return ledc_timer_config(&cfg) == ESP_OK;
+}
+
+static inline bool ledcAttachPin(int pin, int channel)
+{
+    if (pin < 0 || pin >= 40)
+        return false;
+    uc2_ledc_pin_table_c()[pin] = channel;
+
+    ledc_channel_config_t cfg = {0};
+    cfg.gpio_num = pin;
+    cfg.speed_mode = LEDC_LOW_SPEED_MODE;
+    cfg.timer_sel = uc2_ledc_timer_for_c(channel);
+    cfg.channel = (ledc_channel_t)channel;
+    cfg.duty = 0;
+    cfg.hpoint = 0;
+    cfg.sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD;
+    cfg.flags.output_invert = 0;
+    cfg.deconfigure = false;
+    return ledc_channel_config(&cfg) == ESP_OK;
+}
+
+static inline bool ledcDetachPin(int pin)
+{
+    if (pin < 0 || pin >= 40)
+        return false;
+    const int channel = uc2_ledc_pin_table_c()[pin];
+    uc2_ledc_pin_table_c()[pin] = -1;
+    if (channel < 0)
+        return false;
+
+    ledc_channel_config_t cfg = {0};
+    cfg.speed_mode = LEDC_LOW_SPEED_MODE;
+    cfg.channel = (ledc_channel_t)channel;
+    cfg.deconfigure = true;
+    return ledc_channel_config(&cfg) == ESP_OK;
+}
+
+static inline void ledcWrite(int channel, uint32_t duty)
+{
+    const ledc_channel_t ch = (ledc_channel_t)channel;
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, ch, duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, ch);
+}
+
+static inline uint32_t ledcRead(int channel)
+{
+    const ledc_channel_t ch = (ledc_channel_t)channel;
+    return ledc_get_duty(LEDC_LOW_SPEED_MODE, ch);
+}
+#endif // __cplusplus

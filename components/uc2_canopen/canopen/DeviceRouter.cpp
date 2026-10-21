@@ -691,7 +691,7 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
     int rawVal  = val_item->valueint;
 
     // Extract qid (mirrors handleMotorAct). LOCAL path registers/reports the
-    // qid inside LaserController::setLaserVal already, so we only register on
+    // qid inside laser_set_val_full already, so we only register on
     // the REMOTE path here.
     int laserQid = 0;
     cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
@@ -711,11 +711,11 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
     bool ok = true;
     if (route->where == UC2::RouteEntry::LOCAL) {
         log_i("Routing laser_act to LOCAL laser %d with value %d", laserid, rawVal);
-        // Delegate to LaserController::act so we keep full feature parity:
+        // Delegate to laser_act so we keep full feature parity:
         // PWM frequency/resolution, despeckle, servo mode, qid registration.
         // act() returns qid (>=0) and logs validation errors internally; we
         // treat the call as successful from the router's perspective.
-        (void)LaserController::act(doc);
+        (void)laser_act(doc);
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         uint16_t pwmVal = (uint16_t)std::min(std::max(rawVal, 0), 65535);
@@ -1421,7 +1421,7 @@ cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
             return resp;
         }
     }
-    return LaserController::get(doc);
+    return laser_get(doc);
 #else
     return nullptr;
 #endif

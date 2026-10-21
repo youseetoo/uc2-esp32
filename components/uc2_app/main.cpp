@@ -255,7 +255,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef LASER_CONTROLLER
 		if (runtimeConfig.laser) {
-			LaserController::loop();
+			laser_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -374,6 +374,13 @@ static BtButtonState btCrossState = {false, 0, false};
 static BtButtonState btCircleState = {false, 0, false};
 static BtButtonState btSquareState = {false, 0, false};    // also drives the bus-power long-press toggle
 
+// Trampoline for the pure-C laser dpad handler (LaserController.c):
+// BtController passes Dpad::Direction, the C API takes the raw int value.
+static void laser_dpad_tramp(Dpad::Direction pressed)
+{
+    laser_dpad_changed_event((int)pressed);
+}
+
 // Combined Triangle handler: short press = hard limit release
 static void handleTriangleCombined(int pressed)
 {
@@ -413,8 +420,8 @@ static void handleCrossCombined(int pressed)
         {
             // Short press - trigger laser toggle only on release
             #ifdef LASER_CONTROLLER
-            LaserController::cross_changed_event(1); // simulate press
-            LaserController::cross_changed_event(0); // simulate release
+            laser_cross_changed_event(1); // simulate press
+            laser_cross_changed_event(0); // simulate release
             #endif
         }
         btCrossState.isPressed = false;
@@ -593,7 +600,7 @@ extern "C" void setupApp(void)
 		
 		#ifdef LASER_CONTROLLER
 		if (runtimeConfig.laser) {
-			BtController::setDpadChangedEvent(LaserController::dpad_changed_event);
+			BtController::setDpadChangedEvent(laser_dpad_tramp);
 		}
 		#endif
 		#ifdef MOTOR_CONTROLLER
@@ -635,7 +642,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef LASER_CONTROLLER
 	if (runtimeConfig.laser) {
-		LaserController::setup();
+		laser_init();
 	}
 #endif
 #ifdef TMC_CONTROLLER

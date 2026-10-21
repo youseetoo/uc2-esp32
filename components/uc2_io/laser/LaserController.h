@@ -1,104 +1,80 @@
-#include <PinConfig.h>
+// Laser PWM controller (T4.1: pure C, was C++ namespace LaserController).
+// API: laser_* functions; state arrays exposed for read/update by other
+// components (was namespace statics + static int& back-refs).
 #pragma once
-#include "cJSON.h"
-// T1.3: Arduino.h only for Arduino builds; raw-IDF consumers get the uc2
-// façade via PinConfig.h (which includes uc2_hal.h).
-#ifdef ARDUINO
-#include "Arduino.h"
-#else
-#include <cmath>
-#include <cstdint>
-#endif
-#include "HidGamePad.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "cJSON.h"
+// T1.3: raw-IDF consumers get the uc2 façade via PinConfig.h (uc2_hal.h).
+#include "PinConfig.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// LASER IDs 0-4 local; 5-9 reserved for hybrid CAN mode.
+#define LASER_MAX_LASERS (5 + 5)
+
+// Laser state snapshot (was struct LaserData with C++ default inits).
 struct LaserData
 {
-    int LASERid=0;
-    int LASERval=0;
-    int LASERdespeckle=0;
-    int LASERdespecklePeriod=0;
+    int LASERid;
+    int LASERval;
+    int LASERdespeckle;
+    int LASERdespecklePeriod;
 };
+typedef struct LaserData LaserData;
 
-namespace LaserController
-{
-    // Configuration constants
-    static const int MAX_LASERS = 5+5; // Support for LASER IDs 0-4 // the upper 5 lasers are used for hybrid CAN mode
+// Dpad directions for laser_dpad_changed_event — values mirror
+// Dpad::Direction (HidGamePad.h): up=0, right=2, down=4, left=6, none=15.
+#define LASER_DPAD_UP   0
+#define LASER_DPAD_RIGHT 2
+#define LASER_DPAD_DOWN 4
+#define LASER_DPAD_LEFT 6
+#define LASER_DPAD_NONE 15
 
-    // Arrays to store laser values and settings (indexed by LASERid)
-    // Note: Using _arr suffix to avoid naming conflict with LASER_despeckle() function
-    static int LASER_val_arr[MAX_LASERS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    static int LASER_despeckle_arr[MAX_LASERS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    static int LASER_despeckle_period_arr[MAX_LASERS] = {20, 20, 20, 20, 20, 20, 20, 20, 20, 20};
-    
-    // PWM channel mapping (indexed by LASERid)
-    static int PWM_CHANNEL_LASER[MAX_LASERS] = {4, 1, 2, 3, 5, 0, 0, 0, 0, 0}; // 0=Heating, 1-4=Lasers
+// Arrays indexed by LASERid (was namespace statics).
+extern int laser_val_arr[LASER_MAX_LASERS];
+extern int laser_despeckle_arr[LASER_MAX_LASERS];
+extern int laser_despeckle_period_arr[LASER_MAX_LASERS];
+// PWM channel mapping (was PWM_CHANNEL_LASER[] + PWM_CHANNEL_LASER_n back-refs).
+extern int laser_pwm_channel[LASER_MAX_LASERS];
 
-    // PWM configuration
-    static int pwm_resolution = 10; //8bit 256, 10bit 1024, 12bit 4096;
-    [[maybe_unused]] static int pwm_frequency = 5000; //19000; //12000
-    static long pwm_max = (int)pow(2, pwm_resolution);
+// Helper functions to get pin and channel for a given LASERid.
+int laser_get_pin(int laser_id);
+int laser_get_pwm_channel(int laser_id);
 
-    // Helper functions to get pin and channel for a given LASERid
-    int getLaserPin(int LASERid);
-    int getPWMChannel(int LASERid);
-    
-    // Main API functions
-    int getLaserVal(int LASERid);
-    bool setLaserVal(int LASERid, int LASERval, int qid = 0);
-    bool setLaserVal(int LASERid, int LASERval, int LASERdespeckle, int LASERdespecklePeriod, int qid = 0);
-    
-    // Backward compatibility - keep old defines for external code
-    static int& PWM_CHANNEL_LASER_0 = PWM_CHANNEL_LASER[0];
-    static int& PWM_CHANNEL_LASER_1 = PWM_CHANNEL_LASER[1];
-    static int& PWM_CHANNEL_LASER_2 = PWM_CHANNEL_LASER[2];
-    static int& PWM_CHANNEL_LASER_3 = PWM_CHANNEL_LASER[3];
-    static int& PWM_CHANNEL_LASER_4 = PWM_CHANNEL_LASER[4];
-    
-    static int& LASER_val_0 = LASER_val_arr[0];
-    static int& LASER_val_1 = LASER_val_arr[1];
-    static int& LASER_val_2 = LASER_val_arr[2];
-    static int& LASER_val_3 = LASER_val_arr[3];
-    static int& LASER_val_4 = LASER_val_arr[4];
-    
-    static int& LASER_despeckle_0 = LASER_despeckle_arr[0];
-    static int& LASER_despeckle_1 = LASER_despeckle_arr[1];
-    static int& LASER_despeckle_2 = LASER_despeckle_arr[2];
-    static int& LASER_despeckle_3 = LASER_despeckle_arr[3];
-    static int& LASER_despeckle_4 = LASER_despeckle_arr[4];
-    
-    static int& LASER_despeckle_period_0 = LASER_despeckle_period_arr[0];
-    static int& LASER_despeckle_period_1 = LASER_despeckle_period_arr[1];
-    static int& LASER_despeckle_period_2 = LASER_despeckle_period_arr[2];
-    static int& LASER_despeckle_period_3 = LASER_despeckle_period_arr[3];
-    static int& LASER_despeckle_period_4 = LASER_despeckle_period_arr[4];
+// Main API functions.
+int laser_get_val(int laser_id);
+bool laser_set_val(int laser_id, int laser_val); // current despeckle, qid 0
+bool laser_set_val_full(int laser_id, int laser_val, int laser_despeckle,
+                        int laser_despeckle_period, int qid);
 
-    [[maybe_unused]] static int minPulseWidth = 500;
-    [[maybe_unused]] static int maxPulseWidth = 2500;
+void laser_despeckle(int laser_despeckle, int laser_id, int laser_period);
+int laser_act(cJSON *ob);
+void laser_configure_pwm(int servo_pin, int resolution, int led_channel, int frequency);
+void laser_move_servo(int led_channel, int angle, int frequency, int resolution);
 
-    [[maybe_unused]] static bool isDEBUG = false;
+cJSON *laser_get(cJSON *ob);
+void laser_init(void);
+void laser_loop(void);
+void laser_set_pwm(int pwm_value, int pwm_channel);
+void laser_setup_channel(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res);
+void laser_apply_value(const LaserData *laser_data);
 
-    void LASER_despeckle(int LASERdespeckle, int LASERid, int LASERperiod);
-    int act(cJSON * ob);
-    void configurePWM(int servoPin, int resolution, int ledChannel, int frequency);
-    void moveServo(int ledChannel, int angle, int frequency, int resolution);
+LaserData laser_get_data(void);
 
-    cJSON * get(cJSON *  ob);
-    void setup();
-    void loop();
-    void setPWM(int pwmValue, int pwmChannel);
-    void setupLaser(int laser_pin, int pwm_chan, int pwm_freq, int pwm_res);
-    void applyLaserValue(const LaserData& laserData);
+void laser_dpad_changed_event(int pressed);
+void laser_process_hold_actions(void);
+void laser_handle_short_click(int direction);
+void laser_execute_hold_action(int direction);
+void laser_cross_changed_event(int pressed); // Cross button: Laser 4 toggle
 
-    LaserData getLaserData();
+// Send laser value update after setting new value (similar to sendMotorPos).
+void laser_send_value(int laser_id, int qid);
 
-    void dpad_changed_event(Dpad::Direction pressed);
-    void processHoldActions(); // Process hold actions for continuous laser adjustment
-    void handleShortClick(int direction); // Handle short click actions
-    void executeHoldAction(int direction); // Execute hold increment/decrement actions
-    void cross_changed_event(int pressed); // Handle Cross button for Laser 4 toggle
-    
-    // Send laser value update after setting new value (similar to sendMotorPos)
-    void sendLaserValue(int LASERid, int qid = 0);
-
-};
-
+#ifdef __cplusplus
+}
+#endif

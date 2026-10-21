@@ -178,7 +178,7 @@ namespace ThermalController
 #endif
 #ifdef LASER_CONTROLLER
         // The high-power white LED is exposed as laser channel 0 on this board.
-        LaserController::setLaserVal(0, 0);
+        laser_set_val(0, 0);
 #endif
     }
 

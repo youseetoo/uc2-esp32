@@ -20,7 +20,7 @@ namespace HeatController
 
 		// we need a protection against temperature runaway and overshoot
 		// get modules
-		int pwmChannel = LaserController::PWM_CHANNEL_LASER_0;
+		int pwmChannel = laser_pwm_channel[0];
 
 		if (Heat_active && ((millis() - startMillis) >= temp_pid_updaterate))
 		{
@@ -50,7 +50,7 @@ namespace HeatController
 				hPreferences.end();
 			}
 			log_i("Heat: %f, pwmValue: %f, pwmChannel: %i", temperatureValueAvg, pwmValue, pwmChannel);
-			LaserController::setPWM(pwmValue, pwmChannel);
+			laser_set_pwm(pwmValue, pwmChannel);
 			startMillis = millis();
 			Heat_was_active = true;
 		}
@@ -59,7 +59,7 @@ namespace HeatController
 			if (ledcRead(pwmChannel) != 0)
 			{
 				log_i("Heat: %f, pwmValue: %f", DS18b20Controller::getCurrentValueCelcius(), 0.0f);
-				LaserController::setPWM(0, pwmChannel);
+				laser_set_pwm(0, pwmChannel);
 			}
 			Heat_was_active = false;
 		}

@@ -383,7 +383,7 @@ namespace i2c_master
         mDialDataOld.pos_z = mDialData.pos_z;
 
 #ifdef LASER_CONTROLLER
-        mDialData.intensity = LaserController::getLaserVal(1);
+        mDialData.intensity = laser_get_val(1);
         mDialDataOld.intensity = mDialData.intensity;
 #else
         mDialData.intensity = 0;
@@ -663,7 +663,7 @@ namespace i2c_master
             if (lastIntensity != intensity)
             {
                 lastIntensity = intensity;
-                LaserController::setLaserVal(LaserController::PWM_CHANNEL_LASER_1, intensity);
+                laser_set_val(laser_pwm_channel[1], intensity);
             }
 #endif
         }

@@ -10,7 +10,7 @@ if(CONFIG_UC2_DIGITAL_OUT_CONTROLLER)
     list(APPEND srcs "digitalout/DigitalOutController.c")
 endif()
 if(CONFIG_UC2_LASER_CONTROLLER)
-    list(APPEND srcs "laser/LaserController.cpp")
+    list(APPEND srcs "laser/LaserController.c")
 endif()
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}

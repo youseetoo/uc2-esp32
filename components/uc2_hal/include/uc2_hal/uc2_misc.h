@@ -2,8 +2,12 @@
 // 2026-10-12): random(min,max) (LaserController, LedController), map
 // (LaserController servo, DialController — dial path compile-out in most
 // combos).
+//
+// T4.1: dual-language — C++ keeps the original inline/template API; pure-C
+// consumers (LaserController.c) get static inline equivalents.
 #pragma once
 
+#ifdef __cplusplus
 #include <cstdint>
 
 #include "esp_random.h"  // esp_random (IDF >= 6.1: esp_hw_support; was esp_system/esp_random.h)
@@ -40,3 +44,32 @@ inline T constrain(T x, T lo, T hi)
 {
     return (x < lo) ? lo : ((x > hi) ? hi : x);
 }
+
+#else // !__cplusplus — pure C branch
+#include <stdbool.h>
+#include <stdint.h>
+#include <math.h>
+
+#include "esp_random.h"  // esp_random (IDF >= 6.1: esp_hw_support; was esp_system/esp_random.h)
+
+// Arduino random(min, max): uniform in [min, max] (both inclusive).
+static inline long random(long min, long max)
+{
+    if (max < min)
+    {
+        const long t = min;
+        min = max;
+        max = t;
+    }
+    return min + (long)(esp_random() % (unsigned long)(max - min + 1L));
+}
+
+// Arduino map: linear remap, integer arithmetic, no clamping.
+static inline long map(long x, long in_min, long in_max, long out_min, long out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+// Arduino constrain: clamp x into [lo, hi].
+#define constrain(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
+#endif // __cplusplus

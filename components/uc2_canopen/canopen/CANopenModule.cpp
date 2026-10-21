@@ -2919,7 +2919,7 @@ void CANopenModule::loop()
         if (!s_laserCmds[ch].pending) continue;
         s_laserCmds[ch].pending = false;
         log_i("Dispatch laser %d: PWM=%d", ch, (int)s_laserCmds[ch].value);
-        LaserController::setLaserVal(ch, (int)s_laserCmds[ch].value);
+        laser_set_val(ch, (int)s_laserCmds[ch].value);
     }
 #endif
 }

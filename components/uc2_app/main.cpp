@@ -709,7 +709,7 @@ UC2::RoutingTable::logAll();
 // DS4-over-USB-OTG → CANopen bridge. Spawns USB Host + HID Host tasks
 // then a 100 Hz consumer that emits expedited SDO writes against the
 // routes we just built. Must run AFTER RoutingTable::buildDefault().
-JoystickUsbHost::begin();
+joystick_usbhost_begin();
 JoystickRouter::begin();
 #endif
 #ifdef PTZ_KEYBOARD_CONTROLLER

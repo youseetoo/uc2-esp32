@@ -259,7 +259,7 @@ static void emitLedPattern(uint8_t patternId)
     ESP_LOGI(TAG, "led pattern -> %u (%s)", patternId, ok?"ok":"fail");
 }
 
-static void handleButtons(const JoystickUsbHost::Ds4State& s)
+static void handleButtons(const Ds4State& s)
 {
     // button1: bit4=Square, bit5=Cross, bit6=Circle, bit7=Triangle
     if (rising(s.button1, s_prevButton1, 0x80)) {
@@ -299,7 +299,7 @@ static void handleButtons(const JoystickUsbHost::Ds4State& s)
 
 static void router_task(void* /*arg*/)
 {
-    QueueHandle_t q = JoystickUsbHost::getQueue();
+    QueueHandle_t q = joystick_usbhost_get_queue();
     if (!q) {
         ESP_LOGE(TAG, "no DS4 queue — task exiting");
         vTaskDelete(NULL);
@@ -313,7 +313,7 @@ static void router_task(void* /*arg*/)
     for (;;) {
         vTaskDelayUntil(&last, period);
 
-        JoystickUsbHost::Ds4State s = {};
+        Ds4State s = {};
         if (xQueuePeek(q, &s, 0) != pdTRUE) continue;
 
         if (!s.valid) {

@@ -30,19 +30,21 @@ struct HidHostEvent {
     void*                    arg;
 };
 
-static inline JoystickUsbHost::Ds4State zeroState(bool valid)
+// T4.1: pure C — the JoystickUsbHost namespace became the
+// joystick_usbhost_* C API; Ds4State is now a plain C struct.
+static inline Ds4State zeroState(bool valid)
 {
-    JoystickUsbHost::Ds4State s = {};
+    Ds4State s = {};
     s.dpad = 8; // released
     s.valid = valid;
     return s;
 }
 
-static void pushDecoded(const JoystickUsbHost::Ds4State& s)
+static void pushDecoded(const Ds4State *s)
 {
     if (!s_ds4Queue) return;
     // Overwrite: consumer always sees freshest sample.
-    xQueueOverwrite(s_ds4Queue, &s);
+    xQueueOverwrite(s_ds4Queue, s);
 }
 
 // DS4 64-byte boot-style report layout (matches the touchgadget reference).
@@ -78,7 +80,7 @@ static void decodeDs4(const uint8_t* data, int length)
     if (length < (int)sizeof(DS4Report_t)) return;
     const DS4Report_t* r = (const DS4Report_t*)data;
 
-    JoystickUsbHost::Ds4State s;
+    Ds4State s = {};
     s.lx      = scale_u8_to_i16(r->leftXAxis);
     s.ly      = scale_u8_to_i16(r->leftYAxis);
     s.rx      = scale_u8_to_i16(r->rightXAxis);
@@ -90,7 +92,7 @@ static void decodeDs4(const uint8_t* data, int length)
     s.button2 = r->button2;
     s.button3 = r->button3;
     s.valid   = true;
-    pushDecoded(s);
+    pushDecoded(&s);
 }
 
 static void hid_host_generic_report_cb(const uint8_t* const data, const int length)
@@ -123,7 +125,7 @@ static void hid_host_interface_cb(hid_host_device_handle_t handle,
     case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "HID Device DISCONNECTED");
         hid_host_device_close(handle);
-        pushDecoded(zeroState(false));
+        pushDecoded(&zeroState(false));
         break;
     case HID_HOST_INTERFACE_EVENT_TRANSFER_ERROR:
         ESP_LOGW(TAG, "HID Device TRANSFER_ERROR");
@@ -200,11 +202,7 @@ static void hid_host_task(void* arg)
     vTaskDelete(NULL);
 }
 
-} // namespace
-
-namespace JoystickUsbHost {
-
-bool begin()
+bool joystick_usbhost_begin(void)
 {
     static bool started = false;
     if (started) return true;
@@ -252,8 +250,6 @@ bool begin()
     return true;
 }
 
-QueueHandle_t getQueue() { return s_ds4Queue; }
-
-} // namespace JoystickUsbHost
+QueueHandle_t joystick_usbhost_get_queue(void) { return s_ds4Queue; }
 
 #endif // JOYSTICK_USBHOST_PROVIDER

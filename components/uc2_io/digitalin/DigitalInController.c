@@ -4,7 +4,9 @@
 #include <PinConfig.h>
 #include "DigitalInController.h"
 // T1.3: direct IDF (no Arduino) — uc2 façade for gpio/prefs/time/log.
-#include <uc2_hal.h>
+#include "uc2_hal/uc2_log.h"   // log_* (C-safe; the umbrella is C++-only)
+#include "uc2_hal/uc2_time.h"  // millis()
+#include "uc2_hal/uc2_gpio.h"  // digitalRead()
 #include "cJsonTool.h"
 #include "uc2_serial_out.h"      // serial_out_safe_serialize_json
 #include "nvs.h"

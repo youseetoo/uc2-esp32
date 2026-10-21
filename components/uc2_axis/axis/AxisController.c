@@ -21,7 +21,8 @@ static const char *TAG = "AxisCtrl";
 #include "esp_task_wdt.h"
 #include "cJSON.h"
 #include "uc2_serial_out.h" // serial_out_safe_send_json_string (C API)
-#include "uc2_hal.h"         // delay()/millis()/log
+#include "uc2_hal/uc2_time.h"  // delay()/millis()
+#include "uc2_hal/uc2_log.h"   // log_*
 
 #ifndef MOTOR_AXIS_COUNT
 #define MOTOR_AXIS_COUNT 4

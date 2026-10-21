@@ -10,7 +10,8 @@ static const char *TAG = "HomeMotor";
 #include "DigitalInController.h"
 #include "ConfigController.h"
 #include "cJsonTool.h"
-#include "uc2_hal.h"
+#include "uc2_hal/uc2_log.h"   // log_* (C-safe; the umbrella is C++-only)
+#include "uc2_hal/uc2_time.h"  // delay()/millis()
 #include "JsonKeys.h"
 #include "MotorTypes.h"
 #include "FocusMotor.h"

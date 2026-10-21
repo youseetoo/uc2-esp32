@@ -3,7 +3,9 @@
 #include "DigitalOutController.h"
 // T1.3: direct IDF (no Arduino) — uc2 façade for gpio/time/log.
 // JsonKeys.h dropped (Arduino/pgmspace): literal key strings.
-#include <uc2_hal.h>
+#include "uc2_hal/uc2_log.h"   // log_* (C-safe; the umbrella is C++-only)
+#include "uc2_hal/uc2_time.h"  // delay()
+#include "uc2_hal/uc2_gpio.h"  // digitalWrite()
 #include "cJsonTool.h"
 
 static bool is_debug = false;

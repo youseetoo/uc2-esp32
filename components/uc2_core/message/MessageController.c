@@ -5,7 +5,7 @@
 #include <PinConfig.h>
 
 #include "MessageController.h"
-#include <uc2_hal.h>
+#include "uc2_hal/uc2_log.h"  // log_* (C-safe; the umbrella is C++-only)
 #include "cJsonTool.h"
 #include "DeviceRouter.h"          // device_router_handle_home_act (C shim)
 #include "uc2_serial_out.h"        // serial_out_safe_serialize_json

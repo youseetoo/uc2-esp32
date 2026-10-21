@@ -164,8 +164,8 @@ public:
     static TriggerMode getTriggerMode() { return scanner_.getTriggerMode(); }
     
 private:
-    // Hardware (only used on slave)
-    static DAC_MCP4822 dac_;
+    // Hardware (only used on slave). T4.1: the MCP4822 DAC is the pure-C
+    // dac4822_* API (DAC_MCP4822.h) — single instance, no member needed.
     static HighSpeedScannerCore scanner_;
     static uc2::Preferences prefs_;
     static bool initialized_;

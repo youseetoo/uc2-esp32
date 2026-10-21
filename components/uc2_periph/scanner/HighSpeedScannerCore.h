@@ -174,7 +174,9 @@ public:
      * @param laser_pin GPIO used to gate the laser during the imaging window
      *                  (laser_blanking config); -1 to disable
      */
-    bool init(DAC_MCP4822* dac, int trigger_pin_pixel, int trigger_pin_line, int trigger_pin_frame,
+    // T4.1: the MCP4822 DAC is the pure-C dac4822_* API (single instance) —
+    // no DAC pointer parameter/member anymore.
+    bool init(int trigger_pin_pixel, int trigger_pin_line, int trigger_pin_frame,
               int laser_pin = -1);
 
     /**
@@ -259,7 +261,6 @@ public:
     void stopTask();
     
 private:
-    DAC_MCP4822* dac_ = nullptr;
     int trigger_pin_pixel_ = -1;
     int trigger_pin_line_ = -1;
     int trigger_pin_frame_ = -1;

@@ -28,7 +28,7 @@ if(CONFIG_UC2_GALVO_CONTROLLER)
     list(APPEND srcs
         "scanner/GalvoController.cpp"
         "scanner/HighSpeedScannerCore.cpp"
-        "scanner/DAC_MCP4822.cpp")
+        "scanner/dac_mcp4822.c")
 endif()
 # T2.9: DS18b20 heat controller (heat sink thermal regulation for laser diode).
 if(CONFIG_UC2_HEAT_CONTROLLER)

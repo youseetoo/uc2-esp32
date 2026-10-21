@@ -23,7 +23,7 @@ static const char *TAG = "GalvoCtrl";
 #define GALVO_LOG(fmt, ...) printf("[%s] " fmt "\n", TAG, ##__VA_ARGS__)
 
 // Static member definitions
-DAC_MCP4822 GalvoController::dac_;
+
 HighSpeedScannerCore GalvoController::scanner_;
 uc2::Preferences GalvoController::prefs_;
 bool GalvoController::initialized_ = false;
@@ -63,7 +63,7 @@ void GalvoController::setup()
 
     // Initialize DAC
     GALVO_LOG("Initializing MCP4822 DAC...");
-    if (!dac_.init(sdi_pin, sck_pin, cs_pin, ldac_pin))
+    if (!dac4822_init(sdi_pin, sck_pin, cs_pin, ldac_pin))
     {
         GALVO_LOG("ERROR: DAC initialization failed!");
         return;
@@ -72,13 +72,13 @@ void GalvoController::setup()
 
     // Test DAC output - park at center
     GALVO_LOG("Testing DAC - parking at center (2048, 2048)");
-    dac_.setX(2048);
-    dac_.setY(2048);
-    dac_.ldacPulse();
+    dac4822_set_x(2048);
+    dac4822_set_y(2048);
+    dac4822_ldac_pulse();
 
     // Initialize scanner
     GALVO_LOG("Initializing scanner core...");
-    if (!scanner_.init(&dac_, trig_pixel, trig_line, trig_frame, laser_pin))
+    if (!scanner_.init(trig_pixel, trig_line, trig_frame, laser_pin))
     {
         GALVO_LOG("ERROR: Scanner initialization failed!");
         return;
@@ -469,8 +469,8 @@ void GalvoController::gotoXY(uint16_t x, uint16_t y)
     // sample), then write the DAC directly.
     scanner_.stop();
     vTaskDelay(pdMS_TO_TICKS(2)); // ponytail: no task-idle handshake; one sample period is 25 us
-    dac_.setXY(x & 0x0FFF, y & 0x0FFF);
-    dac_.ldacPulse();
+    dac4822_set_xy(x & 0x0FFF, y & 0x0FFF);
+    dac4822_ldac_pulse();
     GALVO_LOG("Parked at (%u, %u)", (unsigned)x, (unsigned)y);
 }
 

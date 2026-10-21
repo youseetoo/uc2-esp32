@@ -71,19 +71,18 @@ HighSpeedScannerCore::~HighSpeedScannerCore()
     delete[] x_map_;
 }
 
-bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
-                                 int trigger_pin_line, int trigger_pin_frame,
-                                 int laser_pin)
+bool HighSpeedScannerCore::init(int trigger_pin_pixel,
+                                int trigger_pin_line, int trigger_pin_frame,
+                                int laser_pin)
 {
     SCANNER_LOG("init() called with pins: pixel=%d, line=%d, frame=%d, laser=%d",
                 trigger_pin_pixel, trigger_pin_line, trigger_pin_frame, laser_pin);
 
-    if (!dac) {
-        SCANNER_LOG("ERROR: DAC pointer is null");
+    if (!dac4822_is_initialized()) {
+        SCANNER_LOG("ERROR: DAC not initialized");
         return false;
     }
 
-    dac_ = dac;
     trigger_pin_pixel_ = trigger_pin_pixel;
     trigger_pin_line_ = trigger_pin_line;
     trigger_pin_frame_ = trigger_pin_frame;
@@ -128,9 +127,9 @@ bool HighSpeedScannerCore::init(DAC_MCP4822* dac, int trigger_pin_pixel,
 
     // Park mirrors at start position
     SCANNER_LOG("Parking mirrors at x=%d, y=%d", config_.x_min, config_.y_min);
-    dac_->setX(config_.x_min);
-    dac_->setY(config_.y_min);
-    dac_->ldacPulse();
+    dac4822_set_x(config_.x_min);
+    dac4822_set_y(config_.y_min);
+    dac4822_ldac_pulse();
 
     SCANNER_LOG("Initialized: %dx%d, X=[%d,%d], Y=[%d,%d]",
                 config_.nx, config_.ny, config_.x_min, config_.x_max, 
@@ -759,8 +758,8 @@ void HighSpeedScannerCore::scannerTask()
             xSemaphoreGive(config_mutex_);
 
             // Set Y position once per line
-            dac_->setY(y12);
-            dac_->ldacPulse();
+            dac4822_set_y(y12);
+            dac4822_ldac_pulse();
 
             // LINE/FRAME MARKERS at line start (during the pre-blanking hold,
             // where the DAC is static and there is timing slack). The frame
@@ -853,8 +852,8 @@ void HighSpeedScannerCore::scannerTask()
                     ? clamp12(mirror_sum_ - (int32_t)line_x_[i])
                     : line_x_[i];
                 if (do_lut) x12 = applyXMap(x12);
-                dac_->setX(x12);
-                dac_->ldacPulse();
+                dac4822_set_x(x12);
+                dac4822_ldac_pulse();
             }
 
             // Safety: never leave the laser on across line boundaries
@@ -953,9 +952,9 @@ void HighSpeedScannerCore::executeArbitraryPointScan()
         }
         
         // Move to position
-        dac_->setX(x12);
-        dac_->setY(y12);
-        dac_->ldacPulse();
+        dac4822_set_x(x12);
+        dac4822_set_y(y12);
+        dac4822_ldac_pulse();
         
         // Short settling time after movement (allow galvos to reach position)
         // Use minimal delay to not waste time

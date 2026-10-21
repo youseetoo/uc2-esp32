@@ -29,7 +29,6 @@ static const char *TAG = "StageScan";
 // File-scope initializers must be constants in C, so the NSDMI defaults are
 // spelled out here (stage_scan_data_init() is for other translation units).
 static StageScanningData sd = { .delayTimeStep = 10, .nFrames = 1 };
-=======
 volatile bool stage_scan_is_running = false;
 
 StageScanningData *stage_scan_get_data(void)

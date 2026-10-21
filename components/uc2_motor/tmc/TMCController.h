@@ -6,8 +6,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "cJSON.h"
-#include "uc2_hal.h"
-#include "uc2_hal/uc2_wire.h"
+// T4.1: uc2_hal.h / uc2_hal/uc2_wire.h deliberately NOT included here — they
+// are C++ (class-based) and this header is pulled into C TUs (axis_motor_c.c).
+// The only C++ consumer (TMCController.cpp) includes what it needs itself.
 #include "JsonKeys.h"
 #include "cJsonTool.h"
 #include "PinConfig.h"

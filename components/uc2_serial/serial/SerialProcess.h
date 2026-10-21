@@ -15,6 +15,10 @@
 // only the INPUT side (serialTask/loop/jsonProcessor/serialize/addJsonToQueue).
 #include "uc2_serial_out.h"
 
+// T4.1: C-safe — the namespace only exists for C++ TUs; C callers use the
+// serial_out_* API (uc2_serial_out.h) and the serial input side stays in
+// SerialProcessIn.cpp.
+#ifdef __cplusplus
 namespace SerialProcess
 {
     // Queue-based processing to handle serial load without blocking main thread
@@ -29,3 +33,4 @@ namespace SerialProcess
     void loop();
     void addJsonToQueue(cJSON * doc);   // Add a cJSON object to the processing queue
 };
+#endif  // __cplusplus

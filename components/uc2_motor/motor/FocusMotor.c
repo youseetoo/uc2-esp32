@@ -1,13 +1,13 @@
 // T4.1: pure C (was the C++ FocusMotor namespace).
+static const char *TAG = "FocusMotor";
 #include <string.h>
 #include <stdio.h>
+#include "uc2_hal/uc2_log.h"  // log_i / log_w / log_e
+#include "uc2_serial_out.h"  // serial_out_safe_send_json_string
 #include "PinConfigDefault.h"
-#include "config.h"
 #include "FocusMotor.h"
-#include "uc2_hal/uc2_wire.h"
 #include "cJsonTool.h"
 #include "State.h"
-#include "SerialProcess.h"
 #include "QidRegistry.h"
 #include "esp_debug_helpers.h"
 #include "freertos/FreeRTOS.h"
@@ -24,9 +24,6 @@
 #endif
 #ifdef STAGE_SCAN
 #include "StageScan.h"
-#endif
-#ifdef DIAL_CONTROLLER
-#include "DialController.h"
 #endif
 
 #ifdef DIGITAL_IN_CONTROLLER
@@ -309,10 +306,10 @@ static void fill_data_impl(void)
 {
     // NVS key buffers (C++ used ("prefix" + String(axis)).c_str())
     char key[24];
-    int v;
+    int32_t v;
     bool b;
     float f;
-    char c;
+    int8_t c;
     nvs_handle_t h = 0;
     if (!nvs_begin(&h))
         return;

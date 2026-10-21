@@ -14,6 +14,9 @@
 //
 // Without USE_TCA9535 the functions are no-op/pass-through (see .cpp).
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

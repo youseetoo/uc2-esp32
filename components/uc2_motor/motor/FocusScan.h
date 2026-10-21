@@ -44,9 +44,8 @@ void led_exec_circ_command(uint8_t rgb, uint8_t radius, uint8_t qid);
 #endif
 
 #ifdef LASER_CONTROLLER
-// C shim over LaserController::setLaserVal(id, val, qid) (uc2_io, C-ported
-// later in the T4.1 batch).
-bool laser_set_val_c(int laser_id, int value, int qid);
+// T4.1: the laser_set_val_c shim was never implemented; FocusScan.c calls the
+// C port's laser_set_val(id, val) (LaserController.h) directly instead.
 #endif
 
 #ifdef __cplusplus

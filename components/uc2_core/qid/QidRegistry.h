@@ -90,8 +90,11 @@ int qid_handle_pause(cJSON *doc);
 int qid_handle_resume(cJSON *doc);
 
 #ifdef __cplusplus
-}
+} // extern "C"
+#endif // __cplusplus
+
+#ifdef __cplusplus
 // C++ convenience overload (C has no default arguments).
 inline int qid_register(int qid, uint8_t numActions)
 { return qid_register(qid, numActions, QID_DEFAULT_TIMEOUT_MS); }
-#endif
+#endif // __cplusplus

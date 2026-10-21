@@ -2,7 +2,7 @@
 static const char *TAG = "MotorGamePad";
 #include "MotorGamePad.h"
 #include "uc2_hal/uc2_log.h"
-#include "uc2_time.h"          // millis
+#include "uc2_hal/uc2_time.h"  // millis
 #include "cJSON.h"
 #include "DeviceRouter.h"      // device_router_handle_motor_act (C shim)
 #ifdef MOTOR_CONTROLLER

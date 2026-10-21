@@ -3,12 +3,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "cJsonTool.h"
+#include "PinConfigDefault.h"  // MOTOR_AXIS_COUNT (C TUs don't get it transitively)
+#ifdef __cplusplus
 #ifdef __cplusplus
 #include "uc2_hal.h"  // C++ TUs keep the umbrella; .c files use the sub-headers
+#else
+// C TUs: the umbrella is C++-only (EspClass/Wire classes) — include the
+// uc2_hal sub-headers you need directly (uc2_log.h, uc2_time.h, uc2_gpio.h,
+// uc2_wire_c.h, ...).
+#endif
 #endif
 #include "JsonKeys.h"
 #include "ConfigController.h"
-#include "uc2_hal/uc2_prefs.h"
 #ifdef USE_TCA9535
 #include "tca_controller.h"
 #endif

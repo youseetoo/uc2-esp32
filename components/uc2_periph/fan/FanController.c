@@ -12,6 +12,8 @@
 #include "cJsonTool.h"
 #include "Tmp102Controller.h"
 
+static const char *TAG = "FanController";
+
 // ---- State ----
 static bool     initialized   = false;
 static fan_mode_t mode        = FAN_MODE_AUTO;

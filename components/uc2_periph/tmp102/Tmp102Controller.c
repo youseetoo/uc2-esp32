@@ -12,6 +12,8 @@
 #include <float.h>
 #include "cJsonTool.h"
 
+static const char *TAG = "Tmp102";
+
 // TMP102 register addresses
 #define TMP102_REG_TEMP   0x00
 #define TMP102_REG_CONFIG 0x01

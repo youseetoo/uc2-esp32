@@ -1,3 +1,5 @@
+#include "esp_log.h"
+
 #include "InterruptController.h"
 #include "PinConfigDefault.h"
 

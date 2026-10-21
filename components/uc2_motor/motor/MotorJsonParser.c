@@ -6,6 +6,7 @@ static const char *TAG = "MotorJsonParser";
 #include "MotorJsonParser.h"
 #include "FocusMotor.h"
 #include "QidRegistry.h"
+#include "uc2_hal/uc2_log.h"  // log_i / log_w / log_d
 #include "cJsonTool.h"
 #include "nvs.h"
 #ifdef STAGE_SCAN
@@ -503,7 +504,7 @@ cJSON *motorjson_get(cJSON *docin)
 			nvs_handle_t h = 0;
 			if (nvs_open("UC2", NVS_READWRITE, &h) == ESP_OK)
 			{
-				nvs_set_f32(h, key, multiplier);
+				nvs_set_float(h, key, multiplier);  // IDF 6.1: nvs_set_f32 -> nvs_set_float
 				nvs_commit(h);
 				nvs_close(h);
 			}
@@ -613,7 +614,7 @@ cJSON *motorjson_get(cJSON *docin)
 			if (motorQid > 0 && stprs != NULL)
 			{
 				int numSteppers = cJSON_GetArraySize(stprs);
-				qid_register(motorQid, numSteppers);
+				qid_register(motorQid, (uint8_t)numSteppers, QID_DEFAULT_TIMEOUT_MS);
 			}
 
 			// TODO: Check if motor is in available motors and skip if not

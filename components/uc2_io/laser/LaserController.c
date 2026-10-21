@@ -106,7 +106,7 @@ void laser_despeckle(int LASERdespeckle, int LASERid, int LASERperiod)
 	int PWM_CHANNEL = laser_get_pwm_channel(LASERid);
 
 	// Add random number to current value to let it oscillate
-	int32_t laserwiggle = (int32_t)random(-LASERdespeckle, LASERdespeckle);
+	int32_t laserwiggle = (int32_t)uc2_random(-LASERdespeckle, LASERdespeckle);
 	LASER_val_wiggle += laserwiggle;
 
 	if (LASER_val_wiggle > pwm_max)
@@ -223,7 +223,7 @@ int laser_act(cJSON *ob)
 		// Laser is synchronous: register and immediately report done
 		if (qid > 0)
 		{
-			qid_register(qid, 1);
+			qid_register(qid, 1, QID_DEFAULT_TIMEOUT_MS);
 			qid_report_action_done(qid);
 		}
 		state_set_busy(false);
@@ -233,7 +233,7 @@ int laser_act(cJSON *ob)
 	// No LASERval provided - still report QID done if set
 	if (qid > 0)
 	{
-		qid_register(qid, 1);
+		qid_register(qid, 1, QID_DEFAULT_TIMEOUT_MS);
 		qid_report_action_done(qid);
 	}
 	return qid;

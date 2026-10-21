@@ -279,7 +279,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef MOTOR_CONTROLLER
 		if (runtimeConfig.motor) {
-			FocusMotor::loop();
+			focusmotor_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -553,7 +553,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef MOTOR_CONTROLLER
 	if (runtimeConfig.motor) {
-		FocusMotor::setup();
+		focusmotor_setup();
 	}
 #endif
 #ifdef ANALOG_IN_CONTROLLER
@@ -596,9 +596,9 @@ extern "C" void setupApp(void)
 		#endif
 		#ifdef MOTOR_CONTROLLER
 		if (runtimeConfig.motor) {
-			BtController::setXYZAChangedEvent(MotorGamePad::xyza_changed_event);
-			BtController::setAnalogControllerChangedEvent(MotorGamePad::singlestep_event);
-			BtController::setOptionsChangedEvent(MotorGamePad::options_changed_event);
+			BtController::setXYZAChangedEvent(motor_gamepad_xyza_changed_event);
+			BtController::setAnalogControllerChangedEvent(motor_gamepad_singlestep_event);
+			BtController::setOptionsChangedEvent(motor_gamepad_options_changed_event);
 		}
 		#endif
 	}

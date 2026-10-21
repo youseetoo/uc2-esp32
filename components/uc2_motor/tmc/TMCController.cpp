@@ -4,6 +4,7 @@
 static const char *TAG = "TMCController";
 #include "TMCController.h"
 #include <TMCStepper.h>
+#include "uc2_hal.h"  // T4.1: was transitively via TMCController.h (now C-clean)
 #include "uc2_hal/uc2_serial.h"
 #include "uc2_hal/uc2_prefs.h"
 #include "esp_task_wdt.h"

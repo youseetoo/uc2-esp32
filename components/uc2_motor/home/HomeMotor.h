@@ -36,6 +36,7 @@ struct HomeData
 	int32_t homeEndOffset;  // Final position offset from home (can be positive or negative)
 	TaskHandle_t homingTaskHandle;  // FreeRTOS task handle
 };
+typedef struct HomeData HomeData;  // C shorthand (C++ TUs keep working)
 #pragma pack(pop)
 
 // C replacement for the removed C++ default member initializers — call after

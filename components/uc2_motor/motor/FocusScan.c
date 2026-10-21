@@ -1,10 +1,17 @@
 // T4.1: pure C (was the C++ FocusScan namespace).
 #include "FocusScan.h"
-#include "uc2_time.h"        // millis / delayMicroseconds (C)
+#include "uc2_hal/uc2_time.h"  // millis / delayMicroseconds (C)
+#include "uc2_hal/uc2_gpio.h"  // pinMode / digitalWrite / HIGH / LOW / OUTPUT
 #include "cJsonTool.h"       // cjson_tool_set_int
 #include "uc2_serial_out.h"  // serial_out_safe_serialize_json (framed JSON out)
 #include "JsonKeys.h"        // keyQueueID
 #include <string.h>
+#ifdef LASER_CONTROLLER
+// laser_set_val(id, val): qid 0 + current despeckle — exactly what the
+// stage-scan trigger pulse needs (the laser_set_val_c shim in FocusScan.h was
+// never implemented in the T4.1 port).
+#include "LaserController.h"
+#endif
 
 // NSDMI defaults (speed=20000, acceleration=1000000) as a C initializer; the
 // rest is zero-initialized (stopped=false, lightsourceIntensities=0).
@@ -84,11 +91,11 @@ void focus_scan_can(bool isThread)
         {
             if (sd->lightsourceIntensities[i])
             {
-                laser_set_val_c(i, sd->lightsourceIntensities[i], 0);
+                laser_set_val(i, sd->lightsourceIntensities[i]);
                 vTaskDelay(pdMS_TO_TICKS(sd->delayTimePreTrigger));
                 triggerOutput(pinConfig.CAMERA_TRIGGER_PIN, (int)sd->delayTimeTrigger);
                 vTaskDelay(pdMS_TO_TICKS(sd->delayTimePostTrigger));
-                laser_set_val_c(i, 0, 0);
+                laser_set_val(i, 0);
             }
         }
 #endif

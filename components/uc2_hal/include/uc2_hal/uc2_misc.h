@@ -53,7 +53,9 @@ inline T constrain(T x, T lo, T hi)
 #include "esp_random.h"  // esp_random (IDF >= 6.1: esp_hw_support; was esp_system/esp_random.h)
 
 // Arduino random(min, max): uniform in [min, max] (both inclusive).
-static inline long random(long min, long max)
+// Named uc2_random in C: picolibc stdlib.h declares `long random(void)`,
+// which would conflict (C has no overloading — the C++ branch keeps `random`).
+static inline long uc2_random(long min, long max)
 {
     if (max < min)
     {

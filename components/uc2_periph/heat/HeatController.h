@@ -1,41 +1,32 @@
 #pragma once
+// HeatController (Phase 4: pure C)
+// PID-based heat-sink temperature regulation (drives the laser PWM channel).
+#include <stdbool.h>
+#include <stdint.h>
+#include "cJSON.h"
 
-#include "DS18b20Controller.h"
-#include "LaserController.h"
-#include "uc2_hal.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace HeatController
-{
-    /* data */
-    long returnControlValue(float controlTarget, float analoginValue, float Kp, float Ki, float Kd);
+long   heat_return_control_value(float control_target, float analogin_value, float kp, float ki, float kd);
+void   heat_setup(void);
+void   heat_loop(void);
+int    heat_act(cJSON *ob);
+cJSON *heat_get(cJSON *ob);
 
-    static Preferences hPreferences;
+// Shared state (was namespace-scope statics in the old header; now defined
+// once in HeatController.c).
+extern bool  heat_active;
+extern bool  heat_was_active;
+extern float heat_pid_kp;
+extern float heat_pid_ki;
+extern float heat_pid_kd;
+extern float heat_pid_target;
+extern float heat_pid_updaterate; // ms
+extern int   heat_h_timeout;      // max ms to hold band, otherwise stop
+extern int   heat_max_pwm_value;
 
-    static float errorRunSum=0;
-    static float previousError=0;
-    static int pwm_max_value = 1023;
-    static int pwm_min_value = 0;
-    static float temp_pid_Kp = 10;
-    static float temp_pid_Ki = 0.1;
-    static float temp_pid_Kd = 0.1;
-    static float temp_pid_target = 500;
-    static float temp_pid_updaterate = 200000; // ms
-    static int maxPWMValue = 511;
-    static bool Heat_active=false;
-    static bool Heat_was_active = false;
-
-    static long t_tempControlStarted = 0;
-    static float temp_tempControlStarted = 0.0f;
-    static int hTimeout = 200000; // change in temperature in 60 seconds otherwise we stop
-
-    // timing variables
-	static unsigned long startMillis;
-	static unsigned long currentMillis;
-
-    static int N_analogin_avg = 50;
-
-    void setup();
-    void loop();
-    int act(cJSON * ob);
-    cJSON * get(cJSON * ob);
-};
+#ifdef __cplusplus
+}  // extern "C"
+#endif

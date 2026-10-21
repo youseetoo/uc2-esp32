@@ -310,7 +310,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef HEAT_CONTROLLER
 		if (runtimeConfig.heat) {
-			HeatController::loop();
+			heat_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -674,7 +674,7 @@ if (runtimeConfig.scanner) {
 #ifdef HEAT_CONTROLLER
 if (runtimeConfig.heat) {
 	ds18b20_setup();
-	HeatController::setup();
+	heat_setup();
 }
 #endif
 #ifdef TMP102_CONTROLLER

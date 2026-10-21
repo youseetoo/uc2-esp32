@@ -636,9 +636,9 @@ namespace SerialProcess
 		}
 #ifdef HEAT_CONTROLLER
 		else if (runtimeConfig.heat && strcmp(task, heat_get_endpoint) == 0)
-			serialize(HeatController::get(jsonDocument));
+			serialize(heat_get(jsonDocument));
 		else if (runtimeConfig.heat && strcmp(task, heat_act_endpoint) == 0)
-			serialize(HeatController::act(jsonDocument));
+			serialize(heat_act(jsonDocument));
 		else if (runtimeConfig.heat && strcmp(task, ds18b20_get_endpoint) == 0)
 			serialize(ds18b20_get(jsonDocument));
 		else if (runtimeConfig.heat && strcmp(task, ds18b20_act_endpoint) == 0)

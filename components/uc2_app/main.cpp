@@ -318,7 +318,7 @@ extern "C" void looper(void *p)
 		}
 #endif
 #ifdef THERMAL_CONTROLLER
-		ThermalController::loop();
+		thermal_loop();
 #endif
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 		// Handle OTA updates in non-blocking mode
@@ -683,7 +683,7 @@ if (runtimeConfig.fan) {
 #ifdef THERMAL_CONTROLLER
 	// Heat-sink NTCs on the illumination board. Runs after LedController::setup()
 	// so an over-temperature latch found at boot can cut the LEDs immediately.
-	ThermalController::setup();
+	thermal_setup();
 #endif
 	#ifdef GALVO_CONTROLLER
 	if (runtimeConfig.galvo) {

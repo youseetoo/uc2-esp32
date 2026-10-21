@@ -907,7 +907,7 @@ typedef UString String;
 	static bool thermalBlocked(const char *what)
 	{
 #ifdef THERMAL_CONTROLLER
-		if (ThermalController::isLedCutActive())
+		if (thermal_is_led_cut_active())
 		{
 			log_w("%s ignored - over-temperature protection active", what);
 			return true;
@@ -1218,7 +1218,7 @@ typedef UString String;
 		// Measured heat-sink temperature supersedes this stopwatch entirely.
 		// The intensity timer only ever guessed at heat from brightness and
 		// elapsed time — with NTCs fitted it would cut perfectly cool LEDs.
-		if (ThermalController::isEnabled())
+		if (thermal_is_enabled())
 			needsThermalProtection = false;
 #endif
 
@@ -1355,3 +1355,9 @@ typedef UString String;
 #endif
 
 };
+
+// T4.1: C shim for the pure-C ThermalController (led cut on over-temperature).
+extern "C" void led_c_turn_off(void)
+{
+	LedController::turnOff();
+}

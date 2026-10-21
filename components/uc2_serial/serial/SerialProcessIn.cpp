@@ -651,9 +651,9 @@ namespace SerialProcess
 		// NTC heat-sink monitoring on the illumination board. Only compiled in
 		// where TMP102_CONTROLLER is not, so the endpoints cannot collide.
 		else if (strcmp(task, temp_get_endpoint) == 0)
-			serialize(ThermalController::get(jsonDocument));
+			serialize(thermal_get(jsonDocument));
 		else if (strcmp(task, temp_act_endpoint) == 0)
-			serialize(ThermalController::act(jsonDocument));
+			serialize(thermal_act(jsonDocument));
 #endif
 		else if (strcmp(task, qid_state_endpoint) == 0)
 			serialize(qid_handle_state_query(jsonDocument));

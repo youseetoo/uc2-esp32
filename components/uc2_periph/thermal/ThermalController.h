@@ -1,9 +1,9 @@
 #pragma once
-// T2.4: ThermalController (ported from main/src/thermal — Arduino.h -> uc2_hal).
-#include <PinConfig.h>
+// T4.1: ThermalController (pure C; was the C++ namespace version of T2.4).
+// NTC heat-sink monitoring for the illumination board.
+#include <stdint.h>
+#include <stdbool.h>
 #include "cJSON.h"
-
-#include <cstdint>
 
 /*
  * ThermalController — NTC heat-sink monitoring for the illumination board.
@@ -47,43 +47,45 @@
 #define THERMAL_SAMPLE_PERIOD_MS 20
 #define THERMAL_OVERSAMPLE 32
 
-namespace ThermalController
-{
-    enum State
-    {
-        STATE_UNKNOWN = 0, // no complete measurement window yet
-        STATE_OK,
-        STATE_WARN,     // above warnC — announced, power should be rolled back
-        STATE_CRITICAL, // above criticalC — LED power is cut
-        STATE_FAULT     // no sensor delivers a plausible reading
-    };
+// C-safe state names (was the C++ enum ThermalController::State).
+#define THERMAL_STATE_UNKNOWN  0 // no complete measurement window yet
+#define THERMAL_STATE_OK       1
+#define THERMAL_STATE_WARN     2 // above warnC — announced, power should be rolled back
+#define THERMAL_STATE_CRITICAL 3 // above criticalC — LED power is cut
+#define THERMAL_STATE_FAULT    4 // no sensor delivers a plausible reading
 
-    struct SensorReading
-    {
-        int8_t pin;
-        uint16_t milliVolts; // averaged, eFuse-calibrated
-        uint16_t raw;        // averaged raw counts (for comparison with bench measurements)
-        float degC;          // NAN when faulted
-        bool fault;
-        bool saturated;
-    };
+typedef struct {
+    int8_t pin;
+    uint16_t milliVolts; // averaged, eFuse-calibrated
+    uint16_t raw;        // averaged raw counts (for comparison with bench measurements)
+    float degC;          // NAN when faulted
+    bool fault;
+    bool saturated;
+} thermal_reading_t;
 
-    void setup();
-    void loop();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    int act(cJSON *ob);
-    cJSON *get(cJSON *ob);
+void     thermal_setup(void);
+void     thermal_loop(void);
 
-    // --- consumers (LedController / FanController) ---
+int      thermal_act(cJSON *ob);
+cJSON   *thermal_get(cJSON *ob);
 
-    // Mean over the non-faulted sensors; NAN when nothing is measurable.
-    float getMeanC();
-    // Hottest non-faulted sensor; NAN when nothing is measurable.
-    float getMaxC();
-    // True while the LEDs must stay off (over-temperature latch is set).
-    // Always false when monitoring is disabled, so callers can use it
-    // unconditionally.
-    bool isLedCutActive();
-    bool isEnabled();
-    State getState();
+// --- consumers (LedController / FanController) ---
+
+// Mean over the non-faulted sensors; NAN when nothing is measurable.
+float    thermal_get_mean_c(void);
+// Hottest non-faulted sensor; NAN when nothing is measurable.
+float    thermal_get_max_c(void);
+// True while the LEDs must stay off (over-temperature latch is set).
+// Always false when monitoring is disabled, so callers can use it
+// unconditionally.
+bool     thermal_is_led_cut_active(void);
+bool     thermal_is_enabled(void);
+int      thermal_get_state(void);
+
+#ifdef __cplusplus
 }
+#endif

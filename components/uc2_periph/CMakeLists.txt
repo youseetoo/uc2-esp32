@@ -20,8 +20,9 @@ if(CONFIG_UC2_FAN_CONTROLLER)
     list(APPEND srcs "fan/FanController.c")
 endif()
 # T2.4: thermal (NTC heat-sink monitoring) — ported to raw IDF from main/src/thermal.
+# T4.1: pure C (thermal_* API); announces via the framed serial-out C path.
 if(CONFIG_UC2_THERMAL_CONTROLLER)
-    list(APPEND srcs "thermal/ThermalController.cpp")
+    list(APPEND srcs "thermal/ThermalController.c")
 endif()
 # T2.5: galvo scanner (CANopen galvo slave) — ported to raw IDF from main/src/scanner.
 if(CONFIG_UC2_GALVO_CONTROLLER)
@@ -38,4 +39,4 @@ idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
     REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc
               esp_driver_tsens esp_driver_i2s canopen_node uc2_od dac_module usb_host esp_usb_host_hid
-             esp_driver_rmt esp_driver_spi onewire_ds18b20 tca9555)
+             esp_driver_rmt esp_driver_spi onewire_ds18b20 tca9555 uc2_serial)

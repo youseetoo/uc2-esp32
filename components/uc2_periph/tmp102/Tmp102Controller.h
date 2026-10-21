@@ -20,7 +20,7 @@
 // FanController uses these flags to fall back to the ESP internal sensor.
 #include <stdbool.h>
 #include <stdint.h>
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "cJSON.h"
 
 #ifdef __cplusplus

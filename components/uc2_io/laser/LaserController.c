@@ -2,7 +2,7 @@
 // Serial output goes through serial_out_safe_send_json_string; laser act
 // documents for dpad/cross events go through the C shim
 // device_router_handle_laser_act (uc2_canopen).
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "LaserController.h"
 // T1.3: direct IDF (no Arduino) — uc2 façades for ledc/gpio/time/misc/log.
 // (Sub-headers, not the C++-only uc2_hal.h umbrella.)

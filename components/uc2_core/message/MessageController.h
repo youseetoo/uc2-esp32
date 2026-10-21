@@ -1,6 +1,6 @@
 // T4.1: pure C (was the C++ namespace MessageController).
 #pragma once
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "cJSON.h"
 
 #ifdef __cplusplus

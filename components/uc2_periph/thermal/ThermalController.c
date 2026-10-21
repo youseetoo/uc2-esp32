@@ -3,7 +3,7 @@
 // (eFuse-calibrated mV on S3), millis/log_* -> uc2_time/uc2_log.
 // Serial output goes through the framed C path (serial_out_safe_serialize_json).
 #include "ThermalController.h"
-#include "PinConfig.h"
+#include "PinConfigDefault.h"
 #include "cJsonTool.h"
 #include "uc2_serial_out.h"        // serial_out_safe_serialize_json
 #include <uc2_hal/uc2_adc.h>       // analogRead*

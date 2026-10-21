@@ -1,7 +1,7 @@
 // T4.1: pure C (was the C++ namespace DigitalInController).
 // Serial output goes through the framed C path (serial_out_safe_serialize_json);
 // the E-stop polarity is read/written straight from NVS (was uc2::Preferences).
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "DigitalInController.h"
 // T1.3: direct IDF (no Arduino) — uc2 façade for gpio/prefs/time/log.
 #include "uc2_hal/uc2_log.h"   // log_* (C-safe; the umbrella is C++-only)

@@ -1,6 +1,6 @@
 // T4.1: pure C header (was a C++ namespace with in-class initializers).
 #pragma once
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include "cJSON.h"

@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "cJsonTool.h"
-#include "uc2_hal.h"
+#ifdef __cplusplus
+#include "uc2_hal.h"  // C++ TUs keep the umbrella; .c files use the sub-headers
+#endif
 #include "JsonKeys.h"
 #include "ConfigController.h"
 #include "uc2_hal/uc2_prefs.h"

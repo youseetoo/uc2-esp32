@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdlib.h> // abs()
-#include "uc2_hal.h"
+#include "uc2_hal/uc2_log.h"   // log_i (C-safe)
+#include "uc2_hal/uc2_time.h"  // micros (C-safe)
 
 // ============================================================================
 // AxisPID — two-stage velocity controller for SERVO mode (design v2, WP7).

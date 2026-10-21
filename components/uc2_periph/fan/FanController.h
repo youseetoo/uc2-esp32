@@ -37,7 +37,7 @@
 //   /fan_get -> reports current mode, wiper, last RPM, stall flag, curve.
 #include <stdbool.h>
 #include <stdint.h>
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "cJSON.h"
 
 #ifdef __cplusplus

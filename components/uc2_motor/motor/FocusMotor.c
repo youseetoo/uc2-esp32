@@ -1,7 +1,7 @@
 // T4.1: pure C (was the C++ FocusMotor namespace).
 #include <string.h>
 #include <stdio.h>
-#include "PinConfig.h"
+#include "PinConfigDefault.h"
 #include "config.h"
 #include "FocusMotor.h"
 #include "uc2_hal/uc2_wire.h"

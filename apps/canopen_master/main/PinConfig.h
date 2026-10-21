@@ -3,8 +3,11 @@
 // main/config/UC2_canopen_master/PinConfig.h (recovered from git history; the PIO
 // copy target was retired in T2.11). Arduino.h -> uc2_hal.h; the feature #defines
 // are wrapped in #ifndef guards because the app's CMakeLists already passes them
-// as -D (a bare #define would trip -Werror on redefinition). CAN_SEND_COMMANDS
-// and MOTOR_AXIS_COUNT are board-specific (not in the -D set) and stay direct.
+// as -D (a bare #define would trip -Werror on redefinition).
+// T4.1: board pin values moved to main/pinconfig.c (pure-C model —
+// PINCONFIG_DEFAULTS_FIELDS + this board's overrides, defining the single
+// extern `pinConfig` from PinConfigDefault.h). Former C++ derived struct
+// `UC2_canopen_master : PinConfig` removed.
 #include "uc2_hal.h"
 #include "PinConfigDefault.h"
 #undef PSXCONTROLLER
@@ -48,9 +51,8 @@
 #ifndef GALVO_CONTROLLER
 #define GALVO_CONTROLLER 1
 #endif
-#ifndef DAC_CONTROLLER
-#define DAC_CONTROLLER 1
-#endif
+// T4.1: DAC_CONTROLLER removed — the PIO-only DacController was never in the
+// IDF tree (uc2_app CMakeLists T4.1 note), so the feature is dead here.
 #ifndef CAN_CONTROLLER_CANOPEN
 #define CAN_CONTROLLER_CANOPEN 1
 #endif
@@ -67,191 +69,29 @@
 #undef MOTOR_AXIS_COUNT
 #define MOTOR_AXIS_COUNT 10
 
-struct UC2_canopen_master : PinConfig
-{
-    // ---------------------------------------------------------------------
-    // Board identity
-    // ---------------------------------------------------------------------
-    const char* pindefName = "UC2_canopen_master";
-    const unsigned long BAUDRATE = 921600; //15200;
+/*
+Former C++ derived-struct fields with no readers anywhere (grep-verified) —
+pin map kept for reference. Board values that DID have readers are in
+main/pinconfig.c.
 
-    // ---------------------------------------------------------------------
-    // Core buses and addresses (per HAT design)
-    // ---------------------------------------------------------------------
-    // I2C (shared with 5V I2C header; solder-jumpers JP101/JP102 can bridge Pi<->ESP)
-    int8_t I2C_SCL = GPIO_NUM_22;     // ESP32 I2C-1 SCL
-    int8_t I2C_SDA = GPIO_NUM_21;     // ESP32 I2C-1 SDA
+I2C (on-board device addresses, TODO: surface via sensor_act/sensor_get):
+  INA226  0x46 (current sensor)
+  TMP102  0x4A (ambient), 0x4B (on-board)
+  ALERT lines (open-drain, not wired): INA226 n/c, TMP102_1 n/c, TMP102_2 n/c
+  pinALERT = GPIO_NUM_35 (TODO: temperature-sensor alert)
 
-    // On-board I2C device addresses (for convenience)
-    static constexpr uint8_t I2C_ADDR_INA226  = 0x46; // current sensor //TODO: implement via a temp_get (1,2,3...) command (via sensor_act/sensor_get)
-    static constexpr uint8_t I2C_ADDR_TMP102_1 = 0x4A; // temperature sensor #1 //TODO: implement via a  sensor_act/sensor_get)
-    static constexpr uint8_t I2C_ADDR_TMP102_2 = 0x4B; // temperature sensor #2 //TODO: implement via a  sensor_act/sensor_get)
+Camera / trigger / panelboard IO:
+  CAM_IO0_IN  = GPIO_NUM_27  (used as CAMERA_TRIGGER_PIN in pinconfig.c)
+  CAM_IO1_OUT = disabled     ("Cam Out Line 1")
+  CAM_IO2_IO  = disabled     ("Cam In/Out Line 2")
 
-    // Optional ALERT lines (open-drain on board) — leave disabled unless wired
-    int8_t INA226_ALERT_PIN   = disabled;
-    int8_t TMP102_1_ALERT_PIN = disabled;
-    int8_t TMP102_2_ALERT_PIN = disabled;
+Encoder / motor direction flags (readers dropped in T4.1, like UC2_3):
+  ENC_A_encoderDirection = true
+  ENC_X/Y/Z_motorDirection = true
 
-    // ---------------------------------------------------------------------
-    // Power / safety integration
-    // ---------------------------------------------------------------------
-    // Drives the high-current CAN-bus power MOSFET gate (HIGH = bus power OFF).
-    // Controlled via /state_act {"power":0|1} and reported by /state_get. Default ON.
-    int8_t BUSPOWER_OFF_PIN = GPIO_NUM_4;
-
-    // Emergency-STOP sense (input-only pin; external pull-up: HIGH = normal,
-    // LOW = E-STOP asserted). On a trip the master cuts bus power and emits an
-    // async {"emergency":...} serial event (see DigitalInController).
-    int8_t pinEmergencyExit = GPIO_NUM_34;
-    uint8_t pinALERT = GPIO_NUM_35; // TODO: Implement => temperature sensor alert from the thermo in case it was previously configured
-
-    // Remote GPIO/E-stop/collision slave (UC2_canopen_slave_gpio).
-    // Setting this to a non-disabled node id activates the master's TPDO2
-    // sniffer (see CANopenModule::CAN_ctrl_task) — the slave's GPIO state
-    // changes get forwarded to serial as {"gpio":{...}} JSON lines.
-    int8_t MASTER_GPIO_SLAVE_NODE_ID = CAN_ID_GPIO_0; // = 60 by default
-
-    // PTZ keyboard bridge (UC2_canopen_bridge_ptz).
-    // Same TPDO2 sniffer, PTZ payload: key events (presets, AUX, iris) are
-    // forwarded to serial as {"ptz":{...}} JSON lines for ImSwitch.
-    int8_t MASTER_PTZ_NODE_ID = 61; // = UC2_canopen_bridge_ptz CAN_ID_CURRENT
-
-    // TEMPERATURE : TMP102AIDRLR
-    // PCB: I2C addr: 0x4A (ambient), 0x4B (on-board)
-    // FAN Control Pin I2C controllable
-
-    // Momentary local kill button exists on HAT; no pin here (handled in hardware gate)
-
-    // ---------------------------------------------------------------------
-    // CAN (ESP32 TWAI on-board; Pi-side MCP2515 is separate)
-    // ---------------------------------------------------------------------
-     // CAN
-     int8_t CAN_TX = GPIO_NUM_17;
-     int8_t CAN_RX = GPIO_NUM_18;
-     uint32_t CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE;
-    bool DEBUG_CAN_ISO_TP = false;
-
-    // Routing overrides: 0=LOCAL, 1=REMOTE, 2=OFF  (-1=infer)
-    int8_t ROUTE_MOTOR[4] = {1, 1, 1, 1}; // A, X, Y, Z — all remote via CAN slaves
-    int8_t ROUTE_HOME[4]  = {1, 1, 1, 1};
-    int8_t ROUTE_TMC[4]   = {1, 1, 1, 1};
-    int8_t ROUTE_LASER[4] = {1, 1, 1, 1}; // all remote
-    int8_t ROUTE_LED       = 1;            // on-board WS2812 is local
-    int8_t ROUTE_GALVO     = 1;            // remote
-
-    // All four laser channels live on node 0x14 (sub-axes 0-3).
-    // CAN_SUBAXIS_LASER default {0,1,2,3} is correct; only node IDs need overriding.
-    uint8_t CAN_NODE_LASER[4]    = {0x14, 0x14, 0x14, 0x14};
-    int8_t  CAN_SUBAXIS_LASER[4] = {0, 1, 2, 3};
-
-    // ---------------------------------------------------------------------
-    // Lighting / status
-    // ---------------------------------------------------------------------
-    int8_t LED_PIN   = GPIO_NUM_19; // on-board WS2812 data
-    int16_t LED_COUNT = 1;
-    bool IS_STATUS_LED = true; // on-board LED is used for status indication
-
-    // ---------------------------------------------------------------------
-    // Camera / trigger / panelboard IO
-    // ---------------------------------------------------------------------
-    int8_t CAM_IO0_IN  = GPIO_NUM_27; // "Cam In Line 0"
-    int8_t CAM_IO1_OUT = disabled; // "Cam Out Line 1"
-    int8_t CAM_IO2_IO  = disabled; // "Cam In/Out Line 2"
-
-    // Use the dedicated OUT line as the default external camera trigger
-    int8_t CAMERA_TRIGGER_PIN = CAM_IO0_IN;
-    bool   CAMERA_TRIGGER_INVERTED = false;
-
-    // Panelboard fan tachometer — Noctua-style open-drain pulse on the panelboard
-    // header (J1901 pin 7). Two pulses per revolution. Internal pull-up; the fan
-    // pulls LOW each rotation.
-    int8_t FAN_TACHO_PIN = GPIO_NUM_33;
-
-    // MCP4017T-503E digital rheostat on the panelboard at I2C addr 0x2F controls
-    // the case-fan voltage (defined as a constexpr in PinConfigDefault.h).
-
-    // ---------------------------------------------------------------------
-    // Motors / encoders (directions preserved; step/dir/ena via expander on this rev)
-    // ---------------------------------------------------------------------
-    int8_t MOTOR_A_STEP = GPIO_NUM_0; // routed via expander on this electronics
-    int8_t MOTOR_X_STEP = GPIO_NUM_0;
-    int8_t MOTOR_Y_STEP = GPIO_NUM_0;
-    int8_t MOTOR_Z_STEP = GPIO_NUM_0;
-
-    bool ENC_A_encoderDirection = true;
-    bool ENC_X_encoderDirection = true;
-    bool ENC_Y_encoderDirection = true;
-    bool ENC_Z_encoderDirection = true;
-
-    bool ENC_A_motorDirection = true;
-    bool ENC_X_motorDirection = true;
-    bool ENC_Y_motorDirection = true;
-    bool ENC_Z_motorDirection = true;
-
-    bool MOTOR_ENABLE_INVERTED = true;
-    bool MOTOR_AUTOENABLE = false;
-    int8_t AccelStepperMotorType = 1;
-
-    // Digital inputs (reserved)
-    int8_t DIGITAL_IN_1 = disabled;
-    int8_t DIGITAL_IN_2 = disabled;
-    int8_t DIGITAL_IN_3 = disabled;
-
-    // DAC placeholders (legacy)
-    int8_t dac_fake_1 = disabled; // RESET-ABORT stub
-    int8_t dac_fake_2 = disabled; // Coolant stub
-
-    // BUZZER (the HAT v2 has a buzzer on the board that can be turned on via GPIO25)
-    int8_t BUZZER_PIN = GPIO_NUM_25; // active HIGH // TODO: implement buzzer control via new buzzer controller interface (buzzer_act)
-
-    // ---------------------------------------------------------------------
-    // Encoders (external calipers etc.)
-    // ---------------------------------------------------------------------
-    int8_t ENC_X_A = disabled;
-    int8_t ENC_Y_A = disabled;
-    int8_t ENC_Z_A = disabled;
-    int8_t ENC_X_B = disabled;
-    int8_t ENC_Y_B = disabled;
-    int8_t ENC_Z_B = disabled;
-
-    // ---------------------------------------------------------------------
-    // Motion tuning
-    // ---------------------------------------------------------------------
-    const int32_t MAX_ACCELERATION_A = 600000;
-    const int32_t DEFAULT_ACCELERATION = 100000;
-
-    // ---------------------------------------------------------------------
-    // Objective defaults
-    // ---------------------------------------------------------------------
-    uint8_t  objectiveMotorAxis = 0; // 0=A, 1=X, 2=Y, 3=Z
-    uint8_t  focusMotorAxis     = 3;
-    uint32_t objectivePositionX0 = 5000;
-    uint32_t objectivePositionX1 = 35000;
-    int8_t   objectiveHomeDirection        = -1;
-    int8_t   objectiveHomeEndStopPolarity  = 0;
-
-    // ---------------------------------------------------------------------
-    // WiFi defaults
-    // ---------------------------------------------------------------------
-    const char* mSSID   = "UC2x-CAN-HAT";
-    const char* mPWD    = "";
-    bool        mAP     = true;
-    const char* mSSIDAP = "UC2";
-    const char* hostname = "youseetoo";
-
-    // ---------------------------------------------------------------------
-    // UI / joystick
-    // ---------------------------------------------------------------------
-    int8_t JOYSTICK_SPEED_MULTIPLIER   = 10;
-    int8_t JOYSTICK_MAX_ILLU           = 255;
-    int8_t JOYSTICK_SPEED_MULTIPLIER_Z = 1;
-
-    // ---------------------------------------------------------------------
-    // Lasers (not wired on this HAT)
-    // ---------------------------------------------------------------------
-    int8_t LASER_1 = disabled;
-    int8_t LASER_2 = disabled;
-    int8_t LASER_3 = disabled;
-};
-
-const UC2_canopen_master pinConfig;
+Objective defaults (no readers on the master's CAN-routed path):
+  objectivePositionX0 = 5000
+  objectivePositionX1 = 35000
+  objectiveHomeDirection = -1
+  objectiveHomeEndStopPolarity = 0
+*/

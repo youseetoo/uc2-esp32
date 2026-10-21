@@ -2,7 +2,7 @@
 #include "HeatController.h"
 #include "JsonKeys.h"
 #include "cJsonTool.h"
-#include "PinConfig.h"
+#include "PinConfigDefault.h"
 #include "DS18b20Controller.h"
 #include "LaserController.h"
 #include <uc2_hal/uc2_time.h>

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "cJSON.h"
 
 // BuzzerController

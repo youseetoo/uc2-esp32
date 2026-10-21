@@ -1,7 +1,6 @@
 #pragma once
 // T4.1: pure-C digital-input controller (was the C++ namespace
 // DigitalInController). The E-stop API replaced the old digitalin_c.* shim.
-#include <PinConfig.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "cJSON.h"

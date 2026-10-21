@@ -2088,7 +2088,7 @@ void CANopenModule::syncRpdoToModules_slave()
             if (en != s_lastMotorEnable) {
                 s_lastMotorEnable = en;
                 log_i("Motor enable change ax=%u -> %u", localAx, en);
-                FocusMotor::setEnable(en != 0);
+                focusmotor_set_enable(en != 0);
             }
         }
     }
@@ -2217,7 +2217,7 @@ void CANopenModule::syncRpdoToModules_slave()
             // SDO-read them get the actual active configuration. We only do
             // this for the local axis owned by this slave.
             if ((uint8_t)pinConfig.REMOTE_MOTOR_AXIS_ID == (uint8_t)ax) {
-                MotorData* md = FocusMotor::getData()[ax];
+                MotorData* md = focusmotor_get_data()[ax];
                 if (md) {
                     OD_RAM.x2031_hardlimit_enabled[ax]  = md->hardLimitEnabled  ? 1 : 0;
                     OD_RAM.x2032_hardlimit_polarity[ax] = md->hardLimitPolarity ? 1 : 0;
@@ -2528,7 +2528,7 @@ void CANopenModule::syncRpdoToModules_master()
             if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
             if (route->subAxis != slot) continue;
 
-            MotorData* md = FocusMotor::getData()[logicalAx];
+            MotorData* md = focusmotor_get_data()[logicalAx];
             if (md) {
                 md->currentPosition = newPos;
                 md->stopped         = !nowRunning;
@@ -2620,11 +2620,11 @@ void CANopenModule::syncModulesToTpdo()
 
 #ifdef MOTOR_CONTROLLER
     int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
-    FocusMotor::updateData(localAxis);
-    MotorData* md = FocusMotor::getData()[localAxis];
+    focusmotor_update_data(localAxis);
+    MotorData* md = focusmotor_get_data()[localAxis];
     if (md == nullptr) return;
 
-    bool isRunning = FocusMotor::isRunning(localAxis);
+    bool isRunning = focusmotor_is_running(localAxis);
     int32_t newPos = md->currentPosition;
     uint8_t newStatus = isRunning ? 0x01u : 0x00u;
 
@@ -2789,11 +2789,11 @@ void CANopenModule::loop()
         // pinConfig.REMOTE_MOTOR_AXIS_ID is the compile-time authoritative axis index for
         // the physical stepper on this slave board — always correct, no runtime config needed.
         int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        if (FocusMotor::getData()[localAxis] == nullptr) {
+        if (focusmotor_get_data()[localAxis] == nullptr) {
             ESP_LOGW(TAG_CO, "Motor dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
         }
-        MotorData* m = FocusMotor::getData()[localAxis];
+        MotorData* m = focusmotor_get_data()[localAxis];
 #ifdef HOME_MOTOR
         // TODO: Think about this:  Don't let CAN-delivered motor commands (e.g. PS4 joystick PSx packets
         // streamed continuously from the master) preempt an active homing run.
@@ -2814,7 +2814,7 @@ void CANopenModule::loop()
             log_i("Dispatch motor STOP OD-ax%d -> local-ax%d", ax, localAxis);
             // Use stopStepper(); calling startStepper() with target=0,isforever=false
             // makes FAS attempt move(0) which never starts -> "motor never got going".
-            FocusMotor::stopStepper(localAxis);
+            focusmotor_stop_stepper(localAxis);
         } else {
             m->targetPosition   = s_axisCmds[ax].pos;
             m->speed            = s_axisCmds[ax].speed;
@@ -2844,7 +2844,7 @@ void CANopenModule::loop()
                 continue;
             }
 #endif
-            FocusMotor::startStepper(localAxis, 0);
+            focusmotor_start_stepper(localAxis, 0);
             static uint32_t dispatchN[4] = {0,0,0,0};
             if (s_axisCmds[ax].pending) {
                 dispatchN[ax]++;
@@ -2863,7 +2863,7 @@ void CANopenModule::loop()
 
         // Map OD axis to local physical axis (same as motor moves)
         int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        if (FocusMotor::getData()[localAxis] == nullptr) {
+        if (focusmotor_get_data()[localAxis] == nullptr) {
             ESP_LOGW(TAG_CO, "Homing dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
         }
@@ -2900,12 +2900,12 @@ void CANopenModule::loop()
             s_hardlimitCmds[ax].pending = false;
             if (s_hardlimitCmds[ax].isCommand) {
                 log_i("Hard-limit CLEAR OD-ax%d -> local-ax%d via CAN", ax, localAxis);
-                FocusMotor::clearHardLimitTriggered(localAxis);
+                focusmotor_clear_hard_limit_triggered(localAxis);
             }
             if (s_hardlimitCmds[ax].isConfig) {
                 log_i("Hard-limit CONFIG OD-ax%d -> local-ax%d: enabled=%d polarity=%d via CAN",
                          ax, localAxis, (int)s_hardlimitCmds[ax].enabled, (int)s_hardlimitCmds[ax].polarity);
-                FocusMotor::setHardLimit(localAxis,
+                focusmotor_set_hard_limit(localAxis,
                     s_hardlimitCmds[ax].enabled  != 0,
                     s_hardlimitCmds[ax].polarity != 0);
             }

@@ -1,7 +1,7 @@
 #pragma once
 // T4.1: pure-C digital-output controller (was the C++ namespace
 // DigitalOutController).
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include <stdbool.h>
 #include "cJSON.h"
 

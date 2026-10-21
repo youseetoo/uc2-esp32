@@ -430,14 +430,14 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
             log_i("Routing motor_act to LOCAL stepper %d: pos=%ld speed=%u accel=%u abs=%d stop=%d",
                      stepperid, (long)pos, speed, accel, isAbs, isStop);
             if (isStop) {
-                if (FocusMotor::getData()[stepperid]) {
-                    FocusMotor::getData()[stepperid]->isStop = true;
-                    FocusMotor::getData()[stepperid]->isforever = false;
-                    FocusMotor::getData()[stepperid]->qid = motorQid;
-                    FocusMotor::startStepper(stepperid, 0);
+                if (focusmotor_get_data()[stepperid]) {
+                    focusmotor_get_data()[stepperid]->isStop = true;
+                    focusmotor_get_data()[stepperid]->isforever = false;
+                    focusmotor_get_data()[stepperid]->qid = motorQid;
+                    focusmotor_start_stepper(stepperid, 0);
                 }
             } else {
-                MotorData* d = FocusMotor::getData()[stepperid];
+                MotorData* d = focusmotor_get_data()[stepperid];
                 if (d) {
                     d->targetPosition   = pos;
                     d->speed            = speed;
@@ -468,7 +468,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                         AxisController::moveToWithMode(stepperid, pos, speed, isAbs, clOverride);
                     else
 #endif
-                    FocusMotor::startStepper(stepperid, 0); // TODO: Shouldn't we use stopstepper instead?
+                    focusmotor_start_stepper(stepperid, 0); // TODO: Shouldn't we use stopstepper instead?
                 }
             }
             localStepperCount++;
@@ -496,7 +496,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                      nodeId, route->subAxis, (long)pos, speed, isAbs, isStop);
 
             // Store qid in FocusMotor cache so the TPDO completion callback can report it
-            MotorData* rd = FocusMotor::getData()[stepperid];
+            MotorData* rd = focusmotor_get_data()[stepperid];
             if (rd) rd->qid = motorQid;
             remoteStepperCount++;
 #else
@@ -573,7 +573,7 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             OD_RAM.x2001_motor_actual_position[slot]      = pos;
             CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
         }
-        MotorData* md = FocusMotor::getData()[logicalAx];
+        MotorData* md = focusmotor_get_data()[logicalAx];
         if (md) md->currentPosition = pos;
         log_i("Refreshed REMOTE motor cache: node 0x%02X axis %u pos=%ld",
               route->nodeId, route->subAxis, (long)pos);
@@ -610,11 +610,11 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
         }
 
         if (route->where == UC2::RouteEntry::LOCAL) {
-            MotorData* d = FocusMotor::getData()[stepperid];
+            MotorData* d = focusmotor_get_data()[stepperid];
             if (d) {
                 cJSON_AddNumberToObject(rs, "position", d->currentPosition);
-                cJSON_AddNumberToObject(rs, "isRunning", FocusMotor::isRunning(stepperid) ? 1 : 0);
-                cJSON_AddNumberToObject(rs, "isDone", FocusMotor::isRunning(stepperid) ? 0 : 1);
+                cJSON_AddNumberToObject(rs, "isRunning", focusmotor_is_running(stepperid) ? 1 : 0);
+                cJSON_AddNumberToObject(rs, "isDone", focusmotor_is_running(stepperid) ? 0 : 1);
 #ifdef AXIS_CONTROLLER
                 // Closed-loop feedback (design v2) — all in steps. Present on
                 // every LOCAL axis; encoderless axes report identity values

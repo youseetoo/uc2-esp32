@@ -1,5 +1,5 @@
 // T4.1: pure C (was the C++ namespace DigitalOutController).
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "DigitalOutController.h"
 // T1.3: direct IDF (no Arduino) — uc2 façade for gpio/time/log.
 // JsonKeys.h dropped (Arduino/pgmspace): literal key strings.

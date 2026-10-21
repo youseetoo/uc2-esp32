@@ -6,7 +6,7 @@
 #include "ConfigController.h"
 #include "RuntimeConfig.h"
 #include "NVSConfig.h"
-#include "src/serial/SerialProcess.h"
+#include "SerialProcess.h"  // T4.1: flat include (uc2_serial/serial via modinc)
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "esp_task_wdt.h"
@@ -53,13 +53,13 @@ uc2::Preferences preferences;
 #include "src/dac/DacController.h"
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
-#include "src/digitalin/DigitalInController.h"
+#include "DigitalInController.h"
 #endif
 #ifdef DIAL_CONTROLLER
-#include "src/dial/DialController.h"
+#include "DialController.h"
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
-#include "src/digitalout/DigitalOutController.h"
+#include "DigitalOutController.h"
 #endif
 #ifdef AXIS_CONTROLLER
 #include "AxisController.h"   // T4.1: uc2_axis (pure C), via UC2_MODULE_INCLUDE_DIRS
@@ -74,9 +74,9 @@ uc2::Preferences preferences;
 #include "LedController.h"
 #include "SignalController.h"
 #endif
-#include "src/buzzer/BuzzerController.h"
+#include "BuzzerController.h"
 #ifdef MESSAGE_CONTROLLER
-#include "src/message/MessageController.h"
+#include "MessageController.h"
 #endif
 #ifdef MOTOR_CONTROLLER
 #include "FocusMotor.h"  // T2.6: raw-IDF port in uc2_motor/motor (via modinc)
@@ -85,7 +85,7 @@ uc2::Preferences preferences;
 // Include MotorTypes for Stepper enum used in BT button handlers
 #include "MotorTypes.h"
 #ifdef PID_CONTROLLER
-#include "src/pid/PidController.h"
+#include "PidController.h"
 #endif
 #ifdef SCANNER_CONTROLLER
 #include "src/scanner/ScannerController.h"
@@ -103,13 +103,13 @@ uc2::Preferences preferences;
 #include "src/can/can_transport.h"
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
-#include "src/canopen/CANopenModule.h"
+#include "CANopenModule.h"
 CANopenModule canopenModule;
 #endif
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
-#include "src/gpio_can/GpioCanSlave.h"
+#include "GpioCanSlave.h"
 #endif
-#include "src/canopen/RoutingTable.h"
+#include "RoutingTable.h"
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
 #include "JoystickUsbHost.h"
@@ -120,17 +120,17 @@ CANopenModule canopenModule;
 #include "PtzRouter.h"
 #endif
 #ifdef I2C_SLAVE_DIAL
-#include "src/i2c/i2c_slave_dial.h"
+#include "i2c_slave_dial.h"
 #endif
 #ifdef HEAT_CONTROLLER
 #include "DS18b20Controller.h"
 #include "HeatController.h"
 #endif
 #ifdef TMP102_CONTROLLER
-#include "src/tmp102/Tmp102Controller.h"
+#include "Tmp102Controller.h"
 #endif
 #ifdef FAN_CONTROLLER
-#include "src/fan/FanController.h"
+#include "FanController.h"
 #endif
 #ifdef THERMAL_CONTROLLER
 #include "ThermalController.h"

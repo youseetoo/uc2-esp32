@@ -2,7 +2,7 @@
 static const char *TAG = "MotorJsonParser";
 #include <stdlib.h>
 #include <string.h>
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "MotorJsonParser.h"
 #include "FocusMotor.h"
 #include "QidRegistry.h"

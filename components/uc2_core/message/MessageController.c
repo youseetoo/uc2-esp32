@@ -2,7 +2,7 @@
 // Serial output goes through the framed C path (serial_out_safe_serialize_json);
 // stored home parameters are read straight from NVS (was uc2::Preferences).
 #include <stdio.h>
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 
 #include "MessageController.h"
 #include "uc2_hal/uc2_log.h"  // log_* (C-safe; the umbrella is C++-only)

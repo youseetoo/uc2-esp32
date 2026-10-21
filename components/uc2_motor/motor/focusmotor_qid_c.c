@@ -6,7 +6,7 @@
 // (the old C++ shim defined them too — that duplicate is gone).
 #include "focusmotor_qid_c.h"
 #include "FocusMotor.h"
-#include "PinConfig.h"   // MOTOR_AXIS_COUNT
+#include "PinConfigDefault.h"   // MOTOR_AXIS_COUNT
 
 static MotorData *_md(int axis)
 {

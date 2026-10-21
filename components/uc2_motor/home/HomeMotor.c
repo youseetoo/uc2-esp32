@@ -5,7 +5,7 @@ static const char *TAG = "HomeMotor";
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <PinConfig.h>
+#include "PinConfigDefault.h"
 #include "HomeMotor.h"
 #include "DigitalInController.h"
 #include "ConfigController.h"

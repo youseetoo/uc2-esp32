@@ -7,6 +7,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Master bus on I2C_NUM_0 (Arduino 3-arg begin).
 bool    wire_begin(int sda, int scl, int freq_hz);
 void    wire_begin_transmission(uint8_t addr);
@@ -28,3 +32,7 @@ int     wire_read(void);
 // endTransmission-style code).
 int     wire_write_read(uint8_t addr, const uint8_t *wr, int wr_len,
                         uint8_t *rd, int rd_len, uint8_t *err_code);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

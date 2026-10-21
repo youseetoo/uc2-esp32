@@ -1,5 +1,5 @@
 #include "InterruptController.h"
-#include "PinConfig.h"
+#include "PinConfigDefault.h"
 
 // T4.1: pure-C interrupt controller (was a C++ namespace with std::map).
 // Listeners live in a fixed array indexed by pin.

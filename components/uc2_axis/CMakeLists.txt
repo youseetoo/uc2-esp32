@@ -17,4 +17,4 @@ idf_component_register(SRCS "axis/AxisController.c"
                         # calls at app link time; axis_motor_c.h resolves
                         # through UC2_MODULE_INCLUDE_DIRS.
                         REQUIRES uc2_core uc2_hal uc2_serial
-                                esp32_encoder driver esp_task_wdt)
+                                esp32_encoder driver esp_system)

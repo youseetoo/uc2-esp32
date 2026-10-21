@@ -14,7 +14,7 @@
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 #include "../qid/QidRegistry.h"
-#include "src/serial/SerialProcess.h"
+#include "SerialProcess.h"  // T4.1: flat include (uc2_serial/serial via modinc)
 #include "../canopen/DeviceRouter.h"
 #ifdef THERMAL_CONTROLLER
 #include "ThermalController.h"

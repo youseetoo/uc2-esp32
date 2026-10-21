@@ -1,7 +1,7 @@
 // I2cBridge.c — generic raw-I2C passthrough for the CANopen GPIO slave.
 // T4.1: pure C (was I2cBridge.cpp, namespace I2cBridge).
 #include "I2cBridge.h"
-#include "PinConfig.h"
+#include "PinConfigDefault.h"
 #ifdef I2C_BRIDGE_CONTROLLER
 
 #include <uc2_hal/uc2_log.h>

@@ -297,7 +297,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef GALVO_CONTROLLER
 		if (runtimeConfig.galvo) {
-			GalvoController::loop();
+			galvo_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -687,7 +687,7 @@ if (runtimeConfig.fan) {
 #endif
 	#ifdef GALVO_CONTROLLER
 	if (runtimeConfig.galvo) {
-		GalvoController::setup();
+		galvo_setup();
 	}
 	#endif
 	#ifdef ESPNOW_MASTER

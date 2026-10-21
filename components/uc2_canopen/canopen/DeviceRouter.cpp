@@ -1137,7 +1137,7 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
 
     if (route->where == UC2::RouteEntry::LOCAL) {
         log_i("Routing galvo_act to LOCAL galvo controller");
-        return GalvoController::act(doc);
+        return galvo_act(doc);
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         log_i("Routing galvo_act to REMOTE node 0x%02X", route->nodeId);
@@ -1488,7 +1488,7 @@ cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
     }
 
     if (route->where == UC2::RouteEntry::LOCAL) {
-        return GalvoController::get(doc);
+        return galvo_get(doc);
     } else { // REMOTE — read galvo status via SDO
 #ifdef CAN_CONTROLLER_CANOPEN
         uint8_t nodeId = route->nodeId;

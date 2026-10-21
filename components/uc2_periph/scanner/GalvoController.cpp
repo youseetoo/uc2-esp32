@@ -674,3 +674,23 @@ cJSON *GalvoController::configToJson(const ScanConfig &cfg)
     cJSON_AddNumberToObject(json, "hw_pixel_clock", cfg.hw_pixel_clock);
     return json;
 }
+
+// ── T4.1: pure-C API wrappers (declared extern "C" in GalvoController.h) ──
+extern "C" void galvo_setup(void) { GalvoController::setup(); }
+extern "C" void galvo_loop(void) { GalvoController::loop(); }
+extern "C" cJSON *galvo_get(cJSON *doc) { return GalvoController::get(doc); }
+extern "C" cJSON *galvo_act(cJSON *doc) { return GalvoController::act(doc); }
+extern "C" void galvo_start(void) { GalvoController::start(); }
+extern "C" void galvo_stop(void) { GalvoController::stop(); }
+extern "C" void galvo_goto_xy(uint16_t x, uint16_t y) { GalvoController::gotoXY(x, y); }
+extern "C" bool galvo_is_running(void) { return GalvoController::isRunning(); }
+extern "C" void galvo_set_scan_mode(int mode) { GalvoController::setScanMode((ScanMode)mode); }
+extern "C" int galvo_get_scan_mode(void) { return (int)GalvoController::getScanMode(); }
+extern "C" void galvo_set_trigger_mode(int mode) { GalvoController::setTriggerMode((TriggerMode)mode); }
+extern "C" int galvo_get_trigger_mode(void) { return (int)GalvoController::getTriggerMode(); }
+extern "C" bool galvo_set_config(const void *cfg) { return GalvoController::setConfig(*(const ScanConfig *)cfg); }
+extern "C" void galvo_get_config(void *cfg_out) { *(ScanConfig *)cfg_out = GalvoController::getCurrentConfig(); }
+extern "C" bool galvo_set_arbitrary_points(const void *points, uint16_t count)
+{
+    return GalvoController::setArbitraryPoints((const ArbitraryScanPoint *)points, count);
+}

@@ -1324,10 +1324,10 @@ static ODR_t onGalvoPointsWrite(OD_stream_t* stream, const void* buf,
     log_i("Galvo points received: %u points, trigger_mode=%u",
           (unsigned)n, (unsigned)hdr.trigger_mode);
 
-    if (GalvoController::setArbitraryPoints(points, n)) {
-        GalvoController::setScanMode(SCAN_MODE_ARBITRARY);
-        GalvoController::setTriggerMode((TriggerMode)hdr.trigger_mode);
-        GalvoController::start();
+    if (galvo_set_arbitrary_points(points, n)) {
+        galvo_set_scan_mode(SCAN_MODE_ARBITRARY);
+        galvo_set_trigger_mode(hdr.trigger_mode);
+        galvo_start();
     } else {
         log_w("Galvo points: setArbitraryPoints failed");
     }
@@ -2300,8 +2300,8 @@ void CANopenModule::syncRpdoToModules_slave()
                     log_i("Galvo goto command: x=%u y=%u",
                           (unsigned)OD_RAM.x2600_galvo_target_position[0],
                           (unsigned)OD_RAM.x2600_galvo_target_position[1]);
-                    GalvoController::gotoXY((uint16_t)OD_RAM.x2600_galvo_target_position[0],
-                                            (uint16_t)OD_RAM.x2600_galvo_target_position[1]);
+                    galvo_goto_xy((uint16_t)OD_RAM.x2600_galvo_target_position[0],
+                                  (uint16_t)OD_RAM.x2600_galvo_target_position[1]);
                     break;
                 case GALVO_CMD_LINE: // Line scan (single line: ny forced to 1 below)
                     log_i("Galvo line scan command received");
@@ -2341,7 +2341,7 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.line_settle_samples = OD_RAM.x2608_galvo_d_steps_pixel;
                     log_i("Galvo raster extras: bidirectional=%u line_settle=%u",
                           (unsigned)cfg.bidirectional, (unsigned)cfg.line_settle_samples);
-                    if (!GalvoController::setConfig(cfg)) {
+                    if (!galvo_set_config(&cfg)) {
                         // Rejected (line > SCANNER_MAX_LINE_SAMPLES, bad range, ...):
                         // do NOT start(), that would re-arm the previous scan.
                         log_e("Galvo raster config rejected, not starting");
@@ -2349,17 +2349,17 @@ void CANopenModule::syncRpdoToModules_slave()
                     }
                     // Reset to raster mode — a prior arbitrary-point scan (0x2610)
                     // would otherwise leave the scanner in ARBITRARY mode.
-                    GalvoController::setScanMode(SCAN_MODE_RASTER);
-                    GalvoController::start();
+                    galvo_set_scan_mode(SCAN_MODE_RASTER);
+                    galvo_start();
                     break;
                 }
                 case GALVO_CMD_STOP: // Stop
                     log_i("Galvo stop command received");
-                    GalvoController::stop();
+                    galvo_stop();
                     break;
                 case GALVO_CMD_ESTOP: // Emergency stop
                     log_i("Galvo emergency stop command received");
-                    GalvoController::stop();
+                    galvo_stop();
                     break;
                 default:
                     log_w("Galvo unknown command word: %u", (unsigned)cmd);
@@ -2708,8 +2708,8 @@ void CANopenModule::syncModulesToTpdo()
     // Galvo state: push status word into OD for TPDO
     {
         uint8_t galvoStatus = 0;
-        if (GalvoController::isRunning()) galvoStatus |= 0x01;  // bit 0: moving
-        if (GalvoController::isRunning()) galvoStatus |= 0x02;  // bit 1: scan active
+        if (galvo_is_running()) galvoStatus |= 0x01;  // bit 0: moving
+        if (galvo_is_running()) galvoStatus |= 0x02;  // bit 1: scan active
 
         static uint8_t s_lastGalvoStatus = 0xFF;
         if (galvoStatus != s_lastGalvoStatus) {

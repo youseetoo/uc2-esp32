@@ -269,7 +269,7 @@ extern "C" void looper(void *p)
 		buzzer_loop();
 #ifdef MESSAGE_CONTROLLER
 		if (runtimeConfig.message) {
-			MessageController::loop();
+			message_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -389,8 +389,8 @@ static void handleTriangleCombined(int pressed)
         {
             // Short press - call MessageController for hard limit release
             #ifdef MESSAGE_CONTROLLER
-            MessageController::triangle_changed_event(1); // pressed
-            MessageController::triangle_changed_event(0); // released
+            message_triangle_changed_event(1); // pressed
+            message_triangle_changed_event(0); // released
             #endif
         }
         btTriangleState.isPressed = false;
@@ -470,8 +470,8 @@ static void handleSquareCombined(int pressed)
             {
                 // Short press - trigger message only on release
                 #ifdef MESSAGE_CONTROLLER
-                MessageController::square_changed_event(1); // simulate press
-                MessageController::square_changed_event(0); // simulate release
+                message_square_changed_event(1); // simulate press
+                message_square_changed_event(0); // simulate release
                 #endif
             }
         }
@@ -651,7 +651,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef MESSAGE_CONTROLLER
 if (runtimeConfig.message) {
-	MessageController::setup();
+	message_setup();
 }
 #endif
 #ifdef PID_CONTROLLER

@@ -559,9 +559,9 @@ namespace SerialProcess
 			serialize(buzzer_act(jsonDocument));
 #ifdef MESSAGE_CONTROLLER
 		else if (runtimeConfig.message && strcmp(task, message_get_endpoint) == 0)
-			serialize(MessageController::get(jsonDocument));
+			serialize(message_get(jsonDocument));
 		else if (runtimeConfig.message && strcmp(task, message_act_endpoint) == 0)
-			serialize(MessageController::act(jsonDocument));
+			serialize(message_act(jsonDocument));
 #endif
 #ifdef SCANNER_CONTROLLER //TODO: When will this case actually be reached? probably we will always go through the routing? 	
 		else if (runtimeConfig.scanner && strcmp(task, scanner_get_endpoint) == 0)

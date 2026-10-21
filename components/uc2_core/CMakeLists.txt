@@ -9,7 +9,7 @@ set(srcs
     "qid/QidRegistry.c"
     "buzzer/BuzzerController.c")
 if(CONFIG_UC2_MESSAGE_CONTROLLER)
-    list(APPEND srcs "message/MessageController.cpp")
+    list(APPEND srcs "message/MessageController.c")
 endif()
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}

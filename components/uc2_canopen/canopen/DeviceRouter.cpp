@@ -1744,7 +1744,7 @@ cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
 #ifdef DIGITAL_OUT_CONTROLLER
     if (runtimeConfig.digitalOut) {
         log_i("DR digitalout_act LOCAL  id=%d val=%d", id, val);
-        int retQid = DigitalOutController::act(doc);
+        int retQid = digitalout_act(doc);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "digitaloutid", id);
         cJSON_AddNumberToObject(resp, "digitaloutval", val);
@@ -1767,7 +1767,7 @@ cJSON* DeviceRouter::handleDigitalOutGet(cJSON* doc) {
     // available, and returns an error otherwise.
 #ifdef DIGITAL_OUT_CONTROLLER
     if (runtimeConfig.digitalOut)
-        return DigitalOutController::get(doc);
+        return digitalout_get(doc);
 #endif
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "error", "digitalout_get not available locally");

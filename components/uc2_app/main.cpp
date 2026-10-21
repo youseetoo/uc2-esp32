@@ -619,7 +619,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef DIGITAL_OUT_CONTROLLER
 	if (runtimeConfig.digitalOut) {
-		DigitalOutController::setup();
+		digitalout_setup();
 	}
 #endif
 #ifdef AXIS_CONTROLLER

@@ -283,7 +283,7 @@ namespace GpioCanSlave
             cJsonTool::setJsonInt(doc, "digitaloutid", outId);
             cJsonTool::setJsonInt(doc, "digitaloutval",
                                   (newCmd == 0xFF) ? -1 : (int)newCmd);
-            DigitalOutController::act(doc);
+            digitalout_act(doc);
             cJSON_Delete(doc);
             log_i("GpioCanSlave OUT%d <- %u (from OD x2301)", outId, (unsigned)newCmd);
         };

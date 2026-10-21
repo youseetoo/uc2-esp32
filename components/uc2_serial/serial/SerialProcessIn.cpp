@@ -527,9 +527,9 @@ namespace SerialProcess
 		// The cases here only run if DeviceRouter returned nullptr — i.e.
 		// the routing layer is disabled — so we keep the local fallback.
 		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_act_endpoint) == 0)
-			serialize(DigitalOutController::act(jsonDocument));
+				serialize(digitalout_act(jsonDocument));
 		else if (runtimeConfig.digitalOut && strcmp(task, digitalout_get_endpoint) == 0)
-			serialize(DigitalOutController::get(jsonDocument));
+				serialize(digitalout_get(jsonDocument));
 #endif
 
 #ifdef I2C_MASTER

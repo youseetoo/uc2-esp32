@@ -640,7 +640,7 @@ void faccel_step_stop(int i)
 void faccel_step_set_external_call_for_tca(void)
 {
 #ifdef USE_TCA9535
-    FAccelStep::setExternalCallForPin(tca_controller::setExternalPin);
+    FAccelStep::setExternalCallForPin(tca_set_external_pin);
 #endif
 }
 

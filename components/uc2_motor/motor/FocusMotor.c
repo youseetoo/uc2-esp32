@@ -28,9 +28,7 @@
 #ifdef DIAL_CONTROLLER
 #include "DialController.h"
 #endif
-#ifdef I2C_MASTER
-#include "i2c_motor_c.h"      // C shim over the C++ i2c_master module (uc2_periph)
-#endif
+
 #ifdef DIGITAL_IN_CONTROLLER
 #include "DigitalInController.h"
 #endif
@@ -251,9 +249,6 @@ void focusmotor_update_data(int axis)
     faccel_step_update_data(axis);
 #elif defined(USE_ACCELSTEP)
     accel_step_update_data(axis);
-#elif defined(I2C_MASTER)
-    MotorState mMotorState = i2c_motor_pull_data_reduced(axis);
-    data[axis]->currentPosition = mMotorState.currentPosition;
 #endif
 }
 
@@ -859,9 +854,6 @@ bool focusmotor_is_running(int i)
     mIsRunning = faccel_step_is_running(i);
 #elif defined(USE_ACCELSTEP)
     mIsRunning = accel_step_is_running(i);
-#elif defined(I2C_MASTER)
-    MotorState mData = i2c_motor_get_state(i);
-    mIsRunning = mData.isRunning;
 #endif
     return mIsRunning;
 }
@@ -938,10 +930,6 @@ void focusmotor_send_motor_pos(int i, int arraypos, int qid)
 
     arraypos++;
 
-#if defined(I2C_MASTER) && defined(DIAL_CONTROLLER)
-    i2c_motor_push_pos_to_dial();
-#endif
-
     // CRITICAL: Serialize to string BEFORE releasing mutex to prevent doc from being freed
     // This ensures atomic operation: create JSON -> serialize -> delete
     char *jsonString = cJSON_PrintUnformatted(root);
@@ -977,13 +965,6 @@ void focusmotor_stop_stepper(int i)
     faccel_step_stop(i);
 #elif defined(USE_ACCELSTEP)
     accel_step_stop(i);
-#elif defined(I2C_MASTER)
-    focusmotor_get_data()[i]->isforever = false;
-    focusmotor_get_data()[i]->speed = 0;
-    focusmotor_get_data()[i]->stopped = true;
-    focusmotor_get_data()[i]->isStop = true;
-    MotorData *m = focusmotor_get_data()[i];
-    i2c_motor_stop(m, i);
 #endif
     log_i("stopStepper Focus Motor %i, stopped: %i", i, (int)data[i]->stopped);
     // only send motor data if it was running before

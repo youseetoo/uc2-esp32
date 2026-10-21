@@ -14,8 +14,8 @@ void faccel_step_setup(void);
 void faccel_step_setup_axis(Stepper stepper, int motoren, int motordir, int motorstp);
 void faccel_step_start(int i);
 void faccel_step_stop(int i);
-// Wire the vendor engine's GPIO callback to tca_controller::setExternalPin
-// (C++ trampoline inside the island; only available with USE_TCA9535).
+// Wire the vendor engine's GPIO callback to tca_set_external_pin
+// (C API; only effective with USE_TCA9535).
 void faccel_step_set_external_call_for_tca(void);
 void faccel_step_update_data(int i);
 int32_t faccel_step_get_current_position(Stepper s);

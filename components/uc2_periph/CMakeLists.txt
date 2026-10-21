@@ -4,10 +4,14 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
     "i2c/I2cBridge.c"
+    # T4.1: i2c_master.cpp was dead code (never in any build: no app defines
+    # I2C_MASTER and it was already absent from this list) — deleted.
     "i2c/i2c_slave_dial.cpp"
-    # T3.3: TCA9535 I/O expander (UC2_2/3/4/wemos). The body is internally
-    # #ifdef USE_TCA9535-gated, so compiling unconditionally is safe (no-op on
-    # boards without the flag); setExternalPin() is the FastAccelStepper callback.
+    # T3.3: TCA9535 I/O expander (UC2_2/3/4/wemos). C++ island around the
+    # vendored TCA9555 class; exposes the pure-C tca_* API (tca_controller.h).
+    # The body is internally #ifdef USE_TCA9535-gated, so compiling
+    # unconditionally is safe (no-op on boards without the flag);
+    # tca_set_external_pin() is the FastAccelStepper callback.
     "i2c/tca_controller.cpp")
 if(CONFIG_UC2_TMP102_CONTROLLER OR CONFIG_UC2_FAN_CONTROLLER)
     list(APPEND srcs "tmp102/Tmp102Controller.c")

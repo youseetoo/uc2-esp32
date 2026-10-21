@@ -1,45 +1,27 @@
 #pragma once
-#include <PinConfig.h>
-// T1.3: Arduino.h was only needed by the USE_TCA9535 path (TCA9555.h); keep
-// it for Arduino builds, let raw-IDF consumers include uc2_hal.h themselves.
-#ifdef ARDUINO
-#include "Arduino.h"
-#endif
-#ifdef USE_TCA9535
-#include "TCA9555.h"
-#endif
+// TCA9535 I/O expander (UC2_2/3/4/wemos boards, gated by USE_TCA9535).
+//
+// T4.1: pure-C API. The implementation (tca_controller.cpp) is a small C++
+// island around the vendored RobTillaart TCA9555 class (components/tca9555)
+// + the FreeRTOS mutex; all state (incl. the TCA9535 object) is file-static
+// in the .cpp, so there is exactly ONE initialized device per binary — the
+// old header-scoped `static TCA9535 TCA` gave each includer its own
+// uninitialized copy.
+//
+//   tca_init()               — Wire.begin (if needed) + TCA.begin + pin modes + seeds
+//   tca_set_external_pin()   — FastAccelStepper external-pin callback (handshake)
+//   tca_read_endstop()       — inverted level read of an endstop pin
+//
+// Without USE_TCA9535 the functions are no-op/pass-through (see .cpp).
 
-namespace tca_controller
-{
-
-/*
-I/O-exp. GPIO	target	Input/Output	comment
-00	Step_Enable	O	to all stepper drivers EN pin
-01	X_Dir	O	Stepper driver DIR
-02	Y_Dir	O	Stepper driver DIR
-03	Z_Dir	O	Stepper driver DIR
-04	A_Dir	O	Stepper driver DIR and to A-STEP+DIR header (J118)
-05	X_LIMIT	I	Limit switch input. Output LOW to light LED
-06	Y_LIMIT	I	Limit switch input. Output LOW to light LED
-07	Z_LIMIT	I	Limit switch input. Output LOW to light LED
-*/
-
-    #ifdef USE_TCA9535
-	static TCA9535 TCA(pinConfig.I2C_ADD_TCA);
-    #endif
-    bool setExternalPin(uint8_t pin, uint8_t value);
-    void init_tca();
-    static bool tca_initiated = false;
-    bool tca_read_endstop(uint8_t pin);
-
-};
-
-// T4.1: C shim for pure-C consumers (DigitalInController.c) on USE_TCA9535
-// boards.
 #ifdef __cplusplus
 extern "C" {
 #endif
-bool tca_read_endstop_c(uint8_t pin);
+
+void tca_init(void);
+bool tca_set_external_pin(uint8_t pin, uint8_t value);
+bool tca_read_endstop(uint8_t pin);
+
 #ifdef __cplusplus
 }
 #endif

@@ -31,11 +31,6 @@ __attribute__ ((unused)) static const  char* home_act_endpoint = "/home_act";
 __attribute__ ((unused)) static const  char* home_get_endpoint = "/home_get";
 #endif
 
-#ifdef I2C_MASTER
-__attribute__ ((unused)) static const  char* i2c_act_endpoint = "/i2c_act";
-__attribute__ ((unused)) static const  char* i2c_get_endpoint = "/i2c_get";
-#endif
-
 #ifdef CAN_BUS_ENABLED
 __attribute__ ((unused)) static const  char* can_act_endpoint = "/can_act";
 __attribute__ ((unused)) static const  char* can_get_endpoint = "/can_get";

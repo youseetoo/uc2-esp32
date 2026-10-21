@@ -97,7 +97,7 @@ uc2::Preferences preferences;
 #include "HomeMotor.h"  // T2.6: raw-IDF port in uc2_motor/home (via modinc)
 #endif
 #ifdef USE_TCA9535
-#include "src/i2c/tca_controller.h"
+#include "tca_controller.h"
 #endif
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 #include "src/can/can_transport.h"
@@ -118,9 +118,6 @@ CANopenModule canopenModule;
 #ifdef PTZ_KEYBOARD_CONTROLLER
 #include "PtzKeyboard.h"
 #include "PtzRouter.h"
-#endif
-#ifdef I2C_MASTER
-#include "src/i2c/i2c_master.h"
 #endif
 #ifdef I2C_SLAVE_DIAL
 #include "src/i2c/i2c_slave_dial.h"
@@ -285,10 +282,6 @@ extern "C" void looper(void *p)
 			FocusMotor::loop();
 			vTaskDelay(1);
 		}
-#endif
-#ifdef I2C_MASTER
-		i2c_master::loop();
-		vTaskDelay(1);
 #endif
 #ifdef PID_CONTROLLER
 		if (runtimeConfig.pid) {
@@ -528,9 +521,7 @@ extern "C" void setupApp(void)
 	// state_setup() establishes the default CAN-bus power state (ON) and must
 	// run early so peripherals/slaves have power before their own setup runs.
 	state_setup();
-#ifdef I2C_MASTER
-	i2c_master::setup();
-#endif
+
 #if defined(CAN_BUS_ENABLED) && !defined(CAN_CONTROLLER_CANOPEN)
 	// CAN bus must be initialized before dial controller (when dial acts as CAN master)
 	can_controller::setup();
@@ -558,7 +549,7 @@ extern "C" void setupApp(void)
 	// fan_setup() runs later, AFTER tmp102_setup()
 	// (which is responsible for Wire.begin() on the canopen-master build).
 #ifdef USE_TCA9535
-	tca_controller::init_tca();
+	tca_init();
 #endif
 #ifdef MOTOR_CONTROLLER
 	if (runtimeConfig.motor) {
@@ -679,8 +670,7 @@ if (runtimeConfig.heat) {
 #endif
 #ifdef TMP102_CONTROLLER
 // MUST run before fan_setup() because tmp102_setup()
-// is the one that calls Wire.begin() on the canopen-master build (where
-// i2c_master.cpp is not compiled).
+// is the one that calls Wire.begin() on the canopen-master build.
 if (runtimeConfig.fan) {
 	tmp102_setup();
 }

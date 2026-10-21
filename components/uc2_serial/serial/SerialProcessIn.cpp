@@ -38,9 +38,6 @@
 #ifdef HOME_MOTOR
 #include "HomeMotor.h"
 #endif
-#ifdef I2C_MASTER
-#include "i2c_master.h"
-#endif
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"
 #endif
@@ -532,12 +529,6 @@ namespace SerialProcess
 				serialize(digitalout_get(jsonDocument));
 #endif
 
-#ifdef I2C_MASTER
-		else if (strcmp(task, i2c_get_endpoint) == 0)
-			serialize(i2c_master::get(jsonDocument));
-		else if (strcmp(task, i2c_act_endpoint) == 0)
-			serialize(i2c_master::act(jsonDocument));
-#endif
 #if defined(CAN_CONTROLLER_CANOPEN) // CANopen transport — node ID management //
 		else if (strcmp(task, can_get_endpoint) == 0)
 			serialize(CANopenModule::get(jsonDocument));

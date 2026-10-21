@@ -12,10 +12,10 @@
 
 static const char *TAG = "DigitalInController";
 
-// C shim over the (still C++) tca_controller namespace (uc2_periph); only
-// needed on USE_TCA9535 boards (declared in tca_controller.h).
+// TCA9535 endstop reads (uc2_periph); only needed on USE_TCA9535 boards.
+// tca_controller.h is pure C (T4.1); the C++ island is the vendor TCA9555 leaf.
 #ifdef USE_TCA9535
-extern bool tca_read_endstop_c(uint8_t pin);
+#include "tca_controller.h"
 #endif
 
 static int digitalin_val_1 = 0;
@@ -77,7 +77,7 @@ bool digitalin_get_val(int digitalinid)
 	if (pin < 0)
 		return false;
 #ifdef USE_TCA9535
-	return tca_read_endstop_c((uint8_t)pin);
+	return tca_read_endstop((uint8_t)pin);
 #else
 	return digitalRead((uint8_t)pin);
 #endif

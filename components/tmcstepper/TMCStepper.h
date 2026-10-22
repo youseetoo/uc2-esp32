@@ -26,6 +26,17 @@
 	#endif
 #endif
 
+// Host (MSVC) port: the vendor .cpp files mark default-overridable methods
+// __attribute__((weak)), which MSVC rejects. MSVC's closest equivalent
+// (__declspec(selectany)) only applies to data, not functions, and the host
+// build never provides competing overrides for these methods — so drop the
+// attribute there. On GCC/Clang (the ESP32 build) it stays verbatim.
+#if defined(_MSC_VER)
+	#define WEAK
+#else
+	#define WEAK __attribute__((weak))
+#endif
+
 #if (__cplusplus == 201703L) && defined(__has_include)
 	#define SW_CAPABLE_PLATFORM __has_include(<SoftwareSerial.h>)
 #elif defined(__AVR__) || defined(TARGET_LPC1768) || defined(ARDUINO_ARCH_STM32)

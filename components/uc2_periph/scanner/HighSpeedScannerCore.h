@@ -14,6 +14,15 @@
 #ifndef HIGH_SPEED_SCANNER_CORE_H
 #define HIGH_SPEED_SCANNER_CORE_H
 
+// Portable packed-struct attribute: the #pragma pack(push, 1) around each
+// struct already packs it on every toolchain; the GCC/Clang attribute is
+// belt-and-braces (MSVC has no __attribute__).
+#if defined(__GNUC__) || defined(__clang__)
+#define UC2_PACKED __attribute__((packed))
+#else
+#define UC2_PACKED
+#endif
+
 #include <stdint.h>
 #include <cmath>
 #include "freertos/FreeRTOS.h"
@@ -60,7 +69,7 @@ struct ArbitraryScanPoint {
     ArbitraryScanPoint() : x(2048), y(2048), dwell_us(1000) {}
     ArbitraryScanPoint(uint16_t x_, uint16_t y_, uint32_t dwell_us_) 
         : x(x_), y(y_), dwell_us(dwell_us_) {}
-} __attribute__((packed));
+} UC2_PACKED;
 #pragma pack(pop)
 
 /**
@@ -147,7 +156,7 @@ struct ScanConfig {
         laser_blanking(0),
         hw_pixel_clock(1)
     {}
-} __attribute__((packed));
+} UC2_PACKED;
 #pragma pack(pop)
 
 /**

@@ -3,9 +3,9 @@
 #include <unity.h>
 #include <cstdint>
 #include <cstring>
-#include "../../main/src/canopen/DeviceRouter.h"
-#include "../../main/src/canopen/DeviceRouter.cpp"
-#include "../../main/src/canopen/RoutingTable.h"
+#include "../../components/uc2_canopen/canopen/DeviceRouter.h"
+#include "../../components/uc2_canopen/canopen/DeviceRouter.cpp"
+#include "../../components/uc2_canopen/canopen/RoutingTable.h"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
 

@@ -26,6 +26,16 @@ struct GamePadData
 
 
 
+// Portable packed-struct marker: GCC/Clang (ESP-IDF) accept
+// __attribute__((packed)); MSVC needs #pragma pack. Only the wire-layout
+// report structs below (PS4Buttons → HyperXClutchData) are packed.
+#ifdef _MSC_VER
+#define UC2_PACKED
+#pragma pack(push, 1)
+#else
+#define UC2_PACKED __attribute__((packed))
+#endif
+
 union PS4Buttons {
   struct {
     uint8_t dpad : 4;
@@ -46,9 +56,9 @@ union PS4Buttons {
     uint8_t ps : 1;
     uint8_t touchpad : 1;
     uint8_t reportCounter : 6;
-  } __attribute__((packed));
+  } UC2_PACKED;
   uint32_t val : 24;
-} __attribute__((packed));
+} UC2_PACKED;
 
 typedef struct {
   uint8_t LeftX;
@@ -58,7 +68,7 @@ typedef struct {
   PS4Buttons Buttons;
   uint8_t LT;
   uint8_t RT;
-} __attribute__((packed)) DS4Data;
+} UC2_PACKED DS4Data;
 
 union HyperXClutchButtons
 {
@@ -80,8 +90,8 @@ union HyperXClutchButtons
     uint8_t Home : 1;
 		uint8_t Clear : 1;
     uint8_t Turbo : 1;
-	} __attribute__((packed));
-} __attribute__((packed));
+	} UC2_PACKED;
+} UC2_PACKED;
 
 
 
@@ -92,7 +102,11 @@ typedef struct {
   uint16_t LeftY;
   uint16_t RightX;
   uint16_t RightY;
-} __attribute__((packed)) HyperXClutchData;
+} UC2_PACKED HyperXClutchData;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif
 
 //hyperX clutch
 //00 80 0f 00 80 00 80 00 80 00 80 00 00 00 00

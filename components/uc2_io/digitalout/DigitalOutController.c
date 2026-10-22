@@ -8,6 +8,10 @@
 #include "uc2_hal/uc2_gpio.h"  // digitalWrite()
 #include "cJsonTool.h"
 
+// T1.3: log_* macros forward to ESP_LOG*(TAG, ...); every converted module
+// keeps its own TAG (the original C++ class logged under "DigitalOutController").
+static const char *TAG = "DigitalOutController";
+
 static bool is_debug = false;
 
 static int digitalout_val_1 = 0;

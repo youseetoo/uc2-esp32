@@ -106,7 +106,7 @@ uint8_t TMC2208Stepper::calcCRC(uint8_t datagram[], uint8_t len) {
 	return crc;
 }
 
-__attribute__((weak))
+WEAK
 int TMC2208Stepper::available() {
 	int out = 0;
 	#if SW_CAPABLE_PLATFORM
@@ -121,7 +121,7 @@ int TMC2208Stepper::available() {
 	return out;
 }
 
-__attribute__((weak))
+WEAK
 void TMC2208Stepper::preWriteCommunication() {
 	if (HWSerial != nullptr) {
 		if (sswitch != nullptr)
@@ -129,7 +129,7 @@ void TMC2208Stepper::preWriteCommunication() {
 	}
 }
 
-__attribute__((weak))
+WEAK
 void TMC2208Stepper::preReadCommunication() {
 	#if SW_CAPABLE_PLATFORM
 		if (SWSerial != nullptr) {
@@ -142,7 +142,7 @@ void TMC2208Stepper::preReadCommunication() {
 		}
 }
 
-__attribute__((weak))
+WEAK
 int16_t TMC2208Stepper::serial_read() {
 	int16_t out = 0;
 	#if SW_CAPABLE_PLATFORM
@@ -157,7 +157,7 @@ int16_t TMC2208Stepper::serial_read() {
 	return out;
 }
 
-__attribute__((weak))
+WEAK
 uint8_t TMC2208Stepper::serial_write(const uint8_t data) {
 	int out = 0;;
 	#if SW_CAPABLE_PLATFORM
@@ -172,10 +172,10 @@ uint8_t TMC2208Stepper::serial_write(const uint8_t data) {
 	return out;
 }
 
-__attribute__((weak))
+WEAK
 void TMC2208Stepper::postWriteCommunication() {}
 
-__attribute__((weak))
+WEAK
 void TMC2208Stepper::postReadCommunication() {
 	#if SW_CAPABLE_PLATFORM
 		if (SWSerial != nullptr) {

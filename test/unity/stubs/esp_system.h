@@ -1,6 +1,10 @@
 // Host stub: esp_system.h
 #pragma once
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #include "esp_err.h"
 
 typedef int esp_reset_reason_t;
@@ -15,24 +19,28 @@ typedef int esp_reset_reason_t;
 #define ESP_RST_BROWNOUT 8
 #define ESP_RST_SDIO 9
 
+// extern "C" guard: C TUs (State.c esp_restart etc.) and C++ TUs must see the
+// same linkage (definitions in host_impl.cpp, guarded to match).
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void esp_restart(void);
 uint32_t esp_get_free_heap_size(void);
 uint32_t esp_get_free_internal_heap_size(void);
 uint32_t esp_get_minimum_free_heap_size(void);
 uint32_t esp_get_free_heap_size_static(void);
-uint32_t esp_random(void);
+// esp_random is declared by esp_random.h (static inline LCG). A C-linkage
+// declaration here collided with that inline in C++ TUs (C2732).
 esp_reset_reason_t esp_reset_reason(void);
 uint32_t esp_sntp_get_time(void);
 void ets_delay_us(uint32_t us);  // ESP-IDF microsecond busy-wait (no-op on host)
 
-// Arduino global `ESP` object (subset used by the code under test).
-class ESPClass {
-public:
-    void restart() { esp_restart(); }
-    uint32_t getFreeHeap() { return esp_get_free_heap_size(); }
-    uint32_t getHeapSize() { return esp_get_free_heap_size(); }
-    uint32_t getCpuFreqMHz() { return 240; }
-    uint32_t getChipModel() { return 0; }
-    void deepSleep(uint32_t t) { (void)t; }
-};
-extern ESPClass ESP;
+#ifdef __cplusplus
+}
+#endif
+
+// No Arduino `ESP` global here: uc2_esp.h (T1.3) declares
+// `extern const EspClass ESP` and is always visible via uc2_hal.h, so a second
+// ESP declaration collided (C2373). components/uc2_hal/src/uc2_esp.cpp is the
+// single definition (added to the host test build's prodSrcs).

@@ -3,8 +3,8 @@
 #include <unity.h>
 #include <cstdint>
 #include <cstring>
-#include "../../main/src/serial/SerialProtocol.h"
-#include "../../main/src/serial/SerialProtocol.cpp"
+#include "../../components/uc2_serial/serial/SerialProtocol.h"
+#include "../../components/uc2_serial/serial/SerialProtocol.cpp"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
 

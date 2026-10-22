@@ -1,6 +1,10 @@
 // Host stub: freertos/FreeRTOS.h
 #pragma once
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 
 typedef uint32_t TickType_t;
 typedef int BaseType_t;
@@ -19,6 +23,8 @@ typedef uint32_t EventBits_t;
 #define portMAX_DELAY ((TickType_t)0xFFFFFFFF)
 #define portTICK_PERIOD_MS ((TickType_t)10)
 #define configTICK_RATE_HZ 1000
+#define configMAX_PRIORITIES 25 // ESP32 default (sdkconfig CONFIG_FREERTOS_MAX_PRIORITIES)
+#define tskNO_AFFINITY ((UBaseType_t)0xFFFFFFFF)
 
 // ESP32 port critical-section mutex (spinlock-backed on target; trivial on host).
 typedef struct { int32_t lock; } portMUX_TYPE;
@@ -29,6 +35,22 @@ typedef struct { int32_t lock; } portMUX_TYPE;
 // so these are no-ops; the signature matches the ESP32 port.
 static inline void portENTER_CRITICAL(portMUX_TYPE* mux) { (void)mux; }
 static inline void portEXIT_CRITICAL(portMUX_TYPE* mux) { (void)mux; }
+
+// Bare interrupt disable/enable (uc2_gpio.h noInterrupts/interrupts) — no-op
+// on the single-threaded host.
+static inline void portDISABLE_INTERRUPTS(void) {}
+static inline void portENABLE_INTERRUPTS(void) {}
+
+// Multi-core port API: current core ID (host is single-core, always 0).
+// Declared here (not just in a file the scanner TU does not include) so any
+// FreeRTOS includer sees it.
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint8_t xPortGetCoreID(void);
+#ifdef __cplusplus
+}
+#endif
 
 // Component headers — real FreeRTOS.h includes all of these, so any file that
 // includes FreeRTOS.h gets TaskHandle_t/SemaphoreHandle_t/xQueue*/xEventGroup*.

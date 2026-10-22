@@ -18,9 +18,16 @@
 extern "C" {
 #endif
 
-static const int kLaserChannels = 5;
-static const int kChannelNone = -1;         // "no light configured" frame
-static const int kChannelLed = kLaserChannels; // the LED array, after the lasers
+// Anonymous enum (NOT const int): C11 integer constant expressions may only
+// use literals/enums/sizeof, never the name of a const object (C23 changed
+// that), so const ints would break `seq[kLaserChannels + 1]` in C TUs while
+// the C++ test TU still compiled. Enum values are constant expressions in
+// both languages.
+enum {
+    kLaserChannels = 5,
+    kChannelNone = -1,                 // "no light configured" frame
+    kChannelLed = kLaserChannels       // the LED array, after the lasers
+};
 
 // Column index actually visited for (ix, iy): odd rows run backwards when zicZac.
 static inline uint16_t columnFor(uint16_t ix, uint16_t iy, uint16_t nX, bool zicZac)

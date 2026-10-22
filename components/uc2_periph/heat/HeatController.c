@@ -156,7 +156,7 @@ int heat_act(cJSON *ob)
 	if (cJSON_HasObjectItem(ob, key_Kp))
 	{
 		heat_pid_kp = (float)cjson_tool_get_int(ob, key_Kp, 0);
-		if (nvs_ok) nvs_set_f32(h, "temp_pid_Kp", heat_pid_kp);
+		if (nvs_ok) nvs_set_float(h, "temp_pid_Kp", heat_pid_kp);  // IDF 6.1: nvs_set_f32 -> nvs_set_float
 	}
 	else
 	{
@@ -166,7 +166,7 @@ int heat_act(cJSON *ob)
 	if (cJSON_HasObjectItem(ob, key_Ki))
 	{
 		heat_pid_ki = (float)cjson_tool_get_int(ob, key_Ki, 0);
-		if (nvs_ok) nvs_set_f32(h, "temp_pid_Ki", heat_pid_ki);
+		if (nvs_ok) nvs_set_float(h, "temp_pid_Ki", heat_pid_ki);
 	}
 	else
 	{
@@ -176,7 +176,7 @@ int heat_act(cJSON *ob)
 	if (cJSON_HasObjectItem(ob, key_Kd))
 	{
 		heat_pid_kd = (float)cjson_tool_get_int(ob, key_Kd, 0);
-		if (nvs_ok) nvs_set_f32(h, "temp_pid_Kd", heat_pid_kd);
+		if (nvs_ok) nvs_set_float(h, "temp_pid_Kd", heat_pid_kd);
 	}
 	else
 	{
@@ -186,7 +186,7 @@ int heat_act(cJSON *ob)
 	if (cJSON_HasObjectItem(ob, key_target))
 	{
 		heat_pid_target = (float)cjson_tool_get_int(ob, key_target, 0);
-		if (nvs_ok) nvs_set_f32(h, "temp_pid_target", heat_pid_target);
+		if (nvs_ok) nvs_set_float(h, "temp_pid_target", heat_pid_target);
 	}
 	else
 	{
@@ -198,7 +198,7 @@ int heat_act(cJSON *ob)
 	if (cJSON_HasObjectItem(ob, key_heat_updaterate))
 	{
 		heat_pid_updaterate = (float)cjson_tool_get_int(ob, key_heat_updaterate, 0);
-		if (nvs_ok) nvs_set_f32(h, "temp_pid_updaterate", heat_pid_updaterate);
+		if (nvs_ok) nvs_set_float(h, "temp_pid_updaterate", heat_pid_updaterate);
 	}
 	else
 	{
@@ -223,7 +223,7 @@ int heat_act(cJSON *ob)
 	if (nvs_ok)
 	{
 		nvs_set_i64(h, "t_tempControlStarted", (int64_t)t_temp_control_started);
-		nvs_set_f32(h, "temp_tempControlStarted", temp_temp_control_started);
+		nvs_set_float(h, "temp_tempControlStarted", temp_temp_control_started);
 		nvs_commit(h);
 		nvs_close(h);
 	}
@@ -262,23 +262,23 @@ void heat_setup(void)
 			float fv = 0;
 			if (nvs_get_i32(h, "heatactive", &iv) == ESP_OK)
 				heat_active = (iv != 0);
-			if (nvs_get_f32(h, "temp_pid_Kp", &fv) == ESP_OK)
+			if (nvs_get_float(h, "temp_pid_Kp", &fv) == ESP_OK)
 				heat_pid_kp = fv;
 			else
 				heat_pid_kp = 10;
-			if (nvs_get_f32(h, "temp_pid_Ki", &fv) == ESP_OK)
+			if (nvs_get_float(h, "temp_pid_Ki", &fv) == ESP_OK)
 				heat_pid_ki = fv;
 			else
 				heat_pid_ki = 0.1;
-			if (nvs_get_f32(h, "temp_pid_Kd", &fv) == ESP_OK)
+			if (nvs_get_float(h, "temp_pid_Kd", &fv) == ESP_OK)
 				heat_pid_kd = fv;
 			else
 				heat_pid_kd = 0.1;
-			if (nvs_get_f32(h, "temp_pid_target", &fv) == ESP_OK)
+			if (nvs_get_float(h, "temp_pid_target", &fv) == ESP_OK)
 				heat_pid_target = fv;
 			else
 				heat_pid_target = 37;
-			if (nvs_get_f32(h, "temp_pid_updaterate", &fv) == ESP_OK)
+			if (nvs_get_float(h, "temp_pid_updaterate", &fv) == ESP_OK)
 				heat_pid_updaterate = fv;
 			else
 				heat_pid_updaterate = 1000;

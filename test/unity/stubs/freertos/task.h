@@ -4,6 +4,13 @@
 
 typedef void (*TaskFunction_t)(void*);
 
+// extern "C" guard: C TUs (uc2_hal/uc2_time.h delay() etc.) and C++ TUs must
+// see the same linkage for these (definitions live in host_impl.cpp, guarded
+// to match).
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 BaseType_t xTaskCreate(TaskFunction_t fn, const char* name, uint32_t stack,
                        void* param, UBaseType_t prio, TaskHandle_t* handle);
 BaseType_t xTaskCreatePinnedToCore(TaskFunction_t fn, const char* name,
@@ -20,3 +27,7 @@ void taskYIELD(void);
 TickType_t xTaskGetTickCount(void);
 uint32_t xTaskGetTickCountFromISR(void);
 UBaseType_t uxTaskGetNumberOfTasks(void);
+
+#ifdef __cplusplus
+}
+#endif

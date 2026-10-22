@@ -49,7 +49,7 @@ enum GalvoCommandWord : uint8_t {
 struct GalvoPointsHeader {
     uint8_t trigger_mode;    // TriggerMode enum value
     uint16_t point_count;    // Number of points
-} __attribute__((packed));
+} UC2_PACKED;  // defined in HighSpeedScannerCore.h (included above)
 #pragma pack(pop)
 
 /**

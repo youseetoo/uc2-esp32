@@ -31,17 +31,24 @@
 #include "DigitalInController.h"
 #endif
 
+// Weak marker for GCC/Clang (ESP-IDF xtensa). MSVC (host test build) has no
+// function-weak, and its link always includes the strong digitalin_*
+// definitions (DigitalInController.c), so the weak-default block below is
+// excluded under _MSC_VER instead (plain strong definitions would collide,
+// LNK2005; __declspec(selectany) is data-only, C2496).
+#define UC2_WEAK __attribute__((weak))
+
 // ── Weak defaults for the digitalin E-stop API ──────────────────────────────
 // The real implementation lives in uc2_io (DigitalInController.c); uc2_core
 // cannot depend on uc2_io (circular), so State.c links against weak no-op
 // defaults. When uc2_io's digitalin is in the build
 // (CONFIG_UC2_DIGITAL_IN_CONTROLLER), the linker resolves to the real
 // implementation (see the QidRegistry/focusmotor precedent).
-#if CONFIG_UC2_DIGITAL_IN_CONTROLLER
-__attribute__((weak)) void digitalin_set_emergency_polarity(int8_t pol) { (void)pol; }
-__attribute__((weak)) int8_t digitalin_get_emergency_polarity(void) { return 0; }
-__attribute__((weak)) int digitalin_get_emergency_raw(void) { return -1; }
-__attribute__((weak)) bool digitalin_is_emergency_active(void) { return false; }
+#if CONFIG_UC2_DIGITAL_IN_CONTROLLER && !defined(_MSC_VER)
+UC2_WEAK void digitalin_set_emergency_polarity(int8_t pol) { (void)pol; }
+UC2_WEAK int8_t digitalin_get_emergency_polarity(void) { return 0; }
+UC2_WEAK int digitalin_get_emergency_raw(void) { return -1; }
+UC2_WEAK bool digitalin_is_emergency_active(void) { return false; }
 #endif
 
 static const char *TAG = "State";

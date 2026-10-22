@@ -1,7 +1,20 @@
 // Host stub: driver/gpio.h
 #pragma once
+#ifdef __cplusplus
 #include <cstdint>
+#include <cstdbool>
+#else
+#include <stdint.h>
+#include <stdbool.h>  // gpio_matrix_in/out(bool)
+#endif
 #include "esp_err.h"
+#include "soc/soc_caps.h"  // SOC_GPIO_PIN_COUNT (real IDF pulls this in too)
+
+// uc2_hal/uc2_gpio.cpp (and other converted TUs) use IRAM_ATTR on ISR
+// functions; it is empty on the host.
+#ifndef IRAM_ATTR
+#define IRAM_ATTR
+#endif
 
 typedef int32_t gpio_num_t;
 
@@ -76,7 +89,7 @@ typedef enum {
     GPIO_INTR_ANYEDGE = 3,
     GPIO_INTR_LOW_LEVEL = 4,
     GPIO_INTR_HIGH_LEVEL = 5
-} gpio_intr_type_t;
+} gpio_int_type_t;
 
 typedef enum {
     GPIO_DRIVE_CAP_0 = 0,
@@ -95,39 +108,40 @@ typedef struct {
     gpio_mode_t mode;
     gpio_pull_mode_t pull_up_en;
     gpio_pull_mode_t pull_down_en;
-    gpio_intr_type_t intr_type;
+    gpio_int_type_t intr_type;
 } gpio_config_t;
 
 typedef uint32_t gpio_interrupt_type_t;
 
-// uc2's legacy edge-int types (InterruptController).
-typedef enum {
-    GPIO_INT_TYPE_POSTEDGE,
-    GPIO_INT_TYPE_POSTEDGE_FILTERED,
-    GPIO_INT_TYPE_POSTEDGE_NF,
-    GPIO_INT_TYPE_POSTEDGE_NF_FILTERED
-} gpio_int_type_t;
-
 typedef void (*gpio_isr_t)(void* arg);
 typedef void (*gpio_intr_fn_t)(void* arg);
 
+// extern "C": real IDF declares these C-linkage; C TUs (InterruptController.c,
+// dac_mcp4822.c) and C++ TUs must see the same symbols.
+#ifdef __cplusplus
+extern "C" {
+#endif
 esp_err_t gpio_install_isr_service(int intr_alloc_flags);
 esp_err_t gpio_isr_handler_add(gpio_num_t gpio_num, gpio_isr_t isr_handler, void* args);
+esp_err_t gpio_config(const gpio_config_t* p_gpio_config);
 esp_err_t gpio_reconfigure(const gpio_config_t* p_gpio_config);
 esp_err_t gpio_set_direction(gpio_num_t gpio_num, gpio_mode_t mode);
 esp_err_t gpio_set_level(gpio_num_t gpio_num, uint32_t level);
-esp_err_t gpio_get_level(gpio_num_t gpio_num, int32_t* level);
+// Arduino-style single-arg form (the form uc2_hal/uc2_gpio.cpp uses).
+// 1-arg keeps this header C-parseable (no overloads).
+int gpio_get_level(gpio_num_t gpio_num);
 esp_err_t gpio_set_pull_mode(gpio_num_t gpio_num, gpio_pull_mode_t pull);
 esp_err_t gpio_set_intr_type(gpio_num_t gpio_num, gpio_interrupt_type_t type);
+esp_err_t gpio_intr_enable(gpio_num_t gpio_num);
+esp_err_t gpio_isr_handler_remove(gpio_num_t gpio_num);
 esp_err_t gpio_pad_select_gpio(gpio_num_t gpio_num);
 esp_err_t gpio_deep_sleep_hold_dis(void);
 esp_err_t gpio_deep_sleep_hold_en(void);
 esp_err_t gpio_iset_gpio(gpio_num_t gpio_num, uint8_t val);
 esp_err_t gpio_set_wait_delay(gpio_num_t gpio_num, uint32_t wait_delay);
-void gpio_set_edge_int(gpio_num_t gpio_num, gpio_int_type_t type);
 esp_err_t gpio_matrix_in(gpio_num_t gpio_num, uint32_t sig, bool invert);
 esp_err_t gpio_matrix_out(gpio_num_t gpio_num, uint32_t sig, bool open_drain, bool invert);
 
-// Legacy intr API
-typedef void (*intr_handler_t)(void*);
-esp_err_t intr_attach(const char* name, intr_handler_t handler, void* arg);
+#ifdef __cplusplus
+}
+#endif

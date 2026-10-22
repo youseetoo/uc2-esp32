@@ -10,19 +10,21 @@ struct MockSdoRequest {
     std::vector<uint8_t> data;
 };
 
-namespace MockCanopen {
-    extern std::vector<MockSdoRequest> receivedWrites;
-    extern std::vector<MockSdoRequest> receivedReads;
-    extern bool sdoWriteResult;
-    extern bool sdoReadResult;
-    extern std::vector<uint8_t> sdoReadResponse;
-    extern bool nodeReachable;
+// Struct (not namespace): test_canopen_module.cpp calls MockCanopen::reset()
+// etc. as static members.
+struct MockCanopen {
+    static std::vector<MockSdoRequest> receivedWrites;
+    static std::vector<MockSdoRequest> receivedReads;
+    static bool sdoWriteResult;
+    static bool sdoReadResult;
+    static std::vector<uint8_t> sdoReadResponse;
+    static bool nodeReachable;
 
-    void reset();
-    void setWriteResult(bool result);
-    void setReadResult(bool result, const std::vector<uint8_t>& data);
-    void setNodeReachable(bool reachable);
-}
+    static void reset();
+    static void setWriteResult(bool result);
+    static void setReadResult(bool result, const std::vector<uint8_t>& data);
+    static void setNodeReachable(bool reachable);
+};
 
 // Override CO_writeSDO / CO_readSDO in tests
 #ifdef UNIT_TEST
@@ -31,6 +33,7 @@ namespace MockCanopen {
         int CO_writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                         uint8_t* data, size_t dataSize, int timeoutMs);
         int CO_readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                       uint8_t* data, size_t dataSize, int timeoutMs);
+                       uint8_t* data, size_t dataSize, size_t* bytesRead,
+                       int timeoutMs);
     }
 #endif

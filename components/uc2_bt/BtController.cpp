@@ -2,6 +2,19 @@
 #include "BtController.h"
 #include <esp_log.h>
 #include "ConfigController.h"
+// Host test build: PinConfig.h (via BtController.h) defines BTHID for the
+// canopen_master app, but the BLE HID host stack (HidController.h ->
+// esp_bt*/esp_hidh) is not available under the host stubs. The HID gamepad
+// path is not exercised by host tests — the JSON-dispatched BtController
+// methods (scanForDevices/setMacAndConnect/disconnect) are HID-independent.
+#ifdef UNIT_TEST
+#undef BTHID
+#endif
+// TAG normally comes from HidController.h (BTHID builds); non-BTHID builds
+// (host tests, BT-less apps) need their own.
+#ifndef BTHID
+static const char *TAG = "BtController";
+#endif
 #ifdef BTHID
 #include "HidController.h"
 #endif
@@ -392,6 +405,14 @@ namespace BtController
     }
 #endif
 
+#if !defined(BTHID) && !defined(PSXCONTROLLER)
+    // No BT controller backend on this build (host tests, BT-less apps):
+    // btControllerLoop still calls loop(), so provide a no-op fallback.
+    void loop()
+    {
+    }
+#endif
+
     cJSON *scanForDevices(cJSON *doc)
     {
         log_i("scanForDevices - this does not work on all ESP32 even if same fabricate and same version");
@@ -583,8 +604,10 @@ namespace BtController
         return 1;
     }
 
+#ifdef BTHID
 #include "esp_bt.h"
 #include "esp_bt_device.h"
+#endif
 
     void removeAllPairedDevices()
     {

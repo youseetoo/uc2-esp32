@@ -3,8 +3,8 @@
 #include <unity.h>
 #include <cstdint>
 #include <cstring>
-#include "../../main/src/led/LedController.h"
-#include "../../main/src/led/LedController.cpp"
+#include "../../components/uc2_led/led/LedController.h"
+#include "../../components/uc2_led/led/LedController.cpp"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
 

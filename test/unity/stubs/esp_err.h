@@ -1,6 +1,10 @@
 // Host stub: esp_err.h
 #pragma once
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 
 typedef int esp_err_t;
 
@@ -31,3 +35,11 @@ typedef int esp_err_t;
 #define ESP_ERROR_CHECK_TO_ERR(err, x, err_code) do { (err) = (x); } while (0)
 #define ESP_ERROR_IS_ERR(x) ((x) != ESP_OK)
 #define ESP_ERROR_IS_OK(x) ((x) == ESP_OK)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+const char *esp_err_to_name(esp_err_t code);
+#ifdef __cplusplus
+}
+#endif

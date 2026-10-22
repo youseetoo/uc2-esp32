@@ -196,9 +196,9 @@ static void persist(void)
     if (nvs_open(THERMAL_NVS_NS, NVS_READWRITE, &h) != ESP_OK)
         return;
     nvs_set_i32(h, "en", enabled ? 1 : 0);
-    nvs_set_f32(h, "warn", warnC);
-    nvs_set_f32(h, "crit", criticalC);
-    nvs_set_f32(h, "recov", recoverC);
+    nvs_set_float(h, "warn", warnC);   // IDF 6.1: nvs_set_f32 -> nvs_set_float
+    nvs_set_float(h, "crit", criticalC);
+    nvs_set_float(h, "recov", recoverC);
     nvs_commit(h);
     nvs_close(h);
 }
@@ -243,11 +243,11 @@ void thermal_setup(void)
             float warn = 0.0f, crit = 0.0f, recov = 0.0f;
             if (nvs_get_i32(h, "en", &en) == ESP_OK)
                 enabled = (en != 0);
-            if (nvs_get_f32(h, "warn", &warn) == ESP_OK)
+            if (nvs_get_float(h, "warn", &warn) == ESP_OK)
                 warnC = warn;
-            if (nvs_get_f32(h, "crit", &crit) == ESP_OK)
+            if (nvs_get_float(h, "crit", &crit) == ESP_OK)
                 criticalC = crit;
-            if (nvs_get_f32(h, "recov", &recov) == ESP_OK)
+            if (nvs_get_float(h, "recov", &recov) == ESP_OK)
                 recoverC = recov;
             nvs_close(h);
         }

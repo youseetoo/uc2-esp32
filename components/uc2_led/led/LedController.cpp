@@ -11,6 +11,12 @@
 #include <cctype>
 #include <cstdio>
 #include <math.h>
+// POSIX case-insensitive compare (newlib provides strcasecmp; MSVC does not).
+#ifdef _MSC_VER
+#define strcasecmp(a, b) _stricmp(a, b)
+#else
+#include <strings.h>
+#endif
 #include "cJSON.h"
 #include "PinConfig.h" // user-provided config, if needed
 #include "../qid/QidRegistry.h"

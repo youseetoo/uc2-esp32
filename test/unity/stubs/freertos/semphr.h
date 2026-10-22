@@ -7,6 +7,12 @@ typedef void* QueueHandle_t;
 // Legacy FreeRTOS name (FocusMotor.cpp uses xSemaphoreHandle).
 typedef SemaphoreHandle_t xSemaphoreHandle;
 
+// extern "C" guard: C TUs (FocusMotor.c semaphores, queues) and C++ TUs must
+// see the same linkage (definitions in host_impl.cpp, guarded to match).
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 SemaphoreHandle_t xSemaphoreCreateMutex(void);
 SemaphoreHandle_t xSemaphoreCreateRecursiveMutex(void);
 SemaphoreHandle_t xSemaphoreCreateBinary(void);
@@ -22,6 +28,13 @@ void vSemaphoreDelete(SemaphoreHandle_t sem);
 
 // Queues — minimal (used by some drivers).
 QueueHandle_t xQueueCreate(UBaseType_t len, UBaseType_t itemSize);
+BaseType_t xQueueSendToFront(QueueHandle_t q, const void* item, TickType_t timeout);
+UBaseType_t uxQueueMessagesWaiting(QueueHandle_t q);
 BaseType_t xQueueSend(QueueHandle_t q, const void* item, TickType_t timeout);
+BaseType_t xQueueSendToBackFromISR(QueueHandle_t q, const void* item, BaseType_t* woken);
 BaseType_t xQueueReceive(QueueHandle_t q, void* item, TickType_t timeout);
 void vQueueDelete(QueueHandle_t q);
+
+#ifdef __cplusplus
+}
+#endif

@@ -61,6 +61,21 @@ extern "C" {
 #include "OD.h"
 }
 
+#ifdef UNIT_TEST
+// Host-test routing: SDO write/read and node-reachability checks go through
+// these C shims, provided by the mock (test/unity/mocks/mock_canopen.cpp).
+// The production ESP32 build never defines UNIT_TEST, so the real paths
+// (CO->SDOclient, s_nodeLastSeenMs liveness) are untouched.
+extern "C" {
+    int  CO_writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                     uint8_t* data, size_t dataSize, int timeoutMs);
+    int  CO_readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                    uint8_t* data, size_t dataSize, size_t* bytesRead,
+                    int timeoutMs);
+    bool CO_nodeReachable(uint8_t nodeId);
+}
+#endif
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -637,6 +652,9 @@ static CO_SDO_abortCode_t _write_SDO(CO_SDOclient_t* SDO_C, uint8_t nodeId,
 // 500 ms SDO timeouts against absent laser/LED/galvo nodes during boot.
 bool CANopenModule::isNodeReachable(uint8_t nodeId)
 {
+#ifdef UNIT_TEST
+    return CO_nodeReachable(nodeId);
+#endif
     if (nodeId < 1 || nodeId > 127) return false;
 
     if (CO == NULL || CO->NMT == NULL ||
@@ -684,6 +702,9 @@ static bool canReachForSDO(uint8_t nodeId)
 // (CRC32 / size) to fail just because we asked too early.
 bool CANopenModule::waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs)
 {
+#ifdef UNIT_TEST
+    return CO_nodeReachable(nodeId);
+#endif
     const uint32_t deadline = millis() + timeoutMs;
     while (millis() < deadline) {
         if (isNodeReachable(nodeId)) return true;
@@ -696,6 +717,10 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                              uint8_t* data, size_t dataSize,
                              uint32_t timeoutMs)
 {
+#ifdef UNIT_TEST
+    return CO_writeSDO(nodeId, index, subIndex, data, dataSize,
+                       (int)timeoutMs) == 0;
+#endif
     /*
         writeSDO: This function writes data to a specified SDO (Service Data Object) 
         on a remote node in the CANopen network. It checks if the SDO client is 
@@ -741,6 +766,10 @@ bool CANopenModule::writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
 bool CANopenModule::readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                             uint8_t* buf, size_t bufSize, size_t* readSize)
 {
+#ifdef UNIT_TEST
+    return CO_readSDO(nodeId, index, subIndex, buf, bufSize, readSize,
+                      1000) == 0;
+#endif
     if (CO == NULL || CO->SDOclient == NULL) return false;
     if (!canReachForSDO(nodeId)) return false;
     if (s_sdoMutex && xSemaphoreTake(s_sdoMutex, pdMS_TO_TICKS(200)) != pdTRUE) return false;

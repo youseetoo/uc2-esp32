@@ -9,10 +9,17 @@ static const char *TAG = "AxisNotify";
 #include "freertos/FreeRTOS.h" // portMUX
 #include <stdlib.h>
 
-#ifdef CONFIG_UC2_CAN_CONTROLLER_CANOPEN
+// Weak marker for GCC/Clang (ESP-IDF xtensa). MSVC (host test build) has no
+// function-weak, and its link always includes the strong (extern "C")
+// definition in CANopenModule.cpp (pulled in by test_canopen_module.cpp), so
+// the weak default below is excluded under _MSC_VER (plain strong would
+// collide, LNK2005; __declspec(selectany) is data-only, C2496).
+#define UC2_WEAK __attribute__((weak))
+
+#if defined(CONFIG_UC2_CAN_CONTROLLER_CANOPEN) && !defined(_MSC_VER)
 // C wrapper implemented by CANopenModule.cpp (extern "C"); weak default so a
 // build with the axis code but a different CAN configuration still links.
-__attribute__((weak)) void canopen_module_emit_axis_emcy(uint8_t axis, uint8_t fault,
+UC2_WEAK void canopen_module_emit_axis_emcy(uint8_t axis, uint8_t fault,
                                                          int32_t posErrSteps)
 {
     (void)axis; (void)fault; (void)posErrSteps;

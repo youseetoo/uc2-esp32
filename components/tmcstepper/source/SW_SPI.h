@@ -1,5 +1,11 @@
 #pragma once
 
+// The uc2 shim (components/tmcstepper/include/Arduino.h) resolves to the
+// uc2_hal umbrella, which does not pull in stdint before this header is
+// parsed — SW_SPI.h itself first uses uint16_t below. The Arduino core's
+// real Arduino.h provided it; add it here so the header is self-contained.
+#include <stdint.h>
+
 #if defined(ARDUINO) && ARDUINO >= 100
 	#include <Arduino.h>
 #elif defined(bcm2835)

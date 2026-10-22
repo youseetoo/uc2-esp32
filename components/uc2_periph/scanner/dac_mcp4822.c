@@ -143,6 +143,11 @@ void dac4822_ldac_pulse(void)
     // Pulse LDAC low to latch both channels simultaneously
     gpio_set_level((gpio_num_t)s_pin_ldac, 0);
     // Short pulse (~100ns) - NOP instructions for minimal delay
+    // (host build: no inline asm, LDAC pulse width is approximate)
+#ifdef __GNUC__
     __asm__ __volatile__("nop; nop; nop; nop;");
+#else
+    (void)0;
+#endif
     gpio_set_level((gpio_num_t)s_pin_ldac, 1);
 }

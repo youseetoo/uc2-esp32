@@ -201,9 +201,9 @@ public:
     String concat(unsigned v) { m_s += std::to_string(v); return *this; }
     String concat(long v) { m_s += std::to_string(v); return *this; }
     String concat(double v) { m_s += std::to_string(v); return *this; }
-    String& operator+=(const char* s) { return concat(s); }
-    String& operator+=(const String& s) { return concat(s); }
-    String& operator+=(char c) { return concat(c); }
+    String& operator+=(const char* s) { m_s += s ? s : ""; return *this; }
+    String& operator+=(const String& s) { m_s += s.m_s; return *this; }
+    String& operator+=(char c) { m_s += c; return *this; }
     String operator+(const char* rhs) const { return String(*this) += rhs; }
     String operator+(const String& rhs) const { return String(*this) += rhs; }
     String operator+(char rhs) const { return String(*this) += rhs; }

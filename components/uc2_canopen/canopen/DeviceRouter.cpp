@@ -9,6 +9,7 @@
 #include "Endpoints.h"
 #include "esp_log.h"
 #include <cstring>
+#include <strings.h> // strcasecmp (MSVC does not declare it in <cstring>)
 #include <algorithm>
 
 #ifdef CAN_CONTROLLER_CANOPEN

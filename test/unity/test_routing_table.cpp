@@ -3,8 +3,8 @@
 #include <unity.h>
 #include <cstdint>
 #include <cstring>
-#include "../../main/src/canopen/RoutingTable.h"
-#include "../../main/src/canopen/RoutingTable.cpp"
+#include "../../components/uc2_canopen/canopen/RoutingTable.h"
+#include "../../components/uc2_canopen/canopen/RoutingTable.cpp"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
 

@@ -1,8 +1,9 @@
-// T4.1: QidRegistry — pure-C QID tracking (was a C++ namespace).
+// T4.1: QidRegistry â€” pure-C QID tracking (was a C++ namespace).
 // The C++ FocusMotor dependency is hidden behind the focusmotor_qid_c.h shim
 // (gated on CONFIG_UC2_MOTOR_CONTROLLER). Serial output uses the C serial_out_* API.
 // C feature gating: the raw -D feature flags are CXX-only (toolchain/cxxflags);
 // a C TU must gate on the CONFIG_UC2_* Kconfig symbols (sdkconfig.h).
+#include <stdlib.h>
 #include "sdkconfig.h"
 #include "QidRegistry.h"
 #include "uc2_serial_out.h"
@@ -14,35 +15,41 @@
 // MOTOR_AXIS_COUNT is a per-app #define (in the app's PinConfig.h, which is
 // C++). The C QidRegistry can't include it, so default to the max (10).
 // The loop bound is min(MOTOR_AXIS_COUNT, QID_MAX_PAUSED_AXES) so a high
-// default is safe — out-of-range axes are no-ops in the focusmotor_* shim.
+// default is safe â€” out-of-range axes are no-ops in the focusmotor_* shim.
 #ifndef MOTOR_AXIS_COUNT
 #define MOTOR_AXIS_COUNT 10
 #endif
 #endif
 
+// Weak marker for GCC/Clang (ESP-IDF xtensa). MSVC (host test build) has no
+// function-weak, and its link always includes the strong focusmotor_*
+// definitions (focusmotor_qid_c.c), so the weak-default block below is
+// excluded under _MSC_VER instead (plain strong definitions would collide,
+// LNK2005; __declspec(selectany) is data-only, C2496).
+#define UC2_WEAK __attribute__((weak))
 // -- Weak defaults for the focusmotor_* shim ---------------------------------
 // The real implementation lives in uc2_motor (focusmotor_qid_c.c); uc2_core
 // cannot depend on uc2_motor (circular), so the QidRegistry links against
 // weak no-op defaults. When uc2_motor is in the build (CONFIG_UC2_MOTOR_CONTROLLER),
 // the linker resolves to the real shim.
-#if CONFIG_UC2_MOTOR_CONTROLLER
-__attribute__((weak)) int focusmotor_get_qid(int a) { (void)a; return -1; }
-__attribute__((weak)) int focusmotor_is_stopped(int a) { (void)a; return 1; }
-__attribute__((weak)) int32_t focusmotor_get_current_position(int a) { (void)a; return 0; }
-__attribute__((weak)) int32_t focusmotor_get_target_position(int a) { (void)a; return 0; }
-__attribute__((weak)) int32_t focusmotor_get_speed(int a) { (void)a; return 0; }
-__attribute__((weak)) int32_t focusmotor_get_acceleration(int a) { (void)a; return 0; }
-__attribute__((weak)) int focusmotor_get_absolute(int a) { (void)a; return 0; }
-__attribute__((weak)) void focusmotor_stop_stepper(int a) { (void)a; }
-__attribute__((weak)) void focusmotor_set_qid(int a, int q) { (void)a; (void)q; }
-__attribute__((weak)) void focusmotor_set_target_position(int a, int32_t t) { (void)a; (void)t; }
-__attribute__((weak)) void focusmotor_set_speed(int a, int32_t s) { (void)a; (void)s; }
-__attribute__((weak)) void focusmotor_set_acceleration(int a, int32_t c) { (void)a; (void)c; }
-__attribute__((weak)) void focusmotor_set_absolute(int a, int b) { (void)a; (void)b; }
-__attribute__((weak)) void focusmotor_set_is_stop(int a, int s) { (void)a; (void)s; }
-__attribute__((weak)) void focusmotor_set_stopped(int a, int s) { (void)a; (void)s; }
-__attribute__((weak)) void focusmotor_set_isforever(int a, int f) { (void)a; (void)f; }
-__attribute__((weak)) void focusmotor_start_stepper(int a, int r) { (void)a; (void)r; }
+#if CONFIG_UC2_MOTOR_CONTROLLER && !defined(_MSC_VER)
+UC2_WEAK int focusmotor_get_qid(int a) { (void)a; return -1; }
+UC2_WEAK int focusmotor_is_stopped(int a) { (void)a; return 1; }
+UC2_WEAK int32_t focusmotor_get_current_position(int a) { (void)a; return 0; }
+UC2_WEAK int32_t focusmotor_get_target_position(int a) { (void)a; return 0; }
+UC2_WEAK int32_t focusmotor_get_speed(int a) { (void)a; return 0; }
+UC2_WEAK int32_t focusmotor_get_acceleration(int a) { (void)a; return 0; }
+UC2_WEAK int focusmotor_get_absolute(int a) { (void)a; return 0; }
+// focusmotor_stop_stepper / focusmotor_start_stepper: no weak default here â€”
+UC2_WEAK void focusmotor_set_qid(int a, int q) { (void)a; (void)q; }
+UC2_WEAK void focusmotor_set_target_position(int a, int32_t t) { (void)a; (void)t; }
+UC2_WEAK void focusmotor_set_speed(int a, int32_t s) { (void)a; (void)s; }
+UC2_WEAK void focusmotor_set_acceleration(int a, int32_t c) { (void)a; (void)c; }
+UC2_WEAK void focusmotor_set_absolute(int a, int b) { (void)a; (void)b; }
+UC2_WEAK void focusmotor_set_is_stop(int a, int s) { (void)a; (void)s; }
+UC2_WEAK void focusmotor_set_stopped(int a, int s) { (void)a; (void)s; }
+UC2_WEAK void focusmotor_set_isforever(int a, int f) { (void)a; (void)f; }
+// FocusMotor.c (uc2_motor) provides the strong symbols in every build that compiles this block.
 #endif
 
 static const char *TAG = "QidRegistry";

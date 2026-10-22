@@ -9,6 +9,18 @@
 // false (no SoftwareSerial.h here), so the software-serial ctors are `= delete`.
 #pragma once
 
+// stdint BEFORE the umbrella: the vendor umbrella (TMCStepper.h) reaches
+// SW_SPI.h, which uses uint16_t before TMC_platforms.h is parsed, and neither
+// SW_SPI.h nor TMC_platforms.h includes <stdint.h> on the non-AVR path.
+// The host build got it transitively via STL; the vendor island must not
+// depend on that.
+#ifdef __cplusplus
+#include <cstdint>
+#include <cstddef>
+#else
+#include <stdint.h>
+#include <stddef.h>
+#endif
 #include "uc2_hal.h"   // umbrella: gpio, time, serial, string, log, wire, i2c, esp
 
 namespace uc2 {

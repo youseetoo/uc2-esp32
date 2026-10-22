@@ -4,8 +4,8 @@
 #include <unity.h>
 #include <cstdint>
 #include <cstring>
-#include "../../main/src/canopen/CANopenModule.h"
-#include "../../main/src/canopen/CANopenModule.cpp"
+#include "../../components/uc2_canopen/canopen/CANopenModule.h"
+#include "../../components/uc2_canopen/canopen/CANopenModule.cpp"
 #include "mocks/mock_canopen.h"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
@@ -214,9 +214,9 @@ void test_cm017_emitAxisEmcy() {
 // CM-018: RemoteSlaveState struct size
 // ============================================================================
 void test_cm018_remoteSlaveStateSize() {
-    // Verify struct size
-    TEST_ASSERT_EQUAL(sizeof(int32_t) + sizeof(uint8_t) * 2 + sizeof(uint32_t) + sizeof(bool),
-                      sizeof(RemoteSlaveState));
+    // Verify struct size: int32_t + 2*uint8_t + uint32_t + bool = 11 bytes of
+    // fields, padded to 16 by the ABI (4-byte alignment of the int32/uint32).
+    TEST_ASSERT_EQUAL(16, sizeof(RemoteSlaveState));
 }
 
 // ============================================================================

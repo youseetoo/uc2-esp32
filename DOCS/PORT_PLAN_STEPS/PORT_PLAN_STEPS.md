@@ -87,7 +87,7 @@ executor agent.
 - [ ] **T3.8** [T3.8.md](steps/T3.8.md) — CI `idf-build` matrix += BT apps + retirement checklists · 0.5 d · ← T3.7
 
 ### Phase 4 — C conversion of first-party code (2–4 w; parallelizable per module)
-- [ ] **T4.1** [T4.1.md](steps/T4.1.md) — C-ify leaf math/state: `pid/ axis/ signal/ state/ config/` · 1–2 d · ← T3.8 — **in progress (started 2026-07, user-approved early start past T3.8): pid/axis/signal/state/config C-ified (f76804e, f768f8b, a63b7df, a1b819c; host suite 92/0); remaining: `uc2_led/led/LedController.cpp` (48 KB — `LedController` namespace + `enum class`; Adafruit_NeoPixel/DotStar/Protomatter access goes through a C shim per the `signal_neopixel_c.cpp` pattern; NeoPixel→C RMT backend = T5.3)**
+- [ ] **T4.1** [T4.1.md](steps/T4.1.md) — C-ify leaf math/state: `pid/ axis/ signal/ state/ config/` · 1–2 d · ← T3.8 — **in progress (started 2026-07, user-approved early start past T3.8): pid/axis/signal/state/config C-ified (f76804e, f768f8b, a63b7df, a1b819c; host suite 92/0); remaining: `uc2_led/led/LedController.cpp` (48 KB). **D2 = (a) everything C** (decided 2026-07; full call-site map + `led_strip_c` shim design in steps/T4.1.md; NeoPixel→C RMT backend = T5.3)**
 - [ ] **T4.2** [T4.2.md](steps/T4.2.md) — C-ify `uc2_core` + `uc2_serial` · 2–3 d · ← T4.1
 - [ ] **T4.3** [T4.3.md](steps/T4.3.md) — C-ify `uc2_motor` (FocusMotor/homing/stage scan) + `Ws2812Rmt` · 2–3 d · ← T4.1
 - [ ] **T4.4** [T4.4.md](steps/T4.4.md) — C-ify `uc2_canopen`; split CANopenModule (138 KB) + DeviceRouter (104 KB) · 1–2 w · ← T4.2

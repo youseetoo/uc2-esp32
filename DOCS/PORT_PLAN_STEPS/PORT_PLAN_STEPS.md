@@ -81,13 +81,13 @@ executor agent.
 - [ ] **T3.2** [T3.2.md](steps/T3.2.md) — *(D2)* Pick BT stack (recommend Bluedroid classic-only); `DOCS/bt.md` · 1–2 d · ← T3.1
 - [ ] **T3.3** [T3.3.md](steps/T3.3.md) — Port `uc2_bt` (BtController/HidController/esp_hid_gap.c) onto IDF BT · 3–5 d · ← T3.2
 - [x] **T3.4** [T3.4.md](steps/T3.4.md) — `apps/uc2_2` + `uc2_3` + `uc2_wemos` + `uc2_4` (BT boards) · 3–5 d · ← T3.3 — **done 2026-10-16 (build scope): all 4 build green under pure IDF (uc2_2 1038.6 KB, uc2_3 1060 KB, uc2_wemos 1056.5 KB, uc2_4 1056.3 KB; ~16 % under PIO flash baselines, well within the 2 MB app partition); [HW] smoke (T3.7) + CI matrix (T3.8) + size-baseline recording pending**
-- [x] **T3.5** [T3.5.md](steps/T3.5.md) — `apps/canopen_master` (all controllers, RAM-tight) · 3–5 d · ← T3.4 — **done 2026-10-16 (build scope): builds green under pure IDF (1139.8 KB flash, ~13.7 % under the PIO 1321.3 KB baseline; DRAM 57.8 % / IRAM 88.0 %); Step 0 = CANopen-routed axes (no local FAS/ACCELSTEP); [HW] constellation smoke (T3.7) + CI matrix (T3.8) + SdoEmit.h dial-CAN port pending**
+- [x] **T3.5** [T3.5.md](steps/T3.5.md) — `apps/canopen_master` (all controllers, RAM-tight) · 3–5 d · ← T3.4 — **done 2026-10-16 (build scope): builds green under pure IDF (1139.8 KB flash, ~13.7 % under the PIO 1321.3 KB baseline; DRAM 57.8 % / IRAM 88.0 %); Step 0 = CANopen-routed axes (no local FAS/ACCELSTEP); [HW] constellation smoke (T3.7) + CI matrix (T3.8) + SdoEmit.h dial-CAN port pending; re-verified 2026-07 on relocated IDF tree `C:\esp\v6.1` (fresh configure; local `esp_hal_dma` classic-esp32 stub patch — v6.1.0 registers zero sources for esp32 → missing `libesp_hal_dma.a` at link): bin 0x11e040 (1144.1 KB, +0.4 % vs old-tree build), 44 % partition free**
 - [x] **T3.6** [T3.6.md](steps/T3.6.md) — `apps/canopen_standalone_v4` (OTA sender+receiver off) · 2 d · ← T3.5 — **done 2026-10-16 (build scope): builds green under pure IDF (1141.5 KB flash, ~14 % under PIO 1327.8 KB; DRAM 56.3 % / IRAM 88.5 %); HYBRID local FAS + CAN; OTA both roles compiled out (link-map verified); [HW] smoke (T3.7) + CI matrix (T3.8) pending**
 - [ ] **T3.7** [T3.7.md](steps/T3.7.md) — `[HW]` PS4 pairing/trackpad + RAM headroom verification on all BT boards · 2 d · ← T3.4–T3.6
 - [ ] **T3.8** [T3.8.md](steps/T3.8.md) — CI `idf-build` matrix += BT apps + retirement checklists · 0.5 d · ← T3.7
 
 ### Phase 4 — C conversion of first-party code (2–4 w; parallelizable per module)
-- [ ] **T4.1** [T4.1.md](steps/T4.1.md) — C-ify leaf math/state: `pid/ axis/ signal/ state/ config/` · 1–2 d · ← T3.8
+- [ ] **T4.1** [T4.1.md](steps/T4.1.md) — C-ify leaf math/state: `pid/ axis/ signal/ state/ config/` · 1–2 d · ← T3.8 — **in progress (started 2026-07, user-approved early start past T3.8): pid/axis/signal/state/config C-ified (f76804e, f768f8b, a63b7df, a1b819c; host suite 92/0); remaining: `uc2_led/led/LedController.cpp` (48 KB — `LedController` namespace + `enum class`; Adafruit_NeoPixel/DotStar/Protomatter access goes through a C shim per the `signal_neopixel_c.cpp` pattern; NeoPixel→C RMT backend = T5.3)**
 - [ ] **T4.2** [T4.2.md](steps/T4.2.md) — C-ify `uc2_core` + `uc2_serial` · 2–3 d · ← T4.1
 - [ ] **T4.3** [T4.3.md](steps/T4.3.md) — C-ify `uc2_motor` (FocusMotor/homing/stage scan) + `Ws2812Rmt` · 2–3 d · ← T4.1
 - [ ] **T4.4** [T4.4.md](steps/T4.4.md) — C-ify `uc2_canopen`; split CANopenModule (138 KB) + DeviceRouter (104 KB) · 1–2 w · ← T4.2
@@ -121,7 +121,7 @@ Status: **ALL 7 CONFIRMED 2026-10-08** — the user accepted every plan recommen
 (T0.1 satisfied). "Gates" lists tasks that were gated by each row.
 
 **Confirmed answers (2026-10-08):**
-- **D1** = IDF **6.1** (`M:\.espressif\v6.1\esp-idf`); CI pins the same version.
+- **D1** = IDF **6.1** (`C:\esp\v6.1\esp-idf`, moved from `M:\.espressif` 2026-07); CI pins the same version.
 - **D2** = **(b)** C core + C++ leaf set **`fastaccelstepper` + `tmc_stepper`** behind
   C backend headers (T5.2 therefore **skipped by default**; T5.1 scope excludes TMC).
 - **D3** = **all 21 envs** in scope; `esp32dev` stays dev-only (no release app, not in CI).
@@ -134,7 +134,7 @@ Status: **ALL 7 CONFIRMED 2026-10-08** — the user accepted every plan recommen
 
 | ID | Decision | Plan recommendation | User must confirm | Gates (tasks) |
 |----|----------|--------------------|-------------------|---------------|
-| **D1** | IDF version | **6.1** (installed at `M:\.espressif\v6.1\esp-idf`; GrowControl migrated to 6.1 on 2026-10-06) vs 5.5.x LTS | Version number; whether CI uses the same version | T1.1, T1.7, T1.8 (all IDF builds); CI runner setup in T6.1 |
+| **D1** | IDF version | **6.1** (installed at `C:\esp\v6.1\esp-idf`, moved from `M:\.espressif` 2026-07; GrowControl migrated to 6.1 on 2026-10-06) vs 5.5.x LTS | Version number; whether CI uses the same version | T1.1, T1.7, T1.8 (all IDF builds); CI runner setup in T6.1 |
 | **D2** | Strictness of "C" | **(b)** C core + small C++ leaf set (`fastaccelstepper`, `tmc_stepper`) behind C backend headers; revisit leaves later — vs (a) 100 % C incl. rewriting FAS/TMC | (a) vs (b); if (a), accept 2–3 extra weeks and RMT/timing risk | T2.6, T2.7 (FAS/TMC strategy), T3.2 (BT stack), T5.1, T5.2 |
 | **D3** | Board scope | All 21 envs (17 CI + ptz + m5stack_dial + 7"; `esp32dev` dev-only) **or** only boards still shipped | Exact board list; fate of `esp32dev` | Which of T2.x/T3.x tasks exist; T2.11 cleanup list |
 | **D4** | M5GFX boards (m5stack_dial, waveshare_7inch) | **Port to IDF** as C++ leaves (M5GFX + M5Unified + M5Dial) — no PIO | — (confirmed: port to IDF) | T5.4 (port M5GFX to IDF) |
@@ -151,7 +151,7 @@ start immediately.**
 
 ```bash
 # IDF (D1 = 6.1): source export first
-. M:/.espressif/v6.1/esp-idf/export.ps1        # Windows/PowerShell (or export.sh)
+. C:/esp/v6.1/esp-idf/export.ps1               # Windows/PowerShell (or export.sh; moved from M:/.espressif 2026-07)
 
 # Build one app (CWD-independent):
 idf.py -D IDF_TARGET=esp32s3 -D PROJECT_DIR=apps/canopen_slave_laser build

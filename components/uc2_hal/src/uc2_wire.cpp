@@ -289,7 +289,7 @@ bool Wire_::onSlaveRequest(i2c_slave_dev_handle_t dev, const i2c_slave_request_e
     if (w->reqFn_) {
         w->reqFn_();  // fills the buffer via Wire.write()
     }
-    size_t written = 0;
+    uint32_t written = 0;  // IDF i2c_slave_write() wants uint32_t*
     if (w->txCount_ > 0) {
         i2c_slave_write(dev, w->txBuf_, w->txCount_, &written, 5);
     }

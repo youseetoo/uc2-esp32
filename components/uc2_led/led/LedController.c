@@ -89,13 +89,10 @@ static void str_lower_into(char *dst, size_t dst_size, const char *src)
 
 // The Adafruit object (opaque handle from led_strip_c.h).
 static void *matrix = NULL;
-static bool isDEBUG = false;
 static bool isOn = false;
 
 // for in-loop interaction
 static int currentLedForStatus = idle; // LedForStatus::idle
-static uint8_t brightnessLoop = 0;     // Tracks current fade brightness
-static int fadeDirection = 1;          // Fade up (+1) or down (-1)
 
 // Pattern animation state
 static uint8_t activePatternId = 0;     // 0=none, 1=rainbow, 2=breathe, 3=chase, ...
@@ -1144,7 +1141,7 @@ int led_act(cJSON *root)
 	// LED is synchronous: register and immediately report done
 	if (cmd.qid > 0)
 	{
-		qid_register(cmd.qid, 1);
+		qid_register(cmd.qid, 1, QID_DEFAULT_TIMEOUT_MS); // 3-arg: C has no default-arg overload
 		qid_report_action_done(cmd.qid);
 	}
 

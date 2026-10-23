@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include "../../components/uc2_led/led/LedController.h"
-#include "../../components/uc2_led/led/LedController.cpp"
+#include "../../components/uc2_led/led/LedController.c"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
 
@@ -12,15 +12,15 @@
 // LDC-001: LedMode enum values
 // ============================================================================
 void test_ldc001_ledModeEnumValues() {
-    TEST_ASSERT_EQUAL_UINT8(0, static_cast<uint8_t>(LedMode::OFF));
-    TEST_ASSERT_EQUAL_UINT8(1, static_cast<uint8_t>(LedMode::FILL));
-    TEST_ASSERT_EQUAL_UINT8(2, static_cast<uint8_t>(LedMode::SINGLE));
-    TEST_ASSERT_EQUAL_UINT8(3, static_cast<uint8_t>(LedMode::HALVES));
-    TEST_ASSERT_EQUAL_UINT8(4, static_cast<uint8_t>(LedMode::RINGS));
-    TEST_ASSERT_EQUAL_UINT8(5, static_cast<uint8_t>(LedMode::CIRCLE));
-    TEST_ASSERT_EQUAL_UINT8(6, static_cast<uint8_t>(LedMode::ARRAY));
-    TEST_ASSERT_EQUAL_UINT8(7, static_cast<uint8_t>(LedMode::STATUS));
-    TEST_ASSERT_EQUAL_UINT8(8, static_cast<uint8_t>(LedMode::UNKNOWN));
+    TEST_ASSERT_EQUAL_UINT8(0, static_cast<uint8_t>(LM_OFF));
+    TEST_ASSERT_EQUAL_UINT8(1, static_cast<uint8_t>(LM_FILL));
+    TEST_ASSERT_EQUAL_UINT8(2, static_cast<uint8_t>(LM_SINGLE));
+    TEST_ASSERT_EQUAL_UINT8(3, static_cast<uint8_t>(LM_HALVES));
+    TEST_ASSERT_EQUAL_UINT8(4, static_cast<uint8_t>(LM_RINGS));
+    TEST_ASSERT_EQUAL_UINT8(5, static_cast<uint8_t>(LM_CIRCLE));
+    TEST_ASSERT_EQUAL_UINT8(6, static_cast<uint8_t>(LM_ARRAY));
+    TEST_ASSERT_EQUAL_UINT8(7, static_cast<uint8_t>(LM_STATUS));
+    TEST_ASSERT_EQUAL_UINT8(8, static_cast<uint8_t>(LM_UNKNOWN));
 }
 
 // ============================================================================
@@ -95,8 +95,10 @@ void test_ldc008_setStatus() {
 // LDC-009: LED array size boundary
 // ============================================================================
 void test_ldc009_ledArraySize() {
-    // Verify pinConfig has LED_COUNT defined
-    (void)pinConfig.LED_COUNT;
+    // Verify the LED_COUNT macro (LedController.h) expands and the pinConfig
+    // LED_PIN field is present. (Can't write pinConfig.LED_COUNT here — once
+    // LedController.h is included the LED_COUNT macro clobbers the field name.)
+    (void)LED_COUNT;
     (void)pinConfig.LED_PIN;
 }
 
@@ -109,7 +111,7 @@ void test_ldc010_actValidJson() {
     TEST_ASSERT_NOT_NULL(doc);
     if (!doc) return;
     
-    int result = LedController::act(doc);
+    int result = led_act(doc);
     TEST_ASSERT_TRUE(result >= -1);
     TestUtil::deleteJson(doc);
 }
@@ -123,7 +125,7 @@ void test_ldc011_getValidJson() {
     TEST_ASSERT_NOT_NULL(doc);
     if (!doc) return;
     
-    cJSON* result = LedController::get(doc);
+    cJSON* result = led_get(doc);
     TestUtil::deleteJson(doc);
     if (result) TestUtil::deleteJson(result);
 }
@@ -158,7 +160,7 @@ void test_ldc014_setPixelXYInvalid() {
 // ============================================================================
 void test_ldc015_setupNoCrash() {
     // Calling setup should not crash in test environment
-    LedController::setup();
+    led_setup();
     TEST_PASS();
 }
 

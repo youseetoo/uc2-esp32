@@ -24,6 +24,16 @@ inline long random(long min, long max)
     return min + static_cast<long>(esp_random() % static_cast<unsigned long>(max - min + 1L));
 }
 
+// C-facing alias: pure-C modules compiled as C++ (e.g. LedController.c, which
+// the host test #includes into a .cpp) call uc2_random — the name the C branch
+// (below) exposes. The C branch cannot reuse `random` (picolibc stdlib.h
+// declares `long random(void)`), so dual-compiled .c files use uc2_random in
+// both; here it just forwards to the C++ `random`.
+inline long uc2_random(long min, long max)
+{
+    return random(min, max);
+}
+
 // Arduino map: linear remap, integer arithmetic, no clamping (Arduino
 // semantics).
 inline long map(long x, long in_min, long in_max, long out_min, long out_max)

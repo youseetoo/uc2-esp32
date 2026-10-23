@@ -66,7 +66,7 @@ esp_err_t i2c_slave_register_event_callbacks(i2c_slave_dev_handle_t dev_handle,
                                              i2c_slave_event_callbacks_t *callbacks,
                                              void *callback_arg);
 esp_err_t i2c_slave_write(i2c_slave_dev_handle_t dev_handle, const uint8_t *data,
-                          size_t len, size_t *bytes_transferred, uint32_t ticks_to_wait);
+                          size_t len, uint32_t *bytes_transferred, uint32_t ticks_to_wait);
 
 #ifdef __cplusplus
 }

@@ -258,7 +258,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef LED_CONTROLLER
 		if (runtimeConfig.led) {
-			LedController::loop();
+			led_loop();
 			vTaskDelay(1);
 		}
 		signal_loop();
@@ -437,8 +437,8 @@ static void handleCircleCombined(int pressed)
         {
             // Short press - trigger LED toggle only on release
             #ifdef LED_CONTROLLER
-            LedController::circle_changed_event(1); // simulate press
-            LedController::circle_changed_event(0); // simulate release
+            led_circle_changed_event(1); // simulate press
+            led_circle_changed_event(0); // simulate release
             #endif
         }
         btCircleState.isPressed = false;
@@ -643,7 +643,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef LED_CONTROLLER
 	if (runtimeConfig.led) {
-		LedController::setup();
+		led_setup();
 	}
 	signal_setup();
 #endif
@@ -681,7 +681,7 @@ if (runtimeConfig.fan) {
 	}
 	#endif
 #ifdef THERMAL_CONTROLLER
-	// Heat-sink NTCs on the illumination board. Runs after LedController::setup()
+	// Heat-sink NTCs on the illumination board. Runs after led_setup()
 	// so an over-temperature latch found at boot can cut the LEDs immediately.
 	thermal_setup();
 #endif

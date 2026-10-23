@@ -1,162 +1,107 @@
+#ifndef LED_CONTROLLER_H
+#define LED_CONTROLLER_H
+
+// T4.1: converted from C++ (namespace LedController) to C.
+// The Adafruit library objects live behind the led_strip_c.h shim
+// (led/led_strip_c.cpp); this file is pure C.
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
 #include <PinConfig.h>
+
 #include "cJSON.h"
-#include "driver/gpio.h"
-#include "soc/gpio_sig_map.h"  // Provides signal definitions
-#include "soc/io_mux_reg.h"
-#pragma once
-#ifdef HUB75
-  #include <Adafruit_Protomatter.h>
-#else
-  #ifdef DOTSTAR
-    #include <Adafruit_DotStar.h>
-  #else
-    #include <Adafruit_NeoPixel.h>
-  #endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+#define LED_COUNT (pinConfig.MATRIX_W * pinConfig.MATRIX_H)
 
+// LED modes (values pinned by test LDC-001). Was `enum class LedMode : uint8_t`
+// in C++; the LM_ prefix replaces the scoped `LedMode::` access.
+typedef enum {
+  LM_OFF = 0,
+  LM_FILL,
+  LM_SINGLE,
+  LM_HALVES,
+  LM_RINGS,
+  LM_CIRCLE,
+  LM_ARRAY, // for multiple arbitrary pixels
+  LM_STATUS,
+  LM_UNKNOWN,
+} LedMode;
 
+// Plain C enums (unscoped) — values unchanged from the C++ version.
+typedef enum {
+  warn = 0,
+  error,
+  idle,
+  success,
+  busy,
+  rainbow,
+  unknown,
+  on_,
+  off_,
+} LedForStatus;
 
-enum LedForStatus : uint8_t
-{
-    warn=0,
-    error, // red = 1
-    idle,
-    success,
-    busy,
-    rainbow,
-    unknown, 
-    on_, // white = 6
-    off_, // black = 7
-};
-
-enum LedModes : uint8_t
-{
-    array = 0,
-    full,
-    single,
-    off,
-    left,
-    right,
-    top,
-    bottom,
-    multi
-};
-
-enum class LedMode : uint8_t
-{
-	OFF = 0,
-	FILL,
-	SINGLE,
-	HALVES,
-	RINGS,
-	CIRCLE,
-	ARRAY, // for multiple arbitrary pixels
-  STATUS,
-	UNKNOWN
-};
+typedef enum {
+  array = 0,
+  full,
+  single,
+  off,
+  left,
+  right,
+  top,
+  bottom,
+  multi,
+} LedModes;
 
 #pragma pack(push, 1)
-struct LedCommand
-{
-	uint16_t qid;	// user-assigned ID
-	LedMode mode;	// see enum above
-	uint8_t r;		// color R
-	uint8_t g;		// color G
-	uint8_t b;		// color B
-	uint8_t radius; // used for RINGS or CIRCLE
-	char region[8]; // "left","right","top","bottom" (for HALVES)
-	// For SINGLE pixel
-	uint16_t ledIndex;
-
-};
+typedef struct {
+  uint16_t qid;   // user-assigned ID (2 bytes — keeps the 17-byte frame)
+  uint8_t mode;   // LedMode as 1 byte (the C enum is int-sized; store the value)
+  uint8_t r, g, b;
+  uint8_t radius;
+  char region[8]; // "left","right","top","bottom" (for HALVES)
+  uint16_t ledIndex;
+} LedCommand;
 #pragma pack(pop)
 
+void led_setup(void);
+void led_loop(void);
+int led_act(cJSON *doc);
+cJSON *led_get(cJSON *doc);
+void led_turn_off(void);
+void led_fill_all(uint8_t r, uint8_t g, uint8_t b);
+void led_set_single(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
+void led_fill_halves(const char *region, uint8_t r, uint8_t g, uint8_t b);
+void led_fill_halves_ring_segments(const char *region, uint8_t r, uint8_t g,
+                                   uint8_t b);
+void led_draw_rings(uint8_t radius, uint8_t r, uint8_t g, uint8_t b);
+void led_draw_illumination_rings(uint8_t ring_id, uint8_t r, uint8_t g,
+                                 uint8_t b);
+void led_draw_illumination_ring_segment(uint8_t ring_id, const char *region,
+                                        uint8_t r, uint8_t g, uint8_t b,
+                                        bool clear_before_draw);
+void led_draw_circle(uint8_t radius, uint8_t r, uint8_t g, uint8_t b);
+bool led_parse_command(cJSON *root, LedCommand *cmd);
+void led_exec_command(const LedCommand *cmd);
+void led_circle_changed_event(int pressed);
+void led_set_pixel_xy(int x, int y, uint8_t r, uint8_t g, uint8_t b);
+uint16_t led_xy_to_index(int x, int y);
+void led_set_mode(uint8_t mode, uint8_t brightness, uint32_t colour);
+void led_set_pattern(uint8_t pattern_id, uint16_t speed);
+void led_set_pixels(const uint8_t *data, uint16_t pixel_count);
 
+// C-facing shims consumed by C callers (OD.c, ThermalController.c,
+// FocusScan.c).
+void led_c_turn_off(void);
+void led_exec_circ_command(uint8_t rgb, uint8_t radius, uint8_t qid);
 
-
-namespace LedController
-{
-    // We use the strip instead of the matrix to ensure different dimensions; Convesion of the pattern has to be done on the cliet side!
-    #ifdef  DOTSTAR
-    static Adafruit_DotStar *matrix;
-    #elif defined(HUB75)
-    static Adafruit_Protomatter *matrix;
-    #else
-    static Adafruit_NeoPixel *matrix;
-    #endif
-
-    static bool isDEBUG = false;
-    static bool isOn = false;
-
-    // for in-loop interaction 
-    static int currentLedForStatus = LedForStatus::idle;
-	static uint8_t brightnessLoop = 0;    // Tracks current fade brightnessLoop
-    static int fadeDirection = 1;     // Fade up (+1) or down (-1)
-
-    // Pattern animation state
-    static uint8_t activePatternId = 0;     // 0=none, 1=rainbow, 2=breathe, 3=chase, ...
-    static uint16_t activePatternSpeed = 100; // ms per frame
-    static uint32_t lastPatternUpdateMs = 0;
-    static uint8_t patternFrame = 0;
-	
-	// LED safety auto-off tracking
-	static uint16_t currentTotalIntensity = 0;  // Sum of R + G + B channels (0-765)
-	static unsigned long highIntensityStartTime = 0;  // When high intensity was first detected
-	static bool highIntensityWarningShown = false;  // Track if warning has been shown
-	static bool ledAutoOffTriggered = false;  // Track if auto-off has been triggered
-	
-    // Adjust for your NeoPixel matrix:
-    static const uint16_t LED_COUNT = pinConfig.MATRIX_W * pinConfig.MATRIX_H;
-
-    void setPixelXY(int x, int y, uint8_t r, uint8_t g, uint8_t b);
-    uint16_t xyToIndex(int x, int y);
-    void turnOff();
-    void fillAll(uint8_t r, uint8_t g, uint8_t b);
-    void setSingle(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
-    void fillHalves(const char *region, uint8_t r, uint8_t g, uint8_t b);
-    void fillHalvesRingSegments(const char *region, uint8_t r, uint8_t g, uint8_t b);
-    void drawRings(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
-    void drawIlluminationRings(uint8_t ring_id, uint8_t r, uint8_t g, uint8_t b);
-    void drawIlluminationRingSegment(uint8_t ring_id, const char* region, uint8_t r, uint8_t g, uint8_t b, bool clearBeforeDraw);
-    void drawCircle(uint8_t radius, uint8_t rVal, uint8_t gVal, uint8_t bVal);
-    bool parseLedCommand(cJSON *root, LedCommand &cmd);
-    void execLedCommand(const LedCommand &cmd);
-    void cross_changed_event(int pressed);
-    void circle_changed_event(int pressed);
-    uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
-
-    // CANopen integration: called from OD sync / SDO callbacks
-    void setMode(uint8_t mode, uint8_t brightness, uint32_t colour);
-    void setPattern(uint8_t patternId, uint16_t speed);
-    void setPixels(const uint8_t* data, uint16_t pixelCount);
-
-
-    void setup();
-    /*
-    {
-    "led": {
-        "LEDArrMode": 1,
-        "led_array": [
-        {
-            "b": 0,
-            "g": 0,
-            "id": 0,
-            "r": 0
-        }
-        ]
-    }
-    }
-    */
-    int act(cJSON * ob);
-    /*{
-  "led": {
-    "ledArrNum": 64,
-    "ledArrPin": 27
-  }
+#ifdef __cplusplus
 }
-    */
-    cJSON * get(cJSON *  ob);
-    void loop();
+#endif
 
-};
+#endif // LED_CONTROLLER_H

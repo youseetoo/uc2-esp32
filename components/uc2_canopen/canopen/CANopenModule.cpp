@@ -1234,7 +1234,7 @@ static ODR_t onLedPixelWrite(OD_stream_t* stream, const void* buf,
     // If this was the last segment, apply to the LED strip
     if (stream->dataOffset + count >= stream->dataLength) {
         uint16_t pixelCount = s_ledPixelBytesReceived / 3;
-        LedController::setPixels(s_ledPixelBuffer, pixelCount);
+        led_set_pixels(s_ledPixelBuffer, pixelCount);
         s_ledPixelBytesReceived = 0;
     }
     return ODR_OK;
@@ -1262,15 +1262,15 @@ static ODR_t onLedSinglePixelWrite(OD_stream_t* stream, const void* buf,
         uint8_t r = s_ledSinglePixelBuf[2];
         uint8_t g = s_ledSinglePixelBuf[3];
         uint8_t b = s_ledSinglePixelBuf[4];
-        LedController::setSingle(index, r, g, b);
+        led_set_single(index, r, g, b);
         s_ledSinglePixelBytes = 0;
     }
     return ODR_OK;
 }
 
 // 0x2212 — LED_SHAPE: 5-byte payload {u8 shape, u8 radius, u8 r, u8 g, u8 b}.
-// shape: 0 = rings → LedController::drawRings(radius, r, g, b)
-//        1 = circle → LedController::drawCircle(radius, r, g, b)
+// shape: 0 = rings → led_draw_rings(radius, r, g, b)
+//        1 = circle → led_draw_circle(radius, r, g, b)
 static OD_extension_t s_ledShapeExt;
 static uint8_t        s_ledShapeBuf[5];
 static size_t         s_ledShapeBytes = 0;
@@ -1290,8 +1290,8 @@ static ODR_t onLedShapeWrite(OD_stream_t* stream, const void* buf,
         uint8_t r      = s_ledShapeBuf[2];
         uint8_t g      = s_ledShapeBuf[3];
         uint8_t b      = s_ledShapeBuf[4];
-        if (shape == 1) LedController::drawCircle(radius, r, g, b);
-        else            LedController::drawRings(radius, r, g, b);
+        if (shape == 1) led_draw_circle(radius, r, g, b);
+        else            led_draw_rings(radius, r, g, b);
         s_ledShapeBytes = 0;
     }
     return ODR_OK;
@@ -2298,7 +2298,7 @@ void CANopenModule::syncRpdoToModules_slave()
             lastLedMode   = curMode;
             lastLedBright = curBright;
             lastLedColour = curColour;
-            LedController::setMode(curMode, curBright, curColour);
+            led_set_mode(curMode, curBright, curColour);
         }
     
     // LED pattern: detect changes to pattern id/speed
@@ -2309,7 +2309,7 @@ void CANopenModule::syncRpdoToModules_slave()
         if (curPat != lastPatternId || curSpeed != lastPatternSpeed) {
             lastPatternId    = curPat;
             lastPatternSpeed = curSpeed;
-            LedController::setPattern(curPat, curSpeed);
+            led_set_pattern(curPat, curSpeed);
         }
     
 #endif

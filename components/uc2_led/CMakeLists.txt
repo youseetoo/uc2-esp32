@@ -5,8 +5,10 @@ if(CONFIG_UC2_LED_CONTROLLER)
   list(APPEND UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/led
     ${CMAKE_CURRENT_LIST_DIR}/signal)
+  # T4.1: LedController is now pure C (LedController.c); the Adafruit_NeoPixel/
+  # DotStar/Protomatter/Ws2812Rmt leaf drivers live in led_strip_c.cpp (C++ shim).
   idf_component_register(
-    SRCS "led/LedController.cpp" "led/ws2812_rmt.c" "signal/SignalController.c" "signal/signal_neopixel_c.cpp"
+    SRCS "led/LedController.c" "led/led_strip_c.cpp" "led/ws2812_rmt.c" "signal/SignalController.c" "signal/signal_neopixel_c.cpp"
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS} ${CMAKE_CURRENT_LIST_DIR}/../neopixel
     REQUIRES uc2_core uc2_hal uc2_serial uc2_canopen uc2_periph cjson neopixel
              driver esp_driver_rmt esp_driver_gpio esp_driver_periph_ctrl

@@ -119,7 +119,11 @@ $prodSrcs  = @(
     # gamma8/color/set_pixel) called by the C TU SignalController.c.
     "components\uc2_led\signal\signal_neopixel_c.cpp",
     "components\uc2_canopen\canopen\OtaBinaryReceive.cpp",
-    "components\uc2_bt\BtController.cpp"
+    "components\uc2_bt\BtController.cpp",
+    # T4.1: C-facing Adafruit strip shim. LedController.c (included by
+    # test_led_controller.cpp) calls led_strip_*, whose definitions live here
+    # (compiles the NeoPixel branch against test/unity/stubs/Adafruit_NeoPixel.h).
+    "components\uc2_led\led\led_strip_c.cpp"
 )
 $cSrcs = @(
     "components\uc2_axis\axis\AxisCalibration.c",

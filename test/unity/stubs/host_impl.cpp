@@ -447,9 +447,9 @@ esp_err_t i2c_slave_register_event_callbacks(i2c_slave_dev_handle_t dev,
     return ESP_OK;
 }
 esp_err_t i2c_slave_write(i2c_slave_dev_handle_t dev, const uint8_t* data,
-                          size_t len, size_t* bytes_transferred, uint32_t ticks_to_wait) {
+                          size_t len, uint32_t* bytes_transferred, uint32_t ticks_to_wait) {
     (void)dev; (void)data; (void)ticks_to_wait;
-    if (bytes_transferred) *bytes_transferred = len;
+    if (bytes_transferred) *bytes_transferred = (uint32_t)len;
     return ESP_OK;
 }
 }  // extern "C" — i2c v2

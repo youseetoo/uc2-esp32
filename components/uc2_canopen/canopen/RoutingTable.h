@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "cJSON.h"
 
+#ifdef __cplusplus
 namespace UC2 {
 
 // One row per addressable hardware instance: a motor axis, a laser channel,
@@ -54,3 +55,39 @@ public:
 };
 
 } // namespace UC2
+#endif // __cplusplus
+
+// T4.2: C shims for the pure-C SerialProcessIn.c (/route_get + /route_set).
+// The C enums mirror RouteEntry::Type / RouteEntry::Where (same values, so the
+// .cpp wrappers can cast directly).
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    ROUTE_ENTRY_TYPE_MOTOR = 1,
+    ROUTE_ENTRY_TYPE_LASER,
+    ROUTE_ENTRY_TYPE_LED,
+    ROUTE_ENTRY_TYPE_GALVO,
+    ROUTE_ENTRY_TYPE_HOME,
+    ROUTE_ENTRY_TYPE_TMC,
+    ROUTE_ENTRY_TYPE_DAC,
+    ROUTE_ENTRY_TYPE_AIN,
+    ROUTE_ENTRY_TYPE_DIN,
+} route_entry_type_t;
+
+typedef enum {
+    ROUTE_ENTRY_WHERE_LOCAL = 0,
+    ROUTE_ENTRY_WHERE_REMOTE,
+    ROUTE_ENTRY_WHERE_OFF,
+} route_entry_where_t;
+
+// /route_get — serialize the whole table (caller frees with cJSON_Delete).
+cJSON *routing_table_to_json(void);
+// /route_set — update one entry (type + logicalId select the row).
+void routing_table_set(route_entry_type_t type, uint8_t logicalId,
+                       route_entry_where_t where, uint8_t nodeId, uint8_t subAxis);
+
+#ifdef __cplusplus
+}
+#endif

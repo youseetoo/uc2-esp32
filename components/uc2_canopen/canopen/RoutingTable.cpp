@@ -360,3 +360,13 @@ void RoutingTable::logAll() {
 }
 
 } // namespace UC2
+
+// T4.2: C shims for the pure-C SerialProcessIn.c (route_get / route_set).
+extern "C" cJSON *routing_table_to_json(void)
+{ return UC2::RoutingTable::toJson(); }
+
+extern "C" void routing_table_set(route_entry_type_t type, uint8_t logicalId,
+                                  route_entry_where_t where, uint8_t nodeId,
+                                  uint8_t subAxis)
+{ UC2::RoutingTable::set((UC2::RouteEntry::Type)type, logicalId,
+                         (UC2::RouteEntry::Where)where, nodeId, subAxis); }

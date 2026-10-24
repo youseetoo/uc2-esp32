@@ -89,6 +89,12 @@ cJSON *device_router_handle_motor_act(cJSON *doc);
 cJSON *device_router_handle_laser_act(cJSON *doc);
 cJSON *device_router_handle_led_act(cJSON *doc);
 cJSON *device_router_handle_home_act(cJSON *doc);
+
+// T4.2: generic command dispatcher for the pure-C SerialProcessIn.c
+// (jsonProcessor). Wraps DeviceRouter::routeCommand(task, doc): consults the
+// routing table and dispatches to the matching handler. Returns the JSON
+// response (caller frees with cJSON_Delete) or NULL if not handled.
+cJSON *device_router_route_command(const char *task, cJSON *doc);
 #ifdef __cplusplus
 }
 #endif

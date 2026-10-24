@@ -195,6 +195,11 @@ extern "C" cJSON *device_router_handle_led_act(cJSON *doc)
 extern "C" cJSON *device_router_handle_home_act(cJSON *doc)
 { return DeviceRouter::handleHomeAct(doc); }
 
+// T4.2: generic command dispatcher for the pure-C SerialProcessIn.c
+// (jsonProcessor). Wraps DeviceRouter::routeCommand.
+extern "C" cJSON *device_router_route_command(const char *task, cJSON *doc)
+{ return DeviceRouter::routeCommand(task, doc); }
+
 cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");

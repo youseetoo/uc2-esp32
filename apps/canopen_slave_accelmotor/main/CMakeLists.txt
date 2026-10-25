@@ -1,9 +1,14 @@
 # T2.6: app entry shim. The real app (main.cpp + all gated sources) lives in
 # the uc2_app component; main.c here only calls uc2_app_start(). uc2_motor
 # (the new component for T2.6) compiles the motor/home/axis/tmc/pid sources.
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "main.c" "pinconfig.c"
                        INCLUDE_DIRS "."
                        REQUIRES uc2_app uc2_motor)
+
+# T4.3: pinconfig.c re-initializes fields already set by PINCONFIG_DEFAULTS_FIELDS
+# (board overrides after the defaults); GCC 15 (gnu23 + -Wextra + -Werror) promotes
+# -Woverride-init to an error.
+target_compile_options(__idf_main PRIVATE -Wno-override-init)
 
 # T2.6: link-order fix for the uc2_app <-> uc2_motor <-> uc2_canopen cycle.
 # uc2_app's main.cpp (and uc2_canopen's CANopenModule) reference the
@@ -31,4 +36,9 @@ target_link_libraries(__idf_main PRIVATE
     # group the PCNT objects are not pulled in — same technique as neopixel RMT).
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_driver_pcnt/libesp_driver_pcnt.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_hal_pcnt/libesp_hal_pcnt.a"
+    # T4.3: pinConfig is DEFINED in libmain.a (pinconfig.c). The uc2_* libs
+    # reference it, so libmain.a must be INSIDE the group: the uc2_* group
+    # resolves among themselves and stops, so a pinConfig reference would
+    # otherwise dangle against a later libmain.a (same pattern as canopen_slave_motor).
+    "LINKER:${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a"
     "LINKER:--end-group")

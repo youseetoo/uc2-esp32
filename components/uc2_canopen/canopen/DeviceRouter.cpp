@@ -378,23 +378,23 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 #ifdef AXIS_CONTROLLER
                 if (amodeItem && cJSON_IsNumber(amodeItem) &&
                     amodeItem->valueint >= 0 && amodeItem->valueint <= 3)
-                    AxisController::requestMode(stepperid, (uint8_t)amodeItem->valueint);
+                    axis_request_mode(stepperid, (uint8_t)amodeItem->valueint);
                 if (aresetItem && cJSON_IsNumber(aresetItem) &&
                     aresetItem->valueint >= 1 && aresetItem->valueint <= 3)
-                    AxisController::requestReset(stepperid, (uint8_t)(aresetItem->valueint - 1));
+                    axis_request_reset(stepperid, (uint8_t)(aresetItem->valueint - 1));
                 if (calItem && cJSON_IsNumber(calItem) && calItem->valueint != 0)
-                    AxisController::requestCalibration(stepperid);
+                    axis_request_calibration(stepperid);
                 // "encmonitor":<periodMs> — periodic encoder liveness reports on
                 // THIS node's serial ({"encoderMonitor":...}); 0 = off.
                 if (emonItem && cJSON_IsNumber(emonItem) && emonItem->valueint >= 0)
-                    EncoderMonitor::setPeriod(stepperid, (uint32_t)emonItem->valueint);
+                    encoder_monitor_set_period(stepperid, (uint32_t)emonItem->valueint);
                 // "enctable":N — diagnostic linearity sweep of N points out and
                 // back; optional "tablestep"/"tablespeed". Result arrives as one
                 // {"encoderTable":{...}} event with [[steps,counts],...].
                 if (tblItem && cJSON_IsNumber(tblItem) && tblItem->valueint > 0) {
                     cJSON* tsz = cJSON_GetObjectItem(s, "tablestep");
                     cJSON* tsp = cJSON_GetObjectItem(s, "tablespeed");
-                    AxisController::requestEncoderTable(
+                    axis_request_encoder_table(
                         stepperid, tblItem->valueint,
                         (tsz && cJSON_IsNumber(tsz)) ? tsz->valueint : 500,
                         (tsp && cJSON_IsNumber(tsp)) ? tsp->valueint : 2000);
@@ -469,9 +469,9 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
                     // loop; 1..3 force MONITOR/CORRECT/SERVO (1 == "on" == the
                     // axis mode if already closed-loop). The axis's configured
                     // mode is not changed either way.
-                    if (!isForever && (clItem || AxisController::getFeedback(stepperid).mode
+                    if (!isForever && (clItem || axis_get_feedback(stepperid).mode
                                                      != MODE_OPEN_LOOP))
-                        AxisController::moveToWithMode(stepperid, pos, speed, isAbs, clOverride);
+                        axis_move_to_with_mode(stepperid, pos, speed, isAbs, clOverride);
                     else
 #endif
                     focusmotor_start_stepper(stepperid, 0); // TODO: Shouldn't we use stopstepper instead?
@@ -626,7 +626,7 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
                 // every LOCAL axis; encoderless axes report identity values
                 // (measured == position, posErr == 0, axismode == 0).
                 {
-                    AxisFeedback afb = AxisController::getFeedback(stepperid);
+                    AxisFeedback afb = axis_get_feedback(stepperid);
                     cJSON_AddNumberToObject(rs, "measured", afb.measuredSteps);
                     cJSON_AddNumberToObject(rs, "posErr", afb.positionErrorSteps);
                     cJSON_AddNumberToObject(rs, "axismode", afb.mode);

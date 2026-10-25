@@ -2159,7 +2159,7 @@ void CANopenModule::syncRpdoToModules_slave()
         // node, then re-sync all slots so stale slots never re-trigger.
         int ax = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
         if (ax >= 0 && ax < 4) {
-            uint8_t curMode = AxisController::getFeedback(ax).mode;
+            uint8_t curMode = axis_get_feedback(ax).mode;
             // First pass after boot: seed the OD slots with the controller's
             // actual mode (MONITOR by default when calibrated). Without this,
             // the all-zero boot OD would immediately force OPEN_LOOP.
@@ -2174,7 +2174,7 @@ void CANopenModule::syncRpdoToModules_slave()
             for (int s = 0; s < 4; s++) {
                 uint8_t desiredMode = OD_RAM.x2042_axis_mode[s];
                 if (desiredMode <= 3 && desiredMode != curMode) {
-                    AxisController::requestMode(ax, desiredMode);
+                    axis_request_mode(ax, desiredMode);
                     for (int k = 0; k < 4; k++)
                         OD_RAM.x2042_axis_mode[k] = desiredMode;
                     break;
@@ -2185,7 +2185,7 @@ void CANopenModule::syncRpdoToModules_slave()
                 uint8_t rst = OD_RAM.x2045_axis_reset[s];
                 if (rst != 0) {
                     uint8_t policy = (rst >= 1 && rst <= 3) ? (uint8_t)(rst - 1) : 0;
-                    AxisController::requestReset(ax, policy);
+                    axis_request_reset(ax, policy);
                     for (int k = 0; k < 4; k++)
                         OD_RAM.x2045_axis_reset[k] = 0; // clear doorbells
                     break;
@@ -2194,7 +2194,7 @@ void CANopenModule::syncRpdoToModules_slave()
             // CALIBRATE doorbell (0x2048): trigger the routine.
             for (int s = 0; s < 4; s++) {
                 if (OD_RAM.x2048_axis_calibrate[s] != 0) {
-                    AxisController::requestCalibration(ax);
+                    axis_request_calibration(ax);
                     for (int k = 0; k < 4; k++)
                         OD_RAM.x2048_axis_calibrate[k] = 0; // clear doorbells
                     break;
@@ -2718,8 +2718,8 @@ void CANopenModule::syncModulesToTpdo()
     // x2042 mode is a command input and is NOT written back here to avoid
     // clobbering a pending host mode change. All values in STEPS except raw.
     if (localAxis >= 0 && localAxis < 4) {
-        AxisFeedback afb = AxisController::getFeedback(localAxis);
-        AxisCalibration acal = AxisController::getCalibration(localAxis);
+        AxisFeedback afb = axis_get_feedback(localAxis);
+        AxisCalibration acal = axis_get_calibration(localAxis);
         OD_RAM.x2040_axis_measured_steps[localAxis]       = afb.measuredSteps;
         OD_RAM.x2041_axis_position_error_steps[localAxis] = afb.positionErrorSteps;
         OD_RAM.x2043_axis_health[localAxis]               = afb.health;
@@ -2867,8 +2867,8 @@ void CANopenModule::loop()
             // check / CORRECT verify+retry / SERVO PID). Forever/jog moves stay
             // on the plain open-loop path.
             if (!m->isforever &&
-                AxisController::getFeedback(localAxis).mode != MODE_OPEN_LOOP) {
-                AxisController::moveToWithMode(localAxis, m->targetPosition, m->speed,
+                axis_get_feedback(localAxis).mode != MODE_OPEN_LOOP) {
+                axis_move_to_with_mode(localAxis, m->targetPosition, m->speed,
                                                m->absolutePosition, 0xFF /*axis mode*/);
                 continue;
             }

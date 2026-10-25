@@ -223,7 +223,7 @@ extern "C" void looper(void *p)
 
 #ifdef AXIS_CONTROLLER
 		if (runtimeConfig.encoder) {
-			AxisController::loop();
+				axis_controller_loop();
 		}
 #endif
 #ifdef HOME_MOTOR
@@ -623,7 +623,7 @@ extern "C" void setupApp(void)
 #ifdef AXIS_CONTROLLER
 	// Clean-slate closed-loop feedback layer (design v2).
 	if (runtimeConfig.encoder) {
-		AxisController::setup();
+		axis_controller_setup();
 	}
 #endif
 #ifdef HOME_MOTOR

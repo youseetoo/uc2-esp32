@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "HidGamePad.h"
 
+#ifdef __cplusplus
 namespace BtController
 {
 
@@ -73,3 +74,21 @@ namespace BtController
     void setTrackpadSwipeEvent(void (*trackpad_swipe_event)(SwipeDirection direction));
     void setTrackpadTouchEvent(void (*trackpad_touch_event)(TouchData touch1, TouchData touch2));
 };
+#endif // __cplusplus
+
+// T4.2: C shims for the pure-C SerialProcessIn.c (JSON-dispatched BT methods:
+// /bt_connect, /bt_scan, /bt_disconnect). Each wraps the matching BtController
+// namespace function. The HID gamepad path (BTHID) is not exercised here —
+// only the HID-independent setMacAndConnect/scanForDevices/disconnect.
+#ifdef __cplusplus
+extern "C" {
+#endif
+void bt_setMacAndConnect(char *m);
+#ifdef PSXCONTROLLER
+void bt_connectPsxController(char *mac, int type);
+#endif
+cJSON *bt_scanForDevices(cJSON *doc);
+void bt_disconnect(void);
+#ifdef __cplusplus
+}
+#endif

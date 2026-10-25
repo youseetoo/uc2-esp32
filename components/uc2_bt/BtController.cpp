@@ -643,3 +643,15 @@ namespace BtController
 #endif
     }
 } // namespace name
+
+// T4.2: C shims for the pure-C SerialProcessIn.c (JSON-dispatched BT methods).
+// Each wraps the matching BtController namespace function so a C module can
+// drive /bt_connect, /bt_scan and /bt_disconnect without C++ linkage.
+// setMacAndConnect is defined regardless of BTHID; connectPsxController is
+// PSX-only (the namespace def is #ifdef PSXCONTROLLER).
+extern "C" void bt_setMacAndConnect(char *m) { BtController::setMacAndConnect(m); }
+#ifdef PSXCONTROLLER
+extern "C" void bt_connectPsxController(char *mac, int type) { BtController::connectPsxController(mac, type); }
+#endif
+extern "C" cJSON *bt_scanForDevices(cJSON *doc) { return BtController::scanForDevices(doc); }
+extern "C" void bt_disconnect(void) { BtController::disconnect(); }

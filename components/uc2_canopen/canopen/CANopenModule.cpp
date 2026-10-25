@@ -2953,4 +2953,11 @@ void CANopenModule::loop()
 #endif
 }
 
+// T4.2: C shims for the pure-C SerialProcessIn.c (canopen get/act bridge).
+extern "C" cJSON *canopen_get(cJSON *doc)
+{ return CANopenModule::get(doc); }
+
+extern "C" cJSON *canopen_act(cJSON *doc)
+{ return CANopenModule::act(doc); }
+
 #endif // CAN_CONTROLLER_CANOPEN

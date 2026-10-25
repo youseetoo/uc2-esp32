@@ -278,4 +278,12 @@ void processBytes() {
 
 }  // namespace OtaBinaryReceive
 
+// T4.2: C shims for the pure-C SerialProcessIn.c (binary OTA mode check +
+// byte drain). Defined inside the same guard as the namespace above.
+extern "C" bool ota_isActive(void)
+{ return OtaBinaryReceive::isActive(); }
+
+extern "C" void ota_processBytes(void)
+{ OtaBinaryReceive::processBytes(); }
+
 #endif  // CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_SENDER

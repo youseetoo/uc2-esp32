@@ -20,6 +20,8 @@ extern "C" {
 #include "OD.h"
 }
 
+#ifdef __cplusplus
+
 // Cached state of a remote slave, populated by RPDO consumers on the master.
 // Read by handleMotorGet / async serial notifications. Zero SDO traffic.
 struct RemoteSlaveState {
@@ -108,6 +110,18 @@ private:
     static void syncRpdoToModules_master();
     static void syncModulesToTpdo();
 };
+#endif // __cplusplus
+
+// T4.2: C shims for the pure-C SerialProcessIn.c (canopen get/act bridge).
+// Each wraps the matching CANopenModule static (doc carries the "task" field).
+#ifdef __cplusplus
+extern "C" {
+#endif
+cJSON *canopen_get(cJSON *doc);
+cJSON *canopen_act(cJSON *doc);
+#ifdef __cplusplus
+}
+#endif
 
 // Global CANopenNode object (same pattern as MWE)
 extern CO_t* CO;

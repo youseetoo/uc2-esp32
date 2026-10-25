@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
 namespace OtaBinaryReceive {
 
 // Begin a binary OTA receive session. Returns a JSON response document
@@ -37,5 +38,17 @@ bool isActive();
 void processBytes();
 
 }  // namespace OtaBinaryReceive
+#endif  // __cplusplus
+
+// T4.2: C shims for the pure-C SerialProcessIn.c (binary OTA mode check +
+// byte drain). Each wraps the matching OtaBinaryReceive namespace function.
+#ifdef __cplusplus
+extern "C" {
+#endif
+bool ota_isActive(void);
+void ota_processBytes(void);
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // CAN_CONTROLLER_CANOPEN

@@ -88,7 +88,7 @@ executor agent.
 
 ### Phase 4 — C conversion of first-party code (2–4 w; parallelizable per module)
 - [ ] **T4.1** [T4.1.md](steps/T4.1.md) — C-ify leaf math/state: `pid/ axis/ signal/ state/ config/` · 1–2 d · ← T3.8 — **in progress (started 2026-07, user-approved early start past T3.8): pid/axis/signal/state/config C-ified (f76804e, f768f8b, a63b7df, a1b819c; host suite 92/0); remaining: `uc2_led/led/LedController.cpp` (48 KB). **D2 = (a) everything C** (decided 2026-07; full call-site map + `led_strip_c` shim design in steps/T4.1.md; NeoPixel→C RMT backend = T5.3)**
-- [ ] **T4.2** [T4.2.md](steps/T4.2.md) — C-ify `uc2_core` + `uc2_serial` · 2–3 d · ← T4.1
+- [x] **T4.2** [T4.2.md](steps/T4.2.md) — C-ify `uc2_core` + `uc2_serial` · 2–3 d · ← T4.1 — **done (2026-07): uc2_core C-ified in T4.1-era commits; `SerialProtocol.cpp`→`.c` (674c65f) + 4 C shims (9d7b5c1 + T4.2 commit: CANopenModule.h C-safety, OtaBinaryReceive.h stdbool) + `SerialProcessIn.cpp`→`SerialProcessIn.c` (pure-C serial input: framing/queue/task/jsonProcessor/serialize; C++ islands reached via `extern "C"` shims `device_router_route_command`, `canopen_get/act`, `ota_*`, `routing_table_*`, `bt_*`; C++ `namespace SerialProcess` shim in SerialProcess.h keeps uc2_app main.cpp source-compatible). Host suite 92/0/2 + canopen_master device build green.**
 - [ ] **T4.3** [T4.3.md](steps/T4.3.md) — C-ify `uc2_motor` (FocusMotor/homing/stage scan) + `Ws2812Rmt` · 2–3 d · ← T4.1
 - [ ] **T4.4** [T4.4.md](steps/T4.4.md) — C-ify `uc2_canopen`; split CANopenModule (138 KB) + DeviceRouter (104 KB) · 1–2 w · ← T4.2
 - [ ] **T4.5** [T4.5.md](steps/T4.5.md) — *(D2)* C-ify `uc2_bt` (Bt/Hid) + PSController leaf decision · 2–3 d · ← T3.7, T4.2

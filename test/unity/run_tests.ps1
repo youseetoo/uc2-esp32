@@ -79,9 +79,8 @@ $testSrcs  += @("test\unity\stubs\host_impl.cpp")
 # with /std:c11 below (cl would otherwise treat .c as C++); no test #includes
 # a .c file anymore, so there is no mixed-language TU.
 $prodSrcs  = @(
-    "components\uc2_serial\serial\SerialProcessIn.cpp",
     # uc2::Serial_ + the `Serial`/`Serial1` globals (uc2_serial.h);
-    # SerialProcessIn.cpp binds to them.
+    # SerialProcessIn.c binds to them via the uc2_serial_c.h shims.
     "components\uc2_hal\src\uc2_serial.cpp",
     # C-linkage serial shims (uc2_serial_write_bytes / uc2_serial_flush)
     # called by the C TU uc2_serial_out.c.
@@ -156,6 +155,9 @@ $cSrcs = @(
     "components\uc2_periph\scanner\dac_mcp4822.c",
     "components\uc2_periph\thermal\ThermalController.c",
     "components\uc2_periph\tmp102\Tmp102Controller.c",
+    # T4.2: pure-C serial input (was SerialProcessIn.cpp; the C++ class calls
+    # now go through the extern "C" shims in the real .cpp files above).
+    "components\uc2_serial\serial\SerialProcessIn.c",
     "components\uc2_serial\serial\uc2_serial_out.c",
     "components\uc2_motor\motor\FocusMotor.c",
     "components\uc2_motor\motor\StageScan.c",

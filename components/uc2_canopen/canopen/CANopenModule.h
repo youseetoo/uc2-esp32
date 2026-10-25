@@ -10,15 +10,20 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>  // T4.2: C callers of this header (SerialProcessIn.c)
 #include "cJSON.h"
 #include "PinConfig.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 #include <CANopen.h>
 #include "OD.h"
+#ifdef __cplusplus
 }
+#endif
 
 #ifdef __cplusplus
 

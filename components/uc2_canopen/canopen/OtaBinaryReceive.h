@@ -18,6 +18,7 @@
 #include <cJSON.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>  // T4.2: the C shim below (ota_isActive) returns bool
 
 #ifdef __cplusplus
 namespace OtaBinaryReceive {

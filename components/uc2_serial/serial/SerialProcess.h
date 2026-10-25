@@ -1,36 +1,51 @@
 #pragma once
+// T4.2: pure-C serial INPUT API. This file used to declare nothing — the API
+// lived in `namespace SerialProcess` (SerialProcessIn.cpp). That file is now
+// SerialProcessIn.c, and its public functions are the serial_in_* wrappers
+// below. The thread-safe serial OUTPUT (safePrintln / safeSerializeJson /
+// safeSendJsonString + the output queue/task) is the pure-C uc2_serial_out.h
+// (T4.1); the input path reuses it for every response.
+#include <stdbool.h>
 #include "cJSON.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-// T1.3: Arduino.h was pulled in only so unconverted modules could rely on
-// this header transitively. Keep it for Arduino builds; raw-IDF consumers
-// must include their own headers (uc2_hal.h).
-#ifdef ARDUINO
-#include "Arduino.h"
-#endif
-// T4.1: the thread-safe serial OUTPUT (safePrintln / safeSerializeJson /
-// safeSendJsonString + the output queue/task) moved to the pure-C
-// uc2_serial_out.h. C callers use serial_out_* directly; this header keeps
-// only the INPUT side (serialTask/loop/jsonProcessor/serialize/addJsonToQueue).
-#include "uc2_serial_out.h"
+#include "uc2_serial_out.h"  // T4.1: pure-C thread-safe serial output
 
-// T4.1: C-safe — the namespace only exists for C++ TUs; C callers use the
-// serial_out_* API (uc2_serial_out.h) and the serial input side stays in
-// SerialProcessIn.cpp.
 #ifdef __cplusplus
+extern "C" {
+#endif
+
+// Create the input queue + serial task, initialise the pure-C serial output
+// and the UART read timeout. Call once at boot.
+void serial_in_setup(void);
+
+// Poll serial RX (byte-wise framing) and dispatch parsed JSON. Call from the
+// main loop.
+void serial_in_loop(void);
+
+// Add a cJSON object directly to the processing queue, bypassing serial RX
+// (e.g. via I2C). The serial task takes ownership of the doc (frees it after
+// processing, or after a send failure).
+void serial_in_add_json_to_queue(cJSON *doc);
+
+// Serialize a controller response document to the serial output, then free
+// the doc (the doc is always a freshly created response object).
+void serial_in_serialize_doc(cJSON *doc);
+
+// Serialize a qid result as {"qid":n,"success":±1|0} to the serial output.
+void serial_in_serialize_qid(int qid);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+// C++ shim: keeps existing `SerialProcess::setup/loop/...` call sites
+// compiling unchanged (uc2_app main.cpp).
 namespace SerialProcess
 {
-    // Queue-based processing to handle serial load without blocking main thread
-    extern QueueHandle_t serialMSGQueue;	// Queue that buffers incoming messages and delegates them to the appropriate task
-	extern TaskHandle_t xHandle;			// Task handle for the serial task
-
-    void jsonProcessor(char * task,cJSON * jsonDocument);
-    void serialize(cJSON * doc);
-    void serialize(int success);
-    void serialTask(void *p);             // Serial processing task
-    void setup();
-    void loop();
-    void addJsonToQueue(cJSON * doc);   // Add a cJSON object to the processing queue
-};
-#endif  // __cplusplus
+    inline void setup() { serial_in_setup(); }
+    inline void loop() { serial_in_loop(); }
+    inline void addJsonToQueue(cJSON *doc) { serial_in_add_json_to_queue(doc); }
+    inline void serialize(cJSON *doc) { serial_in_serialize_doc(doc); }
+    inline void serialize(int success) { serial_in_serialize_qid(success); }
+}
+#endif

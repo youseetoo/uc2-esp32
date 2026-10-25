@@ -43,6 +43,11 @@ static bool (*_externalCallForPin)(uint8_t pin, uint8_t value) = nullptr;
 
 namespace FAccelStep
 {
+    // Forward declarations: several functions below use isRunning()/the
+    // 4-arg setupFastAccelStepper() before their definitions further down.
+    bool isRunning(int i);
+    void setupFastAccelStepper(Stepper stepper, int motoren, int motordir, int motorstp);
+
     void startFastAccelStepper(int i)
     {
         log_i("Starting FastAccelStepper for motor %i", i);

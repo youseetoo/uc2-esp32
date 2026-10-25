@@ -36,8 +36,9 @@ const struct PinConfig pinConfig = {
     .tmc_sgthrs = 5,
     .tmc_sedn = 0,
 
-    /* CAN (slave node — default X axis; UC2_CAN_AXIS env overrides via
-       -DCAN_AXIS_ID=CAN_ID_MOT_<AXIS> in CMakeLists) */
+    /* CAN (slave node — default X axis (id 11); UC2_CAN_AXIS env overrides
+       via -DCAN_AXIS_ID=<numeric CAN id> in CMakeLists; values match
+       pinconfig_defaults.h CAN_ID_MOT_A..Z = 10..13) */
     .CAN_TX = GPIO_NUM_3,
     .CAN_RX = GPIO_NUM_2,
     .CAN_ID_CURRENT = CAN_AXIS_ID,

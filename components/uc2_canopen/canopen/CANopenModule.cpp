@@ -2727,7 +2727,7 @@ void CANopenModule::syncModulesToTpdo()
         OD_RAM.x2046_axis_calibrated[localAxis]           = afb.calibrated ? 1 : 0;
         OD_RAM.x2047_axis_referenced[localAxis]           = afb.referenced ? 1 : 0;
         OD_RAM.x2049_axis_counts_per_step_q16[localAxis]  = acal.countsPerStep_q16 * acal.countSign;
-        OD_RAM.x204A_axis_backlash_steps[localAxis]       = axisCountsToSteps(acal, acal.backlashCounts);
+        OD_RAM.x204A_axis_backlash_steps[localAxis]       = axisCountsToSteps(&acal, acal.backlashCounts);
         OD_RAM.x204B_axis_raw_counts[localAxis]           = (int32_t)afb.rawCounts;
     }
 #endif

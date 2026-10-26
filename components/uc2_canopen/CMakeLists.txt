@@ -2,7 +2,7 @@
 # gpio_can slave (per-controller split). Gating per component-layout.md §3.
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
-    "canopen/RoutingTable.cpp"
+    "canopen/RoutingTable.c"
     # T4.4: split of the old DeviceRouter.cpp (behavior-identical; routeCommand
     # + C shims in device_router.cpp, per-command handlers in serial_dispatch.cpp).
     "canopen/device_router.cpp"

@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <cstring>
 #include "../../components/uc2_canopen/canopen/RoutingTable.h"
-#include "../../components/uc2_canopen/canopen/RoutingTable.cpp"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"
 

@@ -124,6 +124,9 @@ $prodSrcs  = @(
     "components\uc2_led\led\led_strip_c.cpp"
 )
 $cSrcs = @(
+    # T4.4: routing table C-ified (was RoutingTable.cpp; C API + C++ shim in
+    # RoutingTable.h).
+    "components\uc2_canopen\canopen\RoutingTable.c",
     "components\uc2_axis\axis\AxisCalibration.c",
     "components\uc2_axis\axis\AxisWatchdog.c",
     "components\uc2_axis\axis\AxisNotify.c",

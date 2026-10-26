@@ -138,6 +138,10 @@ typedef struct { twai_message_t message; } CANMessages;
 
 static SemaphoreHandle_t CAN_ctrl_task_sem;
 // T4.4: shared across the split TUs — extern in canopen_module_priv.h.
+// T4.4: shared across the split TUs — C linkage so the C TUs (canopen_sdo.c /
+// canopen_tpdo.c / canopen_ota.c) can reference them (C++ and C symbol names
+// differ otherwise). Declarations in canopen_module_priv.h are extern "C" too.
+extern "C" {
 SemaphoreHandle_t s_sdoMutex = NULL;
 
 // Updated whenever the TWAI driver reports a BUS_ERROR alert (e.g. missing
@@ -152,16 +156,20 @@ volatile uint32_t s_lastBusErrorMs = 0;
 // to fast-fail SDO writes against absent slaves uniformly across all
 // peripheral types (motor, laser, LED, galvo, ...).
 volatile uint32_t s_nodeLastSeenMs[128] = {0};
+}  // extern "C"
 
 // These queues are extern'd by CO_driver_ESP32.c in the library
 QueueHandle_t CAN_TX_queue;
 QueueHandle_t CAN_RX_queue;
 
+// T4.4: CO + s_requestedReset are C linkage too (referenced by the split C TUs).
+extern "C" {
 CO_t* CO = NULL;
 
 // Set to CO_RESET_COMM from any context to trigger a live node-ID reload
 // without esp_restart(). CO_main_task checks this in its inner loop.
 volatile CO_NMT_reset_cmd_t s_requestedReset = CO_RESET_NOT;
+}  // extern "C"
 
 #include "canopen_module_priv.h"
 

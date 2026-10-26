@@ -127,6 +127,9 @@ $cSrcs = @(
     # T4.4: routing table C-ified (was RoutingTable.cpp; C API + C++ shim in
     # RoutingTable.h).
     "components\uc2_canopen\canopen\RoutingTable.c",
+    # T4.4 step 4b: SDO C-ified (was canopen_sdo.cpp; C API canopen_sdo_* +
+    # CANopenModule:: shims in CANopenModule.h).
+    "components\uc2_canopen\canopen\canopen_sdo.c",
     "components\uc2_axis\axis\AxisCalibration.c",
     "components\uc2_axis\axis\AxisWatchdog.c",
     "components\uc2_axis\axis\AxisNotify.c",
@@ -221,7 +224,13 @@ $batLines += ("cl /nologo /std:c++20 /Zc:__cplusplus /W3 /Zi /Od /c $tmcInc $def
 # (motorjson_parse_stage_scan, called by DeviceRouter::handleMotorAct) is
 # #ifdef STAGE_SCAN — without the define the C island compiles it out and the
 # link fails on the missing symbol.
-$batLines += ("cl /nologo /std:c11 /W3 /Zi /Od /c $inc /DSTAGE_SCAN=1 /DUNITY_INCLUDE_DOUBLE /Fo`"$objDir\\`" " +
+# /DUNIT_TEST: canopen_sdo.c (T4.4 step 4b, was canopen_sdo.cpp in $prodSrcs
+# which had $defs) routes SDO write/read through the mock CO_writeSDO/CO_readSDO
+# under #ifdef UNIT_TEST. The C step must define it too, or the file compiles
+# the real CO->SDOclient path (CO is NULL on host -> every writeSDO returns
+# false, the mock tracks 0). Only canopen_sdo.c has a UNIT_TEST branch among the
+# C files, so this affects just it.
+$batLines += ("cl /nologo /std:c11 /W3 /Zi /Od /c $inc /DSTAGE_SCAN=1 /DUNITY_INCLUDE_DOUBLE /DUNIT_TEST /Fo`"$objDir\\`" " +
     ($cSrcs -join " ") + " || exit /b 1")
 $batLines += ("link /nologo /SUBSYSTEM:CONSOLE " + ($cppObjs -join " ") +
     " /OUT:`"$bin`" || exit /b 1")

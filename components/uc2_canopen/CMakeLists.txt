@@ -10,9 +10,9 @@ set(srcs
 if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
     list(APPEND srcs
         # T4.4: split of the old CANopenModule.cpp (behavior-identical; shared
-        # state in canopen_module_priv.h).
+        # state in canopen_module_priv.h). sdo is C (T4.4 step 4b).
         "canopen/canopen_module.cpp"
-        "canopen/canopen_sdo.cpp"
+        "canopen/canopen_sdo.c"
         "canopen/canopen_tpdo.cpp"
         "canopen/canopen_ota.cpp")
 endif()

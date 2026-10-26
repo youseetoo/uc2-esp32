@@ -11,7 +11,9 @@
 // ota, s_remoteSlaves in tpdo, setup/callback registration in module) live in
 // different files now. module first so its globals precede the other TUs.
 #include "../../components/uc2_canopen/canopen/canopen_module.cpp"
-#include "../../components/uc2_canopen/canopen/canopen_sdo.cpp"
+// canopen_sdo.cpp is C-ified (T4.4 step 4b) -> canopen_sdo.c, compiled
+// separately (run_tests.ps1 $cSrcs); the CANopenModule:: shims in
+// CANopenModule.h forward to the canopen_sdo_* C symbols.
 #include "../../components/uc2_canopen/canopen/canopen_tpdo.cpp"
 #include "../../components/uc2_canopen/canopen/canopen_ota.cpp"
 #include "mocks/mock_canopen.h"

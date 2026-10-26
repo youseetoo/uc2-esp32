@@ -25,6 +25,31 @@ extern "C" {
 }
 #endif
 
+// T4.4: C SDO API — implemented in canopen_sdo.c. The C++ CANopenModule::
+// static shims below forward to these (behavior-identical to the old class
+// methods). The C functions are the real API; the class methods are a thin
+// compatibility layer for the still-C++ call sites.
+#ifdef __cplusplus
+extern "C" {
+#endif
+bool canopen_is_node_reachable(uint8_t nodeId);
+bool canopen_wait_node_reachable(uint8_t nodeId, uint32_t timeoutMs);
+bool canopen_sdo_write(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                       uint8_t* data, size_t dataSize, uint32_t timeoutMs);
+bool canopen_sdo_read(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                      uint8_t* buf, size_t bufSize, size_t* readSize);
+bool canopen_is_operational(void);
+void canopen_emit_axis_emcy(uint8_t axis, uint8_t fault, int32_t posErrSteps);
+bool canopen_sdo_write_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v, uint32_t timeoutMs);
+bool canopen_sdo_write_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs);
+bool canopen_sdo_write_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs);
+bool canopen_sdo_write_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v, uint32_t timeoutMs);
+bool canopen_sdo_write_domain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                              const uint8_t* data, size_t dataSize);
+#ifdef __cplusplus
+}
+#endif
+
 #ifdef __cplusplus
 
 // Cached state of a remote slave, populated by RPDO consumers on the master.
@@ -49,28 +74,28 @@ public:
     // partition, ~400 ms), the caller must pass a larger timeout.
     static bool writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                          uint8_t* data, size_t dataSize,
-                         uint32_t timeoutMs = 250);
+                         uint32_t timeoutMs = 250) { return canopen_sdo_write(nodeId, index, subIndex, data, dataSize, timeoutMs); }
     static bool readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                        uint8_t* buf, size_t bufSize, size_t* readSize);
+                        uint8_t* buf, size_t bufSize, size_t* readSize) { return canopen_sdo_read(nodeId, index, subIndex, buf, bufSize, readSize); }
 
     // Returns true if the slave at nodeId has been heard from recently
     // (TPDO/heartbeat). For non-motor peripherals always returns true if a
     // route exists. Used to gate fast-fail SDO writes.
-    static bool isNodeReachable(uint8_t nodeId);
+    static bool isNodeReachable(uint8_t nodeId) { return canopen_is_node_reachable(nodeId); }
     // Block until isNodeReachable(nodeId) returns true or timeoutMs elapses.
     // Polls every 50 ms. Returns true on success, false on timeout.
-    static bool waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs);
+    static bool waitForNodeReachable(uint8_t nodeId, uint32_t timeoutMs) { return canopen_wait_node_reachable(nodeId, timeoutMs); }
 
     // Typed SDO write helpers. timeoutMs defaults to 250 ms; pass a larger
     // value for SDOs whose write handler on the slave is slow.
-    static bool writeSDO_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v, uint32_t timeoutMs = 250);
-    static bool writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs = 250);
-    static bool writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs = 250);
-    static bool writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v, uint32_t timeoutMs = 250);
+    static bool writeSDO_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v, uint32_t timeoutMs = 250) { return canopen_sdo_write_u8(nodeId, idx, sub, v, timeoutMs); }
+    static bool writeSDO_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs = 250) { return canopen_sdo_write_u16(nodeId, idx, sub, v, timeoutMs); }
+    static bool writeSDO_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs = 250) { return canopen_sdo_write_u32(nodeId, idx, sub, v, timeoutMs); }
+    static bool writeSDO_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v, uint32_t timeoutMs = 250) { return canopen_sdo_write_i32(nodeId, idx, sub, v, timeoutMs); }
 
     // SDO domain write for arbitrary-length data (segmented/block transfer)
     static bool writeSDODomain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                               const uint8_t* data, size_t dataSize);
+                               const uint8_t* data, size_t dataSize) { return canopen_sdo_write_domain(nodeId, index, subIndex, data, dataSize); }
 
     // Streaming SDO download — for large transfers that don't fit in RAM
     // (e.g. OTA firmware images). The caller manages chunk buffering;
@@ -90,14 +115,14 @@ public:
     static cJSON* get(cJSON* doc);
     static cJSON* act(cJSON* doc);
 
-    static bool isOperational();
+    static bool isOperational() { return canopen_is_operational(); }
 
     // Emit a UC2 axis-fault EMCY from THIS node (slave). COB-ID 0x80+node-id,
     // manufacturer error code per AxisFault, axis in the error bit, and the
     // signed position error (steps) in the info code. Fire-and-forget: sets the
     // EMCY condition, actual TX happens in CO_process. Safe to call on any role
     // (no-op if CO/em not ready). The master converts inbound EMCY to JSON.
-    static void emitAxisEmcy(uint8_t axis, uint8_t fault, int32_t posErrSteps);
+    static void emitAxisEmcy(uint8_t axis, uint8_t fault, int32_t posErrSteps) { canopen_emit_axis_emcy(axis, fault, posErrSteps); }
 
     // Remote slave cache — master only, populated by RPDO consumers
     static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;  // TODO: Is this motors only? We probably have more?!
@@ -129,7 +154,15 @@ cJSON *canopen_act(cJSON *doc);
 #endif
 
 // Global CANopenNode object (same pattern as MWE)
+// T4.4: C linkage — the definition in canopen_module.cpp is extern "C", and the
+// split C TUs (canopen_sdo.c / ...) reference CO with C linkage.
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern CO_t* CO;
+#ifdef __cplusplus
+}
+#endif
 
 // Remote-GPIO helper — master writes x2301 sub `id` (1 or 2) of the GPIO
 // slave at nodeId. val ≥ 0 sets the pin level; val < 0 fires a brief pulse.

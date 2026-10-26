@@ -5,7 +5,15 @@
 #include <cstdint>
 #include <cstring>
 #include "../../components/uc2_canopen/canopen/CANopenModule.h"
-#include "../../components/uc2_canopen/canopen/CANopenModule.cpp"
+// T4.4: CANopenModule.cpp was split into 4 TUs (shared state via
+// canopen_module_priv.h). Include all of them here — the definitions the
+// tests link against (writeSDO/readSDO/isNodeReachable in sdo, streaming in
+// ota, s_remoteSlaves in tpdo, setup/callback registration in module) live in
+// different files now. module first so its globals precede the other TUs.
+#include "../../components/uc2_canopen/canopen/canopen_module.cpp"
+#include "../../components/uc2_canopen/canopen/canopen_sdo.cpp"
+#include "../../components/uc2_canopen/canopen/canopen_tpdo.cpp"
+#include "../../components/uc2_canopen/canopen/canopen_ota.cpp"
 #include "mocks/mock_canopen.h"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"

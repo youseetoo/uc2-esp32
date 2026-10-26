@@ -6,7 +6,12 @@ set(srcs
     "canopen/DeviceRouter.cpp")
 if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
     list(APPEND srcs
-        "canopen/CANopenModule.cpp"
+        # T4.4: split of the old CANopenModule.cpp (behavior-identical; shared
+        # state in canopen_module_priv.h).
+        "canopen/canopen_module.cpp"
+        "canopen/canopen_sdo.cpp"
+        "canopen/canopen_tpdo.cpp"
+        "canopen/canopen_ota.cpp"
         "canopen/CanOpenOTA.cpp"
         "canopen/CanOpenOTAStreaming.cpp"
         "canopen/OtaBinaryReceive.cpp")

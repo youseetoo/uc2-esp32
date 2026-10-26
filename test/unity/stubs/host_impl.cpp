@@ -1060,10 +1060,13 @@ esp_ota_img_state_t esp_ota_get_state_partition(const esp_partition_t* partition
 } // extern "C" — OTA
 
 // ── CanOpenOTA (host: no-op receiver registration) ──────────────────────────
-// The real CanOpenOTA.cpp (OD 0x2F00 SDO domain → esp_ota_write) is not part
-// of the host link; CANopenModule.cpp still calls the registration once after
-// CO_CANopenInit(). This no-op keeps that call resolvable. Must NOT be
-// compiled in a build that also links CanOpenOTA.cpp (duplicate symbol).
+// The real OTA receiver (OD 0x2F00 SDO domain → esp_ota_write) now lives in
+// canopen_ota.cpp, but the host build defines CANOPEN_OTA_NO_RECEIVER so that
+// section — and the call site in canopen_module.cpp — are both compiled out
+// (the receiver needs the vendor OD_writeOriginal/OD globals, absent here). The
+// no-op is thus unreferenced on the host; keep it so a build that DOES link the
+// receiver still resolves the registration. Must NOT be linked together with the
+// real CanOpenOTA::registerOdExtensions() (duplicate symbol).
 #include "CanOpenOTA.h"
 namespace CanOpenOTA {
 void registerOdExtensions() {}

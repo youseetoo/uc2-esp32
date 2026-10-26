@@ -61,7 +61,7 @@ $inc = ("/Itest/unity/stubs /Itest/unity /Itest/unity/unity " +
 # "Unity Double Precision Disabled". It must be defined for BOTH the test
 # .cpp TUs (which call the macro) and unity.c (the macro implementation) or the
 # generated test doubles won't match the runtime.
-$defs = "/DUNIT_TEST /DCORE_DEBUG_LEVEL=5 /DUNITY_INCLUDE_DOUBLE /DCAN_CONTROLLER_CANOPEN"
+$defs = "/DUNIT_TEST /DCORE_DEBUG_LEVEL=5 /DUNITY_INCLUDE_DOUBLE /DCAN_CONTROLLER_CANOPEN /DCANOPEN_OTA_NO_RECEIVER"
 
 # All paths relative to the repo root (the batch cd's there).
 $testSrcs  = @(Get-ChildItem "test\unity\test_*.cpp" | ForEach-Object { $_.FullName.Substring($repo.Length + 1) })
@@ -117,7 +117,6 @@ $prodSrcs  = @(
     # C-linkage signal_strip_* shims (create/begin/set_brightness/clear/show/
     # gamma8/color/set_pixel) called by the C TU SignalController.c.
     "components\uc2_led\signal\signal_neopixel_c.cpp",
-    "components\uc2_canopen\canopen\OtaBinaryReceive.cpp",
     "components\uc2_bt\BtController.cpp",
     # T4.1: C-facing Adafruit strip shim. LedController.c (included by
     # test_led_controller.cpp) calls led_strip_*, whose definitions live here

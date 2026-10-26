@@ -14,10 +14,7 @@ if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
         "canopen/canopen_module.cpp"
         "canopen/canopen_sdo.cpp"
         "canopen/canopen_tpdo.cpp"
-        "canopen/canopen_ota.cpp"
-        "canopen/CanOpenOTA.cpp"
-        "canopen/CanOpenOTAStreaming.cpp"
-        "canopen/OtaBinaryReceive.cpp")
+        "canopen/canopen_ota.cpp")
 endif()
 if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER)
     list(APPEND srcs "gpio_can/GpioCanSlave.cpp")

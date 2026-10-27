@@ -424,7 +424,7 @@ static void sync_rpdo_to_modules_slave(void)
                 lastBlank = blank;
                 lastToff  = toff;
 
-                TMCData p{};
+                TMCData p = {0};
                 // Only forward fields with non-zero values; the OD initial
                 // state is all-zero, applying that to the driver would brick
                 // the stepper. Zero-valued fields keep the existing values.
@@ -511,24 +511,24 @@ static void sync_rpdo_to_modules_master(void)
         uint8_t newStatus = OD_RAM.x2004_motor_status_word[slot];
         uint8_t newHoming = OD_RAM.x2016_homing_status[slot];
 
-        RemoteSlaveState& slave = s_remoteSlaves[slot];
+        RemoteSlaveState *slave = &s_remoteSlaves[slot];
 
         // Skip if nothing changed AND we've already initialised
-        if (slave.seen
-            && newPos    == slave.motorPosition
-            && newStatus == slave.motorStatus
-            && newHoming == slave.homingStatus) continue;
+        if (slave->seen
+            && newPos    == slave->motorPosition
+            && newStatus == slave->motorStatus
+            && newHoming == slave->homingStatus) continue;
 
-        bool wasRunning = slave.seen && (slave.motorStatus & 0x01) != 0;
+        bool wasRunning = slave->seen && (slave->motorStatus & 0x01) != 0;
         bool nowRunning = (newStatus & 0x01) != 0;
-        bool firstSeen  = !slave.seen;
-        uint8_t prevHoming = slave.seen ? slave.homingStatus : 0;
+        bool firstSeen  = !slave->seen;
+        uint8_t prevHoming = slave->seen ? slave->homingStatus : 0;
 
-        slave.motorPosition = newPos;
-        slave.motorStatus   = newStatus;
-        slave.homingStatus  = newHoming;
-        slave.lastUpdateMs  = millis();
-        slave.seen          = true;
+        slave->motorPosition = newPos;
+        slave->motorStatus   = newStatus;
+        slave->homingStatus  = newHoming;
+        slave->lastUpdateMs  = millis();
+        slave->seen          = true;
 
         // Rate-limit log to once per second (keepalive toggles arrive every 2 s)
         static uint32_t s_lastRpdoLogMs = 0;

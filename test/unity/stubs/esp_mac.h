@@ -1,6 +1,13 @@
 // Host stub: esp_mac.h
 #pragma once
+// T4.4 4c: dual include so C TUs (canopen_tpdo.c) get <stdint.h>; <cstdint> is
+// a C++ STL header and #errors (STL1003) when included in C mode. Matches the
+// pattern already used by the esp_err.h / esp_system.h stubs.
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 
 typedef uint8_t esp_mac_type_t;
 #define ESP_MAC_WIFI_STA 0

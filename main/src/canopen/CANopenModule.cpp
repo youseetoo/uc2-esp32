@@ -3139,6 +3139,13 @@ void CANopenModule::loop()
         LaserController::setLaserVal(ch, (int)s_laserCmds[ch].value);
     }
 
+    // Publish the PWM config so the master's /laser_get can read it over SDO.
+    for (int ch = 0; ch < 4; ch++) {
+        OD_RAM.x2101_laser_max_value[ch]      = (uint16_t)min(LaserController::getPWMMax(), 65535); // 16-bit res = 65536 saturates
+        OD_RAM.x2102_laser_pwm_frequency[ch]  = (uint32_t)LaserController::getPWMFrequency();
+        OD_RAM.x2103_laser_pwm_resolution[ch] = (uint8_t)LaserController::getPWMResolution();
+    }
+
     // Apply strobe configuration. Read the OD again here instead of using the
     // poll's snapshot: the master writes delay, width and enable a few ms
     // apart, and a stale snapshot would apply (and write back) an old state.

@@ -1428,19 +1428,42 @@ cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
 #ifdef LASER_CONTROLLER
-    // PR-7.8 Issue 7: warn if any laser is REMOTE — get over CAN not yet implemented.
-    for (uint8_t id = 0; id < 4; ++id) {
+    // Legacy keys (LASERxpin/LASERxval) plus a "lasers" list with value, max,
+    // resolution and frequency per routed laser:
+    // {"laser":{..., "lasers":[{"LASERid":1,"LASERval":0,"LASERmax":1024,"LASERRes":10,"LASERFreq":5000,...}]}}
+    cJSON* resp = LaserController::get(doc);
+    cJSON* lasers = cJSON_AddArrayToObject(cJSON_GetObjectItem(resp, "laser"), "lasers");
+    for (uint8_t id = 0; id < 5; ++id) {
         const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LASER, id);
-        if (r && r->where == UC2::RouteEntry::REMOTE) {
-            log_w("laser_get: laser %u is REMOTE — get over CAN not implemented yet", id);
-            cJSON* resp = cJSON_CreateObject();
-            cJSON_AddNumberToObject(resp, "return", 0);
-            cJSON_AddStringToObject(resp, "error",
-                "device is on remote node — get not implemented over CAN yet");
-            return resp;
+        if (!r || r->where == UC2::RouteEntry::OFF) continue;
+        if (r->where == UC2::RouteEntry::LOCAL) {
+            cJSON_AddItemToArray(lasers, LaserController::getLaserJson(id));
+            continue;
         }
+#ifdef CAN_CONTROLLER_CANOPEN
+        // REMOTE: the slave mirrors its PWM config into OD 0x2100-0x2103 (sub = channel+1).
+        uint8_t sub = r->subAxis + 1;
+        uint16_t val = 0, max = 0; uint32_t freq = 0; uint8_t res = 0; size_t got = 0;
+        bool ok = CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_PWM_VALUE,      sub, (uint8_t*)&val,  sizeof(val),  &got)
+               && CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_MAX_VALUE,      sub, (uint8_t*)&max,  sizeof(max),  &got)
+               && CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_PWM_FREQUENCY,  sub, (uint8_t*)&freq, sizeof(freq), &got)
+               && CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_PWM_RESOLUTION, sub, &res,            sizeof(res),  &got);
+        cJSON* l = cJSON_CreateObject();
+        cJSON_AddNumberToObject(l, "LASERid", id);
+        cJSON_AddNumberToObject(l, "node", r->nodeId);
+        if (ok) {
+            cJSON_AddNumberToObject(l, "LASERval", val);
+            cJSON_AddNumberToObject(l, "LASERmax", max);
+            cJSON_AddNumberToObject(l, "LASERRes", res);
+            cJSON_AddNumberToObject(l, "LASERFreq", freq);
+        } else {
+            log_w("laser_get: SDO read failed for laser %u on node 0x%02X", id, r->nodeId);
+            cJSON_AddStringToObject(l, "error", "SDO read failed");
+        }
+        cJSON_AddItemToArray(lasers, l);
+#endif
     }
-    return LaserController::get(doc);
+    return resp;
 #else
     return nullptr;
 #endif

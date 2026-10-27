@@ -381,3 +381,25 @@ true = CORRECT
 
 // Completion: 
 {"strobesweep":true,"frames":N,"camera":N,"flashes":N|-1,"positions":N,"latch":0|1,"strobe":0|1,"aborted":0|1,"success":0|1,"qid":q[,"error":"..."]}
+
+
+
+// strobe
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master_debug --upload-port /dev/cu.SLAB_USBtoUART
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_master_release --upload-port /dev/cu.SLAB_USBtoUART
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_led_debug --upload-port /dev/cu.usbmodem1401
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_debug --upload-port /dev/cu.usbmodem1101      
+
+
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 921600 # hat
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem1401 --baud 115200 # led
+/Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.usbmodem1101 --baud 115200 # motor
+
+
+{"task":"/motor_act","strobesweep":{"axis":1,"target":2500,"speed":80000, "periodUs":33333,"trigUs":1000,"laser":4,"delayUs":1200, "widthUs":1000, "latch":1,"report":16,"maxFrames":0}}
+{"task":"/motor_act","strobesweep":{"axis":1,"target":250000,"speed":80000, "periodUs":33333,"trigUs":1000,"laser":4,"delayUs":1200, "widthUs":1000, "latch":1,"report":16,"maxFrames":0}}
+
+{"task":"/motor_act","strobesweep":{"stopped":1}}
+
+{"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":1}

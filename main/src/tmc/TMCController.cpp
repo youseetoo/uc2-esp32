@@ -5,8 +5,39 @@ using namespace FocusMotor;
 
 namespace TMCController
 {
-    // TMC2209 instance
-    TMC2209Stepper driver(&Serial1, R_SENSE, DRIVER_ADDRESS);
+    // One TMC2209 per UART address on the shared single-wire bus, created in
+    // setup() (nullptr = not present). Index = UART address = axis.
+    static TMC2209Stepper *drivers[4] = {nullptr, nullptr, nullptr, nullptr};
+    // Driver 0 keeps the historic "tmc" namespace so single-driver boards keep their settings.
+    static const char *const kPrefsNs[4] = {"tmc", "tmc1", "tmc2", "tmc3"};
+
+    // /tmc_act runs on the serial task, the reset watchdog on the main loop:
+    // serialise UART transactions so their datagrams never interleave.
+    static SemaphoreHandle_t s_uartMutex = nullptr;
+    struct UartLock
+    {
+        UartLock() { if (s_uartMutex) xSemaphoreTakeRecursive(s_uartMutex, portMAX_DELAY); }
+        ~UartLock() { if (s_uartMutex) xSemaphoreGiveRecursive(s_uartMutex); }
+    };
+
+    // GCONF/CHOPCONF bits that make the chip obey UART. Lost on a driver reset,
+    // so the loop() watchdog re-sends them before re-applying the settings.
+    static void configureUart(TMC2209Stepper &driver)
+    {
+        //https://github.com/teemuatlut/TMCStepper/issues/35#issuecomment-498605125
+        // Use PDN/UART pin for communication
+        driver.pdn_disable(true);
+        // Microsteps from the MRES register, not the MS1/MS2 pins (which
+        // carry the UART address on multi-driver boards)
+        driver.mstep_reg_select(1);
+        driver.intpol(true);
+    }
+
+    // Single-driver boards (CAN slaves) map every axis onto address 0.
+    static int driverIndex(int axis)
+    {
+        return (axis > 0 && axis < pinConfig.tmc_driver_count && axis < 4) ? axis : 0;
+    }
 
 
     uint32_t tstepFromStepsPerSecond(uint32_t stepsPerSecond, uint16_t microsteps)
@@ -26,9 +57,9 @@ namespace TMCController
         return (uint32_t)tstep;
     }
 
-    static void writeParamsToPreferences(const TMCData &p)
+    static void writeParamsToPreferences(const TMCData &p, int idx = 0)
     {
-        preferences.begin("tmc", false);
+        preferences.begin(kPrefsNs[idx], false);
         preferences.putInt("msteps", p.msteps);
         preferences.putInt("current", p.rms_current);
         preferences.putInt("stall", p.stall_value);
@@ -46,15 +77,15 @@ namespace TMCController
         preferences.putInt("hend", p.hend);
         preferences.putInt("ver", TMC_SETTINGS_VERSION);
         preferences.end();
-        log_i("TMC2209 settings saved to preferences: msteps: %i, current: %i, stall: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcool: %i, blank: %i, toff: %i, tpwmthrs_sps: %i, en_spreadcycle: %i, hold_mult: %i%%",
-              p.msteps, p.rms_current, p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff,
+        log_i("TMC2209 #%d settings saved to preferences: msteps: %i, current: %i, stall: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcool: %i, blank: %i, toff: %i, tpwmthrs_sps: %i, en_spreadcycle: %i, hold_mult: %i%%",
+              idx, p.msteps, p.rms_current, p.stall_value, p.sgthrs, p.semin, p.semax, p.sedn, p.tcoolthrs, p.blank_time, p.toff,
               (int)p.tpwmthrs_sps, p.en_spreadcycle, p.hold_mult_pct);
     }
 
-    static TMCData readParamsFromPreferences()
+    static TMCData readParamsFromPreferences(int idx = 0)
     {
         TMCData p;
-        preferences.begin("tmc", true);
+        preferences.begin(kPrefsNs[idx], true);
         p.msteps = preferences.getInt("msteps", pinConfig.tmc_microsteps);
         p.rms_current = preferences.getInt("current", pinConfig.tmc_rms_current);
         p.stall_value = preferences.getInt("stall", pinConfig.tmc_stall_value);
@@ -99,24 +130,30 @@ namespace TMCController
     // firmware keeps its stored values forever — which is exactly how a changed
     // firmware default (e.g. CoolStep off) can fail to reach the hardware.
     // Re-seed from pinConfig whenever the settings version moves.
-    static void migratePreferencesIfNeeded()
+    static void migratePreferencesIfNeeded(int idx)
     {
-        preferences.begin("tmc", true);
+        preferences.begin(kPrefsNs[idx], true);
         int storedVersion = preferences.getInt("ver", 0);
         preferences.end();
         if (storedVersion == TMC_SETTINGS_VERSION)
             return;
-        log_w("TMC settings version %d -> %d: re-seeding NVS from PinConfig",
-              storedVersion, TMC_SETTINGS_VERSION);
-        writeParamsToPreferences(paramsFromPinConfig());
+        log_w("TMC #%d settings version %d -> %d: re-seeding NVS from PinConfig",
+              idx, storedVersion, TMC_SETTINGS_VERSION);
+        writeParamsToPreferences(paramsFromPinConfig(), idx);
     }
 
-    void applyParamsToDriver(const TMCData &p, bool saveToPrefs)
+    void applyParamsToDriver(const TMCData &p, bool saveToPrefs, int axis)
     {
-        #if !defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2)
+        int idx = driverIndex(axis);
+        if (drivers[idx] == nullptr)
+            return; // no TMC UART on this board
+        TMC2209Stepper &driver = *drivers[idx];
+        UartLock lock;
+        #ifndef USE_TCA9535 // there the enable line sits on the I2C expander, not a GPIO
         // Temporarily disable motor to allow microstep changes
         digitalWrite(pinConfig.MOTOR_ENABLE, HIGH);
         delay(10);
+        #endif
 
         // TMCStepper's microsteps(ms) setter only accepts {256,128,64,32,16,8,4,2,0}
         // where 0 means "full step" (i.e. 1 microstep). Passing literal 1 is a no-op
@@ -136,9 +173,11 @@ namespace TMCController
             delay(10);
         }
         
+        #ifndef USE_TCA9535
         // Re-enable motor
         digitalWrite(pinConfig.MOTOR_ENABLE, LOW);
         delay(10);
+        #endif
         
         // Current reference source. The chip's OTP default is "scale by the
         // VREF pin", which silently derates everything rms_current() computes
@@ -207,22 +246,24 @@ namespace TMCController
         driver.en_spreadCycle(spreadAlways);
 
         if (saveToPrefs)
-            writeParamsToPreferences(p);
+            writeParamsToPreferences(p, idx);
 
-        // The driver silently saturates at CS = 31; with R_SENSE = 0.2 Ohm that
+        // Settings are in: clear GSTAT.reset so loop() only fires on a real reset.
+        driver.GSTAT(0b111);
+
+        // The driver silently saturates at CS = 31; with R_sense = 0.2 Ohm that
         // caps the achievable current near 1050 mA RMS. Surface it instead of
         // letting a config quietly ask for a current the driver cannot deliver.
         uint16_t actualCurrent = driver.rms_current();
         if (p.rms_current > actualCurrent + (p.rms_current / 20))
             log_w("TMC2209 current clipped: requested %u mA, driver delivers %u mA "
-                  "(CS saturated for R_SENSE=%.2f Ohm)",
-                  p.rms_current, actualCurrent, (double)R_SENSE);
+                  "(CS saturated for R_sense=%.2f Ohm)",
+                  p.rms_current, actualCurrent, (double)pinConfig.tmc_r_sense);
 
-        log_i("Apply Motor Settings: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i, hstrt: %i, hend: %i, tpwmthrs: %i (@%i steps/s), en_spreadcycle: %i, internal_vref: %i, hold_mult: %i%%",
-              p.msteps, driver.microsteps(), p.rms_current, actualCurrent, p.stall_value, p.sgthrs, effSemin, effSemax, p.sedn, (int)effTcoolthrs, p.blank_time, p.toff,
+        log_i("Apply Motor Settings #%d: msteps: %i, msteps_: %i, rms_current: %i, rms_current_: %i, stall_value: %i, sgthrs: %i, semin: %i, semax: %i, sedn: %i, tcoolthrs: %i, blank_time: %i, toff: %i, hstrt: %i, hend: %i, tpwmthrs: %i (@%i steps/s), en_spreadcycle: %i, internal_vref: %i, hold_mult: %i%%",
+              idx, p.msteps, driver.microsteps(), p.rms_current, actualCurrent, p.stall_value, p.sgthrs, effSemin, effSemax, p.sedn, (int)effTcoolthrs, p.blank_time, p.toff,
               p.hstrt, p.hend, (int)tpwmthrs, (int)p.tpwmthrs_sps, p.en_spreadcycle,
               pinConfig.tmc_internal_vref ? 1 : 0, p.hold_mult_pct);
-        #endif
     }
 
     // Presence test for keys whose *zero* is a meaningful setting (e.g. semin=0
@@ -291,18 +332,20 @@ namespace TMCController
         // modify the TMC2209 settings
         // {"task":"/tmc_act", "msteps":16, "rmscurr":400, "stall_value":100, "sgthrs":100, "semin":5, "semax":2, "blank_time":24, "toff":4}
         // {"task":"/tmc_act", "reset": 1}
+        // Multi-driver boards: "axis" (A=0, X=1, Y=2, Z=3) picks the driver, default 0.
+        // {"task":"/tmc_act", "axis":3, "rms_current":600}
 
-        // get hold on the axis used - if necessary
         int axis = cJsonTool::getJsonInt(jsonDocument, "axis");
+        int idx = driverIndex(axis);
 
         // extract qid
         int qid = cJsonTool::getJsonInt(jsonDocument, "qid");
 
         // parse data from json and apply to settings
-        TMCData p = readParamsFromPreferences();
+        TMCData p = readParamsFromPreferences(idx);
         parseTMCDataFromJSON(jsonDocument, p);
 
-        if (pinConfig.tmc_SW_RX == disabled)
+        if (drivers[idx] == nullptr)
         {
             return -1;
         }
@@ -322,25 +365,30 @@ namespace TMCController
         {
             log_i("Resetting TMC2209 settings to default");
             TMCData defaults = paramsFromPinConfig();
-            writeParamsToPreferences(defaults);
-            applyParamsToDriver(defaults, false);
+            writeParamsToPreferences(defaults, idx);
+            applyParamsToDriver(defaults, false, idx);
             return qid;
         }
 
-        applyParamsToDriver(p, true);
+        applyParamsToDriver(p, true, idx);
         return qid;
 
     }
 
     cJSON *get(cJSON *jsonDocument)
     {
-        if (pinConfig.tmc_SW_RX == disabled)
+        // {"task":"/tmc_get", "axis":3}
+        int idx = driverIndex(cJsonTool::getJsonInt(jsonDocument, "axis"));
+        if (drivers[idx] == nullptr)
         {
             return jsonDocument;
         }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        TMCData p = readParamsFromPreferences();
+#ifdef TMC_CONTROLLER
+        TMC2209Stepper &driver = *drivers[idx];
+        UartLock lock;
+        TMCData p = readParamsFromPreferences(idx);
         cJSON *monitor_json = cJSON_CreateObject();
+        cJSON_AddNumberToObject(monitor_json, "axis", idx);
         cJSON_AddNumberToObject(monitor_json, "msteps", p.msteps);
         cJSON_AddNumberToObject(monitor_json, "msteps_", driver.microsteps());
         cJSON_AddNumberToObject(monitor_json, "rmscurr", p.rms_current);
@@ -381,13 +429,14 @@ namespace TMCController
 
     uint16_t getTMCCurrent()
     {
-        if (pinConfig.tmc_SW_RX == disabled)
+        if (drivers[0] == nullptr)
         {
             log_e("TMC2209 not enabled in this configuration");
             return 0;
         }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        return driver.rms_current();
+#ifdef TMC_CONTROLLER
+        UartLock lock;
+        return drivers[0]->rms_current();
 #else
         return 0;
 #endif
@@ -398,12 +447,14 @@ namespace TMCController
     void setTMCCurrent(uint16_t current)
     {
         // This will change the driver's current but will not save it to preferences (e.g. won't survive boot)
-        if (pinConfig.tmc_SW_RX == disabled)
+        if (drivers[0] == nullptr)
         {
             log_e("TMC2209 not enabled in this configuration");
             return;
         }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+#ifdef TMC_CONTROLLER
+        TMC2209Stepper &driver = *drivers[0];
+        UartLock lock;
         // Determine if this board drives the Z axis (needs more current)
         bool isZAxis = (pinConfig.CAN_ID_CURRENT == pinConfig.CAN_ID_MOT_Z);
         if (isZAxis){
@@ -418,18 +469,20 @@ namespace TMCController
 
     void callibrateStallguard(int speed = 10000)
     {
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
+#ifdef TMC_CONTROLLER
         /*
         We calibrate the Stallguard value from an initial value stall_min in increments of stall_incr until we sense a plausible stallguard value.
         We assume the motor is stopped already (i.e. stalled) and we are in a position where the stallguard value is plausible.
         Call:
         {"task":"/tmc_act", "calibrate": -30000}
         */
-        if (pinConfig.tmc_SW_RX == disabled)
+        if (drivers[0] == nullptr)
         {
             log_e("TMC2209 not enabled in this configuration");
             return;
         }
+        TMC2209Stepper &driver = *drivers[0];
+        UartLock lock;
         // we start moving the motor to get a stallguard value
         int mStepper = Stepper::A; // we assume we are working with motor A
                                    // we may have a dual axis so we would need to start A too
@@ -493,42 +546,68 @@ namespace TMCController
             log_e("TMC2209 not enabled in this configuration perhaps you use it via CAN or I2C");
             return;
         }
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-        log_i("Setting up TMC2209");
+#ifdef TMC_CONTROLLER
+        int count = min((int)pinConfig.tmc_driver_count, 4);
+        log_i("Setting up %d TMC2209 (R_sense %.2f Ohm)", count, (double)pinConfig.tmc_r_sense);
 
-        preferences.begin("tmc", false);
+        s_uartMutex = xSemaphoreCreateRecursiveMutex();
+        UartLock lock; // the serial task is already running
         Serial1.begin(115200, SERIAL_8N1, pinConfig.tmc_SW_RX, pinConfig.tmc_SW_TX);
-        driver.begin();
-        //https://github.com/teemuatlut/TMCStepper/issues/35#issuecomment-498605125
-        // Use PDN/UART pin for communication
-        driver.pdn_disable(true);
-        // Necessary for TMC2208 to set microstep register with UART
-        driver.mstep_reg_select(1);
-        driver.intpol(true);
+        for (int idx = 0; idx < count; idx++)
+        {
+            drivers[idx] = new TMC2209Stepper(&Serial1, pinConfig.tmc_r_sense, idx);
+            TMC2209Stepper &driver = *drivers[idx];
+            driver.begin();
+            configureUart(driver);
 
-        migratePreferencesIfNeeded();
+            migratePreferencesIfNeeded(idx);
 
-        TMCData p = readParamsFromPreferences();
-        applyParamsToDriver(p, false);
-        applyParamsToDriver(p, false);
-        writeParamsToPreferences(p);
+            TMCData p = readParamsFromPreferences(idx);
+            applyParamsToDriver(p, false, idx);
+            applyParamsToDriver(p, false, idx);
+            writeParamsToPreferences(p, idx);
+        }
         // Set the stallguard threshold
-        pinMode(pinConfig.tmc_pin_diag, INPUT);
-       preferences.end();
+        if (pinConfig.tmc_pin_diag >= 0)
+            pinMode(pinConfig.tmc_pin_diag, INPUT);
 
         log_i("TMC2209 setup done");
 #endif
     }
 
     void loop() {
+#ifdef TMC_CONTROLLER
+        if (drivers[0] == nullptr)
+            return;
+
+        // A TMC2209 only listens on UART while it has motor power. Powered after
+        // the ESP (USB first, 12 V later) or browned out, it restarts with the
+        // MS1/MS2-strapped microsteps - on multi-driver boards those pins are the
+        // UART address, so every axis would run a different resolution.
+        // GSTAT.reset flags exactly that: re-apply the stored settings.
+        static uint32_t lastResetCheck = 0;
+        if (millis() - lastResetCheck > 5000)
+        {
+            lastResetCheck = millis();
+            UartLock lock;
+            for (int idx = 0; idx < 4 && drivers[idx]; idx++)
+            {
+                if (drivers[idx]->reset())
+                {
+                    log_w("TMC2209 #%d reset (motor power cycled?) - re-applying settings", idx);
+                    configureUart(*drivers[idx]);
+                    applyParamsToDriver(readParamsFromPreferences(idx), false, idx);
+                }
+            }
+        }
 
         if (pinConfig.TMC_DEBUG)
         {
-#if defined(TMC_CONTROLLER) && (!defined(CAN_CONTROLLER_CANOPEN) || (NODE_ROLE == 2))
-// print stallguard and current in every cycle
-            log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", driver.cs2rms(driver.cs_actual()), driver.SG_RESULT());
-            #endif
-    };
-}
+            // print stallguard and current in every cycle
+            UartLock lock;
+            log_i("TMC2209 Debug - Current: %i mA, StallGuard: %i", drivers[0]->cs2rms(drivers[0]->cs_actual()), drivers[0]->SG_RESULT());
+        }
+#endif
+    }
 
 }

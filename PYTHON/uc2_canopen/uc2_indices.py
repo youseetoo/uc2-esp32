@@ -29,6 +29,9 @@ class OD:
     MOTOR_MAX_POSITION = 0x2009
     MOTOR_JERK = 0x200A
     MOTOR_IS_FOREVER = 0x200B
+    MOTOR_SYNC_POSITION = 0x200C
+    MOTOR_SYNC_COUNT = 0x200D
+    MOTOR_SYNC_LATCH_ENABLE = 0x200E
 
     # HOMING — Sensorless or endstop-based homing
     HOMING_COMMAND = 0x2010
@@ -76,6 +79,10 @@ class OD:
     LASER_DESPECKLE_PERIOD = 0x2104
     LASER_DESPECKLE_AMPLITUDE = 0x2105
     LASER_SAFETY_STATE = 0x2106
+    LASER_STROBE_ENABLE = 0x2107
+    LASER_STROBE_DELAY_US = 0x2108
+    LASER_STROBE_WIDTH_US = 0x2109
+    LASER_STROBE_COUNT = 0x210A
 
     # LED — Addressable LED array (NeoPixel) with pattern support
     LED_ARRAY_MODE = 0x2200
@@ -204,6 +211,9 @@ OD_NAMES = {
     0x2009: 'motor_max_position',
     0x200A: 'motor_jerk',
     0x200B: 'motor_is_forever',
+    0x200C: 'motor_sync_position',
+    0x200D: 'motor_sync_count',
+    0x200E: 'motor_sync_latch_enable',
     0x2010: 'homing_command',
     0x2011: 'homing_speed',
     0x2012: 'homing_direction',
@@ -241,6 +251,10 @@ OD_NAMES = {
     0x2104: 'laser_despeckle_period',
     0x2105: 'laser_despeckle_amplitude',
     0x2106: 'laser_safety_state',
+    0x2107: 'laser_strobe_enable',
+    0x2108: 'laser_strobe_delay_us',
+    0x2109: 'laser_strobe_width_us',
+    0x210A: 'laser_strobe_count',
     0x2200: 'led_array_mode',
     0x2201: 'led_brightness',
     0x2202: 'led_uniform_colour',

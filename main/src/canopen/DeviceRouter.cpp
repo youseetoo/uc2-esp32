@@ -35,6 +35,7 @@
 #endif
 #ifdef LASER_CONTROLLER
 #include "../laser/LaserController.h"
+#include "../laser/StrobeRoute.h"
 #endif
 #ifdef LED_CONTROLLER
 #include "../led/LedController.h"
@@ -260,6 +261,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
     // Stage scanning is master-side orchestration — it issues motor.move
     // commands internally which themselves go through DeviceRouter again.
     MotorJsonParser::parseStageScan(doc);
+    MotorJsonParser::parseStrobeSweep(doc);
 #endif
 
     // ── 2. Drive command — route per stepper ──
@@ -300,6 +302,10 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
         if (!idItem) continue;
 
         int stepperid = idItem->valueint;
+        if (stepperid < 0 || stepperid >= MOTOR_AXIS_COUNT) {
+            ESP_LOGW(TAG, "motor %d out of range (MOTOR_AXIS_COUNT %d)", stepperid, MOTOR_AXIS_COUNT);
+            continue;
+        }
         const auto* route = UC2::RoutingTable::find(
             UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
 
@@ -538,9 +544,12 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 #ifdef MOTOR_CONTROLLER
 #ifdef CAN_CONTROLLER_CANOPEN
-    for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
+    for (uint8_t logicalAx = 0; logicalAx < MOTOR_AXIS_COUNT; logicalAx++) {
         const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
         if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+        // Multi-axis satellites push every change within 10 ms; their 0x2001
+        // slots are also written by RPDOs from nodes 10-13, so an SDO read can race.
+        if (CANopenModule::isMultiAxisNode(route->nodeId)) continue;
 
         uint8_t sub = (uint8_t)(route->subAxis + 1);
         int32_t pos = 0;
@@ -553,12 +562,8 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             continue; // slave unresponsive — leave the cached value alone
         }
 
-        // Order: OD_RAM first, then cache, then mirror — see header comment.
-        uint8_t slot = route->subAxis;
-        if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
-            OD_RAM.x2001_motor_actual_position[slot]      = pos;
-            CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
-        }
+        // Order: feedback source first, then cache, then mirror — see header comment.
+        CANopenModule::setRemoteMotorPosition(route->nodeId, route->subAxis, pos);
         MotorData* md = FocusMotor::getData()[logicalAx];
         if (md) md->currentPosition = pos;
         log_i("Refreshed REMOTE motor cache: node 0x%02X axis %u pos=%ld",
@@ -596,7 +601,7 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
         }
 
         if (route->where == UC2::RouteEntry::LOCAL) {
-            MotorData* d = FocusMotor::getData()[stepperid];
+            MotorData* d = (stepperid >= 0 && stepperid < MOTOR_AXIS_COUNT) ? FocusMotor::getData()[stepperid] : nullptr;
             if (d) {
                 cJSON_AddNumberToObject(rs, "position", d->currentPosition);
                 cJSON_AddNumberToObject(rs, "isRunning", FocusMotor::isRunning(stepperid) ? 1 : 0);
@@ -621,17 +626,12 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
             }
         } else { // REMOTE — cache was refreshed via SDO at handleMotorGet entry
 #ifdef CAN_CONTROLLER_CANOPEN
-            uint8_t slot = route->subAxis;
-            if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
-                const auto& slave = CANopenModule::s_remoteSlaves[slot];
-                if (slave.seen) {
-                    cJSON_AddNumberToObject(rs, "position", slave.motorPosition);
-                    bool running = (slave.motorStatus & 0x01) != 0;
-                    cJSON_AddNumberToObject(rs, "isRunning", running ? 1 : 0);
-                    cJSON_AddNumberToObject(rs, "isDone",    running ? 0 : 1);
-                } else {
-                    cJSON_AddNumberToObject(rs, "isDone", -1);
-                }
+            const RemoteSlaveState* slave = CANopenModule::remoteMotorState(route->nodeId, route->subAxis);
+            if (slave && slave->seen) {
+                cJSON_AddNumberToObject(rs, "position", slave->motorPosition);
+                bool running = (slave->motorStatus & 0x01) != 0;
+                cJSON_AddNumberToObject(rs, "isRunning", running ? 1 : 0);
+                cJSON_AddNumberToObject(rs, "isDone",    running ? 0 : 1);
             } else {
                 cJSON_AddNumberToObject(rs, "isDone", -1);
             }
@@ -645,6 +645,8 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
+    cJSON* qidItem = cJSON_GetObjectItem(doc, "qid");
+    if (cJSON_IsNumber(qidItem)) cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);  // clients match replies by qid
     return resp;
 #else
     return nullptr;
@@ -666,6 +668,34 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 #ifdef LASER_CONTROLLER
+    // Strobed sweep: {"task":"/laser_act","LASERid":4,"strobe":{"enable":1,"delayUs":1200,"widthUs":20}}
+    // Routed like any laser command (LOCAL LaserStrobe / REMOTE SDO to the node).
+    cJSON* strobeItem = cJSON_GetObjectItem(doc, "strobe");
+    if (strobeItem && cJSON_IsObject(strobeItem)) {
+        cJSON* idItem = cJSON_GetObjectItem(doc, "LASERid");
+        cJSON* q = cJSON_GetObjectItem(doc, "qid");
+        const int strobeQid = (q && cJSON_IsNumber(q)) ? q->valueint : 0;
+        cJSON* resp = cJSON_CreateObject();
+        if (!idItem || !cJSON_IsNumber(idItem)) {
+            cJSON_AddNumberToObject(resp, "return", 0);
+            cJSON_AddStringToObject(resp, "error", "strobe needs LASERid");
+            cJSON_AddNumberToObject(resp, "qid", strobeQid);
+            return resp;
+        }
+        cJSON* en = cJSON_GetObjectItem(strobeItem, "enable");
+        cJSON* dl = cJSON_GetObjectItem(strobeItem, "delayUs");
+        cJSON* wd = cJSON_GetObjectItem(strobeItem, "widthUs");
+        const bool enable = !en || (cJSON_IsNumber(en) ? en->valueint != 0 : cJSON_IsTrue(en));
+        const int delayUs = (dl && cJSON_IsNumber(dl)) ? std::max(0, dl->valueint) : 0;
+        const int widthUs = (wd && cJSON_IsNumber(wd)) ? std::max(1, wd->valueint) : 20;
+        StrobeRoute::Result r = StrobeRoute::configure(idItem->valueint, enable, (uint32_t)delayUs, (uint32_t)widthUs);
+        cJSON_AddItemToObject(resp, "strobe", StrobeRoute::toJson(r));
+        cJSON_AddNumberToObject(resp, "return", r.ok ? 1 : 0);
+        if (r.error) cJSON_AddStringToObject(resp, "error", r.error);
+        cJSON_AddNumberToObject(resp, "qid", strobeQid);
+        return resp;
+    }
+
     cJSON* laserid_item = cJSON_GetObjectItem(doc, "LASERid");
     cJSON* val_item     = cJSON_GetObjectItem(doc, "LASERval");
     if (!laserid_item || !val_item) {
@@ -793,11 +823,12 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
         int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity, -1);
         int homeRelease  = cJsonTool::getJsonInt(stp, key_home_endstoprelease);
         int homeOffset   = cJsonTool::getJsonInt(stp, key_home_endoffset);
+        bool hardHome    = cJsonTool::getJsonInt(stp, key_home_hardhome) > 0;
 
         if (route->where == UC2::RouteEntry::LOCAL) {
             log_i("Routing home_act to LOCAL stepper %d: speed=%d dir=%d timeout=%d maxspeed=%d polarity=%d offset=%d",
                   stepperid, homeSpeed, homeDir, homeTimeout, homeMaxspeed, homePolarity, homeOffset);
-            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
+            HomeMotor::startHome(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid, hardHome);
         } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t sub = route->subAxis + 1;
@@ -808,7 +839,8 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, (uint32_t)homeTimeout);
             CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, (int32_t)homeRelease);
             CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
-            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, 1);
+            // 2 = hard homing. Older slaves treat any non-zero as a normal home.
+            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, hardHome ? 2 : 1);
             if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
 
             // Arm master-side completion tracking. The slave reports its homing
@@ -819,11 +851,12 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
             // checkAndProcessHome timeout fallback) keys off. The timeout is given
             // grace over the slave's own so the slave's push normally wins the race.
             HomeData** mhdAll = HomeMotor::getHomeData();
-            if (mhdAll && mhdAll[stepperid]) {
+            if (mhdAll && stepperid >= 0 && stepperid < MOTOR_AXIS_COUNT && mhdAll[stepperid]) {
                 HomeData* mhd        = mhdAll[stepperid];
                 mhd->qid             = (uint16_t)qid;
                 mhd->homeResultCode  = 0;
-                mhd->homeTimeout     = (uint32_t)homeTimeout + 5000;
+                // Hard homing = two cycles; the slave restarts its timer for the second.
+                mhd->homeTimeout     = (uint32_t)homeTimeout * (hardHome ? 2 : 1) + 5000;
                 mhd->homeTimeStarted = millis();
                 mhd->homeIsActive    = true;
             }
@@ -1395,19 +1428,42 @@ cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
 // ============================================================================
 cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
 #ifdef LASER_CONTROLLER
-    // PR-7.8 Issue 7: warn if any laser is REMOTE — get over CAN not yet implemented.
-    for (uint8_t id = 0; id < 4; ++id) {
+    // Legacy keys (LASERxpin/LASERxval) plus a "lasers" list with value, max,
+    // resolution and frequency per routed laser:
+    // {"laser":{..., "lasers":[{"LASERid":1,"LASERval":0,"LASERmax":1024,"LASERRes":10,"LASERFreq":5000,...}]}}
+    cJSON* resp = LaserController::get(doc);
+    cJSON* lasers = cJSON_AddArrayToObject(cJSON_GetObjectItem(resp, "laser"), "lasers");
+    for (uint8_t id = 0; id < 5; ++id) {
         const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LASER, id);
-        if (r && r->where == UC2::RouteEntry::REMOTE) {
-            log_w("laser_get: laser %u is REMOTE — get over CAN not implemented yet", id);
-            cJSON* resp = cJSON_CreateObject();
-            cJSON_AddNumberToObject(resp, "return", 0);
-            cJSON_AddStringToObject(resp, "error",
-                "device is on remote node — get not implemented over CAN yet");
-            return resp;
+        if (!r || r->where == UC2::RouteEntry::OFF) continue;
+        if (r->where == UC2::RouteEntry::LOCAL) {
+            cJSON_AddItemToArray(lasers, LaserController::getLaserJson(id));
+            continue;
         }
+#ifdef CAN_CONTROLLER_CANOPEN
+        // REMOTE: the slave mirrors its PWM config into OD 0x2100-0x2103 (sub = channel+1).
+        uint8_t sub = r->subAxis + 1;
+        uint16_t val = 0, max = 0; uint32_t freq = 0; uint8_t res = 0; size_t got = 0;
+        bool ok = CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_PWM_VALUE,      sub, (uint8_t*)&val,  sizeof(val),  &got)
+               && CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_MAX_VALUE,      sub, (uint8_t*)&max,  sizeof(max),  &got)
+               && CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_PWM_FREQUENCY,  sub, (uint8_t*)&freq, sizeof(freq), &got)
+               && CANopenModule::readSDO(r->nodeId, UC2_OD::LASER_PWM_RESOLUTION, sub, &res,            sizeof(res),  &got);
+        cJSON* l = cJSON_CreateObject();
+        cJSON_AddNumberToObject(l, "LASERid", id);
+        cJSON_AddNumberToObject(l, "node", r->nodeId);
+        if (ok) {
+            cJSON_AddNumberToObject(l, "LASERval", val);
+            cJSON_AddNumberToObject(l, "LASERmax", max);
+            cJSON_AddNumberToObject(l, "LASERRes", res);
+            cJSON_AddNumberToObject(l, "LASERFreq", freq);
+        } else {
+            log_w("laser_get: SDO read failed for laser %u on node 0x%02X", id, r->nodeId);
+            cJSON_AddStringToObject(l, "error", "SDO read failed");
+        }
+        cJSON_AddItemToArray(lasers, l);
+#endif
     }
-    return LaserController::get(doc);
+    return resp;
 #else
     return nullptr;
 #endif

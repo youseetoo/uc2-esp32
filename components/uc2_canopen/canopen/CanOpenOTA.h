@@ -19,7 +19,10 @@
 #include <stdint.h>
 
 // OTA status values (written to OD 0x2F03)
-enum CanOpenOtaStatus : uint8_t {
+// Plain C enum (no `: uint8_t` base) so this header is C-includable — the C
+// tpdo TU (canopen_tpdo.c) reads CANOPEN_OTA_RECEIVING/VERIFYING to skip motor
+// housekeeping during OTA. Values are written to uint8 OD fields with a cast.
+enum CanOpenOtaStatus {
     CANOPEN_OTA_IDLE        = 0x00,
     CANOPEN_OTA_RECEIVING   = 0x01,
     CANOPEN_OTA_VERIFYING   = 0x02,
@@ -28,7 +31,7 @@ enum CanOpenOtaStatus : uint8_t {
 };
 
 // OTA error codes (written to OD 0x2F05)
-enum CanOpenOtaError : uint8_t {
+enum CanOpenOtaError {
     CANOPEN_OTA_ERR_NONE            = 0x00,
     CANOPEN_OTA_ERR_NO_PARTITION    = 0x01,
     CANOPEN_OTA_ERR_BEGIN_FAILED    = 0x02,
@@ -39,6 +42,7 @@ enum CanOpenOtaError : uint8_t {
     CANOPEN_OTA_ERR_SIZE_TOO_LARGE  = 0x07,
 };
 
+#ifdef __cplusplus
 namespace CanOpenOTA {
 
 /**
@@ -48,3 +52,4 @@ namespace CanOpenOTA {
 void registerOdExtensions();
 
 }  // namespace CanOpenOTA
+#endif  // __cplusplus

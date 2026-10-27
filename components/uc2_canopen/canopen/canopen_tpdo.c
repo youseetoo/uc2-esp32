@@ -12,9 +12,8 @@
 #include "RuntimeConfig.h"
 #include "NVSConfig.h"
 #include "RoutingTable.h"
-// Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
-// Constants are declared here for compile-time verification; not yet used in logic.
-#include "UC2_OD_Indices.h"
+// (UC2_OD_Indices.h dropped — it has an unguarded namespace, so it is not
+// C-includable, and this TU only uses the OD_RAM.* fields from OD.h.)
 
 // SerialProcess is needed by the GPIO-slave TPDO2 sniffer (master-only) as
 // well as the motor-completion path below, so it's hoisted out of the
@@ -33,9 +32,6 @@
 #ifdef LED_CONTROLLER
 #include "LedController.h"
 #endif
-#ifdef GALVO_CONTROLLER
-#include "GalvoController.h"
-#endif
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"
 #endif
@@ -48,24 +44,20 @@
 
 #include "CanOpenOTA.h"
 
-extern "C" {
 #include <CANopen.h>
 #include "OD.h"
-}
 
 #ifdef UNIT_TEST
 // Host-test routing: SDO write/read and node-reachability checks go through
 // these C shims, provided by the mock (test/unity/mocks/mock_canopen.cpp).
 // The production ESP32 build never defines UNIT_TEST, so the real paths
 // (CO->SDOclient, s_nodeLastSeenMs liveness) are untouched.
-extern "C" {
     int  CO_writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                      uint8_t* data, size_t dataSize, int timeoutMs);
     int  CO_readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                     uint8_t* data, size_t dataSize, size_t* bytesRead,
                     int timeoutMs);
     bool CO_nodeReachable(uint8_t nodeId);
-}
 #endif
 
 #include "freertos/FreeRTOS.h"
@@ -130,17 +122,22 @@ extern "C" {
 // We poll this every 1ms from the timer task for simplicity and responsiveness; 
 // no interrupts or mutexes needed for this one-way communication from OD to Module.
 // ============================================================================
-void CANopenModule::syncRpdoToModules()
+// tpdo-TU-internal RPDO sync helpers (defined below; declared here so the
+// dispatcher can call them before their definitions).
+static void sync_rpdo_to_modules_slave(void);
+static void sync_rpdo_to_modules_master(void);
+
+void canopen_tpdo_sync_rpdo_to_modules(void)
 {
     if (runtime_config_is_slave(&runtimeConfig)) {
-        syncRpdoToModules_slave();
+        sync_rpdo_to_modules_slave();
     } else {
-        syncRpdoToModules_master();
+        sync_rpdo_to_modules_master();
     }
 }
 
 // Slave: consume RPDO data from OD_RAM and dispatch to local modules
-void CANopenModule::syncRpdoToModules_slave()
+static void sync_rpdo_to_modules_slave(void)
 {
     // Skip motor housekeeping during OTA — avoids competing with the SDO task.
     if (OD_OTA_STATUS == CANOPEN_OTA_RECEIVING ||
@@ -386,88 +383,11 @@ void CANopenModule::syncRpdoToModules_slave()
 #endif
 
 #ifdef GALVO_CONTROLLER
-    // Galvo command word is a doorbell: the master writes a nonzero code via
-    // SDO, we execute it and clear the word back to GALVO_CMD_IDLE (0). We must
-    // NOT treat 0 as a command — doing so, combined with the self-clear below,
-    // made the cleared state look like a fresh "stop" on the very next sync
-    // cycle and killed every scan right after it started. So: skip 0, and use
-    // the dedicated GALVO_CMD_STOP code for stops.
-    {
-        uint8_t cmd = OD_RAM.x2602_galvo_command_word;
-        if (cmd != GALVO_CMD_IDLE) {
-            switch (cmd) {
-                case GALVO_CMD_GOTO: // Goto XY / park — stops any scan, drives DAC directly
-                    log_i("Galvo goto command: x=%u y=%u",
-                          (unsigned)OD_RAM.x2600_galvo_target_position[0],
-                          (unsigned)OD_RAM.x2600_galvo_target_position[1]);
-                    galvo_goto_xy((uint16_t)OD_RAM.x2600_galvo_target_position[0],
-                                  (uint16_t)OD_RAM.x2600_galvo_target_position[1]);
-                    break;
-                case GALVO_CMD_LINE: // Line scan (single line: ny forced to 1 below)
-                    log_i("Galvo line scan command received");
-                    // fall through — same raster path, ny is clamped to 1
-                    [[fallthrough]];
-                case GALVO_CMD_RASTER: { // Raster scan
-                    log_i("Galvo raster scan command received: x_start=%u y_start=%u x_steps=%u y_steps=%u x_step=%d y_step=%d speed=%u pre_us=%u post_us=%u trigger=%u",
-                          (unsigned)OD_RAM.x260B_galvo_x_start,
-                          (unsigned)OD_RAM.x260C_galvo_y_start,
-                          (unsigned)OD_RAM.x2605_galvo_n_steps_line,
-                          (unsigned)OD_RAM.x2606_galvo_n_steps_pixel,
-                          (int32_t)OD_RAM.x260D_galvo_x_step,
-                          (int32_t)OD_RAM.x260E_galvo_y_step,
-                          (unsigned)OD_RAM.x2604_galvo_scan_speed,
-                          (unsigned)OD_RAM.x2609_galvo_t_pre_us,
-                          (unsigned)OD_RAM.x260A_galvo_t_post_us,
-                          (unsigned)OD_RAM.x260F_galvo_camera_trigger_mode);
-                    ScanConfig cfg;
-                    cfg.x_min = (uint16_t)OD_RAM.x260B_galvo_x_start;
-                    cfg.y_min = (uint16_t)OD_RAM.x260C_galvo_y_start;
-                    cfg.nx = OD_RAM.x2605_galvo_n_steps_line;
-                    cfg.ny = (cmd == GALVO_CMD_LINE) ? 1 : OD_RAM.x2606_galvo_n_steps_pixel;
-                    int32_t xStep = OD_RAM.x260D_galvo_x_step;
-                    int32_t yStep = OD_RAM.x260E_galvo_y_step;
-                    cfg.x_max = (uint16_t)(cfg.x_min + cfg.nx * xStep);
-                    cfg.y_max = (uint16_t)(cfg.y_min + cfg.ny * yStep);
-                    cfg.sample_period_us = (uint16_t)OD_RAM.x2604_galvo_scan_speed;
-                    cfg.pre_samples = OD_RAM.x2609_galvo_t_pre_us;
-                    cfg.fly_samples = OD_RAM.x260A_galvo_t_post_us;
-                    cfg.frame_count = 0; // Infinite until stopped
-                    cfg.enable_trigger = OD_RAM.x260F_galvo_camera_trigger_mode;
-                    // bidirectional + line_settle_samples ride in the reused
-                    // d_steps slots (see DeviceRouter::handleGalvoAct). Line scan
-                    // (single line) is always unidirectional.
-                    cfg.bidirectional = (cmd == GALVO_CMD_LINE) ? 0
-                                        : (uint8_t)(OD_RAM.x2607_galvo_d_steps_line ? 1 : 0);
-                    cfg.line_settle_samples = OD_RAM.x2608_galvo_d_steps_pixel;
-                    log_i("Galvo raster extras: bidirectional=%u line_settle=%u",
-                          (unsigned)cfg.bidirectional, (unsigned)cfg.line_settle_samples);
-                    if (!galvo_set_config(&cfg)) {
-                        // Rejected (line > SCANNER_MAX_LINE_SAMPLES, bad range, ...):
-                        // do NOT start(), that would re-arm the previous scan.
-                        log_e("Galvo raster config rejected, not starting");
-                        break;
-                    }
-                    // Reset to raster mode — a prior arbitrary-point scan (0x2610)
-                    // would otherwise leave the scanner in ARBITRARY mode.
-                    galvo_set_scan_mode(SCAN_MODE_RASTER);
-                    galvo_start();
-                    break;
-                }
-                case GALVO_CMD_STOP: // Stop
-                    log_i("Galvo stop command received");
-                    galvo_stop();
-                    break;
-                case GALVO_CMD_ESTOP: // Emergency stop
-                    log_i("Galvo emergency stop command received");
-                    galvo_stop();
-                    break;
-                default:
-                    log_w("Galvo unknown command word: %u", (unsigned)cmd);
-                    break;
-            }
-            OD_RAM.x2602_galvo_command_word = GALVO_CMD_IDLE;
-        }
-    }
+    // Galvo command-word doorbell (T4.4 4c: the galvo logic moved to the C++
+    // island canopen_tpdo_galvo.cpp — GalvoController.h is C++-only). Executes
+    // a pending command from OD_RAM.x2602_galvo_command_word and clears it back
+    // to GALVO_CMD_IDLE (0); 0 is never treated as a command.
+    canopen_tpdo_galvo_handle_command_word();
 #endif
 
 #ifdef TMC_CONTROLLER
@@ -581,9 +501,9 @@ void CANopenModule::syncRpdoToModules_slave()
 // Master: drain RPDO-written OD_RAM entries into the remote slave cache.
 // Called every 1 ms from CO_tmr_task. Detects running->stopped transitions
 // and emits async serial notifications.
-RemoteSlaveState CANopenModule::s_remoteSlaves[REMOTE_SLAVE_SLOTS] = {};
+RemoteSlaveState s_remoteSlaves[REMOTE_SLAVE_SLOTS] = {0};
 
-void CANopenModule::syncRpdoToModules_master()
+static void sync_rpdo_to_modules_master(void)
 {
 #ifdef MOTOR_CONTROLLER
     for (uint8_t slot = 0; slot < REMOTE_SLAVE_SLOTS; slot++) {
@@ -623,9 +543,9 @@ void CANopenModule::syncRpdoToModules_master()
 
         // Mirror into FocusMotor data so /motor_get keeps working
         for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) { // TODO: We should consider having more axis 
-            const auto* route = UC2::RoutingTable::find(
-                UC2::RouteEntry::MOTOR, logicalAx);
-            if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+            const route_entry *route = routing_table_find(
+                ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)logicalAx);
+            if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE) continue;
             if (route->subAxis != slot) continue;
 
             MotorData* md = focusmotor_get_data()[logicalAx];
@@ -699,7 +619,7 @@ void CANopenModule::syncRpdoToModules_master()
 #endif
 }
 
-void CANopenModule::syncModulesToTpdo()
+void canopen_tpdo_sync_modules_to_tpdo(void)
 {
     // Skip TPDO updates during OTA — avoids competing with the SDO task.
     if (OD_OTA_STATUS == CANOPEN_OTA_RECEIVING ||
@@ -722,7 +642,7 @@ void CANopenModule::syncModulesToTpdo()
     int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
     focusmotor_update_data(localAxis);
     MotorData* md = focusmotor_get_data()[localAxis];
-    if (md == nullptr) return;
+    if (md == NULL) return;
 
     bool isRunning = focusmotor_is_running(localAxis);
     int32_t newPos = md->currentPosition;
@@ -805,18 +725,10 @@ void CANopenModule::syncModulesToTpdo()
 #endif
 
 #ifdef GALVO_CONTROLLER
-    // Galvo state: push status word into OD for TPDO
-    {
-        uint8_t galvoStatus = 0;
-        if (galvo_is_running()) galvoStatus |= 0x01;  // bit 0: moving
-        if (galvo_is_running()) galvoStatus |= 0x02;  // bit 1: scan active
-
-        static uint8_t s_lastGalvoStatus = 0xFF;
-        if (galvoStatus != s_lastGalvoStatus) {
-            OD_RAM.x2603_galvo_status_word = galvoStatus;
-            s_lastGalvoStatus = galvoStatus;
-        }
-    }
+    // Galvo status push (T4.4 4c: C++ island canopen_tpdo_galvo.cpp). Builds the
+    // status word from galvo_is_running() and writes OD_RAM.x2603_galvo_status_word
+    // on change, feeding the TPDO.
+    canopen_tpdo_galvo_push_state();
 #endif
 }
 

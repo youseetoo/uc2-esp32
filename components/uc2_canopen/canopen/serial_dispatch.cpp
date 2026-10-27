@@ -16,6 +16,7 @@
 
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "CANopenModule.h"
+#include "canopen_module_priv.h"
 #include "UC2_OD_Indices.h"
 #ifndef CANOPEN_OTA_NO_SENDER
 #include "OtaBinaryReceive.h"
@@ -460,9 +461,9 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 
         // Order: OD_RAM first, then cache, then mirror — see header comment.
         uint8_t slot = route->subAxis;
-        if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
+        if (slot < REMOTE_SLAVE_SLOTS) {
             OD_RAM.x2001_motor_actual_position[slot]      = pos;
-            CANopenModule::s_remoteSlaves[slot].motorPosition = pos;
+            s_remoteSlaves[slot].motorPosition = pos;
         }
         MotorData* md = focusmotor_get_data()[logicalAx];
         if (md) md->currentPosition = pos;
@@ -527,8 +528,8 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
         } else { // REMOTE — cache was refreshed via SDO at handleMotorGet entry
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t slot = route->subAxis;
-            if (slot < CANopenModule::REMOTE_SLAVE_SLOTS) {
-                const auto& slave = CANopenModule::s_remoteSlaves[slot];
+            if (slot < REMOTE_SLAVE_SLOTS) {
+                const auto& slave = s_remoteSlaves[slot];
                 if (slave.seen) {
                     cJSON_AddNumberToObject(rs, "position", slave.motorPosition);
                     bool running = (slave.motorStatus & 0x01) != 0;

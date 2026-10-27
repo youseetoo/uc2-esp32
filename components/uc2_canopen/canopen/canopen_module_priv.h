@@ -73,57 +73,82 @@ void axisEmcyRxCallback(const uint16_t ident, const uint16_t errorCode,
 }
 #endif
 
+// ============================================================================
+// Pending commands — C-visible (tpdo TU posts, module TU consumes).
+// ============================================================================
+// The C tpdo TU (canopen_tpdo.c) writes these, so they need C types + C
+// linkage: the array definitions in canopen_module.cpp inherit C linkage from
+// the extern "C" declarations below (same pattern as the SDO globals). The
+// in-class initializers are dropped — every field is written by the tpdo TU
+// before `pending` is set, and `loop()` only reads a field when `pending` is
+// true, so the old defaults were dead. Array definitions stay in
+// canopen_module.cpp (zero-initialized as static storage).
+// ============================================================================
+#define REMOTE_SLAVE_SLOTS 4
+
 #ifdef __cplusplus
-// ============================================================================
-// Pending commands — posted by CO_tmr_task (tpdo TU), consumed by loop()
-// (main context, module TU). Per-axis arrays for motors; separate structs for
-// homing and lasers.
-// Writing 'pending = true' last acts as a commit flag (single-byte assignment
-// is atomic on Xtensa, so no dedicated mutex is needed for this simple
-// producer-consumer pattern).
-// Array definitions stay in canopen_module.cpp.
-// ============================================================================
+extern "C" {
+#endif
 struct PendingAxisCmd {
-    volatile bool pending = false;
-    int32_t pos   = 0;
-    int32_t speed = 0;
-    int32_t accel = 0;
-    bool    isAbs     = false;
-    bool    isStop    = false;
-    bool    isForever = false;
+    volatile bool pending;
+    int32_t pos;
+    int32_t speed;
+    int32_t accel;
+    bool    isAbs;
+    bool    isStop;
+    bool    isForever;
 };
 #ifdef MOTOR_CONTROLLER  // T1.3: only the motor dispatch path touches this
-extern PendingAxisCmd s_axisCmds[4];
+extern struct PendingAxisCmd s_axisCmds[4];
 #endif
 
 struct PendingHomingCmd {
-    volatile bool pending  = false;
-    int32_t speed          = 0;
-    int8_t  direction      = 1;
-    int32_t timeout        = 5000;
-    int32_t endstopRelease = 0;
-    uint8_t polarity       = 0;
+    volatile bool pending;
+    int32_t speed;
+    int8_t  direction;
+    int32_t timeout;
+    int32_t endstopRelease;
+    uint8_t polarity;
 };
 #ifdef HOME_MOTOR  // T1.3: only the homing dispatch path touches this
-extern PendingHomingCmd s_homingCmds[4];
+extern struct PendingHomingCmd s_homingCmds[4];
 #endif
 
 struct PendingLaserCmd {
-    volatile bool pending = false;
-    uint16_t      value   = 0;
+    volatile bool pending;
+    uint16_t      value;
 };
-extern PendingLaserCmd s_laserCmds[4];
+extern struct PendingLaserCmd s_laserCmds[4];
 
 struct PendingHardLimitCmd {
-    volatile bool pending  = false;
-    bool          isCommand = false;   // true  -> run command (clear)
-    bool          isConfig  = false;   // true  -> update enabled/polarity
-    uint8_t       enabled  = 0;
-    uint8_t       polarity = 0;
+    volatile bool pending;
+    bool          isCommand;
+    bool          isConfig;
+    uint8_t       enabled;
+    uint8_t       polarity;
 };
 #ifdef MOTOR_CONTROLLER  // T1.3: hard limits belong to the motor path
-extern PendingHardLimitCmd s_hardlimitCmds[4];
+extern struct PendingHardLimitCmd s_hardlimitCmds[4];
 #endif
 
-#endif // __cplusplus
+// Remote slave state — posted by syncModulesToTpdo (tpdo TU, C), consumed by
+// loop() (module TU, C++). Moved here from CANopenModule.h so the C tpdo TU
+// sees it (it was C++-only before); the typedef keeps the unqualified
+// `RemoteSlaveState` name valid in both C and C++.
+struct RemoteSlaveState {
+    int32_t  motorPosition;
+    uint8_t  motorStatus;
+    uint8_t  homingStatus;
+    uint32_t lastUpdateMs;
+    bool     seen;
+};
+typedef struct RemoteSlaveState RemoteSlaveState;
+extern struct RemoteSlaveState s_remoteSlaves[REMOTE_SLAVE_SLOTS];
+
+// tpdo TU public C API (called via inline shims from CO_tmr_task, module TU).
+void canopen_tpdo_sync_rpdo_to_modules(void);
+void canopen_tpdo_sync_modules_to_tpdo(void);
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 #endif // CAN_CONTROLLER_CANOPEN

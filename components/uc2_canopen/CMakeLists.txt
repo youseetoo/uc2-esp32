@@ -13,7 +13,13 @@ if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
         # state in canopen_module_priv.h). sdo is C (T4.4 step 4b).
         "canopen/canopen_module.cpp"
         "canopen/canopen_sdo.c"
-        "canopen/canopen_tpdo.cpp"
+        # T4.4 step 4c: TPDO C-ified (was canopen_tpdo.cpp; C API
+        # canopen_tpdo_sync_* + CANopenModule:: shims in CANopenModule.h).
+        "canopen/canopen_tpdo.c"
+        # T4.4 step 4c: C++ island for the galvo TPDO sync (GalvoController.h
+        # is C++-only). Body is #ifdef GALVO_CONTROLLER, so it compiles to an
+        # empty object on non-galvo apps.
+        "canopen/canopen_tpdo_galvo.cpp"
         "canopen/canopen_ota.cpp")
 endif()
 if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER)

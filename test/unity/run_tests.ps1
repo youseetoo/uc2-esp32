@@ -114,6 +114,11 @@ $prodSrcs  = @(
     # start/stop/...) lives here — without it the link dies with 11
     # HighSpeedScannerCore::* LNK2019s from GalvoController.obj.
     "components\uc2_periph\scanner\HighSpeedScannerCore.cpp",
+    # T4.4 step 4c: C++ island for the galvo TPDO sync (was inline in
+    # canopen_tpdo.c; GalvoController.h -> <cmath> is C++-only). extern "C"
+    # shims canopen_tpdo_galvo_handle_command_word / _push_state are called by
+    # the C TPDO TU under #ifdef GALVO_CONTROLLER (defined via PinConfig.h).
+    "components\uc2_canopen\canopen\canopen_tpdo_galvo.cpp",
     # C-linkage signal_strip_* shims (create/begin/set_brightness/clear/show/
     # gamma8/color/set_pixel) called by the C TU SignalController.c.
     "components\uc2_led\signal\signal_neopixel_c.cpp",
@@ -130,6 +135,9 @@ $cSrcs = @(
     # T4.4 step 4b: SDO C-ified (was canopen_sdo.cpp; C API canopen_sdo_* +
     # CANopenModule:: shims in CANopenModule.h).
     "components\uc2_canopen\canopen\canopen_sdo.c",
+    # T4.4 step 4c: TPDO C-ified (was canopen_tpdo.cpp; C API canopen_tpdo_sync_*
+    # + CANopenModule:: shims in CANopenModule.h).
+    "components\uc2_canopen\canopen\canopen_tpdo.c",
     "components\uc2_axis\axis\AxisCalibration.c",
     "components\uc2_axis\axis\AxisWatchdog.c",
     "components\uc2_axis\axis\AxisNotify.c",

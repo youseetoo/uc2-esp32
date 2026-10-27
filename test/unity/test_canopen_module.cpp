@@ -11,10 +11,12 @@
 // ota, s_remoteSlaves in tpdo, setup/callback registration in module) live in
 // different files now. module first so its globals precede the other TUs.
 #include "../../components/uc2_canopen/canopen/canopen_module.cpp"
-// canopen_sdo.cpp is C-ified (T4.4 step 4b) -> canopen_sdo.c, compiled
+// canopen_sdo.cpp is C-ified (T4.4 step 4b) -> canopen_sdo.c, and
+// canopen_tpdo.cpp -> canopen_tpdo.c (T4.4 step 4c); both compiled
 // separately (run_tests.ps1 $cSrcs); the CANopenModule:: shims in
-// CANopenModule.h forward to the canopen_sdo_* C symbols.
-#include "../../components/uc2_canopen/canopen/canopen_tpdo.cpp"
+// CANopenModule.h forward to the canopen_sdo_*/canopen_tpdo_* C symbols.
+// RemoteSlaveState / REMOTE_SLAVE_SLOTS come from canopen_module_priv.h
+// (included transitively via canopen_module.cpp above).
 #include "../../components/uc2_canopen/canopen/canopen_ota.cpp"
 #include "mocks/mock_canopen.h"
 #include "mocks/mock_clock.h"
@@ -233,7 +235,7 @@ void test_cm018_remoteSlaveStateSize() {
 // CM-019: REMOTE_SLAVE_SLOTS constant
 // ============================================================================
 void test_cm019_remoteSlaveSlotsConstant() {
-    TEST_ASSERT_EQUAL(4, CANopenModule::REMOTE_SLAVE_SLOTS);
+    TEST_ASSERT_EQUAL(4, REMOTE_SLAVE_SLOTS);
 }
 
 // ============================================================================

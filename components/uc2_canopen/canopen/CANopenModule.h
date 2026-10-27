@@ -40,6 +40,18 @@ bool canopen_sdo_read(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                       uint8_t* buf, size_t bufSize, size_t* readSize);
 bool canopen_is_operational(void);
 void canopen_emit_axis_emcy(uint8_t axis, uint8_t fault, int32_t posErrSteps);
+// T4.4: C TPDO sync API — implemented in canopen_tpdo.c. The C++ shims below
+// (CANopenModule::syncRpdoToModules / syncModulesToTpdo) forward to these.
+void canopen_tpdo_sync_rpdo_to_modules(void);
+ void canopen_tpdo_sync_modules_to_tpdo(void);
+ // T4.4 step 4c: galvo handling lives in a C++ island (canopen_tpdo_galvo.cpp,
+ // GalvoController.h -> <cmath> is C++-only). These extern "C" shims are the
+ // C-callable seam; guarded by GALVO_CONTROLLER to match the call sites in
+ // canopen_tpdo.c. Defined only when GALVO_CONTROLLER is on (island file).
+#ifdef GALVO_CONTROLLER
+ void canopen_tpdo_galvo_handle_command_word(void);
+ void canopen_tpdo_galvo_push_state(void);
+#endif
 bool canopen_sdo_write_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v, uint32_t timeoutMs);
 bool canopen_sdo_write_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs);
 bool canopen_sdo_write_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v, uint32_t timeoutMs);
@@ -52,15 +64,8 @@ bool canopen_sdo_write_domain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
 
 #ifdef __cplusplus
 
-// Cached state of a remote slave, populated by RPDO consumers on the master.
-// Read by handleMotorGet / async serial notifications. Zero SDO traffic.
-struct RemoteSlaveState {
-    int32_t  motorPosition;     // last known position from TPDO
-    uint8_t  motorStatus;       // bit 0 = running
-    uint8_t  homingStatus;      // last homing phase from TPDO (OD 0x2016): 0=idle,1=homing,2=done,3=timeout
-    uint32_t lastUpdateMs;      // millis() when the cache was last written
-    bool     seen;              // has this slave EVER pushed a TPDO?
-};
+// RemoteSlaveState / s_remoteSlaves / REMOTE_SLAVE_SLOTS moved to
+// canopen_module_priv.h (C-visible — the C tpdo TU reads/writes them).
 
 class CANopenModule {
 public:
@@ -124,9 +129,8 @@ public:
     // (no-op if CO/em not ready). The master converts inbound EMCY to JSON.
     static void emitAxisEmcy(uint8_t axis, uint8_t fault, int32_t posErrSteps) { canopen_emit_axis_emcy(axis, fault, posErrSteps); }
 
-    // Remote slave cache — master only, populated by RPDO consumers
-    static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;  // TODO: Is this motors only? We probably have more?!
-    static RemoteSlaveState s_remoteSlaves[REMOTE_SLAVE_SLOTS];
+    // (Remote slave cache moved to canopen_module_priv.h as the C global
+    //  s_remoteSlaves[REMOTE_SLAVE_SLOTS].)
 
 private:
     static void CAN_ctrl_task(void* arg);
@@ -134,11 +138,10 @@ private:
     static void CO_tmr_task(void* arg);
     static void CO_interrupt_task(void* arg);
 
-    // OD <-> Module sync (called from CO_tmr_task)
-    static void syncRpdoToModules();
-    static void syncRpdoToModules_slave();
-    static void syncRpdoToModules_master();
-    static void syncModulesToTpdo();
+    // OD <-> Module sync (called from CO_tmr_task). Thin shims forwarding to the
+    // C tpdo TU (canopen_tpdo.c); the _slave/_master variants are tpdo-TU static.
+    static inline void syncRpdoToModules() { canopen_tpdo_sync_rpdo_to_modules(); }
+    static inline void syncModulesToTpdo() { canopen_tpdo_sync_modules_to_tpdo(); }
 };
 #endif // __cplusplus
 

@@ -890,7 +890,7 @@ void CANopenModule::CO_main_task(void* arg)
 
         // Register OTA OD extensions (slave receiver — opt out via CANOPEN_OTA_NO_RECEIVER)
 #ifndef CANOPEN_OTA_NO_RECEIVER
-        CanOpenOTA::registerOdExtensions();
+        canopen_ota_register_od_extensions();
 #endif
 
         // Enter normal mode — subtasks resume processing via CANnormal guard

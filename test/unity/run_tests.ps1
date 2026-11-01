@@ -138,6 +138,12 @@ $cSrcs = @(
     # T4.4 step 4c: TPDO C-ified (was canopen_tpdo.cpp; C API canopen_tpdo_sync_*
     # + CANopenModule:: shims in CANopenModule.h).
     "components\uc2_canopen\canopen\canopen_tpdo.c",
+    # T4.4 step 4d: OTA C-ified (was canopen_ota.cpp; C APIs
+    # canopen_sdo_download_* / canopen_ota_* / ota_*; C++ shims in
+    # CANopenModule.h / CanOpenOTAStreaming.h / OtaBinaryReceive.h).
+    # CANOPEN_OTA_NO_RECEIVER (C-step flag below) excludes the slave-side
+    # receiver section; its host no-op lives in stubs/host_impl.cpp.
+    "components\uc2_canopen\canopen\canopen_ota.c",
     "components\uc2_axis\axis\AxisCalibration.c",
     "components\uc2_axis\axis\AxisWatchdog.c",
     "components\uc2_axis\axis\AxisNotify.c",
@@ -238,7 +244,12 @@ $batLines += ("cl /nologo /std:c++20 /Zc:__cplusplus /W3 /Zi /Od /c $tmcInc $def
 # the real CO->SDOclient path (CO is NULL on host -> every writeSDO returns
 # false, the mock tracks 0). Only canopen_sdo.c has a UNIT_TEST branch among the
 # C files, so this affects just it.
-$batLines += ("cl /nologo /std:c11 /W3 /Zi /Od /c $inc /DSTAGE_SCAN=1 /DUNITY_INCLUDE_DOUBLE /DUNIT_TEST /Fo`"$objDir\\`" " +
+# /DCANOPEN_OTA_NO_RECEIVER: canopen_ota.c (T4.4 step 4d) compiles out its
+# slave-side OTA receiver section (esp_ota_* flash writes, OD extension
+# registration) — the host links a no-op canopen_ota_register_od_extensions
+# from stubs/host_impl.cpp instead. (CAN_CONTROLLER_CANOPEN itself comes from
+# apps/canopen_master/main/PinConfig.h via the include path.)
+$batLines += ("cl /nologo /std:c11 /W3 /Zi /Od /c $inc /DSTAGE_SCAN=1 /DUNITY_INCLUDE_DOUBLE /DUNIT_TEST /DCANOPEN_OTA_NO_RECEIVER /Fo`"$objDir\\`" " +
     ($cSrcs -join " ") + " || exit /b 1")
 $batLines += ("link /nologo /SUBSYSTEM:CONSOLE " + ($cppObjs -join " ") +
     " /OUT:`"$bin`" || exit /b 1")

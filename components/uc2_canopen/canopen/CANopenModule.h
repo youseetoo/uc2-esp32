@@ -58,6 +58,15 @@ bool canopen_sdo_write_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v
 bool canopen_sdo_write_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t  v, uint32_t timeoutMs);
 bool canopen_sdo_write_domain(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                               const uint8_t* data, size_t dataSize);
+// T4.4 4d: C streaming SDO download API — implemented in canopen_ota.c
+// (session state, chunk budgeting and SDO sequencing all live there).
+// The C++ CANopenModule::sdoDownload* shims below forward to these.
+bool canopen_sdo_download_begin(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                                uint32_t totalSize);
+bool canopen_sdo_download_chunk(const uint8_t* data, size_t count);
+bool canopen_sdo_download_end(void);
+void canopen_sdo_download_abort(void);
+bool canopen_sdo_download_active(void);
 #ifdef __cplusplus
 }
 #endif
@@ -108,14 +117,15 @@ public:
     // The total size is known up front and passed to Begin; each Chunk call
     // appends data; End finalises and closes the session. Only one streaming
     // session can be active at a time. The s_sdoMutex is held for the entire
-    // session (taken in Begin, released in End/Abort).
+    // session (taken in Begin, released in End/Abort). Thin shims forwarding
+    // to the C API canopen_sdo_download_* (canopen_ota.c).
     static bool sdoDownloadBegin(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                                  uint32_t totalSize);
-    static bool sdoDownloadChunk(const uint8_t* data, size_t count);
-    static bool sdoDownloadEnd();
-    static void sdoDownloadAbort();
+                                  uint32_t totalSize) { return canopen_sdo_download_begin(nodeId, index, subIndex, totalSize); }
+    static bool sdoDownloadChunk(const uint8_t* data, size_t count) { return canopen_sdo_download_chunk(data, count); }
+    static bool sdoDownloadEnd() { return canopen_sdo_download_end(); }
+    static void sdoDownloadAbort() { canopen_sdo_download_abort(); }
     // True while a streaming SDO download is in progress.
-    static bool sdoDownloadActive();
+    static bool sdoDownloadActive() { return canopen_sdo_download_active(); }
 
     static cJSON* get(cJSON* doc);
     static cJSON* act(cJSON* doc);

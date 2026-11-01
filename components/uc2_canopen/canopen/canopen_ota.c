@@ -1,83 +1,54 @@
 /**
- * canopen_ota.cpp
- * T4.4: split from CANopenModule.cpp (behavior-identical). Streaming (chunked) SDO download for OTA.
+ * canopen_ota.c
+ * T4.4: split from CANopenModule.cpp (behavior-identical); C-ified in step 4d
+ * (was canopen_ota.cpp). Four sections, one per former file:
+ *   1. master-side streaming (chunked) SDO download — real C API
+ *      canopen_sdo_download_* (the C++ CANopenModule::sdoDownload* shims in
+ *      CANopenModule.h forward to it);
+ *   2. slave-side OTA receiver — canopen_ota_register_od_extensions()
+ *      (compiled out on the host via CANOPEN_OTA_NO_RECEIVER);
+ *   3. master-side streaming sender — canopen_ota_flash_slave() /
+ *      canopen_ota_read_slave_status() / canopen_ota_act_from_json();
+ *   4. serial->CAN binary bridge — ota_begin() / ota_isActive() /
+ *      ota_processBytes().
  */
 
 #include "CANopenModule.h"
 
 
 #include "PinConfig.h"
+
+// OD index constants for the OTA entries — plain C mirrors of the UC2_OD
+// namespace constants (UC2_OD_Indices.h is C++-only; values must stay in
+// sync with it). Defined before the per-section guards: sections 2-4 use
+// them too.
+#define UC2_OD_OTA_FIRMWARE_DATA   0x2F00
+#define UC2_OD_OTA_FIRMWARE_SIZE   0x2F01
+#define UC2_OD_OTA_FIRMWARE_CRC32  0x2F02
+#define UC2_OD_OTA_STATUS          0x2F03
+
+// Default SDO write timeout — matches the canopen_sdo_write_* default
+// (CANopenModule.h).
+#define SDO_WRITE_TIMEOUT_MS 250U
+
+// T4.4 4d: this file is now C (compiled as C: firmware build + host unit
+// tests' C step). The extern "C" wrapper keeps the public symbols on C
+// linkage even if a C++ translation unit #includes this file, matching the
+// extern "C" declarations in CANopenModule.h / CanOpenOTA.h /
+// CanOpenOTAStreaming.h / OtaBinaryReceive.h.
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CAN_CONTROLLER_CANOPEN
 
-#include "RuntimeConfig.h"
-#include "NVSConfig.h"
-#include "RoutingTable.h"
-// Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
-// Constants are declared here for compile-time verification; not yet used in logic.
-#include "UC2_OD_Indices.h"
-
-// SerialProcess is needed by the GPIO-slave TPDO2 sniffer (master-only) as
-// well as the motor-completion path below, so it's hoisted out of the
-// MOTOR_CONTROLLER block.
-#include "SerialProcess.h"
-#ifdef MOTOR_CONTROLLER
-#include "FocusMotor.h"
-#include "QidRegistry.h"
-#endif
-#ifdef HOME_MOTOR
-#include "HomeMotor.h"
-#endif
-#ifdef LASER_CONTROLLER
-#include "LaserController.h"
-#endif
-#ifdef LED_CONTROLLER
-#include "LedController.h"
-#endif
-#ifdef GALVO_CONTROLLER
-#include "GalvoController.h"
-#endif
-#ifdef TMC_CONTROLLER
-#include "TMCController.h"
-#endif
-// Axis fault enum (header-only; safe to include on any CAN build) for the
-// EMCY code map used by emitAxisEmcy / the master EMCY consumer.
-#include "AxisTypes.h"
-#ifdef AXIS_CONTROLLER
-#include "AxisController.h"
-#endif
-
 #include "CanOpenOTA.h"
-
-extern "C" {
-#include <CANopen.h>
-#include "OD.h"
-}
-
-#ifdef UNIT_TEST
-// Host-test routing: SDO write/read and node-reachability checks go through
-// these C shims, provided by the mock (test/unity/mocks/mock_canopen.cpp).
-// The production ESP32 build never defines UNIT_TEST, so the real paths
-// (CO->SDOclient, s_nodeLastSeenMs liveness) are untouched.
-extern "C" {
-    int  CO_writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                     uint8_t* data, size_t dataSize, int timeoutMs);
-    int  CO_readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                    uint8_t* data, size_t dataSize, size_t* bytesRead,
-                    int timeoutMs);
-    bool CO_nodeReachable(uint8_t nodeId);
-}
-#endif
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "esp_system.h"
-#include "esp_mac.h"   // esp_read_mac() — populate 0x2509 MAC + 0x1018 serialNumber
-#include <strings.h>   // strcasecmp() — case-insensitive MAC compare in act()
-#include "driver/gpio.h"
-#include "driver/twai.h"
+#include "esp_timer.h"   // esp_timer_get_time() — SDO stream pacing
 
 // ============================================================================
 // Constants
@@ -141,7 +112,7 @@ extern "C" {
 // ============================================================================
 
 static bool                s_sdoStreamActive       = false;
-static CO_SDOclient_t*     s_sdoStreamClient       = nullptr;
+static CO_SDOclient_t*     s_sdoStreamClient       = NULL;
 static uint32_t            s_sdoStreamTotalSize    = 0;
 static uint32_t            s_sdoStreamBytesQueued  = 0;
 static uint64_t            s_sdoStreamLastUs       = 0;
@@ -151,12 +122,12 @@ static uint32_t            s_sdoStreamLastLoggedKB = 0;
 // to the caller, even if the FIFO is not yet drained. Prevents the WDT from
 // firing on extremely slow links. The state machine resumes on the next
 // chunk call (data still queued in FIFO).
-static constexpr uint32_t SDO_STREAM_CHUNK_BUDGET_MS = 10000;
+#define SDO_STREAM_CHUNK_BUDGET_MS 10000U
 // Per-call SDO timeout (passed to CO_SDOclientDownloadInitiate). Must be
 // long enough to cover the slave's flash-write latency.
-static constexpr uint16_t SDO_STREAM_TIMEOUT_MS      = 15000;
+#define SDO_STREAM_TIMEOUT_MS      15000U
 
-bool CANopenModule::sdoDownloadActive() { return s_sdoStreamActive; }
+bool canopen_sdo_download_active(void) { return s_sdoStreamActive; }
 
 // Drive the SDO client state machine once per caller tick.
 //
@@ -194,7 +165,7 @@ static CO_SDO_return_t sdoStreamPump(bool bufferPartial,
     return r;
 }
 
-bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
+bool canopen_sdo_download_begin(uint8_t nodeId, uint16_t index,
                                      uint8_t subIndex, uint32_t totalSize)
 {
     if (s_sdoStreamActive) {
@@ -224,7 +195,7 @@ bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
     if (r != CO_SDO_RT_ok_communicationEnd) {
         log_e("sdoDownloadBegin: CO_SDOclient_setup ret=%d", r);
         if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
-        s_sdoStreamClient = nullptr;
+        s_sdoStreamClient = NULL;
         return false;
     }
 
@@ -237,7 +208,7 @@ bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
     if (r != CO_SDO_RT_ok_communicationEnd) {
         log_e("sdoDownloadBegin: CO_SDOclientDownloadInitiate ret=%d", r);
         if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
-        s_sdoStreamClient = nullptr;
+        s_sdoStreamClient = NULL;
         return false;
     }
 
@@ -252,13 +223,13 @@ bool CANopenModule::sdoDownloadBegin(uint8_t nodeId, uint16_t index,
     return true;
 }
 
-bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
+bool canopen_sdo_download_chunk(const uint8_t* data, size_t count)
 {
-    if (!s_sdoStreamActive || s_sdoStreamClient == nullptr) {
+    if (!s_sdoStreamActive || s_sdoStreamClient == NULL) {
         log_e("sdoDownloadChunk: no active stream");
         return false;
     }
-    if (data == nullptr || count == 0) 
+    if (data == NULL || count == 0) 
     {
         log_e("sdoDownloadChunk: invalid data/count");
         return true;
@@ -289,7 +260,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
                   r, (unsigned long)abortCode, // ABORTCODE: -10 = endedWithServerAbort
                   (unsigned)offset, (unsigned)count,
                   (unsigned)s_sdoStreamBytesQueued);
-            sdoDownloadAbort();
+            canopen_sdo_download_abort();
             return false;
         }
 
@@ -301,7 +272,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
                   (unsigned)SDO_STREAM_CHUNK_BUDGET_MS,
                   (unsigned)offset, (unsigned)count,
                   (unsigned)s_sdoStreamBytesQueued, r);
-            sdoDownloadAbort();
+            canopen_sdo_download_abort();
             return false;
         }
 
@@ -327,7 +298,7 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
             log_e("sdoDownloadChunk(drain): ret=%d abort=0x%08lX totalQueued=%u",
                   r, (unsigned long)abortCode,
                   (unsigned)s_sdoStreamBytesQueued);
-            sdoDownloadAbort();
+            canopen_sdo_download_abort();
             return false;
         }
         // waitingResponse (1): waiting on server block ACK — chunk is done.
@@ -359,9 +330,9 @@ bool CANopenModule::sdoDownloadChunk(const uint8_t* data, size_t count)
     return true;
 }
 
-bool CANopenModule::sdoDownloadEnd()
+bool canopen_sdo_download_end(void)
 {
-    if (!s_sdoStreamActive || s_sdoStreamClient == nullptr) {
+    if (!s_sdoStreamActive || s_sdoStreamClient == NULL) {
         log_e("sdoDownloadEnd: no active stream");
         return false;
     }
@@ -379,7 +350,7 @@ bool CANopenModule::sdoDownloadEnd()
         if (r < 0) {
             log_e("sdoDownloadEnd: ret=%d abort=0x%08lX",
                   r, (unsigned long)abortCode);
-            sdoDownloadAbort();
+            canopen_sdo_download_abort();
             return false;
         }
         if (r == CO_SDO_RT_ok_communicationEnd) break;
@@ -387,7 +358,7 @@ bool CANopenModule::sdoDownloadEnd()
         uint32_t nowMs = (uint32_t)(esp_timer_get_time() / 1000ULL);
         if ((int32_t)(nowMs - deadlineMs) > 0) {
             log_e("sdoDownloadEnd: timeout waiting for completion");
-            sdoDownloadAbort();
+            canopen_sdo_download_abort();
             return false;
         }
         // vTaskDelay(1), not taskYIELD: this loop can spin for hundreds
@@ -398,16 +369,16 @@ bool CANopenModule::sdoDownloadEnd()
 
     CO_SDOclientClose(s_sdoStreamClient);
     s_sdoStreamActive = false;
-    s_sdoStreamClient = nullptr;
+    s_sdoStreamClient = NULL;
     if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
     log_i("sdoDownloadEnd: stream complete (%u bytes)",
           (unsigned)s_sdoStreamBytesQueued);
     return true;
 }
 
-void CANopenModule::sdoDownloadAbort()
+void canopen_sdo_download_abort(void)
 {
-    if (!s_sdoStreamActive || s_sdoStreamClient == nullptr) return;
+    if (!s_sdoStreamActive || s_sdoStreamClient == NULL) return;
 
     // Best-effort abort: tell the server, ignore errors.
     CO_SDO_abortCode_t abortCode = CO_SDO_AB_GENERAL;
@@ -416,7 +387,7 @@ void CANopenModule::sdoDownloadAbort()
                                &abortCode, NULL, NULL);
     CO_SDOclientClose(s_sdoStreamClient);
     s_sdoStreamActive = false;
-    s_sdoStreamClient = nullptr;
+    s_sdoStreamClient = NULL;
     if (s_sdoMutex) xSemaphoreGive(s_sdoMutex);
     log_i("sdoDownloadAbort: stream aborted after %u bytes",
           (unsigned)s_sdoStreamBytesQueued);
@@ -450,12 +421,8 @@ void CANopenModule::sdoDownloadAbort()
 
 #if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_RECEIVER)
 
-#include "UC2_OD_Indices.h"
 #include <CANopen.h>
-
-extern "C" {
 #include "OD.h"
-}
 
 #include <esp_ota_ops.h>
 #include <esp_log.h>
@@ -471,7 +438,7 @@ extern "C" {
 // ============================================================================
 
 static esp_ota_handle_t        s_otaHandle = 0;
-static const esp_partition_t*  s_otaPartition = nullptr;
+static const esp_partition_t*  s_otaPartition = NULL;
 static uint32_t                s_crc32Running = 0;
 static uint32_t                s_bytesWritten = 0;
 static bool                    s_otaStarted = false;
@@ -489,14 +456,14 @@ static uint32_t                s_otaStartMillis  = 0;
 // task aborts the OTA so the slave doesn't stay wedged in "receiving" forever.
 // 30 s comfortably exceeds the master's normal inter-chunk gap (~1.5 s) and
 // the post-CRC settle time (a few hundred ms).
-static constexpr uint32_t      OTA_INACTIVITY_TIMEOUT_MS = 30000;
+#define OTA_INACTIVITY_TIMEOUT_MS 30000U
 
 static OD_extension_t s_otaDataExt;
 static OD_extension_t s_otaSizeExt;
 
 // Forward declarations (resetOtaState is defined further down with the
 // rest of the internal helpers).
-static void resetOtaState();
+static void resetOtaState(void);
 
 // ============================================================================
 // Deferred reboot task — fires after the SDO END_RSP has had time to go out.
@@ -556,14 +523,14 @@ static void otaWatchdogTask(void* arg) {
 // Internal helpers
 // ============================================================================
 
-static void resetOtaState() {
+static void resetOtaState(void) {
     const bool wasActive = s_otaStarted;
     const uint32_t lastBytes = s_bytesWritten;
     if (s_otaStarted && s_otaHandle != 0) {
         esp_ota_abort(s_otaHandle);
     }
     s_otaHandle = 0;
-    s_otaPartition = nullptr;
+    s_otaPartition = NULL;
     s_crc32Running = 0;
     s_bytesWritten = 0;
     s_otaStarted = false;
@@ -627,7 +594,7 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
 
     // Find OTA partition
     s_otaPartition = esp_ota_get_next_update_partition(NULL);
-    if (s_otaPartition == nullptr) {
+    if (s_otaPartition == NULL) {
         log_e("No OTA partition found");
         setError(CANOPEN_OTA_ERR_NO_PARTITION);
         return ODR_HW;
@@ -814,12 +781,12 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
 // Public API
 // ============================================================================
 
-void CanOpenOTA::registerOdExtensions() {
+void canopen_ota_register_od_extensions(void) {
     // Register write callback for 0x2F00 (firmware data domain)
-    OD_entry_t* dataEntry = OD_find(OD, UC2_OD::OTA_FIRMWARE_DATA);
+    OD_entry_t* dataEntry = OD_find(OD, UC2_OD_OTA_FIRMWARE_DATA);
     if (dataEntry) {
-        s_otaDataExt.object = nullptr;
-        s_otaDataExt.read   = nullptr;  // write-only
+        s_otaDataExt.object = NULL;
+        s_otaDataExt.read   = NULL;  // write-only
         s_otaDataExt.write  = onOtaWriteChunk;
         OD_extension_init(dataEntry, &s_otaDataExt);
         log_i("OTA firmware data OD extension registered (0x2F00)");
@@ -828,10 +795,10 @@ void CanOpenOTA::registerOdExtensions() {
     }
 
     // Register write callback for 0x2F01 (firmware size — triggers begin)
-    OD_entry_t* sizeEntry = OD_find(OD, UC2_OD::OTA_FIRMWARE_SIZE);
+    OD_entry_t* sizeEntry = OD_find(OD, UC2_OD_OTA_FIRMWARE_SIZE);
     if (sizeEntry) {
-        s_otaSizeExt.object = nullptr;
-        s_otaSizeExt.read   = nullptr;
+        s_otaSizeExt.object = NULL;
+        s_otaSizeExt.read   = NULL;
         s_otaSizeExt.write  = onOtaSizeWrite;
         OD_extension_init(sizeEntry, &s_otaSizeExt);
         log_i("OTA firmware size OD extension registered (0x2F01)");
@@ -876,16 +843,11 @@ void CanOpenOTA::registerOdExtensions() {
 #if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_SENDER)
 
 #include "CANopenModule.h"
-#include "UC2_OD_Indices.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <cstdlib>
+#include <stdlib.h>
 #include <rom/crc.h>
-
-extern "C" {
-#include "OD.h"
-}
 
 #undef TAG
 #define TAG "OTA_MASTER"
@@ -894,19 +856,19 @@ extern "C" {
 // Public API
 // ============================================================================
 
-bool CanOpenOTAStreaming::flashSlave(uint8_t nodeId, const uint8_t* data,
-                                     size_t dataSize, uint32_t crc32) {
+bool canopen_ota_flash_slave(uint8_t nodeId, const uint8_t* data,
+                             size_t dataSize, uint32_t crc32) {
     ESP_LOGI(TAG, "Flashing node %d: %u bytes, CRC32=0x%08lx",
              nodeId, (unsigned)dataSize, (unsigned long)crc32);
 
     // Step 1: Write CRC32 to slave (so it can verify after transfer)
-    if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::OTA_FIRMWARE_CRC32, 0, crc32)) {
+    if (!canopen_sdo_write_u32(nodeId, UC2_OD_OTA_FIRMWARE_CRC32, 0, crc32, SDO_WRITE_TIMEOUT_MS)) {
         ESP_LOGE(TAG, "Failed to write CRC32 to node %d", nodeId);
         return false;
     }
 
     // Step 2: Write firmware size (triggers OTA begin on slave)
-    if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::OTA_FIRMWARE_SIZE, 0, (uint32_t)dataSize)) {
+    if (!canopen_sdo_write_u32(nodeId, UC2_OD_OTA_FIRMWARE_SIZE, 0, (uint32_t)dataSize, SDO_WRITE_TIMEOUT_MS)) {
         ESP_LOGE(TAG, "Failed to write firmware size to node %d", nodeId);
         return false;
     }
@@ -916,8 +878,8 @@ bool CanOpenOTAStreaming::flashSlave(uint8_t nodeId, const uint8_t* data,
 
     // Step 3: Write firmware data via SDO domain transfer
     // CANopenNode handles segmented/block transfer automatically
-    if (!CANopenModule::writeSDODomain(nodeId, UC2_OD::OTA_FIRMWARE_DATA, 0,
-                                        data, dataSize)) {
+    if (!canopen_sdo_write_domain(nodeId, UC2_OD_OTA_FIRMWARE_DATA, 0,
+                                   data, dataSize)) {
         ESP_LOGE(TAG, "SDO domain write failed for node %d", nodeId);
         return false;
     }
@@ -926,7 +888,7 @@ bool CanOpenOTAStreaming::flashSlave(uint8_t nodeId, const uint8_t* data,
 
     // Step 4: Read back status (slave should be COMPLETE or rebooting)
     vTaskDelay(pdMS_TO_TICKS(500));
-    uint8_t status = readSlaveStatus(nodeId);
+    uint8_t status = canopen_ota_read_slave_status(nodeId);
     // Node may have already rebooted, so timeout is acceptable
     if (status == 0x03) {  // CANOPEN_OTA_COMPLETE
         ESP_LOGI(TAG, "Node %d: OTA verified and committed", nodeId);
@@ -939,17 +901,17 @@ bool CanOpenOTAStreaming::flashSlave(uint8_t nodeId, const uint8_t* data,
     return true;
 }
 
-uint8_t CanOpenOTAStreaming::readSlaveStatus(uint8_t nodeId) {
+uint8_t canopen_ota_read_slave_status(uint8_t nodeId) {
     uint8_t status = 0xFF;
     size_t readSize = 0;
-    if (CANopenModule::readSDO(nodeId, UC2_OD::OTA_STATUS, 0,
-                                &status, sizeof(status), &readSize)) {
+    if (canopen_sdo_read(nodeId, UC2_OD_OTA_STATUS, 0,
+                         &status, sizeof(status), &readSize)) {
         return status;
     }
     return 0xFF;
 }
 
-int CanOpenOTAStreaming::actFromJson(cJSON* doc) {
+int canopen_ota_act_from_json(cJSON* doc) {
     cJSON* otaObj = cJSON_GetObjectItem(doc, "ota");
     if (!otaObj) {
         ESP_LOGE(TAG, "Missing 'ota' object");
@@ -980,9 +942,9 @@ int CanOpenOTAStreaming::actFromJson(cJSON* doc) {
 
     // For now, log that we need data from serial.
     // The actual binary receive + flash is handled by the serial binary mode
-    // which calls flashSlave() once the data is buffered.
-    // TODO: Implement serial binary receive mode for large firmware images
-    // For small test images or SD card, caller can use flashSlave() directly.
+    // (section 4 below: ota_begin / ota_processBytes).
+    // For small test images or SD card, callers can use
+    // canopen_ota_flash_slave() directly.
     ESP_LOGI(TAG, "OTA start acknowledged — awaiting firmware data");
 
     return 0;
@@ -1011,43 +973,55 @@ int CanOpenOTAStreaming::actFromJson(cJSON* doc) {
 #if defined(CAN_CONTROLLER_CANOPEN) && !defined(CANOPEN_OTA_NO_SENDER)
 
 #include "CANopenModule.h"
-#include "UC2_OD_Indices.h"
-#include <uc2_hal.h>
+#include "uc2_hal/uc2_serial_c.h"  // C serial access (uc2_serial_*)
+#include "uc2_hal/uc2_time.h"      // millis(); also pulls in freertos (vTaskDelay)
 #include <esp_log.h>
 #include <rom/crc.h>
+#include <stdio.h>                 // snprintf (ACK / error JSON)
+#include <string.h>                // strlen (emitJson)
 
 #undef TAG
 #define TAG "OTA_RX"
-
-namespace {
 
 // Streaming chunk buffer in internal DRAM. 4 KB matches the ESP32 flash
 // page size and is small enough to fit on any ESP32 build (no PSRAM
 // required). The total firmware size is irrelevant — we never hold more
 // than one chunk in RAM.
-constexpr size_t   CHUNK_SIZE          = 4096;
-constexpr uint32_t RX_TIMEOUT_MS       = 30000;
+#define CHUNK_SIZE   4096
+#define RX_TIMEOUT_MS 30000U
 
-uint8_t  s_chunk[CHUNK_SIZE];
-size_t   s_chunkPos        = 0;
+static uint8_t  s_chunk[CHUNK_SIZE];
+static size_t   s_chunkPos        = 0;
 
-bool     s_active          = false;
-bool     s_streamOpen      = false;
-uint32_t s_totalSize       = 0;
-uint32_t s_expectedCrc32   = 0;
-uint32_t s_runningCrc32    = 0;
-uint8_t  s_nodeId          = 0;
-uint32_t s_bytesReceived   = 0;
-uint32_t s_lastByteMillis  = 0;
+static bool     s_active          = false;
+static bool     s_streamOpen      = false;
+static uint32_t s_totalSize       = 0;
+static uint32_t s_expectedCrc32   = 0;
+static uint32_t s_runningCrc32    = 0;
+static uint8_t  s_nodeId          = 0;
+static uint32_t s_bytesReceived   = 0;
+static uint32_t s_lastByteMillis  = 0;
 
-void emitJson(const char* msg) {
-    Serial.write(msg);
-    Serial.write('\n');
+static void emitJson(const char* msg) {
+    uc2_serial_write_bytes((const uint8_t*)msg, (size_t)strlen(msg));
+    uc2_serial_write_bytes((const uint8_t*)"\n", 1);
 }
 
-void cleanup() {
+// Serial.readBytes() equivalent over the C shim (uc2_serial_c.h has no bulk
+// read): drains up to `want` bytes that are already buffered.
+static size_t serialReadBytes(uint8_t* dst, size_t want) {
+    size_t n = 0;
+    while (n < want && uc2_serial_available() > 0) {
+        int b = uc2_serial_read();
+        if (b < 0) break;
+        dst[n++] = (uint8_t)b;
+    }
+    return n;
+}
+
+static void cleanup(void) {
     if (s_streamOpen) {
-        CANopenModule::sdoDownloadAbort();
+        canopen_sdo_download_abort();
         s_streamOpen = false;
     }
     s_active         = false;
@@ -1062,7 +1036,7 @@ void cleanup() {
 // Push the buffered chunk to the slave. On the first call also primes the
 // slave with CRC32 + size and opens the streaming SDO session for
 // OTA_FIRMWARE_DATA. Returns false on error (and emits an error JSON).
-bool flushChunk() {
+static bool flushChunk(void) {
     if (s_chunkPos == 0) {
         log_i("flushChunk called with empty chunk, ignoring");
         return true;
@@ -1070,8 +1044,8 @@ bool flushChunk() {
 
     if (!s_streamOpen) {
         // 1) Tell the slave the expected CRC32 (so it can verify the image).
-        if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_CRC32,
-                                         0, s_expectedCrc32)) {
+        if (!canopen_sdo_write_u32(s_nodeId, UC2_OD_OTA_FIRMWARE_CRC32,
+                                    0, s_expectedCrc32, SDO_WRITE_TIMEOUT_MS)) {
             emitJson("{\"ota_status\":\"error\",\"error\":\"crc_write_failed\"}");
             return false;
         } // TODO: Under which circumstances can this fail? If the slave is reachable, shouldn't this always succeed?
@@ -1080,8 +1054,8 @@ bool flushChunk() {
 
         // 2) Tell the slave the firmware size — this triggers esp_ota_begin
         //    on the slave so the next OTA_FIRMWARE_DATA bytes can be flashed.
-        if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_SIZE,
-                                         0, s_totalSize)) {
+        if (!canopen_sdo_write_u32(s_nodeId, UC2_OD_OTA_FIRMWARE_SIZE,
+                                    0, s_totalSize, SDO_WRITE_TIMEOUT_MS)) {
             emitJson("{\"ota_status\":\"error\",\"error\":\"size_write_failed\"}");
             return false;
         }
@@ -1091,16 +1065,15 @@ bool flushChunk() {
         vTaskDelay(pdMS_TO_TICKS(500));
 
         // 3) Open the streaming SDO session for the firmware blob.
-        if (!CANopenModule::sdoDownloadBegin(s_nodeId,
-                UC2_OD::OTA_FIRMWARE_DATA, 0, s_totalSize)) {
+        if (!canopen_sdo_download_begin(s_nodeId,
+                UC2_OD_OTA_FIRMWARE_DATA, 0, s_totalSize)) {
             emitJson("{\"ota_status\":\"error\",\"error\":\"sdo_begin_failed\"}");
             return false;
         }
         s_streamOpen = true;
     }
 
-    //CANopenModule::sdoDownloadChunk(s_chunk, s_chunkPos);
-    if (!CANopenModule::sdoDownloadChunk(s_chunk, s_chunkPos)) { // TODO: What exactly is this doing? Does it push the chunk to the slave?
+    if (!canopen_sdo_download_chunk(s_chunk, s_chunkPos)) { // TODO: What exactly is this doing? Does it push the chunk to the slave?
         emitJson("{\"ota_status\":\"error\",\"error\":\"sdo_chunk_failed\"}");
         s_streamOpen = false;  // sdoDownloadChunk already aborted on failure
         return false;
@@ -1112,16 +1085,16 @@ bool flushChunk() {
     return true;
 }
 
-}  // namespace
+// ============================================================================
+// Public API (C) — declared in OtaBinaryReceive.h
+// ============================================================================
 
-namespace OtaBinaryReceive {
-
-cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
+cJSON* ota_begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
     // This is most likiley fired from the master
     log_i("OTA begin: nodeId=%u size=%u crc32=0x%08lX",
           nodeId, (unsigned)size, (unsigned long)crc32);
     cJSON* resp = cJSON_CreateObject();
-    if (!resp) return nullptr;
+    if (!resp) return NULL;
 
     if (s_active) {
         // A previous run is wedged (e.g. host died mid-transfer and we
@@ -1130,11 +1103,11 @@ cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
         log_i("OTA: previous session still marked active, forcing cleanup");
         cleanup();
     }
-    if (CANopenModule::sdoDownloadActive()) {
+    if (canopen_sdo_download_active()) {
         // SDO mutex still held from a wedged previous stream — release it
-        // so sdoDownloadBegin() below can take the mutex.
+        // so canopen_sdo_download_begin() below can take the mutex.
         log_i("OTA: stale SDO stream detected, aborting it");
-        CANopenModule::sdoDownloadAbort();
+        canopen_sdo_download_abort();
     }
     if (size == 0 || size > 8 * 1024 * 1024) {
         log_e("Invalid OTA size: %u", (unsigned)size);
@@ -1147,7 +1120,7 @@ cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
     // Otherwise the host streams the first 4 KB into the master while the
     // master can't yet reach the slave — by the time flushChunk runs the
     // host has already disconnected on size_write_failed.
-    if (!CANopenModule::waitForNodeReachable(nodeId, 10000)) {
+    if (!canopen_wait_node_reachable(nodeId, 10000)) {
         log_e("OTA: slave 0x%02X not reachable after 10s", nodeId);
         cJSON_AddStringToObject(resp, "ota_status", "error");
         cJSON_AddStringToObject(resp, "error", "slave_unreachable");
@@ -1175,9 +1148,9 @@ cJSON* begin(uint8_t nodeId, uint32_t size, uint32_t crc32) {
     return resp;
 }
 
-bool isActive() { return s_active; }
+bool ota_isActive(void) { return s_active; }
 
-void processBytes() {
+void ota_processBytes(void) {
     if (!s_active) return;
 
     // Drain as much as possible this call - NOT just one FIFO-worth.
@@ -1185,16 +1158,16 @@ void processBytes() {
     // iteration, the UART ring buffer overflows and bytes are lost silently
     // (firmware ends up corrupt, only caught by the slave-side CRC).
     bool didRead = false;
-    while (Serial.available() > 0 && s_bytesReceived < s_totalSize) {
+    while (uc2_serial_available() > 0 && s_bytesReceived < s_totalSize) {
         uint32_t remaining = s_totalSize - s_bytesReceived;
         size_t   space     = CHUNK_SIZE - s_chunkPos;
-        size_t   avail     = (size_t)Serial.available();
+        size_t   avail     = (size_t)uc2_serial_available();
         size_t   toRead    = avail;
         if (toRead > remaining) toRead = remaining;
         if (toRead > space)     toRead = space;
         if (toRead == 0) break;  // chunk is full, must flush before reading more
 
-        size_t nRead = Serial.readBytes(reinterpret_cast<char*>(s_chunk) + s_chunkPos, toRead);
+        size_t nRead = serialReadBytes(s_chunk + s_chunkPos, toRead);
         if (nRead == 0) break;
         s_chunkPos      += nRead;
         s_bytesReceived += nRead;
@@ -1219,7 +1192,7 @@ void processBytes() {
                 // The next chunk is probably already in flight (we ACKed
                 // above). Swallow it so it isn't parsed as JSON commands.
                 vTaskDelay(pdMS_TO_TICKS(100));
-                while (Serial.available() > 0) Serial.read();
+                while (uc2_serial_available() > 0) { (void)uc2_serial_read(); }
                 cleanup();
                 return;
             }
@@ -1262,7 +1235,7 @@ void processBytes() {
 
     // Finalise the SDO session — the slave now runs its own CRC check,
     // calls esp_ota_end + set_boot_partition + reboot.
-    bool ok = CANopenModule::sdoDownloadEnd();
+    bool ok = canopen_sdo_download_end();
     s_streamOpen = false;
 
     if (ok) {
@@ -1274,14 +1247,9 @@ void processBytes() {
     cleanup();
 }
 
-}  // namespace OtaBinaryReceive
-
-// T4.2: C shims for the pure-C SerialProcessIn.c (binary OTA mode check +
-// byte drain). Defined inside the same guard as the namespace above.
-extern "C" bool ota_isActive(void)
-{ return OtaBinaryReceive::isActive(); }
-
-extern "C" void ota_processBytes(void)
-{ OtaBinaryReceive::processBytes(); }
-
 #endif  // CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_SENDER
+
+#ifdef __cplusplus
+}  // extern "C" — file-level wrapper (T4.4 4d; see the opening guard at the
+// top of the file)
+#endif

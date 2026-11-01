@@ -1496,7 +1496,7 @@ cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
 // JSON format:
 //   {"task":"/ota_start","ota":{"nodeId":11,"size":1048576,"crc32":"0xABCD1234"}}
 //
-// On success, OtaBinaryReceive::isActive() becomes true and SerialProcess::loop
+// On success, ota_isActive() becomes true and SerialProcess::loop
 // will divert raw Serial bytes into the receive buffer until the full
 // firmware payload arrives.
 // ============================================================================
@@ -1576,7 +1576,7 @@ cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
 
     log_i("ota_start: nodeId=%u size=%u crc32=0x%08X", nodeId, size, crc32);
     // TODO: Are we certain we parse the CRC correctly?
-    return OtaBinaryReceive::begin(nodeId, size, crc32);
+    return ota_begin(nodeId, size, crc32);
 }
 #endif // CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_SENDER
 

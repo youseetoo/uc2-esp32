@@ -43,13 +43,21 @@ enum CanOpenOtaError {
 };
 
 #ifdef __cplusplus
-namespace CanOpenOTA {
+extern "C" {
+#endif
 
 /**
- * @brief Register OD extension callbacks for OTA entries.
- * Call once after CO_CANopenInit() completes.
+ * @brief Register OD extension callbacks for OTA entries (OD 0x2F00/0x2F01
+ * write extensions + inactivity watchdog task). Call once after
+ * CO_CANopenInit() completes.
+ *
+ * T4.4 4d: C linkage (was CanOpenOTA::registerOdExtensions()). Defined in
+ * canopen_ota.c under CAN_CONTROLLER_CANOPEN && !CANOPEN_OTA_NO_RECEIVER;
+ * the host build (CANOPEN_OTA_NO_RECEIVER) links a no-op from
+ * test/unity/stubs/host_impl.cpp instead.
  */
-void registerOdExtensions();
+void canopen_ota_register_od_extensions(void);
 
-}  // namespace CanOpenOTA
-#endif  // __cplusplus
+#ifdef __cplusplus
+}  // extern "C"
+#endif

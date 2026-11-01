@@ -377,28 +377,28 @@ void app_main(void)
     }
 
     // OtaBinaryReceive — stubbed SDO layer ⇒ begin() fast-fails, no session.
-    cJSON *orj = OtaBinaryReceive::begin(11, 0x10000, 0x12345678);
+    cJSON *orj = ota_begin(11, 0x10000, 0x12345678);
     char *ors = orj ? cJSON_PrintUnformatted(orj) : nullptr;
     std::printf("T1.3 scratch: OtaBinaryReceive begin=%s active=%d\n",
-                ors ? ors : "(null)", (int)OtaBinaryReceive::isActive());
+                ors ? ors : "(null)", (int)ota_isActive());
     if (ors) cJSON_free(ors);
     if (orj) cJSON_Delete(orj);
 
     // CanOpenOTAStreaming — actFromJson parses the command; flashSlave
     // fast-fails on the stubbed writeSDO_u32; status read -> 0xFF.
     cJSON *csj = cJSON_Parse("{\"ota\":{\"nodeId\":11,\"size\":16,\"crc32\":\"0xdeadbeef\"}}");
-    int csr = CanOpenOTAStreaming::actFromJson(csj);
+    int csr = canopen_ota_act_from_json(csj);
     const uint8_t csbuf[4] = {1, 2, 3, 4};
-    bool csf = CanOpenOTAStreaming::flashSlave(11, csbuf, 4, 0xdeadbeef);
-    uint8_t css = CanOpenOTAStreaming::readSlaveStatus(11);
+    bool csf = canopen_ota_flash_slave(11, csbuf, 4, 0xdeadbeef);
+    uint8_t css = canopen_ota_read_slave_status(11);
     std::printf("T1.3 scratch: CanOpenOTAStreaming act=%d flash=%d status=0x%02x\n",
                 csr, (int)csf, css);
     cJSON_Delete(csj);
 
     // CanOpenOTA (slave side) — registers OD 0x2F00/0x2F01 extensions +
     // spawns the inactivity watchdog. Logs its registration lines.
-    CanOpenOTA::registerOdExtensions();
-    std::printf("T1.3 scratch: CanOpenOTA::registerOdExtensions() ok\n");
+    canopen_ota_register_od_extensions();
+    std::printf("T1.3 scratch: canopen_ota_register_od_extensions() ok\n");
 
     std::printf("T1.3 scratch: components + uc2_hal + BuzzerController + NVSConfig + Serial + Wire OK (no Arduino, no shim)\n");
 }

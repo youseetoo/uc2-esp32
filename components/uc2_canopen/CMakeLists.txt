@@ -20,7 +20,7 @@ if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
         # is C++-only). Body is #ifdef GALVO_CONTROLLER, so it compiles to an
         # empty object on non-galvo apps.
         "canopen/canopen_tpdo_galvo.cpp"
-        "canopen/canopen_ota.cpp")
+        "canopen/canopen_ota.c")
 endif()
 if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER)
     list(APPEND srcs "gpio_can/GpioCanSlave.cpp")

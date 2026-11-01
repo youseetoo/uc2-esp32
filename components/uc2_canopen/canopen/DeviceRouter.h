@@ -67,9 +67,9 @@ public:
 
 #ifdef CAN_CONTROLLER_CANOPEN
     // /ota_start — JSON preamble that flips the master into binary OTA receive
-    // mode. Subsequent raw bytes on Serial are streamed into a PSRAM buffer
-    // by OtaBinaryReceive::processBytes() and then forwarded to the slave via
-    // CanOpenOTAStreaming::flashSlave().
+    // mode. Subsequent raw bytes on Serial are streamed into a chunk buffer
+    // by ota_processBytes() and then forwarded to the slave via the
+    // file-static streaming loop in canopen_ota.c.
     static cJSON* handleOtaStart(cJSON* doc);
 #endif
 

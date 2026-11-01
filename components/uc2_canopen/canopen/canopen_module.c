@@ -1,6 +1,22 @@
 /**
- * canopen_module.cpp
- * T4.4: split from CANopenModule.cpp (behavior-identical). Core: TWAI I/O task, CANopenNode tasks, OD extensions, get/act, setup/loop.
+ * canopen_module.c
+ * T4.4: split from CANopenModule.cpp (behavior-identical); C-ified in step 4e
+ * (was canopen_module.cpp). Core: TWAI I/O task, CANopenNode tasks, OD
+ * extensions, get/act, setup/loop.
+ *
+ * C-ification notes:
+ *   - the CANopenModule:: setup/loop/get/act members became the C API
+ *     canopen_module_setup/loop/get/act (the C++ shims in CANopenModule.h
+ *     forward to them); canopen_get/canopen_act are the thin C shims for
+ *     SerialProcessIn.c;
+ *   - the private task functions became file-static C functions;
+ *   - UC2_OD_Indices.h is C++-only — the OD indices used here are plain C
+ *     mirrors below (values must stay in sync with the generated header);
+ *   - the UC2::RoutingTable scan path uses the C routing_table_* API
+ *     (RoutingTable.h);
+ *   - the galvo 0x2610 OD extension moved to the C++ island
+ *     canopen_tpdo_galvo.cpp (GalvoController.h is C++-only); co_main_task
+ *     calls the island's canopen_galvo_od_register() instead.
  */
 
 #include "CANopenModule.h"
@@ -12,14 +28,21 @@
 #include "RuntimeConfig.h"
 #include "NVSConfig.h"
 #include "RoutingTable.h"
-// Named OD constants — generated from tools/canopen/uc2_canopen_registry.yaml.
-// Constants are declared here for compile-time verification; not yet used in logic.
-#include "UC2_OD_Indices.h"
 
-// SerialProcess is needed by the GPIO-slave TPDO2 sniffer (master-only) as
-// well as the motor-completion path below, so it's hoisted out of the
-// MOTOR_CONTROLLER block.
-#include "SerialProcess.h"
+// Named OD indices — plain C mirrors of the UC2_OD namespace constants
+// (UC2_OD_Indices.h is C++-only; values must stay in sync with it).
+#define UC2_OD_LED_PIXEL_DATA            0x2210
+#define UC2_OD_LED_SINGLE_PIXEL          0x2211
+#define UC2_OD_LED_SHAPE                 0x2212
+#define UC2_OD_FIRMWARE_VERSION_STRING   0x2500
+#define UC2_OD_BUILD_TIMESTAMP           0x2508
+#define UC2_OD_MAC_ADDRESS               0x2509
+#define UC2_OD_COMMANDED_NODE_ID         0x250A
+
+// serial_out_safe_send_json_string (GPIO-slave TPDO2 sniffer, master-only,
+// and the motor-completion path) comes from the pure-C serial output API —
+// SerialProcess.h itself is C++-only (T4.4 4e: this TU is now C).
+#include "uc2_serial_out.h"
 #ifdef MOTOR_CONTROLLER
 #include "FocusMotor.h"
 #include "QidRegistry.h"
@@ -33,9 +56,10 @@
 #ifdef LED_CONTROLLER
 #include "LedController.h"
 #endif
-#ifdef GALVO_CONTROLLER
-#include "GalvoController.h"
-#endif
+// T4.4 4e: the galvo OD extension (0x2610) lives in the C++ island
+// canopen_tpdo_galvo.cpp — GalvoController.h is C++-only. This TU only calls
+// the island's canopen_galvo_od_register() (declared in CANopenModule.h,
+// guarded by GALVO_CONTROLLER).
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"
 #endif
@@ -48,25 +72,8 @@
 
 #include "CanOpenOTA.h"
 
-extern "C" {
 #include <CANopen.h>
 #include "OD.h"
-}
-
-#ifdef UNIT_TEST
-// Host-test routing: SDO write/read and node-reachability checks go through
-// these C shims, provided by the mock (test/unity/mocks/mock_canopen.cpp).
-// The production ESP32 build never defines UNIT_TEST, so the real paths
-// (CO->SDOclient, s_nodeLastSeenMs liveness) are untouched.
-extern "C" {
-    int  CO_writeSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                     uint8_t* data, size_t dataSize, int timeoutMs);
-    int  CO_readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
-                    uint8_t* data, size_t dataSize, size_t* bytesRead,
-                    int timeoutMs);
-    bool CO_nodeReachable(uint8_t nodeId);
-}
-#endif
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -75,9 +82,18 @@ extern "C" {
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_mac.h"   // esp_read_mac() — populate 0x2509 MAC + 0x1018 serialNumber
+#include <stdlib.h>    // free() — release cJSON_PrintUnformatted buffers
 #include <strings.h>   // strcasecmp() — case-insensitive MAC compare in act()
 #include "driver/gpio.h"
 #include "driver/twai.h"
+
+// T4.4 4e: this file is now C (compiled as C: firmware build + host unit
+// tests' C step). The extern "C" wrapper keeps the public symbols on C
+// linkage even if a C++ translation unit #includes this file, matching the
+// extern "C" declarations in CANopenModule.h.
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // ============================================================================
 // Constants
@@ -138,10 +154,9 @@ typedef struct { twai_message_t message; } CANMessages;
 
 static SemaphoreHandle_t CAN_ctrl_task_sem;
 // T4.4: shared across the split TUs — extern in canopen_module_priv.h.
-// T4.4: shared across the split TUs — C linkage so the C TUs (canopen_sdo.c /
-// canopen_tpdo.c / canopen_ota.c) can reference them (C++ and C symbol names
-// differ otherwise). Declarations in canopen_module_priv.h are extern "C" too.
-extern "C" {
+// T4.4: shared across the split TUs — C linkage so the split C TUs
+// (canopen_sdo.c / canopen_tpdo.c / canopen_ota.c) can reference them.
+// Declarations in canopen_module_priv.h are extern "C" too (no-op in C).
 SemaphoreHandle_t s_sdoMutex = NULL;
 
 // Updated whenever the TWAI driver reports a BUS_ERROR alert (e.g. missing
@@ -156,20 +171,17 @@ volatile uint32_t s_lastBusErrorMs = 0;
 // to fast-fail SDO writes against absent slaves uniformly across all
 // peripheral types (motor, laser, LED, galvo, ...).
 volatile uint32_t s_nodeLastSeenMs[128] = {0};
-}  // extern "C"
 
 // These queues are extern'd by CO_driver_ESP32.c in the library
 QueueHandle_t CAN_TX_queue;
 QueueHandle_t CAN_RX_queue;
 
 // T4.4: CO + s_requestedReset are C linkage too (referenced by the split C TUs).
-extern "C" {
 CO_t* CO = NULL;
 
 // Set to CO_RESET_COMM from any context to trigger a live node-ID reload
 // without esp_restart(). CO_main_task checks this in its inner loop.
 volatile CO_NMT_reset_cmd_t s_requestedReset = CO_RESET_NOT;
-}  // extern "C"
 
 #include "canopen_module_priv.h"
 
@@ -316,14 +328,15 @@ bool CANopenModule_setRemoteGpio(uint8_t nodeId, uint8_t id, int val)
 {
     if (id < 1 || id > 2) return false;
     uint8_t v = (val < 0) ? 0xFF : (uint8_t)(val ? 1 : 0);
-    return CANopenModule::writeSDO_u8(nodeId, 0x2301, id, v);
+    // 250 ms: the class method's default timeoutMs (C has no default args).
+    return canopen_sdo_write_u8(nodeId, 0x2301, id, v, 250);
 }
 
 // ============================================================================
 // CAN controller task — manages TWAI driver, TX/RX queues, error recovery
 // (Preserved from MWE with pinConfig-based GPIO)
 // ============================================================================
-void CANopenModule::CAN_ctrl_task(void* arg)
+static void can_ctrl_task(void* arg)
 {
     twai_message_t rx_message;
     CANMessages tx_msg;
@@ -507,7 +520,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
 // ============================================================================
 // CANopenNode timer task — processes SYNC, RPDOs, TPDOs at 1ms
 // ============================================================================
-void CANopenModule::CO_tmr_task(void* arg)
+static void co_tmr_task(void* arg)
 {
     for (;;) {
         if (CO != NULL && !CO->nodeIdUnconfigured && CO->CANmodule->CANnormal) {
@@ -522,10 +535,10 @@ void CANopenModule::CO_tmr_task(void* arg)
 #endif
 
             // Sync RPDO data from OD into Module commands (slave only)
-            syncRpdoToModules();
+            canopen_tpdo_sync_rpdo_to_modules();
 
             // Sync Module state back into OD for TPDOs (slave only)
-            syncModulesToTpdo();
+            canopen_tpdo_sync_modules_to_tpdo();
 
 #if (CO_CONFIG_PDO) & CO_CONFIG_TPDO_ENABLE
             CO_process_TPDO(CO, syncWas, timeDifference_us, NULL);
@@ -539,7 +552,7 @@ void CANopenModule::CO_tmr_task(void* arg)
 // ============================================================================
 // CANopenNode interrupt task — polls CAN_RX_queue for CANopen frame matching
 // ============================================================================
-void CANopenModule::CO_interrupt_task(void* arg)
+static void co_interrupt_task(void* arg)
 {
     /*
     This function handles CANopen interrupts by polling the CAN_RX_queue for incoming CANopen frames and processing them accordingly.
@@ -643,72 +656,6 @@ static ODR_t onLedShapeWrite(OD_stream_t* stream, const void* buf,
 #endif // LED_CONTROLLER
 
 // ============================================================================
-// Galvo arbitrary points — OD extension for SDO domain transfer (slave side)
-// Mirrors the LED pixel pattern: the master streams a packed byte buffer to
-// 0x2610 (GALVO_POINTS_DATA); we reassemble it, parse the header + point list,
-// and start an arbitrary-point scan. Wire format:
-//   GalvoPointsHeader { u8 trigger_mode, u16 point_count }   (packed, 3 bytes)
-//   point_count x ArbitraryScanPoint { u16 x, u16 y, u32 dwell_us }  (8 bytes)
-// ============================================================================
-#ifdef GALVO_CONTROLLER
-#define GALVO_POINTS_BUF_MAX (sizeof(GalvoPointsHeader) + \
-                              SCANNER_MAX_ARBITRARY_POINTS * sizeof(ArbitraryScanPoint))
-static OD_extension_t s_galvoPointsExt;
-static uint8_t        s_galvoPointsBuffer[GALVO_POINTS_BUF_MAX];
-static size_t         s_galvoPointsBytesReceived = 0;
-
-static ODR_t onGalvoPointsWrite(OD_stream_t* stream, const void* buf,
-                                OD_size_t count, OD_size_t* countWritten) {
-    if (s_galvoPointsBytesReceived + count > sizeof(s_galvoPointsBuffer)) {
-        s_galvoPointsBytesReceived = 0;
-        return ODR_OUT_OF_MEM;
-    }
-    memcpy(s_galvoPointsBuffer + s_galvoPointsBytesReceived, buf, count);
-    s_galvoPointsBytesReceived += count;
-    *countWritten = count;
-
-    // Not the last segment yet — keep buffering.
-    if (stream->dataOffset + count < stream->dataLength) {
-        return ODR_OK;
-    }
-
-    // Final segment: parse and launch. Reset the accumulator first so a
-    // malformed transfer can't wedge the next one.
-    size_t total = s_galvoPointsBytesReceived;
-    s_galvoPointsBytesReceived = 0;
-
-    if (total < sizeof(GalvoPointsHeader)) {
-        log_w("Galvo points: short transfer (%u bytes)", (unsigned)total);
-        return ODR_OK;
-    }
-    GalvoPointsHeader hdr;
-    memcpy(&hdr, s_galvoPointsBuffer, sizeof(hdr));
-    uint16_t n = hdr.point_count;
-    size_t expected = sizeof(GalvoPointsHeader) + (size_t)n * sizeof(ArbitraryScanPoint);
-    if (n == 0 || n > SCANNER_MAX_ARBITRARY_POINTS || total < expected) {
-        log_w("Galvo points: bad transfer count=%u total=%u expected=%u",
-              (unsigned)n, (unsigned)total, (unsigned)expected);
-        return ODR_OK;
-    }
-
-    ArbitraryScanPoint points[SCANNER_MAX_ARBITRARY_POINTS];
-    memcpy(points, s_galvoPointsBuffer + sizeof(GalvoPointsHeader),
-           (size_t)n * sizeof(ArbitraryScanPoint));
-    log_i("Galvo points received: %u points, trigger_mode=%u",
-          (unsigned)n, (unsigned)hdr.trigger_mode);
-
-    if (galvo_set_arbitrary_points(points, n)) {
-        galvo_set_scan_mode(SCAN_MODE_ARBITRARY);
-        galvo_set_trigger_mode(hdr.trigger_mode);
-        galvo_start();
-    } else {
-        log_w("Galvo points: setArbitraryPoints failed");
-    }
-    return ODR_OK;
-}
-#endif // GALVO_CONTROLLER
-
-// ============================================================================
 // CO_main task — CANopenNode init + main processing loop
 // (Preserved structure from MWE, parametrised by runtimeConfig.canNodeId)
 // ============================================================================
@@ -742,7 +689,7 @@ static void populateSystemOD()
           (unsigned long)OD_PERSIST_COMM.x1018_identity.serialNumber);
 }
 
-void CANopenModule::CO_main_task(void* arg)
+static void co_main_task(void* arg)
 {
     CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
     uint32_t heapMemoryUsed;
@@ -767,9 +714,9 @@ void CANopenModule::CO_main_task(void* arg)
 
     // Subtasks are started once here and idle safely via CANnormal guard during
     // any subsequent CO_RESET_COMM re-init cycle.
-    xTaskCreatePinnedToCore(CO_tmr_task,      "CO_TMR", 4096, NULL,
+    xTaskCreatePinnedToCore(co_tmr_task,      "CO_TMR", 4096, NULL,
                             CANOPEN_TMR_TASK_PRIO, NULL, tskNO_AFFINITY);
-    xTaskCreatePinnedToCore(CO_interrupt_task, "CO_INT", 4096, NULL,
+    xTaskCreatePinnedToCore(co_interrupt_task, "CO_INT", 4096, NULL,
                             CANOPEN_INT_TASK_PRIO, NULL, tskNO_AFFINITY);
 
     while (reset != CO_RESET_APP) {
@@ -818,7 +765,7 @@ void CANopenModule::CO_main_task(void* arg)
 
         // Init CANopen
         err = CO_CANopenInit(CO, NULL, NULL, OD, OD_STATUS_BITS,
-            static_cast<CO_NMT_control_t>(NMT_CONTROL),
+            (CO_NMT_control_t)(NMT_CONTROL),
             FIRST_HB_TIME, SDO_SRV_TIMEOUT_TIME, SDO_CLI_TIMEOUT_TIME,
             SDO_CLI_BLOCK, activeNodeId, &errInfo);
         if (err != CO_ERROR_NO && err != CO_ERROR_NODE_ID_UNCONFIGURED_LSS) {
@@ -848,26 +795,26 @@ void CANopenModule::CO_main_task(void* arg)
         // Register OD extensions for domain entries (slave side)
 #ifdef LED_CONTROLLER
         {
-            OD_entry_t* entry = OD_find(OD, UC2_OD::LED_PIXEL_DATA);
+            OD_entry_t* entry = OD_find(OD, UC2_OD_LED_PIXEL_DATA);
             if (entry) {
-                s_ledPixelExt.object = nullptr;
-                s_ledPixelExt.read   = nullptr;
+                s_ledPixelExt.object = NULL;
+                s_ledPixelExt.read   = NULL;
                 s_ledPixelExt.write  = onLedPixelWrite;
                 OD_extension_init(entry, &s_ledPixelExt);
                 log_i("LED pixel data OD extension registered (0x2210)");
             }
-            OD_entry_t* singleEntry = OD_find(OD, UC2_OD::LED_SINGLE_PIXEL);
+            OD_entry_t* singleEntry = OD_find(OD, UC2_OD_LED_SINGLE_PIXEL);
             if (singleEntry) {
-                s_ledSinglePixelExt.object = nullptr;
-                s_ledSinglePixelExt.read   = nullptr;
+                s_ledSinglePixelExt.object = NULL;
+                s_ledSinglePixelExt.read   = NULL;
                 s_ledSinglePixelExt.write  = onLedSinglePixelWrite;
                 OD_extension_init(singleEntry, &s_ledSinglePixelExt);
                 log_i("LED single pixel OD extension registered (0x2211)");
             }
-            OD_entry_t* shapeEntry = OD_find(OD, UC2_OD::LED_SHAPE);
+            OD_entry_t* shapeEntry = OD_find(OD, UC2_OD_LED_SHAPE);
             if (shapeEntry) {
-                s_ledShapeExt.object = nullptr;
-                s_ledShapeExt.read   = nullptr;
+                s_ledShapeExt.object = NULL;
+                s_ledShapeExt.read   = NULL;
                 s_ledShapeExt.write  = onLedShapeWrite;
                 OD_extension_init(shapeEntry, &s_ledShapeExt);
                 log_i("LED shape OD extension registered (0x2212)");
@@ -876,16 +823,9 @@ void CANopenModule::CO_main_task(void* arg)
 #endif
 
 #ifdef GALVO_CONTROLLER
-        {
-            OD_entry_t* gpEntry = OD_find(OD, UC2_OD::GALVO_POINTS_DATA);
-            if (gpEntry) {
-                s_galvoPointsExt.object = nullptr;
-                s_galvoPointsExt.read   = nullptr;
-                s_galvoPointsExt.write  = onGalvoPointsWrite;
-                OD_extension_init(gpEntry, &s_galvoPointsExt);
-                log_i("Galvo points OD extension registered (0x2610)");
-            }
-        }
+        // T4.4 4e: the galvo 0x2610 OD extension lives in the C++ island
+        // canopen_tpdo_galvo.cpp (GalvoController.h is C++-only).
+        canopen_galvo_od_register();
 #endif
 
         // Register OTA OD extensions (slave receiver — opt out via CANOPEN_OTA_NO_RECEIVER)
@@ -932,13 +872,14 @@ void CANopenModule::CO_main_task(void* arg)
 // ============================================================================
 // /can_get — returns node ID, NMT state, TWAI health
 // ============================================================================
-cJSON* CANopenModule::get(cJSON* /*doc*/)
+cJSON* canopen_module_get(cJSON* doc)
 {
+    (void)doc;
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "nodeId", runtimeConfig.canNodeId);
     cJSON_AddNumberToObject(resp, "canRole", (int)runtimeConfig.canRole);
 
-    if (CO != nullptr && CO->NMT != nullptr) {
+    if (CO != NULL && CO->NMT != NULL) {
         uint8_t nmtState = CO->NMT->operatingState;
         cJSON_AddNumberToObject(resp, "nmtState", nmtState);
         const char* stateStr = "unknown";
@@ -981,7 +922,7 @@ static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t out
     out[0] = '\0';
     uint8_t buf[40];
     size_t  readSize = 0;
-    if (!CANopenModule::readSDO(nodeId, index, 0x00, buf, sizeof(buf), &readSize))
+    if (!canopen_sdo_read(nodeId, index, 0x00, buf, sizeof(buf), &readSize))
         return false;
     if (readSize >= outSize) readSize = outSize - 1;
     memcpy(out, buf, readSize);
@@ -1004,7 +945,7 @@ static bool readNodeString(uint8_t nodeId, uint16_t index, char* out, size_t out
 //   {"task":"/can_act", "setRemoteNodeId": <newId>,        — reassign by MAC
 //                       "byMac": "AA:BB:CC:DD:EE:FF"}          (master finds it)
 // ============================================================================
-cJSON* CANopenModule::act(cJSON* doc)
+cJSON* canopen_module_act(cJSON* doc)
 {
     cJSON* resp = cJSON_CreateObject();
 
@@ -1039,15 +980,16 @@ cJSON* CANopenModule::act(cJSON* doc)
             cJSON* jVal = cJSON_GetObjectItem(sdoItem, "value");
             long v = cJSON_IsNumber(jVal) ? (long)jVal->valuedouble : 0;
             bool ok;
-            if      (!strcmp(type, "u8"))  ok = writeSDO_u8 (node, idx, sub, (uint8_t)v);
-            else if (!strcmp(type, "u16")) ok = writeSDO_u16(node, idx, sub, (uint16_t)v);
-            else if (!strcmp(type, "u32")) ok = writeSDO_u32(node, idx, sub, (uint32_t)v);
-            else                           ok = writeSDO_i32(node, idx, sub, (int32_t)v);
+            // 250 ms: the class method's default timeoutMs (C has no default args).
+            if      (!strcmp(type, "u8"))  ok = canopen_sdo_write_u8 (node, idx, sub, (uint8_t)v, 250);
+            else if (!strcmp(type, "u16")) ok = canopen_sdo_write_u16(node, idx, sub, (uint16_t)v, 250);
+            else if (!strcmp(type, "u32")) ok = canopen_sdo_write_u32(node, idx, sub, (uint32_t)v, 250);
+            else                           ok = canopen_sdo_write_i32(node, idx, sub, (int32_t)v, 250);
             cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
         } else {
             uint8_t buf[8] = {0};
             size_t rd = 0;
-            bool ok = readSDO(node, idx, sub, buf, sizeof(buf), &rd);
+            bool ok = canopen_sdo_read(node, idx, sub, buf, sizeof(buf), &rd);
             if (ok) {
                 int32_t val = 0;
                 memcpy(&val, buf, rd < 4 ? rd : 4);
@@ -1068,24 +1010,27 @@ cJSON* CANopenModule::act(cJSON* doc)
     {
         cJSON* arr = cJSON_CreateArray();
         // Dedupe nodeIds; remember the first route-type we saw per node.
-        struct Entry { uint8_t nodeId; UC2::RouteEntry::Type type; };
-        Entry seen[16]; uint8_t nSeen = 0;
-        static const UC2::RouteEntry::Type types[] = {
-            UC2::RouteEntry::MOTOR, UC2::RouteEntry::LASER,
-            UC2::RouteEntry::LED,   UC2::RouteEntry::GALVO,
-            UC2::RouteEntry::HOME,  UC2::RouteEntry::DIN,
+        struct Entry { uint8_t nodeId; route_entry_type_t type; };
+        struct Entry seen[16]; uint8_t nSeen = 0;
+        static const route_entry_type_t types[] = {
+            ROUTE_ENTRY_TYPE_MOTOR, ROUTE_ENTRY_TYPE_LASER,
+            ROUTE_ENTRY_TYPE_LED,   ROUTE_ENTRY_TYPE_GALVO,
+            ROUTE_ENTRY_TYPE_HOME,  ROUTE_ENTRY_TYPE_DIN,
         };
-        for (auto t : types) {
+        for (unsigned tIdx = 0; tIdx < sizeof(types) / sizeof(types[0]); tIdx++) {
+            route_entry_type_t t = types[tIdx];
             for (uint8_t lid = 0; lid < 4; lid++) {
-                const auto* r = UC2::RoutingTable::find(t, lid);
-                if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
+                const route_entry* r = routing_table_find(t, lid);
+                if (!r || r->where != ROUTE_ENTRY_WHERE_REMOTE) continue;
                 bool dup = false;
                 for (uint8_t i = 0; i < nSeen; i++) {
                     if (seen[i].nodeId == r->nodeId) { dup = true; break; }
                 }
                 if (dup) continue;
                 if (nSeen < (uint8_t)(sizeof(seen)/sizeof(seen[0]))) {
-                    seen[nSeen++] = { r->nodeId, t };
+                    seen[nSeen].nodeId = r->nodeId;
+                    seen[nSeen].type   = t;
+                    nSeen++;
                 }
             }
         }
@@ -1099,7 +1044,9 @@ cJSON* CANopenModule::act(cJSON* doc)
                 if (seen[i].nodeId == gpioNid) { dup = true; break; }
             }
             if (!dup && nSeen < (uint8_t)(sizeof(seen)/sizeof(seen[0]))) {
-                seen[nSeen++] = { gpioNid, UC2::RouteEntry::DIN };
+                seen[nSeen].nodeId = gpioNid;
+                seen[nSeen].type   = ROUTE_ENTRY_TYPE_DIN;
+                nSeen++;
             }
         }
         // The PTZ keyboard bridge (UC2_canopen_bridge_ptz) is a *producer*, not
@@ -1107,30 +1054,33 @@ cJSON* CANopenModule::act(cJSON* doc)
         // explicitly, like the GPIO slave above, so the host can discover it.
         // Its 1 s producer heartbeat (OD 0x1017) keeps it reachable while
         // powered. Tagged with a synthetic type so the switch below prints "ptz".
-        static constexpr int8_t kPtzTypeTag = 100;
+        // (enum so it is a C integer constant expression — usable in case labels)
+        enum { K_PTZ_TYPE_TAG = 100 };
         if (pinConfig.MASTER_PTZ_NODE_ID > 0) {
             uint8_t ptzNid = (uint8_t)pinConfig.MASTER_PTZ_NODE_ID;
             bool dup = false;
             for (uint8_t i = 0; i < nSeen; i++)
                 if (seen[i].nodeId == ptzNid) { dup = true; break; }
             if (!dup && nSeen < (uint8_t)(sizeof(seen)/sizeof(seen[0]))) {
-                seen[nSeen++] = { ptzNid, (UC2::RouteEntry::Type)kPtzTypeTag };
+                seen[nSeen].nodeId = ptzNid;
+                seen[nSeen].type   = (route_entry_type_t)K_PTZ_TYPE_TAG;
+                nSeen++;
             }
         }
         for (uint8_t i = 0; i < nSeen; i++) {
             cJSON* dev = cJSON_CreateObject();
             const char* tStr = "?";
             switch ((int)seen[i].type) {
-                case UC2::RouteEntry::MOTOR: tStr = "motor"; break;
-                case UC2::RouteEntry::LASER: tStr = "laser"; break;
-                case UC2::RouteEntry::LED:   tStr = "led";   break;
-                case UC2::RouteEntry::GALVO: tStr = "galvo"; break;
-                case UC2::RouteEntry::HOME:  tStr = "home";  break;
-                case UC2::RouteEntry::DIN:   tStr = "gpio";  break;
-                case kPtzTypeTag:            tStr = "ptz";   break;
+                case ROUTE_ENTRY_TYPE_MOTOR: tStr = "motor"; break;
+                case ROUTE_ENTRY_TYPE_LASER: tStr = "laser"; break;
+                case ROUTE_ENTRY_TYPE_LED:   tStr = "led";   break;
+                case ROUTE_ENTRY_TYPE_GALVO: tStr = "galvo"; break;
+                case ROUTE_ENTRY_TYPE_HOME:  tStr = "home";  break;
+                case ROUTE_ENTRY_TYPE_DIN:   tStr = "gpio";  break;
+                case K_PTZ_TYPE_TAG:         tStr = "ptz";   break;
                 default: break;
             }
-            bool reachable = isNodeReachable(seen[i].nodeId);
+            bool reachable = canopen_is_node_reachable(seen[i].nodeId);
             cJSON_AddNumberToObject(dev, "canId",         seen[i].nodeId);
             cJSON_AddNumberToObject(dev, "deviceType",    (int)seen[i].type);
             cJSON_AddStringToObject(dev, "deviceTypeStr", tStr);
@@ -1142,11 +1092,11 @@ cJSON* CANopenModule::act(cJSON* doc)
             // by reachability already; absent nodes are skipped (no stall).
             if (reachable) {
                 char tmp[40];
-                if (readNodeString(seen[i].nodeId, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
+                if (readNodeString(seen[i].nodeId, UC2_OD_BUILD_TIMESTAMP, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "build", tmp);
-                if (readNodeString(seen[i].nodeId, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
+                if (readNodeString(seen[i].nodeId, UC2_OD_FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "fwVersion", tmp);
-                if (readNodeString(seen[i].nodeId, UC2_OD::MAC_ADDRESS, tmp, sizeof(tmp)))
+                if (readNodeString(seen[i].nodeId, UC2_OD_MAC_ADDRESS, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "mac", tmp);
             }
             cJSON_AddItemToArray(arr, dev);
@@ -1184,7 +1134,7 @@ cJSON* CANopenModule::act(cJSON* doc)
                     if (seen[i].nodeId == (uint8_t)nid) { already = true; break; }
                 if (already) continue;
                 char macStr[40];
-                if (!readNodeString((uint8_t)nid, UC2_OD::MAC_ADDRESS, macStr, sizeof(macStr)))
+                if (!readNodeString((uint8_t)nid, UC2_OD_MAC_ADDRESS, macStr, sizeof(macStr)))
                     continue;   // no response → not present
                 cJSON* dev = cJSON_CreateObject();
                 cJSON_AddNumberToObject(dev, "canId",         nid);
@@ -1194,9 +1144,9 @@ cJSON* CANopenModule::act(cJSON* doc)
                 cJSON_AddStringToObject(dev, "statusStr",     "idle");
                 cJSON_AddStringToObject(dev, "mac",           macStr);
                 char tmp[40];
-                if (readNodeString((uint8_t)nid, UC2_OD::BUILD_TIMESTAMP, tmp, sizeof(tmp)))
+                if (readNodeString((uint8_t)nid, UC2_OD_BUILD_TIMESTAMP, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "build", tmp);
-                if (readNodeString((uint8_t)nid, UC2_OD::FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
+                if (readNodeString((uint8_t)nid, UC2_OD_FIRMWARE_VERSION_STRING, tmp, sizeof(tmp)))
                     cJSON_AddStringToObject(dev, "fwVersion", tmp);
                 cJSON_AddItemToArray(arr, dev);
                 nProbed++;
@@ -1227,7 +1177,7 @@ cJSON* CANopenModule::act(cJSON* doc)
             cJSON_AddStringToObject(resp, "error", "nodeId out of range");
             return resp;
         }
-        bool ok = writeSDO_u8((uint8_t)target,
+        bool ok = canopen_sdo_write_u8((uint8_t)target,
                               0x2507, 0x00, 1, /*timeoutMs*/ 1000);
         cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
         cJSON_AddNumberToObject(resp, "nodeId", target);
@@ -1263,7 +1213,7 @@ cJSON* CANopenModule::act(cJSON* doc)
             for (int nid = 1; nid <= 127 && target < 0; nid++) {
                 if (nid == runtimeConfig.canNodeId) continue;   // skip self
                 char macBuf[40];
-                if (readNodeString((uint8_t)nid, UC2_OD::MAC_ADDRESS, macBuf, sizeof(macBuf)) &&
+                if (readNodeString((uint8_t)nid, UC2_OD_MAC_ADDRESS, macBuf, sizeof(macBuf)) &&
                     strcasecmp(macBuf, wantMac) == 0) {
                     target = nid;
                 }
@@ -1284,7 +1234,7 @@ cJSON* CANopenModule::act(cJSON* doc)
             cJSON* expectMacItem = cJSON_GetObjectItem(doc, "expectMac");
             if (expectMacItem && cJSON_IsString(expectMacItem)) {
                 char macBuf[40];
-                if (!readNodeString((uint8_t)target, UC2_OD::MAC_ADDRESS,
+                if (!readNodeString((uint8_t)target, UC2_OD_MAC_ADDRESS,
                                     macBuf, sizeof(macBuf))) {
                     cJSON_AddStringToObject(resp, "status", "error");
                     cJSON_AddStringToObject(resp, "error", "could not read target MAC");
@@ -1300,7 +1250,7 @@ cJSON* CANopenModule::act(cJSON* doc)
                 }
             }
         }
-        bool ok = writeSDO_u8((uint8_t)target, UC2_OD::COMMANDED_NODE_ID, 0x00,
+        bool ok = canopen_sdo_write_u8((uint8_t)target, UC2_OD_COMMANDED_NODE_ID, 0x00,
                               (uint8_t)newId, /*timeoutMs*/ 1000);
         cJSON_AddStringToObject(resp, "status", ok ? "ok" : "error");
         cJSON_AddNumberToObject(resp, "target", target);
@@ -1356,23 +1306,23 @@ cJSON* CANopenModule::act(cJSON* doc)
 // consumer pattern).
 // ============================================================================
 #ifdef MOTOR_CONTROLLER  // T1.3: only the motor dispatch path touches this
-PendingAxisCmd s_axisCmds[4];
+struct PendingAxisCmd s_axisCmds[4];
 #endif
 
 #ifdef HOME_MOTOR  // T1.3: only the homing dispatch path touches this
-PendingHomingCmd s_homingCmds[4];
+struct PendingHomingCmd s_homingCmds[4];
 #endif
 
-PendingLaserCmd s_laserCmds[4];
+struct PendingLaserCmd s_laserCmds[4];
 
 #ifdef MOTOR_CONTROLLER  // T1.3: hard limits belong to the motor path
-PendingHardLimitCmd s_hardlimitCmds[4];
+struct PendingHardLimitCmd s_hardlimitCmds[4];
 #endif
 
 // ============================================================================
 // Public API
 // ============================================================================
-void CANopenModule::setup()
+void canopen_module_setup(void)
 {
     log_i("Starting CANopen stack (node-id=%d, TX=%d, RX=%d)...",
              runtimeConfig.canNodeId, pinConfig.CAN_TX, pinConfig.CAN_RX);
@@ -1389,12 +1339,12 @@ void CANopenModule::setup()
 
     // Start TWAI controller task
     xSemaphoreGive(CAN_ctrl_task_sem);
-    xTaskCreatePinnedToCore(CAN_ctrl_task, "TWAI_ctrl", 4096, NULL,
+    xTaskCreatePinnedToCore(can_ctrl_task, "TWAI_ctrl", 4096, NULL,
                             CAN_CTRL_TASK_PRIO, NULL, tskNO_AFFINITY);
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Start CANopen main task
-    xTaskCreatePinnedToCore(CO_main_task, "CO_MAIN", 6000, NULL,
+    xTaskCreatePinnedToCore(co_main_task, "CO_MAIN", 6000, NULL,
                             CANOPEN_TASK_PRIO, NULL, tskNO_AFFINITY);
     vTaskDelay(pdMS_TO_TICKS(100));
 
@@ -1404,7 +1354,7 @@ void CANopenModule::setup()
     // becomes true ~1 s after a slave boots — no active SDO polling needed.
 }
 
-void CANopenModule::loop()
+void canopen_module_loop(void)
 {
     // NMT state monitoring
     if (CO != NULL && CO->NMT != NULL) {
@@ -1438,7 +1388,7 @@ void CANopenModule::loop()
         // pinConfig.REMOTE_MOTOR_AXIS_ID is the compile-time authoritative axis index for
         // the physical stepper on this slave board — always correct, no runtime config needed.
         int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        if (focusmotor_get_data()[localAxis] == nullptr) {
+        if (focusmotor_get_data()[localAxis] == NULL) {
             ESP_LOGW(TAG_CO, "Motor dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
         }
@@ -1512,7 +1462,7 @@ void CANopenModule::loop()
 
         // Map OD axis to local physical axis (same as motor moves)
         int localAxis = (int)pinConfig.REMOTE_MOTOR_AXIS_ID;
-        if (focusmotor_get_data()[localAxis] == nullptr) {
+        if (focusmotor_get_data()[localAxis] == NULL) {
             ESP_LOGW(TAG_CO, "Homing dispatch: OD-ax%d -> local-ax%d is null; check REMOTE_MOTOR_AXIS_ID", ax, localAxis);
             continue;
         }
@@ -1574,10 +1524,14 @@ void CANopenModule::loop()
 }
 
 // T4.2: C shims for the pure-C SerialProcessIn.c (canopen get/act bridge).
-extern "C" cJSON *canopen_get(cJSON *doc)
-{ return CANopenModule::get(doc); }
+cJSON *canopen_get(cJSON *doc)
+{ return canopen_module_get(doc); }
 
-extern "C" cJSON *canopen_act(cJSON *doc)
-{ return CANopenModule::act(doc); }
+cJSON *canopen_act(cJSON *doc)
+{ return canopen_module_act(doc); }
 
 #endif // CAN_CONTROLLER_CANOPEN
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

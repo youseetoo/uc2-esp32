@@ -132,6 +132,10 @@ $cSrcs = @(
     # T4.4: routing table C-ified (was RoutingTable.cpp; C API + C++ shim in
     # RoutingTable.h).
     "components\uc2_canopen\canopen\RoutingTable.c",
+    # T4.4 step 4e: module core C-ified (was canopen_module.cpp; C API
+    # canopen_module_setup/loop/get/act + canopen_get/act shims; the C++
+    # CANopenModule:: members in CANopenModule.h forward to it).
+    "components\uc2_canopen\canopen\canopen_module.c",
     # T4.4 step 4b: SDO C-ified (was canopen_sdo.cpp; C API canopen_sdo_* +
     # CANopenModule:: shims in CANopenModule.h).
     "components\uc2_canopen\canopen\canopen_sdo.c",

@@ -5,21 +5,16 @@
 #include <cstdint>
 #include <cstring>
 #include "../../components/uc2_canopen/canopen/CANopenModule.h"
-// T4.4: CANopenModule.cpp was split into 4 TUs (shared state via
-// canopen_module_priv.h). Include all of them here — the definitions the
-// tests link against (writeSDO/readSDO/isNodeReachable in sdo, streaming in
-// ota, s_remoteSlaves in tpdo, setup/callback registration in module) live in
-// different files now. module first so its globals precede the other TUs.
-#include "../../components/uc2_canopen/canopen/canopen_module.cpp"
-// canopen_sdo.cpp is C-ified (T4.4 step 4b) -> canopen_sdo.c,
-// canopen_tpdo.cpp -> canopen_tpdo.c (T4.4 step 4c), and
-// canopen_ota.cpp -> canopen_ota.c (T4.4 step 4d); all compiled separately
-// (run_tests.ps1 $cSrcs); the CANopenModule:: shims in CANopenModule.h
-// forward to the canopen_sdo_*/canopen_tpdo_*/canopen_sdo_download_* C
-// symbols (the streaming sdoDownloadBegin/sdoDownloadActive tests resolve to
-// canopen_ota.obj).
+// T4.4 4e: canopen_module.cpp was C-ified -> canopen_module.c and, like
+// canopen_sdo.c (4b) / canopen_tpdo.c (4c) / canopen_ota.c (4d), is now
+// compiled separately in run_tests.ps1 ($cSrcs). The CANopenModule:: shims
+// in CANopenModule.h forward to the C API (canopen_module_*, canopen_sdo_*,
+// canopen_tpdo_*, canopen_sdo_download_*); this test links against those
+// objects instead of including a source file.
 // RemoteSlaveState / REMOTE_SLAVE_SLOTS come from canopen_module_priv.h
-// (included transitively via canopen_module.cpp above).
+// (C-visible; shared state of the split TUs), FAULT_STALL from AxisTypes.h.
+#include "../../components/uc2_canopen/canopen/canopen_module_priv.h"
+#include "../../components/uc2_axis/axis/AxisTypes.h"
 #include "mocks/mock_canopen.h"
 #include "mocks/mock_clock.h"
 #include "helpers/test_util.h"

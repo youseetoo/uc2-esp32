@@ -51,6 +51,8 @@ void canopen_tpdo_sync_rpdo_to_modules(void);
 #ifdef GALVO_CONTROLLER
  void canopen_tpdo_galvo_handle_command_word(void);
  void canopen_tpdo_galvo_push_state(void);
+ // T4.4 4e: registers the 0x2610 arbitrary-points OD extension (island).
+ void canopen_galvo_od_register(void);
 #endif
 bool canopen_sdo_write_u8 (uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t  v, uint32_t timeoutMs);
 bool canopen_sdo_write_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v, uint32_t timeoutMs);
@@ -67,6 +69,13 @@ bool canopen_sdo_download_chunk(const uint8_t* data, size_t count);
 bool canopen_sdo_download_end(void);
 void canopen_sdo_download_abort(void);
 bool canopen_sdo_download_active(void);
+// T4.4 step 4e: C module API — implemented in canopen_module.c (was the
+// CANopenModule:: setup/loop/get/act members; behavior-identical). The C++
+// shims in the class below forward to these.
+void  canopen_module_setup(void);
+void  canopen_module_loop(void);
+cJSON *canopen_module_get(cJSON *doc);
+cJSON *canopen_module_act(cJSON *doc);
 #ifdef __cplusplus
 }
 #endif
@@ -78,8 +87,11 @@ bool canopen_sdo_download_active(void);
 
 class CANopenModule {
 public:
-    void setup();   // Init TWAI + CANopenNode + start FreeRTOS tasks
-    void loop();    // NMT state monitoring, LED indication
+    // T4.4 4e: these are now thin shims forwarding to the C module API
+    // (canopen_module_setup/loop/get/act in canopen_module.c) — behavior-
+    // identical to the old class members.
+    static void setup() { canopen_module_setup(); }   // Init TWAI + CANopenNode + start FreeRTOS tasks
+    static void loop() { canopen_module_loop(); }     // NMT state monitoring, LED indication
 
     // SDO access (used by master's serial->CAN bridge).
     // The default timeoutMs (250 ms) covers the common case where the slave's
@@ -127,8 +139,8 @@ public:
     // True while a streaming SDO download is in progress.
     static bool sdoDownloadActive() { return canopen_sdo_download_active(); }
 
-    static cJSON* get(cJSON* doc);
-    static cJSON* act(cJSON* doc);
+    static cJSON* get(cJSON* doc) { return canopen_module_get(doc); }
+    static cJSON* act(cJSON* doc) { return canopen_module_act(doc); }
 
     static bool isOperational() { return canopen_is_operational(); }
 
@@ -143,12 +155,10 @@ public:
     //  s_remoteSlaves[REMOTE_SLAVE_SLOTS].)
 
 private:
-    static void CAN_ctrl_task(void* arg);
-    static void CO_main_task(void* arg);
-    static void CO_tmr_task(void* arg);
-    static void CO_interrupt_task(void* arg);
-
-    // OD <-> Module sync (called from CO_tmr_task). Thin shims forwarding to the
+    // T4.4 4e: the task functions (CAN_ctrl_task / co_main_task / co_tmr_task /
+    // co_interrupt_task) are now file-static C functions in canopen_module.c —
+    // no class declarations needed.
+    // OD <-> Module sync (called from co_tmr_task). Thin shims forwarding to the
     // C tpdo TU (canopen_tpdo.c); the _slave/_master variants are tpdo-TU static.
     static inline void syncRpdoToModules() { canopen_tpdo_sync_rpdo_to_modules(); }
     static inline void syncModulesToTpdo() { canopen_tpdo_sync_modules_to_tpdo(); }
@@ -167,7 +177,7 @@ cJSON *canopen_act(cJSON *doc);
 #endif
 
 // Global CANopenNode object (same pattern as MWE)
-// T4.4: C linkage — the definition in canopen_module.cpp is extern "C", and the
+// T4.4: C linkage — the definition in canopen_module.c is extern "C", and the
 // split C TUs (canopen_sdo.c / ...) reference CO with C linkage.
 #ifdef __cplusplus
 extern "C" {
@@ -180,6 +190,14 @@ extern CO_t* CO;
 // Remote-GPIO helper — master writes x2301 sub `id` (1 or 2) of the GPIO
 // slave at nodeId. val ≥ 0 sets the pin level; val < 0 fires a brief pulse.
 // Returns true on SDO success.
+// T4.4 4e: C linkage — defined in canopen_module.c; the C++ call site
+// (device_router.cpp) must see the same linkage.
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool CANopenModule_setRemoteGpio(uint8_t nodeId, uint8_t id, int val);
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CAN_CONTROLLER_CANOPEN

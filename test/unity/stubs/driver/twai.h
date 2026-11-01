@@ -102,6 +102,11 @@ typedef struct {
     uint32_t bus_error_count;
 } twai_status_info_t;
 
+// T4.4 4e: C linkage — canopen_module.c (C) and the host_impl.cpp stubs agree
+// on C linkage; the guard keeps C++ consumers (mocks) consistent.
+#ifdef __cplusplus
+extern "C" {
+#endif
 esp_err_t twai_driver_install(const twai_general_config_t* general_conf,
                               const twai_timing_config_t* timing_conf,
                               const twai_filter_config_t* filter_conf);
@@ -116,3 +121,6 @@ esp_err_t twai_read_alerts(uint32_t* out_alerts, uint32_t timeout_ms);
 esp_err_t twai_get_status_info(twai_status_info_t* status);
 esp_err_t twai_clear_error_counters(void);
 const char* twai_status_text(esp_err_t status_code);
+#ifdef __cplusplus
+}
+#endif

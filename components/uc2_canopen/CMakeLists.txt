@@ -10,8 +10,9 @@ set(srcs
 if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
     list(APPEND srcs
         # T4.4: split of the old CANopenModule.cpp (behavior-identical; shared
-        # state in canopen_module_priv.h). sdo is C (T4.4 step 4b).
-        "canopen/canopen_module.cpp"
+        # state in canopen_module_priv.h). module core is C (T4.4 step 4e,
+        # was canopen_module.cpp); sdo is C (T4.4 step 4b).
+        "canopen/canopen_module.c"
         "canopen/canopen_sdo.c"
         # T4.4 step 4c: TPDO C-ified (was canopen_tpdo.cpp; C API
         # canopen_tpdo_sync_* + CANopenModule:: shims in CANopenModule.h).

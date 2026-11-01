@@ -561,7 +561,10 @@ esp_err_t gpio_set_wait_delay(gpio_num_t gpio_num, uint32_t wait_delay) {
 
 
 // ── driver/twai (IDF 6.1 API) ───────────────────────────────────────────────
+// extern "C": canopen_module.c (T4.4 4e) is C and calls these with C linkage;
+// the stub twai.h declares them with the same guard.
 namespace { bool s_twaiStarted = false; }
+extern "C" {
 esp_err_t twai_driver_install(const twai_general_config_t* general_conf,
                               const twai_timing_config_t* timing_conf,
                               const twai_filter_config_t* filter_conf) {
@@ -598,6 +601,7 @@ const char* twai_status_text(esp_err_t status_code) {
     (void)status_code;
     return "OK";
 }
+}  // extern "C" — driver/twai
 
 // ── Preferences (in-memory) ─────────────────────────────────────────────────
 std::map<std::string, std::map<std::string, std::string>>& Preferences::backing() {

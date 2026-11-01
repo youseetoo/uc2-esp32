@@ -40,6 +40,12 @@ void canopen_tpdo_galvo_handle_command_word(void);
 // it to OD_RAM.x2603_galvo_status_word on change (feeds the TPDO).
 void canopen_tpdo_galvo_push_state(void);
 
+// T4.4 4e: registers the 0x2610 arbitrary-points OD extension (moved here
+// from canopen_module.cpp, which is now C; GalvoController.h is C++-only).
+// Called from the C co_main_task after CO_CANopenInit, guarded by
+// GALVO_CONTROLLER at the call site.
+void canopen_galvo_od_register(void);
+
 #ifdef __cplusplus
 }
 #endif
@@ -139,6 +145,85 @@ void canopen_tpdo_galvo_push_state(void)
     if (galvoStatus != s_lastGalvoStatus) {
         OD_RAM.x2603_galvo_status_word = galvoStatus;
         s_lastGalvoStatus = galvoStatus;
+    }
+}
+
+// ============================================================================
+// Galvo arbitrary points — OD extension for SDO domain transfer (slave side)
+// T4.4 4e: moved from canopen_module.cpp (now C) — GalvoController.h is
+// C++-only. Mirrors the LED pixel pattern: the master streams a packed byte
+// buffer to 0x2610 (GALVO_POINTS_DATA); we reassemble it, parse the header +
+// point list, and start an arbitrary-point scan. Wire format:
+//   GalvoPointsHeader { u8 trigger_mode, u16 point_count }   (packed, 3 bytes)
+//   point_count x ArbitraryScanPoint { u16 x, u16 y, u32 dwell_us }  (8 bytes)
+// ============================================================================
+#define GALVO_POINTS_BUF_MAX (sizeof(GalvoPointsHeader) + \
+                              SCANNER_MAX_ARBITRARY_POINTS * sizeof(ArbitraryScanPoint))
+static OD_extension_t s_galvoPointsExt;
+static uint8_t        s_galvoPointsBuffer[GALVO_POINTS_BUF_MAX];
+static size_t         s_galvoPointsBytesReceived = 0;
+
+static ODR_t onGalvoPointsWrite(OD_stream_t* stream, const void* buf,
+                                OD_size_t count, OD_size_t* countWritten) {
+    if (s_galvoPointsBytesReceived + count > sizeof(s_galvoPointsBuffer)) {
+        s_galvoPointsBytesReceived = 0;
+        return ODR_OUT_OF_MEM;
+    }
+    memcpy(s_galvoPointsBuffer + s_galvoPointsBytesReceived, buf, count);
+    s_galvoPointsBytesReceived += count;
+    *countWritten = count;
+
+    // Not the last segment yet — keep buffering.
+    if (stream->dataOffset + count < stream->dataLength) {
+        return ODR_OK;
+    }
+
+    // Final segment: parse and launch. Reset the accumulator first so a
+    // malformed transfer can't wedge the next one.
+    size_t total = s_galvoPointsBytesReceived;
+    s_galvoPointsBytesReceived = 0;
+
+    if (total < sizeof(GalvoPointsHeader)) {
+        log_w("Galvo points: short transfer (%u bytes)", (unsigned)total);
+        return ODR_OK;
+    }
+    GalvoPointsHeader hdr;
+    memcpy(&hdr, s_galvoPointsBuffer, sizeof(hdr));
+    uint16_t n = hdr.point_count;
+    size_t expected = sizeof(GalvoPointsHeader) + (size_t)n * sizeof(ArbitraryScanPoint);
+    if (n == 0 || n > SCANNER_MAX_ARBITRARY_POINTS || total < expected) {
+        log_w("Galvo points: bad transfer count=%u total=%u expected=%u",
+              (unsigned)n, (unsigned)total, (unsigned)expected);
+        return ODR_OK;
+    }
+
+    ArbitraryScanPoint points[SCANNER_MAX_ARBITRARY_POINTS];
+    memcpy(points, s_galvoPointsBuffer + sizeof(GalvoPointsHeader),
+           (size_t)n * sizeof(ArbitraryScanPoint));
+    log_i("Galvo points received: %u points, trigger_mode=%u",
+          (unsigned)n, (unsigned)hdr.trigger_mode);
+
+    if (galvo_set_arbitrary_points(points, n)) {
+        galvo_set_scan_mode(SCAN_MODE_ARBITRARY);
+        galvo_set_trigger_mode(hdr.trigger_mode);
+        galvo_start();
+    } else {
+        log_w("Galvo points: setArbitraryPoints failed");
+    }
+    return ODR_OK;
+}
+
+void canopen_galvo_od_register(void)
+{
+    OD_entry_t* gpEntry = OD_find(OD, 0x2610 /* UC2_OD::GALVO_POINTS_DATA —
+                                                  UC2_OD_Indices.h is C++-only,
+                                                  but this IS the C++ island */);
+    if (gpEntry) {
+        s_galvoPointsExt.object = NULL;
+        s_galvoPointsExt.read   = NULL;
+        s_galvoPointsExt.write  = onGalvoPointsWrite;
+        OD_extension_init(gpEntry, &s_galvoPointsExt);
+        log_i("Galvo points OD extension registered (0x2610)");
     }
 }
 

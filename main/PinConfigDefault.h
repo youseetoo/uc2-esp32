@@ -254,7 +254,13 @@ struct PinConfig
 
      const uint8_t  MATRIX_W   = 8;    // width
      const uint8_t  MATRIX_H   = 8;    // height
- 
+
+     // Optional per-LED geometry in chain order: {x, y, ring}, x/y = direction to the LED
+     // * 1000 (+z = optical axis). When set, halves/quadrants/rings/circles select LEDs by
+     // position instead of by matrix x/y (see seeed_xiao_esp32s3_geodome).
+     const int16_t (*LED_GEOMETRY)[3] = nullptr;
+     const uint16_t LED_GEOMETRY_COUNT = 0;
+
      // anlog joystick x pin
      int8_t ANLOG_JOYSTICK_X = disabled;
      // analog joystick y pin

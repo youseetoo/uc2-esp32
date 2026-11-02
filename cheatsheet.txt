@@ -390,6 +390,9 @@ true = CORRECT
 
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_led_debug --upload-port /dev/cu.usbmodem1401
 /Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor_debug --upload-port /dev/cu.usbmodem1101      
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment UC2_canopen_slave_motor --upload-port /dev/cu.usbmodem101      
+
+/Users/bene/.platformio/penv/bin/platformio run --target upload --environment seeed_xiao_esp32s3_geodome --upload-port /dev/cu.usbmodem101      
 
 
 /Users/bene/.platformio/penv/bin/platformio device monitor --port /dev/cu.SLAB_USBtoUART --baud 921600 # hat
@@ -403,3 +406,13 @@ true = CORRECT
 {"task":"/motor_act","strobesweep":{"stopped":1}}
 
 {"task": "/laser_act", "LASERid":4, "LASERval": 1000, "qid":1}
+
+
+
+{"task":"/digitalin_get","digitalinid":1}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":50000, "acceleration":1000000, "position": 100000,  "isabs": 0}]}, "qid": 5}
+{"task": "/motor_act", "motor": {"steppers": [{"stepperid": 1, "speed":100000, "acceleration":1000000, "position": -100000,  "isabs": 0}]}, "qid": 5}
+
+
+{"task":"/home_act", "home": {"steppers": [{"stepperid":1, "timeout": 10000, "speed": 50000, "direction":-1, "endstoppolarity":1}]}}
+{"task":"/tmc_act", "msteps":16, "rms_current":1600, "axis":1}

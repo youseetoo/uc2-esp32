@@ -1,7 +1,9 @@
 // serial_dispatch.cpp — DeviceRouter per-command handlers (T4.4 split).
 // Each handler consults RoutingTable to decide LOCAL vs REMOTE for the
-// logical device it serves. The routeCommand() dispatch table + the
-// extern-"C" shims live in device_router.cpp.
+// logical device it serves. The dispatch chain (device_router_route_command)
+// lives in device_router.c (C, T4.4 4f) and calls the C-linkage
+// device_router_handle_* functions defined here (declared under extern "C"
+// in DeviceRouter.h; this file is still C++ until step 4g).
 // Active on ALL builds. REMOTE dispatch requires CAN_CONTROLLER_CANOPEN.
 #include <PinConfig.h>
 #include "DeviceRouter.h"
@@ -86,7 +88,7 @@
 // stage-scan command on routed builds because SerialProcess only fell through
 // to MotorJsonParser::act when DeviceRouter returned nullptr.
 // ============================================================================
-cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
+cJSON *device_router_handle_motor_act(cJSON *doc) {
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");
 
@@ -441,7 +443,7 @@ cJSON* DeviceRouter::handleMotorAct(cJSON* doc) {
 // data sits in OD_RAM. Writing OD_RAM first means a tick firing mid-loop sees
 // matching state and skips.
 // ============================================================================
-cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
+cJSON *device_router_handle_motor_get(cJSON *doc) {
 #ifdef MOTOR_CONTROLLER
 #ifdef CAN_CONTROLLER_CANOPEN
     for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
@@ -570,7 +572,7 @@ cJSON* DeviceRouter::handleMotorGet(cJSON* doc) {
 // missed the write — the OD entry is updated as part of the SDO server state
 // machine before the response frame is sent.
 // ============================================================================
-cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
+cJSON *device_router_handle_laser_act(cJSON *doc) {
 #ifdef LASER_CONTROLLER
     cJSON* laserid_item = cJSON_GetObjectItem(doc, "LASERid");
     cJSON* val_item     = cJSON_GetObjectItem(doc, "LASERval");
@@ -659,7 +661,7 @@ cJSON* DeviceRouter::handleLaserAct(cJSON* doc) {
 //   "endstoppolarity":0, "endstoprelease":0, "endoffset":0}]}, "qid":1234}
 // Iterates all stepper entries and routes each to LOCAL (startHome) or REMOTE (SDO).
 // ============================================================================
-cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
+cJSON *device_router_handle_home_act(cJSON *doc) {
 #ifdef HOME_MOTOR
     log_i("Handling home_act via DeviceRouter");
     // {'task': '/home_act', 'home': {'steppers': [{'stepperid': 1, 'timeout': 20000, 'speed': 20000, 'direction': -1, 'endstoppolarity': 0, 'endoffset': 0}]}, 'qid': 38}
@@ -755,7 +757,7 @@ cJSON* DeviceRouter::handleHomeAct(cJSON* doc) {
 // report done immediately (no LED status TPDO is mapped, so we cannot wait
 // for an ack — the SDO server updates the slave OD synchronously).
 // ============================================================================
-cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
+cJSON *device_router_handle_led_act(cJSON *doc) {
 #ifdef LED_CONTROLLER
     log_i("Handling led_act via DeviceRouter");
     const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
@@ -1011,7 +1013,7 @@ cJSON* DeviceRouter::handleLedAct(cJSON* doc) {
 // ============================================================================
 // Galvo act — routing-table dispatch
 // ============================================================================
-cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
+cJSON *device_router_handle_galvo_act(cJSON *doc) {
 #ifdef GALVO_CONTROLLER
     // Echo the request qid on every response so the host's serial layer can
     // match the reply to its command (missing qid => host times out, then
@@ -1239,7 +1241,7 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
 // the slave's syncRpdoToModules_slave reassembles a TMCData and applies it.
 // LOCAL : delegate to tmc_act for the legacy single-board path.
 // ============================================================================
-cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
+cJSON *device_router_handle_tmc_act(cJSON *doc) {
 #ifdef TMC_CONTROLLER
     int axis = cJsonTool::getJsonInt(doc, "axis");
     if (axis < 0) axis = 0;
@@ -1299,7 +1301,7 @@ cJSON* DeviceRouter::handleTmcAct(cJSON* doc) {
 // ============================================================================
 // Laser get — routing-table dispatch
 // ============================================================================
-cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
+cJSON *device_router_handle_laser_get(cJSON *doc) {
 #ifdef LASER_CONTROLLER
     // PR-7.8 Issue 7: warn if any laser is REMOTE — get over CAN not yet implemented.
     for (uint8_t id = 0; id < 4; ++id) {
@@ -1322,7 +1324,7 @@ cJSON* DeviceRouter::handleLaserGet(cJSON* doc) {
 // ============================================================================
 // Home get — routing-table dispatch
 // ============================================================================
-cJSON* DeviceRouter::handleHomeGet(cJSON* doc) {
+cJSON *device_router_handle_home_get(cJSON *doc) {
 #ifdef HOME_MOTOR
     // PR-7.8 Issue 7: warn if any homing axis is REMOTE.
     for (uint8_t ax = 0; ax < 4; ++ax) {
@@ -1345,7 +1347,7 @@ cJSON* DeviceRouter::handleHomeGet(cJSON* doc) {
 // ============================================================================
 // LED get — routing-table dispatch
 // ============================================================================
-cJSON* DeviceRouter::handleLedGet(cJSON* doc) {
+cJSON *device_router_handle_led_get(cJSON *doc) {
 #ifdef LED_CONTROLLER
     // PR-7.8 Issue 7: warn if LED array is REMOTE.
     const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
@@ -1366,7 +1368,7 @@ cJSON* DeviceRouter::handleLedGet(cJSON* doc) {
 // ============================================================================
 // Galvo get — routing-table dispatch
 // ============================================================================
-cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
+cJSON *device_router_handle_galvo_get(cJSON *doc) {
 #ifdef GALVO_CONTROLLER
     // Echo qid so the host serial layer can match this reply (see handleGalvoAct).
     int qid = cJsonTool::getJsonInt(doc, "qid");
@@ -1428,7 +1430,7 @@ cJSON* DeviceRouter::handleGalvoGet(cJSON* doc) {
 // ============================================================================
 // TMC get — routing-table dispatch
 // ============================================================================
-cJSON* DeviceRouter::handleTmcGet(cJSON* doc) {
+cJSON *device_router_handle_tmc_get(cJSON *doc) {
 #ifdef TMC_CONTROLLER
     return tmc_get(doc);
 #else
@@ -1464,7 +1466,7 @@ cJSON* DeviceRouter::handleStateGet(uint8_t nodeId) {
 //   {"task":"/state_act","restart":1}                — local restart
 //   {"task":"/state_act","restart":1,"nodeId":11}    — restart remote node 11
 // ============================================================================
-cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
+cJSON *device_router_handle_state_act(cJSON *doc) {
 #ifdef CAN_CONTROLLER_CANOPEN
     cJSON* nodeItem = cJSON_GetObjectItemCaseSensitive(doc, "nodeId");
     cJSON* restartItem = cJSON_GetObjectItemCaseSensitive(doc, "restart");
@@ -1500,7 +1502,7 @@ cJSON* DeviceRouter::handleStateAct(cJSON* doc) {
 // will divert raw Serial bytes into the receive buffer until the full
 // firmware payload arrives.
 // ============================================================================
-cJSON* DeviceRouter::handleOtaStart(cJSON* doc) {
+cJSON *device_router_handle_ota_start(cJSON *doc) {
     cJSON* otaObj = cJSON_GetObjectItem(doc, "ota");
     log_i("handleOtaStart: found ota object: %p", otaObj);
     if (!otaObj) {
@@ -1600,7 +1602,7 @@ static uint8_t extractRemoteNode(cJSON* doc) {
     return 0;
 }
 
-cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
+cJSON *device_router_handle_digitalout_act(cJSON *doc) {
     uint8_t node = extractRemoteNode(doc);
     // We use literal key strings here instead of the JsonKeys.h constants
     // because those are gated behind #ifdef DIGITAL_OUT_CONTROLLER and the
@@ -1653,7 +1655,7 @@ cJSON* DeviceRouter::handleDigitalOutAct(cJSON* doc) {
     return resp;
 }
 
-cJSON* DeviceRouter::handleDigitalOutGet(cJSON* doc) {
+cJSON *device_router_handle_digitalout_get(cJSON *doc) {
     // We don't push x2301 OD reads remotely — outputs are write-only state on
     // the slave's side anyway. So /digitalout_get always runs LOCAL when
     // available, and returns an error otherwise.
@@ -1682,7 +1684,7 @@ static uint8_t resolveGpioNode(cJSON* doc) {
     return 0;
 }
 
-cJSON* DeviceRouter::handleGpioAct(cJSON* doc) {
+cJSON *device_router_handle_gpio_act(cJSON *doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
     // GPIO slave: apply locally.
     log_i("DR gpio_act LOCAL  doc=%p", doc);
@@ -1758,7 +1760,7 @@ cJSON* DeviceRouter::handleGpioAct(cJSON* doc) {
 #endif
 }
 
-cJSON* DeviceRouter::handleGpioGet(cJSON* doc) {
+cJSON *device_router_handle_gpio_get(cJSON *doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
     return GpioCanSlave::get(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
@@ -1897,7 +1899,7 @@ static void addI2cResponse(cJSON* resp, uint8_t status, const uint8_t* data,
         cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
 }
 
-cJSON* DeviceRouter::handleI2cAct(cJSON* doc) {
+cJSON *device_router_handle_i2c_act(cJSON *doc) {
     uint8_t addr = 0, flags = 0, rdLen = 0, wrLen = 0, delayMs = 0;
     uint8_t wr[I2C_MAX_WRITE];
     const char* err = nullptr;
@@ -1976,7 +1978,7 @@ cJSON* DeviceRouter::handleI2cAct(cJSON* doc) {
 #endif
 }
 
-cJSON* DeviceRouter::handleI2cGet(cJSON* doc) {
+cJSON *device_router_handle_i2c_get(cJSON *doc) {
     // Re-read the last response buffer without re-triggering a transaction.
 #if defined(CAN_CONTROLLER_CANOPEN) && !defined(I2C_BRIDGE_CONTROLLER)
     if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
@@ -2006,7 +2008,7 @@ cJSON* DeviceRouter::handleI2cGet(cJSON* doc) {
 #endif
 }
 
-cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
+cJSON *device_router_handle_digitalin_get(cJSON *doc) {
     uint8_t node = extractRemoteNode(doc);
     int id = cJsonTool::getJsonInt(doc, "digitalinid");
 
@@ -2047,3 +2049,15 @@ cJSON* DeviceRouter::handleDigitalInGet(cJSON* doc) {
     );
     return resp;
 }
+
+// T4.4 4f: C shims for the still-C++ PTZ / joystick bridges — device_router.c
+// (C) cannot call the PtzKeyboard:: / JoystickRouter:: namespaces directly.
+// Drop these once those bridges are C-ified (ptz trio = step 4i).
+#ifdef PTZ_KEYBOARD_CONTROLLER
+cJSON *device_router_ptz_act(cJSON *doc) { return PtzKeyboard::act(doc); }
+cJSON *device_router_ptz_get(cJSON *doc) { return PtzKeyboard::get(doc); }
+#endif
+#ifdef JOYSTICK_USBHOST_PROVIDER
+cJSON *device_router_joystick_act(cJSON *doc) { return JoystickRouter::act(doc); }
+cJSON *device_router_joystick_get(cJSON *doc) { return JoystickRouter::get(doc); }
+#endif

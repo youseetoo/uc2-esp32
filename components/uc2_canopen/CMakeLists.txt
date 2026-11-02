@@ -3,9 +3,10 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs
     "canopen/RoutingTable.c"
-    # T4.4: split of the old DeviceRouter.cpp (behavior-identical; routeCommand
-    # + C shims in device_router.cpp, per-command handlers in serial_dispatch.cpp).
-    "canopen/device_router.cpp"
+    # T4.4: split of the old DeviceRouter.cpp (behavior-identical; the dispatch
+    # chain is C — device_router.c, step 4f — per-command handlers in
+    # serial_dispatch.cpp, still C++ until step 4g).
+    "canopen/device_router.c"
     "canopen/serial_dispatch.cpp")
 if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
     list(APPEND srcs

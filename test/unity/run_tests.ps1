@@ -132,6 +132,10 @@ $cSrcs = @(
     # T4.4: routing table C-ified (was RoutingTable.cpp; C API + C++ shim in
     # RoutingTable.h).
     "components\uc2_canopen\canopen\RoutingTable.c",
+    # T4.4 step 4f: dispatch chain C-ified (was device_router.cpp; C API
+    # device_router_route_command + device_router_handle_* in DeviceRouter.h;
+    # the handler bodies stay in serial_dispatch.cpp until step 4g).
+    "components\uc2_canopen\canopen\device_router.c",
     # T4.4 step 4e: module core C-ified (was canopen_module.cpp; C API
     # canopen_module_setup/loop/get/act + canopen_get/act shims; the C++
     # CANopenModule:: members in CANopenModule.h forward to it).

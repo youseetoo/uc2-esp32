@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <cstring>
 #include "../../components/uc2_canopen/canopen/DeviceRouter.h"
-#include "../../components/uc2_canopen/canopen/device_router.cpp"
+// T4.4 4f: device_router.cpp is gone (C-ified to device_router.c, compiled in
+// the runner's $cSrcs step) — the dispatch chain links from there; the
+// DeviceRouter:: class methods are inline forwarders to the C API.
 #include "../../components/uc2_canopen/canopen/serial_dispatch.cpp"
 #include "../../components/uc2_canopen/canopen/RoutingTable.h"
 #include "mocks/mock_clock.h"

@@ -22,6 +22,7 @@ namespace MotorJsonParser
     void parseMotorDriveJson(cJSON *doc);
 #ifdef STAGE_SCAN
     void parseStageScan(cJSON *doc);
+    void parseStrobeSweep(cJSON *doc); // strobed constant-velocity sweep (StrobeSweep.h)
 #endif
     
     // Helper function to add JSON parameter if present

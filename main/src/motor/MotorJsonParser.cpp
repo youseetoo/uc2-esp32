@@ -4,6 +4,7 @@
 #ifdef STAGE_SCAN
 #include "StageScan.h"
 #include "FocusScan.h"
+#include "StrobeSweep.h"
 #endif
 
 #ifdef STAGE_SCAN
@@ -13,6 +14,21 @@
 
 namespace MotorJsonParser
 {
+	// stepperid of a JSON stepper item, or -1 when missing, out of range or
+	// the axis has no driver on this board (getData()[s] is unchecked otherwise).
+	static int validStepper(cJSON *stp)
+	{
+		cJSON *id = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
+		if (!cJSON_IsNumber(id))
+			return -1;
+		int s = id->valueint;
+		if (s < 0 || s >= MOTOR_AXIS_COUNT || FocusMotor::getData()[s] == nullptr)
+		{
+			log_w("stepperid %d not available on this board", s);
+			return -1;
+		}
+		return s;
+	}
 
 	cJSON *get(cJSON *docin)
 	{
@@ -111,6 +127,11 @@ namespace MotorJsonParser
 	}
 
 #ifdef STAGE_SCAN
+    void parseStrobeSweep(cJSON *doc)
+    {
+        StrobeSweep::parseJson(doc);
+    }
+
     void parseStageScan(cJSON *doc)
     {
         // start independent stageScan
@@ -346,7 +367,10 @@ namespace MotorJsonParser
 				cJSON *stp = NULL;
 				cJSON_ArrayForEach(stp, stprs)
 				{
-					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					int si = validStepper(stp);
+					if (si < 0)
+						continue;
+					Stepper s = static_cast<Stepper>(si);
 					int dir = cJSON_GetObjectItemCaseSensitive(stp, key_setdir)->valueint;
 					log_i("Setting motor %i direction to %i", s, dir);
 					FocusMotor::getData()[s]->directionPinInverted = dir;
@@ -408,7 +432,10 @@ namespace MotorJsonParser
 				cJSON *stp = NULL;
 				cJSON_ArrayForEach(stp, stprs)
 				{
-					Stepper s = static_cast<Stepper>(cJSON_GetObjectItemCaseSensitive(stp, key_stepperid)->valueint);
+					int si = validStepper(stp);
+					if (si < 0)
+						continue;
+					Stepper s = static_cast<Stepper>(si);
 					FocusMotor::setPosition(s, cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
 					log_i("Setting motor position to %i", cJSON_GetObjectItemCaseSensitive(stp, key_currentpos)->valueint);
 				}
@@ -444,6 +471,8 @@ namespace MotorJsonParser
 			{
 				continue;
 			}
+			if (validStepper(stp) < 0)
+				continue;
 			int axis = idItem->valueint;
 			bool inverted = invertedItem->valueint;
 
@@ -491,6 +520,8 @@ namespace MotorJsonParser
 			{
 				continue;
 			}
+			if (validStepper(stp) < 0)
+				continue;
 			int axis = idItem->valueint;
 			float multiplier = (float)multItem->valuedouble;
 
@@ -543,6 +574,8 @@ namespace MotorJsonParser
 			{
 				continue; // skip invalid
 			}
+			if (validStepper(stp) < 0)
+				continue;
 			int axis = idItem->valueint;
 			log_i("Processing hardlimits for stepperid %i", axis);
 			

@@ -76,6 +76,10 @@ namespace LaserController
     void moveServo(int ledChannel, int angle, int frequency, int resolution);
 
     cJSON * get(cJSON *  ob);
+    cJSON * getLaserJson(int LASERid);
+    int getPWMMax();
+    int getPWMResolution();
+    int getPWMFrequency();
     void setup();
     void loop();
     void setPWM(int pwmValue, int pwmChannel);

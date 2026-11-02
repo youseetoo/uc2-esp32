@@ -29,6 +29,13 @@ namespace {
 // than one chunk in RAM.
 constexpr size_t   CHUNK_SIZE          = 4096;
 constexpr uint32_t RX_TIMEOUT_MS       = 30000;
+// The size write (0x2F01) is answered only after the slave's esp_ota_begin.
+// Slaves built before OTA_WITH_SEQUENTIAL_WRITES erase the whole image there
+// (~1 MB, several seconds) before replying; the default 250 ms SDO timeout
+// made the first OTA attempt fail with size_write_failed. Must stay below the
+// host's per-chunk ACK wait (uc2rest ACK_TIMEOUT_S = 30 s): the host is waiting
+// for chunk #2's ACK while this write blocks.
+constexpr uint32_t SIZE_WRITE_TIMEOUT_MS = 20000;
 
 uint8_t  s_chunk[CHUNK_SIZE];
 size_t   s_chunkPos        = 0;
@@ -82,14 +89,21 @@ bool flushChunk() {
 
         // 2) Tell the slave the firmware size — this triggers esp_ota_begin
         //    on the slave so the next OTA_FIRMWARE_DATA bytes can be flashed.
+        //    The reply comes after esp_ota_begin returns (see
+        //    SIZE_WRITE_TIMEOUT_MS for why that can take seconds).
+        uint32_t t0 = millis();
         if (!CANopenModule::writeSDO_u32(s_nodeId, UC2_OD::OTA_FIRMWARE_SIZE,
-                                         0, s_totalSize)) {
-            emitJson("{\"ota_status\":\"error\",\"error\":\"size_write_failed\"}");
+                                         0, s_totalSize, SIZE_WRITE_TIMEOUT_MS)) {
+            char err[80];
+            snprintf(err, sizeof(err),
+                     "{\"ota_status\":\"error\",\"error\":\"size_write_failed\",\"ms\":%lu}",
+                     (unsigned long)(millis() - t0));
+            emitJson(err);
             return false;
         }
-        // Give the slave time to complete esp_ota_begin (flash erase can
-        // take 200-500ms depending on partition state) and for the CAN
-        // stack to recover from any missed frames during the erase.
+        log_i("OTA size write acknowledged after %lu ms", (unsigned long)(millis() - t0));
+        // Let the slave's CAN stack work off frames queued while it was busy
+        // in esp_ota_begin before the block transfer starts.
         vTaskDelay(pdMS_TO_TICKS(500));
 
         // 3) Open the streaming SDO session for the firmware blob.

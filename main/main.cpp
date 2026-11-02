@@ -73,6 +73,7 @@ Preferences preferences;
 #ifdef MOTOR_CONTROLLER
 #include "src/motor/FocusMotor.h"
 #include "src/motor/MotorGamePad.h"
+#include "src/motor/SyncLatch.h"
 #endif
 // Include MotorTypes for Stepper enum used in BT button handlers
 #include "src/motor/MotorTypes.h"
@@ -519,6 +520,12 @@ extern "C" void setupApp(void)
 	// canopenModule.setup(). Also installs the RS-485 UART receiver.
 	PtzKeyboard::setup();
 #endif
+#if defined(CAN_CONTROLLER_CANOPEN) && defined(MOTOR_CONTROLLER)
+	// Strobed sweep position latch. Must run BEFORE canopenModule.setup():
+	// it makes TPDO3 valid in OD_PERSIST_COMM (motor slaves only).
+	if (runtimeConfig.isSlave())
+		SyncLatch::setupSlave();
+#endif
 #ifdef CAN_CONTROLLER_CANOPEN
 	canopenModule.setup();
 #endif
@@ -686,6 +693,7 @@ State::startOTA();
 
 // Build the routing table from pinConfig + runtimeConfig (all builds)
 UC2::RoutingTable::buildDefault();
+UC2::RoutingTable::applyNvsOverrides();   // routes saved with /route_set "persist":1
 UC2::RoutingTable::logAll();
 
 #ifdef JOYSTICK_USBHOST_PROVIDER

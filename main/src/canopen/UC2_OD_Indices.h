@@ -29,6 +29,9 @@ constexpr uint16_t MOTOR_MIN_POSITION                       = 0x2008;
 constexpr uint16_t MOTOR_MAX_POSITION                       = 0x2009;
 constexpr uint16_t MOTOR_JERK                               = 0x200A;
 constexpr uint16_t MOTOR_IS_FOREVER                         = 0x200B;
+constexpr uint16_t MOTOR_SYNC_POSITION                      = 0x200C;
+constexpr uint16_t MOTOR_SYNC_COUNT                         = 0x200D;
+constexpr uint16_t MOTOR_SYNC_LATCH_ENABLE                  = 0x200E;
 
 // ─── HOMING (base 0x2010) ───
 // Sensorless or endstop-based homing
@@ -86,6 +89,10 @@ constexpr uint16_t LASER_PWM_RESOLUTION                     = 0x2103;
 constexpr uint16_t LASER_DESPECKLE_PERIOD                   = 0x2104;
 constexpr uint16_t LASER_DESPECKLE_AMPLITUDE                = 0x2105;
 constexpr uint16_t LASER_SAFETY_STATE                       = 0x2106;
+constexpr uint16_t LASER_STROBE_ENABLE                      = 0x2107;
+constexpr uint16_t LASER_STROBE_DELAY_US                    = 0x2108;
+constexpr uint16_t LASER_STROBE_WIDTH_US                    = 0x2109;
+constexpr uint16_t LASER_STROBE_COUNT                       = 0x210A;
 
 // ─── LED (base 0x2200) ───
 // Addressable LED array (NeoPixel) with pattern support

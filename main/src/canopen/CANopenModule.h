@@ -46,6 +46,11 @@ public:
     static bool readSDO(uint8_t nodeId, uint16_t index, uint8_t subIndex,
                         uint8_t* buf, size_t bufSize, size_t* readSize);
 
+    // Queue a raw CAN frame at the front of the TX queue (strobed-sweep SYNC).
+    static bool sendRawFrameFront(uint32_t id, uint8_t dlc, const uint8_t* data);
+    // Queue a raw CAN frame at the back of the TX queue (multi-axis status frames).
+    static bool sendRawFrame(uint32_t id, uint8_t dlc, const uint8_t* data);
+
     // Returns true if the slave at nodeId has been heard from recently
     // (TPDO/heartbeat). For non-motor peripherals always returns true if a
     // route exists. Used to gate fast-fail SDO writes.
@@ -92,9 +97,20 @@ public:
     // (no-op if CO/em not ready). The master converts inbound EMCY to JSON.
     static void emitAxisEmcy(uint8_t axis, uint8_t fault, int32_t posErrSteps);
 
-    // Remote slave cache — master only, populated by RPDO consumers
-    static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;  // TODO: Is this motors only? We probably have more?!
+    // Remote motor cache — master only.
+    // Single-axis satellites: RPDO1-4 listen on the TPDO1 of nodes 10-13
+    // (COB 0x18A-0x18D, fixed in OD.c), so slot k = node RPDO_FIRST_NODE + k.
+    // Multi-axis satellites: one status frame per axis on COB 0x480+node.
+    static constexpr uint8_t REMOTE_SLAVE_SLOTS = 4;
+    static constexpr uint8_t RPDO_FIRST_NODE    = 10;
+    static constexpr uint8_t MULTI_AXIS_NODES   = 4;
     static RemoteSlaveState s_remoteSlaves[REMOTE_SLAVE_SLOTS];
+    // Cached state of the motor axis subAxis on node nodeId (nullptr if unknown).
+    static RemoteSlaveState* remoteMotorState(uint8_t nodeId, uint8_t subAxis);
+    // Overwrite the cached position (e.g. after an SDO read) without the next
+    // feedback tick reverting it.
+    static void setRemoteMotorPosition(uint8_t nodeId, uint8_t subAxis, int32_t pos);
+    static bool isMultiAxisNode(uint8_t nodeId);
 
 private:
     static void CAN_ctrl_task(void* arg);

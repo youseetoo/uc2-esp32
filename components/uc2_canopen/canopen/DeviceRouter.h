@@ -9,8 +9,8 @@
 
 // T4.4 4f: C dispatcher API — the real API. The route chain
 // (device_router_route_command) lives in device_router.c; the per-command
-// handlers live in serial_dispatch.cpp (still C++ until step 4g, but with C
-// linkage because they are declared here under extern "C"). The C++ class
+// handlers live in serial_dispatch.c (C since step 4g, declared here under
+// extern "C"). The C++ class
 // below is a thin compatibility layer forwarding to these.
 #ifdef __cplusplus
 extern "C" {
@@ -74,7 +74,7 @@ cJSON *device_router_handle_state_act(cJSON *doc);
 // by ota_processBytes() and then forwarded to the slave via the
 // file-static streaming loop in canopen_ota.c. Defined only when
 // CANOPEN_OTA_NO_SENDER is not set (matches the definition in
-// serial_dispatch.cpp).
+// serial_dispatch.c).
 #ifndef CANOPEN_OTA_NO_SENDER
 cJSON *device_router_handle_ota_start(cJSON *doc);
 #endif
@@ -82,7 +82,8 @@ cJSON *device_router_handle_ota_start(cJSON *doc);
 
 // T4.4 4f: C shims for the still-C++ PTZ / joystick bridges — device_router.c
 // (C) cannot call the PtzKeyboard:: / JoystickRouter:: namespaces directly.
-// Defined in serial_dispatch.cpp; drop once those bridges are C-ified (4i).
+// Defined in serial_dispatch_island.cpp (C++ island); drop once those
+// bridges are C-ified (4i).
 #ifdef PTZ_KEYBOARD_CONTROLLER
 cJSON *device_router_ptz_act(cJSON *doc);
 cJSON *device_router_ptz_get(cJSON *doc);
@@ -131,12 +132,6 @@ public:
 #ifndef CANOPEN_OTA_NO_SENDER
     static inline cJSON* handleOtaStart(cJSON* doc) { return device_router_handle_ota_start(doc); }
 #endif
-#endif
-
-private:
-#ifdef CAN_CONTROLLER_CANOPEN
-    // Still C++ (defined in serial_dispatch.cpp; uses UC2_OD:: / CANopenModule::).
-    static cJSON* handleStateGet(uint8_t nodeId);
 #endif
 };
 #endif // __cplusplus

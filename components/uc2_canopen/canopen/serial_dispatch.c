@@ -1,9 +1,10 @@
-// serial_dispatch.cpp — DeviceRouter per-command handlers (T4.4 split).
+// serial_dispatch.c — DeviceRouter per-command handlers (T4.4 split).
 // Each handler consults RoutingTable to decide LOCAL vs REMOTE for the
 // logical device it serves. The dispatch chain (device_router_route_command)
 // lives in device_router.c (C, T4.4 4f) and calls the C-linkage
 // device_router_handle_* functions defined here (declared under extern "C"
-// in DeviceRouter.h; this file is still C++ until step 4g).
+// in DeviceRouter.h; C since T4.4 4g). The last C++-dependent shims live in
+// serial_dispatch_island.cpp.
 // Active on ALL builds. REMOTE dispatch requires CAN_CONTROLLER_CANOPEN.
 #include <PinConfig.h>
 #include "DeviceRouter.h"
@@ -12,9 +13,10 @@
 #include "RoutingTable.h"
 #include "Endpoints.h"
 #include "esp_log.h"
-#include <cstring>
+#include <string.h>
 #include <strings.h> // strcasecmp (MSVC does not declare it in <cstring>)
-#include <algorithm>
+#include <stdlib.h>   // abs() (T4.4 4g: was <algorithm>/std::abs)
+#include <stdbool.h>  // T4.4 4g: C bool
 
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "CANopenModule.h"
@@ -23,6 +25,43 @@
 #ifndef CANOPEN_OTA_NO_SENDER
 #include "OtaBinaryReceive.h"
 #endif
+#endif
+#ifdef CAN_CONTROLLER_CANOPEN
+// T4.4 4g: convenience wrappers for the default-timeout SDO write
+// forms (the C++ CANopenModule API defaulted timeoutMs to 250; the
+// C API is explicit). Kept file-local to this translation unit.
+static inline bool sdo_write_u8(uint8_t nodeId, uint16_t idx, uint8_t sub, uint8_t v)
+{ return canopen_sdo_write_u8(nodeId, idx, sub, v, 250); }
+static inline bool sdo_write_u16(uint8_t nodeId, uint16_t idx, uint8_t sub, uint16_t v)
+{ return canopen_sdo_write_u16(nodeId, idx, sub, v, 250); }
+static inline bool sdo_write_u32(uint8_t nodeId, uint16_t idx, uint8_t sub, uint32_t v)
+{ return canopen_sdo_write_u32(nodeId, idx, sub, v, 250); }
+static inline bool sdo_write_i32(uint8_t nodeId, uint16_t idx, uint8_t sub, int32_t v)
+{ return canopen_sdo_write_i32(nodeId, idx, sub, v, 250); }
+static inline bool sdo_write(uint8_t nodeId, uint16_t index, uint8_t subIndex,
+                             uint8_t *data, size_t dataSize)
+{ return canopen_sdo_write(nodeId, index, subIndex, data, dataSize, 250); }
+// T4.4 4g: file-local SDO read helpers for the gpio_get handler (were
+// C++ lambdas capturing `node` in the C++ version).
+static bool dr_gpio_read_u16(uint8_t node, uint16_t idx, uint8_t sub, uint16_t *out)
+{
+    uint8_t buf[2] = {0, 0};
+    size_t got = 0;
+    if (!canopen_sdo_read(node, idx, sub, buf, sizeof(buf), &got)) return false;
+    *out = (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
+    return true;
+}
+static bool dr_gpio_read_u8(uint8_t node, uint16_t idx, uint8_t sub, uint8_t *out)
+{
+    size_t got = 0;
+    return canopen_sdo_read(node, idx, sub, out, sizeof(*out), &got);
+}
+#endif
+#ifdef GPIO_CAN_SLAVE_CONTROLLER
+// T4.4 4g: C shims for the GpioCanSlave LOCAL dispatch — defined in
+// serial_dispatch_island.cpp until GpioCanSlave is C-ified (4h).
+cJSON *serial_dispatch_gpio_local_act(cJSON *doc);
+cJSON *serial_dispatch_gpio_local_get(cJSON *doc);
 #endif
 #ifdef AXIS_CONTROLLER
 #include "AxisController.h"
@@ -49,7 +88,29 @@
 #include "HomeMotor.h"
 #endif
 #ifdef GALVO_CONTROLLER
-#include "GalvoController.h"
+// T4.4 4g: GalvoController.h / HighSpeedScannerCore.h are C++-only (class,
+// constexpr, <cmath>), so the C handler mirrors the small galvo WIRE-PROTOCOL
+// surface it needs here instead of including them. Keep in sync with
+// GalvoController.h (GALVO_CMD_* values, GalvoPointsHeader) and
+// HighSpeedScannerCore.h (ArbitraryScanPoint layout, max point count).
+#define GALVO_CMD_GOTO   1   // move to target XY
+#define GALVO_CMD_RASTER 3   // raster scan
+#define GALVO_CMD_STOP   4   // stop scanning
+#define SCANNER_MAX_ARBITRARY_POINTS 256
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t  trigger_mode;    // TriggerMode enum value
+    uint16_t point_count;     // number of points
+} GalvoPointsHeader;
+typedef struct {
+    uint16_t x;               // 0-4095 (12-bit DAC)
+    uint16_t y;
+    uint32_t dwell_us;
+} ArbitraryScanPoint;
+#pragma pack(pop)
+// extern "C" shims implemented in the GalvoController.cpp C++ island.
+cJSON *galvo_act(cJSON *doc);
+cJSON *galvo_get(cJSON *doc);
 #endif
 #ifdef TMC_CONTROLLER
 #include "TMCController.h"
@@ -60,17 +121,8 @@
 #ifdef DIGITAL_IN_CONTROLLER
 #include "DigitalInController.h"
 #endif
-#ifdef GPIO_CAN_SLAVE_CONTROLLER
-#include "GpioCanSlave.h"
-#endif
 #ifdef I2C_BRIDGE_CONTROLLER
 #include "I2cBridge.h"
-#endif
-#ifdef PTZ_KEYBOARD_CONTROLLER
-#include "PtzKeyboard.h"
-#endif
-#ifdef JOYSTICK_USBHOST_PROVIDER
-#include "JoystickRouter.h"
 #endif
 #include "cJsonTool.h"
 
@@ -86,13 +138,13 @@
 // the stage scan orchestration, then route the per-stepper drive command via
 // the routing table. The previous behaviour silently dropped every config and
 // stage-scan command on routed builds because SerialProcess only fell through
-// to MotorJsonParser::act when DeviceRouter returned nullptr.
+// to MotorJsonParser::act when DeviceRouter returned NULL.
 // ============================================================================
 cJSON *device_router_handle_motor_act(cJSON *doc) {
 #ifdef MOTOR_CONTROLLER
     log_i("Handling motor_act via DeviceRouter");
 
-    int qid = cJsonTool::getJsonInt(doc, "qid");
+    int qid = cjson_tool_get_int(doc, "qid", 0);
 
     // ── 1. Config sub-commands — always run locally ──
     // TODO: Master-side configuration that doesn't depend on motor location. For
@@ -117,9 +169,9 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
             uint8_t isen = (cJSON_IsTrue(isenItem)
                             || (cJSON_IsNumber(isenItem) && isenItem->valueint != 0)) ? 1 : 0;
             for (int ax = 0; ax < 4; ax++) {
-                const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, (uint8_t)ax);
-                if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
-                CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::MOTOR_ENABLE,
+                const route_entry *r = routing_table_find(ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)ax);
+                if (!r || r->where != ROUTE_ENTRY_WHERE_REMOTE) continue;
+                sdo_write_u8(r->nodeId, UC2_OD_MOTOR_ENABLE,
                                            (uint8_t)(r->subAxis + 1), isen);
             }
         }
@@ -133,20 +185,20 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
         if (hardObj) {
             cJSON* stprs = cJSON_GetObjectItemCaseSensitive(hardObj, "steppers");
             if (stprs && cJSON_IsArray(stprs)) {
-                cJSON* stp = nullptr;
+                cJSON* stp = NULL;
                 cJSON_ArrayForEach(stp, stprs) {
                     cJSON* idItem = cJSON_GetObjectItemCaseSensitive(stp, "stepperid");
                     if (!cJSON_IsNumber(idItem)) continue;
                     int axis = idItem->valueint;
-                    const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, (uint8_t)axis);
-                    if (!r || r->where != UC2::RouteEntry::REMOTE) continue;
+                    const route_entry *r = routing_table_find(ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)axis);
+                    if (!r || r->where != ROUTE_ENTRY_WHERE_REMOTE) continue;
                     uint8_t sub = (uint8_t)(r->subAxis + 1);
 
                     cJSON* clearItem = cJSON_GetObjectItemCaseSensitive(stp, "clear");
                     if (clearItem && cJSON_IsNumber(clearItem) && clearItem->valueint) {
                         log_i("Forward hardlimit CLEAR -> node 0x%02X axis %u",
                               r->nodeId, r->subAxis);
-                        CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::HARDLIMIT_COMMAND, sub, 1);
+                        sdo_write_u8(r->nodeId, UC2_OD_HARDLIMIT_COMMAND, sub, 1);
                         continue;
                     }
 
@@ -156,8 +208,8 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
                     uint8_t polarity = polarityItem ? (polarityItem->valueint ? 1 : 0) : 0;
                     log_i("Forward hardlimit CONFIG -> node 0x%02X axis %u: en=%u pol=%u",
                           r->nodeId, r->subAxis, enabled, polarity);
-                    CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::HARDLIMIT_ENABLED,  sub, enabled);
-                    CANopenModule::writeSDO_u8(r->nodeId, UC2_OD::HARDLIMIT_POLARITY, sub, polarity);
+                    sdo_write_u8(r->nodeId, UC2_OD_HARDLIMIT_ENABLED,  sub, enabled);
+                    sdo_write_u8(r->nodeId, UC2_OD_HARDLIMIT_POLARITY, sub, polarity);
                 }
             }
         }
@@ -208,10 +260,10 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
         if (!idItem) continue;
 
         int stepperid = idItem->valueint;
-        const auto* route = UC2::RoutingTable::find(
-            UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
+        const route_entry *route = routing_table_find(
+            ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)stepperid);
 
-        if (!route || route->where == UC2::RouteEntry::OFF) {
+        if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
             ESP_LOGW(TAG, "motor %d has no route", stepperid);
             continue;
         }
@@ -225,7 +277,7 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
 
         int32_t  pos   = posItem   ? posItem->valueint   : 0;
         int32_t speed = speedItem ? speedItem->valueint : 0;
-        uint32_t accel = accelItem ? (uint32_t)std::abs(accelItem->valueint) : 0;
+        uint32_t accel = accelItem ? (uint32_t)abs(accelItem->valueint) : 0;
         // cJSON_IsTrue only handles cJSON bool, not numeric 1/0 — handle both
         bool     isAbs     = isAbsItem && (cJSON_IsTrue(isAbsItem) || (cJSON_IsNumber(isAbsItem) && isAbsItem->valueint != 0));
         bool     isStop    = isStopItem && (cJSON_IsTrue(isStopItem) || (cJSON_IsNumber(isStopItem) && isStopItem->valueint != 0));
@@ -262,7 +314,7 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
             clOverride = (v >= 0 && v <= 3) ? (uint8_t)v : 0xFF;
         }
         if (calItem || amodeItem || aresetItem || emonItem || tblItem) {
-            if (route->where == UC2::RouteEntry::LOCAL) {
+            if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
 #ifdef AXIS_CONTROLLER
                 if (amodeItem && cJSON_IsNumber(amodeItem) &&
                     amodeItem->valueint >= 0 && amodeItem->valueint <= 3)
@@ -295,13 +347,13 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
                 uint8_t axNodeId = route->nodeId;
                 uint8_t axSub    = (uint8_t)(route->subAxis + 1);
                 if (amodeItem && cJSON_IsNumber(amodeItem))
-                    CANopenModule::writeSDO_u8(axNodeId, UC2_OD::AXIS_MODE, axSub,
+                    sdo_write_u8(axNodeId, UC2_OD_AXIS_MODE, axSub,
                                                (uint8_t)amodeItem->valueint);
                 if (aresetItem && cJSON_IsNumber(aresetItem))
-                    CANopenModule::writeSDO_u8(axNodeId, UC2_OD::AXIS_RESET, axSub,
+                    sdo_write_u8(axNodeId, UC2_OD_AXIS_RESET, axSub,
                                                (uint8_t)aresetItem->valueint);
                 if (calItem && cJSON_IsNumber(calItem) && calItem->valueint != 0)
-                    CANopenModule::writeSDO_u8(axNodeId, UC2_OD::AXIS_CALIBRATE, axSub, 1);
+                    sdo_write_u8(axNodeId, UC2_OD_AXIS_CALIBRATE, axSub, 1);
                 if (emonItem)
                     ESP_LOGW(TAG, "encmonitor is LOCAL-only (reports on the node's own "
                                   "serial) — send it to the slave's USB port instead");
@@ -319,7 +371,7 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
             }
         }
 
-        if (route->where == UC2::RouteEntry::LOCAL) {
+        if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
             // Direct call into FocusMotor — no CAN involved
             log_i("Routing motor_act to LOCAL stepper %d: pos=%ld speed=%u accel=%u abs=%d stop=%d",
                      stepperid, (long)pos, speed, accel, isAbs, isStop);
@@ -373,17 +425,17 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
 
             log_i("Routing motor_act to REMOTE node 0x%02X axis %u: pos=%ld speed=%u accel=%u abs=%d stop=%d",
                      nodeId, route->subAxis, (long)pos, speed, accel, isAbs, isStop);
-            CANopenModule::writeSDO_i32(nodeId, UC2_OD::MOTOR_TARGET_POSITION, sub, pos);
-            CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_SPEED, sub, speed);
+            sdo_write_i32(nodeId, UC2_OD_MOTOR_TARGET_POSITION, sub, pos);
+            sdo_write_u32(nodeId, UC2_OD_MOTOR_SPEED, sub, speed);
             if (accel > 0)
-                CANopenModule::writeSDO_u32(nodeId, UC2_OD::MOTOR_ACCELERATION, sub, accel);
-            CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0);
-            CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_IS_FOREVER, sub, isForever ? 1 : 0);
+                sdo_write_u32(nodeId, UC2_OD_MOTOR_ACCELERATION, sub, accel);
+            sdo_write_u8(nodeId, UC2_OD_MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0);
+            sdo_write_u8(nodeId, UC2_OD_MOTOR_IS_FOREVER, sub, isForever ? 1 : 0);
 
             uint8_t cmdWord = isStop
                 ? (uint8_t)(1u << (route->subAxis + 4))
                 : (uint8_t)(1u << route->subAxis);
-            bool ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::MOTOR_COMMAND_WORD, 0x00, cmdWord);
+            bool ok = sdo_write_u8(nodeId, UC2_OD_MOTOR_COMMAND_WORD, 0x00, cmdWord);
             if (!ok) log_w("Motor SDO failed: node 0x%02X", nodeId);
 
             log_i("Motor cmd -> node 0x%02X axis %u: pos=%ld speed=%u abs=%d stop=%d",
@@ -410,7 +462,7 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
     // REMOTE).
     int totalStepperCount = localStepperCount + remoteStepperCount;
     if (motorQid > 0 && totalStepperCount > 0)
-        qid_register(motorQid, (uint8_t)totalStepperCount);
+        qid_register(motorQid, (uint8_t)totalStepperCount, QID_DEFAULT_TIMEOUT_MS);
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
@@ -418,7 +470,7 @@ cJSON *device_router_handle_motor_act(cJSON *doc) {
         cJSON_AddNumberToObject(resp, "qid", motorQid);
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -447,13 +499,13 @@ cJSON *device_router_handle_motor_get(cJSON *doc) {
 #ifdef MOTOR_CONTROLLER
 #ifdef CAN_CONTROLLER_CANOPEN
     for (uint8_t logicalAx = 0; logicalAx < 4; logicalAx++) {
-        const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::MOTOR, logicalAx);
-        if (!route || route->where != UC2::RouteEntry::REMOTE) continue;
+        const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_MOTOR, logicalAx);
+        if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE) continue;
 
         uint8_t sub = (uint8_t)(route->subAxis + 1);
         int32_t pos = 0;
         size_t readSize = 0;
-        if (!CANopenModule::readSDO(route->nodeId, UC2_OD::MOTOR_ACTUAL_POSITION, sub,
+        if (!canopen_sdo_read(route->nodeId, UC2_OD_MOTOR_ACTUAL_POSITION, sub,
                                     (uint8_t*)&pos, sizeof(pos), &readSize)
             || readSize != sizeof(pos)) {
             log_i("Failed to read position SDO for node 0x%02X axis %u",
@@ -491,19 +543,19 @@ cJSON *device_router_handle_motor_get(cJSON *doc) {
         if (!idItem) continue;
 
         int stepperid = idItem->valueint;
-        const auto* route = UC2::RoutingTable::find(
-            UC2::RouteEntry::MOTOR, (uint8_t)stepperid);
+        const route_entry *route = routing_table_find(
+            ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)stepperid);
 
         cJSON* rs = cJSON_CreateObject();
         cJSON_AddNumberToObject(rs, "stepperid", stepperid);
 
-        if (!route || route->where == UC2::RouteEntry::OFF) {
+        if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
             cJSON_AddNumberToObject(rs, "isDone", -1);
             cJSON_AddItemToArray(respSteppers, rs);
             continue;
         }
 
-        if (route->where == UC2::RouteEntry::LOCAL) {
+        if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
             MotorData* d = focusmotor_get_data()[stepperid];
             if (d) {
                 cJSON_AddNumberToObject(rs, "position", d->currentPosition);
@@ -531,7 +583,7 @@ cJSON *device_router_handle_motor_get(cJSON *doc) {
 #ifdef CAN_CONTROLLER_CANOPEN
             uint8_t slot = route->subAxis;
             if (slot < REMOTE_SLAVE_SLOTS) {
-                const auto& slave = s_remoteSlaves[slot];
+                RemoteSlaveState slave = s_remoteSlaves[slot];
                 if (slave.seen) {
                     cJSON_AddNumberToObject(rs, "position", slave.motorPosition);
                     bool running = (slave.motorStatus & 0x01) != 0;
@@ -555,7 +607,7 @@ cJSON *device_router_handle_motor_get(cJSON *doc) {
     cJSON_AddItemToObject(resp, "steppers", respSteppers);
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -578,7 +630,7 @@ cJSON *device_router_handle_laser_act(cJSON *doc) {
     cJSON* val_item     = cJSON_GetObjectItem(doc, "LASERval");
     if (!laserid_item || !val_item) {
         log_i("Laser act missing LASERid or LASERval");
-        return nullptr;
+        return NULL;
     }
 
     int laserid = laserid_item->valueint;
@@ -592,10 +644,10 @@ cJSON *device_router_handle_laser_act(cJSON *doc) {
     if (qidItem && cJSON_IsNumber(qidItem)) laserQid = qidItem->valueint;
 
 
-    const auto* route = UC2::RoutingTable::find(
-        UC2::RouteEntry::LASER, (uint8_t)laserid);
+    const route_entry *route = routing_table_find(
+        ROUTE_ENTRY_TYPE_LASER, (uint8_t)laserid);
     log_i("DeviceRouter handling laser_act for laser %d with value %d, route: %p", laserid, rawVal, route);
-    if (!route || route->where == UC2::RouteEntry::OFF) {
+    if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
         log_e("Laser %d has no route", laserid);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
@@ -603,7 +655,7 @@ cJSON *device_router_handle_laser_act(cJSON *doc) {
     }
 
     bool ok = true;
-    if (route->where == UC2::RouteEntry::LOCAL) {
+    if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
         log_i("Routing laser_act to LOCAL laser %d with value %d", laserid, rawVal);
         // Delegate to laser_act so we keep full feature parity:
         // PWM frequency/resolution, despeckle, servo mode, qid registration.
@@ -612,16 +664,17 @@ cJSON *device_router_handle_laser_act(cJSON *doc) {
         (void)laser_act(doc);
     } else { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
-        uint16_t pwmVal = (uint16_t)std::min(std::max(rawVal, 0), 65535);
+        int clamped = rawVal < 0 ? 0 : (rawVal > 65535 ? 65535 : rawVal);
+uint16_t pwmVal = (uint16_t)clamped;
         uint8_t  sub    = route->subAxis + 1;
         log_i("Routing laser_act to REMOTE node 0x%02X subAxis %d (OD sub 0x%02X) for laser %d with value %u",
               route->nodeId, route->subAxis, sub, laserid, (unsigned)pwmVal);
 
         // Register the qid BEFORE dispatching, so a fast TPDO/ack path could
         // report it back later if we ever add a laser status TPDO.
-        if (laserQid > 0) qid_register(laserQid, 1);
+        if (laserQid > 0) qid_register(laserQid, 1, QID_DEFAULT_TIMEOUT_MS);
 
-        bool sdoOk = CANopenModule::writeSDO_u16(route->nodeId, UC2_OD::LASER_PWM_VALUE, sub, pwmVal);
+        bool sdoOk = sdo_write_u16(route->nodeId, UC2_OD_LASER_PWM_VALUE, sub, pwmVal);
         if (!sdoOk) {
             // Match motor's severity (warn, not error). The OD value is
             // updated by the SDO server before the response frame is sent,
@@ -650,7 +703,7 @@ cJSON *device_router_handle_laser_act(cJSON *doc) {
     cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -668,41 +721,41 @@ cJSON *device_router_handle_home_act(cJSON *doc) {
     cJSON* home = cJSON_GetObjectItem(doc, "home");
     if (!home) {
         log_w("home_act missing 'home' object");
-        return nullptr;
+        return NULL;
     }
     cJSON* steppers = cJSON_GetObjectItem(home, "steppers");
     if (!steppers || !cJSON_IsArray(steppers)) {
         log_w("home_act missing 'steppers' array inside 'home'");
-        return nullptr;
+        return NULL;
     }
 
-    int qid = cJsonTool::getJsonInt(doc, "qid");
+    int qid = cjson_tool_get_int(doc, "qid", 0);
 
-    cJSON* stp = nullptr;
+    cJSON* stp = NULL;
     cJSON_ArrayForEach(stp, steppers) {
         cJSON* stepperid_item = cJSON_GetObjectItemCaseSensitive(stp, key_stepperid);
         if (!stepperid_item) continue;
 
         int stepperid = stepperid_item->valueint;
-        const auto* route = UC2::RoutingTable::find(
-            UC2::RouteEntry::HOME, (uint8_t)stepperid);
+        const route_entry *route = routing_table_find(
+            ROUTE_ENTRY_TYPE_HOME, (uint8_t)stepperid);
 
-        if (!route || route->where == UC2::RouteEntry::OFF) {
+        if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
             ESP_LOGW(TAG, "home %d has no route", stepperid);
             continue;
         }
 
-        int homeTimeout  = cJsonTool::getJsonInt(stp, key_home_timeout);
-        int homeSpeed    = cJsonTool::getJsonInt(stp, key_home_speed);
-        int homeMaxspeed = cJsonTool::getJsonInt(stp, key_home_maxspeed);
-        int homeDir      = cJsonTool::getJsonInt(stp, key_home_direction);
+        int homeTimeout  = cjson_tool_get_int(stp, key_home_timeout, 0);
+        int homeSpeed    = cjson_tool_get_int(stp, key_home_speed, 0);
+        int homeMaxspeed = cjson_tool_get_int(stp, key_home_maxspeed, 0);
+        int homeDir      = cjson_tool_get_int(stp, key_home_direction, 0);
         // Default -1 (= "not supplied") so an omitted field keeps the configured
         // polarity; an explicit 0/1 is ground truth and updates hardLimitPolarity.
-        int homePolarity = cJsonTool::getJsonInt(stp, key_home_endstoppolarity, -1);
-        int homeRelease  = cJsonTool::getJsonInt(stp, key_home_endstoprelease);
-        int homeOffset   = cJsonTool::getJsonInt(stp, key_home_endoffset);
+        int homePolarity = cjson_tool_get_int(stp, key_home_endstoppolarity, -1);
+        int homeRelease  = cjson_tool_get_int(stp, key_home_endstoprelease, 0);
+        int homeOffset   = cjson_tool_get_int(stp, key_home_endoffset, 0);
 
-        if (route->where == UC2::RouteEntry::LOCAL) {
+        if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
             log_i("Routing home_act to LOCAL stepper %d: speed=%d dir=%d timeout=%d maxspeed=%d polarity=%d offset=%d",
                   stepperid, homeSpeed, homeDir, homeTimeout, homeMaxspeed, homePolarity, homeOffset);
             home_start(stepperid, homeTimeout, homeSpeed, homeMaxspeed, homeDir, homePolarity, homeOffset, qid);
@@ -711,12 +764,12 @@ cJSON *device_router_handle_home_act(cJSON *doc) {
             uint8_t sub = route->subAxis + 1;
             log_i("Routing home_act to REMOTE node 0x%02X subAxis %d (OD sub 0x%02X) for stepper %d: speed=%d dir=%d timeout=%d release=%d polarity=%d",
                   route->nodeId, route->subAxis, sub, stepperid, homeSpeed, homeDir, homeTimeout, homeRelease, homePolarity);
-            CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_SPEED, sub, (uint32_t)std::abs(homeSpeed));
-            CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_DIRECTION, sub, (uint8_t)(int8_t)homeDir);
-            CANopenModule::writeSDO_u32(route->nodeId, UC2_OD::HOMING_TIMEOUT, sub, (uint32_t)homeTimeout);
-            CANopenModule::writeSDO_i32(route->nodeId, UC2_OD::HOMING_ENDSTOP_RELEASE, sub, (int32_t)homeRelease);
-            CANopenModule::writeSDO_u8 (route->nodeId, UC2_OD::HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
-            bool ok = CANopenModule::writeSDO_u8(route->nodeId, UC2_OD::HOMING_COMMAND, sub, 1);
+            sdo_write_u32(route->nodeId, UC2_OD_HOMING_SPEED, sub, (uint32_t)abs(homeSpeed));
+            sdo_write_u8(route->nodeId, UC2_OD_HOMING_DIRECTION, sub, (uint8_t)(int8_t)homeDir);
+            sdo_write_u32(route->nodeId, UC2_OD_HOMING_TIMEOUT, sub, (uint32_t)homeTimeout);
+            sdo_write_i32(route->nodeId, UC2_OD_HOMING_ENDSTOP_RELEASE, sub, (int32_t)homeRelease);
+            sdo_write_u8(route->nodeId, UC2_OD_HOMING_ENDSTOP_POLARITY, sub, (uint8_t)homePolarity);
+            bool ok = sdo_write_u8(route->nodeId, UC2_OD_HOMING_COMMAND, sub, 1);
             if (!ok) ESP_LOGW(TAG, "Home SDO failed: node 0x%02X", route->nodeId);
 
             // Arm master-side completion tracking. The slave reports its homing
@@ -747,7 +800,7 @@ cJSON *device_router_handle_home_act(cJSON *doc) {
 
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -760,7 +813,7 @@ cJSON *device_router_handle_home_act(cJSON *doc) {
 cJSON *device_router_handle_led_act(cJSON *doc) {
 #ifdef LED_CONTROLLER
     log_i("Handling led_act via DeviceRouter");
-    const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_LED, 0);
     log_i("DeviceRouter found route for LED: %p", route);
     // Extract qid up-front so both LOCAL and REMOTE paths can use it.
     int ledQid = 0;
@@ -768,14 +821,14 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
     if (qidItem && cJSON_IsNumber(qidItem)) ledQid = qidItem->valueint;
 
 
-    if (!route || route->where == UC2::RouteEntry::OFF) {
+    if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
         log_e("led 0 has no route");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         return resp;
     }
 
-    if (route->where == UC2::RouteEntry::LOCAL) {
+    if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
         // led_act returns int; wrap into JSON response
         int result = led_act(doc);
         log_i("Routing led_act to LOCAL LED controller, result: %d", result);
@@ -783,7 +836,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
         cJSON_AddNumberToObject(resp, "return", result);
         return resp;
     }
-    else if (route->where == UC2::RouteEntry::REMOTE) { // REMOTE
+    else if (route->where == ROUTE_ENTRY_WHERE_REMOTE) { // REMOTE
 #ifdef CAN_CONTROLLER_CANOPEN
         log_i("Routing led_act to REMOTE node 0x%02X", route->nodeId);
         cJSON* led = cJSON_GetObjectItem(doc, "led");
@@ -805,7 +858,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
         bool anySdoTimeout = false;
 
         // Register the qid before issuing any SDO writes — see laser comment.
-        if (ledQid > 0) qid_register(ledQid, 1);
+        if (ledQid > 0) qid_register(ledQid, 1, QID_DEFAULT_TIMEOUT_MS);
 
         // Derive LED array mode from the high-level "action" field so the slave
         // can reconstruct the intended pattern.  The slave's setMode() maps:
@@ -874,7 +927,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
                     rr, gg, bb
                 };
                 log_i("Routing LED single pixel: idx=%u R:%u G:%u B:%u", idx, rr, gg, bb);
-                bool sok = CANopenModule::writeSDO(nodeId, UC2_OD::LED_SINGLE_PIXEL, 0,
+                bool sok = sdo_write(nodeId, UC2_OD_LED_SINGLE_PIXEL, 0,
                                                    payload, sizeof(payload));
                 if (ledQid > 0) qid_report_action_done(ledQid);
                 cJSON* resp = cJSON_CreateObject();
@@ -896,7 +949,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
                 uint8_t payload[5] = { shape, radius, rr, gg, bb };
                 log_i("Routing LED shape: %s radius=%u R:%u G:%u B:%u",
                       jAction->valuestring, radius, rr, gg, bb);
-                bool sok = CANopenModule::writeSDO(nodeId, UC2_OD::LED_SHAPE, 0,
+                bool sok = sdo_write(nodeId, UC2_OD_LED_SHAPE, 0,
                                                    payload, sizeof(payload));
                 if (ledQid > 0) qid_report_action_done(ledQid);
                 cJSON* resp = cJSON_CreateObject();
@@ -914,7 +967,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
         }
 
         log_i("Setting LED array mode to %u", ledMode);
-        if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_ARRAY_MODE, 0, ledMode)) {
+        if (!sdo_write_u8(nodeId, UC2_OD_LED_ARRAY_MODE, 0, ledMode)) {
             anySdoTimeout = true;
             ok = false;
         }
@@ -925,7 +978,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
         if (ok && br && cJSON_IsNumber(br)) {
             uint8_t b = (uint8_t)br->valueint;
             log_i("Setting LED brightness to %u", b);
-            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_BRIGHTNESS, 0, b)) { anySdoTimeout = true; ok = false; }
+            if (!sdo_write_u8(nodeId, UC2_OD_LED_BRIGHTNESS, 0, b)) { anySdoTimeout = true; ok = false; }
         }
 
         // Uniform colour (r, g, b packed into u32)
@@ -938,7 +991,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
             uint8_t bb = (jb && cJSON_IsNumber(jb)) ? (uint8_t)jb->valueint : 0;
             uint32_t colour = ((uint32_t)rr << 16) | ((uint32_t)gg << 8) | bb;
             log_i("Setting LED uniform colour to R:%u G:%u B:%u (0x%06X)", rr, gg, bb, colour);
-            if (!CANopenModule::writeSDO_u32(nodeId, UC2_OD::LED_UNIFORM_COLOUR, 0, colour)) { anySdoTimeout = true; ok = false; }
+            if (!sdo_write_u32(nodeId, UC2_OD_LED_UNIFORM_COLOUR, 0, colour)) { anySdoTimeout = true; ok = false; }
         }
 
         // Pattern
@@ -946,13 +999,13 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
         if (ok && pat && cJSON_IsNumber(pat)) {
             uint8_t p = (uint8_t)pat->valueint;
             log_i("Setting LED pattern ID to %u", p);
-            if (!CANopenModule::writeSDO_u8(nodeId, UC2_OD::LED_PATTERN_ID, 0, p)) { anySdoTimeout = true; ok = false; }
+            if (!sdo_write_u8(nodeId, UC2_OD_LED_PATTERN_ID, 0, p)) { anySdoTimeout = true; ok = false; }
         }
         cJSON* patSpeed = cJSON_GetObjectItem(led, "patternSpeed");
         if (ok && patSpeed && cJSON_IsNumber(patSpeed)) {
             uint16_t s = (uint16_t)patSpeed->valueint;
             log_i("Setting LED pattern speed to %u", s);
-            if (!CANopenModule::writeSDO_u16(nodeId, UC2_OD::LED_PATTERN_SPEED, 0, s)) { anySdoTimeout = true; ok = false; }
+            if (!sdo_write_u16(nodeId, UC2_OD_LED_PATTERN_SPEED, 0, s)) { anySdoTimeout = true; ok = false; }
         }
 
         // Per-pixel array — SDO domain (segmented) transfer
@@ -971,7 +1024,7 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
                         buf[i*3+1] = (pg && cJSON_IsNumber(pg)) ? (uint8_t)pg->valueint : 0;
                         buf[i*3+2] = (pb && cJSON_IsNumber(pb)) ? (uint8_t)pb->valueint : 0;
                     }
-                    bool domOk = CANopenModule::writeSDODomain(nodeId, UC2_OD::LED_PIXEL_DATA, 0,
+                    bool domOk = canopen_sdo_write_domain(nodeId, UC2_OD_LED_PIXEL_DATA, 0,
                                                                 buf, n * 3);
                     if (!domOk) {
                         log_w("LED pixel SDO domain write timed out: node 0x%02X", nodeId);
@@ -1005,9 +1058,9 @@ cJSON *device_router_handle_led_act(cJSON *doc) {
 #endif
     }
 #else
-    return nullptr;
+    return NULL;
 #endif
-    return nullptr;
+    return NULL;
 }
 
 // ============================================================================
@@ -1018,10 +1071,10 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
     // Echo the request qid on every response so the host's serial layer can
     // match the reply to its command (missing qid => host times out, then
     // returns an error string that the caller mistakes for a status dict).
-    int qid = cJsonTool::getJsonInt(doc, "qid");
-    const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
+    int qid = cjson_tool_get_int(doc, "qid", 0);
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_GALVO, 0);
 
-    if (!route || route->where == UC2::RouteEntry::OFF) {
+    if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
         log_e("galvo 0 has no route");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
@@ -1029,7 +1082,7 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
         return resp;
     }
 
-    if (route->where == UC2::RouteEntry::LOCAL) {
+    if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
         log_i("Routing galvo_act to LOCAL galvo controller");
         return galvo_act(doc);
     } else { // REMOTE
@@ -1043,7 +1096,7 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
         if (stop_cmd && cJSON_IsTrue(stop_cmd)) {
             uint8_t cmd = GALVO_CMD_STOP;
             log_i("Issuing galvo stop command to node 0x%02X", nodeId);
-            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd);
+            ok = sdo_write_u8(nodeId, UC2_OD_GALVO_COMMAND_WORD, 0, cmd);
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
             cJSON_AddNumberToObject(resp, "qid", qid);
@@ -1092,9 +1145,9 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
             bool valid = true;
             for (int i = 0; i < n; i++) {
                 cJSON* pt = cJSON_GetArrayItem(points_arr, i);
-                cJSON* xi = pt ? cJSON_GetObjectItem(pt, "x") : nullptr;
-                cJSON* yi = pt ? cJSON_GetObjectItem(pt, "y") : nullptr;
-                cJSON* di = pt ? cJSON_GetObjectItem(pt, "dwell_us") : nullptr;
+                cJSON* xi = pt ? cJSON_GetObjectItem(pt, "x") : NULL;
+                cJSON* yi = pt ? cJSON_GetObjectItem(pt, "y") : NULL;
+                cJSON* di = pt ? cJSON_GetObjectItem(pt, "dwell_us") : NULL;
                 if (!xi || !yi || !di) { valid = false; break; }
                 ArbitraryScanPoint sp;
                 sp.x = (uint16_t)cJSON_GetNumberValue(xi);
@@ -1115,7 +1168,7 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
 
             log_i("Sending %d galvo points to node 0x%02X (%u bytes, trig=%u)",
                   n, nodeId, (unsigned)bufLen, (unsigned)trigMode);
-            bool domOk = CANopenModule::writeSDODomain(nodeId, UC2_OD::GALVO_POINTS_DATA, 0, buf, bufLen);
+            bool domOk = canopen_sdo_write_domain(nodeId, UC2_OD_GALVO_POINTS_DATA, 0, buf, bufLen);
             free(buf);
             if (!domOk) log_w("Galvo points SDO domain write timed out: node 0x%02X (best-effort)", nodeId);
 
@@ -1133,21 +1186,21 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
             // {"task":"/galvo_act", "config": {"nx":256,"ny":256,"x_min":500,"x_max":3500,"y_min":500,"y_max":3500,"pre_samples":0,"fly_samples":0,"sample_period_us":0,"frame_count":0,"bidirectional":false}}
             log_i("Configuring galvo scan parameters for node 0x%02X", nodeId);
             if ((item = cJSON_GetObjectItem(config_obj, "x_min")))
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_START, 0, item->valueint) && ok;
+                ok = sdo_write_i32(nodeId, UC2_OD_GALVO_X_START, 0, item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "y_min")))
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_START, 0, item->valueint) && ok;
+                ok = sdo_write_i32(nodeId, UC2_OD_GALVO_Y_START, 0, item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "nx")))
-                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_N_STEPS_LINE, 0, (uint16_t)item->valueint) && ok;
+                ok = sdo_write_u16(nodeId, UC2_OD_GALVO_N_STEPS_LINE, 0, (uint16_t)item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "ny")))
-                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_N_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
+                ok = sdo_write_u16(nodeId, UC2_OD_GALVO_N_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "sample_period_us")))
-                ok = CANopenModule::writeSDO_u32(nodeId, UC2_OD::GALVO_SCAN_SPEED, 0, (uint32_t)item->valueint) && ok;
+                ok = sdo_write_u32(nodeId, UC2_OD_GALVO_SCAN_SPEED, 0, (uint32_t)item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "pre_samples")))
-                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_T_PRE_US, 0, (uint16_t)item->valueint) && ok;
+                ok = sdo_write_u16(nodeId, UC2_OD_GALVO_T_PRE_US, 0, (uint16_t)item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "fly_samples")))
-                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_T_POST_US, 0, (uint16_t)item->valueint) && ok;
+                ok = sdo_write_u16(nodeId, UC2_OD_GALVO_T_POST_US, 0, (uint16_t)item->valueint) && ok;
             if ((item = cJSON_GetObjectItem(config_obj, "enable_trigger")))
-                ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_CAMERA_TRIGGER_MODE, 0, (uint8_t)item->valueint) && ok;
+                ok = sdo_write_u8(nodeId, UC2_OD_GALVO_CAMERA_TRIGGER_MODE, 0, (uint8_t)item->valueint) && ok;
             // bidirectional + line_settle_samples are consumed by the scanner core
             // but had no dedicated OD entry, so they never reached the slave. Reuse
             // the two otherwise-unused galvo slots as transport containers:
@@ -1159,10 +1212,10 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
                 // Accept either a JSON bool (true/false) or a number (0/1).
                 uint16_t bidirVal = (bidir && (cJSON_IsTrue(bidir) ||
                                      (cJSON_IsNumber(bidir) && bidir->valueint != 0))) ? 1 : 0;
-                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_D_STEPS_LINE, 0, bidirVal) && ok;
+                ok = sdo_write_u16(nodeId, UC2_OD_GALVO_D_STEPS_LINE, 0, bidirVal) && ok;
             }
             if ((item = cJSON_GetObjectItem(config_obj, "line_settle_samples")))
-                ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_D_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
+                ok = sdo_write_u16(nodeId, UC2_OD_GALVO_D_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
 
             // Compute x_step, y_step from x_min/x_max/nx and y_min/y_max/ny
             cJSON* xMin = cJSON_GetObjectItem(config_obj, "x_min");
@@ -1174,17 +1227,17 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
             if (xMin && xMax && nx && nx->valueint > 0) {
                 log_i("Computed x_step: (x_max %d - x_min %d) / nx %d", xMax->valueint, xMin->valueint, nx->valueint);
                 int32_t xStep = (xMax->valueint - xMin->valueint) / nx->valueint;
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_STEP, 0, xStep) && ok;
+                ok = sdo_write_i32(nodeId, UC2_OD_GALVO_X_STEP, 0, xStep) && ok;
             }
             if (yMin && yMax && ny && ny->valueint > 0) {
                 log_i("Computed y_step: (y_max %d - y_min %d) / ny %d", yMax->valueint, yMin->valueint, ny->valueint);
                 int32_t yStep = (yMax->valueint - yMin->valueint) / ny->valueint;
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_STEP, 0, yStep) && ok;
+                ok = sdo_write_i32(nodeId, UC2_OD_GALVO_Y_STEP, 0, yStep) && ok;
             }
 
             // Issue raster scan command
             uint8_t cmd = GALVO_CMD_RASTER;
-            ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
+            ok = sdo_write_u8(nodeId, UC2_OD_GALVO_COMMAND_WORD, 0, cmd) && ok;
             // TODO: galvo should follow the motor pattern — register qid here
             // and wire syncRpdoToModules_master to call QidRegistry::reportActionDone
             // on a GALVO_STATUS_WORD running->stopped transition. The slave already
@@ -1205,16 +1258,16 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
             cJSON* ty = cJSON_GetObjectItem(galvo, "y");
             if (tx) {
                 int32_t v = tx->valueint;
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 1, v) && ok;
+                ok = sdo_write_i32(nodeId, UC2_OD_GALVO_TARGET_POSITION, 1, v) && ok;
             }
             if (ty) {
                 int32_t v = ty->valueint;
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 2, v) && ok;
+                ok = sdo_write_i32(nodeId, UC2_OD_GALVO_TARGET_POSITION, 2, v) && ok;
             }
             if (tx || ty) {
                 // Issue goto command
                 uint8_t cmd = GALVO_CMD_GOTO;
-                ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::GALVO_COMMAND_WORD, 0, cmd) && ok;
+                ok = sdo_write_u8(nodeId, UC2_OD_GALVO_COMMAND_WORD, 0, cmd) && ok;
             }
         }
 
@@ -1231,7 +1284,7 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
 #endif
     }
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1243,14 +1296,14 @@ cJSON *device_router_handle_galvo_act(cJSON *doc) {
 // ============================================================================
 cJSON *device_router_handle_tmc_act(cJSON *doc) {
 #ifdef TMC_CONTROLLER
-    int axis = cJsonTool::getJsonInt(doc, "axis");
+    int axis = cjson_tool_get_int(doc, "axis", 0);
     if (axis < 0) axis = 0;
 
-    const auto* route = UC2::RoutingTable::find(
-        UC2::RouteEntry::TMC, (uint8_t)axis);
+    const route_entry *route = routing_table_find(
+        ROUTE_ENTRY_TYPE_TMC, (uint8_t)axis);
 
     // Default to local when no route is configured (single-board builds).
-    bool isRemote = (route && route->where == UC2::RouteEntry::REMOTE);
+    bool isRemote = (route && route->where == ROUTE_ENTRY_WHERE_REMOTE);
 
     if (!isRemote) {
         int result = tmc_act(doc);
@@ -1268,20 +1321,20 @@ cJSON *device_router_handle_tmc_act(cJSON *doc) {
           nodeId, route->subAxis, axis);
 
     int v;
-    v = cJsonTool::getJsonInt(doc, "msteps");
-    if (v > 0) ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::TMC_MICROSTEPS,           sub, (uint16_t)v) && ok;
-    v = cJsonTool::getJsonInt(doc, "rms_current");
-    if (v > 0) ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::TMC_RMS_CURRENT,          sub, (uint16_t)v) && ok;
-    v = cJsonTool::getJsonInt(doc, "sgthrs");
-    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_STALLGUARD_THRESHOLD, sub, (uint8_t)v)  && ok;
-    v = cJsonTool::getJsonInt(doc, "semin");
-    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_COOLSTEP_SEMIN,       sub, (uint8_t)v)  && ok;
-    v = cJsonTool::getJsonInt(doc, "semax");
-    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_COOLSTEP_SEMAX,       sub, (uint8_t)v)  && ok;
-    v = cJsonTool::getJsonInt(doc, "blank_time");
-    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_BLANK_TIME,           sub, (uint8_t)v)  && ok;
-    v = cJsonTool::getJsonInt(doc, "toff");
-    if (v > 0) ok = CANopenModule::writeSDO_u8 (nodeId, UC2_OD::TMC_TOFF,                 sub, (uint8_t)v)  && ok;
+    v = cjson_tool_get_int(doc, "msteps", 0);
+    if (v > 0) ok = sdo_write_u16(nodeId, UC2_OD_TMC_MICROSTEPS,           sub, (uint16_t)v) && ok;
+    v = cjson_tool_get_int(doc, "rms_current", 0);
+    if (v > 0) ok = sdo_write_u16(nodeId, UC2_OD_TMC_RMS_CURRENT,          sub, (uint16_t)v) && ok;
+    v = cjson_tool_get_int(doc, "sgthrs", 0);
+    if (v > 0) ok = sdo_write_u8(nodeId, UC2_OD_TMC_STALLGUARD_THRESHOLD, sub, (uint8_t)v)  && ok;
+    v = cjson_tool_get_int(doc, "semin", 0);
+    if (v > 0) ok = sdo_write_u8(nodeId, UC2_OD_TMC_COOLSTEP_SEMIN,       sub, (uint8_t)v)  && ok;
+    v = cjson_tool_get_int(doc, "semax", 0);
+    if (v > 0) ok = sdo_write_u8(nodeId, UC2_OD_TMC_COOLSTEP_SEMAX,       sub, (uint8_t)v)  && ok;
+    v = cjson_tool_get_int(doc, "blank_time", 0);
+    if (v > 0) ok = sdo_write_u8(nodeId, UC2_OD_TMC_BLANK_TIME,           sub, (uint8_t)v)  && ok;
+    v = cjson_tool_get_int(doc, "toff", 0);
+    if (v > 0) ok = sdo_write_u8(nodeId, UC2_OD_TMC_TOFF,                 sub, (uint8_t)v)  && ok;
 
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
@@ -1294,7 +1347,7 @@ cJSON *device_router_handle_tmc_act(cJSON *doc) {
     return resp;
 #endif
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1305,8 +1358,8 @@ cJSON *device_router_handle_laser_get(cJSON *doc) {
 #ifdef LASER_CONTROLLER
     // PR-7.8 Issue 7: warn if any laser is REMOTE — get over CAN not yet implemented.
     for (uint8_t id = 0; id < 4; ++id) {
-        const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LASER, id);
-        if (r && r->where == UC2::RouteEntry::REMOTE) {
+        const route_entry *r = routing_table_find(ROUTE_ENTRY_TYPE_LASER, id);
+        if (r && r->where == ROUTE_ENTRY_WHERE_REMOTE) {
             log_w("laser_get: laser %u is REMOTE — get over CAN not implemented yet", id);
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", 0);
@@ -1317,7 +1370,7 @@ cJSON *device_router_handle_laser_get(cJSON *doc) {
     }
     return laser_get(doc);
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1328,8 +1381,8 @@ cJSON *device_router_handle_home_get(cJSON *doc) {
 #ifdef HOME_MOTOR
     // PR-7.8 Issue 7: warn if any homing axis is REMOTE.
     for (uint8_t ax = 0; ax < 4; ++ax) {
-        const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::HOME, ax);
-        if (r && r->where == UC2::RouteEntry::REMOTE) {
+        const route_entry *r = routing_table_find(ROUTE_ENTRY_TYPE_HOME, ax);
+        if (r && r->where == ROUTE_ENTRY_WHERE_REMOTE) {
             log_w("home_get: axis %u is REMOTE — get over CAN not implemented yet", ax);
             cJSON* resp = cJSON_CreateObject();
             cJSON_AddNumberToObject(resp, "return", 0);
@@ -1340,7 +1393,7 @@ cJSON *device_router_handle_home_get(cJSON *doc) {
     }
     return home_get(doc);
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1350,8 +1403,8 @@ cJSON *device_router_handle_home_get(cJSON *doc) {
 cJSON *device_router_handle_led_get(cJSON *doc) {
 #ifdef LED_CONTROLLER
     // PR-7.8 Issue 7: warn if LED array is REMOTE.
-    const auto* r = UC2::RoutingTable::find(UC2::RouteEntry::LED, 0);
-    if (r && r->where == UC2::RouteEntry::REMOTE) {
+    const route_entry *r = routing_table_find(ROUTE_ENTRY_TYPE_LED, 0);
+    if (r && r->where == ROUTE_ENTRY_WHERE_REMOTE) {
         log_w("led_get: LED array is REMOTE — get over CAN not implemented yet");
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
@@ -1361,7 +1414,7 @@ cJSON *device_router_handle_led_get(cJSON *doc) {
     }
     return led_get(doc);
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1371,17 +1424,17 @@ cJSON *device_router_handle_led_get(cJSON *doc) {
 cJSON *device_router_handle_galvo_get(cJSON *doc) {
 #ifdef GALVO_CONTROLLER
     // Echo qid so the host serial layer can match this reply (see handleGalvoAct).
-    int qid = cJsonTool::getJsonInt(doc, "qid");
-    const auto* route = UC2::RoutingTable::find(UC2::RouteEntry::GALVO, 0);
+    int qid = cjson_tool_get_int(doc, "qid", 0);
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_GALVO, 0);
 
-    if (!route || route->where == UC2::RouteEntry::OFF) {
+    if (!route || route->where == ROUTE_ENTRY_WHERE_OFF) {
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", 0);
         cJSON_AddNumberToObject(resp, "qid", qid);
         return resp;
     }
 
-    if (route->where == UC2::RouteEntry::LOCAL) {
+    if (route->where == ROUTE_ENTRY_WHERE_LOCAL) {
         return galvo_get(doc);
     } else { // REMOTE — read galvo status via SDO
 #ifdef CAN_CONTROLLER_CANOPEN
@@ -1391,7 +1444,7 @@ cJSON *device_router_handle_galvo_get(cJSON *doc) {
         // Read status word
         uint8_t statusWord = 0;
         size_t readSize = 0;
-        if (CANopenModule::readSDO(nodeId, UC2_OD::GALVO_STATUS_WORD, 0,
+        if (canopen_sdo_read(nodeId, UC2_OD_GALVO_STATUS_WORD, 0,
                                    &statusWord, sizeof(statusWord), &readSize)) {
             cJSON_AddBoolToObject(resp, "running", (statusWord & 0x01) != 0);
             cJSON_AddBoolToObject(resp, "scanActive", (statusWord & 0x02) != 0);
@@ -1402,11 +1455,11 @@ cJSON *device_router_handle_galvo_get(cJSON *doc) {
 
         // Read actual position
         int32_t posX = 0, posY = 0;
-        if (CANopenModule::readSDO(nodeId, UC2_OD::GALVO_ACTUAL_POSITION, 1,
+        if (canopen_sdo_read(nodeId, UC2_OD_GALVO_ACTUAL_POSITION, 1,
                                    (uint8_t*)&posX, sizeof(posX), &readSize)) {
             cJSON_AddNumberToObject(resp, "x", posX);
         }
-        if (CANopenModule::readSDO(nodeId, UC2_OD::GALVO_ACTUAL_POSITION, 2,
+        if (canopen_sdo_read(nodeId, UC2_OD_GALVO_ACTUAL_POSITION, 2,
                                    (uint8_t*)&posY, sizeof(posY), &readSize)) {
             cJSON_AddNumberToObject(resp, "y", posY);
         }
@@ -1423,7 +1476,7 @@ cJSON *device_router_handle_galvo_get(cJSON *doc) {
 #endif
     }
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1434,30 +1487,10 @@ cJSON *device_router_handle_tmc_get(cJSON *doc) {
 #ifdef TMC_CONTROLLER
     return tmc_get(doc);
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
-// ============================================================================
-// State get — read uptime from slave UC2 OD (x2503 = uptime_seconds, VAR)
-// ============================================================================
-#ifdef CAN_CONTROLLER_CANOPEN
-cJSON* DeviceRouter::handleStateGet(uint8_t nodeId) {
-    cJSON* resp = cJSON_CreateObject();
-
-    uint32_t uptime = 0;
-    size_t readSize = 0;
-    if (CANopenModule::readSDO(nodeId, UC2_OD::UPTIME_SECONDS, 0x00,
-                               (uint8_t*)&uptime, 4, &readSize)) {
-        cJSON_AddNumberToObject(resp, "uptime", uptime);
-        cJSON_AddNumberToObject(resp, "online", 1);
-    } else {
-        cJSON_AddNumberToObject(resp, "online", 0);
-    }
-
-    return resp;
-}
-#endif // CAN_CONTROLLER_CANOPEN
 
 // ============================================================================
 // State act — routes restart/reboot to a remote node when "nodeId" is given,
@@ -1477,7 +1510,7 @@ cJSON *device_router_handle_state_act(cJSON *doc) {
     if (nodeItem && cJSON_IsNumber(nodeItem) && wantRestart) {
         uint8_t nodeId = (uint8_t)nodeItem->valueint;
         log_w("state_act restart -> remote node 0x%02X via SDO", nodeId);
-        bool ok = CANopenModule::writeSDO_u8(nodeId, UC2_OD::REBOOT_COMMAND, 0x00, 1);
+        bool ok = sdo_write_u8(nodeId, UC2_OD_REBOOT_COMMAND, 0x00, 1);
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "return", ok ? 1 : 0);
         cJSON_AddNumberToObject(resp, "nodeId", nodeId);
@@ -1558,7 +1591,7 @@ cJSON *device_router_handle_ota_start(cJSON *doc) {
         if (cJSON_IsString(crc32Item) && crc32Item->valuestring) {
             const char* crcStr = crc32Item->valuestring;
             // strtoul with base 0 auto-detects "0x" prefix vs decimal.
-            char* endPtr = nullptr;
+            char* endPtr = NULL;
             unsigned long parsed = strtoul(crcStr, &endPtr, 0);
             if (endPtr == crcStr) {
                 log_w("ota_start crc32 string unparseable, defaulting to 0: %s", crcStr);
@@ -1608,8 +1641,8 @@ cJSON *device_router_handle_digitalout_act(cJSON *doc) {
     // because those are gated behind #ifdef DIGITAL_OUT_CONTROLLER and the
     // master build (which is the primary REMOTE forwarder) does NOT define
     // DIGITAL_OUT_CONTROLLER. The keys themselves are stable JSON contract.
-    int id  = cJsonTool::getJsonInt(doc, "digitaloutid");
-    int val = cJsonTool::getJsonInt(doc, "digitaloutval");
+    int id  = cjson_tool_get_int(doc, "digitaloutid", 0);
+    int val = cjson_tool_get_int(doc, "digitaloutval", 0);
 
 #ifdef CAN_CONTROLLER_CANOPEN
     // REMOTE path: explicit "node" key on a master forces SDO forwarding.
@@ -1677,7 +1710,7 @@ cJSON *device_router_handle_digitalout_get(cJSON *doc) {
 // downstream tooling doesn't need to know the node id.
 // ============================================================================
 static uint8_t resolveGpioNode(cJSON* doc) {
-    cJSON* it = doc ? cJSON_GetObjectItemCaseSensitive(doc, "node") : nullptr;
+    cJSON* it = doc ? cJSON_GetObjectItemCaseSensitive(doc, "node") : NULL;
     if (it && cJSON_IsNumber(it)) return (uint8_t)it->valueint;
     if (pinConfig.MASTER_GPIO_SLAVE_NODE_ID > 0)
         return (uint8_t)pinConfig.MASTER_GPIO_SLAVE_NODE_ID;
@@ -1688,9 +1721,9 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
     // GPIO slave: apply locally.
     log_i("DR gpio_act LOCAL  doc=%p", doc);
-    return GpioCanSlave::act(doc);
+    return serial_dispatch_gpio_local_act(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
-    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return NULL;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -1705,7 +1738,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
 
     cJSON* thr = cJSON_GetObjectItemCaseSensitive(doc, "threshold");
     if (thr && cJSON_IsNumber(thr)) {
-        bool ok = CANopenModule::writeSDO_u16(node, UC2_OD::COLLISION_THRESHOLD, 0,
+        bool ok = sdo_write_u16(node, UC2_OD_COLLISION_THRESHOLD, 0,
                                               (uint16_t)thr->valueint);
         log_i("DR gpio_act node=%u threshold=%d -> %s", node, thr->valueint, ok ? "ok" : "FAIL");
         cJSON_AddNumberToObject(resp, "threshold", thr->valueint);
@@ -1713,7 +1746,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
     }
     cJSON* sens = cJSON_GetObjectItemCaseSensitive(doc, "sensitivity");
     if (sens && cJSON_IsNumber(sens)) {
-        bool ok = CANopenModule::writeSDO_u8(node, UC2_OD::COLLISION_SENSITIVITY, 0,
+        bool ok = sdo_write_u8(node, UC2_OD_COLLISION_SENSITIVITY, 0,
                                              (uint8_t)sens->valueint);
         log_i("DR gpio_act node=%u sensitivity=%d -> %s", node, sens->valueint, ok ? "ok" : "FAIL");
         cJSON_AddNumberToObject(resp, "sensitivity", sens->valueint);
@@ -1721,7 +1754,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
     }
     cJSON* ref = cJSON_GetObjectItemCaseSensitive(doc, "reference");
     if (ref && cJSON_IsNumber(ref)) {
-        bool ok = CANopenModule::writeSDO_u16(node, UC2_OD::COLLISION_REFERENCE, 0,
+        bool ok = sdo_write_u16(node, UC2_OD_COLLISION_REFERENCE, 0,
                                               (uint16_t)ref->valueint);
         log_i("DR gpio_act node=%u reference=%d -> %s", node, ref->valueint, ok ? "ok" : "FAIL");
         cJSON_AddNumberToObject(resp, "reference", ref->valueint);
@@ -1729,7 +1762,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
     }
     cJSON* cal = cJSON_GetObjectItemCaseSensitive(doc, "calibrate");
     if (cal && cJSON_IsNumber(cal) && cal->valueint != 0) {
-        bool ok = CANopenModule::writeSDO_u8(node, UC2_OD::COLLISION_COMMAND, 0, 1);
+        bool ok = sdo_write_u8(node, UC2_OD_COLLISION_COMMAND, 0, 1);
         log_i("DR gpio_act node=%u calibrate -> %s", node, ok ? "ok" : "FAIL");
         cJSON_AddBoolToObject(resp, "calibrate", ok);
         allOk &= ok;
@@ -1743,7 +1776,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
         else if (cJSON_IsNumber(mode))
             mval = (mode->valueint != 0) ? 1 : 0;
         if (mval >= 0) {
-            bool ok = CANopenModule::writeSDO_u8(node, UC2_OD::COLLISION_MODE, 0, (uint8_t)mval);
+            bool ok = sdo_write_u8(node, UC2_OD_COLLISION_MODE, 0, (uint8_t)mval);
             log_i("DR gpio_act node=%u mode=%d -> %s", node, mval, ok ? "ok" : "FAIL");
             cJSON_AddNumberToObject(resp, "mode", mval);
             allOk &= ok;
@@ -1756,15 +1789,15 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
         cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
 cJSON *device_router_handle_gpio_get(cJSON *doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
-    return GpioCanSlave::get(doc);
+    return serial_dispatch_gpio_local_get(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
-    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return NULL;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -1773,29 +1806,19 @@ cJSON *device_router_handle_gpio_get(cJSON *doc) {
         return resp;
     }
 
-    auto readU16 = [&](uint16_t idx, uint8_t sub, uint16_t& out) -> bool {
-        uint8_t buf[2] = {0, 0}; size_t got = 0;
-        if (!CANopenModule::readSDO(node, idx, sub, buf, sizeof(buf), &got)) return false;
-        out = (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
-        return true;
-    };
-    auto readU8 = [&](uint16_t idx, uint8_t sub, uint8_t& out) -> bool {
-        size_t got = 0;
-        return CANopenModule::readSDO(node, idx, sub, &out, sizeof(out), &got);
-    };
 
     uint16_t mean = 0, filtered = 0, raw = 0, reference = 0, threshold = 0, sigma = 0;
     uint8_t  sensitivity = 0, flags = 0, mode = 0;
     bool ok = true;
-    ok &= readU16(UC2_OD::COLLISION_MEAN,        0, mean);
-    ok &= readU16(UC2_OD::ANALOG_INPUT_VALUE,    1, filtered);
-    ok &= readU16(UC2_OD::ANALOG_INPUT_VALUE,    2, raw);
-    ok &= readU16(UC2_OD::COLLISION_REFERENCE,   0, reference);
-    ok &= readU16(UC2_OD::COLLISION_THRESHOLD,   0, threshold);
-    ok &= readU8 (UC2_OD::COLLISION_SENSITIVITY, 0, sensitivity);
-    ok &= readU8 (UC2_OD::COLLISION_MODE,        0, mode);
-    ok &= readU16(UC2_OD::COLLISION_SIGMA,       0, sigma);
-    ok &= readU8 (UC2_OD::DIGITAL_INPUT_STATE,   4, flags);
+    ok &= dr_gpio_read_u16(node, UC2_OD_COLLISION_MEAN, 0, &mean);
+    ok &= dr_gpio_read_u16(node, UC2_OD_ANALOG_INPUT_VALUE, 1, &filtered);
+    ok &= dr_gpio_read_u16(node, UC2_OD_ANALOG_INPUT_VALUE, 2, &raw);
+    ok &= dr_gpio_read_u16(node, UC2_OD_COLLISION_REFERENCE, 0, &reference);
+    ok &= dr_gpio_read_u16(node, UC2_OD_COLLISION_THRESHOLD, 0, &threshold);
+    ok &= dr_gpio_read_u8(node, UC2_OD_COLLISION_SENSITIVITY, 0, &sensitivity);
+    ok &= dr_gpio_read_u8(node, UC2_OD_COLLISION_MODE, 0, &mode);
+    ok &= dr_gpio_read_u16(node, UC2_OD_COLLISION_SIGMA, 0, &sigma);
+    ok &= dr_gpio_read_u8(node, UC2_OD_DIGITAL_INPUT_STATE, 4, &flags);
 
     // In AUTO the reported "mean" IS the adaptive baseline; deviation is
     // |filtered - baseline|. Compute it here for display (the slave's own
@@ -1831,7 +1854,7 @@ cJSON *device_router_handle_gpio_get(cJSON *doc) {
         cJSON_AddNumberToObject(resp, "qid", qidItem->valueint);
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
@@ -1841,45 +1864,48 @@ cJSON *device_router_handle_gpio_get(cJSON *doc) {
 // One JSON request = one raw I2C transaction (optional write, optional delay,
 // optional read). The register map for any device lives on the Python side;
 // firmware just relays bytes. On the GPIO slave the request runs locally via
-// I2cBridge::execute(); on a master it is shipped to the remote node through
+// i2c_bridge_execute(); on a master it is shipped to the remote node through
 // the OD (0x2350 command → 0x2351 trigger → poll → 0x2353 response).
 // ============================================================================
-static const uint8_t I2C_CMD_CAP   = 40; // 0x2350 capacity (must match OD)
-static const uint8_t I2C_HDR_LEN   = 5;  // [addr, flags, rdLen, wrLen, delayMs]
-static const uint8_t I2C_MAX_WRITE = I2C_CMD_CAP - I2C_HDR_LEN; // 35
-static const uint8_t I2C_MAX_READ  = 40; // 0x2353 capacity
+// T4.4 4g: #define (not static const) — in C, a const variable is NOT a
+// constant expression, so it cannot size a fixed array on MSVC (VLA error);
+// the C++ version relied on integral-constant-expression semantics.
+#define I2C_CMD_CAP   40  // 0x2350 capacity (must match OD)
+#define I2C_HDR_LEN   5   // [addr, flags, rdLen, wrLen, delayMs]
+#define I2C_MAX_WRITE (I2C_CMD_CAP - I2C_HDR_LEN) // 35
+#define I2C_MAX_READ  40  // 0x2353 capacity
 
 // Parse the common fields shared by act. Returns false (and fills err) on a
 // malformed request. wr[] must hold at least I2C_MAX_WRITE bytes.
-static bool parseI2cRequest(cJSON* doc, uint8_t& addr, uint8_t& flags,
-                            uint8_t& rdLen, uint8_t* wr, uint8_t& wrLen,
-                            uint8_t& delayMs, const char** err) {
-    *err = nullptr;
+static bool parseI2cRequest(cJSON* doc, uint8_t* addr, uint8_t* flags,
+                            uint8_t* rdLen, uint8_t* wr, uint8_t* wrLen,
+                            uint8_t* delayMs, const char** err) {
+    *err = NULL;
     cJSON* a = cJSON_GetObjectItemCaseSensitive(doc, "addr");
     if (!a || !cJSON_IsNumber(a)) { *err = "missing \"addr\""; return false; }
-    addr = (uint8_t)(a->valueint & 0x7F);
+    *addr = (uint8_t)(a->valueint & 0x7F);
 
-    rdLen = 0;
+    *rdLen = 0;
     cJSON* r = cJSON_GetObjectItemCaseSensitive(doc, "read");
-    if (r && cJSON_IsNumber(r)) rdLen = (uint8_t)r->valueint;
-    if (rdLen > I2C_MAX_READ) { *err = "read length too large (max 40)"; return false; }
+    if (r && cJSON_IsNumber(r)) *rdLen = (uint8_t)r->valueint;
+    if (*rdLen > I2C_MAX_READ) { *err = "read length too large (max 40)"; return false; }
 
-    delayMs = 0;
+    *delayMs = 0;
     cJSON* d = cJSON_GetObjectItemCaseSensitive(doc, "delay");
-    if (d && cJSON_IsNumber(d)) delayMs = (uint8_t)(d->valueint > 255 ? 255 : d->valueint);
+    if (d && cJSON_IsNumber(d)) *delayMs = (uint8_t)(d->valueint > 255 ? 255 : d->valueint);
 
-    flags = 0;
+    *flags = 0;
     cJSON* s = cJSON_GetObjectItemCaseSensitive(doc, "stop");
-    if (s && ((cJSON_IsNumber(s) && s->valueint) || cJSON_IsTrue(s))) flags |= 0x01;
+    if (s && ((cJSON_IsNumber(s) && s->valueint) || cJSON_IsTrue(s))) *flags |= 0x01;
 
-    wrLen = 0;
+    *wrLen = 0;
     cJSON* w = cJSON_GetObjectItemCaseSensitive(doc, "write");
     if (w && cJSON_IsArray(w)) {
         int n = cJSON_GetArraySize(w);
         if (n > I2C_MAX_WRITE) { *err = "write length too large (max 35)"; return false; }
         for (int i = 0; i < n; i++) {
             cJSON* b = cJSON_GetArrayItem(w, i);
-            wr[wrLen++] = (uint8_t)(cJSON_IsNumber(b) ? (b->valueint & 0xFF) : 0);
+            wr[(*wrLen)++] = (uint8_t)(cJSON_IsNumber(b) ? (b->valueint & 0xFF) : 0);
         }
     }
     // rdLen == 0 && wrLen == 0 is a valid address probe (bus scan): the slave
@@ -1902,8 +1928,8 @@ static void addI2cResponse(cJSON* resp, uint8_t status, const uint8_t* data,
 cJSON *device_router_handle_i2c_act(cJSON *doc) {
     uint8_t addr = 0, flags = 0, rdLen = 0, wrLen = 0, delayMs = 0;
     uint8_t wr[I2C_MAX_WRITE];
-    const char* err = nullptr;
-    if (!parseI2cRequest(doc, addr, flags, rdLen, wr, wrLen, delayMs, &err)) {
+    const char* err = NULL;
+    if (!parseI2cRequest(doc, &addr, &flags, &rdLen, wr, &wrLen, &delayMs, &err)) {
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddStringToObject(resp, "error", err ? err : "bad request");
         return resp;
@@ -1918,7 +1944,7 @@ cJSON *device_router_handle_i2c_act(cJSON *doc) {
     addI2cResponse(resp, status, data, got, doc);
     return resp;
 #elif defined(CAN_CONTROLLER_CANOPEN)
-    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return NULL;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -1933,8 +1959,8 @@ cJSON *device_router_handle_i2c_act(cJSON *doc) {
     cmd[0] = addr; cmd[1] = flags; cmd[2] = rdLen; cmd[3] = wrLen; cmd[4] = delayMs;
     for (uint8_t i = 0; i < wrLen; i++) cmd[I2C_HDR_LEN + i] = wr[i];
 
-    bool ok = CANopenModule::writeSDODomain(node, UC2_OD::I2C_COMMAND, 0, cmd, sizeof(cmd));
-    if (ok) ok = CANopenModule::writeSDO_u8(node, UC2_OD::I2C_TRIGGER, 0, 1);
+    bool ok = canopen_sdo_write_domain(node, UC2_OD_I2C_COMMAND, 0, cmd, sizeof(cmd));
+    if (ok) ok = sdo_write_u8(node, UC2_OD_I2C_TRIGGER, 0, 1);
     if (!ok) {
         cJSON* resp = cJSON_CreateObject();
         cJSON_AddNumberToObject(resp, "node", node);
@@ -1949,7 +1975,7 @@ cJSON *device_router_handle_i2c_act(cJSON *doc) {
     while (waited < budgetMs) {
         delay(5); waited += 5;
         size_t got = 0;
-        if (!CANopenModule::readSDO(node, UC2_OD::I2C_TRIGGER, 0, &trig, sizeof(trig), &got))
+        if (!canopen_sdo_read(node, UC2_OD_I2C_TRIGGER, 0, &trig, sizeof(trig), &got))
             continue;
         if (trig == 0) break;
     }
@@ -1965,23 +1991,23 @@ cJSON *device_router_handle_i2c_act(cJSON *doc) {
     }
 
     uint8_t status = 0, respLen = 0; size_t got = 0;
-    CANopenModule::readSDO(node, UC2_OD::I2C_STATUS,   0, &status,  sizeof(status),  &got);
-    CANopenModule::readSDO(node, UC2_OD::I2C_RESP_LEN, 0, &respLen, sizeof(respLen), &got);
+    canopen_sdo_read(node, UC2_OD_I2C_STATUS,   0, &status,  sizeof(status),  &got);
+    canopen_sdo_read(node, UC2_OD_I2C_RESP_LEN, 0, &respLen, sizeof(respLen), &got);
     uint8_t data[I2C_MAX_READ] = {0};
     if (respLen > sizeof(data)) respLen = sizeof(data);
     if (respLen > 0)
-        CANopenModule::readSDO(node, UC2_OD::I2C_RESPONSE, 0, data, sizeof(data), &got);
+        canopen_sdo_read(node, UC2_OD_I2C_RESPONSE, 0, data, sizeof(data), &got);
     addI2cResponse(resp, status, data, respLen, doc);
     return resp;
 #else
-    return nullptr;
+    return NULL;
 #endif
 }
 
 cJSON *device_router_handle_i2c_get(cJSON *doc) {
     // Re-read the last response buffer without re-triggering a transaction.
 #if defined(CAN_CONTROLLER_CANOPEN) && !defined(I2C_BRIDGE_CONTROLLER)
-    if (!runtime_config_is_master(&runtimeConfig)) return nullptr;
+    if (!runtime_config_is_master(&runtimeConfig)) return NULL;
     uint8_t node = resolveGpioNode(doc);
     if (node == 0) {
         cJSON* resp = cJSON_CreateObject();
@@ -1989,12 +2015,12 @@ cJSON *device_router_handle_i2c_get(cJSON *doc) {
         return resp;
     }
     uint8_t status = 0, respLen = 0; size_t got = 0;
-    CANopenModule::readSDO(node, UC2_OD::I2C_STATUS,   0, &status,  sizeof(status),  &got);
-    CANopenModule::readSDO(node, UC2_OD::I2C_RESP_LEN, 0, &respLen, sizeof(respLen), &got);
+    canopen_sdo_read(node, UC2_OD_I2C_STATUS,   0, &status,  sizeof(status),  &got);
+    canopen_sdo_read(node, UC2_OD_I2C_RESP_LEN, 0, &respLen, sizeof(respLen), &got);
     uint8_t data[I2C_MAX_READ] = {0};
     if (respLen > sizeof(data)) respLen = sizeof(data);
     if (respLen > 0)
-        CANopenModule::readSDO(node, UC2_OD::I2C_RESPONSE, 0, data, sizeof(data), &got);
+        canopen_sdo_read(node, UC2_OD_I2C_RESPONSE, 0, data, sizeof(data), &got);
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddNumberToObject(resp, "node", node);
     addI2cResponse(resp, status, data, respLen, doc);
@@ -2010,14 +2036,14 @@ cJSON *device_router_handle_i2c_get(cJSON *doc) {
 
 cJSON *device_router_handle_digitalin_get(cJSON *doc) {
     uint8_t node = extractRemoteNode(doc);
-    int id = cJsonTool::getJsonInt(doc, "digitalinid");
+    int id = cjson_tool_get_int(doc, "digitalinid", 0);
 
 #ifdef CAN_CONTROLLER_CANOPEN
     if (runtime_config_is_master(&runtimeConfig) && node > 0) {
         // SDO read OD 0x2300 sub `id` from the remote slave. id is 1-based to
         // mirror the local API; sub 0 is the array length per CiA 301.
         uint8_t v = 0; size_t got = 0;
-        bool ok = CANopenModule::readSDO(node, 0x2300, (uint8_t)id,
+        bool ok = canopen_sdo_read(node, 0x2300, (uint8_t)id,
                                          &v, sizeof(v), &got);
         log_i("DR digitalin_get REMOTE  node=%u id=%d -> ok=%d val=%u",
               node, id, ok, (unsigned)v);
@@ -2026,10 +2052,10 @@ cJSON *device_router_handle_digitalin_get(cJSON *doc) {
         cJSON_AddNumberToObject(resp, "digitalinid", id);
         cJSON_AddNumberToObject(resp, "digitalinval", ok ? v : 0);
         cJSON_AddBoolToObject(resp, "ok", ok);
-        cJsonTool::setJsonInt(
+        cjson_tool_set_int(
             resp,
             "qid",
-            cJsonTool::getJsonInt(doc, "qid")
+            cjson_tool_get_int(doc, "qid", 0)
         );
         return resp;
     }
@@ -2042,22 +2068,11 @@ cJSON *device_router_handle_digitalin_get(cJSON *doc) {
     cJSON* resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "error", "digitalin_get not available locally and no remote node specified");
     cJSON_AddNumberToObject(resp, "digitalinid", id);
-    cJsonTool::setJsonInt(
+    cjson_tool_set_int(
         resp,
         "qid",
-        cJsonTool::getJsonInt(doc, "qid")
+        cjson_tool_get_int(doc, "qid", 0)
     );
     return resp;
 }
 
-// T4.4 4f: C shims for the still-C++ PTZ / joystick bridges — device_router.c
-// (C) cannot call the PtzKeyboard:: / JoystickRouter:: namespaces directly.
-// Drop these once those bridges are C-ified (ptz trio = step 4i).
-#ifdef PTZ_KEYBOARD_CONTROLLER
-cJSON *device_router_ptz_act(cJSON *doc) { return PtzKeyboard::act(doc); }
-cJSON *device_router_ptz_get(cJSON *doc) { return PtzKeyboard::get(doc); }
-#endif
-#ifdef JOYSTICK_USBHOST_PROVIDER
-cJSON *device_router_joystick_act(cJSON *doc) { return JoystickRouter::act(doc); }
-cJSON *device_router_joystick_get(cJSON *doc) { return JoystickRouter::get(doc); }
-#endif

@@ -5,9 +5,18 @@ set(srcs
     "canopen/RoutingTable.c"
     # T4.4: split of the old DeviceRouter.cpp (behavior-identical; the dispatch
     # chain is C — device_router.c, step 4f — per-command handlers in
-    # serial_dispatch.cpp, still C++ until step 4g).
+    # serial_dispatch.c, C since step 4g).
     "canopen/device_router.c"
-    "canopen/serial_dispatch.cpp")
+    "canopen/serial_dispatch.c")
+if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER OR CONFIG_UC2_PTZ_KEYBOARD_CONTROLLER
+   OR CONFIG_UC2_JOYSTICK_USBHOST_PROVIDER)
+    # T4.4 step 4g: C++ island for the still-C++ bridges (GpioCanSlave /
+    # PtzKeyboard / JoystickRouter shims called from serial_dispatch.c /
+    # device_router.c). Sections are #ifdef'd on the per-app PinConfig
+    # macros, so it compiles to an empty object where no bridge is present
+    # (same pattern as canopen_tpdo_galvo.cpp). Drop once 4h + 4i land.
+    list(APPEND srcs "canopen/serial_dispatch_island.cpp")
+endif()
 if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
     list(APPEND srcs
         # T4.4: split of the old CANopenModule.cpp (behavior-identical; shared

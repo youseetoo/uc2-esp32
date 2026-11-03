@@ -1,10 +1,10 @@
 // device_router.c — Routing-table-driven command dispatcher (T4.4 4f).
 // device_router_route_command() maps a JSON task name to the matching handler
 // via strcmp chains; the per-command handlers themselves live in
-// serial_dispatch.cpp (still C++ until step 4g, C linkage via the
-// declarations in DeviceRouter.h). The PTZ / joystick bridges are still C++
-// namespaces — they are reached through the device_router_ptz_* /
-// device_router_joystick_* shims defined in serial_dispatch.cpp.
+// serial_dispatch.c (C since T4.4 4g, declared in DeviceRouter.h). The
+// PTZ / joystick bridges are still C++ namespaces — they are reached
+// through the device_router_ptz_* / device_router_joystick_* shims
+// defined in serial_dispatch_island.cpp (C++ island).
 // Active on ALL builds. REMOTE dispatch requires CAN_CONTROLLER_CANOPEN.
 #include <PinConfig.h>
 #include "DeviceRouter.h"

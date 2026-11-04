@@ -39,10 +39,12 @@ if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER)
     list(APPEND srcs "gpio_can/GpioCanSlave.c")
 endif()
 if(CONFIG_UC2_PTZ_KEYBOARD_CONTROLLER)
+    # T4.4 4i: ptz trio C-ified (was PtzKeyboard.cpp / PtzRouter.cpp /
+    # PelcoParser.cpp; faithful C ports, flat ptz_* / pelco_* API).
     list(APPEND srcs
-        "ptz/PtzKeyboard.cpp"
-        "ptz/PtzRouter.cpp"
-        "ptz/PelcoParser.cpp")
+        "ptz/PtzKeyboard.c"
+        "ptz/PtzRouter.c"
+        "ptz/PelcoParser.c")
 endif()
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}

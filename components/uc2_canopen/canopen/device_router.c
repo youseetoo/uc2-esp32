@@ -2,9 +2,8 @@
 // device_router_route_command() maps a JSON task name to the matching handler
 // via strcmp chains; the per-command handlers themselves live in
 // serial_dispatch.c (C since T4.4 4g, declared in DeviceRouter.h). The
-// PTZ / joystick bridges are still C++ namespaces — they are reached
-// through the device_router_ptz_* / device_router_joystick_* shims
-// defined in serial_dispatch_island.cpp (C++ island).
+// PTZ keyboard bridge is now C (T4.4 4i, PtzKeyboard.h). The joystick
+// bridge remains a C++ island shim (device_router_joystick_*).
 // Active on ALL builds. REMOTE dispatch requires CAN_CONTROLLER_CANOPEN.
 #include <PinConfig.h>
 #include "DeviceRouter.h"
@@ -12,6 +11,7 @@
 #include "Endpoints.h"
 #include "esp_log.h"
 #include <string.h>
+#include "../ptz/PtzKeyboard.h"
 
 #define TAG "UC2_DR"
 
@@ -84,9 +84,9 @@ cJSON *device_router_route_command(const char* task, cJSON* doc)
 #ifdef PTZ_KEYBOARD_CONTROLLER
     // PTZ keyboard bridge — debug/config, local only (USB serial on the node)
     if (strcmp(task, ptz_act_endpoint) == 0)
-        return device_router_ptz_act(doc);
+        return ptz_keyboard_act(doc);
     if (strcmp(task, ptz_get_endpoint) == 0)
-        return device_router_ptz_get(doc);
+        return ptz_keyboard_get(doc);
 #endif
 
 #ifdef JOYSTICK_USBHOST_PROVIDER

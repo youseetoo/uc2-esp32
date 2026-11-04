@@ -185,6 +185,12 @@ $cSrcs = @(
     # now go through the extern "C" shims in the real .cpp files above).
     "components\uc2_serial\serial\SerialProcessIn.c",
     "components\uc2_serial\serial\uc2_serial_out.c",
+    # T4.4 step 4i: PTZ keyboard bridge C-ified (Pelco protocol parse + SDO
+    # routing; hardware-specific, no host unit tests — included for build
+    # verification only).
+    "components\uc2_canopen\ptz\PelcoParser.c",
+    "components\uc2_canopen\ptz\PtzKeyboard.c",
+    "components\uc2_canopen\ptz\PtzRouter.c",
     "components\uc2_motor\motor\FocusMotor.c",
     "components\uc2_motor\motor\StageScan.c",
     "components\uc2_core\qid\QidRegistry.c",

@@ -3,7 +3,7 @@
 // collision-detector configuration via SDO.
 //
 // Compiled only when GPIO_CAN_SLAVE_CONTROLLER is defined (see
-// main/config/UC2_canopen_slave_gpio/PinConfig.h).
+// apps/canopen_slave_gpio/main/PinConfig.h).
 //
 // ── Collision detection (baseline-deviation) ───────────────────────────────
 // The sensor has an "idle" ADC value (the reference). A collision manifests
@@ -31,32 +31,41 @@
 // The trip EVENT is pushed immediately via TPDO2 (COB-ID 0x280 + nodeId);
 // there is no periodic TPDO — node liveness comes from the CANopen heartbeat.
 // Config values persist in NVS (gpioCollRef / gpioCollThr / gpioCollSens).
+//
+// T4.4 4h: C-ified — the former C++ `namespace GpioCanSlave` is now the flat
+// `gpio_can_slave_*` C API below (extern "C" so C++ TUs keep compiling).
 
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 #include "cJSON.h"
 
-namespace GpioCanSlave
-{
-    void setup();
-    void loop();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    // Collision-detector configuration (persisted to NVS on change)
-    uint8_t  getMode();                  // 0 = AUTO (adaptive), 1 = MANUAL
-    void     setMode(uint8_t mode);
-    uint16_t getReference();
-    void     setReference(uint16_t value);
-    uint16_t getThreshold();
-    void     setThreshold(uint16_t value);
-    uint8_t  getSensitivity();
-    void     setSensitivity(uint8_t value);
-    // reference := current rolling mean; returns the new reference (MANUAL)
-    uint16_t calibrate();
+void gpio_can_slave_setup(void);
+void gpio_can_slave_loop(void);
 
-    // JSON entry-points, dispatched by DeviceRouter on the slave itself:
-    //   {"task":"/gpio_act", "threshold":150, "sensitivity":4,
-    //    "reference":585, "calibrate":1, "qid":N}   (all fields optional)
-    //   {"task":"/gpio_get"}
-    cJSON*  act(cJSON* doc);
-    cJSON*  get(cJSON* doc);
-}
+// Collision-detector configuration (persisted to NVS on change)
+uint8_t  gpio_can_slave_get_mode(void);              // 0 = AUTO (adaptive), 1 = MANUAL
+void     gpio_can_slave_set_mode(uint8_t mode);
+uint16_t gpio_can_slave_get_reference(void);
+void     gpio_can_slave_set_reference(uint16_t value);
+uint16_t gpio_can_slave_get_threshold(void);
+void     gpio_can_slave_set_threshold(uint16_t value);
+uint8_t  gpio_can_slave_get_sensitivity(void);
+void     gpio_can_slave_set_sensitivity(uint8_t value);
+// reference := current rolling mean; returns the new reference (MANUAL)
+uint16_t gpio_can_slave_calibrate(void);
+
+// JSON entry-points, dispatched by DeviceRouter on the slave itself:
+//   {"task":"/gpio_act", "threshold":150, "sensitivity":4,
+//    "reference":585, "calibrate":1, "qid":N}   (all fields optional)
+//   {"task":"/gpio_get"}
+cJSON*  gpio_can_slave_act(cJSON* doc);
+cJSON*  gpio_can_slave_get(cJSON* doc);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

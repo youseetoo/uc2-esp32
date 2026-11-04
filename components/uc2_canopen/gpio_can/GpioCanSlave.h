@@ -30,7 +30,7 @@
 //
 // The trip EVENT is pushed immediately via TPDO2 (COB-ID 0x280 + nodeId);
 // there is no periodic TPDO — node liveness comes from the CANopen heartbeat.
-// Config values persist in NVS (gpioCollRef / gpioCollThr / gpioCollSens).
+// Config values persist in NVS (ns "uc2", keys gpioCR / gpioCT / gpioCS / gpioCMx).
 //
 // T4.4 4h: C-ified — the former C++ `namespace GpioCanSlave` is now the flat
 // `gpio_can_slave_*` C API below (extern "C" so C++ TUs keep compiling).

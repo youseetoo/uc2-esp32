@@ -58,10 +58,9 @@ static bool dr_gpio_read_u8(uint8_t node, uint16_t idx, uint8_t sub, uint8_t *ou
 }
 #endif
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
-// T4.4 4g: C shims for the GpioCanSlave LOCAL dispatch — defined in
-// serial_dispatch_island.cpp until GpioCanSlave is C-ified (4h).
-cJSON *serial_dispatch_gpio_local_act(cJSON *doc);
-cJSON *serial_dispatch_gpio_local_get(cJSON *doc);
+// T4.4 4h: GpioCanSlave is C — the gpio handlers below call its C API
+// directly (the former C++ shim in serial_dispatch_island.cpp was dropped).
+#include "GpioCanSlave.h"
 #endif
 #ifdef AXIS_CONTROLLER
 #include "AxisController.h"
@@ -1721,7 +1720,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
     // GPIO slave: apply locally.
     log_i("DR gpio_act LOCAL  doc=%p", doc);
-    return serial_dispatch_gpio_local_act(doc);
+    return gpio_can_slave_act(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
     if (!runtime_config_is_master(&runtimeConfig)) return NULL;
     uint8_t node = resolveGpioNode(doc);
@@ -1795,7 +1794,7 @@ cJSON *device_router_handle_gpio_act(cJSON *doc) {
 
 cJSON *device_router_handle_gpio_get(cJSON *doc) {
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
-    return serial_dispatch_gpio_local_get(doc);
+    return gpio_can_slave_get(doc);
 #elif defined(CAN_CONTROLLER_CANOPEN)
     if (!runtime_config_is_master(&runtimeConfig)) return NULL;
     uint8_t node = resolveGpioNode(doc);

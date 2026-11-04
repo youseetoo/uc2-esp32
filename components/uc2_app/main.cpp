@@ -331,7 +331,7 @@ extern "C" void looper(void *p)
 		canopenModule.loop();
 #endif
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
-		GpioCanSlave::loop();
+		gpio_can_slave_loop();
 		vTaskDelay(1);
 #endif
 
@@ -530,7 +530,7 @@ extern "C" void setupApp(void)
 	// Must run BEFORE canopenModule.setup() — it patches the TPDO2 COB-ID
 	// in OD_PERSIST_COMM so the CANopen stack picks the enabled value when
 	// it builds its TPDO descriptors.
-	GpioCanSlave::setup();
+	gpio_can_slave_setup();
 #endif
 #ifdef PTZ_KEYBOARD_CONTROLLER
 	// Same TPDO2 COB-ID contract as GpioCanSlave: must run BEFORE

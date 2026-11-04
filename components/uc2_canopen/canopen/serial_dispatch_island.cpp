@@ -6,19 +6,13 @@
 // bridges. Compiles to an empty object on apps without any of the three
 // bridges (same pattern as canopen_tpdo_galvo.cpp).
 //
-// Drop the whole file once GpioCanSlave (4h) and the ptz trio (4i) are
-// C-ified and the C handlers call the bridges' C APIs directly.
+// Drop the whole file once the ptz trio (4i) is C-ified and the C handlers
+// call the bridges' C APIs directly. (GpioCanSlave was C-ified in 4h; the
+// C handlers now call its gpio_can_slave_* API directly.)
 #include <cJSON.h>
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifdef GPIO_CAN_SLAVE_CONTROLLER
-#include "GpioCanSlave.h"
-// LOCAL /gpio_act + /gpio_get dispatch (serial_dispatch.c gpio handlers).
-cJSON *serial_dispatch_gpio_local_act(cJSON *doc) { return GpioCanSlave::act(doc); }
-cJSON *serial_dispatch_gpio_local_get(cJSON *doc) { return GpioCanSlave::get(doc); }
 #endif
 
 #ifdef PTZ_KEYBOARD_CONTROLLER

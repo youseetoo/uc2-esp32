@@ -34,7 +34,9 @@ if(CONFIG_UC2_CAN_CONTROLLER_CANOPEN)
         "canopen/canopen_ota.c")
 endif()
 if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER)
-    list(APPEND srcs "gpio_can/GpioCanSlave.cpp")
+    # T4.4 4h: GpioCanSlave C-ified (was GpioCanSlave.cpp; faithful C port,
+    # flat gpio_can_slave_* API in GpioCanSlave.h).
+    list(APPEND srcs "gpio_can/GpioCanSlave.c")
 endif()
 if(CONFIG_UC2_PTZ_KEYBOARD_CONTROLLER)
     list(APPEND srcs

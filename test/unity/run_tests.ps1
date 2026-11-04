@@ -191,6 +191,9 @@ $cSrcs = @(
     "components\uc2_canopen\ptz\PelcoParser.c",
     "components\uc2_canopen\ptz\PtzKeyboard.c",
     "components\uc2_canopen\ptz\PtzRouter.c",
+    # T4.4 step 4j: joystick bridge C-ified (DS4-over-USB → CANopen router;
+    # hardware-specific, no host unit tests — included for build verification).
+    "components\uc2_joystick\JoystickRouter.c",
     "components\uc2_motor\motor\FocusMotor.c",
     "components\uc2_motor\motor\StageScan.c",
     "components\uc2_core\qid\QidRegistry.c",

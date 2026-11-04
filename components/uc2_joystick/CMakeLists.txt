@@ -5,10 +5,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs "")
 if(CONFIG_UC2_JOYSTICK_USBHOST_PROVIDER)
     list(APPEND srcs
-        # T4.1: pure C (joystick_usbhost_* API); the router stays a C++ island
-        # around the C++ CANopenModule::writeSDO_* calls.
+        # T4.1: pure C (joystick_usbhost_* API).
+        # T4.4 step 4j: router now pure C (was JoystickRouter.cpp C++ island
+        # around CANopenModule::writeSDO_* calls; now calls the C API directly).
         "joystick_usbhost.c"
-        "JoystickRouter.cpp")
+        "JoystickRouter.c")
 endif()
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}

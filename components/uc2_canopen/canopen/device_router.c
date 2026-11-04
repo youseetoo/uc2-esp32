@@ -3,7 +3,7 @@
 // via strcmp chains; the per-command handlers themselves live in
 // serial_dispatch.c (C since T4.4 4g, declared in DeviceRouter.h). The
 // PTZ keyboard bridge is now C (T4.4 4i, PtzKeyboard.h). The joystick
-// bridge remains a C++ island shim (device_router_joystick_*).
+// bridge is now C (T4.4 4j, JoystickRouter.h).
 // Active on ALL builds. REMOTE dispatch requires CAN_CONTROLLER_CANOPEN.
 #include <PinConfig.h>
 #include "DeviceRouter.h"
@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include <string.h>
 #include "../ptz/PtzKeyboard.h"
+#include "../../uc2_joystick/JoystickRouter.h"
 
 #define TAG "UC2_DR"
 
@@ -92,9 +93,9 @@ cJSON *device_router_route_command(const char* task, cJSON* doc)
 #ifdef JOYSTICK_USBHOST_PROVIDER
     // DS4 joystick bridge — speed-scaling config, local only (USB serial on the node)
     if (strcmp(task, joystick_act_endpoint) == 0)
-        return device_router_joystick_act(doc);
+        return joystick_router_act(doc);
     if (strcmp(task, joystick_get_endpoint) == 0)
-        return device_router_joystick_get(doc);
+        return joystick_router_get(doc);
 #endif
 
     // State act — handles "restart" with optional remote nodeId targeting.

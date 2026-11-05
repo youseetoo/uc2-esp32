@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -26,20 +28,25 @@ typedef enum {
 } dac_channel_t;
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // IDF 6.x removed dac_write_byte / dac_output_enable (and the 1-arg forms); the
-// legacy dacWrite() is shimmed onto the oneshot channel API (see DAC_Module.cpp).
+// legacy dacWrite() is shimmed onto the oneshot channel API (see dac_module.c).
 // DAC_CHANNEL_1/2 come from the dac_channel_t enum above.
 void dacWrite(int channel, int value);
 
-class DAC_Module {
-    public:
-        void Stop(dac_channel_t channel);
-        void Setup(dac_channel_t channel, int clk_div, int frequency, int scale, int phase, int invert);
-        void dac_offset_set(dac_channel_t channel, int offset);
-    private:
-        void dac_cosine_enable(dac_channel_t channel, int invert);
-        void dac_cosine_disable(dac_channel_t channel);
-        void dac_frequency_set(int clk_8m_div, int frequency_step);
-        void dac_scale_set(dac_channel_t channel, int scale);
-        void dac_invert_set(dac_channel_t channel, int invert);
-};
+// T5.1: C-ified flat API (replaces the DAC_Module C++ class)
+void dac_module_stop(dac_channel_t channel);
+void dac_module_setup(dac_channel_t channel, int clk_div, int frequency, int scale, int phase, int invert);
+void dac_offset_set(dac_channel_t channel, int offset);
+void dac_cosine_enable(dac_channel_t channel, int invert);
+void dac_cosine_disable(dac_channel_t channel);
+void dac_frequency_set(int clk_8m_div, int frequency_step);
+void dac_scale_set(dac_channel_t channel, int scale);
+void dac_invert_set(dac_channel_t channel, int invert);
+
+#ifdef __cplusplus
+}
+#endif

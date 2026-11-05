@@ -14,8 +14,10 @@
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 set(srcs "")
 if(CONFIG_UC2_DIAL_CONTROLLER)
-    # T4.7: DialController C-ified (was C++ namespace)
-    list(APPEND srcs "dial/DialController.c")
+    # T4.7: DialController C-ified — C++ implementation with extern "C" flat API.
+    # The M5 stack includes (M5Unified.hpp / M5Dial.h) live in the .cpp file so
+    # consumers only see the C API via DialController.h.
+    list(APPEND srcs "dial/DialController.cpp")
 else()
     list(APPEND srcs "stub.c")
 endif()

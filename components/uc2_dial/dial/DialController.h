@@ -83,6 +83,10 @@ extern const int ILLUM_INCREMENTS[];
 #define COLOR_INACTIVE 0x7BEF
 
 // API functions (C flat API)
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int dial_act(cJSON *jsonDocument);
 cJSON *dial_get(cJSON *jsonDocument);
 void dial_setup(void);
@@ -110,3 +114,7 @@ int dial_get_current_illum_channel(void);
 int dial_get_current_increment(void);
 int dial_get_illumination_value(void);
 bool dial_is_illumination_on(void);
+
+#ifdef __cplusplus
+}
+#endif

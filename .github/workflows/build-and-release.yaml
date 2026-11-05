@@ -4,10 +4,9 @@ name: Build and Release All Firmware
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]
     tags: [ "v*" ]
   pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       git-ref:
@@ -259,6 +258,28 @@ jobs:
           prerelease: ${{ contains(steps.release_info.outputs.tag, 'beta') || contains(steps.release_info.outputs.tag, 'alpha') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  canopen-check:
+    name: CANopen registry drift check
+    runs-on: ubuntu-latest
+    needs: [idf-build]
+    if: |
+      (needs.idf-build.result == 'success' || needs.idf-build.result == 'failure') &&
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Run CANopen registry drift check
+        run: make canopen-check
 
   publish-binaries-repo:
     needs: create-release

@@ -3,6 +3,7 @@ name: CANopen Registry Drift Check
 # Ensures that the generated files (EDS, OD.h, UC2_OD_Indices.h, …) are
 # always in sync with tools/canopen/uc2_canopen_registry.yaml.
 # If someone edits the registry without re-running the generator this job fails.
+# Runs on push to any branch + PRs (port/idf-c cutover: T6.5).
 
 on:
   push:
@@ -10,17 +11,19 @@ on:
       - 'tools/canopen/**'
       - 'DOCUMENTATION/openUC2_satellite.eds'
       - 'DOCUMENTATION/UC2_CANopen_Parameters.md'
-      - 'main/src/canopen/UC2_OD_Indices.h'
+      - 'components/uc2_od/UC2_OD_Indices.h'
+      - 'components/uc2_od/OD.h'
+      - 'components/uc2_od/OD.c'
       - 'PYTHON/uc2_canopen/uc2_indices.py'
-      - 'lib/uc2_od/**'
   pull_request:
     paths:
       - 'tools/canopen/**'
       - 'DOCUMENTATION/openUC2_satellite.eds'
       - 'DOCUMENTATION/UC2_CANopen_Parameters.md'
-      - 'main/src/canopen/UC2_OD_Indices.h'
+      - 'components/uc2_od/UC2_OD_Indices.h'
+      - 'components/uc2_od/OD.h'
+      - 'components/uc2_od/OD.c'
       - 'PYTHON/uc2_canopen/uc2_indices.py'
-      - 'lib/uc2_od/**'
   workflow_dispatch:
 
 jobs:

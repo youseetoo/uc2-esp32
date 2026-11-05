@@ -1,10 +1,12 @@
 # UC2-ESP32: Port to C + ESP-IDF — Plan (v2, verified against repo 2026-07-24)
 
-> **SUPERSEDED (2026-10):** the active plan is
-> [`PORT_PLAN_STEPS/PORT_PLAN_STEPS.md`](PORT_PLAN_STEPS/PORT_PLAN_STEPS.md) —
-> pure ESP-IDF 6.1, **no shim layer** (this doc's `uc2_hal` shim approach was dropped in
-> favor of converting `main/` to direct IDF calls, T1.3) and PIO retired (T6.3–T6.6).
-
+> **COMPLETED 2026-10-16**: All 20 boards ported to ESP-IDF 6.1. The active execution plan is
+> [`PORT_PLAN_STEPS/PORT_PLAN_STEPS.md`](PORT_PLAN_STEPS/PORT_PLAN_STEPS.md). This document
+> remains as the original design reference. Key outcomes:
+> - All 20 boards build with ESP-IDF 6.1 (no PlatformIO dependency)
+> - First-party code converted to C (except designated C++ leaves: fastaccelstepper, tmc_stepper, accelstepper, onewire_ds18b20, neopixel, pscontroller, m5unified/m5dial/m5gfx)
+> - PlatformIO build system retired for CI (T6.3); `platformio.ini` moved to `legacy/` (T6.4)
+> - See `DOCS/cpp-leaves.md` for the frozen C++ leaf inventory
 Goal: move the firmware off PlatformIO + Arduino (Arduino-ESP32 2.0.15/2.0.17, i.e. ESP-IDF 4.4.2)
 onto **native ESP-IDF**, and convert the first-party code from **C++ to C**.
 

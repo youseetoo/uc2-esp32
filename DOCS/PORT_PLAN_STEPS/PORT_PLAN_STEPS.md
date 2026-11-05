@@ -22,7 +22,7 @@ executor agent.
    acceptance criteria, effort, rollback, and decision gates — enough to execute without
    reading anything else. Read a `refs/` file only when the step says to.
 2. **Sequencing**: work top-to-bottom in §2. A task may start only when (a) all its `←`
-   dependencies are done, and (b) every `(D#)` gate is resolved (§3).
+- [x] T6.6 — Final C++-leaf sweep and repo hygiene
 3. **Resume across sessions**: checkboxes exist in the index AND each step file. When a
    step's acceptance criteria pass, flip both, and commit the docs together with the code.
 4. **Branch model**: all work on `port/idf-c` (branched from `main_espidf`, which holds the

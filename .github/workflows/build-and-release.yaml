@@ -26,6 +26,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ── Wave 1 boards cut over to IDF (T6.1) — removed from PIO matrix ──
+          # seeed_xiao_esp32s3, seeed_xiao_esp32s3_ledservo, seeed_xiao_esp32s3_ledring,
+          # UC2_canopen_slave_motor_release, UC2_canopen_slave_accelmotor_release,
+          # UC2_canopen_slave_galvo_release, UC2_canopen_slave_laser_release,
+          # UC2_canopen_slave_led_release, UC2_canopen_slave_gpio_release,
+          # UC2_canopen_bridge_ps4_usbhost_release, UC2_canopen_bridge_ptz_release,
+          # waveshare_esp32s3_ledarray — all now built via idf-build job only.
+          #
+          # ── Wave 2 boards (BT, classic ESP32) — still on PIO until T6.2 ──
           - env_name: UC2_2
             display_name: "UC2 Standalone V2"
             board_id: "esp32-uc2-standalone-2"
@@ -42,64 +51,14 @@ jobs:
             display_name: "UC2 WEMOS D1 R32"
             board_id: "esp32-uc2-wemos"
             chip_family: "ESP32"
-
-          - env_name: seeed_xiao_esp32s3
-            display_name: "Xiao ESP32S3 ODMR"
-            board_id: "seeed_xiao_esp32s3"
-            chip_family: "ESP32-S3"
-          - env_name: seeed_xiao_esp32s3_ledservo
-            display_name: "Xiao LED & Servo"
-            board_id: "seeed_xiao_esp32s3_ledservo"
-            chip_family: "ESP32-S3"
-          - env_name: seeed_xiao_esp32s3_ledring
-            display_name: "Xiao LED Ring"
-            board_id: "seeed_xiao_esp32s3_ledring"
-            chip_family: "ESP32-S3"
-
-          - env_name: UC2_canopen_slave_motor_release
-            display_name: "UC2 CAN Slave Motor"
-            board_id: "uc2-can-slave-motor"
-            chip_family: "ESP32-S3"
-          - env_name: UC2_canopen_slave_accelmotor_release
-            display_name: "UC2 CAN Slave AccelMotor"
-            board_id: "uc2-can-slave-accelmotor"
-            chip_family: "ESP32-S3"
-          - env_name: UC2_canopen_slave_galvo_release
-            display_name: "UC2 CAN Slave Galvo"
-            board_id: "uc2-can-slave-galvo"
-            chip_family: "ESP32-S3"
-          - env_name: UC2_canopen_slave_laser_release
-            display_name: "UC2 CAN Slave Laser"
-            board_id: "uc2-can-slave-laser"
-            chip_family: "ESP32-S3"
-          - env_name: UC2_canopen_slave_led_release
-            display_name: "UC2 CAN Slave LED"
-            board_id: "uc2-can-slave-led"
-            chip_family: "ESP32-S3"
-          - env_name: UC2_canopen_slave_gpio_release
-            display_name: "UC2 CAN Slave GPIO"
-            board_id: "uc2-can-slave-gpio"
-            chip_family: "ESP32-S3"
-          - env_name: UC2_canopen_bridge_ps4_usbhost_release
-            display_name: "UC2 CAN Bridge PS4 USB"
-            board_id: "uc2-can-bridge-ps4-usbhost"
-            chip_family: "ESP32-S3"
-
           - env_name: UC2_canopen_master_release
             display_name: "UC2 CAN Master"
             board_id: "uc2-can-master"
             chip_family: "ESP32"
-
           - env_name: UC2_canopen_standalone_v4_release
             display_name: "UC2 CAN Standalone V4"
             board_id: "uc2-can-standalone-v4"
             chip_family: "ESP32"
-
-          - env_name: waveshare_esp32s3_ledarray
-            display_name: "Waveshare ESP32S3 Matrix"
-            board_id: "waveshare_esp32s3_ledarray"
-            chip_family: "ESP32-S3"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -345,24 +304,55 @@ jobs:
           retention-days: 30
 
   create-release:
-    needs: build-all-firmware
+    needs: [build-all-firmware, idf-build]
     runs-on: ubuntu-latest
     # Run on tag pushes even when some matrix builds failed (partial failure is acceptable).
     # 'cancelled' / 'skipped' are excluded so we don't publish an empty release.
     if: |
-      (needs.build-all-firmware.result == 'success' || needs.build-all-firmware.result == 'failure') &&
+      ((needs.build-all-firmware.result == 'success' || needs.build-all-firmware.result == 'failure') &&
+       (needs.idf-build.result == 'success' || needs.idf-build.result == 'failure')) &&
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 
     steps:
-      - name: Download all firmware artifacts
+      - name: Download PIO firmware artifacts (wave 2)
         uses: actions/download-artifact@v4
         with:
-          path: firmware
+          path: firmware-pio
           pattern: firmware-*
           merge-multiple: true
+
+      - name: Download IDF firmware artifacts (wave 1)
+        uses: actions/download-artifact@v4
+        with:
+          path: firmware-idf
+          pattern: idf-firmware-*
+          merge-multiple: true
+
+      - name: Merge artifact directories
+        run: |
+          mkdir -p firmware
+          # Wave 2 boards (PIO artifacts)
+          if [ -d firmware-pio ]; then
+            cp -r firmware-pio/* firmware/ 2>/dev/null || true
+          fi
+          # Wave 1 boards (IDF artifacts) — rename to drop -idf suffix
+          if [ -d firmware-idf ]; then
+            for f in firmware-idf/*; do
+              basename=$(basename "$f")
+              # Rename board_id-idf.bin to board_id.bin
+              newname="${basename%-idf.bin}.bin"
+              newname="${newname%-idf-manifest.json}-manifest.json"
+              if [ "$basename" != "$newname" ]; then
+                cp "$f" "firmware/$newname"
+              else
+                cp "$f" "firmware/$basename"
+              fi
+            done
+          fi
+          ls -lh firmware/
 
       - name: Get release info
         id: release_info

@@ -11,12 +11,12 @@ namespace i2c_slave_dial
     {
         // We will receive the array of 4 positions and one intensity from the master and have to update the dial display
 
-        if (numBytes == sizeof(DialController::mDialData))
+        if (numBytes == sizeof(dial_data))
         {
             // log_i("Received DialData from I2C");
 
-            // Read the data into the mDialData struct
-            Wire.readBytes((uint8_t *)&DialController::mDialData, sizeof(DialController::mDialData));
+            // Read the data into the dial_data struct
+            Wire.readBytes((uint8_t *)&dial_data, sizeof(dial_data));
 
             /*
             // Now you can access the motor positions/intensity and update the dial display
@@ -27,7 +27,7 @@ namespace i2c_slave_dial
             int intensity = DialController::mDialData.intensity;
             */
             // Perform your specific actions here, such as updating the dial display.
-            DialController::setDialValues(DialController::mDialData);
+            dial_set_values(dial_data);
         }
         else
         {
@@ -62,7 +62,7 @@ namespace i2c_slave_dial
 
             // @KillerInk is there a smarter way to do this?
             // make a copy of the current dial data
-            dialDataMotor = DialController::getDialValues();
+            dialDataMotor = dial_get_values();
             Wire.write((uint8_t *)&dialDataMotor, sizeof(DialData));
             // WARNING!! The log_i causes confusion in the I2C communication, but the values are correct
             // log_i("DialData sent to I2C master: %i, %i, %i, %i", dialDataMotor.pos_abs[0], dialDataMotor.pos_abs[1], dialDataMotor.pos_abs[2], dialDataMotor.pos_abs[3]);

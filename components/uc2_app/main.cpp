@@ -240,7 +240,7 @@ extern "C" void looper(void *p)
 #endif
 #ifdef DIAL_CONTROLLER
 		if (runtimeConfig.dial) {
-			DialController::loop();
+			dial_loop();
 			vTaskDelay(1);
 		}
 #endif
@@ -543,7 +543,7 @@ extern "C" void setupApp(void)
 #ifdef DIAL_CONTROLLER
 	if (runtimeConfig.dial) {
 		// Dial controller needs CAN bus to be ready when in CAN master mode //TODO: This has to move over to canopen too
-		DialController::setup();
+		dial_setup();
 	}
 #endif
 	// fan_setup() runs later, AFTER tmp102_setup()

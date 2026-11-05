@@ -369,7 +369,7 @@ static BtButtonState btSquareState = {false, 0, false};    // also drives the bu
 
 // Trampoline for the pure-C laser dpad handler (LaserController.c):
 // BtController passes Dpad::Direction, the C API takes the raw int value.
-static void laser_dpad_tramp(Dpad::Direction pressed)
+static void laser_dpad_tramp(DpadDirection pressed)
 {
     laser_dpad_changed_event((int)pressed);
 }
@@ -574,31 +574,31 @@ extern "C" void setupApp(void)
 #ifdef BLUETOOTH
 	if (runtimeConfig.bluetooth) {
 		log_i("BtController setup");
-		BtController::setup();
+		bt_setup();
 		
 		// Register combined button handlers that support both short and long press
 		// Triangle: short = hard limit release
-		BtController::setTriangleChangedEvent(handleTriangleCombined);
+		bt_setTriangleChangedEvent(handleTriangleCombined);
 
 		// Cross: short = laser toggle
-		BtController::setCrossChangedEvent(handleCrossCombined);
+		bt_setCrossChangedEvent(handleCrossCombined);
 
 		// Circle: short = LED toggle
-		BtController::setCircleChangedEvent(handleCircleCombined);
+		bt_setCircleChangedEvent(handleCircleCombined);
 
 		// Square: short = normal, 3s = reboot, 5s = toggle CAN-bus power
-		BtController::setSquareChangedEvent(handleSquareCombined);
+		bt_setSquareChangedEvent(handleSquareCombined);
 		
 		#ifdef LASER_CONTROLLER
 		if (runtimeConfig.laser) {
-			BtController::setDpadChangedEvent(laser_dpad_tramp);
+			bt_setDpadChangedEvent(laser_dpad_tramp);
 		}
 		#endif
 		#ifdef MOTOR_CONTROLLER
 		if (runtimeConfig.motor) {
-			BtController::setXYZAChangedEvent(motor_gamepad_xyza_changed_event);
-			BtController::setAnalogControllerChangedEvent(motor_gamepad_singlestep_event);
-			BtController::setOptionsChangedEvent(motor_gamepad_options_changed_event);
+			bt_setXYZAChangedEvent(motor_gamepad_xyza_changed_event);
+			bt_setAnalogControllerChangedEvent(motor_gamepad_singlestep_event);
+			bt_setOptionsChangedEvent(motor_gamepad_options_changed_event);
 		}
 		#endif
 	}

@@ -122,7 +122,8 @@ $prodSrcs  = @(
     # C-linkage signal_strip_* shims (create/begin/set_brightness/clear/show/
     # gamma8/color/set_pixel) called by the C TU SignalController.c.
     "components\uc2_led\signal\signal_neopixel_c.cpp",
-    "components\uc2_bt\BtController.cpp",
+    # T4.5: BtController C-ified (BtController.c). PSX path stays C++ (BtController_psx.cpp).
+    "components\uc2_bt\BtController.c",
     # T4.1: C-facing Adafruit strip shim. LedController.c (included by
     # test_led_controller.cpp) calls led_strip_*, whose definitions live here
     # (compiles the NeoPixel branch against test/unity/stubs/Adafruit_NeoPixel.h).

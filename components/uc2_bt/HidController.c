@@ -1,12 +1,26 @@
-#include <PinConfig.h>
+// T4.5: C implementation of the HID controller layer.
+// Faithful port of HidController.cpp to C.
+
 #include "HidController.h"
-#include "esp_task_wdt.h"
-// include logging
 #include "esp_log.h"
+#include "esp_task_wdt.h"
 #include "esp_bt.h"
-#if defined(PSXCONTROLLER) && defined(BTHID)
-#error "PSXCONTROLLER und BTHID dürfen nicht gleichzeitig definiert werden!"
-#endif
+#include "esp_system.h"
+#include "nvs_flash.h"
+#include "esp_hidh.h"
+#include "esp_hid_gap.h"
+#include "PinConfig.h"
+#include "uc2_hal.h"
+
+#include <string.h>
+#include <stdio.h>
+
+static const char *TAG = "HIDGamePad";
+
+// T3.3: btStarted() was an Arduino helper; the full BT-controller + Bluedroid
+// init now happens in esp_hid_gap_init() below.
+GamePadData gamePadData;
+bool hidIsConnected = false;
 
 // When the firmware only wires up a BT-classic gamepad (PS4 etc.) we
 // force BT-classic-only at runtime even if the Arduino libs were
@@ -18,13 +32,10 @@
 #define UC2_EFFECTIVE_HID_MODE HID_HOST_MODE
 #endif
 
-GamePadData gamePadData;
-bool hidIsConnected = false;
+#define SCAN_DURATION_SECONDS 3  // Reduced to 1 second to prevent watchdog timeout
 
-void setupHidController()
+void setupHidController(void)
 {
-    // T3.3: btStarted() was an Arduino helper; the full BT-controller + Bluedroid
-    // init now happens in esp_hid_gap_init() below.
     ESP_LOGI(TAG, "setup");
     esp_err_t ret;
 
@@ -80,8 +91,6 @@ void setupHidController()
     log_i("setupHidController() complete");
 }
 
-int slowInputLog = 0;
-
 void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *event_data)
 {
     esp_hidh_event_t event = (esp_hidh_event_t)id;
@@ -93,13 +102,13 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
                 ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->open.dev));
                 esp_hidh_dev_dump(param->open.dev, stdout);
                 // print heap
-                ESP_LOGI(TAG, "  heap: %d", ESP.getFreeHeap());
+                ESP_LOGI(TAG, "  heap: %d", esp_get_free_heap_size());
                 hidIsConnected = true;
             } else {
                 ESP_LOGE(TAG, " OPEN failed!");
                 ESP_LOGE(TAG, "  status: %d", param->open.status);
                 // print the heap memory
-                ESP_LOGE(TAG, "  heap: %d", ESP.getFreeHeap());
+                ESP_LOGE(TAG, "  heap: %d", esp_get_free_heap_size());
             }
             break;
         case ESP_HIDH_BATTERY_EVENT: {
@@ -123,32 +132,32 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
             const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
             ESP_LOGI(TAG, ESP_BD_ADDR_STR " CLOSE: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->close.dev));
             // TODO: We need to stop all motors 
-            
             break;
-            }
+        }
         default: {
             ESP_LOGI(TAG, "EVENT: %d", event);
             break;
-            }
+        }
     }
     // Previously: esp_log_level_set("*", ESP_LOG_NONE)
     // That silenced every subsequent log_i across the firmware, which made
     // a perfectly running boot look hung on the serial monitor. Drop it.
 }
 
-void handleHidInputEvent(esp_hidh_event_data_t *param)
+void handleHidInputEvent(void *param)
 {
-    //ESP_LOGI(TAG,"packet size:%d", param->input.length);
-    if (param->input.length == 15) {
-        //log_i("HID input event (updateGamePadDataHyperX): %d", param->input.length);
-        const HyperXClutchData *d = (HyperXClutchData*)param->input.data;
+    esp_hidh_event_data_t *p = (esp_hidh_event_data_t *)param;
+    //ESP_LOGI(TAG,"packet size:%d", p->input.length);
+    if (p->input.length == 15) {
+        //log_i("HID input event (updateGamePadDataHyperX): %d", p->input.length);
+        const HyperXClutchData *d = (HyperXClutchData*)p->input.data;
         updateGamePadDataHyperX(d);
-    } else if (param->input.length == 9) {
-        //log_i("HID input event (updateGamePadDataDS4): %d", param->input.length);
-        const DS4Data *d = (DS4Data*)param->input.data;
+    } else if (p->input.length == 9) {
+        //log_i("HID input event (updateGamePadDataDS4): %d", p->input.length);
+        const DS4Data *d = (DS4Data*)p->input.data;
         updateGamePadDataDS4(d);
     } else {
-        ESP_LOGI(TAG,"unknown size:%d", param->input.length);
+        ESP_LOGI(TAG,"unknown size:%d", p->input.length);
     }
 }
 
@@ -170,7 +179,7 @@ void updateGamePadDataHyperX(const HyperXClutchData *d)
     gamePadData.RightX = d->RightX - 32768;
     gamePadData.RightY = d->RightY - 32768;
 
-    gamePadData.dpaddirection = static_cast<Dpad::Direction>(d->Dpad);
+    gamePadData.dpaddirection = (DpadDirection)d->Dpad;
 }
 
 void updateGamePadDataDS4(const DS4Data *d)
@@ -194,19 +203,19 @@ void updateGamePadDataDS4(const DS4Data *d)
     //log_i("dpad:%d",d->Buttons.dpad);
     switch (d->Buttons.dpad) {
         case 8:
-            gamePadData.dpaddirection = Dpad::Direction::none;
+            gamePadData.dpaddirection = DIRECTION_NONE;
             break;
         case 0:
-            gamePadData.dpaddirection = Dpad::Direction::up;
+            gamePadData.dpaddirection = DIRECTION_UP;
             break;
         case 2:
-            gamePadData.dpaddirection = Dpad::Direction::right;
+            gamePadData.dpaddirection = DIRECTION_RIGHT;
             break;
         case 4:
-            gamePadData.dpaddirection = Dpad::Direction::down;
+            gamePadData.dpaddirection = DIRECTION_DOWN;
             break;
         case 6:
-            gamePadData.dpaddirection = Dpad::Direction::left;
+            gamePadData.dpaddirection = DIRECTION_LEFT;
             break;
     }
 }
@@ -215,14 +224,14 @@ void hid_demo_task(void *pvParameters)
 {
     log_i("BT scan task started");
     // pvParameters is used to indicate if this was called as a task (non-null) or directly (null)
-    bool calledAsTask = (pvParameters != nullptr);
+    bool calledAsTask = (pvParameters != NULL);
     
     size_t results_len = 0;
     esp_hid_scan_result_t *results = NULL;
     
     // Check available heap memory before scanning
     size_t free_heap = esp_get_free_heap_size();
-    log_i( "Free heap before BT scan: %d bytes", free_heap);
+    log_i("Free heap before BT scan: %d bytes", free_heap);
     
     if (free_heap < 4000) {
         log_e("Insufficient heap memory for BT scan: %d bytes (minimum 40000)", free_heap);
@@ -232,14 +241,14 @@ void hid_demo_task(void *pvParameters)
         return;
     }
     
-    log_i( "SCAN...");
+    log_i("SCAN...");
     
     // Try alternative approach: multiple short scans instead of one long scan
     int max_attempts = 10;
     bool scan_successful = false;
     
     for (int attempt = 1; attempt <= max_attempts && !scan_successful; attempt++) {
-        log_i( "BT scan attempt %d/%d (%d second scan)...", attempt, max_attempts, SCAN_DURATION_SECONDS);
+        log_i("BT scan attempt %d/%d (%d second scan)...", attempt, max_attempts, SCAN_DURATION_SECONDS);
         
         // Remove from watchdog before each scan attempt
         esp_task_wdt_delete(NULL);
@@ -251,7 +260,7 @@ void hid_demo_task(void *pvParameters)
             log_i("BT scan successful on attempt %d", attempt);
             scan_successful = true;
         } else {
-            log_e( "BT scan attempt %d failed: %s", attempt, esp_err_to_name(scan_result));
+            log_e("BT scan attempt %d failed: %s", attempt, esp_err_to_name(scan_result));
             // Short delay between attempts
             vTaskDelay(pdMS_TO_TICKS(500));
         }

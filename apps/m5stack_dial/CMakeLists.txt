@@ -27,8 +27,12 @@ set(_uc2_proj_comps
     uc2_app uc2_core uc2_serial uc2_bt uc2_io uc2_periph uc2_motor uc2_canopen
     uc2_led uc2_dial uc2_hal uc2_od tca9555 pscontroller neopixel
     esp_usb_host_hid dac_module onewire_ds18b20 tmcstepper
-    m5dial m5unified m5gfx esp32_encoder)
-set(_uc2_group_libs "")
+    m5dial m5unified m5gfx esp32_encoder
+    # T4.1: the app's own component LAST — pinconfig.c defines the global
+    # pinConfig that every C-converted module references; those references
+    # only materialize while the second-pass libs above are scanned, so
+    # libmain.a must be re-scanned after them or pinConfig stays undefined.
+    main)
 foreach(_uc2_c ${_uc2_proj_comps})
     if(TARGET __idf_${_uc2_c})
         # Skip feature-off components registered with no sources (e.g. neopixel
@@ -44,3 +48,8 @@ endforeach()
 if(_uc2_group_libs)
     target_link_libraries(__idf_main PRIVATE "LINKER:--start-group" ${_uc2_group_libs} "LINKER:--end-group")
 endif()
+
+# T4.1: pinconfig.c (main) intentionally re-initializes fields already set by
+# PINCONFIG_DEFAULTS_FIELDS (board overrides after the defaults); GCC 15
+# (gnu23 + -Wextra + -Werror) promotes -Woverride-init to an error.
+target_compile_options(__idf_main PRIVATE -Wno-override-init)

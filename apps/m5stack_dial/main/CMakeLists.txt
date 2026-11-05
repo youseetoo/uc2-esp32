@@ -2,10 +2,13 @@
 # live in the shared components; this is a thin shim. The M5 display stack
 # (m5unified/m5dial/m5gfx) is REQUIRED here so the dial's M5GFX/M5Unified symbols
 # are linked for this app.
-idf_component_register(SRCS "main.c" INCLUDE_DIRS "."
+idf_component_register(SRCS "main.c" "pinconfig.c" INCLUDE_DIRS "."
     REQUIRES m5unified m5dial m5gfx esp32_encoder
              uc2_app uc2_core uc2_serial uc2_io uc2_periph uc2_motor uc2_canopen
              uc2_dial uc2_hal cjson dac_module driver esp_driver_ledc
              esp_driver_tsens nvs_flash app_update)
 # PinConfig.h: main/ holds the converted (uc2_hal.h) PinConfig.
 target_include_directories(${COMPONENT_LIB} PRIVATE ${CMAKE_SOURCE_DIR}/../main)
+# GCC 15 + gnu23 promotes -Woverride-init to an error when using
+# PINCONFIG_DEFAULTS_FIELDS (which sets all fields, then we override some).
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-override-init)

@@ -552,14 +552,12 @@ namespace DialController
         }
         
         // Handle encoder rotation. The PCNT counter never drops edges even
-        // while this loop is busy redrawing or blocked in an SDO write; we
-        // consume whole detents and leave the remainder in lastEncoderPos.
-        long newEncoderPos = (long)encoder.getCount();
-        long detents = (newEncoderPos - lastEncoderPos) / ENCODER_COUNTS_PER_DETENT;
-        if (detents != 0)
-        {
-            lastEncoderPos += detents * ENCODER_COUNTS_PER_DETENT;
-            handleEncoderChange(detents);
+        // when the loop is busy.
+        long newEncoderPos = (long)esp32encoder_get_count(&encoder);
+        if (newEncoderPos != lastEncoderPos) {
+            long delta = newEncoderPos - lastEncoderPos;
+            lastEncoderPos = newEncoderPos;
+            handleEncoderChange(delta);
         }
         
         // Handle touch screen input
@@ -625,10 +623,10 @@ namespace DialController
         cfg.external_rtc = false;  // Disable external RTC I2C
         M5Dial.begin(cfg, /*enableEncoder*/false, /*enableRFID*/false);
 
-        ESP32Encoder::useInternalWeakPullResistors = puType::up;
-        encoder.attachFullQuad(ENCODER_PIN_A, ENCODER_PIN_B);
-        encoder.setFilter(1023);   // max PCNT glitch filter (~12.8 us @ 80 MHz)
-        encoder.clearCount();
+        // ESP32Encoder C API — raw-IDF port using handle-based PCNT API.
+        // No internal weak pull-up option in C version (PCNT hardware provides this).
+        esp32encoder_attach(&encoder, ENCODER_PIN_A, ENCODER_PIN_B, ENCODER_FULL);
+        esp32encoder_clear_count(&encoder);
         
         // Configure display
         M5Dial.Display.setTextColor(COLOR_TEXT);
@@ -637,7 +635,7 @@ namespace DialController
         M5Dial.Display.setTextSize(1);
         
         // Initialize encoder position
-        lastEncoderPos = (long)encoder.getCount();
+        lastEncoderPos = (long)esp32encoder_get_count(&encoder);
         
         // Show startup screen
         M5Dial.Display.fillScreen(COLOR_BG);
@@ -660,7 +658,6 @@ namespace DialController
     }
 
 } // namespace DialController
-
 // T4.7: C-compatible flat API wrappers
 extern "C" {
 

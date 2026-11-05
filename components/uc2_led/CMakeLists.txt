@@ -1,12 +1,15 @@
-# T2.1: uc2_led — WS2812 (Adafruit NeoPixel via RMT) + SignalController, gated on UC2_LED_CONTROLLER.
-# REQUIRES neopixel (T5.3, pulled forward) for the Adafruit_NeoPixel.h class API.
+# T2.1: uc2_led — WS2812 (pure C RMT driver via ws2812_rmt.c), DotStar (Adafruit),
+# HUB75 (Adafruit Protomatter), and SignalController. Gated on UC2_LED_CONTROLLER.
+# T5.3: NeoPixel dependency replaced with ws2812_rmt C driver for the WS2812 path.
+# DotStar and HUB75 still use Adafruit C++ libs (deferred to T5.x).
 include(${CMAKE_CURRENT_LIST_DIR}/../uc2_modinc.cmake)
 if(CONFIG_UC2_LED_CONTROLLER)
   list(APPEND UC2_MODULE_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/led
     ${CMAKE_CURRENT_LIST_DIR}/signal)
-  # T4.1: LedController is now pure C (LedController.c); the Adafruit_NeoPixel/
-  # DotStar/Protomatter/Ws2812Rmt leaf drivers live in led_strip_c.cpp (C++ shim).
+  # T4.1: LedController is now pure C (LedController.c); the Adafruit/
+  # ws2812_rmt leaf drivers live in led_strip_c.cpp (C++ shim).
+  # REQUIRES: neopixel is still needed for DotStar/HUB75 (deferred to T5.x).
   idf_component_register(
     SRCS "led/LedController.c" "led/led_strip_c.cpp" "led/ws2812_rmt.c" "signal/SignalController.c" "signal/signal_neopixel_c.cpp"
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS} ${CMAKE_CURRENT_LIST_DIR}/../neopixel

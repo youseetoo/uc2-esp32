@@ -1,12 +1,12 @@
-// T4.1: C++ implementation of the signal_neopixel_c.h shim — forwards the
-// C calls from the pure-C SignalController.c to the C++ Adafruit_NeoPixel
-// class (same pattern as uc2_motor/motor/focusmotor_qid_c.c for FocusMotor).
+// signal_neopixel_c.cpp — C++ shim for the signal LED strip (SignalController).
+// Uses Adafruit_NeoPixel for the WS2812 status pixel (FRAME indicator).
+// Note: This is separate from the main LED strip (led_strip_c.cpp) which
+// now uses the pure C ws2812_rmt driver (T5.3).
 #include "signal_neopixel_c.h"
 #include "Adafruit_NeoPixel.h"
 
 extern "C" void *signal_strip_create(uint16_t numPixels, int pin)
 {
-    // Only configuration used by SignalController (FRAME status pixel).
     Adafruit_NeoPixel *strip = new Adafruit_NeoPixel(numPixels, pin, NEO_GRB + NEO_KHZ800);
     return static_cast<void *>(strip);
 }

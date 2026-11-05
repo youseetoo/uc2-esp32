@@ -20,138 +20,11 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  build-all-firmware:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # ── Wave 1 boards cut over to IDF (T6.1) — removed from PIO matrix ──
-          # seeed_xiao_esp32s3, seeed_xiao_esp32s3_ledservo, seeed_xiao_esp32s3_ledring,
-          # UC2_canopen_slave_motor_release, UC2_canopen_slave_accelmotor_release,
-          # UC2_canopen_slave_galvo_release, UC2_canopen_slave_laser_release,
-          # UC2_canopen_slave_led_release, UC2_canopen_slave_gpio_release,
-          # UC2_canopen_bridge_ps4_usbhost_release, UC2_canopen_bridge_ptz_release,
-          # waveshare_esp32s3_ledarray — all now built via idf-build job only.
-          #
-          # ── Wave 2 boards (BT, classic ESP32) cut over to IDF (T6.2) — removed from PIO matrix ──
-          # UC2_2, UC2_3, UC2_4, UC2_WEMOS, UC2_canopen_master_release, UC2_canopen_standalone_v4_release
-          # — all now built via idf-build job only.
-          #
-          # All 20 boards have been cut over to IDF. The build-all-firmware (PIO) job
-          # is now empty — it remains as a placeholder for dev builds only.
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.git-ref || github.ref }}
-          submodules: recursive
-
-      - name: Cache PlatformIO
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.platformio/.cache
-            ~/.platformio/packages
-          key: ${{ runner.os }}-pio-${{ matrix.env_name }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: |
-            ${{ runner.os }}-pio-${{ matrix.env_name }}-
-            ${{ runner.os }}-pio-
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install PlatformIO and tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install platformio esptool
-
-      - name: Build firmware
-        id: build
-        run: |
-          # set -e
-          echo "==> Building ${{ matrix.env_name }}"
-
-          if ! pio run --environment "${{ matrix.env_name }}"; then
-            echo "::warning::Build failed or environment not found for ${{ matrix.env_name }}"
-            echo "build_failed=true" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-
-
-          BIN_DIR=".pio/build/${{ matrix.env_name }}"
-          mkdir -p build/fw-images
-
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-          else
-            VERSION="dev-$(git rev-parse --short HEAD)"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-          CHIP="${{ matrix.chip_family }}"
-          BOARD_ID="${{ matrix.board_id }}"
-
-          if [[ "$CHIP" == "ESP32-S3" ]]; then
-            CHIP_ARG="esp32s3"
-            BOOT_ADDR="0x0"
-          else
-            CHIP_ARG="esp32"
-            BOOT_ADDR="0x1000"
-          fi
-
-          if [[ -f "$BIN_DIR/bootloader.bin" && -f "$BIN_DIR/partitions.bin" && -f "$BIN_DIR/firmware.bin" ]]; then
-            echo "==> Merging binaries for ${{ matrix.env_name }}"
-            BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -1)
-
-            python -m esptool \
-              --chip "$CHIP_ARG" \
-              merge_bin \
-              -o "build/fw-images/${BOARD_ID}.bin" \
-              --flash_mode dio \
-              --flash_freq 40m \
-              --flash_size 4MB \
-              $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
-              0x8000 "$BIN_DIR/partitions.bin" \
-              0xe000 "$BOOT_APP0" \
-              0x10000 "$BIN_DIR/firmware.bin"
-          else
-            cp "$BIN_DIR/firmware.bin" "build/fw-images/${BOARD_ID}.bin"
-          fi
-
-          cat > "build/fw-images/${BOARD_ID}-manifest.json" << EOF
-          {
-            "name": "${{ matrix.display_name }}",
-            "version": "$VERSION",
-            "home_assistant_domain": "UC2-ESP32",
-            "funding_url": "https://github.com/${{ env.GITHUB_REPO }}",
-            "builds": [
-              {
-                "chipFamily": "$CHIP",
-                "parts": [{ "path": "${BOARD_ID}.bin", "offset": 0 }]
-              }
-            ]
-          }
-          EOF
-
-      - name: Upload firmware artifact
-        if: steps.build.outputs.build_failed != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: firmware-${{ matrix.board_id }}
-          path: build/fw-images/
-          retention-days: 30
-
   # ─────────────────────────────────────────────────────────────────────────────
-  # T2.12: pure-ESP-IDF build matrix (D6 dual-build phase). Builds every verified
-  # app via idf.py (NO PlatformIO), merges bootloader+partitions+app into one
-  # flashable image (idf.py merge-bin — flash params baked from the app's own
-  # sdkconfig, matching build-frame's "freshly compiled bootloader" rule), and
-  # uploads <board_id>-idf.bin. INDEPENDENT of the PIO build-all-firmware job and
-  # the release jobs (which stay on PIO artifacts until the T6.1 cutover).
+  # T2.12: pure-ESP-IDF build matrix (D6). Builds every verified app via idf.py
+  # (NO PlatformIO), merges bootloader+partitions+app into one flashable image
+  # (idf.py merge-bin — flash params baked from the app's own sdkconfig, matching
+  # build-frame's "freshly compiled bootloader" rule), and uploads <board_id>.bin.
   # fail-fast:false so one red board never masks the rest.
   #
   # IDF is provisioned by espressif/setup-espressif pinned to the D1 version (6.1).
@@ -274,65 +147,38 @@ jobs:
         run: |
           mkdir -p build/fw-images
           cp "apps/${{ matrix.app }}/build/${{ matrix.app }}-merged.bin" \
-             "build/fw-images/${{ matrix.board_id }}-idf.bin"
+             "build/fw-images/${{ matrix.board_id }}.bin"
           ls -lh build/fw-images/
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idf-firmware-${{ matrix.board_id }}
+          name: firmware-${{ matrix.board_id }}
           path: build/fw-images/
           retention-days: 30
 
   create-release:
-    needs: [build-all-firmware, idf-build]
+    needs: [idf-build]
     runs-on: ubuntu-latest
     # Run on tag pushes even when some matrix builds failed (partial failure is acceptable).
     # 'cancelled' / 'skipped' are excluded so we don't publish an empty release.
     if: |
-      ((needs.build-all-firmware.result == 'success' || needs.build-all-firmware.result == 'failure') &&
-       (needs.idf-build.result == 'success' || needs.idf-build.result == 'failure')) &&
+      (needs.idf-build.result == 'success' || needs.idf-build.result == 'failure') &&
       github.event_name == 'push' &&
       startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 
     steps:
-      - name: Download PIO firmware artifacts (wave 2)
+      - name: Download firmware artifacts
         uses: actions/download-artifact@v4
         with:
-          path: firmware-pio
+          path: firmware
           pattern: firmware-*
           merge-multiple: true
 
-      - name: Download IDF firmware artifacts (wave 1)
-        uses: actions/download-artifact@v4
-        with:
-          path: firmware-idf
-          pattern: idf-firmware-*
-          merge-multiple: true
-
-      - name: Merge artifact directories
+      - name: List downloaded artifacts
         run: |
-          mkdir -p firmware
-          # Wave 2 boards (PIO artifacts)
-          if [ -d firmware-pio ]; then
-            cp -r firmware-pio/* firmware/ 2>/dev/null || true
-          fi
-          # Wave 1 boards (IDF artifacts) — rename to drop -idf suffix
-          if [ -d firmware-idf ]; then
-            for f in firmware-idf/*; do
-              basename=$(basename "$f")
-              # Rename board_id-idf.bin to board_id.bin
-              newname="${basename%-idf.bin}.bin"
-              newname="${newname%-idf-manifest.json}-manifest.json"
-              if [ "$basename" != "$newname" ]; then
-                cp "$f" "firmware/$newname"
-              else
-                cp "$f" "firmware/$basename"
-              fi
-            done
-          fi
           ls -lh firmware/
 
       - name: Get release info
@@ -472,7 +318,7 @@ jobs:
             "cdn_base": "CDN_PLACEHOLDER",
             "firmware": [
           INDEXEOF
-            
+          
             first=true
             for manifest in *-manifest.json; do
               [ -f "$manifest" ] || continue
@@ -493,9 +339,9 @@ jobs:
               }
           EOF
             done
-            
+          
             echo "]}" >> firmware-index.json
-            
+          
             # Replace placeholders
             sed -i "s|TAG_PLACEHOLDER|$TAG|g" firmware-index.json
             sed -i "s|DATE_PLACEHOLDER|$(date -u +%Y-%m-%dT%H:%M:%SZ)|g" firmware-index.json

@@ -12,58 +12,47 @@
 const struct PinConfig pinConfig = {
     PINCONFIG_DEFAULTS_FIELDS
     /* ── board overrides (after the defaults — later designators win) ── */
-    .pindefName = "seeed_xiao_esp32s3_can_slave_motor",
-    .BAUDRATE = 115200,
+    .pindefName = "UC2_canopen_slave_motor",
+    .BAUDRATE = 921600,
+    .serialTimeout = 100,
 
-    /* Motor driver */
-    .MOTOR_X_STEP = 0,   // D9 -> GPIO8
-    .MOTOR_X_DIR = 0,    // D8 -> GPIO7
-    .MOTOR_ENABLE = 0,   // D10 -> GPIO9
+    /* Motor step/dir/enable (X axis on-board) */
+    .MOTOR_X_STEP = GPIO_NUM_8,
+    .MOTOR_X_DIR  = GPIO_NUM_7,
+    .MOTOR_ENABLE = GPIO_NUM_9,
     .MOTOR_ENABLE_INVERTED = true,
-    .MOTOR_AUTOENABLE = false,
     .AccelStepperMotorType = 1,
 
-    /* I2C — as slave */
-    .I2C_ADD_SLAVE = I2C_ADD_MOT_X,  // I2C address of the ESP32 if it's a slave
-    .I2C_SCL = GPIO_NUM_NC,
-    .I2C_SDA = GPIO_NUM_NC,
+    /* TMC2209 UART (X axis driver) */
+    .tmc_SW_RX = GPIO_NUM_44,
+    .tmc_SW_TX = GPIO_NUM_43,
+    .tmc_pin_diag = GPIO_NUM_4,
+    .tmc_rms_current = 1050,
 
-    /* I2C — as controller (unused on this board) */
-    .I2C_SCL_ext = GPIO_NUM_NC,
-    .I2C_SDA_ext = GPIO_NUM_NC,
+    /* CAN (slave node — single X axis, CAN_ID_MOT_X = 11) */
+    .CAN_TX = GPIO_NUM_3,
+    .CAN_RX = GPIO_NUM_2,
+    .CAN_ID_CURRENT = 11, /* CAN_ID_MOT_X */
 
-    /* TMC UART (unused on this board) */
-    .tmc_SW_RX = GPIO_NUM_NC,
-    .tmc_SW_TX = GPIO_NUM_NC,
-    .tmc_pin_diag = GPIO_NUM_NC,
+    /* I2C — this board is the I2C slave (linear encoder) on the laser's bus */
+    .I2C_CONTROLLER_TYPE = I2C_CONTROLLER_LINEAR_ENCODER,
+    .I2C_ADD_SLAVE = 0x40, /* == I2C_ADD_MOT_X default */
 
-    /* TMC driver settings */
-    .tmc_microsteps = 16,
-    .tmc_rms_current = 850,
-    .tmc_stall_value = 100,
-    .tmc_sgthrs = 100,
-    .tmc_semin = 5,
-    .tmc_semax = 2,
-    .tmc_sedn = 1,
-    .tmc_tcoolthrs = 0xFFFFF,
-    .tmc_blank_time = 24,
-    .tmc_toff = 4,
+    /* Routing: 0=LOCAL, 1=REMOTE, 2=OFF (-1=infer)
+       A=OFF, X=LOCAL, Y=OFF, Z=OFF (only X is on-board) */
+    .ROUTE_MOTOR = {2, 0, 2, 2},
+    .ROUTE_HOME  = {2, 0, 2, 2},
+    .ROUTE_TMC   = {2, 0, 2, 2},
+    .ROUTE_LASER = {2, 2, 2, 2},
+    .ROUTE_LED   = 2,
+    .ROUTE_GALVO = 2,
 
-    /* CAN */
-    .CAN_TX = GPIO_NUM_20,
-    .CAN_RX = GPIO_NUM_19,
-    .CAN_ID_CURRENT = CAN_ID_MOT_X,
-
-    /* Endstops */
+    /* Endstop (X axis hard limit, active-low via polarity) */
     .DIGITAL_IN_1 = GPIO_NUM_1,
+    .hardLimitEnabledX = true,
+    .hardLimitPolarityX = true,
 
-    /* Objective positions */
-    .objectivePositionX0 = 10000,
-    .objectivePositionX1 = 80000,
-
-    /* OTA settings */
-    .OTA_TIME_FROM_STARTUP = 30000,  // 30 seconds
-
-    /* Debug */
-    .dumpHeap = true,
+    /* Linear encoder (AS5311 interface, X axis) */
+    .ENC_X_A = GPIO_NUM_5,
+    .ENC_X_B = GPIO_NUM_6,
 };

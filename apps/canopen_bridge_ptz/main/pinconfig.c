@@ -46,6 +46,4 @@ const struct PinConfig pinConfig = {
     .MOTOR_ENABLE = GPIO_NUM_NC,
     .I2C_SCL      = GPIO_NUM_NC,
     .I2C_SDA      = GPIO_NUM_NC,
-    .I2C_SCL_ext  = GPIO_NUM_NC,
-    .I2C_SDA_ext  = GPIO_NUM_NC,
 };

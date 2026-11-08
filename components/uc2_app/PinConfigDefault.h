@@ -204,6 +204,11 @@ struct PinConfig
     // ── CAN ──
     int8_t        CAN_TX, CAN_RX;
     uint8_t       CAN_ID_CENTRAL_NODE;
+
+    // ── PTZ keyboard bridge (canopen_bridge_ptz app) ──
+    int16_t       PTZ_SPEED_MULTIPLIER_XY;
+    int16_t       PTZ_SPEED_MULTIPLIER_Z;
+    int16_t       PTZ_SPEED_MULTIPLIER_A;
     uint8_t       CAN_ID_MOT_A, CAN_ID_MOT_X, CAN_ID_MOT_Y, CAN_ID_MOT_Z;
     uint8_t       CAN_ID_MOT_B, CAN_ID_MOT_C, CAN_ID_MOT_D, CAN_ID_MOT_E, CAN_ID_MOT_F, CAN_ID_MOT_G;
     uint8_t       CAN_ID_LASER_0, CAN_ID_LASER_1, CAN_ID_LASER_2, CAN_ID_LASER_3, CAN_ID_LASER_4;

@@ -45,6 +45,10 @@
     /* CAN / debug */ \
     .DEBUG_CAN_ISO_TP = false, \
     .CAN_ID_CURRENT = (uint32_t)disabled, \
+    /* PTZ keyboard bridge (canopen_bridge_ptz app) */ \
+    .PTZ_SPEED_MULTIPLIER_XY = 50, \
+    .PTZ_SPEED_MULTIPLIER_Z = 10, \
+    .PTZ_SPEED_MULTIPLIER_A = 5, \
     .AccelStepperMotorType = 8, \
     /* Motor step/dir pins (all disabled) */ \
     .MOTOR_X_DIR = disabled, .MOTOR_X_STEP = disabled, \

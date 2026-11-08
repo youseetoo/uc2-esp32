@@ -535,7 +535,7 @@ extern "C" void setupApp(void)
 #ifdef PTZ_KEYBOARD_CONTROLLER
 	// Same TPDO2 COB-ID contract as GpioCanSlave: must run BEFORE
 	// canopenModule.setup(). Also installs the RS-485 UART receiver.
-	PtzKeyboard::setup();
+	ptz_keyboard_setup();
 #endif
 #ifdef CAN_CONTROLLER_CANOPEN
 	canopenModule.setup();
@@ -714,9 +714,9 @@ JoystickRouter::begin();
 #endif
 #ifdef PTZ_KEYBOARD_CONTROLLER
 // RS-485 PTZ keyboard → CANopen bridge. The UART receiver is already up
-// (PtzKeyboard::setup ran before canopenModule.setup); the router needs
+// (ptz_keyboard_setup ran before canopenModule.setup); the router needs
 // the routing table, so it starts here.
-PtzRouter::begin();
+ptz_router_begin();
 #endif
 
 //#ifdef BUZZER_CONTROLLER //TODO: We have to add this to the cmakelist.txt

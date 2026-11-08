@@ -22,10 +22,8 @@
 #include "MotorTypes.h"
 
 #ifdef CAN_CONTROLLER_CANOPEN
-extern "C" {
 #include <CANopen.h>
 #include "OD.h"
-}
 #endif
 
 static const char* TAG = "ptz_router";

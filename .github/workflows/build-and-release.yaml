@@ -131,9 +131,10 @@ jobs:
           submodules: recursive
 
       - name: Set up ESP-IDF (D1 = 6.1)
-        uses: espressif/esp-idf-setup@v1
+        uses: espressif/esp-idf-action-setup@v1
         with:
           idf-version: v6.1
+
       - name: Build + merge (idf.py)
         working-directory: apps/${{ matrix.app }}
         run: |

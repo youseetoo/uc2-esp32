@@ -134,12 +134,13 @@ jobs:
         uses: espressif/esp-idf-setup-action@v1
         with:
           idf-version: v6.1
+
+      - name: Build + merge (idf.py)
         working-directory: apps/${{ matrix.app }}
         run: |
           echo "==> idf.py build + merge-bin for ${{ matrix.app }} (target ${{ matrix.target }})"
           idf.py build merge-bin
           ls -lh build/${{ matrix.app }}-merged.bin
-
       - name: Stage merged image
         run: |
           mkdir -p build/fw-images

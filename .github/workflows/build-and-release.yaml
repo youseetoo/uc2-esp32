@@ -130,14 +130,13 @@ jobs:
           ref: ${{ github.event.inputs.git-ref || github.ref }}
           submodules: recursive
 
-      - name: Set up ESP-IDF (D1 = 6.1)
-        uses: espressif/esp-idf-build-action@v1
+      - name: Build + merge (idf.py)
+        uses: espressif/esp-idf-ci-action@v1
         with:
-          idf-version: v6.1
+          esp_idf_version: v6.1
           target: ${{ matrix.target }}
-          project-dir: apps/${{ matrix.app }}
-      - name: Stage merged image
-        run: |
+          command: idf.py build merge-bin
+          path: apps/${{ matrix.app }}
           mkdir -p build/fw-images
           cp "apps/${{ matrix.app }}/build/${{ matrix.app }}-merged.bin" \
              "build/fw-images/${{ matrix.board_id }}.bin"

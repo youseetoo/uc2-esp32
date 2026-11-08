@@ -1,5 +1,5 @@
 # T2.2: waveshare_ledarray app component — main.c entry (app_main -> uc2_app_start()).
-idf_component_register(SRCS "main.c" INCLUDE_DIRS "."
+idf_component_register(SRCS "main.c" "pinconfig.c" INCLUDE_DIRS "."
     REQUIRES uc2_app uc2_core uc2_serial uc2_canopen uc2_io uc2_periph uc2_led
              uc2_hal canopen_node uc2_od cjson dac_module
              esp_usb_host_hid driver esp_driver_ledc
@@ -25,3 +25,4 @@ target_link_libraries(__idf_main PRIVATE
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_core/libuc2_core.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_hal/libuc2_hal.a"
     "LINKER:--end-group")
+

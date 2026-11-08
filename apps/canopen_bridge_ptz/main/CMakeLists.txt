@@ -3,6 +3,7 @@
 # compiled by uc2_app (T1.4) and gated by the same #ifdefs as the PIO build.
 # The PTZ keyboard/router sources are compiled by uc2_canopen (ptz/), gated by
 # CONFIG_UC2_PTZ_KEYBOARD_CONTROLLER (see components/uc2_canopen/CMakeLists.txt).
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "main.c" "pinconfig.c"
     INCLUDE_DIRS "."
     REQUIRES uc2_app)
+

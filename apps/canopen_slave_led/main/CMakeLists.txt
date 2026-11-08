@@ -1,7 +1,7 @@
 # T2.4: canopen_slave_led app entry point.
 # main.c is a thin shim: the real logic lives in components/uc2_app/main.cpp,
 # compiled by uc2_app (T1.4) and gated by the same #ifdefs as the PIO build.
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "main.c" "pinconfig.c"
     INCLUDE_DIRS "."
     REQUIRES uc2_app uc2_led uc2_periph neopixel)
 # Link-group fix (T2.10 pattern, see xiao_odmr/main/CMakeLists.txt): for this app's
@@ -33,3 +33,4 @@ target_link_libraries(__idf_main PRIVATE
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_driver_pcnt/libesp_driver_pcnt.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_hal_pcnt/libesp_hal_pcnt.a"
     "LINKER:--end-group")
+

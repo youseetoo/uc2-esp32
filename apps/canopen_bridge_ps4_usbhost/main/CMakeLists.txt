@@ -3,7 +3,7 @@
 # compiled by uc2_app (T1.4) and gated by the same #ifdefs as the PIO build.
 # The DS4 USB-host/router sources are compiled by uc2_joystick, gated by
 # CONFIG_UC2_JOYSTICK_USBHOST_PROVIDER (see components/uc2_joystick/CMakeLists.txt).
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "main.c" "pinconfig.c"
     INCLUDE_DIRS "."
     REQUIRES uc2_app uc2_joystick)
 # Link group to resolve the uc2_app <-> uc2_joystick <-> uc2_canopen cycle
@@ -23,3 +23,4 @@ target_link_libraries(__idf_main PRIVATE
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/usb_host/libusb_host.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_usb_host_hid/libesp_usb_host_hid.a"
     "LINKER:--end-group")
+

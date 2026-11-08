@@ -4,6 +4,7 @@
 // and overrides only the fields this board wires up. Former C++ derived struct
 // `UC2_canopen_bridge_ptz : PinConfig` (lived in PinConfig.h).
 #include "pinconfig_defaults.h"
+#include "driver/gpio.h"
 
 const struct PinConfig pinConfig = {
     PINCONFIG_DEFAULTS_FIELDS

@@ -74,5 +74,5 @@ const struct PinConfig pinConfig = {
     /* CAN */
     .CAN_RX = GPIO_NUM_33,
     .CAN_TX = GPIO_NUM_32,
-    .CAN_ID_CURRENT = CAN_ID_CENTRAL_NODE,
+    .CAN_ID_CURRENT = 1, /* CAN_ID_CENTRAL_NODE */
 };

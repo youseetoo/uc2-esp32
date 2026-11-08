@@ -1,5 +1,5 @@
 # T2.9: xiao_odmr app component — main.c entry (app_main -> uc2_app_start()).
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "main.c" "pinconfig.c"
     INCLUDE_DIRS "."
     REQUIRES uc2_app uc2_core uc2_serial uc2_canopen uc2_io uc2_periph uc2_led uc2_motor
              uc2_hal canopen_node uc2_od cjson dac_module

@@ -2,6 +2,7 @@
 // Overrides only fields that differ from the shared safe defaults (PINCONFIG_DEFAULTS_FIELDS).
 // Original PIO PinConfig.h converted from C++ derived struct to C field overrides.
 
+#include <driver/gpio.h>
 #include "pinconfig_defaults.h"
 
 const struct PinConfig pinConfig = {

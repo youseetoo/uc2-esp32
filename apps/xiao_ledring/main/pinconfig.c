@@ -3,6 +3,7 @@
 // Starts from PINCONFIG_DEFAULTS_FIELDS (all pins disabled / safe defaults)
 // and overrides only the fields this board wires up. Former C++ derived struct
 // `UC2_3_Xiao_Slave_Laser : PinConfig` (lived in PinConfig.h).
+#include <driver/gpio.h>
 #include "pinconfig_defaults.h"
 
 const struct PinConfig pinConfig = {
@@ -24,7 +25,7 @@ const struct PinConfig pinConfig = {
     /* CAN communication */
     .CAN_TX = GPIO_NUM_4,   // D3 (CAN-SEND)
     .CAN_RX = GPIO_NUM_9,   // D10 (CAN-RECV)
-    .CAN_ID_CURRENT = CAN_ID_LASER_0,  // Broadcasting address for laser PWM control
+    .CAN_ID_CURRENT = 20,  // CAN_ID_LASER_0 — broadcasting address for laser PWM control
 
     /* I2C — disabled in this setup */
     .I2C_SCL = GPIO_NUM_NC,

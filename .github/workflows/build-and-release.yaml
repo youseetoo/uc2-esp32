@@ -137,11 +137,13 @@ jobs:
           target: ${{ matrix.target }}
           command: idf.py build merge-bin
           path: apps/${{ matrix.app }}
+
+      - name: Stage merged image
+        run: |
           mkdir -p build/fw-images
           cp "apps/${{ matrix.app }}/build/${{ matrix.app }}-merged.bin" \
              "build/fw-images/${{ matrix.board_id }}.bin"
           ls -lh build/fw-images/
-
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:

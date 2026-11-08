@@ -10,3 +10,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -DMOTOR_CONTROLLE
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(xiao_odmr)
+
+
+# T4.1: pinconfig.c re-initializes PINCONFIG_DEFAULTS_FIELDS overrides;
+# GCC 15 (gnu23 + -Wextra + -Werror) promotes -Woverride-init to an error.
+target_compile_options(__idf_main PRIVATE -Wno-override-init)

@@ -36,3 +36,8 @@ endforeach()
 if(_uc2_group_libs)
     target_link_libraries(__idf_main PRIVATE "LINKER:--start-group" ${_uc2_group_libs} "LINKER:--end-group")
 endif()
+
+
+# T4.1: pinconfig.c re-initializes PINCONFIG_DEFAULTS_FIELDS overrides;
+# GCC 15 (gnu23 + -Wextra + -Werror) promotes -Woverride-init to an error.
+target_compile_options(__idf_main PRIVATE -Wno-override-init)

@@ -8,3 +8,8 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components"
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(waveshare_ledarray)
+
+
+# T4.1: pinconfig.c re-initializes PINCONFIG_DEFAULTS_FIELDS overrides;
+# GCC 15 (gnu23 + -Wextra + -Werror) promotes -Woverride-init to an error.
+target_compile_options(__idf_main PRIVATE -Wno-override-init)

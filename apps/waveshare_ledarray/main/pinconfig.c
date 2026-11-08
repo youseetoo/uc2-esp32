@@ -1,13 +1,12 @@
 // T6.6: waveshare_ledarray — board pin table, pure C.
 //
-// Starts from PINCONFIG_DEFAULTS_FIELDS (all pins disabled / safe defaults)
-// and overrides only the fields this board wires up. Former C++ derived struct
+// Only the fields this board wires up are set; the rest are zeroed by the
+// compiler (global const object). Former C++ derived struct
 // `UC2_ESP32S3_WAVESHARE_LEDARRAY : PinConfig` (lived in PinConfig.h).
 #include "pinconfig_defaults.h"
 
 const struct PinConfig pinConfig = {
-    PINCONFIG_DEFAULTS_FIELDS
-    /* ── board overrides (after the defaults — later designators win) ── */
+    /* board overrides */
     .pindefName = "UC2_esp32s3_waveshare_ledarray",
     .BAUDRATE = 115200,
 

@@ -17,7 +17,9 @@ const struct PinConfig pinConfig = {
     /* CAN communication */
     .CAN_TX = GPIO_NUM_5,    // D4
     .CAN_RX = GPIO_NUM_44,   // D7
-    .CAN_ID_CURRENT = CAN_ID_GALVO_0,
+    .CAN_ID_CURRENT = 40,  /* CAN_ID_GALVO_0 — struct FIELD in PinConfigDefault,
+                              unusable as a C initializer (T4.3); value from
+                              pinconfig_defaults.h */
 
     /* MCP4822 dual DAC over SPI (channel A = X, channel B = Y)
        uint8_t to match base PinConfigDefault (see hasLocalGalvoPin / 0xFF) */

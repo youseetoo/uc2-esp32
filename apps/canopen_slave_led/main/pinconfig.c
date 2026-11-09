@@ -36,7 +36,8 @@ const struct PinConfig pinConfig = {
     /* CAN bus */
     .CAN_TX = GPIO_NUM_5,          // D4
     .CAN_RX = GPIO_NUM_6,          // D5
-    .CAN_ID_CURRENT = CAN_ID_LED_0, // default 30
+    .CAN_ID_CURRENT = 30,   // = CAN_ID_LED_0, default node-id (struct FIELD in
+                            // PinConfigDefault, unusable as a C initializer, T4.3)
 
     /* Route overrides: make explicit so inferred behaviour cannot accidentally
        turn locally driven peripherals OFF on a CAN_SLAVE node */

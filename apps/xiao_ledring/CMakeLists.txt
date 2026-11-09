@@ -12,6 +12,25 @@ set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(xiao_ledring)
 
+# T4.1: pinConfig is DEFINED in libmain.a (the app's main/pinconfig.c). The
+# uc2_* libs reference it only after they are themselves extracted, so wrap
+# every built project component lib in one --start-group with main LAST: the
+# linker iterates the group to fixpoint and libmain.a is re-scanned after the
+# libs that need pinConfig.
+set(_uc2_proj_comps
+    uc2_app uc2_core uc2_serial uc2_bt uc2_io uc2_periph uc2_motor uc2_canopen
+    uc2_led uc2_dial uc2_hal uc2_od tca9555 pscontroller neopixel
+    esp_usb_host_hid dac_module onewire_ds18b20 tmcstepper
+    main)
+set(_uc2_group_libs "")
+foreach(_uc2_c ${_uc2_proj_comps})
+    if(TARGET __idf_${_uc2_c})
+        list(APPEND _uc2_group_libs "LINKER:${CMAKE_BINARY_DIR}/esp-idf/${_uc2_c}/lib${_uc2_c}.a")
+    endif()
+endforeach()
+if(_uc2_group_libs)
+    target_link_libraries(__idf_main PRIVATE "LINKER:--start-group" ${_uc2_group_libs} "LINKER:--end-group")
+endif()
 
 # T4.1: pinconfig.c re-initializes PINCONFIG_DEFAULTS_FIELDS overrides;
 # GCC 15 (gnu23 + -Wextra + -Werror) promotes -Woverride-init to an error.

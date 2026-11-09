@@ -6,8 +6,6 @@
 #include "PinConfig.h"
 #include "PtzRouter.h"
 
-#ifdef PTZ_KEYBOARD_CONTROLLER
-
 #include "uc2_hal.h"
 #include <stdio.h>
 #include "esp_log.h"
@@ -85,6 +83,7 @@ static void emit_motor_remote(uint8_t nodeId, uint8_t subAxis,
                               bool isAbs, bool isForever, bool isStop)
 {
     if (node_muted(nodeId)) return;
+#ifdef CAN_CONTROLLER_CANOPEN
     const uint8_t sub = subAxis + 1;
     bool ok = true;
     ok &= canopen_sdo_write_i32(nodeId, UC2_OD_MOTOR_TARGET_POSITION, sub, pos, K_SDO_TIMEOUT_MS);
@@ -98,6 +97,10 @@ static void emit_motor_remote(uint8_t nodeId, uint8_t subAxis,
         : (uint8_t)(1u << subAxis);
     ok &= canopen_sdo_write_u8(nodeId, UC2_OD_MOTOR_COMMAND_WORD, 0x00, cmdWord, K_SDO_TIMEOUT_MS);
     note_sdo(nodeId, ok);
+#else
+    (void)nodeId; (void)subAxis; (void)pos; (void)speed; (void)accel;
+    (void)isAbs; (void)isForever; (void)isStop;
+#endif
 }
 
 static void stop_axis(int ax)
@@ -250,5 +253,3 @@ bool ptz_router_begin(void)
     log_i("PTZ → CAN router task created");
     return true;
 }
-
-#endif // PTZ_KEYBOARD_CONTROLLER

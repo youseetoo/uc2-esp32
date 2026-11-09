@@ -3,8 +3,6 @@
 #include "PinConfig.h"
 #include "PtzKeyboard.h"
 
-#ifdef PTZ_KEYBOARD_CONTROLLER
-
 #include "uc2_hal.h"
 #include <stdio.h>
 #include "esp_log.h"
@@ -268,5 +266,3 @@ cJSON* ptz_keyboard_get(cJSON* doc)
     }
     return ret;
 }
-
-#endif // PTZ_KEYBOARD_CONTROLLER

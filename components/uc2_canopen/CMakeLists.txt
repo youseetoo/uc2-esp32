@@ -38,14 +38,13 @@ if(CONFIG_UC2_GPIO_CAN_SLAVE_CONTROLLER)
     # flat gpio_can_slave_* API in GpioCanSlave.h).
     list(APPEND srcs "gpio_can/GpioCanSlave.c")
 endif()
-if(CONFIG_UC2_PTZ_KEYBOARD_CONTROLLER)
-    # T4.4 4i: ptz trio C-ified (was PtzKeyboard.cpp / PtzRouter.cpp /
-    # PelcoParser.cpp; faithful C ports, flat ptz_* / pelco_* API).
-    list(APPEND srcs
-        "ptz/PtzKeyboard.c"
-        "ptz/PtzRouter.c"
-        "ptz/PelcoParser.c")
-endif()
+# T4.4 4i: ptz trio C-ified (was PtzKeyboard.cpp / PtzRouter.cpp /
+# PelcoParser.cpp; faithful C ports, flat ptz_* / pelco_* API).
+# Always compile; guarded by #ifdef CONFIG_UC2_PTZ_KEYBOARD_CONTROLLER in source.
+list(APPEND srcs
+    "ptz/PtzKeyboard.c"
+    "ptz/PtzRouter.c"
+    "ptz/PelcoParser.c")
 idf_component_register(SRCS ${srcs}
     INCLUDE_DIRS ${UC2_MODULE_INCLUDE_DIRS}
     REQUIRES uc2_core uc2_hal cjson nvs_flash driver app_update esp_driver_ledc

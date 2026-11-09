@@ -16,6 +16,7 @@ if(CONFIG_UC2_LED_CONTROLLER)
     REQUIRES uc2_core uc2_hal uc2_serial uc2_canopen uc2_periph cjson neopixel
              driver esp_driver_rmt esp_driver_gpio esp_driver_periph_ctrl
              esp_common hal freertos)
+
 else()
   # UC2_LED_CONTROLLER off (e.g. the CANopen laser app): register a header-only
   # stub so REQUIRES from other components still resolve.

@@ -206,6 +206,11 @@ struct PinConfig
     uint8_t       CAN_ID_CENTRAL_NODE;
 
     // ── PTZ keyboard bridge (canopen_bridge_ptz app) ──
+    int8_t        PTZ_RS485_RX, PTZ_RS485_TX;
+    unsigned long PTZ_BAUDRATE;
+    bool          PTZ_DEBUG_DEFAULT;
+    uint8_t       PTZ_CAMERA_ADDRESS;
+    uint16_t      PTZ_MOTION_TIMEOUT_MS;
     int16_t       PTZ_SPEED_MULTIPLIER_XY;
     int16_t       PTZ_SPEED_MULTIPLIER_Z;
     int16_t       PTZ_SPEED_MULTIPLIER_A;

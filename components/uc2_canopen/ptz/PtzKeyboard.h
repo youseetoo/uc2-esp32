@@ -24,8 +24,6 @@
 #ifndef PTZ_KEYBOARD_H
 #define PTZ_KEYBOARD_H
 
-#ifdef PTZ_KEYBOARD_CONTROLLER
-
 #include <stdint.h>
 #include <stdbool.h>
 #include "cJSON.h"
@@ -64,6 +62,10 @@ typedef struct {
     uint8_t arg;
 } ptz_event_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ptz_keyboard_setup(void);
 bool ptz_keyboard_get_motion(ptz_motion_t* out);
 QueueHandle_t ptz_keyboard_get_event_queue(void);
@@ -71,5 +73,8 @@ uint32_t ptz_keyboard_motion_timeout_ms(void);
 cJSON* ptz_keyboard_act(cJSON* doc);
 cJSON* ptz_keyboard_get(cJSON* doc);
 
-#endif // PTZ_KEYBOARD_CONTROLLER
+#ifdef __cplusplus
+}
+#endif
+
 #endif // PTZ_KEYBOARD_H

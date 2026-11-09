@@ -22,11 +22,16 @@
 #ifndef PTZ_ROUTER_H
 #define PTZ_ROUTER_H
 
-#ifdef PTZ_KEYBOARD_CONTROLLER
-
 #include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 bool ptz_router_begin(void);
 
-#endif // PTZ_KEYBOARD_CONTROLLER
+#ifdef __cplusplus
+}
+#endif
+
 #endif // PTZ_ROUTER_H

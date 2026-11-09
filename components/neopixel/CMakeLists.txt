@@ -5,8 +5,14 @@
 # 6.x doesn't auto-define it the way the Arduino build did) — a CMake
 # target_compile_definitions on the component target is not available here.
 if(CONFIG_UC2_LED_CONTROLLER)
+    # WHOLE_ARCHIVE: the IDF link line repeats the uc2_led component AFTER
+    # neopixel, so uc2_led's Adafruit_NeoPixel references (signal_neopixel_c.cpp)
+    # are only resolved if the Adafruit object is unconditionally defined at the
+    # first neopixel occurrence. esp.c's rmt_* refs are resolved by the
+    # --start-group below (added right after this lib).
     idf_component_register(SRCS "Adafruit_NeoPixel.cpp" "esp.c"
         INCLUDE_DIRS "."
+        WHOLE_ARCHIVE
         REQUIRES esp_driver_rmt esp_hal_rmt esp_hal_dma esp_driver_gpio esp_driver_periph_ctrl
                  esp_common hal freertos uc2_hal esp_hw_support)
     # IDF 6.x: the `driver` component was reorganized into esp_driver_* components.

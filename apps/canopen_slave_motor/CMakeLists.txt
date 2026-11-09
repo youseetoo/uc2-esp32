@@ -11,7 +11,10 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components"
 # MOTOR/HOME/USE_FASTACCEL/TMC/LINEAR_ENCODER/AXIS/USE_PCNT: the motor stack (raw-IDF
 # port in uc2_motor, compiled under the matching CONFIG_UC2_* flags). Applied globally via
 # CXX_FLAGS because IDF component targets reject external target_compile_definitions.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -DMOTOR_CONTROLLER -DHOME_MOTOR -DUSE_FASTACCEL -DTMC_CONTROLLER -DLINEAR_ENCODER_CONTROLLER -DAXIS_CONTROLLER -DUSE_PCNT_COUNTER")
+set(_uc2_feature_flags -DESP32S3_MODEL_XIAO=1 -DMOTOR_CONTROLLER -DHOME_MOTOR -DUSE_FASTACCEL -DTMC_CONTROLLER -DLINEAR_ENCODER_CONTROLLER -DAXIS_CONTROLLER -DUSE_PCNT_COUNTER)
+# T4.4: module sources are now C — the macros must also reach the C compilation.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_uc2_feature_flags}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_uc2_feature_flags}")
 # T2.7: 5-axis variant builds (mirrors the PIO build-frame loop). UC2_CAN_AXIS
 # (X/Y/Z/A) selects the CAN node id consumed by main/pinconfig.c
 # (.CAN_ID_CURRENT = CAN_AXIS_ID). T4.3: numeric values (the PIO-era symbolic

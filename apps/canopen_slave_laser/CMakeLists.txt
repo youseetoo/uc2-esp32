@@ -9,7 +9,10 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components"
 # uc2_core/serial/canopen/periph). Applied globally via CXX_FLAGS because IDF
 # component targets reject external target_compile_definitions ("not built by this
 # project"). All module code is C++, so CXX_FLAGS covers it.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -DI2C_BRIDGE_CONTROLLER -DCAN_CONTROLLER_CANOPEN")
+set(_uc2_feature_flags -DESP32S3_MODEL_XIAO=1 -DI2C_BRIDGE_CONTROLLER -DCAN_CONTROLLER_CANOPEN)
+# T4.4: module sources are now C — the macros must also reach the C compilation.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_uc2_feature_flags}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_uc2_feature_flags}")
 # UC2_APP_MAIN_DIR: app-local main/ holds the canopen_slave_laser PinConfig.h (T2.11 —
 # previously fell through to the root main/PinConfig.h PIO copy target).
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")

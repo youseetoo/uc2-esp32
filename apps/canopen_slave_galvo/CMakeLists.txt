@@ -10,7 +10,10 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components"
 # compiled by uc2_periph under CONFIG_UC2_GALVO_CONTROLLER). Applied globally via
 # CXX_FLAGS because IDF component targets reject external target_compile_definitions
 # ("not built by this project"). All module code is C++.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -DGALVO_CONTROLLER")
+set(_uc2_feature_flags -DESP32S3_MODEL_XIAO=1 -DGALVO_CONTROLLER)
+# T4.4: module sources are now C — the macro must also reach the C compilation.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_uc2_feature_flags}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_uc2_feature_flags}")
 # UC2_APP_MAIN_DIR: app-local main/ holds the canopen_slave_galvo PinConfig.h;
 # uc2_modinc.cmake prepends it so it shadows the shared main/PinConfig.h (laser).
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")

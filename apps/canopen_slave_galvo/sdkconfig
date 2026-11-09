@@ -963,7 +963,7 @@ CONFIG_ESPTOOLPY_MONITOR_BAUD=115200
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../partitions/custom_partition_esp32s3.csv"
 # default:
-CONFIG_PARTITION_TABLE_FILENAME="../../custom_partition_esp32s3.csv"
+CONFIG_PARTITION_TABLE_FILENAME="../../partitions/custom_partition_esp32s3.csv"
 # default:
 CONFIG_PARTITION_TABLE_OFFSET=0x8000
 # default:

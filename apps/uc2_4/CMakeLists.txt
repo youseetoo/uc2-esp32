@@ -7,7 +7,11 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components")
 # across the shared module components (used in .cpp AND .h). Applied globally via
 # CXX_FLAGS because IDF component targets reject external target_compile_definitions
 # ("not built by this project"). All module code is C++, so CXX_FLAGS covers it.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBLUETOOTH -DBTHID -DMOTOR_CONTROLLER -DLASER_CONTROLLER -DLED_CONTROLLER -DDIGITAL_IN_CONTROLLER -DUSE_TCA9535 -DHOME_MOTOR -DMESSAGE_CONTROLLER -DHEAT_CONTROLLER -DDS18B20_CONTROLLER -DUSE_FASTACCEL -DSTAGE_SCAN")
+set(_uc2_feature_flags -DBLUETOOTH -DBTHID -DMOTOR_CONTROLLER -DLASER_CONTROLLER -DLED_CONTROLLER -DDIGITAL_IN_CONTROLLER -DUSE_TCA9535 -DHOME_MOTOR -DMESSAGE_CONTROLLER -DHEAT_CONTROLLER -DDS18B20_CONTROLLER -DUSE_FASTACCEL -DSTAGE_SCAN)
+# T4.4: module sources are now C — the bare feature macros must also reach
+# the C compilation (CXX-only left can-ified sources empty -> undefined at link).
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_uc2_feature_flags}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_uc2_feature_flags}")
 # UC2_APP_MAIN_DIR: app-local main/ holds the uc2_4 PinConfig.h.
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

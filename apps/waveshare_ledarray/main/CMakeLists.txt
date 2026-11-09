@@ -24,5 +24,9 @@ target_link_libraries(__idf_main PRIVATE
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_serial/libuc2_serial.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_core/libuc2_core.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/uc2_hal/libuc2_hal.a"
+    # main LAST: pinConfig is DEFINED in libmain.a (main/pinconfig.c); the
+    # uc2_* libs reference it only once they are extracted, so libmain.a must
+    # be re-scanned after them (T4.1).
+    "LINKER:${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a"
     "LINKER:--end-group")
 

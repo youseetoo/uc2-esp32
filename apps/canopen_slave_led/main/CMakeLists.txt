@@ -32,5 +32,9 @@ target_link_libraries(__idf_main PRIVATE
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/canopen_node/libcanopen_node.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_driver_pcnt/libesp_driver_pcnt.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_hal_pcnt/libesp_hal_pcnt.a"
+    # main LAST: pinConfig is DEFINED in libmain.a (main/pinconfig.c); the
+    # uc2_* libs reference it only once they are extracted, so libmain.a must
+    # be re-scanned after them (T4.1).
+    "LINKER:${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a"
     "LINKER:--end-group")
 

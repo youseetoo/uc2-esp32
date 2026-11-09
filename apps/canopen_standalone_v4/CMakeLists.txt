@@ -33,7 +33,11 @@ project(canopen_standalone_v4)
 set(_uc2_proj_comps
     uc2_app uc2_core uc2_serial uc2_bt uc2_io uc2_periph uc2_motor uc2_canopen
     uc2_led uc2_dial uc2_hal uc2_od tca9555 pscontroller neopixel
-    esp_usb_host_hid dac_module onewire_ds18b20 tmcstepper)
+    esp_usb_host_hid dac_module onewire_ds18b20 tmcstepper
+    # main LAST: pinConfig is DEFINED in libmain.a (main/pinconfig.c); the
+    # uc2_* libs reference it only once they are extracted, so libmain.a must
+    # be re-scanned after them (T4.1).
+    main)
 set(_uc2_group_libs "")
 foreach(_uc2_c ${_uc2_proj_comps})
     if(TARGET __idf_${_uc2_c})

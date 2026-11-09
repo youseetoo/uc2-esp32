@@ -22,5 +22,9 @@ target_link_libraries(__idf_main PRIVATE
     # so they must be in the group too (iterative resolution, order-agnostic).
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/usb_host/libusb_host.a"
     "LINKER:${CMAKE_BINARY_DIR}/esp-idf/esp_usb_host_hid/libesp_usb_host_hid.a"
+    # main LAST: pinConfig is DEFINED in libmain.a (main/pinconfig.c); the
+    # uc2_* libs reference it only once they are extracted, so libmain.a must
+    # be re-scanned after them (T4.1).
+    "LINKER:${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a"
     "LINKER:--end-group")
 

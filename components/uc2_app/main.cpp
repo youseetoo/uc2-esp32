@@ -50,7 +50,7 @@ uc2::Preferences preferences;
 #include "BtController.h"  // T3.3: moved main/src/bt -> components/uc2_bt (via modinc)
 #endif
 #ifdef DAC_CONTROLLER
-#include "src/dac/DacController.h"
+#include "DAC_Module.h"
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
 #include "DigitalInController.h"
@@ -105,6 +105,10 @@ uc2::Preferences preferences;
 #ifdef CAN_CONTROLLER_CANOPEN
 #include "CANopenModule.h"
 CANopenModule canopenModule;
+#ifdef UC2_APP_CANOPEN_BRIDGE_PTZ
+#include "PtzKeyboard.h"
+#include "PtzRouter.h"
+#endif
 #endif
 #ifdef GPIO_CAN_SLAVE_CONTROLLER
 #include "GpioCanSlave.h"
@@ -605,7 +609,7 @@ extern "C" void setupApp(void)
 #endif
 #ifdef DAC_CONTROLLER
 	if (runtimeConfig.dac) {
-		DacController::setup();
+		dac_module_setup(DAC_CHANNEL_1, 10, 100, 127, 0, 0);
 	}
 #endif
 #ifdef DIGITAL_IN_CONTROLLER
@@ -710,7 +714,7 @@ UC2::RoutingTable::logAll();
 // then a 100 Hz consumer that emits expedited SDO writes against the
 // routes we just built. Must run AFTER RoutingTable::buildDefault().
 joystick_usbhost_begin();
-JoystickRouter::begin();
+joystick_router_begin();
 #endif
 #ifdef PTZ_KEYBOARD_CONTROLLER
 // RS-485 PTZ keyboard → CANopen bridge. The UART receiver is already up

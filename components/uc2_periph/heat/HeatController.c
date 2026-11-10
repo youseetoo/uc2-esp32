@@ -14,6 +14,9 @@
 // NVS namespace (was uc2::Preferences hPreferences "heat").
 #define HEAT_NVS_NS "heat"
 
+// Required by the log_* macros (uc2_log.h forwards to ESP_LOG*(TAG, ...)).
+static const char *TAG = "heat";
+
 // ---- Shared state (was namespace statics in the old header) ----
 bool   heat_active          = false;
 bool   heat_was_active      = false;

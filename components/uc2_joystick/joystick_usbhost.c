@@ -23,11 +23,11 @@ static QueueHandle_t s_hidEventQueue = NULL; // raw HID Host events
 static QueueHandle_t s_ds4Queue      = NULL; // decoded Ds4State, length 1, overwrite
 volatile bool s_userShutdown  = false;
 
-struct HidHostEvent {
+typedef struct {
     hid_host_device_handle_t handle;
     hid_host_driver_event_t  event;
     void*                    arg;
-};
+} HidHostEvent;
 
 // T4.1: pure C — the JoystickUsbHost namespace became the
 // joystick_usbhost_* C API; Ds4State is now a plain C struct.
@@ -124,7 +124,11 @@ static void hid_host_interface_cb(hid_host_device_handle_t handle,
     case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "HID Device DISCONNECTED");
         hid_host_device_close(handle);
-        pushDecoded(&zeroState(false));
+        {
+            // C has no temporaries: materialize the zero state first.
+            Ds4State z = zeroState(false);
+            pushDecoded(&z);
+        }
         break;
     case HID_HOST_INTERFACE_EVENT_TRANSFER_ERROR:
         ESP_LOGW(TAG, "HID Device TRANSFER_ERROR");

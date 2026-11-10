@@ -1,11 +1,13 @@
-// TCA9535 I/O expander — C++ island around the vendored RobTillaart TCA9555
-// class (components/tca9555). Exposes the pure-C tca_* API from
-// tca_controller.h (T4.1). All state is file-static here so the TCA9535
-// object is a single initialized instance per binary.
+// TCA9535 I/O expander — thin wrapper over the flat-C tca9555 driver
+// (components/tca9555, C-ified in T5.1). Exposes the pure-C tca_* API from
+// tca_controller.h (T4.1). All state is file-static here so the device is
+// a single initialized instance per binary.
 #include "tca_controller.h"
 #include "PinConfig.h"
 // T3.3: Arduino Wire.h -> uc2_hal (provides the global uc2::Wire_ + uc2 macros).
 #include <uc2_hal.h>
+// T5.1: INPUT/OUTPUT/HIGH/LOW constants for the C-ified tca9555 API.
+#include "uc2_hal/uc2_gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include <cstring>
@@ -29,7 +31,8 @@ I/O-exp. GPIO	target	Input/Output	comment
 07	Z_LIMIT	I	Limit switch input. Output LOW to light LED
 */
 
-static TCA9535 s_tca(pinConfig.I2C_ADD_TCA);
+// T5.1: TCA9535 C++ class -> flat C tca9555_dev_t (initialized in tca_init).
+static tca9555_dev_t s_tca;
 static bool s_tca_initiated = false;
 
 namespace {
@@ -107,7 +110,7 @@ bool tca_set_external_pin(uint8_t pin, uint8_t value)
         // No FAS_PIN_EXTERNAL_FLAG set -> caller bypassed the handshake.
         // Best effort: do the write under the mutex and report success.
         tca_lock();
-        s_tca.write1(p, value);
+        tca9555_write1(&s_tca, p, value);
         tca_unlock();
         return value;
     }
@@ -119,7 +122,7 @@ bool tca_set_external_pin(uint8_t pin, uint8_t value)
         // performs (~1-1.5 ms at 100 kHz I2C) and any bus contention.
         tca_lock();
         const uint32_t t0 = micros();
-        s_tca.write1(p, value);
+        tca9555_write1(&s_tca, p, value);
         const uint32_t write_us = micros() - t0;
         tca_unlock();
 
@@ -149,7 +152,7 @@ bool tca_read_endstop(uint8_t pin)
 	// Serialize with FAS-task writes to the same TCA so the read does
 	// not interleave with a read-modify-write that write1() performs.
 	tca_lock();
-	const bool v = !s_tca.read1(pin);
+	const bool v = !tca9555_read1(&s_tca, pin);
 	tca_unlock();
 	return v;
 }
@@ -161,27 +164,31 @@ void tca_init(void)
 	// Create the wrapper state (and the I2C mutex) before we touch the
 	// bus, so subsequent locked sections work correctly.
 	ensure_init();
+	// T5.1: configure the flat-C device (type 0x35 = TCA9535) before touching
+	// the bus, matching the old TCA9535(address) constructor.
+	tca9555_init(&s_tca, pinConfig.I2C_ADD_TCA, 0x35);
 	// check if I2C has been initiated - if not, do it
 	if (!pinConfig.isI2Cinitiated)
 	{
 		Wire.begin(pinConfig.I2C_SDA, pinConfig.I2C_SCL, 100000); // 400 Khz is necessary for the M5Dial
 		log_i("Wire initiated for I2C on TCA9535");
 	}
-	s_tca.begin();
+	// RobTillaart TCA9555::begin() defaults: mode INPUT, mask 0x0000.
+	tca9555_begin(&s_tca, INPUT, 0x0000);
 	s_tca_initiated = true;
 
 	// Set all pins to output ?
-	s_tca.pinMode1(pinConfig.MOTOR_ENABLE, OUTPUT);
-	s_tca.pinMode1(pinConfig.MOTOR_X_DIR, OUTPUT);
-	s_tca.pinMode1(pinConfig.MOTOR_Y_DIR, OUTPUT);
-	s_tca.pinMode1(pinConfig.MOTOR_Z_DIR, OUTPUT);
-	s_tca.pinMode1(pinConfig.MOTOR_A_DIR, OUTPUT);
-	s_tca.pinMode1(pinConfig.DIGITAL_IN_1, INPUT);
-	s_tca.pinMode1(pinConfig.DIGITAL_IN_2, INPUT);
-	s_tca.pinMode1(pinConfig.DIGITAL_IN_3, INPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.MOTOR_ENABLE, OUTPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.MOTOR_X_DIR, OUTPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.MOTOR_Y_DIR, OUTPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.MOTOR_Z_DIR, OUTPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.MOTOR_A_DIR, OUTPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.DIGITAL_IN_1, INPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.DIGITAL_IN_2, INPUT);
+	tca9555_pinmode1(&s_tca, pinConfig.DIGITAL_IN_3, INPUT);
 
 	auto seed = [](uint8_t pin, uint8_t v) {
-		s_tca.write1(pin, v);
+		tca9555_write1(&s_tca, pin, v);
 		s_requested[pin] = v;
 		s_acked[pin]     = v;
 		s_request_us[pin] = micros();

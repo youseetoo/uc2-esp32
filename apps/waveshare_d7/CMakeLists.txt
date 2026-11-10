@@ -11,12 +11,12 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components")
 # across the shared module components. Applied globally via CXX_FLAGS because IDF
 # component targets reject external target_compile_definitions. NODE_ROLE is
 # value-checked (== 2). ESP32S3_MODEL_XIAO selects the XIAO pin map.
-set(_uc2_feature_flags -DESP32S3_MODEL_XIAO=1 -DMOTOR_CONTROLLER=1 -DUSE_FASTACCEL=1 -DCAN_BUS_ENABLED=1 -DCAN_CONTROLLER_CANOPEN=1 -DMESSAGE_CONTROLLER=1 -DNODE_ROLE=2)
 # T4.4: the module sources are now C — the bare feature macros must also reach
-# the C compilation (PIO build_flags applied to both C and C++; CXX-only left
-# canopen_module.c & co. compiling to empty objects -> undefined at link).
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_uc2_feature_flags}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_uc2_feature_flags}")
+# the C compilation (PIO build_flags applied to both C and C++). Inlined in the
+# quoted set(): a list variable expands ;-joined and pollutes the
+# build/toolchain/{c,cxx}flags response file (see canopen_master's comment).
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DESP32S3_MODEL_XIAO=1 -DMOTOR_CONTROLLER=1 -DUSE_FASTACCEL=1 -DCAN_BUS_ENABLED=1 -DCAN_CONTROLLER_CANOPEN=1 -DMESSAGE_CONTROLLER=1 -DNODE_ROLE=2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -DMOTOR_CONTROLLER=1 -DUSE_FASTACCEL=1 -DCAN_BUS_ENABLED=1 -DCAN_CONTROLLER_CANOPEN=1 -DMESSAGE_CONTROLLER=1 -DNODE_ROLE=2")
 # UC2_APP_MAIN_DIR: app-local main/ holds the waveshare_d7 PinConfig.h.
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

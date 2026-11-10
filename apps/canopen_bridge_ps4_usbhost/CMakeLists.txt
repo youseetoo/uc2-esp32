@@ -10,12 +10,11 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../components"
 # PinConfig.h, and uc2_joystick compiles against the shared main/PinConfig.h (the app-local
 # shadow is only on uc2_app's include path) — so the macro would be undefined there and both
 # joystick sources would compile to empty objects -> undefined JoystickUsbHost::begin at link.
-set(_uc2_feature_flags -DESP32S3_MODEL_XIAO=1 -DJOYSTICK_USBHOST_PROVIDER=1)
 # T4.4: joystick sources are now C — the macro must also reach the C
-# compilation (CXX-only left joystick_usbhost.c/JoystickRouter.c empty ->
-# undefined joystick_usbhost_* at link).
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_uc2_feature_flags}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_uc2_feature_flags}")
+# compilation. Inlined in the quoted set(): a list variable expands ;-joined
+# and pollutes the build/toolchain/{c,cxx}flags response file.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DESP32S3_MODEL_XIAO=1 -DJOYSTICK_USBHOST_PROVIDER=1")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DESP32S3_MODEL_XIAO=1 -DJOYSTICK_USBHOST_PROVIDER=1")
 # UC2_APP_MAIN_DIR: app-local main/ holds the canopen_bridge_ps4_usbhost PinConfig.h;
 # uc2_modinc.cmake prepends it so it shadows the shared main/PinConfig.h (laser).
 set(ENV{UC2_APP_MAIN_DIR} "${CMAKE_CURRENT_LIST_DIR}/main")

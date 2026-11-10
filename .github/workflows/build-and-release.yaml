@@ -140,8 +140,10 @@ jobs:
 
       - name: Stage merged image
         run: |
+          # IDF 6.1's idf.py merge-bin writes a FIXED output name: merged-binary.bin
+          # (esptool merge-bin -o merged-binary.bin), not <project>-merged.bin.
           mkdir -p build/fw-images
-          cp "apps/${{ matrix.app }}/build/${{ matrix.app }}-merged.bin" \
+          cp "apps/${{ matrix.app }}/build/merged-binary.bin" \
              "build/fw-images/${{ matrix.board_id }}.bin"
           ls -lh build/fw-images/
       - name: Upload firmware artifact

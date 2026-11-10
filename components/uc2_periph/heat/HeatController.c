@@ -69,7 +69,7 @@ void heat_loop(void)
 
 		// some safety mechanisms
 		// if  temperature is not in a certain band after a time X, we have a runaway
-		if (fabsf(heat_pid_target - temperatureValueAvg) > 1 and (millis() - t_temp_control_started) > heat_h_timeout and
+		if (fabsf(heat_pid_target - temperatureValueAvg) > 1 && (millis() - t_temp_control_started) > heat_h_timeout &&
 			heat_h_timeout > 0)
 		{
 			heat_active = false;
@@ -90,7 +90,7 @@ void heat_loop(void)
 		start_millis = millis();
 		heat_was_active = true;
 	}
-	else if (heat_active == false and heat_was_active == true)
+	else if (heat_active == false && heat_was_active == true)
 	{ // if we are not using it, turn it off - but only once!
 		if (ledcRead(pwmChannel) != 0)
 		{

@@ -3,6 +3,7 @@ static const char *TAG = "FocusMotor";
 #include <string.h>
 #include <stdio.h>
 #include "uc2_hal/uc2_log.h"  // log_i / log_w / log_e
+#include "uc2_hal/uc2_time.h" // delay (was Arduino's; implicit decl in C)
 #include "uc2_serial_out.h"  // serial_out_safe_send_json_string
 #include "PinConfigDefault.h"
 #include "FocusMotor.h"

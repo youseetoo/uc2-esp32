@@ -18,10 +18,9 @@
 
 static const char* TAG = "ds4_usb";
 
-namespace {
-
-QueueHandle_t s_hidEventQueue = nullptr; // raw HID Host events
-QueueHandle_t s_ds4Queue      = nullptr; // decoded Ds4State, length 1, overwrite
+// T4.1: pure C — file-scope statics (was an anonymous namespace).
+static QueueHandle_t s_hidEventQueue = NULL; // raw HID Host events
+static QueueHandle_t s_ds4Queue      = NULL; // decoded Ds4State, length 1, overwrite
 volatile bool s_userShutdown  = false;
 
 struct HidHostEvent {
@@ -198,7 +197,7 @@ static void hid_host_task(void* arg)
         }
     }
     vQueueDelete(s_hidEventQueue);
-    s_hidEventQueue = nullptr;
+    s_hidEventQueue = NULL;
     vTaskDelete(NULL);
 }
 

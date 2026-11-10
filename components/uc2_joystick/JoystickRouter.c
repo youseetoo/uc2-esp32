@@ -26,6 +26,8 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+#include <nvs_flash.h>
+
 #include "JoystickUsbHost.h"
 #include "PinConfig.h"
 #include "CANopenModule.h"
@@ -127,16 +129,24 @@ static float default_speed_multiplier(int ax)
 
 // Load persisted multipliers (falling back to pinConfig defaults) once at
 // startup, mirroring how FocusMotor::fill_data() restores "joyDir" + axis.
+// (was uc2::Preferences getFloat — now the IDF nvs API directly; the "UC2"
+// namespace + "joySpd%d" keys match MotorJsonParser.c's joystick path.)
 static void load_speed_multipliers()
 {
-    Preferences prefs;
-    prefs.begin(kPrefsNamespace, false);
+    nvs_handle_t h = 0;
+    if (nvs_open(kPrefsNamespace, NVS_READONLY, &h) != ESP_OK) {
+        for (int ax = 0; ax < 4; ax++)
+            s_speedMultiplier[ax] = default_speed_multiplier(ax);
+        return;
+    }
     for (int ax = 0; ax < 4; ax++) {
         char key[16];
+        float v = default_speed_multiplier(ax);
         snprintf(key, sizeof(key), "joySpd%d", ax);
-        s_speedMultiplier[ax] = prefs.getFloat(key, default_speed_multiplier(ax));
+        if (nvs_get_float(h, key, &v) == ESP_OK)
+            s_speedMultiplier[ax] = v;
     }
-    prefs.end();
+    nvs_close(h);
 }
 
 // Edge-detect previous button state. button1/2/3 packing matches DS4Report_t
@@ -175,24 +185,24 @@ static void emit_motor_remote(uint8_t nodeId, uint8_t subAxis,
         return;
     const uint8_t sub = subAxis + 1;
     bool ok = true;
-    ok &= CANopenModule_writeSDO_i32(nodeId, UC2_OD_MOTOR_TARGET_POSITION, sub, pos, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_i32(nodeId, UC2_OD_MOTOR_TARGET_POSITION, sub, pos, kSdoTimeoutMs);
     // Preserve sign: slave decodes MOTOR_SPEED as signed (matches DeviceRouter.cpp:293).
-    ok &= CANopenModule_writeSDO_u32(nodeId, UC2_OD_MOTOR_SPEED, sub, (uint32_t)speed, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u32(nodeId, UC2_OD_MOTOR_SPEED, sub, (uint32_t)speed, kSdoTimeoutMs);
     if (accel > 0)
-        ok &= CANopenModule_writeSDO_u32(nodeId, UC2_OD_MOTOR_ACCELERATION, sub, accel, kSdoTimeoutMs);
-    ok &= CANopenModule_writeSDO_u8(nodeId, UC2_OD_MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0, kSdoTimeoutMs);
-    ok &= CANopenModule_writeSDO_u8(nodeId, UC2_OD_MOTOR_IS_FOREVER, sub, isForever ? 1 : 0, kSdoTimeoutMs);
+        ok &= canopen_sdo_write_u32(nodeId, UC2_OD_MOTOR_ACCELERATION, sub, accel, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u8(nodeId, UC2_OD_MOTOR_IS_ABSOLUTE, sub, isAbs ? 1 : 0, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u8(nodeId, UC2_OD_MOTOR_IS_FOREVER, sub, isForever ? 1 : 0, kSdoTimeoutMs);
     const uint8_t cmdWord = isStop
         ? (uint8_t)(1u << (subAxis + 4))
         : (uint8_t)(1u << subAxis);
-    ok &= CANopenModule_writeSDO_u8(nodeId, UC2_OD_MOTOR_COMMAND_WORD, 0x00, cmdWord, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u8(nodeId, UC2_OD_MOTOR_COMMAND_WORD, 0x00, cmdWord, kSdoTimeoutMs);
     note_sdo(nodeId, ok);
 }
 
 static void stop_axis(int ax)
 {
-    const RouteEntry *route = routing_table_find(RouteEntry_MOTOR, (uint8_t)ax);
-    if (!route || route->where != RouteEntry_REMOTE) {
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)ax);
+    if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE) {
         s_axis[ax].running = false;
         return;
     }
@@ -206,8 +216,8 @@ static void stop_axis(int ax)
 
 static void start_axis(int ax, int speed)
 {
-    const RouteEntry *route = routing_table_find(RouteEntry_MOTOR, (uint8_t)ax);
-    if (!route || route->where != RouteEntry_REMOTE)
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)ax);
+    if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE)
         return;
 
     if (s_axis[ax].running &&
@@ -225,8 +235,8 @@ static void start_axis(int ax, int speed)
 
 static void single_step(int ax, int32_t position)
 {
-    const RouteEntry *route = routing_table_find(RouteEntry_MOTOR, (uint8_t)ax);
-    if (!route || route->where != RouteEntry_REMOTE)
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_MOTOR, (uint8_t)ax);
+    if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE)
         return;
     emit_motor_remote(route->nodeId, route->subAxis,
                       position, /*speed*/20000,
@@ -260,30 +270,30 @@ static bool rising(uint8_t cur, uint8_t prev, uint8_t mask)
 
 static void emit_laser_remote(uint16_t pwmVal)
 {
-    const RouteEntry *route = routing_table_find(RouteEntry_LASER, 0);
-    if (!route || route->where != RouteEntry_REMOTE)
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_LASER, 0);
+    if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE)
         return;
     if (node_muted(route->nodeId))
         return;
-    bool ok = CANopenModule_writeSDO_u16(route->nodeId,
-                                         UC2_OD_LASER_PWM_VALUE,
-                                         (uint8_t)(route->subAxis + 1), pwmVal,
-                                         kSdoTimeoutMs);
+    bool ok = canopen_sdo_write_u16(route->nodeId,
+                                     UC2_OD_LASER_PWM_VALUE,
+                                     (uint8_t)(route->subAxis + 1), pwmVal,
+                                     kSdoTimeoutMs);
     note_sdo(route->nodeId, ok);
     ESP_LOGI(TAG, "laser -> node 0x%02X = %u (%s)", route->nodeId, pwmVal, ok ? "ok" : "fail");
 }
 
 static void emit_led_pattern(uint8_t patternId)
 {
-    const RouteEntry *route = routing_table_find(RouteEntry_LED, 0);
-    if (!route || route->where != RouteEntry_REMOTE)
+    const route_entry *route = routing_table_find(ROUTE_ENTRY_TYPE_LED, 0);
+    if (!route || route->where != ROUTE_ENTRY_WHERE_REMOTE)
         return;
     if (node_muted(route->nodeId))
         return;
     bool ok = true;
-    ok &= CANopenModule_writeSDO_u8(route->nodeId, UC2_OD_LED_ARRAY_MODE, 0, 1, kSdoTimeoutMs);
-    ok &= CANopenModule_writeSDO_u8(route->nodeId, UC2_OD_LED_BRIGHTNESS, 0, 128, kSdoTimeoutMs);
-    ok &= CANopenModule_writeSDO_u8(route->nodeId, UC2_OD_LED_PATTERN_ID, 0, patternId, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u8(route->nodeId, UC2_OD_LED_ARRAY_MODE, 0, 1, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u8(route->nodeId, UC2_OD_LED_BRIGHTNESS, 0, 128, kSdoTimeoutMs);
+    ok &= canopen_sdo_write_u8(route->nodeId, UC2_OD_LED_PATTERN_ID, 0, patternId, kSdoTimeoutMs);
     note_sdo(route->nodeId, ok);
     ESP_LOGI(TAG, "led pattern -> %u (%s)", patternId, ok ? "ok" : "fail");
 }
@@ -407,10 +417,12 @@ cJSON *joystick_router_act(cJSON *doc)
 
             char key[16];
             snprintf(key, sizeof(key), "joySpd%d", axis);
-            Preferences prefs;
-            prefs.begin(kPrefsNamespace, false);
-            prefs.putFloat(key, multiplier);
-            prefs.end();
+            nvs_handle_t h = 0;
+            if (nvs_open(kPrefsNamespace, NVS_READWRITE, &h) == ESP_OK) {
+                nvs_set_float(h, key, multiplier);
+                nvs_commit(h);
+                nvs_close(h);
+            }
             ESP_LOGI(TAG, "Set joystick speed multiplier: axis %d = %.2f", axis, multiplier);
         }
     }

@@ -20,10 +20,9 @@ const struct PinConfig pinConfig = {
     .MOTOR_Y_STEP = GPIO_NUM_14,
     .MOTOR_Z_STEP = GPIO_NUM_0,
 
-    /* Camera I/O lines from schematic block */
-    .CAM_IO0_IN = GPIO_NUM_25,   // "Cam In Line 0"
-    .CAM_IO1_OUT = GPIO_NUM_NC,  // "Cam Out Line 1"
-    .CAM_IO2_IO = GPIO_NUM_NC,   // "Cam In/Out Line 2"
+    /* Camera I/O lines from schematic block. The base PinConfig only has
+     * CAMERA_TRIGGER_PIN (the old C++ UC2_4 derived struct's CAM_IO0_IN,
+     * used as the trigger; CAM_IO1_OUT/CAM_IO2_IO were dead — never read). */
     .CAMERA_TRIGGER_PIN = GPIO_NUM_25,
     .CAMERA_TRIGGER_INVERTED = false,
 

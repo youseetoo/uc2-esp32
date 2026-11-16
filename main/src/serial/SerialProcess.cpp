@@ -350,8 +350,15 @@ namespace SerialProcess
 		// Create queue and task for serial output to prevent race conditions
 		if (serialOutputQueue == nullptr)
 			serialOutputQueue = xQueueCreate(10, sizeof(SerialMessage)); // Queue for serial output
+		// Pinned to the core running setup — the core that called Serial.begin()
+		// and therefore owns the USB-Serial/JTAG (HWCDC) TX interrupt. In
+		// arduino-esp32 2.0.x, HWCDC::write() flushes the TX FIFO from the
+		// calling task while the ISR may be filling it; from the other core that
+		// race sends a short packet and loses the rest of it (replies > 64 B came
+		// back with a chunk missing). On the same core the ISR cannot be
+		// interrupted mid-fill by this task.
 		if (xOutputHandle == nullptr)
-			xTaskCreate(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle); // Higher priority
+			xTaskCreatePinnedToCore(serialOutputTask, "serialout", 3072, NULL, pinConfig.DEFAULT_TASK_PRIORITY + 1, &xOutputHandle, xPortGetCoreID()); // Higher priority
 
 		Serial.setTimeout(100);
 		QidRegistry::setup();

@@ -400,6 +400,18 @@ bool CANopenModule_setRemoteGpio(uint8_t nodeId, uint8_t id, int val)
 // CAN controller task — manages TWAI driver, TX/RX queues, error recovery
 // (Preserved from MWE with pinConfig-based GPIO)
 // ============================================================================
+
+// Only the alerts this task acts on. Do NOT use TWAI_ALERT_ALL: it includes
+// TWAI_ALERT_BUS_ERROR, which fires once per bus error. A node alone on the
+// bus (no peer to ACK, or cable unplugged) retransmits forever and sees
+// ~20k bus errors/s; each alert woke this priority-5 task, which then spun
+// at ~25 kHz and starved the priority-0/1 serial tasks — /laser_act replies
+// took 1-4 s whenever the slave was not on a live bus. Bus errors are polled
+// from bus_error_count instead (once per loop, ~1 kHz).
+static const uint32_t CAN_CTRL_ALERTS =
+    TWAI_ALERT_TX_SUCCESS | TWAI_ALERT_TX_FAILED | TWAI_ALERT_RX_DATA |
+    TWAI_ALERT_BUS_OFF | TWAI_ALERT_BUS_RECOVERED;
+
 void CANopenModule::CAN_ctrl_task(void* arg)
 {
     twai_message_t rx_message;
@@ -438,7 +450,7 @@ void CANopenModule::CAN_ctrl_task(void* arg)
     ESP_ERROR_CHECK(twai_start());
     ESP_LOGI(TAG_CAN, "TWAI driver started");
 
-    twai_reconfigure_alerts(TWAI_ALERT_ALL, NULL);
+    twai_reconfigure_alerts(CAN_CTRL_ALERTS, NULL);
 
     // Flush old messages
     uint32_t alerts;
@@ -578,16 +590,19 @@ void CANopenModule::CAN_ctrl_task(void* arg)
         if (alerts & TWAI_ALERT_BUS_RECOVERED) {
             ESP_LOGI(TAG_CAN, "Bus recovered");
             twai_start();
-            twai_reconfigure_alerts(TWAI_ALERT_ALL, NULL);
+            twai_reconfigure_alerts(CAN_CTRL_ALERTS, NULL);
         }
 
-        // Transient bus frame errors (e.g. no ACK when master absent) — hardware
-        // handles these automatically; just count quietly to avoid log spam.
-        if (alerts & TWAI_ALERT_BUS_ERROR) {
-            s_lastBusErrorMs = millis();
-            static uint32_t busErrCount = 0;
-            if ((++busErrCount % 10000) == 1) {
-                log_i("CAN bus errors: %u (normal when master absent)", (unsigned)busErrCount);
+        // Transient bus frame errors (e.g. no ACK when master absent) are
+        // polled from the driver's counter rather than taken as alerts: see
+        // CAN_CTRL_ALERTS for why.
+        {
+            static uint32_t lastBusErrCount = 0;
+            twai_status_info_t st;
+            if (twai_get_status_info(&st) == ESP_OK &&
+                st.bus_error_count != lastBusErrCount) {
+                lastBusErrCount = st.bus_error_count;
+                s_lastBusErrorMs = millis();
             }
         }
         // No vTaskDelay here: twai_read_alerts() at the top of the loop is

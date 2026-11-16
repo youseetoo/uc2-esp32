@@ -802,8 +802,13 @@ extern "C" void app_main(void)
 	#endif
 	
 	#ifdef ESP32S3_MODEL_XIAO
-	// additional serial settings for the ESP32S3
-	Serial.setTxTimeoutMs(0);
+	// Do NOT call Serial.setTxTimeoutMs(0) here. In the HWCDC (USB-Serial/JTAG)
+	// driver a zero timeout makes HWCDC::flush() conclude "host gone" right
+	// away: it marks the port disconnected and discards the TX ring buffer.
+	// serialOutputTask flushes after every message, so every reply longer than
+	// one 64-byte USB packet was truncated, and the rest only trickled out with
+	// the next write. The default (100 ms) only blocks serialOutputTask, and
+	// only while a host is attached but not reading.
 	Serial.println("DEBUG: Using ESP32S3 XIAO configuration");
 	#endif
 

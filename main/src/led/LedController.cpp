@@ -241,6 +241,68 @@ namespace LedController
 		isOn = (r || g || b);
 	}
 
+#ifndef HUB75
+	// ------------------------------------------------
+	// 7b) Boards with an LED_GEOMETRY table (geodesic dome) pick LEDs by where they sit:
+	//     region = left/right/top/bottom/q1..q4 by the sign of x/y (q1 = top-left,
+	//     q2 = bottom-left, q3 = top-right, q4 = bottom-right), region == nullptr by ring:
+	//     ring == ringId, or ring < ringId when filled (circles). Everything else goes dark.
+	// ------------------------------------------------
+	static void fillGeometry(const char *region, int ringId, bool filled, uint8_t r, uint8_t g, uint8_t b)
+	{
+		matrix->clear();
+		for (uint16_t i = 0; i < pinConfig.LED_GEOMETRY_COUNT && i < LED_COUNT; i++)
+		{
+			const int16_t x = pinConfig.LED_GEOMETRY[i][0], y = pinConfig.LED_GEOMETRY[i][1], ring = pinConfig.LED_GEOMETRY[i][2];
+			bool on = false;
+			if (region == nullptr) on = filled ? ring < ringId : ring == ringId;
+			else if (strcasecmp(region, "left") == 0) on = x < 0;
+			else if (strcasecmp(region, "right") == 0) on = x > 0;
+			else if (strcasecmp(region, "top") == 0) on = y > 0;
+			else if (strcasecmp(region, "bottom") == 0) on = y < 0;
+			else if (strcasecmp(region, "q1") == 0) on = x < 0 && y > 0;
+			else if (strcasecmp(region, "q2") == 0) on = x < 0 && y < 0;
+			else if (strcasecmp(region, "q3") == 0) on = x > 0 && y > 0;
+			else if (strcasecmp(region, "q4") == 0) on = x > 0 && y < 0;
+			if (on) matrix->setPixelColor(i, matrix->Color(r, g, b));
+		}
+		ledShow();
+		isOn = (r || g || b);
+	}
+
+	// ------------------------------------------------
+	// 7c) ARRAY: the listed pixels are the whole frame, all others go dark, one show().
+	//     Items {"id":i,"r":..,"g":..,"b":..}; without "id" the list position is the index.
+	// ------------------------------------------------
+	static uint8_t jsonByte(cJSON *item, const char *key)
+	{
+		cJSON *v = cJSON_GetObjectItem(item, key);
+		return cJSON_IsNumber(v) ? (uint8_t)constrain(v->valueint, 0, 255) : 0;
+	}
+
+	static void setArray(cJSON *ledArray)
+	{
+		matrix->clear();
+		bool anyOn = false;
+		int pos = 0;
+		cJSON *item;
+		cJSON_ArrayForEach(item, ledArray)
+		{
+			cJSON *id = cJSON_GetObjectItem(item, "id");
+			int idx = cJSON_IsNumber(id) ? id->valueint : pos;
+			pos++;
+			if (idx < 0 || idx >= LED_COUNT)
+				continue;
+			uint8_t r = jsonByte(item, "r"), g = jsonByte(item, "g"), b = jsonByte(item, "b");
+			matrix->setPixelColor(idx, matrix->Color(r, g, b));
+			anyOn |= (r || g || b);
+		}
+		ledShow();
+		isOn = anyOn;
+	}
+
+#endif
+
 	// ------------------------------------------------
 	// 8) Halves: fill left/right/top/bottom with color, rest dark
 	//    For illumination board with concentric rings, uses segment indices from PinConfig
@@ -249,6 +311,11 @@ namespace LedController
 	{
 		log_i("fillHalves: region=%s, r=%d, g=%d, b=%d", region, r, g, b);
 #ifndef HUB75
+		if (pinConfig.LED_GEOMETRY_COUNT > 0)
+		{
+			fillGeometry(region, 0, false, r, g, b);
+			return;
+		}
 
 		matrix->clear();
 
@@ -424,6 +491,11 @@ namespace LedController
 	{
 		log_i("drawRings: radius=%d, r=%d, g=%d, b=%d", radius, r, g, b);
 #ifndef HUB75
+		if (pinConfig.LED_GEOMETRY_COUNT > 0)
+		{
+			fillGeometry(nullptr, radius, false, r, g, b);
+			return;
+		}
 		// Check if this is an illumination board with defined ring structure
 		#ifdef LED_CONTROLLER
 		// Check if we have ring definitions in the pin config (illumination board)
@@ -600,6 +672,11 @@ namespace LedController
 	{
 		log_i("drawCircle: radius=%d, r=%d, g=%d, b=%d", radius, rVal, gVal, bVal);
 #ifndef HUB75
+		if (pinConfig.LED_GEOMETRY_COUNT > 0)
+		{
+			fillGeometry(nullptr, radius, true, rVal, gVal, bVal);
+			return;
+		}
 		matrix->clear();
 
 		// draw LEDs from 0 to ring segment count for a filled circle
@@ -1057,11 +1134,7 @@ namespace LedController
 			drawCircle(cmd.radius, cmd.r, cmd.g, cmd.b);
 			break;
 		case LedMode::ARRAY:
-			// TODO: Here you could parse an array of LED changes.
-			// For brevity, not implemented in detail.
-			// e.g. cJSON_GetObjectItem(root,"led_array")...
-			// Then set each LED individually
-			// ledShow();
+			// The pixel list lives in the JSON, see act() / setArray().
 			break;
 		case LedMode::STATUS:
 			// Status handling is done in the loop() for dynamic effects
@@ -1086,7 +1159,16 @@ namespace LedController
 			// Invalid or missing "task": "/led_arr"
 			return -1;
 		}
-		execLedCommand(cmd);
+		cJSON *ledArray = cJSON_GetObjectItem(cJSON_GetObjectItem(root, "led"), "led_array");
+#ifndef HUB75
+		if (cmd.mode == LedMode::ARRAY && cJSON_IsArray(ledArray))
+		{
+			if (!thermalBlocked("setArray"))
+				setArray(ledArray);
+		}
+		else
+#endif
+			execLedCommand(cmd);
 
 
 		// LED is synchronous: register and immediately report done

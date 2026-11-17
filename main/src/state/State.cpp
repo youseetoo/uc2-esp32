@@ -403,6 +403,9 @@ namespace State
 #if defined(STAGE_SCAN) && defined(MOTOR_CONTROLLER)
 		cJSON_AddItemToObject(mod, "strobesweep", cJSON_CreateNumber(1));
 #endif
+#ifdef DISPLAY_CONTROLLER
+		cJSON_AddItemToObject(mod, "display", cJSON_CreateNumber(1));
+#endif
 
 		return doc;
 	}

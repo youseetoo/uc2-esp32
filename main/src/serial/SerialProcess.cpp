@@ -74,6 +74,9 @@
 #ifdef TMP102_CONTROLLER
 #include "../tmp102/Tmp102Controller.h"
 #endif
+#ifdef DISPLAY_CONTROLLER
+#include "../display/DisplayController.h"
+#endif
 #ifdef FAN_CONTROLLER
 #include "../fan/FanController.h"
 #endif
@@ -852,6 +855,12 @@ namespace SerialProcess
 			serialize(FanController::act(jsonDocument));
 		else if (runtimeConfig.fan && strcmp(task, fan_get_endpoint) == 0)
 			serialize(FanController::get(jsonDocument));
+#endif
+#ifdef DISPLAY_CONTROLLER
+		else if (strcmp(task, display_act_endpoint) == 0)
+			serialize(DisplayController::act(jsonDocument));
+		else if (strcmp(task, display_get_endpoint) == 0)
+			serialize(DisplayController::get(jsonDocument));
 #endif
 #ifdef THERMAL_CONTROLLER
 		// NTC heat-sink monitoring on the illumination board. Only compiled in

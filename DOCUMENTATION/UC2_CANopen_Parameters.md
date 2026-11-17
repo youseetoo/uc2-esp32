@@ -66,7 +66,7 @@ Sensorless or endstop-based homing
 
 | Index | Sub | Name | Type | Access | PDO | Description |
 |-------|-----|------|------|--------|-----|-------------|
-| `0x2010` | 1..4 | `homing_command` | U8 | rw | rpdo2 | 0=idle, 1=start homing on this axis, 2=hard homing (home, ram mechanical stop, back off, re-home) |
+| `0x2010` | 1..4 | `homing_command` | U8 | rw | rpdo2 | 0=idle, 1=start homing on this axis, 2=hard homing (home, ram mechanical stop... |
 | `0x2011` | 1..4 | `homing_speed` | U32 | rw | SDO only |  |
 | `0x2012` | 1..4 | `homing_direction` | I8 | rw | SDO only | -1 or +1 |
 | `0x2013` | 1..4 | `homing_timeout` | U32 | rw | SDO only |  |
@@ -266,8 +266,8 @@ Firmware version, board info, runtime stats
 
 | Index | Sub | Name | Type | Access | PDO | Description |
 |-------|-----|------|------|--------|-----|-------------|
-| `0x2500` | 0 | `firmware_version_string` | STRING | ro | SDO only |  |
-| `0x2501` | 0 | `board_name` | STRING | ro | SDO only |  |
+| `0x2500` | 0 | `firmware_version_string` | STRING | ro | SDO only | Release identity UC2_FW_VERSION (git describe + commit time, see tools/fw_ver... |
+| `0x2501` | 0 | `board_name` | STRING | ro | SDO only | Firmware image this node was built as (UC2_FW_IMAGE, e.g. esp32_UC2_canopen_s... |
 | `0x2502` | 0 | `enabled_modules_bitmask` | U32 | rw | SDO only | Bit 0  = motor Bit 1  = laser Bit 2  = led Bit 3  = digitalIn Bit 4  = digita... |
 | `0x2503` | 0 | `uptime_seconds` | U32 | ro | SDO only |  |
 | `0x2504` | 0 | `free_heap_bytes` | U32 | ro | SDO only |  |

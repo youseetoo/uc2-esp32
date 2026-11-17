@@ -128,6 +128,9 @@ CANopenModule canopenModule;
 #ifdef FAN_CONTROLLER
 #include "src/fan/FanController.h"
 #endif
+#ifdef DISPLAY_CONTROLLER
+#include "src/display/DisplayController.h"
+#endif
 #ifdef THERMAL_CONTROLLER
 #include "src/thermal/ThermalController.h"
 #endif
@@ -304,6 +307,9 @@ extern "C" void looper(void *p)
 		if (runtimeConfig.fan) {
 			FanController::loop();
 		}
+#endif
+#ifdef DISPLAY_CONTROLLER
+		DisplayController::loop();
 #endif
 #ifdef THERMAL_CONTROLLER
 		ThermalController::loop();
@@ -670,6 +676,10 @@ if (runtimeConfig.fan) {
 		FanController::setup();
 	}
 	#endif
+#ifdef DISPLAY_CONTROLLER
+	// After Tmp102Controller::setup() so the shared I2C bus is already up.
+	DisplayController::setup();
+#endif
 #ifdef THERMAL_CONTROLLER
 	// Heat-sink NTCs on the illumination board. Runs after LedController::setup()
 	// so an over-temperature latch found at boot can cut the LEDs immediately.

@@ -141,6 +141,12 @@ __attribute__ ((unused)) static const  char* fan_act_endpoint  = "/fan_act";
 __attribute__ ((unused)) static const  char* fan_get_endpoint  = "/fan_get";
 #endif
 
+// Status OLED (SSD1306 128x32 on the CAN-HAT I2C bus)
+#ifdef DISPLAY_CONTROLLER
+__attribute__ ((unused)) static const  char* display_act_endpoint = "/display_act";
+__attribute__ ((unused)) static const  char* display_get_endpoint = "/display_get";
+#endif
+
 // Routing table inspection/override (CANopen builds)
 __attribute__ ((unused)) static const  char* route_get_endpoint = "/route_get";
 __attribute__ ((unused)) static const  char* route_set_endpoint = "/route_set";

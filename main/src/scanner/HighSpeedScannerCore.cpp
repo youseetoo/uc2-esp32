@@ -42,6 +42,10 @@
 
 static const char* TAG = "Scanner";
 
+// Pause between raster lines that lets lower-priority tasks on core 0 run
+// (serial replies, IDLE0, setup). Added to every line period.
+static constexpr uint64_t kHostSlotUs = 200;
+
 // Use printf for guaranteed output
 #define SCANNER_LOG(fmt, ...) printf("[%s] " fmt "\n", TAG, ##__VA_ARGS__)
 
@@ -403,10 +407,14 @@ void HighSpeedScannerCore::triggerPulseFrame()
 void HighSpeedScannerCore::setLaserGate(bool on)
 {
     if (laser_pin_ < 0) return;
-    if (on) {
-        GPIO.out_w1ts = (1U << laser_pin_);
+    // GPIO32+ live in the second output bank: (1U << 43) is undefined and
+    // never reached the XIAO's laser pin (GPIO43).
+    if (laser_pin_ < 32) {
+        if (on) GPIO.out_w1ts = (1U << laser_pin_);
+        else    GPIO.out_w1tc = (1U << laser_pin_);
     } else {
-        GPIO.out_w1tc = (1U << laser_pin_);
+        if (on) GPIO.out1_w1ts.val = (1U << (laser_pin_ - 32));
+        else    GPIO.out1_w1tc.val = (1U << (laser_pin_ - 32));
     }
 }
 
@@ -653,6 +661,20 @@ void HighSpeedScannerCore::scannerTask()
         SCANNER_LOG("Watchdog add returned %d (may already be added or not initialized)", wdt_err);
     }
 
+    // One-shot timer that wakes this task after the between-line slot
+    esp_timer_handle_t slot_timer = nullptr;
+    const esp_timer_create_args_t slot_args = {
+        .callback = [](void *task) { xTaskNotifyGive((TaskHandle_t)task); },
+        .arg = xTaskGetCurrentTaskHandle(),
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "galvo_slot",
+        .skip_unhandled_events = false,
+    };
+    if (esp_timer_create(&slot_args, &slot_timer) != ESP_OK) {
+        slot_timer = nullptr;
+        SCANNER_LOG("WARNING: no line slot timer - serial replies may be dropped while scanning");
+    }
+
     while (true) {
         // Reset watchdog at start of each iteration
         esp_task_wdt_reset();
@@ -808,18 +830,6 @@ void HighSpeedScannerCore::scannerTask()
                     overruns_++;
                 }
 
-                // Feed the task watchdog and yield periodically WITHIN the
-                // line, not just once per completed line. With the default
-                // sample_period_us the DAC/SPI update alone can exceed the
-                // configured period (see GALVO_FLIM_TIMING_REVIEW.md F3), and
-                // any single blocking call in this inner loop (SPI, RMT, GPIO)
-                // previously had no escape hatch before the 5s task watchdog
-                // timeout - this bounds the blast radius and keeps the WDT fed
-                // even while a slow/stalled line is still in progress.
-                if ((i & 0x3F) == 0) {
-                    esp_task_wdt_reset();
-                }
-
                 // IMAGING WINDOW ENTRY: open laser gate, arm hardware clock
                 if (i == img_start) {
                     if (do_laser) setLaserGate(true);
@@ -855,16 +865,31 @@ void HighSpeedScannerCore::scannerTask()
                 if (do_lut) x12 = applyXMap(x12);
                 dac_->setX(x12);
                 dac_->ldacPulse();
+
+                // Feed the task watchdog within the line too (a stalled SPI
+                // write would otherwise hit the 5 s timeout first). After the
+                // DAC write, not before the pixel pulse: there its ~2 us made
+                // every 64th pulse late (bright columns 32/96/160/224).
+                if ((i & 0x3F) == 0) {
+                    esp_task_wdt_reset();
+                }
             }
 
             // Safety: never leave the laser on across line boundaries
             // (img_end == line_len when there is no post-imaging region)
             if (do_laser) setLaserGate(false);
 
-            // Reset watchdog and yield after each line to prevent timeout
+            // Reset watchdog and hand the core over between lines. This task
+            // busy-waits at priority 23 on core 0, where the serial reply task
+            // (priority 1, pinned to the USB core), IDLE0 and setup also run:
+            // without a pause they ran once per frame and replies were dropped.
+            // The pause is timer-based, not vTaskDelay, so lines do not start
+            // in phase with the 1 ms tick. Photons between the last pixel and
+            // the next line pulse are discarded, so the image is unaffected;
+            // only the line period grows by about the slot length.
             esp_task_wdt_reset();
-            if (sp_us == 0) {
-                taskYIELD();  // Brief yield at max speed - not vTaskDelay to maintain speed
+            if (slot_timer && esp_timer_start_once(slot_timer, kHostSlotUs) == ESP_OK) {
+                ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10));
             }
         }
 

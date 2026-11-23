@@ -28,8 +28,13 @@ public:
     // Build from pinConfig + runtimeConfig at boot
     static void buildDefault();
 
-    // Apply NVS overrides loaded by NVSConfig
+    // Apply route overrides persisted in NVS (call after buildDefault)
     static void applyNvsOverrides();
+    // Persist one route in NVS so applyNvsOverrides() restores it at boot
+    static bool persist(RouteEntry::Type t, uint8_t logicalId,
+                        RouteEntry::Where w, uint8_t nodeId, uint8_t subAxis);
+    // Forget all persisted routes and rebuild the build defaults
+    static void resetToDefaults();
 
     // Lookup: returns nullptr if no route exists
     static const RouteEntry* find(RouteEntry::Type t, uint8_t logicalId);

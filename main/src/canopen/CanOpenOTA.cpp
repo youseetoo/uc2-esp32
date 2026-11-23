@@ -201,21 +201,29 @@ static ODR_t onOtaSizeWrite(OD_stream_t* stream, const void* buf,
         setError(CANOPEN_OTA_ERR_NO_PARTITION);
         return ODR_HW;
     }
+    // With sequential writes esp_ota_begin no longer erases (and so no longer
+    // rejects) an image larger than the partition — check it here.
+    if (firmwareSize > s_otaPartition->size) {
+        log_e("OTA size %lu exceeds partition %s (%lu)", (unsigned long)firmwareSize,
+              s_otaPartition->label, (unsigned long)s_otaPartition->size);
+        setError(CANOPEN_OTA_ERR_SIZE_TOO_LARGE);
+        return ODR_HW;
+    }
 
-    // esp_ota_begin erases the target partition. This blocks the calling
-    // thread for 200-500ms. During the erase, flash SPI operations may
-    // momentarily starve the CAN peripheral of bus cycles (especially on
-    // single-core ESP32-S3 variants sharing the SPI bus). Yield briefly
-    // before AND after to let the CAN ctrl task drain its queues.
-    vTaskDelay(pdMS_TO_TICKS(10));
-    esp_err_t err = esp_ota_begin(s_otaPartition, firmwareSize, &s_otaHandle);
+    // OTA_WITH_SEQUENTIAL_WRITES: erase each 4 KB sector in esp_ota_write
+    // just before it is written, instead of erasing the whole image here.
+    // This callback runs inside the SDO server, before the reply to the
+    // master's size write: a full-image erase (~1 MB, several seconds, no
+    // heartbeats meanwhile) outlasted the master's SDO timeout and made the
+    // first OTA attempt fail. Per-sector erases (tens of ms) fit inside the
+    // block transfer's 15 s timeout. Valid because onOtaWriteChunk only ever
+    // appends.
+    esp_err_t err = esp_ota_begin(s_otaPartition, OTA_WITH_SEQUENTIAL_WRITES, &s_otaHandle);
     if (err != ESP_OK) {
         log_e("esp_ota_begin failed: 0x%x", err);
         setError(CANOPEN_OTA_ERR_BEGIN_FAILED);
         return ODR_HW;
     }
-    // Let the CAN stack recover from any frames missed during flash erase
-    vTaskDelay(pdMS_TO_TICKS(50));
 
     s_crc32Running = 0;
     s_bytesWritten = 0;
@@ -251,8 +259,9 @@ static ODR_t onOtaWriteChunk(OD_stream_t* stream, const void* buf,
         return ODR_OK;
     }
 
-    // Write chunk to flash. esp_ota_write does not block long for small
-    // counts (<= 256 B) but we still avoid logging here on every call —
+    // Write chunk to flash. esp_ota_write also erases the next 4 KB sector
+    // whenever the write reaches one (tens of ms, see onOtaSizeWrite). We
+    // still avoid logging here on every call —
     // the SDO segment rate is several kHz and per-segment logs over
     // 921600 baud UART would starve the CANopen task and force bus-off.
     esp_err_t err = esp_ota_write(s_otaHandle, buf, count);

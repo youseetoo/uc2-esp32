@@ -6,6 +6,7 @@
 #include "../serial/SerialProcess.h"
 #include "../qid/QidRegistry.h"
 #include "../canopen/DeviceRouter.h"
+#include "LaserStrobe.h"
 #ifdef I2C_LASER
 #include "../i2c/i2c_master.h"
 #endif
@@ -149,6 +150,7 @@ namespace LaserController
 		{
 			// {"task":"/laser_act", "LASERid":2 ,"LASERRes":16}
 			pwm_resolution = setPWMRes->valueint;
+			pwm_max = 1L << pwm_resolution;
 			log_i("Setting PWM resolution to %i for LASERid %i", pwm_resolution, LASERid);
 			setupLaser(laserPin, pwmChannel, pwm_frequency, pwm_resolution);
 		}
@@ -250,6 +252,15 @@ namespace LaserController
 		{
 			log_w("Laser pin not configured for LASERid %d", LASERid);
 			return false;
+		}
+
+		// Strobed sweep: the pin belongs to the strobe timer. Keep the value;
+		// LaserStrobe restores it when the strobe is switched off.
+		if (LaserStrobe::isStrobing(LASERid))
+		{
+			log_w("LASERid %i is strobing: PWM %i stored, applied when the strobe ends", LASERid, LASERval);
+			laserValuePending[LASERid] = true;
+			return true;
 		}
 
 		int pwmChannel = getPWMChannel(LASERid);
@@ -615,6 +626,27 @@ namespace LaserController
 
 		return j;
 	}
+
+	// One local laser as {"LASERid", "LASERpin", "LASERval", "LASERmax", "LASERRes", "LASERFreq", ...}.
+	// ponytail: freq/res are global for all local lasers (one shared config), per-channel arrays if boards ever mix them
+	cJSON *getLaserJson(int LASERid)
+	{
+		cJSON *l = cJSON_CreateObject();
+		cJsonTool::setJsonInt(l, "LASERid", LASERid);
+		cJsonTool::setJsonInt(l, "LASERpin", getLaserPin(LASERid));
+		cJsonTool::setJsonInt(l, "LASERval", getLaserVal(LASERid));
+		cJsonTool::setJsonInt(l, "LASERmax", getPWMMax());
+		cJsonTool::setJsonInt(l, "LASERRes", pwm_resolution);
+		cJsonTool::setJsonInt(l, "LASERFreq", pwm_frequency);
+		cJsonTool::setJsonInt(l, "LASERdespeckle", LASER_despeckle_arr[LASERid]);
+		cJsonTool::setJsonInt(l, "LASERdespecklePeriod", LASER_despeckle_period_arr[LASERid]);
+		return l;
+	}
+
+	// Accessors: the pwm_* statics live in the header, so every other .cpp sees its own stale copy.
+	int getPWMMax() { return 1 << pwm_resolution; }
+	int getPWMResolution() { return pwm_resolution; }
+	int getPWMFrequency() { return pwm_frequency; }
 
 	void setup()
 	{

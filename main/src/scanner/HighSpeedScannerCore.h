@@ -126,6 +126,9 @@ struct ScanConfig {
                                     // falls back to software pulses on SoCs without loop count
 
     // Default constructor
+    // Defaults = the FLIM raster validated on the bench (Aug + Nov 2026),
+    // same values as ImSwitch's galvo defaults; see docs.openuc2.com galvo
+    // add-on "Scan parameters". 25 us dwell: one sample takes ~22 us.
     ScanConfig() :
         nx(256),
         ny(256),
@@ -133,19 +136,19 @@ struct ScanConfig {
         x_max(3500),
         y_min(500),
         y_max(3500),
-        pre_samples(4),
-        fly_samples(16),
-        sample_period_us(1),
+        pre_samples(64),
+        fly_samples(256),
+        sample_period_us(25),
         trig_delay_us(0),
-        trig_width_us(1),
-        line_settle_samples(0),
+        trig_width_us(0),
+        line_settle_samples(128),
         enable_trigger(1),
         apply_x_lut(0),
         frame_count(0),  // Default: infinite scanning
         bidirectional(0), // Default: unidirectional
-        overscan_samples(0),
+        overscan_samples(32),
         laser_blanking(0),
-        hw_pixel_clock(1)
+        hw_pixel_clock(0)
     {}
 } __attribute__((packed));
 #pragma pack(pop)

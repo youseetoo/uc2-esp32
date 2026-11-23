@@ -1289,22 +1289,19 @@ cJSON* DeviceRouter::handleGalvoAct(cJSON* doc) {
             if ((item = cJSON_GetObjectItem(config_obj, "line_settle_samples")))
                 ok = CANopenModule::writeSDO_u16(nodeId, UC2_OD::GALVO_D_STEPS_PIXEL, 0, (uint16_t)item->valueint) && ok;
 
-            // Compute x_step, y_step from x_min/x_max/nx and y_min/y_max/ny
-            cJSON* xMin = cJSON_GetObjectItem(config_obj, "x_min");
+            // Window far edge: x_step/y_step = 0 tells the satellite to read
+            // x_max/y_max from GALVO_TARGET_POSITION sub 1/2 (exact). An integer
+            // step (max-min)/n shrank the window and was 0 for n > max-min.
+            // A satellite older than this change rejects step 0 (no scan).
             cJSON* xMax = cJSON_GetObjectItem(config_obj, "x_max");
-            cJSON* yMin = cJSON_GetObjectItem(config_obj, "y_min");
             cJSON* yMax = cJSON_GetObjectItem(config_obj, "y_max");
-            cJSON* nx   = cJSON_GetObjectItem(config_obj, "nx");
-            cJSON* ny   = cJSON_GetObjectItem(config_obj, "ny");
-            if (xMin && xMax && nx && nx->valueint > 0) {
-                log_i("Computed x_step: (x_max %d - x_min %d) / nx %d", xMax->valueint, xMin->valueint, nx->valueint);
-                int32_t xStep = (xMax->valueint - xMin->valueint) / nx->valueint;
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_STEP, 0, xStep) && ok;
+            if (xMax) {
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 1, xMax->valueint) && ok;
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_X_STEP, 0, 0) && ok;
             }
-            if (yMin && yMax && ny && ny->valueint > 0) {
-                log_i("Computed y_step: (y_max %d - y_min %d) / ny %d", yMax->valueint, yMin->valueint, ny->valueint);
-                int32_t yStep = (yMax->valueint - yMin->valueint) / ny->valueint;
-                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_STEP, 0, yStep) && ok;
+            if (yMax) {
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_TARGET_POSITION, 2, yMax->valueint) && ok;
+                ok = CANopenModule::writeSDO_i32(nodeId, UC2_OD::GALVO_Y_STEP, 0, 0) && ok;
             }
 
             // Issue raster scan command

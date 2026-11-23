@@ -2589,8 +2589,14 @@ void CANopenModule::syncRpdoToModules_slave()
                     cfg.ny = (cmd == GALVO_CMD_LINE) ? 1 : OD_RAM.x2606_galvo_n_steps_pixel;
                     int32_t xStep = OD_RAM.x260D_galvo_x_step;
                     int32_t yStep = OD_RAM.x260E_galvo_y_step;
-                    cfg.x_max = (uint16_t)(cfg.x_min + cfg.nx * xStep);
-                    cfg.y_max = (uint16_t)(cfg.y_min + cfg.ny * yStep);
+                    // step == 0: the far edge of the window was sent exactly in
+                    // GALVO_TARGET_POSITION sub 1 (X) / sub 2 (Y). An integer
+                    // step shrank the window (256 px over 3000 counts -> 2816,
+                    // 1024 px -> 2048). A non-zero step is the legacy encoding.
+                    cfg.x_max = xStep ? (uint16_t)(cfg.x_min + cfg.nx * xStep)
+                                      : (uint16_t)OD_RAM.x2600_galvo_target_position[0];
+                    cfg.y_max = yStep ? (uint16_t)(cfg.y_min + cfg.ny * yStep)
+                                      : (uint16_t)OD_RAM.x2600_galvo_target_position[1];
                     cfg.sample_period_us = (uint16_t)OD_RAM.x2604_galvo_scan_speed;
                     cfg.pre_samples = OD_RAM.x2609_galvo_t_pre_us;
                     cfg.fly_samples = OD_RAM.x260A_galvo_t_post_us;

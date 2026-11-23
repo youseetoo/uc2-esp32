@@ -426,7 +426,9 @@ namespace DisplayController
 
     cJSON *get(cJSON *root)
     {
-        (void)root;
+        // The host matches replies to requests by qid: without it the reply
+        // lands in some other command's response list and the getter times out.
+        int qid = cJsonTool::getJsonInt(root, "qid");
         cJSON *ret = cJSON_CreateObject();
         cJSON *d = cJSON_CreateObject();
         cJSON_AddNumberToObject(d, "present", present ? 1 : 0);
@@ -440,6 +442,7 @@ namespace DisplayController
         cJSON_AddNumberToObject(d, "contrast", contrast);
         cJSON_AddNumberToObject(d, "splash", splash ? 1 : 0);
         cJSON_AddItemToObject(ret, "display", d);
+        cJSON_AddNumberToObject(ret, "qid", qid);
         return ret;
     }
 }

@@ -568,26 +568,26 @@ bool GalvoController::loadConfig()
         return false;
     }
 
-    ScanConfig cfg;
-    cfg.nx = prefs_.getUShort("nx", 256);
-    cfg.ny = prefs_.getUShort("ny", 256);
-    cfg.x_min = prefs_.getUShort("x_min", 500);
-    cfg.x_max = prefs_.getUShort("x_max", 3500);
-    cfg.y_min = prefs_.getUShort("y_min", 500);
-    cfg.y_max = prefs_.getUShort("y_max", 3500);
-    cfg.pre_samples = prefs_.getUShort("pre_samp", 10);
-    cfg.fly_samples = prefs_.getUShort("fly_samp", 64);
-    cfg.sample_period_us = prefs_.getUShort("period_us", 1);
-    cfg.trig_delay_us = prefs_.getUShort("trig_del", 0);
-    cfg.trig_width_us = prefs_.getUShort("trig_wid", 2);
-    cfg.line_settle_samples = prefs_.getUShort("settle", 4);
-    cfg.enable_trigger = prefs_.getUChar("en_trig", 1);
-    cfg.apply_x_lut = prefs_.getUChar("x_lut", 0);
-    cfg.frame_count = prefs_.getUShort("frames", 0);
-    cfg.bidirectional = prefs_.getBool("bidirectional", false) ? 1 : 0;
-    cfg.overscan_samples = prefs_.getUShort("overscan", 0);
-    cfg.laser_blanking = prefs_.getUChar("laser_blank", 0);
-    cfg.hw_pixel_clock = prefs_.getUChar("hw_pix_clk", 0);
+    ScanConfig cfg; // keys missing from NVS keep the ScanConfig defaults
+    cfg.nx = prefs_.getUShort("nx", cfg.nx);
+    cfg.ny = prefs_.getUShort("ny", cfg.ny);
+    cfg.x_min = prefs_.getUShort("x_min", cfg.x_min);
+    cfg.x_max = prefs_.getUShort("x_max", cfg.x_max);
+    cfg.y_min = prefs_.getUShort("y_min", cfg.y_min);
+    cfg.y_max = prefs_.getUShort("y_max", cfg.y_max);
+    cfg.pre_samples = prefs_.getUShort("pre_samp", cfg.pre_samples);
+    cfg.fly_samples = prefs_.getUShort("fly_samp", cfg.fly_samples);
+    cfg.sample_period_us = prefs_.getUShort("period_us", cfg.sample_period_us);
+    cfg.trig_delay_us = prefs_.getUShort("trig_del", cfg.trig_delay_us);
+    cfg.trig_width_us = prefs_.getUShort("trig_wid", cfg.trig_width_us);
+    cfg.line_settle_samples = prefs_.getUShort("settle", cfg.line_settle_samples);
+    cfg.enable_trigger = prefs_.getUChar("en_trig", cfg.enable_trigger);
+    cfg.apply_x_lut = prefs_.getUChar("x_lut", cfg.apply_x_lut);
+    cfg.frame_count = prefs_.getUShort("frames", cfg.frame_count);
+    cfg.bidirectional = prefs_.getBool("bidirectional", cfg.bidirectional != 0) ? 1 : 0;
+    cfg.overscan_samples = prefs_.getUShort("overscan", cfg.overscan_samples);
+    cfg.laser_blanking = prefs_.getUChar("laser_blank", cfg.laser_blanking);
+    cfg.hw_pixel_clock = prefs_.getUChar("hw_pix_clk", cfg.hw_pixel_clock);
 
     prefs_.end();
 

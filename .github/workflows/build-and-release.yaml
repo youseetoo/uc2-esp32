@@ -44,7 +44,7 @@ jobs:
             chip_family: "ESP32"
 
           - env_name: seeed_xiao_esp32s3
-            display_name: "Xiao ESP32S3 ODMR"
+            display_name: "Xiao ESP32S3 Standalone"
             board_id: "seeed_xiao_esp32s3"
             chip_family: "ESP32-S3"
           - env_name: seeed_xiao_esp32s3_ledservo
@@ -167,16 +167,27 @@ jobs:
             echo "==> Merging binaries for ${{ matrix.env_name }}"
             BOOT_APP0=$(find ~/.platformio -name "boot_app0.bin" | head -1)
 
+            # Write the OTA-data image only where this board's partition table has
+            # an otadata partition (0xd000 on the XIAO tables, 0xe000 on Waveshare,
+            # none on the factory-only ESP32 table). A fixed 0xe000 lands inside NVS
+            # on the ESP32 boards.
+            OTADATA=$(python3 -c "import sys,struct;d=open(sys.argv[1],'rb').read();print(next((hex(struct.unpack('<I',d[i+4:i+8])[0]) for i in range(0,len(d),32) if d[i:i+2]==b'\xaa\x50' and d[i+2]==1 and d[i+3]==0),''))" "$BIN_DIR/partitions.bin")
+            OTA_ARGS=()
+            if [[ -n "$OTADATA" && -n "$BOOT_APP0" ]]; then OTA_ARGS=("$OTADATA" "$BOOT_APP0"); fi
+            echo "    otadata: ${OTADATA:-none}"
+
+            # flash mode/freq/size: keep what PlatformIO compiled into the bootloader
+            # header (same as "pio run -t upload"), see build-frame.yaml.
             python -m esptool \
               --chip "$CHIP_ARG" \
               merge_bin \
               -o "build/fw-images/${BOARD_ID}.bin" \
-              --flash_mode dio \
-              --flash_freq 40m \
-              --flash_size 4MB \
+              --flash_mode keep \
+              --flash_freq keep \
+              --flash_size keep \
               $BOOT_ADDR "$BIN_DIR/bootloader.bin" \
               0x8000 "$BIN_DIR/partitions.bin" \
-              0xe000 "$BOOT_APP0" \
+              "${OTA_ARGS[@]}" \
               0x10000 "$BIN_DIR/firmware.bin"
           else
             cp "$BIN_DIR/firmware.bin" "build/fw-images/${BOARD_ID}.bin"

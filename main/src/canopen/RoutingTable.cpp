@@ -1,6 +1,7 @@
 // RoutingTable.cpp — Data-driven routing table, built at boot.
 // See RoutingTable.h for the design rationale.
 #include "RoutingTable.h"
+#include <Preferences.h>
 #include <PinConfig.h>
 
 #include "../config/RuntimeConfig.h"
@@ -251,11 +252,57 @@ void RoutingTable::buildDefault() {
 }
 
 // ============================================================================
-// applyNvsOverrides() — placeholder for future NVS-stored route overrides
+// Persisted route overrides (/route_set with "persist":1)
+// Stored as one blob of RouteEntry structs in NVS namespace "UC2routes".
 // ============================================================================
+static const char*       ROUTES_NS     = "UC2routes";
+static constexpr uint8_t MAX_PERSISTED = 32;
+
+static uint8_t loadPersisted(RouteEntry* out) {
+    Preferences p;
+    if (!p.begin(ROUTES_NS, true)) return 0;      // namespace does not exist yet
+    size_t len = p.getBytesLength("routes");
+    uint8_t n = 0;
+    if (len > 0 && len % sizeof(RouteEntry) == 0 && len <= MAX_PERSISTED * sizeof(RouteEntry)) {
+        p.getBytes("routes", out, len);
+        n = (uint8_t)(len / sizeof(RouteEntry));
+    }
+    p.end();
+    return n;
+}
+
 void RoutingTable::applyNvsOverrides() {
-    // TODO: Read NVS key "routes" and apply overrides.
-    // For now, buildDefault() is the only source of truth.
+    RouteEntry saved[MAX_PERSISTED];
+    uint8_t n = loadPersisted(saved);
+    for (uint8_t i = 0; i < n; i++)
+        set(saved[i].type, saved[i].logicalId, saved[i].where, saved[i].nodeId, saved[i].subAxis);
+    if (n) log_i("Applied %u persisted route(s) from NVS", n);
+}
+
+bool RoutingTable::persist(RouteEntry::Type t, uint8_t logicalId,
+                           RouteEntry::Where w, uint8_t nodeId, uint8_t subAxis) {
+    RouteEntry saved[MAX_PERSISTED];
+    uint8_t n = loadPersisted(saved);
+    int idx = -1;
+    for (uint8_t i = 0; i < n; i++)
+        if (saved[i].type == t && saved[i].logicalId == logicalId) idx = i;
+    if (idx < 0) {
+        if (n >= MAX_PERSISTED) { log_e("Too many persisted routes"); return false; }
+        idx = n++;
+    }
+    saved[idx] = { t, logicalId, w, nodeId, subAxis };
+    Preferences p;
+    if (!p.begin(ROUTES_NS, false)) return false;
+    bool ok = p.putBytes("routes", saved, n * sizeof(RouteEntry)) == n * sizeof(RouteEntry);
+    p.end();
+    return ok;
+}
+
+void RoutingTable::resetToDefaults() {
+    Preferences p;
+    if (p.begin(ROUTES_NS, false)) { p.clear(); p.end(); }
+    count = 0;
+    buildDefault();
 }
 
 // ============================================================================
@@ -326,6 +373,8 @@ static const char* whereToStr(RouteEntry::Where w) {
 }
 
 cJSON* RoutingTable::toJson() {
+    RouteEntry saved[MAX_PERSISTED];
+    const uint8_t nSaved = loadPersisted(saved);
     cJSON* arr = cJSON_CreateArray();
     for (uint8_t i = 0; i < count; i++) {
         cJSON* obj = cJSON_CreateObject();
@@ -336,6 +385,9 @@ cJSON* RoutingTable::toJson() {
             cJSON_AddNumberToObject(obj, "nodeId",  table[i].nodeId);
             cJSON_AddNumberToObject(obj, "subAxis", table[i].subAxis);
         }
+        for (uint8_t k = 0; k < nSaved; k++)
+            if (saved[k].type == table[i].type && saved[k].logicalId == table[i].logicalId)
+                cJSON_AddBoolToObject(obj, "saved", true);
         cJSON_AddItemToArray(arr, obj);
     }
     return arr;

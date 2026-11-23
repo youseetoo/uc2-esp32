@@ -73,6 +73,7 @@ Preferences preferences;
 #ifdef MOTOR_CONTROLLER
 #include "src/motor/FocusMotor.h"
 #include "src/motor/MotorGamePad.h"
+#include "src/motor/SyncLatch.h"
 #endif
 // Include MotorTypes for Stepper enum used in BT button handlers
 #include "src/motor/MotorTypes.h"
@@ -126,6 +127,9 @@ CANopenModule canopenModule;
 #endif
 #ifdef FAN_CONTROLLER
 #include "src/fan/FanController.h"
+#endif
+#ifdef DISPLAY_CONTROLLER
+#include "src/display/DisplayController.h"
 #endif
 #ifdef THERMAL_CONTROLLER
 #include "src/thermal/ThermalController.h"
@@ -303,6 +307,9 @@ extern "C" void looper(void *p)
 		if (runtimeConfig.fan) {
 			FanController::loop();
 		}
+#endif
+#ifdef DISPLAY_CONTROLLER
+		DisplayController::loop();
 #endif
 #ifdef THERMAL_CONTROLLER
 		ThermalController::loop();
@@ -519,6 +526,12 @@ extern "C" void setupApp(void)
 	// canopenModule.setup(). Also installs the RS-485 UART receiver.
 	PtzKeyboard::setup();
 #endif
+#if defined(CAN_CONTROLLER_CANOPEN) && defined(MOTOR_CONTROLLER)
+	// Strobed sweep position latch. Must run BEFORE canopenModule.setup():
+	// it makes TPDO3 valid in OD_PERSIST_COMM (motor slaves only).
+	if (runtimeConfig.isSlave())
+		SyncLatch::setupSlave();
+#endif
 #ifdef CAN_CONTROLLER_CANOPEN
 	canopenModule.setup();
 #endif
@@ -663,6 +676,10 @@ if (runtimeConfig.fan) {
 		FanController::setup();
 	}
 	#endif
+#ifdef DISPLAY_CONTROLLER
+	// After Tmp102Controller::setup() so the shared I2C bus is already up.
+	DisplayController::setup();
+#endif
 #ifdef THERMAL_CONTROLLER
 	// Heat-sink NTCs on the illumination board. Runs after LedController::setup()
 	// so an over-temperature latch found at boot can cut the LEDs immediately.
@@ -686,6 +703,7 @@ State::startOTA();
 
 // Build the routing table from pinConfig + runtimeConfig (all builds)
 UC2::RoutingTable::buildDefault();
+UC2::RoutingTable::applyNvsOverrides();   // routes saved with /route_set "persist":1
 UC2::RoutingTable::logAll();
 
 #ifdef JOYSTICK_USBHOST_PROVIDER
@@ -794,8 +812,13 @@ extern "C" void app_main(void)
 	#endif
 	
 	#ifdef ESP32S3_MODEL_XIAO
-	// additional serial settings for the ESP32S3
-	Serial.setTxTimeoutMs(0);
+	// Do NOT call Serial.setTxTimeoutMs(0) here. In the HWCDC (USB-Serial/JTAG)
+	// driver a zero timeout makes HWCDC::flush() conclude "host gone" right
+	// away: it marks the port disconnected and discards the TX ring buffer.
+	// serialOutputTask flushes after every message, so every reply longer than
+	// one 64-byte USB packet was truncated, and the rest only trickled out with
+	// the next write. The default (100 ms) only blocks serialOutputTask, and
+	// only while a host is attached but not reading.
 	Serial.println("DEBUG: Using ESP32S3 XIAO configuration");
 	#endif
 

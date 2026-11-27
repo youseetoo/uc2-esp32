@@ -43,9 +43,9 @@ namespace AxisCalibrationRoutine
     // between the forward and reverse legs.
     struct Params
     {
-        int32_t  probeSpeed        = 2000;  // steps/s, low & safe
+        int32_t  probeSpeed        = 5000;  // steps/s, keeps the longer sweep short
         uint8_t  sweepSegments     = 10;    // samples per direction
-        int32_t  segmentSteps      = 500;   // steps between samples
+        int32_t  segmentSteps      = 5000;  // steps between samples
         int32_t  minCountsForValidity = 4;  // sweep must move at least this many counts
         float    minR2             = 0.98f; // regression quality gate (per leg)
         float    maxSlopeMismatch  = 0.10f; // fwd/rev slopes must agree within 10%

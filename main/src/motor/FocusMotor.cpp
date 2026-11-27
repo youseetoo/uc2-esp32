@@ -61,6 +61,20 @@ namespace FocusMotor
 	static bool s_hlPrevPressed[MOTOR_AXIS_COUNT] = {false};
 	static bool s_hlPrevValid[MOTOR_AXIS_COUNT] = {false};
 
+	// Debounce of the raw endstop level before the edge logic sees it. A
+	// mechanical switch chatters for a few ms when it releases; without this the
+	// chatter after leaving the home switch is a released->pressed edge while
+	// moving, i.e. a hard-limit trip ~0.3 mm off home (FRAME 2026-11-26: X and Y
+	// stopped 267/273 um after homing, so the far-end travel probe never got
+	// past the home switch). A level counts only once it held this long; at
+	// 6 mm/s that is 30 um of extra travel into a real end switch.
+#ifndef HARD_LIMIT_DEBOUNCE_MS
+#define HARD_LIMIT_DEBOUNCE_MS 5
+#endif
+	static bool s_hlRawPressed[MOTOR_AXIS_COUNT] = {false};
+	static bool s_hlStablePressed[MOTOR_AXIS_COUNT] = {false};
+	static uint32_t s_hlRawSinceMs[MOTOR_AXIS_COUNT] = {0};
+
 	xSemaphoreHandle xMutex = NULL;
 	xSemaphoreHandle xSerialMutex = NULL; // Mutex for serial JSON output
 
@@ -573,7 +587,24 @@ namespace FocusMotor
 		// polarity is the digital level read when the endstop IS triggered
 		// (polarity=1 -> triggered when HIGH; polarity=0 -> triggered when LOW).
 		// The homing state machine uses this exact same field (synced in startHome).
-		bool pressed = (endstopState == md->hardLimitPolarity);
+		bool rawPressed = (endstopState == md->hardLimitPolarity);
+		uint32_t nowMs = millis();
+		if (!s_hlPrevValid[axis])
+		{
+			// first sample: the level as it is, no debounce wait
+			s_hlRawPressed[axis] = s_hlStablePressed[axis] = rawPressed;
+			s_hlRawSinceMs[axis] = nowMs;
+		}
+		else if (rawPressed != s_hlRawPressed[axis])
+		{
+			s_hlRawPressed[axis] = rawPressed; // level changed: restart the window
+			s_hlRawSinceMs[axis] = nowMs;
+		}
+		else if ((uint32_t)(nowMs - s_hlRawSinceMs[axis]) >= HARD_LIMIT_DEBOUNCE_MS)
+		{
+			s_hlStablePressed[axis] = rawPressed;
+		}
+		bool pressed = s_hlStablePressed[axis];
 
 		// Keep the edge baseline current even while homing, so normal hard-limit
 		// handling never synthesizes a stale edge when it resumes after a run.
